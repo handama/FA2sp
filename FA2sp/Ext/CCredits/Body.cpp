@@ -1,4 +1,5 @@
 #include "Body.h"
+#include "../../ExtraWindow/CNewEasterEgg/CNewEasterEgg.h"
 
 CCredits* CCreditsExt::Instance = nullptr;
 
@@ -9,10 +10,11 @@ void CCreditsExt::ProgramStartupInit()
 
 BOOL CCreditsExt::PreTranslateMessageExt(MSG* pMsg)
 {
-	switch (pMsg->message) {
-
-	default:
-		break;
+	if (this->DrawHappyFace && pMsg->message == WM_LBUTTONDOWN)
+	{
+		if (CNewEasterEgg::GetHandle() == NULL)
+			CNewEasterEgg::Create((CFinalSunDlg*)this);
+		return TRUE;
 	}
 	return this->ppmfc::CDialog::PreTranslateMessage(pMsg);
 }

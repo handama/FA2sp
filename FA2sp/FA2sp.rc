@@ -110,3 +110,9 @@ END
 1026 BITMAP "Resources/toolbar_2ori.bmp"
 1027 BITMAP "Resources/toolbar_3ori.bmp"
 
+2000 WAVE "Resources/break1.wav"
+2001 WAVE "Resources/break2.wav"
+2002 WAVE "Resources/break3.wav"
+2003 WAVE "Resources/break4.wav"
+2004 WAVE "Resources/win.wav"
+

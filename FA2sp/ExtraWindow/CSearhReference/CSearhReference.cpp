@@ -207,6 +207,9 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
     SendMessage(hListbox, LB_GETTEXT, idx, (LPARAM)buffer);
 
     FString ID = buffer;
+    int prefix = ID.Find(": ");
+    ID = ID.Mid(prefix + 2);
+    FString fullName = ID;
     FString::TrimIndex(ID);
 
     if (IsTeamType || IsTrigger || IsVariable)
@@ -218,7 +221,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
                 CNewTrigger::Create(m_parent);
 
             auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::SelectedTrigger);
-            auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(ID));
+            auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, ExtraWindow::GetTriggerDisplayName(ID));
             if (idx == CB_ERR)
                 return;
             SendMessage(dlg, CB_SETCURSEL, idx, NULL);
@@ -231,7 +234,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
                 CNewAITrigger::Create(m_parent);
 
             auto dlg = GetDlgItem(CNewAITrigger::GetHandle(), CNewAITrigger::Controls::SelectedAITrigger);
-            auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetAITriggerDisplayName(ID));
+            auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, ExtraWindow::GetAITriggerDisplayName(ID));
             if (idx == CB_ERR)
                 return;
             SendMessage(dlg, CB_SETCURSEL, idx, NULL);
@@ -244,7 +247,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
                 CNewScript::Create(m_parent);
 
             auto dlg = GetDlgItem(CNewScript::GetHandle(), CNewScript::Controls::SelectedScript);
-            auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTeamDisplayName(ID));
+            auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, ExtraWindow::GetTeamDisplayName(ID));
             if (idx == CB_ERR)
                 return;
             SendMessage(dlg, CB_SETCURSEL, idx, NULL);
@@ -261,7 +264,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
             CNewTeamTypes::Create(m_parent);
 
         auto dlg = GetDlgItem(CNewTeamTypes::GetHandle(), CNewTeamTypes::Controls::SelectedTeam);
-        auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)buffer);
+        auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, fullName);
         if (idx == CB_ERR)
             return;
         SendMessage(dlg, CB_SETCURSEL, idx, NULL);
@@ -296,12 +299,12 @@ void CSearhReference::Update()
                     if (ep == SearchID)
                     {
                         FString text;
-                        text.Format("%s %s[%d]", ExtraWindow::GetTriggerDisplayName(trigger->ID),
+                        text.Format("%s%s %s[%d]", GetPrefix(1), ExtraWindow::GetTriggerDisplayName(trigger->ID),
                             Translations::TranslateOrDefault("Event", "Event"), index);
                         SendMessage(
                             hListbox,
                             LB_SETITEMDATA,
-                            SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text),
+                            SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
                             100 + index
                         );
                     }
@@ -316,12 +319,12 @@ void CSearhReference::Update()
                     if (ap == SearchID)
                     {
                         FString text;
-                        text.Format("%s %s[%d]", ExtraWindow::GetTriggerDisplayName(trigger->ID),
+                        text.Format("%s%s %s[%d]", GetPrefix(1), ExtraWindow::GetTriggerDisplayName(trigger->ID),
                             Translations::TranslateOrDefault("Action", "Action"), index);
                         SendMessage(
                             hListbox,
                             LB_SETITEMDATA,
-                            SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text),
+                            SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
                             200 + index
                         );
                     }
@@ -331,12 +334,12 @@ void CSearhReference::Update()
             if (trigger->AttachedTrigger == SearchID)
             {
                 FString text;
-                text.Format("%s %s", ExtraWindow::GetTriggerDisplayName(trigger->ID),
+                text.Format("%s%s %s", GetPrefix(1), ExtraWindow::GetTriggerDisplayName(trigger->ID),
                     Translations::TranslateOrDefault("SearchReference.AttachedTrigger", "Attached"));
                 SendMessage(
                     hListbox,
                     LB_SETITEMDATA,
-                    SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text),
+                    SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
                     100 
                 );
             }      
@@ -352,10 +355,11 @@ void CSearhReference::Update()
                     if (atoms.size() < 18) continue;
                     if (atoms[1] == SearchID || atoms[14] == SearchID)
                     {
+                        auto text = GetPrefix(4) + ExtraWindow::GetAITriggerDisplayName(pair.first);
                         SendMessage(
                             hListbox,
                             LB_SETITEMDATA,
-                            SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString(pair.first) + " (" + atoms[0] + ")")),
+                            SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
                             2
                         );
                         // 2 means aitrigger
@@ -592,12 +596,12 @@ void CSearhReference::Update()
                                 if (atoi(SearchID) == targetParam)
                                 {
                                     FString text;
-                                    text.Format("%s %s[%d]", ExtraWindow::GetTeamDisplayName(id), Translations::TranslateOrDefault("SearchReferenceScriptLine", "Line"), i);
+                                    text.Format("%s%s %s[%d]", GetPrefix(3), ExtraWindow::GetTeamDisplayName(id), Translations::TranslateOrDefault("SearchReferenceScriptLine", "Line"), i);
 
                                     SendMessage(
                                         hListbox,
                                         LB_SETITEMDATA,
-                                        SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text),
+                                        SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
                                         500 + i
                                     );
                                     // 500+ means script and line
@@ -643,12 +647,12 @@ void CSearhReference::Update()
                     if (atoi(SearchID) == value)
                     {
                         FString text;
-                        text.Format("%s %s[%d]", ExtraWindow::GetTriggerDisplayName(id), Translations::TranslateOrDefault("Event", "Event"), i);
+                        text.Format("%s%s %s[%d]", GetPrefix(1), ExtraWindow::GetTriggerDisplayName(id), Translations::TranslateOrDefault("Event", "Event"), i);
 
                         SendMessage(
                             hListbox,
                             LB_SETITEMDATA,
-                            SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text),
+                            SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
                             100 + i
                         );
                     }
@@ -682,12 +686,12 @@ void CSearhReference::Update()
                     if (atoi(SearchID) == value)
                     {
                         FString text;
-                        text.Format("%s %s[%d]", ExtraWindow::GetTriggerDisplayName(id), Translations::TranslateOrDefault("Action", "Action"), i);
+                        text.Format("%s%s %s[%d]", GetPrefix(1), ExtraWindow::GetTriggerDisplayName(id), Translations::TranslateOrDefault("Action", "Action"), i);
 
                         SendMessage(
                             hListbox,
                             LB_SETITEMDATA,
-                            SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text),
+                            SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
                             200 + i
                         );
                     }
@@ -707,11 +711,31 @@ void CSearhReference::Update()
                 auto refScript = map.GetString(pair.second, "Script");
                 if (SearchID == refTaskforce|| SearchID == refScript)
                 {
-                    SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)ExtraWindow::GetTeamDisplayName(pair.second));
+                    auto text = GetPrefix(0) + ExtraWindow::GetTeamDisplayName(pair.second);
+                    SendMessage(hListbox, LB_INSERTSTRING, idx++, 
+                        text);
                 }
             }
         }
     }
 
     return;
+}
+
+FString CSearhReference::GetPrefix(int type)
+{
+    switch (type)
+    {
+    case 0:
+        return FString(Translations::TranslateOrDefault("SearhReference.Team", "Team"))+ ": ";
+    case 1:
+        return FString(Translations::TranslateOrDefault("SearhReference.Trigger", "Trigger"))+ ": ";
+    case 3:
+        return FString(Translations::TranslateOrDefault("SearhReference.Script", "Script"))+ ": ";
+    case 4:
+        return FString(Translations::TranslateOrDefault("SearhReference.AITrigger", "AI Trigger"))+ ": ";
+    default:
+        break;
+    }
+    return {};
 }

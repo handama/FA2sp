@@ -356,7 +356,7 @@ public:
 	bool ExtractFile(const std::string& fileName, const std::string& outPath, int mixIdx = -1);
 	void Clear();
 
-	static uint32_t GetFileID(const char* lpFileName);
+	static uint32_t GetFileID(const std::string& fileName);
 
 private:
 	MixLoader() = default;

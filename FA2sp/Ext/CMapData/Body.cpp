@@ -2087,6 +2087,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	Logger::Debug("CMapDataExt::InitializeAllHdmEdition() Called!\n");
 	CIsoView::CurrentCommand->Type = 0;
 	CIsoView::CurrentCommand->Command = 0;
+	FA2sp::g_VEH_Enabled = true;
 
 	CIsoView::GetInstance()->CurrentCellObjectIndex = -1;
 	CIsoView::GetInstance()->CurrentCellObjectType = -1;

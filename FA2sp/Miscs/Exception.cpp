@@ -254,7 +254,7 @@ std::wstring Exception::FullDump(
 
 LONG CALLBACK Exception::VEH_Handler(PEXCEPTION_POINTERS pExs)
 {
-	if (!g_VEH_Enabled) {
+	if (!FA2sp::g_VEH_Enabled) {
 		return EXCEPTION_CONTINUE_SEARCH;
 	}
 
@@ -264,10 +264,10 @@ LONG CALLBACK Exception::VEH_Handler(PEXCEPTION_POINTERS pExs)
 		return EXCEPTION_CONTINUE_SEARCH;
 	}
 
-	if (IsDebuggerPresent() && code == CPP_EH_EXCEPTION)
-	{
-		return EXCEPTION_CONTINUE_SEARCH;
-	}
+	//if (IsDebuggerPresent() && code == CPP_EH_EXCEPTION)
+	//{
+	//	return EXCEPTION_CONTINUE_SEARCH;
+	//}
 
 	Exception::ExceptionHandler(pExs);
 

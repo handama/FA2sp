@@ -28,14 +28,11 @@ MFC42
 !Debug/lua.dll
 !Debug/libssl-1_1.dll
 !Debug/CncVxlRenderText.dll
-!Debug/mixinfo.dll
 !Release/libcrypto-1_1.dll
 !Release/lua.dll
 !Release/libssl-1_1.dll
 !Release/CncVxlRenderText.dll
-!Release/mixinfo.dll
 !Release_Chinese/libcrypto-1_1.dll
 !Release_Chinese/lua.dll
 !Release_Chinese/libssl-1_1.dll
 !Release_Chinese/CncVxlRenderText.dll
-!Release_Chinese/mixinfo.dll

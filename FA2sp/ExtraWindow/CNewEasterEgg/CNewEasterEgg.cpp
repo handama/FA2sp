@@ -424,6 +424,19 @@ std::vector<std::pair<Move, uint64_t>> CChineseChess::history;
 uint64_t Board::zobristTable[16][10][9];
 bool Board::zobristInitialized = false;
 
+int Board::init[10][9] = {
+        { BK_JU, BK_MA, BK_XIANG, BK_SHI, BK_JIANG, BK_SHI, BK_XIANG, BK_MA, BK_JU },
+        { EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY },
+        { EMPTY, BK_PAO, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, BK_PAO, EMPTY },
+        { BK_BING, EMPTY, BK_BING, EMPTY, BK_BING, EMPTY, BK_BING, EMPTY, BK_BING },
+        { EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY },
+        { EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY },
+        { RD_BING, EMPTY, RD_BING, EMPTY, RD_BING, EMPTY, RD_BING, EMPTY, RD_BING },
+        { EMPTY, RD_PAO, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, RD_PAO, EMPTY },
+        { EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, EMPTY },
+        { RD_JU, RD_MA, RD_XIANG, RD_SHI, RD_SHUAI, RD_SHI, RD_XIANG, RD_MA, RD_JU }
+};
+
 void CChineseChess::Create(CFinalSunDlg* pWnd)
 {
     m_parent = pWnd;
@@ -492,7 +505,7 @@ static void TextCenter(HDC hdc, int x, int y, const wchar_t* s) {
 void CChineseChess::draw(HDC hdc)
 {
     RECT rc; GetClientRect(m_hwnd, &rc);
-    HBRUSH bk = CreateSolidBrush(RGB(240, 225, 190)); FillRect(hdc, &rc, bk); DeleteObject(bk);
+    HBRUSH bk = CreateSolidBrush(RGB(220, 200, 160)); FillRect(hdc, &rc, bk); DeleteObject(bk);
 
     HPEN p = CreatePen(PS_SOLID, 1, RGB(80, 60, 40)); HPEN oldp = (HPEN)SelectObject(hdc, p);
     for (int c = 0; c < 9; ++c) {
@@ -576,9 +589,9 @@ void CChineseChess::draw(HDC hdc)
     }
 
     std::string s;
-    if (gameOver) s = Translations::TranslateOrDefault("EasterEggGameOverMessage", "Game over - press R to reset");
-    else s = Translations::TranslateOrDefault("EasterEggPlayingMessage",
-        "You found the easter egg :-)     Press R to restart, press Z to retract a move");
+    if (gameOver) s = Translations::TranslateOrDefault("EasterEggChessGameOverMessage", "Game over - press R to reset, press E to generate an end-game");
+    else s = Translations::TranslateOrDefault("EasterEggChessPlayingMessage",
+        "You found the easter egg :-)   Press R to restart, press Z to retract, press E to generate an end-game");
     SetTextColor(hdc, RGB(0, 0, 0));    
     SelectObject(hdc, hfStatusText);
     TextOutA(hdc, 8, 8, s.c_str(), (int)s.size());
@@ -755,6 +768,19 @@ void CChineseChess::undoRound() {
     InvalidateRect(m_hwnd, nullptr, TRUE);
 }
 
+void CChineseChess::endGame()
+{
+    bd.setEndGame(bd.getEndGame());
+    history.clear();
+    positionHistory.clear();
+    gameOver = false;
+    selR = selC = -1;
+    aiLastMoveFromR = aiLastMoveFromC = -1;
+    aiLastMoveToR = aiLastMoveToC = -1;
+    positionHistory[bd.zobristKey]++;
+    InvalidateRect(m_hwnd, nullptr, TRUE);
+}
+
 BOOL CALLBACK CChineseChess::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
     switch (Msg) {
@@ -777,6 +803,7 @@ BOOL CALLBACK CChineseChess::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
     case WM_KEYUP:
         if (wParam == 'R' || wParam == 'r') { newGame(); return TRUE; }
         if (wParam == 'Z' || wParam == 'z') { undoRound(); return TRUE; }
+        if (wParam == 'E' || wParam == 'e') { endGame(); return TRUE; }
         break;
 
     case WM_PAINT: {

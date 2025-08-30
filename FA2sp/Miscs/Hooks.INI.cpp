@@ -1,6 +1,7 @@
 #include "Hooks.INI.h"
 #include "../Ext/CMapData/Body.h"
 #include "../Ext/CLoading/Body.h"
+#include <queue>
 
 using std::map;
 using std::vector;
@@ -17,7 +18,7 @@ std::unordered_map<FString, std::unordered_map<FString, FString>> INIIncludes::M
 std::unordered_map<CINI*, CINIInfo> CINIManager::propertyMap;
 bool INIIncludes::SkipBracketFix = false;
 
-void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection, bool bClear, bool bTrimSpace)
+void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection, bool bClear, bool bTrimSpace, bool bAllowInclude)
 {
     if (bClear)
     {
@@ -151,7 +152,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
         }
     }
 
-    if (ExtConfigs::AllowIncludes)
+    if (ExtConfigs::AllowIncludes && bAllowInclude)
     {
         using INIPair = std::pair<ppmfc::CString, ppmfc::CString>;
         const char* includeSection = ExtConfigs::IncludeType ? "$Include" : "#include";
@@ -161,66 +162,75 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                 INIIncludes::MapIncludedKeys.clear();
                 INIIncludes::MapINIWarn = true;
             }
+            std::set<ppmfc::CString> includedInis;
+            std::queue<ppmfc::CString> currentIncludeInis;
             for (auto& [index, key] : ParseIndiciesData(includeSection)) {
-                if (key.IsEmpty()) continue;
-                const ppmfc::CString& includeFile = pSection->GetString(key);
+                currentIncludeInis.push(pSection->GetString(key));
+            }
+            while (!currentIncludeInis.empty()) {
+                std::queue<ppmfc::CString> nextIncludeInis;
+                while (!currentIncludeInis.empty()) {
+                    ppmfc::CString includeFile = currentIncludeInis.front();
+                    currentIncludeInis.pop();
 
-                if (includeFile && strlen(includeFile) > 0) {
-                    if (std::find(INIIncludes::LoadedINIFiles.begin(), INIIncludes::LoadedINIFiles.end(), includeFile)
-                        == INIIncludes::LoadedINIFiles.end()) {
-                        INIIncludes::LoadedINIFiles.push_back(includeFile);
-                        Logger::Debug("Include Ext Loaded File: %s\n", includeFile);
+                    if (!includeFile.IsEmpty()) {
+                        if (includedInis.find(includeFile) == includedInis.end()) {
+                            includedInis.insert(includeFile);
+                            Logger::Debug("Include Ext Loaded File: %s\n", includeFile);
 
-                        CINIExt ini;
-                        CLoading::Instance->LoadTSINI(includeFile, &ini, TRUE);
-
-                        INIIncludes::LoadedINIFiles.erase(
-                            std::remove_if(INIIncludes::LoadedINIFiles.begin(), INIIncludes::LoadedINIFiles.end(),
-                                [&includeFile](const FString& item) {
-                            return item == includeFile;
-                        }),
-                            INIIncludes::LoadedINIFiles.end()
-                        );
-                      
-                        for (auto& [sectionName, pSection] : ini.Dict) {
-                            auto pTargetSection = AddOrGetSection(sectionName);
-                            std::vector<INIPair> targetIndicies;
-                            for (const auto& [index, key] : ParseIndiciesData(sectionName)) {
-                                targetIndicies.push_back(std::make_pair(key, GetString(pTargetSection, key)));
+                            DWORD dwSize = 0;
+                            auto pLoading = CLoadingExt::GetExtension();
+                            CINIExt ini;
+                            if (auto pBuffer = static_cast<byte*>(pLoading->ReadWholeFile(includeFile, &dwSize))) {
+                                ini.LoadINIExt(pBuffer, dwSize, nullptr, true, true, false);
                             }
-                            for (const auto& [index, key] : ini.ParseIndiciesData(sectionName))
-                            {
-                                if (key.IsEmpty()) continue;
-                                auto value = ini.GetString(&pSection, key);
-                                // the include of Ares will delete the same key in registries
-                                // and then add it to the bottom
-                                // it will ignore empty values
-                                targetIndicies.erase(
-                                    std::remove_if(targetIndicies.begin(), targetIndicies.end(),
-                                        [&key](const INIPair& item) {
-                                    return item.first == key;
-                                }),
-                                    targetIndicies.end()
-                                );
-                                targetIndicies.push_back(std::make_pair(key, value));
-                                if (this == &CINI::CurrentDocument) {
-                                    INIIncludes::MapIncludedKeys[sectionName][key] = GetString(pTargetSection, key);
+
+                            for (auto& [sectionName, pSection] : ini.Dict) {
+                                auto pTargetSection = AddOrGetSection(sectionName);
+                                std::vector<INIPair> targetIndicies;
+                                for (const auto& [index, key] : ParseIndiciesData(sectionName)) {
+                                    targetIndicies.push_back(std::make_pair(key, GetString(pTargetSection, key)));
+                                }
+                                for (const auto& [index, key] : ini.ParseIndiciesData(sectionName))
+                                {
+                                    if (key.IsEmpty()) continue;
+                                    auto value = ini.GetString(&pSection, key);
+                                    if (sectionName == includeSection) {
+                                        nextIncludeInis.push(value);
+                                    }
+                                    // the include of Ares will delete the same key in registries
+                                    // and then add it to the bottom
+                                    // it will ignore empty values
+                                    targetIndicies.erase(
+                                        std::remove_if(targetIndicies.begin(), targetIndicies.end(),
+                                            [&key](const INIPair& item) {
+                                        return item.first == key;
+                                    }),
+                                        targetIndicies.end()
+                                    );
+                                    targetIndicies.push_back(std::make_pair(key, value));
+                                    if (this == &CINI::CurrentDocument) {
+                                        INIIncludes::MapIncludedKeys[sectionName][key] = GetString(pTargetSection, key);
+                                    }
+                                }
+                                DeleteSection(sectionName);
+                                pTargetSection = AddSection(sectionName);
+                                int index = 0;
+                                for (const auto& [key, value] : targetIndicies)
+                                {
+                                    writeString(pTargetSection, key, value);
+                                    std::pair<ppmfc::CString, int> ins =
+                                        std::make_pair((ppmfc::CString)key, index++);
+                                    std::pair<INIIndiceDict::iterator, bool> ret;
+                                    reinterpret_cast<FAINIIndicesMap*>(&pTargetSection->GetIndices())->insert(&ret, &ins);
                                 }
                             }
-                            DeleteSection(sectionName);
-                            pTargetSection = AddSection(sectionName);
-                            int index = 0;
-                            for (const auto& [key, value] : targetIndicies)
-                            {
-                                writeString(pTargetSection, key, value);
-                                std::pair<ppmfc::CString, int> ins =
-                                    std::make_pair((ppmfc::CString)key, index++);
-                                std::pair<INIIndiceDict::iterator, bool> ret;
-                                reinterpret_cast<FAINIIndicesMap*>(&pTargetSection->GetIndices())->insert(&ret, &ins);
-                            }
+
+
                         }
-                    }  
+                    }
                 }
+                currentIncludeInis = std::move(nextIncludeInis);
             }
         }
     }
@@ -279,7 +289,7 @@ DEFINE_HOOK(452CC0, CINI_ParseINI, 8)
     }
     file.close();
 
-    pThis->LoadINIExt(buffer.get(), fileSize, lpSection, false, /*bTrimSpace*/true);
+    pThis->LoadINIExt(buffer.get(), fileSize, lpSection, false, /*bTrimSpace*/true, true);
  
     R->EAX(0);
     return 0x4534C2;
@@ -303,7 +313,7 @@ DEFINE_HOOK(47FFB0, CLoading_LoadTSINI, 7)
     CINIManager::GetInstance().SetProperty(pINI, { pFile });
     DWORD dwSize = 0;
     if (auto pBuffer = static_cast<byte*>(pThis->ReadWholeFile(pFile, &dwSize))) {
-        pINI->LoadINIExt(pBuffer, dwSize, nullptr, !bMerge, true);
+        pINI->LoadINIExt(pBuffer, dwSize, nullptr, !bMerge, true, true);
         GameDeleteArray(pBuffer, dwSize);
     }
 
@@ -327,7 +337,7 @@ DEFINE_HOOK(47FFB0, CLoading_LoadTSINI, 7)
         DWORD dwSize = 0;
         if (auto pBuffer = static_cast<byte*>(pThis->ReadWholeFile(extraFile, &dwSize))) {
             CINIExt ini;
-            ini.LoadINIExt(pBuffer, dwSize, nullptr, !bMerge, true);
+            ini.LoadINIExt(pBuffer, dwSize, nullptr, !bMerge, true, true);
             GameDeleteArray(pBuffer, dwSize);
             for (auto& [sectionName, pSourceSection] : ini.Dict) {
                 auto pTargetSection = pINI->AddOrGetSection(sectionName);

@@ -8,15 +8,26 @@ void CCreditsExt::ProgramStartupInit()
 	RunTime::ResetMemoryContentAt(0x592810, &CCreditsExt::PreTranslateMessageExt);
 }
 
+static int loop = 1;
 BOOL CCreditsExt::PreTranslateMessageExt(MSG* pMsg)
 {
 	if (this->DrawHappyFace && pMsg->message == WM_LBUTTONUP)
 	{
-		if (CGoBang::GetHandle() == NULL)
-			CGoBang::Create(CFinalSunDlg::Instance);
+		if (loop % 2 == 0)
+		{
+			if (CChineseChess::GetHandle() == NULL)
+				CChineseChess::Create(CFinalSunDlg::Instance);
+			loop++;
+		}
+		else
+		{
+			if (CGoBang::GetHandle() == NULL)
+				CGoBang::Create(CFinalSunDlg::Instance);
+			loop++;
+		}
 		return TRUE;
 	}
-	else if (pMsg->message == WM_LBUTTONDOWN)
+	else if (this->DrawHappyFace && pMsg->message == WM_LBUTTONDOWN)
 	{
 		return TRUE;
 	}

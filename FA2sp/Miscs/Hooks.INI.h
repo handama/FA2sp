@@ -17,7 +17,7 @@ using std::vector;
 class NOVTABLE CINIExt : public CINI
 {
 public:
-    void LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection, bool bClear, bool bTrimSpace);
+    void LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection, bool bClear, bool bTrimSpace, bool bAllowInclude);
 };
 
 struct CINIInfo

@@ -10,10 +10,14 @@ void CCreditsExt::ProgramStartupInit()
 
 BOOL CCreditsExt::PreTranslateMessageExt(MSG* pMsg)
 {
-	if (this->DrawHappyFace && pMsg->message == WM_LBUTTONDOWN)
+	if (this->DrawHappyFace && pMsg->message == WM_LBUTTONUP)
 	{
-		if (CNewEasterEgg::GetHandle() == NULL)
-			CNewEasterEgg::Create((CFinalSunDlg*)this);
+		if (CGoBang::GetHandle() == NULL)
+			CGoBang::Create(CFinalSunDlg::Instance);
+		return TRUE;
+	}
+	else if (pMsg->message == WM_LBUTTONDOWN)
+	{
 		return TRUE;
 	}
 	return this->ppmfc::CDialog::PreTranslateMessage(pMsg);

@@ -9,49 +9,49 @@
 #include "../../Helpers/Translations.h"
 #pragma comment(lib, "winmm")
 
-HWND CNewEasterEgg::m_hwnd = nullptr;
-CFinalSunDlg* CNewEasterEgg::m_parent = nullptr;
-bool CNewEasterEgg::initialized = false;
-HBITMAP CNewEasterEgg::s_hbmp = nullptr;
-HDC     CNewEasterEgg::s_memdc = nullptr;
-int     CNewEasterEgg::s_bbCX = 0, CNewEasterEgg::s_bbCY = 0;
-std::vector<CNewEasterEgg::Brick> CNewEasterEgg::s_bricks;
-int CNewEasterEgg::s_gridLeft = 20, CNewEasterEgg::s_gridTop = 20;
-int CNewEasterEgg::s_gridRight = 0, CNewEasterEgg::s_gridBottom = 0;
-int CNewEasterEgg::s_cellW = 0, CNewEasterEgg::s_cellH = 0;
-RECT   CNewEasterEgg::s_paddle = { 0,0,0,0 };
-int    CNewEasterEgg::s_paddleW = 120;
-int    CNewEasterEgg::s_paddleH = 14;
-double CNewEasterEgg::s_paddleSpeed = 580.0;
-std::vector<CNewEasterEgg::Ball> CNewEasterEgg::s_balls;
-double CNewEasterEgg::s_ballSpeed = 360.0;
-bool   CNewEasterEgg::s_roundActive = false;
-int  CNewEasterEgg::s_splitThreshold = 4;
-std::mt19937_64 CNewEasterEgg::s_rng{ std::random_device{}() };
-UINT_PTR CNewEasterEgg::s_timerID = 0;
-std::chrono::steady_clock::time_point CNewEasterEgg::s_lastTick;
+HWND CBrickBreaker::m_hwnd = nullptr;
+CFinalSunDlg* CBrickBreaker::m_parent = nullptr;
+bool CBrickBreaker::initialized = false;
+HBITMAP CBrickBreaker::s_hbmp = nullptr;
+HDC     CBrickBreaker::s_memdc = nullptr;
+int     CBrickBreaker::s_bbCX = 0, CBrickBreaker::s_bbCY = 0;
+std::vector<CBrickBreaker::Brick> CBrickBreaker::s_bricks;
+int CBrickBreaker::s_gridLeft = 20, CBrickBreaker::s_gridTop = 20;
+int CBrickBreaker::s_gridRight = 0, CBrickBreaker::s_gridBottom = 0;
+int CBrickBreaker::s_cellW = 0, CBrickBreaker::s_cellH = 0;
+RECT   CBrickBreaker::s_paddle = { 0,0,0,0 };
+int    CBrickBreaker::s_paddleW = 120;
+int    CBrickBreaker::s_paddleH = 14;
+double CBrickBreaker::s_paddleSpeed = 580.0;
+std::vector<CBrickBreaker::Ball> CBrickBreaker::s_balls;
+double CBrickBreaker::s_ballSpeed = 360.0;
+bool   CBrickBreaker::s_roundActive = false;
+int  CBrickBreaker::s_splitThreshold = 4;
+std::mt19937_64 CBrickBreaker::s_rng{ std::random_device{}() };
+UINT_PTR CBrickBreaker::s_timerID = 0;
+std::chrono::steady_clock::time_point CBrickBreaker::s_lastTick;
 
 constexpr double M_PI = 3.14159265358979323846;
 
-void CNewEasterEgg::Create(CFinalSunDlg* pWnd)
+void CBrickBreaker::Create(CFinalSunDlg* pWnd)
 {
     m_parent = pWnd;
     m_hwnd = CreateDialog(
         reinterpret_cast<HINSTANCE>(FA2sp::hInstance),
         MAKEINTRESOURCE(326),
         pWnd ? pWnd->MyViewFrame.GetSafeHwnd() : nullptr,
-        CNewEasterEgg::DlgProc
+        CBrickBreaker::DlgProc
     );
 
     if (m_hwnd)
         ShowWindow(m_hwnd, SW_SHOW);
     else {
-        Logger::Error("Failed to create CNewEasterEgg.\n");
+        Logger::Error("Failed to create CBrickBreaker.\n");
         m_parent = nullptr;
     }
 }
 
-void CNewEasterEgg::Initialize(HWND& hWnd)
+void CBrickBreaker::Initialize(HWND& hWnd)
 {
     FString buffer;
     if (Translations::GetTranslationItem("EasterEggTitle", buffer))
@@ -66,7 +66,7 @@ void CNewEasterEgg::Initialize(HWND& hWnd)
     initialized = true;
 }
 
-void CNewEasterEgg::RestrictCursor()
+void CBrickBreaker::RestrictCursor()
 {
     if (!m_hwnd) return;
     RECT rc;
@@ -82,7 +82,7 @@ void CNewEasterEgg::RestrictCursor()
     ClipCursor(&rc);
 }
 
-void CNewEasterEgg::Close(HWND& hWnd)
+void CBrickBreaker::Close(HWND& hWnd)
 {
     ClipCursor(nullptr);
     StopTimer();
@@ -94,7 +94,7 @@ void CNewEasterEgg::Close(HWND& hWnd)
 }
 
 
-void CNewEasterEgg::ShowVictoryDialog()
+void CBrickBreaker::ShowVictoryDialog()
 {
     StopTimer();
     s_roundActive = false;
@@ -116,7 +116,7 @@ void CNewEasterEgg::ShowVictoryDialog()
     }
 }
 
-void CNewEasterEgg::Update()
+void CBrickBreaker::Update()
 {
     if (!initialized) return;
 
@@ -132,7 +132,7 @@ void CNewEasterEgg::Update()
     InvalidateRect(m_hwnd, nullptr, FALSE);
 }
 
-void CNewEasterEgg::Render(HDC hdc)
+void CBrickBreaker::Render(HDC hdc)
 {
     if (!s_memdc) return;
 
@@ -187,7 +187,7 @@ void CNewEasterEgg::Render(HDC hdc)
     BitBlt(hdc, 0, 0, s_bbCX, s_bbCY, s_memdc, 0, 0, SRCCOPY);
 }
 
-BOOL CALLBACK CNewEasterEgg::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+BOOL CALLBACK CBrickBreaker::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
     switch (Msg)
     {
@@ -240,7 +240,7 @@ BOOL CALLBACK CNewEasterEgg::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
     return FALSE;
 }
 
-void CNewEasterEgg::CreateBackBuffer(int cx, int cy)
+void CBrickBreaker::CreateBackBuffer(int cx, int cy)
 {
     DestroyBackBuffer();
     HDC hdc = GetDC(m_hwnd);
@@ -251,14 +251,14 @@ void CNewEasterEgg::CreateBackBuffer(int cx, int cy)
     s_bbCX = cx; s_bbCY = cy;
 }
 
-void CNewEasterEgg::DestroyBackBuffer()
+void CBrickBreaker::DestroyBackBuffer()
 {
     if (s_memdc) { DeleteDC(s_memdc); s_memdc = nullptr; }
     if (s_hbmp) { DeleteObject(s_hbmp); s_hbmp = nullptr; }
     s_bbCX = s_bbCY = 0;
 }
 
-void CNewEasterEgg::OnSize(int cx, int cy)
+void CBrickBreaker::OnSize(int cx, int cy)
 {
     if (cx <= 0 || cy <= 0) return;
     CreateBackBuffer(cx, cy);
@@ -278,7 +278,7 @@ void CNewEasterEgg::OnSize(int cx, int cy)
     s_paddle.bottom = s_paddle.top + s_paddleH;
 }
 
-void CNewEasterEgg::ResetGame(bool newSeed)
+void CBrickBreaker::ResetGame(bool newSeed)
 {
     if (newSeed) s_rng.seed(std::random_device{}());
     GenerateLevel();
@@ -295,7 +295,7 @@ void CNewEasterEgg::ResetGame(bool newSeed)
     s_balls.push_back(b);
 }
 
-void CNewEasterEgg::ResetRound()
+void CBrickBreaker::ResetRound()
 {
     s_roundActive = true;
     s_balls.clear();
@@ -312,18 +312,17 @@ void CNewEasterEgg::ResetRound()
     s_balls.push_back(b);
 }
 
-// ---- 关卡 ----
-CNewEasterEgg::Brick& CNewEasterEgg::BrickAt(int r, int c)
+CBrickBreaker::Brick& CBrickBreaker::BrickAt(int r, int c)
 {
     return s_bricks[r * GRID_COLS + c];
 }
 
-void CNewEasterEgg::ForEachBrick(const std::function<void(Brick&)>& fn)
+void CBrickBreaker::ForEachBrick(const std::function<void(Brick&)>& fn)
 {
     for (auto& br : s_bricks) fn(br);
 }
 
-void CNewEasterEgg::GenerateLevel()
+void CBrickBreaker::GenerateLevel()
 {
     s_bricks.assign(GRID_ROWS * GRID_COLS, Brick{});
 
@@ -373,7 +372,7 @@ void CNewEasterEgg::GenerateLevel()
     s_gridBottom = s_gridTop + GRID_ROWS * s_cellH;
 }
 
-void CNewEasterEgg::EnsureSolvable()
+void CBrickBreaker::EnsureSolvable()
 {
     auto isWall = [&](int r, int c)->bool {
         if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return true;
@@ -406,7 +405,7 @@ static inline double clampd(double v, double lo, double hi) {
     return v < lo ? lo : (v > hi ? hi : v);
 }
 
-void CNewEasterEgg::Step(double dt)
+void CBrickBreaker::Step(double dt)
 {
     if (!s_roundActive) return;
 
@@ -432,7 +431,7 @@ void CNewEasterEgg::Step(double dt)
     }
 }
 
-void CNewEasterEgg::CollideBallWithWorld(Ball& b)
+void CBrickBreaker::CollideBallWithWorld(Ball& b)
 {
     double L = 0, R = s_bbCX, T = 0, B = s_bbCY;
     bool playSound = false;
@@ -445,7 +444,7 @@ void CNewEasterEgg::CollideBallWithWorld(Ball& b)
     }
 }
 
-void CNewEasterEgg::CollideBallWithBricks(Ball& b)
+void CBrickBreaker::CollideBallWithBricks(Ball& b)
 {
     struct Collision {
         Brick* brick;
@@ -539,7 +538,7 @@ void CNewEasterEgg::CollideBallWithBricks(Ball& b)
     }
 }
 
-void CNewEasterEgg::CollideBallWithPaddle(Ball& b)
+void CBrickBreaker::CollideBallWithPaddle(Ball& b)
 {
     if (b.vy > 0) {
         RECT pr = s_paddle;
@@ -564,7 +563,7 @@ void CNewEasterEgg::CollideBallWithPaddle(Ball& b)
     }
 }
 
-void CNewEasterEgg::OnMouseMove(int x, int y)
+void CBrickBreaker::OnMouseMove(int x, int y)
 {
     int half = s_paddleW / 2;
     int nx = clampd(x, half + 6, s_bbCX - half - 6);
@@ -576,7 +575,7 @@ void CNewEasterEgg::OnMouseMove(int x, int y)
     s_paddle.bottom = s_paddle.top + s_paddleH;
 }
 
-void CNewEasterEgg::OnKeyDown(WPARAM vk)
+void CBrickBreaker::OnKeyDown(WPARAM vk)
 {
     if (vk == VK_ESCAPE) {
         Close(m_hwnd);
@@ -594,19 +593,19 @@ void CNewEasterEgg::OnKeyDown(WPARAM vk)
     s_paddle.bottom = s_paddle.top + s_paddleH;
 }
 
-void CNewEasterEgg::PlaySoundA()
+void CBrickBreaker::PlaySoundA()
 {
     int rndSound = STDHelpers::RandomSelectInt(2000, 2004);
     PlaySoundW(MAKEINTRESOURCEW(rndSound), reinterpret_cast<HINSTANCE>(FA2sp::hInstance), SND_ASYNC | SND_RESOURCE);
 }
 
-void CNewEasterEgg::StartTimer()
+void CBrickBreaker::StartTimer()
 {
     if (s_timerID) return;
     s_lastTick = std::chrono::steady_clock::now();
     s_timerID = SetTimer(m_hwnd, 1, 16, nullptr); // ~60fps
 }
-void CNewEasterEgg::StopTimer()
+void CBrickBreaker::StopTimer()
 {
     if (s_timerID) {
         KillTimer(m_hwnd, s_timerID);
@@ -614,10 +613,371 @@ void CNewEasterEgg::StopTimer()
     }
 }
 
-COLORREF CNewEasterEgg::ColorFor(const Brick& br)
+COLORREF CBrickBreaker::ColorFor(const Brick& br)
 {
     if (br.hp == -1) return RGB(64, 64, 64);  
     if (br.hp == 2)  return RGB(0, 0, 128); 
     if (br.hp == 1)  return RGB(80, 160, 255);
     return RGB(0, 0, 0);
+}
+
+HWND CGoBang::m_hwnd = nullptr;
+CFinalSunDlg* CGoBang::m_parent = nullptr;
+bool CGoBang::initialized = false;
+
+int CGoBang::board[CGoBang::BOARD_N][CGoBang::BOARD_N] = {};
+int CGoBang::margin = 20;
+int CGoBang::cellSize = 32;
+int CGoBang::boardLeft = 0;
+int CGoBang::boardTop = 0;
+int CGoBang::boardRight = 0;
+int CGoBang::boardBottom = 0;
+int CGoBang::clientW = 300;
+int CGoBang::clientH = 300;
+
+bool CGoBang::playerTurn = false;
+bool CGoBang::gameOver = false;
+
+std::vector<CGoBang::Move> CGoBang::history;
+std::mt19937 CGoBang::rng{ std::random_device{}() };
+
+void CGoBang::Create(CFinalSunDlg* pWnd)
+{
+    m_parent = pWnd;
+    m_hwnd = CreateDialog(
+        reinterpret_cast<HINSTANCE>(FA2sp::hInstance),
+        MAKEINTRESOURCE(326),
+        pWnd ? pWnd->MyViewFrame.GetSafeHwnd() : nullptr,
+        CGoBang::DlgProc
+    );
+
+    if (m_hwnd)
+        ShowWindow(m_hwnd, SW_SHOW);
+    else {
+        Logger::Error("Failed to create CGoBang.\n");
+        m_parent = nullptr;
+    }
+}
+
+void CGoBang::Initialize(HWND& hWnd)
+{
+    RECT rc; GetClientRect(hWnd, &rc);
+    clientW = rc.right - rc.left; clientH = rc.bottom - rc.top;
+    RecalcLayout();
+
+    ResetGame();
+    InvalidateRect(hWnd, nullptr, TRUE);
+    initialized = true;
+}
+
+void CGoBang::Close(HWND& hWnd)
+{
+    EndDialog(hWnd, 0);
+    m_hwnd = nullptr;
+    m_parent = nullptr;
+    initialized = false;
+}
+
+void CGoBang::RecalcLayout()
+{
+    int w = clientW, h = clientH;
+    int maxBoard = std::min(w - 2 * margin, h - 2 * margin);
+    cellSize = std::max(18, maxBoard / (BOARD_N - 1)); 
+    int total = cellSize * (BOARD_N - 1);
+    boardLeft = (w - total) / 2;
+    boardTop = (h - total) / 2;
+    boardRight = boardLeft + total;
+    boardBottom = boardTop + total;
+}
+
+void CGoBang::Render(HDC hdc)
+{
+    RECT rc; GetClientRect(m_hwnd, &rc);
+    HBRUSH bk = CreateSolidBrush(RGB(220, 200, 160));
+    FillRect(hdc, &rc, bk);
+    DeleteObject(bk);
+
+    HPEN pen = CreatePen(PS_SOLID, 1, RGB(40, 40, 40));
+    HGDIOBJ oldPen = SelectObject(hdc, pen);
+
+    for (int i = 0; i < BOARD_N; ++i) {
+        int x = boardLeft + i * cellSize;
+        int y1 = boardTop;
+        int y2 = boardBottom;
+        MoveToEx(hdc, x, y1, nullptr);
+        LineTo(hdc, x, y2);
+    }
+    for (int j = 0; j < BOARD_N; ++j) {
+        int y = boardTop + j * cellSize;
+        int x1 = boardLeft;
+        int x2 = boardRight;
+        MoveToEx(hdc, x1, y, nullptr);
+        LineTo(hdc, x2, y);
+    }
+
+    SelectObject(hdc, oldPen);
+    DeleteObject(pen);
+
+    int pts[] = { 7, 3, 11 };
+    HBRUSH dot = CreateSolidBrush(RGB(40, 40, 40));
+    for (int dr = 3; dr <= 11; dr += 4) {
+        for (int dc = 3; dc <= 11; dc += 4) {
+            int x = boardLeft + dc * cellSize;
+            int y = boardTop + dr * cellSize;
+            Ellipse(hdc, x - 3, y - 3, x + 3, y + 3);
+        }
+    }
+    DeleteObject(dot);
+
+    for (int r = 0; r < BOARD_N; ++r) {
+        for (int c = 0; c < BOARD_N; ++c) {
+            int who = board[r][c];
+            if (who == 0) continue;
+            int cx = boardLeft + c * cellSize;
+            int cy = boardTop + r * cellSize;
+            int rad = cellSize / 2 - 2;
+            HBRUSH b = CreateSolidBrush(who == 1 ? RGB(10, 10, 10) : RGB(245, 245, 245));
+            HGDIOBJ oldb = SelectObject(hdc, b);
+            Ellipse(hdc, cx - rad, cy - rad, cx + rad, cy + rad);
+            SelectObject(hdc, oldb);
+            DeleteObject(b);
+        }
+    }
+
+    std::wstring status;
+    if (gameOver) {
+        status = L"游戏结束 - 按 R 重置";
+    }
+    else {
+        status = playerTurn ? L"轮到你（白）" : L"电脑思考中（黑先）";
+    }
+    SetBkMode(hdc, TRANSPARENT);
+    SetTextColor(hdc, RGB(0, 0, 0));
+    TextOutW(hdc, 8, 8, status.c_str(), (int)status.size());
+}
+
+bool CGoBang::CheckWin(int who)
+{
+    const int dr[4] = { 0,1,1,1 };
+    const int dc[4] = { 1,0,1,-1 };
+    for (int r = 0; r < BOARD_N; ++r) for (int c = 0; c < BOARD_N; ++c) {
+        if (board[r][c] != who) continue;
+        for (int k = 0; k < 4; ++k) {
+            int cnt = 1;
+            int rr = r + dr[k], cc = c + dc[k];
+            while (InBoard(rr, cc) && board[rr][cc] == who) { cnt++; rr += dr[k]; cc += dc[k]; }
+            if (cnt >= 5) return true;
+        }
+    }
+    return false;
+}
+
+std::vector<std::pair<int, int>> CGoBang::generateCandidateMoves()
+{
+    bool mark[BOARD_N][BOARD_N] = {};
+    int range = 2;
+    for (int r = 0; r < BOARD_N; ++r) for (int c = 0; c < BOARD_N; ++c) {
+        if (board[r][c] != 0) {
+            for (int dr = -range; dr <= range; ++dr) for (int dc = -range; dc <= range; ++dc) {
+                int rr = r + dr, cc = c + dc;
+                if (InBoard(rr, cc) && board[rr][cc] == 0) mark[rr][cc] = true;
+            }
+        }
+    }
+    bool any = false;
+    for (int r = 0; r < BOARD_N; ++r) for (int c = 0; c < BOARD_N; ++c) if (board[r][c] != 0) any = true;
+    std::vector<std::pair<int, int>> cand;
+    if (!any) {
+        cand.push_back({ BOARD_N / 2, BOARD_N / 2 });
+        return cand;
+    }
+    for (int r = 0; r < BOARD_N; ++r) for (int c = 0; c < BOARD_N; ++c) if (mark[r][c]) cand.push_back({ r,c });
+    if (cand.empty()) {
+        for (int r = 0; r < BOARD_N; ++r) for (int c = 0; c < BOARD_N; ++c) if (board[r][c] == 0) cand.push_back({ r,c });
+    }
+    return cand;
+}
+
+int CGoBang::evaluatePoint(int r, int c, int who)
+{
+    const int dr[4] = { 0,1,1,1 };
+    const int dc[4] = { 1,0,1,-1 };
+    int opp = (who == 1) ? 2 : 1;
+    int score = 0;
+
+    for (int k = 0; k < 4; ++k) {
+        int cnt_own = 1;
+        int openEnds = 0;
+
+        int rr = r + dr[k], cc = c + dc[k];
+        while (InBoard(rr, cc) && board[rr][cc] == who) { cnt_own++; rr += dr[k]; cc += dc[k]; }
+        if (InBoard(rr, cc) && board[rr][cc] == 0) openEnds++;
+
+        rr = r - dr[k]; cc = c - dc[k];
+        while (InBoard(rr, cc) && board[rr][cc] == who) { cnt_own++; rr -= dr[k]; cc -= dc[k]; }
+        if (InBoard(rr, cc) && board[rr][cc] == 0) openEnds++;
+
+        int add = 0;
+        if (cnt_own >= 5) add += 100000;        
+        else if (cnt_own == 4 && openEnds == 2) add += 10000; 
+        else if (cnt_own == 4 && openEnds == 1) add += 2000;  
+        else if (cnt_own == 3 && openEnds == 2) add += 1000;  
+        else if (cnt_own == 3 && openEnds == 1) add += 200;   
+        else if (cnt_own == 2 && openEnds == 2) add += 100;   
+        else if (cnt_own == 2 && openEnds == 1) add += 10;
+        else add += cnt_own * 2;
+
+        score += add;
+    }
+
+    int oppScore = 0;
+    for (int k = 0; k < 4; ++k) {
+        int cnt = 1;
+        int openEnds = 0;
+        int rr = r + dr[k], cc = c + dc[k];
+        while (InBoard(rr, cc) && board[rr][cc] == opp) { cnt++; rr += dr[k]; cc += dc[k]; }
+        if (InBoard(rr, cc) && board[rr][cc] == 0) openEnds++;
+        rr = r - dr[k]; cc = c - dc[k];
+        while (InBoard(rr, cc) && board[rr][cc] == opp) { cnt++; rr -= dr[k]; cc -= dc[k]; }
+        if (InBoard(rr, cc) && board[rr][cc] == 0) openEnds++;
+
+        if (cnt >= 5) oppScore += 90000;
+        else if (cnt == 4 && openEnds == 2) oppScore += 9000;
+        else if (cnt == 4 && openEnds == 1) oppScore += 1500;
+        else if (cnt == 3 && openEnds == 2) oppScore += 800;
+        else if (cnt == 3 && openEnds == 1) oppScore += 150;
+        else oppScore += cnt * 2;
+    }
+
+    return score + oppScore * 2;
+}
+
+void CGoBang::AIMove()
+{
+    if (gameOver) return;
+    auto cand = generateCandidateMoves();
+    int bestScore = -1;
+    std::vector<std::pair<int, int>> bests;
+    for (auto& p : cand) {
+        int r = p.first, c = p.second;
+        if (board[r][c] != 0) continue;
+        int sc = evaluatePoint(r, c, 1); 
+        if (sc > bestScore) {
+            bestScore = sc;
+            bests.clear();
+            bests.push_back(p);
+        }
+        else if (sc == bestScore) {
+            bests.push_back(p);
+        }
+    }
+    if (bests.empty()) return;
+    std::uniform_int_distribution<int> dist(0, (int)bests.size() - 1);
+    auto pick = bests[dist(rng)];
+    board[pick.first][pick.second] = 1;
+    history.push_back({ pick.first, pick.second, 1 });
+
+    if (CheckWin(1)) {
+        gameOver = true;
+        InvalidateRect(m_hwnd, nullptr, TRUE);
+        MessageBoxW(m_hwnd, L"电脑（黑）胜利！", L"游戏结束", MB_OK | MB_ICONINFORMATION);
+        return;
+    }
+
+    playerTurn = true;
+    InvalidateRect(m_hwnd, nullptr, TRUE);
+}
+
+void CGoBang::ResetGame()
+{
+    for (int r = 0; r < BOARD_N; ++r) for (int c = 0; c < BOARD_N; ++c) board[r][c] = 0;
+    history.clear();
+    gameOver = false;
+
+    // AI first
+    int cr = BOARD_N / 2, cc = BOARD_N / 2;
+    board[cr][cc] = 1;
+    history.push_back({ cr,cc,1 });
+    InvalidateRect(m_hwnd, nullptr, TRUE);
+
+    playerTurn = true;
+}
+
+BOOL CALLBACK CGoBang::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (Msg) {
+    case WM_INITDIALOG:
+        m_hwnd = hwnd;
+        Initialize(hwnd);
+        return TRUE;
+
+    case WM_SIZE:
+    {
+        RECT rc; GetClientRect(hwnd, &rc);
+        clientW = rc.right - rc.left;
+        clientH = rc.bottom - rc.top;
+        RecalcLayout();
+        InvalidateRect(hwnd, nullptr, TRUE);
+    }
+    return TRUE;
+
+    case WM_LBUTTONUP:
+        if (gameOver) break;
+        if (!playerTurn) break;
+        {
+            int mx = GET_X_LPARAM(lParam);
+            int my = GET_Y_LPARAM(lParam);
+            int bestR = -1, bestC = -1; int bestDist = 1000000;
+            for (int r = 0; r < BOARD_N; ++r) for (int c = 0; c < BOARD_N; ++c) {
+                if (board[r][c] != 0) continue;
+                int cx = boardLeft + c * cellSize;
+                int cy = boardTop + r * cellSize;
+                int dx = cx - mx, dy = cy - my;
+                int d2 = dx * dx + dy * dy;
+                if (d2 < bestDist) { bestDist = d2; bestR = r; bestC = c; }
+            }
+            int tol = (cellSize / 2 + 6);
+            if (bestR >= 0 && bestC >= 0) {
+                int cx = boardLeft + bestC * cellSize;
+                int cy = boardTop + bestR * cellSize;
+                if (abs(cx - mx) <= tol && abs(cy - my) <= tol) {
+                    if (board[bestR][bestC] == 0) {
+                        board[bestR][bestC] = 2; 
+                        history.push_back({ bestR,bestC,2 });
+
+                        if (CheckWin(2)) {
+                            gameOver = true;
+                            InvalidateRect(hwnd, nullptr, TRUE);
+                            MessageBoxW(hwnd, L"你（白）胜利！", L"游戏结束", MB_OK | MB_ICONINFORMATION);
+                            break;
+                        }
+                        playerTurn = false;
+                        InvalidateRect(hwnd, nullptr, TRUE);
+                        AIMove();
+                    }
+                }
+            }
+        }
+        return TRUE;
+
+    case WM_KEYUP:
+        if (wParam == 'R' || wParam == 'r') {
+            ResetGame();
+            return TRUE;
+        }
+        break;
+
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps; HDC hdc = BeginPaint(hwnd, &ps);
+        Render(hdc);
+        EndPaint(hwnd, &ps);
+    }
+    return TRUE;
+
+    case WM_CLOSE:
+        Close(hwnd);
+        return TRUE;
+    }
+    return FALSE;
 }

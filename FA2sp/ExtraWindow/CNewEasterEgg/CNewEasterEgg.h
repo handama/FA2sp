@@ -79,7 +79,6 @@ struct Board {
     static uint64_t zobristTable[16][10][9];
     static bool zobristInitialized;
 
-    // 初始化Zobrist表
     static void initZobrist() {
         if (zobristInitialized) return;
         std::random_device rd;
@@ -91,14 +90,13 @@ struct Board {
         zobristInitialized = true;
     }
 
-    // 计算当前局面的Zobrist哈希值
     void updateZobristKey() {
         zobristKey = 0;
         for (int r = 0; r < 10; ++r)
             for (int c = 0; c < 9; ++c)
                 if (g[r][c] != EMPTY)
                     zobristKey ^= zobristTable[g[r][c]][r][c];
-        zobristKey ^= (sideToMove == RED ? 0 : 1); // 考虑轮到哪方走
+        zobristKey ^= (sideToMove == RED ? 0 : 1);
     }
 
     void reset() {
@@ -148,7 +146,7 @@ struct Board {
     bool inCheck(Side s) const {
         int kingR = -1, kingC = -1, kingPiece = (s == RED ? RD_SHUAI : BK_JIANG);
         for (int r = 0; r < 10; ++r) for (int c = 0; c < 9; ++c) if (g[r][c] == kingPiece) { kingR = r; kingC = c; }
-        if (kingR == -1) return false; 
+        if (kingR == -1) return false;
 
         for (int c = kingC - 1; c >= 0; --c) {
             int p = g[kingR][c];
@@ -164,19 +162,17 @@ struct Board {
             if ((IsRed(p) ? (p == RD_JU) : (p == BK_JU))) return true;
             break;
         }
-        int blocker = 0;
         for (int r = kingR - 1; r >= 0; --r) {
             int p = g[r][kingC];
             if (p == EMPTY) continue;
-            if (SameSide(p, kingPiece)) { blocker = 1; break; }
+            if (SameSide(p, kingPiece)) break;
             if ((IsRed(p) ? (p == RD_JU || p == RD_SHUAI) : (p == BK_JU || p == BK_JIANG))) return true;
             break;
         }
-        blocker = 0;
         for (int r = kingR + 1; r < 10; ++r) {
             int p = g[r][kingC];
             if (p == EMPTY) continue;
-            if (SameSide(p, kingPiece)) { blocker = 1; break; }
+            if (SameSide(p, kingPiece)) break;
             if ((IsRed(p) ? (p == RD_JU || p == RD_SHUAI) : (p == BK_JU || p == BK_JIANG))) return true;
             break;
         }
@@ -222,17 +218,23 @@ struct Board {
             }
         }
 
-        static int HR[8] = { -2,-1,1,2, 2,1,-1,-2 };
-        static int HC[8] = { 1, 2,2,1,-1,-2,-2,-1 };
-        static int LR[8] = { -1, 0,0,1, 1,0, 0,-1 };
-        static int LC[8] = { 0, 1,1,0, 0,-1,-1, 0 };
+        static int HR[8] = { -2, -1, 1, 2, 2, 1, -1, -2 };
+        static int HC[8] = { 1,  2, 2, 1,-1,-2, -2, -1 };
         for (int k = 0; k < 8; ++k) {
             int r = kingR + HR[k], c = kingC + HC[k];
-            int lr = kingR + LR[k], lc = kingC + LC[k];
             if (!inBoard(r, c)) continue;
             int p = g[r][c];
             if (p == EMPTY) continue;
             if (SameSide(p, kingPiece)) continue;
+            int lr, lc;
+            if (HR[k] == -2 && HC[k] == 1) { lr = r + 1; lc = c; }  
+            else if (HR[k] == -1 && HC[k] == 2) { lr = r; lc = c - 1; } 
+            else if (HR[k] == 1 && HC[k] == 2) { lr = r; lc = c - 1; }  
+            else if (HR[k] == 2 && HC[k] == 1) { lr = r - 1; lc = c; }  
+            else if (HR[k] == 2 && HC[k] == -1) { lr = r - 1; lc = c; } 
+            else if (HR[k] == 1 && HC[k] == -2) { lr = r; lc = c + 1; } 
+            else if (HR[k] == -1 && HC[k] == -2) { lr = r; lc = c + 1; }
+            else if (HR[k] == -2 && HC[k] == -1) { lr = r + 1; lc = c; }
             if (!inBoard(lr, lc) || g[lr][lc] != EMPTY) continue;
             if (IsRed(p) ? p == RD_MA : p == BK_MA) return true;
         }
@@ -344,13 +346,11 @@ struct Board {
                 Board tmp = *this;
                 tmp.g[tr][tc] = p; tmp.g[r][c] = EMPTY;
 
-                // 特殊处理：如果能吃掉对方的将/帅，则总是合法
                 bool capturesKing = false;
                 if (IsRed(p) && dst == BK_JIANG) capturesKing = true;
                 if (IsBlack(p) && dst == RD_SHUAI) capturesKing = true;
 
                 if (!capturesKing) {
-                    // 如果不能吃掉将/帅，则检查常规规则
                     if (tmp.flyingGenerals()) return;
                     if (tmp.inCheck(PieceSide(p))) return;
                 }
@@ -411,29 +411,27 @@ struct Board {
         }
     }
 
-    // 执行走法时更新哈希
     void doMove(const Move& m) {
         int p = g[m.sr][m.sc];
-        zobristKey ^= zobristTable[p][m.sr][m.sc]; // 移除起点棋子
+        zobristKey ^= zobristTable[p][m.sr][m.sc];
         if (m.capture != EMPTY)
-            zobristKey ^= zobristTable[m.capture][m.tr][m.tc]; // 移除被吃棋子
-        zobristKey ^= zobristTable[p][m.tr][m.tc]; // 添加目标位置棋子
-        zobristKey ^= (sideToMove == RED ? 0 : 1); // 切换轮到方
+            zobristKey ^= zobristTable[m.capture][m.tr][m.tc]; 
+        zobristKey ^= zobristTable[p][m.tr][m.tc]; 
+        zobristKey ^= (sideToMove == RED ? 0 : 1);
         m_lastCaptured = g[m.tr][m.tc];
         std::swap(g[m.tr][m.tc], g[m.sr][m.sc]);
         g[m.sr][m.sc] = EMPTY;
         sideToMove = (sideToMove == RED ? BLACK : RED);
     }
 
-    // 撤销走法时恢复哈希
     void undoMove(const Move& m) {
         sideToMove = (sideToMove == RED ? BLACK : RED);
-        zobristKey ^= (sideToMove == RED ? 0 : 1); // 恢复轮到方
+        zobristKey ^= (sideToMove == RED ? 0 : 1);
         int p = g[m.tr][m.tc];
-        zobristKey ^= zobristTable[p][m.tr][m.tc]; // 移除目标位置棋子
+        zobristKey ^= zobristTable[p][m.tr][m.tc]; 
         if (m.capture != EMPTY)
-            zobristKey ^= zobristTable[m.capture][m.tr][m.tc]; // 恢复被吃棋子
-        zobristKey ^= zobristTable[p][m.sr][m.sc]; // 恢复起点棋子
+            zobristKey ^= zobristTable[m.capture][m.tr][m.tc]; 
+        zobristKey ^= zobristTable[p][m.sr][m.sc];
         g[m.sr][m.sc] = g[m.tr][m.tc];
         g[m.tr][m.tc] = m.capture;
     }
@@ -484,7 +482,7 @@ struct Board {
             return av > bv;
         });
 
-        std::unordered_map<uint64_t, int> tempPositionHistory; // 临时记录搜索中的局面
+        std::unordered_map<uint64_t, int> tempPositionHistory; 
         if (sideToMove == RED) {
             int best = -std::numeric_limits<int>::max();
             for (auto& m : ms) {
@@ -497,7 +495,6 @@ struct Board {
                     continue;
                 }
 
-                // 检查长将
                 bool isPerpetualCheck = false;
                 if (inCheck(BLACK)) {
                     tempPositionHistory[zobristKey]++;
@@ -554,7 +551,7 @@ struct Board {
             return av > bv;
         });
 
-        std::unordered_map<uint64_t, int> tempPositionHistory; // 临时记录搜索中的局面
+        std::unordered_map<uint64_t, int> tempPositionHistory;
         for (auto& m : ms) {
             uint64_t oldKey = zobristKey;
             doMove(m);
@@ -564,7 +561,6 @@ struct Board {
                 continue;
             }
 
-            // 检查是否会导致长将
             bool isPerpetualCheck = false;
             if (inCheck(BLACK)) {
                 tempPositionHistory[zobristKey]++;
@@ -575,9 +571,9 @@ struct Board {
 
             int sc = isPerpetualCheck ? -std::numeric_limits<int>::max() : search(3, -30000, 30000);
             undoMove(m);
-            zobristKey = oldKey; // 恢复哈希值
+            zobristKey = oldKey; 
 
-            if (isPerpetualCheck) continue; // 跳过导致长将的走法
+            if (isPerpetualCheck) continue; 
 
             if (sc > bestScore) {
                 bestScore = sc;
@@ -629,8 +625,8 @@ private:
     static int aiLastMoveFromR, aiLastMoveFromC;
     static int aiLastMoveToR, aiLastMoveToC;
 
-    static std::unordered_map<uint64_t, int> positionHistory; // 记录局面出现次数
-    static std::vector<std::pair<Move, uint64_t>> history; // 存储走法和对应哈希值
+    static std::unordered_map<uint64_t, int> positionHistory;
+    static std::vector<std::pair<Move, uint64_t>> history;
 
     static void calcLayout();
     static void draw(HDC hdc);
@@ -638,6 +634,6 @@ private:
     static void aiStep(); 
     static void playerClick(int x, int y);
     static bool isPlayerPiece(int p) { return IsBlack(p); }
-    static void endWithMessage(const wchar_t* msg);
+    static void endWithMessage(const char* msg);
     static void undoRound();
 };

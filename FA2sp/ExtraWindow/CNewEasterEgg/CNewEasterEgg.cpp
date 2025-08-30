@@ -50,6 +50,10 @@ void CGoBang::Create(CFinalSunDlg* pWnd)
 
 void CGoBang::Initialize(HWND& hWnd)
 {
+    FString buffer;
+    if (Translations::GetTranslationItem("EasterEggTitle", buffer))
+        SetWindowText(hWnd, buffer);
+
     RECT rc; GetClientRect(hWnd, &rc);
     clientW = rc.right - rc.left; clientH = rc.bottom - rc.top;
     RecalcLayout();
@@ -141,10 +145,11 @@ void CGoBang::Render(HDC hdc)
 
     std::string status;
     if (gameOver) {
-        status = "Game over - preess R to reset";
+        status = Translations::TranslateOrDefault("EasterEggGameOverMessage", "Game over - press R to reset");
     }
     else {
-        status = "You found the easter egg :-)    Press R to restart, press Z to retract a move";
+        status = Translations::TranslateOrDefault("EasterEggPlayingMessage", 
+            "You found the easter egg :-)     Press R to restart, press Z to retract a move");
     }
     SetBkMode(hdc, TRANSPARENT);
     SetTextColor(hdc, RGB(0, 0, 0));
@@ -276,7 +281,8 @@ void CGoBang::AIMove()
     if (CheckWin(1)) {
         gameOver = true;
         InvalidateRect(m_hwnd, nullptr, TRUE);
-        MessageBox(m_hwnd, "AI (black) wins", "Game over", MB_OK | MB_ICONINFORMATION);
+        MessageBox(m_hwnd, Translations::TranslateOrDefault("EasterEggGoBangAIWin", "AI wins"),
+            Translations::TranslateOrDefault("EasterEggGameOverTitle", "Game over"), MB_OK | MB_ICONINFORMATION);
         return;
     }
 
@@ -358,7 +364,8 @@ BOOL CALLBACK CGoBang::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam
                         if (CheckWin(2)) {
                             gameOver = true;
                             InvalidateRect(hwnd, nullptr, TRUE);
-                            MessageBox(hwnd, "You (white) win", "Victory", MB_OK | MB_ICONINFORMATION);
+                            MessageBox(hwnd, Translations::TranslateOrDefault("EasterEggGoBangYouWin", "You win!"),
+                                Translations::TranslateOrDefault("EasterEggGameOverTitle", "Game over"), MB_OK | MB_ICONINFORMATION);
                             break;
                         }
                         playerTurn = false;
@@ -432,6 +439,10 @@ void CChineseChess::Create(CFinalSunDlg* pWnd)
 
 void CChineseChess::Initialize(HWND& hWnd)
 {
+    FString buffer;
+    if (Translations::GetTranslationItem("EasterEggTitle", buffer))
+        SetWindowText(hWnd, buffer);
+
     RECT rc; GetClientRect(hWnd, &rc);
     clientW = rc.right - rc.left; clientH = rc.bottom - rc.top;
     calcLayout();
@@ -516,8 +527,8 @@ void CChineseChess::draw(HDC hdc)
     HFONT oldf = (HFONT)SelectObject(hdc, hfText);
     const wchar_t* ch1 = L"楚河"; const wchar_t* ch2 = L"汉界";
     SIZE sz{}; GetTextExtentPoint32W(hdc, ch1, 2, &sz);
-    TextOutW(hdc, leftX + boardW / 2 - sz.cx - 30, topY + 4 * cell + cell / 2 - sz.cy / 2, ch1, 2);
-    TextOutW(hdc, leftX + boardW / 2 + 30, topY + 4 * cell + cell / 2 - sz.cy / 2, ch2, 2);
+    TextOutW(hdc, leftX + boardW / 2 - sz.cx - 40, topY + 4 * cell + cell / 2 - sz.cy / 2, ch1, 2);
+    TextOutW(hdc, leftX + boardW / 2 + 40, topY + 4 * cell + cell / 2 - sz.cy / 2, ch2, 2);
 
     if (selR >= 0 && selC >= 0) {
         int displayR = 9 - selR; 
@@ -565,8 +576,9 @@ void CChineseChess::draw(HDC hdc)
     }
 
     std::string s;
-    if (gameOver) s = "Game over - preess R to reset";
-    else s = "You found the easter egg :-)    Press R to restart, press Z to retract a move";
+    if (gameOver) s = Translations::TranslateOrDefault("EasterEggGameOverMessage", "Game over - press R to reset");
+    else s = Translations::TranslateOrDefault("EasterEggPlayingMessage",
+        "You found the easter egg :-)     Press R to restart, press Z to retract a move");
     SetTextColor(hdc, RGB(0, 0, 0));    
     SelectObject(hdc, hfStatusText);
     TextOutA(hdc, 8, 8, s.c_str(), (int)s.size());
@@ -586,11 +598,11 @@ void CChineseChess::newGame() {
     InvalidateRect(m_hwnd, nullptr, TRUE);
 }
 
-void CChineseChess::endWithMessage(const wchar_t* msg)
+void CChineseChess::endWithMessage(const char* msg)
 {
     gameOver = true;
     InvalidateRect(m_hwnd, nullptr, TRUE);
-    MessageBoxW(m_hwnd, msg, L"Game over", MB_OK | MB_ICONINFORMATION);
+    MessageBox(m_hwnd, msg, Translations::TranslateOrDefault("EasterEggGameOverTitle", "Game over"), MB_OK | MB_ICONINFORMATION);
 }
 
 void CChineseChess::aiStep() {
@@ -599,8 +611,8 @@ void CChineseChess::aiStep() {
 
     Move m;
     if (!bd.pickBestMove(m)) {
-        if (bd.inCheck(RED)) endWithMessage(L"Check mate! You (black) win!");
-        else endWithMessage(L"No pieces can move, draw/You (black) win.");
+        if (bd.inCheck(RED)) endWithMessage(Translations::TranslateOrDefault("EasterEggYouCheckMate", "Check mate! You win!"));
+        else endWithMessage(Translations::TranslateOrDefault("EasterEggAICannotMove", "No pieces can move, you win."));
         return;
     }
 
@@ -615,16 +627,15 @@ void CChineseChess::aiStep() {
     history.push_back({ m, bd.zobristKey });
     m.capture = captured;
 
-    // 检查是否长将
     if (bd.inCheck(BLACK) && positionHistory[bd.zobristKey] >= 3) {
-        endWithMessage(L"Perpetual check detected! Draw.");
+        endWithMessage(Translations::TranslateOrDefault("EasterEggPerpetualCheck", "Perpetual check detected! Draw."));
         return;
     }
 
     if (bd.inCheck(BLACK)) {
         PlaySoundW(L"SystemExclamation", NULL, SND_ALIAS | SND_ASYNC);
         std::vector<Move> ms; bd.genMoves(BLACK, ms);
-        if (ms.empty()) { endWithMessage(L"Check mate! AI (red) wins."); return; }
+        if (ms.empty()) { endWithMessage(Translations::TranslateOrDefault("EasterEggAICheckMate", "Check mate! AI wins.")); return; }
     }
     InvalidateRect(m_hwnd, nullptr, TRUE);
 }
@@ -632,6 +643,23 @@ void CChineseChess::aiStep() {
 void CChineseChess::playerClick(int x, int y) {
     if (gameOver) return;
     if (bd.sideToMove != BLACK) return;
+
+    std::vector<Move> ms;
+    bd.genMoves(BLACK, ms);
+    if (ms.empty()) {
+        if (bd.inCheck(BLACK)) {
+            endWithMessage(Translations::TranslateOrDefault("EasterEggAICheckMate", "Check mate! AI wins."));
+        }
+        else {
+            endWithMessage(Translations::TranslateOrDefault("EasterEggYouCannotMove", "No pieces can move, AI wins!"));
+        }
+        return;
+    }
+    // only check
+    if (x == -1 && y == -1)
+    {
+        return;
+    }
 
     int c = (x - leftX + cell / 2) / cell;
     int r = 9 - (y - topY + cell / 2) / cell;
@@ -641,14 +669,16 @@ void CChineseChess::playerClick(int x, int y) {
 
     if (selR == -1) {
         if (p != EMPTY && isPlayerPiece(p)) {
-            selR = r; selC = c; InvalidateRect(m_hwnd, nullptr, FALSE);
+            selR = r;
+            selC = c;
+            InvalidateRect(m_hwnd, nullptr, FALSE);
         }
         return;
     }
 
     if (selR >= 0) {
-        std::vector<Move> ms; bd.genMoves(BLACK, ms);
-        Move chosen{}; bool ok = false;
+        Move chosen{};
+        bool ok = false;
         for (auto& m : ms) {
             if (m.sr == selR && m.sc == selC && m.tr == r && m.tc == c) {
                 int captured = bd.g[m.tr][m.tc];
@@ -656,7 +686,9 @@ void CChineseChess::playerClick(int x, int y) {
                 bool stillInCheck = bd.inCheck(BLACK);
                 bd.undoMove(m);
                 if (captured == RD_SHUAI || !stillInCheck) {
-                    chosen = m; ok = true; break;
+                    chosen = m;
+                    ok = true;
+                    break;
                 }
             }
         }
@@ -671,27 +703,42 @@ void CChineseChess::playerClick(int x, int y) {
             InvalidateRect(m_hwnd, nullptr, TRUE);
 
             if (captured == RD_SHUAI) {
-                endWithMessage(L"You captured the Red king! You (black) win!");
+                endWithMessage(Translations::TranslateOrDefault("EasterEggEatKing", "You captured the Red king! You win!"));
                 return;
             }
 
             if (bd.inCheck(RED)) {
-                std::vector<Move> ms2; bd.genMoves(RED, ms2);
-                if (ms2.empty()) { endWithMessage(L"Check mate! You (black) win!"); return; }
+                std::vector<Move> ms2;
+                bd.genMoves(RED, ms2);
+                if (ms2.empty()) {
+                    endWithMessage(Translations::TranslateOrDefault("EasterEggYouCheckMate", "Check mate! You win!"));
+                    return;
+                }
+            }
+
+            if (bd.inCheck(RED) && positionHistory[bd.zobristKey] >= 3) {
+                endWithMessage(Translations::TranslateOrDefault("EasterEggPerpetualCheck", "Perpetual check detected! Draw."));
+                return;
             }
 
             aiStep();
+            playerClick(-1, -1);
         }
         else {
-            if (p != EMPTY && isPlayerPiece(p)) { selR = r; selC = c; }
-            else { selR = selC = -1; }
+            if (p != EMPTY && isPlayerPiece(p)) {
+                selR = r;
+                selC = c;
+            }
+            else {
+                selR = selC = -1;
+            }
             InvalidateRect(m_hwnd, nullptr, FALSE);
         }
     }
 }
 
 void CChineseChess::undoRound() {
-    if (history.empty() || history.size() == 1 || gameOver) return;
+    if (history.empty() || history.size() == 1) return;
     auto pop1 = [&]() {
         if (history.empty()) return;
         auto [m, key] = history.back();

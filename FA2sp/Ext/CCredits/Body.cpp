@@ -8,11 +8,15 @@ void CCreditsExt::ProgramStartupInit()
 	RunTime::ResetMemoryContentAt(0x592810, &CCreditsExt::PreTranslateMessageExt);
 }
 
-static int loop = 1;
+static int loop = -1;
 BOOL CCreditsExt::PreTranslateMessageExt(MSG* pMsg)
 {
 	if (this->DrawHappyFace && pMsg->message == WM_LBUTTONUP)
 	{
+		if (loop == -1)
+		{
+			loop = STDHelpers::RandomSelectInt(0, 2);
+		}
 		if (loop % 2 == 0)
 		{
 			if (CChineseChess::GetHandle() == NULL)

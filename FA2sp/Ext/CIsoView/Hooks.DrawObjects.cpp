@@ -1594,10 +1594,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	{
 		if (dv.VP >= 200)
 			CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-				dv.X - elite->FullWidth / 2 + 10, dv.Y + 21 - elite->FullHeight / 2, elite, 0, 255, 0, -11);
+				dv.X - elite->FullWidth / 2 + 10, dv.Y + 21 - elite->FullHeight / 2, elite, 0, 255, 0, -100, false);
 		else if (dv.VP >= 100)
 			CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-				dv.X - veteran->FullWidth / 2 + 10, dv.Y + 21 - veteran->FullWidth / 2, veteran, 0, 255, 0, -11);
+				dv.X - veteran->FullWidth / 2 + 10, dv.Y + 21 - veteran->FullWidth / 2, veteran, 0, 255, 0, -100, false);
 	}
 
 	if (CIsoViewExt::DrawTubes)

@@ -6,6 +6,7 @@
 #include "../../Miscs/TheaterInfo.h"
 #include "../../FA2sp.h"
 #include <CINI.h>
+#include <CInputMessageBox.h>
 #include <CMapData.h>
 #include <CIsoView.h>
 #include <CTileTypeClass.h>
@@ -3025,6 +3026,8 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         }
     } while (false);
 
+
+
     if (nData == 50) // add tube
     {
         CIsoView::CurrentCommand->Command = 0x22;
@@ -3053,7 +3056,7 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     {
         CIsoView::CurrentCommand->Command = 0x00;
         CIsoView::CurrentCommand->Type = 0;
-
+        return true;
     }
     if (nCode == 1) // Infantry
     {
@@ -3173,6 +3176,50 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         {
             CIsoView::CurrentCommand->Command = 0x20; // Add / Reduce Ore
             CIsoView::CurrentCommand->Type = 1;
+            return true;
+        }
+        else if (nData == 1) // Set overlay
+        {
+            FString message = Translations::TranslateOrDefault("ManualOverlayMessage", 
+                "Please enter the value (0-254) of the overlay. Don't exceed this range.");
+            FString title = Translations::TranslateOrDefault("ManualOverlayTitle",
+                "Set overlay manually");
+
+            bool enableExtOverlay = CMapDataExt::NewINIFormat >= 5
+                || (ExtConfigs::ExtOverlays && Variables::RulesMap.ParseIndicies("OverlayTypes").size() >= 255);
+            if (enableExtOverlay)
+            {
+                message = Translations::TranslateOrDefault("ManualOverlayMessageExt",
+                    "Please enter the value (0-65534) of the overlay. Don't exceed this range.");
+            }
+
+            CIsoView::CurrentCommand->Command = 1;
+            CIsoView::CurrentCommand->Type = 6;
+            CIsoView::CurrentCommand->Param = 31;
+            CIsoView::CurrentCommand->Overlay = 
+                atoi(CInputMessageBox::GetString(message, title));
+            CIsoView::CurrentCommand->Overlay = std::max(0, CIsoView::CurrentCommand->Overlay);
+            
+            if (CIsoView::CurrentCommand->Overlay >= 0xFF && !enableExtOverlay)
+            {
+                CIsoView::CurrentCommand->Overlay = 0;
+            }
+            
+            return true;
+        }
+        else if (nData == 2) // Set overlay data
+        {
+            FString message = Translations::TranslateOrDefault("ManualOverlayDataMessage", 
+                "Please enter the value (0-59) of the overlay data. Don't exceed this range.");
+            FString title = Translations::TranslateOrDefault("ManualOverlayDataTitle",
+                "Set overlay data manually");
+
+            CIsoView::CurrentCommand->Command = 1;
+            CIsoView::CurrentCommand->Type = 6;
+            CIsoView::CurrentCommand->Param = 32;
+            CIsoView::CurrentCommand->Overlay =
+                atoi(CInputMessageBox::GetString(message, title));
+            CIsoView::CurrentCommand->Overlay = std::clamp(CIsoView::CurrentCommand->Overlay, 0, 59);
             return true;
         }
         else if (auto pSection = CINI::FAData().GetSection("PlaceRandomOverlayList"))

@@ -1301,7 +1301,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									objRender.HouseColor, -1, false, isoset.find(objRender.ID) != isoset.end());
 							}
 						}
-						if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages)
+						if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages && objRender.poweredOn)
 						{
 							if (auto pAIFile = Variables::RulesMap.TryGetString(objRender.ID, "AlphaImage"))
 							{

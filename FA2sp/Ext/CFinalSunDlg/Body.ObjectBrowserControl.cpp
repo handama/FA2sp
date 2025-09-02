@@ -2576,60 +2576,44 @@ void CViewObjectsExt::ApplyDragFacing(int X, int Y)
         oldFacing = infantry.Facing;
         auto oldMapCoord = MapCoord{ atoi(infantry.X), atoi(infantry.Y) };
         infantry.Facing = CMapDataExt::GetFacing(oldMapCoord, point, infantry.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
-        Map->DeleteInfantryData(m_id);
-        Map->SetInfantryData(&infantry, NULL, NULL, 0, -1);
+        Map->InfantryDatas[m_id] = infantry;
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-        Map->DeleteInfantryData(m_id);
         infantry.Facing = oldFacing;
-        Map->SetInfantryData(&infantry, NULL, NULL, 0, -1);
+        Map->InfantryDatas[m_id] = infantry;
     }
     else if (m_type == 3)
     {
-        ppmfc::CString oldFacing;
-        CUnitData unit;
-        Map->GetUnitData(m_id, unit);
-        oldFacing = unit.Facing;
-        auto oldMapCoord = MapCoord{ atoi(unit.X), atoi(unit.Y) };
-        unit.Facing = CMapDataExt::GetFacing(oldMapCoord, point, unit.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
-        Map->DeleteUnitData(m_id);
-        Map->SetUnitData(&unit, NULL, NULL, 0, "");
+        auto key = Map->INI.GetKeyAt("Units", m_id);
+        FString value = Map->INI.GetString("Units", key);
+        FString oldValue = value;
+        auto atoms = FString::SplitString(value, 13);
+        auto oldMapCoord = MapCoord{ atoi(atoms[4]), atoi(atoms[3]) };
+        value.SetParam(5, CMapDataExt::GetFacing(oldMapCoord, point, atoms[5], ExtConfigs::ExtFacings_Drag ? 32 : 8));
+        Map->INI.WriteString("Units", key, value);
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-        Map->DeleteUnitData(m_id);
-        unit.Facing = oldFacing;
-        Map->SetUnitData(&unit, NULL, NULL, 0, "");
+        Map->INI.WriteString("Units", key, oldValue);
     }
     else if (m_type == 2)
     {
-        ppmfc::CString oldFacing;
-        CAircraftData aircraft;
-        Map->GetAircraftData(m_id, aircraft);
-        oldFacing = aircraft.Facing;
-        auto oldMapCoord = MapCoord{ atoi(aircraft.X), atoi(aircraft.Y) };
-        aircraft.Facing = CMapDataExt::GetFacing(oldMapCoord, point, aircraft.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
-        Map->DeleteAircraftData(m_id);
-        Map->SetAircraftData(&aircraft, NULL, NULL, 0, "");
+        auto key = Map->INI.GetKeyAt("Aircraft", m_id);
+        FString value = Map->INI.GetString("Aircraft", key);
+        FString oldValue = value;
+        auto atoms = FString::SplitString(value, 11);
+        auto oldMapCoord = MapCoord{ atoi(atoms[4]), atoi(atoms[3]) };
+        value.SetParam(5, CMapDataExt::GetFacing(oldMapCoord, point, atoms[5], ExtConfigs::ExtFacings_Drag ? 32 : 8));
+        Map->INI.WriteString("Aircraft", key, value);
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-        Map->DeleteAircraftData(m_id);
-        aircraft.Facing = oldFacing;
-        Map->SetAircraftData(&aircraft, NULL, NULL, 0, "");
+        Map->INI.WriteString("Aircraft", key, oldValue);
     }
     else if (m_type == 1)
     {
-        ppmfc::CString oldFacing;
-        CBuildingData structure;
-        Map->GetBuildingData(m_id, structure);
-        oldFacing = structure.Facing;
-        auto oldMapCoord = MapCoord{ atoi(structure.X), atoi(structure.Y) };
-        structure.Facing = CMapDataExt::GetFacing(oldMapCoord, point, structure.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
-        Map->DeleteBuildingData(m_id);
-        Map->SetBuildingData(&structure, NULL, NULL, 0, "");
+        int iniIndex = CMapDataExt::StructureIndexMap[m_id];
+        auto& renderData = CMapDataExt::BuildingRenderDatasFix[iniIndex];
+        auto oldMapCoord = MapCoord{ renderData.X, renderData.Y };
+        short oldFacing = renderData.Facing;
+        renderData.Facing = atoi(CMapDataExt::GetFacing(oldMapCoord, point, STDHelpers::IntToString(oldFacing), ExtConfigs::ExtFacings_Drag ? 32 : 8));
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-        auto cell = Map->GetCellAt(oldMapCoord.X, oldMapCoord.Y);
-        m_id = cell->Structure;
-        Map->DeleteBuildingData(m_id);
-        structure.Facing = oldFacing;
-        Map->SetBuildingData(&structure, NULL, NULL, 0, "");
-        m_id = cell->Structure;
+        renderData.Facing = oldFacing;
     }
 }
 

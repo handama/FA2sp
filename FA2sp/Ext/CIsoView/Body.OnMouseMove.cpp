@@ -1200,10 +1200,14 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     line3.Format(Translations::TranslateOrDefault("ObjectInfo.Structure.3",
                         "Strength: %d (%s), AI Repair: %s")
                         , strength, object.Health, object.AIRepairable);
-                    if (power != 0)
+                    if (power != 0 && object.PoweredOn != "0")
                         line3.Format(Translations::TranslateOrDefault("ObjectInfo.Structure.4",
                             "Strength: %d (%s), Power: %d, AI Repair: %s")
                             , strength, object.Health, power, object.AIRepairable);
+                    else if (object.PoweredOn == "0")
+                        line3.Format(Translations::TranslateOrDefault("ObjectInfo.Structure.7",
+                            "Strength: %d (%s), PoweredOn: 0, AI Repair: %s")
+                            , strength, object.Health, object.AIRepairable);
                     line4.Format(Translations::TranslateOrDefault("ObjectInfo.Structure.5",
                         "Tag: %s (%s), Spot Light: %s, Upgrade Count: %s")
                         , tagName, object.Tag, object.SpotLight, object.Upgrades);

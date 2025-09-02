@@ -106,6 +106,7 @@ struct BuildingRenderData
     FString PowerUp1;
     FString PowerUp2;
     FString PowerUp3;
+    bool poweredOn;
 };
 
 struct LightingSource

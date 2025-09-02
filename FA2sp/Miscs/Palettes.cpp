@@ -341,34 +341,36 @@ void LightingSourceTint::CalculateMapLamps()
 
     CMapDataExt::LightingSources.clear();
     const float TOLERANCE = 0.001f;
-    if (CINI::CurrentDocument->SectionExists("Structures"))
+    if (auto pSection = CINI::CurrentDocument->GetSection("Structures"))
     {
-        int len = CINI::CurrentDocument->GetKeyCount("Structures");
-        for (int i = 0; i < len; i++)
+        for (const auto& [key,value] : pSection->GetEntities())
         {
-            const auto value = CINI::CurrentDocument->GetValueAt("Structures", i);
-            const auto atoms = STDHelpers::SplitString(value, 4);
-            const auto& ID = atoms[1];
-            LightingSource ls{};
-            ls.LightIntensity = Variables::RulesMap.GetSingle(ID, "LightIntensity", 0.0f);
-            if (abs(ls.LightIntensity) > TOLERANCE)
+            const auto atoms = STDHelpers::SplitString(value, 9);
+            // powered on
+            if (atoms[9] != "0")
             {
-                ls.LightVisibility = Variables::RulesMap.GetInteger(ID, "LightVisibility", 5000);
-                ls.LightRedTint = Variables::RulesMap.GetSingle(ID, "LightRedTint", 1.0f);
-                ls.LightGreenTint = Variables::RulesMap.GetSingle(ID, "LightGreenTint", 1.0f);
-                ls.LightBlueTint = Variables::RulesMap.GetSingle(ID, "LightBlueTint", 1.0f);
-                const int Index = CMapData::Instance->GetBuildingTypeID(ID);
-                const int Y = atoi(atoms[3]);
-                const int X = atoi(atoms[4]);
-                const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
+                const auto& ID = atoms[1];
+                LightingSource ls{};
+                ls.LightIntensity = Variables::RulesMap.GetSingle(ID, "LightIntensity", 0.0f);
+                if (abs(ls.LightIntensity) > TOLERANCE)
+                {
+                    ls.LightVisibility = Variables::RulesMap.GetInteger(ID, "LightVisibility", 5000);
+                    ls.LightRedTint = Variables::RulesMap.GetSingle(ID, "LightRedTint", 1.0f);
+                    ls.LightGreenTint = Variables::RulesMap.GetSingle(ID, "LightGreenTint", 1.0f);
+                    ls.LightBlueTint = Variables::RulesMap.GetSingle(ID, "LightBlueTint", 1.0f);
+                    const int Index = CMapData::Instance->GetBuildingTypeID(ID);
+                    const int Y = atoi(atoms[3]);
+                    const int X = atoi(atoms[4]);
+                    const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
 
-                ls.CenterX = X + DataExt.Height / 2.0f;
-                ls.CenterY = Y + DataExt.Width / 2.0f;
-                LightingSourcePosition lsp;
-                lsp.X = X;
-                lsp.Y = Y;
-                lsp.BuildingType = ID;
-                CMapDataExt::LightingSources.push_back(std::make_pair(lsp, ls));
+                    ls.CenterX = X + DataExt.Height / 2.0f;
+                    ls.CenterY = Y + DataExt.Width / 2.0f;
+                    LightingSourcePosition lsp;
+                    lsp.X = X;
+                    lsp.Y = Y;
+                    lsp.BuildingType = ID;
+                    CMapDataExt::LightingSources.push_back(std::make_pair(lsp, ls));
+                }
             }
         }
     }

@@ -482,6 +482,29 @@ public:
         assign(utf8.data());
     }
 
+    FString GetParam(int index)
+    {
+        std::vector<FString> tokens = SplitString(*this, ",");
+        if (index < 0 || index >= (int)tokens.size())
+            return {};
+        return tokens[index];
+    }
+
+    void SetParam(int index, const FString& value)
+    {
+        std::vector<FString> tokens = SplitString(*this, ",");
+        if (index < 0)
+            return;
+
+        if (index >= (int)tokens.size())
+        {
+            tokens.resize(index + 1, _T(""));
+        }
+
+        tokens[index] = value;
+        *this = Join(tokens);
+    }
+
     static std::vector<FString> SplitString(const FString& pSource, const char* pSplit = ",") {
         std::vector<FString> ret;
         if (pSplit == nullptr || pSource.GetLength() == 0) {
@@ -614,6 +637,18 @@ public:
         ret.Replace("\\t", "\t");
         ret.Replace("\\n", "\r\n");
         return ret;
+    }
+
+    static FString Join(const std::vector<FString>& tokens, const char* delim = ",")
+    {
+        FString result;
+        for (size_t i = 0; i < tokens.size(); ++i)
+        {
+            if (i > 0)
+                result += delim;
+            result += tokens[i];
+        }
+        return result;
     }
 };
 

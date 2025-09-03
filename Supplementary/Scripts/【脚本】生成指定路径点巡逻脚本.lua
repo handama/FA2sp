@@ -17,6 +17,7 @@ for _, part in pairs(split_string(input, ",")) do
         end
     end
 end
+
 if #result > 0 and #result < 14 then
 	local s = script:new()
 	s.name = "Patrol #"..input

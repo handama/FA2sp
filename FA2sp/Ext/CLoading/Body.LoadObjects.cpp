@@ -2725,7 +2725,8 @@ void CLoadingExt::SortDisplayOrder(std::vector<AnimDisplayOrder>& displayOrder)
 		{
 			mainBody.push_back(item);
 		}
-		else if (item.ZAdjust >= 0)
+		// main body has a baseline value -2
+		else if (item.ZAdjust > -2)
 		{
 			zPositive.push_back(item);
 		}
@@ -2738,7 +2739,7 @@ void CLoadingExt::SortDisplayOrder(std::vector<AnimDisplayOrder>& displayOrder)
 	auto cmpYThenZDesc = [](const AnimDisplayOrder& a, const AnimDisplayOrder& b)
 	{
 		if (a.YSort != b.YSort)
-			return a.YSort > b.YSort;
+			return a.YSort < b.YSort;
 		return a.ZAdjust > b.ZAdjust;
 	};
 

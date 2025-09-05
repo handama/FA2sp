@@ -3056,7 +3056,6 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     {
         CIsoView::CurrentCommand->Command = 0x00;
         CIsoView::CurrentCommand->Type = 0;
-        return true;
     }
     if (nCode == 1) // Infantry
     {

@@ -10,6 +10,7 @@ CAnnotationDlg::CAnnotationDlg(CWnd* pParent /*=NULL*/)
 	m_TextColor = "0x000000";
 	m_BgColor = "0xFFFFFF";
 	m_Bold = FALSE;
+	m_nInitTimer = NULL;
 }
 
 void CAnnotationDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
@@ -17,8 +18,8 @@ void CAnnotationDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
 	CDialog::DoDataExchange(pDX);
 	DDX_Text(pDX, 1000, m_Text);
 	DDX_Text(pDX, 1002, m_FontSize);
-	DDX_Text(pDX, 1004, m_TextColor);
-	DDX_Text(pDX, 1006, m_BgColor);
+	//DDX_Text(pDX, 1004, m_TextColor);
+	//DDX_Text(pDX, 1006, m_BgColor);
 	DDX_Check(pDX, 1007, m_Bold);
 
 	FString buffer;
@@ -42,19 +43,16 @@ void CAnnotationDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
 		SetWindowTextA(buffer);
 }
 
-
 BOOL CAnnotationDlg::OnInitDialog()
 {
 	ppmfc::CDialog::OnInitDialog();
 
 	GetDlgItem(1002)->SetWindowTextA(m_FontSize);
-	GetDlgItem(1004)->SetWindowTextA(m_TextColor);
-	GetDlgItem(1006)->SetWindowTextA(m_BgColor);
 	m_Text.Replace("\\n", "\n");
 	GetDlgItem(1000)->SetWindowTextA(m_Text);
 	if (m_Bold)
 		::SendMessage(GetDlgItem(1007)->GetSafeHwnd(), BM_SETCHECK, BST_CHECKED, 0);
-
+	m_nInitTimer = SetTimer(GetSafeHwnd(), 1, 20, nullptr);
 	return TRUE;  
 }
 

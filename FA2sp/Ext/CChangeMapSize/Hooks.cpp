@@ -7,6 +7,7 @@
 #include <CMyViewFrame.h>
 #include <CIsoView.h>
 #include <CMinimap.h>
+#include "../../Miscs/MultiSelection.h"
 
 DEFINE_HOOK(41B0E0, CChangeMapSize_DoDataExchange, 6)
 {
@@ -73,6 +74,7 @@ DEFINE_HOOK(499D56, CMapD_OnBNChangeMapSizeClicked_ValidCheck, 7)
 		pThis->CString_Height.Format("%d", cms.INT_Height);
 		pThis->UpdateData(FALSE);
 		pThis->Update();
+        MultiSelection::Clear();
 	}
 
     return 0x499E30;

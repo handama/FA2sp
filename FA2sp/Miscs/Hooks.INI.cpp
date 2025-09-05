@@ -44,7 +44,9 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
 
     size_t idx = 0;
     const size_t len = content.length();
-    size_t plusEqual = 0;
+    static size_t plusEqual = 0;
+    if (bAllowInclude)
+        plusEqual = 0;
     bool findTargetSection = false;
 
     while (idx < len) {
@@ -69,7 +71,6 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
 
             FString sectionName = line.substr(1, closePos - 1);
             FString sectionInherit;
-            plusEqual = 0;
 
             if (closePos + 1 < line.size() && line[closePos + 1] == ':') {
                 size_t p = closePos + 2;

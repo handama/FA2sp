@@ -52,13 +52,14 @@ DEFINE_HOOK(499D56, CMapD_OnBNChangeMapSizeClicked_ValidCheck, 7)
 
 	if (!CMapData::Instance->MapWidthPlusHeight) return 0x499E30;
 
-	if (R->ESI<ppmfc::CDialog*>()->MessageBox(
-		Translations::TranslateOrDefault("ChangeMapSizeWarn", 
-			"It is highly recommended that you should use Starkku's MapTool to resize your map rather than"
-			"Use FinalAlert2's map resizing, are you sure you want to continue?"),
-		Translations::TranslateOrDefault("Warning", "Warning"),
-		MB_YESNO | MB_ICONINFORMATION
-	) == IDYES)
+    // remove warning since this function works normally
+	//if (R->ESI<ppmfc::CDialog*>()->MessageBox(
+	//	Translations::TranslateOrDefault("ChangeMapSizeWarn", 
+	//		"It is highly recommended that you should use Starkku's MapTool to resize your map rather than"
+	//		"Use FinalAlert2's map resizing, are you sure you want to continue?"),
+	//	Translations::TranslateOrDefault("Warning", "Warning"),
+	//	MB_YESNO | MB_ICONINFORMATION
+	//) == IDYES)
 	{
 		CMapData::Instance->ResizeMap(
 			cms.INT_Left,

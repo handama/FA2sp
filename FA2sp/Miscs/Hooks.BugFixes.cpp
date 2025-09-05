@@ -140,7 +140,7 @@ DEFINE_HOOK(4564F0, CInputMessageBox_OnOK, 7)
 	return 0x4565A5;
 }
 
-DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenodeAndTube, 5)
+DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenodeAndTubeAndAnnotation, 5)
 {
 	GET_STACK(int, YOFF, STACK_OFFS(0x1C4, 0x19C));
 	GET_STACK(int, XOFF, STACK_OFFS(0x1C4, 0x194));
@@ -227,6 +227,26 @@ DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenodeAndTube, 5)
 		}
 	}
 	CMapData::Instance->UpdateFieldTubeData(false);
+
+	if (auto pSection = CINI::CurrentDocument->GetSection("Annotations"))
+	{
+		std::vector<std::pair<FString, FString>> annotations;
+		for (const auto& [key, value] : pSection->GetEntities())
+		{
+			auto pos = atoi(key);
+			int x = pos / 1000 + XOFF;
+			int y = pos % 1000 + YOFF;
+			buffer.Format("%d", y + x * 1000);
+			annotations.push_back(std::make_pair(FString(buffer), FString(value)));
+		}
+		CINI::CurrentDocument->DeleteSection("Annotations");
+		pSection = CINI::CurrentDocument->AddSection("Annotations");
+		for (const auto& [key, value] : annotations)
+		{
+			CINI::CurrentDocument->WriteString(pSection, key, value);
+		}
+	}
+	CMapDataExt::UpdateAnnotation();
 
 	return 0;
 }

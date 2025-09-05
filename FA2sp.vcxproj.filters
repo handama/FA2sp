@@ -264,6 +264,12 @@
     <ClInclude Include="FA2sp\Helpers\FString.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CNewEasterEgg\CNewEasterEgg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\Ext\CCredits\Body.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FA2sp\FA2sp.cpp">
@@ -677,6 +683,12 @@
     <ClCompile Include="FA2sp\Ext\CLoading\Body.MixManager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CNewEasterEgg\CNewEasterEgg.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CCredits\Body.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FA2sp\FA2sp.rc">
@@ -808,12 +820,14 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\COptions\COptions.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewEasterEgg\CNewEasterEgg.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="FA2sp\FA2sp.manifest">
       <Filter>资源文件</Filter>
     </None>
-    <None Include="0001-Fix-FA2pp-FAVector-T-cannot-pass-compile.patch" />
     <None Include="packages.config" />
   </ItemGroup>
 </Project>

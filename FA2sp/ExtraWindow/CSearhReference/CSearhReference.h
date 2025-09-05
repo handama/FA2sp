@@ -61,6 +61,7 @@ protected:
     static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static void ListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam);
     static void OnSelchangeListbox(HWND hWnd);
+    static FString GetPrefix(int type);
 
 
 private:

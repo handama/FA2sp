@@ -330,15 +330,19 @@ void CObjectSearch::ListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam)
     }
     else if (CObjectSearch::bMap)
     {
-        auto& location = CObjectSearch::ListBox_MapCoord[SendMessage(hListBox, LB_GETCURSEL, NULL, NULL)];
-        switch (nCode)
+        int index = SendMessage(hListBox, LB_GETCURSEL, NULL, NULL);
+        if (index >= 0 && index < CObjectSearch::ListBox_MapCoord.size())
         {
-        case LBN_SELCHANGE:
-        case LBN_DBLCLK:
-            MoveToMapCoord(location.first, location.second);
-            break;
-        default:
-            break;
+            auto& location = CObjectSearch::ListBox_MapCoord[index];
+            switch (nCode)
+            {
+            case LBN_SELCHANGE:
+            case LBN_DBLCLK:
+                MoveToMapCoord(location.first, location.second);
+                break;
+            default:
+                break;
+            }
         }
     }
     else if (CObjectSearch::bListBoxButton)

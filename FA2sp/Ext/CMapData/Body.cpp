@@ -127,7 +127,9 @@ int CMapDataExt::GetOreValueAt(CellData& cell)
 
 BuildingPowers CMapDataExt::GetStructurePower(CBuildingData object)
 {
-	BuildingPowers ret;
+	BuildingPowers ret{};
+	if (object.PoweredOn == "0")
+		return ret;
 	auto roundToPrecision = [](double value, int precision)
 		{
 			double multiplier = std::pow(10.0, precision);
@@ -184,6 +186,7 @@ BuildingPowers CMapDataExt::GetStructurePower(ppmfc::CString value)
 	object.Upgrade1 = atoms[12];
 	object.Upgrade2 = atoms[13];
 	object.Upgrade3 = atoms[14];
+	object.PoweredOn = atoms[9];
 	return GetStructurePower(object);
 }
 
@@ -1087,6 +1090,7 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 		data.PowerUp1 = splits[12];
 		data.PowerUp2 = splits[13];
 		data.PowerUp3 = splits[14];
+		data.poweredOn = splits[9] != "0";
 		CMapDataExt::BuildingRenderDatasFix.insert(CMapDataExt::BuildingRenderDatasFix.begin() + iniIndex, data);
 
 		int X = atoi(splits[4]);
@@ -2087,6 +2091,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	Logger::Debug("CMapDataExt::InitializeAllHdmEdition() Called!\n");
 	CIsoView::CurrentCommand->Type = 0;
 	CIsoView::CurrentCommand->Command = 0;
+	FA2sp::g_VEH_Enabled = true;
 
 	CIsoView::GetInstance()->CurrentCellObjectIndex = -1;
 	CIsoView::GetInstance()->CurrentCellObjectType = -1;

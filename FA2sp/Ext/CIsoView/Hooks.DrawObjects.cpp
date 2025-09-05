@@ -35,9 +35,10 @@ struct CellInfo {
 	CellDataExt* cellExt;
 };
 
-static std::vector<std::pair<MapCoord, ppmfc::CString>> WaypointsToDraw;
-static std::vector<std::pair<MapCoord, ppmfc::CString>> OverlayTextsToDraw;
+static std::vector<std::pair<MapCoord, FString>> WaypointsToDraw;
+static std::vector<std::pair<MapCoord, FString>> OverlayTextsToDraw;
 static std::vector<std::pair<MapCoord, DrawBuildings>> BuildingsToDraw;
+static std::vector<std::pair<MapCoord, ImageDataClassSafe*>> AlphaImagesToDraw;
 static std::vector<DrawVeterancy> DrawVeterancies;
 static std::vector<CellInfo> visibleCells;
 static std::unordered_set<short> DrawnBuildings;
@@ -110,6 +111,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 	WaypointsToDraw.clear();
 	OverlayTextsToDraw.clear();
 	BuildingsToDraw.clear();
+	AlphaImagesToDraw.clear();
 	DrawVeterancies.clear();
 	visibleCells.clear();
 	DrawnBuildings.clear();
@@ -1197,14 +1199,18 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (Variables::RulesMap.GetBool(obj, "SpawnsTiberium") ? 0 : 12),
 					pData, NULL, 255, 0, -1, false);
 
-				if (auto pAIFile = Variables::RulesMap.TryGetString(obj, "AlphaImage"))
+				if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages)
 				{
-					auto pAIData = CLoadingExt::GetImageDataFromServer(*pAIFile + "\233ALPHAIMAGE");
-
-					if (pAIData && pAIData->pImageBuffer)
+					if (auto pAIFile = Variables::RulesMap.TryGetString(obj, "AlphaImage"))
 					{
-						CIsoViewExt::BlitSHPTransparent_AlphaImage(pThis, lpDesc->lpSurface, window, boundary,
-							x - pAIData->FullWidth / 2, y - pAIData->FullHeight / 2 + (Variables::RulesMap.GetBool(obj, "SpawnsTiberium") ? 0 : 12), pAIData);
+						auto pAIData = CLoadingExt::GetImageDataFromServer(*pAIFile + "\233ALPHAIMAGE");
+						if (pAIData && pAIData->pImageBuffer)
+						{
+							AlphaImagesToDraw.push_back(
+								std::make_pair(MapCoord{ x - pAIData->FullWidth / 2,
+									y - pAIData->FullHeight / 2 + (Variables::RulesMap.GetBool(obj, "SpawnsTiberium") ? 0 : 12) },
+									pAIData));
+						}
 					}
 				}
 			}
@@ -1295,16 +1301,15 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									objRender.HouseColor, -1, false, isoset.find(objRender.ID) != isoset.end());
 							}
 						}
-						if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages)
+						if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages && objRender.poweredOn)
 						{
 							if (auto pAIFile = Variables::RulesMap.TryGetString(objRender.ID, "AlphaImage"))
 							{
 								auto pAIData = CLoadingExt::GetImageDataFromServer(*pAIFile + "\233ALPHAIMAGE");
-
 								if (pAIData && pAIData->pImageBuffer)
 								{
-									CIsoViewExt::BlitSHPTransparent_AlphaImage(pThis, lpDesc->lpSurface, window, boundary,
-										x - pAIData->FullWidth / 2, y - pAIData->FullHeight / 2 + 15, pAIData);
+									AlphaImagesToDraw.push_back(
+										std::make_pair(MapCoord{ x - pAIData->FullWidth / 2, y - pAIData->FullHeight / 2 + 15 },pAIData));
 								}
 							}
 						}
@@ -1574,6 +1579,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 	}
 
+	for (const auto& ai : AlphaImagesToDraw)
+	{
+		CIsoViewExt::BlitSHPTransparent_AlphaImage(pThis, lpDesc->lpSurface, window, boundary,
+			ai.first.X, ai.first.Y, ai.second);
+	}
+
 	const char* InsigniaVeteran = "FA2spInsigniaVeteran";
 	const char* InsigniaElite = "FA2spInsigniaElite";
 	auto veteran = CLoadingExt::GetImageDataFromMap(InsigniaVeteran);
@@ -1583,10 +1594,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	{
 		if (dv.VP >= 200)
 			CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-				dv.X - elite->FullWidth / 2 + 10, dv.Y + 21 - elite->FullHeight / 2, elite, 0, 255, 0, -11);
+				dv.X - elite->FullWidth / 2 + 10, dv.Y + 21 - elite->FullHeight / 2, elite, 0, 255, 0, -100, false);
 		else if (dv.VP >= 100)
 			CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-				dv.X - veteran->FullWidth / 2 + 10, dv.Y + 21 - veteran->FullWidth / 2, veteran, 0, 255, 0, -11);
+				dv.X - veteran->FullWidth / 2 + 10, dv.Y + 21 - veteran->FullWidth / 2, veteran, 0, 255, 0, -100, false);
 	}
 
 	if (CIsoViewExt::DrawTubes)

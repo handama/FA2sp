@@ -21,7 +21,6 @@ typedef unsigned char byte;
 #define VINIFERA_END 146
 #define ABOREUS_BEGIN 147
 #define ABOREUS_END 166
-__declspec(thread) extern bool g_VEH_Enabled;
 
 class FA2sp
 {
@@ -32,6 +31,7 @@ public:
     static void* pExceptionHandler;
     static ULONG_PTR ulCookie;
     static ULONG_PTR ulCookieEx;
+    static bool g_VEH_Enabled;
 
     static void ExtConfigsInitialize();
 };
@@ -248,10 +248,10 @@ class VEHGuard {
     bool oldState;
 public:
     VEHGuard(bool enable) {
-        oldState = g_VEH_Enabled;
-        g_VEH_Enabled = enable;
+        oldState = FA2sp::g_VEH_Enabled;
+        FA2sp::g_VEH_Enabled = enable;
     }
     ~VEHGuard() {
-        g_VEH_Enabled = oldState;
+        FA2sp::g_VEH_Enabled = oldState;
     }
 };

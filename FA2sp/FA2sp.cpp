@@ -24,7 +24,7 @@ ULONG_PTR FA2sp::ulCookieEx;
 std::string FA2sp::STDBuffer;
 ppmfc::CString FA2sp::Buffer;
 void* FA2sp::pExceptionHandler = nullptr;
-__declspec(thread) bool g_VEH_Enabled = true;
+bool FA2sp::g_VEH_Enabled = true;
 
 bool ExtConfigs::IsQuitingProgram = false;
 bool ExtConfigs::BrowserRedraw;

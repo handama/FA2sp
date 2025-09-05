@@ -307,6 +307,8 @@ private:
 
 	bool aesDecryptBlockwise(const uint8_t* input, size_t len, std::vector<uint8_t>& output);
 	std::array<uint8_t, 32> get_aes_key();
+	FString toHex(const unsigned char* data, size_t len);
+	FString encrypt_filename(const FString& filename, const unsigned char* key);
 };
 
 class ResourcePackManager 

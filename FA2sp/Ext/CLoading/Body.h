@@ -209,12 +209,7 @@ public:
 private:
 
 	void DumpFrameToFile(unsigned char* pBuffer, Palette* pPal, int Width, int Height, FString name);
-	void SortDisplayOrderByZAdjust(std::vector<AnimDisplayOrder>& displayOrder) {
-		std::stable_sort(displayOrder.begin(), displayOrder.end(),
-			[](const AnimDisplayOrder& a, const AnimDisplayOrder& b) {
-				return a.ZAdjust > b.ZAdjust;
-			});
-	}
+	void SortDisplayOrder(std::vector<AnimDisplayOrder>& displayOrder);
 
 	struct SHPUnionData
 	{

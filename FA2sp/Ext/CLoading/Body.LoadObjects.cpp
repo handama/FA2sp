@@ -563,7 +563,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 			CINI::Art->GetInteger(ArtID, AnimKeys[i] + "YSort"),
 			false, AnimKeys[i], IgnoreKeys[i] });
 	}
-	SortDisplayOrderByZAdjust(displayOrder);
+	SortDisplayOrder(displayOrder);
 	for (const auto& order : displayOrder)
 	{
 		if (order.MainBody)
@@ -965,7 +965,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 			CINI::Art->GetInteger(ArtID, AnimKeys[i] + "YSort"),
 			false, AnimKeys[i], IgnoreKeys[i] });
 	}
-	SortDisplayOrderByZAdjust(displayOrder);
+	SortDisplayOrder(displayOrder);
 	for (const auto& order : displayOrder)
 	{
 		if (order.MainBody)
@@ -2711,6 +2711,46 @@ bool CLoadingExt::LoadBMPToCBitmap(const FString& filePath, CBitmap& outBitmap)
 
 	outBitmap.Attach(hBmp);
 	return true;
+}
+
+void CLoadingExt::SortDisplayOrder(std::vector<AnimDisplayOrder>& displayOrder)
+{
+	std::vector<AnimDisplayOrder> zPositive;
+	std::vector<AnimDisplayOrder> zNegative;
+	std::vector<AnimDisplayOrder> mainBody;
+
+	for (auto& item : displayOrder)
+	{
+		if (item.MainBody)
+		{
+			mainBody.push_back(item);
+		}
+		// main body has a baseline value -2
+		else if (item.ZAdjust > -2)
+		{
+			zPositive.push_back(item);
+		}
+		else
+		{
+			zNegative.push_back(item);
+		}
+	}
+
+	auto cmpYThenZDesc = [](const AnimDisplayOrder& a, const AnimDisplayOrder& b)
+	{
+		if (a.YSort != b.YSort)
+			return a.YSort < b.YSort;
+		return a.ZAdjust > b.ZAdjust;
+	};
+
+	std::sort(zPositive.begin(), zPositive.end(), cmpYThenZDesc);
+	std::sort(zNegative.begin(), zNegative.end(), cmpYThenZDesc);
+	std::sort(mainBody.begin(), mainBody.end(), cmpYThenZDesc);
+
+	displayOrder.clear();
+	displayOrder.insert(displayOrder.end(), zPositive.begin(), zPositive.end());
+	displayOrder.insert(displayOrder.end(), mainBody.begin(), mainBody.end());
+	displayOrder.insert(displayOrder.end(), zNegative.begin(), zNegative.end());
 }
 
 void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)

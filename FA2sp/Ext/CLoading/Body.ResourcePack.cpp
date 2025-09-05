@@ -1,6 +1,33 @@
 #include "Body.h"
 #include <openssl/aes.h>
+#include <openssl/hmac.h>
+#include <openssl/evp.h>
 #include <cstring>
+#include <iostream>
+#include <iomanip>
+#include <sstream>
+
+FString ResourcePack::toHex(const unsigned char* data, size_t len) {
+    std::ostringstream oss;
+    oss << std::hex << std::setfill('0');
+    for (size_t i = 0; i < len; i++) {
+        oss << std::setw(2) << static_cast<int>(data[i]);
+    }
+    return oss.str();
+}
+
+FString ResourcePack::encrypt_filename(const FString& filename, const unsigned char* key) {
+    const EVP_MD* md = EVP_sha256();
+    unsigned char result[EVP_MAX_MD_SIZE];
+    unsigned int result_len = 0;
+
+    HMAC(md,
+        key, 32,
+        reinterpret_cast<const unsigned char*>(filename.data()), filename.size(),
+        result, &result_len);
+
+    return toHex(result, 16);
+}
 
 bool ResourcePack::load(const FString& filename)
 {
@@ -27,10 +54,10 @@ bool ResourcePack::load(const FString& filename)
     }
 
     size_t offset = 0;
-    while (offset + 256 + sizeof(FileEntry) <= decrypted_index.size()) {
-        FString name(reinterpret_cast<char*>(&decrypted_index[offset]), 256);
+    while (offset + 32 + sizeof(FileEntry) <= decrypted_index.size()) {
+        FString name(reinterpret_cast<char*>(&decrypted_index[offset]), 32);
         name = name.c_str();
-        offset += 256;
+        offset += 32;
 
         FileEntry entry;
         memcpy(&entry, &decrypted_index[offset], sizeof(FileEntry));
@@ -63,7 +90,10 @@ bool ResourcePack::aesDecryptBlockwise(const uint8_t* input, size_t len, std::ve
 
 std::unique_ptr<uint8_t[]> ResourcePack::getFileData(const FString& filename, size_t* out_size)
 {
-    auto it = index_map.find(filename);
+    FString raw_name = filename;
+    raw_name.MakeLower();
+    auto encrypted_filename = encrypt_filename(raw_name, get_aes_key().data());
+    auto it = index_map.find(encrypted_filename);
     if (it == index_map.end()) return nullptr;
 
     const FileEntry& entry = it->second;

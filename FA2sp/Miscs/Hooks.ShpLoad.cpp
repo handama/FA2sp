@@ -36,35 +36,63 @@ namespace hooks_files_detail
 		}
 
 		unsigned char* m_data;
+		size_t size;
 	};
 	static shape_file current_shape_file;
 }
 using namespace hooks_files_detail;
 
-// no need for this, just use CLoading::HasFile()
-//DEFINE_HOOK(525670, CMixFile_HasFile, 5)
-//{
-//	GET_STACK(const char*, filename, 0x4);
-//	GET_STACK(int, nMix, 0x8);
-//
-//	auto sp = STDHelpers::SplitString(filename, ".");
-//	auto& extension = sp.back();
-//	extension.MakeUpper();
-//
-//	if (extension == "SHP")
-//	{
-//		ppmfc::CString filepath = CFinalSunApp::FilePath();
-//		filepath += filename;
-//		std::ifstream fin;
-//		fin.open(filepath, std::ios::in | std::ios::binary);
-//		if (fin.is_open())
-//		{
-//			R->EDX(true);
-//			return 0x525785;
-//		}
-//	}
-//	return 0;
-//}
+DEFINE_HOOK(52D280, CSHPFile_Decode3, 5)
+{
+	GET_STACK(const byte*, s, 0x4);
+	GET_STACK(byte*, d, 0x8);
+	GET_STACK(int, cx, 0xC);
+	GET_STACK(int, cy, 0x10);
+
+	const byte* r = s;
+	const byte* dataBegin = current_shape_file.m_data;
+	const byte* dataEnd = current_shape_file.m_data + current_shape_file.size;
+	byte* w = d;
+	int total = cx * cy;
+	int written = 0;
+
+	for (int y = 0; y < cy; y++) {
+		if (r + 2 > dataEnd) break;
+
+		int count = *reinterpret_cast<const unsigned __int16*>(r) - 2;
+		r += 2;
+		int x = 0;
+
+		while (count-- > 0) {
+			if (r >= dataEnd) break;
+			int v = *r++;
+
+			if (v) {
+				if (written < total) {
+					*w++ = v;
+					written++;
+				}
+				x++;
+			}
+			else {
+				if (--count < 0) break;
+				if (r >= dataEnd) break; 
+				v = *r++;
+
+				if (x + v > cx) v = cx - x;
+				x += v;
+
+				int remain = total - written;
+				if (v > remain) v = remain;
+				for (int i = 0; i < v; i++) {
+					*w++ = 0;
+					written++;
+				}
+			}
+		}
+	}
+	return 0x52D330;
+}
 
 DEFINE_HOOK(525C50, CMixFile_LoadSHP, 5)
 {
@@ -88,6 +116,7 @@ DEFINE_HOOK(525C50, CMixFile_LoadSHP, 5)
 		fin.seekg(0, std::ios::beg);
 		current_shape_file.m_data = GameCreateArray<unsigned char>(size);
 		fin.read((char*)current_shape_file.m_data, size);
+		current_shape_file.size = size;
 		fin.close();
 		R->EAX(true);
 		return 0x525CFC;
@@ -99,6 +128,7 @@ DEFINE_HOOK(525C50, CMixFile_LoadSHP, 5)
 	{
 		current_shape_file.m_data = GameCreateArray<unsigned char>(size);
 		memcpy(current_shape_file.m_data, data.get(), size);
+		current_shape_file.size = size;
 		R->EAX(true);
 		return 0x525CFC;
 	}
@@ -112,6 +142,7 @@ DEFINE_HOOK(525C50, CMixFile_LoadSHP, 5)
 		{
 			current_shape_file.m_data = GameCreateArray<unsigned char>(sizeM);
 			memcpy(current_shape_file.m_data, result.get(), sizeM);
+			current_shape_file.size = sizeM;
 			R->EAX(true);
 			return 0x525CFC;
 		}
@@ -123,6 +154,7 @@ DEFINE_HOOK(525C50, CMixFile_LoadSHP, 5)
 		file.open(filename, CMixFile::Array[nMix - 1]);
 		current_shape_file.m_data = GameCreateArray<unsigned char>(file.get_size());
 		memcpy(current_shape_file.m_data, file.get_data(), file.get_size());
+		current_shape_file.size = file.get_size();
 		R->EAX(true);
 		return 0x525CFC;
 	}

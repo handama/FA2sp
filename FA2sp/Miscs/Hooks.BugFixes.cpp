@@ -302,6 +302,3 @@ DEFINE_HOOK(4A2A10, CMapData_SetOverlayDataAt, 5)
 
 	return 0x4A2A88;
 }
-
-
-

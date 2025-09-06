@@ -437,6 +437,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + cell->Height;
 					tileSubIndex = 0;
 				}
+				altImage = 0;
 			}
 
 			CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
@@ -506,6 +507,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + cell->Height;
 				tileSubIndex = 0;
 			}
+			altImage = 0;
 		}
 
 		CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
@@ -940,6 +942,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + cell->Height;
 							tileSubIndex = 0;
 						}
+						altImage = 0;
 					}
 
 					CTileTypeClass tile = CMapDataExt::TileData[tileIndex];

@@ -407,8 +407,11 @@ DEFINE_HOOK(47FFB0, CLoading_LoadTSINI, 7)
                 pINI->WriteString(oldSectionName, "MarbleMadness", std::to_string(index).c_str());
 
                 auto section = pINI->AddOrGetSection(secName);
+                auto newSection = pINI->AddOrGetSection(newSectionName);
+                // explicitly define CustomPalette, to solve compatibility issues with newly added terrains
+                auto pal = pINI->GetString(section, "CustomPalette", "iso");
+                pINI->WriteString(newSection, "CustomPalette", pal);
                 for (auto& pair : section->GetEntities())  {
-                    auto newSection = pINI->AddOrGetSection(newSectionName);
                     pINI->WriteString(newSection, pair.first, pair.second);
                 }
                 index++;

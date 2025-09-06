@@ -193,27 +193,8 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 break;
             case CLoadingExt::ObjectType::Vehicle:
             case CLoadingExt::ObjectType::Aircraft:
-            {
-                // load image ahead to get facings
-                if (!CLoadingExt::IsObjectLoaded(InsertingObjectID)
-                    && InsertingOverlay < 0 && InsertingTileIndex < 0 && !InsertingSpecialBitmap)
-                {
-                    bool temp = ExtConfigs::InGameDisplay_Shadow;
-                    bool temp2 = ExtConfigs::InGameDisplay_Deploy;
-                    bool temp3 = ExtConfigs::InGameDisplay_Water;
-                    ExtConfigs::InGameDisplay_Shadow = false;
-                    CLoadingExt::IsLoadingObjectView = true;
-                    CLoading::Instance->LoadObjects(InsertingObjectID);
-                    CLoadingExt::IsLoadingObjectView = false;
-                    ExtConfigs::InGameDisplay_Shadow = temp;
-                    ExtConfigs::InGameDisplay_Deploy = temp2;
-                    ExtConfigs::InGameDisplay_Water = temp3;
-                }
-                int facings = CLoadingExt::GetAvailableFacing(InsertingObjectID);
-                imageName = CLoadingExt::GetImageName(InsertingObjectID, facings / 4);
                 fileID = CLoadingExt::GetExtension()->GetVehicleOrAircraftFileID(InsertingObjectID);
                 break;
-            }
             case CLoadingExt::ObjectType::Building:
             {
                 imageName = CLoadingExt::GetBuildingImageName(InsertingObjectID, 0, 0);
@@ -296,8 +277,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             }
 
             if (!CLoadingExt::IsObjectLoaded(InsertingObjectID)
-                && InsertingOverlay < 0 && InsertingTileIndex < 0 && !InsertingSpecialBitmap
-                && eItemType != CLoadingExt::ObjectType::Vehicle && eItemType != CLoadingExt::ObjectType::Aircraft)
+                && InsertingOverlay < 0 && InsertingTileIndex < 0 && !InsertingSpecialBitmap)
             {
                 bool temp = ExtConfigs::InGameDisplay_Shadow;
                 bool temp2 = ExtConfigs::InGameDisplay_Deploy;
@@ -309,6 +289,11 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 ExtConfigs::InGameDisplay_Shadow = temp;
                 ExtConfigs::InGameDisplay_Deploy = temp2;
                 ExtConfigs::InGameDisplay_Water = temp3;
+            }
+            if (eItemType == CLoadingExt::ObjectType::Aircraft || eItemType == CLoadingExt::ObjectType::Vehicle)
+            {
+                int facings = CLoadingExt::GetAvailableFacing(InsertingObjectID);
+                imageName = CLoadingExt::GetImageName(InsertingObjectID, facings / 4);
             }
             auto pData = CLoadingExt::GetImageDataFromServer(imageName);
             if (pData && pData->pImageBuffer)

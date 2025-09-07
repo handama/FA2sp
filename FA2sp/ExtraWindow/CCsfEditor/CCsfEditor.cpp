@@ -16,6 +16,7 @@
 #include "../CNewINIEditor/CNewINIEditor.h"
 #include "../CNewTrigger/CNewTrigger.h"
 #include "../../Miscs/StringtableLoader.h"
+#include "../../Miscs/DialogStyle.h"
 
 HWND CCsfEditor::m_hwnd;
 CFinalSunDlg* CCsfEditor::m_parent;
@@ -36,6 +37,12 @@ std::map<FString, FString>& CCsfEditor::CurrentCSFMap = StringtableLoader::CSFFi
 FString CCsfEditor::CurrentSelectedCSF;
 FString CCsfEditor::CurrentSelectedCSFApply;
 bool CCsfEditor::NeedUpdate = false;
+WNDPROC CCsfEditor::g_pOriginalListViewProc = nullptr;
+
+LRESULT CALLBACK CCsfEditor::ListViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    return DarkTheme::MyCallWindowProcA(g_pOriginalListViewProc, hWnd, uMsg, wParam, lParam);
+}
 
 void CCsfEditor::Create(CFinalSunDlg* pWnd)
 {
@@ -103,6 +110,25 @@ void CCsfEditor::Initialize(HWND& hWnd)
     SendMessage(hCSFViewer, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT);
     SendMessage(hCSFEditor, EM_SETREADONLY, (WPARAM)TRUE, 0);
     ExtraWindow::SetEditControlFontSize(hCSFEditor, 1.4f, true);
+
+    if (ExtConfigs::EnableDarkMode)
+    {
+        ::SendMessage(hCSFEditor, EM_SETBKGNDCOLOR, (WPARAM)FALSE, (LPARAM)RGB(32, 32, 32));
+        CHARFORMAT cf = { 0 };
+        cf.cbSize = sizeof(cf);
+        cf.dwMask = CFM_COLOR;
+        cf.crTextColor = RGB(220, 220, 220);
+        ::SendMessage(hCSFEditor, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
+        ::SendMessage(hCSFViewer, LVM_SETTEXTBKCOLOR, 0, RGB(32, 32, 32));
+        ::SendMessage(hCSFViewer, LVM_SETTEXTCOLOR, 0, RGB(220, 220, 220));
+
+        g_pOriginalListViewProc = (WNDPROC)GetWindowLongPtr(hCSFViewer, GWLP_WNDPROC);
+        if (g_pOriginalListViewProc)
+        {
+            SetWindowLongPtr(hCSFViewer, GWLP_WNDPROC, (LONG_PTR)ListViewSubclassProc);
+        }
+        InvalidateRect(hCSFViewer, NULL, TRUE);
+    }
 
     Update(hWnd);
 }

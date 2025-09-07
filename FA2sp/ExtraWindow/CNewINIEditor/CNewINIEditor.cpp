@@ -107,13 +107,22 @@ void CNewINIEditor::Initialize(HWND& hWnd)
     SendMessage(hINIEdit, EM_LIMITTEXT, (WPARAM)INI_BUFFER_SIZE, 0);
     SendMessage(hINIEdit, EM_SETEVENTMASK, 0, (LPARAM)(ENM_CHANGE));
 
+    if (ExtConfigs::EnableDarkMode)
+    {
+        ::SendMessage(hINIEdit, EM_SETBKGNDCOLOR, (WPARAM)FALSE, (LPARAM)RGB(32, 32, 32));
+        CHARFORMAT cf = { 0 };
+        cf.cbSize = sizeof(cf);
+        cf.dwMask = CFM_COLOR;
+        cf.crTextColor = RGB(220, 220, 220);
+        ::SendMessage(hINIEdit, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
+    }
 
     if (hSectionList)
         OriginalListBoxProc = (WNDPROC)SetWindowLongPtr(hSectionList, GWLP_WNDPROC, (LONG_PTR)ListBoxSubclassProc);
 
-
     Update(hWnd);
 }
+
 void CNewINIEditor::InitializeImporter(HWND& hWnd)
 {
     FString buffer;

@@ -7,6 +7,19 @@
 #include <CIsoView.h>
 #include "../CIsoView/Body.h"
 #include "../../Helpers/STDHelpers.h"
+constexpr float kFactor = 0.7f;
+constexpr BYTE MakeValue(int i) {
+	int v = static_cast<int>(i * kFactor);
+	return v > 255 ? 255 : static_cast<BYTE>(v);
+}
+constexpr auto MakeBrightnessLUT() {
+	std::array<BYTE, 256> lut{};
+	for (int i = 0; i < 256; ++i) {
+		lut[i] = MakeValue(i);
+	}
+	return lut;
+}
+constexpr std::array<BYTE, 256> BrightnessLUT = MakeBrightnessLUT();
 
 DEFINE_HOOK(4D1E34, CMinimap_Update_NOTOPMOST, 7)
 {
@@ -22,6 +35,7 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 	BITMAPINFO bmi;
 	int nStride;
 	BYTE* pData = nullptr;
+	BYTE* pDataModified = nullptr;	
 	CMapData::Instance->GetMapPreview(pData, &bmi, nStride);
 	if (pData)
 	{
@@ -34,11 +48,42 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 
 	if (!pData) return 0x4D1CE0;
 
-	RECT r;
-	pThis->GetClientRect(&r);
-	StretchDIBits(pDC->m_hDC, 0, 0, r.right, r.bottom, 0, 0, 
-		CMapData::Instance->Size.Width * 2, CMapData::Instance->Size.Height,
-		pData, &bmi, DIB_RGB_COLORS, SRCCOPY);
+	if (ExtConfigs::EnableDarkMode && ExtConfigs::EnableDarkMode_DimMap)
+	{
+		pDataModified = new BYTE[nStride * bmi.bmiHeader.biHeight];
+		memcpy(pDataModified, pData, nStride * bmi.bmiHeader.biHeight);
+
+		int height = bmi.bmiHeader.biHeight;
+		int width = bmi.bmiHeader.biWidth;
+		int stride = nStride;
+
+		for (int y = 0; y < height; y++)
+		{
+			auto row = reinterpret_cast<RGBTRIPLE*>(pDataModified + y * stride);
+			for (int x = 0; x < width; x++)
+			{
+				row[x].rgbtRed = BrightnessLUT[row[x].rgbtRed];
+				row[x].rgbtGreen = BrightnessLUT[row[x].rgbtGreen];
+				row[x].rgbtBlue = BrightnessLUT[row[x].rgbtBlue];
+			}
+		}
+
+		RECT r;
+		pThis->GetClientRect(&r);
+		StretchDIBits(pDC->m_hDC, 0, 0, r.right, r.bottom, 0, 0,
+			CMapData::Instance->Size.Width * 2, CMapData::Instance->Size.Height,
+			pDataModified, &bmi, DIB_RGB_COLORS, SRCCOPY);
+
+		delete[] pDataModified;
+	}
+	else
+	{
+		RECT r;
+		pThis->GetClientRect(&r);
+		StretchDIBits(pDC->m_hDC, 0, 0, r.right, r.bottom, 0, 0,
+			CMapData::Instance->Size.Width * 2, CMapData::Instance->Size.Height,
+			pData, &bmi, DIB_RGB_COLORS, SRCCOPY);
+	}
 
 	auto GetMiniMapPos = [&bmi](int i, int e)
 		{

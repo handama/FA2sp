@@ -16,6 +16,7 @@ LightingStruct LightingStruct::CurrentLighting;
 
 std::map<FString, Palette*> PalettesManager::OriginPaletteFiles;
 std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedPaletteFiles;
+std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedDimmedPaletteFiles;
 std::map<Palette*, std::map<LightingStruct, LightingPalette>> PalettesManager::CalculatedPaletteFilesNoRemap;
 std::vector<LightingPalette> PalettesManager::CalculatedObjectPaletteFiles;
 Palette* PalettesManager::CurrentIso;
@@ -34,6 +35,7 @@ void PalettesManager::Release()
     PalettesManager::OriginPaletteFiles.clear();
     PalettesManager::CalculatedPaletteFiles.clear();
     PalettesManager::CalculatedPaletteFilesNoRemap.clear();
+    PalettesManager::CalculatedDimmedPaletteFiles.clear();
     PalettesManager::CalculatedObjectPaletteFiles.clear();
     PalettesManager::NeedReloadLighting = true;
 }
@@ -103,6 +105,30 @@ Palette* PalettesManager::GetPalette(Palette* pPal, BGRStruct& color, bool remap
     }
     return p.GetPalette();
 
+}
+
+Palette* PalettesManager::GetTileSetBrowserViewPalette(Palette* pPal, BGRStruct& color, bool remap, Cell3DLocation location)
+{
+    if (ExtConfigs::EnableDarkMode && ExtConfigs::EnableDarkMode_DimMap)
+    {
+        auto pal = ExtConfigs::LightingPreview_TintTileSetBrowserView ? GetPalette(pPal, color, remap, location) : pPal;
+        auto itr = PalettesManager::CalculatedDimmedPaletteFiles[pal].find(std::make_pair(color, LightingStruct::CurrentLighting));
+        if (itr != PalettesManager::CalculatedDimmedPaletteFiles[pal].end())
+            return itr->second.GetPalette();
+
+        auto& p = PalettesManager::CalculatedDimmedPaletteFiles[pal].emplace(
+            std::make_pair(std::make_pair(color, LightingStruct::CurrentLighting), LightingPalette(*pal))
+        ).first->second;
+        p.ResetColors();
+        p.AmbientMult = 0.7f;
+        p.RedMult = 1.0f;
+        p.GreenMult = 1.0f;
+        p.BlueMult = 1.0f;
+        p.TintColors();
+        return p.GetPalette();
+    }
+
+    return ExtConfigs::LightingPreview_TintTileSetBrowserView ? GetPalette(pPal, color, remap, location) : pPal; 
 }
 
 Palette* PalettesManager::GetObjectPalette(Palette* pPal, BGRStruct& color, bool remap, Cell3DLocation location, bool isopal, int extraLightType)

@@ -6,6 +6,7 @@
 #include <Helpers/Macro.h>
 
 #include "../FA2sp.h"
+#include "../Miscs/DialogStyle.h"
 
 DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
 {
@@ -40,6 +41,8 @@ DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
                 style &= ~(WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
                 style |= WS_SYSMENU;
                 SetWindowLong(pThis->Minimap, GWL_STYLE, style);
+
+                DarkTheme::SetDarkTheme(pThis->Minimap);
 
                 pThis->Minimap.Update();
                 if (bRes = pThis->StatusBar.CreateEx(pThis, 0x900))

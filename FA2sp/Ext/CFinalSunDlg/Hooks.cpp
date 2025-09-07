@@ -1,15 +1,11 @@
 #include "Body.h"
-
 #include <Helpers/Macro.h>
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/TheaterHelpers.h"
-
 #include <CInputMessageBox.h>
 #include <CFinalSunApp.h>
 #include <CMapData.h>
-
 #include <algorithm>
-
 #include "../CIsoView/Body.h"
 
 DEFINE_HOOK(424654, CFinalSunDlg_OnInitDialog_SetMenuItemStateByDefault, 7)
@@ -34,7 +30,6 @@ DEFINE_HOOK(424654, CFinalSunDlg_OnInitDialog_SetMenuItemStateByDefault, 7)
     pMenu->CheckMenuItem(30021, MF_CHECKED);
 
     pMenu->CheckMenuRadioItem(31000, 31003, CFinalSunDlgExt::CurrentLighting, MF_CHECKED);
-
     return 0;
 }
 

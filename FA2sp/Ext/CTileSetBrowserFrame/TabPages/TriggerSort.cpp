@@ -9,6 +9,7 @@
 #include "../../../ExtraWindow/CNewTrigger/CNewTrigger.h"
 #include "../../../Helpers/Translations.h"
 #include "../../CMapData/Body.h"
+#include "../../../Miscs/DialogStyle.h"
 using namespace std;
 
 TriggerSort TriggerSort::Instance;
@@ -16,6 +17,7 @@ std::unordered_map<FString, FString> TriggerSort::TriggerTags;
 std::unordered_map<FString, std::vector<FString>> TriggerSort::TriggerTagsParent;
 std::unordered_set<FString> TriggerSort::attachedTriggers;
 bool TriggerSort::CreateFromTriggerSort = false;
+WNDPROC TriggerSort::g_pOriginalTreeViewProc = nullptr;
 
 void TriggerSort::LoadAllTriggers()
 {
@@ -106,6 +108,11 @@ BOOL TriggerSort::OnMessage(PMSG pMsg)
     return FALSE;
 }
 
+LRESULT CALLBACK TriggerSort::TreeViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    return DarkTheme::MyCallWindowProcA(g_pOriginalTreeViewProc, hWnd, uMsg, wParam, lParam);
+}
+
 void TriggerSort::Create(HWND hParent)
 {
     RECT rect;
@@ -116,6 +123,17 @@ void TriggerSort::Create(HWND hParent)
         TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS | TVS_SHOWSELALWAYS,
         rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, hParent,
         NULL, static_cast<HINSTANCE>(FA2sp::hInstance), nullptr);
+
+    if (ExtConfigs::EnableDarkMode && this->m_hWnd)
+    {
+        g_pOriginalTreeViewProc = (WNDPROC)GetWindowLongPtr(this->m_hWnd, GWLP_WNDPROC);
+        if (g_pOriginalTreeViewProc)
+        {
+            SetWindowLongPtr(this->m_hWnd, GWLP_WNDPROC, (LONG_PTR)TreeViewSubclassProc);
+        }
+        ::SendMessage(this->m_hWnd, TVM_SETBKCOLOR, 0, RGB(32, 32, 32));
+        ::SendMessage(this->m_hWnd, TVM_SETTEXTCOLOR, 0, RGB(220, 220, 220));
+    }
 }
 
 void TriggerSort::OnSize() const

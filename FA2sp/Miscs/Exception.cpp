@@ -14,6 +14,7 @@
 #include <FA2PP.h>
 #include "../Helpers/Translations.h"
 #include "../Ext/CLoading/Body.h"
+#include "DialogStyle.h"
 
 LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 {
@@ -202,6 +203,7 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 	CINI::Turtorial->Release();
 	CINI::FAData->Release();
 	CINI::FALanguage->Release();
+	DarkTheme::CleanupDarkThemeBrushes();
 
 	Exception::Exit(pExs->ExceptionRecord->ExceptionCode);
 };

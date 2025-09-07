@@ -17,6 +17,7 @@
 #include "../../Helpers/Translations.h"
 #include "../../Miscs/VoxelDrawer.h"
 #include "../CLoading/Body.h"
+#include "../../Miscs/DialogStyle.h"
 namespace fs = std::filesystem;
 
 #pragma warning(disable : 6262)
@@ -311,6 +312,7 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 
 	is_watcher_running = false; // stop watcher
 	watcher.join(); // wait for thread exit
+	DarkTheme::CleanupDarkThemeBrushes();
 	if (ExtConfigs::LoadImageDataFromServer)
 	{
 		CLoadingExt::PingServerRunning = false;

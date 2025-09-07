@@ -10,6 +10,7 @@
 #include "../../../Helpers/Translations.h"
 #include "../../../ExtraWindow/CNewTeamTypes/CNewTeamTypes.h"
 #include "../../../Miscs/StringtableLoader.h"
+#include "../../../Miscs/DialogStyle.h"
 
 TagSort TagSort::Instance;
 std::unordered_set<FString> TagSort::attachedTriggers;
@@ -22,6 +23,7 @@ std::unordered_map<FString, FString> TagSort::TriggerTags;
 std::unordered_map<FString, std::vector<FString>> TagSort::TriggerTagsParent;
 std::unordered_map<FString, std::vector<FString>> TagSort::CellTagTags;
 std::unordered_map<FString, std::vector<FString>> TagSort::TeamTags;
+WNDPROC TagSort::g_pOriginalTreeViewProc = nullptr;
 
 
 enum FindType { Aircraft = 0, Infantry, Structure, Unit };
@@ -420,16 +422,32 @@ BOOL TagSort::OnMessage(PMSG pMsg)
     return FALSE;
 }
 
+LRESULT CALLBACK TagSort::TreeViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    return DarkTheme::MyCallWindowProcA(g_pOriginalTreeViewProc, hWnd, uMsg, wParam, lParam);
+}
+
 void TagSort::Create(HWND hParent)
 {
     RECT rect;
     ::GetClientRect(hParent, &rect);
 
     this->m_hWnd = CreateWindowEx(NULL, "SysTreeView32", nullptr,
-        WS_CHILD | WS_BORDER | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL | 
+        WS_CHILD | WS_BORDER | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL |
         TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS | TVS_SHOWSELALWAYS,
         rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, hParent,
         NULL, static_cast<HINSTANCE>(FA2sp::hInstance), nullptr);
+
+    if (ExtConfigs::EnableDarkMode && this->m_hWnd)
+    {
+        g_pOriginalTreeViewProc = (WNDPROC)GetWindowLongPtr(this->m_hWnd, GWLP_WNDPROC);
+        if (g_pOriginalTreeViewProc)
+        {
+            SetWindowLongPtr(this->m_hWnd, GWLP_WNDPROC, (LONG_PTR)TreeViewSubclassProc);
+        }
+        ::SendMessage(this->m_hWnd, TVM_SETBKCOLOR, 0, RGB(32, 32, 32));
+        ::SendMessage(this->m_hWnd, TVM_SETTEXTCOLOR, 0, RGB(220, 220, 220));
+    }
 }
 
 void TagSort::OnSize() const

@@ -8,6 +8,7 @@
 #include <numeric>
 #include "../CSearhReference/CSearhReference.h"
 #include "../../Miscs/MultiSelection.h"
+#include "../../Miscs/DialogStyle.h"
 
 HWND CTerrainGenerator::m_hwnd;
 CTileSetBrowserFrame* CTerrainGenerator::m_parent;
@@ -55,6 +56,12 @@ bool CTerrainGenerator::UseMultiSelection;
 std::map<FString, std::shared_ptr<TerrainGeneratorPreset>> CTerrainGenerator::TerrainGeneratorPresets;
 std::shared_ptr<TerrainGeneratorPreset> CTerrainGenerator::CurrentPreset;
 
+WNDPROC CTerrainGenerator::g_pOriginalTabPageProc = nullptr;
+LRESULT CALLBACK CTerrainGenerator::TabPageSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    return DarkTheme::MyCallWindowProcA(g_pOriginalTabPageProc, hWnd, uMsg, wParam, lParam);
+}
+
 void CTerrainGenerator::Create(CTileSetBrowserFrame* pWnd)
 {
     m_parent = pWnd;
@@ -84,6 +91,30 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     hTab2Dlg = CreateDialog(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(316), hTab, DlgProcTab2);
     hTab3Dlg = CreateDialog(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(317), hTab, DlgProcTab3);
     hTab4Dlg = CreateDialog(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(318), hTab, DlgProcTab4);
+    if (ExtConfigs::EnableDarkMode)
+    {
+        SetWindowTheme(hTab, L"DarkMode_Explorer", NULL);
+        g_pOriginalTabPageProc = (WNDPROC)GetWindowLongPtr(hTab1Dlg, GWLP_WNDPROC);
+        if (g_pOriginalTabPageProc)
+        {
+            SetWindowLongPtr(hTab1Dlg, GWLP_WNDPROC, (LONG_PTR)TabPageSubclassProc);
+        }
+        g_pOriginalTabPageProc = (WNDPROC)GetWindowLongPtr(hTab2Dlg, GWLP_WNDPROC);
+        if (g_pOriginalTabPageProc)
+        {
+            SetWindowLongPtr(hTab2Dlg, GWLP_WNDPROC, (LONG_PTR)TabPageSubclassProc);
+        }
+        g_pOriginalTabPageProc = (WNDPROC)GetWindowLongPtr(hTab3Dlg, GWLP_WNDPROC);
+        if (g_pOriginalTabPageProc)
+        {
+            SetWindowLongPtr(hTab3Dlg, GWLP_WNDPROC, (LONG_PTR)TabPageSubclassProc);
+        }
+        g_pOriginalTabPageProc = (WNDPROC)GetWindowLongPtr(hTab4Dlg, GWLP_WNDPROC);
+        if (g_pOriginalTabPageProc)
+        {
+            SetWindowLongPtr(hTab4Dlg, GWLP_WNDPROC, (LONG_PTR)TabPageSubclassProc);
+        }
+    }
 
     TCITEM tie;
     tie.mask = TCIF_TEXT;

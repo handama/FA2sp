@@ -53,6 +53,17 @@ BOOL CAnnotationDlg::OnInitDialog()
 	if (m_Bold)
 		::SendMessage(GetDlgItem(1007)->GetSafeHwnd(), BM_SETCHECK, BST_CHECKED, 0);
 	m_nInitTimer = SetTimer(GetSafeHwnd(), 1, 20, nullptr);
+
+	if (ExtConfigs::EnableDarkMode)
+	{
+		::SendMessage(GetDlgItem(1000)->GetSafeHwnd(), EM_SETBKGNDCOLOR, (WPARAM)FALSE, (LPARAM)RGB(32, 32, 32));
+		CHARFORMAT cf = { 0 };
+		cf.cbSize = sizeof(cf);
+		cf.dwMask = CFM_COLOR;
+		cf.crTextColor = RGB(220, 220, 220);
+		::SendMessage(GetDlgItem(1000)->GetSafeHwnd(), EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
+	}
+
 	return TRUE;  
 }
 

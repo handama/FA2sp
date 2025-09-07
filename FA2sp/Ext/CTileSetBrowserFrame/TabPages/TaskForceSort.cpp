@@ -7,8 +7,10 @@
 #include "../../../ExtraWindow/CNewTeamTypes/CNewTeamTypes.h"
 #include "../../../ExtraWindow/CNewTaskforce/CNewTaskforce.h"
 #include "../../../Helpers/Translations.h"
+#include "../../../Miscs/DialogStyle.h"
 TaskforceSort TaskforceSort::Instance;
 bool TaskforceSort::CreateFromTaskForceSort = false;
+WNDPROC TaskforceSort::g_pOriginalTreeViewProc = nullptr;
 
 void TaskforceSort::LoadAllTriggers()
 {
@@ -96,16 +98,32 @@ BOOL TaskforceSort::OnMessage(PMSG pMsg)
     return FALSE;
 }
 
+LRESULT CALLBACK TaskforceSort::TreeViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    return DarkTheme::MyCallWindowProcA(g_pOriginalTreeViewProc, hWnd, uMsg, wParam, lParam);
+}
+
 void TaskforceSort::Create(HWND hParent)
 {
     RECT rect;
     ::GetClientRect(hParent, &rect);
 
     this->m_hWnd = CreateWindowEx(NULL, "SysTreeView32", nullptr,
-        WS_CHILD | WS_BORDER | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL | 
+        WS_CHILD | WS_BORDER | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL |
         TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS | TVS_SHOWSELALWAYS,
         rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, hParent,
         NULL, static_cast<HINSTANCE>(FA2sp::hInstance), nullptr);
+
+    if (ExtConfigs::EnableDarkMode && this->m_hWnd)
+    {
+        g_pOriginalTreeViewProc = (WNDPROC)GetWindowLongPtr(this->m_hWnd, GWLP_WNDPROC);
+        if (g_pOriginalTreeViewProc)
+        {
+            SetWindowLongPtr(this->m_hWnd, GWLP_WNDPROC, (LONG_PTR)TreeViewSubclassProc);
+        }
+        ::SendMessage(this->m_hWnd, TVM_SETBKCOLOR, 0, RGB(32, 32, 32));
+        ::SendMessage(this->m_hWnd, TVM_SETTEXTCOLOR, 0, RGB(220, 220, 220));
+    }
 }
 
 void TaskforceSort::OnSize() const

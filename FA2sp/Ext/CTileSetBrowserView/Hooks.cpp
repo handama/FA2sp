@@ -18,8 +18,7 @@ static bool setCurrentOverlay(ImageDataClassSafe* pData)
         BGRStruct empty;
         CurrentOverlay.pImageBuffer = pData->pImageBuffer.get();
         CurrentOverlay.pPixelValidRanges = (ImageDataClass::ValidRangeData*)pData->pPixelValidRanges.get();
-        CurrentOverlay.pPalette = ExtConfigs::LightingPreview_TintTileSetBrowserView ? 
-            PalettesManager::GetPalette(pData->pPalette, empty, false) : pData->pPalette;
+        CurrentOverlay.pPalette = PalettesManager::GetTileSetBrowserViewPalette(pData->pPalette, empty, false);
         CurrentOverlay.ValidX = pData->ValidX;
         CurrentOverlay.ValidY = pData->ValidY;
         CurrentOverlay.ValidWidth = pData->ValidWidth;
@@ -277,6 +276,14 @@ DEFINE_HOOK(4F22F7, CTileSetBrowserView_OnDraw_OverlayPalette, 5)
     return 0x4F2315;
 }
 
+DEFINE_HOOK(4F22D6, CTileSetBrowserView_OnDraw_OverlayBackground, 6)
+{
+    // 255 : 32
+    R->EAX(ExtConfigs::EnableDarkMode ? 0x20202020 : 0xFFFFFFFF);
+    R->ECX(R->ECX() >> 2);
+    return 0x4F22DC;
+}
+
 DEFINE_HOOK(4F1EAD, CTileSetBrowserView_OnDraw_SkipDisableTile, 5)
 {
     //disable this tile
@@ -307,8 +314,7 @@ DEFINE_HOOK(4F36DD, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles, 5)
         BGRStruct empty;
         DrawTranspInsideTilesChanged = true;
         memcpy(&CLoadingExt::TempISOPalette, Palette::PALETTE_ISO, sizeof(Palette));
-        memcpy(Palette::PALETTE_ISO, ExtConfigs::LightingPreview_TintTileSetBrowserView ?
-            PalettesManager::GetPalette(pPal, empty, false) : pPal, sizeof(Palette));
+        memcpy(Palette::PALETTE_ISO, PalettesManager::GetTileSetBrowserViewPalette(pPal, empty, false), sizeof(Palette));
     }
     return 0;
 }

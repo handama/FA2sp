@@ -298,7 +298,7 @@
     <ClCompile Include="FA2sp\Miscs\CopyPaste.cpp" />
     <ClCompile Include="FA2sp\Miscs\FileWatcher.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Bitmap2MapConverter.cpp" />
-    <ClCompile Include="FA2sp\Miscs\Hooks.DialogStyle.cpp" />
+    <ClCompile Include="FA2sp\Miscs\DialogStyle.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.DirectDraw.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.ExtLocalVariables.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.FA2MiscFix.cpp" />
@@ -392,6 +392,7 @@
     <ClInclude Include="FA2sp\FA2sp.Constants.h" />
     <ClInclude Include="FA2sp\Helpers\FString.h" />
     <ClInclude Include="FA2sp\Miscs\CopyPaste.h" />
+    <ClInclude Include="FA2sp\Miscs\DialogStyle.h" />
     <ClInclude Include="FA2sp\Miscs\FileWatcher.h" />
     <ClInclude Include="FA2sp\Helpers\Helper.h" />
     <ClInclude Include="FA2sp\Helpers\InstructionSet.h" />

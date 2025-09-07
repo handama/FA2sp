@@ -40,5 +40,7 @@ private:
     static HWND hSearch;
     static CFinalSunDlg* m_parent;
     static bool initialized;
+    static WNDPROC g_pOriginalListViewProc;
+    static LRESULT CALLBACK ListViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 };
 

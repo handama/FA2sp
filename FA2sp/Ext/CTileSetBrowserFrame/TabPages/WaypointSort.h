@@ -40,6 +40,8 @@ public:
 private:
     HTREEITEM FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const;
     std::vector<FString> GetGroup(FString triggerId, FString& name) const;
+    static WNDPROC g_pOriginalTreeViewProc;
+    static LRESULT CALLBACK TreeViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 private:
     HWND m_hWnd;

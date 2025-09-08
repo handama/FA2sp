@@ -17,7 +17,6 @@
 #include "../../../Miscs/DialogStyle.h"
 
 WaypointSort WaypointSort::Instance;
-WNDPROC WaypointSort::g_pOriginalTreeViewProc = nullptr;
 
 void WaypointSort::LoadAllTriggers()
 {
@@ -140,11 +139,6 @@ BOOL WaypointSort::OnMessage(PMSG pMsg)
     return FALSE;
 }
 
-LRESULT CALLBACK WaypointSort::TreeViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    return DarkTheme::MyCallWindowProcA(g_pOriginalTreeViewProc, hWnd, uMsg, wParam, lParam);
-}
-
 void WaypointSort::Create(HWND hParent)
 {
     RECT rect;
@@ -158,11 +152,6 @@ void WaypointSort::Create(HWND hParent)
 
     if (ExtConfigs::EnableDarkMode && this->m_hWnd)
     {
-        g_pOriginalTreeViewProc = (WNDPROC)GetWindowLongPtr(this->m_hWnd, GWLP_WNDPROC);
-        if (g_pOriginalTreeViewProc)
-        {
-            SetWindowLongPtr(this->m_hWnd, GWLP_WNDPROC, (LONG_PTR)TreeViewSubclassProc);
-        }
         ::SendMessage(this->m_hWnd, TVM_SETBKCOLOR, 0, RGB(32, 32, 32));
         ::SendMessage(this->m_hWnd, TVM_SETTEXTCOLOR, 0, RGB(220, 220, 220));
     }

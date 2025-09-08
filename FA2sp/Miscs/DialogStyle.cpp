@@ -2,6 +2,7 @@
 #include "../Helpers/STDHelpers.h"
 #include <windowsx.h>
 #include "CFinalSunDlg.h"
+#include <psapi.h>
 
 // DEFINE_HOOK(54FC1E, CFileDialog_EnableExplorerStyle, 7)
 // {
@@ -512,24 +513,41 @@ void DarkTheme::SetDarkTheme(HWND hWndParent)
         DWORD style = GetWindowLongPtr(hWndChild, GWL_STYLE) & 0xF;
         wchar_t className[32];
         GetClassNameW(hWndChild, className, _countof(className));
-        switch (style)
+        if (_wcsicmp(className, WC_EDITW) == 0
+            || _wcsicmp(className, WC_SCROLLBARW) == 0
+            || _wcsicmp(className, L"ComboLBox") == 0
+            || _wcsicmp(className, WC_LISTBOXW) == 0)
         {
-        //case BS_CHECKBOX        :
-        case BS_AUTOCHECKBOX    :
-        case BS_RADIOBUTTON     :
-        case BS_3STATE          :
-        case BS_AUTO3STATE      :
-        case BS_GROUPBOX        :
-        case BS_USERBUTTON      :
-        case BS_AUTORADIOBUTTON :
-        case BS_PUSHBOX         :
-            if (_wcsicmp(className, L"SysTreeView32") != 0)
+            SetWindowTheme(hWndChild, L"DarkMode_Explorer", NULL);
+        }
+        else if(_wcsicmp(className, L"SysTreeView32") == 0)
+        {
+            SetWindowTheme(hWndChild, L"DarkMode_Explorer", NULL);
+        }
+        else if (_wcsicmp(className, WC_BUTTONW) == 0)
+        {
+            switch (style)
+            {
+                //case BS_CHECKBOX        :
+            case BS_AUTOCHECKBOX:
+            case BS_RADIOBUTTON:
+            case BS_3STATE:
+            case BS_AUTO3STATE:
+            case BS_GROUPBOX:
+            case BS_USERBUTTON:
+            case BS_AUTORADIOBUTTON:
+            case BS_PUSHBOX:
                 SetWindowTheme(hWndChild, L"", L"");
-            break;
-        default:
+                break;
+            default:
+                SetWindowTheme(hWndChild, L"DarkMode_Explorer", NULL);
+                break;
+            }
+        }
+        else
+        {
             if (_wcsicmp(className, WC_COMBOBOXW) != 0)
                 SetWindowTheme(hWndChild, L"DarkMode_Explorer", NULL);
-            break;
         }
         SetDarkTheme(hWndChild);
     }
@@ -961,6 +979,584 @@ void DarkTheme::UpdateMenuOverlayPosition(HWND hWnd)
     InvalidateRect(g_hMenuOverlay, NULL, TRUE);
 }
 
+void DrawComboBoxArrow(HDC hdc, RECT rc)
+{
+    int arrowWidth = GetSystemMetrics(SM_CXVSCROLL);
+    RECT arrowRc = rc;
+    arrowRc.left = arrowRc.right - arrowWidth;
+
+    HBRUSH hBrush = CreateSolidBrush(RGB(64, 64, 64));
+    FillRect(hdc, &arrowRc, hBrush);
+    DeleteObject(hBrush);
+
+    HPEN hPen = CreatePen(PS_SOLID, 1, RGB(200, 200, 200));
+    HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
+
+    int centerX = arrowRc.left + (arrowRc.right - arrowRc.left) / 2;
+    int centerY = arrowRc.top + (arrowRc.bottom - arrowRc.top) / 2;
+
+
+    int arrowSize = 4;
+    for (int i = 0; i < arrowSize; i++)
+    {
+        MoveToEx(hdc, centerX - i, centerY + arrowSize / 2 - i, NULL);
+        LineTo(hdc, centerX + i + 1, centerY + arrowSize / 2 - i);
+    }
+
+    SelectObject(hdc, hOldPen);
+    DeleteObject(hPen);
+}
+
+LRESULT CALLBACK ComboBoxSubclassProc(
+    HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
+    UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+{
+    switch (uMsg)
+    {
+    case WM_PAINT:
+    {
+        LONG style = GetWindowLong(hWnd, GWL_STYLE);
+        BOOL bDropdownList = (style & CBS_DROPDOWNLIST) == CBS_DROPDOWNLIST;
+
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        RECT rc;
+        GetClientRect(hWnd, &rc);
+
+        if (bDropdownList)
+        {
+            int idx = (int)SendMessage(hWnd, CB_GETCURSEL, 0, 0);
+            if (idx >= 0)
+            {
+                char text[512]{0};
+                SendMessage(hWnd, CB_GETLBTEXT, idx, (LPARAM)text);
+
+                RECT rcText = rc;
+                rcText.right -= GetSystemMetrics(SM_CXVSCROLL);
+                rcText.left += 5;
+
+                SetBkMode(hdc, TRANSPARENT);
+                SetTextColor(hdc, RGB(220, 220, 220));
+
+                HFONT hFont = (HFONT)SendMessage(hWnd, WM_GETFONT, 0, 0);
+                HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
+
+                DrawText(hdc, text, -1, &rcText, DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS);
+
+                SelectObject(hdc, hOldFont);
+            }
+        }
+
+        HPEN hPen = CreatePen(PS_SOLID, 1, RGB(96, 96, 96));
+        HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
+        HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
+
+        Rectangle(hdc, rc.left, rc.top, rc.right, rc.bottom);
+
+        DrawComboBoxArrow(hdc, rc);
+
+        SelectObject(hdc, hOldPen);
+        SelectObject(hdc, hOldBrush);
+        DeleteObject(hPen);
+
+        EndPaint(hWnd, &ps);
+
+        return TRUE;
+    }
+
+    case WM_ERASEBKGND:
+    {
+        HDC hdc = (HDC)wParam;
+        RECT rc;
+        GetClientRect(hWnd, &rc);
+
+        HBRUSH hBrush = CreateSolidBrush(RGB(48, 48, 48));
+        FillRect(hdc, &rc, hBrush);
+        DeleteObject(hBrush);
+
+        return TRUE;
+    }
+
+    case WM_CTLCOLOREDIT:
+    case WM_CTLCOLORLISTBOX:
+    {
+        HDC hdc = (HDC)wParam;
+
+        SetTextColor(hdc, RGB(240, 240, 240));
+        SetBkMode(hdc, TRANSPARENT);
+
+        static HBRUSH hDarkBrush = CreateSolidBrush(RGB(48, 48, 48));
+        return (LRESULT)hDarkBrush;
+    }
+
+    case WM_NCDESTROY:
+        RemoveWindowSubclass(hWnd, ComboBoxSubclassProc, uIdSubclass);
+        break;
+    }
+
+    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
+LRESULT CALLBACK EditSubclassProc(
+    HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
+    UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+{
+    switch (uMsg)
+    {
+    case WM_NCPAINT:
+    {
+        HDC hdc = GetWindowDC(hWnd);
+
+        RECT rcWindow;
+        GetWindowRect(hWnd, &rcWindow);
+        OffsetRect(&rcWindow, -rcWindow.left, -rcWindow.top);
+
+        RECT rcClient = rcWindow;
+        int borderWidth = GetSystemMetrics(SM_CXEDGE);
+        InflateRect(&rcClient, -borderWidth, -borderWidth); 
+
+        ExcludeClipRect(hdc, rcClient.left, rcClient.top, rcClient.right, rcClient.bottom);
+
+        HPEN hPen = CreatePen(PS_SOLID, borderWidth, RGB(96, 96, 96));
+        HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
+        HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
+
+        Rectangle(hdc, rcWindow.left, rcWindow.top, rcWindow.right, rcWindow.bottom);
+
+        SelectObject(hdc, hOldPen);
+        SelectObject(hdc, hOldBrush);
+        DeleteObject(hPen);
+
+        ReleaseDC(hWnd, hdc);
+        return 0;
+    }
+
+    case WM_ERASEBKGND:
+    {
+        HDC hdc = (HDC)wParam;
+        RECT rc;
+        GetClientRect(hWnd, &rc);
+
+        HBRUSH hBrush = CreateSolidBrush(RGB(48, 48, 48));
+        FillRect(hdc, &rc, hBrush);
+        DeleteObject(hBrush);
+
+        return TRUE;
+    }
+
+    case WM_CTLCOLOREDIT:
+    {
+        HDC hdc = (HDC)wParam;
+
+        SetTextColor(hdc, RGB(240, 240, 240));
+        SetBkMode(hdc, TRANSPARENT);
+
+        static HBRUSH hDarkBrush = CreateSolidBrush(RGB(48, 48, 48));
+        return (LRESULT)hDarkBrush;
+    }
+
+    case WM_NCDESTROY:
+        RemoveWindowSubclass(hWnd, EditSubclassProc, uIdSubclass);
+        break;
+    }
+
+    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
+
+struct DarkBtnState {
+    bool hover = false;
+    bool tracking = false;
+};
+
+static const COLORREF kBtnBg = RGB(32, 32, 32);
+static const COLORREF kBtnBgHover = RGB(64, 64, 64);
+static const COLORREF kGroupBoxBorder = RGB(64, 64, 64);
+static const COLORREF kTextColor = RGB(240, 240, 240);
+static const COLORREF kDisabledTextColor = RGB(120, 120, 120);
+static const COLORREF kCheckBorder = RGB(180, 180, 180);
+static const COLORREF kCheckFill = RGB(50, 90, 128);
+static const COLORREF kRadioBorder = RGB(180, 180, 180);
+static const COLORREF kRadioFill = RGB(200, 200, 200);
+static const COLORREF kHoverBorder = RGB(100, 180, 255);
+static const int kGlyphSize = 12;
+
+LRESULT CALLBACK DarkButtonSubclassProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
+    UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
+
+LRESULT CALLBACK DarkGroupBoxclassProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
+    UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
+
+void SubclassDarkButton(HWND hwndButton)
+{
+    if (!hwndButton) return;
+
+    DarkBtnState* state = new DarkBtnState{};
+    UINT_PTR id = 1;
+    SetLastError(0);
+    if (!SetWindowSubclass(hwndButton, DarkButtonSubclassProc, id, (DWORD_PTR)state))
+    {
+        delete state;
+    }
+}
+
+void SubclassDarkGroupBox(HWND hwndButton)
+{
+    if (!hwndButton) return;
+
+    SetWindowSubclass(hwndButton, DarkGroupBoxclassProc, 0, 0);
+}
+
+void UnsubclassDarkButton(HWND hwndButton)
+{
+    if (!hwndButton) return;
+    RemoveWindowSubclass(hwndButton, DarkButtonSubclassProc, 1);
+}
+
+void SubclassAllAutoButtons(HWND hParent)
+{
+    if (!ExtConfigs::EnableDarkMode)
+        return;
+
+    EnumChildWindows(hParent,
+        [](HWND hwnd, LPARAM lParam)->BOOL {
+        wchar_t cls[64] = {};
+        GetClassNameW(hwnd, cls, _countof(cls));
+        if (wcscmp(cls, L"Button") == 0)
+        {
+            LONG_PTR style = GetWindowLongPtr(hwnd, GWL_STYLE);
+            int type = style & 0xF;
+
+            switch (type)
+            {
+            case BS_CHECKBOX:
+            case BS_AUTOCHECKBOX:
+            case BS_3STATE:
+            case BS_AUTO3STATE:
+            case BS_RADIOBUTTON:
+            case BS_AUTORADIOBUTTON:
+                SubclassDarkButton(hwnd); 
+                break;
+            case BS_GROUPBOX:
+                SubclassDarkGroupBox(hwnd);
+                break;
+            default:
+                break;
+            }
+        }
+        return TRUE;
+    }, 0);
+}
+
+static void DrawCheckMark(HDC hdc, RECT rc)
+{
+    int h = rc.bottom - rc.top;
+    int w = rc.right - rc.left;
+
+    RECT fillRc = rc;
+
+    HBRUSH hBrush = CreateSolidBrush(kCheckFill);
+    HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, hBrush);
+    HPEN hOldPen = (HPEN)SelectObject(hdc, GetStockObject(NULL_PEN));
+
+    RoundRect(hdc, fillRc.left, fillRc.top, fillRc.right + 1, fillRc.bottom + 1, 4, 4);
+
+    SelectObject(hdc, hOldBrush);
+    SelectObject(hdc, hOldPen);
+    DeleteObject(hBrush);
+
+    POINT p1 = { rc.left + w / 6, (rc.top + rc.bottom) / 2 };
+    POINT p2 = { rc.left + w / 2 - 1, rc.bottom - h / 5 };
+    POINT p3 = { rc.right - w / 6, rc.top + h / 6 };
+
+    HPEN hPen = CreatePen(PS_SOLID, std::max(1, h / 8), kRadioFill);
+    HPEN hOld = (HPEN)SelectObject(hdc, hPen);
+    HBRUSH hOldBrush2 = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
+
+    MoveToEx(hdc, p1.x, p1.y, NULL);
+    LineTo(hdc, p2.x, p2.y);
+    LineTo(hdc, p3.x, p3.y);
+
+    SelectObject(hdc, hOldBrush2);
+    SelectObject(hdc, hOld);
+    DeleteObject(hPen);
+}
+
+LRESULT CALLBACK DarkButtonSubclassProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
+    UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+{
+    DarkBtnState* state = reinterpret_cast<DarkBtnState*>(dwRefData);
+
+    switch (uMsg)
+    {
+    case WM_NCDESTROY:
+    {
+        RemoveWindowSubclass(hwnd, DarkButtonSubclassProc, uIdSubclass);
+        if (state) { delete state; }
+        return DefSubclassProc(hwnd, uMsg, wParam, lParam);
+    }
+
+    case WM_ERASEBKGND:
+        return 1;
+
+    case WM_MOUSEMOVE:
+    {
+        if (state && !state->tracking)
+        {
+            TRACKMOUSEEVENT tme = { sizeof(tme) };
+            tme.dwFlags = TME_LEAVE;
+            tme.hwndTrack = hwnd;
+            TrackMouseEvent(&tme);
+            state->tracking = true;
+        }
+
+        POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+        RECT rc; GetClientRect(hwnd, &rc);
+        bool hover = PtInRect(&rc, pt) != 0;
+        if (state && hover != state->hover)
+        {
+            state->hover = hover;
+            InvalidateRect(hwnd, NULL, TRUE);
+        }
+        break;
+    }
+    case WM_MOUSELEAVE:
+    {
+        if (state)
+        {
+            state->tracking = false;
+            if (state->hover)
+            {
+                state->hover = false;
+                InvalidateRect(hwnd, NULL, TRUE);
+            }
+        }
+        break;
+    }
+
+    case BM_SETCHECK:
+    case BM_CLICK:
+    case BM_SETSTATE:
+    {
+        LRESULT res = DefSubclassProc(hwnd, uMsg, wParam, lParam);
+        InvalidateRect(hwnd, NULL, TRUE);
+        return res;
+    }
+
+    case WM_ENABLE:
+    {
+        LRESULT res = DefSubclassProc(hwnd, uMsg, wParam, lParam);
+        InvalidateRect(hwnd, NULL, TRUE);
+        return res;
+    }
+
+    case WM_LBUTTONUP:
+    {
+        LRESULT res = DefSubclassProc(hwnd, uMsg, wParam, lParam);
+        InvalidateRect(hwnd, NULL, TRUE);
+        return res;
+    }
+
+    case WM_PAINT :
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
+        RECT rcClient; GetClientRect(hwnd, &rcClient);
+        int w = rcClient.right - rcClient.left;
+        int h = rcClient.bottom - rcClient.top;
+
+        HDC hdcMem = CreateCompatibleDC(hdc);
+        HBITMAP hbmp = CreateCompatibleBitmap(hdc, w, h);
+        HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcMem, hbmp);
+
+        HBRUSH hBg = CreateSolidBrush(kBtnBg);
+        FillRect(hdcMem, &rcClient, hBg);
+        DeleteObject(hBg);
+
+        BOOL enabled = IsWindowEnabled(hwnd);
+
+        wchar_t textBuf[256] = {};
+        GetWindowTextW(hwnd, textBuf, _countof(textBuf));
+
+        LONG_PTR style = GetWindowLongPtr(hwnd, GWL_STYLE);
+        UINT type = style & BS_TYPEMASK;
+
+        bool isCheckbox = (type == BS_CHECKBOX) || (type == BS_AUTOCHECKBOX) ||
+            (type == BS_3STATE) || (type == BS_AUTO3STATE);
+        bool isRadio = (type == BS_RADIOBUTTON) || (type == BS_AUTORADIOBUTTON);
+        bool isGroupBox = (type == BS_GROUPBOX);
+
+        int checked = (int)SendMessage(hwnd, BM_GETCHECK, 0, 0);
+
+        RECT glyphRc = { 2, (h - kGlyphSize) / 2, 2 + kGlyphSize, (h - kGlyphSize) / 2 + kGlyphSize };
+
+        if (isCheckbox)
+        {
+            COLORREF borderColor = (state && state->hover) ? kHoverBorder : kCheckBorder;
+
+            HPEN hPen = CreatePen(PS_SOLID, 1, borderColor);
+            HBRUSH hOldBrush = (HBRUSH)SelectObject(hdcMem, GetStockObject(NULL_BRUSH));
+            HPEN hOldPen = (HPEN)SelectObject(hdcMem, hPen);
+
+            if (checked == BST_CHECKED)
+                DrawCheckMark(hdcMem, glyphRc);
+
+            RoundRect(hdcMem, glyphRc.left, glyphRc.top, glyphRc.right, glyphRc.bottom, 4, 4);
+
+            SelectObject(hdcMem, hOldBrush);
+            SelectObject(hdcMem, hOldPen);
+            DeleteObject(hPen);
+        }
+        else if (isRadio)
+        {
+            COLORREF borderColor = (state && state->hover) ? kHoverBorder : kRadioBorder;
+
+            HPEN hPen = CreatePen(PS_SOLID, 1, borderColor);
+            HPEN hOldPen = (HPEN)SelectObject(hdcMem, hPen);
+            HBRUSH hOldBrush = (HBRUSH)SelectObject(hdcMem, GetStockObject(NULL_BRUSH));
+
+            Ellipse(hdcMem, glyphRc.left, glyphRc.top, glyphRc.right, glyphRc.bottom);
+
+            if (checked == BST_CHECKED)
+            {
+                int cx = (glyphRc.left + glyphRc.right) / 2;
+                int cy = (glyphRc.top + glyphRc.bottom) / 2;
+                int rInner = kGlyphSize / 3;
+                HBRUSH hFill = CreateSolidBrush(kRadioFill);
+                HBRUSH hOldF = (HBRUSH)SelectObject(hdcMem, hFill);
+                Ellipse(hdcMem, cx - rInner, cy - rInner, cx + rInner, cy + rInner);
+                SelectObject(hdcMem, hOldF);
+                DeleteObject(hFill);
+            }
+
+            SelectObject(hdcMem, hOldBrush);
+            SelectObject(hdcMem, hOldPen);
+            DeleteObject(hPen);
+        }
+
+        RECT textRc = { glyphRc.right + 6, 0, w - 6, h };
+        SetBkMode(hdcMem, TRANSPARENT);
+        SetTextColor(hdcMem, enabled ? kTextColor : kDisabledTextColor);
+        HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+        HFONT hOldFont = (HFONT)SelectObject(hdcMem, hFont);
+        DrawTextW(hdcMem, textBuf, -1, &textRc, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+        SelectObject(hdcMem, hOldFont);
+
+        BitBlt(hdc, 0, 0, w, h, hdcMem, 0, 0, SRCCOPY);
+        SelectObject(hdcMem, hbmpOld);
+        DeleteObject(hbmp);
+        DeleteDC(hdcMem);
+
+        EndPaint(hwnd, &ps);
+        return 0; 
+    }
+
+    default:
+        break;
+    }
+
+    return DefSubclassProc(hwnd, uMsg, wParam, lParam);
+}
+
+LRESULT CALLBACK DarkGroupBoxclassProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
+    UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+{
+    DarkBtnState* state = reinterpret_cast<DarkBtnState*>(dwRefData);
+
+    switch (uMsg)
+    {
+    case WM_PAINT :
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
+        RECT rcClient; GetClientRect(hwnd, &rcClient);
+        int w = rcClient.right - rcClient.left;
+        int h = rcClient.bottom - rcClient.top;
+
+        HDC hdcMem = CreateCompatibleDC(hdc);
+        HBITMAP hbmp = CreateCompatibleBitmap(hdc, w, h);
+        HBITMAP hbmpOld = (HBITMAP)SelectObject(hdcMem, hbmp);
+
+        HBRUSH hBg = CreateSolidBrush(kBtnBg);
+        FillRect(hdcMem, &rcClient, hBg);
+        DeleteObject(hBg);
+
+        BOOL enabled = IsWindowEnabled(hwnd);
+
+        wchar_t textBuf[256] = {};
+        GetWindowTextW(hwnd, textBuf, _countof(textBuf));
+
+        RECT textRc = rcClient;
+        SetBkMode(hdcMem, TRANSPARENT);
+        SetTextColor(hdcMem, enabled ? kTextColor : kDisabledTextColor);
+
+        HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+        HFONT hOldFont = (HFONT)SelectObject(hdcMem, hFont);
+
+        DrawTextW(hdcMem, textBuf, -1, &textRc, DT_CALCRECT | DT_SINGLELINE);
+        int textWidth = textRc.right - textRc.left;
+        textRc.left += 8;
+        textRc.right += 8;
+
+        HPEN hPen = CreatePen(PS_SOLID, 1, kGroupBoxBorder);
+        HPEN hOldPen = (HPEN)SelectObject(hdcMem, hPen);
+        HBRUSH hOldBrush = (HBRUSH)SelectObject(hdcMem, GetStockObject(NULL_BRUSH));
+
+        int y = (textRc.bottom - textRc.top) / 2;
+        MoveToEx(hdcMem, 0, y, NULL);
+        LineTo(hdcMem, textRc.left - 2, y);
+        MoveToEx(hdcMem, textRc.right + 2, y, NULL);
+        LineTo(hdcMem, rcClient.right, y);
+        Rectangle(hdcMem, 0, y, rcClient.right, rcClient.bottom); 
+
+        SetBkMode(hdcMem, TRANSPARENT);
+        DrawTextW(hdcMem, textBuf, -1, &textRc, DT_SINGLELINE | DT_TOP | DT_LEFT);
+
+        SelectObject(hdcMem, hOldBrush);
+        SelectObject(hdcMem, hOldPen);
+        SelectObject(hdcMem, hOldFont);
+        DeleteObject(hPen);
+
+        BitBlt(hdc, 0, 0, w, h, hdcMem, 0, 0, SRCCOPY);
+        SelectObject(hdcMem, hbmpOld);
+        DeleteObject(hbmp);
+        DeleteDC(hdcMem);
+
+        EndPaint(hwnd, &ps);
+        return 0;
+    }
+    default:
+        break;
+    }
+
+    return DefSubclassProc(hwnd, uMsg, wParam, lParam);
+}
+
+void DarkTheme::SubclassAllControls(HWND hWndParent)
+{
+    if (!ExtConfigs::EnableDarkMode)
+        return;
+
+    HWND hWndChild = NULL;
+    while ((hWndChild = FindWindowEx(hWndParent, hWndChild, WC_COMBOBOX, NULL)) != NULL)
+    {
+        SetWindowSubclass(hWndChild, ComboBoxSubclassProc, 0, 0);
+    }
+
+    hWndChild = NULL;
+    while ((hWndChild = FindWindowEx(hWndParent, hWndChild, WC_EDIT, NULL)) != NULL)
+    {
+        SetWindowSubclass(hWndChild, EditSubclassProc, 0, 0);
+    }
+
+    hWndChild = NULL;
+    while ((hWndChild = FindWindowEx(hWndParent, hWndChild, NULL, NULL)) != NULL)
+    {
+        SubclassAllControls(hWndChild);
+    }
+}
+
 LRESULT DarkTheme::GenericWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
     if (ExtConfigs::EnableDarkMode 
@@ -974,6 +1570,7 @@ LRESULT DarkTheme::GenericWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM
             DarkTheme::UpdateMenuOverlayPosition(hWnd);
         }
     }
+
     LRESULT menuResult = HandleMenuMessages(hWnd, Msg, wParam, lParam);
     if (menuResult != 0)
         return menuResult;
@@ -1014,6 +1611,8 @@ LRESULT WINAPI DarkTheme::MyDefWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, L
     {
         LRESULT result = ::DefWindowProcA(hWnd, Msg, wParam, lParam);
         SetDarkTheme(hWnd);
+        SubclassAllControls(hWnd);
+        SubclassAllAutoButtons(hWnd);
         return result;
     }
 
@@ -1038,6 +1637,8 @@ LRESULT WINAPI DarkTheme::MyCallWindowProcA(
     {
         LRESULT result = ::CallWindowProcA(lpPrevWndFunc, hWnd, Msg, wParam, lParam);
         SetDarkTheme(hWnd);
+        SubclassAllControls(hWnd);
+        SubclassAllAutoButtons(hWnd);
         return result;
     }
 

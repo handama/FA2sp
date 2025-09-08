@@ -13,7 +13,6 @@
 TeamSort TeamSort::Instance;
 
 bool TeamSort::CreateFromTeamSort = false;
-WNDPROC TeamSort::g_pOriginalTreeViewProc = nullptr;
 
 void TeamSort::LoadAllTriggers()
 {
@@ -113,11 +112,6 @@ BOOL TeamSort::OnMessage(PMSG pMsg)
     return FALSE;
 }
 
-LRESULT CALLBACK TeamSort::TreeViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    return DarkTheme::MyCallWindowProcA(g_pOriginalTreeViewProc, hWnd, uMsg, wParam, lParam);
-}
-
 void TeamSort::Create(HWND hParent)
 {
     RECT rect;
@@ -131,11 +125,6 @@ void TeamSort::Create(HWND hParent)
 
     if (ExtConfigs::EnableDarkMode && this->m_hWnd)
     {
-        g_pOriginalTreeViewProc = (WNDPROC)GetWindowLongPtr(this->m_hWnd, GWLP_WNDPROC);
-        if (g_pOriginalTreeViewProc)
-        {
-            SetWindowLongPtr(this->m_hWnd, GWLP_WNDPROC, (LONG_PTR)TreeViewSubclassProc);
-        }
         ::SendMessage(this->m_hWnd, TVM_SETBKCOLOR, 0, RGB(32, 32, 32));
         ::SendMessage(this->m_hWnd, TVM_SETTEXTCOLOR, 0, RGB(220, 220, 220));
     }

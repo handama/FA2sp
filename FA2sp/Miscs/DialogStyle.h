@@ -43,6 +43,7 @@ public:
     static void InitializeMenuOverlay(HWND hWnd);
     static void UpdateMenuOverlayPosition(HWND hWnd);
     static void CleanupMenuOverlay();
+    static void SubclassAllControls(HWND hWndParent);
 
     static std::map<HMENU, std::map<UINT, MenuItemInfo>> g_menuItemData;
 };

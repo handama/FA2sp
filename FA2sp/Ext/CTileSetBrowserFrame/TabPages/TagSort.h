@@ -55,8 +55,6 @@ private:
     void AddTrigger(std::vector<FString> group, FString name, FString id) const;
     void AddAttachedTrigger(HTREEITEM hParent, FString triggerID, FString parentName) const;
     void AddAttachedTriggerReverse(HTREEITEM hParent, FString triggerID, FString parentName) const;
-    static WNDPROC g_pOriginalTreeViewProc;
-    static LRESULT CALLBACK TreeViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 private:
     HWND m_hWnd;

@@ -86,7 +86,8 @@ void CTerrainGenerator::Create(CTileSetBrowserFrame* pWnd)
 void CTerrainGenerator::Initialize(HWND& hWnd)
 {
     hTab = GetDlgItem(hWnd, Controls::Tab);
-
+    if (ExtConfigs::EnableDarkMode)
+        ::SetWindowSubclass(hTab, DarkTheme::TabCtrlSubclassProc, 0, 0);
     hTab1Dlg = CreateDialog(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(315), hTab, DlgProcTab1);
     hTab2Dlg = CreateDialog(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(316), hTab, DlgProcTab2);
     hTab3Dlg = CreateDialog(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(317), hTab, DlgProcTab3);

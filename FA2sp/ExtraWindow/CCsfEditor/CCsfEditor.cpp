@@ -122,6 +122,7 @@ void CCsfEditor::Initialize(HWND& hWnd)
         ::SendMessage(hCSFViewer, LVM_SETTEXTBKCOLOR, 0, RGB(32, 32, 32));
         ::SendMessage(hCSFViewer, LVM_SETTEXTCOLOR, 0, RGB(220, 220, 220));
 
+        DarkTheme::SubclassListViewHeader(hCSFViewer);
         g_pOriginalListViewProc = (WNDPROC)GetWindowLongPtr(hCSFViewer, GWLP_WNDPROC);
         if (g_pOriginalListViewProc)
         {

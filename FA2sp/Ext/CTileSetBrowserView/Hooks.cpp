@@ -278,7 +278,7 @@ DEFINE_HOOK(4F22F7, CTileSetBrowserView_OnDraw_OverlayPalette, 5)
 
 DEFINE_HOOK(4F22D6, CTileSetBrowserView_OnDraw_OverlayBackground, 6)
 {
-    // 255 : 32
+    //  32 : 255
     R->EAX(ExtConfigs::EnableDarkMode ? 0x20202020 : 0xFFFFFFFF);
     R->ECX(R->ECX() >> 2);
     return 0x4F22DC;

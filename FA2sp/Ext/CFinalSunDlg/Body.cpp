@@ -27,6 +27,7 @@
 #include "../../ExtraWindow/CSelectAutoShore/CSelectAutoShore.h"
 #include <thread>
 #include "../../Miscs/MultiSelection.h"
+#include "../../Miscs/DialogStyle.h"
 
 int CFinalSunDlgExt::CurrentLighting = 31000;
 std::pair<FString, int> CFinalSunDlgExt::SearchObjectIndex ("", - 1);
@@ -39,12 +40,23 @@ void CFinalSunDlgExt::ProgramStartupInit()
 	RunTime::ResetMemoryContentAt(0x5937D0, &CFinalSunDlgExt::OnCommandExt);
 }
 
+class UpdateMenuHelper
+{
+public:
+	UpdateMenuHelper(HMENU menu) { hMenu = menu; };
+	~UpdateMenuHelper() {
+		DarkTheme::EnableOwnerDrawMenu(hMenu);
+	};
+	HMENU hMenu;
+};
+
 BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 {
 	WORD wmID = LOWORD(wParam);
 	WORD wmMsg = HIWORD(wParam);
 
 	HMENU hMenu = *this->GetMenu();
+	auto updateMenu = UpdateMenuHelper(hMenu);
 	auto SetLayerStatus = [this, &hMenu, wmID](int id, bool& param)
 	{
 		if (GetMenuState(hMenu, id, MF_BYCOMMAND) & MF_CHECKED)

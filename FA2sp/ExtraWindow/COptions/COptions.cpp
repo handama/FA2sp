@@ -63,6 +63,7 @@ void COptions::Initialize(HWND& hWnd)
         ::SendMessage(hList, LVM_SETTEXTBKCOLOR, 0, RGB(32, 32, 32));
         ::SendMessage(hList, LVM_SETTEXTCOLOR, 0, RGB(220, 220, 220));
 
+        DarkTheme::SubclassListViewHeader(hList);
         g_pOriginalListViewProc = (WNDPROC)GetWindowLongPtr(hList, GWLP_WNDPROC);
         if (g_pOriginalListViewProc)
         {

@@ -23,6 +23,7 @@
 #include "../../ExtraWindow//CNewScript/CNewScript.h"
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
+#include "../../Miscs/DialogStyle.h"
 
 HWND CTileSetBrowserFrameExt::hTabCtrl = NULL;
 
@@ -423,6 +424,9 @@ void CTileSetBrowserFrameExt::InitTabControl()
 		nullptr, TCS_FIXEDWIDTH | WS_CHILD | WS_VISIBLE,
 		rect.left + 2, rect.top + 2, rect.right - 4, rect.bottom - 4,
 		*this, NULL, (HINSTANCE)FA2sp::hInstance, nullptr);
+
+	if (ExtConfigs::EnableDarkMode)
+		::SetWindowSubclass(this->hTabCtrl, DarkTheme::TabCtrlSubclassProc, 0, 0);
 
 	::SendMessage(this->hTabCtrl, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), NULL);
 	::ShowWindow(this->hTabCtrl, SW_SHOW);

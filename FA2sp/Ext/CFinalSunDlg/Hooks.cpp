@@ -7,12 +7,22 @@
 #include <CMapData.h>
 #include <algorithm>
 #include "../CIsoView/Body.h"
+#include "../../Miscs/DialogStyle.h"
+#include "../CFinalSunApp/Body.h"
+#include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
+#include "../../Miscs/MultiSelection.h"
+#include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 
 DEFINE_HOOK(424654, CFinalSunDlg_OnInitDialog_SetMenuItemStateByDefault, 7)
 {
     GET(CFinalSunDlg*, pThis, ESI);
 
     auto pMenu = pThis->GetMenu();
+    if (ExtConfigs::EnableDarkMode)
+    {
+        DarkTheme::EnableOwnerDrawMenu(*pMenu);
+        DarkTheme::InitializeMenuOverlay(pThis->GetSafeHwnd());
+    }
 
     pMenu->CheckMenuItem(30000, MF_CHECKED);
     pMenu->CheckMenuItem(30001, MF_CHECKED);
@@ -90,11 +100,6 @@ DEFINE_HOOK(432304, CFinalSunDlg_Update_LayersVisibility, 5)
     return 0;
 }
 
-#include "../CFinalSunApp/Body.h"
-#include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
-#include "../../Miscs/MultiSelection.h"
-#include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
-
 DEFINE_HOOK(432380, CFinalSunDlg_Update_RecentFiles, A)
 {
     GET(CMenu*, pMenu, ESI);
@@ -107,6 +112,7 @@ DEFINE_HOOK(432380, CFinalSunDlg_Update_RecentFiles, A)
 
     R->EDI(::CheckMenuItem);
 
+    DarkTheme::EnableOwnerDrawMenu(*pMenu);
     return 0x432442;
 }
 

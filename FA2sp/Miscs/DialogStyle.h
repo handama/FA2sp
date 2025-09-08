@@ -9,6 +9,22 @@
 #include <dwmapi.h>
 #pragma comment(lib, "dwmapi.lib")
 
+struct MenuItemInfo
+{
+    std::wstring text;
+    BOOL bChecked;
+    BOOL bRadioCheck;
+    UINT uID;
+};
+
+struct TopMenuItemInfo
+{
+    std::wstring text;
+    RECT rect;
+    bool isHighlighted;
+    bool isDisabled;
+};
+
 class DarkTheme
 {
 public:
@@ -20,4 +36,13 @@ public:
     static BOOL IsWindows10OrGreater();
     static void InitDarkThemeBrushes();
     static void CleanupDarkThemeBrushes();
+    static LRESULT CALLBACK TabCtrlSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
+    static BOOL SubclassListViewHeader(HWND hListView);
+    static void EnableOwnerDrawMenu(HMENU hMenu, bool isTopLevel = true);
+    static void UpdateMenuItems(HWND hOverlay);
+    static void InitializeMenuOverlay(HWND hWnd);
+    static void UpdateMenuOverlayPosition(HWND hWnd);
+    static void CleanupMenuOverlay();
+
+    static std::map<HMENU, std::map<UINT, MenuItemInfo>> g_menuItemData;
 };

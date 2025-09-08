@@ -1,5 +1,7 @@
 #include "DialogStyle.h"
 #include "../Helpers/STDHelpers.h"
+#include <windowsx.h>
+#include "CFinalSunDlg.h"
 
 // DEFINE_HOOK(54FC1E, CFileDialog_EnableExplorerStyle, 7)
 // {
@@ -82,6 +84,7 @@ static HBRUSH g_hDarkMenuBrush = NULL;
 static HBRUSH g_hDarkInfoBkBrush = NULL; 
 static HBRUSH g_hLightTextBrush = NULL;  
 static HBRUSH g_hHighlightBrush = NULL;
+std::map<HMENU, std::map<UINT, MenuItemInfo>> DarkTheme::g_menuItemData;
 
 void DarkTheme::InitDarkThemeBrushes()
 {
@@ -240,6 +243,207 @@ HGDIOBJ WINAPI MyGetStockObject(int fnObject)
     }
 }
 
+LRESULT CALLBACK DarkTheme::TabCtrlSubclassProc(
+    HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
+    UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+{
+    static HFONT hDefaultFont = NULL;
+    switch (uMsg)
+    {
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        RECT rc;
+        GetClientRect(hWnd, &rc);
+
+        HBRUSH hBgBrush = CreateSolidBrush(RGB(32, 32, 32));
+        FillRect(hdc, &rc, hBgBrush);
+        DeleteObject(hBgBrush);
+
+        if (!hDefaultFont)
+        {
+            hDefaultFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+        }
+        HFONT hFont = hDefaultFont;
+        HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
+
+        int itemCount = TabCtrl_GetItemCount(hWnd);
+        int selItem = TabCtrl_GetCurSel(hWnd);
+
+        RECT tabArea = { 0 };
+        if (itemCount > 0)
+        {
+            RECT firstTabRect;
+            TabCtrl_GetItemRect(hWnd, 0, &firstTabRect);
+            tabArea.top = 0;
+            tabArea.bottom = firstTabRect.bottom;
+            tabArea.left = rc.left;
+            tabArea.right = rc.right;
+        }
+
+        RECT borderRect = rc;
+        borderRect.top = tabArea.bottom;
+        if (itemCount > 0)
+        {
+            HPEN hBorderPen = CreatePen(PS_SOLID, 1, RGB(96, 96, 96));
+            HPEN hOldPen = (HPEN)SelectObject(hdc, hBorderPen);
+            HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
+            Rectangle(hdc, borderRect.left, borderRect.top, borderRect.right, borderRect.bottom);
+            SelectObject(hdc, hOldPen);
+            SelectObject(hdc, hOldBrush);
+            DeleteObject(hBorderPen);
+        }
+
+        for (int i = 0; i < itemCount; i++)
+        {
+            RECT itemRect;
+            TabCtrl_GetItemRect(hWnd, i, &itemRect);
+
+            TCHAR text[256];
+            TCITEM tci = { 0 };
+            tci.mask = TCIF_TEXT;
+            tci.pszText = text;
+            tci.cchTextMax = 256;
+            TabCtrl_GetItem(hWnd, i, &tci);
+
+            COLORREF bgColor, textColor;
+            if (i == selItem)
+            {
+                bgColor = RGB(72, 72, 72);
+                textColor = RGB(255, 255, 255);
+            }
+            else
+            {
+                bgColor = RGB(48, 48, 48);
+                textColor = RGB(220, 220, 220);
+            }
+
+            HBRUSH hItemBrush = CreateSolidBrush(bgColor);
+            FillRect(hdc, &itemRect, hItemBrush);
+            DeleteObject(hItemBrush);
+
+            HPEN hPen = CreatePen(PS_SOLID, 1, RGB(96, 96, 96));
+            HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
+            HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
+            Rectangle(hdc, itemRect.left, itemRect.top, itemRect.right, itemRect.bottom);
+            SelectObject(hdc, hOldPen);
+            SelectObject(hdc, hOldBrush);
+            DeleteObject(hPen);
+
+            SetTextColor(hdc, textColor);
+            SetBkMode(hdc, TRANSPARENT);
+
+            DrawText(hdc, text, -1, &itemRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        }
+        SelectObject(hdc, hOldFont);
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+    case WM_ERASEBKGND:
+    {
+        return TRUE;
+    }
+    case WM_NCDESTROY:
+        RemoveWindowSubclass(hWnd, TabCtrlSubclassProc, uIdSubclass);
+        break;
+    }
+
+    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
+LRESULT CALLBACK HeaderSubclassProc(
+    HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
+    UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+{
+    static HFONT hDefaultFont = NULL;
+    switch (uMsg)
+    {
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        RECT rc;
+        GetClientRect(hWnd, &rc);
+
+        FillRect(hdc, &rc, g_hDarkBackgroundBrush);
+
+        int colCount = Header_GetItemCount(hWnd);
+        if (!hDefaultFont)
+        {
+            hDefaultFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+        }
+        HFONT hFont = hDefaultFont;
+        HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
+        for (int i = 0; i < colCount; i++)
+        {
+            RECT colRect;
+            Header_GetItemRect(hWnd, i, &colRect);
+
+            HDITEM hdi = { 0 };
+            TCHAR text[256];
+            hdi.mask = HDI_TEXT | HDI_FORMAT;
+            hdi.pszText = text;
+            hdi.cchTextMax = 256;
+
+            if (Header_GetItem(hWnd, i, &hdi))
+            {
+                HBRUSH hColBrush = g_hHighlightBrush;
+                FillRect(hdc, &colRect, hColBrush);
+
+                HPEN hPen = CreatePen(PS_SOLID, 1, RGB(80, 80, 80));
+                HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
+                MoveToEx(hdc, colRect.right - 1, colRect.top, NULL);
+                LineTo(hdc, colRect.right - 1, colRect.bottom);
+                SelectObject(hdc, hOldPen);
+                DeleteObject(hPen);
+
+                SetTextColor(hdc, RGB(220, 220, 220));
+                SetBkMode(hdc, TRANSPARENT);
+
+                RECT textRect = colRect;
+                textRect.left += 5; 
+                textRect.right -= 5; 
+
+                UINT format = DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS;
+                if (hdi.fmt & HDF_CENTER)
+                    format |= DT_CENTER;
+                else if (hdi.fmt & HDF_RIGHT)
+                    format |= DT_RIGHT;
+                else
+                    format |= DT_LEFT;
+
+                DrawText(hdc, text, -1, &textRect, format);
+            }
+        }
+        SelectObject(hdc, hOldFont);
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+    case WM_ERASEBKGND:
+    {
+        return TRUE;
+    }
+    case WM_NCDESTROY:
+        RemoveWindowSubclass(hWnd, HeaderSubclassProc, uIdSubclass);
+        break;
+    }
+
+    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
+BOOL DarkTheme::SubclassListViewHeader(HWND hListView)
+{
+    HWND hHeader = FindWindowEx(hListView, NULL, WC_HEADER, NULL);
+    if (!hHeader)
+        return FALSE;
+
+    SetWindowSubclass(hHeader, HeaderSubclassProc, 0, 0);
+    return TRUE;
+}
+
 LRESULT DarkTheme::HandleCustomDraw(LPARAM lParam)
 {
     LPNMCUSTOMDRAW pNMCD = reinterpret_cast<LPNMCUSTOMDRAW>(lParam);
@@ -308,20 +512,472 @@ void DarkTheme::SetDarkTheme(HWND hWndParent)
         DWORD style = GetWindowLongPtr(hWndChild, GWL_STYLE) & 0xF;
         wchar_t className[32];
         GetClassNameW(hWndChild, className, _countof(className));
-        if (style >= BS_CHECKBOX && style <= BS_PUSHBOX && _wcsicmp(className, L"SysTreeView32") != 0)
+        switch (style)
         {
-            SetWindowTheme(hWndChild, L"", L"");
-        }
-        else
-        {
-            SetWindowTheme(hWndChild, L"DarkMode_Explorer", NULL);
+        //case BS_CHECKBOX        :
+        case BS_AUTOCHECKBOX    :
+        case BS_RADIOBUTTON     :
+        case BS_3STATE          :
+        case BS_AUTO3STATE      :
+        case BS_GROUPBOX        :
+        case BS_USERBUTTON      :
+        case BS_AUTORADIOBUTTON :
+        case BS_PUSHBOX         :
+            if (_wcsicmp(className, L"SysTreeView32") != 0)
+                SetWindowTheme(hWndChild, L"", L"");
+            break;
+        default:
+            if (_wcsicmp(className, WC_COMBOBOXW) != 0)
+                SetWindowTheme(hWndChild, L"DarkMode_Explorer", NULL);
+            break;
         }
         SetDarkTheme(hWndChild);
     }
 }
 
+void DarkTheme::EnableOwnerDrawMenu(HMENU hMenu, bool isTopLevel)
+{
+    if (!ExtConfigs::EnableDarkMode)
+        return;
+
+    int count = GetMenuItemCount(hMenu);
+    for (int i = 0; i < count; ++i)
+    {
+        MENUITEMINFOW mii = { sizeof(mii) };
+        mii.fMask = MIIM_FTYPE | MIIM_ID | MIIM_STATE | MIIM_STRING | MIIM_SUBMENU;
+
+        wchar_t buf[256] = { 0 };
+        mii.dwTypeData = buf;
+        mii.cch = 256;
+
+        if (GetMenuItemInfoW(hMenu, i, TRUE, &mii))
+        {
+            if (mii.fType & MFT_SEPARATOR)
+                continue;
+
+            if (!isTopLevel)
+            {
+                MenuItemInfo info;
+                info.text = buf;
+                info.bChecked = (mii.fState & MFS_CHECKED) != 0;
+                info.bRadioCheck = (mii.fType & MFT_RADIOCHECK) != 0;
+                info.uID = mii.wID;
+
+                DarkTheme::g_menuItemData[hMenu][mii.wID] = info;
+
+                mii.fMask = MIIM_FTYPE | MIIM_DATA;
+                mii.fType = MFT_OWNERDRAW;
+                mii.dwItemData = (ULONG_PTR)&DarkTheme::g_menuItemData[hMenu][mii.wID];
+
+                SetMenuItemInfoW(hMenu, i, TRUE, &mii);
+            }
+
+            if (mii.hSubMenu)
+            {
+                EnableOwnerDrawMenu(mii.hSubMenu, false);
+            }
+        }
+    }
+}
+
+LRESULT HandleMenuMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    switch (uMsg)
+    {
+    case WM_INITMENUPOPUP:
+    {
+        HMENU hMenu = (HMENU)wParam;
+        MENUINFO mi = { sizeof(MENUINFO) };
+        mi.fMask = MIM_BACKGROUND;
+        mi.hbrBack = g_hDarkMenuBrush;
+        SetMenuInfo(hMenu, &mi);
+        break;
+    }
+    case WM_MEASUREITEM:
+    {
+        LPMEASUREITEMSTRUCT pmis = (LPMEASUREITEMSTRUCT)lParam;
+        if (pmis->CtlType == ODT_MENU)
+        {
+            MenuItemInfo* pInfo = (MenuItemInfo*)pmis->itemData;
+            if (!pInfo)
+            {
+                pmis->itemHeight = 24;
+                pmis->itemWidth = 100;
+                return TRUE;
+            }
+
+            HDC hdc = GetDC(hWnd);
+            HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+            HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
+
+            std::wstring leftText = pInfo->text;
+            std::wstring rightText;
+            size_t tabPos = pInfo->text.find(L'\t');
+            if (tabPos != std::wstring::npos)
+            {
+                leftText = pInfo->text.substr(0, tabPos);
+                rightText = pInfo->text.substr(tabPos + 1);
+            }
+
+            SIZE sizeLeft{}, sizeRight{};
+            GetTextExtentPoint32W(hdc, leftText.c_str(), (int)leftText.length(), &sizeLeft);
+            if (!rightText.empty())
+                GetTextExtentPoint32W(hdc, rightText.c_str(), (int)rightText.length(), &sizeRight);
+
+            pmis->itemHeight = std::max((long)24, sizeLeft.cy + 8);
+            pmis->itemWidth = sizeLeft.cx + sizeRight.cx + 60; 
+
+            SelectObject(hdc, hOldFont);
+            ReleaseDC(hWnd, hdc);
+
+            return TRUE;
+        }
+        break;
+    }
+
+    case WM_DRAWITEM:
+    {
+        LPDRAWITEMSTRUCT pdis = (LPDRAWITEMSTRUCT)lParam;
+        if (pdis->CtlType == ODT_MENU)
+        {
+            MenuItemInfo* pInfo = (MenuItemInfo*)pdis->itemData;
+            if (!pInfo)
+                return FALSE;
+
+            HDC hdc = pdis->hDC;
+            RECT rc = pdis->rcItem;
+
+            COLORREF textColor;
+            HBRUSH hBgBrush;
+
+            if (pdis->itemState & ODS_SELECTED)
+            {
+                hBgBrush = g_hDarkBackgroundBrush;
+                textColor = RGB(255, 255, 255);
+            }
+            else if (pdis->itemState & ODS_GRAYED)
+            {
+                hBgBrush = g_hDarkMenuBrush;
+                textColor = RGB(120, 120, 120);
+            }
+            else
+            {
+                hBgBrush = g_hDarkMenuBrush;
+                textColor = RGB(220, 220, 220);
+            }
+
+            FillRect(hdc, &rc, hBgBrush);
+
+            SetTextColor(hdc, textColor);
+            SetBkMode(hdc, TRANSPARENT);
+
+            if (pInfo->bChecked)
+            {
+                RECT checkRc = rc;
+                checkRc.right = checkRc.left + 20;
+                checkRc.top += (rc.bottom - rc.top - 16) / 2;
+                checkRc.bottom = checkRc.top + 16;
+
+                if (pInfo->bRadioCheck)
+                {
+                    int cx = (checkRc.left + checkRc.right) / 2;
+                    int cy = (checkRc.top + checkRc.bottom) / 2;
+                    int rOuter = (checkRc.right - checkRc.left) / 4; 
+                    int rInner = rOuter - 2;                    
+
+                    HPEN hPen = CreatePen(PS_SOLID, 1, RGB(150, 150, 150));
+                    HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
+                    HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
+
+                    Ellipse(hdc, cx - rOuter, cy - rOuter, cx + rOuter, cy + rOuter);
+
+                    HBRUSH hFillBrush = CreateSolidBrush(RGB(200, 200, 200));
+                    HBRUSH hOldFill = (HBRUSH)SelectObject(hdc, hFillBrush);
+                    Ellipse(hdc, cx - rInner, cy - rInner, cx + rInner, cy + rInner);
+                    SelectObject(hdc, hOldFill);
+                    DeleteObject(hFillBrush);
+
+                    SelectObject(hdc, hOldBrush);
+                    SelectObject(hdc, hOldPen);
+                    DeleteObject(hPen);
+                }
+                else
+                {
+                    int size = checkRc.bottom - checkRc.top;
+                    int width = size;
+                    RECT boxRc = { checkRc.left + 3, checkRc.top, checkRc.left + width + 3, checkRc.bottom };
+
+                    HBRUSH hBoxBrush = CreateSolidBrush(RGB(80, 80, 80)); 
+                    HPEN   hBorderPen = CreatePen(PS_SOLID, 1, RGB(180, 180, 180));
+
+                    HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, hBoxBrush);
+                    HPEN   hOldPen = (HPEN)SelectObject(hdc, hBorderPen);
+
+                    RoundRect(hdc, boxRc.left, boxRc.top, boxRc.right, boxRc.bottom, 4, 4);
+
+                    MoveToEx(hdc, boxRc.left + 3, boxRc.top + size / 2, NULL);
+                    LineTo(hdc, boxRc.left + size / 2, boxRc.bottom - 3);
+                    LineTo(hdc, boxRc.right - 3, boxRc.top + 3);
+
+                    SelectObject(hdc, hOldBrush);
+                    SelectObject(hdc, hOldPen);
+
+                    DeleteObject(hBoxBrush);
+                    DeleteObject(hBorderPen);
+                }
+            }
+
+            std::wstring leftText = pInfo->text;
+            std::wstring rightText;
+            size_t tabPos = pInfo->text.find(L'\t');
+            if (tabPos != std::wstring::npos)
+            {
+                leftText = pInfo->text.substr(0, tabPos);
+                rightText = pInfo->text.substr(tabPos + 1);
+            }
+
+            RECT textRc = rc;
+            textRc.left += 24;
+
+            DrawTextW(hdc, leftText.c_str(), -1, &textRc,
+                DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+            if (!rightText.empty())
+            {
+                RECT accelRc = rc;
+                accelRc.right -= 10;
+                DrawTextW(hdc, rightText.c_str(), -1, &accelRc,
+                    DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
+            }
+            return TRUE;
+        }
+        break;
+    } 
+    }
+    return 0;
+}
+
+HWND g_hMenuOverlay = NULL;
+HMENU g_hMainMenu = NULL;
+std::vector<TopMenuItemInfo> g_menuItems;
+
+void UpdateHighlightStates()
+{
+    if (!g_hMainMenu) return;
+    int count = GetMenuItemCount(g_hMainMenu);
+    for (int i = 0; i < count && i < (int)g_menuItems.size(); i++)
+    {
+        MENUITEMINFO mii = { sizeof(MENUITEMINFO) };
+        mii.fMask = MIIM_STATE;
+        if (GetMenuItemInfo(g_hMainMenu, i, TRUE, &mii))
+        {
+            g_menuItems[i].isHighlighted = (mii.fState & MFS_HILITE) != 0;
+            g_menuItems[i].isDisabled = (mii.fState & MFS_DISABLED) != 0;
+        }
+    }
+}
+
+void InitMenuItems(HWND hOverlay)
+{
+    g_menuItems.clear();
+    if (!g_hMainMenu) return;
+
+    int count = GetMenuItemCount(g_hMainMenu);
+    HWND hParent = GetParent(hOverlay);
+
+    for (int i = 0; i < count; i++)
+    {
+        RECT rcItem{};
+        if (GetMenuItemRect(hParent, g_hMainMenu, i, &rcItem))
+        {
+            MapWindowPoints(HWND_DESKTOP, hOverlay, (POINT*)&rcItem, 2);
+
+            WCHAR text[256] = L"";
+            MENUITEMINFOW mii = { sizeof(MENUITEMINFOW) };
+            mii.fMask = MIIM_STRING | MIIM_STATE;
+            mii.dwTypeData = text;
+            mii.cch = 256;
+
+            if (GetMenuItemInfoW(g_hMainMenu, i, TRUE, &mii))
+            {
+                TopMenuItemInfo item;
+                item.text = text;
+                item.rect = rcItem;
+                item.isHighlighted = (mii.fState & MFS_HILITE) != 0;
+                item.isDisabled = (mii.fState & MFS_DISABLED) != 0;
+
+                g_menuItems.push_back(item);
+            }
+        }
+    }
+}
+
+void DrawMenuItems(HDC hdc, RECT rc)
+{
+    HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+    HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
+
+    for (const auto& item : g_menuItems)
+    {
+        HBRUSH hBgBrush;
+        if (item.isHighlighted)
+            hBgBrush = g_hHighlightBrush;
+        else
+            hBgBrush = g_hDarkBackgroundBrush;
+
+        FillRect(hdc, &item.rect, hBgBrush);
+
+        SetBkMode(hdc, TRANSPARENT);
+        if (item.isDisabled)
+            SetTextColor(hdc, RGB(120, 120, 120));
+        else
+            SetTextColor(hdc, RGB(240, 240, 240));
+
+        RECT textRc = item.rect;
+        //textRc.left += 10;
+
+        DrawTextW(hdc, item.text.c_str(), -1, &textRc,
+            DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    }
+
+    SelectObject(hdc, hOldFont);
+}
+
+LRESULT CALLBACK MenuOverlayProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    switch (uMsg)
+    {
+    case WM_PAINT:
+    {
+        UpdateHighlightStates();
+
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        RECT rc;
+        GetClientRect(hWnd, &rc);
+
+        HDC hdcMem = CreateCompatibleDC(hdc);
+        HBITMAP hbmMem = CreateCompatibleBitmap(hdc, rc.right, rc.bottom);
+        HBITMAP hbmOld = (HBITMAP)SelectObject(hdcMem, hbmMem);
+
+        FillRect(hdcMem, &rc, g_hDarkBackgroundBrush);
+        RECT rcBottom = rc;
+        rcBottom.top = rcBottom.bottom - 2;
+        FillRect(hdcMem, &rcBottom, g_hDarkInfoBkBrush);
+
+        DrawMenuItems(hdcMem, rc);
+
+        BitBlt(hdc, 0, 0, rc.right, rc.bottom, hdcMem, 0, 0, SRCCOPY);
+
+        SelectObject(hdcMem, hbmOld);
+        DeleteObject(hbmMem);
+        DeleteDC(hdcMem);
+
+        EndPaint(hWnd, &ps);
+        return 0;
+    } 
+    case WM_NCHITTEST:
+        return HTTRANSPARENT;
+    default:
+        return DefWindowProc(hWnd, uMsg, wParam, lParam);
+    }
+}
+
+void GetMenuBarRect(HWND hWnd, RECT* pRect)
+{
+    MENUBARINFO mbi = { sizeof(mbi) };
+    if (GetMenuBarInfo(hWnd, OBJID_MENU, 0, &mbi))
+    {
+        *pRect = mbi.rcBar;
+        pRect->bottom += 3;
+    }
+    else
+    {
+        SetRectEmpty(pRect);
+    }
+}
+
+HWND CreateMenuOverlay(HWND hParent)
+{
+    WNDCLASSEXW wc = { sizeof(WNDCLASSEXW) };
+    wc.lpfnWndProc = MenuOverlayProc;
+    wc.hInstance = GetModuleHandle(NULL);
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wc.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
+    wc.lpszClassName = L"MenuOverlay";
+
+    RegisterClassExW(&wc);
+
+    RECT rc;
+    GetMenuBarRect(hParent, &rc);
+
+    HWND hOverlay = CreateWindowExW(
+        WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW,
+        L"MenuOverlay", NULL, WS_POPUP,
+        rc.left, rc.top,
+        rc.right - rc.left, rc.bottom - rc.top,
+        hParent, NULL, GetModuleHandle(NULL), NULL);
+
+    SetLayeredWindowAttributes(hOverlay, 0, 255, LWA_ALPHA);
+    return hOverlay;
+}
+
+void DarkTheme::InitializeMenuOverlay(HWND hWnd)
+{
+    g_hMainMenu = GetMenu(hWnd);
+    if (!g_hMainMenu) return;
+
+    if (g_hMenuOverlay) DestroyWindow(g_hMenuOverlay);
+    g_hMenuOverlay = CreateMenuOverlay(hWnd);
+
+    if (g_hMenuOverlay)
+    {
+        InitMenuItems(g_hMenuOverlay);
+        ShowWindow(g_hMenuOverlay, SW_SHOW);
+        UpdateWindow(g_hMenuOverlay);
+    }
+}
+
+void DarkTheme::CleanupMenuOverlay()
+{
+    if (g_hMenuOverlay)
+    {
+        DestroyWindow(g_hMenuOverlay);
+        g_hMenuOverlay = NULL;
+    }
+}
+
+void DarkTheme::UpdateMenuOverlayPosition(HWND hWnd)
+{
+    if (!g_hMenuOverlay) return;
+
+    RECT rc;
+    GetMenuBarRect(hWnd, &rc);
+    SetWindowPos(g_hMenuOverlay, NULL,
+        rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top,
+        SWP_NOZORDER | SWP_NOACTIVATE);
+
+    InvalidateRect(g_hMenuOverlay, NULL, TRUE);
+}
+
 LRESULT DarkTheme::GenericWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
+    if (ExtConfigs::EnableDarkMode 
+        && CFinalSunDlg::Instance 
+        && hWnd == CFinalSunDlg::Instance->GetSafeHwnd())
+    {
+        switch (Msg)
+        {
+        case WM_MOVE:
+        case WM_SIZE:
+            DarkTheme::UpdateMenuOverlayPosition(hWnd);
+        }
+    }
+    LRESULT menuResult = HandleMenuMessages(hWnd, Msg, wParam, lParam);
+    if (menuResult != 0)
+        return menuResult;
+
     if (Msg == WM_ERASEBKGND)
     {
         HDC hdc = (HDC)wParam;

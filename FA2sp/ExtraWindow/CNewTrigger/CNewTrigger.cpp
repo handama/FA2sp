@@ -211,7 +211,10 @@ void CNewTrigger::Initialize(HWND& hWnd)
     for (int i = 0; i < EVENT_PARAM_COUNT; ++i)
         EventParamsUsage[i] = std::make_pair(false, 0);
     for (int i = 0; i < ACTION_PARAM_COUNT; ++i)
+    {
         ActionParamsUsage[i] = std::make_pair(false, 0);
+        ShowWindow(hActionParameterDesc[i], SW_HIDE);
+    }
 
     ExtraWindow::SetEditControlFontSize(hEventDescription, 1.3f);
     ExtraWindow::SetEditControlFontSize(hActionDescription, 1.3f);
@@ -2010,6 +2013,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
         {
             ActionParamsCount++;
             EnableWindow(hActionParameter[i], TRUE);
+            ShowWindow(hActionParameterDesc[i], SW_SHOW);
             if (ActionParamsUsage[i].second != 6)
             {
                 ExtraWindow::LoadParams(hActionParameter[i], pParamTypes[ActionParamsUsage[i].second][1]);
@@ -2049,6 +2053,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
             SendMessage(hActionParameter[i], WM_SETTEXT, 0, (LPARAM)"");
             FString trans;
             trans.Format("TriggerParameter#%dvalue", i + 1);
+            ShowWindow(hActionParameterDesc[i], SW_HIDE);
             SendMessage(hActionParameterDesc[i], WM_SETTEXT, 0,
                 (LPARAM)Translations::TranslateOrDefault(trans, ""));
         }

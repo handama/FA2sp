@@ -8,6 +8,7 @@
 #pragma comment(lib, "uxtheme.lib")
 #include <dwmapi.h>
 #pragma comment(lib, "dwmapi.lib")
+#include <shobjidl.h>
 
 struct MenuItemInfo
 {
@@ -28,6 +29,18 @@ struct TopMenuItemInfo
 struct DarkBtnState {
     bool hover = false;
     bool tracking = false;
+};
+
+struct FileDialogFeatures {
+    bool hasDirectUI = false;
+    bool hasTree = false;
+    bool hasToolbar = false;
+    bool hasReBar = false;
+};
+
+struct FilterSpecEx {
+    std::wstring name;
+    std::wstring pattern;
 };
 
 namespace DarkColors
@@ -66,6 +79,10 @@ public:
     static LRESULT WINAPI MyCallWindowProcA(WNDPROC lpPrevWndFunc, HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static std::string GetIniPath(const char* iniFile);
     static std::string ReadIniString(const char* iniFile, const std::string& section, const std::string& key, const std::string& defaultValue);
+    static std::vector<FilterSpecEx> ConvertFilter(LPCSTR lpstrFilter);
+    static BOOL HandleDialogResult(IFileDialog* pfd, OPENFILENAMEA* ofn);
+    static BOOL __stdcall MyGetOpenFileNameA(LPOPENFILENAMEA ofn);
+    static BOOL __stdcall MyGetSaveFileNameA(LPOPENFILENAMEA ofn);
     static LRESULT WINAPI GenericWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static LRESULT WINAPI HandleCustomDraw(LPARAM lParam);
     static void SetDarkTheme(HWND hWndParent);
@@ -112,6 +129,8 @@ public:
     static void SubclassDarkGroupBox(HWND hwndButton);
     static void UnsubclassDarkButton(HWND hwndButton);
     static void SubclassAllAutoButtons(HWND hParent);
+    static void EnumChildrenFileDialogCheck(HWND hWnd, FileDialogFeatures& features);
+    static bool IsModernFileDialog(HWND hWnd);
 
     static HBRUSH g_hDarkBackgroundBrush;
     static HBRUSH g_hDarkControlBrush;
@@ -139,4 +158,6 @@ public:
 
     static std::map<HMENU, std::map<UINT, MenuItemInfo>> g_menuItemData;
     static std::vector<TopMenuItemInfo> g_menuItems;
+    static bool b_isImportingINI;
+    static bool b_isSelectingGameFolder;
 };

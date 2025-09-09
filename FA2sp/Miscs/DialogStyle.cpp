@@ -26,80 +26,18 @@ HWND DarkTheme::g_hMenuOverlay = NULL;
 HMENU DarkTheme::g_hMainMenu = NULL;
 std::vector<TopMenuItemInfo> DarkTheme::g_menuItems;
 std::map<HMENU, std::map<UINT, MenuItemInfo>> DarkTheme::g_menuItemData;
+bool DarkTheme::b_isImportingINI = false;
+bool DarkTheme::b_isSelectingGameFolder = false;
 
-// DEFINE_HOOK(54FC1E, CFileDialog_EnableExplorerStyle, 7)
-// {
-//     GET(CFileDialog*, pDialog, ESI);
-// 
-//     OPENFILENAME ofn = pDialog->m_ofn;
-// 
-//     ofn.Flags &= ~OFN_ENABLEHOOK;
-// 
-//     if (ofn.pvReserved)
-//         R->EAX(GetOpenFileNameA(&ofn));
-//     else
-//         R->EAX(GetSaveFileNameA(&ofn));
-// 
-//     return 0x54FC37;
-// }
-DEFINE_HOOK(4248B3, CFinalSunDlg_OpenMap_ChangeDialogStyle, 7)
+DEFINE_HOOK(40B740, CINIEditor_OnClickImportINI, 7)
 {
-    FA2sp::g_VEH_Enabled = false;
-    R->Stack<int>(STACK_OFFS(0x60C, (0x398 - 0x8)), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_FILEMUSTEXIST);
+    DarkTheme::b_isImportingINI = true;
     return 0;
 }
-
-DEFINE_HOOK(4248DE, CFinalSunDlg_OpenMap_ChangeDialogStyle_2, 5)
+DEFINE_HOOK(50E220, CFinalSunDlg_SelectMainExecutive, 7)
 {
-    FA2sp::g_VEH_Enabled = true;
-    if (R->EAX() != 2)
-        return 0x4248F0;
-    return 0x4248E3;
-}
-
-DEFINE_HOOK(42686A, CFinalSunDlg_SaveMap_ChangeDialogStyle, 5)
-{
-    FA2sp::g_VEH_Enabled = false;
-    R->Stack<int>(STACK_OFFS(0x3CC, (0x280 - 0x8)), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_FILEMUSTEXIST);
+    DarkTheme::b_isSelectingGameFolder = true;
     return 0;
-}
-
-DEFINE_HOOK(426897, CFinalSunDlg_SaveMap_ChangeDialogStyle_2, 5)
-{
-    FA2sp::g_VEH_Enabled = true;
-    if (R->EAX() == 2)
-        return 0x42698C;
-    return 0x4268A0;
-}
-
-DEFINE_HOOK(4D312E, CFinalSunDlg_ImportMap_ChangeDialogStyle, 5)
-{
-    FA2sp::g_VEH_Enabled = false;
-    R->Stack<int>(STACK_OFFS(0x310, (0x280 - 0x8)), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_FILEMUSTEXIST);
-    return 0;
-}
-
-DEFINE_HOOK(4D3158, CFinalSunDlg_ImportMap_ChangeDialogStyle_2, 5)
-{
-    FA2sp::g_VEH_Enabled = true;
-    if (R->EAX() != 2)
-        return 0x4D316A;
-    return 0x4D315D;
-}
-
-DEFINE_HOOK(40B7B3, CINIEditor_OnClickImportINI_ChangeDialogStyle, 5)
-{
-    FA2sp::g_VEH_Enabled = false;
-    R->Stack<int>(STACK_OFFS(0x3B0, (0x280 - 0x8)), OFN_FILEMUSTEXIST);
-    return 0;
-}
-
-DEFINE_HOOK(40B7CD, CINIEditor_OnClickImportINI_ChangeDialogStyle_2, 5)
-{
-    FA2sp::g_VEH_Enabled = true;
-    if (R->EAX() == 2)
-        return 0x40B865;
-    return 0x40B7D6;
 }
 
 void DarkTheme::InitDarkThemeBrushes()
@@ -596,6 +534,7 @@ void DarkTheme::SetDarkTheme(HWND hWndParent)
     {
         BOOL darkMode = TRUE;
         DwmSetWindowAttribute(hWndParent, 19, &darkMode, sizeof(darkMode));
+        DwmSetWindowAttribute(hWndParent, 20, &darkMode, sizeof(darkMode));
     }
 
     while ((hWndChild = FindWindowEx(hWndParent, hWndChild, NULL, NULL)) != NULL)
@@ -603,35 +542,9 @@ void DarkTheme::SetDarkTheme(HWND hWndParent)
         DWORD style = GetWindowLongPtr(hWndChild, GWL_STYLE) & 0xF;
         wchar_t className[32];
         GetClassNameW(hWndChild, className, _countof(className));
-        if (_wcsicmp(className, L"SysTreeView32") == 0)
-        {
+        if (_wcsicmp(className, WC_COMBOBOXW) != 0)
             SetWindowTheme(hWndChild, L"DarkMode_Explorer", NULL);
-        }
-        else if (_wcsicmp(className, WC_BUTTONW) == 0)
-        {
-            switch (style)
-            {
-                //case BS_CHECKBOX        :
-            case BS_AUTOCHECKBOX:
-            case BS_RADIOBUTTON:
-            case BS_3STATE:
-            case BS_AUTO3STATE:
-            case BS_GROUPBOX:
-            case BS_USERBUTTON:
-            case BS_AUTORADIOBUTTON:
-            case BS_PUSHBOX:
-                SetWindowTheme(hWndChild, L"", L"");
-                break;
-            default:
-                SetWindowTheme(hWndChild, L"DarkMode_Explorer", NULL);
-                break;
-            }
-        }
-        else
-        {
-            if (_wcsicmp(className, WC_COMBOBOXW) != 0)
-                SetWindowTheme(hWndChild, L"DarkMode_Explorer", NULL);
-        }
+
         SetDarkTheme(hWndChild);
     }
 }
@@ -1695,13 +1608,24 @@ LRESULT DarkTheme::GenericWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM
 
         return TRUE;
     }
+    else if (Msg == WM_PAINT)
+    {
+        if (GetPropW(hWnd, L"IS_MESSAGEBOX"))
+        {
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hWnd, &ps);
+            RECT rc;
+            GetClientRect(hWnd, &rc);
+            FillRect(hdc, &rc, g_hDarkBackgroundBrush);
+            EndPaint(hWnd, &ps);
+        }
+    }
     else if (Msg >= WM_CTLCOLORMSGBOX && Msg <= WM_CTLCOLORSTATIC)
     {
         HDC hdc = (HDC)wParam;
         SetBkMode(hdc, TRANSPARENT);
         SetBkColor(hdc, DarkColors::Background);
         SetTextColor(hdc, DarkColors::LightText);
-
         return (LRESULT)g_hDarkBackgroundBrush;
     }
     else if (Msg == WM_NOTIFY)
@@ -1710,7 +1634,45 @@ LRESULT DarkTheme::GenericWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM
         if (pNMHDR->code == NM_CUSTOMDRAW)
             return HandleCustomDraw(lParam);
     }
+    else if (Msg == WM_CTLCOLOR)
+    {
+        return (HRESULT)GetStockObject(DKGRAY_BRUSH);
+    }
     return FALSE;
+}
+
+
+void DarkTheme::EnumChildrenFileDialogCheck(HWND hWnd, FileDialogFeatures& features)
+{
+    HWND hChild = nullptr;
+    while ((hChild = FindWindowExW(hWnd, hChild, nullptr, nullptr)) != nullptr)
+    {
+        wchar_t buf[256];
+        if (GetClassNameW(hChild, buf, 256))
+        {
+            if (_wcsicmp(buf, L"DirectUIHWND") == 0)  features.hasDirectUI = true;
+            else if (_wcsicmp(buf, L"SysTreeView32") == 0)  features.hasTree = true;
+            else if (_wcsicmp(buf, L"ToolbarWindow32") == 0) features.hasToolbar = true;
+            else if (_wcsicmp(buf, L"ReBarWindow32") == 0)   features.hasReBar = true;
+        }
+
+        EnumChildrenFileDialogCheck(hChild, features);
+    }
+}
+
+bool DarkTheme::IsModernFileDialog(HWND hWnd)
+{
+    wchar_t cls[256];
+    if (!GetClassNameW(hWnd, cls, 256))
+        return false;
+    if (wcscmp(cls, L"#32770") != 0)
+        return false;
+
+    FileDialogFeatures features;
+    EnumChildrenFileDialogCheck(hWnd, features);
+
+    return features.hasDirectUI && features.hasTree &&
+        features.hasToolbar && features.hasReBar;
 }
 
 LRESULT WINAPI DarkTheme::MyDefWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
@@ -1721,9 +1683,26 @@ LRESULT WINAPI DarkTheme::MyDefWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, L
     if (Msg == WM_INITDIALOG)
     {
         LRESULT result = ::DefWindowProcA(hWnd, Msg, wParam, lParam);
+        if (IsModernFileDialog(hWnd))
+        {
+            return result;
+        }
         SetDarkTheme(hWnd);
         SubclassAllControls(hWnd);
         SubclassAllAutoButtons(hWnd);
+        WCHAR className[32] = {};
+        GetClassNameW(hWnd, className, 32);
+        if (wcscmp(className, L"#32770") == 0)
+        {
+            for (int i = IDOK; i <= IDCONTINUE; ++i)
+            {
+                if (GetDlgItem(hWnd, i))
+                {
+                    SetPropW(hWnd, L"IS_MESSAGEBOX", (HANDLE)1);
+                    break;
+                }
+            }
+        }
         return result;
     }
 
@@ -1747,9 +1726,26 @@ LRESULT WINAPI DarkTheme::MyCallWindowProcA(
     if (Msg == WM_INITDIALOG)
     {
         LRESULT result = ::CallWindowProcA(lpPrevWndFunc, hWnd, Msg, wParam, lParam);
+        if (IsModernFileDialog(hWnd))
+        {
+            return result;
+        }
         SetDarkTheme(hWnd);
         SubclassAllControls(hWnd);
         SubclassAllAutoButtons(hWnd);
+        WCHAR className[32] = {};
+        GetClassNameW(hWnd, className, 32);
+        if (wcscmp(className, L"#32770") == 0)
+        {
+            for (int i = IDOK; i <= IDCONTINUE; ++i)
+            {
+                if (GetDlgItem(hWnd, i))
+                {
+                    SetPropW(hWnd, L"IS_MESSAGEBOX", (HANDLE)1);
+                    break;
+                }
+            }
+        }
         return result;
     }
 
@@ -1780,6 +1776,171 @@ std::string DarkTheme::ReadIniString(const char* iniFile, const std::string& sec
     return std::string(buffer);
 }
 
+std::vector<FilterSpecEx> DarkTheme::ConvertFilter(LPCSTR lpstrFilter)
+{
+    std::vector<FilterSpecEx> filters;
+    if (!lpstrFilter) return filters;
+
+    LPCSTR p = lpstrFilter;
+    while (*p)
+    {
+        std::string name = p;
+        p += name.size() + 1;
+        if (!*p) break;
+
+        std::string pattern = p;
+        p += pattern.size() + 1;
+
+        filters.push_back({ STDHelpers::StringToWString(name), STDHelpers::StringToWString(pattern)});
+    }
+    return filters;
+}
+
+BOOL DarkTheme::HandleDialogResult(IFileDialog* pfd, OPENFILENAMEA* ofn)
+{
+    IShellItem* pItem = nullptr;
+    HRESULT hr = pfd->GetResult(&pItem);
+    if (FAILED(hr) || !pItem) return FALSE;
+
+    PWSTR pszFilePath = nullptr;
+    hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+    if (FAILED(hr) || !pszFilePath) { pItem->Release(); return FALSE; }
+
+    std::wstring wpath = pszFilePath;
+    pItem->Release();
+    CoTaskMemFree(pszFilePath);
+
+    if (ofn->lpstrFile && ofn->nMaxFile > 0)
+    {
+        std::string pathA(wpath.begin(), wpath.end()); 
+        lstrcpynA(ofn->lpstrFile, pathA.c_str(), ofn->nMaxFile);
+    }
+    return TRUE;
+}
+
+BOOL WINAPI DarkTheme::MyGetOpenFileNameA(LPOPENFILENAMEA ofn)
+{
+    if (!ofn || !ofn->lpstrFile) return FALSE;
+
+    auto veh = VEHGuard(false);
+
+    HRESULT hr = CoInitializeEx(nullptr,
+        COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+
+    IFileOpenDialog* pFileOpen = nullptr;
+    hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr,
+        CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pFileOpen));
+    if (FAILED(hr)) { if (SUCCEEDED(hr)) CoUninitialize(); return FALSE; }
+
+    DWORD dwOptions;
+    pFileOpen->GetOptions(&dwOptions);
+    dwOptions |= FOS_FILEMUSTEXIST | FOS_PATHMUSTEXIST;
+    if (ofn->Flags & OFN_ALLOWMULTISELECT) dwOptions |= FOS_ALLOWMULTISELECT;
+    pFileOpen->SetOptions(dwOptions);
+
+    if (ofn->lpstrInitialDir)
+    {
+        IShellItem* psiFolder = nullptr;
+        std::wstring dir = STDHelpers::StringToWString(ofn->lpstrInitialDir);
+        if (SUCCEEDED(SHCreateItemFromParsingName(dir.c_str(), nullptr, IID_PPV_ARGS(&psiFolder))))
+        {
+            pFileOpen->SetDefaultFolder(psiFolder);
+            psiFolder->Release();
+        }
+    }
+
+    if (DarkTheme::b_isSelectingGameFolder)
+    {
+        DarkTheme::b_isSelectingGameFolder = false;
+#ifdef CHINESE
+        ofn->lpstrFilter = "Mix 文件 (ra2md.mix)\0*.mix\0可执行文件 (gamemd.exe)\0*.exe\0所有文件 (*.*)\0*.*\0";
+        ofn->lpstrTitle = "选择文件";
+#else
+        ofn->lpstrFilter = "Mix Files (ra2md.mix)\0*.mix\0Executable Files (gamemd.exe)\0*.exe\0All Files (*.*)\0*.*\0";
+        ofn->lpstrTitle = "Select File";
+#endif
+    }
+
+    auto filters = ConvertFilter(ofn->lpstrFilter);
+    if (!filters.empty())
+    {
+        std::vector<COMDLG_FILTERSPEC> specs(filters.size());
+        for (int i = 0; i < filters.size(); ++i)
+        {
+            specs[i].pszName = filters[i].name.c_str();
+            specs[i].pszSpec = filters[i].pattern.c_str();
+        }
+        pFileOpen->SetFileTypes(static_cast<UINT>(specs.size()), specs.data());
+        pFileOpen->SetFileTypeIndex(ofn->nFilterIndex);
+    }
+
+    hr = pFileOpen->Show(ofn->hwndOwner);
+    if (FAILED(hr)) { pFileOpen->Release(); CoUninitialize(); return FALSE; }
+
+    BOOL ok = HandleDialogResult(pFileOpen, ofn);
+    pFileOpen->Release();
+    CoUninitialize();
+    return ok;
+}
+
+BOOL WINAPI DarkTheme::MyGetSaveFileNameA(LPOPENFILENAMEA ofn)
+{
+    if (DarkTheme::b_isImportingINI)
+    {
+        DarkTheme::b_isImportingINI = false;
+        return MyGetOpenFileNameA(ofn);
+    }
+
+    if (!ofn || !ofn->lpstrFile) return FALSE;
+
+    auto veh = VEHGuard(false);
+
+    HRESULT hr = CoInitializeEx(nullptr,
+        COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+
+    IFileSaveDialog* pFileSave = nullptr;
+    hr = CoCreateInstance(CLSID_FileSaveDialog, nullptr,
+        CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pFileSave));
+    if (FAILED(hr)) { if (SUCCEEDED(hr)) CoUninitialize(); return FALSE; }
+
+    DWORD dwOptions;
+    pFileSave->GetOptions(&dwOptions);
+    dwOptions |= FOS_OVERWRITEPROMPT | FOS_PATHMUSTEXIST;
+    pFileSave->SetOptions(dwOptions);
+
+    if (ofn->lpstrInitialDir)
+    {
+        IShellItem* psiFolder = nullptr;
+        std::wstring dir = STDHelpers::StringToWString(ofn->lpstrInitialDir);
+        if (SUCCEEDED(SHCreateItemFromParsingName(dir.c_str(), nullptr, IID_PPV_ARGS(&psiFolder))))
+        {
+            pFileSave->SetDefaultFolder(psiFolder);
+            psiFolder->Release();
+        }
+    }
+
+    auto filters = ConvertFilter(ofn->lpstrFilter);
+    if (!filters.empty())
+    {
+        std::vector<COMDLG_FILTERSPEC> specs(filters.size());
+        for (int i = 0; i < filters.size(); ++i)
+        {
+            specs[i].pszName = filters[i].name.c_str();
+            specs[i].pszSpec = filters[i].pattern.c_str();
+        }
+        pFileSave->SetFileTypes(static_cast<UINT>(filters.size()), specs.data());
+        pFileSave->SetFileTypeIndex(ofn->nFilterIndex);
+    }
+
+    hr = pFileSave->Show(ofn->hwndOwner);
+    if (FAILED(hr)) { pFileSave->Release(); CoUninitialize(); return FALSE; }
+
+    BOOL ok = HandleDialogResult(pFileSave, ofn);
+    pFileSave->Release();
+    CoUninitialize();
+    return ok;
+}
+
 DEFINE_HOOK(537129, ExeStart_DrakThemeHooks, 9)
 {
     ExtConfigs::EnableDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "EnableDarkMode", "false").c_str());
@@ -1803,6 +1964,8 @@ DEFINE_HOOK(537129, ExeStart_DrakThemeHooks, 9)
         RunTime::SetJump(0x5636C0, (DWORD)DarkTheme::MyOnEraseBkgnd);
         //RunTime::ResetMemoryContentAt(0x591060, DarkTheme::MySetPixel);
     }
+    RunTime::ResetMemoryContentAt(0x5915D4, DarkTheme::MyGetOpenFileNameA);
+    RunTime::ResetMemoryContentAt(0x5915DC, DarkTheme::MyGetSaveFileNameA);
 
     return 0;
 }

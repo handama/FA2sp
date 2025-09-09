@@ -16,6 +16,7 @@ HBRUSH DarkTheme::g_hBtnBgBrush = NULL;
 HBRUSH DarkTheme::g_hBtnBgHoverBrush = NULL;
 HBRUSH DarkTheme::g_hCheckFillBrush = NULL;
 HBRUSH DarkTheme::g_hRadioFillBrush = NULL;
+HPEN DarkTheme::g_hBackGroundPen = NULL;
 HPEN DarkTheme::g_hBorderPen = NULL;
 HPEN DarkTheme::g_hCheckBorderPen = NULL;
 HPEN DarkTheme::g_hRadioBorderPen = NULL;
@@ -131,6 +132,8 @@ void DarkTheme::InitDarkThemeBrushes()
 
     if (!g_hBorderPen)
         g_hBorderPen = CreatePen(PS_SOLID, 1, DarkColors::BorderGray);
+    if (!g_hBackGroundPen)
+        g_hBackGroundPen = CreatePen(PS_SOLID, 1, DarkColors::Background);
     if (!g_hCheckBorderPen)
         g_hCheckBorderPen = CreatePen(PS_SOLID, 1, DarkColors::CheckBorder);
     if (!g_hRadioBorderPen)
@@ -171,6 +174,8 @@ void DarkTheme::CleanupDarkThemeBrushes()
 
     if (g_hBorderPen)
         DeleteObject(g_hBorderPen);
+    if (g_hBackGroundPen)
+        DeleteObject(g_hBackGroundPen);
     if (g_hCheckBorderPen)
         DeleteObject(g_hCheckBorderPen);
     if (g_hRadioBorderPen)
@@ -184,7 +189,8 @@ void DarkTheme::CleanupDarkThemeBrushes()
         = g_hDarkInfoBkBrush = g_hLightTextBrush = g_hHighlightBrush
         = g_hDisabledBgBrush = g_hDisabledTextBrush = g_hBtnBgBrush 
         = g_hBtnBgHoverBrush = g_hCheckFillBrush = g_hRadioFillBrush = NULL;
-    g_hBorderPen = g_hCheckBorderPen = g_hRadioBorderPen = g_hHoverBorderPen = g_hGroupBoxBorderPen = NULL;
+    g_hBorderPen = g_hCheckBorderPen = g_hRadioBorderPen 
+        = g_hHoverBorderPen = g_hGroupBoxBorderPen = g_hBackGroundPen = NULL;
 }
 
 int WINAPI DarkTheme::MyFillRect(HDC hDC, const RECT* lprc, HBRUSH hbr)
@@ -1170,51 +1176,60 @@ LRESULT CALLBACK DarkTheme::EditSubclassProc(
     {
     case WM_NCPAINT:
     {
+        DefWindowProc(hWnd, uMsg, wParam, lParam);
         HDC hdc = GetWindowDC(hWnd);
 
         RECT rcWindow;
         GetWindowRect(hWnd, &rcWindow);
         OffsetRect(&rcWindow, -rcWindow.left, -rcWindow.top);
 
-        RECT rcClient = rcWindow;
-        int borderWidth = GetSystemMetrics(SM_CXEDGE);
-        InflateRect(&rcClient, -borderWidth, -borderWidth);
+        int nCover = 3;
 
-        ExcludeClipRect(hdc, rcClient.left, rcClient.top, rcClient.right, rcClient.bottom);
+        HPEN hOldPen = (HPEN)SelectObject(hdc, g_hBackGroundPen);
 
-        HPEN hOldPen = (HPEN)SelectObject(hdc, g_hBorderPen);
-        HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
+        for (int i = 0; i < nCover; ++i)
+            MoveToEx(hdc, rcWindow.left, rcWindow.top + i, NULL), LineTo(hdc, rcWindow.right, rcWindow.top + i);
+        for (int i = 0; i < nCover; ++i)
+            MoveToEx(hdc, rcWindow.left + i, rcWindow.top, NULL), LineTo(hdc, rcWindow.left + i, rcWindow.bottom);
+        for (int i = 0; i < nCover; ++i)
+            MoveToEx(hdc, rcWindow.left, rcWindow.bottom - 1 - i, NULL), LineTo(hdc, rcWindow.right, rcWindow.bottom - 1 - i);
+        for (int i = 0; i < nCover; ++i)
+            MoveToEx(hdc, rcWindow.right - 1 - i, rcWindow.top, NULL), LineTo(hdc, rcWindow.right - 1 - i, rcWindow.bottom);
 
-        Rectangle(hdc, rcWindow.left, rcWindow.top, rcWindow.right, rcWindow.bottom);
+        SelectObject(hdc, g_hBorderPen);
 
-        SelectObject(hdc, hOldPen);
-        SelectObject(hdc, hOldBrush);
+        MoveToEx(hdc, rcWindow.left, rcWindow.top, NULL);
+        LineTo(hdc, rcWindow.right, rcWindow.top); 
+        MoveToEx(hdc, rcWindow.left, rcWindow.top, NULL);
+        LineTo(hdc, rcWindow.left, rcWindow.bottom); 
+        MoveToEx(hdc, rcWindow.left, rcWindow.bottom - 1, NULL);
+        LineTo(hdc, rcWindow.right, rcWindow.bottom - 1); 
+        MoveToEx(hdc, rcWindow.right - 1, rcWindow.top, NULL);
+        LineTo(hdc, rcWindow.right - 1, rcWindow.bottom);
 
         ReleaseDC(hWnd, hdc);
+
         return 0;
     }
-
     case WM_ERASEBKGND:
     {
         HDC hdc = (HDC)wParam;
         RECT rc;
         GetClientRect(hWnd, &rc);
-
+    
         FillRect(hdc, &rc, g_hDarkBackgroundBrush);
-
+    
         return TRUE;
     }
-
     case WM_CTLCOLOREDIT:
     {
         HDC hdc = (HDC)wParam;
-
+    
         SetTextColor(hdc, DarkColors::LightText);
         SetBkMode(hdc, TRANSPARENT);
-
+    
         return (LRESULT)g_hDisabledBgBrush;
     }
-
     case WM_NCDESTROY:
         RemoveWindowSubclass(hWnd, EditSubclassProc, uIdSubclass);
         break;

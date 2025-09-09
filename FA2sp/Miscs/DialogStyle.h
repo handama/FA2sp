@@ -128,6 +128,7 @@ public:
     static HBRUSH g_hRadioFillBrush;
 
     static HPEN g_hBorderPen;
+    static HPEN g_hBackGroundPen;
     static HPEN g_hCheckBorderPen;
     static HPEN g_hRadioBorderPen;
     static HPEN g_hHoverBorderPen;

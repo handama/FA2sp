@@ -1,4 +1,7 @@
 #include "CNewTeamTypes.h"
+#include "../CNewTaskforce/CNewTaskforce.h"
+#include "../CNewScript/CNewScript.h"
+#include "../CNewTrigger/CNewTrigger.h"
 #include "../../FA2sp.h"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
@@ -16,7 +19,6 @@
 #include "../CObjectSearch/CObjectSearch.h"
 #include "../../Ext/CTileSetBrowserFrame/TabPages/TeamSort.h"
 #include <numeric>
-#include "../CNewScript/CNewScript.h"
 #include "../CSearhReference/CSearhReference.h"
 #include <chrono>
 
@@ -62,6 +64,9 @@ HWND CNewTeamTypes::hCheckBoxAreTeamMembersRecruitable;
 HWND CNewTeamTypes::hCheckBoxIsBaseDefense;
 HWND CNewTeamTypes::hCheckBoxOnlyTargetHouseEnemy;
 HWND CNewTeamTypes::hSearchReference;
+HWND CNewTeamTypes::hTurnToTaskforce;
+HWND CNewTeamTypes::hTurnToScript;
+HWND CNewTeamTypes::hTurnToTag;
 
 int CNewTeamTypes::SelectedTeamIndex = -1;
 FString CNewTeamTypes::CurrentTeamID;
@@ -188,6 +193,9 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
     hCheckBoxIsBaseDefense = GetDlgItem(hWnd, Controls::CheckBoxIsBaseDefense);
     hCheckBoxOnlyTargetHouseEnemy = GetDlgItem(hWnd, Controls::CheckBoxOnlyTargetHouseEnemy);
     hSearchReference = GetDlgItem(hWnd, Controls::SearchReference);
+    hTurnToTaskforce = GetDlgItem(hWnd, Controls::TurnToTaskforce);
+    hTurnToScript = GetDlgItem(hWnd, Controls::TurnToScript);
+    hTurnToTag = GetDlgItem(hWnd, Controls::TurnToTag);
 
     mindControlDecisions.clear();
     mindControlDecisions.push_back(FString("0 - ") + Translations::TranslateOrDefault("MindControlDecisions.0", "Don't use this logic"));
@@ -347,6 +355,18 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         case Controls::CloTeam:
             if (CODE == BN_CLICKED)
                 OnClickCloTeam(hWnd);
+            break;
+        case Controls::TurnToTaskforce:
+            if (CODE == BN_CLICKED)
+                OnClickTurnToTaskforce();
+            break;
+        case Controls::TurnToScript:
+            if (CODE == BN_CLICKED)
+                OnClickTurnToScript();
+            break;
+        case Controls::TurnToTag:
+            if (CODE == BN_CLICKED)
+                OnClickTurnToTag();
             break;
         case Controls::SelectedTeam:
             if (CODE == CBN_SELCHANGE)
@@ -1128,6 +1148,86 @@ void CNewTeamTypes::OnCloseupTeamtypes()
     }
 }
 
+void CNewTeamTypes::OnClickTurnToTaskforce()
+{
+    if (SelectedTeamIndex < 0)
+        return;
+
+    char buffer[512]{ 0 };
+    GetWindowText(hTaskforce, buffer, 511);
+    if (strcmp(buffer, "None") == 0)
+        return;
+
+    if (CNewTaskforce::GetHandle() == NULL)
+        CNewTaskforce::Create(m_parent);
+
+    auto dlg = GetDlgItem(CNewTaskforce::GetHandle(), CNewTaskforce::Controls::SelectedTaskforce);
+    auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)(LPCSTR)buffer);
+    if (idx == CB_ERR)
+        return;
+    SendMessage(dlg, CB_SETCURSEL, idx, NULL);
+    CNewTaskforce::OnSelchangeTaskforce();
+    SetWindowPos(CNewTaskforce::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+}
+
+void CNewTeamTypes::OnClickTurnToScript()
+{
+    if (SelectedTeamIndex < 0)
+        return;
+    
+    char buffer[512]{ 0 };
+    GetWindowText(hScript, buffer, 511);
+    if (strcmp(buffer, "None") == 0)
+        return;
+
+    if (CNewScript::GetHandle() == NULL)
+        CNewScript::Create(m_parent);
+
+    auto dlg = GetDlgItem(CNewScript::GetHandle(), CNewScript::Controls::SelectedScript);
+    auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)(LPCSTR)buffer);
+    if (idx == CB_ERR)
+        return;
+    SendMessage(dlg, CB_SETCURSEL, idx, NULL);
+    CNewScript::OnSelchangeScript();
+    SetWindowPos(CNewScript::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+}
+
+void CNewTeamTypes::OnClickTurnToTag()
+{
+    if (SelectedTeamIndex < 0)
+        return;
+
+    char buffer[512]{ 0 };
+    FString text;
+    GetWindowText(hTag, buffer, 511);
+    text = buffer;
+
+    if (text == "None")
+        return;
+
+    FString::TrimIndex(text);
+
+    // actually turn to first trigger with this tag, since tag is not important
+    if (CNewTrigger::GetHandle() == NULL)
+        CNewTrigger::Create(m_parent);
+
+    for (const auto& [ID, trigger] : CMapDataExt::Triggers)
+    {
+        if (trigger->Tag == text)
+        {
+            text = trigger->ID;
+            break;
+        }
+    }
+
+    auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::SelectedTrigger);
+    auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, ExtraWindow::GetTriggerDisplayName(text));
+    if (idx == CB_ERR)
+        return;
+    SendMessage(dlg, CB_SETCURSEL, idx, NULL);
+    CNewTrigger::OnSelchangeTrigger();
+    SetWindowPos(CNewTrigger::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+}
 
 void CNewTeamTypes::OnClickNewTeam()
 {

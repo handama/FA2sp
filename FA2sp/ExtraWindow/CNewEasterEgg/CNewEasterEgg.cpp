@@ -600,6 +600,7 @@ void CChineseChess::draw(HDC hdc)
 
 void CChineseChess::newGame() {
     bd.reset();
+    bd.searchStep = STDHelpers::RandomSelectInt(3, 5);
     history.clear();
     positionHistory.clear();
     gameOver = false;
@@ -607,7 +608,7 @@ void CChineseChess::newGame() {
     aiLastMoveFromR = aiLastMoveFromC = -1;
     aiLastMoveToR = aiLastMoveToC = -1;
     positionHistory[bd.zobristKey]++;
-    aiStep();
+    aiStep(true);
     InvalidateRect(m_hwnd, nullptr, TRUE);
 }
 
@@ -618,15 +619,69 @@ void CChineseChess::endWithMessage(const char* msg)
     MessageBox(m_hwnd, msg, Translations::TranslateOrDefault("EasterEggGameOverTitle", "Game over"), MB_OK | MB_ICONINFORMATION);
 }
 
-void CChineseChess::aiStep() {
+void CChineseChess::aiStep(bool first) {
     if (gameOver) return;
     if (bd.sideToMove != RED) return;
 
     Move m;
-    if (!bd.pickBestMove(m)) {
-        if (bd.inCheck(RED)) endWithMessage(Translations::TranslateOrDefault("EasterEggYouCheckMate", "Check mate! You win!"));
-        else endWithMessage(Translations::TranslateOrDefault("EasterEggAICannotMove", "No pieces can move, you win."));
-        return;
+    if (first)
+    {
+        static std::random_device rd;
+        static std::mt19937 gen(rd());
+        std::discrete_distribution<> dis({ 50, 12, 12, 12, 12 });
+        int choice = dis(gen);
+
+        switch (choice) {
+        case 0: 
+            if (std::uniform_int_distribution<>(0, 1)(gen) == 0) {
+                m.sr = 7; m.sc = 7; m.tr = 7; m.tc = 4;
+            }
+            else {
+                m.sr = 7; m.sc = 1; m.tr = 7; m.tc = 4;
+            }
+            break;
+        case 1: 
+            if (std::uniform_int_distribution<>(0, 1)(gen) == 0) {
+                m.sr = 6; m.sc = 2; m.tr = 5; m.tc = 2; 
+            }
+            else {
+                m.sr = 6; m.sc = 6; m.tr = 5; m.tc = 6; 
+            }
+            break;
+        case 2: 
+            if (std::uniform_int_distribution<>(0, 1)(gen) == 0) {
+                m.sr = 7; m.sc = 7; m.tr = 7; m.tc = 5;
+            }
+            else {
+                m.sr = 7; m.sc = 1; m.tr = 7; m.tc = 3; 
+            }
+            break;
+        case 3: 
+            if (std::uniform_int_distribution<>(0, 1)(gen) == 0) {
+                m.sr = 9; m.sc = 1; m.tr = 7; m.tc = 2; 
+            }
+            else {
+                m.sr = 9; m.sc = 7; m.tr = 7; m.tc = 6; 
+            }
+            break;
+        case 4: 
+            if (std::uniform_int_distribution<>(0, 1)(gen) == 0) {
+                m.sr = 7; m.sc = 1; m.tr = 7; m.tc = 2; 
+            }
+            else {
+                m.sr = 7; m.sc = 7; m.tr = 7; m.tc = 6; 
+            }
+            break;
+        }
+        m.capture = bd.g[m.tr][m.tc];
+    }
+    else
+    {
+        if (!bd.pickBestMove(m)) {
+            if (bd.inCheck(RED)) endWithMessage(Translations::TranslateOrDefault("EasterEggYouCheckMate", "Check mate! You win!"));
+            else endWithMessage(Translations::TranslateOrDefault("EasterEggAICannotMove", "No pieces can move, you win."));
+            return;
+        }
     }
 
     aiLastMoveFromR = m.sr;
@@ -714,6 +769,7 @@ void CChineseChess::playerClick(int x, int y) {
             chosen.capture = captured;
             selR = selC = -1;
             InvalidateRect(m_hwnd, nullptr, TRUE);
+            UpdateWindow(m_hwnd);
 
             if (captured == RD_SHUAI) {
                 endWithMessage(Translations::TranslateOrDefault("EasterEggEatKing", "You captured the Red king! You win!"));

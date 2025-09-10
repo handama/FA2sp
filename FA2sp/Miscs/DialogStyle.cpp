@@ -516,7 +516,6 @@ void DarkTheme::SetDarkTheme(HWND hWndParent)
     DwmSetWindowAttribute(hWndParent, 19, &darkMode19, sizeof(darkMode19));
     DwmSetWindowAttribute(hWndParent, 20, &darkMode20, sizeof(darkMode20));
 
-
     while ((hWndChild = FindWindowEx(hWndParent, hWndChild, NULL, NULL)) != NULL)
     {
         DWORD style = GetWindowLongPtr(hWndChild, GWL_STYLE) & 0xF;

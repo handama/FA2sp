@@ -504,38 +504,18 @@ LRESULT DarkTheme::HandleCustomDraw(LPARAM lParam)
     return CDRF_DODEFAULT;
 }
 
-BOOL DarkTheme::IsWindows10OrGreater()
-{
-    typedef LONG(WINAPI* RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
-
-    HMODULE hNtdll = GetModuleHandleW(L"ntdll.dll");
-    if (!hNtdll)
-        return false;
-
-    RtlGetVersionPtr fnRtlGetVersion = (RtlGetVersionPtr)GetProcAddress(hNtdll, "RtlGetVersion");
-    if (!fnRtlGetVersion)
-        return false;
-
-    RTL_OSVERSIONINFOW rovi = { 0 };
-    rovi.dwOSVersionInfoSize = sizeof(rovi);
-    if (fnRtlGetVersion(&rovi) != 0)
-        return false;
-
-    return rovi.dwMajorVersion >= 10;
-}
-
 void DarkTheme::SetDarkTheme(HWND hWndParent)
 {
     if (!ExtConfigs::EnableDarkMode)
         return;
 
     HWND hWndChild = NULL;
-    if (IsWindows10OrGreater())
-    {
-        BOOL darkMode = TRUE;
-        DwmSetWindowAttribute(hWndParent, 19, &darkMode, sizeof(darkMode));
-        DwmSetWindowAttribute(hWndParent, 20, &darkMode, sizeof(darkMode));
-    }
+
+    BOOL darkMode19 = TRUE;
+    BOOL darkMode20 = TRUE;
+    DwmSetWindowAttribute(hWndParent, 19, &darkMode19, sizeof(darkMode19));
+    DwmSetWindowAttribute(hWndParent, 20, &darkMode20, sizeof(darkMode20));
+
 
     while ((hWndChild = FindWindowEx(hWndParent, hWndChild, NULL, NULL)) != NULL)
     {
@@ -1796,25 +1776,48 @@ std::vector<FilterSpecEx> DarkTheme::ConvertFilter(LPCSTR lpstrFilter)
     return filters;
 }
 
-BOOL DarkTheme::HandleDialogResult(IFileDialog* pfd, OPENFILENAMEA* ofn)
+BOOL DarkTheme::HandleDialogResult(IFileDialog* pfd, OPENFILENAMEA* ofn, std::vector<COMDLG_FILTERSPEC>* specs, bool isSave)
 {
+    if (!pfd || !ofn || !ofn->lpstrFile) return FALSE;
+
     IShellItem* pItem = nullptr;
-    HRESULT hr = pfd->GetResult(&pItem);
-    if (FAILED(hr) || !pItem) return FALSE;
+    if (FAILED(pfd->GetResult(&pItem)) || !pItem) return FALSE;
 
     PWSTR pszFilePath = nullptr;
-    hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
-    if (FAILED(hr) || !pszFilePath) { pItem->Release(); return FALSE; }
+    if (FAILED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)) || !pszFilePath)
+    {
+        pItem->Release();
+        return FALSE;
+    }
 
     std::wstring wpath = pszFilePath;
     pItem->Release();
     CoTaskMemFree(pszFilePath);
 
-    if (ofn->lpstrFile && ofn->nMaxFile > 0)
+    if (isSave && specs && !specs->empty())
     {
-        std::string pathA(wpath.begin(), wpath.end()); 
-        lstrcpynA(ofn->lpstrFile, pathA.c_str(), ofn->nMaxFile);
+        size_t dotPos = wpath.find_last_of(L'.');
+        size_t slashPos = wpath.find_last_of(L"\\/");
+
+        if (dotPos == std::wstring::npos || (slashPos != std::wstring::npos && dotPos < slashPos))
+        {
+            UINT idx = ofn->nFilterIndex ? ofn->nFilterIndex : 1;
+            if (idx > specs->size()) idx = (UINT)specs->size();
+
+            std::wstring ext = (*specs)[idx - 1].pszSpec;
+
+            size_t star = ext.find(L'*');
+            size_t dot = ext.find(L'.', star);
+            if (dot != std::wstring::npos) ext = ext.substr(dot);
+
+            if (!ext.empty())
+                wpath += ext;
+        }
     }
+
+    std::string pathA = STDHelpers::WStringToString(wpath);
+    lstrcpynA(ofn->lpstrFile, pathA.c_str(), ofn->nMaxFile);
+
     return TRUE;
 }
 
@@ -1877,7 +1880,7 @@ BOOL WINAPI DarkTheme::MyGetOpenFileNameA(LPOPENFILENAMEA ofn)
     hr = pFileOpen->Show(ofn->hwndOwner);
     if (FAILED(hr)) { pFileOpen->Release(); CoUninitialize(); return FALSE; }
 
-    BOOL ok = HandleDialogResult(pFileOpen, ofn);
+    BOOL ok = HandleDialogResult(pFileOpen, ofn, nullptr, false);
     pFileOpen->Release();
     CoUninitialize();
     return ok;
@@ -1920,9 +1923,9 @@ BOOL WINAPI DarkTheme::MyGetSaveFileNameA(LPOPENFILENAMEA ofn)
     }
 
     auto filters = ConvertFilter(ofn->lpstrFilter);
+    std::vector<COMDLG_FILTERSPEC> specs(filters.size());
     if (!filters.empty())
     {
-        std::vector<COMDLG_FILTERSPEC> specs(filters.size());
         for (int i = 0; i < filters.size(); ++i)
         {
             specs[i].pszName = filters[i].name.c_str();
@@ -1935,7 +1938,7 @@ BOOL WINAPI DarkTheme::MyGetSaveFileNameA(LPOPENFILENAMEA ofn)
     hr = pFileSave->Show(ofn->hwndOwner);
     if (FAILED(hr)) { pFileSave->Release(); CoUninitialize(); return FALSE; }
 
-    BOOL ok = HandleDialogResult(pFileSave, ofn);
+    BOOL ok = HandleDialogResult(pFileSave, ofn, &specs, true);
     pFileSave->Release();
     CoUninitialize();
     return ok;

@@ -80,13 +80,12 @@ public:
     static std::string GetIniPath(const char* iniFile);
     static std::string ReadIniString(const char* iniFile, const std::string& section, const std::string& key, const std::string& defaultValue);
     static std::vector<FilterSpecEx> ConvertFilter(LPCSTR lpstrFilter);
-    static BOOL HandleDialogResult(IFileDialog* pfd, OPENFILENAMEA* ofn);
+    static BOOL HandleDialogResult(IFileDialog* pfd, OPENFILENAMEA* ofn, std::vector<COMDLG_FILTERSPEC>* specs, bool isSave);
     static BOOL __stdcall MyGetOpenFileNameA(LPOPENFILENAMEA ofn);
     static BOOL __stdcall MyGetSaveFileNameA(LPOPENFILENAMEA ofn);
     static LRESULT WINAPI GenericWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static LRESULT WINAPI HandleCustomDraw(LPARAM lParam);
     static void SetDarkTheme(HWND hWndParent);
-    static BOOL IsWindows10OrGreater();
     static void InitDarkThemeBrushes();
     static void CleanupDarkThemeBrushes();
     static LRESULT CALLBACK TabCtrlSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);

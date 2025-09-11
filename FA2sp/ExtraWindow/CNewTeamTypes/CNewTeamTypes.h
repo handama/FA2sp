@@ -54,7 +54,7 @@ public:
         TurnToTaskforce = 1500,
         TurnToScript = 1501,
         TurnToTag = 1502,
-        SearchReference = 1999
+        SearchReference = 1999,
         ParadropAircraft = 2001
     };
 

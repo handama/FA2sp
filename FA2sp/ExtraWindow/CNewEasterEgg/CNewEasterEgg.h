@@ -85,6 +85,9 @@ struct Board
     static int init[10][9];
     int searchStep;
 
+    static std::unordered_map<uint64_t, int> positionHistory;
+    static std::vector<std::pair<Move, uint64_t>> history;
+
     static void initZobrist() {
         if (zobristInitialized) return;
         std::random_device rd;
@@ -574,7 +577,6 @@ struct Board
             return av > bv;
         });
 
-        std::unordered_map<uint64_t, int> tempPositionHistory;
         for (auto& m : ms) {
             uint64_t oldKey = zobristKey;
             doMove(m);
@@ -586,17 +588,16 @@ struct Board
 
             bool isPerpetualCheck = false;
             if (inCheck(BLACK)) {
-                tempPositionHistory[zobristKey]++;
-                if (tempPositionHistory[zobristKey] >= 3) {
+                if (positionHistory[zobristKey] + 1 >= 3) {
                     isPerpetualCheck = true;
                 }
             }
 
             int sc = isPerpetualCheck ? -std::numeric_limits<int>::max() : search(searchStep, -30000, 30000);
             undoMove(m);
-            zobristKey = oldKey; 
+            zobristKey = oldKey;
 
-            if (isPerpetualCheck) continue; 
+            if (isPerpetualCheck) continue;
 
             if (sc > bestScore) {
                 bestScore = sc;
@@ -1258,9 +1259,6 @@ private:
     static int  selR, selC;
     static int aiLastMoveFromR, aiLastMoveFromC;
     static int aiLastMoveToR, aiLastMoveToC;
-
-    static std::unordered_map<uint64_t, int> positionHistory;
-    static std::vector<std::pair<Move, uint64_t>> history;
 
     static void calcLayout();
     static void draw(HDC hdc);

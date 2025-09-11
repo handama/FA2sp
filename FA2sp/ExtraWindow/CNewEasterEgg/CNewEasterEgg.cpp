@@ -419,8 +419,8 @@ int CChineseChess::aiLastMoveFromC = -1;
 int CChineseChess::aiLastMoveToR = -1;
 int CChineseChess::aiLastMoveToC = -1;
 
-std::unordered_map<uint64_t, int> CChineseChess::positionHistory;
-std::vector<std::pair<Move, uint64_t>> CChineseChess::history;
+std::unordered_map<uint64_t, int> Board::positionHistory;
+std::vector<std::pair<Move, uint64_t>> Board::history;
 uint64_t Board::zobristTable[16][10][9];
 bool Board::zobristInitialized = false;
 
@@ -601,13 +601,13 @@ void CChineseChess::draw(HDC hdc)
 void CChineseChess::newGame() {
     bd.reset();
     bd.searchStep = STDHelpers::RandomSelectInt(3, 5);
-    history.clear();
-    positionHistory.clear();
+    Board::history.clear();
+    Board::positionHistory.clear();
     gameOver = false;
     selR = selC = -1;
     aiLastMoveFromR = aiLastMoveFromC = -1;
     aiLastMoveToR = aiLastMoveToC = -1;
-    positionHistory[bd.zobristKey]++;
+    Board::positionHistory[bd.zobristKey]++;
     aiStep(true);
     InvalidateRect(m_hwnd, nullptr, TRUE);
 }
@@ -691,12 +691,12 @@ void CChineseChess::aiStep(bool first) {
 
     int captured = bd.g[m.tr][m.tc];
     bd.doMove(m);
-    positionHistory[bd.zobristKey]++;
-    history.push_back({ m, bd.zobristKey });
+    Board::positionHistory[bd.zobristKey]++;
+    Board::history.push_back({ m, bd.zobristKey });
     m.capture = captured;
 
-    if (bd.inCheck(BLACK) && positionHistory[bd.zobristKey] >= 3) {
-        endWithMessage(Translations::TranslateOrDefault("EasterEggPerpetualCheck", "Perpetual check detected! Draw."));
+    if (bd.inCheck(BLACK) && Board::positionHistory[bd.zobristKey] >= 3) {
+        endWithMessage(Translations::TranslateOrDefault("EasterEggAIPerpetualCheckLose", "Perpetual check! AI loses."));
         return;
     }
 
@@ -764,8 +764,8 @@ void CChineseChess::playerClick(int x, int y) {
         if (ok) {
             int captured = bd.g[chosen.tr][chosen.tc];
             bd.doMove(chosen);
-            positionHistory[bd.zobristKey]++;
-            history.push_back({ chosen, bd.zobristKey });
+            Board::positionHistory[bd.zobristKey]++;
+            Board::history.push_back({ chosen, bd.zobristKey });
             chosen.capture = captured;
             selR = selC = -1;
             InvalidateRect(m_hwnd, nullptr, TRUE);
@@ -785,8 +785,8 @@ void CChineseChess::playerClick(int x, int y) {
                 }
             }
 
-            if (bd.inCheck(RED) && positionHistory[bd.zobristKey] >= 3) {
-                endWithMessage(Translations::TranslateOrDefault("EasterEggPerpetualCheck", "Perpetual check detected! Draw."));
+            if (bd.inCheck(RED) && Board::positionHistory[bd.zobristKey] >= 3) {
+                endWithMessage(Translations::TranslateOrDefault("EasterEggPlayerPerpetualCheckLose", "Perpetual check! You lose."));
                 return;
             }
 
@@ -807,18 +807,19 @@ void CChineseChess::playerClick(int x, int y) {
 }
 
 void CChineseChess::undoRound() {
-    if (history.empty() || history.size() == 1) return;
+    if (Board::history.empty() || Board::history.size() == 1) return;
     auto pop1 = [&]() {
-        if (history.empty()) return;
-        auto [m, key] = history.back();
-        history.pop_back();
-        positionHistory[key]--;
-        if (positionHistory[key] == 0) positionHistory.erase(key);
+        if (Board::history.empty()) return;
+        auto [m, key] = Board::history.back();
+        Board::history.pop_back();
+        Board::positionHistory[key]--;
+        if (Board::positionHistory[key] == 0) Board::positionHistory.erase(key);
         bd.undoMove(m);
     };
     pop1();
-    if (!history.empty()) pop1();
+    if (!Board::history.empty()) pop1();
     gameOver = false; selR = selC = -1;
+    bd.sideToMove = BLACK;
     aiLastMoveFromR = aiLastMoveFromC = -1;
     aiLastMoveToR = aiLastMoveToC = -1;
     InvalidateRect(m_hwnd, nullptr, TRUE);
@@ -827,13 +828,13 @@ void CChineseChess::undoRound() {
 void CChineseChess::endGame()
 {
     bd.setEndGame(bd.getEndGame());
-    history.clear();
-    positionHistory.clear();
+    Board::history.clear();
+    Board::positionHistory.clear();
     gameOver = false;
     selR = selC = -1;
     aiLastMoveFromR = aiLastMoveFromC = -1;
     aiLastMoveToR = aiLastMoveToC = -1;
-    positionHistory[bd.zobristKey]++;
+    Board::positionHistory[bd.zobristKey]++;
     InvalidateRect(m_hwnd, nullptr, TRUE);
 }
 

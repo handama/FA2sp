@@ -14,6 +14,7 @@
 #include "../../../ExtraWindow/CNewTeamTypes/CNewTeamTypes.h"
 #include "../../../ExtraWindow/CNewTaskforce/CNewTaskforce.h"
 #include "../../../ExtraWindow/CNewScript/CNewScript.h"
+#include "../../../Miscs/DialogStyle.h"
 
 WaypointSort WaypointSort::Instance;
 
@@ -144,10 +145,16 @@ void WaypointSort::Create(HWND hParent)
     ::GetClientRect(hParent, &rect);
 
     this->m_hWnd = CreateWindowEx(NULL, "SysTreeView32", nullptr,
-        WS_CHILD | WS_BORDER | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL | 
+        WS_CHILD | WS_BORDER | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL |
         TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS | TVS_SHOWSELALWAYS,
         rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, hParent,
         NULL, static_cast<HINSTANCE>(FA2sp::hInstance), nullptr);
+
+    if (ExtConfigs::EnableDarkMode && this->m_hWnd)
+    {
+        ::SendMessage(this->m_hWnd, TVM_SETBKCOLOR, 0, RGB(32, 32, 32));
+        ::SendMessage(this->m_hWnd, TVM_SETTEXTCOLOR, 0, RGB(220, 220, 220));
+    }
 }
 
 void WaypointSort::OnSize() const

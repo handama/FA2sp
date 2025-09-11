@@ -26,6 +26,7 @@ DEFINE_HOOK(476240, CIsoView_MapCoord2ScreenCoord_Flat, 5)
 	return 0;
 }
 */
+
 #define BACK_BUFFER_TO_PRIMARY(hook_addr, hook_name, hook_size, return_addr, special_draw) \
 DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 { \
@@ -35,6 +36,7 @@ DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 		if (special_draw > -1){\
 			CIsoViewExt::SpecialDraw(pThis->lpDDBackBufferSurface, special_draw);\
 		}\
+		CIsoViewExt::ReduceBrightness(pThis->lpDDBackBufferSurface, dr);\
 		pThis->lpDDPrimarySurface->Blt(&dr, pThis->lpDDBackBufferSurface, &dr, DDBLT_WAIT, 0);\
 		return return_addr; \
 	}\
@@ -45,6 +47,7 @@ DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 	CIsoViewExt::StretchCopySurfaceBilinear(pThis->lpDDBackBufferSurface, backDr,\
 		CIsoViewExt::lpDDBackBufferZoomSurface, dr);\
 	CIsoViewExt::SpecialDraw(CIsoViewExt::lpDDBackBufferZoomSurface, special_draw);\
+	CIsoViewExt::ReduceBrightness(CIsoViewExt::lpDDBackBufferZoomSurface, dr);\
 	pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::lpDDBackBufferZoomSurface, &dr, DDBLT_WAIT, 0);\
 	return return_addr; \
 }

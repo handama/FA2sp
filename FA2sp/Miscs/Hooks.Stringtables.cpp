@@ -17,7 +17,7 @@ char* StringtableLoader::pEDIBuffer = nullptr;
 wchar_t StringtableLoader::pStringBuffer[0x400] = {};
 std::map<FString, FString> StringtableLoader::CSFFiles_Stringtable;
 
-FString StringtableLoader::QueryUIName(const char* pRegName)
+FString StringtableLoader::QueryUIName(const char* pRegName, bool bOnlyOneLine)
 {
     MultimapHelper mmh;
     mmh.AddINI(&CINI::Rules());
@@ -42,6 +42,13 @@ FString StringtableLoader::QueryUIName(const char* pRegName)
     theater.MakeUpper();
     theater = "RenameID" + theater;
     ccstring = CINI::FALanguage().GetString(theater, pRegName, ccstring);
+
+    if (bOnlyOneLine)
+    {
+        ccstring.Replace("\r", "");
+        int idx = ccstring.Find('\n');
+        return idx == -1 ? ccstring : ccstring.Mid(0, idx);
+    }
 
     return ccstring;
 }
@@ -115,12 +122,12 @@ void StringtableLoader::LoadCSFFiles()
 
     if (auto pSection = CINI::FAData->GetSection("ExtraStringtables"))
     {
-        std::map<int, ppmfc::CString> collector;
+        std::map<int, FString> collector;
 
         for (const auto& [key, index] : pSection->GetIndices())
             collector[index] = key;
 
-        ppmfc::CString path;
+        FString path;
 
         for (const auto& [_, key] : collector)
         {
@@ -152,8 +159,6 @@ void StringtableLoader::LoadCSFFile(const char* pName, bool fa2path)
                 Logger::Debug("Successfully Loaded file %s.\n", pName);
         }
     }
-
-    
 }
 
 bool StringtableLoader::ParseECSFile(std::vector<FString>& ret)
@@ -172,7 +177,7 @@ bool StringtableLoader::ParseECSFile(std::vector<FString>& ret)
             isMultiline = false;
             currentLabel = line.Mid(0, start);
             currentLabel.MakeLower();
-            ppmfc::CString left = line.Mid(start + 2);
+            FString left = line.Mid(start + 2);
             currentContent = left;
         }
         else if (multiStart > 0) {
@@ -186,7 +191,7 @@ bool StringtableLoader::ParseECSFile(std::vector<FString>& ret)
         else if (currentLabel != "" && isMultiline) {
             int multiline = line.Find("  ");
             if (multiline == 0) {
-                ppmfc::CString left = line.Mid(2);
+                FString left = line.Mid(2);
                 if (!isMultilineFirst) {
                     currentContent += "\n";
                 }
@@ -218,8 +223,8 @@ bool StringtableLoader::ParseLLFFile(std::vector<FString>& ret)
             currentLabel = line.Mid(0, start);
             currentLabel.MakeLower();
             currentContent = "";
-            ppmfc::CString left = line.Mid(start + 2);
-            ppmfc::CString leftTrim = left;
+            FString left = line.Mid(start + 2);
+            FString leftTrim = left;
             leftTrim.Trim();
             if (leftTrim == ">-") {
                 firstLineEmpty = true;
@@ -233,7 +238,7 @@ bool StringtableLoader::ParseLLFFile(std::vector<FString>& ret)
         else if (currentLabel != "") {
             int multiline = line.Find("  ");
             if (multiline == 0) {
-                ppmfc::CString left = line.Mid(2);
+                FString left = line.Mid(2);
                 if (!firstLineEmpty) {
                     currentContent += "\n";
                 }

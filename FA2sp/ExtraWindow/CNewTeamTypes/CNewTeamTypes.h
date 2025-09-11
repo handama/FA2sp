@@ -51,7 +51,10 @@ public:
         CheckBoxAreTeamMembersRecruitable = 1137,
         CheckBoxIsBaseDefense = 1138,
         CheckBoxOnlyTargetHouseEnemy = 1139,
-        SearchReference = 1999,
+        TurnToTaskforce = 1500,
+        TurnToScript = 1501,
+        TurnToTag = 1502,
+        SearchReference = 1999
         ParadropAircraft = 2001
     };
 
@@ -90,6 +93,10 @@ protected:
     static void OnCloseupTeamtypes();
     static void OnCloseupTag();
     static void OnCloseupHouse();
+
+    static void OnClickTurnToTaskforce();
+    static void OnClickTurnToScript();
+    static void OnClickTurnToTag();
 
     static void Close(HWND& hWnd);
 
@@ -141,6 +148,9 @@ public:
     static HWND hCheckBoxIsBaseDefense;
     static HWND hCheckBoxOnlyTargetHouseEnemy;
     static HWND hSearchReference;
+    static HWND hTurnToTaskforce;
+    static HWND hTurnToScript;
+    static HWND hTurnToTag;
 private:
     static int SelectedTeamIndex;
     static FString CurrentTeamID;

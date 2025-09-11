@@ -6,6 +6,7 @@
 #include "../../Ext/CMapData/Body.h"
 #include "../../Miscs/SaveMap.h"
 #include "../Common.h"
+#include "../../Miscs/DialogStyle.h"
 
 HWND COptions::m_hwnd;
 HWND COptions::hList;
@@ -13,6 +14,12 @@ HWND COptions::hGameEngine;
 HWND COptions::hSearch;
 CFinalSunDlg* COptions::m_parent;
 bool COptions::initialized = false;
+WNDPROC COptions::g_pOriginalListViewProc = nullptr;
+
+LRESULT CALLBACK COptions::ListViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    return DarkTheme::MyCallWindowProcA(g_pOriginalListViewProc, hWnd, uMsg, wParam, lParam);
+}
 
 void COptions::Create(CFinalSunDlg* pWnd)
 {
@@ -49,10 +56,21 @@ void COptions::Initialize(HWND& hWnd)
     Translate("Options.Search", 1003);
 
     hList = GetDlgItem(hWnd, Controls::List);
-    //hGameEngine = GetDlgItem(hWnd, Controls::GameEngine);
     hSearch = GetDlgItem(hWnd, Controls::Search);
 
-    //SendMessage(hGameEngine, CB_ADDSTRING, NULL, (LPARAM)(LPCSTR)Translations::TranslateOrDefault("Options.GameEngine.None", "None"));
+    if (ExtConfigs::EnableDarkMode)
+    {
+        ::SendMessage(hList, LVM_SETTEXTBKCOLOR, 0, RGB(32, 32, 32));
+        ::SendMessage(hList, LVM_SETTEXTCOLOR, 0, RGB(220, 220, 220));
+
+        DarkTheme::SubclassListViewHeader(hList);
+        g_pOriginalListViewProc = (WNDPROC)GetWindowLongPtr(hList, GWLP_WNDPROC);
+        if (g_pOriginalListViewProc)
+        {
+            SetWindowLongPtr(hList, GWLP_WNDPROC, (LONG_PTR)ListViewSubclassProc);
+        }
+        InvalidateRect(hList, NULL, TRUE);
+    }
 
     Update();
 }

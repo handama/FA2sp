@@ -354,6 +354,7 @@ FString CViewObjectsExt::QueryUIName(const char* pRegName, bool bOnlyOneLine)
     if (buffer == "MISSING")
         buffer = Variables::RulesMap.GetString(pRegName, "Name", pRegName);
 
+    buffer.Replace("\r", "");
     int idx = buffer.Find('\n');
     return idx == -1 ? buffer : buffer.Mid(0, idx);
 }
@@ -785,9 +786,9 @@ void CViewObjectsExt::Redraw_Owner()
                         for (auto& pair : countries)
                         {
                             if (ExtConfigs::BetterHouseNameTranslation)
-                                translated = StringtableLoader::QueryUIName(pair.second) + "(" + pair.second + ")";
+                                translated = StringtableLoader::QueryUIName(pair.second, true) + "(" + pair.second + ")";
                             else
-                                translated = StringtableLoader::QueryUIName(pair.second);
+                                translated = StringtableLoader::QueryUIName(pair.second, true);
 
                             uiname.Replace(pair.second, translated);
                         }
@@ -851,9 +852,9 @@ void CViewObjectsExt::Redraw_Owner()
                     for (auto& pair : countries)
                     {
                         if (ExtConfigs::BetterHouseNameTranslation)
-                            translated = StringtableLoader::QueryUIName(pair.second) + "(" + pair.second + ")";
+                            translated = StringtableLoader::QueryUIName(pair.second, true) + "(" + pair.second + ")";
                         else
-                            translated = StringtableLoader::QueryUIName(pair.second);
+                            translated = StringtableLoader::QueryUIName(pair.second, true);
 
                         uiname.Replace(pair.second, translated);
                     }
@@ -897,9 +898,9 @@ void CViewObjectsExt::Redraw_Owner()
                     for (auto& pair : countries)
                     {
                         if (ExtConfigs::BetterHouseNameTranslation)
-                            translated = StringtableLoader::QueryUIName(pair.second) + "(" + pair.second + ")";
+                            translated = StringtableLoader::QueryUIName(pair.second, true) + "(" + pair.second + ")";
                         else
-                            translated = StringtableLoader::QueryUIName(pair.second);
+                            translated = StringtableLoader::QueryUIName(pair.second, true);
 
                         uiname.Replace(pair.second, translated);
                     }
@@ -964,9 +965,9 @@ void CViewObjectsExt::Redraw_Owner()
                     for (auto& pair : countries)
                     {
                         if (ExtConfigs::BetterHouseNameTranslation)
-                            translated = StringtableLoader::QueryUIName(pair.second) + "(" + pair.second + ")";
+                            translated = StringtableLoader::QueryUIName(pair.second, true) + "(" + pair.second + ")";
                         else
-                            translated = StringtableLoader::QueryUIName(pair.second);
+                            translated = StringtableLoader::QueryUIName(pair.second, true);
 
                         uiname.Replace(pair.second, translated);
                     }

@@ -9,6 +9,7 @@
 #include "../../../ExtraWindow/CNewTrigger/CNewTrigger.h"
 #include "../../../Helpers/Translations.h"
 #include "../../CMapData/Body.h"
+#include "../../../Miscs/DialogStyle.h"
 using namespace std;
 
 TriggerSort TriggerSort::Instance;
@@ -116,6 +117,12 @@ void TriggerSort::Create(HWND hParent)
         TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS | TVS_SHOWSELALWAYS,
         rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, hParent,
         NULL, static_cast<HINSTANCE>(FA2sp::hInstance), nullptr);
+
+    if (ExtConfigs::EnableDarkMode && this->m_hWnd)
+    {
+        ::SendMessage(this->m_hWnd, TVM_SETBKCOLOR, 0, RGB(32, 32, 32));
+        ::SendMessage(this->m_hWnd, TVM_SETTEXTCOLOR, 0, RGB(220, 220, 220));
+    }
 }
 
 void TriggerSort::OnSize() const

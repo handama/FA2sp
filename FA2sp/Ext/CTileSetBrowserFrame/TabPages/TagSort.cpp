@@ -10,6 +10,7 @@
 #include "../../../Helpers/Translations.h"
 #include "../../../ExtraWindow/CNewTeamTypes/CNewTeamTypes.h"
 #include "../../../Miscs/StringtableLoader.h"
+#include "../../../Miscs/DialogStyle.h"
 
 TagSort TagSort::Instance;
 std::unordered_set<FString> TagSort::attachedTriggers;
@@ -22,7 +23,6 @@ std::unordered_map<FString, FString> TagSort::TriggerTags;
 std::unordered_map<FString, std::vector<FString>> TagSort::TriggerTagsParent;
 std::unordered_map<FString, std::vector<FString>> TagSort::CellTagTags;
 std::unordered_map<FString, std::vector<FString>> TagSort::TeamTags;
-
 
 enum FindType { Aircraft = 0, Infantry, Structure, Unit };
 void TagSort::LoadAllTriggers()
@@ -426,10 +426,16 @@ void TagSort::Create(HWND hParent)
     ::GetClientRect(hParent, &rect);
 
     this->m_hWnd = CreateWindowEx(NULL, "SysTreeView32", nullptr,
-        WS_CHILD | WS_BORDER | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL | 
+        WS_CHILD | WS_BORDER | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL |
         TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS | TVS_SHOWSELALWAYS,
         rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, hParent,
         NULL, static_cast<HINSTANCE>(FA2sp::hInstance), nullptr);
+
+    if (ExtConfigs::EnableDarkMode && this->m_hWnd)
+    {
+        ::SendMessage(this->m_hWnd, TVM_SETBKCOLOR, 0, RGB(32, 32, 32));
+        ::SendMessage(this->m_hWnd, TVM_SETTEXTCOLOR, 0, RGB(220, 220, 220));
+    }
 }
 
 void TagSort::OnSize() const

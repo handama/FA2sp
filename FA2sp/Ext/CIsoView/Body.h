@@ -98,6 +98,7 @@ public:
     static std::vector<int> GetTubeDirections(const std::vector<MapCoord>& path);
     static std::vector<MapCoord> GetPathFromDirections(int x0, int y0, const std::vector<int>& directions);
     static RECT GetScaledWindowRect();
+    static void ReduceBrightness(IDirectDrawSurface7* pSurface, const RECT& rc);
 
     // flatMode 0 = auto, 1 = flat, 2 = height
     static void MapCoord2ScreenCoord(int& X, int& Y, int flatMode = 0);

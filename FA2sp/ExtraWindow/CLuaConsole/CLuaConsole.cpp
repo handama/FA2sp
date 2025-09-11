@@ -148,6 +148,19 @@ void CLuaConsole::Initialize(HWND& hWnd)
     SendMessage(hRunFile, BM_SETCHECK, runFile, 0);
     CIsoView::ControlKeyIsDown() = false;
 
+    if (ExtConfigs::EnableDarkMode)
+    {
+        ::SendMessage(hInputBox, EM_SETBKGNDCOLOR, (WPARAM)FALSE, (LPARAM)RGB(32, 32, 32));
+        CHARFORMAT cf = { 0 };
+        cf.cbSize = sizeof(cf);
+        cf.dwMask = CFM_COLOR;
+        cf.crTextColor = RGB(220, 220, 220);
+        ::SendMessage(hInputBox, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
+
+        ::SendMessage(hOutputBox, EM_SETBKGNDCOLOR, (WPARAM)FALSE, (LPARAM)RGB(32, 32, 32));
+        ::SendMessage(hOutputBox, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
+    }
+
     Lua.collect_garbage();
     Lua = sol::state();
 

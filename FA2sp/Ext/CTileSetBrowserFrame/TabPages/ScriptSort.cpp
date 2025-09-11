@@ -6,6 +6,7 @@
 #include "../../../ExtraWindow/CNewScript/CNewScript.h"
 #include <CFinalSunDlg.h>
 #include "../../../Helpers/Translations.h"
+#include "../../../Miscs/DialogStyle.h"
 
 ScriptSort ScriptSort::Instance;
 bool ScriptSort::CreateFromScriptSort = false;
@@ -96,16 +97,23 @@ BOOL ScriptSort::OnMessage(PMSG pMsg)
     return FALSE;
 }
 
+
 void ScriptSort::Create(HWND hParent)
 {
     RECT rect;
     ::GetClientRect(hParent, &rect);
 
     this->m_hWnd = CreateWindowEx(NULL, "SysTreeView32", nullptr,
-        WS_CHILD | WS_BORDER | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL | 
+        WS_CHILD | WS_BORDER | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL |
         TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS | TVS_SHOWSELALWAYS,
         rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, hParent,
         NULL, static_cast<HINSTANCE>(FA2sp::hInstance), nullptr);
+
+    if (ExtConfigs::EnableDarkMode && this->m_hWnd)
+    {
+        ::SendMessage(this->m_hWnd, TVM_SETBKCOLOR, 0, RGB(32, 32, 32));
+        ::SendMessage(this->m_hWnd, TVM_SETTEXTCOLOR, 0, RGB(220, 220, 220));
+    }
 }
 
 void ScriptSort::OnSize() const

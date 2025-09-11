@@ -68,7 +68,6 @@ public:
     static bool AdjustDropdownWidth;
     static int AdjustDropdownWidth_Factor;
     static int AdjustDropdownWidth_Max;
-    static int DrawMapBackground_Color;
     static int CopySelectionBound_Color;
     static int CursorSelectionBound_Color;
     static int DistanceRuler_Color;
@@ -194,6 +193,8 @@ public:
     static bool SaveMap_PreserveINISorting;
     static bool ExtMixLoader;
     static bool AVX2_Support;
+    static bool EnableDarkMode;
+    static bool EnableDarkMode_DimMap;
     static ppmfc::CString CloneWithOrderedID_Digits;
     static ppmfc::CString NewTriggerPlusID_Digits;
     static ppmfc::CString Waypoint_SkipCheckList;

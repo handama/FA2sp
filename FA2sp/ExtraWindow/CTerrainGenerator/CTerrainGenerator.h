@@ -336,6 +336,8 @@ private:
     static MultimapHelper& rules;
     static std::shared_ptr<TerrainGeneratorPreset> CurrentPreset;
     static std::map<FString, std::shared_ptr<TerrainGeneratorPreset>> TerrainGeneratorPresets;
+    static WNDPROC g_pOriginalTabPageProc;
+    static LRESULT CALLBACK TabPageSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 public:
     static std::unique_ptr<CINI, GameUniqueDeleter<CINI>> ini;

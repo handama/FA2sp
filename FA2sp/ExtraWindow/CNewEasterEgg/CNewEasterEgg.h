@@ -38,6 +38,8 @@ private:
     static int clientW, clientH;
     static bool playerTurn;
     static bool gameOver;
+    static int aiLastMoveR;
+    static int aiLastMoveC;
     struct Move { int r, c, who; };
     static std::vector<Move> history;
     static std::mt19937 rng;
@@ -83,6 +85,10 @@ struct Board
     static uint64_t zobristTable[16][10][9];
     static bool zobristInitialized;
     static int init[10][9];
+    int searchStep;
+
+    static std::unordered_map<uint64_t, int> positionHistory;
+    static std::vector<std::pair<Move, uint64_t>> history;
 
     static void initZobrist() {
         if (zobristInitialized) return;
@@ -432,32 +438,61 @@ struct Board
 
     int evaluate() const {
         int score = 0;
+
+        int majorCount = 0;
+        for (int r = 0; r < 10; ++r) {
+            for (int c = 0; c < 9; ++c) {
+                int p = g[r][c];
+                if (p == RD_JU || p == BK_JU ||
+                    p == RD_MA || p == BK_MA ||
+                    p == RD_PAO || p == BK_PAO) {
+                    ++majorCount;
+                }
+            }
+        }
+
+        bool endgame = (majorCount <= 7);
+
         auto val = [&](int p)->int {
             switch (p) {
             case RD_JU: case BK_JU: return 500;
-            case RD_MA: case BK_MA: return 250;
+            case RD_MA: case BK_MA: return endgame ? 300 : 250; 
             case RD_XIANG: case BK_XIANG: return 120;
             case RD_SHI: case BK_SHI: return 120;
             case RD_SHUAI: case BK_JIANG: return 10000;
-            case RD_PAO: case BK_PAO: return 275;
+            case RD_PAO: case BK_PAO: return endgame ? 240 : 300; 
             case RD_BING: case BK_BING: return 90;
             default: return 0;
             }
         };
-        for (int r = 0; r < 10; ++r) for (int c = 0; c < 9; ++c) {
-            int p = g[r][c]; if (!p) continue;
-            int v = val(p);
-            if (p == RD_BING) { if (r <= 4) v += 40; if (r <= 2) v += 20; }
-            if (p == BK_BING) { if (r >= 5) v += 40; if (r >= 7) v += 20; }
-            int centerBonus = 4 - (abs(c - 4));
-            v += centerBonus;
-            score += (IsRed(p) ? v : -v);
+
+        for (int r = 0; r < 10; ++r) {
+            for (int c = 0; c < 9; ++c) {
+                int p = g[r][c];
+                if (!p) continue;
+                int v = val(p);
+
+                if (p == RD_BING) {
+                    if (r <= 4) v += 40;
+                    if (r <= 2) v += 20;
+                }
+                if (p == BK_BING) {
+                    if (r >= 5) v += 40;
+                    if (r >= 7) v += 20;
+                }
+
+                int centerBonus = 4 - abs(c - 4);
+                v += centerBonus;
+
+                score += (IsRed(p) ? v : -v);
+            }
         }
+
         if (inCheck(RED)) score -= 80;
         if (inCheck(BLACK)) score += 80;
+
         return score;
     }
-
     int search(int depth, int alpha, int beta) {
         if (depth == 0) return evaluate();
 
@@ -544,7 +579,6 @@ struct Board
             return av > bv;
         });
 
-        std::unordered_map<uint64_t, int> tempPositionHistory;
         for (auto& m : ms) {
             uint64_t oldKey = zobristKey;
             doMove(m);
@@ -556,17 +590,16 @@ struct Board
 
             bool isPerpetualCheck = false;
             if (inCheck(BLACK)) {
-                tempPositionHistory[zobristKey]++;
-                if (tempPositionHistory[zobristKey] >= 3) {
+                if (positionHistory[zobristKey] + 1 >= 3) {
                     isPerpetualCheck = true;
                 }
             }
 
-            int sc = isPerpetualCheck ? -std::numeric_limits<int>::max() : search(3, -30000, 30000);
+            int sc = isPerpetualCheck ? -std::numeric_limits<int>::max() : search(searchStep, -30000, 30000);
             undoMove(m);
-            zobristKey = oldKey; 
+            zobristKey = oldKey;
 
-            if (isPerpetualCheck) continue; 
+            if (isPerpetualCheck) continue;
 
             if (sc > bestScore) {
                 bestScore = sc;
@@ -1229,13 +1262,10 @@ private:
     static int aiLastMoveFromR, aiLastMoveFromC;
     static int aiLastMoveToR, aiLastMoveToC;
 
-    static std::unordered_map<uint64_t, int> positionHistory;
-    static std::vector<std::pair<Move, uint64_t>> history;
-
     static void calcLayout();
     static void draw(HDC hdc);
     static void newGame();
-    static void aiStep();
+    static void aiStep(bool first = false);
     static void playerClick(int x, int y);
     static bool isPlayerPiece(int p) { return IsBlack(p); }
     static void endWithMessage(const char* msg);

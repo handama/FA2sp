@@ -55,7 +55,6 @@ bool ExtConfigs::DisplayTriggerID;
 bool ExtConfigs::AdjustDropdownWidth;
 int ExtConfigs::AdjustDropdownWidth_Factor;
 int ExtConfigs::AdjustDropdownWidth_Max;
-int ExtConfigs::DrawMapBackground_Color;
 int ExtConfigs::CopySelectionBound_Color;
 int ExtConfigs::CursorSelectionBound_Color;
 int ExtConfigs::DistanceRuler_Color;
@@ -181,6 +180,8 @@ int ExtConfigs::DisplayTextSize;
 int ExtConfigs::DistanceRuler_Records;
 bool ExtConfigs::DisplayObjectsOutside;
 bool ExtConfigs::AVX2_Support;
+bool ExtConfigs::EnableDarkMode;
+bool ExtConfigs::EnableDarkMode_DimMap;
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
 ppmfc::CString ExtConfigs::NewTriggerPlusID_Digits;
 ppmfc::CString ExtConfigs::Waypoint_SkipCheckList;
@@ -243,12 +244,6 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::AdjustDropdownWidth_Factor = CINI::FAData->GetInteger("ExtConfigs", "AdjustDropdownWidth.Factor", 8);
 	ExtConfigs::AdjustDropdownWidth_Max = CINI::FAData->GetInteger("ExtConfigs", "AdjustDropdownWidth.Max", 360);
 
-	ExtConfigs::DrawMapBackground_Color =
-		CINI::FAData->GetColor("ExtConfigs", "DrawMapBackgroundColor", 0xFFFFFF);
-	ExtConfigs::DrawMapBackground_Color = ((ExtConfigs::DrawMapBackground_Color & 0xFF0000) >> 16) |
-		(ExtConfigs::DrawMapBackground_Color & 0x00FF00) |
-		((ExtConfigs::DrawMapBackground_Color & 0x0000FF) << 16);
-
 	ExtConfigs::CopySelectionBound_Color = 
 		CINI::FAData->GetColor("ExtConfigs", "CopySelectionBound.Color", 0x0000FF);
 	ExtConfigs::CursorSelectionBound_Color =
@@ -300,7 +295,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
 
-
+	ExtConfigs::EnableDarkMode = CINI::FAData->GetBool("ExtConfigs", "EnableDarkMode");
+	ExtConfigs::EnableDarkMode_DimMap = CINI::FAData->GetBool("ExtConfigs", "EnableDarkMode.DimMap");
 	ExtConfigs::DisplayObjectsOutside = CINI::FAData->GetBool("ExtConfigs", "DisplayObjectsOutside");
 	ExtConfigs::DDrawScalingBilinear = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear", true);
 	ExtConfigs::DDrawScalingBilinear_OnlyShrink = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear.OnlyShrink", true);
@@ -576,6 +572,20 @@ void FA2sp::ExtConfigsInitialize()
 		.IniKey = "EnableVisualStyle",
 		.Value = &ExtConfigs::EnableVisualStyle,
 		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode", "Enable dark mode"),
+		.IniKey = "EnableDarkMode",
+		.Value = &ExtConfigs::EnableDarkMode,
+		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode.DimMap", "make map view dim in drak mode"),
+		.IniKey = "EnableDarkMode.DimMap",
+		.Value = &ExtConfigs::EnableDarkMode_DimMap,
+		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

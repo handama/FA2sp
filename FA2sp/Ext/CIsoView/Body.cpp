@@ -134,6 +134,20 @@ static bool TilePixels[1800] =
 
 static BYTE alphaBlendTable[256][256];
 
+constexpr float kFactor = 0.7f;
+constexpr BYTE MakeValue(int i) {
+    int v = static_cast<int>(i * kFactor);
+    return v > 255 ? 255 : static_cast<BYTE>(v);
+}
+constexpr auto MakeBrightnessLUT() {
+    std::array<BYTE, 256> lut{};
+    for (int i = 0; i < 256; ++i) {
+        lut[i] = MakeValue(i);
+    }
+    return lut;
+}
+constexpr std::array<BYTE, 256> BrightnessLUT = MakeBrightnessLUT();
+
 void CIsoViewExt::InitAlphaTable() {
     for (int i = 0; i < 256; i++) {
         for (int j = 0; j < 256; j++) {
@@ -141,7 +155,6 @@ void CIsoViewExt::InitAlphaTable() {
         }
     }
 }
-
 
 void CIsoViewExt::ProgramStartupInit()
 {
@@ -3317,6 +3330,38 @@ RECT CIsoViewExt::GetScaledWindowRect()
     rect.bottom += rect.Height() * (CIsoViewExt::ScaledFactor - 1.0);
     return rect;
 }
+
+void CIsoViewExt::ReduceBrightness(IDirectDrawSurface7* pSurface, const RECT& rc)
+{
+    if (!ExtConfigs::EnableDarkMode || !ExtConfigs::EnableDarkMode_DimMap || !pSurface) return;
+
+    DDSURFACEDESC2 ddsd = { sizeof(ddsd) };
+    HRESULT hr = pSurface->Lock(const_cast<RECT*>(&rc), &ddsd, DDLOCK_WAIT, nullptr);
+    if (FAILED(hr)) return;
+
+    BYTE* pBits = static_cast<BYTE*>(ddsd.lpSurface);
+    if (!pBits) {
+        pSurface->Unlock(nullptr);
+        return;
+    }
+
+    for (LONG y = 0; y < (rc.bottom - rc.top); ++y) {
+        DWORD* pLine = reinterpret_cast<DWORD*>(pBits + y * ddsd.lPitch);
+        for (LONG x = 0; x < (rc.right - rc.left); ++x) {
+            DWORD c = pLine[x];
+            BYTE r = (c >> 16) & 0xFF;
+            BYTE g = (c >> 8) & 0xFF;
+            BYTE b = c & 0xFF;
+            r = BrightnessLUT[r];
+            g = BrightnessLUT[g];
+            b = BrightnessLUT[b];
+            pLine[x] = (c & 0xFF000000) | (r << 16) | (g << 8) | b;
+        }
+    }
+
+    pSurface->Unlock(nullptr);
+}
+
 
 void CIsoViewExt::MapCoord2ScreenCoord(int& X, int& Y, int flatMode)
 {

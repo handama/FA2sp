@@ -498,6 +498,8 @@ LRESULT DarkTheme::HandleCustomDraw(LPARAM lParam)
             pNMTVCD->clrText = isSelected ? DarkColors::White : DarkColors::LightText;
             return CDRF_DODEFAULT;
         }
+
+        break;
     }
     }
 
@@ -523,6 +525,12 @@ void DarkTheme::SetDarkTheme(HWND hWndParent)
         GetClassNameW(hWndChild, className, _countof(className));
         if (_wcsicmp(className, WC_COMBOBOXW) != 0)
             SetWindowTheme(hWndChild, L"DarkMode_Explorer", NULL);
+
+        if (_wcsicmp(className, L"SysListView32") == 0)
+        {
+            ::SendMessage(hWndChild, LVM_SETTEXTBKCOLOR, 0, DarkColors::Background);
+            ::SendMessage(hWndChild, LVM_SETTEXTCOLOR, 0, DarkColors::TextColor);
+        }
 
         SetDarkTheme(hWndChild);
     }
@@ -1562,8 +1570,10 @@ void DarkTheme::SubclassAllControls(HWND hWndParent)
 
 LRESULT DarkTheme::GenericWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
-    if (ExtConfigs::EnableDarkMode
-        && CFinalSunDlg::Instance
+    if (!ExtConfigs::EnableDarkMode)
+        return FALSE;
+
+    if (CFinalSunDlg::Instance
         && hWnd == CFinalSunDlg::Instance->GetSafeHwnd())
     {
         switch (Msg)
@@ -1654,18 +1664,10 @@ bool DarkTheme::IsModernFileDialog(HWND hWnd)
         features.hasToolbar && features.hasReBar;
 }
 
-LRESULT WINAPI DarkTheme::MyDefWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+void DarkTheme::InitDialogOptions(HWND hWnd)
 {
-    if (!ExtConfigs::EnableDarkMode)
-        return ::DefWindowProcA(hWnd, Msg, wParam, lParam);
-
-    if (Msg == WM_INITDIALOG)
+    if (ExtConfigs::EnableDarkMode)
     {
-        LRESULT result = ::DefWindowProcA(hWnd, Msg, wParam, lParam);
-        if (IsModernFileDialog(hWnd))
-        {
-            return result;
-        }
         SetDarkTheme(hWnd);
         SubclassAllControls(hWnd);
         SubclassAllAutoButtons(hWnd);
@@ -1682,6 +1684,28 @@ LRESULT WINAPI DarkTheme::MyDefWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, L
                 }
             }
         }
+    }
+    HWND mapValidatorList = ::GetDlgItem(hWnd, 1357);
+    HWND mapValidatorText = ::GetDlgItem(hWnd, 1358);
+    if (mapValidatorList && mapValidatorText)
+    {
+        LVCOLUMN col = { 0 };
+        col.mask = LVCF_WIDTH;
+        col.cx = 800;
+        ListView_InsertColumn(mapValidatorList, 0, &col);
+    }
+}
+
+LRESULT WINAPI DarkTheme::MyDefWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+    if (Msg == WM_INITDIALOG)
+    {
+        LRESULT result = ::DefWindowProcA(hWnd, Msg, wParam, lParam);
+        if (IsModernFileDialog(hWnd))
+        {
+            return result;
+        }
+        InitDialogOptions(hWnd);
         return result;
     }
 
@@ -1699,9 +1723,6 @@ LRESULT WINAPI DarkTheme::MyCallWindowProcA(
     WPARAM wParam,
     LPARAM lParam)
 {
-    if (!ExtConfigs::EnableDarkMode)
-        return ::CallWindowProcA(lpPrevWndFunc, hWnd, Msg, wParam, lParam);
-
     if (Msg == WM_INITDIALOG)
     {
         LRESULT result = ::CallWindowProcA(lpPrevWndFunc, hWnd, Msg, wParam, lParam);
@@ -1709,22 +1730,7 @@ LRESULT WINAPI DarkTheme::MyCallWindowProcA(
         {
             return result;
         }
-        SetDarkTheme(hWnd);
-        SubclassAllControls(hWnd);
-        SubclassAllAutoButtons(hWnd);
-        WCHAR className[32] = {};
-        GetClassNameW(hWnd, className, 32);
-        if (wcscmp(className, L"#32770") == 0)
-        {
-            for (int i = IDOK; i <= IDCONTINUE; ++i)
-            {
-                if (GetDlgItem(hWnd, i))
-                {
-                    SetPropW(hWnd, L"IS_MESSAGEBOX", (HANDLE)1);
-                    break;
-                }
-            }
-        }
+        InitDialogOptions(hWnd);       
         return result;
     }
 
@@ -1959,13 +1965,13 @@ DEFINE_HOOK(537129, ExeStart_DrakThemeHooks, 9)
         RunTime::ResetMemoryContentAt(0x591588, DarkTheme::MyGetSysColor);
         RunTime::ResetMemoryContentAt(0x5913CC, DarkTheme::MyGetSysColorBrush);
         RunTime::ResetMemoryContentAt(0x59107C, DarkTheme::MyGetStockObject);
-        RunTime::ResetMemoryContentAt(0x591448, DarkTheme::MyDefWindowProcA);
-        RunTime::ResetMemoryContentAt(0x591464, DarkTheme::MyCallWindowProcA);
         //RunTime::ResetMemoryContentAt(0x591070, DarkTheme::MyCreatePen);
         //RunTime::ResetMemoryContentAt(0x591078, DarkTheme::MySetTextColor);
         RunTime::SetJump(0x5636C0, (DWORD)DarkTheme::MyOnEraseBkgnd);
         //RunTime::ResetMemoryContentAt(0x591060, DarkTheme::MySetPixel);
     }
+    RunTime::ResetMemoryContentAt(0x591448, DarkTheme::MyDefWindowProcA);
+    RunTime::ResetMemoryContentAt(0x591464, DarkTheme::MyCallWindowProcA);
     RunTime::ResetMemoryContentAt(0x5915D4, DarkTheme::MyGetOpenFileNameA);
     RunTime::ResetMemoryContentAt(0x5915DC, DarkTheme::MyGetSaveFileNameA);
 

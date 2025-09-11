@@ -1462,9 +1462,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				CMapData::Instance->GetAircraftData(cell->Aircraft, obj);
 				auto imageID = obj.TypeID;
 
-				int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
-				int nFacing = (atoi(obj.Facing) * facings / 256) % facings;
-
 				if (ExtConfigs::InGameDisplay_Damage)
 				{
 					int HP = atoi(obj.Health);
@@ -1478,12 +1475,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					}
 				}
 
-				const auto& imageName = CLoadingExt::GetImageName(imageID, nFacing);
-
 				if (!CLoadingExt::IsObjectLoaded(imageID))
 				{
 					CLoading::Instance->LoadObjects(imageID);
 				}
+
+				int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
+				int nFacing = (atoi(obj.Facing) * facings / 256) % facings;
+				const auto& imageName = CLoadingExt::GetImageName(imageID, nFacing);
 				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
 				if (pData->pImageBuffer)

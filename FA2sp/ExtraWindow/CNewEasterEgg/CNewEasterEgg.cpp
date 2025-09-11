@@ -152,7 +152,7 @@ void CGoBang::Render(HDC hdc)
             int rad = cellSize / 2 - 2;
         
             if (who == 1 && r == aiLastMoveR && c == aiLastMoveC) {
-                DrawCircle(hdc, cx, cy, cellSize / 2, RGB(10, 10, 10), RGB(255, 127, 39));
+                DrawCircle(hdc, cx, cy, cellSize / 2, RGB(255, 190, 138), RGB(255, 127, 39));
             }
 
             HBRUSH b = CreateSolidBrush(who == 1 ? RGB(10, 10, 10) : RGB(245, 245, 245));
@@ -533,6 +533,37 @@ void CChineseChess::calcLayout()
     topY = (clientH - boardH) / 2 + 10;
 }
 
+void DrawStar(HDC hdc, int x, int y, int cell, bool left, bool right, bool up, bool down)
+{
+    int d = 4;
+    int l = 8; 
+
+    if (left && up) {
+        MoveToEx(hdc, x - d, y - d, nullptr);
+        LineTo(hdc, x - d - l, y - d);
+        MoveToEx(hdc, x - d, y - d, nullptr);
+        LineTo(hdc, x - d, y - d - l);
+    }
+    if (right && up) {
+        MoveToEx(hdc, x + d, y - d, nullptr);
+        LineTo(hdc, x + d + l, y - d);
+        MoveToEx(hdc, x + d, y - d, nullptr);
+        LineTo(hdc, x + d, y - d - l);
+    }
+    if (left && down) {
+        MoveToEx(hdc, x - d, y + d, nullptr);
+        LineTo(hdc, x - d - l, y + d);
+        MoveToEx(hdc, x - d, y + d, nullptr);
+        LineTo(hdc, x - d, y + d + l);
+    }
+    if (right && down) {
+        MoveToEx(hdc, x + d, y + d, nullptr);
+        LineTo(hdc, x + d + l, y + d);
+        MoveToEx(hdc, x + d, y + d, nullptr);
+        LineTo(hdc, x + d, y + d + l);
+    }
+}
+
 void CChineseChess::draw(HDC hdc)
 {
     RECT rc; GetClientRect(m_hwnd, &rc);
@@ -565,6 +596,31 @@ void CChineseChess::draw(HDC hdc)
     MoveToEx(hdc, palaceX(3), palaceY(7), nullptr); LineTo(hdc, palaceX(5), palaceY(9));
     MoveToEx(hdc, palaceX(5), palaceY(7), nullptr); LineTo(hdc, palaceX(3), palaceY(9));
     SelectObject(hdc, oldp); DeleteObject(p);
+
+    auto drawStarAt = [&](int r, int c, bool left, bool right) {
+        int displayR = 9 - r;
+        int cx = leftX + c * cell;
+        int cy = topY + displayR * cell;
+        DrawStar(hdc, cx, cy, cell, left, right, true, true);
+    };
+
+    drawStarAt(3, 0, false, true);
+    drawStarAt(3, 2, true, true);
+    drawStarAt(3, 4, true, true);
+    drawStarAt(3, 6, true, true);
+    drawStarAt(3, 8, true, false);
+
+    drawStarAt(6, 0, false, true);
+    drawStarAt(6, 2, true, true);
+    drawStarAt(6, 4, true, true);
+    drawStarAt(6, 6, true, true);
+    drawStarAt(6, 8, true, false);
+
+    drawStarAt(2, 1, true, true);
+    drawStarAt(2, 7, true, true);
+
+    drawStarAt(7, 1, true, true);
+    drawStarAt(7, 7, true, true);
 
     SetBkMode(hdc, TRANSPARENT);
     SetTextColor(hdc, RGB(100, 70, 40));

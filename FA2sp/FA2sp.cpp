@@ -182,6 +182,7 @@ bool ExtConfigs::DisplayObjectsOutside;
 bool ExtConfigs::AVX2_Support;
 bool ExtConfigs::EnableDarkMode;
 bool ExtConfigs::EnableDarkMode_DimMap;
+bool ExtConfigs::ShrinkTilesInTileSetBrowser;
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
 ppmfc::CString ExtConfigs::NewTriggerPlusID_Digits;
 ppmfc::CString ExtConfigs::Waypoint_SkipCheckList;
@@ -295,6 +296,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
 
+	ExtConfigs::ShrinkTilesInTileSetBrowser = CINI::FAData->GetBool("ExtConfigs", "ShrinkTilesInTileSetBrowser");
 	ExtConfigs::EnableDarkMode = CINI::FAData->GetBool("ExtConfigs", "EnableDarkMode");
 	ExtConfigs::EnableDarkMode_DimMap = CINI::FAData->GetBool("ExtConfigs", "EnableDarkMode.DimMap");
 	ExtConfigs::DisplayObjectsOutside = CINI::FAData->GetBool("ExtConfigs", "DisplayObjectsOutside");
@@ -717,9 +719,16 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.LightingPreview.TintTileSetBrowserView", "Mult tile set brorser images when changing lighting"),
+		.DisplayName = Translations::TranslateOrDefault("Options.LightingPreview.TintTileSetBrowserView", "Mult tile set browser images when changing lighting"),
 		.IniKey = "LightingPreview.TintTileSetBrowserView",
 		.Value = &ExtConfigs::LightingPreview_TintTileSetBrowserView,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ShrinkTilesInTileSetBrowser", "Shink tile images in tile set browser"),
+		.IniKey = "ShrinkTilesInTileSetBrowser",
+		.Value = &ExtConfigs::ShrinkTilesInTileSetBrowser,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 

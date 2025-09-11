@@ -195,6 +195,7 @@ public:
     static bool AVX2_Support;
     static bool EnableDarkMode;
     static bool EnableDarkMode_DimMap;
+    static bool ShrinkTilesInTileSetBrowser;
     static ppmfc::CString CloneWithOrderedID_Digits;
     static ppmfc::CString NewTriggerPlusID_Digits;
     static ppmfc::CString Waypoint_SkipCheckList;

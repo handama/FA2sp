@@ -25,10 +25,25 @@ int CGoBang::clientH = 500;
 
 bool CGoBang::playerTurn = false;
 bool CGoBang::gameOver = false;
+int CGoBang::aiLastMoveR = -1;
+int CGoBang::aiLastMoveC = -1; 
 
 std::vector<CGoBang::Move> CGoBang::history;
 std::mt19937 CGoBang::rng{ std::random_device{}() };
 HFONT CGoBang::hfStatusText = nullptr;
+
+static void DrawCircle(HDC hdc, int cx, int cy, int r, COLORREF fill, COLORREF frame) {
+    HBRUSH b = CreateSolidBrush(fill); HBRUSH oldb = (HBRUSH)SelectObject(hdc, b);
+    HPEN p = CreatePen(PS_SOLID, 2, frame); HPEN oldp = (HPEN)SelectObject(hdc, p);
+    Ellipse(hdc, cx - r, cy - r, cx + r, cy + r);
+    SelectObject(hdc, oldb); DeleteObject(b);
+    SelectObject(hdc, oldp); DeleteObject(p);
+}
+
+static void TextCenter(HDC hdc, int x, int y, const wchar_t* s) {
+    SIZE sz{}; GetTextExtentPoint32W(hdc, s, (int)wcslen(s), &sz);
+    TextOutW(hdc, x - sz.cx / 2, y - sz.cy / 2, s, (int)wcslen(s));
+}
 
 void CGoBang::Create(CFinalSunDlg* pWnd)
 {
@@ -135,6 +150,11 @@ void CGoBang::Render(HDC hdc)
             int cx = boardLeft + c * cellSize;
             int cy = boardTop + r * cellSize;
             int rad = cellSize / 2 - 2;
+        
+            if (who == 1 && r == aiLastMoveR && c == aiLastMoveC) {
+                DrawCircle(hdc, cx, cy, cellSize / 2, RGB(10, 10, 10), RGB(255, 127, 39));
+            }
+
             HBRUSH b = CreateSolidBrush(who == 1 ? RGB(10, 10, 10) : RGB(245, 245, 245));
             HGDIOBJ oldb = SelectObject(hdc, b);
             Ellipse(hdc, cx - rad, cy - rad, cx + rad, cy + rad);
@@ -277,11 +297,31 @@ void CGoBang::AIMove()
     auto pick = bests[dist(rng)];
     board[pick.first][pick.second] = 1;
     history.push_back({ pick.first, pick.second, 1 });
+    aiLastMoveR = pick.first;
+    aiLastMoveC = pick.second;
 
     if (CheckWin(1)) {
         gameOver = true;
         InvalidateRect(m_hwnd, nullptr, TRUE);
         MessageBox(m_hwnd, Translations::TranslateOrDefault("EasterEggGoBangAIWin", "AI wins"),
+            Translations::TranslateOrDefault("EasterEggGameOverTitle", "Game over"), MB_OK | MB_ICONINFORMATION);
+        return;
+    }
+
+    bool boardFull = true;
+    for (int r = 0; r < BOARD_N; ++r) {
+        for (int c = 0; c < BOARD_N; ++c) {
+            if (board[r][c] == 0) {
+                boardFull = false;
+                break;
+            }
+        }
+        if (!boardFull) break;
+    }
+    if (boardFull) {
+        gameOver = true;
+        InvalidateRect(m_hwnd, nullptr, TRUE);
+        MessageBox(m_hwnd, Translations::TranslateOrDefault("EasterEggGoBangDraw", "Draw! The board is full."),
             Translations::TranslateOrDefault("EasterEggGameOverTitle", "Game over"), MB_OK | MB_ICONINFORMATION);
         return;
     }
@@ -311,9 +351,13 @@ void CGoBang::ResetGame()
     for (int r = 0; r < BOARD_N; ++r) for (int c = 0; c < BOARD_N; ++c) board[r][c] = 0;
     history.clear();
     gameOver = false;
+    aiLastMoveR = -1;
+    aiLastMoveC = -1;
 
     int cr = BOARD_N / 2, cc = BOARD_N / 2;
     board[cr][cc] = 1;
+    aiLastMoveR = cr;
+    aiLastMoveC = cc;
     InvalidateRect(m_hwnd, nullptr, TRUE);
 
     playerTurn = true;
@@ -487,19 +531,6 @@ void CChineseChess::calcLayout()
     boardW = cell * 8; boardH = cell * 9;
     leftX = (clientW - boardW) / 2;
     topY = (clientH - boardH) / 2 + 10;
-}
-
-static void DrawCircle(HDC hdc, int cx, int cy, int r, COLORREF fill, COLORREF frame) {
-    HBRUSH b = CreateSolidBrush(fill); HBRUSH oldb = (HBRUSH)SelectObject(hdc, b);
-    HPEN p = CreatePen(PS_SOLID, 2, frame); HPEN oldp = (HPEN)SelectObject(hdc, p);
-    Ellipse(hdc, cx - r, cy - r, cx + r, cy + r);
-    SelectObject(hdc, oldb); DeleteObject(b);
-    SelectObject(hdc, oldp); DeleteObject(p);
-}
-
-static void TextCenter(HDC hdc, int x, int y, const wchar_t* s) {
-    SIZE sz{}; GetTextExtentPoint32W(hdc, s, (int)wcslen(s), &sz);
-    TextOutW(hdc, x - sz.cx / 2, y - sz.cy / 2, s, (int)wcslen(s));
 }
 
 void CChineseChess::draw(HDC hdc)

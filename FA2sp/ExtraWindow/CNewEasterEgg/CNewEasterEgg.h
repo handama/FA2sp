@@ -38,6 +38,8 @@ private:
     static int clientW, clientH;
     static bool playerTurn;
     static bool gameOver;
+    static int aiLastMoveR;
+    static int aiLastMoveC;
     struct Move { int r, c, who; };
     static std::vector<Move> history;
     static std::mt19937 rng;

@@ -61,15 +61,6 @@ struct ImageDataTransfer
 	ImageDataClassSafe pData;
 };
 
-struct AnimDisplayOrder
-{
-	int ZAdjust = 0;
-	int YSort = 0;
-	bool MainBody = false;
-	FString AnimKey = "";
-	FString IgnoreKey = "";
-};
-
 class NOVTABLE CLoadingExt : public CLoading
 {
 public:
@@ -166,8 +157,10 @@ private:
 	void SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void SetImageData(unsigned char* pBuffer, ImageDataClass* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void ShrinkSHP(unsigned char* pIn, int InWidth, int InHeight, unsigned char*& pOut, int* OutWidth, int* OutHeight);
-	void UnionSHP_Add(unsigned char* pBuffer, int Width, int Height, int DeltaX = 0, int DeltaY = 0, bool UseTemp = false, bool bShadow = false);
-	void UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth, int* OutHeight, bool UseTemp = false, bool bShadow = false);
+	void UnionSHP_Add(unsigned char* pBuffer, int Width, int Height, int DeltaX = 0, int DeltaY = 0,
+		bool UseTemp = false, bool bShadow = false, int ZAdjust = 0, int YSort = 0, bool MainBody = false);
+	void UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth, int* OutHeight,
+		bool UseTemp = false, bool bShadow = false, bool bSort = false);
 	void VXL_Add(unsigned char* pCache, int X, int Y, int Width, int Height, bool shadow = false);
 	void VXL_GetAndClear(unsigned char*& pBuffer, int* OutWidth, int* OutHeight, bool shadow = false);
 	
@@ -209,7 +202,6 @@ public:
 private:
 
 	void DumpFrameToFile(unsigned char* pBuffer, Palette* pPal, int Width, int Height, FString name);
-	void SortDisplayOrder(std::vector<AnimDisplayOrder>& displayOrder);
 
 	struct SHPUnionData
 	{
@@ -218,6 +210,9 @@ private:
 		int Height;
 		int DeltaX;
 		int DeltaY;
+		int ZAdjust = 0;
+		int YSort = 0;
+		bool MainBody = false;
 	};
 
 	static std::vector<SHPUnionData> UnionSHP_Data[2];

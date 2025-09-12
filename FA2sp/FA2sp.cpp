@@ -164,6 +164,7 @@ bool ExtConfigs::InGameDisplay_Damage;
 bool ExtConfigs::InGameDisplay_Hover;
 bool ExtConfigs::InGameDisplay_AlphaImage;
 bool ExtConfigs::InGameDisplay_Bridge;
+bool ExtConfigs::InGameDisplay_AnimAdjust;
 bool ExtConfigs::FlatToGroundHideExtra;
 bool ExtConfigs::LightingPreview_MultUnitColor;
 bool ExtConfigs::LightingPreview_TintTileSetBrowserView;
@@ -317,6 +318,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::InGameDisplay_Hover = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Hover", true);
 	ExtConfigs::InGameDisplay_AlphaImage = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AlphaImage", true);
 	ExtConfigs::InGameDisplay_Bridge = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Bridge", true);
+	ExtConfigs::InGameDisplay_AnimAdjust = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AnimAdjust", true);
 	ExtConfigs::FlatToGroundHideExtra = CINI::FAData->GetBool("ExtConfigs", "FlatToGroundHideExtra");
 	ExtConfigs::ExtOverlays = CINI::FAData->GetBool("ExtConfigs", "ExtOverlays");
 
@@ -667,6 +669,13 @@ void FA2sp::ExtConfigsInitialize()
 		.IniKey = "InGameDisplay.Bridge",
 		.Value = &ExtConfigs::InGameDisplay_Bridge,
 		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.AnimAdjust", "Adjust building animation layer, may not be consistent with in-game"),
+		.IniKey = "InGameDisplay.AnimAdjust",
+		.Value = &ExtConfigs::InGameDisplay_AnimAdjust,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

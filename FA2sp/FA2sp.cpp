@@ -114,6 +114,7 @@ bool ExtConfigs::ExtendedValidationNoError;
 bool ExtConfigs::HideNoRubbleBuilding;
 bool ExtConfigs::ModernObjectBrowser;
 bool ExtConfigs::PlayerAtXForTechnos;
+bool ExtConfigs::PlayerAtXForTriggers;
 bool ExtConfigs::FileWatcher;
 bool ExtConfigs::LoadRA2MixFilesOnly;
 bool ExtConfigs::ExtVariables;
@@ -407,6 +408,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::HideNoRubbleBuilding = CINI::FAData->GetBool("ExtConfigs", "HideNoRubbleBuilding");
 
 	ExtConfigs::PlayerAtXForTechnos = CINI::FAData->GetBool("ExtConfigs", "PlayerAtXForTechnos");
+	ExtConfigs::PlayerAtXForTriggers = CINI::FAData->GetBool("ExtConfigs", "PlayerAtXForTriggers");
 	ExtConfigs::FileWatcher = CINI::FAData->GetBool("ExtConfigs", "FileWatcher", true);
 	ExtConfigs::LoadRA2MixFilesOnly = CINI::FAData->GetBool("ExtConfigs", "LoadRA2MixFilesOnly");
 	ExtConfigs::InfantrySubCell_GameDefault = CINI::FAData->GetBool("ExtConfigs", "InfantrySubCell.GameDefault");
@@ -1014,6 +1016,13 @@ void FA2sp::ExtConfigsInitialize()
 		.IniKey = "PlayerAtXForTechnos",
 		.Value = &ExtConfigs::PlayerAtXForTechnos,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.PlayerAtXForTriggers", "Show <Player @ X> options in trigger editor (Phobos)"),
+		.IniKey = "PlayerAtXForTriggers",
+		.Value = &ExtConfigs::PlayerAtXForTriggers,
+		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

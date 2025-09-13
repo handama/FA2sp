@@ -127,6 +127,7 @@ public:
     static bool HideNoRubbleBuilding;
     static bool ModernObjectBrowser;
     static bool PlayerAtXForTechnos;
+    static bool PlayerAtXForTriggers;
     static bool FileWatcher;
     static bool LoadRA2MixFilesOnly;
     static bool ExtVariables;

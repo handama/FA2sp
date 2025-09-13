@@ -715,7 +715,7 @@ void CChineseChess::aiStep(bool first) {
     {
         static std::random_device rd;
         static std::mt19937 gen(rd());
-        std::discrete_distribution<> dis({ 50, 12, 12, 12, 12 });
+        std::discrete_distribution<> dis({ 40, 22, 12, 12, 12 });
         int choice = dis(gen);
 
         switch (choice) {

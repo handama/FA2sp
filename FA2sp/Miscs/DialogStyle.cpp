@@ -1009,7 +1009,6 @@ LRESULT CALLBACK DarkTheme::ComboBoxSubclassProc(
 
         return TRUE;
     }
-
     case WM_ERASEBKGND:
     {
         HDC hdc = (HDC)wParam;
@@ -1020,15 +1019,26 @@ LRESULT CALLBACK DarkTheme::ComboBoxSubclassProc(
 
         return TRUE;
     }
-
     case WM_CTLCOLOREDIT:
-    case WM_CTLCOLORLISTBOX:
     {
         HDC hdc = (HDC)wParam;
 
         SetTextColor(hdc, IsWindowEnabled(hWnd) ? DarkColors::LightText : DarkColors::DisabledText);
         SetBkMode(hdc, TRANSPARENT);
 
+        return (LRESULT)g_hDarkControlBrush;
+    }
+    case WM_CTLCOLORLISTBOX:
+    {
+        HDC hdc = (HDC)wParam;
+        HWND hComboLBox = (HWND)lParam;
+        SetTextColor(hdc, IsWindowEnabled(hWnd) ? DarkColors::LightText : DarkColors::DisabledText);
+        SetBkMode(hdc, TRANSPARENT);
+        if (!GetPropW(hComboLBox, L"DarkThemeApplied"))
+        {
+            SetWindowTheme(hComboLBox, L"DarkMode_Explorer", NULL);
+            SetPropW(hComboLBox, L"DarkThemeApplied", (HANDLE)1);
+        }
         return (LRESULT)g_hDarkControlBrush;
     }
 
@@ -1516,7 +1526,7 @@ void DarkTheme::SubclassAllControls(HWND hWndParent)
     {
         SetWindowSubclass(hWndChild, EditSubclassProc, 0, 0);
     }
-
+    
     hWndChild = NULL;
     while ((hWndChild = FindWindowEx(hWndParent, hWndChild, "RichEdit", NULL)) != NULL)
     {

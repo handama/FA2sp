@@ -883,33 +883,39 @@ void CNewScript::OnClickAddAction(HWND& hWnd)
     if (bInsert)
     {
         int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
-        std::vector<FString> sortedList;
-        for (int i = 0; i < 50; i++)
+        if (idx >= 0)
         {
-            FString key;
-            key.Format("%d", i);
-            auto value = map.GetString(CurrentScriptID, key);
-            if (value != "")
+            std::vector<FString> sortedList;
+            for (int i = 0; i < 50; i++)
             {
-                if (FString::SplitString(value).size() == 2)
-                    sortedList.push_back(value);
+                FString key;
+                key.Format("%d", i);
+                auto value = map.GetString(CurrentScriptID, key);
+                if (value != "")
+                {
+                    if (FString::SplitString(value).size() == 2)
+                        sortedList.push_back(value);
+                }
+                map.DeleteKey(CurrentScriptID, key);
             }
-            map.DeleteKey(CurrentScriptID, key);
-        }
-        auto it = sortedList.begin() + idx;
-        sortedList.insert(it, "0,0");
-        int i = 0;
-        for (auto& value : sortedList)
-        {
-            auto atoms = FString::SplitString(value, 1);
-            FString text;
-            FString key;
-            key.Format("%d", i);
-            map.WriteString(CurrentScriptID, key, value);
-            i++;
-        }
+            if (idx < sortedList.size())
+            {
+                auto it = sortedList.begin() + idx;
+                sortedList.insert(it, "0,0");
+                int i = 0;
+                for (auto& value : sortedList)
+                {
+                    auto atoms = FString::SplitString(value, 1);
+                    FString text;
+                    FString key;
+                    key.Format("%d", i);
+                    map.WriteString(CurrentScriptID, key, value);
+                    i++;
+                }
 
-        OnSelchangeScript(false, idx);
+                OnSelchangeScript(false, idx);
+            }
+        }    
     }
     else
     {
@@ -938,6 +944,8 @@ void CNewScript::OnClickCloneAction(HWND& hWnd)
         return;
 
     int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
+    if (idx < 0) return;
+
     char buffer[512]{ 0 };
     FString text;
     FString key;
@@ -960,21 +968,24 @@ void CNewScript::OnClickCloneAction(HWND& hWnd)
                     sortedList.push_back(value);
             }
             map.DeleteKey(CurrentScriptID, key);
-        }
-        auto it = sortedList.begin() + idx;
-        sortedList.insert(it, copied);
-        int i = 0;
-        for (auto& value : sortedList)
+        }           
+        if (idx < sortedList.size())
         {
-            auto atoms = FString::SplitString(value, 1);
-            FString text;
-            FString key;
-            key.Format("%d", i);
-            map.WriteString(CurrentScriptID, key, value);
-            i++;
-        }
+            auto it = sortedList.begin() + idx;
+            sortedList.insert(it, copied);
+            int i = 0;
+            for (auto& value : sortedList)
+            {
+                auto atoms = FString::SplitString(value, 1);
+                FString text;
+                FString key;
+                key.Format("%d", i);
+                map.WriteString(CurrentScriptID, key, value);
+                i++;
+            }
 
-        OnSelchangeScript(false, idx);
+            OnSelchangeScript(false, idx);
+        }
     }
     else
     {

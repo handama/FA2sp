@@ -290,6 +290,18 @@ void CNewTrigger::Update(HWND& hWnd)
         SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName(value, true).c_str());
     }
 
+    if (CMapData::Instance->IsMultiOnly())
+    {
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ A>").c_str());
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ B>").c_str());
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ C>").c_str());
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ D>").c_str());
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ E>").c_str());
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ F>").c_str());
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ G>").c_str());
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ H>").c_str());
+    }
+
     idx = 0;
     while (SendMessage(hType, CB_DELETESTRING, 0, NULL) != CB_ERR);
     SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("0 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeOr", "One Time OR")));
@@ -996,7 +1008,9 @@ void CNewTrigger::OnSelchangeHouse(bool edited)
     if (!text)
         return;
 
-    FString::TrimIndex(text);
+    if (text.find("<Player @") == std::string::npos)
+        FString::TrimIndex(text);
+
     if (text == "")
         text = "<none>";
 
@@ -1004,7 +1018,6 @@ void CNewTrigger::OnSelchangeHouse(bool edited)
 
     CurrentTrigger->House = Translations::ParseHouseName(text, false);
     CurrentTrigger->Save();
-
 }
 
 void CNewTrigger::OnSelchangeType(bool edited)

@@ -678,53 +678,25 @@ LRESULT DarkTheme::HandleMenuMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
                 checkRc.right = checkRc.left + 20;
                 checkRc.top += (rc.bottom - rc.top - 16) / 2;
                 checkRc.bottom = checkRc.top + 16;
-
-                if (pInfo->bRadioCheck)
+                HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), 
+                    MAKEINTRESOURCE(pInfo->bRadioCheck ? 1029 : 1028),
+                    IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+                if (hBmp)
                 {
-                    int cx = (checkRc.left + checkRc.right) / 2;
-                    int cy = (checkRc.top + checkRc.bottom) / 2;
-                    int rOuter = (checkRc.right - checkRc.left) / 4;
-                    int rInner = rOuter - 2;
+                    HDC hMemDC = CreateCompatibleDC(hdc);
+                    HBITMAP hOldBmp = (HBITMAP)SelectObject(hMemDC, hBmp);
 
-                    HPEN hPen = CreatePen(PS_SOLID, 1, RGB(150, 150, 150));
-                    HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
-                    HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
+                    BITMAP bm;
+                    GetObject(hBmp, sizeof(bm), &bm);
 
-                    Ellipse(hdc, cx - rOuter, cy - rOuter, cx + rOuter, cy + rOuter);
+                    int x = rc.left + 3;
+                    int y = rc.top + (rc.bottom - rc.top - bm.bmHeight) / 2;
 
-                    HBRUSH hFillBrush = CreateSolidBrush(RGB(200, 200, 200));
-                    HBRUSH hOldFill = (HBRUSH)SelectObject(hdc, hFillBrush);
-                    Ellipse(hdc, cx - rInner, cy - rInner, cx + rInner, cy + rInner);
-                    SelectObject(hdc, hOldFill);
-                    DeleteObject(hFillBrush);
+                    TransparentBlt(hdc, x, y, bm.bmWidth, bm.bmHeight,
+                        hMemDC, 0, 0, bm.bmWidth, bm.bmHeight, DarkColors::Background);
 
-                    SelectObject(hdc, hOldBrush);
-                    SelectObject(hdc, hOldPen);
-                    DeleteObject(hPen);
-                }
-                else
-                {
-                    int size = checkRc.bottom - checkRc.top;
-                    int width = size;
-                    RECT boxRc = { checkRc.left + 3, checkRc.top, checkRc.left + width + 3, checkRc.bottom };
-
-                    HBRUSH hBoxBrush = CreateSolidBrush(RGB(80, 80, 80));
-                    HPEN   hBorderPen = CreatePen(PS_SOLID, 1, RGB(180, 180, 180));
-
-                    HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, hBoxBrush);
-                    HPEN   hOldPen = (HPEN)SelectObject(hdc, hBorderPen);
-
-                    RoundRect(hdc, boxRc.left, boxRc.top, boxRc.right, boxRc.bottom, 4, 4);
-
-                    MoveToEx(hdc, boxRc.left + 3, boxRc.top + size / 2, NULL);
-                    LineTo(hdc, boxRc.left + size / 2, boxRc.bottom - 3);
-                    LineTo(hdc, boxRc.right - 3, boxRc.top + 3);
-
-                    SelectObject(hdc, hOldBrush);
-                    SelectObject(hdc, hOldPen);
-
-                    DeleteObject(hBoxBrush);
-                    DeleteObject(hBorderPen);
+                    SelectObject(hMemDC, hOldBmp);
+                    DeleteDC(hMemDC);
                 }
             }
 
@@ -828,7 +800,7 @@ void DarkTheme::DrawMenuItems(HDC hdc, RECT rc)
         if (item.isDisabled)
             SetTextColor(hdc, DarkColors::DisabledText);
         else
-            SetTextColor(hdc, RGB(240, 240, 240));
+            SetTextColor(hdc, DarkColors::LightText);
 
         RECT textRc = item.rect;
 
@@ -965,7 +937,7 @@ void DarkTheme::DrawComboBoxArrow(HDC hdc, RECT rc, bool enabled)
 
     FillRect(hdc, &arrowRc, enabled ? g_hHighlightBrush : g_hDarkMenuBrush);
 
-    HPEN hPen = CreatePen(PS_SOLID, 1, enabled ? RGB(200, 200, 200) : RGB(128, 128, 128));
+    HPEN hPen = CreatePen(PS_SOLID, 1, enabled ? DarkColors::RadioFill : DarkColors::DisabledText);
     HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
 
     int centerX = arrowRc.left + (arrowRc.right - arrowRc.left) / 2;
@@ -1353,23 +1325,29 @@ LRESULT CALLBACK DarkTheme::DarkButtonSubclassProc(HWND hwnd, UINT uMsg, WPARAM 
         }
         else if (isRadio)
         {
-            HPEN hOldPen = (HPEN)SelectObject(hdcMem, (state && state->hover) ? g_hHoverBorderPen : g_hRadioBorderPen);
-            HBRUSH hOldBrush = (HBRUSH)SelectObject(hdcMem, GetStockObject(NULL_BRUSH));
-
-            Ellipse(hdcMem, glyphRc.left + 1, glyphRc.top + 1, glyphRc.right - 1, glyphRc.bottom - 1);
-
-            if (checked == BST_CHECKED)
+            HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance),
+                MAKEINTRESOURCE(checked == BST_CHECKED ? 
+                    ((state && state->hover) ? 1031 : 1029): ((state && state->hover) ? 1032 : 1030)),
+                IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+            if (hBmp)
             {
-                int cx = (glyphRc.left + glyphRc.right) / 2;
-                int cy = (glyphRc.top + glyphRc.bottom) / 2;
-                int rInner = kGlyphSize / 3 - 1;
-                HBRUSH hOldF = (HBRUSH)SelectObject(hdcMem, g_hRadioFillBrush);
-                Ellipse(hdcMem, cx - rInner, cy - rInner, cx + rInner, cy + rInner);
-                SelectObject(hdcMem, hOldF);
-            }
+                HDC hBmpDC = CreateCompatibleDC(hdc);
+                HBITMAP hOldBmp = (HBITMAP)SelectObject(hBmpDC, hBmp);
 
-            SelectObject(hdcMem, hOldBrush);
-            SelectObject(hdcMem, hOldPen);
+                BITMAP bm;
+                GetObject(hBmp, sizeof(bm), &bm);
+
+                TransparentBlt(
+                    hdcMem,  
+                    glyphRc.left - 2, glyphRc.top - 2,
+                    bm.bmWidth, bm.bmHeight,
+                    hBmpDC, 0, 0, bm.bmWidth, bm.bmHeight,
+                    DarkColors::Background);
+
+                SelectObject(hBmpDC, hOldBmp);
+                DeleteDC(hBmpDC);
+                DeleteObject(hBmp);
+            }
         }
 
         RECT textRc = { glyphRc.right + 4, 0, w - 4, h };
@@ -1401,6 +1379,8 @@ LRESULT CALLBACK DarkTheme::DarkGroupBoxclassProc(HWND hwnd, UINT uMsg, WPARAM w
 {
     switch (uMsg)
     {
+    case WM_ERASEBKGND:
+        return TRUE;
     case WM_PAINT:
     {
         PAINTSTRUCT ps;

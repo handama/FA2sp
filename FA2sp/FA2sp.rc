@@ -109,3 +109,8 @@ END
 264 BITMAP "Resources/toolbar_3.bmp"
 1026 BITMAP "Resources/toolbar_2ori.bmp"
 1027 BITMAP "Resources/toolbar_3ori.bmp"
+1028 BITMAP "Resources/checkbox.bmp"
+1029 BITMAP "Resources/radiochecked.bmp"
+1030 BITMAP "Resources/radiounchecked.bmp"
+1031 BITMAP "Resources/radiocheckedhover.bmp"
+1032 BITMAP "Resources/radiouncheckedhover.bmp"

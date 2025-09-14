@@ -58,6 +58,7 @@ int ExtConfigs::AdjustDropdownWidth_Max;
 int ExtConfigs::CopySelectionBound_Color;
 int ExtConfigs::CursorSelectionBound_Color;
 int ExtConfigs::DistanceRuler_Color;
+int ExtConfigs::DeathWeaponRangeBound_Color;
 int ExtConfigs::WeaponRangeBound_Color;
 int ExtConfigs::WeaponRangeMinimumBound_Color;
 int ExtConfigs::SecondaryWeaponRangeBound_Color;
@@ -264,6 +265,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::Waypoint_Background = CINI::FAData->GetBool("ExtConfigs", "Waypoint.Background");
 	ExtConfigs::Waypoint_Background_Color = CINI::FAData->GetColor("ExtConfigs", "Waypoint.Background.Color", 0xFFFFFF);
 
+	ExtConfigs::DeathWeaponRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "DeathWeaponRangeBound.Color", 0x277FFF);
 	ExtConfigs::WeaponRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "WeaponRangeBound.Color", 0xFFFF00);
 	ExtConfigs::WeaponRangeMinimumBound_Color = CINI::FAData->GetColor("ExtConfigs", "WeaponRangeMinimumBound.Color", 0xC8C800);
 	ExtConfigs::SecondaryWeaponRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "SecondaryWeaponRangeBound.Color", 0x82FF00);

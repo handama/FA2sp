@@ -1874,6 +1874,7 @@ void CViewObjectsExt::Redraw_ViewObjectInfo()
 
     this->InsertTranslatedString("ViewWeaponRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::WeaponRange, hRange);
     this->InsertTranslatedString("ViewSecondaryWeaponRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::SecondaryWeaponRange, hRange);
+    this->InsertTranslatedString("ViewDeathWeaponRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::DeathWeaponRange, hRange);
     this->InsertTranslatedString("ViewGuardRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::GuardRange, hRange);
     this->InsertTranslatedString("ViewSightRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::SightRange, hRange);
     this->InsertTranslatedString("ViewGapRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::GapRange, hRange);
@@ -3553,6 +3554,13 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         {
             CIsoView::CurrentCommand->Command = 0x1B; // view object
             CIsoView::CurrentCommand->Type = ObjectTerrainType::SecondaryWeaponRange;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::DeathWeaponRange)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::DeathWeaponRange;
 
             return true;
         }

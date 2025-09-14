@@ -71,6 +71,7 @@ public:
     static int CopySelectionBound_Color;
     static int CursorSelectionBound_Color;
     static int DistanceRuler_Color;
+    static int DeathWeaponRangeBound_Color;
     static int WeaponRangeBound_Color;
     static int WeaponRangeMinimumBound_Color;
     static int SecondaryWeaponRangeBound_Color;

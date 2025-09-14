@@ -280,6 +280,7 @@ public:
         House,
         WeaponRange,
         SecondaryWeaponRange,
+        DeathWeaponRange,
         GapRange,
         SensorsRange,
         CloakRange,

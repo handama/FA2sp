@@ -153,7 +153,6 @@ void CNewINIEditor::Update(HWND& hWnd)
     SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
     int currentIndex = SendMessage(hSectionList, LB_GETCURSEL, NULL, NULL);
 
-    SendMessage(hSearchText, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
     SectionLabels.clear();
     while (SendMessage(hSectionList, LB_DELETESTRING, 0, NULL) != CB_ERR);
     auto itr = map.Dict.begin();
@@ -164,8 +163,12 @@ void CNewINIEditor::Update(HWND& hWnd)
         if (ExtConfigs::INIEditor_IgnoreTeams && IsTeam(sectionName)) continue;
         SendMessage(hSectionList, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)sectionName.m_pchData);
     }
-    
-    OnSelchangeListbox(currentIndex);
+    char buffer[512]{ 0 };
+    GetWindowText(hSearchText, buffer, 511);
+    if (strcmp(buffer, "") != 0)
+        OnEditchangeSearch();
+    else
+        OnSelchangeListbox(currentIndex);
 }
 
 void CNewINIEditor::CloseImporter(HWND& hWnd)

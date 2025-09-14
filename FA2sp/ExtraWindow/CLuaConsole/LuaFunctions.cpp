@@ -133,7 +133,7 @@ namespace LuaFunctions
 		auto it = formatMap.find(format);
 		UINT style = (it != formatMap.end()) ? it->second : MB_OK;
 
-		int result = MessageBoxA(CFinalSunDlg::Instance->GetSafeHwnd(), text.c_str(), title.c_str(), style);
+		int result = MessageBoxA(CLuaConsole::GetHandle(), text.c_str(), title.c_str(), style);
 
 		auto returnIt = returnValueMap.find(style & ~(MB_ICONMASK));
 		if (returnIt != returnValueMap.end()) {

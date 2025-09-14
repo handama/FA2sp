@@ -231,7 +231,7 @@ BOOL CALLBACK COptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lPara
     }
     case 114514: // used for update
     {
-        Update();
+        OnEditchangeSearch();
         return TRUE;
     }
     }

@@ -1011,7 +1011,7 @@ BOOL CALLBACK CLuaConsole::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
     }
     case 114514: // used for update
     {
-        Update(hWnd);
+        OnEditchangeSearch(hWnd);
         return TRUE;
     }
     }

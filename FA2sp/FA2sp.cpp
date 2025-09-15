@@ -648,7 +648,7 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Damage", "Load and show damage-swap images (Phobos)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Damage", "Load and show damage-swap images (Phobos B47+)"),
 		.IniKey = "InGameDisplay.Damage",
 		.Value = &ExtConfigs::InGameDisplay_Damage,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
@@ -895,21 +895,21 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.ArtImageSwap", "Use Image= in art(md).ini (Phobos)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.ArtImageSwap", "Use Image= in art(md).ini (Phobos B25+)"),
 		.IniKey = "ArtImageSwap",
 		.Value = &ExtConfigs::ArtImageSwap,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.AllowIncludes", "Load include INIs (Ares/Phobos)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.AllowIncludes", "Load include INIs (Ares/Phobos B34+)"),
 		.IniKey = "AllowIncludes",
 		.Value = &ExtConfigs::AllowIncludes,
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.AllowInherits", "Load inherited INI sections (Ares/Phobos)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.AllowInherits", "Load inherited INI sections (Ares/Phobos B34+)"),
 		.IniKey = "AllowInherits",
 		.Value = &ExtConfigs::AllowInherits,
 		.Type = ExtConfigs::SpecialOptionType::Restart
@@ -937,21 +937,21 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.ExtWaypoints", "Enable infinite waypoints (Phobos)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.ExtWaypoints", "Enable infinite waypoints (Phobos B16+)"),
 		.IniKey = "ExtWaypoints",
 		.Value = &ExtConfigs::ExtWaypoints,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.ExtVariables", "Enable infinite local variables (Phobos)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.ExtVariables", "Enable infinite local variables (Phobos B22+)"),
 		.IniKey = "ExtVariables",
 		.Value = &ExtConfigs::ExtVariables,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.ExtOverlays", "Enable infinite overlay support (Phobos)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.ExtOverlays", "Enable infinite overlay support (Phobos B48+)"),
 		.IniKey = "ExtOverlays",
 		.Value = &ExtConfigs::ExtOverlays,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
@@ -1014,14 +1014,14 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.PlayerAtXForTechnos", "Show <Player @ X> options in unit property dialog (Phobos)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.PlayerAtXForTechnos", "Show <Player @ X> options in unit property dialog (Phobos B37+)"),
 		.IniKey = "PlayerAtXForTechnos",
 		.Value = &ExtConfigs::PlayerAtXForTechnos,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.PlayerAtXForTriggers", "Show <Player @ X> options in trigger editor (Phobos)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.PlayerAtXForTriggers", "Show <Player @ X> options in trigger editor (Phobos B49+)"),
 		.IniKey = "PlayerAtXForTriggers",
 		.Value = &ExtConfigs::PlayerAtXForTriggers,
 		.Type = ExtConfigs::SpecialOptionType::None

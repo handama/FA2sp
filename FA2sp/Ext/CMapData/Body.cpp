@@ -1420,7 +1420,7 @@ OverlayTypeData CMapDataExt::GetOverlayTypeData(WORD index)
 	OverlayTypeData ret;
 	ret.Rock = false;
 	ret.Wall = false;
-	ret.WallPaletteName = "";
+	ret.CustomPaletteName = "";
 	ret.TerrainRock = false;
 	ret.RadarColor.R = 0;
 	ret.RadarColor.G = 0;
@@ -2117,7 +2117,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		auto& item = CMapDataExt::OverlayTypeDatas.emplace_back();
 		item.Rock = Variables::RulesMap.GetBool(ol, "IsARock");
 		item.Wall = Variables::RulesMap.GetBool(ol, "Wall");
-		item.WallPaletteName = CINI::Art->GetString(ol, "Palette", "unit");
+		item.CustomPaletteName = CINI::Art->GetString(ol, "Palette");
 		item.TerrainRock = Variables::RulesMap.GetString(ol, "Land", "") == "Rock";
 		auto name = Variables::RulesMap.GetString(ol, "Name", "");
 		name.MakeLower();

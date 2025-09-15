@@ -37,7 +37,7 @@ struct OverlayTypeData
     bool Wall;
     bool TerrainRock;
     bool RailRoad;
-    FString WallPaletteName;
+    FString CustomPaletteName;
     RGBClass RadarColor;
 };
 

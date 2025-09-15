@@ -2763,18 +2763,10 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 	FString palName = "iso\233AutoTinted";
 	auto const typeData = CMapDataExt::GetOverlayTypeData(nIndex);
 	Palette* palette = nullptr;
-	if (typeData.Wall)
-	{
-		palName = typeData.WallPaletteName;
-		GetFullPaletteName(palName);
-		palette = PalettesManager::LoadPalette(palName);
-	}
-	if (!palette)
-	{
-		palName = "iso\233AutoTinted";
-		GetFullPaletteName(palName);
-		palette = PalettesManager::LoadPalette(palName);
-	}
+
+	palName = "iso\233AutoTinted";
+	GetFullPaletteName(palName);
+	palette = PalettesManager::LoadPalette(palName);
 
 	FString lpOvrlName = pRegName;
 	FString::TrimIndex(lpOvrlName);
@@ -2810,12 +2802,11 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 			};
 
 		filename = ArtID + ".shp";
-		if (!typeData.Wall || typeData.Wall && !palette)
-		{
-			palName = "unit";
-			GetFullPaletteName(palName);
-			palette = PalettesManager::LoadPalette(palName);
-		}
+
+		palName = "unit";
+		GetFullPaletteName(palName);
+		palette = PalettesManager::LoadPalette(palName);
+
 		if (strlen(ArtID) >= 2)
 		{		
 			if (!findFile)
@@ -2871,6 +2862,16 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 
 	if (findFile)
 	{
+		auto customPal = typeData.CustomPaletteName;
+		if (strlen(customPal))
+		{
+			GetFullPaletteName(customPal);
+			if (auto customPalette = PalettesManager::LoadPalette(customPal))
+			{
+				palette = customPalette;
+			}
+		}
+
 		ShapeHeader header;
 		unsigned char* FramesBuffers;
 		if (CMixFile::LoadSHP(filename, hMix))

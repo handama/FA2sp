@@ -1658,9 +1658,6 @@ void DarkTheme::InitDialogOptions(HWND hWnd)
 {
     if (ExtConfigs::EnableDarkMode)
     {
-        SetDarkTheme(hWnd);
-        SubclassAllControls(hWnd);
-        SubclassAllAutoButtons(hWnd);
         WCHAR className[32] = {};
         GetClassNameW(hWnd, className, 32);
         if (wcscmp(className, L"#32770") == 0)
@@ -1669,11 +1666,25 @@ void DarkTheme::InitDialogOptions(HWND hWnd)
             {
                 if (GetDlgItem(hWnd, i))
                 {
+                    HMODULE hMod = (HMODULE)GetWindowLongPtrW(hWnd, GWLP_HINSTANCE);
+                    if (hMod != NULL)
+                    {
+                        wchar_t modPath[MAX_PATH];
+                        if (GetModuleFileNameW(hMod, modPath, _countof(modPath)) != 0)
+                        {
+                            // CHOOSECOLOR dialog
+                            if (wcsstr(modPath, L"comdlg32") != nullptr || wcsstr(modPath, L"comdlg32.dll") != nullptr)
+                                break;
+                        }
+                    }
                     SetPropW(hWnd, L"IS_MESSAGEBOX", (HANDLE)1);
                     break;
                 }
             }
         }
+        SetDarkTheme(hWnd);
+        SubclassAllControls(hWnd);
+        SubclassAllAutoButtons(hWnd);
     }
     HWND mapValidatorList = ::GetDlgItem(hWnd, 1357);
     HWND mapValidatorText = ::GetDlgItem(hWnd, 1358);

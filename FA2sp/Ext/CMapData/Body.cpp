@@ -89,6 +89,7 @@ WORD CMapDataExt::NewOverlay[0x40000] = {0xFFFF};
 HistoryList CMapDataExt::UndoRedoDatas;
 int CMapDataExt::UndoRedoDataIndex;
 bool CMapDataExt::IsLoadingMapFile = false;
+bool CMapDataExt::IsMMXFile = false;
 std::vector<FString> CMapDataExt::MapIniSectionSorting;
 ObjectRecord* ObjectRecord::ObjectRecord_HoldingPtr = nullptr;
 

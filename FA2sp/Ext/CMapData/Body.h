@@ -549,5 +549,6 @@ public:
     static HistoryList UndoRedoDatas;
     static int UndoRedoDataIndex;
     static bool IsLoadingMapFile;
+    static bool IsMMXFile;
     static std::vector<FString> MapIniSectionSorting;
 };

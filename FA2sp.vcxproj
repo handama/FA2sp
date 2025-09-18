@@ -152,7 +152,7 @@
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>CHINESE;</PreprocessorDefinitions>
-	  <AdditionalOptions>/c 936 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/c 936 %(AdditionalOptions)</AdditionalOptions>
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -216,6 +216,7 @@
     <ClCompile Include="FA2sp\ExtraWindow\CNewEasterEgg\CNewEasterEgg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewLocalVariables\CNewLocalVariables.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewMMXSavingOptionsDlg\CNewMMXSavingOptionsDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewScript\CNewScript.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.cpp" />
@@ -356,6 +357,7 @@
     <ClInclude Include="FA2sp\ExtraWindow\CNewEasterEgg\CNewEasterEgg.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewLocalVariables\CNewLocalVariables.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewMMXSavingOptionsDlg\CNewMMXSavingOptionsDlg.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewScript\CNewScript.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.h" />
@@ -435,6 +437,7 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditorText.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewLocalVariables\CNewLocalVariables.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewMMXSavingOptionsDlg\CNewMMXSavingOptionsDlg.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewScript\CNewScript.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.rc" />

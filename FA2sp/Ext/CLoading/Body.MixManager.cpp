@@ -408,6 +408,71 @@ namespace MinInfo
             return {};
         }
     }
+
+    static void writeUint16(std::ostream& os, uint16_t v) {
+        uint8_t b[2];
+        b[0] = v & 0xFF;
+        b[1] = (v >> 8) & 0xFF;
+        os.write(reinterpret_cast<char*>(b), 2);
+    }
+
+    static void writeUint32(std::ostream& os, uint32_t v) {
+        uint8_t b[4];
+        b[0] = v & 0xFF;
+        b[1] = (v >> 8) & 0xFF;
+        b[2] = (v >> 16) & 0xFF;
+        b[3] = (v >> 24) & 0xFF;
+        os.write(reinterpret_cast<char*>(b), 4);
+    }
+
+    static void writeIndex(std::ostream& os, std::vector<FileInfo>& files, uint32_t(*fileIDFunc)(const std::string&)) {
+        uint16_t count = static_cast<uint16_t>(files.size());
+        uint32_t totalSize = 0;
+        for (auto& f : files) totalSize += f.size;
+
+        writeUint16(os, count);
+        writeUint32(os, totalSize);
+
+        struct Item {
+            FileInfo fi;
+            uint32_t id;
+        };
+        std::vector<Item> items;
+        for (auto& f : files) {
+            items.push_back({ f, fileIDFunc(f.name) });
+        }
+
+        std::sort(items.begin(), items.end(), [](const Item& a, const Item& b) {
+            return static_cast<int32_t>(a.id) < static_cast<int32_t>(b.id);
+        });
+
+        uint32_t offset = 0;
+        for (auto& it : items) {
+            writeUint32(os, it.id);
+            writeUint32(os, offset);
+            writeUint32(os, it.fi.size);
+            offset += it.fi.size;
+        }
+
+        files.clear();
+        for (auto& it : items) files.push_back(it.fi);
+    }
+
+    static void writeBody(std::ostream& os, const std::vector<FileInfo>& files) {
+        for (auto& f : files) {
+            os.write(reinterpret_cast<const char*>(f.data), f.size);
+        }
+    }
+
+    static void pack(const std::string& outPath, std::vector<FileInfo> files) {
+        std::ofstream out(outPath, std::ios::binary);
+        if (!out) throw std::runtime_error("Failed to open output file: " + outPath);
+
+        writeIndex(out, files, MixLoader::GetFileID);
+        writeBody(out, files);
+
+        out.close();
+    }
 } 
 
 inline int _stricmp(const char* a, const char* b) {
@@ -415,6 +480,32 @@ inline int _stricmp(const char* a, const char* b) {
     std::transform(sa.begin(), sa.end(), sa.begin(), ::tolower);
     std::transform(sb.begin(), sb.end(), sb.begin(), ::tolower);
     return sa.compare(sb);
+}
+
+bool MixPacker::Add(const std::string& fileName, char* buffer, size_t size)
+{
+    auto v = VEHGuard(false);
+    try {
+        files.emplace_back(fileName, buffer, size);
+    }
+    catch (const std::exception& ex) {
+        Logger::Raw("[MixPacker] %s\n", ex.what());
+        return false;
+    }
+    return true;
+}
+
+bool MixPacker::Pack(const std::string& outPath)
+{
+    auto v = VEHGuard(false);
+    try {
+        MinInfo::pack(outPath, files);
+    }
+    catch (const std::exception& ex) {
+        Logger::Raw("[MixPacker] %s\n", ex.what());
+        return false;
+    }
+    return true;
 }
 
 uint32_t MixLoader::GetFileID(const std::string& fileName)
@@ -425,6 +516,11 @@ uint32_t MixLoader::GetFileID(const std::string& fileName)
 MixLoader& MixLoader::Instance() {
     static MixLoader inst;
     return inst;
+}
+
+MixLoader& MixLoader::MMXHolder() {
+    static MixLoader mmx_holder;
+    return mmx_holder;
 }
 
 bool MixLoader::LoadTopMix(const std::string& path) {
@@ -468,10 +564,13 @@ bool MixLoader::LoadNestedMix(MixFile& parent, const MixEntry& entry) {
     return true;
 }
 
-bool MixLoader::LoadMixFile(const std::string& path, int* parentIndex) {
+int MixLoader::LoadMixFile(const std::string& path, int* parentIndex) {
     if (std::filesystem::exists(path)) {
         if (parentIndex) *parentIndex = -1;
-        return LoadTopMix(path);
+        if (LoadTopMix(path))
+            return mixFiles.size();
+        else
+            return 0;
     }
 
     auto name = std::filesystem::path(path).filename().string();
@@ -481,12 +580,15 @@ bool MixLoader::LoadMixFile(const std::string& path, int* parentIndex) {
         for (const auto& e : mf.entries) {
             if (e.id == id) {
                 if (parentIndex) *parentIndex = i;
-                return LoadNestedMix(mf, e);
+                if (LoadNestedMix(mf, e))
+                    return mixFiles.size();
+                else
+                    return 0;
             }
         }
     }
 
-    return false;
+    return 0;
 }
 
 int MixLoader::QueryFileIndex(const std::string& fileName, int mixIdx) {

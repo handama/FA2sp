@@ -78,6 +78,6 @@ void CAnnotationDlg::OnOK()
 void CAnnotationDlg::OnCancel()
 {
 	m_Text = "";
-	EndDialog(0);
+	EndDialog(2);
 	//CDialog::OnCancel();
 }

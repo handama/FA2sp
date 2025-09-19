@@ -46,7 +46,7 @@ BEGIN
     VK_F2,          40024,                  VIRTKEY, NOINVERT
     "F",            40134,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
     "T",            40137,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
-    "0",            30051,                  VIRTKEY, CONTROL, NOINVERT
+    "0",            30050,                  VIRTKEY, CONTROL, NOINVERT
     VK_ADD,         30053,                  VIRTKEY, CONTROL, NOINVERT
     VK_SUBTRACT,    30052,                  VIRTKEY, CONTROL, NOINVERT
     VK_OEM_PLUS,    30053,                  VIRTKEY, CONTROL, NOINVERT

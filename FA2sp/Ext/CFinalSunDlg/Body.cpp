@@ -456,9 +456,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		SetMenuStatusFalse(30020, CIsoViewExt::DrawCellTagsFilter);
 		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 		return TRUE;
-	case 30051:
-		CIsoViewExt::Zoom(0.0);
-		return TRUE;
 	case 30052:
 	{
 		CIsoViewExt::Zoom(0.25);
@@ -800,7 +797,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	closeFA2Window(40048, this->AITriggerTypesEnable);
 	closeFA2Window(40037, this->SingleplayerSettings);
 	closeFA2Window(40042, this->Tags);
-
 
 	if (wmID == 40152 && CMapData::Instance->MapWidthPlusHeight)
 	{
@@ -1475,6 +1471,19 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			}
 		}
 		break;
+	}
+	case WM_MBUTTONUP:
+	{
+		HWND hWnd = GetFocus();					// EDIT		COMBOBOX_DROPDOWN
+		HWND hParent1 = ::GetParent(hWnd);		// WINDOW	COMBOBOX
+		if (hParent1 != CNewINIEditor::GetHandle()
+			&& hParent1 != CCsfEditor::GetHandle()
+			&& hParent1 != CLuaConsole::GetHandle()
+			&& !CViewObjectsExt::IsOpeningAnnotationDlg
+			)
+		{
+			CIsoViewExt::Zoom(0.0);
+		}
 	}
 	}
 	return ppmfc::CDialog::PreTranslateMessage(pMsg);

@@ -16,6 +16,7 @@ std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
 std::unordered_map<FString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
 std::unordered_set<FString> CLoadingExt::LoadedObjects;
+std::unordered_set<FString> CLoadingExt::CustomPaletteTerrains;
 std::unordered_map<FString, int> CLoadingExt::AvailableFacings;
 std::unordered_set<int> CLoadingExt::Ra2dotMixes;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
@@ -242,6 +243,7 @@ void CLoadingExt::ClearItemTypes()
 	SwimableInfantries.clear();
 	ImageDataMap.clear();
 	AvailableFacings.clear();
+	CustomPaletteTerrains.clear();
 	CMapDataExt::TerrainPaletteBuildings.clear();
 	CMapDataExt::DamagedAsRubbleBuildings.clear();
 	for (auto& data : SurfaceImageDataMap)
@@ -1431,6 +1433,10 @@ void CLoadingExt::LoadTerrainOrSmudge(FString ID, bool terrain)
 		if (!CINI::Art->KeyExists(ArtID, "Palette") && Variables::RulesMap.GetBool(ID, "SpawnsTiberium"))
 		{
 			PaletteName = "unitsno.pal";
+		}
+		if (CINI::Art->KeyExists(ArtID, "Palette") || Variables::RulesMap.GetBool(ID, "SpawnsTiberium"))
+		{
+			CustomPaletteTerrains.insert(ID);
 		}
 		PaletteName.MakeUpper();
 		GetFullPaletteName(PaletteName);

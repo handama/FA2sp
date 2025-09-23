@@ -1195,9 +1195,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 			if (pData->pImageBuffer)
 			{
+				bool customPalette = CLoadingExt::CustomPaletteTerrains.find(obj) != CLoadingExt::CustomPaletteTerrains.end();
+				bool isTiberiumTree = Variables::RulesMap.GetBool(obj, "SpawnsTiberium");
 				CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-					x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (Variables::RulesMap.GetBool(obj, "SpawnsTiberium") ? 0 : 12),
-					pData, NULL, 255, 0, -1, false);
+					x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (isTiberiumTree ? 0 : 12),
+					pData, NULL, 255, 0, isTiberiumTree ? 6 : (customPalette ? 5 : -1), false);
 
 				if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages)
 				{
@@ -1208,7 +1210,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							AlphaImagesToDraw.push_back(
 								std::make_pair(MapCoord{ x - pAIData->FullWidth / 2,
-									y - pAIData->FullHeight / 2 + (Variables::RulesMap.GetBool(obj, "SpawnsTiberium") ? 0 : 12) },
+									y - pAIData->FullHeight / 2 + (isTiberiumTree ? 0 : 12) },
 									pAIData));
 						}
 					}

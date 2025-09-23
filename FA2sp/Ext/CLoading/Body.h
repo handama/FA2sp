@@ -197,6 +197,7 @@ public:
 
 	static std::unordered_map<FString, int> AvailableFacings;
 	static std::unordered_set<FString> LoadedObjects;
+	static std::unordered_set<FString> CustomPaletteTerrains;
 	static std::unordered_set<int> Ra2dotMixes;
 	static int TallestBuildingHeight;
 private:

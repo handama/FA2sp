@@ -76,7 +76,9 @@ public:
     float AmbientMult;
     Palette Colors;
     LightingPalette(Palette& originPal);
-    // objectType : -1 = others, 0 = unit, 1 = inf, 2 = air, 3 = building, 4 = building rubble & TerrainPalette building
+    // objectType : -1 = others, 0 = unit, 1 = inf, 2 = air, 3 = building, 
+    // 4 = building rubble & TerrainPalette building, 5 = custom-palette terrains
+    // 6 = tiberium tree
     void AdjustLighting(LightingStruct& lighting, Cell3DLocation location = { 0 }, bool tint = true, int objectType = -1);
     void ResetColors();
     void RemapColors(BGRStruct color);

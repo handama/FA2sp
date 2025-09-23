@@ -352,7 +352,7 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hInitialWeight, buffer, 511);
-                CurrentAITrigger->InitialWeight = std::stod(buffer);
+                CurrentAITrigger->InitialWeight = safe_stod(buffer);
                 CurrentAITrigger->Save();
             }
             break;
@@ -361,7 +361,7 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hMinWeight, buffer, 511);
-                CurrentAITrigger->MinWeight = std::stod(buffer);
+                CurrentAITrigger->MinWeight = safe_stod(buffer);
                 CurrentAITrigger->Save();
             } 
             break;
@@ -370,7 +370,7 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hMaxWeight, buffer, 511);
-                CurrentAITrigger->MaxWeight = std::stod(buffer);
+                CurrentAITrigger->MaxWeight = safe_stod(buffer);
                 CurrentAITrigger->Save();
             }
             break;
@@ -458,6 +458,18 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     // Process this message through default handler
     return FALSE;
 }
+
+double CNewAITrigger::safe_stod(const char* s) {
+    auto v = VEHGuard(false);
+    try {
+        double val = std::stod(s);
+        return val;
+    }
+    catch (const std::exception&) {
+        return 0.0;
+    }
+}
+
 
 void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
 {

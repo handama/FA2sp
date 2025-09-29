@@ -7,6 +7,7 @@
 #include "../../Miscs/SaveMap.h"
 #include "../Common.h"
 #include "../../Miscs/DialogStyle.h"
+#include "../../Ext/CFinalSunApp/Body.h"
 
 HWND COptions::m_hwnd;
 HWND COptions::hList;
@@ -82,7 +83,7 @@ void COptions::Update(const char* filter)
     SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 
     CINI fa2;
-    FString path = CFinalSunApp::ExePath();
+    FString path = CFinalSunAppExt::ExePathExt;
     path += "\\FinalAlert.ini";
     fa2.ClearAndLoad(path);
 
@@ -166,7 +167,7 @@ BOOL CALLBACK COptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lPara
 
                     CINI fa2;
                     std::string path;
-                    path = CFinalSunApp::ExePath;
+                    path = CFinalSunAppExt::ExePathExt;
                     path += "\\FinalAlert.ini";
                     fa2.ClearAndLoad(path.c_str());
 

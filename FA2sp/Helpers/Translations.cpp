@@ -9,6 +9,7 @@
 #include "../FA2sp.Constants.h"
 #include "FString.h"
 #include "../Miscs/StringtableLoader.h"
+#include "../Ext/CFinalSunApp/Body.h"
 
 ppmfc::CString FinalAlertConfig::lpPath;
 char FinalAlertConfig::pLastRead[0x400];
@@ -16,7 +17,7 @@ char FinalAlertConfig::pLastRead[0x400];
 // Load after ExePath is initialized
 DEFINE_HOOK(41F7F5, Translations_Initialzation, 9)
 {
-    FinalAlertConfig::lpPath = CFinalSunApp::ExePath();
+    FinalAlertConfig::lpPath = CFinalSunAppExt::ExePathExt;
     FinalAlertConfig::lpPath += "FinalAlert.ini";
     FinalAlertConfig::ReadString("FinalSun", "Language", "English");
     strcpy_s(Translations::pLanguage[0], FinalAlertConfig::pLastRead);

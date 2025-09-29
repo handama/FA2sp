@@ -10,6 +10,7 @@
 #include "..\CMapData\Body.h"
 #include "../CIsoView/Body.h"
 #include <filesystem>
+#include "../CFinalSunApp/Body.h"
 namespace fs = std::filesystem;
 
 DEFINE_HOOK(486B00, CLoading_InitMixFiles, 7)
@@ -151,7 +152,7 @@ DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 	loadInternalBitmap("FLAG", 1023);
 	loadInternalBitmap("CELLTAG", 1024);
 
-	std::string pics = CFinalSunApp::ExePath();
+	std::string pics = CFinalSunAppExt::ExePathExt;
 	pics += "\\pics";
 	if (fs::exists(pics) && fs::is_directory(pics))
 	{

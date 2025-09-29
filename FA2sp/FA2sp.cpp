@@ -1165,7 +1165,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	CINI fa2;
 	std::string path;
-	path = CFinalSunApp::ExePath;
+	path = CFinalSunAppExt::ExePathExt;
 	path += "\\FinalAlert.ini";
 	fa2.ClearAndLoad(path.c_str());
 

@@ -15,6 +15,7 @@
 #include "../Helpers/Translations.h"
 #include "../Ext/CLoading/Body.h"
 #include "DialogStyle.h"
+#include "../Ext/CFinalSunApp/Body.h"
 
 LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 {
@@ -137,16 +138,16 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 
 	if (log_file_path == L"")
 		log_file_path = Exception::PrepareSnapshotDirectory();
-	std::filesystem::copy((FString(CFinalSunApp::ExePath()) + "\\FA2sp.log").c_str(), log_file_path + L"\\FA2sp.log", std::filesystem::copy_options::overwrite_existing);
-	std::filesystem::copy((FString(CFinalSunApp::ExePath()) + "\\syringe.log").c_str(), log_file_path + L"\\syringe.log", std::filesystem::copy_options::overwrite_existing);
-	std::filesystem::copy((FString(CFinalSunApp::ExePath()) + "\\finalalert2log.txt").c_str(), log_file_path + L"\\finalalert2log.txt", std::filesystem::copy_options::overwrite_existing);
+	std::filesystem::copy((FString(CFinalSunAppExt::ExePathExt) + "\\FA2sp.log").c_str(), log_file_path + L"\\FA2sp.log", std::filesystem::copy_options::overwrite_existing);
+	std::filesystem::copy((FString(CFinalSunAppExt::ExePathExt) + "\\syringe.log").c_str(), log_file_path + L"\\syringe.log", std::filesystem::copy_options::overwrite_existing);
+	std::filesystem::copy((FString(CFinalSunAppExt::ExePathExt) + "\\finalalert2log.txt").c_str(), log_file_path + L"\\finalalert2log.txt", std::filesystem::copy_options::overwrite_existing);
 
 	if (CMapData::Instance->MapWidthPlusHeight)
 	{
 		Logger::Raw("Trying to save current map.\n");
-		FString fcrash_backup = CFinalSunApp::ExePath();
+		FString fcrash_backup = CFinalSunAppExt::ExePathExt;
 
-		FString directoryPath = CFinalSunApp::ExePath();
+		FString directoryPath = CFinalSunAppExt::ExePathExt;
 		directoryPath += "\\CrashBackups";
 		if (!std::filesystem::exists(directoryPath.c_str())) {
 			VEHGuard guard(false);
@@ -166,7 +167,6 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 		{
 			fcrash_backup += "\\CrashBackups";
 		}
-
 
 		FString backup_name;
 		SYSTEMTIME time;

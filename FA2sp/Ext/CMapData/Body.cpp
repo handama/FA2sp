@@ -91,6 +91,7 @@ int CMapDataExt::UndoRedoDataIndex;
 bool CMapDataExt::IsLoadingMapFile = false;
 bool CMapDataExt::IsMMXFile = false;
 std::vector<FString> CMapDataExt::MapIniSectionSorting;
+std::map<FString, std::set<FString>> CMapDataExt::PowersUpBuildings;
 ObjectRecord* ObjectRecord::ObjectRecord_HoldingPtr = nullptr;
 
 int CMapDataExt::GetOreValue(unsigned short nOverlay, unsigned char nOverlayData)
@@ -2575,4 +2576,23 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	}
 	UpdateAnnotation();
 	CIsoViewExt::DistanceRuler.clear();
+	CMapDataExt::PowersUpBuildings.clear();
+	auto buildings = Variables::RulesMap.ParseIndicies("BuildingTypes", true);
+	for (const auto& building : buildings)
+	{
+		auto parent = Variables::RulesMap.GetString(building, "PowersUpBuilding");
+		if (!parent.IsEmpty())
+		{
+			CMapDataExt::PowersUpBuildings[parent].insert(building);
+		}
+		auto parents = Variables::RulesMap.GetString(building, "PowersUp.Buildings");
+		if (!parents.IsEmpty())
+		{
+			auto atoms = STDHelpers::SplitString(parents);
+			for (auto& p : atoms)
+			{
+				CMapDataExt::PowersUpBuildings[p].insert(building);
+			}
+		}
+	}
 }

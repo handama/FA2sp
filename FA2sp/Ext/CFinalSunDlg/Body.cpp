@@ -605,7 +605,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		((CViewObjectsExt*)(this->MyViewFrame.pViewObjects))->Redraw();
 
 		CINI ini;
-		ppmfc::CString path = CFinalSunApp::ExePath();
+		ppmfc::CString path = CFinalSunAppExt::ExePathExt;
 		path += "\\FinalAlert.ini";
 		ini.ClearAndLoad(path);
 		ini.WriteString("UserInterface", "ShowTreeViewCameo", ExtConfigs::TreeViewCameo_Display ? "1" : "0");

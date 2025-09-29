@@ -342,10 +342,11 @@ FString CLoadingExt::GetVehicleOrAircraftFileID(FString ID)
 
 void CLoadingExt::LoadBuilding(FString ID)
 {
-	if (auto ppPowerUpBld = Variables::RulesMap.TryGetString(ID, "PowersUpBuilding")) // Early load
+	const auto& upgrades = CMapDataExt::PowersUpBuildings[ID];
+	for (const auto& upgrade : upgrades)
 	{
-		if (!CLoadingExt::IsObjectLoaded(*ppPowerUpBld))
-			LoadBuilding(*ppPowerUpBld);
+		if (!CLoadingExt::IsObjectLoaded(upgrade))
+			LoadBuilding(upgrade);
 	}
 
 	LoadBuilding_Normal(ID);

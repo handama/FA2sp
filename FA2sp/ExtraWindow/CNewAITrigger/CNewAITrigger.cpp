@@ -470,7 +470,6 @@ double CNewAITrigger::safe_stod(const char* s) {
     }
 }
 
-
 void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
 {
     char buffer[512]{ 0 };

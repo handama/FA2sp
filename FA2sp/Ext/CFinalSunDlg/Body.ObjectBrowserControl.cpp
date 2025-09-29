@@ -20,6 +20,7 @@
 #include <Miscs/Miscs.h>
 #include <filesystem>
 #include "../../Miscs/StringtableLoader.h"
+#include "../CFinalSunApp/Body.h"
 
 namespace fs = std::filesystem;
 
@@ -106,7 +107,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
     
     if (ExtConfigs::TreeViewCameo_Display)
     {
-        std::string pics = CFinalSunApp::ExePath();
+        std::string pics = CFinalSunAppExt::ExePathExt;
         pics += "\\pics";
         if (fs::exists(pics) && fs::is_directory(pics))
         {
@@ -142,7 +143,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 fileName.Format("%s-tile-%d-%d.bmp", CINI::CurrentDocument->GetString("Map", "Theater"),
                     InsertingTileIndex, ExtConfigs::TreeViewCameo_Size);
 
-                std::string path = CFinalSunApp::ExePath();
+                std::string path = CFinalSunAppExt::ExePathExt();
                 path += "\\thumbnails";
                 if (!fs::exists(path) || !fs::is_directory(path))
                 {
@@ -219,7 +220,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 }
                 break;
             }
-            std::string path = CFinalSunApp::ExePath();
+            std::string path = CFinalSunAppExt::ExePathExt();
             path += "\\thumbnails";
             if (!fs::exists(path) || !fs::is_directory(path))
             {

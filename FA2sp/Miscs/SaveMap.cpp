@@ -30,6 +30,7 @@
 #include "Hooks.INI.h"
 #include "../Ext/CLoading/Body.h"
 #include "../ExtraWindow/CNewMMXSavingOptionsDlg/CNewMMXSavingOptionsDlg.h"
+#include "../Ext/CFinalSunApp/Body.h"
 
 std::optional<std::filesystem::file_time_type> SaveMapExt::SaveTime;
 
@@ -878,7 +879,7 @@ void SaveMapExt::RemoveEarlySaves()
 
         ppmfc::CString buffer;
         buffer.Format("%s\\AutoSaves\\%s\\%s-*.%s",
-            CFinalSunApp::ExePath(),
+            CFinalSunAppExt::ExePathExt,
             mapName,
             mapName,
             ext
@@ -900,7 +901,7 @@ void SaveMapExt::RemoveEarlySaves()
         auto itr = m.begin();
         while (count != 0)
         {
-            buffer.Format("%s\\AutoSaves\\%s\\%s", CFinalSunApp::ExePath(), mapName, itr->second);
+            buffer.Format("%s\\AutoSaves\\%s\\%s", CFinalSunAppExt::ExePathExt, mapName, itr->second);
             DeleteFile(buffer);
             ++itr;
             --count;
@@ -940,6 +941,9 @@ void CALLBACK SaveMapExt::SaveMapCallback(HWND hwnd, UINT message, UINT iTimerID
             )
             mapName.SetAt(i, '-');
 
+    if (mapName == "")
+        mapName = "Empty Name";
+
     const auto ext =
         !ExtConfigs::SaveMap_OnlySaveMAP && CMapData::Instance->IsMultiOnly() ?
         CLoading::HasMdFile() ?
@@ -947,14 +951,14 @@ void CALLBACK SaveMapExt::SaveMapCallback(HWND hwnd, UINT message, UINT iTimerID
         "mpr" :
         "map";
 
-    ppmfc::CString buffer = CFinalSunApp::ExePath();
+    ppmfc::CString buffer = CFinalSunAppExt::ExePathExt;
     buffer += "\\AutoSaves\\";
     CreateDirectory(buffer, nullptr);
     buffer += mapName;
     CreateDirectory(buffer, nullptr);
 
     buffer.Format("%s\\AutoSaves\\%s\\%s-%04d%02d%02d-%02d%02d%02d-%03d.%s",
-        CFinalSunApp::ExePath(),
+        CFinalSunAppExt::ExePathExt,
         mapName,
         mapName,
         time.wYear, time.wMonth, time.wDay,

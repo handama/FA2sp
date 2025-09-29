@@ -24,6 +24,7 @@ namespace fs = std::filesystem;
 
 std::vector<std::string> CFinalSunAppExt::RecentFilesExt;
 bool CFinalSunAppExt::HoldingKey = false;
+FString CFinalSunAppExt::ExePathExt;
 std::array<std::pair<std::string, std::string>, 7> CFinalSunAppExt::ExternalLinks
 {
 	std::make_pair("https://github.com/secsome/FA2sp", ""),
@@ -67,9 +68,9 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	CFinalSunApp::MapPath[0] = '\0';
 	// Now let's parse the command line
 	// Nothing yet huh...
-
+	CFinalSunAppExt::ExePathExt = CFinalSunApp::ExePath();
 	std::string path;
-	path = CFinalSunApp::ExePath;
+	path = CFinalSunAppExt::ExePathExt;
 	path += "\\FAData.ini";
 	CINI::FAData->ClearAndLoad(path.c_str());
 
@@ -78,14 +79,14 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 		for (auto& pair : pSection->GetEntities())
 		{
 			std::string includePath;
-			includePath = CFinalSunApp::ExePath;
+			includePath = CFinalSunAppExt::ExePathExt;
 			includePath += "\\" + pair.second;
 			if (fs::exists(includePath))
 				CINI::FAData->ParseINI(includePath.c_str(), 0, 0);
 		}
 	}
 
-	path = CFinalSunApp::ExePath;
+	path = CFinalSunAppExt::ExePathExt;
 	path += "\\FALanguage.ini";
 	CINI::FALanguage->ClearAndLoad(path.c_str());
 	if (auto pSection = CINI::FALanguage().GetSection("Include"))
@@ -93,7 +94,7 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 		for (auto& pair : pSection->GetEntities())
 		{
 			std::string includePath;
-			includePath = CFinalSunApp::ExePath;
+			includePath = CFinalSunAppExt::ExePathExt;
 			includePath += "\\" + pair.second;
 			if (fs::exists(includePath))
 				CINI::FALanguage->ParseINI(includePath.c_str(), 0, 0);
@@ -175,7 +176,7 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	}
 	
 	CINI ini;
-	path = CFinalSunApp::ExePath;
+	path = CFinalSunAppExt::ExePathExt;
 	path += "\\FinalAlert.ini";
 
 	bool firstRun = !fs::exists(path);

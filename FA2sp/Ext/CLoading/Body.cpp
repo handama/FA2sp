@@ -6,6 +6,7 @@
 #include "../../Helpers/Translations.h"
 #include "../../FA2sp.h"
 #include <filesystem>
+#include "../CFinalSunApp/Body.h"
 
 bool CLoadingExt::HasFile_ReadyToReadFromFolder = false;
 Palette CLoadingExt::TempISOPalette = { 0 };
@@ -199,7 +200,7 @@ bool CLoadingExt::InitMixFilesFix()
 		if (!LoadMixFile("CONQUER.MIX", 0, true))	return false;
 
 		//MARBLE should be ahead of normal theater mixes
-		FString FullPath = CFinalSunApp::ExePath();
+		FString FullPath = CFinalSunAppExt::ExePathExt;
 		FullPath += "\\MARBLE.MIX";
 		int result = CMixFile::Open(FullPath, 0);
 		if (result)
@@ -384,7 +385,7 @@ bool CLoadingExt::InitMixFilesFix()
 		if (!LoadMixFile("CONQUER.MIX", 0, true))	return false;
 
 		//MARBLE should be ahead of normal theater mixes
-		FString FullPath = CFinalSunApp::ExePath();
+		FString FullPath = CFinalSunAppExt::ExePathExt();
 		FullPath += "\\MARBLE.MIX";
 		int id = manager.LoadMixFile(FullPath);
 		if (id)

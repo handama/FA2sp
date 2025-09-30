@@ -1642,9 +1642,15 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 	else // As SHP
 	{
 		int facingCount = CINI::Art->GetInteger(ArtID, "Facings", 8);
-		if (facingCount % 8 != 0)
+		if (facingCount < 8)
+		{
+			facingCount = 1;
+		}
+		else if (facingCount % 8 != 0)
 			facingCount = (facingCount + 7) / 8 * 8;
 		int targetFacings = ExtConfigs::ExtFacings ? facingCount : 8;
+		if (facingCount == 1)
+			targetFacings = 1;
 		AvailableFacings[ID] = targetFacings;
 		std::vector<int> framesToRead(targetFacings);
 		if (CINI::Art->KeyExists(ArtID, "StandingFrames"))

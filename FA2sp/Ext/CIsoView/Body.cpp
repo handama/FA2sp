@@ -67,6 +67,7 @@ std::vector<MapCoord> CIsoViewExt::DistanceRuler;
 ppmfc::CString CIsoViewExt::CurrentCellObjectHouse = "";
 int CIsoViewExt::EXTRA_BORDER_BOTTOM = 25;
 Cell3DLocation CIsoViewExt::CurrentDrawCellLocation;
+std::unordered_map<TextCacheKey, TextCacheEntry, TextCacheHasher> CIsoViewExt::textCache;
 
 float CIsoViewExt::drawOffsetX;
 float CIsoViewExt::drawOffsetY;
@@ -1891,112 +1892,125 @@ void CIsoViewExt::BlitText(const std::wstring& text, COLORREF textColor, COLORRE
     int x, int y, int fontSize, BYTE alpha, bool bold)
 {
     int bpp = 4;
-    HDC hdcScreen = GetDC(NULL);
-    HDC hdcMem = CreateCompatibleDC(hdcScreen);
 
-    RECT textRect = { 0, 0, 1000, 1000 };
-    HFONT hFont = CreateFontW(fontSize, 0, 0, 0, bold ? FW_BOLD : FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
-        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
-        DEFAULT_PITCH | FF_DONTCARE, L"Cambria");
-    HFONT oldFont = (HFONT)SelectObject(hdcMem, hFont);
+    TextCacheKey key{ text, textColor, bgColor, fontSize, bold, alpha };
+    auto it = textCache.find(key);
 
-    ::DrawTextW(hdcMem, text.c_str(), -1, &textRect, DT_CALCRECT | DT_LEFT | DT_TOP | DT_WORDBREAK);
-    int swidth = textRect.right - textRect.left;
-    int sheight = textRect.bottom - textRect.top;
+    if (it == textCache.end()) {
+        HDC hdcScreen = GetDC(NULL);
+        HDC hdcMem = CreateCompatibleDC(hdcScreen);
 
-    HBITMAP hBitmap = CreateCompatibleBitmap(hdcScreen, swidth, sheight);
-    SelectObject(hdcMem, hBitmap);
+        RECT textRect = { 0, 0, 1000, 1000 };
+        HFONT hFont = CreateFontW(fontSize, 0, 0, 0, bold ? FW_BOLD : FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+            OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
+            DEFAULT_PITCH | FF_DONTCARE, L"Cambria");
+        HFONT oldFont = (HFONT)SelectObject(hdcMem, hFont);
 
-    SetBkColor(hdcMem, bgColor);
-    SetTextColor(hdcMem, textColor);
-    SetBkMode(hdcMem, OPAQUE);
+        ::DrawTextW(hdcMem, text.c_str(), -1, &textRect, DT_CALCRECT | DT_LEFT | DT_TOP | DT_WORDBREAK);
+        int swidth = textRect.right - textRect.left;
+        int sheight = textRect.bottom - textRect.top;
 
-    swidth = std::min(swidth, 1000);
-    sheight = std::min(sheight, 1000);
+        HBITMAP hBitmap = CreateCompatibleBitmap(hdcScreen, swidth, sheight);
+        SelectObject(hdcMem, hBitmap);
 
-    RECT fillRect = { 0, 0, swidth, sheight };
-    HBRUSH hBrush = CreateSolidBrush(bgColor);
-    FillRect(hdcMem, &fillRect, hBrush);
-    DeleteObject(hBrush);
+        SetBkColor(hdcMem, bgColor);
+        SetTextColor(hdcMem, textColor);
+        SetBkMode(hdcMem, OPAQUE);
 
-    ::DrawTextW(hdcMem, text.c_str(), -1, &fillRect, DT_LEFT | DT_TOP | DT_WORDBREAK);
+        swidth = std::min(swidth, 1000);
+        sheight = std::min(sheight, 1000);
 
-    BITMAPINFO bmi = {};
-    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bmi.bmiHeader.biWidth = swidth;
-    bmi.bmiHeader.biHeight = -sheight;
-    bmi.bmiHeader.biPlanes = 1;
-    bmi.bmiHeader.biBitCount = 32;
-    bmi.bmiHeader.biCompression = BI_RGB;
+        RECT fillRect = { 0, 0, swidth, sheight };
+        HBRUSH hBrush = CreateSolidBrush(bgColor);
+        FillRect(hdcMem, &fillRect, hBrush);
+        DeleteObject(hBrush);
 
-    auto tempPixels = new BYTE[swidth * sheight * bpp];
-    GetDIBits(hdcMem, hBitmap, 0, sheight, tempPixels, &bmi, DIB_RGB_COLORS);
+        ::DrawTextW(hdcMem, text.c_str(), -1, &fillRect, DT_LEFT | DT_TOP | DT_WORDBREAK);
 
-    int borderWidth = 3;
-    int finalWidth = swidth + 2 * borderWidth;
-    int finalHeight = sheight + 2 * borderWidth;
+        BITMAPINFO bmi = {};
+        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bmi.bmiHeader.biWidth = swidth;
+        bmi.bmiHeader.biHeight = -sheight;
+        bmi.bmiHeader.biPlanes = 1;
+        bmi.bmiHeader.biBitCount = 32;
+        bmi.bmiHeader.biCompression = BI_RGB;
 
-    auto src = new BGRStruct[finalWidth * finalHeight];
+        auto tempPixels = new BYTE[swidth * sheight * bpp];
+        GetDIBits(hdcMem, hBitmap, 0, sheight, tempPixels, &bmi, DIB_RGB_COLORS);
 
-    BGRStruct bgbgr;
-    bgbgr.B = (bgColor >> 16) & 0xFF;
-    bgbgr.G = (bgColor >> 8) & 0xFF;
-    bgbgr.R = bgColor & 0xFF;
-    
-    BGRStruct textbgr;
-    textbgr.B = (textColor >> 16) & 0xFF;
-    textbgr.G = (textColor >> 8) & 0xFF;
-    textbgr.R = textColor & 0xFF;
+        int borderWidth = 3;
+        int finalWidth = swidth + 2 * borderWidth;
+        int finalHeight = sheight + 2 * borderWidth;
 
-    // bgColor border
-    for (int y = 0; y < finalHeight; y++) {
-        for (int x = 0; x < finalWidth; x++) {
-            if (x <= 2 || x >= finalWidth - 3 || y <= 2 || y >= finalHeight - 3) {
-                src[y * finalWidth + x] = bgbgr;
+        std::vector<BGRStruct> src(finalWidth * finalHeight);
+
+        BGRStruct bgbgr;
+        bgbgr.B = (bgColor >> 16) & 0xFF;
+        bgbgr.G = (bgColor >> 8) & 0xFF;
+        bgbgr.R = bgColor & 0xFF;
+
+        BGRStruct textbgr;
+        textbgr.B = (textColor >> 16) & 0xFF;
+        textbgr.G = (textColor >> 8) & 0xFF;
+        textbgr.R = textColor & 0xFF;
+
+        // bgColor border
+        for (int yy = 0; yy < finalHeight; yy++) {
+            for (int xx = 0; xx < finalWidth; xx++) {
+                if (xx <= 2 || xx >= finalWidth - 3 || yy <= 2 || yy >= finalHeight - 3) {
+                    src[yy * finalWidth + xx] = bgbgr;
+                }
             }
         }
-    }
 
-    // textColor border
-    for (int y = 0; y < finalHeight; y++) {
-        for (int x = 0; x < finalWidth; x++) {
-            if (x == 0 || x == finalWidth || y == 0 || y == finalHeight - 1) {
-                src[y * finalWidth + x] = textbgr;
+        // textColor border
+        for (int yy = 0; yy < finalHeight; yy++) {
+            for (int xx = 0; xx < finalWidth; xx++) {
+                if (xx == 0 || xx == finalWidth || yy == 0 || yy == finalHeight - 1) {
+                    src[yy * finalWidth + xx] = textbgr;
+                }
             }
         }
-    }
 
-    for (int y = 0; y < sheight; y++) {
-        for (int x = 0; x < swidth; x++) {
-            int srcIndex = (y + borderWidth) * finalWidth + (x + borderWidth);
-            int tempIndex = (y * swidth + x) * 4;
-            src[srcIndex] = BGRStruct(tempPixels[tempIndex + 0], // B
-                tempPixels[tempIndex + 1], // G
-                tempPixels[tempIndex + 2]);// R
+        for (int yy = 0; yy < sheight; yy++) {
+            for (int xx = 0; xx < swidth; xx++) {
+                int srcIndex = (yy + borderWidth) * finalWidth + (xx + borderWidth);
+                int tempIndex = (yy * swidth + xx) * 4;
+                src[srcIndex] = BGRStruct(tempPixels[tempIndex + 0], // B
+                    tempPixels[tempIndex + 1], // G
+                    tempPixels[tempIndex + 2]);// R
+            }
         }
+
+        delete[] tempPixels;
+
+        SelectObject(hdcMem, oldFont);
+        DeleteObject(hFont);
+        DeleteObject(hBitmap);
+        DeleteDC(hdcMem);
+        ReleaseDC(NULL, hdcScreen);
+
+        TextCacheEntry entry;
+        entry.width = finalWidth;
+        entry.height = finalHeight;
+        entry.pixels = std::move(src);
+
+        textCache[key] = std::move(entry);
+        it = textCache.find(key);
     }
 
-    delete[] tempPixels;
+    auto& entry = it->second;
+    auto& src = entry.pixels;
+    int swidth = entry.width;
+    int sheight = entry.height;
 
-    swidth = finalWidth;
-    sheight = finalHeight;
-
-    SelectObject(hdcMem, oldFont);
-    DeleteObject(hFont);
-    DeleteObject(hBitmap);
-    DeleteDC(hdcMem);
-    ReleaseDC(NULL, hdcScreen);
-
-    if (src == NULL || dst == NULL) {
-        delete[] src;
+    if (dst == NULL) {
         return;
     }
     if (x + swidth < window.left || y + sheight < window.top) {
-        delete[] src;
         return;
     }
     if (x >= window.right || y >= window.bottom) {
-        delete[] src;
         return;
     }
 
@@ -2009,12 +2023,10 @@ void CIsoViewExt::BlitText(const std::wstring& text, COLORREF textColor, COLORRE
     blrect.left = x;
     if (blrect.left < 0) {
         srcRect.left = 1 - blrect.left;
-        //blrect.left=1;
     }
     blrect.top = y;
     if (blrect.top < 0) {
         srcRect.top = 1 - blrect.top;
-        //blrect.top=1;
     }
     blrect.right = (x + swidth);
     if (x + swidth > window.right) {
@@ -2041,7 +2053,7 @@ void CIsoViewExt::BlitText(const std::wstring& text, COLORREF textColor, COLORRE
             if (blrect.left + i < 0) {
                 continue;
             }
-            
+
             const int spos = i + e * swidth;
             auto c = src[spos];
             auto dest = ((BYTE*)dst + (blrect.left + i) * bpp + (blrect.top + e) * boundary.dpitch);
@@ -2060,7 +2072,6 @@ void CIsoViewExt::BlitText(const std::wstring& text, COLORREF textColor, COLORRE
             }
         }
     }
-    delete[] src;
 }
 
 IDirectDrawSurface7* CIsoViewExt::BitmapToSurface(IDirectDraw7* pDD, const CBitmap& bitmap)

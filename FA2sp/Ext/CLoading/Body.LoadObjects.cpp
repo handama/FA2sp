@@ -246,6 +246,7 @@ void CLoadingExt::ClearItemTypes()
 	CustomPaletteTerrains.clear();
 	CMapDataExt::TerrainPaletteBuildings.clear();
 	CMapDataExt::DamagedAsRubbleBuildings.clear();
+	CIsoViewExt::textCache.clear();
 	for (auto& data : SurfaceImageDataMap)
 	{
 		if (data.second->lpSurface)

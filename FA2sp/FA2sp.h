@@ -34,6 +34,7 @@ public:
     static bool g_VEH_Enabled;
 
     static void ExtConfigsInitialize();
+    static bool IsDarkMode();
 };
 
 class ExtConfigs
@@ -196,6 +197,9 @@ public:
     static bool SaveMap_PreserveINISorting;
     static bool ExtMixLoader;
     static bool AVX2_Support;
+    static bool AutoDarkMode;
+    static double AutoDarkMode_SwitchTimeA;
+    static double AutoDarkMode_SwitchTimeB;
     static bool EnableDarkMode;
     static bool EnableDarkMode_DimMap;
     static bool ShrinkTilesInTileSetBrowser;

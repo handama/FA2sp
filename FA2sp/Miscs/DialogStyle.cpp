@@ -1950,11 +1950,37 @@ BOOL WINAPI DarkTheme::MyGetSaveFileNameA(LPOPENFILENAMEA ofn)
     return ok;
 }
 
+static double GetDouble(std::string value, double nDefault = 0) {
+    double ret = 0;
+    if (sscanf_s(value.c_str(), "%lf", &ret) == 1)
+    {
+        if (strchr(value.c_str(), '%%'))
+            ret *= 0.01;
+        return ret;
+    }
+    return nDefault;
+}
+
 DEFINE_HOOK(537129, ExeStart_DrakThemeHooks, 9)
 {
-    ExtConfigs::EnableDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "EnableDarkMode", "false").c_str());
-    ExtConfigs::EnableDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FinalAlert.ini", "Options",
-        "EnableDarkMode", ExtConfigs::EnableDarkMode ? "true" : "false").c_str());
+    ExtConfigs::AutoDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "AutoDarkMode", "true").c_str());
+    ExtConfigs::AutoDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FinalAlert.ini", "Options",
+        "AutoDarkMode", ExtConfigs::AutoDarkMode ? "true" : "false").c_str());
+    if (ExtConfigs::AutoDarkMode)
+    {
+        ExtConfigs::AutoDarkMode_SwitchTimeA = 
+            GetDouble(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "AutoDarkMode.StartTime", "-1.0"), -1.0);
+        ExtConfigs::AutoDarkMode_SwitchTimeB = 
+            GetDouble(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "AutoDarkMode.EndTime", "-1.0"), -1.0);
+        ExtConfigs::EnableDarkMode = FA2sp::IsDarkMode();
+    }
+    else
+    {
+        ExtConfigs::EnableDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "EnableDarkMode", "false").c_str());
+        ExtConfigs::EnableDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FinalAlert.ini", "Options",
+            "EnableDarkMode", ExtConfigs::EnableDarkMode ? "true" : "false").c_str());
+    }
+
     if (ExtConfigs::EnableDarkMode)
     {
         DarkTheme::InitDarkThemeBrushes();

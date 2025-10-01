@@ -662,7 +662,7 @@ void CNewINIEditor::UpdateGameObject(const char* lpSectionName)
         CMapDataExt::UpdateFieldInfantryData_RedrawMinimap();
     }
     else if (strcmp(lpSectionName, "Annotations") == 0) {
-        CMapData::Instance->UpdateFieldInfantryData(false);
+        CMapDataExt::UpdateAnnotation();
     }
     else if (strcmp(lpSectionName, "Countries") == 0) {
         CMapDataExt::UpdateMapSectionIndicies("Countries");

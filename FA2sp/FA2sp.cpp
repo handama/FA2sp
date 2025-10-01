@@ -183,6 +183,9 @@ int ExtConfigs::DisplayTextSize;
 int ExtConfigs::DistanceRuler_Records;
 bool ExtConfigs::DisplayObjectsOutside;
 bool ExtConfigs::AVX2_Support;
+bool ExtConfigs::AutoDarkMode;
+double ExtConfigs::AutoDarkMode_SwitchTimeA;
+double ExtConfigs::AutoDarkMode_SwitchTimeB;
 bool ExtConfigs::EnableDarkMode;
 bool ExtConfigs::EnableDarkMode_DimMap;
 bool ExtConfigs::ShrinkTilesInTileSetBrowser;
@@ -301,7 +304,6 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
 
 	ExtConfigs::ShrinkTilesInTileSetBrowser = CINI::FAData->GetBool("ExtConfigs", "ShrinkTilesInTileSetBrowser");
-	ExtConfigs::EnableDarkMode = CINI::FAData->GetBool("ExtConfigs", "EnableDarkMode");
 	ExtConfigs::EnableDarkMode_DimMap = CINI::FAData->GetBool("ExtConfigs", "EnableDarkMode.DimMap");
 	ExtConfigs::DisplayObjectsOutside = CINI::FAData->GetBool("ExtConfigs", "DisplayObjectsOutside");
 	ExtConfigs::DDrawScalingBilinear = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear", true);
@@ -586,6 +588,13 @@ void FA2sp::ExtConfigsInitialize()
 		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode", "Enable dark mode"),
 		.IniKey = "EnableDarkMode",
 		.Value = &ExtConfigs::EnableDarkMode,
+		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.AutoDarkMode", "Auto-switch dark mode by system setting or time"),
+		.IniKey = "AutoDarkMode",
+		.Value = &ExtConfigs::AutoDarkMode,
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
@@ -1171,11 +1180,73 @@ void FA2sp::ExtConfigsInitialize()
 
 	for (const auto& opt : ExtConfigs::Options)
 	{
-		*opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
+		if (opt.Value != &ExtConfigs::EnableDarkMode)
+			*opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
 	}
 
 	CIsoViewExt::PasteShowOutline = ExtConfigs::PasteShowOutlineDefault;
 
+}
+
+bool FA2sp::IsDarkMode()
+{
+	double tA = ExtConfigs::AutoDarkMode_SwitchTimeA;
+	double tB = ExtConfigs::AutoDarkMode_SwitchTimeB;
+
+	if (tA < 0 || tB < 0)
+	{
+		DWORD value = 1; 
+		DWORD size = sizeof(value);
+		HKEY hKey;
+
+		if (RegOpenKeyExW(
+			HKEY_CURRENT_USER,
+			L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+			0,
+			KEY_READ,
+			&hKey) == ERROR_SUCCESS)
+		{
+			RegQueryValueExW(hKey, L"AppsUseLightTheme", nullptr, nullptr, (LPBYTE)&value, &size);
+			RegCloseKey(hKey);
+		}
+
+		return value == 0; 
+	}
+
+	tA = fmod(tA, 24.0);
+	tB = fmod(tB, 24.0);
+
+	SYSTEMTIME st;
+	GetLocalTime(&st);
+	double now = st.wHour + st.wMinute / 60.0 + st.wSecond / 3600.0;
+
+	if (tA < tB)
+	{
+		return (now >= tA && now < tB);
+	}
+	else if (tA > tB)
+	{
+		return (now >= tA || now < tB);
+	}
+	else
+	{
+		DWORD value = 1;
+		DWORD size = sizeof(value);
+		HKEY hKey;
+
+		if (RegOpenKeyExW(
+			HKEY_CURRENT_USER,
+			L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+			0,
+			KEY_READ,
+			&hKey) == ERROR_SUCCESS)
+		{
+			RegQueryValueExW(hKey, L"AppsUseLightTheme", nullptr, nullptr, (LPBYTE)&value, &size);
+			RegCloseKey(hKey);
+		}
+
+		return value == 0;
+	}
 }
 
 // DllMain

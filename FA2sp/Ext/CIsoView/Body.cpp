@@ -3601,7 +3601,14 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC)
     CRect rect;
     pThis->GetWindowRect(&rect);
     int leftIndex = 0;
-    int lineHeight = ExtConfigs::DisplayTextSize + 2;
+    int fontSize = ExtConfigs::DisplayTextSize;
+    if (CIsoViewExt::ScaledFactor < 0.75)
+        fontSize += 2;
+    if (CIsoViewExt::ScaledFactor < 0.5)
+        fontSize += 2;
+    if (CIsoViewExt::ScaledFactor < 0.3)
+        fontSize += 2;
+    int lineHeight = fontSize + 2;
     ::SetBkMode(hDC, OPAQUE);
     ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
     SetTextAlign(hDC, TA_LEFT);
@@ -3638,6 +3645,12 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC)
     {
         FString buffer;
         buffer.Format(Translations::TranslateOrDefault("FlatToGroundModeEnabled", "2D Mode Enabled"));
+        ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
+    }
+    if (CIsoViewExt::ScaledFactor != 1.0)
+    {
+        FString buffer;
+        buffer.Format(Translations::TranslateOrDefault("ScaledFactorText", "Zoom: %.02fx, Middle-click to reset"), 1.0 / CIsoViewExt::ScaledFactor);
         ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
     }
 }

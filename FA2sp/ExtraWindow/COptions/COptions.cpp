@@ -89,7 +89,8 @@ void COptions::Update(const char* filter)
 
     for (const auto& opt : ExtConfigs::Options)
     {
-        *opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
+        if (opt.Value != &ExtConfigs::EnableDarkMode)
+            *opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
     }
 
     ListView_SetExtendedListViewStyle(hList, LVS_EX_FULLROWSELECT | LVS_EX_CHECKBOXES);

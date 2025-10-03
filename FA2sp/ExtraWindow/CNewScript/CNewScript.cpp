@@ -1113,6 +1113,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
             action = atoms[0];
         }
         auto atoms2 = FString::SplitString(fadata.GetString("ScriptsRA2", action, action + " - MISSING,0,1,0,MISSING"), 4);
+        bool missing = !fadata.KeyExists("ScriptsRA2", action);
         FString name = atoms2[0];
         auto& paramIdx = atoms2[1];
         auto& disable = atoms2[2];
@@ -1201,6 +1202,18 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                         SendMessage(hActionParam, CB_SETCURSEL, idx, NULL);
                 }
             }
+        }
+        else if (missing)
+        {
+            EnableWindow(hActionParam, TRUE);
+            EnableWindow(hActionExtraParam, FALSE);
+            while (SendMessage(hActionParam, CB_DELETESTRING, 0, NULL) != CB_ERR);
+            SendMessage(hActionExtraParam, WM_SETTEXT, 0, (LPARAM)"");
+            SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)atoms[1]);
+            Translations::GetTranslationItem("ScriptTypesActionParam", buffer);
+            SendMessage(hActionParamDes, WM_SETTEXT, 0, (LPARAM)buffer);
+            Translations::GetTranslationItem("ScriptTypesExtraParam", buffer);
+            SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)buffer);
         }
         else
         {

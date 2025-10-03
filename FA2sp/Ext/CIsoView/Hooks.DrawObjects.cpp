@@ -691,6 +691,34 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								CIsoViewExt::MaskShadowPixels(window, 
 									x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, shadowMask_Building_Infantry);
 							}
+
+							for (int upgrade = 0; upgrade < objRender.PowerUpCount; ++upgrade)
+							{
+								const auto& upg = upgrade == 0 ? objRender.PowerUp1 : (upgrade == 1 ? objRender.PowerUp2 : objRender.PowerUp3);
+								const auto& upgXX = upgrade == 0 ? "PowerUp1LocXX" : (upgrade == 1 ? "PowerUp2LocXX" : "PowerUp3LocXX");
+								const auto& upgYY = upgrade == 0 ? "PowerUp1LocYY" : (upgrade == 1 ? "PowerUp2LocYY" : "PowerUp3LocYY");
+								if (upg.GetLength() == 0)
+									continue;
+
+								auto pUpgData = CLoadingExt::GetImageDataFromServer(CLoadingExt::GetImageName(upg, 0, true));
+								if ((!pUpgData || !pUpgData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(upg))
+								{
+									CLoading::Instance->LoadObjects(upg);
+								}
+								if (pUpgData && pUpgData->pImageBuffer)
+								{
+									auto ArtID = CLoadingExt::GetArtID(objRender.ID);
+
+									int x1 = x;
+									int y1 = y;
+									x1 += CINI::Art->GetInteger(ArtID, upgXX, 0);
+									y1 += CINI::Art->GetInteger(ArtID, upgYY, 0);
+
+									CIsoViewExt::MaskShadowPixels(window,
+										x1 - pUpgData->FullWidth / 2, y1 - pUpgData->FullHeight / 2,
+										pUpgData, shadowMask_Building_Infantry);
+								}
+							}
 						}
 					}
 				}

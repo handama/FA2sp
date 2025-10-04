@@ -698,6 +698,9 @@
     <ClCompile Include="FA2sp\ExtraWindow\CNewMMXSavingOptionsDlg\CNewMMXSavingOptionsDlg.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CBasic\Hooks.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FA2sp\FA2sp.rc">

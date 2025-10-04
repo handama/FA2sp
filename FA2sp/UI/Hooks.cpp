@@ -15,17 +15,38 @@ DEFINE_HOOK(56543B, FetchResource_CToolBar_LoadBitmapA, 6)
 	const LPCSTR lpType = RT_BITMAP;
 	const HMODULE hModule = static_cast<HMODULE>(FA2sp::hInstance);
 
-	if (!ExtConfigs::UseNewToolBarCameo && (int)lpName == 128)
+	if ((int)lpName == 128)
 	{
-		lpName = (char*)1025;
+		if (!ExtConfigs::UseNewToolBarCameo)
+		{
+			lpName = (char*)1025;
+		}
+		else if (ExtConfigs::EnableDarkMode)
+		{
+			lpName = (char*)1033;
+		}
 	}
-	if (!ExtConfigs::UseNewToolBarCameo && (int)lpName == 225)
+	else if ((int)lpName == 225)
 	{
-		lpName = (char*)1026;
+		if (!ExtConfigs::UseNewToolBarCameo)
+		{
+			lpName = (char*)1026;
+		}
+		else if (ExtConfigs::EnableDarkMode)
+		{
+			lpName = (char*)1034;
+		}
 	}
-	if (!ExtConfigs::UseNewToolBarCameo && (int)lpName == 264)
+	else if ((int)lpName == 264)
 	{
-		lpName = (char*)1027;
+		if (!ExtConfigs::UseNewToolBarCameo)
+		{
+			lpName = (char*)1027;
+		}
+		else if (ExtConfigs::EnableDarkMode)
+		{
+			lpName = (char*)1035;
+		}
 	}
 
 	if (HRSRC hResInfo = FindResource(hModule, lpName, lpType)) {

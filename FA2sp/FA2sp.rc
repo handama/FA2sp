@@ -114,3 +114,6 @@ END
 1030 BITMAP "Resources/radiounchecked.bmp"
 1031 BITMAP "Resources/radiocheckedhover.bmp"
 1032 BITMAP "Resources/radiouncheckedhover.bmp"
+1033 BITMAP "Resources/toolbar_D.bmp"
+1034 BITMAP "Resources/toolbar_D_2.bmp"
+1035 BITMAP "Resources/toolbar_D_3.bmp"

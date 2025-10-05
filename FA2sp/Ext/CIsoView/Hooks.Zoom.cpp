@@ -36,7 +36,8 @@ DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 		if (special_draw > -1){\
 			CIsoViewExt::SpecialDraw(pThis->lpDDBackBufferSurface, special_draw);\
 		}\
-		CIsoViewExt::ReduceBrightness(pThis->lpDDBackBufferSurface, dr);\
+		if (special_draw != 3)\
+			CIsoViewExt::ReduceBrightness(pThis->lpDDBackBufferSurface, dr);\
 		pThis->lpDDPrimarySurface->Blt(&dr, pThis->lpDDBackBufferSurface, &dr, DDBLT_WAIT, 0);\
 		return return_addr; \
 	}\

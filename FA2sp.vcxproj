@@ -226,6 +226,7 @@
     <ClCompile Include="FA2sp\ExtraWindow\COptions\COptions.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.cpp" />
     <ClCompile Include="FA2sp\Ext\CBasic\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CChangeMapSize\Hooks.cpp" />
@@ -285,6 +286,7 @@
     <ClCompile Include="FA2sp\Ext\CRandomTree\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CSingleplayerSettings\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CSingleplayerSettings\Hooks.cpp" />
+    <ClCompile Include="FA2sp\Ext\CTags\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\ScriptSort.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TagSort.cpp" />
@@ -368,6 +370,7 @@
     <ClInclude Include="FA2sp\ExtraWindow\COptions\COptions.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.h" />
     <ClInclude Include="FA2sp\Ext\CCreateMap3B\Body.h" />
     <ClInclude Include="FA2sp\Ext\CCredits\Body.h" />
@@ -385,6 +388,7 @@
     <ClInclude Include="FA2sp\Ext\CPropertyUnit\Body.h" />
     <ClInclude Include="FA2sp\Ext\CRandomTree\Body.h" />
     <ClInclude Include="FA2sp\Ext\CSingleplayerSettings\Body.h" />
+    <ClInclude Include="FA2sp\Ext\CTags\Body.h" />
     <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\ScriptSort.h" />
     <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TagSort.h" />
     <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TaskForceSort.h" />
@@ -447,6 +451,7 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\COptions\COptions.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.rc" />
     <ResourceCompile Include="FA2sp\UI\CAircraftDialog.rc" />
     <ResourceCompile Include="FA2sp\UI\CAITriggerTypes.rc" />

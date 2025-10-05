@@ -3,6 +3,7 @@
 #include <windowsx.h>
 #include "CFinalSunDlg.h"
 #include <psapi.h>
+#include "../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
 
 HBRUSH DarkTheme::g_hDarkBackgroundBrush = NULL;
 HBRUSH DarkTheme::g_hDarkControlBrush = NULL;
@@ -1733,6 +1734,29 @@ LRESULT WINAPI DarkTheme::MyCallWindowProcA(
         }
         InitDialogOptions(hWnd);       
         return result;
+    }
+    if (Msg == WM_ACTIVATE)
+    {
+        if (CFinalSunDlg::Instance && CFinalSunDlg::Instance->Tags
+            && hWnd == CFinalSunDlg::Instance->Tags.GetSafeHwnd())
+        {
+            LRESULT result = ::CallWindowProcA(lpPrevWndFunc, hWnd, Msg, wParam, lParam);
+            auto& tag = CFinalSunDlg::Instance->Tags;
+            int index = tag.CCBTagList.GetCurSel();
+            if (index != CB_ERR)
+            {
+                ppmfc::CString text;
+                tag.CCBTagList.GetLBText(index, text);
+                STDHelpers::TrimIndex(text);
+                if (!text.IsEmpty())
+                {
+                    CTriggerAnnotation::Type = AnnoTag;
+                    CTriggerAnnotation::ID = text;
+                    ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+                }
+            }
+            return result;
+        }
     }
 
     LRESULT result = GenericWindowProcA(hWnd, Msg, wParam, lParam);

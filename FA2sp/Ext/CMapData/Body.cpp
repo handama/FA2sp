@@ -36,6 +36,7 @@
 #include "../../Miscs/Hooks.INI.h"
 #include <unordered_set>
 #include "../../Miscs/TheaterInfo.h"
+#include "../../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
 
 int CMapDataExt::OreValue[4] { -1,-1,-1,-1 };
 unsigned short CMapDataExt::CurrentRenderBuildingStrength;
@@ -2188,6 +2189,11 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	{
 		CSearhReference::SetSearchID("");
 		::SendMessage(CSearhReference::GetHandle(), WM_CLOSE, 0, 0);
+	}
+	if (CTriggerAnnotation::GetHandle())
+	{
+		CTriggerAnnotation::ID = "";
+		::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
 	}
 
 	auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");

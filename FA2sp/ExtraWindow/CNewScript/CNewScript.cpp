@@ -18,6 +18,7 @@
 #include "../CNewTrigger/CNewTrigger.h"
 #include "../CSearhReference/CSearhReference.h"
 #include <numeric>
+#include "../CTriggerAnnotation/CTriggerAnnotation.h"
 
 HWND CNewScript::m_hwnd;
 CFinalSunDlg* CNewScript::m_parent;
@@ -261,6 +262,16 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
 {
     switch (Msg)
     {
+    case WM_ACTIVATE:
+    {
+        if (SelectedScriptIndex >= 0 && SelectedScriptIndex < SendMessage(hSelectedScript, CB_GETCOUNT, NULL, NULL))
+        {
+            CTriggerAnnotation::Type = AnnoScript;
+            CTriggerAnnotation::ID = CurrentScriptID;
+            ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+        }
+        return TRUE;
+    }
     case WM_INITDIALOG:
     {
         CNewScript::Initialize(hWnd);
@@ -711,6 +722,11 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
     FString::TrimIndex(pID);
 
     CurrentScriptID = pID;
+
+    CTriggerAnnotation::Type = AnnoScript;
+    CTriggerAnnotation::ID = CurrentScriptID;
+    ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+
     while (SendMessage(hActionsListBox, LB_DELETESTRING, 0, NULL) != CB_ERR);
     if (auto pScript = map.GetSection(pID))
     {

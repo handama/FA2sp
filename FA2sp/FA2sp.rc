@@ -21,6 +21,7 @@ BEGIN
     "H",            40039,                  VIRTKEY, CONTROL, NOINVERT
     "R",            40151,                  VIRTKEY, CONTROL, NOINVERT
     "R",            40163,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "A",            40164,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
     "P",            40162,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
     "G",            40042,                  VIRTKEY, CONTROL, NOINVERT
     "T",            40139,                  VIRTKEY, CONTROL, NOINVERT

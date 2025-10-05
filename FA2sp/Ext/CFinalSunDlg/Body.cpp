@@ -13,6 +13,7 @@
 #include "../../ExtraWindow/CNewScript/CNewScript.h"
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
 #include "../../ExtraWindow/CNewINIEditor/CNewINIEditor.h"
+#include "../../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
 #include "../../ExtraWindow/CNewAITrigger/CNewAITrigger.h"
 #include "../../ExtraWindow/CObjectSearch/CObjectSearch.h"
@@ -778,6 +779,15 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(COptions::GetHandle(), 114514, 0, 0);
 		}
 	}
+	if (wmID == 40164)
+	{
+		if (CTriggerAnnotation::GetHandle() == NULL)
+			CTriggerAnnotation::Create((CFinalSunDlg*)this);
+		else
+		{
+			::SendMessage(CTriggerAnnotation::GetHandle(), 114514, 0, 0);
+		}
+	}
 	auto closeFA2Window = [this, &wmID](int wmID2, ppmfc::CDialog &dialog)
 	{
 		if (wmID2 == wmID)
@@ -1458,6 +1468,7 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			if (hParent1 != CNewINIEditor::GetHandle()
 				&& hParent1 != CCsfEditor::GetHandle()
 				&& hParent1 != CLuaConsole::GetHandle()
+				&& hParent1 != CTriggerAnnotation::GetHandle()
 				&& !CViewObjectsExt::IsOpeningAnnotationDlg
 				)
 			{

@@ -14,6 +14,7 @@
 #include "../../Ext/CMapData/Body.h"
 #include <Miscs/Miscs.h>
 #include <numeric>
+#include "../CTriggerAnnotation/CTriggerAnnotation.h"
 
 HWND CNewAITrigger::m_hwnd;
 CFinalSunDlg* CNewAITrigger::m_parent;
@@ -252,6 +253,16 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
 {
     switch (Msg)
     {
+    case WM_ACTIVATE:
+    {
+        if (CurrentAITrigger)
+        {
+            CTriggerAnnotation::Type = AnnoAITrigger;
+            CTriggerAnnotation::ID = CurrentAITrigger->ID;
+            ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+        }
+        return TRUE;
+    }
     case WM_INITDIALOG:
     {
         CNewAITrigger::Initialize(hWnd);
@@ -513,6 +524,10 @@ void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
     FString::TrimIndex(pID);
 
     CurrentAITrigger = AITrigger::create(pID);
+
+    CTriggerAnnotation::Type = AnnoAITrigger;
+    CTriggerAnnotation::ID = CurrentAITrigger->ID;
+    ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
 
     SendMessage(hEasy, BM_SETCHECK, CurrentAITrigger->EnabledInE, 0);
     SendMessage(hHard, BM_SETCHECK, CurrentAITrigger->EnabledInH, 0);

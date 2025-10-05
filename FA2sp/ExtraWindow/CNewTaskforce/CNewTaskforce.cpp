@@ -19,6 +19,7 @@
 #include "../CNewScript/CNewScript.h"
 #include <numeric>
 #include "../CSearhReference/CSearhReference.h"
+#include "../CTriggerAnnotation/CTriggerAnnotation.h"
 
 HWND CNewTaskforce::m_hwnd;
 CFinalSunDlg* CNewTaskforce::m_parent;
@@ -197,6 +198,16 @@ BOOL CALLBACK CNewTaskforce::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
 {
     switch (Msg)
     {
+    case WM_ACTIVATE:
+    {
+        if (SelectedTaskForceIndex >= 0 && SelectedTaskForceIndex < SendMessage(hSelectedTaskforce, CB_GETCOUNT, NULL, NULL))
+        {
+            CTriggerAnnotation::Type = AnnoTaskforce;
+            CTriggerAnnotation::ID = CurrentTaskForceID;
+            ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+        }
+        return TRUE;
+    }
     case WM_INITDIALOG:
     {
         CNewTaskforce::Initialize(hWnd);
@@ -490,6 +501,12 @@ void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
     FString::TrimIndex(pID);
 
     CurrentTaskForceID = pID;
+
+    CTriggerAnnotation::Type = AnnoTaskforce;
+    CTriggerAnnotation::ID = CurrentTaskForceID;
+    ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+
+    ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
     while (SendMessage(hUnitsListBox, LB_DELETESTRING, 0, NULL) != CB_ERR);
     if (auto pTaskforce = map.GetSection(pID))
     {

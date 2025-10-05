@@ -145,6 +145,16 @@ void CNewINIEditor::InitializeImporter(HWND& hWnd)
     ExtraWindow::SetEditControlFontSize(hImporterText, 1.4f, true, "Consolas");
     SendMessage(hImporterText, EM_LIMITTEXT, (WPARAM)INI_BUFFER_SIZE, 0);
     SendMessage(hImporterText, EM_SETUNDOLIMIT, 0, 0);
+
+    if (ExtConfigs::EnableDarkMode)
+    {
+        ::SendMessage(hImporterText, EM_SETBKGNDCOLOR, (WPARAM)FALSE, (LPARAM)RGB(32, 32, 32));
+        CHARFORMAT cf = { 0 };
+        cf.cbSize = sizeof(cf);
+        cf.dwMask = CFM_COLOR;
+        cf.crTextColor = RGB(220, 220, 220);
+        ::SendMessage(hImporterText, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
+    }
 }
 
 void CNewINIEditor::Update(HWND& hWnd)

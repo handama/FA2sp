@@ -2492,6 +2492,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		// just update coords with overlays to show correct color
 		for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
 			for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
+				CMapDataExt::CellDataExts[i + j * CMapData::Instance->MapWidthPlusHeight].NewOverlay = CMapDataExt::NewOverlay[j + i * 512];
 				if (CMapDataExt::GetExtension()->GetOverlayAt(CMapData::Instance->GetCoordIndex(i, j)) != 0xFFFF) {
 					CMapData::Instance->UpdateMapPreviewAt(i, j);
 				}

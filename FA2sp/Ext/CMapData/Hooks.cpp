@@ -1369,10 +1369,9 @@ DEFINE_HOOK(4A6FB0, CMapData_UpdateFieldBasenodeData, 6)
 
 DEFINE_HOOK(4A2872, CMapData_UpdateMapPreviewAt_OverlayColor, 7)
 {
-	GET_STACK(unsigned char, Overlay, STACK_OFFS(0x78, 0x20));
 	GET_STACK(RGBTRIPLE*, Color_r, STACK_OFFS(0x78, 0x68));
 	GET(RGBTRIPLE*, Color, EBP);
-	GET_STACK(CellData, cell, STACK_OFFS(0x78, 0x4C));
+	GET_STACK(int, pos, STACK_OFFS(0x78, -0x4));
 	auto setColor = [&](unsigned char R, unsigned char G, unsigned char B) {
 		Color->rgbtBlue = B;
 		Color->rgbtGreen = G;
@@ -1381,9 +1380,10 @@ DEFINE_HOOK(4A2872, CMapData_UpdateMapPreviewAt_OverlayColor, 7)
 		Color_r->rgbtGreen = G;
 		Color_r->rgbtRed = R;
 		};
-	if (Overlay != 0xFF) 
+	auto overlay = CMapDataExt::GetExtension()->GetOverlayAt(pos);
+	if (overlay != 0xFFFF)
 	{
-		const auto color = CMapDataExt::GetOverlayTypeData(Overlay).RadarColor;
+		const auto color = CMapDataExt::GetOverlayTypeData(overlay).RadarColor;
 		setColor(color.R, color.G, color.B);
 	}
 
@@ -1394,7 +1394,7 @@ DEFINE_HOOK(4A28B1, CMapData_UpdateMapPreviewAt_Terrain, 7)
 {
 	GET_STACK(RGBTRIPLE*, Color_r, STACK_OFFS(0x78, 0x68));
 	GET(RGBTRIPLE*, Color, EBP);
-	GET_STACK(CellData, cell, STACK_OFFS(0x78, 0x4C));
+	REF_STACK(CellData, cell, STACK_OFFS(0x78, 0x4C));
 	auto setColor = [&](unsigned char R, unsigned char G, unsigned char B) {
 		Color->rgbtBlue = B;
 		Color->rgbtGreen = G;

@@ -218,9 +218,20 @@ void CMapDataExt::GetBuildingDataByIniID(int bldID, CBuildingData& data)
 void CMapDataExt::UpdateTriggers()
 {
 	CMapDataExt::Triggers.clear();
+	std::map<FString, FString> TagMap;
+	if (auto pSection = CINI::CurrentDocument().GetSection("Tags"))
+	{
+		for (auto& kvp : pSection->GetEntities())
+		{
+			auto tagAtoms = FString::SplitString(kvp.second);
+			if (tagAtoms.size() < 3) continue;
+			if (TagMap.find(tagAtoms[2]) == TagMap.end())
+				TagMap[tagAtoms[2]] = kvp.first;
+		}
+	}
 	if (auto pSection = CINI::CurrentDocument->GetSection("Triggers")) {
 		for (const auto& pair : pSection->GetEntities()) {
-			std::shared_ptr<Trigger> trigger(Trigger::create(pair.first));
+			std::shared_ptr<Trigger> trigger(Trigger::create(pair.first, &TagMap));
 			if (!trigger) {
 				continue;
 			}

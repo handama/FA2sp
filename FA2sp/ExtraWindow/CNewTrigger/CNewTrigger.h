@@ -55,12 +55,12 @@ public:
     int ActionCount;
     std::vector<ActionParams> Actions;
 
-    static Trigger* create(const char* id) 
+    static Trigger* create(const char* id, std::map<FString, FString>* pTagMap = nullptr)
     {
         auto atoms = FString::SplitString(CINI::CurrentDocument().GetString("Triggers", id));
         if (atoms.size() < 8)
             return nullptr;
-        return new Trigger(id);
+        return new Trigger(id, pTagMap);
     }
 
     void Save() {
@@ -105,7 +105,7 @@ public:
     }
 
 private:
-    Trigger(const char* id)
+    Trigger(const char* id, std::map<FString, FString>* pTagMap = nullptr)
     {
         auto atoms = FString::SplitString(CINI::CurrentDocument().GetString("Triggers", id));
         ID = id;
@@ -120,43 +120,57 @@ private:
         Tag = "<none>";
         RepeatType = "-1";
 
-        // let's assume that tag is the next ID of trigger, for most of them are.
-        int assumeIdx = atoi(ID) + 1;
-        FString assumeIdxTag;
-        assumeIdxTag.Format("%08d", assumeIdx);
-        auto assumeTagValue = CINI::CurrentDocument().GetString("Tags", assumeIdxTag);
-        bool scanTag = true;
-
-        if (assumeTagValue != "")
+        if (pTagMap)
         {
-            auto assumeTagAtoms = FString::SplitString(CINI::CurrentDocument().GetString("Tags", assumeIdxTag), 2);
-            if (assumeTagAtoms[2] == ID)
+            auto& tagMap = *pTagMap;
+            auto itr = tagMap.find(ID);
+            if (itr != tagMap.end())
             {
-                Tag = assumeIdxTag;
-                RepeatType = assumeTagAtoms[0];
-                TagName = assumeTagAtoms[1];
-                scanTag = false;
+                Tag = itr->second; 
+                auto atoms = FString::SplitString(CINI::CurrentDocument().GetString("Tags", Tag), 2);
+                RepeatType = atoms[0];
+                TagName = atoms[1];
             }
         }
-        if (scanTag)
+        else
         {
-            if (auto pSection = CINI::CurrentDocument().GetSection("Tags"))
+            // let's assume that tag is the next ID of trigger, for most of them are.
+            int assumeIdx = atoi(ID) + 1;
+            FString assumeIdxTag;
+            assumeIdxTag.Format("%08d", assumeIdx);
+            auto assumeTagValue = CINI::CurrentDocument().GetString("Tags", assumeIdxTag);
+            bool scanTag = true;
+
+            if (assumeTagValue != "")
             {
-                for (auto& kvp : pSection->GetEntities())
+                auto assumeTagAtoms = FString::SplitString(CINI::CurrentDocument().GetString("Tags", assumeIdxTag), 2);
+                if (assumeTagAtoms[2] == ID)
                 {
-                    auto tagAtoms = FString::SplitString(kvp.second);
-                    if (tagAtoms.size() < 3) continue;
-                    if (tagAtoms[2] == ID)
+                    Tag = assumeIdxTag;
+                    RepeatType = assumeTagAtoms[0];
+                    TagName = assumeTagAtoms[1];
+                    scanTag = false;
+                }
+            }
+            if (scanTag)
+            {
+                if (auto pSection = CINI::CurrentDocument().GetSection("Tags"))
+                {
+                    for (auto& kvp : pSection->GetEntities())
                     {
-                        Tag = kvp.first;
-                        RepeatType = tagAtoms[0];
-                        TagName = tagAtoms[1];
-                        break;
+                        auto tagAtoms = FString::SplitString(kvp.second);
+                        if (tagAtoms.size() < 3) continue;
+                        if (tagAtoms[2] == ID)
+                        {
+                            Tag = kvp.first;
+                            RepeatType = tagAtoms[0];
+                            TagName = tagAtoms[1];
+                            break;
+                        }
                     }
                 }
             }
         }
-
 
         auto eventAtoms = FString::SplitString(CINI::CurrentDocument().GetString("Events", ID));
         if (!eventAtoms.empty())

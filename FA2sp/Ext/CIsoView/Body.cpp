@@ -1893,7 +1893,7 @@ void CIsoViewExt::BlitText(const std::wstring& text, COLORREF textColor, COLORRE
 {
     int bpp = 4;
 
-    TextCacheKey key{ text, textColor, bgColor, fontSize, bold, alpha };
+    TextCacheKey key{ text, textColor, bgColor, fontSize, bold };
     auto it = textCache.find(key);
 
     if (it == textCache.end()) {

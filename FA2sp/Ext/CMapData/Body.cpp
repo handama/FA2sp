@@ -2100,6 +2100,63 @@ void CMapDataExt::UpdateFieldAircraftData_RedrawMinimap()
 	}
 }
 
+void CMapDataExt::InitializeTileData()
+{
+	if (CMapDataExt::TileData)
+		delete[] CMapDataExt::TileData;
+	CMapDataExt::TileData = nullptr;
+
+	auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+	thisTheater.MakeUpper();
+	if (thisTheater == "TEMPERATE" && CTileTypeInfo::Temperate().Datas)
+	{
+		CurrentTheaterIndex = 0;
+		TileDataCount = CTileTypeInfo::Temperate().Count;
+		TileData = new CTileTypeClass[CMapDataExt::TileDataCount];
+		memcpy(TileData, CTileTypeInfo::Temperate().Datas, TileDataCount * sizeof(CTileTypeClass));
+	}
+	else if (thisTheater == "SNOW" && CTileTypeInfo::Snow().Datas)
+	{
+		CurrentTheaterIndex = 1;
+		TileDataCount = CTileTypeInfo::Snow().Count;
+		TileData = new CTileTypeClass[CMapDataExt::TileDataCount];
+		memcpy(TileData, CTileTypeInfo::Snow().Datas, TileDataCount * sizeof(CTileTypeClass));
+	}
+	else if (thisTheater == "URBAN" && CTileTypeInfo::Urban().Datas)
+	{
+		CurrentTheaterIndex = 2;
+		TileDataCount = CTileTypeInfo::Urban().Count;
+		TileData = new CTileTypeClass[CMapDataExt::TileDataCount];
+		memcpy(TileData, CTileTypeInfo::Urban().Datas, TileDataCount * sizeof(CTileTypeClass));
+	}
+	else if (thisTheater == "NEWURBAN" && CTileTypeInfo::NewUrban().Datas)
+	{
+		CurrentTheaterIndex = 3;
+		TileDataCount = CTileTypeInfo::NewUrban().Count;
+		TileData = new CTileTypeClass[CMapDataExt::TileDataCount];
+		memcpy(TileData, CTileTypeInfo::NewUrban().Datas, TileDataCount * sizeof(CTileTypeClass));
+	}
+	else if (thisTheater == "LUNAR" && CTileTypeInfo::Lunar().Datas)
+	{
+		CurrentTheaterIndex = 4;
+		TileDataCount = CTileTypeInfo::Lunar().Count;
+		TileData = new CTileTypeClass[CMapDataExt::TileDataCount];
+		memcpy(TileData, CTileTypeInfo::Lunar().Datas, TileDataCount * sizeof(CTileTypeClass));
+	}
+	else if (thisTheater == "DESERT" && CTileTypeInfo::Desert().Datas)
+	{
+		CurrentTheaterIndex = 5;
+		TileDataCount = CTileTypeInfo::Desert().Count;
+		TileData = new CTileTypeClass[CMapDataExt::TileDataCount];
+		memcpy(TileData, CTileTypeInfo::Desert().Datas, TileDataCount * sizeof(CTileTypeClass));
+	}
+
+	if (!CMapDataExt::TileData)
+	{
+		Logger::Error("CMapDataExt::InitializeTileData() cannot initialize tile data!\n");
+	}
+}
+
 void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDataExt)
 {
 	Logger::Debug("CMapDataExt::InitializeAllHdmEdition() Called!\n");
@@ -2208,42 +2265,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	}
 
 	auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
-	if (thisTheater == "TEMPERATE")
-	{
-		CurrentTheaterIndex = 0;
-		CMapDataExt::TileData = CTileTypeInfo::Temperate().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::Temperate().Count;
-	}
-	if (thisTheater == "SNOW")
-	{
-		CurrentTheaterIndex = 1;
-		CMapDataExt::TileData = CTileTypeInfo::Snow().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::Snow().Count;
-	}
-	if (thisTheater == "URBAN")
-	{
-		CurrentTheaterIndex = 2;
-		CMapDataExt::TileData = CTileTypeInfo::Urban().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::Urban().Count;
-	}
-	if (thisTheater == "NEWURBAN")
-	{
-		CurrentTheaterIndex = 3;
-		CMapDataExt::TileData = CTileTypeInfo::NewUrban().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::NewUrban().Count;
-	}
-	if (thisTheater == "LUNAR")
-	{
-		CurrentTheaterIndex = 4;
-		CMapDataExt::TileData = CTileTypeInfo::Lunar().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::Lunar().Count;
-	}
-	if (thisTheater == "DESERT")
-	{
-		CurrentTheaterIndex = 5;
-		CMapDataExt::TileData = CTileTypeInfo::Desert().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::Desert().Count;
-	}
+	thisTheater.MakeUpper();
 
 	CFinalSunDlgExt::CurrentLighting = 31000;
 	CheckMenuRadioItem(*CFinalSunDlg::Instance->GetMenu(), 31000, 31003, 31000, MF_UNCHECKED);

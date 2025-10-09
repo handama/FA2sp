@@ -294,7 +294,6 @@ DEFINE_HOOK(525AF8, CLoading_SetCurrentTMP_ReadGameFolder, 8)
     return 0;
 }
 
-
 DEFINE_HOOK(48EE60, CLoading_LoadOverlayGraphic, 7)
 {
     GET(CLoadingExt*, pThis, ECX); 

@@ -276,17 +276,7 @@ DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 	CMapDataExt::InitializeAllHdmEdition(false, false);
 	CViewObjectsExt::Redraw_ConnectedTile(nullptr);
 	CFinalSunDlgExt::CurrentLighting = currentLighting;
-	// fix desert bug
-	auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
-	if (thisTheater == "DESERT")
-	{
-		CTileTypeClass::Instance = &CTileTypeInfo::Desert->Datas;
-		CTileTypeClass::InstanceCount = &CTileTypeInfo::Desert->Count;
-		CMapDataExt::TileData = CTileTypeInfo::Desert().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::Desert().Count;
-		CLoading::Instance()->FreeTMPs();
-		CLoading::Instance()->InitTMPs();
-	}
+
 	if (CFinalSunDlgExt::CurrentLighting != 31000)
 	{
 		CheckMenuRadioItem(*CFinalSunDlg::Instance->GetMenu(), 31000, 31003, CFinalSunDlgExt::CurrentLighting, MF_UNCHECKED);

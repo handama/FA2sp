@@ -54,17 +54,13 @@ struct TextCacheKey {
     COLORREF bgColor;
     int fontSize;
     bool bold;
-    bool folded;
-    BYTE alpha;
 
     bool operator==(const TextCacheKey& other) const {
         return text == other.text &&
             textColor == other.textColor &&
             bgColor == other.bgColor &&
             fontSize == other.fontSize &&
-            bold == other.bold &&
-            folded == other.folded &&
-            alpha == other.alpha;
+            bold == other.bold;
     }
 };
 
@@ -81,8 +77,6 @@ struct TextCacheHasher {
         h ^= std::hash<int>()(key.fontSize) + 0x9e3779b9 + (h << 6) + (h >> 2);
         h ^= std::hash<int>()((int)key.textColor ^ (int)key.bgColor) + (h << 6);
         h ^= std::hash<bool>()(key.bold) + (h << 7);
-        h ^= std::hash<bool>()(key.folded) + (h << 8);
-        h ^= std::hash<int>()(key.alpha) + (h << 9);
         return h;
     }
 };

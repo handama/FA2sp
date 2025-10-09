@@ -397,6 +397,7 @@ public:
 
     //void InitializeBuildingTypesExt(const char* ID);
     static void InitializeAllHdmEdition(bool updateMinimap = true, bool reloadCellDataExt = true);
+    static void InitializeTileData();
     static void UpdateTriggers();
     static FString AddTrigger(std::shared_ptr<Trigger> trigger);
     static FString AddTrigger(FString id);

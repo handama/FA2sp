@@ -434,7 +434,7 @@ public:
     static ppmfc::CString GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, ppmfc::CString currentFacing, int numFacings = 8);
     static int GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, int numFacings = 8);
     static int GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord);
-    static bool IsValidTileSet(int tileset);
+    static bool IsValidTileSet(int tileset, bool allowToPlace = true);
     static ppmfc::CString GetAvailableIndex();
     static void UpdateMapSectionIndicies(const ppmfc::CString& lpSection);
     inline static bool HasAnnotation(int pos)

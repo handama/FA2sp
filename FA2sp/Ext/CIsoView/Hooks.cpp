@@ -583,7 +583,7 @@ DEFINE_HOOK(4576C6, CIsoView_OnMouseMove_NoRndForBridge, 6)
 {
 	GET_STACK(DWORD, dwID, STACK_OFFS(0x3D528, 0x3D450));
 
-	if (dwID < *CTileTypeClass::InstanceCount)
+	if (dwID < CMapDataExt::TileDataCount)
 		if (CMapDataExt::TileData[dwID].TileSet == CMapDataExt::WoodBridgeSet)
 			return 0x4577F7;
 
@@ -594,7 +594,7 @@ DEFINE_HOOK(461CDB, CIsoView_OnLButtonDown_NoRndForBridge, 6)
 {
 	GET(DWORD, dwID6, EDI);
 	int dwID = dwID6 >> 6;
-	if (dwID < *CTileTypeClass::InstanceCount)
+	if (dwID < CMapDataExt::TileDataCount)
 		if (CMapDataExt::TileData[dwID].TileSet == CMapDataExt::WoodBridgeSet)
 			return 0x461DEE;
 

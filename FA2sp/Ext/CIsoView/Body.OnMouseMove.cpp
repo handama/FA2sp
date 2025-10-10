@@ -1503,9 +1503,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
             auto theater = CINI::CurrentTheater();
 
-            if (CMapDataExt::TileData && tileIndex < int(CTileTypeClass::InstanceCount()) && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
+            if (CMapDataExt::TileData && tileIndex < CMapDataExt::TileDataCount && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
             {
-
                 const auto& tileBlock = CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex];
                 const auto& tile = CMapDataExt::TileData[tileIndex];
 

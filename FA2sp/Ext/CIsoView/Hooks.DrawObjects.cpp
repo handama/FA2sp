@@ -1712,7 +1712,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				tileIndex = 0;
 
 
-			if (CMapDataExt::TileData && tileIndex < int(CTileTypeClass::InstanceCount()) && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
+			if (CMapDataExt::TileData && tileIndex < CMapDataExt::TileDataCount && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
 			{
 				auto ttype = CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex].TerrainType;
 				if (ttype == 0x7 || ttype == 0x8 || ttype == 0xf ||

@@ -1272,12 +1272,14 @@ int CMapDataExt::GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord)
 	return 0;
 }
 
-bool CMapDataExt::IsValidTileSet(int tileset) 
+bool CMapDataExt::IsValidTileSet(int tileset, bool allowToPlace)
 {
 	FString buffer;
 	buffer.Format("TileSet%04d", tileset);
 
 	auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
+	if (!allowToPlace)
+		exist = true;
 	auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
 	auto exist3 = CINI::CurrentTheater->GetInteger(buffer, "TilesInSet");
 	if (!exist || strcmp(exist2, "") == 0 || exist3 < 1)

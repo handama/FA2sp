@@ -294,5 +294,9 @@ DEFINE_HOOK(491E96, CLoading_Release_SetTileDataType, 5)
 		CTileTypeClass::InstanceCount = &CTileTypeInfo::Temperate->Count;
 		break;
 	}
+	if (CMapDataExt::TileData)
+		delete[] CMapDataExt::TileData;
+	CMapDataExt::TileData = nullptr;
+	Logger::Debug("CLoading::Release() called.\n");
 	return 0x491F36;
 }

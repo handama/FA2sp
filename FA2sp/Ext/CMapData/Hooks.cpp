@@ -980,7 +980,7 @@ DEFINE_HOOK(4B4996, CMapData_UpdateMapFieldData_NoRndForBridge, 6)
 	GET(DWORD, dwID6, EAX);
 
 	int dwID = dwID6 >> 6;
-	if (dwID < *CTileTypeClass::InstanceCount)
+	if (dwID < CMapDataExt::TileDataCount)
 		if (CMapDataExt::TileData[dwID].TileSet == CMapDataExt::WoodBridgeSet)
 			return 0x4B4B7E;
 

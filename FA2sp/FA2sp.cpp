@@ -189,6 +189,8 @@ double ExtConfigs::AutoDarkMode_SwitchTimeB;
 bool ExtConfigs::EnableDarkMode;
 bool ExtConfigs::EnableDarkMode_DimMap;
 bool ExtConfigs::ShrinkTilesInTileSetBrowser;
+bool ExtConfigs::UTF8Support_InferEncoding;
+bool ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
 ppmfc::CString ExtConfigs::NewTriggerPlusID_Digits;
 ppmfc::CString ExtConfigs::Waypoint_SkipCheckList;
@@ -302,6 +304,9 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ExtVariables = CINI::FAData->GetBool("ExtConfigs", "ExtVariables");
 	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
+
+	ExtConfigs::UTF8Support_InferEncoding = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.InferEncoding");
+	ExtConfigs::UTF8Support_AlwaysSaveAsUTF8 = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.AlwaysSaveAsUTF8");
 
 	ExtConfigs::ShrinkTilesInTileSetBrowser = CINI::FAData->GetBool("ExtConfigs", "ShrinkTilesInTileSetBrowser");
 	ExtConfigs::EnableDarkMode_DimMap = CINI::FAData->GetBool("ExtConfigs", "EnableDarkMode.DimMap");
@@ -762,6 +767,20 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	// Map Saving and File Management
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.UTF8Support.InferEncoding", "Auto-infer encoding when loading ini and map files"),
+		.IniKey = "UTF8Support.InferEncoding",
+		.Value = &ExtConfigs::UTF8Support_InferEncoding,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.UTF8Support.AlwaysSaveAsUTF8", "Always save maps in UTF8 encoding"),
+		.IniKey = "UTF8Support.AlwaysSaveAsUTF8",
+		.Value = &ExtConfigs::UTF8Support_AlwaysSaveAsUTF8,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SaveMap.AutoSave", "Auto-save map"),
 		.IniKey = "SaveMap.AutoSave",

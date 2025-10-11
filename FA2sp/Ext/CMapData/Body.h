@@ -551,6 +551,7 @@ public:
     static int UndoRedoDataIndex;
     static bool IsLoadingMapFile;
     static bool IsMMXFile;
+    static bool IsUTF8File;
     static std::vector<FString> MapIniSectionSorting;
     static std::map<FString, std::set<FString>> PowersUpBuildings;
 };

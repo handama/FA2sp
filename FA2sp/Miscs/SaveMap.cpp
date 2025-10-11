@@ -455,6 +455,8 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
 
     std::ofstream fout;
 
+    bool saveAsUTF8 = CMapDataExt::IsUTF8File || ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
+
     std::filesystem::path p(filepath.m_pchData);
     FString ext = p.extension().string();
 
@@ -490,7 +492,11 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
         if (ExtConfigs::SaveMap_FileEncodingComment)
         {
             comments += "; ";
-            comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1", "本文件编码为 ANSI/GBK，请使用此格式打开");
+            if (saveAsUTF8)
+                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1_UTF8", "本文件编码为 UTF8，请使用此格式打开");
+            else
+                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1", "本文件编码为 ANSI/GBK，请使用此格式打开");
+
             comments += "\n";
             comments += "; ";
             comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment2", "Warning: If the first line appears as gibberish");
@@ -683,7 +689,16 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
             pThis->PKTHeader.WriteString(core, "GameMode", pINI->GetString("Basic", "GameMode", "standard"));
 
             MixPacker mix;
-            mix.Add(MMX, oss.str().data(), oss.str().size());
+            if (saveAsUTF8)
+            {
+                FString output = oss.str();
+                output.toUTF8();
+                mix.Add(MMX, output.data(), output.size());
+            }
+            else
+            {
+                mix.Add(MMX, oss.str().data(), oss.str().size());
+            }
 
             std::ostringstream pkt;
             for (auto& section : pThis->PKTHeader.Dict)
@@ -703,7 +718,16 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
         else
         {
             // Now just write the file
-            fout << oss.str();
+            if (saveAsUTF8)
+            {
+                FString output = oss.str();
+                output.toUTF8();
+                fout << output;
+            }
+            else
+            {
+                fout << oss.str();
+            }
             fout.flush();
             fout.close();
             Logger::Raw("SaveMap : Successfully saved %u sections.\n", pINI->Dict.size());

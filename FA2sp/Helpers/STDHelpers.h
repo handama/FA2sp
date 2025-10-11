@@ -57,6 +57,8 @@ public:
     static std::string WStringToString(const std::wstring& wstr);
     static std::wstring StringToWString(const std::string& str);
 
+	static bool isUTF8(const uint8_t* data, size_t size);
+
 	static inline int letter2number(char let) {
 		int reply = let - 'A';
 		return reply;

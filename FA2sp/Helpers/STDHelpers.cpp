@@ -434,3 +434,59 @@ std::wstring STDHelpers::StringToWString(const std::string& str)
 
     return wstr;
 }
+
+bool STDHelpers::isUTF8(const uint8_t* data, size_t size) {
+    if (!data || size == 0)
+        return false;
+
+    // --- UTF-8 BOM ---
+    if (size >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF)
+        return true;
+
+    bool allAscii = true;
+    size_t i = 0;
+
+    while (i < size) {
+        uint8_t c = data[i];
+        if (c <= 0x7F) {
+            // ASCII
+            i++;
+            continue;
+        }
+
+        allAscii = false; 
+
+        if ((c & 0xE0) == 0xC0) {
+            if (i + 1 >= size) return false;
+            if ((data[i + 1] & 0xC0) != 0x80) return false;
+            if (c == 0xC0 || c == 0xC1) return false; // overlong
+            i += 2;
+        }
+        else if ((c & 0xF0) == 0xE0) {
+            if (i + 2 >= size) return false;
+            if ((data[i + 1] & 0xC0) != 0x80 || (data[i + 2] & 0xC0) != 0x80) return false;
+            if (c == 0xE0 && (data[i + 1] & 0xE0) == 0x80) return false; // overlong
+            if (c == 0xED && (data[i + 1] & 0xE0) == 0xA0) return false; // surrogate
+            i += 3;
+        }
+        else if ((c & 0xF8) == 0xF0) {
+            if (i + 3 >= size) return false;
+            if ((data[i + 1] & 0xC0) != 0x80 ||
+                (data[i + 2] & 0xC0) != 0x80 ||
+                (data[i + 3] & 0xC0) != 0x80)
+                return false;
+            if (c == 0xF0 && (data[i + 1] & 0xF0) == 0x80) return false;
+            if (c > 0xF4 || (c == 0xF4 && data[i + 1] > 0x8F)) return false;
+            i += 4;
+        }
+        else {
+            return false;
+        }
+    }
+
+    // label ASCII as ANSI
+    if (allAscii)
+        return false; 
+
+    return true;
+}

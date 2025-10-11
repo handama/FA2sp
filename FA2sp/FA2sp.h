@@ -203,6 +203,8 @@ public:
     static bool EnableDarkMode;
     static bool EnableDarkMode_DimMap;
     static bool ShrinkTilesInTileSetBrowser;
+    static bool UTF8Support_InferEncoding;
+    static bool UTF8Support_AlwaysSaveAsUTF8;
     static ppmfc::CString CloneWithOrderedID_Digits;
     static ppmfc::CString NewTriggerPlusID_Digits;
     static ppmfc::CString Waypoint_SkipCheckList;

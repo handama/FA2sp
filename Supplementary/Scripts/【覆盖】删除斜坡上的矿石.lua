@@ -10,7 +10,7 @@ save_undo()
 for i,cell in pairs(get_cells()) do
 	if is_ore(cell.overlay) then
 		if get_tile_block(cell.tile, cell.subtile).ramp_type ~= 0 then
-			cell.overlay = 255
+			cell.overlay = 65535
 			cell:apply()
 		end
 	end

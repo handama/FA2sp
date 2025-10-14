@@ -58,6 +58,7 @@ int ExtConfigs::AdjustDropdownWidth_Max;
 int ExtConfigs::CopySelectionBound_Color;
 int ExtConfigs::CursorSelectionBound_Color;
 int ExtConfigs::DistanceRuler_Color;
+int ExtConfigs::DeathWeaponRangeBound_Color;
 int ExtConfigs::WeaponRangeBound_Color;
 int ExtConfigs::WeaponRangeMinimumBound_Color;
 int ExtConfigs::SecondaryWeaponRangeBound_Color;
@@ -114,6 +115,7 @@ bool ExtConfigs::ExtendedValidationNoError;
 bool ExtConfigs::HideNoRubbleBuilding;
 bool ExtConfigs::ModernObjectBrowser;
 bool ExtConfigs::PlayerAtXForTechnos;
+bool ExtConfigs::PlayerAtXForTriggers;
 bool ExtConfigs::FileWatcher;
 bool ExtConfigs::LoadRA2MixFilesOnly;
 bool ExtConfigs::ExtVariables;
@@ -164,6 +166,7 @@ bool ExtConfigs::InGameDisplay_Damage;
 bool ExtConfigs::InGameDisplay_Hover;
 bool ExtConfigs::InGameDisplay_AlphaImage;
 bool ExtConfigs::InGameDisplay_Bridge;
+bool ExtConfigs::InGameDisplay_AnimAdjust;
 bool ExtConfigs::FlatToGroundHideExtra;
 bool ExtConfigs::LightingPreview_MultUnitColor;
 bool ExtConfigs::LightingPreview_TintTileSetBrowserView;
@@ -180,8 +183,14 @@ int ExtConfigs::DisplayTextSize;
 int ExtConfigs::DistanceRuler_Records;
 bool ExtConfigs::DisplayObjectsOutside;
 bool ExtConfigs::AVX2_Support;
+bool ExtConfigs::AutoDarkMode;
+double ExtConfigs::AutoDarkMode_SwitchTimeA;
+double ExtConfigs::AutoDarkMode_SwitchTimeB;
 bool ExtConfigs::EnableDarkMode;
 bool ExtConfigs::EnableDarkMode_DimMap;
+bool ExtConfigs::ShrinkTilesInTileSetBrowser;
+bool ExtConfigs::UTF8Support_InferEncoding;
+bool ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
 ppmfc::CString ExtConfigs::NewTriggerPlusID_Digits;
 ppmfc::CString ExtConfigs::Waypoint_SkipCheckList;
@@ -261,6 +270,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::Waypoint_Background = CINI::FAData->GetBool("ExtConfigs", "Waypoint.Background");
 	ExtConfigs::Waypoint_Background_Color = CINI::FAData->GetColor("ExtConfigs", "Waypoint.Background.Color", 0xFFFFFF);
 
+	ExtConfigs::DeathWeaponRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "DeathWeaponRangeBound.Color", 0x277FFF);
 	ExtConfigs::WeaponRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "WeaponRangeBound.Color", 0xFFFF00);
 	ExtConfigs::WeaponRangeMinimumBound_Color = CINI::FAData->GetColor("ExtConfigs", "WeaponRangeMinimumBound.Color", 0xC8C800);
 	ExtConfigs::SecondaryWeaponRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "SecondaryWeaponRangeBound.Color", 0x82FF00);
@@ -295,7 +305,10 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
 
-	ExtConfigs::EnableDarkMode = CINI::FAData->GetBool("ExtConfigs", "EnableDarkMode");
+	ExtConfigs::UTF8Support_InferEncoding = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.InferEncoding");
+	ExtConfigs::UTF8Support_AlwaysSaveAsUTF8 = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.AlwaysSaveAsUTF8");
+
+	ExtConfigs::ShrinkTilesInTileSetBrowser = CINI::FAData->GetBool("ExtConfigs", "ShrinkTilesInTileSetBrowser");
 	ExtConfigs::EnableDarkMode_DimMap = CINI::FAData->GetBool("ExtConfigs", "EnableDarkMode.DimMap");
 	ExtConfigs::DisplayObjectsOutside = CINI::FAData->GetBool("ExtConfigs", "DisplayObjectsOutside");
 	ExtConfigs::DDrawScalingBilinear = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear", true);
@@ -315,6 +328,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::InGameDisplay_Hover = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Hover", true);
 	ExtConfigs::InGameDisplay_AlphaImage = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AlphaImage", true);
 	ExtConfigs::InGameDisplay_Bridge = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Bridge", true);
+	ExtConfigs::InGameDisplay_AnimAdjust = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AnimAdjust", true);
 	ExtConfigs::FlatToGroundHideExtra = CINI::FAData->GetBool("ExtConfigs", "FlatToGroundHideExtra");
 	ExtConfigs::ExtOverlays = CINI::FAData->GetBool("ExtConfigs", "ExtOverlays");
 
@@ -403,6 +417,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::HideNoRubbleBuilding = CINI::FAData->GetBool("ExtConfigs", "HideNoRubbleBuilding");
 
 	ExtConfigs::PlayerAtXForTechnos = CINI::FAData->GetBool("ExtConfigs", "PlayerAtXForTechnos");
+	ExtConfigs::PlayerAtXForTriggers = CINI::FAData->GetBool("ExtConfigs", "PlayerAtXForTriggers");
 	ExtConfigs::FileWatcher = CINI::FAData->GetBool("ExtConfigs", "FileWatcher", true);
 	ExtConfigs::LoadRA2MixFilesOnly = CINI::FAData->GetBool("ExtConfigs", "LoadRA2MixFilesOnly");
 	ExtConfigs::InfantrySubCell_GameDefault = CINI::FAData->GetBool("ExtConfigs", "InfantrySubCell.GameDefault");
@@ -582,6 +597,13 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.AutoDarkMode", "Auto-switch dark mode by system setting or time"),
+		.IniKey = "AutoDarkMode",
+		.Value = &ExtConfigs::AutoDarkMode,
+		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode.DimMap", "make map view dim in drak mode"),
 		.IniKey = "EnableDarkMode.DimMap",
 		.Value = &ExtConfigs::EnableDarkMode_DimMap,
@@ -640,7 +662,7 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Damage", "Load and show damage-swap images (Phobos)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Damage", "Load and show damage-swap images (Phobos B47+)"),
 		.IniKey = "InGameDisplay.Damage",
 		.Value = &ExtConfigs::InGameDisplay_Damage,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
@@ -665,6 +687,13 @@ void FA2sp::ExtConfigsInitialize()
 		.IniKey = "InGameDisplay.Bridge",
 		.Value = &ExtConfigs::InGameDisplay_Bridge,
 		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.AnimAdjust", "Adjust building animation layer, may not be consistent with in-game"),
+		.IniKey = "InGameDisplay.AnimAdjust",
+		.Value = &ExtConfigs::InGameDisplay_AnimAdjust,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -717,9 +746,16 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.LightingPreview.TintTileSetBrowserView", "Mult tile set brorser images when changing lighting"),
+		.DisplayName = Translations::TranslateOrDefault("Options.LightingPreview.TintTileSetBrowserView", "Mult tile set browser images when changing lighting"),
 		.IniKey = "LightingPreview.TintTileSetBrowserView",
 		.Value = &ExtConfigs::LightingPreview_TintTileSetBrowserView,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ShrinkTilesInTileSetBrowser", "Shink tile images in tile set browser"),
+		.IniKey = "ShrinkTilesInTileSetBrowser",
+		.Value = &ExtConfigs::ShrinkTilesInTileSetBrowser,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
@@ -731,6 +767,20 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	// Map Saving and File Management
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.UTF8Support.InferEncoding", "Auto-infer encoding when loading ini and map files"),
+		.IniKey = "UTF8Support.InferEncoding",
+		.Value = &ExtConfigs::UTF8Support_InferEncoding,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.UTF8Support.AlwaysSaveAsUTF8", "Always save maps in UTF8 encoding"),
+		.IniKey = "UTF8Support.AlwaysSaveAsUTF8",
+		.Value = &ExtConfigs::UTF8Support_AlwaysSaveAsUTF8,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SaveMap.AutoSave", "Auto-save map"),
 		.IniKey = "SaveMap.AutoSave",
@@ -873,21 +923,21 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.ArtImageSwap", "Use Image= in art(md).ini (Phobos)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.ArtImageSwap", "Use Image= in art(md).ini (Phobos B25+)"),
 		.IniKey = "ArtImageSwap",
 		.Value = &ExtConfigs::ArtImageSwap,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.AllowIncludes", "Load include INIs (Ares/Phobos)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.AllowIncludes", "Load include INIs (Ares/Phobos B34+)"),
 		.IniKey = "AllowIncludes",
 		.Value = &ExtConfigs::AllowIncludes,
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.AllowInherits", "Load inherited INI sections (Ares/Phobos)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.AllowInherits", "Load inherited INI sections (Ares/Phobos B34+)"),
 		.IniKey = "AllowInherits",
 		.Value = &ExtConfigs::AllowInherits,
 		.Type = ExtConfigs::SpecialOptionType::Restart
@@ -915,21 +965,21 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.ExtWaypoints", "Enable infinite waypoints (Phobos)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.ExtWaypoints", "Enable infinite waypoints (Phobos B16+)"),
 		.IniKey = "ExtWaypoints",
 		.Value = &ExtConfigs::ExtWaypoints,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.ExtVariables", "Enable infinite local variables (Phobos)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.ExtVariables", "Enable infinite local variables (Phobos B22+)"),
 		.IniKey = "ExtVariables",
 		.Value = &ExtConfigs::ExtVariables,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.ExtOverlays", "Enable infinite overlay support (Phobos)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.ExtOverlays", "Enable infinite overlay support (Phobos B48+)"),
 		.IniKey = "ExtOverlays",
 		.Value = &ExtConfigs::ExtOverlays,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
@@ -992,10 +1042,17 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.PlayerAtXForTechnos", "Show <Player @ X> options in unit property dialog (Phobos)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.PlayerAtXForTechnos", "Show <Player @ X> options in unit property dialog (Phobos B37+)"),
 		.IniKey = "PlayerAtXForTechnos",
 		.Value = &ExtConfigs::PlayerAtXForTechnos,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.PlayerAtXForTriggers", "Show <Player @ X> options in trigger editor (Phobos B49+)"),
+		.IniKey = "PlayerAtXForTriggers",
+		.Value = &ExtConfigs::PlayerAtXForTriggers,
+		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -1136,17 +1193,79 @@ void FA2sp::ExtConfigsInitialize()
 
 	CINI fa2;
 	std::string path;
-	path = CFinalSunApp::ExePath;
+	path = CFinalSunAppExt::ExePathExt;
 	path += "\\FinalAlert.ini";
 	fa2.ClearAndLoad(path.c_str());
 
 	for (const auto& opt : ExtConfigs::Options)
 	{
-		*opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
+		if (opt.Value != &ExtConfigs::EnableDarkMode)
+			*opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
 	}
 
 	CIsoViewExt::PasteShowOutline = ExtConfigs::PasteShowOutlineDefault;
 
+}
+
+bool FA2sp::IsDarkMode()
+{
+	double tA = ExtConfigs::AutoDarkMode_SwitchTimeA;
+	double tB = ExtConfigs::AutoDarkMode_SwitchTimeB;
+
+	if (tA < 0 || tB < 0)
+	{
+		DWORD value = 1; 
+		DWORD size = sizeof(value);
+		HKEY hKey;
+
+		if (RegOpenKeyExW(
+			HKEY_CURRENT_USER,
+			L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+			0,
+			KEY_READ,
+			&hKey) == ERROR_SUCCESS)
+		{
+			RegQueryValueExW(hKey, L"AppsUseLightTheme", nullptr, nullptr, (LPBYTE)&value, &size);
+			RegCloseKey(hKey);
+		}
+
+		return value == 0; 
+	}
+
+	tA = fmod(tA, 24.0);
+	tB = fmod(tB, 24.0);
+
+	SYSTEMTIME st;
+	GetLocalTime(&st);
+	double now = st.wHour + st.wMinute / 60.0 + st.wSecond / 3600.0;
+
+	if (tA < tB)
+	{
+		return (now >= tA && now < tB);
+	}
+	else if (tA > tB)
+	{
+		return (now >= tA || now < tB);
+	}
+	else
+	{
+		DWORD value = 1;
+		DWORD size = sizeof(value);
+		HKEY hKey;
+
+		if (RegOpenKeyExW(
+			HKEY_CURRENT_USER,
+			L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+			0,
+			KEY_READ,
+			&hKey) == ERROR_SUCCESS)
+		{
+			RegQueryValueExW(hKey, L"AppsUseLightTheme", nullptr, nullptr, (LPBYTE)&value, &size);
+			RegCloseKey(hKey);
+		}
+
+		return value == 0;
+	}
 }
 
 // DllMain

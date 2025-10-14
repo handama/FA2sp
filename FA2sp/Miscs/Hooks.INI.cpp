@@ -39,7 +39,11 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
             new(&ret.first->second) ppmfc::CString(value);
     };
 
+    bool loadAsUTF8 = ExtConfigs::UTF8Support_InferEncoding && STDHelpers::isUTF8(pFile, fileSize);
     FString content(reinterpret_cast<char*>(pFile), fileSize);
+    if (loadAsUTF8)
+        content.toANSI();
+
     INISection* pCurrentSection = nullptr;
 
     size_t idx = 0;
@@ -105,7 +109,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                         }
                     }
                 }
-                if (CMapDataExt::IsLoadingMapFile)
+                if (CMapDataExt::IsLoadingMapFile && ExtConfigs::SaveMap_PreserveINISorting)
                 {
                     CMapDataExt::MapIniSectionSorting.push_back(sectionName);
                 }
@@ -253,6 +257,16 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
             }
         }
     }
+
+    if (CMapDataExt::IsLoadingMapFile && this == &CINI::CurrentDocument) {
+        if (loadAsUTF8) {
+            Logger::Debug("CINIExt::LoadINIExt(): Load map file using UTF8 encoding.\n");
+            CMapDataExt::IsUTF8File = true;
+        }
+        else  {
+            CMapDataExt::IsUTF8File = false;
+        }
+    }
 }
 
 // return values:
@@ -294,14 +308,6 @@ DEFINE_HOOK(452CC0, CINI_ParseINI, 8)
  
     R->EAX(0);
     return 0x4534C2;
-}
-
-// some maps use '[' for encryption
-DEFINE_HOOK(49D64F, CMapData_LoadMap_SkipBracketFix, 6)
-{
-    INIIncludes::SkipBracketFix = false;	
-    CMapDataExt::IsLoadingMapFile = false;
-    return 0;
 }
 
 DEFINE_HOOK(47FFB0, CLoading_LoadTSINI, 7)

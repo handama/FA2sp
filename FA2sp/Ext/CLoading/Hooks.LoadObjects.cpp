@@ -98,6 +98,7 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
 {
     GET(const char*, mapPath, EDI);
 
+    Logger::Debug("CLoading::LoadMap(): Loading %s\n", mapPath);
     CViewObjectsExt::InitializeOnUpdateEngine();
     CIsoView::CurrentCommand->Command = 0;
 
@@ -154,11 +155,17 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
     }
 
     INIIncludes::SkipBracketFix = true;
-    if (ExtConfigs::SaveMap_PreserveINISorting)
-    {
-        CMapDataExt::IsLoadingMapFile = true;
-        CMapDataExt::MapIniSectionSorting.clear();
-    }
+    CMapDataExt::IsLoadingMapFile = true;
+    CMapDataExt::MapIniSectionSorting.clear();
+
+    return 0;
+}
+
+// some maps use '[' for encryption
+DEFINE_HOOK(49D64F, CMapData_LoadMap_SkipBracketFix, 6)
+{
+    INIIncludes::SkipBracketFix = false;
+    CMapDataExt::IsLoadingMapFile = false;
     return 0;
 }
 
@@ -293,7 +300,6 @@ DEFINE_HOOK(525AF8, CLoading_SetCurrentTMP_ReadGameFolder, 8)
     }
     return 0;
 }
-
 
 DEFINE_HOOK(48EE60, CLoading_LoadOverlayGraphic, 7)
 {

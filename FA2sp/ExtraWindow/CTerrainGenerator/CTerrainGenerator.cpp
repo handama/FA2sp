@@ -9,6 +9,7 @@
 #include "../CSearhReference/CSearhReference.h"
 #include "../../Miscs/MultiSelection.h"
 #include "../../Miscs/DialogStyle.h"
+#include "../../Ext/CFinalSunApp/Body.h"
 
 HWND CTerrainGenerator::m_hwnd;
 CTileSetBrowserFrame* CTerrainGenerator::m_parent;
@@ -336,7 +337,7 @@ void CTerrainGenerator::Update(HWND& hWnd)
     if (!ini) {
         ini = MakeGameUnique<CINI>();
     }
-    FString path = CFinalSunApp::ExePath();
+    FString path = CFinalSunAppExt::ExePathExt;
     path += "\\TerrainGenerator.ini";
     ini->ClearAndLoad(path);
     auto itr = ini->Dict.begin();
@@ -1553,7 +1554,7 @@ void CTerrainGenerator::OnClickDelete(HWND& hWnd)
     if (CurrentPresetIndex < 0)
         CurrentPresetIndex = 0;
     SendMessage(hPreset, CB_SETCURSEL, CurrentPresetIndex, NULL);
-    FString path = CFinalSunApp::ExePath();
+    FString path = CFinalSunAppExt::ExePathExt();
     path += "\\TerrainGenerator.ini";
     ini->WriteToFile(path);
     OnSelchangePreset();
@@ -1656,7 +1657,7 @@ void CTerrainGenerator::SaveAndReloadPreset()
 {
     if (!CurrentPreset) return;
     FString id = CurrentPreset->ID;
-    FString path = CFinalSunApp::ExePath();
+    FString path = CFinalSunAppExt::ExePathExt();
     path += "\\TerrainGenerator.ini";
     ini->WriteString(id, "Name", CurrentPreset->Name);
     ini->WriteString(id, "Scale", STDHelpers::IntToString(CurrentPreset->Scale));

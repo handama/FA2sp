@@ -230,6 +230,7 @@ protected:
     static void Close(HWND& hWnd);
 
     static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+    static double safe_stod(const char* s);
 
 private:
     static HWND m_hwnd;

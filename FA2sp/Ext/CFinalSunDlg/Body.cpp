@@ -13,6 +13,7 @@
 #include "../../ExtraWindow/CNewScript/CNewScript.h"
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
 #include "../../ExtraWindow/CNewINIEditor/CNewINIEditor.h"
+#include "../../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
 #include "../../ExtraWindow/CNewAITrigger/CNewAITrigger.h"
 #include "../../ExtraWindow/CObjectSearch/CObjectSearch.h"
@@ -456,9 +457,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		SetMenuStatusFalse(30020, CIsoViewExt::DrawCellTagsFilter);
 		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 		return TRUE;
-	case 30051:
-		CIsoViewExt::Zoom(0.0);
-		return TRUE;
 	case 30052:
 	{
 		CIsoViewExt::Zoom(0.25);
@@ -608,7 +606,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		((CViewObjectsExt*)(this->MyViewFrame.pViewObjects))->Redraw();
 
 		CINI ini;
-		ppmfc::CString path = CFinalSunApp::ExePath();
+		ppmfc::CString path = CFinalSunAppExt::ExePathExt;
 		path += "\\FinalAlert.ini";
 		ini.ClearAndLoad(path);
 		ini.WriteString("UserInterface", "ShowTreeViewCameo", ExtConfigs::TreeViewCameo_Display ? "1" : "0");
@@ -781,6 +779,15 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(COptions::GetHandle(), 114514, 0, 0);
 		}
 	}
+	if (wmID == 40164)
+	{
+		if (CTriggerAnnotation::GetHandle() == NULL)
+			CTriggerAnnotation::Create((CFinalSunDlg*)this);
+		else
+		{
+			::SendMessage(CTriggerAnnotation::GetHandle(), 114514, 0, 0);
+		}
+	}
 	auto closeFA2Window = [this, &wmID](int wmID2, ppmfc::CDialog &dialog)
 	{
 		if (wmID2 == wmID)
@@ -800,7 +807,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	closeFA2Window(40048, this->AITriggerTypesEnable);
 	closeFA2Window(40037, this->SingleplayerSettings);
 	closeFA2Window(40042, this->Tags);
-
 
 	if (wmID == 40152 && CMapData::Instance->MapWidthPlusHeight)
 	{
@@ -1462,6 +1468,7 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			if (hParent1 != CNewINIEditor::GetHandle()
 				&& hParent1 != CCsfEditor::GetHandle()
 				&& hParent1 != CLuaConsole::GetHandle()
+				&& hParent1 != CTriggerAnnotation::GetHandle()
 				&& !CViewObjectsExt::IsOpeningAnnotationDlg
 				)
 			{
@@ -1475,6 +1482,19 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			}
 		}
 		break;
+	}
+	case WM_MBUTTONUP:
+	{
+		HWND hWnd = GetFocus();					// EDIT		COMBOBOX_DROPDOWN
+		HWND hParent1 = ::GetParent(hWnd);		// WINDOW	COMBOBOX
+		if (hParent1 != CNewINIEditor::GetHandle()
+			&& hParent1 != CCsfEditor::GetHandle()
+			&& hParent1 != CLuaConsole::GetHandle()
+			&& !CViewObjectsExt::IsOpeningAnnotationDlg
+			)
+		{
+			CIsoViewExt::Zoom(0.0);
+		}
 	}
 	}
 	return ppmfc::CDialog::PreTranslateMessage(pMsg);

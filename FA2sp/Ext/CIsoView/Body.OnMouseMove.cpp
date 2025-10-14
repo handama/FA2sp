@@ -481,7 +481,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 CIsoViewExt::DrawMultiMapCoordBorders(hDC, mapCoordsInRange, color);
             };
 
-        auto drawWeaponRange = [&](FString ID, FString objectX, FString objectY, bool isBuilding = false, bool secondary = false, bool elite = false)
+        auto drawWeaponRange = [&](FString ID, FString objectX, FString objectY, bool isBuilding = false, bool secondary = false, bool elite = false, bool deathWeapon = false)
             {
                 auto weapon = mmh.GetString(ID, elite && mmh.GetString(ID, "ElitePrimary") != "" ? "ElitePrimary" : "Primary");
                 int color = 0xFFFFFF;
@@ -497,6 +497,13 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         weapon = mmh.GetString(ID, elite && mmh.GetString(ID, "EliteWeapon2") != "" ? "EliteWeapon2" : "Weapon2");
                     }
                 }
+                bool explodes = mmh.GetBool(ID, "Explodes");
+                if (deathWeapon && explodes)
+                {
+                    weapon = mmh.GetString(ID, "DeathWeapon");
+                    if (weapon == "")
+                        weapon = mmh.GetString(ID, elite && mmh.GetString(ID, "ElitePrimary") != "" ? "ElitePrimary" : "Primary");
+                }
 
                 float range = 0.0f;
                 float minimumRange = 0.0f;
@@ -509,6 +516,17 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 else {
                     range = mmh.GetSingle(weapon, "Range");
                     minimumRange = mmh.GetSingle(weapon, "MinimumRange");
+                    if (deathWeapon)
+                    {
+                        auto warHead = mmh.GetString(weapon, "Warhead");
+                        range = mmh.GetSingle(warHead, "CellSpread");
+                        if (mmh.GetBool(warHead, "IvanBomb"))
+                        {
+                            warHead = mmh.GetString("CombatDamage", "IvanWarhead");
+                            range = mmh.GetSingle(warHead, "CellSpread");
+                        }
+                        minimumRange = 0.0f;
+                    }
                 }
                 if (range > 0) {
                     float XCenter;
@@ -534,7 +552,18 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     }
 
                     bool useElevation = mmh.GetBool(mmh.GetString(weapon, "Projectile"), "SubjectToElevation");
-                    if (!secondary)
+                    if (deathWeapon)
+                    {
+                        if (explodes)
+                        {
+                            SetBkColor(hDC, ExtConfigs::DeathWeaponRangeBound_Color);
+                            leftLine = Translations::TranslateOrDefault("ViewDeathWeaponRangeInfo", "Death Weapon Range");
+                            ::TextOut(hDC, rect.left + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
+
+                            drawRange(XCenter, YCenter, range, ExtConfigs::DeathWeaponRangeBound_Color, isBuilding, objectX, objectY, useElevation);
+                        }                      
+                    }
+                    else if (!secondary)
                     {
                         SetBkColor(hDC, ExtConfigs::WeaponRangeBound_Color);
                         leftLine = Translations::TranslateOrDefault("ViewWeaponRangeInfo", "Primary Range");
@@ -679,6 +708,10 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::SecondaryWeaponRange || All) {
 
                         drawWeaponRange(ID, objectX, objectY, isBuilding, true, elite);
+                    }
+                    if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::DeathWeaponRange || All) {
+
+                        drawWeaponRange(ID, objectX, objectY, isBuilding, false, elite, true);
                     }
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::WeaponRange || All || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All) {
 
@@ -1470,9 +1503,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
             auto theater = CINI::CurrentTheater();
 
-            if (CMapDataExt::TileData && tileIndex < int(CTileTypeClass::InstanceCount()) && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
+            if (CMapDataExt::TileData && tileIndex < CMapDataExt::TileDataCount && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
             {
-
                 const auto& tileBlock = CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex];
                 const auto& tile = CMapDataExt::TileData[tileIndex];
 

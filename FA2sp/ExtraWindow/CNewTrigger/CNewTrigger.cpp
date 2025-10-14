@@ -17,6 +17,7 @@
 #include "../CNewScript/CNewScript.h"
 #include <numeric>
 #include "../CSearhReference/CSearhReference.h"
+#include "../CTriggerAnnotation/CTriggerAnnotation.h"
 #include "../CCsfEditor/CCsfEditor.h"
 
 HWND CNewTrigger::m_hwnd;
@@ -282,6 +283,17 @@ void CNewTrigger::Update(HWND& hWnd)
 
     idx = 0;
     while (SendMessage(hHouse, CB_DELETESTRING, 0, NULL) != CB_ERR); 
+    if (CMapData::Instance->IsMultiOnly() && ExtConfigs::PlayerAtXForTriggers)
+    {
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ A>").c_str());
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ B>").c_str());
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ C>").c_str());
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ D>").c_str());
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ E>").c_str());
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ F>").c_str());
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ G>").c_str());
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ H>").c_str());
+    }
     const auto& indicies = Variables::RulesMap.ParseIndicies("Countries", true);
     for (auto& value : indicies)
     {
@@ -400,6 +412,16 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
 {
     switch (Msg)
     {
+    case WM_ACTIVATE:
+    {
+        if (CurrentTrigger)
+        {
+            CTriggerAnnotation::Type = AnnoTrigger;
+            CTriggerAnnotation::ID = CurrentTriggerID;
+            ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+        }
+        return TRUE;
+    }
     case WM_INITDIALOG:
     {
         CNewTrigger::Initialize(hWnd);
@@ -996,7 +1018,9 @@ void CNewTrigger::OnSelchangeHouse(bool edited)
     if (!text)
         return;
 
-    FString::TrimIndex(text);
+    if (text.find("<Player @") == std::string::npos)
+        FString::TrimIndex(text);
+
     if (text == "")
         text = "<none>";
 
@@ -1004,7 +1028,6 @@ void CNewTrigger::OnSelchangeHouse(bool edited)
 
     CurrentTrigger->House = Translations::ParseHouseName(text, false);
     CurrentTrigger->Save();
-
 }
 
 void CNewTrigger::OnSelchangeType(bool edited)
@@ -1346,6 +1369,10 @@ void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionLi
 
     CurrentTrigger = CMapDataExt::GetTrigger(CurrentTriggerID);
     if (!CurrentTrigger) return;
+
+    CTriggerAnnotation::Type = AnnoTrigger;
+    CTriggerAnnotation::ID = CurrentTriggerID;
+    ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
 
     SendMessage(hName, WM_SETTEXT, 0, (LPARAM)CurrentTrigger->Name.c_str());
     

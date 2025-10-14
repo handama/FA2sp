@@ -18,6 +18,7 @@
 #include "../CNewTrigger/CNewTrigger.h"
 #include "../CSearhReference/CSearhReference.h"
 #include <numeric>
+#include "../CTriggerAnnotation/CTriggerAnnotation.h"
 
 HWND CNewScript::m_hwnd;
 CFinalSunDlg* CNewScript::m_parent;
@@ -261,6 +262,16 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
 {
     switch (Msg)
     {
+    case WM_ACTIVATE:
+    {
+        if (SelectedScriptIndex >= 0 && SelectedScriptIndex < SendMessage(hSelectedScript, CB_GETCOUNT, NULL, NULL))
+        {
+            CTriggerAnnotation::Type = AnnoScript;
+            CTriggerAnnotation::ID = CurrentScriptID;
+            ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+        }
+        return TRUE;
+    }
     case WM_INITDIALOG:
     {
         CNewScript::Initialize(hWnd);
@@ -711,6 +722,11 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
     FString::TrimIndex(pID);
 
     CurrentScriptID = pID;
+
+    CTriggerAnnotation::Type = AnnoScript;
+    CTriggerAnnotation::ID = CurrentScriptID;
+    ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+
     while (SendMessage(hActionsListBox, LB_DELETESTRING, 0, NULL) != CB_ERR);
     if (auto pScript = map.GetSection(pID))
     {
@@ -883,33 +899,39 @@ void CNewScript::OnClickAddAction(HWND& hWnd)
     if (bInsert)
     {
         int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
-        std::vector<FString> sortedList;
-        for (int i = 0; i < 50; i++)
+        if (idx >= 0)
         {
-            FString key;
-            key.Format("%d", i);
-            auto value = map.GetString(CurrentScriptID, key);
-            if (value != "")
+            std::vector<FString> sortedList;
+            for (int i = 0; i < 50; i++)
             {
-                if (FString::SplitString(value).size() == 2)
-                    sortedList.push_back(value);
+                FString key;
+                key.Format("%d", i);
+                auto value = map.GetString(CurrentScriptID, key);
+                if (value != "")
+                {
+                    if (FString::SplitString(value).size() == 2)
+                        sortedList.push_back(value);
+                }
+                map.DeleteKey(CurrentScriptID, key);
             }
-            map.DeleteKey(CurrentScriptID, key);
-        }
-        auto it = sortedList.begin() + idx;
-        sortedList.insert(it, "0,0");
-        int i = 0;
-        for (auto& value : sortedList)
-        {
-            auto atoms = FString::SplitString(value, 1);
-            FString text;
-            FString key;
-            key.Format("%d", i);
-            map.WriteString(CurrentScriptID, key, value);
-            i++;
-        }
+            if (idx < sortedList.size())
+            {
+                auto it = sortedList.begin() + idx;
+                sortedList.insert(it, "0,0");
+                int i = 0;
+                for (auto& value : sortedList)
+                {
+                    auto atoms = FString::SplitString(value, 1);
+                    FString text;
+                    FString key;
+                    key.Format("%d", i);
+                    map.WriteString(CurrentScriptID, key, value);
+                    i++;
+                }
 
-        OnSelchangeScript(false, idx);
+                OnSelchangeScript(false, idx);
+            }
+        }    
     }
     else
     {
@@ -938,6 +960,8 @@ void CNewScript::OnClickCloneAction(HWND& hWnd)
         return;
 
     int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
+    if (idx < 0) return;
+
     char buffer[512]{ 0 };
     FString text;
     FString key;
@@ -960,21 +984,24 @@ void CNewScript::OnClickCloneAction(HWND& hWnd)
                     sortedList.push_back(value);
             }
             map.DeleteKey(CurrentScriptID, key);
-        }
-        auto it = sortedList.begin() + idx;
-        sortedList.insert(it, copied);
-        int i = 0;
-        for (auto& value : sortedList)
+        }           
+        if (idx < sortedList.size())
         {
-            auto atoms = FString::SplitString(value, 1);
-            FString text;
-            FString key;
-            key.Format("%d", i);
-            map.WriteString(CurrentScriptID, key, value);
-            i++;
-        }
+            auto it = sortedList.begin() + idx;
+            sortedList.insert(it, copied);
+            int i = 0;
+            for (auto& value : sortedList)
+            {
+                auto atoms = FString::SplitString(value, 1);
+                FString text;
+                FString key;
+                key.Format("%d", i);
+                map.WriteString(CurrentScriptID, key, value);
+                i++;
+            }
 
-        OnSelchangeScript(false, idx);
+            OnSelchangeScript(false, idx);
+        }
     }
     else
     {
@@ -1102,6 +1129,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
             action = atoms[0];
         }
         auto atoms2 = FString::SplitString(fadata.GetString("ScriptsRA2", action, action + " - MISSING,0,1,0,MISSING"), 4);
+        bool missing = !fadata.KeyExists("ScriptsRA2", action);
         FString name = atoms2[0];
         auto& paramIdx = atoms2[1];
         auto& disable = atoms2[2];
@@ -1190,6 +1218,18 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                         SendMessage(hActionParam, CB_SETCURSEL, idx, NULL);
                 }
             }
+        }
+        else if (missing)
+        {
+            EnableWindow(hActionParam, TRUE);
+            EnableWindow(hActionExtraParam, FALSE);
+            while (SendMessage(hActionParam, CB_DELETESTRING, 0, NULL) != CB_ERR);
+            SendMessage(hActionExtraParam, WM_SETTEXT, 0, (LPARAM)"");
+            SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)atoms[1]);
+            Translations::GetTranslationItem("ScriptTypesActionParam", buffer);
+            SendMessage(hActionParamDes, WM_SETTEXT, 0, (LPARAM)buffer);
+            Translations::GetTranslationItem("ScriptTypesExtraParam", buffer);
+            SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)buffer);
         }
         else
         {

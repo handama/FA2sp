@@ -8,6 +8,7 @@
 #include <../FA2sp/Ext/CMapData/Body.h>
 #include <thread>
 #include "../../Helpers/Translations.h"
+#include "../CFinalSunApp/Body.h"
 
 HANDLE CLoadingExt::hPipeData = NULL;
 std::atomic<bool> CLoadingExt::PingServerRunning = true;
@@ -49,7 +50,7 @@ bool CLoadingExt::StartImageServerProcess()
     PipeNameData = PipeName + "_data";
     PipeNamePing = PipeName + "_ping";
 
-    FString exePath = CFinalSunApp::ExePath();
+    FString exePath = CFinalSunAppExt::ExePathExt;
     exePath += "\\ImageServer.exe"; //Is64BitOS() ? "\\ImageServer64.exe" :
 
     FString command = exePath + " \"" + PipeName + "\"";

@@ -145,6 +145,16 @@ void CNewINIEditor::InitializeImporter(HWND& hWnd)
     ExtraWindow::SetEditControlFontSize(hImporterText, 1.4f, true, "Consolas");
     SendMessage(hImporterText, EM_LIMITTEXT, (WPARAM)INI_BUFFER_SIZE, 0);
     SendMessage(hImporterText, EM_SETUNDOLIMIT, 0, 0);
+
+    if (ExtConfigs::EnableDarkMode)
+    {
+        ::SendMessage(hImporterText, EM_SETBKGNDCOLOR, (WPARAM)FALSE, (LPARAM)RGB(32, 32, 32));
+        CHARFORMAT cf = { 0 };
+        cf.cbSize = sizeof(cf);
+        cf.dwMask = CFM_COLOR;
+        cf.crTextColor = RGB(220, 220, 220);
+        ::SendMessage(hImporterText, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
+    }
 }
 
 void CNewINIEditor::Update(HWND& hWnd)
@@ -153,7 +163,6 @@ void CNewINIEditor::Update(HWND& hWnd)
     SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
     int currentIndex = SendMessage(hSectionList, LB_GETCURSEL, NULL, NULL);
 
-    SendMessage(hSearchText, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
     SectionLabels.clear();
     while (SendMessage(hSectionList, LB_DELETESTRING, 0, NULL) != CB_ERR);
     auto itr = map.Dict.begin();
@@ -164,8 +173,12 @@ void CNewINIEditor::Update(HWND& hWnd)
         if (ExtConfigs::INIEditor_IgnoreTeams && IsTeam(sectionName)) continue;
         SendMessage(hSectionList, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)sectionName.m_pchData);
     }
-    
-    OnSelchangeListbox(currentIndex);
+    char buffer[512]{ 0 };
+    GetWindowText(hSearchText, buffer, 511);
+    if (strcmp(buffer, "") != 0)
+        OnEditchangeSearch();
+    else
+        OnSelchangeListbox(currentIndex);
 }
 
 void CNewINIEditor::CloseImporter(HWND& hWnd)
@@ -659,7 +672,7 @@ void CNewINIEditor::UpdateGameObject(const char* lpSectionName)
         CMapDataExt::UpdateFieldInfantryData_RedrawMinimap();
     }
     else if (strcmp(lpSectionName, "Annotations") == 0) {
-        CMapData::Instance->UpdateFieldInfantryData(false);
+        CMapDataExt::UpdateAnnotation();
     }
     else if (strcmp(lpSectionName, "Countries") == 0) {
         CMapDataExt::UpdateMapSectionIndicies("Countries");

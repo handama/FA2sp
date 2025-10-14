@@ -53,6 +53,7 @@ POPUP "Edit"
 	MENUITEM SEPARATOR
 	MENUITEM "INI editing\tCtrl+I",  40154
 	MENUITEM "CSF viewer\tCtrl+Alt+C",  40155
+	MENUITEM "Trigger Annotation\tCtrl+Alt+A",  40164
 }
 POPUP "Terrain"
 {
@@ -109,7 +110,7 @@ POPUP "Options"
 
 POPUP "Layers"
 {
-	MENUITEM "Show All",  30050
+	MENUITEM "Reset Default\tCtrl+0",  30050
 	MENUITEM SEPARATOR
 	MENUITEM "Structures\tCtrl+1",  30000
 	MENUITEM "Infantries\tCtrl+2",  30001

@@ -3,6 +3,7 @@
 #include <windowsx.h>
 #include "CFinalSunDlg.h"
 #include <psapi.h>
+#include "../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
 
 HBRUSH DarkTheme::g_hDarkBackgroundBrush = NULL;
 HBRUSH DarkTheme::g_hDarkControlBrush = NULL;
@@ -498,6 +499,8 @@ LRESULT DarkTheme::HandleCustomDraw(LPARAM lParam)
             pNMTVCD->clrText = isSelected ? DarkColors::White : DarkColors::LightText;
             return CDRF_DODEFAULT;
         }
+
+        break;
     }
     }
 
@@ -523,6 +526,12 @@ void DarkTheme::SetDarkTheme(HWND hWndParent)
         GetClassNameW(hWndChild, className, _countof(className));
         if (_wcsicmp(className, WC_COMBOBOXW) != 0)
             SetWindowTheme(hWndChild, L"DarkMode_Explorer", NULL);
+
+        if (_wcsicmp(className, L"SysListView32") == 0)
+        {
+            ::SendMessage(hWndChild, LVM_SETTEXTBKCOLOR, 0, DarkColors::Background);
+            ::SendMessage(hWndChild, LVM_SETTEXTCOLOR, 0, DarkColors::TextColor);
+        }
 
         SetDarkTheme(hWndChild);
     }
@@ -670,53 +679,25 @@ LRESULT DarkTheme::HandleMenuMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
                 checkRc.right = checkRc.left + 20;
                 checkRc.top += (rc.bottom - rc.top - 16) / 2;
                 checkRc.bottom = checkRc.top + 16;
-
-                if (pInfo->bRadioCheck)
+                HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), 
+                    MAKEINTRESOURCE(pInfo->bRadioCheck ? 1029 : 1028),
+                    IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+                if (hBmp)
                 {
-                    int cx = (checkRc.left + checkRc.right) / 2;
-                    int cy = (checkRc.top + checkRc.bottom) / 2;
-                    int rOuter = (checkRc.right - checkRc.left) / 4;
-                    int rInner = rOuter - 2;
+                    HDC hMemDC = CreateCompatibleDC(hdc);
+                    HBITMAP hOldBmp = (HBITMAP)SelectObject(hMemDC, hBmp);
 
-                    HPEN hPen = CreatePen(PS_SOLID, 1, RGB(150, 150, 150));
-                    HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
-                    HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
+                    BITMAP bm;
+                    GetObject(hBmp, sizeof(bm), &bm);
 
-                    Ellipse(hdc, cx - rOuter, cy - rOuter, cx + rOuter, cy + rOuter);
+                    int x = rc.left + 3;
+                    int y = rc.top + (rc.bottom - rc.top - bm.bmHeight) / 2;
 
-                    HBRUSH hFillBrush = CreateSolidBrush(RGB(200, 200, 200));
-                    HBRUSH hOldFill = (HBRUSH)SelectObject(hdc, hFillBrush);
-                    Ellipse(hdc, cx - rInner, cy - rInner, cx + rInner, cy + rInner);
-                    SelectObject(hdc, hOldFill);
-                    DeleteObject(hFillBrush);
+                    TransparentBlt(hdc, x, y, bm.bmWidth, bm.bmHeight,
+                        hMemDC, 0, 0, bm.bmWidth, bm.bmHeight, DarkColors::Background);
 
-                    SelectObject(hdc, hOldBrush);
-                    SelectObject(hdc, hOldPen);
-                    DeleteObject(hPen);
-                }
-                else
-                {
-                    int size = checkRc.bottom - checkRc.top;
-                    int width = size;
-                    RECT boxRc = { checkRc.left + 3, checkRc.top, checkRc.left + width + 3, checkRc.bottom };
-
-                    HBRUSH hBoxBrush = CreateSolidBrush(RGB(80, 80, 80));
-                    HPEN   hBorderPen = CreatePen(PS_SOLID, 1, RGB(180, 180, 180));
-
-                    HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, hBoxBrush);
-                    HPEN   hOldPen = (HPEN)SelectObject(hdc, hBorderPen);
-
-                    RoundRect(hdc, boxRc.left, boxRc.top, boxRc.right, boxRc.bottom, 4, 4);
-
-                    MoveToEx(hdc, boxRc.left + 3, boxRc.top + size / 2, NULL);
-                    LineTo(hdc, boxRc.left + size / 2, boxRc.bottom - 3);
-                    LineTo(hdc, boxRc.right - 3, boxRc.top + 3);
-
-                    SelectObject(hdc, hOldBrush);
-                    SelectObject(hdc, hOldPen);
-
-                    DeleteObject(hBoxBrush);
-                    DeleteObject(hBorderPen);
+                    SelectObject(hMemDC, hOldBmp);
+                    DeleteDC(hMemDC);
                 }
             }
 
@@ -820,7 +801,7 @@ void DarkTheme::DrawMenuItems(HDC hdc, RECT rc)
         if (item.isDisabled)
             SetTextColor(hdc, DarkColors::DisabledText);
         else
-            SetTextColor(hdc, RGB(240, 240, 240));
+            SetTextColor(hdc, DarkColors::LightText);
 
         RECT textRc = item.rect;
 
@@ -957,7 +938,7 @@ void DarkTheme::DrawComboBoxArrow(HDC hdc, RECT rc, bool enabled)
 
     FillRect(hdc, &arrowRc, enabled ? g_hHighlightBrush : g_hDarkMenuBrush);
 
-    HPEN hPen = CreatePen(PS_SOLID, 1, enabled ? RGB(200, 200, 200) : RGB(128, 128, 128));
+    HPEN hPen = CreatePen(PS_SOLID, 1, enabled ? DarkColors::RadioFill : DarkColors::DisabledText);
     HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
 
     int centerX = arrowRc.left + (arrowRc.right - arrowRc.left) / 2;
@@ -1029,7 +1010,6 @@ LRESULT CALLBACK DarkTheme::ComboBoxSubclassProc(
 
         return TRUE;
     }
-
     case WM_ERASEBKGND:
     {
         HDC hdc = (HDC)wParam;
@@ -1040,15 +1020,26 @@ LRESULT CALLBACK DarkTheme::ComboBoxSubclassProc(
 
         return TRUE;
     }
-
     case WM_CTLCOLOREDIT:
-    case WM_CTLCOLORLISTBOX:
     {
         HDC hdc = (HDC)wParam;
 
         SetTextColor(hdc, IsWindowEnabled(hWnd) ? DarkColors::LightText : DarkColors::DisabledText);
         SetBkMode(hdc, TRANSPARENT);
 
+        return (LRESULT)g_hDarkControlBrush;
+    }
+    case WM_CTLCOLORLISTBOX:
+    {
+        HDC hdc = (HDC)wParam;
+        HWND hComboLBox = (HWND)lParam;
+        SetTextColor(hdc, IsWindowEnabled(hWnd) ? DarkColors::LightText : DarkColors::DisabledText);
+        SetBkMode(hdc, TRANSPARENT);
+        if (!GetPropW(hComboLBox, L"DarkThemeApplied"))
+        {
+            SetWindowTheme(hComboLBox, L"DarkMode_Explorer", NULL);
+            SetPropW(hComboLBox, L"DarkThemeApplied", (HANDLE)1);
+        }
         return (LRESULT)g_hDarkControlBrush;
     }
 
@@ -1345,23 +1336,29 @@ LRESULT CALLBACK DarkTheme::DarkButtonSubclassProc(HWND hwnd, UINT uMsg, WPARAM 
         }
         else if (isRadio)
         {
-            HPEN hOldPen = (HPEN)SelectObject(hdcMem, (state && state->hover) ? g_hHoverBorderPen : g_hRadioBorderPen);
-            HBRUSH hOldBrush = (HBRUSH)SelectObject(hdcMem, GetStockObject(NULL_BRUSH));
-
-            Ellipse(hdcMem, glyphRc.left + 1, glyphRc.top + 1, glyphRc.right - 1, glyphRc.bottom - 1);
-
-            if (checked == BST_CHECKED)
+            HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance),
+                MAKEINTRESOURCE(checked == BST_CHECKED ? 
+                    ((state && state->hover) ? 1031 : 1029): ((state && state->hover) ? 1032 : 1030)),
+                IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+            if (hBmp)
             {
-                int cx = (glyphRc.left + glyphRc.right) / 2;
-                int cy = (glyphRc.top + glyphRc.bottom) / 2;
-                int rInner = kGlyphSize / 3 - 1;
-                HBRUSH hOldF = (HBRUSH)SelectObject(hdcMem, g_hRadioFillBrush);
-                Ellipse(hdcMem, cx - rInner, cy - rInner, cx + rInner, cy + rInner);
-                SelectObject(hdcMem, hOldF);
-            }
+                HDC hBmpDC = CreateCompatibleDC(hdc);
+                HBITMAP hOldBmp = (HBITMAP)SelectObject(hBmpDC, hBmp);
 
-            SelectObject(hdcMem, hOldBrush);
-            SelectObject(hdcMem, hOldPen);
+                BITMAP bm;
+                GetObject(hBmp, sizeof(bm), &bm);
+
+                TransparentBlt(
+                    hdcMem,  
+                    glyphRc.left - 2, glyphRc.top - 2,
+                    bm.bmWidth, bm.bmHeight,
+                    hBmpDC, 0, 0, bm.bmWidth, bm.bmHeight,
+                    DarkColors::Background);
+
+                SelectObject(hBmpDC, hOldBmp);
+                DeleteDC(hBmpDC);
+                DeleteObject(hBmp);
+            }
         }
 
         RECT textRc = { glyphRc.right + 4, 0, w - 4, h };
@@ -1393,6 +1390,8 @@ LRESULT CALLBACK DarkTheme::DarkGroupBoxclassProc(HWND hwnd, UINT uMsg, WPARAM w
 {
     switch (uMsg)
     {
+    case WM_ERASEBKGND:
+        return TRUE;
     case WM_PAINT:
     {
         PAINTSTRUCT ps;
@@ -1528,7 +1527,7 @@ void DarkTheme::SubclassAllControls(HWND hWndParent)
     {
         SetWindowSubclass(hWndChild, EditSubclassProc, 0, 0);
     }
-
+    
     hWndChild = NULL;
     while ((hWndChild = FindWindowEx(hWndParent, hWndChild, "RichEdit", NULL)) != NULL)
     {
@@ -1562,8 +1561,10 @@ void DarkTheme::SubclassAllControls(HWND hWndParent)
 
 LRESULT DarkTheme::GenericWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
-    if (ExtConfigs::EnableDarkMode
-        && CFinalSunDlg::Instance
+    if (!ExtConfigs::EnableDarkMode)
+        return FALSE;
+
+    if (CFinalSunDlg::Instance
         && hWnd == CFinalSunDlg::Instance->GetSafeHwnd())
     {
         switch (Msg)
@@ -1654,21 +1655,10 @@ bool DarkTheme::IsModernFileDialog(HWND hWnd)
         features.hasToolbar && features.hasReBar;
 }
 
-LRESULT WINAPI DarkTheme::MyDefWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+void DarkTheme::InitDialogOptions(HWND hWnd)
 {
-    if (!ExtConfigs::EnableDarkMode)
-        return ::DefWindowProcA(hWnd, Msg, wParam, lParam);
-
-    if (Msg == WM_INITDIALOG)
+    if (ExtConfigs::EnableDarkMode)
     {
-        LRESULT result = ::DefWindowProcA(hWnd, Msg, wParam, lParam);
-        if (IsModernFileDialog(hWnd))
-        {
-            return result;
-        }
-        SetDarkTheme(hWnd);
-        SubclassAllControls(hWnd);
-        SubclassAllAutoButtons(hWnd);
         WCHAR className[32] = {};
         GetClassNameW(hWnd, className, 32);
         if (wcscmp(className, L"#32770") == 0)
@@ -1677,11 +1667,47 @@ LRESULT WINAPI DarkTheme::MyDefWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, L
             {
                 if (GetDlgItem(hWnd, i))
                 {
+                    HMODULE hMod = (HMODULE)GetWindowLongPtrW(hWnd, GWLP_HINSTANCE);
+                    if (hMod != NULL)
+                    {
+                        wchar_t modPath[MAX_PATH];
+                        if (GetModuleFileNameW(hMod, modPath, _countof(modPath)) != 0)
+                        {
+                            // CHOOSECOLOR dialog
+                            if (wcsstr(modPath, L"comdlg32") != nullptr || wcsstr(modPath, L"comdlg32.dll") != nullptr)
+                                break;
+                        }
+                    }
                     SetPropW(hWnd, L"IS_MESSAGEBOX", (HANDLE)1);
                     break;
                 }
             }
         }
+        SetDarkTheme(hWnd);
+        SubclassAllControls(hWnd);
+        SubclassAllAutoButtons(hWnd);
+    }
+    HWND mapValidatorList = ::GetDlgItem(hWnd, 1357);
+    HWND mapValidatorText = ::GetDlgItem(hWnd, 1358);
+    if (mapValidatorList && mapValidatorText)
+    {
+        LVCOLUMN col = { 0 };
+        col.mask = LVCF_WIDTH;
+        col.cx = 800;
+        ListView_InsertColumn(mapValidatorList, 0, &col);
+    }
+}
+
+LRESULT WINAPI DarkTheme::MyDefWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+    if (Msg == WM_INITDIALOG)
+    {
+        LRESULT result = ::DefWindowProcA(hWnd, Msg, wParam, lParam);
+        if (IsModernFileDialog(hWnd))
+        {
+            return result;
+        }
+        InitDialogOptions(hWnd);
         return result;
     }
 
@@ -1699,9 +1725,6 @@ LRESULT WINAPI DarkTheme::MyCallWindowProcA(
     WPARAM wParam,
     LPARAM lParam)
 {
-    if (!ExtConfigs::EnableDarkMode)
-        return ::CallWindowProcA(lpPrevWndFunc, hWnd, Msg, wParam, lParam);
-
     if (Msg == WM_INITDIALOG)
     {
         LRESULT result = ::CallWindowProcA(lpPrevWndFunc, hWnd, Msg, wParam, lParam);
@@ -1709,23 +1732,31 @@ LRESULT WINAPI DarkTheme::MyCallWindowProcA(
         {
             return result;
         }
-        SetDarkTheme(hWnd);
-        SubclassAllControls(hWnd);
-        SubclassAllAutoButtons(hWnd);
-        WCHAR className[32] = {};
-        GetClassNameW(hWnd, className, 32);
-        if (wcscmp(className, L"#32770") == 0)
+        InitDialogOptions(hWnd);       
+        return result;
+    }
+    if (Msg == WM_ACTIVATE)
+    {
+        if (CFinalSunDlg::Instance && CFinalSunDlg::Instance->Tags
+            && hWnd == CFinalSunDlg::Instance->Tags.GetSafeHwnd())
         {
-            for (int i = IDOK; i <= IDCONTINUE; ++i)
+            LRESULT result = ::CallWindowProcA(lpPrevWndFunc, hWnd, Msg, wParam, lParam);
+            auto& tag = CFinalSunDlg::Instance->Tags;
+            int index = tag.CCBTagList.GetCurSel();
+            if (index != CB_ERR)
             {
-                if (GetDlgItem(hWnd, i))
+                ppmfc::CString text;
+                tag.CCBTagList.GetLBText(index, text);
+                STDHelpers::TrimIndex(text);
+                if (!text.IsEmpty())
                 {
-                    SetPropW(hWnd, L"IS_MESSAGEBOX", (HANDLE)1);
-                    break;
+                    CTriggerAnnotation::Type = AnnoTag;
+                    CTriggerAnnotation::ID = text;
+                    ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
                 }
             }
+            return result;
         }
-        return result;
     }
 
     LRESULT result = GenericWindowProcA(hWnd, Msg, wParam, lParam);
@@ -1943,11 +1974,37 @@ BOOL WINAPI DarkTheme::MyGetSaveFileNameA(LPOPENFILENAMEA ofn)
     return ok;
 }
 
+static double GetDouble(std::string value, double nDefault = 0) {
+    double ret = 0;
+    if (sscanf_s(value.c_str(), "%lf", &ret) == 1)
+    {
+        if (strchr(value.c_str(), '%%'))
+            ret *= 0.01;
+        return ret;
+    }
+    return nDefault;
+}
+
 DEFINE_HOOK(537129, ExeStart_DrakThemeHooks, 9)
 {
-    ExtConfigs::EnableDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "EnableDarkMode", "false").c_str());
-    ExtConfigs::EnableDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FinalAlert.ini", "Options",
-        "EnableDarkMode", ExtConfigs::EnableDarkMode ? "true" : "false").c_str());
+    ExtConfigs::AutoDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "AutoDarkMode", "true").c_str());
+    ExtConfigs::AutoDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FinalAlert.ini", "Options",
+        "AutoDarkMode", ExtConfigs::AutoDarkMode ? "true" : "false").c_str());
+    if (ExtConfigs::AutoDarkMode)
+    {
+        ExtConfigs::AutoDarkMode_SwitchTimeA = 
+            GetDouble(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "AutoDarkMode.StartTime", "-1.0"), -1.0);
+        ExtConfigs::AutoDarkMode_SwitchTimeB = 
+            GetDouble(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "AutoDarkMode.EndTime", "-1.0"), -1.0);
+        ExtConfigs::EnableDarkMode = FA2sp::IsDarkMode();
+    }
+    else
+    {
+        ExtConfigs::EnableDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "EnableDarkMode", "false").c_str());
+        ExtConfigs::EnableDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FinalAlert.ini", "Options",
+            "EnableDarkMode", ExtConfigs::EnableDarkMode ? "true" : "false").c_str());
+    }
+
     if (ExtConfigs::EnableDarkMode)
     {
         DarkTheme::InitDarkThemeBrushes();
@@ -1959,13 +2016,13 @@ DEFINE_HOOK(537129, ExeStart_DrakThemeHooks, 9)
         RunTime::ResetMemoryContentAt(0x591588, DarkTheme::MyGetSysColor);
         RunTime::ResetMemoryContentAt(0x5913CC, DarkTheme::MyGetSysColorBrush);
         RunTime::ResetMemoryContentAt(0x59107C, DarkTheme::MyGetStockObject);
-        RunTime::ResetMemoryContentAt(0x591448, DarkTheme::MyDefWindowProcA);
-        RunTime::ResetMemoryContentAt(0x591464, DarkTheme::MyCallWindowProcA);
         //RunTime::ResetMemoryContentAt(0x591070, DarkTheme::MyCreatePen);
         //RunTime::ResetMemoryContentAt(0x591078, DarkTheme::MySetTextColor);
         RunTime::SetJump(0x5636C0, (DWORD)DarkTheme::MyOnEraseBkgnd);
         //RunTime::ResetMemoryContentAt(0x591060, DarkTheme::MySetPixel);
     }
+    RunTime::ResetMemoryContentAt(0x591448, DarkTheme::MyDefWindowProcA);
+    RunTime::ResetMemoryContentAt(0x591464, DarkTheme::MyCallWindowProcA);
     RunTime::ResetMemoryContentAt(0x5915D4, DarkTheme::MyGetOpenFileNameA);
     RunTime::ResetMemoryContentAt(0x5915DC, DarkTheme::MyGetSaveFileNameA);
 

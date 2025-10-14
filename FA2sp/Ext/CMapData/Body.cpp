@@ -36,6 +36,7 @@
 #include "../../Miscs/Hooks.INI.h"
 #include <unordered_set>
 #include "../../Miscs/TheaterInfo.h"
+#include "../../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
 
 int CMapDataExt::OreValue[4] { -1,-1,-1,-1 };
 unsigned short CMapDataExt::CurrentRenderBuildingStrength;
@@ -89,7 +90,10 @@ WORD CMapDataExt::NewOverlay[0x40000] = {0xFFFF};
 HistoryList CMapDataExt::UndoRedoDatas;
 int CMapDataExt::UndoRedoDataIndex;
 bool CMapDataExt::IsLoadingMapFile = false;
+bool CMapDataExt::IsMMXFile = false;
+bool CMapDataExt::IsUTF8File = false;
 std::vector<FString> CMapDataExt::MapIniSectionSorting;
+std::map<FString, std::set<FString>> CMapDataExt::PowersUpBuildings;
 ObjectRecord* ObjectRecord::ObjectRecord_HoldingPtr = nullptr;
 
 int CMapDataExt::GetOreValue(unsigned short nOverlay, unsigned char nOverlayData)
@@ -215,9 +219,20 @@ void CMapDataExt::GetBuildingDataByIniID(int bldID, CBuildingData& data)
 void CMapDataExt::UpdateTriggers()
 {
 	CMapDataExt::Triggers.clear();
+	std::map<FString, FString> TagMap;
+	if (auto pSection = CINI::CurrentDocument().GetSection("Tags"))
+	{
+		for (auto& kvp : pSection->GetEntities())
+		{
+			auto tagAtoms = FString::SplitString(kvp.second);
+			if (tagAtoms.size() < 3) continue;
+			if (TagMap.find(tagAtoms[2]) == TagMap.end())
+				TagMap[tagAtoms[2]] = kvp.first;
+		}
+	}
 	if (auto pSection = CINI::CurrentDocument->GetSection("Triggers")) {
 		for (const auto& pair : pSection->GetEntities()) {
-			std::shared_ptr<Trigger> trigger(Trigger::create(pair.first));
+			std::shared_ptr<Trigger> trigger(Trigger::create(pair.first, &TagMap));
 			if (!trigger) {
 				continue;
 			}
@@ -1258,12 +1273,14 @@ int CMapDataExt::GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord)
 	return 0;
 }
 
-bool CMapDataExt::IsValidTileSet(int tileset) 
+bool CMapDataExt::IsValidTileSet(int tileset, bool allowToPlace)
 {
 	FString buffer;
 	buffer.Format("TileSet%04d", tileset);
 
 	auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
+	if (!allowToPlace)
+		exist = true;
 	auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
 	auto exist3 = CINI::CurrentTheater->GetInteger(buffer, "TilesInSet");
 	if (!exist || strcmp(exist2, "") == 0 || exist3 < 1)
@@ -1420,7 +1437,7 @@ OverlayTypeData CMapDataExt::GetOverlayTypeData(WORD index)
 	OverlayTypeData ret;
 	ret.Rock = false;
 	ret.Wall = false;
-	ret.WallPaletteName = "";
+	ret.CustomPaletteName = "";
 	ret.TerrainRock = false;
 	ret.RadarColor.R = 0;
 	ret.RadarColor.G = 0;
@@ -2086,6 +2103,63 @@ void CMapDataExt::UpdateFieldAircraftData_RedrawMinimap()
 	}
 }
 
+void CMapDataExt::InitializeTileData()
+{
+	if (CMapDataExt::TileData)
+		delete[] CMapDataExt::TileData;
+	CMapDataExt::TileData = nullptr;
+
+	auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+	thisTheater.MakeUpper();
+	if (thisTheater == "TEMPERATE" && CTileTypeInfo::Temperate().Datas)
+	{
+		CurrentTheaterIndex = 0;
+		TileDataCount = CTileTypeInfo::Temperate().Count;
+		TileData = new CTileTypeClass[CMapDataExt::TileDataCount];
+		memcpy(TileData, CTileTypeInfo::Temperate().Datas, TileDataCount * sizeof(CTileTypeClass));
+	}
+	else if (thisTheater == "SNOW" && CTileTypeInfo::Snow().Datas)
+	{
+		CurrentTheaterIndex = 1;
+		TileDataCount = CTileTypeInfo::Snow().Count;
+		TileData = new CTileTypeClass[CMapDataExt::TileDataCount];
+		memcpy(TileData, CTileTypeInfo::Snow().Datas, TileDataCount * sizeof(CTileTypeClass));
+	}
+	else if (thisTheater == "URBAN" && CTileTypeInfo::Urban().Datas)
+	{
+		CurrentTheaterIndex = 2;
+		TileDataCount = CTileTypeInfo::Urban().Count;
+		TileData = new CTileTypeClass[CMapDataExt::TileDataCount];
+		memcpy(TileData, CTileTypeInfo::Urban().Datas, TileDataCount * sizeof(CTileTypeClass));
+	}
+	else if (thisTheater == "NEWURBAN" && CTileTypeInfo::NewUrban().Datas)
+	{
+		CurrentTheaterIndex = 3;
+		TileDataCount = CTileTypeInfo::NewUrban().Count;
+		TileData = new CTileTypeClass[CMapDataExt::TileDataCount];
+		memcpy(TileData, CTileTypeInfo::NewUrban().Datas, TileDataCount * sizeof(CTileTypeClass));
+	}
+	else if (thisTheater == "LUNAR" && CTileTypeInfo::Lunar().Datas)
+	{
+		CurrentTheaterIndex = 4;
+		TileDataCount = CTileTypeInfo::Lunar().Count;
+		TileData = new CTileTypeClass[CMapDataExt::TileDataCount];
+		memcpy(TileData, CTileTypeInfo::Lunar().Datas, TileDataCount * sizeof(CTileTypeClass));
+	}
+	else if (thisTheater == "DESERT" && CTileTypeInfo::Desert().Datas)
+	{
+		CurrentTheaterIndex = 5;
+		TileDataCount = CTileTypeInfo::Desert().Count;
+		TileData = new CTileTypeClass[CMapDataExt::TileDataCount];
+		memcpy(TileData, CTileTypeInfo::Desert().Datas, TileDataCount * sizeof(CTileTypeClass));
+	}
+
+	if (!CMapDataExt::TileData)
+	{
+		Logger::Error("CMapDataExt::InitializeTileData() cannot initialize tile data!\n");
+	}
+}
+
 void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDataExt)
 {
 	Logger::Debug("CMapDataExt::InitializeAllHdmEdition() Called!\n");
@@ -2117,7 +2191,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		auto& item = CMapDataExt::OverlayTypeDatas.emplace_back();
 		item.Rock = Variables::RulesMap.GetBool(ol, "IsARock");
 		item.Wall = Variables::RulesMap.GetBool(ol, "Wall");
-		item.WallPaletteName = CINI::Art->GetString(ol, "Palette", "unit");
+		item.CustomPaletteName = CINI::Art->GetString(ol, "Palette");
 		item.TerrainRock = Variables::RulesMap.GetString(ol, "Land", "") == "Rock";
 		auto name = Variables::RulesMap.GetString(ol, "Name", "");
 		name.MakeLower();
@@ -2187,44 +2261,14 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		CSearhReference::SetSearchID("");
 		::SendMessage(CSearhReference::GetHandle(), WM_CLOSE, 0, 0);
 	}
+	if (CTriggerAnnotation::GetHandle())
+	{
+		CTriggerAnnotation::ID = "";
+		::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
+	}
 
 	auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
-	if (thisTheater == "TEMPERATE")
-	{
-		CurrentTheaterIndex = 0;
-		CMapDataExt::TileData = CTileTypeInfo::Temperate().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::Temperate().Count;
-	}
-	if (thisTheater == "SNOW")
-	{
-		CurrentTheaterIndex = 1;
-		CMapDataExt::TileData = CTileTypeInfo::Snow().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::Snow().Count;
-	}
-	if (thisTheater == "URBAN")
-	{
-		CurrentTheaterIndex = 2;
-		CMapDataExt::TileData = CTileTypeInfo::Urban().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::Urban().Count;
-	}
-	if (thisTheater == "NEWURBAN")
-	{
-		CurrentTheaterIndex = 3;
-		CMapDataExt::TileData = CTileTypeInfo::NewUrban().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::NewUrban().Count;
-	}
-	if (thisTheater == "LUNAR")
-	{
-		CurrentTheaterIndex = 4;
-		CMapDataExt::TileData = CTileTypeInfo::Lunar().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::Lunar().Count;
-	}
-	if (thisTheater == "DESERT")
-	{
-		CurrentTheaterIndex = 5;
-		CMapDataExt::TileData = CTileTypeInfo::Desert().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::Desert().Count;
-	}
+	thisTheater.MakeUpper();
 
 	CFinalSunDlgExt::CurrentLighting = 31000;
 	CheckMenuRadioItem(*CFinalSunDlg::Instance->GetMenu(), 31000, 31003, 31000, MF_UNCHECKED);
@@ -2484,6 +2528,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		// just update coords with overlays to show correct color
 		for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
 			for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
+				CMapDataExt::CellDataExts[i + j * CMapData::Instance->MapWidthPlusHeight].NewOverlay = CMapDataExt::NewOverlay[j + i * 512];
 				if (CMapDataExt::GetExtension()->GetOverlayAt(CMapData::Instance->GetCoordIndex(i, j)) != 0xFFFF) {
 					CMapData::Instance->UpdateMapPreviewAt(i, j);
 				}
@@ -2574,4 +2619,23 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	}
 	UpdateAnnotation();
 	CIsoViewExt::DistanceRuler.clear();
+	CMapDataExt::PowersUpBuildings.clear();
+	auto buildings = Variables::RulesMap.ParseIndicies("BuildingTypes", true);
+	for (const auto& building : buildings)
+	{
+		auto parent = Variables::RulesMap.GetString(building, "PowersUpBuilding");
+		if (!parent.IsEmpty())
+		{
+			CMapDataExt::PowersUpBuildings[parent].insert(building);
+		}
+		auto parents = Variables::RulesMap.GetString(building, "PowersUp.Buildings");
+		if (!parents.IsEmpty())
+		{
+			auto atoms = STDHelpers::SplitString(parents);
+			for (auto& p : atoms)
+			{
+				CMapDataExt::PowersUpBuildings[p].insert(building);
+			}
+		}
+	}
 }

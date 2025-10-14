@@ -10,6 +10,7 @@
 #include "..\CMapData\Body.h"
 #include "../CIsoView/Body.h"
 #include <filesystem>
+#include "../CFinalSunApp/Body.h"
 namespace fs = std::filesystem;
 
 DEFINE_HOOK(486B00, CLoading_InitMixFiles, 7)
@@ -95,43 +96,6 @@ DEFINE_HOOK(4B8CFC, CMapData_CreateMap_InitMixFiles_Removal, 5)
 	return 0x4B8D0C;
 }
 
-DEFINE_HOOK(48E541, CLoading_InitTMPs_UpdateTileDatas, 7)
-{
-	auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
-	if (thisTheater == "TEMPERATE")
-	{
-		CMapDataExt::TileData = CTileTypeInfo::Temperate().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::Temperate().Count;
-	}
-	if (thisTheater == "SNOW")
-	{
-		CMapDataExt::TileData = CTileTypeInfo::Snow().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::Snow().Count;
-	}
-	if (thisTheater == "URBAN")
-	{
-		CMapDataExt::TileData = CTileTypeInfo::Urban().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::Urban().Count;
-	}
-	if (thisTheater == "NEWURBAN")
-	{
-		CMapDataExt::TileData = CTileTypeInfo::NewUrban().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::NewUrban().Count;
-	}
-	if (thisTheater == "LUNAR")
-	{
-		CMapDataExt::TileData = CTileTypeInfo::Lunar().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::Lunar().Count;
-	}
-	if (thisTheater == "DESERT")
-	{
-		CMapDataExt::TileData = CTileTypeInfo::Desert().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::Desert().Count;
-	}
-
-	return 0;
-}
-
 DEFINE_HOOK(48E970, CLoading_LoadTile_SkipTranspInsideCheck, 6)
 {
 	return 0x48EA44;
@@ -151,7 +115,7 @@ DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 	loadInternalBitmap("FLAG", 1023);
 	loadInternalBitmap("CELLTAG", 1024);
 
-	std::string pics = CFinalSunApp::ExePath();
+	std::string pics = CFinalSunAppExt::ExePathExt;
 	pics += "\\pics";
 	if (fs::exists(pics) && fs::is_directory(pics))
 	{
@@ -284,3 +248,55 @@ DEFINE_HOOK(52D098, CLoading_DrawTMP_5, 5)
 	return 0;
 }
 
+DEFINE_HOOK(48E541, CLoading_InitTMPs_LoadTileData, 7)
+{
+	CMapDataExt::InitializeTileData();
+	return 0;
+}
+
+DEFINE_HOOK(491D86, CLoading_Release_TheaterIsDesert, 5)
+{
+	R->ESI(5);
+	return 0x491D8B;
+}
+
+DEFINE_HOOK(491E96, CLoading_Release_SetTileDataType, 5)
+{
+	GET(int, TheaterType, ESI);
+	switch (TheaterType)
+	{
+	case 0:
+		CTileTypeClass::Instance = &CTileTypeInfo::Temperate->Datas;
+		CTileTypeClass::InstanceCount = &CTileTypeInfo::Temperate->Count;
+		break;
+	case 1:
+		CTileTypeClass::Instance = &CTileTypeInfo::Snow->Datas;
+		CTileTypeClass::InstanceCount = &CTileTypeInfo::Snow->Count;
+		break;
+	case 2:
+		CTileTypeClass::Instance = &CTileTypeInfo::Urban->Datas;
+		CTileTypeClass::InstanceCount = &CTileTypeInfo::Urban->Count;
+		break;
+	case 3:
+		CTileTypeClass::Instance = &CTileTypeInfo::NewUrban->Datas;
+		CTileTypeClass::InstanceCount = &CTileTypeInfo::NewUrban->Count;
+		break;
+	case 4:
+		CTileTypeClass::Instance = &CTileTypeInfo::Lunar->Datas;
+		CTileTypeClass::InstanceCount = &CTileTypeInfo::Lunar->Count;
+		break;
+	case 5:
+		CTileTypeClass::Instance = &CTileTypeInfo::Desert->Datas;
+		CTileTypeClass::InstanceCount = &CTileTypeInfo::Desert->Count;
+		break;
+	default:
+		CTileTypeClass::Instance = &CTileTypeInfo::Temperate->Datas;
+		CTileTypeClass::InstanceCount = &CTileTypeInfo::Temperate->Count;
+		break;
+	}
+	if (CMapDataExt::TileData)
+		delete[] CMapDataExt::TileData;
+	CMapDataExt::TileData = nullptr;
+	Logger::Debug("CLoading::Release() called.\n");
+	return 0x491F36;
+}

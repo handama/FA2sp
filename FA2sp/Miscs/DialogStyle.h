@@ -99,6 +99,7 @@ public:
     static void InitMenuItems(HWND hOverlay);
     static void DrawMenuItems(HDC hdc, RECT rc);
     static void SubclassAllControls(HWND hWndParent);
+    static void InitDialogOptions(HWND hWnd);
 
     static int WINAPI MyFillRect(HDC hDC, const RECT* lprc, HBRUSH hbr);
     static BOOL WINAPI MyPatBlt(HDC hdc, int x, int y, int w, int h, DWORD rop);

@@ -11,6 +11,54 @@ ImageDataClass CurrentOverlay;
 ImageDataClass* CurrentOverlayPtr = nullptr;
 void* NULLPTR = nullptr;
 
+static HRESULT HalveSurface(LPDIRECTDRAWSURFACE7* lpSurface)
+{
+    if (!lpSurface || !*lpSurface) return E_INVALIDARG;
+    LPDIRECTDRAWSURFACE7 lpSrc = *lpSurface;
+
+    DDSURFACEDESC2 ddsd;
+    ZeroMemory(&ddsd, sizeof(ddsd));
+    ddsd.dwSize = sizeof(ddsd);
+
+    HRESULT hr = lpSrc->GetSurfaceDesc(&ddsd);
+    if (FAILED(hr)) return hr;
+
+    DWORD newWidth = ddsd.dwWidth / 2;
+    DWORD newHeight = ddsd.dwHeight / 2;
+
+    LPDIRECTDRAW7 lpDD = nullptr;
+    hr = lpSrc->GetDDInterface((LPVOID*)&lpDD);
+    if (FAILED(hr)) return hr;
+
+    DDSURFACEDESC2 ddsdNew;
+    ZeroMemory(&ddsdNew, sizeof(ddsdNew));
+    ddsdNew.dwSize = sizeof(ddsdNew);
+    ddsdNew.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT | DDSD_PIXELFORMAT;
+    ddsdNew.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
+    ddsdNew.dwWidth = newWidth;
+    ddsdNew.dwHeight = newHeight;
+    ddsdNew.ddpfPixelFormat = ddsd.ddpfPixelFormat;
+
+    LPDIRECTDRAWSURFACE7 lpDest = nullptr;
+    hr = lpDD->CreateSurface(&ddsdNew, &lpDest, NULL);
+    lpDD->Release();
+    if (FAILED(hr)) return hr;
+
+    RECT srcRect = { 0, 0, (LONG)ddsd.dwWidth, (LONG)ddsd.dwHeight };
+    RECT dstRect = { 0, 0, (LONG)newWidth, (LONG)newHeight };
+
+    hr = lpDest->Blt(&dstRect, lpSrc, &srcRect, DDBLT_WAIT, NULL);
+    if (FAILED(hr)) {
+        lpDest->Release();
+        return hr;
+    }
+
+    lpSrc->Release();
+    *lpSurface = lpDest;
+
+    return DD_OK;
+}
+
 static bool setCurrentOverlay(ImageDataClassSafe* pData)
 {
     if (pData && pData->pImageBuffer)
@@ -121,13 +169,19 @@ DEFINE_HOOK(4F1E93, CTileSetBrowserView_OnDraw_ExtraWidth, 6)
     GET(int, iWidth, ECX);
     GET(int, iTileIndex, EDI);
     int newWidth = GetAddedWidth(iTileIndex) + iWidth;
-    if (newWidth > iWidth)
+    if (ExtConfigs::ShrinkTilesInTileSetBrowser)
+    {
+        iWidth /= 2;
+        newWidth /= 2;
+    }
+    if (newWidth > iWidth || ExtConfigs::ShrinkTilesInTileSetBrowser)
         R->ECX(newWidth);
 
     return 0;
 }
 
-DEFINE_HOOK(4F34B1, CTileSetBrowserView_SelectTileSet_ExtraWidth, A)
+
+DEFINE_HOOK(4F34B1, CTileSetBrowserView_SetTileSet_ExtraWidth, A)
 {
     GET(int, iWidth, EAX);
     GET(CTileSetBrowserView*, pThis, ESI);
@@ -153,6 +207,22 @@ DEFINE_HOOK(4F2243, CTileSetBrowserView_OnDraw_LoadOverlayImage, 6)
     {
         R->EAX(&CurrentOverlay);
     }
+    return 0;
+}
+
+DEFINE_HOOK(4F361E, CTileSetBrowserView_SetTileSet_ShrinkImage, 6)
+{
+    if (!ExtConfigs::ShrinkTilesInTileSetBrowser)
+        return 0;
+
+    GET(CTileSetBrowserView*, pThis, ESI);
+    for (int i = 0; i < pThis->TileSurfacesCount; ++i)
+    {
+        HalveSurface(&pThis->TileSurfaces[i]);
+    }
+    pThis->CurrentImageWidth /= 2;
+    pThis->CurrentImageHeight /= 2;
+    pThis->ScrollWidth /= 2;
     return 0;
 }
 
@@ -284,12 +354,17 @@ DEFINE_HOOK(4F22D6, CTileSetBrowserView_OnDraw_OverlayBackground, 6)
     return 0x4F22DC;
 }
 
-DEFINE_HOOK(4F1EAD, CTileSetBrowserView_OnDraw_SkipDisableTile, 5)
+DEFINE_HOOK(4F1EAD, CTileSetBrowserView_OnDraw_SkipDisableTile_Height, 5)
 {
     //disable this tile
     //GET(int, currentTileSet, EAX);
     //GET_STACK(int, currentTileIndex, STACK_OFFS(0xDC, 0xC4));
     //return 0x4F21F5;
+    if (ExtConfigs::ShrinkTilesInTileSetBrowser)
+    {
+        GET(int, iHeight, EDI);
+        R->EDI(iHeight / 2);
+    }
     return 0x4F1F68;
 }
 

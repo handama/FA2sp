@@ -112,11 +112,20 @@ FString ExtraWindow::GetAITriggerName(const char* id)
 
 FString ExtraWindow::GetTagName(const char* id)
 {
-    FString name;
     if (strcmp(id, "<none>") == 0)
         return id;
     auto atoms = FString::SplitString(map.GetString("Tags", id, "0,MISSING,01000000"));
     return atoms[1];
+}
+
+FString ExtraWindow::GetTagDisplayName(const char* id)
+{
+    FString name;
+    if (strcmp(id, "<none>") == 0)
+        return id;
+    auto atoms = FString::SplitString(map.GetString("Tags", id, "0,MISSING,01000000"));
+    name.Format("%s (%s)", id, atoms[1]);
+    return name;
 }
 
 FString ExtraWindow::GetEventDisplayName(const char* id, int index)

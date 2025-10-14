@@ -22,6 +22,23 @@ UINT nFlags;
 
 static void CheckCellLow(bool steep, int loopCount = 0, bool IgnoreMorphable = false, std::vector<int> ignoreList = {})
 {
+	auto isMorphable = [IgnoreMorphable](CellData* cell)
+	{
+		if (!cell) return false;
+		if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+			return false;
+		if (IgnoreMorphable) return true;
+		int groundClick = cell->TileIndex;
+		if (groundClick == 0xFFFF) groundClick = 0;
+		return CMapDataExt::TileData[groundClick].Morphable != 0;
+	};
+
+	auto getIndex = [](int x, int y)
+	{
+		if (!CMapData::Instance->IsCoordInMap(x, y))
+			return -1;
+		return x + y * CMapData::Instance->MapWidthPlusHeight;
+	};
 	// additional check: lower tile must has 2x2 square
 	if (loopCount == 0)
 	{
@@ -48,7 +65,7 @@ static void CheckCellLow(bool steep, int loopCount = 0, bool IgnoreMorphable = f
 					int pos = CMapData::Instance->GetCoordIndex(x + coord.X, y + coord.Y);
 					auto cell = CMapData::Instance->GetCellAt(pos);
 					// make sure adjust for lower
-					if (cell->Height > cellOri->Height)
+					if (cell->Height > cellOri->Height && isMorphable(cell))
 					{
 						cell->Height = cellOri->Height;
 						CMapDataExt::CellDataExts[pos].Adjusted = true;
@@ -61,25 +78,6 @@ static void CheckCellLow(bool steep, int loopCount = 0, bool IgnoreMorphable = f
 	loopCount++;
 	if (loopCount > 15)
 		return;
-
-	auto isMorphable = [IgnoreMorphable](CellData* cell)
-		{
-			if (!cell) return false;
-			if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
-				return false;
-			if (IgnoreMorphable) return true;
-			int groundClick = cell->TileIndex;
-			if (groundClick == 0xFFFF) groundClick = 0;
-			return CMapDataExt::TileData[groundClick].Morphable != 0;
-		};
-
-	auto getIndex = [](int x, int y)
-		{
-			if (!CMapData::Instance->IsCoordInMap(x, y))
-				return -1;
-			return x + y * CMapData::Instance->MapWidthPlusHeight;
-		};
-
 
 	auto getNW = [](int x, int y) { return CMapDataExt::TryGetCellAt(x, y - 1); };
 	auto getSE = [](int x, int y) { return CMapDataExt::TryGetCellAt(x, y + 1); };

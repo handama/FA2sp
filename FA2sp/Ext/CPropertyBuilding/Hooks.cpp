@@ -8,6 +8,7 @@
 #include "../../FA2sp.h"
 
 #include "../CFinalSunDlg/Body.h"
+#include "../CMapData/Body.h"
 
 // FA2 Building Property window is messed up.
 DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
@@ -72,20 +73,12 @@ DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
 
             if (nUpgrades > 0)
             {
-                std::vector<std::string> upgrades;
-                for (auto& bld : CMapData::Instance->BuildingTypes)
-                {
-                    if (auto const pString = Variables::RulesMap.TryGetString(bld.first, "PowersUpBuilding"))
-                    {
-                        if (*pString == pThis->CString_ObjectID)
-                            upgrades.push_back(bld.first.m_pchData);
-                    }
-                }
-                
+                const auto& upgrades = CMapDataExt::PowersUpBuildings[pThis->CString_ObjectID];
                 for (const auto& upgrade : upgrades)
                 {
                     const auto UIName = CMapData::Instance->GetUIName(upgrade.c_str());
-                    const auto name = std::format("{} ({})", upgrade, UIName.m_pchData);
+                    FString name;
+                    name.Format("%s (%s)", upgrade, UIName.m_pchData);
 
                     for (int i = 0; i < nUpgrades; ++i)
                         pUpgrades[i]->AddString(name.c_str());

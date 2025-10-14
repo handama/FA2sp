@@ -48,6 +48,39 @@ struct TilePlacement
     short SubtileIndex;
 };
 
+struct TextCacheKey {
+    std::wstring text;
+    COLORREF textColor;
+    COLORREF bgColor;
+    int fontSize;
+    bool bold;
+
+    bool operator==(const TextCacheKey& other) const {
+        return text == other.text &&
+            textColor == other.textColor &&
+            bgColor == other.bgColor &&
+            fontSize == other.fontSize &&
+            bold == other.bold;
+    }
+};
+
+struct TextCacheEntry {
+    int width;
+    int height;
+    std::vector<BGRStruct> pixels; 
+};
+
+struct TextCacheHasher {
+    std::size_t operator()(const TextCacheKey& key) const {
+        std::hash<std::wstring> whash;
+        size_t h = whash(key.text);
+        h ^= std::hash<int>()(key.fontSize) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        h ^= std::hash<int>()((int)key.textColor ^ (int)key.bgColor) + (h << 6);
+        h ^= std::hash<bool>()(key.bold) + (h << 7);
+        return h;
+    }
+};
+
 class NOVTABLE CIsoViewExt : public CIsoView
 {
 public:
@@ -187,6 +220,7 @@ public:
 
     static bool CliffBackAlt;
     static bool HistoryRecord_IsHoldingLButton;
+    static std::unordered_map<TextCacheKey, TextCacheEntry, TextCacheHasher> textCache;
 
     struct LastCommand
     {

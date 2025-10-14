@@ -14,6 +14,7 @@
 #include "../../Ext/CMapData/Body.h"
 #include <Miscs/Miscs.h>
 #include <numeric>
+#include "../CTriggerAnnotation/CTriggerAnnotation.h"
 
 HWND CNewAITrigger::m_hwnd;
 CFinalSunDlg* CNewAITrigger::m_parent;
@@ -252,6 +253,16 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
 {
     switch (Msg)
     {
+    case WM_ACTIVATE:
+    {
+        if (CurrentAITrigger)
+        {
+            CTriggerAnnotation::Type = AnnoAITrigger;
+            CTriggerAnnotation::ID = CurrentAITrigger->ID;
+            ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+        }
+        return TRUE;
+    }
     case WM_INITDIALOG:
     {
         CNewAITrigger::Initialize(hWnd);
@@ -352,7 +363,7 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hInitialWeight, buffer, 511);
-                CurrentAITrigger->InitialWeight = std::stod(buffer);
+                CurrentAITrigger->InitialWeight = safe_stod(buffer);
                 CurrentAITrigger->Save();
             }
             break;
@@ -361,7 +372,7 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hMinWeight, buffer, 511);
-                CurrentAITrigger->MinWeight = std::stod(buffer);
+                CurrentAITrigger->MinWeight = safe_stod(buffer);
                 CurrentAITrigger->Save();
             } 
             break;
@@ -370,7 +381,7 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hMaxWeight, buffer, 511);
-                CurrentAITrigger->MaxWeight = std::stod(buffer);
+                CurrentAITrigger->MaxWeight = safe_stod(buffer);
                 CurrentAITrigger->Save();
             }
             break;
@@ -459,6 +470,17 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     return FALSE;
 }
 
+double CNewAITrigger::safe_stod(const char* s) {
+    auto v = VEHGuard(false);
+    try {
+        double val = std::stod(s);
+        return val;
+    }
+    catch (const std::exception&) {
+        return 0.0;
+    }
+}
+
 void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
 {
     char buffer[512]{ 0 };
@@ -502,6 +524,10 @@ void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
     FString::TrimIndex(pID);
 
     CurrentAITrigger = AITrigger::create(pID);
+
+    CTriggerAnnotation::Type = AnnoAITrigger;
+    CTriggerAnnotation::ID = CurrentAITrigger->ID;
+    ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
 
     SendMessage(hEasy, BM_SETCHECK, CurrentAITrigger->EnabledInE, 0);
     SendMessage(hHard, BM_SETCHECK, CurrentAITrigger->EnabledInH, 0);

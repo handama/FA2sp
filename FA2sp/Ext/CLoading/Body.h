@@ -61,15 +61,6 @@ struct ImageDataTransfer
 	ImageDataClassSafe pData;
 };
 
-struct AnimDisplayOrder
-{
-	int ZAdjust = 0;
-	int YSort = 0;
-	bool MainBody = false;
-	FString AnimKey = "";
-	FString IgnoreKey = "";
-};
-
 class NOVTABLE CLoadingExt : public CLoading
 {
 public:
@@ -166,8 +157,10 @@ private:
 	void SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void SetImageData(unsigned char* pBuffer, ImageDataClass* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void ShrinkSHP(unsigned char* pIn, int InWidth, int InHeight, unsigned char*& pOut, int* OutWidth, int* OutHeight);
-	void UnionSHP_Add(unsigned char* pBuffer, int Width, int Height, int DeltaX = 0, int DeltaY = 0, bool UseTemp = false, bool bShadow = false);
-	void UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth, int* OutHeight, bool UseTemp = false, bool bShadow = false);
+	void UnionSHP_Add(unsigned char* pBuffer, int Width, int Height, int DeltaX = 0, int DeltaY = 0,
+		bool UseTemp = false, bool bShadow = false, int ZAdjust = 0, int YSort = 0, bool MainBody = false);
+	void UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth, int* OutHeight,
+		bool UseTemp = false, bool bShadow = false, bool bSort = false);
 	void VXL_Add(unsigned char* pCache, int X, int Y, int Width, int Height, bool shadow = false);
 	void VXL_GetAndClear(unsigned char*& pBuffer, int* OutWidth, int* OutHeight, bool shadow = false);
 	
@@ -204,12 +197,12 @@ public:
 
 	static std::unordered_map<FString, int> AvailableFacings;
 	static std::unordered_set<FString> LoadedObjects;
+	static std::unordered_set<FString> CustomPaletteTerrains;
 	static std::unordered_set<int> Ra2dotMixes;
 	static int TallestBuildingHeight;
 private:
 
 	void DumpFrameToFile(unsigned char* pBuffer, Palette* pPal, int Width, int Height, FString name);
-	void SortDisplayOrder(std::vector<AnimDisplayOrder>& displayOrder);
 
 	struct SHPUnionData
 	{
@@ -218,6 +211,9 @@ private:
 		int Height;
 		int DeltaX;
 		int DeltaY;
+		int ZAdjust = 0;
+		int YSort = 0;
+		bool MainBody = false;
 	};
 
 	static std::vector<SHPUnionData> UnionSHP_Data[2];
@@ -341,13 +337,14 @@ struct FindFileHelper {
 class MixLoader {
 public:
 	static MixLoader& Instance();
+	static MixLoader& MMXHolder();
 
 	MixLoader(const MixLoader&) = delete;
 	MixLoader& operator=(const MixLoader&) = delete;
 
 	bool LoadTopMix(const std::string& path);
 	bool LoadNestedMix(MixFile& parent, const MixEntry& entry);
-	bool LoadMixFile(const std::string& path, int* parentIndex = nullptr);
+	int LoadMixFile(const std::string& path, int* parentIndex = nullptr);
 	int QueryFileIndex(const std::string& fileName, int mixIdx = -1);
 	std::unique_ptr<uint8_t[]> LoadFile(const std::string& fileName, size_t* outSize, int mixIdx = -1);
 	bool ExtractFile(const std::string& fileName, const std::string& outPath, int mixIdx = -1);
@@ -361,4 +358,22 @@ private:
 
 	std::vector<MixFile> mixFiles;
 	std::unordered_map<uint32_t, FindFileHelper> fileMap;
+};
+
+struct FileInfo {
+	std::string name;
+	char* data;
+	uint32_t size;
+
+	FileInfo(const std::string& n, char* buf, size_t len)
+		: name(n), data(buf), size(static_cast<uint32_t>(len)) {}
+};
+
+class MixPacker {
+public:
+	bool Add(const std::string& fileName, char* buffer, size_t size);
+	bool Pack(const std::string& outPath);
+
+private:
+	std::vector<FileInfo> files;
 };

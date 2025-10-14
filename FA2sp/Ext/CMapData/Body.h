@@ -37,7 +37,7 @@ struct OverlayTypeData
     bool Wall;
     bool TerrainRock;
     bool RailRoad;
-    FString WallPaletteName;
+    FString CustomPaletteName;
     RGBClass RadarColor;
 };
 
@@ -397,6 +397,7 @@ public:
 
     //void InitializeBuildingTypesExt(const char* ID);
     static void InitializeAllHdmEdition(bool updateMinimap = true, bool reloadCellDataExt = true);
+    static void InitializeTileData();
     static void UpdateTriggers();
     static FString AddTrigger(std::shared_ptr<Trigger> trigger);
     static FString AddTrigger(FString id);
@@ -433,7 +434,7 @@ public:
     static ppmfc::CString GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, ppmfc::CString currentFacing, int numFacings = 8);
     static int GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, int numFacings = 8);
     static int GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord);
-    static bool IsValidTileSet(int tileset);
+    static bool IsValidTileSet(int tileset, bool allowToPlace = true);
     static ppmfc::CString GetAvailableIndex();
     static void UpdateMapSectionIndicies(const ppmfc::CString& lpSection);
     inline static bool HasAnnotation(int pos)
@@ -549,5 +550,8 @@ public:
     static HistoryList UndoRedoDatas;
     static int UndoRedoDataIndex;
     static bool IsLoadingMapFile;
+    static bool IsMMXFile;
+    static bool IsUTF8File;
     static std::vector<FString> MapIniSectionSorting;
+    static std::map<FString, std::set<FString>> PowersUpBuildings;
 };

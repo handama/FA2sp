@@ -17,6 +17,7 @@
 #include "../CNewTrigger/CNewTrigger.h"
 #include "../../Miscs/StringtableLoader.h"
 #include "../../Miscs/DialogStyle.h"
+#include "../../Ext/CFinalSunApp/Body.h"
 
 HWND CCsfEditor::m_hwnd;
 CFinalSunDlg* CCsfEditor::m_parent;
@@ -188,7 +189,7 @@ BOOL CALLBACK CCsfEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
                 Logger::Debug("Successfully loaded %d csf labels.\n", StringtableLoader::CSFFiles_Stringtable.size());
 
                 char tmpCsfFile[0x400];
-                strcpy_s(tmpCsfFile, CFinalSunApp::ExePath());
+                strcpy_s(tmpCsfFile, CFinalSunAppExt::ExePathExt);
                 strcat_s(tmpCsfFile, "\\RA2Tmp.csf");
                 DeleteFile(tmpCsfFile);
 

@@ -205,6 +205,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(40135, "Menu.MapTools.ToolScripts");
     translateMenuItem(40136, "Menu.MapTools.DeleteObjects");
     translateMenuItem(40163, "Menu.MapTools.DistanceRuler");
+    translateMenuItem(40164, "Menu.MapTools.TriggerAnnotation");
     translateMenuItem(40158, "Menu.Options.LuaScriptConsole");
     translateMenuItem(40159, "Menu.Options.ShowObjectViewCameo");
 

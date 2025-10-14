@@ -21,6 +21,7 @@
 #include <numeric>
 #include "../CSearhReference/CSearhReference.h"
 #include <chrono>
+#include "../CTriggerAnnotation/CTriggerAnnotation.h"
 
 HWND CNewTeamTypes::m_hwnd;
 CFinalSunDlg* CNewTeamTypes::m_parent;
@@ -347,6 +348,16 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
 {
     switch (Msg)
     {
+    case WM_ACTIVATE:
+    {
+        if (SelectedTeamIndex >= 0 && SelectedTeamIndex < SendMessage(hSelectedTeam, CB_GETCOUNT, NULL, NULL))
+        {
+            CTriggerAnnotation::Type = AnnoTeam;
+            CTriggerAnnotation::ID = CurrentTeamID;
+            ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+        }
+        return TRUE;
+    }
     case WM_INITDIALOG:
     {
         CNewTeamTypes::Initialize(hWnd);
@@ -1092,6 +1103,11 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
     FString::TrimIndex(pID);
 
     CurrentTeamID = pID;
+
+    CTriggerAnnotation::Type = AnnoTeam;
+    CTriggerAnnotation::ID = CurrentTeamID;
+    ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+
     if (auto pTeam = map.GetSection(pID))
     {
         auto name = map.GetString(pID, "Name");

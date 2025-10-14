@@ -7,6 +7,7 @@
 #include "../../Miscs/SaveMap.h"
 #include "../Common.h"
 #include "../../Miscs/DialogStyle.h"
+#include "../../Ext/CFinalSunApp/Body.h"
 
 HWND COptions::m_hwnd;
 HWND COptions::hList;
@@ -82,13 +83,14 @@ void COptions::Update(const char* filter)
     SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 
     CINI fa2;
-    FString path = CFinalSunApp::ExePath();
+    FString path = CFinalSunAppExt::ExePathExt;
     path += "\\FinalAlert.ini";
     fa2.ClearAndLoad(path);
 
     for (const auto& opt : ExtConfigs::Options)
     {
-        *opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
+        if (opt.Value != &ExtConfigs::EnableDarkMode)
+            *opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
     }
 
     ListView_SetExtendedListViewStyle(hList, LVS_EX_FULLROWSELECT | LVS_EX_CHECKBOXES);
@@ -166,7 +168,7 @@ BOOL CALLBACK COptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lPara
 
                     CINI fa2;
                     std::string path;
-                    path = CFinalSunApp::ExePath;
+                    path = CFinalSunAppExt::ExePathExt;
                     path += "\\FinalAlert.ini";
                     fa2.ClearAndLoad(path.c_str());
 
@@ -231,7 +233,7 @@ BOOL CALLBACK COptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lPara
     }
     case 114514: // used for update
     {
-        Update();
+        OnEditchangeSearch();
         return TRUE;
     }
     }

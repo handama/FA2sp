@@ -67,7 +67,6 @@ protected:
     static LRESULT CALLBACK ListBoxSubclassProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
     static void ListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam);
 
-
 private:
     static HWND m_hwnd;
     static CFinalSunDlg* m_parent;

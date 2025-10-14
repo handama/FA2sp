@@ -67,7 +67,7 @@ DEFINE_HOOK(4D4FF7, CRandomTreeDlg_Draw, 7)
         BITMAP bitmap;
         bmp.GetBitmap(&bitmap);
      
-        pDC->FillSolidRect(&pr, RGB(255, 255, 255));
+        pDC->FillSolidRect(&pr, ExtConfigs::EnableDarkMode ? RGB(32, 32, 32) : RGB(255, 255, 255));
         COLORREF transparentColor = RGB(255, 0, 255);
         TransparentBlt(
             pDC->GetSafeHdc(),
@@ -80,7 +80,7 @@ DEFINE_HOOK(4D4FF7, CRandomTreeDlg_Draw, 7)
     }
     else
     {
-        pDC->FillSolidRect(&pr, RGB(255, 255, 255));
+        pDC->FillSolidRect(&pr, ExtConfigs::EnableDarkMode ? RGB(32, 32, 32) : RGB(255, 255, 255));
     }
 
     EndPaint(pThis->GetSafeHwnd(), &ps);

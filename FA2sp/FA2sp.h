@@ -34,6 +34,7 @@ public:
     static bool g_VEH_Enabled;
 
     static void ExtConfigsInitialize();
+    static bool IsDarkMode();
 };
 
 class ExtConfigs
@@ -71,6 +72,7 @@ public:
     static int CopySelectionBound_Color;
     static int CursorSelectionBound_Color;
     static int DistanceRuler_Color;
+    static int DeathWeaponRangeBound_Color;
     static int WeaponRangeBound_Color;
     static int WeaponRangeMinimumBound_Color;
     static int SecondaryWeaponRangeBound_Color;
@@ -127,6 +129,7 @@ public:
     static bool HideNoRubbleBuilding;
     static bool ModernObjectBrowser;
     static bool PlayerAtXForTechnos;
+    static bool PlayerAtXForTriggers;
     static bool FileWatcher;
     static bool LoadRA2MixFilesOnly;
     static bool ExtVariables;
@@ -177,6 +180,7 @@ public:
     static bool InGameDisplay_Hover;
     static bool InGameDisplay_AlphaImage;
     static bool InGameDisplay_Bridge;
+    static bool InGameDisplay_AnimAdjust;
     static bool FlatToGroundHideExtra;
     static bool LightingPreview_MultUnitColor;
     static bool LightingPreview_TintTileSetBrowserView;
@@ -193,8 +197,14 @@ public:
     static bool SaveMap_PreserveINISorting;
     static bool ExtMixLoader;
     static bool AVX2_Support;
+    static bool AutoDarkMode;
+    static double AutoDarkMode_SwitchTimeA;
+    static double AutoDarkMode_SwitchTimeB;
     static bool EnableDarkMode;
     static bool EnableDarkMode_DimMap;
+    static bool ShrinkTilesInTileSetBrowser;
+    static bool UTF8Support_InferEncoding;
+    static bool UTF8Support_AlwaysSaveAsUTF8;
     static ppmfc::CString CloneWithOrderedID_Digits;
     static ppmfc::CString NewTriggerPlusID_Digits;
     static ppmfc::CString Waypoint_SkipCheckList;

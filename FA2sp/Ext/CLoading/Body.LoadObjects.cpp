@@ -16,6 +16,7 @@ std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
 std::unordered_map<FString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
 std::unordered_set<FString> CLoadingExt::LoadedObjects;
+std::unordered_set<FString> CLoadingExt::CustomPaletteTerrains;
 std::unordered_map<FString, int> CLoadingExt::AvailableFacings;
 std::unordered_set<int> CLoadingExt::Ra2dotMixes;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
@@ -242,8 +243,10 @@ void CLoadingExt::ClearItemTypes()
 	SwimableInfantries.clear();
 	ImageDataMap.clear();
 	AvailableFacings.clear();
+	CustomPaletteTerrains.clear();
 	CMapDataExt::TerrainPaletteBuildings.clear();
 	CMapDataExt::DamagedAsRubbleBuildings.clear();
+	CIsoViewExt::textCache.clear();
 	for (auto& data : SurfaceImageDataMap)
 	{
 		if (data.second->lpSurface)
@@ -340,10 +343,11 @@ FString CLoadingExt::GetVehicleOrAircraftFileID(FString ID)
 
 void CLoadingExt::LoadBuilding(FString ID)
 {
-	if (auto ppPowerUpBld = Variables::RulesMap.TryGetString(ID, "PowersUpBuilding")) // Early load
+	const auto& upgrades = CMapDataExt::PowersUpBuildings[ID];
+	for (const auto& upgrade : upgrades)
 	{
-		if (!CLoadingExt::IsObjectLoaded(*ppPowerUpBld))
-			LoadBuilding(*ppPowerUpBld);
+		if (!CLoadingExt::IsObjectLoaded(upgrade))
+			LoadBuilding(upgrade);
 	}
 
 	LoadBuilding_Normal(ID);
@@ -367,6 +371,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 {
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetBuildingFileID(ID);
+	FString CurrentLoadingAnim;
 	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow");
 	int facings = ExtConfigs::ExtFacings ? 32 : 8;
 	AvailableFacings[ID] = facings;
@@ -396,7 +401,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 			nFrame = 0;
 		}
 		CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &pBuffer, header);
-		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
+		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, false, 0, 0, true);
 
 		if (shadow && ExtConfigs::InGameDisplay_Shadow)
 		{
@@ -485,7 +490,9 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 			}
 		}
 
-		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);;
+		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, false,
+			CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "ZAdjust"),
+			CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "YSort"));
 
 		if (shadow && ExtConfigs::InGameDisplay_Shadow)
 		{
@@ -498,6 +505,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 
 	auto loadAnimFrameShape = [&](FString animkey, FString ignorekey)
 	{
+		CurrentLoadingAnim = animkey;
 		if (auto pStr = CINI::Art->TryGetString(ArtID, animkey))
 		{
 			if (!CINI::FAData->GetBool(ignorekey, ID))
@@ -553,29 +561,12 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		"IgnoreSuperAnim3",
 		"IgnoreSuperAnim4"
 	};
-	std::vector<AnimDisplayOrder> displayOrder;
-
-	displayOrder.push_back({ 0,0,true,"","" });
+	
+	loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow && CINI::Art->GetBool(ArtID, "Shadow", true));
 	for (int i = 0; i < 9; ++i)
 	{
-		displayOrder.push_back({ 
-			CINI::Art->GetInteger(ArtID, AnimKeys[i] + "ZAdjust"),
-			CINI::Art->GetInteger(ArtID, AnimKeys[i] + "YSort"),
-			false, AnimKeys[i], IgnoreKeys[i] });
+		loadAnimFrameShape(AnimKeys[i], IgnoreKeys[i]);
 	}
-	SortDisplayOrder(displayOrder);
-	for (const auto& order : displayOrder)
-	{
-		if (order.MainBody)
-		{
-			loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow&& CINI::Art->GetBool(ArtID, "Shadow", true));
-		}
-		else
-		{
-			loadAnimFrameShape(order.AnimKey, order.IgnoreKey);
-		}
-	}
-
 	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
 		loadSingleFrameShape(*pStr, 0, 0, 0, "", false, 1);
 	}
@@ -584,7 +575,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 
 	unsigned char* pBuffer;
 	int width, height;
-	UnionSHP_GetAndClear(pBuffer, &width, &height);
+	UnionSHP_GetAndClear(pBuffer, &width, &height, false, false, true);
 
 	FString DictNameShadow;
 	unsigned char* pBufferShadow{ 0 };
@@ -758,6 +749,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 {
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetBuildingFileID(ID);
+	FString CurrentLoadingAnim;
 	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow");
 	int facings = ExtConfigs::ExtFacings ? 32 : 8;
 	AvailableFacings[ID] = facings;
@@ -788,7 +780,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 		}
 		CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &pBuffer, header);
 
-		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
+		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, false, 0, 0, true);
 
 		if (shadow && ExtConfigs::InGameDisplay_Shadow)
 		{
@@ -877,7 +869,10 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 			}
 		}
 
-		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
+
+		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, false,
+			CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "ZAdjust"),
+			CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "YSort"));
 
 		if (shadow && ExtConfigs::InGameDisplay_Shadow)
 		{
@@ -891,6 +886,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 	auto loadAnimFrameShape = [&](FString animkey, FString ignorekey)
 	{
 		FString damagedAnimkey = animkey + "Damaged";
+		CurrentLoadingAnim = animkey;
 		if (auto pStr = CINI::Art->TryGetString(ArtID, damagedAnimkey))
 		{
 			if (!CINI::FAData->GetBool(ignorekey, ID))
@@ -955,29 +951,11 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 		"IgnoreSuperAnim3",
 		"IgnoreSuperAnim4"
 	};
-	std::vector<AnimDisplayOrder> displayOrder;
-
-	displayOrder.push_back({ 0,0,true,"","" });
+	loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow&& CINI::Art->GetBool(ArtID, "Shadow", true));
 	for (int i = 0; i < 9; ++i)
 	{
-		displayOrder.push_back({
-			CINI::Art->GetInteger(ArtID, AnimKeys[i] + "ZAdjust"),
-			CINI::Art->GetInteger(ArtID, AnimKeys[i] + "YSort"),
-			false, AnimKeys[i], IgnoreKeys[i] });
+		loadAnimFrameShape(AnimKeys[i], IgnoreKeys[i]);
 	}
-	SortDisplayOrder(displayOrder);
-	for (const auto& order : displayOrder)
-	{
-		if (order.MainBody)
-		{
-			loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow && CINI::Art->GetBool(ArtID, "Shadow", true));
-		}
-		else
-		{
-			loadAnimFrameShape(order.AnimKey, order.IgnoreKey);
-		}
-	}
-
 	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
 		loadSingleFrameShape(*pStr, 1, 0, 0, "", false, 1);
 	}
@@ -986,7 +964,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 
 	unsigned char* pBuffer;
 	int width, height;
-	UnionSHP_GetAndClear(pBuffer, &width, &height);
+	UnionSHP_GetAndClear(pBuffer, &width, &height, false, false, true);
 
 	FString DictNameShadow;
 	unsigned char* pBufferShadow{ 0 };
@@ -1458,6 +1436,10 @@ void CLoadingExt::LoadTerrainOrSmudge(FString ID, bool terrain)
 		{
 			PaletteName = "unitsno.pal";
 		}
+		if (CINI::Art->KeyExists(ArtID, "Palette") || Variables::RulesMap.GetBool(ID, "SpawnsTiberium"))
+		{
+			CustomPaletteTerrains.insert(ID);
+		}
 		PaletteName.MakeUpper();
 		GetFullPaletteName(PaletteName);
 		SetImageDataSafe(FramesBuffers[0], DictName, header.Width, header.Height, PalettesManager::LoadPalette(PaletteName));
@@ -1661,9 +1643,15 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 	else // As SHP
 	{
 		int facingCount = CINI::Art->GetInteger(ArtID, "Facings", 8);
-		if (facingCount % 8 != 0)
+		if (facingCount < 8)
+		{
+			facingCount = 1;
+		}
+		else if (facingCount % 8 != 0)
 			facingCount = (facingCount + 7) / 8 * 8;
 		int targetFacings = ExtConfigs::ExtFacings ? facingCount : 8;
+		if (facingCount == 1)
+			targetFacings = 1;
 		AvailableFacings[ID] = targetFacings;
 		std::vector<int> framesToRead(targetFacings);
 		if (CINI::Art->KeyExists(ArtID, "StandingFrames"))
@@ -1925,15 +1913,17 @@ void CLoadingExt::ShrinkSHP(unsigned char* pIn, int InWidth, int InHeight, unsig
 	GameDeleteArray(pIn, InWidth * InHeight);
 }
 
-void CLoadingExt::UnionSHP_Add(unsigned char* pBuffer, int Width, int Height, int DeltaX, int DeltaY, bool UseTemp, bool bShadow)
+void CLoadingExt::UnionSHP_Add(unsigned char* pBuffer, int Width, int Height,
+	int DeltaX, int DeltaY, bool UseTemp, bool bShadow, int ZAdjust, int YSort, bool MainBody)
 {
 	if (bShadow)
-		UnionSHPShadow_Data[UseTemp].push_back(SHPUnionData{ pBuffer,Width,Height,DeltaX,DeltaY });
+		UnionSHPShadow_Data[UseTemp].push_back(SHPUnionData{ pBuffer,Width,Height,DeltaX,DeltaY, ZAdjust, YSort, MainBody });
 	else
-		UnionSHP_Data[UseTemp].push_back(SHPUnionData{ pBuffer,Width,Height,DeltaX,DeltaY });
+		UnionSHP_Data[UseTemp].push_back(SHPUnionData{ pBuffer,Width,Height,DeltaX,DeltaY, ZAdjust, YSort, MainBody });
 }
 
-void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth, int* OutHeight, bool UseTemp, bool bShadow)
+void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth,
+	int* OutHeight, bool UseTemp, bool bShadow, bool bSort)
 {
 	// never calls it when UnionSHP_Data is empty
 	auto& data = bShadow ? UnionSHPShadow_Data : UnionSHP_Data;
@@ -1962,6 +1952,61 @@ void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth
 
 	int ImageCenterX = W / 2;
 	int ImageCenterY = H / 2;
+
+	if (bSort && ExtConfigs::InGameDisplay_AnimAdjust)
+	{
+		std::vector<int> LastValidLine(data[UseTemp].size());
+		int mainBodyIndex = -1;
+
+		for (int i = 0; i < data[UseTemp].size(); ++i) {
+			const auto& img = data[UseTemp][i];
+			int nStartX = ImageCenterX - img.Width / 2 + img.DeltaX;
+			int nStartY = ImageCenterY - img.Height / 2 + img.DeltaY;
+			int lowestValidY = -1; 
+			if (img.MainBody) mainBodyIndex = i;
+			for (int j = img.Height - 1; j >= 0; --j) {
+				for (int i = 0; i < img.Width; ++i) {
+					if (img.pBuffer[j * img.Width + i] != 0) {
+						lowestValidY = j;
+						break;
+					}
+				}
+				if (lowestValidY != -1) break; 
+			}
+			LastValidLine[i] = (lowestValidY);
+		}
+
+		if (mainBodyIndex > -1)
+		{
+			int mainLastLine = LastValidLine[mainBodyIndex];
+			for (size_t i = 0; i < LastValidLine.size(); ++i) {
+				LastValidLine[i] -= mainLastLine;
+				LastValidLine[i] -= data[UseTemp][i].ZAdjust;
+			}
+
+			std::vector<size_t> indices(data[UseTemp].size());
+			for (size_t i = 0; i < indices.size(); ++i) {
+				indices[i] = i;
+			}
+
+			std::sort(indices.begin(), indices.end(),
+				[&LastValidLine, &data, &UseTemp](size_t a, size_t b) {
+				if (LastValidLine[a] != LastValidLine[b]) {
+					return LastValidLine[a] < LastValidLine[b];
+				}
+				return data[UseTemp][a].MainBody < data[UseTemp][b].MainBody;
+			});
+
+			std::vector<SHPUnionData> sortedData(data[UseTemp].size());
+			for (size_t i = 0; i < indices.size(); ++i) {
+				sortedData[i] = data[UseTemp][indices[i]];
+			}
+
+			for (size_t i = 0; i < indices.size(); ++i) {
+				data[UseTemp][i] = sortedData[i];
+			}
+		}
+	}
 
 	// Image[X][Y] <=> pOutBuffer[Y * W + X];
 	for (auto& data : data[UseTemp])
@@ -2713,46 +2758,6 @@ bool CLoadingExt::LoadBMPToCBitmap(const FString& filePath, CBitmap& outBitmap)
 	return true;
 }
 
-void CLoadingExt::SortDisplayOrder(std::vector<AnimDisplayOrder>& displayOrder)
-{
-	std::vector<AnimDisplayOrder> zPositive;
-	std::vector<AnimDisplayOrder> zNegative;
-	std::vector<AnimDisplayOrder> mainBody;
-
-	for (auto& item : displayOrder)
-	{
-		if (item.MainBody)
-		{
-			mainBody.push_back(item);
-		}
-		// main body has a baseline value -2
-		else if (item.ZAdjust > -2)
-		{
-			zPositive.push_back(item);
-		}
-		else
-		{
-			zNegative.push_back(item);
-		}
-	}
-
-	auto cmpYThenZDesc = [](const AnimDisplayOrder& a, const AnimDisplayOrder& b)
-	{
-		if (a.YSort != b.YSort)
-			return a.YSort < b.YSort;
-		return a.ZAdjust > b.ZAdjust;
-	};
-
-	std::sort(zPositive.begin(), zPositive.end(), cmpYThenZDesc);
-	std::sort(zNegative.begin(), zNegative.end(), cmpYThenZDesc);
-	std::sort(mainBody.begin(), mainBody.end(), cmpYThenZDesc);
-
-	displayOrder.clear();
-	displayOrder.insert(displayOrder.end(), zPositive.begin(), zPositive.end());
-	displayOrder.insert(displayOrder.end(), mainBody.begin(), mainBody.end());
-	displayOrder.insert(displayOrder.end(), zNegative.begin(), zNegative.end());
-}
-
 void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 {
 	if (pRegName == "")
@@ -2772,18 +2777,10 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 	FString palName = "iso\233AutoTinted";
 	auto const typeData = CMapDataExt::GetOverlayTypeData(nIndex);
 	Palette* palette = nullptr;
-	if (typeData.Wall)
-	{
-		palName = typeData.WallPaletteName;
-		GetFullPaletteName(palName);
-		palette = PalettesManager::LoadPalette(palName);
-	}
-	if (!palette)
-	{
-		palName = "iso\233AutoTinted";
-		GetFullPaletteName(palName);
-		palette = PalettesManager::LoadPalette(palName);
-	}
+
+	palName = "iso\233AutoTinted";
+	GetFullPaletteName(palName);
+	palette = PalettesManager::LoadPalette(palName);
 
 	FString lpOvrlName = pRegName;
 	FString::TrimIndex(lpOvrlName);
@@ -2819,12 +2816,11 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 			};
 
 		filename = ArtID + ".shp";
-		if (!typeData.Wall || typeData.Wall && !palette)
-		{
-			palName = "unit";
-			GetFullPaletteName(palName);
-			palette = PalettesManager::LoadPalette(palName);
-		}
+
+		palName = "unit";
+		GetFullPaletteName(palName);
+		palette = PalettesManager::LoadPalette(palName);
+
 		if (strlen(ArtID) >= 2)
 		{		
 			if (!findFile)
@@ -2880,6 +2876,16 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 
 	if (findFile)
 	{
+		auto customPal = typeData.CustomPaletteName;
+		if (strlen(customPal))
+		{
+			GetFullPaletteName(customPal);
+			if (auto customPalette = PalettesManager::LoadPalette(customPal))
+			{
+				palette = customPalette;
+			}
+		}
+
 		ShapeHeader header;
 		unsigned char* FramesBuffers;
 		if (CMixFile::LoadSHP(filename, hMix))

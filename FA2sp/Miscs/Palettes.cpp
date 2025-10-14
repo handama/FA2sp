@@ -143,6 +143,10 @@ Palette* PalettesManager::GetObjectPalette(Palette* pPal, BGRStruct& color, bool
     // normal lighting won't tint unit RGB
     if (remap && !ExtConfigs::LightingPreview_MultUnitColor && CFinalSunDlgExt::CurrentLighting == 31001 && extraLightType != 4)
         tintRGB = false;
+    else if (!ExtConfigs::LightingPreview_MultUnitColor && CFinalSunDlgExt::CurrentLighting == 31001 && extraLightType == 5)
+        tintRGB = false;
+    else if (extraLightType == 6)
+        tintRGB = false;
 
     if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
     {
@@ -251,8 +255,14 @@ LightingPalette::LightingPalette(Palette& originPal)
 void LightingPalette::AdjustLighting(LightingStruct& lighting, Cell3DLocation location, bool tint, int extraLightType)
 {
     const auto lamp = LightingSourceTint::ApplyLamp(location.X, location.Y);
-
-    this->AmbientMult = lighting.Ambient + lamp.AmbientTint - lighting.Ground + lighting.Level * location.Height;
+    if (extraLightType != 6)
+    {
+        this->AmbientMult = lighting.Ambient + lamp.AmbientTint - lighting.Ground + lighting.Level * location.Height;
+    }
+    else
+    {
+        this->AmbientMult = lighting.Ambient - lighting.Ground + lighting.Level * location.Height;
+    }
     if (extraLightType == 0)
     {
         this->AmbientMult += Variables::RulesMap.GetSingle("AudioVisual", "ExtraUnitLight", 0.2f);

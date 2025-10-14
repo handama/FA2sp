@@ -19,6 +19,7 @@
 #include <sstream>
 #include <fstream>
 #include <format>
+#include <filesystem>
 #include "FileWatcher.h"
 #include "../Helpers/STDHelpers.h"
 #include "../Algorithms/lcw.h"
@@ -27,8 +28,39 @@
 #include "../Ext/CMapData/Body.h"
 #include "Palettes.h"
 #include "Hooks.INI.h"
+#include "../Ext/CLoading/Body.h"
+#include "../ExtraWindow/CNewMMXSavingOptionsDlg/CNewMMXSavingOptionsDlg.h"
+#include "../Ext/CFinalSunApp/Body.h"
 
 std::optional<std::filesystem::file_time_type> SaveMapExt::SaveTime;
+
+static std::string to_short_filename(const std::filesystem::path& p, const std::unordered_set<std::string>& existing) {
+    FString stem = p.stem().string();
+    stem.Replace(" ", "");
+    std::string ext = p.extension().string();
+
+    if (ext.size() > 4) {
+        ext = ext.substr(0, 4);
+    }
+
+    if (stem.size() <= 8) {
+        std::string candidate = stem + ext.c_str();
+        if (!existing.count(candidate)) {
+            return candidate;
+        }
+    }
+
+    std::string base = stem.substr(0, 6);
+    int counter = 1;
+
+    while (true) {
+        std::string candidate = base + "~" + std::to_string(counter) + ext;
+        if (!existing.count(candidate)) {
+            return candidate;
+        }
+        ++counter;
+    }
+}
 
 DEFINE_HOOK(4D5505, CSaveOption_CTOR_DefaultValue, 0)
 {
@@ -421,9 +453,34 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
         Logger::Raw("SaveMap : Retaining current map preview.\n");
     }
 
-    Logger::Raw("SaveMap : Trying to save map to %s.\n", filepath);
-    
     std::ofstream fout;
+
+    bool saveAsUTF8 = CMapDataExt::IsUTF8File || ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
+
+    std::filesystem::path p(filepath.m_pchData);
+    FString ext = p.extension().string();
+
+    CNewMMXSavingOptionsDlg dlg;
+    ext.MakeLower();
+    bool saveAsMMX = (ext == ".mmx" || ext == ".yro") && !SaveMapExt::IsAutoSaving;
+    if (saveAsMMX)
+    {
+        auto oriName = pThis->PKTHeader.GetString("MultiMaps", "1");
+        dlg.m_Description = pThis->PKTHeader.GetString(oriName, "Description");
+        dlg.m_MinPlayers = pThis->PKTHeader.GetString(oriName, "MinPlayers");
+        dlg.m_Maxplayers = pThis->PKTHeader.GetString(oriName, "MaxPlayers");
+
+        if (dlg.DoModal() == IDCANCEL) return 0x42A859;
+
+        pINI->WriteString("Basic", "Official", "Yes");
+
+        std::unordered_set<std::string> used;
+        filepath = (p.parent_path().string() + "\\" +  to_short_filename(p, used)).c_str();
+        p = std::filesystem::path(filepath.m_pchData);
+    }
+
+    Logger::Raw("SaveMap : Trying to save map to %s.\n", filepath);
+
     fout.open(filepath, std::ios::out | std::ios::trunc);
     if (fout.is_open())
     {
@@ -435,7 +492,11 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
         if (ExtConfigs::SaveMap_FileEncodingComment)
         {
             comments += "; ";
-            comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1", "本文件编码为 ANSI/GBK，请使用此格式打开");
+            if (saveAsUTF8)
+                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1_UTF8", "本文件编码为 UTF8，请使用此格式打开");
+            else
+                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1", "本文件编码为 ANSI/GBK，请使用此格式打开");
+
             comments += "\n";
             comments += "; ";
             comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment2", "Warning: If the first line appears as gibberish");
@@ -606,18 +667,77 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
         // go over the limitation of uublock's 70 per line. So only one row!
         oss << "[Digest]\n1=" << base64::encode(hash, 20) << "\n";
 
-        // Now just write the file
-        fout << oss.str();
-        fout.flush();
-        fout.close();
+        if (saveAsMMX)
+        {
+            FString core = p.stem().string();
+            FString MMX = core + ".map";
+            FString PKT = core + ".pkt";
 
-        Logger::Raw("SaveMap : Successfully saved %u sections.\n", pINI->Dict.size());
+            auto itr = pThis->PKTHeader.Dict.end();
+            for (size_t i = 0, sz = pThis->PKTHeader.Dict.size(); 
+                i < sz && itr != pThis->PKTHeader.Dict.begin(); ++i) {
+                --itr;
+                itr->second.~INISection();
+                pThis->PKTHeader.Dict.manual_erase(itr);
+            }
+
+            pThis->PKTHeader.WriteString("MultiMaps", "1", core);
+            pThis->PKTHeader.WriteString(core, "Description", dlg.m_Description);
+            pThis->PKTHeader.WriteString(core, "CD", "2");
+            pThis->PKTHeader.WriteString(core, "MinPlayers", dlg.m_MinPlayers);
+            pThis->PKTHeader.WriteString(core, "MaxPlayers", dlg.m_Maxplayers);
+            pThis->PKTHeader.WriteString(core, "GameMode", pINI->GetString("Basic", "GameMode", "standard"));
+
+            MixPacker mix;
+            if (saveAsUTF8)
+            {
+                FString output = oss.str();
+                output.toUTF8();
+                mix.Add(MMX, output.data(), output.size());
+            }
+            else
+            {
+                mix.Add(MMX, oss.str().data(), oss.str().size());
+            }
+
+            std::ostringstream pkt;
+            for (auto& section : pThis->PKTHeader.Dict)
+            {
+                pkt << "[" << section.first << "]\n";
+                for (const auto& pair : section.second.GetEntities())
+                    pkt << pair.first << "=" << pair.second << "\n";
+                pkt << "\n";
+            }
+            mix.Add(PKT, pkt.str().data(), pkt.str().size());
+            fout.close();
+            if (mix.Pack(filepath.m_pchData))
+            {
+                Logger::Raw("SaveMap : Successfully saved %u sections.\n", pINI->Dict.size());
+            }
+        }
+        else
+        {
+            // Now just write the file
+            if (saveAsUTF8)
+            {
+                FString output = oss.str();
+                output.toUTF8();
+                fout << output;
+            }
+            else
+            {
+                fout << oss.str();
+            }
+            fout.flush();
+            fout.close();
+            Logger::Raw("SaveMap : Successfully saved %u sections.\n", pINI->Dict.size());
+        }
     }
     else
     {
         ppmfc::CString buffer;
         buffer.Format("Failed to create file %s.\n", filepath);
-        Logger::Put(buffer);
+        Logger::Raw(buffer);
         ppmfc::CString buffer2;
         buffer2.Format(Translations::TranslateOrDefault("CannotCreateFile", "Cannot create file: %s.\n"), filepath);
         ::MessageBox(NULL, buffer2, Translations::TranslateOrDefault("Error", "Error"), MB_OK | MB_ICONERROR);
@@ -783,7 +903,7 @@ void SaveMapExt::RemoveEarlySaves()
 
         ppmfc::CString buffer;
         buffer.Format("%s\\AutoSaves\\%s\\%s-*.%s",
-            CFinalSunApp::ExePath(),
+            CFinalSunAppExt::ExePathExt,
             mapName,
             mapName,
             ext
@@ -805,7 +925,7 @@ void SaveMapExt::RemoveEarlySaves()
         auto itr = m.begin();
         while (count != 0)
         {
-            buffer.Format("%s\\AutoSaves\\%s\\%s", CFinalSunApp::ExePath(), mapName, itr->second);
+            buffer.Format("%s\\AutoSaves\\%s\\%s", CFinalSunAppExt::ExePathExt, mapName, itr->second);
             DeleteFile(buffer);
             ++itr;
             --count;
@@ -845,6 +965,9 @@ void CALLBACK SaveMapExt::SaveMapCallback(HWND hwnd, UINT message, UINT iTimerID
             )
             mapName.SetAt(i, '-');
 
+    if (mapName == "")
+        mapName = "Empty Name";
+
     const auto ext =
         !ExtConfigs::SaveMap_OnlySaveMAP && CMapData::Instance->IsMultiOnly() ?
         CLoading::HasMdFile() ?
@@ -852,14 +975,14 @@ void CALLBACK SaveMapExt::SaveMapCallback(HWND hwnd, UINT message, UINT iTimerID
         "mpr" :
         "map";
 
-    ppmfc::CString buffer = CFinalSunApp::ExePath();
+    ppmfc::CString buffer = CFinalSunAppExt::ExePathExt;
     buffer += "\\AutoSaves\\";
     CreateDirectory(buffer, nullptr);
     buffer += mapName;
     CreateDirectory(buffer, nullptr);
 
     buffer.Format("%s\\AutoSaves\\%s\\%s-%04d%02d%02d-%02d%02d%02d-%03d.%s",
-        CFinalSunApp::ExePath(),
+        CFinalSunAppExt::ExePathExt,
         mapName,
         mapName,
         time.wYear, time.wMonth, time.wDay,
@@ -927,4 +1050,71 @@ DEFINE_HOOK(42E18E, CFinalSunDlg_CreateMap_ResetTimer, 7)
     if (ExtConfigs::SaveMap_AutoSave && CMapData::Instance->MapWidthPlusHeight)
         SaveMapExt::ResetTimer();
     return 0;
+}
+
+DEFINE_HOOK(424959, CFinalSunDlg_OpenMap_SkipMMXCheck, 6)
+{
+    return 0x424C57;
+}
+
+DEFINE_HOOK(4375CE, CFinalSunDlg_OpenMap2_SkipMMXCheck, 6)
+{
+    return 0x4378DB;
+}
+
+DEFINE_HOOK(49D63A, CFinalSunDlg_LoadMap_HandleMMXFile, 5)
+{
+    GET(CINIExt*, ini, ESI);
+    GET(const char*, pFileName, EDI);
+
+    std::filesystem::path p(pFileName);
+    FString ext = p.extension().string();
+    ext.MakeLower();
+    CMapDataExt::IsMMXFile = false;
+    int mixIndex = -114;
+    auto& manager = MixLoader::MMXHolder();
+    if (ext == ".mmx" || ext == ".yro")
+    {
+        if (auto id = manager.LoadMixFile(pFileName))
+        {
+            CMapDataExt::IsMMXFile = true;
+            mixIndex = id - 1;
+            Logger::Debug("CMapData::LoadMap(): Loaded %s file %s.\n", ext, pFileName);
+        }
+    }
+
+    if (CMapDataExt::IsMMXFile)
+    {
+        auto loadFileInMix = [&manager](const char* filename, DWORD* pDwSize, int nMix) -> unsigned char*
+        {
+            size_t sizeM = 0;
+            auto result = manager.LoadFile(filename, &sizeM, nMix);
+            if (result && sizeM > 0)
+            {
+                auto pBuffer = GameCreateArray<unsigned char>(sizeM);
+                memcpy(pBuffer, result.get(), sizeM);
+                if (pDwSize)
+                    *pDwSize = (DWORD)sizeM;
+                return pBuffer;
+            }
+            return nullptr;
+        };
+
+        DWORD size = 0;
+        if (auto file = loadFileInMix((p.stem().string() + ".map").c_str(), &size, mixIndex))
+        {
+            ini->LoadINIExt(file, size, nullptr, true, true, true);
+            if (auto pkt = loadFileInMix((p.stem().string() + ".pkt").c_str(), &size, mixIndex))
+            {
+                ((CINIExt*)(&CFinalSunDlg::Instance->PKTHeader))->LoadINIExt(pkt, size, nullptr, true, true, false);
+            }
+            manager.Clear();
+            return 0x49D644;
+        }
+        Logger::Raw("CMapData::LoadMap(): Failed to open %s, fallback to default parser.\n", p.stem().string() + ".map");
+    }
+    ini->ClearAndLoad(pFileName, 1);
+
+    manager.Clear();
+    return 0x49D644;
 }

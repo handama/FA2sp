@@ -1312,7 +1312,13 @@ DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
 // Add a house won't update indices, so there might be hidden risks if not reloading the map.
 // That's why these hooks are not used.
 //DEFINE_HOOK_AGAIN(40A5CB, CINIEditor_Update, 6)
-DEFINE_HOOK_AGAIN(44EB1C, CHouses_ONBNDeleteHouseClicked_UpdateTreeview, 7)
+DEFINE_HOOK(44EB1C, CHouses_ONBNDeleteHouseClicked_UpdateTreeview, 7)
+{
+    CMapDataExt::UpdateMapSectionIndicies("Houses");
+    CMapDataExt::UpdateMapSectionIndicies("Countries");
+    return 0;
+}
+
 DEFINE_HOOK(44E320, CHouses_ONBNAddHouseClicked_UpdateTreeview, 7)
 {
     //CFinalSunDlg::Instance->MyViewFrame.pViewObjects->Update();

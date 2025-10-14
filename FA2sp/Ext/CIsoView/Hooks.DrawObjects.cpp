@@ -691,6 +691,34 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								CIsoViewExt::MaskShadowPixels(window, 
 									x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, shadowMask_Building_Infantry);
 							}
+
+							for (int upgrade = 0; upgrade < objRender.PowerUpCount; ++upgrade)
+							{
+								const auto& upg = upgrade == 0 ? objRender.PowerUp1 : (upgrade == 1 ? objRender.PowerUp2 : objRender.PowerUp3);
+								const auto& upgXX = upgrade == 0 ? "PowerUp1LocXX" : (upgrade == 1 ? "PowerUp2LocXX" : "PowerUp3LocXX");
+								const auto& upgYY = upgrade == 0 ? "PowerUp1LocYY" : (upgrade == 1 ? "PowerUp2LocYY" : "PowerUp3LocYY");
+								if (upg.GetLength() == 0)
+									continue;
+
+								auto pUpgData = CLoadingExt::GetImageDataFromServer(CLoadingExt::GetImageName(upg, 0, true));
+								if ((!pUpgData || !pUpgData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(upg))
+								{
+									CLoading::Instance->LoadObjects(upg);
+								}
+								if (pUpgData && pUpgData->pImageBuffer)
+								{
+									auto ArtID = CLoadingExt::GetArtID(objRender.ID);
+
+									int x1 = x;
+									int y1 = y;
+									x1 += CINI::Art->GetInteger(ArtID, upgXX, 0);
+									y1 += CINI::Art->GetInteger(ArtID, upgYY, 0);
+
+									CIsoViewExt::MaskShadowPixels(window,
+										x1 - pUpgData->FullWidth / 2, y1 - pUpgData->FullHeight / 2,
+										pUpgData, shadowMask_Building_Infantry);
+								}
+							}
 						}
 					}
 				}
@@ -1195,9 +1223,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 			if (pData->pImageBuffer)
 			{
+				bool customPalette = CLoadingExt::CustomPaletteTerrains.find(obj) != CLoadingExt::CustomPaletteTerrains.end();
+				bool isTiberiumTree = Variables::RulesMap.GetBool(obj, "SpawnsTiberium");
 				CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-					x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (Variables::RulesMap.GetBool(obj, "SpawnsTiberium") ? 0 : 12),
-					pData, NULL, 255, 0, -1, false);
+					x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (isTiberiumTree ? 0 : 12),
+					pData, NULL, 255, 0, isTiberiumTree ? 6 : (customPalette ? 5 : -1), false);
 
 				if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages)
 				{
@@ -1208,7 +1238,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							AlphaImagesToDraw.push_back(
 								std::make_pair(MapCoord{ x - pAIData->FullWidth / 2,
-									y - pAIData->FullHeight / 2 + (Variables::RulesMap.GetBool(obj, "SpawnsTiberium") ? 0 : 12) },
+									y - pAIData->FullHeight / 2 + (isTiberiumTree ? 0 : 12) },
 									pAIData));
 						}
 					}
@@ -1462,9 +1492,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				CMapData::Instance->GetAircraftData(cell->Aircraft, obj);
 				auto imageID = obj.TypeID;
 
-				int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
-				int nFacing = (atoi(obj.Facing) * facings / 256) % facings;
-
 				if (ExtConfigs::InGameDisplay_Damage)
 				{
 					int HP = atoi(obj.Health);
@@ -1478,12 +1505,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					}
 				}
 
-				const auto& imageName = CLoadingExt::GetImageName(imageID, nFacing);
-
 				if (!CLoadingExt::IsObjectLoaded(imageID))
 				{
 					CLoading::Instance->LoadObjects(imageID);
 				}
+
+				int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
+				int nFacing = (atoi(obj.Facing) * facings / 256) % facings;
+				const auto& imageName = CLoadingExt::GetImageName(imageID, nFacing);
 				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
 				if (pData->pImageBuffer)
@@ -1683,7 +1712,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				tileIndex = 0;
 
 
-			if (CMapDataExt::TileData && tileIndex < int(CTileTypeClass::InstanceCount()) && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
+			if (CMapDataExt::TileData && tileIndex < CMapDataExt::TileDataCount && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
 			{
 				auto ttype = CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex].TerrainType;
 				if (ttype == 0x7 || ttype == 0x8 || ttype == 0xf ||

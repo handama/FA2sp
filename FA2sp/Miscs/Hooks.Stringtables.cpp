@@ -11,6 +11,7 @@
 #include <map>
 #include <fstream>
 #include "../Helpers/TheaterHelpers.h"
+#include "../Ext/CFinalSunApp/Body.h"
 
 bool StringtableLoader::bLoadRes = false;
 char* StringtableLoader::pEDIBuffer = nullptr;
@@ -84,7 +85,7 @@ DEFINE_HOOK(492C40, CSFFiles_Stringtables_Support, 7)
     Logger::Debug("Successfully loaded %d csf labels.\n", StringtableLoader::CSFFiles_Stringtable.size());
 
     char tmpCsfFile[0x400];
-    strcpy_s(tmpCsfFile, CFinalSunApp::ExePath());
+    strcpy_s(tmpCsfFile, CFinalSunAppExt::ExePathExt);
     strcat_s(tmpCsfFile, "\\RA2Tmp.csf");
     DeleteFile(tmpCsfFile);
 
@@ -360,7 +361,7 @@ bool StringtableLoader::ParseCSFFile(char* buffer, DWORD size)
 void StringtableLoader::WriteCSFFile()
 {
     char tmpCsfFile[0x400];
-    strcpy_s(tmpCsfFile, CFinalSunApp::ExePath());
+    strcpy_s(tmpCsfFile, CFinalSunAppExt::ExePathExt);
     strcat_s(tmpCsfFile, "\\RA2Tmp.csf");
     std::ofstream fout;
     fout.open(tmpCsfFile, std::ios::out | std::ios::trunc | std::ios::binary);
@@ -412,7 +413,7 @@ void StringtableLoader::WriteCSFFile()
 bool StringtableLoader::LoadToBuffer()
 {
     char directoryBuffer[0x400];
-    strcpy_s(directoryBuffer, CFinalSunApp::ExePath());
+    strcpy_s(directoryBuffer, CFinalSunAppExt::ExePathExt);
     strcat_s(directoryBuffer, "\\");
     strcat_s(directoryBuffer, "RA2Tmp.csf");
     std::ifstream fin;

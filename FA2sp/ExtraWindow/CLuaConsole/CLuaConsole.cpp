@@ -25,6 +25,7 @@
 #include <stdexcept>
 #include "../../Miscs/MultiSelection.h"
 #include <Miscs/Miscs.h>
+#include "../../Ext/CFinalSunApp/Body.h"
 
 namespace fs = std::filesystem;
 
@@ -871,7 +872,7 @@ void CLuaConsole::Update(HWND& hWnd, const char* filter)
     ShowWindow(m_hwnd, SW_SHOW);
     SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
     while (SendMessage(hScripts, LB_DELETESTRING, 0, NULL) != CB_ERR);
-    std::string scriptPath = CFinalSunApp::ExePath();
+    std::string scriptPath = CFinalSunAppExt::ExePathExt;
     scriptPath += "\\Scripts\\";
     if (fs::exists(scriptPath) && fs::is_directory(scriptPath)) {
         for (const auto& entry : fs::directory_iterator(scriptPath)) {
@@ -1011,7 +1012,7 @@ BOOL CALLBACK CLuaConsole::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
     }
     case 114514: // used for update
     {
-        Update(hWnd);
+        OnEditchangeSearch(hWnd);
         return TRUE;
     }
     }
@@ -1047,7 +1048,7 @@ void CLuaConsole::OnClickRun(bool fromFile)
     std::string script;
     if (fromFile)
     {
-        std::string scriptPath = CFinalSunApp::ExePath();
+        std::string scriptPath = CFinalSunAppExt::ExePathExt;
         scriptPath += "\\Scripts\\";
         int idx = SendMessage(hScripts, LB_GETCURSEL, NULL, NULL);
         char fileName[260]{ 0 };

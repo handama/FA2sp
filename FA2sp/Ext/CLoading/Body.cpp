@@ -6,6 +6,7 @@
 #include "../../Helpers/Translations.h"
 #include "../../FA2sp.h"
 #include <filesystem>
+#include "../CFinalSunApp/Body.h"
 
 bool CLoadingExt::HasFile_ReadyToReadFromFolder = false;
 Palette CLoadingExt::TempISOPalette = { 0 };
@@ -199,7 +200,7 @@ bool CLoadingExt::InitMixFilesFix()
 		if (!LoadMixFile("CONQUER.MIX", 0, true))	return false;
 
 		//MARBLE should be ahead of normal theater mixes
-		FString FullPath = CFinalSunApp::ExePath();
+		FString FullPath = CFinalSunAppExt::ExePathExt;
 		FullPath += "\\MARBLE.MIX";
 		int result = CMixFile::Open(FullPath, 0);
 		if (result)
@@ -268,7 +269,6 @@ bool CLoadingExt::InitMixFilesFix()
 		auto& manager = MixLoader::Instance();
 		manager.Clear();
 
-		int index = 0;
 		// Load Extra Mixes
 		if (auto pSection = CINI::FAData->GetSection("ExtraMixes"))
 		{
@@ -286,9 +286,9 @@ bool CLoadingExt::InitMixFilesFix()
 				else
 					path = CFinalSunApp::Instance->FilePath();
 				path += "\\" + key;
-				if (manager.LoadMixFile(path))
+				if (auto id = manager.LoadMixFile(path))
 				{
-					Logger::Raw("[ExtMixLoader][EXTRA] %04d - %s loaded.\n", index++, path);
+					Logger::Raw("[ExtMixLoader][EXTRA] %04d - %s loaded.\n", id, path);
 				}
 				else
 				{
@@ -299,37 +299,36 @@ bool CLoadingExt::InitMixFilesFix()
 
 		FString Dir = CFinalSunApp::Instance->FilePath();
 		Dir += "\\";
-		auto LoadMixFile = [&index, &manager, this, Dir](const char* Mix, int Parent = 0, bool addToRA2 = false)
+		auto LoadMixFile = [&manager, this, Dir](const char* Mix, int Parent = 0, bool addToRA2 = false)
 		{
 			FString FullPath = Dir + Mix;
 			int parent = -1;
-			bool result = manager.LoadMixFile(FullPath, &parent);
-			if (result)
+			auto id = manager.LoadMixFile(FullPath, &parent);
+			if (id)
 			{
 				if (parent >= 0)
-					Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", index, Mix);
+					Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", id, Mix);
 				else
-					Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", index, FullPath);
+					Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", id, FullPath);
 				if (addToRA2)
 				{
-					CLoadingExt::Ra2dotMixes.insert(index);
+					CLoadingExt::Ra2dotMixes.insert(id);
 				}
-				index++;
-				return ExtConfigs::DisableDirectoryCheck || result;
+				return ExtConfigs::DisableDirectoryCheck || id;
 			}
 			if (std::filesystem::exists(FullPath.c_str()))
 			{
 				Logger::Raw("[ExtMixLoader] %s failed!\n", Mix);
 			}
-			return ExtConfigs::DisableDirectoryCheck || result;
+			return ExtConfigs::DisableDirectoryCheck || id;
 		};
 
 		FString fa2extra = CFinalSunApp::Instance->ExePath();
 		fa2extra += "\\";
 		fa2extra += "fa2extra.mix";
-		if (manager.LoadMixFile(fa2extra))
+		if (auto id = manager.LoadMixFile(fa2extra))
 		{
-			Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", index++, fa2extra);
+			Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", id, fa2extra);
 		}
 		else
 		{
@@ -386,12 +385,12 @@ bool CLoadingExt::InitMixFilesFix()
 		if (!LoadMixFile("CONQUER.MIX", 0, true))	return false;
 
 		//MARBLE should be ahead of normal theater mixes
-		FString FullPath = CFinalSunApp::ExePath();
+		FString FullPath = CFinalSunAppExt::ExePathExt();
 		FullPath += "\\MARBLE.MIX";
-		int result = manager.LoadMixFile(FullPath);
-		if (result)
+		int id = manager.LoadMixFile(FullPath);
+		if (id)
 		{
-			Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", index++, FullPath);
+			Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", id, FullPath);
 			CFinalSunApp::Instance->MarbleLoaded = TRUE;
 		}
 		else

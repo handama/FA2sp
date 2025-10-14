@@ -20,6 +20,7 @@ public:
     static FString GetTriggerName(const char* id);
     static FString GetAITriggerName(const char* id);
     static FString GetTagName(const char* id);
+    static FString GetTagDisplayName(const char* id);
 
     static void LoadParams(HWND& hWnd, FString idx);
     static void LoadParam_Waypoints(HWND& hWnd);

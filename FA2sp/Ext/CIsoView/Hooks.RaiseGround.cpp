@@ -653,6 +653,15 @@ DEFINE_HOOK(46404B, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN, 7)
 	{
 		CMapDataExt::GetExtension()->SetHeightAt(X, Y, cellClick->Height + 1);
 	}
+	for (int i = 0; i < CMapDataExt::CellDataExts.size(); i++)
+	{
+		if (CMapDataExt::CellDataExts[i].CreateSlope || CMapDataExt::CellDataExts[i].Adjusted)
+		{
+			int thisX = mapData.GetXFromCoordIndex(i);
+			int thisY = mapData.GetYFromCoordIndex(i);
+			CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
+		}
+	}
 	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 
 	return 0x46686A;
@@ -861,6 +870,15 @@ DEFINE_HOOK(464B01, CIsoView_OnLButtonDown_ACTIONMODE_LOWER, 7)
 	{
 		CMapDataExt::GetExtension()->SetHeightAt(X, Y, cellClick->Height - 1);
 	}
+	for (int i = 0; i < CMapDataExt::CellDataExts.size(); i++)
+	{
+		if (CMapDataExt::CellDataExts[i].CreateSlope || CMapDataExt::CellDataExts[i].Adjusted)
+		{
+			int thisX = mapData.GetXFromCoordIndex(i);
+			int thisY = mapData.GetYFromCoordIndex(i);
+			CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
+		}
+	}
 
 	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 	return 0x46686A;
@@ -928,7 +946,15 @@ DEFINE_HOOK(46557C, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTENTILE, 6)
 			}
 		}
 	}
-
+	for (int i = 0; i < CMapDataExt::CellDataExts.size(); i++)
+	{
+		if (CMapDataExt::CellDataExts[i].CreateSlope || CMapDataExt::CellDataExts[i].Adjusted)
+		{
+			int thisX = mapData.GetXFromCoordIndex(i);
+			int thisY = mapData.GetYFromCoordIndex(i);
+			CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
+		}
+	}
 
 	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 	return 0x46686A;
@@ -1027,6 +1053,16 @@ DEFINE_HOOK(465CC7, CIsoView_OnLButtonDown_ACTIONMODE_LOWERTILE, 6)
 			}
 		}
 	}
+	for (int i = 0; i < CMapDataExt::CellDataExts.size(); i++)
+	{
+		if (CMapDataExt::CellDataExts[i].CreateSlope || CMapDataExt::CellDataExts[i].Adjusted)
+		{
+			int thisX = mapData.GetXFromCoordIndex(i);
+			int thisY = mapData.GetYFromCoordIndex(i);
+			CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
+		}
+	}
+
 	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 	return 0x46686A;
 	//return 0x4663D3;
@@ -1166,7 +1202,15 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 			CMapDataExt::CreateSlopeAt(thisX, thisY, IgnoreMorphable);
 		}
 	}
-
+	for (int i = 0; i < CMapDataExt::CellDataExts.size(); i++)
+	{
+		if (CMapDataExt::CellDataExts[i].CreateSlope || CMapDataExt::CellDataExts[i].Adjusted)
+		{
+			int thisX = mapData.GetXFromCoordIndex(i);
+			int thisY = mapData.GetYFromCoordIndex(i);
+			CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
+		}
+	}
 
 	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 	

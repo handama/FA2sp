@@ -1,7 +1,6 @@
 #include "Body.h"
 
 #include <CINI.h>
-#include <CMapData.h>
 #include <CMixFile.h>
 #include <iostream>
 #include <fstream>
@@ -11,6 +10,7 @@
 #include "../../Algorithms/Matrix3D.h"
 #include "../CMapData/Body.h"
 #include "../CFinalSunDlg/Body.h"
+#include <random>
 
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
@@ -27,6 +27,8 @@ int CLoadingExt::TallestBuildingHeight = 0;
 std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::CurrentFrameImageDataMap;
 std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::ImageDataMap;
 std::unordered_map<FString, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::SurfaceImageDataMap;
+std::vector<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::DamageFires;
+unsigned int CLoadingExt::RandomFireSeed = 0;
 
 bool CLoadingExt::IsImageLoaded(const FString& name)
 {
@@ -2386,6 +2388,63 @@ void CLoadingExt::LoadShp(FString ImageID, FString FileName, FString PalName, in
 			LoadedObjects.insert(ImageID);
 		}
 	}
+}
+
+void CLoadingExt::LoadFires(const ppmfc::CString& FileName)
+{
+	auto loadingExt = (CLoadingExt*)CLoading::Instance();
+	if (auto pal = PalettesManager::LoadPalette("anim.pal"))
+	{
+		int nMix = loadingExt->SearchFile(FileName);
+		if (loadingExt->HasFile(FileName, nMix))
+		{
+			ShapeHeader header;
+			unsigned char* FramesBuffers;
+			CMixFile::LoadSHP(FileName, nMix);
+			CShpFile::GetSHPHeader(&header);
+			for (int i = 0; i < header.FrameCount; ++i)
+			{
+				loadingExt->LoadSHPFrameSafe(i, 1, &FramesBuffers, header);
+				auto pData = std::make_unique<ImageDataClassSafe>();
+				loadingExt->SetImageDataSafe(FramesBuffers, pData.get(), header.Width, header.Height, pal);
+				DamageFires.push_back(std::move(pData));
+			}
+		}
+	}
+}
+
+std::vector<ImageDataClassSafe*> CLoadingExt::GetRandomFire(const MapCoord& coord, int number)
+{
+	if (DamageFires.empty()) return {};
+	if (number == 0) return {};
+
+	size_t h1 = std::hash<int>{}(coord.X);
+	size_t h2 = std::hash<int>{}(coord.Y);
+	auto hash = h1 ^ (h2 << 1);
+	std::mt19937 rng(static_cast<unsigned int>(hash ^ RandomFireSeed));
+
+	std::vector<ImageDataClassSafe*> shuffled;
+	for (const auto& f : DamageFires)
+		shuffled.push_back(f.get());
+
+	std::shuffle(shuffled.begin(), shuffled.end(), rng);
+
+	std::vector<ImageDataClassSafe*> result;
+	result.reserve(number);
+
+	if (shuffled.size() >= number) {
+		result.insert(result.end(), shuffled.begin(), shuffled.begin() + number);
+	}
+	else {
+		while (result.size() < number) {
+			size_t remain = number - result.size();
+			if (remain >= shuffled.size())
+				result.insert(result.end(), shuffled.begin(), shuffled.end());
+			else
+				result.insert(result.end(), shuffled.begin(), shuffled.begin() + remain);
+		}
+	}
+	return result;
 }
 
 void CLoadingExt::LoadShp(FString ImageID, FString FileName, Palette* pPal, int nFrame, bool toServer)

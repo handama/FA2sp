@@ -46,3 +46,26 @@ static bool ParseBool(const char* pValue) {
 		return false;
 	}
 };
+
+template <typename T>
+class TempValueHolder {
+public:
+	TempValueHolder(T& variable, const T& tempValue)
+		: ref_(variable), originalValue_(variable) {
+		variable = tempValue;
+	}
+
+	~TempValueHolder() {
+		ref_ = originalValue_;
+	}
+
+	TempValueHolder(const TempValueHolder&) = delete;
+	TempValueHolder& operator=(const TempValueHolder&) = delete;
+
+private:
+	T& ref_; 
+	T originalValue_; 
+};
+
+#define ADD_TEMP_HOLDER(holders, var, value) \
+    holders.push_back(std::make_unique<TempValueHolder<decltype(var)>>(var, value))

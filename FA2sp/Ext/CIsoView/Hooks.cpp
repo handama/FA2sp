@@ -405,7 +405,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 		pThis->CurrentCellObjectIndex = cell->Smudge;
 		pThis->CurrentCellObjectType = 9;
 	}
-	if (pThis->CurrentCellObjectIndex < 0)
+	if (CIsoViewExt::DrawAnnotations && pThis->CurrentCellObjectIndex < 0)
 	{
 		if (CMapDataExt::HasAnnotation(pos))
 		{

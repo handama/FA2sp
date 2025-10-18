@@ -19,6 +19,7 @@
 #include <immintrin.h>
 #include <mutex>
 
+Bitmap* CIsoViewExt::pFullBitmap = nullptr;
 bool CIsoViewExt::DrawStructures = true;
 bool CIsoViewExt::DrawInfantries = true;
 bool CIsoViewExt::DrawUnits = true;
@@ -36,6 +37,8 @@ bool CIsoViewExt::DrawVeterancy = true;
 bool CIsoViewExt::DrawShadows = true;
 bool CIsoViewExt::DrawAlphaImages = true;
 bool CIsoViewExt::DrawBaseNodeIndex = true;
+bool CIsoViewExt::DrawAnnotations = true;
+bool CIsoViewExt::DrawFires = true;
 bool CIsoViewExt::RockCells = false;
 
 bool CIsoViewExt::PasteStructures = false;
@@ -55,6 +58,9 @@ bool CIsoViewExt::DrawUnitsFilter = false;
 bool CIsoViewExt::DrawAircraftsFilter = false;
 bool CIsoViewExt::DrawBasenodesFilter = false;
 bool CIsoViewExt::DrawCellTagsFilter = false;
+bool CIsoViewExt::RenderingMap = false;
+bool CIsoViewExt::RenderFullMap = false;
+bool CIsoViewExt::RenderCurrentLayers = false;
 
 bool CIsoViewExt::AutoPropertyBrush[4] = { false };
 bool CIsoViewExt::IsPressingALT = false;
@@ -150,10 +156,25 @@ constexpr auto MakeBrightnessLUT() {
 constexpr std::array<BYTE, 256> BrightnessLUT = MakeBrightnessLUT();
 
 void CIsoViewExt::InitAlphaTable() {
-    for (int i = 0; i < 256; i++) {
-        for (int j = 0; j < 256; j++) {
-            alphaBlendTable[i][j] = static_cast<BYTE>((i * j) >> 8);
+    static bool initialized = false;
+    if (!initialized) {
+        for (int i = 0; i < 256; i++) {
+            for (int j = 0; j < 256; j++) {
+                alphaBlendTable[i][j] = static_cast<BYTE>((i * j) >> 8);
+            }
         }
+        initialized = true;
+    }
+}
+
+void CIsoViewExt::InitGdiplus()
+{
+    static bool initialized = false;
+    if (!initialized) {
+        GdiplusStartupInput gdiplusStartupInput;
+        ULONG_PTR gdiplusToken;
+        GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+        initialized = true;
     }
 }
 
@@ -4175,6 +4196,76 @@ std::vector<MapCoord> CIsoViewExt::GetLineRectangles(MapCoord start, MapCoord en
     }
 
     return placedRects;
+}
+
+bool CIsoViewExt::BlitDDSurfaceRectToBitmap(
+    HDC hDC,
+    const DDBoundary& boundary,
+    const RECT& srcRect,
+    int dstX,
+    int dstY)
+{
+    if (!hDC || !pFullBitmap)
+        return false;
+
+    RECT rc = srcRect;
+    if (rc.left < 0) rc.left = 0;
+    if (rc.top < 0) rc.top = 0;
+    if (rc.right > boundary.dwWidth) rc.right = boundary.dwWidth;
+    if (rc.bottom > boundary.dwHeight) rc.bottom = boundary.dwHeight;
+
+    auto pIsoView = CIsoView::GetInstance();
+    int& height = CMapData::Instance->Size.Height;
+    int& width = CMapData::Instance->Size.Width;
+    int endX, endY;
+    int startOffsetX = width - 1;
+    int startOffsetY = 0;
+    pIsoView->MapCoord2ScreenCoord_Flat(startOffsetX, startOffsetY);
+    if (CIsoViewExt::RenderFullMap)
+    {
+        endX = height;
+        endY = width + height + 1;
+    }
+    else
+    {
+        const int& mapwidth = CMapData::Instance->Size.Width;
+        const int& mapheight = CMapData::Instance->Size.Height;
+
+        const int& mpL = CMapData::Instance->LocalSize.Left;
+        const int& mpT = CMapData::Instance->LocalSize.Top;
+        const int& mpW = CMapData::Instance->LocalSize.Width;
+        const int& mpH = CMapData::Instance->LocalSize.Height;
+
+        endX = mapwidth - mpL - mpW + mpT - 3 + mpH + 4;
+        endY = mpT + mpL + mpW - 2 + mpH + 4;
+    }
+    pIsoView->MapCoord2ScreenCoord_Flat(endX, endY);
+    endX -= startOffsetX;
+    endY -= startOffsetY;
+    if (rc.right - rc.left + dstX > endX) rc.right = endX - dstX + rc.left;
+    if (rc.bottom + dstY - rc.top > endY) rc.bottom = endY - dstY + rc.top;
+
+    if (rc.right <= rc.left || rc.bottom <= rc.top)
+        return false;
+
+    int srcW = rc.right - rc.left;
+    int srcH = rc.bottom - rc.top;
+
+    int finalW = dstX + srcW;
+    int finalH = dstY + srcH;
+    if (finalW > (int)pFullBitmap->GetWidth())  srcW -= finalW - pFullBitmap->GetWidth();
+    if (finalH > (int)pFullBitmap->GetHeight()) srcH -= finalH - pFullBitmap->GetHeight();
+
+    if (srcW <= 0 || srcH <= 0)
+        return false;
+
+    Graphics g(pFullBitmap);
+
+    HDC hdcTarget = g.GetHDC();
+    BitBlt(hdcTarget, dstX, dstY, srcW, srcH, hDC, rc.left, rc.top, SRCCOPY);
+    g.ReleaseHDC(hdcTarget);
+
+    return true;
 }
 
 BOOL CIsoViewExt::PreTranslateMessageExt(MSG* pMsg)

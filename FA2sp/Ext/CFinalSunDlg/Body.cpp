@@ -29,6 +29,8 @@
 #include <thread>
 #include "../../Miscs/MultiSelection.h"
 #include "../../Miscs/DialogStyle.h"
+#include "../../Helpers/Helper.h"
+#include "../../ExtraWindow/CMapRendererDlg/CMapRendererDlg.h"
 
 int CFinalSunDlgExt::CurrentLighting = 31000;
 std::pair<FString, int> CFinalSunDlgExt::SearchObjectIndex ("", - 1);
@@ -87,13 +89,13 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				CheckMenuItem(hMenu, id, MF_CHECKED);
 
 
-				const ppmfc::CString title = Translations::TranslateOrDefault(
+				const FString title = Translations::TranslateOrDefault(
 					"ObjectFilterTitle", "Object Filter"
 				);
-				const ppmfc::CString message = Translations::TranslateOrDefault(
+				const FString message = Translations::TranslateOrDefault(
 					"ObjectFilterMessage", "Please input Object ID(s):\n\nSeparate multiple objects with \",\". Leave it blank to display all.\nAfter confirmation, set object property filtering (optional)."
 				);
-				const ppmfc::CString message2 = Translations::TranslateOrDefault(
+				const FString message2 = Translations::TranslateOrDefault(
 					"ObjectFilterMessageCT", "Please input Tag ID(s):\n\nSeparate multiple tags with \",\". You can only fill in the last digits."
 				);
 				ppmfc::CString result;
@@ -430,6 +432,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	case 30023:
 		SetLayerStatus(30023, CIsoViewExt::DrawAlphaImages);
 		return TRUE;
+	case 30024:
+		SetLayerStatus(30024, CIsoViewExt::DrawAnnotations);
+		return TRUE;
+	case 30025:
+		SetLayerStatus(30025, CIsoViewExt::DrawFires);
+		return TRUE;
 	case 30050:
 		SetMenuStatusTrue(30000, CIsoViewExt::DrawStructures);
 		SetMenuStatusTrue(30001, CIsoViewExt::DrawInfantries);
@@ -448,6 +456,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		SetMenuStatusTrue(30021, CIsoViewExt::DrawVeterancy);
 		SetMenuStatusTrue(30022, CIsoViewExt::DrawShadows);
 		SetMenuStatusTrue(30023, CIsoViewExt::DrawAlphaImages);
+		SetMenuStatusTrue(30024, CIsoViewExt::DrawAnnotations);
+		SetMenuStatusTrue(30025, CIsoViewExt::DrawFires);
 		SetMenuStatusFalse(30014, CIsoViewExt::RockCells);
 		SetMenuStatusFalse(30015, CIsoViewExt::DrawStructuresFilter);
 		SetMenuStatusFalse(30016, CIsoViewExt::DrawInfantriesFilter);
@@ -719,10 +729,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	}
 	if (wmID == 40157)
 	{
-		const ppmfc::CString title = Translations::TranslateOrDefault(
+		const FString title = Translations::TranslateOrDefault(
 			"Error", "Error"
 		);
-		const ppmfc::CString message = Translations::TranslateOrDefault(
+		const FString message = Translations::TranslateOrDefault(
 			"SelectAutoShoreNotFound", "This theater does not have available shore options."
 		);
 		bool found = false;
@@ -788,6 +798,171 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CTriggerAnnotation::GetHandle(), 114514, 0, 0);
 		}
 	}
+	if (wmID == 40165 && CMapData::Instance->MapWidthPlusHeight)
+	{
+		CMapRendererDlg dlg;
+		if (dlg.DoModal() != IDCANCEL)
+		{
+			CIsoViewExt::InitGdiplus();
+			CIsoViewExt::RenderingMap = true;
+			Gdiplus::Status result = Gdiplus::Status::AccessDenied;
+			std::string path = CFinalSunApp::MapPath();
+			if (path.empty())
+				path = CFinalSunAppExt::ExePathExt + "New map";
+			path += ".png";
+			auto wpath = STDHelpers::StringToWString(path);
+			TempValueHolder<double> scaled(CIsoViewExt::ScaledFactor, 1.0);
+			std::vector<std::unique_ptr<TempValueHolder<bool>>> holders;
+			std::vector<std::unique_ptr<TempValueHolder<BOOL>>> holders2;
+
+			if (!CIsoViewExt::RenderCurrentLayers)
+			{
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawStructures, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawInfantries, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawUnits, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAircrafts, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBasenodes, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawWaypoints, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawCelltags, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawMoneyOnMap, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawOverlays, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawTerrains, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawSmudges, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawTubes, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBounds, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawVeterancy, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawShadows, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAlphaImages, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAnnotations, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawFires, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBaseNodeIndex, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::RockCells, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawStructuresFilter, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawInfantriesFilter, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawUnitsFilter, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAircraftsFilter, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBasenodesFilter, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawCellTagsFilter, false);
+				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->ShowBuildingCells, FALSE);
+				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->FlatToGround, FALSE);
+				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->FrameMode, FALSE);
+			}
+
+			auto pIsoView = CIsoView::GetInstance();
+
+			int& height = CMapData::Instance->Size.Height;
+			int& width = CMapData::Instance->Size.Width;
+			int startOffsetX = width - 1;
+			int startOffsetY = 0;
+			pIsoView->MapCoord2ScreenCoord_Flat(startOffsetX, startOffsetY);
+			int startX, startY, endX, endY;
+			if (CIsoViewExt::RenderFullMap)
+			{
+				startX = width - 1;
+				startY = 0;
+				endX = height;
+				endY = width + height + 1;
+			}
+			else
+			{
+				const int& mapwidth = CMapData::Instance->Size.Width;
+				const int& mapheight = CMapData::Instance->Size.Height;
+
+				const int& mpL = CMapData::Instance->LocalSize.Left;
+				const int& mpT = CMapData::Instance->LocalSize.Top;
+				const int& mpW = CMapData::Instance->LocalSize.Width;
+				const int& mpH = CMapData::Instance->LocalSize.Height;
+
+				startY = mpT + mpL - 2;
+				startX = mapwidth + mpT - mpL - 3;
+
+				endX = mapwidth - mpL - mpW + mpT - 3 + mpH + 4;
+				endY = mpT + mpL + mpW - 2 + mpH + 4;
+			}
+			pIsoView->MapCoord2ScreenCoord_Flat(startX, startY);
+			pIsoView->MapCoord2ScreenCoord_Flat(endX, endY);
+			
+			VEHGuard v(false);
+			try {
+				CIsoViewExt::pFullBitmap = new Bitmap(endX - startX, endY - startY, PixelFormat32bppARGB);
+			}
+			catch (const std::bad_alloc&) {
+				const FString title = Translations::TranslateOrDefault(
+					"Error", "Error"
+				);
+				const FString message = Translations::TranslateOrDefault(
+					"AllocFullMapBitmapFailed", "Memory allocation failed, cannot render full map."
+				);
+				::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, title, MB_ICONWARNING);
+				CIsoViewExt::pFullBitmap = nullptr;
+			}
+			
+			if (CIsoViewExt::pFullBitmap)
+			{
+				Graphics gInit(CIsoViewExt::pFullBitmap);
+				gInit.Clear(Color(0, 0, 0, 0));
+
+				CRect r;
+				pIsoView->GetWindowRect(&r);
+
+				pIsoView->ViewPosition.y = startY - startOffsetY;
+				while (pIsoView->ViewPosition.y < endY)
+				{
+					pIsoView->ViewPosition.x = startX - startOffsetX;
+					while (pIsoView->ViewPosition.x < endX)
+					{
+						::SetScrollPos(pIsoView->GetSafeHwnd(), SB_VERT, pIsoView->ViewPosition.y / 30 - width / 2 + 4, TRUE);
+						::SetScrollPos(pIsoView->GetSafeHwnd(), SB_HORZ, pIsoView->ViewPosition.x / 60 - height / 2 + 1, TRUE);
+						pIsoView->Draw();
+						MSG msg;
+						while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+							TranslateMessage(&msg);
+							DispatchMessage(&msg);
+						}
+						pIsoView->ViewPosition.x += r.Width();
+					}
+					pIsoView->ViewPosition.y += r.Height();
+				}
+
+				CLSID clsidEncoder;
+				UINT num = 0, size = 0;
+				GetImageEncodersSize(&num, &size);
+				ImageCodecInfo* pImageCodecInfo = (ImageCodecInfo*)malloc(size);
+				GetImageEncoders(num, size, pImageCodecInfo);
+				for (UINT i = 0; i < num; ++i)
+				{
+					if (wcscmp(pImageCodecInfo[i].MimeType, L"image/png") == 0)
+					{
+						clsidEncoder = pImageCodecInfo[i].Clsid;
+						break;
+					}
+				}
+				free(pImageCodecInfo);
+
+				result = CIsoViewExt::pFullBitmap->Save(wpath.c_str(), &clsidEncoder, nullptr);
+				delete CIsoViewExt::pFullBitmap;
+				CIsoViewExt::pFullBitmap = nullptr;
+			}
+			CIsoViewExt::RenderingMap = false;
+			holders.clear();
+			holders2.clear();
+			CIsoViewExt::MoveToMapCoord(CMapData::Instance->MapWidthPlusHeight / 2, CMapData::Instance->MapWidthPlusHeight / 2);
+
+			if (result == Gdiplus::Status::Ok)
+			{
+				FString templ = Translations::TranslateOrDefault(
+					"MapRendererSuccess", "Saving output to"
+				);
+				templ += "\n%s";
+				FString message;
+				message.Format(templ, path);
+				::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, "FA2sp", MB_ICONINFORMATION);
+			}
+
+			CIsoViewExt::pFullBitmap = nullptr;
+
+		}
+	}
 	auto closeFA2Window = [this, &wmID](int wmID2, ppmfc::CDialog &dialog)
 	{
 		if (wmID2 == wmID)
@@ -810,10 +985,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 	if (wmID == 40152 && CMapData::Instance->MapWidthPlusHeight)
 	{
-		const ppmfc::CString title = Translations::TranslateOrDefault(
+		const FString title = Translations::TranslateOrDefault(
 			"AutocreateLAT", "Autocreate LAT"
 		);
-		const ppmfc::CString message = Translations::TranslateOrDefault(
+		const FString message = Translations::TranslateOrDefault(
 			"AutocreateLATmessage", "FA2 will recalculate LAT for the entire Map according to the rules of the game engine, which can be undone using the undo key. Do you want to continue?"
 		);
 		int result = ::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, title, MB_YESNO);
@@ -832,10 +1007,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	}
 	if (wmID == 40153 && CMapData::Instance->MapWidthPlusHeight)
 	{
-		const ppmfc::CString title = Translations::TranslateOrDefault(
+		const FString title = Translations::TranslateOrDefault(
 			"SmoothWater", "Smooth Water"
 		);
-		const ppmfc::CString message = Translations::TranslateOrDefault(
+		const FString message = Translations::TranslateOrDefault(
 			"SmoothWatermessage", "FA2 will regenerate the water and eliminate fragmented terrain tiles, which can be undone using the undo key. Do you want to continue?"
 		);
 		int result = ::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, title, MB_YESNO);
@@ -955,10 +1130,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			const ppmfc::CString end_title = Translations::TranslateOrDefault(
 				"SearchObjectTitle", "Search Object"
 			);
-			const ppmfc::CString title = Translations::TranslateOrDefault(
+			const FString title = Translations::TranslateOrDefault(
 				"SearchObjectTitle", "Search Object"
 			);
-			const ppmfc::CString message = Translations::TranslateOrDefault(
+			const FString message = Translations::TranslateOrDefault(
 				"SearchObjectMessage", "Please input Object ID:\n\nSeparate multiple objects with \",\". Type A/B/I/V for all aircrafts/ buildings/ infantries/ vehicles. After confirmation, set object property filtering (optional)."
 			);
 

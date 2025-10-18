@@ -70,6 +70,8 @@ DEFINE_HOOK(432304, CFinalSunDlg_Update_LayersVisibility, 5)
     SetItemCheckStatus(30014, CIsoViewExt::RockCells);
     SetItemCheckStatus(30022, CIsoViewExt::DrawShadows);
     SetItemCheckStatus(30023, CIsoViewExt::DrawAlphaImages);
+    SetItemCheckStatus(30024, CIsoViewExt::DrawAnnotations);
+    SetItemCheckStatus(30025, CIsoViewExt::DrawFires);
     SetItemCheckStatus(30015, CIsoViewExt::DrawStructuresFilter);
     SetItemCheckStatus(30016, CIsoViewExt::DrawInfantriesFilter);
     SetItemCheckStatus(30017, CIsoViewExt::DrawUnitsFilter);
@@ -180,6 +182,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(40037, "Menu.Edit.SingleplayerSettings");
     translateMenuItem(40154, "Menu.Edit.INIEditor");
     translateMenuItem(40155, "Menu.Edit.CSFEditor");
+    translateMenuItem(40164, "Menu.Edit.TriggerAnnotation");
 
     translateMenuItem(40053, "Menu.Terrain.RaiseGround");
     translateMenuItem(40054, "Menu.Terrain.LowerGround");
@@ -205,7 +208,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(40135, "Menu.MapTools.ToolScripts");
     translateMenuItem(40136, "Menu.MapTools.DeleteObjects");
     translateMenuItem(40163, "Menu.MapTools.DistanceRuler");
-    translateMenuItem(40164, "Menu.MapTools.TriggerAnnotation");
+    translateMenuItem(40165, "Menu.MapTools.MapRenderer");
     translateMenuItem(40158, "Menu.Options.LuaScriptConsole");
     translateMenuItem(40159, "Menu.Options.ShowObjectViewCameo");
 
@@ -242,6 +245,8 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(30014, "Menu.Display.RockCells");
     translateMenuItem(30022, "Menu.Display.Shadows");
     translateMenuItem(30023, "Menu.Display.AlphaImages");
+    translateMenuItem(30024, "Menu.Display.Annotations");
+    translateMenuItem(30025, "Menu.Display.DamageFires");
 
     translateMenuItem(30015, "Menu.Display.StructuresFilter");
     translateMenuItem(30016, "Menu.Display.InfantriesFilter");

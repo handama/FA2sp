@@ -174,6 +174,22 @@ DEFINE_HOOK(4B5460, CMapData_InitializeBuildingTypes, 7)
 				}
 			}
 		}
+
+		for (int i = 0; i < 8; ++i)
+		{
+			FString key;
+			key.Format("DamageFireOffset%d", i);
+			if (CINI::Art->KeyExists(ID, key))
+			{
+				auto atoms = STDHelpers::SplitString(CINI::Art->GetString(ID, key, "0,0"), 1);
+				DataExt.DamageFireOffsets.push_back({ atoi(atoms[0]),atoi(atoms[1]) });
+			}
+			else
+			{
+				break;
+			}
+		}
+		
 	};
 
 	pThis->UpdateTypeDatas();

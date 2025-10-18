@@ -8,6 +8,13 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <set>
+#include <ddraw.h>
+#include <gdiplus.h>
+
+#pragma comment(lib, "gdiplus.lib")
+#pragma comment(lib, "ddraw.lib")
+
+using namespace Gdiplus;
 
 struct CellData;
 class ImageDataClassSafe;
@@ -152,7 +159,9 @@ public:
     static std::vector<MapCoord> GetLinePoints(MapCoord mc1, MapCoord mc2);
     static std::vector<MapCoord> GetLineRectangles(MapCoord start, MapCoord end, int width, int height);
     static void InitAlphaTable();
-
+    static void InitGdiplus();
+    static bool BlitDDSurfaceRectToBitmap(HDC hDC, const DDBoundary& boundary, const RECT& srcRect, int dstX, int dstY);
+    static Bitmap* pFullBitmap;
     static bool DrawStructures;
     static bool DrawInfantries;
     static bool DrawUnits;
@@ -170,6 +179,8 @@ public:
     static bool DrawShadows;
     static bool DrawAlphaImages;
     static bool DrawBaseNodeIndex;
+    static bool DrawAnnotations;
+    static bool DrawFires;
     static bool RockCells;
 
     static bool PasteStructures;
@@ -189,6 +200,9 @@ public:
     static bool DrawAircraftsFilter;
     static bool DrawBasenodesFilter;
     static bool DrawCellTagsFilter;
+    static bool RenderingMap;
+    static bool RenderFullMap;
+    static bool RenderCurrentLayers;
 
     static bool AutoPropertyBrush[4];
 

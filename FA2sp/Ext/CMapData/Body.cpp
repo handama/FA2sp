@@ -37,6 +37,7 @@
 #include <unordered_set>
 #include "../../Miscs/TheaterInfo.h"
 #include "../../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
+#include <random>
 
 int CMapDataExt::OreValue[4] { -1,-1,-1,-1 };
 unsigned short CMapDataExt::CurrentRenderBuildingStrength;
@@ -2170,6 +2171,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CIsoView::GetInstance()->CurrentCellObjectIndex = -1;
 	CIsoView::GetInstance()->CurrentCellObjectType = -1;
 	CIsoView::GetInstance()->Drag = FALSE;
+	CIsoViewExt::InitAlphaTable();
 
 	Variables::RulesMap.ClearMap();
 	Variables::Rules.ClearMap();
@@ -2583,6 +2585,14 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	const char* PaletteName = "palette.pal";
 	CLoadingExt::LoadShp(InsigniaVeteran, "pips.shp", PaletteName, 14, false);
 	CLoadingExt::LoadShp(InsigniaElite, "pips.shp", PaletteName, 15, false);
+	CLoadingExt::DamageFires.clear();
+	std::random_device rd;
+	CLoadingExt::RandomFireSeed = rd();
+	auto fires = STDHelpers::SplitString(Variables::RulesMap.GetString("General", "DamageFireTypes"));
+	for (const auto& fire : fires)
+	{
+		CLoadingExt::LoadFires(fire + ".shp");
+	}
 
 	for (auto& [_, ID] : Variables::RulesMap.GetSection("InfantryTypes"))
 	{

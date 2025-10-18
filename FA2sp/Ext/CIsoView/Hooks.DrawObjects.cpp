@@ -13,6 +13,7 @@
 #include "../../Miscs/MultiSelection.h"
 #include <codecvt>
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
+#include "../CFinalSunApp/Body.h"
 
 static int Left, Right, Top, Bottom;
 static CRect window;
@@ -106,7 +107,6 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 	CIsoViewExt::VisibleUnits.clear();
 	CIsoViewExt::VisibleAircrafts.clear();
 	CLoadingExt::CurrentFrameImageDataMap.clear();
-	CIsoViewExt::InitAlphaTable();
 
 	WaypointsToDraw.clear();
 	OverlayTextsToDraw.clear();
@@ -1253,15 +1253,18 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			{
 				int pos = CMapData::Instance->GetCoordIndex(X, Y);
 				const auto& objRender = CMapDataExt::BuildingRenderDatasFix[draw.index];
+				if (CIsoViewExt::RenderingMap
+					&& Variables::RulesMap.GetBool(objRender.ID, "InvisibleInGame"))
+					continue;
 				int x = mc.X;
 				int y = mc.Y;
 				CIsoView::MapCoord2ScreenCoord(x, y);
 				x -= DrawOffsetX;
 				y -= DrawOffsetY;
 
+				const auto& DataExt = CMapDataExt::BuildingDataExts[draw.buildingIndex];
 				if (CFinalSunApp::Instance->ShowBuildingCells)
 				{
-					const auto& DataExt = CMapDataExt::BuildingDataExts[draw.buildingIndex];
 					if (DataExt.IsCustomFoundation())
 						pThis->DrawLockedLines(*DataExt.LinesToDraw, x, y, objRender.HouseColor, false, false, lpDesc);
 					else
@@ -1340,6 +1343,21 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								{
 									AlphaImagesToDraw.push_back(
 										std::make_pair(MapCoord{ x - pAIData->FullWidth / 2, y - pAIData->FullHeight / 2 + 15 },pAIData));
+								}
+							}
+						}
+						if (CIsoViewExt::DrawFires && status == CLoadingExt::GBIN_DAMAGED && DataExt.DamageFireOffsets.size() > 0)
+						{
+							auto fires = CLoadingExt::GetRandomFire(mc, DataExt.DamageFireOffsets.size());
+							for (int i = 0; i < fires.size(); ++i)
+							{
+								const auto& fire = fires[i];
+								if (fire && fire->pImageBuffer)
+								{
+									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+										x - fire->FullWidth / 2 + DataExt.DamageFireOffsets[i].x,
+										y - fire->FullHeight / 2 + DataExt.DamageFireOffsets[i].y,
+										fire, NULL, 255, 0, -100, false);
 								}
 							}
 						}
@@ -1811,7 +1829,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		if (CIsoViewExt::DrawWaypoints && cell->Waypoint != -1)
 			pThis->DrawWaypointFlag(x, y, lpDesc);
 
-		if (CMapDataExt::HasAnnotation(pos))
+		if (CIsoViewExt::DrawAnnotations && CMapDataExt::HasAnnotation(pos))
 		{
 			pThis->DrawBitmap("annotation", x + 5, y - 2, lpDesc);
 		}
@@ -1831,7 +1849,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		pThis->DrawBitmap("target", drawX - 20, drawY - 11, lpDesc);
 	}
 
-	if (CIsoViewExt::DrawOverlays)
+	if (CIsoViewExt::DrawOverlays 
+		&& (!CIsoViewExt::RenderingMap ))
+//			|| CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers))
 	{
 		SetBkMode(hDC, TRANSPARENT);
 		SetTextAlign(hDC, TA_CENTER);
@@ -1927,55 +1947,58 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	SetTextAlign(hDC, TA_LEFT);
 	SetTextColor(hDC, RGB(0, 0, 0));
 
-	if (auto pSection = CINI::CurrentDocument->GetSection("Annotations"))
+	if (CIsoViewExt::DrawAnnotations)
 	{
-		for (const auto& [key, value] : pSection->GetEntities())
+		if (auto pSection = CINI::CurrentDocument->GetSection("Annotations"))
 		{
-			auto pos = atoi(key);
-			int x = pos / 1000;
-			int y = pos % 1000;
-			if (!IsCoordInWindow(x, y) || (!ExtConfigs::DisplayObjectsOutside && !CMapData::Instance->IsCoordInMap(x, y)))
-				continue;
-			CIsoView::MapCoord2ScreenCoord(x, y);
-			x -= DrawOffsetX;
-			y -= DrawOffsetY;
-			x += 23;
-			y -= 15;
-			auto atoms = FString::SplitString(value, 6);
-			int fontSize = std::min(100, atoi(atoms[0]));
-			fontSize = std::max(10, fontSize);
-			bool bold = STDHelpers::IsTrue(atoms[1]);
-			bool folded = STDHelpers::IsTrue(atoms[2]);
-			auto textColor = STDHelpers::HexStringToColorRefRGB(atoms[3]);
-			auto bgColor = STDHelpers::HexStringToColorRefRGB(atoms[4]);
-
-			FString text = atoms[5];
-			for (int i = 6; i < atoms.size() - 1; i++)
+			for (const auto& [key, value] : pSection->GetEntities())
 			{
-				text += ",";
-				text += atoms[i];
-			}
-			text.Replace("\\n", "\n");
-			auto result = STDHelpers::StringToWString(text);
+				auto pos = atoi(key);
+				int x = pos / 1000;
+				int y = pos % 1000;
+				if (!IsCoordInWindow(x, y) || (!ExtConfigs::DisplayObjectsOutside && !CMapData::Instance->IsCoordInMap(x, y)))
+					continue;
+				CIsoView::MapCoord2ScreenCoord(x, y);
+				x -= DrawOffsetX;
+				y -= DrawOffsetY;
+				x += 23;
+				y -= 15;
+				auto atoms = FString::SplitString(value, 6);
+				int fontSize = std::min(100, atoi(atoms[0]));
+				fontSize = std::max(10, fontSize);
+				bool bold = STDHelpers::IsTrue(atoms[1]);
+				bool folded = STDHelpers::IsTrue(atoms[2]);
+				auto textColor = STDHelpers::HexStringToColorRefRGB(atoms[3]);
+				auto bgColor = STDHelpers::HexStringToColorRefRGB(atoms[4]);
 
-			if (folded)
-			{
-				int count = 3;
-				if (count < result.length() - 1)
+				FString text = atoms[5];
+				for (int i = 6; i < atoms.size() - 1; i++)
 				{
-					if (IS_HIGH_SURROGATE(result[count - 1]) && IS_LOW_SURROGATE(result[count])) {
-						count--;
-					}
-					result = result.substr(0, count);
-					wchar_t toRemove = L'\n';
-					result.erase(std::remove(result.begin(), result.end(), toRemove), result.end());
-					result += L"...";
+					text += ",";
+					text += atoms[i];
 				}
-				if (fontSize > 18)
-					fontSize = 18;
+				text.Replace("\\n", "\n");
+				auto result = STDHelpers::StringToWString(text);
+
+				if (folded)
+				{
+					int count = 3;
+					if (count < result.length() - 1)
+					{
+						if (IS_HIGH_SURROGATE(result[count - 1]) && IS_LOW_SURROGATE(result[count])) {
+							count--;
+						}
+						result = result.substr(0, count);
+						wchar_t toRemove = L'\n';
+						result.erase(std::remove(result.begin(), result.end(), toRemove), result.end());
+						result += L"...";
+					}
+					if (fontSize > 18)
+						fontSize = 18;
+				}
+				CIsoViewExt::BlitText(result, textColor, bgColor,
+					pThis, lpDesc->lpSurface, window, boundary, x, y, fontSize, 128, folded ? false : bold);
 			}
-			CIsoViewExt::BlitText(result, textColor, bgColor,
-				pThis, lpDesc->lpSurface, window, boundary, x, y, fontSize, 128, folded ? false : bold);
 		}
 	}
 
@@ -1992,23 +2015,59 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		CIsoViewExt::DrawMultiMapCoordBorders(lpDesc, mapCoords, ExtConfigs::CursorSelectionBound_Color);
 	}
 
+	if (CIsoViewExt::RenderingMap)
+	{
+		int& height = CMapData::Instance->Size.Height;
+		int& width = CMapData::Instance->Size.Width;
+		int startX, startY;
+		if (CIsoViewExt::RenderFullMap)
+		{
+			startX = width - 1;
+			startY = 0;
+		}
+		else
+		{
+			const int& mapwidth = CMapData::Instance->Size.Width;
+			const int& mapheight = CMapData::Instance->Size.Height;
+			const int& mpL = CMapData::Instance->LocalSize.Left;
+			const int& mpT = CMapData::Instance->LocalSize.Top;
+			const int& mpW = CMapData::Instance->LocalSize.Width;
+			const int& mpH = CMapData::Instance->LocalSize.Height;
+
+			startY = mpT + mpL - 2;
+			startX = mapwidth + mpT - mpL - 3;
+		}
+		pThis->MapCoord2ScreenCoord_Flat(startX, startY);
+
+		RECT r;
+		pThis->GetWindowRect(&r);
+
+		int pngPosX = r.left + pThis->ViewPosition.x - startX;
+		int pngPosY = r.top + pThis->ViewPosition.y - startY;
+
+		CIsoViewExt::BlitDDSurfaceRectToBitmap(
+			hDC,
+			boundary,
+			r,
+			pngPosX, pngPosY);
+	}
+
 	if (CIsoViewExt::DrawBounds)
 	{
 		auto& map = CINI::CurrentDocument();
 		auto size = STDHelpers::SplitString(map.GetString("Map", "Size", "0,0,0,0"));
 		auto lSize = STDHelpers::SplitString(map.GetString("Map", "LocalSize", "0,0,0,0"));
 
-		int mapwidth = atoi(size[2]);
-		int mapheight = atoi(size[3]);
+		const int& mapwidth = CMapData::Instance->Size.Width;
+		const int& mapheight = CMapData::Instance->Size.Height;
 
-		int mpL = atoi(lSize[0]);
-		int mpT = atoi(lSize[1]);
-		int mpW = atoi(lSize[2]);
-		int mpH = atoi(lSize[3]);
+		const int& mpL = CMapData::Instance->LocalSize.Left;
+		const int& mpT = CMapData::Instance->LocalSize.Top;
+		const int& mpW = CMapData::Instance->LocalSize.Width;
+		const int& mpH = CMapData::Instance->LocalSize.Height;
 
 		int y1 = mpT + mpL - 2 + 3;
 		int x1 = mapwidth + mpT - mpL - 3 + 3;
-
 
 		int y2 = mpT + mpL + mpW - 2 + 3;
 		int x2 = mapwidth - mpL - mpW + mpT - 3 + 3;

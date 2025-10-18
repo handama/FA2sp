@@ -4,6 +4,7 @@
 #include "../FA2Expand.h"
 #include "../../FA2sp/Helpers/FString.h"
 #include <CShpFile.h>
+#include <CMapData.h>
 #include <vector>
 #include <array>
 #include <algorithm>
@@ -98,6 +99,8 @@ public:
 	
 	static void ClearItemTypes();
 	void GetFullPaletteName(FString& PaletteName);
+	static void LoadFires(const ppmfc::CString& FileName);
+	static std::vector<ImageDataClassSafe*> GetRandomFire(const MapCoord& coord, int number);
 	static void LoadShp(FString ImageID, FString FileName, FString PalName, int nFrame, bool toServer = true);
 	static void LoadShp(FString ImageID, FString FileName, Palette* pPal, int nFrame, bool toServer = true);
 	static void LoadShpToSurface(FString ImageID, FString FileName, FString PalName, int nFrame);
@@ -227,6 +230,8 @@ public:
 	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CurrentFrameImageDataMap;
 	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> ImageDataMap;
 	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSurface>> SurfaceImageDataMap;
+	static std::vector<std::unique_ptr<ImageDataClassSafe>> DamageFires;
+	static unsigned int RandomFireSeed;
 
 	static bool IsImageLoaded(const FString& name);
 	static ImageDataClassSafe* GetImageDataFromMap(const FString& name);

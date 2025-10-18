@@ -90,6 +90,8 @@ POPUP "Map tools"
 	MENUITEM "Tool Scripts",  40135
 	MENUITEM "Lua Script Console\tCtrl+Alt+S",  40158
 	MENUITEM SEPARATOR
+	MENUITEM "Map Renderer",  40165
+	MENUITEM SEPARATOR
 	MENUITEM "Delete Objects",  40136
 }
 
@@ -133,6 +135,8 @@ POPUP "Layers"
 	MENUITEM "Rock Cells\tAlt+5",  30014
 	MENUITEM "Shadows\tAlt+7",  30022
 	MENUITEM "AlphaImages\tAlt+8",  30023
+	MENUITEM "Annotations\tAlt+9",  30024
+	MENUITEM "Damage Fires\tAlt+Num0",  30025
 	MENUITEM SEPARATOR
 	MENUITEM "Structures Filter",  30015
 	MENUITEM "Infantries Filter",  30016

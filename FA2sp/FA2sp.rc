@@ -72,6 +72,8 @@ BEGIN
 	"6",            30014,                  VIRTKEY, ALT, NOINVERT
 	"7",            30022,                  VIRTKEY, ALT, NOINVERT
 	"8",            30023,                  VIRTKEY, ALT, NOINVERT
+	"9",			30024,                  VIRTKEY, ALT, NOINVERT
+	VK_NUMPAD0,		30025,                  VIRTKEY, ALT, NOINVERT
     "9",            30013,                  VIRTKEY, CONTROL, NOINVERT
 	//"Q",            40131,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
 	//"W",            40132,                  VIRTKEY, SHIFT, CONTROL, NOINVERT

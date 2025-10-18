@@ -884,7 +884,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			
 			VEHGuard v(false);
 			try {
-				CIsoViewExt::pFullBitmap = new Bitmap(endX - startX, endY - startY, PixelFormat32bppARGB);
+				CIsoViewExt::pFullBitmap = new Bitmap(endX - startX, endY - startY, PixelFormat24bppRGB);
 			}
 			catch (const std::bad_alloc&) {
 				const FString title = Translations::TranslateOrDefault(
@@ -906,6 +906,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				pIsoView->GetWindowRect(&r);
 
 				pIsoView->ViewPosition.y = startY - startOffsetY;
+				static int renderFailedCount;
+				renderFailedCount = 0;
 				while (pIsoView->ViewPosition.y < endY)
 				{
 					pIsoView->ViewPosition.x = startX - startOffsetX;
@@ -913,13 +915,20 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					{
 						::SetScrollPos(pIsoView->GetSafeHwnd(), SB_VERT, pIsoView->ViewPosition.y / 30 - width / 2 + 4, TRUE);
 						::SetScrollPos(pIsoView->GetSafeHwnd(), SB_HORZ, pIsoView->ViewPosition.x / 60 - height / 2 + 1, TRUE);
+						CIsoViewExt::RenderTileSuccess = false;
 						pIsoView->Draw();
 						MSG msg;
 						while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
 							TranslateMessage(&msg);
 							DispatchMessage(&msg);
 						}
-						pIsoView->ViewPosition.x += r.Width();
+						if (CIsoViewExt::RenderTileSuccess || renderFailedCount >= 4000) {
+							pIsoView->ViewPosition.x += r.Width();
+						}
+						else {
+							//Logger::Debug("[renderFailedCount] %d\n", renderFailedCount);
+							renderFailedCount++;
+						}
 					}
 					pIsoView->ViewPosition.y += r.Height();
 				}

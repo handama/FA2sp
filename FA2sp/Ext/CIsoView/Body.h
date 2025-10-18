@@ -203,6 +203,7 @@ public:
     static bool RenderingMap;
     static bool RenderFullMap;
     static bool RenderCurrentLayers;
+    static bool RenderTileSuccess;
 
     static bool AutoPropertyBrush[4];
 

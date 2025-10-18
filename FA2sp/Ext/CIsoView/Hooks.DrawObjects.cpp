@@ -2045,11 +2045,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		int pngPosX = r.left + pThis->ViewPosition.x - startX;
 		int pngPosY = r.top + pThis->ViewPosition.y - startY;
 
-		CIsoViewExt::BlitDDSurfaceRectToBitmap(
+		if (CIsoViewExt::BlitDDSurfaceRectToBitmap(
 			hDC,
 			boundary,
 			r,
-			pngPosX, pngPosY);
+			pngPosX, pngPosY))
+			CIsoViewExt::RenderTileSuccess = true;
 	}
 
 	if (CIsoViewExt::DrawBounds)

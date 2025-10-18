@@ -61,6 +61,7 @@ bool CIsoViewExt::DrawCellTagsFilter = false;
 bool CIsoViewExt::RenderingMap = false;
 bool CIsoViewExt::RenderFullMap = false;
 bool CIsoViewExt::RenderCurrentLayers = false;
+bool CIsoViewExt::RenderTileSuccess = false;
 
 bool CIsoViewExt::AutoPropertyBrush[4] = { false };
 bool CIsoViewExt::IsPressingALT = false;
@@ -4209,10 +4210,17 @@ bool CIsoViewExt::BlitDDSurfaceRectToBitmap(
         return false;
 
     RECT rc = srcRect;
+
+    if (srcRect.right < 0 || srcRect.bottom < 0)
+    {
+        Sleep(50);
+        return false;
+    }
+
     if (rc.left < 0) rc.left = 0;
     if (rc.top < 0) rc.top = 0;
-    if (rc.right > boundary.dwWidth) rc.right = boundary.dwWidth;
-    if (rc.bottom > boundary.dwHeight) rc.bottom = boundary.dwHeight;
+    if (rc.right > (LONG)boundary.dwWidth) rc.right = boundary.dwWidth;
+    if (rc.bottom > (LONG)boundary.dwHeight) rc.bottom = boundary.dwHeight;
 
     auto pIsoView = CIsoView::GetInstance();
     int& height = CMapData::Instance->Size.Height;
@@ -4220,7 +4228,9 @@ bool CIsoViewExt::BlitDDSurfaceRectToBitmap(
     int endX, endY;
     int startOffsetX = width - 1;
     int startOffsetY = 0;
+
     pIsoView->MapCoord2ScreenCoord_Flat(startOffsetX, startOffsetY);
+
     if (CIsoViewExt::RenderFullMap)
     {
         endX = height;
@@ -4239,11 +4249,15 @@ bool CIsoViewExt::BlitDDSurfaceRectToBitmap(
         endX = mapwidth - mpL - mpW + mpT - 3 + mpH + 4;
         endY = mpT + mpL + mpW - 2 + mpH + 4;
     }
+
     pIsoView->MapCoord2ScreenCoord_Flat(endX, endY);
     endX -= startOffsetX;
     endY -= startOffsetY;
-    if (rc.right - rc.left + dstX > endX) rc.right = endX - dstX + rc.left;
-    if (rc.bottom + dstY - rc.top > endY) rc.bottom = endY - dstY + rc.top;
+
+    if (rc.right - rc.left + dstX > endX)
+        rc.right = endX - dstX + rc.left;
+    if (rc.bottom + dstY - rc.top > endY)
+        rc.bottom = endY - dstY + rc.top;
 
     if (rc.right <= rc.left || rc.bottom <= rc.top)
         return false;
@@ -4253,19 +4267,23 @@ bool CIsoViewExt::BlitDDSurfaceRectToBitmap(
 
     int finalW = dstX + srcW;
     int finalH = dstY + srcH;
-    if (finalW > (int)pFullBitmap->GetWidth())  srcW -= finalW - pFullBitmap->GetWidth();
-    if (finalH > (int)pFullBitmap->GetHeight()) srcH -= finalH - pFullBitmap->GetHeight();
 
+    if (finalW > (int)pFullBitmap->GetWidth())
+        srcW -= finalW - pFullBitmap->GetWidth();
+
+    if (finalH > (int)pFullBitmap->GetHeight())
+        srcH -= finalH - pFullBitmap->GetHeight();
+
+    // in the bottom line
     if (srcW <= 0 || srcH <= 0)
-        return false;
+        return true;
 
     Graphics g(pFullBitmap);
-
     HDC hdcTarget = g.GetHDC();
-    BitBlt(hdcTarget, dstX, dstY, srcW, srcH, hDC, rc.left, rc.top, SRCCOPY);
+    BOOL bOK = BitBlt(hdcTarget, dstX, dstY, srcW, srcH, hDC, rc.left, rc.top, SRCCOPY);
     g.ReleaseHDC(hdcTarget);
 
-    return true;
+    return bOK == TRUE;
 }
 
 BOOL CIsoViewExt::PreTranslateMessageExt(MSG* pMsg)

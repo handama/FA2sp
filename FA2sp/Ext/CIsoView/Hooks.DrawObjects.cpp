@@ -376,6 +376,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			Y < CMapData::Instance->MapWidthPlusHeight;
 	};
 
+	auto isCellHidden = [](CellData* pCell)
+	{
+		return pCell->IsHidden() && (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers);
+	};
+
 	for (int XplusY = Left + Top; XplusY < Right + Bottom; XplusY++) {
 		for (int X = 0; X < XplusY; X++) {
 			int Y = XplusY - X;
@@ -465,7 +470,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						
 					CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 						x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
-						cell->IsHidden() ? 128 : 255);
+						isCellHidden(cell) ? 128 : 255);
 
 					auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
 					cellExt.HasAnim = false;
@@ -542,7 +547,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 						x + subTile.XMinusExX + 30,
 						y + subTile.YMinusExY + 30,
-						pData, pal, cell->IsHidden() ? 128 : 255, -2, -10);
+						pData, pal, isCellHidden(cell) ? 128 : 255, -2, -10);
 				}			
 			}
 		}
@@ -968,7 +973,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			int tileSubIndex = CMapDataExt::GetSafeTileIndex(cell->TileSubIndex);
 			if (tileIndex < CMapDataExt::TileDataCount)
 			{
-				auto drawTerrainAnim = [&pThis, &lpDesc, &boundary, &cell](int tileIndex, int tileSubIndex, int x, int y)
+				auto drawTerrainAnim = [&pThis, &lpDesc, &boundary, &cell, &isCellHidden](int tileIndex, int tileSubIndex, int x, int y)
 					{
 						if (CMapDataExt::TileAnimations.find(tileIndex) != CMapDataExt::TileAnimations.end())
 						{
@@ -982,7 +987,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 										x - pData->FullWidth / 2 + tileAnim.XOffset,
 										y - pData->FullHeight / 2 + tileAnim.YOffset + 15,
-										pData, NULL, cell->IsHidden() ? 128 : 255, -2, -10);
+										pData, NULL, isCellHidden(cell) ? 128 : 255, -2, -10);
 								}
 							}
 						}
@@ -1027,7 +1032,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 							CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 								x1 + subTile.XMinusExX, y1 + subTile.YMinusExY, &subTile, pal,
-								cell->IsHidden() ? 128 : 255);
+								isCellHidden(cell) ? 128 : 255);
 
 							if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
 							{
@@ -1039,7 +1044,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 										x1 + subTile.XMinusExX + 30,
 										y1 + subTile.YMinusExY + 30,
-										pData, pal, cell->IsHidden() ? 128 : 255, -2, -10);
+										pData, pal, isCellHidden(cell) ? 128 : 255, -2, -10);
 								}
 							}
 							drawTerrainAnim(tileIndex, tileSubIndex, x1 + 60, y1 + 30);

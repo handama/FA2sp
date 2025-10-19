@@ -1610,25 +1610,9 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         if ((CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Terrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
             FString line1;
-
-
             int id = cell->Terrain;
             int type = cell->TerrainType;
-            FString name;
-            if (auto pTerrain = CINI::Rules().GetSection("TerrainTypes"))
-            {
-                int index = 0;
-                for (auto& pT : pTerrain->GetEntities())
-                {
-                    if (index == type)
-                    {
-                        name = pT.second;
-                        break;
-                    }
-
-                    index++;
-                }
-            }
+            FString name = Variables::RulesMap.GetValueAt("TerrainTypes", type);
 
             if (id > -1)
             {
@@ -1668,7 +1652,6 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     break;
                 id++;
             }
-
 
             if (found)
             {

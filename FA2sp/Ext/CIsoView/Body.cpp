@@ -62,6 +62,11 @@ bool CIsoViewExt::RenderingMap = false;
 bool CIsoViewExt::RenderFullMap = false;
 bool CIsoViewExt::RenderCurrentLayers = false;
 bool CIsoViewExt::RenderTileSuccess = false;
+bool CIsoViewExt::RenderInvisibleOverlays = false;
+bool CIsoViewExt::RenderEmphasizeOres = false;
+bool CIsoViewExt::RenderMarkStartings = false;
+bool CIsoViewExt::RenderIgnoreObjects = false;
+RendererLighting CIsoViewExt::RenderLighing = RendererLighting::Current;
 
 bool CIsoViewExt::AutoPropertyBrush[4] = { false };
 bool CIsoViewExt::IsPressingALT = false;
@@ -104,6 +109,16 @@ COLORREF CIsoViewExt::CellHilightColors[16] = {
     RGB(85,85 ,85),		// level 13
     RGB(170, 170, 170),	// level 14
     RGB(255, 255, 255)	// level 15
+};
+
+static byte oreOpacityTable[13] =
+{
+    177, 166, 154, 143, 131, 119, 108, 96, 85, 73, 61, 50, 38
+};
+
+static byte playerLocationOpacityTable[8] =
+{
+    105, 90, 75, 60, 45, 30, 15, 0
 };
 
 static bool TilePixels[1800] =
@@ -2140,15 +2155,13 @@ IDirectDrawSurface7* CIsoViewExt::BitmapToSurface(IDirectDraw7* pDD, const CBitm
 
 void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int width, int height, BYTE alpha, LPDIRECTDRAWSURFACE7 surface)
 {
-    // 0. 初始检查
     if (!pic || alpha == 0) {
         return;
     }
 
-    // 1. 初始化常量和偏移
     const int X_OFFSET = 1;
     const int Y_OFFSET = -29;
-    const int BPP = 4; // 假设 32 位颜色深度
+    const int BPP = 4;
 
     auto pThis = CIsoView::GetInstance();
     RECT windowRect;
@@ -2166,7 +2179,6 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
     x += X_OFFSET;
     y += Y_OFFSET;
 
-    // 2. 获取表面尺寸
     if (width == -1 || height == -1) {
         DDSURFACEDESC2 ddsd = { sizeof(DDSURFACEDESC2), DDSD_WIDTH | DDSD_HEIGHT };
         if (pic->GetSurfaceDesc(&ddsd) != DD_OK) {
@@ -2176,7 +2188,6 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
         height = ddsd.dwHeight;
     }
 
-    // 3. 边界检查（与原始代码一致）
     if (x + width < 0 || y + height < 0) {
         return;
     }
@@ -2184,7 +2195,6 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
         return;
     }
 
-    // 4. 计算源和目标矩形（与原始代码一致）
     RECT srcRect = { 0, 0, width, height };
     RECT destRect = { x, y, x + width, y + height };
     if (destRect.left < 0) {
@@ -2204,7 +2214,6 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
         destRect.bottom = windowRect.bottom;
     }
 
-    // 5. 锁定表面
     DDSURFACEDESC2 destDesc = { sizeof(DDSURFACEDESC2) };
     DDSURFACEDESC2 srcDesc = { sizeof(DDSURFACEDESC2) };
     if (surface->Lock(NULL, &destDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) != DD_OK) {
@@ -2215,7 +2224,6 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
         return;
     }
 
-    // 6. 获取颜色键
     DDCOLORKEY colorKey;
     if (pic->GetColorKey(DDCKEY_SRCBLT, &colorKey) != DD_OK) {
         pic->Unlock(NULL);
@@ -2225,7 +2233,6 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
     DWORD colorKeyLow = colorKey.dwColorSpaceLowValue;
     DWORD colorKeyHigh = colorKey.dwColorSpaceHighValue;
 
-    // 8. 计算基地址
     BYTE* destPixels = static_cast<BYTE*>(destDesc.lpSurface);
     BYTE* srcPixels = static_cast<BYTE*>(srcDesc.lpSurface);
     int destPitch = destDesc.lPitch;
@@ -2233,7 +2240,6 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
     int maxDestX = destDesc.dwWidth;
     int maxDestY = destDesc.dwHeight;
 
-    // 9. 像素绘制循环
     for (LONG row = 0; row < srcRect.bottom - srcRect.top; ++row) {
         LONG dy = destRect.top + row;
         if (dy < 0 || dy >= maxDestY) {
@@ -2264,7 +2270,6 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
                 BYTE destG = destPtr[1];
                 BYTE destB = destPtr[0];
 
-                // Alpha 混合使用预计算表
                 destPtr[2] = alphaBlendTable[srcR][alpha] + alphaBlendTable[destR][255 - alpha];
                 destPtr[1] = alphaBlendTable[srcG][alpha] + alphaBlendTable[destG][255 - alpha];
                 destPtr[0] = alphaBlendTable[srcB][alpha] + alphaBlendTable[destB][255 - alpha];
@@ -2272,7 +2277,6 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
         }
     }
 
-    // 10. 解锁表面
     pic->Unlock(NULL);
     surface->Unlock(NULL);
 }
@@ -2441,6 +2445,10 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
         newPal = pd->pPalette;
     }
     bool isMultiSelected = false;
+    RGBClass oreColor;
+    bool isEmphasizingOre = false;
+    byte oreOpacity;
+
     if (extraLightType == -10 || extraLightType >= 500) {
         isMultiSelected = MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
         if (extraLightType >= 500) {
@@ -2453,6 +2461,17 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
                 isMultiSelected = MultiSelection::IsSelected(
                     CIsoViewExt::CurrentDrawCellLocation.X + 1,
                     CIsoViewExt::CurrentDrawCellLocation.Y + 1);
+            }
+
+            if (RenderingMap && RenderEmphasizeOres && CMapDataExt::IsOre(overlay))
+            {
+                isEmphasizingOre = true;
+                auto ovrd = CMapData::Instance->GetOverlayDataAt(
+                    CMapData::Instance->GetCoordIndex(
+                        CIsoViewExt::CurrentDrawCellLocation.X,
+                        CIsoViewExt::CurrentDrawCellLocation.Y));
+                oreColor = CMapDataExt::GetOverlayTypeData(overlay).RadarColor;
+                oreOpacity = oreOpacityTable[std::min(ovrd, (byte)13)];
             }
         }
     }
@@ -2507,11 +2526,17 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
                     c.G = alphaBlendTable[c.G][alpha] + alphaBlendTable[oriColor.G][255 - alpha];
                     c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[oriColor.R][255 - alpha];
                 }
-                if (isMultiSelected) {
+                if (isMultiSelected && (!RenderingMap || RenderingMap && RenderCurrentLayers)) {
                     RGBClass* selColor = reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor);
                     c.B = (c.B * 2 + selColor->B) / 3;
                     c.G = (c.G * 2 + selColor->G) / 3;
                     c.R = (c.R * 2 + selColor->R) / 3;
+                }
+                if (isEmphasizingOre)
+                {
+                    c.B = alphaBlendTable[c.B][oreOpacity] + alphaBlendTable[oreColor.B][255 - oreOpacity];
+                    c.G = alphaBlendTable[c.G][oreOpacity] + alphaBlendTable[oreColor.G][255 - oreOpacity];
+                    c.R = alphaBlendTable[c.R][oreOpacity] + alphaBlendTable[oreColor.R][255 - oreOpacity];
                 }
                 memcpy(destPtr, &c, BPP);
             }
@@ -2565,6 +2590,9 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
         newPal = pd->pPalette;
     }
     bool isMultiSelected = false;
+    RGBClass oreColor;
+    bool isEmphasizingOre = false;
+    byte oreOpacity;
     if (extraLightType == -10 || extraLightType >= 500) {
         isMultiSelected = MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
         if (extraLightType >= 500) {
@@ -2577,6 +2605,17 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
                 isMultiSelected = MultiSelection::IsSelected(
                     CIsoViewExt::CurrentDrawCellLocation.X + 1,
                     CIsoViewExt::CurrentDrawCellLocation.Y + 1);
+            }
+
+            if (RenderingMap && RenderEmphasizeOres && CMapDataExt::IsOre(overlay))
+            {
+                isEmphasizingOre = true;
+                auto ovrd = CMapData::Instance->GetOverlayDataAt(
+                    CMapData::Instance->GetCoordIndex(
+                        CIsoViewExt::CurrentDrawCellLocation.X,
+                        CIsoViewExt::CurrentDrawCellLocation.Y));
+                oreColor = CMapDataExt::GetOverlayTypeData(overlay).RadarColor;
+                oreOpacity = oreOpacityTable[std::min(ovrd, (byte)13)];
             }
         }
     }
@@ -2634,11 +2673,17 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
                     c.G = alphaBlendTable[c.G][alpha] + alphaBlendTable[oriColor.G][255 - alpha];
                     c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[oriColor.R][255 - alpha];
                 }
-                if (isMultiSelected) {
+                if (isMultiSelected && (!RenderingMap || RenderingMap && RenderCurrentLayers)) {
                     RGBClass* selColor = reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor);
                     c.B = (c.B * 2 + selColor->B) / 3;
                     c.G = (c.G * 2 + selColor->G) / 3;
                     c.R = (c.R * 2 + selColor->R) / 3;
+                }
+                if (isEmphasizingOre)
+                {
+                    c.B = alphaBlendTable[c.B][oreOpacity] + alphaBlendTable[oreColor.B][255 - oreOpacity];
+                    c.G = alphaBlendTable[c.G][oreOpacity] + alphaBlendTable[oreColor.G][255 - oreOpacity];
+                    c.R = alphaBlendTable[c.R][oreOpacity] + alphaBlendTable[oreColor.R][255 - oreOpacity];
                 }
                 memcpy(destPtr, &c, BPP);
             }
@@ -2883,6 +2928,36 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
         newPal = PalettesManager::GetObjectPalette(pal, color, false, CIsoViewExt::CurrentDrawCellLocation);
     }
     bool multiSelected = MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
+    RGBClass oreColor;
+    bool isEmphasizingOre = false;
+    byte oreOpacity;
+    bool isEmphasizingPlayer = false;
+    byte playerOpacity;
+    if (RenderingMap && RenderEmphasizeOres)
+    {
+        int pos = CMapData::Instance->GetCoordIndex(
+                CIsoViewExt::CurrentDrawCellLocation.X,
+                CIsoViewExt::CurrentDrawCellLocation.Y);
+        auto ovr = CMapDataExt::GetExtension()->GetOverlayAt(pos);
+        if (CMapDataExt::IsOre(ovr))
+        {
+            isEmphasizingOre = true;
+            auto ovrd = CMapData::Instance->GetOverlayDataAt(pos);
+            oreColor = CMapDataExt::GetOverlayTypeData(ovr).RadarColor;
+            oreOpacity = oreOpacityTable[std::min(ovrd, (byte)13)];
+        }
+    }
+    if (RenderingMap && RenderMarkStartings)
+    {
+        int players = CMapDataExt::GetPlayerLocationCountAtCell(
+            CIsoViewExt::CurrentDrawCellLocation.X,
+            CIsoViewExt::CurrentDrawCellLocation.Y);
+        if (players > 0)
+        {
+            isEmphasizingPlayer = true;
+            playerOpacity = playerLocationOpacityTable[players - 1];
+        }
+    }
 
     BYTE* srcBase = static_cast<BYTE*>(subTile->ImageData);
     BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
@@ -2921,11 +2996,26 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
                     c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[oriColor.R][255 - alpha];
                 }
 
-                if (multiSelected) {
+                if (multiSelected && (!RenderingMap || RenderingMap && RenderCurrentLayers)) {
                     RGBClass* selColor = reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor);
                     c.B = (c.B * 2 + selColor->B) / 3;
                     c.G = (c.G * 2 + selColor->G) / 3;
                     c.R = (c.R * 2 + selColor->R) / 3;
+                }
+
+                if (isEmphasizingOre)
+                {
+                    c.B = alphaBlendTable[c.B][oreOpacity] + alphaBlendTable[oreColor.B][255 - oreOpacity];
+                    c.G = alphaBlendTable[c.G][oreOpacity] + alphaBlendTable[oreColor.G][255 - oreOpacity];
+                    c.R = alphaBlendTable[c.R][oreOpacity] + alphaBlendTable[oreColor.R][255 - oreOpacity];
+                }
+
+                if (isEmphasizingPlayer)
+                {
+                    RGBClass* playerColor = reinterpret_cast<RGBClass*>(&ExtConfigs::PlayerLocation_Color);             
+                    c.B = alphaBlendTable[c.B][playerOpacity] + alphaBlendTable[playerColor->B][255 - playerOpacity];
+                    c.G = alphaBlendTable[c.G][playerOpacity] + alphaBlendTable[playerColor->G][255 - playerOpacity];
+                    c.R = alphaBlendTable[c.R][playerOpacity] + alphaBlendTable[playerColor->R][255 - playerOpacity];
                 }
 
                 memcpy(destPtr, &c, BPP);
@@ -4217,10 +4307,15 @@ bool CIsoViewExt::BlitDDSurfaceRectToBitmap(
         return false;
     }
 
-    if (rc.left < 0) rc.left = 0;
-    if (rc.top < 0) rc.top = 0;
-    if (rc.right > (LONG)boundary.dwWidth) rc.right = boundary.dwWidth;
-    if (rc.bottom > (LONG)boundary.dwHeight) rc.bottom = boundary.dwHeight;
+    if (rc.left < 0)
+        rc.left = 0;
+    if (rc.top < 0)
+        rc.top = 0;
+    if (rc.right > (int)boundary.dwWidth)
+        rc.right = boundary.dwWidth;
+    if (rc.bottom > (int)boundary.dwHeight)
+        rc.bottom = boundary.dwHeight;
+
 
     auto pIsoView = CIsoView::GetInstance();
     int& height = CMapData::Instance->Size.Height;
@@ -4240,7 +4335,6 @@ bool CIsoViewExt::BlitDDSurfaceRectToBitmap(
     {
         const int& mapwidth = CMapData::Instance->Size.Width;
         const int& mapheight = CMapData::Instance->Size.Height;
-
         const int& mpL = CMapData::Instance->LocalSize.Left;
         const int& mpT = CMapData::Instance->LocalSize.Top;
         const int& mpW = CMapData::Instance->LocalSize.Width;
@@ -4260,7 +4354,7 @@ bool CIsoViewExt::BlitDDSurfaceRectToBitmap(
         rc.bottom = endY - dstY + rc.top;
 
     if (rc.right <= rc.left || rc.bottom <= rc.top)
-        return false;
+        return true;
 
     int srcW = rc.right - rc.left;
     int srcH = rc.bottom - rc.top;
@@ -4274,7 +4368,6 @@ bool CIsoViewExt::BlitDDSurfaceRectToBitmap(
     if (finalH > (int)pFullBitmap->GetHeight())
         srcH -= finalH - pFullBitmap->GetHeight();
 
-    // in the bottom line
     if (srcW <= 0 || srcH <= 0)
         return true;
 

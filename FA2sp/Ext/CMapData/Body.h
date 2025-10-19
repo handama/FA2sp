@@ -500,6 +500,8 @@ public:
     static void UpdateFieldInfantryData_RedrawMinimap();
     static void UpdateFieldAircraftData_RedrawMinimap();
 
+    static int GetPlayerLocationCountAtCell(int x, int y);
+
     static int OreValue[4];
     static std::vector<std::vector<int>> Tile_to_lat;
     static std::vector<int> TileSet_starts;

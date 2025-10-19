@@ -1361,12 +1361,30 @@ LRESULT CALLBACK DarkTheme::DarkButtonSubclassProc(HWND hwnd, UINT uMsg, WPARAM 
             }
         }
 
-        RECT textRc = { glyphRc.right + 4, 0, w - 4, h };
+        RECT textRc = { glyphRc.right + 6, 0, w - 6, h };
         SetBkMode(hdcMem, TRANSPARENT);
         SetTextColor(hdcMem, enabled ? DarkColors::TextColor : DarkColors::DisabledTextColor);
         HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
         HFONT hOldFont = (HFONT)SelectObject(hdcMem, hFont);
-        DrawTextW(hdcMem, textBuf, -1, &textRc, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+        UINT dtFlags;
+        if (style & BS_MULTILINE)
+        {
+            dtFlags = DT_LEFT | DT_WORDBREAK; 
+
+            RECT calcRc = textRc;
+            DrawTextW(hdcMem, textBuf, -1, &calcRc, dtFlags | DT_CALCRECT);
+
+            int textHeight = calcRc.bottom - calcRc.top;
+            int yOffset = std::max(0, (h - textHeight) / 2);
+            OffsetRect(&textRc, 0, yOffset);
+        }
+        else
+        {
+            dtFlags = DT_LEFT | DT_VCENTER | DT_SINGLELINE;
+        }
+
+        DrawTextW(hdcMem, textBuf, -1, &textRc, dtFlags);
         SelectObject(hdcMem, hOldFont);
 
         BitBlt(hdc, 0, 0, w, h, hdcMem, 0, 0, SRCCOPY);

@@ -89,6 +89,7 @@ public:
     static bool Waypoint_Background;
     static int Waypoint_Background_Color;
     static int BaseNodeIndex_Color;
+    static int PlayerLocation_Color;
     static bool BaseNodeIndex_Background;
     static bool BaseNodeIndex;
     static int BaseNodeIndex_Background_Color;

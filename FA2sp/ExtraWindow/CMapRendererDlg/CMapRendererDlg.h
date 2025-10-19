@@ -11,6 +11,11 @@ public:
 	CMapRendererDlg(CWnd* pParent = NULL);
 	BOOL b_LocalSize;
 	BOOL b_GameLayers;
+	int n_Lighting;
+	BOOL b_DisplayInvisibleOverlay;
+	BOOL b_MarkStartPositions;
+	BOOL b_MarkOres;
+	BOOL b_IgnoreObjects;
 
 protected:
 	virtual void DoDataExchange(ppmfc::CDataExchange* pDX);

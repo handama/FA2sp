@@ -16,7 +16,7 @@ public:
         Waypoints = 6205, MapCoords = 6206, Trigger = 6214, AttachedTrigger = 6215, Event_Action = 6216,
         TriggerParam = 6217, ListBox_Range = 6213, TeamType = 6218, TaskForce = 6219, Script = 6220, Tag = 6221, AITrigger = 6222
     };
-    enum FindType { Aircraft = 0, Infantry, Structure, Unit };
+    enum FindType { Aircraft = 0, Infantry, Structure, Unit, Terrain };
 
     static void Create(CTileSetBrowserFrame* pWnd);
 

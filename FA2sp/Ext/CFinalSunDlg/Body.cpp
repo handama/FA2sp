@@ -812,6 +812,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			path += ".png";
 			auto wpath = STDHelpers::StringToWString(path);
 			TempValueHolder<double> scaled(CIsoViewExt::ScaledFactor, 1.0);
+			int currentlighting = CFinalSunDlgExt::CurrentLighting;
 			std::vector<std::unique_ptr<TempValueHolder<bool>>> holders;
 			std::vector<std::unique_ptr<TempValueHolder<BOOL>>> holders2;
 
@@ -846,6 +847,50 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->ShowBuildingCells, FALSE);
 				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->FlatToGround, FALSE);
 				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->FrameMode, FALSE);
+			}
+
+			switch (CIsoViewExt::RenderLighing)
+			{
+			case None:
+				SetLightingStatus(31000);
+				break;
+			case Normal:
+				SetLightingStatus(31001);
+				break;
+			case LightningStorm:
+				SetLightingStatus(31002);
+				break;
+			case Dominator:
+				SetLightingStatus(31003);
+				break;
+			case Current:
+			default:
+				break;
+			}
+
+			auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+			thisTheater.MakeUpper();
+			if (thisTheater == "NEWURBAN")
+				thisTheater = "UBN";
+			FString theaterSuffix = thisTheater.Mid(0, 3);
+			CIsoViewExt::MapRendererIgnoreObjects.clear();
+			if (CIsoViewExt::RenderIgnoreObjects)
+			{
+				FString ignoreSection = "MapRendererIgnoreObjects";
+				if (auto pSection = CINI::FAData->GetSection(ignoreSection))
+				{
+					for (auto& [_, ID] : pSection->GetEntities())
+					{
+						CIsoViewExt::MapRendererIgnoreObjects.insert(ID);
+					}
+				}
+				if (auto pSection = CINI::FAData->GetSection(ignoreSection + theaterSuffix))
+				{
+					for (auto& [_, ID] : pSection->GetEntities())
+					{
+						CIsoViewExt::MapRendererIgnoreObjects.insert(ID);
+					}
+				}
 			}
 
 			auto pIsoView = CIsoView::GetInstance();
@@ -906,32 +951,52 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				pIsoView->GetWindowRect(&r);
 
 				pIsoView->ViewPosition.y = startY - startOffsetY;
+
+				int totalTileCount = ((endX - r.left - (startX - startOffsetX)) / r.Width() + 1)
+					* ((endY - r.top - (startY - startOffsetY)) / r.Height() + 1) - 1;
+
+				int currentTile = 0;
 				static int renderFailedCount;
 				renderFailedCount = 0;
-				while (pIsoView->ViewPosition.y < endY)
+				while (pIsoView->ViewPosition.y < endY - r.top)
 				{
 					pIsoView->ViewPosition.x = startX - startOffsetX;
-					while (pIsoView->ViewPosition.x < endX)
+					while (pIsoView->ViewPosition.x < endX - r.left)
 					{
 						::SetScrollPos(pIsoView->GetSafeHwnd(), SB_VERT, pIsoView->ViewPosition.y / 30 - width / 2 + 4, TRUE);
 						::SetScrollPos(pIsoView->GetSafeHwnd(), SB_HORZ, pIsoView->ViewPosition.x / 60 - height / 2 + 1, TRUE);
 						CIsoViewExt::RenderTileSuccess = false;
+
+						FString message;
+						message.Format(Translations::TranslateOrDefault("MapRendererToolbarRendering",
+							"Map Renderer: rendering tile (%d/%d)"), currentTile, totalTileCount);
+						::SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0, message);
+						::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+						::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
+
 						pIsoView->Draw();
+
 						MSG msg;
 						while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
 							TranslateMessage(&msg);
 							DispatchMessage(&msg);
 						}
-						if (CIsoViewExt::RenderTileSuccess || renderFailedCount >= 4000) {
+						if (CIsoViewExt::RenderTileSuccess || renderFailedCount >= 500) {
 							pIsoView->ViewPosition.x += r.Width();
+							currentTile++;
 						}
 						else {
-							//Logger::Debug("[renderFailedCount] %d\n", renderFailedCount);
 							renderFailedCount++;
 						}
 					}
 					pIsoView->ViewPosition.y += r.Height();
 				}
+				FString message;
+				message.Format(Translations::TranslateOrDefault("MapRendererToolbarSaving",
+					"Map Renderer: saving png file to %s"), path);
+				::SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0, message);
+				::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+				::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
 
 				CLSID clsidEncoder;
 				UINT num = 0, size = 0;
@@ -955,6 +1020,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CIsoViewExt::RenderingMap = false;
 			holders.clear();
 			holders2.clear();
+
+			if (CIsoViewExt::RenderLighing != Current)
+				SetLightingStatus(currentlighting);
+
 			CIsoViewExt::MoveToMapCoord(CMapData::Instance->MapWidthPlusHeight / 2, CMapData::Instance->MapWidthPlusHeight / 2);
 
 			if (result == Gdiplus::Status::Ok)
@@ -972,7 +1041,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 		}
 	}
-	auto closeFA2Window = [this, &wmID](int wmID2, ppmfc::CDialog &dialog)
+	auto closeFA2Window = [this, &wmID](int wmID2, ppmfc::CDialog& dialog)
 	{
 		if (wmID2 == wmID)
 		{

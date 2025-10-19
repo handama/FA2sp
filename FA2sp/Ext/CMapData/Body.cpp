@@ -1447,6 +1447,39 @@ OverlayTypeData CMapDataExt::GetOverlayTypeData(WORD index)
 	return ret;
 }
 
+int CMapDataExt::GetPlayerLocationCountAtCell(int x, int y)
+{
+	auto pThis = GetExtension();
+	if (!pThis->IsMultiOnly())
+		return 0;
+	int count = 0;
+	for (int i = 0; i < 8; ++i)
+	{
+		FString key;
+		key.Format("%d", i);
+		if (CINI::CurrentDocument->KeyExists("Waypoints", key))
+		{
+			auto value = CINI::CurrentDocument->GetInteger("Waypoints", key);
+			if (value >= 0)
+			{
+				int wx = value / 1000;
+				int wy = value % 1000;
+				for (int lx = wx - 1; lx < wx + 3; ++lx)
+				{
+					for (int ly = wy - 1; ly < wy + 3; ++ly)
+					{
+						if (lx == x && ly == y)
+						{
+							count++;
+						}
+					}
+				}
+			}
+		}
+	}
+	return count;
+}
+
 void CMapDataExt::AssignCellData(CellData& dst, const CellData& src) 
 {
 	dst.Unit = src.Unit;

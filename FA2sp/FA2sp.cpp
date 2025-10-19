@@ -76,6 +76,7 @@ bool ExtConfigs::Waypoint_Background;
 int ExtConfigs::Waypoint_Background_Color;
 CPoint ExtConfigs::Waypoint_Text_ExtraOffset;
 int ExtConfigs::BaseNodeIndex_Color;
+int ExtConfigs::PlayerLocation_Color;
 bool ExtConfigs::BaseNodeIndex_Background;
 bool ExtConfigs::BaseNodeIndex;
 int ExtConfigs::BaseNodeIndex_Background_Color;
@@ -290,6 +291,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::Waypoint_Background_Color = CINI::FAData->GetColor("ExtConfigs", "Waypoint.Background.Color", 0xFFFFFF);
 
 	ExtConfigs::BaseNodeIndex_Color = CINI::FAData->GetColor("ExtConfigs", "BaseNodeIndex.Color", 0x00FFFF);
+	ExtConfigs::PlayerLocation_Color = CINI::FAData->GetColor("ExtConfigs", "PlayerLocation.Color", 0x0000FF);
 	ExtConfigs::BaseNodeIndex_Background = CINI::FAData->GetBool("ExtConfigs", "BaseNodeIndex.Background");
 	ExtConfigs::BaseNodeIndex = CINI::FAData->GetBool("ExtConfigs", "BaseNodeIndex");
 	ExtConfigs::BaseNodeIndex_Background_Color = CINI::FAData->GetColor("ExtConfigs", "BaseNodeIndex.Background.Color", 0x3C3C3C);

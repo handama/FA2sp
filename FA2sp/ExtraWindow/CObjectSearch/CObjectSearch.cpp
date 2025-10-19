@@ -1349,108 +1349,27 @@ void CObjectSearch::SearchObjects(HWND hWnd, const char* source)
                 section = "Units";
                 tagIndex = 7;
                 break;
+            case FindType::Terrain:
+                break;
             default:
                 break;
             }
 
             std::pair<int, int> location;  //x, y
-            if (auto pSection = CMapData::Instance->INI.GetSection(section))
+            if (SearchObjectType == FindType::Terrain)
             {
-                int index = -1;
-                for (auto& pair : pSection->GetEntities())
+                for (const auto& terrain : CMapData::Instance->TerrainDatas)
                 {
-                    index++;
-                    auto atoms = FString::SplitString(pair.second);
-                    if (atoms.size() <= tagIndex)
-                        continue;
-                    auto& pID = atoms[1];
-                    auto pTag = atoms[tagIndex];
-                    if (pTag != "None")
+                    if (terrain.Flag) continue;
+                    if (IsLabelMatch(terrain.TypeID, source)) 
                     {
-                        pTag.Format("%s %s", atoms[tagIndex], ExtraWindow::GetTagName(atoms[tagIndex]));
-                    }
-                    
-                    bool met = false;
-                    bool tagMet = false;
-
-                    FString name;
-                    
-                    name = StringtableLoader::QueryUIName(pID);
-                    if (name == "MISSING")
-                        name = Variables::RulesMap.GetString(pID, "Name", pID);
-                    if (name != pID) {
-                        FString tmp = name;
-                        name.Format("%s (%s)", tmp, pID);
-                    }
-
-                    if (IsLabelMatch(name, source)) {
-                        met = true;
-                    }
-                    else if (pTag != "None" && IsLabelMatch(pTag, source)) {
-                        tagMet = true;
-                        met = true;
-                    }
-                    else {
-                        continue;
-                    }
-
-                    if (CObjectSearch::bPropertyBushFilter)
-                    {
-                        met = false;
-                        CAircraftData airData;
-                        CInfantryData infData;
-                        CBuildingData buiData;
-                        CUnitData unitData;
-                        switch (SearchObjectType) {
-                        case FindType::Aircraft:
-                            CMapData::Instance->GetAircraftData(index, airData);
-                            if (CFinalSunDlgExt::CheckProperty_Aircraft(airData))
-                                met = true;
-                            break;
-                        case FindType::Infantry:
-                            CMapData::Instance->GetInfantryData(index, infData);
-                            if (CFinalSunDlgExt::CheckProperty_Infantry(infData))
-                                met = true;
-                            break;
-                        case FindType::Structure:
-                            CMapDataExt::GetBuildingDataByIniID(index, buiData);
-                            if (CFinalSunDlgExt::CheckProperty_Building(buiData))
-                                met = true;
-                            break;
-                        case FindType::Unit:
-                            CMapData::Instance->GetUnitData(index, unitData);
-                            if (CFinalSunDlgExt::CheckProperty_Vehicle(unitData))
-                                met = true;
-                            break;
-                        default: break;
-                        }
-                    }
-
-                    if (met)
-                    {
-                        location.second = atoi(atoms[3]);
-                        location.first = atoi(atoms[4]);
-                        FString house = atoms[0];
-                        auto& countries = CINI::Rules->GetSection("Countries")->GetEntities();
-                        FString translated;
-    
-                        for (auto& pair : countries)
-                        {
-                            if (ExtConfigs::BetterHouseNameTranslation)
-                                translated = StringtableLoader::QueryUIName(pair.second) + "(" + pair.second + ")";
-                            else
-                                translated = StringtableLoader::QueryUIName(pair.second);
-
-                            house.Replace(pair.second, translated);
-                        }
-  
+                        location.second = terrain.X;
+                        location.first = terrain.Y;
 
                         HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
-                        FString tmp = name;
-                        if (!tagMet)
-                            name.Format("%s (%d, %d) (%s)", tmp, location.second, location.first, house);
-                        else
-                            name.Format("%s (%d, %d) (%s) (%s)", tmp, location.second, location.first, house, pTag);
+                        FString name;
+                        name.Format("%s (%d, %d)", terrain.TypeID, location.second, location.first);
+
                         SendMessage(
                             hListBox,
                             LB_SETITEMDATA,
@@ -1461,7 +1380,117 @@ void CObjectSearch::SearchObjects(HWND hWnd, const char* source)
                         CObjectSearch::ListBox_MapCoord.push_back(location);
                         CObjectSearch::ListBoxIndex++;
                     }
+                }
+            }
+            else
+            {
+                if (auto pSection = CMapData::Instance->INI.GetSection(section))
+                {
+                    int index = -1;
+                    for (auto& pair : pSection->GetEntities())
+                    {
+                        index++;
+                        auto atoms = FString::SplitString(pair.second);
+                        if (atoms.size() <= tagIndex)
+                            continue;
+                        auto& pID = atoms[1];
+                        auto pTag = atoms[tagIndex];
+                        if (pTag != "None")
+                        {
+                            pTag.Format("%s %s", atoms[tagIndex], ExtraWindow::GetTagName(atoms[tagIndex]));
+                        }
 
+                        bool met = false;
+                        bool tagMet = false;
+
+                        FString name;
+
+                        name = StringtableLoader::QueryUIName(pID);
+                        if (name == "MISSING")
+                            name = Variables::RulesMap.GetString(pID, "Name", pID);
+                        if (name != pID) {
+                            FString tmp = name;
+                            name.Format("%s (%s)", tmp, pID);
+                        }
+
+                        if (IsLabelMatch(name, source)) {
+                            met = true;
+                        }
+                        else if (pTag != "None" && IsLabelMatch(pTag, source)) {
+                            tagMet = true;
+                            met = true;
+                        }
+                        else {
+                            continue;
+                        }
+
+                        if (CObjectSearch::bPropertyBushFilter)
+                        {
+                            met = false;
+                            CAircraftData airData;
+                            CInfantryData infData;
+                            CBuildingData buiData;
+                            CUnitData unitData;
+                            switch (SearchObjectType) {
+                            case FindType::Aircraft:
+                                CMapData::Instance->GetAircraftData(index, airData);
+                                if (CFinalSunDlgExt::CheckProperty_Aircraft(airData))
+                                    met = true;
+                                break;
+                            case FindType::Infantry:
+                                CMapData::Instance->GetInfantryData(index, infData);
+                                if (CFinalSunDlgExt::CheckProperty_Infantry(infData))
+                                    met = true;
+                                break;
+                            case FindType::Structure:
+                                CMapDataExt::GetBuildingDataByIniID(index, buiData);
+                                if (CFinalSunDlgExt::CheckProperty_Building(buiData))
+                                    met = true;
+                                break;
+                            case FindType::Unit:
+                                CMapData::Instance->GetUnitData(index, unitData);
+                                if (CFinalSunDlgExt::CheckProperty_Vehicle(unitData))
+                                    met = true;
+                                break;
+                            default: break;
+                            }
+                        }
+
+                        if (met)
+                        {
+                            location.second = atoi(atoms[3]);
+                            location.first = atoi(atoms[4]);
+                            FString house = atoms[0];
+                            auto& countries = CINI::Rules->GetSection("Countries")->GetEntities();
+                            FString translated;
+
+                            for (auto& pair : countries)
+                            {
+                                if (ExtConfigs::BetterHouseNameTranslation)
+                                    translated = StringtableLoader::QueryUIName(pair.second) + "(" + pair.second + ")";
+                                else
+                                    translated = StringtableLoader::QueryUIName(pair.second);
+
+                                house.Replace(pair.second, translated);
+                            }
+
+                            HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
+                            FString tmp = name;
+                            if (!tagMet)
+                                name.Format("%s (%d, %d) (%s)", tmp, location.second, location.first, house);
+                            else
+                                name.Format("%s (%d, %d) (%s) (%s)", tmp, location.second, location.first, house, pTag);
+                            SendMessage(
+                                hListBox,
+                                LB_SETITEMDATA,
+                                SendMessage(hListBox, LB_INSERTSTRING, CObjectSearch::ListBoxIndex, (LPARAM)(LPCSTR)name),
+                                0
+                            );
+
+                            CObjectSearch::ListBox_MapCoord.push_back(location);
+                            CObjectSearch::ListBoxIndex++;
+                        }
+                    }
                 }
             }
         };
@@ -1470,6 +1499,7 @@ void CObjectSearch::SearchObjects(HWND hWnd, const char* source)
     SearchSection(FindType::Structure);
     SearchSection(FindType::Infantry);
     SearchSection(FindType::Unit);
+    SearchSection(FindType::Terrain);
 }
 
 HTREEITEM CObjectSearch::FindLabel(HWND hWnd, HTREEITEM hItemParent, LPCSTR pszLabel)

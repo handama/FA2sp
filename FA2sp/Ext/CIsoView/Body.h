@@ -88,6 +88,15 @@ struct TextCacheHasher {
     }
 };
 
+enum RendererLighting : int
+{
+    Current = 0,
+    None,
+    Normal,
+    LightningStorm,
+    Dominator,
+};
+
 class NOVTABLE CIsoViewExt : public CIsoView
 {
 public:
@@ -204,6 +213,11 @@ public:
     static bool RenderFullMap;
     static bool RenderCurrentLayers;
     static bool RenderTileSuccess;
+    static bool RenderInvisibleOverlays;
+    static bool RenderEmphasizeOres;
+    static bool RenderMarkStartings;
+    static bool RenderIgnoreObjects;
+    static RendererLighting RenderLighing;
 
     static bool AutoPropertyBrush[4];
 
@@ -216,6 +230,8 @@ public:
     static std::unordered_set<short> VisibleInfantries;
     static std::unordered_set<short> VisibleUnits;
     static std::unordered_set<short> VisibleAircrafts;
+
+    static std::unordered_set<ppmfc::CString> MapRendererIgnoreObjects;
     
     static bool IsPressingALT;
     static bool IsPressingTube;

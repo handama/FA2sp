@@ -898,10 +898,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 			int& height = CMapData::Instance->Size.Height;
 			int& width = CMapData::Instance->Size.Width;
-			int startOffsetX = width - 1;
-			int startOffsetY = 0;
-			pIsoView->MapCoord2ScreenCoord_Flat(startOffsetX, startOffsetY);
 			int startX, startY, endX, endY;
+			int startPointX, startPointY, endPointX, endPointY;
 			if (CIsoViewExt::RenderFullMap)
 			{
 				startX = width - 1;
@@ -911,26 +909,29 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			}
 			else
 			{
-				const int& mapwidth = CMapData::Instance->Size.Width;
-				const int& mapheight = CMapData::Instance->Size.Height;
-
 				const int& mpL = CMapData::Instance->LocalSize.Left;
 				const int& mpT = CMapData::Instance->LocalSize.Top;
 				const int& mpW = CMapData::Instance->LocalSize.Width;
 				const int& mpH = CMapData::Instance->LocalSize.Height;
 
 				startY = mpT + mpL - 2;
-				startX = mapwidth + mpT - mpL - 3;
+				startX = width + mpT - mpL - 3;
 
-				endX = mapwidth - mpL - mpW + mpT - 3 + mpH + 4;
+				endX = width - mpL - mpW + mpT - 3 + mpH + 4;
 				endY = mpT + mpL + mpW - 2 + mpH + 4;
 			}
-			pIsoView->MapCoord2ScreenCoord_Flat(startX, startY);
-			pIsoView->MapCoord2ScreenCoord_Flat(endX, endY);
-			
+
+			startPointX = startX;
+			startPointY = startY;
+			endPointX = endX;
+			endPointY = endY;
+
+			pIsoView->MapCoord2ScreenCoord_Flat(startPointX, startPointY);
+			pIsoView->MapCoord2ScreenCoord_Flat(endPointX, endPointY);
+		
 			VEHGuard v(false);
 			try {
-				CIsoViewExt::pFullBitmap = new Bitmap(endX - startX, endY - startY, PixelFormat24bppRGB);
+				CIsoViewExt::pFullBitmap = new Bitmap(endPointX - startPointX, endPointY - startPointY, PixelFormat24bppRGB);
 			}
 			catch (const std::bad_alloc&) {
 				const FString title = Translations::TranslateOrDefault(
@@ -951,10 +952,16 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				CRect r;
 				pIsoView->GetWindowRect(&r);
 
-				pIsoView->ViewPosition.y = startY - 200;
+				CRect validRange;
+				validRange.left = 30 * (height + width + startY - startX) - (r.right - r.left) / 2 - r.left;
+				validRange.top = 15 * (startY + startX) - (r.bottom - r.top) / 2 - r.top;
+				validRange.right = 30 * (height + width + endY - endX) - (r.right - r.left) / 2 - r.left;
+				validRange.bottom = 15 * (endY + endX) - (r.bottom - r.top) / 2 - r.top;
 
-				int totalTileCount = ((endX - r.left - (startX - startOffsetX)) / r.Width() + 1)
-					* ((endY - r.top - pIsoView->ViewPosition.y) / r.Height() + 1) - 1;
+				pIsoView->ViewPosition.y = validRange.top;
+
+				int totalTileCount = ((validRange.right - validRange.left + r.Width()) / r.Width() + 1)
+					* ((validRange.bottom - validRange.top + r.Height()) / r.Height() + 1) - 1;
 
 				CUpdateProgress progress(
 					Translations::TranslateOrDefault("MapRendererProgressText",
@@ -969,10 +976,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				int currentTile = 0;
 				static int renderFailedCount;
 				renderFailedCount = 0;
-				while (pIsoView->ViewPosition.y < endY - r.top)
+				while (pIsoView->ViewPosition.y < validRange.bottom + r.Height())
 				{
-					pIsoView->ViewPosition.x = startX - startOffsetX;
-					while (pIsoView->ViewPosition.x < endX - r.left)
+					pIsoView->ViewPosition.x = validRange.left;
+					while (pIsoView->ViewPosition.x < validRange.right + r.Width())
 					{
 						::SetScrollPos(pIsoView->GetSafeHwnd(), SB_VERT, pIsoView->ViewPosition.y / 30 - width / 2 + 4, TRUE);
 						::SetScrollPos(pIsoView->GetSafeHwnd(), SB_HORZ, pIsoView->ViewPosition.x / 60 - height / 2 + 1, TRUE);
@@ -1207,298 +1214,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	{
 		if (isInChildWindow())
 			return TRUE;
-	}
-
-	// Search Object
-	if ((wmID == 40131|| wmID == 40132) && CMapData::Instance->MapWidthPlusHeight)
-	{
-		int wmID2 = wmID;
-		while (true)
-		{
-			if (wmID2 == 40132 && SearchObjectIndex.first == "")
-				break;
-
-			ppmfc::CString result = "";
-
-			const ppmfc::CString invalid_title = Translations::TranslateOrDefault(
-				"SearchObjectNotFoundTitle", "Error!"
-			);
-			const ppmfc::CString end_title = Translations::TranslateOrDefault(
-				"SearchObjectTitle", "Search Object"
-			);
-			const FString title = Translations::TranslateOrDefault(
-				"SearchObjectTitle", "Search Object"
-			);
-			const FString message = Translations::TranslateOrDefault(
-				"SearchObjectMessage", "Please input Object ID:\n\nSeparate multiple objects with \",\". Type A/B/I/V for all aircrafts/ buildings/ infantries/ vehicles. After confirmation, set object property filtering (optional)."
-			);
-
-			if (wmID2 == 40131)
-			{
-				SearchObjectIndex.first = "";
-				SearchObjectIndex.second = -1;
-				SearchObjectType = -1;
-
-				result = CInputMessageBox::GetString(message, title);
-				// canceled
-				if (STDHelpers::IsNullOrWhitespace(result))
-					break;
-
-				STDHelpers::TrimString(result);
-
-				MultimapHelper mmh;
-				mmh.AddINI(&CINI::Rules());
-				mmh.AddINI(&CINI::CurrentDocument());
-
-				auto air = mmh.GetSection("AircraftTypes");
-				auto inf = mmh.GetSection("InfantryTypes");
-				auto str = mmh.GetSection("BuildingTypes");
-				auto veh = mmh.GetSection("VehicleTypes");
-				if (result == "A")
-					SearchObjectType = FindType::Aircraft;
-				else if (result == "B")
-					SearchObjectType = FindType::Structure;
-				else if (result == "I")
-					SearchObjectType = FindType::Infantry;
-				else if (result == "V")
-					SearchObjectType = FindType::Unit;
-
-				if (SearchObjectType == -1)
-					for (auto pair : air)
-					{
-						if (pair.second == result)
-						{
-							SearchObjectType = FindType::Aircraft;
-							break;
-						}
-					}
-				if (SearchObjectType == -1)
-					for (auto pair : inf)
-					{
-						if (pair.second == result)
-						{
-							SearchObjectType = FindType::Infantry;
-							break;
-						}
-					}
-				if (SearchObjectType == -1)
-					for (auto pair : str)
-					{
-						if (pair.second == result)
-						{
-							SearchObjectType = FindType::Structure;
-							break;
-						}
-					}
-				if (SearchObjectType == -1)
-					for (auto pair : veh)
-					{
-						if (pair.second == result)
-						{
-							SearchObjectType = FindType::Unit;
-							break;
-						}
-					}
-	
-				if (SearchObjectType == -1)
-				{
-					const ppmfc::CString invalid_coord = Translations::TranslateOrDefault(
-						"SearchObjectParseFailed", "Cannot parse your input ID!"
-					);
-					::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONWARNING);
-					SearchObjectIndex.first = "";
-					SearchObjectIndex.second = -1;
-					break;
-				}
-
-				CViewObjectsExt::InitPropertyDlgFromProperty = true;
-
-
-				if (SearchObjectType == FindType::Aircraft)
-				{
-					if (CViewObjectsExt::AircraftBrushDlg.get() == nullptr)
-						CViewObjectsExt::AircraftBrushDlg = std::make_unique<CPropertyAircraft>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
-
-					for (auto& v : CViewObjectsExt::AircraftBrushBools)
-						v = false;
-
-					CViewObjectsExt::AircraftBrushDlg->ppmfc::CDialog::DoModal();
-				}
-
-				if (SearchObjectType == FindType::Infantry)
-				{
-					if (CViewObjectsExt::InfantryBrushDlg.get() == nullptr)
-						CViewObjectsExt::InfantryBrushDlg = std::make_unique<CPropertyInfantry>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
-
-					for (auto& v : CViewObjectsExt::InfantryBrushBools)
-						v = false;
-
-					CViewObjectsExt::InfantryBrushDlg->ppmfc::CDialog::DoModal();
-				}
-
-				if (SearchObjectType == FindType::Structure)
-				{
-					if (CViewObjectsExt::BuildingBrushDlg.get() == nullptr)
-						CViewObjectsExt::BuildingBrushDlg = std::make_unique<CPropertyBuilding>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
-
-					for (auto& v : CViewObjectsExt::BuildingBrushBools)
-						v = false;
-
-					CViewObjectsExt::BuildingBrushDlg->ppmfc::CDialog::DoModal();
-				}
-
-				if (SearchObjectType == FindType::Unit)
-				{
-					if (CViewObjectsExt::VehicleBrushDlg.get() == nullptr)
-						CViewObjectsExt::VehicleBrushDlg = std::make_unique<CPropertyUnit>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
-
-					for (auto& v : CViewObjectsExt::VehicleBrushBools)
-						v = false;
-
-					CViewObjectsExt::VehicleBrushDlg->ppmfc::CDialog::DoModal();
-				}
-
-				CViewObjectsExt::InitPropertyDlgFromProperty = false;
-			}
-			
-			if (result == "" && wmID2 == 40132)
-				result = SearchObjectIndex.first;
-
-			auto SearchSection = [&](const char* section)
-				{
-					std::pair<int, int> resultp(-1, -1);
-					if (auto pSection = CMapData::Instance->INI.GetSection(section))
-					{
-						for (auto& pair : pSection->GetEntities())
-						{
-
-							auto atoms = STDHelpers::SplitString(pair.second);
-							if (atoms.size() < 5)
-								continue;
-							auto& pID = atoms[1];
-							auto results = STDHelpers::SplitString(result);
-							if (!results.empty())
-								if (std::find(results.begin(), results.end(), pID) != results.end() ||
-									(std::find(results.begin(), results.end(), "A") != results.end() && SearchObjectType == FindType::Aircraft) ||
-									(std::find(results.begin(), results.end(), "B") != results.end() && SearchObjectType == FindType::Structure) ||
-									(std::find(results.begin(), results.end(), "I") != results.end() && SearchObjectType == FindType::Infantry) ||
-									(std::find(results.begin(), results.end(), "V") != results.end() && SearchObjectType == FindType::Unit)
-									)
-								{
-									bool met = false;
-									int index = atoi(pair.first);
-
-									auto results2 = STDHelpers::SplitString(SearchObjectIndex.first);
-									if (std::find(results2.begin(), results2.end(), pID) != results2.end() ||
-										(std::find(results.begin(), results.end(), "A") != results.end() && SearchObjectType == FindType::Aircraft) ||
-										(std::find(results.begin(), results.end(), "B") != results.end() && SearchObjectType == FindType::Structure) ||
-										(std::find(results.begin(), results.end(), "I") != results.end() && SearchObjectType == FindType::Infantry) ||
-										(std::find(results.begin(), results.end(), "V") != results.end() && SearchObjectType == FindType::Unit)
-										)
-									{
-										if (SearchObjectIndex.second >= index)
-											continue;
-									}
-									CAircraftData airData;
-									CInfantryData infData;
-									CBuildingData buiData;
-									CUnitData unitData;
-									switch (SearchObjectType) {
-									case FindType::Aircraft: 
-										CMapData::Instance->GetAircraftData(index, airData);
-										if (CheckProperty_Aircraft(airData))
-											met = true;
-										break;
-									case FindType::Infantry: 
-										CMapData::Instance->GetInfantryData(index, infData);
-										if (CheckProperty_Infantry(infData))
-											met = true;
-										break;
-									case FindType::Structure: 
-										CMapDataExt::GetBuildingDataByIniID(index, buiData);
-										if (CheckProperty_Building(buiData))
-											met = true;
-										break;
-									case FindType::Unit: 
-										CMapData::Instance->GetUnitData(index, unitData);
-										if (CheckProperty_Vehicle(unitData))
-											met = true;
-										break;
-									default: break;
-									}
-
-									if (met)
-									{
-										SearchObjectIndex.first = result;
-										SearchObjectIndex.second = index;
-										resultp.first = atoi(atoms[3]);
-										resultp.second = atoi(atoms[4]);
-										break;
-									}
-								}
-						}
-					}
-					return resultp;
-				};
-			std::pair<int, int> location;
-			switch (SearchObjectType) {
-			case FindType::Aircraft: location = SearchSection("Aircraft"); break;
-			case FindType::Infantry: location = SearchSection("Infantry"); break;
-			case FindType::Structure: location = SearchSection("Structures"); break;
-			case FindType::Unit: location = SearchSection("Units"); break;
-			default: break;
-			}
-
-			if (location.first == -1 && location.second == -1)
-			{
-				if (SearchObjectIndex.second != -1)
-				{
-					const ppmfc::CString end_coord = Translations::TranslateOrDefault(
-						"SearchObjectEndMessage", "Found the last matching object. Restart from beginning?"
-					);
-					int result = ::MessageBox(CFinalSunDlg::Instance->m_hWnd, end_coord, end_title, MB_YESNO | MB_ICONQUESTION);
-
-
-					if (result == IDYES)
-					{
-						wmID2 = 40132;
-						SearchObjectIndex.second = -1;
-						continue;
-					}
-					if (result == IDNO)
-					{
-						break;
-					}
-				}
-				const ppmfc::CString invalid_coord = Translations::TranslateOrDefault(
-					"SearchObjectNotFoundMessage", "Cannot find matching object!"
-				);
-				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONWARNING);
-				SearchObjectIndex.first = "";
-				SearchObjectIndex.second = -1;
-				SearchObjectType = -1;
-				break;
-
-			}
-
-			if (!CMapData::Instance->IsCoordInMap(location.first, location.second))
-			{
-				const ppmfc::CString invalid_coord = Translations::TranslateOrDefault(
-					"NavigateCoordInvalidCoord", "Invalid coordinate!"
-				);
-				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONWARNING);
-				break;
-			}
-			CMapDataExt::CellDataExt_FindCell.X = location.second;
-			CMapDataExt::CellDataExt_FindCell.Y = location.first;
-			CMapDataExt::CellDataExt_FindCell.drawCell = true;
-
-			CIsoViewExt::MoveToMapCoord(location.first, location.second);
-
-			CMapDataExt::CellDataExt_FindCell.drawCell = false;
-
-			break;
-		}
 	}
 
 	return this->ppmfc::CDialog::OnCommand(wParam, lParam);

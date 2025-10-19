@@ -4010,7 +4010,7 @@ void CIsoViewExt::MoveToMapCoord(int X, int Y)
     auto pThis = CIsoView::GetInstance();
     int nMapCoord = CMapData::Instance->GetCoordIndex(X, Y);
     RECT rect = GetScaledWindowRect();
-    int x = 30 * (CMapData::Instance->MapWidthPlusHeight + X - Y) - (rect.right - rect.left) / 2 - rect.left;
+    int x = 30 * (CMapData::Instance->MapWidthPlusHeight + Y - X) - (rect.right - rect.left) / 2 - rect.left;
     int y = 15 * (Y + X) - CMapData::Instance->CellDatas[nMapCoord].Height - (rect.bottom - rect.top) / 2 - rect.top;
     pThis->MoveTo(x, y);
     pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);

@@ -1368,3 +1368,11 @@ DEFINE_HOOK(45C6D2, CIsoView_OnMouseMove_Basenode_Add, 6)
 	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Basenode, true);
 	return 0;
 }
+
+DEFINE_HOOK(456E90, CIsoView_OnMouseMove_ScrollInRendering, 6)
+{
+	if (CIsoViewExt::RenderingMap)
+		return 0x456EC0;
+
+	return 0;
+}

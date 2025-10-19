@@ -479,6 +479,7 @@
     <ResourceCompile Include="FA2sp\UI\CTeamTypes.rc" />
     <ResourceCompile Include="FA2sp\UI\CTileBrowserFrame.DialogBar.rc" />
     <ResourceCompile Include="FA2sp\UI\CUnitDialog.rc" />
+    <ResourceCompile Include="FA2sp\UI\CUpdateProgress.rc" />
   </ItemGroup>
   <ItemGroup>
     <None Include="FA2sp\FA2sp.manifest" />

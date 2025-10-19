@@ -31,6 +31,7 @@
 #include "../../Miscs/DialogStyle.h"
 #include "../../Helpers/Helper.h"
 #include "../../ExtraWindow/CMapRendererDlg/CMapRendererDlg.h"
+#include <CUpdateProgress.h>
 
 int CFinalSunDlgExt::CurrentLighting = 31000;
 std::pair<FString, int> CFinalSunDlgExt::SearchObjectIndex ("", - 1);
@@ -950,10 +951,20 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				CRect r;
 				pIsoView->GetWindowRect(&r);
 
-				pIsoView->ViewPosition.y = startY - startOffsetY;
+				pIsoView->ViewPosition.y = startY - 200;
 
 				int totalTileCount = ((endX - r.left - (startX - startOffsetX)) / r.Width() + 1)
-					* ((endY - r.top - (startY - startOffsetY)) / r.Height() + 1) - 1;
+					* ((endY - r.top - pIsoView->ViewPosition.y) / r.Height() + 1) - 1;
+
+				CUpdateProgress progress(
+					Translations::TranslateOrDefault("MapRendererProgressText",
+					"Rendering, please wait..."), NULL);
+				progress.ShowWindow(SW_SHOW);
+				progress.UpdateWindow();
+				progress.ProgressBar.SetRange(0, totalTileCount + 1);
+				progress.ProgressBar.SetPos(0);
+
+				EnableScrollBar(pIsoView->GetSafeHwnd(), SB_BOTH, ESB_DISABLE_BOTH);
 
 				int currentTile = 0;
 				static int renderFailedCount;
@@ -976,11 +987,14 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 						pIsoView->Draw();
 
+						progress.ProgressBar.SetPos(currentTile);
+						progress.ProgressBar.UpdateWindow();
 						MSG msg;
 						while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
 							TranslateMessage(&msg);
 							DispatchMessage(&msg);
-						}
+}
+
 						if (CIsoViewExt::RenderTileSuccess || renderFailedCount >= 500) {
 							pIsoView->ViewPosition.x += r.Width();
 							currentTile++;
@@ -991,6 +1005,9 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					}
 					pIsoView->ViewPosition.y += r.Height();
 				}
+
+				EnableScrollBar(pIsoView->GetSafeHwnd(), SB_BOTH, ESB_ENABLE_BOTH);
+
 				FString message;
 				message.Format(Translations::TranslateOrDefault("MapRendererToolbarSaving",
 					"Map Renderer: saving png file to %s"), path);
@@ -1016,6 +1033,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				result = CIsoViewExt::pFullBitmap->Save(wpath.c_str(), &clsidEncoder, nullptr);
 				delete CIsoViewExt::pFullBitmap;
 				CIsoViewExt::pFullBitmap = nullptr;
+				progress.DestroyWindow();
 			}
 			CIsoViewExt::RenderingMap = false;
 			holders.clear();

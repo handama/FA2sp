@@ -862,6 +862,9 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CMapRendererDlg\CMapRendererDlg.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
+    <ResourceCompile Include="FA2sp\UI\CUpdateProgress.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="FA2sp\FA2sp.manifest">

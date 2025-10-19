@@ -156,7 +156,8 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 
 DEFINE_HOOK(46DF20, CIsoView_Draw_BackgroundColor, 6)
 {
-	R->Stack(STACK_OFFS(0xD20, 0x020), ExtConfigs::EnableDarkMode ? RGB(32, 32, 32) : RGB(255, 255, 255));
+	R->Stack(STACK_OFFS(0xD20, 0x020), CIsoViewExt::RenderingMap ? RGB(0, 0, 0) :
+		(ExtConfigs::EnableDarkMode ? RGB(32, 32, 32) : RGB(255, 255, 255)));
 	return 0;
 }
 

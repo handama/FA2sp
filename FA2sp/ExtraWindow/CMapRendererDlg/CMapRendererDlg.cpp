@@ -126,6 +126,16 @@ BOOL CMapRendererBatchDlg::OnInitDialog()
 	if (!path.empty())
 		GetDlgItem(1000)->SetWindowTextA((path + "\n").c_str());
 
+	if (ExtConfigs::EnableDarkMode)
+	{
+		::SendMessage(GetDlgItem(1000)->GetSafeHwnd(), EM_SETBKGNDCOLOR, (WPARAM)FALSE, (LPARAM)RGB(32, 32, 32));
+		CHARFORMAT cf = { 0 };
+		cf.cbSize = sizeof(cf);
+		cf.dwMask = CFM_COLOR;
+		cf.crTextColor = RGB(220, 220, 220);
+		::SendMessage(GetDlgItem(1000)->GetSafeHwnd(), EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
+	}
+
 	return TRUE;
 }
 

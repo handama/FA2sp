@@ -1008,11 +1008,14 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 						progress.ProgressBar.SetPos(currentTile);
 						progress.ProgressBar.UpdateWindow();
+
 						MSG msg;
-						while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+						if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+						{
 							TranslateMessage(&msg);
 							DispatchMessage(&msg);
 						}
+						Sleep(1);
 
 						if (CIsoViewExt::RenderTileSuccess || renderFailedCount >= 500) {
 							pIsoView->ViewPosition.x += r.Width();
@@ -1052,7 +1055,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				result = CIsoViewExt::pFullBitmap->Save(wpath.c_str(), &clsidEncoder, nullptr);
 				delete CIsoViewExt::pFullBitmap;
 				CIsoViewExt::pFullBitmap = nullptr;
-				progress.DestroyWindow();
 			}
 			CIsoViewExt::RenderingMap = false;
 

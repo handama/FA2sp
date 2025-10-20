@@ -680,6 +680,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								y1 -= DrawOffsetY;
 
 								int nFacing = 0;
+
+								if (!CLoadingExt::IsObjectLoaded(objRender.ID))
+								{
+									CLoading::Instance->LoadObjects(objRender.ID);
+								}
 								if (Variables::RulesMap.GetBool(objRender.ID, "Turret") && !Variables::RulesMap.GetBool(objRender.ID, "TurretAnimIsVoxel"))
 								{
 									int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
@@ -696,11 +701,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									&& !(Variables::RulesMap.GetInteger(objRender.ID, "TechLevel") < 0 && Variables::RulesMap.GetBool(objRender.ID, "CanOccupyFire")))
 									status = CLoadingExt::GBIN_DAMAGED;
 								const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, true);
-
-								if (!CLoadingExt::IsObjectLoaded(objRender.ID))
-								{
-									CLoading::Instance->LoadObjects(objRender.ID);
-								}
 
 								auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 								if (pData->pImageBuffer)
@@ -830,15 +830,15 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					FString ImageID = obj.TypeID;
 					GetUnitImageID(ImageID, obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
 
+					if (!CLoadingExt::IsObjectLoaded(ImageID))
+					{
+						CLoading::Instance->LoadObjects(ImageID);
+					}
 					int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
 					int nFacing = (atoi(obj.Facing) * facings / 256) % facings;
 
 					const auto& imageName = CLoadingExt::GetImageName(ImageID, nFacing, true);
 
-					if (!CLoadingExt::IsObjectLoaded(ImageID))
-					{
-						CLoading::Instance->LoadObjects(ImageID);
-					}
 					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
 					if (pData->pImageBuffer)
@@ -1344,6 +1344,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				if (CIsoViewExt::DrawStructures)
 				{
 					int nFacing = 0;
+					if (!CLoadingExt::IsObjectLoaded(objRender.ID))
+					{
+						CLoading::Instance->LoadObjects(objRender.ID);
+					}
 					if (Variables::RulesMap.GetBool(objRender.ID, "Turret"))
 					{
 						int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
@@ -1361,10 +1365,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						status = CLoadingExt::GBIN_DAMAGED;
 					const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status);
 
-					if (!CLoadingExt::IsObjectLoaded(objRender.ID))
-					{
-						CLoading::Instance->LoadObjects(objRender.ID);
-					}
 					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
 					if (pData->pImageBuffer)
@@ -1540,15 +1540,15 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					FString ImageID = obj.TypeID;
 					GetUnitImageID(ImageID, obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
 
+					if (!CLoadingExt::IsObjectLoaded(ImageID))
+					{
+						CLoading::Instance->LoadObjects(ImageID);
+					}
 					int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
 					int nFacing = (atoi(obj.Facing) * facings / 256) % facings;
 
 					const auto& imageName = CLoadingExt::GetImageName(ImageID, nFacing);
 
-					if (!CLoadingExt::IsObjectLoaded(ImageID))
-					{
-						CLoading::Instance->LoadObjects(ImageID);
-					}
 					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
 					if (pData->pImageBuffer)

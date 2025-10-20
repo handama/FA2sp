@@ -32,6 +32,8 @@
 #include "../../Helpers/Helper.h"
 #include "../../ExtraWindow/CMapRendererDlg/CMapRendererDlg.h"
 #include <CUpdateProgress.h>
+#include <filesystem>
+namespace fs = std::filesystem;
 
 int CFinalSunDlgExt::CurrentLighting = 31000;
 std::pair<FString, int> CFinalSunDlgExt::SearchObjectIndex ("", - 1);
@@ -799,15 +801,50 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CTriggerAnnotation::GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40165 && CMapData::Instance->MapWidthPlusHeight)
+	if (wmID == 40165)
 	{
-		CMapRendererDlg dlg;
-		if (dlg.DoModal() != IDCANCEL)
+		auto setLighting = [](int id)
+		{
+			if (CFinalSunDlgExt::CurrentLighting != id)
+			{
+				auto& pThis = CFinalSunDlg::Instance;
+				CFinalSunDlgExt::CurrentLighting = id;
+				LightingStruct::GetCurrentLighting();
+
+				for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
+					for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
+						CMapData::Instance->UpdateMapPreviewAt(i, j);
+					}
+				}
+				LightingSourceTint::CalculateMapLamps();
+
+				pThis->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+				::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+				auto tmp = CIsoView::CurrentCommand->Command;
+				if (pThis->MyViewFrame.pTileSetBrowserFrame->View.CurrentMode == 1) {
+					HWND hParent = pThis->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
+					HWND hTileComboBox = ::GetDlgItem(hParent, 1366);
+					::SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1366, CBN_SELCHANGE), (LPARAM)hTileComboBox);
+					CIsoView::CurrentCommand->Command = tmp;
+				}
+			}
+		};
+		auto renderMap = [&](FString path, bool batchProcess)
 		{
 			CIsoViewExt::InitGdiplus();
 			CIsoViewExt::RenderingMap = true;
+			if (batchProcess)
+			{
+				CMapData::Instance->LoadMap(path);
+				FString str;
+				str = Translations::TranslateOrDefault("MainDialogCaption", "%9");
+				str += " (";
+				str += path;
+				str += ")";
+				CFinalSunDlg::Instance->SetWindowText(str);
+				strcpy_s(CFinalSunApp::MapPath(), path);
+			}
 			Gdiplus::Status result = Gdiplus::Status::AccessDenied;
-			std::string path = CFinalSunApp::MapPath();
 			if (path.empty())
 				path = CFinalSunAppExt::ExePathExt + "New map";
 			path += ".png";
@@ -853,16 +890,16 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			switch (CIsoViewExt::RenderLighing)
 			{
 			case None:
-				SetLightingStatus(31000);
+				setLighting(31000);
 				break;
 			case Normal:
-				SetLightingStatus(31001);
+				setLighting(31001);
 				break;
 			case LightningStorm:
-				SetLightingStatus(31002);
+				setLighting(31002);
 				break;
 			case Dominator:
-				SetLightingStatus(31003);
+				setLighting(31003);
 				break;
 			case Current:
 			default:
@@ -928,22 +965,25 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 			pIsoView->MapCoord2ScreenCoord_Flat(startPointX, startPointY);
 			pIsoView->MapCoord2ScreenCoord_Flat(endPointX, endPointY);
-		
+
 			VEHGuard v(false);
 			try {
 				CIsoViewExt::pFullBitmap = new Bitmap(endPointX - startPointX, endPointY - startPointY, PixelFormat24bppRGB);
 			}
 			catch (const std::bad_alloc&) {
-				const FString title = Translations::TranslateOrDefault(
-					"Error", "Error"
-				);
-				const FString message = Translations::TranslateOrDefault(
-					"AllocFullMapBitmapFailed", "Memory allocation failed, cannot render full map."
-				);
-				::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, title, MB_ICONWARNING);
+				if (!batchProcess)
+				{
+					const FString title = Translations::TranslateOrDefault(
+						"Error", "Error"
+					);
+					const FString message = Translations::TranslateOrDefault(
+						"AllocFullMapBitmapFailed", "Memory allocation failed, cannot render full map."
+					);
+					::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, title, MB_ICONWARNING);
+				}
 				CIsoViewExt::pFullBitmap = nullptr;
 			}
-			
+
 			if (CIsoViewExt::pFullBitmap)
 			{
 				Graphics gInit(CIsoViewExt::pFullBitmap);
@@ -965,7 +1005,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 				CUpdateProgress progress(
 					Translations::TranslateOrDefault("MapRendererProgressText",
-					"Rendering, please wait..."), NULL);
+						"Rendering, please wait..."), NULL);
 				progress.ShowWindow(SW_SHOW);
 				progress.UpdateWindow();
 				progress.ProgressBar.SetRange(0, totalTileCount + 1);
@@ -1000,7 +1040,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 						while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
 							TranslateMessage(&msg);
 							DispatchMessage(&msg);
-}
+						}
 
 						if (CIsoViewExt::RenderTileSuccess || renderFailedCount >= 500) {
 							pIsoView->ViewPosition.x += r.Width();
@@ -1047,11 +1087,11 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			holders2.clear();
 
 			if (CIsoViewExt::RenderLighing != Current)
-				SetLightingStatus(currentlighting);
+				setLighting(currentlighting);
 
 			CIsoViewExt::MoveToMapCoord(CMapData::Instance->MapWidthPlusHeight / 2, CMapData::Instance->MapWidthPlusHeight / 2);
 
-			if (result == Gdiplus::Status::Ok)
+			if (result == Gdiplus::Status::Ok && !batchProcess)
 			{
 				FString templ = Translations::TranslateOrDefault(
 					"MapRendererSuccess", "Saving output to"
@@ -1064,6 +1104,37 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 			CIsoViewExt::pFullBitmap = nullptr;
 
+		};
+
+		CMapRendererDlg dlg;
+		if (dlg.DoModal() != IDCANCEL)
+		{
+			bool batchProcess = false;
+			if (!dlg.BatchPaths.empty())
+			{
+				dlg.BatchPaths.erase(
+					std::remove_if(dlg.BatchPaths.begin(), dlg.BatchPaths.end(),
+						[](const FString& p) {
+					return !fs::exists(fs::path(p.c_str()));
+				}),
+					dlg.BatchPaths.end());
+				batchProcess = !dlg.BatchPaths.empty();
+			}
+
+			if (!CMapData::Instance->MapWidthPlusHeight && !batchProcess)
+				return TRUE;
+
+			if (!batchProcess)
+			{
+				renderMap(CFinalSunApp::MapPath(), false);
+			}
+			else
+			{
+				for (const auto& p : dlg.BatchPaths)
+				{
+					renderMap(p, true);
+				}
+			}
 		}
 	}
 	auto closeFA2Window = [this, &wmID](int wmID2, ppmfc::CDialog& dialog)

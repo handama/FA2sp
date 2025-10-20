@@ -1,5 +1,4 @@
 #include "CMapRendererDlg.h"
-#include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../Common.h"
@@ -15,6 +14,7 @@ CMapRendererDlg::CMapRendererDlg(CWnd* pParent /*=NULL*/)
 	b_MarkStartPositions = FALSE;
 	b_MarkOres = FALSE;
 	b_IgnoreObjects = TRUE;
+	m_Text = "";
 }
 
 void CMapRendererDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
@@ -69,6 +69,8 @@ void CMapRendererDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
 		GetDlgItem(1012)->SetWindowTextA(buffer);
 	if (Translations::GetTranslationItem("MapRendererDlgIgnoreObjects", buffer))
 		GetDlgItem(1013)->SetWindowTextA(buffer);
+	if (Translations::GetTranslationItem("MapRendererDlgBatchButton", buffer))
+		GetDlgItem(4000)->SetWindowTextA(buffer);
 	
 	if (Translations::GetTranslationItem("MapRendererDlgCaption", buffer))
 		SetWindowTextA(buffer);
@@ -90,4 +92,41 @@ void CMapRendererDlg::OnOK()
 void CMapRendererDlg::OnCancel()
 {
 	EndDialog(2);
+}
+
+CMapRendererBatchDlg::CMapRendererBatchDlg(CWnd* pParent /*=NULL*/)
+	: ppmfc::CDialog(330, pParent)
+{
+	m_Text = "";
+}
+
+void CMapRendererBatchDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
+{
+	CDialog::DoDataExchange(pDX);
+	DDX_Text(pDX, 1000, m_Text);
+
+	FString buffer;
+	if (Translations::GetTranslationItem("OK", buffer))
+		GetDlgItem(1)->SetWindowTextA(buffer);
+	if (Translations::GetTranslationItem("MapRendererBatchDlgText", buffer))
+		GetDlgItem(5000)->SetWindowTextA(buffer);
+	if (Translations::GetTranslationItem("MapRendererBatchDlgCaption", buffer))
+		SetWindowTextA(buffer);
+}
+
+BOOL CMapRendererBatchDlg::OnInitDialog()
+{
+	ppmfc::CDialog::OnInitDialog();
+
+	std::string path = CFinalSunApp::MapPath();
+	if (!path.empty())
+		GetDlgItem(1000)->SetWindowTextA((path + "\n").c_str());
+
+	return TRUE;
+}
+
+void CMapRendererBatchDlg::OnOK()
+{
+	UpdateData(TRUE);
+	EndDialog(0);
 }

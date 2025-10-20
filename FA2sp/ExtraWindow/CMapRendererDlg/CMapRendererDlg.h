@@ -46,6 +46,7 @@ public:
 	BOOL b_MarkStartPositions;
 	BOOL b_MarkOres;
 	BOOL b_IgnoreObjects;
+	BOOL b_Tube;
     std::vector<FString> BatchPaths;
     ppmfc::CString m_Text;
 

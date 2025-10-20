@@ -289,6 +289,9 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			else if (hWnd == CNewINIEditor::GetHandle()) {
 				return TRUE;
 			}
+			else if (hWnd == CNewINIEditor::GetImporter()) {
+				return TRUE;
+			}
 			else if (hWnd == CNewScript::GetHandle()) {
 				return TRUE;
 			}
@@ -847,45 +850,14 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			Gdiplus::Status result = Gdiplus::Status::AccessDenied;
 			if (path.empty())
 				path = CFinalSunAppExt::ExePathExt + "New map";
+			size_t lastSlash = path.find_last_of("\\/");
+			size_t lastDot = path.find_last_of('.');
+			if (lastDot != std::string::npos && (lastSlash == std::string::npos || lastDot > lastSlash))
+				path = path.substr(0, lastDot);
 			path += ".png";
-			auto wpath = STDHelpers::StringToWString(path);
-			TempValueHolder<double> scaled(CIsoViewExt::ScaledFactor, 1.0);
-			int currentlighting = CFinalSunDlgExt::CurrentLighting;
-			std::vector<std::unique_ptr<TempValueHolder<bool>>> holders;
-			std::vector<std::unique_ptr<TempValueHolder<BOOL>>> holders2;
 
-			if (!CIsoViewExt::RenderCurrentLayers)
-			{
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawStructures, true);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawInfantries, true);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawUnits, true);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAircrafts, true);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBasenodes, false);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawWaypoints, false);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawCelltags, false);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawMoneyOnMap, false);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawOverlays, true);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawTerrains, true);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawSmudges, true);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawTubes, false);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBounds, false);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawVeterancy, true);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawShadows, true);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAlphaImages, true);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAnnotations, false);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawFires, true);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBaseNodeIndex, false);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::RockCells, false);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawStructuresFilter, false);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawInfantriesFilter, false);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawUnitsFilter, false);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAircraftsFilter, false);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBasenodesFilter, false);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawCellTagsFilter, false);
-				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->ShowBuildingCells, FALSE);
-				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->FlatToGround, FALSE);
-				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->FrameMode, FALSE);
-			}
+			auto wpath = STDHelpers::StringToWString(path);
+			int currentlighting = CFinalSunDlgExt::CurrentLighting;
 
 			switch (CIsoViewExt::RenderLighing)
 			{
@@ -1083,8 +1055,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				progress.DestroyWindow();
 			}
 			CIsoViewExt::RenderingMap = false;
-			holders.clear();
-			holders2.clear();
 
 			if (CIsoViewExt::RenderLighing != Current)
 				setLighting(currentlighting);
@@ -1123,6 +1093,52 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 			if (!CMapData::Instance->MapWidthPlusHeight && !batchProcess)
 				return TRUE;
+
+			TempValueHolder<double> scaled(CIsoViewExt::ScaledFactor, 1.0);
+			std::vector<std::unique_ptr<TempValueHolder<bool>>> holders;
+			std::vector<std::unique_ptr<TempValueHolder<BOOL>>> holders2;
+
+			if (!CIsoViewExt::RenderCurrentLayers)
+			{
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawStructures, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawInfantries, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawUnits, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAircrafts, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBasenodes, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawWaypoints, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawCelltags, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawMoneyOnMap, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawOverlays, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawTerrains, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawSmudges, true);
+				if (dlg.b_Tube)
+					ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawTubes, true);
+				else
+					ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawTubes, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBounds, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawVeterancy, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawShadows, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAlphaImages, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAnnotations, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawFires, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBaseNodeIndex, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::RockCells, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawStructuresFilter, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawInfantriesFilter, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawUnitsFilter, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAircraftsFilter, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBasenodesFilter, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawCellTagsFilter, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::EnableDistanceRuler, false);
+				ADD_TEMP_HOLDER(holders, ExtConfigs::InGameDisplay_Cloakable, true);
+				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->ShowBuildingCells, FALSE);
+				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->FlatToGround, FALSE);
+				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->FrameMode, FALSE);
+			}
+			else if (dlg.b_Tube)
+			{
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawTubes, true);
+			}
 
 			if (!batchProcess)
 			{
@@ -1524,6 +1540,7 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			HWND hParent1 = ::GetParent(hWnd);		// WINDOW	COMBOBOX
 			if (hParent1 != CNewINIEditor::GetHandle()
 				&& hParent1 != CCsfEditor::GetHandle()
+				&& hParent1 != CNewINIEditor::GetImporter()
 				&& hParent1 != CLuaConsole::GetHandle()
 				&& hParent1 != CTriggerAnnotation::GetHandle()
 				&& !CViewObjectsExt::IsOpeningAnnotationDlg
@@ -1546,7 +1563,9 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 		HWND hParent1 = ::GetParent(hWnd);		// WINDOW	COMBOBOX
 		if (hParent1 != CNewINIEditor::GetHandle()
 			&& hParent1 != CCsfEditor::GetHandle()
+			&& hParent1 != CNewINIEditor::GetImporter()
 			&& hParent1 != CLuaConsole::GetHandle()
+			&& hParent1 != CTriggerAnnotation::GetHandle()
 			&& !CViewObjectsExt::IsOpeningAnnotationDlg
 			)
 		{

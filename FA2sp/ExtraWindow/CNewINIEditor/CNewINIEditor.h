@@ -37,6 +37,10 @@ public:
     {
         return CNewINIEditor::m_hwnd;
     }
+    static HWND GetImporter()
+    {
+        return CNewINIEditor::m_hwndImporter;
+    }
     static bool OnEnterKeyDown(HWND& hWnd);
     static int FindLBTextCaseSensitive(HWND hwndCtl, const char* searchString);
     static bool IsGameObject(const char* lpSectionName);

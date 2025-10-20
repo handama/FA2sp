@@ -76,7 +76,7 @@ POPUP "Map tools"
 	MENUITEM "Autocreate shores",  40096
 	MENUITEM "Autocreate LAT",  40152
 	MENUITEM "Smoothen water",  40153
-	MENUITEM "Distance ruler\tCtrl+Shift+R",  40163
+	MENUITEM "Distance ruler",  40163
 	// MENUITEM "Auto level using cliffs",  40085
 	MENUITEM SEPARATOR
 	MENUITEM "Paint cliff front\tF3",  40092
@@ -90,7 +90,7 @@ POPUP "Map tools"
 	MENUITEM "Tool Scripts",  40135
 	MENUITEM "Lua Script Console\tCtrl+Alt+S",  40158
 	MENUITEM SEPARATOR
-	MENUITEM "Map Renderer",  40165
+	MENUITEM "Map Renderer\tCtrl+Shift+R",  40165
 	MENUITEM SEPARATOR
 	MENUITEM "Delete Objects",  40136
 }

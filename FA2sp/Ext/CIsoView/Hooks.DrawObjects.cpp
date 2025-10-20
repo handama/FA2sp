@@ -381,6 +381,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		return pCell->IsHidden() && (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers);
 	};
 
+	auto isCloakable = [](const ppmfc::CString& ID)
+	{
+		return ExtConfigs::InGameDisplay_Cloakable && Variables::RulesMap.GetBool(ID, "Cloakable");
+	};
+
 	for (int XplusY = Left + Top; XplusY < Right + Bottom; XplusY++) {
 		for (int X = 0; X < XplusY; X++) {
 			int Y = XplusY - X;
@@ -666,7 +671,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							BuildingsToDraw.push_back(std::make_pair(MapCoord{ objRender.X, objRender.Y },
 								DrawBuildings{ StrINIIndex , (short)objCenter.X, (short)objCenter.Y, (short)BuildingIndex }));
 
-							if (shadow && CIsoViewExt::DrawStructures)
+							if (shadow && CIsoViewExt::DrawStructures && !isCloakable(objRender.ID))
 							{
 								int x1 = objRender.X;
 								int y1 = objRender.Y;
@@ -748,10 +753,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					CInfantryData obj;
 					CMapData::Instance->GetInfantryData(cell->Infantry[i], obj);				
-					if (!CIsoViewExt::RenderingMap
+					if ((!CIsoViewExt::RenderingMap
 						|| CIsoViewExt::RenderingMap
 						&& CIsoViewExt::MapRendererIgnoreObjects.find(obj.TypeID)
-						== CIsoViewExt::MapRendererIgnoreObjects.end())
+						== CIsoViewExt::MapRendererIgnoreObjects.end()) && !isCloakable(obj.TypeID))
 					{
 
 						int nFacing = 7 - (atoi(obj.Facing) / 32) % 8;
@@ -817,10 +822,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			{
 				CUnitData obj;
 				CMapData::Instance->GetUnitData(cell->Unit, obj);
-				if (!CIsoViewExt::RenderingMap
+				if ((!CIsoViewExt::RenderingMap
 					|| CIsoViewExt::RenderingMap
 					&& CIsoViewExt::MapRendererIgnoreObjects.find(obj.TypeID)
-					== CIsoViewExt::MapRendererIgnoreObjects.end())
+					== CIsoViewExt::MapRendererIgnoreObjects.end()) && !isCloakable(obj.TypeID))
 				{
 					FString ImageID = obj.TypeID;
 					GetUnitImageID(ImageID, obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
@@ -1367,7 +1372,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						auto& isoset = CMapDataExt::TerrainPaletteBuildings;
 						auto& dam_rubble = CMapDataExt::DamagedAsRubbleBuildings;
 						CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
-							x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255,
+							x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, isCloakable(objRender.ID) ? 128 : 255,
 							objRender.HouseColor, -1, status == CLoadingExt::GBIN_RUBBLE &&
 							dam_rubble.find(objRender.ID) == dam_rubble.end()
 							&& imageName != CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, CLoadingExt::GBIN_DAMAGED),
@@ -1395,7 +1400,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								x1 += CINI::Art->GetInteger(ArtID, upgXX, 0);
 								y1 += CINI::Art->GetInteger(ArtID, upgYY, 0);
 								CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
-									x1 - pUpgData->FullWidth / 2, y1 - pUpgData->FullHeight / 2, pUpgData, NULL, 255,
+									x1 - pUpgData->FullWidth / 2, y1 - pUpgData->FullHeight / 2, pUpgData, NULL, isCloakable(objRender.ID) ? 128 : 255,
 									objRender.HouseColor, -1, false, isoset.find(objRender.ID) != isoset.end());
 							}
 						}
@@ -1422,7 +1427,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 										x - fire->FullWidth / 2 + DataExt.DamageFireOffsets[i].x,
 										y - fire->FullHeight / 2 + DataExt.DamageFireOffsets[i].y,
-										fire, NULL, 255, 0, -100, false);
+										fire, NULL, isCloakable(objRender.ID) ? 128 : 255, 0, -100, false);
 								}
 							}
 						}
@@ -1554,7 +1559,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 						auto color = Miscs::GetColorRef(obj.House);
 
-						if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
+						if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
 							pThis->DrawLine(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
 								x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 30, ExtConfigs::CursorSelectionBound_HeightColor, false, false, lpDesc, true);
 
@@ -1562,7 +1567,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							x - pData->FullWidth / 2,
 							y - pData->FullHeight / 2 + 15 - (HoveringUnit ? 10 : 0) -
 							(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
-							pData, NULL, 255, color, 0, true);
+							pData, NULL, isCloakable(obj.TypeID) ? 128 : 255, color, 0, true);
 
 						auto& veter = DrawVeterancies.emplace_back();
 						int	VP = atoi(obj.VeterancyPercentage);
@@ -1617,7 +1622,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						auto color = Miscs::GetColorRef(obj.House);
 						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-							x - pData->FullWidth / 2, y - pData->FullHeight / 2 + 15, pData, NULL, 255, color, 2, true);
+							x - pData->FullWidth / 2, y - pData->FullHeight / 2 + 15, pData, NULL,
+							isCloakable(obj.TypeID) ? 128 : 255, color, 2, true);
 
 						auto& veter = DrawVeterancies.emplace_back();
 						int	VP = atoi(obj.VeterancyPercentage);
@@ -1693,13 +1699,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
 								y1 -= 60;
 
-							if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
+							if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
 								pThis->DrawLine(x1 + 30, y1 - 30,
 									x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor, false, false, lpDesc, true);
 
 							auto color = Miscs::GetColorRef(obj.House);
 							CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, 255, color, 1, true);
+								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL,
+								isCloakable(obj.TypeID) ? 128 : 255, color, 1, true);
 
 							auto& veter = DrawVeterancies.emplace_back();
 							int	VP = atoi(obj.VeterancyPercentage);

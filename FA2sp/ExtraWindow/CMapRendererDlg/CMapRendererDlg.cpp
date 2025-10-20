@@ -14,6 +14,7 @@ CMapRendererDlg::CMapRendererDlg(CWnd* pParent /*=NULL*/)
 	b_MarkStartPositions = FALSE;
 	b_MarkOres = FALSE;
 	b_IgnoreObjects = TRUE;
+	b_Tube = FALSE;
 	m_Text = "";
 }
 
@@ -28,6 +29,7 @@ void CMapRendererDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
 	DDX_Check(pDX, 1011, b_MarkStartPositions);
 	DDX_Check(pDX, 1012, b_MarkOres);
 	DDX_Check(pDX, 1013, b_IgnoreObjects);
+	DDX_Check(pDX, 1014, b_Tube);
 
 	FString buffer;
 
@@ -69,6 +71,8 @@ void CMapRendererDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
 		GetDlgItem(1012)->SetWindowTextA(buffer);
 	if (Translations::GetTranslationItem("MapRendererDlgIgnoreObjects", buffer))
 		GetDlgItem(1013)->SetWindowTextA(buffer);
+	if (Translations::GetTranslationItem("MapRendererDlgTube", buffer))
+		GetDlgItem(1014)->SetWindowTextA(buffer);
 	if (Translations::GetTranslationItem("MapRendererDlgBatchButton", buffer))
 		GetDlgItem(4000)->SetWindowTextA(buffer);
 	

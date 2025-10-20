@@ -168,6 +168,7 @@ bool ExtConfigs::InGameDisplay_Hover;
 bool ExtConfigs::InGameDisplay_AlphaImage;
 bool ExtConfigs::InGameDisplay_Bridge;
 bool ExtConfigs::InGameDisplay_AnimAdjust;
+bool ExtConfigs::InGameDisplay_Cloakable;
 bool ExtConfigs::FlatToGroundHideExtra;
 bool ExtConfigs::LightingPreview_MultUnitColor;
 bool ExtConfigs::LightingPreview_TintTileSetBrowserView;
@@ -331,6 +332,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::InGameDisplay_AlphaImage = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AlphaImage", true);
 	ExtConfigs::InGameDisplay_Bridge = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Bridge", true);
 	ExtConfigs::InGameDisplay_AnimAdjust = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AnimAdjust", true);
+	ExtConfigs::InGameDisplay_Cloakable = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Cloakable", false);
 	ExtConfigs::FlatToGroundHideExtra = CINI::FAData->GetBool("ExtConfigs", "FlatToGroundHideExtra");
 	ExtConfigs::ExtOverlays = CINI::FAData->GetBool("ExtConfigs", "ExtOverlays");
 
@@ -696,6 +698,13 @@ void FA2sp::ExtConfigsInitialize()
 		.IniKey = "InGameDisplay.AnimAdjust",
 		.Value = &ExtConfigs::InGameDisplay_AnimAdjust,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Cloakable", "Display cloakable units translucently"),
+		.IniKey = "InGameDisplay.Cloakable",
+		.Value = &ExtConfigs::InGameDisplay_Cloakable,
+		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

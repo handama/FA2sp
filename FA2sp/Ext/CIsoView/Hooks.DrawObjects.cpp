@@ -542,16 +542,22 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 			if (subTile.HasValidImage)
 			{
-				Palette* pal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
+				Palette* pal = CMapDataExt::TileSetPalettes[tile.TileSet];
 
 				FString extraImageID;
 				extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
+				const auto& offset = CLoadingExt::TileExtraOffsets[
+					CLoadingExt::GetTileIdentifier(tileIndex, tileSubIndex, altImage)];
+
+				int blockPosInTileX = tileSubIndex % tile.Width;
+				int blockPosInTileY = tileSubIndex / tile.Width;
+
 				auto pData = CLoadingExt::GetImageDataFromServer(extraImageID);
 				if (pData->pImageBuffer)
 				{
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-						x + subTile.XMinusExX + 30,
-						y + subTile.YMinusExY + 30,
+						x + 30 + offset.X,
+						y + 30 + offset.Y,
 						pData, pal, isCellHidden(cell) ? 128 : 255, -2, -10);
 				}			
 			}
@@ -1033,7 +1039,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 						if (subTile.HasValidImage)
 						{
-							Palette* pal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
+							Palette* pal = CMapDataExt::TileSetPalettes[tile.TileSet];
 
 							CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 								x1 + subTile.XMinusExX, y1 + subTile.YMinusExY, &subTile, pal,
@@ -1043,12 +1049,18 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							{
 								FString extraImageID;
 								extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
+								const auto& offset = CLoadingExt::TileExtraOffsets[
+									CLoadingExt::GetTileIdentifier(tileIndex, tileSubIndex, altImage)];
+
+								int blockPosInTileX = tileSubIndex % tile.Width;
+								int blockPosInTileY = tileSubIndex / tile.Width;
+
 								auto pData = CLoadingExt::GetImageDataFromServer(extraImageID);
 								if (pData->pImageBuffer)
 								{
 									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-										x1 + subTile.XMinusExX + 30,
-										y1 + subTile.YMinusExY + 30,
+										x1 + 30 + offset.X,
+										y1 + 30 + offset.Y,
 										pData, pal, isCellHidden(cell) ? 128 : 255, -2, -10);
 								}
 							}

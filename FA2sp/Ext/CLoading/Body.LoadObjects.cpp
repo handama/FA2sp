@@ -28,6 +28,7 @@ std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::Cu
 std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::ImageDataMap;
 std::unordered_map<FString, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::SurfaceImageDataMap;
 std::vector<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::DamageFires;
+std::map<unsigned int, MapCoord> CLoadingExt::TileExtraOffsets;
 unsigned int CLoadingExt::RandomFireSeed = 0;
 
 bool CLoadingExt::IsImageLoaded(const FString& name)

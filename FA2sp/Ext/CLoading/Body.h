@@ -225,13 +225,19 @@ private:
 	static unsigned char VXL_Data[0x10000];
 	static unsigned char VXL_Shadow_Data[0x10000];
 
-
 public:
 	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CurrentFrameImageDataMap;
 	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> ImageDataMap;
 	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSurface>> SurfaceImageDataMap;
 	static std::vector<std::unique_ptr<ImageDataClassSafe>> DamageFires;
 	static unsigned int RandomFireSeed;
+	static std::map<unsigned int, MapCoord> TileExtraOffsets;
+	static inline unsigned int GetTileIdentifier(unsigned short TileIndex, unsigned char SubTileIndex, unsigned char AltType)
+	{
+		return (static_cast<unsigned int>(AltType) << 24) |
+			(static_cast<unsigned int>(SubTileIndex) << 16) |
+			(static_cast<unsigned int>(TileIndex));
+	}
 
 	static bool IsImageLoaded(const FString& name);
 	static ImageDataClassSafe* GetImageDataFromMap(const FString& name);

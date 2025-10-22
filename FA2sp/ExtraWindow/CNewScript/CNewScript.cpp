@@ -53,6 +53,7 @@ std::map<int, FString> CNewScript::ActionTypeLabels;
 std::map<int, FString> CNewScript::ActionParamLabels;
 std::map<int, FString> CNewScript::ActionExtraParamLabels;
 std::map<FString, bool> CNewScript::ActionHasExtraParam;
+std::map<FString, bool> CNewScript::ActionIsStringParam;
 bool CNewScript::Autodrop;
 bool CNewScript::ParamAutodrop[2];
 bool CNewScript::DropNeedUpdate;
@@ -172,6 +173,15 @@ void CNewScript::Update(HWND& hWnd)
             auto atoms = FString::SplitString(pair.second, 4);
             if (atoms[2] == "0")
                 SendMessage(hActionType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)atoms[0]);
+        }
+    }
+
+    ActionIsStringParam.clear();
+    if (auto pSection = fadata.GetSection("StringScripts"))
+    {
+        for (auto& pair : pSection->GetEntities())
+        {
+            ActionIsStringParam[pair.second] = true;
         }
     }
 
@@ -482,21 +492,38 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
     if (!text)
         return;
 
-    FString::TrimIndex(text);
+    if (ActionIsStringParam[atoms[0]])
+        TrimStringIndex(text);
+    else
+        FString::TrimIndex(text);
     if (text == "")
         text = "0";
 
     text.Replace(",", "");
 
-    int extraParam = atoi(text);
-
     int ActionParam = atoi(atoms[1]);
-    int low = LOWORD(ActionParam);
-    WORD high = extraParam;
-    int newParam = MAKELONG(low, high);
-    value.Format("%s,%d", atoms[0], newParam);
-    map.WriteString(CurrentScriptID, key, value);
-    text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
+
+    if (ActionIsStringParam[atoms[0]])
+    {
+        auto atoms = FString::SplitString(value, 2);
+        auto& param = atoms[1];
+        auto extraParam = text;
+
+        value.Format("%s,%s,%s", atoms[0], param, extraParam);
+        map.WriteString(CurrentScriptID, key, value);
+        text.Format("[%s] : %s - (%s, %s)", key, atoms[0], param, extraParam);
+    }
+    else
+    {
+        int extraParam = atoi(text);
+
+        int low = LOWORD(ActionParam);
+        WORD high = extraParam;
+        int newParam = MAKELONG(low, high);
+        value.Format("%s,%d", atoms[0], newParam);
+        map.WriteString(CurrentScriptID, key, value);
+        text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
+    }
 
     FString actionName = FString::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
     FString::TrimIndexElse(actionName);
@@ -508,7 +535,6 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
     SendMessage(hActionsListBox, LB_DELETESTRING, idx, NULL);
     SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text);
     SendMessage(hActionsListBox, LB_SETCURSEL, idx, NULL);
-
 }
 
 void CNewScript::OnCloseupActionExtraParam()
@@ -549,34 +575,59 @@ void CNewScript::OnSelchangeActionParam(bool edited)
     if (!text)
         return;
 
-    FString::TrimIndex(text);
-    if (text == "")
-        text = "0";
-
-    text.Replace(",", "");
-
     int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
     FString key;
     key.Format("%d", idx);
     auto value = map.GetString(CurrentScriptID, key);
     auto atoms = FString::SplitString(value, 1);
-    int param = atoi(text);
-    if (ActionHasExtraParam[atoms[0]])
+
+    if (ActionIsStringParam[atoms[0]])
+        TrimStringIndex(text);
+    else
+        FString::TrimIndex(text);
+    if (text == "")
+        text = "0";
+
+    text.Replace(",", "");
+
+    if (ActionIsStringParam[atoms[0]])
     {
-        int actionParam = atoi(atoms[1]);
-        WORD low = param;
-        int high = HIWORD(actionParam);
-        int newParam = MAKELONG(low, high);
-        value.Format("%s,%d", atoms[0], newParam);
-        map.WriteString(CurrentScriptID, key, value);
-        text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
+        auto param = text;
+        if (ActionHasExtraParam[atoms[0]])
+        {
+            auto atoms = FString::SplitString(value, 2);
+            value.Format("%s,%s,%s", atoms[0], param, atoms[2]);
+            map.WriteString(CurrentScriptID, key, value);
+            text.Format("[%s] : %s - (%s, %s)", key, atoms[0], param, atoms[2]);
+        }
+        else
+        {
+            value.Format("%s,%s", atoms[0], param);
+            map.WriteString(CurrentScriptID, key, value);
+            text.Format("[%s] : %s - %s", key, atoms[0], param);
+        }
     }
     else
     {
-        value.Format("%s,%d", atoms[0], param);
-        map.WriteString(CurrentScriptID, key, value);
-        text.Format("[%s] : %s - %d", key, atoms[0], param);
+        int param = atoi(text);
+        if (ActionHasExtraParam[atoms[0]])
+        {
+            int actionParam = atoi(atoms[1]);
+            WORD low = param;
+            int high = HIWORD(actionParam);
+            int newParam = MAKELONG(low, high);
+            value.Format("%s,%d", atoms[0], newParam);
+            map.WriteString(CurrentScriptID, key, value);
+            text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
+        }
+        else
+        {
+            value.Format("%s,%d", atoms[0], param);
+            map.WriteString(CurrentScriptID, key, value);
+            text.Format("[%s] : %s - %d", key, atoms[0], param);
+        }
     }
+
     FString actionName = FString::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
     FString::TrimIndexElse(actionName);
     FString::TrimIndexElse(actionName);
@@ -644,17 +695,34 @@ void CNewScript::OnSelchangeActionType(bool edited)
 
     value = map.GetString(CurrentScriptID, key);
     atoms = FString::SplitString(value, 1);
-    if (ActionHasExtraParam[atoms[0]])
+
+    if (ActionIsStringParam[atoms[0]])
     {
-        int actionParam = atoi(atoms[1]);
-        int low = LOWORD(actionParam);
-        int high = HIWORD(actionParam);
-        text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
+        if (ActionHasExtraParam[atoms[0]])
+        {
+            auto atoms = FString::SplitString(value, 2);
+            text.Format("[%s] : %s - (%s, %s)", key, atoms[0], atoms[1], atoms[2]);
+        }
+        else
+        {
+            text.Format("[%s] : %s - %s", key, atoms[0], atoms[1]);
+        }
     }
     else
     {
-        text.Format("[%s] : %s - %s", key, atoms[0], atoms[1]);
+        if (ActionHasExtraParam[atoms[0]])
+        {
+            int actionParam = atoi(atoms[1]);
+            int low = LOWORD(actionParam);
+            int high = HIWORD(actionParam);
+            text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
+        }
+        else
+        {
+            text.Format("[%s] : %s - %s", key, atoms[0], atoms[1]);
+        }
     }
+
     FString actionName = FString::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
     FString::TrimIndexElse(actionName);
     FString::TrimIndexElse(actionName);
@@ -741,7 +809,7 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
             auto value = map.GetString(pID, key);
             if (value != "")
             {
-                if (FString::SplitString(value).size() == 2)
+                if (FString::SplitString(value).size() >= 2)
                     sortedList.push_back(value);
             }
             map.DeleteKey(pID, key);
@@ -753,15 +821,34 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
             FString text;
             FString key;
             key.Format("%d", i);
-            if (ActionHasExtraParam[atoms[0]])
+
+            if (ActionIsStringParam[atoms[0]])
             {
-                int param = atoi(atoms[1]);
-                int low = LOWORD(param);
-                int high = HIWORD(param);
-                text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
+                if (ActionHasExtraParam[atoms[0]])
+                {
+                    auto atoms = FString::SplitString(value, 2);
+                    text.Format("[%s] : %s - (%s, %s)", key, atoms[0], atoms[1], atoms[2]);
+                }
+                else
+                {
+                    text.Format("[%s] : %s - %s", key, atoms[0], atoms[1]);
+                }
             }
             else
-                text.Format("[%s] : %s - %s", key, atoms[0], atoms[1]);
+            {
+                if (ActionHasExtraParam[atoms[0]])
+                {
+                    int param = atoi(atoms[1]);
+                    int low = LOWORD(param);
+                    int high = HIWORD(param);
+                    text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
+                }
+                else
+                {
+                    text.Format("[%s] : %s - %s", key, atoms[0], atoms[1]);
+                }
+            }
+
 
             FString actionName = FString::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
             FString::TrimIndexElse(actionName);
@@ -1168,54 +1255,106 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                         CNewScript::ParamAutodrop[0] = false;
                     }
                 }
-                if (ActionHasExtraParam[name])
+                if (ActionIsStringParam[atoms[0]])
                 {
-                    EnableWindow(hActionExtraParam, TRUE);
-                    SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)param[2]);
-                    ExtraWindow::LoadParams(hActionExtraParam, param[3]);
-                    if (!ExtConfigs::SearchCombobox_Waypoint && param[3] == "1") // waypoints
+                    if (ActionHasExtraParam[name])
                     {
-                        CNewScript::ParamAutodrop[1] = false;
-                    }
-                    int actionParam = atoi(atoms[1]);
-                    int low = LOWORD(actionParam);
-                    int high = HIWORD(actionParam);
-
-                    buffer.Format("%d - ", low);
-                    int idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer);
-                    if (idx == CB_ERR)
-                    {
-                        buffer.Format("%d", low);
-                        SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)buffer);
+                        auto atoms = FString::SplitString(value, 2);
+                        EnableWindow(hActionExtraParam, TRUE);
+                        SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)param[2]);
+                        ExtraWindow::LoadParams(hActionExtraParam, param[3]);
+                        if (!ExtConfigs::SearchCombobox_Waypoint && param[3] == "1") // waypoints
+                        {
+                            CNewScript::ParamAutodrop[1] = false;
+                        }
+                        buffer.Format("%s - ", atoms[1]);
+                        int idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer);
+                        if (idx == CB_ERR)
+                        {
+                            buffer.Format("%s", atoms[1]);
+                            SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)buffer);
+                        }
+                        else
+                            SendMessage(hActionParam, CB_SETCURSEL, idx, NULL);
+                        buffer.Format("%s - ", atoms[2]);
+                        idx = SendMessage(hActionExtraParam, CB_FINDSTRING, 0, (LPARAM)buffer);
+                        if (idx == CB_ERR)
+                        {
+                            buffer.Format("%s", atoms[2]);
+                            SendMessage(hActionExtraParam, WM_SETTEXT, 0, (LPARAM)buffer);
+                        }
+                        else
+                            SendMessage(hActionExtraParam, CB_SETCURSEL, idx, NULL);
                     }
                     else
-                        SendMessage(hActionParam, CB_SETCURSEL, idx, NULL);
-                    buffer.Format("%d - ", high);
-                    idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer);
-                    if (idx == CB_ERR)
                     {
-                        buffer.Format("%d", high);
-                        SendMessage(hActionExtraParam, WM_SETTEXT, 0, (LPARAM)buffer);
+                        Translations::GetTranslationItem("ScriptTypesExtraParam", buffer);
+                        SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)buffer);
+                        EnableWindow(hActionExtraParam, FALSE);
+                        SendMessage(hActionExtraParam, WM_SETTEXT, 0, (LPARAM)"");
+                        auto& actionParam = atoms[1];
+                        FString buffer;
+                        buffer.Format("%s - ", actionParam);
+                        int idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer);
+                        if (idx == CB_ERR)
+                        {
+                            SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)actionParam);
+                        }
+                        else
+                            SendMessage(hActionParam, CB_SETCURSEL, idx, NULL);
                     }
-                    else
-                        SendMessage(hActionExtraParam, CB_SETCURSEL, idx, NULL);
                 }
                 else
                 {
-                    Translations::GetTranslationItem("ScriptTypesExtraParam", buffer);
-                    SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)buffer);
-                    EnableWindow(hActionExtraParam, FALSE);
-                    SendMessage(hActionExtraParam, WM_SETTEXT, 0, (LPARAM)"");
-                    auto& actionParam = atoms[1];
-                    FString buffer;
-                    buffer.Format("%s - ", actionParam);
-                    int idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer);
-                    if (idx == CB_ERR)
+                    if (ActionHasExtraParam[name])
                     {
-                        SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)actionParam);
+                        EnableWindow(hActionExtraParam, TRUE);
+                        SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)param[2]);
+                        ExtraWindow::LoadParams(hActionExtraParam, param[3]);
+                        if (!ExtConfigs::SearchCombobox_Waypoint && param[3] == "1") // waypoints
+                        {
+                            CNewScript::ParamAutodrop[1] = false;
+                        }
+                        int actionParam = atoi(atoms[1]);
+                        int low = LOWORD(actionParam);
+                        int high = HIWORD(actionParam);
+
+                        buffer.Format("%d - ", low);
+                        int idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer);
+                        if (idx == CB_ERR)
+                        {
+                            buffer.Format("%d", low);
+                            SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)buffer);
+                        }
+                        else
+                            SendMessage(hActionParam, CB_SETCURSEL, idx, NULL);
+                        buffer.Format("%d - ", high);
+                        idx = SendMessage(hActionExtraParam, CB_FINDSTRING, 0, (LPARAM)buffer);
+                        if (idx == CB_ERR)
+                        {
+                            buffer.Format("%d", high);
+                            SendMessage(hActionExtraParam, WM_SETTEXT, 0, (LPARAM)buffer);
+                        }
+                        else
+                            SendMessage(hActionExtraParam, CB_SETCURSEL, idx, NULL);
                     }
                     else
-                        SendMessage(hActionParam, CB_SETCURSEL, idx, NULL);
+                    {
+                        Translations::GetTranslationItem("ScriptTypesExtraParam", buffer);
+                        SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)buffer);
+                        EnableWindow(hActionExtraParam, FALSE);
+                        SendMessage(hActionExtraParam, WM_SETTEXT, 0, (LPARAM)"");
+                        auto& actionParam = atoms[1];
+                        FString buffer;
+                        buffer.Format("%s - ", actionParam);
+                        int idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer);
+                        if (idx == CB_ERR)
+                        {
+                            SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)actionParam);
+                        }
+                        else
+                            SendMessage(hActionParam, CB_SETCURSEL, idx, NULL);
+                    }
                 }
             }
         }

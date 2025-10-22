@@ -54,6 +54,9 @@ std::string lzo::compressIsoMapPack5(const IsoMapPack5Entry* src, int slen)
         }
     );
 
+	if (entries.empty())
+		entries.push_back({0});
+
     const unsigned char* ptr = reinterpret_cast<const unsigned char*>(entries.data());
     int new_slen = static_cast<int>(entries.size() * sizeof(IsoMapPack5Entry));
 

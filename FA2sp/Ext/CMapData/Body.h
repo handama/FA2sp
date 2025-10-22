@@ -92,6 +92,7 @@ struct BuildingDataExt
     int Height{ 0 };
     std::vector<MapCoord>* Foundations{ nullptr };
     std::vector<std::pair<MapCoord, MapCoord>>* LinesToDraw{ nullptr };
+    std::vector<POINT> DamageFireOffsets;
 };
 
 struct BuildingRenderData
@@ -498,6 +499,8 @@ public:
     static void UpdateFieldUnitData_RedrawMinimap();
     static void UpdateFieldInfantryData_RedrawMinimap();
     static void UpdateFieldAircraftData_RedrawMinimap();
+
+    static int GetPlayerLocationCountAtCell(int x, int y);
 
     static int OreValue[4];
     static std::vector<std::vector<int>> Tile_to_lat;

@@ -119,7 +119,11 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
                 FString pMessage = Translations::TranslateOrDefault("LoadFromOtherGameDirectory",
                     "You seem to have read a map from another game directory.\nClick 'OK' to reload the resources in this directory.");
 
-                auto text = MessageBox(CFinalSunDlg::Instance->m_hWnd, pMessage, "FA2sp", MB_OKCANCEL | MB_ICONEXCLAMATION);
+                int text = 0;
+                if (CIsoViewExt::RenderingMap)
+                    text = IDOK;
+                else
+                    text = MessageBox(CFinalSunDlg::Instance->m_hWnd, pMessage, "FA2sp", MB_OKCANCEL | MB_ICONEXCLAMATION);
 
                 if (text == IDOK)
                 {

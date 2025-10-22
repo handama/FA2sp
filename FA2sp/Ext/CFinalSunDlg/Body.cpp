@@ -29,6 +29,11 @@
 #include <thread>
 #include "../../Miscs/MultiSelection.h"
 #include "../../Miscs/DialogStyle.h"
+#include "../../Helpers/Helper.h"
+#include "../../ExtraWindow/CMapRendererDlg/CMapRendererDlg.h"
+#include <CUpdateProgress.h>
+#include <filesystem>
+namespace fs = std::filesystem;
 
 int CFinalSunDlgExt::CurrentLighting = 31000;
 std::pair<FString, int> CFinalSunDlgExt::SearchObjectIndex ("", - 1);
@@ -87,13 +92,13 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				CheckMenuItem(hMenu, id, MF_CHECKED);
 
 
-				const ppmfc::CString title = Translations::TranslateOrDefault(
+				const FString title = Translations::TranslateOrDefault(
 					"ObjectFilterTitle", "Object Filter"
 				);
-				const ppmfc::CString message = Translations::TranslateOrDefault(
+				const FString message = Translations::TranslateOrDefault(
 					"ObjectFilterMessage", "Please input Object ID(s):\n\nSeparate multiple objects with \",\". Leave it blank to display all.\nAfter confirmation, set object property filtering (optional)."
 				);
-				const ppmfc::CString message2 = Translations::TranslateOrDefault(
+				const FString message2 = Translations::TranslateOrDefault(
 					"ObjectFilterMessageCT", "Please input Tag ID(s):\n\nSeparate multiple tags with \",\". You can only fill in the last digits."
 				);
 				ppmfc::CString result;
@@ -284,6 +289,9 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			else if (hWnd == CNewINIEditor::GetHandle()) {
 				return TRUE;
 			}
+			else if (hWnd == CNewINIEditor::GetImporter()) {
+				return TRUE;
+			}
 			else if (hWnd == CNewScript::GetHandle()) {
 				return TRUE;
 			}
@@ -430,6 +438,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	case 30023:
 		SetLayerStatus(30023, CIsoViewExt::DrawAlphaImages);
 		return TRUE;
+	case 30024:
+		SetLayerStatus(30024, CIsoViewExt::DrawAnnotations);
+		return TRUE;
+	case 30025:
+		SetLayerStatus(30025, CIsoViewExt::DrawFires);
+		return TRUE;
 	case 30050:
 		SetMenuStatusTrue(30000, CIsoViewExt::DrawStructures);
 		SetMenuStatusTrue(30001, CIsoViewExt::DrawInfantries);
@@ -448,6 +462,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		SetMenuStatusTrue(30021, CIsoViewExt::DrawVeterancy);
 		SetMenuStatusTrue(30022, CIsoViewExt::DrawShadows);
 		SetMenuStatusTrue(30023, CIsoViewExt::DrawAlphaImages);
+		SetMenuStatusTrue(30024, CIsoViewExt::DrawAnnotations);
+		SetMenuStatusTrue(30025, CIsoViewExt::DrawFires);
 		SetMenuStatusFalse(30014, CIsoViewExt::RockCells);
 		SetMenuStatusFalse(30015, CIsoViewExt::DrawStructuresFilter);
 		SetMenuStatusFalse(30016, CIsoViewExt::DrawInfantriesFilter);
@@ -719,10 +735,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	}
 	if (wmID == 40157)
 	{
-		const ppmfc::CString title = Translations::TranslateOrDefault(
+		const FString title = Translations::TranslateOrDefault(
 			"Error", "Error"
 		);
-		const ppmfc::CString message = Translations::TranslateOrDefault(
+		const FString message = Translations::TranslateOrDefault(
 			"SelectAutoShoreNotFound", "This theater does not have available shore options."
 		);
 		bool found = false;
@@ -788,7 +804,358 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CTriggerAnnotation::GetHandle(), 114514, 0, 0);
 		}
 	}
-	auto closeFA2Window = [this, &wmID](int wmID2, ppmfc::CDialog &dialog)
+	if (wmID == 40165)
+	{
+		auto setLighting = [](int id)
+		{
+			if (CFinalSunDlgExt::CurrentLighting != id)
+			{
+				auto& pThis = CFinalSunDlg::Instance;
+				CFinalSunDlgExt::CurrentLighting = id;
+				LightingStruct::GetCurrentLighting();
+
+				for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
+					for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
+						CMapData::Instance->UpdateMapPreviewAt(i, j);
+					}
+				}
+				LightingSourceTint::CalculateMapLamps();
+
+				pThis->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+				::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+				auto tmp = CIsoView::CurrentCommand->Command;
+				if (pThis->MyViewFrame.pTileSetBrowserFrame->View.CurrentMode == 1) {
+					HWND hParent = pThis->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
+					HWND hTileComboBox = ::GetDlgItem(hParent, 1366);
+					::SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1366, CBN_SELCHANGE), (LPARAM)hTileComboBox);
+					CIsoView::CurrentCommand->Command = tmp;
+				}
+			}
+		};
+		auto renderMap = [&](FString path, bool batchProcess)
+		{
+			CIsoViewExt::InitGdiplus();
+			CIsoViewExt::RenderingMap = true;
+			if (batchProcess)
+			{
+				CMapData::Instance->LoadMap(path);
+				FString str;
+				str = Translations::TranslateOrDefault("MainDialogCaption", "%9");
+				str += " (";
+				str += path;
+				str += ")";
+				CFinalSunDlg::Instance->SetWindowText(str);
+				strcpy_s(CFinalSunApp::MapPath(), path);
+			}
+			Gdiplus::Status result = Gdiplus::Status::AccessDenied;
+			if (path.empty())
+				path = CFinalSunAppExt::ExePathExt + "New map";
+			size_t lastSlash = path.find_last_of("\\/");
+			size_t lastDot = path.find_last_of('.');
+			if (lastDot != std::string::npos && (lastSlash == std::string::npos || lastDot > lastSlash))
+				path = path.substr(0, lastDot);
+			path += ".png";
+
+			auto wpath = STDHelpers::StringToWString(path);
+			int currentlighting = CFinalSunDlgExt::CurrentLighting;
+
+			switch (CIsoViewExt::RenderLighing)
+			{
+			case None:
+				setLighting(31000);
+				break;
+			case Normal:
+				setLighting(31001);
+				break;
+			case LightningStorm:
+				setLighting(31002);
+				break;
+			case Dominator:
+				setLighting(31003);
+				break;
+			case Current:
+			default:
+				break;
+			}
+
+			auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+			thisTheater.MakeUpper();
+			if (thisTheater == "NEWURBAN")
+				thisTheater = "UBN";
+			FString theaterSuffix = thisTheater.Mid(0, 3);
+			CIsoViewExt::MapRendererIgnoreObjects.clear();
+			if (CIsoViewExt::RenderIgnoreObjects)
+			{
+				FString ignoreSection = "MapRendererIgnoreObjects";
+				if (auto pSection = CINI::FAData->GetSection(ignoreSection))
+				{
+					for (auto& [_, ID] : pSection->GetEntities())
+					{
+						CIsoViewExt::MapRendererIgnoreObjects.insert(ID);
+					}
+				}
+				if (auto pSection = CINI::FAData->GetSection(ignoreSection + theaterSuffix))
+				{
+					for (auto& [_, ID] : pSection->GetEntities())
+					{
+						CIsoViewExt::MapRendererIgnoreObjects.insert(ID);
+					}
+				}
+			}
+
+			auto pIsoView = CIsoView::GetInstance();
+
+			int& height = CMapData::Instance->Size.Height;
+			int& width = CMapData::Instance->Size.Width;
+			int startX, startY, endX, endY;
+			int startPointX, startPointY, endPointX, endPointY;
+			if (CIsoViewExt::RenderFullMap)
+			{
+				startX = width - 1;
+				startY = 0;
+				endX = height;
+				endY = width + height + 1;
+			}
+			else
+			{
+				const int& mpL = CMapData::Instance->LocalSize.Left;
+				const int& mpT = CMapData::Instance->LocalSize.Top;
+				const int& mpW = CMapData::Instance->LocalSize.Width;
+				const int& mpH = CMapData::Instance->LocalSize.Height;
+
+				startY = mpT + mpL - 2;
+				startX = width + mpT - mpL - 3;
+
+				endX = width - mpL - mpW + mpT - 3 + mpH + 4;
+				endY = mpT + mpL + mpW - 2 + mpH + 4;
+			}
+
+			startPointX = startX;
+			startPointY = startY;
+			endPointX = endX;
+			endPointY = endY;
+
+			pIsoView->MapCoord2ScreenCoord_Flat(startPointX, startPointY);
+			pIsoView->MapCoord2ScreenCoord_Flat(endPointX, endPointY);
+
+			VEHGuard v(false);
+			try {
+				CIsoViewExt::pFullBitmap = new Bitmap(endPointX - startPointX, endPointY - startPointY, PixelFormat24bppRGB);
+			}
+			catch (const std::bad_alloc&) {
+				if (!batchProcess)
+				{
+					const FString title = Translations::TranslateOrDefault(
+						"Error", "Error"
+					);
+					const FString message = Translations::TranslateOrDefault(
+						"AllocFullMapBitmapFailed", "Memory allocation failed, cannot render full map."
+					);
+					::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, title, MB_ICONWARNING);
+				}
+				CIsoViewExt::pFullBitmap = nullptr;
+			}
+
+			if (CIsoViewExt::pFullBitmap)
+			{
+				Graphics gInit(CIsoViewExt::pFullBitmap);
+				gInit.Clear(Color(0, 0, 0, 0));
+
+				CRect r;
+				pIsoView->GetWindowRect(&r);
+
+				CRect validRange;
+				validRange.left = 30 * (height + width + startY - startX) - (r.right - r.left) / 2 - r.left;
+				validRange.top = 15 * (startY + startX) - (r.bottom - r.top) / 2 - r.top;
+				validRange.right = 30 * (height + width + endY - endX) - (r.right - r.left) / 2 - r.left;
+				validRange.bottom = 15 * (endY + endX) - (r.bottom - r.top) / 2 - r.top;
+
+				pIsoView->ViewPosition.y = validRange.top;
+
+				int totalTileCount = ((validRange.right - validRange.left + r.Width()) / r.Width() + 1)
+					* ((validRange.bottom - validRange.top + r.Height()) / r.Height() + 1) - 1;
+
+				CUpdateProgress progress(
+					Translations::TranslateOrDefault("MapRendererProgressText",
+						"Rendering, please wait..."), NULL);
+				progress.ShowWindow(SW_SHOW);
+				progress.UpdateWindow();
+				progress.ProgressBar.SetRange(0, totalTileCount + 1);
+				progress.ProgressBar.SetPos(0);
+
+				EnableScrollBar(pIsoView->GetSafeHwnd(), SB_BOTH, ESB_DISABLE_BOTH);
+
+				int currentTile = 0;
+				static int renderFailedCount;
+				renderFailedCount = 0;
+				while (pIsoView->ViewPosition.y < validRange.bottom + r.Height())
+				{
+					pIsoView->ViewPosition.x = validRange.left;
+					while (pIsoView->ViewPosition.x < validRange.right + r.Width())
+					{
+						::SetScrollPos(pIsoView->GetSafeHwnd(), SB_VERT, pIsoView->ViewPosition.y / 30 - width / 2 + 4, TRUE);
+						::SetScrollPos(pIsoView->GetSafeHwnd(), SB_HORZ, pIsoView->ViewPosition.x / 60 - height / 2 + 1, TRUE);
+						CIsoViewExt::RenderTileSuccess = false;
+
+						FString message;
+						message.Format(Translations::TranslateOrDefault("MapRendererToolbarRendering",
+							"Map Renderer: rendering tile (%d/%d)"), currentTile, totalTileCount);
+						::SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0, message);
+						::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+						::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
+
+						pIsoView->Draw();
+
+						progress.ProgressBar.SetPos(currentTile);
+						progress.ProgressBar.UpdateWindow();
+
+						MSG msg;
+						if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+						{
+							TranslateMessage(&msg);
+							DispatchMessage(&msg);
+						}
+						Sleep(1);
+
+						if (CIsoViewExt::RenderTileSuccess || renderFailedCount >= 500) {
+							pIsoView->ViewPosition.x += r.Width();
+							currentTile++;
+						}
+						else {
+							renderFailedCount++;
+						}
+					}
+					pIsoView->ViewPosition.y += r.Height();
+				}
+
+				EnableScrollBar(pIsoView->GetSafeHwnd(), SB_BOTH, ESB_ENABLE_BOTH);
+
+				FString message;
+				message.Format(Translations::TranslateOrDefault("MapRendererToolbarSaving",
+					"Map Renderer: saving png file to %s"), path);
+				::SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0, message);
+				::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+				::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
+
+				CLSID clsidEncoder;
+				UINT num = 0, size = 0;
+				GetImageEncodersSize(&num, &size);
+				ImageCodecInfo* pImageCodecInfo = (ImageCodecInfo*)malloc(size);
+				GetImageEncoders(num, size, pImageCodecInfo);
+				for (UINT i = 0; i < num; ++i)
+				{
+					if (wcscmp(pImageCodecInfo[i].MimeType, L"image/png") == 0)
+					{
+						clsidEncoder = pImageCodecInfo[i].Clsid;
+						break;
+					}
+				}
+				free(pImageCodecInfo);
+
+				result = CIsoViewExt::pFullBitmap->Save(wpath.c_str(), &clsidEncoder, nullptr);
+				delete CIsoViewExt::pFullBitmap;
+				CIsoViewExt::pFullBitmap = nullptr;
+			}
+			CIsoViewExt::RenderingMap = false;
+
+			if (CIsoViewExt::RenderLighing != Current)
+				setLighting(currentlighting);
+
+			CIsoViewExt::MoveToMapCoord(CMapData::Instance->MapWidthPlusHeight / 2, CMapData::Instance->MapWidthPlusHeight / 2);
+
+			if (result == Gdiplus::Status::Ok && !batchProcess)
+			{
+				FString templ = Translations::TranslateOrDefault(
+					"MapRendererSuccess", "Saving output to"
+				);
+				templ += "\n%s";
+				FString message;
+				message.Format(templ, path);
+				::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, "FA2sp", MB_ICONINFORMATION);
+			}
+
+			CIsoViewExt::pFullBitmap = nullptr;
+
+		};
+
+		CMapRendererDlg dlg;
+		if (dlg.DoModal() != IDCANCEL)
+		{
+			bool batchProcess = false;
+			if (!dlg.BatchPaths.empty())
+			{
+				dlg.BatchPaths.erase(
+					std::remove_if(dlg.BatchPaths.begin(), dlg.BatchPaths.end(),
+						[](const FString& p) {
+					return !fs::exists(fs::path(p.c_str()));
+				}),
+					dlg.BatchPaths.end());
+				batchProcess = !dlg.BatchPaths.empty();
+			}
+
+			if (!CMapData::Instance->MapWidthPlusHeight && !batchProcess)
+				return TRUE;
+
+			TempValueHolder<double> scaled(CIsoViewExt::ScaledFactor, 1.0);
+			std::vector<std::unique_ptr<TempValueHolder<bool>>> holders;
+			std::vector<std::unique_ptr<TempValueHolder<BOOL>>> holders2;
+
+			if (!CIsoViewExt::RenderCurrentLayers)
+			{
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawStructures, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawInfantries, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawUnits, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAircrafts, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBasenodes, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawWaypoints, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawCelltags, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawMoneyOnMap, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawOverlays, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawTerrains, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawSmudges, true);
+				if (dlg.b_Tube)
+					ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawTubes, true);
+				else
+					ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawTubes, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBounds, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawVeterancy, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawShadows, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAlphaImages, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAnnotations, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawFires, true);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBaseNodeIndex, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::RockCells, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawStructuresFilter, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawInfantriesFilter, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawUnitsFilter, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAircraftsFilter, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBasenodesFilter, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawCellTagsFilter, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::EnableDistanceRuler, false);
+				ADD_TEMP_HOLDER(holders, ExtConfigs::InGameDisplay_Cloakable, true);
+				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->ShowBuildingCells, FALSE);
+				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->FlatToGround, FALSE);
+				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->FrameMode, FALSE);
+			}
+			else if (dlg.b_Tube)
+			{
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawTubes, true);
+			}
+
+			if (!batchProcess)
+			{
+				renderMap(CFinalSunApp::MapPath(), false);
+			}
+			else
+			{
+				for (const auto& p : dlg.BatchPaths)
+				{
+					renderMap(p, true);
+				}
+			}
+		}
+	}
+	auto closeFA2Window = [this, &wmID](int wmID2, ppmfc::CDialog& dialog)
 	{
 		if (wmID2 == wmID)
 		{
@@ -810,10 +1177,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 	if (wmID == 40152 && CMapData::Instance->MapWidthPlusHeight)
 	{
-		const ppmfc::CString title = Translations::TranslateOrDefault(
+		const FString title = Translations::TranslateOrDefault(
 			"AutocreateLAT", "Autocreate LAT"
 		);
-		const ppmfc::CString message = Translations::TranslateOrDefault(
+		const FString message = Translations::TranslateOrDefault(
 			"AutocreateLATmessage", "FA2 will recalculate LAT for the entire Map according to the rules of the game engine, which can be undone using the undo key. Do you want to continue?"
 		);
 		int result = ::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, title, MB_YESNO);
@@ -832,10 +1199,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	}
 	if (wmID == 40153 && CMapData::Instance->MapWidthPlusHeight)
 	{
-		const ppmfc::CString title = Translations::TranslateOrDefault(
+		const FString title = Translations::TranslateOrDefault(
 			"SmoothWater", "Smooth Water"
 		);
-		const ppmfc::CString message = Translations::TranslateOrDefault(
+		const FString message = Translations::TranslateOrDefault(
 			"SmoothWatermessage", "FA2 will regenerate the water and eliminate fragmented terrain tiles, which can be undone using the undo key. Do you want to continue?"
 		);
 		int result = ::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, title, MB_YESNO);
@@ -936,298 +1303,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	{
 		if (isInChildWindow())
 			return TRUE;
-	}
-
-	// Search Object
-	if ((wmID == 40131|| wmID == 40132) && CMapData::Instance->MapWidthPlusHeight)
-	{
-		int wmID2 = wmID;
-		while (true)
-		{
-			if (wmID2 == 40132 && SearchObjectIndex.first == "")
-				break;
-
-			ppmfc::CString result = "";
-
-			const ppmfc::CString invalid_title = Translations::TranslateOrDefault(
-				"SearchObjectNotFoundTitle", "Error!"
-			);
-			const ppmfc::CString end_title = Translations::TranslateOrDefault(
-				"SearchObjectTitle", "Search Object"
-			);
-			const ppmfc::CString title = Translations::TranslateOrDefault(
-				"SearchObjectTitle", "Search Object"
-			);
-			const ppmfc::CString message = Translations::TranslateOrDefault(
-				"SearchObjectMessage", "Please input Object ID:\n\nSeparate multiple objects with \",\". Type A/B/I/V for all aircrafts/ buildings/ infantries/ vehicles. After confirmation, set object property filtering (optional)."
-			);
-
-			if (wmID2 == 40131)
-			{
-				SearchObjectIndex.first = "";
-				SearchObjectIndex.second = -1;
-				SearchObjectType = -1;
-
-				result = CInputMessageBox::GetString(message, title);
-				// canceled
-				if (STDHelpers::IsNullOrWhitespace(result))
-					break;
-
-				STDHelpers::TrimString(result);
-
-				MultimapHelper mmh;
-				mmh.AddINI(&CINI::Rules());
-				mmh.AddINI(&CINI::CurrentDocument());
-
-				auto air = mmh.GetSection("AircraftTypes");
-				auto inf = mmh.GetSection("InfantryTypes");
-				auto str = mmh.GetSection("BuildingTypes");
-				auto veh = mmh.GetSection("VehicleTypes");
-				if (result == "A")
-					SearchObjectType = FindType::Aircraft;
-				else if (result == "B")
-					SearchObjectType = FindType::Structure;
-				else if (result == "I")
-					SearchObjectType = FindType::Infantry;
-				else if (result == "V")
-					SearchObjectType = FindType::Unit;
-
-				if (SearchObjectType == -1)
-					for (auto pair : air)
-					{
-						if (pair.second == result)
-						{
-							SearchObjectType = FindType::Aircraft;
-							break;
-						}
-					}
-				if (SearchObjectType == -1)
-					for (auto pair : inf)
-					{
-						if (pair.second == result)
-						{
-							SearchObjectType = FindType::Infantry;
-							break;
-						}
-					}
-				if (SearchObjectType == -1)
-					for (auto pair : str)
-					{
-						if (pair.second == result)
-						{
-							SearchObjectType = FindType::Structure;
-							break;
-						}
-					}
-				if (SearchObjectType == -1)
-					for (auto pair : veh)
-					{
-						if (pair.second == result)
-						{
-							SearchObjectType = FindType::Unit;
-							break;
-						}
-					}
-	
-				if (SearchObjectType == -1)
-				{
-					const ppmfc::CString invalid_coord = Translations::TranslateOrDefault(
-						"SearchObjectParseFailed", "Cannot parse your input ID!"
-					);
-					::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONWARNING);
-					SearchObjectIndex.first = "";
-					SearchObjectIndex.second = -1;
-					break;
-				}
-
-				CViewObjectsExt::InitPropertyDlgFromProperty = true;
-
-
-				if (SearchObjectType == FindType::Aircraft)
-				{
-					if (CViewObjectsExt::AircraftBrushDlg.get() == nullptr)
-						CViewObjectsExt::AircraftBrushDlg = std::make_unique<CPropertyAircraft>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
-
-					for (auto& v : CViewObjectsExt::AircraftBrushBools)
-						v = false;
-
-					CViewObjectsExt::AircraftBrushDlg->ppmfc::CDialog::DoModal();
-				}
-
-				if (SearchObjectType == FindType::Infantry)
-				{
-					if (CViewObjectsExt::InfantryBrushDlg.get() == nullptr)
-						CViewObjectsExt::InfantryBrushDlg = std::make_unique<CPropertyInfantry>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
-
-					for (auto& v : CViewObjectsExt::InfantryBrushBools)
-						v = false;
-
-					CViewObjectsExt::InfantryBrushDlg->ppmfc::CDialog::DoModal();
-				}
-
-				if (SearchObjectType == FindType::Structure)
-				{
-					if (CViewObjectsExt::BuildingBrushDlg.get() == nullptr)
-						CViewObjectsExt::BuildingBrushDlg = std::make_unique<CPropertyBuilding>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
-
-					for (auto& v : CViewObjectsExt::BuildingBrushBools)
-						v = false;
-
-					CViewObjectsExt::BuildingBrushDlg->ppmfc::CDialog::DoModal();
-				}
-
-				if (SearchObjectType == FindType::Unit)
-				{
-					if (CViewObjectsExt::VehicleBrushDlg.get() == nullptr)
-						CViewObjectsExt::VehicleBrushDlg = std::make_unique<CPropertyUnit>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
-
-					for (auto& v : CViewObjectsExt::VehicleBrushBools)
-						v = false;
-
-					CViewObjectsExt::VehicleBrushDlg->ppmfc::CDialog::DoModal();
-				}
-
-				CViewObjectsExt::InitPropertyDlgFromProperty = false;
-			}
-			
-			if (result == "" && wmID2 == 40132)
-				result = SearchObjectIndex.first;
-
-			auto SearchSection = [&](const char* section)
-				{
-					std::pair<int, int> resultp(-1, -1);
-					if (auto pSection = CMapData::Instance->INI.GetSection(section))
-					{
-						for (auto& pair : pSection->GetEntities())
-						{
-
-							auto atoms = STDHelpers::SplitString(pair.second);
-							if (atoms.size() < 5)
-								continue;
-							auto& pID = atoms[1];
-							auto results = STDHelpers::SplitString(result);
-							if (!results.empty())
-								if (std::find(results.begin(), results.end(), pID) != results.end() ||
-									(std::find(results.begin(), results.end(), "A") != results.end() && SearchObjectType == FindType::Aircraft) ||
-									(std::find(results.begin(), results.end(), "B") != results.end() && SearchObjectType == FindType::Structure) ||
-									(std::find(results.begin(), results.end(), "I") != results.end() && SearchObjectType == FindType::Infantry) ||
-									(std::find(results.begin(), results.end(), "V") != results.end() && SearchObjectType == FindType::Unit)
-									)
-								{
-									bool met = false;
-									int index = atoi(pair.first);
-
-									auto results2 = STDHelpers::SplitString(SearchObjectIndex.first);
-									if (std::find(results2.begin(), results2.end(), pID) != results2.end() ||
-										(std::find(results.begin(), results.end(), "A") != results.end() && SearchObjectType == FindType::Aircraft) ||
-										(std::find(results.begin(), results.end(), "B") != results.end() && SearchObjectType == FindType::Structure) ||
-										(std::find(results.begin(), results.end(), "I") != results.end() && SearchObjectType == FindType::Infantry) ||
-										(std::find(results.begin(), results.end(), "V") != results.end() && SearchObjectType == FindType::Unit)
-										)
-									{
-										if (SearchObjectIndex.second >= index)
-											continue;
-									}
-									CAircraftData airData;
-									CInfantryData infData;
-									CBuildingData buiData;
-									CUnitData unitData;
-									switch (SearchObjectType) {
-									case FindType::Aircraft: 
-										CMapData::Instance->GetAircraftData(index, airData);
-										if (CheckProperty_Aircraft(airData))
-											met = true;
-										break;
-									case FindType::Infantry: 
-										CMapData::Instance->GetInfantryData(index, infData);
-										if (CheckProperty_Infantry(infData))
-											met = true;
-										break;
-									case FindType::Structure: 
-										CMapDataExt::GetBuildingDataByIniID(index, buiData);
-										if (CheckProperty_Building(buiData))
-											met = true;
-										break;
-									case FindType::Unit: 
-										CMapData::Instance->GetUnitData(index, unitData);
-										if (CheckProperty_Vehicle(unitData))
-											met = true;
-										break;
-									default: break;
-									}
-
-									if (met)
-									{
-										SearchObjectIndex.first = result;
-										SearchObjectIndex.second = index;
-										resultp.first = atoi(atoms[3]);
-										resultp.second = atoi(atoms[4]);
-										break;
-									}
-								}
-						}
-					}
-					return resultp;
-				};
-			std::pair<int, int> location;
-			switch (SearchObjectType) {
-			case FindType::Aircraft: location = SearchSection("Aircraft"); break;
-			case FindType::Infantry: location = SearchSection("Infantry"); break;
-			case FindType::Structure: location = SearchSection("Structures"); break;
-			case FindType::Unit: location = SearchSection("Units"); break;
-			default: break;
-			}
-
-			if (location.first == -1 && location.second == -1)
-			{
-				if (SearchObjectIndex.second != -1)
-				{
-					const ppmfc::CString end_coord = Translations::TranslateOrDefault(
-						"SearchObjectEndMessage", "Found the last matching object. Restart from beginning?"
-					);
-					int result = ::MessageBox(CFinalSunDlg::Instance->m_hWnd, end_coord, end_title, MB_YESNO | MB_ICONQUESTION);
-
-
-					if (result == IDYES)
-					{
-						wmID2 = 40132;
-						SearchObjectIndex.second = -1;
-						continue;
-					}
-					if (result == IDNO)
-					{
-						break;
-					}
-				}
-				const ppmfc::CString invalid_coord = Translations::TranslateOrDefault(
-					"SearchObjectNotFoundMessage", "Cannot find matching object!"
-				);
-				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONWARNING);
-				SearchObjectIndex.first = "";
-				SearchObjectIndex.second = -1;
-				SearchObjectType = -1;
-				break;
-
-			}
-
-			if (!CMapData::Instance->IsCoordInMap(location.first, location.second))
-			{
-				const ppmfc::CString invalid_coord = Translations::TranslateOrDefault(
-					"NavigateCoordInvalidCoord", "Invalid coordinate!"
-				);
-				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONWARNING);
-				break;
-			}
-			CMapDataExt::CellDataExt_FindCell.X = location.second;
-			CMapDataExt::CellDataExt_FindCell.Y = location.first;
-			CMapDataExt::CellDataExt_FindCell.drawCell = true;
-
-			CIsoViewExt::MoveToMapCoord(location.first, location.second);
-
-			CMapDataExt::CellDataExt_FindCell.drawCell = false;
-
-			break;
-		}
 	}
 
 	return this->ppmfc::CDialog::OnCommand(wParam, lParam);
@@ -1467,6 +1542,7 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			HWND hParent1 = ::GetParent(hWnd);		// WINDOW	COMBOBOX
 			if (hParent1 != CNewINIEditor::GetHandle()
 				&& hParent1 != CCsfEditor::GetHandle()
+				&& hParent1 != CNewINIEditor::GetImporter()
 				&& hParent1 != CLuaConsole::GetHandle()
 				&& hParent1 != CTriggerAnnotation::GetHandle()
 				&& !CViewObjectsExt::IsOpeningAnnotationDlg
@@ -1489,7 +1565,9 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 		HWND hParent1 = ::GetParent(hWnd);		// WINDOW	COMBOBOX
 		if (hParent1 != CNewINIEditor::GetHandle()
 			&& hParent1 != CCsfEditor::GetHandle()
+			&& hParent1 != CNewINIEditor::GetImporter()
 			&& hParent1 != CLuaConsole::GetHandle()
+			&& hParent1 != CTriggerAnnotation::GetHandle()
 			&& !CViewObjectsExt::IsOpeningAnnotationDlg
 			)
 		{

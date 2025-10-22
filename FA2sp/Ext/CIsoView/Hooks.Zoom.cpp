@@ -30,6 +30,7 @@ DEFINE_HOOK(476240, CIsoView_MapCoord2ScreenCoord_Flat, 5)
 #define BACK_BUFFER_TO_PRIMARY(hook_addr, hook_name, hook_size, return_addr, special_draw) \
 DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 { \
+	if (CIsoViewExt::RenderingMap) return return_addr; \
 	auto pThis = CIsoView::GetInstance();\
 	CRect dr = CIsoViewExt::GetVisibleIsoViewRect();\
 	if (special_draw >= 1 || abs(CIsoViewExt::ScaledFactor - 1.0) <= 0.01) {\

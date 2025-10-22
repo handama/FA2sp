@@ -139,17 +139,13 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 				return CPoint(x, y);
 			};
 
-		auto& map = CINI::CurrentDocument();
-		auto size = STDHelpers::SplitString(map.GetString("Map", "Size", "0,0,0,0"));
-		auto lSize = STDHelpers::SplitString(map.GetString("Map", "LocalSize", "0,0,0,0"));
+		const int& mapwidth = CMapData::Instance->Size.Width;
+		const int& mapheight = CMapData::Instance->Size.Height;
 
-		int mapwidth = atoi(size[2]);
-		int mapheight = atoi(size[3]);
-
-		int mpL = atoi(lSize[0]);
-		int mpT = atoi(lSize[1]);
-		int mpW = atoi(lSize[2]);
-		int mpH = atoi(lSize[3]);
+		const int& mpL = CMapData::Instance->LocalSize.Left;
+		const int& mpT = CMapData::Instance->LocalSize.Top;
+		const int& mpW = CMapData::Instance->LocalSize.Width;
+		const int& mpH = CMapData::Instance->LocalSize.Height;
 
 		int y1 = mpT + mpL - 2;
 		int x1 = mapwidth + mpT - mpL - 3;

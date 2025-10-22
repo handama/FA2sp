@@ -155,6 +155,7 @@ DEFINE_HOOK(525C50, CMixFile_LoadSHP, 5)
 		current_shape_file.m_data = GameCreateArray<unsigned char>(file.get_size());
 		memcpy(current_shape_file.m_data, file.get_data(), file.get_size());
 		current_shape_file.size = file.get_size();
+		file.close();
 		R->EAX(true);
 		return 0x525CFC;
 	}

@@ -37,6 +37,7 @@
 #include <unordered_set>
 #include "../../Miscs/TheaterInfo.h"
 #include "../../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
+#include <random>
 
 int CMapDataExt::OreValue[4] { -1,-1,-1,-1 };
 unsigned short CMapDataExt::CurrentRenderBuildingStrength;
@@ -1446,6 +1447,39 @@ OverlayTypeData CMapDataExt::GetOverlayTypeData(WORD index)
 	return ret;
 }
 
+int CMapDataExt::GetPlayerLocationCountAtCell(int x, int y)
+{
+	auto pThis = GetExtension();
+	if (!pThis->IsMultiOnly())
+		return 0;
+	int count = 0;
+	for (int i = 0; i < 8; ++i)
+	{
+		FString key;
+		key.Format("%d", i);
+		if (CINI::CurrentDocument->KeyExists("Waypoints", key))
+		{
+			auto value = CINI::CurrentDocument->GetInteger("Waypoints", key);
+			if (value >= 0)
+			{
+				int wx = value / 1000;
+				int wy = value % 1000;
+				for (int lx = wx - 1; lx < wx + 3; ++lx)
+				{
+					for (int ly = wy - 1; ly < wy + 3; ++ly)
+					{
+						if (lx == x && ly == y)
+						{
+							count++;
+						}
+					}
+				}
+			}
+		}
+	}
+	return count;
+}
+
 void CMapDataExt::AssignCellData(CellData& dst, const CellData& src) 
 {
 	dst.Unit = src.Unit;
@@ -2170,6 +2204,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CIsoView::GetInstance()->CurrentCellObjectIndex = -1;
 	CIsoView::GetInstance()->CurrentCellObjectType = -1;
 	CIsoView::GetInstance()->Drag = FALSE;
+	CIsoViewExt::InitAlphaTable();
 
 	Variables::RulesMap.ClearMap();
 	Variables::Rules.ClearMap();
@@ -2583,6 +2618,14 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	const char* PaletteName = "palette.pal";
 	CLoadingExt::LoadShp(InsigniaVeteran, "pips.shp", PaletteName, 14, false);
 	CLoadingExt::LoadShp(InsigniaElite, "pips.shp", PaletteName, 15, false);
+	CLoadingExt::DamageFires.clear();
+	std::random_device rd;
+	CLoadingExt::RandomFireSeed = rd();
+	auto fires = STDHelpers::SplitString(Variables::RulesMap.GetString("General", "DamageFireTypes"));
+	for (const auto& fire : fires)
+	{
+		CLoadingExt::LoadFires(fire + ".shp");
+	}
 
 	for (auto& [_, ID] : Variables::RulesMap.GetSection("InfantryTypes"))
 	{

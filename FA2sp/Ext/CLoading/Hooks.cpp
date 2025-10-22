@@ -168,7 +168,8 @@ static int width, height;
 static int tileIndex = -1;
 static int subTileIndex = -1;
 static int altCount[100];
-static byte* image = nullptr;
+static t_tmp_image_header* currentTMP = nullptr;
+static byte* tmp_file_image = nullptr;
 
 DEFINE_HOOK(48E580, CLoading_LoadTile_Init, 7)
 {
@@ -190,58 +191,44 @@ DEFINE_HOOK(52CE30, CLoading_DrawTMP_1, 5)
 DEFINE_HOOK(52CE78, CLoading_DrawTMP_2, 6)
 {
 	hasExtraImage = true;
+	currentTMP = R->EAX<t_tmp_image_header*>();
 	return 0;
 }
 
-DEFINE_HOOK(52CEEB, CLoading_DrawTMP_3, 7)
+DEFINE_HOOK(52D04F, CLoading_DrawTMP_GetImage, 6)
 {
-	if (hasExtraImage)
+	tmp_file_image = R->EDI<byte*>();
+	if (R->EAX() >= 0)
 	{
-		width = R->EDX();
-		height = R->ECX();
+		R->EDX(R->EDX() + R->EAX());
 	}
-	return 0;
-}
 
-DEFINE_HOOK(52D047, CLoading_DrawTMP_4, 8)
-{
-	if (hasExtraImage)
-	{
-		if (image)
-		{
-			delete[] image;
-		}
-		int size = width * height;
-		image = new byte[size];
-		byte* image2 = R->EDX<byte*>();
-		for (int i = 0; i < size; ++i) {
-			image[i] = image2[i];
-		}
-	}
-	return 0;
+	return 0x52D055;
 }
 
 DEFINE_HOOK(52D098, CLoading_DrawTMP_5, 5)
 {
 	if (hasExtraImage)
 	{
-		byte* image2 = R->ESI<byte*>();
-		int size = width * height;
-		byte* diff = GameCreateArray<byte>(size);
-
-		for (int i = 0; i < size; ++i) {
-			diff[i] = (image[i] != image2[i]) ? image2[i] : 0;
-		}
+		int size = currentTMP->cx_extra * currentTMP->cy_extra;
+		byte* extra_image = GameCreateArray<byte>(size);
+		memcpy(extra_image, tmp_file_image, size);
 
 		auto loadingExt = (CLoadingExt*)CLoading::Instance();
 		FString ImageID;
 		ImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, subTileIndex, altCount[subTileIndex]);
+
+		CLoadingExt::TileExtraOffsets[
+			CLoadingExt::GetTileIdentifier(tileIndex, subTileIndex, altCount[subTileIndex])]
+			= MapCoord{ currentTMP->x_extra - currentTMP->x, currentTMP->y_extra - currentTMP->y };
+
 		Palette* pal = &CMapDataExt::Palette_ISO;
-		if (CMapDataExt::TileData && tileIndex < CMapDataExt::TileDataCount && CMapDataExt::TileData[tileIndex].TileSet < CMapDataExt::TileSetPalettes.size())
+		if (CMapDataExt::TileData && tileIndex < CMapDataExt::TileDataCount 
+			&& CMapDataExt::TileData[tileIndex].TileSet < CMapDataExt::TileSetPalettes.size())
 		{
 			pal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
 		}
-		loadingExt->SetImageDataSafe(diff, ImageID, width, height, pal);
+		loadingExt->SetImageDataSafe(extra_image, ImageID, currentTMP->cx_extra, currentTMP->cy_extra, pal, true, false);
 		CLoadingExt::LoadedObjects.insert(ImageID);
 		altCount[subTileIndex]++;
 	}

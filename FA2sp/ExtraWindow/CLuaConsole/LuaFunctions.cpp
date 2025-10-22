@@ -84,7 +84,8 @@ namespace LuaFunctions
 		{
 			time = now;
 			MSG msg;
-			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+			if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+			{
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
 			}
@@ -3644,7 +3645,7 @@ namespace LuaFunctions
 					CMapDataExt::CellDataExt_FindCell.X = x;
 					CMapDataExt::CellDataExt_FindCell.Y = y;
 					CMapDataExt::CellDataExt_FindCell.drawCell = true;
-					CIsoViewExt::MoveToMapCoord(y, x);
+					CIsoViewExt::MoveToMapCoord(x, y);
 					CMapDataExt::CellDataExt_FindCell.drawCell = false;
 				}
 			}
@@ -3656,7 +3657,7 @@ namespace LuaFunctions
 				CMapDataExt::CellDataExt_FindCell.X = x;
 				CMapDataExt::CellDataExt_FindCell.Y = y;
 				CMapDataExt::CellDataExt_FindCell.drawCell = true;
-				CIsoViewExt::MoveToMapCoord(y, x);
+				CIsoViewExt::MoveToMapCoord(x, y);
 				CMapDataExt::CellDataExt_FindCell.drawCell = false;
 			}
 		}

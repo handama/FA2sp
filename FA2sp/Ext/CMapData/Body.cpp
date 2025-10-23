@@ -2375,7 +2375,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 				if (theater->KeyExists(sName, "CustomPalette"))
 				{
 					Palette* pal = &CMapDataExt::Palette_ISO;
-					auto custom = CINI::CurrentTheater->GetString(sName, "CustomPalette");
+					FString custom = CINI::CurrentTheater->GetString(sName, "CustomPalette");
+					((CLoadingExt*)CLoading::Instance())->GetFullPaletteName(custom);
 					if (auto pPal = PalettesManager::LoadPalette(custom))
 						pal = pPal;
 					CMapDataExt::TileSetPalettes[index] = pal;

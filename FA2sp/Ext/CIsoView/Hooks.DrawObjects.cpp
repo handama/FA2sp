@@ -471,7 +471,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 				if (subTile.HasValidImage)
 				{
-					Palette* pal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
+					Palette* pal = CMapDataExt::TileSetPalettes[tileSet];
 						
 					CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 						x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
@@ -521,6 +521,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 
 		CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
+		int tileSet = tile.TileSet;
 		if (tile.AltTypeCount)
 		{
 			if (altImage > 0)
@@ -542,15 +543,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 			if (subTile.HasValidImage)
 			{
-				Palette* pal = CMapDataExt::TileSetPalettes[tile.TileSet];
+				Palette* pal = CMapDataExt::TileSetPalettes[tileSet];
 
 				FString extraImageID;
 				extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
 				const auto& offset = CLoadingExt::TileExtraOffsets[
 					CLoadingExt::GetTileIdentifier(tileIndex, tileSubIndex, altImage)];
-
-				int blockPosInTileX = tileSubIndex % tile.Width;
-				int blockPosInTileY = tileSubIndex / tile.Width;
 
 				auto pData = CLoadingExt::GetImageDataFromServer(extraImageID);
 				if (pData->pImageBuffer)
@@ -1039,7 +1037,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 						if (subTile.HasValidImage)
 						{
-							Palette* pal = CMapDataExt::TileSetPalettes[tile.TileSet];
+							Palette* pal = CMapDataExt::TileSetPalettes[tileSet];
 
 							CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 								x1 + subTile.XMinusExX, y1 + subTile.YMinusExY, &subTile, pal,
@@ -1051,9 +1049,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
 								const auto& offset = CLoadingExt::TileExtraOffsets[
 									CLoadingExt::GetTileIdentifier(tileIndex, tileSubIndex, altImage)];
-
-								int blockPosInTileX = tileSubIndex % tile.Width;
-								int blockPosInTileY = tileSubIndex / tile.Width;
 
 								auto pData = CLoadingExt::GetImageDataFromServer(extraImageID);
 								if (pData->pImageBuffer)

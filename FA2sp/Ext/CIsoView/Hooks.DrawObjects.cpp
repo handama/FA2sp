@@ -1419,7 +1419,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								if (pAIData && pAIData->pImageBuffer)
 								{
 									AlphaImagesToDraw.push_back(
-										std::make_pair(MapCoord{ x - pAIData->FullWidth / 2, y - pAIData->FullHeight / 2 + 15 },pAIData));
+										std::make_pair(
+											MapCoord{ 
+												x - pAIData->FullWidth / 2 + (DataExt.Width - DataExt.Height) * 30 / 2,
+												y - pAIData->FullHeight / 2 + (DataExt.Width + DataExt.Height) * 15 / 2
+											},pAIData));
 								}
 							}
 						}

@@ -1439,7 +1439,7 @@ void CViewObjectsExt::Redraw_Terrain()
     HTREEITEM& hTerrain = ExtNodes[Root_Terrain];
     if (hTerrain == NULL)   return;
 
-    std::vector<std::pair<HTREEITEM, FString>> nodes;
+    std::vector<std::pair<HTREEITEM, std::vector<FString>>> nodes;
 
     if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.TerrainTypes"))
     {
@@ -1450,10 +1450,11 @@ void CViewObjectsExt::Redraw_Terrain()
 
         for (auto& pair : collector)
         {
-            const auto& contains = pair.second;
-            const auto& translation = pSection->GetEntities().find(contains)->second;
-
-            nodes.push_back(std::make_pair(this->InsertTranslatedString(translation, -1, hTerrain), contains));
+            const auto& contains = FString::SplitString(pair.second, "|");
+            const auto& translation = pSection->GetEntities().find(pair.second)->second;
+            
+            if (!IsIgnored(translation))
+                nodes.push_back(std::make_pair(this->InsertTranslatedString(translation, -1, hTerrain), contains));
         }
     }
     HTREEITEM hOther = this->InsertTranslatedString("OthObList", -1, hTerrain);
@@ -1470,10 +1471,14 @@ void CViewObjectsExt::Redraw_Terrain()
             InsertingObjectID = terrains[i];
             for (const auto& node : nodes)
             {
-                if (terrains[i].Find(node.second.c_str()) >= 0)
+                for (const auto& match : node.second)
                 {
-                    this->InsertString(FA2sp::Buffer, Const_Terrain + i, node.first);
-                    bNotOther = true;
+                    if (terrains[i].Find(match.c_str()) >= 0)
+                    {
+                        this->InsertString(FA2sp::Buffer, Const_Terrain + i, node.first);
+                        bNotOther = true;
+                        break;
+                    }
                 }
             }
             if (!bNotOther)
@@ -1510,6 +1515,15 @@ void CViewObjectsExt::Redraw_Terrain()
         }
     }
 
+    // Clear up
+    if (ExtConfigs::ObjectBrowser_CleanUp)
+    {
+        for (auto& subnode : nodes)
+        {
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.first))
+                this->GetTreeCtrl().DeleteItem(subnode.first);
+        }
+    }
 }
 
 void CViewObjectsExt::Redraw_Smudge()
@@ -1517,7 +1531,7 @@ void CViewObjectsExt::Redraw_Smudge()
     HTREEITEM& hSmudge = ExtNodes[Root_Smudge];
     if (hSmudge == NULL)   return;
 
-    std::vector<std::pair<HTREEITEM, FString>> nodes;
+    std::vector<std::pair<HTREEITEM, std::vector<FString>>> nodes;
 
     if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.SmudgeTypes"))
     {
@@ -1528,10 +1542,11 @@ void CViewObjectsExt::Redraw_Smudge()
 
         for (auto& pair : collector)
         {
-            const auto& contains = pair.second;
-            const auto& translation = pSection->GetEntities().find(contains)->second;
+            const auto& contains = FString::SplitString(pair.second, "|");
+            const auto& translation = pSection->GetEntities().find(pair.second)->second;
 
-            nodes.push_back(std::make_pair(this->InsertTranslatedString(translation, -1, hSmudge), contains));
+            if (!IsIgnored(translation))
+                nodes.push_back(std::make_pair(this->InsertTranslatedString(translation, -1, hSmudge), contains));
         }
     }
 
@@ -1575,10 +1590,14 @@ void CViewObjectsExt::Redraw_Smudge()
             InsertingObjectID = smudges[i];
             for (const auto& node : nodes)
             {
-                if (smudges[i].Find(node.second.c_str()) >= 0)
+                for (const auto& match : node.second)
                 {
-                    this->InsertString(FA2sp::Buffer, Const_Smudge + i, node.first);
-                    bNotOther = true;
+                    if (smudges[i].Find(match.c_str()) >= 0)
+                    {
+                        this->InsertString(FA2sp::Buffer, Const_Smudge + i, node.first);
+                        bNotOther = true;
+                        break;
+                    }
                 }
             }
             if (!bNotOther)
@@ -1586,7 +1605,15 @@ void CViewObjectsExt::Redraw_Smudge()
             InsertingObjectID = "";
         }
     }
-
+    // Clear up
+    if (ExtConfigs::ObjectBrowser_CleanUp)
+    {
+        for (auto& subnode : nodes)
+        {
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.first))
+                this->GetTreeCtrl().DeleteItem(subnode.first);
+        }
+    }
 }
 
 void CViewObjectsExt::Redraw_Overlay()

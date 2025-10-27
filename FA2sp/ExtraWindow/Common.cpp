@@ -984,3 +984,12 @@ void ExtraWindow::LoadFrom(MultimapHelper& mmh, FString loadfrom)
         mmh.AddINI(&CINI::Ai);
 
 }
+
+void ExtraWindow::TrimStringIndex(FString& str) {
+    str.Trim();
+    int spaceIndex = str.Find(" - ");
+    if (spaceIndex > 0) {
+        str = str.Mid(0, spaceIndex);
+    }
+    str.Trim();
+}

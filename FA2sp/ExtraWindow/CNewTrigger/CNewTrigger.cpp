@@ -1174,7 +1174,7 @@ void CNewTrigger::OnSelchangeEventParam(int index, bool edited)
     if (!text)
         return;
 
-    FString::TrimIndex(text);
+    ExtraWindow::TrimStringIndex(text);
     if (text == "")
         text = "0";
 
@@ -1216,7 +1216,7 @@ void CNewTrigger::OnSelchangeActionParam(int index, bool edited)
     if (!text)
         return;
 
-    FString::TrimIndex(text);
+    ExtraWindow::TrimStringIndex(text);
     if (text == "")
         text = "0";
 
@@ -2156,7 +2156,7 @@ void CNewTrigger::OnDropdownCComboBox(int index)
 
         FString text(buffer);
         text.Replace(",", "");
-        FString::TrimIndex(text);
+        ExtraWindow::TrimStringIndex(text);
         text.MakeLower();
         CCsfEditor::CurrentSelectedCSF = text.c_str();
 

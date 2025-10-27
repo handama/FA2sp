@@ -493,7 +493,7 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
         return;
 
     if (ActionIsStringParam[atoms[0]])
-        TrimStringIndex(text);
+        ExtraWindow::TrimStringIndex(text);
     else
         FString::TrimIndex(text);
     if (text == "")
@@ -582,7 +582,7 @@ void CNewScript::OnSelchangeActionParam(bool edited)
     auto atoms = FString::SplitString(value, 1);
 
     if (ActionIsStringParam[atoms[0]])
-        TrimStringIndex(text);
+        ExtraWindow::TrimStringIndex(text);
     else
         FString::TrimIndex(text);
     if (text == "")

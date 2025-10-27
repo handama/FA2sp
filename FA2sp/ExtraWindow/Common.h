@@ -46,6 +46,7 @@ public:
     static bool IsLabelMatch(const char* target, const char* source, bool exactMatch = false);
     static FString GetCloneName(FString oriName);
     static void LoadFrom(MultimapHelper& mmh, FString loadfrom);
+    static void TrimStringIndex(FString& str);
 
 private:
     static CINI& map;

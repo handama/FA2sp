@@ -556,7 +556,6 @@ void CMapDataExt::PlaceWallAt(int dwPos, int overlay, int damageStage, bool firs
 
 }
 
-
 int CMapDataExt::GetInfantryAt(int dwPos, int dwSubPos)
 {
 	if (dwSubPos < 0)
@@ -1424,7 +1423,7 @@ WORD CMapDataExt::GetOverlayAt(int x, int y)
 
 WORD CMapDataExt::GetOverlayAt(int pos)
 {
-	if (pos >= CellDataCount)
+	if (pos >= CellDataCount || pos < 0)
 		return 0xffff;
 	return CellDataExts[pos].NewOverlay;
 }

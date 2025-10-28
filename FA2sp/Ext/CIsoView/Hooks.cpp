@@ -849,70 +849,93 @@ DEFINE_HOOK(45A08A, CIsoView_OnMouseMove_Place, 5)
 	const int& x = point.X;
 	const int& y = point.Y;
 
-	std::unique_ptr<CellData[]> oldData = std::make_unique<CellData[]>(32 * 32);
-	WORD oldNewOverlay[32][32];
+	constexpr int MapBlockSize = 32;
+	constexpr int Padding = 4;
+	constexpr int TotalSize = MapBlockSize + Padding;
+
+	std::unique_ptr<CellData[]> oldData = std::make_unique<CellData[]>(TotalSize * TotalSize);
+	WORD oldNewOverlay[TotalSize][TotalSize];
 	int i, e;
 
-	for (i = 0; i < 32; i++)
+	for (i = -Padding; i < MapBlockSize; i++)
 	{
-		for (e = 0; e < 32; e++)
+		for (e = -Padding; e < MapBlockSize; e++)
 		{
+			int ix = i + Padding;
+			int ex = e + Padding;
+
 			DWORD dwPos = i + x + (e + y) * Map->MapWidthPlusHeight;
-			if (dwPos >= Map->CellDataCount)
+			if (dwPos >= Map->CellDataCount || dwPos < 0)
 				continue;
 
 			auto& cur_fieldExt = Map->CellDataExts[dwPos];
-			oldData[i * 32 + e] = *Map->GetCellAt(i + x + (e + y) * Map->MapWidthPlusHeight);
-			oldNewOverlay[i][e] = cur_fieldExt.NewOverlay;
+			oldData[ix * TotalSize + ex] = *Map->GetCellAt(i + x + (e + y) * Map->MapWidthPlusHeight);
+			oldNewOverlay[ix][ex] = cur_fieldExt.NewOverlay;
 		}
 	}
 	int money = Map->MoneyCount;
 
-	pIsoView->DrawMouseAttachedStuff(x, y);
+	if (CViewObjectsExt::PlacingWall >= 0)
+	{
+		int overlay = CViewObjectsExt::PlacingWall / 5;
+		int damageLevel = CViewObjectsExt::PlacingWall % 5 - 1;
+		if (damageLevel == 3)
+			damageLevel = -2;
+		if (damageLevel == -1)
+			damageLevel = 0;
+
+		for (int i = 0; i < pIsoView->BrushSizeX; i++)
+			for (int j = 0; j < pIsoView->BrushSizeY; j++)
+				CMapDataExt::PlaceWallAt(Map->GetCoordIndex(x + i, y + j), overlay, damageLevel);
+	}
+	else
+	{
+		pIsoView->DrawMouseAttachedStuff(x, y);
+	}
 	::RedrawWindow(pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 
-	for (i = 0; i < 32; i++)
+	for (i = -Padding; i < MapBlockSize; i++)
 	{
-		for (e = 0; e < 32; e++)
+		for (e = -Padding; e < MapBlockSize; e++)
 		{
+			int ix = i + Padding;
+			int ex = e + Padding;
+
 			DWORD dwPos = i + x + (e + y) * Map->MapWidthPlusHeight;
-			if (dwPos >= Map->CellDataCount)
+			if (dwPos >= Map->CellDataCount || dwPos < 0)
 				continue;
 
 			auto cur_field = Map->GetCellAt(dwPos);
 			auto& cur_fieldExt = Map->CellDataExts[dwPos];
 
-			if (cur_field->Aircraft != oldData[i * 32 + e].Aircraft)
+			if (cur_field->Aircraft != oldData[ix * TotalSize + ex].Aircraft)
 				Map->DeleteAircraftData(cur_field->Aircraft);
 
-			int z;
-			for (z = 0; z < 3; z++)
-				if (cur_field->Infantry[z] != oldData[i * 32 + e].Infantry[z])
-				{
+			for (int z = 0; z < 3; z++)
+				if (cur_field->Infantry[z] != oldData[ix * TotalSize + ex].Infantry[z])
 					Map->DeleteInfantryData(cur_field->Infantry[z]);
-				}
 
-			if (cur_field->Structure != oldData[i * 32 + e].Structure)
+			if (cur_field->Structure != oldData[ix * TotalSize + ex].Structure)
 				Map->DeleteBuildingData(cur_field->Structure);
 
-			if (cur_field->Terrain != oldData[i * 32 + e].Terrain)
+			if (cur_field->Terrain != oldData[ix * TotalSize + ex].Terrain)
 				Map->DeleteTerrainData(cur_field->Terrain);
 
-			if (cur_field->Smudge != oldData[i * 32 + e].Smudge)
+			if (cur_field->Smudge != oldData[ix * TotalSize + ex].Smudge)
 				Map->DeleteSmudgeData(cur_field->Smudge);
 
-			if (cur_field->Unit != oldData[i * 32 + e].Unit)
+			if (cur_field->Unit != oldData[ix * TotalSize + ex].Unit)
 				Map->DeleteUnitData(cur_field->Unit);
 
-			if (cur_fieldExt.NewOverlay != oldNewOverlay[i][e])
-				Map->SetNewOverlayAt(dwPos, oldNewOverlay[i][e]);
+			if (cur_fieldExt.NewOverlay != oldNewOverlay[ix][ex])
+				Map->SetNewOverlayAt(dwPos, oldNewOverlay[ix][ex]);
 
-			if (cur_field->OverlayData != oldData[i * 32 + e].OverlayData)
-				Map->SetOverlayDataAt(dwPos, oldData[i * 32 + e].OverlayData);
+			if (cur_field->OverlayData != oldData[ix * TotalSize + ex].OverlayData)
+				Map->SetOverlayDataAt(dwPos, oldData[ix * TotalSize + ex].OverlayData);
 
 			Map->DeleteTiberium(std::min(cur_fieldExt.NewOverlay, (word)0xFF), cur_field->OverlayData);
-			Map->AssignCellData(Map->CellDatas[dwPos], oldData[i * 32 + e]);
-			cur_fieldExt.NewOverlay = oldNewOverlay[i][e];
+			Map->AssignCellData(Map->CellDatas[dwPos], oldData[ix * TotalSize + ex]);
+			cur_fieldExt.NewOverlay = oldNewOverlay[ix][ex];
 			Map->AddTiberium(std::min(cur_fieldExt.NewOverlay, (word)0xFF), cur_field->OverlayData);
 		}
 	}
@@ -1375,4 +1398,98 @@ DEFINE_HOOK(456E90, CIsoView_OnMouseMove_ScrollInRendering, 6)
 		return 0x456EC0;
 
 	return 0;
+}
+
+DEFINE_HOOK(469520, CIsoView_GetOverlayDirection, 6)
+{
+	GET_STACK(int, x, 0x4);
+	GET_STACK(int, y, 0x8);
+
+	auto Map = CMapDataExt::GetExtension();
+	const auto& dwIsoSize = Map->MapWidthPlusHeight;
+	int p = -1;
+	auto overlay = Map->GetOverlayAt(x + y * dwIsoSize);
+
+	bool isWall = CViewObjectsExt::WallDamageStages.find(overlay) != CViewObjectsExt::WallDamageStages.end();
+
+	auto isTrack = [](int type)
+	{
+		return(type >= OVRL_TRACK_BEGIN && type <= OVRL_TRACK_END);
+	};
+
+	if (isTrack(overlay))
+	{
+		p = 0;
+
+		if (isTrack(Map->GetOverlayAt((x - 1) + (y - 1) * dwIsoSize)) && isTrack(Map->GetOverlayAt((x + 1) + (y + 1) * dwIsoSize)))
+			p = 0;
+		else if (isTrack(Map->GetOverlayAt((x + 1) + (y - 1) * dwIsoSize)) && isTrack(Map->GetOverlayAt((x - 1) + (y + 1) * dwIsoSize)))
+			p = 1;
+		else if (isTrack(Map->GetOverlayAt((x - 1) + (y - 0) * dwIsoSize)) && isTrack(Map->GetOverlayAt((x + 1) + (y + 0) * dwIsoSize)))
+			p = 2;
+		else if (isTrack(Map->GetOverlayAt((x - 0) + (y - 1) * dwIsoSize)) && isTrack(Map->GetOverlayAt((x + 0) + (y + 1) * dwIsoSize)))
+			p = 3;
+		else if (isTrack(Map->GetOverlayAt((x - 1) + (y - 0) * dwIsoSize)) && isTrack(Map->GetOverlayAt((x + 1) + (y + 1) * dwIsoSize)))
+			p = 4;
+		else if (isTrack(Map->GetOverlayAt((x - 0) + (y - 1) * dwIsoSize)) && isTrack(Map->GetOverlayAt((x + 1) + (y + 1) * dwIsoSize)))
+			p = 5;
+		else if (isTrack(Map->GetOverlayAt((x - 1) + (y - 1) * dwIsoSize)) && isTrack(Map->GetOverlayAt((x - 0) + (y + 1) * dwIsoSize)))
+			p = 6;
+		else if (isTrack(Map->GetOverlayAt((x - 1) + (y - 1) * dwIsoSize)) && isTrack(Map->GetOverlayAt((x + 1) + (y + 0) * dwIsoSize)))
+			p = 7;
+		else if (isTrack(Map->GetOverlayAt((x - 1) + (y - 0) * dwIsoSize)) && isTrack(Map->GetOverlayAt((x + 1) + (y - 1) * dwIsoSize)))
+			p = 8;
+		else if (isTrack(Map->GetOverlayAt((x + 0) + (y + 1) * dwIsoSize)) && isTrack(Map->GetOverlayAt((x + 1) + (y - 1) * dwIsoSize)))
+			p = 9;
+		else if (isTrack(Map->GetOverlayAt((x - 0) + (y - 1) * dwIsoSize)) && isTrack(Map->GetOverlayAt((x - 1) + (y + 1) * dwIsoSize)))
+			p = 10;
+		else if (isTrack(Map->GetOverlayAt((x - 1) + (y + 1) * dwIsoSize)) && isTrack(Map->GetOverlayAt((x + 1) + (y + 0) * dwIsoSize)))
+			p = 11;
+		else if (isTrack(Map->GetOverlayAt((x - 1) + (y - 1) * dwIsoSize)))
+			p = 0;
+		else if (isTrack(Map->GetOverlayAt((x - 1) + (y + 1) * dwIsoSize)))
+			p = 1;
+		else if (isTrack(Map->GetOverlayAt((x - 1) + (y - 0) * dwIsoSize)))
+			p = 2;
+		else if (isTrack(Map->GetOverlayAt((x - 0) + (y - 1) * dwIsoSize)))
+			p = 3;
+		else if (isTrack(Map->GetOverlayAt((x + 1) + (y + 1) * dwIsoSize)))
+			p = 0;
+		else if (isTrack(Map->GetOverlayAt((x + 1) + (y - 1) * dwIsoSize)))
+			p = 1;
+		else if (isTrack(Map->GetOverlayAt((x + 1) + (y + 0) * dwIsoSize)))
+			p = 2;
+		else if (isTrack(Map->GetOverlayAt((x + 0) + (y + 1) * dwIsoSize)))
+			p = 3;
+	}
+	else if (isWall)
+	{
+		p = 0;
+		auto overlayData = Map->GetOverlayDataAt(x + y * dwIsoSize);
+		auto damageStage = overlayData / 16;
+		damageStage = std::min(damageStage, CViewObjectsExt::WallDamageStages[overlay] - 1);
+
+		if (Map->GetOverlayAt(x - 1 + (y - 0) * dwIsoSize) == overlay) p |= 1 + damageStage * 16;
+		if (Map->GetOverlayAt(x + (y + 1) * dwIsoSize) == overlay) p |= 2 + damageStage * 16;
+		if (Map->GetOverlayAt(x + 1 + (y + 0) * dwIsoSize) == overlay) p |= 4 + damageStage * 16;
+		if (Map->GetOverlayAt(x + (y - 1) * dwIsoSize) == overlay) p |= 8 + damageStage * 16;
+	}
+
+	R->EAX(p);
+
+	return 0x4695E6;
+}
+
+DEFINE_HOOK(469B71, CIsoView_HandleTrail_Range, 8)
+{
+	R->Stack<int>(STACK_OFFS(0x14, -0x8), R->EBP() - 2);
+	R->EBP(R->EBP() + 2);
+	return 0x469B79;
+}
+
+DEFINE_HOOK(469BED, CIsoView_HandleTrail_Range_2, 8)
+{
+	R->Stack<int>(STACK_OFFS(0x14, -0x8), R->EBP() - 2);
+	R->EBP(R->EBP() + 2);
+	return 0x469BF5;
 }

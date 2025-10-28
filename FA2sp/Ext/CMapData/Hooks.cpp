@@ -1611,7 +1611,7 @@ DEFINE_HOOK(4A29E0, CMapData_GetOverlayAt, A)
 {
 	GET(CMapDataExt*, pThis, ECX);
 	GET_STACK(int, dwPos, 0x4);
-	if (dwPos >= pThis->CellDataCount)
+	if (dwPos >= pThis->CellDataCount || dwPos < 0)
 		R->EAX(0);
 	else
 		R->EAX(pThis->CellDataExts[dwPos].NewOverlay);

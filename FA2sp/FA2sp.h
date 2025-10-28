@@ -21,6 +21,8 @@ typedef unsigned char byte;
 #define VINIFERA_END 146
 #define ABOREUS_BEGIN 147
 #define ABOREUS_END 166
+#define OVRL_TRACK_BEGIN 39
+#define OVRL_TRACK_END 54
 
 class FA2sp
 {

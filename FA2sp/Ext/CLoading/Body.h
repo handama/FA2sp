@@ -147,6 +147,7 @@ private:
 		GetDictName(&buffer, ID, nFacing);
 		return buffer;
 	}
+	static bool IsBarrelInFront(int curFacing, int totFacing);
 
 	void LoadBuilding(FString ID);
 	void LoadBuilding_Normal(FString ID);

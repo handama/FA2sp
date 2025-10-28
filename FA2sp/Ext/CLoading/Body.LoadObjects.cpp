@@ -654,8 +654,13 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 					pKey.Format("%sY%d", ID, (15 - i * 8 / facings) % 8);
 					int turdeltaY = CINI::FAData->GetInteger("BuildingVoxelTurretsRA2", pKey);
 
-					VXL_Add(pTurImages[i], turrect[i].X + turdeltaX, turrect[i].Y + turdeltaY, turrect[i].W, turrect[i].H);
-					CncImgFree(pTurImages[i]);
+					bool barrelInFront = IsBarrelInFront((7 * facings / 8 - i + facings) % facings, facings);
+
+					if (barrelInFront)
+					{
+						VXL_Add(pTurImages[i], turrect[i].X + turdeltaX, turrect[i].Y + turdeltaY, turrect[i].W, turrect[i].H);
+						CncImgFree(pTurImages[i]);
+					}
 
 					if (pBarlImages[i])
 					{
@@ -666,6 +671,12 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 
 						VXL_Add(pBarlImages[i], barlrect[i].X + barldeltaX, barlrect[i].Y + barldeltaY, barlrect[i].W, barlrect[i].H);
 						CncImgFree(pBarlImages[i]);
+					}
+
+					if (!barrelInFront)
+					{
+						VXL_Add(pTurImages[i], turrect[i].X + turdeltaX, turrect[i].Y + turdeltaY, turrect[i].W, turrect[i].H);
+						CncImgFree(pTurImages[i]);
 					}
 				}
 
@@ -1041,8 +1052,13 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 					pKey.Format("%sY%d", ID, (15 - i * 8 / facings) % 8);
 					int turdeltaY = CINI::FAData->GetInteger("BuildingVoxelTurretsRA2", pKey);
 
-					VXL_Add(pTurImages[i], turrect[i].X + turdeltaX, turrect[i].Y + turdeltaY, turrect[i].W, turrect[i].H);
-					CncImgFree(pTurImages[i]);
+					bool barrelInFront = IsBarrelInFront((7 * facings / 8 - i + facings) % facings, facings);
+
+					if (barrelInFront)
+					{
+						VXL_Add(pTurImages[i], turrect[i].X + turdeltaX, turrect[i].Y + turdeltaY, turrect[i].W, turrect[i].H);
+						CncImgFree(pTurImages[i]);
+					}
 
 					if (pBarlImages[i])
 					{
@@ -1053,6 +1069,12 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 
 						VXL_Add(pBarlImages[i], barlrect[i].X + barldeltaX, barlrect[i].Y + barldeltaY, barlrect[i].W, barlrect[i].H);
 						CncImgFree(pBarlImages[i]);
+					}
+
+					if (!barrelInFront)
+					{
+						VXL_Add(pTurImages[i], turrect[i].X + turdeltaX, turrect[i].Y + turdeltaY, turrect[i].W, turrect[i].H);
+						CncImgFree(pTurImages[i]);
 					}
 				}
 
@@ -1587,8 +1609,14 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 					int turdeltaX = CINI::FAData->GetInteger("VehicleVoxelTurretsRA2", pKey);
 					pKey.Format("%sY%d", ID, i);
 					int turdeltaY = CINI::FAData->GetInteger("VehicleVoxelTurretsRA2", pKey);
-					VXL_Add(pTurretImage[i], turretrect[i].X + turdeltaX, turretrect[i].Y + turdeltaY, turretrect[i].W, turretrect[i].H);
-					CncImgFree(pTurretImage[i]);
+
+					bool barrelInFront = IsBarrelInFront(i, facings);
+
+					if (barrelInFront)
+					{
+						VXL_Add(pTurretImage[i], turretrect[i].X + turdeltaX, turretrect[i].Y + turdeltaY, turretrect[i].W, turretrect[i].H);
+						CncImgFree(pTurretImage[i]);
+					}	
 
 					if (pBarrelImage[i])
 					{
@@ -1599,6 +1627,12 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 
 						VXL_Add(pBarrelImage[i], barrelrect[i].X + barldeltaX, barrelrect[i].Y + barldeltaY, barrelrect[i].W, barrelrect[i].H);
 						CncImgFree(pBarrelImage[i]);
+					}
+
+					if (!barrelInFront)
+					{
+						VXL_Add(pTurretImage[i], turretrect[i].X + turdeltaX, turretrect[i].Y + turdeltaY, turretrect[i].W, turretrect[i].H);
+						CncImgFree(pTurretImage[i]);
 					}
 				}
 
@@ -2446,6 +2480,15 @@ std::vector<ImageDataClassSafe*> CLoadingExt::GetRandomFire(const MapCoord& coor
 		}
 	}
 	return result;
+}
+
+bool CLoadingExt::IsBarrelInFront(int curFacing, int totFacing)
+{
+	if (curFacing >= 0 && curFacing < totFacing / 8)
+		return false;
+	else if (curFacing >= totFacing / 8 * 5 && curFacing < totFacing)
+		return false;
+	return true;
 }
 
 void CLoadingExt::LoadShp(FString ImageID, FString FileName, Palette* pPal, int nFrame, bool toServer)

@@ -375,7 +375,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetBuildingFileID(ID);
 	FString CurrentLoadingAnim;
-	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow");
+	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow") && CINI::Art->GetBool(ArtID, "Shadow", true);
 	int facings = ExtConfigs::ExtFacings ? 32 : 8;
 	AvailableFacings[ID] = facings;
 
@@ -565,13 +565,13 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		"IgnoreSuperAnim4"
 	};
 	
-	loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow && CINI::Art->GetBool(ArtID, "Shadow", true));
+	loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow);
 	for (int i = 0; i < 9; ++i)
 	{
 		loadAnimFrameShape(AnimKeys[i], IgnoreKeys[i]);
 	}
 	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
-		loadSingleFrameShape(*pStr, 0, 0, 0, "", false, 1);
+		loadSingleFrameShape(*pStr, 0, 0, 0, "", bHasShadow, 1);
 	}
 
 	FString DictName;
@@ -764,7 +764,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetBuildingFileID(ID);
 	FString CurrentLoadingAnim;
-	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow");
+	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow") && CINI::Art->GetBool(ArtID, "Shadow", true);
 	int facings = ExtConfigs::ExtFacings ? 32 : 8;
 	AvailableFacings[ID] = facings;
 
@@ -965,13 +965,13 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 		"IgnoreSuperAnim3",
 		"IgnoreSuperAnim4"
 	};
-	loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow&& CINI::Art->GetBool(ArtID, "Shadow", true));
+	loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow);
 	for (int i = 0; i < 9; ++i)
 	{
 		loadAnimFrameShape(AnimKeys[i], IgnoreKeys[i]);
 	}
 	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
-		loadSingleFrameShape(*pStr, 1, 0, 0, "", false, 1);
+		loadSingleFrameShape(*pStr, 1, 0, 0, "", bHasShadow, 1);
 	}
 
 	FString DictName;
@@ -1178,7 +1178,7 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 {
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetBuildingFileID(ID);
-	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow");
+	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow") && CINI::Art->GetBool(ArtID, "Shadow", true);
 	FString PaletteName = "iso\233NotAutoTinted";
 	PaletteName = CINI::Art->GetString(ArtID, "RubblePalette", PaletteName);
 	GetFullPaletteName(PaletteName);
@@ -1308,7 +1308,7 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 	if (Variables::RulesMap.GetBool(ID, "LeaveRubble"))
 	{
 		int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + 3;
-		if (loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow && CINI::Art->GetBool(ArtID, "Shadow", true)))
+		if (loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow))
 		{
 			unsigned char* pBuffer;
 			int width, height;

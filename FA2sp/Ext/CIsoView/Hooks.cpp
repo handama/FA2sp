@@ -1295,9 +1295,39 @@ DEFINE_HOOK(45BFA6, CIsoView_OnMouseMove_Waypoint_Delete, 6)
 	return 0;
 }
 
-DEFINE_HOOK(45BFE3, CIsoView_OnMouseMove_Waypoint_Add, 6)
+DEFINE_HOOK(45BFE1, CIsoView_OnMouseMove_Waypoint_Add, 8)
 {
+	GET(int, pos, EAX);
+
 	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Waypoint, true);
+	if (!CMapData::Instance->IsMultiOnly())
+	{
+		CMapData::Instance->SetWaypointData("", pos);
+	}
+	else
+	{
+		int i = 8;
+		ppmfc::CString key = "8";
+		while (CINI::CurrentDocument->KeyExists("Waypoints", key))
+		{
+			i++;
+			key.Format("%d", i);
+		}
+		CMapData::Instance->SetWaypointData(key, pos);
+	}
+	return 0x45C1A6;
+}
+
+DEFINE_HOOK(523A23, CWaypointID_GetFreeWaypoint, 6)
+{
+	if (CMapData::Instance->IsMultiOnly())
+		R->ECX(8);
+	return 0;
+}
+
+DEFINE_HOOK(466562, CIsoView_OnLButtonDown_Waypoint_Add, 6)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Waypoint);
 	return 0;
 }
 

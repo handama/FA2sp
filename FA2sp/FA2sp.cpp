@@ -361,26 +361,16 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::INIEditor_IgnoreTeams = CINI::FAData->GetBool("ExtConfigs", "INIEditor.IgnoreTeams");
 	ExtConfigs::StringBufferStackAllocation = CINI::FAData->GetBool("ExtConfigs", "StringBufferStackAllocation", true);
 
-	if (ExtConfigs::SaveMap_AutoSave = CINI::FAData->GetBool("ExtConfigs", "SaveMap.AutoSave"))
+	ExtConfigs::SaveMap_AutoSave = CINI::FAData->GetBool("ExtConfigs", "SaveMap.AutoSave");
+	ExtConfigs::SaveMap_AutoSave_Interval = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.AutoSave.Interval", 300);
+	ExtConfigs::SaveMap_AutoSave_Interval_Real = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.AutoSave.Interval", 300);
+	ExtConfigs::SaveMap_AutoSave_MaxCount = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.AutoSave.MaxCount", 10);
+	if (ExtConfigs::SaveMap_AutoSave_Interval < 30)
 	{
-		ExtConfigs::SaveMap_AutoSave_Interval = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.AutoSave.Interval", 300);
-		ExtConfigs::SaveMap_AutoSave_Interval_Real = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.AutoSave.Interval", 300);
-		ExtConfigs::SaveMap_AutoSave_MaxCount = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.AutoSave.MaxCount", 10);
-		if (ExtConfigs::SaveMap_AutoSave_Interval < 30)
-		{
-			ExtConfigs::SaveMap_AutoSave_Interval_Real = 30;
-			ExtConfigs::SaveMap_AutoSave_Interval = 30;
-		}
+		ExtConfigs::SaveMap_AutoSave_Interval_Real = 30;
+		ExtConfigs::SaveMap_AutoSave_Interval = 30;
 	}
-	else
-	{
-		ExtConfigs::SaveMap_AutoSave_Interval_Real = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.AutoSave.Interval", 300);
-		if (ExtConfigs::SaveMap_AutoSave_Interval_Real < 30)
-		{
-			ExtConfigs::SaveMap_AutoSave_Interval_Real = 30;
-		}
-		ExtConfigs::SaveMap_AutoSave_Interval = -1;
-	}
+
 	ExtConfigs::SaveMap_FileEncodingComment = CINI::FAData->GetBool("ExtConfigs", "SaveMap.FileEncodingComment");
 	ExtConfigs::SaveMap_OnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP");
 	ExtConfigs::SaveMap_PreserveINISorting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.PreserveINISorting");

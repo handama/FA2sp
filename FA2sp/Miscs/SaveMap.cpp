@@ -935,6 +935,12 @@ void SaveMapExt::RemoveEarlySaves()
 
 void CALLBACK SaveMapExt::SaveMapCallback(HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime)
 {
+    if (!ExtConfigs::SaveMap_AutoSave)
+    {
+        StopTimer();
+        return;
+    }
+
     Logger::Debug("SaveMapCallback called, trying to auto save map. hwnd = %08X, message = %d, iTimerID = %d, dwTime = %d.\n",
         (int)hwnd, message, iTimerID, dwTime);
 
@@ -1000,7 +1006,6 @@ void CALLBACK SaveMapExt::SaveMapCallback(HWND hwnd, UINT message, UINT iTimerID
 
 bool SaveMapExt::IsAutoSaving = false;
 UINT_PTR SaveMapExt::Timer = NULL;
-
 
 DEFINE_HOOK(426E50, CFinalSunDlg_SaveMap_AutoSave_StopTimer, 7)
 {

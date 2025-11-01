@@ -32,8 +32,17 @@ DEFINE_HOOK(4B5460, CMapData_InitializeBuildingTypes, 7)
 		
 		if (_strcmpi(foundation, "Custom") && _strcmpi(foundation, "3x3REFINERY"))
 		{
-			DataExt.Width = atoi(foundation);
-			DataExt.Height = atoi(&foundation[2]);
+			auto sizes = STDHelpers::SplitStringMultiSplit(foundation, "x|X");
+			if (sizes.size() == 2)
+			{
+				DataExt.Width = atoi(sizes[0]);
+				DataExt.Height = atoi(sizes[1]);
+			}
+			else
+			{
+				DataExt.Width = atoi(foundation);
+				DataExt.Height = atoi(&foundation[2]);
+			}
 			if (DataExt.Width == 0)
 				DataExt.Width = 1;
 			if (DataExt.Height == 0)

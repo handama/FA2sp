@@ -869,7 +869,7 @@ DEFINE_HOOK(45A08A, CIsoView_OnMouseMove_Place, 5)
 				continue;
 
 			auto& cur_fieldExt = Map->CellDataExts[dwPos];
-			oldData[ix * TotalSize + ex] = *Map->GetCellAt(i + x + (e + y) * Map->MapWidthPlusHeight);
+			oldData[ix * TotalSize + ex] = *Map->GetCellAt(dwPos);
 			oldNewOverlay[ix][ex] = cur_fieldExt.NewOverlay;
 		}
 	}
@@ -894,49 +894,58 @@ DEFINE_HOOK(45A08A, CIsoView_OnMouseMove_Place, 5)
 	}
 	::RedrawWindow(pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 
+	auto RestoreCellRegion = [&](int i, int e)
+	{
+		int ix = i + Padding;
+		int ex = e + Padding;
+
+		DWORD dwPos = i + x + (e + y) * Map->MapWidthPlusHeight;
+		if (dwPos >= Map->CellDataCount || dwPos < 0)
+			return;
+
+		auto cur_field = Map->GetCellAt(dwPos);
+		auto& cur_fieldExt = Map->CellDataExts[dwPos];
+
+		if (cur_field->Aircraft != oldData[ix * TotalSize + ex].Aircraft)
+			Map->DeleteAircraftData(cur_field->Aircraft);
+
+		for (int z = 0; z < 3; z++)
+			if (cur_field->Infantry[z] != oldData[ix * TotalSize + ex].Infantry[z])
+				Map->DeleteInfantryData(cur_field->Infantry[z]);
+
+		if (cur_field->Structure != oldData[ix * TotalSize + ex].Structure)
+			Map->DeleteBuildingData(cur_field->Structure);
+
+		if (cur_field->Terrain != oldData[ix * TotalSize + ex].Terrain)
+			Map->DeleteTerrainData(cur_field->Terrain);
+
+		if (cur_field->Smudge != oldData[ix * TotalSize + ex].Smudge)
+			Map->DeleteSmudgeData(cur_field->Smudge);
+
+		if (cur_field->Unit != oldData[ix * TotalSize + ex].Unit)
+			Map->DeleteUnitData(cur_field->Unit);
+
+		if (cur_fieldExt.NewOverlay != oldNewOverlay[ix][ex])
+			Map->SetNewOverlayAt(dwPos, oldNewOverlay[ix][ex]);
+
+		if (cur_field->OverlayData != oldData[ix * TotalSize + ex].OverlayData)
+			Map->SetOverlayDataAt(dwPos, oldData[ix * TotalSize + ex].OverlayData);
+
+		Map->DeleteTiberium(std::min(cur_fieldExt.NewOverlay, (word)0xFF), cur_field->OverlayData);
+		Map->AssignCellData(Map->CellDatas[dwPos], oldData[ix * TotalSize + ex]);
+		cur_fieldExt.NewOverlay = oldNewOverlay[ix][ex];
+		Map->AddTiberium(std::min(cur_fieldExt.NewOverlay, (word)0xFF), cur_field->OverlayData);
+	};
+
+	RestoreCellRegion(0, 0);
 	for (i = -Padding; i < MapBlockSize; i++)
 	{
 		for (e = -Padding; e < MapBlockSize; e++)
 		{
-			int ix = i + Padding;
-			int ex = e + Padding;
-
-			DWORD dwPos = i + x + (e + y) * Map->MapWidthPlusHeight;
-			if (dwPos >= Map->CellDataCount || dwPos < 0)
+			if (i == 0 && e == 0)
 				continue;
 
-			auto cur_field = Map->GetCellAt(dwPos);
-			auto& cur_fieldExt = Map->CellDataExts[dwPos];
-
-			if (cur_field->Aircraft != oldData[ix * TotalSize + ex].Aircraft)
-				Map->DeleteAircraftData(cur_field->Aircraft);
-
-			for (int z = 0; z < 3; z++)
-				if (cur_field->Infantry[z] != oldData[ix * TotalSize + ex].Infantry[z])
-					Map->DeleteInfantryData(cur_field->Infantry[z]);
-
-			if (cur_field->Structure != oldData[ix * TotalSize + ex].Structure)
-				Map->DeleteBuildingData(cur_field->Structure);
-
-			if (cur_field->Terrain != oldData[ix * TotalSize + ex].Terrain)
-				Map->DeleteTerrainData(cur_field->Terrain);
-
-			if (cur_field->Smudge != oldData[ix * TotalSize + ex].Smudge)
-				Map->DeleteSmudgeData(cur_field->Smudge);
-
-			if (cur_field->Unit != oldData[ix * TotalSize + ex].Unit)
-				Map->DeleteUnitData(cur_field->Unit);
-
-			if (cur_fieldExt.NewOverlay != oldNewOverlay[ix][ex])
-				Map->SetNewOverlayAt(dwPos, oldNewOverlay[ix][ex]);
-
-			if (cur_field->OverlayData != oldData[ix * TotalSize + ex].OverlayData)
-				Map->SetOverlayDataAt(dwPos, oldData[ix * TotalSize + ex].OverlayData);
-
-			Map->DeleteTiberium(std::min(cur_fieldExt.NewOverlay, (word)0xFF), cur_field->OverlayData);
-			Map->AssignCellData(Map->CellDatas[dwPos], oldData[ix * TotalSize + ex]);
-			cur_fieldExt.NewOverlay = oldNewOverlay[ix][ex];
-			Map->AddTiberium(std::min(cur_fieldExt.NewOverlay, (word)0xFF), cur_field->OverlayData);
+			RestoreCellRegion(i, e);
 		}
 	}
 	Map->MoneyCount = money;

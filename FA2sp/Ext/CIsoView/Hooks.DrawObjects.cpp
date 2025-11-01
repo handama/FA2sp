@@ -672,6 +672,21 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									}
 								}
 							}
+							// make sure target coord is in visible map
+							bool isInVisibleMap = false;
+							for (const auto& info : visibleCells)
+							{
+								if (objCenter.X == info.X && objCenter.Y == info.Y)
+								{
+									isInVisibleMap = true;
+									break;
+								}
+							}
+							if (!isInVisibleMap)
+							{
+								objCenter.X = X;
+								objCenter.Y = Y;
+							}
 							BuildingsToDraw.push_back(std::make_pair(MapCoord{ objRender.X, objRender.Y },
 								DrawBuildings{ StrINIIndex , (short)objCenter.X, (short)objCenter.Y, (short)BuildingIndex }));
 

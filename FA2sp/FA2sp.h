@@ -205,6 +205,7 @@ public:
     static double AutoDarkMode_SwitchTimeA;
     static double AutoDarkMode_SwitchTimeB;
     static bool EnableDarkMode;
+    static bool EnableDarkMode_Init;
     static bool EnableDarkMode_DimMap;
     static bool ShrinkTilesInTileSetBrowser;
     static bool UTF8Support_InferEncoding;

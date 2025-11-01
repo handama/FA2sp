@@ -189,6 +189,7 @@ bool ExtConfigs::AutoDarkMode;
 double ExtConfigs::AutoDarkMode_SwitchTimeA;
 double ExtConfigs::AutoDarkMode_SwitchTimeB;
 bool ExtConfigs::EnableDarkMode;
+bool ExtConfigs::EnableDarkMode_Init;
 bool ExtConfigs::EnableDarkMode_DimMap;
 bool ExtConfigs::ShrinkTilesInTileSetBrowser;
 bool ExtConfigs::UTF8Support_InferEncoding;
@@ -586,7 +587,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode", "Enable dark mode"),
 		.IniKey = "EnableDarkMode",
-		.Value = &ExtConfigs::EnableDarkMode,
+		.Value = &ExtConfigs::EnableDarkMode_Init,
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
@@ -1200,8 +1201,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	for (const auto& opt : ExtConfigs::Options)
 	{
-		if (opt.Value != &ExtConfigs::EnableDarkMode)
-			*opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
+		*opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
 	}
 
 	CIsoViewExt::PasteShowOutline = ExtConfigs::PasteShowOutlineDefault;

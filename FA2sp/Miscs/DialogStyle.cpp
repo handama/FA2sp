@@ -2018,9 +2018,10 @@ DEFINE_HOOK(537129, ExeStart_DrakThemeHooks, 9)
     }
     else
     {
-        ExtConfigs::EnableDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "EnableDarkMode", "false").c_str());
-        ExtConfigs::EnableDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FinalAlert.ini", "Options",
-            "EnableDarkMode", ExtConfigs::EnableDarkMode ? "true" : "false").c_str());
+        ExtConfigs::EnableDarkMode_Init = STDHelpers::IsTrue(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "EnableDarkMode", "false").c_str());
+        ExtConfigs::EnableDarkMode_Init = STDHelpers::IsTrue(DarkTheme::ReadIniString("FinalAlert.ini", "Options",
+            "EnableDarkMode", ExtConfigs::EnableDarkMode_Init ? "true" : "false").c_str());
+        ExtConfigs::EnableDarkMode = ExtConfigs::EnableDarkMode_Init;
     }
 
     if (ExtConfigs::EnableDarkMode)

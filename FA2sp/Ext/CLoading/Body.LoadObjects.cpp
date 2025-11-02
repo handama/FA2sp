@@ -1715,7 +1715,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 		std::rotate(framesToRead.begin(), framesToRead.begin() + 1 * targetFacings / 8, framesToRead.end());
 
 		FString FileName = ImageID + ".shp";
-		FString FileNameTurret = ImageID + "tur.shp";
+		FString FileNameTurret = GeneralLoad::LoadTurretOrBarrel(ID, ArtID, ImageID, false, false, true);
 		int nMix = this->SearchFile(FileName);
 		if (CLoading::HasFile(FileName, nMix))
 		{

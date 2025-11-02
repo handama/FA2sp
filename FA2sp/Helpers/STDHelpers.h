@@ -5,6 +5,7 @@
 #include <sstream>
 #include <algorithm>
 #include <vector>
+#include <random>
 
 #include <MFC/ppmfc_cstring.h>
 #include "../FA2sp.h"
@@ -49,6 +50,13 @@ public:
     static FString RandomSelect(std::vector<FString>& vec);
     static int RandomSelectInt(std::vector<int>& vec, bool record = false, int thisCT = -1);
     static int RandomSelectInt(int start, int end);
+	template <typename T, std::size_t N>
+	static T const& RandomSelectArray(const std::array<T, N>& arr) {
+		static thread_local std::mt19937 gen(std::random_device{}());
+		std::uniform_int_distribution<std::size_t> dist(0, N - 1);
+		return arr[dist(gen)];
+	}
+
 	static ppmfc::CString GetRandomFacing();
 
     static std::string ChineseTraditional_ToSimple(const std::string& _str);

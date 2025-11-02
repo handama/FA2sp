@@ -841,6 +841,108 @@ DEFINE_HOOK(46CC5C, CIsoView_DrawMouseAttachedStuff_Overlay_3, 5)
 	return 0x46CC86;
 }
 
+DEFINE_HOOK(46C38B, CIsoView_DrawMouseAttachedStuff_Ore, 9)
+{
+	GET(int, param, EAX);
+	GET(int, dwPos, ESI);
+
+	constexpr int GEM_DEAFULT = 30;
+	constexpr int ORE_DEAFULT = 112;
+	constexpr int ORE2_DEAFULT = VINIFERA_BEGIN;
+	constexpr int ORE3_DEAFULT = ABOREUS_BEGIN;
+	constexpr std::array<int, RIPARIUS_END - RIPARIUS_BEGIN> ORES = [] {
+		std::array<int, RIPARIUS_END - RIPARIUS_BEGIN> v{};
+		for (int i = 0; i < RIPARIUS_END - RIPARIUS_BEGIN; ++i)
+			v[i] = RIPARIUS_BEGIN + i;
+		return v;
+	}();
+	constexpr std::array<int, CRUENTUS_END - CRUENTUS_BEGIN> GEMS = [] {
+		std::array<int, CRUENTUS_END - CRUENTUS_BEGIN> v{};
+		for (int i = 0; i < CRUENTUS_END - CRUENTUS_BEGIN; ++i)
+			v[i] = CRUENTUS_BEGIN + i;
+		return v;
+	}();
+	constexpr std::array<int, VINIFERA_END - VINIFERA_BEGIN> ORE2S = [] {
+		std::array<int, VINIFERA_END - VINIFERA_BEGIN> v{};
+		for (int i = 0; i < VINIFERA_END - VINIFERA_BEGIN; ++i)
+			v[i] = VINIFERA_BEGIN + i;
+		return v;
+	}();
+	constexpr std::array<int, ABOREUS_END - ABOREUS_BEGIN> ORE3S = [] {
+		std::array<int, ABOREUS_END - ABOREUS_BEGIN> v{};
+		for (int i = 0; i < ABOREUS_END - ABOREUS_BEGIN; ++i)
+			v[i] = ABOREUS_BEGIN + i;
+		return v;
+	}();
+
+	auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+	auto pMapData = CMapDataExt::GetExtension();
+	int X = CMapData::Instance->GetXFromCoordIndex(dwPos);
+	int Y = CMapData::Instance->GetYFromCoordIndex(dwPos);
+	// ore
+	if (param == 2 || param == 3 || param == 6 || param == 7)
+	{
+		int i, e;
+		for (i = 0; i < pIsoView->BrushSizeX; i++)
+		{
+			for (e = 0; e < pIsoView->BrushSizeY; e++)
+			{
+				if (!pMapData->IsCoordInMap(i + X, e + Y))
+					continue;
+
+				int curPos = dwPos + i + e * pMapData->MapWidthPlusHeight;
+				int curground = pMapData->GetSafeTileIndex(pMapData->GetCellAt(curPos)->TileIndex);
+
+				if (pMapData->TileData[curground].AllowTiberium)
+				{
+					int targetOre;
+					if (param == 2)
+					{
+						targetOre = ExtConfigs::ObjectBrowser_Ore_RandomPlacement ?
+							STDHelpers::RandomSelectArray(ORES) : ORE_DEAFULT;
+					}
+					else if (param == 3)
+					{
+						targetOre = ExtConfigs::ObjectBrowser_Ore_RandomPlacement ?
+							STDHelpers::RandomSelectArray(GEMS) : GEM_DEAFULT;
+					}
+					else if (param == 6)
+					{
+						targetOre = ExtConfigs::ObjectBrowser_Ore_RandomPlacement ?
+							STDHelpers::RandomSelectArray(ORE2S) : ORE2_DEAFULT;
+					}
+					else if (param == 7)
+					{
+						targetOre = ExtConfigs::ObjectBrowser_Ore_RandomPlacement ?
+							STDHelpers::RandomSelectArray(ORE3S) : ORE3_DEAFULT;
+					}
+					
+					pMapData->SetNewOverlayAt(curPos, targetOre);
+					pMapData->SetOverlayDataAt(curPos, 5);
+				}
+			}
+		}
+	}
+
+	return 0x46CA82;
+}
+
+
+DEFINE_HOOK(45A081, CIsoView_OnMouseMove_Place_Enter_Overlay, 9)
+{
+	GET(int, command_param, EAX);
+	switch (command_param)
+	{
+	case 3:
+	case 6:
+	case 7:
+		return 0x45A08A;
+	default:
+		break;
+	}
+	return 0x45ACCA;
+}
+
 DEFINE_HOOK(45A08A, CIsoView_OnMouseMove_Place, 5)
 {
 	auto Map = CMapDataExt::GetExtension();

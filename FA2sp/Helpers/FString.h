@@ -250,7 +250,7 @@ private:
             vec.push_back(reinterpret_cast<intptr_t>(arg));
         }
         else {
-            static_assert(false, "Unsupported argument type for Format");
+            static_assert(noexcept(false), "Unsupported argument type for Format");
         }
     }
 

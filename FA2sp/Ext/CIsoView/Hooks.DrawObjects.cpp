@@ -14,6 +14,7 @@
 #include <codecvt>
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../CFinalSunApp/Body.h"
+#include "../../Extra/GeneralLoad.h"
 
 static int Left, Right, Top, Bottom;
 static CRect window;
@@ -71,11 +72,11 @@ inline static void GetUnitImageID(FString& ImageID, const CUnitData& obj, const 
 		int HP = atoi(obj.Health);
 		if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
 		{
-			ImageID = Variables::RulesMap.GetString(obj.TypeID, "Image.ConditionYellow", ImageID);
+			ImageID = GeneralLoad::LoadDamagedImage(obj.TypeID, ImageID, DamageType::Yellow);
 		}
 		if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
 		{
-			ImageID = Variables::RulesMap.GetString(obj.TypeID, "Image.ConditionRed", ImageID);
+			ImageID = GeneralLoad::LoadDamagedImage(obj.TypeID, ImageID, DamageType::Red);
 		}
 		if (ExtConfigs::InGameDisplay_Water)
 		{
@@ -83,11 +84,11 @@ inline static void GetUnitImageID(FString& ImageID, const CUnitData& obj, const 
 			{
 				if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
 				{
-					ImageID = Variables::RulesMap.GetString(obj.TypeID, "WaterImage.ConditionYellow", ImageID);
+					ImageID = GeneralLoad::LoadDamagedImage(obj.TypeID, ImageID, DamageType::YellowWater);
 				}
 				if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
 				{
-					ImageID = Variables::RulesMap.GetString(obj.TypeID, "WaterImage.ConditionRed", ImageID);
+					ImageID = GeneralLoad::LoadDamagedImage(obj.TypeID, ImageID, DamageType::RedWater);
 				}
 			}
 		}
@@ -1626,11 +1627,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						int HP = atoi(obj.Health);
 						if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
 						{
-							imageID = Variables::RulesMap.GetString(obj.TypeID, "Image.ConditionYellow", imageID);
+							imageID = GeneralLoad::LoadDamagedImage(obj.TypeID, imageID,DamageType::Yellow);
 						}
 						if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
 						{
-							imageID = Variables::RulesMap.GetString(obj.TypeID, "Image.ConditionRed", imageID);
+							imageID = GeneralLoad::LoadDamagedImage(obj.TypeID, imageID, DamageType::Red);
 						}
 					}
 

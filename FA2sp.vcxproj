@@ -229,6 +229,7 @@
     <ClCompile Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.cpp" />
+    <ClCompile Include="FA2sp\Extra\GeneralLoad.cpp" />
     <ClCompile Include="FA2sp\Ext\CBasic\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CChangeMapSize\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CCreateMap2\Hooks.cpp" />
@@ -374,6 +375,7 @@
     <ClInclude Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.h" />
+    <ClInclude Include="FA2sp\Extra\GeneralLoad.h" />
     <ClInclude Include="FA2sp\Ext\CCreateMap3B\Body.h" />
     <ClInclude Include="FA2sp\Ext\CCredits\Body.h" />
     <ClInclude Include="FA2sp\Ext\CFinalSunApp\Body.h" />

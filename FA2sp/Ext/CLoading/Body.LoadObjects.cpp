@@ -10,6 +10,7 @@
 #include "../../Algorithms/Matrix3D.h"
 #include "../CMapData/Body.h"
 #include "../CFinalSunDlg/Body.h"
+#include "../../Extra/GeneralLoad.h"
 #include <random>
 
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
@@ -200,7 +201,7 @@ void CLoadingExt::LoadObjects(FString ID)
 		LoadInfantry(ID);
 		break;
 	case CLoadingExt::ObjectType::Terrain:
-		LoadTerrainOrSmudge(ID, true);
+		GeneralLoad::LoadTerrain(this, ID);
 		break;
 	case CLoadingExt::ObjectType::Smudge:
 		LoadTerrainOrSmudge(ID, false);
@@ -569,6 +570,10 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 	for (int i = 0; i < 9; ++i)
 	{
 		loadAnimFrameShape(AnimKeys[i], IgnoreKeys[i]);
+	}
+	for (int i = 0; i < GeneralLoad::AnimCount; ++i)
+	{
+		loadAnimFrameShape(GeneralLoad::AnimKeys[i], GeneralLoad::IgnoreKeys[i]);
 	}
 	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
 		loadSingleFrameShape(*pStr, 0, 0, 0, "", bHasShadow, 1);
@@ -1554,8 +1559,8 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 			else if (s_count == 1) L = H = 0;
 			else if (s_count == 2) H = 0;
 
-			FString turFileName = ImageID + "tur.vxl";
-			FString turHVAName = ImageID + "tur.hva";
+			FString turFileName = GeneralLoad::LoadTurretOrBarrel(ID, ArtID, ImageID, false, false);
+			FString turHVAName = GeneralLoad::LoadTurretOrBarrel(ID, ArtID, ImageID, false, true);
 			if (VoxelDrawer::LoadVXLFile(turFileName))
 			{
 				if (VoxelDrawer::LoadHVAFile(turHVAName))
@@ -1570,8 +1575,8 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 				}
 			}
 
-			FString barlFileName = ImageID + "barl.vxl";
-			FString barlHVAName = ImageID + "barl.hva";
+			FString barlFileName = GeneralLoad::LoadTurretOrBarrel(ID, ArtID, ImageID, true, false);
+			FString barlHVAName = GeneralLoad::LoadTurretOrBarrel(ID, ArtID, ImageID, true, true);
 			if (VoxelDrawer::LoadVXLFile(barlFileName))
 			{
 				if (VoxelDrawer::LoadHVAFile(barlHVAName))
@@ -1728,7 +1733,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 				// DictName.Format("%s%d", ImageID, i);
 				FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 				GetFullPaletteName(PaletteName);
-				
+
 				if (bHasTurret)
 				{
 					int F, L, H;
@@ -1740,7 +1745,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 					int nStartWalkFrame = CINI::Art->GetInteger(ArtID, "StartWalkFrame", 0);
 					int nWalkFrames = CINI::Art->GetInteger(ArtID, "WalkFrames", 1);
 					int turretFrameToRead;
-					
+
 					// turret start from 0 + WalkFrames * Facings, ignore StartWalkFrame
 					// and always has 32 facings
 					turretFrameToRead = facingCount * nWalkFrames + ((targetFacings / 8 + i) % targetFacings) * 32 / targetFacings;
@@ -1753,7 +1758,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 					unsigned char* outBuffer;
 					int outW, outH;
 					UnionSHP_GetAndClear(outBuffer, &outW, &outH);
-					
+
 					SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
 
 					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
@@ -1784,7 +1789,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 				}
 			}
 		}
-	}
+		}
 }
 
 void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal, bool toServer, bool clip)

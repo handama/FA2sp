@@ -101,7 +101,6 @@
       <Optimization>MaxSpeed</Optimization>
       <BuildStlModules>false</BuildStlModules>
       <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
-      <AdditionalOptions>/source-charset:ACP %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

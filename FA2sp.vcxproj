@@ -228,6 +228,7 @@
     <ClCompile Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.cpp" />
+    <ClCompile Include="FA2sp\Extra\Encryption.cpp" />
     <ClCompile Include="FA2sp\Extra\GeneralLoad.cpp" />
     <ClCompile Include="FA2sp\Ext\CBasic\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CChangeMapSize\Hooks.cpp" />
@@ -254,7 +255,6 @@
     <ClCompile Include="FA2sp\Ext\CLighting\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CLighting\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Body.cpp" />
-    <ClCompile Include="FA2sp\Ext\CLoading\Body.Encryption.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Body.ImageServer.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Body.LoadObjects.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Body.MixManager.cpp" />

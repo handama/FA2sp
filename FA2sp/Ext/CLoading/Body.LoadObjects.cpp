@@ -1621,7 +1621,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 					{
 						VXL_Add(pTurretImage[i], turretrect[i].X + turdeltaX, turretrect[i].Y + turdeltaY, turretrect[i].W, turretrect[i].H);
 						CncImgFree(pTurretImage[i]);
-					}	
+					}
 
 					if (pBarrelImage[i])
 					{
@@ -1760,7 +1760,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 					turrentFacing = (((targetFacings / 8 + i) % targetFacings) * 32 / targetFacings) % 32;
 					turretFrameToRead = bUseTurrentFile ? turrentFacing : (facingCount * nWalkFrames + turrentFacing);
 
-					CLoadingExt::LoadSHPFrameSafe(turretFrameToRead, 
+					CLoadingExt::LoadSHPFrameSafe(turretFrameToRead,
 						1, &FramesBuffersTurret[turrentFacing], *currentHeader);
 
 					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
@@ -1798,6 +1798,10 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 
 					int nStartWalkFrame = CINI::Art->GetInteger(ArtID, "StartWalkFrame", 0);
 					int nWalkFrames = CINI::Art->GetInteger(ArtID, "WalkFrames", 1);
+					int turrentFacing;
+
+					turrentFacing = (((targetFacings / 8 + i) % targetFacings) * 32 / targetFacings) % 32;
+
 					Matrix3D mat(F, L, H, i, targetFacings);
 
 					UnionSHP_Add(FramesBuffers[0], header.Width, header.Height);
@@ -1835,9 +1839,8 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 				}
 			}
 		}
-		}
+	}
 }
-
 void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal, bool toServer, bool clip)
 {
 	if (ExtConfigs::LoadImageDataFromServer && toServer)

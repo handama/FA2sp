@@ -1710,14 +1710,71 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 		std::rotate(framesToRead.begin(), framesToRead.begin() + 1 * targetFacings / 8, framesToRead.end());
 
 		FString FileName = ImageID + ".shp";
+		FString FileNameTurret = ImageID + "tur.shp";
 		int nMix = this->SearchFile(FileName);
 		if (CLoading::HasFile(FileName, nMix))
 		{
 			ShapeHeader header;
-			unsigned char* FramesBuffers[2];
-			unsigned char* FramesBuffersShadow[2];
-			CMixFile::LoadSHP(FileName, nMix);
-			CShpFile::GetSHPHeader(&header);
+			ShapeHeader headerTurret;
+			unsigned char* FramesBuffers[1];
+			unsigned char* FramesBuffersShadow[1];
+			unsigned char* FramesBuffersTurret[32];
+			unsigned char* FramesBuffersTurretShadow[32];
+			FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
+			GetFullPaletteName(PaletteName);
+
+			int nMixTur = this->SearchFile(FileNameTurret);
+			bool bUseTurrentFile = CLoading::HasFile(FileNameTurret, nMixTur);
+			if (bHasTurret)
+			{
+				ShapeHeader* currentHeader;
+				if (bUseTurrentFile)
+				{
+					CMixFile::LoadSHP(FileNameTurret, nMixTur);
+					CShpFile::GetSHPHeader(&headerTurret);
+					currentHeader = &headerTurret;
+				}
+				else
+				{
+					CMixFile::LoadSHP(FileName, nMix);
+					CShpFile::GetSHPHeader(&header);
+					currentHeader = &header;
+				}
+
+				for (int i = 0; i < targetFacings; ++i)
+				{
+					if (IsLoadingObjectView && i != targetFacings / 8 * 2)
+						continue;
+
+					int nStartWalkFrame = CINI::Art->GetInteger(ArtID, "StartWalkFrame", 0);
+					int nWalkFrames = CINI::Art->GetInteger(ArtID, "WalkFrames", 1);
+					int turretFrameToRead, turrentFacing;
+
+					// turret start from 0 + WalkFrames * Facings, ignore StartWalkFrame
+					// and always has 32 facings
+					turrentFacing = (((targetFacings / 8 + i) % targetFacings) * 32 / targetFacings) % 32;
+					turretFrameToRead = bUseTurrentFile ? turrentFacing : (facingCount * nWalkFrames + turrentFacing);
+
+					CLoadingExt::LoadSHPFrameSafe(turretFrameToRead, 
+						1, &FramesBuffersTurret[turrentFacing], *currentHeader);
+
+					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
+						CLoadingExt::LoadSHPFrameSafe(turretFrameToRead + currentHeader->FrameCount / 2,
+							1, &FramesBuffersTurretShadow[turrentFacing], *currentHeader);
+				}
+
+				if (bUseTurrentFile)
+				{
+					CMixFile::LoadSHP(FileName, nMix);
+					CShpFile::GetSHPHeader(&header);
+				}
+			}
+			else
+			{
+				CMixFile::LoadSHP(FileName, nMix);
+				CShpFile::GetSHPHeader(&header);
+			}
+
 			for (int i = 0; i < targetFacings; ++i)
 			{
 				if (IsLoadingObjectView && i != targetFacings / 8 * 2)
@@ -1725,9 +1782,6 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 				CLoadingExt::LoadSHPFrameSafe(framesToRead[i], 1, &FramesBuffers[0], header);
 				FString DictName;
 				DictName.Format("%s%d", ID, i);
-				// DictName.Format("%s%d", ImageID, i);
-				FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
-				GetFullPaletteName(PaletteName);
 				
 				if (bHasTurret)
 				{
@@ -1739,17 +1793,14 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 
 					int nStartWalkFrame = CINI::Art->GetInteger(ArtID, "StartWalkFrame", 0);
 					int nWalkFrames = CINI::Art->GetInteger(ArtID, "WalkFrames", 1);
-					int turretFrameToRead;
-					
-					// turret start from 0 + WalkFrames * Facings, ignore StartWalkFrame
-					// and always has 32 facings
-					turretFrameToRead = facingCount * nWalkFrames + ((targetFacings / 8 + i) % targetFacings) * 32 / targetFacings;
+					int turrentFacing;
 
-					CLoadingExt::LoadSHPFrameSafe(turretFrameToRead, 1, &FramesBuffers[1], header);
+					turrentFacing = (((targetFacings / 8 + i) % targetFacings) * 32 / targetFacings) % 32;
+
 					Matrix3D mat(F, L, H, i, targetFacings);
 
 					UnionSHP_Add(FramesBuffers[0], header.Width, header.Height);
-					UnionSHP_Add(FramesBuffers[1], header.Width, header.Height, mat.OutputX, mat.OutputY);
+					UnionSHP_Add(FramesBuffersTurret[turrentFacing], header.Width, header.Height, mat.OutputX, mat.OutputY);
 					unsigned char* outBuffer;
 					int outW, outH;
 					UnionSHP_GetAndClear(outBuffer, &outW, &outH);
@@ -1761,9 +1812,8 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 						FString DictNameShadow;
 						DictNameShadow.Format("%s%d\233SHADOW", ID, i);
 						CLoadingExt::LoadSHPFrameSafe(framesToRead[i] + header.FrameCount / 2, 1, &FramesBuffersShadow[0], header);
-						CLoadingExt::LoadSHPFrameSafe(turretFrameToRead + header.FrameCount / 2, 1, &FramesBuffersShadow[1], header);
 						UnionSHP_Add(FramesBuffersShadow[0], header.Width, header.Height, 0, 0, false, true);
-						UnionSHP_Add(FramesBuffersShadow[1], header.Width, header.Height, mat.OutputX, mat.OutputY, false, true);
+						UnionSHP_Add(FramesBuffersTurretShadow[turrentFacing], header.Width, header.Height, mat.OutputX, mat.OutputY, false, true);
 						unsigned char* outBufferShadow;
 						int outWShadow, outHShadow;
 						UnionSHP_GetAndClear(outBufferShadow, &outWShadow, &outHShadow, false, true);

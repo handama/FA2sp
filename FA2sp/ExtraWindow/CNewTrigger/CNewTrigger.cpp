@@ -89,7 +89,6 @@ WNDPROC CNewTrigger::OriginalListBoxProcAction;
 RECT CNewTrigger::rectComboLBox = { 0 };
 HWND CNewTrigger::hComboLBox = NULL;
 
-
 void CNewTrigger::Create(CFinalSunDlg* pWnd)
 {
     m_parent = pWnd;
@@ -1216,7 +1215,11 @@ void CNewTrigger::OnSelchangeActionParam(int index, bool edited)
     if (!text)
         return;
 
-    ExtraWindow::TrimStringIndex(text);
+    if (CurrentTriggerActionParam == index)
+        FString::TrimIndex(text);
+    else
+        ExtraWindow::TrimStringIndex(text);
+
     if (text == "")
         text = "0";
 
@@ -2058,8 +2061,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
                 else if (pParamTypes[ActionParamsUsage[i].second][1] == "9") // triggers
                 {
                     CurrentTriggerActionParam = i;
-                }
-                    
+                }                    
             }
             else
             {

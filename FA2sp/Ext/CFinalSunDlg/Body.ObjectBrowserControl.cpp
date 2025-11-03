@@ -1637,6 +1637,15 @@ void CViewObjectsExt::Redraw_Overlay()
     InsertingOverlay = 30;
     this->InsertTranslatedString("DrawTib2ObList", 60310, hTemp);
     InsertingOverlay = -1;
+    if (ExtConfigs::ObjectBrowser_Ore_ExtraSupport)
+    {
+        InsertingOverlay = VINIFERA_BEGIN;
+        InsertingOverlayData = 11;
+        this->InsertTranslatedString("DrawTib3ObList", 60610, hTemp);
+        InsertingOverlay = ABOREUS_BEGIN;
+        this->InsertTranslatedString("DrawTib4ObList", 60710, hTemp);
+        InsertingOverlay = -1;
+    }
 
     this->InsertTranslatedString("AddOreObList", Const_Overlay + AddOre, hTemp);
     this->InsertTranslatedString("ReduceOreObList", Const_Overlay + ReduceOre, hTemp);

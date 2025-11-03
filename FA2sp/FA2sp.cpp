@@ -169,6 +169,8 @@ bool ExtConfigs::InGameDisplay_AlphaImage;
 bool ExtConfigs::InGameDisplay_Bridge;
 bool ExtConfigs::InGameDisplay_AnimAdjust;
 bool ExtConfigs::InGameDisplay_Cloakable;
+bool ExtConfigs::ObjectBrowser_Ore_RandomPlacement;
+bool ExtConfigs::ObjectBrowser_Ore_ExtraSupport;
 bool ExtConfigs::FlatToGroundHideExtra;
 bool ExtConfigs::LightingPreview_MultUnitColor;
 bool ExtConfigs::LightingPreview_TintTileSetBrowserView;
@@ -219,6 +221,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ObjectBrowser_CleanUp = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.CleanUp");
 	ExtConfigs::ObjectBrowser_SafeHouses = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.SafeHouses");
 	ExtConfigs::ObjectBrowser_Foundation = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Foundation");
+	ExtConfigs::ObjectBrowser_Ore_RandomPlacement = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Ore.RandomPlacement");
+	ExtConfigs::ObjectBrowser_Ore_ExtraSupport = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Ore.ExtraSupport");
 	ExtConfigs::LoadLunarWater = CINI::FAData->GetBool("ExtConfigs", "LoadLunarWater");
 	ExtConfigs::LoadCivilianStringtable = CINI::FAData->GetBool("ExtConfigs", "LoadCivilianStringtable");
 	ExtConfigs::PasteShowOutlineDefault = CINI::FAData->GetBool("ExtConfigs", "PasteShowOutline");
@@ -633,6 +637,21 @@ void FA2sp::ExtConfigsInitialize()
 		.Value = &ExtConfigs::LoadLunarWater,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
+
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.Ore.RandomPlacement", "Random choose ores when placing"),
+		.IniKey = "ObjectBrowser.Ore.RandomPlacement",
+		.Value = &ExtConfigs::ObjectBrowser_Ore_RandomPlacement,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.Ore.ExtraSupport", "Support vinifera and aboreus ores"),
+		.IniKey = "ObjectBrowser.Ore.ExtraSupport",
+		.Value = &ExtConfigs::ObjectBrowser_Ore_ExtraSupport,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		}); 
 
 	// Map Display and Rendering
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

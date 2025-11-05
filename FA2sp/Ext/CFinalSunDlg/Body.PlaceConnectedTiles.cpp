@@ -3011,6 +3011,9 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                             || (direction == 5 && i == 18))
                             && tileSet.ConnectedTile[i].Direction0 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Side0 == lastSide)
                         {
+                            if (tileSet.ConnectedTile.size() < 25)
+                                return -1;
+
                             opposite = false;
 
                             if (direction == 5 && i == 7 && distance >= SmallDistance)
@@ -3032,6 +3035,9 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                             || (direction == 1 && i == 18))
                             && tileSet.ConnectedTile[i].Direction1 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Side1 == lastSide)
                         {
+                            if (tileSet.ConnectedTile.size() < 25)
+                                return -1;
+
                             opposite = true;
 
                             if (direction == 1 && i == 7 && distance >= SmallDistance)

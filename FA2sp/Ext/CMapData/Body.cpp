@@ -605,23 +605,8 @@ void CMapDataExt::SmoothAll()
 
 void CMapDataExt::SmoothWater()
 {
-	std::vector<int> BigWaterTiles;
-	std::vector<int> SmallWaterTiles;
-
-	int waterSet = CINI::CurrentTheater->GetInteger("General", "WaterSet", 21);
-	if (waterSet < 0 || waterSet > CMapDataExt::TileSet_starts.size())
-		return;
-
-	for (int i = 0; i < 6; i++)
-		BigWaterTiles.push_back(i + CMapDataExt::TileSet_starts[waterSet]);
-
-	for (int i = 8; i < 13; i++)
-		SmallWaterTiles.push_back(i + CMapDataExt::TileSet_starts[waterSet]);
-
-	
 	int side = CMapData::Instance->MapWidthPlusHeight;
 	auto CellDatas = CMapData::Instance->CellDatas;
-
 
 	// first check all the water tiles
 	for (int i = 0; i < CMapData::Instance->CellDataCount; i++)
@@ -630,10 +615,10 @@ void CMapDataExt::SmoothWater()
 		auto& cell = CMapData::Instance->CellDatas[i];
 		cellExt.Processed = false;
 		cellExt.IsWater = false;
-		for (auto idx : BigWaterTiles)
+		for (auto idx : TheaterInfo::CurrentBigWaters)
 			if (cell.TileIndex == idx)
 				cellExt.IsWater = true;
-		for (auto idx : SmallWaterTiles)
+		for (auto idx : TheaterInfo::CurrentSmallWaters)
 			if (cell.TileIndex == idx)
 				cellExt.IsWater = true;
 	}
@@ -662,7 +647,7 @@ void CMapDataExt::SmoothWater()
 			}
 			if (replaceBig)
 			{
-				int random = STDHelpers::RandomSelectInt(BigWaterTiles);
+				int random = STDHelpers::RandomSelectInt(TheaterInfo::CurrentBigWaters);
 				int subIdx = 0;
 				for (int d = 0; d < 2; d++)
 				{
@@ -690,7 +675,7 @@ void CMapDataExt::SmoothWater()
 		auto& cell = CMapDataExt::CellDataExts[i];
 		if (cell.IsWater && !cell.Processed)
 		{
-			int random = STDHelpers::RandomSelectInt(SmallWaterTiles);
+			int random = STDHelpers::RandomSelectInt(TheaterInfo::CurrentSmallWaters);
 			int dwPos = X + Y  * side;
 			CellDatas[dwPos].TileIndex = random;
 			CellDatas[dwPos].TileSubIndex = 0;
@@ -2522,6 +2507,45 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 							lat.push_back(slIdx);
 				}
 			}
+		}
+	}
+
+	ppmfc::CString pInfoSection = TheaterInfo::GetInfoSection();
+	pInfoSection += "2";
+	TheaterInfo::CurrentBigWaters.clear();
+	TheaterInfo::CurrentSmallWaters.clear();
+	if (CINI::FAData->KeyExists(pInfoSection, "BigWaterIndices"))
+	{
+		auto buffer = CINI::FAData->GetString(pInfoSection, "BigWaterIndices");
+		auto buffers = STDHelpers::SplitString(buffer);
+		for (auto& str : buffers)
+		{
+			TheaterInfo::CurrentBigWaters.insert(atoi(str));
+		}
+	}
+	if (CINI::FAData->KeyExists(pInfoSection, "SmallWaterIndices"))
+	{
+		auto buffer = CINI::FAData->GetString(pInfoSection, "SmallWaterIndices");
+		auto buffers = STDHelpers::SplitString(buffer);
+		for (auto& str : buffers)
+		{
+			TheaterInfo::CurrentSmallWaters.insert(atoi(str));
+		}
+	}
+	if (TheaterInfo::CurrentBigWaters.empty())
+	{
+		int waterSet = CINI::CurrentTheater->GetInteger("General", "WaterSet", 21);
+		for (int i = 0; i < 6; ++i)
+		{
+			TheaterInfo::CurrentBigWaters.insert(CMapDataExt::TileSet_starts[waterSet] + i);
+		}
+	}
+	if (TheaterInfo::CurrentSmallWaters.empty())
+	{
+		int waterSet = CINI::CurrentTheater->GetInteger("General", "WaterSet", 21);
+		for (int i = 8; i < 13; ++i)
+		{
+			TheaterInfo::CurrentSmallWaters.insert(CMapDataExt::TileSet_starts[waterSet] + i);
 		}
 	}
 

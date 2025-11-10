@@ -55,6 +55,20 @@ int STDHelpers::RandomSelectInt(std::vector<int>& vec, bool record, int thisCT) 
     return vec[index];
 }
 
+int STDHelpers::RandomSelectInt(std::set<int>& s) {
+    if (s.empty()) {
+        return 0;
+    }
+
+    static std::mt19937 gen(std::random_device{}());
+    std::uniform_int_distribution<size_t> dist(0, s.size() - 1);
+
+    size_t index = dist(gen);
+    auto it = s.begin();
+    std::advance(it, index);
+    return *it;
+}
+
 int STDHelpers::RandomSelectInt(int start, int end)
 {
     std::vector<int> vec;

@@ -1,4 +1,5 @@
 #include "../Ext/CMapData/Body.h"
+#include "TheaterInfo.h"
 
 DEFINE_HOOK(4138A0, CBitmap2MapConverter_Convert, 7)
 {
@@ -102,8 +103,7 @@ DEFINE_HOOK(4138A0, CBitmap2MapConverter_Convert, 7)
 					{
 						if (CMapDataExt::BitmapImporterTheater != "LUNAR")
 						{
-							int p = rand() * 4 / RAND_MAX;
-							fd->TileIndex = water_start + p;
+							fd->TileIndex = STDHelpers::RandomSelectInt(TheaterInfo::CurrentSmallWaters);
 						}
 						else
 						{
@@ -145,6 +145,7 @@ DEFINE_HOOK(4138A0, CBitmap2MapConverter_Convert, 7)
 			CMapDataExt::SmoothTileAt(x, y);
 		}
 	}
+	CMapDataExt::SmoothWater();
 	
 	DeleteDC(hDC);
 

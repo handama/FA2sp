@@ -5,6 +5,7 @@
 #include <sstream>
 #include <algorithm>
 #include <vector>
+#include <set>
 #include <random>
 
 #include <MFC/ppmfc_cstring.h>
@@ -49,6 +50,7 @@ public:
     static ppmfc::CString RandomSelect(std::vector<ppmfc::CString>& vec);
     static FString RandomSelect(std::vector<FString>& vec);
     static int RandomSelectInt(std::vector<int>& vec, bool record = false, int thisCT = -1);
+    static int RandomSelectInt(std::set<int>& vec);
     static int RandomSelectInt(int start, int end);
 	template <typename T, std::size_t N>
 	static T const& RandomSelectArray(const std::array<T, N>& arr) {

@@ -346,6 +346,12 @@ FString CLoadingExt::GetVehicleOrAircraftFileID(FString ID)
 
 void CLoadingExt::LoadBuilding(FString ID)
 {
+	if (IsLoadingObjectView)
+	{
+		LoadBuilding_Normal(ID);
+		return;
+	}
+
 	const auto& upgrades = CMapDataExt::PowersUpBuildings[ID];
 	for (const auto& upgrade : upgrades)
 	{
@@ -354,8 +360,6 @@ void CLoadingExt::LoadBuilding(FString ID)
 	}
 
 	LoadBuilding_Normal(ID);
-	if (IsLoadingObjectView)
-		return;
 	LoadBuilding_Damaged(ID);
 	LoadBuilding_Rubble(ID);
 

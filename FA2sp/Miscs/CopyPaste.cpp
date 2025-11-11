@@ -290,6 +290,7 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
 
     if (!OnLButtonDownPasted)
     {
+        CMapDataExt::RecordingPreviewHistory = true;
         CMapData::Instance->SaveUndoRedoData(true, bounds.left - center.X + X, bounds.top - center.Y + Y,
             bounds.right - center.X + X + 2, bounds.bottom - center.Y + Y + 2);
     }
@@ -734,6 +735,8 @@ DEFINE_HOOK(4C3850, CMapData_PasteAt, 8)
             }
             const auto p = reinterpret_cast<MyClipboardData*>(reinterpret_cast<char*>(ptr) + 16);
             CopyPaste::Paste(X, Y, nBaseHeight, p, length, recordType);
+            if (!CopyPaste::OnLButtonDownPasted)
+                CMapDataExt::RecordingPreviewHistory = true;
             CopyPaste::OnLButtonDownPasted = false;
             GlobalUnlock(hData);
             CloseClipboard();
@@ -744,7 +747,11 @@ DEFINE_HOOK(4C3850, CMapData_PasteAt, 8)
             GlobalUnlock(hData);
             CloseClipboard();
 
+            if (!CopyPaste::OnLButtonDownPasted)
+                CMapDataExt::RecordingPreviewHistory = true;
             CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+            if (!CopyPaste::OnLButtonDownPasted)
+                CMapDataExt::RecordingPreviewHistory = true;
             CopyPaste::OnLButtonDownPasted = false;
             return 0;
         }

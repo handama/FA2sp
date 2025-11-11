@@ -89,6 +89,8 @@ std::unordered_map<int, Palette*> CMapDataExt::TileSetPalettes;
 int CMapDataExt::NewINIFormat = 4;
 WORD CMapDataExt::NewOverlay[0x40000] = {0xFFFF};
 HistoryList CMapDataExt::UndoRedoDatas;
+HistoryList CMapDataExt::PreviewHistoryData;
+bool CMapDataExt::RecordingPreviewHistory = false;
 int CMapDataExt::UndoRedoDataIndex;
 bool CMapDataExt::IsLoadingMapFile = false;
 bool CMapDataExt::IsMMXFile = false;
@@ -2023,6 +2025,21 @@ void CMapDataExt::MakeMixedRecord(int left, int top, int right, int bottom, int 
 
 	pThis->UndoRedoDataIndex = pThis->UndoRedoDatas.size();
 	pThis->UndoRedoDatas.add(left, top, right, bottom, recordType);
+}
+
+void CMapDataExt::MakePreviewRecord(int left, int top, int right, int bottom)
+{
+	auto pThis = GetExtension();
+	pThis->PreviewHistoryData.clear();
+	pThis->PreviewHistoryData.add(left, top, right, bottom, 0);
+}
+
+void CMapDataExt::RestorePreviewRecord()
+{
+	auto pThis = GetExtension();
+	if (auto data = pThis->PreviewHistoryData.get(0))
+		if (auto* mr = dynamic_cast<MixedRecord*>(data))
+			mr->recover();
 }
 
 void CMapDataExt::UpdateFieldStructureData_RedrawMinimap()

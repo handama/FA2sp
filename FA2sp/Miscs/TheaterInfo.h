@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <set>
 
 struct InfoStruct
 {
@@ -18,5 +19,7 @@ public:
 
 	static std::vector<InfoStruct> CurrentInfo;
 	static std::vector<InfoStruct> CurrentInfoNonMorphable;
+	static std::set<int> CurrentBigWaters;
+	static std::set<int> CurrentSmallWaters;
 	static bool CurrentInfoHasCliff2;
 };

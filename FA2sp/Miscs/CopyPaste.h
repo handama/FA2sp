@@ -53,6 +53,7 @@ public:
     static std::set<MapCoord> PastedCoords;
     static bool CopyWholeMap;
     static bool OnLButtonDownPasted;
+    static bool IsCutting;
     static std::vector<TileRule> TileConvertRules;
     static void Copy(const std::set<MapCoord>& coords);
     static void Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size_t length, int recordType);

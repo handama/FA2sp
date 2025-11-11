@@ -1298,11 +1298,19 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			return this->ppmfc::CDialog::OnCommand(newParam, lParam);
 
 	}
-	// CTRL+C CTRL+V CTRL+Z CTRL+Y
-	if (wmID == 57634 || wmID == 57637 || wmID == 57643 || wmID == 57644)
+	// CTRL+C CTRL+V CTRL+Z CTRL+Y CTRL+X
+	if (wmID == 57634 || wmID == 57637 || wmID == 57643 || wmID == 57644 || wmID == 40166)
 	{
 		if (isInChildWindow())
 			return TRUE;
+	}
+	CopyPaste::IsCutting = false;
+	if (wmID == 40166)
+	{
+		// cutting also uses copying logic
+		CopyPaste::IsCutting = true;
+		auto newParam = MAKELONG(57634, wmMsg);
+		return this->ppmfc::CDialog::OnCommand(newParam, lParam);
 	}
 
 	return this->ppmfc::CDialog::OnCommand(wParam, lParam);

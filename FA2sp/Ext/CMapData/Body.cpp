@@ -350,7 +350,7 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 	if (!this->IsCoordInMap(X, Y))
 		return;
 
-	if (ExtConfigs::PlaceTileSkipHide)
+	if (ExtConfigs::PlaceTileSkipHide && callType != 3) // 3 = cut
 	{
 		const auto cell = this->TryGetCellAt(X, Y);
 		if (cell->IsHidden())

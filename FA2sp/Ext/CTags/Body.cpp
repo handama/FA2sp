@@ -1,6 +1,7 @@
 #include "Body.h"
 #include "../../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
 #include "../../Helpers/STDHelpers.h"
+#include "../../ExtraWindow/CNewTeamTypes/CNewTeamTypes.h"
 
 CTags* CTagsExt::Instance = nullptr;
 
@@ -34,5 +35,23 @@ DEFINE_HOOK(4DEF80, OnCBCurrentTagSelectedChanged_Annotation, 6)
             ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
         }
     }
+    return 0;
+}
+
+DEFINE_HOOK(4E117C, OnDelete_Notify, 5)
+{
+    CNewTeamTypes::TagListChanged = true;
+    return 0;
+}
+
+DEFINE_HOOK(4E1461, OnNew_Notify, 6)
+{
+    CNewTeamTypes::TagListChanged = true;
+    return 0;
+}
+
+DEFINE_HOOK(4DF567, OnEditName_Notify, 6)
+{
+    CNewTeamTypes::TagListChanged = true;
     return 0;
 }

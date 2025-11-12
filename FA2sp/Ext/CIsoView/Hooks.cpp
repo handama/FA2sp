@@ -1646,3 +1646,15 @@ DEFINE_HOOK(469BED, CIsoView_HandleTrail_Range_2, 8)
 	R->EBP(R->EBP() + 2);
 	return 0x469BF5;
 }
+
+DEFINE_HOOK(4574A0, CIsoView_OnMouseMove_MakePreviewRecord, 7)
+{
+	CMapDataExt::RecordingPreviewHistory = true;
+	return 0;
+}
+
+DEFINE_HOOK(459AB9, CIsoView_OnMouseMove_RestorePreviewRecord, 5)
+{
+	CMapDataExt::RecordingPreviewHistory = true;
+	return 0;
+}

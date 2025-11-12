@@ -4,6 +4,7 @@
 BEGIN
     "A",            40104,                  VIRTKEY, CONTROL, NOINVERT
     "C",            57634,                  VIRTKEY, CONTROL, NOINVERT
+    "X",            40166,                  VIRTKEY, CONTROL, NOINVERT
     "F",            40115,                  VIRTKEY, CONTROL, NOINVERT
     "L",            40105,                  VIRTKEY, CONTROL, NOINVERT
     "V",            57637,                  VIRTKEY, CONTROL, NOINVERT

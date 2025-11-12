@@ -19,6 +19,7 @@
 #include "../CSearhReference/CSearhReference.h"
 #include <numeric>
 #include "../CTriggerAnnotation/CTriggerAnnotation.h"
+#include "../CNewTeamTypes/CNewTeamTypes.h"
 
 HWND CNewScript::m_hwnd;
 CFinalSunDlg* CNewScript::m_parent;
@@ -349,6 +350,7 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
             {
                 if (SelectedScriptIndex < 0)
                     break;
+                CNewTeamTypes::ScriptListChanged = true;
                 char buffer[512]{ 0 };
                 GetWindowText(hName, buffer, 511);
                 map.WriteString(CurrentScriptID, "Name", buffer);
@@ -885,6 +887,7 @@ void CNewScript::OnCloseupScript()
 
 void CNewScript::OnClickNewScript()
 {
+    CNewTeamTypes::ScriptListChanged = true;
     FString key = CINI::GetAvailableKey("ScriptTypes");
     FString value = CMapDataExt::GetAvailableIndex();
     FString buffer2;
@@ -905,6 +908,8 @@ void CNewScript::OnClickDelScript(HWND& hWnd)
 {
     if (SelectedScriptIndex < 0)
         return;
+
+    CNewTeamTypes::ScriptListChanged = true;
     int result = MessageBox(hWnd,
         Translations::TranslateOrDefault("ScriptDelWarn", "Are you sure to delete this ScriptType? Don't forget to delete any references to this ScriptType"),
         Translations::TranslateOrDefault("ScriptDelTitle", "Delete ScriptType"), MB_YESNO);
@@ -950,6 +955,7 @@ void CNewScript::OnClickCloScript(HWND& hWnd)
         FString newName = ExtraWindow::GetCloneName(oldname);
 
         CINI::CurrentDocument->WriteString(value, "Name", newName);
+        CNewTeamTypes::ScriptListChanged = true;
 
         auto copyitem = [&value](FString key)
             {

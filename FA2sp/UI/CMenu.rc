@@ -26,6 +26,7 @@ POPUP "Edit"
 	MENUITEM "Redo\tCtrl+Y",  57644
 	MENUITEM SEPARATOR
 	MENUITEM "Copy\tCtrl+C",  57634
+	MENUITEM "Cut\tCtrl+X",  40166
 	MENUITEM "Copy whole map",  40109
 	MENUITEM "Paste\tCtrl+V",  57637
 	MENUITEM "Paste centered",  40110

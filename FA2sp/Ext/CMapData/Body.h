@@ -494,6 +494,8 @@ public:
     std::unique_ptr<TerrainRecord> MakeTerrainRecord(int left, int top, int right, int bottom);
     static ObjectRecord* MakeObjectRecord(int recordType, bool recordOnce = false);
     static void MakeMixedRecord(int left, int top, int right, int bottom, int recordType);
+    static void MakePreviewRecord(int left, int top, int right, int bottom);
+    static void RestorePreviewRecord();
 
     static void UpdateFieldStructureData_RedrawMinimap();
     static void UpdateFieldUnitData_RedrawMinimap();
@@ -551,6 +553,8 @@ public:
     static int NewINIFormat;
     static WORD NewOverlay[0x40000];
     static HistoryList UndoRedoDatas;
+    static HistoryList PreviewHistoryData;
+    static bool RecordingPreviewHistory;
     static int UndoRedoDataIndex;
     static bool IsLoadingMapFile;
     static bool IsMMXFile;

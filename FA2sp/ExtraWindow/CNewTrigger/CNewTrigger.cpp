@@ -19,6 +19,7 @@
 #include "../CSearhReference/CSearhReference.h"
 #include "../CTriggerAnnotation/CTriggerAnnotation.h"
 #include "../CCsfEditor/CCsfEditor.h"
+#include "../CNewTeamTypes/CNewTeamTypes.h"
 
 HWND CNewTrigger::m_hwnd;
 CFinalSunDlg* CNewTrigger::m_parent;
@@ -494,6 +495,7 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
         case Controls::Name:
             if (CODE == EN_CHANGE && CurrentTrigger)
             {
+                CNewTeamTypes::TagListChanged = true;
                 char buffer[512]{ 0 };
                 GetWindowText(hName, buffer, 511);
                 FString name(buffer);
@@ -1457,6 +1459,7 @@ void CNewTrigger::OnSeldropdownTrigger(HWND& hWnd)
 
 void CNewTrigger::OnClickNewTrigger()
 {
+    CNewTeamTypes::TagListChanged = true;
     FString id = CMapDataExt::GetAvailableIndex();
     FString value;
     FString house;
@@ -1508,6 +1511,7 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
 
     if (oriTagID != "<none>")
     {
+        CNewTeamTypes::TagListChanged = true;
         FString tagId = CMapDataExt::GetAvailableIndex();
         value.Format("%s,%s 1,%s", CurrentTrigger->RepeatType, newName, id);
         map.WriteString("Tags", tagId, value);
@@ -1548,6 +1552,9 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
                 }
                 for (auto& tag : TagsToRemove)
                     map.DeleteKey("Tags", tag);
+
+                if (!TagsToRemove.empty())
+                    CNewTeamTypes::TagListChanged = true;
 
                 if (auto pCellTagsSection = map.GetSection("CellTags"))
                 {

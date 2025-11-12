@@ -20,6 +20,7 @@
 #include <numeric>
 #include "../CSearhReference/CSearhReference.h"
 #include "../CTriggerAnnotation/CTriggerAnnotation.h"
+#include "../CNewTeamTypes/CNewTeamTypes.h"
 
 HWND CNewTaskforce::m_hwnd;
 CFinalSunDlg* CNewTaskforce::m_parent;
@@ -263,6 +264,7 @@ BOOL CALLBACK CNewTaskforce::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             {
                 if (SelectedTaskForceIndex < 0)
                     break;
+                CNewTeamTypes::TaskforceListChanged = true;
                 char buffer[512]{ 0 };
                 GetWindowText(hName, buffer, 511);
                 map.WriteString(CurrentTaskForceID, "Name", buffer);
@@ -563,6 +565,7 @@ void CNewTaskforce::OnCloseupTaskforce()
 
 void CNewTaskforce::OnClickNewTaskforce()
 {
+    CNewTeamTypes::TaskforceListChanged = true;
     FString key = CINI::GetAvailableKey("TaskForces");
     FString value = CMapDataExt::GetAvailableIndex();
     FString buffer2;
@@ -591,6 +594,7 @@ void CNewTaskforce::OnClickDelTaskforce(HWND& hWnd)
     if (result == IDNO)
         return;
 
+    CNewTeamTypes::TaskforceListChanged = true;
     map.DeleteSection(CurrentTaskForceID);
     std::vector<FString> deteleKeys;
     if (auto pSection = map.GetSection("TaskForces"))
@@ -629,6 +633,7 @@ void CNewTaskforce::OnClickCloTaskforce(HWND& hWnd)
         FString newName = ExtraWindow::GetCloneName(oldname);
        
         CINI::CurrentDocument->WriteString(value, "Name", newName);
+        CNewTeamTypes::TaskforceListChanged = true;
 
         auto copyitem = [&value](FString key)
             {

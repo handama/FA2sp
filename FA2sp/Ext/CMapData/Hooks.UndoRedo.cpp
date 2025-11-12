@@ -4,6 +4,13 @@ DEFINE_HOOK(4BBEC0, CMapData_DoUndo, 5)
 {
 	GET(CMapDataExt*, pThis, ECX);
 
+	if (CMapDataExt::RecordingPreviewHistory)
+	{
+		CMapDataExt::RecordingPreviewHistory = false;
+		pThis->RestorePreviewRecord();
+		return 0x4BC170;
+	}
+
 	if (pThis->UndoRedoDatas.size() == 0) return 0x4BC170;
 	if (pThis->UndoRedoDataIndex < 0) return 0x4BC170;
 	if (CIsoViewExt::HistoryRecord_IsHoldingLButton) return 0x4BC170;
@@ -101,6 +108,13 @@ DEFINE_HOOK(4BB990, CMapData_SaveUndoRedoData, 7)
 	GET_STACK(int, top, 0xC);
 	GET_STACK(int, right, 0x10);
 	GET_STACK(int, bottom, 0x14);
+
+	if (CMapDataExt::RecordingPreviewHistory)
+	{
+		CMapDataExt::RecordingPreviewHistory = false;
+		pThis->MakePreviewRecord(left, top, right, bottom);
+		return 0x4BBEBD;
+	}
 
 	if (bEraseFollowing)
 	{

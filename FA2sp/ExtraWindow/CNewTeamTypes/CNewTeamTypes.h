@@ -86,6 +86,10 @@ protected:
     static void OnClickCloTeam(HWND& hWnd);
     static void OnClickSearchReference(HWND& hWnd);
 
+    static void OnDropdownTaskForce();
+    static void OnDropdownScript();
+    static void OnDropdownTag();
+
     static void OnCloseupTaskForce();
     static void OnCloseupScript();
     static void OnCloseupTeamtypes();
@@ -148,6 +152,10 @@ public:
     static HWND hTurnToTaskforce;
     static HWND hTurnToScript;
     static HWND hTurnToTag;
+
+    static bool TaskforceListChanged;
+    static bool ScriptListChanged;
+    static bool TagListChanged;
 private:
     static int SelectedTeamIndex;
     static FString CurrentTeamID;
@@ -160,6 +168,5 @@ private:
     static bool WaypointAutodrop;
     static bool DropNeedUpdate;
     static std::vector<FString> mindControlDecisions;
-
 };
 

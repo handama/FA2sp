@@ -2942,9 +2942,10 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 	FString lpOvrlName = pRegName;
 	FString::TrimIndex(lpOvrlName);
 
-	bool isveinhole = CINI::Rules->GetBool(lpOvrlName,"IsVeinholeMonster");
-	bool istiberium = CINI::Rules->GetBool(lpOvrlName, "Tiberium");
-	bool isveins = CINI::Rules->GetBool(lpOvrlName, "IsVeins");
+	bool isveinhole = Variables::RulesMap.GetBool(lpOvrlName,"IsVeinholeMonster");
+	bool istiberium = Variables::RulesMap.GetBool(lpOvrlName, "Tiberium");
+	bool isveins = Variables::RulesMap.GetBool(lpOvrlName, "IsVeins");
+	bool iswall = Variables::RulesMap.GetBool(lpOvrlName, "Wall");
 
 	ArtID = GetArtID(lpOvrlName);
 	ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
@@ -3031,6 +3032,98 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 	if (istiberium || isveinhole || isveins)
 		palette = PalettesManager::LoadPalette("temperat.pal");
 
+	auto pCellAnim = Variables::RulesMap.GetString(lpOvrlName, "CellAnim");
+	FString CellAnimImageID;
+	if (pCellAnim != "")
+	{
+		CellAnimImageID = CINI::Art->GetString(pCellAnim, "Image", pCellAnim);
+		if (iswall)
+		{
+			CellAnimImageID = "";
+		}
+	}
+
+	auto loadSingleFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0,
+		int deltaY = 0, FString customPal = "", bool shadow = false, int forceNewTheater = -1) -> bool
+	{
+		FString CurrentLoadingAnim;
+		bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
+		name = CINI::Art->GetString(name, "Image", name);
+		applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
+
+		FString file = name + ".SHP";
+		int nMix = SearchFile(file);
+		int loadedMix = CLoadingExt::HasFileMix(file, nMix);
+		// if anim file in RA2(MD).mix, always use NewTheater = yes
+		if (Ra2dotMixes.find(loadedMix) != Ra2dotMixes.end())
+		{
+			applyNewTheater = true;
+		}
+
+		if (applyNewTheater || forceNewTheater == 1)
+			SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
+		nMix = SearchFile(file);
+		if (!CLoading::HasFile(file, nMix))
+		{
+			SetGenericTheaterLetter(file);
+			nMix = SearchFile(file);
+			if (!CLoading::HasFile(file, nMix))
+			{
+				if (!ExtConfigs::UseStrictNewTheater)
+				{
+					auto searchNewTheater = [&nMix, this, &file](char t)
+					{
+						if (file.GetLength() >= 2)
+							file.SetAt(1, t);
+						nMix = SearchFile(file);
+						return HasFile(file, nMix);
+					};
+					file = name + ".SHP";
+					nMix = SearchFile(file);
+					if (!CLoading::HasFile(file, nMix))
+						if (!searchNewTheater('T'))
+							if (!searchNewTheater('A'))
+								if (!searchNewTheater('U'))
+									if (!searchNewTheater('N'))
+										if (!searchNewTheater('L'))
+											if (!searchNewTheater('D'))
+												return false;
+				}
+				else
+				{
+					return false;
+				}
+			}
+		}
+
+		ShapeHeader header;
+		unsigned char* pBuffer;
+		CMixFile::LoadSHP(file, nMix);
+		CShpFile::GetSHPHeader(&header);
+		if (header.FrameCount <= nFrame) {
+			nFrame = 0;
+		}
+		CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &pBuffer, header);
+		
+		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, false);
+
+		if (shadow && ExtConfigs::InGameDisplay_Shadow)
+		{
+			CLoadingExt::LoadSHPFrameSafe(nFrame + header.FrameCount / 2, 1, &pBuffer, header);
+			UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, true);
+		}
+
+		return true;
+	};
+
+	auto loadAnimFrameShape = [&](bool shadow)
+	{
+		int nStartFrame = CINI::Art->GetInteger(CellAnimImageID, "LoopStart");
+		int deltaX = CINI::Art->GetInteger(CellAnimImageID, "XDrawOffset");
+		int deltaY = CINI::Art->GetInteger(CellAnimImageID, "YDrawOffset");
+		loadSingleFrameShape(CellAnimImageID, nStartFrame, deltaX, deltaY, "", shadow);
+	};
+
 	if (findFile)
 	{
 		auto customPal = typeData.CustomPaletteName;
@@ -3043,13 +3136,27 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 			}
 		}
 
+		unsigned char* pBuffer[2]{ 0 };
+		int width, height;
+		bool cellAnimShadow = CINI::Art->GetBool(CellAnimImageID, "Shadow") && ExtConfigs::InGameDisplay_Shadow;
+		if (!CellAnimImageID.empty())
+		{
+			loadAnimFrameShape(cellAnimShadow);
+			UnionSHP_GetAndClear(pBuffer[0], &width, &height, false, false);
+			if (cellAnimShadow)
+			{
+				UnionSHP_GetAndClear(pBuffer[1], &width, &height, false, true);
+			}
+		}
+
 		ShapeHeader header;
-		unsigned char* FramesBuffers;
+		unsigned char* FramesBuffers[2]{ 0 };
 		if (CMixFile::LoadSHP(filename, hMix))
 		{
 			CShpFile::GetSHPHeader(&header);
 			int nCount = std::min(header.FrameCount, (short)60);
 
+			Logger::Raw("size: %d %d; frames %d\n", header.Width, header.Height, nCount);
 			for (int i = 0; i < nCount; ++i)
 			{
 				if (IsLoadingObjectView && i != CViewObjectsExt::InsertingOverlayData)
@@ -3061,18 +3168,159 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 				if (imageHeader.Unknown == 0 && !CINI::FAData->GetBool("Debug", "IgnoreSHPImageHeadUnused"))
 					continue;
 
-				CLoadingExt::LoadSHPFrameSafe(i, 1, &FramesBuffers, header);
 				FString DictName = GetOverlayName(nIndex, i);
-				SetImageDataSafe(FramesBuffers, DictName, header.Width, header.Height, palette, true, false);
+
+				CLoadingExt::LoadSHPFrameSafe(i, 1, &FramesBuffers[0], header);
 
 				if (ExtConfigs::InGameDisplay_Shadow && (i < header.FrameCount / 2))
 				{
-					FString DictNameShadow = GetOverlayName(nIndex, i, true);
-					unsigned char* pBufferShadow{ 0 };
-					CLoadingExt::LoadSHPFrameSafe(i + header.FrameCount / 2, 1, &pBufferShadow, header);
-					SetImageDataSafe(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
+					CLoadingExt::LoadSHPFrameSafe(i + header.FrameCount / 2, 1, &FramesBuffers[1], header);
+				}
+
+				if (!CellAnimImageID.empty())
+				{
+					int offset = -60;
+
+					if (nIndex == 0xA7)
+						offset -= 45;
+					else if (
+						nIndex != 0x18 && nIndex != 0x19 && // BRIDGE1, BRIDGE2
+						nIndex != 0x3B && nIndex != 0x3C && // RAILBRDG1, RAILBRDG2
+						nIndex != 0xED && nIndex != 0xEE // BRIDGEB1, BRIDGEB2
+						)
+					{
+						if (nIndex >= 0x27 && nIndex <= 0x36) // Tracks
+							offset += 15;
+						else if (nIndex >= 0x4A && nIndex <= 0x65) // LOBRDG 1-28
+							offset += 15;
+						else if (nIndex >= 0xCD && nIndex <= 0xEC) // LOBRDGB 1-4
+							offset += 15;
+						else if (nIndex == 0xB3 || nIndex == 0xF2) // CRATES
+							offset += 3;
+						else if (nIndex < CMapDataExt::OverlayTypeDatas.size())
+						{
+							if (CMapDataExt::OverlayTypeDatas[nIndex].Rock
+								//|| CMapDataExt::OverlayTypeDatas[nIndex].TerrainRock // for compatibility of blockages
+								|| CMapDataExt::OverlayTypeDatas[nIndex].RailRoad)
+								offset += 15;
+						}
+					}
+					else
+					{
+						if (i >= 0x9 && i <= 0x11)
+							offset -= 16;
+						else
+							offset -= 1;
+					}
+
+					// use CellAnim palette instead
+					FString customPal = CINI::Art->GetString(CellAnimImageID, "CustomPalette", "anim.pal");
+					Palette* cellAnimPal = nullptr;
+					if (istiberium)
+						customPal = "unit~~~.pal";
+					customPal.Replace("~~~", GetTheaterSuffix());
+					if (customPal != "")
+					{
+						if (istiberium)
+						{
+							ppmfc::CString type;
+							if (nIndex >= RIPARIUS_BEGIN && nIndex <= RIPARIUS_END)
+								type = "Riparius";
+							else if (nIndex >= CRUENTUS_BEGIN && nIndex <= CRUENTUS_END)
+								type = "Cruentus";
+							else if (nIndex >= VINIFERA_BEGIN && nIndex <= VINIFERA_END)
+								type = "Vinifera";
+							else if (nIndex >= ABOREUS_BEGIN && nIndex <= ABOREUS_END)
+								type = "Aboreus";
+							else
+								type = "Riparius";
+
+							auto color = Miscs::GetColorRef(type);
+							BGRStruct c;
+							c.R = GetRValue(color);
+							c.G = GetGValue(color);
+							c.B = GetBValue(color);
+							cellAnimPal = PalettesManager::LoadTiberiumCellAnimPalette(c, customPal);
+						}
+						else
+							cellAnimPal = PalettesManager::LoadPalette(customPal);
+
+						if (cellAnimPal)
+						{
+							std::vector<int> lookupTable = GeneratePalLookupTable(palette, cellAnimPal);
+							int counter = 0;
+							for (int j = 0; j < header.Height; ++j)
+							{
+								for (int i = 0; i < header.Width; ++i)
+								{
+									unsigned char& ch = FramesBuffers[0][counter];
+									ch = lookupTable[ch];
+									counter++;
+								}
+							}
+						}
+					}
+
+					unsigned char* TempBuffers[2]{ 0 };
+					unsigned char* pOutBuffers[2]{ 0 };
+					TempBuffers[0] = GameCreateArray<BYTE>(width * height);
+					memcpy(TempBuffers[0], pBuffer[0], width * height);
+					if (FramesBuffers[0])
+					{
+						UnionSHP_Add(FramesBuffers[0], header.Width, header.Height, 0, 0, false, false);
+					}
+					else
+					{
+						FramesBuffers[0] = GameCreateArray<BYTE>(1);
+						FramesBuffers[0][0] = 0;
+						UnionSHP_Add(FramesBuffers[0], 1, 1, 0, 0, false, false);
+					}
+					if (TempBuffers[0])
+						UnionSHP_Add(TempBuffers[0], width, height, 0, -offset, false, false);
+
+					int widthAll, heightAll;
+					UnionSHP_GetAndClear(pOutBuffers[0], &widthAll, &heightAll, false, false);
+					SetImageDataSafe(pOutBuffers[0], DictName, widthAll, heightAll, cellAnimPal ? cellAnimPal : palette, true, false);
+
+					if (cellAnimShadow)
+					{
+						TempBuffers[1] = GameCreateArray<BYTE>(width * height);
+						memcpy(TempBuffers[1], pBuffer[1], width * height);
+						if (FramesBuffers[1])
+						{
+							UnionSHP_Add(FramesBuffers[1], header.Width, header.Height, 0, 0, false, true);
+						}
+						else
+						{
+							FramesBuffers[1] = GameCreateArray<BYTE>(1);
+							FramesBuffers[1][0] = 0;
+							UnionSHP_Add(FramesBuffers[1], 1, 1, 0, 0, false, true);
+						}
+						if (TempBuffers[1])
+							UnionSHP_Add(TempBuffers[1], width, height, 0, -offset, false, true);
+
+						int widthAll, heightAll;
+						FString DictNameShadow = GetOverlayName(nIndex, i, true);
+						UnionSHP_GetAndClear(pOutBuffers[1], &widthAll, &heightAll, false, true);
+						SetImageDataSafe(pOutBuffers[1], DictNameShadow, widthAll, heightAll, &CMapDataExt::Palette_Shadow);
+					}
+				}
+				else
+				{
+					SetImageDataSafe(FramesBuffers[0], DictName, header.Width, header.Height, palette, true, false);
+					if (ExtConfigs::InGameDisplay_Shadow && (i < header.FrameCount / 2))
+					{
+						FString DictNameShadow = GetOverlayName(nIndex, i, true);
+						SetImageDataSafe(FramesBuffers[1], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
+					}
 				}
 			}
-		}	
+		}
+
+		GameDeleteArray(pBuffer[0], width * height);
+		if (cellAnimShadow)
+		{
+			GameDeleteArray(pBuffer[1], width * height);
+		}
 	}
 }

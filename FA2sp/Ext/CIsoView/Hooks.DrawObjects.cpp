@@ -940,6 +940,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							y1 += 15;
 						else if (cellExt->NewOverlay >= 0xCD && cellExt->NewOverlay <= 0xEC) // LOBRDGB 1-4
 							y1 += 15;
+						else if (cellExt->NewOverlay == 0xB3 || cellExt->NewOverlay == 0xF2) // CRATES
+							y1 += 3;
 						else if (cellExt->NewOverlay < CMapDataExt::OverlayTypeDatas.size())
 						{
 							if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].Rock
@@ -1187,6 +1189,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								y1 += 15;
 							else if (cellNextExt.NewOverlay >= 0xCD && cellNextExt.NewOverlay <= 0xEC) // LOBRDGB 1-4
 								y1 += 15;
+							else if (cellExt->NewOverlay == 0xB3 || cellExt->NewOverlay == 0xF2) // CRATES
+								y1 += 3;
 							else if (cellNextExt.NewOverlay < CMapDataExt::OverlayTypeDatas.size())
 							{
 								if (CMapDataExt::OverlayTypeDatas[cellNextExt.NewOverlay].Rock
@@ -1270,6 +1274,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								y1 += 15;
 							else if (cellExt->NewOverlay >= 0xCD && cellExt->NewOverlay <= 0xEC) // LOBRDGB 1-4
 								y1 += 15;
+							else if (cellExt->NewOverlay == 0xB3 || cellExt->NewOverlay == 0xF2) // CRATES
+								y1 += 3;
 							else if (cellExt->NewOverlay < CMapDataExt::OverlayTypeDatas.size())
 							{
 								if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].Rock

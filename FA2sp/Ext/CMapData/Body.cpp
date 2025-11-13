@@ -101,13 +101,13 @@ ObjectRecord* ObjectRecord::ObjectRecord_HoldingPtr = nullptr;
 
 int CMapDataExt::GetOreValue(unsigned short nOverlay, unsigned char nOverlayData)
 {
-    if (nOverlay >= 0x66 && nOverlay <= 0x79)
+    if (nOverlay >= RIPARIUS_BEGIN && nOverlay <= RIPARIUS_END)
         return nOverlayData * OreValue[OreType::Riparius];
-    else if (nOverlay >= 0x1B && nOverlay <= 0x26)
+    else if (nOverlay >= CRUENTUS_BEGIN && nOverlay <= CRUENTUS_END)
         return nOverlayData * OreValue[OreType::Cruentus];
-    else if (nOverlay >= 0x7F && nOverlay <= 0x92)
+    else if (nOverlay >= VINIFERA_BEGIN && nOverlay <= VINIFERA_END)
         return nOverlayData * OreValue[OreType::Vinifera];
-    else if (nOverlay >= 0x93 && nOverlay <= 0xA6)
+    else if (nOverlay >= ABOREUS_BEGIN && nOverlay <= ABOREUS_END)
         return nOverlayData * OreValue[OreType::Aboreus];
     else
         return 0;

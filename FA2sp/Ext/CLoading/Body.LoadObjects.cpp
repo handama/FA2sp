@@ -3137,7 +3137,7 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 		}
 
 		unsigned char* pBuffer[2]{ 0 };
-		int width, height;
+		int width = 1, height = 1;
 		bool cellAnimShadow = CINI::Art->GetBool(CellAnimImageID, "Shadow") && ExtConfigs::InGameDisplay_Shadow;
 		if (!CellAnimImageID.empty())
 		{

@@ -18,6 +18,7 @@
 #include "../CLoading/Body.h"
 #include <immintrin.h>
 #include <mutex>
+#include "../../Miscs/TheaterInfo.h"
 
 Bitmap* CIsoViewExt::pFullBitmap = nullptr;
 bool CIsoViewExt::DrawStructures = true;
@@ -3485,6 +3486,41 @@ void CIsoViewExt::ReduceBrightness(IDirectDrawSurface7* pSurface, const RECT& rc
     pSurface->Unlock(nullptr);
 }
 
+int CIsoViewExt::GetRandomTileIndex()
+{
+    if (CViewObjectsExt::PlacingRandomTile >= 0)
+    {
+        if (CIsoView::CurrentCommand->Command != 10 && CIsoView::CurrentCommand->Param != 1)
+        {
+            CViewObjectsExt::PlacingRandomTile = -1;
+            return 0;
+        }
+        std::vector<int> randomList;
+
+        if (auto pSection = CINI::FAData().GetSection("PlaceRandomTileList"))
+        {
+            if (auto pSection2 = CINI::FAData().GetSection(*pSection->GetValueAt(CViewObjectsExt::PlacingRandomTile)))
+            {
+                for (auto& pKey : pSection2->GetEntities())
+                {
+                    if (pKey.first != "Name" && pKey.first != "AllowedTheater")
+                    {
+                        int tile = atoi(pKey.second);
+                        if (tile >= CMapDataExt::TileDataCount)
+                            return 0;
+                        randomList.push_back(tile);
+                    }
+                }
+            }
+        }
+        return STDHelpers::RandomSelectInt(randomList);
+    }
+    else // random water
+    {
+        return STDHelpers::RandomSelectInt(TheaterInfo::CurrentBigWaters);
+    }
+    return 0;
+}
 
 void CIsoViewExt::MapCoord2ScreenCoord(int& X, int& Y, int flatMode)
 {

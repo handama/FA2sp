@@ -1059,13 +1059,13 @@ DEFINE_HOOK(45A08A, CIsoView_OnMouseMove_Place, 5)
 
 DEFINE_HOOK(457573, CIsoView_OnMouseMove_CustomWater, 5)
 {
-	R->Stack(STACK_OFFS(0x3D528, 0x3D450), STDHelpers::RandomSelectInt(TheaterInfo::CurrentBigWaters));
+	R->Stack(STACK_OFFS(0x3D528, 0x3D450), CIsoViewExt::GetRandomTileIndex());
 	return 0x4575A4;
 }
 
 DEFINE_HOOK(461B8E, CIsoView_PlaceTile_CustomWater, 5)
 {
-	R->EAX(STDHelpers::RandomSelectInt(TheaterInfo::CurrentBigWaters));
+	R->EAX(CIsoViewExt::GetRandomTileIndex());
 	return 0x461BB4;
 }
 

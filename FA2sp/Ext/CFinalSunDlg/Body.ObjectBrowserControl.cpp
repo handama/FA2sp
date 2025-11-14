@@ -83,6 +83,7 @@ int CViewObjectsExt::PlacingRandomInfantry;
 int CViewObjectsExt::PlacingRandomVehicle;
 int CViewObjectsExt::PlacingRandomStructure;
 int CViewObjectsExt::PlacingRandomAircraft;
+int CViewObjectsExt::PlacingRandomTile;
 bool CViewObjectsExt::PlacingRandomRandomFacing;
 bool CViewObjectsExt::PlacingRandomStructureAIRepairs;
 bool CViewObjectsExt::NeedChangeTreeViewSelect = true;
@@ -740,6 +741,44 @@ void CViewObjectsExt::Redraw_Ground()
                 InsertTile(morphables.Morphable);
             ++i;
         }
+        InsertingTileIndex = -1;
+        HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomTileObList", -1, hGround);
+        if (auto pSection = CINI::FAData().GetSection("PlaceRandomTileList"))
+        {
+            int index = RandomTileStart;
+            for (const auto& pKey : pSection->GetEntities())
+            {
+                if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+                {
+                    bool valid = true;
+                    for (auto& pKeyTile : pSection2->GetEntities())
+                    {
+                        if (pKeyTile.first != "Name" && pKeyTile.first != "AllowedTheater")
+                        {
+                            int tile = atoi(pKeyTile.second);
+                            if (tile >= CMapDataExt::TileDataCount)
+                                valid = false;
+                        }
+                    }
+                    if (valid)
+                    {
+                        bool add = false;
+                        auto allowed = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "AllowedTheater", ""));
+                        if (allowed.size() > 0)
+                            for (auto& a : allowed)
+                                if (a == CINI::CurrentDocument().GetString("Map", "Theater"))
+                                    add = true;
+                        if (add)
+                        {
+                            FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "");
+                            InsertingTileIndex = CINI::FAData().GetInteger(pKey.second, "0");
+                            this->InsertString(FA2sp::Buffer, index, hTemp, TVI_LAST);
+                        }
+                    }
+                }
+                index++;
+            }
+        }
     }
     InsertingTileIndex = -1;
 }
@@ -1071,8 +1110,8 @@ void CViewObjectsExt::Redraw_Infantry()
                     this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Infantry + index, hTemp);
                     InsertingObjectID = "";
                 }
-                index++;
             }
+            index++;
         }
     }
 
@@ -1173,8 +1212,8 @@ void CViewObjectsExt::Redraw_Vehicle()
                     this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Vehicle + index, hTemp);
                     InsertingObjectID = "";
                 }
-                index++;
             }
+            index++;
         }
     }
 
@@ -1276,8 +1315,8 @@ void CViewObjectsExt::Redraw_Aircraft()
                     this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Aircraft + index, hTemp);
                     InsertingObjectID = "";
                 }
-                index++;
             }
+            index++;
         }
     }
 
@@ -1418,8 +1457,8 @@ void CViewObjectsExt::Redraw_Building()
                     this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Building + index, hTemp);
                     InsertingObjectID = "";
                 }
-                index++;
             }
+            index++;
         }
     }
 
@@ -1570,8 +1609,8 @@ void CViewObjectsExt::Redraw_Smudge()
                     this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Smudge + index, hRandomSmudge);
                     InsertingObjectID = "";
                 }
-                index++;
             }
+            index++;
         }
     }
 
@@ -1764,8 +1803,8 @@ void CViewObjectsExt::Redraw_Overlay()
                     this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Overlay + index, hTemp2);
                     InsertingOverlay = -1;
                 }
-                index++;
             }
+            index++;
         }
     }
 }
@@ -2973,6 +3012,7 @@ void CViewObjectsExt::InitializeOnUpdateEngine()
     CViewObjectsExt::PlacingRandomVehicle = -1;
     CViewObjectsExt::PlacingRandomStructure = -1;
     CViewObjectsExt::PlacingRandomAircraft = -1;
+    CViewObjectsExt::PlacingRandomTile = -1;
     CViewObjectsExt::PlacingWall = -1;
     CViewObjectsExt::PlacingRandomRandomFacing = false;
     CViewObjectsExt::NeedChangeTreeViewSelect = true;
@@ -3042,6 +3082,55 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         CIsoView::CurrentCommand->Type = 1;
         return true;
     }
+    if (nData >= RandomTileStart && nData <= RandomTileEnd)
+    {
+        if (auto pSection = CINI::FAData().GetSection("PlaceRandomTileList"))
+        {
+            int index = RandomTileStart;
+            for (const auto& pKey : pSection->GetEntities())
+            {
+                if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+                {
+                    if (nData == index)
+                    {
+                        CIsoView::CurrentCommand->Command = 10;
+                        std::vector<int> randomList;
+                        short minWidth = 999;
+                        short minHeight = 999;
+                        int targetIndex = 0;
+                        for (auto& pKeyTile : pSection2->GetEntities())
+                        {
+                            if (pKeyTile.first != "Name" && pKeyTile.first != "AllowedTheater")
+                            {
+                                int tile = CINI::FAData().GetInteger(pKey.second, pKeyTile.first);
+                                if (tile >= CMapDataExt::TileDataCount)
+                                    continue;
+                                minWidth = std::min(minWidth, CMapDataExt::TileData[tile].Width);
+                                minHeight = std::min(minHeight, CMapDataExt::TileData[tile].Height);
+                                randomList.push_back(tile);
+                            }
+                        }
+                        for (auto tile : randomList)
+                        {
+                            if (CMapDataExt::TileData[tile].Width == minWidth &&
+                                CMapDataExt::TileData[tile].Height == minHeight)
+                            {
+                                targetIndex = tile;
+                                break;
+                            }
+                        }
+                        CIsoView::CurrentCommand->Type = targetIndex;
+                        CIsoView::CurrentCommand->Param = 1;
+                        CIsoView::CurrentCommand->Height = 0;
+                        PlacingRandomTile = nData - RandomTileStart;
+                        return true;
+                    }
+                }
+                index++;
+            }
+        }
+        return true;
+    }
     if (nData  >= Const_House + 5000 && nData < Const_House + 5008) // multiplayer locations
     {
         CIsoView::CurrentCommand->Command = 1;
@@ -3074,8 +3163,8 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                         CViewObjectsExt::PlacingRandomInfantry = index - RandomTechno;
                         return true;
                     }
-                    index++;
                 }
+                index++;
             }
         }
     }
@@ -3094,8 +3183,8 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                         CViewObjectsExt::PlacingRandomStructure = index - RandomTechno;
                         return true;
                     }
-                    index++;
                 }
+                index++;
             }
         }
     }
@@ -3114,8 +3203,8 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                         CViewObjectsExt::PlacingRandomAircraft = index - RandomTechno;
                         return true;
                     }
-                    index++;
                 }
+                index++;
             }
         }
     }
@@ -3134,8 +3223,8 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                         CViewObjectsExt::PlacingRandomVehicle = index - RandomTechno;
                         return true;
                     }
-                    index++;
                 }
+                index++;
             }
         }
     }
@@ -3154,8 +3243,8 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                         CViewObjectsExt::PlacingRandomTerrain = index - RandomTree;
                         return true;
                     }
-                    index++;
                 }
+                index++;
             }
         }
     }
@@ -3240,8 +3329,8 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                         CFinalSunDlg::Instance->MyViewFrame.pIsoView->BrushSizeY = 1;
                         return true;
                     }
-                    index++;
                 }
+                index++;
             }
         }
     }
@@ -3260,8 +3349,8 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                         CViewObjectsExt::PlacingRandomSmudge  = index - random1x1crater;
                         return true;
                     }
-                    index++;
                 }
+                index++;
             }
         }
     }

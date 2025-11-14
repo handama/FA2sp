@@ -72,6 +72,36 @@ Palette* PalettesManager::LoadPalette(FString palname)
     return nullptr;
 }
 
+Palette* PalettesManager::LoadTiberiumCellAnimPalette(BGRStruct& color, FString palname)
+{
+    FString paltable;
+    paltable.Format("CellAnim%d%d%d", color.R, color.G, color.B);
+    auto itr = PalettesManager::OriginPaletteFiles.find(paltable);
+    if (itr != PalettesManager::OriginPaletteFiles.end())
+        return itr->second;
+    
+    if (auto pBuffer = (BytePalette*)CLoading::Instance->ReadWholeFile(palname))
+    {
+        auto pPalette = GameCreate<Palette>();
+        for (int i = 0; i < 256; ++i)
+        {
+            pPalette->Data[i].R = pBuffer->Data[i].red << 2;
+            pPalette->Data[i].G = pBuffer->Data[i].green << 2;
+            pPalette->Data[i].B = pBuffer->Data[i].blue << 2;
+        }
+        GameDelete(pBuffer);
+        PalettesManager::OriginPaletteFiles[palname] = pPalette;
+
+        LightingPalette p(*pPalette);
+        p.RemapColors(color);
+        *pPalette = *p.GetPalette();
+
+        return pPalette;
+    }
+
+    return nullptr;
+}
+
 Palette* PalettesManager::GetPalette(Palette* pPal, BGRStruct& color, bool remap, Cell3DLocation location)
 {
     if (remap)

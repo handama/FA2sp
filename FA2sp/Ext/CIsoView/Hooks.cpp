@@ -124,6 +124,8 @@ DEFINE_HOOK(470502, CIsoView_Draw_OverlayOffset, 5)
 			nOffset += 15;
 		else if (nOverlay >= 0xCD && nOverlay <= 0xEC) // LOBRDGB 1-4
 			nOffset += 15;
+		else if (nOverlay == 0xB3 || nOverlay == 0xF2) // CRATES
+			nOffset += 3;
 		else if (nOverlay < CMapDataExt::OverlayTypeDatas.size())
 		{
 			if (CMapDataExt::OverlayTypeDatas[nOverlay].Rock 

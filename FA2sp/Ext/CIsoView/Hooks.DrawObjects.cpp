@@ -61,7 +61,7 @@ inline static void GetUnitImageID(FString& ImageID, const CUnitData& obj, const 
 {
 	if (ExtConfigs::InGameDisplay_Water)
 	{
-		if (landType == LandType::Water || landType == LandType::Beach)
+		if ((landType == LandType::Water || landType == LandType::Beach) && obj.IsAboveGround != "1")
 		{
 			ImageID = Variables::RulesMap.GetString(obj.TypeID, "WaterImage", obj.TypeID);
 		}
@@ -79,7 +79,7 @@ inline static void GetUnitImageID(FString& ImageID, const CUnitData& obj, const 
 		}
 		if (ExtConfigs::InGameDisplay_Water)
 		{
-			if (landType == LandType::Water || landType == LandType::Beach)
+			if ((landType == LandType::Water || landType == LandType::Beach) && obj.IsAboveGround != "1")
 			{
 				if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
 				{
@@ -785,7 +785,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						if (ExtConfigs::InGameDisplay_Water && std::find(swim.begin(), swim.end(), obj.TypeID) != swim.end())
 						{
 							auto landType = CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex);
-							if (landType == LandType::Water || landType == LandType::Beach)
+							if ((landType == LandType::Water || landType == LandType::Beach) && obj.IsAboveGround != "1")
 							{
 								water = true;
 							}
@@ -1690,7 +1690,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						if (ExtConfigs::InGameDisplay_Water && std::find(swim.begin(), swim.end(), obj.TypeID) != swim.end())
 						{
 							auto landType = CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex);
-							if (landType == LandType::Water || landType == LandType::Beach)
+							if ((landType == LandType::Water || landType == LandType::Beach) && obj.IsAboveGround != "1")
 							{
 								water = true;
 							}

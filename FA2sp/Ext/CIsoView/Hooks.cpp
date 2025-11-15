@@ -84,11 +84,6 @@ DEFINE_HOOK(459F4F, CIsoView_Draw_CopySelectionBoundColor, 6)
 	return 0;
 }
 
-DEFINE_HOOK(470194, CIsoView_Draw_LayerVisible_Overlay, 8)
-{
-	return CIsoViewExt::DrawOverlays ? 0 : 0x470772;
-}
-
 DEFINE_HOOK(46BDFA, CIsoView_DrawMouseAttachedStuff_Structure, 5)
 {
 	GET_STACK(const int, X, STACK_OFFS(0x94, -0x4));
@@ -100,51 +95,6 @@ DEFINE_HOOK(46BDFA, CIsoView_DrawMouseAttachedStuff_Structure, 5)
 		CMapData::Instance->SetBuildingData(nullptr, CIsoView::CurrentCommand->ObjectID, CIsoView::CurrentHouse(), nMapCoord, "");
 
 	return 0x46BF98;
-}
-
-DEFINE_HOOK(470502, CIsoView_Draw_OverlayOffset, 5)
-{
-	REF_STACK(const CellData, cell, STACK_OFFS(0xD18, 0xC60));
-	GET(int, nOffset, EAX);
-
-	const int nOverlay = cell.Overlay;
-	const unsigned char nOverlayData = cell.OverlayData;
-
-	if (nOverlay == 0xA7)
-		nOffset -= 45;
-	else if (
-		nOverlay != 0x18 && nOverlay != 0x19 && // BRIDGE1, BRIDGE2
-		nOverlay != 0x3B && nOverlay != 0x3C && // RAILBRDG1, RAILBRDG2
-		nOverlay != 0xED && nOverlay != 0xEE // BRIDGEB1, BRIDGEB2
-		)
-	{
-		if (nOverlay >= 0x27 && nOverlay <= 0x36) // Tracks
-			nOffset += 15;
-		else if (nOverlay >= 0x4A && nOverlay <= 0x65) // LOBRDG 1-28
-			nOffset += 15;
-		else if (nOverlay >= 0xCD && nOverlay <= 0xEC) // LOBRDGB 1-4
-			nOffset += 15;
-		else if (nOverlay == 0xB3 || nOverlay == 0xF2) // CRATES
-			nOffset += 3;
-		else if (nOverlay < CMapDataExt::OverlayTypeDatas.size())
-		{
-			if (CMapDataExt::OverlayTypeDatas[nOverlay].Rock 
-				//|| CMapDataExt::OverlayTypeDatas[nOverlay].TerrainRock // for compatibility of blockages
-				|| CMapDataExt::OverlayTypeDatas[nOverlay].RailRoad)
-				nOffset += 15;
-		}
-	}
-	else
-	{
-		if (nOverlayData >= 0x9 && nOverlayData <= 0x11)
-			nOffset -= 16;
-		else
-			nOffset -= 1;
-	}
-
-	R->EAX(nOffset);
-
-	return 0x470574;
 }
 
 DEFINE_HOOK(457E9D, CIsoView_OnMouseMove_AutoLAT, 6)

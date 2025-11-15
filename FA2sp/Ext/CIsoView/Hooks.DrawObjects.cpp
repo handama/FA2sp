@@ -809,11 +809,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							{
 							case 2:
 								x1 += 15;
-								y1 += 14;
+								y1 += 15;
 								break;
 							case 3:
 								x1 -= 15;
-								y1 += 14;
+								y1 += 15;
 								break;
 							case 4:
 								y1 += 22;
@@ -897,7 +897,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					int y1 = y;
 
 					CIsoViewExt::MaskShadowPixels(window,
-						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + (Variables::RulesMap.GetBool(obj, "SpawnsTiberium") ? 0 : 12),
+						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + (Variables::RulesMap.GetBool(obj, "SpawnsTiberium") ? -1 : 15),
 						pData, shadowMask_Terrain);
 				}
 			}			
@@ -935,19 +935,19 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						)
 					{
 						if (cellExt->NewOverlay >= 0x27 && cellExt->NewOverlay <= 0x36) // Tracks
-							y1 += 15;
+							y1 += 14;
 						else if (cellExt->NewOverlay >= 0x4A && cellExt->NewOverlay <= 0x65) // LOBRDG 1-28
 							y1 += 15;
 						else if (cellExt->NewOverlay >= 0xCD && cellExt->NewOverlay <= 0xEC) // LOBRDGB 1-4
 							y1 += 15;
-						else if (cellExt->NewOverlay == 0xB3 || cellExt->NewOverlay == 0xF2) // CRATES
-							y1 += 3;
 						else if (cellExt->NewOverlay < CMapDataExt::OverlayTypeDatas.size())
 						{
-							if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].Rock
-								//|| CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].TerrainRock // for compatibility of blockages
-								|| CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].RailRoad)
+							if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].Rock)
 								y1 += 15;
+							else if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].RailRoad)
+								y1 += 14;
+							else
+								y1 += 3;
 						}
 					}
 					else
@@ -1184,19 +1184,19 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							)
 						{
 							if (cellNextExt.NewOverlay >= 0x27 && cellNextExt.NewOverlay <= 0x36) // Tracks
-								y1 += 15;
+								y1 += 14;
 							else if (cellNextExt.NewOverlay >= 0x4A && cellNextExt.NewOverlay <= 0x65) // LOBRDG 1-28
 								y1 += 15;
 							else if (cellNextExt.NewOverlay >= 0xCD && cellNextExt.NewOverlay <= 0xEC) // LOBRDGB 1-4
 								y1 += 15;
-							else if (cellExt->NewOverlay == 0xB3 || cellExt->NewOverlay == 0xF2) // CRATES
-								y1 += 3;
 							else if (cellNextExt.NewOverlay < CMapDataExt::OverlayTypeDatas.size())
 							{
-								if (CMapDataExt::OverlayTypeDatas[cellNextExt.NewOverlay].Rock
-									//|| CMapDataExt::OverlayTypeDatas[cellNextExt.NewOverlay].TerrainRock // for compatibility of blockages
-									|| CMapDataExt::OverlayTypeDatas[cellNextExt.NewOverlay].RailRoad)
+								if (CMapDataExt::OverlayTypeDatas[cellNextExt.NewOverlay].Rock)
 									y1 += 15;
+								else if (CMapDataExt::OverlayTypeDatas[cellNextExt.NewOverlay].RailRoad)
+									y1 += 14;
+								else
+									y1 += 3;
 							}
 						}
 						else
@@ -1269,19 +1269,19 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							)
 						{
 							if (cellExt->NewOverlay >= 0x27 && cellExt->NewOverlay <= 0x36) // Tracks
-								y1 += 15;
+								y1 += 14;
 							else if (cellExt->NewOverlay >= 0x4A && cellExt->NewOverlay <= 0x65) // LOBRDG 1-28
 								y1 += 15;
 							else if (cellExt->NewOverlay >= 0xCD && cellExt->NewOverlay <= 0xEC) // LOBRDGB 1-4
 								y1 += 15;
-							else if (cellExt->NewOverlay == 0xB3 || cellExt->NewOverlay == 0xF2) // CRATES
-								y1 += 3;
 							else if (cellExt->NewOverlay < CMapDataExt::OverlayTypeDatas.size())
 							{
-								if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].Rock
-									//|| CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].TerrainRock // for compatibility of blockages
-									|| CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].RailRoad)
+								if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].Rock)
 									y1 += 15;
+								else if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].RailRoad)
+									y1 += 14;
+								else
+									y1 += 3;
 							}
 						}
 						else
@@ -1320,7 +1320,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					bool customPalette = CLoadingExt::CustomPaletteTerrains.find(obj) != CLoadingExt::CustomPaletteTerrains.end();
 					bool isTiberiumTree = Variables::RulesMap.GetBool(obj, "SpawnsTiberium");
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-						x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (isTiberiumTree ? 0 : 12),
+						x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (isTiberiumTree ? -1 : 15),
 						pData, NULL, 255, 0, isTiberiumTree ? 6 : (customPalette ? 5 : -1), false);
 
 					if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages)
@@ -1714,11 +1714,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							{
 							case 2:
 								x1 += 15;
-								y1 += 14;
+								y1 += 15;
 								break;
 							case 3:
 								x1 -= 15;
-								y1 += 14;
+								y1 += 15;
 								break;
 							case 4:
 								y1 += 22;

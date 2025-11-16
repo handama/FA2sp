@@ -3156,7 +3156,6 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 			CShpFile::GetSHPHeader(&header);
 			int nCount = std::min(header.FrameCount, (short)60);
 
-			Logger::Raw("size: %d %d; frames %d\n", header.Width, header.Height, nCount);
 			for (int i = 0; i < nCount; ++i)
 			{
 				if (IsLoadingObjectView && i != CViewObjectsExt::InsertingOverlayData)

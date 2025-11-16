@@ -1763,19 +1763,13 @@ void CIsoViewExt::DrawWaypointFlag(int X, int Y, LPDDSURFACEDESC2 lpDesc)
     this->BlitTransparentDesc(image->lpSurface, this->lpDDBackBufferSurface, lpDesc, X + 5 + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
 }
 
-void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY, std::set<MapCoord>* selectedCoords)
+void CIsoViewExt::GetSameConnectedCells(int X, int Y, int oriX, int oriY, std::set<MapCoord>* selectedCoords)
 {
-    bool isFirstRun = false;
-    std::unique_ptr<std::set<MapCoord>> recordCoords;
     if (!selectedCoords)
-    {
-        recordCoords = std::make_unique<std::set<MapCoord>>();
-        selectedCoords = recordCoords.get();
-        isFirstRun = true;
-    }
+        return;
 
     auto& map = CMapData::Instance;
-    
+
     if (!map->IsCoordInMap(X, Y))
         return;
     auto cell = map->GetCellAt(X, Y);
@@ -1856,73 +1850,81 @@ void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY
                     //        notWaterBlock = false;
                     //}
                     //if (notWaterBlock)
-                        match = true;
+                    match = true;
                 }
             }
 
-
-            if (tileIndex_cell2 != ID && match)
+            if (match)
             {
-                FillArea(cur_x, cur_y, ID, Subtile, oriX, oriY, selectedCoords);
+                GetSameConnectedCells(cur_x, cur_y, oriX, oriY, selectedCoords);
             }
-
         }
     }
     selectedCoords->insert(MapCoord{ X,Y });
-    if (isFirstRun)
+}
+
+void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY)
+{
+    std::unique_ptr<std::set<MapCoord>> recordCoords = std::make_unique<std::set<MapCoord>>();
+    auto& map = CMapData::Instance;
+    for (int i = 0; i < map->CellDataCount; ++i)
     {
-        if (ID >= 0 && ID < CMapDataExt::TileDataCount)
+        auto& cell = map->CellDatas[i];
+        cell.Flag.NotAValidCell = FALSE;
+    }
+    GetSameConnectedCells(X, Y, oriX, oriY, recordCoords.get());
+   
+    if (ID >= 0 && ID < CMapDataExt::TileDataCount)
+    {
+        std::vector<TilePlacement> placements;
+        auto& tile = CMapDataExt::TileData[ID];
+        int tileOriginX = oriY - (tile.Width - 1);
+        int tileOriginY = oriX - (tile.Height - 1);
+        for (const auto& coord : *recordCoords)
         {
-            std::vector<TilePlacement> placements;
-            auto& tile = CMapDataExt::TileData[ID];
-            int tileOriginX = oriY - (tile.Width - 1);
-            int tileOriginY = oriX - (tile.Height - 1);
-            for (const auto& coord : *selectedCoords)
+            int localY = ((coord.Y - tileOriginX) % tile.Width + tile.Width) % tile.Width;
+            int localX = ((coord.X - tileOriginY) % tile.Height + tile.Height) % tile.Height;
+
+            int subtileIndex = localY + localX * tile.Width;
+
+            placements.push_back(TilePlacement{
+                (short)coord.X,
+                (short)coord.Y,
+                (short)subtileIndex
+                });
+        }
+
+        for (auto& coord : placements)
+        {
+            if (tile.TileBlockDatas[coord.SubtileIndex].ImageData != NULL)
             {
-                int localY = ((coord.Y - tileOriginX) % tile.Width + tile.Width) % tile.Width;
-                int localX = ((coord.X - tileOriginY) % tile.Height + tile.Height) % tile.Height;
-
-                int subtileIndex = localY + localX * tile.Width;
-
-                placements.push_back(TilePlacement{
-                    (short)coord.X,
-                    (short)coord.Y,
-                    (short)subtileIndex
-                    });
-            }
-
-            for (auto& coord : placements)
-            {
-                if (tile.TileBlockDatas[coord.SubtileIndex].ImageData != NULL)
-                {
-                    bool isBridge = (tile.TileSet == CMapDataExt::BridgeSet || tile.TileSet == CMapDataExt::WoodBridgeSet);
-                    auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
-                    cell->TileIndex = ID;
-                    cell->TileSubIndex = coord.SubtileIndex;
-                    cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tile.AltTypeCount + 1);
-                    CMapDataExt::GetExtension()->SetHeightAt(coord.X, coord.Y, cell->Height + tile.TileBlockDatas[coord.SubtileIndex].Height);
-                    CMapData::Instance->UpdateMapPreviewAt(coord.X, coord.Y);
-                }
-            }
-
-            if (!CFinalSunApp::Instance->DisableAutoLat)
-            {
-                std::set<MapCoord> editedLatCoords;
-                for (const auto& p : *selectedCoords) {
-                    editedLatCoords.insert({ p.X + 1, p.Y });
-                    editedLatCoords.insert({ p.X - 1, p.Y });
-                    editedLatCoords.insert({ p.X, p.Y + 1 });
-                    editedLatCoords.insert({ p.X, p.Y - 1 });
-                    editedLatCoords.insert({ p.X, p.Y });
-                }
-                for (const auto& p : editedLatCoords)
-                {
-                    CMapDataExt::SmoothTileAt(p.X, p.Y, true);
-                }
+                bool isBridge = (tile.TileSet == CMapDataExt::BridgeSet || tile.TileSet == CMapDataExt::WoodBridgeSet);
+                auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
+                cell->TileIndex = ID;
+                cell->TileSubIndex = coord.SubtileIndex;
+                cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tile.AltTypeCount + 1);
+                CMapDataExt::GetExtension()->SetHeightAt(coord.X, coord.Y, cell->Height + tile.TileBlockDatas[coord.SubtileIndex].Height);
+                CMapData::Instance->UpdateMapPreviewAt(coord.X, coord.Y);
             }
         }
-        selectedCoords->clear();
-    } 
+
+        if (!CFinalSunApp::Instance->DisableAutoLat)
+        {
+            std::set<MapCoord> editedLatCoords;
+            for (const auto& p : *recordCoords) {
+                editedLatCoords.insert({ p.X + 1, p.Y });
+                editedLatCoords.insert({ p.X - 1, p.Y });
+                editedLatCoords.insert({ p.X, p.Y + 1 });
+                editedLatCoords.insert({ p.X, p.Y - 1 });
+                editedLatCoords.insert({ p.X, p.Y });
+            }
+            for (const auto& p : editedLatCoords)
+            {
+                CMapDataExt::SmoothTileAt(p.X, p.Y, true);
+            }
+        }
+    }
+    recordCoords->clear();
 }
 
 void CIsoViewExt::BlitText(const std::wstring& text, COLORREF textColor, COLORREF bgColor,

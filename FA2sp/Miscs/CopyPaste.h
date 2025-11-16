@@ -56,7 +56,9 @@ public:
     static bool IsCutting;
     static std::vector<TileRule> TileConvertRules;
     static void Copy(const std::set<MapCoord>& coords);
-    static void Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size_t length, int recordType);
+    static void Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size_t length, int recordType,
+        std::set<MapCoord>* validCoords = nullptr);
+    static void PasteArea(int X, int Y, int nBaseHeight, MyClipboardData* data, size_t length, int recordType);
     static void LoadTileConvertRule(char sourceTheater);
     static void ConvertTile(CellData& cell);
 private:

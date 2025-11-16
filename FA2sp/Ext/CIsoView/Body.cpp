@@ -2402,6 +2402,112 @@ void CIsoViewExt::BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURF
     pic->Unlock(NULL);
 }
 
+void CIsoViewExt::BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURFACE7 surface, DDSURFACEDESC2* pDestDesc,
+    DDSURFACEDESC2& srcDesc, DDCOLORKEY& srcColorKey, int x, int y, int width, int height, BYTE alpha)
+{
+    if (!pic || !pDestDesc || alpha == 0) {
+        return;
+    }
+
+    const int X_OFFSET = 1;
+    const int Y_OFFSET = -29;
+    const int BPP = 4; 
+
+    auto pThis = CIsoView::GetInstance();
+    RECT windowRect;
+    if (surface == pThis->lpDDBackBufferSurface) {
+        windowRect = CIsoViewExt::GetScaledWindowRect();
+    }
+    else {
+        pThis->GetWindowRect(&windowRect);
+    }
+
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
+    if (width == -1 || height == -1) {
+        DDSURFACEDESC2 ddsd = { sizeof(DDSURFACEDESC2), DDSD_WIDTH | DDSD_HEIGHT };
+        if (pic->GetSurfaceDesc(&ddsd) != DD_OK) {
+            return;
+        }
+        width = ddsd.dwWidth;
+        height = ddsd.dwHeight;
+    }
+
+    if (x + width < 0 || y + height < 0) {
+        return;
+    }
+    if (x > windowRect.right || y > windowRect.bottom) {
+        return;
+    }
+
+    RECT srcRect = { 0, 0, width, height };
+    RECT destRect = { x, y, x + width, y + height };
+    if (destRect.left < 0) {
+        srcRect.left = -destRect.left;
+        destRect.left = 0;
+    }
+    if (destRect.top < 0) {
+        srcRect.top = -destRect.top;
+        destRect.top = 0;
+    }
+    if (destRect.right > windowRect.right) {
+        srcRect.right = width - (destRect.right - windowRect.right);
+        destRect.right = windowRect.right;
+    }
+    if (destRect.bottom > windowRect.bottom) {
+        srcRect.bottom = height - (destRect.bottom - windowRect.bottom);
+        destRect.bottom = windowRect.bottom;
+    }
+
+    DWORD& colorKeyLow = srcColorKey.dwColorSpaceLowValue;
+    DWORD& colorKeyHigh = srcColorKey.dwColorSpaceHighValue;
+
+    BYTE* destPixels = static_cast<BYTE*>(pDestDesc->lpSurface);
+    BYTE* srcPixels = static_cast<BYTE*>(srcDesc.lpSurface);
+    int destPitch = pDestDesc->lPitch;
+    int srcPitch = srcDesc.lPitch;
+    int maxDestX = pDestDesc->dwWidth;
+    int maxDestY = pDestDesc->dwHeight;
+
+    for (LONG row = 0; row < srcRect.bottom - srcRect.top; ++row) {
+        LONG dy = destRect.top + row;
+        if (dy < 0 || dy >= maxDestY) {
+            continue;
+        }
+
+        BYTE* destLine = destPixels + dy * destPitch + destRect.left * BPP;
+        BYTE* srcLine = srcPixels + row * srcPitch;
+        for (LONG col = 0; col < srcRect.right - srcRect.left; ++col) {
+            LONG dx = destRect.left + col;
+            if (dx < 0 || dx >= maxDestX) {
+                continue;
+            }
+
+            int srcIndex = col * BPP;
+            int destIndex = col * BPP;
+            DWORD srcColor = *reinterpret_cast<DWORD*>(srcLine + srcIndex);
+            if (srcColor >= colorKeyLow && srcColor <= colorKeyHigh) {
+                continue;
+            }
+
+            BYTE* destPtr = destLine + destIndex;
+            if (destIndex >= 0 && destIndex < maxDestY * destPitch) {
+                BYTE srcR = srcLine[srcIndex + 2];
+                BYTE srcG = srcLine[srcIndex + 1];
+                BYTE srcB = srcLine[srcIndex];
+                BYTE destR = destPtr[2];
+                BYTE destG = destPtr[1];
+                BYTE destB = destPtr[0];
+
+                destPtr[2] = alphaBlendTable[srcR][alpha] + alphaBlendTable[destR][255 - alpha];
+                destPtr[1] = alphaBlendTable[srcG][alpha] + alphaBlendTable[destG][255 - alpha];
+                destPtr[0] = alphaBlendTable[srcB][alpha] + alphaBlendTable[destB][255 - alpha];
+            }
+        }
+    }
+}
+
 void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
     const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, COLORREF houseColor, int extraLightType, bool remap)
 {

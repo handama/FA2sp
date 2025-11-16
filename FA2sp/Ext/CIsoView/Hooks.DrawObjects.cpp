@@ -1904,6 +1904,27 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	}
 
 	// celltag, waypoint, annotation
+	DDSURFACEDESC2 CellTagDesc = { sizeof(DDSURFACEDESC2) };
+	DDCOLORKEY CellTagColorKey{0,0};
+	auto CellTagImage = CLoadingExt::GetSurfaceImageDataFromMap("CELLTAG");
+	bool CellTagLocked = CellTagImage &&
+		CellTagImage->lpSurface->Lock(NULL, &CellTagDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) == DD_OK;
+	if (CellTagImage) CellTagImage->lpSurface->GetColorKey(DDCKEY_SRCBLT, &CellTagColorKey);
+
+	DDSURFACEDESC2 WaypointDesc = { sizeof(DDSURFACEDESC2) };
+	DDCOLORKEY WaypointColorKey{ 0,0 };
+	auto WaypointImage = CLoadingExt::GetSurfaceImageDataFromMap("FLAG");
+	bool WaypointLocked = WaypointImage &&
+		WaypointImage->lpSurface->Lock(NULL, &WaypointDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) == DD_OK;
+	if (WaypointImage) WaypointImage->lpSurface->GetColorKey(DDCKEY_SRCBLT, &WaypointColorKey);
+
+	DDSURFACEDESC2 AnnotationDesc = { sizeof(DDSURFACEDESC2) };
+	DDCOLORKEY AnnotationColorKey{ 0,0 };
+	auto AnnotationImage = CLoadingExt::GetSurfaceImageDataFromMap("annotation.bmp");
+	bool AnnotationLocked = AnnotationImage &&
+		AnnotationImage->lpSurface->Lock(NULL, &AnnotationDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) == DD_OK;
+	if (AnnotationImage) AnnotationImage->lpSurface->GetColorKey(DDCKEY_SRCBLT, &AnnotationColorKey);
+
 	for (const auto& info : visibleCells)
 	{
 		if (!info.isInMap) continue;
@@ -1915,7 +1936,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		auto& x = info.screenX;
 		auto& y = info.screenY;
 
-		if (CIsoViewExt::DrawCelltags && cell->CellTag != -1)
+		if (CellTagLocked && CIsoViewExt::DrawCelltags && cell->CellTag != -1)
 		{
 			if (CIsoViewExt::DrawCellTagsFilter && !CViewObjectsExt::ObjectFilterCT.empty())
 			{
@@ -1929,7 +1950,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						if (name == id)
 						{
-							pThis->DrawCelltag(x, y, lpDesc);
+							pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface, 
+								pThis->lpDDBackBufferSurface, lpDesc, CellTagDesc, CellTagColorKey,
+								x + 25 - CellTagImage->FullWidth / 2,
+								y + 12 - CellTagImage->FullHeight / 2, -1, -1);
 							break;
 						}
 						if (STDHelpers::IsNumber(name))
@@ -1941,7 +1965,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								buffer.Format("%08d", n + 1000000);
 								if (buffer == id)
 								{
-									pThis->DrawCelltag(x, y, lpDesc);
+									pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface,
+										pThis->lpDDBackBufferSurface, lpDesc, CellTagDesc, CellTagColorKey,
+										x + 25 - CellTagImage->FullWidth / 2,
+										y + 12 - CellTagImage->FullHeight / 2, -1, -1);
 									break;
 								}
 							}
@@ -1950,17 +1977,33 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				}
 			}
 			else
-				pThis->DrawCelltag(x, y, lpDesc);
+				pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface,
+					pThis->lpDDBackBufferSurface, lpDesc, CellTagDesc, CellTagColorKey,
+					x + 25 - CellTagImage->FullWidth / 2,
+					y + 12 - CellTagImage->FullHeight / 2, -1, -1);
 		}
 
-		if (CIsoViewExt::DrawWaypoints && cell->Waypoint != -1)
-			pThis->DrawWaypointFlag(x, y, lpDesc);
+		if (WaypointLocked && CIsoViewExt::DrawWaypoints && cell->Waypoint != -1)
+			pThis->BlitTransparentDescNoLock(WaypointImage->lpSurface,
+				pThis->lpDDBackBufferSurface, lpDesc, WaypointDesc, WaypointColorKey,
+				x + 30 - WaypointImage->FullWidth / 2,
+				y + 12 - WaypointImage->FullHeight / 2, -1, -1);
 
-		if (CIsoViewExt::DrawAnnotations && CMapDataExt::HasAnnotation(pos))
-		{
-			pThis->DrawBitmap("annotation", x + 5, y - 2, lpDesc);
-		}
+		if (AnnotationLocked && CIsoViewExt::DrawAnnotations && CMapDataExt::HasAnnotation(pos))
+			pThis->BlitTransparentDescNoLock(AnnotationImage->lpSurface,
+				pThis->lpDDBackBufferSurface, lpDesc, AnnotationDesc, AnnotationColorKey,
+				x + 5,
+				y - 2, -1, -1);
 	}
+
+	if (CellTagImage && CellTagLocked)
+		CellTagImage->lpSurface->Unlock(NULL);
+
+	if (WaypointImage && WaypointLocked)
+		WaypointImage->lpSurface->Unlock(NULL);
+
+	if (AnnotationImage && AnnotationLocked)
+		AnnotationImage->lpSurface->Unlock(NULL);
 
 	auto& cellDataExt = CMapDataExt::CellDataExt_FindCell;
 	if (cellDataExt.drawCell)

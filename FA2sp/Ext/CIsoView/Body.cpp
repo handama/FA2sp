@@ -3131,7 +3131,7 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
                     if (wx >= window.left && wx < window.right &&
                         wy >= window.top && wy < window.bottom)
                     {
-                        int offset = (-subTile->YMinusExY - (row - srcRect.top));
+                        int offset = (-subTile->YMinusExY - 15 - (row - srcRect.top));
                         (*cellHeightMask)[wx - window.left + (wy - window.top) * (window.right - window.left)] 
                             = height + (subTile->YMinusExY < 0 ? (offset > 0 ? (offset / 30 + 1) : 0) : 0);
                     }

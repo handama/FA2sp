@@ -1161,7 +1161,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								isCellHidden(cell) ? 128 : 255,
 								shadow ? &shadowMask : nullptr,
 								shadow ? &shadowHeightMask : nullptr,
-								cell->Height + (subTile.YMinusExY < 0 ? subTile.YMinusExY / -30 : 0));
+								cell->Height + (subTile.YMinusExY < 0 ? ((subTile.YMinusExY + 15) / -30) : 0));
 
 							if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
 							{

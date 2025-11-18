@@ -139,12 +139,16 @@ public:
     static void BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd);
     static void BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
-        const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha = 255);
+        const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha = 255,
+        std::vector<byte>* mask = nullptr, std::vector<byte>* heightMask = nullptr, byte height = 0,
+        std::vector<byte>* cellHeightMask = nullptr);
     static void BlitText(const std::wstring& text, COLORREF textColor, COLORREF bgColor,
         CIsoView* pThis, void* dst, const RECT& window, const DDBoundary& boundary,
         int x, int y, int fontSize = 20, BYTE alpha = 255, bool bold = false);
-    static void MaskShadowPixels(const RECT& window, int x, int y, ImageDataClassSafe* pd, std::vector<char>& mask);
-    static void DrawShadowMask(void* dst, const DDBoundary& boundary, const RECT& window, const std::vector<byte>& mask);
+    static void MaskShadowPixels(const RECT& window, int x, int y, ImageDataClassSafe* pd,
+        std::vector<char>& mask, std::vector<byte>& heightMask, byte height);
+    static void DrawShadowMask(void* dst, const DDBoundary& boundary, const RECT& window, 
+        const std::vector<byte>& mask, const std::vector<byte>& shadowHeightMask, const std::vector<byte>& cellHeightMask);
     static void ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, bool removeHalo = true, bool trim = true);
     static std::vector<MapCoord> GetTubePath(int x1, int y1, int x2, int y2, bool first = true);
     static std::vector<int> GetTubeDirections(const std::vector<MapCoord>& path);

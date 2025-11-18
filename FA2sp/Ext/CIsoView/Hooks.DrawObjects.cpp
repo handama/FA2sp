@@ -395,12 +395,26 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			CIsoView::MapCoord2ScreenCoord(screenX, screenY);
 			screenX -= DrawOffsetX;
 			screenY -= DrawOffsetY;
+			auto cell = CMapData::Instance->GetCellAt(pos);
 			visibleCells.push_back({ X, Y, screenX, screenY, pos,
 				CMapData::Instance->IsCoordInMap(X, Y), 
-				CMapData::Instance->GetCellAt(pos), 
+				cell,
 				&CMapDataExt::CellDataExts[pos] });
+
+			cell->Flag.RedrawTerrain = false;
 		}
 	}
+
+	bool shadow = CIsoViewExt::DrawShadows && ExtConfigs::InGameDisplay_Shadow;
+	int shadowMask_width = window.right - window.left;
+	int shadowMask_height = window.bottom - window.top;
+	int shadowMask_size = shadowMask_width * shadowMask_height;
+	std::vector<char> shadowMask_Building_Infantry(shadowMask_size, 0);
+	std::vector<char> shadowMask_Terrain(shadowMask_size, 0);
+	std::vector<char> shadowMask_Overlay(shadowMask_size, 0);
+	std::vector<byte> shadowMask(shadowMask_size, 0);
+	std::vector<byte> shadowHeightMask(shadowMask_size, 0);
+	std::vector<byte> cellHeightMask(shadowMask_size, 0);
 
 	//loop1: tiles
 	std::vector<MapCoord> RedrawCoords;
@@ -424,14 +438,25 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		if (tileIndex >= CMapDataExt::TileDataCount)
 			continue;
 
-		cell->Flag.RedrawTerrain = false;
-		for (int i = 1; i <= 2; i++)
+		for (int i = 1; i <= 4; i++)
 		{
 			if (CMapData::Instance->IsCoordInMap(X - i, Y - i))
 			{
 				auto blockedCell = CMapData::Instance->GetCellAt(X - i, Y - i);
 				if (cell->Height - blockedCell->Height >= 2 * i
 					|| i == 1 && blockedCell->Flag.RedrawTerrain && cell->Height > blockedCell->Height)
+					cell->Flag.RedrawTerrain = true;
+			}
+			if (CMapData::Instance->IsCoordInMap(X - i - 1, Y - i))
+			{
+				auto blockedCell = CMapData::Instance->GetCellAt(X - i - 1, Y - i);
+				if (blockedCell->Flag.RedrawTerrain && cell->Height - blockedCell->Height >= 2 * i)
+					cell->Flag.RedrawTerrain = true;
+			}
+			if (CMapData::Instance->IsCoordInMap(X - i, Y - i - 1))
+			{
+				auto blockedCell = CMapData::Instance->GetCellAt(X - i, Y - i - 1);
+				if (blockedCell->Flag.RedrawTerrain && cell->Height - blockedCell->Height >= 2 * i)
 					cell->Flag.RedrawTerrain = true;
 			}
 		}
@@ -475,7 +500,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						
 					CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 						x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
-						isCellHidden(cell) ? 128 : 255);
+						isCellHidden(cell) ? 128 : 255, nullptr, nullptr, cell->Height, &cellHeightMask);
 
 					auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
 					cellExt.HasAnim = false;
@@ -563,13 +588,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	}
 
 	//loop2: shadows
-	bool shadow = CIsoViewExt::DrawShadows && ExtConfigs::InGameDisplay_Shadow;
-	int shadowMask_width = window.right - window.left;
-	int shadowMask_height = window.bottom - window.top;
-	int shadowMask_size = shadowMask_width * shadowMask_height;
-	std::vector<char> shadowMask_Building_Infantry(shadowMask_size, 0);
-	std::vector<char> shadowMask_Terrain(shadowMask_size, 0);
-	std::vector<char> shadowMask_Overlay(shadowMask_size, 0);
 	for (const auto& info : visibleCells)
 	{
 		if (!info.isInMap) continue;
@@ -725,7 +743,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								if (pData->pImageBuffer)
 								{
 									CIsoViewExt::MaskShadowPixels(window,
-										x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, shadowMask_Building_Infantry);
+										x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, 
+										shadowMask_Building_Infantry,
+										shadowHeightMask, cell->Height);
 								}
 
 								for (int upgrade = 0; upgrade < objRender.PowerUpCount; ++upgrade)
@@ -752,7 +772,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 										CIsoViewExt::MaskShadowPixels(window,
 											x1 - pUpgData->FullWidth / 2, y1 - pUpgData->FullHeight / 2,
-											pUpgData, shadowMask_Building_Infantry);
+											pUpgData, shadowMask_Building_Infantry,
+											shadowHeightMask, cell->Height);
 									}
 								}
 							}
@@ -827,7 +848,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								y1 -= 60;
 
 							CIsoViewExt::MaskShadowPixels(window,
-								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, shadowMask_Building_Infantry);
+								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, 
+								shadowMask_Building_Infantry,
+								shadowHeightMask, cell->Height);
 						}
 					}
 				}
@@ -898,7 +921,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 					CIsoViewExt::MaskShadowPixels(window,
 						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + (Variables::RulesMap.GetBool(obj, "SpawnsTiberium") ? -1 : 15),
-						pData, shadowMask_Terrain);
+						pData, shadowMask_Terrain,
+						shadowHeightMask, cell->Height);
 				}
 			}			
 		}
@@ -959,20 +983,20 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					}
 
 					CIsoViewExt::MaskShadowPixels(window,
-						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, shadowMask_Overlay);
+						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, shadowMask_Overlay,
+						shadowHeightMask, cell->Height);
 				}
 			}		
 		}
 	}
 	if (shadow)
-	{
-		std::vector<byte> shadowMask(shadowMask_size, 0);
+	{	
 		for (size_t i = 0; i < shadowMask_size; ++i) {
 			shadowMask[i] += shadowMask_Building_Infantry[i];
 			shadowMask[i] += shadowMask_Terrain[i];
 			shadowMask[i] += shadowMask_Overlay[i];
 		}
-		CIsoViewExt::DrawShadowMask(lpDesc->lpSurface, boundary, window, shadowMask);
+		CIsoViewExt::DrawShadowMask(lpDesc->lpSurface, boundary, window, shadowMask, shadowHeightMask, cellHeightMask);
 	}
 
 	//loop3: objects
@@ -1047,6 +1071,82 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
 					{
 						auto& subTile = tile.TileBlockDatas[tileSubIndex];
+
+						for (int i = 1; i <= 2; i++)
+						{
+							if (CMapData::Instance->IsCoordInMap(X + i, Y + i))
+							{
+								auto nextCell = CMapData::Instance->GetCellAt(X + i, Y + i);
+								int altImage = nextCell->Flag.AltIndex;
+								int tileIndex = CMapDataExt::GetSafeTileIndex(nextCell->TileIndex);
+								int tileSubIndex = CMapDataExt::GetSafeTileIndex(nextCell->TileSubIndex);
+								CTileBlockClass* subTile = nullptr;
+								if (!nextCell->Flag.RedrawTerrain)
+								{
+									if (CFinalSunApp::Instance->FrameMode)
+									{
+										if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
+										{
+											tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
+										}
+										else
+										{
+											tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + nextCell->Height;
+											tileSubIndex = 0;
+										}
+									}
+
+									CTileTypeClass* tile = &CMapDataExt::TileData[tileIndex];
+									int tileSet = tile->TileSet;
+									if (tile->AltTypeCount)
+									{
+										if (altImage > 0)
+										{
+											altImage = altImage < tile->AltTypeCount ? altImage : tile->AltTypeCount;
+											tile = &tile->AltTypes[altImage - 1];
+										}
+									}
+									subTile = &tile->TileBlockDatas[tileSubIndex];
+								}
+								else
+									continue;
+								if (subTile && 
+									-subTile->YMinusExY 
+									- 30 * i 
+									- (cell->Height - nextCell->Height) * 15
+									>= 0) // tile blocks with extra image above themselves
+								{
+									nextCell->Flag.RedrawTerrain = true;
+
+									for (int j = 1; j <= 2; j++)
+									{
+										if (CMapData::Instance->IsCoordInMap(X + i + j, Y + i + j))
+										{
+											auto nextNextCell = CMapData::Instance->GetCellAt(X + i + j, Y + i + j);
+											if (nextNextCell->Height - nextCell->Height >= 2 * j
+												|| j == 1 && nextNextCell->Height > nextCell->Height)
+												nextNextCell->Flag.RedrawTerrain = true;
+										}
+										if (CMapData::Instance->IsCoordInMap(X + i + j + 1, Y + i + j))
+										{
+											auto nextNextCell = CMapData::Instance->GetCellAt(X + i + j + 1, Y + i + j);
+											if (nextNextCell->Height - nextCell->Height >= 2 * j
+												|| j == 1 && nextNextCell->Height > nextCell->Height)
+												nextNextCell->Flag.RedrawTerrain = true;
+										}
+										if (CMapData::Instance->IsCoordInMap(X + i + j, Y + i + j + 1))
+										{
+											auto nextNextCell = CMapData::Instance->GetCellAt(X + i + j, Y + i + j + 1);
+											if (nextNextCell->Height - nextCell->Height >= 2 * j
+												|| j == 1 && nextNextCell->Height > nextCell->Height)
+												nextNextCell->Flag.RedrawTerrain = true;
+										}
+									}
+									continue;
+								}
+							}
+						}
+
 						int x1 = x;
 						int y1 = y;
 						x1 -= 60;
@@ -1058,7 +1158,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 							CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 								x1 + subTile.XMinusExX, y1 + subTile.YMinusExY, &subTile, pal,
-								isCellHidden(cell) ? 128 : 255);
+								isCellHidden(cell) ? 128 : 255,
+								shadow ? &shadowMask : nullptr,
+								shadow ? &shadowHeightMask : nullptr,
+								cell->Height + (subTile.YMinusExY < 0 ? subTile.YMinusExY / -30 : 0));
 
 							if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
 							{

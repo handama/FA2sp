@@ -2988,7 +2988,8 @@ void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, Imag
 }
 
 void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
-    const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha)
+    const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha, 
+    std::vector<byte>* mask, std::vector<byte>* heightMask, byte height, std::vector<byte>* cellHeightMask)
 {
     if (alpha == 0 || !subTile || !subTile->HasValidImage || !subTile->ImageData || !dst || !subTile->pPixelValidRanges) {
         return;
@@ -2999,6 +3000,7 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
     const int X_OFFSET = 61;
     const int Y_OFFSET = 1;
     const int BPP = 4;
+    const BGRStruct SHADOW_COLOR = { 0, 0, 0 };
 
     x += X_OFFSET;
     y += Y_OFFSET;
@@ -3097,6 +3099,43 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
             BYTE pixelValue = *srcPtr;
             if (pixelValue && destPtr + BPP <= surfaceEnd) {
                 BGRStruct c = newPal->Data[pixelValue];
+
+                if (mask)
+                {
+                    int wy = destRect.top + row;
+                    int wx = destRect.left + col;
+
+                    if (wx >= window.left && wx < window.right &&
+                        wy >= window.top && wy < window.bottom)
+                    {
+                        int index = wx - window.left + (wy - window.top) * (window.right - window.left);
+                        if ((*heightMask)[index] >= height)
+                        {
+                            if (auto shadow = (*mask)[index])
+                            {
+                                BYTE keep = alphaBlendTable[255][127];
+                                BYTE blend = 255 - keep;
+                                c.R = alphaBlendTable[SHADOW_COLOR.R][blend] + alphaBlendTable[c.R][keep];
+                                c.G = alphaBlendTable[SHADOW_COLOR.G][blend] + alphaBlendTable[c.G][keep];
+                                c.B = alphaBlendTable[SHADOW_COLOR.B][blend] + alphaBlendTable[c.B][keep];
+                            }
+                        }
+                    }
+                }
+
+                if (cellHeightMask)
+                {
+                    int wy = destRect.top + row;
+                    int wx = destRect.left + col;
+
+                    if (wx >= window.left && wx < window.right &&
+                        wy >= window.top && wy < window.bottom)
+                    {
+                        int offset = (-subTile->YMinusExY - (row - srcRect.top));
+                        (*cellHeightMask)[wx - window.left + (wy - window.top) * (window.right - window.left)] 
+                            = height + (subTile->YMinusExY < 0 ? (offset > 0 ? (offset / 30 + 1) : 0) : 0);
+                    }
+                }
 
                 if (alpha < 255) {
                     BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(destPtr);
@@ -3320,7 +3359,8 @@ void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, b
     return;
 }
 
-void CIsoViewExt::MaskShadowPixels(const RECT& window, int x, int y, ImageDataClassSafe* pd, std::vector<char>& mask)
+void CIsoViewExt::MaskShadowPixels(const RECT& window, int x, int y, ImageDataClassSafe* pd,
+    std::vector<char>& mask, std::vector<byte>& heightMask, byte height)
 {
     if (!pd || !pd->pImageBuffer || !pd->pPixelValidRanges || mask.empty()) {
         return;
@@ -3388,12 +3428,14 @@ void CIsoViewExt::MaskShadowPixels(const RECT& window, int x, int y, ImageDataCl
             if (localX >= 0 && localX < maskWidth && localY >= 0 && localY < maskHeight) {
                 size_t maskIndex = static_cast<size_t>(localY * maskWidth + localX);
                 mask[maskIndex] = 1;
+                heightMask[maskIndex] = height;
             }
         }
     }
 }
 
-void CIsoViewExt::DrawShadowMask(void* dst, const DDBoundary& boundary, const RECT& window, const std::vector<byte>& mask)
+void CIsoViewExt::DrawShadowMask(void* dst, const DDBoundary& boundary, const RECT& window, 
+    const std::vector<byte>& mask, const std::vector<byte>& shadowHeightMask, const std::vector<byte>& cellHeightMask)
 {
     if (!dst || mask.empty()) {
         return;
@@ -3422,6 +3464,7 @@ void CIsoViewExt::DrawShadowMask(void* dst, const DDBoundary& boundary, const RE
 
         BYTE* destLine = base + dy * boundary.dpitch + window.left * BPP;
         for (LONG x = 0; x < maskWidth; ++x) {
+            int index = y * maskWidth + x;
             BYTE count = mask[y * maskWidth + x];
             if (count == 0) {
                 continue;
@@ -3437,14 +3480,21 @@ void CIsoViewExt::DrawShadowMask(void* dst, const DDBoundary& boundary, const RE
                 continue;
             }
 
+            if (cellHeightMask[index] > shadowHeightMask[index]) {
+                continue;
+            }
+
             BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(dest);
             BGRStruct blended = oriColor;
 
             BYTE keep = alphaBlendTable[255][255 - ALPHA];
             BYTE blend = 255 - keep;
-            blended.R = alphaBlendTable[SHADOW_COLOR.R][blend] + alphaBlendTable[oriColor.R][keep];
-            blended.G = alphaBlendTable[SHADOW_COLOR.G][blend] + alphaBlendTable[oriColor.G][keep];
-            blended.B = alphaBlendTable[SHADOW_COLOR.B][blend] + alphaBlendTable[oriColor.B][keep];
+
+            for (BYTE i = 0; i < count; ++i) {
+                blended.R = alphaBlendTable[SHADOW_COLOR.R][blend] + alphaBlendTable[blended.R][keep];
+                blended.G = alphaBlendTable[SHADOW_COLOR.G][blend] + alphaBlendTable[blended.G][keep];
+                blended.B = alphaBlendTable[SHADOW_COLOR.B][blend] + alphaBlendTable[blended.B][keep];
+            }
 
             memcpy(dest, &blended, BPP);
         }

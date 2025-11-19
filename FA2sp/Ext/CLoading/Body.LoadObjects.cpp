@@ -1803,7 +1803,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
         
 				CLoadingExt::LoadSHPFrameSafe(framesToRead[i], 1, &FramesBuffers[0], header);
 				FString DictName;
-        DictName.Format("%s\233%d", ID, i);
+				DictName.Format("%s\233%d", ID, i);
         
 				if (bHasTurret)
 				{

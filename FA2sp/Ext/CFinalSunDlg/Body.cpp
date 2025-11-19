@@ -1272,6 +1272,22 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(COptions::GetHandle(), 114514, 0, 0);
 			return TRUE;
 		}
+		else if (hWnd == CNewLocalVariables::GetHandle()) {
+			::SendMessage(CNewLocalVariables::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CTriggerAnnotation::GetHandle()) {
+			::SendMessage(CTriggerAnnotation::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CCsfEditor::GetHandle()) {
+			::SendMessage(CCsfEditor::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CLuaConsole::GetHandle()) {
+			::SendMessage(CLuaConsole::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
 
 		int newParam = 0;
 		auto refreshFA2Window = [this, &hWnd, &newParam, wmMsg](int wmID2, ppmfc::CDialog& dialog)
@@ -1283,7 +1299,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				}
 				return false;
 			};
-
 
 		refreshFA2Window(40040, this->MapD);
 		refreshFA2Window(40039, this->Houses);

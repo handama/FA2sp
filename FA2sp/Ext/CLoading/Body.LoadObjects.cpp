@@ -100,9 +100,9 @@ FString CLoadingExt::GetImageName(FString ID, int nFacing, bool bShadow, bool bD
 {
 	FString ret;
 	if (bShadow || bDeploy || bWater)
-		ret.Format("%s%d\233%s%s%s", ID, nFacing, bDeploy ? "DEPLOY" : "", bWater ? "WATER" : "", bShadow ? "SHADOW" : "");
+		ret.Format("%s\233%d\233%s%s%s", ID, nFacing, bDeploy ? "DEPLOY" : "", bWater ? "WATER" : "", bShadow ? "SHADOW" : "");
 	else
-		ret.Format("%s%d", ID, nFacing);
+		ret.Format("%s\233%d", ID, nFacing);
 	return ret;
 }
 
@@ -122,27 +122,27 @@ FString CLoadingExt::GetBuildingImageName(FString ID, int nFacing, int state, bo
 	if (state == GBIN_DAMAGED)
 	{
 		if (bShadow)
-			ret.Format("%s%d\233DAMAGEDSHADOW", ID, nFacing);
+			ret.Format("%s\233%d\233DAMAGEDSHADOW", ID, nFacing);
 		else
-			ret.Format("%s%d\233DAMAGED", ID, nFacing);
+			ret.Format("%s\233%d\233DAMAGED", ID, nFacing);
 	}
 	else if (state == GBIN_RUBBLE)
 	{
 		if (bShadow)
 		{
 			if (Variables::RulesMap.GetBool(ID, "LeaveRubble"))
-				ret.Format("%s0\233RUBBLESHADOW", ID);
+				ret.Format("%s\2330\233RUBBLESHADOW", ID);
 			else if (!ExtConfigs::HideNoRubbleBuilding)// use damaged art, save memory
-				ret.Format("%s%d\233DAMAGEDSHADOW", ID, nFacing);
+				ret.Format("%s\233%d\233DAMAGEDSHADOW", ID, nFacing);
 			else // hide rubble
 				ret = "\233\144\241"; // invalid string to get it empty
 		}
 		else
 		{
 			if (Variables::RulesMap.GetBool(ID, "LeaveRubble"))
-				ret.Format("%s0\233RUBBLE", ID);
+				ret.Format("%s\2330\233RUBBLE", ID);
 			else if (!ExtConfigs::HideNoRubbleBuilding)// use damaged art, save memory
-				ret.Format("%s%d\233DAMAGED", ID, nFacing);
+				ret.Format("%s\233%d\233DAMAGED", ID, nFacing);
 			else // hide rubble
 				ret = "\233\144\241"; // invalid string to get it empty
 		}
@@ -151,9 +151,9 @@ FString CLoadingExt::GetBuildingImageName(FString ID, int nFacing, int state, bo
 	else // GBIN_NORMAL
 	{
 		if (bShadow)
-			ret.Format("%s%d\233SHADOW", ID, nFacing);
+			ret.Format("%s\233%d\233SHADOW", ID, nFacing);
 		else
-			ret.Format("%s%d", ID, nFacing);
+			ret.Format("%s\233%d", ID, nFacing);
 	}
 	return ret;
 }
@@ -601,7 +601,8 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		{
 			FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "tur");
 			FString BarlName = ID + "barl";
-
+			bool hasBarl = false;
+			int fireAngle = Variables::RulesMap.GetInteger(ID, "FireAngle", 10);
 
 			if (!VoxelDrawer::IsVPLLoaded())
 				VoxelDrawer::LoadVPLFile("voxels.vpl");
@@ -619,9 +620,11 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 			{
 				if (VoxelDrawer::LoadHVAFile(HVAName))
 				{
+					hasBarl = true;
 					for (int i = 0; i < facings; ++i)
 					{
-						bool result = VoxelDrawer::GetImageData((facings + 5 * facings / 8 - i) % facings, pBarlImages[i], barlrect[i]);
+						bool result = VoxelDrawer::GetImageData((facings + 5 * facings / 8 - i) % facings, 
+							pBarlImages[i], barlrect[i], 0, 0, 0, false, fireAngle);
 						if (!result)
 							break;
 					}
@@ -634,9 +637,13 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 			{
 				if (VoxelDrawer::LoadHVAFile(HVAName))
 				{
+					TurName.MakeLower();
+					auto nameContainsTur = TurName.Find("tur");
 					for (int i = 0; i < facings; ++i)
 					{
-						bool result = VoxelDrawer::GetImageData((facings + 5 * facings / 8 - i) % facings, pTurImages[i], turrect[i]);
+						bool result = VoxelDrawer::GetImageData((facings + 5 * facings / 8 - i) % facings, 
+							pTurImages[i], turrect[i], 0, 0, 0, false, 
+							(hasBarl || nameContainsTur > 0) ? 0 : fireAngle);
 						if (!result)
 							break;
 					}
@@ -698,13 +705,13 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 				int width1, height1;
 
 				UnionSHP_GetAndClear(pImage, &width1, &height1);
-				DictName.Format("%s%d", ID, i);
+				DictName.Format("%s\233%d", ID, i);
 				SetImageDataSafe(pImage, DictName, width1, height1, palette);
 			}
 
 			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
-				DictNameShadow.Format("%s%d\233SHADOW", ID, 0);
+				DictNameShadow.Format("%s\233%d\233SHADOW", ID, 0);
 				SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 			}
 
@@ -739,7 +746,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 				int width1, height1;
 				UnionSHP_GetAndClear(pImage, &width1, &height1);
 
-				DictName.Format("%s%d", ID, i);
+				DictName.Format("%s\233%d", ID, i);
 				SetImageDataSafe(pImage, DictName, width1, height1, palette);
 
 				if (shadow)
@@ -748,7 +755,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 					unsigned char* pImageShadow;
 					int width1Shadow, height1Shadow;
 					UnionSHP_GetAndClear(pImageShadow, &width1Shadow, &height1Shadow, false, true);
-					DictNameShadow.Format("%s%d\233SHADOW", ID, i);
+					DictNameShadow.Format("%s\233%d\233SHADOW", ID, i);
 					SetImageDataSafe(pImageShadow, DictNameShadow, width1Shadow, height1Shadow, &CMapDataExt::Palette_Shadow);
 				}
 			}
@@ -758,11 +765,11 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 	}
 	else // No turret
 	{
-		DictName.Format("%s%d", ID, 0);
+		DictName.Format("%s\233%d", ID, 0);
 		SetImageDataSafe(pBuffer, DictName, width, height, palette);
 		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 		{
-			DictNameShadow.Format("%s%d\233SHADOW", ID, 0);
+			DictNameShadow.Format("%s\233%d\233SHADOW", ID, 0);
 			SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 		}
 	}
@@ -1001,7 +1008,8 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 		{
 			FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "tur");
 			FString BarlName = ID + "barl";
-
+			int fireAngle = Variables::RulesMap.GetInteger(ID, "FireAngle", 10);
+			bool hasBarl = false;
 
 			if (!VoxelDrawer::IsVPLLoaded())
 				VoxelDrawer::LoadVPLFile("voxels.vpl");
@@ -1019,9 +1027,11 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 			{
 				if (VoxelDrawer::LoadHVAFile(HVAName))
 				{
+					hasBarl = true;
 					for (int i = 0; i < facings; ++i)
 					{
-						bool result = VoxelDrawer::GetImageData((facings + 5 * facings / 8 - i) % facings, pBarlImages[i], barlrect[i]);
+						bool result = VoxelDrawer::GetImageData((facings + 5 * facings / 8 - i) % facings,
+							pBarlImages[i], barlrect[i], 0, 0, 0, false, fireAngle);
 						if (!result)
 							break;
 					}
@@ -1034,9 +1044,13 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 			{
 				if (VoxelDrawer::LoadHVAFile(HVAName))
 				{
+					TurName.MakeLower();
+					auto nameContainsTur = TurName.Find("tur");
 					for (int i = 0; i < facings; ++i)
 					{
-						bool result = VoxelDrawer::GetImageData((facings + 5 * facings / 8 - i) % facings, pTurImages[i], turrect[i]);
+						bool result = VoxelDrawer::GetImageData((facings + 5 * facings / 8 - i) % facings,
+							pTurImages[i], turrect[i], 0, 0, 0, false,
+							(hasBarl || nameContainsTur > 0) ? 0 : fireAngle);
 						if (!result)
 							break;
 					}
@@ -1097,18 +1111,18 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 
 				UnionSHP_GetAndClear(pImage, &width1, &height1);
 				if (loadAsRubble)
-					DictName.Format("%s%d\233RUBBLE", ID, i);
+					DictName.Format("%s\233%d\233RUBBLE", ID, i);
 				else
-					DictName.Format("%s%d\233DAMAGED", ID, i);
+					DictName.Format("%s\233%d\233DAMAGED", ID, i);
 				SetImageDataSafe(pImage, DictName, width1, height1, palette);
 			}
 
 			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
 				if (loadAsRubble)
-					DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, 0);
+					DictNameShadow.Format("%s\233%d\233RUBBLESHADOW", ID, 0);
 				else
-					DictNameShadow.Format("%s%d\233DAMAGEDSHADOW", ID, 0);
+					DictNameShadow.Format("%s\233%d\233DAMAGEDSHADOW", ID, 0);
 				SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 			}
 
@@ -1142,9 +1156,9 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 				UnionSHP_GetAndClear(pImage, &width1, &height1);
 
 				if (loadAsRubble)
-					DictName.Format("%s%d\233RUBBLE", ID, i);
+					DictName.Format("%s\233%d\233RUBBLE", ID, i);
 				else
-					DictName.Format("%s%d\233DAMAGED", ID, i);
+					DictName.Format("%s\233%d\233DAMAGED", ID, i);
 				SetImageDataSafe(pImage, DictName, width1, height1, palette);
 
 				if (shadow)
@@ -1154,9 +1168,9 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 					int width1Shadow, height1Shadow;
 					UnionSHP_GetAndClear(pImageShadow, &width1Shadow, &height1Shadow, false, true);
 					if (loadAsRubble)
-						DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, i);
+						DictNameShadow.Format("%s\233%d\233RUBBLESHADOW", ID, i);
 					else
-						DictNameShadow.Format("%s%d\233DAMAGEDSHADOW", ID, i);
+						DictNameShadow.Format("%s\233%d\233DAMAGEDSHADOW", ID, i);
 					SetImageDataSafe(pImageShadow, DictNameShadow, width1Shadow, height1Shadow, &CMapDataExt::Palette_Shadow);
 				}
 			}
@@ -1167,17 +1181,17 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 	else // No turret
 	{
 		if (loadAsRubble)
-			DictName.Format("%s%d\233RUBBLE", ID, 0);
+			DictName.Format("%s\233%d\233RUBBLE", ID, 0);
 		else
-			DictName.Format("%s%d\233DAMAGED", ID, 0);
+			DictName.Format("%s\233%d\233DAMAGED", ID, 0);
 		SetImageDataSafe(pBuffer, DictName, width, height, palette);
 
 		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 		{
 			if (loadAsRubble)
-				DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, 0);
+				DictNameShadow.Format("%s\233%d\233RUBBLESHADOW", ID, 0);
 			else
-				DictNameShadow.Format("%s%d\233DAMAGEDSHADOW", ID, 0);
+				DictNameShadow.Format("%s\233%d\233DAMAGEDSHADOW", ID, 0);
 			SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 		}
 	}
@@ -1323,7 +1337,7 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 			int width, height;
 			UnionSHP_GetAndClear(pBuffer, &width, &height);
 
-			FString DictName = ID + "0\233RUBBLE";
+			FString DictName = ID + "\2330\233RUBBLE";
 			SetImageDataSafe(pBuffer, DictName, width, height, pal);
 
 			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
@@ -1332,7 +1346,7 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 				unsigned char* pBufferShadow{ 0 };
 				int widthShadow, heightShadow;
 				UnionSHP_GetAndClear(pBufferShadow, &widthShadow, &heightShadow, false, true);
-				DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, 0);
+				DictNameShadow.Format("%s\233%d\233RUBBLESHADOW", ID, 0);
 				SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 			}
 		}
@@ -1380,15 +1394,14 @@ void CLoadingExt::LoadInfantry(FString ID)
 
 			CLoadingExt::LoadSHPFrameSafe(framesToRead[i], 1, &FramesBuffers, header);
 			FString DictName;
-			DictName.Format("%s%d", ID, i);
-			// DictName.Format("%s%d", ImageID, i);
+			DictName.Format("%s\233%d", ID, i);
 			SetImageDataSafe(FramesBuffers, DictName, header.Width, header.Height, pal);
 
 			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
 				FString DictNameShadow;
 				unsigned char* pBufferShadow{ 0 };
-				DictNameShadow.Format("%s%d\233SHADOW", ID, i);
+				DictNameShadow.Format("%s\233%d\233SHADOW", ID, i);
 				CLoadingExt::LoadSHPFrameSafe(framesToRead[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
 				SetImageDataSafe(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 			}
@@ -1407,14 +1420,14 @@ void CLoadingExt::LoadInfantry(FString ID)
 			{
 				CLoadingExt::LoadSHPFrameSafe(framesToReadDeploy[i], 1, &FramesBuffersDeploy, header);
 				FString DictNameDeploy;
-				DictNameDeploy.Format("%s%d\233DEPLOY", ID, i);
+				DictNameDeploy.Format("%s\233%d\233DEPLOY", ID, i);
 				SetImageDataSafe(FramesBuffersDeploy, DictNameDeploy, header.Width, header.Height, pal);
 
 				if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 				{
 					FString DictNameShadow;
 					unsigned char* pBufferShadow{ 0 };
-					DictNameShadow.Format("%s%d\233DEPLOYSHADOW", ID, i);
+					DictNameShadow.Format("%s\233%d\233DEPLOYSHADOW", ID, i);
 					CLoadingExt::LoadSHPFrameSafe(framesToReadDeploy[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
 					SetImageDataSafe(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 				}
@@ -1434,14 +1447,14 @@ void CLoadingExt::LoadInfantry(FString ID)
 			{
 				CLoadingExt::LoadSHPFrameSafe(framesToReadWater[i], 1, &FramesBuffersWater, header);
 				FString DictNameWater;
-				DictNameWater.Format("%s%d\233WATER", ID, i);
+				DictNameWater.Format("%s\233%d\233WATER", ID, i);
 				SetImageDataSafe(FramesBuffersWater, DictNameWater, header.Width, header.Height, pal);
 
 				if (ExtConfigs::InGameDisplay_Shadow)
 				{
 					FString DictNameShadow;
 					unsigned char* pBufferShadow{ 0 };
-					DictNameShadow.Format("%s%d\233WATERSHADOW", ID, i);
+					DictNameShadow.Format("%s\233%d\233WATERSHADOW", ID, i);
 					CLoadingExt::LoadSHPFrameSafe(framesToReadWater[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
 					SetImageDataSafe(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 				}
@@ -1464,7 +1477,7 @@ void CLoadingExt::LoadTerrainOrSmudge(FString ID, bool terrain)
 		CShpFile::GetSHPHeader(&header);
 		CLoadingExt::LoadSHPFrameSafe(0, 1, &FramesBuffers[0], header);
 		FString DictName;
-		DictName.Format("%s%d", ID, 0);
+		DictName.Format("%s\233%d", ID, 0);
 		FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "iso");
 		if (!CINI::Art->KeyExists(ArtID, "Palette") && Variables::RulesMap.GetBool(ID, "SpawnsTiberium"))
 		{
@@ -1482,7 +1495,7 @@ void CLoadingExt::LoadTerrainOrSmudge(FString ID, bool terrain)
 		{
 			FString DictNameShadow;
 			unsigned char* pBufferShadow[1];
-			DictNameShadow.Format("%s%d\233SHADOW", ID, 0);
+			DictNameShadow.Format("%s\233%d\233SHADOW", ID, 0);
 			CLoadingExt::LoadSHPFrameSafe(0 + header.FrameCount / 2, 1, &pBufferShadow[0], header);
 			SetImageDataSafe(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 		}
@@ -1588,7 +1601,8 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 					for (int i = 0; i < facings; ++i)
 					{
 						int actFacing = (i + facings - 2 * facings / 8) % facings;
-						bool result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i], barrelrect[i], F, L, H);
+						bool result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i], barrelrect[i],
+							F, L, H, false, Variables::RulesMap.GetInteger(ID, "FireAngle", 10));
 						if (!result)
 							break;
 					}
@@ -1600,8 +1614,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 				if (IsLoadingObjectView && i != facings / 8 * 2)
 					continue;
 				FString DictName;
-				DictName.Format("%s%d", ID, i);
-				//DictName.Format("%s%d", ImageID, i);
+				DictName.Format("%s\233%d", ID, i);
 
 				unsigned char* outBuffer;
 				int outW = 0x100, outH = 0x100;
@@ -1657,8 +1670,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 				if (IsLoadingObjectView && i != facings / 8 * 2)
 					continue;
 				FString DictName;
-				DictName.Format("%s%d", ID, i);
-				// DictName.Format("%s%d", ImageID, i);
+				DictName.Format("%s\233%d", ID, i);
 
 				unsigned char* outBuffer;
 				int outW = 0x100, outH = 0x100;
@@ -1674,7 +1686,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 			for (int i = 0; i < facings; ++i)
 			{
 				FString DictShadowName;
-				DictShadowName.Format("%s%d\233SHADOW", ID, i);
+				DictShadowName.Format("%s\233%d\233SHADOW", ID, i);
 
 				unsigned char* outBuffer;
 				int outW = 0x100, outH = 0x100;
@@ -1788,10 +1800,11 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 			{
 				if (IsLoadingObjectView && i != targetFacings / 8 * 2)
 					continue;
+        
 				CLoadingExt::LoadSHPFrameSafe(framesToRead[i], 1, &FramesBuffers[0], header);
 				FString DictName;
-				DictName.Format("%s%d", ID, i);
-
+        DictName.Format("%s\233%d", ID, i);
+        
 				if (bHasTurret)
 				{
 					int F, L, H;
@@ -1819,7 +1832,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 					{
 						FString DictNameShadow;
-						DictNameShadow.Format("%s%d\233SHADOW", ID, i);
+						DictNameShadow.Format("%s\233%d\233SHADOW", ID, i);
 						CLoadingExt::LoadSHPFrameSafe(framesToRead[i] + header.FrameCount / 2, 1, &FramesBuffersShadow[0], header);
 						UnionSHP_Add(FramesBuffersShadow[0], header.Width, header.Height, 0, 0, false, true);
 						UnionSHP_Add(FramesBuffersTurretShadow[turrentFacing], header.Width, header.Height, mat.OutputX, mat.OutputY, false, true);
@@ -1836,7 +1849,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 					{
 						FString DictNameShadow;
-						DictNameShadow.Format("%s%d\233SHADOW", ID, i);
+						DictNameShadow.Format("%s\233%d\233SHADOW", ID, i);
 						CLoadingExt::LoadSHPFrameSafe(framesToRead[i] + header.FrameCount / 2, 1, &FramesBuffersShadow[0], header);
 						SetImageDataSafe(FramesBuffersShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 					}
@@ -3141,7 +3154,7 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 		}
 
 		unsigned char* pBuffer[2]{ 0 };
-		int width, height;
+		int width = 1, height = 1;
 		bool cellAnimShadow = CINI::Art->GetBool(CellAnimImageID, "Shadow") && ExtConfigs::InGameDisplay_Shadow;
 		if (!CellAnimImageID.empty())
 		{
@@ -3160,7 +3173,6 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 			CShpFile::GetSHPHeader(&header);
 			int nCount = std::min(header.FrameCount, (short)60);
 
-			Logger::Raw("size: %d %d; frames %d\n", header.Width, header.Height, nCount);
 			for (int i = 0; i < nCount; ++i)
 			{
 				if (IsLoadingObjectView && i != CViewObjectsExt::InsertingOverlayData)

@@ -62,7 +62,7 @@ inline static void GetUnitImageID(FString& ImageID, const CUnitData& obj, const 
 {
 	if (ExtConfigs::InGameDisplay_Water)
 	{
-		if (landType == LandType::Water || landType == LandType::Beach)
+		if ((landType == LandType::Water || landType == LandType::Beach) && obj.IsAboveGround != "1")
 		{
 			ImageID = Variables::RulesMap.GetString(obj.TypeID, "WaterImage", obj.TypeID);
 		}
@@ -80,7 +80,7 @@ inline static void GetUnitImageID(FString& ImageID, const CUnitData& obj, const 
 		}
 		if (ExtConfigs::InGameDisplay_Water)
 		{
-			if (landType == LandType::Water || landType == LandType::Beach)
+			if ((landType == LandType::Water || landType == LandType::Beach) && obj.IsAboveGround != "1")
 			{
 				if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
 				{
@@ -396,12 +396,26 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			CIsoView::MapCoord2ScreenCoord(screenX, screenY);
 			screenX -= DrawOffsetX;
 			screenY -= DrawOffsetY;
+			auto cell = CMapData::Instance->GetCellAt(pos);
 			visibleCells.push_back({ X, Y, screenX, screenY, pos,
 				CMapData::Instance->IsCoordInMap(X, Y), 
-				CMapData::Instance->GetCellAt(pos), 
+				cell,
 				&CMapDataExt::CellDataExts[pos] });
+
+			cell->Flag.RedrawTerrain = false;
 		}
 	}
+
+	bool shadow = CIsoViewExt::DrawShadows && ExtConfigs::InGameDisplay_Shadow;
+	int shadowMask_width = window.right - window.left;
+	int shadowMask_height = window.bottom - window.top;
+	int shadowMask_size = shadowMask_width * shadowMask_height;
+	std::vector<char> shadowMask_Building_Infantry(shadowMask_size, 0);
+	std::vector<char> shadowMask_Terrain(shadowMask_size, 0);
+	std::vector<char> shadowMask_Overlay(shadowMask_size, 0);
+	std::vector<byte> shadowMask(shadowMask_size, 0);
+	std::vector<byte> shadowHeightMask(shadowMask_size, 0);
+	std::vector<byte> cellHeightMask(shadowMask_size, 0);
 
 	//loop1: tiles
 	std::vector<MapCoord> RedrawCoords;
@@ -425,14 +439,25 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		if (tileIndex >= CMapDataExt::TileDataCount)
 			continue;
 
-		cell->Flag.RedrawTerrain = false;
-		for (int i = 1; i <= 2; i++)
+		for (int i = 1; i <= 4; i++)
 		{
 			if (CMapData::Instance->IsCoordInMap(X - i, Y - i))
 			{
 				auto blockedCell = CMapData::Instance->GetCellAt(X - i, Y - i);
 				if (cell->Height - blockedCell->Height >= 2 * i
 					|| i == 1 && blockedCell->Flag.RedrawTerrain && cell->Height > blockedCell->Height)
+					cell->Flag.RedrawTerrain = true;
+			}
+			if (CMapData::Instance->IsCoordInMap(X - i - 1, Y - i))
+			{
+				auto blockedCell = CMapData::Instance->GetCellAt(X - i - 1, Y - i);
+				if (blockedCell->Flag.RedrawTerrain && cell->Height - blockedCell->Height >= 2 * i)
+					cell->Flag.RedrawTerrain = true;
+			}
+			if (CMapData::Instance->IsCoordInMap(X - i, Y - i - 1))
+			{
+				auto blockedCell = CMapData::Instance->GetCellAt(X - i, Y - i - 1);
+				if (blockedCell->Flag.RedrawTerrain && cell->Height - blockedCell->Height >= 2 * i)
 					cell->Flag.RedrawTerrain = true;
 			}
 		}
@@ -476,7 +501,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						
 					CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 						x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
-						isCellHidden(cell) ? 128 : 255);
+						isCellHidden(cell) ? 128 : 255, nullptr, nullptr, cell->Height, &cellHeightMask);
 
 					auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
 					cellExt.HasAnim = false;
@@ -564,13 +589,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	}
 
 	//loop2: shadows
-	bool shadow = CIsoViewExt::DrawShadows && ExtConfigs::InGameDisplay_Shadow;
-	int shadowMask_width = window.right - window.left;
-	int shadowMask_height = window.bottom - window.top;
-	int shadowMask_size = shadowMask_width * shadowMask_height;
-	std::vector<char> shadowMask_Building_Infantry(shadowMask_size, 0);
-	std::vector<char> shadowMask_Terrain(shadowMask_size, 0);
-	std::vector<char> shadowMask_Overlay(shadowMask_size, 0);
 	for (const auto& info : visibleCells)
 	{
 		if (!info.isInMap) continue;
@@ -726,7 +744,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								if (pData->pImageBuffer)
 								{
 									CIsoViewExt::MaskShadowPixels(window,
-										x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, shadowMask_Building_Infantry);
+										x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, 
+										shadowMask_Building_Infantry,
+										shadowHeightMask, cell->Height);
 								}
 
 								for (int upgrade = 0; upgrade < objRender.PowerUpCount; ++upgrade)
@@ -753,7 +773,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 										CIsoViewExt::MaskShadowPixels(window,
 											x1 - pUpgData->FullWidth / 2, y1 - pUpgData->FullHeight / 2,
-											pUpgData, shadowMask_Building_Infantry);
+											pUpgData, shadowMask_Building_Infantry,
+											shadowHeightMask, cell->Height);
 									}
 								}
 							}
@@ -786,7 +807,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						if (ExtConfigs::InGameDisplay_Water && std::find(swim.begin(), swim.end(), obj.TypeID) != swim.end())
 						{
 							auto landType = CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex);
-							if (landType == LandType::Water || landType == LandType::Beach)
+							if ((landType == LandType::Water || landType == LandType::Beach) && obj.IsAboveGround != "1")
 							{
 								water = true;
 							}
@@ -810,11 +831,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							{
 							case 2:
 								x1 += 15;
-								y1 += 14;
+								y1 += 15;
 								break;
 							case 3:
 								x1 -= 15;
-								y1 += 14;
+								y1 += 15;
 								break;
 							case 4:
 								y1 += 22;
@@ -828,7 +849,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								y1 -= 60;
 
 							CIsoViewExt::MaskShadowPixels(window,
-								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, shadowMask_Building_Infantry);
+								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, 
+								shadowMask_Building_Infantry,
+								shadowHeightMask, cell->Height);
 						}
 					}
 				}
@@ -898,8 +921,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					int y1 = y;
 
 					CIsoViewExt::MaskShadowPixels(window,
-						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + (Variables::RulesMap.GetBool(obj, "SpawnsTiberium") ? 0 : 12),
-						pData, shadowMask_Terrain);
+						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + (Variables::RulesMap.GetBool(obj, "SpawnsTiberium") ? -1 : 15),
+						pData, shadowMask_Terrain,
+						shadowHeightMask, cell->Height);
 				}
 			}			
 		}
@@ -936,19 +960,19 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						)
 					{
 						if (cellExt->NewOverlay >= 0x27 && cellExt->NewOverlay <= 0x36) // Tracks
-							y1 += 15;
+							y1 += 14;
 						else if (cellExt->NewOverlay >= 0x4A && cellExt->NewOverlay <= 0x65) // LOBRDG 1-28
 							y1 += 15;
 						else if (cellExt->NewOverlay >= 0xCD && cellExt->NewOverlay <= 0xEC) // LOBRDGB 1-4
 							y1 += 15;
-						else if (cellExt->NewOverlay == 0xB3 || cellExt->NewOverlay == 0xF2) // CRATES
-							y1 += 3;
 						else if (cellExt->NewOverlay < CMapDataExt::OverlayTypeDatas.size())
 						{
-							if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].Rock
-								//|| CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].TerrainRock // for compatibility of blockages
-								|| CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].RailRoad)
+							if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].Rock)
 								y1 += 15;
+							else if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].RailRoad)
+								y1 += 14;
+							else
+								y1 += 3;
 						}
 					}
 					else
@@ -960,20 +984,20 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					}
 
 					CIsoViewExt::MaskShadowPixels(window,
-						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, shadowMask_Overlay);
+						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, shadowMask_Overlay,
+						shadowHeightMask, cell->Height);
 				}
 			}		
 		}
 	}
 	if (shadow)
-	{
-		std::vector<byte> shadowMask(shadowMask_size, 0);
+	{	
 		for (size_t i = 0; i < shadowMask_size; ++i) {
 			shadowMask[i] += shadowMask_Building_Infantry[i];
 			shadowMask[i] += shadowMask_Terrain[i];
 			shadowMask[i] += shadowMask_Overlay[i];
 		}
-		CIsoViewExt::DrawShadowMask(lpDesc->lpSurface, boundary, window, shadowMask);
+		CIsoViewExt::DrawShadowMask(lpDesc->lpSurface, boundary, window, shadowMask, shadowHeightMask, cellHeightMask);
 	}
 
 	//loop3: objects
@@ -1048,6 +1072,82 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
 					{
 						auto& subTile = tile.TileBlockDatas[tileSubIndex];
+
+						for (int i = 1; i <= 2; i++)
+						{
+							if (CMapData::Instance->IsCoordInMap(X + i, Y + i))
+							{
+								auto nextCell = CMapData::Instance->GetCellAt(X + i, Y + i);
+								int altImage = nextCell->Flag.AltIndex;
+								int tileIndex = CMapDataExt::GetSafeTileIndex(nextCell->TileIndex);
+								int tileSubIndex = CMapDataExt::GetSafeTileIndex(nextCell->TileSubIndex);
+								CTileBlockClass* subTile = nullptr;
+								if (!nextCell->Flag.RedrawTerrain)
+								{
+									if (CFinalSunApp::Instance->FrameMode)
+									{
+										if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
+										{
+											tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
+										}
+										else
+										{
+											tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + nextCell->Height;
+											tileSubIndex = 0;
+										}
+									}
+
+									CTileTypeClass* tile = &CMapDataExt::TileData[tileIndex];
+									int tileSet = tile->TileSet;
+									if (tile->AltTypeCount)
+									{
+										if (altImage > 0)
+										{
+											altImage = altImage < tile->AltTypeCount ? altImage : tile->AltTypeCount;
+											tile = &tile->AltTypes[altImage - 1];
+										}
+									}
+									subTile = &tile->TileBlockDatas[tileSubIndex];
+								}
+								else
+									continue;
+								if (subTile && 
+									-subTile->YMinusExY 
+									- 30 * i 
+									- (cell->Height - nextCell->Height) * 15
+									>= 0) // tile blocks with extra image above themselves
+								{
+									nextCell->Flag.RedrawTerrain = true;
+
+									for (int j = 1; j <= 2; j++)
+									{
+										if (CMapData::Instance->IsCoordInMap(X + i + j, Y + i + j))
+										{
+											auto nextNextCell = CMapData::Instance->GetCellAt(X + i + j, Y + i + j);
+											if (nextNextCell->Height - nextCell->Height >= 2 * j
+												|| j == 1 && nextNextCell->Height > nextCell->Height)
+												nextNextCell->Flag.RedrawTerrain = true;
+										}
+										if (CMapData::Instance->IsCoordInMap(X + i + j + 1, Y + i + j))
+										{
+											auto nextNextCell = CMapData::Instance->GetCellAt(X + i + j + 1, Y + i + j);
+											if (nextNextCell->Height - nextCell->Height >= 2 * j
+												|| j == 1 && nextNextCell->Height > nextCell->Height)
+												nextNextCell->Flag.RedrawTerrain = true;
+										}
+										if (CMapData::Instance->IsCoordInMap(X + i + j, Y + i + j + 1))
+										{
+											auto nextNextCell = CMapData::Instance->GetCellAt(X + i + j, Y + i + j + 1);
+											if (nextNextCell->Height - nextCell->Height >= 2 * j
+												|| j == 1 && nextNextCell->Height > nextCell->Height)
+												nextNextCell->Flag.RedrawTerrain = true;
+										}
+									}
+									continue;
+								}
+							}
+						}
+
 						int x1 = x;
 						int y1 = y;
 						x1 -= 60;
@@ -1059,7 +1159,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 							CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 								x1 + subTile.XMinusExX, y1 + subTile.YMinusExY, &subTile, pal,
-								isCellHidden(cell) ? 128 : 255);
+								isCellHidden(cell) ? 128 : 255,
+								shadow ? &shadowMask : nullptr,
+								shadow ? &shadowHeightMask : nullptr,
+								cell->Height + (subTile.YMinusExY < 0 ? ((subTile.YMinusExY + 15) / -30) : 0));
 
 							if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
 							{
@@ -1185,19 +1288,19 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							)
 						{
 							if (cellNextExt.NewOverlay >= 0x27 && cellNextExt.NewOverlay <= 0x36) // Tracks
-								y1 += 15;
+								y1 += 14;
 							else if (cellNextExt.NewOverlay >= 0x4A && cellNextExt.NewOverlay <= 0x65) // LOBRDG 1-28
 								y1 += 15;
 							else if (cellNextExt.NewOverlay >= 0xCD && cellNextExt.NewOverlay <= 0xEC) // LOBRDGB 1-4
 								y1 += 15;
-							else if (cellExt->NewOverlay == 0xB3 || cellExt->NewOverlay == 0xF2) // CRATES
-								y1 += 3;
 							else if (cellNextExt.NewOverlay < CMapDataExt::OverlayTypeDatas.size())
 							{
-								if (CMapDataExt::OverlayTypeDatas[cellNextExt.NewOverlay].Rock
-									//|| CMapDataExt::OverlayTypeDatas[cellNextExt.NewOverlay].TerrainRock // for compatibility of blockages
-									|| CMapDataExt::OverlayTypeDatas[cellNextExt.NewOverlay].RailRoad)
+								if (CMapDataExt::OverlayTypeDatas[cellNextExt.NewOverlay].Rock)
 									y1 += 15;
+								else if (CMapDataExt::OverlayTypeDatas[cellNextExt.NewOverlay].RailRoad)
+									y1 += 14;
+								else
+									y1 += 3;
 							}
 						}
 						else
@@ -1270,19 +1373,19 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							)
 						{
 							if (cellExt->NewOverlay >= 0x27 && cellExt->NewOverlay <= 0x36) // Tracks
-								y1 += 15;
+								y1 += 14;
 							else if (cellExt->NewOverlay >= 0x4A && cellExt->NewOverlay <= 0x65) // LOBRDG 1-28
 								y1 += 15;
 							else if (cellExt->NewOverlay >= 0xCD && cellExt->NewOverlay <= 0xEC) // LOBRDGB 1-4
 								y1 += 15;
-							else if (cellExt->NewOverlay == 0xB3 || cellExt->NewOverlay == 0xF2) // CRATES
-								y1 += 3;
 							else if (cellExt->NewOverlay < CMapDataExt::OverlayTypeDatas.size())
 							{
-								if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].Rock
-									//|| CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].TerrainRock // for compatibility of blockages
-									|| CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].RailRoad)
+								if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].Rock)
 									y1 += 15;
+								else if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].RailRoad)
+									y1 += 14;
+								else
+									y1 += 3;
 							}
 						}
 						else
@@ -1321,7 +1424,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					bool customPalette = CLoadingExt::CustomPaletteTerrains.find(obj) != CLoadingExt::CustomPaletteTerrains.end();
 					bool isTiberiumTree = Variables::RulesMap.GetBool(obj, "SpawnsTiberium");
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-						x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (isTiberiumTree ? 0 : 12),
+						x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (isTiberiumTree ? -1 : 15),
 						pData, NULL, 255, 0, isTiberiumTree ? 6 : (customPalette ? 5 : -1), false);
 
 					if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages)
@@ -1691,7 +1794,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						if (ExtConfigs::InGameDisplay_Water && std::find(swim.begin(), swim.end(), obj.TypeID) != swim.end())
 						{
 							auto landType = CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex);
-							if (landType == LandType::Water || landType == LandType::Beach)
+							if ((landType == LandType::Water || landType == LandType::Beach) && obj.IsAboveGround != "1")
 							{
 								water = true;
 							}
@@ -1715,11 +1818,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							{
 							case 2:
 								x1 += 15;
-								y1 += 14;
+								y1 += 15;
 								break;
 							case 3:
 								x1 -= 15;
-								y1 += 14;
+								y1 += 15;
 								break;
 							case 4:
 								y1 += 22;
@@ -1905,6 +2008,27 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	}
 
 	// celltag, waypoint, annotation
+	DDSURFACEDESC2 CellTagDesc = { sizeof(DDSURFACEDESC2) };
+	DDCOLORKEY CellTagColorKey{0,0};
+	auto CellTagImage = CLoadingExt::GetSurfaceImageDataFromMap("CELLTAG");
+	bool CellTagLocked = CellTagImage &&
+		CellTagImage->lpSurface->Lock(NULL, &CellTagDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) == DD_OK;
+	if (CellTagImage) CellTagImage->lpSurface->GetColorKey(DDCKEY_SRCBLT, &CellTagColorKey);
+
+	DDSURFACEDESC2 WaypointDesc = { sizeof(DDSURFACEDESC2) };
+	DDCOLORKEY WaypointColorKey{ 0,0 };
+	auto WaypointImage = CLoadingExt::GetSurfaceImageDataFromMap("FLAG");
+	bool WaypointLocked = WaypointImage &&
+		WaypointImage->lpSurface->Lock(NULL, &WaypointDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) == DD_OK;
+	if (WaypointImage) WaypointImage->lpSurface->GetColorKey(DDCKEY_SRCBLT, &WaypointColorKey);
+
+	DDSURFACEDESC2 AnnotationDesc = { sizeof(DDSURFACEDESC2) };
+	DDCOLORKEY AnnotationColorKey{ 0,0 };
+	auto AnnotationImage = CLoadingExt::GetSurfaceImageDataFromMap("annotation.bmp");
+	bool AnnotationLocked = AnnotationImage &&
+		AnnotationImage->lpSurface->Lock(NULL, &AnnotationDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) == DD_OK;
+	if (AnnotationImage) AnnotationImage->lpSurface->GetColorKey(DDCKEY_SRCBLT, &AnnotationColorKey);
+
 	for (const auto& info : visibleCells)
 	{
 		if (!info.isInMap) continue;
@@ -1916,7 +2040,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		auto& x = info.screenX;
 		auto& y = info.screenY;
 
-		if (CIsoViewExt::DrawCelltags && cell->CellTag != -1)
+		if (CellTagLocked && CIsoViewExt::DrawCelltags && cell->CellTag != -1)
 		{
 			if (CIsoViewExt::DrawCellTagsFilter && !CViewObjectsExt::ObjectFilterCT.empty())
 			{
@@ -1930,7 +2054,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						if (name == id)
 						{
-							pThis->DrawCelltag(x, y, lpDesc);
+							pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface, 
+								pThis->lpDDBackBufferSurface, lpDesc, CellTagDesc, CellTagColorKey,
+								x + 25 - CellTagImage->FullWidth / 2,
+								y + 12 - CellTagImage->FullHeight / 2, -1, -1);
 							break;
 						}
 						if (STDHelpers::IsNumber(name))
@@ -1942,7 +2069,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								buffer.Format("%08d", n + 1000000);
 								if (buffer == id)
 								{
-									pThis->DrawCelltag(x, y, lpDesc);
+									pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface,
+										pThis->lpDDBackBufferSurface, lpDesc, CellTagDesc, CellTagColorKey,
+										x + 25 - CellTagImage->FullWidth / 2,
+										y + 12 - CellTagImage->FullHeight / 2, -1, -1);
 									break;
 								}
 							}
@@ -1951,17 +2081,33 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				}
 			}
 			else
-				pThis->DrawCelltag(x, y, lpDesc);
+				pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface,
+					pThis->lpDDBackBufferSurface, lpDesc, CellTagDesc, CellTagColorKey,
+					x + 25 - CellTagImage->FullWidth / 2,
+					y + 12 - CellTagImage->FullHeight / 2, -1, -1);
 		}
 
-		if (CIsoViewExt::DrawWaypoints && cell->Waypoint != -1)
-			pThis->DrawWaypointFlag(x, y, lpDesc);
+		if (WaypointLocked && CIsoViewExt::DrawWaypoints && cell->Waypoint != -1)
+			pThis->BlitTransparentDescNoLock(WaypointImage->lpSurface,
+				pThis->lpDDBackBufferSurface, lpDesc, WaypointDesc, WaypointColorKey,
+				x + 30 - WaypointImage->FullWidth / 2,
+				y + 12 - WaypointImage->FullHeight / 2, -1, -1);
 
-		if (CIsoViewExt::DrawAnnotations && CMapDataExt::HasAnnotation(pos))
-		{
-			pThis->DrawBitmap("annotation", x + 5, y - 2, lpDesc);
-		}
+		if (AnnotationLocked && CIsoViewExt::DrawAnnotations && CMapDataExt::HasAnnotation(pos))
+			pThis->BlitTransparentDescNoLock(AnnotationImage->lpSurface,
+				pThis->lpDDBackBufferSurface, lpDesc, AnnotationDesc, AnnotationColorKey,
+				x + 5,
+				y - 2, -1, -1);
 	}
+
+	if (CellTagImage && CellTagLocked)
+		CellTagImage->lpSurface->Unlock(NULL);
+
+	if (WaypointImage && WaypointLocked)
+		WaypointImage->lpSurface->Unlock(NULL);
+
+	if (AnnotationImage && AnnotationLocked)
+		AnnotationImage->lpSurface->Unlock(NULL);
 
 	auto& cellDataExt = CMapDataExt::CellDataExt_FindCell;
 	if (cellDataExt.drawCell)

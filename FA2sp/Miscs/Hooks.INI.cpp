@@ -105,7 +105,14 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                     if (auto pSectionInherit = GetSection(sectionInherit)) {
                         for (const auto& [key, value] : pSectionInherit->GetEntities())
                         {
+                            size_t currentIndex = pCurrentSection->GetEntities().size();
+
                             writeString(pCurrentSection, key, value);
+
+                            std::pair<ppmfc::CString, int> ins =
+                                std::make_pair((ppmfc::CString)key, (int)currentIndex);
+                            std::pair<INIIndiceDict::iterator, bool> ret;
+                            reinterpret_cast<FAINIIndicesMap*>(&pCurrentSection->GetIndices())->insert(&ret, &ins);
                         }
                     }
                 }
@@ -249,7 +256,14 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                     if (auto pSectionB = GetSection(sectionB)) {
                         for (const auto& [key, value] : pSectionB->GetEntities()) {
                             if (!KeyExists(sectionA.first, key)) {
+                                size_t currentIndex = sectionA.second.GetEntities().size();
+
                                 writeString(&sectionA.second, key, value);
+
+                                std::pair<ppmfc::CString, int> ins =
+                                    std::make_pair((ppmfc::CString)key, (int)currentIndex);
+                                std::pair<INIIndiceDict::iterator, bool> ret;
+                                reinterpret_cast<FAINIIndicesMap*>(&sectionA.second.GetIndices())->insert(&ret, &ins);
                             }
                         }
                     }

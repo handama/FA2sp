@@ -15,7 +15,7 @@ extern "C"
 	__declspec(dllimport) bool __stdcall CncImgLoadVXLFile(const unsigned char* pBuffer);
 	__declspec(dllimport) bool __stdcall CncImgLoadHVAFile(const unsigned char* pBuffer);
 
-	__declspec(dllimport) bool __stdcall CncImgPrepareVXLCache(unsigned int nFacing, int F, int L, int H);
+	__declspec(dllimport) bool __stdcall CncImgPrepareVXLCache(unsigned int nFacing, int F, int L, int H, int fireAngle);
 	__declspec(dllimport) int __stdcall CncImgGetImageWidth(unsigned int nFacing);
 	__declspec(dllimport) int __stdcall CncImgGetImageHeight(unsigned int nFacing);
 	__declspec(dllimport) void __stdcall CncImgGetImageFrame(unsigned int nFacing, int* width, int* height, int* x, int* y);

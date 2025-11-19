@@ -1876,7 +1876,7 @@ void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY
    
     if (ID >= 0 && ID < CMapDataExt::TileDataCount)
     {
-        std::vector<TilePlacement> placements;
+        std::map<int, std::vector<TilePlacement>> placements;
         auto& tile = CMapDataExt::TileData[ID];
         int tileOriginX = oriY - (tile.Width - 1);
         int tileOriginY = oriX - (tile.Height - 1);
@@ -1885,26 +1885,47 @@ void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY
             int localY = ((coord.Y - tileOriginX) % tile.Width + tile.Width) % tile.Width;
             int localX = ((coord.X - tileOriginY) % tile.Height + tile.Height) % tile.Height;
 
+            int groupY = coord.Y - localY;
+            int groupX = coord.X - localX;
+
             int subtileIndex = localY + localX * tile.Width;
 
-            placements.push_back(TilePlacement{
+            placements[groupY * 1000 + groupX].push_back(TilePlacement{
                 (short)coord.X,
                 (short)coord.Y,
                 (short)subtileIndex
                 });
         }
 
-        for (auto& coord : placements)
+        for (auto& [_, groups] : placements)
         {
-            if (tile.TileBlockDatas[coord.SubtileIndex].ImageData != NULL)
+            int index = CIsoView::CurrentCommand->Param == 1 ? GetRandomTileIndex() : 0;
+            for (auto& coord : groups)
             {
-                bool isBridge = (tile.TileSet == CMapDataExt::BridgeSet || tile.TileSet == CMapDataExt::WoodBridgeSet);
-                auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
-                cell->TileIndex = ID;
-                cell->TileSubIndex = coord.SubtileIndex;
-                cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tile.AltTypeCount + 1);
-                CMapDataExt::GetExtension()->SetHeightAt(coord.X, coord.Y, cell->Height + tile.TileBlockDatas[coord.SubtileIndex].Height);
-                CMapData::Instance->UpdateMapPreviewAt(coord.X, coord.Y);
+                if (tile.TileBlockDatas[coord.SubtileIndex].ImageData != NULL)
+                {
+                    bool isBridge = (tile.TileSet == CMapDataExt::BridgeSet || tile.TileSet == CMapDataExt::WoodBridgeSet);
+                    auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
+                    if (CIsoView::CurrentCommand->Param == 1)
+                    {                      
+                        auto& tile = CMapDataExt::TileData[index];
+                        if (tile.TileBlockDatas[coord.SubtileIndex].ImageData != NULL)
+                        {
+                            cell->TileIndex = index;
+                            cell->TileSubIndex = coord.SubtileIndex;
+                            cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tile.AltTypeCount + 1);
+                            CMapDataExt::GetExtension()->SetHeightAt(coord.X, coord.Y, cell->Height + tile.TileBlockDatas[coord.SubtileIndex].Height);
+                        }
+                    }
+                    else
+                    {
+                        cell->TileIndex = ID;
+                        cell->TileSubIndex = coord.SubtileIndex;
+                        cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tile.AltTypeCount + 1);
+                        CMapDataExt::GetExtension()->SetHeightAt(coord.X, coord.Y, cell->Height + tile.TileBlockDatas[coord.SubtileIndex].Height);
+                    }
+                    CMapData::Instance->UpdateMapPreviewAt(coord.X, coord.Y);
+                }
             }
         }
 

@@ -20,6 +20,7 @@
 #include <CShpFile.h>
 #include <CMixFile.h>
 #include "../../Miscs/TheaterInfo.h"
+#include "../../Helpers/Helper.h"
 
 namespace CIsoViewDrawTemp
 {
@@ -516,6 +517,7 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 		}
 		else if (m_type == 1)
 		{
+			TempValueHolder<bool> skipCheck(CMapDataExt::SkipBuildingOverlappingCheck, true);
 			CBuildingData structure;
 			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
 			Map->GetBuildingData(m_id, structure);
@@ -1305,7 +1307,14 @@ DEFINE_HOOK(45F261, CIsoView_HandleProperties_Infantry, 7)
 
 DEFINE_HOOK(45FA44, CIsoView_HandleProperties_Building, 7)
 {
+	CMapDataExt::SkipBuildingOverlappingCheck = true;
 	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
+	return 0;
+}
+
+DEFINE_HOOK(45FA99, CIsoView_HandleProperties_Building_2, 7)
+{
+	CMapDataExt::SkipBuildingOverlappingCheck = false;
 	return 0;
 }
 

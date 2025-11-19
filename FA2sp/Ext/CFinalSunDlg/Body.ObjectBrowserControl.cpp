@@ -21,6 +21,7 @@
 #include <filesystem>
 #include "../../Miscs/StringtableLoader.h"
 #include "../CFinalSunApp/Body.h"
+#include "../../Helpers/Helper.h"
 
 namespace fs = std::filesystem;
 
@@ -2553,6 +2554,7 @@ void CViewObjectsExt::ApplyChangeOwner(int X, int Y)
 
             if (CellData.Structure != -1)
             {
+                TempValueHolder<bool> skipCheck(CMapDataExt::SkipBuildingOverlappingCheck, true);
                 makeOrAppendRecord(ObjectRecord::RecordType::Building);
                 CBuildingData structure;
                 pMap->GetBuildingData(CellData.Structure, structure);
@@ -2720,6 +2722,7 @@ void CViewObjectsExt::ApplyPropertyBrush(int X, int Y)
 
 void CViewObjectsExt::ApplyPropertyBrush_Building(int nIndex)
 {
+    TempValueHolder<bool> skipCheck(CMapDataExt::SkipBuildingOverlappingCheck, true);
     CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building, true);
     CBuildingData data;
     CMapData::Instance->GetBuildingData(nIndex, data);

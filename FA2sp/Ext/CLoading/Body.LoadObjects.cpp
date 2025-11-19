@@ -2319,10 +2319,20 @@ void CLoadingExt::SetGenericTheaterLetter(FString& string)
 
 int CLoadingExt::HasFileMix(FString filename, int nMix)
 {
-	FString filepath = CFinalSunApp::FilePath();
-	filepath += filename;
+	FString filepath;
 	std::ifstream fin;
+
+	filepath = CFinalSunApp::ExePath();
+	filepath += "Resources\\HighPriority\\";
+	filepath += filename;
 	fin.open(filepath, std::ios::in | std::ios::binary);
+	if (!fin.is_open())
+	{
+		filepath = CFinalSunApp::FilePath();
+		filepath += filename;
+		fin.open(filepath, std::ios::in | std::ios::binary);
+	}
+
 	if (fin.is_open())
 	{
 		fin.close();
@@ -2348,11 +2358,19 @@ int CLoadingExt::HasFileMix(FString filename, int nMix)
 		nMix = CLoading::Instance->SearchFile(filename);
 		if (CMixFile::HasFile(filename, nMix))
 			return nMix;
-		else
-			return -2;
 	}
 	if (CMixFile::HasFile(filename, nMix))
 		return nMix;
+
+	filepath = CFinalSunApp::ExePath();
+	filepath += "Resources\\LowPriority\\";
+	filepath += filename;
+	fin.open(filepath, std::ios::in | std::ios::binary);
+	if (fin.is_open())
+	{
+		fin.close();
+		return -1;
+	}
 
 	return -2;
 }

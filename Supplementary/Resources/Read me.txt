@@ -1,0 +1,2 @@
+Used to store additional game resources. The files in the HighPriority folder will be read before all other files, while LowPriority has the lowest priority
+用于存储额外的游戏资源文件。HighPriority文件夹下的文件将优先于其他所有文件读取，LowPriority则拥有最低的优先级

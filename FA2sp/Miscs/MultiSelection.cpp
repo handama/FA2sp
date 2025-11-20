@@ -127,7 +127,7 @@ void MultiSelection::FindConnectedTiles(std::unordered_set<int>& process, int st
                 }
             }
         }
-        if (!dlg.Connected)
+        if (!dlg.Connected4 && !dlg.Connected8)
         {
             for (int j = 0; j < CMapData::Instance->CellDataCount; j++) {
                 int x = CMapData::Instance->GetXFromCoordIndex(j);
@@ -151,29 +151,40 @@ void MultiSelection::FindConnectedTiles(std::unordered_set<int>& process, int st
         }
     }
 
-    const int loop[5][2] = { {0, 0},{0, -1},{0, 1},{1, 0},{-1, 0} };
-    for (auto pair : loop)
+    const int loop4[5][2] = { {0, 0},{0, -1},{0, 1},{1, 0},{-1, 0} };
+    const int loop8[9][2] = { {0, 0},{0, -1},{0, 1},{1, 0},{-1, 0},{-1, -1},{1, 1},{1, -1},{-1, 1} };
+    auto loop = [&](const int* pair)
     {
         int newX = pair[0] + startX;
         int newY = pair[1] + startY;
-        if (!CMapData::Instance->IsCoordInMap(newX, newY)) continue;
+        if (!CMapData::Instance->IsCoordInMap(newX, newY)) return;
         int pos = newX + newY * CMapData::Instance->MapWidthPlusHeight;
         if (process.find(pos) != process.end())
-            continue;
+            return;
         auto scCell = CMapData::Instance->GetCellAt(pos);
         int scGround = CMapDataExt::GetSafeTileIndex(scCell->TileIndex);
         if (scGround >= CMapDataExt::TileDataCount)
-            continue;
+            return;
         if (dlg.SameTileSet && tileSet.find(CMapDataExt::TileData[scGround].TileSet) == tileSet.end())
-            continue;
+            return;
         if (dlg.SameHeight && scCell->Height != cell->Height)
-            continue;
+            return;
         if (dlg.SameBaiscHeight && cell->Height - CMapDataExt::TileData[ground].TileBlockDatas[cell->TileSubIndex].Height
             != scCell->Height - CMapDataExt::TileData[scGround].TileBlockDatas[scCell->TileSubIndex].Height)
-            continue;
-        
+            return;
+
         process.insert(pos);
         FindConnectedTiles(process, newX, newY, tileSet, false);
+    };
+    if (dlg.Connected8)
+    {
+        for (auto pair : loop8)
+            loop(pair);
+    }
+    else
+    {
+        for (auto pair : loop4)
+            loop(pair);
     }
 }
 

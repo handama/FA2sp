@@ -9,6 +9,7 @@ CMapRendererDlg::CMapRendererDlg(CWnd* pParent /*=NULL*/)
 {
 	b_LocalSize = FALSE;
 	b_GameLayers = FALSE;
+	b_SaveFormat = FALSE;
 	n_Lighting = RendererLighting::Normal;
 	b_DisplayInvisibleOverlay = FALSE;
 	b_MarkStartPositions = FALSE;
@@ -25,6 +26,7 @@ void CMapRendererDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
 	DDX_Radio(pDX, 1001, b_LocalSize);
 	DDX_Radio(pDX, 1003, b_GameLayers);
 	DDX_Radio(pDX, 1005, n_Lighting);
+	DDX_Radio(pDX, 1015, b_SaveFormat);
 	DDX_Check(pDX, 1010, b_DisplayInvisibleOverlay);
 	DDX_Check(pDX, 1011, b_MarkStartPositions);
 	DDX_Check(pDX, 1012, b_MarkOres);
@@ -53,6 +55,8 @@ void CMapRendererDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
 		GetDlgItem(1004)->SetWindowTextA(buffer);
 	if (Translations::GetTranslationItem("MapRendererDlgLighting", buffer))
 		GetDlgItem(5002)->SetWindowTextA(buffer);
+	if (Translations::GetTranslationItem("MapRendererDlgFileFormat", buffer))
+		GetDlgItem(5003)->SetWindowTextA(buffer);
 	if (Translations::GetTranslationItem("MapRendererDlgCurrentLighting", buffer))
 		GetDlgItem(1005)->SetWindowTextA(buffer);
 	if (Translations::GetTranslationItem("MapRendererDlgNoneLighting", buffer))
@@ -90,6 +94,7 @@ void CMapRendererDlg::OnOK()
 	CIsoViewExt::RenderMarkStartings = b_MarkStartPositions;
 	CIsoViewExt::RenderLighing = (RendererLighting)n_Lighting;
 	CIsoViewExt::RenderIgnoreObjects = b_IgnoreObjects;
+	CIsoViewExt::RenderSaveAsPNG = b_SaveFormat == 0;
 	EndDialog(0);
 }
 

@@ -41,6 +41,7 @@ public:
 	CMapRendererDlg(CWnd* pParent = NULL);
 	BOOL b_LocalSize;
 	BOOL b_GameLayers;
+	BOOL b_SaveFormat;
 	int n_Lighting;
 	BOOL b_DisplayInvisibleOverlay;
 	BOOL b_MarkStartPositions;

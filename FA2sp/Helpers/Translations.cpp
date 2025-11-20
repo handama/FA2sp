@@ -207,9 +207,9 @@ FString Translations::ParseHouseName(FString src, bool IDToUIName)
             for (auto& pair : countries)
             {
                 if (ExtConfigs::BetterHouseNameTranslation)
-                    translated = StringtableLoader::QueryUIName(pair.second) + "(" + pair.second + ")";
+                    translated = StringtableLoader::QueryUIName(pair.second, true) + "(" + pair.second + ")";
                 else
-                    translated = StringtableLoader::QueryUIName(pair.second);
+                    translated = StringtableLoader::QueryUIName(pair.second, true);
 
                 src.Replace(pair.second, translated);
             }
@@ -219,9 +219,9 @@ FString Translations::ParseHouseName(FString src, bool IDToUIName)
             for (auto& pair : countries)
             {
                 if (ExtConfigs::BetterHouseNameTranslation)
-                    translated = StringtableLoader::QueryUIName(pair.second) + "(" + pair.second + ")";
+                    translated = StringtableLoader::QueryUIName(pair.second, true) + "(" + pair.second + ")";
                 else
-                    translated = StringtableLoader::QueryUIName(pair.second);
+                    translated = StringtableLoader::QueryUIName(pair.second, true);
                 src.Replace(translated, pair.second);
             }
         }

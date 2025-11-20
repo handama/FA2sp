@@ -781,7 +781,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), house);
 
                         leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Infantry",
-                            "Infantry:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
+                            "Infantry:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(object.TypeID, true), object.TypeID, objThisCount, objThisCount * cost);
 
                         ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
                         ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
@@ -811,7 +811,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                         line1.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.1",
                             "Infantry: %s (%s), ID: %d, Subcell: %s")
-                            , StringtableLoader::QueryUIName(object.TypeID), object.TypeID, id, object.SubCell);
+                            , StringtableLoader::QueryUIName(object.TypeID, true), object.TypeID, id, object.SubCell);
                         line2.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.2",
                             "House: %s")
                             , house);
@@ -903,7 +903,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), house);
                         leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Vehicle",
                             "Vehicle:  %s (%s), Count: %d, Cost: %d")
-                            , StringtableLoader::QueryUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
+                            , StringtableLoader::QueryUIName(object.TypeID, true), object.TypeID, objThisCount, objThisCount * cost);
 
                         ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
                         ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
@@ -934,7 +934,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                         line1.Format(Translations::TranslateOrDefault("ObjectInfo.Vehicle.1",
                             "Vehicle: %s (%s), ID: %d")
-                            , StringtableLoader::QueryUIName(object.TypeID), object.TypeID, id);
+                            , StringtableLoader::QueryUIName(object.TypeID, true), object.TypeID, id);
                         line2.Format(Translations::TranslateOrDefault("ObjectInfo.Vehicle.2",
                             "House: %s")
                             , house);
@@ -1025,7 +1025,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                         leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), house);
                         leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Aircraft",
-                            "Aircraft:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
+                            "Aircraft:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(object.TypeID, true), object.TypeID, objThisCount, objThisCount * cost);
 
                         ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
                         ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
@@ -1056,7 +1056,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                         line1.Format(Translations::TranslateOrDefault("ObjectInfo.Aircraft.1",
                             "Aircraft: %s (%s), ID: %d")
-                            , StringtableLoader::QueryUIName(object.TypeID), object.TypeID, id);
+                            , StringtableLoader::QueryUIName(object.TypeID, true), object.TypeID, id);
                         line2.Format(Translations::TranslateOrDefault("ObjectInfo.Aircraft.2",
                             "House: %s")
                             , house);
@@ -1181,7 +1181,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                     leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), house);
                     leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Structure",
-                        "Structure:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
+                        "Structure:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(object.TypeID, true), object.TypeID, objThisCount, objThisCount * cost);
                     leftLine3.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Power",
                         "Total Power: %d, Output: %d, Drain: %d"), housePower - houseLoad, housePower, houseLoad);
 
@@ -1226,7 +1226,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                     line1.Format(Translations::TranslateOrDefault("ObjectInfo.Structure.1",
                         "Structure: %s (%s), ID: %d")
-                        , StringtableLoader::QueryUIName(object.TypeID), object.TypeID, id);
+                        , StringtableLoader::QueryUIName(object.TypeID, true), object.TypeID, id);
                     line2.Format(Translations::TranslateOrDefault("ObjectInfo.Structure.2",
                         "House: %s")
                         , house);
@@ -1397,7 +1397,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     FString targetHouse2 = Translations::ParseHouseName(id.House, true);
                     leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), targetHouse2);
                     leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Basenode",
-                        "Basenode:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(id.ID), id.ID, objThisCount, objThisCount * cost);
+                        "Basenode:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(id.ID, true), id.ID, objThisCount, objThisCount * cost);
 
                     ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
                     ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
@@ -1472,7 +1472,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     FString targetHouse2 = Translations::ParseHouseName(id.House, true);
                     line1.Format(Translations::TranslateOrDefault("ObjectInfo.Basenode.1",
                         "Basenode: %s (%s), ID: %d")
-                        , StringtableLoader::QueryUIName(id.ID), id.ID, id.BasenodeID);
+                        , StringtableLoader::QueryUIName(id.ID, true), id.ID, id.BasenodeID);
                     line2.Format(Translations::TranslateOrDefault("ObjectInfo.Basenode.2",
                         "House: %s")
                         , targetHouse2);
@@ -1616,7 +1616,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
             if (id > -1)
             {
-                auto name2 = CViewObjectsExt::QueryUIName(name);
+                auto name2 = CViewObjectsExt::QueryUIName(name, true);
                 line1.Format(Translations::TranslateOrDefault("ObjectInfo.Terrain",
                     "Terrain: %s (%s), ID: %d")
                     , name2, name, id);

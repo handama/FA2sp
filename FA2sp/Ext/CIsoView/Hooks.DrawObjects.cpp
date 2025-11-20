@@ -968,6 +968,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].Rock)
 								y1 += 15;
+							else if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].TerrainRock)
+								y1 += 15;
 							else if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].RailRoad)
 								y1 += 14;
 							else
@@ -1296,6 +1298,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							{
 								if (CMapDataExt::OverlayTypeDatas[cellNextExt.NewOverlay].Rock)
 									y1 += 15;
+								else if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].TerrainRock)
+									y1 += 15;
 								else if (CMapDataExt::OverlayTypeDatas[cellNextExt.NewOverlay].RailRoad)
 									y1 += 14;
 								else
@@ -1380,6 +1384,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							else if (cellExt->NewOverlay < CMapDataExt::OverlayTypeDatas.size())
 							{
 								if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].Rock)
+									y1 += 15;
+								else if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].TerrainRock)
 									y1 += 15;
 								else if (CMapDataExt::OverlayTypeDatas[cellExt->NewOverlay].RailRoad)
 									y1 += 14;

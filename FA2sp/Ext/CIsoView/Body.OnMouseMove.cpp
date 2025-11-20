@@ -1680,8 +1680,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             auto value = Variables::RulesMap.GetValueAt("OverlayTypes", overlay);
             if (value != "")
             {
-                auto thisname = mmh.GetString(value, "Name");
-                name = Translations::TranslateOrDefault(thisname, thisname);
+                name = StringtableLoader::QueryUIName(value, true);
 
                 //if (CINI::Rules().GetBool(value, "NoUseTileLandType"))
                 ttype = mmh.GetString(value, "Land", "");

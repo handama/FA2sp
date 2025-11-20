@@ -3219,19 +3219,21 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 						)
 					{
 						if (nIndex >= 0x27 && nIndex <= 0x36) // Tracks
-							offset += 15;
+							offset += 14;
 						else if (nIndex >= 0x4A && nIndex <= 0x65) // LOBRDG 1-28
 							offset += 15;
 						else if (nIndex >= 0xCD && nIndex <= 0xEC) // LOBRDGB 1-4
 							offset += 15;
-						else if (nIndex == 0xB3 || nIndex == 0xF2) // CRATES
-							offset += 3;
 						else if (nIndex < CMapDataExt::OverlayTypeDatas.size())
 						{
-							if (CMapDataExt::OverlayTypeDatas[nIndex].Rock
-								//|| CMapDataExt::OverlayTypeDatas[nIndex].TerrainRock // for compatibility of blockages
-								|| CMapDataExt::OverlayTypeDatas[nIndex].RailRoad)
+							if (CMapDataExt::OverlayTypeDatas[nIndex].Rock)
 								offset += 15;
+							else if (CMapDataExt::OverlayTypeDatas[nIndex].TerrainRock)
+								offset += 15;
+							else if (CMapDataExt::OverlayTypeDatas[nIndex].RailRoad)
+								offset += 14;
+							else
+								offset += 3;
 						}
 					}
 					else

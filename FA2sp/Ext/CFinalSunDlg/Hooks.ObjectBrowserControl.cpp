@@ -668,8 +668,13 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                     {
                         for (int e = 0; e < pIsoView->BrushSizeY; ++e)
                         {
+                            int tileIndex = command.Type;
+                            if (command.Param == 1) // random tile
+                            {
+                                tileIndex = CIsoViewExt::GetRandomTileIndex();
+                            }
                             pMap->PlaceTileAt(mc.X + 1 + (i - 1) * CMapDataExt::TileData[index].Height,
-                                mc.Y + 1 + (e - 1) * CMapDataExt::TileData[index].Width, command.Type, 2);
+                                mc.Y + 1 + (e - 1) * CMapDataExt::TileData[index].Width, tileIndex, 2);
                         }
                     }
 

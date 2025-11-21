@@ -6,7 +6,8 @@
 CMultiSelectionOptionDlg::CMultiSelectionOptionDlg(CWnd* pParent /*=NULL*/)
 	: ppmfc::CDialog(323, pParent)
 {
-	Connected = TRUE;
+	Connected4 = TRUE;
+	Connected8 = FALSE;
 	SameTileSet = TRUE;
 	ConsiderLAT = TRUE;
 	SameHeight = FALSE;
@@ -16,7 +17,8 @@ CMultiSelectionOptionDlg::CMultiSelectionOptionDlg(CWnd* pParent /*=NULL*/)
 void CMultiSelectionOptionDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
-	DDX_Check(pDX, 1001, Connected);
+	DDX_Check(pDX, 1001, Connected4);
+	DDX_Check(pDX, 1006, Connected8);
 	DDX_Check(pDX, 1002, SameTileSet);
 	DDX_Check(pDX, 1003, ConsiderLAT);
 	DDX_Check(pDX, 1004, SameHeight);
@@ -29,6 +31,8 @@ void CMultiSelectionOptionDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
 
 	if (Translations::GetTranslationItem("MultiSelectionOptionConnected", buffer))
 		GetDlgItem(1001)->SetWindowTextA(buffer);
+	if (Translations::GetTranslationItem("MultiSelectionOptionConnected8Ways", buffer))
+		GetDlgItem(1006)->SetWindowTextA(buffer);
 	if (Translations::GetTranslationItem("MultiSelectionOptionSameTileSet", buffer))
 		GetDlgItem(1002)->SetWindowTextA(buffer);
 	if (Translations::GetTranslationItem("MultiSelectionOptionConsiderLAT", buffer))
@@ -48,7 +52,8 @@ BOOL CMultiSelectionOptionDlg::OnInitDialog()
 {
 	ppmfc::CDialog::OnInitDialog();
 
-	if (Connected) ::SendMessage(GetDlgItem(1001)->GetSafeHwnd(), BM_SETCHECK, BST_CHECKED, 0);
+	if (Connected4) ::SendMessage(GetDlgItem(1001)->GetSafeHwnd(), BM_SETCHECK, BST_CHECKED, 0);
+	if (Connected8) ::SendMessage(GetDlgItem(1006)->GetSafeHwnd(), BM_SETCHECK, BST_CHECKED, 0);
 	if (SameTileSet) ::SendMessage(GetDlgItem(1002)->GetSafeHwnd(), BM_SETCHECK, BST_CHECKED, 0);
 	if (ConsiderLAT) ::SendMessage(GetDlgItem(1003)->GetSafeHwnd(), BM_SETCHECK, BST_CHECKED, 0);
 	if (SameHeight) ::SendMessage(GetDlgItem(1004)->GetSafeHwnd(), BM_SETCHECK, BST_CHECKED, 0);

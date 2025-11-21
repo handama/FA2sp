@@ -102,64 +102,15 @@ DEFINE_HOOK(525C50, CMixFile_LoadSHP, 5)
     if (current_shape_file.is_open())
 		current_shape_file.close();
 
-	ppmfc::CString filepath = CFinalSunApp::FilePath();
-	filepath += filename;
-	std::ifstream fin;
-	fin.open(filepath, std::ios::in | std::ios::binary);
-	if (fin.is_open())
+	DWORD size = 0;
+	if (auto pData = CLoading::Instance->ReadWholeFile(filename, &size))
 	{
-		fin.seekg(0, std::ios::end);
-		const int size = static_cast<int>(fin.tellg());
-		if (size == 0)
-			return false;
-
-		fin.seekg(0, std::ios::beg);
-		current_shape_file.m_data = GameCreateArray<unsigned char>(size);
-		fin.read((char*)current_shape_file.m_data, size);
 		current_shape_file.size = size;
-		fin.close();
+		current_shape_file.m_data = (unsigned char*)pData;
 		R->EAX(true);
 		return 0x525CFC;
 	}
-
-	size_t size = 0;
-	auto data = ResourcePackManager::instance().getFileData(filename, &size);
-	if (data && size > 0)
-	{
-		current_shape_file.m_data = GameCreateArray<unsigned char>(size);
-		memcpy(current_shape_file.m_data, data.get(), size);
-		current_shape_file.size = size;
-		R->EAX(true);
-		return 0x525CFC;
-	}
-
-	if (ExtConfigs::ExtMixLoader)
-	{
-		auto& manager = MixLoader::Instance();
-		size_t sizeM = 0;
-		auto result = manager.LoadFile(filename, &sizeM);
-		if (result && sizeM > 0)
-		{
-			current_shape_file.m_data = GameCreateArray<unsigned char>(sizeM);
-			memcpy(current_shape_file.m_data, result.get(), sizeM);
-			current_shape_file.size = sizeM;
-			R->EAX(true);
-			return 0x525CFC;
-		}
-	}
-
-	if (CMixFile::HasFile(filename, nMix))
-	{
-		Ccc_file file(true);
-		file.open(filename, CMixFile::Array[nMix - 1]);
-		current_shape_file.m_data = GameCreateArray<unsigned char>(file.get_size());
-		memcpy(current_shape_file.m_data, file.get_data(), file.get_size());
-		current_shape_file.size = file.get_size();
-		file.close();
-		R->EAX(true);
-		return 0x525CFC;
-	}
-
+	
 	R->EAX(false);
     return 0x525CFC;
 }

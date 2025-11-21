@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <bit>
 #include "Helpers/Translations.h"
+#include "Miscs/DialogStyle.h"
 
 HANDLE FA2sp::hInstance;
 ULONG_PTR FA2sp::ulCookie;
@@ -313,7 +314,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
 
-	ExtConfigs::UTF8Support_InferEncoding = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.InferEncoding");
+	ExtConfigs::UTF8Support_InferEncoding = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.InferEncoding", true);
 	ExtConfigs::UTF8Support_AlwaysSaveAsUTF8 = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.AlwaysSaveAsUTF8");
 
 	ExtConfigs::ShrinkTilesInTileSetBrowser = CINI::FAData->GetBool("ExtConfigs", "ShrinkTilesInTileSetBrowser");
@@ -1330,6 +1331,10 @@ DEFINE_HOOK(537129, ExeRun, 9)
 	}
 	
 	FA2Expand::ExeRun();
+	DarkTheme::ExeStart_DrakThemeHooks();
+
+	const char* MapImporterFilter = "All files|*.yrm;*.mpr;*.map;*.bmp|Multi maps|*.yrm;*.mpr|Single maps|*.map|Windows bitmaps|*.bmp|";
+	RunTime::ResetStaticCharAt(0x5D026C, MapImporterFilter);
 
 	return 0;
 }

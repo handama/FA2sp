@@ -559,6 +559,7 @@ public:
     static bool IsLoadingMapFile;
     static bool IsMMXFile;
     static bool IsUTF8File;
+    static bool SkipBuildingOverlappingCheck;
     static std::vector<FString> MapIniSectionSorting;
     static std::map<FString, std::set<FString>> PowersUpBuildings;
 };

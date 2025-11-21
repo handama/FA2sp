@@ -2324,10 +2324,20 @@ void CLoadingExt::SetGenericTheaterLetter(FString& string)
 
 int CLoadingExt::HasFileMix(FString filename, int nMix)
 {
-	FString filepath = CFinalSunApp::FilePath();
-	filepath += filename;
+	FString filepath;
 	std::ifstream fin;
+
+	filepath = CFinalSunApp::ExePath();
+	filepath += "Resources\\HighPriority\\";
+	filepath += filename;
 	fin.open(filepath, std::ios::in | std::ios::binary);
+	if (!fin.is_open())
+	{
+		filepath = CFinalSunApp::FilePath();
+		filepath += filename;
+		fin.open(filepath, std::ios::in | std::ios::binary);
+	}
+
 	if (fin.is_open())
 	{
 		fin.close();
@@ -2353,11 +2363,19 @@ int CLoadingExt::HasFileMix(FString filename, int nMix)
 		nMix = CLoading::Instance->SearchFile(filename);
 		if (CMixFile::HasFile(filename, nMix))
 			return nMix;
-		else
-			return -2;
 	}
 	if (CMixFile::HasFile(filename, nMix))
 		return nMix;
+
+	filepath = CFinalSunApp::ExePath();
+	filepath += "Resources\\LowPriority\\";
+	filepath += filename;
+	fin.open(filepath, std::ios::in | std::ios::binary);
+	if (fin.is_open())
+	{
+		fin.close();
+		return -1;
+	}
 
 	return -2;
 }
@@ -3206,19 +3224,21 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 						)
 					{
 						if (nIndex >= 0x27 && nIndex <= 0x36) // Tracks
-							offset += 15;
+							offset += 14;
 						else if (nIndex >= 0x4A && nIndex <= 0x65) // LOBRDG 1-28
 							offset += 15;
 						else if (nIndex >= 0xCD && nIndex <= 0xEC) // LOBRDGB 1-4
 							offset += 15;
-						else if (nIndex == 0xB3 || nIndex == 0xF2) // CRATES
-							offset += 3;
 						else if (nIndex < CMapDataExt::OverlayTypeDatas.size())
 						{
-							if (CMapDataExt::OverlayTypeDatas[nIndex].Rock
-								//|| CMapDataExt::OverlayTypeDatas[nIndex].TerrainRock // for compatibility of blockages
-								|| CMapDataExt::OverlayTypeDatas[nIndex].RailRoad)
+							if (CMapDataExt::OverlayTypeDatas[nIndex].Rock)
 								offset += 15;
+							else if (CMapDataExt::OverlayTypeDatas[nIndex].TerrainRock)
+								offset += 15;
+							else if (CMapDataExt::OverlayTypeDatas[nIndex].RailRoad)
+								offset += 14;
+							else
+								offset += 3;
 						}
 					}
 					else

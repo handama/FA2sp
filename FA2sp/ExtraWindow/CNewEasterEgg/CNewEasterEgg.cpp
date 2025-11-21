@@ -900,12 +900,19 @@ void CChineseChess::undoRound() {
         auto [m, key] = Board::history.back();
         Board::history.pop_back();
         Board::positionHistory[key]--;
-        if (Board::positionHistory[key] == 0) Board::positionHistory.erase(key);
+        if (Board::positionHistory[key] == 0)
+            Board::positionHistory.erase(key);
         bd.undoMove(m);
     };
-    pop1();
-    if (!Board::history.empty()) pop1();
-    gameOver = false; selR = selC = -1;
+    if (bd.sideToMove == RED) {
+        pop1();
+    }
+    else {
+        pop1();
+        if (!Board::history.empty()) pop1();
+    }
+    gameOver = false;
+    selR = selC = -1;
     bd.sideToMove = BLACK;
     aiLastMoveFromR = aiLastMoveFromC = -1;
     aiLastMoveToR = aiLastMoveToC = -1;

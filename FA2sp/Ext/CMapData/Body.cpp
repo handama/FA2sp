@@ -95,6 +95,7 @@ int CMapDataExt::UndoRedoDataIndex;
 bool CMapDataExt::IsLoadingMapFile = false;
 bool CMapDataExt::IsMMXFile = false;
 bool CMapDataExt::IsUTF8File = false;
+bool CMapDataExt::SkipBuildingOverlappingCheck = false;
 std::vector<FString> CMapDataExt::MapIniSectionSorting;
 std::map<FString, std::set<FString>> CMapDataExt::PowersUpBuildings;
 ObjectRecord* ObjectRecord::ObjectRecord_HoldingPtr = nullptr;

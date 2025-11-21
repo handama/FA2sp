@@ -854,7 +854,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			size_t lastDot = path.find_last_of('.');
 			if (lastDot != std::string::npos && (lastSlash == std::string::npos || lastDot > lastSlash))
 				path = path.substr(0, lastDot);
-			path += ".png";
+			path += CIsoViewExt::RenderSaveAsPNG ? ".png" : ".jpg";
 
 			auto wpath = STDHelpers::StringToWString(path);
 			int currentlighting = CFinalSunDlgExt::CurrentLighting;
@@ -1044,7 +1044,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				GetImageEncoders(num, size, pImageCodecInfo);
 				for (UINT i = 0; i < num; ++i)
 				{
-					if (wcscmp(pImageCodecInfo[i].MimeType, L"image/png") == 0)
+					if (wcscmp(pImageCodecInfo[i].MimeType, 
+						CIsoViewExt::RenderSaveAsPNG ? L"image/png" : L"image/jpeg") == 0)
 					{
 						clsidEncoder = pImageCodecInfo[i].Clsid;
 						break;
@@ -1052,7 +1053,16 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				}
 				free(pImageCodecInfo);
 
-				result = CIsoViewExt::pFullBitmap->Save(wpath.c_str(), &clsidEncoder, nullptr);
+				ULONG quality = 80;
+				EncoderParameters encoderParams{};
+				encoderParams.Count = 1;
+				encoderParams.Parameter[0].Guid = EncoderQuality;
+				encoderParams.Parameter[0].Type = EncoderParameterValueTypeLong;
+				encoderParams.Parameter[0].NumberOfValues = 1;
+				encoderParams.Parameter[0].Value = &quality;
+
+				result = CIsoViewExt::pFullBitmap->Save(wpath.c_str(), &clsidEncoder, 
+					CIsoViewExt::RenderSaveAsPNG ? nullptr : &encoderParams);
 				delete CIsoViewExt::pFullBitmap;
 				CIsoViewExt::pFullBitmap = nullptr;
 			}
@@ -1272,6 +1282,22 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(COptions::GetHandle(), 114514, 0, 0);
 			return TRUE;
 		}
+		else if (hWnd == CNewLocalVariables::GetHandle()) {
+			::SendMessage(CNewLocalVariables::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CTriggerAnnotation::GetHandle()) {
+			::SendMessage(CTriggerAnnotation::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CCsfEditor::GetHandle()) {
+			::SendMessage(CCsfEditor::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CLuaConsole::GetHandle()) {
+			::SendMessage(CLuaConsole::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
 
 		int newParam = 0;
 		auto refreshFA2Window = [this, &hWnd, &newParam, wmMsg](int wmID2, ppmfc::CDialog& dialog)
@@ -1283,7 +1309,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				}
 				return false;
 			};
-
 
 		refreshFA2Window(40040, this->MapD);
 		refreshFA2Window(40039, this->Houses);

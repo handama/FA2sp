@@ -653,7 +653,7 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 	}
 
 	auto pSection = m_mapfile->AddOrGetSection("Structures");
-	if (!CopyPaste::OnLButtonDownPasted)
+	if (!CopyPaste::OnLButtonDownPasted && !CMapDataExt::SkipBuildingOverlappingCheck)
 	{
 		// check overlap
 		auto& ignoreList = CINI::FAData->GetSection("StructureOverlappingCheckIgnores")->GetEntities();

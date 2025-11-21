@@ -225,6 +225,7 @@ public:
     static bool RenderEmphasizeOres;
     static bool RenderMarkStartings;
     static bool RenderIgnoreObjects;
+    static bool RenderSaveAsPNG;
     static RendererLighting RenderLighing;
 
     static bool AutoPropertyBrush[4];

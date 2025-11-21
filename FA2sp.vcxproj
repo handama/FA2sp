@@ -306,12 +306,9 @@
     <ClCompile Include="FA2sp\Miscs\Hooks.Bitmap2MapConverter.cpp" />
     <ClCompile Include="FA2sp\Miscs\DialogStyle.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.DirectDraw.cpp" />
-    <ClCompile Include="FA2sp\Miscs\Hooks.ExtLocalVariables.cpp" />
-    <ClCompile Include="FA2sp\Miscs\Hooks.FA2MiscFix.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.ShpLoad.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Memory.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.UserScripts.cpp" />
-    <ClCompile Include="FA2sp\Miscs\PlaceHolder.cpp" />
     <ClCompile Include="FA2sp\Miscs\TheaterInfo.cpp" />
     <ClCompile Include="FA2sp\Miscs\VoxelDrawer.cpp" />
     <ClCompile Include="FA2sp\Miscs\Exception.cpp" />
@@ -332,7 +329,6 @@
     <ClCompile Include="FA2sp\Miscs\Hooks.INI.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Mix.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Performance.cpp" />
-    <ClCompile Include="FA2sp\Miscs\Hooks.Palette.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Stringtables.cpp" />
     <ClCompile Include="FA2sp\Helpers\MutexHelper.cpp" />
     <ClCompile Include="FA2sp\Helpers\Translations.cpp" />

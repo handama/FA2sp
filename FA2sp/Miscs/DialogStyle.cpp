@@ -2003,16 +2003,16 @@ static double GetDouble(std::string value, double nDefault = 0) {
     return nDefault;
 }
 
-DEFINE_HOOK(537129, ExeStart_DrakThemeHooks, 9)
+void DarkTheme::ExeStart_DrakThemeHooks()
 {
     ExtConfigs::AutoDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "AutoDarkMode", "true").c_str());
     ExtConfigs::AutoDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FinalAlert.ini", "Options",
         "AutoDarkMode", ExtConfigs::AutoDarkMode ? "true" : "false").c_str());
     if (ExtConfigs::AutoDarkMode)
     {
-        ExtConfigs::AutoDarkMode_SwitchTimeA = 
+        ExtConfigs::AutoDarkMode_SwitchTimeA =
             GetDouble(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "AutoDarkMode.StartTime", "-1.0"), -1.0);
-        ExtConfigs::AutoDarkMode_SwitchTimeB = 
+        ExtConfigs::AutoDarkMode_SwitchTimeB =
             GetDouble(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "AutoDarkMode.EndTime", "-1.0"), -1.0);
         ExtConfigs::EnableDarkMode = FA2sp::IsDarkMode();
     }
@@ -2044,6 +2044,4 @@ DEFINE_HOOK(537129, ExeStart_DrakThemeHooks, 9)
     RunTime::ResetMemoryContentAt(0x591464, DarkTheme::MyCallWindowProcA);
     RunTime::ResetMemoryContentAt(0x5915D4, DarkTheme::MyGetOpenFileNameA);
     RunTime::ResetMemoryContentAt(0x5915DC, DarkTheme::MyGetSaveFileNameA);
-
-    return 0;
 }

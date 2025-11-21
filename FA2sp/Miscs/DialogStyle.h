@@ -75,6 +75,7 @@ namespace DarkColors
 class DarkTheme
 {
 public:
+    static void ExeStart_DrakThemeHooks();
     static LRESULT WINAPI MyDefWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static LRESULT WINAPI MyCallWindowProcA(WNDPROC lpPrevWndFunc, HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static std::string GetIniPath(const char* iniFile);

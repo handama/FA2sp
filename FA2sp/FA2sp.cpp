@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <bit>
 #include "Helpers/Translations.h"
+#include "Miscs/DialogStyle.h"
 
 HANDLE FA2sp::hInstance;
 ULONG_PTR FA2sp::ulCookie;
@@ -1330,6 +1331,10 @@ DEFINE_HOOK(537129, ExeRun, 9)
 	}
 	
 	FA2Expand::ExeRun();
+	DarkTheme::ExeStart_DrakThemeHooks();
+
+	const char* MapImporterFilter = "All files|*.yrm;*.mpr;*.map;*.bmp|Multi maps|*.yrm;*.mpr|Single maps|*.map|Windows bitmaps|*.bmp|";
+	RunTime::ResetStaticCharAt(0x5D026C, MapImporterFilter);
 
 	return 0;
 }

@@ -209,7 +209,8 @@ DEFINE_HOOK(46E815, CIsoView_Draw_Optimize_GetBorder, 5)
 	}
 
 	HorizontalLoopIndex = VisibleCoordTL.X + VisibleCoordTL.Y - EXTRA_BORDER;
-	return 0;
+
+	return 0x46E9D5;
 }
 
 DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)

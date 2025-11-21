@@ -747,25 +747,32 @@ DEFINE_HOOK(45EC1A, CIsoView_OnCommand_HandleProperty, A)
 		key.Format("%d", coord.X * 1000 + coord.Y);
 		if (CINI::CurrentDocument->KeyExists("Annotations", key))
 		{
-			auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString("Annotations", key), 6);
-			ppmfc::CString value;
-			bool folded = STDHelpers::IsTrue(atoms[2]);
-			for (int i = 0; i < atoms.size(); ++i)
+			if ((GetKeyState(VK_CONTROL) & 0x8000))
 			{
-				if (i != 0)
-					value += ",";
-				if (i != 2)
-					value += atoms[i];
-				else
+				auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString("Annotations", key), 6);
+				ppmfc::CString value;
+				bool folded = STDHelpers::IsTrue(atoms[2]);
+				for (int i = 0; i < atoms.size(); ++i)
 				{
-					if (folded)
-						value += "no";
+					if (i != 0)
+						value += ",";
+					if (i != 2)
+						value += atoms[i];
 					else
-						value += "yes";
+					{
+						if (folded)
+							value += "no";
+						else
+							value += "yes";
+					}
 				}
+				CINI::CurrentDocument->WriteString("Annotations", key, value);
+				::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 			}
-			CINI::CurrentDocument->WriteString("Annotations", key, value);
-			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+			else
+			{
+				CViewObjectsExt::AddAnnotation(coord.X, coord.Y);
+			}
 		}
 	}
 

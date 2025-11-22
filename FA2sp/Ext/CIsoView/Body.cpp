@@ -63,7 +63,7 @@ bool CIsoViewExt::RenderingMap = false;
 bool CIsoViewExt::RenderFullMap = false;
 bool CIsoViewExt::RenderCurrentLayers = false;
 bool CIsoViewExt::RenderTileSuccess = false;
-bool CIsoViewExt::RenderInvisibleOverlays = false;
+bool CIsoViewExt::RenderInvisibleInGame = false;
 bool CIsoViewExt::RenderEmphasizeOres = false;
 bool CIsoViewExt::RenderMarkStartings = false;
 bool CIsoViewExt::RenderIgnoreObjects = false;
@@ -1796,10 +1796,7 @@ void CIsoViewExt::GetSameConnectedCells(int X, int Y, int oriX, int oriY, std::s
     int mapwidth, mapheight;
     mapwidth = map->Size.Width;
     mapheight = map->Size.Height;
-
-    //const int BlockWaters[3] = { 6 , 7, 13 };
-    int iWaterSet = CINI::CurrentTheater->GetInteger("General", "WaterSet", -1);
-
+   
     int i, e;
     for (i = -1; i < 2; i++)
     {
@@ -1842,15 +1839,8 @@ void CIsoViewExt::GetSameConnectedCells(int X, int Y, int oriX, int oriY, std::s
             }
             if (ExtConfigs::FillArea_ConsiderWater && !match)
             {
-                if (CMapDataExt::TileData[tileIndex_cell2].TileSet == iWaterSet && CMapDataExt::TileData[tileIndex_cell].TileSet == iWaterSet)
+                if (CMapDataExt::TileData[tileIndex_cell2].TileSet == CMapDataExt::WaterSet && CMapDataExt::TileData[tileIndex_cell].TileSet == CMapDataExt::WaterSet)
                 {
-                    //bool notWaterBlock = true;
-                    //for (int bw : BlockWaters)
-                    //{
-                    //    if (bw == tileIndex_cell2 - CMapDataExt::TileSet_starts[iWaterSet] || bw == tileIndex_cell - CMapDataExt::TileSet_starts[iWaterSet])
-                    //        notWaterBlock = false;
-                    //}
-                    //if (notWaterBlock)
                     match = true;
                 }
             }
@@ -4593,6 +4583,46 @@ bool CIsoViewExt::BlitDDSurfaceRectToBitmap(
     g.ReleaseHDC(hdcTarget);
 
     return bOK == TRUE;
+}
+
+int CIsoViewExt::GetOverlayDrawOffset(WORD nOverlay, BYTE nOverlayData)
+{
+    auto type = CMapDataExt::GetOverlayTypeData(nOverlay);
+    if (nOverlay == 0xA7) 
+    {
+        return -49;
+    }
+    else if (type.Veins)
+    {
+        return -1;
+    }
+    else if (
+        nOverlay != 0x18 && nOverlay != 0x19 && // BRIDGE1, BRIDGE2
+        nOverlay != 0x3B && nOverlay != 0x3C && // RAILBRDG1, RAILBRDG2
+        nOverlay != 0xED && nOverlay != 0xEE // BRIDGEB1, BRIDGEB2
+        )
+    {
+        if (nOverlay >= 0x27 && nOverlay <= 0x36) // Tracks
+            return 14;
+        else if (type.RailRoad)
+            return 14;
+        else if (type.Wall)
+            return 3;
+        else if (type.Crate)
+            return 3;
+        else if (type.Tiberium)
+            return 3;
+        else
+            return 15;
+    }
+    else
+    {
+        if (nOverlayData >= 0x9 && nOverlayData <= 0x11)
+            return -16;
+        else
+            return -1;
+    }
+    return 15;
 }
 
 BOOL CIsoViewExt::PreTranslateMessageExt(MSG* pMsg)

@@ -11,7 +11,7 @@ CMapRendererDlg::CMapRendererDlg(CWnd* pParent /*=NULL*/)
 	b_GameLayers = FALSE;
 	b_SaveFormat = FALSE;
 	n_Lighting = RendererLighting::Normal;
-	b_DisplayInvisibleOverlay = FALSE;
+	b_DisplayInvisibleInGame = FALSE;
 	b_MarkStartPositions = FALSE;
 	b_MarkOres = FALSE;
 	b_IgnoreObjects = TRUE;
@@ -27,7 +27,7 @@ void CMapRendererDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
 	DDX_Radio(pDX, 1003, b_GameLayers);
 	DDX_Radio(pDX, 1005, n_Lighting);
 	DDX_Radio(pDX, 1015, b_SaveFormat);
-	DDX_Check(pDX, 1010, b_DisplayInvisibleOverlay);
+	DDX_Check(pDX, 1010, b_DisplayInvisibleInGame);
 	DDX_Check(pDX, 1011, b_MarkStartPositions);
 	DDX_Check(pDX, 1012, b_MarkOres);
 	DDX_Check(pDX, 1013, b_IgnoreObjects);
@@ -67,7 +67,7 @@ void CMapRendererDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
 		GetDlgItem(1008)->SetWindowTextA(buffer);
 	if (Translations::GetTranslationItem("MapRendererDlgDominatorLighting", buffer))
 		GetDlgItem(1009)->SetWindowTextA(buffer);
-	if (Translations::GetTranslationItem("MapRendererDlgInvisibleOverlay", buffer))
+	if (Translations::GetTranslationItem("MapRendererDlgInvisibleInGame", buffer))
 		GetDlgItem(1010)->SetWindowTextA(buffer);
 	if (Translations::GetTranslationItem("MapRendererDlgStartingPositions", buffer))
 		GetDlgItem(1011)->SetWindowTextA(buffer);
@@ -89,7 +89,7 @@ void CMapRendererDlg::OnOK()
 	UpdateData(TRUE);
 	CIsoViewExt::RenderCurrentLayers = b_GameLayers != 0;
 	CIsoViewExt::RenderFullMap = b_LocalSize != 0;
-	CIsoViewExt::RenderInvisibleOverlays = b_DisplayInvisibleOverlay;
+	CIsoViewExt::RenderInvisibleInGame = b_DisplayInvisibleInGame;
 	CIsoViewExt::RenderEmphasizeOres = b_MarkOres;
 	CIsoViewExt::RenderMarkStartings = b_MarkStartPositions;
 	CIsoViewExt::RenderLighing = (RendererLighting)n_Lighting;

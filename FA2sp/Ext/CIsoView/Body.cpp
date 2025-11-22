@@ -19,6 +19,7 @@
 #include <immintrin.h>
 #include <mutex>
 #include "../../Miscs/TheaterInfo.h"
+#include <stack>
 
 Bitmap* CIsoViewExt::pFullBitmap = nullptr;
 bool CIsoViewExt::DrawStructures = true;
@@ -1763,69 +1764,71 @@ void CIsoViewExt::DrawWaypointFlag(int X, int Y, LPDDSURFACEDESC2 lpDesc)
     auto image = CLoadingExt::GetSurfaceImageDataFromMap("FLAG");
     this->BlitTransparentDesc(image->lpSurface, this->lpDDBackBufferSurface, lpDesc, X + 5 + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
 }
-
 void CIsoViewExt::GetSameConnectedCells(int X, int Y, int oriX, int oriY, std::set<MapCoord>* selectedCoords)
 {
-    if (!selectedCoords)
-        return;
+    if (!selectedCoords) return;
 
     auto& map = CMapData::Instance;
+    if (!map->IsCoordInMap(X, Y)) return;
 
-    if (!map->IsCoordInMap(X, Y))
-        return;
-    auto cell = map->GetCellAt(X, Y);
-    cell->Flag.NotAValidCell = TRUE;
+    std::stack<MapCoord> stk;
+    stk.push({ X, Y });
 
-    if (cell->IsHidden())
-        return;
-
-    if (MultiSelection::SelectedCoords.size() > 0 && MultiSelection::IsSelected(oriX, oriY)) {
-        bool skip = true;
-        for (const auto& coord : MultiSelection::SelectedCoords) {
-            if (coord.X == X && coord.Y == Y) {
-                skip = false;
-                break;
-            }
-        }
-        if (skip)
-            return;
-    }
-
-    int tileIndex_cell = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
-
-    int mapwidth, mapheight;
-    mapwidth = map->Size.Width;
-    mapheight = map->Size.Height;
-   
-    int i, e;
-    for (i = -1; i < 2; i++)
+    while (!stk.empty())
     {
-        for (e = -1; e < 2; e++)
-        {
-            if (abs(i) == abs(e)) continue;
-            int cur_x, cur_y;
-            cur_x = X + i;
-            cur_y = Y + e;
+        auto cur = stk.top(); stk.pop();
+        int x = cur.X;
+        int y = cur.Y;
 
-            if (!map->IsCoordInMap(cur_x, cur_y))
+        auto cell = map->TryGetCellAt(x, y);
+        if (cell->Flag.NotAValidCell) continue;
+        cell->Flag.NotAValidCell = TRUE;
+
+        if (cell->IsHidden()) continue;
+
+        if (MultiSelection::SelectedCoords.size() > 0 && MultiSelection::IsSelected(oriX, oriY)) {
+            bool skip = true;
+            for (const auto& coord : MultiSelection::SelectedCoords) {
+                if (coord.X == x && coord.Y == y) {
+                    skip = false;
+                    break;
+                }
+            }
+            if (skip) continue;
+        }
+
+        selectedCoords->insert({ x, y });
+
+        int tileIndex_cell = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+
+        static const int dx[4] = { -1, 1, 0, 0 };
+        static const int dy[4] = { 0, 0, -1, 1 };
+
+        for (int k = 0; k < 4; k++)
+        {
+            int nx = x + dx[k];
+            int ny = y + dy[k];
+
+            if (!map->IsCoordInMap(nx, ny))
                 continue;
 
-            auto cell2 = map->TryGetCellAt(cur_x, cur_y);
-
-            if (cell2->Flag.NotAValidCell) continue;
+            auto cell2 = map->TryGetCellAt(nx, ny);
+            if (cell2->Flag.NotAValidCell)
+                continue;
 
             bool match = false;
-            int tileIndex_cell2 = CMapDataExt::GetSafeTileIndex(cell2->TileIndex);
 
+            int tileIndex_cell2 = CMapDataExt::GetSafeTileIndex(cell2->TileIndex);
             match = tileIndex_cell2 == tileIndex_cell && cell2->TileSubIndex == cell->TileSubIndex;
-            if (ExtConfigs::FillArea_ConsiderLAT && !match)
-            {
+
+            if (ExtConfigs::FillArea_ConsiderLAT && !match) {
                 for (auto& latPair : CMapDataExt::Tile_to_lat)
                 {
                     int iSmoothSet = latPair[0];
                     int iLatSet = latPair[1];
-
-                    if (iLatSet >= 0 && iSmoothSet >= 0 && iSmoothSet < CMapDataExt::TileSet_starts.size() && iLatSet < CMapDataExt::TileSet_starts.size() &&
+                    if (iLatSet >= 0 && iSmoothSet >= 0 &&
+                        iSmoothSet < CMapDataExt::TileSet_starts.size() &&
+                        iLatSet < CMapDataExt::TileSet_starts.size() &&
                         (CMapDataExt::TileData[tileIndex_cell2].TileSet == iSmoothSet || CMapDataExt::TileData[tileIndex_cell2].TileSet == iLatSet) &&
                         (CMapDataExt::TileData[tileIndex_cell].TileSet == iSmoothSet || CMapDataExt::TileData[tileIndex_cell].TileSet == iLatSet))
                     {
@@ -1835,23 +1838,21 @@ void CIsoViewExt::GetSameConnectedCells(int X, int Y, int oriX, int oriY, std::s
                         }
                     }
                 }
-
             }
-            if (ExtConfigs::FillArea_ConsiderWater && !match)
-            {
-                if (CMapDataExt::TileData[tileIndex_cell2].TileSet == CMapDataExt::WaterSet && CMapDataExt::TileData[tileIndex_cell].TileSet == CMapDataExt::WaterSet)
+
+            if (ExtConfigs::FillArea_ConsiderWater && !match) {
+                if (CMapDataExt::TileData[tileIndex_cell2].TileSet == CMapDataExt::WaterSet &&
+                    CMapDataExt::TileData[tileIndex_cell].TileSet == CMapDataExt::WaterSet)
                 {
                     match = true;
                 }
             }
 
-            if (match)
-            {
-                GetSameConnectedCells(cur_x, cur_y, oriX, oriY, selectedCoords);
+            if (match) {
+                stk.push({ nx, ny });
             }
         }
     }
-    selectedCoords->insert(MapCoord{ X,Y });
 }
 
 void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY)

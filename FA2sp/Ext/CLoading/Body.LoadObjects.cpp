@@ -1732,10 +1732,10 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 		{
 			ShapeHeader header;
 			ShapeHeader headerTurret;
-			unsigned char* FramesBuffers[1];
-			unsigned char* FramesBuffersShadow[1];
-			unsigned char* FramesBuffersTurret[32];
-			unsigned char* FramesBuffersTurretShadow[32];
+			unsigned char* FramesBuffers[1]{ 0 };
+			unsigned char* FramesBuffersShadow[1]{ 0 };
+			unsigned char* FramesBuffersTurret[32]{ 0 };
+			unsigned char* FramesBuffersTurretShadow[32]{ 0 };
 			FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 			GetFullPaletteName(PaletteName);
 
@@ -1816,7 +1816,10 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 					Matrix3D mat(F, L, H, i, targetFacings);
 
 					UnionSHP_Add(FramesBuffers[0], header.Width, header.Height);
-					UnionSHP_Add(FramesBuffersTurret[turrentFacing], header.Width, header.Height, mat.OutputX, mat.OutputY);
+					UnionSHP_Add(FramesBuffersTurret[turrentFacing], 
+						bUseTurrentFile ? headerTurret.Width : header.Width,
+						bUseTurrentFile ? headerTurret.Height : header.Height,
+						mat.OutputX, mat.OutputY);
 					unsigned char* outBuffer;
 					int outW, outH;
 					UnionSHP_GetAndClear(outBuffer, &outW, &outH);
@@ -1829,7 +1832,10 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 						DictNameShadow.Format("%s\233%d\233SHADOW", ID, i);
 						CLoadingExt::LoadSHPFrameSafe(framesToRead[i] + header.FrameCount / 2, 1, &FramesBuffersShadow[0], header);
 						UnionSHP_Add(FramesBuffersShadow[0], header.Width, header.Height, 0, 0, false, true);
-						UnionSHP_Add(FramesBuffersTurretShadow[turrentFacing], header.Width, header.Height, mat.OutputX, mat.OutputY, false, true);
+						UnionSHP_Add(FramesBuffersTurretShadow[turrentFacing], 
+							bUseTurrentFile ? headerTurret.Width : header.Width,
+							bUseTurrentFile ? headerTurret.Height : header.Height,
+							mat.OutputX, mat.OutputY, false, true);
 						unsigned char* outBufferShadow;
 						int outWShadow, outHShadow;
 						UnionSHP_GetAndClear(outBufferShadow, &outWShadow, &outHShadow, false, true);
@@ -3210,39 +3216,7 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 				{
 					int offset = -60;
 
-					if (nIndex == 0xA7)
-						offset -= 45;
-					else if (
-						nIndex != 0x18 && nIndex != 0x19 && // BRIDGE1, BRIDGE2
-						nIndex != 0x3B && nIndex != 0x3C && // RAILBRDG1, RAILBRDG2
-						nIndex != 0xED && nIndex != 0xEE // BRIDGEB1, BRIDGEB2
-						)
-					{
-						if (nIndex >= 0x27 && nIndex <= 0x36) // Tracks
-							offset += 14;
-						else if (nIndex >= 0x4A && nIndex <= 0x65) // LOBRDG 1-28
-							offset += 15;
-						else if (nIndex >= 0xCD && nIndex <= 0xEC) // LOBRDGB 1-4
-							offset += 15;
-						else if (nIndex < CMapDataExt::OverlayTypeDatas.size())
-						{
-							if (CMapDataExt::OverlayTypeDatas[nIndex].Rock)
-								offset += 15;
-							else if (CMapDataExt::OverlayTypeDatas[nIndex].TerrainRock)
-								offset += 15;
-							else if (CMapDataExt::OverlayTypeDatas[nIndex].RailRoad)
-								offset += 14;
-							else
-								offset += 3;
-						}
-					}
-					else
-					{
-						if (i >= 0x9 && i <= 0x11)
-							offset -= 16;
-						else
-							offset -= 1;
-					}
+					offset += CIsoViewExt::GetOverlayDrawOffset(nIndex, i);
 
 					// use CellAnim palette instead
 					FString customPal = CINI::Art->GetString(CellAnimImageID, "CustomPalette", "anim.pal");

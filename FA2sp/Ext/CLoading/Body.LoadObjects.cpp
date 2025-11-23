@@ -27,6 +27,7 @@ int CLoadingExt::TallestBuildingHeight = 0;
 std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::CurrentFrameImageDataMap;
 std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::ImageDataMap;
 std::unordered_map<FString, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::SurfaceImageDataMap;
+std::unordered_map<FString, BuildingClipOffset> CLoadingExt::BuildingClipsOffsetMap;
 std::vector<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::DamageFires;
 std::map<unsigned int, MapCoord> CLoadingExt::TileExtraOffsets;
 unsigned int CLoadingExt::RandomFireSeed = 0;
@@ -88,6 +89,19 @@ ImageDataClassSurface* CLoadingExt::GetSurfaceImageDataFromMap(const FString& na
 	return itr->second.get();
 }
 
+BuildingClipOffset CLoadingExt::GetBuildingClipsOffsetFromMap(const FString& name)
+{
+	auto itr = BuildingClipsOffsetMap.find(name);
+	if (itr == BuildingClipsOffsetMap.end())
+	{
+		BuildingClipOffset tmp;
+		tmp.FullWidth = 0;
+		tmp.LeftOffset = 0;
+		return tmp;
+	}
+	return itr->second;
+}
+
 int CLoadingExt::GetAvailableFacing(const FString& ID)
 {
 	auto itr = AvailableFacings.find(ID);
@@ -115,7 +129,7 @@ FString CLoadingExt::GetOverlayName(WORD ovr, BYTE ovrd, bool bShadow)
 	return ret;
 }
 
-FString CLoadingExt::GetBuildingImageName(FString ID, int nFacing, int state, bool bShadow)
+FString CLoadingExt::GetBuildingImageName(FString ID, int nFacing, int state, int part, bool bShadow)
 {
 	FString ret;
 	if (state == GBIN_DAMAGED)
@@ -123,7 +137,7 @@ FString CLoadingExt::GetBuildingImageName(FString ID, int nFacing, int state, bo
 		if (bShadow)
 			ret.Format("%s\233%d\233DAMAGEDSHADOW", ID, nFacing);
 		else
-			ret.Format("%s\233%d\233DAMAGED", ID, nFacing);
+			ret.Format("%s\233%d\233DAMAGED\233%d", ID, nFacing, part);
 	}
 	else if (state == GBIN_RUBBLE)
 	{
@@ -139,9 +153,9 @@ FString CLoadingExt::GetBuildingImageName(FString ID, int nFacing, int state, bo
 		else
 		{
 			if (Variables::RulesMap.GetBool(ID, "LeaveRubble"))
-				ret.Format("%s\2330\233RUBBLE", ID);
+				ret.Format("%s\2330\233RUBBLE\233%d", ID, part);
 			else if (!ExtConfigs::HideNoRubbleBuilding)// use damaged art, save memory
-				ret.Format("%s\233%d\233DAMAGED", ID, nFacing);
+				ret.Format("%s\233%d\233DAMAGED\233%d", ID, nFacing, part);
 			else // hide rubble
 				ret = "\233\144\241"; // invalid string to get it empty
 		}
@@ -152,7 +166,7 @@ FString CLoadingExt::GetBuildingImageName(FString ID, int nFacing, int state, bo
 		if (bShadow)
 			ret.Format("%s\233%d\233SHADOW", ID, nFacing);
 		else
-			ret.Format("%s\233%d", ID, nFacing);
+			ret.Format("%s\233%d\233%d", ID, nFacing, part);
 	}
 	return ret;
 }
@@ -258,6 +272,7 @@ void CLoadingExt::ClearItemTypes()
 		}
 	}
 	SurfaceImageDataMap.clear();
+	BuildingClipsOffsetMap.clear();
 	Logger::Debug("CLoadingExt::Clearing Loaded Objects.\n");
 	if (ExtConfigs::LoadImageDataFromServer)
 	{
@@ -342,6 +357,47 @@ FString CLoadingExt::GetVehicleOrAircraftFileID(FString ID)
 		ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
 
 	return ImageID;
+}
+
+void CLoadingExt::ClipAndLoadBuilding(FString ID, FString ImageID, unsigned char* pBuffer, int width, int height, Palette* palette)
+{
+	FString DictName;
+	int idx = CMapData::Instance->GetBuildingTypeID(ID);
+	auto& DataExt = CMapDataExt::GetExtension()->BuildingDataExts[idx];
+	//CLoadingExt::TrimImageEdges(pBuffer, width, height);
+	int parts = DataExt.BottomCoords.size();
+	if (parts == 1)
+	{
+		DictName.Format("%s\233%d", ImageID, 0);
+		SetImageDataSafe(pBuffer, DictName, width, height, palette, true, false);
+		BuildingClipsOffsetMap[DictName] = { width,0 };
+	}
+	else
+	{
+		int bottomIdx = DataExt.Width - 1;
+		std::vector<int> witdhs(parts, 0);
+		std::vector<unsigned char*> pSplit(parts, 0);
+		int left = 0;
+		for (int i = 0; i < parts; ++i)
+		{
+			auto& coord = DataExt.BottomCoords[i];
+			int right = (coord.Y - coord.X) * 30 + width / 2;
+			if (i >= bottomIdx)
+				right += 30;
+			if (i == parts - 1)
+				right = width;
+			right = std::max(0, right);
+			pSplit[i] = ClipImageHorizontal(pBuffer, width, height, left, right, witdhs[i]);
+			DictName.Format("%s\233%d", ImageID, i);
+			if (pSplit[i])
+			{
+				SetImageDataSafe(pSplit[i], DictName, witdhs[i], height, palette, true, false);
+			}
+			BuildingClipsOffsetMap[DictName] = { width,left };
+			left = right;
+		}
+		GameDeleteArray(pBuffer, width * height);
+	}
 }
 
 void CLoadingExt::LoadBuilding(FString ID)
@@ -701,7 +757,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 
 				UnionSHP_GetAndClear(pImage, &width1, &height1);
 				DictName.Format("%s\233%d", ID, i);
-				SetImageDataSafe(pImage, DictName, width1, height1, palette);
+				ClipAndLoadBuilding(ID, DictName, pImage, width1, height1, palette);
 			}
 
 			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
@@ -742,7 +798,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 				UnionSHP_GetAndClear(pImage, &width1, &height1);
 
 				DictName.Format("%s\233%d", ID, i);
-				SetImageDataSafe(pImage, DictName, width1, height1, palette);
+				ClipAndLoadBuilding(ID, DictName, pImage, width1, height1, palette);
 
 				if (shadow)
 				{
@@ -761,7 +817,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 	else // No turret
 	{
 		DictName.Format("%s\233%d", ID, 0);
-		SetImageDataSafe(pBuffer, DictName, width, height, palette);
+		ClipAndLoadBuilding(ID, DictName, pBuffer, width, height, palette);
 		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 		{
 			DictNameShadow.Format("%s\233%d\233SHADOW", ID, 0);
@@ -1109,7 +1165,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 					DictName.Format("%s\233%d\233RUBBLE", ID, i);
 				else
 					DictName.Format("%s\233%d\233DAMAGED", ID, i);
-				SetImageDataSafe(pImage, DictName, width1, height1, palette);
+				ClipAndLoadBuilding(ID, DictName, pImage, width1, height1, palette);
 			}
 
 			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
@@ -1153,8 +1209,8 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 				if (loadAsRubble)
 					DictName.Format("%s\233%d\233RUBBLE", ID, i);
 				else
-					DictName.Format("%s\233%d\233DAMAGED", ID, i);
-				SetImageDataSafe(pImage, DictName, width1, height1, palette);
+					DictName.Format("%s\233%d\233DAMAGED", ID, i); 
+				ClipAndLoadBuilding(ID, DictName, pImage, width1, height1, palette);
 
 				if (shadow)
 				{
@@ -1179,7 +1235,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 			DictName.Format("%s\233%d\233RUBBLE", ID, 0);
 		else
 			DictName.Format("%s\233%d\233DAMAGED", ID, 0);
-		SetImageDataSafe(pBuffer, DictName, width, height, palette);
+		ClipAndLoadBuilding(ID, DictName, pBuffer, width, height, palette);
 
 		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 		{
@@ -1333,7 +1389,7 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 			UnionSHP_GetAndClear(pBuffer, &width, &height);
 
 			FString DictName = ID + "\2330\233RUBBLE";
-			SetImageDataSafe(pBuffer, DictName, width, height, pal);
+			ClipAndLoadBuilding(ID, DictName, pBuffer, width, height, pal);
 
 			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
@@ -2284,6 +2340,70 @@ void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData)
 	SetValidBufferSafe(pData, newW, newH);
 }
 
+void CLoadingExt::TrimImageEdges(unsigned char*& pBuffer,int& width,int& height)
+{
+	if (!pBuffer || width <= 0 || height <= 0)
+		return;
+
+	const int oldW = width;
+	const int oldH = height;
+
+	int minX = oldW - 1, minY = oldH - 1;
+	int maxX = 0, maxY = 0;
+
+	for (int y = 0; y < oldH; ++y)
+	{
+		const unsigned char* row = pBuffer + y * oldW;
+		for (int x = 0; x < oldW; ++x)
+		{
+			if (row[x] != 0)
+			{
+				if (x < minX) minX = x;
+				if (y < minY) minY = y;
+				if (x > maxX) maxX = x;
+				if (y > maxY) maxY = y;
+			}
+		}
+	}
+
+	if (minX > maxX || minY > maxY)
+	{
+		return;
+	}
+
+	int leftSpace = minX;
+	int rightSpace = oldW - 1 - maxX;
+	int topSpace = minY;
+	int bottomSpace = oldH - 1 - maxY;
+
+	int cropLR = std::min(leftSpace, rightSpace);
+	int cropTB = std::min(topSpace, bottomSpace);
+
+	int newW = oldW - cropLR * 2;
+	int newH = oldH - cropTB * 2;
+
+	if (newW <= 0 || newH <= 0)
+		return;
+
+	unsigned char* newBuffer = GameCreateArray<unsigned char>(newW * newH);
+
+	for (int y = 0; y < newH; ++y)
+	{
+		int srcY = y + cropTB;
+		std::memcpy(
+			newBuffer + y * newW,
+			pBuffer + srcY * oldW + cropLR,
+			newW
+		);
+	}
+
+	GameDeleteArray(pBuffer, newW * newH);
+	pBuffer = newBuffer;
+
+	width = newW;
+	height = newH;
+}
+
 void CLoadingExt::SetTheaterLetter(FString& string, int mode)
 {
 	if (string.GetLength() < 2)
@@ -2949,6 +3069,123 @@ bool CLoadingExt::LoadBMPToCBitmap(const FString& filePath, CBitmap& outBitmap)
 
 	outBitmap.Attach(hBmp);
 	return true;
+}
+
+unsigned char* CLoadingExt::ClipImageHorizontal(
+	const unsigned char* pBuffer,
+	int width,
+	int height,
+	int cutLeft,
+	int cutRight,
+	int& outWidth
+)
+{
+	cutLeft = std::max(0, cutLeft);
+	cutRight = std::min(width, cutRight);
+
+	if (cutLeft >= cutRight)
+	{
+		outWidth = 0;
+		return nullptr;
+	}
+
+	outWidth = cutRight - cutLeft;
+
+	size_t newSize = size_t(outWidth) * height;
+	unsigned char* clipped = GameCreateArray<unsigned char>(newSize);
+
+	for (int y = 0; y < height; ++y)
+	{
+		const unsigned char* src = pBuffer + y * width + cutLeft;
+		unsigned char* dst = clipped + y * outWidth;
+
+		std::memcpy(dst, src, outWidth);
+	}
+
+	return clipped;
+}
+
+std::unique_ptr<ImageDataClassSafe> CLoadingExt::BindClippedImages(const std::vector<ImageDataClassSafe*>& imgs)
+{
+	if (imgs.empty())
+		return nullptr;
+
+	int totalWidth = 0;
+	int maxHeight = 0;
+
+	for (auto* img : imgs)
+	{
+		if (!img) continue;
+		totalWidth += img->FullWidth;
+		maxHeight = std::max<int>(maxHeight, img->FullHeight);
+	}
+
+	auto result = std::make_unique<ImageDataClassSafe>();
+	result->FullWidth = totalWidth;
+	result->FullHeight = maxHeight;
+	result->pImageBuffer = std::unique_ptr<unsigned char[]>(
+		new unsigned char[totalWidth * maxHeight]
+	);
+
+	std::memset(result->pImageBuffer.get(), 0, totalWidth * maxHeight);
+
+	int offsetX = 0;
+
+	for (auto* img : imgs)
+	{
+		if (!img || !img->pImageBuffer) continue;
+
+		unsigned char* src = img->pImageBuffer.get();
+		unsigned char* dst = result->pImageBuffer.get();
+
+		for (int y = 0; y < img->FullHeight; ++y)
+		{
+			int dstIndex = y * totalWidth + offsetX;
+			int srcIndex = y * img->FullWidth;
+			std::memcpy(dst + dstIndex, src + srcIndex, img->FullWidth);
+		}
+
+		offsetX += img->FullWidth;
+	}
+
+	result->ValidX = 0;
+	result->ValidY = 0;
+	result->ValidWidth = totalWidth;
+	result->ValidHeight = maxHeight;
+
+	result->pPixelValidRanges = std::unique_ptr<ImageDataClassSafe::ValidRangeData[]>(
+		new ImageDataClassSafe::ValidRangeData[maxHeight]
+	);
+
+	for (int y = 0; y < maxHeight; ++y)
+	{
+		ImageDataClassSafe::ValidRangeData& vr = result->pPixelValidRanges[y];
+
+		vr.First = totalWidth - 1;
+		vr.Last = 0;
+
+		unsigned char* row = result->pImageBuffer.get() + y * totalWidth;
+		for (int x = 0; x < totalWidth; ++x)
+		{
+			if (row[x] != 0)
+			{
+				vr.First = std::min<int>(vr.First, x);
+				vr.Last = std::max<int>(vr.Last, x);
+			}
+		}
+		if (vr.First > vr.Last)
+		{
+			vr.First = totalWidth - 1;
+			vr.Last = 0;
+		}
+	}
+
+	result->Flag = imgs[0]->Flag;
+	result->IsOverlay = imgs[0]->IsOverlay;
+	result->pPalette = imgs[0]->pPalette;
+	result->BuildingFlag = imgs[0]->BuildingFlag;
+
+	return result;
 }
 
 void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)

@@ -15,6 +15,8 @@ DEFINE_HOOK(4B5460, CMapData_InitializeBuildingTypes, 7)
 	{
 		int idx = pThis->GetBuildingTypeID(ID);
 		auto& DataExt = pThis->BuildingDataExts[idx];
+		DataExt.BottomCoords.clear();
+		DataExt.DamageFireOffsets.clear();
 
 		ppmfc::CString ImageID = Variables::RulesMap.GetString(ID, "Image", ID);
 		auto foundation = CINI::Art->GetString(ImageID, "Foundation");
@@ -197,6 +199,15 @@ DEFINE_HOOK(4B5460, CMapData_InitializeBuildingTypes, 7)
 			{
 				break;
 			}
+		}
+
+		DataExt.BottomCoords.reserve(DataExt.Width + DataExt.Height - 1);
+		for (int x = 0; x < DataExt.Width + DataExt.Height - 1; ++x)
+		{
+			if (x < DataExt.Width)
+				DataExt.BottomCoords.emplace_back(DataExt.Height - 1, x);
+			else
+				DataExt.BottomCoords.emplace_back(DataExt.Height + DataExt.Width - 2 - x, DataExt.Width - 1);
 		}
 		
 	};

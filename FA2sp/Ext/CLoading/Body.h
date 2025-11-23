@@ -46,7 +46,6 @@ public:
 	BOOL IsOverlay; // Only OVRLXX_XX will set this true
 };
 
-
 class NOVTABLE ImageDataClassSurface
 {
 public:
@@ -60,6 +59,12 @@ struct ImageDataTransfer
 {
 	char imageID[0x100];
 	ImageDataClassSafe pData;
+};
+
+struct BuildingClipOffset
+{
+	int FullWidth;
+	int LeftOffset;
 };
 
 class NOVTABLE CLoadingExt : public CLoading
@@ -95,7 +100,7 @@ public:
 		GBIN_RUBBLE,		
 		GBIN_DAMAGED,
 	};
-	static FString GetBuildingImageName(FString ID, int nFacing, int state, bool bShadow = false);
+	static FString GetBuildingImageName(FString ID, int nFacing, int state, int part, bool bShadow = false);
 	
 	static void ClearItemTypes();
 	void GetFullPaletteName(FString& PaletteName);
@@ -153,6 +158,8 @@ private:
 	void LoadBuilding_Normal(FString ID);
 	void LoadBuilding_Rubble(FString ID);
 	void LoadBuilding_Damaged(FString ID, bool loadAsRubble = false);
+	void ClipAndLoadBuilding(FString ID, FString ImageID, unsigned char* pBuffer, int width, int height, Palette* palette);
+	static unsigned char* ClipImageHorizontal(const unsigned char* pBuffer, int width, int height, int cutLeft, int cutRight, int& outWidth);
 
 	void LoadInfantry(FString ID);
 	void LoadTerrainOrSmudge(FString ID, bool terrain);
@@ -171,6 +178,7 @@ private:
 	void SetValidBuffer(ImageDataClass* pData, int Width, int Height);
 	void SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int Height);
 	void TrimImageEdges(ImageDataClassSafe* pData);
+	void TrimImageEdges(unsigned char*& pBuffer, int& width, int& height);
 
 	int ColorDistance(const ColorStruct& color1, const ColorStruct& color2); 
 	std::vector<int> GeneratePalLookupTable(Palette* first, Palette* second);
@@ -198,6 +206,7 @@ public:
 	ObjectType GetItemType(FString ID);
 	static bool SaveCBitmapToFile(CBitmap* pBitmap, const FString& filePath, COLORREF bgColor);
 	static bool LoadBMPToCBitmap(const FString& filePath, CBitmap& outBitmap);
+	static std::unique_ptr<ImageDataClassSafe> BindClippedImages(const std::vector<ImageDataClassSafe*>& imgs);
 
 	static std::unordered_map<FString, int> AvailableFacings;
 	static std::unordered_set<FString> LoadedObjects;
@@ -230,6 +239,7 @@ public:
 	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CurrentFrameImageDataMap;
 	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> ImageDataMap;
 	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSurface>> SurfaceImageDataMap;
+	static std::unordered_map<FString, BuildingClipOffset> BuildingClipsOffsetMap;
 	static std::vector<std::unique_ptr<ImageDataClassSafe>> DamageFires;
 	static unsigned int RandomFireSeed;
 	static std::map<unsigned int, MapCoord> TileExtraOffsets;
@@ -245,6 +255,7 @@ public:
 	static ImageDataClassSafe* GetImageDataFromServer(const FString& name);
 	static bool IsSurfaceImageLoaded(const FString& name);
 	static ImageDataClassSurface* GetSurfaceImageDataFromMap(const FString& name);
+	static BuildingClipOffset GetBuildingClipsOffsetFromMap(const FString& name);
 	static int GetAvailableFacing(const FString& ID);
 
 	static HANDLE hPipeData;

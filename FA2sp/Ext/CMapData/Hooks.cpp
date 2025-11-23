@@ -1030,6 +1030,7 @@ DEFINE_HOOK(4C5E1E, CMapData_ResizeMap_FixLocalSize, 7)
 	GET(int, dwHeight, EDI);
 
 	lpBuffer.Format("%d,%d,%d,%d", 3, 5, dwWidth - 6, dwHeight - 11);
+	CMapDataExt::SkipBuildingOverlappingCheck = true;
 
 	return 0x4C5E64;
 }
@@ -1105,6 +1106,7 @@ DEFINE_HOOK(4C7DAF, CMapData_ResizeMap_InitializeMapDataExt, 7)
 {
 	// load objects to avoid weird palette issue
 	CIsoView::GetInstance()->PrimarySurfaceLost();
+	CMapDataExt::SkipBuildingOverlappingCheck = false;
 
 	for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
 		for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {

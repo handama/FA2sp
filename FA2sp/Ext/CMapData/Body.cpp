@@ -1068,7 +1068,7 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 		value = CINI::CurrentDocument->GetValueAt("Structures", iniIndex);
 
 	int cellIndex = StructureIndexMap.size();
-	if (cellIndex > 65500 && !CIsoView::IsMouseMoving)
+	if (cellIndex > SHRT_MAX && !CIsoView::IsMouseMoving)
 	{
 		UpdateFieldStructureData_Optimized();
 	}

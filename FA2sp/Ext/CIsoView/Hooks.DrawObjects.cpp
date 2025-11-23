@@ -41,6 +41,7 @@ static std::vector<std::pair<MapCoord, FString>> WaypointsToDraw;
 static std::vector<std::pair<MapCoord, FString>> OverlayTextsToDraw;
 static std::vector<std::pair<MapCoord, DrawBuildings>> BuildingsToDraw;
 static std::vector<std::pair<MapCoord, ImageDataClassSafe*>> AlphaImagesToDraw;
+static std::vector<std::pair<MapCoord, ImageDataClassSafe*>> FiresToDraw;
 static std::vector<DrawVeterancy> DrawVeterancies;
 static std::vector<CellInfo> visibleCells;
 static std::unordered_set<short> DrawnBuildings;
@@ -53,6 +54,15 @@ inline static bool IsCoordInWindow(int X, int Y)
 	return
 		X + Y > VisibleCoordTL.X + VisibleCoordTL.Y - EXTRA_BORDER &&
 		X + Y < VisibleCoordBR.X + VisibleCoordBR.Y + CIsoViewExt::EXTRA_BORDER_BOTTOM &&
+		X > Y + VisibleCoordBR.X - VisibleCoordBR.Y - EXTRA_BORDER &&
+		X < Y + VisibleCoordTL.X - VisibleCoordTL.Y + EXTRA_BORDER;
+}
+
+inline static bool IsCoordInWindowButOnBottom(int X, int Y)
+{
+	return
+		X + Y > VisibleCoordTL.X + VisibleCoordTL.Y - EXTRA_BORDER &&
+		X + Y > VisibleCoordBR.X + VisibleCoordBR.Y + CIsoViewExt::EXTRA_BORDER_BOTTOM &&
 		X > Y + VisibleCoordBR.X - VisibleCoordBR.Y - EXTRA_BORDER &&
 		X < Y + VisibleCoordTL.X - VisibleCoordTL.Y + EXTRA_BORDER;
 }
@@ -113,6 +123,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 	OverlayTextsToDraw.clear();
 	BuildingsToDraw.clear();
 	AlphaImagesToDraw.clear();
+	FiresToDraw.clear();
 	DrawVeterancies.clear();
 	visibleCells.clear();
 	DrawnBuildings.clear();
@@ -397,12 +408,15 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			screenX -= DrawOffsetX;
 			screenY -= DrawOffsetY;
 			auto cell = CMapData::Instance->GetCellAt(pos);
+			auto& cellExt = CMapDataExt::CellDataExts[pos];
 			visibleCells.push_back({ X, Y, screenX, screenY, pos,
 				CMapData::Instance->IsCoordInMap(X, Y), 
 				cell,
-				&CMapDataExt::CellDataExts[pos] });
+				&cellExt });
 
 			cell->Flag.RedrawTerrain = false;
+			cellExt.BuildingRenderParts.clear();
+			cellExt.BaseNodeRenderParts.clear();
 		}
 	}
 
@@ -591,7 +605,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	//loop2: shadows
 	for (const auto& info : visibleCells)
 	{
-		if (!info.isInMap) continue;
+		if (!info.isInMap && !ExtConfigs::DisplayObjectsOutside) continue;
 		auto& X = info.X;
 		auto& Y = info.Y;
 		auto& pos = info.pos;
@@ -627,87 +641,86 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						if (std::find(DrawnBuildings.begin(), DrawnBuildings.end(), StrINIIndex) == DrawnBuildings.end())
 						{
 							DrawnBuildings.insert(StrINIIndex);
-							MapCoord objCenter;
 							const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(objRender.ID);
 							const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
-							objCenter.X = objRender.X + DataExt.Height / 2;
-							objCenter.Y = objRender.Y + DataExt.Width / 2;
-							if (!isCoordInFullMap(objCenter.X, objCenter.Y))
+							if (!CLoadingExt::IsObjectLoaded(objRender.ID))
 							{
-								objCenter.X = objRender.X;
-								objCenter.Y = objRender.Y;
+								CLoading::Instance->LoadObjects(objRender.ID);
 							}
-							// if objects overlapping with building, draw building earlier
-							if (DataExt.IsCustomFoundation())
+
+							int nFacing = 0;
+							if (Variables::RulesMap.GetBool(objRender.ID, "Turret"))
 							{
-								for (const auto& block : *DataExt.Foundations)
+								int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
+								nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
+							}
+
+							const int HP = objRender.Strength;
+							int status = CLoadingExt::GBIN_NORMAL;
+							if (HP == 0)
+								status = CLoadingExt::GBIN_RUBBLE;
+							else if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
+								status = CLoadingExt::GBIN_DAMAGED;
+							else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP
+								&& !(Variables::RulesMap.GetInteger(objRender.ID, "TechLevel") < 0 && Variables::RulesMap.GetBool(objRender.ID, "CanOccupyFire")))
+								status = CLoadingExt::GBIN_DAMAGED;
+
+							int x1 = objRender.X;
+							int y1 = objRender.Y;
+							CIsoView::MapCoord2ScreenCoord(x1, y1);
+							x1 -= DrawOffsetX;
+							y1 -= DrawOffsetY;
+
+							for (int i = 0; i < DataExt.BottomCoords.size(); ++i)
+							{
+								auto& coord = DataExt.BottomCoords[i];
+								MapCoord coordInMap = { X + coord.X, Y + coord.Y };							
+								const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, i);
+								auto clipOffset = CLoadingExt::GetBuildingClipsOffsetFromMap(imageName);
+
+								while (IsCoordInWindowButOnBottom(coordInMap.X, coordInMap.Y))
 								{
-									MapCoord coord = { X + block.Y, Y + block.X };
-									if (!isCoordInFullMap(coord.X, coord.Y))
-										continue;
-
-									if (!isCoordInFullMap(objCenter.X, objCenter.Y))
+									coordInMap.X--;
+									coordInMap.Y--;
+									if (IsCoordInWindow(coordInMap.X, coordInMap.Y))
 									{
-										objCenter.X = coord.X;
-										objCenter.Y = coord.Y;
-									}
-
-									auto buildingCell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
-									if (buildingCell->Unit != -1 || buildingCell->Aircraft != -1
-										|| buildingCell->Terrain != -1 || buildingCell->Infantry[0] != -1
-										|| buildingCell->Infantry[1] != -1 || buildingCell->Infantry[2] != -1)
-									{
-										objCenter.X = objRender.X;
-										objCenter.Y = objRender.Y;
 										break;
 									}
 								}
-							}
-							else
-							{
-								for (int dx = 0; dx < DataExt.Height; ++dx)
+								CellDataExt* cellExt = nullptr;
+								if (isCoordInFullMap(coordInMap.X, coordInMap.Y))
 								{
+									cellExt = &CMapDataExt::CellDataExts
+										[CMapData::Instance->GetCoordIndex(coordInMap.X, coordInMap.Y)];
+								}
+								else
+								{
+									bool found = false;
 									for (int dy = 0; dy < DataExt.Width; ++dy)
 									{
-										MapCoord coord = { X + dx, Y + dy };
-										if (!isCoordInFullMap(coord.X, coord.Y))
-											continue;
-
-										if (!isCoordInFullMap(objCenter.X, objCenter.Y))
+										for (int dx = 0; dx < DataExt.Height; ++dx)
 										{
-											objCenter.X = coord.X;
-											objCenter.Y = coord.Y;
+											const int x = X + dx;
+											const int y = Y + dy;
+											if (isCoordInFullMap(x, y))
+											{
+												found = true;
+												cellExt = &CMapDataExt::CellDataExts
+													[CMapData::Instance->GetCoordIndex(x, y)];
+											}
+											if (found) break;
 										}
-
-										auto buildingCell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
-										if (buildingCell->Unit != -1 || buildingCell->Aircraft != -1
-											|| buildingCell->Terrain != -1 || buildingCell->Infantry[0] != -1
-											|| buildingCell->Infantry[1] != -1 || buildingCell->Infantry[2] != -1)
-										{
-											objCenter.X = objRender.X;
-											objCenter.Y = objRender.Y;
-											break;
-										}
+										if (found) break;
 									}
 								}
+
+								if (cellExt)
+									cellExt->BuildingRenderParts.push_back
+									({ StrINIIndex,(short)i,
+										x1 - clipOffset.FullWidth / 2 + clipOffset.LeftOffset,
+										y1,
+										BuildingIndex });
 							}
-							// make sure target coord is in visible map
-							bool isInVisibleMap = false;
-							for (const auto& info : visibleCells)
-							{
-								if (objCenter.X == info.X && objCenter.Y == info.Y)
-								{
-									isInVisibleMap = true;
-									break;
-								}
-							}
-							if (!isInVisibleMap)
-							{
-								objCenter.X = X;
-								objCenter.Y = Y;
-							}
-							BuildingsToDraw.push_back(std::make_pair(MapCoord{ objRender.X, objRender.Y },
-								DrawBuildings{ StrINIIndex , (short)objCenter.X, (short)objCenter.Y, (short)BuildingIndex }));
 
 							if (shadow && CIsoViewExt::DrawStructures && !isCloakable(objRender.ID))
 							{
@@ -716,30 +729,13 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								CIsoView::MapCoord2ScreenCoord(x1, y1);
 								x1 -= DrawOffsetX;
 								y1 -= DrawOffsetY;
-
 								int nFacing = 0;
-
-								if (!CLoadingExt::IsObjectLoaded(objRender.ID))
-								{
-									CLoading::Instance->LoadObjects(objRender.ID);
-								}
 								if (Variables::RulesMap.GetBool(objRender.ID, "Turret") && !Variables::RulesMap.GetBool(objRender.ID, "TurretAnimIsVoxel"))
 								{
 									int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
 									nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
 								}
-
-								const int HP = objRender.Strength;
-								int status = CLoadingExt::GBIN_NORMAL;
-								if (HP == 0)
-									status = CLoadingExt::GBIN_RUBBLE;
-								else if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
-									status = CLoadingExt::GBIN_DAMAGED;
-								else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP
-									&& !(Variables::RulesMap.GetInteger(objRender.ID, "TechLevel") < 0 && Variables::RulesMap.GetBool(objRender.ID, "CanOccupyFire")))
-									status = CLoadingExt::GBIN_DAMAGED;
-								const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, true);
-
+								const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, 0, true);
 								auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 								if (pData->pImageBuffer)
 								{
@@ -757,7 +753,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									if (upg.GetLength() == 0)
 										continue;
 
-									auto pUpgData = CLoadingExt::GetImageDataFromServer(CLoadingExt::GetImageName(upg, 0, true));
+									auto pUpgData = CLoadingExt::GetImageDataFromServer(
+										CLoadingExt::GetBuildingImageName(upg, 0, 0, 0, true));
 									if ((!pUpgData || !pUpgData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(upg))
 									{
 										CLoading::Instance->LoadObjects(upg);
@@ -780,6 +777,107 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							}
 						}
 					}		
+				}
+			}
+		}
+		if (info.isInMap || ExtConfigs::DisplayObjectsOutside)
+		{
+			if (!cellExt->BaseNodes.empty())
+			{
+				for (auto& node : cellExt->BaseNodes)
+				{
+					if (std::find(DrawnBaseNodes.begin(), DrawnBaseNodes.end(), node) == DrawnBaseNodes.end())
+					{
+						DrawnBaseNodes.push_back(node);
+						if (CIsoViewExt::RenderingMap
+							&& CIsoViewExt::MapRendererIgnoreObjects.find(node.ID)
+							!= CIsoViewExt::MapRendererIgnoreObjects.end())
+							continue;
+
+						if (CIsoViewExt::DrawBasenodesFilter && CViewObjectsExt::BuildingBrushDlgBNF)
+						{
+							const auto& filter = CViewObjectsExt::ObjectFilterBN;
+							auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, const ppmfc::CString& dst)
+							{
+								if (CViewObjectsExt::BuildingBrushBoolsBNF[nCheckBoxIdx - 1300])
+								{
+									if (dst == src) return true;
+									else return false;
+								}
+								return true;
+							};
+							if (filter.empty() || std::find(filter.begin(), filter.end(), node.ID) != filter.end())
+							{
+								if (!CheckValue(1300, CViewObjectsExt::BuildingBrushDlgBNF->CString_House, node.House))
+									continue;
+							}
+							else
+							{
+								continue;
+							}
+						}
+						const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(node.ID);
+						const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
+						if (!CLoadingExt::IsObjectLoaded(node.ID))
+						{
+							CLoading::Instance->LoadObjects(node.ID);
+						}
+						int x1 = node.X;
+						int y1 = node.Y;
+						CIsoView::MapCoord2ScreenCoord(x1, y1);
+						x1 -= DrawOffsetX;
+						y1 -= DrawOffsetY;
+						for (int i = 0; i < DataExt.BottomCoords.size(); ++i)
+						{
+							auto& coord = DataExt.BottomCoords[i];
+							MapCoord coordInMap = { X + coord.X, Y + coord.Y };
+							const auto& imageName = CLoadingExt::GetBuildingImageName(node.ID, 0, 0, i);
+							auto clipOffset = CLoadingExt::GetBuildingClipsOffsetFromMap(imageName);
+
+							while (IsCoordInWindowButOnBottom(coordInMap.X, coordInMap.Y))
+							{
+								coordInMap.X--;
+								coordInMap.Y--;
+								if (IsCoordInWindow(coordInMap.X, coordInMap.Y))
+								{
+									break;
+								}
+							}
+							CellDataExt* cellExt = nullptr;
+							if (isCoordInFullMap(coordInMap.X, coordInMap.Y))
+							{
+								cellExt = &CMapDataExt::CellDataExts
+									[CMapData::Instance->GetCoordIndex(coordInMap.X, coordInMap.Y)];
+							}
+							else
+							{
+								bool found = false;
+								for (int dy = 0; dy < DataExt.Width; ++dy)
+								{
+									for (int dx = 0; dx < DataExt.Height; ++dx)
+									{
+										const int x = X + dx;
+										const int y = Y + dy;
+										if (isCoordInFullMap(x, y))
+										{
+											found = true;
+											cellExt = &CMapDataExt::CellDataExts
+												[CMapData::Instance->GetCoordIndex(x, y)];
+										}
+										if (found) break;
+									}
+									if (found) break;
+								}
+							}
+							if (cellExt)
+								cellExt->BaseNodeRenderParts.push_back
+								({ (short)i,
+									x1 - clipOffset.FullWidth / 2 + clipOffset.LeftOffset,
+									y1,
+									BuildingIndex,
+									&node });
+						}
+					}
 				}
 			}
 		}
@@ -973,9 +1071,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	}
 
 	//loop3: objects
+	DrawnBuildings.clear();
+	DrawnBaseNodes.clear();
 	for (const auto& info : visibleCells)
 	{
-		if (!info.isInMap) continue;
 		auto& X = info.X;
 		auto& Y = info.Y;
 		auto& pos = info.pos;
@@ -1179,7 +1278,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 			
 		//smudges
-		if (cell->Smudge != -1 && CIsoViewExt::DrawSmudges)
+		if (cell->Smudge != -1 && CIsoViewExt::DrawSmudges && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
 		{
 			auto obj = Variables::RulesMap.GetValueAt("SmudgeTypes", cell->SmudgeType);
 			if (!CIsoViewExt::RenderingMap
@@ -1208,7 +1307,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			nextPos = 0;
 		auto cellNext = CMapData::Instance->GetCellAt(nextPos);
 		auto& cellNextExt = CMapDataExt::CellDataExts[nextPos];
-		if ((cellExt->NewOverlay != 0xFFFF || cellNextExt.NewOverlay != 0xFFFF) && CIsoViewExt::DrawOverlays)
+		if ((cellExt->NewOverlay != 0xFFFF || cellNextExt.NewOverlay != 0xFFFF) && CIsoViewExt::DrawOverlays
+			&& (info.isInMap || ExtConfigs::DisplayObjectsOutside))
 		{
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
@@ -1320,7 +1420,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 
 		//terrains
-		if (cell->Terrain != -1 && CIsoViewExt::DrawTerrains)
+		if (cell->Terrain != -1 && CIsoViewExt::DrawTerrains && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
 		{
 			auto obj = Variables::RulesMap.GetValueAt("TerrainTypes", cell->TerrainType);
 			if (!CIsoViewExt::RenderingMap
@@ -1363,220 +1463,192 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 
 		//buildings
-		for (const auto& [mc, draw] : BuildingsToDraw)
+		for (const auto& part : cellExt->BuildingRenderParts)
 		{
-			if ((draw.x == X && draw.y == Y))
+			const auto& objRender = CMapDataExt::BuildingRenderDatasFix[part.Index];
+			const auto& DataExt = CMapDataExt::BuildingDataExts[part.INIIndex];
+			bool firstDraw = std::find(DrawnBuildings.begin(), DrawnBuildings.end(), part.Index) == DrawnBuildings.end();
+			DrawnBuildings.insert(part.Index);
+			CIsoViewExt::CurrentDrawCellLocation.X = objRender.X;
+			CIsoViewExt::CurrentDrawCellLocation.Y = objRender.Y;
+			CIsoViewExt::CurrentDrawCellLocation.Height = CMapDataExt::TryGetCellAt(objRender.X, objRender.Y)->Height;
+
+			int x1 = objRender.X;
+			int y1 = objRender.Y;
+			CIsoView::MapCoord2ScreenCoord(x1, y1);
+			x1 -= DrawOffsetX;
+			y1 -= DrawOffsetY;
+			if (firstDraw && CFinalSunApp::Instance->ShowBuildingCells)
 			{
-				int pos = CMapData::Instance->GetCoordIndex(X, Y);
-				const auto& objRender = CMapDataExt::BuildingRenderDatasFix[draw.index];
-				if (CIsoViewExt::RenderingMap
-					&& (!CIsoViewExt::RenderInvisibleInGame && Variables::RulesMap.GetBool(objRender.ID, "InvisibleInGame")
-					|| CIsoViewExt::MapRendererIgnoreObjects.find(objRender.ID)
-						!= CIsoViewExt::MapRendererIgnoreObjects.end()))
-					continue;
+				if (DataExt.IsCustomFoundation())
+					pThis->DrawLockedLines(*DataExt.LinesToDraw, x1, y1, objRender.HouseColor, false, false, lpDesc);
+				else
+					pThis->DrawLockedCellOutline(x1, y1, DataExt.Width, DataExt.Height, objRender.HouseColor, false, false, lpDesc);
+			}
 
-				int x = mc.X;
-				int y = mc.Y;
-				CIsoView::MapCoord2ScreenCoord(x, y);
-				x -= DrawOffsetX;
-				y -= DrawOffsetY;
-
-				const auto& DataExt = CMapDataExt::BuildingDataExts[draw.buildingIndex];
-				if (CFinalSunApp::Instance->ShowBuildingCells)
+			if (CIsoViewExt::DrawStructures)
+			{
+				int nFacing = 0;
+				if (Variables::RulesMap.GetBool(objRender.ID, "Turret"))
 				{
-					if (DataExt.IsCustomFoundation())
-						pThis->DrawLockedLines(*DataExt.LinesToDraw, x, y, objRender.HouseColor, false, false, lpDesc);
-					else
-						pThis->DrawLockedCellOutline(x, y, DataExt.Width, DataExt.Height, objRender.HouseColor, false, false, lpDesc);
+					int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
+					nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
 				}
 
-				if (CIsoViewExt::DrawStructures)
+				const int HP = objRender.Strength;
+				int status = CLoadingExt::GBIN_NORMAL;
+				if (HP == 0)
+					status = CLoadingExt::GBIN_RUBBLE;
+				else if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
+					status = CLoadingExt::GBIN_DAMAGED;
+				else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP
+					&& !(Variables::RulesMap.GetInteger(objRender.ID, "TechLevel") < 0 && Variables::RulesMap.GetBool(objRender.ID, "CanOccupyFire")))
+					status = CLoadingExt::GBIN_DAMAGED;
+				const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, part.Part);
+
+				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+
+				if (pData->pImageBuffer)
 				{
-					int nFacing = 0;
-					if (!CLoadingExt::IsObjectLoaded(objRender.ID))
+					auto& isoset = CMapDataExt::TerrainPaletteBuildings;
+					auto& dam_rubble = CMapDataExt::DamagedAsRubbleBuildings;
+					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
+						part.DrawX, part.DrawY - pData->FullHeight / 2,
+						pData, NULL, isCloakable(objRender.ID) ? 128 : 255,
+						objRender.HouseColor, -1, status == CLoadingExt::GBIN_RUBBLE &&
+						dam_rubble.find(objRender.ID) == dam_rubble.end()
+						&& imageName != CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, CLoadingExt::GBIN_DAMAGED, part.Part),
+						isoset.find(objRender.ID) != isoset.end());
+
+					if (part.Part == DataExt.Width - 1)
 					{
-						CLoading::Instance->LoadObjects(objRender.ID);
-					}
-					if (Variables::RulesMap.GetBool(objRender.ID, "Turret"))
-					{
-						int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
-						nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
-					}
-
-					const int HP = objRender.Strength;
-					int status = CLoadingExt::GBIN_NORMAL;
-					if (HP == 0)
-						status = CLoadingExt::GBIN_RUBBLE;
-					else if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
-						status = CLoadingExt::GBIN_DAMAGED;
-					else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP
-						&& !(Variables::RulesMap.GetInteger(objRender.ID, "TechLevel") < 0 && Variables::RulesMap.GetBool(objRender.ID, "CanOccupyFire")))
-						status = CLoadingExt::GBIN_DAMAGED;
-					const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status);
-
-					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
-
-					if (pData->pImageBuffer)
-					{
-						auto& isoset = CMapDataExt::TerrainPaletteBuildings;
-						auto& dam_rubble = CMapDataExt::DamagedAsRubbleBuildings;
-						CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
-							x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, isCloakable(objRender.ID) ? 128 : 255,
-							objRender.HouseColor, -1, status == CLoadingExt::GBIN_RUBBLE &&
-							dam_rubble.find(objRender.ID) == dam_rubble.end()
-							&& imageName != CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, CLoadingExt::GBIN_DAMAGED),
-							isoset.find(objRender.ID) != isoset.end());
-
 						for (int upgrade = 0; upgrade < objRender.PowerUpCount; ++upgrade)
 						{
 							const auto& upg = upgrade == 0 ? objRender.PowerUp1 : (upgrade == 1 ? objRender.PowerUp2 : objRender.PowerUp3);
 							const auto& upgXX = upgrade == 0 ? "PowerUp1LocXX" : (upgrade == 1 ? "PowerUp2LocXX" : "PowerUp3LocXX");
 							const auto& upgYY = upgrade == 0 ? "PowerUp1LocYY" : (upgrade == 1 ? "PowerUp2LocYY" : "PowerUp3LocYY");
+
 							if (upg.GetLength() == 0)
 								continue;
 
-							auto pUpgData = CLoadingExt::GetImageDataFromServer(CLoadingExt::GetImageName(upg, 0));
-							if ((!pUpgData || !pUpgData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(upg))
+							const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(upg);
+							const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
+							std::vector<ImageDataClassSafe*> clips;
+							for (int i = 0; i < DataExt.BottomCoords.size(); ++i)
 							{
-								CLoading::Instance->LoadObjects(upg);
+								const auto& ImageName = CLoadingExt::GetBuildingImageName(upg, 0, 0, i);
+								auto pData = CLoadingExt::GetImageDataFromServer(ImageName);
+								if (pData && pData->pImageBuffer)
+									clips.push_back(pData);
 							}
+							auto pUpgData = CLoadingExt::BindClippedImages(clips);
 							if (pUpgData && pUpgData->pImageBuffer)
 							{
 								auto ArtID = CLoadingExt::GetArtID(objRender.ID);
 
-								int x1 = x;
-								int y1 = y;
-								x1 += CINI::Art->GetInteger(ArtID, upgXX, 0);
-								y1 += CINI::Art->GetInteger(ArtID, upgYY, 0);
+								int x2 = x1;
+								int y2 = y1;
+								x2 += CINI::Art->GetInteger(ArtID, upgXX, 0);
+								y2 += CINI::Art->GetInteger(ArtID, upgYY, 0);
 								CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
-									x1 - pUpgData->FullWidth / 2, y1 - pUpgData->FullHeight / 2, pUpgData, NULL, isCloakable(objRender.ID) ? 128 : 255,
+									x2 - pUpgData->FullWidth / 2, y2 - pUpgData->FullHeight / 2, pUpgData.get(), NULL, isCloakable(objRender.ID) ? 128 : 255,
 									objRender.HouseColor, -1, false, isoset.find(objRender.ID) != isoset.end());
 							}
 						}
-						if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages && objRender.poweredOn)
-						{
-							if (auto pAIFile = Variables::RulesMap.TryGetString(objRender.ID, "AlphaImage"))
-							{
-								auto pAIData = CLoadingExt::GetImageDataFromServer(*pAIFile + "\233ALPHAIMAGE");
-								if (pAIData && pAIData->pImageBuffer)
-								{
-									AlphaImagesToDraw.push_back(
-										std::make_pair(
-											MapCoord{ 
-												x - pAIData->FullWidth / 2 + (DataExt.Width - DataExt.Height) * 30 / 2,
-												y - pAIData->FullHeight / 2 + (DataExt.Width + DataExt.Height) * 15 / 2
-											},pAIData));
-								}
-							}
-						}
-						if (CIsoViewExt::DrawFires && status == CLoadingExt::GBIN_DAMAGED && DataExt.DamageFireOffsets.size() > 0)
-						{
-							auto fires = CLoadingExt::GetRandomFire(mc, DataExt.DamageFireOffsets.size());
-							for (int i = 0; i < fires.size(); ++i)
-							{
-								const auto& fire = fires[i];
-								if (fire && fire->pImageBuffer)
-								{
-									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-										x - fire->FullWidth / 2 + DataExt.DamageFireOffsets[i].x,
-										y - fire->FullHeight / 2 + DataExt.DamageFireOffsets[i].y,
-										fire, NULL, isCloakable(objRender.ID) ? 128 : 255, 0, -100, false);
-								}
-							}
-						}
 					}
-				}
-				break;
-			}
-		}
-
-		//nodes
-		if (CIsoViewExt::DrawBasenodes)
-		{
-			if (!cellExt->BaseNodes.empty())
-			{
-				auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
-				DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
-
-				for (const auto& node : cellExt->BaseNodes)
-				{
-					if (std::find(DrawnBaseNodes.begin(), DrawnBaseNodes.end(), node) == DrawnBaseNodes.end())
+					if (firstDraw && ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages && objRender.poweredOn)
 					{
-						DrawnBaseNodes.push_back(node);
-						if (CIsoViewExt::RenderingMap
-							&& CIsoViewExt::MapRendererIgnoreObjects.find(node.ID)
-							!= CIsoViewExt::MapRendererIgnoreObjects.end())
-							continue;
-
-						int X = node.X;
-						int Y = node.Y;
-						CIsoView::MapCoord2ScreenCoord(X, Y);
-						X -= DrawOffsetX;
-						Y -= DrawOffsetY;
-
-						if (CIsoViewExt::DrawBasenodesFilter && CViewObjectsExt::BuildingBrushDlgBNF)
+						if (auto pAIFile = Variables::RulesMap.TryGetString(objRender.ID, "AlphaImage"))
 						{
-							const auto& filter = CViewObjectsExt::ObjectFilterBN;
-							auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, const ppmfc::CString& dst)
-								{
-									if (CViewObjectsExt::BuildingBrushBoolsBNF[nCheckBoxIdx - 1300])
-									{
-										if (dst == src) return true;
-										else return false;
-									}
-									return true;
-								};
-							if (filter.empty() || std::find(filter.begin(), filter.end(), node.ID) != filter.end())
+							auto pAIData = CLoadingExt::GetImageDataFromServer(*pAIFile + "\233ALPHAIMAGE");
+							if (pAIData && pAIData->pImageBuffer)
 							{
-								if (!CheckValue(1300, CViewObjectsExt::BuildingBrushDlgBNF->CString_House, node.House))
-									continue;
-							}
-							else
-							{
-								continue;
+								AlphaImagesToDraw.push_back(
+									std::make_pair(
+										MapCoord{
+											x1 - pAIData->FullWidth / 2 + (DataExt.Width - DataExt.Height) * 30 / 2,
+											y1 - pAIData->FullHeight / 2 + (DataExt.Width + DataExt.Height) * 15 / 2
+										}, pAIData));
 							}
 						}
-						const auto& imageName = CLoadingExt::GetBuildingImageName(node.ID, 0, 0);
-						auto color = Miscs::GetColorRef(node.House);
-
-						if (!CLoadingExt::IsObjectLoaded(node.ID))
+					}
+					if (firstDraw && CIsoViewExt::DrawFires && status == CLoadingExt::GBIN_DAMAGED && DataExt.DamageFireOffsets.size() > 0)
+					{
+						auto fires = CLoadingExt::GetRandomFire({ objRender.X,objRender.Y }, DataExt.DamageFireOffsets.size());
+						for (int i = 0; i < fires.size(); ++i)
 						{
-							CLoading::Instance->LoadObjects(node.ID);
-						}
-						auto pData = CLoadingExt::GetImageDataFromServer(imageName);
-						int cellStr = -1;
-						if (cell->Structure > -1 && cell->Structure < CMapDataExt::StructureIndexMap.size())
-							cellStr = CMapDataExt::StructureIndexMap[cell->Structure];
-						if (CFinalSunApp::Instance->ShowBuildingCells || cellStr != -1)
-						{
-							const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(node.ID);
-							const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
-							if (DataExt.IsCustomFoundation())
+							const auto& fire = fires[i];
+							if (fire && fire->pImageBuffer)
 							{
-								pThis->DrawLockedLines(*DataExt.LinesToDraw, X, Y, color, true, false, lpDesc);
-								pThis->DrawLockedLines(*DataExt.LinesToDraw, X + 1, Y, color, true, false, lpDesc);
+								FiresToDraw.push_back(std::make_pair(
+									MapCoord{ x1 - fire->FullWidth / 2 + DataExt.DamageFireOffsets[i].x ,
+									y1 - fire->FullHeight / 2 + DataExt.DamageFireOffsets[i].y },
+									fire
+								));
 							}
-							else
-							{
-								pThis->DrawLockedCellOutline(X, Y, DataExt.Width, DataExt.Height, color, true, false, lpDesc);
-								pThis->DrawLockedCellOutline(X + 1, Y, DataExt.Width, DataExt.Height, color, true, false, lpDesc);
-							}
-						}
-
-						if (pData->pImageBuffer)
-						{
-							auto& isoset = CMapDataExt::TerrainPaletteBuildings;
-							CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
-								X - pData->FullWidth / 2, Y - pData->FullHeight / 2, pData, NULL, 128,
-								color, -1, false, isoset.find(node.ID) != isoset.end());
 						}
 					}
 				}
 			}
 		}
+
+		// nodes
+		for (const auto& part : cellExt->BaseNodeRenderParts)
+		{
+			const auto& DataExt = CMapDataExt::BuildingDataExts[part.INIIndex];
+			bool firstDraw = std::find(DrawnBaseNodes.begin(), DrawnBaseNodes.end(), *part.Data) == DrawnBaseNodes.end();
+			DrawnBaseNodes.push_back(*part.Data);
+			CIsoViewExt::CurrentDrawCellLocation.X = part.Data->X;
+			CIsoViewExt::CurrentDrawCellLocation.Y = part.Data->Y;
+			CIsoViewExt::CurrentDrawCellLocation.Height = CMapDataExt::TryGetCellAt(part.Data->X, part.Data->Y)->Height;
+
+			int x1 = part.Data->X;
+			int y1 = part.Data->Y;
+			CIsoView::MapCoord2ScreenCoord(x1, y1);
+			x1 -= DrawOffsetX;
+			y1 -= DrawOffsetY;
+			auto color = Miscs::GetColorRef(part.Data->House);
+
+			int cellStr = -1;
+			if (cell->Structure > -1 && cell->Structure < CMapDataExt::StructureIndexMap.size())
+				cellStr = CMapDataExt::StructureIndexMap[cell->Structure];
+			if (firstDraw && (CFinalSunApp::Instance->ShowBuildingCells || cellStr != -1))
+			{
+				const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(part.Data->ID);
+				const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
+				if (DataExt.IsCustomFoundation())
+				{
+					pThis->DrawLockedLines(*DataExt.LinesToDraw, x1, y1, color, true, false, lpDesc);
+					pThis->DrawLockedLines(*DataExt.LinesToDraw, x1 + 1, y1, color, true, false, lpDesc);
+				}
+				else
+				{
+					pThis->DrawLockedCellOutline(x1, y1, DataExt.Width, DataExt.Height, color, true, false, lpDesc);
+					pThis->DrawLockedCellOutline(x1 + 1, y1, DataExt.Width, DataExt.Height, color, true, false, lpDesc);
+				}
+			}
+
+			if (CIsoViewExt::DrawBasenodes)
+			{
+				const auto& imageName = CLoadingExt::GetBuildingImageName(part.Data->ID, 0, 0, part.Part);
+				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+
+				if (pData->pImageBuffer)
+				{
+					auto& isoset = CMapDataExt::TerrainPaletteBuildings;
+					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
+						part.DrawX, part.DrawY - pData->FullHeight / 2, pData, NULL, 128,
+						color, -1, false, isoset.find(part.Data->ID) != isoset.end());
+				}
+			}
+		}
+
+		CIsoViewExt::CurrentDrawCellLocation.X = X;
+		CIsoViewExt::CurrentDrawCellLocation.Y = Y;
+		CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
 
 		//units
-		if (cell->Unit != -1 && CIsoViewExt::DrawUnits)
+		if (cell->Unit != -1 && CIsoViewExt::DrawUnits && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
 		{
 			const auto& filter = CIsoViewExt::VisibleUnits;
 			if (!CIsoViewExt::DrawUnitsFilter
@@ -1633,7 +1705,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 
 		//aircrafts
-		if (cell->Aircraft != -1 && CIsoViewExt::DrawAircrafts)
+		if (cell->Aircraft != -1 && CIsoViewExt::DrawAircrafts && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
 		{
 			const auto& filter = CIsoViewExt::VisibleAircrafts;
 			if (!CIsoViewExt::DrawAircraftsFilter
@@ -1691,7 +1763,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		//infantries
 		for (int i = 2; i >= 0; --i)
 		{
-			if (cell->Infantry[i] != -1 && CIsoViewExt::DrawInfantries)
+			if (cell->Infantry[i] != -1 && CIsoViewExt::DrawInfantries && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
 			{
 				const auto& filter = CIsoViewExt::VisibleInfantries;
 				if (!CIsoViewExt::DrawInfantriesFilter
@@ -1771,6 +1843,13 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				}
 			}
 		}
+	}
+
+	for (const auto& fire : FiresToDraw)
+	{
+		CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+			fire.first.X, fire.first.Y,
+			fire.second, NULL, 255, 0, -100, false);
 	}
 
 	for (const auto& ai : AlphaImagesToDraw)
@@ -1948,7 +2027,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 	for (const auto& info : visibleCells)
 	{
-		if (!info.isInMap) continue;
+		if (!info.isInMap && !ExtConfigs::DisplayObjectsOutside) continue;
 		auto& X = info.X;
 		auto& Y = info.Y;
 		auto& pos = info.pos;

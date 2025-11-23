@@ -97,6 +97,7 @@ struct BuildingDataExt
     std::vector<MapCoord>* Foundations{ nullptr };
     std::vector<std::pair<MapCoord, MapCoord>>* LinesToDraw{ nullptr };
     std::vector<POINT> DamageFireOffsets;
+    std::vector<MapCoord> BottomCoords;
 };
 
 struct BuildingRenderData
@@ -219,6 +220,25 @@ struct CellDataExt
     bool HasAnnotation = false;
 
     int RecordMinimapUpdateIndex[3] = { -1 } ;
+
+    struct BuildingRenderPart
+    {
+        short Index;
+        short Part;
+        int DrawX;
+        int DrawY;
+        int INIIndex;
+    };
+    struct BaseNodeRenderPart
+    {
+        short Part;
+        int DrawX;
+        int DrawY;
+        int INIIndex;
+        BaseNodeDataExt* Data;
+    };
+    std::vector<BuildingRenderPart> BuildingRenderParts;
+    std::vector<BaseNodeRenderPart> BaseNodeRenderParts;
 };
 
 class HistoryRecord {

@@ -201,7 +201,6 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 break;
             case CLoadingExt::ObjectType::Building:
             {
-                imageName = CLoadingExt::GetBuildingImageName(InsertingObjectID, 0, 0);
                 fileID = CLoadingExt::GetExtension()->GetBuildingFileID(InsertingObjectID);
 
                 // some buildings share the same image while have different anims
@@ -294,12 +293,27 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 ExtConfigs::InGameDisplay_Deploy = temp2;
                 ExtConfigs::InGameDisplay_Water = temp3;
             }
+            std::unique_ptr<ImageDataClassSafe> pBuildingData;
             if (eItemType == CLoadingExt::ObjectType::Aircraft || eItemType == CLoadingExt::ObjectType::Vehicle)
             {
                 int facings = CLoadingExt::GetAvailableFacing(InsertingObjectID);
                 imageName = CLoadingExt::GetImageName(InsertingObjectID, facings / 4);
             }
-            auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+            else if (eItemType == CLoadingExt::ObjectType::Building)
+            {
+                const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(InsertingObjectID);
+                const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
+                std::vector<ImageDataClassSafe*> clips;
+                for (int i = 0; i < DataExt.BottomCoords.size(); ++i)
+                {
+                    const auto& ImageName = CLoadingExt::GetBuildingImageName(InsertingObjectID, 0, 0, i);
+                    auto pData = CLoadingExt::GetImageDataFromServer(ImageName);
+                    if (pData && pData->pImageBuffer)
+                        clips.push_back(pData);
+                }
+                pBuildingData = CLoadingExt::BindClippedImages(clips);
+            }
+            auto pData = pBuildingData ? pBuildingData.get() : CLoadingExt::GetImageDataFromServer(imageName);
             if (pData && pData->pImageBuffer)
             {
                 CBitmap cBitmap;

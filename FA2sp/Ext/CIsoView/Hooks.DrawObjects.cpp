@@ -590,7 +590,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				const auto& offset = CLoadingExt::TileExtraOffsets[
 					CLoadingExt::GetTileIdentifier(tileIndex, tileSubIndex, altImage)];
 
-				auto pData = CLoadingExt::GetImageDataFromServer(extraImageID);
+				auto pData = CLoadingExt::GetImageDataFromMap(extraImageID);
 				if (pData->pImageBuffer)
 				{
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
@@ -641,7 +641,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						if (std::find(DrawnBuildings.begin(), DrawnBuildings.end(), StrINIIndex) == DrawnBuildings.end())
 						{
 							DrawnBuildings.insert(StrINIIndex);
-							const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(objRender.ID);
+							const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(objRender.ID);
 							const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
 							if (!CLoadingExt::IsObjectLoaded(objRender.ID))
 							{
@@ -671,13 +671,16 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							x1 -= DrawOffsetX;
 							y1 -= DrawOffsetY;
 
+							const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status);
+							auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
 							for (int i = 0; i < DataExt.BottomCoords.size(); ++i)
 							{
-								auto& coord = DataExt.BottomCoords[i];
-								MapCoord coordInMap = { X + coord.X, Y + coord.Y };							
-								const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, i);
-								auto clipOffset = CLoadingExt::GetBuildingClipsOffsetFromMap(imageName);
+								auto pData = clips[i].get();
+								if (!pData->pImageBuffer) continue;
 
+								auto& coord = DataExt.BottomCoords[i];
+								MapCoord coordInMap = { X + coord.X, Y + coord.Y };		
+								
 								while (IsCoordInWindowButOnBottom(coordInMap.X, coordInMap.Y))
 								{
 									coordInMap.X--;
@@ -717,9 +720,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								if (cellExt)
 									cellExt->BuildingRenderParts.push_back
 									({ StrINIIndex,(short)i,
-										x1 - clipOffset.FullWidth / 2 + clipOffset.LeftOffset,
+										x1 - pData->ClipOffsets.FullWidth / 2 + pData->ClipOffsets.LeftOffset,
 										y1,
-										BuildingIndex });
+										BuildingIndex,
+										pData
+										});
 							}
 
 							if (shadow && CIsoViewExt::DrawStructures && !isCloakable(objRender.ID))
@@ -735,8 +740,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
 									nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
 								}
-								const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, 0, true);
-								auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+								const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, true);
+								auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 								if (pData->pImageBuffer)
 								{
 									CIsoViewExt::MaskShadowPixels(window,
@@ -753,8 +758,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									if (upg.GetLength() == 0)
 										continue;
 
-									auto pUpgData = CLoadingExt::GetImageDataFromServer(
-										CLoadingExt::GetBuildingImageName(upg, 0, 0, 0, true));
+									auto pUpgData = CLoadingExt::GetImageDataFromMap(
+										CLoadingExt::GetBuildingImageName(upg, 0, 0, true));
 									if ((!pUpgData || !pUpgData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(upg))
 									{
 										CLoading::Instance->LoadObjects(upg);
@@ -816,7 +821,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								continue;
 							}
 						}
-						const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(node.ID);
+						const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(node.ID);
 						const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
 						if (!CLoadingExt::IsObjectLoaded(node.ID))
 						{
@@ -827,12 +832,15 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						CIsoView::MapCoord2ScreenCoord(x1, y1);
 						x1 -= DrawOffsetX;
 						y1 -= DrawOffsetY;
+
+						const auto& imageName = CLoadingExt::GetBuildingImageName(node.ID, 0, 0);
+						auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
 						for (int i = 0; i < DataExt.BottomCoords.size(); ++i)
 						{
+							auto pData = clips[i].get();
+							if (!pData->pImageBuffer) continue;
 							auto& coord = DataExt.BottomCoords[i];
 							MapCoord coordInMap = { X + coord.X, Y + coord.Y };
-							const auto& imageName = CLoadingExt::GetBuildingImageName(node.ID, 0, 0, i);
-							auto clipOffset = CLoadingExt::GetBuildingClipsOffsetFromMap(imageName);
 
 							while (IsCoordInWindowButOnBottom(coordInMap.X, coordInMap.Y))
 							{
@@ -872,9 +880,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							if (cellExt)
 								cellExt->BaseNodeRenderParts.push_back
 								({ (short)i,
-									x1 - clipOffset.FullWidth / 2 + clipOffset.LeftOffset,
+									x1 - pData->ClipOffsets.FullWidth / 2 + pData->ClipOffsets.LeftOffset,
 									y1,
 									BuildingIndex,
+									pData,
 									&node });
 						}
 					}
@@ -919,7 +928,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							CLoading::Instance->LoadObjects(obj.TypeID);
 						}
-						auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+						auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
 						if (pData->pImageBuffer)
 						{
@@ -980,7 +989,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 					const auto& imageName = CLoadingExt::GetImageName(ImageID, nFacing, true);
 
-					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
 					if (pData->pImageBuffer)
 					{
@@ -1011,7 +1020,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					CLoading::Instance->LoadObjects(obj);
 				}
-				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
 				if (pData->pImageBuffer)
 				{
@@ -1034,7 +1043,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				== CIsoViewExt::MapRendererIgnoreObjects.end()
 				&& (!CMapDataExt::GetOverlayTypeData(cellExt->NewOverlay).Rubble || CIsoViewExt::RenderInvisibleInGame))
 			{
-				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
 				if (!pData || !pData->pImageBuffer)
 				{
@@ -1042,7 +1051,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					if (!CLoadingExt::IsOverlayLoaded(obj))
 					{
 						CLoadingExt::GetExtension()->LoadOverlay(obj, cellExt->NewOverlay);
-						pData = CLoadingExt::GetImageDataFromServer(imageName);
+						pData = CLoadingExt::GetImageDataFromMap(imageName);
 					}
 				}
 
@@ -1102,7 +1111,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							auto& tileAnim = CMapDataExt::TileAnimations[tileIndex];
 							if (tileAnim.AttachedSubTile == tileSubIndex)
 							{
-								auto pData = CLoadingExt::GetImageDataFromServer(tileAnim.ImageName);
+								auto pData = CLoadingExt::GetImageDataFromMap(tileAnim.ImageName);
 
 								if (pData->pImageBuffer)
 								{
@@ -1242,7 +1251,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								const auto& offset = CLoadingExt::TileExtraOffsets[
 									CLoadingExt::GetTileIdentifier(tileIndex, tileSubIndex, altImage)];
 
-								auto pData = CLoadingExt::GetImageDataFromServer(extraImageID);
+								auto pData = CLoadingExt::GetImageDataFromMap(extraImageID);
 								if (pData->pImageBuffer)
 								{
 									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
@@ -1291,7 +1300,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					CLoading::Instance->LoadObjects(obj);
 				}
-				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
 				if (pData->pImageBuffer)
 				{
@@ -1325,7 +1334,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					)
 				{
 					auto imageName = CLoadingExt::GetOverlayName(cellNextExt.NewOverlay, cellNext->OverlayData);
-					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
 					if (!pData || !pData->pImageBuffer)
 					{
@@ -1333,7 +1342,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						if (!CLoadingExt::IsOverlayLoaded(obj))
 						{
 							CLoadingExt::GetExtension()->LoadOverlay(obj, cellNextExt.NewOverlay);
-							pData = CLoadingExt::GetImageDataFromServer(imageName);
+							pData = CLoadingExt::GetImageDataFromMap(imageName);
 						}
 						if (!pData || !pData->pImageBuffer)
 						{
@@ -1382,7 +1391,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					)
 				{
 					auto imageName = CLoadingExt::GetOverlayName(cellExt->NewOverlay, cell->OverlayData);
-					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
 					if (!pData || !pData->pImageBuffer)
 					{
@@ -1390,7 +1399,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						if (!CLoadingExt::IsOverlayLoaded(obj))
 						{
 							CLoadingExt::GetExtension()->LoadOverlay(obj, cellExt->NewOverlay);
-							pData = CLoadingExt::GetImageDataFromServer(imageName);
+							pData = CLoadingExt::GetImageDataFromMap(imageName);
 						}
 						if (!pData || !pData->pImageBuffer)
 						{
@@ -1434,7 +1443,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					CLoading::Instance->LoadObjects(obj);
 				}
-				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
 				if (pData->pImageBuffer)
 				{
@@ -1448,7 +1457,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						if (auto pAIFile = Variables::RulesMap.TryGetString(obj, "AlphaImage"))
 						{
-							auto pAIData = CLoadingExt::GetImageDataFromServer(*pAIFile + "\233ALPHAIMAGE");
+							auto pAIData = CLoadingExt::GetImageDataFromMap(*pAIFile + "\233ALPHAIMAGE");
 							if (pAIData && pAIData->pImageBuffer)
 							{
 								AlphaImagesToDraw.push_back(
@@ -1488,13 +1497,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 			if (CIsoViewExt::DrawStructures)
 			{
-				int nFacing = 0;
-				if (Variables::RulesMap.GetBool(objRender.ID, "Turret"))
-				{
-					int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
-					nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
-				}
-
 				const int HP = objRender.Strength;
 				int status = CLoadingExt::GBIN_NORMAL;
 				if (HP == 0)
@@ -1504,20 +1506,18 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP
 					&& !(Variables::RulesMap.GetInteger(objRender.ID, "TechLevel") < 0 && Variables::RulesMap.GetBool(objRender.ID, "CanOccupyFire")))
 					status = CLoadingExt::GBIN_DAMAGED;
-				const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, part.Part);
+				const auto& imageNameCheck = CLoadingExt::GetBuildingImageName(objRender.ID, 0, status);
 
-				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
-
-				if (pData->pImageBuffer)
+				if (part.pData->pImageBuffer)
 				{
 					auto& isoset = CMapDataExt::TerrainPaletteBuildings;
 					auto& dam_rubble = CMapDataExt::DamagedAsRubbleBuildings;
 					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
-						part.DrawX, part.DrawY - pData->FullHeight / 2,
-						pData, NULL, isCloakable(objRender.ID) ? 128 : 255,
+						part.DrawX, part.DrawY - part.pData->FullHeight / 2,
+						part.pData, NULL, isCloakable(objRender.ID) ? 128 : 255,
 						objRender.HouseColor, -1, status == CLoadingExt::GBIN_RUBBLE &&
 						dam_rubble.find(objRender.ID) == dam_rubble.end()
-						&& imageName != CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, CLoadingExt::GBIN_DAMAGED, part.Part),
+						&& imageNameCheck != CLoadingExt::GetBuildingImageName(objRender.ID, 0, CLoadingExt::GBIN_DAMAGED),
 						isoset.find(objRender.ID) != isoset.end());
 
 					if (part.Part == DataExt.Width - 1)
@@ -1531,16 +1531,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							if (upg.GetLength() == 0)
 								continue;
 
-							const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(upg);
+							const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(upg);
 							const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
-							std::vector<ImageDataClassSafe*> clips;
-							for (int i = 0; i < DataExt.BottomCoords.size(); ++i)
-							{
-								const auto& ImageName = CLoadingExt::GetBuildingImageName(upg, 0, 0, i);
-								auto pData = CLoadingExt::GetImageDataFromServer(ImageName);
-								if (pData && pData->pImageBuffer)
-									clips.push_back(pData);
-							}
+							const auto& ImageName = CLoadingExt::GetBuildingImageName(upg, 0, 0);
+							auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(ImageName);
 							auto pUpgData = CLoadingExt::BindClippedImages(clips);
 							if (pUpgData && pUpgData->pImageBuffer)
 							{
@@ -1560,7 +1554,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						if (auto pAIFile = Variables::RulesMap.TryGetString(objRender.ID, "AlphaImage"))
 						{
-							auto pAIData = CLoadingExt::GetImageDataFromServer(*pAIFile + "\233ALPHAIMAGE");
+							auto pAIData = CLoadingExt::GetImageDataFromMap(*pAIFile + "\233ALPHAIMAGE");
 							if (pAIData && pAIData->pImageBuffer)
 							{
 								AlphaImagesToDraw.push_back(
@@ -1612,9 +1606,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			int cellStr = -1;
 			if (cell->Structure > -1 && cell->Structure < CMapDataExt::StructureIndexMap.size())
 				cellStr = CMapDataExt::StructureIndexMap[cell->Structure];
-			if (firstDraw && (CFinalSunApp::Instance->ShowBuildingCells || cellStr != -1))
+			if (firstDraw && (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers)
+				&& (CFinalSunApp::Instance->ShowBuildingCells || cellStr != -1)
+				&& (CIsoViewExt::DrawBasenodes || CFinalSunApp::Instance->ShowBuildingCells))
 			{
-				const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(part.Data->ID);
+				const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(part.Data->ID);
 				const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
 				if (DataExt.IsCustomFoundation())
 				{
@@ -1630,14 +1626,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 			if (CIsoViewExt::DrawBasenodes)
 			{
-				const auto& imageName = CLoadingExt::GetBuildingImageName(part.Data->ID, 0, 0, part.Part);
-				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
-
-				if (pData->pImageBuffer)
+				if (part.pData->pImageBuffer)
 				{
 					auto& isoset = CMapDataExt::TerrainPaletteBuildings;
 					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
-						part.DrawX, part.DrawY - pData->FullHeight / 2, pData, NULL, 128,
+						part.DrawX, part.DrawY - part.pData->FullHeight / 2, part.pData, NULL, 128,
 						color, -1, false, isoset.find(part.Data->ID) != isoset.end());
 				}
 			}
@@ -1674,7 +1667,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 					const auto& imageName = CLoadingExt::GetImageName(ImageID, nFacing);
 
-					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
 					if (pData->pImageBuffer)
 					{
@@ -1741,7 +1734,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
 					int nFacing = (atoi(obj.Facing) * facings / 256) % facings;
 					const auto& imageName = CLoadingExt::GetImageName(imageID, nFacing);
-					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
 					if (pData->pImageBuffer)
 					{
@@ -1797,7 +1790,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							CLoading::Instance->LoadObjects(obj.TypeID);
 						}
-						auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+						auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
 						if (pData->pImageBuffer)
 						{

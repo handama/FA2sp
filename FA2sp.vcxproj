@@ -254,7 +254,6 @@
     <ClCompile Include="FA2sp\Ext\CLighting\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Body.Encryption.cpp" />
-    <ClCompile Include="FA2sp\Ext\CLoading\Body.ImageServer.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Body.LoadObjects.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Body.MixManager.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Body.ResourcePack.cpp" />

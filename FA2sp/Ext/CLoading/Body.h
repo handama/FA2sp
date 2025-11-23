@@ -44,6 +44,12 @@ public:
 	ImageDataFlag Flag;
 	BuildingImageFlag BuildingFlag; // see BuildingData
 	BOOL IsOverlay; // Only OVRLXX_XX will set this true
+	struct BuildingClipOffset
+	{
+		short FullWidth;
+		short LeftOffset;
+	};
+	BuildingClipOffset ClipOffsets;
 };
 
 class NOVTABLE ImageDataClassSurface
@@ -53,18 +59,6 @@ public:
 	short FullWidth;
 	short FullHeight;
 	ImageDataFlag Flag;
-};
-
-struct ImageDataTransfer
-{
-	char imageID[0x100];
-	ImageDataClassSafe pData;
-};
-
-struct BuildingClipOffset
-{
-	int FullWidth;
-	int LeftOffset;
 };
 
 class NOVTABLE CLoadingExt : public CLoading
@@ -100,22 +94,24 @@ public:
 		GBIN_RUBBLE,		
 		GBIN_DAMAGED,
 	};
-	static FString GetBuildingImageName(FString ID, int nFacing, int state, int part, bool bShadow = false);
+	static FString GetBuildingImageName(FString ID, int nFacing, int state, bool bShadow = false);
 	
 	static void ClearItemTypes();
 	void GetFullPaletteName(FString& PaletteName);
 	static void LoadFires(const ppmfc::CString& FileName);
 	static std::vector<ImageDataClassSafe*> GetRandomFire(const MapCoord& coord, int number);
-	static void LoadShp(FString ImageID, FString FileName, FString PalName, int nFrame, bool toServer = true);
-	static void LoadShp(FString ImageID, FString FileName, Palette* pPal, int nFrame, bool toServer = true);
+	static void LoadShp(FString ImageID, FString FileName, FString PalName, int nFrame);
+	static void LoadShp(FString ImageID, FString FileName, Palette* pPal, int nFrame);
 	static void LoadShpToSurface(FString ImageID, FString FileName, FString PalName, int nFrame);
 	static void LoadShpToSurface(FString ImageID, unsigned char* pBuffer, int Width, int Height, Palette* pPal);
 	static bool LoadShpToBitmap(ImageDataClassSafe* pData, CBitmap& outBitmap);
 	static bool LoadShpToBitmap(ImageDataClass* pData, CBitmap& outBitmap);
 	static void LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** ppBuffer, const ShapeHeader& header);
 	static void LoadBitMap(FString ImageID, const CBitmap& cBitmap);
-	void SetImageDataSafe(unsigned char* pBuffer, FString NameInDict, 
-		int FullWidth, int FullHeight, Palette* pPal, bool toServer = true, bool clip = true);
+	void SetImageDataSafe(unsigned char* pBuffer, FString NameInDict,
+		int FullWidth, int FullHeight, Palette* pPal, bool clip = true);
+	ImageDataClassSafe* SetBuildingImageDataSafe(unsigned char* pBuffer, FString NameInDict,
+		int FullWidth, int FullHeight, Palette* pPal);
 	void SetImageData(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
 	// returns the mix index, -1 for in folder / pack, -2 for not found
 	int HasFileMix(FString filename, int nMix = -114);
@@ -206,7 +202,7 @@ public:
 	ObjectType GetItemType(FString ID);
 	static bool SaveCBitmapToFile(CBitmap* pBitmap, const FString& filePath, COLORREF bgColor);
 	static bool LoadBMPToCBitmap(const FString& filePath, CBitmap& outBitmap);
-	static std::unique_ptr<ImageDataClassSafe> BindClippedImages(const std::vector<ImageDataClassSafe*>& imgs);
+	static std::unique_ptr<ImageDataClassSafe> BindClippedImages(const std::vector<std::unique_ptr<ImageDataClassSafe>>& imgs);
 
 	static std::unordered_map<FString, int> AvailableFacings;
 	static std::unordered_set<FString> LoadedObjects;
@@ -238,8 +234,8 @@ private:
 public:
 	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CurrentFrameImageDataMap;
 	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> ImageDataMap;
+	static std::unordered_map<FString, std::vector<std::unique_ptr<ImageDataClassSafe>>> BuildingClipsImageDataMap;
 	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSurface>> SurfaceImageDataMap;
-	static std::unordered_map<FString, BuildingClipOffset> BuildingClipsOffsetMap;
 	static std::vector<std::unique_ptr<ImageDataClassSafe>> DamageFires;
 	static unsigned int RandomFireSeed;
 	static std::map<unsigned int, MapCoord> TileExtraOffsets;
@@ -252,27 +248,10 @@ public:
 
 	static bool IsImageLoaded(const FString& name);
 	static ImageDataClassSafe* GetImageDataFromMap(const FString& name);
-	static ImageDataClassSafe* GetImageDataFromServer(const FString& name);
+	static std::vector<std::unique_ptr<ImageDataClassSafe>>& GetBuildingClipImageDataFromMap(const FString& name);
 	static bool IsSurfaceImageLoaded(const FString& name);
 	static ImageDataClassSurface* GetSurfaceImageDataFromMap(const FString& name);
-	static BuildingClipOffset GetBuildingClipsOffsetFromMap(const FString& name);
 	static int GetAvailableFacing(const FString& ID);
-
-	static HANDLE hPipeData;
-	static std::atomic<bool> PingServerRunning;
-	static FString PipeNameData;
-	static FString PipeNamePing;
-	static FString PipeName;
-
-	static bool StartImageServerProcess();
-	static bool ConnectToImageServer();
-	static void StartPingThread();
-
-	static bool WriteImageData(HANDLE hPipe, const FString& imageID, const ImageDataClassSafe* data);
-	static bool ReadImageData(HANDLE hPipe, ImageDataClassSafe& data);
-	static bool SendImageToServer(const FString& imageID, const ImageDataClassSafe* imageData);
-	static bool RequestImageFromServer(const FString& imageID, ImageDataClassSafe& outImageData);
-	static void SendRequestText(const char* text);
 };
 
 #pragma pack(push, 1)

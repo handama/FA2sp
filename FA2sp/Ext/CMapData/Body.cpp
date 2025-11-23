@@ -49,6 +49,7 @@ CellData CMapDataExt::ExtTempCellData;
 //MapCoord CMapDataExt::CurrentMapCoord;
 MapCoord CMapDataExt::CurrentMapCoordPaste;
 std::unordered_map<int, BuildingDataExt> CMapDataExt::BuildingDataExts;
+std::unordered_map<FString, int> CMapDataExt::BuildingTypes;
 CTileTypeClass* CMapDataExt::TileData = nullptr;
 int CMapDataExt::TileDataCount = 0;
 int CMapDataExt::CurrentTheaterIndex;
@@ -1098,7 +1099,7 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 
 		int X = atoi(splits[4]);
 		int Y = atoi(splits[3]);
-		const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(splits[1]);
+		const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(splits[1]);
 		const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
 		if (!DataExt.IsCustomFoundation())
 		{
@@ -1436,6 +1437,18 @@ OverlayTypeData CMapDataExt::GetOverlayTypeData(WORD index)
 	ret.RadarColor.B = 0;
 
 	return ret;
+}
+
+int CMapDataExt::GetBuildingTypeIndex(const FString& ID)
+{
+	auto itr = BuildingTypes.find(ID);
+	if (itr == BuildingTypes.end())
+	{
+		int idx = CMapData::Instance->GetBuildingTypeID(ID);
+		BuildingTypes[ID] = idx;
+		return idx;
+	}
+	return itr->second;
 }
 
 int CMapDataExt::GetPlayerLocationCountAtCell(int x, int y)
@@ -2666,8 +2679,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	const char* InsigniaElite = "FA2spInsigniaElite";
 	const char* DefaultInsigniaFile = "pips.shp";
 	const char* PaletteName = "palette.pal";
-	CLoadingExt::LoadShp(InsigniaVeteran, "pips.shp", PaletteName, 14, false);
-	CLoadingExt::LoadShp(InsigniaElite, "pips.shp", PaletteName, 15, false);
+	CLoadingExt::LoadShp(InsigniaVeteran, "pips.shp", PaletteName, 14);
+	CLoadingExt::LoadShp(InsigniaElite, "pips.shp", PaletteName, 15);
 	CLoadingExt::DamageFires.clear();
 	std::random_device rd;
 	CLoadingExt::RandomFireSeed = rd();

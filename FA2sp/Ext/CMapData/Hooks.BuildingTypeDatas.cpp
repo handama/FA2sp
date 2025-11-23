@@ -15,6 +15,7 @@ DEFINE_HOOK(4B5460, CMapData_InitializeBuildingTypes, 7)
 	{
 		int idx = pThis->GetBuildingTypeID(ID);
 		auto& DataExt = pThis->BuildingDataExts[idx];
+		pThis->BuildingTypes[ID] = idx;
 		DataExt.BottomCoords.clear();
 		DataExt.DamageFireOffsets.clear();
 

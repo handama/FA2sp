@@ -424,7 +424,7 @@ void LightingSourceTint::CalculateMapLamps()
                     ls.LightRedTint = Variables::RulesMap.GetSingle(ID, "LightRedTint", 1.0f);
                     ls.LightGreenTint = Variables::RulesMap.GetSingle(ID, "LightGreenTint", 1.0f);
                     ls.LightBlueTint = Variables::RulesMap.GetSingle(ID, "LightBlueTint", 1.0f);
-                    const int Index = CMapData::Instance->GetBuildingTypeID(ID);
+                    const int Index = CMapDataExt::GetBuildingTypeIndex(ID);
                     const int Y = atoi(atoms[3]);
                     const int X = atoi(atoms[4]);
                     const auto& DataExt = CMapDataExt::BuildingDataExts[Index];

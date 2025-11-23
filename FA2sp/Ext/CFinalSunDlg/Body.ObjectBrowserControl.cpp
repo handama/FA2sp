@@ -22,6 +22,7 @@
 #include "../../Miscs/StringtableLoader.h"
 #include "../CFinalSunApp/Body.h"
 #include "../../Helpers/Helper.h"
+#include "../../Miscs/DialogStyle.h"
 
 namespace fs = std::filesystem;
 
@@ -201,6 +202,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 break;
             case CLoadingExt::ObjectType::Building:
             {
+                imageName = CLoadingExt::GetBuildingImageName(InsertingObjectID, 0, 0);
                 fileID = CLoadingExt::GetExtension()->GetBuildingFileID(InsertingObjectID);
 
                 // some buildings share the same image while have different anims
@@ -250,7 +252,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             if (InsertingOverlay > -1)
             {
                 auto imageName = CLoadingExt::GetOverlayName(InsertingOverlay, InsertingOverlayData);
-                auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+                auto pData = CLoadingExt::GetImageDataFromMap(imageName);
                 if (!pData || !pData->pImageBuffer)
                 {
                     auto obj = Variables::RulesMap.GetValueAt("OverlayTypes", InsertingOverlay);
@@ -262,7 +264,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                         CLoadingExt::GetExtension()->LoadOverlay(obj, InsertingOverlay);
                         CLoadingExt::IsLoadingObjectView = false;
                         ExtConfigs::InGameDisplay_Shadow = temp;
-                        pData = CLoadingExt::GetImageDataFromServer(imageName);
+                        pData = CLoadingExt::GetImageDataFromMap(imageName);
                     }
                 }
                 if (pData && pData->pImageBuffer)
@@ -301,19 +303,10 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             }
             else if (eItemType == CLoadingExt::ObjectType::Building)
             {
-                const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(InsertingObjectID);
-                const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
-                std::vector<ImageDataClassSafe*> clips;
-                for (int i = 0; i < DataExt.BottomCoords.size(); ++i)
-                {
-                    const auto& ImageName = CLoadingExt::GetBuildingImageName(InsertingObjectID, 0, 0, i);
-                    auto pData = CLoadingExt::GetImageDataFromServer(ImageName);
-                    if (pData && pData->pImageBuffer)
-                        clips.push_back(pData);
-                }
+                auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
                 pBuildingData = CLoadingExt::BindClippedImages(clips);
             }
-            auto pData = pBuildingData ? pBuildingData.get() : CLoadingExt::GetImageDataFromServer(imageName);
+            auto pData = pBuildingData ? pBuildingData.get() : CLoadingExt::GetImageDataFromMap(imageName);
             if (pData && pData->pImageBuffer)
             {
                 CBitmap cBitmap;
@@ -1416,7 +1409,7 @@ void CViewObjectsExt::Redraw_Building()
 
         if (CMapData::Instance->MapWidthPlusHeight && ExtConfigs::ObjectBrowser_Foundation)
         {
-            const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(bud.second);
+            const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(bud.second);
             const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
             foundationBuildings[DataExt.Width * 100 + DataExt.Height].push_back(std::make_pair(index, bud.second));
         }
@@ -3019,6 +3012,7 @@ void CViewObjectsExt::OnExeTerminate()
         set.clear();
     KnownItem.clear();
     Owners.clear();
+    DarkTheme::CleanupDarkThemeBrushes();
 }
 void CViewObjectsExt::InitializeOnUpdateEngine()
 {

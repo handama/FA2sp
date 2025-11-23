@@ -532,7 +532,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     float XCenter;
                     float YCenter;
                     if (isBuilding) {
-                        const int Index = CMapData::Instance->GetBuildingTypeID(ID);
+                        const int Index = CMapDataExt::GetBuildingTypeIndex(ID);
                         const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
                         XCenter = atoi(objectX) + (DataExt.Height - 1) / 2.0;
                         YCenter = atoi(objectY) + (DataExt.Width - 1) / 2.0;
@@ -641,7 +641,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         range = mmh.GetSingle(weapon, "Range");
                         if (mmh.GetBool(ID, "CanOccupyFire") && isBuilding) {
                             range = mmh.GetSingle("CombatDamage", "OccupyWeaponRange");
-                            const int Index = CMapData::Instance->GetBuildingTypeID(ID);
+                            const int Index = CMapDataExt::GetBuildingTypeIndex(ID);
                             const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
                             int smallSide = 0;
                             if (DataExt.Height > DataExt.Width)
@@ -662,7 +662,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     float XCenter;
                     float YCenter;
                     if (isBuilding && drawCase != CViewObjectsExt::ObjectTerrainType::SightRange) {
-                        const int Index = CMapData::Instance->GetBuildingTypeID(ID);
+                        const int Index = CMapDataExt::GetBuildingTypeIndex(ID);
                         const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
                         XCenter = atoi(objectX) + (DataExt.Height - 1) / 2.0;
                         YCenter = atoi(objectY) + (DataExt.Width - 1) / 2.0;
@@ -1098,7 +1098,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 {
                     index++;
                     auto atoms = FString::SplitString(pair.second, 4);
-                    const int Index = CMapData::Instance->GetBuildingTypeID(atoms[1]);
+                    const int Index = CMapDataExt::GetBuildingTypeIndex(atoms[1]);
                     const int Y = atoi(atoms[3]);
                     const int X = atoi(atoms[4]);
                     const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
@@ -1286,7 +1286,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             if (atoms.size() < 3)
                                 continue;
 
-                            const int Index = CMapData::Instance->GetBuildingTypeID(atoms[0]);
+                            const int Index = CMapDataExt::GetBuildingTypeIndex(atoms[0]);
                             const int Y = atoi(atoms[1]);
                             const int X = atoi(atoms[2]);
                             bool found = false;

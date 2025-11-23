@@ -228,6 +228,7 @@ struct CellDataExt
         int DrawX;
         int DrawY;
         int INIIndex;
+        ImageDataClassSafe* pData;
     };
     struct BaseNodeRenderPart
     {
@@ -235,6 +236,7 @@ struct CellDataExt
         int DrawX;
         int DrawY;
         int INIIndex;
+        ImageDataClassSafe* pData;
         BaseNodeDataExt* Data;
     };
     std::vector<BuildingRenderPart> BuildingRenderParts;
@@ -435,6 +437,7 @@ public:
 
     static unsigned short CurrentRenderBuildingStrength;
     static std::unordered_map<int, BuildingDataExt> BuildingDataExts;
+    static std::unordered_map<FString, int> BuildingTypes;
     static std::vector<BuildingRenderData> BuildingRenderDatasFix;
     static std::vector<OverlayTypeData> OverlayTypeDatas;
     static void UpdateFieldStructureData_Optimized();
@@ -527,6 +530,7 @@ public:
     static void UpdateFieldAircraftData_RedrawMinimap();
 
     static int GetPlayerLocationCountAtCell(int x, int y);
+    static int GetBuildingTypeIndex(const FString& ID);
 
     static int OreValue[4];
     static std::vector<std::vector<int>> Tile_to_lat;

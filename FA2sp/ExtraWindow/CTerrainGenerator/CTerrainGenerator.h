@@ -134,7 +134,7 @@ public:
                             for (int idx = 0; idx < 60; idx++)
                             {
                                 auto imageName = CLoadingExt::GetOverlayName(overlays.Overlay, idx);
-                                auto pic = CLoadingExt::GetImageDataFromServer(imageName);
+                                auto pic = CLoadingExt::GetImageDataFromMap(imageName);
                                 if (pic && pic->pImageBuffer) {
                                     overlays.AvailableOverlayData.push_back(idx);
                                 }
@@ -145,7 +145,7 @@ public:
                             for (int idx = 0; idx < 60; idx++)
                             {
                                 auto imageName = CLoadingExt::GetOverlayName(overlays.Overlay, idx);
-                                auto pic = CLoadingExt::GetImageDataFromServer(imageName);
+                                auto pic = CLoadingExt::GetImageDataFromMap(imageName);
                                 if (pic && pic->pImageBuffer) {
                                     for (auto& data : atomsData) {
                                         if (idx == atoi(data)) {

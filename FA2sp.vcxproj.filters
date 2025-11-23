@@ -665,9 +665,6 @@
     <ClCompile Include="FA2sp\ExtraWindow\CNewLocalVariables\CNewLocalVariables.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CLoading\Body.ImageServer.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="FA2sp\Ext\CLoading\Body.ResourcePack.cpp">
       <Filter>源文件</Filter>
     </ClCompile>

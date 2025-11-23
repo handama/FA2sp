@@ -333,9 +333,11 @@ FString CLoadingExt::GetVehicleOrAircraftFileID(FString ID)
 
 void CLoadingExt::ClipAndLoadBuilding(FString ID, FString ImageID, unsigned char* pBuffer, int width, int height, Palette* palette)
 {
+	auto& ret = CLoadingExt::GetBuildingClipImageDataFromMap(ImageID);
+	ret.clear();
 	int idx = CMapDataExt::GetBuildingTypeIndex(ID);
 	auto& DataExt = CMapDataExt::GetExtension()->BuildingDataExts[idx];
-	//CLoadingExt::TrimImageEdges(pBuffer, width, height);
+	CLoadingExt::TrimImageEdges(pBuffer, width, height);
 	int parts = DataExt.BottomCoords.size();
 	if (parts == 1)
 	{
@@ -1896,7 +1898,15 @@ ImageDataClassSafe* CLoadingExt::SetBuildingImageDataSafe(unsigned char* pBuffer
 	ret.emplace_back(std::make_unique<ImageDataClassSafe>());
 	auto pData = ret.back().get();
 	if (pBuffer)
+	{
 		SetImageDataSafe(pBuffer, pData, FullWidth, FullHeight, pPal);
+	}
+	else
+	{
+		pData->Flag = ImageDataFlag::SHP;
+		pData->IsOverlay = false;
+		pData->pPalette = pPal ? pPal : Palette::PALETTE_UNIT;
+	}
 	return pData;
 }
 

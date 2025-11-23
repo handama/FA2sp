@@ -994,6 +994,7 @@ DEFINE_HOOK(49ED34, CMapData_LoadMap_InitializeMapDataExt, 5)
 
 DEFINE_HOOK(4B9E38, CMapData_CreateMap_InitializeMapDataExt, 5)
 {
+	CMapDataExt::IsUTF8File = false;
 	Logger::Debug("CMapData::CreateMap(): About to call InitializeAllHdmEdition()\n");
 	CMapDataExt::InitializeAllHdmEdition();
 	return 0;

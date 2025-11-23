@@ -37,16 +37,14 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 	BYTE* pData = nullptr;
 	BYTE* pDataModified = nullptr;	
 	CMapData::Instance->GetMapPreview(pData, &bmi, nStride);
-	if (pData)
-	{
-		// fix bottom left and right top pixels in the bottom-up bitmap
-		memcpy(&pData[0], &pData[sizeof(RGBTRIPLE)], sizeof(RGBTRIPLE));
-		auto firstLine = (bmi.bmiHeader.biHeight - 1) * nStride;
-		memcpy(&pData[firstLine + (bmi.bmiHeader.biWidth - 1) * sizeof(RGBTRIPLE)],
-			&pData[firstLine + (bmi.bmiHeader.biWidth - 2) * sizeof(RGBTRIPLE)], sizeof(RGBTRIPLE));
-	}
 
 	if (!pData) return 0x4D1CE0;
+
+	// fix bottom left and right top pixels in the bottom-up bitmap
+	memcpy(&pData[0], &pData[sizeof(RGBTRIPLE)], sizeof(RGBTRIPLE));
+	auto firstLine = (bmi.bmiHeader.biHeight - 1) * nStride;
+	memcpy(&pData[firstLine + (bmi.bmiHeader.biWidth - 1) * sizeof(RGBTRIPLE)],
+		&pData[firstLine + (bmi.bmiHeader.biWidth - 2) * sizeof(RGBTRIPLE)], sizeof(RGBTRIPLE));
 
 	if (ExtConfigs::EnableDarkMode && ExtConfigs::EnableDarkMode_DimMap)
 	{

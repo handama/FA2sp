@@ -43,7 +43,7 @@ public:
 	BOOL b_GameLayers;
 	BOOL b_SaveFormat;
 	int n_Lighting;
-	BOOL b_DisplayInvisibleOverlay;
+	BOOL b_DisplayInvisibleInGame;
 	BOOL b_MarkStartPositions;
 	BOOL b_MarkOres;
 	BOOL b_IgnoreObjects;

@@ -153,20 +153,16 @@ DEFINE_HOOK(46855D, CIsoView_OnLButtonUp_OverlayUndoRedo, 5)
 	return 0;
 }
 
-DEFINE_HOOK(45B545, CIsoView_OnMouseMove_SkipPlaceTileUndoRedo_Notify, 7)
+DEFINE_HOOK(45B53E, CIsoView_OnMouseMove_SkipPlaceTileUndoRedo_Notify, 7)
 {
 	if (!IsPlacingTiles || !ExtConfigs::UndoRedo_ShiftPlaceTile)
 		CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
 	IsPlacingTiles = true;
+	R->EDX(R->Stack<int>(STACK_OFFS(0x3D528, -0xC)));
+	R->EAX(R->Stack<int>(STACK_OFFS(0x3D528, -0x8)));
+	R->ECX(R->Stack<int>(STACK_OFFS(0x3D528, -0x4)));
 
-	return 0;
-}
-
-DEFINE_HOOK(461A37, CIsoView_OnLButtonDown_SkipPlaceTileUndoRedo1, 7)
-{
-	if (!IsPlacingTiles || !ExtConfigs::UndoRedo_ShiftPlaceTile)
-		return 0;
-	return 0x461A5B;
+	return 0x45B55D;
 }
 
 DEFINE_HOOK(46D620, CIsoView_FillArea, 9)
@@ -186,10 +182,15 @@ DEFINE_HOOK(461A37, CIsoView_PlaceTile_FixUndo, 7)
 	GET(CIsoView*, pIsoView, EBX);
 	GET(int, x, EDI);
 	GET(int, ym6, ECX);
-	int y = ym6 + 6;
-	if (CIsoView::CurrentCommand->Type >= CMapDataExt::TileDataCount || CIsoView::CurrentCommand->Type < 0) {
+	if (CIsoView::CurrentCommand->Type >= CMapDataExt::TileDataCount 
+		|| CIsoView::CurrentCommand->Type < 0) {
 		return 0;
 	}
+
+	if (IsPlacingTiles && ExtConfigs::UndoRedo_ShiftPlaceTile)
+		return 0x461A5B;
+
+	int y = ym6 + 6;
 	auto tiledata = CMapDataExt::TileData[CIsoView::CurrentCommand->Type];
 
 	CMapData::Instance->SaveUndoRedoData(true,

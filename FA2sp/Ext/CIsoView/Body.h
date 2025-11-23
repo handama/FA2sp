@@ -178,6 +178,7 @@ public:
     static void InitAlphaTable();
     static void InitGdiplus();
     static bool BlitDDSurfaceRectToBitmap(HDC hDC, const DDBoundary& boundary, const RECT& srcRect, int dstX, int dstY);
+    static int GetOverlayDrawOffset(WORD nOverlay, BYTE nOverlayData = 0);
     static Bitmap* pFullBitmap;
     static bool DrawStructures;
     static bool DrawInfantries;
@@ -221,7 +222,7 @@ public:
     static bool RenderFullMap;
     static bool RenderCurrentLayers;
     static bool RenderTileSuccess;
-    static bool RenderInvisibleOverlays;
+    static bool RenderInvisibleInGame;
     static bool RenderEmphasizeOres;
     static bool RenderMarkStartings;
     static bool RenderIgnoreObjects;

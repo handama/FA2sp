@@ -25,6 +25,10 @@ void __declspec(naked) to##_##from() \
 void __declspec(naked) to##_##0() \
 { __asm {lea to, [MapPreviewBuffer]} }
 
+#define DEFINE_MOV_HELPER(to) \
+void __declspec(naked) to##_##1() \
+{ __asm {mov to, offset MapPreviewBuffer} }
+
 namespace PreviewFixDetails
 {
     // These two naked function both takes 6 bytes
@@ -44,6 +48,9 @@ namespace PreviewFixDetails
     DEFINE_REG_HELPER(eax, eax);
     DEFINE_REG_HELPER(ebx, eax);
     DEFINE_REG_HELPER(edi, eax);
+    DEFINE_MOV_HELPER(eax);
+    DEFINE_MOV_HELPER(ecx);
+    DEFINE_MOV_HELPER(edx);
 
     static constexpr byte NOP = 0x90;
 
@@ -57,10 +64,16 @@ namespace PreviewFixDetails
         RunTime::ResetMemoryContentAt(addr - 3, fn, 6);
         RunTime::ResetMemoryContentAt(addr - 3 + 6, &NOP, 1);
     }
+
+    inline void DoMove(unsigned long addr, void* fn)
+    {
+        RunTime::ResetMemoryContentAt(addr, fn, 5);
+    }
 }
 
 #undef DEFINE_ZERO_HELPER
 #undef DEFINE_REG_HELPER
+#undef DEFINE_MOV_HELPER
 
 DEFINE_HOOK(537129, ExeRun_PreviewFix, 9)
 {
@@ -133,6 +146,21 @@ DEFINE_HOOK(537129, ExeRun_PreviewFix, 9)
     DoZero(0x4BEC85, edi_0);
     DoZero(0x4BFE59, esi_0);
     DoZero(0x4C0EF4, esi_0);
+
+    DoMove(0x4C1DC1, ecx_1);
+    DoMove(0x4C1CD8, eax_1);
+    DoMove(0x462005, ecx_1);
+    DoMove(0x461F07, edx_1);
+    DoMove(0x4579F1, ecx_1);
+    DoMove(0x4578F8, eax_1);
+    DoMove(0x43895D, ecx_1);
+    DoMove(0x438876, eax_1);
+    DoMove(0x43826B, ecx_1);
+    DoMove(0x438184, eax_1);
+    DoMove(0x425D37, ecx_1);
+    DoMove(0x425C4E, eax_1);
+    DoMove(0x425642, ecx_1);
+    DoMove(0x425559, eax_1);
 
     return 0;
 }

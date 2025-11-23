@@ -34,7 +34,11 @@ struct BuildingPowers
 struct OverlayTypeData
 {
     bool Rock;
+    bool Crate;
+    bool Veins;
     bool Wall;
+    bool Tiberium;
+    bool Rubble;
     bool TerrainRock;
     bool RailRoad;
     FString CustomPaletteName;

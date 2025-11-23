@@ -227,7 +227,7 @@ DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 {
 	auto currentLighting = CFinalSunDlgExt::CurrentLighting;
 	Logger::Debug("CIsoView::ReInitializeDDraw(): About to call InitializeAllHdmEdition()\n");
-	CMapDataExt::InitializeAllHdmEdition(false, false);
+	CMapDataExt::InitializeAllHdmEdition(false, false, false);
 	CViewObjectsExt::Redraw_ConnectedTile(nullptr);
 	CFinalSunDlgExt::CurrentLighting = currentLighting;
 

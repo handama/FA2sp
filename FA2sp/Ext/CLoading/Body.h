@@ -79,6 +79,7 @@ public:
 
 	bool InitMixFilesFix();
 	static bool IsObjectLoaded(FString pRegName);
+	static bool IsSurfaceObjectLoaded(FString pRegName);
 	static bool IsOverlayLoaded(FString pRegName);
 
 	void LoadObjects(FString pRegName);
@@ -96,7 +97,7 @@ public:
 	};
 	static FString GetBuildingImageName(FString ID, int nFacing, int state, bool bShadow = false);
 	
-	static void ClearItemTypes();
+	static void ClearItemTypes(bool releaseNonsurfaces = true);
 	void GetFullPaletteName(FString& PaletteName);
 	static void LoadFires(const ppmfc::CString& FileName);
 	static std::vector<ImageDataClassSafe*> GetRandomFire(const MapCoord& coord, int number);
@@ -206,6 +207,7 @@ public:
 
 	static std::unordered_map<FString, int> AvailableFacings;
 	static std::unordered_set<FString> LoadedObjects;
+	static std::unordered_set<FString> LoadedSurfaceObjects;
 	static std::unordered_set<FString> CustomPaletteTerrains;
 	static std::unordered_set<int> Ra2dotMixes;
 	static int TallestBuildingHeight;

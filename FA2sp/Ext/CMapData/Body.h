@@ -423,7 +423,9 @@ public:
     void SetHeightAt(int X, int Y, int height);
 
     //void InitializeBuildingTypesExt(const char* ID);
-    static void InitializeAllHdmEdition(bool updateMinimap = true, bool reloadCellDataExt = true);
+    static void InitializeAllHdmEdition(bool updateMinimap = true,
+        bool reloadCellDataExt = true,
+        bool reloadImages = true);
     static void InitializeTileData();
     static void UpdateTriggers();
     static FString AddTrigger(std::shared_ptr<Trigger> trigger);

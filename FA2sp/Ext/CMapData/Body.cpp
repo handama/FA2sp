@@ -2213,7 +2213,7 @@ void CMapDataExt::InitializeTileData()
 	}
 }
 
-void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDataExt)
+void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDataExt, bool reloadImages)
 {
 	Logger::Debug("CMapDataExt::InitializeAllHdmEdition() Called!\n");
 	CIsoView::CurrentCommand->Type = 0;
@@ -2283,46 +2283,48 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		ovrIdx++;
 	}
 
-
-	if (CNewTeamTypes::GetHandle())
-		::SendMessage(CNewTeamTypes::GetHandle(), 114514, 0, 0);
-
-	if (CNewTaskforce::GetHandle())
-		::SendMessage(CNewTaskforce::GetHandle(), 114514, 0, 0);
-
-	if (CNewScript::GetHandle())
-		::SendMessage(CNewScript::GetHandle(), 114514, 0, 0);
-
-	if (CNewTrigger::GetHandle())
-		::SendMessage(CNewTrigger::GetHandle(), 114514, 0, 0);
-	else
-		CMapDataExt::UpdateTriggers();
-
-	if (CNewINIEditor::GetHandle())
-		::SendMessage(CNewINIEditor::GetHandle(), 114514, 0, 0);
-	
-	if (CNewAITrigger::GetHandle())
-		::SendMessage(CNewAITrigger::GetHandle(), 114514, 0, 0);
-	
-	if (CLuaConsole::GetHandle())
-		::SendMessage(CLuaConsole::GetHandle(), 114514, 0, 0);
-	
-	if (CNewLocalVariables::GetHandle())
-		::SendMessage(CNewLocalVariables::GetHandle(), 114514, 0, 0);
-
-	if (IsWindowVisible(CCsfEditor::GetHandle()))
+	if (reloadImages)
 	{
-		::SendMessage(CCsfEditor::GetHandle(), 114514, 0, 0);
-	}
-	if (CSearhReference::GetHandle())
-	{
-		CSearhReference::SetSearchID("");
-		::SendMessage(CSearhReference::GetHandle(), WM_CLOSE, 0, 0);
-	}
-	if (CTriggerAnnotation::GetHandle())
-	{
-		CTriggerAnnotation::ID = "";
-		::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
+		if (CNewTeamTypes::GetHandle())
+			::SendMessage(CNewTeamTypes::GetHandle(), 114514, 0, 0);
+
+		if (CNewTaskforce::GetHandle())
+			::SendMessage(CNewTaskforce::GetHandle(), 114514, 0, 0);
+
+		if (CNewScript::GetHandle())
+			::SendMessage(CNewScript::GetHandle(), 114514, 0, 0);
+
+		if (CNewTrigger::GetHandle())
+			::SendMessage(CNewTrigger::GetHandle(), 114514, 0, 0);
+		else
+			CMapDataExt::UpdateTriggers();
+
+		if (CNewINIEditor::GetHandle())
+			::SendMessage(CNewINIEditor::GetHandle(), 114514, 0, 0);
+
+		if (CNewAITrigger::GetHandle())
+			::SendMessage(CNewAITrigger::GetHandle(), 114514, 0, 0);
+
+		if (CLuaConsole::GetHandle())
+			::SendMessage(CLuaConsole::GetHandle(), 114514, 0, 0);
+
+		if (CNewLocalVariables::GetHandle())
+			::SendMessage(CNewLocalVariables::GetHandle(), 114514, 0, 0);
+
+		if (IsWindowVisible(CCsfEditor::GetHandle()))
+		{
+			::SendMessage(CCsfEditor::GetHandle(), 114514, 0, 0);
+		}
+		if (CSearhReference::GetHandle())
+		{
+			CSearhReference::SetSearchID("");
+			::SendMessage(CSearhReference::GetHandle(), WM_CLOSE, 0, 0);
+		}
+		if (CTriggerAnnotation::GetHandle())
+		{
+			CTriggerAnnotation::ID = "";
+			::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
+		}
 	}
 
 	auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
@@ -2330,7 +2332,10 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 
 	CFinalSunDlgExt::CurrentLighting = 31000;
 	CheckMenuRadioItem(*CFinalSunDlg::Instance->GetMenu(), 31000, 31003, 31000, MF_UNCHECKED);
-	PalettesManager::Release();
+	if (reloadImages)
+	{
+		PalettesManager::Release();
+	}
 	FString theaterIg = thisTheater;
 	if (theaterIg == "NEWURBAN")
 		theaterIg = "UBN";
@@ -2588,31 +2593,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		}
 	}
 
-	if (TagSort::Instance.IsVisible())
-	{
-		TagSort::Instance.LoadAllTriggers();
-	}
-	if (TeamSort::Instance.IsVisible())
-	{
-		TeamSort::Instance.LoadAllTriggers();
-	}
-	if (WaypointSort::Instance.IsVisible())
-	{
-		WaypointSort::Instance.LoadAllTriggers();
-	}
-	if (TaskforceSort::Instance.IsVisible())
-	{
-		TaskforceSort::Instance.LoadAllTriggers();
-	}
-	if (ScriptSort::Instance.IsVisible())
-	{
-		ScriptSort::Instance.LoadAllTriggers();
-	}
-	if (WaypointSort::Instance.IsVisible())
-	{
-		WaypointSort::Instance.LoadAllTriggers();
-	}
-
 	CMapDataExt::GetExtension()->InitOreValue();
 
 	CTerrainGenerator::RangeFirstCell.X = -1;
@@ -2636,60 +2616,86 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CIsoViewExt::IsPressingTube = false;
 	CIsoViewExt::TubeNodes.clear();
 
-	TileAnimations.clear();
-
-	for (auto& [index, setName] : CMapDataExt::TileSetOriginSetNames[CLoadingExt::GetITheaterIndex()])
+	if (reloadImages)
 	{
-		if (CINI::CurrentTheater->SectionExists(setName) && index + 1 < TileSet_starts.size())
+		if (TagSort::Instance.IsVisible())
 		{
-			for (int i = TileSet_starts[index]; i < TileSet_starts[index + 1]; ++i)
+			TagSort::Instance.LoadAllTriggers();
+		}
+		if (TeamSort::Instance.IsVisible())
+		{
+			TeamSort::Instance.LoadAllTriggers();
+		}
+		if (WaypointSort::Instance.IsVisible())
+		{
+			WaypointSort::Instance.LoadAllTriggers();
+		}
+		if (TaskforceSort::Instance.IsVisible())
+		{
+			TaskforceSort::Instance.LoadAllTriggers();
+		}
+		if (ScriptSort::Instance.IsVisible())
+		{
+			ScriptSort::Instance.LoadAllTriggers();
+		}
+		if (WaypointSort::Instance.IsVisible())
+		{
+			WaypointSort::Instance.LoadAllTriggers();
+		}
+
+		TileAnimations.clear();
+		for (auto& [index, setName] : CMapDataExt::TileSetOriginSetNames[CLoadingExt::GetITheaterIndex()])
+		{
+			if (CINI::CurrentTheater->SectionExists(setName) && index + 1 < TileSet_starts.size())
 			{
-				int relativeIndex = i - TileSet_starts[index] + 1;
-				auto& anim = TileAnimations[i];
-				anim.TileIndex = i;
-				FString Anim;
-				FString XOffset;
-				FString YOffset;
-				FString AttachesTo;
-				FString ZAdjust;
-				Anim.Format("Tile%02dAnim", relativeIndex);
-				XOffset.Format("Tile%02dXOffset", relativeIndex);
-				YOffset.Format("Tile%02dYOffset", relativeIndex);
-				AttachesTo.Format("Tile%02dAttachesTo", relativeIndex);
-				ZAdjust.Format("Tile%02dZAdjust", relativeIndex);
-				anim.AnimName = CINI::CurrentTheater->GetString(setName, Anim);
-				anim.XOffset = CINI::CurrentTheater->GetInteger(setName, XOffset);
-				anim.YOffset = CINI::CurrentTheater->GetInteger(setName, YOffset);
-				anim.AttachedSubTile = CINI::CurrentTheater->GetInteger(setName, AttachesTo);
-				anim.ZAdjust = CINI::CurrentTheater->GetInteger(setName, ZAdjust);
-				FString imageName;
-				imageName.Format("TileAnim%s\233%d%d", anim.AnimName, index, CLoadingExt::GetITheaterIndex());
-				FString sectionName;
-				sectionName.Format("TileSet%04d", index);
-				auto customPal = CINI::CurrentTheater->GetString(sectionName, "CustomPalette", "iso");
-				if (customPal == "iso")
-					CLoadingExt::LoadShp(imageName, anim.AnimName + CLoading::Instance->GetFileExtension(), &Palette_ISO_NoTint, 0);
-				else
-					CLoadingExt::LoadShp(imageName, anim.AnimName + CLoading::Instance->GetFileExtension(), customPal, 0);
-				anim.ImageName = imageName;
+				for (int i = TileSet_starts[index]; i < TileSet_starts[index + 1]; ++i)
+				{
+					int relativeIndex = i - TileSet_starts[index] + 1;
+					auto& anim = TileAnimations[i];
+					anim.TileIndex = i;
+					FString Anim;
+					FString XOffset;
+					FString YOffset;
+					FString AttachesTo;
+					FString ZAdjust;
+					Anim.Format("Tile%02dAnim", relativeIndex);
+					XOffset.Format("Tile%02dXOffset", relativeIndex);
+					YOffset.Format("Tile%02dYOffset", relativeIndex);
+					AttachesTo.Format("Tile%02dAttachesTo", relativeIndex);
+					ZAdjust.Format("Tile%02dZAdjust", relativeIndex);
+					anim.AnimName = CINI::CurrentTheater->GetString(setName, Anim);
+					anim.XOffset = CINI::CurrentTheater->GetInteger(setName, XOffset);
+					anim.YOffset = CINI::CurrentTheater->GetInteger(setName, YOffset);
+					anim.AttachedSubTile = CINI::CurrentTheater->GetInteger(setName, AttachesTo);
+					anim.ZAdjust = CINI::CurrentTheater->GetInteger(setName, ZAdjust);
+					FString imageName;
+					imageName.Format("TileAnim%s\233%d%d", anim.AnimName, index, CLoadingExt::GetITheaterIndex());
+					FString sectionName;
+					sectionName.Format("TileSet%04d", index);
+					auto customPal = CINI::CurrentTheater->GetString(sectionName, "CustomPalette", "iso");
+					if (customPal == "iso")
+						CLoadingExt::LoadShp(imageName, anim.AnimName + CLoading::Instance->GetFileExtension(), &Palette_ISO_NoTint, 0);
+					else
+						CLoadingExt::LoadShp(imageName, anim.AnimName + CLoading::Instance->GetFileExtension(), customPal, 0);
+					anim.ImageName = imageName;
+				}
 			}
 		}
+		const char* InsigniaVeteran = "FA2spInsigniaVeteran";
+		const char* InsigniaElite = "FA2spInsigniaElite";
+		const char* DefaultInsigniaFile = "pips.shp";
+		const char* PaletteName = "palette.pal";
+		CLoadingExt::LoadShp(InsigniaVeteran, "pips.shp", PaletteName, 14);
+		CLoadingExt::LoadShp(InsigniaElite, "pips.shp", PaletteName, 15);
+		CLoadingExt::DamageFires.clear();
+		std::random_device rd;
+		CLoadingExt::RandomFireSeed = rd();
+		auto fires = STDHelpers::SplitString(Variables::RulesMap.GetString("General", "DamageFireTypes"));
+		for (const auto& fire : fires)
+		{
+			CLoadingExt::LoadFires(fire + ".shp");
+		}
 	}
-	const char* InsigniaVeteran = "FA2spInsigniaVeteran";
-	const char* InsigniaElite = "FA2spInsigniaElite";
-	const char* DefaultInsigniaFile = "pips.shp";
-	const char* PaletteName = "palette.pal";
-	CLoadingExt::LoadShp(InsigniaVeteran, "pips.shp", PaletteName, 14);
-	CLoadingExt::LoadShp(InsigniaElite, "pips.shp", PaletteName, 15);
-	CLoadingExt::DamageFires.clear();
-	std::random_device rd;
-	CLoadingExt::RandomFireSeed = rd();
-	auto fires = STDHelpers::SplitString(Variables::RulesMap.GetString("General", "DamageFireTypes"));
-	for (const auto& fire : fires)
-	{
-		CLoadingExt::LoadFires(fire + ".shp");
-	}
-
 	for (auto& [_, ID] : Variables::RulesMap.GetSection("InfantryTypes"))
 	{
 		auto ArtID = CLoadingExt::GetArtID(ID);
@@ -2704,7 +2710,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			CLoadingExt::SwimableInfantries.insert(ID);
 		}
 	}
-
 	CNewTrigger::ActionParamAffectedParams.clear();
 	CNewTrigger::EventParamAffectedParams.clear();
 	if (auto pSection = CINI::FAData->GetSection("ParamAffectedParams"))

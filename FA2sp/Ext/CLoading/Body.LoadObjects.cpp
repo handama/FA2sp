@@ -16,6 +16,7 @@ std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
 std::unordered_map<FString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
 std::unordered_set<FString> CLoadingExt::LoadedObjects;
+std::unordered_set<FString> CLoadingExt::LoadedSurfaceObjects;
 std::unordered_set<FString> CLoadingExt::CustomPaletteTerrains;
 std::unordered_map<FString, int> CLoadingExt::AvailableFacings;
 std::unordered_set<int> CLoadingExt::Ra2dotMixes;
@@ -227,18 +228,27 @@ void CLoadingExt::LoadObjects(FString ID)
 	}
 }
 
-void CLoadingExt::ClearItemTypes()
+void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 {
-	ObjectTypes.clear();
-	LoadedObjects.clear();
-	LoadedOverlays.clear();
-	SwimableInfantries.clear();
-	ImageDataMap.clear();
-	AvailableFacings.clear();
-	CustomPaletteTerrains.clear();
-	CMapDataExt::TerrainPaletteBuildings.clear();
-	CMapDataExt::DamagedAsRubbleBuildings.clear();
-	CMapDataExt::BuildingTypes.clear();
+	if (releaseNonsurfaces)
+	{
+		ObjectTypes.clear();
+		LoadedObjects.clear();
+		LoadedOverlays.clear();
+		SwimableInfantries.clear();
+		ImageDataMap.clear();
+		AvailableFacings.clear();
+		CustomPaletteTerrains.clear();
+		CMapDataExt::TerrainPaletteBuildings.clear();
+		CMapDataExt::DamagedAsRubbleBuildings.clear();
+		CMapDataExt::BuildingTypes.clear();
+		BuildingClipsImageDataMap.clear();
+		Logger::Debug("CLoadingExt: Clearing loaded objects.\n");
+	}							    
+	else {						    
+		Logger::Debug("CLoadingExt: Clearing loaded objects with surfaces.\n");
+	}
+	LoadedSurfaceObjects.clear();
 	CIsoViewExt::textCache.clear();
 	for (auto& data : SurfaceImageDataMap)
 	{
@@ -248,13 +258,16 @@ void CLoadingExt::ClearItemTypes()
 		}
 	}
 	SurfaceImageDataMap.clear();
-	BuildingClipsImageDataMap.clear();
-	Logger::Debug("CLoadingExt::Clearing Loaded Objects.\n");
 }
 
 bool CLoadingExt::IsObjectLoaded(FString pRegName)
 {
 	return LoadedObjects.find(pRegName) != LoadedObjects.end();
+}
+
+bool CLoadingExt::IsSurfaceObjectLoaded(FString pRegName)
+{
+	return LoadedSurfaceObjects.find(pRegName) != LoadedSurfaceObjects.end();
 }
 
 bool CLoadingExt::IsOverlayLoaded(FString pRegName)
@@ -2590,7 +2603,7 @@ void CLoadingExt::LoadBitMap(FString ImageID, const CBitmap& cBitmap)
 	pData->FullHeight = desc.dwHeight;
 	pData->Flag = ImageDataFlag::SurfaceData;
 	CIsoView::SetColorKey(pData->lpSurface, RGB(255, 255, 255));
-	LoadedObjects.insert(ImageID);
+	LoadedSurfaceObjects.insert(ImageID);
 }
 
 void CLoadingExt::LoadShp(FString ImageID, FString FileName, FString PalName, int nFrame)
@@ -2760,7 +2773,7 @@ void CLoadingExt::LoadShpToSurface(FString ImageID, FString FileName, FString Pa
 				pData->Flag = ImageDataFlag::SurfaceData;
 
 				CIsoView::SetColorKey(pData->lpSurface, -1);
-				LoadedObjects.insert(ImageID);
+				LoadedSurfaceObjects.insert(ImageID);
 				memDC.DeleteDC();
 			}	
 		}
@@ -2817,7 +2830,7 @@ void CLoadingExt::LoadShpToSurface(FString ImageID, unsigned char* pBuffer, int 
 		pData->Flag = ImageDataFlag::SurfaceData;
 
 		CIsoView::SetColorKey(pData->lpSurface, -1);
-		LoadedObjects.insert(ImageID);
+		LoadedSurfaceObjects.insert(ImageID);
 		memDC.DeleteDC();
 	}	
 }

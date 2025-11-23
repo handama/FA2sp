@@ -676,7 +676,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							for (int i = 0; i < DataExt.BottomCoords.size(); ++i)
 							{
 								auto pData = clips[i].get();
-								if (!pData->pImageBuffer) continue;
 
 								auto& coord = DataExt.BottomCoords[i];
 								MapCoord coordInMap = { X + coord.X, Y + coord.Y };		
@@ -838,7 +837,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						for (int i = 0; i < DataExt.BottomCoords.size(); ++i)
 						{
 							auto pData = clips[i].get();
-							if (!pData->pImageBuffer) continue;
 							auto& coord = DataExt.BottomCoords[i];
 							MapCoord coordInMap = { X + coord.X, Y + coord.Y };
 
@@ -1508,7 +1506,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					status = CLoadingExt::GBIN_DAMAGED;
 				const auto& imageNameCheck = CLoadingExt::GetBuildingImageName(objRender.ID, 0, status);
 
-				if (part.pData->pImageBuffer)
+				if (part.pData && part.pData->pImageBuffer)
 				{
 					auto& isoset = CMapDataExt::TerrainPaletteBuildings;
 					auto& dam_rubble = CMapDataExt::DamagedAsRubbleBuildings;
@@ -1626,7 +1624,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 			if (CIsoViewExt::DrawBasenodes)
 			{
-				if (part.pData->pImageBuffer)
+				if (part.pData && part.pData->pImageBuffer)
 				{
 					auto& isoset = CMapDataExt::TerrainPaletteBuildings;
 					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,

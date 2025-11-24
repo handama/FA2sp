@@ -2857,20 +2857,21 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
         destRect.bottom = window.bottom;
     }
 
+    // buildings use pre-calculate palettes
     if (!newPal) {
         newPal = pd->pPalette;
-    }
-    BGRStruct color;
-    auto pRGB = reinterpret_cast<ColorStruct*>(&houseColor);
-    color.R = pRGB->red;
-    color.G = pRGB->green;
-    color.B = pRGB->blue;
-    if (LightingStruct::CurrentLighting == LightingStruct::NoLighting) {
-        newPal = PalettesManager::GetPalette(newPal, color, !isTerrain && !isRubble);
-    }
-    else {
-        newPal = PalettesManager::GetObjectPalette(newPal, color, !isTerrain && !isRubble,
-            CIsoViewExt::CurrentDrawCellLocation, false, isRubble || isTerrain ? 4 : 3);
+        BGRStruct color;
+        auto pRGB = reinterpret_cast<ColorStruct*>(&houseColor);
+        color.R = pRGB->red;
+        color.G = pRGB->green;
+        color.B = pRGB->blue;
+        if (LightingStruct::CurrentLighting == LightingStruct::NoLighting) {
+            newPal = PalettesManager::GetPalette(newPal, color, !isTerrain && !isRubble);
+        }
+        else {
+            newPal = PalettesManager::GetObjectPalette(newPal, color, !isTerrain && !isRubble,
+                CIsoViewExt::CurrentDrawCellLocation, false, isRubble || isTerrain ? 4 : 3);
+        }
     }
 
     BYTE* srcBase = src;

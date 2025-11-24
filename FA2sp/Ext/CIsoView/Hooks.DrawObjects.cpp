@@ -632,7 +632,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				if (!CIsoViewExt::DrawStructuresFilter
 					|| filter.find(StrINIIndex) != filter.end())
 				{
-					const auto& objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
+					auto& objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
 					if (!CIsoViewExt::RenderingMap
 						|| CIsoViewExt::RenderingMap
 						&& CIsoViewExt::MapRendererIgnoreObjects.find(objRender.ID)
@@ -673,6 +673,29 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 							const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status);
 							auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
+
+							Palette* pPal = nullptr;
+							BGRStruct color;
+							auto pRGB = reinterpret_cast<ColorStruct*>(&objRender.HouseColor);
+							color.R = pRGB->red;
+							color.G = pRGB->green;
+							color.B = pRGB->blue;
+
+							auto& isoset = CMapDataExt::TerrainPaletteBuildings;
+							auto& dam_rubble = CMapDataExt::DamagedAsRubbleBuildings;
+							auto isRubble = status == CLoadingExt::GBIN_RUBBLE &&
+								dam_rubble.find(objRender.ID) == dam_rubble.end()
+								&& imageName != CLoadingExt::GetBuildingImageName(objRender.ID, 0, CLoadingExt::GBIN_DAMAGED);
+							auto isTerrain = isoset.find(objRender.ID) != isoset.end();
+							
+							if (LightingStruct::CurrentLighting == LightingStruct::NoLighting) {
+								pPal = PalettesManager::GetPalette(clips[0]->pPalette, color, !isTerrain && !isRubble);
+							}
+							else {
+								pPal = PalettesManager::GetObjectPalette(clips[0]->pPalette, color, !isTerrain && !isRubble,
+									{ objRender.X,objRender.Y,CMapDataExt::TryGetCellAt(objRender.X, objRender.Y)->Height },
+									false, isRubble || isTerrain ? 4 : 3);
+							}
 							for (int i = 0; i < DataExt.BottomCoords.size(); ++i)
 							{
 								auto pData = clips[i].get();
@@ -722,7 +745,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 										x1 - pData->ClipOffsets.FullWidth / 2 + pData->ClipOffsets.LeftOffset,
 										y1,
 										BuildingIndex,
-										pData
+										status,
+										pData,
+										pPal
 										});
 							}
 
@@ -834,6 +859,25 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 						const auto& imageName = CLoadingExt::GetBuildingImageName(node.ID, 0, 0);
 						auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
+						Palette* pPal = nullptr;
+						BGRStruct color;
+						int houseColor = Miscs::GetColorRef(node.House);
+						auto pRGB = reinterpret_cast<ColorStruct*>(&houseColor);
+						color.R = pRGB->red;
+						color.G = pRGB->green;
+						color.B = pRGB->blue;
+
+						auto& isoset = CMapDataExt::TerrainPaletteBuildings;
+						auto isTerrain = isoset.find(node.ID) != isoset.end();
+
+						if (LightingStruct::CurrentLighting == LightingStruct::NoLighting) {
+							pPal = PalettesManager::GetPalette(clips[0]->pPalette, color, !isTerrain);
+						}
+						else {
+							pPal = PalettesManager::GetObjectPalette(clips[0]->pPalette, color, !isTerrain,
+								{ (short)node.X,(short)node.Y,CMapDataExt::TryGetCellAt(node.X,node.Y)->Height},
+								false, isTerrain ? 4 : 3);
+						}
 						for (int i = 0; i < DataExt.BottomCoords.size(); ++i)
 						{
 							auto pData = clips[i].get();
@@ -882,6 +926,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									y1,
 									BuildingIndex,
 									pData,
+									pPal,
 									&node });
 						}
 					}
@@ -1495,28 +1540,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 			if (CIsoViewExt::DrawStructures)
 			{
-				const int HP = objRender.Strength;
-				int status = CLoadingExt::GBIN_NORMAL;
-				if (HP == 0)
-					status = CLoadingExt::GBIN_RUBBLE;
-				else if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
-					status = CLoadingExt::GBIN_DAMAGED;
-				else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP
-					&& !(Variables::RulesMap.GetInteger(objRender.ID, "TechLevel") < 0 && Variables::RulesMap.GetBool(objRender.ID, "CanOccupyFire")))
-					status = CLoadingExt::GBIN_DAMAGED;
-				const auto& imageNameCheck = CLoadingExt::GetBuildingImageName(objRender.ID, 0, status);
-
 				if (part.pData && part.pData->pImageBuffer)
 				{
 					auto& isoset = CMapDataExt::TerrainPaletteBuildings;
-					auto& dam_rubble = CMapDataExt::DamagedAsRubbleBuildings;
 					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
 						part.DrawX, part.DrawY - part.pData->FullHeight / 2,
-						part.pData, NULL, isCloakable(objRender.ID) ? 128 : 255,
-						objRender.HouseColor, -1, status == CLoadingExt::GBIN_RUBBLE &&
-						dam_rubble.find(objRender.ID) == dam_rubble.end()
-						&& imageNameCheck != CLoadingExt::GetBuildingImageName(objRender.ID, 0, CLoadingExt::GBIN_DAMAGED),
-						isoset.find(objRender.ID) != isoset.end());
+						part.pData, part.pPal, isCloakable(objRender.ID) ? 128 : 255);
 
 					if (part.Part == DataExt.Width - 1)
 					{
@@ -1564,7 +1593,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							}
 						}
 					}
-					if (firstDraw && CIsoViewExt::DrawFires && status == CLoadingExt::GBIN_DAMAGED && DataExt.DamageFireOffsets.size() > 0)
+					if (firstDraw && CIsoViewExt::DrawFires && part.Status == CLoadingExt::GBIN_DAMAGED && DataExt.DamageFireOffsets.size() > 0)
 					{
 						auto fires = CLoadingExt::GetRandomFire({ objRender.X,objRender.Y }, DataExt.DamageFireOffsets.size());
 						for (int i = 0; i < fires.size(); ++i)
@@ -1590,9 +1619,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			const auto& DataExt = CMapDataExt::BuildingDataExts[part.INIIndex];
 			bool firstDraw = std::find(DrawnBaseNodes.begin(), DrawnBaseNodes.end(), *part.Data) == DrawnBaseNodes.end();
 			DrawnBaseNodes.push_back(*part.Data);
-			CIsoViewExt::CurrentDrawCellLocation.X = part.Data->X;
-			CIsoViewExt::CurrentDrawCellLocation.Y = part.Data->Y;
-			CIsoViewExt::CurrentDrawCellLocation.Height = CMapDataExt::TryGetCellAt(part.Data->X, part.Data->Y)->Height;
 
 			int x1 = part.Data->X;
 			int y1 = part.Data->Y;
@@ -1628,8 +1654,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					auto& isoset = CMapDataExt::TerrainPaletteBuildings;
 					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
-						part.DrawX, part.DrawY - part.pData->FullHeight / 2, part.pData, NULL, 128,
-						color, -1, false, isoset.find(part.Data->ID) != isoset.end());
+						part.DrawX, part.DrawY - part.pData->FullHeight / 2, part.pData, part.pPal, 128);
 				}
 			}
 		}

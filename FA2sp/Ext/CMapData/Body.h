@@ -228,7 +228,9 @@ struct CellDataExt
         int DrawX;
         int DrawY;
         int INIIndex;
+        int Status;
         ImageDataClassSafe* pData;
+        Palette* pPal;
     };
     struct BaseNodeRenderPart
     {
@@ -237,6 +239,7 @@ struct CellDataExt
         int DrawY;
         int INIIndex;
         ImageDataClassSafe* pData;
+        Palette* pPal;
         BaseNodeDataExt* Data;
     };
     std::vector<BuildingRenderPart> BuildingRenderParts;

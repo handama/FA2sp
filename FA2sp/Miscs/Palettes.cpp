@@ -18,7 +18,7 @@ std::map<FString, Palette*> PalettesManager::OriginPaletteFiles;
 std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedPaletteFiles;
 std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedDimmedPaletteFiles;
 std::map<Palette*, std::map<LightingStruct, LightingPalette>> PalettesManager::CalculatedPaletteFilesNoRemap;
-std::vector<LightingPalette> PalettesManager::CalculatedObjectPaletteFiles;
+std::list<LightingPalette> PalettesManager::CalculatedObjectPaletteFiles;
 Palette* PalettesManager::CurrentIso;
 bool PalettesManager::NeedReloadLighting = false;
 

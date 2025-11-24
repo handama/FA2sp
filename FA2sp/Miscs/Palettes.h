@@ -5,6 +5,7 @@
 #include <CPalette.h>
 #include "../Ext/CIsoView/Body.h"
 #include <map>
+#include <list>
 
 // References from ccmaps-net
 // In fact the lighting should just be integers (from YR)
@@ -99,7 +100,7 @@ public:
     static void Release();
 
     static bool NeedReloadLighting;
-    static std::vector<LightingPalette> CalculatedObjectPaletteFiles;
+    static std::list<LightingPalette> CalculatedObjectPaletteFiles;
 
     static Palette* GetCurrentIso();
     static Palette* LoadPalette(FString palname);

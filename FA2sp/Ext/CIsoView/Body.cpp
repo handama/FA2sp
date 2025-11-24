@@ -75,6 +75,7 @@ bool CIsoViewExt::AutoPropertyBrush[4] = { false };
 bool CIsoViewExt::IsPressingALT = false;
 bool CIsoViewExt::IsPressingTube = false;
 bool CIsoViewExt::EnableDistanceRuler = false;
+bool CIsoViewExt::ReInitializingDDraw = false;
 bool CIsoViewExt::CliffBackAlt = false;
 bool CIsoViewExt::HistoryRecord_IsHoldingLButton = false;
 std::vector<MapCoord> CIsoViewExt::TubeNodes;

@@ -223,6 +223,12 @@ DEFINE_HOOK(457648, CIsoView_OnMouseMove_PlaceTile_SkipHide, B)
 	return cell->IsHidden() ? 0x457D11 : 0;
 }
 
+DEFINE_HOOK(4691D0, CIsoView_ReInitializeDDraw_Begin, 6)
+{
+	CIsoViewExt::ReInitializingDDraw = true;
+	return 0;
+}
+
 DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 {
 	auto currentLighting = CFinalSunDlgExt::CurrentLighting;
@@ -246,6 +252,7 @@ DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 		}
 	}
 
+	CIsoViewExt::ReInitializingDDraw = false;
 	return 0;
 }
 

@@ -78,15 +78,15 @@ public:
 	static bool HasFile_ReadyToReadFromFolder;
 
 	bool InitMixFilesFix();
-	static bool IsObjectLoaded(FString pRegName);
-	static bool IsSurfaceObjectLoaded(FString pRegName);
-	static bool IsOverlayLoaded(FString pRegName);
+	static bool IsObjectLoaded(const FString& pRegName);
+	static bool IsSurfaceObjectLoaded(const FString& pRegName);
+	static bool IsOverlayLoaded(const FString& pRegName);
 
-	void LoadObjects(FString pRegName);
-	void LoadOverlay(FString, int nIndex);
+	void LoadObjects(const FString& pRegName);
+	void LoadOverlay(const FString& pRegName, int nIndex);
 	
 	// except buildings
-	static FString GetImageName(FString ID, int nFacing, bool bShadow = false, bool bDeploy = false, bool bWater = false);
+	static FString GetImageName(const FString& ID, int nFacing, bool bShadow = false, bool bDeploy = false, bool bWater = false);
 	static FString GetOverlayName(WORD ovr, BYTE ovrd, bool bShadow = false);
 	// only buildings
 	enum
@@ -327,7 +327,7 @@ struct MixEntry {
 
 struct MixFile {
 	std::string path;
-	std::ifstream stream;
+	FILE* fp = nullptr;
 	std::vector<MixEntry> entries;
 	bool isNested = false; 
 	uint32_t baseOffset = 0;
@@ -335,7 +335,7 @@ struct MixFile {
 
 struct FindFileHelper {
 	uint32_t mixIndex;
-	const MixEntry* entry;
+	uint32_t entryIndex;
 };
 
 class MixLoader {
@@ -358,7 +358,9 @@ public:
 
 private:
 	MixLoader() = default;
-	~MixLoader() = default;
+	~MixLoader() { Clear(); }
+
+	bool SeekFile64(FILE* f, int64_t offset);
 
 	std::vector<MixFile> mixFiles;
 	std::unordered_map<uint32_t, FindFileHelper> fileMap;

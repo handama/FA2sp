@@ -645,7 +645,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
 							if (!CLoadingExt::IsObjectLoaded(objRender.ID))
 							{
-								CLoading::Instance->LoadObjects(objRender.ID);
+								CLoadingExt::GetExtension()->LoadObjects(objRender.ID);
 							}
 
 							int nFacing = 0;
@@ -761,7 +761,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 										CLoadingExt::GetBuildingImageName(upg, 0, 0, true));
 									if ((!pUpgData || !pUpgData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(upg))
 									{
-										CLoading::Instance->LoadObjects(upg);
+										CLoadingExt::GetExtension()->LoadObjects(upg);
 									}
 									if (pUpgData && pUpgData->pImageBuffer)
 									{
@@ -824,7 +824,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
 						if (!CLoadingExt::IsObjectLoaded(node.ID))
 						{
-							CLoading::Instance->LoadObjects(node.ID);
+							CLoadingExt::GetExtension()->LoadObjects(node.ID);
 						}
 						int x1 = node.X;
 						int y1 = node.Y;
@@ -924,7 +924,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 						if (!CLoadingExt::IsObjectLoaded(obj.TypeID))
 						{
-							CLoading::Instance->LoadObjects(obj.TypeID);
+							CLoadingExt::GetExtension()->LoadObjects(obj.TypeID);
 						}
 						auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
@@ -980,7 +980,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 					if (!CLoadingExt::IsObjectLoaded(ImageID))
 					{
-						CLoading::Instance->LoadObjects(ImageID);
+						CLoadingExt::GetExtension()->LoadObjects(ImageID);
 					}
 					int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
 					int nFacing = (atoi(obj.Facing) * facings / 256) % facings;
@@ -1016,7 +1016,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 				if (!CLoadingExt::IsObjectLoaded(obj))
 				{
-					CLoading::Instance->LoadObjects(obj);
+					CLoadingExt::GetExtension()->LoadObjects(obj);
 				}
 				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
@@ -1296,7 +1296,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				const auto& imageName = CLoadingExt::GetImageName(obj, 0);
 				if (!CLoadingExt::IsObjectLoaded(obj))
 				{
-					CLoading::Instance->LoadObjects(obj);
+					CLoadingExt::GetExtension()->LoadObjects(obj);
 				}
 				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
@@ -1439,7 +1439,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 				if (!CLoadingExt::IsObjectLoaded(obj))
 				{
-					CLoading::Instance->LoadObjects(obj);
+					CLoadingExt::GetExtension()->LoadObjects(obj);
 				}
 				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
@@ -1658,7 +1658,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 					if (!CLoadingExt::IsObjectLoaded(ImageID))
 					{
-						CLoading::Instance->LoadObjects(ImageID);
+						CLoadingExt::GetExtension()->LoadObjects(ImageID);
 					}
 					int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
 					int nFacing = (atoi(obj.Facing) * facings / 256) % facings;
@@ -1726,7 +1726,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 					if (!CLoadingExt::IsObjectLoaded(imageID))
 					{
-						CLoading::Instance->LoadObjects(imageID);
+						CLoadingExt::GetExtension()->LoadObjects(imageID);
 					}
 
 					int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
@@ -1786,7 +1786,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 						if (!CLoadingExt::IsObjectLoaded(obj.TypeID))
 						{
-							CLoading::Instance->LoadObjects(obj.TypeID);
+							CLoadingExt::GetExtension()->LoadObjects(obj.TypeID);
 						}
 						auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 

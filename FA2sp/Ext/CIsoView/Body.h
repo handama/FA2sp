@@ -258,6 +258,7 @@ public:
 
     static std::vector<MapCoord> DistanceRuler;
     static bool EnableDistanceRuler;
+    static bool ReInitializingDDraw;
 
     static bool CliffBackAlt;
     static bool HistoryRecord_IsHoldingLButton;

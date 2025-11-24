@@ -85,7 +85,8 @@ int CLoadingExt::GetAvailableFacing(const FString& ID)
 		return 8;
 	return itr->second;
 }
-FString CLoadingExt::GetImageName(FString ID, int nFacing, bool bShadow, bool bDeploy, bool bWater)
+
+FString CLoadingExt::GetImageName(const FString& ID, int nFacing, bool bShadow, bool bDeploy, bool bWater)
 {
 	FString ret;
 	if (bShadow || bDeploy || bWater)
@@ -174,7 +175,7 @@ CLoadingExt::ObjectType CLoadingExt::GetItemType(FString ID)
 	return ObjectType::Unknown;
 }
 
-void CLoadingExt::LoadObjects(FString ID)
+void CLoadingExt::LoadObjects(const FString& ID)
 {
 	if (ID == "")
 		return;
@@ -260,17 +261,17 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 	SurfaceImageDataMap.clear();
 }
 
-bool CLoadingExt::IsObjectLoaded(FString pRegName)
+bool CLoadingExt::IsObjectLoaded(const FString& pRegName)
 {
 	return LoadedObjects.find(pRegName) != LoadedObjects.end();
 }
 
-bool CLoadingExt::IsSurfaceObjectLoaded(FString pRegName)
+bool CLoadingExt::IsSurfaceObjectLoaded(const FString& pRegName)
 {
 	return LoadedSurfaceObjects.find(pRegName) != LoadedSurfaceObjects.end();
 }
 
-bool CLoadingExt::IsOverlayLoaded(FString pRegName)
+bool CLoadingExt::IsOverlayLoaded(const FString& pRegName)
 {
 	return LoadedOverlays.find(pRegName) != LoadedOverlays.end();
 }
@@ -389,13 +390,6 @@ void CLoadingExt::LoadBuilding(FString ID)
 	{
 		LoadBuilding_Normal(ID);
 		return;
-	}
-
-	const auto& upgrades = CMapDataExt::PowersUpBuildings[ID];
-	for (const auto& upgrade : upgrades)
-	{
-		if (!CLoadingExt::IsObjectLoaded(upgrade))
-			LoadBuilding(upgrade);
 	}
 
 	LoadBuilding_Normal(ID);
@@ -3179,7 +3173,7 @@ std::unique_ptr<ImageDataClassSafe> CLoadingExt::BindClippedImages(const std::ve
 	return result;
 }
 
-void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
+void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 {
 	if (pRegName == "")
 		return;

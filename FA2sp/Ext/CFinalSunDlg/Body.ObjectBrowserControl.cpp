@@ -3014,6 +3014,7 @@ void CViewObjectsExt::OnExeTerminate()
     Owners.clear();
     DarkTheme::CleanupDarkThemeBrushes();
 }
+
 void CViewObjectsExt::InitializeOnUpdateEngine()
 {
     CViewObjectsExt::PlacingRandomRock = -1;

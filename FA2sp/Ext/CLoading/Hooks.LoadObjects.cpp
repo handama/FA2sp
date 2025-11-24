@@ -204,7 +204,7 @@ DEFINE_HOOK(491FD4, CLoading_Release_SetImageDataToNullptr, 5)
 
 DEFINE_HOOK(491D00, CLoading_Release_BackBufferZoom, 5)
 {
-    CLoadingExt::ClearItemTypes(false);
+    CLoadingExt::ClearItemTypes(!CIsoViewExt::ReInitializingDDraw);
     if (CIsoViewExt::lpDDBackBufferZoomSurface != NULL) CIsoViewExt::lpDDBackBufferZoomSurface->Release();
     return 0;
 }

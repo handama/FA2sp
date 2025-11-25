@@ -4,6 +4,7 @@
 #include "CFinalSunDlg.h"
 #include <psapi.h>
 #include "../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
+#include "../Helpers/Translations.h"
 
 HBRUSH DarkTheme::g_hDarkBackgroundBrush = NULL;
 HBRUSH DarkTheme::g_hDarkControlBrush = NULL;
@@ -1726,6 +1727,7 @@ LRESULT WINAPI DarkTheme::MyDefWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, L
             return result;
         }
         InitDialogOptions(hWnd);
+        Translations::TranslateDialog(hWnd);
         return result;
     }
 
@@ -1750,7 +1752,8 @@ LRESULT WINAPI DarkTheme::MyCallWindowProcA(
         {
             return result;
         }
-        InitDialogOptions(hWnd);       
+        InitDialogOptions(hWnd);
+        Translations::TranslateDialog(hWnd);
         return result;
     }
     if (Msg == WM_ACTIVATE)
@@ -1782,6 +1785,23 @@ LRESULT WINAPI DarkTheme::MyCallWindowProcA(
         return result;
 
     return ::CallWindowProcA(lpPrevWndFunc, hWnd, Msg, wParam, lParam);
+}
+
+int DarkTheme::MyLoadStringA(HINSTANCE hInstance, UINT uID, LPSTR lpBuffer, int cchBufferMax)
+{
+    int len = ::LoadStringA(hInstance, uID, lpBuffer, cchBufferMax);
+
+    auto it = Translations::StringTable.find(uID);
+    if (it != Translations::StringTable.end())
+    {
+        const std::string& translated = it->second;
+        strncpy(lpBuffer, translated.c_str(), cchBufferMax);
+        lpBuffer[cchBufferMax - 1] = '\0';
+
+        return (int)translated.size();
+    }
+
+    return len;
 }
 
 std::string DarkTheme::GetIniPath(const char* iniFile)
@@ -2044,4 +2064,5 @@ void DarkTheme::ExeStart_DrakThemeHooks()
     RunTime::ResetMemoryContentAt(0x591464, DarkTheme::MyCallWindowProcA);
     RunTime::ResetMemoryContentAt(0x5915D4, DarkTheme::MyGetOpenFileNameA);
     RunTime::ResetMemoryContentAt(0x5915DC, DarkTheme::MyGetSaveFileNameA);
+    RunTime::ResetMemoryContentAt(0x591364, DarkTheme::MyLoadStringA);
 }

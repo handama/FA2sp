@@ -1,6 +1,7 @@
 #include "Translations.h"
 
 #include <CFinalSunApp.h>
+#include <CFinalSunDlg.h>
 #include <Helpers/Macro.h>
 #include <CINI.h>
 #include "../FA2sp.h"
@@ -17,8 +18,13 @@ char FinalAlertConfig::pLastRead[0x400];
 // Load after ExePath is initialized
 DEFINE_HOOK(41F7F5, Translations_Initialzation, 9)
 {
-    FinalAlertConfig::lpPath = CFinalSunAppExt::ExePathExt;
-    FinalAlertConfig::lpPath += "FinalAlert.ini";
+    FString exePath = CFinalSunAppExt::ExePath();
+    size_t lastSlash = exePath.find_last_of('\\');
+    if (lastSlash != std::string::npos)
+        exePath = exePath.substr(0, lastSlash);
+
+    FinalAlertConfig::lpPath = exePath;
+    FinalAlertConfig::lpPath += "\\FinalAlert.ini";
     FinalAlertConfig::ReadString("FinalSun", "Language", "English");
     strcpy_s(Translations::pLanguage[0], FinalAlertConfig::pLastRead);
     strcpy_s(Translations::pLanguage[1], FinalAlertConfig::pLastRead);
@@ -28,6 +34,24 @@ DEFINE_HOOK(41F7F5, Translations_Initialzation, 9)
     strcat_s(Translations::pLanguage[1], "-TranslationsRA2");
     strcat_s(Translations::pLanguage[2], "-Strings");
     strcat_s(Translations::pLanguage[3], "-Translations");
+
+    if (!Translations::FADialog) {
+        Translations::FADialog = MakeGameUnique<CINI>();
+    }
+    FString path = exePath;
+    path += "\\FADialog.ini";
+    Translations::FADialog->ClearAndLoad(path);
+
+    FString stringTable;
+    stringTable.Format("%s-StringTable", FinalAlertConfig::pLastRead);
+    if (auto pSection = Translations::FADialog->GetSection(stringTable))
+    {
+        for (const auto& [key, value] : pSection->GetEntities())
+        {
+            Translations::StringTable[atoi(key)] = value;
+        }
+    }
+
     return 0;
 }
 
@@ -45,6 +69,9 @@ void FinalAlertConfig::WriteString(const char* pSection, const char* pKey, const
 
 char Translations::pLanguage[4][0x400];
 ppmfc::CString Translations::CurrentTileSet;
+std::map<HWND, int> Translations::DlgIdMap;
+std::map<UINT, FString> Translations::StringTable;
+std::unique_ptr<CINI, GameUniqueDeleter<CINI>> Translations::FADialog;
 bool Translations::GetTranslationItem(const char* pLabelName, ppmfc::CString& ret)
 {
     auto& falanguage = CINI::FALanguage();
@@ -169,6 +196,28 @@ void Translations::TranslateItem(CWnd* pWnd, const char* lpKey)
     ppmfc::CString buffer;
     if (Translations::GetTranslationItem(lpKey, buffer))
         pWnd->SetWindowText(buffer);
+}
+
+void Translations::TranslateDialog(HWND hWnd)
+{
+    auto itr = DlgIdMap.find(hWnd);
+    if (itr != DlgIdMap.end())
+    {
+        int nDlgID = itr->second;
+        Logger::Raw("%d\n", nDlgID);
+        ppmfc::CString section;
+        section.Format("%s-%d", CFinalSunApp::Instance->Language, nDlgID);
+        if (auto pSection = Translations::FADialog->GetSection(section))
+        {
+            for (const auto& [key, value] : pSection->GetEntities())
+            {
+                if (key == "Title")
+                    ::SetWindowText(hWnd, value);
+                else
+                    ::SetDlgItemText(hWnd, (USHORT)atoi(key), value);
+            }
+        }
+    }
 }
 
 ppmfc::CString Translations::TranslateTileSet(int index)
@@ -328,5 +377,33 @@ DEFINE_HOOK(4F1620, CTerrainDlg_Update_SetOverlayName, 8)
     if (name) {
         R->EAX(name);
     }
+    return 0;
+}
+
+DEFINE_HOOK(412EF7, CBasic_UpdateStrings_End, 7)
+{
+    Translations::TranslateDialog(CFinalSunDlg::Instance->Basic.GetSafeHwnd());
+
+    return 0;
+}
+
+DEFINE_HOOK(451283, CHouses_UpdateStrings_End, 7)
+{
+    Translations::TranslateDialog(CFinalSunDlg::Instance->Houses.GetSafeHwnd());
+
+    return 0;
+}
+
+DEFINE_HOOK(499AFA, CMapD_UpdateStrings_End, 7)
+{
+    Translations::TranslateDialog(CFinalSunDlg::Instance->MapD.GetSafeHwnd());
+
+    return 0;
+}
+
+DEFINE_HOOK(4DBC55, CSingleplayerSettings_UpdateStrings_End, 7)
+{
+    Translations::TranslateDialog(CFinalSunDlg::Instance->SingleplayerSettings.GetSafeHwnd());
+
     return 0;
 }

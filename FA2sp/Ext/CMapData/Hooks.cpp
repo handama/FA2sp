@@ -671,9 +671,8 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 			int length = CMapData::Instance->MapWidthPlusHeight;
 			length *= length;
 
-			if (1)
 			{
-				const int Index = CMapData::Instance->GetBuildingTypeID(structure.TypeID);
+				const int Index = CMapDataExt::GetBuildingTypeIndex(structure.TypeID);
 				const int Y = atoi(structure.Y);
 				const int X = atoi(structure.X);
 				const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
@@ -707,7 +706,6 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 				}
 			}
 
-
 			for (const auto& pair : pSection->GetEntities())
 			{
 				bool skipThis = false;
@@ -720,7 +718,7 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 				if (skipThis)
 					continue;
 
-				const int Index = CMapData::Instance->GetBuildingTypeID(type);
+				const int Index = CMapDataExt::GetBuildingTypeIndex(type);
 				const int Y = atoi(values[3]);
 				const int X = atoi(values[4]);
 				const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
@@ -875,7 +873,7 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 	ppmfc::CString value = ini->GetValueAt("Structures", iniIndex);
 	auto splits =STDHelpers::SplitString(value, 4);
 	bool isLamp = LightingSourceTint::IsLamp(splits[1]);
-	int Index = CMapData::Instance->GetBuildingTypeID(splits[1]);
+	int Index = CMapDataExt::GetBuildingTypeIndex(splits[1]);
 	int Y = atoi(splits[3]);
 	int X = atoi(splits[4]);
 	auto& DataExt = CMapDataExt::BuildingDataExts[Index];
@@ -996,6 +994,7 @@ DEFINE_HOOK(49ED34, CMapData_LoadMap_InitializeMapDataExt, 5)
 
 DEFINE_HOOK(4B9E38, CMapData_CreateMap_InitializeMapDataExt, 5)
 {
+	CMapDataExt::IsUTF8File = false;
 	Logger::Debug("CMapData::CreateMap(): About to call InitializeAllHdmEdition()\n");
 	CMapDataExt::InitializeAllHdmEdition();
 	return 0;
@@ -1030,6 +1029,7 @@ DEFINE_HOOK(4C5E1E, CMapData_ResizeMap_FixLocalSize, 7)
 	GET(int, dwHeight, EDI);
 
 	lpBuffer.Format("%d,%d,%d,%d", 3, 5, dwWidth - 6, dwHeight - 11);
+	CMapDataExt::SkipBuildingOverlappingCheck = true;
 
 	return 0x4C5E64;
 }
@@ -1105,6 +1105,7 @@ DEFINE_HOOK(4C7DAF, CMapData_ResizeMap_InitializeMapDataExt, 7)
 {
 	// load objects to avoid weird palette issue
 	CIsoView::GetInstance()->PrimarySurfaceLost();
+	CMapDataExt::SkipBuildingOverlappingCheck = false;
 
 	for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
 		for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
@@ -1312,7 +1313,7 @@ DEFINE_HOOK(4A6FB0, CMapData_UpdateFieldBasenodeData, 6)
 						int bnX = atoi(atoms[2]);
 						int bnY = atoi(atoms[1]);
 
-						const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(ID);
+						const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(ID);
 						const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
 						if (!DataExt.IsCustomFoundation())
 						{

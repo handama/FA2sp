@@ -47,7 +47,7 @@ void CMapValidatorExt::ValidateStructureOverlapping(BOOL& result)
 			if (StructureOverlappingIgnores.count(splits[1].m_pchData))
 				continue;
 
-			const int Index = CMapData::Instance->GetBuildingTypeID(splits[1]);
+			const int Index = CMapDataExt::GetBuildingTypeIndex(splits[1]);
 			const int Y = atoi(splits[3]);
 			const int X = atoi(splits[4]);
 			const auto& DataExt = CMapDataExt::BuildingDataExts[Index];

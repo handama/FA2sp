@@ -223,11 +223,17 @@ DEFINE_HOOK(457648, CIsoView_OnMouseMove_PlaceTile_SkipHide, B)
 	return cell->IsHidden() ? 0x457D11 : 0;
 }
 
+DEFINE_HOOK(4691D0, CIsoView_ReInitializeDDraw_Begin, 6)
+{
+	CIsoViewExt::ReInitializingDDraw = true;
+	return 0;
+}
+
 DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 {
 	auto currentLighting = CFinalSunDlgExt::CurrentLighting;
 	Logger::Debug("CIsoView::ReInitializeDDraw(): About to call InitializeAllHdmEdition()\n");
-	CMapDataExt::InitializeAllHdmEdition(false, false);
+	CMapDataExt::InitializeAllHdmEdition(false, false, false);
 	CViewObjectsExt::Redraw_ConnectedTile(nullptr);
 	CFinalSunDlgExt::CurrentLighting = currentLighting;
 
@@ -246,6 +252,7 @@ DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 		}
 	}
 
+	CIsoViewExt::ReInitializingDDraw = false;
 	return 0;
 }
 

@@ -185,11 +185,6 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 		MessageBox(CFinalSunDlg::Instance->m_hWnd, Translations::TranslateOrDefault("FinalAlert2FatalError.MapNotLoaded",
 			"Seems there's no map had been loaded."), "Fatal Error!", MB_OK | MB_ICONINFORMATION);
 
-	if (ExtConfigs::LoadImageDataFromServer)
-	{
-		CLoadingExt::PingServerRunning = false;
-		CLoadingExt::SendRequestText("QUIT_PROGRAME");
-	}
 	CLoading::Instance->Release();
 
 	CINI::Rules->Release();

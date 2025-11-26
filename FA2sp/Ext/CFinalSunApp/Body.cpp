@@ -3,14 +3,10 @@
 #include <CFinalSunDlg.h>
 #include <CINI.h>
 #include <CLoading.h>
-
 #include "../../FA2sp.h"
-
 #include "../../Miscs/FileWatcher.h"
 #include "../../Miscs/SaveMap.h"
-
 #include <thread>
-
 #include <iostream>
 #include <future>
 #include <filesystem>
@@ -296,15 +292,6 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 		}
 	);
 
-	if (ExtConfigs::LoadImageDataFromServer)
-	{
-		CLoadingExt::PipeName = "\\\\.\\pipe\\ImagePipe_" + std::to_string(GetCurrentProcessId());
-
-		std::thread([]() {
-			CLoadingExt::StartImageServerProcess();
-			}).detach();
-	}
-
 
 	CFinalSunDlg dlg(nullptr);
 	this->m_pMainWnd = &dlg;
@@ -313,12 +300,6 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 
 	is_watcher_running = false; // stop watcher
 	watcher.join(); // wait for thread exit
-	DarkTheme::CleanupDarkThemeBrushes();
-	if (ExtConfigs::LoadImageDataFromServer)
-	{
-		CLoadingExt::PingServerRunning = false;
-		CLoadingExt::SendRequestText("QUIT_PROGRAME");
-	}
 
 	return FALSE;
 }

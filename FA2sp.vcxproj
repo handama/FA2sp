@@ -255,7 +255,7 @@
     <ClCompile Include="FA2sp\Ext\CLighting\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CLighting\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Body.cpp" />
-    <ClCompile Include="FA2sp\Ext\CLoading\Body.ImageServer.cpp" />
+    <ClCompile Include="FA2sp\Ext\CLoading\Body.Encryption.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Body.LoadObjects.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Body.MixManager.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Body.ResourcePack.cpp" />
@@ -462,6 +462,7 @@
     <ResourceCompile Include="FA2sp\UI\CLoading.rc" />
     <ResourceCompile Include="FA2sp\UI\CMapValidator.rc" />
     <ResourceCompile Include="FA2sp\UI\CMenu.rc" />
+    <ResourceCompile Include="FA2sp\UI\CSaveOptions.rc" />
     <ResourceCompile Include="FA2sp\UI\CScriptTypes.rc" />
     <ResourceCompile Include="FA2sp\UI\CSingleplayerSettings.rc" />
     <ResourceCompile Include="FA2sp\UI\CStructureDialog.rc" />

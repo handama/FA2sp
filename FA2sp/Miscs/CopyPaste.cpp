@@ -813,15 +813,14 @@ DEFINE_HOOK(435F5A, CFinalSunDlg_Tools_PasteCenter, 5)
     return 0;
 }
 
+static bool pasteSuccess = false;
 DEFINE_HOOK(4C3850, CMapData_PasteAt, 8)
 {
-    if (!ExtConfigs::EnableMultiSelection)
-        return 0;
-
     GET_STACK(const int, X, 0x4);
     GET_STACK(const int, Y, 0x8);
     GET_STACK(const char, nBaseHeight, 0xC);
 
+    pasteSuccess = true;
     OpenClipboard(CFinalSunApp::Instance->m_pMainWnd->m_hWnd);
     HANDLE hData = GetClipboardData(CFinalSunApp::Instance->ClipboardFormat);
     auto ptr = GlobalLock(hData);
@@ -865,6 +864,24 @@ DEFINE_HOOK(4C3850, CMapData_PasteAt, 8)
         }
     }
 
+    pasteSuccess = false;
+    CIsoView::CurrentCommand->Command = 0x0;
+    CIsoView::CurrentCommand->Type = 0;
+    GlobalUnlock(hData);
     CloseClipboard();
     return 0x4C388B;
+}
+
+DEFINE_HOOK(45A022, CIsoView_OnMouseMove_Paste_SkipUndo, 8)
+{
+    return pasteSuccess ? 0 : 0x45AEF6;
+}
+
+DEFINE_HOOK(4616AD, CIsoView_OnLButtonDown_Paste_SkipUndo, 8)
+{
+    GET(const int, X, EDX);
+    GET(const int, Y, ECX);
+    GET(const char, nBaseHeight, EAX);
+    CMapData::Instance->Paste(X, Y, nBaseHeight);
+    return pasteSuccess ? 0x4616BA : 0x46686A;
 }

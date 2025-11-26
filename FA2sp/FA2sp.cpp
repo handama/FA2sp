@@ -177,7 +177,6 @@ bool ExtConfigs::LightingPreview_MultUnitColor;
 bool ExtConfigs::LightingPreview_TintTileSetBrowserView;
 bool ExtConfigs::DDrawScalingBilinear;
 bool ExtConfigs::DDrawScalingBilinear_OnlyShrink;
-bool ExtConfigs::LoadImageDataFromServer;
 bool ExtConfigs::UseNewToolBarCameo;
 bool ExtConfigs::EnableVisualStyle;
 bool ExtConfigs::DisableDirectoryCheck;
@@ -322,7 +321,6 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DisplayObjectsOutside = CINI::FAData->GetBool("ExtConfigs", "DisplayObjectsOutside");
 	ExtConfigs::DDrawScalingBilinear = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear", true);
 	ExtConfigs::DDrawScalingBilinear_OnlyShrink = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear.OnlyShrink", true);
-	ExtConfigs::LoadImageDataFromServer = CINI::FAData->GetBool("ExtConfigs", "LoadImageDataFromServer");
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::LightingPreview_TintTileSetBrowserView = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.TintTileSetBrowserView");
@@ -1189,13 +1187,6 @@ void FA2sp::ExtConfigsInitialize()
 		.IniKey = "DDrawScalingBilinear.OnlyShrink",
 		.Value = &ExtConfigs::DDrawScalingBilinear_OnlyShrink,
 		.Type = ExtConfigs::SpecialOptionType::None
-		});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.LoadImageDataFromServer", "Load images from independent server (not rec., unless memory shortage)"),
-		.IniKey = "LoadImageDataFromServer",
-		.Value = &ExtConfigs::LoadImageDataFromServer,
-		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

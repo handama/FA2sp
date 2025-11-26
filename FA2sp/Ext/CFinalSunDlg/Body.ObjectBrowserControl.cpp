@@ -22,6 +22,7 @@
 #include "../../Miscs/StringtableLoader.h"
 #include "../CFinalSunApp/Body.h"
 #include "../../Helpers/Helper.h"
+#include "../../Miscs/DialogStyle.h"
 
 namespace fs = std::filesystem;
 
@@ -251,7 +252,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             if (InsertingOverlay > -1)
             {
                 auto imageName = CLoadingExt::GetOverlayName(InsertingOverlay, InsertingOverlayData);
-                auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+                auto pData = CLoadingExt::GetImageDataFromMap(imageName);
                 if (!pData || !pData->pImageBuffer)
                 {
                     auto obj = Variables::RulesMap.GetValueAt("OverlayTypes", InsertingOverlay);
@@ -263,7 +264,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                         CLoadingExt::GetExtension()->LoadOverlay(obj, InsertingOverlay);
                         CLoadingExt::IsLoadingObjectView = false;
                         ExtConfigs::InGameDisplay_Shadow = temp;
-                        pData = CLoadingExt::GetImageDataFromServer(imageName);
+                        pData = CLoadingExt::GetImageDataFromMap(imageName);
                     }
                 }
                 if (pData && pData->pImageBuffer)
@@ -294,12 +295,18 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 ExtConfigs::InGameDisplay_Deploy = temp2;
                 ExtConfigs::InGameDisplay_Water = temp3;
             }
+            std::unique_ptr<ImageDataClassSafe> pBuildingData;
             if (eItemType == CLoadingExt::ObjectType::Aircraft || eItemType == CLoadingExt::ObjectType::Vehicle)
             {
                 int facings = CLoadingExt::GetAvailableFacing(InsertingObjectID);
                 imageName = CLoadingExt::GetImageName(InsertingObjectID, facings / 4);
             }
-            auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+            else if (eItemType == CLoadingExt::ObjectType::Building)
+            {
+                auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
+                pBuildingData = CLoadingExt::BindClippedImages(clips);
+            }
+            auto pData = pBuildingData ? pBuildingData.get() : CLoadingExt::GetImageDataFromMap(imageName);
             if (pData && pData->pImageBuffer)
             {
                 CBitmap cBitmap;
@@ -1402,7 +1409,7 @@ void CViewObjectsExt::Redraw_Building()
 
         if (CMapData::Instance->MapWidthPlusHeight && ExtConfigs::ObjectBrowser_Foundation)
         {
-            const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(bud.second);
+            const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(bud.second);
             const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
             foundationBuildings[DataExt.Width * 100 + DataExt.Height].push_back(std::make_pair(index, bud.second));
         }
@@ -3005,7 +3012,9 @@ void CViewObjectsExt::OnExeTerminate()
         set.clear();
     KnownItem.clear();
     Owners.clear();
+    DarkTheme::CleanupDarkThemeBrushes();
 }
+
 void CViewObjectsExt::InitializeOnUpdateEngine()
 {
     CViewObjectsExt::PlacingRandomRock = -1;

@@ -202,7 +202,7 @@ DEFINE_HOOK(4F2243, CTileSetBrowserView_OnDraw_LoadOverlayImage, 6)
     GET(const int, i, ECX);
 
     auto imageName = CLoadingExt::GetOverlayName(pThis->SelectedOverlayIndex, i);
-    auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+    auto pData = CLoadingExt::GetImageDataFromMap(imageName);
     if (setCurrentOverlay(pData))
     {
         R->EAX(&CurrentOverlay);
@@ -233,7 +233,7 @@ DEFINE_HOOK(4F4590, CTileSetBrowserView_OnLButtonDown_LoadOverlayImage_1, 5)
 
     OnLButtonDown_OverlayData = 0;
     auto imageName = CLoadingExt::GetOverlayName(pThis->SelectedOverlayIndex, OnLButtonDown_OverlayData);
-    auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+    auto pData = CLoadingExt::GetImageDataFromMap(imageName);
     if (setCurrentOverlay(pData))
     {
         R->ECX(&CurrentOverlayPtr);
@@ -251,7 +251,7 @@ DEFINE_HOOK(4F45F7, CTileSetBrowserView_OnLButtonDown_LoadOverlayImage_2, 5)
 
     OnLButtonDown_OverlayData++;
     auto imageName = CLoadingExt::GetOverlayName(pThis->SelectedOverlayIndex, OnLButtonDown_OverlayData);
-    auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+    auto pData = CLoadingExt::GetImageDataFromMap(imageName);
     if (setCurrentOverlay(pData))
     {
         R->ECX(&CurrentOverlayPtr);
@@ -286,7 +286,7 @@ DEFINE_HOOK(4F4774, CTileSetBrowserView_SetOverlay_LoadOverlayImage, 5)
         for (int i = 0; i < max_ovrl_img; i++)
         {
             auto imageName = CLoadingExt::GetOverlayName(Overlay, i);
-            auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+            auto pData = CLoadingExt::GetImageDataFromMap(imageName);
             if (pData && pData->pImageBuffer)
             {
                 iovrlcount++;
@@ -295,7 +295,7 @@ DEFINE_HOOK(4F4774, CTileSetBrowserView_SetOverlay_LoadOverlayImage, 5)
         for (int i = 0; i < max_ovrl_img; i++)
         {
             auto imageName = CLoadingExt::GetOverlayName(Overlay, i);
-            auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+            auto pData = CLoadingExt::GetImageDataFromMap(imageName);
             if (pData && pData->pImageBuffer)
             {
                 need_pos = i;

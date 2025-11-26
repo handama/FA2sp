@@ -40,6 +40,10 @@ DEFINE_HOOK(424654, CFinalSunDlg_OnInitDialog_SetMenuItemStateByDefault, 7)
     pMenu->CheckMenuItem(30021, MF_CHECKED);
 
     pMenu->CheckMenuRadioItem(31000, 31003, CFinalSunDlgExt::CurrentLighting, MF_CHECKED);
+
+    Translations::DlgIdMap[pThis->BrushSize.GetSafeHwnd()] = 229;
+    Translations::TranslateDialog(pThis->BrushSize.GetSafeHwnd());
+
     return 0;
 }
 

@@ -78,6 +78,7 @@ public:
     static void ExeStart_DrakThemeHooks();
     static LRESULT WINAPI MyDefWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static LRESULT WINAPI MyCallWindowProcA(WNDPROC lpPrevWndFunc, HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+    static int WINAPI MyLoadStringA(HINSTANCE hInstance, UINT uID, LPSTR lpBuffer, int cchBufferMax);
     static std::string GetIniPath(const char* iniFile);
     static std::string ReadIniString(const char* iniFile, const std::string& section, const std::string& key, const std::string& defaultValue);
     static std::vector<FilterSpecEx> ConvertFilter(LPCSTR lpstrFilter);

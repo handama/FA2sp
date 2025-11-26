@@ -6,6 +6,7 @@
 #include "../../Helpers/MultimapHelper.h"
 
 #include <CLoading.h>
+#include <CFinalSunApp.h>
 
 HWND CTileManager::m_hwnd;
 CTileSetBrowserFrame* CTileManager::m_parent;
@@ -56,11 +57,18 @@ void CTileManager::InitNodes()
 {
     CTileManager::Nodes.clear();
 
-    FString lpKey = "TileManagerData";
+    FString lpKey = CFinalSunApp::Instance->Language + "-" + "TileManagerData";
     lpKey += CLoading::Instance->GetTheaterSuffix();
 
     MultimapHelper mmh;
     mmh.AddINI(&CINI::FAData);
+
+    if (mmh.GetSection(lpKey).empty())
+    {
+        lpKey = "TileManagerData";
+        lpKey += CLoading::Instance->GetTheaterSuffix();
+    }
+
     auto const pKeys = mmh.ParseIndicies(lpKey);
 
     for (auto& key : pKeys)

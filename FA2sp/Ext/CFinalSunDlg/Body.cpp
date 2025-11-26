@@ -19,7 +19,7 @@
 #include "../../ExtraWindow/CObjectSearch/CObjectSearch.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 #include "../../ExtraWindow/CNewLocalVariables/CNewLocalVariables.h"
-#include "../../ExtraWindow/COptions/COptions.h"
+#include "../../ExtraWindow/CFA2spOptions/CFA2spOptions.h"
 #include "../../Helpers/STDHelpers.h"
 
 #include "../../Helpers/Translations.h"
@@ -313,7 +313,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			else if (hWnd == CCsfEditor::GetHandle()) {
 				return TRUE;
 			}
-			else if (hWnd == COptions::GetHandle()) {
+			else if (hWnd == CFA2spOptions::GetHandle()) {
 				return TRUE;
 			}
 			else if (hWnd == CNewLocalVariables::GetHandle()) {
@@ -788,11 +788,11 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	}
 	if (wmID == 40162)
 	{
-		if (COptions::GetHandle() == NULL)
-			COptions::Create((CFinalSunDlg*)this);
+		if (CFA2spOptions::GetHandle() == NULL)
+			CFA2spOptions::Create((CFinalSunDlg*)this);
 		else
 		{
-			::SendMessage(COptions::GetHandle(), 114514, 0, 0);
+			::SendMessage(CFA2spOptions::GetHandle(), 114514, 0, 0);
 		}
 	}
 	if (wmID == 40164)
@@ -1278,8 +1278,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CTerrainGenerator::GetHandle(), 114514, 0, 0);
 			return TRUE;
 		}
-		else if (hWnd == COptions::GetHandle()) {
-			::SendMessage(COptions::GetHandle(), 114514, 0, 0);
+		else if (hWnd == CFA2spOptions::GetHandle()) {
+			::SendMessage(CFA2spOptions::GetHandle(), 114514, 0, 0);
 			return TRUE;
 		}
 		else if (hWnd == CNewLocalVariables::GetHandle()) {

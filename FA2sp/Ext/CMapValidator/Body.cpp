@@ -6,6 +6,7 @@
 #include "../../FA2sp.h"
 
 #include <CMapData.h>
+#include "../../ExtraWindow/Common.h"
 
 std::unordered_set<std::string> CMapValidatorExt::StructureOverlappingIgnores;
 std::vector<ppmfc::CString> CMapValidatorExt::AttachedTriggers;
@@ -441,13 +442,13 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 		bool addAction = false;
 		for (auto& thisEvent : trigger->Events)
 		{
-			auto eventInfos = FString::SplitString(CINI::FAData->GetString("EventsRA2", thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
+			auto eventInfos = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
 			FString paramType[2];
 			paramType[0] = eventInfos[1];
 			paramType[1] = eventInfos[2];
 			std::vector<FString> pParamTypes[2];
-			pParamTypes[0] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[0], "MISSING,0"));
-			pParamTypes[1] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[1], "MISSING,0"));
+			pParamTypes[0] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[0], "MISSING,0"));
+			pParamTypes[1] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[1], "MISSING,0"));
 			FString thisTeam = "-1";
 			if (thisEvent.Params[0] == "2")
 			{
@@ -481,7 +482,7 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 
 		for (auto& thisAction : trigger->Actions)
 		{
-			auto actionInfos = FString::SplitString(CINI::FAData->GetString("ActionsRA2", thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
+			auto actionInfos = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
 			FString thisTeam = "-1";
 			FString paramType[7];
 			for (int i = 0; i < 7; i++)
@@ -489,7 +490,7 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 
 			std::vector<FString> pParamTypes[6];
 			for (int i = 0; i < 6; i++)
-				pParamTypes[i] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[i], "MISSING,0"));
+				pParamTypes[i] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[i], "MISSING,0"));
 
 			for (int i = 0; i < 6; i++)
 			{

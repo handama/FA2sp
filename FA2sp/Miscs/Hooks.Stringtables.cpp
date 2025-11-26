@@ -38,11 +38,21 @@ FString StringtableLoader::QueryUIName(const char* pRegName, bool bOnlyOneLine)
         ccstring = mmh.GetString(pRegName, "UIName", "").Mid(6);
     }
 
-    ccstring = CINI::FALanguage().GetString("RenameID", pRegName, ccstring);
+    auto lang = CFinalSunApp::Instance->Language + "-";
     auto theater = TheaterHelpers::GetCurrentSuffix();
     theater.MakeUpper();
     theater = "RenameID" + theater;
-    ccstring = CINI::FALanguage().GetString(theater, pRegName, ccstring);
+    if (auto pString = CINI::FALanguage().TryGetString(lang + theater, pRegName))
+    {
+        ccstring = *pString;
+    }
+    else
+    {
+        if (auto pString = CINI::FALanguage().TryGetString(lang + "RenameID", pRegName))
+        {
+            ccstring = *pString;
+        }
+    }
 
     if (bOnlyOneLine)
     {
@@ -117,9 +127,17 @@ void StringtableLoader::LoadCSFFiles()
         LoadCSFFile(stringtable);
     }
 
-    LoadCSFFile("fa2extra.csf", true);
+    auto loadTranslatedCsf = [](const char* name)
+    {
+        auto fullName = CFinalSunApp::Instance->Language + "-" + name;
+        if (LoadCSFFile(fullName))
+            return;
+        LoadCSFFile(name);
+    };
+
+    loadTranslatedCsf("fa2extra.csf");
     if (ExtConfigs::LoadCivilianStringtable)
-        LoadCSFFile("fa2civilian.csf", true);
+        loadTranslatedCsf("fa2civilian.csf");
 
     if (auto pSection = CINI::FAData->GetSection("ExtraStringtables"))
     {
@@ -139,7 +157,7 @@ void StringtableLoader::LoadCSFFiles()
     WriteCSFFile();
 }
 
-void StringtableLoader::LoadCSFFile(const char* pName, bool fa2path)
+bool StringtableLoader::LoadCSFFile(const char* pName, bool fa2path)
 {
     DWORD dwSize;
     if (auto pBuffer = CLoading::Instance->ReadWholeFile(pName, &dwSize, fa2path)) {
@@ -147,19 +165,26 @@ void StringtableLoader::LoadCSFFile(const char* pName, bool fa2path)
         name.MakeUpper();
         if (name.Mid(name.GetLength() - 3) == "LLF") {
             auto ret = GetLinesFromBuffer((char*)pBuffer, dwSize);
-            if (ParseLLFFile(ret))
+            if (ParseLLFFile(ret)) {
                 Logger::Debug("Successfully Loaded file %s.\n", pName);
+                return true;
+            }
         }
         else if (name.Mid(name.GetLength() - 3) == "ECS") {
             auto ret = GetLinesFromBuffer((char*)pBuffer, dwSize);
-            if (ParseECSFile(ret))
+            if (ParseECSFile(ret)) {
                 Logger::Debug("Successfully Loaded file %s.\n", pName);
+                return true;
+            }
         }
         else {
-            if (ParseCSFFile((char*)pBuffer, dwSize))
+            if (ParseCSFFile((char*)pBuffer, dwSize)) {
                 Logger::Debug("Successfully Loaded file %s.\n", pName);
+                return true;
+            }
         }
     }
+    return false;
 }
 
 bool StringtableLoader::ParseECSFile(std::vector<FString>& ret)

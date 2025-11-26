@@ -8,7 +8,7 @@
 #include "../../Ext/CFinalSunDlg/Body.h"
 
 // A static window class
-class COptions
+class CFA2spOptions
 {
 public:
     static void Create(CFinalSunDlg* pWnd);
@@ -20,7 +20,7 @@ public:
 
     static HWND GetHandle()
     {
-        return COptions::m_hwnd;
+        return CFA2spOptions::m_hwnd;
     }
 
 protected:

@@ -66,6 +66,7 @@ public:
 
     static std::string WStringToString(const std::wstring& wstr);
     static std::wstring StringToWString(const std::string& str);
+	static void WStringReplace(std::wstring& str, const std::wstring& oldStr, const std::wstring& newStr);
 
 	static bool isUTF8(const uint8_t* data, size_t size);
 

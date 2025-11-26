@@ -65,7 +65,7 @@ BOOL CSelectAutoShore::OnInitDialog()
 				if (shore >= 0 && CMapDataExt::IsValidTileSet(shore))
 				{
 					ppmfc::CString text;
-					text.Format("%d - %s", index++, atoms[1]);
+					text.Format("%d - %s", index++, Translations::TranslateOrDefault(atoms[1], atoms[1]));
 					Groups.push_back(std::make_pair(shore, green));
 					box->AddString(text);
 				}

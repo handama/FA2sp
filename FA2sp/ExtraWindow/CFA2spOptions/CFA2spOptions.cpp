@@ -1,4 +1,4 @@
-#include "COptions.h"
+#include "CFA2spOptions.h"
 #include "../../FA2sp.h"
 #include "../../Helpers/Translations.h"
 #include <CFinalSunDlg.h>
@@ -9,39 +9,39 @@
 #include "../../Miscs/DialogStyle.h"
 #include "../../Ext/CFinalSunApp/Body.h"
 
-HWND COptions::m_hwnd;
-HWND COptions::hList;
-HWND COptions::hGameEngine;
-HWND COptions::hSearch;
-CFinalSunDlg* COptions::m_parent;
-bool COptions::initialized = false;
-WNDPROC COptions::g_pOriginalListViewProc = nullptr;
+HWND CFA2spOptions::m_hwnd;
+HWND CFA2spOptions::hList;
+HWND CFA2spOptions::hGameEngine;
+HWND CFA2spOptions::hSearch;
+CFinalSunDlg* CFA2spOptions::m_parent;
+bool CFA2spOptions::initialized = false;
+WNDPROC CFA2spOptions::g_pOriginalListViewProc = nullptr;
 
-LRESULT CALLBACK COptions::ListViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK CFA2spOptions::ListViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     return DarkTheme::MyCallWindowProcA(g_pOriginalListViewProc, hWnd, uMsg, wParam, lParam);
 }
 
-void COptions::Create(CFinalSunDlg* pWnd)
+void CFA2spOptions::Create(CFinalSunDlg* pWnd)
 {
     m_parent = pWnd;
     m_hwnd = CreateDialog(
         static_cast<HINSTANCE>(FA2sp::hInstance),
         MAKEINTRESOURCE(325),
         pWnd->MyViewFrame.GetSafeHwnd(),
-        COptions::DlgProc
+        CFA2spOptions::DlgProc
     );
 
     if (m_hwnd)
         ShowWindow(m_hwnd, SW_SHOW);
     else
     {
-        Logger::Error("Failed to create COptions.\n");
+        Logger::Error("Failed to create CFA2spOptions.\n");
         m_parent = NULL;
     }
 }
 
-void COptions::Initialize(HWND& hWnd)
+void CFA2spOptions::Initialize(HWND& hWnd)
 {
     FString buffer;
     if (Translations::GetTranslationItem("Options.Title", buffer))
@@ -76,7 +76,7 @@ void COptions::Initialize(HWND& hWnd)
     Update();
 }
 
-void COptions::Update(const char* filter)
+void CFA2spOptions::Update(const char* filter)
 {
     initialized = false;
     ShowWindow(m_hwnd, SW_SHOW);
@@ -131,22 +131,22 @@ void COptions::Update(const char* filter)
 }
 
 
-void COptions::Close(HWND& hWnd)
+void CFA2spOptions::Close(HWND& hWnd)
 {
     EndDialog(hWnd, NULL);
 
-    COptions::m_hwnd = NULL;
-    COptions::m_parent = NULL;
+    CFA2spOptions::m_hwnd = NULL;
+    CFA2spOptions::m_parent = NULL;
 
 }
 
-BOOL CALLBACK COptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+BOOL CALLBACK CFA2spOptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
     switch (Msg)
     {
     case WM_INITDIALOG:
     {
-        COptions::Initialize(hwnd);
+        CFA2spOptions::Initialize(hwnd);
         return TRUE;
     }
     case WM_NOTIFY:
@@ -227,7 +227,7 @@ BOOL CALLBACK COptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lPara
     }
     case WM_CLOSE:
     {
-        COptions::Close(hwnd);
+        CFA2spOptions::Close(hwnd);
         return TRUE;
     }
     case 114514: // used for update
@@ -241,7 +241,7 @@ BOOL CALLBACK COptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lPara
     return FALSE;
 }
 
-void COptions::OnEditchangeSearch()
+void CFA2spOptions::OnEditchangeSearch()
 {
     char buffer[512]{ 0 };
     GetWindowText(hSearch, buffer, 511);

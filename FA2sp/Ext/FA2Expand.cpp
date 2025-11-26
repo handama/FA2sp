@@ -73,6 +73,7 @@ void __stdcall FA2Expand::ExeRun()
     //CScriptTypesExt::ProgramStartupInit();
     CSingleplayerSettingsExt::ProgramStartupInit();
     //CTeamTypesExt::ProgramStartupInit();
+    COptionsExt::ProgramStartupInit();
 }
 
 FA2Expand::FA2Expand()

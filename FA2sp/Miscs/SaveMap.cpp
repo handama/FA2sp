@@ -283,8 +283,6 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
                         CMapDataExt::CellDataExts[getPos(X + 1, Y)].AroundHighBridge = true;
                     }
                 }
-
-
             }
 
             int index = 0;
@@ -337,21 +335,7 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
                                 color = RGB(107, 109, 107);
 
                             int type = cell.TerrainType;
-                            std::string name;
-                            if (auto pTerrain = CINI::Rules().GetSection("TerrainTypes"))
-                            {
-                                int index = 0;
-                                for (auto& pT : pTerrain->GetEntities())
-                                {
-                                    if (index == type)
-                                    {
-                                        name = pT.second;
-                                        break;
-                                    }
-
-                                    index++;
-                                }
-                            }
+                            std::string name = Variables::RulesMap.GetValueAt("TerrainTypes", type).m_pchData;
                             if (!name.empty())
                             {
                                 if (name.find("TREE") != std::string::npos)
@@ -372,16 +356,8 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
                                 auto atoms = STDHelpers::SplitString(pStr, 1);
                                 auto& name = atoms[1];
 
-                                if (auto pSection2 = CINI::FAData->GetSection("NeuralTechStructure"))
-                                {
-                                    for (auto& nameL : pSection2->GetEntities())
-                                        if (nameL.second == name)
-                                        {
-                                            color = RGB(215, 215, 215);
-                                            break;
-                                        }
-                                            
-                                }
+                                if (Variables::RulesMap.GetBool(name,"NeedsEngineer"))
+                                    color = RGB(215, 215, 215); 
                             }
 
                             LightingStruct ret;

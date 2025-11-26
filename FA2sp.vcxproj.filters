@@ -255,7 +255,7 @@
     <ClInclude Include="FA2sp\ExtraWindow\CNewLocalVariables\CNewLocalVariables.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="FA2sp\ExtraWindow\COptions\COptions.h">
+    <ClInclude Include="FA2sp\ExtraWindow\CFA2spOptions\CFA2spOptions.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="FA2sp\Miscs\CopyPaste.h">
@@ -283,6 +283,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="FA2sp\ExtraWindow\CMapRendererDlg\CMapRendererDlg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\Ext\COptions\Body.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -671,7 +674,7 @@
     <ClCompile Include="FA2sp\Ext\CLoading\Body.Encryption.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FA2sp\ExtraWindow\COptions\COptions.cpp">
+    <ClCompile Include="FA2sp\ExtraWindow\CFA2spOptions\CFA2spOptions.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Ext\CMapData\Hooks.UndoRedo.cpp">
@@ -702,6 +705,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\ExtraWindow\CMapRendererDlg\CMapRendererDlg.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\COptions\Body.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -832,7 +838,7 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewLocalVariables\CNewLocalVariables.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
-    <ResourceCompile Include="FA2sp\ExtraWindow\COptions\COptions.rc">
+    <ResourceCompile Include="FA2sp\ExtraWindow\CFA2spOptions\CFA2spOptions.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewEasterEgg\CNewEasterEgg.rc">
@@ -848,6 +854,39 @@
       <Filter>资源文件</Filter>
     </ResourceCompile>
     <ResourceCompile Include="FA2sp\UI\CUpdateProgress.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\UI\CSaveOptions.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\UI\CMapD.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\UI\CLoadingOptions.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\UI\CInfo.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\UI\CInsertINI.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\UI\CCredits.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\UI\CEasterEgg.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\UI\CRandomTreeSel.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\UI\CMapScript.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\UI\CChangeMapSize.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\UI\CCreateMap3A.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
   </ItemGroup>

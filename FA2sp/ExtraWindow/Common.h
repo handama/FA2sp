@@ -21,6 +21,7 @@ public:
     static FString GetAITriggerName(const char* id);
     static FString GetTagName(const char* id);
     static FString GetTagDisplayName(const char* id);
+    static FString GetTranslatedSectionName(const char* section);
 
     static void LoadParams(HWND& hWnd, FString idx);
     static void LoadParam_Waypoints(HWND& hWnd);

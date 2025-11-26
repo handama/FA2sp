@@ -250,7 +250,7 @@ void CNewTrigger::Update(HWND& hWnd)
 
     int idx = 0;
     while (SendMessage(hEventtype, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    if (auto pSection = fadata.GetSection("EventsRA2"))
+    if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("EventsRA2")))
     {
         for (auto& pair : pSection->GetEntities())
         {
@@ -266,7 +266,7 @@ void CNewTrigger::Update(HWND& hWnd)
     }
     idx = 0;
     while (SendMessage(hActiontype, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    if (auto pSection = fadata.GetSection("ActionsRA2"))
+    if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("ActionsRA2")))
     {
         for (auto& pair : pSection->GetEntities())
         {
@@ -1254,7 +1254,7 @@ void CNewTrigger::UpdateParamAffectedParam_Action(int index)
             auto& text = CurrentTrigger->Actions[SelectedActionIndex].Params[ActionParamsUsage[index].second];
             if (target.ParamMap.find(text) != target.ParamMap.end())
             {
-                auto paramType = FString::SplitString(CINI::FAData->GetString("ParamTypes", target.ParamMap[text]), 1);
+                auto paramType = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), target.ParamMap[text]), 1);
                 ExtraWindow::LoadParams(hActionParameter[target.AffectedParam], paramType[1]);
                 //SendMessage(hActionParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].m_pchData);
                 if (paramType[1] == "10") // stringtables
@@ -1296,7 +1296,7 @@ void CNewTrigger::UpdateParamAffectedParam_Event(int index)
             auto& text = CurrentTrigger->Events[SelectedEventIndex].Params[EventParamsUsage[index].second];
             if (target.ParamMap.find(text) != target.ParamMap.end())
             {
-                auto paramType = FString::SplitString(CINI::FAData->GetString("ParamTypes", target.ParamMap[text]), 1);
+                auto paramType = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), target.ParamMap[text]), 1);
                 ExtraWindow::LoadParams(hEventParameter[target.AffectedParam], paramType[1]);
                 //SendMessage(hEventParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].c_str());
                 ExtraWindow::AdjustDropdownWidth(hEventParameter[target.AffectedParam]);
@@ -1834,7 +1834,7 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
         SendMessage(hEventList, LB_SETCURSEL, SelectedEventIndex, NULL);
     }
         
-    auto eventInfos = FString::SplitString(fadata.GetString("EventsRA2", thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
+    auto eventInfos = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
 
     SendMessage(hEventDescription, WM_SETTEXT, 0, (LPARAM)STDHelpers::ReplaceSpeicalString(eventInfos[5]).m_pchData);
 
@@ -1852,8 +1852,8 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
     paramType[0] =  eventInfos[1];
     paramType[1] =  eventInfos[2];
     std::vector<FString> pParamTypes[2]; 
-    pParamTypes[0] = FString::SplitString(fadata.GetString("ParamTypes", paramType[0], "MISSING,0"));
-    pParamTypes[1] = FString::SplitString(fadata.GetString("ParamTypes", paramType[1], "MISSING,0"));
+    pParamTypes[0] = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[0], "MISSING,0"));
+    pParamTypes[1] = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[1], "MISSING,0"));
     FString code = "0";
     if (pParamTypes[0].size() == 3) code = pParamTypes[0][2];
     int paramIdx[2];
@@ -1971,7 +1971,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
         SendMessage(hActionList, LB_INSERTSTRING, SelectedActionIndex, (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(thisAction.ActionNum, SelectedActionIndex));
         SendMessage(hActionList, LB_SETCURSEL, SelectedActionIndex, NULL);
     }
-    auto actionInfos = FString::SplitString(fadata.GetString("ActionsRA2", thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
+    auto actionInfos = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
 
     SendMessage(hActionDescription, WM_SETTEXT, 0, (LPARAM)FString::ReplaceSpeicalString(actionInfos[10]).c_str());
 
@@ -1990,7 +1990,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
 
     std::vector<FString> pParamTypes[7];
     for (int i = 0; i < 7; i++)
-        pParamTypes[i] = FString::SplitString(fadata.GetString("ParamTypes", paramType[i], "MISSING,0"));
+        pParamTypes[i] = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[i], "MISSING,0"));
 
     int paramIdx[7];
     for (int i = 0; i < 7; i++)

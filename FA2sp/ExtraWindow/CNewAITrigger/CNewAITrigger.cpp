@@ -157,7 +157,12 @@ void CNewAITrigger::Update(HWND& hWnd)
 
     int idx = 0;
     while (SendMessage(hSide, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    if (auto pSection = fadata.GetSection("AITriggerSides"))
+
+    auto transed = CFinalSunApp::Instance->Language + "-" + "AITriggerSides";
+    if (!CINI::FAData().SectionExists(transed))
+        transed = "AITriggerSides";
+
+    if (auto pSection = fadata.GetSection(transed))
     {
         for (auto& pair : pSection->GetEntities())
         {

@@ -448,6 +448,16 @@ std::wstring STDHelpers::StringToWString(const std::string& str)
     return wstr;
 }
 
+void STDHelpers::WStringReplace(std::wstring& str, const std::wstring& oldStr, const std::wstring& newStr)
+{
+    if (oldStr.empty()) return;
+    size_t pos = 0;
+    while ((pos = str.find(oldStr, pos)) != std::wstring::npos) {
+        str.replace(pos, oldStr.length(), newStr);
+        pos += newStr.length();
+    }
+}
+
 bool STDHelpers::isUTF8(const uint8_t* data, size_t size) {
     if (!data || size == 0)
         return false;

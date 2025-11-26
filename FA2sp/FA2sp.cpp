@@ -194,7 +194,7 @@ bool ExtConfigs::EnableDarkMode;
 bool ExtConfigs::EnableDarkMode_Init;
 bool ExtConfigs::EnableDarkMode_DimMap;
 bool ExtConfigs::ShrinkTilesInTileSetBrowser;
-bool ExtConfigs::UTF8Support_InferEncoding;
+bool ExtConfigs::UTF8Support_InferEncoding = true;
 bool ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
 ppmfc::CString ExtConfigs::NewTriggerPlusID_Digits;

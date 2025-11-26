@@ -1598,10 +1598,16 @@ DEFINE_HOOK(469520, CIsoView_GetOverlayDirection, 6)
 		auto damageStage = overlayData / 16;
 		damageStage = std::min(damageStage, CViewObjectsExt::WallDamageStages[overlay] - 1);
 
-		if (Map->GetOverlayAt(x - 1 + (y - 0) * dwIsoSize) == overlay) p |= 1 + damageStage * 16;
-		if (Map->GetOverlayAt(x + (y + 1) * dwIsoSize) == overlay) p |= 2 + damageStage * 16;
-		if (Map->GetOverlayAt(x + 1 + (y + 0) * dwIsoSize) == overlay) p |= 4 + damageStage * 16;
-		if (Map->GetOverlayAt(x + (y - 1) * dwIsoSize) == overlay) p |= 8 + damageStage * 16;
+		bool dir1 = Map->GetOverlayAt(x - 1 + y * dwIsoSize) == overlay;
+		bool dir2 = Map->GetOverlayAt(x + (y + 1) * dwIsoSize) == overlay;
+		bool dir3 = Map->GetOverlayAt(x + 1 + y * dwIsoSize) == overlay;
+		bool dir4 = Map->GetOverlayAt(x + (y - 1) * dwIsoSize) == overlay;
+
+		if (dir1) p |= 1 + damageStage * 16;
+		if (dir2) p |= 2 + damageStage * 16;
+		if (dir3) p |= 4 + damageStage * 16;
+		if (dir4) p |= 8 + damageStage * 16;
+		if (!dir1 && !dir2 && !dir3 && !dir4) p = overlayData;
 	}
 
 	R->EAX(p);

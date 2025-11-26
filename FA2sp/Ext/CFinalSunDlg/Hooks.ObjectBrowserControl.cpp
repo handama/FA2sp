@@ -331,7 +331,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             {
                 for (auto& pKey : pSection2->GetEntities())
                 {
-                    if (pKey.first != "Name" && pKey.first != "BannedTheater")
+                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater")
                     {
                         randomList.push_back(atoi(pKey.second));
                     }
@@ -359,7 +359,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             {
                 for (auto& pKey : pSection2->GetEntities())
                 {
-                    if (pKey.first != "Name" && pKey.first != "BannedTheater")
+                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater")
                     {
                         randomList.push_back(pKey.second);
                     }
@@ -385,7 +385,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             {
                 for (auto& pKey : pSection2->GetEntities())
                 {
-                    if (pKey.first != "Name" && pKey.first != "BannedTheater")
+                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater")
                     {
                         randomList.push_back(pKey.second);
                     }
@@ -414,7 +414,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             {
                 for (auto& pKey : pSection2->GetEntities())
                 {
-                    if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
+                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
                     {
                         randomList.push_back(pKey.second);
                     }
@@ -444,7 +444,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             {
                 for (auto& pKey : pSection2->GetEntities())
                 {
-                    if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing" && pKey.first != "AIRepairs" )
+                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater" && pKey.first != "RandomFacing" && pKey.first != "AIRepairs" )
                     {
                         randomList.push_back(pKey.second);
                     }
@@ -475,7 +475,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             {
                 for (auto& pKey : pSection2->GetEntities())
                 {
-                    if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
+                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
                     {
                         randomList.push_back(pKey.second);
                     }
@@ -505,7 +505,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             {
                 for (auto& pKey : pSection2->GetEntities())
                 {
-                    if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
+                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
                     {
                         randomList.push_back(pKey.second);
                     }
@@ -722,7 +722,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                             {
                                 for (auto& pKey : pSection2->GetEntities())
                                 {
-                                    if (pKey.first != "Name" && pKey.first != "BannedTheater")
+                                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater")
                                     {
                                         randomRockList.push_back(atoi(pKey.second));
                                     }
@@ -772,7 +772,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                         {
                             for (auto& pKey : pSection2->GetEntities())
                             {
-                                if (pKey.first != "Name" && pKey.first != "BannedTheater")
+                                if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater")
                                 {
                                     randomList.push_back(pKey.second);
                                 }
@@ -830,7 +830,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                         {
                             for (auto& pKey : pSection2->GetEntities())
                             {
-                                if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
+                                if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
                                 {
                                     randomList.push_back(pKey.second);
                                 }
@@ -905,7 +905,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                             {
                                 for (auto& pKey : pSection2->GetEntities())
                                 {
-                                    if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing" && pKey.first != "AIRepairs")
+                                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater" && pKey.first != "RandomFacing" && pKey.first != "AIRepairs")
                                     {
                                         randomList.push_back(pKey.second);
                                     }

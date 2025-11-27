@@ -2,27 +2,6 @@
 #include "../../FA2sp.h"
 #include "../CMapData/Body.h"
 
-int StatusBarX, StatusBarY;
-DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar_UpdateXY, 7)
-{
-	StatusBarX = R->Stack<int>(0x4);
-	StatusBarY = R->Stack<int>(0x8);
-	return 0;
-}
-
-DEFINE_HOOK(46A480, CIsoView_UpdateStatusBar_InfantrySubcell, 5)
-{
-	if (!ExtConfigs::InfantrySubCell_Edit)
-		return 0;
-
-	int idx = CIsoViewExt::GetSelectedSubcellInfantryIdx(StatusBarX, StatusBarY);
-	R->ESI(idx);
-	if (idx < 0)
-		return 0x46A4E4;
-
-	return 0x46A489;
-}
-
 DEFINE_HOOK(466E07, CIsoView_OnLButtonUp_DragInfantrySubcell, 5)
 {
 	if (!ExtConfigs::InfantrySubCell_Edit || !ExtConfigs::InfantrySubCell_Edit_Drag)

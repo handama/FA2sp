@@ -21,6 +21,7 @@
 #include <CMixFile.h>
 #include "../../Miscs/TheaterInfo.h"
 #include "../../Helpers/Helper.h"
+#include "../../Miscs/StringtableLoader.h"
 
 namespace CIsoViewDrawTemp
 {
@@ -253,12 +254,6 @@ DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 	}
 
 	CIsoViewExt::ReInitializingDDraw = false;
-	return 0;
-}
-
-DEFINE_HOOK(46A362, CIsoView_UpdateStatusBar_BuildingID, 6)
-{
-	R->ESI(CMapDataExt::StructureIndexMap[R->ESI()]);
 	return 0;
 }
 
@@ -1241,79 +1236,6 @@ DEFINE_HOOK(41B250, CIsoView_DrawCliff_NewUrban, 7)
 	return 0;
 }
 
-DEFINE_HOOK(45CD6D, CIsoView_OnMouseMove_StatusBar, 8)
-{
-	if (CIsoView::CurrentCommand->Command == 15) {
-		SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0,
-			(LPARAM)Translations::TranslateOrDefault("FlattenGroundMessage",
-				"Shift: Steep slope, Ctrl+Shift:  Ignore non-morphable tiles"));
-		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-		::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
-		return 0x45CD82;
-	}
-	else if (CIsoView::CurrentCommand->Command == 13 || CIsoView::CurrentCommand->Command == 14) {
-		SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0,
-			(LPARAM)Translations::TranslateOrDefault("HeightenAndLowerTileMessage",
-				"Ctrl: Create slope on the edges"));
-		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-		::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
-		return 0x45CD82;
-	}
-	else if (TheaterInfo::CurrentInfoHasCliff2 && (CIsoView::CurrentCommand->Command == 18 || CIsoView::CurrentCommand->Command == 19)) {
-		SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0,
-			(LPARAM)(Translations::TranslateOrDefault("PressAToSwitchCliff", "Press key 'A' to switch cliff type")));
-		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-		::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
-		return 0x45CD82;
-	}
-	else if (CIsoView::CurrentCommand->Command == 0x22) {
-		SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0,
-			(LPARAM)(Translations::TranslateOrDefault("DrawTunnelMessage",
-				"Click to draw the tunnel, double-click to set the endpoint and finish editing. The length of the tunnel cannot exceed 100.")));
-		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-		::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
-		return 0x45CD82;
-	}
-	else if (CIsoView::CurrentCommand->Command == 0x1E) {
-		ppmfc::CString text = "";
-		ppmfc::CString buffer;
-		for (int i = 0; i < 10; ++i)
-		{
-			int ctIndex = CIsoView::CurrentCommand->Type;
-			auto& info = CViewObjectsExt::TreeView_ConnectedTileMap[ctIndex];
-			auto& tileSet = CViewObjectsExt::ConnectedTileSets[info.Index];
-			if (tileSet.ToSetPress[i] > -1)
-			{
-				for (auto& [ctIndex2, info2] : CViewObjectsExt::TreeView_ConnectedTileMap)
-				{
-					if (info2.Index == tileSet.ToSetPress[i] && info2.Front == info.Front)
-					{
-						auto& tileSet2 = CViewObjectsExt::ConnectedTileSets[info2.Index];
-						buffer.Format(Translations::TranslateOrDefault("PressNumberToSwitchConnectedType", "Press number key %d to switch to %s")
-							, i, tileSet2.Name);
-						if (tileSet2.WaterCliff)
-						{
-							buffer += " ";
-							buffer += Translations::TranslateOrDefault("SwitchConnectedTypeIsWaterCliff", "(Water)");
-						}
-						buffer += ", ";
-						text += buffer;
-					}
-				}
-			}
-		}
-		if (text != "")
-		{
-			text.Delete(text.GetLength() - 2, 2);
-			SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0, (LPARAM)text.m_pchData);
-			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-			::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
-			return 0x45CD82;
-		}
-	}
-	return 0;
-}
-
 DEFINE_HOOK(45F261, CIsoView_HandleProperties_Infantry, 7)
 {
 	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
@@ -1639,4 +1561,188 @@ DEFINE_HOOK(459AB9, CIsoView_OnMouseMove_RestorePreviewRecord, 5)
 {
 	CMapDataExt::RecordingPreviewHistory = true;
 	return 0;
+}
+
+
+DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
+{
+	GET_STACK(int, X, 0x4);
+	GET_STACK(int, Y, 0x8);
+
+	if (CIsoView::CurrentCommand->Command == 10)
+	{
+		CIsoViewExt::SetStatusBarText(Translations::TranslateOrDefault("TilePlaceStatus",
+			"Ctrl: Fill mode, Shift: continuous drawing, Ctrl+Shift: no auto smoothing of LAT or coast/shore, PageUp/Down: adjust painting height"));
+		return 0x46AAA1;
+	}
+	else if (CIsoView::CurrentCommand->Command == 20)
+	{
+		CIsoViewExt::SetStatusBarText(Translations::TranslateOrDefault("CopyHelp",
+			"Please specify the area that you want to be copied by clicking on the start and end position"));
+		return 0x46AAA1;
+	}
+	else if (CIsoView::CurrentCommand->Command == 15) {
+		CIsoViewExt::SetStatusBarText(Translations::TranslateOrDefault("FlattenGroundMessage",
+			"Shift: Steep slope, Ctrl+Shift:  Ignore non-morphable tiles"));
+		return 0x46AAA1;
+	}
+	else if (CIsoView::CurrentCommand->Command == 13 || CIsoView::CurrentCommand->Command == 14) {
+		CIsoViewExt::SetStatusBarText(Translations::TranslateOrDefault("HeightenAndLowerTileMessage",
+			"Ctrl: Create slope on the edges"));
+		return 0x46AAA1;
+	}
+	else if (TheaterInfo::CurrentInfoHasCliff2 && (CIsoView::CurrentCommand->Command == 18 || CIsoView::CurrentCommand->Command == 19)) {
+		CIsoViewExt::SetStatusBarText(Translations::TranslateOrDefault("PressAToSwitchCliff",
+			"Press key 'A' to switch cliff type"));
+		return 0x46AAA1;
+	}
+	else if (CIsoView::CurrentCommand->Command == 0x22) {
+		CIsoViewExt::SetStatusBarText(Translations::TranslateOrDefault("DrawTunnelMessage",
+			"Click to draw the tunnel, double-click to set the endpoint and finish editing. The length of the tunnel cannot exceed 100."));
+		return 0x46AAA1;
+	}
+	else if (CIsoView::CurrentCommand->Command == 0x1E) {
+		ppmfc::CString text = "";
+		ppmfc::CString buffer;
+		for (int i = 0; i < 10; ++i)
+		{
+			int ctIndex = CIsoView::CurrentCommand->Type;
+			auto& info = CViewObjectsExt::TreeView_ConnectedTileMap[ctIndex];
+			auto& tileSet = CViewObjectsExt::ConnectedTileSets[info.Index];
+			if (tileSet.ToSetPress[i] > -1)
+			{
+				for (auto& [ctIndex2, info2] : CViewObjectsExt::TreeView_ConnectedTileMap)
+				{
+					if (info2.Index == tileSet.ToSetPress[i] && info2.Front == info.Front)
+					{
+						auto& tileSet2 = CViewObjectsExt::ConnectedTileSets[info2.Index];
+						buffer.Format(Translations::TranslateOrDefault("PressNumberToSwitchConnectedType", "Press number key %d to switch to %s")
+							, i, tileSet2.Name);
+						if (tileSet2.WaterCliff)
+						{
+							buffer += " ";
+							buffer += Translations::TranslateOrDefault("SwitchConnectedTypeIsWaterCliff", "(Water)");
+						}
+						buffer += ", ";
+						text += buffer;
+					}
+				}
+			}
+		}
+		if (text != "")
+		{
+			text.Delete(text.GetLength() - 2, 2);
+			CIsoViewExt::SetStatusBarText(text);
+			return 0x46AAA1;
+		}
+	}
+
+	FString statusbar;
+
+	int pos = CMapData::Instance->GetCoordIndex(X, Y);
+	auto cell = CMapData::Instance->GetCellAt(pos);
+	auto& cellExt = CMapDataExt::CellDataExts[pos];
+	int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+
+	if (tileIndex < CMapDataExt::TileDataCount && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
+	{
+		statusbar.Format(Translations::TranslateOrDefault("StatusBarText1", "Terrain type: %#x, height %d /"),
+			(int)CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex].TerrainType, cell->Height);
+	}
+
+	if (cellExt.NewOverlay != 0xFFFF)
+	{
+		statusbar += " ";
+		FString plus;
+		plus.Format(Translations::TranslateOrDefault("StatusBarText2", "Overlay: %#x, OverlayData %#x /"),
+			cellExt.NewOverlay, cell->OverlayData);
+		statusbar += plus;
+	}
+
+	if (cell->Structure > -1)
+	{
+		int StrINIIndex = CMapDataExt::StructureIndexMap[cell->Structure];
+		if (StrINIIndex > -1)
+		{
+			CBuildingData obj;
+			CMapDataExt::GetBuildingDataByIniID(StrINIIndex, obj);
+			statusbar += " ";
+			FString plus;
+			plus.Format(Translations::TranslateOrDefault("StatusBarText3", "Structure: ID %d, %s (%s, %s) /"),
+				StrINIIndex, StringtableLoader::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
+			statusbar += plus;
+		}
+	}
+
+	if (cell->Unit > -1)
+	{
+		CUnitData obj;
+		CMapData::Instance->GetUnitData(cell->Unit, obj);
+		statusbar += " ";
+		FString plus;
+		plus.Format(Translations::TranslateOrDefault("StatusBarText4", "Vehicle: ID %d, %s (%s, %s) /"),
+			cell->Unit, StringtableLoader::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
+		statusbar += plus;
+	}
+
+	if (cell->Aircraft > -1)
+	{
+		CAircraftData obj;
+		CMapData::Instance->GetAircraftData(cell->Aircraft, obj);
+		statusbar += " ";
+		FString plus;
+		plus.Format(Translations::TranslateOrDefault("StatusBarText5", "Aircraft: ID %d, %s (%s, %s) /"),
+			cell->Aircraft, StringtableLoader::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
+		statusbar += plus;
+	}
+
+	int infantry = CMapDataExt::GetInfantryAt(pos);
+	if (infantry > -1)
+	{
+		if (ExtConfigs::InfantrySubCell_Edit)
+		{
+			infantry = CIsoViewExt::GetSelectedSubcellInfantryIdx(X, Y);
+
+		}
+		if (infantry > -1)
+		{
+			CInfantryData obj;
+			CMapData::Instance->GetInfantryData(infantry, obj);
+			statusbar += " ";
+			FString plus;
+			plus.Format(Translations::TranslateOrDefault("StatusBarText6", "Infantry: ID %d, %s (%s, %s) /"),
+				infantry, StringtableLoader::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
+			statusbar += plus;
+		}
+	}
+
+	if (cell->CellTag > -1)
+	{
+		FString id = "";
+		if (CINI::CurrentDocument->SectionExists("CellTags"))
+		{
+			char tmp[10];
+			_itoa((X * 1000 + Y), tmp, 10);
+			id = CINI::CurrentDocument->GetString("CellTags", tmp);
+		}
+		if (id != "")
+		{
+			FString name = "MISSING";
+			auto tag = CINI::CurrentDocument->GetString("Tags", id);
+			auto atoms = FString::SplitString(tag);
+			if (atoms.size() > 1)
+			{
+				name = atoms[1];
+			}
+			statusbar += " ";
+			FString plus;
+			plus.Format(Translations::TranslateOrDefault("StatusBarText7", "CellTag: %s (%s) /"),
+				name, id);
+			statusbar += plus;
+		}
+	}
+
+	CIsoViewExt::SetStatusBarText(statusbar);
+
+	return 0x46AAA1;
 }

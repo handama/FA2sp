@@ -518,24 +518,24 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
 		{
 			auto& subTile = tile.TileBlockDatas[tileSubIndex];
-			virtualHeight =  cell->Height - subTile.YMinusExY / 15;
+			virtualHeight = cell->Height - subTile.YMinusExY / 15;
 		}
 
 		if (tileSetOri == CMapDataExt::BridgeSet || tileSetOri == CMapDataExt::WoodBridgeSet)
 			virtualHeight = cell->Height;
 
-		for (int i = 1; i <= 2 + virtualHeight - cell->Height; i++)
+		for (int i = 1; i <= 2 + virtualHeight - cell->Height + cell->Height / 2; i++)
 		{
 			if (CMapData::Instance->IsCoordInMap(X - i, Y - i))
 			{
 				auto blockedCell = CMapData::Instance->GetCellAt(X - i, Y - i);
-				int blockedHeight = (getTileVirtualHeight(blockedCell));
+				int blockedHeight = blockedCell->Height;//(getTileVirtualHeight(blockedCell));
 				if (virtualHeight - blockedHeight >= 2 * i
 					|| i == 1 && blockedCell->Flag.RedrawTerrain && virtualHeight > blockedHeight)
 					cell->Flag.RedrawTerrain = true;
 			}
 		}
-		for (int i = 0; i <= 2 + virtualHeight - cell->Height; i++)
+		for (int i = 0; i <= 2 + virtualHeight - cell->Height + cell->Height / 2; i++)
 		{
 			if (CMapData::Instance->IsCoordInMap(X - i - 1, Y - i))
 			{
@@ -551,7 +551,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			}
 		}
 
-		if (!cell->Flag.RedrawTerrain)
+		if (!cell->Flag.RedrawTerrain || CFinalSunApp::Instance->FlatToGround)
 		{			
 			if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
 			{
@@ -1219,7 +1219,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 					};
 
-				if (cell->Flag.RedrawTerrain)
+				if (cell->Flag.RedrawTerrain && !CFinalSunApp::Instance->FlatToGround)
 				{
 					if (CFinalSunApp::Instance->FrameMode)
 					{
@@ -1459,7 +1459,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 						y1 += CIsoViewExt::GetOverlayDrawOffset(cellNextExt.NewOverlay, cellNext->OverlayData);				
 						y1 += 30;
-						y1 -= (cellNext->Height - cell->Height) * 15;
+						if (!CFinalSunApp::Instance->FlatToGround)
+							y1 -= (cellNext->Height - cell->Height) * 15;
 
 						auto tmp = CIsoViewExt::CurrentDrawCellLocation;
 						CIsoViewExt::CurrentDrawCellLocation.X++;

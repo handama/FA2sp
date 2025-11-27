@@ -179,6 +179,8 @@ public:
     static void InitGdiplus();
     static bool BlitDDSurfaceRectToBitmap(HDC hDC, const DDBoundary& boundary, const RECT& srcRect, int dstX, int dstY);
     static int GetOverlayDrawOffset(WORD nOverlay, BYTE nOverlayData = 0);
+    static void SetStatusBarText(const char* text);
+
     static Bitmap* pFullBitmap;
     static bool DrawStructures;
     static bool DrawInfantries;

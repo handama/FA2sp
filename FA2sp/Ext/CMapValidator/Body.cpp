@@ -384,6 +384,9 @@ void CMapValidatorExt::ValidateValueLength(BOOL& result)
 		if (!strcmp(section.first, "Annotations"))
 			continue;
 
+		if (!strcmp(section.first, "TriggerAnnotations"))
+			continue;
+
 		for (auto& pair : section.second.GetEntities())
 		{
 			auto line = pair.first + "=" + pair.second;

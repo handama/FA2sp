@@ -1000,9 +1000,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 						FString message;
 						message.Format(Translations::TranslateOrDefault("MapRendererToolbarRendering",
 							"Map Renderer: rendering tile (%d/%d)"), currentTile, totalTileCount);
-						::SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0, message);
-						::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-						::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
+						CIsoViewExt::SetStatusBarText(message);
 
 						pIsoView->Draw();
 
@@ -1033,9 +1031,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				FString message;
 				message.Format(Translations::TranslateOrDefault("MapRendererToolbarSaving",
 					"Map Renderer: saving png file to %s"), path);
-				::SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0, message);
-				::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-				::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
+				CIsoViewExt::SetStatusBarText(message);
 
 				CLSID clsidEncoder;
 				UINT num = 0, size = 0;

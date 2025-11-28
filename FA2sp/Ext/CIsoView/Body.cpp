@@ -3676,7 +3676,7 @@ int CIsoViewExt::GetRandomTileIndex()
             {
                 for (auto& pKey : pSection2->GetEntities())
                 {
-                    if (pKey.first != "Name" && pKey.first != "AllowedTheater")
+                    if (pKey.first.Find("Name") < 0 && pKey.first != "AllowedTheater")
                     {
                         int tile = atoi(pKey.second);
                         if (tile >= CMapDataExt::TileDataCount)

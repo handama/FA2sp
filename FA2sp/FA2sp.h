@@ -49,7 +49,6 @@ public:
     static bool ObjectBrowser_CleanUp;
     static bool ObjectBrowser_SafeHouses;
     static bool ObjectBrowser_Foundation;
-    static bool LoadLunarWater;
     static bool LoadCivilianStringtable;
     static bool PasteShowOutlineDefault;
     static bool AllowIncludes;

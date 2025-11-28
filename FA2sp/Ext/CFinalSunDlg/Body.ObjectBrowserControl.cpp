@@ -680,45 +680,39 @@ void CViewObjectsExt::Redraw_Ground()
             }
             return true;
         };
-    auto setTileIndexByName = [setTileIndex](FString name)
+
+    ppmfc::CString pInfoSection = TheaterInfo::GetInfoSection();
+    auto ignoredTilesets = FString::SplitString(CINI::FAData->GetString(pInfoSection, "IgnoredTilesets"));
+
+    auto setTileIndexByName = [&ignoredTilesets, setTileIndex](FString name)
         {           
             if (CMapData::Instance->MapWidthPlusHeight)
             {
-                return setTileIndex(CINI::CurrentTheater->GetInteger("General", name, -1));
+                auto it = std::find(ignoredTilesets.begin(), ignoredTilesets.end(), name);
+                if (it == ignoredTilesets.end()) {
+                    return setTileIndex(CINI::CurrentTheater->GetInteger("General", name, -1));
+                }
             }
-            return true;
+            return false;
         };
 
     if (setTileIndexByName("ClearTile"))
         this->InsertTranslatedString("GroundClearObList" + suffix, 61, hGround);
-    if (suffix != "LUN")
-    {
-        if (setTileIndexByName("SandTile"))
+
+    if (setTileIndexByName("SandTile"))
             this->InsertTranslatedString("GroundSandObList" + suffix, 62, hGround);
-    }
-    if (suffix != "URB")
-    {
-        if (setTileIndexByName("RoughTile"))
+
+    if (setTileIndexByName("RoughTile"))
             this->InsertTranslatedString("GroundRoughObList" + suffix, 63, hGround);
-    }
+
     if (setTileIndexByName("GreenTile"))
         this->InsertTranslatedString("GroundGreenObList" + suffix, 65, hGround);
-    if (suffix != "UBN")
-    {
-        if (setTileIndexByName("PaveTile"))
-            this->InsertTranslatedString("GroundPaveObList" + suffix, 66, hGround);
-    }
-    
-    if (suffix != "LUN")
-    {
-        if (setTileIndexByName("WaterSet"))
-            this->InsertTranslatedString("GroundWaterObList", 64, hGround);
-    }
-    else if (suffix == "LUN" && ExtConfigs::LoadLunarWater)
-    {
-        if (setTileIndexByName("WaterSet"))
-            this->InsertTranslatedString("GroundWaterObList", 64, hGround);
-    }
+
+    if (setTileIndexByName("PaveTile"))
+        this->InsertTranslatedString("GroundPaveObList" + suffix, 66, hGround);
+
+    if (setTileIndexByName("WaterSet"))
+        this->InsertTranslatedString("GroundWaterObList", 64, hGround);
 
     if (CINI::CurrentTheater)
     {
@@ -761,7 +755,7 @@ void CViewObjectsExt::Redraw_Ground()
                     bool valid = true;
                     for (auto& pKeyTile : pSection2->GetEntities())
                     {
-                        if (pKeyTile.first != "Name" && pKeyTile.first != "AllowedTheater")
+                        if (pKeyTile.first.Find("Name") < 0 && pKeyTile.first != "AllowedTheater")
                         {
                             int tile = atoi(pKeyTile.second);
                             if (tile >= CMapDataExt::TileDataCount)
@@ -3152,7 +3146,7 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                         int targetIndex = 0;
                         for (auto& pKeyTile : pSection2->GetEntities())
                         {
-                            if (pKeyTile.first != "Name" && pKeyTile.first != "AllowedTheater")
+                            if (pKeyTile.first.Find("Name") < 0 && pKeyTile.first != "AllowedTheater")
                             {
                                 int tile = CINI::FAData().GetInteger(pKey.second, pKeyTile.first);
                                 if (tile >= CMapDataExt::TileDataCount)

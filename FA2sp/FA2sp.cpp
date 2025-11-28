@@ -34,7 +34,6 @@ int	 ExtConfigs::ObjectBrowser_GuessMax;
 bool ExtConfigs::ObjectBrowser_CleanUp;
 bool ExtConfigs::ObjectBrowser_SafeHouses;
 bool ExtConfigs::ObjectBrowser_Foundation;
-bool ExtConfigs::LoadLunarWater;
 bool ExtConfigs::LoadCivilianStringtable;
 bool ExtConfigs::PasteShowOutlineDefault;
 bool ExtConfigs::AllowIncludes;
@@ -223,7 +222,6 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ObjectBrowser_Foundation = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Foundation");
 	ExtConfigs::ObjectBrowser_Ore_RandomPlacement = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Ore.RandomPlacement");
 	ExtConfigs::ObjectBrowser_Ore_ExtraSupport = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Ore.ExtraSupport");
-	ExtConfigs::LoadLunarWater = CINI::FAData->GetBool("ExtConfigs", "LoadLunarWater");
 	ExtConfigs::LoadCivilianStringtable = CINI::FAData->GetBool("ExtConfigs", "LoadCivilianStringtable");
 	ExtConfigs::PasteShowOutlineDefault = CINI::FAData->GetBool("ExtConfigs", "PasteShowOutline");
 	
@@ -629,14 +627,6 @@ void FA2sp::ExtConfigsInitialize()
 		.Value = &ExtConfigs::ObjectBrowser_Foundation,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.LoadLunarWater", "Show lunar water"),
-		.IniKey = "LoadLunarWater",
-		.Value = &ExtConfigs::LoadLunarWater,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
-
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.Ore.RandomPlacement", "Random choose ores when placing"),

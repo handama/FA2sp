@@ -150,7 +150,8 @@
       </IgnoreSpecificDefaultLibraries>
     </Link>
     <ResourceCompile>
-      <PreprocessorDefinitions>CHINESE;</PreprocessorDefinitions>
+      <PreprocessorDefinitions>
+      </PreprocessorDefinitions>
       <AdditionalOptions>/c 936 %(AdditionalOptions)</AdditionalOptions>
     </ResourceCompile>
   </ItemDefinitionGroup>

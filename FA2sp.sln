@@ -8,14 +8,11 @@ EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
-		Release_Chinese|x86 = Release_Chinese|x86
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{3BBEA2D2-97DA-4B96-9516-36A6C8D3B4A3}.Debug|x86.ActiveCfg = Debug|Win32
 		{3BBEA2D2-97DA-4B96-9516-36A6C8D3B4A3}.Debug|x86.Build.0 = Debug|Win32
-		{3BBEA2D2-97DA-4B96-9516-36A6C8D3B4A3}.Release_Chinese|x86.ActiveCfg = Release_Chinese|Win32
-		{3BBEA2D2-97DA-4B96-9516-36A6C8D3B4A3}.Release_Chinese|x86.Build.0 = Release_Chinese|Win32
 		{3BBEA2D2-97DA-4B96-9516-36A6C8D3B4A3}.Release|x86.ActiveCfg = Release|Win32
 		{3BBEA2D2-97DA-4B96-9516-36A6C8D3B4A3}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection

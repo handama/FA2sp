@@ -902,6 +902,22 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					}
 				}
 			}
+			if (!CIsoViewExt::RenderInvisibleInGame)
+			{
+				FString ignoreSection = "MapRendererIgnoreObjects";
+				const auto&& buildings = Variables::RulesMap.GetSection("BuildingTypes");
+				for (auto& [_, ID] : buildings)
+				{
+					if (Variables::RulesMap.GetBool(ID, "InvisibleInGame"))
+						CIsoViewExt::MapRendererIgnoreObjects.insert(ID);
+				}
+				const auto& overlays = Variables::RulesMap.GetSection("OverlayTypes");
+				for (auto& [_, ID] : overlays)
+				{
+					if (Variables::RulesMap.GetBool(ID, "IsRubble"))
+						CIsoViewExt::MapRendererIgnoreObjects.insert(ID);
+				}
+			}
 
 			auto pIsoView = CIsoView::GetInstance();
 

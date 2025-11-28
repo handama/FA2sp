@@ -1135,8 +1135,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(Variables::RulesMap.GetValueAt("OverlayTypes", cellExt->NewOverlay))
-				== CIsoViewExt::MapRendererIgnoreObjects.end()
-				&& (!CMapDataExt::GetOverlayTypeData(cellExt->NewOverlay).Rubble || CIsoViewExt::RenderInvisibleInGame))
+				== CIsoViewExt::MapRendererIgnoreObjects.end())
 			{
 				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
@@ -1417,8 +1416,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(Variables::RulesMap.GetValueAt("OverlayTypes", cellNextExt.NewOverlay))
-				== CIsoViewExt::MapRendererIgnoreObjects.end()
-				&& (!CMapDataExt::GetOverlayTypeData(cellNextExt.NewOverlay).Rubble || CIsoViewExt::RenderInvisibleInGame))
+				== CIsoViewExt::MapRendererIgnoreObjects.end())
 			{
 				if (
 					cellNextExt.NewOverlay == 0x18 || cellNextExt.NewOverlay == 0x19 || // BRIDGE1, BRIDGE2
@@ -1474,8 +1472,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(Variables::RulesMap.GetValueAt("OverlayTypes", cellExt->NewOverlay))
-				== CIsoViewExt::MapRendererIgnoreObjects.end() 
-				&& (!CMapDataExt::GetOverlayTypeData(cellExt->NewOverlay).Rubble || CIsoViewExt::RenderInvisibleInGame))
+				== CIsoViewExt::MapRendererIgnoreObjects.end())
 			{
 				if (
 					cellExt->NewOverlay != 0xFFFF &&

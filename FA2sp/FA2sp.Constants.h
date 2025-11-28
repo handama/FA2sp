@@ -33,8 +33,8 @@
 
 #define MUTEX_HASH_VAL "b8097bca8590a4f46c975ebb43503aab2243ce7f1c87f12f7984dbe1"
 
-#define MUTEX_INIT_ERROR_MSG "The program has already launched! Some function may work not correctly. Do you still want to launch it?\n程序已经启动！有些功能可能不会正确工作，确认要继续吗？"
-#define MUTEX_INIT_ERROR_TIT "FA2sp Init Checker"
+#define MUTEX_INIT_ERROR_MSG L"The program has already launched! Some function may work not correctly. Do you still want to launch it?\n程序已经启动！有些功能可能不会正确工作，确认要继续吗？"
+#define MUTEX_INIT_ERROR_TIT L"FA2sp Init Checker"
 
 
 

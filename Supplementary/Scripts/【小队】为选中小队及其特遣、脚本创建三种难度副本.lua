@@ -1,6 +1,6 @@
-if message_box("是否为地图创建快照？", "创建快照", 2) == 1 then create_snapshot() end
-create_script = message_box("是否为脚本创建三种难度副本？", "创建脚本", 2) == 1
-box = multi_select_box:new("请选择小队")
+if message_box("鏄惁涓哄湴鍥惧垱寤哄揩鐓э紵", "鍒涘缓蹇収", 2) == 1 then create_snapshot() end
+create_script = message_box("鏄惁涓鸿剼鏈垱寤轰笁绉嶉毦搴﹀壇鏈紵", "鍒涘缓鑴氭湰", 2) == 1
+box = multi_select_box:new("璇烽�夋嫨灏忛槦")
 for i,id in pairs(get_values("TeamTypes")) do
 	box:add_option(id, get_string(id, "Name"))
 end

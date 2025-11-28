@@ -1,7 +1,7 @@
---¡¾AI´¥·¢¡¿Éú³É»ùµØ·ÀÓùĞ¡¶ÓÄ£°å.lua
---ß÷---ß÷---ß÷---ß÷--
+--ã€AIè§¦å‘ã€‘ç”ŸæˆåŸºåœ°é˜²å¾¡å°é˜Ÿæ¨¡æ¿.lua
+--å–µ---å–µ---å–µ---å–µ--
 
-box = select_box:new("Ñ¡ÔñËùÊô·½")
+box = select_box:new("é€‰æ‹©æ‰€å±æ–¹")
 for i,house in pairs(get_values("Countries", "rules+map")) do
 	box:add_option(house, translate_house(house))
 end
@@ -30,17 +30,17 @@ end
 
 
 
-local input_units = input_box("ÊäÈëÌØÇ²²¿¶Ó, ÀıÈç 3E1,2HTNK,5APOC")
+local input_units = input_box("è¾“å…¥ç‰¹é£éƒ¨é˜Ÿ, ä¾‹å¦‚ 3E1,2HTNK,5APOC")
 local result = input_units:gsub(",", "")
 name = ""..selected_house.."-"..result
-trigger_name= "[Ë¢±ø]"..selected_house.."-"..result
--- ·Ö¸î×Ö·û´®
+trigger_name= "[åˆ·å…µ]"..selected_house.."-"..result
+-- åˆ†å‰²å­—ç¬¦ä¸²
 local parts = {}
 for part in input_units:gmatch("([^,]+)") do
     table.insert(parts, part)
 end
 
--- ½âÎöÊı×ÖºÍÎÄ±¾
+-- è§£ææ•°å­—å’Œæ–‡æœ¬
 local parsedData = {}
 for i, segment in ipairs(parts) do
     local numStr = segment:match("^(%d+)")
@@ -67,9 +67,9 @@ t.reinforce = true
 t.is_base_defense = true
 t.are_team_members_recruitable = true
 
-print("==== ÌØÇ²²¿¶ÓÈçÏÂ ====")
+print("==== ç‰¹é£éƒ¨é˜Ÿå¦‚ä¸‹ ====")
 for idx, item in ipairs(parsedData) do
-    print(string.format("%d) ÊıÁ¿: %-2s | µ¥Î»: %s", 
+    print(string.format("%d) æ•°é‡: %-2s | å•ä½: %s", 
         idx, 
         item.number or "N/A", 
         item.text,
@@ -90,9 +90,9 @@ write_string("AITriggerTypesEnable",ai_trigger_id, "yes")
 
 
 print("=======================")
-print("Éú³ÉµÄĞ¡¶Ó½Å±¾Ä¬ÈÏ11-11£¨½øÈëÔ­µØ¾¯½ä×´Ì¬£©")
-print("Éú³ÉµÄĞ¡¶ÓÄ¬ÈÏ¹´Ñ¡ÈçÏÂ£º")
-print("»ùµØ·ÀÓùĞ¡¶Ó¡Ì£¬ÇÖÂÔ²¿¶Ó¡Ì£¬ÔöÔ®²¿¶Ó¡Ì£¬Ğ¡¶Ó³ÉÔ±¿É±»ÖØ×é¡Ì")
-print("Éú³ÉµÄAI´¥·¢Ä¬ÈÏÎªÆôÓÃ")
+print("ç”Ÿæˆçš„å°é˜Ÿè„šæœ¬é»˜è®¤11-11ï¼ˆè¿›å…¥åŸåœ°è­¦æˆ’çŠ¶æ€ï¼‰")
+print("ç”Ÿæˆçš„å°é˜Ÿé»˜è®¤å‹¾é€‰å¦‚ä¸‹ï¼š")
+print("åŸºåœ°é˜²å¾¡å°é˜Ÿâˆšï¼Œä¾µç•¥éƒ¨é˜Ÿâˆšï¼Œå¢æ´éƒ¨é˜Ÿâˆšï¼Œå°é˜Ÿæˆå‘˜å¯è¢«é‡ç»„âˆš")
+print("ç”Ÿæˆçš„AIè§¦å‘é»˜è®¤ä¸ºå¯ç”¨")
 print("=======================")
-message_box("ÒÑ³É¹¦Ö´ĞĞ½Å±¾", "Ö´ĞĞ³É¹¦", 1)
+message_box("å·²æˆåŠŸæ‰§è¡Œè„šæœ¬", "æ‰§è¡ŒæˆåŠŸ", 1)

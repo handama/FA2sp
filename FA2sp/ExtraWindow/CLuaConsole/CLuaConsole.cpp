@@ -1045,7 +1045,7 @@ void CLuaConsole::OnEditchangeSearch(HWND& hWnd)
 
 void CLuaConsole::OnClickRun(bool fromFile)
 {
-    std::string script;
+    FString script;
     if (fromFile)
     {
         std::string scriptPath = CFinalSunAppExt::ExePathExt;
@@ -1060,6 +1060,11 @@ void CLuaConsole::OnClickRun(bool fromFile)
         std::stringstream buffer;
         buffer << file.rdbuf();
         script = buffer.str();
+
+        auto encoding = STDHelpers::GetFileEncoding((uint8_t*)script.data(), script.size());
+        bool loadAsUTF8 = ExtConfigs::UTF8Support_InferEncoding && encoding == UTF8 || encoding == UTF8_BOM;
+        if (loadAsUTF8)
+            script.toANSI();
     }
     else
     {

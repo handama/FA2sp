@@ -1,11 +1,11 @@
---¡¾´¥·¢¡¿Éú³ÉÄ£ÄâAI´¥·¢Ìõ¼şµÄ´¥·¢Ä£°æ.lua
---ß÷---ß÷---ß÷---ß÷--
+--ã€è§¦å‘ã€‘ç”Ÿæˆæ¨¡æ‹ŸAIè§¦å‘æ¡ä»¶çš„è§¦å‘æ¨¡ç‰ˆ.lua
+--å–µ---å–µ---å–µ---å–µ--
 
-print("×¢Òâ£ºÉú³ÉµÄ´¥·¢ÊÂ¼şµÄ½¨ÖşĞòºÅ£¬")
-print("ÊÇÔ­°æÓÈÀïµÄ¸´³ğµÄ½¨ÖşÁĞ±íË÷Òı£¬")
-print("Çë×ĞÏ¸ºË¶Ô£¡£¡£¡") 
+print("æ³¨æ„ï¼šç”Ÿæˆçš„è§¦å‘äº‹ä»¶çš„å»ºç­‘åºå·ï¼Œ")
+print("æ˜¯åŸç‰ˆå°¤é‡Œçš„å¤ä»‡çš„å»ºç­‘åˆ—è¡¨ç´¢å¼•ï¼Œ")
+print("è¯·ä»”ç»†æ ¸å¯¹ï¼ï¼ï¼") 
 
-box = select_box:new("Ñ¡ÔñËùÊô·½")
+box = select_box:new("é€‰æ‹©æ‰€å±æ–¹")
 for i,house in pairs(get_values("Countries", "rules+map")) do
 	box:add_option(house, translate_house(house))
 end
@@ -48,8 +48,8 @@ end
 
 
 local name= "[AIS]"..selected_house.."_Infantry"
-local name_on = "[AI´¥·¢Ä£Äâ] "..selected_house.."_²½±ø_on"
-local name_off = "[AI´¥·¢Ä£Äâ] "..selected_house.."_²½±ø_off"
+local name_on = "[AIè§¦å‘æ¨¡æ‹Ÿ] "..selected_house.."_æ­¥å…µ_on"
+local name_off = "[AIè§¦å‘æ¨¡æ‹Ÿ] "..selected_house.."_æ­¥å…µ_off"
 
 local variable_index = tonumber(get_free_key("VariableNames"))
 write_string("VariableNames", tostring(variable_index), name..",0")
@@ -71,8 +71,8 @@ write_string("Tags", tag_id, "2,"..name_off.." 1,"..trigger_id)
 
 
 local name= "[AIS]"..selected_house.."_Vehicle"
-local name_on = "[AI´¥·¢Ä£Äâ]"..selected_house.."_ÔØ¾ß_on"
-local name_off = "[AI´¥·¢Ä£Äâ]"..selected_house.."_ÔØ¾ß_off"
+local name_on = "[AIè§¦å‘æ¨¡æ‹Ÿ]"..selected_house.."_è½½å…·_on"
+local name_off = "[AIè§¦å‘æ¨¡æ‹Ÿ]"..selected_house.."_è½½å…·_off"
 
 local variable_index = tonumber(get_free_key("VariableNames"))
 write_string("VariableNames", tostring(variable_index), name..",0")
@@ -94,8 +94,8 @@ write_string("Tags", tag_id, "2,"..name_off.." 1,"..trigger_id)
 
 
 local name= "[AIS]"..selected_house.."_Navy"
-local name_on = "[AI´¥·¢Ä£Äâ]"..selected_house.."_º£¾ü_on"
-local name_off = "[AI´¥·¢Ä£Äâ]"..selected_house.."_º£¾ü_off"
+local name_on = "[AIè§¦å‘æ¨¡æ‹Ÿ]"..selected_house.."_æµ·å†›_on"
+local name_off = "[AIè§¦å‘æ¨¡æ‹Ÿ]"..selected_house.."_æµ·å†›_off"
 
 local variable_index = tonumber(get_free_key("VariableNames"))
 write_string("VariableNames", tostring(variable_index), name..",0")
@@ -117,8 +117,8 @@ write_string("Tags", tag_id, "2,"..name_off.." 1,"..trigger_id)
 
 
 local name= "[AIS]"..selected_house.."-Airforce"
-local name_on = "[AI´¥·¢Ä£Äâ]"..selected_house.."_¿Õ¾ü_on"
-local name_off = "[AI´¥·¢Ä£Äâ]"..selected_house.."_¿Õ¾ü_off"
+local name_on = "[AIè§¦å‘æ¨¡æ‹Ÿ]"..selected_house.."_ç©ºå†›_on"
+local name_off = "[AIè§¦å‘æ¨¡æ‹Ÿ]"..selected_house.."_ç©ºå†›_off"
 
 local variable_index = tonumber(get_free_key("VariableNames"))
 write_string("VariableNames", tostring(variable_index), name..",0")
@@ -143,4 +143,4 @@ write_string("Tags", tag_id, "2,"..name_off.." 1,"..trigger_id)
 
 
 update_trigger()
-message_box("ÒÑ³É¹¦Ö´ĞĞ½Å±¾", "Ö´ĞĞ³É¹¦", 1)
+message_box("å·²æˆåŠŸæ‰§è¡Œè„šæœ¬", "æ‰§è¡ŒæˆåŠŸ", 1)

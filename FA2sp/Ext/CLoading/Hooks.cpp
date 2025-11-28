@@ -228,7 +228,7 @@ DEFINE_HOOK(52D098, CLoading_DrawTMP_5, 5)
 		{
 			pal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
 		}
-		loadingExt->SetImageDataSafe(extra_image, ImageID, currentTMP->cx_extra, currentTMP->cy_extra, pal, true, false);
+		loadingExt->SetImageDataSafe(extra_image, ImageID, currentTMP->cx_extra, currentTMP->cy_extra, pal, false);
 		CLoadingExt::LoadedObjects.insert(ImageID);
 		altCount[subTileIndex]++;
 	}

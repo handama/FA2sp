@@ -7,7 +7,8 @@ class CMultiSelectionOptionDlg : public ppmfc::CDialog
 {
 public:
 	CMultiSelectionOptionDlg(CWnd* pParent = NULL);
-	BOOL Connected;
+	BOOL Connected4;
+	BOOL Connected8;
 	BOOL SameTileSet;
 	BOOL ConsiderLAT;
 	BOOL SameHeight;

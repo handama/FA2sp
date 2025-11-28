@@ -532,7 +532,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     float XCenter;
                     float YCenter;
                     if (isBuilding) {
-                        const int Index = CMapData::Instance->GetBuildingTypeID(ID);
+                        const int Index = CMapDataExt::GetBuildingTypeIndex(ID);
                         const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
                         XCenter = atoi(objectX) + (DataExt.Height - 1) / 2.0;
                         YCenter = atoi(objectY) + (DataExt.Width - 1) / 2.0;
@@ -641,7 +641,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         range = mmh.GetSingle(weapon, "Range");
                         if (mmh.GetBool(ID, "CanOccupyFire") && isBuilding) {
                             range = mmh.GetSingle("CombatDamage", "OccupyWeaponRange");
-                            const int Index = CMapData::Instance->GetBuildingTypeID(ID);
+                            const int Index = CMapDataExt::GetBuildingTypeIndex(ID);
                             const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
                             int smallSide = 0;
                             if (DataExt.Height > DataExt.Width)
@@ -662,7 +662,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     float XCenter;
                     float YCenter;
                     if (isBuilding && drawCase != CViewObjectsExt::ObjectTerrainType::SightRange) {
-                        const int Index = CMapData::Instance->GetBuildingTypeID(ID);
+                        const int Index = CMapDataExt::GetBuildingTypeIndex(ID);
                         const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
                         XCenter = atoi(objectX) + (DataExt.Height - 1) / 2.0;
                         YCenter = atoi(objectY) + (DataExt.Width - 1) / 2.0;
@@ -781,7 +781,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), house);
 
                         leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Infantry",
-                            "Infantry:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
+                            "Infantry:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(object.TypeID, true), object.TypeID, objThisCount, objThisCount * cost);
 
                         ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
                         ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
@@ -811,7 +811,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                         line1.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.1",
                             "Infantry: %s (%s), ID: %d, Subcell: %s")
-                            , StringtableLoader::QueryUIName(object.TypeID), object.TypeID, id, object.SubCell);
+                            , StringtableLoader::QueryUIName(object.TypeID, true), object.TypeID, id, object.SubCell);
                         line2.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.2",
                             "House: %s")
                             , house);
@@ -903,7 +903,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), house);
                         leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Vehicle",
                             "Vehicle:  %s (%s), Count: %d, Cost: %d")
-                            , StringtableLoader::QueryUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
+                            , StringtableLoader::QueryUIName(object.TypeID, true), object.TypeID, objThisCount, objThisCount * cost);
 
                         ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
                         ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
@@ -934,7 +934,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                         line1.Format(Translations::TranslateOrDefault("ObjectInfo.Vehicle.1",
                             "Vehicle: %s (%s), ID: %d")
-                            , StringtableLoader::QueryUIName(object.TypeID), object.TypeID, id);
+                            , StringtableLoader::QueryUIName(object.TypeID, true), object.TypeID, id);
                         line2.Format(Translations::TranslateOrDefault("ObjectInfo.Vehicle.2",
                             "House: %s")
                             , house);
@@ -1025,7 +1025,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                         leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), house);
                         leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Aircraft",
-                            "Aircraft:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
+                            "Aircraft:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(object.TypeID, true), object.TypeID, objThisCount, objThisCount * cost);
 
                         ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
                         ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
@@ -1056,7 +1056,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                         line1.Format(Translations::TranslateOrDefault("ObjectInfo.Aircraft.1",
                             "Aircraft: %s (%s), ID: %d")
-                            , StringtableLoader::QueryUIName(object.TypeID), object.TypeID, id);
+                            , StringtableLoader::QueryUIName(object.TypeID, true), object.TypeID, id);
                         line2.Format(Translations::TranslateOrDefault("ObjectInfo.Aircraft.2",
                             "House: %s")
                             , house);
@@ -1098,7 +1098,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 {
                     index++;
                     auto atoms = FString::SplitString(pair.second, 4);
-                    const int Index = CMapData::Instance->GetBuildingTypeID(atoms[1]);
+                    const int Index = CMapDataExt::GetBuildingTypeIndex(atoms[1]);
                     const int Y = atoi(atoms[3]);
                     const int X = atoi(atoms[4]);
                     const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
@@ -1181,7 +1181,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                     leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), house);
                     leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Structure",
-                        "Structure:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
+                        "Structure:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(object.TypeID, true), object.TypeID, objThisCount, objThisCount * cost);
                     leftLine3.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Power",
                         "Total Power: %d, Output: %d, Drain: %d"), housePower - houseLoad, housePower, houseLoad);
 
@@ -1226,7 +1226,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                     line1.Format(Translations::TranslateOrDefault("ObjectInfo.Structure.1",
                         "Structure: %s (%s), ID: %d")
-                        , StringtableLoader::QueryUIName(object.TypeID), object.TypeID, id);
+                        , StringtableLoader::QueryUIName(object.TypeID, true), object.TypeID, id);
                     line2.Format(Translations::TranslateOrDefault("ObjectInfo.Structure.2",
                         "House: %s")
                         , house);
@@ -1286,7 +1286,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             if (atoms.size() < 3)
                                 continue;
 
-                            const int Index = CMapData::Instance->GetBuildingTypeID(atoms[0]);
+                            const int Index = CMapDataExt::GetBuildingTypeIndex(atoms[0]);
                             const int Y = atoi(atoms[1]);
                             const int X = atoi(atoms[2]);
                             bool found = false;
@@ -1397,7 +1397,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     FString targetHouse2 = Translations::ParseHouseName(id.House, true);
                     leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), targetHouse2);
                     leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Basenode",
-                        "Basenode:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(id.ID), id.ID, objThisCount, objThisCount * cost);
+                        "Basenode:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(id.ID, true), id.ID, objThisCount, objThisCount * cost);
 
                     ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
                     ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
@@ -1472,7 +1472,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     FString targetHouse2 = Translations::ParseHouseName(id.House, true);
                     line1.Format(Translations::TranslateOrDefault("ObjectInfo.Basenode.1",
                         "Basenode: %s (%s), ID: %d")
-                        , StringtableLoader::QueryUIName(id.ID), id.ID, id.BasenodeID);
+                        , StringtableLoader::QueryUIName(id.ID, true), id.ID, id.BasenodeID);
                     line2.Format(Translations::TranslateOrDefault("ObjectInfo.Basenode.2",
                         "House: %s")
                         , targetHouse2);
@@ -1616,7 +1616,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
             if (id > -1)
             {
-                auto name2 = CViewObjectsExt::QueryUIName(name);
+                auto name2 = CViewObjectsExt::QueryUIName(name, true);
                 line1.Format(Translations::TranslateOrDefault("ObjectInfo.Terrain",
                     "Terrain: %s (%s), ID: %d")
                     , name2, name, id);
@@ -1680,8 +1680,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             auto value = Variables::RulesMap.GetValueAt("OverlayTypes", overlay);
             if (value != "")
             {
-                auto thisname = mmh.GetString(value, "Name");
-                name = Translations::TranslateOrDefault(thisname, thisname);
+                name = StringtableLoader::QueryUIName(value, true);
 
                 //if (CINI::Rules().GetBool(value, "NoUseTileLandType"))
                 ttype = mmh.GetString(value, "Land", "");
@@ -1779,13 +1778,13 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         for (auto& thisEvent : trigger->Events)
                         {
 
-                            auto eventInfos = FString::SplitString(CINI::FAData->GetString("EventsRA2", thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
+                            auto eventInfos = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
                             FString paramType[2];
                             paramType[0] = eventInfos[1];
                             paramType[1] = eventInfos[2];
                             std::vector<FString> pParamTypes[2];
-                            pParamTypes[0] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[0], "MISSING,0"));
-                            pParamTypes[1] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[1], "MISSING,0"));
+                            pParamTypes[0] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[0], "MISSING,0"));
+                            pParamTypes[1] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[1], "MISSING,0"));
                             FString thisWp = "-1";
                             if (thisEvent.Params[0] == "2")
                             {
@@ -1821,7 +1820,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                         for (auto& thisAction : trigger->Actions)
                         {
-                            auto actionInfos = FString::SplitString(CINI::FAData->GetString("ActionsRA2", thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
+                            auto actionInfos = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
                             FString thisWp = "-1";
                             FString paramType[7];
                             for (int i = 0; i < 7; i++)
@@ -1829,7 +1828,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                             std::vector<FString> pParamTypes[6];
                             for (int i = 0; i < 6; i++)
-                                pParamTypes[i] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[i], "MISSING,0"));
+                                pParamTypes[i] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[i], "MISSING,0"));
 
                             thisAction.Param7isWP = true;
                             for (auto& pair : CINI::FAData->GetSection("DontSaveAsWP")->GetEntities())

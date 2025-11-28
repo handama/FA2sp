@@ -18,7 +18,7 @@ std::map<FString, Palette*> PalettesManager::OriginPaletteFiles;
 std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedPaletteFiles;
 std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedDimmedPaletteFiles;
 std::map<Palette*, std::map<LightingStruct, LightingPalette>> PalettesManager::CalculatedPaletteFilesNoRemap;
-std::vector<LightingPalette> PalettesManager::CalculatedObjectPaletteFiles;
+std::list<LightingPalette> PalettesManager::CalculatedObjectPaletteFiles;
 Palette* PalettesManager::CurrentIso;
 bool PalettesManager::NeedReloadLighting = false;
 
@@ -66,6 +66,36 @@ Palette* PalettesManager::LoadPalette(FString palname)
         }
         GameDelete(pBuffer);
         PalettesManager::OriginPaletteFiles[palname] = pPalette;
+        return pPalette;
+    }
+
+    return nullptr;
+}
+
+Palette* PalettesManager::LoadTiberiumCellAnimPalette(BGRStruct& color, FString palname)
+{
+    FString paltable;
+    paltable.Format("CellAnim%d%d%d", color.R, color.G, color.B);
+    auto itr = PalettesManager::OriginPaletteFiles.find(paltable);
+    if (itr != PalettesManager::OriginPaletteFiles.end())
+        return itr->second;
+    
+    if (auto pBuffer = (BytePalette*)CLoading::Instance->ReadWholeFile(palname))
+    {
+        auto pPalette = GameCreate<Palette>();
+        for (int i = 0; i < 256; ++i)
+        {
+            pPalette->Data[i].R = pBuffer->Data[i].red << 2;
+            pPalette->Data[i].G = pBuffer->Data[i].green << 2;
+            pPalette->Data[i].B = pBuffer->Data[i].blue << 2;
+        }
+        GameDelete(pBuffer);
+        PalettesManager::OriginPaletteFiles[palname] = pPalette;
+
+        LightingPalette p(*pPalette);
+        p.RemapColors(color);
+        *pPalette = *p.GetPalette();
+
         return pPalette;
     }
 
@@ -394,7 +424,7 @@ void LightingSourceTint::CalculateMapLamps()
                     ls.LightRedTint = Variables::RulesMap.GetSingle(ID, "LightRedTint", 1.0f);
                     ls.LightGreenTint = Variables::RulesMap.GetSingle(ID, "LightGreenTint", 1.0f);
                     ls.LightBlueTint = Variables::RulesMap.GetSingle(ID, "LightBlueTint", 1.0f);
-                    const int Index = CMapData::Instance->GetBuildingTypeID(ID);
+                    const int Index = CMapDataExt::GetBuildingTypeIndex(ID);
                     const int Y = atoi(atoms[3]);
                     const int X = atoi(atoms[4]);
                     const auto& DataExt = CMapDataExt::BuildingDataExts[Index];

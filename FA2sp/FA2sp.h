@@ -21,6 +21,8 @@ typedef unsigned char byte;
 #define VINIFERA_END 146
 #define ABOREUS_BEGIN 147
 #define ABOREUS_END 166
+#define OVRL_TRACK_BEGIN 39
+#define OVRL_TRACK_END 54
 
 class FA2sp
 {
@@ -47,7 +49,6 @@ public:
     static bool ObjectBrowser_CleanUp;
     static bool ObjectBrowser_SafeHouses;
     static bool ObjectBrowser_Foundation;
-    static bool LoadLunarWater;
     static bool LoadCivilianStringtable;
     static bool PasteShowOutlineDefault;
     static bool AllowIncludes;
@@ -183,12 +184,13 @@ public:
     static bool InGameDisplay_Bridge;
     static bool InGameDisplay_AnimAdjust;
     static bool InGameDisplay_Cloakable;
+    static bool ObjectBrowser_Ore_RandomPlacement;
+    static bool ObjectBrowser_Ore_ExtraSupport;
     static bool FlatToGroundHideExtra;
     static bool LightingPreview_MultUnitColor;
     static bool LightingPreview_TintTileSetBrowserView;
     static bool DDrawScalingBilinear;
     static bool DDrawScalingBilinear_OnlyShrink;
-    static bool LoadImageDataFromServer;
     static int DisplayTextSize;
     static int DistanceRuler_Records;
     static bool DisplayObjectsOutside;
@@ -203,6 +205,7 @@ public:
     static double AutoDarkMode_SwitchTimeA;
     static double AutoDarkMode_SwitchTimeB;
     static bool EnableDarkMode;
+    static bool EnableDarkMode_Init;
     static bool EnableDarkMode_DimMap;
     static bool ShrinkTilesInTileSetBrowser;
     static bool UTF8Support_InferEncoding;

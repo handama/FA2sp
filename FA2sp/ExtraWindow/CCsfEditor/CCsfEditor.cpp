@@ -49,7 +49,7 @@ void CCsfEditor::Create(CFinalSunDlg* pWnd)
 {
     HMODULE hModule = LoadLibrary(TEXT("Riched32.dll"));
     if (!hModule)
-        MessageBox(NULL, Translations::TranslateOrDefault("FailedLoadRiched32DLL", "Could not Load Riched32.dll£¡"), Translations::TranslateOrDefault("Error", "Error"), MB_ICONERROR);
+        MessageBox(NULL, Translations::TranslateOrDefault("FailedLoadRiched32DLL", "Could not Load Riched32.dll!"), Translations::TranslateOrDefault("Error", "Error"), MB_ICONERROR);
 
     m_parent = pWnd;
     m_hwnd = CreateDialog(

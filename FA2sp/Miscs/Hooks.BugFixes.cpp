@@ -46,23 +46,6 @@ DEFINE_HOOK(42700A, CFinalSunDlg_SaveMap_Extension, 9)
 	return 0x42708D;
 }
 
-// Extend Undo/Redo limit
-DEFINE_HOOK(4BBAB8, CMapData_SaveUndoRedoData_SizeLimit, 6)
-{
-	++CMapData::Instance->UndoRedoCurrentDataIndex;
-	++CMapData::Instance->UndoRedoDataCount;
-
-	R->ESI(CMapData::Instance->UndoRedoDataCount);
-
-	if (CMapData::Instance->UndoRedoDataCount <= ExtConfigs::UndoRedoLimit)
-		return 0x4BBBB7;
-
-	R->EDX(CMapData::Instance->UndoRedoData);
-	CMapData::Instance->UndoRedoDataCount = ExtConfigs::UndoRedoLimit;
-	CMapData::Instance->UndoRedoCurrentDataIndex = ExtConfigs::UndoRedoLimit - 1;
-	return 0x4BBAF7;
-}
-
 // Self explained nameing
 DEFINE_HOOK(421B70, CFinalSunApp_InitInstance_NoEasyViewExplain, 5)
 {
@@ -249,16 +232,6 @@ DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenodeAndTubeAndAn
 	CMapDataExt::UpdateAnnotation();
 
 	return 0;
-}
-
-DEFINE_HOOK(4FF70A, CTriggerEventsDlg_OnSelchangeParameter_FixFor23, 5)
-{
-	GET_STACK(ppmfc::CString, Code, STACK_OFFS(0xB0, 0x74));
-
-	if (atoi(Code) == 2)
-		return 0x4FF71B;
-
-	return 0x4FF71E;
 }
 
 // Rewrite SetOverlayAt to fix wrong credits on map bug

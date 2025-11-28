@@ -19,6 +19,7 @@
 #include "../CSearhReference/CSearhReference.h"
 #include "../CTriggerAnnotation/CTriggerAnnotation.h"
 #include "../CCsfEditor/CCsfEditor.h"
+#include "../CNewTeamTypes/CNewTeamTypes.h"
 
 HWND CNewTrigger::m_hwnd;
 CFinalSunDlg* CNewTrigger::m_parent;
@@ -88,7 +89,6 @@ WNDPROC CNewTrigger::OriginalListBoxProcEvent;
 WNDPROC CNewTrigger::OriginalListBoxProcAction;
 RECT CNewTrigger::rectComboLBox = { 0 };
 HWND CNewTrigger::hComboLBox = NULL;
-
 
 void CNewTrigger::Create(CFinalSunDlg* pWnd)
 {
@@ -250,7 +250,7 @@ void CNewTrigger::Update(HWND& hWnd)
 
     int idx = 0;
     while (SendMessage(hEventtype, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    if (auto pSection = fadata.GetSection("EventsRA2"))
+    if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("EventsRA2")))
     {
         for (auto& pair : pSection->GetEntities())
         {
@@ -266,7 +266,7 @@ void CNewTrigger::Update(HWND& hWnd)
     }
     idx = 0;
     while (SendMessage(hActiontype, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    if (auto pSection = fadata.GetSection("ActionsRA2"))
+    if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("ActionsRA2")))
     {
         for (auto& pair : pSection->GetEntities())
         {
@@ -495,6 +495,7 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
         case Controls::Name:
             if (CODE == EN_CHANGE && CurrentTrigger)
             {
+                CNewTeamTypes::TagListChanged = true;
                 char buffer[512]{ 0 };
                 GetWindowText(hName, buffer, 511);
                 FString name(buffer);
@@ -1174,7 +1175,7 @@ void CNewTrigger::OnSelchangeEventParam(int index, bool edited)
     if (!text)
         return;
 
-    FString::TrimIndex(text);
+    ExtraWindow::TrimStringIndex(text);
     if (text == "")
         text = "0";
 
@@ -1216,7 +1217,11 @@ void CNewTrigger::OnSelchangeActionParam(int index, bool edited)
     if (!text)
         return;
 
-    FString::TrimIndex(text);
+    if (CurrentTriggerActionParam == index)
+        FString::TrimIndex(text);
+    else
+        ExtraWindow::TrimStringIndex(text);
+
     if (text == "")
         text = "0";
 
@@ -1249,7 +1254,7 @@ void CNewTrigger::UpdateParamAffectedParam_Action(int index)
             auto& text = CurrentTrigger->Actions[SelectedActionIndex].Params[ActionParamsUsage[index].second];
             if (target.ParamMap.find(text) != target.ParamMap.end())
             {
-                auto paramType = FString::SplitString(CINI::FAData->GetString("ParamTypes", target.ParamMap[text]), 1);
+                auto paramType = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), target.ParamMap[text]), 1);
                 ExtraWindow::LoadParams(hActionParameter[target.AffectedParam], paramType[1]);
                 //SendMessage(hActionParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].m_pchData);
                 if (paramType[1] == "10") // stringtables
@@ -1291,7 +1296,7 @@ void CNewTrigger::UpdateParamAffectedParam_Event(int index)
             auto& text = CurrentTrigger->Events[SelectedEventIndex].Params[EventParamsUsage[index].second];
             if (target.ParamMap.find(text) != target.ParamMap.end())
             {
-                auto paramType = FString::SplitString(CINI::FAData->GetString("ParamTypes", target.ParamMap[text]), 1);
+                auto paramType = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), target.ParamMap[text]), 1);
                 ExtraWindow::LoadParams(hEventParameter[target.AffectedParam], paramType[1]);
                 //SendMessage(hEventParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].c_str());
                 ExtraWindow::AdjustDropdownWidth(hEventParameter[target.AffectedParam]);
@@ -1454,6 +1459,7 @@ void CNewTrigger::OnSeldropdownTrigger(HWND& hWnd)
 
 void CNewTrigger::OnClickNewTrigger()
 {
+    CNewTeamTypes::TagListChanged = true;
     FString id = CMapDataExt::GetAvailableIndex();
     FString value;
     FString house;
@@ -1505,6 +1511,7 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
 
     if (oriTagID != "<none>")
     {
+        CNewTeamTypes::TagListChanged = true;
         FString tagId = CMapDataExt::GetAvailableIndex();
         value.Format("%s,%s 1,%s", CurrentTrigger->RepeatType, newName, id);
         map.WriteString("Tags", tagId, value);
@@ -1545,6 +1552,9 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
                 }
                 for (auto& tag : TagsToRemove)
                     map.DeleteKey("Tags", tag);
+
+                if (!TagsToRemove.empty())
+                    CNewTeamTypes::TagListChanged = true;
 
                 if (auto pCellTagsSection = map.GetSection("CellTags"))
                 {
@@ -1824,7 +1834,7 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
         SendMessage(hEventList, LB_SETCURSEL, SelectedEventIndex, NULL);
     }
         
-    auto eventInfos = FString::SplitString(fadata.GetString("EventsRA2", thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
+    auto eventInfos = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
 
     SendMessage(hEventDescription, WM_SETTEXT, 0, (LPARAM)STDHelpers::ReplaceSpeicalString(eventInfos[5]).m_pchData);
 
@@ -1842,8 +1852,8 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
     paramType[0] =  eventInfos[1];
     paramType[1] =  eventInfos[2];
     std::vector<FString> pParamTypes[2]; 
-    pParamTypes[0] = FString::SplitString(fadata.GetString("ParamTypes", paramType[0], "MISSING,0"));
-    pParamTypes[1] = FString::SplitString(fadata.GetString("ParamTypes", paramType[1], "MISSING,0"));
+    pParamTypes[0] = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[0], "MISSING,0"));
+    pParamTypes[1] = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[1], "MISSING,0"));
     FString code = "0";
     if (pParamTypes[0].size() == 3) code = pParamTypes[0][2];
     int paramIdx[2];
@@ -1961,7 +1971,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
         SendMessage(hActionList, LB_INSERTSTRING, SelectedActionIndex, (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(thisAction.ActionNum, SelectedActionIndex));
         SendMessage(hActionList, LB_SETCURSEL, SelectedActionIndex, NULL);
     }
-    auto actionInfos = FString::SplitString(fadata.GetString("ActionsRA2", thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
+    auto actionInfos = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
 
     SendMessage(hActionDescription, WM_SETTEXT, 0, (LPARAM)FString::ReplaceSpeicalString(actionInfos[10]).c_str());
 
@@ -1980,7 +1990,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
 
     std::vector<FString> pParamTypes[7];
     for (int i = 0; i < 7; i++)
-        pParamTypes[i] = FString::SplitString(fadata.GetString("ParamTypes", paramType[i], "MISSING,0"));
+        pParamTypes[i] = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[i], "MISSING,0"));
 
     int paramIdx[7];
     for (int i = 0; i < 7; i++)
@@ -2058,8 +2068,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
                 else if (pParamTypes[ActionParamsUsage[i].second][1] == "9") // triggers
                 {
                     CurrentTriggerActionParam = i;
-                }
-                    
+                }                    
             }
             else
             {
@@ -2156,7 +2165,7 @@ void CNewTrigger::OnDropdownCComboBox(int index)
 
         FString text(buffer);
         text.Replace(",", "");
-        FString::TrimIndex(text);
+        ExtraWindow::TrimStringIndex(text);
         text.MakeLower();
         CCsfEditor::CurrentSelectedCSF = text.c_str();
 

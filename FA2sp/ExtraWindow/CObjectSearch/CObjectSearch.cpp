@@ -311,19 +311,36 @@ void CObjectSearch::ListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam)
     {
         HWND hParent = m_parent->DialogBar.GetSafeHwnd();
         HWND hTileComboBox = GetDlgItem(hParent, 1366);
+        HWND hOverlayComboBox = GetDlgItem(hParent, 1367);
 
         switch (nCode)
         {
         case LBN_SELCHANGE:
         case LBN_DBLCLK:
-            SendMessage(
-                hTileComboBox,
-                CB_SETCURSEL,
-                CObjectSearch::ListBox_Tile[SendMessage(hListBox, LB_GETCURSEL, NULL, NULL)],
-                NULL
-            );
-            SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1366, CBN_SELCHANGE), (LPARAM)hTileComboBox);
+        {
+            int index = CObjectSearch::ListBox_Tile[SendMessage(hListBox, LB_GETCURSEL, NULL, NULL)];
+            if (index >= 10000)
+            {
+                SendMessage(
+                    hOverlayComboBox,
+                    CB_SETCURSEL,
+                    index / 10000,
+                    NULL
+                );
+                SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1367, CBN_SELCHANGE), (LPARAM)hOverlayComboBox);
+            }
+            else
+            {
+                SendMessage(
+                    hTileComboBox,
+                    CB_SETCURSEL,
+                    index,
+                    NULL
+                );
+                SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1366, CBN_SELCHANGE), (LPARAM)hTileComboBox);
+            }
             break;
+        }
         default:
             break;
         }
@@ -579,15 +596,30 @@ void CObjectSearch::OnSearchButtonUp(HWND hWnd)
 
         if (CObjectSearch::ListBox_Tile.size() == 1)
         {
+            int index = CObjectSearch::ListBox_Tile[0];
             HWND hParent = m_parent->DialogBar.GetSafeHwnd();
             HWND hTileComboBox = GetDlgItem(hParent, 1366);
-            SendMessage(
-                hTileComboBox,
-                CB_SETCURSEL,
-                CObjectSearch::ListBox_Tile[0],
-                NULL
-            );
-            SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1366, CBN_SELCHANGE), (LPARAM)hTileComboBox);
+            HWND hOverlayComboBox = GetDlgItem(hParent, 1367);
+            if (index >= 10000)
+            {
+                SendMessage(
+                    hOverlayComboBox,
+                    CB_SETCURSEL,
+                    index / 10000,
+                    NULL
+                );
+                SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1367, CBN_SELCHANGE), (LPARAM)hOverlayComboBox);
+            }
+            else
+            {
+                SendMessage(
+                    hTileComboBox,
+                    CB_SETCURSEL,
+                    index,
+                    NULL
+                );
+                SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1366, CBN_SELCHANGE), (LPARAM)hTileComboBox);
+            }
         }
     }
     else if (CObjectSearch::bMap)
@@ -1560,9 +1592,7 @@ void CObjectSearch::UpdateDetailsTreeView(HWND hWnd, TVITEMA tvi)
 }
 void CObjectSearch::UpdateDetailsTile(HWND hWnd, int index)
 {
-
     HWND hDetails = GetDlgItem(hWnd, Controls::ListBox);
-
     FString text = CObjectSearch::Datas[index];
 
     SendMessage(
@@ -1571,7 +1601,6 @@ void CObjectSearch::UpdateDetailsTile(HWND hWnd, int index)
         SendMessage(hDetails, LB_INSERTSTRING, CObjectSearch::ListBoxIndex, (LPARAM)(LPCSTR)text),
         0
     );
-
 
     CObjectSearch::ListBox_Tile.push_back(index);
     CObjectSearch::ListBoxIndex++;
@@ -1630,6 +1659,21 @@ void CObjectSearch::UpdateTypes(HWND hWnd)
         FString tmp = tile;
         tile.Format("(%04d) %s", nTile, tmp);
         CObjectSearch::Datas[idx] = tile;
+    }
+
+    HWND hOverlayComboBox = GetDlgItem(hParent, 1367);
+    int nOverlayCount = SendMessage(hOverlayComboBox, CB_GETCOUNT, NULL, NULL);
+    if (nOverlayCount <= 0)
+        return;
+
+    FString overlay;
+    for (int idx = 0; idx < nOverlayCount; ++idx)
+    {
+        int nOverlay = SendMessage(hOverlayComboBox, CB_GETITEMDATA, idx, NULL);
+        auto value = Variables::RulesMap.GetValueAt("OverlayTypes", nOverlay);
+        auto name = StringtableLoader::QueryUIName(value, true);
+        overlay.Format("(%04d) %s", nOverlay, name);
+        CObjectSearch::Datas[idx * 10000] = overlay;
     }
 }
 

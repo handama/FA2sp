@@ -1,7 +1,10 @@
 #pragma once
 
 #include "FA2PP.h"
+#include "FAMemory.h"
+#include <map>
 class FString;
+class CINI;
 
 // FinalAlert.ini
 class FinalAlertConfig
@@ -22,12 +25,16 @@ public:
     static void TranslateItem(CWnd* pWnd, const char* lpKey);
     static void TranslateItem(ppmfc::CWnd* pWnd, int nSubID, const char* lpKey) { TranslateItem((CWnd*)pWnd, nSubID, lpKey); }
     static void TranslateItem(ppmfc::CWnd* pWnd, const char* lpKey) { TranslateItem((CWnd*)pWnd, lpKey); };
-    static const char* TranslateStringVariables(int n, const char* originaltext, const char* inserttext);
+    static void TranslateDialog(HWND hWnd);
+    static void TranslateStringVariables(int n, FString& text, const char* inserttext);
     static void TranslateStringVariables(int n, ppmfc::CString& text, const char* inserttext);
     static const char* TranslateOrDefault(const char* lpLabelName, const char* lpDefault);
     static ppmfc::CString TranslateTileSet(int index);
     static FString ParseHouseName(FString src, bool IDToUIName);
     static char pLanguage[4][0x400];
     static ppmfc::CString CurrentTileSet;
+    static std::map<HWND, int> DlgIdMap;
+    static std::map<UINT, FString> StringTable;
+    static std::unique_ptr<CINI, GameUniqueDeleter<CINI>> FADialog;
 };
 

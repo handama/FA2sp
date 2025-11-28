@@ -1,7 +1,6 @@
 #include "STDHelpers.h"
 #include <iostream>
 #include <vector>
-#include <random>
 #include "../Logger.h"
 #include "../Ext/CFinalSunDlg/Body.h"
 #include "../FA2sp.h"
@@ -54,6 +53,20 @@ int STDHelpers::RandomSelectInt(std::vector<int>& vec, bool record, int thisCT) 
     }
 
     return vec[index];
+}
+
+int STDHelpers::RandomSelectInt(std::set<int>& s) {
+    if (s.empty()) {
+        return 0;
+    }
+
+    static std::mt19937 gen(std::random_device{}());
+    std::uniform_int_distribution<size_t> dist(0, s.size() - 1);
+
+    size_t index = dist(gen);
+    auto it = s.begin();
+    std::advance(it, index);
+    return *it;
 }
 
 int STDHelpers::RandomSelectInt(int start, int end)
@@ -435,13 +448,23 @@ std::wstring STDHelpers::StringToWString(const std::string& str)
     return wstr;
 }
 
-bool STDHelpers::isUTF8(const uint8_t* data, size_t size) {
+void STDHelpers::WStringReplace(std::wstring& str, const std::wstring& oldStr, const std::wstring& newStr)
+{
+    if (oldStr.empty()) return;
+    size_t pos = 0;
+    while ((pos = str.find(oldStr, pos)) != std::wstring::npos) {
+        str.replace(pos, oldStr.length(), newStr);
+        pos += newStr.length();
+    }
+}
+
+FileEncoding STDHelpers::GetFileEncoding(const uint8_t* data, size_t size) {
     if (!data || size == 0)
-        return false;
+        return FileEncoding::ANSI;
 
     // --- UTF-8 BOM ---
     if (size >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF)
-        return true;
+        return FileEncoding::UTF8_BOM;
 
     bool allAscii = true;
     size_t i = 0;
@@ -457,36 +480,36 @@ bool STDHelpers::isUTF8(const uint8_t* data, size_t size) {
         allAscii = false; 
 
         if ((c & 0xE0) == 0xC0) {
-            if (i + 1 >= size) return false;
-            if ((data[i + 1] & 0xC0) != 0x80) return false;
-            if (c == 0xC0 || c == 0xC1) return false; // overlong
+            if (i + 1 >= size) return FileEncoding::ANSI;
+            if ((data[i + 1] & 0xC0) != 0x80) return FileEncoding::ANSI;
+            if (c == 0xC0 || c == 0xC1) return FileEncoding::ANSI; // overlong
             i += 2;
         }
         else if ((c & 0xF0) == 0xE0) {
-            if (i + 2 >= size) return false;
-            if ((data[i + 1] & 0xC0) != 0x80 || (data[i + 2] & 0xC0) != 0x80) return false;
-            if (c == 0xE0 && (data[i + 1] & 0xE0) == 0x80) return false; // overlong
-            if (c == 0xED && (data[i + 1] & 0xE0) == 0xA0) return false; // surrogate
+            if (i + 2 >= size) return FileEncoding::ANSI;
+            if ((data[i + 1] & 0xC0) != 0x80 || (data[i + 2] & 0xC0) != 0x80) return FileEncoding::ANSI;
+            if (c == 0xE0 && (data[i + 1] & 0xE0) == 0x80) return FileEncoding::ANSI; // overlong
+            if (c == 0xED && (data[i + 1] & 0xE0) == 0xA0) return FileEncoding::ANSI; // surrogate
             i += 3;
         }
         else if ((c & 0xF8) == 0xF0) {
-            if (i + 3 >= size) return false;
+            if (i + 3 >= size) return FileEncoding::ANSI;
             if ((data[i + 1] & 0xC0) != 0x80 ||
                 (data[i + 2] & 0xC0) != 0x80 ||
                 (data[i + 3] & 0xC0) != 0x80)
-                return false;
-            if (c == 0xF0 && (data[i + 1] & 0xF0) == 0x80) return false;
-            if (c > 0xF4 || (c == 0xF4 && data[i + 1] > 0x8F)) return false;
+                return FileEncoding::ANSI;
+            if (c == 0xF0 && (data[i + 1] & 0xF0) == 0x80) return FileEncoding::ANSI;
+            if (c > 0xF4 || (c == 0xF4 && data[i + 1] > 0x8F)) return FileEncoding::ANSI;
             i += 4;
         }
         else {
-            return false;
+            return FileEncoding::ANSI;
         }
     }
 
     // label ASCII as ANSI
     if (allAscii)
-        return false; 
+        return FileEncoding::UTF8_ASCII;
 
-    return true;
+    return FileEncoding::UTF8;
 }

@@ -34,7 +34,11 @@ struct BuildingPowers
 struct OverlayTypeData
 {
     bool Rock;
+    bool Crate;
+    bool Veins;
     bool Wall;
+    bool Tiberium;
+    bool Rubble;
     bool TerrainRock;
     bool RailRoad;
     FString CustomPaletteName;
@@ -93,6 +97,7 @@ struct BuildingDataExt
     std::vector<MapCoord>* Foundations{ nullptr };
     std::vector<std::pair<MapCoord, MapCoord>>* LinesToDraw{ nullptr };
     std::vector<POINT> DamageFireOffsets;
+    std::vector<MapCoord> BottomCoords;
 };
 
 struct BuildingRenderData
@@ -215,6 +220,30 @@ struct CellDataExt
     bool HasAnnotation = false;
 
     int RecordMinimapUpdateIndex[3] = { -1 } ;
+
+    struct BuildingRenderPart
+    {
+        short Index;
+        short Part;
+        int DrawX;
+        int DrawY;
+        int INIIndex;
+        int Status;
+        ImageDataClassSafe* pData;
+        Palette* pPal;
+    };
+    struct BaseNodeRenderPart
+    {
+        short Part;
+        int DrawX;
+        int DrawY;
+        int INIIndex;
+        ImageDataClassSafe* pData;
+        Palette* pPal;
+        BaseNodeDataExt* Data;
+    };
+    std::vector<BuildingRenderPart> BuildingRenderParts;
+    std::vector<BaseNodeRenderPart> BaseNodeRenderParts;
 };
 
 class HistoryRecord {
@@ -397,7 +426,9 @@ public:
     void SetHeightAt(int X, int Y, int height);
 
     //void InitializeBuildingTypesExt(const char* ID);
-    static void InitializeAllHdmEdition(bool updateMinimap = true, bool reloadCellDataExt = true);
+    static void InitializeAllHdmEdition(bool updateMinimap = true,
+        bool reloadCellDataExt = true,
+        bool reloadImages = true);
     static void InitializeTileData();
     static void UpdateTriggers();
     static FString AddTrigger(std::shared_ptr<Trigger> trigger);
@@ -411,6 +442,7 @@ public:
 
     static unsigned short CurrentRenderBuildingStrength;
     static std::unordered_map<int, BuildingDataExt> BuildingDataExts;
+    static std::unordered_map<FString, int> BuildingTypes;
     static std::vector<BuildingRenderData> BuildingRenderDatasFix;
     static std::vector<OverlayTypeData> OverlayTypeDatas;
     static void UpdateFieldStructureData_Optimized();
@@ -494,6 +526,8 @@ public:
     std::unique_ptr<TerrainRecord> MakeTerrainRecord(int left, int top, int right, int bottom);
     static ObjectRecord* MakeObjectRecord(int recordType, bool recordOnce = false);
     static void MakeMixedRecord(int left, int top, int right, int bottom, int recordType);
+    static void MakePreviewRecord(int left, int top, int right, int bottom);
+    static void RestorePreviewRecord();
 
     static void UpdateFieldStructureData_RedrawMinimap();
     static void UpdateFieldUnitData_RedrawMinimap();
@@ -501,6 +535,7 @@ public:
     static void UpdateFieldAircraftData_RedrawMinimap();
 
     static int GetPlayerLocationCountAtCell(int x, int y);
+    static int GetBuildingTypeIndex(const FString& ID);
 
     static int OreValue[4];
     static std::vector<std::vector<int>> Tile_to_lat;
@@ -551,10 +586,13 @@ public:
     static int NewINIFormat;
     static WORD NewOverlay[0x40000];
     static HistoryList UndoRedoDatas;
+    static HistoryList PreviewHistoryData;
+    static bool RecordingPreviewHistory;
     static int UndoRedoDataIndex;
     static bool IsLoadingMapFile;
     static bool IsMMXFile;
     static bool IsUTF8File;
+    static bool SkipBuildingOverlappingCheck;
     static std::vector<FString> MapIniSectionSorting;
     static std::map<FString, std::set<FString>> PowersUpBuildings;
 };

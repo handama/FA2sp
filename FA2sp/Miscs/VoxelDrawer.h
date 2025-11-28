@@ -20,8 +20,10 @@ public:
     static bool LoadVXLFile(FString name);
     static bool LoadHVAFile(FString name);
     static bool GetImageData(unsigned int nFacing, unsigned char*& pBuffer,
-        int& width, int& height, int& x, int& y, const int F = 0, const int L = 0, const int H = 0, bool Shadow = false);
+        int& width, int& height, int& x, int& y, const int F = 0, const int L = 0, const int H = 0,
+        bool Shadow = false, int fireAngle = 0);
     static bool GetImageData(unsigned int nFacing, unsigned char*& pBuffer,
-        VoxelRectangle& rect, const int F = 0, const int L = 0, const int H = 0, bool Shadow = false);
+        VoxelRectangle& rect, const int F = 0, const int L = 0, const int H = 0,
+        bool Shadow = false, int fireAngle = 0);
     static bool IsVPLLoaded();
 };

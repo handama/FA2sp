@@ -119,11 +119,14 @@ public:
     void DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORREF color, bool bUseDot, HDC hdc, HWND hwnd, bool s1 = true, bool s2 = true, bool s3 = true, bool s4 = true);
     void DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor);
     static int GetSelectedSubcellInfantryIdx(int X = -1, int Y = -1, bool getSubcell = false);
-    static void FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY, std::set<MapCoord>* = nullptr);
+    static void FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY);
+    static void GetSameConnectedCells(int X, int Y, int oriX, int oriY, std::set<MapCoord>* selectedCoords = nullptr);
     static IDirectDrawSurface7* BitmapToSurface(IDirectDraw7* pDD, const CBitmap& bitmap);
     static void BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int width = -1, int height = -1, BYTE alpha = 255, LPDIRECTDRAWSURFACE7 surface = nullptr);
     static void BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURFACE7 surface, DDSURFACEDESC2* pDestDesc,
         int x, int y, int width = -1, int height = -1, BYTE alpha = 255);
+    static void BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURFACE7 surface, DDSURFACEDESC2* pDestDesc,
+        DDSURFACEDESC2& srcDesc, DDCOLORKEY& srcColorKey, int x, int y, int width = -1, int height = -1, BYTE alpha = 255);
     static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1);
     static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1);
     static void BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
@@ -136,18 +139,23 @@ public:
     static void BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd);
     static void BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
-        const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha = 255);
+        const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha = 255,
+        std::vector<byte>* mask = nullptr, std::vector<byte>* heightMask = nullptr, byte height = 0,
+        std::vector<byte>* cellHeightMask = nullptr);
     static void BlitText(const std::wstring& text, COLORREF textColor, COLORREF bgColor,
         CIsoView* pThis, void* dst, const RECT& window, const DDBoundary& boundary,
         int x, int y, int fontSize = 20, BYTE alpha = 255, bool bold = false);
-    static void MaskShadowPixels(const RECT& window, int x, int y, ImageDataClassSafe* pd, std::vector<char>& mask);
-    static void DrawShadowMask(void* dst, const DDBoundary& boundary, const RECT& window, const std::vector<byte>& mask);
+    static void MaskShadowPixels(const RECT& window, int x, int y, ImageDataClassSafe* pd,
+        std::vector<char>& mask, std::vector<byte>& heightMask, byte height);
+    static void DrawShadowMask(void* dst, const DDBoundary& boundary, const RECT& window, 
+        const std::vector<byte>& mask, const std::vector<byte>& shadowHeightMask, const std::vector<byte>& cellHeightMask);
     static void ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, bool removeHalo = true, bool trim = true);
     static std::vector<MapCoord> GetTubePath(int x1, int y1, int x2, int y2, bool first = true);
     static std::vector<int> GetTubeDirections(const std::vector<MapCoord>& path);
     static std::vector<MapCoord> GetPathFromDirections(int x0, int y0, const std::vector<int>& directions);
     static RECT GetScaledWindowRect();
     static void ReduceBrightness(IDirectDrawSurface7* pSurface, const RECT& rc);
+    static int GetRandomTileIndex();
 
     // flatMode 0 = auto, 1 = flat, 2 = height
     static void MapCoord2ScreenCoord(int& X, int& Y, int flatMode = 0);
@@ -170,6 +178,9 @@ public:
     static void InitAlphaTable();
     static void InitGdiplus();
     static bool BlitDDSurfaceRectToBitmap(HDC hDC, const DDBoundary& boundary, const RECT& srcRect, int dstX, int dstY);
+    static int GetOverlayDrawOffset(WORD nOverlay, BYTE nOverlayData = 0);
+    static void SetStatusBarText(const char* text);
+
     static Bitmap* pFullBitmap;
     static bool DrawStructures;
     static bool DrawInfantries;
@@ -213,10 +224,11 @@ public:
     static bool RenderFullMap;
     static bool RenderCurrentLayers;
     static bool RenderTileSuccess;
-    static bool RenderInvisibleOverlays;
+    static bool RenderInvisibleInGame;
     static bool RenderEmphasizeOres;
     static bool RenderMarkStartings;
     static bool RenderIgnoreObjects;
+    static bool RenderSaveAsPNG;
     static RendererLighting RenderLighing;
 
     static bool AutoPropertyBrush[4];
@@ -248,6 +260,7 @@ public:
 
     static std::vector<MapCoord> DistanceRuler;
     static bool EnableDistanceRuler;
+    static bool ReInitializingDDraw;
 
     static bool CliffBackAlt;
     static bool HistoryRecord_IsHoldingLButton;

@@ -283,8 +283,6 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
                         CMapDataExt::CellDataExts[getPos(X + 1, Y)].AroundHighBridge = true;
                     }
                 }
-
-
             }
 
             int index = 0;
@@ -337,21 +335,7 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
                                 color = RGB(107, 109, 107);
 
                             int type = cell.TerrainType;
-                            std::string name;
-                            if (auto pTerrain = CINI::Rules().GetSection("TerrainTypes"))
-                            {
-                                int index = 0;
-                                for (auto& pT : pTerrain->GetEntities())
-                                {
-                                    if (index == type)
-                                    {
-                                        name = pT.second;
-                                        break;
-                                    }
-
-                                    index++;
-                                }
-                            }
+                            std::string name = Variables::RulesMap.GetValueAt("TerrainTypes", type).m_pchData;
                             if (!name.empty())
                             {
                                 if (name.find("TREE") != std::string::npos)
@@ -372,16 +356,8 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
                                 auto atoms = STDHelpers::SplitString(pStr, 1);
                                 auto& name = atoms[1];
 
-                                if (auto pSection2 = CINI::FAData->GetSection("NeuralTechStructure"))
-                                {
-                                    for (auto& nameL : pSection2->GetEntities())
-                                        if (nameL.second == name)
-                                        {
-                                            color = RGB(215, 215, 215);
-                                            break;
-                                        }
-                                            
-                                }
+                                if (Variables::RulesMap.GetBool(name,"NeedsEngineer"))
+                                    color = RGB(215, 215, 215); 
                             }
 
                             LightingStruct ret;
@@ -493,16 +469,16 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
         {
             comments += "; ";
             if (saveAsUTF8)
-                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1_UTF8", "本文件编码为 UTF8，请使用此格式打开");
+                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1_UTF8", "This file is encoded as UTF8, please open it in this format");
             else
-                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1", "本文件编码为 ANSI/GBK，请使用此格式打开");
+                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1", "This file is encoded as ANSI/GBK, please open it in this format");
 
             comments += "\n";
             comments += "; ";
-            comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment2", "Warning: If the first line appears as gibberish");
+            comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment2", "If non ASCII characters (such as Chinese) are used");
             comments += "\n";
             comments += "; ";
-            comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment3", "and Chinese characters are used, DO NOT modify this file");
+            comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment3", "modifying the file with incorrect encoding will result in garbled characters");
             comments += "\n";
             comments += "\n";
         }
@@ -935,6 +911,12 @@ void SaveMapExt::RemoveEarlySaves()
 
 void CALLBACK SaveMapExt::SaveMapCallback(HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime)
 {
+    if (!ExtConfigs::SaveMap_AutoSave)
+    {
+        StopTimer();
+        return;
+    }
+
     Logger::Debug("SaveMapCallback called, trying to auto save map. hwnd = %08X, message = %d, iTimerID = %d, dwTime = %d.\n",
         (int)hwnd, message, iTimerID, dwTime);
 
@@ -1000,7 +982,6 @@ void CALLBACK SaveMapExt::SaveMapCallback(HWND hwnd, UINT message, UINT iTimerID
 
 bool SaveMapExt::IsAutoSaving = false;
 UINT_PTR SaveMapExt::Timer = NULL;
-
 
 DEFINE_HOOK(426E50, CFinalSunDlg_SaveMap_AutoSave_StopTimer, 7)
 {

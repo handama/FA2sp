@@ -21,6 +21,7 @@
 #include "../Helpers/STDHelpers.h"
 #include "../Helpers/Translations.h"
 #include "Palettes.h"
+#include <stack>
 
 std::set<MapCoord> MultiSelection::SelectedCoords;
 MapCoord MultiSelection::LastAddedCoord;
@@ -100,34 +101,38 @@ bool MultiSelection::IsSelected(int X, int Y)
     return SelectedCoords.find(MapCoord{ X,Y }) != SelectedCoords.end();
 }
 
-void MultiSelection::FindConnectedTiles(std::unordered_set<int>& process, int startX, int startY,
-    std::unordered_set<int>& tileSet, bool firstRun)
+void MultiSelection::FindConnectedTiles(
+    std::unordered_set<int>& process,
+    int startX,
+    int startY,
+    std::unordered_set<int>& tileSet,
+    bool firstRun)
 {
-    const auto cell = CMapData::Instance->GetCellAt(startX, startY);
-    int ground = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+    const auto startCell = CMapData::Instance->GetCellAt(startX, startY);
+    int ground = CMapDataExt::GetSafeTileIndex(startCell->TileIndex);
 
     if (firstRun)
     {
         if (ground >= CMapDataExt::TileDataCount)
             return;
+
         tileSet.insert(CMapDataExt::TileData[ground].TileSet);
+
         if (dlg.ConsiderLAT)
         {
             for (int latidx = 0; latidx < CMapDataExt::Tile_to_lat.size(); ++latidx)
             {
                 int& iSmoothSet = CMapDataExt::Tile_to_lat[latidx][0];
                 int& iLatSet = CMapDataExt::Tile_to_lat[latidx][1];
+
                 if (iSmoothSet == *tileSet.begin())
-                {
                     tileSet.insert(iLatSet);
-                }
                 else if (iLatSet == *tileSet.begin())
-                {
                     tileSet.insert(iSmoothSet);
-                }
             }
         }
-        if (!dlg.Connected)
+
+        if (!dlg.Connected4 && !dlg.Connected8)
         {
             for (int j = 0; j < CMapData::Instance->CellDataCount; j++) {
                 int x = CMapData::Instance->GetXFromCoordIndex(j);
@@ -140,40 +145,72 @@ void MultiSelection::FindConnectedTiles(std::unordered_set<int>& process, int st
                     continue;
                 if (dlg.SameTileSet && tileSet.find(CMapDataExt::TileData[scGround].TileSet) == tileSet.end())
                     continue;
-                if (dlg.SameHeight && scCell->Height != cell->Height)
+                if (dlg.SameHeight && scCell->Height != startCell->Height)
                     continue;
-                if (dlg.SameBaiscHeight && cell->Height - CMapDataExt::TileData[ground].TileBlockDatas[cell->TileSubIndex].Height
+                if (dlg.SameBaiscHeight &&
+                    startCell->Height - CMapDataExt::TileData[ground].TileBlockDatas[startCell->TileSubIndex].Height
                     != scCell->Height - CMapDataExt::TileData[scGround].TileBlockDatas[scCell->TileSubIndex].Height)
                     continue;
+
                 process.insert(j);
             }
             return;
         }
     }
 
-    const int loop[5][2] = { {0, 0},{0, -1},{0, 1},{1, 0},{-1, 0} };
-    for (auto pair : loop)
+    const int loop4[5][2] = { {0, 0},{0, -1},{0, 1},{1, 0},{-1, 0} };
+    const int loop8[9][2] = { {0, 0},{0, -1},{0, 1},{1, 0},{-1, 0},{-1, -1},{1, 1},{1, -1},{-1, 1} };
+
+    const int (*dirs)[2] = dlg.Connected8 ? loop8 : loop4;
+    int dirsCount = dlg.Connected8 ? 9 : 5;
+
+    std::stack<std::pair<int, int>> st;
+    st.push({ startX, startY });
+    process.insert(startX + startY * CMapData::Instance->MapWidthPlusHeight);
+
+    while (!st.empty())
     {
-        int newX = pair[0] + startX;
-        int newY = pair[1] + startY;
-        if (!CMapData::Instance->IsCoordInMap(newX, newY)) continue;
-        int pos = newX + newY * CMapData::Instance->MapWidthPlusHeight;
-        if (process.find(pos) != process.end())
+        auto [curX, curY] = st.top();
+        st.pop();
+
+        const auto baseCell = CMapData::Instance->GetCellAt(curX, curY);
+        int baseGround = CMapDataExt::GetSafeTileIndex(baseCell->TileIndex);
+        if (baseGround >= CMapDataExt::TileDataCount)
             continue;
-        auto scCell = CMapData::Instance->GetCellAt(pos);
-        int scGround = CMapDataExt::GetSafeTileIndex(scCell->TileIndex);
-        if (scGround >= CMapDataExt::TileDataCount)
-            continue;
-        if (dlg.SameTileSet && tileSet.find(CMapDataExt::TileData[scGround].TileSet) == tileSet.end())
-            continue;
-        if (dlg.SameHeight && scCell->Height != cell->Height)
-            continue;
-        if (dlg.SameBaiscHeight && cell->Height - CMapDataExt::TileData[ground].TileBlockDatas[cell->TileSubIndex].Height
-            != scCell->Height - CMapDataExt::TileData[scGround].TileBlockDatas[scCell->TileSubIndex].Height)
-            continue;
-        
-        process.insert(pos);
-        FindConnectedTiles(process, newX, newY, tileSet, false);
+
+        for (int i = 0; i < dirsCount; i++)
+        {
+            int newX = curX + dirs[i][0];
+            int newY = curY + dirs[i][1];
+
+            if (!CMapData::Instance->IsCoordInMap(newX, newY))
+                continue;
+
+            int pos = newX + newY * CMapData::Instance->MapWidthPlusHeight;
+            if (process.find(pos) != process.end())
+                continue;
+
+            auto scCell = CMapData::Instance->GetCellAt(pos);
+            int scGround = CMapDataExt::GetSafeTileIndex(scCell->TileIndex);
+            if (scGround >= CMapDataExt::TileDataCount)
+                continue;
+
+            if (dlg.SameTileSet &&
+                tileSet.find(CMapDataExt::TileData[scGround].TileSet) == tileSet.end())
+                continue;
+
+            if (dlg.SameHeight &&
+                scCell->Height != startCell->Height)
+                continue;
+
+            if (dlg.SameBaiscHeight &&
+                startCell->Height - CMapDataExt::TileData[ground].TileBlockDatas[startCell->TileSubIndex].Height
+                != scCell->Height - CMapDataExt::TileData[scGround].TileBlockDatas[scCell->TileSubIndex].Height)
+                continue;
+
+            process.insert(pos);
+            st.push({ newX, newY });
+        }
     }
 }
 

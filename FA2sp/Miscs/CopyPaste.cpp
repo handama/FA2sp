@@ -15,6 +15,7 @@
 std::set<MapCoord> CopyPaste::PastedCoords;
 bool CopyPaste::CopyWholeMap = false;
 bool CopyPaste::OnLButtonDownPasted = false;
+bool CopyPaste::IsCutting = false;
 std::vector<TileRule> CopyPaste::TileConvertRules;
 
 const char* CopyPaste::GetString(const MyClipboardData& cell, const StringField& field, MyClipboardData* pBufferBase)
@@ -130,6 +131,7 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
         data.push_back(item);
     }
 
+    int realLowest = lowest;
     lowest -= relativeHeight;
     highest -= relativeHeight;
     while (lowest < 0) {
@@ -207,9 +209,63 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
         MessageBox(NULL, "Failed to set clipboard data", "Error", 0);
     }
     CloseClipboard();
+
+    if (IsCutting)
+    {
+        RECT bounds
+        {
+            std::numeric_limits<LONG>::max(),
+            std::numeric_limits<LONG>::max(),
+            std::numeric_limits<LONG>::min(),
+            std::numeric_limits<LONG>::min()
+        };
+        for (const auto& cell : coords)
+        {
+            bounds.left = std::min<LONG>(bounds.left, cell.X);
+            bounds.right = std::max<LONG>(bounds.right, cell.X);
+            bounds.top = std::min<LONG>(bounds.top, cell.Y);
+            bounds.bottom = std::max<LONG>(bounds.bottom, cell.Y);
+        }
+
+        ObjectRecord::RecordType all = static_cast<ObjectRecord::RecordType>(
+            ObjectRecord::Building | ObjectRecord::Unit | ObjectRecord::Aircraft | ObjectRecord::Infantry |
+            ObjectRecord::Terrain | ObjectRecord::Smudge
+            );
+        CMapDataExt::MakeMixedRecord(bounds.left, bounds.top,
+            bounds.right + 2, bounds.bottom + 2, all);
+
+        for (const auto& cell : coords)
+        {
+            auto nIndex = CMapData::Instance->GetCoordIndex(cell.X, cell.Y);
+            auto pCell = CMapData::Instance->GetCellAt(nIndex);
+
+            if (CIsoViewExt::PasteInfantries)
+                for (int subpos = 0; subpos < 3; subpos++)
+                    if (pCell->Infantry[subpos] != -1)
+                        CMapData::Instance->DeleteInfantryData(pCell->Infantry[subpos]);
+            if (CIsoViewExt::PasteUnits && pCell->Unit != -1)
+                CMapData::Instance->DeleteUnitData(pCell->Unit);
+            if (CIsoViewExt::PasteAircrafts && pCell->Aircraft != -1)
+                CMapData::Instance->DeleteAircraftData(pCell->Aircraft);
+            if (CIsoViewExt::PasteStructures && pCell->Structure != -1)
+                CMapData::Instance->DeleteBuildingData(pCell->Structure);
+            if (CIsoViewExt::PasteTerrains && pCell->Terrain != -1)
+                CMapData::Instance->DeleteTerrainData(pCell->Terrain);
+            if (CIsoViewExt::PasteSmudges && pCell->Smudge != -1)
+                CMapData::Instance->DeleteSmudgeData(pCell->Smudge);
+            if (CIsoViewExt::PasteOverlays)
+                CMapDataExt::GetExtension()->SetNewOverlayAt(nIndex, 0xFFFF);
+            if (CIsoViewExt::PasteGround)
+            {
+                CMapDataExt::GetExtension()->PlaceTileAt(cell.X, cell.Y, 0, 3);
+                pCell->Height = (cell.X, cell.Y, realLowest);
+            }
+        }
+        CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
 }
 
-void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size_t length, int recordType)
+void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size_t length, int recordType, std::set<MapCoord>* validCoords)
 {
     CopyPaste::PastedCoords.clear();
     if (X < 0 || Y < 0 || X > CMapData::Instance().MapWidthPlusHeight || Y > CMapData::Instance().MapWidthPlusHeight)
@@ -234,11 +290,12 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
 
     if (!OnLButtonDownPasted)
     {
+        CMapDataExt::RecordingPreviewHistory = true;
         CMapData::Instance->SaveUndoRedoData(true, bounds.left - center.X + X, bounds.top - center.Y + Y,
             bounds.right - center.X + X + 2, bounds.bottom - center.Y + Y + 2);
     }
-    else
-    {
+    else if (!validCoords)
+    {        
         if (CIsoViewExt::PasteOverriding)
         {
             for (const auto& cell : cells)
@@ -278,6 +335,10 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
         {
             int offset_x = cell.X - center.X;
             int offset_y = cell.Y - center.Y;
+
+            if (validCoords && validCoords->find({ X + offset_x, Y + offset_y }) == validCoords->end())
+                continue;
+
             if (!ExtConfigs::DisplayObjectsOutside && !CMapData::Instance->IsCoordInMap(X + offset_x, Y + offset_y)
                 || ExtConfigs::DisplayObjectsOutside && !CMapDataExt::IsCoordInFullMap(X + offset_x, Y + offset_y))
                 continue;
@@ -307,6 +368,10 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
     {
         int offset_x = cell.X - center.X;
         int offset_y = cell.Y - center.Y;
+
+        if (validCoords && validCoords->find({ X + offset_x, Y + offset_y }) == validCoords->end())
+            continue;
+
         if (!ExtConfigs::DisplayObjectsOutside && !CMapData::Instance->IsCoordInMap(X + offset_x, Y + offset_y)
             || ExtConfigs::DisplayObjectsOutside && !CMapDataExt::IsCoordInFullMap(X + offset_x, Y + offset_y))
             continue;
@@ -321,6 +386,10 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
     {
         int offset_x = cell.X - center.X;
         int offset_y = cell.Y - center.Y;
+
+        if (validCoords && validCoords->find({ X + offset_x, Y + offset_y }) == validCoords->end())
+            continue;
+
         if (!ExtConfigs::DisplayObjectsOutside && !CMapData::Instance->IsCoordInMap(X + offset_x, Y + offset_y)
             || ExtConfigs::DisplayObjectsOutside && !CMapDataExt::IsCoordInFullMap(X + offset_x, Y + offset_y))
             continue;
@@ -480,6 +549,99 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
         CMapData::Instance->UpdateMapPreviewAt(X + offset_x, Y + offset_y);
         CopyPaste::PastedCoords.insert(MapCoord{ X + offset_x, Y + offset_y });
     }
+}
+
+void CopyPaste::PasteArea(int X, int Y, int nBaseHeight, MyClipboardData* data, size_t length, int recordType)
+{
+    if (!OnLButtonDownPasted)
+    {
+        Paste(X, Y, nBaseHeight, data, length, recordType);
+        return;
+    }
+
+    CopyPaste::PastedCoords.clear();
+    if (X < 0 || Y < 0 || X > CMapData::Instance().MapWidthPlusHeight || Y > CMapData::Instance().MapWidthPlusHeight)
+        return;
+
+    std::unique_ptr<std::set<MapCoord>> recordCoords = std::make_unique<std::set<MapCoord>>();
+    auto& map = CMapData::Instance;
+    for (int i = 0; i < map->CellDataCount; ++i)
+    {
+        auto& cell = map->CellDatas[i];
+        cell.Flag.NotAValidCell = FALSE;
+    }
+    CIsoViewExt::GetSameConnectedCells(X, Y, X, Y, recordCoords.get());
+
+    RECT validBounds
+    {
+        std::numeric_limits<LONG>::max(),
+        std::numeric_limits<LONG>::max(),
+        std::numeric_limits<LONG>::min(),
+        std::numeric_limits<LONG>::min()
+    };
+    for (const auto& cell : *recordCoords)
+    {
+        validBounds.left = std::min<LONG>(validBounds.left, cell.X);
+        validBounds.right = std::max<LONG>(validBounds.right, cell.X);
+        validBounds.top = std::min<LONG>(validBounds.top, cell.Y);
+        validBounds.bottom = std::max<LONG>(validBounds.bottom, cell.Y);
+    }
+
+    auto AllRecordTypes = static_cast<ObjectRecord::RecordType>(
+        ObjectRecord::Building | ObjectRecord::Unit |
+        ObjectRecord::Aircraft | ObjectRecord::Infantry |
+        ObjectRecord::Terrain | ObjectRecord::Smudge
+        );
+
+    CMapDataExt::MakeMixedRecord(validBounds.left, validBounds.top,
+        validBounds.right + 2, validBounds.bottom + 2, AllRecordTypes);
+
+    std::span<MyClipboardData> cells{ data, data + length };
+    CRect bounds
+    {
+        std::numeric_limits<LONG>::max(),
+        std::numeric_limits<LONG>::max(),
+        std::numeric_limits<LONG>::min(),
+        std::numeric_limits<LONG>::min()
+    };
+    for (const auto& cell : cells)
+    {
+        bounds.left = std::min<LONG>(bounds.left, cell.X);
+        bounds.right = std::max<LONG>(bounds.right, cell.X);
+        bounds.top = std::min<LONG>(bounds.top, cell.Y);
+        bounds.bottom = std::max<LONG>(bounds.bottom, cell.Y);
+    }
+    bounds.right += 1;
+    bounds.bottom += 1;
+
+    std::set<MapCoord> placements;
+    std::set<MapCoord> placementsExpanded;
+    int tileOriginY = Y - bounds.Height();
+    int tileOriginX = X - bounds.Width();
+    for (const auto& coord : *recordCoords)
+    {
+        int localY = ((coord.Y - tileOriginY) % bounds.Height() + bounds.Height()) % bounds.Height();
+        int localX = ((coord.X - tileOriginX) % bounds.Width() + bounds.Width()) % bounds.Width();
+
+        if (localY == 0 && localX == 0)
+            placements.insert(coord);
+    }
+    for (auto& coord : placements)
+    {
+        int dx[3] = { -bounds.Width(), 0, bounds.Width() };
+        int dy[3] = { -bounds.Height(), 0, bounds.Height() };
+
+        for (int i = 0; i < 3; i++)
+            for (int j = 0; j < 3; j++)
+                placementsExpanded.insert({ coord.X + dx[i], coord.Y + dy[j] });
+    }
+
+    for (auto& coord : placementsExpanded)
+    {
+        Paste(coord.X, coord.Y, nBaseHeight, data, length, recordType, recordCoords.get());
+    }
+    recordCoords.get()->clear();
+    CopyPaste::PastedCoords.clear();
 }
 
 void CopyPaste::LoadTileConvertRule(char sourceTheater)
@@ -651,15 +813,14 @@ DEFINE_HOOK(435F5A, CFinalSunDlg_Tools_PasteCenter, 5)
     return 0;
 }
 
+static bool pasteSuccess = false;
 DEFINE_HOOK(4C3850, CMapData_PasteAt, 8)
 {
-    if (!ExtConfigs::EnableMultiSelection)
-        return 0;
-
     GET_STACK(const int, X, 0x4);
     GET_STACK(const int, Y, 0x8);
     GET_STACK(const char, nBaseHeight, 0xC);
 
+    pasteSuccess = true;
     OpenClipboard(CFinalSunApp::Instance->m_pMainWnd->m_hWnd);
     HANDLE hData = GetClipboardData(CFinalSunApp::Instance->ClipboardFormat);
     auto ptr = GlobalLock(hData);
@@ -677,7 +838,12 @@ DEFINE_HOOK(4C3850, CMapData_PasteAt, 8)
                 CopyPaste::LoadTileConvertRule(identifier);
             }
             const auto p = reinterpret_cast<MyClipboardData*>(reinterpret_cast<char*>(ptr) + 16);
-            CopyPaste::Paste(X, Y, nBaseHeight, p, length, recordType);
+            if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
+                CopyPaste::PasteArea(X, Y, nBaseHeight, p, length, recordType);
+            else
+                CopyPaste::Paste(X, Y, nBaseHeight, p, length, recordType);
+            if (!CopyPaste::OnLButtonDownPasted)
+                CMapDataExt::RecordingPreviewHistory = true;
             CopyPaste::OnLButtonDownPasted = false;
             GlobalUnlock(hData);
             CloseClipboard();
@@ -688,12 +854,34 @@ DEFINE_HOOK(4C3850, CMapData_PasteAt, 8)
             GlobalUnlock(hData);
             CloseClipboard();
 
+            if (!CopyPaste::OnLButtonDownPasted)
+                CMapDataExt::RecordingPreviewHistory = true;
             CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+            if (!CopyPaste::OnLButtonDownPasted)
+                CMapDataExt::RecordingPreviewHistory = true;
             CopyPaste::OnLButtonDownPasted = false;
             return 0;
         }
     }
 
+    pasteSuccess = false;
+    CIsoView::CurrentCommand->Command = 0x0;
+    CIsoView::CurrentCommand->Type = 0;
+    GlobalUnlock(hData);
     CloseClipboard();
     return 0x4C388B;
+}
+
+DEFINE_HOOK(45A022, CIsoView_OnMouseMove_Paste_SkipUndo, 8)
+{
+    return pasteSuccess ? 0 : 0x45AEF6;
+}
+
+DEFINE_HOOK(4616AD, CIsoView_OnLButtonDown_Paste_SkipUndo, 8)
+{
+    GET(const int, X, EDX);
+    GET(const int, Y, ECX);
+    GET(const char, nBaseHeight, EAX);
+    CMapData::Instance->Paste(X, Y, nBaseHeight);
+    return pasteSuccess ? 0x4616BA : 0x46686A;
 }

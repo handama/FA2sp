@@ -21,6 +21,7 @@ public:
     static FString GetAITriggerName(const char* id);
     static FString GetTagName(const char* id);
     static FString GetTagDisplayName(const char* id);
+    static FString GetTranslatedSectionName(const char* section);
 
     static void LoadParams(HWND& hWnd, FString idx);
     static void LoadParam_Waypoints(HWND& hWnd);
@@ -46,6 +47,7 @@ public:
     static bool IsLabelMatch(const char* target, const char* source, bool exactMatch = false);
     static FString GetCloneName(FString oriName);
     static void LoadFrom(MultimapHelper& mmh, FString loadfrom);
+    static void TrimStringIndex(FString& str);
 
 private:
     static CINI& map;

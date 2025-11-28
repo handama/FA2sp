@@ -19,7 +19,7 @@
 #include "../../ExtraWindow/CObjectSearch/CObjectSearch.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 #include "../../ExtraWindow/CNewLocalVariables/CNewLocalVariables.h"
-#include "../../ExtraWindow/COptions/COptions.h"
+#include "../../ExtraWindow/CFA2spOptions/CFA2spOptions.h"
 #include "../../Helpers/STDHelpers.h"
 
 #include "../../Helpers/Translations.h"
@@ -313,7 +313,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			else if (hWnd == CCsfEditor::GetHandle()) {
 				return TRUE;
 			}
-			else if (hWnd == COptions::GetHandle()) {
+			else if (hWnd == CFA2spOptions::GetHandle()) {
 				return TRUE;
 			}
 			else if (hWnd == CNewLocalVariables::GetHandle()) {
@@ -788,11 +788,11 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	}
 	if (wmID == 40162)
 	{
-		if (COptions::GetHandle() == NULL)
-			COptions::Create((CFinalSunDlg*)this);
+		if (CFA2spOptions::GetHandle() == NULL)
+			CFA2spOptions::Create((CFinalSunDlg*)this);
 		else
 		{
-			::SendMessage(COptions::GetHandle(), 114514, 0, 0);
+			::SendMessage(CFA2spOptions::GetHandle(), 114514, 0, 0);
 		}
 	}
 	if (wmID == 40164)
@@ -854,7 +854,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			size_t lastDot = path.find_last_of('.');
 			if (lastDot != std::string::npos && (lastSlash == std::string::npos || lastDot > lastSlash))
 				path = path.substr(0, lastDot);
-			path += ".png";
+			path += CIsoViewExt::RenderSaveAsPNG ? ".png" : ".jpg";
 
 			auto wpath = STDHelpers::StringToWString(path);
 			int currentlighting = CFinalSunDlgExt::CurrentLighting;
@@ -1000,9 +1000,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 						FString message;
 						message.Format(Translations::TranslateOrDefault("MapRendererToolbarRendering",
 							"Map Renderer: rendering tile (%d/%d)"), currentTile, totalTileCount);
-						::SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0, message);
-						::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-						::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
+						CIsoViewExt::SetStatusBarText(message);
 
 						pIsoView->Draw();
 
@@ -1033,9 +1031,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				FString message;
 				message.Format(Translations::TranslateOrDefault("MapRendererToolbarSaving",
 					"Map Renderer: saving png file to %s"), path);
-				::SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0, message);
-				::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-				::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
+				CIsoViewExt::SetStatusBarText(message);
 
 				CLSID clsidEncoder;
 				UINT num = 0, size = 0;
@@ -1044,7 +1040,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				GetImageEncoders(num, size, pImageCodecInfo);
 				for (UINT i = 0; i < num; ++i)
 				{
-					if (wcscmp(pImageCodecInfo[i].MimeType, L"image/png") == 0)
+					if (wcscmp(pImageCodecInfo[i].MimeType, 
+						CIsoViewExt::RenderSaveAsPNG ? L"image/png" : L"image/jpeg") == 0)
 					{
 						clsidEncoder = pImageCodecInfo[i].Clsid;
 						break;
@@ -1052,7 +1049,16 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				}
 				free(pImageCodecInfo);
 
-				result = CIsoViewExt::pFullBitmap->Save(wpath.c_str(), &clsidEncoder, nullptr);
+				ULONG quality = 80;
+				EncoderParameters encoderParams{};
+				encoderParams.Count = 1;
+				encoderParams.Parameter[0].Guid = EncoderQuality;
+				encoderParams.Parameter[0].Type = EncoderParameterValueTypeLong;
+				encoderParams.Parameter[0].NumberOfValues = 1;
+				encoderParams.Parameter[0].Value = &quality;
+
+				result = CIsoViewExt::pFullBitmap->Save(wpath.c_str(), &clsidEncoder, 
+					CIsoViewExt::RenderSaveAsPNG ? nullptr : &encoderParams);
 				delete CIsoViewExt::pFullBitmap;
 				CIsoViewExt::pFullBitmap = nullptr;
 			}
@@ -1268,8 +1274,24 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CTerrainGenerator::GetHandle(), 114514, 0, 0);
 			return TRUE;
 		}
-		else if (hWnd == COptions::GetHandle()) {
-			::SendMessage(COptions::GetHandle(), 114514, 0, 0);
+		else if (hWnd == CFA2spOptions::GetHandle()) {
+			::SendMessage(CFA2spOptions::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CNewLocalVariables::GetHandle()) {
+			::SendMessage(CNewLocalVariables::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CTriggerAnnotation::GetHandle()) {
+			::SendMessage(CTriggerAnnotation::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CCsfEditor::GetHandle()) {
+			::SendMessage(CCsfEditor::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CLuaConsole::GetHandle()) {
+			::SendMessage(CLuaConsole::GetHandle(), 114514, 0, 0);
 			return TRUE;
 		}
 
@@ -1284,7 +1306,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				return false;
 			};
 
-
 		refreshFA2Window(40040, this->MapD);
 		refreshFA2Window(40039, this->Houses);
 		refreshFA2Window(40036, this->Basic);
@@ -1298,11 +1319,19 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			return this->ppmfc::CDialog::OnCommand(newParam, lParam);
 
 	}
-	// CTRL+C CTRL+V CTRL+Z CTRL+Y
-	if (wmID == 57634 || wmID == 57637 || wmID == 57643 || wmID == 57644)
+	// CTRL+C CTRL+V CTRL+Z CTRL+Y CTRL+X
+	if (wmID == 57634 || wmID == 57637 || wmID == 57643 || wmID == 57644 || wmID == 40166)
 	{
 		if (isInChildWindow())
 			return TRUE;
+	}
+	CopyPaste::IsCutting = false;
+	if (wmID == 40166)
+	{
+		// cutting also uses copying logic
+		CopyPaste::IsCutting = true;
+		auto newParam = MAKELONG(57634, wmMsg);
+		return this->ppmfc::CDialog::OnCommand(newParam, lParam);
 	}
 
 	return this->ppmfc::CDialog::OnCommand(wParam, lParam);

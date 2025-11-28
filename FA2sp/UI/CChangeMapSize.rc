@@ -1,0 +1,22 @@
+#include <Windows.h>
+
+279 DIALOG 0, 0, 232, 222
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Change Map Size"
+LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
+FONT 8, "MS Sans Serif"
+{
+   CONTROL "OK", 1, BUTTON, BS_DEFPUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 178, 201, 50, 14 
+   CONTROL "Cancel", 2, BUTTON, BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 120, 201, 50, 14 
+   CONTROL "Please specify the new width and height of the map. Left and top will automatically be set so that the old area of the map is centered. You can change left and top to modify the left-top position (you may use negative numbers for left/top).", 1000, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 7, 218, 40 
+   CONTROL "Width:", 1001, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 54, 71, 13 
+   CONTROL "", 1373, EDIT, ES_LEFT | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP, 86, 52, 62, 15 
+   CONTROL "Note: If there are any units, buildings, waypoints etc. outside of the new map area, they will be deleted.", 1002, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 132, 218, 19 
+   CONTROL "Height:", 1003, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 72, 71, 13 
+   CONTROL "", 1374, EDIT, ES_LEFT | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP, 86, 70, 62, 15 
+   CONTROL "Left:", 1004, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 90, 71, 13 
+   CONTROL "", 1036, EDIT, ES_LEFT | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP, 86, 88, 62, 15 
+   CONTROL "Top:", 1005, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 108, 71, 13 
+   CONTROL "", 1037, EDIT, ES_LEFT | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP, 86, 106, 62, 15 
+   CONTROL "Map size limits:\n  Width and Height range 20 to 492.\n  Width + Height should not exceed 512.\n\nUNDO IS NOT AVAILABLE! PLEASE MAKE BACKUP.", 1006, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 154, 218, 43 
+}

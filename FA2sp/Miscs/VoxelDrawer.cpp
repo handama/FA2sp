@@ -53,10 +53,10 @@ bool VoxelDrawer::LoadHVAFile(FString name)
 }
 
 bool VoxelDrawer::GetImageData(unsigned int nFacing, unsigned char*& pBuffer, int& width,
-    int& height, int& x, int& y, const int F, const int L, const int H, bool Shadow)
+    int& height, int& x, int& y, const int F, const int L, const int H, bool Shadow, int fireAngle)
 {
     const unsigned int nIndex = ExtConfigs::ExtFacings ? nFacing : nFacing * 4;
-    CncImgPrepareVXLCache(nIndex, F, L, H);
+    CncImgPrepareVXLCache(nIndex, F, L, H, fireAngle);
     if (Shadow)
         CncImgGetShadowImageFrame(nIndex, &width, &height, &x, &y);
     else
@@ -69,9 +69,9 @@ bool VoxelDrawer::GetImageData(unsigned int nFacing, unsigned char*& pBuffer, in
 }
 
 bool VoxelDrawer::GetImageData(unsigned int nFacing, unsigned char*& pBuffer, VoxelRectangle& rect,
-    const int F, const int L, const int H, bool Shadow)
+    const int F, const int L, const int H, bool Shadow, int fireAngle)
 {
-    return GetImageData(nFacing, pBuffer, rect.W, rect.H, rect.X, rect.Y, F, L, H, Shadow);
+    return GetImageData(nFacing, pBuffer, rect.W, rect.H, rect.X, rect.Y, F, L, H, Shadow, fireAngle);
 }
 
 bool VoxelDrawer::IsVPLLoaded()

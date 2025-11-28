@@ -74,13 +74,6 @@ protected:
     static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static LRESULT CALLBACK ListBoxSubclassProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
     static void ListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam);
-    static void TrimStringIndex(FString& str) {
-        str.Trim();
-        int spaceIndex = str.Find(" - ");
-        if (spaceIndex > 0) {
-            str = str.Mid(0, spaceIndex);
-        }
-    }
 
 private:
     static HWND m_hwnd;

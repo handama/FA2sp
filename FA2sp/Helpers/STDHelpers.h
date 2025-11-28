@@ -5,6 +5,8 @@
 #include <sstream>
 #include <algorithm>
 #include <vector>
+#include <set>
+#include <random>
 
 #include <MFC/ppmfc_cstring.h>
 #include "../FA2sp.h"
@@ -13,8 +15,15 @@
 #include <CINI.h>
 #include <Miscs/Miscs.h>
 
-// A class uses STL containers for assistance use
+enum FileEncoding : char
+{
+	ANSI = 0,
+	UTF8 = 1,
+	UTF8_BOM = 2,
+	UTF8_ASCII = 3
+};
 
+// A class uses STL containers for assistance use
 class STDHelpers
 {
 public:
@@ -48,7 +57,15 @@ public:
     static ppmfc::CString RandomSelect(std::vector<ppmfc::CString>& vec);
     static FString RandomSelect(std::vector<FString>& vec);
     static int RandomSelectInt(std::vector<int>& vec, bool record = false, int thisCT = -1);
+    static int RandomSelectInt(std::set<int>& vec);
     static int RandomSelectInt(int start, int end);
+	template <typename T, std::size_t N>
+	static T const& RandomSelectArray(const std::array<T, N>& arr) {
+		static thread_local std::mt19937 gen(std::random_device{}());
+		std::uniform_int_distribution<std::size_t> dist(0, N - 1);
+		return arr[dist(gen)];
+	}
+
 	static ppmfc::CString GetRandomFacing();
 
     static std::string ChineseTraditional_ToSimple(const std::string& _str);
@@ -56,8 +73,9 @@ public:
 
     static std::string WStringToString(const std::wstring& wstr);
     static std::wstring StringToWString(const std::string& str);
+	static void WStringReplace(std::wstring& str, const std::wstring& oldStr, const std::wstring& newStr);
 
-	static bool isUTF8(const uint8_t* data, size_t size);
+	static FileEncoding GetFileEncoding(const uint8_t* data, size_t size);
 
 	static inline int letter2number(char let) {
 		int reply = let - 'A';

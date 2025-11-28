@@ -1,0 +1,14 @@
+#include <Windows.h>
+
+236 DIALOGEX 0, 0, 208, 243
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Easter egg"
+LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
+FONT 8, "MS Sans Serif"
+{
+   CONTROL "New game", 1, BUTTON, BS_DEFPUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 91, 223, 50, 14 
+   CONTROL "Quit", 2, BUTTON, BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 151, 223, 50, 14 
+   CONTROL "You found the easter egg :-). Me and Chickmac thought that\xB4s a good idea, so have fun playing Tic Tac Toe :).", -1, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 7, 194, 23 
+   CONTROL "", 1379, STATIC, SS_WHITERECT | SS_NOTIFY | WS_CHILD | WS_VISIBLE | WS_BORDER, 17, 37, 172, 143 
+   CONTROL "Note: AI is not that good yet, I\xB4ll probably improve that ;-)\nAlso you don\xB4t get a note yet if you have won or lost.", -1, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 189, 194, 31 
+}

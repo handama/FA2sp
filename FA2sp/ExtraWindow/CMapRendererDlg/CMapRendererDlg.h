@@ -15,7 +15,7 @@ public:
     {
         HMODULE hModule = LoadLibrary(TEXT("Riched32.dll"));
         if (!hModule)
-            ::MessageBox(NULL, Translations::TranslateOrDefault("FailedLoadRiched32DLL", "Could not Load Riched32.dll£¡"), Translations::TranslateOrDefault("Error", "Error"), MB_ICONERROR);
+            ::MessageBox(NULL, Translations::TranslateOrDefault("FailedLoadRiched32DLL", "Could not Load Riched32.dll!"), Translations::TranslateOrDefault("Error", "Error"), MB_ICONERROR);
 
         return ppmfc::CDialog::DoModal();
     }
@@ -41,8 +41,9 @@ public:
 	CMapRendererDlg(CWnd* pParent = NULL);
 	BOOL b_LocalSize;
 	BOOL b_GameLayers;
+	BOOL b_SaveFormat;
 	int n_Lighting;
-	BOOL b_DisplayInvisibleOverlay;
+	BOOL b_DisplayInvisibleInGame;
 	BOOL b_MarkStartPositions;
 	BOOL b_MarkOres;
 	BOOL b_IgnoreObjects;

@@ -64,7 +64,11 @@ void CViewObjectsExt::ConnectedTile_Initialize()
                     cts.StartTile = ini.GetInteger(pair.second, "StartTile");
                     cts.Allowed = false;
                     auto allowedTheaters = STDHelpers::SplitString(ini.GetString(pair.second, "AllowedTheaters"));
-                    cts.Name = ini.GetString(pair.second, "Name");
+                    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                    if (auto pName = ini.TryGetString(pair.second, transed))
+                        cts.Name = *pName;
+                    else
+                        cts.Name = ini.GetString(pair.second, "Name");
                     cts.SetName = pair.second;
                     auto type = ini.GetString(pair.second, "Type");
                     auto sptype = ini.GetString(pair.second, "SpecialType");
@@ -3011,6 +3015,9 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                             || (direction == 5 && i == 18))
                             && tileSet.ConnectedTile[i].Direction0 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Side0 == lastSide)
                         {
+                            if (tileSet.ConnectedTile.size() < 25)
+                                return -1;
+
                             opposite = false;
 
                             if (direction == 5 && i == 7 && distance >= SmallDistance)
@@ -3032,6 +3039,9 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                             || (direction == 1 && i == 18))
                             && tileSet.ConnectedTile[i].Direction1 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Side1 == lastSide)
                         {
+                            if (tileSet.ConnectedTile.size() < 25)
+                                return -1;
+
                             opposite = true;
 
                             if (direction == 1 && i == 7 && distance >= SmallDistance)

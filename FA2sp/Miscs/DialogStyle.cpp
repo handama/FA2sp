@@ -4,6 +4,7 @@
 #include "CFinalSunDlg.h"
 #include <psapi.h>
 #include "../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
+#include "../Helpers/Translations.h"
 
 HBRUSH DarkTheme::g_hDarkBackgroundBrush = NULL;
 HBRUSH DarkTheme::g_hDarkControlBrush = NULL;
@@ -1726,6 +1727,7 @@ LRESULT WINAPI DarkTheme::MyDefWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, L
             return result;
         }
         InitDialogOptions(hWnd);
+        Translations::TranslateDialog(hWnd);
         return result;
     }
 
@@ -1750,7 +1752,8 @@ LRESULT WINAPI DarkTheme::MyCallWindowProcA(
         {
             return result;
         }
-        InitDialogOptions(hWnd);       
+        InitDialogOptions(hWnd);
+        Translations::TranslateDialog(hWnd);
         return result;
     }
     if (Msg == WM_ACTIVATE)
@@ -1782,6 +1785,23 @@ LRESULT WINAPI DarkTheme::MyCallWindowProcA(
         return result;
 
     return ::CallWindowProcA(lpPrevWndFunc, hWnd, Msg, wParam, lParam);
+}
+
+int DarkTheme::MyLoadStringA(HINSTANCE hInstance, UINT uID, LPSTR lpBuffer, int cchBufferMax)
+{
+    int len = ::LoadStringA(hInstance, uID, lpBuffer, cchBufferMax);
+
+    auto it = Translations::StringTable.find(uID);
+    if (it != Translations::StringTable.end())
+    {
+        const std::string& translated = it->second;
+        strncpy(lpBuffer, translated.c_str(), cchBufferMax);
+        lpBuffer[cchBufferMax - 1] = '\0';
+
+        return (int)translated.size();
+    }
+
+    return len;
 }
 
 std::string DarkTheme::GetIniPath(const char* iniFile)
@@ -2003,24 +2023,25 @@ static double GetDouble(std::string value, double nDefault = 0) {
     return nDefault;
 }
 
-DEFINE_HOOK(537129, ExeStart_DrakThemeHooks, 9)
+void DarkTheme::ExeStart_DrakThemeHooks()
 {
     ExtConfigs::AutoDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "AutoDarkMode", "true").c_str());
     ExtConfigs::AutoDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FinalAlert.ini", "Options",
         "AutoDarkMode", ExtConfigs::AutoDarkMode ? "true" : "false").c_str());
     if (ExtConfigs::AutoDarkMode)
     {
-        ExtConfigs::AutoDarkMode_SwitchTimeA = 
+        ExtConfigs::AutoDarkMode_SwitchTimeA =
             GetDouble(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "AutoDarkMode.StartTime", "-1.0"), -1.0);
-        ExtConfigs::AutoDarkMode_SwitchTimeB = 
+        ExtConfigs::AutoDarkMode_SwitchTimeB =
             GetDouble(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "AutoDarkMode.EndTime", "-1.0"), -1.0);
         ExtConfigs::EnableDarkMode = FA2sp::IsDarkMode();
     }
     else
     {
-        ExtConfigs::EnableDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "EnableDarkMode", "false").c_str());
-        ExtConfigs::EnableDarkMode = STDHelpers::IsTrue(DarkTheme::ReadIniString("FinalAlert.ini", "Options",
-            "EnableDarkMode", ExtConfigs::EnableDarkMode ? "true" : "false").c_str());
+        ExtConfigs::EnableDarkMode_Init = STDHelpers::IsTrue(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "EnableDarkMode", "false").c_str());
+        ExtConfigs::EnableDarkMode_Init = STDHelpers::IsTrue(DarkTheme::ReadIniString("FinalAlert.ini", "Options",
+            "EnableDarkMode", ExtConfigs::EnableDarkMode_Init ? "true" : "false").c_str());
+        ExtConfigs::EnableDarkMode = ExtConfigs::EnableDarkMode_Init;
     }
 
     if (ExtConfigs::EnableDarkMode)
@@ -2043,6 +2064,5 @@ DEFINE_HOOK(537129, ExeStart_DrakThemeHooks, 9)
     RunTime::ResetMemoryContentAt(0x591464, DarkTheme::MyCallWindowProcA);
     RunTime::ResetMemoryContentAt(0x5915D4, DarkTheme::MyGetOpenFileNameA);
     RunTime::ResetMemoryContentAt(0x5915DC, DarkTheme::MyGetSaveFileNameA);
-
-    return 0;
+    RunTime::ResetMemoryContentAt(0x591364, DarkTheme::MyLoadStringA);
 }

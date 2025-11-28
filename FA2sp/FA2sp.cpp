@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <bit>
 #include "Helpers/Translations.h"
+#include "Miscs/DialogStyle.h"
 
 HANDLE FA2sp::hInstance;
 ULONG_PTR FA2sp::ulCookie;
@@ -33,7 +34,6 @@ int	 ExtConfigs::ObjectBrowser_GuessMax;
 bool ExtConfigs::ObjectBrowser_CleanUp;
 bool ExtConfigs::ObjectBrowser_SafeHouses;
 bool ExtConfigs::ObjectBrowser_Foundation;
-bool ExtConfigs::LoadLunarWater;
 bool ExtConfigs::LoadCivilianStringtable;
 bool ExtConfigs::PasteShowOutlineDefault;
 bool ExtConfigs::AllowIncludes;
@@ -169,12 +169,13 @@ bool ExtConfigs::InGameDisplay_AlphaImage;
 bool ExtConfigs::InGameDisplay_Bridge;
 bool ExtConfigs::InGameDisplay_AnimAdjust;
 bool ExtConfigs::InGameDisplay_Cloakable;
+bool ExtConfigs::ObjectBrowser_Ore_RandomPlacement;
+bool ExtConfigs::ObjectBrowser_Ore_ExtraSupport;
 bool ExtConfigs::FlatToGroundHideExtra;
 bool ExtConfigs::LightingPreview_MultUnitColor;
 bool ExtConfigs::LightingPreview_TintTileSetBrowserView;
 bool ExtConfigs::DDrawScalingBilinear;
 bool ExtConfigs::DDrawScalingBilinear_OnlyShrink;
-bool ExtConfigs::LoadImageDataFromServer;
 bool ExtConfigs::UseNewToolBarCameo;
 bool ExtConfigs::EnableVisualStyle;
 bool ExtConfigs::DisableDirectoryCheck;
@@ -189,9 +190,10 @@ bool ExtConfigs::AutoDarkMode;
 double ExtConfigs::AutoDarkMode_SwitchTimeA;
 double ExtConfigs::AutoDarkMode_SwitchTimeB;
 bool ExtConfigs::EnableDarkMode;
+bool ExtConfigs::EnableDarkMode_Init;
 bool ExtConfigs::EnableDarkMode_DimMap;
 bool ExtConfigs::ShrinkTilesInTileSetBrowser;
-bool ExtConfigs::UTF8Support_InferEncoding;
+bool ExtConfigs::UTF8Support_InferEncoding = true;
 bool ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
 ppmfc::CString ExtConfigs::NewTriggerPlusID_Digits;
@@ -218,7 +220,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ObjectBrowser_CleanUp = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.CleanUp");
 	ExtConfigs::ObjectBrowser_SafeHouses = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.SafeHouses");
 	ExtConfigs::ObjectBrowser_Foundation = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Foundation");
-	ExtConfigs::LoadLunarWater = CINI::FAData->GetBool("ExtConfigs", "LoadLunarWater");
+	ExtConfigs::ObjectBrowser_Ore_RandomPlacement = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Ore.RandomPlacement");
+	ExtConfigs::ObjectBrowser_Ore_ExtraSupport = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Ore.ExtraSupport");
 	ExtConfigs::LoadCivilianStringtable = CINI::FAData->GetBool("ExtConfigs", "LoadCivilianStringtable");
 	ExtConfigs::PasteShowOutlineDefault = CINI::FAData->GetBool("ExtConfigs", "PasteShowOutline");
 	
@@ -308,7 +311,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
 
-	ExtConfigs::UTF8Support_InferEncoding = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.InferEncoding");
+	ExtConfigs::UTF8Support_InferEncoding = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.InferEncoding", true);
 	ExtConfigs::UTF8Support_AlwaysSaveAsUTF8 = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.AlwaysSaveAsUTF8");
 
 	ExtConfigs::ShrinkTilesInTileSetBrowser = CINI::FAData->GetBool("ExtConfigs", "ShrinkTilesInTileSetBrowser");
@@ -316,7 +319,6 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DisplayObjectsOutside = CINI::FAData->GetBool("ExtConfigs", "DisplayObjectsOutside");
 	ExtConfigs::DDrawScalingBilinear = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear", true);
 	ExtConfigs::DDrawScalingBilinear_OnlyShrink = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear.OnlyShrink", true);
-	ExtConfigs::LoadImageDataFromServer = CINI::FAData->GetBool("ExtConfigs", "LoadImageDataFromServer");
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::LightingPreview_TintTileSetBrowserView = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.TintTileSetBrowserView");
@@ -361,26 +363,16 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::INIEditor_IgnoreTeams = CINI::FAData->GetBool("ExtConfigs", "INIEditor.IgnoreTeams");
 	ExtConfigs::StringBufferStackAllocation = CINI::FAData->GetBool("ExtConfigs", "StringBufferStackAllocation", true);
 
-	if (ExtConfigs::SaveMap_AutoSave = CINI::FAData->GetBool("ExtConfigs", "SaveMap.AutoSave"))
+	ExtConfigs::SaveMap_AutoSave = CINI::FAData->GetBool("ExtConfigs", "SaveMap.AutoSave");
+	ExtConfigs::SaveMap_AutoSave_Interval = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.AutoSave.Interval", 300);
+	ExtConfigs::SaveMap_AutoSave_Interval_Real = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.AutoSave.Interval", 300);
+	ExtConfigs::SaveMap_AutoSave_MaxCount = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.AutoSave.MaxCount", 10);
+	if (ExtConfigs::SaveMap_AutoSave_Interval < 30)
 	{
-		ExtConfigs::SaveMap_AutoSave_Interval = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.AutoSave.Interval", 300);
-		ExtConfigs::SaveMap_AutoSave_Interval_Real = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.AutoSave.Interval", 300);
-		ExtConfigs::SaveMap_AutoSave_MaxCount = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.AutoSave.MaxCount", 10);
-		if (ExtConfigs::SaveMap_AutoSave_Interval < 30)
-		{
-			ExtConfigs::SaveMap_AutoSave_Interval_Real = 30;
-			ExtConfigs::SaveMap_AutoSave_Interval = 30;
-		}
+		ExtConfigs::SaveMap_AutoSave_Interval_Real = 30;
+		ExtConfigs::SaveMap_AutoSave_Interval = 30;
 	}
-	else
-	{
-		ExtConfigs::SaveMap_AutoSave_Interval_Real = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.AutoSave.Interval", 300);
-		if (ExtConfigs::SaveMap_AutoSave_Interval_Real < 30)
-		{
-			ExtConfigs::SaveMap_AutoSave_Interval_Real = 30;
-		}
-		ExtConfigs::SaveMap_AutoSave_Interval = -1;
-	}
+
 	ExtConfigs::SaveMap_FileEncodingComment = CINI::FAData->GetBool("ExtConfigs", "SaveMap.FileEncodingComment");
 	ExtConfigs::SaveMap_OnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP");
 	ExtConfigs::SaveMap_PreserveINISorting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.PreserveINISorting");
@@ -596,7 +588,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode", "Enable dark mode"),
 		.IniKey = "EnableDarkMode",
-		.Value = &ExtConfigs::EnableDarkMode,
+		.Value = &ExtConfigs::EnableDarkMode_Init,
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
@@ -637,11 +629,18 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.LoadLunarWater", "Show lunar water"),
-		.IniKey = "LoadLunarWater",
-		.Value = &ExtConfigs::LoadLunarWater,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.Ore.RandomPlacement", "Random choose ores when placing"),
+		.IniKey = "ObjectBrowser.Ore.RandomPlacement",
+		.Value = &ExtConfigs::ObjectBrowser_Ore_RandomPlacement,
+		.Type = ExtConfigs::SpecialOptionType::None
 		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.Ore.ExtraSupport", "Support vinifera and aboreus ores"),
+		.IniKey = "ObjectBrowser.Ore.ExtraSupport",
+		.Value = &ExtConfigs::ObjectBrowser_Ore_ExtraSupport,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		}); 
 
 	// Map Display and Rendering
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -1181,13 +1180,6 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.LoadImageDataFromServer", "Load images from independent server (not rec., unless memory shortage)"),
-		.IniKey = "LoadImageDataFromServer",
-		.Value = &ExtConfigs::LoadImageDataFromServer,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.StringBufferStackAllocation", "Always allocate CString memory in stack"),
 		.IniKey = "StringBufferStackAllocation",
 		.Value = &ExtConfigs::StringBufferStackAllocation,
@@ -1210,8 +1202,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	for (const auto& opt : ExtConfigs::Options)
 	{
-		if (opt.Value != &ExtConfigs::EnableDarkMode)
-			*opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
+		*opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
 	}
 
 	CIsoViewExt::PasteShowOutline = ExtConfigs::PasteShowOutlineDefault;
@@ -1316,11 +1307,15 @@ DEFINE_HOOK(537129, ExeRun, 9)
 	bool bMutexResult = MutexHelper::Attach(MUTEX_HASH_VAL);
 	if (!bMutexResult)
 	{
-		if (MessageBox(nullptr, MUTEX_INIT_ERROR_MSG, MUTEX_INIT_ERROR_TIT, MB_YESNO | MB_ICONQUESTION) != IDYES)
+		if (MessageBoxW(nullptr, MUTEX_INIT_ERROR_MSG, MUTEX_INIT_ERROR_TIT, MB_YESNO | MB_ICONQUESTION) != IDYES)
 			ExitProcess(114514);
 	}
 	
 	FA2Expand::ExeRun();
+	DarkTheme::ExeStart_DrakThemeHooks();
+
+	const char* MapImporterFilter = "All files|*.yrm;*.mpr;*.map;*.bmp|Multi maps|*.yrm;*.mpr|Single maps|*.map|Windows bitmaps|*.bmp|";
+	RunTime::ResetStaticCharAt(0x5D026C, MapImporterFilter);
 
 	return 0;
 }

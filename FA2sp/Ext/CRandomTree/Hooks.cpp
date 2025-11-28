@@ -56,7 +56,7 @@ DEFINE_HOOK(4D4FF7, CRandomTreeDlg_Draw, 7)
     {
         CLoading::Instance->LoadObjects(pThis->CString_Terrain);
     }
-    auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+    auto pData = CLoadingExt::GetImageDataFromMap(imageName);
     if (pData->pImageBuffer)
     {
         CBitmap bmp;

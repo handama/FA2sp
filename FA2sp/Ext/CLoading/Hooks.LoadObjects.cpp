@@ -204,7 +204,7 @@ DEFINE_HOOK(491FD4, CLoading_Release_SetImageDataToNullptr, 5)
 
 DEFINE_HOOK(491D00, CLoading_Release_BackBufferZoom, 5)
 {
-    CLoadingExt::ClearItemTypes();
+    CLoadingExt::ClearItemTypes(!CIsoViewExt::ReInitializingDDraw);
     if (CIsoViewExt::lpDDBackBufferZoomSurface != NULL) CIsoViewExt::lpDDBackBufferZoomSurface->Release();
     return 0;
 }
@@ -217,30 +217,9 @@ DEFINE_HOOK(48DBB0, CLoading_InitTMPs_ReadFolder, E)
     if (nMIx)
         return 0x48DC52;
 
-    FString filepath = CFinalSunApp::FilePath();
-    filepath += lpFilename;
-    std::ifstream fin;
-    fin.open(filepath, std::ios::in | std::ios::binary);
-    if (fin.is_open())
-    {
-        fin.close();
+    int result = CLoadingExt::GetExtension()->HasFileMix(lpFilename);
+    if (result > -2)
         return 0x48DC52;
-    }
-
-    size_t size = 0;
-    auto data = ResourcePackManager::instance().getFileData(lpFilename, &size);
-    if (data && size > 0)
-    {
-        return 0x48DC52;
-    }
-
-    auto& manager = MixLoader::Instance();
-    size_t sizeM = 0;
-    auto result = manager.LoadFile(lpFilename, &sizeM);
-    if (result && sizeM > 0)
-    {
-        return 0x48DC52;
-    }
 
     if (CINI::CurrentTheater == &CINI::NewUrban)
         return 0x48DBC0;
@@ -254,35 +233,11 @@ DEFINE_HOOK(48E5C5, CLoading_LoadTile_ReadFolder, 8)
     GET(unsigned int, nMix, EDI);
     GET(BOOL, oriResult, EAX);
 
-    FString filepath = CFinalSunApp::FilePath();
-    filepath += lpFilename;
-    std::ifstream fin;
-    fin.open(filepath, std::ios::in | std::ios::binary);
-    if (fin.is_open())
-    {
-        fin.close();
-        R->EDI(0);
-        return 0x48E5CD;
-    }
-
-    size_t size = 0;
-    auto data = ResourcePackManager::instance().getFileData(lpFilename, &size);
-    if (data && size > 0)
+    int result = CLoadingExt::GetExtension()->HasFileMix(lpFilename);
+    if (result > -2)
     {
         R->EDI(0);
         return 0x48E5CD;
-    }
-
-    if (ExtConfigs::ExtMixLoader)
-    {
-        auto& manager = MixLoader::Instance();
-        size_t sizeM = 0;
-        auto result = manager.LoadFile(lpFilename, &sizeM);
-        if (result && sizeM > 0)
-        {
-            R->EDI(0);
-            return 0x48E5CD;
-        }
     }
 
     if (oriResult)

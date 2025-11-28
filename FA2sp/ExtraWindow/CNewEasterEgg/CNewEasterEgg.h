@@ -628,7 +628,7 @@ struct Board
         memset(board, 0, sizeof(board));
         DWORD length = 0;
         BYTE* buffer = nullptr;
-        buffer = static_cast<BYTE*>(CLoading::Instance->ReadWholeFile("ChessEndgame.txt", &length));
+        buffer = static_cast<BYTE*>(CLoading::Instance->ReadWholeFile("chessendgame.txt", &length));
         if (!buffer) {
             auto EndGames = "9/4N4/4k4/9/9/9/4P1P2/5K3/7C1/5n3 b\n"
 "N4kC2/7c1/8b/8p/9/9/9/9/9/4K4 b\n"

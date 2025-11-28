@@ -46,7 +46,12 @@ public:
     TerrainGeneratorPreset(FString sectionName, INISection* pSection)
     {
         ID = sectionName;
-        Name = pSection->GetString("Name");
+        auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+        if (auto pName = pSection->TryGetString(transed))
+            Name = *pName;
+        else
+            Name = pSection->GetString("Name");
+    
         for (auto& t : FString::SplitString(pSection->GetString("Theaters"))) {
             Theaters.push_back(t);
         }
@@ -134,7 +139,7 @@ public:
                             for (int idx = 0; idx < 60; idx++)
                             {
                                 auto imageName = CLoadingExt::GetOverlayName(overlays.Overlay, idx);
-                                auto pic = CLoadingExt::GetImageDataFromServer(imageName);
+                                auto pic = CLoadingExt::GetImageDataFromMap(imageName);
                                 if (pic && pic->pImageBuffer) {
                                     overlays.AvailableOverlayData.push_back(idx);
                                 }
@@ -145,7 +150,7 @@ public:
                             for (int idx = 0; idx < 60; idx++)
                             {
                                 auto imageName = CLoadingExt::GetOverlayName(overlays.Overlay, idx);
-                                auto pic = CLoadingExt::GetImageDataFromServer(imageName);
+                                auto pic = CLoadingExt::GetImageDataFromMap(imageName);
                                 if (pic && pic->pImageBuffer) {
                                     for (auto& data : atomsData) {
                                         if (idx == atoi(data)) {

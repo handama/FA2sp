@@ -69,6 +69,9 @@ HWND CNewTeamTypes::hSearchReference;
 HWND CNewTeamTypes::hTurnToTaskforce;
 HWND CNewTeamTypes::hTurnToScript;
 HWND CNewTeamTypes::hTurnToTag;
+bool CNewTeamTypes::TaskforceListChanged = false;
+bool CNewTeamTypes::ScriptListChanged = false;
+bool CNewTeamTypes::TagListChanged = false;
 
 int CNewTeamTypes::SelectedTeamIndex = -1;
 FString CNewTeamTypes::CurrentTeamID;
@@ -444,6 +447,8 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnCloseupTaskForce();
             else if (CODE == CBN_SELENDOK)
                 ExtraWindow::bComboLBoxSelected = true;
+            else if (CODE == CBN_DROPDOWN && TaskforceListChanged)
+                OnDropdownTaskForce();
             break;
         case Controls::Script:
             if (CODE == CBN_SELCHANGE)
@@ -454,6 +459,8 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnCloseupScript();
             else if (CODE == CBN_SELENDOK)
                 ExtraWindow::bComboLBoxSelected = true;
+            else if (CODE == CBN_DROPDOWN && ScriptListChanged)
+                OnDropdownScript();
             break;
         case Controls::Tag:
             if (CODE == CBN_SELCHANGE)
@@ -464,6 +471,8 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnCloseupTag();
             else if (CODE == CBN_SELENDOK)
                 ExtraWindow::bComboLBoxSelected = true;
+            else if (CODE == CBN_DROPDOWN && TagListChanged)
+                OnDropdownTag();
             break;
         case Controls::TransportWaypoint:
             if (CODE == CBN_SELCHANGE)
@@ -854,6 +863,88 @@ void CNewTeamTypes::OnCloseupHouse()
     if (!ExtraWindow::OnCloseupCComboBox(hHouse, HouseLabels))
     {
         OnSelchangeTeamtypes();
+    }
+}
+
+void CNewTeamTypes::OnDropdownTaskForce()
+{
+    int curSel = SendMessage(hTaskforce, CB_GETCURSEL, NULL, NULL);
+    char buffer[512]{ 0 };
+    GetWindowText(hTaskforce, buffer, 511);
+    FString text(buffer);
+
+    int tmp = 0;
+    ExtraWindow::SortTeams(hTaskforce, "TaskForces", tmp);
+    TaskforceListChanged = false;
+
+    int idx = SendMessage(hTaskforce, CB_FINDSTRINGEXACT, 0, text);
+    if (idx != CB_ERR)
+    {
+        SendMessage(hTaskforce, CB_SETCURSEL, idx, NULL);
+    }
+    else
+    {
+        FString::TrimIndex(text);
+        SendMessage(hTaskforce, WM_SETTEXT, NULL, text);
+    }
+}
+
+void CNewTeamTypes::OnDropdownScript()
+{
+    int curSel = SendMessage(hScript, CB_GETCURSEL, NULL, NULL);
+    char buffer[512]{ 0 };
+    GetWindowText(hScript, buffer, 511);
+    FString text(buffer);
+
+    int tmp = 0;
+    ExtraWindow::SortTeams(hScript, "ScriptTypes", tmp);
+    ScriptListChanged = false;
+
+    int idx = SendMessage(hScript, CB_FINDSTRINGEXACT, 0, text);
+    if (idx != CB_ERR)
+    {
+        SendMessage(hScript, CB_SETCURSEL, idx, NULL);
+    }
+    else
+    {
+        FString::TrimIndex(text);
+        SendMessage(hScript, WM_SETTEXT, NULL, text);
+    }
+}
+
+void CNewTeamTypes::OnDropdownTag()
+{
+    int curSel = SendMessage(hTag, CB_GETCURSEL, NULL, NULL);
+    char buffer[512]{ 0 };
+    GetWindowText(hTag, buffer, 511);
+    FString text(buffer);
+
+    while (SendMessage(hTag, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    std::vector<FString> labels;
+    if (auto pSection = map.GetSection("Tags")) {
+        for (auto& pair : pSection->GetEntities()) {
+            auto atoms = FString::SplitString(pair.second, 1);
+            FString name;
+            name.Format("%s (%s)", pair.first, atoms[1]);
+            labels.push_back(name);
+        }
+    }
+    std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
+    SendMessage(hTag, CB_INSERTSTRING, 0, (LPARAM)(LPCSTR)"None");
+    for (size_t i = 0; i < labels.size(); ++i) {
+        SendMessage(hTag, CB_INSERTSTRING, i + 1, (LPARAM)(LPCSTR)labels[i]);
+    }
+    TagListChanged = false;
+
+    int idx = SendMessage(hTag, CB_FINDSTRINGEXACT, 0, text);
+    if (idx != CB_ERR)
+    {
+        SendMessage(hTag, CB_SETCURSEL, idx, NULL);
+    }
+    else
+    {
+        FString::TrimIndex(text);
+        SendMessage(hTag, WM_SETTEXT, NULL, text);
     }
 }
 

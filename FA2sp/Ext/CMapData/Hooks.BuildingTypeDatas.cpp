@@ -15,6 +15,9 @@ DEFINE_HOOK(4B5460, CMapData_InitializeBuildingTypes, 7)
 	{
 		int idx = pThis->GetBuildingTypeID(ID);
 		auto& DataExt = pThis->BuildingDataExts[idx];
+		pThis->BuildingTypes[ID] = idx;
+		DataExt.BottomCoords.clear();
+		DataExt.DamageFireOffsets.clear();
 
 		ppmfc::CString ImageID = Variables::RulesMap.GetString(ID, "Image", ID);
 		auto foundation = CINI::Art->GetString(ImageID, "Foundation");
@@ -32,8 +35,17 @@ DEFINE_HOOK(4B5460, CMapData_InitializeBuildingTypes, 7)
 		
 		if (_strcmpi(foundation, "Custom") && _strcmpi(foundation, "3x3REFINERY"))
 		{
-			DataExt.Width = atoi(foundation);
-			DataExt.Height = atoi(&foundation[2]);
+			auto sizes = STDHelpers::SplitStringMultiSplit(foundation, "x|X");
+			if (sizes.size() == 2)
+			{
+				DataExt.Width = atoi(sizes[0]);
+				DataExt.Height = atoi(sizes[1]);
+			}
+			else
+			{
+				DataExt.Width = atoi(foundation);
+				DataExt.Height = atoi(&foundation[2]);
+			}
 			if (DataExt.Width == 0)
 				DataExt.Width = 1;
 			if (DataExt.Height == 0)
@@ -188,6 +200,15 @@ DEFINE_HOOK(4B5460, CMapData_InitializeBuildingTypes, 7)
 			{
 				break;
 			}
+		}
+
+		DataExt.BottomCoords.reserve(DataExt.Width + DataExt.Height - 1);
+		for (int x = 0; x < DataExt.Width + DataExt.Height - 1; ++x)
+		{
+			if (x < DataExt.Width)
+				DataExt.BottomCoords.emplace_back(DataExt.Height - 1, x);
+			else
+				DataExt.BottomCoords.emplace_back(DataExt.Height + DataExt.Width - 2 - x, DataExt.Width - 1);
 		}
 		
 	};

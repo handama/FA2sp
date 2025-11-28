@@ -331,7 +331,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             {
                 for (auto& pKey : pSection2->GetEntities())
                 {
-                    if (pKey.first != "Name" && pKey.first != "BannedTheater")
+                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater")
                     {
                         randomList.push_back(atoi(pKey.second));
                     }
@@ -359,7 +359,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             {
                 for (auto& pKey : pSection2->GetEntities())
                 {
-                    if (pKey.first != "Name" && pKey.first != "BannedTheater")
+                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater")
                     {
                         randomList.push_back(pKey.second);
                     }
@@ -385,7 +385,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             {
                 for (auto& pKey : pSection2->GetEntities())
                 {
-                    if (pKey.first != "Name" && pKey.first != "BannedTheater")
+                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater")
                     {
                         randomList.push_back(pKey.second);
                     }
@@ -414,7 +414,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             {
                 for (auto& pKey : pSection2->GetEntities())
                 {
-                    if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
+                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
                     {
                         randomList.push_back(pKey.second);
                     }
@@ -444,7 +444,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             {
                 for (auto& pKey : pSection2->GetEntities())
                 {
-                    if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing" && pKey.first != "AIRepairs" )
+                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater" && pKey.first != "RandomFacing" && pKey.first != "AIRepairs" )
                     {
                         randomList.push_back(pKey.second);
                     }
@@ -475,7 +475,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             {
                 for (auto& pKey : pSection2->GetEntities())
                 {
-                    if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
+                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
                     {
                         randomList.push_back(pKey.second);
                     }
@@ -505,7 +505,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             {
                 for (auto& pKey : pSection2->GetEntities())
                 {
-                    if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
+                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
                     {
                         randomList.push_back(pKey.second);
                     }
@@ -668,8 +668,13 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                     {
                         for (int e = 0; e < pIsoView->BrushSizeY; ++e)
                         {
+                            int tileIndex = command.Type;
+                            if (command.Param == 1) // random tile
+                            {
+                                tileIndex = CIsoViewExt::GetRandomTileIndex();
+                            }
                             pMap->PlaceTileAt(mc.X + 1 + (i - 1) * CMapDataExt::TileData[index].Height,
-                                mc.Y + 1 + (e - 1) * CMapDataExt::TileData[index].Width, command.Type, 2);
+                                mc.Y + 1 + (e - 1) * CMapDataExt::TileData[index].Width, tileIndex, 2);
                         }
                     }
 
@@ -717,7 +722,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                             {
                                 for (auto& pKey : pSection2->GetEntities())
                                 {
-                                    if (pKey.first != "Name" && pKey.first != "BannedTheater")
+                                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater")
                                     {
                                         randomRockList.push_back(atoi(pKey.second));
                                     }
@@ -767,7 +772,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                         {
                             for (auto& pKey : pSection2->GetEntities())
                             {
-                                if (pKey.first != "Name" && pKey.first != "BannedTheater")
+                                if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater")
                                 {
                                     randomList.push_back(pKey.second);
                                 }
@@ -825,7 +830,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                         {
                             for (auto& pKey : pSection2->GetEntities())
                             {
-                                if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
+                                if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
                                 {
                                     randomList.push_back(pKey.second);
                                 }
@@ -900,7 +905,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                             {
                                 for (auto& pKey : pSection2->GetEntities())
                                 {
-                                    if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing" && pKey.first != "AIRepairs")
+                                    if (pKey.first.Find("Name") < 0 && pKey.first != "BannedTheater" && pKey.first != "RandomFacing" && pKey.first != "AIRepairs")
                                     {
                                         randomList.push_back(pKey.second);
                                     }

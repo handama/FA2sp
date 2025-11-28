@@ -5,6 +5,7 @@
 #include <FA2PP.h>
 #include <CFinalSunApp.h>
 #include <filesystem>
+#include "../Helpers/Translations.h"
 namespace fs = std::filesystem;
 
 // Replace the resources
@@ -137,7 +138,9 @@ DEFINE_HOOK(551E57, FetchResource_CDialog_DoModal, 5)
 DEFINE_HOOK(554C8A, FetchResource_Cwnd_ExecuteDlgInit, 5)
 {
 	GET_STACK(LPCSTR, lpName, STACK_OFFS(0xC, -4));
+	GET(ppmfc::CWnd*, pThis, EBX);
 	const LPCSTR lpType = (LPCSTR)(0xF0);
+	Translations::DlgIdMap[pThis->GetSafeHwnd()] = (int)lpName;
 	const HMODULE hModule = static_cast<HMODULE>(FA2sp::hInstance);
 	if (HRSRC hResInfo = FindResource(hModule, lpName, lpType)) {
 		if (HGLOBAL hResData = LoadResource(hModule, hResInfo)) {

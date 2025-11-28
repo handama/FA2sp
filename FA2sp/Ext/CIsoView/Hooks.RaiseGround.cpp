@@ -1071,11 +1071,8 @@ DEFINE_HOOK(465CC7, CIsoView_OnLButtonDown_ACTIONMODE_LOWERTILE, 6)
 DEFINE_HOOK(45B523, CIsoView_OnMouseMove_SkipShift, 7)
 {
 	if (CIsoView::CurrentCommand->Command == 11 || CIsoView::CurrentCommand->Command == 12) {
-		SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0,
-			(LPARAM)Translations::TranslateOrDefault("HeightenAndLowerMessage",
+		CIsoViewExt::SetStatusBarText(Translations::TranslateOrDefault("HeightenAndLowerMessage",
 				"Ctrl: Raise/lower same tileset, Shift: Steep slope, Ctrl+Shift:  Ignore non-morphable tiles"));
-		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-		::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
 		return 0x45B567;
 	}
 	return 0;
@@ -1097,9 +1094,13 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 
 	if (CIsoViewExt::nFlagsMove == (MK_LBUTTON | MK_SHIFT) || CIsoViewExt::nFlagsMove == (MK_LBUTTON | MK_CONTROL | MK_SHIFT)) // reduce lag
 	{
-		std::vector<int> random = { 0,0,0,0,1 };
-		if (STDHelpers::RandomSelectInt(random) == 0)
+		static int reduceFrequency = 0;
+		reduceFrequency++;
+		if (reduceFrequency == 5)
+		{
+			reduceFrequency = 0;
 			return 0x45BF33;
+		}
 	}
 
 	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;

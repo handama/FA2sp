@@ -37,7 +37,7 @@ void TheaterInfo::UpdateTheaterInfo()
 {
 	CurrentInfoHasCliff2 = false;
 	CurrentInfo.clear();
-	auto const pSection = GetInfoSection();
+	ppmfc::CString pSection = GetInfoSection();
 	ppmfc::CString buffer = CINI::FAData->GetString(pSection, "Morphables");
 	ppmfc::CString buffer2 = CINI::FAData->GetString(pSection, "Ramps");
 	auto buffer2s = STDHelpers::SplitString(buffer2);
@@ -67,8 +67,11 @@ void TheaterInfo::UpdateTheaterInfo()
 	}
 
 	CurrentInfoNonMorphable.clear();
-	auto const pSection2 = std::string(GetInfoSection()) + "2";
-	buffer = CINI::FAData->GetString(pSection2.c_str(), "AddTiles");
+	ppmfc::CString pSection2 = pSection + "2";
+	// Forward compatibility
+	if (!CINI::FAData->SectionExists(pSection2))
+		pSection2 = pSection;
+	buffer = CINI::FAData->GetString(pSection2, "AddTiles");
 
 	i = 0, j = 0;
 	for (auto& str : STDHelpers::SplitString(buffer))
@@ -83,10 +86,11 @@ void TheaterInfo::UpdateTheaterInfo()
 
 		j++;
 	}
-
 }
 std::vector<InfoStruct> TheaterInfo::CurrentInfo;
 std::vector<InfoStruct> TheaterInfo::CurrentInfoNonMorphable;
+std::set<int> TheaterInfo::CurrentBigWaters;
+std::set<int> TheaterInfo::CurrentSmallWaters;
 bool TheaterInfo::CurrentInfoHasCliff2 = false;
 
 DEFINE_HOOK(49D121, CMapData_UpdateINIFile_UpdateTheaterInfos, 7)

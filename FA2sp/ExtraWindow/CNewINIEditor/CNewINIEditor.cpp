@@ -17,7 +17,6 @@
 #include "../../Ext/CTileSetBrowserFrame/TabPages/TriggerSort.h"
 #include "../CNewScript/CNewScript.h"
 #include <numeric>
-#include "../../Ext/CTriggerFrame/Body.h"
 #define INI_BUFFER_SIZE 800000
 
 HWND CNewINIEditor::m_hwnd;

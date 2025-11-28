@@ -469,16 +469,16 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
         {
             comments += "; ";
             if (saveAsUTF8)
-                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1_UTF8", "本文件编码为 UTF8，请使用此格式打开");
+                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1_UTF8", "This file is encoded as UTF8, please open it in this format");
             else
-                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1", "本文件编码为 ANSI/GBK，请使用此格式打开");
+                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1", "This file is encoded as ANSI/GBK, please open it in this format");
 
             comments += "\n";
             comments += "; ";
-            comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment2", "Warning: If the first line appears as gibberish");
+            comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment2", "If non ASCII characters (such as Chinese) are used");
             comments += "\n";
             comments += "; ";
-            comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment3", "and Chinese characters are used, DO NOT modify this file");
+            comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment3", "modifying the file with incorrect encoding will result in garbled characters");
             comments += "\n";
             comments += "\n";
         }

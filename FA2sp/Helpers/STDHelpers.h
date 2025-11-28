@@ -15,8 +15,15 @@
 #include <CINI.h>
 #include <Miscs/Miscs.h>
 
-// A class uses STL containers for assistance use
+enum FileEncoding : char
+{
+	ANSI = 0,
+	UTF8 = 1,
+	UTF8_BOM = 2,
+	UTF8_ASCII = 3
+};
 
+// A class uses STL containers for assistance use
 class STDHelpers
 {
 public:
@@ -68,7 +75,7 @@ public:
     static std::wstring StringToWString(const std::string& str);
 	static void WStringReplace(std::wstring& str, const std::wstring& oldStr, const std::wstring& newStr);
 
-	static bool isUTF8(const uint8_t* data, size_t size);
+	static FileEncoding GetFileEncoding(const uint8_t* data, size_t size);
 
 	static inline int letter2number(char let) {
 		int reply = let - 'A';

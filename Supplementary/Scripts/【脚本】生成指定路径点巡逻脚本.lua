@@ -1,5 +1,5 @@
-input = input_box('ÇëÊäÈëÂ·¾¶µã£¬Ö§³ÖÁ¬ĞøÊäÈëÓë¶ÀÁ¢ÊäÈë£¬Èç\n20-24,19,30')
-guard = tonumber(input_box('ÇëÊäÈë¾¯½äÊ±¼ä£¨µ¥Î»Ãë£©'))
+input = input_box('è¯·è¾“å…¥è·¯å¾„ç‚¹ï¼Œæ”¯æŒè¿ç»­è¾“å…¥ä¸ç‹¬ç«‹è¾“å…¥ï¼Œå¦‚\n20-24,19,30')
+guard = tonumber(input_box('è¯·è¾“å…¥è­¦æˆ’æ—¶é—´ï¼ˆå•ä½ç§’ï¼‰'))
 result = {}
 for _, part in pairs(split_string(input, ",")) do
     local range_parts = split_string(part, "-")
@@ -31,8 +31,8 @@ if #result > 0 and #result < 14 then
 	end
 	s:add_action(6, 1)
 	s:apply()
-	print("Ìí¼ÓÑ²Âß½Å±¾£¬Ãû³Æ£º"..s.name)
-	print("ID£º"..s.id)
+	print("æ·»åŠ å·¡é€»è„šæœ¬ï¼Œåç§°ï¼š"..s.name)
+	print("IDï¼š"..s.id)
 else
-	print("Â·¾¶µã¹ı¶à»ò¹ıÉÙ£¡")
+	print("è·¯å¾„ç‚¹è¿‡å¤šæˆ–è¿‡å°‘ï¼")
 end

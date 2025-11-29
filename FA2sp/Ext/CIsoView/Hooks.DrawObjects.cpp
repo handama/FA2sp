@@ -399,6 +399,42 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		return ExtConfigs::InGameDisplay_Cloakable && Variables::RulesMap.GetBool(ID, "Cloakable");
 	};
 
+	auto getTileVirtualHeight = [](CellData* cell) -> int
+	{
+		int altImage = cell->Flag.AltIndex;
+		int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+		int tileSubIndex = cell->TileSubIndex;
+		if (CFinalSunApp::Instance->FrameMode)
+		{
+			if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
+			{
+				tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
+			}
+			else
+			{
+				tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + cell->Height;
+				tileSubIndex = 0;
+			}
+		}
+
+		CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
+		int tileSet = tile.TileSet;
+		if (tile.AltTypeCount)
+		{
+			if (altImage > 0)
+			{
+				altImage = altImage < tile.AltTypeCount ? altImage : tile.AltTypeCount;
+				tile = tile.AltTypes[altImage - 1];
+			}
+		}
+		if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
+		{
+			auto& subTile = tile.TileBlockDatas[tileSubIndex];
+			return cell->Height - subTile.YMinusExY / 15;
+		}
+		return cell->Height;
+	};
+
 	for (int XplusY = Left + Top; XplusY < Right + Bottom; XplusY++) {
 		for (int X = 0; X < XplusY; X++) {
 			int Y = XplusY - X;
@@ -450,58 +486,74 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 		int altImage = cell->Flag.AltIndex;
 		int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
-		int tileSubIndex = CMapDataExt::GetSafeTileIndex(cell->TileSubIndex);
+		int tileSetOri = CMapDataExt::TileData[tileIndex].TileSet;
+		int tileSubIndex = cell->TileSubIndex;
 		if (tileIndex >= CMapDataExt::TileDataCount)
 			continue;
 
-		for (int i = 1; i <= 4; i++)
+		int virtualHeight = cell->Height;
+		if (CFinalSunApp::Instance->FrameMode)
+		{
+			if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
+			{
+				tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
+			}
+			else
+			{
+				tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + cell->Height;
+				tileSubIndex = 0;
+			}
+		}
+
+		CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
+		int tileSet = tile.TileSet;
+		if (tile.AltTypeCount)
+		{
+			if (altImage > 0)
+			{
+				altImage = altImage < tile.AltTypeCount ? altImage : tile.AltTypeCount;
+				tile = tile.AltTypes[altImage - 1];
+			}
+		}
+
+		if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
+		{
+			auto& subTile = tile.TileBlockDatas[tileSubIndex];
+			virtualHeight = cell->Height - subTile.YMinusExY / 15;
+		}
+
+		if (tileSetOri == CMapDataExt::BridgeSet || tileSetOri == CMapDataExt::WoodBridgeSet)
+			virtualHeight = cell->Height;
+
+		for (int i = 1; i <= 2 + virtualHeight - cell->Height + cell->Height / 2; i++)
 		{
 			if (CMapData::Instance->IsCoordInMap(X - i, Y - i))
 			{
 				auto blockedCell = CMapData::Instance->GetCellAt(X - i, Y - i);
-				if (cell->Height - blockedCell->Height >= 2 * i
-					|| i == 1 && blockedCell->Flag.RedrawTerrain && cell->Height > blockedCell->Height)
+				int blockedHeight = blockedCell->Height;//(getTileVirtualHeight(blockedCell));
+				if (virtualHeight - blockedHeight >= 2 * i
+					|| i == 1 && blockedCell->Flag.RedrawTerrain && virtualHeight > blockedHeight)
 					cell->Flag.RedrawTerrain = true;
 			}
+		}
+		for (int i = 0; i <= 2 + virtualHeight - cell->Height + cell->Height / 2; i++)
+		{
 			if (CMapData::Instance->IsCoordInMap(X - i - 1, Y - i))
 			{
 				auto blockedCell = CMapData::Instance->GetCellAt(X - i - 1, Y - i);
-				if (blockedCell->Flag.RedrawTerrain && cell->Height - blockedCell->Height >= 2 * i)
+				if (blockedCell->Flag.RedrawTerrain && virtualHeight - blockedCell->Height >= 2 * std::max(1, i))
 					cell->Flag.RedrawTerrain = true;
 			}
 			if (CMapData::Instance->IsCoordInMap(X - i, Y - i - 1))
 			{
 				auto blockedCell = CMapData::Instance->GetCellAt(X - i, Y - i - 1);
-				if (blockedCell->Flag.RedrawTerrain && cell->Height - blockedCell->Height >= 2 * i)
+				if (blockedCell->Flag.RedrawTerrain && virtualHeight - blockedCell->Height >= 2 * std::max(1, i))
 					cell->Flag.RedrawTerrain = true;
 			}
 		}
 
-		if (!cell->Flag.RedrawTerrain)
-		{
-			if (CFinalSunApp::Instance->FrameMode)
-			{
-				if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
-				{
-					tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
-				}
-				else
-				{
-					tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + cell->Height;
-					tileSubIndex = 0;
-				}
-			}
-
-			CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
-			int tileSet = tile.TileSet;
-			if (tile.AltTypeCount)
-			{
-				if (altImage > 0)
-				{
-					altImage = altImage < tile.AltTypeCount ? altImage : tile.AltTypeCount;
-					tile = tile.AltTypes[altImage - 1];
-				}
-			}
+		if (!cell->Flag.RedrawTerrain || CFinalSunApp::Instance->FlatToGround)
+		{			
 			if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
 			{
 				auto& subTile = tile.TileBlockDatas[tileSubIndex];
@@ -546,7 +598,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 		int altImage = cell->Flag.AltIndex;
 		int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
-		int tileSubIndex = CMapDataExt::GetSafeTileIndex(cell->TileSubIndex);
+		int tileSubIndex = cell->TileSubIndex;
 
 		if (CFinalSunApp::Instance->FrameMode)
 		{
@@ -1084,8 +1136,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(Variables::RulesMap.GetValueAt("OverlayTypes", cellExt->NewOverlay))
-				== CIsoViewExt::MapRendererIgnoreObjects.end()
-				&& (!CMapDataExt::GetOverlayTypeData(cellExt->NewOverlay).Rubble || CIsoViewExt::RenderInvisibleInGame))
+				== CIsoViewExt::MapRendererIgnoreObjects.end())
 			{
 				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
@@ -1145,7 +1196,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		{
 			int altImage = cell->Flag.AltIndex;
 			int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
-			int tileSubIndex = CMapDataExt::GetSafeTileIndex(cell->TileSubIndex);
+			int tileSubIndex = cell->TileSubIndex;
 			if (tileIndex < CMapDataExt::TileDataCount)
 			{
 				auto drawTerrainAnim = [&pThis, &lpDesc, &boundary, &cell, &isCellHidden](int tileIndex, int tileSubIndex, int x, int y)
@@ -1168,7 +1219,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 					};
 
-				if (cell->Flag.RedrawTerrain)
+				if (cell->Flag.RedrawTerrain && !CFinalSunApp::Instance->FlatToGround)
 				{
 					if (CFinalSunApp::Instance->FrameMode)
 					{
@@ -1366,8 +1417,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(Variables::RulesMap.GetValueAt("OverlayTypes", cellNextExt.NewOverlay))
-				== CIsoViewExt::MapRendererIgnoreObjects.end()
-				&& (!CMapDataExt::GetOverlayTypeData(cellNextExt.NewOverlay).Rubble || CIsoViewExt::RenderInvisibleInGame))
+				== CIsoViewExt::MapRendererIgnoreObjects.end())
 			{
 				if (
 					cellNextExt.NewOverlay == 0x18 || cellNextExt.NewOverlay == 0x19 || // BRIDGE1, BRIDGE2
@@ -1408,7 +1458,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 						y1 += CIsoViewExt::GetOverlayDrawOffset(cellNextExt.NewOverlay, cellNext->OverlayData);				
 						y1 += 30;
-						y1 -= (cellNext->Height - cell->Height) * 15;
+						if (!CFinalSunApp::Instance->FlatToGround)
+							y1 -= (cellNext->Height - cell->Height) * 15;
 
 						auto tmp = CIsoViewExt::CurrentDrawCellLocation;
 						CIsoViewExt::CurrentDrawCellLocation.X++;
@@ -1422,8 +1473,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(Variables::RulesMap.GetValueAt("OverlayTypes", cellExt->NewOverlay))
-				== CIsoViewExt::MapRendererIgnoreObjects.end() 
-				&& (!CMapDataExt::GetOverlayTypeData(cellExt->NewOverlay).Rubble || CIsoViewExt::RenderInvisibleInGame))
+				== CIsoViewExt::MapRendererIgnoreObjects.end())
 			{
 				if (
 					cellExt->NewOverlay != 0xFFFF &&

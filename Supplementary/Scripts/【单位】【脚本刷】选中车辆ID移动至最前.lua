@@ -20,7 +20,7 @@ if running_lua_brush() then
 		update_unit()
 	end
 else
-	message_box("本脚本仅能通过“脚本刷”运行！", "错误", 8)
+	message_box("鏈剼鏈粎鑳介�氳繃鈥滆剼鏈埛鈥濊繍琛岋紒", "閿欒", 8)
 end
 
 

@@ -3676,7 +3676,7 @@ int CIsoViewExt::GetRandomTileIndex()
             {
                 for (auto& pKey : pSection2->GetEntities())
                 {
-                    if (pKey.first != "Name" && pKey.first != "AllowedTheater")
+                    if (pKey.first.Find("Name") < 0 && pKey.first != "AllowedTheater")
                     {
                         int tile = atoi(pKey.second);
                         if (tile >= CMapDataExt::TileDataCount)
@@ -4626,6 +4626,16 @@ int CIsoViewExt::GetOverlayDrawOffset(WORD nOverlay, BYTE nOverlayData)
             return -1;
     }
     return 15;
+}
+
+void CIsoViewExt::SetStatusBarText(const char* text)
+{
+    if (text && strlen(text) > 0)
+    {
+        ::SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0, (LPARAM)text);
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+        ::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
+    }
 }
 
 BOOL CIsoViewExt::PreTranslateMessageExt(MSG* pMsg)

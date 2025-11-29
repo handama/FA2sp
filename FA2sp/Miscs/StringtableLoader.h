@@ -8,7 +8,7 @@ class StringtableLoader
 {
 public:
     static void LoadCSFFiles();
-    static void LoadCSFFile(const char* pName, bool fa2path = false);
+    static bool LoadCSFFile(const char* pName, bool fa2path = false);
     static std::vector<FString> GetLinesFromBuffer(char* buffer, DWORD size);
     static bool ParseCSFFile(char* buffer, DWORD size);
     static bool ParseLLFFile(std::vector<FString>& ret);

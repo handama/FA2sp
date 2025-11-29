@@ -1659,7 +1659,10 @@ void CTerrainGenerator::SaveAndReloadPreset()
     FString id = CurrentPreset->ID;
     FString path = CFinalSunAppExt::ExePathExt();
     path += "\\TerrainGenerator.ini";
+
+    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
     ini->WriteString(id, "Name", CurrentPreset->Name);
+    ini->WriteString(id, transed, CurrentPreset->Name);
     ini->WriteString(id, "Scale", STDHelpers::IntToString(CurrentPreset->Scale));
     FString theaters = "";
     for (const auto& t : CurrentPreset->Theaters) {

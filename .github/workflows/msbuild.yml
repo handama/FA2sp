@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        configuration: [ Release, Release_Chinese ]
+        configuration: [ Release ]
 
     env:
       SOLUTION_FILE_PATH: .

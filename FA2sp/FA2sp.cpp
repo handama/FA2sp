@@ -34,7 +34,6 @@ int	 ExtConfigs::ObjectBrowser_GuessMax;
 bool ExtConfigs::ObjectBrowser_CleanUp;
 bool ExtConfigs::ObjectBrowser_SafeHouses;
 bool ExtConfigs::ObjectBrowser_Foundation;
-bool ExtConfigs::LoadLunarWater;
 bool ExtConfigs::LoadCivilianStringtable;
 bool ExtConfigs::PasteShowOutlineDefault;
 bool ExtConfigs::AllowIncludes;
@@ -194,7 +193,7 @@ bool ExtConfigs::EnableDarkMode;
 bool ExtConfigs::EnableDarkMode_Init;
 bool ExtConfigs::EnableDarkMode_DimMap;
 bool ExtConfigs::ShrinkTilesInTileSetBrowser;
-bool ExtConfigs::UTF8Support_InferEncoding;
+bool ExtConfigs::UTF8Support_InferEncoding = true;
 bool ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
 ppmfc::CString ExtConfigs::NewTriggerPlusID_Digits;
@@ -223,7 +222,6 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ObjectBrowser_Foundation = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Foundation");
 	ExtConfigs::ObjectBrowser_Ore_RandomPlacement = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Ore.RandomPlacement");
 	ExtConfigs::ObjectBrowser_Ore_ExtraSupport = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Ore.ExtraSupport");
-	ExtConfigs::LoadLunarWater = CINI::FAData->GetBool("ExtConfigs", "LoadLunarWater");
 	ExtConfigs::LoadCivilianStringtable = CINI::FAData->GetBool("ExtConfigs", "LoadCivilianStringtable");
 	ExtConfigs::PasteShowOutlineDefault = CINI::FAData->GetBool("ExtConfigs", "PasteShowOutline");
 	
@@ -629,14 +627,6 @@ void FA2sp::ExtConfigsInitialize()
 		.Value = &ExtConfigs::ObjectBrowser_Foundation,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.LoadLunarWater", "Show lunar water"),
-		.IniKey = "LoadLunarWater",
-		.Value = &ExtConfigs::LoadLunarWater,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
-
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.Ore.RandomPlacement", "Random choose ores when placing"),
@@ -1317,7 +1307,7 @@ DEFINE_HOOK(537129, ExeRun, 9)
 	bool bMutexResult = MutexHelper::Attach(MUTEX_HASH_VAL);
 	if (!bMutexResult)
 	{
-		if (MessageBox(nullptr, MUTEX_INIT_ERROR_MSG, MUTEX_INIT_ERROR_TIT, MB_YESNO | MB_ICONQUESTION) != IDYES)
+		if (MessageBoxW(nullptr, MUTEX_INIT_ERROR_MSG, MUTEX_INIT_ERROR_TIT, MB_YESNO | MB_ICONQUESTION) != IDYES)
 			ExitProcess(114514);
 	}
 	

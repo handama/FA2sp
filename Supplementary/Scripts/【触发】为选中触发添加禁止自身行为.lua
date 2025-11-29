@@ -1,10 +1,10 @@
-box = multi_select_box:new("ÇëÑ¡Ôñ´¥·¢")
+box = multi_select_box:new("è¯·é€‰æ‹©è§¦å‘")
 for i,id in pairs(get_keys("Triggers")) do
 	box:add_option(id, get_param("Triggers", id, 3))
 end
 box:sort_options(true)
 selected_triggers = box:do_modal()
-print("ÎªÏÂÁĞ´¥·¢Ìí¼ÓÁË½ûÖ¹×ÔÉíĞĞÎª£º")
+print("ä¸ºä¸‹åˆ—è§¦å‘æ·»åŠ äº†ç¦æ­¢è‡ªèº«è¡Œä¸ºï¼š")
 for i,id in pairs(selected_triggers) do
 	trigger = get_trigger(id)
 	trigger:add_action("54,2,"..id..",0,0,0,0,A")

@@ -1,7 +1,7 @@
 house = "none"
 repair_step = get_integer("General","RepairStep", 0 ,"rules+map")
-if message_box("ÐèÒª½«ÐÞ¸ÄÏÞÖÆµ½ÖÆ¶¨ËùÊô·½Âð£¿", "ÏÞÖÆËùÊô·½", 2) == 1 then
-	box = select_box:new("Ñ¡ÔñËùÊô·½")
+if message_box("éœ€è¦å°†ä¿®æ”¹é™åˆ¶åˆ°åˆ¶å®šæ‰€å±žæ–¹å—ï¼Ÿ", "é™åˆ¶æ‰€å±žæ–¹", 2) == 1 then
+	box = select_box:new("é€‰æ‹©æ‰€å±žæ–¹")
 	house_section = "Houses"
 	load_from = "map"
 	if is_multiplay() then

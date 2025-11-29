@@ -3,8 +3,8 @@ function get_digit_count(n)
 	return math.floor(math.log(math.abs(n), 10)) + 1
 end
 
-if message_box("是否为地图创建快照？", "创建快照", 2) == 1 then create_snapshot() end
-step = tonumber(input_box("请输入路径点距离"))
+if message_box("鏄惁涓哄湴鍥惧垱寤哄揩鐓э紵", "鍒涘缓蹇収", 2) == 1 then create_snapshot() end
+step = tonumber(input_box("璇疯緭鍏ヨ矾寰勭偣璺濈"))
 wps = {}
 biggest_wp = -1
 local ds = step * 2

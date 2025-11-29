@@ -68,6 +68,9 @@ void TheaterInfo::UpdateTheaterInfo()
 
 	CurrentInfoNonMorphable.clear();
 	ppmfc::CString pSection2 = pSection + "2";
+	// Forward compatibility
+	if (!CINI::FAData->SectionExists(pSection2))
+		pSection2 = pSection;
 	buffer = CINI::FAData->GetString(pSection2, "AddTiles");
 
 	i = 0, j = 0;

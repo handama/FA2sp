@@ -14,20 +14,20 @@ if running_lua_brush() then
 		if first_run then
 			top_left_x = Y
 			top_left_y = X
-			print("ÌáÊ¾£ºÄã¸Õ¸ÕÑ¡ÔñÁË×óÉÏ½Ç£¬½ÓÏÂÀ´ÇëÑ¡ÔñÓÒÏÂ½Ç")
+			print("æç¤ºï¼šä½ åˆšåˆšé€‰æ‹©äº†å·¦ä¸Šè§’ï¼Œæ¥ä¸‹æ¥è¯·é€‰æ‹©å³ä¸‹è§’")
 		else
 			bottom_right_x = Y
 			bottom_right_y = X
 			
 			if top_left_y < bottom_right_y then
 				local mpL, mpT, mpW, mpH = calculate_mp_values(top_left_x, top_left_y, bottom_right_x, bottom_right_y, width(), height())
-				print("µØÍ¼±ß½ç£¨×ó,ÉÏ,¿í,¸ß£©£º"..tostring(mpL)..","..tostring(mpT)..","..tostring(mpW)..","..tostring(mpH))
-				print("ÌáÊ¾£ºÓÉÓÚµØÍ¼¸ß¶È»áÓ°ÏìÏÔÊ¾£¬Çë¾¡Á¿ÔÚ´ò¿ªÆ½ÃæÏÔÊ¾µÄÇé¿öÏÂ½øĞĞÑ¡Ôñ¡£")
+				print("åœ°å›¾è¾¹ç•Œï¼ˆå·¦,ä¸Š,å®½,é«˜ï¼‰ï¼š"..tostring(mpL)..","..tostring(mpT)..","..tostring(mpW)..","..tostring(mpH))
+				print("æç¤ºï¼šç”±äºåœ°å›¾é«˜åº¦ä¼šå½±å“æ˜¾ç¤ºï¼Œè¯·å°½é‡åœ¨æ‰“å¼€å¹³é¢æ˜¾ç¤ºçš„æƒ…å†µä¸‹è¿›è¡Œé€‰æ‹©ã€‚")
 			else
-				print("´íÎó£º±ØĞë°´ÕÕ×óÉÏ½Ç->ÓÒÏÂ½ÇµÄË³ĞòÑ¡Ôñ£¡")
+				print("é”™è¯¯ï¼šå¿…é¡»æŒ‰ç…§å·¦ä¸Šè§’->å³ä¸‹è§’çš„é¡ºåºé€‰æ‹©ï¼")
 			end
 		end
 	end
 else
-	message_box("±¾½Å±¾½öÄÜÍ¨¹ı¡°½Å±¾Ë¢¡±ÔËĞĞ£¡", "´íÎó", 8)
+	message_box("æœ¬è„šæœ¬ä»…èƒ½é€šè¿‡â€œè„šæœ¬åˆ·â€è¿è¡Œï¼", "é”™è¯¯", 8)
 end

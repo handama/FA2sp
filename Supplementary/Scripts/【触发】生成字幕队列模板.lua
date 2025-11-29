@@ -1,24 +1,24 @@
---¡¾´¥·¢¡¿Éú³É×ÖÄ»¶ÓÁĞÄ£°å.lua
---ß÷---ß÷---ß÷---ß÷--
+--ã€è§¦å‘ã€‘ç”Ÿæˆå­—å¹•é˜Ÿåˆ—æ¨¡æ¿.lua
+--å–µ---å–µ---å–µ---å–µ--
 
-input_text_number = input_box("½«Éú³É2×éÎÄ±¾£¬ÉèÖÃÃ¿×éÉú³ÉµÄÎÄ±¾´¥·¢ÊıÁ¿(Ğ¡ÓÚ100)")
+input_text_number = input_box("å°†ç”Ÿæˆ2ç»„æ–‡æœ¬ï¼Œè®¾ç½®æ¯ç»„ç”Ÿæˆçš„æ–‡æœ¬è§¦å‘æ•°é‡(å°äº100)")
 text_number = tonumber(input_text_number)
 if text_number < 1 or text_number >= 100 then
-message_box("ÊäÈëÊı¾İ²»ºÏÒªÇó, Ä¬ÈÏ½«Éú³ÉµÄÎÄ±¾´¥·¢ÊıÁ¿ÊıÁ¿µ÷ÕûÎª3", "ÊäÈëÄÚÈİ·Ç·¨", 1)
+message_box("è¾“å…¥æ•°æ®ä¸åˆè¦æ±‚, é»˜è®¤å°†ç”Ÿæˆçš„æ–‡æœ¬è§¦å‘æ•°é‡æ•°é‡è°ƒæ•´ä¸º3", "è¾“å…¥å†…å®¹éæ³•", 1)
 text_number=3
 end
 
-input_time_number = input_box("ÊäÈëÉú³ÉµÄÎÄ±¾´¥·¢¼ä¸ô(µ¥Î»£ºÃë)")
+input_time_number = input_box("è¾“å…¥ç”Ÿæˆçš„æ–‡æœ¬è§¦å‘é—´éš”(å•ä½ï¼šç§’)")
 time_number = tonumber(input_time_number)
 if time_number <= 0  then
-message_box("ÊäÈëÊı¾İ²»ºÏÒªÇó, Ä¬ÈÏ½«ÎÄ±¾´¥·¢¼ä¸ôµ÷ÕûÎª10Ãë", "ÊäÈëÄÚÈİ·Ç·¨", 1)
+message_box("è¾“å…¥æ•°æ®ä¸åˆè¦æ±‚, é»˜è®¤å°†æ–‡æœ¬è§¦å‘é—´éš”è°ƒæ•´ä¸º10ç§’", "è¾“å…¥å†…å®¹éæ³•", 1)
 time_number=10
 end
 
 
---Éú³ÉÎÄ±¾Ëø¾Ö²¿±äÁ¿ºÍÎÄ±¾Ëø´¥·¢--
+--ç”Ÿæˆæ–‡æœ¬é”å±€éƒ¨å˜é‡å’Œæ–‡æœ¬é”è§¦å‘--
 var_name = "Text_Lock"
-lock_name = "[ÎÄ±¾Ëø]ÑÓÊ±½âËø"
+lock_name = "[æ–‡æœ¬é”]å»¶æ—¶è§£é”"
 local variable_index = tonumber(get_free_key("VariableNames"))
 write_string("VariableNames", tostring(variable_index), var_name..",0")
 lock_id = get_free_id()
@@ -30,9 +30,9 @@ write_string("Triggers", lock_id, "Neutral,<none>,"..lock_name..",0,1,1,1,0")
 write_string("Tags", lock_tag, "2,"..lock_name.."1,"..lock_id.."")
 write_string("Actions", lock_id, "2,57,0,"..tostring(variable_index)..",0,0,0,0,A,54,2,"..lock_id..",0,0,0,0,A.")
 
---Éú³ÉÈÎÎñÄ¿±ê²¥±¨ÖØ¸´ÎÄ±¾--
-trigger_obj_1_name = "[ÈÎÎñÄ¿±ê]ÖØ¸´²¥±¨ 01ÑÓÊ±Ñ­»·"
-trigger_obj_2_name = "[ÈÎÎñÄ¿±ê]ÖØ¸´²¥±¨ 02ÎÄ±¾ÏÔÊ¾"
+--ç”Ÿæˆä»»åŠ¡ç›®æ ‡æ’­æŠ¥é‡å¤æ–‡æœ¬--
+trigger_obj_1_name = "[ä»»åŠ¡ç›®æ ‡]é‡å¤æ’­æŠ¥ 01å»¶æ—¶å¾ªç¯"
+trigger_obj_2_name = "[ä»»åŠ¡ç›®æ ‡]é‡å¤æ’­æŠ¥ 02æ–‡æœ¬æ˜¾ç¤º"
 trigger_obj_1_id = get_free_id()
 write_string("Events", trigger_obj_1_id, "1,13,0,200")
 write_string("Triggers", trigger_obj_1_id, "Neutral,<none>,"..trigger_obj_1_name..",1,1,1,1,0")
@@ -45,14 +45,14 @@ write_string("Triggers", trigger_obj_2_id, "Neutral,<none>,"..trigger_obj_2_name
 	trigger_obj_2_tag = get_free_id()
 write_string("Tags", trigger_obj_2_tag, "2,"..trigger_obj_2_name.."1,"..trigger_obj_2_id.."")
 
---ĞĞÎª--
+--è¡Œä¸º--
 write_string("Actions", trigger_obj_1_id, "1,53,0,"..trigger_obj_2_id..",0,0,0,0,A.")
 
 write_string("Actions", trigger_obj_2_id, "4,11,4,gui:sidebartext,0,0,0,0,A,53,2,"..lock_id..",0,0,0,0,A,54,2,"..trigger_obj_2_id..",0,0,0,0,A,56,0,"..tostring(variable_index)..",0,0,0,0,A.")
 
 
 
---Éú³ÉÊı¾İ±í±äÁ¿ÓÃÓÚµ÷ÓÃ--
+--ç”Ÿæˆæ•°æ®è¡¨å˜é‡ç”¨äºè°ƒç”¨--
 local t = {}
 for i = 1, 99 do
     t[i] = {
@@ -65,9 +65,9 @@ for i = 1, 99 do
     }
 end
 
---ÎÄ±¾´¥·¢AÃû³ÆÊÂ¼ş±êÇ©--
+--æ–‡æœ¬è§¦å‘Aåç§°äº‹ä»¶æ ‡ç­¾--
 for i=1, text_number do
-    t[i].name1 = "[ÎÄ±¾A] - "..string.format("%02d", i)..""
+    t[i].name1 = "[æ–‡æœ¬A] - "..string.format("%02d", i)..""
 	t[i].id1 = get_free_id()
 write_string("Events", t[i].id1, "1,13,0,"..time_number)
 if i == 1 then
@@ -77,15 +77,15 @@ write_string("Triggers", t[i].id1, "Neutral,<none>,"..t[i].name1..",1,1,1,1,0")
 t[i].tag1 = get_free_id()
 write_string("Tags", t[i].tag1, "0,"..t[i].name1.."1,"..t[i].id1.."")
 end	
---ÎÄ±¾´¥·¢AĞĞÎª--
+--æ–‡æœ¬è§¦å‘Aè¡Œä¸º--
 for i=1, text_number-1 do
 write_string("Actions", t[i].id1, "3,11,4,gui:sidebartext,0,0,0,0,A,53,2,"..t[i+1].id1..",0,0,0,0,A,56,0,"..tostring(variable_index)..",0,0,0,0,A.")
 end
 write_string("Actions", t[text_number].id1, "2,11,4,gui:sidebartext,0,0,0,0,A,53,2,"..lock_id..",0,0,0,0,A.")
 
---ÎÄ±¾´¥·¢BÃû³ÆÊÂ¼ş±êÇ©--
+--æ–‡æœ¬è§¦å‘Båç§°äº‹ä»¶æ ‡ç­¾--
 for i=1, text_number do
-    t[i].name2 = "[ÎÄ±¾B] - "..string.format("%02d", i)..""
+    t[i].name2 = "[æ–‡æœ¬B] - "..string.format("%02d", i)..""
 	t[i].id2 = get_free_id()
 write_string("Events", t[i].id2, "1,13,0,"..time_number)
 if i == 1 then
@@ -95,7 +95,7 @@ write_string("Triggers", t[i].id2, "Neutral,<none>,"..t[i].name2..",1,1,1,1,0")
 t[i].tag2 = get_free_id()
 write_string("Tags", t[i].tag2, "0,"..t[i].name2.."1,"..t[i].id2.."")
 end
---ÎÄ±¾´¥·¢BĞĞÎª--
+--æ–‡æœ¬è§¦å‘Bè¡Œä¸º--
 for i=1, text_number-1 do
 write_string("Actions", t[i].id2, "3,11,4,gui:sidebartext,0,0,0,0,A,53,2,"..t[i+1].id2..",0,0,0,0,A,56,0,"..tostring(variable_index)..",0,0,0,0,A.")
 end
@@ -103,4 +103,4 @@ write_string("Actions", t[text_number].id2, "2,11,4,gui:sidebartext,0,0,0,0,A,53
 
 
 update_trigger()
-message_box("ÒÑ³É¹¦Ö´ĞĞ½Å±¾", "Ö´ĞĞ³É¹¦", 1)
+message_box("å·²æˆåŠŸæ‰§è¡Œè„šæœ¬", "æ‰§è¡ŒæˆåŠŸ", 1)

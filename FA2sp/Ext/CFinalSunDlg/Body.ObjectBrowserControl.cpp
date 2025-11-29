@@ -370,7 +370,7 @@ FString CViewObjectsExt::QueryUIName(const char* pRegName, bool bOnlyOneLine)
     return idx == -1 ? buffer : buffer.Mid(0, idx);
 }
 
-std::vector<int> SplitCommaIntArray(FString input)
+static std::vector<int> SplitCommaIntArray(FString input)
 {
     CString field;
     std::vector<int> result;
@@ -551,7 +551,7 @@ void CViewObjectsExt::Redraw_Initialize()
                 if (i < forceSides.size())
                 {
                     int sideIndex = forceSides[i];
-                    if (sideIndex >= fadata.GetKeyCount("Sides"))
+                    if (sideIndex >= fadata.GetKeyCount(ExtraWindow::GetTranslatedSectionName("Sides")))
                         sideIndex = -1;
                     if (sideIndex < -1)
                         sideIndex = -1;
@@ -592,7 +592,7 @@ void CViewObjectsExt::Redraw_Initialize()
             ForceName.insert(item.second);
         }
 
-    if (auto forcenames = fadata.GetSection("RenameString"))
+    if (auto forcenames = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("RenameString")))
         for (auto& item : forcenames->GetEntities())
         {
             RenameString[item.first] = item.second;
@@ -604,7 +604,7 @@ void CViewObjectsExt::Redraw_Initialize()
 
         FString suffix = theaterIg.Mid(0, 3);
 
-        if (auto forcenames = fadata.GetSection((FString)("RenameString" + suffix)))
+        if (auto forcenames = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("RenameString") + suffix))
             for (auto& item : forcenames->GetEntities())
             {
                 RenameString[item.first] = item.second;
@@ -680,45 +680,39 @@ void CViewObjectsExt::Redraw_Ground()
             }
             return true;
         };
-    auto setTileIndexByName = [setTileIndex](FString name)
+
+    ppmfc::CString pInfoSection = TheaterInfo::GetInfoSection();
+    auto ignoredTilesets = FString::SplitString(CINI::FAData->GetString(pInfoSection, "IgnoredTilesets"));
+
+    auto setTileIndexByName = [&ignoredTilesets, setTileIndex](FString name)
         {           
             if (CMapData::Instance->MapWidthPlusHeight)
             {
-                return setTileIndex(CINI::CurrentTheater->GetInteger("General", name, -1));
+                auto it = std::find(ignoredTilesets.begin(), ignoredTilesets.end(), name);
+                if (it == ignoredTilesets.end()) {
+                    return setTileIndex(CINI::CurrentTheater->GetInteger("General", name, -1));
+                }
             }
-            return true;
+            return false;
         };
 
     if (setTileIndexByName("ClearTile"))
         this->InsertTranslatedString("GroundClearObList" + suffix, 61, hGround);
-    if (suffix != "LUN")
-    {
-        if (setTileIndexByName("SandTile"))
+
+    if (setTileIndexByName("SandTile"))
             this->InsertTranslatedString("GroundSandObList" + suffix, 62, hGround);
-    }
-    if (suffix != "URB")
-    {
-        if (setTileIndexByName("RoughTile"))
+
+    if (setTileIndexByName("RoughTile"))
             this->InsertTranslatedString("GroundRoughObList" + suffix, 63, hGround);
-    }
+
     if (setTileIndexByName("GreenTile"))
         this->InsertTranslatedString("GroundGreenObList" + suffix, 65, hGround);
-    if (suffix != "UBN")
-    {
-        if (setTileIndexByName("PaveTile"))
-            this->InsertTranslatedString("GroundPaveObList" + suffix, 66, hGround);
-    }
-    
-    if (suffix != "LUN")
-    {
-        if (setTileIndexByName("WaterSet"))
-            this->InsertTranslatedString("GroundWaterObList", 64, hGround);
-    }
-    else if (suffix == "LUN" && ExtConfigs::LoadLunarWater)
-    {
-        if (setTileIndexByName("WaterSet"))
-            this->InsertTranslatedString("GroundWaterObList", 64, hGround);
-    }
+
+    if (setTileIndexByName("PaveTile"))
+        this->InsertTranslatedString("GroundPaveObList" + suffix, 66, hGround);
+
+    if (setTileIndexByName("WaterSet"))
+        this->InsertTranslatedString("GroundWaterObList", 64, hGround);
 
     if (CINI::CurrentTheater)
     {
@@ -761,7 +755,7 @@ void CViewObjectsExt::Redraw_Ground()
                     bool valid = true;
                     for (auto& pKeyTile : pSection2->GetEntities())
                     {
-                        if (pKeyTile.first != "Name" && pKeyTile.first != "AllowedTheater")
+                        if (pKeyTile.first.Find("Name") < 0 && pKeyTile.first != "AllowedTheater")
                         {
                             int tile = atoi(pKeyTile.second);
                             if (tile >= CMapDataExt::TileDataCount)
@@ -778,7 +772,12 @@ void CViewObjectsExt::Redraw_Ground()
                                     add = true;
                         if (add)
                         {
-                            FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "");
+                            auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                            if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
+                                FA2sp::Buffer = *pName;
+                            else
+                                FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "MISSING");
+
                             InsertingTileIndex = CINI::FAData().GetInteger(pKey.second, "0");
                             this->InsertString(FA2sp::Buffer, index, hTemp, TVI_LAST);
                         }
@@ -1043,7 +1042,7 @@ void CViewObjectsExt::Redraw_Infantry()
     auto& fadata = CINI::FAData();
 
     int i = 0;
-    if (auto sides = fadata.GetSection("Sides"))
+    if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
         for (auto& itr : sides->GetEntities())
             subNodes[i++] = this->InsertString(itr.second, -1, hInfantry);
     else
@@ -1115,7 +1114,12 @@ void CViewObjectsExt::Redraw_Infantry()
                 if (add)
                 {
                     InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
-                    this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Infantry + index, hTemp);
+                    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                    if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
+                        FA2sp::Buffer = *pName;
+                    else
+                        FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "MISSING");
+                    this->InsertString(FA2sp::Buffer, Const_Infantry + index, hTemp);
                     InsertingObjectID = "";
                 }
             }
@@ -1145,7 +1149,7 @@ void CViewObjectsExt::Redraw_Vehicle()
     auto& fadata = CINI::FAData();
 
     int i = 0;
-    if (auto sides = fadata.GetSection("Sides"))
+    if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
         for (auto& itr : sides->GetEntities())
             subNodes[i++] = this->InsertString(itr.second, -1, hVehicle);
     else
@@ -1217,7 +1221,12 @@ void CViewObjectsExt::Redraw_Vehicle()
                 if (add)
                 {
                     InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
-                    this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Vehicle + index, hTemp);
+                    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                    if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
+                        FA2sp::Buffer = *pName;
+                    else
+                        FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "MISSING");
+                    this->InsertString(FA2sp::Buffer, Const_Vehicle + index, hTemp);
                     InsertingObjectID = "";
                 }
             }
@@ -1248,7 +1257,7 @@ void CViewObjectsExt::Redraw_Aircraft()
     auto& fadata = CINI::FAData();
 
     int i = 0;
-    if (auto sides = fadata.GetSection("Sides"))
+    if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
         for (auto& itr : sides->GetEntities())
             subNodes[i++] = this->InsertString(itr.second, -1, hAircraft);
     else
@@ -1320,7 +1329,12 @@ void CViewObjectsExt::Redraw_Aircraft()
                 if (add)
                 {
                     InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
-                    this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Aircraft + index, hTemp);
+                    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                    if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
+                        FA2sp::Buffer = *pName;
+                    else
+                        FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "MISSING");
+                    this->InsertString(FA2sp::Buffer, Const_Aircraft + index, hTemp);
                     InsertingObjectID = "";
                 }
             }
@@ -1354,7 +1368,7 @@ void CViewObjectsExt::Redraw_Building()
     auto& doc = CINI::CurrentDocument();
 
     int i = 0;
-    if (auto sides = fadata.GetSection("Sides"))
+    if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
         for (auto& itr : sides->GetEntities())
             subNodes[i++] = this->InsertString(itr.second, -1, hBuilding);
     else
@@ -1462,7 +1476,12 @@ void CViewObjectsExt::Redraw_Building()
                 if (add)
                 {
                     InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
-                    this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Building + index, hTemp);
+                    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                    if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
+                        FA2sp::Buffer = *pName;
+                    else
+                        FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "MISSING");
+                    this->InsertString(FA2sp::Buffer, Const_Building + index, hTemp);
                     InsertingObjectID = "";
                 }
             }
@@ -1554,7 +1573,12 @@ void CViewObjectsExt::Redraw_Terrain()
                 if (add)
                 {
                     InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
-                    this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Terrain + index, hTemp);
+                    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                    if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
+                        FA2sp::Buffer = *pName;
+                    else
+                        FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "MISSING");
+                    this->InsertString(FA2sp::Buffer, Const_Terrain + index, hTemp);
                     InsertingObjectID = "";
                 }
                 index++;
@@ -1614,7 +1638,12 @@ void CViewObjectsExt::Redraw_Smudge()
                 if (add)
                 {
                     InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
-                    this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Smudge + index, hRandomSmudge);
+                    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                    if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
+                        FA2sp::Buffer = *pName;
+                    else
+                        FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "MISSING");
+                    this->InsertString(FA2sp::Buffer, Const_Smudge + index, hRandomSmudge);
                     InsertingObjectID = "";
                 }
             }
@@ -1808,7 +1837,12 @@ void CViewObjectsExt::Redraw_Overlay()
                 {
                     InsertingOverlay = CINI::FAData().GetInteger(pKey.second, "0");
                     InsertingOverlayData = 0;
-                    this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Overlay + index, hTemp2);
+                    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                    if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
+                        FA2sp::Buffer = *pName;
+                    else
+                        FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "MISSING");
+                    this->InsertString(FA2sp::Buffer, Const_Overlay + index, hTemp2);
                     InsertingOverlay = -1;
                 }
             }
@@ -3112,7 +3146,7 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                         int targetIndex = 0;
                         for (auto& pKeyTile : pSection2->GetEntities())
                         {
-                            if (pKeyTile.first != "Name" && pKeyTile.first != "AllowedTheater")
+                            if (pKeyTile.first.Find("Name") < 0 && pKeyTile.first != "AllowedTheater")
                             {
                                 int tile = CINI::FAData().GetInteger(pKey.second, pKeyTile.first);
                                 if (tile >= CMapDataExt::TileDataCount)

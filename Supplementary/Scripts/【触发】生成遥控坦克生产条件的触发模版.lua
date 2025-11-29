@@ -1,11 +1,11 @@
---¡¾´¥·¢¡¿Éú³ÉÒ£¿ØÌ¹¿ËÉú²úÌõ¼şµÄ´¥·¢Ä£°æ.lua
---ß÷---ß÷---ß÷---ß÷--
+--ã€è§¦å‘ã€‘ç”Ÿæˆé¥æ§å¦å…‹ç”Ÿäº§æ¡ä»¶çš„è§¦å‘æ¨¡ç‰ˆ.lua
+--å–µ---å–µ---å–µ---å–µ--
 
-print("×¢Òâ£ºÉú³ÉµÄ´¥·¢ÊÂ¼şµÄ½¨ÖşĞòºÅ£¬")
-print("ÊÇÔ­°æÓÈÀïµÄ¸´³ğµÄ½¨ÖşÁĞ±íË÷Òı£¬")
-print("Çë×ĞÏ¸ºË¶Ô£¡£¡£¡") 
+print("æ³¨æ„ï¼šç”Ÿæˆçš„è§¦å‘äº‹ä»¶çš„å»ºç­‘åºå·ï¼Œ")
+print("æ˜¯åŸç‰ˆå°¤é‡Œçš„å¤ä»‡çš„å»ºç­‘åˆ—è¡¨ç´¢å¼•ï¼Œ")
+print("è¯·ä»”ç»†æ ¸å¯¹ï¼ï¼ï¼") 
 
-box = select_box:new("Ñ¡ÔñËùÊô·½")
+box = select_box:new("é€‰æ‹©æ‰€å±æ–¹")
 for i,house in pairs(get_values("Countries", "rules+map")) do
 	box:add_option(house, translate_house(house))
 end
@@ -22,9 +22,9 @@ end
 selected_house = box:do_modal()
 
 local name= "[AIS]"..selected_house.."_ROBO"
-local name_on = "[AI´¥·¢Ä£Äâ]"..selected_house.."_Ò£¿ØÌ¹¿Ë_on"
-local name_off1 = "[AI´¥·¢Ä£Äâ]"..selected_house.."_Ò£¿ØÌ¹¿Ë_off_1"
-local name_off2 = "[AI´¥·¢Ä£Äâ]"..selected_house.."_Ò£¿ØÌ¹¿Ë_off_2"
+local name_on = "[AIè§¦å‘æ¨¡æ‹Ÿ]"..selected_house.."_é¥æ§å¦å…‹_on"
+local name_off1 = "[AIè§¦å‘æ¨¡æ‹Ÿ]"..selected_house.."_é¥æ§å¦å…‹_off_1"
+local name_off2 = "[AIè§¦å‘æ¨¡æ‹Ÿ]"..selected_house.."_é¥æ§å¦å…‹_off_2"
 
 local variable_index = tonumber(get_free_key("VariableNames"))
 write_string("VariableNames", tostring(variable_index), name..",0")
@@ -56,4 +56,4 @@ update_trigger()
 
 
 
-message_box("ÒÑ³É¹¦Ö´ĞĞ½Å±¾", "Ö´ĞĞ³É¹¦", 1)
+message_box("å·²æˆåŠŸæ‰§è¡Œè„šæœ¬", "æ‰§è¡ŒæˆåŠŸ", 1)

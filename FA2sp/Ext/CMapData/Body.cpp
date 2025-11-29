@@ -501,9 +501,7 @@ void CMapDataExt::PlaceWallAt(int dwPos, int overlay, int damageStage, bool firs
 		damageStage = Map->GetOverlayDataAt(dwPos) / 16;
 	else if (damageStage == -2)
 	{
-		MultimapHelper mmh;
-		mmh.AddINI(&CINI::Rules());
-		auto&& overlays = mmh.ParseIndicies("OverlayTypes", true);
+		auto&& overlays = Variables::RulesMap.ParseIndicies("OverlayTypes", true);
 		int damageLevel = CINI::Art().GetInteger(overlays[overlay], "DamageLevels", 1);
 		std::vector<int> rnd;
 		for (int i = 0; i < damageLevel; i++)
@@ -2555,7 +2553,9 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	}
 
 	ppmfc::CString pInfoSection = TheaterInfo::GetInfoSection();
-	pInfoSection += "2";
+	// Forward compatibility
+	if (CINI::FAData->SectionExists(pInfoSection + "2"))
+		pInfoSection += "2";
 	TheaterInfo::CurrentBigWaters.clear();
 	TheaterInfo::CurrentSmallWaters.clear();
 	if (CINI::FAData->KeyExists(pInfoSection, "BigWaterIndices"))

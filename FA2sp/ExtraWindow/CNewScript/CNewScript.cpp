@@ -167,7 +167,7 @@ void CNewScript::Update(HWND& hWnd)
     
     idx = 0;
     while (SendMessage(hActionType, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    if (auto pSection = fadata.GetSection("ScriptsRA2"))
+    if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("ScriptsRA2")))
     {
         for (auto& pair : pSection->GetEntities())
         {
@@ -186,7 +186,7 @@ void CNewScript::Update(HWND& hWnd)
         }
     }
 
-    if (auto pSection = fadata.GetSection("ScriptsRA2"))
+    if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("ScriptsRA2")))
     {
         for (auto& kvp : pSection->GetEntities())
         {
@@ -199,9 +199,9 @@ void CNewScript::Update(HWND& hWnd)
             auto& description = atoms2[4];
             if (hasParam == "1")
             {
-                if (auto pSectionParam = fadata.GetSection("ScriptParams"))
+                if (auto pSectionParam = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("ScriptParams")))
                 {
-                    auto param = FString::SplitString(fadata.GetString("ScriptParams", paramIdx));
+                    auto param = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptParams"), paramIdx));
                     if (param.size() == 4)
                     {
                         ActionHasExtraParam[name] = true;
@@ -527,7 +527,7 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
         text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
     }
 
-    FString actionName = FString::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
+    FString actionName = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptsRA2"), atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
     FString::TrimIndexElse(actionName);
     FString::TrimIndexElse(actionName);
 
@@ -630,7 +630,7 @@ void CNewScript::OnSelchangeActionParam(bool edited)
         }
     }
 
-    FString actionName = FString::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
+    FString actionName = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptsRA2"), atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
     FString::TrimIndexElse(actionName);
     FString::TrimIndexElse(actionName);
     FString tmp = text;
@@ -725,7 +725,7 @@ void CNewScript::OnSelchangeActionType(bool edited)
         }
     }
 
-    FString actionName = FString::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
+    FString actionName = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptsRA2"), atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
     FString::TrimIndexElse(actionName);
     FString::TrimIndexElse(actionName);
     FString tmp = text;
@@ -852,7 +852,7 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
             }
 
 
-            FString actionName = FString::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
+            FString actionName = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptsRA2"), atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
             FString::TrimIndexElse(actionName);
             FString::TrimIndexElse(actionName);
             FString tmp = text;
@@ -1032,7 +1032,7 @@ void CNewScript::OnClickAddAction(HWND& hWnd)
         map.WriteString(CurrentScriptID, keyThis, "0,0");
 
         text.Format("[%s] : %s - %s", keyThis, "0", "0");
-        FString actionName = FString::SplitString(fadata.GetString("ScriptsRA2", "0"))[0];
+        FString actionName = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptsRA2"), "0"))[0];
         FString::TrimIndexElse(actionName);
         FString::TrimIndexElse(actionName);
         FString tmp = text;
@@ -1213,7 +1213,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
     key.Format("%d", listBoxCurChanged);
     auto value = map.GetString(CurrentScriptID, key);
     auto atoms = FString::SplitString(value, 1);
-    if (auto pSection = fadata.GetSection("ScriptsRA2"))
+    if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("ScriptsRA2")))
     {
         FString action;
         action.Format("%d", actionChanged);
@@ -1221,8 +1221,8 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
         {
             action = atoms[0];
         }
-        auto atoms2 = FString::SplitString(fadata.GetString("ScriptsRA2", action, action + " - MISSING,0,1,0,MISSING"), 4);
-        bool missing = !fadata.KeyExists("ScriptsRA2", action);
+        auto atoms2 = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptsRA2"), action, action + " - MISSING,0,1,0,MISSING"), 4);
+        bool missing = !fadata.KeyExists(ExtraWindow::GetTranslatedSectionName("ScriptsRA2"), action);
         FString name = atoms2[0];
         auto& paramIdx = atoms2[1];
         auto& disable = atoms2[2];
@@ -1249,9 +1249,9 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
             EnableWindow(hActionParam, TRUE);
             CNewScript::ParamAutodrop[0] = true;
             CNewScript::ParamAutodrop[1] = true;
-            if (auto pSectionParam = fadata.GetSection("ScriptParams"))
+            if (auto pSectionParam = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("ScriptParams")))
             {
-                auto param = FString::SplitString(fadata.GetString("ScriptParams", paramIdx));
+                auto param = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptParams"), paramIdx));
                 if (param.size() >= 2)
                 {
                     SendMessage(hActionParamDes, WM_SETTEXT, 0, (LPARAM)param[0]);

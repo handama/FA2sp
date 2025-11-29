@@ -1,4 +1,4 @@
-mode = message_box("点击“是”启动所有debug触发，点击“否”禁用所有debug触发（名称中包含debug的触发）", "模式选择", 2)
+mode = message_box("鐐瑰嚮鈥滄槸鈥濆惎鍔ㄦ墍鏈塪ebug瑙﹀彂锛岀偣鍑烩�滃惁鈥濈鐢ㄦ墍鏈塪ebug瑙﹀彂锛堝悕绉颁腑鍖呭惈debug鐨勮Е鍙戯級", "妯″紡閫夋嫨", 2)
 for i,id in pairs(get_keys("Triggers")) do
 	local name = get_param("Triggers", id, 3)
 	if string.find(name:lower(), "debug") then

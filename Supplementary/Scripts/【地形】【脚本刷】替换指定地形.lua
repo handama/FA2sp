@@ -4,7 +4,7 @@ if running_lua_brush() then
 		if first_run then
 			tile_index = cell.tile
 			subtile_index = cell.subtile
-			message_box("Äã¸Õ¸ÕÑ¡ÔñÁËÔ´µØĞÎ£¬½ÓÏÂÀ´µã»÷Ä¿±êµØĞÎ£¬ÊµÏÖÌæ»»", "ÌáÊ¾", 0)
+			message_box("ä½ åˆšåˆšé€‰æ‹©äº†æºåœ°å½¢ï¼Œæ¥ä¸‹æ¥ç‚¹å‡»ç›®æ ‡åœ°å½¢ï¼Œå®ç°æ›¿æ¢", "æç¤º", 0)
 		else
 			save_undo()
 			local tile_index2 = cell.tile
@@ -21,5 +21,5 @@ if running_lua_brush() then
 		end
 	end
 else
-	message_box("±¾½Å±¾½öÄÜÍ¨¹ı¡°½Å±¾Ë¢¡±ÔËĞĞ£¡", "´íÎó", 8)
+	message_box("æœ¬è„šæœ¬ä»…èƒ½é€šè¿‡â€œè„šæœ¬åˆ·â€è¿è¡Œï¼", "é”™è¯¯", 8)
 end

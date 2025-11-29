@@ -1,0 +1,13 @@
+#include <Windows.h>
+
+152 DIALOG 0, 0, 243, 95
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU | DS_CENTER
+CAPTION "Info"
+LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
+FONT 8, "Tahoma"
+{
+   CONTROL "OK", 1, BUTTON, BS_DEFPUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 186, 7, 50, 14 
+   CONTROL "To find out the latest about C&&C Red Alert 2 please visit http://www.westwood.com!", 1000, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 7, 170, 24 
+   CONTROL "\xA9 2001 ELECTRONIC ARTS INC.   ALL RIGHTS RESERVED\nWestwood Studios(tm) is an Electronic Arts(tm) brand.", 1001, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 30, 229, 18 
+   CONTROL "\xA9 2001 Electronic Arts Inc. Westwood Studios and Electronic Arts are trademarks or registered trademarks of Electronic Arts Inc. in the U.S. and/or other countries. All rights reserved.", 1002, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 57, 229, 32 
+}

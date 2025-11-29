@@ -1,7 +1,7 @@
---¡¾´¥·¢¡¿Éú³ÉÂ·¾¶µã80ºÅË¢±ø(1xN)Ä£°å.lua
---ß÷---ß÷---ß÷---ß÷--
+--ã€è§¦å‘ã€‘ç”Ÿæˆè·¯å¾„ç‚¹80å·åˆ·å…µ(1xN)æ¨¡æ¿.lua
+--å–µ---å–µ---å–µ---å–µ--
 
-box = select_box:new("Ñ¡ÔñËùÊô·½")
+box = select_box:new("é€‰æ‹©æ‰€å±æ–¹")
 for i,house in pairs(get_values("Countries", "rules+map")) do
 	box:add_option(house, translate_house(house))
 end
@@ -17,7 +17,7 @@ if is_multiplay() then
 end
 selected_house = box:do_modal()
 
-input = input_box('ÇëÊäÈëÂ·¾¶µã£¬Ö§³ÖÁ¬ĞøÊäÈëÓë¶ÀÁ¢ÊäÈë£¬Èç\n20-24,19,30')
+input = input_box('è¯·è¾“å…¥è·¯å¾„ç‚¹ï¼Œæ”¯æŒè¿ç»­è¾“å…¥ä¸ç‹¬ç«‹è¾“å…¥ï¼Œå¦‚\n20-24,19,30')
 wp_p = {}
 for _, part in pairs(split_string(input, ",")) do
     local range_parts = split_string(part, "-")
@@ -40,19 +40,19 @@ end
 
 
 
-local input_units = input_box("ÊäÈëÌØÇ²²¿¶Ó, ÀıÈç 3E1,2HTNK,5APOC")
+local input_units = input_box("è¾“å…¥ç‰¹é£éƒ¨é˜Ÿ, ä¾‹å¦‚ 3E1,2HTNK,5APOC")
 local units = input_units:gsub(",", "")
 name = ""..selected_house.."-"..units
 
-trigger_name= "[Ë¢±ø]"..selected_house.."-"..units
+trigger_name= "[åˆ·å…µ]"..selected_house.."-"..units
 
--- ·Ö¸î×Ö·û´®
+-- åˆ†å‰²å­—ç¬¦ä¸²
 local parts = {}
 for part in input_units:gmatch("([^,]+)") do
     table.insert(parts, part)
 end
 
--- ½âÎöÊı×ÖºÍÎÄ±¾
+-- è§£ææ•°å­—å’Œæ–‡æœ¬
 local parsedData = {}
 for i, segment in ipairs(parts) do
     local numStr = segment:match("^(%d+)")
@@ -75,9 +75,9 @@ t.house = selected_house
 t.task_force = task.id
 t.script = s.id
 
-print("==== ÌØÇ²²¿¶ÓÈçÏÂ ====")
+print("==== ç‰¹é£éƒ¨é˜Ÿå¦‚ä¸‹ ====")
 for idx, item in ipairs(parsedData) do
-    print(string.format("%d) ÊıÁ¿: %-2s | µ¥Î»: %s", 
+    print(string.format("%d) æ•°é‡: %-2s | å•ä½: %s", 
         idx, 
         item.number or "N/A", 
         item.text,
@@ -94,18 +94,18 @@ task:apply()
 
 
 
-local create_repeat=input_box("ÊäÈë´¥·¢Ë¢±øÖØ¸´ÀàĞÍ£¬¼´£º0, 1, 2")
+local create_repeat=input_box("è¾“å…¥è§¦å‘åˆ·å…µé‡å¤ç±»å‹ï¼Œå³ï¼š0, 1, 2")
 
 if create_repeat ~= "0" and create_repeat ~= "1" and create_repeat ~= "2" then
-message_box("ÊäÈëÊı¾İ²»ºÏÒªÇó, Ä¬ÈÏ½«ÖØ¸´ÀàĞÍµ÷ÕûÎª0", "ÊäÈëÄÚÈİ·Ç·¨", 1)
+message_box("è¾“å…¥æ•°æ®ä¸åˆè¦æ±‚, é»˜è®¤å°†é‡å¤ç±»å‹è°ƒæ•´ä¸º0", "è¾“å…¥å†…å®¹éæ³•", 1)
 create_repeat = "0"
 end
 
 if create_repeat == "2" then
-trigger_name= "[Ë¢±ø]"..selected_house.."-"..units.."-".."ÖØ¸´"
+trigger_name= "[åˆ·å…µ]"..selected_house.."-"..units.."-".."é‡å¤"
 end
 
-local create_time=input_box("ÊäÈë´¥·¢Ë¢±ø¼ä¸ô£¨µ¥Î»£ºÃë£©,ÀıÈç 220")
+local create_time=input_box("è¾“å…¥è§¦å‘åˆ·å…µé—´éš”ï¼ˆå•ä½ï¼šç§’ï¼‰,ä¾‹å¦‚ 220")
 
 
 
@@ -133,9 +133,9 @@ update_trigger()
 
 print("=======================")
 for i = 1,#wp_p do
-print("Éú³ÉµÄË¢±øÂ·¾¶µãÎª #"..wp_p[i])
+print("ç”Ÿæˆçš„åˆ·å…µè·¯å¾„ç‚¹ä¸º #"..wp_p[i])
 end
-print("Éú³ÉµÄĞ¡¶Ó½Å±¾Ä¬ÈÏ0-0£¨¹¥»÷£©£¬Çë×ÔĞĞĞŞ¸Ä½Å±¾")
-print("Éú³ÉµÄ´¥·¢Ä¬ÈÏ½ûÓÃ£¬ÇëÊÖ¶¯ÔÊĞí´¥·¢")
+print("ç”Ÿæˆçš„å°é˜Ÿè„šæœ¬é»˜è®¤0-0ï¼ˆæ”»å‡»ï¼‰ï¼Œè¯·è‡ªè¡Œä¿®æ”¹è„šæœ¬")
+print("ç”Ÿæˆçš„è§¦å‘é»˜è®¤ç¦ç”¨ï¼Œè¯·æ‰‹åŠ¨å…è®¸è§¦å‘")
 print("=======================")
-message_box("ÒÑ³É¹¦Ö´ĞĞ½Å±¾£¬Éú³ÉµÄ´¥·¢Ä¬ÈÏ½ûÓÃ£¬ÇëÊÖ¶¯ÔÊĞí´¥·¢", "Ö´ĞĞ³É¹¦", 1)
+message_box("å·²æˆåŠŸæ‰§è¡Œè„šæœ¬ï¼Œç”Ÿæˆçš„è§¦å‘é»˜è®¤ç¦ç”¨ï¼Œè¯·æ‰‹åŠ¨å…è®¸è§¦å‘", "æ‰§è¡ŒæˆåŠŸ", 1)

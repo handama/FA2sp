@@ -132,7 +132,7 @@ FString ExtraWindow::GetEventDisplayName(const char* id, int index)
 {
     FString name;
     FString name2;
-    FString atom = FString::SplitString(fadata.GetString("EventsRA2", id, "MISSING"))[0];
+    FString atom = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), id, "MISSING"))[0];
     name.Format("%s %s", id, atom);
     if (index >= 0)
         name2.Format("[%d] %s", index, name);
@@ -144,12 +144,20 @@ FString ExtraWindow::GetActionDisplayName(const char* id, int index)
 {
     FString name;
     FString name2;
-    FString atom = FString::SplitString(fadata.GetString("ActionsRA2", id, "MISSING"))[0];
+    FString atom = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), id, "MISSING"))[0];
     name.Format("%s %s", id, atom);
     if (index >= 0)
         name2.Format("[%d] %s", index, name);
     else name2 = name;
     return name2;
+}
+
+FString ExtraWindow::GetTranslatedSectionName(const char* section)
+{
+    auto transed = CFinalSunApp::Instance->Language + "-" + section;
+    if (!CINI::FAData->SectionExists(transed))
+        transed = section;
+    return transed;
 }
 
 int ExtraWindow::FindCBStringExactStart(HWND hComboBox, const char* searchText)
@@ -282,7 +290,7 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
             if (auto pSectionNewParamTypes = fadata.GetSection("NewParamTypes"))
             {
                 auto atoms3 = FString::SplitString(fadata.GetString("NewParamTypes", idx), 4);
-                auto& sectionName = atoms3[0];
+                auto sectionName = atoms3[0];
                 auto& loadFrom = atoms3[1];
                 auto& strictOrder = atoms3[2];
                 auto& showUIName = atoms3[3];
@@ -290,6 +298,9 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
                 MultimapHelper mmh;
                 
                 LoadFrom(mmh, loadFrom);
+
+                if (loadFrom == "0" || loadFrom == "fadata")
+                    sectionName = ExtraWindow::GetTranslatedSectionName(sectionName);
 
                 if (useValue == "1")
                 {

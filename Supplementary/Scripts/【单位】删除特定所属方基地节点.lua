@@ -1,6 +1,6 @@
 if is_multiplay() == false then
-	if message_box("±¾½Å±¾½«É¾³ıÑ¡¶¨ËùÊô·½µÄËùÓĞ»ùµØ½Úµã£¬Òª¼ÌĞøÂğ£¿", "É¾³ı»ùµØ½Úµã", 2) == 1 then
-		box = select_box:new("Ñ¡ÔñËùÊô·½")
+	if message_box("æœ¬è„šæœ¬å°†åˆ é™¤é€‰å®šæ‰€å±æ–¹çš„æ‰€æœ‰åŸºåœ°èŠ‚ç‚¹ï¼Œè¦ç»§ç»­å—ï¼Ÿ", "åˆ é™¤åŸºåœ°èŠ‚ç‚¹", 2) == 1 then
+		box = select_box:new("é€‰æ‹©æ‰€å±æ–¹")
 		for i,house in pairs(get_values("Houses", "map")) do
 			box:add_option(house, translate_house(house))
 		end

@@ -39,7 +39,8 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
             new(&ret.first->second) ppmfc::CString(value);
     };
 
-    bool loadAsUTF8 = ExtConfigs::UTF8Support_InferEncoding && STDHelpers::isUTF8(pFile, fileSize);
+    auto encoding = STDHelpers::GetFileEncoding(pFile, fileSize);
+    bool loadAsUTF8 = ExtConfigs::UTF8Support_InferEncoding && encoding == UTF8 || encoding == UTF8_BOM;
     FString content(reinterpret_cast<char*>(pFile), fileSize);
     if (loadAsUTF8)
         content.toANSI();
@@ -52,6 +53,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
     if (bAllowInclude)
         plusEqual = 0;
     bool findTargetSection = false;
+    bool firstLine = true;
 
     while (idx < len) {
         size_t lineEnd = content.find_first_of("\r\n", idx);
@@ -63,6 +65,11 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
         while (idx < len && (content[idx] == '\r' || content[idx] == '\n')) ++idx;
 
         if (line.empty()) continue;
+        if (firstLine) {
+            firstLine = false;
+            if (encoding == UTF8_ASCII && line.find("UTF8") != FString::npos)
+                loadAsUTF8 = true;
+        }
         if (line[0] == ';') continue;
 
         // ------------------- Section -------------------

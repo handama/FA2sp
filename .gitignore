@@ -10,11 +10,9 @@ MFC42
 *.obj
 /Debug/*
 /Release/*
-/Release_Chinese/*
 
 /FA2sp/Debug/*
 /FA2sp/Release/*
-/FA2sp/Release_Chinese/*
 
 !Release/libssl.lib
 !Release/lua.lib
@@ -32,7 +30,3 @@ MFC42
 !Release/lua.dll
 !Release/libssl-1_1.dll
 !Release/CncVxlRenderText.dll
-!Release_Chinese/libcrypto-1_1.dll
-!Release_Chinese/lua.dll
-!Release_Chinese/libssl-1_1.dll
-!Release_Chinese/CncVxlRenderText.dll

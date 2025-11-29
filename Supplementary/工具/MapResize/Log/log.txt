@@ -1,6 +1,0 @@
-2024-08-07 00:57:13.5970 Info: 
-#############################################
-2024-08-07 00:57:13.6177 Info: Parsing map: D:\Games\YURI\const1.001\rsov01.map
-2024-08-07 00:57:13.6177 Info: Map size (original): 80x250
-2024-08-07 00:57:14.6313 Info: Expected new map size: 80x252
-2024-08-07 00:57:15.0576 Info: Saving map file: D:\Games\YURI\const1.001\rsov01.map

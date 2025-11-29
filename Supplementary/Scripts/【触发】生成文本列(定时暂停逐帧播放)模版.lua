@@ -1,22 +1,22 @@
---¡¾´¥·¢¡¿Éú³ÉÎÄ±¾ÁĞ(¶¨Ê±ÔİÍ£ÖğÖ¡²¥·Å)Ä£°æ.lua
---ß÷---ß÷---ß÷---ß÷--
+--ã€è§¦å‘ã€‘ç”Ÿæˆæ–‡æœ¬åˆ—(å®šæ—¶æš‚åœé€å¸§æ’­æ”¾)æ¨¡ç‰ˆ.lua
+--å–µ---å–µ---å–µ---å–µ--
 
-input_text_number = input_box("ÊäÈëÉú³ÉµÄÎÄ±¾´¥·¢ÊıÁ¿(Ğ¡ÓÚ100)")
+input_text_number = input_box("è¾“å…¥ç”Ÿæˆçš„æ–‡æœ¬è§¦å‘æ•°é‡(å°äº100)")
 text_number = tonumber(input_text_number)
 if text_number < 1 or text_number >= 100 then
-message_box("ÊäÈëÊı¾İ²»ºÏÒªÇó, Ä¬ÈÏ½«Éú³ÉµÄÎÄ±¾´¥·¢ÊıÁ¿ÊıÁ¿µ÷ÕûÎª3", "ÊäÈëÄÚÈİ·Ç·¨", 1)
+message_box("è¾“å…¥æ•°æ®ä¸åˆè¦æ±‚, é»˜è®¤å°†ç”Ÿæˆçš„æ–‡æœ¬è§¦å‘æ•°é‡æ•°é‡è°ƒæ•´ä¸º3", "è¾“å…¥å†…å®¹éæ³•", 1)
 text_number=3
 end
 
-input_time_number = input_box("ÊäÈëÉú³ÉµÄÎÄ±¾Ê±Í£¼ä¸ô(µ¥Î»£ºÃë)")
+input_time_number = input_box("è¾“å…¥ç”Ÿæˆçš„æ–‡æœ¬æ—¶åœé—´éš”(å•ä½ï¼šç§’)")
 time_number = tonumber(input_time_number)
 if time_number <= 0  then
-message_box("ÊäÈëÊı¾İ²»ºÏÒªÇó, Ä¬ÈÏ½«ÎÄ±¾Ê±Í£¼ä¸ôµ÷ÕûÎª4Ãë", "ÊäÈëÄÚÈİ·Ç·¨", 1)
+message_box("è¾“å…¥æ•°æ®ä¸åˆè¦æ±‚, é»˜è®¤å°†æ–‡æœ¬æ—¶åœé—´éš”è°ƒæ•´ä¸º4ç§’", "è¾“å…¥å†…å®¹éæ³•", 1)
 time_number=4
 end
 
 
---Éú³ÉÊı¾İ±í±äÁ¿ÓÃÓÚµ÷ÓÃ--
+--ç”Ÿæˆæ•°æ®è¡¨å˜é‡ç”¨äºè°ƒç”¨--
 local t = {}
 for i = 1, 99 do
     t[i] = {
@@ -26,20 +26,20 @@ for i = 1, 99 do
     }
 end
 
---´¥·¢Ãû³ÆÊÂ¼ş±êÇ©--
+--è§¦å‘åç§°äº‹ä»¶æ ‡ç­¾--
 for i=1, text_number do
-    t[i].name = "[ÎÄ±¾(Ê±Í£)] - "..string.format("%02d", text_number - i + 1)..""
+    t[i].name = "[æ–‡æœ¬(æ—¶åœ)] - "..string.format("%02d", text_number - i + 1)..""
 	t[i].id = get_free_id()
 write_string("Events", t[i].id, "1,13,0,0")
 write_string("Triggers", t[i].id, "Neutral,<none>,"..t[i].name..",1,1,1,1,0")
 	t[i].tag = get_free_id()
 write_string("Tags", t[i].tag, "0,"..t[i].name.."1,"..t[i].id.."")
 end
---´¥·¢ĞĞÎª--
+--è§¦å‘è¡Œä¸º--
 for i=2, text_number do
 write_string("Actions", t[i].id, "4,11,4,gui:sidebartext,0,0,0,0,A,110,0,"..time_number..",0,0,0,0,A,19,7,BeaconPlaced,0,0,0,0,A,53,2,"..t[i-1].id..",0,0,0,0,A.")
 end
 write_string("Actions", t[1].id, "3,11,4,gui:sidebartext,0,0,0,0,A,110,0,"..time_number..",0,0,0,0,A,19,7,BeaconPlaced,0,0,0,0,A.")
 
 update_trigger()
-message_box("ÒÑ³É¹¦Ö´ĞĞ½Å±¾", "Ö´ĞĞ³É¹¦", 1)
+message_box("å·²æˆåŠŸæ‰§è¡Œè„šæœ¬", "æ‰§è¡ŒæˆåŠŸ", 1)

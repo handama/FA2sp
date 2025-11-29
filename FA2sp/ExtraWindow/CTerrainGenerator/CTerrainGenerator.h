@@ -46,7 +46,12 @@ public:
     TerrainGeneratorPreset(FString sectionName, INISection* pSection)
     {
         ID = sectionName;
-        Name = pSection->GetString("Name");
+        auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+        if (auto pName = pSection->TryGetString(transed))
+            Name = *pName;
+        else
+            Name = pSection->GetString("Name");
+    
         for (auto& t : FString::SplitString(pSection->GetString("Theaters"))) {
             Theaters.push_back(t);
         }

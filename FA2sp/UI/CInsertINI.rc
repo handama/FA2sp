@@ -1,0 +1,17 @@
+#include <Windows.h>
+
+147 DIALOG 0, 0, 229, 150
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Insert INI file section"
+LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
+FONT 8, "Tahoma"
+{
+   CONTROL "OK", 1, BUTTON, BS_DEFPUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 170, 5, 50, 14 
+   CONTROL "Cancel", 2, BUTTON, BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 170, 25, 50, 14 
+   CONTROL "Choose the sections you want to import in the map. Be careful! If you import a section that already exists, keys of the already existing section may be overwritten!", 1000, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 5, 5, 155, 35 
+   CONTROL "", 1049, LISTBOX, LBS_NOTIFY | LBS_NOINTEGRALHEIGHT | LBS_EXTENDEDSEL | WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL | WS_TABSTOP, 5, 75, 215, 55 
+   CONTROL "Available sections:", 1001, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 5, 65, 100, 10 
+   CONTROL "Import all sections", 1052, BUTTON, BS_AUTORADIOBUTTON | WS_CHILD | WS_VISIBLE, 5, 40, 155, 10 
+   CONTROL "Specify sections to be imported", 1053, BUTTON, BS_AUTORADIOBUTTON | WS_CHILD | WS_VISIBLE, 5, 50, 150, 10 
+   CONTROL "Select the sections you wish to import.", 1002, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 5, 135, 215, 10 
+}

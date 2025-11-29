@@ -1,4 +1,4 @@
-box = select_box:new("Ñ¡ÔñËùÊô·½")
+box = select_box:new("é€‰æ‹©æ‰€å±æ–¹")
 for i,house in pairs(get_values("Countries", "rules+map")) do
 	box:add_option(house, translate_house(house))
 end
@@ -22,7 +22,7 @@ end
 for k, v in pairs(get_values("VehicleTypes", "rules+map")) do
     units[#units+1] = v
 end
-local box2 = select_box:new("Ñ¡Ôñµ¥Î»")
+local box2 = select_box:new("é€‰æ‹©å•ä½")
 for i, key in pairs(units) do
 	if key ~= "" then
 		box2:add_option(key, get_uiname(key))
@@ -64,4 +64,4 @@ write_string("Tags", tag_id, "2,"..name.." 1,"..trigger_id)
 
 update_trigger()
 
-message_box("ÒÑ³É¹¦Ö´ĞĞ½Å±¾£¬½«¾Ö²¿±äÁ¿\n"..tostring(variable_index).." - "..name.."\nÉèÖÃÎª1¼´¿ÉÆô¶¯¡£", "Ö´ĞĞ³É¹¦", 1)
+message_box("å·²æˆåŠŸæ‰§è¡Œè„šæœ¬ï¼Œå°†å±€éƒ¨å˜é‡\n"..tostring(variable_index).." - "..name.."\nè®¾ç½®ä¸º1å³å¯å¯åŠ¨ã€‚", "æ‰§è¡ŒæˆåŠŸ", 1)

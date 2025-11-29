@@ -1,5 +1,5 @@
-if message_box("±¾½Å±¾½«É¾³ıÑ¡¶¨±êÇ©µÄËùÓĞµ¥Ôª±ê¼Ç£¬Òª¼ÌĞøÂğ£¿", "É¾³ıµ¥Ôª±ê¼Ç", 2) == 1 then
-	box = select_box:new("Ñ¡Ôñ±êÇ©")
+if message_box("æœ¬è„šæœ¬å°†åˆ é™¤é€‰å®šæ ‡ç­¾çš„æ‰€æœ‰å•å…ƒæ ‡è®°ï¼Œè¦ç»§ç»­å—ï¼Ÿ", "åˆ é™¤å•å…ƒæ ‡è®°", 2) == 1 then
+	box = select_box:new("é€‰æ‹©æ ‡ç­¾")
 	for i,k in pairs(get_keys("Tags")) do
 		name = get_param("Tags", k, 2)
 		box:add_option(k, name)

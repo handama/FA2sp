@@ -288,6 +288,9 @@
     <ClInclude Include="FA2sp\Ext\COptions\Body.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\Extra\GeneralLoad.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FA2sp\FA2sp.cpp">
@@ -671,9 +674,6 @@
     <ClCompile Include="FA2sp\Ext\CLoading\Body.ResourcePack.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CLoading\Body.Encryption.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="FA2sp\ExtraWindow\CFA2spOptions\CFA2spOptions.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -708,6 +708,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Ext\COptions\Body.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Extra\Encryption.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Extra\GeneralLoad.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

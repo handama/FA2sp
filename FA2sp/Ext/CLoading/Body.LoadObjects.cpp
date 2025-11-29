@@ -1898,7 +1898,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 	}
 }
 
-void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal, bool toServer, bool clip)
+void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal, bool clip)
 {
 	auto pData = CLoadingExt::GetImageDataFromMap(NameInDict);
 	SetImageDataSafe(pBuffer, pData, FullWidth, FullHeight, pPal);

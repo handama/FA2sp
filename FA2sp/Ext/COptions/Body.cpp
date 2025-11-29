@@ -21,7 +21,6 @@ BOOL COptionsExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
     if (wmID == 1231 && wmMsg == CBN_SELCHANGE)
     {
         auto hWnd = this->GetDlgItem(1231)->GetSafeHwnd();
-        char buffer[512]{ 0 };
         int nSel = ::SendMessage(hWnd, CB_GETCURSEL, NULL, NULL);
         if (nSel >= 0)
         {
@@ -40,10 +39,12 @@ BOOL COptionsExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 DEFINE_HOOK(50E55F, COptions_OnInitDialog, 8)
 {
     GET(COptionsExt*, pThis, EDI);
+
     auto hLang = pThis->GetDlgItem(1231)->GetSafeHwnd();
 
     if (auto pSection = CINI::FALanguage->GetSection("Languages"))
     {
+        std::vector<const char*> names;
         int index = 0;
         int i = 0;
         for (const auto& [key, value] : pSection->GetEntities())
@@ -52,13 +53,23 @@ DEFINE_HOOK(50E55F, COptions_OnInitDialog, 8)
             auto name = CINI::FALanguage->GetString(header, "Name");
             if (!name.IsEmpty())
             {
-                ::SendMessage(hLang, CB_ADDSTRING, NULL, (LPARAM)(LPCSTR)name);
+                ::SendMessage(hLang, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)name);
                 if (CFinalSunApp::Instance->Language == value)
                     index = i;
+                names.push_back(name.m_pchData);
+            }
+            else
+            {
+                names.push_back("");
             }
             i++;
         }
+
         ::SendMessage(hLang, CB_SETCURSEL, index, NULL);
+        FString backup = CFinalSunApp::Instance->Language;
+        CFinalSunApp::Instance->Language = names[index];
+        Translations::TranslateDialog(*pThis);
+        CFinalSunApp::Instance->Language = backup;
     }
 
     return 0x50E8A8;

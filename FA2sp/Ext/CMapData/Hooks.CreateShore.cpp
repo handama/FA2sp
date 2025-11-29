@@ -6,6 +6,7 @@
 #include <Miscs/Miscs.h>
 #include "../CIsoView/Body.h"
 #include "../CFinalSunDlg/Body.h"
+#include "../../Miscs/TheaterInfo.h"
 
 DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 {
@@ -39,13 +40,15 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 	int greenTile = -1;
 	if (greenTiles >= 0)
 		greenTile = CMapDataExt::TileSet_starts[greenTiles];
-	std::vector<int> SmallWaterTiles;
 	//  last two big shores and water bridges
 	std::vector<int> SpecialShores;
-	for (int i = 8; i < 13; i++)
-		SmallWaterTiles.push_back(i + CMapDataExt::TileSet_starts[waterSet]);
-	for (int i = 40; i <= tileEnd - tileStart; i++)
-		SpecialShores.push_back(i + tileStart);
+	for (int i = tileStart; i <= tileEnd; i++)
+	{
+		const auto& tile = CMapDataExt::TileData[i];
+		if (tile.Width + tile.Height > 6)
+			SpecialShores.push_back(i);
+	}
+
 	if (waterBridge >= 0)
 	{
 		for (int i = 0; i < 2; i++)
@@ -114,7 +117,9 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 			if (ret.find(CMapDataExt::TileData[tileIdx].TileSet) != ret.end())
 				return ret[CMapDataExt::TileData[tileIdx].TileSet];
 
-			if (ttype == LandType::Clear13)
+			if (ttype == LandType::Clear13 
+				|| ttype == LandType::Clear0
+				|| ttype == LandType::Clear1)
 				return true;
 
 			return false;
@@ -215,7 +220,7 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 				}
 				else if (ttype == LandType::Water)
 				{
-					cell->TileIndex = STDHelpers::RandomSelectInt(SmallWaterTiles);
+					cell->TileIndex = STDHelpers::RandomSelectInt(TheaterInfo::CurrentSmallWaters);
 					cell->TileSubIndex = 0;
 					cell->Flag.AltIndex = 0;
 				}

@@ -55,7 +55,22 @@ ImageDataClassSafe* CLoadingExt::GetImageDataFromMap(const FString& name)
 
 std::vector<std::unique_ptr<ImageDataClassSafe>>& CLoadingExt::GetBuildingClipImageDataFromMap(const FString& name)
 {
-	return BuildingClipsImageDataMap[name];
+	auto itr = BuildingClipsImageDataMap.find(name);
+	if (itr == BuildingClipsImageDataMap.end())
+	{
+		auto pEmpty = std::make_unique<ImageDataClassSafe>();
+		pEmpty->Flag = ImageDataFlag::SHP;
+		pEmpty->IsOverlay = false;
+		pEmpty->pPalette = Palette::PALETTE_UNIT;
+		pEmpty->ClipOffsets.FullWidth = 0;
+		pEmpty->ClipOffsets.LeftOffset = 0;
+
+		auto& inserted = BuildingClipsImageDataMap[name];
+		inserted.push_back(std::move(pEmpty));
+		
+		return inserted;
+	}
+	return itr->second;
 }
 
 bool CLoadingExt::IsSurfaceImageLoaded(const FString& name)

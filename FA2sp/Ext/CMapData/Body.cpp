@@ -1442,9 +1442,7 @@ int CMapDataExt::GetBuildingTypeIndex(const FString& ID)
 	auto itr = BuildingTypes.find(ID);
 	if (itr == BuildingTypes.end())
 	{
-		int idx = CMapData::Instance->GetBuildingTypeID(ID);
-		BuildingTypes[ID] = idx;
-		return idx;
+		return -1;
 	}
 	return itr->second;
 }

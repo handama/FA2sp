@@ -152,7 +152,6 @@
     <ResourceCompile>
       <PreprocessorDefinitions>
       </PreprocessorDefinitions>
-      <AdditionalOptions>/c 936 %(AdditionalOptions)</AdditionalOptions>
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">

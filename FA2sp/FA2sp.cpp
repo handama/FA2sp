@@ -497,8 +497,28 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DefaultBuildingProperty.Nominal = building[16];
 
 	ExtConfigs::InitializeMap = false;
-
 	ExtConfigs::TestNotLoaded = false;
+
+	ExtConfigs::UpdateOptionTranslations();
+
+	CINI fa2;
+	std::string path;
+	path = CFinalSunAppExt::ExePathExt;
+	path += "\\FinalAlert.ini";
+	fa2.ClearAndLoad(path.c_str());
+
+	for (const auto& opt : ExtConfigs::Options)
+	{
+		*opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
+	}
+
+	CIsoViewExt::PasteShowOutline = ExtConfigs::PasteShowOutlineDefault;
+
+}
+
+void ExtConfigs::UpdateOptionTranslations()
+{
+	ExtConfigs::Options.clear();
 
 	// Editor Interface and Behavior
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -640,7 +660,7 @@ void FA2sp::ExtConfigsInitialize()
 		.IniKey = "ObjectBrowser.Ore.ExtraSupport",
 		.Value = &ExtConfigs::ObjectBrowser_Ore_ExtraSupport,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		}); 
+		});
 
 	// Map Display and Rendering
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -1192,20 +1212,6 @@ void FA2sp::ExtConfigsInitialize()
 		.Value = &ExtConfigs::StrictExceptionFilter,
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
-
-
-	CINI fa2;
-	std::string path;
-	path = CFinalSunAppExt::ExePathExt;
-	path += "\\FinalAlert.ini";
-	fa2.ClearAndLoad(path.c_str());
-
-	for (const auto& opt : ExtConfigs::Options)
-	{
-		*opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
-	}
-
-	CIsoViewExt::PasteShowOutline = ExtConfigs::PasteShowOutlineDefault;
 
 }
 

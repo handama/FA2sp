@@ -234,6 +234,7 @@ public:
         SpecialOptionType Type = SpecialOptionType::None;
     };
     static std::vector<DynamicOptions> Options;
+    static void UpdateOptionTranslations();
 };
 
 namespace std {

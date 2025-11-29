@@ -4,6 +4,8 @@
 #include "../../Helpers/Translations.h"
 #include <CFinalSunDlg.h>
 #include <CFinalSunApp.h>
+#include "../../FA2sp.h"
+#include "../../ExtraWindow/CFA2spOptions/CFA2spOptions.h"
 
 COptions* COptionsExt::Instance = nullptr;
 FString COptionsExt::Language = "English";
@@ -91,6 +93,10 @@ DEFINE_HOOK(50E342, COptions_OnOK, 6)
         strcat_s(Translations::pLanguage[1], "-TranslationsRA2");
         strcat_s(Translations::pLanguage[2], "-Strings");
         strcat_s(Translations::pLanguage[3], "-Translations");
+
+        ExtConfigs::UpdateOptionTranslations();
+        if (CFA2spOptions::GetHandle())
+            ::SendMessage(CFA2spOptions::GetHandle(), 114514, 0, 0);
 
         if (CFinalSunDlg::Instance)
         {

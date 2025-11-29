@@ -685,10 +685,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					|| filter.find(StrINIIndex) != filter.end())
 				{
 					auto& objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
-					if (!CIsoViewExt::RenderingMap
+					if ((!CIsoViewExt::RenderingMap
 						|| CIsoViewExt::RenderingMap
 						&& CIsoViewExt::MapRendererIgnoreObjects.find(objRender.ID)
-						== CIsoViewExt::MapRendererIgnoreObjects.end())
+						== CIsoViewExt::MapRendererIgnoreObjects.end()) && objRender.ID != "")
 					{
 						if (std::find(DrawnBuildings.begin(), DrawnBuildings.end(), StrINIIndex) == DrawnBuildings.end())
 						{

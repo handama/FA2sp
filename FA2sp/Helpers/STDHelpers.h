@@ -17,6 +17,7 @@
 
 enum FileEncoding : char
 {
+	Unknown = -1,
 	ANSI = 0,
 	UTF8 = 1,
 	UTF8_BOM = 2,

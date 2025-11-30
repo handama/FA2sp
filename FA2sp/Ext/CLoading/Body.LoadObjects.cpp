@@ -592,6 +592,11 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0);
 
+	if (Variables::RulesMap.GetBool(ID, "Gate"))
+	{
+		nBldStartFrame = 0;
+	}
+
 	FString AnimKeys[9] = 
 	{	
 		"IdleAnim",
@@ -998,7 +1003,13 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + 1;
 	if (Variables::RulesMap.GetBool(ID, "Wall"))
+	{
 		nBldStartFrame--;
+	}
+	else if (Variables::RulesMap.GetBool(ID, "Gate"))
+	{
+		nBldStartFrame = CINI::Art->GetInteger(ArtID, "GateStages", 0) + 1;
+	}
 
 	FString AnimKeys[9] =
 	{

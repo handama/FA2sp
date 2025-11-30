@@ -34,6 +34,8 @@
 
 std::optional<std::filesystem::file_time_type> SaveMapExt::SaveTime;
 
+
+
 static std::string to_short_filename(const std::filesystem::path& p, const std::unordered_set<std::string>& existing) {
     FString stem = p.stem().string();
     stem.Replace(" ", "");
@@ -80,14 +82,202 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
     GET(CINI*, pINI, EAX);
     GET_STACK(CFinalSunDlg*, pThis, STACK_OFFS(0x3F4, 0x36C));
     REF_STACK(ppmfc::CString, filepath, STACK_OFFS(0x3F4, -0x4));
-
     GET_STACK(int, previewOption, STACK_OFFS(0x3F4, 0x1AC));
-
-    if (SaveMapExt::IsAutoSaving)
-        previewOption = 2; //no preview to save time
 
     pThis->MyViewFrame.StatusBar.SetWindowText(Translations::TranslateOrDefault("SavingMap", "Saving map..."));
     pThis->MyViewFrame.StatusBar.UpdateWindow();
+
+    SaveMapExt::SaveMap(pINI, pThis, filepath, previewOption, true);
+
+    return 0x42A859;
+}
+
+DEFINE_HOOK(42B30F, CFinalSunDlg_SaveMap_SkipMapDTOR, 7)
+{
+    return 0x42B323;
+}
+
+DEFINE_HOOK(42B2AF, CFinalSunDlg_SaveMap_SkipDeleteFile, 7)
+{
+    return 0x42B2C2;
+}
+
+DEFINE_HOOK(42686A, CFinalSunDlg_SaveMap_SetDefaultExtension, 5)
+{
+    int defaultExtention = 1;
+    
+    if (ExtConfigs::SaveMap_OnlySaveMAP)
+    {
+        defaultExtention = 4;
+    }
+    else if (CMapData::Instance->IsMultiOnly() && CLoading::HasMdFile())
+    {
+        defaultExtention = 2;
+    }
+    else if (CMapData::Instance->IsMultiOnly() && !CLoading::HasMdFile())
+    {
+        defaultExtention = 3;
+    }
+    else if (!CMapData::Instance->IsMultiOnly())
+    {
+        defaultExtention = 4;
+    }
+
+    R->Stack<int>(STACK_OFFS(0x3CC, (0x280 + 0x14)), defaultExtention);
+
+    return 0;
+}
+
+//ppmfc::CString filePath;
+//DEFINE_HOOK(4268DC, CFinalSunDlg_SaveMap_RenameMapPath, 7)
+//{
+//    GET(CFinalSunDlg*, pThis, ECX);
+//
+//    filePath = CFinalSunApp::Instance().MapPath();
+//
+//    if (ExtConfigs::SaveMap_OnlySaveMAP)
+//    {
+//        int nExtIndex = filePath.ReverseFind('.');
+//        if (nExtIndex == -1)
+//            filePath += ".map";
+//        else
+//            filePath = filePath.Mid(0, nExtIndex) + ".map";
+//    }
+//    else if (ExtConfigs::SaveMap_MultiPlayOnlySaveYRM && CMapData::Instance->IsMultiOnly())
+//    {
+//        int nExtIndex = filePath.ReverseFind('.');
+//        if (nExtIndex == -1)
+//            filePath += ".yrm";
+//        else
+//            filePath = filePath.Mid(0, nExtIndex) + ".yrm";
+//    }
+//    else if (!CMapData::Instance->IsMultiOnly() && ExtConfigs::SaveMap_SinglePlayOnlySaveMAP)
+//    {
+//        int nExtIndex = filePath.ReverseFind('.');
+//        if (nExtIndex == -1)
+//            filePath += ".map";
+//        else
+//            filePath = filePath.Mid(0, nExtIndex) + ".map";
+//    }
+//
+//    strcpy(CFinalSunApp::Instance().MapPath, filePath);
+//
+//    return 0;
+//}
+//
+//DEFINE_HOOK(426921, CFinalSunDlg_SaveMap_RenameMapPath2, 6)
+//{
+//    R->Stack<LPCSTR>(STACK_OFFS(0x3CC, 0x3BC), filePath);
+//    return 0;
+//}
+
+DEFINE_HOOK(42A8F5, CFinalSunDlg_SaveMap_ReplaceCopyFile, 7)
+{
+    REF_STACK(ppmfc::CString, filepath, STACK_OFFS(0x3F4, -0x4));
+
+    std::ifstream fin;
+    fin.open(filepath, std::ios::in | std::ios::binary);
+    if (fin.is_open())
+    {
+        fin.close();
+
+        if (!SaveMapExt::IsAutoSaving) {
+            SaveMapExt::SaveTime = std::filesystem::last_write_time(filepath.m_pchData);
+            FileWatcher::IsMapJustSaved = true;
+            FileWatcher::IsSavingMap = false;
+        }
+        return 0x42A92D;
+    }
+    return 0x42A911;
+}
+ 
+DEFINE_HOOK(42B2EA, CFinalSunDlg_SaveMap_SkipStringDTOR, C)
+{
+    return 0x42B30F;
+}
+
+bool SaveMapExt::SaveMapSilent(FString filepath, bool panic)
+{
+    auto ini = &CINI::CurrentDocument;
+    FString buffer;
+    FString buffer2;
+
+    if (!panic)
+    {
+        CIsoViewExt::SetStatusBarText(Translations::TranslateOrDefault("SavingMap", "Saving map..."));
+        struct GetHeaderRect
+        {
+            static void Get(int& startx, int& starty, int& width, int& height)
+            {
+                JMP_STD(0x523DD0);
+            }
+        };
+        if (CMapData::Instance->IsMultiOnly())
+        {
+            // Create [Header]
+            int i;
+            int wp_count = 0;
+            int xw[8] = { 0,0,0,0,0,0,0,0 };
+            int yw[8] = { 0,0,0,0,0,0,0,0 };
+            for (i = 0; i < 8; i++)
+            {
+                buffer.Format("%d", i);
+                if (ini->KeyExists("Waypoints", buffer))
+                {
+                    auto value = ini->GetString("Waypoints", buffer);
+                    int x = atoi(value) / 1000;
+                    int y = atoi(value) % 1000;
+                    xw[wp_count] = (7680 * (y - x) / 256 + 15360) / 60;
+                    yw[wp_count] = 3840 * (x + y + 1) / 256 / 30;
+                    wp_count++;
+                }
+            }
+
+            buffer.Format("%d", wp_count);
+            ini->WriteString("Header", "NumberStartingPoints", buffer);
+
+            for (i = 0; i < 8; i++)
+            {
+                buffer.Format("Waypoint%d", i + 1);
+                buffer2.Format("%d,%d", xw[i], yw[i]);
+                ini->WriteString("Header", buffer, buffer2);
+            }
+
+            int startx, starty, width, height;
+            GetHeaderRect::Get(startx, starty, width, height);
+
+            buffer.Format("%d", height);
+            ini->WriteString("Header", "Height", buffer);
+            buffer.Format("%d", width);
+            ini->WriteString("Header", "Width", buffer);
+            buffer.Format("%d", startx);
+            ini->WriteString("Header", "StartX", buffer);
+            buffer.Format("%d", starty);
+            ini->WriteString("Header", "StartY", buffer);
+        }
+
+    }
+
+    CMapData::Instance->UpdateINIFile(SaveMapFlag::UpdateMapFieldData);
+
+    if (SaveMap(ini, CFinalSunDlg::Instance(), filepath, 2, false))
+    {
+        if (!panic)
+        {
+            buffer = "Map saved as \"%1\"";
+            Translations::GetTranslationItem("FileSaved", buffer);
+            Translations::TranslateStringVariables(1, buffer, filepath);
+            CIsoViewExt::SetStatusBarText(buffer);
+        }
+        return true;
+    }
+    return false;
+}
+
+bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, int previewOption, bool showDialog)
+{
+    if (SaveMapExt::IsAutoSaving)
+        previewOption = 2; //no preview to save time
 
     FileWatcher::IsSavingMap = true;
 
@@ -142,31 +332,31 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
             auto imageLocal = std::unique_ptr<unsigned char[]>(new unsigned char[256 * 512 * 3] {0});
 
             auto safeColorBtye = [](int x)
-                {
-                    if (x > 255)
-                        x = 255;
-                    if (x < 0)
-                        x = 0;
-                    return (byte)x;
-                };
+            {
+                if (x > 255)
+                    x = 255;
+                if (x < 0)
+                    x = 0;
+                return (byte)x;
+            };
             auto heightExtraLight = [safeColorBtye](int rgb, int h, LightingStruct ret)
-                {
-                    return safeColorBtye(rgb * (ret.Ambient - ret.Ground + ret.Level * h));
-                };
+            {
+                return safeColorBtye(rgb * (ret.Ambient - ret.Ground + ret.Level * h));
+            };
             auto isSafePos = [](int x, int y)
-                {
-                    int dPows = x * CMapData::Instance().MapWidthPlusHeight + y;
-                    if (dPows < CMapData::Instance().CellDataCount)
-                        return true;
-                    return false;
-                };
+            {
+                int dPows = x * CMapData::Instance().MapWidthPlusHeight + y;
+                if (dPows < CMapData::Instance().CellDataCount)
+                    return true;
+                return false;
+            };
             auto getPos = [](int x, int y)
-                {
-                    int dPows = x * CMapData::Instance().MapWidthPlusHeight + y;
-                    if (dPows < CMapData::Instance().CellDataCount)
-                        return dPows;
-                    return 0;
-                };
+            {
+                int dPows = x * CMapData::Instance().MapWidthPlusHeight + y;
+                if (dPows < CMapData::Instance().CellDataCount)
+                    return dPows;
+                return 0;
+            };
 
             std::vector<int[2]>playerLocation;
 
@@ -325,9 +515,11 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
                                 else if (overlay >= 102 && overlay <= 166) //ores
                                     color = RGB(radarColor.R, radarColor.G, radarColor.B);
                                 else if (overlay == 100 || overlay == 101 || overlay == 231 || overlay == 232) //broken bridge
-                                { }
+                                {
+                                }
                                 else if (overlay == 24 || overlay == 25 || overlay == 237 || overlay == 238) //high bridge
-                                { }
+                                {
+                                }
                                 else
                                     color = RGB(91, 91, 93);
                             }
@@ -356,8 +548,8 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
                                 auto atoms = STDHelpers::SplitString(pStr, 1);
                                 auto& name = atoms[1];
 
-                                if (Variables::RulesMap.GetBool(name,"NeedsEngineer"))
-                                    color = RGB(215, 215, 215); 
+                                if (Variables::RulesMap.GetBool(name, "NeedsEngineer"))
+                                    color = RGB(215, 215, 215);
                             }
 
                             LightingStruct ret;
@@ -386,12 +578,12 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
                             {
                                 if (pl.X - x <= 2 && pl.X - x >= -1 && pl.Y - y <= 2 && pl.Y - y >= -1)
                                     color = RGB(240, 0, 0);
-                            }    
+                            }
 
                             byte r = (byte)color.R;
                             byte g = (byte)color.G;
                             byte b = (byte)color.B;
-                            
+
                             image[index++] = r;
                             image[index++] = g;
                             image[index++] = b;
@@ -433,7 +625,7 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
 
     bool saveAsUTF8 = CMapDataExt::IsUTF8File || ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
 
-    std::filesystem::path p(filepath.m_pchData);
+    std::filesystem::path p(filepath.c_str());
     FString ext = p.extension().string();
 
     CNewMMXSavingOptionsDlg dlg;
@@ -441,18 +633,18 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
     bool saveAsMMX = (ext == ".mmx" || ext == ".yro") && !SaveMapExt::IsAutoSaving;
     if (saveAsMMX)
     {
-        auto oriName = pThis->PKTHeader.GetString("MultiMaps", "1");
-        dlg.m_Description = pThis->PKTHeader.GetString(oriName, "Description");
-        dlg.m_MinPlayers = pThis->PKTHeader.GetString(oriName, "MinPlayers");
-        dlg.m_Maxplayers = pThis->PKTHeader.GetString(oriName, "MaxPlayers");
+        auto oriName = pFinalSun->PKTHeader.GetString("MultiMaps", "1");
+        dlg.m_Description = pFinalSun->PKTHeader.GetString(oriName, "Description");
+        dlg.m_MinPlayers = pFinalSun->PKTHeader.GetString(oriName, "MinPlayers");
+        dlg.m_Maxplayers = pFinalSun->PKTHeader.GetString(oriName, "MaxPlayers");
 
-        if (dlg.DoModal() == IDCANCEL) return 0x42A859;
+        if (showDialog && dlg.DoModal() == IDCANCEL) return false;
 
         pINI->WriteString("Basic", "Official", "Yes");
 
         std::unordered_set<std::string> used;
-        filepath = (p.parent_path().string() + "\\" +  to_short_filename(p, used)).c_str();
-        p = std::filesystem::path(filepath.m_pchData);
+        filepath = (p.parent_path().string() + "\\" + to_short_filename(p, used)).c_str();
+        p = std::filesystem::path(filepath.c_str());
     }
 
     Logger::Raw("SaveMap : Trying to save map to %s.\n", filepath);
@@ -482,7 +674,7 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
             comments += "\n";
             comments += "\n";
         }
-        
+
         comments += "; Map created with FinalAlert 2(tm) Mission Editor\n";
         comments += "; Get it at http://www.westwood.com\n";
         comments += "; note that all comments were truncated\n";
@@ -494,61 +686,61 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
         oss << comments;
 
         auto saveSection = [&oss](INISection* pSection, FString sectionName)
+        {
+            auto& exclude = INIIncludes::MapIncludedKeys;
+            if (!exclude.empty() && exclude.find(sectionName) != exclude.end())
             {
-                auto& exclude = INIIncludes::MapIncludedKeys;
-                if (!exclude.empty() && exclude.find(sectionName) != exclude.end())
-                {
-                    std::vector<int> skipLines;
-                    std::vector<int> useOriginLines;
+                std::vector<int> skipLines;
+                std::vector<int> useOriginLines;
 
-                    auto& keys = exclude[sectionName];
-                    int index = 0;
+                auto& keys = exclude[sectionName];
+                int index = 0;
+                for (auto& pair : pSection->GetEntities())
+                {
+                    if (keys.find(pair.first) != keys.end())
+                    {
+                        if (keys[pair.first] == "")
+                        {
+                            skipLines.push_back(index);
+                        }
+                        else
+                        {
+                            useOriginLines.push_back(index);
+                        }
+                    }
+                    index++;
+                }
+                if (skipLines.size() < pSection->GetEntities().size())
+                {
+                    oss << "[" << sectionName << "]\n";
+                    index = 0;
                     for (auto& pair : pSection->GetEntities())
                     {
-                        if (keys.find(pair.first) != keys.end())
+                        if (std::find(skipLines.begin(), skipLines.end(), index) != skipLines.end())
                         {
-                            if (keys[pair.first] == "")
-                            {
-                                skipLines.push_back(index);
-                            }
-                            else
-                            {
-                                useOriginLines.push_back(index);
-                            }
+
+                        }
+                        else if (std::find(useOriginLines.begin(), useOriginLines.end(), index) != useOriginLines.end())
+                        {
+                            oss << pair.first << "=" << keys[pair.first] << "\n";
+                        }
+                        else
+                        {
+                            oss << pair.first << "=" << pair.second << "\n";
                         }
                         index++;
                     }
-                    if (skipLines.size() < pSection->GetEntities().size())
-                    {
-                        oss << "[" << sectionName << "]\n";
-                        index = 0;
-                        for (auto& pair : pSection->GetEntities())
-                        {
-                            if (std::find(skipLines.begin(), skipLines.end(), index) != skipLines.end())
-                            {
-
-                            }
-                            else if (std::find(useOriginLines.begin(), useOriginLines.end(), index) != useOriginLines.end())
-                            {
-                                oss << pair.first << "=" << keys[pair.first] << "\n";
-                            }
-                            else
-                            {
-                                oss << pair.first << "=" << pair.second << "\n";
-                            }
-                            index++;
-                        }
-                        oss << "\n";
-                    }
-                }
-                else
-                {
-                    oss << "[" << sectionName << "]\n";
-                    for (const auto& pair : pSection->GetEntities())
-                        oss << pair.first << "=" << pair.second << "\n";
                     oss << "\n";
                 }
-            };
+            }
+            else
+            {
+                oss << "[" << sectionName << "]\n";
+                for (const auto& pair : pSection->GetEntities())
+                    oss << pair.first << "=" << pair.second << "\n";
+                oss << "\n";
+            }
+        };
 
         if (!SaveMapExt::IsAutoSaving && ExtConfigs::SaveMap_PreserveINISorting)
         {
@@ -613,9 +805,9 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
 
             for (auto& section : pINI->Dict)
             {
-                if (!strcmp(section.first, "Preview") 
-                    || !strcmp(section.first, "PreviewPack") 
-                    || !strcmp(section.first, "Header") 
+                if (!strcmp(section.first, "Preview")
+                    || !strcmp(section.first, "PreviewPack")
+                    || !strcmp(section.first, "Header")
                     || !strcmp(section.first, "Digest"))
                     continue;
 
@@ -627,7 +819,7 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
         unsigned char hash[20];
         const auto& hash_source = oss.str();
         SHA1::hash(hash, hash_source.data(), hash_source.length());
-        
+
         char hash_value[64] = { 0 };
         sprintf_s(
             hash_value,
@@ -636,7 +828,7 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
             hash[5], hash[6], hash[7], hash[8], hash[9],
             hash[10], hash[11], hash[12], hash[13], hash[14],
             hash[15], hash[16], hash[17], hash[18], hash[19]
-            );
+        );
         Logger::Raw("SaveMap : Map SHA1 hash: %s\n", hash_value);
 
         // As sha1 hash length is only 20, the length of base64 result won't
@@ -649,20 +841,20 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
             FString MMX = core + ".map";
             FString PKT = core + ".pkt";
 
-            auto itr = pThis->PKTHeader.Dict.end();
-            for (size_t i = 0, sz = pThis->PKTHeader.Dict.size(); 
-                i < sz && itr != pThis->PKTHeader.Dict.begin(); ++i) {
+            auto itr = pFinalSun->PKTHeader.Dict.end();
+            for (size_t i = 0, sz = pFinalSun->PKTHeader.Dict.size();
+                i < sz && itr != pFinalSun->PKTHeader.Dict.begin(); ++i) {
                 --itr;
                 itr->second.~INISection();
-                pThis->PKTHeader.Dict.manual_erase(itr);
+                pFinalSun->PKTHeader.Dict.manual_erase(itr);
             }
 
-            pThis->PKTHeader.WriteString("MultiMaps", "1", core);
-            pThis->PKTHeader.WriteString(core, "Description", dlg.m_Description);
-            pThis->PKTHeader.WriteString(core, "CD", "2");
-            pThis->PKTHeader.WriteString(core, "MinPlayers", dlg.m_MinPlayers);
-            pThis->PKTHeader.WriteString(core, "MaxPlayers", dlg.m_Maxplayers);
-            pThis->PKTHeader.WriteString(core, "GameMode", pINI->GetString("Basic", "GameMode", "standard"));
+            pFinalSun->PKTHeader.WriteString("MultiMaps", "1", core);
+            pFinalSun->PKTHeader.WriteString(core, "Description", dlg.m_Description);
+            pFinalSun->PKTHeader.WriteString(core, "CD", "2");
+            pFinalSun->PKTHeader.WriteString(core, "MinPlayers", dlg.m_MinPlayers);
+            pFinalSun->PKTHeader.WriteString(core, "MaxPlayers", dlg.m_Maxplayers);
+            pFinalSun->PKTHeader.WriteString(core, "GameMode", pINI->GetString("Basic", "GameMode", "standard"));
 
             MixPacker mix;
             if (saveAsUTF8)
@@ -677,7 +869,7 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
             }
 
             std::ostringstream pkt;
-            for (auto& section : pThis->PKTHeader.Dict)
+            for (auto& section : pFinalSun->PKTHeader.Dict)
             {
                 pkt << "[" << section.first << "]\n";
                 for (const auto& pair : section.second.GetEntities())
@@ -686,7 +878,7 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
             }
             mix.Add(PKT, pkt.str().data(), pkt.str().size());
             fout.close();
-            if (mix.Pack(filepath.m_pchData))
+            if (mix.Pack(filepath))
             {
                 Logger::Raw("SaveMap : Successfully saved %u sections.\n", pINI->Dict.size());
             }
@@ -714,116 +906,11 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
         ppmfc::CString buffer;
         buffer.Format("Failed to create file %s.\n", filepath);
         Logger::Raw(buffer);
-        ppmfc::CString buffer2;
-        buffer2.Format(Translations::TranslateOrDefault("CannotCreateFile", "Cannot create file: %s.\n"), filepath);
-        ::MessageBox(NULL, buffer2, Translations::TranslateOrDefault("Error", "Error"), MB_OK | MB_ICONERROR);
+        buffer.Format(Translations::TranslateOrDefault("CannotCreateFile", "Cannot create file: %s.\n"), filepath);
+        ::MessageBox(NULL, buffer, Translations::TranslateOrDefault("Error", "Error"), MB_OK | MB_ICONERROR);
+        return false;
     }
-
-    return 0x42A859;
-}
-
-DEFINE_HOOK(42B30F, CFinalSunDlg_SaveMap_SkipMapDTOR, 7)
-{
-    return 0x42B323;
-}
-
-DEFINE_HOOK(42B2AF, CFinalSunDlg_SaveMap_SkipDeleteFile, 7)
-{
-    return 0x42B2C2;
-}
-
-DEFINE_HOOK(42686A, CFinalSunDlg_SaveMap_SetDefaultExtension, 5)
-{
-    int defaultExtention = 1;
-    
-    if (ExtConfigs::SaveMap_OnlySaveMAP)
-    {
-        defaultExtention = 4;
-    }
-    else if (CMapData::Instance->IsMultiOnly() && CLoading::HasMdFile())
-    {
-        defaultExtention = 2;
-    }
-    else if (CMapData::Instance->IsMultiOnly() && !CLoading::HasMdFile())
-    {
-        defaultExtention = 3;
-    }
-    else if (!CMapData::Instance->IsMultiOnly())
-    {
-        defaultExtention = 4;
-    }
-
-    R->Stack<int>(STACK_OFFS(0x3CC, (0x280 + 0x14)), defaultExtention);
-
-    return 0;
-}
-
-//ppmfc::CString filePath;
-//DEFINE_HOOK(4268DC, CFinalSunDlg_SaveMap_RenameMapPath, 7)
-//{
-//    GET(CFinalSunDlg*, pThis, ECX);
-//
-//    filePath = CFinalSunApp::Instance().MapPath();
-//
-//    if (ExtConfigs::SaveMap_OnlySaveMAP)
-//    {
-//        int nExtIndex = filePath.ReverseFind('.');
-//        if (nExtIndex == -1)
-//            filePath += ".map";
-//        else
-//            filePath = filePath.Mid(0, nExtIndex) + ".map";
-//    }
-//    else if (ExtConfigs::SaveMap_MultiPlayOnlySaveYRM && CMapData::Instance->IsMultiOnly())
-//    {
-//        int nExtIndex = filePath.ReverseFind('.');
-//        if (nExtIndex == -1)
-//            filePath += ".yrm";
-//        else
-//            filePath = filePath.Mid(0, nExtIndex) + ".yrm";
-//    }
-//    else if (!CMapData::Instance->IsMultiOnly() && ExtConfigs::SaveMap_SinglePlayOnlySaveMAP)
-//    {
-//        int nExtIndex = filePath.ReverseFind('.');
-//        if (nExtIndex == -1)
-//            filePath += ".map";
-//        else
-//            filePath = filePath.Mid(0, nExtIndex) + ".map";
-//    }
-//
-//    strcpy(CFinalSunApp::Instance().MapPath, filePath);
-//
-//    return 0;
-//}
-//
-//DEFINE_HOOK(426921, CFinalSunDlg_SaveMap_RenameMapPath2, 6)
-//{
-//    R->Stack<LPCSTR>(STACK_OFFS(0x3CC, 0x3BC), filePath);
-//    return 0;
-//}
-
-DEFINE_HOOK(42A8F5, CFinalSunDlg_SaveMap_ReplaceCopyFile, 7)
-{
-    REF_STACK(ppmfc::CString, filepath, STACK_OFFS(0x3F4, -0x4));
-
-    std::ifstream fin;
-    fin.open(filepath, std::ios::in | std::ios::binary);
-    if (fin.is_open())
-    {
-        fin.close();
-
-        if (!SaveMapExt::IsAutoSaving) {
-            SaveMapExt::SaveTime = std::filesystem::last_write_time(filepath.m_pchData);
-            FileWatcher::IsMapJustSaved = true;
-            FileWatcher::IsSavingMap = false;
-        }
-        return 0x42A92D;
-    }
-    return 0x42A911;
-}
- 
-DEFINE_HOOK(42B2EA, CFinalSunDlg_SaveMap_SkipStringDTOR, C)
-{
-    return 0x42B30F;
+    return true;
 }
 
 void SaveMapExt::ResetTimer()
@@ -974,7 +1061,7 @@ void CALLBACK SaveMapExt::SaveMapCallback(HWND hwnd, UINT message, UINT iTimerID
     );
 
     IsAutoSaving = true;
-    CFinalSunDlg::Instance->SaveMap(buffer);
+    SaveMapExt::SaveMapSilent(buffer);
     IsAutoSaving = false;
 
     RemoveEarlySaves();

@@ -13,7 +13,6 @@ private:
     static UINT_PTR Timer;
 public:
     static bool IsAutoSaving;
-    static ppmfc::CString FileName;
     static std::optional<std::filesystem::file_time_type> SaveTime;
 
     static void ResetTimer();

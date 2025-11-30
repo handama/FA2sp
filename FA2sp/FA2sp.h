@@ -31,10 +31,7 @@ public:
     static std::string STDBuffer;
     static ppmfc::CString Buffer;
     static void* pExceptionHandler;
-    static ULONG_PTR ulCookie;
-    static ULONG_PTR ulCookieEx;
     static bool g_VEH_Enabled;
-
     static void ExtConfigsInitialize();
     static bool IsDarkMode();
 };
@@ -195,7 +192,6 @@ public:
     static int DistanceRuler_Records;
     static bool DisplayObjectsOutside;
     static bool UseNewToolBarCameo;
-    static bool EnableVisualStyle;
     static bool DisableDirectoryCheck;
     static bool ExtOverlays;
     static bool SaveMap_PreserveINISorting;
@@ -210,9 +206,6 @@ public:
     static bool ShrinkTilesInTileSetBrowser;
     static bool UTF8Support_InferEncoding;
     static bool UTF8Support_AlwaysSaveAsUTF8;
-    static ppmfc::CString CloneWithOrderedID_Digits;
-    static ppmfc::CString NewTriggerPlusID_Digits;
-    static ppmfc::CString Waypoint_SkipCheckList;
     static CInfantryData DefaultInfantryProperty;
     static CUnitData DefaultUnitProperty;
     static CAircraftData DefaultAircraftProperty;

@@ -9,8 +9,8 @@
 #include "../../ExtraWindow/Common.h"
 
 std::unordered_set<std::string> CMapValidatorExt::StructureOverlappingIgnores;
-std::vector<ppmfc::CString> CMapValidatorExt::AttachedTriggers;
-std::vector<ppmfc::CString> CMapValidatorExt::LoopedTriggers;
+std::vector<FString> CMapValidatorExt::AttachedTriggers;
+std::vector<FString> CMapValidatorExt::LoopedTriggers;
 
 void CMapValidatorExt::ValidateOverlayLimit(BOOL& result)
 {
@@ -313,7 +313,7 @@ void CMapValidatorExt::ValidateLoopTrigger(BOOL& result)
 		for (auto& loop : LoopedTriggers)
 		{
 			auto tmp = Format1;
-			tmp.ReplaceNumString(1, loop);
+			tmp.ReplaceNumString(1, loop.c_str());
 			InsertStringAsError(tmp);
 		}
 	}

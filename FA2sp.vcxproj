@@ -412,6 +412,7 @@
     <ClInclude Include="FA2sp\Miscs\Hooks.INI.h" />
     <ClInclude Include="FA2sp\Miscs\StringtableLoader.h" />
     <ClInclude Include="FA2sp\Miscs\TheaterInfo.h" />
+    <ClInclude Include="FA2sp\Miscs\UserScripts.h" />
     <ClInclude Include="FA2sp\Miscs\VoxelDrawer.h" />
     <ClInclude Include="FA2sp\Miscs\Exception.h" />
     <ClInclude Include="FA2sp\Miscs\MultiSelection.h" />

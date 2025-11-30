@@ -204,6 +204,7 @@ bool SaveMapExt::SaveMapSilent(FString filepath, bool panic)
 
     if (!panic)
     {
+        SaveMapExt::StopTimer();
         CIsoViewExt::SetStatusBarText(Translations::TranslateOrDefault("SavingMap", "Saving map..."));
         struct GetHeaderRect
         {
@@ -269,8 +270,10 @@ bool SaveMapExt::SaveMapSilent(FString filepath, bool panic)
             Translations::TranslateStringVariables(1, buffer, filepath);
             CIsoViewExt::SetStatusBarText(buffer);
         }
+        SaveMapExt::ResetTimer();
         return true;
     }
+    SaveMapExt::ResetTimer();
     return false;
 }
 

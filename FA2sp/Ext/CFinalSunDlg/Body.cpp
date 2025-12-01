@@ -33,6 +33,7 @@
 #include "../../ExtraWindow/CMapRendererDlg/CMapRendererDlg.h"
 #include <CUpdateProgress.h>
 #include <filesystem>
+#include "../../Miscs/SaveMap.h"
 namespace fs = std::filesystem;
 
 int CFinalSunDlgExt::CurrentLighting = 31000;
@@ -1177,6 +1178,26 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			}
 		}
 	}
+	if (wmID == 40167)
+	{
+		if (!CMapData::Instance->MapWidthPlusHeight)
+		{
+			this->PlaySound(FASoundType::Error);
+		}
+		else
+		{
+			FString path(CFinalSunApp::MapPath);
+			if (path != "")
+			{
+				MessageBeep(MB_ICONWARNING);
+				SaveMapExt::SaveMapSilent(path);
+			}
+			else
+			{
+				this->SaveMapAs();
+			}
+		}
+	}
 	auto closeFA2Window = [this, &wmID](int wmID2, ppmfc::CDialog& dialog)
 	{
 		if (wmID2 == wmID)
@@ -1618,6 +1639,7 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 		{
 			CIsoViewExt::Zoom(0.0);
 		}
+		break;
 	}
 	}
 	return ppmfc::CDialog::PreTranslateMessage(pMsg);

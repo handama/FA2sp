@@ -749,7 +749,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									{ objRender.X,objRender.Y,CMapDataExt::TryGetCellAt(objRender.X, objRender.Y)->Height },
 									false, isRubble || isTerrain ? 4 : 3);
 							}
-							for (int i = 0; i < DataExt.BottomCoords.size(); ++i)
+							for (int i = 0; i < std::min(DataExt.BottomCoords.size(), clips.size()); ++i)
 							{
 								auto pData = clips[i].get();
 
@@ -931,7 +931,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								{ (short)node.X,(short)node.Y,CMapDataExt::TryGetCellAt(node.X,node.Y)->Height},
 								false, isTerrain ? 4 : 3);
 						}
-						for (int i = 0; i < DataExt.BottomCoords.size(); ++i)
+						for (int i = 0; i < std::min(DataExt.BottomCoords.size(), clips.size()); ++i)
 						{
 							auto pData = clips[i].get();
 							auto& coord = DataExt.BottomCoords[i];

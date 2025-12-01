@@ -23,6 +23,7 @@ public:
 struct CINIInfo
 {
     FString Name;
+    FileEncoding Encoding = Unknown;
 };
 
 class CINIManager
@@ -37,9 +38,15 @@ public:
         return instance;
     }
 
-    void SetProperty(CINI* instance, CINIInfo value) {
+    void SetProperty(CINI* instance, FString Name) {
         if (instance) {
-            propertyMap[instance] = value;
+            propertyMap[instance].Name = Name;
+        }
+    }
+
+    void SetProperty(CINI* instance, FileEncoding Encoding) {
+        if (instance) {
+            propertyMap[instance].Encoding = Encoding;
         }
     }
 

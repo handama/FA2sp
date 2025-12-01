@@ -12,7 +12,7 @@
 #include "../Ext/CFinalSunApp/Body.h"
 #include <regex>
 
-ppmfc::CString FinalAlertConfig::lpPath;
+FString FinalAlertConfig::lpPath;
 char FinalAlertConfig::pLastRead[0x400];
 
 // Load after ExePath is initialized
@@ -101,7 +101,7 @@ static void UnescapeSlashX(std::wstring& input) {
 }
 
 char Translations::pLanguage[4][0x400];
-ppmfc::CString Translations::CurrentTileSet;
+FString Translations::CurrentTileSet;
 std::map<HWND, int> Translations::DlgIdMap;
 std::map<UINT, FString> Translations::StringTable;
 std::unique_ptr<CINI, GameUniqueDeleter<CINI>> Translations::FADialog;

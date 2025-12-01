@@ -1929,30 +1929,12 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                             if (process(wp) == atoi(pWP))
                             {
-                                std::vector<FString> skiplist;
-                                bool add = true;
-                                if (ExtConfigs::Waypoint_SkipCheckList)
-                                {
-                                    skiplist = FString::SplitStringTrimmed(ExtConfigs::Waypoint_SkipCheckList);
-                                }
-                                if (skiplist.size() > 0)
-                                {
-                                    for (auto& wp : skiplist)
-                                    {
-                                        if (pWP == wp)
-                                            add = false;
-                                    }
-                                }
-
-                                if (add)
-                                {
-                                    pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
-                                        "Team: %s (%s)")
-                                        , CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
-                                    TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
-                                    pSrc = "";
-                                    i++;
-                                }
+                                pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
+                                    "Team: %s (%s)")
+                                    , CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
+                                TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
+                                pSrc = "";
+                                i++;
                             }
                         }
                     }

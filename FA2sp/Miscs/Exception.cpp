@@ -175,7 +175,7 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 		fcrash_backup += "\\" + backup_name;
 
 		SaveMapExt::IsAutoSaving = true;
-		CFinalSunDlg::Instance->SaveMap(fcrash_backup);
+		SaveMapExt::SaveMapSilent(fcrash_backup, true);
 		SaveMapExt::IsAutoSaving = false;
 
 		MessageBox(CFinalSunDlg::Instance->m_hWnd, Translations::TranslateOrDefault("FinalAlert2FatalError.SaveMap", 

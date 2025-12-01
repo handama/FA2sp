@@ -23,6 +23,7 @@
 #include "../CFinalSunApp/Body.h"
 #include "../../Helpers/Helper.h"
 #include "../../Miscs/DialogStyle.h"
+#include "../../Miscs/UserScripts.h"
 
 namespace fs = std::filesystem;
 
@@ -424,7 +425,6 @@ void CViewObjectsExt::UpdateTreeIconsForSubtree(HTREEITEM hItem)
 
     PropagateFirstNonZeroIcon(hItem);
 }
-
 
 void CViewObjectsExt::Redraw()
 {
@@ -3047,6 +3047,22 @@ void CViewObjectsExt::OnExeTerminate()
     KnownItem.clear();
     Owners.clear();
     DarkTheme::CleanupDarkThemeBrushes();
+    FA2sp::Buffer.~CString();
+    CIsoViewExt::MapRendererIgnoreObjects.clear();
+    for (int i = 0; i < 10; ++i)
+        UserScriptExt::ParamsTemp[i].~CString();
+    UserScriptExt::VariablePool.clear();
+    UserScriptExt::Temps.clear();
+
+    ExtConfigs::DefaultInfantryProperty.~CInfantryData();
+    ExtConfigs::DefaultUnitProperty.~CUnitData();
+    ExtConfigs::DefaultAircraftProperty.~CAircraftData();
+    ExtConfigs::DefaultBuildingProperty.~CBuildingData();
+
+    Variables::RulesMap.~MultimapHelper();
+    Variables::Rules.~MultimapHelper();
+    Variables::FAData.~MultimapHelper();
+    Variables::Rules_FAData.~MultimapHelper();
 }
 
 void CViewObjectsExt::InitializeOnUpdateEngine()

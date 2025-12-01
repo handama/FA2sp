@@ -29,7 +29,7 @@ DEFINE_HOOK(4D4150, CRandomTree_OnInitDialog, 7)
     return 0;
 }
 
-static ppmfc::CString LastSelectedTree;
+static FString LastSelectedTree;
 DEFINE_HOOK(4D4FF7, CRandomTreeDlg_Draw, 7)
 {
     GET(CRandomTree*, pThis, EDI);

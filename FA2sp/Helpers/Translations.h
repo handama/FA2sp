@@ -13,7 +13,7 @@ public:
     static DWORD ReadString(const char* pSection, const char* pKey, const char* pDefault = "", char* pBuffer = nullptr);
     static void WriteString(const char* pSection, const char* pKey, const char* pContent);
     static char pLastRead[0x400];
-    static ppmfc::CString lpPath;
+    static FString lpPath;
 };
 
 class Translations
@@ -32,7 +32,7 @@ public:
     static ppmfc::CString TranslateTileSet(int index);
     static FString ParseHouseName(FString src, bool IDToUIName);
     static char pLanguage[4][0x400];
-    static ppmfc::CString CurrentTileSet;
+    static FString CurrentTileSet;
     static std::map<HWND, int> DlgIdMap;
     static std::map<UINT, FString> StringTable;
     static std::unique_ptr<CINI, GameUniqueDeleter<CINI>> FADialog;

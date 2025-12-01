@@ -20,7 +20,7 @@ DEFINE_HOOK(4B5460, CMapData_InitializeBuildingTypes, 7)
 		DataExt.DamageFireOffsets.clear();
 
 		ppmfc::CString ImageID = Variables::RulesMap.GetString(ID, "Image", ID);
-		auto foundation = CINI::Art->GetString(ImageID, "Foundation");
+		auto foundation = CINI::Art->GetString(ImageID, "Foundation", "1x1");
 
 		// https://modenc.renegadeprojects.com/Foundation
 		// This flag is read from art(md).ini twice: 
@@ -36,15 +36,15 @@ DEFINE_HOOK(4B5460, CMapData_InitializeBuildingTypes, 7)
 		if (_strcmpi(foundation, "Custom") && _strcmpi(foundation, "3x3REFINERY"))
 		{
 			auto sizes = STDHelpers::SplitStringMultiSplit(foundation, "x|X");
-			if (sizes.size() == 2)
+			if (sizes.size() >= 2)
 			{
 				DataExt.Width = atoi(sizes[0]);
 				DataExt.Height = atoi(sizes[1]);
 			}
 			else
 			{
-				DataExt.Width = atoi(foundation);
-				DataExt.Height = atoi(&foundation[2]);
+				DataExt.Width = 1;
+				DataExt.Height = 1;
 			}
 			if (DataExt.Width == 0)
 				DataExt.Width = 1;
@@ -219,6 +219,11 @@ DEFINE_HOOK(4B5460, CMapData_InitializeBuildingTypes, 7)
 	else
 	{
 		pThis->BuildingDataExts.clear();
+		BuildingDataExt tempBuildingData;
+		tempBuildingData.Width = 1;
+		tempBuildingData.Height = 1;
+		tempBuildingData.BottomCoords = { {0,0} };
+		CMapDataExt::BuildingDataExts[-1] = tempBuildingData;
 		const auto Types = Variables::RulesMap.GetSection("BuildingTypes");
 		for (auto& Type : Types)
 			ProcessType(Type.second);

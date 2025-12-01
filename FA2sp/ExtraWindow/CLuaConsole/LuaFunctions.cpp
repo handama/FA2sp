@@ -25,7 +25,7 @@
 namespace LuaFunctions
 {
 	static long long time = 0;
-	static std::map<ppmfc::CString, CINI*> LoadedINIs;
+	static std::map<FString, CINI*> LoadedINIs;
 	static std::unordered_set<std::string> UsedINIIndices;
 
 	static void write_lua_console(std::string text)
@@ -2381,14 +2381,14 @@ namespace LuaFunctions
 		if (endsWithIni(loadFrom))
 		{
 			CINI* ini;
-			if (LoadedINIs.find(loadFrom.c_str()) != LoadedINIs.end())
+			if (LoadedINIs.find(loadFrom) != LoadedINIs.end())
 			{
-				ini = LoadedINIs[loadFrom.c_str()];
+				ini = LoadedINIs[loadFrom];
 			}
 			else
 			{
 				ini = GameCreate<CINI>();
-				LoadedINIs[loadFrom.c_str()] = ini;
+				LoadedINIs[loadFrom] = ini;
 				CLoading::Instance->LoadTSINI(loadFrom.c_str(), ini, TRUE);
 			}
 			return ini->GetString(section.c_str(), key.c_str(), def.c_str()).m_pchData;
@@ -2465,14 +2465,14 @@ namespace LuaFunctions
 		if (endsWithIni(loadFrom))
 		{
 			CINI* ini;
-			if (LoadedINIs.find(loadFrom.c_str()) != LoadedINIs.end())
+			if (LoadedINIs.find(loadFrom) != LoadedINIs.end())
 			{
-				ini = LoadedINIs[loadFrom.c_str()];
+				ini = LoadedINIs[loadFrom];
 			}
 			else
 			{
 				ini = GameCreate<CINI>();
-				LoadedINIs[loadFrom.c_str()] = ini;
+				LoadedINIs[loadFrom] = ini;
 				CLoading::Instance->LoadTSINI(loadFrom.c_str(), ini, TRUE);
 			}
 
@@ -2518,14 +2518,14 @@ namespace LuaFunctions
 		if (endsWithIni(loadFrom))
 		{
 			CINI* ini;
-			if (LoadedINIs.find(loadFrom.c_str()) != LoadedINIs.end())
+			if (LoadedINIs.find(loadFrom) != LoadedINIs.end())
 			{
-				ini = LoadedINIs[loadFrom.c_str()];
+				ini = LoadedINIs[loadFrom];
 			}
 			else
 			{
 				ini = GameCreate<CINI>();
-				LoadedINIs[loadFrom.c_str()] = ini;
+				LoadedINIs[loadFrom] = ini;
 				CLoading::Instance->LoadTSINI(loadFrom.c_str(), ini, TRUE);
 			}
 			if (auto pSection = ini->GetSection(section.c_str()))
@@ -2565,14 +2565,14 @@ namespace LuaFunctions
 		if (endsWithIni(loadFrom))
 		{
 			CINI* ini;
-			if (LoadedINIs.find(loadFrom.c_str()) != LoadedINIs.end())
+			if (LoadedINIs.find(loadFrom) != LoadedINIs.end())
 			{
-				ini = LoadedINIs[loadFrom.c_str()];
+				ini = LoadedINIs[loadFrom];
 			}
 			else
 			{
 				ini = GameCreate<CINI>();
-				LoadedINIs[loadFrom.c_str()] = ini;
+				LoadedINIs[loadFrom] = ini;
 				CLoading::Instance->LoadTSINI(loadFrom.c_str(), ini, TRUE);
 			}
 			if (auto pSection = ini->GetSection(section.c_str()))
@@ -2612,14 +2612,14 @@ namespace LuaFunctions
 		if (endsWithIni(loadFrom))
 		{
 			CINI* ini;
-			if (LoadedINIs.find(loadFrom.c_str()) != LoadedINIs.end())
+			if (LoadedINIs.find(loadFrom) != LoadedINIs.end())
 			{
-				ini = LoadedINIs[loadFrom.c_str()];
+				ini = LoadedINIs[loadFrom];
 			}
 			else
 			{
 				ini = GameCreate<CINI>();
-				LoadedINIs[loadFrom.c_str()] = ini;
+				LoadedINIs[loadFrom] = ini;
 				CLoading::Instance->LoadTSINI(loadFrom.c_str(), ini, TRUE);
 			}
 			if (auto pSection = ini->GetSection(section.c_str()))
@@ -2659,14 +2659,14 @@ namespace LuaFunctions
 		if (endsWithIni(loadFrom))
 		{
 			CINI* ini;
-			if (LoadedINIs.find(loadFrom.c_str()) != LoadedINIs.end())
+			if (LoadedINIs.find(loadFrom) != LoadedINIs.end())
 			{
-				ini = LoadedINIs[loadFrom.c_str()];
+				ini = LoadedINIs[loadFrom];
 			}
 			else
 			{
 				ini = GameCreate<CINI>();
-				LoadedINIs[loadFrom.c_str()] = ini;
+				LoadedINIs[loadFrom] = ini;
 				CLoading::Instance->LoadTSINI(loadFrom.c_str(), ini, TRUE);
 			}
 			if (auto pSection = ini->GetSection(section.c_str()))

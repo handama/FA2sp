@@ -80,7 +80,7 @@ bool CIsoViewExt::CliffBackAlt = false;
 bool CIsoViewExt::HistoryRecord_IsHoldingLButton = false;
 std::vector<MapCoord> CIsoViewExt::TubeNodes;
 std::vector<MapCoord> CIsoViewExt::DistanceRuler;
-ppmfc::CString CIsoViewExt::CurrentCellObjectHouse = "";
+FString CIsoViewExt::CurrentCellObjectHouse = "";
 int CIsoViewExt::EXTRA_BORDER_BOTTOM = 25;
 Cell3DLocation CIsoViewExt::CurrentDrawCellLocation;
 std::unordered_map<TextCacheKey, TextCacheEntry, TextCacheHasher> CIsoViewExt::textCache;

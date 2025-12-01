@@ -440,28 +440,10 @@ void WaypointSort::AddTrigger(FString triggerId, int x, int y) const
 
                     if (process(wp) == atoi(triggerId))
                     {
-                        std::vector<FString> skiplist;
-                        bool add = true;
-                        if (ExtConfigs::Waypoint_SkipCheckList)
-                        {
-                            skiplist = FString::SplitStringTrimmed(ExtConfigs::Waypoint_SkipCheckList);
-                        }
-                        if (skiplist.size() > 0)
-                        {
-                            for (auto& wp : skiplist)
-                            {
-                                if (triggerId == wp)
-                                    add = false;
-                            }
-                        }
-
-                        if (add)
-                        {
-                            FString text;
-                            text.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
-                                "Team: %s (%s)"), CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
-                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), text, pair.second, hParent);
-                        }
+                        FString text;
+                        text.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
+                            "Team: %s (%s)"), CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
+                        TreeViewHelper::InsertTreeItem(this->GetHwnd(), text, pair.second, hParent);
                     }
                 }
             }

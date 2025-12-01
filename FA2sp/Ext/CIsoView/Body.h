@@ -248,7 +248,7 @@ public:
     static bool IsPressingALT;
     static bool IsPressingTube;
     static std::vector<MapCoord> TubeNodes;
-    static ppmfc::CString CurrentCellObjectHouse;
+    static FString CurrentCellObjectHouse;
     static int EXTRA_BORDER_BOTTOM;
 
     static LPDIRECTDRAWSURFACE7 lpDDBackBufferZoomSurface;
@@ -274,7 +274,7 @@ public:
         int Overlay;
         int OverlayData;
         int Height;
-        ppmfc::CString ObjectID;
+        FString ObjectID;
         int X;
         int Y;
         int Subpos;

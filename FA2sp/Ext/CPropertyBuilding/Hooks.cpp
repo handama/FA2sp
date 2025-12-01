@@ -18,7 +18,6 @@ DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
     pThis->ppmfc::CDialog::OnInitDialog();
 
     CMapData::Instance->UpdateCurrentDocument();
-    // && ExtConfigs::PlayerAtXForTechnos && !ExtConfigs::TestNotLoaded && 0
     if (!CMapData::Instance->IsMultiOnly())
     {
         Miscs::LoadParams::Houses(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1079)), false, false, false);

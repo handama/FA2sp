@@ -160,6 +160,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(57603, "Menu.File.Save");
     translateMenuItem(40002, "Menu.File.SaveAs");
     translateMenuItem(40025, "Menu.File.CheckMap");
+    translateMenuItem(40167, "Menu.File.QuickSave");
     // translateMenuItem(40017, "Menu.File.RunGame");
     translateMenuItem(40018, "Menu.File.Reopen");
     translateMenuItem(40003, "Menu.File.Quit");

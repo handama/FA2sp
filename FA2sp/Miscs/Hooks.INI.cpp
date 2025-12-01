@@ -40,6 +40,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
     };
 
     auto encoding = STDHelpers::GetFileEncoding(pFile, fileSize);
+    CINIManager::GetInstance().SetProperty(this, encoding);
     bool loadAsUTF8 = ExtConfigs::UTF8Support_InferEncoding && encoding == UTF8 || encoding == UTF8_BOM;
     FString content(reinterpret_cast<char*>(pFile), fileSize);
     if (loadAsUTF8)
@@ -338,7 +339,7 @@ DEFINE_HOOK(47FFB0, CLoading_LoadTSINI, 7)
     GET_STACK(CINIExt*, pINI, 0x8);
     GET_STACK(BOOL, bMerge, 0xC);
 
-    CINIManager::GetInstance().SetProperty(pINI, { pFile });
+    CINIManager::GetInstance().SetProperty(pINI, pFile);
     DWORD dwSize = 0;
     if (auto pBuffer = static_cast<byte*>(pThis->ReadWholeFile(pFile, &dwSize))) {
         pINI->LoadINIExt(pBuffer, dwSize, nullptr, !bMerge, true, true);
@@ -447,4 +448,46 @@ DEFINE_HOOK(47FFB0, CLoading_LoadTSINI, 7)
     }
 
     return 0x480892;
+}
+
+DEFINE_HOOK(4536B0, CINI_WriteToFile, 8)
+{
+    GET(CINIExt*, pThis, ECX);
+    GET_STACK(const char*, lpPath, 0x4);
+
+    std::ofstream out(lpPath, std::ios::binary | std::ios::out);
+    if (!out.is_open()) {
+        R->EAX(0);
+        return 0x453A10;
+    }
+
+    std::ostringstream oss;
+    for (auto& [sectionName, pSection] : pThis->Dict)
+    {
+        oss << "[" << sectionName << "]\n";
+        for (const auto& pair : pSection.GetEntities())
+            oss << pair.first << "=" << pair.second << "\n";
+        oss << "\n";
+    }
+
+    FString output = oss.str();
+    auto info = CINIManager::GetInstance().GetProperty(pThis);
+    if (info.Encoding == UTF8)
+    {
+        output.toUTF8();
+    }
+    else if(info.Encoding == UTF8_BOM)
+    {
+        output.toUTF8();
+        const unsigned char bom[3] = { 0xEF, 0xBB, 0xBF };
+        out.write(reinterpret_cast<const char*>(bom), 3);
+    }
+
+    out.write(output.data(), output.size());
+    if (!out.good()) {
+        R->EAX(0);
+        return 0x453A10;
+    }
+    R->EAX(1);
+    return 0x453A10;
 }

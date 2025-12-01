@@ -291,6 +291,9 @@
     <ClInclude Include="FA2sp\Extra\GeneralLoad.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\Miscs\UserScripts.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FA2sp\FA2sp.cpp">

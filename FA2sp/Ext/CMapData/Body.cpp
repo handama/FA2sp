@@ -1483,29 +1483,53 @@ bool CMapDataExt::IsValidTileSet(int tileset, bool allowToPlace)
 
 ppmfc::CString CMapDataExt::GetAvailableIndex()
 {
+	auto v = VEHGuard(false);
 	auto& ini = CINI::CurrentDocument;
 	int n = 1000000;
 
 	std::unordered_set<std::string> usedIDs;
+	int maxID = 0;
+
+	auto parseID = [&](const std::string& s) {
+		try {
+			return std::stoi(s);
+		}
+		catch (...) {
+			return -1;
+		}
+	};
 
 	for (const auto& sec : { "ScriptTypes", "TaskForces", "TeamTypes" }) {
 		if (auto pSection = ini->GetSection(sec)) {
 			for (const auto& [k, v] : pSection->GetEntities()) {
-				usedIDs.insert(v.m_pchData);
-			}
-		}
-	}
-	for (const auto& sec : { "Triggers", "Events", "Tags", "Actions", "AITriggerTypes" }) {
-		if (auto pSection = ini->GetSection(sec)) {
-			for (const auto& [k, v] : pSection->GetEntities()) {
-				usedIDs.insert(k.m_pchData);
+				std::string id = v.m_pchData;
+				usedIDs.insert(id);
+				int val = parseID(id);
+				if (val >= 0) maxID = std::max(maxID, val);
 			}
 		}
 	}
 
+	for (const auto& sec : { "Triggers", "Events", "Tags", "Actions", "AITriggerTypes" }) {
+		if (auto pSection = ini->GetSection(sec)) {
+			for (const auto& [k, v] : pSection->GetEntities()) {
+				std::string id = k.m_pchData;
+				usedIDs.insert(id);
+				int val = parseID(id);
+				if (val >= 0) maxID = std::max(maxID, val);
+			}
+		}
+	}
+
+	if (ExtConfigs::UseSequentialIndexing) {
+		int nextID = maxID + 1;
+		char idBuffer[9];
+		std::sprintf(idBuffer, "%08d", nextID);
+		return idBuffer;
+	}
+
 	char idBuffer[9];
-	while (true)
-	{
+	while (true) {
 		std::sprintf(idBuffer, "%08d", n);
 		std::string id(idBuffer);
 

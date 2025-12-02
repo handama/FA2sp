@@ -491,3 +491,14 @@ DEFINE_HOOK(4536B0, CINI_WriteToFile, 8)
     R->EAX(1);
     return 0x453A10;
 }
+
+DEFINE_HOOK(446520, CINI_GetAvailableIndex, 7)
+{
+    GET_STACK(ppmfc::CString*, pRet, 0x4);
+
+    auto index = CMapDataExt::GetAvailableIndex();
+    new(pRet) ppmfc::CString(index);
+    R->EAX(pRet);
+
+    return 0x446FB3;
+}

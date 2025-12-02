@@ -62,8 +62,8 @@ public:
     static bool SortByLabelName_Team;
     static bool SortByLabelName_Taskforce;
     static bool SortByLabelName_Script;
-    static bool DisplayTriggerID;
     static bool NewTriggerPlusID;
+    static bool UseSequentialIndexing;
     static bool AdjustDropdownWidth;
     static int AdjustDropdownWidth_Factor;
     static int AdjustDropdownWidth_Max;

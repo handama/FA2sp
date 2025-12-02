@@ -476,6 +476,7 @@
     <ResourceCompile Include="FA2sp\UI\CScriptTypes.rc" />
     <ResourceCompile Include="FA2sp\UI\CSingleplayerSettings.rc" />
     <ResourceCompile Include="FA2sp\UI\CStructureDialog.rc" />
+    <ResourceCompile Include="FA2sp\UI\CTags.rc" />
     <ResourceCompile Include="FA2sp\UI\CTaskforce.rc" />
     <ResourceCompile Include="FA2sp\UI\CTriggerFrame.rc" />
     <ResourceCompile Include="FA2sp\UI\CTriggerOption.rc" />

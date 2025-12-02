@@ -1043,42 +1043,7 @@ namespace LuaFunctions
 
 	static std::string GetAvailableIndex()
 	{
-		auto& ini = CINI::CurrentDocument;
-		int n = 1000000;
-
-		std::unordered_set<std::string> usedIDs;
-
-		for (const auto& sec : { "ScriptTypes", "TaskForces", "TeamTypes" }) {
-			if (auto pSection = ini->GetSection(sec)) {
-				for (const auto& [k, v] : pSection->GetEntities()) {
-					usedIDs.insert(v.m_pchData);
-				}
-			}
-		}
-		for (const auto& sec : { "Triggers", "Events", "Tags", "Actions", "AITriggerTypes" }) {
-			if (auto pSection = ini->GetSection(sec)) {
-				for (const auto& [k, v] : pSection->GetEntities()) {
-					usedIDs.insert(k.m_pchData);
-				}
-			}
-		}
-
-		char idBuffer[9];
-		while (true)
-		{
-			std::sprintf(idBuffer, "%08d", n);
-			std::string id(idBuffer);
-
-			if (usedIDs.find(id) == usedIDs.end() 
-				&& UsedINIIndices.find(id) == UsedINIIndices.end() 
-				&& !ini->SectionExists(id.c_str())) {
-				return id;
-			}
-
-			n++;
-		}
-
-		return "";
+		return CMapDataExt::GetAvailableIndex().m_pchData;
 	}
 
 	struct tag

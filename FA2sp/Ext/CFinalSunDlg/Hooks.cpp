@@ -113,7 +113,7 @@ DEFINE_HOOK(432380, CFinalSunDlg_Update_RecentFiles, A)
     for (size_t i = 0; i < CFinalSunAppExt::RecentFilesExt.size(); ++i)
     {
         if (CFinalSunAppExt::RecentFilesExt[i].length())
-            pMenu->GetSubMenu(0)->InsertMenu(10 + i, MF_BYPOSITION, 40140 + i, CFinalSunAppExt::RecentFilesExt[i].c_str());
+            pMenu->GetSubMenu(0)->InsertMenu(11 + i, MF_BYPOSITION, 40140 + i, CFinalSunAppExt::RecentFilesExt[i].c_str());
     }
 
     R->EDI(::CheckMenuItem);

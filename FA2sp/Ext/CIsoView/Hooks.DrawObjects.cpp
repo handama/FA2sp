@@ -2042,23 +2042,22 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		if (MultiSelection::SelectedCoords.empty())
 		{
 			int X = CTerrainGenerator::RangeFirstCell.X, Y = CTerrainGenerator::RangeFirstCell.Y;
+			int XW = abs(CTerrainGenerator::RangeSecondCell.X - CTerrainGenerator::RangeFirstCell.X) + 1;
+			int YW = abs(CTerrainGenerator::RangeSecondCell.Y - CTerrainGenerator::RangeFirstCell.Y) + 1;
+			if (X > CTerrainGenerator::RangeSecondCell.X)
+				X = CTerrainGenerator::RangeSecondCell.X;
+			if (Y > CTerrainGenerator::RangeSecondCell.Y)
+				Y = CTerrainGenerator::RangeSecondCell.Y;
 
-			if (CMapData::Instance().IsCoordInMap(X, Y))
+			std::vector<MapCoord> coords;
+			for (int i = X; i <= X + XW; i++)
 			{
-				int XW = abs(CTerrainGenerator::RangeSecondCell.X - CTerrainGenerator::RangeFirstCell.X) + 1;
-				int YW = abs(CTerrainGenerator::RangeSecondCell.Y - CTerrainGenerator::RangeFirstCell.Y) + 1;
-				if (X > CTerrainGenerator::RangeSecondCell.X)
-					X = CTerrainGenerator::RangeSecondCell.X;
-				if (Y > CTerrainGenerator::RangeSecondCell.Y)
-					Y = CTerrainGenerator::RangeSecondCell.Y;
-
-				CIsoView::MapCoord2ScreenCoord(X, Y);
-
-				int drawX = X - DrawOffsetX;
-				int drawY = Y - DrawOffsetY;
-
-				pThis->DrawLockedCellOutline(drawX, drawY, YW, XW, ExtConfigs::TerrainGeneratorColor, false, false, lpDesc);
+				for (int j = Y; j <= Y + YW; j++)
+				{
+					coords.push_back({ i,j });
+				}
 			}
+			CIsoViewExt::DrawMultiMapCoordBorders(hDC, coords, ExtConfigs::TerrainGeneratorColor);
 		}
 		else
 		{

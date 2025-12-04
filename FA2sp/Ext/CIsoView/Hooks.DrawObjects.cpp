@@ -2382,8 +2382,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		RECT r;
 		pThis->GetWindowRect(&r);
 
-		int pngPosX = r.left + pThis->ViewPosition.x - startX;
-		int pngPosY = r.top + pThis->ViewPosition.y - startY;
+		int pngPosX = r.left + pThis->ViewPosition.x - startX - 4;
+		int pngPosY = r.top + pThis->ViewPosition.y - startY - 3 + (CIsoViewExt::RenderFullMap ? 0 : 15);
 
 		if (CIsoViewExt::BlitDDSurfaceRectToBitmap(
 			hDC,

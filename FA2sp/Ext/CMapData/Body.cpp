@@ -315,13 +315,15 @@ void CMapDataExt::ProcessBuildingType(const char* ID)
 		}
 	}
 
+	// other art flags don't have save problem
+	ImageID = Variables::RulesMap.GetString(ID, "Image", ID);
 	for (int i = 0; i < 8; ++i)
 	{
 		FString key;
 		key.Format("DamageFireOffset%d", i);
-		if (CINI::Art->KeyExists(ID, key))
+		if (CINI::Art->KeyExists(ImageID, key))
 		{
-			auto atoms = STDHelpers::SplitString(CINI::Art->GetString(ID, key, "0,0"), 1);
+			auto atoms = STDHelpers::SplitString(CINI::Art->GetString(ImageID, key, "0,0"), 1);
 			DataExt.DamageFireOffsets.push_back({ atoi(atoms[0]),atoi(atoms[1]) });
 		}
 		else

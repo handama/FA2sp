@@ -2873,14 +2873,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			WaypointSort::Instance.LoadAllTriggers();
 		}
 
-
-		for (auto& [_, ext] : BuildingDataExts)
-		{
-			if (ext.Foundations)
-				delete ext.Foundations;
-			if (ext.LinesToDraw)
-				delete ext.LinesToDraw;
-		}
 		BuildingDataExts.clear();
 
 		BuildingDataExt tempBuildingData;

@@ -1730,7 +1730,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 				int outW = 0x100, outH = 0x100;
 
 				VXL_Add(pImage[i], rect[i].X, rect[i].Y, rect[i].W, rect[i].H);
-				delete[] pImage[i];
+				CncImgFree(pImage[i]);
 				VXL_GetAndClear(outBuffer, &outW, &outH);
 
 				SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
@@ -1746,7 +1746,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 				int outW = 0x100, outH = 0x100;
 
 				VXL_Add(pShadowImage[i], shadowrect[i].X, shadowrect[i].Y, shadowrect[i].W, shadowrect[i].H, true);
-				delete[] pShadowImage[i];
+				CncImgFree(pShadowImage[i]);
 				VXL_GetAndClear(outBuffer, &outW, &outH, true);
 
 				SetImageDataSafe(outBuffer, DictShadowName, outW, outH, &CMapDataExt::Palette_Shadow);

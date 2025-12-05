@@ -1677,15 +1677,53 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			y1 -= DrawOffsetY;
 			auto color = Miscs::GetColorRef(part.Data->House);
 
-			int cellStr = -1;
-			if (cell->Structure > -1 && cell->Structure < CMapDataExt::StructureIndexMap.size())
-				cellStr = CMapDataExt::StructureIndexMap[cell->Structure];
+			bool strOverlap = false;
+			if (!DataExt.IsCustomFoundation())
+			{
+				for (int dy = 0; dy < DataExt.Width; ++dy)
+				{
+					for (int dx = 0; dx < DataExt.Height; ++dx)
+					{
+						const int x = part.Data->X + dx;
+						const int y = part.Data->Y + dy;
+						int pos = CMapData::Instance->GetCoordIndex(x, y);
+						if (pos < CMapDataExt::CellDataExts.size());
+						{
+							auto& cellExt = CMapDataExt::CellDataExts[pos];
+							for (const auto& [_, type] : cellExt.Structures)
+							{
+								if (type == part.INIIndex)
+									strOverlap = true;
+							}
+								
+						}
+					}
+				}
+			}
+			else
+			{
+				for (const auto& block : *DataExt.Foundations)
+				{
+					const int x = part.Data->X + block.Y;
+					const int y = part.Data->Y + block.X;
+					int pos = CMapData::Instance->GetCoordIndex(x, y);
+					if (pos < CMapDataExt::CellDataExts.size());
+					{
+						auto& cellExt = CMapDataExt::CellDataExts[pos];
+						for (const auto& [_, type] : cellExt.Structures)
+						{
+							if (type == part.INIIndex)
+								strOverlap = true;
+						}
+
+					}
+				}
+			}
+
 			if (firstDraw && (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers)
-				&& (CFinalSunApp::Instance->ShowBuildingCells || cellStr != -1)
+				&& (CFinalSunApp::Instance->ShowBuildingCells || strOverlap)
 				&& (CIsoViewExt::DrawBasenodes || CFinalSunApp::Instance->ShowBuildingCells))
 			{
-				const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(part.Data->ID);
-				const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
 				if (DataExt.IsCustomFoundation())
 				{
 					pThis->DrawLockedLines(*DataExt.LinesToDraw, x1, y1, color, true, false, lpDesc);

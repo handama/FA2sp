@@ -55,7 +55,22 @@ ImageDataClassSafe* CLoadingExt::GetImageDataFromMap(const FString& name)
 
 std::vector<std::unique_ptr<ImageDataClassSafe>>& CLoadingExt::GetBuildingClipImageDataFromMap(const FString& name)
 {
-	return BuildingClipsImageDataMap[name];
+	auto itr = BuildingClipsImageDataMap.find(name);
+	if (itr == BuildingClipsImageDataMap.end())
+	{
+		auto pEmpty = std::make_unique<ImageDataClassSafe>();
+		pEmpty->Flag = ImageDataFlag::SHP;
+		pEmpty->IsOverlay = false;
+		pEmpty->pPalette = Palette::PALETTE_UNIT;
+		pEmpty->ClipOffsets.FullWidth = 0;
+		pEmpty->ClipOffsets.LeftOffset = 0;
+
+		auto& inserted = BuildingClipsImageDataMap[name];
+		inserted.push_back(std::move(pEmpty));
+		
+		return inserted;
+	}
+	return itr->second;
 }
 
 bool CLoadingExt::IsSurfaceImageLoaded(const FString& name)
@@ -577,6 +592,11 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0);
 
+	if (Variables::RulesMap.GetBool(ID, "Gate"))
+	{
+		nBldStartFrame = 0;
+	}
+
 	FString AnimKeys[9] = 
 	{	
 		"IdleAnim",
@@ -983,7 +1003,13 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + 1;
 	if (Variables::RulesMap.GetBool(ID, "Wall"))
+	{
 		nBldStartFrame--;
+	}
+	else if (Variables::RulesMap.GetBool(ID, "Gate"))
+	{
+		nBldStartFrame = CINI::Art->GetInteger(ArtID, "GateStages", 0) + 1;
+	}
 
 	FString AnimKeys[9] =
 	{
@@ -1704,7 +1730,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 				int outW = 0x100, outH = 0x100;
 
 				VXL_Add(pImage[i], rect[i].X, rect[i].Y, rect[i].W, rect[i].H);
-				delete[] pImage[i];
+				CncImgFree(pImage[i]);
 				VXL_GetAndClear(outBuffer, &outW, &outH);
 
 				SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
@@ -1720,7 +1746,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 				int outW = 0x100, outH = 0x100;
 
 				VXL_Add(pShadowImage[i], shadowrect[i].X, shadowrect[i].Y, shadowrect[i].W, shadowrect[i].H, true);
-				delete[] pShadowImage[i];
+				CncImgFree(pShadowImage[i]);
 				VXL_GetAndClear(outBuffer, &outW, &outH, true);
 
 				SetImageDataSafe(outBuffer, DictShadowName, outW, outH, &CMapDataExt::Palette_Shadow);

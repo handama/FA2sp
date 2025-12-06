@@ -19,9 +19,10 @@
 #include "Helpers/Translations.h"
 #include "Miscs/DialogStyle.h"
 
+#define ENABLE_VISUAL_STYLE
+static ULONG_PTR ulCookie;
+
 HANDLE FA2sp::hInstance;
-ULONG_PTR FA2sp::ulCookie;
-ULONG_PTR FA2sp::ulCookieEx;
 std::string FA2sp::STDBuffer;
 ppmfc::CString FA2sp::Buffer;
 void* FA2sp::pExceptionHandler = nullptr;
@@ -51,7 +52,7 @@ bool ExtConfigs::SortByLabelName_Team;
 bool ExtConfigs::SortByLabelName_Taskforce;
 bool ExtConfigs::SortByLabelName_Script;
 bool ExtConfigs::NewTriggerPlusID;
-bool ExtConfigs::DisplayTriggerID;
+bool ExtConfigs::UseSequentialIndexing;
 bool ExtConfigs::AdjustDropdownWidth;
 int ExtConfigs::AdjustDropdownWidth_Factor;
 int ExtConfigs::AdjustDropdownWidth_Max;
@@ -177,7 +178,6 @@ bool ExtConfigs::LightingPreview_TintTileSetBrowserView;
 bool ExtConfigs::DDrawScalingBilinear;
 bool ExtConfigs::DDrawScalingBilinear_OnlyShrink;
 bool ExtConfigs::UseNewToolBarCameo;
-bool ExtConfigs::EnableVisualStyle;
 bool ExtConfigs::DisableDirectoryCheck;
 bool ExtConfigs::ExtOverlays;
 bool ExtConfigs::SaveMap_PreserveINISorting;
@@ -195,9 +195,6 @@ bool ExtConfigs::EnableDarkMode_DimMap;
 bool ExtConfigs::ShrinkTilesInTileSetBrowser;
 bool ExtConfigs::UTF8Support_InferEncoding = true;
 bool ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
-ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
-ppmfc::CString ExtConfigs::NewTriggerPlusID_Digits;
-ppmfc::CString ExtConfigs::Waypoint_SkipCheckList;
 
 CInfantryData ExtConfigs::DefaultInfantryProperty;
 CUnitData ExtConfigs::DefaultUnitProperty;
@@ -244,15 +241,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::SortByLabelName_Script = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.Script");
 
 	ExtConfigs::NewTriggerPlusID = CINI::FAData->GetBool("ExtConfigs", "NewTriggerPlusID");
-	ExtConfigs::DisplayTriggerID = CINI::FAData->GetBool("ExtConfigs", "DisplayTriggerID");
-	ExtConfigs::CloneWithOrderedID = CINI::FAData->GetBool("ExtConfigs", "CloneWithOrderedID");
-	auto temp = CINI::FAData->GetString("ExtConfigs", "CloneWithOrderedID.Digits");
-	temp.TrimRight();
-	ExtConfigs::CloneWithOrderedID_Digits = temp;
-
-	auto temp2 = CINI::FAData->GetString("ExtConfigs", "NewTriggerPlusID.Digits");
-	temp2.TrimRight();
-	ExtConfigs::NewTriggerPlusID_Digits = temp2;
+	ExtConfigs::UseSequentialIndexing = CINI::FAData->GetBool("ExtConfigs", "UseSequentialIndexing");
 
 	ExtConfigs::AdjustDropdownWidth = CINI::FAData->GetBool("ExtConfigs", "AdjustDropdownWidth");
 	ExtConfigs::AdjustDropdownWidth_Factor = CINI::FAData->GetInteger("ExtConfigs", "AdjustDropdownWidth.Factor", 8);
@@ -301,7 +290,6 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::BaseNodeIndex_Background_Color = CINI::FAData->GetColor("ExtConfigs", "BaseNodeIndex.Background.Color", 0x3C3C3C);
 
 	ExtConfigs::Waypoint_Text_ExtraOffset = CINI::FAData->GetPoint("ExtConfigs", "Waypoint.Text.ExtraOffset");
-	ExtConfigs::Waypoint_SkipCheckList = CINI::FAData->GetString("ExtConfigs", "Waypoint.SkipCheckList");
 
 	ExtConfigs::ExtWaypoints = CINI::FAData->GetBool("ExtConfigs", "ExtWaypoints");
 	ExtConfigs::ExtFacings = CINI::FAData->GetBool("ExtConfigs", "ExtFacings");
@@ -325,7 +313,6 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::UseStrictNewTheater = CINI::FAData->GetBool("ExtConfigs", "UseStrictNewTheater");
 	ExtConfigs::DisableDirectoryCheck = CINI::FAData->GetBool("ExtConfigs", "DisableDirectoryCheck");
 	ExtConfigs::UseNewToolBarCameo = CINI::FAData->GetBool("ExtConfigs", "UseNewToolBarCameo", true);
-	ExtConfigs::EnableVisualStyle = CINI::FAData->GetBool("ExtConfigs", "EnableVisualStyle", true);
 	ExtConfigs::InGameDisplay_Shadow = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Shadow", true);
 	ExtConfigs::InGameDisplay_Deploy = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Deploy", true);
 	ExtConfigs::InGameDisplay_Water = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Water", true);
@@ -497,8 +484,28 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DefaultBuildingProperty.Nominal = building[16];
 
 	ExtConfigs::InitializeMap = false;
-
 	ExtConfigs::TestNotLoaded = false;
+
+	ExtConfigs::UpdateOptionTranslations();
+
+	CINI fa2;
+	std::string path;
+	path = CFinalSunAppExt::ExePathExt;
+	path += "\\FinalAlert.ini";
+	fa2.ClearAndLoad(path.c_str());
+
+	for (const auto& opt : ExtConfigs::Options)
+	{
+		*opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
+	}
+
+	CIsoViewExt::PasteShowOutline = ExtConfigs::PasteShowOutlineDefault;
+
+}
+
+void ExtConfigs::UpdateOptionTranslations()
+{
+	ExtConfigs::Options.clear();
 
 	// Editor Interface and Behavior
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -512,6 +519,13 @@ void FA2sp::ExtConfigsInitialize()
 		.DisplayName = Translations::TranslateOrDefault("Options.CloneWithOrderedID", "Clone triggers (teams) with increasing number instead of 'Clone'"),
 		.IniKey = "CloneWithOrderedID",
 		.Value = &ExtConfigs::CloneWithOrderedID,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.UseSequentialIndexing", "Always assign the next incremental index when creating triggers"),
+		.IniKey = "UseSequentialIndexing",
+		.Value = &ExtConfigs::UseSequentialIndexing,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
@@ -579,13 +593,6 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.EnableVisualStyle", "Enable visual style (may cause Chinese input unavailable)"),
-		.IniKey = "EnableVisualStyle",
-		.Value = &ExtConfigs::EnableVisualStyle,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode", "Enable dark mode"),
 		.IniKey = "EnableDarkMode",
 		.Value = &ExtConfigs::EnableDarkMode_Init,
@@ -640,7 +647,7 @@ void FA2sp::ExtConfigsInitialize()
 		.IniKey = "ObjectBrowser.Ore.ExtraSupport",
 		.Value = &ExtConfigs::ObjectBrowser_Ore_ExtraSupport,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		}); 
+		});
 
 	// Map Display and Rendering
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -1193,20 +1200,6 @@ void FA2sp::ExtConfigsInitialize()
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
-
-	CINI fa2;
-	std::string path;
-	path = CFinalSunAppExt::ExePathExt;
-	path += "\\FinalAlert.ini";
-	fa2.ClearAndLoad(path.c_str());
-
-	for (const auto& opt : ExtConfigs::Options)
-	{
-		*opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
-	}
-
-	CIsoViewExt::PasteShowOutline = ExtConfigs::PasteShowOutlineDefault;
-
 }
 
 bool FA2sp::IsDarkMode()
@@ -1312,6 +1305,46 @@ DEFINE_HOOK(537129, ExeRun, 9)
 	}
 	
 	FA2Expand::ExeRun();
+
+#ifdef ENABLE_VISUAL_STYLE
+
+#if defined _M_IX86
+#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='x86' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#elif defined _M_X64
+#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='amd64' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#else
+#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#endif
+	// GetModuleName
+	char ModuleNameBuffer[MAX_PATH];
+	GetModuleFileName(static_cast<HMODULE>(FA2sp::hInstance), ModuleNameBuffer, MAX_PATH);
+	int nLength = strlen(ModuleNameBuffer);
+	int i = nLength - 1;
+	for (; i >= 0; --i)
+	{
+		if (ModuleNameBuffer[i] == '\\')
+			break;
+	}
+	++i;
+	int nModuleNameLen = nLength - i;
+	memcpy(ModuleNameBuffer, ModuleNameBuffer + i, nModuleNameLen);
+	ModuleNameBuffer[nModuleNameLen] = '\0';
+
+	// Codes from 
+	// https://referencesource.microsoft.com/#System.Windows.Forms/winforms/Managed/System/WinForms/UnsafeNativeMethods.cs,8197
+	ACTCTX enableThemingActivationContext;
+	enableThemingActivationContext.cbSize = sizeof ACTCTX;
+	enableThemingActivationContext.lpSource = ModuleNameBuffer; // "FA2sp.dll"
+	enableThemingActivationContext.lpResourceName = (LPCSTR)101;
+	enableThemingActivationContext.dwFlags = ACTCTX_FLAG_RESOURCE_NAME_VALID;
+	auto hActCtx = ::CreateActCtx(&enableThemingActivationContext);
+	if (hActCtx != INVALID_HANDLE_VALUE)
+	{
+		if (::ActivateActCtx(hActCtx, &ulCookie))
+			Logger::Put("Visual Style Enabled!\n");
+	}
+#endif
+
 	DarkTheme::ExeStart_DrakThemeHooks();
 
 	const char* MapImporterFilter = "All files|*.yrm;*.mpr;*.map;*.bmp|Multi maps|*.yrm;*.mpr|Single maps|*.map|Windows bitmaps|*.bmp|";
@@ -1345,11 +1378,9 @@ DEFINE_HOOK(537208, ExeTerminate, 9)
 	// Destruct static ppmfc stuffs here
 	CViewObjectsExt::OnExeTerminate();
 
-	if (ExtConfigs::EnableVisualStyle)
-	{
-		::DeactivateActCtx(NULL, FA2sp::ulCookie);
-		::DeactivateActCtx(NULL, FA2sp::ulCookieEx);
-	}
+#ifdef ENABLE_VISUAL_STYLE
+	::DeactivateActCtx(NULL, ulCookie);
+#endif
 
 	GET(UINT, result, EAX);
 	ExitProcess(result);

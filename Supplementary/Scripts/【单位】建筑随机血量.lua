@@ -1,6 +1,6 @@
 house = "none"
-if message_box("ĞèÒª½«ĞŞ¸ÄÏŞÖÆµ½ÖÆ¶¨ËùÊô·½Âğ£¿", "ÏŞÖÆËùÊô·½", 2) == 1 then
-	box = select_box:new("Ñ¡ÔñËùÊô·½")
+if message_box("éœ€è¦å°†ä¿®æ”¹é™åˆ¶åˆ°åˆ¶å®šæ‰€å±æ–¹å—ï¼Ÿ", "é™åˆ¶æ‰€å±æ–¹", 2) == 1 then
+	box = select_box:new("é€‰æ‹©æ‰€å±æ–¹")
 	house_section = "Houses"
 	load_from = "map"
 	if is_multiplay() then
@@ -15,7 +15,7 @@ end
 
 rnd_start = 0
 rnd_end = 0
-input = input_box('ÇëÊäÈëËæ»úÑªÁ¿µÄÉÏÏÂÏŞ£¬Ê¹ÓÃ¿Õ¸ñ¸ô¿ª£¬ÀıÈç:\n1 127')
+input = input_box('è¯·è¾“å…¥éšæœºè¡€é‡çš„ä¸Šä¸‹é™ï¼Œä½¿ç”¨ç©ºæ ¼éš”å¼€ï¼Œä¾‹å¦‚:\n1 127')
 rnd_start = tonumber(split_string(input, " ")[1])
 rnd_end = tonumber(split_string(input, " ")[2])
 if rnd_start < 0 then rnd_start = 0 end

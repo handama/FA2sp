@@ -112,13 +112,16 @@ DEFINE_HOOK(422B95, CFinalSunApp_ProcessMessageFilter_UpdateTileSetBrowserView_L
 // The original implement will lead to memory leak
 DEFINE_HOOK(4564F0, CInputMessageBox_OnOK, 7)
 {
-	static ppmfc::CString ReturnBuffer;
+	static char buffer[1024]{};
+	static FString ReturnBuffer;
 
 	GET(CInputMessageBox*, pThis, ECX);
 
-	pThis->GetDlgItem(1047)->GetWindowText(ReturnBuffer);
+	std::memset(buffer, 0, 1024);
+	::GetWindowText(pThis->GetDlgItem(1047)->GetSafeHwnd(), buffer, 1023);
+	ReturnBuffer = buffer;
 	
-	pThis->EndDialog(ReturnBuffer.GetLength() ? (int)ReturnBuffer.m_pchData : (int)nullptr);
+	pThis->EndDialog(ReturnBuffer.GetLength() ? (int)ReturnBuffer.c_str() : (int)nullptr);
 
 	return 0x4565A5;
 }

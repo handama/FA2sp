@@ -1,5 +1,5 @@
-if message_box("是否为地图创建快照？", "创建快照", 2) == 1 then create_snapshot() end
-box = multi_select_box:new("请选择触发")
+if message_box("鏄惁涓哄湴鍥惧垱寤哄揩鐓э紵", "鍒涘缓蹇収", 2) == 1 then create_snapshot() end
+box = multi_select_box:new("璇烽�夋嫨瑙﹀彂")
 for i,id in pairs(get_keys("Triggers")) do
 	box:add_option(id, get_param("Triggers", id, 3))
 end

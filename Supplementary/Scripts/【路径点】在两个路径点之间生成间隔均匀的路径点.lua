@@ -1,60 +1,60 @@
---¡¾Â·¾¶µã¡¿ÔÚÁ½¸öÂ·¾¶µãÖ®¼äÉú³É¼ä¸ô¾ùÔÈµÄÂ·¾¶µã.lua
---ß÷---ß÷---ß÷---ß÷--
+--ã€è·¯å¾„ç‚¹ã€‘åœ¨ä¸¤ä¸ªè·¯å¾„ç‚¹ä¹‹é—´ç”Ÿæˆé—´éš”å‡åŒ€çš„è·¯å¾„ç‚¹.lua
+--å–µ---å–µ---å–µ---å–µ--
 
 
 
-input_N = input_box("ÊäÈëÉú³ÉµÄÂ·¾¶µã¼ä¸ô")
+input_N = input_box("è¾“å…¥ç”Ÿæˆçš„è·¯å¾„ç‚¹é—´éš”")
 N = tonumber(input_N)
 if N < 1 or N >= 100 then
-message_box("ÊäÈëÊı¾İ²»ºÏÒªÇó, Ä¬ÈÏ½«Éú³ÉµÄÂ·¾¶µã¼ä¸ôµ÷ÕûÎª15", "ÊäÈëÄÚÈİ·Ç·¨", 1)
+message_box("è¾“å…¥æ•°æ®ä¸åˆè¦æ±‚, é»˜è®¤å°†ç”Ÿæˆçš„è·¯å¾„ç‚¹é—´éš”è°ƒæ•´ä¸º15", "è¾“å…¥å†…å®¹éæ³•", 1)
 N = 15
 end
 
-input_wp1 = input_box("ÊäÈëÉú³ÉµÄÆğµãÂ·¾¶µã")
+input_wp1 = input_box("è¾“å…¥ç”Ÿæˆçš„èµ·ç‚¹è·¯å¾„ç‚¹")
 wp1_value = tonumber(get_string("Waypoints", input_wp1))
 wp1_y = math.floor((wp1_value)/1000)
 wp1_x = wp1_value - 1000 * wp1_y
-print("ÆğµãÎª£º#"..input_wp1)
-print("ÆğµãÎª£º("..wp1_x..","..wp1_y..")")
+print("èµ·ç‚¹ä¸ºï¼š#"..input_wp1)
+print("èµ·ç‚¹ä¸ºï¼š("..wp1_x..","..wp1_y..")")
 
-input_wp2 = input_box("ÊäÈëÉú³ÉµÄÂ·¾¶µãÖÕµã")
+input_wp2 = input_box("è¾“å…¥ç”Ÿæˆçš„è·¯å¾„ç‚¹ç»ˆç‚¹")
 wp2_value = tonumber(get_string("Waypoints", input_wp2))
 wp2_y = math.floor((wp2_value)/1000)
 wp2_x = wp2_value - 1000 * wp2_y
-print("ÖÕµãÎª£º#"..input_wp2)
-print("ÖÕµãÎª£º("..wp2_x..","..wp2_y..")")
+print("ç»ˆç‚¹ä¸ºï¼š#"..input_wp2)
+print("ç»ˆç‚¹ä¸ºï¼š("..wp2_x..","..wp2_y..")")
 
  points = {}
-    -- Ìí¼ÓÆğµã A
+    -- æ·»åŠ èµ·ç‚¹ A
     table.insert(points, {x = wp1_x, y = wp1_y})  
-    -- ¼ÆËã×ø±ê²îÖµ
+    -- è®¡ç®—åæ ‡å·®å€¼
  dx = wp2_x - wp1_x
  dy = wp2_y - wp1_y
-    -- ¼ÆËãÇĞ±ÈÑ©·ò¾àÀë
+    -- è®¡ç®—åˆ‡æ¯”é›ªå¤«è·ç¦»
  abs = math.abs
  adx = abs(dx)
  ady = abs(dy)
 D = math.max(adx, ady)
-    -- ´¦ÀíÖØºÏµã
+    -- å¤„ç†é‡åˆç‚¹
     if D == 0 then
         return points
     end
-    -- ¼ÆËã²½Êı£¨²»°üÀ¨Æğµã£©
+    -- è®¡ç®—æ­¥æ•°ï¼ˆä¸åŒ…æ‹¬èµ·ç‚¹ï¼‰
  step_count = math.floor(D / N)
     if step_count == 0 then
         return points
     end
-    -- Éú³ÉÖĞ¼äµã
+    -- ç”Ÿæˆä¸­é—´ç‚¹
     for k = 1, step_count do
-        -- ¼ÆËãµ±Ç°²½³¤±ÈÀı
+        -- è®¡ç®—å½“å‰æ­¥é•¿æ¯”ä¾‹
  ratio = (k * N) / D
-        -- ¼ÆËã×ø±ê²¢ËÄÉáÎåÈëÈ¡Õû
+        -- è®¡ç®—åæ ‡å¹¶å››èˆäº”å…¥å–æ•´
  x = wp1_x + math.floor(dx * ratio + 0.5)
  y = wp1_y + math.floor(dy * ratio + 0.5)
         
 	new_wp = place_waypoint(x, y)
-	print("·ÅÖÃµÄÂ·¾¶µãÎª£º#"..new_wp.."("..x..","..y..")")
+	print("æ”¾ç½®çš„è·¯å¾„ç‚¹ä¸ºï¼š#"..new_wp.."("..x..","..y..")")
 end
 update_waypoint()
-message_box("ÒÑ³É¹¦Ö´ĞĞ½Å±¾", "Ö´ĞĞ³É¹¦", 1)
+message_box("å·²æˆåŠŸæ‰§è¡Œè„šæœ¬", "æ‰§è¡ŒæˆåŠŸ", 1)
 

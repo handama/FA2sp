@@ -1,8 +1,8 @@
-local select = message_box("ÊÇ·ñ½«ĞŞ¸ÄÏŞÖÆÔÚ¶àÑ¡µ¥Ôª¸ñÄÚ£¿", "ÏŞÖÆ·¶Î§", 3)
+local select = message_box("æ˜¯å¦å°†ä¿®æ”¹é™åˆ¶åœ¨å¤šé€‰å•å…ƒæ ¼å†…ï¼Ÿ", "é™åˆ¶èŒƒå›´", 3)
 if select == 3 then
 	goto finish
 end
-local box = select_box:new("Ñ¡ÔñÔ­Ê¼¸²¸ÇÍ¼")
+local box = select_box:new("é€‰æ‹©åŸå§‹è¦†ç›–å›¾")
 for i,v in pairs(get_ordered_values("OverlayTypes", "rules+map")) do
 	local uiname = get_uiname(v)
 	local value = v
@@ -12,7 +12,7 @@ for i,v in pairs(get_ordered_values("OverlayTypes", "rules+map")) do
 	box:add_option(tostring(i), value)
 end
 local ori = tonumber(box:do_modal())
-box.caption = "Ñ¡ÔñÄ¿±ê¸²¸ÇÍ¼"
+box.caption = "é€‰æ‹©ç›®æ ‡è¦†ç›–å›¾"
 local replace = tonumber(box:do_modal())
 if ori < 0 then ori = 0 end
 if ori > 255 then ori = 255 end

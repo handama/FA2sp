@@ -411,6 +411,7 @@ public:
     int GetOreValueAt(CellData& cell);
     void InitOreValue();
     static bool IsOre(unsigned short nOverlay);
+    void ProcessBuildingType(const char* ID);
 
     bool IsTileIntact(int x, int y, int startX = -1, int startY = -1, int right = -1, int bottom = -1);
     std::vector<MapCoord> GetIntactTileCoords(int x, int y, bool oriIntact);

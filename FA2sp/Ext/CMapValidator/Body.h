@@ -23,6 +23,6 @@ public:
 	void InsertString(const char* String, bool IsWarning);
 
 	static std::unordered_set<std::string> StructureOverlappingIgnores;
-	static std::vector<ppmfc::CString> AttachedTriggers;
-	static std::vector<ppmfc::CString> LoopedTriggers;
+	static std::vector<FString> AttachedTriggers;
+	static std::vector<FString> LoopedTriggers;
 };

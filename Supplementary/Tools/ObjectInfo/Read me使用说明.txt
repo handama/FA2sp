@@ -7,6 +7,16 @@ objectinfo.ini用于存储显示预设，通过按下Next Info Preset快捷键�
 搜索触发时，如果文本开头结尾都是英文感叹号(!)，则筛选不包含此文本的触发
 本dll并不需要ares即可运行，但输出log的功能依赖于ares。在不使用ares运行时，只需要向游戏内安装ares，然后删除ares.dll，运行runares.bat即可
 
+Works for most mods based on syringe.exe.
+
+Usage:
+Place it in the game’s root directory, then go to Options → Keyboard → Development and set a hotkey for Display Object Info. Press the hotkey in-game to toggle the display.
+The file objectinfo.ini stores display presets. By pressing the Next Info Preset hotkey, you can quickly switch between different information presets.
+Press the Dump Trigger Info hotkey to output the current trigger information to debug.log.
+Press the Trigger Debug Mode hotkey to show all trigger information on the left side of the screen. This mode supports forcing triggers to run, enabling/disabling/destroying triggers, viewing detailed information, sorting, and filtering/searching.
+When searching triggers, if the search text begins and ends with an exclamation mark (!), the filter will match triggers that do NOT contain that text.
+This DLL does not require Ares to run, but the log-output feature depends on Ares. If running without Ares, simply install Ares into the game folder, delete ares.dll, and run runares.bat.
+
 
 CSF信息：
 TXT_DISPLAY_OBJECT_INFO = Display Object Info

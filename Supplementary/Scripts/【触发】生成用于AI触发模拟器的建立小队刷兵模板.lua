@@ -1,11 +1,11 @@
---¡¾´¥·¢¡¿Éú³ÉÓÃÓÚAI´¥·¢Ä£ÄâÆ÷µÄ½¨Á¢Ğ¡¶ÓË¢±øÄ£°å.lua
---ß÷---ß÷---ß÷---ß÷--
+--ã€è§¦å‘ã€‘ç”Ÿæˆç”¨äºAIè§¦å‘æ¨¡æ‹Ÿå™¨çš„å»ºç«‹å°é˜Ÿåˆ·å…µæ¨¡æ¿.lua
+--å–µ---å–µ---å–µ---å–µ--
 
 
-ans = message_box("½Å±¾Ò»µ©Ö´ĞĞ£¬ÖĞÍ¾ÎŞ·¨È¡Ïû¡£\nÇë×¢ÒâÒª±£³ÖÊäÈëÊı¾İµÄÕıÈ·¡£\nÄúÊÇ·ñ¼ÌĞø£¿", "¾¯¸æ", 1)
+ans = message_box("è„šæœ¬ä¸€æ—¦æ‰§è¡Œï¼Œä¸­é€”æ— æ³•å–æ¶ˆã€‚\nè¯·æ³¨æ„è¦ä¿æŒè¾“å…¥æ•°æ®çš„æ­£ç¡®ã€‚\næ‚¨æ˜¯å¦ç»§ç»­ï¼Ÿ", "è­¦å‘Š", 1)
 if ans == 1 then
 
-box = select_box:new("Ñ¡ÔñËùÊô·½")
+box = select_box:new("é€‰æ‹©æ‰€å±æ–¹")
 for i,house in pairs(get_values("Countries", "rules+map")) do
 	box:add_option(house, translate_house(house))
 end
@@ -21,19 +21,19 @@ if is_multiplay() then
 end
 selected_house = box:do_modal()
 
-local input_units = input_box("ÊäÈëÌØÇ²²¿¶Ó, ÀıÈç 3E1,2HTNK,5APOC")
+local input_units = input_box("è¾“å…¥ç‰¹é£éƒ¨é˜Ÿ, ä¾‹å¦‚ 3E1,2HTNK,5APOC")
 local units = input_units:gsub(",", "")
 name = ""..selected_house.."-"..units
-trigger1_name= "[Ë¢±ø]"..selected_house.."-"..units.."-".."µ¥´Î¼ÆÊ±Æ÷"
-trigger2_name= "[Ë¢±ø]"..selected_house.."-"..units.."-".."µ¥´ÎË¢±ø"
+trigger1_name= "[åˆ·å…µ]"..selected_house.."-"..units.."-".."å•æ¬¡è®¡æ—¶å™¨"
+trigger2_name= "[åˆ·å…µ]"..selected_house.."-"..units.."-".."å•æ¬¡åˆ·å…µ"
 
--- ·Ö¸î×Ö·û´®
+-- åˆ†å‰²å­—ç¬¦ä¸²
 local parts = {}
 for part in input_units:gmatch("([^,]+)") do
     table.insert(parts, part)
 end
 
--- ½âÎöÊı×ÖºÍÎÄ±¾
+-- è§£ææ•°å­—å’Œæ–‡æœ¬
 local parsedData = {}
 for i, segment in ipairs(parts) do
     local numStr = segment:match("^(%d+)")
@@ -56,9 +56,9 @@ t.house = selected_house
 t.task_force = task.id
 t.script = s.id
 
-print("==== ÌØÇ²²¿¶ÓÈçÏÂ ====")
+print("==== ç‰¹é£éƒ¨é˜Ÿå¦‚ä¸‹ ====")
 for idx, item in ipairs(parsedData) do
-    print(string.format("%d) ÊıÁ¿: %-2s | µ¥Î»: %s", 
+    print(string.format("%d) æ•°é‡: %-2s | å•ä½: %s", 
         idx, 
         item.number or "N/A", 
         item.text,
@@ -72,25 +72,25 @@ t:apply()
 s:apply()
 task:apply()
 
-box2 = select_box:new("Ñ¡ÔñÒªÊ¹ÓÃµÄ¾Ö²¿±äÁ¿")
+box2 = select_box:new("é€‰æ‹©è¦ä½¿ç”¨çš„å±€éƒ¨å˜é‡")
 for i,var in pairs(get_values("VariableNames")) do
     box2:add_option(i,var)
 end
 selected_var_index= box2:do_modal()
 
-local create_repeat=input_box("ÊäÈë´¥·¢Ë¢±øÖØ¸´ÀàĞÍ£¬¼´£º0, 1, 2")
+local create_repeat=input_box("è¾“å…¥è§¦å‘åˆ·å…µé‡å¤ç±»å‹ï¼Œå³ï¼š0, 1, 2")
 
 if create_repeat ~= "0" and create_repeat ~= "1" and create_repeat ~= "2" then
-message_box("ÊäÈëÊı¾İ²»ºÏÒªÇó, Ä¬ÈÏ½«ÖØ¸´ÀàĞÍµ÷ÕûÎª0", "ÊäÈëÄÚÈİ·Ç·¨", 1)
+message_box("è¾“å…¥æ•°æ®ä¸åˆè¦æ±‚, é»˜è®¤å°†é‡å¤ç±»å‹è°ƒæ•´ä¸º0", "è¾“å…¥å†…å®¹éæ³•", 1)
 create_repeat = "0"
 end
 
 if create_repeat == "2" then
-trigger1_name= "[Ë¢±ø]"..selected_house.."-"..units.."-".."ÖØ¸´¼ÆÊ±Æ÷"
-trigger2_name= "[Ë¢±ø]"..selected_house.."-"..units.."-".."ÖØ¸´Ë¢±ø"
+trigger1_name= "[åˆ·å…µ]"..selected_house.."-"..units.."-".."é‡å¤è®¡æ—¶å™¨"
+trigger2_name= "[åˆ·å…µ]"..selected_house.."-"..units.."-".."é‡å¤åˆ·å…µ"
 end
 
-local create_time=input_box("ÊäÈë´¥·¢Ë¢±ø¼ä¸ô£¨µ¥Î»£ºÃë£©,ÀıÈç 220")
+local create_time=input_box("è¾“å…¥è§¦å‘åˆ·å…µé—´éš”ï¼ˆå•ä½ï¼šç§’ï¼‰,ä¾‹å¦‚ 220")
 
 
 
@@ -115,9 +115,9 @@ write_string("Actions", trigger2_id, "2,4,1,"..t.id..",0,0,0,0,A,54,1,"..trigger
 update_trigger()
 
 print("=======================")
-print("Éú³ÉµÄĞ¡¶Ó½Å±¾Ä¬ÈÏ0-0£¨¹¥»÷£©£¬Çë×ÔĞĞĞŞ¸Ä½Å±¾")
-print("Ö»ĞèĞŞ¸ÄË¢±ø´¥·¢µÄ¿ª¹Ø¼´¿É¿ªÆô¹Ø±ÕË¢±ø×´Ì¬£¬¼ÆÊ±Æ÷´¥·¢²»ĞèÒª¹Ø±Õ")
-print("Éú³ÉµÄË¢±ø´¥·¢Ä¬ÈÏ½ûÓÃ£¬ÇëÊÖ¶¯ÔÊĞí´¥·¢")
+print("ç”Ÿæˆçš„å°é˜Ÿè„šæœ¬é»˜è®¤0-0ï¼ˆæ”»å‡»ï¼‰ï¼Œè¯·è‡ªè¡Œä¿®æ”¹è„šæœ¬")
+print("åªéœ€ä¿®æ”¹åˆ·å…µè§¦å‘çš„å¼€å…³å³å¯å¼€å¯å…³é—­åˆ·å…µçŠ¶æ€ï¼Œè®¡æ—¶å™¨è§¦å‘ä¸éœ€è¦å…³é—­")
+print("ç”Ÿæˆçš„åˆ·å…µè§¦å‘é»˜è®¤ç¦ç”¨ï¼Œè¯·æ‰‹åŠ¨å…è®¸è§¦å‘")
 print("=======================")
-message_box("ÒÑ³É¹¦Ö´ĞĞ½Å±¾£¬Éú³ÉµÄ´¥·¢Ä¬ÈÏ½ûÓÃ£¬ÇëÊÖ¶¯ÔÊĞí´¥·¢", "Ö´ĞĞ³É¹¦", 1)
+message_box("å·²æˆåŠŸæ‰§è¡Œè„šæœ¬ï¼Œç”Ÿæˆçš„è§¦å‘é»˜è®¤ç¦ç”¨ï¼Œè¯·æ‰‹åŠ¨å…è®¸è§¦å‘", "æ‰§è¡ŒæˆåŠŸ", 1)
 end

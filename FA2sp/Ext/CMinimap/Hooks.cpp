@@ -35,7 +35,6 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 	BITMAPINFO bmi;
 	int nStride;
 	BYTE* pData = nullptr;
-	BYTE* pDataModified = nullptr;	
 	CMapData::Instance->GetMapPreview(pData, &bmi, nStride);
 
 	if (!pData) return 0x4D1CE0;
@@ -48,7 +47,7 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 
 	if (ExtConfigs::EnableDarkMode && ExtConfigs::EnableDarkMode_DimMap)
 	{
-		pDataModified = new BYTE[nStride * bmi.bmiHeader.biHeight];
+		auto pDataModified = new BYTE[nStride * bmi.bmiHeader.biHeight];
 		memcpy(pDataModified, pData, nStride * bmi.bmiHeader.biHeight);
 
 		int height = bmi.bmiHeader.biHeight;

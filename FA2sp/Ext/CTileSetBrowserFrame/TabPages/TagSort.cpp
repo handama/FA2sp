@@ -351,14 +351,14 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
 
                     if (SearchObjectType != -1)
                     {
-                        int X = atoi(atoms[3]);
-                        int Y = atoi(atoms[4]);
+                        int X = atoi(atoms[4]);
+                        int Y = atoi(atoms[3]);
 
                         if (CMapData::Instance->IsCoordInMap(X, Y))
                         {
 
-                            CMapDataExt::CellDataExt_FindCell.X = Y;
-                            CMapDataExt::CellDataExt_FindCell.Y = X;
+                            CMapDataExt::CellDataExt_FindCell.X = X;
+                            CMapDataExt::CellDataExt_FindCell.Y = Y;
                             CMapDataExt::CellDataExt_FindCell.drawCell = true;
 
                             CIsoViewExt::MoveToMapCoord(X, Y);
@@ -375,14 +375,14 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
 
                         if (pairObj.first == pID)
                         {
-                            int X = atoi(pairObj.first) % 1000;
-                            int Y = atoi(pairObj.first) / 1000;
+                            int X = atoi(pairObj.first) / 1000;
+                            int Y = atoi(pairObj.first) % 1000;
 
                             if (CMapData::Instance->IsCoordInMap(X, Y))
                             {
 
-                                CMapDataExt::CellDataExt_FindCell.X = Y;
-                                CMapDataExt::CellDataExt_FindCell.Y = X;
+                                CMapDataExt::CellDataExt_FindCell.X = X;
+                                CMapDataExt::CellDataExt_FindCell.Y = Y;
                                 CMapDataExt::CellDataExt_FindCell.drawCell = true;
 
                                 CIsoViewExt::MoveToMapCoord(X, Y);

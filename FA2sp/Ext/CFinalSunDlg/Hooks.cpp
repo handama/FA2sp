@@ -113,7 +113,7 @@ DEFINE_HOOK(432380, CFinalSunDlg_Update_RecentFiles, A)
     for (size_t i = 0; i < CFinalSunAppExt::RecentFilesExt.size(); ++i)
     {
         if (CFinalSunAppExt::RecentFilesExt[i].length())
-            pMenu->GetSubMenu(0)->InsertMenu(10 + i, MF_BYPOSITION, 40140 + i, CFinalSunAppExt::RecentFilesExt[i].c_str());
+            pMenu->GetSubMenu(0)->InsertMenu(11 + i, MF_BYPOSITION, 40140 + i, CFinalSunAppExt::RecentFilesExt[i].c_str());
     }
 
     R->EDI(::CheckMenuItem);
@@ -160,6 +160,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(57603, "Menu.File.Save");
     translateMenuItem(40002, "Menu.File.SaveAs");
     translateMenuItem(40025, "Menu.File.CheckMap");
+    translateMenuItem(40167, "Menu.File.QuickSave");
     // translateMenuItem(40017, "Menu.File.RunGame");
     translateMenuItem(40018, "Menu.File.Reopen");
     translateMenuItem(40003, "Menu.File.Quit");

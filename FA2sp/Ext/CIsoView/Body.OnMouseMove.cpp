@@ -252,38 +252,45 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         else
         {
             int X = MultiSelection::LastAddedCoord.X, Y = MultiSelection::LastAddedCoord.Y;
-            if (CMapData::Instance().IsCoordInMap(X, Y))
-            {
-                int XW = abs(point.X - MultiSelection::LastAddedCoord.X) + 1;
-                int YW = abs(point.Y - MultiSelection::LastAddedCoord.Y) + 1;
-                if (X > point.X)
-                    X = point.X;
-                if (Y > point.Y)
-                    Y = point.Y;
-
-                CIsoViewExt::MapCoord2ScreenCoord(X, Y);
-
-                pIsoView->DrawLockedCellOutlinePaint(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, YW, XW, ExtConfigs::MultiSelectionColor, false, hDC, pIsoView->m_hWnd);
-
-            }
-        }
-    }
-    if (CIsoView::CurrentCommand->Command == 0x1F && CTerrainGenerator::RangeFirstCell.X > -1)
-    {
-        int X = CTerrainGenerator::RangeFirstCell.X, Y = CTerrainGenerator::RangeFirstCell.Y;
-        if (CMapData::Instance().IsCoordInMap(X, Y))
-        {
-            int XW = abs(point.X - CTerrainGenerator::RangeFirstCell.X) + 1;
-            int YW = abs(point.Y - CTerrainGenerator::RangeFirstCell.Y) + 1;
+            int XW = abs(point.X - MultiSelection::LastAddedCoord.X);
+            int YW = abs(point.Y - MultiSelection::LastAddedCoord.Y);
             if (X > point.X)
                 X = point.X;
             if (Y > point.Y)
                 Y = point.Y;
 
-            CIsoViewExt::MapCoord2ScreenCoord(X, Y);
+            std::vector<MapCoord> coords;
+            for (int i = X; i <= X + XW; i++)
+            {
+                for (int j = Y; j <= Y + YW; j++)
+                {
+                    coords.push_back({ i,j });
+                }
+            }
 
-            pIsoView->DrawLockedCellOutlinePaint(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, YW, XW, ExtConfigs::TerrainGeneratorColor, false, hDC, pIsoView->m_hWnd);
+            CIsoViewExt::DrawMultiMapCoordBorders(hDC, coords, ExtConfigs::MultiSelectionColor);
         }
+    }
+    if (CIsoView::CurrentCommand->Command == 0x1F && CTerrainGenerator::RangeFirstCell.X > -1)
+    {
+        int X = CTerrainGenerator::RangeFirstCell.X, Y = CTerrainGenerator::RangeFirstCell.Y;
+        int XW = abs(point.X - CTerrainGenerator::RangeFirstCell.X);
+        int YW = abs(point.Y - CTerrainGenerator::RangeFirstCell.Y);
+        if (X > point.X)
+            X = point.X;
+        if (Y > point.Y)
+            Y = point.Y;
+
+        std::vector<MapCoord> coords;
+        for (int i = X; i <= X + XW; i++)
+        {
+            for (int j = Y; j <= Y + YW; j++)
+            {
+                coords.push_back({ i,j });
+            }
+        }
+
+        CIsoViewExt::DrawMultiMapCoordBorders(hDC, coords, ExtConfigs::TerrainGeneratorColor);
     }
     if (CIsoView::CurrentCommand->Command == 0x22 && CIsoViewExt::IsPressingTube && !CIsoViewExt::TubeNodes.empty())
     {
@@ -1929,30 +1936,12 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                             if (process(wp) == atoi(pWP))
                             {
-                                std::vector<FString> skiplist;
-                                bool add = true;
-                                if (ExtConfigs::Waypoint_SkipCheckList)
-                                {
-                                    skiplist = FString::SplitStringTrimmed(ExtConfigs::Waypoint_SkipCheckList);
-                                }
-                                if (skiplist.size() > 0)
-                                {
-                                    for (auto& wp : skiplist)
-                                    {
-                                        if (pWP == wp)
-                                            add = false;
-                                    }
-                                }
-
-                                if (add)
-                                {
-                                    pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
-                                        "Team: %s (%s)")
-                                        , CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
-                                    TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
-                                    pSrc = "";
-                                    i++;
-                                }
+                                pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
+                                    "Team: %s (%s)")
+                                    , CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
+                                TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
+                                pSrc = "";
+                                i++;
                             }
                         }
                     }

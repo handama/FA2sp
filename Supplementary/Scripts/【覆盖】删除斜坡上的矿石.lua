@@ -16,7 +16,7 @@ for i,cell in pairs(get_cells()) do
 	end
 end
 
-if message_box("ÊÇ·ñÒªÆ½»¬¿óÊ¯¹ı¶É£¿\n£¨»áÆÆ»µ·Ç×ÔÈ»¹ı¶ÉµÄ¿óÊ¯£©", "Æ½»¬¿óÊ¯", 2) == 0 then 
+if message_box("æ˜¯å¦è¦å¹³æ»‘çŸ¿çŸ³è¿‡æ¸¡ï¼Ÿ\nï¼ˆä¼šç ´åéè‡ªç„¶è¿‡æ¸¡çš„çŸ¿çŸ³ï¼‰", "å¹³æ»‘çŸ¿çŸ³", 2) == 0 then 
 	smooth_ore()
 end
 save_redo()

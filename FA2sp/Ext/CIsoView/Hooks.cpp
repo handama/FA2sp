@@ -1563,7 +1563,6 @@ DEFINE_HOOK(459AB9, CIsoView_OnMouseMove_RestorePreviewRecord, 5)
 	return 0;
 }
 
-
 DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 {
 	GET_STACK(int, X, 0x4);
@@ -1572,7 +1571,7 @@ DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 	if (CIsoView::CurrentCommand->Command == 10)
 	{
 		CIsoViewExt::SetStatusBarText(Translations::TranslateOrDefault("TilePlaceStatus",
-			"Ctrl: Fill mode, Shift: continuous drawing, Ctrl+Shift: no auto smoothing of LAT or coast/shore, PageUp/Down: adjust painting height"));
+			"Ctrl: Fill mode, Shift: continuous drawing, Ctrl+Shift: no auto smoothing of LAT or coast/shore, Alt: line tool, PageUp/Down: adjust painting height"));
 		return 0x46AAA1;
 	}
 	else if (CIsoView::CurrentCommand->Command == 20)

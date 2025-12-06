@@ -12,6 +12,7 @@ public:
 
 	//hook function to replace in virtual function map
 	BOOL PreTranslateMessageExt(MSG* pMsg);
+	BOOL OnInitDialogExt();
 
 	static void ProgramStartupInit();
 

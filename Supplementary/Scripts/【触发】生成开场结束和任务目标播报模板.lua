@@ -1,59 +1,59 @@
---¡¾´¥·¢¡¿Éú³É¿ª³¡½áÊøºÍÈÎÎñÄ¿±ê²¥±¨Ä£°å.lua
---ß÷---ß÷---ß÷---ß÷--
+--ã€è§¦å‘ã€‘ç”Ÿæˆå¼€åœºç»“æŸå’Œä»»åŠ¡ç›®æ ‡æ’­æŠ¥æ¨¡æ¿.lua
+--å–µ---å–µ---å–µ---å–µ--
 
-input_obj_number = input_box("ÊäÈëÉú³ÉµÄÈÎÎñÄ¿±êÊıÁ¿(Ğ¡ÓÚ10)")
+input_obj_number = input_box("è¾“å…¥ç”Ÿæˆçš„ä»»åŠ¡ç›®æ ‡æ•°é‡(å°äº10)")
 obj_number = tonumber(input_obj_number)
 if obj_number < 1 or obj_number >= 10 then
-message_box("ÊäÈëÊı¾İ²»ºÏÒªÇó, Ä¬ÈÏ½«ÈÎÎñÄ¿±êÊıÁ¿µ÷ÕûÎª3", "ÊäÈëÄÚÈİ·Ç·¨", 1)
+message_box("è¾“å…¥æ•°æ®ä¸åˆè¦æ±‚, é»˜è®¤å°†ä»»åŠ¡ç›®æ ‡æ•°é‡è°ƒæ•´ä¸º3", "è¾“å…¥å†…å®¹éæ³•", 1)
 obj_number=3
 end
 
 
 
---¿ª³¡´¥·¢Ãû³Æ--
-trigger01_name= "[ÈÎÎñÄ¿±ê]0.00¿ª³¡"
-trigger02_name= "[ÈÎÎñÄ¿±ê]0.01ÄÑ¶ÈÀ§ÄÑ"
-trigger03_name= "[ÈÎÎñÄ¿±ê]0.02ÄÑ¶ÈÕı³£"
-trigger04_name= "[ÈÎÎñÄ¿±ê]0.03ÄÑ¶È¼òµ¥"
-trigger05_name= "[ÈÎÎñÄ¿±ê]0.04ÎÄ±¾"
-trigger06_name= "[ÈÎÎñÄ¿±ê]0.05ÔÊĞí²Ù×÷"
+--å¼€åœºè§¦å‘åç§°--
+trigger01_name= "[ä»»åŠ¡ç›®æ ‡]0.00å¼€åœº"
+trigger02_name= "[ä»»åŠ¡ç›®æ ‡]0.01éš¾åº¦å›°éš¾"
+trigger03_name= "[ä»»åŠ¡ç›®æ ‡]0.02éš¾åº¦æ­£å¸¸"
+trigger04_name= "[ä»»åŠ¡ç›®æ ‡]0.03éš¾åº¦ç®€å•"
+trigger05_name= "[ä»»åŠ¡ç›®æ ‡]0.04æ–‡æœ¬"
+trigger06_name= "[ä»»åŠ¡ç›®æ ‡]0.05å…è®¸æ“ä½œ"
 
-trigger16_name= "[Ê¤Àû]ËùÓĞÈÎÎñÄ¿±êÍê³ÉÔÊĞíÊ¤Àû"
-trigger17_name= "[Ê¤Àû]ÑÓ³Ù10ÃëºóÊ¤Àû"
-trigger18_name= "[²âÊÔ]È«Í¼"
+trigger16_name= "[èƒœåˆ©]æ‰€æœ‰ä»»åŠ¡ç›®æ ‡å®Œæˆå…è®¸èƒœåˆ©"
+trigger17_name= "[èƒœåˆ©]å»¶è¿Ÿ10ç§’åèƒœåˆ©"
+trigger18_name= "[æµ‹è¯•]å…¨å›¾"
 
---¿ª³¡´¥·¢ÊÂ¼şºÍ±êÇ©--
+--å¼€åœºè§¦å‘äº‹ä»¶å’Œæ ‡ç­¾--
 trigger01_id = get_free_id()
 write_string("Events", trigger01_id, "1,8,0,0")
 write_string("Triggers", trigger01_id, "Neutral,<none>,"..trigger01_name..",0,1,1,1,0")
 tag01_id = get_free_id()
 write_string("Tags", tag01_id, "0,"..trigger01_name.."1,"..trigger01_id.."")
 
---Ñ¡ÔñÄÑ¶È--À§ÄÑ--
+--é€‰æ‹©éš¾åº¦--å›°éš¾--
 trigger02_id = get_free_id()
 write_string("Events", trigger02_id, "1,13,0,0")
 write_string("Triggers", trigger02_id, "Neutral,<none>,"..trigger02_name..",1,0,0,1,0")
 tag02_id = get_free_id()
 write_string("Tags", tag02_id, "0,"..trigger02_name.."1,"..trigger02_id.."")
---Ñ¡ÔñÄÑ¶È--ÖĞµÈ--
+--é€‰æ‹©éš¾åº¦--ä¸­ç­‰--
 trigger03_id = get_free_id()
 write_string("Events", trigger03_id, "1,13,0,0")
 write_string("Triggers", trigger03_id, "Neutral,<none>,"..trigger03_name..",1,0,1,0,0")
 tag03_id = get_free_id()
 write_string("Tags", tag03_id, "0,"..trigger03_name.."1,"..trigger03_id.."")
---Ñ¡ÔñÄÑ¶È--¼òµ¥--
+--é€‰æ‹©éš¾åº¦--ç®€å•--
 trigger04_id = get_free_id()
 write_string("Events", trigger04_id, "1,13,0,0")
 write_string("Triggers", trigger04_id, "Neutral,<none>,"..trigger04_name..",1,1,0,0,0")
 tag04_id = get_free_id()
 write_string("Tags", tag04_id, "0,"..trigger04_name.."1,"..trigger04_id.."")
---ÎÄ±¾--
+--æ–‡æœ¬--
 trigger05_id = get_free_id()
 write_string("Events", trigger05_id, "1,13,0,10")
 write_string("Triggers", trigger05_id, "Neutral,<none>,"..trigger05_name..",1,1,1,1,0")
 tag05_id = get_free_id()
 write_string("Tags", tag05_id, "0,"..trigger05_name.."1,"..trigger05_id.."")
---ÔÊĞíÊäÈë--
+--å…è®¸è¾“å…¥--
 trigger06_id = get_free_id()
 write_string("Events", trigger06_id, "1,13,0,10")
 write_string("Triggers", trigger06_id, "Neutral,<none>,"..trigger06_name..",1,1,1,1,0")
@@ -61,7 +61,7 @@ tag06_id = get_free_id()
 write_string("Tags", tag06_id, "0,"..trigger06_name.."1,"..trigger06_id.."")
 
 
---Éú³ÉÊı¾İ±í±äÁ¿ÓÃÓÚµ÷ÓÃ--
+--ç”Ÿæˆæ•°æ®è¡¨å˜é‡ç”¨äºè°ƒç”¨--
 local t = {}
 for i = 1, 9 do
     t[i] = {
@@ -77,25 +77,25 @@ for i = 1, 9 do
     }
 end
 
---ÈÎÎñÄ¿±ê 1 µ½ N µÄ´¥·¢Ãû³ÆÊÂ¼ş±êÇ©--
+--ä»»åŠ¡ç›®æ ‡ 1 åˆ° N çš„è§¦å‘åç§°äº‹ä»¶æ ‡ç­¾--
 for i=1, obj_number do
-    t[i].name0 = "[ÈÎÎñÄ¿±ê]".. i ..".00ÈÎÎñÄ¿±ê".. i ..""
-    t[i].name1 = "[ÈÎÎñÄ¿±ê]".. i ..".01ÈÎÎñÄ¿±ê".. i .."ÖØ¸´"	
-    t[i].name2 = "[ÈÎÎñÄ¿±ê]".. i ..".02ÈÎÎñÄ¿±ê".. i .."Íê³É"	
+    t[i].name0 = "[ä»»åŠ¡ç›®æ ‡]".. i ..".00ä»»åŠ¡ç›®æ ‡".. i ..""
+    t[i].name1 = "[ä»»åŠ¡ç›®æ ‡]".. i ..".01ä»»åŠ¡ç›®æ ‡".. i .."é‡å¤"	
+    t[i].name2 = "[ä»»åŠ¡ç›®æ ‡]".. i ..".02ä»»åŠ¡ç›®æ ‡".. i .."å®Œæˆ"	
 	t[i].var_name = "Mission0".. i .."_Acomplished"
---ÈÎÎñÄ¿±ê--
+--ä»»åŠ¡ç›®æ ‡--
 	t[i].id0 = get_free_id()
 write_string("Events", t[i].id0, "1,13,0,10")
 write_string("Triggers", t[i].id0, "Neutral,<none>,"..t[i].name0..",1,1,1,1,0")
 	t[i].tag = get_free_id()
 write_string("Tags", t[i].tag, "0,"..t[i].name0.."1,"..t[i].id0.."")
---ÈÎÎñÄ¿±êÖØ¸´--
+--ä»»åŠ¡ç›®æ ‡é‡å¤--
     t[i].id1 = get_free_id()
 write_string("Events", t[i].id1, "1,13,0,200")
 write_string("Triggers", t[i].id1, "Neutral,<none>,"..t[i].name1..",1,1,1,1,0")
 	t[i].tag = get_free_id()
 write_string("Tags", t[i].tag, "2,"..t[i].name1.."1,"..t[i].id1.."")
---ÈÎÎñÄ¿±êÍê³É--
+--ä»»åŠ¡ç›®æ ‡å®Œæˆ--
     t[i].id2 = get_free_id()
 write_string("Events", t[i].id2, "1,13,0,10")
 write_string("Triggers", t[i].id2, "Neutral,<none>,"..t[i].name2..",1,1,1,1,0")
@@ -105,26 +105,26 @@ write_string("Tags", t[i].tag, "0,"..t[i].name2.."1,"..t[i].id2.."")
 write_string("VariableNames", tostring(t[i].var_index), t[i].var_name..",0")
 end
 
---ËùÓĞÈÎÎñÄ¿±êÈ«²¿Íê³É--
+--æ‰€æœ‰ä»»åŠ¡ç›®æ ‡å…¨éƒ¨å®Œæˆ--
 trigger16_id = get_free_id()
 write_string("Events", trigger16_id, "1,13,0,0")
 write_string("Triggers", trigger16_id, "Neutral,<none>,"..trigger16_name..",1,1,1,1,0")
 tag16_id = get_free_id()
 write_string("Tags", tag16_id, "0,"..trigger16_name.."1,"..trigger16_id.."")
---ÑÓ³Ù10sÊ¤Àû--
+--å»¶è¿Ÿ10sèƒœåˆ©--
 trigger17_id = get_free_id()
 write_string("Events", trigger17_id, "1,13,0,10")
 write_string("Triggers", trigger17_id, "Neutral,<none>,"..trigger17_name..",1,1,1,1,0")
 tag17_id = get_free_id()
 write_string("Tags", tag17_id, "0,"..trigger17_name.."1,"..trigger17_id.."")
---²âÊÔ--È«Í¼--
+--æµ‹è¯•--å…¨å›¾--
 trigger18_id = get_free_id()
 write_string("Events", trigger18_id, "1,13,0,0")
 write_string("Triggers", trigger18_id, "Neutral,<none>,"..trigger18_name..",0,1,1,1,0")
 tag18_id = get_free_id()
 write_string("Tags", tag18_id, "0,"..trigger18_name.."1,"..trigger18_id.."")
 
---ÈÎÎñÄ¿±ê 1 µ½ N µÄ´¥·¢ĞĞÎª--
+--ä»»åŠ¡ç›®æ ‡ 1 åˆ° N çš„è§¦å‘è¡Œä¸º--
 for i=1, obj_number do
 if i>1 then
 write_string("Actions", t[i-1].id2, "5,11,4,mission:obj"..tostring(i-1).."comp,0,0,0,0,A,54,2,"..t[i-1].id1..",0,0,0,0,A,53,2,"..t[i].id0..",0,0,0,0,A,21,6,EVA_ObjectiveComplete,0,0,0,0,A,56,0,"..tostring(t[i-1].var_index)..",0,0,0,0,A.")
@@ -134,7 +134,7 @@ write_string("Actions", t[i].id1, "2,11,4,gui:sidebartext,0,0,0,0,A,19,7,BeaconP
 write_string("Actions", t[i].id2, "5,11,4,mission:obj"..tostring(i).."comp,0,0,0,0,A,54,2,"..t[i].id1..",0,0,0,0,A,53,2,"..trigger16_id..",0,0,0,0,A,21,6,EVA_ObjectiveComplete,0,0,0,0,A,56,0,"..tostring(t[i].var_index)..",0,0,0,0,A.")
 end
 
---¿ª³¡ºÍ½áÊøµÄÒ»Ğ©ĞĞÎª--
+--å¼€åœºå’Œç»“æŸçš„ä¸€äº›è¡Œä¸º--
 write_string("Actions", trigger01_id, "6,21,6,EVA_EstablishBattlefieldControl,0,0,0,0,A,11,4,name:testersmap,0,0,0,0,A,53,2,"..trigger02_id..",0,0,0,0,A,53,2,"..trigger03_id..",0,0,0,0,A,53,2,"..trigger04_id..",0,0,0,0,A,46,0,0,0,0,0,0,A.")
 write_string("Actions", trigger02_id, "2,11,4,txt_hard,0,0,0,0,A,53,2,"..trigger05_id..",0,0,0,0,A.")
 write_string("Actions", trigger03_id, "2,11,4,txt_normal,0,0,0,0,A,53,2,"..trigger05_id..",0,0,0,0,A.")
@@ -148,4 +148,4 @@ write_string("Actions",trigger17_id,"1,69,0,0,0,0,0,0,A.")
 write_string("Actions",trigger18_id,"1,16,0,0,0,0,0,0,A.")
 
 update_trigger()
-message_box("ÒÑ³É¹¦Ö´ĞĞ½Å±¾£¬Ö»ĞèĞŞ¸ÄÎÄ±¾ºÍÈÎÎñÄ¿±êÍê³ÉµÄÌõ¼ş¼´¿É", "Ö´ĞĞ³É¹¦", 1)
+message_box("å·²æˆåŠŸæ‰§è¡Œè„šæœ¬ï¼Œåªéœ€ä¿®æ”¹æ–‡æœ¬å’Œä»»åŠ¡ç›®æ ‡å®Œæˆçš„æ¡ä»¶å³å¯", "æ‰§è¡ŒæˆåŠŸ", 1)

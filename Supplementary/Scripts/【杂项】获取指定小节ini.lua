@@ -1,4 +1,4 @@
-local box = select_box:new("Ñ¡Ôñ¶ÁÈ¡ÎÄ¼ş")
+local box = select_box:new("é€‰æ‹©è¯»å–æ–‡ä»¶")
 box:add_option("fadata")
 box:add_option("rules")
 box:add_option("rules+map")
@@ -10,14 +10,14 @@ box:add_option("ai")
 box:add_option("ai+map")
 box:add_option("eva")
 box:add_option("theater")
-box:add_option("ÆäËû£¨ÊÖ¶¯ÊäÈëÎÄ¼şÃû£©")
+box:add_option("å…¶ä»–ï¼ˆæ‰‹åŠ¨è¾“å…¥æ–‡ä»¶åï¼‰")
 
 local load_from = box:do_modal()
-if load_from == "ÆäËû£¨ÊÖ¶¯ÊäÈëÎÄ¼şÃû£©" then
-	load_from = input_box("ÇëÊäÈëÎÄ¼şÃû£¨Ïà¶ÔÓÚÓÎÏ·Ä¿Â¼£¬°üº¬ÍØÕ¹Ãû£©")
+if load_from == "å…¶ä»–ï¼ˆæ‰‹åŠ¨è¾“å…¥æ–‡ä»¶åï¼‰" then
+	load_from = input_box("è¯·è¾“å…¥æ–‡ä»¶åï¼ˆç›¸å¯¹äºæ¸¸æˆç›®å½•ï¼ŒåŒ…å«æ‹“å±•åï¼‰")
 end
 local sections = get_sections(load_from)
-local box2 = select_box:new("Ñ¡ÔñĞ¡½Ú")
+local box2 = select_box:new("é€‰æ‹©å°èŠ‚")
 for i,sec in pairs(sections) do
 	if sec ~= "" then
 		box2:add_option(sec)
@@ -25,7 +25,7 @@ for i,sec in pairs(sections) do
 end
 local section = box2:do_modal()
 local kvps = get_key_value_pairs(section, load_from)
-local output = "Êä³ö£º\n["..section.."]\n"
+local output = "è¾“å‡ºï¼š\n["..section.."]\n"
 for k,v in pairs(kvps) do
 	output = output..k.."="..v.."\n"
 end

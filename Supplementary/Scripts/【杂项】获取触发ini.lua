@@ -1,6 +1,6 @@
 local load_from = "map"
 local sections = {"Triggers", "Tags", "Actions", "Events"}
-local output = "Êä³ö£º\n"
+local output = "触发INI：\n"
 for i,section in ipairs(sections) do
 	output = output.."\n["..section.."]\n"
 	local kvps = get_key_value_pairs(section, load_from)

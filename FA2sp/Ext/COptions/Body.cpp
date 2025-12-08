@@ -43,6 +43,10 @@ DEFINE_HOOK(50E55F, COptions_OnInitDialog, 8)
     GET(COptionsExt*, pThis, EDI);
 
     auto hLang = pThis->GetDlgItem(1231)->GetSafeHwnd();
+    if (CFinalSunDlg::Instance)
+    {
+        COptionsExt::Language = CFinalSunApp::Instance->Language;
+    }
 
     if (auto pSection = CINI::FALanguage->GetSection("Languages"))
     {

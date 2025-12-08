@@ -935,10 +935,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			}
 			else
 			{
-				const int& mpL = CMapData::Instance->LocalSize.Left;
-				const int& mpT = CMapData::Instance->LocalSize.Top;
-				const int& mpW = CMapData::Instance->LocalSize.Width;
-				const int& mpH = CMapData::Instance->LocalSize.Height;
+				int mpL = std::max(CMapData::Instance->LocalSize.Left, 0);
+				int mpT = std::max(CMapData::Instance->LocalSize.Top, 0);
+				int mpW = std::min(CMapData::Instance->LocalSize.Width, CMapData::Instance->Size.Width);
+				int mpH = std::min(CMapData::Instance->LocalSize.Height, CMapData::Instance->Size.Height);
 
 				startY = mpT + mpL - 2;
 				startX = width + mpT - mpL - 3;
@@ -951,9 +951,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			startPointY = startY;
 			endPointX = endX;
 			endPointY = endY;
-
 			pIsoView->MapCoord2ScreenCoord_Flat(startPointX, startPointY);
 			pIsoView->MapCoord2ScreenCoord_Flat(endPointX, endPointY);
+			if (CIsoViewExt::RenderFullMap)
+				endPointY -= 15;
 
 			VEHGuard v(false);
 			try {

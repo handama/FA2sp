@@ -158,7 +158,6 @@ DEFINE_HOOK(47FA2D, CLoading_InitPics_End_LoadDLLBitmaps, 7)
 
 	replace("CELLTAG", "celltag.bmp");
 	replace("FLAG", "waypoint.bmp");
-	replace("FLAG", "waypoint.bmp");
 
 	return 0;
 }

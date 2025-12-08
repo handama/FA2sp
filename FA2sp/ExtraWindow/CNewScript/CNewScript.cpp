@@ -173,7 +173,7 @@ void CNewScript::Update(HWND& hWnd)
         {
             auto atoms = FString::SplitString(pair.second, 4);
             if (atoms[2] == "0")
-                SendMessage(hActionType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)atoms[0]);
+                SendMessage(hActionType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString::ReplaceSpeicalString(atoms[0]));
         }
     }
 
@@ -1033,6 +1033,7 @@ void CNewScript::OnClickAddAction(HWND& hWnd)
 
         text.Format("[%s] : %s - %s", keyThis, "0", "0");
         FString actionName = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptsRA2"), "0"))[0];
+        actionName = FString::ReplaceSpeicalString(actionName);
         FString::TrimIndexElse(actionName);
         FString::TrimIndexElse(actionName);
         FString tmp = text;

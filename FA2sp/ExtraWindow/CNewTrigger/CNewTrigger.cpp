@@ -301,6 +301,10 @@ void CNewTrigger::Update(HWND& hWnd)
             continue;
         SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName(value, true).c_str());
     }
+    if (!CMapData::Instance->IsMultiOnly())
+    {
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName("Player", true).c_str());
+    }
 
     idx = 0;
     while (SendMessage(hType, CB_DELETESTRING, 0, NULL) != CB_ERR);

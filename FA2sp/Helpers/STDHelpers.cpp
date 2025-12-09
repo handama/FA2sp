@@ -393,6 +393,7 @@ ppmfc::CString STDHelpers::ReplaceSpeicalString(ppmfc::CString ori)
 {
     ppmfc::CString ret = ori;
     ret.Replace("%1", ",");
+    ret.Replace("%2", ";");
     ret.Replace("\\t", "\t");
     ret.Replace("\\n", "\r\n");
     return ret;

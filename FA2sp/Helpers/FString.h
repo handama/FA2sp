@@ -228,6 +228,9 @@ private:
         else if constexpr (std::is_same_v<U, dword>) {
             vec.push_back(static_cast<int>(arg));
         }
+        else if constexpr (std::is_same_v<U, long>) {
+            vec.push_back(static_cast<int>(arg));
+        }
         else if constexpr (std::is_same_v<U, char>) {
             vec.push_back(static_cast<int>(arg)); 
         }
@@ -634,6 +637,7 @@ public:
     {
         FString ret = ori;
         ret.Replace("%1", ",");
+        ret.Replace("%2", ";");
         ret.Replace("\\t", "\t");
         ret.Replace("\\n", "\r\n");
         return ret;

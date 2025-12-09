@@ -133,6 +133,7 @@ FString ExtraWindow::GetEventDisplayName(const char* id, int index)
     FString name;
     FString name2;
     FString atom = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), id, "MISSING"))[0];
+    atom = FString::ReplaceSpeicalString(atom);
     name.Format("%s %s", id, atom);
     if (index >= 0)
         name2.Format("[%d] %s", index, name);
@@ -145,6 +146,7 @@ FString ExtraWindow::GetActionDisplayName(const char* id, int index)
     FString name;
     FString name2;
     FString atom = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), id, "MISSING"))[0];
+    atom = FString::ReplaceSpeicalString(atom);
     name.Format("%s %s", id, atom);
     if (index >= 0)
         name2.Format("[%d] %s", index, name);

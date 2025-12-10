@@ -99,6 +99,7 @@ bool CMapDataExt::IsUTF8File = false;
 bool CMapDataExt::SkipBuildingOverlappingCheck = false;
 std::vector<FString> CMapDataExt::MapIniSectionSorting;
 std::map<FString, std::set<FString>> CMapDataExt::PowersUpBuildings;
+std::map<int, std::vector<CustomTile>> CMapDataExt::CustomTiles;
 ObjectRecord* ObjectRecord::ObjectRecord_HoldingPtr = nullptr;
 
 int CMapDataExt::GetOreValue(unsigned short nOverlay, unsigned char nOverlayData)
@@ -2441,9 +2442,100 @@ void CMapDataExt::InitializeTileData()
 	}
 }
 
+void CustomTileBlock::SetTileBlock(int tile, int subtile, int height)
+{
+	Height = height;
+	TileIndex = tile;
+	SubTileIndex = subtile;
+	if (CMapDataExt::TileDataCount > TileIndex
+		&& CMapDataExt::TileData[TileIndex].TileBlockCount > SubTileIndex
+		&& CMapDataExt::TileData[TileIndex].TileBlockDatas[SubTileIndex].ImageData)
+		TileBlock = &CMapDataExt::TileData[TileIndex].TileBlockDatas[SubTileIndex];
+	else
+		TileBlock = nullptr;
+}
+
+int CustomTileBlock::GetHeight()
+{
+	int height = 0;
+	if (TileBlock)
+		height = Height;// +TileBlock->Height;
+	if (height > 14) height = 14;
+	return height;
+}
+
+void CustomTile::Initialize(int witdh, int height)
+{
+	Width = witdh;
+	Height = height;
+	TileBlockDatas = std::make_unique<CustomTileBlock[]>(Width * Height);
+}
+
+CustomTile* CMapDataExt::GetCustomTile(int tileIndex)
+{
+	tileIndex -= CUSTOM_TILE_START;
+	for (auto& [tileset, ct] : CMapDataExt::CustomTiles)
+	{
+		if (tileIndex < 0)
+			return nullptr;
+		if (tileIndex < ct.size())
+		{
+			return &ct[tileIndex];
+		}
+		else
+		{
+			tileIndex -= ct.size();
+			continue;
+		}
+	}
+	return nullptr;
+}
+
+int CMapDataExt::GetCustomTileSet(int tileIndex)
+{
+	tileIndex -= CUSTOM_TILE_START;
+	for (auto& [tileset, ct] : CMapDataExt::CustomTiles)
+	{
+		if (tileIndex < 0)
+			return 0;
+		if (tileIndex < ct.size())
+		{
+			return tileset;
+		}
+		else
+		{
+			tileIndex -= ct.size();
+			continue;
+		}
+	}
+	return 0;
+}
+
+int CMapDataExt::GetCustomTileIndex(int tileSet, int tileIndex)
+{
+	int ret = CUSTOM_TILE_START;
+	for (auto& [tileset, ct] : CMapDataExt::CustomTiles)
+	{
+		if (tileset < tileSet)
+		{
+			ret += ct.size();
+		}
+		else if (tileset == tileSet)
+		{
+			ret += tileIndex;
+			return ret;
+		}
+	}
+	return 0;
+}
+
 void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDataExt, bool reloadImages)
 {
 	Logger::Debug("CMapDataExt::InitializeAllHdmEdition() Called with parameter %d %d %d.\n", updateMinimap, reloadCellDataExt, reloadImages);
+	
+	if (updateMinimap && reloadCellDataExt && reloadImages)
+		CTileSetBrowserFrameExt::TerrainDlgLoaded = false;
+	
 	CIsoView::CurrentCommand->Type = 0;
 	CIsoView::CurrentCommand->Command = 0;
 	FA2sp::g_VEH_Enabled = true;

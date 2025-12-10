@@ -178,30 +178,6 @@ DEFINE_HOOK(46D620, CIsoView_FillArea, 9)
 	return 0x46D808;
 }
 
-DEFINE_HOOK(461A37, CIsoView_PlaceTile_FixUndo, 7)
-{
-	GET(CIsoView*, pIsoView, EBX);
-	GET(int, x, EDI);
-	GET(int, ym6, ECX);
-	if (CIsoView::CurrentCommand->Type >= CMapDataExt::TileDataCount 
-		|| CIsoView::CurrentCommand->Type < 0) {
-		return 0;
-	}
-
-	if (IsPlacingTiles && ExtConfigs::UndoRedo_ShiftPlaceTile)
-		return 0x461A5B;
-
-	int y = ym6 + 6;
-	auto tiledata = CMapDataExt::TileData[CIsoView::CurrentCommand->Type];
-
-	CMapData::Instance->SaveUndoRedoData(true,
-		x - tiledata.Height - 4,
-		y - tiledata.Width - 4,
-		x - tiledata.Height + pIsoView->BrushSizeX * tiledata.Height + 7,
-		y - tiledata.Width + pIsoView->BrushSizeY * tiledata.Width + 7);
-	return 0x461A5B;
-}
-
 DEFINE_HOOK(461C3E, CIsoView_OnLButtonDown_PlaceTile_SkipHide, 6)
 {
 	if (!ExtConfigs::PlaceTileSkipHide)
@@ -891,6 +867,37 @@ DEFINE_HOOK(46C38B, CIsoView_DrawMouseAttachedStuff_Ore, 9)
 	return 0x46CA82;
 }
 
+DEFINE_HOOK(461A01, CIsoView_OnLButtonDown_PlaceTile, 6)
+{
+	GET_BASE(UINT, nFlags, 0x8);
+	GET(int, x, EDI);
+	GET(int, y, ESI);
+
+	((CIsoViewExt*)CIsoView::GetInstance())->PlaceTileOnMouse(x, y, nFlags, !(IsPlacingTiles && ExtConfigs::UndoRedo_ShiftPlaceTile));
+
+	return 0x4616D8;
+}
+
+DEFINE_HOOK(457336, CIsoView_OnMouseMove_PlaceTile, 6)
+{
+	GET_STACK(UINT, nFlags, STACK_OFFS(0x3D528, -0x4));
+	GET(CIsoViewExt*, pIsoView, EBP);
+
+	auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+	const int& x = point.X;
+	const int& y = point.Y;
+	CIsoView::CancelDraw = true;
+
+	pIsoView->PlaceTileOnMouse(x, y, nFlags, true);
+
+	CIsoView::CancelDraw = false;		
+	pIsoView->Draw();
+	CMapData::Instance->DoUndo();
+	pIsoView->Drag = FALSE;
+
+	R->Stack(STACK_OFFS(0x3D528, 0x3D424), &pIsoView->Drag);
+	return 0x45AEF6;
+}
 
 DEFINE_HOOK(45A081, CIsoView_OnMouseMove_Place_Enter_Overlay, 9)
 {
@@ -1017,12 +1024,6 @@ DEFINE_HOOK(45A08A, CIsoView_OnMouseMove_Place, 5)
 	Map->MoneyCount = money;
 
 	return 0x45AEF6;
-}
-
-DEFINE_HOOK(457573, CIsoView_OnMouseMove_CustomWater, 5)
-{
-	R->Stack(STACK_OFFS(0x3D528, 0x3D450), CIsoViewExt::GetRandomTileIndex());
-	return 0x4575A4;
 }
 
 DEFINE_HOOK(461B8E, CIsoView_PlaceTile_CustomWater, 5)

@@ -35,6 +35,7 @@ public:
     static FString CurrentTileSet;
     static std::map<HWND, int> DlgIdMap;
     static std::map<UINT, FString> StringTable;
+    static std::map<int, FString> CustomTileSetNames;
     static std::unique_ptr<CINI, GameUniqueDeleter<CINI>> FADialog;
 };
 

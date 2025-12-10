@@ -155,6 +155,24 @@ void CMapDataExt::PackExt(bool UpdatePreview, bool Description)
 	}
 }
 
+void CMapDataExt::UnPackExt(CINI& ini, std::vector<IsoMapPack5Entry>& entry)
+{
+	std::string pack;
+	if (auto pSection = ini.GetSection("IsoMapPack5"))
+	{
+		for (const auto& [k, v] : pSection->GetEntities())
+		{
+			pack += v.m_pchData;
+		}
+		pack = base64::decode(pack.data());
+		pack = lzo::decompress(pack.data(), pack.size());
+
+		size_t count = pack.size() / sizeof(IsoMapPack5Entry);
+		entry.resize(count);
+		memcpy(entry.data(), pack.data(), count * sizeof(IsoMapPack5Entry));
+	}
+}
+
 DEFINE_HOOK(49F7A0, CMapData_Pack, 7)
 {
 	GET(CMapDataExt*, pThis, ECX);

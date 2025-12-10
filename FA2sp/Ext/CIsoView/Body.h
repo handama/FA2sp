@@ -180,6 +180,7 @@ public:
     static bool BlitDDSurfaceRectToBitmap(HDC hDC, const DDBoundary& boundary, const RECT& srcRect, int dstX, int dstY);
     static int GetOverlayDrawOffset(WORD nOverlay, BYTE nOverlayData = 0);
     static void SetStatusBarText(const char* text);
+    void PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory);
 
     static Bitmap* pFullBitmap;
     static bool DrawStructures;

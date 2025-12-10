@@ -83,23 +83,42 @@ std::string lzo::compressIsoMapPack5(const IsoMapPack5Entry* src, int slen)
 
 std::string lzo::decompress(const void* src, int slen)
 {
-	std::string ret;
+    std::string ret;
+    constexpr int block_size = 8 * 1024;
 
-	constexpr int block_size = 8 * 1024;
-	unsigned char* Buffer = new unsigned char[2 * block_size];
+    unsigned char* Buffer = new unsigned char[2 * block_size];
+    const unsigned char* ptr = static_cast<const unsigned char*>(src);
 
-	unsigned char* ptr = (unsigned char*)src;
-	
-	while (slen > 0)
-	{
-		auto len = reinterpret_cast<unsigned short*>(ptr)[0];
-		size_t length = 2 * block_size;
-		lzo1x_decompress(ptr, len, Buffer, &length, nullptr);
-		ret.append((const char* const)Buffer, length);
-		ptr += 4 + len;
-		slen -= 4 + len;
-	}
+    while (slen > 0)
+    {
+        unsigned short compressedLen =
+            reinterpret_cast<const unsigned short*>(ptr)[0];
 
-	delete[] Buffer;
-	return ret;
+        unsigned short originalLen =
+            reinterpret_cast<const unsigned short*>(ptr)[1];
+
+        lzo_uint out_len = originalLen;
+
+        int r = lzo1x_decompress(
+            ptr + 4,
+            compressedLen,
+            Buffer,
+            &out_len,
+            nullptr
+        );
+
+        if (r != LZO_E_OK || out_len != originalLen)
+        {
+            delete[] Buffer;
+            throw std::runtime_error("LZO decompress failed");
+        }
+
+        ret.append(reinterpret_cast<char*>(Buffer), out_len);
+
+        ptr += 4 + compressedLen;
+        slen -= 4 + compressedLen;
+    }
+
+    delete[] Buffer;
+    return ret;
 }

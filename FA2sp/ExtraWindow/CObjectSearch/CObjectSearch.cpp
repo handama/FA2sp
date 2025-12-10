@@ -1678,11 +1678,12 @@ void CObjectSearch::UpdateTypes(HWND hWnd)
     for (int idx = 0; idx < nTileCount; ++idx)
     {
         int nTile = SendMessage(hTileComboBox, CB_GETITEMDATA, idx, NULL);
-        tile.Format("TileSet%04d", nTile);
-        tile = CINI::CurrentTheater->GetString(tile, "SetName", "NO NAME");
-        Translations::GetTranslationItem(tile, tile);
-        FString tmp = tile;
-        tile.Format("(%04d) %s", nTile, tmp);
+
+        if (nTile >= 10000)
+            tile.Format("(%d) %s", nTile, Translations::TranslateTileSet(nTile));
+        else
+            tile.Format("(%04d) %s", nTile, Translations::TranslateTileSet(nTile));
+
         CObjectSearch::Datas[idx] = tile;
     }
 

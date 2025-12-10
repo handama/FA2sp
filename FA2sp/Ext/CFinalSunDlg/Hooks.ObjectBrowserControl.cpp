@@ -297,11 +297,6 @@ DEFINE_HOOK(4F0A40, CTerrainDlg_OnSelchangeTileset, 7)
 
     return 0;
 }
-DEFINE_HOOK(4F3C00, CTileSetBrowserView_OnLButtonDown, 7)
-{
-    CViewObjectsExt::InitializeOnUpdateEngine();
-    return 0;
-}
 
 //DEFINE_HOOK(4F17B0, CTerrainDlg_OnSelchangeOverlay, 5)
 //{

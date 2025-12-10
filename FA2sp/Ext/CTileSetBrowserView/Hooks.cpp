@@ -82,11 +82,10 @@ static bool setCurrentOverlay(ImageDataClassSafe* pData)
     return false;
 }
 
-DEFINE_HOOK(4F4650, CTileSetBrowserView_GetAddedHeight, 9)
+static int GetAddedHeight(int tileIndex)
 {
-    GET_STACK(int, iTileIndex, 0x4);
     int cur_added = 0;
-    auto tile = CMapDataExt::TileData[iTileIndex];
+    const auto& tile = CMapDataExt::TileData[tileIndex];
     int i, e, p = 0;;
     for (i = 0; i < tile.Height; i++)
     {
@@ -104,14 +103,13 @@ DEFINE_HOOK(4F4650, CTileSetBrowserView_GetAddedHeight, 9)
         }
     }
 
-    R->EAX(-cur_added);
-    return 0x4F4734;
+    return -cur_added;
 }
 
 static int GetAddedWidth(int tileIndex)
 {
     int cur_added = 0;
-    auto tile = CMapDataExt::TileData[tileIndex];
+    const auto& tile = CMapDataExt::TileData[tileIndex];
     int i, e, p = 0;;
     for (i = 0; i < tile.Height; i++)
     {
@@ -132,36 +130,275 @@ static int GetAddedWidth(int tileIndex)
     return -cur_added;
 }
 
-static int RenderTileWidthOffset = 0;
-DEFINE_HOOK(4F36EE, CTileSetBrowserView_RenderTile_GetWidth, 6)
+static Palette* currentPalette = nullptr;
+static __forceinline void BlitTerrainTSB(void* dst, int x, int y,
+    int dleft, int dtop, int dpitch, int dright, int dbottom,
+    CTileBlockClass& st)
 {
-    GET(int, iTileIndex, EBX);
-    RenderTileWidthOffset = GetAddedWidth(iTileIndex);
+    const int bpp = 4;
+    BYTE* src = st.ImageData;
+    const auto& swidth = st.BlockWidth;
+    const auto& sheight = st.BlockHeight;
 
-    return 0;
+    if (src == NULL || dst == NULL)
+        return;
+
+    if (x + swidth < dleft || y + sheight < dtop)
+        return;
+    if (x >= dright || y >= dbottom)
+        return;
+
+    RECT blrect{};
+    RECT srcRect{};
+    srcRect.left = 0;
+    srcRect.top = 0;
+    srcRect.right = swidth;
+    srcRect.bottom = sheight;
+    blrect.left = x;
+    if (blrect.left < 0)
+    {
+        srcRect.left = 1 - blrect.left;
+        blrect.left = 1;
+    }
+    blrect.top = y;
+    if (blrect.top < 0)
+    {
+        srcRect.top = 1 - blrect.top;
+        blrect.top = 1;
+    }
+    blrect.right = (x + swidth);
+    if (x + swidth > dright)
+    {
+        srcRect.right = dright - x;
+        blrect.right = dright;
+    }
+    blrect.bottom = (y + sheight);
+    if (y + sheight > dbottom)
+    {
+        srcRect.bottom = dbottom - y;
+        blrect.bottom = dbottom;
+    }
+
+    short i, e;
+    for (e = srcRect.top; e < srcRect.bottom; e++)
+    {
+        short& left = st.pPixelValidRanges[e].First;
+        short& right = st.pPixelValidRanges[e].Last;
+
+        for (i = left; i <= right; i++)
+        {
+            if (i < srcRect.left || i >= srcRect.right)
+            {
+            }
+            else
+            {
+                BYTE& val = src[i + e * swidth];
+                if (val)
+                {
+                    void* dest = ((BYTE*)dst + (blrect.left + i) * bpp + (blrect.top + e) * dpitch);
+                    memcpy(dest, &(*currentPalette)[val], bpp);
+                }
+            }
+        }
+    }
 }
 
-DEFINE_HOOK(4F3764, CTileSetBrowserView_RenderTile_SetWidth_DDSD, 7)
+DEFINE_HOOK(4F36A0, CTileSetBrowserView_RenderTile, 5)
 {
-    GET(int, iWidth, ECX);
-    if (iWidth + RenderTileWidthOffset > iWidth)
+    GET_STACK(int, iTileIndex, 0x4);
+
+    if (CFinalSunApp::Instance->FrameMode)
     {
-        R->ECX(RenderTileWidthOffset + iWidth);
-    }
-    else
-    {
-        RenderTileWidthOffset = 0;
+        if (CMapDataExt::TileData[iTileIndex].FrameModeIndex != 0xFFFF)
+        {
+            iTileIndex = CMapDataExt::TileData[iTileIndex].FrameModeIndex;
+        }
     }
 
-    return 0;
+    auto pIsoView = CIsoView::GetInstance();
+    LPDIRECTDRAWSURFACE7 lpdds = NULL;
+    auto lpdd = pIsoView->lpDD7;
+
+    DDSURFACEDESC2 ddsd;
+    memset(&ddsd, 0, sizeof(DDSURFACEDESC2));
+    ddsd.dwSize = sizeof(DDSURFACEDESC2);
+    ddsd.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH;
+    ddsd.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
+    int added_height = GetAddedHeight(iTileIndex);
+    int added_width = GetAddedWidth(iTileIndex);
+    ddsd.dwHeight = CMapDataExt::TileData[iTileIndex].Bounds.bottom - CMapDataExt::TileData[iTileIndex].Bounds.top + added_height;
+    ddsd.dwWidth = CMapDataExt::TileData[iTileIndex].Bounds.right - CMapDataExt::TileData[iTileIndex].Bounds.left + added_width;
+    if (lpdd->CreateSurface(&ddsd, &lpdds, NULL) != DD_OK)
+    {
+        R->EAX(NULL);
+        return 0x4F3BEF;
+    }
+    auto pPal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[iTileIndex].TileSet];
+    BGRStruct empty;
+    currentPalette = PalettesManager::GetTileSetBrowserViewPalette(pPal, empty, false);
+
+    DDBLTFX ddfx;
+    memset(&ddfx, 0, sizeof(DDBLTFX));
+    ddfx.dwSize = sizeof(DDBLTFX);
+    lpdds->Blt(NULL, NULL, NULL, DDBLT_COLORFILL, &ddfx);
+
+    int y_added = ddsd.dwHeight - (CMapDataExt::TileData[iTileIndex].Height * 30 / 2 + CMapDataExt::TileData[iTileIndex].Width * 30 / 2);
+
+    int i, e, p = 0;;
+    for (i = 0; i < CMapDataExt::TileData[iTileIndex].Height; i++)
+    {
+        for (e = 0; e < CMapDataExt::TileData[iTileIndex].Width; e++)
+        {
+            int drawx = e * 60 / 2 - i * 60 / 2 - CMapDataExt::TileData[iTileIndex].Bounds.left;
+            int drawy = e * 30 / 2 + i * 30 / 2 - CMapDataExt::TileData[iTileIndex].Bounds.top;
+
+            drawx += added_width + CMapDataExt::TileData[iTileIndex].TileBlockDatas[p].XMinusExX;
+            drawy += added_height + CMapDataExt::TileData[iTileIndex].TileBlockDatas[p].YMinusExY 
+                - CMapDataExt::TileData[iTileIndex].TileBlockDatas[p].Height * 30 / 2;
+
+            if (CMapDataExt::TileData[iTileIndex].TileBlockDatas[p].ImageData)
+            {
+                RECT dest;
+                dest.left = drawx;
+                dest.top = drawy;
+                dest.right = drawx + CMapDataExt::TileData[iTileIndex].TileBlockDatas[p].BlockWidth;
+                dest.bottom = drawy + CMapDataExt::TileData[iTileIndex].TileBlockDatas[p].BlockHeight;
+                DDBLTFX fx;
+                memset(&fx, 0, sizeof(DDBLTFX));
+                fx.dwSize = sizeof(DDBLTFX);
+
+                DDSURFACEDESC2 ddsd;
+                ZeroMemory(&ddsd, sizeof(ddsd));
+                ddsd.dwSize = sizeof(DDSURFACEDESC2);
+                ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT;
+
+                lpdds->GetSurfaceDesc(&ddsd);
+
+                lpdds->Lock(NULL, &ddsd, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_NOSYSLOCK, NULL);
+
+                BlitTerrainTSB(ddsd.lpSurface, drawx, drawy, 0, 0,
+                    ddsd.lPitch, ddsd.dwWidth, ddsd.dwHeight, CMapDataExt::TileData[iTileIndex].TileBlockDatas[p]);
+                lpdds->Unlock(NULL);
+            }
+
+            p++;
+        }
+    }
+
+    CIsoView::SetColorKey(lpdds, -1);
+
+    R->EAX(lpdds);
+    return 0x4F3BEF;
 }
 
-DEFINE_HOOK(4F384B, CTileSetBrowserView_RenderTile_SetWidth_DrawX, 7)
+DEFINE_HOOK(4F3C00, CTileSetBrowserView_OnLButtonDown, 7)
 {
-    GET(int, iWidth, ESI);
-    R->ESI(iWidth + RenderTileWidthOffset);
+    GET(CTileSetBrowserView*, pThis, ECX);
+    GET_STACK(UINT, nFlags, 0x4);
+    GET_STACK(CPoint, point, 0x8);
 
-    return 0;
+    CViewObjectsExt::InitializeOnUpdateEngine();
+
+    RECT r;
+    pThis->GetClientRect(&r);
+
+    if (pThis->TileSurfacesCount == 0)
+        return 0x4F3EDE;
+
+    auto pIsoView = CIsoView::GetInstance();
+    SCROLLINFO scrinfo;
+    scrinfo.cbSize = sizeof(SCROLLINFO);
+    scrinfo.fMask = SIF_ALL;
+    pThis->GetScrollInfo(SB_HORZ, &scrinfo);
+    point.x += scrinfo.nPos;
+    pThis->GetScrollInfo(SB_VERT, &scrinfo);
+    point.y += scrinfo.nPos;
+
+    int max_r = r.right / pThis->CurrentImageWidth;
+    if (max_r == 0) max_r = 1;
+
+    int cur_y = 0;
+    int cur_x = 0;
+
+    int tile_width = pThis->CurrentImageWidth;
+    int tile_height = pThis->CurrentImageHeight;
+
+    if (pThis->CurrentMode == 1)
+    {
+        auto iTileStart = CMapDataExt::TileSet_starts[pThis->CurrentTileset];
+        for (int i = 0; i < pThis->TileSurfacesCount; i++)
+        {
+            if (point.x > cur_x && point.y > cur_y && point.x < cur_x + tile_width && point.y < cur_y + tile_height)
+            {
+                CIsoView::CurrentCommand->Command = 10;
+                CIsoView::CurrentCommand->Type = iTileStart;
+                CIsoView::CurrentCommand->Param = 0;
+                CIsoView::CurrentCommand->Overlay = 0;
+                CIsoView::CurrentCommand->OverlayData = 0;
+                CIsoView::CurrentCommand->Height = 0;
+
+                pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW);
+                return 0x4F3EDE;
+            }
+
+            cur_x += tile_width;
+            if (i % max_r == max_r - 1)
+            {
+                cur_y += tile_height;
+                cur_x = 0;
+            }
+            iTileStart++;
+        }
+    }
+    else if (pThis->CurrentMode == 2)
+    {
+        FString ovlIdx;
+        ovlIdx.Format("%d", pThis->SelectedOverlayIndex);
+        int nDisplayLimit = CINI::FAData->GetInteger("OverlayDisplayLimit", ovlIdx, 60);
+        for (int i = 0; i < std::min(nDisplayLimit, 60); i++)
+        {
+            auto imageName = CLoadingExt::GetOverlayName(pThis->SelectedOverlayIndex, i);
+            auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+
+            if (pData && pData->pImageBuffer)
+            {
+                if (point.x > cur_x && point.y > cur_y && point.x < cur_x + tile_width && point.y < cur_y + tile_height)
+                {
+                    CIsoView::CurrentCommand->Command = 1;
+                    CIsoView::CurrentCommand->Type = 6;
+                    CIsoView::CurrentCommand->Param = 33;
+                    CIsoView::CurrentCommand->Overlay = pThis->SelectedOverlayIndex;
+                    CIsoView::CurrentCommand->OverlayData = i;
+                    CIsoView::CurrentCommand->Height = 0;
+
+                    pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW);
+                    return 0x4F3EDE;
+                }
+    
+                cur_x += tile_width;
+                if (i % max_r == max_r - 1)
+                {
+                    cur_y += tile_height;
+                    cur_x = 0;
+                }
+            }  
+        }
+    }
+
+    ::SetForegroundWindow(pIsoView->GetSafeHwnd());
+    ::SetFocus(pIsoView->GetSafeHwnd());
+    pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW);
+    return 0x4F3EDE;
+}
+
+
+DEFINE_HOOK(4F4650, CTileSetBrowserView_GetAddedHeight, 9)
+{
+    GET_STACK(int, iTileIndex, 0x4);
+
+    R->EAX(GetAddedHeight(iTileIndex));
+
+    return 0x4F4734;
 }
 
 DEFINE_HOOK(4F1E93, CTileSetBrowserView_OnDraw_ExtraWidth, 6)
@@ -179,7 +416,6 @@ DEFINE_HOOK(4F1E93, CTileSetBrowserView_OnDraw_ExtraWidth, 6)
 
     return 0;
 }
-
 
 DEFINE_HOOK(4F34B1, CTileSetBrowserView_SetTileSet_ExtraWidth, A)
 {
@@ -224,45 +460,6 @@ DEFINE_HOOK(4F361E, CTileSetBrowserView_SetTileSet_ShrinkImage, 6)
     pThis->CurrentImageHeight /= 2;
     pThis->ScrollWidth /= 2;
     return 0;
-}
-
-int OnLButtonDown_OverlayData = 0;
-DEFINE_HOOK(4F4590, CTileSetBrowserView_OnLButtonDown_LoadOverlayImage_1, 5)
-{
-    GET(CTileSetBrowserView*, pThis, EBP);
-
-    OnLButtonDown_OverlayData = 0;
-    auto imageName = CLoadingExt::GetOverlayName(pThis->SelectedOverlayIndex, OnLButtonDown_OverlayData);
-    auto pData = CLoadingExt::GetImageDataFromMap(imageName);
-    if (setCurrentOverlay(pData))
-    {
-        R->ECX(&CurrentOverlayPtr);
-    }
-    else
-    {
-        R->ECX(&NULLPTR);
-    }
-    return 0x4F4596;
-}
-
-DEFINE_HOOK(4F45F7, CTileSetBrowserView_OnLButtonDown_LoadOverlayImage_2, 5)
-{
-    GET(CTileSetBrowserView*, pThis, EBP);
-
-    OnLButtonDown_OverlayData++;
-    auto imageName = CLoadingExt::GetOverlayName(pThis->SelectedOverlayIndex, OnLButtonDown_OverlayData);
-    auto pData = CLoadingExt::GetImageDataFromMap(imageName);
-    if (setCurrentOverlay(pData))
-    {
-        R->ECX(&CurrentOverlayPtr);
-    }
-    else
-    {
-        R->ECX(&NULLPTR);
-    }
-    if (R->ESI() < 60)
-        return 0x4F4596;
-    return 0x4F3E9A;
 }
 
 DEFINE_HOOK(4F4774, CTileSetBrowserView_SetOverlay_LoadOverlayImage, 5)
@@ -377,117 +574,3 @@ DEFINE_HOOK(4F3D23, CTileSetBrowserView_OnLButtonDown_SkipDisableTile, 7)
     //return 0x4F3DE1;
     return 0x4F3DF7;
 }
-
-static bool DrawTranspInsideTilesChanged = false;
-DEFINE_HOOK(4F36DD, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles, 5)
-{
-    GET(unsigned int, tileIndex, EBX);
-    tileIndex = CMapDataExt::GetSafeTileIndex(tileIndex);
-    if (0 <= tileIndex && tileIndex < CMapDataExt::TileDataCount)
-    {
-        auto pPal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
-        BGRStruct empty;
-        DrawTranspInsideTilesChanged = true;
-        memcpy(&CLoadingExt::TempISOPalette, Palette::PALETTE_ISO, sizeof(Palette));
-        memcpy(Palette::PALETTE_ISO, PalettesManager::GetTileSetBrowserViewPalette(pPal, empty, false), sizeof(Palette));
-    }
-    return 0;
-}
-
-DEFINE_HOOK(4F35CE, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles_2, 6)
-{
-    if (DrawTranspInsideTilesChanged)
-    {
-        DrawTranspInsideTilesChanged = false;
-        memcpy(Palette::PALETTE_ISO, &CLoadingExt::TempISOPalette, sizeof(Palette));
-    }
-    return 0;
-}
-
-//DEFINE_HOOK(4F1D70, ASDG, 6)
-//{
-//	Logger::Debug("%s %s %s %s %s %s\n", 
-//        reinterpret_cast<const char*>(0x5D3358),
-//        reinterpret_cast<const char*>(0x5D3354),
-//        reinterpret_cast<const char*>(0x5D3350),
-//        reinterpret_cast<const char*>(0x5D334C),
-//        reinterpret_cast<const char*>(0x5D3348),
-//        reinterpret_cast<const char*>(0x5D3344)
-//        );
-//	return 0;
-//}
-
-//
-//DEFINE_HOOK(4F23CD, CTileSetBrowserView_CreateBMPPreview_DebugAsBmp, 6)
-//{
-//	GET(BITMAPINFO*, pBmi, EDX);
-//	GET(char*, lpBits, EAX);
-//
-//	WORD* buffer = (WORD*)lpBits;
-//	FILE* fp;
-//	fopen_s(&fp, "bmpDebug.bmp", "wb");
-//	if (fp)
-//	{
-//		int width = pBmi->bmiHeader.biWidth;
-//		int height = pBmi->bmiHeader.biHeight;
-//
-//		size_t arrayLen = width * height;
-//
-//#pragma pack(push, 1)
-//		struct bmpfile_full_header {
-//			unsigned char magic[2];
-//			DWORD filesz;
-//			WORD creator1;
-//			WORD creator2;
-//			DWORD bmp_offset;
-//			DWORD header_sz;
-//			DWORD width;
-//			DWORD height;
-//			WORD nplanes;
-//			WORD bitspp;
-//			DWORD compress_type;
-//			DWORD bmp_bytesz;
-//			DWORD hres;
-//			DWORD vres;
-//			DWORD ncolors;
-//			DWORD nimpcolors;
-//			DWORD R; //
-//			DWORD G; //
-//			DWORD B; //
-//		} h;
-//#pragma pack(pop)
-//		h.magic[0] = 'B';
-//		h.magic[1] = 'M';
-//		h.creator1 = h.creator2 = 0;
-//		h.header_sz = 40;
-//		h.width = width;
-//		h.height = height;
-//		h.nplanes = 1;
-//		h.bitspp = 24;
-//		h.compress_type = BI_BITFIELDS;
-//		h.bmp_bytesz = arrayLen * 2;
-//		h.hres = 4000;
-//		h.vres = 4000;
-//		h.ncolors = h.nimpcolors = 0;
-//		h.R = 0xF800;
-//		h.G = 0x07E0;
-//		h.B = 0x001F;
-//		h.bmp_offset = sizeof(h);
-//		h.filesz = h.bmp_offset + h.bmp_bytesz;
-//		fwrite(&h, 1, sizeof(h), fp);
-//		std::unique_ptr<WORD[]> pixelData(new WORD[arrayLen * 2]);
-//		WORD* pixels = pixelData.get();
-//#define WIDTHBYTES(bits) (((bits) + 31) / 32 * 4)
-//		int pitch = WIDTHBYTES(width * 16);
-//#undef WIDTHBYTES
-//		for (int r = 0; r < height * 2; ++r) {
-//			memcpy(pixels, reinterpret_cast<void*>(buffer), width * 2);
-//			pixels += width;
-//			buffer += pitch / 2; // /2 because buffer is a WORD * and pitch is in bytes
-//		}
-//		fwrite(pixelData.get(), 1, arrayLen * 4, fp);
-//		fclose(fp);
-//	}
-//
-//	return 0;
-//}

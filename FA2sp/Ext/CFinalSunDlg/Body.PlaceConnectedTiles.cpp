@@ -243,8 +243,6 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
             if (ct.Type == ConnectedTileSetTypes::CityCliff)
             {
                 // 29 & 30 are special diagonals in TX
-                if (ct.ConnectedTile.size() > 28)
-                    lastTileIndex = ct.ConnectedTile[28].TileIndices[0] + ct.StartTile;
                 if (ct.ConnectedTile.size() > 30)
                 {
                     int lastTileIndexTX = ct.ConnectedTile[30].TileIndices[0] + ct.StartTile;
@@ -262,6 +260,8 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
                         }
                     }
                 }
+                else if (ct.ConnectedTile.size() > 28)
+                    lastTileIndex = ct.ConnectedTile[28].TileIndices[0] + ct.StartTile;
             }
 
             if (ct.Type != ConnectedTileSetTypes::RailRoad)
@@ -720,6 +720,10 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     else if (UrbanCliff && index != 16)
                     {
                         index = 25;
+                        if (tileSet.ConnectedTile[index].TileIndices[0] < 0)
+                        {                        
+                            index = STDHelpers::RandomSelectInt(backCornet1);
+                        }
                     }
 
                     if (CViewObjectsExt::LastPlacedCT.Index == 7
@@ -885,6 +889,11 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     {
                         index = 27;
                         offsetConnectY += 1;
+                        if (tileSet.ConnectedTile[index].TileIndices[0] < 0)
+                        {
+                            index = 12;
+                            offsetConnectY -= 1;
+                        }
                     }
                     for (auto ti : tileSet.ConnectedTile[index].TileIndices)
                     {
@@ -1211,8 +1220,11 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     if (distance > LargeDistance && UrbanCliff)
                     {
                         index = 28;
+                        if (tileSet.ConnectedTile[index].TileIndices[0] < 0)
+                        {
+                            index = 21;
+                        }
                     }
-
 
                     for (auto ti : tileSet.ConnectedTile[index].TileIndices)
                     {
@@ -1386,7 +1398,10 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     else if (UrbanCliff && index != 16)
                     {
                         index = 25;
-
+                        if (tileSet.ConnectedTile[index].TileIndices[0] < 0)
+                        {
+                            index = STDHelpers::RandomSelectInt(backCornet1);
+                        }
                     }
 
                     if (CViewObjectsExt::LastPlacedCT.Index == 0
@@ -1412,8 +1427,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         offsetPlaceY += 1;
                         offsetConnectX -= 1;
                     }
-
-
 
                     for (auto ti : tileSet.ConnectedTile[index].TileIndices)
                     {
@@ -1550,6 +1563,11 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     {
                         index = 27;
                         offsetPlaceY -= 1;
+                        if (tileSet.ConnectedTile[index].TileIndices[0] < 0)
+                        {
+                            index = 12;
+                            offsetPlaceY += 1;
+                        }
                     }
                     for (auto ti : tileSet.ConnectedTile[index].TileIndices)
                     {
@@ -1813,6 +1831,10 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     if (distance > LargeDistance && UrbanCliff && CViewObjectsExt::LastPlacedCT.Index != 27)
                     {
                         index = 28;
+                        if (tileSet.ConnectedTile[index].TileIndices[0] < 0)
+                        {
+                            index = 21;
+                        }
                     }
 
                     for (auto ti : tileSet.ConnectedTile[index].TileIndices)

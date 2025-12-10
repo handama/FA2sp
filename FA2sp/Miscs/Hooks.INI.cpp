@@ -51,8 +51,11 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
     size_t idx = 0;
     const size_t len = content.length();
     static size_t plusEqual = 0;
-    if (bAllowInclude)
+    static std::map<CINIExt*, std::map<FString, FString>> InheritSections;
+    if (bAllowInclude) {
         plusEqual = 0;
+        InheritSections.clear();
+    }
     bool findTargetSection = false;
     bool firstLine = true;
 
@@ -82,14 +85,13 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
             }
 
             FString sectionName = line.substr(1, closePos - 1);
-            FString sectionInherit;
 
             if (closePos + 1 < line.size() && line[closePos + 1] == ':') {
                 size_t p = closePos + 2;
                 if (p < line.size() && line[p] == '[') {
                     size_t close2 = line.find(']', p);
                     if (close2 != FString::npos) {
-                        sectionInherit = line.substr(p + 1, close2 - (p + 1));
+                        InheritSections[this][sectionName] = line.substr(p + 1, close2 - (p + 1));
                     }
                 }
             }
@@ -105,25 +107,9 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                 else if (lpSection && findTargetSection) {
                     return;
                 }
+
                 pCurrentSection = AddOrGetSection(sectionName);
 
-                // ares mode
-                if (ExtConfigs::AllowInherits && !ExtConfigs::InheritType && !sectionInherit.empty()) {
-
-                    if (auto pSectionInherit = GetSection(sectionInherit)) {
-                        for (const auto& [key, value] : pSectionInherit->GetEntities())
-                        {
-                            size_t currentIndex = pCurrentSection->GetEntities().size();
-
-                            writeString(pCurrentSection, key, value);
-
-                            std::pair<ppmfc::CString, int> ins =
-                                std::make_pair((ppmfc::CString)key, (int)currentIndex);
-                            std::pair<INIIndiceDict::iterator, bool> ret;
-                            reinterpret_cast<FAINIIndicesMap*>(&pCurrentSection->GetIndices())->insert(&ret, &ins);
-                        }
-                    }
-                }
                 if (CMapDataExt::IsLoadingMapFile && ExtConfigs::SaveMap_PreserveINISorting)
                 {
                     CMapDataExt::MapIniSectionSorting.push_back(sectionName);
@@ -246,7 +232,37 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                                 }
                             }
 
+                            // ares mode
+                            if (ExtConfigs::AllowInherits && !ExtConfigs::InheritType) {
+                                auto itr = InheritSections.find(&ini);
+                                if (itr != InheritSections.end())
+                                {
+                                    const auto& pairs = itr->second;
+                                    for (const auto& [main, inherit] : pairs) {
+                                        auto pSectionA = GetSection(main);
+                                        auto pSectionA_New = ini.GetSection(main);
+                                        auto pSectionB = GetSection(inherit);
+                                        if (pSectionA && pSectionB) {
+                                            for (const auto& [key, value] : pSectionB->GetEntities())
+                                            {
+                                                if (pSectionA_New 
+                                                    && pSectionA_New->GetEntities().find(key) 
+                                                    != pSectionA_New->GetEntities().end())
+                                                    continue;
 
+                                                size_t currentIndex = pSectionA->GetEntities().size();
+
+                                                writeString(pSectionA, key, value);
+
+                                                std::pair<ppmfc::CString, int> ins =
+                                                    std::make_pair((ppmfc::CString)key, (int)currentIndex);
+                                                std::pair<INIIndiceDict::iterator, bool> ret;
+                                                reinterpret_cast<FAINIIndicesMap*>(&pSectionA->GetIndices())->insert(&ret, &ins);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -285,7 +301,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
             Logger::Debug("CINIExt::LoadINIExt(): Load map file using UTF8 encoding.\n");
             CMapDataExt::IsUTF8File = true;
         }
-        else  {
+        else {
             CMapDataExt::IsUTF8File = false;
         }
     }

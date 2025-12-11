@@ -974,23 +974,35 @@ DEFINE_HOOK(4F128A, CTerrainDlg_Update_AddCustomTiles, 5)
 
                 if (tileSet >= 10000 && start != end)
                 {
-                    tileSets.insert(tileSet);
-                    int index = 0;
-                    auto& ret = CMapDataExt::CustomTiles[tileSet].emplace_back();
-                    ret.Initialize(end.Y - start.Y, end.X - start.X);
+                    bool valid = true;
                     for (int x = start.X; x < end.X; ++x)
                     {
                         for (int y = start.Y; y < end.Y; ++y)
                         {
                             auto& info = infos[{x, y}];
-                            if (ignoreCoords.find({ x,y }) != ignoreCoords.end()
-                                || info.TileIndex > CMapDataExt::TileDataCount)
+                            if (info.TileIndex > CMapDataExt::TileDataCount)
+                                valid = false;
+                        }
+                    }
+                    if (valid)
+                    {
+                        tileSets.insert(tileSet);
+                        int index = 0;
+                        auto& ret = CMapDataExt::CustomTiles[tileSet].emplace_back();
+                        ret.Initialize(end.Y - start.Y, end.X - start.X);
+                        for (int x = start.X; x < end.X; ++x)
+                        {
+                            for (int y = start.Y; y < end.Y; ++y)
                             {
+                                auto& info = infos[{x, y}];
+                                if (ignoreCoords.find({ x,y }) != ignoreCoords.end())
+                                {
+                                    index++;
+                                    continue;
+                                }
+                                ret.TileBlockDatas[index].SetTileBlock(info.TileIndex, info.TileSubIndex, info.Height);
                                 index++;
-                                continue;
                             }
-                            ret.TileBlockDatas[index].SetTileBlock(info.TileIndex, info.TileSubIndex, info.Height);
-                            index++;
                         }
                     }
                 }

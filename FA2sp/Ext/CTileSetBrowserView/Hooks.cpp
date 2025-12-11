@@ -403,7 +403,7 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
                         - tile.GetHeight() * 30 / 2;
 
                     auto pPal = CMapDataExt::TileSetPalettes
-                        [CMapDataExt::TileData[tileData->TileBlockDatas[p].GetDisplayTileIndex()].TileSet];
+                        [CMapDataExt::TileData[tile.GetDisplayTileIndex()].TileSet];
                     BGRStruct empty;
                     auto currentPalette = PalettesManager::GetTileSetBrowserViewPalette(pPal, empty, false);
 

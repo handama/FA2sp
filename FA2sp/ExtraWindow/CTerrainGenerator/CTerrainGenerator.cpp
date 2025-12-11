@@ -320,8 +320,6 @@ void CTerrainGenerator::Update(HWND& hWnd)
         for (int idx = 0; idx < nTileCount; ++idx)
         {
             SendMessage(hTileComboBox, CB_GETLBTEXT, idx, (LPARAM)(LPCSTR)buffer);
-            // currently don't support custom tileset
-            if (atoi(buffer) >= 10000) continue;
             SendMessage(hTileSet[0], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)buffer);
             SendMessage(hTileSet[1], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)buffer);
             SendMessage(hTileSet[2], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)buffer);

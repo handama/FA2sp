@@ -2145,9 +2145,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				Y = CTerrainGenerator::RangeSecondCell.Y;
 
 			std::vector<MapCoord> coords;
-			for (int i = X; i <= X + XW; i++)
+			for (int i = X; i < X + XW; i++)
 			{
-				for (int j = Y; j <= Y + YW; j++)
+				for (int j = Y; j < Y + YW; j++)
 				{
 					coords.push_back({ i,j });
 				}

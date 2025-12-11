@@ -65,28 +65,62 @@ public:
                 group.Chance = std::atof(atoms[0]);
                 int tileSet = atoi(atoms[1]);
                 group.Items.push_back(STDHelpers::IntToString(tileSet, "%04d"));
-                if (tileSet < CMapDataExt::TileSet_starts.size() - 1);
-                int start = CMapDataExt::TileSet_starts[tileSet];
-                int end = CMapDataExt::TileSet_starts[tileSet + 1];
+                if (tileSet < 10000)
+                {
+                    if (tileSet < CMapDataExt::TileSet_starts.size() - 1);
+                    int start = CMapDataExt::TileSet_starts[tileSet];
+                    int end = CMapDataExt::TileSet_starts[tileSet + 1];
 
-                key += "AvailableIndexes";
-                TileSetAvailableIndexesText.push_back(pSection->GetString(key));
-                auto atomsIdx = FString::SplitString(TileSetAvailableIndexesText.back());
-                if (atomsIdx.empty()) {
-                    group.HasExtraIndex = false;
-                    for (auto j = start; j < end; j++) {
-                        group.AvailableTiles.push_back(j);
-                    }
-                }
-                else {
-                    group.HasExtraIndex = true;
-                    for (auto& idx : atomsIdx) {
-                        if (start + atoi(idx) < end) {
-                            group.AvailableTiles.push_back(start + atoi(idx));
+                    key += "AvailableIndexes";
+                    TileSetAvailableIndexesText.push_back(pSection->GetString(key));
+                    auto atomsIdx = FString::SplitString(TileSetAvailableIndexesText.back());
+                    if (atomsIdx.empty()) {
+                        group.HasExtraIndex = false;
+                        for (auto j = start; j < end; j++) {
+                            group.AvailableTiles.push_back(j);
                         }
                     }
+                    else {
+                        group.HasExtraIndex = true;
+                        for (auto& idx : atomsIdx) {
+                            if (start + atoi(idx) < end) {
+                                group.AvailableTiles.push_back(start + atoi(idx));
+                            }
+                        }
+                    }
+                    TileSets.push_back(group);
                 }
-                TileSets.push_back(group);
+                else
+                {
+                    int start = CMapDataExt::GetCustomTileIndex(tileSet, 0);
+                    int end = start;
+                    for (auto& [tileset, ct] : CMapDataExt::CustomTiles)
+                    {
+                        if (tileset == tileSet)
+                        {
+                            end = start + ct.size();
+                        }
+                    }
+
+                    key += "AvailableIndexes";
+                    TileSetAvailableIndexesText.push_back(pSection->GetString(key));
+                    auto atomsIdx = FString::SplitString(TileSetAvailableIndexesText.back());
+                    if (atomsIdx.empty()) {
+                        group.HasExtraIndex = false;
+                        for (auto j = start; j < end; j++) {
+                            group.AvailableTiles.push_back(j);
+                        }
+                    }
+                    else {
+                        group.HasExtraIndex = true;
+                        for (auto& idx : atomsIdx) {
+                            if (start + atoi(idx) < end) {
+                                group.AvailableTiles.push_back(start + atoi(idx));
+                            }
+                        }
+                    }
+                    TileSets.push_back(group);
+                }
             }
         }
         for (auto i = 0; i < TERRAIN_GENERATOR_MAX; i++) {

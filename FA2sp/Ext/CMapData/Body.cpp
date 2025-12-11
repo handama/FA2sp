@@ -2453,6 +2453,17 @@ void CustomTileBlock::SetTileBlock(int tile, int subtile, int height)
 		TileBlock = &CMapDataExt::TileData[TileIndex].TileBlockDatas[SubTileIndex];
 	else
 		TileBlock = nullptr;
+
+	FrameTileIndex = TileIndex;
+	if (CMapDataExt::TileData[TileIndex].FrameModeIndex != 0xFFFF)
+		FrameTileIndex = CMapDataExt::TileData[TileIndex].FrameModeIndex;
+
+	if (CMapDataExt::TileDataCount > FrameTileIndex
+		&& CMapDataExt::TileData[FrameTileIndex].TileBlockCount > SubTileIndex
+		&& CMapDataExt::TileData[FrameTileIndex].TileBlockDatas[SubTileIndex].ImageData)
+		FrameTileBlock = &CMapDataExt::TileData[FrameTileIndex].TileBlockDatas[SubTileIndex];
+	else
+		FrameTileBlock = TileBlock;
 }
 
 int CustomTileBlock::GetHeight()
@@ -2462,6 +2473,24 @@ int CustomTileBlock::GetHeight()
 		height = Height;// +TileBlock->Height;
 	if (height > 14) height = 14;
 	return height;
+}
+
+CTileBlockClass* CustomTileBlock::GetDisplayTileBlock()
+{
+	if (CFinalSunApp::Instance->FrameMode && FrameTileBlock)
+	{
+		return FrameTileBlock;
+	}
+	return TileBlock;
+}
+
+int CustomTileBlock::GetDisplayTileIndex()
+{
+	if (CFinalSunApp::Instance->FrameMode && FrameTileBlock)
+	{
+		return TileIndex;
+	}
+	return FrameTileIndex;
 }
 
 void CustomTile::Initialize(int witdh, int height)

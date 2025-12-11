@@ -256,19 +256,29 @@ void CTileManager::UpdateTypes(HWND hWnd)
     for (int idx = 0; idx < nTileCount; ++idx)
     {
         int nTile = SendMessage(hTileComboBox, CB_GETITEMDATA, idx, NULL);
-        tile.Format("TileSet%04d", nTile);
-        tile = CINI::CurrentTheater->GetString(tile, "SetName", "NO NAME");
+        if (nTile < 10000)
+        {
+            tile.Format("TileSet%04d", nTile);
+            tile = CINI::CurrentTheater->GetString(tile, "SetName", "NO NAME");
+        }
+        else
+        {
+            tile = Translations::TranslateTileSet(nTile);
+        }
+
         bool other = true;
+        bool added = false;
         for (size_t i = 0; i < CTileManager::Nodes.size() - 1; ++i)
         {
-            if (i == CTileManager::Nodes.size() - 2 && nTile >= 10000)
-            {
-                CTileManager::Datas[i].push_back(idx);
-                other = false;
-            }
-            else if (std::regex_search(tile, CTileManager::Nodes[i].second))
+            if (std::regex_search(tile, CTileManager::Nodes[i].second))
             {
                 CTileManager::Datas[i].push_back(idx); 
+                other = false;
+                added = true;
+            }
+            else if (!added && i == CTileManager::Nodes.size() - 2 && nTile >= 10000)
+            {
+                CTileManager::Datas[i].push_back(idx);
                 other = false;
             }
         }

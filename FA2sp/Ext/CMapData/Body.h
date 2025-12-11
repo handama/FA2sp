@@ -391,11 +391,15 @@ private:
 struct CustomTileBlock
 {
     int TileIndex;
+    int FrameTileIndex;
     int SubTileIndex;
     int Height;
     CTileBlockClass* TileBlock;
+    CTileBlockClass* FrameTileBlock;
     void SetTileBlock(int tile, int subtile, int height);
     int GetHeight();
+    CTileBlockClass* GetDisplayTileBlock();
+    int GetDisplayTileIndex();
 };
 
 struct CustomTile

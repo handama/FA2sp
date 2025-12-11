@@ -225,12 +225,12 @@ static void GetCustomTileSize(const CustomTile* tileData, int& width, int& heigh
     int right = 0;
     int top = 0;
     int bottom = 0;
-    width = (tileData->Width + tileData->Height) * 30;
-    height = (tileData->Width + tileData->Height) * 15;
+    width = 0;
+    height = 0;
     for (int i = 0; i < tileData->Width * tileData->Height; ++i)
     {
         auto& tile = tileData->TileBlockDatas[i];
-        auto subtile = tile.TileBlock;
+        auto subtile = tile.GetDisplayTileBlock();
         if (!subtile) continue;
         int x = i % tileData->Width;
         int y = i / tileData->Width;
@@ -351,8 +351,8 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
         ddfx.dwSize = sizeof(DDBLTFX);
         lpdds->Blt(NULL, NULL, NULL, DDBLT_COLORFILL, &ddfx);
 
-        int minDrawX = 0;
-        int minDrawY = 0;
+        int minDrawX = INT_MAX;
+        int minDrawY = INT_MAX;
 
         int i, e, p = 0;
         for (i = 0; i < tileData->Height; i++)
@@ -360,7 +360,7 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
             for (e = 0; e < tileData->Width; e++)
             {
                 auto& tile = tileData->TileBlockDatas[p];
-                auto block = tile.TileBlock;
+                auto block = tile.GetDisplayTileBlock();
                 if (!block)
                 {
                     p++;
@@ -387,7 +387,7 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
             for (e = 0; e < tileData->Width; e++)
             {
                 auto& tile = tileData->TileBlockDatas[p];
-                auto block = tile.TileBlock;
+                auto block = tile.GetDisplayTileBlock();
                 if (!block)
                 {
                     p++;
@@ -396,13 +396,14 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
                 if (block->ImageData)
                 {
                     int drawx = e * 60 / 2 - i * 60 / 2
-                        + (tileData->Height == 1 ? 0 :30)
+                        + 30
                         + block->XMinusExX;
                     int drawy = e * 30 / 2 + i * 30 / 2
                         + block->YMinusExY
                         - tile.GetHeight() * 30 / 2;
 
-                    auto pPal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileData->TileBlockDatas[p].TileIndex].TileSet];
+                    auto pPal = CMapDataExt::TileSetPalettes
+                        [CMapDataExt::TileData[tileData->TileBlockDatas[p].GetDisplayTileIndex()].TileSet];
                     BGRStruct empty;
                     auto currentPalette = PalettesManager::GetTileSetBrowserViewPalette(pPal, empty, false);
 

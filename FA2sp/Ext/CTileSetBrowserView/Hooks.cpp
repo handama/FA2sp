@@ -943,7 +943,7 @@ DEFINE_HOOK(4F128A, CTerrainDlg_Update_AddCustomTiles, 5)
                 auto lines = FString::SplitString(text, "\\n");
 
                 MapCoord start{ x,y };
-                MapCoord end{ 0,0 };
+                MapCoord end{ x,y };
                 int tileSet = 0;
 
                 for (const auto& line : lines)

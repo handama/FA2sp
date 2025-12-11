@@ -221,10 +221,10 @@ static __forceinline void BlitTerrainTSB(void* dst, int x, int y,
 
 static void GetCustomTileSize(const CustomTile* tileData, int& width, int& height)
 {
-    int left = 0;
-    int right = 0;
-    int top = 0;
-    int bottom = 0;
+    int left = INT_MAX;
+    int right = INT_MIN;
+    int top = INT_MAX;
+    int bottom = INT_MIN;
     width = 0;
     height = 0;
     for (int i = 0; i < tileData->Width * tileData->Height; ++i)
@@ -505,8 +505,7 @@ DEFINE_HOOK(4F3C00, CTileSetBrowserView_OnLButtonDown, 7)
                     oldset = CMapDataExt::TileData[oldid].TileSet;
                 }
 
-                if (!ExtConfigs::SkipBrushSizeChangeOnTools
-                    && (oldmode != 10 || oldset != pThis->CurrentTileset))
+                if (oldmode != 10 || oldset != pThis->CurrentTileset)
                 {
                     CFinalSunDlg::Instance->BrushSize.nCurSel = 0;
                     CFinalSunDlg::Instance->BrushSize.UpdateData(FALSE);
@@ -599,13 +598,10 @@ DEFINE_HOOK(4F2B10, CTileSetBrowserView_SetTileSet, 7)
                 CIsoView::CurrentCommand->OverlayData = 0;
                 CIsoView::CurrentCommand->Height = 0;
 
-                if (!ExtConfigs::SkipBrushSizeChangeOnTools)
-                {
-                    CFinalSunDlg::Instance->BrushSize.nCurSel = 0;
-                    CFinalSunDlg::Instance->BrushSize.UpdateData(FALSE);
-                    pIsoView->BrushSizeX = 1;
-                    pIsoView->BrushSizeY = 1;
-                }
+                CFinalSunDlg::Instance->BrushSize.nCurSel = 0;
+                CFinalSunDlg::Instance->BrushSize.UpdateData(FALSE);
+                pIsoView->BrushSizeX = 1;
+                pIsoView->BrushSizeY = 1;
             }
         }
 
@@ -664,13 +660,10 @@ DEFINE_HOOK(4F2B10, CTileSetBrowserView_SetTileSet, 7)
                 CIsoView::CurrentCommand->OverlayData = 0;
                 CIsoView::CurrentCommand->Height = 0;
         
-                if (!ExtConfigs::SkipBrushSizeChangeOnTools)
-                {
-                    CFinalSunDlg::Instance->BrushSize.nCurSel = 0;
-                    CFinalSunDlg::Instance->BrushSize.UpdateData(FALSE);
-                    pIsoView->BrushSizeX = 1;
-                    pIsoView->BrushSizeY = 1;
-                }
+                CFinalSunDlg::Instance->BrushSize.nCurSel = 0;
+                CFinalSunDlg::Instance->BrushSize.UpdateData(FALSE);
+                pIsoView->BrushSizeX = 1;
+                pIsoView->BrushSizeY = 1;
             }
         }
 

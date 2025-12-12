@@ -48,8 +48,42 @@ bool CLoadingExt::InitMixFilesFix()
 		}
 	}
 
-	if (!ExtConfigs::ExtMixLoader)
+	// Init Nested Mixes
+	std::map<FString, std::vector<FString>> NestedMixes;
+	if (auto pSection = CINI::FAData->GetSection("NestedMixes"))
 	{
+		std::map<int, FString> collector;
+
+		for (const auto& [key, index] : pSection->GetIndices())
+			collector[index] = key;
+
+		for (const auto& [_, key] : collector)
+		{
+			NestedMixes[pSection->GetString(key)].push_back(key);
+		}
+	}
+
+	if (!ExtConfigs::ExtMixLoader)
+	{ 
+		auto LoadNestedMix = [&NestedMixes](auto&& self, const FString& fileName, int parent, bool addToRa2 = false) -> void
+		{
+			for (const auto& file : NestedMixes[fileName])
+			{
+				int result = CMixFile::Open(file, parent);
+				if (result)
+				{
+					Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, file);
+					self(self, file, result, addToRa2);
+					if (addToRa2)
+					{
+						CLoadingExt::Ra2dotMixes.insert(result);
+					}
+				}
+				else
+					Logger::Raw("[MixLoader] %s failed!\n", file);
+			}
+		};
+
 		// Load Extra Mixes
 		if (auto pSection = CINI::FAData->GetSection("ExtraMixes"))
 		{
@@ -70,6 +104,7 @@ bool CLoadingExt::InitMixFilesFix()
 				if (auto id = CMixFile::Open(path, 0))
 				{
 					Logger::Raw("[MixLoader][EXTRA] %04d - %s loaded.\n", id, path);
+					LoadNestedMix(LoadNestedMix, key, id);
 				}
 				else
 				{
@@ -80,7 +115,7 @@ bool CLoadingExt::InitMixFilesFix()
 
 		FString Dir = CFinalSunApp::Instance->FilePath();
 		Dir += "\\";
-		auto LoadMixFile = [this, Dir](const char* Mix, int Parent = 0, bool addToRA2 = false)
+		auto LoadMixFile = [this, Dir, &LoadNestedMix](const char* Mix, int Parent = 0, bool addToRA2 = false)
 		{
 			if (Parent)
 			{
@@ -88,6 +123,7 @@ bool CLoadingExt::InitMixFilesFix()
 				if (result)
 				{
 					Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, Mix);
+					LoadNestedMix(LoadNestedMix, Mix, result, addToRA2);
 					if (addToRA2)
 					{
 						CLoadingExt::Ra2dotMixes.insert(result);
@@ -104,6 +140,7 @@ bool CLoadingExt::InitMixFilesFix()
 				if (result)
 				{
 					Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, FullPath);
+					LoadNestedMix(LoadNestedMix, Mix, result, addToRA2);
 					if (addToRA2)
 					{
 						CLoadingExt::Ra2dotMixes.insert(result);
@@ -116,6 +153,7 @@ bool CLoadingExt::InitMixFilesFix()
 					if (result)
 					{
 						Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, Mix);
+						LoadNestedMix(LoadNestedMix, Mix, result, addToRA2);
 						if (addToRA2)
 						{
 							CLoadingExt::Ra2dotMixes.insert(result);
@@ -144,6 +182,7 @@ bool CLoadingExt::InitMixFilesFix()
 		if (auto id = CMixFile::Open(fa2extra, 0))
 		{
 			Logger::Raw("[MixLoader] %04d - %s loaded.\n", id, fa2extra);
+			LoadNestedMix(LoadNestedMix, "fa2extra.mix", id);
 		}
 		else
 		{
@@ -207,6 +246,7 @@ bool CLoadingExt::InitMixFilesFix()
 		{
 			Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, FullPath);
 			CFinalSunApp::Instance->MarbleLoaded = TRUE;
+			LoadNestedMix(LoadNestedMix, "MARBLE.MIX", result);
 		}
 		else
 		{
@@ -269,6 +309,25 @@ bool CLoadingExt::InitMixFilesFix()
 		auto& manager = MixLoader::Instance();
 		manager.Clear();
 
+		auto LoadNestedMix = [&NestedMixes, &manager](auto&& self, const FString& fileName, int parent, bool addToRa2 = false) -> void
+		{
+			for (const auto& file : NestedMixes[fileName])
+			{
+				int result = manager.LoadMixFile(file, parent);
+				if (result)
+				{
+					Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", result, file);
+					self(self, file, result, addToRa2);
+					if (addToRa2)
+					{
+						CLoadingExt::Ra2dotMixes.insert(result);
+					}
+				}
+				else
+					Logger::Raw("[ExtMixLoader] %s failed!\n", file);
+			}
+		};
+
 		// Load Extra Mixes
 		if (auto pSection = CINI::FAData->GetSection("ExtraMixes"))
 		{
@@ -289,6 +348,7 @@ bool CLoadingExt::InitMixFilesFix()
 				if (auto id = manager.LoadMixFile(path))
 				{
 					Logger::Raw("[ExtMixLoader][EXTRA] %04d - %s loaded.\n", id, path);
+					LoadNestedMix(LoadNestedMix, key, id);
 				}
 				else
 				{
@@ -299,7 +359,7 @@ bool CLoadingExt::InitMixFilesFix()
 
 		FString Dir = CFinalSunApp::Instance->FilePath();
 		Dir += "\\";
-		auto LoadMixFile = [&manager, this, Dir](const char* Mix, int Parent = 0, bool addToRA2 = false)
+		auto LoadMixFile = [&manager, this, Dir, &LoadNestedMix](const char* Mix, int Parent = 0, bool addToRA2 = false)
 		{
 			FString FullPath = Dir + Mix;
 			int parent = -1;
@@ -310,6 +370,7 @@ bool CLoadingExt::InitMixFilesFix()
 					Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", id, Mix);
 				else
 					Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", id, FullPath);
+				LoadNestedMix(LoadNestedMix, Mix, id, addToRA2);
 				if (addToRA2)
 				{
 					CLoadingExt::Ra2dotMixes.insert(id);
@@ -329,6 +390,7 @@ bool CLoadingExt::InitMixFilesFix()
 		if (auto id = manager.LoadMixFile(fa2extra))
 		{
 			Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", id, fa2extra);
+			LoadNestedMix(LoadNestedMix, "fa2extra.mix", id);
 		}
 		else
 		{
@@ -392,6 +454,7 @@ bool CLoadingExt::InitMixFilesFix()
 		{
 			Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", id, FullPath);
 			CFinalSunApp::Instance->MarbleLoaded = TRUE;
+			LoadNestedMix(LoadNestedMix, "MARBLE.MIX", id);
 		}
 		else
 		{
@@ -448,7 +511,6 @@ bool CLoadingExt::InitMixFilesFix()
 		LoadMixFile("LANGMD.MIX", 0, true);
 		LoadMixFile("LANGUAGE.MIX", 0, true);
 	}
-
 
 	return true;
 }

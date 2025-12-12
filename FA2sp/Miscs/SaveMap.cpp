@@ -1149,7 +1149,7 @@ DEFINE_HOOK(49D63A, CFinalSunDlg_LoadMap_HandleMMXFile, 5)
         if (auto id = manager.LoadMixFile(pFileName))
         {
             CMapDataExt::IsMMXFile = true;
-            mixIndex = id - 1;
+            mixIndex = id;
             Logger::Debug("CMapData::LoadMap(): Loaded %s file %s.\n", ext, pFileName);
         }
     }

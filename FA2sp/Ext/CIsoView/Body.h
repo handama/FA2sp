@@ -108,7 +108,9 @@ public:
 
     void DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc, bool s1 = true, bool s2 = true, bool s3 = true, bool s4 = true);
     void DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF color, COLORREF colorX, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc, bool onlyX = false);
-    void DrawLine(int x1, int y1, int x2, int y2, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc, bool bDashed = false);
+    void DrawLine(int x1, int y1, int x2, int y2, 
+        COLORREF color, bool bUseDot, bool bUsePrimary, 
+        LPDDSURFACEDESC2 lpDesc, bool bDashed = false, int nThickness = 1);
     void DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord>>& lines, int X, int Y, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc);
     void DrawCelltag(int X, int Y, LPDDSURFACEDESC2 lpDesc);
     void DrawBitmap(FString filename, int X, int Y, LPDDSURFACEDESC2 lpDesc);
@@ -266,6 +268,14 @@ public:
     static bool CliffBackAlt;
     static bool HistoryRecord_IsHoldingLButton;
     static std::unordered_map<TextCacheKey, TextCacheEntry, TextCacheHasher> textCache;
+
+    static __forceinline LPDIRECTDRAWSURFACE7 GetBackBuffer()
+    {
+        if (CIsoViewExt::ScaledFactor == 1.0)
+            return CIsoViewExt::lpDDBackBufferZoomSurface;
+        else
+            return CIsoView::GetInstance()->lpDDBackBufferSurface;
+    };
 
     struct LastCommand
     {

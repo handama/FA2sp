@@ -617,7 +617,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					auto nextCell = CMapData::Instance->GetCellAt(X + i, Y + i);
 					int altImage = nextCell->Flag.AltIndex;
 					int tileIndex = CMapDataExt::GetSafeTileIndex(nextCell->TileIndex);
-					int tileSubIndex = CMapDataExt::GetSafeTileIndex(nextCell->TileSubIndex);
+					int tileSubIndex = nextCell->TileSubIndex;
 					CTileBlockClass* subTile = nullptr;
 					if (!nextCell->Flag.RedrawTerrain)
 					{
@@ -644,7 +644,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								tile = &tile->AltTypes[altImage - 1];
 							}
 						}
-						subTile = &tile->TileBlockDatas[tileSubIndex];
+						if (tileSubIndex < tile->TileBlockCount)
+							subTile = &tile->TileBlockDatas[tileSubIndex];
+						else
+							continue;
 					}
 					else
 						continue;

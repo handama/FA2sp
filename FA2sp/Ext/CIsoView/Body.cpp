@@ -1277,186 +1277,163 @@ void CIsoViewExt::DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORRE
 
 }
 
-void CIsoViewExt::DrawLine(int x1, int y1, int x2, int y2, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc, bool bDashed)
+void CIsoViewExt::DrawLine(
+    int x1, int y1, int x2, int y2,
+    COLORREF color,
+    bool bUseDot,
+    bool bUsePrimary,
+    LPDDSURFACEDESC2 lpDesc,
+    bool bDashed,
+    int nThickness)
 {
-    if (lpDesc->lpSurface == nullptr)
+    if (!lpDesc || lpDesc->lpSurface == nullptr)
         return;
 
     RECT rect = CIsoViewExt::GetScaledWindowRect();
-
     auto lPitch = lpDesc->lPitch;
     auto nBytesPerPixel = *(int*)0x72A8C0;
 
-    auto pRGB = (ColorStruct*)&color;
-    BGRStruct ddColor;
-    ddColor.R = pRGB->red;
-    ddColor.G = pRGB->green;
-    ddColor.B = pRGB->blue;
+    ColorStruct* pRGB = (ColorStruct*)&color;
+    BGRStruct ddColor{ pRGB->blue, pRGB->green, pRGB->red };
 
-    auto DrawLine = [lPitch, nBytesPerPixel, ddColor, lpDesc, &rect, bDashed](int X1, int Y1, int X2, int Y2)
+    auto DrawThinLine = [=](int X1, int Y1, int X2, int Y2)
+    {
+        int color = *(int*)&ddColor;
+        if (X1 > X2) { std::swap(X1, X2); std::swap(Y1, Y2); }
+
+        int dx = X2 - X1;
+        int dy = Y2 - Y1;
+        unsigned char* ptr = (unsigned char*)lpDesc->lpSurface + lPitch * Y1 + X1 * nBytesPerPixel;
+
+        const int dashOn = 3, dashOff = 3, dashPeriod = dashOn + dashOff;
+        auto shouldDraw = [=](int step) { return !bDashed || (step % dashPeriod) < dashOn; };
+
+        if (dy == 0) 
         {
-            int color = *(int*)&ddColor;
+            for (int i = 0; i <= dx; ++i)
+                if (shouldDraw(i))
+                    memcpy(ptr + i * nBytesPerPixel, &ddColor, nBytesPerPixel);
+        }
+        else if (dx == 0)
+        {
+            int step = (dy < 0) ? -lPitch : lPitch;
+            dy = abs(dy);
+            for (int i = 0; i <= dy; ++i)
+                if (shouldDraw(i))
+                    memcpy(ptr + i * step, &ddColor, nBytesPerPixel);
+        }
+        else
+        {
+            int absdx = abs(dx), absdy = abs(dy);
+            int pitch = lPitch;
+            if (dy < 0) { pitch = -pitch; dy = -dy; }
 
-            if (X1 > X2)
+            if (absdx >= absdy)
             {
-                std::swap(X1, X2);
-                std::swap(Y1, Y2);
-            }
-
-            int dx = X2 - X1;
-            int dy = Y2 - Y1;
-
-            auto ptr = (unsigned char*)lpDesc->lpSurface + lPitch * Y1 + X1 * nBytesPerPixel;
-
-            const int dashOn = 3;
-            const int dashOff = 3;
-            const int dashPeriod = dashOn + dashOff;
-
-            auto shouldDraw = [=](int step) {
-                return !bDashed || (step % dashPeriod) < dashOn;
-                };
-
-            if (dy == 0)
-            {
-                for (int i = 0; i <= dx; ++i)
+                int d = 2 * absdy - absdx;
+                int ystep = (Y2 > Y1) ? pitch : -pitch;
+                unsigned char* p = ptr;
+                for (int i = 0; i <= absdx; ++i)
                 {
                     if (shouldDraw(i))
-                        memcpy(ptr, &ddColor, nBytesPerPixel);
-                    ptr += nBytesPerPixel;
+                        memcpy(p, &ddColor, nBytesPerPixel);
+                    if (d >= 0)
+                    {
+                        p += ystep;
+                        d -= 2 * absdx;
+                    }
+                    d += 2 * absdy;
+                    p += nBytesPerPixel * (dx > 0 ? 1 : -1);
                 }
             }
-            else if (dx == 0)
+            else 
             {
-                int pitch = lPitch;
-                if (dy < 0)
-                {
-                    pitch = -pitch;
-                    dy = -dy;
-                }
-
-                for (int i = 0; i <= dy; ++i)
+                int d = 2 * absdx - absdy;
+                int xstep = (X2 > X1) ? nBytesPerPixel : -nBytesPerPixel;
+                unsigned char* p = ptr;
+                for (int i = 0; i <= absdy; ++i)
                 {
                     if (shouldDraw(i))
-                        memcpy(ptr, &ddColor, nBytesPerPixel);
-                    ptr += pitch;
+                        memcpy(p, &ddColor, nBytesPerPixel);
+                    if (d >= 0)
+                    {
+                        p += xstep;
+                        d -= 2 * absdy;
+                    }
+                    d += 2 * absdx;
+                    p += pitch * (dy > 0 ? 1 : -1);
                 }
+            }
+        }
+    };
+
+    auto ClipAndDrawLine = [&rect, DrawThinLine](int& X1, int& Y1, int& X2, int& Y2) -> bool
+    {
+        auto encode = [&](int x, int y) -> int
+        {
+            int c = 0;
+            if (x < rect.left)      c |= 1;
+            if (x > rect.right)     c |= 2;
+            if (y < rect.top)       c |= 8;
+            if (y > rect.bottom)    c |= 4;
+            return c;
+        };
+
+        int code1 = encode(X1, Y1);
+        int code2 = encode(X2, Y2);
+
+        while (code1 || code2)
+        {
+            if (code1 & code2) return false;
+
+            int code = code1 ? code1 : code2;
+            int x = 0, y = 0;
+
+            if (code & 1) { x = rect.left;  y = Y1 + (Y2 - Y1) * (rect.left - X1) / (X2 - X1 + (X2 == X1)); }
+            else if (code & 2) { x = rect.right; y = Y1 + (Y2 - Y1) * (rect.right - X1) / (X2 - X1 + (X2 == X1)); }
+            else if (code & 4) { y = rect.bottom; x = X1 + (X2 - X1) * (rect.bottom - Y1) / (Y2 - Y1 + (Y2 == Y1)); }
+            else if (code & 8) { y = rect.top;   x = X1 + (X2 - X1) * (rect.top - Y1) / (Y2 - Y1 + (Y2 == Y1)); }
+
+            if (code == code1)
+            {
+                X1 = x; Y1 = y; code1 = encode(x, y);
             }
             else
             {
-                int pitch = lPitch;
-                if (dy < 0)
-                {
-                    pitch = -pitch;
-                    dy = -dy;
-                }
-
-                int dx2 = 2 * dx;
-                int dy2 = 2 * dy;
-
-                if (dx > dy)
-                {
-                    int delta = dy2 - dx;
-                    int yOffset = 0;
-                    for (int i = 0; i <= dx; ++i)
-                    {
-                        if (shouldDraw(i))
-                            memcpy(ptr + yOffset, &ddColor, nBytesPerPixel);
-                        if (delta > 0)
-                        {
-                            yOffset += pitch;
-                            delta -= dx2;
-                        }
-                        delta += dy2;
-                        ptr += nBytesPerPixel;
-                    }
-                }
-                else
-                {
-                    int delta = dx2 - dy;
-                    int xOffset = 0;
-                    for (int i = 0; i <= dy; ++i)
-                    {
-                        if (shouldDraw(i))
-                            memcpy(ptr + xOffset * nBytesPerPixel, &ddColor, nBytesPerPixel);
-                        if (delta > 0)
-                        {
-                            ++xOffset;
-                            delta -= dy2;
-                        }
-                        delta += dx2;
-                        ptr += pitch;
-                    }
-                }
+                X2 = x; Y2 = y; code2 = encode(x, y);
             }
-        };
-    auto ClipAndDrawLine = [&rect, DrawLine](int X1, int Y1, int X2, int Y2)
-        {
-            auto encode = [&rect](int x, int y)
-                {
-                    int c = 0;
-                    if (x < rect.left) c = c | 0x1;
-                    else if (x > rect.right) c = c | 0x2;
-                    if (y > rect.bottom) c = c | 0x4;
-                    else if (y < rect.top) c = c | 0x8;
-                    return c;
-                };
-            auto clip = [&rect, encode](int& X1, int& Y1, int& X2, int& Y2) -> bool
-                {
-                    int code1, code2, code;
-                    int x = 0, y = 0;
-                    code1 = encode(X1, Y1);
-                    code2 = encode(X2, Y2);
-                    while (code1 != 0 || code2 != 0)
-                    {
-                        if ((code1 & code2) != 0) return false;
-                        code = code1;
-                        if (code == 0) code = code2;
-                        if ((0b1 & code) != 0)
-                        {
-                            x = rect.left;
-                            y = Y1 + (Y2 - Y1) * (rect.left - X1) / (X2 - X1);
-                        }
-                        else if ((0b10 & code) != 0)
-                        {
-                            x = rect.right;
-                            y = Y1 + (Y2 - Y1) * (rect.right - X1) / (X2 - X1);
-                        }
-                        else if ((0b100 & code) != 0)
-                        {
-                            y = rect.bottom;
-                            x = X1 + (X2 - X1) * (rect.bottom - Y1) / (Y2 - Y1);
-                        }
-                        else if ((0b1000 & code) != 0)
-                        {
-                            y = rect.top;
-                            x = X1 + (X2 - X1) * (rect.top - Y1) / (Y2 - Y1);
-                        }
-                        if (code == code1)
-                        {
-                            X1 = x;
-                            Y1 = y;
-                            code1 = encode(x, y);
-                        }
-                        else
-                        {
-                            X2 = x;
-                            Y2 = y;
-                            code2 = encode(x, y);
-                        }
-                    }
-                    return true;
-                };
-            if (clip(X1, Y1, X2, Y2))
-            {
+        }
 
+        DrawThinLine(X1, Y1, X2, Y2);
+        return true;
+    };
 
+    if (nThickness <= 1)
+    {
+        int tx1 = x1, ty1 = y1, tx2 = x2, ty2 = y2;
+        ClipAndDrawLine(tx1, ty1, tx2, ty2);
+        return;
+    }
 
-                DrawLine(X1, Y1, X2, Y2);
-            }
-                
-        };
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+    float len = sqrtf((float)(dx * dx + dy * dy));
+    if (len < 1e-6f) return;
 
-    ClipAndDrawLine(x1, y1, x2, y2);
+    float nx = -dy / len;
+    float ny = dx / len;
+    int half = (nThickness - 1) / 2;
+
+    for (int i = -half; i <= half; ++i)
+    {
+        float offset = (float)i + 0.5f;
+        int ox = (int)(nx * offset + 0.5f);
+        int oy = (int)(ny * offset + 0.5f);
+
+        int tx1 = x1 + ox, ty1 = y1 + oy;
+        int tx2 = x2 + ox, ty2 = y2 + oy;
+        ClipAndDrawLine(tx1, ty1, tx2, ty2);
+    }
 }
 
 void CIsoViewExt::DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord>>& lines, int X, int Y, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc)
@@ -1751,19 +1728,19 @@ int CIsoViewExt::GetSelectedSubcellInfantryIdx(int X, int Y, bool getSubcel)
 
 void CIsoViewExt::DrawBitmap(FString filename, int X, int Y, LPDDSURFACEDESC2 lpDesc)
 {
-    this->BlitTransparentDesc(CLoadingExt::GetSurfaceImageDataFromMap(filename + ".bmp")->lpSurface, this->lpDDBackBufferSurface, lpDesc, X, Y, -1, -1);
+    this->BlitTransparentDesc(CLoadingExt::GetSurfaceImageDataFromMap(filename + ".bmp")->lpSurface, GetBackBuffer(), lpDesc, X, Y, -1, -1);
 }
 
 void CIsoViewExt::DrawCelltag(int X, int Y, LPDDSURFACEDESC2 lpDesc)
 {
     auto image = CLoadingExt::GetSurfaceImageDataFromMap("CELLTAG");
-    this->BlitTransparentDesc(image->lpSurface, this->lpDDBackBufferSurface, lpDesc, X + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
+    this->BlitTransparentDesc(image->lpSurface, GetBackBuffer(), lpDesc, X + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
 }
 
 void CIsoViewExt::DrawWaypointFlag(int X, int Y, LPDDSURFACEDESC2 lpDesc)
 {
     auto image = CLoadingExt::GetSurfaceImageDataFromMap("FLAG");
-    this->BlitTransparentDesc(image->lpSurface, this->lpDDBackBufferSurface, lpDesc, X + 5 + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
+    this->BlitTransparentDesc(image->lpSurface, GetBackBuffer(), lpDesc, X + 5 + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
 }
 void CIsoViewExt::GetSameConnectedCells(int X, int Y, int oriX, int oriY, std::set<MapCoord>* selectedCoords)
 {
@@ -2184,9 +2161,9 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
     RECT windowRect;
     if (!surface) {
         windowRect = CIsoViewExt::GetScaledWindowRect();
-        surface = pThis->lpDDBackBufferSurface;
+        surface = GetBackBuffer();
     }
-    else if (surface == pThis->lpDDBackBufferSurface) {
+    else if (surface == GetBackBuffer()) {
         windowRect = CIsoViewExt::GetScaledWindowRect();
     }
     else {
@@ -2311,7 +2288,7 @@ void CIsoViewExt::BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURF
 
     auto pThis = CIsoView::GetInstance();
     RECT windowRect;
-    if (surface == pThis->lpDDBackBufferSurface) {
+    if (surface == GetBackBuffer()) {
         windowRect = CIsoViewExt::GetScaledWindowRect();
     }
     else {
@@ -2429,7 +2406,7 @@ void CIsoViewExt::BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDR
 
     auto pThis = CIsoView::GetInstance();
     RECT windowRect;
-    if (surface == pThis->lpDDBackBufferSurface) {
+    if (surface == GetBackBuffer()) {
         windowRect = CIsoViewExt::GetScaledWindowRect();
     }
     else {
@@ -4635,6 +4612,191 @@ void CIsoViewExt::SetStatusBarText(const char* text)
         ::SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0, (LPARAM)text);
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
         ::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
+    }
+}
+
+void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
+{
+    auto Map = CMapDataExt::GetExtension();
+
+    if (CIsoView::CurrentCommand->Type < CUSTOM_TILE_START)
+    {
+        int i, e, f, n;
+        int p = 0;
+        auto tileData = CMapDataExt::TileData[CIsoView::CurrentCommand->Type];
+        auto cell = Map->TryGetCellAt(x, y);
+
+        int width = tileData.Height;
+        int height = tileData.Width;
+        int pos = x - width + 1 + (y - height + 1) * Map->MapWidthPlusHeight;
+        int startheight = cell->Height + CIsoView::CurrentCommand->Height;
+        int ground = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+
+        startheight -= CMapDataExt::TileData[ground].TileBlockDatas[cell->TileSubIndex].Height;
+
+        if (recordHistory)
+            Map->SaveUndoRedoData(TRUE, x - width - 4,
+                y - height - 4,
+                x - width + this->BrushSizeX * width + 7,
+                y - height + this->BrushSizeY * height + 7);
+        int cur_pos = pos;
+        int height_add = height * Map->MapWidthPlusHeight;
+
+        for (f = 0; f < this->BrushSizeX; f++)
+        {
+            for (n = 0; n < this->BrushSizeY; n++)
+            {
+                int tile = CIsoView::CurrentCommand->Type;
+
+                if (CIsoView::CurrentCommand->Param == 1)
+                {
+                    tile = CIsoViewExt::GetRandomTileIndex();
+                }
+
+                cur_pos = pos + f * width + n * height_add;
+                p = 0;
+                for (i = 0; i < tileData.Height; i++)
+                {
+                    for (e = 0; e < tileData.Width; e++)
+                    {
+                        if (x - width + 1 + f * width + i >= Map->MapWidthPlusHeight ||
+                            y - height + 1 + n * height + e >= Map->MapWidthPlusHeight)
+                        {
+                        }
+                        else
+                            if (tileData.TileBlockDatas[p].ImageData != NULL)
+                            {
+                                int mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
+
+                                Map->SetHeightAt(Map->GetXFromCoordIndex(mypos),
+                                    Map->GetYFromCoordIndex(mypos),
+                                    startheight + tileData.TileBlockDatas[p].Height);
+                                Map->SetTileAt(mypos, tile, p);
+                            }
+                        p++;
+                    }
+                }
+            }
+        }
+
+        if (!((nFlags & MK_CONTROL) && (nFlags & MK_SHIFT)))
+        {
+            if (!CFinalSunApp::Instance->DisableAutoShore)
+                Map->CreateShore(x - width - 2, y - height - 2,
+                    x - width + tileData.Height * this->BrushSizeX + 5,
+                    y - height + tileData.Width * this->BrushSizeY + 5, FALSE);
+
+            for (f = 0; f < this->BrushSizeX; f++)
+            {
+                for (n = 0; n < this->BrushSizeY; n++)
+                {
+                    cur_pos = pos + f * width + n * height_add;
+                    p = 0;
+                    for (i = -1; i < tileData.Height + 1; i++)
+                    {
+                        for (e = -1; e < tileData.Width + 1; e++)
+                        {
+                            auto mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
+                            Map->SmoothTileAt(Map->GetXFromCoordIndex(mypos),
+                                Map->GetYFromCoordIndex(mypos));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        int i, e, f, n;
+        int p = 0;
+        auto tileData = CMapDataExt::GetCustomTile(CIsoView::CurrentCommand->Type);
+        auto cell = Map->TryGetCellAt(x, y);
+
+        int width = tileData->Height;
+        int height = tileData->Width;
+        int pos = x - width + 1 + (y - height + 1) * Map->MapWidthPlusHeight;
+        int startheight = cell->Height + CIsoView::CurrentCommand->Height;
+        int ground = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+
+        startheight -= CMapDataExt::TileData[ground].TileBlockDatas[cell->TileSubIndex].Height;
+
+        if (recordHistory)
+            Map->SaveUndoRedoData(TRUE, x - width - 4,
+                y - height - 4,
+                x - width + this->BrushSizeX * width + 7,
+                y - height + this->BrushSizeY * height + 7);
+        int cur_pos = pos;
+        int height_add = height * Map->MapWidthPlusHeight;
+
+        for (f = 0; f < this->BrushSizeX; f++)
+        {
+            for (n = 0; n < this->BrushSizeY; n++)
+            {
+                cur_pos = pos + f * width + n * height_add;
+                p = 0;
+                for (i = 0; i < tileData->Height; i++)
+                {
+                    for (e = 0; e < tileData->Width; e++)
+                    {
+                        if (x - width + 1 + f * width + i >= Map->MapWidthPlusHeight ||
+                            y - height + 1 + n * height + e >= Map->MapWidthPlusHeight)
+                        {
+                        }
+                        else
+                        {
+                            auto& tile = tileData->TileBlockDatas[p];
+                            auto block = tile.TileBlock;
+                            if (block && block->ImageData != NULL)
+                            {
+                                int mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
+                                auto tileData = CMapDataExt::TileData[tile.TileIndex];
+                                auto tileSet = tileData.TileSet;
+                                bool isBridge = (tileSet == CMapDataExt::BridgeSet || tileSet == CMapDataExt::WoodBridgeSet);
+
+                                Map->SetHeightAt(Map->GetXFromCoordIndex(mypos),
+                                    Map->GetYFromCoordIndex(mypos),
+                                    startheight + tile.GetHeight());
+
+                                auto cell = Map->GetCellAt(mypos);
+                                cell->TileIndex = tile.TileIndex;
+                                cell->TileSubIndex = tile.SubTileIndex;
+                                cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
+
+                                CMapData::Instance->UpdateMapPreviewAt(Map->GetXFromCoordIndex(mypos),
+                                    Map->GetYFromCoordIndex(mypos));
+                            }
+                        }
+                        p++;
+                    }
+                }
+            }
+        }
+
+        if (!((nFlags & MK_CONTROL) && (nFlags & MK_SHIFT)))
+        {
+            if (!CFinalSunApp::Instance->DisableAutoShore)
+                Map->CreateShore(x - width - 2, y - height - 2,
+                    x - width + tileData->Height * this->BrushSizeX + 5,
+                    y - height + tileData->Width * this->BrushSizeY + 5, FALSE);
+
+            for (f = 0; f < this->BrushSizeX; f++)
+            {
+                for (n = 0; n < this->BrushSizeY; n++)
+                {
+                    cur_pos = pos + f * width + n * height_add;
+                    p = 0;
+                    for (i = -1; i < tileData->Height + 1; i++)
+                    {
+                        for (e = -1; e < tileData->Width + 1; e++)
+                        {
+                            auto mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
+                            Map->SmoothTileAt(Map->GetXFromCoordIndex(mypos),
+                                Map->GetYFromCoordIndex(mypos));
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

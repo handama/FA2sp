@@ -26,7 +26,7 @@
 #include "../../Miscs/DialogStyle.h"
 
 HWND CTileSetBrowserFrameExt::hTabCtrl = NULL;
-
+bool CTileSetBrowserFrameExt::TerrainDlgLoaded = true;
 
 void CTileSetBrowserFrameExt::ProgramStartupInit()
 {
@@ -34,7 +34,6 @@ void CTileSetBrowserFrameExt::ProgramStartupInit()
 	RunTime::ResetMemoryContentAt(0x597444, &CTileSetBrowserFrameExt::OnNotifyExt);
 	RunTime::ResetMemoryContentAt(0x597440, &CTileSetBrowserFrameExt::OnCommandExt);
 }
-
 
 void CTileSetBrowserFrameExt::OnBNTileManagerClicked()
 {

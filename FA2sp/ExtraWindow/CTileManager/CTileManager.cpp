@@ -78,10 +78,14 @@ void CTileManager::InitNodes()
         );
     }
 
+    if (!Translations::GetTranslationItem("TileManagerCustom", lpKey))
+        lpKey = "Custom";
+    CTileManager::Nodes.push_back(std::make_pair(lpKey, std::regex("INVALID_CUSTOM")));
+
     if (!Translations::GetTranslationItem("TileManagerOthers", lpKey))
-        lpKey = "Others";
-    
+        lpKey = "Others"; 
     CTileManager::Nodes.push_back(std::make_pair(lpKey, std::regex("")));
+
 
     CTileManager::Datas.resize(CTileManager::Nodes.size());
 }
@@ -252,14 +256,29 @@ void CTileManager::UpdateTypes(HWND hWnd)
     for (int idx = 0; idx < nTileCount; ++idx)
     {
         int nTile = SendMessage(hTileComboBox, CB_GETITEMDATA, idx, NULL);
-        tile.Format("TileSet%04d", nTile);
-        tile = CINI::CurrentTheater->GetString(tile, "SetName", "NO NAME");
+        if (nTile < 10000)
+        {
+            tile.Format("TileSet%04d", nTile);
+            tile = CINI::CurrentTheater->GetString(tile, "SetName", "NO NAME");
+        }
+        else
+        {
+            tile = Translations::TranslateTileSet(nTile);
+        }
+
         bool other = true;
+        bool added = false;
         for (size_t i = 0; i < CTileManager::Nodes.size() - 1; ++i)
         {
             if (std::regex_search(tile, CTileManager::Nodes[i].second))
             {
                 CTileManager::Datas[i].push_back(idx); 
+                other = false;
+                added = true;
+            }
+            else if (!added && i == CTileManager::Nodes.size() - 2 && nTile >= 10000)
+            {
+                CTileManager::Datas[i].push_back(idx);
                 other = false;
             }
         }
@@ -284,7 +303,10 @@ void CTileManager::UpdateDetails(HWND hWnd, int kNode)
         for (auto& x : CTileManager::Datas[kNode])
         {
             int data = SendMessage(hTileComboBox, CB_GETITEMDATA, x, NULL);
-            buffer.Format("(%04d) %s", data, Translations::TranslateTileSet(data));
+            if (data >= 10000)
+                buffer.Format("(%d) %s", data, Translations::TranslateTileSet(data));
+            else
+                buffer.Format("(%04d) %s", data, Translations::TranslateTileSet(data));
             SendMessage(
                 hTileDetails, 
                 LB_SETITEMDATA, 

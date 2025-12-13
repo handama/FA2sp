@@ -316,21 +316,22 @@ void CTerrainGenerator::Update(HWND& hWnd)
     while (SendMessage(hTileSet[3], CB_DELETESTRING, 0, NULL) != CB_ERR);
     while (SendMessage(hTileSet[4], CB_DELETESTRING, 0, NULL) != CB_ERR);
     if (nTileCount > 0) {
-        int idx;
-        for (idx = 0; idx < nTileCount; ++idx)
+        int index = 0;
+        for (int idx = 0; idx < nTileCount; ++idx)
         {
             SendMessage(hTileComboBox, CB_GETLBTEXT, idx, (LPARAM)(LPCSTR)buffer);
-            SendMessage(hTileSet[0], CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)buffer);
-            SendMessage(hTileSet[1], CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)buffer);
-            SendMessage(hTileSet[2], CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)buffer);
-            SendMessage(hTileSet[3], CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)buffer);
-            SendMessage(hTileSet[4], CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)buffer);
+            SendMessage(hTileSet[0], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)buffer);
+            SendMessage(hTileSet[1], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)buffer);
+            SendMessage(hTileSet[2], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)buffer);
+            SendMessage(hTileSet[3], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)buffer);
+            SendMessage(hTileSet[4], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)buffer);
+            index++;
         }
-        SendMessage(hTileSet[0], CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)"<none>");
-        SendMessage(hTileSet[1], CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)"<none>");
-        SendMessage(hTileSet[2], CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)"<none>");
-        SendMessage(hTileSet[3], CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)"<none>");
-        SendMessage(hTileSet[4], CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)"<none>");
+        SendMessage(hTileSet[0], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)"<none>");
+        SendMessage(hTileSet[1], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)"<none>");
+        SendMessage(hTileSet[2], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)"<none>");
+        SendMessage(hTileSet[3], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)"<none>");
+        SendMessage(hTileSet[4], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)"<none>");
     }
     SendMessage(hOverride, BM_SETCHECK, bOverride, 0);
 

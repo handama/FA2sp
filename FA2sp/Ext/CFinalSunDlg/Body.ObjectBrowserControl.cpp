@@ -371,20 +371,6 @@ FString CViewObjectsExt::QueryUIName(const char* pRegName, bool bOnlyOneLine)
     return idx == -1 ? buffer : buffer.Mid(0, idx);
 }
 
-static std::vector<int> SplitCommaIntArray(FString input)
-{
-    CString field;
-    std::vector<int> result;
-    int index = 0;
-
-    while (AfxExtractSubString(field, input, index, _T(',')))
-    {
-        result.push_back(STDHelpers::ParseToInt(field, -1));
-        ++index;
-    }
-    return result;
-}
-
 int CViewObjectsExt::PropagateFirstNonZeroIcon(HTREEITEM hItem)
 {
     if (!hItem) return 0;
@@ -545,12 +531,12 @@ void CViewObjectsExt::Redraw_Initialize()
         for (auto& item : knownSection->GetEntities())
         {
             
-            auto forceSides = SplitCommaIntArray(item.second);
+            auto forceSides = STDHelpers::SplitString(item.second);
 
             for (int i = 0; i < 9; ++i) {
                 if (i < forceSides.size())
                 {
-                    int sideIndex = forceSides[i];
+                    int sideIndex = STDHelpers::ParseToInt(forceSides[i]);
                     if (sideIndex >= fadata.GetKeyCount(ExtraWindow::GetTranslatedSectionName("Sides")))
                         sideIndex = -1;
                     if (sideIndex < -1)
@@ -561,10 +547,7 @@ void CViewObjectsExt::Redraw_Initialize()
                 {
                     KnownItem[item.first][i] = -1;
                 }
-
-            }
-
-           
+            }          
         }
     }
 

@@ -54,6 +54,7 @@ BOOL CAnnotationDlg::OnInitDialog()
 		::SendMessage(GetDlgItem(1007)->GetSafeHwnd(), BM_SETCHECK, BST_CHECKED, 0);
 	m_nInitTimer = SetTimer(GetSafeHwnd(), 1, 20, nullptr);
 
+	ExtraWindow::SetEditControlFontSize(GetDlgItem(1000)->GetSafeHwnd(), 1.4f, true);
 	if (ExtConfigs::EnableDarkMode)
 	{
 		::SendMessage(GetDlgItem(1000)->GetSafeHwnd(), EM_SETBKGNDCOLOR, (WPARAM)FALSE, (LPARAM)RGB(32, 32, 32));

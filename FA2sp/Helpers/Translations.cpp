@@ -104,6 +104,7 @@ char Translations::pLanguage[4][0x400];
 FString Translations::CurrentTileSet;
 std::map<HWND, int> Translations::DlgIdMap;
 std::map<UINT, FString> Translations::StringTable;
+std::map<int, FString> Translations::CustomTileSetNames;
 std::unique_ptr<CINI, GameUniqueDeleter<CINI>> Translations::FADialog;
 bool Translations::GetTranslationItem(const char* pLabelName, ppmfc::CString& ret)
 {
@@ -257,6 +258,15 @@ ppmfc::CString Translations::TranslateTileSet(int index)
     if (!CMapData::Instance->MapWidthPlusHeight)
         return "MISSING";
 
+    if (index >= 10000)
+    {
+        auto itr = CustomTileSetNames.find(index);
+        if (itr != CustomTileSetNames.end())
+            return itr->second;
+        else
+            return "No Name";
+    }
+
     ppmfc::CString setID;
     setID.Format("TileSet%04d", index);
     auto setName = CINI::CurrentTheater()->GetString(setID, "SetName", setID);
@@ -280,7 +290,6 @@ ppmfc::CString Translations::TranslateTileSet(int index)
 
     return result;
 }
-
 
 FString Translations::ParseHouseName(FString src, bool IDToUIName)
 {

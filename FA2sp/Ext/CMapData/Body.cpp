@@ -99,6 +99,7 @@ bool CMapDataExt::IsUTF8File = false;
 bool CMapDataExt::SkipBuildingOverlappingCheck = false;
 std::vector<FString> CMapDataExt::MapIniSectionSorting;
 std::map<FString, std::set<FString>> CMapDataExt::PowersUpBuildings;
+std::map<int, std::vector<CustomTile>> CMapDataExt::CustomTiles;
 ObjectRecord* ObjectRecord::ObjectRecord_HoldingPtr = nullptr;
 
 int CMapDataExt::GetOreValue(unsigned short nOverlay, unsigned char nOverlayData)
@@ -569,72 +570,149 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 			return;
 	}
 
-	index = CMapDataExt::GetSafeTileIndex(index);
-	if (index > CMapDataExt::TileDataCount) return;
-	const auto& tileData = CMapDataExt::TileData[index];
-	int width = CMapDataExt::TileData[index].Width;
-	int height = CMapDataExt::TileData[index].Height;
-	int startHeight = this->GetCellAt(X, Y)->Height;
-	bool isBridge = (tileData.TileSet == BridgeSet || tileData.TileSet == WoodBridgeSet);
+	if (index < CUSTOM_TILE_START)
+	{
+		index = CMapDataExt::GetSafeTileIndex(index);
+		if (index > CMapDataExt::TileDataCount) return;
+		const auto& tileData = CMapDataExt::TileData[index];
+		int width = CMapDataExt::TileData[index].Width;
+		int height = CMapDataExt::TileData[index].Height;
+		int startHeight = this->GetCellAt(X, Y)->Height;
+		bool isBridge = (tileData.TileSet == BridgeSet || tileData.TileSet == WoodBridgeSet);
 
-	int subIdx = 0;
-	switch (callType)
-	{
-	case 1: // random terrain
-	{
+		int subIdx = 0;
+		switch (callType)
+		{
+		case 1: // random terrain
+		{
+			for (int m = 0; m < height; m++)
+			{
+				for (int n = 0; n < width; n++)
+				{
+					if (!this->IsCoordInMap(m + X, n + Y))
+						continue;
+					if (tileData.TileBlockDatas[subIdx].ImageData != NULL)
+					{
+						auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(m + X, n + Y)];
+						if (cellExt.AddRandomTile) return;
+					}
+					subIdx++;
+				}
+			}
+		}
+		break;
+		default:
+			break;
+		}
+
+		subIdx = 0;
 		for (int m = 0; m < height; m++)
 		{
 			for (int n = 0; n < width; n++)
 			{
-				if (!this->IsCoordInMap(m + X, n + Y))
-					continue;
-				if (tileData.TileBlockDatas[subIdx].ImageData != NULL)
+				if (tileData.TileBlockDatas[subIdx].ImageData != NULL && this->IsCoordInMap(m + X, n + Y))
 				{
+					auto cell = this->GetCellAt(m + X, n + Y);
+					cell->TileIndex = index;
+					cell->TileSubIndex = subIdx;
+					cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
+					SetHeightAt(m + X, n + Y, startHeight + tileData.TileBlockDatas[subIdx].Height);
+					CMapData::Instance->UpdateMapPreviewAt(m + X, n + Y);
+
 					auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(m + X, n + Y)];
-					if (cellExt.AddRandomTile) return;
+					switch (callType)
+					{
+					case 1: // random terrain
+					{
+						cellExt.AddRandomTile = true;
+						break;
+					}
+					case 2: // line tile
+					{
+						cellExt.LineToolProcessed = true;
+						break;
+					}
+					break;
+					default:
+						break;
+					}
 				}
 				subIdx++;
 			}
-		}	
+		}
 	}
-	break;
-	default:
-		break;
-	}
-
-	subIdx = 0;
-	for (int m = 0; m < height; m++)
+	else
 	{
-		for (int n = 0; n < width; n++)
-		{
-			if (tileData.TileBlockDatas[subIdx].ImageData != NULL && this->IsCoordInMap(m + X, n + Y))
-			{
-				auto cell = this->GetCellAt(m + X, n + Y);
-				cell->TileIndex = index;
-				cell->TileSubIndex = subIdx;
-				cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
-				SetHeightAt(m + X, n + Y, startHeight + tileData.TileBlockDatas[subIdx].Height);
-				CMapData::Instance->UpdateMapPreviewAt(m + X, n + Y);
+		auto customTileData = CMapDataExt::GetCustomTile(index);
+		int width = customTileData->Width;
+		int height = customTileData->Height;
+		int startHeight = this->GetCellAt(X, Y)->Height;
 
-				auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(m + X, n + Y)];
-				switch (callType)
+		int subIdx = 0;
+		switch (callType)
+		{
+		case 1: // random terrain
+		{
+			for (int m = 0; m < height; m++)
+			{
+				for (int n = 0; n < width; n++)
 				{
-				case 1: // random terrain
-				{
-					cellExt.AddRandomTile = true;
-					break;
-				}
-				case 2: // line tile
-				{
-					cellExt.LineToolProcessed = true;
-					break;
-				}
-				break;
-				default:
-					break;
+					if (!this->IsCoordInMap(m + X, n + Y))
+						continue;
+					if (customTileData->TileBlockDatas[subIdx].TileBlock 
+						&& customTileData->TileBlockDatas[subIdx].TileBlock->ImageData)
+					{
+						auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(m + X, n + Y)];
+						if (cellExt.AddRandomTile) return;
+					}
+					subIdx++;
 				}
 			}
-			subIdx++;
+		}
+		break;
+		default:
+			break;
+		}
+
+		subIdx = 0;
+		for (int m = 0; m < height; m++)
+		{
+			for (int n = 0; n < width; n++)
+			{
+				auto& tile = customTileData->TileBlockDatas[subIdx];
+				if (tile.TileBlock && tile.TileBlock->ImageData && this->IsCoordInMap(m + X, n + Y))
+				{
+					auto tileData = CMapDataExt::TileData[tile.TileIndex];
+					auto tileSet = tileData.TileSet;
+					bool isBridge = (tileSet == CMapDataExt::BridgeSet || tileSet == CMapDataExt::WoodBridgeSet);
+
+					auto cell = this->GetCellAt(m + X, n + Y);
+					cell->TileIndex = tile.TileIndex;
+					cell->TileSubIndex = tile.SubTileIndex;
+					cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
+					SetHeightAt(m + X, n + Y, startHeight + tile.GetHeight());
+					CMapData::Instance->UpdateMapPreviewAt(m + X, n + Y);
+
+					auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(m + X, n + Y)];
+					switch (callType)
+					{
+					case 1: // random terrain
+					{
+						cellExt.AddRandomTile = true;
+						break;
+					}
+					case 2: // line tile
+					{
+						cellExt.LineToolProcessed = true;
+						break;
+					}
+					break;
+					default:
+						break;
+					}
+				}
+				subIdx++;
+			}
 		}
 	}
 }
@@ -2441,9 +2519,129 @@ void CMapDataExt::InitializeTileData()
 	}
 }
 
+void CustomTileBlock::SetTileBlock(int tile, int subtile, int height)
+{
+	Height = height;
+	TileIndex = tile;
+	SubTileIndex = subtile;
+	if (CMapDataExt::TileDataCount > TileIndex
+		&& CMapDataExt::TileData[TileIndex].TileBlockCount > SubTileIndex
+		&& CMapDataExt::TileData[TileIndex].TileBlockDatas[SubTileIndex].ImageData)
+		TileBlock = &CMapDataExt::TileData[TileIndex].TileBlockDatas[SubTileIndex];
+	else
+		TileBlock = nullptr;
+
+	FrameTileIndex = TileIndex;
+	if (CMapDataExt::TileData[TileIndex].FrameModeIndex != 0xFFFF)
+		FrameTileIndex = CMapDataExt::TileData[TileIndex].FrameModeIndex;
+
+	if (CMapDataExt::TileDataCount > FrameTileIndex
+		&& CMapDataExt::TileData[FrameTileIndex].TileBlockCount > SubTileIndex
+		&& CMapDataExt::TileData[FrameTileIndex].TileBlockDatas[SubTileIndex].ImageData)
+		FrameTileBlock = &CMapDataExt::TileData[FrameTileIndex].TileBlockDatas[SubTileIndex];
+	else
+		FrameTileBlock = TileBlock;
+}
+
+int CustomTileBlock::GetHeight() const
+{
+	int height = 0;
+	if (TileBlock)
+		height = Height;// +TileBlock->Height;
+	if (height > 14) height = 14;
+	return height;
+}
+
+CTileBlockClass* CustomTileBlock::GetDisplayTileBlock()
+{
+	if (CFinalSunApp::Instance->FrameMode && FrameTileBlock)
+	{
+		return FrameTileBlock;
+	}
+	return TileBlock;
+}
+
+int CustomTileBlock::GetDisplayTileIndex() const
+{
+	if (CFinalSunApp::Instance->FrameMode && FrameTileBlock)
+	{
+		return FrameTileIndex;
+	}
+	return TileIndex;
+}
+
+void CustomTile::Initialize(int witdh, int height)
+{
+	Width = witdh;
+	Height = height;
+	TileBlockDatas = std::make_unique<CustomTileBlock[]>(Width * Height);
+}
+
+CustomTile* CMapDataExt::GetCustomTile(int tileIndex)
+{
+	tileIndex -= CUSTOM_TILE_START;
+	for (auto& [tileset, ct] : CMapDataExt::CustomTiles)
+	{
+		if (tileIndex < 0)
+			return nullptr;
+		if (tileIndex < ct.size())
+		{
+			return &ct[tileIndex];
+		}
+		else
+		{
+			tileIndex -= ct.size();
+			continue;
+		}
+	}
+	return nullptr;
+}
+
+int CMapDataExt::GetCustomTileSet(int tileIndex)
+{
+	tileIndex -= CUSTOM_TILE_START;
+	for (auto& [tileset, ct] : CMapDataExt::CustomTiles)
+	{
+		if (tileIndex < 0)
+			return 0;
+		if (tileIndex < ct.size())
+		{
+			return tileset;
+		}
+		else
+		{
+			tileIndex -= ct.size();
+			continue;
+		}
+	}
+	return 0;
+}
+
+int CMapDataExt::GetCustomTileIndex(int tileSet, int tileIndex)
+{
+	int ret = CUSTOM_TILE_START;
+	for (auto& [tileset, ct] : CMapDataExt::CustomTiles)
+	{
+		if (tileset < tileSet)
+		{
+			ret += ct.size();
+		}
+		else if (tileset == tileSet)
+		{
+			ret += tileIndex;
+			return ret;
+		}
+	}
+	return 0;
+}
+
 void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDataExt, bool reloadImages)
 {
 	Logger::Debug("CMapDataExt::InitializeAllHdmEdition() Called with parameter %d %d %d.\n", updateMinimap, reloadCellDataExt, reloadImages);
+	
+	if (updateMinimap && reloadCellDataExt && reloadImages)
+		CTileSetBrowserFrameExt::TerrainDlgLoaded = false;
+	
 	CIsoView::CurrentCommand->Type = 0;
 	CIsoView::CurrentCommand->Command = 0;
 	FA2sp::g_VEH_Enabled = true;

@@ -349,6 +349,7 @@ public:
 	bool LoadTopMix(const std::string& path);
 	bool LoadNestedMix(MixFile& parent, const MixEntry& entry);
 	int LoadMixFile(const std::string& path, int* parentIndex = nullptr);
+	int LoadMixFile(const std::string& path, int specificParent);
 	int QueryFileIndex(const std::string& fileName, int mixIdx = -1);
 	std::unique_ptr<uint8_t[]> LoadFile(const std::string& fileName, size_t* outSize, int mixIdx = -1);
 	bool ExtractFile(const std::string& fileName, const std::string& outPath, int mixIdx = -1);

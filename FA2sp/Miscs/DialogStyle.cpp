@@ -1867,16 +1867,25 @@ BOOL DarkTheme::HandleDialogResult(IFileDialog* pfd, OPENFILENAMEA* ofn, std::ve
         size_t dotPos = wpath.find_last_of(L'.');
         size_t slashPos = wpath.find_last_of(L"\\/");
 
-        if (dotPos == std::wstring::npos || (slashPos != std::wstring::npos && dotPos < slashPos))
+        if (dotPos == std::wstring::npos ||
+            (slashPos != std::wstring::npos && dotPos < slashPos))
         {
-            UINT idx = ofn->nFilterIndex ? ofn->nFilterIndex : 1;
-            if (idx > specs->size()) idx = (UINT)specs->size();
+            UINT idx = 1;
+            if (SUCCEEDED(pfd->GetFileTypeIndex(&idx)))
+            {
+                if (idx == 0) idx = 1;
+                if (idx > specs->size()) idx = (UINT)specs->size();
+            }
 
             std::wstring ext = (*specs)[idx - 1].pszSpec;
 
             size_t star = ext.find(L'*');
             size_t dot = ext.find(L'.', star);
-            if (dot != std::wstring::npos) ext = ext.substr(dot);
+            if (dot != std::wstring::npos)
+            {
+                size_t end = ext.find_first_of(L";)", dot);
+                ext = ext.substr(dot, end - dot);
+            }
 
             if (!ext.empty())
                 wpath += ext;

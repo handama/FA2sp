@@ -297,11 +297,6 @@ DEFINE_HOOK(4F0A40, CTerrainDlg_OnSelchangeTileset, 7)
 
     return 0;
 }
-DEFINE_HOOK(4F3C00, CTileSetBrowserView_OnLButtonDown, 7)
-{
-    CViewObjectsExt::InitializeOnUpdateEngine();
-    return 0;
-}
 
 //DEFINE_HOOK(4F17B0, CTerrainDlg_OnSelchangeOverlay, 5)
 //{
@@ -651,60 +646,131 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
 
             if (command.Command == 10) // place tile
             {
-                pMap->SaveUndoRedoData(true, 0, 0, 0, 0);
-                int index = CMapDataExt::GetSafeTileIndex(command.Type);
-                const auto& tileData = CMapDataExt::TileData[index];
-                int width = CMapDataExt::TileData[index].Width * pIsoView->BrushSizeY;
-                int height = CMapDataExt::TileData[index].Height * pIsoView->BrushSizeX;
+                int x1 = command.X;
+                int y1 = command.Y;
+                int x2 = X;
+                int y2 = Y;
 
-                if (width > 1 || height > 1)
-                {
-                    mapCoords = pIsoView->GetLineRectangles({ command.X, command.Y }, { X,Y }, height, width);
-                }
+                if (x1 > x2) std::swap(x1, x2);
+                if (y1 > y2) std::swap(y1, y2);
 
-                for (const auto& mc : mapCoords)
+                if (command.Type < CUSTOM_TILE_START)
                 {
-                    for (int i = 0; i < pIsoView->BrushSizeX; ++i)
+                    int index = CMapDataExt::GetSafeTileIndex(command.Type);
+                    const auto& tileData = CMapDataExt::TileData[index];
+                    int width = CMapDataExt::TileData[index].Width * pIsoView->BrushSizeY;
+                    int height = CMapDataExt::TileData[index].Height * pIsoView->BrushSizeX;
+
+                    pMap->SaveUndoRedoData(TRUE, x1 - width - 4,
+                        y1 - height - 4,
+                        x2 - width + pIsoView->BrushSizeX * width + 7,
+                        y2 - height + pIsoView->BrushSizeY * height + 7);
+
+                    if (width > 1 || height > 1)
                     {
-                        for (int e = 0; e < pIsoView->BrushSizeY; ++e)
+                        mapCoords = pIsoView->GetLineRectangles({ command.X, command.Y }, { X,Y }, height, width);
+                    }
+
+                    for (const auto& mc : mapCoords)
+                    {
+                        for (int i = 0; i < pIsoView->BrushSizeX; ++i)
                         {
-                            int tileIndex = command.Type;
-                            if (command.Param == 1) // random tile
+                            for (int e = 0; e < pIsoView->BrushSizeY; ++e)
                             {
-                                tileIndex = CIsoViewExt::GetRandomTileIndex();
+                                int tileIndex = command.Type;
+                                if (command.Param == 1) // random tile
+                                {
+                                    tileIndex = CIsoViewExt::GetRandomTileIndex();
+                                }
+                                pMap->PlaceTileAt(mc.X + 1 + (i - 1) * CMapDataExt::TileData[index].Height,
+                                    mc.Y + 1 + (e - 1) * CMapDataExt::TileData[index].Width, tileIndex, 2);
                             }
-                            pMap->PlaceTileAt(mc.X + 1 + (i - 1) * CMapDataExt::TileData[index].Height,
-                                mc.Y + 1 + (e - 1) * CMapDataExt::TileData[index].Width, tileIndex, 2);
                         }
+
+                    }
+                    if (!mapCoords.empty() && !CFinalSunApp::Instance->DisableAutoLat)
+                    {
+                        std::set<MapCoord> editedCoords;
+                        for (int i = 0; i < pMap->CellDataExts.size(); ++i)
+                        {
+                            auto& cell = pMap->CellDataExts[i];
+                            if (cell.LineToolProcessed)
+                            {
+                                editedCoords.insert({ pMap->GetXFromCoordIndex(i), pMap->GetYFromCoordIndex(i) });
+                            }
+                        }
+                        std::set<MapCoord> editedLatCoords;
+                        for (const auto& p : editedCoords) {
+                            editedLatCoords.insert({ p.X + 1, p.Y });
+                            editedLatCoords.insert({ p.X - 1, p.Y });
+                            editedLatCoords.insert({ p.X, p.Y + 1 });
+                            editedLatCoords.insert({ p.X, p.Y - 1 });
+                            editedLatCoords.insert({ p.X, p.Y });
+                        }
+                        for (const auto& p : editedLatCoords)
+                        {
+                            pMap->SmoothTileAt(p.X, p.Y, true);
+                        }
+                        for (auto& cell : CMapDataExt::CellDataExts)
+                        {
+                            cell.LineToolProcessed = false;
+                        }
+                    }
+                }
+                else
+                {
+                    auto tileData = CMapDataExt::GetCustomTile(command.Type);
+                    int width = tileData->Width * pIsoView->BrushSizeY;
+                    int height = tileData->Height * pIsoView->BrushSizeX;
+
+                    pMap->SaveUndoRedoData(TRUE, x1 - width - 4,
+                        y1 - height - 4,
+                        x2 - width + pIsoView->BrushSizeX * width + 7,
+                        y2 - height + pIsoView->BrushSizeY * height + 7);
+
+                    if (width > 1 || height > 1)
+                    {
+                        mapCoords = pIsoView->GetLineRectangles({ command.X, command.Y }, { X,Y }, height, width);
                     }
 
-                }
-                if (!mapCoords.empty() && !CFinalSunApp::Instance->DisableAutoLat)
-                {
-                    std::set<MapCoord> editedCoords;
-                    for (int i = 0; i < pMap->CellDataExts.size(); ++i)
+                    for (const auto& mc : mapCoords)
                     {
-                        auto& cell = pMap->CellDataExts[i];
-                        if (cell.LineToolProcessed)
+                        for (int i = 0; i < pIsoView->BrushSizeX; ++i)
                         {
-                            editedCoords.insert({ pMap->GetXFromCoordIndex(i), pMap->GetYFromCoordIndex(i) });
+                            for (int e = 0; e < pIsoView->BrushSizeY; ++e)
+                            {
+                                pMap->PlaceTileAt(mc.X + 1 + (i - 1) * tileData->Height,
+                                    mc.Y + 1 + (e - 1) * tileData->Width, command.Type, 2);
+                            }
                         }
                     }
-                    std::set<MapCoord> editedLatCoords;
-                    for (const auto& p : editedCoords) {
-                        editedLatCoords.insert({ p.X + 1, p.Y });
-                        editedLatCoords.insert({ p.X - 1, p.Y });
-                        editedLatCoords.insert({ p.X, p.Y + 1 });
-                        editedLatCoords.insert({ p.X, p.Y - 1 });
-                        editedLatCoords.insert({ p.X, p.Y });
-                    }
-                    for (const auto& p : editedLatCoords)
+                    if (!mapCoords.empty() && !CFinalSunApp::Instance->DisableAutoLat)
                     {
-                        pMap->SmoothTileAt(p.X, p.Y, true);
-                    }
-                    for (auto& cell : CMapDataExt::CellDataExts)
-                    {
-                        cell.LineToolProcessed = false;
+                        std::set<MapCoord> editedCoords;
+                        for (int i = 0; i < pMap->CellDataExts.size(); ++i)
+                        {
+                            auto& cell = pMap->CellDataExts[i];
+                            if (cell.LineToolProcessed)
+                            {
+                                editedCoords.insert({ pMap->GetXFromCoordIndex(i), pMap->GetYFromCoordIndex(i) });
+                            }
+                        }
+                        std::set<MapCoord> editedLatCoords;
+                        for (const auto& p : editedCoords) {
+                            editedLatCoords.insert({ p.X + 1, p.Y });
+                            editedLatCoords.insert({ p.X - 1, p.Y });
+                            editedLatCoords.insert({ p.X, p.Y + 1 });
+                            editedLatCoords.insert({ p.X, p.Y - 1 });
+                            editedLatCoords.insert({ p.X, p.Y });
+                        }
+                        for (const auto& p : editedLatCoords)
+                        {
+                            pMap->SmoothTileAt(p.X, p.Y, true);
+                        }
+                        for (auto& cell : CMapDataExt::CellDataExts)
+                        {
+                            cell.LineToolProcessed = false;
+                        }
                     }
                 }
             }

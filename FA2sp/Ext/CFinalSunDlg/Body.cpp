@@ -265,6 +265,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				::SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1366, CBN_SELCHANGE), (LPARAM)hTileComboBox);
 				CIsoView::CurrentCommand->Command = tmp;
 			}
+			else if (this->MyViewFrame.pTileSetBrowserFrame->View.CurrentMode == 2) {
+				HWND hParent = this->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
+				HWND hOverlayComboBox = ::GetDlgItem(hParent, 1367);
+				::SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1367, CBN_SELCHANGE), (LPARAM)hOverlayComboBox);
+				CIsoView::CurrentCommand->Command = tmp;
+			}
 		}
 	};
 

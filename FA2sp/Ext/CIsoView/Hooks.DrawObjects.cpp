@@ -165,11 +165,9 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 	return 0;
 }
 
-DEFINE_HOOK(46DF20, CIsoView_Draw_BackgroundColor, 6)
+DEFINE_HOOK(46DEF7, CIsoView_Draw_BackgroundColor_Skip, 5)
 {
-	R->Stack(STACK_OFFS(0xD20, 0x020), CIsoViewExt::RenderingMap ? RGB(0, 0, 0) :
-		(ExtConfigs::EnableDarkMode ? RGB(32, 32, 32) : RGB(255, 255, 255)));
-	return 0;
+	return 0x46DF38;
 }
 
 DEFINE_HOOK(46DF49, CIsoView_Draw_ScaledBorder, 6)
@@ -228,9 +226,35 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 {
 	GET_STACK(float, DrawOffsetX, STACK_OFFS(0xD18, 0xCB0));
 	GET_STACK(float, DrawOffsetY, STACK_OFFS(0xD18, 0xCB8));
-	LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
 
 	auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
+	LPDDSURFACEDESC2 lpDesc = nullptr;
+	DDSURFACEDESC2 ddsd;
+
+	DDBLTFX fx;
+	memset(&fx, 0, sizeof(DDBLTFX));
+	fx.dwSize = sizeof(DDBLTFX);
+	fx.dwFillColor = CIsoViewExt::RenderingMap ? RGB(0, 0, 0) :
+		(ExtConfigs::EnableDarkMode ? RGB(32, 32, 32) : RGB(255, 255, 255));
+
+	if (pThis->ScaledFactor == 1.0)
+	{
+		pThis->lpDDBackBufferZoomSurface->Blt(&window, NULL, NULL, DDBLT_COLORFILL, &fx);
+		ZeroMemory(&ddsd, sizeof(DDSURFACEDESC2));
+		ddsd.dwSize = sizeof(DDSURFACEDESC2);
+		ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT;
+		pThis->lpDDBackBufferZoomSurface->GetSurfaceDesc(&ddsd);
+		pThis->lpDDBackBufferZoomSurface->Lock(NULL, &ddsd, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_NOSYSLOCK, NULL);
+		lpDesc = &ddsd;
+	}
+	else
+	{
+		pThis->lpDDBackBufferSurface->Unlock(NULL);
+		pThis->lpDDBackBufferSurface->Blt(&window, NULL, NULL, DDBLT_COLORFILL, &fx);
+		pThis->lpDDBackBufferSurface->Lock(NULL, &ddsd, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_NOSYSLOCK, NULL);
+		lpDesc = R->lea_Stack<LPDDSURFACEDESC2>((0xD18 - 0x92C));
+	}
+
 	if (lpDesc->lpSurface == NULL) 
 	{
 		pThis->PrimarySurfaceLost();
@@ -242,7 +266,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	CIsoViewExt::drawOffsetY = DrawOffsetY;
 
 	HDC hDC;
-	pThis->lpDDBackBufferSurface->GetDC(&hDC);
+	CIsoViewExt::GetBackBuffer()->GetDC(&hDC);
 
 	if (CIsoViewExt::DrawInfantries && CIsoViewExt::DrawInfantriesFilter && CViewObjectsExt::InfantryBrushDlgF)
 	{
@@ -584,6 +608,83 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				}
 			}
 		}
+		else if (cell->Flag.RedrawTerrain && !CFinalSunApp::Instance->FlatToGround)
+		{
+			for (int i = 1; i <= 2; i++)
+			{
+				if (CMapData::Instance->IsCoordInMap(X + i, Y + i))
+				{
+					auto nextCell = CMapData::Instance->GetCellAt(X + i, Y + i);
+					int altImage = nextCell->Flag.AltIndex;
+					int tileIndex = CMapDataExt::GetSafeTileIndex(nextCell->TileIndex);
+					int tileSubIndex = CMapDataExt::GetSafeTileIndex(nextCell->TileSubIndex);
+					CTileBlockClass* subTile = nullptr;
+					if (!nextCell->Flag.RedrawTerrain)
+					{
+						if (CFinalSunApp::Instance->FrameMode)
+						{
+							if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
+							{
+								tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
+							}
+							else
+							{
+								tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + nextCell->Height;
+								tileSubIndex = 0;
+							}
+						}
+
+						CTileTypeClass* tile = &CMapDataExt::TileData[tileIndex];
+						int tileSet = tile->TileSet;
+						if (tile->AltTypeCount)
+						{
+							if (altImage > 0)
+							{
+								altImage = altImage < tile->AltTypeCount ? altImage : tile->AltTypeCount;
+								tile = &tile->AltTypes[altImage - 1];
+							}
+						}
+						subTile = &tile->TileBlockDatas[tileSubIndex];
+					}
+					else
+						continue;
+					if (subTile &&
+						-subTile->YMinusExY
+						- 30 * i
+						- (cell->Height - nextCell->Height) * 15
+						>= 0) // tile blocks with extra image above themselves
+					{
+						nextCell->Flag.RedrawTerrain = true;
+
+						for (int j = 1; j <= 2; j++)
+						{
+							if (CMapData::Instance->IsCoordInMap(X + i + j, Y + i + j))
+							{
+								auto nextNextCell = CMapData::Instance->GetCellAt(X + i + j, Y + i + j);
+								if (nextNextCell->Height - nextCell->Height >= 2 * j
+									|| j == 1 && nextNextCell->Height > nextCell->Height)
+									nextNextCell->Flag.RedrawTerrain = true;
+							}
+							if (CMapData::Instance->IsCoordInMap(X + i + j + 1, Y + i + j))
+							{
+								auto nextNextCell = CMapData::Instance->GetCellAt(X + i + j + 1, Y + i + j);
+								if (nextNextCell->Height - nextCell->Height >= 2 * j
+									|| j == 1 && nextNextCell->Height > nextCell->Height)
+									nextNextCell->Flag.RedrawTerrain = true;
+							}
+							if (CMapData::Instance->IsCoordInMap(X + i + j, Y + i + j + 1))
+							{
+								auto nextNextCell = CMapData::Instance->GetCellAt(X + i + j, Y + i + j + 1);
+								if (nextNextCell->Height - nextCell->Height >= 2 * j
+									|| j == 1 && nextNextCell->Height > nextCell->Height)
+									nextNextCell->Flag.RedrawTerrain = true;
+							}
+						}
+						continue;
+					}
+				}
+			}
+		}
 	}
 	for (const auto& coord : RedrawCoords)
 	{
@@ -654,7 +755,48 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 	}
 
-	//loop2: shadows
+	//loop2: smudges
+	for (const auto& info : visibleCells)
+	{
+		auto& X = info.X;
+		auto& Y = info.Y;
+		auto& pos = info.pos;
+		auto& cell = info.cell;
+		auto& cellExt = info.cellExt;
+		auto& x = info.screenX;
+		auto& y = info.screenY;
+
+		CIsoViewExt::CurrentDrawCellLocation.X = X;
+		CIsoViewExt::CurrentDrawCellLocation.Y = Y;
+		CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
+
+		//smudges
+		if (cell->Smudge != -1 && CIsoViewExt::DrawSmudges && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
+		{
+			auto obj = Variables::RulesMap.GetValueAt("SmudgeTypes", cell->SmudgeType);
+			if (!CIsoViewExt::RenderingMap
+				|| CIsoViewExt::RenderingMap
+				&& CIsoViewExt::MapRendererIgnoreObjects.find(obj)
+				== CIsoViewExt::MapRendererIgnoreObjects.end())
+			{
+				const auto& imageName = CLoadingExt::GetImageName(obj, 0);
+				if (!CLoadingExt::IsObjectLoaded(obj))
+				{
+					CLoadingExt::GetExtension()->LoadObjects(obj);
+				}
+				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+
+				if (pData->pImageBuffer)
+				{
+					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+						x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false);
+				}
+			}
+		}
+
+	}
+
+	//loop3: shadows
 	for (const auto& info : visibleCells)
 	{
 		if (!info.isInMap && !ExtConfigs::DisplayObjectsOutside) continue;
@@ -1173,7 +1315,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		CIsoViewExt::DrawShadowMask(lpDesc->lpSurface, boundary, window, shadowMask, shadowHeightMask, cellHeightMask);
 	}
 
-	//loop3: objects
+	//loop4: objects
 	DrawnBuildings.clear();
 	DrawnBaseNodes.clear();
 	for (const auto& info : visibleCells)
@@ -1246,82 +1388,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
 					{
 						auto& subTile = tile.TileBlockDatas[tileSubIndex];
-
-						for (int i = 1; i <= 2; i++)
-						{
-							if (CMapData::Instance->IsCoordInMap(X + i, Y + i))
-							{
-								auto nextCell = CMapData::Instance->GetCellAt(X + i, Y + i);
-								int altImage = nextCell->Flag.AltIndex;
-								int tileIndex = CMapDataExt::GetSafeTileIndex(nextCell->TileIndex);
-								int tileSubIndex = CMapDataExt::GetSafeTileIndex(nextCell->TileSubIndex);
-								CTileBlockClass* subTile = nullptr;
-								if (!nextCell->Flag.RedrawTerrain)
-								{
-									if (CFinalSunApp::Instance->FrameMode)
-									{
-										if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
-										{
-											tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
-										}
-										else
-										{
-											tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + nextCell->Height;
-											tileSubIndex = 0;
-										}
-									}
-
-									CTileTypeClass* tile = &CMapDataExt::TileData[tileIndex];
-									int tileSet = tile->TileSet;
-									if (tile->AltTypeCount)
-									{
-										if (altImage > 0)
-										{
-											altImage = altImage < tile->AltTypeCount ? altImage : tile->AltTypeCount;
-											tile = &tile->AltTypes[altImage - 1];
-										}
-									}
-									subTile = &tile->TileBlockDatas[tileSubIndex];
-								}
-								else
-									continue;
-								if (subTile && 
-									-subTile->YMinusExY 
-									- 30 * i 
-									- (cell->Height - nextCell->Height) * 15
-									>= 0) // tile blocks with extra image above themselves
-								{
-									nextCell->Flag.RedrawTerrain = true;
-
-									for (int j = 1; j <= 2; j++)
-									{
-										if (CMapData::Instance->IsCoordInMap(X + i + j, Y + i + j))
-										{
-											auto nextNextCell = CMapData::Instance->GetCellAt(X + i + j, Y + i + j);
-											if (nextNextCell->Height - nextCell->Height >= 2 * j
-												|| j == 1 && nextNextCell->Height > nextCell->Height)
-												nextNextCell->Flag.RedrawTerrain = true;
-										}
-										if (CMapData::Instance->IsCoordInMap(X + i + j + 1, Y + i + j))
-										{
-											auto nextNextCell = CMapData::Instance->GetCellAt(X + i + j + 1, Y + i + j);
-											if (nextNextCell->Height - nextCell->Height >= 2 * j
-												|| j == 1 && nextNextCell->Height > nextCell->Height)
-												nextNextCell->Flag.RedrawTerrain = true;
-										}
-										if (CMapData::Instance->IsCoordInMap(X + i + j, Y + i + j + 1))
-										{
-											auto nextNextCell = CMapData::Instance->GetCellAt(X + i + j, Y + i + j + 1);
-											if (nextNextCell->Height - nextCell->Height >= 2 * j
-												|| j == 1 && nextNextCell->Height > nextCell->Height)
-												nextNextCell->Flag.RedrawTerrain = true;
-										}
-									}
-									continue;
-								}
-							}
-						}
-
 						int x1 = x;
 						int y1 = y;
 						x1 -= 60;
@@ -1379,9 +1445,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				}
 			}
 		}
-			
-		//smudges
-		if (cell->Smudge != -1 && CIsoViewExt::DrawSmudges && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
+
+		//smudges in redrawn tiles
+		if (cell->Smudge != -1 
+			&& CIsoViewExt::DrawSmudges 
+			&& cell->Flag.RedrawTerrain && !CFinalSunApp::Instance->FlatToGround
+			&& (info.isInMap || ExtConfigs::DisplayObjectsOutside))
 		{
 			auto obj = Variables::RulesMap.GetValueAt("SmudgeTypes", cell->SmudgeType);
 			if (!CIsoViewExt::RenderingMap
@@ -1401,9 +1470,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 						x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false);
 				}
-			}			
+			}
 		}
 
+			
 		//overlays
 		int nextPos = CMapData::Instance->GetCoordIndex(X + 1, Y + 1);
 		if (nextPos >= CMapData::Instance->CellDataCount)
@@ -2099,9 +2169,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				Y = CTerrainGenerator::RangeSecondCell.Y;
 
 			std::vector<MapCoord> coords;
-			for (int i = X; i <= X + XW; i++)
+			for (int i = X; i < X + XW; i++)
 			{
-				for (int j = Y; j <= Y + YW; j++)
+				for (int j = Y; j < Y + YW; j++)
 				{
 					coords.push_back({ i,j });
 				}
@@ -2165,7 +2235,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						if (name == id)
 						{
 							pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface, 
-								pThis->lpDDBackBufferSurface, lpDesc, CellTagDesc, CellTagColorKey,
+								CIsoViewExt::GetBackBuffer(), lpDesc, CellTagDesc, CellTagColorKey,
 								x + 25 - CellTagImage->FullWidth / 2,
 								y + 12 - CellTagImage->FullHeight / 2, -1, -1);
 							break;
@@ -2180,7 +2250,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								if (buffer == id)
 								{
 									pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface,
-										pThis->lpDDBackBufferSurface, lpDesc, CellTagDesc, CellTagColorKey,
+										CIsoViewExt::GetBackBuffer(), lpDesc, CellTagDesc, CellTagColorKey,
 										x + 25 - CellTagImage->FullWidth / 2,
 										y + 12 - CellTagImage->FullHeight / 2, -1, -1);
 									break;
@@ -2192,20 +2262,20 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			}
 			else
 				pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface,
-					pThis->lpDDBackBufferSurface, lpDesc, CellTagDesc, CellTagColorKey,
+					CIsoViewExt::GetBackBuffer(), lpDesc, CellTagDesc, CellTagColorKey,
 					x + 25 - CellTagImage->FullWidth / 2,
 					y + 12 - CellTagImage->FullHeight / 2, -1, -1);
 		}
 
 		if (WaypointLocked && CIsoViewExt::DrawWaypoints && cell->Waypoint != -1)
 			pThis->BlitTransparentDescNoLock(WaypointImage->lpSurface,
-				pThis->lpDDBackBufferSurface, lpDesc, WaypointDesc, WaypointColorKey,
+				CIsoViewExt::GetBackBuffer(), lpDesc, WaypointDesc, WaypointColorKey,
 				x + 30 - WaypointImage->FullWidth / 2,
 				y + 12 - WaypointImage->FullHeight / 2, -1, -1);
 
 		if (AnnotationLocked && CIsoViewExt::DrawAnnotations && CMapDataExt::HasAnnotation(pos))
 			pThis->BlitTransparentDescNoLock(AnnotationImage->lpSurface,
-				pThis->lpDDBackBufferSurface, lpDesc, AnnotationDesc, AnnotationColorKey,
+				CIsoViewExt::GetBackBuffer(), lpDesc, AnnotationDesc, AnnotationColorKey,
 				x + 5,
 				y - 2, -1, -1);
 	}
@@ -2456,34 +2526,67 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		const int& mpW = CMapData::Instance->LocalSize.Width;
 		const int& mpH = CMapData::Instance->LocalSize.Height;
 
-		int y1 = mpT + mpL - 2 + 3;
-		int x1 = mapwidth + mpT - mpL - 3 + 3;
+		// blue bound
+		{
+			int y1 = mpT + mpL - 2;
+			int x1 = mapwidth + mpT - mpL - 3;
 
-		int y2 = mpT + mpL + mpW - 2 + 3;
-		int x2 = mapwidth - mpL - mpW + mpT - 3 + 3;
+			int y4 = mpT + mpL + mpW - 2 + mpH + 4;
+			int x4 = mapwidth - mpL - mpW + mpT - 3 + mpH + 4;
 
-		CIsoView::MapCoord2ScreenCoord_Flat(x1, y1);
-		int drawX1 = x1 - DrawOffsetX;
-		int drawY1 = y1 - DrawOffsetY;
+			CIsoView::MapCoord2ScreenCoord_Flat(x1, y1);
+			CIsoView::MapCoord2ScreenCoord_Flat(x4, y4);
 
-		CIsoView::MapCoord2ScreenCoord_Flat(x2, y2);
-		int drawX2 = x2 - DrawOffsetX;
-		int drawY2 = y2 - DrawOffsetY;
+			x1 -= DrawOffsetX;
+			x4 -= DrawOffsetX;
+			y1 -= DrawOffsetY + 15;
+			y4 -= DrawOffsetY + 15;
 
-		pThis->DrawLine(drawX1, drawY1 - 30, drawX2, drawY2 - 30, RGB(0, 0, 255), false, false, lpDesc);
+			if (y4 > y1 && x4 > x1)
+			{
+				pThis->DrawLine(x1 - 1, y1, x4 + 2, y1, RGB(0, 0, 255), false, false, lpDesc, false, 5);
+				pThis->DrawLine(x4, y1, x4, y4, RGB(0, 0, 255), false, false, lpDesc, false, 5);
+				pThis->DrawLine(x1 - 1, y4, x4 + 2, y4, RGB(0, 0, 255), false, false, lpDesc, false, 5);
+				pThis->DrawLine(x1, y4, x1, y1, RGB(0, 0, 255), false, false, lpDesc, false, 5);
+
+				// thin blue bound on top
+				if (y1 + 75 < y4)
+					pThis->DrawLine(x1 - 1, y1 + 75, x4 + 2, y1 + 75, RGB(0, 0, 255), false, false, lpDesc, false, 1);
+			}
+		}
+		// red bound
+		{
+			int y1 = 1;
+			int x1 = mapwidth;
+
+			int y4 = mapheight + mapwidth - 1;
+			int x4 = mapheight;
+
+			CIsoView::MapCoord2ScreenCoord_Flat(x1, y1);
+			CIsoView::MapCoord2ScreenCoord_Flat(x4, y4);
+
+			x1 -= DrawOffsetX - 30;
+			x4 -= DrawOffsetX - 30;
+			y1 -= DrawOffsetY + 15;
+			y4 -= DrawOffsetY + 15;
+
+			pThis->DrawLine(x1 - 1, y1, x4 + 2, y1, RGB(255, 0, 0), false, false, lpDesc, false, 5);
+			pThis->DrawLine(x4, y1, x4, y4, RGB(255, 0, 0), false, false, lpDesc, false, 5);
+			pThis->DrawLine(x1 - 1, y4, x4 + 2, y4, RGB(255, 0, 0), false, false, lpDesc, false, 5);
+			pThis->DrawLine(x1, y4, x1, y1, RGB(255, 0, 0), false, false, lpDesc, false, 5);
+		}
 	}
 
-	pThis->lpDDBackBufferSurface->ReleaseDC(hDC);
+	CIsoViewExt::GetBackBuffer()->ReleaseDC(hDC);
+	if (pThis->ScaledFactor == 1.0)
+	{
+		pThis->lpDDBackBufferZoomSurface->Unlock(NULL);
+	}
 
 	return 0x474DB3;
 }
 
-DEFINE_HOOK(474DDF, CIsoView_Draw_SkipBounds, 5)
-{
-	return CIsoViewExt::DrawBounds ? 0 : 0x4750B0;
-}
-
-DEFINE_HOOK(474FE0, CIsoView_Draw_SkipMoneyOnMap, 5)
+DEFINE_HOOK(474DDF, CIsoView_Draw_SkipBoundsAndMoneyOnMap, 5)
 {
 	return 0x4750B0;
 }

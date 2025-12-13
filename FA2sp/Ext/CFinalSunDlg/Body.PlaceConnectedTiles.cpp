@@ -87,6 +87,8 @@ void CViewObjectsExt::ConnectedTile_Initialize()
                         cts.Type = ConnectedTileSetTypes::Shore;
                     else if (type == "PaveShore")
                         cts.Type = ConnectedTileSetTypes::PaveShore;
+                    else if (type == "SpecialPaveShore")
+                        cts.Type = ConnectedTileSetTypes::SpecialPaveShore;
                     else if (type == "CityDirtRoad")
                         cts.Type = ConnectedTileSetTypes::CityDirtRoad;
                     else if (type == "RailRoad")
@@ -206,6 +208,7 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
     HTREEITEM hDirtRoad = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Road",-1, hCT);
     HTREEITEM hShore = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Shore",-1, hCT);
     HTREEITEM hHighway = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_PavedRoad", -1, hCT);
+    HTREEITEM hSpecial = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Special", -1, hCT);
 
     HTREEITEM hRailroad = pThis == nullptr ? NULL : pThis->InsertTranslatedString("Tracks", -1, hCT);
 
@@ -221,6 +224,7 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
     subNodes.push_back(hDirtRoad);
     subNodes.push_back(hShore);
     subNodes.push_back(hHighway);
+    subNodes.push_back(hSpecial);
     subNodes.push_back(hCliff);
     subNodes.push_back(hRailroad);
 
@@ -239,8 +243,6 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
             if (ct.Type == ConnectedTileSetTypes::CityCliff)
             {
                 // 29 & 30 are special diagonals in TX
-                if (ct.ConnectedTile.size() > 28)
-                    lastTileIndex = ct.ConnectedTile[28].TileIndices[0] + ct.StartTile;
                 if (ct.ConnectedTile.size() > 30)
                 {
                     int lastTileIndexTX = ct.ConnectedTile[30].TileIndices[0] + ct.StartTile;
@@ -258,6 +260,8 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
                         }
                     }
                 }
+                else if (ct.ConnectedTile.size() > 28)
+                    lastTileIndex = ct.ConnectedTile[28].TileIndices[0] + ct.StartTile;
             }
 
             if (ct.Type != ConnectedTileSetTypes::RailRoad)
@@ -397,6 +401,14 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
                 if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hShore);
                 index++;
                 break;
+            case ConnectedTileSetTypes::SpecialPaveShore:
+                TreeView_ConnectedTileMap[index] = info;
+                if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hSpecial);
+                index++;
+                TreeView_ConnectedTileMap[index] = info2;
+                if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hSpecial);
+                index++;
+                break;
             default:
                 break;
             }
@@ -469,7 +481,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
     int offsetPlaceX = 0;
     int offsetPlaceY = 0;
     
-    bool IsPavedRoadsRandom = false;
     int MultiPlaceDirection = -1;
     bool thisTileHeightOffest = false;
     bool opposite = false;
@@ -562,6 +573,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         }
         break;
     case ConnectedTileSetTypes::PaveShore:
+    case ConnectedTileSetTypes::SpecialPaveShore:
         if (TreeView_ConnectedTileMap[ctIndex].Front)
         {
             forceFront = true;
@@ -708,6 +720,10 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     else if (UrbanCliff && index != 16)
                     {
                         index = 25;
+                        if (tileSet.ConnectedTile[index].TileIndices[0] < 0)
+                        {                        
+                            index = STDHelpers::RandomSelectInt(backCornet1);
+                        }
                     }
 
                     if (CViewObjectsExt::LastPlacedCT.Index == 7
@@ -873,6 +889,11 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     {
                         index = 27;
                         offsetConnectY += 1;
+                        if (tileSet.ConnectedTile[index].TileIndices[0] < 0)
+                        {
+                            index = 12;
+                            offsetConnectY -= 1;
+                        }
                     }
                     for (auto ti : tileSet.ConnectedTile[index].TileIndices)
                     {
@@ -1199,8 +1220,11 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     if (distance > LargeDistance && UrbanCliff)
                     {
                         index = 28;
+                        if (tileSet.ConnectedTile[index].TileIndices[0] < 0)
+                        {
+                            index = 21;
+                        }
                     }
-
 
                     for (auto ti : tileSet.ConnectedTile[index].TileIndices)
                     {
@@ -1374,7 +1398,10 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     else if (UrbanCliff && index != 16)
                     {
                         index = 25;
-
+                        if (tileSet.ConnectedTile[index].TileIndices[0] < 0)
+                        {
+                            index = STDHelpers::RandomSelectInt(backCornet1);
+                        }
                     }
 
                     if (CViewObjectsExt::LastPlacedCT.Index == 0
@@ -1400,8 +1427,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         offsetPlaceY += 1;
                         offsetConnectX -= 1;
                     }
-
-
 
                     for (auto ti : tileSet.ConnectedTile[index].TileIndices)
                     {
@@ -1538,6 +1563,11 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     {
                         index = 27;
                         offsetPlaceY -= 1;
+                        if (tileSet.ConnectedTile[index].TileIndices[0] < 0)
+                        {
+                            index = 12;
+                            offsetPlaceY += 1;
+                        }
                     }
                     for (auto ti : tileSet.ConnectedTile[index].TileIndices)
                     {
@@ -1801,6 +1831,10 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     if (distance > LargeDistance && UrbanCliff && CViewObjectsExt::LastPlacedCT.Index != 27)
                     {
                         index = 28;
+                        if (tileSet.ConnectedTile[index].TileIndices[0] < 0)
+                        {
+                            index = 21;
+                        }
                     }
 
                     for (auto ti : tileSet.ConnectedTile[index].TileIndices)
@@ -1947,11 +1981,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
         thisTile = CMapDataExt::TileData[CViewObjectsExt::CliffConnectionTile];
 
-
-        std::vector<int> fixRandom;
-        fixRandom.push_back(0);
-        fixRandom.push_back(1);
-
         if (IceCliff
             && (index == 5 || index == 6)
             && (CViewObjectsExt::LastPlacedCT.Index == 5
@@ -1997,7 +2026,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             cellDatas[dwposFix2].TileIndex = idxFix;
             cellDatas[dwposFix2].TileSubIndex = 0;
-            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(fixRandom);
+            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
+            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
             auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockDatas[0].Height;
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
@@ -2046,7 +2076,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             cellDatas[dwposFix2].TileIndex = idxFix;
             cellDatas[dwposFix2].TileSubIndex = 0;
-            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(fixRandom);
+            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
+            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
             auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockDatas[0].Height;
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
@@ -2098,7 +2129,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             cellDatas[dwposFix].TileIndex = idxFix;
             cellDatas[dwposFix].TileSubIndex = 0;
-            cellDatas[dwposFix].Flag.AltIndex = STDHelpers::RandomSelectInt(fixRandom);
+            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
+            cellDatas[dwposFix].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
             auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockDatas[0].Height;
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
@@ -2127,7 +2159,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             cellDatas[dwposFix].TileIndex = idxFix;
             cellDatas[dwposFix].TileSubIndex = 0;
-            cellDatas[dwposFix].Flag.AltIndex = STDHelpers::RandomSelectInt(fixRandom);
+            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
+            cellDatas[dwposFix].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
             auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockDatas[0].Height;
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
@@ -2176,7 +2209,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             cellDatas[dwposFix].TileIndex = idxFix;
             cellDatas[dwposFix].TileSubIndex = 0;
-            cellDatas[dwposFix].Flag.AltIndex = STDHelpers::RandomSelectInt(fixRandom);
+            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
+            cellDatas[dwposFix].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
             auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockDatas[0].Height;
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
@@ -2230,7 +2264,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             cellDatas[dwposFix].TileIndex = idxFix;
             cellDatas[dwposFix].TileSubIndex = 0;
-            cellDatas[dwposFix].Flag.AltIndex = STDHelpers::RandomSelectInt(fixRandom);
+            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
+            cellDatas[dwposFix].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
             auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockDatas[0].Height;
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
@@ -2306,7 +2341,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             cellDatas[dwposFix2].TileIndex = idxFix;
             cellDatas[dwposFix2].TileSubIndex = 0;
-            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(fixRandom);
+            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
+            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
             auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockDatas[0].Height;
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
@@ -2359,7 +2395,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             cellDatas[dwposFix2].TileIndex = idxFix;
             cellDatas[dwposFix2].TileSubIndex = 0;
-            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(fixRandom);
+            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
+            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
             auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockDatas[0].Height;
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
@@ -2444,7 +2481,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             cellDatas[dwposFix2].TileIndex = idxFix;
             cellDatas[dwposFix2].TileSubIndex = 0;
-            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(fixRandom);
+            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
+            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
             auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockDatas[0].Height;
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
@@ -2492,7 +2530,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             cellDatas[dwposFix2].TileIndex = idxFix;
             cellDatas[dwposFix2].TileSubIndex = 0;
-            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(fixRandom);
+            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
+            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
             auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockDatas[0].Height;
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
@@ -2545,7 +2584,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             cellDatas[dwposFix2].TileIndex = idxFix;
             cellDatas[dwposFix2].TileSubIndex = 0;
-            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(fixRandom);
+            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
+            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
             auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockDatas[0].Height;
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
@@ -3314,7 +3354,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
         thisTile = CMapDataExt::TileData[CViewObjectsExt::CliffConnectionTile];
     }
-    else if (tileSet.Type == ConnectedTileSetTypes::PaveShore)
+    else if (tileSet.Type == ConnectedTileSetTypes::PaveShore || tileSet.Type == ConnectedTileSetTypes::SpecialPaveShore)
     {
         facing = CMapDataExt::GetFacing4(CViewObjectsExt::CliffConnectionCoord, cursor);
         SmallDistance = 3;
@@ -3621,9 +3661,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             {
                 index = getSuitableBendy(CViewObjectsExt::LastPlacedCT.GetNextSide(), CViewObjectsExt::LastPlacedCT.GetNextDirection(), facing);
             }
-
-            if (index == 0 || index == 1)
-                IsPavedRoadsRandom = true;
 
             if (CViewObjectsExt::NextCTHeightOffset > 0)
             {
@@ -4153,7 +4190,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
     int thisTileHeight = thisTile.Height;
     int thisTileWidth = thisTile.Width;
     int HorizontalLoop = 1;
-    std::vector<int> PavedRoadRandom = { 0,1,2,3 };
 
     if (MultiPlaceDirection == 0 || MultiPlaceDirection == 4)
     {
@@ -4239,8 +4275,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         cellDatas[dwpos].TileIndex = CViewObjectsExt::CliffConnectionTile;
                         cellDatas[dwpos].TileSubIndex = subPos;
                         cellDatas[dwpos].Flag.AltIndex = 0;
-                        if (IsPavedRoadsRandom)
-                            cellDatas[dwpos].Flag.AltIndex = STDHelpers::RandomSelectInt(PavedRoadRandom);
+                        auto altCount = CMapDataExt::TileData[cellDatas[dwpos].TileIndex].AltTypeCount;
+                        cellDatas[dwpos].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
 
                         auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTile.TileBlockDatas[subPos].Height + CViewObjectsExt::CliffConnectionHeightAdjust;
 

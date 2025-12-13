@@ -33,13 +33,13 @@ DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 	if (CIsoViewExt::RenderingMap) return return_addr; \
 	auto pThis = CIsoView::GetInstance();\
 	CRect dr = CIsoViewExt::GetVisibleIsoViewRect();\
-	if (special_draw >= 1 || abs(CIsoViewExt::ScaledFactor - 1.0) <= 0.01) {\
+	if (special_draw >= 1 || CIsoViewExt::ScaledFactor == 1.0) {\
 		if (special_draw > -1){\
-			CIsoViewExt::SpecialDraw(pThis->lpDDBackBufferSurface, special_draw);\
+			CIsoViewExt::SpecialDraw(CIsoViewExt::GetBackBuffer(), special_draw);\
 		}\
 		if (special_draw != 3)\
-			CIsoViewExt::ReduceBrightness(pThis->lpDDBackBufferSurface, dr);\
-		pThis->lpDDPrimarySurface->Blt(&dr, pThis->lpDDBackBufferSurface, &dr, DDBLT_WAIT, 0);\
+			CIsoViewExt::ReduceBrightness(CIsoViewExt::GetBackBuffer(), dr);\
+		pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::GetBackBuffer(), &dr, DDBLT_WAIT, 0);\
 		return return_addr; \
 	}\
 	CRect backDr;\
@@ -64,7 +64,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_BltTempBuffer, 6)
 {
 	auto pThis = CIsoView::GetInstance(); 
 	CRect rect = CIsoViewExt::GetVisibleIsoViewRect();
-	pThis->lpDDBackBufferSurface->Blt(&rect, pThis->lpDDTempBufferSurface, &rect, DDBLT_WAIT, 0);
+	CIsoViewExt::GetBackBuffer()->Blt(&rect, pThis->lpDDTempBufferSurface, &rect, DDBLT_WAIT, 0);
 	return 0x4572FC;
 }
 

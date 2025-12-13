@@ -607,6 +607,33 @@ int MixLoader::LoadMixFile(const std::string& path, int* parentIndex)
     return 0;
 }
 
+int MixLoader::LoadMixFile(const std::string& path, int specificParent)
+{
+    specificParent--;
+    if (specificParent < 0 && std::filesystem::exists(path)) {
+        if (LoadTopMix(path))
+            return mixFiles.size();
+        else
+            return 0;
+    }
+
+    auto name = std::filesystem::path(path).filename().string();
+    uint32_t id = GetFileID(name);
+    if (specificParent >= 0 && specificParent < (int)mixFiles.size()) {
+        auto& mf = mixFiles[specificParent];
+        for (const auto& e : mf.entries) {
+            if (e.id == id) {
+                if (LoadNestedMix(mf, e))
+                    return mixFiles.size();
+                else
+                    return 0;
+            }
+        }
+    }
+
+    return 0;
+}
+
 int MixLoader::QueryFileIndex(const std::string& fileName, int mixIdx) 
 {
     if (mixFiles.empty()) return -1;
@@ -629,6 +656,7 @@ int MixLoader::QueryFileIndex(const std::string& fileName, int mixIdx)
 
 std::unique_ptr<uint8_t[]> MixLoader::LoadFile(const std::string& fileName, size_t* outSize, int mixIdx) 
 {
+    mixIdx--;
     if (mixFiles.empty()) return nullptr;
     if (outSize) *outSize = 0;
     uint32_t id = GetFileID(fileName);

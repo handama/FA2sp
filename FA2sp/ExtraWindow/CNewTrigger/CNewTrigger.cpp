@@ -259,7 +259,8 @@ void CNewTrigger::Update(HWND& hWnd)
             {
                 if (atoms[7] == "1")
                 {
-                    SendMessage(hEventtype, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString(pair.first) + " " + atoms[0]).c_str());
+                    SendMessage(hEventtype, CB_INSERTSTRING, idx++, 
+                        (LPARAM)(LPCSTR)(FString(pair.first) + " " + FString::ReplaceSpeicalString(atoms[0])).c_str());
                 }
             }
         }
@@ -275,7 +276,8 @@ void CNewTrigger::Update(HWND& hWnd)
             {
                 if (atoms[12] == "1")
                 {
-                    SendMessage(hActiontype, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString(pair.first) + " " + atoms[0]).c_str());
+                    SendMessage(hActiontype, CB_INSERTSTRING, idx++, 
+                        (LPARAM)(LPCSTR)(FString(pair.first) + " " + FString::ReplaceSpeicalString(atoms[0])).c_str());
                 }
             }
         }

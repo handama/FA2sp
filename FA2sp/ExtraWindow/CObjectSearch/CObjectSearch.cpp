@@ -19,6 +19,7 @@
 #include "../CNewAITrigger/CNewAITrigger.h"
 #include "../../Helpers/FString.h"
 #include "../../Miscs/StringtableLoader.h"
+#include "../../Helpers/TheaterHelpers.h"
 
 HWND CObjectSearch::m_hwnd;
 CTileSetBrowserFrame* CObjectSearch::m_parent;
@@ -328,6 +329,18 @@ void CObjectSearch::ListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam)
                     NULL
                 );
                 SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1367, CBN_SELCHANGE), (LPARAM)hOverlayComboBox);
+
+                char buffer[512]{ 0 };
+                FString strItem;
+                SendMessage(hOverlayComboBox, CB_GETLBTEXT, index / 10000, (LPARAM)buffer);
+                strItem = buffer;
+                FString::TrimIndex(strItem);
+                CIsoView::CurrentCommand->Command = 1;
+                CIsoView::CurrentCommand->Type = 6;
+                CIsoView::CurrentCommand->Param = 33;
+                CIsoView::CurrentCommand->Overlay = atoi(strItem);
+                CIsoView::CurrentCommand->OverlayData = 0;
+                CIsoView::CurrentCommand->Height = 0;
             }
             else
             {
@@ -609,6 +622,18 @@ void CObjectSearch::OnSearchButtonUp(HWND hWnd)
                     NULL
                 );
                 SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1367, CBN_SELCHANGE), (LPARAM)hOverlayComboBox);
+
+                char buffer[512]{ 0 };
+                FString strItem;
+                SendMessage(hOverlayComboBox, CB_GETLBTEXT, index / 10000, (LPARAM)buffer);
+                strItem = buffer;
+                FString::TrimIndex(strItem);
+                CIsoView::CurrentCommand->Command = 1;
+                CIsoView::CurrentCommand->Type = 6;
+                CIsoView::CurrentCommand->Param = 33;
+                CIsoView::CurrentCommand->Overlay = atoi(strItem);
+                CIsoView::CurrentCommand->OverlayData = 0;
+                CIsoView::CurrentCommand->Height = 0;
             }
             else
             {
@@ -1653,11 +1678,12 @@ void CObjectSearch::UpdateTypes(HWND hWnd)
     for (int idx = 0; idx < nTileCount; ++idx)
     {
         int nTile = SendMessage(hTileComboBox, CB_GETITEMDATA, idx, NULL);
-        tile.Format("TileSet%04d", nTile);
-        tile = CINI::CurrentTheater->GetString(tile, "SetName", "NO NAME");
-        Translations::GetTranslationItem(tile, tile);
-        FString tmp = tile;
-        tile.Format("(%04d) %s", nTile, tmp);
+
+        if (nTile >= 10000)
+            tile.Format("(%d) %s", nTile, Translations::TranslateTileSet(nTile));
+        else
+            tile.Format("(%04d) %s", nTile, Translations::TranslateTileSet(nTile));
+
         CObjectSearch::Datas[idx] = tile;
     }
 
@@ -1672,6 +1698,19 @@ void CObjectSearch::UpdateTypes(HWND hWnd)
         int nOverlay = SendMessage(hOverlayComboBox, CB_GETITEMDATA, idx, NULL);
         auto value = Variables::RulesMap.GetValueAt("OverlayTypes", nOverlay);
         auto name = StringtableLoader::QueryUIName(value, true);
+        name = Translations::TranslateOrDefault(name, name);
+
+        auto lang = CFinalSunApp::Instance->Language + "-";
+        auto theater = TheaterHelpers::GetCurrentSuffix();
+        theater.MakeUpper();
+        theater = "RenameID" + theater;
+        auto rename = CINI::FALanguage().TryGetString(lang + theater, value);
+        if (!rename) {
+            rename = CINI::FALanguage().TryGetString(lang + "RenameID", value);
+        }
+        if (rename)
+            name = *rename;
+
         overlay.Format("(%04d) %s", nOverlay, name);
         CObjectSearch::Datas[idx * 10000] = overlay;
     }

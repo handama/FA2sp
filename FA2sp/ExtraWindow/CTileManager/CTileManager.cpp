@@ -57,7 +57,7 @@ void CTileManager::InitNodes()
 {
     CTileManager::Nodes.clear();
 
-    FString lpKey = CFinalSunApp::Instance->Language + "-" + "TileManagerData";
+    FString lpKey = FinalAlertConfig::Language + "-" + "TileManagerData";
     lpKey += CLoading::Instance->GetTheaterSuffix();
 
     MultimapHelper mmh;

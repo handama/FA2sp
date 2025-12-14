@@ -755,7 +755,7 @@ void CViewObjectsExt::Redraw_Ground()
                                     add = true;
                         if (add)
                         {
-                            auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                            auto transed = FinalAlertConfig::Language + "-" + "Name";
                             if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
                                 FA2sp::Buffer = *pName;
                             else
@@ -1097,7 +1097,7 @@ void CViewObjectsExt::Redraw_Infantry()
                 if (add)
                 {
                     InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
-                    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                    auto transed = FinalAlertConfig::Language + "-" + "Name";
                     if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
                         FA2sp::Buffer = *pName;
                     else
@@ -1204,7 +1204,7 @@ void CViewObjectsExt::Redraw_Vehicle()
                 if (add)
                 {
                     InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
-                    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                    auto transed = FinalAlertConfig::Language + "-" + "Name";
                     if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
                         FA2sp::Buffer = *pName;
                     else
@@ -1312,7 +1312,7 @@ void CViewObjectsExt::Redraw_Aircraft()
                 if (add)
                 {
                     InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
-                    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                    auto transed = FinalAlertConfig::Language + "-" + "Name";
                     if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
                         FA2sp::Buffer = *pName;
                     else
@@ -1459,7 +1459,7 @@ void CViewObjectsExt::Redraw_Building()
                 if (add)
                 {
                     InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
-                    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                    auto transed = FinalAlertConfig::Language + "-" + "Name";
                     if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
                         FA2sp::Buffer = *pName;
                     else
@@ -1556,7 +1556,7 @@ void CViewObjectsExt::Redraw_Terrain()
                 if (add)
                 {
                     InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
-                    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                    auto transed = FinalAlertConfig::Language + "-" + "Name";
                     if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
                         FA2sp::Buffer = *pName;
                     else
@@ -1621,7 +1621,7 @@ void CViewObjectsExt::Redraw_Smudge()
                 if (add)
                 {
                     InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
-                    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                    auto transed = FinalAlertConfig::Language + "-" + "Name";
                     if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
                         FA2sp::Buffer = *pName;
                     else
@@ -1820,7 +1820,7 @@ void CViewObjectsExt::Redraw_Overlay()
                 {
                     InsertingOverlay = CINI::FAData().GetInteger(pKey.second, "0");
                     InsertingOverlayData = 0;
-                    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                    auto transed = FinalAlertConfig::Language + "-" + "Name";
                     if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
                         FA2sp::Buffer = *pName;
                     else

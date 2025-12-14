@@ -21,6 +21,7 @@ HWND CTerrainGenerator::hTab1Dlg;
 HWND CTerrainGenerator::hTab2Dlg;
 HWND CTerrainGenerator::hTab3Dlg;
 HWND CTerrainGenerator::hTab4Dlg;
+HWND CTerrainGenerator::hTab5Dlg;
 HWND CTerrainGenerator::hAdd;
 HWND CTerrainGenerator::hName;
 HWND CTerrainGenerator::hPreset;
@@ -41,6 +42,10 @@ HWND CTerrainGenerator::hTerrainGroup[TERRAIN_GENERATOR_DISPLAY];
 HWND CTerrainGenerator::hTerrainChance[TERRAIN_GENERATOR_DISPLAY];
 HWND CTerrainGenerator::hSmudgeGroup[TERRAIN_GENERATOR_DISPLAY];
 HWND CTerrainGenerator::hSmudgeChance[TERRAIN_GENERATOR_DISPLAY];
+HWND CTerrainGenerator::hSlopeMinDelta;
+HWND CTerrainGenerator::hSlopeMaxDelta;
+HWND CTerrainGenerator::hSlopeSmoothing;
+
 std::map<int, FString> CTerrainGenerator::TileSetLabels[TERRAIN_GENERATOR_DISPLAY];
 std::map<int, FString> CTerrainGenerator::OverlayLabels[TERRAIN_GENERATOR_DISPLAY];
 std::map<int, FString> CTerrainGenerator::PresetLabels;
@@ -93,6 +98,7 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     hTab2Dlg = CreateDialog(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(316), hTab, DlgProcTab2);
     hTab3Dlg = CreateDialog(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(317), hTab, DlgProcTab3);
     hTab4Dlg = CreateDialog(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(318), hTab, DlgProcTab4);
+    hTab5Dlg = CreateDialog(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(331), hTab, DlgProcTab5);
     if (ExtConfigs::EnableDarkMode)
     {
         SetWindowTheme(hTab, L"DarkMode_Explorer", NULL);
@@ -116,6 +122,11 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
         {
             SetWindowLongPtr(hTab4Dlg, GWLP_WNDPROC, (LONG_PTR)TabPageSubclassProc);
         }
+        g_pOriginalTabPageProc = (WNDPROC)GetWindowLongPtr(hTab5Dlg, GWLP_WNDPROC);
+        if (g_pOriginalTabPageProc)
+        {
+            SetWindowLongPtr(hTab5Dlg, GWLP_WNDPROC, (LONG_PTR)TabPageSubclassProc);
+        }
     }
 
     TCITEM tie;
@@ -136,11 +147,16 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     FString tabText4 = _T(Translations::TranslateOrDefault("CTerrainGenerator.Smudges", "Smudges"));
     tie.pszText = tabText4.GetBuffer();
     TabCtrl_InsertItem(hTab, 3, &tie);
+    
+    FString tabText5 = _T(Translations::TranslateOrDefault("CTerrainGenerator.Slopes", "Slopes"));
+    tie.pszText = tabText5.GetBuffer();
+    TabCtrl_InsertItem(hTab, 4, &tie);
 
     tabText.ReleaseBuffer();
     tabText2.ReleaseBuffer();
     tabText3.ReleaseBuffer();
     tabText4.ReleaseBuffer();
+    tabText5.ReleaseBuffer();
     
     FString buffer;
     if (Translations::GetTranslationItem("CTerrainGenerator.Title", buffer))
@@ -218,6 +234,9 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     Translate(5010, "CTerrainGenerator.Chance", hTab4Dlg);
     Translate(5014, "CTerrainGenerator.Chance", hTab4Dlg);
     Translate(5018, "CTerrainGenerator.Chance", hTab4Dlg);
+    Translate(6000, "CTerrainGenerator.SlopeMinDelta", hTab5Dlg);
+    Translate(6002, "CTerrainGenerator.SlopeMaxDelta", hTab5Dlg);
+    Translate(6004, "CTerrainGenerator.SlopeSteepness", hTab5Dlg);
 
     Translate(1001, "CTerrainGenerator.Add", NULL);
     Translate(1002, "CTerrainGenerator.Name", NULL);
@@ -290,6 +309,9 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     hSmudgeChance[2] = GetDlgItem(hTab4Dlg, Controls::SmudgeChance3);
     hSmudgeChance[3] = GetDlgItem(hTab4Dlg, Controls::SmudgeChance4);
     hSmudgeChance[4] = GetDlgItem(hTab4Dlg, Controls::SmudgeChance5);
+    hSlopeMinDelta = GetDlgItem(hTab5Dlg, Controls::SlopeMinDelta);
+    hSlopeMaxDelta = GetDlgItem(hTab5Dlg, Controls::SlopeMaxDelta);
+    hSlopeSmoothing = GetDlgItem(hTab5Dlg, Controls::SlopeSmoothing);
 
     bOverride = true;
     ProgrammaticallySettingText = false;
@@ -1131,6 +1153,69 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab4(HWND hWnd, UINT Msg, WPARAM wParam,
     return FALSE;
 }
 
+BOOL CALLBACK CTerrainGenerator::DlgProcTab5(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (Msg)
+    {
+    case WM_INITDIALOG:
+    {
+        return TRUE;
+    }
+    case WM_COMMAND:
+    {
+        WORD ID = LOWORD(wParam);
+        WORD CODE = HIWORD(wParam);
+        switch (ID)
+        {
+        case Controls::SlopeMaxDelta:
+            if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
+            {
+                char buffer[512]{ 0 };
+                GetWindowText(hSlopeMaxDelta, buffer, 511);
+                int delta = STDHelpers::ParseToInt(buffer, -1);
+                CurrentPreset->SlopeMaxDelta = std::clamp(delta, -1, 14);
+                SaveAndReloadPreset();
+            }
+            break;
+        case Controls::SlopeMinDelta:
+            if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
+            {
+                char buffer[512]{ 0 };
+                GetWindowText(hSlopeMinDelta, buffer, 511);
+                int delta = STDHelpers::ParseToInt(buffer, -1);
+                CurrentPreset->SlopeMinDelta = std::clamp(delta, -1, 14);
+                SaveAndReloadPreset();
+            }
+            break;
+        case Controls::SlopeSmoothing:
+            if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
+            {
+                char buffer[512]{ 0 };
+                GetWindowText(hSlopeSmoothing, buffer, 511);
+                int smooth = STDHelpers::ParseToInt(buffer, -1);
+                CurrentPreset->SlopeSteepness = std::clamp(smooth, -1, 200);
+                SaveAndReloadPreset();
+            }
+            break;
+        default:
+            break;
+        }
+        break;
+    }
+    break;
+    case WM_CLOSE:
+    {
+        return TRUE;
+    }
+    case 114514: // used for update
+    {
+        return TRUE;
+    }
+
+    }
+    return FALSE;
+}
+
 void CTerrainGenerator::OnSeldropdownPreset(HWND& hWnd)
 {
     if (Autodrop)
@@ -1191,6 +1276,9 @@ void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
             EnableWindow(hSmudgeGroup[idx], FALSE);
             EnableWindow(hSmudgeChance[idx], FALSE);
         }
+        SendMessage(hSlopeMaxDelta, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hSlopeMinDelta, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hSlopeSmoothing, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hScale, WM_SETTEXT, 0, (LPARAM)"");
         ProgrammaticallySettingText = false;
@@ -1271,6 +1359,22 @@ void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
         }
         SendMessage(hSmudgeGroup[idx], WM_SETTEXT, 0, (LPARAM)text.Mid(0, text.GetLength() - 1));
         SendMessage(hSmudgeChance[idx], WM_SETTEXT, 0, (LPARAM)DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION));
+    }
+    if (CurrentPreset->SlopeSteepness > -1)
+    {
+        FString text;
+        text.Format("%d", CurrentPreset->SlopeMaxDelta);
+        SendMessage(hSlopeMaxDelta, WM_SETTEXT, 0, text);
+        text.Format("%d", CurrentPreset->SlopeMinDelta);
+        SendMessage(hSlopeMinDelta, WM_SETTEXT, 0, text);
+        text.Format("%d", CurrentPreset->SlopeSteepness);
+        SendMessage(hSlopeSmoothing, WM_SETTEXT, 0, text);
+    }
+    else
+    {
+        SendMessage(hSlopeMaxDelta, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hSlopeMinDelta, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hSlopeSmoothing, WM_SETTEXT, 0, (LPARAM)"");
     }
 
     EnableWindows();
@@ -1561,6 +1665,8 @@ void CTerrainGenerator::OnClickDelete(HWND& hWnd)
     OnSelchangePreset();
 }
 
+static int lastCoords = 0;
+static int lastHeight = 0;
 void CTerrainGenerator::OnClickApply(bool onlyClear)
 {
     if (!CurrentPreset) return;
@@ -1615,7 +1721,65 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
     if (!smudges.empty() && !onlyClear || (onlyClear && CurrentTabPage == 3))
         recordType |= ObjectRecord::RecordType::Smudge;
 
-    CMapDataExt::MakeMixedRecord(x1 - 4, y1 - 4, x2 + 5, y2 + 5, recordType);
+    if (CurrentPreset->SlopeSteepness > -1)
+    {
+        CMapDataExt::MakeMixedRecord(x1 - 14, y1 - 14, x2 + 14, y2 + 14, recordType);
+
+        std::set<MapCoord> ret;
+        std::set<MapCoord>* coords = nullptr;
+        int avgHeight = 0;
+        if (UseMultiSelection)
+        {
+            coords = &MultiSelection::SelectedCoords;
+            for (const auto& c: *coords) {
+                avgHeight += CMapData::Instance->GetCellAt(c.X, c.Y)->Height;
+            }
+        }
+        else
+        {
+            for (int i = x1; i <= x2; ++i) {
+                for (int j = y1; j <= y2; ++j) {
+                    if (!CMapData::Instance->IsCoordInMap(i, j)) continue;
+                    ret.insert({ i,j });
+                    avgHeight += CMapData::Instance->GetCellAt(i, j)->Height;
+                }
+            }
+            coords = &ret;
+        }
+        avgHeight = round((float)avgHeight / coords->size());
+
+        int coordsRecord = 0;
+        for (const auto& c : *coords)
+        {
+            coordsRecord += c.X + c.Y;
+        }
+        if (coordsRecord != lastCoords)
+        {
+            lastCoords = coordsRecord;
+            lastHeight = avgHeight;
+        }
+        else
+        {
+            avgHeight = lastHeight;
+        }
+        for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
+        {
+            CMapDataExt::CellDataExts[i].Adjusted = false;
+        }
+        CMapDataExt::GenerateNoiseSlopeTerrain(
+            *coords,
+            std::max(0, avgHeight - CurrentPreset->SlopeMinDelta),
+            avgHeight,
+            std::min(14, avgHeight + CurrentPreset->SlopeMaxDelta),
+            true,
+            (CurrentPreset->SlopeSteepness + 6) / 500.f,
+            STDHelpers::RandomSelectInt(1, 3)
+        );
+    }
+    else
+    {
+        CMapDataExt::MakeMixedRecord(x1 - 4, y1 - 4, x2 + 5, y2 + 5, recordType);
+    }
 
     std::vector<std::pair<std::vector<int>, float>> tiles;
     for (const auto& group : CurrentPreset->TileSets) {
@@ -1661,7 +1825,7 @@ void CTerrainGenerator::SaveAndReloadPreset()
     FString path = CFinalSunAppExt::ExePathExt();
     path += "\\TerrainGenerator.ini";
 
-    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+    auto transed = FinalAlertConfig::Language + "-" + "Name";
     ini->WriteString(id, "Name", CurrentPreset->Name);
     ini->WriteString(id, transed, CurrentPreset->Name);
     ini->WriteString(id, "Scale", STDHelpers::IntToString(CurrentPreset->Scale));
@@ -1752,7 +1916,22 @@ void CTerrainGenerator::SaveAndReloadPreset()
             key += "AvailableData";
             ini->DeleteKey(id, key);
         }
-
+    }
+    FString value;
+    if (CurrentPreset->SlopeSteepness > -1)
+    {
+        value.Format("%d", CurrentPreset->SlopeSteepness);
+        ini->WriteString(id, "SlopeSteepness", value);
+    }
+    if (CurrentPreset->SlopeMinDelta > -1)
+    {
+        value.Format("%d", CurrentPreset->SlopeMinDelta);
+        ini->WriteString(id, "SlopeMinDelta", value);
+    }
+    if (CurrentPreset->SlopeMaxDelta > -1)
+    {
+        value.Format("%d", CurrentPreset->SlopeMaxDelta);
+        ini->WriteString(id, "SlopeMaxDelta", value);
     }
 
     ini->WriteToFile(path);
@@ -1856,6 +2035,7 @@ void CTerrainGenerator::ShowTabPage(HWND hWnd, int tabIndex)
     AdjustTabPagePosition(hTab, hTab2Dlg);
     AdjustTabPagePosition(hTab, hTab3Dlg);
     AdjustTabPagePosition(hTab, hTab4Dlg);
+    AdjustTabPagePosition(hTab, hTab5Dlg);
     switch (tabIndex)
     {
     case 0:
@@ -1863,24 +2043,35 @@ void CTerrainGenerator::ShowTabPage(HWND hWnd, int tabIndex)
         ShowWindow(hTab2Dlg, SW_HIDE);
         ShowWindow(hTab3Dlg, SW_HIDE);
         ShowWindow(hTab4Dlg, SW_HIDE);
+        ShowWindow(hTab5Dlg, SW_HIDE);
         break;
     case 1:
         ShowWindow(hTab1Dlg, SW_HIDE);
         ShowWindow(hTab2Dlg, SW_SHOW);
         ShowWindow(hTab3Dlg, SW_HIDE);
         ShowWindow(hTab4Dlg, SW_HIDE);
+        ShowWindow(hTab5Dlg, SW_HIDE);
         break;
     case 2:
         ShowWindow(hTab1Dlg, SW_HIDE);
         ShowWindow(hTab2Dlg, SW_HIDE);
         ShowWindow(hTab3Dlg, SW_SHOW);
         ShowWindow(hTab4Dlg, SW_HIDE);
+        ShowWindow(hTab5Dlg, SW_HIDE);
         break;
     case 3:
         ShowWindow(hTab1Dlg, SW_HIDE);
         ShowWindow(hTab2Dlg, SW_HIDE);
         ShowWindow(hTab3Dlg, SW_HIDE);
         ShowWindow(hTab4Dlg, SW_SHOW);
+        ShowWindow(hTab5Dlg, SW_HIDE);
+        break;
+    case 4:
+        ShowWindow(hTab1Dlg, SW_HIDE);
+        ShowWindow(hTab2Dlg, SW_HIDE);
+        ShowWindow(hTab3Dlg, SW_HIDE);
+        ShowWindow(hTab4Dlg, SW_HIDE);
+        ShowWindow(hTab5Dlg, SW_SHOW);
         break;
     }
 }

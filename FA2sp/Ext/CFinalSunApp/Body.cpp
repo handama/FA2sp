@@ -153,7 +153,18 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 
 	this->InstallPath = ini.GetString("TS", "Exe");
 	this->FileSearchLikeTS = ini.GetBool("FinalSun", "FileSearchLikeTS");
-	this->Language = ini.GetString("FinalSun", "Language");
+	if (ini.KeyExists("FinalSun", "LanguageSP"))
+	{
+		auto lang = ini.GetString("FinalSun", "LanguageSP");
+		this->Language = lang;
+		FinalAlertConfig::Language = lang;
+	}
+	else
+	{
+		auto lang = ini.GetString("FinalSun", "Language");
+		this->Language = lang;
+		FinalAlertConfig::Language = lang;
+	}
 
 	// HACK, Game like pls
 	this->FileSearchLikeTS = TRUE;

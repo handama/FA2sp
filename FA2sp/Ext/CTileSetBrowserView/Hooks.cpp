@@ -969,7 +969,7 @@ DEFINE_HOOK(4F128A, CTerrainDlg_Update_AddCustomTiles, 5)
                     {
                         tileSet = atoi(kvp.second);
                     }
-                    else if (ParsePrefixedInt(kvp.first, (CFinalSunApp::Instance->Language + "-").m_pchData, name))
+                    else if (ParsePrefixedInt(kvp.first, (FinalAlertConfig::Language + "-"), name))
                     {
                         Translations::CustomTileSetNames[name] = kvp.second;
                     }

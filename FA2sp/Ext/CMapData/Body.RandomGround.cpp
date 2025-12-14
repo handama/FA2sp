@@ -8,6 +8,7 @@
 #include <numeric>
 #include "../../Miscs/MultiSelection.h"
 #include "../../FA2sp.h"
+#include <queue>
 
 static unsigned seed;
 static std::mt19937 rng;
@@ -490,6 +491,324 @@ void CMapDataExt::CreateRandomSmudge(int TopX, int TopY, int BottomX, int Bottom
                     CMapData::Instance->UpdateFieldSmudgeData(false);
                 }
             }
+        }
+    }
+}
+
+static uint32_t g_NoiseSeed = 0;
+
+static uint32_t GenerateRandomSeed()
+{
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    static std::uniform_int_distribution<uint32_t> dis;
+    return dis(gen);
+}
+
+static float HashNoise(int x, int y)
+{
+    uint32_t n = (uint32_t)x;
+    n *= 374761393u;
+    n += (uint32_t)y * 668265263u;
+    n ^= g_NoiseSeed;
+    n = (n ^ (n >> 13)) * 1274126177u;
+    n ^= (n >> 16);
+    return (n & 0x7fffffffu) / float(0x7fffffffu);
+}
+
+static float Lerp(float a, float b, float t)
+{
+    return a + t * (b - a);
+}
+
+static float SmoothStep(float t)
+{
+    return t * t * (3.0f - 2.0f * t);
+}
+
+static float ValueNoise(float x, float y)
+{
+    int x0 = (int)floorf(x);
+    int y0 = (int)floorf(y);
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
+
+    float sx = SmoothStep(x - x0);
+    float sy = SmoothStep(y - y0);
+
+    float n00 = HashNoise(x0, y0);
+    float n10 = HashNoise(x1, y0);
+    float n01 = HashNoise(x0, y1);
+    float n11 = HashNoise(x1, y1);
+
+    float ix0 = Lerp(n00, n10, sx);
+    float ix1 = Lerp(n01, n11, sx);
+
+    return Lerp(ix0, ix1, sy);
+}
+
+static int GetCardinalLimit(bool steep)
+{
+    return steep ? 2 : 1;
+}
+
+static constexpr int DiagonalLimit = 1;
+
+static std::unordered_map<MapCoord, int> ComputeDistanceToBoundary(
+    const std::set<MapCoord>& region
+)
+{
+    std::unordered_map<MapCoord, int> dist;
+    std::queue<MapCoord> q;
+
+    static const int dx[8] = { -1, 1, 0, 0, -1, 1, 1, -1 };
+    static const int dy[8] = { 0, 0, -1, 1, -1, 1, -1, 1 };
+
+    for (const auto& c : region)
+    {
+        bool isBorder = false;
+        bool isSecondBorder = false;
+        for (int i = 0; i < 4; i++)
+        {
+            MapCoord nb{ c.X + dx[i], c.Y + dy[i] };
+            if (region.find(nb) == region.end())
+            {
+                isBorder = true;
+                break;
+            }
+        }
+        for (int i = 4; i < 8; i++)
+        {
+            MapCoord nb{ c.X + dx[i], c.Y + dy[i] };
+            if (region.find(nb) == region.end())
+            {
+                isSecondBorder = true;
+                break;
+            }
+        }
+
+        if (isBorder)
+        {
+            dist[c] = 0;
+            q.push(c);
+        }
+        if (isSecondBorder)
+        {
+            dist[c] = 1;
+            q.push(c);
+        }
+    }
+
+    while (!q.empty())
+    {
+        MapCoord cur = q.front();
+        q.pop();
+
+        int d = dist[cur];
+
+        for (int i = 0; i < 4; i++)
+        {
+            MapCoord nb{ cur.X + dx[i], cur.Y + dy[i] };
+            if (region.find(nb) == region.end())
+                continue;
+
+            if (!dist.count(nb))
+            {
+                dist[nb] = d + 1;
+                q.push(nb);
+            }
+        }
+    }
+
+    return dist;
+}
+
+static void GetAllowedHeightRange(
+    MapCoord coord,
+    const std::unordered_map<MapCoord, int>& heights,
+    const std::unordered_map<MapCoord, int>& boundaryDist,
+    bool steep,
+    int minHeight,
+    int baseHeight,
+    int maxHeight,
+    int& outMin,
+    int& outMax
+)
+{
+    outMin = minHeight;
+    outMax = maxHeight;
+
+    int dist = 0;
+
+    auto distIt = boundaryDist.find(coord);
+    if (distIt != boundaryDist.end()) {
+        dist = distIt->second;
+        int boundaryMin = baseHeight - dist;
+        int boundaryMax = baseHeight + dist;
+        if (dist <= 1)
+            boundaryMax = baseHeight;
+        outMin = std::max(outMin, boundaryMin);
+        outMax = std::min(outMax, boundaryMax);
+    }
+
+    if (outMin > outMax) {
+        outMin = outMax = baseHeight;
+    }
+}
+
+static void ProjectNoiseToValidHeights(
+    const std::set<MapCoord>& region,
+    std::unordered_map<MapCoord, int>& heights,
+    const std::unordered_map<MapCoord, int>& expected,
+    const std::unordered_map<MapCoord, int>& distToBoundary,
+    bool steep,
+    int minHeight,
+    int baseHeight,
+    int maxHeight,
+    int relaxIterations
+)
+{
+    for (int iter = 0; iter < relaxIterations; iter++)
+    {
+        for (auto& c : region)
+        {
+            int minH, maxH;
+            GetAllowedHeightRange(
+                c,
+                heights,
+                distToBoundary,
+                steep,
+                minHeight,
+                baseHeight,
+                maxHeight,
+                minH,
+                maxH
+            );
+
+            int target = expected.at(c);
+            heights[c] = std::clamp(target, minH, maxH);
+        }
+    }
+}
+
+bool isConsecutiveOnCircle(std::vector<int> dirs) {
+    if (dirs.empty()) return true;
+
+    // 去重
+    std::unordered_set<int> s(dirs.begin(), dirs.end());
+    if (s.size() != dirs.size()) return false;  // 有重复
+
+    dirs.assign(s.begin(), s.end());  // 转为排序向量
+    int n = dirs.size();
+
+    // 构造双倍序列用于处理环
+    std::vector<int> doubled = dirs;
+    for (int x : dirs) doubled.push_back(x + 8);
+
+    // 检查是否存在长度为 n 的连续递增子段
+    for (int i = 0; i < n; ++i) {
+        bool ok = true;
+        for (int j = 1; j < n; ++j) {
+            if (doubled[i + j] != doubled[i + j - 1] + 1) {
+                ok = false;
+                break;
+            }
+        }
+        if (ok) return true;
+    }
+
+    return false;
+}
+
+void CMapDataExt::GenerateNoiseSlopeTerrain(
+    const std::set<MapCoord>& region,
+    int minHeight,
+    int baseHeight,
+    int maxHeight,
+    bool steep,
+    float frequency,
+    int relaxIterations
+)
+{
+    if (region.empty()) return;
+
+    g_NoiseSeed = GenerateRandomSeed();
+
+    std::unordered_map<MapCoord, int> expected;
+    std::unordered_map<MapCoord, int> heights;
+
+    for (auto& c : region)
+    {
+        float n = ValueNoise(c.X * frequency, c.Y * frequency);
+        int hgt = minHeight + (int)std::round(n * (maxHeight - minHeight));
+        hgt = std::clamp(hgt, minHeight, maxHeight);
+
+        expected[c] = hgt;
+        heights[c] = hgt;
+    }
+
+    auto distToBoundary = ComputeDistanceToBoundary(region);
+
+    ProjectNoiseToValidHeights(
+        region,
+        heights,
+        expected,
+        distToBoundary,
+        steep,
+        minHeight,
+        baseHeight,
+        maxHeight,
+        relaxIterations
+    );
+
+    for (auto& c : region)
+    {
+        auto cell = TryGetCellAt(c.X, c.Y);
+        if (!cell) continue;
+
+        cell->Height = std::clamp(heights[c], 0, 14);
+
+        int idx = CMapData::Instance->GetCoordIndex(c.X, c.Y);
+        CellDataExts[idx].Adjusted = true;
+    }
+
+    CMapDataExt::CheckCellLow(steep);
+    CMapDataExt::CheckCellRise(steep);
+
+    for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
+    {
+        if (CMapDataExt::CellDataExts[i].Adjusted)
+        {
+            int thisX = CMapData::Instance->GetXFromCoordIndex(i);
+            int thisY = CMapData::Instance->GetYFromCoordIndex(i);
+            int loops[3] = { 0, -1, 1 };
+            for (int i : loops)
+                for (int e : loops)
+                {
+                    int newX = thisX + i;
+                    int newY = thisY + e;
+                    int pos = CMapData::Instance->GetCoordIndex(newX, newY);
+                    if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
+                    CMapDataExt::CellDataExts[pos].CreateSlope = true;
+                }
+        }
+    }
+    for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
+    {
+        if (CMapDataExt::CellDataExts[i].CreateSlope)
+        {
+            int thisX = CMapData::Instance->GetXFromCoordIndex(i);
+            int thisY = CMapData::Instance->GetYFromCoordIndex(i);
+            CMapDataExt::CreateSlopeAt(thisX, thisY);
+        }
+    }
+    for (int i = 0; i < CMapDataExt::CellDataExts.size(); i++)
+    {
+        if (CMapDataExt::CellDataExts[i].CreateSlope || CMapDataExt::CellDataExts[i].Adjusted)
+        {
+            int thisX = CMapData::Instance->GetXFromCoordIndex(i);
+            int thisY = CMapData::Instance->GetYFromCoordIndex(i);
+            CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
         }
     }
 }

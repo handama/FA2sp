@@ -540,6 +540,17 @@ public:
         return TryGetCellAt(CMapData::Instance->GetXFromCoordIndex(nIndex), CMapData::Instance->GetYFromCoordIndex(nIndex));
     }
 
+    static void CheckCellLow(bool steep, int loopCount = 0, bool IgnoreMorphable = false, std::vector<int>* ignoreList = nullptr);
+    static void CheckCellRise(bool steep, int loopCount = 0, bool IgnoreMorphable = false, std::vector<int>* ignoreList = nullptr);
+    static void GenerateNoiseSlopeTerrain(
+        const std::set<MapCoord>& region,
+        int minHeight,
+        int baseHeight,
+        int maxHeight,
+        bool steep,
+        float frequency,
+        int relaxIterations = 2);
+
     std::string convertToExtendedOverlayPack(const std::string& input);
     std::string convertFromExtendedOverlayPack(const std::string& input);
 

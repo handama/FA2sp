@@ -37,6 +37,9 @@ public:
     std::vector<FString> TileSetAvailableIndexesText;
     std::vector<FString> OverlayAvailableDataText;
     int Scale;
+    int SlopeMinDelta = -1;
+    int SlopeMaxDelta = -1;
+    int SlopeSteepness = -1;
 
     static TerrainGeneratorPreset* create(FString sectionName, INISection* pSection)
     {
@@ -46,7 +49,7 @@ public:
     TerrainGeneratorPreset(FString sectionName, INISection* pSection)
     {
         ID = sectionName;
-        auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+        auto transed = FinalAlertConfig::Language + "-" + "Name";
         if (auto pName = pSection->TryGetString(transed))
             Name = *pName;
         else
@@ -206,6 +209,9 @@ public:
                 Overlays.push_back(group);
             }
         }
+        SlopeSteepness = pSection->GetInteger("SlopeSteepness", -1);
+        SlopeMinDelta = pSection->GetInteger("SlopeMinDelta", -1);
+        SlopeMaxDelta = pSection->GetInteger("SlopeMaxDelta", -1);
     }
 };
 
@@ -275,6 +281,9 @@ public:
         SmudgeChance3 = 5011,
         SmudgeChance4 = 5015,
         SmudgeChance5 = 5019,
+        SlopeMinDelta = 6001,
+        SlopeMaxDelta = 6003,
+        SlopeSmoothing = 6005,
     };
 
     static void Create(CTileSetBrowserFrame* pWnd);
@@ -296,6 +305,7 @@ protected:
     static BOOL CALLBACK DlgProcTab2(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static BOOL CALLBACK DlgProcTab3(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static BOOL CALLBACK DlgProcTab4(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+    static BOOL CALLBACK DlgProcTab5(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static void ShowTabPage(HWND hWnd, int tabIndex);
     static void AdjustTabPagePosition(HWND hTab, HWND hTabPage);
 
@@ -340,6 +350,7 @@ private:
     static HWND hTab2Dlg;
     static HWND hTab3Dlg;
     static HWND hTab4Dlg;
+    static HWND hTab5Dlg;
     static HWND hAdd;
     static HWND hName;
     static HWND hPreset;
@@ -360,6 +371,9 @@ private:
     static HWND hTerrainChance[TERRAIN_GENERATOR_DISPLAY];
     static HWND hSmudgeGroup[TERRAIN_GENERATOR_DISPLAY];
     static HWND hSmudgeChance[TERRAIN_GENERATOR_DISPLAY];
+    static HWND hSlopeMinDelta;
+    static HWND hSlopeMaxDelta;
+    static HWND hSlopeSmoothing;
 
     static std::map<int, FString> TileSetLabels[TERRAIN_GENERATOR_DISPLAY];
     static std::map<int, FString> OverlayLabels[TERRAIN_GENERATOR_DISPLAY];

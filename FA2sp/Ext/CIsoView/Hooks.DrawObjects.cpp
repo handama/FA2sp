@@ -2179,7 +2179,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					coords.push_back({ i,j });
 				}
 			}
-			CIsoViewExt::DrawMultiMapCoordBorders(hDC, coords, ExtConfigs::TerrainGeneratorColor);
+			CIsoViewExt::DrawMultiMapCoordBorders(lpDesc, coords, ExtConfigs::TerrainGeneratorColor);
 		}
 		else
 		{

@@ -39,10 +39,13 @@ public:
     int Scale;
     int SlopeMinDelta = -1;
     int SlopeMaxDelta = -1;
+    int SlopeMarcoMinDelta = -1;
+    int SlopeMarcoMaxDelta = -1;
     int SlopeSteepness = -1;
     int SlopeMarcoSteepness = -1;
     bool SlopeSetManualHeight;
     bool SlopeSetTransition;
+    bool SlopeAvoidEdges;
     int SlopeBaseHeight = 0;
     MapCoord SlopeCoords[2] = {};
     int SlopeCoordHeights[2] = {};
@@ -219,7 +222,10 @@ public:
         SlopeMarcoSteepness = pSection->GetInteger("SlopeMarcoSteepness", -1);
         SlopeMinDelta = pSection->GetInteger("SlopeMinDelta", -1);
         SlopeMaxDelta = pSection->GetInteger("SlopeMaxDelta", -1);
+        SlopeMarcoMinDelta = pSection->GetInteger("SlopeMarcoMinDelta", -1);
+        SlopeMarcoMaxDelta = pSection->GetInteger("SlopeMarcoMaxDelta", -1);
         SlopeBaseHeight = pSection->GetInteger("SlopeBaseHeight", -1);
+        SlopeAvoidEdges = STDHelpers::IsTrue(pSection->GetString("SlopeAvoidEdges", "false"));
         SlopeSetManualHeight = SlopeBaseHeight != -1;
         auto splits = STDHelpers::SplitString(pSection->GetString("SlopeCoords"));
         if (splits.size() == 4)
@@ -316,6 +322,9 @@ public:
         SlopeCoordHeight1 = 6013,
         SlopeCoordHeight2 = 6014,
         SlopeMarcoSmoothing = 6016,
+        SlopeMarcoMinDelta = 6018,
+        SlopeMarcoMaxDelta = 6020,
+        SlopeAvoidEdges = 6021,
     };
 
     static void Create(CTileSetBrowserFrame* pWnd);
@@ -417,6 +426,9 @@ private:
     static HWND hSlopeCoordHeight1;
     static HWND hSlopeCoordHeight2;
     static HWND hSlopeMarcoSmoothing;
+    static HWND hSlopeMarcoMinDelta;
+    static HWND hSlopeMarcoMaxDelta;
+    static HWND hSlopeAvoidEdges;
 
     static std::map<int, FString> TileSetLabels[TERRAIN_GENERATOR_DISPLAY];
     static std::map<int, FString> OverlayLabels[TERRAIN_GENERATOR_DISPLAY];

@@ -701,27 +701,27 @@ static void ProjectNoiseToValidHeights(
     int relaxIterations
 )
 {
-    for (int iter = 0; iter < relaxIterations; iter++)
+    //for (int iter = 0; iter < relaxIterations; iter++)
+    //{
+    for (auto& c : region)
     {
-        for (auto& c : region)
-        {
-            int minH, maxH;
-            GetAllowedHeightRange(
-                c,
-                heights,
-                distToBoundary,
-                steep,
-                minHeight,
-                baseHeight,
-                maxHeight,
-                minH,
-                maxH
-            );
+        int minH, maxH;
+        GetAllowedHeightRange(
+            c,
+            heights,
+            distToBoundary,
+            steep,
+            minHeight,
+            baseHeight,
+            maxHeight,
+            minH,
+            maxH
+        );
 
-            int target = expected.at(c);
-            heights[c] = std::clamp(target, minH, maxH);
-        }
+        int target = expected.at(c);
+        heights[c] = std::clamp(target, minH, maxH);
     }
+    //}
 }
 
 static float ComputeLinearHeightOffset(
@@ -760,6 +760,8 @@ void CMapDataExt::GenerateNoiseSlopeTerrain(
     int minHeight,
     int baseHeight,
     int maxHeight,
+    int minMarcoHeight,
+    int maxMarcoHeight,
     bool steep,
     float frequency,
     float macroFrequency,
@@ -767,15 +769,14 @@ void CMapDataExt::GenerateNoiseSlopeTerrain(
     MapCoord start,
     MapCoord end,
     int startHeight,
-    int endHeight
+    int endHeight,
+    bool avoidEdges
 )
 {
     if (region.empty()) return;
 
     g_NoiseSeed = GenerateRandomSeed();
     g_NoiseSeed2 = GenerateRandomSeed();
-
-    float marcoNoiseMultiplier = STDHelpers::RandomSelectInt(4, 9) / 10.0f;
 
     std::unordered_map<MapCoord, int> expected;
     std::unordered_map<MapCoord, int> heights;
@@ -789,12 +790,12 @@ void CMapDataExt::GenerateNoiseSlopeTerrain(
         float macroNoise =
             ValueNoise2(c.X * macroFrequency, c.Y * macroFrequency);
 
-        float macroOffset = (macroNoise * 2.0f - 1.0f) * (maxHeight - minHeight) * marcoNoiseMultiplier;
+        float macroOffset = (macroNoise * 2.0f - 1.0f) * (maxMarcoHeight - minMarcoHeight);
 
         float n = ValueNoise(c.X * frequency, c.Y * frequency); 
 
         int hgt = minHeight 
-            + (int)std::round(n * (maxHeight - minHeight) * sqrt(1.3 - marcoNoiseMultiplier)
+            + (int)std::round(n * (maxHeight - minHeight)
             + linearOffset 
             + (macroFrequency == 0.0f ? 0 : macroOffset));
 
@@ -802,18 +803,8 @@ void CMapDataExt::GenerateNoiseSlopeTerrain(
         heights[c] = hgt;
     }
 
-    if (startHeight < endHeight)
-    {
-        minHeight += startHeight;
-        maxHeight += endHeight;
-    }
-    else
-    {
-        minHeight += endHeight;
-        maxHeight += startHeight;
-    }
-    minHeight = std::clamp(minHeight, 0, 14);
-    maxHeight = std::clamp(maxHeight, 0, 14);
+    minHeight = 0;
+    maxHeight = 14;
 
     for (auto& [c, h] : expected)
     {
@@ -824,19 +815,21 @@ void CMapDataExt::GenerateNoiseSlopeTerrain(
         h = std::clamp(h, minHeight, maxHeight);
     }
 
-    auto distToBoundary = ComputeDistanceToBoundary(region);
-
-    ProjectNoiseToValidHeights(
-        region,
-        heights,
-        expected,
-        distToBoundary,
-        steep,
-        minHeight,
-        baseHeight,
-        maxHeight,
-        relaxIterations
-    );
+    if (avoidEdges)
+    {
+        auto distToBoundary = ComputeDistanceToBoundary(region);
+        ProjectNoiseToValidHeights(
+            region,
+            heights,
+            expected,
+            distToBoundary,
+            steep,
+            minHeight,
+            baseHeight,
+            maxHeight,
+            relaxIterations
+        );
+    }
 
     for (auto& c : region)
     {
@@ -849,30 +842,21 @@ void CMapDataExt::GenerateNoiseSlopeTerrain(
         CellDataExts[idx].Adjusted = true;
     }
 
-    CMapDataExt::CheckCellLow(steep);
-    CMapDataExt::CheckCellRise(steep);
+    std::vector<int> ignoreList;
+    for (int i = 0; i < CMapDataExt::CellDataExts.size(); ++i)
+    {
+        int x = CMapData::Instance->GetXFromCoordIndex(i);
+        int y = CMapData::Instance->GetYFromCoordIndex(i);
+        if (region.find({ x,y }) == region.end())
+            ignoreList.push_back(i);
+    }
+
+    CMapDataExt::CheckCellLow(steep, 0, false, &ignoreList);
+    CMapDataExt::CheckCellRise(steep, 0, false, &ignoreList);
 
     for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
     {
         if (CMapDataExt::CellDataExts[i].Adjusted)
-        {
-            int thisX = CMapData::Instance->GetXFromCoordIndex(i);
-            int thisY = CMapData::Instance->GetYFromCoordIndex(i);
-            int loops[3] = { 0, -1, 1 };
-            for (int i : loops)
-                for (int e : loops)
-                {
-                    int newX = thisX + i;
-                    int newY = thisY + e;
-                    int pos = CMapData::Instance->GetCoordIndex(newX, newY);
-                    if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
-                    CMapDataExt::CellDataExts[pos].CreateSlope = true;
-                }
-        }
-    }
-    for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
-    {
-        if (CMapDataExt::CellDataExts[i].CreateSlope)
         {
             int thisX = CMapData::Instance->GetXFromCoordIndex(i);
             int thisY = CMapData::Instance->GetYFromCoordIndex(i);

@@ -547,6 +547,8 @@ public:
         int minHeight,
         int baseHeight,
         int maxHeight,
+        int minMarcoHeight,
+        int maxMarcoHeight,
         bool steep,
         float frequency,
         float macroFrequency,
@@ -554,7 +556,8 @@ public:
         MapCoord start,
         MapCoord end,
         int startHeight,
-        int endHeight);
+        int endHeight,
+        bool avoidEdges);
 
     std::string convertToExtendedOverlayPack(const std::string& input);
     std::string convertFromExtendedOverlayPack(const std::string& input);

@@ -54,6 +54,9 @@ HWND CTerrainGenerator::hSlopeCoord2;
 HWND CTerrainGenerator::hSlopeCoordHeight1;
 HWND CTerrainGenerator::hSlopeCoordHeight2;
 HWND CTerrainGenerator::hSlopeMarcoSmoothing;
+HWND CTerrainGenerator::hSlopeMarcoMinDelta;
+HWND CTerrainGenerator::hSlopeMarcoMaxDelta;
+HWND CTerrainGenerator::hSlopeAvoidEdges;
 
 std::map<int, FString> CTerrainGenerator::TileSetLabels[TERRAIN_GENERATOR_DISPLAY];
 std::map<int, FString> CTerrainGenerator::OverlayLabels[TERRAIN_GENERATOR_DISPLAY];
@@ -245,12 +248,15 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     Translate(5018, "CTerrainGenerator.Chance", hTab4Dlg);
     Translate(6000, "CTerrainGenerator.SlopeMinDelta", hTab5Dlg);
     Translate(6002, "CTerrainGenerator.SlopeMaxDelta", hTab5Dlg);
+    Translate(6017, "CTerrainGenerator.SlopeMarcoMinDelta", hTab5Dlg);
+    Translate(6019, "CTerrainGenerator.SlopeMarcoMaxDelta", hTab5Dlg);
     Translate(6004, "CTerrainGenerator.SlopeSteepness", hTab5Dlg);
     Translate(6015, "CTerrainGenerator.SlopeMarcoSteepness", hTab5Dlg);
     Translate(6006, "CTerrainGenerator.SlopeManualHeight", hTab5Dlg);
     Translate(6008, "CTerrainGenerator.SlopeHeightTransition", hTab5Dlg);
     Translate(6009, "CTerrainGenerator.SlopeCoords", hTab5Dlg);
     Translate(6012, "CTerrainGenerator.SlopeCoordHeights", hTab5Dlg);
+    Translate(6021, "CTerrainGenerator.SlopeAvoidEdges", hTab5Dlg);
 
     Translate(1001, "CTerrainGenerator.Add", NULL);
     Translate(1002, "CTerrainGenerator.Name", NULL);
@@ -325,6 +331,9 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     hSmudgeChance[4] = GetDlgItem(hTab4Dlg, Controls::SmudgeChance5);
     hSlopeMinDelta = GetDlgItem(hTab5Dlg, Controls::SlopeMinDelta);
     hSlopeMaxDelta = GetDlgItem(hTab5Dlg, Controls::SlopeMaxDelta);
+    hSlopeMarcoMinDelta = GetDlgItem(hTab5Dlg, Controls::SlopeMarcoMinDelta);
+    hSlopeMarcoMaxDelta = GetDlgItem(hTab5Dlg, Controls::SlopeMarcoMaxDelta);
+    hSlopeAvoidEdges = GetDlgItem(hTab5Dlg, Controls::SlopeAvoidEdges);
     hSlopeSmoothing = GetDlgItem(hTab5Dlg, Controls::SlopeSmoothing);
     hSlopeMarcoSmoothing = GetDlgItem(hTab5Dlg, Controls::SlopeMarcoSmoothing);
     hSlopeManualHeight = GetDlgItem(hTab5Dlg, Controls::SlopeManualHeight);
@@ -1215,6 +1224,26 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab5(HWND hWnd, UINT Msg, WPARAM wParam,
                 SaveAndReloadPreset();
             }
             break;
+        case Controls::SlopeMarcoMaxDelta:
+            if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
+            {
+                char buffer[512]{ 0 };
+                GetWindowText(hSlopeMarcoMaxDelta, buffer, 511);
+                int delta = STDHelpers::ParseToInt(buffer, -1);
+                CurrentPreset->SlopeMarcoMaxDelta = std::clamp(delta, -1, 14);
+                SaveAndReloadPreset();
+            }
+            break;
+        case Controls::SlopeMarcoMinDelta:
+            if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
+            {
+                char buffer[512]{ 0 };
+                GetWindowText(hSlopeMarcoMinDelta, buffer, 511);
+                int delta = STDHelpers::ParseToInt(buffer, -1);
+                CurrentPreset->SlopeMarcoMinDelta = std::clamp(delta, -1, 14);
+                SaveAndReloadPreset();
+            }
+            break;
         case Controls::SlopeSmoothing:
             if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
             {
@@ -1232,6 +1261,13 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab5(HWND hWnd, UINT Msg, WPARAM wParam,
                 GetWindowText(hSlopeMarcoSmoothing, buffer, 511);
                 int smooth = STDHelpers::ParseToInt(buffer, -1);
                 CurrentPreset->SlopeMarcoSteepness = std::clamp(smooth, -1, 200);
+                SaveAndReloadPreset();
+            }
+            break;
+        case Controls::SlopeAvoidEdges:
+            if (CODE == BN_CLICKED && CurrentPreset)
+            {
+                CurrentPreset->SlopeAvoidEdges = SendMessage(hSlopeAvoidEdges, BM_GETCHECK, 0, 0);
                 SaveAndReloadPreset();
             }
             break;
@@ -1406,6 +1442,8 @@ void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
         }
         SendMessage(hSlopeMaxDelta, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hSlopeMinDelta, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hSlopeMarcoMaxDelta, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hSlopeMarcoMinDelta, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hSlopeSmoothing, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hSlopeMarcoSmoothing, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hSlopeManualHeightEdit, WM_SETTEXT, 0, (LPARAM)"");
@@ -1420,6 +1458,7 @@ void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
         EnableWindow(hSlopeCoordHeight2, FALSE);
         SendMessage(hSlopeManualHeight, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hSlopeHeightTransition, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hSlopeAvoidEdges, BM_SETCHECK, BST_UNCHECKED, 0);
         
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hScale, WM_SETTEXT, 0, (LPARAM)"");
@@ -1515,10 +1554,16 @@ void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
         {
             text.Format("%d", CurrentPreset->SlopeMarcoSteepness);
             SendMessage(hSlopeMarcoSmoothing, WM_SETTEXT, 0, text);
+            text.Format("%d", CurrentPreset->SlopeMarcoMaxDelta);
+            SendMessage(hSlopeMarcoMaxDelta, WM_SETTEXT, 0, text);
+            text.Format("%d", CurrentPreset->SlopeMarcoMinDelta);
+            SendMessage(hSlopeMarcoMinDelta, WM_SETTEXT, 0, text);
         }
         else
         {
             SendMessage(hSlopeMarcoSmoothing, WM_SETTEXT, 0, (LPARAM)"");
+            SendMessage(hSlopeMarcoMaxDelta, WM_SETTEXT, 0, (LPARAM)"");
+            SendMessage(hSlopeMarcoMinDelta, WM_SETTEXT, 0, (LPARAM)"");
         }
 
         if (CurrentPreset->SlopeSetManualHeight)
@@ -1531,6 +1576,14 @@ void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
         else
         {
             SendMessage(hSlopeManualHeight, BM_SETCHECK, BST_UNCHECKED, 0);
+        }
+        if (CurrentPreset->SlopeAvoidEdges)
+        {
+            SendMessage(hSlopeAvoidEdges, BM_SETCHECK, BST_CHECKED, 0);
+        }
+        else
+        {
+            SendMessage(hSlopeAvoidEdges, BM_SETCHECK, BST_UNCHECKED, 0);
         }
         if (CurrentPreset->SlopeSetTransition)
         {
@@ -1556,9 +1609,12 @@ void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
     else
     {
         SendMessage(hSlopeManualHeight, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hSlopeAvoidEdges, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hSlopeHeightTransition, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hSlopeMaxDelta, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hSlopeMinDelta, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hSlopeMarcoMaxDelta, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hSlopeMarcoMinDelta, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hSlopeSmoothing, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hSlopeMarcoSmoothing, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hSlopeManualHeightEdit, WM_SETTEXT, 0, (LPARAM)"");
@@ -1922,14 +1978,18 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
         CMapDataExt::MakeMixedRecord(x1 - 14, y1 - 14, x2 + 14, y2 + 14, recordType);
 
         std::set<MapCoord> ret;
-        std::set<MapCoord>* coords = nullptr;
         std::vector<int> avgHeights;
         int coordsRecord = 0;
         if (UseMultiSelection)
         {
-            coords = &MultiSelection::SelectedCoords;
-            for (const auto& c: *coords) {
+            for (const auto& c: MultiSelection::SelectedCoords) {
                 coordsRecord += c.X + c.Y;
+                if (CMapDataExt::TileData[
+                    CMapDataExt::GetSafeTileIndex(
+                        CMapData::Instance->GetCellAt(c.X, c.Y)->TileIndex
+                    )
+                ].Morphable)
+                    ret.insert({ c.X, c.Y });
             }
         }
         else
@@ -1937,13 +1997,17 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
             for (int i = x1; i <= x2; ++i) {
                 for (int j = y1; j <= y2; ++j) {
                     if (!CMapData::Instance->IsCoordInMap(i, j)) continue;
-                    ret.insert({ i,j });
                     coordsRecord += i + j;
+                    if (CMapDataExt::TileData[
+                        CMapDataExt::GetSafeTileIndex(
+                            CMapData::Instance->GetCellAt(i, j)->TileIndex
+                        )
+                    ].Morphable)
+                        ret.insert({ i,j });
                 }
             }
-            coords = &ret;
         }
-        auto coordGroups = SplitIntoConnectedCoords(*coords);
+        auto coordGroups = SplitIntoConnectedCoords(ret);
         if (!CurrentPreset->SlopeSetManualHeight)
         {
             if (coordsRecord != lastCoords)
@@ -1973,6 +2037,7 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
         for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
         {
             CMapDataExt::CellDataExts[i].Adjusted = false;
+            CMapDataExt::CellDataExts[i].CreateSlope = false;
         }
 
         for (int i = 0; i < coordGroups.size(); ++i)
@@ -1984,6 +2049,8 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
                 std::max(0, avgHeight - CurrentPreset->SlopeMinDelta),
                 avgHeight,
                 std::min(14, avgHeight + CurrentPreset->SlopeMaxDelta),
+                std::max(0, avgHeight - CurrentPreset->SlopeMarcoMinDelta),
+                std::min(14, avgHeight + CurrentPreset->SlopeMarcoMaxDelta),
                 true,
                 (CurrentPreset->SlopeSteepness + 6) / 500.f,
                 (CurrentPreset->SlopeMarcoSteepness < 1 ? 0.0f : (CurrentPreset->SlopeMarcoSteepness + 6)) / 2000.f,
@@ -1991,7 +2058,8 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
                 CurrentPreset->SlopeSetTransition ? CurrentPreset->SlopeCoords[0] : MapCoord{0,0},
                 CurrentPreset->SlopeCoords[1],
                 CurrentPreset->SlopeCoordHeights[0],
-                CurrentPreset->SlopeCoordHeights[1]
+                CurrentPreset->SlopeCoordHeights[1],
+                CurrentPreset->SlopeAvoidEdges
             );
             Logger::Raw("%d,%d %d,%d %d %d",
                 CurrentPreset->SlopeCoords[0].Y, CurrentPreset->SlopeCoords[0].X,
@@ -2168,6 +2236,24 @@ void CTerrainGenerator::SaveAndReloadPreset()
     {
         ini->DeleteKey(id, "SlopeMinDelta");
     }
+    if (CurrentPreset->SlopeMarcoMinDelta > -1)
+    {
+        value.Format("%d", CurrentPreset->SlopeMarcoMinDelta);
+        ini->WriteString(id, "SlopeMarcoMinDelta", value);
+    }
+    else
+    {
+        ini->DeleteKey(id, "SlopeMarcoMinDelta");
+    }
+    if (CurrentPreset->SlopeMarcoMaxDelta > -1)
+    {
+        value.Format("%d", CurrentPreset->SlopeMarcoMaxDelta);
+        ini->WriteString(id, "SlopeMarcoMaxDelta", value);
+    }
+    else
+    {
+        ini->DeleteKey(id, "SlopeMarcoMaxDelta");
+    }
     if (CurrentPreset->SlopeMaxDelta > -1)
     {
         value.Format("%d", CurrentPreset->SlopeMaxDelta);
@@ -2185,6 +2271,14 @@ void CTerrainGenerator::SaveAndReloadPreset()
     else
     {
         ini->DeleteKey(id, "SlopeBaseHeight");
+    }
+    if (CurrentPreset->SlopeAvoidEdges)
+    {
+        ini->WriteString(id, "SlopeAvoidEdges", "true");
+    }
+    else
+    {
+        ini->DeleteKey(id, "SlopeAvoidEdges");
     }
     if (CurrentPreset->SlopeSetTransition)
     {

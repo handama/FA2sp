@@ -549,7 +549,12 @@ public:
         int maxHeight,
         bool steep,
         float frequency,
-        int relaxIterations = 2);
+        float macroFrequency,
+        int relaxIterations,
+        MapCoord start,
+        MapCoord end,
+        int startHeight,
+        int endHeight);
 
     std::string convertToExtendedOverlayPack(const std::string& input);
     std::string convertFromExtendedOverlayPack(const std::string& input);

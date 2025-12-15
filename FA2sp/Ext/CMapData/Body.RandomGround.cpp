@@ -496,6 +496,7 @@ void CMapDataExt::CreateRandomSmudge(int TopX, int TopY, int BottomX, int Bottom
 }
 
 static uint32_t g_NoiseSeed = 0;
+static uint32_t g_NoiseSeed2 = 0;
 
 static uint32_t GenerateRandomSeed()
 {
@@ -511,6 +512,17 @@ static float HashNoise(int x, int y)
     n *= 374761393u;
     n += (uint32_t)y * 668265263u;
     n ^= g_NoiseSeed;
+    n = (n ^ (n >> 13)) * 1274126177u;
+    n ^= (n >> 16);
+    return (n & 0x7fffffffu) / float(0x7fffffffu);
+}
+
+static float HashNoise2(int x, int y)
+{
+    uint32_t n = (uint32_t)x;
+    n *= 374761393u;
+    n += (uint32_t)y * 668265263u;
+    n ^= g_NoiseSeed2;
     n = (n ^ (n >> 13)) * 1274126177u;
     n ^= (n >> 16);
     return (n & 0x7fffffffu) / float(0x7fffffffu);
@@ -540,6 +552,27 @@ static float ValueNoise(float x, float y)
     float n10 = HashNoise(x1, y0);
     float n01 = HashNoise(x0, y1);
     float n11 = HashNoise(x1, y1);
+
+    float ix0 = Lerp(n00, n10, sx);
+    float ix1 = Lerp(n01, n11, sx);
+
+    return Lerp(ix0, ix1, sy);
+}
+
+static float ValueNoise2(float x, float y)
+{
+    int x0 = (int)floorf(x);
+    int y0 = (int)floorf(y);
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
+
+    float sx = SmoothStep(x - x0);
+    float sy = SmoothStep(y - y0);
+
+    float n00 = HashNoise2(x0, y0);
+    float n10 = HashNoise2(x1, y0);
+    float n01 = HashNoise2(x0, y1);
+    float n11 = HashNoise2(x1, y1);
 
     float ix0 = Lerp(n00, n10, sx);
     float ix1 = Lerp(n01, n11, sx);
@@ -691,33 +724,35 @@ static void ProjectNoiseToValidHeights(
     }
 }
 
-bool isConsecutiveOnCircle(std::vector<int> dirs) {
-    if (dirs.empty()) return true;
+static float ComputeLinearHeightOffset(
+    const MapCoord& p,
+    const MapCoord& start,
+    const MapCoord& end,
+    int startHeight,
+    int endHeight
+)
+{
+    float vx = float(end.X - start.X);
+    float vy = float(end.Y - start.Y);
 
-    // 去重
-    std::unordered_set<int> s(dirs.begin(), dirs.end());
-    if (s.size() != dirs.size()) return false;  // 有重复
+    float wx = float(p.X - start.X);
+    float wy = float(p.Y - start.Y);
 
-    dirs.assign(s.begin(), s.end());  // 转为排序向量
-    int n = dirs.size();
+    float len2 = vx * vx + vy * vy;
+    if (len2 < 1e-6f)
+        return float(startHeight);
 
-    // 构造双倍序列用于处理环
-    std::vector<int> doubled = dirs;
-    for (int x : dirs) doubled.push_back(x + 8);
+    float t = (wx * vx + wy * vy) / len2;
+    t = std::clamp(t, 0.0f, 1.0f);
 
-    // 检查是否存在长度为 n 的连续递增子段
-    for (int i = 0; i < n; ++i) {
-        bool ok = true;
-        for (int j = 1; j < n; ++j) {
-            if (doubled[i + j] != doubled[i + j - 1] + 1) {
-                ok = false;
-                break;
-            }
-        }
-        if (ok) return true;
-    }
+    float base = Lerp(float(startHeight), float(endHeight), t);
 
-    return false;
+    float noise =
+        HashNoise(p.X * 17, p.Y * 31) * 2.0f - 1.0f;
+
+    const float jitterAmplitude = 2.0f;
+
+    return base + noise * jitterAmplitude;
 }
 
 void CMapDataExt::GenerateNoiseSlopeTerrain(
@@ -727,24 +762,66 @@ void CMapDataExt::GenerateNoiseSlopeTerrain(
     int maxHeight,
     bool steep,
     float frequency,
-    int relaxIterations
+    float macroFrequency,
+    int relaxIterations,
+    MapCoord start,
+    MapCoord end,
+    int startHeight,
+    int endHeight
 )
 {
     if (region.empty()) return;
 
     g_NoiseSeed = GenerateRandomSeed();
+    g_NoiseSeed2 = GenerateRandomSeed();
+
+    float marcoNoiseMultiplier = STDHelpers::RandomSelectInt(4, 9) / 10.0f;
 
     std::unordered_map<MapCoord, int> expected;
     std::unordered_map<MapCoord, int> heights;
 
     for (auto& c : region)
     {
-        float n = ValueNoise(c.X * frequency, c.Y * frequency);
-        int hgt = minHeight + (int)std::round(n * (maxHeight - minHeight));
-        hgt = std::clamp(hgt, minHeight, maxHeight);
+        float linearOffset = (start.X == 0 && start.Y == 0) ? 0.0f : ComputeLinearHeightOffset(
+            c, start, end, startHeight, endHeight
+        );
 
-        expected[c] = hgt;
+        float macroNoise =
+            ValueNoise2(c.X * macroFrequency, c.Y * macroFrequency);
+
+        float macroOffset = (macroNoise * 2.0f - 1.0f) * (maxHeight - minHeight) * marcoNoiseMultiplier;
+
+        float n = ValueNoise(c.X * frequency, c.Y * frequency); 
+
+        int hgt = minHeight 
+            + (int)std::round(n * (maxHeight - minHeight) * sqrt(1.3 - marcoNoiseMultiplier)
+            + linearOffset 
+            + (macroFrequency == 0.0f ? 0 : macroOffset));
+
+        expected[c] = hgt; 
         heights[c] = hgt;
+    }
+
+    if (startHeight < endHeight)
+    {
+        minHeight += startHeight;
+        maxHeight += endHeight;
+    }
+    else
+    {
+        minHeight += endHeight;
+        maxHeight += startHeight;
+    }
+    minHeight = std::clamp(minHeight, 0, 14);
+    maxHeight = std::clamp(maxHeight, 0, 14);
+
+    for (auto& [c, h] : expected)
+    {
+        h = std::clamp(h, minHeight, maxHeight);
+    }
+    for (auto& [c, h] : heights)
+    {
+        h = std::clamp(h, minHeight, maxHeight);
     }
 
     auto distToBoundary = ComputeDistanceToBoundary(region);

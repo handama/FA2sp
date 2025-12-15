@@ -40,6 +40,12 @@ public:
     int SlopeMinDelta = -1;
     int SlopeMaxDelta = -1;
     int SlopeSteepness = -1;
+    int SlopeMarcoSteepness = -1;
+    bool SlopeSetManualHeight;
+    bool SlopeSetTransition;
+    int SlopeBaseHeight = 0;
+    MapCoord SlopeCoords[2] = {};
+    int SlopeCoordHeights[2] = {};
 
     static TerrainGeneratorPreset* create(FString sectionName, INISection* pSection)
     {
@@ -210,8 +216,26 @@ public:
             }
         }
         SlopeSteepness = pSection->GetInteger("SlopeSteepness", -1);
+        SlopeMarcoSteepness = pSection->GetInteger("SlopeMarcoSteepness", -1);
         SlopeMinDelta = pSection->GetInteger("SlopeMinDelta", -1);
         SlopeMaxDelta = pSection->GetInteger("SlopeMaxDelta", -1);
+        SlopeBaseHeight = pSection->GetInteger("SlopeBaseHeight", -1);
+        SlopeSetManualHeight = SlopeBaseHeight != -1;
+        auto splits = STDHelpers::SplitString(pSection->GetString("SlopeCoords"));
+        if (splits.size() == 4)
+        {
+            SlopeCoords[0].Y = atoi(splits[0]);
+            SlopeCoords[0].X = atoi(splits[1]);
+            SlopeCoords[1].Y = atoi(splits[2]);
+            SlopeCoords[1].X = atoi(splits[3]);
+        }
+        auto splits2 = STDHelpers::SplitString(pSection->GetString("SlopeCoordHeights"));
+        if (splits2.size() == 2)
+        {
+            SlopeCoordHeights[0] = atoi(splits2[0]);
+            SlopeCoordHeights[1] = atoi(splits2[1]);
+        }
+        SlopeSetTransition = splits.size() == 4 && splits2.size() == 2;
     }
 };
 
@@ -284,6 +308,14 @@ public:
         SlopeMinDelta = 6001,
         SlopeMaxDelta = 6003,
         SlopeSmoothing = 6005,
+        SlopeManualHeight = 6006,
+        SlopeManualHeightEdit = 6007,
+        SlopeHeightTransition = 6008,
+        SlopeCoord1 = 6010,
+        SlopeCoord2 = 6011,
+        SlopeCoordHeight1 = 6013,
+        SlopeCoordHeight2 = 6014,
+        SlopeMarcoSmoothing = 6016,
     };
 
     static void Create(CTileSetBrowserFrame* pWnd);
@@ -327,6 +359,9 @@ protected:
 
     static void SaveAndReloadPreset();
     static FString DoubleToString(double value, int precision);
+
+    static std::vector<std::set<MapCoord>>
+        SplitIntoConnectedCoords(const std::set<MapCoord>& input);
 
     static std::shared_ptr<TerrainGeneratorPreset> GetPreset(FString id) {
         auto it = TerrainGeneratorPresets.find(id);
@@ -374,6 +409,14 @@ private:
     static HWND hSlopeMinDelta;
     static HWND hSlopeMaxDelta;
     static HWND hSlopeSmoothing;
+    static HWND hSlopeManualHeight;
+    static HWND hSlopeManualHeightEdit;
+    static HWND hSlopeHeightTransition;
+    static HWND hSlopeCoord1;
+    static HWND hSlopeCoord2;
+    static HWND hSlopeCoordHeight1;
+    static HWND hSlopeCoordHeight2;
+    static HWND hSlopeMarcoSmoothing;
 
     static std::map<int, FString> TileSetLabels[TERRAIN_GENERATOR_DISPLAY];
     static std::map<int, FString> OverlayLabels[TERRAIN_GENERATOR_DISPLAY];

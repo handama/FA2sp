@@ -1575,6 +1575,8 @@ void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
         }
         else
         {
+            EnableWindow(hSlopeManualHeightEdit, FALSE);
+            SendMessage(hSlopeManualHeightEdit, WM_SETTEXT, 0, (LPARAM)"");
             SendMessage(hSlopeManualHeight, BM_SETCHECK, BST_UNCHECKED, 0);
         }
         if (CurrentPreset->SlopeAvoidEdges)
@@ -1603,6 +1605,14 @@ void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
         }
         else
         {
+            EnableWindow(hSlopeCoord1, FALSE);
+            EnableWindow(hSlopeCoord2, FALSE);
+            EnableWindow(hSlopeCoordHeight1, FALSE);
+            EnableWindow(hSlopeCoordHeight2, FALSE);
+            SendMessage(hSlopeCoord1, WM_SETTEXT, 0, (LPARAM)"");
+            SendMessage(hSlopeCoord2, WM_SETTEXT, 0, (LPARAM)"");
+            SendMessage(hSlopeCoordHeight1, WM_SETTEXT, 0, (LPARAM)"");
+            SendMessage(hSlopeCoordHeight2, WM_SETTEXT, 0, (LPARAM)"");
             SendMessage(hSlopeHeightTransition, BM_SETCHECK, BST_UNCHECKED, 0);
         }
     }

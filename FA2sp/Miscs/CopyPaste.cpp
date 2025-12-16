@@ -647,6 +647,7 @@ void CopyPaste::PasteArea(int X, int Y, int nBaseHeight, MyClipboardData* data, 
 void CopyPaste::LoadTileConvertRule(char sourceTheater)
 {
     TileConvertRules.clear();
+    bool reverse = false;
     FString iniSection;
     iniSection.Format("%s2%sTileRules", 
         TheaterHelpers::GetSuffix(sourceTheater), 
@@ -657,6 +658,14 @@ void CopyPaste::LoadTileConvertRule(char sourceTheater)
 
     CINI ini;
     ini.ClearAndLoad(path.c_str());
+
+    if (!ini.SectionExists(iniSection))
+    {
+        iniSection.Format("%s2%sTileRules",
+            TheaterHelpers::GetSuffix(CLoading::Instance->TheaterIdentifier),
+            TheaterHelpers::GetSuffix(sourceTheater));
+        reverse = true;
+    }
 
     if (auto pSection = ini.GetSection(iniSection))
     {
@@ -700,6 +709,9 @@ void CopyPaste::LoadTileConvertRule(char sourceTheater)
                 rule.hasSubIndexOverride = true;
                 rule.subIndexOverride = std::atoi(separates[3]);
             }
+
+            rule.reverse = reverse;
+
             TileConvertRules.push_back(rule);
         }
     }
@@ -709,39 +721,46 @@ void CopyPaste::ConvertTile(CellData& cell)
 {
     for (const auto& rule : TileConvertRules)
     {
-        if (std::find(rule.sourceTiles.begin(), rule.sourceTiles.end(), cell.TileIndex) != rule.sourceTiles.end())
+        const std::vector<int>& fromTiles =
+            rule.reverse ? rule.destinationTiles : rule.sourceTiles;
+
+        const std::vector<int>& toTiles =
+            rule.reverse ? rule.sourceTiles : rule.destinationTiles;
+
+        auto it = std::find(fromTiles.begin(), fromTiles.end(), CMapDataExt::GetSafeTileIndex(cell.TileIndex));
+        if (it == fromTiles.end())
+            continue;
+
+        if (rule.isRandom)
         {
-            if (rule.isRandom)
+            int rangeSize = static_cast<int>(toTiles.size());
+            if (rangeSize > 0)
             {
-                int rangeSize = rule.destinationTiles.size();
-                if (rangeSize > 0) {
-                    int randIndex = rand() % rangeSize;
-                    cell.TileIndex = rule.destinationTiles[randIndex];
-                }
+                int randIndex = rand() % rangeSize;
+                cell.TileIndex = toTiles[randIndex];
             }
-            else if (rule.destinationTiles.size() == 1)
-            {
-                cell.TileIndex = rule.destinationTiles[0];
-            }
-            else if (rule.destinationTiles.size() == rule.sourceTiles.size())
-            {
-                auto it = std::find(rule.sourceTiles.begin(), rule.sourceTiles.end(), cell.TileIndex);
-                int idx = std::distance(rule.sourceTiles.begin(), it);
-                cell.TileIndex = rule.destinationTiles[idx];
-            }
-            else
-            {
-                cell.TileIndex = rule.destinationTiles[0];
-            }
-
-            if (rule.hasHeightOverride)
-                cell.Height = rule.heightOverride;
-
-            if (rule.hasSubIndexOverride)
-                cell.TileSubIndex = rule.subIndexOverride;
-
-            return;
         }
+        else if (toTiles.size() == 1)
+        {
+            cell.TileIndex = toTiles[0];
+        }
+        else if (toTiles.size() == fromTiles.size())
+        {
+            int idx = static_cast<int>(std::distance(fromTiles.begin(), it));
+            cell.TileIndex = toTiles[idx];
+        }
+        else if (!toTiles.empty())
+        {
+            cell.TileIndex = toTiles[0];
+        }
+
+        if (rule.hasHeightOverride)
+            cell.Height = rule.heightOverride;
+
+        if (rule.hasSubIndexOverride)
+            cell.TileSubIndex = rule.subIndexOverride;
+
+        return;
     }
 }
 

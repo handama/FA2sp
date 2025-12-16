@@ -403,7 +403,20 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
                     p++;
                     continue;
                 }
-                if (block->ImageData)
+
+                auto& tiledata = CMapDataExt::TileData[tile.GetDisplayTileIndex()];
+                if (tiledata.AltTypeCount > 0)
+                {
+                    bool isBridge = (tiledata.TileSet == CMapDataExt::BridgeSet
+                        || tiledata.TileSet == CMapDataExt::WoodBridgeSet);
+                    auto& altType = tiledata.AltTypes[STDHelpers::RandomSelectInt(0, tiledata.AltTypeCount)];
+                    if (!isBridge && tile.SubTileIndex < altType.TileBlockCount)
+                    {
+                        block = &altType.TileBlockDatas[tile.SubTileIndex];
+                    }
+                }
+
+                if (block && block->ImageData)
                 {
                     int drawx = e * 60 / 2 - i * 60 / 2
                         + 30
@@ -413,7 +426,7 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
                         - tile.GetHeight() * 30 / 2;
 
                     auto pPal = CMapDataExt::TileSetPalettes
-                        [CMapDataExt::TileData[tile.GetDisplayTileIndex()].TileSet];
+                        [tiledata.TileSet];
                     BGRStruct empty;
                     auto currentPalette = PalettesManager::GetTileSetBrowserViewPalette(pPal, empty, false);
 

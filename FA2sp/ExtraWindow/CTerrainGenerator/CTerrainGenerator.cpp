@@ -2054,7 +2054,7 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
                 true,
                 (CurrentPreset->SlopeSteepness + 6) / 500.f,
                 (CurrentPreset->SlopeMarcoSteepness < 1 ? 0.0f : (CurrentPreset->SlopeMarcoSteepness + 6)) / 2000.f,
-                STDHelpers::RandomSelectInt(1, 3),
+                1,
                 CurrentPreset->SlopeSetTransition ? CurrentPreset->SlopeCoords[0] : MapCoord{0,0},
                 CurrentPreset->SlopeCoords[1],
                 CurrentPreset->SlopeCoordHeights[0],

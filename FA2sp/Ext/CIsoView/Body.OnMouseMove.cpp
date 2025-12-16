@@ -146,7 +146,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         CIsoViewExt::DrawMultiMapCoordBorders(hDC, cells, ExtConfigs::CursorSelectionBound_Color);
     }
 
-    if (CIsoView::CurrentCommand->Command == 0 && pIsoView->Drag)
+    if (CIsoView::CurrentCommand->Command == 0 && pIsoView->Drag && pIsoView->CurrentCellObjectType >= 0)
     {
         int x1, x2, y1, y2;
         x1 = pIsoView->StartCell.X;

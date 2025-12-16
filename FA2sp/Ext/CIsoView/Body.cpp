@@ -4243,7 +4243,24 @@ void CIsoViewExt::Zoom(double offset)
 
 void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color)
 {
-    auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
+    auto pThis = static_cast<CIsoViewExt*>(CIsoView::GetInstance());
+
+    auto MakeCoordKey = [](int x, int y)
+    {
+        return (static_cast<uint32_t>(x) << 16) | static_cast<uint16_t>(y);
+    };
+
+    std::unordered_set<uint32_t> coordSet;
+    coordSet.reserve(coords.size());
+
+    for (const auto& mc : coords)
+    {
+        if (CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+        {
+            coordSet.insert(MakeCoordKey(mc.X, mc.Y));
+        }
+    }
+
     for (const auto& mc : coords)
     {
         if (!CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
@@ -4252,6 +4269,7 @@ void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>&
         int x = mc.X;
         int y = mc.Y;
         CIsoViewExt::MapCoord2ScreenCoord(x, y);
+
         int drawX = x - CIsoViewExt::drawOffsetX;
         int drawY = y - CIsoViewExt::drawOffsetY;
 
@@ -4260,36 +4278,35 @@ void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>&
         bool s3 = true;
         bool s4 = true;
 
-        for (auto& coord : coords)
-        {
-            if (!CMapDataExt::IsCoordInFullMap(coord.X, coord.Y))
-                continue;
+        if (coordSet.count(MakeCoordKey(mc.X - 1, mc.Y))) s1 = false;
+        if (coordSet.count(MakeCoordKey(mc.X + 1, mc.Y))) s3 = false;
+        if (coordSet.count(MakeCoordKey(mc.X, mc.Y + 1))) s2 = false;
+        if (coordSet.count(MakeCoordKey(mc.X, mc.Y - 1))) s4 = false;
 
-            if (coord.X == mc.X - 1 && coord.Y == mc.Y)
-            {
-                s1 = false;
-            }
-            if (coord.X == mc.X + 1 && coord.Y == mc.Y)
-            {
-                s3 = false;
-            }
-            if (coord.X == mc.X && coord.Y == mc.Y - 1)
-            {
-                s4 = false;
-            }
-
-            if (coord.X == mc.X && coord.Y == mc.Y + 1)
-            {
-                s2 = false;
-            }
-        }
         pThis->DrawLockedCellOutlinePaint(drawX, drawY, 1, 1, color, false, hDC, pThis->m_hWnd, s1, s2, s3, s4);
     }
 }
 
 void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::vector<MapCoord>& coords, COLORREF color)
 {
-    auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
+    auto pThis = static_cast<CIsoViewExt*>(CIsoView::GetInstance());
+
+    auto MakeCoordKey = [](int x, int y)
+    {
+        return (static_cast<uint32_t>(x) << 16) | static_cast<uint16_t>(y);
+    };
+
+    std::unordered_set<uint32_t> coordSet;
+    coordSet.reserve(coords.size());
+
+    for (const auto& mc : coords)
+    {
+        if (CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+        {
+            coordSet.insert(MakeCoordKey(mc.X, mc.Y));
+        }
+    }
+
     for (const auto& mc : coords)
     {
         if (!CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
@@ -4298,6 +4315,7 @@ void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::v
         int x = mc.X;
         int y = mc.Y;
         CIsoView::MapCoord2ScreenCoord(x, y);
+
         int drawX = x - CIsoViewExt::drawOffsetX;
         int drawY = y - CIsoViewExt::drawOffsetY;
 
@@ -4306,36 +4324,42 @@ void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::v
         bool s3 = true;
         bool s4 = true;
 
-        for (auto& coord : coords)
-        {
-            if (!CMapDataExt::IsCoordInFullMap(coord.X, coord.Y))
-                continue;
+        if (coordSet.count(MakeCoordKey(mc.X - 1, mc.Y))) s1 = false;
+        if (coordSet.count(MakeCoordKey(mc.X + 1, mc.Y))) s3 = false;
+        if (coordSet.count(MakeCoordKey(mc.X, mc.Y + 1))) s2 = false;
+        if (coordSet.count(MakeCoordKey(mc.X, mc.Y - 1))) s4 = false;
 
-            if (coord.X == mc.X - 1 && coord.Y == mc.Y)
-            {
-                s1 = false;
-            }
-            if (coord.X == mc.X + 1 && coord.Y == mc.Y)
-            {
-                s3 = false;
-            }
-            if (coord.X == mc.X && coord.Y == mc.Y - 1)
-            {
-                s4 = false;
-            }
-
-            if (coord.X == mc.X && coord.Y == mc.Y + 1)
-            {
-                s2 = false;
-            }
-        }
-        pThis->DrawLockedCellOutline(drawX, drawY, 1, 1, color, false, false, lpDesc, s1, s2, s3, s4);
+        pThis->DrawLockedCellOutline(
+            drawX, drawY,
+            1, 1,
+            color,
+            false, false,
+            lpDesc,
+            s1, s2, s3, s4
+        );
     }
 }
 
 void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::set<MapCoord>& coords, COLORREF color)
 {
-    auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
+    auto pThis = static_cast<CIsoViewExt*>(CIsoView::GetInstance());
+
+    auto MakeCoordKey = [](int x, int y)
+    {
+        return (static_cast<uint32_t>(x) << 16) | static_cast<uint16_t>(y);
+    };
+
+    std::unordered_set<uint32_t> coordSet;
+    coordSet.reserve(coords.size());
+
+    for (const auto& mc : coords)
+    {
+        if (CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+        {
+            coordSet.insert(MakeCoordKey(mc.X, mc.Y));
+        }
+    }
+
     for (const auto& mc : coords)
     {
         if (!CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
@@ -4344,6 +4368,7 @@ void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::s
         int x = mc.X;
         int y = mc.Y;
         CIsoView::MapCoord2ScreenCoord(x, y);
+
         int drawX = x - CIsoViewExt::drawOffsetX;
         int drawY = y - CIsoViewExt::drawOffsetY;
 
@@ -4352,29 +4377,11 @@ void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::s
         bool s3 = true;
         bool s4 = true;
 
-        for (auto& coord : coords)
-        {
-            if (!CMapDataExt::IsCoordInFullMap(coord.X, coord.Y))
-                continue;
+        if (coordSet.count(MakeCoordKey(mc.X - 1, mc.Y))) s1 = false;
+        if (coordSet.count(MakeCoordKey(mc.X + 1, mc.Y))) s3 = false;
+        if (coordSet.count(MakeCoordKey(mc.X, mc.Y + 1))) s2 = false;
+        if (coordSet.count(MakeCoordKey(mc.X, mc.Y - 1))) s4 = false;
 
-            if (coord.X == mc.X - 1 && coord.Y == mc.Y)
-            {
-                s1 = false;
-            }
-            if (coord.X == mc.X + 1 && coord.Y == mc.Y)
-            {
-                s3 = false;
-            }
-            if (coord.X == mc.X && coord.Y == mc.Y - 1)
-            {
-                s4 = false;
-            }
-
-            if (coord.X == mc.X && coord.Y == mc.Y + 1)
-            {
-                s2 = false;
-            }
-        }
         pThis->DrawLockedCellOutline(drawX, drawY, 1, 1, color, false, false, lpDesc, s1, s2, s3, s4);
     }
 }

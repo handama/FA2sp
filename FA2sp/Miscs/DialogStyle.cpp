@@ -1988,6 +1988,18 @@ BOOL WINAPI DarkTheme::MyGetSaveFileNameA(LPOPENFILENAMEA ofn)
     dwOptions |= FOS_OVERWRITEPROMPT | FOS_PATHMUSTEXIST;
     pFileSave->SetOptions(dwOptions);
 
+    if (ofn->lpstrFile && ofn->lpstrFile[0])
+    {
+        std::wstring filename = STDHelpers::StringToWString(ofn->lpstrFile);
+        pFileSave->SetFileName(filename.c_str());
+    }
+
+    if (ofn->lpstrDefExt)
+    {
+        std::wstring defExt = STDHelpers::StringToWString(ofn->lpstrDefExt);
+        pFileSave->SetDefaultExtension(defExt.c_str());
+    }
+
     if (ofn->lpstrInitialDir)
     {
         IShellItem* psiFolder = nullptr;

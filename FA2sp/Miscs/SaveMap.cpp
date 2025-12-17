@@ -625,9 +625,11 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
     }
 
     std::ofstream fout;
+    fout.exceptions(std::ofstream::failbit | std::ofstream::badbit);
 
     bool saveAsUTF8 = CMapDataExt::IsUTF8File || ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
 
+    VEHGuard v(false);
     std::filesystem::path p(filepath.c_str());
     FString ext = p.extension().string();
 
@@ -652,267 +654,287 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
 
     Logger::Raw("SaveMap : Trying to save map to %s.\n", filepath);
 
-    fout.open(filepath, std::ios::out | std::ios::trunc);
-    if (fout.is_open())
+    try
     {
-        pINI->DeleteSection("Digest");
-
-        std::ostringstream oss;
-        FString comments;
-
-        if (ExtConfigs::SaveMap_FileEncodingComment)
+        fout.open(filepath, std::ios::out | std::ios::trunc);
+        if (fout.is_open())
         {
-            comments += "; ";
-            if (saveAsUTF8)
-                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1_UTF8", "This file is encoded as UTF8, please open it in this format");
-            else
-                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1", "This file is encoded as ANSI/GBK, please open it in this format");
+            pINI->DeleteSection("Digest");
 
-            comments += "\n";
-            comments += "; ";
-            comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment2", "If non ASCII characters (such as Chinese) are used");
-            comments += "\n";
-            comments += "; ";
-            comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment3", "modifying the file with incorrect encoding will result in garbled characters");
-            comments += "\n";
-            comments += "\n";
-        }
+            std::ostringstream oss;
+            FString comments;
 
-        comments += "; Map created with FinalAlert 2(tm) Mission Editor\n";
-        comments += "; Get it at http://www.westwood.com\n";
-        comments += "; note that all comments were truncated\n";
-        comments += "\n";
-        comments += "; This FA2 uses FA2sp created by secsome, modified by Handama & E1Elite\n";
-        comments += "; Get the lastest dll at https://github.com/handama/FA2sp\n";
-        comments += "; Current version : "  PRODUCT_STR  ", "  __str(HDM_PRODUCT_VERSION)  "\n\n";
-
-        oss << comments;
-
-        auto saveSection = [&oss](INISection* pSection, FString sectionName)
-        {
-            auto& exclude = INIIncludes::MapIncludedKeys;
-            if (!exclude.empty() && exclude.find(sectionName) != exclude.end())
+            if (ExtConfigs::SaveMap_FileEncodingComment)
             {
-                std::vector<int> skipLines;
-                std::vector<int> useOriginLines;
+                comments += "; ";
+                if (saveAsUTF8)
+                    comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1_UTF8", "This file is encoded as UTF8, please open it in this format");
+                else
+                    comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1", "This file is encoded as ANSI/GBK, please open it in this format");
 
-                auto& keys = exclude[sectionName];
-                int index = 0;
-                for (auto& pair : pSection->GetEntities())
+                comments += "\n";
+                comments += "; ";
+                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment2", "If non ASCII characters (such as Chinese) are used");
+                comments += "\n";
+                comments += "; ";
+                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment3", "modifying the file with incorrect encoding will result in garbled characters");
+                comments += "\n";
+                comments += "\n";
+            }
+
+            comments += "; Map created with FinalAlert 2(tm) Mission Editor\n";
+            comments += "; Get it at http://www.westwood.com\n";
+            comments += "; note that all comments were truncated\n";
+            comments += "\n";
+            comments += "; This FA2 uses FA2sp created by secsome, modified by Handama & E1Elite\n";
+            comments += "; Get the lastest dll at https://github.com/handama/FA2sp\n";
+            comments += "; Current version : "  PRODUCT_STR  ", "  __str(HDM_PRODUCT_VERSION)  "\n\n";
+
+            oss << comments;
+
+            auto saveSection = [&oss](INISection* pSection, FString sectionName)
+            {
+                auto& exclude = INIIncludes::MapIncludedKeys;
+                if (!exclude.empty() && exclude.find(sectionName) != exclude.end())
                 {
-                    if (keys.find(pair.first) != keys.end())
-                    {
-                        if (keys[pair.first] == "")
-                        {
-                            skipLines.push_back(index);
-                        }
-                        else
-                        {
-                            useOriginLines.push_back(index);
-                        }
-                    }
-                    index++;
-                }
-                if (skipLines.size() < pSection->GetEntities().size())
-                {
-                    oss << "[" << sectionName << "]\n";
-                    index = 0;
+                    std::vector<int> skipLines;
+                    std::vector<int> useOriginLines;
+
+                    auto& keys = exclude[sectionName];
+                    int index = 0;
                     for (auto& pair : pSection->GetEntities())
                     {
-                        if (std::find(skipLines.begin(), skipLines.end(), index) != skipLines.end())
+                        if (keys.find(pair.first) != keys.end())
                         {
-
-                        }
-                        else if (std::find(useOriginLines.begin(), useOriginLines.end(), index) != useOriginLines.end())
-                        {
-                            oss << pair.first << "=" << keys[pair.first] << "\n";
-                        }
-                        else
-                        {
-                            oss << pair.first << "=" << pair.second << "\n";
+                            if (keys[pair.first] == "")
+                            {
+                                skipLines.push_back(index);
+                            }
+                            else
+                            {
+                                useOriginLines.push_back(index);
+                            }
                         }
                         index++;
                     }
+                    if (skipLines.size() < pSection->GetEntities().size())
+                    {
+                        oss << "[" << sectionName << "]\n";
+                        index = 0;
+                        for (auto& pair : pSection->GetEntities())
+                        {
+                            if (std::find(skipLines.begin(), skipLines.end(), index) != skipLines.end())
+                            {
+
+                            }
+                            else if (std::find(useOriginLines.begin(), useOriginLines.end(), index) != useOriginLines.end())
+                            {
+                                oss << pair.first << "=" << keys[pair.first] << "\n";
+                            }
+                            else
+                            {
+                                oss << pair.first << "=" << pair.second << "\n";
+                            }
+                            index++;
+                        }
+                        oss << "\n";
+                    }
+                }
+                else
+                {
+                    oss << "[" << sectionName << "]\n";
+                    for (const auto& pair : pSection->GetEntities())
+                        oss << pair.first << "=" << pair.second << "\n";
                     oss << "\n";
+                }
+            };
+
+            if (!SaveMapExt::IsAutoSaving && ExtConfigs::SaveMap_PreserveINISorting)
+            {
+                if (!pINI->SectionExists("Header"))
+                {
+                    pINI->WriteString("Header", "NumberStartingPoints", "0");
+                }
+                for (const auto& sectionName : CMapDataExt::MapIniSectionSorting)
+                {
+                    if (sectionName == "Digest")
+                        continue;
+                    if (const auto pSection = pINI->GetSection(sectionName))
+                    {
+                        saveSection(pSection, sectionName);
+                    }
+                }
+                for (auto& section : pINI->Dict)
+                {
+                    if (!strcmp(section.first, "Digest"))
+                        continue;
+
+                    auto it = std::find(CMapDataExt::MapIniSectionSorting.begin(), CMapDataExt::MapIniSectionSorting.end(), section.first);
+                    if (it == CMapDataExt::MapIniSectionSorting.end())
+                    {
+                        saveSection(&section.second, section.first);
+                    }
                 }
             }
             else
             {
-                oss << "[" << sectionName << "]\n";
-                for (const auto& pair : pSection->GetEntities())
-                    oss << pair.first << "=" << pair.second << "\n";
-                oss << "\n";
-            }
-        };
-
-        if (!SaveMapExt::IsAutoSaving && ExtConfigs::SaveMap_PreserveINISorting)
-        {
-            if (!pINI->SectionExists("Header"))
-            {
-                pINI->WriteString("Header", "NumberStartingPoints", "0");
-            }
-            for (const auto& sectionName : CMapDataExt::MapIniSectionSorting)
-            {
-                if (sectionName == "Digest")
-                    continue;
-                if (const auto pSection = pINI->GetSection(sectionName))
+                // Add "Header" for single-player map to prevent loading error
+                if (const auto pSection = pINI->GetSection("Header"))
                 {
-                    saveSection(pSection, sectionName);
+                    oss << "[Header]\n";
+                    for (const auto& pair : pSection->GetEntities())
+                        oss << pair.first << "=" << pair.second << "\n";
+                    oss << "\n";
                 }
-            }
-            for (auto& section : pINI->Dict)
-            {
-                if (!strcmp(section.first, "Digest"))
-                    continue;
-
-                auto it = std::find(CMapDataExt::MapIniSectionSorting.begin(), CMapDataExt::MapIniSectionSorting.end(), section.first);
-                if (it == CMapDataExt::MapIniSectionSorting.end())
+                else if (!CMapData::Instance->IsMultiOnly())
                 {
+                    oss << "[Header]\n";
+                    oss << "NumberStartingPoints" << "=" << "0" << "\n";
+                    oss << "\n";
+                }
+
+                // Dirty fix: vanilla YR needs "Preview" and "PreviewPack" before "Map"
+                // So we just put them at first.
+                if (const auto pSection = pINI->GetSection("Preview"))
+                {
+                    oss << "[Preview]\n";
+                    for (const auto& pair : pSection->GetEntities())
+                        oss << pair.first << "=" << pair.second << "\n";
+                    oss << "\n";
+                }
+                if (const auto pSection = pINI->GetSection("PreviewPack"))
+                {
+                    oss << "[PreviewPack]\n";
+                    for (const auto& pair : pSection->GetEntities())
+                        oss << pair.first << "=" << pair.second << "\n";
+                    oss << "\n";
+                }
+
+                for (auto& section : pINI->Dict)
+                {
+                    if (!strcmp(section.first, "Preview")
+                        || !strcmp(section.first, "PreviewPack")
+                        || !strcmp(section.first, "Header")
+                        || !strcmp(section.first, "Digest"))
+                        continue;
+
                     saveSection(&section.second, section.first);
                 }
             }
-        }
-        else
-        {
-            // Add "Header" for single-player map to prevent loading error
-            if (const auto pSection = pINI->GetSection("Header"))
+
+            // Generate the Digest
+            unsigned char hash[20];
+            const auto& hash_source = oss.str();
+            SHA1::hash(hash, hash_source.data(), hash_source.length());
+
+            char hash_value[64] = { 0 };
+            sprintf_s(
+                hash_value,
+                "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+                hash[0], hash[1], hash[2], hash[3], hash[4],
+                hash[5], hash[6], hash[7], hash[8], hash[9],
+                hash[10], hash[11], hash[12], hash[13], hash[14],
+                hash[15], hash[16], hash[17], hash[18], hash[19]
+            );
+            Logger::Raw("SaveMap : Map SHA1 hash: %s\n", hash_value);
+
+            // As sha1 hash length is only 20, the length of base64 result won't
+            // go over the limitation of uublock's 70 per line. So only one row!
+            oss << "[Digest]\n1=" << base64::encode(hash, 20) << "\n";
+
+            if (saveAsMMX)
             {
-                oss << "[Header]\n";
-                for (const auto& pair : pSection->GetEntities())
-                    oss << pair.first << "=" << pair.second << "\n";
-                oss << "\n";
-            }
-            else if (!CMapData::Instance->IsMultiOnly())
-            {
-                oss << "[Header]\n";
-                oss << "NumberStartingPoints" << "=" << "0" << "\n";
-                oss << "\n";
-            }
+                FString core = p.stem().string();
+                FString MMX = core + ".map";
+                FString PKT = core + ".pkt";
 
-            // Dirty fix: vanilla YR needs "Preview" and "PreviewPack" before "Map"
-            // So we just put them at first.
-            if (const auto pSection = pINI->GetSection("Preview"))
-            {
-                oss << "[Preview]\n";
-                for (const auto& pair : pSection->GetEntities())
-                    oss << pair.first << "=" << pair.second << "\n";
-                oss << "\n";
-            }
-            if (const auto pSection = pINI->GetSection("PreviewPack"))
-            {
-                oss << "[PreviewPack]\n";
-                for (const auto& pair : pSection->GetEntities())
-                    oss << pair.first << "=" << pair.second << "\n";
-                oss << "\n";
-            }
+                auto itr = pFinalSun->PKTHeader.Dict.end();
+                for (size_t i = 0, sz = pFinalSun->PKTHeader.Dict.size();
+                    i < sz && itr != pFinalSun->PKTHeader.Dict.begin(); ++i) {
+                    --itr;
+                    itr->second.~INISection();
+                    pFinalSun->PKTHeader.Dict.manual_erase(itr);
+                }
 
-            for (auto& section : pINI->Dict)
-            {
-                if (!strcmp(section.first, "Preview")
-                    || !strcmp(section.first, "PreviewPack")
-                    || !strcmp(section.first, "Header")
-                    || !strcmp(section.first, "Digest"))
-                    continue;
+                pFinalSun->PKTHeader.WriteString("MultiMaps", "1", core);
+                pFinalSun->PKTHeader.WriteString(core, "Description", dlg.m_Description);
+                pFinalSun->PKTHeader.WriteString(core, "CD", "2");
+                pFinalSun->PKTHeader.WriteString(core, "MinPlayers", dlg.m_MinPlayers);
+                pFinalSun->PKTHeader.WriteString(core, "MaxPlayers", dlg.m_Maxplayers);
+                pFinalSun->PKTHeader.WriteString(core, "GameMode", pINI->GetString("Basic", "GameMode", "standard"));
 
-                saveSection(&section.second, section.first);
-            }
-        }
+                MixPacker mix;
+                if (saveAsUTF8)
+                {
+                    FString output = oss.str();
+                    output.toUTF8();
+                    mix.Add(MMX, output.data(), output.size());
+                }
+                else
+                {
+                    mix.Add(MMX, oss.str().data(), oss.str().size());
+                }
 
-        // Generate the Digest
-        unsigned char hash[20];
-        const auto& hash_source = oss.str();
-        SHA1::hash(hash, hash_source.data(), hash_source.length());
-
-        char hash_value[64] = { 0 };
-        sprintf_s(
-            hash_value,
-            "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
-            hash[0], hash[1], hash[2], hash[3], hash[4],
-            hash[5], hash[6], hash[7], hash[8], hash[9],
-            hash[10], hash[11], hash[12], hash[13], hash[14],
-            hash[15], hash[16], hash[17], hash[18], hash[19]
-        );
-        Logger::Raw("SaveMap : Map SHA1 hash: %s\n", hash_value);
-
-        // As sha1 hash length is only 20, the length of base64 result won't
-        // go over the limitation of uublock's 70 per line. So only one row!
-        oss << "[Digest]\n1=" << base64::encode(hash, 20) << "\n";
-
-        if (saveAsMMX)
-        {
-            FString core = p.stem().string();
-            FString MMX = core + ".map";
-            FString PKT = core + ".pkt";
-
-            auto itr = pFinalSun->PKTHeader.Dict.end();
-            for (size_t i = 0, sz = pFinalSun->PKTHeader.Dict.size();
-                i < sz && itr != pFinalSun->PKTHeader.Dict.begin(); ++i) {
-                --itr;
-                itr->second.~INISection();
-                pFinalSun->PKTHeader.Dict.manual_erase(itr);
-            }
-
-            pFinalSun->PKTHeader.WriteString("MultiMaps", "1", core);
-            pFinalSun->PKTHeader.WriteString(core, "Description", dlg.m_Description);
-            pFinalSun->PKTHeader.WriteString(core, "CD", "2");
-            pFinalSun->PKTHeader.WriteString(core, "MinPlayers", dlg.m_MinPlayers);
-            pFinalSun->PKTHeader.WriteString(core, "MaxPlayers", dlg.m_Maxplayers);
-            pFinalSun->PKTHeader.WriteString(core, "GameMode", pINI->GetString("Basic", "GameMode", "standard"));
-
-            MixPacker mix;
-            if (saveAsUTF8)
-            {
-                FString output = oss.str();
-                output.toUTF8();
-                mix.Add(MMX, output.data(), output.size());
+                std::ostringstream pkt;
+                for (auto& section : pFinalSun->PKTHeader.Dict)
+                {
+                    pkt << "[" << section.first << "]\n";
+                    for (const auto& pair : section.second.GetEntities())
+                        pkt << pair.first << "=" << pair.second << "\n";
+                    pkt << "\n";
+                }
+                mix.Add(PKT, pkt.str().data(), pkt.str().size());
+                fout.close();
+                if (mix.Pack(filepath))
+                {
+                    Logger::Raw("SaveMap : Successfully saved %u sections.\n", pINI->Dict.size());
+                }
             }
             else
             {
-                mix.Add(MMX, oss.str().data(), oss.str().size());
-            }
-
-            std::ostringstream pkt;
-            for (auto& section : pFinalSun->PKTHeader.Dict)
-            {
-                pkt << "[" << section.first << "]\n";
-                for (const auto& pair : section.second.GetEntities())
-                    pkt << pair.first << "=" << pair.second << "\n";
-                pkt << "\n";
-            }
-            mix.Add(PKT, pkt.str().data(), pkt.str().size());
-            fout.close();
-            if (mix.Pack(filepath))
-            {
+                // Now just write the file
+                if (saveAsUTF8)
+                {
+                    FString output = oss.str();
+                    output.toUTF8();
+                    fout << output;
+                }
+                else
+                {
+                    fout << oss.str();
+                }
+                fout.flush();
+                fout.close();
                 Logger::Raw("SaveMap : Successfully saved %u sections.\n", pINI->Dict.size());
             }
         }
         else
         {
-            // Now just write the file
-            if (saveAsUTF8)
-            {
-                FString output = oss.str();
-                output.toUTF8();
-                fout << output;
-            }
-            else
-            {
-                fout << oss.str();
-            }
-            fout.flush();
-            fout.close();
-            Logger::Raw("SaveMap : Successfully saved %u sections.\n", pINI->Dict.size());
+            ppmfc::CString buffer;
+            buffer.Format("Failed to create file %s.\n", filepath);
+            Logger::Raw(buffer);
+            buffer.Format(Translations::TranslateOrDefault("CannotCreateFile", "Cannot create file: %s.\n"), filepath);
+            ::MessageBox(NULL, buffer, Translations::TranslateOrDefault("Error", "Error"), MB_OK | MB_ICONERROR);
+            return false;
         }
     }
-    else
+    catch (const std::ios_base::failure& e)
     {
         ppmfc::CString buffer;
-        buffer.Format("Failed to create file %s.\n", filepath);
-        Logger::Raw(buffer);
-        buffer.Format(Translations::TranslateOrDefault("CannotCreateFile", "Cannot create file: %s.\n"), filepath);
-        ::MessageBox(NULL, buffer, Translations::TranslateOrDefault("Error", "Error"), MB_OK | MB_ICONERROR);
+        buffer.Format(
+            Translations::TranslateOrDefault(
+                "CannotCreateFile",
+                "Cannot create file: %s.\n"),
+            filepath
+        );
+
+        ::MessageBox(NULL, buffer,
+            Translations::TranslateOrDefault("Error", "Error"),
+            MB_OK | MB_ICONERROR);
+
         return false;
     }
+
     return true;
 }
 

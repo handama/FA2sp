@@ -4692,20 +4692,22 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                 Map->CreateShore(x - width - 2, y - height - 2,
                     x - width + tileData.Height * this->BrushSizeX + 5,
                     y - height + tileData.Width * this->BrushSizeY + 5, FALSE);
-
-            for (f = 0; f < this->BrushSizeX; f++)
+            if (!CFinalSunApp::Instance->DisableAutoLat)
             {
-                for (n = 0; n < this->BrushSizeY; n++)
+                for (f = 0; f < this->BrushSizeX; f++)
                 {
-                    cur_pos = pos + f * width + n * height_add;
-                    p = 0;
-                    for (i = -1; i < tileData.Height + 1; i++)
+                    for (n = 0; n < this->BrushSizeY; n++)
                     {
-                        for (e = -1; e < tileData.Width + 1; e++)
+                        cur_pos = pos + f * width + n * height_add;
+                        p = 0;
+                        for (i = -1; i < tileData.Height + 1; i++)
                         {
-                            auto mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
-                            Map->SmoothTileAt(Map->GetXFromCoordIndex(mypos),
-                                Map->GetYFromCoordIndex(mypos));
+                            for (e = -1; e < tileData.Width + 1; e++)
+                            {
+                                auto mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
+                                Map->SmoothTileAt(Map->GetXFromCoordIndex(mypos),
+                                    Map->GetYFromCoordIndex(mypos));
+                            }
                         }
                     }
                 }
@@ -4786,19 +4788,22 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                     x - width + tileData->Height * this->BrushSizeX + 5,
                     y - height + tileData->Width * this->BrushSizeY + 5, FALSE);
 
-            for (f = 0; f < this->BrushSizeX; f++)
+            if (!CFinalSunApp::Instance->DisableAutoLat)
             {
-                for (n = 0; n < this->BrushSizeY; n++)
+                for (f = 0; f < this->BrushSizeX; f++)
                 {
-                    cur_pos = pos + f * width + n * height_add;
-                    p = 0;
-                    for (i = -1; i < tileData->Height + 1; i++)
+                    for (n = 0; n < this->BrushSizeY; n++)
                     {
-                        for (e = -1; e < tileData->Width + 1; e++)
+                        cur_pos = pos + f * width + n * height_add;
+                        p = 0;
+                        for (i = -1; i < tileData->Height + 1; i++)
                         {
-                            auto mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
-                            Map->SmoothTileAt(Map->GetXFromCoordIndex(mypos),
-                                Map->GetYFromCoordIndex(mypos));
+                            for (e = -1; e < tileData->Width + 1; e++)
+                            {
+                                auto mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
+                                Map->SmoothTileAt(Map->GetXFromCoordIndex(mypos),
+                                    Map->GetYFromCoordIndex(mypos));
+                            }
                         }
                     }
                 }

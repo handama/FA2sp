@@ -2376,16 +2376,23 @@ void CIsoViewExt::BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURF
 
             BYTE* destPtr = destLine + destIndex;
             if (destIndex >= 0 && destIndex < maxDestY * destPitch) {
-                BYTE srcR = srcLine[srcIndex + 2];
-                BYTE srcG = srcLine[srcIndex + 1];
-                BYTE srcB = srcLine[srcIndex];
-                BYTE destR = destPtr[2];
-                BYTE destG = destPtr[1];
-                BYTE destB = destPtr[0];
+                if (alpha == 255)
+                {
+                    memcpy(destPtr, &srcColor, BPP);
+                }
+                else
+                {
+                    BYTE srcR = srcLine[srcIndex + 2];
+                    BYTE srcG = srcLine[srcIndex + 1];
+                    BYTE srcB = srcLine[srcIndex];
+                    BYTE destR = destPtr[2];
+                    BYTE destG = destPtr[1];
+                    BYTE destB = destPtr[0];
 
-                destPtr[2] = alphaBlendTable[srcR][alpha] + alphaBlendTable[destR][255 - alpha];
-                destPtr[1] = alphaBlendTable[srcG][alpha] + alphaBlendTable[destG][255 - alpha];
-                destPtr[0] = alphaBlendTable[srcB][alpha] + alphaBlendTable[destB][255 - alpha];
+                    destPtr[2] = alphaBlendTable[srcR][alpha] + alphaBlendTable[destR][255 - alpha];
+                    destPtr[1] = alphaBlendTable[srcG][alpha] + alphaBlendTable[destG][255 - alpha];
+                    destPtr[0] = alphaBlendTable[srcB][alpha] + alphaBlendTable[destB][255 - alpha];
+                }
             }
         }
     }
@@ -2394,7 +2401,7 @@ void CIsoViewExt::BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURF
 }
 
 void CIsoViewExt::BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURFACE7 surface, DDSURFACEDESC2* pDestDesc,
-    DDSURFACEDESC2& srcDesc, DDCOLORKEY& srcColorKey, int x, int y, int width, int height, BYTE alpha)
+    DDSURFACEDESC2& srcDesc, DDCOLORKEY& srcColorKey, int x, int y, int width, int height, BYTE alpha, COLORREF oldColor, COLORREF newColor)
 {
     if (!pic || !pDestDesc || alpha == 0) {
         return;
@@ -2461,6 +2468,19 @@ void CIsoViewExt::BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDR
     int maxDestX = pDestDesc->dwWidth;
     int maxDestY = pDestDesc->dwHeight;
 
+    BGRStruct oldcolor;
+    auto pRGB = reinterpret_cast<ColorStruct*>(&oldColor);
+    oldcolor.R = pRGB->red;
+    oldcolor.G = pRGB->green;
+    oldcolor.B = pRGB->blue;
+    BGRStruct newcolor;
+    pRGB = reinterpret_cast<ColorStruct*>(&newColor);
+    newcolor.R = pRGB->red;
+    newcolor.G = pRGB->green;
+    newcolor.B = pRGB->blue;
+    DWORD newRGB = RGB(newcolor.B, newcolor.G, newcolor.R);
+    DWORD oldRGB = RGB(oldcolor.B, oldcolor.G, oldcolor.R);
+
     for (LONG row = 0; row < srcRect.bottom - srcRect.top; ++row) {
         LONG dy = destRect.top + row;
         if (dy < 0 || dy >= maxDestY) {
@@ -2482,18 +2502,29 @@ void CIsoViewExt::BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDR
                 continue;
             }
 
+            if (oldColor != 0xFFFFFFFF && (srcColor & 0x00FFFFFF) == oldRGB) {
+                srcColor = (srcColor & 0xFF000000) | newRGB;
+            }
+
             BYTE* destPtr = destLine + destIndex;
             if (destIndex >= 0 && destIndex < maxDestY * destPitch) {
-                BYTE srcR = srcLine[srcIndex + 2];
-                BYTE srcG = srcLine[srcIndex + 1];
-                BYTE srcB = srcLine[srcIndex];
-                BYTE destR = destPtr[2];
-                BYTE destG = destPtr[1];
-                BYTE destB = destPtr[0];
+                if (alpha == 255)
+                {
+                    memcpy(destPtr, &srcColor, BPP);
+                }
+                else
+                {
+                    BYTE srcB = (BYTE)(srcColor & 0xFF);
+                    BYTE srcG = (BYTE)((srcColor >> 8) & 0xFF);
+                    BYTE srcR = (BYTE)((srcColor >> 16) & 0xFF);
+                    BYTE destR = destPtr[2];
+                    BYTE destG = destPtr[1];
+                    BYTE destB = destPtr[0];
 
-                destPtr[2] = alphaBlendTable[srcR][alpha] + alphaBlendTable[destR][255 - alpha];
-                destPtr[1] = alphaBlendTable[srcG][alpha] + alphaBlendTable[destG][255 - alpha];
-                destPtr[0] = alphaBlendTable[srcB][alpha] + alphaBlendTable[destB][255 - alpha];
+                    destPtr[2] = alphaBlendTable[srcR][alpha] + alphaBlendTable[destR][255 - alpha];
+                    destPtr[1] = alphaBlendTable[srcG][alpha] + alphaBlendTable[destG][255 - alpha];
+                    destPtr[0] = alphaBlendTable[srcB][alpha] + alphaBlendTable[destB][255 - alpha];
+                }
             }
         }
     }

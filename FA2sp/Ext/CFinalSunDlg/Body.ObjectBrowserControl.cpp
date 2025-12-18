@@ -57,6 +57,8 @@ std::unique_ptr<CPropertyInfantry> CViewObjectsExt::InfantryBrushDlgF;
 std::unique_ptr<CPropertyUnit> CViewObjectsExt::VehicleBrushDlgF;
 std::unique_ptr<CPropertyAircraft> CViewObjectsExt::AircraftBrushDlgF;
 std::unique_ptr<CPropertyBuilding> CViewObjectsExt::BuildingBrushDlgBNF;
+COLORREF CViewObjectsExt::WpColor;
+COLORREF CViewObjectsExt::TagColor;
 
 bool CViewObjectsExt::BuildingBrushBools[14];
 bool CViewObjectsExt::InfantryBrushBools[10];
@@ -1842,6 +1844,8 @@ void CViewObjectsExt::Redraw_Waypoint()
     this->InsertTranslatedString("CreateWaypObList", 20, hWaypoint);
     this->InsertTranslatedString("DelWaypObList", 21, hWaypoint);
     this->InsertTranslatedString("CreateSpecWaypObList", 22, hWaypoint);
+    this->InsertTranslatedString("SetWaypColorObList", Const_WPColor, hWaypoint);
+    this->InsertTranslatedString("RemoveWaypColorObList", Const_RemoveWPColor, hWaypoint);
 }
 
 void CViewObjectsExt::Redraw_Celltag()
@@ -1852,6 +1856,8 @@ void CViewObjectsExt::Redraw_Celltag()
     this->InsertTranslatedString("CreateCelltagObList", 36, hCellTag);
     this->InsertTranslatedString("DelCelltagObList", 37, hCellTag);
     this->InsertTranslatedString("CelltagPropObList", 38, hCellTag);
+    this->InsertTranslatedString("SetCelltagColorObList", Const_TagColor, hCellTag);
+    this->InsertTranslatedString("RemoveCelltagColorObList", Const_RemoveTagColor, hCellTag);
 }
 
 void CViewObjectsExt::Redraw_Basenode()
@@ -2269,6 +2275,93 @@ void CViewObjectsExt::RemoveAnnotation(int X, int Y)
     }
 
     return;
+}
+
+void CViewObjectsExt::OpenWpTagColorDlg(bool isWp)
+{
+    CHOOSECOLOR cc;
+    static COLORREF acrCustClr[16];
+    ZeroMemory(&cc, sizeof(cc));
+    cc.lStructSize = sizeof(cc);
+    cc.hwndOwner = CFinalSunDlg::Instance->GetSafeHwnd();
+    cc.lpCustColors = acrCustClr;
+    cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+    cc.rgbResult = isWp ? ExtConfigs::DisplayColor_Waypoint : ExtConfigs::DisplayColor_Celltag;
+    ChooseColor(&cc);
+
+    if (isWp)
+        WpColor = cc.rgbResult;
+    else
+        TagColor = cc.rgbResult;
+}
+
+void CViewObjectsExt::SetWpTagColor(int X, int Y, bool isWp)
+{
+    auto& color = isWp ? WpColor : TagColor;
+    ppmfc::CString value;
+    value.Format("%d,%d,%d", GetRValue(color), GetGValue(color), GetBValue(color));
+    auto cell = CMapData::Instance->GetCellAt(X, Y);
+
+    if (isWp)
+    {
+        if (cell->Waypoint > -1)
+        {
+            auto id = CINI::CurrentDocument->GetKeyAt("Waypoints", cell->Waypoint);
+            if (!id.IsEmpty())
+            {
+                CMapDataExt::CustomWaypointColors[id] = color;
+                ppmfc::CString key = "Wp";
+                key += id;
+                CINI::CurrentDocument->WriteString("FA2spColors", key, value);
+                ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+            }
+        }
+    }
+    else
+    {
+        if (cell->CellTag > -1)
+        {
+            auto id = CINI::CurrentDocument->GetStringAt("CellTags", cell->CellTag);
+            if (!id.IsEmpty())
+            {
+                CMapDataExt::CustomCelltagColors[id] = color;
+                ppmfc::CString key = "Tag";
+                key += id;
+                CINI::CurrentDocument->WriteString("FA2spColors", key, value);
+                ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+            }
+        }
+    }
+}
+
+void CViewObjectsExt::RemoveWpTagColor(int X, int Y, bool isWp)
+{
+    auto cell = CMapData::Instance->GetCellAt(X, Y);
+
+    if (isWp)
+    {
+        if (cell->Waypoint > -1)
+        {
+            auto id = CINI::CurrentDocument->GetKeyAt("Waypoints", cell->Waypoint);
+            CMapDataExt::CustomWaypointColors.erase(id);
+            ppmfc::CString key = "Wp";
+            key += id;
+            CINI::CurrentDocument->DeleteKey("FA2spColors", key);
+            ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+        }
+    }
+    else
+    {
+        if (cell->CellTag > -1)
+        {
+            auto id = CINI::CurrentDocument->GetStringAt("CellTags", cell->CellTag);
+            CMapDataExt::CustomCelltagColors.erase(id);
+            ppmfc::CString key = "Tag";
+            key += id;
+            CINI::CurrentDocument->DeleteKey("FA2spColors", key);
+            ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+        }
+    }
 }
 
 void CViewObjectsExt::DeleteTube(int X, int Y)
@@ -3185,6 +3278,7 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         return true;
     }
 
+    int oriNData = nData;
     int nCode = nData / 10000;
     nData %= 10000;
 
@@ -3821,10 +3915,37 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         CIsoView::CurrentCommand->Type = nData;
         return true;
     }
+    if (oriNData == Const_WPColor)
+    {
+        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
+        CIsoView::CurrentCommand->Type = 0;
+        OpenWpTagColorDlg(true);
+        return true;
+    }
+    if (oriNData == Const_TagColor)
+    {
+        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
+        CIsoView::CurrentCommand->Type = 1;
+        OpenWpTagColorDlg(false);
+        return true;
+    }
+    if (oriNData == Const_RemoveWPColor)
+    {
+        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
+        CIsoView::CurrentCommand->Type = 2;
+        return true;
+    }
+    if (oriNData == Const_RemoveTagColor)
+    {
+        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
+        CIsoView::CurrentCommand->Type = 3;
+        return true;
+    }
     // 0x1F Terrain Generator
     // 0x20 Modify Ore
     // 0x21 Annotation
     // 0x22 Tube
     // 0x23 Lua Script
+    // 0x24 WP/Tag color
     return false;
 }

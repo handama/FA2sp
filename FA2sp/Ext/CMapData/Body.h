@@ -644,4 +644,6 @@ public:
     static std::vector<FString> MapIniSectionSorting;
     static std::map<FString, std::set<FString>> PowersUpBuildings;
     static std::map<int, std::vector<CustomTile>> CustomTiles;
+    static std::map<FString, COLORREF> CustomWaypointColors;
+    static std::map<FString, COLORREF> CustomCelltagColors;
 };

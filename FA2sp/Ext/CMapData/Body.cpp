@@ -100,6 +100,8 @@ bool CMapDataExt::SkipBuildingOverlappingCheck = false;
 std::vector<FString> CMapDataExt::MapIniSectionSorting;
 std::map<FString, std::set<FString>> CMapDataExt::PowersUpBuildings;
 std::map<int, std::vector<CustomTile>> CMapDataExt::CustomTiles;
+std::map<FString, COLORREF> CMapDataExt::CustomWaypointColors;
+std::map<FString, COLORREF> CMapDataExt::CustomCelltagColors;
 ObjectRecord* ObjectRecord::ObjectRecord_HoldingPtr = nullptr;
 
 int CMapDataExt::GetOreValue(unsigned short nOverlay, unsigned char nOverlayData)
@@ -1604,7 +1606,7 @@ ppmfc::CString CMapDataExt::GetAvailableIndex()
 {
 	auto v = VEHGuard(false);
 	auto& ini = CINI::CurrentDocument;
-	int n = 1000000;
+	int initNumber = 1000000;
 
 	std::unordered_set<std::string> usedIDs;
 	int maxID = 0;
@@ -1641,6 +1643,8 @@ ppmfc::CString CMapDataExt::GetAvailableIndex()
 	}
 
 	if (ExtConfigs::UseSequentialIndexing) {
+		if (maxID < initNumber)
+			maxID = initNumber;
 		int nextID = maxID + 1;
 		char idBuffer[9];
 		std::sprintf(idBuffer, "%08d", nextID);
@@ -1649,14 +1653,14 @@ ppmfc::CString CMapDataExt::GetAvailableIndex()
 
 	char idBuffer[9];
 	while (true) {
-		std::sprintf(idBuffer, "%08d", n);
+		std::sprintf(idBuffer, "%08d", initNumber);
 		std::string id(idBuffer);
 
 		if (usedIDs.find(id) == usedIDs.end() && !ini->SectionExists(id.c_str())) {
 			return id.c_str();
 		}
 
-		n++;
+		initNumber++;
 	}
 
 	return "";
@@ -3569,6 +3573,32 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			for (auto& p : atoms)
 			{
 				CMapDataExt::PowersUpBuildings[p].insert(building);
+			}
+		}
+	}
+
+	CustomWaypointColors.clear();
+	CustomCelltagColors.clear();
+	if (auto pColors = CINI::CurrentDocument->GetSection("FA2spColors"))
+	{
+		if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+		{
+			for (const auto& [key, value] : pSection->GetEntities())
+			{
+				ppmfc::CString colorkey = "Wp";
+				colorkey += key;
+				auto color = CINI::CurrentDocument->GetColor(pColors, colorkey, ExtConfigs::DisplayColor_Waypoint);
+				CMapDataExt::CustomWaypointColors[key] = color;
+			}
+		}
+		if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
+		{
+			for (const auto& [key, value] : pSection->GetEntities())
+			{
+				ppmfc::CString colorkey = "Tag";
+				colorkey += value;
+				auto color = CINI::CurrentDocument->GetColor(pColors, colorkey, ExtConfigs::DisplayColor_Celltag);
+				CMapDataExt::CustomCelltagColors[value] = color;
 			}
 		}
 	}

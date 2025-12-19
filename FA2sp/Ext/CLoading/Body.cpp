@@ -59,7 +59,10 @@ bool CLoadingExt::InitMixFilesFix()
 
 		for (const auto& [_, key] : collector)
 		{
-			NestedMixes[pSection->GetString(key)].push_back(key);
+			auto value = pSection->GetString(key);
+			auto name = FString::SplitString(value, "\\");
+			name.back().MakeLower();
+			NestedMixes[name.back()].push_back(key);
 		}
 	}
 
@@ -67,7 +70,10 @@ bool CLoadingExt::InitMixFilesFix()
 	{ 
 		auto LoadNestedMix = [&NestedMixes](auto&& self, const FString& fileName, int parent, bool addToRa2 = false) -> void
 		{
-			for (const auto& file : NestedMixes[fileName])
+			auto name = FString::SplitString(fileName, "\\");
+			name.back().MakeLower();
+
+			for (const auto& file : NestedMixes[name.back()])
 			{
 				int result = CMixFile::Open(file, parent);
 				if (result)
@@ -311,7 +317,10 @@ bool CLoadingExt::InitMixFilesFix()
 
 		auto LoadNestedMix = [&NestedMixes, &manager](auto&& self, const FString& fileName, int parent, bool addToRa2 = false) -> void
 		{
-			for (const auto& file : NestedMixes[fileName])
+			auto name = FString::SplitString(fileName, "\\");
+			name.back().MakeLower();
+
+			for (const auto& file : NestedMixes[name.back()])
 			{
 				int result = manager.LoadMixFile(file, parent);
 				if (result)

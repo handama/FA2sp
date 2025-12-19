@@ -1280,6 +1280,14 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
         CLuaConsole::UpdateCoords(X, Y, CLuaConsole::applyingScriptFirst, false);
         CLuaConsole::OnClickRun(CLuaConsole::runFile);
         return 0x466860;
+    }	
+    else if (CIsoView::CurrentCommand->Command == 0x24)
+    {
+        if (CIsoView::CurrentCommand->Type < 2)
+            CViewObjectsExt::SetWpTagColor(X, Y, CIsoView::CurrentCommand->Type == 0);
+        else
+            CViewObjectsExt::RemoveWpTagColor(X, Y, CIsoView::CurrentCommand->Type == 2);
+        return 0x466860;
     }
     else if (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7) // change owner
     {
@@ -1368,6 +1376,14 @@ DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
     {
         CLuaConsole::UpdateCoords(X, Y, CLuaConsole::applyingScriptFirst, true);
         CLuaConsole::OnClickRun(CLuaConsole::runFile);
+        return 0x45CD6D;
+    }
+    else if (CIsoView::CurrentCommand->Command == 0x24)
+    {
+        if (CIsoView::CurrentCommand->Type < 2)
+            CViewObjectsExt::SetWpTagColor(X, Y, CIsoView::CurrentCommand->Type == 0);
+        else
+            CViewObjectsExt::RemoveWpTagColor(X, Y, CIsoView::CurrentCommand->Type == 2);
         return 0x45CD6D;
     }
     else if (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7) // change owner

@@ -1700,7 +1700,7 @@ void CObjectSearch::UpdateTypes(HWND hWnd)
         auto name = StringtableLoader::QueryUIName(value, true);
         name = Translations::TranslateOrDefault(name, name);
 
-        auto lang = CFinalSunApp::Instance->Language + "-";
+        auto lang = FinalAlertConfig::Language + "-";
         auto theater = TheaterHelpers::GetCurrentSuffix();
         theater.MakeUpper();
         theater = "RenameID" + theater;

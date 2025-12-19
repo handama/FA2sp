@@ -81,6 +81,9 @@ int ExtConfigs::PlayerLocation_Color;
 bool ExtConfigs::BaseNodeIndex_Background;
 bool ExtConfigs::BaseNodeIndex;
 int ExtConfigs::BaseNodeIndex_Background_Color;
+int ExtConfigs::DisplayColor_Waypoint;
+int ExtConfigs::DisplayColor_Celltag;
+bool ExtConfigs::DrawCelltagTranslucent;
 bool ExtConfigs::ExtWaypoints;
 bool ExtConfigs::ExtFacings;
 bool ExtConfigs::ExtFacings_Drag;
@@ -290,8 +293,12 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::BaseNodeIndex = CINI::FAData->GetBool("ExtConfigs", "BaseNodeIndex");
 	ExtConfigs::BaseNodeIndex_Background_Color = CINI::FAData->GetColor("ExtConfigs", "BaseNodeIndex.Background.Color", 0x3C3C3C);
 
+	ExtConfigs::DisplayColor_Waypoint = CINI::FAData->GetColor("ExtConfigs", "DisplayColor.Waypoint", 0x00FF00);
+	ExtConfigs::DisplayColor_Celltag = CINI::FAData->GetColor("ExtConfigs", "DisplayColor.Celltag", 0x0000FF);
+
 	ExtConfigs::Waypoint_Text_ExtraOffset = CINI::FAData->GetPoint("ExtConfigs", "Waypoint.Text.ExtraOffset");
 
+	ExtConfigs::DrawCelltagTranslucent = CINI::FAData->GetBool("ExtConfigs", "DrawCelltagTranslucent");
 	ExtConfigs::ExtWaypoints = CINI::FAData->GetBool("ExtConfigs", "ExtWaypoints");
 	ExtConfigs::ExtFacings = CINI::FAData->GetBool("ExtConfigs", "ExtFacings");
 	ExtConfigs::ExtFacings_Drag = CINI::FAData->GetBool("ExtConfigs", "ExtFacings.Drag");
@@ -746,6 +753,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.BaseNodeIndex.Background", "Draw background for base node texts"),
 		.IniKey = "BaseNodeIndex.Background",
 		.Value = &ExtConfigs::BaseNodeIndex_Background,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.DrawCelltagTranslucent", "Draw Celltags translucently"),
+		.IniKey = "DrawCelltagTranslucent",
+		.Value = &ExtConfigs::DrawCelltagTranslucent,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 

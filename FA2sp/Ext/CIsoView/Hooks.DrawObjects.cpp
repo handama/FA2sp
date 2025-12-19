@@ -617,7 +617,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					auto nextCell = CMapData::Instance->GetCellAt(X + i, Y + i);
 					int altImage = nextCell->Flag.AltIndex;
 					int tileIndex = CMapDataExt::GetSafeTileIndex(nextCell->TileIndex);
-					int tileSubIndex = CMapDataExt::GetSafeTileIndex(nextCell->TileSubIndex);
+					int tileSubIndex = nextCell->TileSubIndex;
 					CTileBlockClass* subTile = nullptr;
 					if (!nextCell->Flag.RedrawTerrain)
 					{
@@ -644,7 +644,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								tile = &tile->AltTypes[altImage - 1];
 							}
 						}
-						subTile = &tile->TileBlockDatas[tileSubIndex];
+						if (tileSubIndex < tile->TileBlockCount)
+							subTile = &tile->TileBlockDatas[tileSubIndex];
+						else
+							continue;
 					}
 					else
 						continue;
@@ -2176,7 +2179,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					coords.push_back({ i,j });
 				}
 			}
-			CIsoViewExt::DrawMultiMapCoordBorders(hDC, coords, ExtConfigs::TerrainGeneratorColor);
+			CIsoViewExt::DrawMultiMapCoordBorders(lpDesc, coords, ExtConfigs::TerrainGeneratorColor);
 		}
 		else
 		{
@@ -2220,58 +2223,86 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		auto& x = info.screenX;
 		auto& y = info.screenY;
 
+		auto drawCellTagImage = [&](const ppmfc::CString& id)
+		{
+			auto itr = CMapDataExt::CustomCelltagColors.find(id);
+			if (itr != CMapDataExt::CustomCelltagColors.end())
+			{
+				pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface,
+					CIsoViewExt::GetBackBuffer(), lpDesc, CellTagDesc, CellTagColorKey,
+					x + 25 - CellTagImage->FullWidth / 2,
+					y + 12 - CellTagImage->FullHeight / 2, -1, -1,
+					ExtConfigs::DrawCelltagTranslucent ? 128 : 255,
+					ExtConfigs::DisplayColor_Celltag, itr->second);
+			}
+			else
+			{
+				pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface,
+					CIsoViewExt::GetBackBuffer(), lpDesc, CellTagDesc, CellTagColorKey,
+					x + 25 - CellTagImage->FullWidth / 2,
+					y + 12 - CellTagImage->FullHeight / 2, -1, -1,
+					ExtConfigs::DrawCelltagTranslucent ? 128 : 255);
+			}
+		};
+
+		auto drawWaypoinyImage = [&](const ppmfc::CString& id)
+		{
+			auto itr = CMapDataExt::CustomWaypointColors.find(id);
+			if (itr != CMapDataExt::CustomWaypointColors.end())
+			{
+				pThis->BlitTransparentDescNoLock(WaypointImage->lpSurface,
+					CIsoViewExt::GetBackBuffer(), lpDesc, WaypointDesc, WaypointColorKey,
+					x + 30 - WaypointImage->FullWidth / 2,
+					y + 12 - WaypointImage->FullHeight / 2, -1, -1,
+					255, ExtConfigs::DisplayColor_Waypoint, itr->second);
+			}
+			else
+			{
+				pThis->BlitTransparentDescNoLock(WaypointImage->lpSurface,
+					CIsoViewExt::GetBackBuffer(), lpDesc, WaypointDesc, WaypointColorKey,
+					x + 30 - WaypointImage->FullWidth / 2,
+					y + 12 - WaypointImage->FullHeight / 2, -1, -1);
+			}
+		};
+
 		if (CellTagLocked && CIsoViewExt::DrawCelltags && cell->CellTag != -1)
 		{
-			if (CIsoViewExt::DrawCellTagsFilter && !CViewObjectsExt::ObjectFilterCT.empty())
-			{
-				ppmfc::CString id = "";
-				if (CMapData::Instance().INI.SectionExists("CellTags"))
-					id = CMapData::Instance().INI.GetStringAt("CellTags", cell->CellTag);
+			auto id = CMapData::Instance().INI.GetStringAt("CellTags", cell->CellTag);
 
-				if (id != "")
+			if (CIsoViewExt::DrawCellTagsFilter && !CViewObjectsExt::ObjectFilterCT.empty() && !id.IsEmpty())
+			{
+				for (auto& name : CViewObjectsExt::ObjectFilterCT)
 				{
-					for (auto& name : CViewObjectsExt::ObjectFilterCT)
+					if (name == id)
 					{
-						if (name == id)
+						drawCellTagImage(id);
+						break;
+					}
+					if (STDHelpers::IsNumber(name))
+					{
+						int n = atoi(name);
+						if (n < 1000000)
 						{
-							pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface, 
-								CIsoViewExt::GetBackBuffer(), lpDesc, CellTagDesc, CellTagColorKey,
-								x + 25 - CellTagImage->FullWidth / 2,
-								y + 12 - CellTagImage->FullHeight / 2, -1, -1);
-							break;
-						}
-						if (STDHelpers::IsNumber(name))
-						{
-							int n = atoi(name);
-							if (n < 1000000)
+							FString buffer;
+							buffer.Format("%08d", n + 1000000);
+							if (buffer == id)
 							{
-								FString buffer;
-								buffer.Format("%08d", n + 1000000);
-								if (buffer == id)
-								{
-									pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface,
-										CIsoViewExt::GetBackBuffer(), lpDesc, CellTagDesc, CellTagColorKey,
-										x + 25 - CellTagImage->FullWidth / 2,
-										y + 12 - CellTagImage->FullHeight / 2, -1, -1);
-									break;
-								}
+								drawCellTagImage(id);
+								break;
 							}
 						}
 					}
 				}
 			}
 			else
-				pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface,
-					CIsoViewExt::GetBackBuffer(), lpDesc, CellTagDesc, CellTagColorKey,
-					x + 25 - CellTagImage->FullWidth / 2,
-					y + 12 - CellTagImage->FullHeight / 2, -1, -1);
+				drawCellTagImage(id);
 		}
 
 		if (WaypointLocked && CIsoViewExt::DrawWaypoints && cell->Waypoint != -1)
-			pThis->BlitTransparentDescNoLock(WaypointImage->lpSurface,
-				CIsoViewExt::GetBackBuffer(), lpDesc, WaypointDesc, WaypointColorKey,
-				x + 30 - WaypointImage->FullWidth / 2,
-				y + 12 - WaypointImage->FullHeight / 2, -1, -1);
+		{
+			auto id = CMapData::Instance().INI.GetKeyAt("Waypoints", cell->Waypoint);
+			drawWaypoinyImage(id);
+		}
 
 		if (AnnotationLocked && CIsoViewExt::DrawAnnotations && CMapDataExt::HasAnnotation(pos))
 			pThis->BlitTransparentDescNoLock(AnnotationImage->lpSurface,

@@ -38,7 +38,7 @@ FString StringtableLoader::QueryUIName(const char* pRegName, bool bOnlyOneLine)
         ccstring = mmh.GetString(pRegName, "UIName", "").Mid(6);
     }
 
-    auto lang = CFinalSunApp::Instance->Language + "-";
+    auto lang = FinalAlertConfig::Language + "-";
     auto theater = TheaterHelpers::GetCurrentSuffix();
     theater.MakeUpper();
     theater = "RenameID" + theater;
@@ -129,7 +129,7 @@ void StringtableLoader::LoadCSFFiles()
 
     auto loadTranslatedCsf = [](const char* name)
     {
-        auto fullName = CFinalSunApp::Instance->Language + "-" + name;
+        auto fullName = FinalAlertConfig::Language + "-" + name;
         if (LoadCSFFile(fullName))
             return;
         LoadCSFFile(name);

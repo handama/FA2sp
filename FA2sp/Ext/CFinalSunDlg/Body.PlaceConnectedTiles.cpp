@@ -64,7 +64,7 @@ void CViewObjectsExt::ConnectedTile_Initialize()
                     cts.StartTile = ini.GetInteger(pair.second, "StartTile");
                     cts.Allowed = false;
                     auto allowedTheaters = STDHelpers::SplitString(ini.GetString(pair.second, "AllowedTheaters"));
-                    auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+                    auto transed = FinalAlertConfig::Language + "-" + "Name";
                     if (auto pName = ini.TryGetString(pair.second, transed))
                         cts.Name = *pName;
                     else

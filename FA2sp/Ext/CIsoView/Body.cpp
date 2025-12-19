@@ -2376,16 +2376,23 @@ void CIsoViewExt::BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURF
 
             BYTE* destPtr = destLine + destIndex;
             if (destIndex >= 0 && destIndex < maxDestY * destPitch) {
-                BYTE srcR = srcLine[srcIndex + 2];
-                BYTE srcG = srcLine[srcIndex + 1];
-                BYTE srcB = srcLine[srcIndex];
-                BYTE destR = destPtr[2];
-                BYTE destG = destPtr[1];
-                BYTE destB = destPtr[0];
+                if (alpha == 255)
+                {
+                    memcpy(destPtr, &srcColor, BPP);
+                }
+                else
+                {
+                    BYTE srcR = srcLine[srcIndex + 2];
+                    BYTE srcG = srcLine[srcIndex + 1];
+                    BYTE srcB = srcLine[srcIndex];
+                    BYTE destR = destPtr[2];
+                    BYTE destG = destPtr[1];
+                    BYTE destB = destPtr[0];
 
-                destPtr[2] = alphaBlendTable[srcR][alpha] + alphaBlendTable[destR][255 - alpha];
-                destPtr[1] = alphaBlendTable[srcG][alpha] + alphaBlendTable[destG][255 - alpha];
-                destPtr[0] = alphaBlendTable[srcB][alpha] + alphaBlendTable[destB][255 - alpha];
+                    destPtr[2] = alphaBlendTable[srcR][alpha] + alphaBlendTable[destR][255 - alpha];
+                    destPtr[1] = alphaBlendTable[srcG][alpha] + alphaBlendTable[destG][255 - alpha];
+                    destPtr[0] = alphaBlendTable[srcB][alpha] + alphaBlendTable[destB][255 - alpha];
+                }
             }
         }
     }
@@ -2394,7 +2401,7 @@ void CIsoViewExt::BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURF
 }
 
 void CIsoViewExt::BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURFACE7 surface, DDSURFACEDESC2* pDestDesc,
-    DDSURFACEDESC2& srcDesc, DDCOLORKEY& srcColorKey, int x, int y, int width, int height, BYTE alpha)
+    DDSURFACEDESC2& srcDesc, DDCOLORKEY& srcColorKey, int x, int y, int width, int height, BYTE alpha, COLORREF oldColor, COLORREF newColor)
 {
     if (!pic || !pDestDesc || alpha == 0) {
         return;
@@ -2461,6 +2468,19 @@ void CIsoViewExt::BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDR
     int maxDestX = pDestDesc->dwWidth;
     int maxDestY = pDestDesc->dwHeight;
 
+    BGRStruct oldcolor;
+    auto pRGB = reinterpret_cast<ColorStruct*>(&oldColor);
+    oldcolor.R = pRGB->red;
+    oldcolor.G = pRGB->green;
+    oldcolor.B = pRGB->blue;
+    BGRStruct newcolor;
+    pRGB = reinterpret_cast<ColorStruct*>(&newColor);
+    newcolor.R = pRGB->red;
+    newcolor.G = pRGB->green;
+    newcolor.B = pRGB->blue;
+    DWORD newRGB = RGB(newcolor.B, newcolor.G, newcolor.R);
+    DWORD oldRGB = RGB(oldcolor.B, oldcolor.G, oldcolor.R);
+
     for (LONG row = 0; row < srcRect.bottom - srcRect.top; ++row) {
         LONG dy = destRect.top + row;
         if (dy < 0 || dy >= maxDestY) {
@@ -2482,18 +2502,29 @@ void CIsoViewExt::BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDR
                 continue;
             }
 
+            if (oldColor != 0xFFFFFFFF && (srcColor & 0x00FFFFFF) == oldRGB) {
+                srcColor = (srcColor & 0xFF000000) | newRGB;
+            }
+
             BYTE* destPtr = destLine + destIndex;
             if (destIndex >= 0 && destIndex < maxDestY * destPitch) {
-                BYTE srcR = srcLine[srcIndex + 2];
-                BYTE srcG = srcLine[srcIndex + 1];
-                BYTE srcB = srcLine[srcIndex];
-                BYTE destR = destPtr[2];
-                BYTE destG = destPtr[1];
-                BYTE destB = destPtr[0];
+                if (alpha == 255)
+                {
+                    memcpy(destPtr, &srcColor, BPP);
+                }
+                else
+                {
+                    BYTE srcB = (BYTE)(srcColor & 0xFF);
+                    BYTE srcG = (BYTE)((srcColor >> 8) & 0xFF);
+                    BYTE srcR = (BYTE)((srcColor >> 16) & 0xFF);
+                    BYTE destR = destPtr[2];
+                    BYTE destG = destPtr[1];
+                    BYTE destB = destPtr[0];
 
-                destPtr[2] = alphaBlendTable[srcR][alpha] + alphaBlendTable[destR][255 - alpha];
-                destPtr[1] = alphaBlendTable[srcG][alpha] + alphaBlendTable[destG][255 - alpha];
-                destPtr[0] = alphaBlendTable[srcB][alpha] + alphaBlendTable[destB][255 - alpha];
+                    destPtr[2] = alphaBlendTable[srcR][alpha] + alphaBlendTable[destR][255 - alpha];
+                    destPtr[1] = alphaBlendTable[srcG][alpha] + alphaBlendTable[destG][255 - alpha];
+                    destPtr[0] = alphaBlendTable[srcB][alpha] + alphaBlendTable[destB][255 - alpha];
+                }
             }
         }
     }
@@ -4243,7 +4274,24 @@ void CIsoViewExt::Zoom(double offset)
 
 void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color)
 {
-    auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
+    auto pThis = static_cast<CIsoViewExt*>(CIsoView::GetInstance());
+
+    auto MakeCoordKey = [](int x, int y)
+    {
+        return (static_cast<uint32_t>(x) << 16) | static_cast<uint16_t>(y);
+    };
+
+    std::unordered_set<uint32_t> coordSet;
+    coordSet.reserve(coords.size());
+
+    for (const auto& mc : coords)
+    {
+        if (CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+        {
+            coordSet.insert(MakeCoordKey(mc.X, mc.Y));
+        }
+    }
+
     for (const auto& mc : coords)
     {
         if (!CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
@@ -4252,6 +4300,7 @@ void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>&
         int x = mc.X;
         int y = mc.Y;
         CIsoViewExt::MapCoord2ScreenCoord(x, y);
+
         int drawX = x - CIsoViewExt::drawOffsetX;
         int drawY = y - CIsoViewExt::drawOffsetY;
 
@@ -4260,36 +4309,35 @@ void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>&
         bool s3 = true;
         bool s4 = true;
 
-        for (auto& coord : coords)
-        {
-            if (!CMapDataExt::IsCoordInFullMap(coord.X, coord.Y))
-                continue;
+        if (coordSet.count(MakeCoordKey(mc.X - 1, mc.Y))) s1 = false;
+        if (coordSet.count(MakeCoordKey(mc.X + 1, mc.Y))) s3 = false;
+        if (coordSet.count(MakeCoordKey(mc.X, mc.Y + 1))) s2 = false;
+        if (coordSet.count(MakeCoordKey(mc.X, mc.Y - 1))) s4 = false;
 
-            if (coord.X == mc.X - 1 && coord.Y == mc.Y)
-            {
-                s1 = false;
-            }
-            if (coord.X == mc.X + 1 && coord.Y == mc.Y)
-            {
-                s3 = false;
-            }
-            if (coord.X == mc.X && coord.Y == mc.Y - 1)
-            {
-                s4 = false;
-            }
-
-            if (coord.X == mc.X && coord.Y == mc.Y + 1)
-            {
-                s2 = false;
-            }
-        }
         pThis->DrawLockedCellOutlinePaint(drawX, drawY, 1, 1, color, false, hDC, pThis->m_hWnd, s1, s2, s3, s4);
     }
 }
 
 void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::vector<MapCoord>& coords, COLORREF color)
 {
-    auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
+    auto pThis = static_cast<CIsoViewExt*>(CIsoView::GetInstance());
+
+    auto MakeCoordKey = [](int x, int y)
+    {
+        return (static_cast<uint32_t>(x) << 16) | static_cast<uint16_t>(y);
+    };
+
+    std::unordered_set<uint32_t> coordSet;
+    coordSet.reserve(coords.size());
+
+    for (const auto& mc : coords)
+    {
+        if (CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+        {
+            coordSet.insert(MakeCoordKey(mc.X, mc.Y));
+        }
+    }
+
     for (const auto& mc : coords)
     {
         if (!CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
@@ -4298,6 +4346,7 @@ void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::v
         int x = mc.X;
         int y = mc.Y;
         CIsoView::MapCoord2ScreenCoord(x, y);
+
         int drawX = x - CIsoViewExt::drawOffsetX;
         int drawY = y - CIsoViewExt::drawOffsetY;
 
@@ -4306,36 +4355,42 @@ void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::v
         bool s3 = true;
         bool s4 = true;
 
-        for (auto& coord : coords)
-        {
-            if (!CMapDataExt::IsCoordInFullMap(coord.X, coord.Y))
-                continue;
+        if (coordSet.count(MakeCoordKey(mc.X - 1, mc.Y))) s1 = false;
+        if (coordSet.count(MakeCoordKey(mc.X + 1, mc.Y))) s3 = false;
+        if (coordSet.count(MakeCoordKey(mc.X, mc.Y + 1))) s2 = false;
+        if (coordSet.count(MakeCoordKey(mc.X, mc.Y - 1))) s4 = false;
 
-            if (coord.X == mc.X - 1 && coord.Y == mc.Y)
-            {
-                s1 = false;
-            }
-            if (coord.X == mc.X + 1 && coord.Y == mc.Y)
-            {
-                s3 = false;
-            }
-            if (coord.X == mc.X && coord.Y == mc.Y - 1)
-            {
-                s4 = false;
-            }
-
-            if (coord.X == mc.X && coord.Y == mc.Y + 1)
-            {
-                s2 = false;
-            }
-        }
-        pThis->DrawLockedCellOutline(drawX, drawY, 1, 1, color, false, false, lpDesc, s1, s2, s3, s4);
+        pThis->DrawLockedCellOutline(
+            drawX, drawY,
+            1, 1,
+            color,
+            false, false,
+            lpDesc,
+            s1, s2, s3, s4
+        );
     }
 }
 
 void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::set<MapCoord>& coords, COLORREF color)
 {
-    auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
+    auto pThis = static_cast<CIsoViewExt*>(CIsoView::GetInstance());
+
+    auto MakeCoordKey = [](int x, int y)
+    {
+        return (static_cast<uint32_t>(x) << 16) | static_cast<uint16_t>(y);
+    };
+
+    std::unordered_set<uint32_t> coordSet;
+    coordSet.reserve(coords.size());
+
+    for (const auto& mc : coords)
+    {
+        if (CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+        {
+            coordSet.insert(MakeCoordKey(mc.X, mc.Y));
+        }
+    }
+
     for (const auto& mc : coords)
     {
         if (!CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
@@ -4344,6 +4399,7 @@ void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::s
         int x = mc.X;
         int y = mc.Y;
         CIsoView::MapCoord2ScreenCoord(x, y);
+
         int drawX = x - CIsoViewExt::drawOffsetX;
         int drawY = y - CIsoViewExt::drawOffsetY;
 
@@ -4352,29 +4408,11 @@ void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::s
         bool s3 = true;
         bool s4 = true;
 
-        for (auto& coord : coords)
-        {
-            if (!CMapDataExt::IsCoordInFullMap(coord.X, coord.Y))
-                continue;
+        if (coordSet.count(MakeCoordKey(mc.X - 1, mc.Y))) s1 = false;
+        if (coordSet.count(MakeCoordKey(mc.X + 1, mc.Y))) s3 = false;
+        if (coordSet.count(MakeCoordKey(mc.X, mc.Y + 1))) s2 = false;
+        if (coordSet.count(MakeCoordKey(mc.X, mc.Y - 1))) s4 = false;
 
-            if (coord.X == mc.X - 1 && coord.Y == mc.Y)
-            {
-                s1 = false;
-            }
-            if (coord.X == mc.X + 1 && coord.Y == mc.Y)
-            {
-                s3 = false;
-            }
-            if (coord.X == mc.X && coord.Y == mc.Y - 1)
-            {
-                s4 = false;
-            }
-
-            if (coord.X == mc.X && coord.Y == mc.Y + 1)
-            {
-                s2 = false;
-            }
-        }
         pThis->DrawLockedCellOutline(drawX, drawY, 1, 1, color, false, false, lpDesc, s1, s2, s3, s4);
     }
 }
@@ -4685,20 +4723,22 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                 Map->CreateShore(x - width - 2, y - height - 2,
                     x - width + tileData.Height * this->BrushSizeX + 5,
                     y - height + tileData.Width * this->BrushSizeY + 5, FALSE);
-
-            for (f = 0; f < this->BrushSizeX; f++)
+            if (!CFinalSunApp::Instance->DisableAutoLat)
             {
-                for (n = 0; n < this->BrushSizeY; n++)
+                for (f = 0; f < this->BrushSizeX; f++)
                 {
-                    cur_pos = pos + f * width + n * height_add;
-                    p = 0;
-                    for (i = -1; i < tileData.Height + 1; i++)
+                    for (n = 0; n < this->BrushSizeY; n++)
                     {
-                        for (e = -1; e < tileData.Width + 1; e++)
+                        cur_pos = pos + f * width + n * height_add;
+                        p = 0;
+                        for (i = -1; i < tileData.Height + 1; i++)
                         {
-                            auto mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
-                            Map->SmoothTileAt(Map->GetXFromCoordIndex(mypos),
-                                Map->GetYFromCoordIndex(mypos));
+                            for (e = -1; e < tileData.Width + 1; e++)
+                            {
+                                auto mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
+                                Map->SmoothTileAt(Map->GetXFromCoordIndex(mypos),
+                                    Map->GetYFromCoordIndex(mypos));
+                            }
                         }
                     }
                 }
@@ -4779,19 +4819,22 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                     x - width + tileData->Height * this->BrushSizeX + 5,
                     y - height + tileData->Width * this->BrushSizeY + 5, FALSE);
 
-            for (f = 0; f < this->BrushSizeX; f++)
+            if (!CFinalSunApp::Instance->DisableAutoLat)
             {
-                for (n = 0; n < this->BrushSizeY; n++)
+                for (f = 0; f < this->BrushSizeX; f++)
                 {
-                    cur_pos = pos + f * width + n * height_add;
-                    p = 0;
-                    for (i = -1; i < tileData->Height + 1; i++)
+                    for (n = 0; n < this->BrushSizeY; n++)
                     {
-                        for (e = -1; e < tileData->Width + 1; e++)
+                        cur_pos = pos + f * width + n * height_add;
+                        p = 0;
+                        for (i = -1; i < tileData->Height + 1; i++)
                         {
-                            auto mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
-                            Map->SmoothTileAt(Map->GetXFromCoordIndex(mypos),
-                                Map->GetYFromCoordIndex(mypos));
+                            for (e = -1; e < tileData->Width + 1; e++)
+                            {
+                                auto mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
+                                Map->SmoothTileAt(Map->GetXFromCoordIndex(mypos),
+                                    Map->GetYFromCoordIndex(mypos));
+                            }
                         }
                     }
                 }

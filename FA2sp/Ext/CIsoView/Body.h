@@ -128,7 +128,8 @@ public:
     static void BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURFACE7 surface, DDSURFACEDESC2* pDestDesc,
         int x, int y, int width = -1, int height = -1, BYTE alpha = 255);
     static void BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURFACE7 surface, DDSURFACEDESC2* pDestDesc,
-        DDSURFACEDESC2& srcDesc, DDCOLORKEY& srcColorKey, int x, int y, int width = -1, int height = -1, BYTE alpha = 255);
+        DDSURFACEDESC2& srcDesc, DDCOLORKEY& srcColorKey, int x, int y, int width = -1, int height = -1, BYTE alpha = 255,
+        COLORREF oldColor = 0xFFFFFFFF, COLORREF newColor = 0xFFFFFFFF);
     static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1);
     static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1);
     static void BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,

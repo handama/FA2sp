@@ -100,6 +100,8 @@ bool CMapDataExt::SkipBuildingOverlappingCheck = false;
 std::vector<FString> CMapDataExt::MapIniSectionSorting;
 std::map<FString, std::set<FString>> CMapDataExt::PowersUpBuildings;
 std::map<int, std::vector<CustomTile>> CMapDataExt::CustomTiles;
+std::map<FString, COLORREF> CMapDataExt::CustomWaypointColors;
+std::map<FString, COLORREF> CMapDataExt::CustomCelltagColors;
 ObjectRecord* ObjectRecord::ObjectRecord_HoldingPtr = nullptr;
 
 int CMapDataExt::GetOreValue(unsigned short nOverlay, unsigned char nOverlayData)
@@ -1198,6 +1200,17 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		}
 	}
 
+	static std::vector<std::pair<int, int>> directions = {
+	{1, 0},   // 0бу
+	{1, 1},   // 45бу
+	{0, 1},   // 90бу
+	{-1, 1},  // 135бу
+	{-1, 0},  // 180бу
+	{-1, -1}, // 225бу
+	{0, -1},  // 270бу
+	{1, -1}   // 315бу
+	};
+
 	int height = cell->Height;
 	auto isMorphable = [IgnoreMorphable](CellData* cell)
 		{
@@ -1325,6 +1338,34 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 			if (getNW() > 0 && getSW() > 0) return getIndex(9);
 			if (getNW() > 0 && getNE() > 0) return getIndex(10);
 			if (getNE() > 0 && getSE() > 0) return getIndex(11);
+
+			for (int i = 0; i < 8; ++i)
+			{
+				int iPlus3 = (i + 3) % 8;
+				auto& coordA = directions[i];
+				auto& coordB = directions[iPlus3];
+				if (CMapData::Instance->IsCoordInMap(x + coordA.first, y + coordA.second)
+					&& CMapData::Instance->IsCoordInMap(x + coordB.first, y + coordB.second))
+				{
+					auto cellA = CMapData::Instance->GetCellAt(x + coordA.first, y + coordA.second);
+					auto cellB = CMapData::Instance->GetCellAt(x + coordB.first, y + coordB.second);
+					if (cellA->Height > height && cellB->Height > height)
+					{
+						if (getSW() > 0 && getE() > 0) return getIndex(8);
+						if (getSE() > 0 && getW() > 0) return getIndex(8);
+
+						if (getNW() > 0 && getS() > 0) return getIndex(9);
+						if (getSW() > 0 && getN() > 0) return getIndex(9);
+
+						if (getNE() > 0 && getW() > 0) return getIndex(10);
+						if (getNW() > 0 && getE() > 0) return getIndex(10);
+
+						if (getNE() > 0 && getS() > 0) return getIndex(11);
+						if (getSE() > 0 && getN() > 0) return getIndex(11);
+					}
+				}
+			}
+
 			if (getSE() > 0) return getIndex(0);
 			if (getSW() > 0) return getIndex(1);
 			if (getNW() > 0) return getIndex(2);
@@ -1565,7 +1606,7 @@ ppmfc::CString CMapDataExt::GetAvailableIndex()
 {
 	auto v = VEHGuard(false);
 	auto& ini = CINI::CurrentDocument;
-	int n = 1000000;
+	int initNumber = 1000000;
 
 	std::unordered_set<std::string> usedIDs;
 	int maxID = 0;
@@ -1602,6 +1643,8 @@ ppmfc::CString CMapDataExt::GetAvailableIndex()
 	}
 
 	if (ExtConfigs::UseSequentialIndexing) {
+		if (maxID < initNumber)
+			maxID = initNumber;
 		int nextID = maxID + 1;
 		char idBuffer[9];
 		std::sprintf(idBuffer, "%08d", nextID);
@@ -1610,14 +1653,14 @@ ppmfc::CString CMapDataExt::GetAvailableIndex()
 
 	char idBuffer[9];
 	while (true) {
-		std::sprintf(idBuffer, "%08d", n);
+		std::sprintf(idBuffer, "%08d", initNumber);
 		std::string id(idBuffer);
 
 		if (usedIDs.find(id) == usedIDs.end() && !ini->SectionExists(id.c_str())) {
 			return id.c_str();
 		}
 
-		n++;
+		initNumber++;
 	}
 
 	return "";
@@ -2635,6 +2678,351 @@ int CMapDataExt::GetCustomTileIndex(int tileSet, int tileIndex)
 	return 0;
 }
 
+void CMapDataExt::CheckCellLow(bool steep, int loopCount, bool IgnoreMorphable, std::vector<int>* ignoreList)
+{
+	auto isMorphable = [IgnoreMorphable](CellData* cell)
+	{
+		if (!cell) return false;
+		if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+			return false;
+		if (IgnoreMorphable) return true;
+		int groundClick = cell->TileIndex;
+		if (groundClick == 0xFFFF) groundClick = 0;
+		return CMapDataExt::TileData[groundClick].Morphable != 0;
+	};
+
+	auto getIndex = [](int x, int y)
+	{
+		if (!CMapData::Instance->IsCoordInMap(x, y))
+			return -1;
+		return x + y * CMapData::Instance->MapWidthPlusHeight;
+	};
+	// additional check: lower tile must has 2x2 square
+	if (loopCount == 0)
+	{
+		int adjustedCount = 0;
+		int index = -1;
+		for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++)
+		{
+			if (CMapDataExt::CellDataExts[i].Adjusted)
+			{
+				adjustedCount++;
+				index = i;
+			}
+		}
+		if (adjustedCount == 1)
+		{
+			int x = CMapData::Instance->GetXFromCoordIndex(index);
+			int y = CMapData::Instance->GetYFromCoordIndex(index);
+			auto cellOri = CMapData::Instance->GetCellAt(index);
+			MapCoord loops[3] = { {0,-1},{-1,0},{-1,-1} };
+			for (auto& coord : loops)
+			{
+				if (CMapDataExt::IsCoordInFullMap(x + coord.X, y + coord.Y))
+				{
+					int pos = CMapData::Instance->GetCoordIndex(x + coord.X, y + coord.Y);
+					auto cell = CMapData::Instance->GetCellAt(pos);
+					// make sure adjust for lower
+					if (cell->Height > cellOri->Height && isMorphable(cell))
+					{
+						cell->Height = cellOri->Height;
+						CMapDataExt::CellDataExts[pos].Adjusted = true;
+					}
+				}
+			}
+		}
+	}
+
+	loopCount++;
+	if (loopCount > 15)
+		return;
+
+	auto getNW = [](int x, int y) { return CMapDataExt::TryGetCellAt(x, y - 1); };
+	auto getSE = [](int x, int y) { return CMapDataExt::TryGetCellAt(x, y + 1); };
+	auto getNE = [](int x, int y) { return CMapDataExt::TryGetCellAt(x - 1, y); };
+	auto getSW = [](int x, int y) { return CMapDataExt::TryGetCellAt(x + 1, y); };
+	auto getN = [](int x, int y) { return CMapDataExt::TryGetCellAt(x - 1, y - 1); };
+	auto getE = [](int x, int y) { return CMapDataExt::TryGetCellAt(x - 1, y + 1); };
+	auto getS = [](int x, int y) { return CMapDataExt::TryGetCellAt(x + 1, y + 1); };
+	auto getW = [](int x, int y) { return CMapDataExt::TryGetCellAt(x + 1, y - 1); };
+
+	bool loop = false;
+
+	for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++)
+	{
+		if (!CMapDataExt::CellDataExts[i].Adjusted)
+			continue;
+
+		int height = std::clamp((int)CMapData::Instance->CellDatas[i].Height, 0, 14);
+		int thisX = CMapData::Instance->GetXFromCoordIndex(i);
+		int thisY = CMapData::Instance->GetYFromCoordIndex(i);
+
+		auto checkAndLower = [&](CellData* neighbor, int nx, int ny, int limitDiff)
+		{
+			if (!neighbor) return false;
+			if (!isMorphable(neighbor)) return false;
+			int index = getIndex(nx, ny);
+			if (index < 0) return false;
+			if (ignoreList && std::find(ignoreList->begin(), ignoreList->end(), index) != ignoreList->end())
+				return false;
+
+			int diff = neighbor->Height - height;
+			if (diff > limitDiff)
+			{
+				neighbor->Height = height + limitDiff;
+				CMapDataExt::CellDataExts[index].Adjusted = true;
+				return true;
+			}
+			return false;
+		};
+
+		auto nw = getNW(thisX, thisY);
+		auto ne = getNE(thisX, thisY);
+		auto sw = getSW(thisX, thisY);
+		auto se = getSE(thisX, thisY);
+		auto n = getN(thisX, thisY);
+		auto s = getS(thisX, thisY);
+		auto e = getE(thisX, thisY);
+		auto w = getW(thisX, thisY);
+
+		loop |= checkAndLower(nw, thisX, thisY - 1, 1);
+		loop |= checkAndLower(se, thisX, thisY + 1, 1);
+		loop |= checkAndLower(sw, thisX + 1, thisY, 1);
+		loop |= checkAndLower(ne, thisX - 1, thisY, 1);
+
+		if (!steep)
+		{
+			loop |= checkAndLower(n, thisX - 1, thisY - 1, 1);
+			loop |= checkAndLower(s, thisX + 1, thisY + 1, 1);
+			loop |= checkAndLower(w, thisX + 1, thisY - 1, 1);
+			loop |= checkAndLower(e, thisX - 1, thisY + 1, 1);
+
+		}
+	}
+
+	if (loop)
+		CheckCellLow(steep, loopCount, IgnoreMorphable, ignoreList);
+}
+
+void CMapDataExt::CheckCellRise(bool steep, int loopCount, bool IgnoreMorphable, std::vector<int>* ignoreList)
+{
+	loopCount++;
+	if (loopCount > 15)
+		return;
+
+	bool loop = false;
+
+	auto getIndex = [](int x, int y)
+	{
+		if (!CMapData::Instance->IsCoordInMap(x, y))
+			return 0;
+		return x + y * CMapData::Instance->MapWidthPlusHeight;
+	};
+
+	auto isMorphable = [IgnoreMorphable](CellData* cell)
+	{
+		if (!cell) return 0;
+		if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+			return 0;
+		if (IgnoreMorphable) return 1;
+		int groundClick = cell->TileIndex;
+		if (groundClick == 0xFFFF) groundClick = 0;
+		return CMapDataExt::TileData[groundClick].Morphable;
+	};
+
+	auto getNW = [](int x, int y) { return CMapDataExt::TryGetCellAt(x, y - 1); };
+	auto getSE = [](int x, int y) { return CMapDataExt::TryGetCellAt(x, y + 1); };
+	auto getNE = [](int x, int y) { return CMapDataExt::TryGetCellAt(x - 1, y); };
+	auto getSW = [](int x, int y) { return CMapDataExt::TryGetCellAt(x + 1, y); };
+	auto getN = [](int x, int y) { return CMapDataExt::TryGetCellAt(x - 1, y - 1); };
+	auto getE = [](int x, int y) { return CMapDataExt::TryGetCellAt(x - 1, y + 1); };
+	auto getS = [](int x, int y) { return CMapDataExt::TryGetCellAt(x + 1, y + 1); };
+	auto getW = [](int x, int y) { return CMapDataExt::TryGetCellAt(x + 1, y - 1); };
+
+	for (int i = 1; i < (int)CMapDataExt::CellDataExts.size(); i++) // skip 0
+	{
+		if (CMapDataExt::CellDataExts[i].Adjusted)
+		{
+			int height = CMapData::Instance->CellDatas[i].Height;
+			if (height < 0)  height = 0;
+			if (height > 14) height = 14;
+
+			int thisX = CMapData::Instance->GetXFromCoordIndex(i);
+			int thisY = CMapData::Instance->GetYFromCoordIndex(i);
+
+			auto onw = getNW(thisX, thisY);
+			auto one = getNE(thisX, thisY);
+			auto osw = getSW(thisX, thisY);
+			auto ose = getSE(thisX, thisY);
+			auto on = getN(thisX, thisY);
+			auto os = getS(thisX, thisY);
+			auto oe = getE(thisX, thisY);
+			auto ow = getW(thisX, thisY);
+
+			if (isMorphable(onw) && height - onw->Height > 1)
+			{
+				int idx2 = getIndex(thisX, thisY - 1);
+				if (!ignoreList || std::find(ignoreList->begin(), ignoreList->end(), idx2) == ignoreList->end())
+				{
+					onw->Height = height - 1;
+					CMapDataExt::CellDataExts[idx2].Adjusted = true;
+					loop = true;
+				}
+			}
+			if (isMorphable(ose) && height - ose->Height > 1)
+			{
+				int idx2 = getIndex(thisX, thisY + 1);
+				if (!ignoreList || std::find(ignoreList->begin(), ignoreList->end(), idx2) == ignoreList->end())
+				{
+					ose->Height = height - 1;
+					CMapDataExt::CellDataExts[idx2].Adjusted = true;
+					loop = true;
+				}
+			}
+			if (isMorphable(osw) && height - osw->Height > 1)
+			{
+				int idx2 = getIndex(thisX + 1, thisY);
+				if (!ignoreList || std::find(ignoreList->begin(), ignoreList->end(), idx2) == ignoreList->end())
+				{
+					osw->Height = height - 1;
+					CMapDataExt::CellDataExts[idx2].Adjusted = true;
+					loop = true;
+				}
+			}
+			if (isMorphable(one) && height - one->Height > 1)
+			{
+				int idx2 = getIndex(thisX - 1, thisY);
+				if (!ignoreList || std::find(ignoreList->begin(), ignoreList->end(), idx2) == ignoreList->end())
+				{
+					one->Height = height - 1;
+					CMapDataExt::CellDataExts[idx2].Adjusted = true;
+					loop = true;
+				}
+			}
+			if (!steep)
+			{
+				if (isMorphable(on) && height - on->Height > 1)
+				{
+					int idx2 = getIndex(thisX - 1, thisY - 1);
+					if (!ignoreList || std::find(ignoreList->begin(), ignoreList->end(), idx2) == ignoreList->end())
+					{
+						on->Height = height - 1;
+						CMapDataExt::CellDataExts[idx2].Adjusted = true;
+						loop = true;
+					}
+				}
+				if (isMorphable(os) && height - os->Height > 1)
+				{
+					int idx2 = getIndex(thisX + 1, thisY + 1);
+					if (!ignoreList || std::find(ignoreList->begin(), ignoreList->end(), idx2) == ignoreList->end())
+					{
+						os->Height = height - 1;
+						CMapDataExt::CellDataExts[idx2].Adjusted = true;
+						loop = true;
+					}
+				}
+				if (isMorphable(ow) && height - ow->Height > 1)
+				{
+					int idx2 = getIndex(thisX + 1, thisY - 1);
+					if (!ignoreList || std::find(ignoreList->begin(), ignoreList->end(), idx2) == ignoreList->end())
+					{
+						ow->Height = height - 1;
+						CMapDataExt::CellDataExts[idx2].Adjusted = true;
+						loop = true;
+					}
+				}
+				if (isMorphable(oe) && height - oe->Height > 1)
+				{
+					int idx2 = getIndex(thisX - 1, thisY + 1);
+					if (!ignoreList || std::find(ignoreList->begin(), ignoreList->end(), idx2) == ignoreList->end())
+					{
+						oe->Height = height - 1;
+						CMapDataExt::CellDataExts[idx2].Adjusted = true;
+						loop = true;
+					}
+				}
+			}
+
+			int loops[3] = { 0, -1, 1 };
+			for (int dx : loops)
+				for (int dy : loops)
+				{
+					int newX = thisX + dx;
+					int newY = thisY + dy;
+					if (!CMapData::Instance->IsCoordInMap(newX, newY)) continue;
+
+					auto cell = CMapDataExt::TryGetCellAt(newX, newY);
+					if (!cell) continue;
+
+					int ground = cell->TileIndex;
+					if (ground == 0xFFFF) ground = 0;
+					if (!CMapDataExt::TileData[ground].Morphable) continue;
+
+					if (height - cell->Height <= 0) continue;
+
+					auto nw = getNW(newX, newY);
+					auto ne = getNE(newX, newY);
+					auto sw = getSW(newX, newY);
+					auto se = getSE(newX, newY);
+					auto n = getN(newX, newY);
+					auto s = getS(newX, newY);
+					auto e = getE(newX, newY);
+					auto w = getW(newX, newY);
+
+					bool trigger =
+						(nw && se && nw->Height - cell->Height > 0 && se->Height - cell->Height > 0)
+						|| (sw && ne && sw->Height - cell->Height > 0 && ne->Height - cell->Height > 0)
+						|| (s && ne && se && s->Height - cell->Height > 0 && se->Height - cell->Height <= 0 && ne->Height - cell->Height > 0)
+						|| (s && nw && sw && s->Height - cell->Height > 0 && sw->Height - cell->Height <= 0 && nw->Height - cell->Height > 0)
+						|| (n && se && ne && n->Height - cell->Height > 0 && ne->Height - cell->Height <= 0 && se->Height - cell->Height > 0)
+						|| (n && sw && nw && n->Height - cell->Height > 0 && nw->Height - cell->Height <= 0 && sw->Height - cell->Height > 0)
+						|| (e && nw && ne && e->Height - cell->Height > 0 && ne->Height - cell->Height <= 0 && nw->Height - cell->Height > 0)
+						|| (e && sw && se && e->Height - cell->Height > 0 && se->Height - cell->Height <= 0 && sw->Height - cell->Height > 0)
+						|| (w && ne && nw && w->Height - cell->Height > 0 && nw->Height - cell->Height <= 0 && ne->Height - cell->Height > 0)
+						|| (w && se && sw && w->Height - cell->Height > 0 && sw->Height - cell->Height <= 0 && se->Height - cell->Height > 0);
+
+					if (!trigger) continue;
+
+					int idx2 = getIndex(newX, newY);
+					if (ignoreList && std::find(ignoreList->begin(), ignoreList->end(), idx2) != ignoreList->end())
+						continue;
+
+					if (!isMorphable(cell)) continue;
+
+					const int diagLimit = 1;
+					const int cardLimit = steep ? 2 : 1;
+
+					int cap = 14;
+					auto relax = [&](CellData* nb, int limit) {
+						if (nb) cap = std::min(cap, nb->Height + limit);
+					};
+
+					relax(nw, diagLimit);
+					relax(ne, diagLimit);
+					relax(sw, diagLimit);
+					relax(se, diagLimit);
+
+					relax(n, cardLimit);
+					relax(s, cardLimit);
+					relax(e, cardLimit);
+					relax(w, cardLimit);
+
+					int target = std::min(height, cap);
+					target = std::max(target, (int)cell->Height);
+					if (target > cell->Height)
+					{
+						cell->Height = target;
+						CMapDataExt::CellDataExts[idx2].Adjusted = true;
+						loop = true;
+					}
+				}
+		}
+	}
+
+	if (loop)
+		CheckCellRise(steep, loopCount, IgnoreMorphable, ignoreList);
+}
+
 void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDataExt, bool reloadImages)
 {
 	Logger::Debug("CMapDataExt::InitializeAllHdmEdition() Called with parameter %d %d %d.\n", updateMinimap, reloadCellDataExt, reloadImages);
@@ -3185,6 +3573,32 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			for (auto& p : atoms)
 			{
 				CMapDataExt::PowersUpBuildings[p].insert(building);
+			}
+		}
+	}
+
+	CustomWaypointColors.clear();
+	CustomCelltagColors.clear();
+	if (auto pColors = CINI::CurrentDocument->GetSection("FA2spColors"))
+	{
+		if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+		{
+			for (const auto& [key, value] : pSection->GetEntities())
+			{
+				ppmfc::CString colorkey = "Wp";
+				colorkey += key;
+				auto color = CINI::CurrentDocument->GetColor(pColors, colorkey, ExtConfigs::DisplayColor_Waypoint);
+				CMapDataExt::CustomWaypointColors[key] = color;
+			}
+		}
+		if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
+		{
+			for (const auto& [key, value] : pSection->GetEntities())
+			{
+				ppmfc::CString colorkey = "Tag";
+				colorkey += value;
+				auto color = CINI::CurrentDocument->GetColor(pColors, colorkey, ExtConfigs::DisplayColor_Celltag);
+				CMapDataExt::CustomCelltagColors[value] = color;
 			}
 		}
 	}

@@ -27,11 +27,11 @@ BOOL COptionsExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
         if (nSel >= 0)
         {
             auto lang = CINI::FALanguage->GetValueAt("Languages", nSel);
-            FString backup = CFinalSunApp::Instance->Language;
-            CFinalSunApp::Instance->Language = lang;
+            FString backup = FinalAlertConfig::Language;
+            FinalAlertConfig::Language = lang;
             COptionsExt::Language = lang;
             Translations::TranslateDialog(*this);
-            CFinalSunApp::Instance->Language = backup;
+            FinalAlertConfig::Language = backup;
         }
     }
 
@@ -45,7 +45,7 @@ DEFINE_HOOK(50E55F, COptions_OnInitDialog, 8)
     auto hLang = pThis->GetDlgItem(1231)->GetSafeHwnd();
     if (CFinalSunDlg::Instance)
     {
-        COptionsExt::Language = CFinalSunApp::Instance->Language;
+        COptionsExt::Language = FinalAlertConfig::Language;
     }
 
     if (auto pSection = CINI::FALanguage->GetSection("Languages"))
@@ -60,7 +60,7 @@ DEFINE_HOOK(50E55F, COptions_OnInitDialog, 8)
             if (!name.IsEmpty())
             {
                 ::SendMessage(hLang, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)name);
-                if (CFinalSunApp::Instance->Language == value)
+                if (FinalAlertConfig::Language == value)
                     index = i;
                 names.push_back(name.m_pchData);
             }
@@ -72,21 +72,31 @@ DEFINE_HOOK(50E55F, COptions_OnInitDialog, 8)
         }
 
         ::SendMessage(hLang, CB_SETCURSEL, index, NULL);
-        FString backup = CFinalSunApp::Instance->Language;
-        CFinalSunApp::Instance->Language = names[index];
+        FString backup = FinalAlertConfig::Language;
+        FinalAlertConfig::Language = names[index];
         Translations::TranslateDialog(*pThis);
-        CFinalSunApp::Instance->Language = backup;
+        FinalAlertConfig::Language = backup;
     }
 
     return 0x50E8A8;
+}
+
+DEFINE_HOOK(43D1DE, COptions_ShowOptionsDialog, 8)
+{
+    REF_STACK(CINI, FinalAlert, STACK_OFFS(0x290, 0x124));
+
+    FinalAlert.WriteString("FinalSun", "LanguageSP", FinalAlertConfig::Language);
+
+    return 0;
 }
 
 DEFINE_HOOK(50E342, COptions_OnOK, 6)
 {
     GET(COptionsExt*, pThis, ESI);
     pThis->m_LanguageName = COptionsExt::Language;
-    if (CFinalSunApp::Instance->Language != COptionsExt::Language)
+    if (FinalAlertConfig::Language != COptionsExt::Language)
     {
+        FinalAlertConfig::Language = COptionsExt::Language;
         CFinalSunApp::Instance->Language = COptionsExt::Language;
 
         strcpy_s(Translations::pLanguage[0], COptionsExt::Language);

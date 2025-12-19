@@ -98,6 +98,9 @@ static int GetAddedHeight(int tileIndex)
         {
             for (e = 0; e < tile.Width; e++)
             {
+                if (p >= tile.TileBlockCount)
+                    break;
+
                 if (tile.TileBlockDatas[p].ImageData == NULL)
                 {
                     p++;
@@ -129,6 +132,9 @@ static int GetAddedWidth(int tileIndex)
         {
             for (e = 0; e < tile.Width; e++)
             {
+                if (p >= tile.TileBlockCount)
+                    break;
+
                 if (tile.TileBlockDatas[p].ImageData == NULL)
                 {
                     p++;
@@ -255,6 +261,7 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
                 iTileIndex = CMapDataExt::TileData[iTileIndex].FrameModeIndex;
             }
         }
+        auto& tile = CMapDataExt::TileData[iTileIndex];
 
         auto pIsoView = CIsoView::GetInstance();
         LPDIRECTDRAWSURFACE7 lpdds = NULL;
@@ -267,13 +274,13 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
         ddsd.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
         int added_height = GetAddedHeight(iTileIndex);
         int added_width = GetAddedWidth(iTileIndex);
-        ddsd.dwHeight = CMapDataExt::TileData[iTileIndex].Bounds.bottom - CMapDataExt::TileData[iTileIndex].Bounds.top + added_height;
-        ddsd.dwWidth = CMapDataExt::TileData[iTileIndex].Bounds.right - CMapDataExt::TileData[iTileIndex].Bounds.left + added_width;
+        ddsd.dwHeight = tile.Bounds.bottom - tile.Bounds.top + added_height;
+        ddsd.dwWidth = tile.Bounds.right - tile.Bounds.left + added_width;
         if (lpdd->CreateSurface(&ddsd, &lpdds, NULL) != DD_OK)
         {
             return nullptr;
         }
-        auto pPal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[iTileIndex].TileSet];
+        auto pPal = CMapDataExt::TileSetPalettes[tile.TileSet];
         BGRStruct empty;
         auto currentPalette = PalettesManager::GetTileSetBrowserViewPalette(pPal, empty, false);
 
@@ -283,18 +290,21 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
         lpdds->Blt(NULL, NULL, NULL, DDBLT_COLORFILL, &ddfx);
 
         int i, e, p = 0;;
-        for (i = 0; i < CMapDataExt::TileData[iTileIndex].Height; i++)
+        for (i = 0; i < tile.Height; i++)
         {
-            for (e = 0; e < CMapDataExt::TileData[iTileIndex].Width; e++)
+            for (e = 0; e < tile.Width; e++)
             {
-                int drawx = e * 60 / 2 - i * 60 / 2 - CMapDataExt::TileData[iTileIndex].Bounds.left;
-                int drawy = e * 30 / 2 + i * 30 / 2 - CMapDataExt::TileData[iTileIndex].Bounds.top;
+                if (p >= tile.TileBlockCount)
+                    break;
 
-                drawx += added_width + CMapDataExt::TileData[iTileIndex].TileBlockDatas[p].XMinusExX;
-                drawy += added_height + CMapDataExt::TileData[iTileIndex].TileBlockDatas[p].YMinusExY
-                    - CMapDataExt::TileData[iTileIndex].TileBlockDatas[p].Height * 30 / 2;
+                int drawx = e * 60 / 2 - i * 60 / 2 - tile.Bounds.left;
+                int drawy = e * 30 / 2 + i * 30 / 2 - tile.Bounds.top;
 
-                if (CMapDataExt::TileData[iTileIndex].TileBlockDatas[p].ImageData)
+                drawx += added_width + tile.TileBlockDatas[p].XMinusExX;
+                drawy += added_height + tile.TileBlockDatas[p].YMinusExY
+                    - tile.TileBlockDatas[p].Height * 30 / 2;
+
+                if (tile.TileBlockDatas[p].ImageData)
                 {
                     DDBLTFX fx;
                     memset(&fx, 0, sizeof(DDBLTFX));
@@ -311,7 +321,7 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
 
                     BlitTerrainTSB(ddsd.lpSurface, drawx, drawy, 0, 0,
                         ddsd.lPitch, ddsd.dwWidth, ddsd.dwHeight,
-                        CMapDataExt::TileData[iTileIndex].TileBlockDatas[p],
+                        tile.TileBlockDatas[p],
                         currentPalette);
                     lpdds->Unlock(NULL);
                 }
@@ -393,7 +403,20 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
                     p++;
                     continue;
                 }
-                if (block->ImageData)
+
+                auto& tiledata = CMapDataExt::TileData[tile.GetDisplayTileIndex()];
+                if (tiledata.AltTypeCount > 0)
+                {
+                    bool isBridge = (tiledata.TileSet == CMapDataExt::BridgeSet
+                        || tiledata.TileSet == CMapDataExt::WoodBridgeSet);
+                    auto& altType = tiledata.AltTypes[STDHelpers::RandomSelectInt(0, tiledata.AltTypeCount)];
+                    if (!isBridge && tile.SubTileIndex < altType.TileBlockCount)
+                    {
+                        block = &altType.TileBlockDatas[tile.SubTileIndex];
+                    }
+                }
+
+                if (block && block->ImageData)
                 {
                     int drawx = e * 60 / 2 - i * 60 / 2
                         + 30
@@ -403,7 +426,7 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
                         - tile.GetHeight() * 30 / 2;
 
                     auto pPal = CMapDataExt::TileSetPalettes
-                        [CMapDataExt::TileData[tile.GetDisplayTileIndex()].TileSet];
+                        [tiledata.TileSet];
                     BGRStruct empty;
                     auto currentPalette = PalettesManager::GetTileSetBrowserViewPalette(pPal, empty, false);
 
@@ -959,7 +982,7 @@ DEFINE_HOOK(4F128A, CTerrainDlg_Update_AddCustomTiles, 5)
                     {
                         tileSet = atoi(kvp.second);
                     }
-                    else if (ParsePrefixedInt(kvp.first, (CFinalSunApp::Instance->Language + "-").m_pchData, name))
+                    else if (ParsePrefixedInt(kvp.first, (FinalAlertConfig::Language + "-"), name))
                     {
                         Translations::CustomTileSetNames[name] = kvp.second;
                     }

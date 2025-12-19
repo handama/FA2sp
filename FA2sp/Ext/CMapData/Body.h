@@ -540,6 +540,25 @@ public:
         return TryGetCellAt(CMapData::Instance->GetXFromCoordIndex(nIndex), CMapData::Instance->GetYFromCoordIndex(nIndex));
     }
 
+    static void CheckCellLow(bool steep, int loopCount = 0, bool IgnoreMorphable = false, std::vector<int>* ignoreList = nullptr);
+    static void CheckCellRise(bool steep, int loopCount = 0, bool IgnoreMorphable = false, std::vector<int>* ignoreList = nullptr);
+    static void GenerateNoiseSlopeTerrain(
+        const std::set<MapCoord>& region,
+        int minHeight,
+        int baseHeight,
+        int maxHeight,
+        int minMarcoHeight,
+        int maxMarcoHeight,
+        bool steep,
+        float frequency,
+        float macroFrequency,
+        int relaxIterations,
+        MapCoord start,
+        MapCoord end,
+        int startHeight,
+        int endHeight,
+        bool avoidEdges);
+
     std::string convertToExtendedOverlayPack(const std::string& input);
     std::string convertFromExtendedOverlayPack(const std::string& input);
 
@@ -625,4 +644,6 @@ public:
     static std::vector<FString> MapIniSectionSorting;
     static std::map<FString, std::set<FString>> PowersUpBuildings;
     static std::map<int, std::vector<CustomTile>> CustomTiles;
+    static std::map<FString, COLORREF> CustomWaypointColors;
+    static std::map<FString, COLORREF> CustomCelltagColors;
 };

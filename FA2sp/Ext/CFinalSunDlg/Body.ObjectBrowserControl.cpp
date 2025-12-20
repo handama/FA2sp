@@ -2312,7 +2312,10 @@ void CViewObjectsExt::SetWpTagColor(int X, int Y, bool isWp)
                 CMapDataExt::CustomWaypointColors[id] = color;
                 ppmfc::CString key = "Wp";
                 key += id;
-                CINI::CurrentDocument->WriteString("FA2spColors", key, value);
+                if (color != ExtConfigs::DisplayColor_Waypoint)
+                    CINI::CurrentDocument->WriteString("FA2spColors", key, value);
+                else
+                    CINI::CurrentDocument->DeleteKey("FA2spColors", key);
                 ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
             }
         }
@@ -2327,7 +2330,10 @@ void CViewObjectsExt::SetWpTagColor(int X, int Y, bool isWp)
                 CMapDataExt::CustomCelltagColors[id] = color;
                 ppmfc::CString key = "Tag";
                 key += id;
-                CINI::CurrentDocument->WriteString("FA2spColors", key, value);
+                if (color != ExtConfigs::DisplayColor_Celltag)
+                    CINI::CurrentDocument->WriteString("FA2spColors", key, value);
+                else
+                    CINI::CurrentDocument->DeleteKey("FA2spColors", key);
                 ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
             }
         }

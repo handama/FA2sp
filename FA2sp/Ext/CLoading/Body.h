@@ -175,6 +175,7 @@ private:
 	void SetValidBuffer(ImageDataClass* pData, int Width, int Height);
 	void SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int Height);
 	void TrimImageEdges(ImageDataClassSafe* pData);
+	void ScaleImageHalf(ImageDataClassSafe* pData);
 	void TrimImageEdges(unsigned char*& pBuffer, int& width, int& height);
 
 	int ColorDistance(const ColorStruct& color1, const ColorStruct& color2); 
@@ -234,6 +235,7 @@ private:
 	static unsigned char VXL_Shadow_Data[0x10000];
 
 public:
+	static bool DrawTurretShadow;
 	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CurrentFrameImageDataMap;
 	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> ImageDataMap;
 	static std::unordered_map<FString, std::vector<std::unique_ptr<ImageDataClassSafe>>> BuildingClipsImageDataMap;

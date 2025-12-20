@@ -260,7 +260,7 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
                         }
                     }
                 }
-                else if (ct.ConnectedTile.size() > 28)
+                if (!ct.IsTXCityCliff && ct.ConnectedTile.size() > 28)
                     lastTileIndex = ct.ConnectedTile[28].TileIndices[0] + ct.StartTile;
             }
 

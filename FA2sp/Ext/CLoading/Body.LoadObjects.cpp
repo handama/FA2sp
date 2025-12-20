@@ -22,6 +22,7 @@ std::unordered_map<FString, int> CLoadingExt::AvailableFacings;
 std::unordered_set<int> CLoadingExt::Ra2dotMixes;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
 unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
+bool CLoadingExt::DrawTurretShadow = false;
 std::unordered_set<FString> CLoadingExt::LoadedOverlays;
 int CLoadingExt::TallestBuildingHeight = 0;
 
@@ -448,9 +449,11 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		if (!CLoading::HasFile(file, nMix))
 			return true;
 
+		if (!CMixFile::LoadSHP(file, nMix))
+			return true;
+
 		ShapeHeader header;
 		unsigned char* pBuffer;
-		CMixFile::LoadSHP(file, nMix);
 		CShpFile::GetSHPHeader(&header);
 		if (header.FrameCount / 2 <= nFrame) {
 			nFrame = 0;
@@ -521,7 +524,8 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 
 		ShapeHeader header;
 		unsigned char* pBuffer;
-		CMixFile::LoadSHP(file, nMix);
+		if (!CMixFile::LoadSHP(file, nMix))
+			return false;
 		CShpFile::GetSHPHeader(&header);
 		if (header.FrameCount <= nFrame) {
 			nFrame = 0;
@@ -849,9 +853,11 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 		if (!CLoading::HasFile(file, nMix))
 			return true;
 
+		if (!CMixFile::LoadSHP(file, nMix))
+			return true;
+
 		ShapeHeader header;
 		unsigned char* pBuffer;
-		CMixFile::LoadSHP(file, nMix);
 		CShpFile::GetSHPHeader(&header);
 		if (header.FrameCount / 2 <= nFrame) {
 			nFrame = 0;
@@ -923,7 +929,8 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 
 		ShapeHeader header;
 		unsigned char* pBuffer;
-		CMixFile::LoadSHP(file, nMix);
+		if (!CMixFile::LoadSHP(file, nMix))
+			return false;
 		CShpFile::GetSHPHeader(&header);
 		if (header.FrameCount <= nFrame) {
 			nFrame = 0;
@@ -1269,9 +1276,11 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 		if (!CLoading::HasFile(file, nMix))
 			return true;
 
+		if (!CMixFile::LoadSHP(file, nMix))
+			return true;
+
 		ShapeHeader header;
 		unsigned char* pBuffer;
-		CMixFile::LoadSHP(file, nMix);
 		CShpFile::GetSHPHeader(&header);
 		if (header.FrameCount / 2 <= nFrame) {
 			return false;
@@ -1343,7 +1352,8 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 
 		ShapeHeader header;
 		unsigned char* pBuffer;
-		CMixFile::LoadSHP(file, nMix);
+		if (!CMixFile::LoadSHP(file, nMix))
+			return false;
 		CShpFile::GetSHPHeader(&header);
 		if (header.FrameCount <= nFrame) {
 			nFrame = 0;
@@ -1439,7 +1449,9 @@ void CLoadingExt::LoadInfantry(FString ID)
 	{
 		ShapeHeader header;
 		unsigned char* FramesBuffers;
-		CMixFile::LoadSHP(FileName, nMix);
+		if (!CMixFile::LoadSHP(FileName, nMix))
+			return;
+
 		CShpFile::GetSHPHeader(&header);
 		for (int i = 0; i < 8; ++i)
 		{
@@ -1527,7 +1539,8 @@ void CLoadingExt::LoadTerrainOrSmudge(FString ID, bool terrain)
 	{
 		ShapeHeader header;
 		unsigned char* FramesBuffers[1];
-		CMixFile::LoadSHP(FileName, nMix);
+		if (!CMixFile::LoadSHP(FileName, nMix))
+			return;
 		CShpFile::GetSHPHeader(&header);
 		CLoadingExt::LoadSHPFrameSafe(0, 1, &FramesBuffers[0], header);
 		FString DictName;
@@ -1573,6 +1586,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 	bool bHasTurret = Variables::RulesMap.GetBool(ID, "Turret");
 	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow");
 	int facings = ExtConfigs::ExtFacings ? 32 : 8;
+	bool turretShadow = bHasShadow && CINI::Art->GetBool(ArtID, "TurretShadow", DrawTurretShadow);
 
 	if (CINI::Art->GetBool(ArtID, "Voxel")) // As VXL
 	{
@@ -1586,18 +1600,28 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 		FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 		GetFullPaletteName(PaletteName);
 
-		std::vector<unsigned char*> pImage, pTurretImage, pBarrelImage, pShadowImage;
+		std::vector<unsigned char*> pImage, pTurretImage, pBarrelImage;
+		std::vector<unsigned char*> pShadowImage, pShadowTurretImage, pShadowBarrelImage;
 		pImage.resize(facings, nullptr);
 		pTurretImage.resize(facings, nullptr);
 		pBarrelImage.resize(facings, nullptr);
 		if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
+		{
 			pShadowImage.resize(facings, nullptr);
-		std::vector<VoxelRectangle> rect, turretrect, barrelrect, shadowrect;
+			pShadowTurretImage.resize(facings, nullptr);
+			pShadowBarrelImage.resize(facings, nullptr);
+		}
+		std::vector<VoxelRectangle> rect, turretrect, barrelrect;
+		std::vector<VoxelRectangle> shadowrect, shadowturretrect, shadowbarrelrect;
 		rect.resize(facings);
 		turretrect.resize(facings);
 		barrelrect.resize(facings);
 		if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
+		{
 			shadowrect.resize(facings);
+			shadowturretrect.resize(facings);
+			shadowbarrelrect.resize(facings);
+		}
 
 		if (VoxelDrawer::LoadVXLFile(FileName))
 		{
@@ -1639,7 +1663,17 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 					for (int i = 0; i < facings; ++i)
 					{
 						int actFacing = (i + facings - 2 * facings / 8) % facings;
-						bool result = VoxelDrawer::GetImageData(actFacing, pTurretImage[i], turretrect[i], F, L, H);
+						bool result = false;
+						if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
+						{
+							result = VoxelDrawer::GetImageData(actFacing, pTurretImage[i], turretrect[i], F, L, H)
+								&& VoxelDrawer::GetImageData(actFacing, pShadowTurretImage[i], shadowturretrect[i], 
+									F, L, 0, true, 0, false);
+						}
+						else
+						{
+							result = VoxelDrawer::GetImageData(actFacing, pTurretImage[i], turretrect[i], F, L, H);
+						}
 						if (!result)
 							break;
 					}
@@ -1655,8 +1689,20 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 					for (int i = 0; i < facings; ++i)
 					{
 						int actFacing = (i + facings - 2 * facings / 8) % facings;
-						bool result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i], barrelrect[i],
-							F, L, H, false, Variables::RulesMap.GetInteger(ID, "FireAngle", 10));
+						bool result = false;
+						if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
+						{
+							result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i], barrelrect[i],
+								F, L, H, false, Variables::RulesMap.GetInteger(ID, "FireAngle", 10))
+								&& VoxelDrawer::GetImageData(actFacing, pShadowBarrelImage[i], shadowbarrelrect[i],
+									F, L, 0, true, Variables::RulesMap.GetInteger(ID, "FireAngle", 10), false);
+						}
+						else
+						{
+							result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i], barrelrect[i],
+								F, L, H, false, Variables::RulesMap.GetInteger(ID, "FireAngle", 10));
+						}
+
 						if (!result)
 							break;
 					}
@@ -1694,13 +1740,13 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 						CncImgFree(pTurretImage[i]);
 					}	
 
+					pKey.Format("%sX%d", ID, i);
+					int barldeltaX = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
+					pKey.Format("%sY%d", ID, i);
+					int barldeltaY = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
+
 					if (pBarrelImage[i])
 					{
-						pKey.Format("%sX%d", ID, i);
-						int barldeltaX = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
-						pKey.Format("%sY%d", ID, i);
-						int barldeltaY = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
-
 						VXL_Add(pBarrelImage[i], barrelrect[i].X + barldeltaX, barrelrect[i].Y + barldeltaY, barrelrect[i].W, barrelrect[i].H);
 						CncImgFree(pBarrelImage[i]);
 					}
@@ -1710,11 +1756,52 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 						VXL_Add(pTurretImage[i], turretrect[i].X + turdeltaX, turretrect[i].Y + turdeltaY, turretrect[i].W, turretrect[i].H);
 						CncImgFree(pTurretImage[i]);
 					}
+
+					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
+					{
+						if (pShadowTurretImage[i])
+						{
+							VXL_Add(pShadowTurretImage[i], shadowturretrect[i].X + turdeltaX,
+								shadowturretrect[i].Y + turdeltaY, shadowturretrect[i].W, shadowturretrect[i].H, true);
+							CncImgFree(pShadowTurretImage[i]);
+						}
+						if (pShadowBarrelImage[i])
+						{
+							VXL_Add(pShadowBarrelImage[i], shadowbarrelrect[i].X + barldeltaX,
+								shadowbarrelrect[i].Y + barldeltaY, shadowbarrelrect[i].W, shadowbarrelrect[i].H, true);
+							CncImgFree(pShadowBarrelImage[i]);
+						}
+					}
 				}
 
 				VXL_GetAndClear(outBuffer, &outW, &outH);
-
 				SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
+
+				if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
+				{
+					FString DictShadowName;
+					DictShadowName.Format("%s\233%d\233SHADOW", ID, i);
+
+					unsigned char* outBuffer;
+					int outW = 0x100, outH = 0x100;
+
+					VXL_Add(pShadowImage[i], shadowrect[i].X, shadowrect[i].Y, shadowrect[i].W, shadowrect[i].H, true);
+					CncImgFree(pShadowImage[i]);
+					VXL_GetAndClear(outBuffer, &outW, &outH, true);
+
+					SetImageDataSafe(outBuffer, DictShadowName, outW, outH, &CMapDataExt::Palette_Shadow);
+
+					if (Variables::RulesMap.GetBool(ID, "JumpJet")
+						|| Variables::RulesMap.GetBool(ID, "BalloonHover")
+						|| Variables::RulesMap.GetBool(ID, "BalloonHover")
+						|| Variables::RulesMap.GetString(ID, "Locomotor") == "{92612C46-F71F-11d1-AC9F-006008055BB5}"
+						|| Variables::RulesMap.GetString(ID, "Locomotor") == "Jumpjet"
+						)
+					{
+						auto pData = CLoadingExt::GetImageDataFromMap(DictShadowName);
+						CLoadingExt::ScaleImageHalf(pData);
+					}
+				}
 			}
 		}
 		else
@@ -1734,23 +1821,34 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 				VXL_GetAndClear(outBuffer, &outW, &outH);
 
 				SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
+
+				if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
+				{
+					FString DictShadowName;
+					DictShadowName.Format("%s\233%d\233SHADOW", ID, i);
+
+					unsigned char* outBuffer;
+					int outW = 0x100, outH = 0x100;
+
+					VXL_Add(pShadowImage[i], shadowrect[i].X, shadowrect[i].Y, shadowrect[i].W, shadowrect[i].H, true);
+					CncImgFree(pShadowImage[i]);
+					VXL_GetAndClear(outBuffer, &outW, &outH, true);
+
+					SetImageDataSafe(outBuffer, DictShadowName, outW, outH, &CMapDataExt::Palette_Shadow);
+
+					if (Variables::RulesMap.GetBool(ID, "JumpJet")
+						|| Variables::RulesMap.GetBool(ID, "BalloonHover")
+						|| Variables::RulesMap.GetBool(ID, "BalloonHover")
+						|| Variables::RulesMap.GetString(ID, "Locomotor") == "{92612C46-F71F-11d1-AC9F-006008055BB5}"
+						|| Variables::RulesMap.GetString(ID, "Locomotor") == "Jumpjet"
+						)
+					{
+						auto pData = CLoadingExt::GetImageDataFromMap(DictShadowName);
+						CLoadingExt::ScaleImageHalf(pData);
+					}
+				}
 			}
 		}
-		if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
-			for (int i = 0; i < facings; ++i)
-			{
-				FString DictShadowName;
-				DictShadowName.Format("%s\233%d\233SHADOW", ID, i);
-
-				unsigned char* outBuffer;
-				int outW = 0x100, outH = 0x100;
-
-				VXL_Add(pShadowImage[i], shadowrect[i].X, shadowrect[i].Y, shadowrect[i].W, shadowrect[i].H, true);
-				CncImgFree(pShadowImage[i]);
-				VXL_GetAndClear(outBuffer, &outW, &outH, true);
-
-				SetImageDataSafe(outBuffer, DictShadowName, outW, outH, &CMapDataExt::Palette_Shadow);
-			}
 	}
 	else // As SHP
 	{
@@ -1789,8 +1887,8 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 		int nMix = this->SearchFile(FileName);
 		if (CLoading::HasFile(FileName, nMix))
 		{
-			ShapeHeader header;
-			ShapeHeader headerTurret;
+			ShapeHeader header{};
+			ShapeHeader headerTurret{};
 			unsigned char* FramesBuffers[1]{ 0 };
 			unsigned char* FramesBuffersShadow[1]{ 0 };
 			unsigned char* FramesBuffersTurret[32]{ 0 };
@@ -1802,46 +1900,47 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 			bool bUseTurrentFile = CLoading::HasFile(FileNameTurret, nMixTur);
 			if (bHasTurret)
 			{
-				ShapeHeader* currentHeader;
-				if (bUseTurrentFile)
+				ShapeHeader* currentHeader = nullptr;
+				if (bUseTurrentFile && CMixFile::LoadSHP(FileNameTurret, nMixTur))
 				{
-					CMixFile::LoadSHP(FileNameTurret, nMixTur);
 					CShpFile::GetSHPHeader(&headerTurret);
 					currentHeader = &headerTurret;
 				}
-				else
+				else if (!bUseTurrentFile && CMixFile::LoadSHP(FileName, nMix))
 				{
-					CMixFile::LoadSHP(FileName, nMix);
 					CShpFile::GetSHPHeader(&header);
 					currentHeader = &header;
 				}
 
-				for (int i = 0; i < targetFacings; ++i)
+				if (currentHeader)
 				{
-					if (IsLoadingObjectView && i != targetFacings / 8 * 2)
-						continue;
+					for (int i = 0; i < targetFacings; ++i)
+					{
+						if (IsLoadingObjectView && i != targetFacings / 8 * 2)
+							continue;
 
-					int nStartWalkFrame = CINI::Art->GetInteger(ArtID, "StartWalkFrame", 0);
-					int nWalkFrames = CINI::Art->GetInteger(ArtID, "WalkFrames", 1);
-					int turretFrameToRead, turrentFacing;
+						int nStartWalkFrame = CINI::Art->GetInteger(ArtID, "StartWalkFrame", 0);
+						int nWalkFrames = CINI::Art->GetInteger(ArtID, "WalkFrames", 1);
+						int turretFrameToRead, turrentFacing;
 
-					// turret start from 0 + WalkFrames * Facings, ignore StartWalkFrame
-					// and always has 32 facings
-					turrentFacing = (((targetFacings / 8 + i) % targetFacings) * 32 / targetFacings) % 32;
-					turretFrameToRead = bUseTurrentFile ? turrentFacing : (facingCount * nWalkFrames + turrentFacing);
+						// turret start from 0 + WalkFrames * Facings, ignore StartWalkFrame
+						// and always has 32 facings
+						turrentFacing = (((targetFacings / 8 + i) % targetFacings) * 32 / targetFacings) % 32;
+						turretFrameToRead = bUseTurrentFile ? turrentFacing : (facingCount * nWalkFrames + turrentFacing);
 
-					CLoadingExt::LoadSHPFrameSafe(turretFrameToRead, 
-						1, &FramesBuffersTurret[turrentFacing], *currentHeader);
+						CLoadingExt::LoadSHPFrameSafe(turretFrameToRead,
+							1, &FramesBuffersTurret[turrentFacing], *currentHeader);
 
-					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
-						CLoadingExt::LoadSHPFrameSafe(turretFrameToRead + currentHeader->FrameCount / 2,
-							1, &FramesBuffersTurretShadow[turrentFacing], *currentHeader);
-				}
+						if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
+							CLoadingExt::LoadSHPFrameSafe(turretFrameToRead + currentHeader->FrameCount / 2,
+								1, &FramesBuffersTurretShadow[turrentFacing], *currentHeader);
+					}
 
-				if (bUseTurrentFile)
-				{
-					CMixFile::LoadSHP(FileName, nMix);
-					CShpFile::GetSHPHeader(&header);
+					if (bUseTurrentFile)
+					{
+						CMixFile::LoadSHP(FileName, nMix);
+						CShpFile::GetSHPHeader(&header);
+					}
 				}
 			}
 			else
@@ -1854,10 +1953,12 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 			{
 				if (IsLoadingObjectView && i != targetFacings / 8 * 2)
 					continue;
+
 				CLoadingExt::LoadSHPFrameSafe(framesToRead[i], 1, &FramesBuffers[0], header);
+
 				FString DictName;
 				DictName.Format("%s\233%d", ID, i);
-				
+
 				if (bHasTurret)
 				{
 					int F, L, H;
@@ -1875,14 +1976,14 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 					Matrix3D mat(F, L, H, i, targetFacings);
 
 					UnionSHP_Add(FramesBuffers[0], header.Width, header.Height);
-					UnionSHP_Add(FramesBuffersTurret[turrentFacing], 
+					UnionSHP_Add(FramesBuffersTurret[turrentFacing],
 						bUseTurrentFile ? headerTurret.Width : header.Width,
 						bUseTurrentFile ? headerTurret.Height : header.Height,
 						mat.OutputX, mat.OutputY);
 					unsigned char* outBuffer;
 					int outW, outH;
 					UnionSHP_GetAndClear(outBuffer, &outW, &outH);
-					
+
 					SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
 
 					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
@@ -1891,7 +1992,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 						DictNameShadow.Format("%s\233%d\233SHADOW", ID, i);
 						CLoadingExt::LoadSHPFrameSafe(framesToRead[i] + header.FrameCount / 2, 1, &FramesBuffersShadow[0], header);
 						UnionSHP_Add(FramesBuffersShadow[0], header.Width, header.Height, 0, 0, false, true);
-						UnionSHP_Add(FramesBuffersTurretShadow[turrentFacing], 
+						UnionSHP_Add(FramesBuffersTurretShadow[turrentFacing],
 							bUseTurrentFile ? headerTurret.Width : header.Width,
 							bUseTurrentFile ? headerTurret.Height : header.Height,
 							mat.OutputX, mat.OutputY, false, true);
@@ -1950,6 +2051,17 @@ void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* p
 	if (pData->pPixelValidRanges)
 		pData->pPixelValidRanges = nullptr;
 
+	pData->Flag = ImageDataFlag::SHP;
+	pData->IsOverlay = false;
+	pData->pPalette = pPal ? pPal : Palette::PALETTE_UNIT;
+
+	if (!pBuffer)
+	{
+		pData->FullHeight = 0;
+		pData->FullWidth = 0;
+		return;
+	}
+
 	pData->pImageBuffer = std::unique_ptr<unsigned char[]>(new unsigned char[FullWidth * FullHeight]);
 	std::memcpy(pData->pImageBuffer.get(), pBuffer, FullWidth * FullHeight);
 	pData->FullHeight = FullHeight;
@@ -1988,10 +2100,6 @@ void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* p
 
 	CLoadingExt::TallestBuildingHeight = std::max(CLoadingExt::TallestBuildingHeight, (int)pData->ValidHeight);
 	CIsoViewExt::EXTRA_BORDER_BOTTOM = std::max(CLoadingExt::TallestBuildingHeight / 14, 25);
-
-	pData->Flag = ImageDataFlag::SHP;
-	pData->IsOverlay = false;
-	pData->pPalette = pPal ? pPal : Palette::PALETTE_UNIT;
 
 	GameDeleteArray(pBuffer, FullWidth * FullHeight);
 }
@@ -2092,17 +2200,23 @@ void CLoadingExt::ShrinkSHP(unsigned char* pIn, int InWidth, int InHeight, unsig
 void CLoadingExt::UnionSHP_Add(unsigned char* pBuffer, int Width, int Height,
 	int DeltaX, int DeltaY, bool UseTemp, bool bShadow, int ZAdjust, int YSort, bool MainBody)
 {
-	if (bShadow)
+	if (bShadow && pBuffer)
 		UnionSHPShadow_Data[UseTemp].push_back(SHPUnionData{ pBuffer,Width,Height,DeltaX,DeltaY, ZAdjust, YSort, MainBody });
-	else
+	else if (pBuffer)
 		UnionSHP_Data[UseTemp].push_back(SHPUnionData{ pBuffer,Width,Height,DeltaX,DeltaY, ZAdjust, YSort, MainBody });
 }
 
 void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth,
 	int* OutHeight, bool UseTemp, bool bShadow, bool bSort)
 {
-	// never calls it when UnionSHP_Data is empty
 	auto& data = bShadow ? UnionSHPShadow_Data : UnionSHP_Data;
+	if (data[UseTemp].size() == 0)
+	{
+		pOutBuffer = nullptr;
+		*OutWidth = 0;
+		*OutHeight = 0;
+		return;
+	}
 	if (data[UseTemp].size() == 1)
 	{
 		pOutBuffer = data[UseTemp][0].pBuffer;
@@ -2283,6 +2397,71 @@ void CLoadingExt::SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int H
 		pData->pPixelValidRanges[i].First = begin;
 		pData->pPixelValidRanges[i].Last = end;
 	}
+}
+
+void CLoadingExt::ScaleImageHalf(ImageDataClassSafe* pData)
+{
+	if (!pData || !pData->pImageBuffer ||
+		pData->FullWidth <= 1 || pData->FullHeight <= 1)
+		return;
+
+	const int oldW = pData->FullWidth;
+	const int oldH = pData->FullHeight;
+	const unsigned char* src = pData->pImageBuffer.get();
+
+	const int newW = oldW / 2;
+	const int newH = oldH / 2;
+
+	if (newW <= 0 || newH <= 0)
+		return;
+
+	std::unique_ptr<unsigned char[]> newBuffer(
+		new unsigned char[newW * newH]
+	);
+
+	auto pick2x2 = [](
+		const unsigned char* src, int w, int x, int y)
+	{
+		unsigned char p;
+
+		p = src[y * w + x];
+		if (p) return p;
+
+		p = src[y * w + x + 1];
+		if (p) return p;
+
+		p = src[(y + 1) * w + x];
+		if (p) return p;
+
+		return src[(y + 1) * w + x + 1];
+	};
+
+	for (int y = 0; y < newH; ++y)
+	{
+		const int srcY = y * 2;
+		for (int x = 0; x < newW; ++x)
+		{
+			const int srcX = x * 2;
+			newBuffer[y * newW + x] =
+				pick2x2(src, oldW, srcX, srcY);
+		}
+	}
+
+	pData->pImageBuffer = std::move(newBuffer);
+
+	pData->FullWidth = newW;
+	pData->FullHeight = newH;
+
+	pData->ValidX = pData->ValidX / 2;
+	pData->ValidY = pData->ValidY / 2;
+
+	pData->ValidWidth = (pData->ValidWidth + 1) / 2;
+	pData->ValidHeight = (pData->ValidHeight + 1) / 2;
+
+	if (pData->pPixelValidRanges)
+		pData->pPixelValidRanges.reset();
+
+	SetValidBufferSafe(pData, newW, newH);
 }
 
 void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData)
@@ -2588,7 +2767,7 @@ std::vector<int> CLoadingExt::GeneratePalLookupTable(Palette* first, Palette* se
 
 void CLoadingExt::LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** ppBuffer, const ShapeHeader& header)
 {
-	if (nFrame < 0 || nFrame + nFrameCount - 1 >= header.FrameCount)
+	if (nFrame < 0 || nFrame + nFrameCount - 1 >= header.FrameCount || header.Width == 0 && header.Height == 0)
 	{
 		GameAllocator<BYTE> alloc;
 		using AllocTraits = std::allocator_traits<GameAllocator<BYTE>>;
@@ -2637,7 +2816,8 @@ void CLoadingExt::LoadShp(FString ImageID, FString FileName, FString PalName, in
 		{
 			ShapeHeader header;
 			unsigned char* FramesBuffers;
-			CMixFile::LoadSHP(FileName, nMix);
+			if (!CMixFile::LoadSHP(FileName, nMix))
+				return;
 			CShpFile::GetSHPHeader(&header);
 			CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &FramesBuffers, header);
 			loadingExt->SetImageDataSafe(FramesBuffers, ImageID, header.Width, header.Height, pal);
@@ -2656,7 +2836,8 @@ void CLoadingExt::LoadFires(const ppmfc::CString& FileName)
 		{
 			ShapeHeader header;
 			unsigned char* FramesBuffers;
-			CMixFile::LoadSHP(FileName, nMix);
+			if (!CMixFile::LoadSHP(FileName, nMix))
+				return;
 			CShpFile::GetSHPHeader(&header);
 			for (int i = 0; i < header.FrameCount; ++i)
 			{
@@ -2722,7 +2903,8 @@ void CLoadingExt::LoadShp(FString ImageID, FString FileName, Palette* pPal, int 
 		{
 			ShapeHeader header;
 			unsigned char* FramesBuffers;
-			CMixFile::LoadSHP(FileName, nMix);
+			if (!CMixFile::LoadSHP(FileName, nMix))
+				return;
 			CShpFile::GetSHPHeader(&header);
 			CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &FramesBuffers, header);
 			loadingExt->SetImageDataSafe(FramesBuffers, ImageID, header.Width, header.Height, pPal);
@@ -3382,7 +3564,8 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 
 		ShapeHeader header;
 		unsigned char* pBuffer;
-		CMixFile::LoadSHP(file, nMix);
+		if (!CMixFile::LoadSHP(file, nMix))
+			return false;
 		CShpFile::GetSHPHeader(&header);
 		if (header.FrameCount <= nFrame) {
 			nFrame = 0;

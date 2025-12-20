@@ -257,6 +257,7 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     Translate(6009, "CTerrainGenerator.SlopeCoords", hTab5Dlg);
     Translate(6012, "CTerrainGenerator.SlopeCoordHeights", hTab5Dlg);
     Translate(6021, "CTerrainGenerator.SlopeAvoidEdges", hTab5Dlg);
+    Translate(6022, "CTerrainGenerator.SlopeDescription", hTab5Dlg);
 
     Translate(1001, "CTerrainGenerator.Add", NULL);
     Translate(1002, "CTerrainGenerator.Name", NULL);

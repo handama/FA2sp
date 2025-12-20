@@ -3602,4 +3602,5 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			}
 		}
 	}
+	CLoadingExt::DrawTurretShadow = Variables::RulesMap.GetBool("AudioVisual", "DrawTurretShadow");
 }

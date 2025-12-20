@@ -920,6 +920,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
     }
     catch (const std::ios_base::failure& e)
     {
+        UNREFERENCED_PARAMETER(e);
         ppmfc::CString buffer;
         buffer.Format(
             Translations::TranslateOrDefault(

@@ -95,15 +95,15 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 		dds.ddsCaps.dwCaps |= DDSCAPS_SYSTEMMEMORY;
 	dds.dwFlags = DDSD_CAPS;
 
-	// Try 300 times at max!
-	for (int i = 0; i <= 300; ++i)
+	// Try 50 times at max!
+	for (int i = 0; i <= 50; ++i)
 	{
 		hr = pIsoView->lpDD7->CreateSurface(&dds, &pIsoView->lpDDPrimarySurface, nullptr);
 		Logger::Raw("Return code: 0x%x\n", (int)hr);
 
 		if (FAILED(hr))
 		{
-			if (i == 300)
+			if (i == 50)
 			{
 				Logger::Raw("CreateSurface() failed\n");
 				pThis->ShowWindow(SW_HIDE);

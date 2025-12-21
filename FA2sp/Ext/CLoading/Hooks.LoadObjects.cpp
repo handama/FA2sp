@@ -252,7 +252,7 @@ DEFINE_HOOK(525AF8, CLoading_SetCurrentTMP_ReadGameFolder, 8)
 {
     GET_STACK(LPCSTR, lpFilename, STACK_OFFS(0x20, -0x4));
     DWORD dwSize;
-    if (auto pBuffer = (unsigned char*)CLoading::Instance->ReadWholeFile(lpFilename, &dwSize))
+    if (auto pBuffer = (unsigned char*)CLoadingExt::GetExtension()->ReadWholeFile(lpFilename, &dwSize))
     {
         CLoading::Instance->CurrentTMP->open(pBuffer, dwSize);
         return 0x525B77;

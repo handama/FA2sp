@@ -11,6 +11,7 @@
 #include "../CMapData/Body.h"
 #include "../CFinalSunDlg/Body.h"
 #include <random>
+#include <chrono>
 
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
@@ -310,14 +311,14 @@ FString CLoadingExt::GetBuildingFileID(FString ID)
 
 	FString validator = ImageID + ".SHP";
 	int nMix = this->SearchFile(validator);
-	if (!CLoading::HasFile(validator, nMix))
+	if (!HasFile(validator, nMix))
 	{
 		SetGenericTheaterLetter(ImageID);
 		if (!ExtConfigs::UseStrictNewTheater)
 		{
 			validator = ImageID + ".SHP";
 			nMix = this->SearchFile(validator);
-			if (!CLoading::HasFile(validator, nMix))
+			if (!HasFile(validator, nMix))
 				ImageID = backupID;
 		}
 	}
@@ -446,7 +447,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		FString file = name + ".SHP";
 		int nMix = SearchFile(file);
 		// building can be displayed without the body
-		if (!CLoading::HasFile(file, nMix))
+		if (!HasFile(file, nMix))
 			return true;
 
 		if (!CMixFile::LoadSHP(file, nMix))
@@ -489,11 +490,11 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 			if (applyNewTheater || forceNewTheater == 1)
 				SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
 			nMix = SearchFile(file);
-			if (!CLoading::HasFile(file, nMix))
+			if (!HasFile(file, nMix))
 			{
 				SetGenericTheaterLetter(file);
 				nMix = SearchFile(file);
-				if (!CLoading::HasFile(file, nMix))
+				if (!HasFile(file, nMix))
 				{
 					if (!ExtConfigs::UseStrictNewTheater)
 					{
@@ -506,7 +507,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 							};
 						file = name + ".SHP";
 						nMix = SearchFile(file);
-						if (!CLoading::HasFile(file, nMix))
+						if (!HasFile(file, nMix))
 							if (!searchNewTheater('T'))
 								if (!searchNewTheater('A'))
 									if (!searchNewTheater('U'))
@@ -850,7 +851,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 		FString file = name + ".SHP";
 		int nMix = SearchFile(file);
 		// building can be displayed without the body
-		if (!CLoading::HasFile(file, nMix))
+		if (!HasFile(file, nMix))
 			return true;
 
 		if (!CMixFile::LoadSHP(file, nMix))
@@ -894,11 +895,11 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 			if (applyNewTheater || forceNewTheater == 1)
 				SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
 			nMix = SearchFile(file);
-			if (!CLoading::HasFile(file, nMix))
+			if (!HasFile(file, nMix))
 			{
 				SetGenericTheaterLetter(file);
 				nMix = SearchFile(file);
-				if (!CLoading::HasFile(file, nMix))
+				if (!HasFile(file, nMix))
 				{
 					if (!ExtConfigs::UseStrictNewTheater)
 					{
@@ -911,7 +912,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 							};
 						file = name + ".SHP";
 						nMix = SearchFile(file);
-						if (!CLoading::HasFile(file, nMix))
+						if (!HasFile(file, nMix))
 							if (!searchNewTheater('T'))
 								if (!searchNewTheater('A'))
 									if (!searchNewTheater('U'))
@@ -1273,7 +1274,7 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 		FString file = name + ".SHP";
 		int nMix = SearchFile(file);
 		// building can be displayed without the body
-		if (!CLoading::HasFile(file, nMix))
+		if (!HasFile(file, nMix))
 			return true;
 
 		if (!CMixFile::LoadSHP(file, nMix))
@@ -1317,11 +1318,11 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 			if (applyNewTheater || forceNewTheater == 1)
 				SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
 			nMix = SearchFile(file);
-			if (!CLoading::HasFile(file, nMix))
+			if (!HasFile(file, nMix))
 			{
 				SetGenericTheaterLetter(file);
 				nMix = SearchFile(file);
-				if (!CLoading::HasFile(file, nMix))
+				if (!HasFile(file, nMix))
 				{
 					if (!ExtConfigs::UseStrictNewTheater)
 					{
@@ -1334,7 +1335,7 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 							};
 						file = name + ".SHP";
 						nMix = SearchFile(file);
-						if (!CLoading::HasFile(file, nMix))
+						if (!HasFile(file, nMix))
 							if (!searchNewTheater('T'))
 								if (!searchNewTheater('A'))
 									if (!searchNewTheater('U'))
@@ -1445,7 +1446,7 @@ void CLoadingExt::LoadInfantry(FString ID)
 	
 	FString FileName = ImageID + ".shp";
 	int nMix = this->SearchFile(FileName);
-	if (CLoading::HasFile(FileName, nMix))
+	if (HasFile(FileName, nMix))
 	{
 		ShapeHeader header;
 		unsigned char* FramesBuffers;
@@ -1535,7 +1536,7 @@ void CLoadingExt::LoadTerrainOrSmudge(FString ID, bool terrain)
 	FString ImageID = GetTerrainOrSmudgeFileID(ID);
 	FString FileName = ImageID + this->GetFileExtension();
 	int nMix = this->SearchFile(FileName);
-	if (CLoading::HasFile(FileName, nMix))
+	if (HasFile(FileName, nMix))
 	{
 		ShapeHeader header;
 		unsigned char* FramesBuffers[1];
@@ -1885,7 +1886,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 		FString FileName = ImageID + ".shp";
 		FString FileNameTurret = ImageID + "tur.shp";
 		int nMix = this->SearchFile(FileName);
-		if (CLoading::HasFile(FileName, nMix))
+		if (HasFile(FileName, nMix))
 		{
 			ShapeHeader header{};
 			ShapeHeader headerTurret{};
@@ -1897,7 +1898,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 			GetFullPaletteName(PaletteName);
 
 			int nMixTur = this->SearchFile(FileNameTurret);
-			bool bUseTurrentFile = CLoading::HasFile(FileNameTurret, nMixTur);
+			bool bUseTurrentFile = HasFile(FileNameTurret, nMixTur);
 			if (bHasTurret)
 			{
 				ShapeHeader* currentHeader = nullptr;
@@ -3529,11 +3530,11 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 		if (applyNewTheater || forceNewTheater == 1)
 			SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
 		nMix = SearchFile(file);
-		if (!CLoading::HasFile(file, nMix))
+		if (!HasFile(file, nMix))
 		{
 			SetGenericTheaterLetter(file);
 			nMix = SearchFile(file);
-			if (!CLoading::HasFile(file, nMix))
+			if (!HasFile(file, nMix))
 			{
 				if (!ExtConfigs::UseStrictNewTheater)
 				{
@@ -3546,7 +3547,7 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 					};
 					file = name + ".SHP";
 					nMix = SearchFile(file);
-					if (!CLoading::HasFile(file, nMix))
+					if (!HasFile(file, nMix))
 						if (!searchNewTheater('T'))
 							if (!searchNewTheater('A'))
 								if (!searchNewTheater('U'))
@@ -3760,3 +3761,210 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 		}
 	}
 }
+
+void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2path)
+{
+	using Clock = std::chrono::steady_clock;
+	const uint64_t nowMs =
+		std::chrono::duration_cast<std::chrono::milliseconds>(
+			Clock::now().time_since_epoch()).count();
+
+	static std::unordered_map<std::string, std::vector<unsigned char>> g_cache[2];
+	static std::unordered_map<std::string, uint64_t> g_cacheTime[2];
+	static uint64_t g_lastCleanup = 0;
+
+	constexpr uint64_t CACHE_TTL_MS = 500;
+	constexpr uint64_t CLEANUP_INTERVAL_MS = 1000;
+
+	auto it = g_cache[fa2path].find(filename);
+	if (it != g_cache[fa2path].end())
+	{
+		uint64_t lastUsed = g_cacheTime[fa2path][filename];
+		const auto& src = it->second;
+		auto pBuffer = GameCreateArray<unsigned char>(src.size());
+		memcpy(pBuffer, src.data(), src.size());
+		if (pDwSize)
+			*pDwSize = (DWORD)src.size();
+
+		g_cacheTime[fa2path][filename] = nowMs;
+
+		if (nowMs - lastUsed > CACHE_TTL_MS)
+		{
+			g_cache[fa2path].erase(it);
+			g_cacheTime[fa2path].erase(filename);
+		}
+
+		return pBuffer;
+	}
+
+	FString filepath;
+	std::ifstream fin;
+
+	auto readFile = [&](const std::string& path) -> std::vector<unsigned char>
+	{
+		std::ifstream f(path, std::ios::in | std::ios::binary);
+		if (!f.is_open())
+			return {};
+
+		f.seekg(0, std::ios::end);
+		int size = (int)f.tellg();
+		if (size <= 0)
+			return {};
+
+		f.seekg(0, std::ios::beg);
+		std::vector<unsigned char> buffer(size);
+		f.read((char*)buffer.data(), size);
+		return buffer;
+	};
+
+	std::vector<unsigned char> loadedData;
+
+	if (fa2path)
+	{
+		filepath = CFinalSunApp::ExePath();
+		filepath += filename;
+		loadedData = readFile(filepath.c_str());
+	}
+	else
+	{
+		filepath = CFinalSunApp::ExePath();
+		filepath += "Resources\\HighPriority\\";
+		filepath += filename;
+		loadedData = readFile(filepath.c_str());
+
+		if (loadedData.empty())
+		{
+			filepath = CFinalSunApp::FilePath();
+			filepath += filename;
+			loadedData = readFile(filepath.c_str());
+		}
+	}
+
+	if (loadedData.empty())
+	{
+		size_t size = 0;
+		auto data = ResourcePackManager::instance().getFileData(filename, &size);
+		if (data && size > 0)
+			loadedData.assign(data.get(), data.get() + size);
+	}
+
+	if (loadedData.empty() && ExtConfigs::ExtMixLoader)
+	{
+		auto& manager = MixLoader::Instance();
+		size_t sizeM = 0;
+		auto result = manager.LoadFile(filename, &sizeM);
+		if (result && sizeM > 0)
+			loadedData.assign(result.get(), result.get() + sizeM);
+	}
+
+	if (loadedData.empty())
+	{
+		auto nMix = CLoading::Instance->SearchFile(filename);
+		if (CMixFile::HasFile(filename, nMix))
+		{
+			Ccc_file file(true);
+			file.open(filename, CMixFile::Array[nMix - 1]);
+			loadedData.assign(
+				(unsigned char*)file.get_data(),
+				(unsigned char*)file.get_data() + file.get_size());
+			file.close();
+		}
+	}
+
+	if (loadedData.empty())
+	{
+		filepath = CFinalSunApp::ExePath();
+		filepath += "Resources\\LowPriority\\";
+		filepath += filename;
+		loadedData = readFile(filepath.c_str());
+	}
+
+	if (loadedData.empty())
+		return nullptr;
+
+	g_cache[fa2path][filename] = loadedData;
+	g_cacheTime[fa2path][filename] = nowMs;
+
+	if (nowMs - g_lastCleanup > CLEANUP_INTERVAL_MS)
+	{
+		for (auto it2 = g_cacheTime[fa2path].begin(); it2 != g_cacheTime[fa2path].end();)
+		{
+			if (nowMs - it2->second > CACHE_TTL_MS)
+			{
+				g_cache[fa2path].erase(it2->first);
+				it2 = g_cacheTime[fa2path].erase(it2);
+			}
+			else
+			{
+				++it2;
+			}
+		}
+		g_lastCleanup = nowMs;
+	}
+
+	auto pBuffer = GameCreateArray<unsigned char>(loadedData.size());
+	memcpy(pBuffer, loadedData.data(), loadedData.size());
+	if (pDwSize)
+		*pDwSize = (DWORD)loadedData.size();
+
+	return pBuffer;
+}
+
+bool CLoadingExt::HasFile(ppmfc::CString filename, int nMix)
+{
+	FString filepath;
+	std::ifstream fin;
+
+	filepath = CFinalSunApp::ExePath();
+	filepath += "Resources\\HighPriority\\";
+	filepath += filename;
+	fin.open(filepath, std::ios::in | std::ios::binary);
+	if (!fin.is_open())
+	{
+		filepath = CFinalSunApp::FilePath();
+		filepath += filename;
+		fin.open(filepath, std::ios::in | std::ios::binary);
+	}
+
+	if (fin.is_open())
+	{
+		fin.close();
+		return true;
+	}
+
+	size_t size = 0;
+	auto data = ResourcePackManager::instance().getFileData(filename.m_pchData, &size);
+	if (data && size > 0)
+	{
+		return true;
+	}
+
+	if (ExtConfigs::ExtMixLoader)
+	{
+		auto& manager = MixLoader::Instance();
+		int result = manager.QueryFileIndex(filename.m_pchData, nMix);
+		if (result >= 0)
+			return true;
+	}
+
+	if (nMix == -114)
+	{
+		nMix = CLoading::Instance->SearchFile(filename);
+		if (CMixFile::HasFile(filename, nMix))
+			return true;
+	}
+	if (CMixFile::HasFile(filename, nMix))
+		return true;
+
+	filepath = CFinalSunApp::ExePath();
+	filepath += "Resources\\LowPriority\\";
+	filepath += filename;
+	fin.open(filepath, std::ios::in | std::ios::binary);
+	if (fin.is_open())
+	{
+		fin.close();
+		return true;
+	}
+	return false;
+}
+

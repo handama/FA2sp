@@ -9,6 +9,7 @@
 
 #include "../Ext/CFinalSunDlg/Body.h"
 #include "../Ext/CMapData/Body.h"
+#include "../Ext/CLoading/Body.h"
 #include "MultiSelection.h"
 
 const LightingStruct LightingStruct::NoLighting = { -1,-1,-1,-1,-1,-1 };
@@ -55,7 +56,7 @@ Palette* PalettesManager::LoadPalette(FString palname)
     palToLoad.Replace("iso\233NotAutoTinted", "iso");
     palToLoad.Replace("iso\233AutoTinted", "iso");
 
-    if (auto pBuffer = (BytePalette*)CLoading::Instance->ReadWholeFile(palToLoad))
+    if (auto pBuffer = (BytePalette*)CLoadingExt::GetExtension()->ReadWholeFile(palToLoad))
     {
         auto pPalette = GameCreate<Palette>();
         for (int i = 0; i < 256; ++i)
@@ -80,7 +81,7 @@ Palette* PalettesManager::LoadTiberiumCellAnimPalette(BGRStruct& color, FString 
     if (itr != PalettesManager::OriginPaletteFiles.end())
         return itr->second;
     
-    if (auto pBuffer = (BytePalette*)CLoading::Instance->ReadWholeFile(palname))
+    if (auto pBuffer = (BytePalette*)CLoadingExt::GetExtension()->ReadWholeFile(palname))
     {
         auto pPalette = GameCreate<Palette>();
         for (int i = 0; i < 256; ++i)

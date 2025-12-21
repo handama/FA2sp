@@ -22,6 +22,20 @@ namespace MinInfo
         uint32_t offset{};
     };
 
+    class MemoryIStream : public std::istream {
+        class MemoryBuf : public std::streambuf {
+        public:
+            MemoryBuf(const char* data, size_t size) {
+                char* p = const_cast<char*>(data);
+                setg(p, p, p + size);
+            }
+        } buf_;
+
+    public:
+        MemoryIStream(const void* data, size_t size)
+            : std::istream(&buf_), buf_(static_cast<const char*>(data), size) {}
+    };
+
     static inline uint32_t align_up(uint32_t x, uint32_t a) {
         return (x + (a - 1)) & ~(a - 1);
     }
@@ -285,6 +299,13 @@ namespace MinInfo
         }
     }
 
+    static std::unique_ptr<MixFileStruct>
+        unpack_mix_from_memory(const void* data, uint32_t total_size)
+    {
+        MemoryIStream in(data, total_size);
+        return unpack_mix(in, total_size);
+    }
+
     static uint32_t file_size(std::ifstream& f) {
         auto pos = f.tellg();
         f.seekg(0, std::ios::end);
@@ -393,12 +414,12 @@ namespace MinInfo
             uint32_t length = static_cast<uint32_t>(size);
             if (start > file_end || start + length > file_end)  return {};
 
-            std::vector<char> buf(length);
-            f.seekg(static_cast<std::streamoff>(start), std::ios::beg);
-            if (!read_exact(f, buf.data(), buf.size()))  return {};
+            std::vector<char> buf(size);
+            f.seekg(offset, std::ios::beg);
+            if (!read_exact(f, buf.data(), buf.size())) return {};
 
-            std::istringstream sub(std::string(buf.data(), buf.size()));
-            auto mix = unpack_mix(sub, length);
+            auto mix = unpack_mix_from_memory(buf.data(), buf.size());
+
             for (auto& e : mix->files) {
                 e.offset += start + mix->offset;
             }

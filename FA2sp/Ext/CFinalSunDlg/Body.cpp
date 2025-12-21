@@ -623,6 +623,16 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		SetMenuStatusTrue(34007, CIsoViewExt::PasteTerrains);
 		SetMenuStatusTrue(34008, CIsoViewExt::PasteSmudges);
 		return TRUE;
+	case 34053:
+		SetMenuStatusTrue(34001, CIsoViewExt::PasteGround);
+		SetMenuStatusTrue(34002, CIsoViewExt::PasteOverlays);
+		SetMenuStatusFalse(34003, CIsoViewExt::PasteStructures);
+		SetMenuStatusFalse(34004, CIsoViewExt::PasteInfantries);
+		SetMenuStatusFalse(34005, CIsoViewExt::PasteUnits);
+		SetMenuStatusFalse(34006, CIsoViewExt::PasteAircrafts);
+		SetMenuStatusFalse(34007, CIsoViewExt::PasteTerrains);
+		SetMenuStatusFalse(34008, CIsoViewExt::PasteSmudges);
+		return TRUE;
 	case 40159:
 	{
 		SetLayerStatus(40159, ExtConfigs::TreeViewCameo_Display);

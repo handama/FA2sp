@@ -256,6 +256,8 @@ public:
 	static bool IsSurfaceImageLoaded(const FString& name);
 	static ImageDataClassSurface* GetSurfaceImageDataFromMap(const FString& name);
 	static int GetAvailableFacing(const FString& ID);
+	static void* ReadWholeFile(const char* filename, DWORD* pDwSize = nullptr, bool fa2path = false);
+	static bool HasFile(ppmfc::CString filename, int nMix = -114);
 };
 
 #pragma pack(push, 1)

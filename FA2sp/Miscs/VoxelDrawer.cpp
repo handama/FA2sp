@@ -1,6 +1,5 @@
 #include "VoxelDrawer.h"
-
-#include <CLoading.h>
+#include "../Ext/CLoading/Body.h"
 
 void VoxelDrawer::Initalize()
 {
@@ -18,7 +17,7 @@ bool VoxelDrawer::LoadVPLFile(FString name)
 {
     bool result = false;
     DWORD dwSize;
-    if (auto pBuffer = (unsigned char*)CLoading::Instance->ReadWholeFile(name, &dwSize))
+    if (auto pBuffer = (unsigned char*)CLoadingExt::GetExtension()->ReadWholeFile(name, &dwSize))
     {
         result = CncImgLoadVPLFile(pBuffer);
         GameDeleteArray(pBuffer, dwSize);
@@ -30,7 +29,7 @@ bool VoxelDrawer::LoadVXLFile(FString name)
 {
     bool result = false;
     DWORD dwSize;
-    if (auto pBuffer = (unsigned char*)CLoading::Instance->ReadWholeFile(name, &dwSize))
+    if (auto pBuffer = (unsigned char*)CLoadingExt::GetExtension()->ReadWholeFile(name, &dwSize))
     {
         if (CncImgIsVXLLoaded())
             CncImgClearCurrentVXL();
@@ -44,7 +43,7 @@ bool VoxelDrawer::LoadHVAFile(FString name)
 {
     bool result = false;
     DWORD dwSize;
-    if (auto pBuffer = (unsigned char*)CLoading::Instance->ReadWholeFile(name, &dwSize))
+    if (auto pBuffer = (unsigned char*)CLoadingExt::GetExtension()->ReadWholeFile(name, &dwSize))
     {
         result = CncImgLoadHVAFile(pBuffer);
         GameDeleteArray(pBuffer, dwSize);

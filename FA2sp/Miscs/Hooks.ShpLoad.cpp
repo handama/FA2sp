@@ -203,7 +203,7 @@ DEFINE_HOOK(525C50, CMixFile_LoadSHP, 5)
 		current_shape_file.close();
 
 	DWORD size = 0;
-	if (auto pData = CLoading::Instance->ReadWholeFile(filename, &size))
+	if (auto pData = CLoadingExt::GetExtension()->ReadWholeFile(filename, &size))
 	{
 		current_shape_file.size = size;
 		current_shape_file.m_data = (unsigned char*)pData;

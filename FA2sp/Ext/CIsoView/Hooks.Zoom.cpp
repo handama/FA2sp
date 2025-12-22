@@ -78,12 +78,26 @@ DEFINE_HOOK(460F00, CIsoView_ScreenCoord2MapCoord_Height, 7)
 	GET_STACK(int*, X, 0x4);
 	GET_STACK(int*, Y, 0x8);
 
+	if (!CMapData::Instance->MapWidthPlusHeight || !CMapDataExt::TileData)
+	{
+		*X = 0;
+		*Y = 0;
+		return 0x4612EB;
+	}
+
 	auto pThis = CIsoView::GetInstance();
 	CRect dr;
 	GetWindowRect(pThis->GetSafeHwnd(), &dr);
 	*X += (*X - pThis->ViewPosition.x - dr.left) * (CIsoViewExt::ScaledFactor - 1.0);
 	*Y += (*Y - pThis->ViewPosition.y - dr.top) * (CIsoViewExt::ScaledFactor - 1.0);
 	return 0;
+}
+
+DEFINE_HOOK(461167, CIsoView_ScreenCoord2MapCoord_Height_TileData, 6)
+{
+	R->ECX(&CMapDataExt::TileData);
+
+	return 0x46116D;
 }
 
 DEFINE_HOOK(466890, CIsoView_ScreenCoord2MapCoord_Flat, 8)

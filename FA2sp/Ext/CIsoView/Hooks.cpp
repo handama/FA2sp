@@ -1382,9 +1382,9 @@ DEFINE_HOOK(45C0CF, CIsoView_OnMouseMove_Waypoint_AddPlayerLocation, 6)
 
 	if (CMapData::Instance->IsMultiOnly())
 	{
-		GET_STACK(int, waypoint, STACK_OFFS(0x3D528, 0x3D518));
+		GET(int, waypoint, ECX);
 		ppmfc::CString key;
-		key.Format("%d", waypoint);
+		key.Format("%d", waypoint - 3);
 		deleteWaypoint(key);
 	}
 	else

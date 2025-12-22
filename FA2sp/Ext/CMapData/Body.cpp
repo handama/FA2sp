@@ -2981,7 +2981,17 @@ void CMapDataExt::CheckCellRise(bool steep, int loopCount, bool IgnoreMorphable,
 						|| (w && ne && nw && w->Height - cell->Height > 0 && nw->Height - cell->Height <= 0 && ne->Height - cell->Height > 0)
 						|| (w && se && sw && w->Height - cell->Height > 0 && sw->Height - cell->Height <= 0 && se->Height - cell->Height > 0);
 
-					if (!trigger) continue;
+					int tallerCount = 0;
+					if (n && (n->Height - cell->Height > 0 || !isMorphable(n))) tallerCount++;
+					if (s && (s->Height - cell->Height > 0 || !isMorphable(s))) tallerCount++;
+					if (w && (w->Height - cell->Height > 0 || !isMorphable(w))) tallerCount++;
+					if (e && (e->Height - cell->Height > 0 || !isMorphable(e))) tallerCount++;
+					if (nw && (nw->Height - cell->Height > 0 || !isMorphable(nw))) tallerCount++;
+					if (ne && (ne->Height - cell->Height > 0 || !isMorphable(ne))) tallerCount++;
+					if (sw && (sw->Height - cell->Height > 0 || !isMorphable(sw))) tallerCount++;
+					if (se && (se->Height - cell->Height > 0 || !isMorphable(se))) tallerCount++;
+
+					if (!trigger && tallerCount < 6) continue;
 
 					int idx2 = getIndex(newX, newY);
 					if (ignoreList && std::find(ignoreList->begin(), ignoreList->end(), idx2) != ignoreList->end())
@@ -2994,7 +3004,7 @@ void CMapDataExt::CheckCellRise(bool steep, int loopCount, bool IgnoreMorphable,
 
 					int cap = 14;
 					auto relax = [&](CellData* nb, int limit) {
-						if (nb) cap = std::min(cap, nb->Height + limit);
+						if (nb) cap = std::min(cap, (isMorphable(nb) ? nb->Height : height) + limit);
 					};
 
 					relax(nw, diagLimit);

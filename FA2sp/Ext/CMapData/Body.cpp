@@ -3029,6 +3029,12 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	
 	if (updateMinimap && reloadCellDataExt && reloadImages)
 		CTileSetBrowserFrameExt::TerrainDlgLoaded = false;
+
+	CLoadingExt::g_cache[0].clear();
+	CLoadingExt::g_cache[1].clear();
+	CLoadingExt::g_cacheTime[0].clear();
+	CLoadingExt::g_cacheTime[1].clear();
+	CLoadingExt::g_lastCleanup = 0;
 	
 	CIsoView::CurrentCommand->Type = 0;
 	CIsoView::CurrentCommand->Command = 0;

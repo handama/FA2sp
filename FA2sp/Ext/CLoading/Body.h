@@ -258,6 +258,10 @@ public:
 	static int GetAvailableFacing(const FString& ID);
 	static void* ReadWholeFile(const char* filename, DWORD* pDwSize = nullptr, bool fa2path = false);
 	static bool HasFile(ppmfc::CString filename, int nMix = -114);
+
+	static std::unordered_map<std::string, std::vector<unsigned char>> g_cache[2];
+	static std::unordered_map<std::string, uint64_t> g_cacheTime[2];
+	static uint64_t g_lastCleanup;
 };
 
 #pragma pack(push, 1)

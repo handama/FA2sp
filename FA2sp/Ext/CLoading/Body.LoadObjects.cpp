@@ -27,6 +27,10 @@ bool CLoadingExt::DrawTurretShadow = false;
 std::unordered_set<FString> CLoadingExt::LoadedOverlays;
 int CLoadingExt::TallestBuildingHeight = 0;
 
+std::unordered_map<std::string, std::vector<unsigned char>> CLoadingExt::g_cache[2];
+std::unordered_map<std::string, uint64_t> CLoadingExt::g_cacheTime[2];
+uint64_t CLoadingExt::g_lastCleanup = 0;
+
 std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::CurrentFrameImageDataMap;
 std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::ImageDataMap;
 std::unordered_map<FString, std::vector<std::unique_ptr<ImageDataClassSafe>>> CLoadingExt::BuildingClipsImageDataMap;
@@ -3768,10 +3772,6 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 	const uint64_t nowMs =
 		std::chrono::duration_cast<std::chrono::milliseconds>(
 			Clock::now().time_since_epoch()).count();
-
-	static std::unordered_map<std::string, std::vector<unsigned char>> g_cache[2];
-	static std::unordered_map<std::string, uint64_t> g_cacheTime[2];
-	static uint64_t g_lastCleanup = 0;
 
 	constexpr uint64_t CACHE_TTL_MS = 500;
 	constexpr uint64_t CLEANUP_INTERVAL_MS = 1000;

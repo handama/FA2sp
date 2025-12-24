@@ -305,6 +305,15 @@ void CIsoViewExt::DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF co
     auto lPitch = lpDesc->lPitch;
     auto nBytesPerPixel = *(int*)0x72A8C0;
 
+    unsigned char* base = (unsigned char*)lpDesc->lpSurface;
+    unsigned char* end = base + lPitch * lpDesc->dwHeight;
+    auto SafeWritePixel = [&](unsigned char* p, BGRStruct& ddColor)
+    {
+        if (p < base || p + nBytesPerPixel > end)
+            return;
+        memcpy(p, &ddColor, nBytesPerPixel);
+    };
+
     auto pRGB = (ColorStruct*)&color;
     BGRStruct ddColor;
     ddColor.R = pRGB->red;
@@ -317,10 +326,8 @@ void CIsoViewExt::DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF co
     ddColor2.G = pRGB2->green;
     ddColor2.B = pRGB2->blue;
 
-    auto DrawLine = [lPitch, nBytesPerPixel, ddColor, lpDesc, &rect](int X1, int Y1, int X2, int Y2)
+    auto DrawLine = [&SafeWritePixel, lPitch, nBytesPerPixel, lpDesc, &rect](int X1, int Y1, int X2, int Y2, BGRStruct& ddColor)
         {
-            int color = *(int*)&ddColor;
-
             if (X1 > X2)
             {
                 std::swap(X1, X2);
@@ -336,7 +343,7 @@ void CIsoViewExt::DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF co
             {
                 for (int i = 0; i <= dx; ++i)
                 {
-                    memcpy(ptr, &ddColor, nBytesPerPixel);
+                    SafeWritePixel(ptr, ddColor);
                     ptr += nBytesPerPixel;
                 }
             }
@@ -351,7 +358,7 @@ void CIsoViewExt::DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF co
 
                 for (int i = 0; i <= dy; ++i)
                 {
-                    memcpy(ptr, &ddColor, nBytesPerPixel);
+                    SafeWritePixel(ptr, ddColor);
                     ptr += pitch;
                 }
             }
@@ -372,7 +379,7 @@ void CIsoViewExt::DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF co
                     int delta = dy2 - dx;
                     for (int i = 0; i < dx; ++i)
                     {
-                        memcpy(ptr + i * nBytesPerPixel, &ddColor, nBytesPerPixel);
+                        SafeWritePixel(ptr + i * nBytesPerPixel, ddColor);
                         if (delta > 0)
                         {
                             ptr += pitch;
@@ -388,7 +395,7 @@ void CIsoViewExt::DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF co
 
                     for (int i = 0; i < dy; ++i)
                     {
-                        memcpy(ptr + k * nBytesPerPixel, &ddColor, nBytesPerPixel);
+                        SafeWritePixel(ptr + k * nBytesPerPixel, ddColor); 
                         if (delta > 0)
                         {
                             ++k;
@@ -401,90 +408,7 @@ void CIsoViewExt::DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF co
             }
         };
 
-    auto DrawLine2 = [lPitch, nBytesPerPixel, ddColor2, lpDesc, &rect](int X1, int Y1, int X2, int Y2)
-        {
-            int color = *(int*)&ddColor2;
-
-            if (X1 > X2)
-            {
-                std::swap(X1, X2);
-                std::swap(Y1, Y2);
-            }
-
-            int dx = X2 - X1;
-            int dy = Y2 - Y1;
-
-            auto ptr = (unsigned char*)lpDesc->lpSurface + lPitch * Y1 + X1 * nBytesPerPixel;
-
-            if (dy == 0)
-            {
-                for (int i = 0; i <= dx; ++i)
-                {
-                    memcpy(ptr, &ddColor2, nBytesPerPixel);
-                    ptr += nBytesPerPixel;
-                }
-            }
-            else if (dx == 0)
-            {
-                int pitch = lPitch;
-                if (dy < 0)
-                {
-                    pitch = -pitch;
-                    dy = -dy;
-                }
-
-                for (int i = 0; i <= dy; ++i)
-                {
-                    memcpy(ptr, &ddColor2, nBytesPerPixel);
-                    ptr += pitch;
-                }
-            }
-            else
-            {
-                int pitch = lPitch;
-                if (dy < 0)
-                {
-                    pitch = -pitch;
-                    dy = -dy;
-                }
-
-                int dx2 = 2 * dx;
-                int dy2 = 2 * dy;
-
-                if (dx > dy)
-                {
-                    int delta = dy2 - dx;
-                    for (int i = 0; i < dx; ++i)
-                    {
-                        memcpy(ptr + i * nBytesPerPixel, &ddColor2, nBytesPerPixel);
-                        if (delta > 0)
-                        {
-                            ptr += pitch;
-                            delta -= dx2;
-                        }
-                        delta += dy2;
-                    }
-                }
-                else
-                {
-                    int delta = dx2 - dy;
-                    int k = 0;
-
-                    for (int i = 0; i < dy; ++i)
-                    {
-                        memcpy(ptr + k * nBytesPerPixel, &ddColor2, nBytesPerPixel);
-                        if (delta > 0)
-                        {
-                            ++k;
-                            delta -= dy2;
-                        }
-                        delta += dx2;
-                        ptr += pitch;
-                    }
-                }
-            }
-        };
-    auto ClipAndDrawLine2 = [&rect, DrawLine2](int X1, int Y1, int X2, int Y2)
+    auto ClipAndDrawLine = [&rect, DrawLine](int X1, int Y1, int X2, int Y2, BGRStruct& ddColor)
         {
             auto encode = [&rect](int x, int y)
                 {
@@ -542,67 +466,7 @@ void CIsoViewExt::DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF co
                     return true;
                 };
             if (clip(X1, Y1, X2, Y2))
-                DrawLine2(X1, Y1, X2, Y2);
-        };
-    auto ClipAndDrawLine = [&rect, DrawLine](int X1, int Y1, int X2, int Y2)
-        {
-            auto encode = [&rect](int x, int y)
-                {
-                    int c = 0;
-                    if (x < rect.left) c = c | 0x1;
-                    else if (x > rect.right) c = c | 0x2;
-                    if (y > rect.bottom) c = c | 0x4;
-                    else if (y < rect.top) c = c | 0x8;
-                    return c;
-                };
-            auto clip = [&rect, encode](int& X1, int& Y1, int& X2, int& Y2) -> bool
-                {
-                    int code1, code2, code;
-                    int x = 0, y = 0;
-                    code1 = encode(X1, Y1);
-                    code2 = encode(X2, Y2);
-                    while (code1 != 0 || code2 != 0)
-                    {
-                        if ((code1 & code2) != 0) return false;
-                        code = code1;
-                        if (code == 0) code = code2;
-                        if ((0b1 & code) != 0)
-                        {
-                            x = rect.left;
-                            y = Y1 + (Y2 - Y1) * (rect.left - X1) / (X2 - X1);
-                        }
-                        else if ((0b10 & code) != 0)
-                        {
-                            x = rect.right;
-                            y = Y1 + (Y2 - Y1) * (rect.right - X1) / (X2 - X1);
-                        }
-                        else if ((0b100 & code) != 0)
-                        {
-                            y = rect.bottom;
-                            x = X1 + (X2 - X1) * (rect.bottom - Y1) / (Y2 - Y1);
-                        }
-                        else if ((0b1000 & code) != 0)
-                        {
-                            y = rect.top;
-                            x = X1 + (X2 - X1) * (rect.top - Y1) / (Y2 - Y1);
-                        }
-                        if (code == code1)
-                        {
-                            X1 = x;
-                            Y1 = y;
-                            code1 = encode(x, y);
-                        }
-                        else
-                        {
-                            X2 = x;
-                            Y2 = y;
-                            code2 = encode(x, y);
-                        }
-                    }
-                    return true;
-                };
-            if (clip(X1, Y1, X2, Y2))
-                DrawLine(X1, Y1, X2, Y2);
+                DrawLine(X1, Y1, X2, Y2, ddColor);
         };
 
     int halfCellWidth = 30 * W;
@@ -643,33 +507,33 @@ void CIsoViewExt::DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF co
 
     auto drawCellOutline = [&](int inneroffset)
         {
-            ClipAndDrawLine(x1, y1 + inneroffset, x1, y3 - inneroffset);
-            ClipAndDrawLine(x1 - 1, y1 + inneroffset, x1 - 1, y3 - inneroffset);
-            ClipAndDrawLine(x4 + 2 * inneroffset, y4, x2 - 2 * inneroffset, y4);
+            ClipAndDrawLine(x1, y1 + inneroffset, x1, y3 - inneroffset, ddColor);
+            ClipAndDrawLine(x1 - 1, y1 + inneroffset, x1 - 1, y3 - inneroffset, ddColor);
+            ClipAndDrawLine(x4 + 2 * inneroffset, y4, x2 - 2 * inneroffset, y4, ddColor);
 
-            ClipAndDrawLine(x1, y1 + inneroffset, x2T - 2 * inneroffset, y2T);
-            ClipAndDrawLine(x2 - 2 * inneroffset, y2, x3, y3 - inneroffset);
-            ClipAndDrawLine(x3L, y3L - inneroffset, x4B + 2 * inneroffset, y4B);
-            ClipAndDrawLine(x4 + 2 * inneroffset, y4, x1L, y1L + inneroffset);
+            ClipAndDrawLine(x1, y1 + inneroffset, x2T - 2 * inneroffset, y2T, ddColor);
+            ClipAndDrawLine(x2 - 2 * inneroffset, y2, x3, y3 - inneroffset, ddColor);
+            ClipAndDrawLine(x3L, y3L - inneroffset, x4B + 2 * inneroffset, y4B, ddColor);
+            ClipAndDrawLine(x4 + 2 * inneroffset, y4, x1L, y1L + inneroffset, ddColor);
         };
     
 
     auto drawCellOutline2 = [&](int inneroffset)
         {
-            ClipAndDrawLine2(x1 + 1, y1 + 1 + inneroffset, x1 + 1, y3 - inneroffset + 1);
-            ClipAndDrawLine2(x1 + 1 - 1, y1 + 1 + inneroffset, x1 + 1 - 1, y3 - inneroffset + 1);
-            ClipAndDrawLine2(x4 + 1 + 2 * inneroffset, y4 + 1, x2 + 1 - 2 * inneroffset, y4 + 1);
+            ClipAndDrawLine(x1 + 1, y1 + 1 + inneroffset, x1 + 1, y3 - inneroffset + 1, ddColor2);
+            ClipAndDrawLine(x1 + 1 - 1, y1 + 1 + inneroffset, x1 + 1 - 1, y3 - inneroffset + 1, ddColor2);
+            ClipAndDrawLine(x4 + 1 + 2 * inneroffset, y4 + 1, x2 + 1 - 2 * inneroffset, y4 + 1, ddColor2);
 
-            ClipAndDrawLine2(x1 + 1, y1 + 1 + inneroffset, x2T + 1 - 2 * inneroffset, y2T + 1);
-            ClipAndDrawLine2(x2 + 1 - 2 * inneroffset, y2 + 1, x3 + 1, y3 - inneroffset + 1);
-            ClipAndDrawLine2(x3L + 1, y3L + 1 - inneroffset, x4B + 1 + 2 * inneroffset, y4B + 1);
-            ClipAndDrawLine2(x4 + 1 + 2 * inneroffset, y4 + 1, x1L + 1, y1L + inneroffset + 1);
+            ClipAndDrawLine(x1 + 1, y1 + 1 + inneroffset, x2T + 1 - 2 * inneroffset, y2T + 1, ddColor2);
+            ClipAndDrawLine(x2 + 1 - 2 * inneroffset, y2 + 1, x3 + 1, y3 - inneroffset + 1, ddColor2);
+            ClipAndDrawLine(x3L + 1, y3L + 1 - inneroffset, x4B + 1 + 2 * inneroffset, y4B + 1, ddColor2);
+            ClipAndDrawLine(x4 + 1 + 2 * inneroffset, y4 + 1, x1L + 1, y1L + inneroffset + 1, ddColor2);
         };
 
     if (onlyX)
     {
-        ClipAndDrawLine(x1, y1, x1, y3);
-        ClipAndDrawLine(x4, y4, x2 , y4);
+        ClipAndDrawLine(x1, y1, x1, y3, ddColor);
+        ClipAndDrawLine(x4, y4, x2 , y4, ddColor);
     }
     else
     {
@@ -693,13 +557,22 @@ void CIsoViewExt::DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF col
     auto lPitch = lpDesc->lPitch;
     auto nBytesPerPixel = *(int*)0x72A8C0;
 
+    unsigned char* base = (unsigned char*)lpDesc->lpSurface;
+    unsigned char* end = base + lPitch * lpDesc->dwHeight;
+    auto SafeWritePixel = [&](unsigned char* p, BGRStruct& ddColor)
+    {
+        if (p < base || p + nBytesPerPixel > end)
+            return;
+        memcpy(p, &ddColor, nBytesPerPixel);
+    };
+
     auto pRGB = (ColorStruct*)&color;
     BGRStruct ddColor;
     ddColor.R = pRGB->red;
     ddColor.G = pRGB->green;
     ddColor.B = pRGB->blue;
 
-    auto DrawLine = [lPitch, nBytesPerPixel, ddColor, lpDesc, &rect](int X1, int Y1, int X2, int Y2)
+    auto DrawLine = [&SafeWritePixel, lPitch, nBytesPerPixel, &ddColor, lpDesc, &rect](int X1, int Y1, int X2, int Y2)
     {
         int color = *(int*)&ddColor;
 
@@ -718,7 +591,7 @@ void CIsoViewExt::DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF col
         {
             for (int i = 0; i <= dx; ++i) 
             {
-                memcpy(ptr, &ddColor, nBytesPerPixel);
+                SafeWritePixel(ptr, ddColor);
                 ptr += nBytesPerPixel;
             }
         }
@@ -733,7 +606,7 @@ void CIsoViewExt::DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF col
 
             for (int i = 0; i <= dy; ++i) 
             {
-                memcpy(ptr, &ddColor, nBytesPerPixel);
+                SafeWritePixel(ptr, ddColor);
                 ptr += pitch;
             }
         }
@@ -754,7 +627,7 @@ void CIsoViewExt::DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF col
                 int delta = dy2 - dx;
                 for (int i = 0; i < dx; ++i) 
                 {
-                    memcpy(ptr + i * nBytesPerPixel, &ddColor, nBytesPerPixel);
+                    SafeWritePixel(ptr + i * nBytesPerPixel, ddColor);
                     if (delta > 0)
                     {
                         ptr += pitch;
@@ -770,7 +643,7 @@ void CIsoViewExt::DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF col
 
                 for (int i = 0; i < dy; ++i)
                 {
-                    memcpy(ptr + k * nBytesPerPixel, &ddColor, nBytesPerPixel);
+                    SafeWritePixel(ptr + k * nBytesPerPixel, ddColor);
                     if (delta > 0) 
                     {
                         ++k;
@@ -966,6 +839,7 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
             SelectObject(hdc, hOldPen);
             DeleteObject(hPen);
         };
+
     auto DrawLineInner = [hwnd, heightColor, hdc, &rect](int X1, int Y1, int X2, int Y2)
     {
         PAINTSTRUCT ps;
@@ -978,9 +852,9 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
         LineTo(hdc, X2, Y2);
         SelectObject(hdc, hPenOld);
         DeleteObject(hPen);
-        EndPaint(hwnd, &ps);
-        
+        EndPaint(hwnd, &ps);    
     };
+
     auto ClipAndDrawLine = [&rect, DrawLine, DrawLineInner](int X1, int Y1, int X2, int Y2, int type)
     {
         auto encode = [&rect](int x, int y)
@@ -1286,121 +1160,127 @@ void CIsoViewExt::DrawLine(
     bool bDashed,
     int nThickness)
 {
-    if (!lpDesc || lpDesc->lpSurface == nullptr)
+    if (!lpDesc || !lpDesc->lpSurface)
         return;
 
-    RECT rect = CIsoViewExt::GetScaledWindowRect();
-    auto lPitch = lpDesc->lPitch;
-    auto nBytesPerPixel = *(int*)0x72A8C0;
+    const int surfW = (int)lpDesc->dwWidth;
+    const int surfH = (int)lpDesc->dwHeight;
+    const int pitch = lpDesc->lPitch;
+    const int bpp = *(int*)0x72A8C0;
+
+    RECT rect = { 0, 0, surfW - 1, surfH - 1 };
 
     ColorStruct* pRGB = (ColorStruct*)&color;
     BGRStruct ddColor{ pRGB->blue, pRGB->green, pRGB->red };
 
-    auto DrawThinLine = [=](int X1, int Y1, int X2, int Y2)
+    unsigned char* base = (unsigned char*)lpDesc->lpSurface;
+    unsigned char* end = base + pitch * surfH;
+
+    auto SafeWritePixel = [&](unsigned char* p)
     {
-        int color = *(int*)&ddColor;
-        if (X1 > X2) { std::swap(X1, X2); std::swap(Y1, Y2); }
+        if (p < base || p + bpp > end)
+            return;
+        memcpy(p, &ddColor, bpp);
+    };
 
-        int dx = X2 - X1;
-        int dy = Y2 - Y1;
-        unsigned char* ptr = (unsigned char*)lpDesc->lpSurface + lPitch * Y1 + X1 * nBytesPerPixel;
+    auto DrawThinLine = [&](int X1, int Y1, int X2, int Y2)
+    {
+        int dx = abs(X2 - X1);
+        int dy = abs(Y2 - Y1);
 
-        const int dashOn = 3, dashOff = 3, dashPeriod = dashOn + dashOff;
-        auto shouldDraw = [=](int step) { return !bDashed || (step % dashPeriod) < dashOn; };
+        int sx = (X1 < X2) ? 1 : -1;
+        int sy = (Y1 < Y2) ? 1 : -1;
 
-        if (dy == 0) 
+        int err = dx - dy;
+
+        const int dashOn = 3, dashOff = 3;
+        const int dashPeriod = dashOn + dashOff;
+        int stepCount = 0;
+
+        while (true)
         {
-            for (int i = 0; i <= dx; ++i)
-                if (shouldDraw(i))
-                    memcpy(ptr + i * nBytesPerPixel, &ddColor, nBytesPerPixel);
-        }
-        else if (dx == 0)
-        {
-            int step = (dy < 0) ? -lPitch : lPitch;
-            dy = abs(dy);
-            for (int i = 0; i <= dy; ++i)
-                if (shouldDraw(i))
-                    memcpy(ptr + i * step, &ddColor, nBytesPerPixel);
-        }
-        else
-        {
-            int absdx = abs(dx), absdy = abs(dy);
-            int pitch = lPitch;
-            if (dy < 0) { pitch = -pitch; dy = -dy; }
-
-            if (absdx >= absdy)
+            if (!bDashed || (stepCount % dashPeriod) < dashOn)
             {
-                int d = 2 * absdy - absdx;
-                int ystep = (Y2 > Y1) ? pitch : -pitch;
-                unsigned char* p = ptr;
-                for (int i = 0; i <= absdx; ++i)
+                if ((unsigned)X1 < (unsigned)surfW &&
+                    (unsigned)Y1 < (unsigned)surfH)
                 {
-                    if (shouldDraw(i))
-                        memcpy(p, &ddColor, nBytesPerPixel);
-                    if (d >= 0)
-                    {
-                        p += ystep;
-                        d -= 2 * absdx;
-                    }
-                    d += 2 * absdy;
-                    p += nBytesPerPixel * (dx > 0 ? 1 : -1);
+                    unsigned char* p =
+                        base + Y1 * pitch + X1 * bpp;
+                    SafeWritePixel(p);
                 }
             }
-            else 
+
+            if (X1 == X2 && Y1 == Y2)
+                break;
+
+            int e2 = err * 2;
+            if (e2 > -dy)
             {
-                int d = 2 * absdx - absdy;
-                int xstep = (X2 > X1) ? nBytesPerPixel : -nBytesPerPixel;
-                unsigned char* p = ptr;
-                for (int i = 0; i <= absdy; ++i)
-                {
-                    if (shouldDraw(i))
-                        memcpy(p, &ddColor, nBytesPerPixel);
-                    if (d >= 0)
-                    {
-                        p += xstep;
-                        d -= 2 * absdy;
-                    }
-                    d += 2 * absdx;
-                    p += pitch * (dy > 0 ? 1 : -1);
-                }
+                err -= dy;
+                X1 += sx;
             }
+            if (e2 < dx)
+            {
+                err += dx;
+                Y1 += sy;
+            }
+            ++stepCount;
         }
     };
 
-    auto ClipAndDrawLine = [&rect, DrawThinLine](int& X1, int& Y1, int& X2, int& Y2) -> bool
+    auto ClipAndDrawLine = [&](int& X1, int& Y1, int& X2, int& Y2) -> bool
     {
-        auto encode = [&](int x, int y) -> int
+        auto encode = [&](int x, int y)
         {
             int c = 0;
-            if (x < rect.left)      c |= 1;
-            if (x > rect.right)     c |= 2;
-            if (y < rect.top)       c |= 8;
-            if (y > rect.bottom)    c |= 4;
+            if (x < rect.left)   c |= 1;
+            if (x > rect.right)  c |= 2;
+            if (y < rect.top)    c |= 8;
+            if (y > rect.bottom) c |= 4;
             return c;
         };
 
-        int code1 = encode(X1, Y1);
-        int code2 = encode(X2, Y2);
+        int c1 = encode(X1, Y1);
+        int c2 = encode(X2, Y2);
 
-        while (code1 || code2)
+        while (c1 || c2)
         {
-            if (code1 & code2) return false;
+            if (c1 & c2)
+                return false;
 
-            int code = code1 ? code1 : code2;
+            int c = c1 ? c1 : c2;
             int x = 0, y = 0;
 
-            if (code & 1) { x = rect.left;  y = Y1 + (Y2 - Y1) * (rect.left - X1) / (X2 - X1 + (X2 == X1)); }
-            else if (code & 2) { x = rect.right; y = Y1 + (Y2 - Y1) * (rect.right - X1) / (X2 - X1 + (X2 == X1)); }
-            else if (code & 4) { y = rect.bottom; x = X1 + (X2 - X1) * (rect.bottom - Y1) / (Y2 - Y1 + (Y2 == Y1)); }
-            else if (code & 8) { y = rect.top;   x = X1 + (X2 - X1) * (rect.top - Y1) / (Y2 - Y1 + (Y2 == Y1)); }
-
-            if (code == code1)
+            if (c & 1)
             {
-                X1 = x; Y1 = y; code1 = encode(x, y);
+                x = rect.left;
+                y = Y1 + (Y2 - Y1) * (rect.left - X1) / (X2 - X1);
+            }
+            else if (c & 2)
+            {
+                x = rect.right;
+                y = Y1 + (Y2 - Y1) * (rect.right - X1) / (X2 - X1);
+            }
+            else if (c & 8)
+            {
+                y = rect.top;
+                x = X1 + (X2 - X1) * (rect.top - Y1) / (Y2 - Y1);
+            }
+            else if (c & 4)
+            {
+                y = rect.bottom;
+                x = X1 + (X2 - X1) * (rect.bottom - Y1) / (Y2 - Y1);
+            }
+
+            if (c == c1)
+            {
+                X1 = x; Y1 = y;
+                c1 = encode(X1, Y1);
             }
             else
             {
-                X2 = x; Y2 = y; code2 = encode(x, y);
+                X2 = x; Y2 = y;
+                c2 = encode(X2, Y2);
             }
         }
 
@@ -1410,7 +1290,8 @@ void CIsoViewExt::DrawLine(
 
     if (nThickness <= 1)
     {
-        int tx1 = x1, ty1 = y1, tx2 = x2, ty2 = y2;
+        int tx1 = x1, ty1 = y1;
+        int tx2 = x2, ty2 = y2;
         ClipAndDrawLine(tx1, ty1, tx2, ty2);
         return;
     }
@@ -1418,7 +1299,8 @@ void CIsoViewExt::DrawLine(
     int dx = x2 - x1;
     int dy = y2 - y1;
     float len = sqrtf((float)(dx * dx + dy * dy));
-    if (len < 1e-6f) return;
+    if (len < 1e-6f)
+        return;
 
     float nx = -dy / len;
     float ny = dx / len;
@@ -1427,11 +1309,14 @@ void CIsoViewExt::DrawLine(
     for (int i = -half; i <= half; ++i)
     {
         float offset = (float)i + 0.5f;
-        int ox = (int)(nx * offset + 0.5f);
-        int oy = (int)(ny * offset + 0.5f);
+        int ox = (int)(nx * offset);
+        int oy = (int)(ny * offset);
 
-        int tx1 = x1 + ox, ty1 = y1 + oy;
-        int tx2 = x2 + ox, ty2 = y2 + oy;
+        int tx1 = x1 + ox;
+        int ty1 = y1 + oy;
+        int tx2 = x2 + ox;
+        int ty2 = y2 + oy;
+
         ClipAndDrawLine(tx1, ty1, tx2, ty2);
     }
 }
@@ -1446,13 +1331,22 @@ void CIsoViewExt::DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord
     auto lPitch = lpDesc->lPitch;
     auto nBytesPerPixel = *(int*)0x72A8C0;
 
+    unsigned char* base = (unsigned char*)lpDesc->lpSurface;
+    unsigned char* end = base + lPitch * lpDesc->dwHeight;
+    auto SafeWritePixel = [&](unsigned char* p, BGRStruct& ddColor)
+    {
+        if (p < base || p + nBytesPerPixel > end)
+            return;
+        memcpy(p, &ddColor, nBytesPerPixel);
+    };
+
     auto pRGB = (ColorStruct*)&color;
     BGRStruct ddColor;
     ddColor.R = pRGB->red;
     ddColor.G = pRGB->green;
     ddColor.B = pRGB->blue;
 
-    auto DrawLine = [lPitch, nBytesPerPixel, ddColor, lpDesc, &rect](int X1, int Y1, int X2, int Y2)
+    auto DrawLine = [&SafeWritePixel, lPitch, nBytesPerPixel, &ddColor, lpDesc, &rect](int X1, int Y1, int X2, int Y2)
     {
         int color = *(int*)&ddColor;
 
@@ -1471,7 +1365,7 @@ void CIsoViewExt::DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord
         {
             for (int i = 0; i <= dx; ++i)
             {
-                memcpy(ptr, &ddColor, nBytesPerPixel);
+                SafeWritePixel(ptr, ddColor);
                 ptr += nBytesPerPixel;
             }
         }
@@ -1486,7 +1380,7 @@ void CIsoViewExt::DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord
 
             for (int i = 0; i <= dy; ++i)
             {
-                memcpy(ptr, &ddColor, nBytesPerPixel);
+                SafeWritePixel(ptr, ddColor);
                 ptr += pitch;
             }
         }
@@ -1507,7 +1401,7 @@ void CIsoViewExt::DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord
                 int delta = dy2 - dx;
                 for (int i = 0; i < dx; ++i)
                 {
-                    memcpy(ptr + i * nBytesPerPixel, &ddColor, nBytesPerPixel);
+                    SafeWritePixel(ptr + i * nBytesPerPixel, ddColor);
                     if (delta > 0)
                     {
                         ptr += pitch;
@@ -1523,7 +1417,7 @@ void CIsoViewExt::DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord
 
                 for (int i = 0; i < dy; ++i)
                 {
-                    memcpy(ptr + k * nBytesPerPixel, &ddColor, nBytesPerPixel);
+                    SafeWritePixel(ptr + k * nBytesPerPixel, ddColor);
                     if (delta > 0)
                     {
                         ++k;
@@ -2155,7 +2049,7 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
 
     const int X_OFFSET = 1;
     const int Y_OFFSET = -29;
-    const int BPP = 4;
+    const int BPP = *(int*)0x72A8C0;
 
     auto pThis = CIsoView::GetInstance();
     RECT windowRect;
@@ -2284,7 +2178,7 @@ void CIsoViewExt::BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURF
 
     const int X_OFFSET = 1;
     const int Y_OFFSET = -29;
-    const int BPP = 4; 
+    const int BPP = *(int*)0x72A8C0;
 
     auto pThis = CIsoView::GetInstance();
     RECT windowRect;
@@ -2409,7 +2303,7 @@ void CIsoViewExt::BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDR
 
     const int X_OFFSET = 1;
     const int Y_OFFSET = -29;
-    const int BPP = 4; 
+    const int BPP = *(int*)0x72A8C0;
 
     auto pThis = CIsoView::GetInstance();
     RECT windowRect;
@@ -2539,7 +2433,7 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
 
     const int X_OFFSET = 31;
     const int Y_OFFSET = -29;
-    const int BPP = 4;
+    const int BPP = *(int*)0x72A8C0;
 
     x += X_OFFSET;
     y += Y_OFFSET;
@@ -2684,7 +2578,7 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
 
     const int X_OFFSET = 31;
     const int Y_OFFSET = -29;
-    const int BPP = 4;
+    const int BPP = *(int*)0x72A8C0;
 
     x += X_OFFSET;
     y += Y_OFFSET;
@@ -2832,7 +2726,7 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
 
     const int X_OFFSET = 31;
     const int Y_OFFSET = -29;
-    const int BPP = 4; 
+    const int BPP = *(int*)0x72A8C0;
 
     x += X_OFFSET;
     y += Y_OFFSET;
@@ -2930,7 +2824,7 @@ void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, cons
 
     const int X_OFFSET = 31;
     const int Y_OFFSET = -29;
-    const int BPP = 4; 
+    const int BPP = *(int*)0x72A8C0; 
 
     x += X_OFFSET;
     y += Y_OFFSET;
@@ -3022,7 +2916,7 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
     const int TILE_HEIGHT = 30;
     const int X_OFFSET = 61;
     const int Y_OFFSET = 1;
-    const int BPP = 4;
+    const int BPP = *(int*)0x72A8C0;
     const BGRStruct SHADOW_COLOR = { 0, 0, 0 };
 
     x += X_OFFSET;
@@ -3464,7 +3358,7 @@ void CIsoViewExt::DrawShadowMask(void* dst, const DDBoundary& boundary, const RE
         return;
     }
 
-    const int BPP = 4;
+    const int BPP = *(int*)0x72A8C0;
     const BGRStruct SHADOW_COLOR = { 0, 0, 0 };
     const BYTE ALPHA = 128;
     const int maskWidth = window.right - window.left;

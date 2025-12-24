@@ -239,7 +239,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 	if (pThis->ScaledFactor == 1.0)
 	{
-		pThis->lpDDBackBufferZoomSurface->Blt(&window, NULL, NULL, DDBLT_COLORFILL, &fx);
+		pThis->lpDDBackBufferZoomSurface->Blt(NULL, NULL, NULL, DDBLT_COLORFILL, &fx);
 		ZeroMemory(&ddsd, sizeof(DDSURFACEDESC2));
 		ddsd.dwSize = sizeof(DDSURFACEDESC2);
 		ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT;
@@ -250,7 +250,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	else
 	{
 		pThis->lpDDBackBufferSurface->Unlock(NULL);
-		pThis->lpDDBackBufferSurface->Blt(&window, NULL, NULL, DDBLT_COLORFILL, &fx);
+		pThis->lpDDBackBufferSurface->Blt(NULL, NULL, NULL, DDBLT_COLORFILL, &fx);
 		pThis->lpDDBackBufferSurface->Lock(NULL, &ddsd, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_NOSYSLOCK, NULL);
 		lpDesc = R->lea_Stack<LPDDSURFACEDESC2>((0xD18 - 0x92C));
 	}

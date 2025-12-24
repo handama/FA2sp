@@ -64,8 +64,6 @@ void CIsoViewExt::DrawBridgeLine(HDC hDC)
 
     pIsoView->DrawLockedCellOutlinePaint(startx - CIsoViewExt::drawOffsetX, starty - CIsoViewExt::drawOffsetY,
         width, height, ExtConfigs::CursorSelectionBound_Color, false, hDC, pIsoView->m_hWnd);
-
-
 }
 
 void CIsoViewExt::DrawCopyBound(HDC hDC)

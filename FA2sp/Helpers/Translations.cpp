@@ -14,6 +14,7 @@
 #include "../Extra/GeneralLoad.h"
 
 FString FinalAlertConfig::lpPath;
+FString FinalAlertConfig::Language = "English";
 char FinalAlertConfig::pLastRead[0x400];
 
 // Load after ExePath is initialized
@@ -26,7 +27,10 @@ DEFINE_HOOK(41F7F5, Translations_Initialzation, 9)
 
     FinalAlertConfig::lpPath = exePath;
     FinalAlertConfig::lpPath += "\\FinalAlert.ini";
-    FinalAlertConfig::ReadString("FinalSun", "Language", "English");
+    FinalAlertConfig::ReadString("FinalSun", "LanguageSP", "NULL");
+    if (strcmp(FinalAlertConfig::pLastRead, "NULL") == 0)
+        FinalAlertConfig::ReadString("FinalSun", "Language", "English");
+
     strcpy_s(Translations::pLanguage[0], FinalAlertConfig::pLastRead);
     strcpy_s(Translations::pLanguage[1], FinalAlertConfig::pLastRead);
     strcpy_s(Translations::pLanguage[2], FinalAlertConfig::pLastRead);
@@ -105,10 +109,11 @@ char Translations::pLanguage[4][0x400];
 FString Translations::CurrentTileSet;
 std::map<HWND, int> Translations::DlgIdMap;
 std::map<UINT, FString> Translations::StringTable;
+std::map<int, FString> Translations::CustomTileSetNames;
 std::unique_ptr<CINI, GameUniqueDeleter<CINI>> Translations::FADialog;
 bool Translations::GetTranslationItem(const char* pLabelName, ppmfc::CString& ret)
 {
-    auto lang = CFinalSunApp::Instance->Language + "-";
+    auto lang = FinalAlertConfig::Language + "-";
     auto& falanguage = CINI::FALanguage();
 
     for (const auto& language : Translations::pLanguage)
@@ -231,7 +236,7 @@ void Translations::TranslateDialog(HWND hWnd)
     {
         int nDlgID = itr->second;
         ppmfc::CString section;
-        section.Format("%s-%d", CFinalSunApp::Instance->Language, nDlgID);
+        section.Format("%s-%d", FinalAlertConfig::Language, nDlgID);
         if (auto pSection = Translations::FADialog->GetSection(section))
         {
             for (const auto& [key, value] : pSection->GetEntities())
@@ -258,12 +263,21 @@ ppmfc::CString Translations::TranslateTileSet(int index)
     if (!CMapData::Instance->MapWidthPlusHeight)
         return "MISSING";
 
+    if (index >= 10000)
+    {
+        auto itr = CustomTileSetNames.find(index);
+        if (itr != CustomTileSetNames.end())
+            return itr->second;
+        else
+            return "No Name";
+    }
+
     ppmfc::CString setID;
     setID.Format("TileSet%04d", index);
     auto setName = CINI::CurrentTheater()->GetString(setID, "SetName", setID);
     ppmfc::CString result = TranslateOrDefault(setName, setName);
 
-    auto lang = CFinalSunApp::Instance->Language + "-";
+    auto lang = FinalAlertConfig::Language + "-";
     auto theater = TheaterHelpers::GetCurrentSuffix();
     theater.MakeUpper();
     theater = "RenameID" + theater;
@@ -281,7 +295,6 @@ ppmfc::CString Translations::TranslateTileSet(int index)
 
     return result;
 }
-
 
 FString Translations::ParseHouseName(FString src, bool IDToUIName)
 {
@@ -391,7 +404,7 @@ DEFINE_HOOK(4F0C3D, CTerrainDlg_Update_GetTileSet, 5)
 
 DEFINE_HOOK(4F0E1A, CTerrainDlg_Update_SetTileName, 8)
 {
-    auto lang = CFinalSunApp::Instance->Language + "-";
+    auto lang = FinalAlertConfig::Language + "-";
     auto theater = TheaterHelpers::GetCurrentSuffix();
     theater.MakeUpper();
     theater = "RenameID" + theater;
@@ -409,7 +422,7 @@ DEFINE_HOOK(4F0E1A, CTerrainDlg_Update_SetTileName, 8)
 DEFINE_HOOK(4F1620, CTerrainDlg_Update_SetOverlayName, 8)
 {
     GET(int, index, ESI);
-    auto lang = CFinalSunApp::Instance->Language + "-";
+    auto lang = FinalAlertConfig::Language + "-";
     auto theater = TheaterHelpers::GetCurrentSuffix();
     theater.MakeUpper();
     theater = "RenameID" + theater;

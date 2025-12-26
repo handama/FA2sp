@@ -1,6 +1,5 @@
 #include "VoxelDrawer.h"
-
-#include <CLoading.h>
+#include "../Ext/CLoading/Body.h"
 
 void VoxelDrawer::Initalize()
 {
@@ -18,7 +17,7 @@ bool VoxelDrawer::LoadVPLFile(FString name)
 {
     bool result = false;
     DWORD dwSize;
-    if (auto pBuffer = (unsigned char*)CLoading::Instance->ReadWholeFile(name, &dwSize))
+    if (auto pBuffer = (unsigned char*)CLoadingExt::GetExtension()->ReadWholeFile(name, &dwSize))
     {
         result = CncImgLoadVPLFile(pBuffer);
         GameDeleteArray(pBuffer, dwSize);
@@ -30,7 +29,7 @@ bool VoxelDrawer::LoadVXLFile(FString name)
 {
     bool result = false;
     DWORD dwSize;
-    if (auto pBuffer = (unsigned char*)CLoading::Instance->ReadWholeFile(name, &dwSize))
+    if (auto pBuffer = (unsigned char*)CLoadingExt::GetExtension()->ReadWholeFile(name, &dwSize))
     {
         if (CncImgIsVXLLoaded())
             CncImgClearCurrentVXL();
@@ -44,7 +43,7 @@ bool VoxelDrawer::LoadHVAFile(FString name)
 {
     bool result = false;
     DWORD dwSize;
-    if (auto pBuffer = (unsigned char*)CLoading::Instance->ReadWholeFile(name, &dwSize))
+    if (auto pBuffer = (unsigned char*)CLoadingExt::GetExtension()->ReadWholeFile(name, &dwSize))
     {
         result = CncImgLoadHVAFile(pBuffer);
         GameDeleteArray(pBuffer, dwSize);
@@ -53,10 +52,10 @@ bool VoxelDrawer::LoadHVAFile(FString name)
 }
 
 bool VoxelDrawer::GetImageData(unsigned int nFacing, unsigned char*& pBuffer, int& width,
-    int& height, int& x, int& y, const int F, const int L, const int H, bool Shadow, int fireAngle)
+    int& height, int& x, int& y, const int F, const int L, const int H, bool Shadow, int fireAngle, bool mainBody)
 {
     const unsigned int nIndex = ExtConfigs::ExtFacings ? nFacing : nFacing * 4;
-    CncImgPrepareVXLCache(nIndex, F, L, H, fireAngle);
+    CncImgPrepareVXLCache(nIndex, F, L, H, fireAngle, mainBody && !ExtConfigs::InGameDisplay_Shadow_OnGround);
     if (Shadow)
         CncImgGetShadowImageFrame(nIndex, &width, &height, &x, &y);
     else
@@ -69,9 +68,9 @@ bool VoxelDrawer::GetImageData(unsigned int nFacing, unsigned char*& pBuffer, in
 }
 
 bool VoxelDrawer::GetImageData(unsigned int nFacing, unsigned char*& pBuffer, VoxelRectangle& rect,
-    const int F, const int L, const int H, bool Shadow, int fireAngle)
+    const int F, const int L, const int H, bool Shadow, int fireAngle, bool mainBody)
 {
-    return GetImageData(nFacing, pBuffer, rect.W, rect.H, rect.X, rect.Y, F, L, H, Shadow, fireAngle);
+    return GetImageData(nFacing, pBuffer, rect.W, rect.H, rect.X, rect.Y, F, L, H, Shadow, fireAngle, mainBody);
 }
 
 bool VoxelDrawer::IsVPLLoaded()

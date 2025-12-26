@@ -158,7 +158,7 @@ void CNewAITrigger::Update(HWND& hWnd)
     int idx = 0;
     while (SendMessage(hSide, CB_DELETESTRING, 0, NULL) != CB_ERR);
 
-    auto transed = CFinalSunApp::Instance->Language + "-" + "AITriggerSides";
+    auto transed = FinalAlertConfig::Language + "-" + "AITriggerSides";
     if (!CINI::FAData().SectionExists(transed))
         transed = "AITriggerSides";
 

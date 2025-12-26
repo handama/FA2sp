@@ -289,6 +289,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(34007, "Menu.Paste.Terrains");
     translateMenuItem(34008, "Menu.Paste.Smudges");
     translateMenuItem(34050, "Menu.Paste.All");
+    translateMenuItem(34053, "Menu.Paste.Reset");
     translateMenuItem(34051, "Menu.Paste.Overriding");
     translateMenuItem(34052, "Menu.Paste.ShowOutline");
 
@@ -345,6 +346,7 @@ DEFINE_HOOK(436EE0, CFinalSunDlg_AddToRecentFile, 7)
             }
         }
         recentfiles = sortedrecentfiles;
+        recentfiles.resize(ExtConfigs::RecentFileLimit);
 
         CINI ini;
         std::string path = CFinalSunApp::Instance->ExePath();
@@ -352,7 +354,11 @@ DEFINE_HOOK(436EE0, CFinalSunDlg_AddToRecentFile, 7)
         ini.ClearAndLoad(path.c_str());
 
         for (size_t i = 0; i < recentfiles.size(); ++i)
-            ini.WriteString("Files", std::format("{0:d}", i).c_str(), recentfiles[i].c_str());
+            if (!recentfiles[i].empty())
+                ini.WriteString("Files", std::format("{0:d}", i).c_str(), recentfiles[i].c_str());
+
+        ini.WriteString("FinalSun", "LanguageSP", FinalAlertConfig::Language);
+        ini.WriteString("FinalSun", "Language", FinalAlertConfig::Language);
 
         ini.WriteToFile(path.c_str());
     }

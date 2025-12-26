@@ -22,6 +22,20 @@ namespace MinInfo
         uint32_t offset{};
     };
 
+    class MemoryIStream : public std::istream {
+        class MemoryBuf : public std::streambuf {
+        public:
+            MemoryBuf(const char* data, size_t size) {
+                char* p = const_cast<char*>(data);
+                setg(p, p, p + size);
+            }
+        } buf_;
+
+    public:
+        MemoryIStream(const void* data, size_t size)
+            : std::istream(&buf_), buf_(static_cast<const char*>(data), size) {}
+    };
+
     static inline uint32_t align_up(uint32_t x, uint32_t a) {
         return (x + (a - 1)) & ~(a - 1);
     }
@@ -285,6 +299,13 @@ namespace MinInfo
         }
     }
 
+    static std::unique_ptr<MixFileStruct>
+        unpack_mix_from_memory(const void* data, uint32_t total_size)
+    {
+        MemoryIStream in(data, total_size);
+        return unpack_mix(in, total_size);
+    }
+
     static uint32_t file_size(std::ifstream& f) {
         auto pos = f.tellg();
         f.seekg(0, std::ios::end);
@@ -393,12 +414,12 @@ namespace MinInfo
             uint32_t length = static_cast<uint32_t>(size);
             if (start > file_end || start + length > file_end)  return {};
 
-            std::vector<char> buf(length);
-            f.seekg(static_cast<std::streamoff>(start), std::ios::beg);
-            if (!read_exact(f, buf.data(), buf.size()))  return {};
+            std::vector<char> buf(size);
+            f.seekg(offset, std::ios::beg);
+            if (!read_exact(f, buf.data(), buf.size())) return {};
 
-            std::istringstream sub(std::string(buf.data(), buf.size()));
-            auto mix = unpack_mix(sub, length);
+            auto mix = unpack_mix_from_memory(buf.data(), buf.size());
+
             for (auto& e : mix->files) {
                 e.offset += start + mix->offset;
             }
@@ -607,6 +628,33 @@ int MixLoader::LoadMixFile(const std::string& path, int* parentIndex)
     return 0;
 }
 
+int MixLoader::LoadMixFile(const std::string& path, int specificParent)
+{
+    specificParent--;
+    if (specificParent < 0 && std::filesystem::exists(path)) {
+        if (LoadTopMix(path))
+            return mixFiles.size();
+        else
+            return 0;
+    }
+
+    auto name = std::filesystem::path(path).filename().string();
+    uint32_t id = GetFileID(name);
+    if (specificParent >= 0 && specificParent < (int)mixFiles.size()) {
+        auto& mf = mixFiles[specificParent];
+        for (const auto& e : mf.entries) {
+            if (e.id == id) {
+                if (LoadNestedMix(mf, e))
+                    return mixFiles.size();
+                else
+                    return 0;
+            }
+        }
+    }
+
+    return 0;
+}
+
 int MixLoader::QueryFileIndex(const std::string& fileName, int mixIdx) 
 {
     if (mixFiles.empty()) return -1;
@@ -629,6 +677,7 @@ int MixLoader::QueryFileIndex(const std::string& fileName, int mixIdx)
 
 std::unique_ptr<uint8_t[]> MixLoader::LoadFile(const std::string& fileName, size_t* outSize, int mixIdx) 
 {
+    mixIdx--;
     if (mixFiles.empty()) return nullptr;
     if (outSize) *outSize = 0;
     uint32_t id = GetFileID(fileName);

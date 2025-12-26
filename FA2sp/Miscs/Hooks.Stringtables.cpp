@@ -12,6 +12,7 @@
 #include <fstream>
 #include "../Helpers/TheaterHelpers.h"
 #include "../Ext/CFinalSunApp/Body.h"
+#include "../Ext/CLoading/Body.h"
 
 bool StringtableLoader::bLoadRes = false;
 char* StringtableLoader::pEDIBuffer = nullptr;
@@ -38,7 +39,7 @@ FString StringtableLoader::QueryUIName(const char* pRegName, bool bOnlyOneLine)
         ccstring = mmh.GetString(pRegName, "UIName", "").Mid(6);
     }
 
-    auto lang = CFinalSunApp::Instance->Language + "-";
+    auto lang = FinalAlertConfig::Language + "-";
     auto theater = TheaterHelpers::GetCurrentSuffix();
     theater.MakeUpper();
     theater = "RenameID" + theater;
@@ -129,7 +130,7 @@ void StringtableLoader::LoadCSFFiles()
 
     auto loadTranslatedCsf = [](const char* name)
     {
-        auto fullName = CFinalSunApp::Instance->Language + "-" + name;
+        auto fullName = FinalAlertConfig::Language + "-" + name;
         if (LoadCSFFile(fullName))
             return;
         LoadCSFFile(name);
@@ -160,7 +161,7 @@ void StringtableLoader::LoadCSFFiles()
 bool StringtableLoader::LoadCSFFile(const char* pName, bool fa2path)
 {
     DWORD dwSize;
-    if (auto pBuffer = CLoading::Instance->ReadWholeFile(pName, &dwSize, fa2path)) {
+    if (auto pBuffer = CLoadingExt::GetExtension()->ReadWholeFile(pName, &dwSize, fa2path)) {
         FString name = pName;
         name.MakeUpper();
         if (name.Mid(name.GetLength() - 3) == "LLF") {

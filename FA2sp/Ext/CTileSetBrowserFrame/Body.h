@@ -32,8 +32,6 @@ public:
 	BOOL OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT* pResult);
 	BOOL OnCommandExt(WPARAM wParam, LPARAM lParam);
 
-	
-
 	CTileSetBrowserFrameExt() {};
 	~CTileSetBrowserFrameExt() {};
 
@@ -49,6 +47,7 @@ private:
 public:
 	static CTerrainGenerator m_terrainGenerator;
 	static HWND hTabCtrl;
+    static bool TerrainDlgLoaded;
 };
 
 class TreeViewHelper {

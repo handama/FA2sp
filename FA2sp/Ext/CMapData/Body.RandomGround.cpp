@@ -8,6 +8,7 @@
 #include <numeric>
 #include "../../Miscs/MultiSelection.h"
 #include "../../FA2sp.h"
+#include <queue>
 
 static unsigned seed;
 static std::mt19937 rng;
@@ -490,6 +491,385 @@ void CMapDataExt::CreateRandomSmudge(int TopX, int TopY, int BottomX, int Bottom
                     CMapData::Instance->UpdateFieldSmudgeData(false);
                 }
             }
+        }
+    }
+}
+
+static uint32_t g_NoiseSeed = 0;
+static uint32_t g_NoiseSeed2 = 0;
+
+static uint32_t GenerateRandomSeed()
+{
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    static std::uniform_int_distribution<uint32_t> dis;
+    return dis(gen);
+}
+
+static float HashNoise(int x, int y)
+{
+    uint32_t n = (uint32_t)x;
+    n *= 374761393u;
+    n += (uint32_t)y * 668265263u;
+    n ^= g_NoiseSeed;
+    n = (n ^ (n >> 13)) * 1274126177u;
+    n ^= (n >> 16);
+    return (n & 0x7fffffffu) / float(0x7fffffffu);
+}
+
+static float HashNoise2(int x, int y)
+{
+    uint32_t n = (uint32_t)x;
+    n *= 374761393u;
+    n += (uint32_t)y * 668265263u;
+    n ^= g_NoiseSeed2;
+    n = (n ^ (n >> 13)) * 1274126177u;
+    n ^= (n >> 16);
+    return (n & 0x7fffffffu) / float(0x7fffffffu);
+}
+
+static float Lerp(float a, float b, float t)
+{
+    return a + t * (b - a);
+}
+
+static float SmoothStep(float t)
+{
+    return t * t * (3.0f - 2.0f * t);
+}
+
+static float ValueNoise(float x, float y)
+{
+    int x0 = (int)floorf(x);
+    int y0 = (int)floorf(y);
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
+
+    float sx = SmoothStep(x - x0);
+    float sy = SmoothStep(y - y0);
+
+    float n00 = HashNoise(x0, y0);
+    float n10 = HashNoise(x1, y0);
+    float n01 = HashNoise(x0, y1);
+    float n11 = HashNoise(x1, y1);
+
+    float ix0 = Lerp(n00, n10, sx);
+    float ix1 = Lerp(n01, n11, sx);
+
+    return Lerp(ix0, ix1, sy);
+}
+
+static float ValueNoise2(float x, float y)
+{
+    int x0 = (int)floorf(x);
+    int y0 = (int)floorf(y);
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
+
+    float sx = SmoothStep(x - x0);
+    float sy = SmoothStep(y - y0);
+
+    float n00 = HashNoise2(x0, y0);
+    float n10 = HashNoise2(x1, y0);
+    float n01 = HashNoise2(x0, y1);
+    float n11 = HashNoise2(x1, y1);
+
+    float ix0 = Lerp(n00, n10, sx);
+    float ix1 = Lerp(n01, n11, sx);
+
+    return Lerp(ix0, ix1, sy);
+}
+
+static int GetCardinalLimit(bool steep)
+{
+    return steep ? 2 : 1;
+}
+
+static constexpr int DiagonalLimit = 1;
+
+static std::unordered_map<MapCoord, int> ComputeDistanceToBoundary(
+    const std::set<MapCoord>& region
+)
+{
+    std::unordered_map<MapCoord, int> dist;
+    std::queue<MapCoord> q;
+
+    static const int dx[8] = { -1, 1, 0, 0, -1, 1, 1, -1 };
+    static const int dy[8] = { 0, 0, -1, 1, -1, 1, -1, 1 };
+
+    for (const auto& c : region)
+    {
+        bool isBorder = false;
+        bool isSecondBorder = false;
+        for (int i = 0; i < 4; i++)
+        {
+            MapCoord nb{ c.X + dx[i], c.Y + dy[i] };
+            if (region.find(nb) == region.end())
+            {
+                isBorder = true;
+                break;
+            }
+        }
+        for (int i = 4; i < 8; i++)
+        {
+            MapCoord nb{ c.X + dx[i], c.Y + dy[i] };
+            if (region.find(nb) == region.end())
+            {
+                isSecondBorder = true;
+                break;
+            }
+        }
+
+        if (isBorder)
+        {
+            dist[c] = 0;
+            q.push(c);
+        }
+        if (isSecondBorder)
+        {
+            dist[c] = 1;
+            q.push(c);
+        }
+    }
+
+    while (!q.empty())
+    {
+        MapCoord cur = q.front();
+        q.pop();
+
+        int d = dist[cur];
+
+        for (int i = 0; i < 4; i++)
+        {
+            MapCoord nb{ cur.X + dx[i], cur.Y + dy[i] };
+            if (region.find(nb) == region.end())
+                continue;
+
+            if (!dist.count(nb))
+            {
+                dist[nb] = d + 1;
+                q.push(nb);
+            }
+        }
+    }
+
+    return dist;
+}
+
+static void GetAllowedHeightRange(
+    MapCoord coord,
+    const std::unordered_map<MapCoord, int>& heights,
+    const std::unordered_map<MapCoord, int>& boundaryDist,
+    bool steep,
+    int minHeight,
+    int baseHeight,
+    int maxHeight,
+    int& outMin,
+    int& outMax
+)
+{
+    outMin = minHeight;
+    outMax = maxHeight;
+
+    int dist = 0;
+
+    auto distIt = boundaryDist.find(coord);
+    if (distIt != boundaryDist.end()) {
+        dist = distIt->second;
+        int boundaryMin = baseHeight - dist;
+        int boundaryMax = baseHeight + dist;
+        if (dist <= 1)
+            boundaryMax = baseHeight;
+        outMin = std::max(outMin, boundaryMin);
+        outMax = std::min(outMax, boundaryMax);
+    }
+
+    if (outMin > outMax) {
+        outMin = outMax = baseHeight;
+    }
+}
+
+static void ProjectNoiseToValidHeights(
+    const std::set<MapCoord>& region,
+    std::unordered_map<MapCoord, int>& heights,
+    const std::unordered_map<MapCoord, int>& expected,
+    const std::unordered_map<MapCoord, int>& distToBoundary,
+    bool steep,
+    int minHeight,
+    int baseHeight,
+    int maxHeight,
+    int relaxIterations
+)
+{
+    //for (int iter = 0; iter < relaxIterations; iter++)
+    //{
+    for (auto& c : region)
+    {
+        int minH, maxH;
+        GetAllowedHeightRange(
+            c,
+            heights,
+            distToBoundary,
+            steep,
+            minHeight,
+            baseHeight,
+            maxHeight,
+            minH,
+            maxH
+        );
+
+        int target = expected.at(c);
+        heights[c] = std::clamp(target, minH, maxH);
+    }
+    //}
+}
+
+static float ComputeLinearHeightOffset(
+    const MapCoord& p,
+    const MapCoord& start,
+    const MapCoord& end,
+    int startHeight,
+    int endHeight
+)
+{
+    float vx = float(end.X - start.X);
+    float vy = float(end.Y - start.Y);
+
+    float wx = float(p.X - start.X);
+    float wy = float(p.Y - start.Y);
+
+    float len2 = vx * vx + vy * vy;
+    if (len2 < 1e-6f)
+        return float(startHeight);
+
+    float t = (wx * vx + wy * vy) / len2;
+    t = std::clamp(t, 0.0f, 1.0f);
+
+    float base = Lerp(float(startHeight), float(endHeight), t);
+
+    float noise =
+        HashNoise(p.X * 17, p.Y * 31) * 2.0f - 1.0f;
+
+    const float jitterAmplitude = 2.0f;
+
+    return base + noise * jitterAmplitude;
+}
+
+void CMapDataExt::GenerateNoiseSlopeTerrain(
+    const std::set<MapCoord>& region,
+    int minHeight,
+    int baseHeight,
+    int maxHeight,
+    int minMarcoHeight,
+    int maxMarcoHeight,
+    bool steep,
+    float frequency,
+    float macroFrequency,
+    int relaxIterations,
+    MapCoord start,
+    MapCoord end,
+    int startHeight,
+    int endHeight,
+    bool avoidEdges
+)
+{
+    if (region.empty()) return;
+
+    g_NoiseSeed = GenerateRandomSeed();
+    g_NoiseSeed2 = GenerateRandomSeed();
+
+    std::unordered_map<MapCoord, int> expected;
+    std::unordered_map<MapCoord, int> heights;
+
+    for (auto& c : region)
+    {
+        float linearOffset = (start.X == 0 && start.Y == 0) ? 0.0f : ComputeLinearHeightOffset(
+            c, start, end, startHeight, endHeight
+        );
+
+        float macroNoise =
+            ValueNoise2(c.X * macroFrequency, c.Y * macroFrequency);
+
+        float macroOffset = (macroNoise * 2.0f - 1.0f) * (maxMarcoHeight - minMarcoHeight);
+
+        float n = ValueNoise(c.X * frequency, c.Y * frequency); 
+
+        int hgt = minHeight 
+            + (int)std::round(n * (maxHeight - minHeight)
+            + linearOffset 
+            + (macroFrequency == 0.0f ? 0 : macroOffset));
+
+        expected[c] = hgt; 
+        heights[c] = hgt;
+    }
+
+    minHeight = 0;
+    maxHeight = 14;
+
+    for (auto& [c, h] : expected)
+    {
+        h = std::clamp(h, minHeight, maxHeight);
+    }
+    for (auto& [c, h] : heights)
+    {
+        h = std::clamp(h, minHeight, maxHeight);
+    }
+
+    if (avoidEdges)
+    {
+        auto distToBoundary = ComputeDistanceToBoundary(region);
+        ProjectNoiseToValidHeights(
+            region,
+            heights,
+            expected,
+            distToBoundary,
+            steep,
+            minHeight,
+            baseHeight,
+            maxHeight,
+            relaxIterations
+        );
+    }
+
+    for (auto& c : region)
+    {
+        auto cell = TryGetCellAt(c.X, c.Y);
+        if (!cell) continue;
+
+        cell->Height = std::clamp(heights[c], 0, 14);
+
+        int idx = CMapData::Instance->GetCoordIndex(c.X, c.Y);
+        CellDataExts[idx].Adjusted = true;
+    }
+
+    std::vector<int> ignoreList;
+    for (int i = 0; i < CMapDataExt::CellDataExts.size(); ++i)
+    {
+        int x = CMapData::Instance->GetXFromCoordIndex(i);
+        int y = CMapData::Instance->GetYFromCoordIndex(i);
+        if (region.find({ x,y }) == region.end())
+            ignoreList.push_back(i);
+    }
+
+    CMapDataExt::CheckCellLow(steep, 0, false, &ignoreList);
+    CMapDataExt::CheckCellRise(steep, 0, false, &ignoreList);
+
+    for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
+    {
+        if (CMapDataExt::CellDataExts[i].Adjusted)
+        {
+            int thisX = CMapData::Instance->GetXFromCoordIndex(i);
+            int thisY = CMapData::Instance->GetYFromCoordIndex(i);
+            CMapDataExt::CreateSlopeAt(thisX, thisY);
+        }
+    }
+    for (int i = 0; i < CMapDataExt::CellDataExts.size(); i++)
+    {
+        if (CMapDataExt::CellDataExts[i].CreateSlope || CMapDataExt::CellDataExts[i].Adjusted)
+        {
+            int thisX = CMapData::Instance->GetXFromCoordIndex(i);
+            int thisY = CMapData::Instance->GetYFromCoordIndex(i);
+            CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
         }
     }
 }

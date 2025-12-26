@@ -150,7 +150,6 @@ public:
         Root_MultiSelection, Root_Cliff, Root_Delete, Root_Count
     };
     
-
     enum ConnectedTileSetTypes{
         Cliff = 0, CityCliff, IceCliff, DirtRoad, CityDirtRoad, Highway, Shore, PaveShore, RailRoad, SpecialPaveShore
     };
@@ -205,6 +204,7 @@ public:
         Const_House = 70000, Const_Smudge = 80000, Const_PropertyBrush = 90000,
         Const_InfantrySubCell = 100000, Const_BaseNode = 110000, Const_ViewObjectInfo = 120000,
         Const_MultiSelection = 130000, Const_ConnectedTile = 140000, Const_Annotation = 150000,
+        Const_WPColor = 160001, Const_TagColor = 160002, Const_RemoveWPColor = 160003, Const_RemoveTagColor = 160004
     };
     static std::unordered_map<int, ConnectedTileInfo> TreeView_ConnectedTileMap;
     static int CurrentConnectedTileType;
@@ -381,6 +381,8 @@ public:
     static std::unique_ptr<CPropertyUnit> VehicleBrushDlgF;
     static std::unique_ptr<CPropertyAircraft> AircraftBrushDlgF;
     static std::unique_ptr<CPropertyBuilding> BuildingBrushDlgBNF;
+    static COLORREF WpColor;
+    static COLORREF TagColor;
 
     void Redraw();
     bool UpdateEngine(int nData);
@@ -407,6 +409,9 @@ public:
     static void AddAnnotation(int X, int Y);
     static void RemoveAnnotation(int X, int Y);
     static void DeleteTube(int X, int Y);
+    static void SetWpTagColor(int X, int Y, bool isWp);
+    static void RemoveWpTagColor(int X, int Y, bool isWp);
+    static void OpenWpTagColorDlg(bool isWp);
     static void BatchAddMultiSelection(int X, int Y, bool add);
     static void SquareBatchAddMultiSelection(int X, int Y, bool add);
     static void Redraw_ConnectedTile(CViewObjectsExt* pThis);

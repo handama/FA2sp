@@ -37,6 +37,18 @@ public:
     std::vector<FString> TileSetAvailableIndexesText;
     std::vector<FString> OverlayAvailableDataText;
     int Scale;
+    int SlopeMinDelta = -1;
+    int SlopeMaxDelta = -1;
+    int SlopeMarcoMinDelta = -1;
+    int SlopeMarcoMaxDelta = -1;
+    int SlopeSteepness = -1;
+    int SlopeMarcoSteepness = -1;
+    bool SlopeSetManualHeight;
+    bool SlopeSetTransition;
+    bool SlopeAvoidEdges;
+    int SlopeBaseHeight = 0;
+    MapCoord SlopeCoords[2] = {};
+    int SlopeCoordHeights[2] = {};
 
     static TerrainGeneratorPreset* create(FString sectionName, INISection* pSection)
     {
@@ -46,7 +58,7 @@ public:
     TerrainGeneratorPreset(FString sectionName, INISection* pSection)
     {
         ID = sectionName;
-        auto transed = CFinalSunApp::Instance->Language + "-" + "Name";
+        auto transed = FinalAlertConfig::Language + "-" + "Name";
         if (auto pName = pSection->TryGetString(transed))
             Name = *pName;
         else
@@ -65,28 +77,62 @@ public:
                 group.Chance = std::atof(atoms[0]);
                 int tileSet = atoi(atoms[1]);
                 group.Items.push_back(STDHelpers::IntToString(tileSet, "%04d"));
-                if (tileSet < CMapDataExt::TileSet_starts.size() - 1);
-                int start = CMapDataExt::TileSet_starts[tileSet];
-                int end = CMapDataExt::TileSet_starts[tileSet + 1];
+                if (tileSet < 10000)
+                {
+                    if (tileSet < CMapDataExt::TileSet_starts.size() - 1);
+                    int start = CMapDataExt::TileSet_starts[tileSet];
+                    int end = CMapDataExt::TileSet_starts[tileSet + 1];
 
-                key += "AvailableIndexes";
-                TileSetAvailableIndexesText.push_back(pSection->GetString(key));
-                auto atomsIdx = FString::SplitString(TileSetAvailableIndexesText.back());
-                if (atomsIdx.empty()) {
-                    group.HasExtraIndex = false;
-                    for (auto j = start; j < end; j++) {
-                        group.AvailableTiles.push_back(j);
-                    }
-                }
-                else {
-                    group.HasExtraIndex = true;
-                    for (auto& idx : atomsIdx) {
-                        if (start + atoi(idx) < end) {
-                            group.AvailableTiles.push_back(start + atoi(idx));
+                    key += "AvailableIndexes";
+                    TileSetAvailableIndexesText.push_back(pSection->GetString(key));
+                    auto atomsIdx = FString::SplitString(TileSetAvailableIndexesText.back());
+                    if (atomsIdx.empty()) {
+                        group.HasExtraIndex = false;
+                        for (auto j = start; j < end; j++) {
+                            group.AvailableTiles.push_back(j);
                         }
                     }
+                    else {
+                        group.HasExtraIndex = true;
+                        for (auto& idx : atomsIdx) {
+                            if (start + atoi(idx) < end) {
+                                group.AvailableTiles.push_back(start + atoi(idx));
+                            }
+                        }
+                    }
+                    TileSets.push_back(group);
                 }
-                TileSets.push_back(group);
+                else
+                {
+                    int start = CMapDataExt::GetCustomTileIndex(tileSet, 0);
+                    int end = start;
+                    for (auto& [tileset, ct] : CMapDataExt::CustomTiles)
+                    {
+                        if (tileset == tileSet)
+                        {
+                            end = start + ct.size();
+                        }
+                    }
+
+                    key += "AvailableIndexes";
+                    TileSetAvailableIndexesText.push_back(pSection->GetString(key));
+                    auto atomsIdx = FString::SplitString(TileSetAvailableIndexesText.back());
+                    if (atomsIdx.empty()) {
+                        group.HasExtraIndex = false;
+                        for (auto j = start; j < end; j++) {
+                            group.AvailableTiles.push_back(j);
+                        }
+                    }
+                    else {
+                        group.HasExtraIndex = true;
+                        for (auto& idx : atomsIdx) {
+                            if (start + atoi(idx) < end) {
+                                group.AvailableTiles.push_back(start + atoi(idx));
+                            }
+                        }
+                    }
+                    TileSets.push_back(group);
+                }
             }
         }
         for (auto i = 0; i < TERRAIN_GENERATOR_MAX; i++) {
@@ -172,6 +218,30 @@ public:
                 Overlays.push_back(group);
             }
         }
+        SlopeSteepness = pSection->GetInteger("SlopeSteepness", -1);
+        SlopeMarcoSteepness = pSection->GetInteger("SlopeMarcoSteepness", -1);
+        SlopeMinDelta = pSection->GetInteger("SlopeMinDelta", -1);
+        SlopeMaxDelta = pSection->GetInteger("SlopeMaxDelta", -1);
+        SlopeMarcoMinDelta = pSection->GetInteger("SlopeMarcoMinDelta", -1);
+        SlopeMarcoMaxDelta = pSection->GetInteger("SlopeMarcoMaxDelta", -1);
+        SlopeBaseHeight = pSection->GetInteger("SlopeBaseHeight", -1);
+        SlopeAvoidEdges = STDHelpers::IsTrue(pSection->GetString("SlopeAvoidEdges", "false"));
+        SlopeSetManualHeight = SlopeBaseHeight != -1;
+        auto splits = STDHelpers::SplitString(pSection->GetString("SlopeCoords"));
+        if (splits.size() == 4)
+        {
+            SlopeCoords[0].Y = atoi(splits[0]);
+            SlopeCoords[0].X = atoi(splits[1]);
+            SlopeCoords[1].Y = atoi(splits[2]);
+            SlopeCoords[1].X = atoi(splits[3]);
+        }
+        auto splits2 = STDHelpers::SplitString(pSection->GetString("SlopeCoordHeights"));
+        if (splits2.size() == 2)
+        {
+            SlopeCoordHeights[0] = atoi(splits2[0]);
+            SlopeCoordHeights[1] = atoi(splits2[1]);
+        }
+        SlopeSetTransition = splits.size() == 4 && splits2.size() == 2;
     }
 };
 
@@ -241,6 +311,20 @@ public:
         SmudgeChance3 = 5011,
         SmudgeChance4 = 5015,
         SmudgeChance5 = 5019,
+        SlopeMinDelta = 6001,
+        SlopeMaxDelta = 6003,
+        SlopeSmoothing = 6005,
+        SlopeManualHeight = 6006,
+        SlopeManualHeightEdit = 6007,
+        SlopeHeightTransition = 6008,
+        SlopeCoord1 = 6010,
+        SlopeCoord2 = 6011,
+        SlopeCoordHeight1 = 6013,
+        SlopeCoordHeight2 = 6014,
+        SlopeMarcoSmoothing = 6016,
+        SlopeMarcoMinDelta = 6018,
+        SlopeMarcoMaxDelta = 6020,
+        SlopeAvoidEdges = 6021,
     };
 
     static void Create(CTileSetBrowserFrame* pWnd);
@@ -262,6 +346,7 @@ protected:
     static BOOL CALLBACK DlgProcTab2(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static BOOL CALLBACK DlgProcTab3(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static BOOL CALLBACK DlgProcTab4(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+    static BOOL CALLBACK DlgProcTab5(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static void ShowTabPage(HWND hWnd, int tabIndex);
     static void AdjustTabPagePosition(HWND hTab, HWND hTabPage);
 
@@ -283,6 +368,9 @@ protected:
 
     static void SaveAndReloadPreset();
     static FString DoubleToString(double value, int precision);
+
+    static std::vector<std::set<MapCoord>>
+        SplitIntoConnectedCoords(const std::set<MapCoord>& input);
 
     static std::shared_ptr<TerrainGeneratorPreset> GetPreset(FString id) {
         auto it = TerrainGeneratorPresets.find(id);
@@ -306,6 +394,7 @@ private:
     static HWND hTab2Dlg;
     static HWND hTab3Dlg;
     static HWND hTab4Dlg;
+    static HWND hTab5Dlg;
     static HWND hAdd;
     static HWND hName;
     static HWND hPreset;
@@ -326,6 +415,20 @@ private:
     static HWND hTerrainChance[TERRAIN_GENERATOR_DISPLAY];
     static HWND hSmudgeGroup[TERRAIN_GENERATOR_DISPLAY];
     static HWND hSmudgeChance[TERRAIN_GENERATOR_DISPLAY];
+    static HWND hSlopeMinDelta;
+    static HWND hSlopeMaxDelta;
+    static HWND hSlopeSmoothing;
+    static HWND hSlopeManualHeight;
+    static HWND hSlopeManualHeightEdit;
+    static HWND hSlopeHeightTransition;
+    static HWND hSlopeCoord1;
+    static HWND hSlopeCoord2;
+    static HWND hSlopeCoordHeight1;
+    static HWND hSlopeCoordHeight2;
+    static HWND hSlopeMarcoSmoothing;
+    static HWND hSlopeMarcoMinDelta;
+    static HWND hSlopeMarcoMaxDelta;
+    static HWND hSlopeAvoidEdges;
 
     static std::map<int, FString> TileSetLabels[TERRAIN_GENERATOR_DISPLAY];
     static std::map<int, FString> OverlayLabels[TERRAIN_GENERATOR_DISPLAY];

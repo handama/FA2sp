@@ -81,6 +81,9 @@ int ExtConfigs::PlayerLocation_Color;
 bool ExtConfigs::BaseNodeIndex_Background;
 bool ExtConfigs::BaseNodeIndex;
 int ExtConfigs::BaseNodeIndex_Background_Color;
+int ExtConfigs::DisplayColor_Waypoint;
+int ExtConfigs::DisplayColor_Celltag;
+bool ExtConfigs::DrawCelltagTranslucent;
 bool ExtConfigs::ExtWaypoints;
 bool ExtConfigs::ExtFacings;
 bool ExtConfigs::ExtFacings_Drag;
@@ -162,6 +165,7 @@ bool ExtConfigs::TreeViewCameo_Display;
 float ExtConfigs::LightingSource[3];
 bool ExtConfigs::UseStrictNewTheater;
 bool ExtConfigs::InGameDisplay_Shadow;
+bool ExtConfigs::InGameDisplay_Shadow_OnGround;
 bool ExtConfigs::InGameDisplay_Deploy;
 bool ExtConfigs::InGameDisplay_Water;
 bool ExtConfigs::InGameDisplay_Damage;
@@ -290,8 +294,12 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::BaseNodeIndex = CINI::FAData->GetBool("ExtConfigs", "BaseNodeIndex");
 	ExtConfigs::BaseNodeIndex_Background_Color = CINI::FAData->GetColor("ExtConfigs", "BaseNodeIndex.Background.Color", 0x3C3C3C);
 
+	ExtConfigs::DisplayColor_Waypoint = CINI::FAData->GetColor("ExtConfigs", "DisplayColor.Waypoint", 0x00FF00);
+	ExtConfigs::DisplayColor_Celltag = CINI::FAData->GetColor("ExtConfigs", "DisplayColor.Celltag", 0x0000FF);
+
 	ExtConfigs::Waypoint_Text_ExtraOffset = CINI::FAData->GetPoint("ExtConfigs", "Waypoint.Text.ExtraOffset");
 
+	ExtConfigs::DrawCelltagTranslucent = CINI::FAData->GetBool("ExtConfigs", "DrawCelltagTranslucent");
 	ExtConfigs::ExtWaypoints = CINI::FAData->GetBool("ExtConfigs", "ExtWaypoints");
 	ExtConfigs::ExtFacings = CINI::FAData->GetBool("ExtConfigs", "ExtFacings");
 	ExtConfigs::ExtFacings_Drag = CINI::FAData->GetBool("ExtConfigs", "ExtFacings.Drag");
@@ -315,6 +323,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DisableDirectoryCheck = CINI::FAData->GetBool("ExtConfigs", "DisableDirectoryCheck");
 	ExtConfigs::UseNewToolBarCameo = CINI::FAData->GetBool("ExtConfigs", "UseNewToolBarCameo", true);
 	ExtConfigs::InGameDisplay_Shadow = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Shadow", true);
+	ExtConfigs::InGameDisplay_Shadow_OnGround = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Shadow.OnGround");
 	ExtConfigs::InGameDisplay_Deploy = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Deploy", true);
 	ExtConfigs::InGameDisplay_Water = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Water", true);
 	ExtConfigs::InGameDisplay_Damage = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Damage", true);
@@ -659,6 +668,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Shadow.OnGround", "Display voxel shadow on the ground instead of bottom"),
+		.IniKey = "InGameDisplay.Shadow.OnGround",
+		.Value = &ExtConfigs::InGameDisplay_Shadow_OnGround,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Deploy", "Load and show deploy-swap images"),
 		.IniKey = "InGameDisplay.Deploy",
 		.Value = &ExtConfigs::InGameDisplay_Deploy,
@@ -746,6 +762,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.BaseNodeIndex.Background", "Draw background for base node texts"),
 		.IniKey = "BaseNodeIndex.Background",
 		.Value = &ExtConfigs::BaseNodeIndex_Background,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.DrawCelltagTranslucent", "Draw Celltags translucently"),
+		.IniKey = "DrawCelltagTranslucent",
+		.Value = &ExtConfigs::DrawCelltagTranslucent,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 

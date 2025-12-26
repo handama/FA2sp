@@ -175,6 +175,7 @@ private:
 	void SetValidBuffer(ImageDataClass* pData, int Width, int Height);
 	void SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int Height);
 	void TrimImageEdges(ImageDataClassSafe* pData);
+	void ScaleImageHalf(ImageDataClassSafe* pData);
 	void TrimImageEdges(unsigned char*& pBuffer, int& width, int& height);
 
 	int ColorDistance(const ColorStruct& color1, const ColorStruct& color2); 
@@ -234,6 +235,7 @@ private:
 	static unsigned char VXL_Shadow_Data[0x10000];
 
 public:
+	static bool DrawTurretShadow;
 	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CurrentFrameImageDataMap;
 	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> ImageDataMap;
 	static std::unordered_map<FString, std::vector<std::unique_ptr<ImageDataClassSafe>>> BuildingClipsImageDataMap;
@@ -254,6 +256,12 @@ public:
 	static bool IsSurfaceImageLoaded(const FString& name);
 	static ImageDataClassSurface* GetSurfaceImageDataFromMap(const FString& name);
 	static int GetAvailableFacing(const FString& ID);
+	static void* ReadWholeFile(const char* filename, DWORD* pDwSize = nullptr, bool fa2path = false);
+	static bool HasFile(ppmfc::CString filename, int nMix = -114);
+
+	static std::unordered_map<std::string, std::vector<unsigned char>> g_cache[2];
+	static std::unordered_map<std::string, uint64_t> g_cacheTime[2];
+	static uint64_t g_lastCleanup;
 };
 
 #pragma pack(push, 1)
@@ -349,6 +357,7 @@ public:
 	bool LoadTopMix(const std::string& path);
 	bool LoadNestedMix(MixFile& parent, const MixEntry& entry);
 	int LoadMixFile(const std::string& path, int* parentIndex = nullptr);
+	int LoadMixFile(const std::string& path, int specificParent);
 	int QueryFileIndex(const std::string& fileName, int mixIdx = -1);
 	std::unique_ptr<uint8_t[]> LoadFile(const std::string& fileName, size_t* outSize, int mixIdx = -1);
 	bool ExtractFile(const std::string& fileName, const std::string& outPath, int mixIdx = -1);

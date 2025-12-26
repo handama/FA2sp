@@ -164,6 +164,7 @@ POPUP "Property brush"
 POPUP "Paste Options"
 {
 	MENUITEM "Paste All",  34050
+	MENUITEM "Reset Default",  34053
 	MENUITEM "Overriding",  34051
 	MENUITEM SEPARATOR
 	MENUITEM "Paste Ground", 34001

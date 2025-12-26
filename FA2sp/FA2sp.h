@@ -91,6 +91,9 @@ public:
     static bool BaseNodeIndex_Background;
     static bool BaseNodeIndex;
     static int BaseNodeIndex_Background_Color;
+    static int DisplayColor_Waypoint;
+    static int DisplayColor_Celltag;
+    static bool DrawCelltagTranslucent;
     static CPoint Waypoint_Text_ExtraOffset;
     static bool ExtWaypoints;
     static bool ExtFacings;
@@ -173,6 +176,7 @@ public:
     static float LightingSource[3];
     static bool UseStrictNewTheater;
     static bool InGameDisplay_Shadow;
+    static bool InGameDisplay_Shadow_OnGround;
     static bool InGameDisplay_Deploy;
     static bool InGameDisplay_Water;
     static bool InGameDisplay_Damage;

@@ -265,6 +265,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				::SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1366, CBN_SELCHANGE), (LPARAM)hTileComboBox);
 				CIsoView::CurrentCommand->Command = tmp;
 			}
+			else if (this->MyViewFrame.pTileSetBrowserFrame->View.CurrentMode == 2) {
+				HWND hParent = this->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
+				HWND hOverlayComboBox = ::GetDlgItem(hParent, 1367);
+				::SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1367, CBN_SELCHANGE), (LPARAM)hOverlayComboBox);
+				CIsoView::CurrentCommand->Command = tmp;
+			}
 		}
 	};
 
@@ -616,6 +622,16 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		SetMenuStatusTrue(34006, CIsoViewExt::PasteAircrafts);
 		SetMenuStatusTrue(34007, CIsoViewExt::PasteTerrains);
 		SetMenuStatusTrue(34008, CIsoViewExt::PasteSmudges);
+		return TRUE;
+	case 34053:
+		SetMenuStatusTrue(34001, CIsoViewExt::PasteGround);
+		SetMenuStatusTrue(34002, CIsoViewExt::PasteOverlays);
+		SetMenuStatusFalse(34003, CIsoViewExt::PasteStructures);
+		SetMenuStatusFalse(34004, CIsoViewExt::PasteInfantries);
+		SetMenuStatusFalse(34005, CIsoViewExt::PasteUnits);
+		SetMenuStatusFalse(34006, CIsoViewExt::PasteAircrafts);
+		SetMenuStatusFalse(34007, CIsoViewExt::PasteTerrains);
+		SetMenuStatusFalse(34008, CIsoViewExt::PasteSmudges);
 		return TRUE;
 	case 40159:
 	{

@@ -156,7 +156,7 @@ FString ExtraWindow::GetActionDisplayName(const char* id, int index)
 
 FString ExtraWindow::GetTranslatedSectionName(const char* section)
 {
-    auto transed = CFinalSunApp::Instance->Language + "-" + section;
+    auto transed = FinalAlertConfig::Language + "-" + section;
     if (!CINI::FAData->SectionExists(transed))
         transed = section;
     return transed;

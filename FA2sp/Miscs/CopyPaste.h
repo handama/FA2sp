@@ -45,6 +45,7 @@ struct TileRule {
     int heightOverride = -1; 
     bool hasSubIndexOverride = false;
     int subIndexOverride = -1; 
+    bool reverse = false;
 };
 
 class CopyPaste

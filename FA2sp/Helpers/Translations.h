@@ -14,6 +14,7 @@ public:
     static void WriteString(const char* pSection, const char* pKey, const char* pContent);
     static char pLastRead[0x400];
     static FString lpPath;
+    static FString Language;
 };
 
 class Translations
@@ -35,6 +36,7 @@ public:
     static FString CurrentTileSet;
     static std::map<HWND, int> DlgIdMap;
     static std::map<UINT, FString> StringTable;
+    static std::map<int, FString> CustomTileSetNames;
     static std::unique_ptr<CINI, GameUniqueDeleter<CINI>> FADialog;
 };
 

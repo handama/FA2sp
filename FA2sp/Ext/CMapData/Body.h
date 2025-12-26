@@ -8,6 +8,8 @@
 #include "../../Miscs/Palettes.h"
 #include "../../Helpers/FString.h"
 
+#define CUSTOM_TILE_START 100000
+
 struct TerrainGeneratorOverlay
 {
     WORD Overlay;
@@ -386,6 +388,28 @@ private:
     std::vector<std::unique_ptr<HistoryRecord>> records;
 };
 
+struct CustomTileBlock
+{
+    int TileIndex;
+    int FrameTileIndex;
+    int SubTileIndex;
+    int Height;
+    CTileBlockClass* TileBlock;
+    CTileBlockClass* FrameTileBlock;
+    void SetTileBlock(int tile, int subtile, int height);
+    int GetHeight() const;
+    CTileBlockClass* GetDisplayTileBlock();
+    int GetDisplayTileIndex() const;
+};
+
+struct CustomTile
+{
+    int Width;
+    int Height;
+    std::unique_ptr<CustomTileBlock[]> TileBlockDatas;
+    void Initialize(int witdh, int height);
+};
+
 class CMapDataExt : public CMapData
 {
 public:
@@ -403,6 +427,7 @@ public:
     };
 
     void PackExt(bool UpdatePreview, bool Description);
+    static void UnPackExt(CINI& ini, std::vector<IsoMapPack5Entry>& entry);
     // just alter CellData size for lua.restore_snapshot
     bool ResizeMapExt(MapRect* const pRect);
     
@@ -512,8 +537,27 @@ public:
     }
     inline static CellData* TryGetCellAt(int nIndex)
     {
-        TryGetCellAt(CMapData::Instance->GetXFromCoordIndex(nIndex), CMapData::Instance->GetYFromCoordIndex(nIndex));
+        return TryGetCellAt(CMapData::Instance->GetXFromCoordIndex(nIndex), CMapData::Instance->GetYFromCoordIndex(nIndex));
     }
+
+    static void CheckCellLow(bool steep, int loopCount = 0, bool IgnoreMorphable = false, std::vector<int>* ignoreList = nullptr);
+    static void CheckCellRise(bool steep, int loopCount = 0, bool IgnoreMorphable = false, std::vector<int>* ignoreList = nullptr);
+    static void GenerateNoiseSlopeTerrain(
+        const std::set<MapCoord>& region,
+        int minHeight,
+        int baseHeight,
+        int maxHeight,
+        int minMarcoHeight,
+        int maxMarcoHeight,
+        bool steep,
+        float frequency,
+        float macroFrequency,
+        int relaxIterations,
+        MapCoord start,
+        MapCoord end,
+        int startHeight,
+        int endHeight,
+        bool avoidEdges);
 
     std::string convertToExtendedOverlayPack(const std::string& input);
     std::string convertFromExtendedOverlayPack(const std::string& input);
@@ -537,6 +581,9 @@ public:
 
     static int GetPlayerLocationCountAtCell(int x, int y);
     static int GetBuildingTypeIndex(const FString& ID);
+    static CustomTile* GetCustomTile(int tileIndex);
+    static int GetCustomTileSet(int tileIndex);
+    static int GetCustomTileIndex(int tileSet, int tileIndex);
 
     static int OreValue[4];
     static std::vector<std::vector<int>> Tile_to_lat;
@@ -596,4 +643,7 @@ public:
     static bool SkipBuildingOverlappingCheck;
     static std::vector<FString> MapIniSectionSorting;
     static std::map<FString, std::set<FString>> PowersUpBuildings;
+    static std::map<int, std::vector<CustomTile>> CustomTiles;
+    static std::map<FString, COLORREF> CustomWaypointColors;
+    static std::map<FString, COLORREF> CustomCelltagColors;
 };

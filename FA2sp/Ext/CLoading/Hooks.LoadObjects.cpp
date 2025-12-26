@@ -150,6 +150,13 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
 
                         CLoading::Instance()->Release();
                         strcpy_s(CFinalSunApp::FilePath, 260, folder);
+
+                        CLoadingExt::g_cache[0].clear();
+                        CLoadingExt::g_cache[1].clear();
+                        CLoadingExt::g_cacheTime[0].clear();
+                        CLoadingExt::g_cacheTime[1].clear();
+                        CLoadingExt::g_lastCleanup = 0;
+
                         Logger::Debug("CLoading::Load() Called. Reload all files from %s\n", folder);
                         CLoading::Instance()->Load();
                         CCsfEditor::NeedUpdate = true;
@@ -252,7 +259,7 @@ DEFINE_HOOK(525AF8, CLoading_SetCurrentTMP_ReadGameFolder, 8)
 {
     GET_STACK(LPCSTR, lpFilename, STACK_OFFS(0x20, -0x4));
     DWORD dwSize;
-    if (auto pBuffer = (unsigned char*)CLoading::Instance->ReadWholeFile(lpFilename, &dwSize))
+    if (auto pBuffer = (unsigned char*)CLoadingExt::GetExtension()->ReadWholeFile(lpFilename, &dwSize))
     {
         CLoading::Instance->CurrentTMP->open(pBuffer, dwSize);
         return 0x525B77;

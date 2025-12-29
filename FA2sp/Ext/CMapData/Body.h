@@ -175,6 +175,24 @@ struct TileAnimation
     FString ImageName;
 };
 
+struct TechnoAttachment
+{
+    FString ID;
+    enum YSortPosition : char
+    {
+        Default = 0,
+        Top = 1,
+        Bottom = 2,
+    };
+    YSortPosition YSortPosition;
+    int F;
+    int L;
+    int H;
+    int DeltaX;
+    int DeltaY;
+    unsigned char RotationAdjust;
+};
+
 struct CellDataExt
 {
     WORD X;
@@ -584,6 +602,7 @@ public:
     static CustomTile* GetCustomTile(int tileIndex);
     static int GetCustomTileSet(int tileIndex);
     static int GetCustomTileIndex(int tileSet, int tileIndex);
+    static std::vector<TechnoAttachment>* GetTechnoAttachmentInfo(const FString& ID);
 
     static int OreValue[4];
     static std::vector<std::vector<int>> Tile_to_lat;
@@ -646,4 +665,5 @@ public:
     static std::map<int, std::vector<CustomTile>> CustomTiles;
     static std::map<FString, COLORREF> CustomWaypointColors;
     static std::map<FString, COLORREF> CustomCelltagColors;
+    static std::map<FString, std::vector<TechnoAttachment>> TechnoAttachments;
 };

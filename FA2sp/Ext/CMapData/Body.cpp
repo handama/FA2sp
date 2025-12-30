@@ -3631,6 +3631,22 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 				auto& ret = TechnoAttachments[ID];
 				auto& ta = ret.emplace_back();
 				ta.ID = Variables::RulesMap.GetString(ex, "ExtraUnit.Type");
+
+				auto getLayer = [](const ppmfc::CString& value)
+				{
+					if (value == "air")
+						return 1;
+					if (value == "top")
+						return 2;
+					return 0;
+				};
+				int mainLayer = getLayer(Variables::RulesMap.GetString(ID, "Render.ForceLayer"));
+				int exLayer = getLayer(Variables::RulesMap.GetString(ex, "Render.ForceLayer"));
+
+				if (exLayer >= mainLayer)
+					ta.YSortPosition = TechnoAttachment::YSortPosition::Top;
+				else
+					ta.YSortPosition = TechnoAttachment::YSortPosition::Bottom;
 				GetFLH(ta.F, ta.L, ta.H, Variables::RulesMap.GetString(ex, "ExtraUnit.Position", "0,0,0"));
 				if (Variables::RulesMap.GetBool(ex, "ExtraUnit.BindTurret"))
 				{
@@ -3644,6 +3660,34 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 					ta.DeltaY = Variables::RulesMap.GetInteger(ID, "TurretAnimY");
 				}
 				ta.RotationAdjust = Variables::RulesMap.GetInteger(ex, "ExtraUnit.FacingAngleAdjust") * 256 / 360;
+			}
+
+			auto virtualUnits = STDHelpers::SplitString(Variables::RulesMap.GetString(ID, "VirtualUnits"));
+			for (auto& vr : virtualUnits)
+			{
+				if (!Variables::RulesMap.TryGetString(vr, "Techno"))
+					continue;
+
+				auto& ret = TechnoAttachments[ID];
+				auto& ta = ret.emplace_back();
+				ta.ID = Variables::RulesMap.GetString(vr, "Techno");
+				if (Variables::RulesMap.GetBool(vr, "DisplayUpon", true))
+					ta.YSortPosition = TechnoAttachment::YSortPosition::Top;
+				else
+					ta.YSortPosition = TechnoAttachment::YSortPosition::Bottom;
+				GetFLH(ta.F, ta.L, ta.H, Variables::RulesMap.GetString(vr, "FLH", "0,0,0"));
+				if (Variables::RulesMap.GetBool(vr, "OnTurret"))
+				{
+					FString ArtID = CLoadingExt::GetArtID(ID);
+					int F, L, H;
+					GetFLH(F, L, H, CINI::Art->GetString(ArtID, "TurretOffset", "0,0,0"));
+					ta.F += F;
+					ta.L += L;
+					ta.H += H;
+					ta.DeltaX = Variables::RulesMap.GetInteger(ID, "TurretAnimX");
+					ta.DeltaY = Variables::RulesMap.GetInteger(ID, "TurretAnimY");
+				}
+				ta.RotationAdjust = Variables::RulesMap.GetInteger(vr, "Rotation");
 			}
 		};
 

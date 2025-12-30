@@ -112,10 +112,27 @@ inline static void GetUnitImageID(FString& ImageID, const CUnitData& obj, const 
 	}
 }
 
+struct RecursionGuard
+{
+	std::set<FString>& stack;
+	const FString& id;
+
+	RecursionGuard(std::set<FString>& s, const FString& i)
+		: stack(s), id(i)
+	{
+		stack.insert(id);
+	}
+
+	~RecursionGuard()
+	{
+		stack.erase(id);
+	}
+};
+
 static void DrawTechnoAttachments
 (
 	DrawCall originalDraw,
-	std::set<FString>& drawnObjects,
+	std::set<FString>& recursionStack,
 	const FString& parentID,
 	int oriFacing,
 	CLoadingExt::ObjectType parentType,
@@ -130,30 +147,70 @@ static void DrawTechnoAttachments
 {
 	if (auto infosOri = CMapDataExt::GetTechnoAttachmentInfo(parentID))
 	{
+		if (recursionStack.contains(parentID))
+			return; 
+
+		RecursionGuard guard(recursionStack, parentID);
+
 		auto pThis = CIsoView::GetInstance();
-		auto drawnObjectsTemp = drawnObjects;
+		auto drawnObjectsTemp = recursionStack;
 
 		auto infos = *infosOri;
-		auto it = std::stable_partition(
-			infos.begin(),
-			infos.end(),
-			[&](const TechnoAttachment& a) {
-
+		auto calcGroupAndY = [&](const TechnoAttachment& a, int& outY) -> int
+		{
 			int ParentFacings = CLoadingExt::GetAvailableFacing(parentID);
 			int parentFacing = (oriFacing * ParentFacings / 256) % ParentFacings;
 			Matrix3D mat(a.F, a.L, 0, parentFacing, ParentFacings);
 
-			return a.YSortPosition == TechnoAttachment::YSortPosition::Bottom 
-				|| a.YSortPosition == TechnoAttachment::YSortPosition::Default && mat.OutputY < 0;
+			outY = mat.OutputY;
+
+			if (a.YSortPosition == TechnoAttachment::YSortPosition::Bottom ||
+				(a.YSortPosition == TechnoAttachment::YSortPosition::Default && outY < 0))
+			{
+				return 0; 
+			}
+
+			if (a.YSortPosition == TechnoAttachment::YSortPosition::Default)
+			{
+				return 1; 
+			}
+
+			// YSortPosition == Top
+			return 2; 
+		};
+
+		std::stable_sort(
+			infos.begin(),
+			infos.end(),
+			[&](const TechnoAttachment& a, const TechnoAttachment& b)
+		{
+			int yA, yB;
+			int gA = calcGroupAndY(a, yA);
+			int gB = calcGroupAndY(b, yB);
+
+			if (gA != gB)
+				return gA < gB;
+
+			return yA < yB;
 		}
 		);
-		std::size_t redrawIndex = std::distance(infos.begin(), it);
+
+		auto firstGroupEnd = infos.end();
+		for (auto it = infos.begin(); it != infos.end(); ++it)
+		{
+			int y;
+			int g = calcGroupAndY(*it, y);
+
+			if (g >= 1 && firstGroupEnd == infos.end())
+				firstGroupEnd = it; 
+		}
+
+		std::size_t redrawIndex = std::distance(infos.begin(), firstGroupEnd);
 		for (int i = 0; i < infos.size(); ++i)
 		{
 			const auto& info = infos[i];
-			if (drawnObjectsTemp.find(info.ID) != drawnObjectsTemp.end())
+			if (recursionStack.contains(info.ID))
 				continue;
-			drawnObjects.insert(info.ID);
 
 			if (redrawIndex > 0 && i == redrawIndex)
 			{
@@ -191,7 +248,7 @@ static void DrawTechnoAttachments
 						
 					draw();
 
-					DrawTechnoAttachments(draw, drawnObjects, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
+					DrawTechnoAttachments(draw, recursionStack, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
 						displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
 				}
 			}
@@ -220,7 +277,7 @@ static void DrawTechnoAttachments
 
 					draw();
 
-					DrawTechnoAttachments(draw, drawnObjects, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
+					DrawTechnoAttachments(draw, recursionStack, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
 						displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
 				}
 				else if (isShadow && pData->pImageBuffer && !(ExtConfigs::InGameDisplay_Cloakable
@@ -233,7 +290,7 @@ static void DrawTechnoAttachments
 						displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY, pData, NULL, 128);
 
 
-					DrawTechnoAttachments([] {}, drawnObjects, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
+					DrawTechnoAttachments([] {}, recursionStack, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
 						displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
 				}
 			}
@@ -272,7 +329,7 @@ static void DrawTechnoAttachments
 
 						draw();
 
-						DrawTechnoAttachments(draw, drawnObjects, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
+						DrawTechnoAttachments(draw, recursionStack, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
 							displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
 					}
 				}

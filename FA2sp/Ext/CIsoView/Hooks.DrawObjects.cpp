@@ -15,6 +15,7 @@
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../CFinalSunApp/Body.h"
 #include "../../Algorithms/Matrix3D.h"
+#include <functional>
 
 static int Left, Right, Top, Bottom;
 static CRect window;
@@ -22,6 +23,7 @@ static MapCoord VisibleCoordTL;
 static MapCoord VisibleCoordBR;
 static int HorizontalLoopIndex;
 static ppmfc::CPoint ViewPosition;
+using DrawCall = std::function<void()>;
 
 std::unordered_set<short> CIsoViewExt::VisibleStructures;
 std::unordered_set<short> CIsoViewExt::VisibleInfantries;
@@ -112,6 +114,7 @@ inline static void GetUnitImageID(FString& ImageID, const CUnitData& obj, const 
 
 static void DrawTechnoAttachments
 (
+	DrawCall originalDraw,
 	std::set<FString>& drawnObjects,
 	const FString& parentID,
 	int oriFacing,
@@ -122,18 +125,40 @@ static void DrawTechnoAttachments
 	int displayX,
 	int displayY,
 	COLORREF color,
-	bool isShadow,
-	CUnitData* parentUnit = nullptr
+	bool isShadow
 )
 {
-	if (auto infos = CMapDataExt::GetTechnoAttachmentInfo(parentID))
+	if (auto infosOri = CMapDataExt::GetTechnoAttachmentInfo(parentID))
 	{
 		auto pThis = CIsoView::GetInstance();
-		for (const auto& info : *infos)
+		auto drawnObjectsTemp = drawnObjects;
+
+		auto infos = *infosOri;
+		auto it = std::stable_partition(
+			infos.begin(),
+			infos.end(),
+			[&](const TechnoAttachment& a) {
+
+			int ParentFacings = CLoadingExt::GetAvailableFacing(parentID);
+			int parentFacing = (oriFacing * ParentFacings / 256) % ParentFacings;
+			Matrix3D mat(a.F, a.L, 0, parentFacing, ParentFacings);
+
+			return a.YSortPosition == TechnoAttachment::YSortPosition::Bottom 
+				|| a.YSortPosition == TechnoAttachment::YSortPosition::Default && mat.OutputY < 0;
+		}
+		);
+		std::size_t redrawIndex = std::distance(infos.begin(), it);
+		for (int i = 0; i < infos.size(); ++i)
 		{
-			if (drawnObjects.find(info.ID) != drawnObjects.end())
+			const auto& info = infos[i];
+			if (drawnObjectsTemp.find(info.ID) != drawnObjectsTemp.end())
 				continue;
 			drawnObjects.insert(info.ID);
+
+			if (redrawIndex > 0 && i == redrawIndex)
+			{
+				originalDraw();
+			}
 
 			if (!CLoadingExt::IsObjectLoaded(info.ID))
 			{
@@ -157,15 +182,17 @@ static void DrawTechnoAttachments
 				{
 					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
 
-					CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
+					auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
 						displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
 						displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
 						pData, NULL,
 						ExtConfigs::InGameDisplay_Cloakable
-						&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255, color, 0, true);
+						&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255, color, 0, true); };
+						
+					draw();
 
-					DrawTechnoAttachments(drawnObjects, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
-						displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow, parentUnit);
+					DrawTechnoAttachments(draw, drawnObjects, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
+						displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
 				}
 			}
 			break;
@@ -178,25 +205,23 @@ static void DrawTechnoAttachments
 				int additionalFacing = (info.RotationAdjust * facings / 256) % facings;
 				int newFacing = (parentFacing * facings / ParentFacings + additionalFacing) % facings;
 
-				FString ImageID = info.ID;
-				if (parentUnit)
-					GetUnitImageID(ImageID, *parentUnit, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
-
-				FString imageName = CLoadingExt::GetImageName(ImageID, newFacing, isShadow);
+				FString imageName = CLoadingExt::GetImageName(info.ID, newFacing, isShadow);
 				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
 				if (!isShadow && pData->pImageBuffer)
 				{
 					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
-					CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
+					auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
 						displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
 						displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
 						pData, NULL,
 						ExtConfigs::InGameDisplay_Cloakable
-						&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255, color, 0, true);
+						&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255, color, 0, true); };
 
-					DrawTechnoAttachments(drawnObjects, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
-						displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow, parentUnit);
+					draw();
+
+					DrawTechnoAttachments(draw, drawnObjects, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
+						displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
 				}
 				else if (isShadow && pData->pImageBuffer && !(ExtConfigs::InGameDisplay_Cloakable
 					&& Variables::RulesMap.GetBool(info.ID, "Cloakable")) && eItemType != CLoadingExt::ObjectType::Aircraft)
@@ -207,8 +232,9 @@ static void DrawTechnoAttachments
 						displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
 						displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY, pData, NULL, 128);
 
-					DrawTechnoAttachments(drawnObjects, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
-						displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow, parentUnit);
+
+					DrawTechnoAttachments([] {}, drawnObjects, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
+						displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
 				}
 			}
 			break;
@@ -237,15 +263,17 @@ static void DrawTechnoAttachments
 						auto ArtID = CLoadingExt::GetArtID(info.ID);			
 						auto& isoset = CMapDataExt::TerrainPaletteBuildings;
 						Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
-						CIsoViewExt::BlitSHPTransparent_Building(pThis, lpSurface, window, boundary,
+						auto draw = [&] {CIsoViewExt::BlitSHPTransparent_Building(pThis, lpSurface, window, boundary,
 							displayX - pBldData->FullWidth / 2 + mat.OutputX + info.DeltaX,
 							displayY - pBldData->FullHeight / 2 + mat.OutputY + info.DeltaY, pBldData.get(),
 							NULL, ExtConfigs::InGameDisplay_Cloakable
 							&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255,
-							color, -1, false, isoset.find(info.ID) != isoset.end());
+							color, -1, false, isoset.find(info.ID) != isoset.end()); };
 
-						DrawTechnoAttachments(drawnObjects, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
-							displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow, parentUnit);
+						draw();
+
+						DrawTechnoAttachments(draw, drawnObjects, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
+							displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
 					}
 				}
 			}
@@ -253,6 +281,11 @@ static void DrawTechnoAttachments
 			case CLoadingExt::ObjectType::Unknown:
 			default:
 				break;
+			}
+
+			if (redrawIndex == infos.size() && i == infos.size() - 1)
+			{
+				originalDraw();
 			}
 		}
 	}
@@ -1115,12 +1148,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								if (pData->pImageBuffer)
 								{
 									CIsoViewExt::MaskShadowPixels(window,
-										x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, 
+										x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData,
 										shadowMask_Building_Infantry,
 										shadowHeightMask, cell->Height);
 
 									std::set<FString> drawn;
-									DrawTechnoAttachments(drawn, objRender.ID, objRender.Facing,
+									DrawTechnoAttachments([] {}, drawn, objRender.ID, objRender.Facing,
 										CLoadingExt::ObjectType::Building, cell, lpDesc->lpSurface, boundary,
 										x1, y1, 0xffffff, true);
 								}
@@ -1350,12 +1383,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								y1 -= 60;
 
 							CIsoViewExt::MaskShadowPixels(window,
-								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, 
+								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData,
 								shadowMask_Building_Infantry,
 								shadowHeightMask, cell->Height);
 
 							std::set<FString> drawn;
-							DrawTechnoAttachments(drawn, obj.TypeID, atoi(obj.Facing),
+							DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
 								CLoadingExt::ObjectType::Infantry, cell, lpDesc->lpSurface, boundary,
 								x1, y1, 0xffffff, true);
 						}
@@ -1403,9 +1436,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + 15, pData, NULL, 128);
 
 						std::set<FString> drawn;
-						DrawTechnoAttachments(drawn, obj.TypeID, atoi(obj.Facing),
+						DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
 							CLoadingExt::ObjectType::Vehicle, cell, lpDesc->lpSurface, boundary,
-							x1, y1 + 15 , 0xffffff, true, &obj);
+							x1, y1 + 15 , 0xffffff, true);
 					}
 				}		
 			}
@@ -1439,7 +1472,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					if (pData->pImageBuffer)
 					{
 						std::set<FString> drawn;
-						DrawTechnoAttachments(drawn, obj.TypeID, atoi(obj.Facing),
+						DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
 							CLoadingExt::ObjectType::Aircraft, cell, lpDesc->lpSurface, boundary,
 							x, y + 15 , 0xffffff, true);
 					}
@@ -1881,8 +1914,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							if (upg.GetLength() == 0)
 								continue;
 
-							const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(upg);
-							const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
 							const auto& ImageName = CLoadingExt::GetBuildingImageName(upg, 0, 0);
 							auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(ImageName);
 							auto pUpgData = CLoadingExt::BindClippedImages(clips);
@@ -1934,8 +1965,29 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					}
 					if (firstDraw)
 					{
+						auto draw = [&]
+						{
+							int nFacing = 0;
+							if (Variables::RulesMap.GetBool(objRender.ID, "Turret"))
+							{
+								int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
+								nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
+							}
+							const auto& ImageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, part.Status);
+							auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(ImageName);
+							auto pData = CLoadingExt::BindClippedImages(clips);
+							if (pData && pData->pImageBuffer)
+							{
+								auto ArtID = CLoadingExt::GetArtID(objRender.ID);
+
+								CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
+									x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData.get(), NULL, isCloakable(objRender.ID) ? 128 : 255,
+									objRender.HouseColor, -1, false, isoset.find(objRender.ID) != isoset.end());
+							}
+						};
+
 						std::set<FString> drawn;
-						DrawTechnoAttachments(drawn, objRender.ID, objRender.Facing,
+						DrawTechnoAttachments(draw, drawn, objRender.ID, objRender.Facing,
 							CLoadingExt::ObjectType::Building, cell, lpDesc->lpSurface, boundary,
 							x1, y1,
 							objRender.HouseColor, false);
@@ -2072,11 +2124,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							pThis->DrawLine(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
 								x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 30, ExtConfigs::CursorSelectionBound_HeightColor, false, false, lpDesc, true);
 
-						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+						auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 							x - pData->FullWidth / 2,
 							y - pData->FullHeight / 2 + 15 - (HoveringUnit ? 10 : 0) -
 							(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
-							pData, NULL, isCloakable(obj.TypeID) ? 128 : 255, color, 0, true);
+							pData, NULL, isCloakable(obj.TypeID) ? 128 : 255, color, 0, true); };
+						draw();
 
 						if (CIsoViewExt::DrawVeterancy)
 						{
@@ -2088,11 +2141,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 
 						std::set<FString> drawn;
-						DrawTechnoAttachments(drawn, obj.TypeID, atoi(obj.Facing),
+						DrawTechnoAttachments(draw, drawn, obj.TypeID, atoi(obj.Facing),
 							CLoadingExt::ObjectType::Vehicle, cell, lpDesc->lpSurface, boundary,
 							x, y + 15 - (HoveringUnit ? 10 : 0) -
 							(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
-							color, false, &obj);
+							color, false);
 					}
 				}		
 			}
@@ -2140,9 +2193,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					if (pData->pImageBuffer)
 					{
 						auto color = Miscs::GetColorRef(obj.House);
-						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+						auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 							x - pData->FullWidth / 2, y - pData->FullHeight / 2 + 15, pData, NULL,
-							isCloakable(obj.TypeID) ? 128 : 255, color, 2, true);
+							isCloakable(obj.TypeID) ? 128 : 255, color, 2, true); };
+						draw();
 
 						if (CIsoViewExt::DrawVeterancy)
 						{
@@ -2154,7 +2208,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 
 						std::set<FString> drawn;
-						DrawTechnoAttachments(drawn, obj.TypeID, atoi(obj.Facing),
+						DrawTechnoAttachments(draw, drawn, obj.TypeID, atoi(obj.Facing),
 							CLoadingExt::ObjectType::Aircraft, cell, lpDesc->lpSurface, boundary,
 							x, y + 15,
 							color, false);
@@ -2232,9 +2286,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor, false, false, lpDesc, true);
 
 							auto color = Miscs::GetColorRef(obj.House);
-							CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+							auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL,
-								isCloakable(obj.TypeID) ? 128 : 255, color, 1, true);
+								isCloakable(obj.TypeID) ? 128 : 255, color, 1, true); };
+							draw();
 
 							if (CIsoViewExt::DrawVeterancy)
 							{
@@ -2246,7 +2301,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							}
 
 							std::set<FString> drawn;
-							DrawTechnoAttachments(drawn, obj.TypeID, atoi(obj.Facing),
+							DrawTechnoAttachments(draw, drawn, obj.TypeID, atoi(obj.Facing),
 								CLoadingExt::ObjectType::Infantry, cell, lpDesc->lpSurface, boundary,
 								x1, y1,
 								color, false);

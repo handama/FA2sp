@@ -3562,6 +3562,13 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			IsOnTurret[i].Format("Attachment%d.IsOnTurret", i);
 			RotationAdjust[i].Format("Attachment%d.RotationAdjust", i);
 		}
+		auto GetFLH = [](int& F, int& L, int& H, const ppmfc::CString value)
+		{
+			int s_count = sscanf_s(value, "%d,%d,%d", &F, &L, &H);
+			if (s_count == 0) F = L = H = 0;
+			else if (s_count == 1) L = H = 0;
+			else if (s_count == 2) H = 0;
+		};
 		auto GetTechnoAttachments = [&](const ppmfc::CString& ID)
 		{
 			for (int i = 0; i < loopCount; ++i)
@@ -3583,19 +3590,13 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 					else
 						ta.YSortPosition = TechnoAttachment::YSortPosition::Default;
 
-					int s_count = sscanf_s(Variables::RulesMap.GetString(ID, FLH[i], "0,0,0"), "%d,%d,%d", &ta.F, &ta.L, &ta.H);
-					if (s_count == 0) ta.F = ta.L = ta.H = 0;
-					else if (s_count == 1) ta.L = ta.H = 0;
-					else if (s_count == 2) ta.H = 0;
+					GetFLH(ta.F, ta.L, ta.H, Variables::RulesMap.GetString(ID, FLH[i], "0,0,0"));
 
 					if (Variables::RulesMap.GetBool(ID, IsOnTurret[i]))
 					{
 						FString ArtID = CLoadingExt::GetArtID(ID);
 						int F, L, H;
-						s_count = sscanf_s(CINI::Art->GetString(ArtID, "TurretOffset", "0,0,0"), "%d,%d,%d", &F, &L, &H);
-						if (s_count == 0) F = L = H = 0;
-						else if (s_count == 1) L = H = 0;
-						else if (s_count == 2) H = 0;
+						GetFLH(F, L, H, CINI::Art->GetString(ArtID, "TurretOffset", "0,0,0"));
 						ta.F += F;
 						ta.L += L;
 						ta.H += H;
@@ -3616,10 +3617,33 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 				auto& ret = TechnoAttachments[ID];
 				auto& ta = ret.emplace_back();
 				ta.ID = Variables::RulesMap.GetString(ae, "Stand.Type");
-				int s_count = sscanf_s(Variables::RulesMap.GetString(ae, "Stand.Offset", "0,0,0"), "%d,%d,%d", &ta.F, &ta.L, &ta.H);
-				if (s_count == 0) ta.F = ta.L = ta.H = 0;
-				else if (s_count == 1) ta.L = ta.H = 0;
-				else if (s_count == 2) ta.H = 0;
+				ta.YSortPosition = Variables::RulesMap.GetInteger(ae, "Stand.ZOffset") < 0 ? 
+					TechnoAttachment::YSortPosition::Bottom: TechnoAttachment::YSortPosition::Default;
+				GetFLH(ta.F, ta.L, ta.H, Variables::RulesMap.GetString(ae, "Stand.Offset", "0,0,0"));
+			}
+
+			auto extraUnits = STDHelpers::SplitString(Variables::RulesMap.GetString(ID, "ExtraUnit.Definations"));
+			for (auto& ex : extraUnits)
+			{
+				if (!Variables::RulesMap.TryGetString(ex, "ExtraUnit.Type"))
+					continue;
+
+				auto& ret = TechnoAttachments[ID];
+				auto& ta = ret.emplace_back();
+				ta.ID = Variables::RulesMap.GetString(ex, "ExtraUnit.Type");
+				GetFLH(ta.F, ta.L, ta.H, Variables::RulesMap.GetString(ex, "ExtraUnit.Position", "0,0,0"));
+				if (Variables::RulesMap.GetBool(ex, "ExtraUnit.BindTurret"))
+				{
+					FString ArtID = CLoadingExt::GetArtID(ID);
+					int F, L, H;
+					GetFLH(F, L, H, CINI::Art->GetString(ArtID, "TurretOffset", "0,0,0"));
+					ta.F += F;
+					ta.L += L;
+					ta.H += H;
+					ta.DeltaX = Variables::RulesMap.GetInteger(ID, "TurretAnimX");
+					ta.DeltaY = Variables::RulesMap.GetInteger(ID, "TurretAnimY");
+				}
+				ta.RotationAdjust = Variables::RulesMap.GetInteger(ex, "ExtraUnit.FacingAngleAdjust") * 256 / 360;
 			}
 		};
 

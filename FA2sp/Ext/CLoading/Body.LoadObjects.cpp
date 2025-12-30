@@ -1645,8 +1645,6 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 					{
 						result = VoxelDrawer::GetImageData(actFacing, pImage[i], rect[i]);
 					}
-					if (!result)
-						return;
 				}
 			}
 		}
@@ -1790,8 +1788,11 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 					unsigned char* outBuffer;
 					int outW = 0x100, outH = 0x100;
 
-					VXL_Add(pShadowImage[i], shadowrect[i].X, shadowrect[i].Y, shadowrect[i].W, shadowrect[i].H, true);
-					CncImgFree(pShadowImage[i]);
+					if (pShadowImage[i])
+					{
+						VXL_Add(pShadowImage[i], shadowrect[i].X, shadowrect[i].Y, shadowrect[i].W, shadowrect[i].H, true);
+						CncImgFree(pShadowImage[i]);
+					}
 					VXL_GetAndClear(outBuffer, &outW, &outH, true);
 
 					SetImageDataSafe(outBuffer, DictShadowName, outW, outH, &CMapDataExt::Palette_Shadow);

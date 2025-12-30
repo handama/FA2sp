@@ -153,7 +153,6 @@ static void DrawTechnoAttachments
 		RecursionGuard guard(recursionStack, parentID);
 
 		auto pThis = CIsoView::GetInstance();
-		auto drawnObjectsTemp = recursionStack;
 
 		auto infos = *infosOri;
 		auto calcGroupAndY = [&](const TechnoAttachment& a, int& outY) -> int

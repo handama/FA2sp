@@ -425,23 +425,33 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
     }
 }
 
+struct handleExit
+{
+    handleExit() {};
+    ~handleExit()
+    {
+        CViewObjectsExt::NextCTHeightOffset = 0;
+        CViewObjectsExt::IsInPlaceCliff_OnMouseMove = false;
+    }
+};
+
 void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 {
     if (!CMapDataExt::IsCoordInFullMap(X, Y))
         return;
     CViewObjectsExt::IsInPlaceCliff_OnMouseMove = true;
 
-    auto handleExit = []()
-        {
-            CViewObjectsExt::NextCTHeightOffset = 0;
-            CViewObjectsExt::IsInPlaceCliff_OnMouseMove = false;
-        };
+    auto exit = handleExit();
 
     if (CViewObjectsExt::CliffConnectionCoord.X == -1 && CViewObjectsExt::CliffConnectionCoord.Y == -1)
     {
-        handleExit();
         return;
     }
+
+    if (CViewObjectsExt::CliffConnectionHeight < 0)
+        CViewObjectsExt::CliffConnectionHeight = 0;
+    if (CViewObjectsExt::CliffConnectionHeight > 14)
+        CViewObjectsExt::CliffConnectionHeight = 14;
 
     auto& mapData = CMapData::Instance();
     auto cellDatas = mapData.CellDatas;
@@ -510,7 +520,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
     if (CIsoView::CurrentCommand->Type >= 9000)
     {
-        handleExit();
         return;
     }
 
@@ -592,7 +601,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
     {
         if (!tileSet.Name)
         {
-            handleExit();
             return;
         }
 
@@ -600,7 +608,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
         if (NULL == CMapDataExt::TileData)
         {
-            handleExit();
             return;
         }
 
@@ -1934,19 +1941,16 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             }
             else
             {
-                handleExit();
                 return;
             }
 
             if (index < 0)
             {
-                handleExit();
                 return;
             }
 
             if (loop > 3)
             {
-                handleExit();
                 return;
             }
         }
@@ -2602,7 +2606,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
         if (!tileSet.Name)
         {
-            handleExit();
             return;
         }
 
@@ -2610,7 +2613,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
         if (NULL == CMapDataExt::TileData)
         {
-            handleExit();
             return;
         }
 
@@ -2738,7 +2740,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 }
                 else
                 {
-                    handleExit();
                     return;
                 }
             }
@@ -2859,7 +2860,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             if (CViewObjectsExt::LastSuccessfulIndex == -1 && index == -1)
             {
-                handleExit();
                 return;
             }
 
@@ -2867,7 +2867,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             {
                 if (getOppositeDirection(CViewObjectsExt::LastPlacedCT.GetNextDirection()) != tileSet.ConnectedTile[CViewObjectsExt::LastSuccessfulIndex].GetThisDirection(CViewObjectsExt::LastSuccessfulOpposite))
                 {
-                    handleExit();
                     return;
                 }
 
@@ -2875,7 +2874,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 index = CViewObjectsExt::LastSuccessfulIndex;
                 if (CViewObjectsExt::LastSuccessfulHeightOffset != 0 || tileSet.ConnectedTile[index].HeightAdjust != 0)
                 {
-                    handleExit();
                     return;
                 }
             }
@@ -2893,7 +2891,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             if (loop > 3)
             {
-                handleExit();
                 return;
             }
         }
@@ -2998,7 +2995,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
         if (!tileSet.Name)
         {
-            handleExit();
             return;
         }
 
@@ -3006,7 +3002,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
         if (NULL == CMapDataExt::TileData)
         {
-            handleExit();
             return;
         }
 
@@ -3178,7 +3173,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 }
                 else
                 {
-                    handleExit();
                     return;
                 }
             }
@@ -3230,7 +3224,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 }
                 else
                 {
-                    handleExit();
                     return;
                 }
             }
@@ -3245,7 +3238,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             if (CViewObjectsExt::LastSuccessfulIndex == -1 && index == -1)
             {
-                handleExit();
                 return;
             }
 
@@ -3254,7 +3246,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             {
                 if (getOppositeDirection(CViewObjectsExt::LastPlacedCT.GetNextDirection()) != tileSet.ConnectedTile[CViewObjectsExt::LastSuccessfulIndex].GetThisDirection(CViewObjectsExt::LastSuccessfulOpposite))
                 {
-                    handleExit();
                     return;
                 }
 
@@ -3262,7 +3253,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 index = CViewObjectsExt::LastSuccessfulIndex;
                 if (CViewObjectsExt::LastSuccessfulHeightOffset != 0 || tileSet.ConnectedTile[index].HeightAdjust != 0)
                 {
-                    handleExit();
                     return;
                 }
             }
@@ -3281,7 +3271,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             if (loop > 3)
             {
-                handleExit();
                 return;
             }
         }
@@ -3363,7 +3352,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
         if (!tileSet.Name)
         {
-            handleExit();
             return;
         }
 
@@ -3371,7 +3359,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
         if (NULL == CMapDataExt::TileData)
         {
-            handleExit();
             return;
         }
 
@@ -3430,7 +3417,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 }
                 else
                 {
-                    handleExit();
                     return;
                 }
             }
@@ -3456,7 +3442,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 }
                 else
                 {
-                    handleExit();
                     return;
                 }
             }
@@ -3467,7 +3452,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             if (CViewObjectsExt::LastSuccessfulIndex == -1 && index == -1)
             {
-                handleExit();
                 return;
             }
 
@@ -3475,7 +3459,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             {
                 if (getOppositeDirection(CViewObjectsExt::LastPlacedCT.GetNextDirection()) != tileSet.ConnectedTile[CViewObjectsExt::LastSuccessfulIndex].GetThisDirection(CViewObjectsExt::LastSuccessfulOpposite))
                 {
-                    handleExit();
                     return;
                 }
 
@@ -3483,7 +3466,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 index = CViewObjectsExt::LastSuccessfulIndex;
                 if (CViewObjectsExt::LastSuccessfulHeightOffset != 0 || tileSet.ConnectedTile[index].HeightAdjust != 0)
                 {
-                    handleExit();
                     return;
                 }
             }
@@ -3502,7 +3484,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             if (loop > 3)
             {
-                handleExit();
                 return;
             }
         }
@@ -3586,7 +3567,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
         if (!tileSet.Name)
         {
-            handleExit();
             return;
         }
 
@@ -3594,7 +3574,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
         if (NULL == CMapDataExt::TileData)
         {
-            handleExit();
             return;
         }
 
@@ -3653,7 +3632,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 }
                 else
                 {
-                    handleExit();
                     return;
                 }
             }
@@ -3701,7 +3679,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             if (CViewObjectsExt::LastSuccessfulIndex == -1 && index == -1)
             {
-                handleExit();
                 return;
             }
 
@@ -3709,7 +3686,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             {
                 if (getOppositeDirection(CViewObjectsExt::LastPlacedCT.GetNextDirection()) != tileSet.ConnectedTile[CViewObjectsExt::LastSuccessfulIndex].GetThisDirection(CViewObjectsExt::LastSuccessfulOpposite))
                 {
-                    handleExit();
                     return;
                 }
 
@@ -3717,7 +3693,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 index = CViewObjectsExt::LastSuccessfulIndex;
                 if (CViewObjectsExt::LastSuccessfulHeightOffset != 0 || tileSet.ConnectedTile[index].HeightAdjust != 0)
                 {
-                    handleExit();
                     return;
                 }
             }
@@ -3736,7 +3711,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             if (loop > 3)
             {
-                handleExit();
                 return;
             }
         }
@@ -3885,7 +3859,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         {
             if (getOppositeDirection(CViewObjectsExt::LastPlacedCT.GetNextDirection()) != tileSet.ConnectedTile[CViewObjectsExt::LastSuccessfulIndex].GetThisDirection(CViewObjectsExt::LastSuccessfulOpposite))
             {
-                handleExit();
                 return;
             }
 
@@ -3893,7 +3866,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             index = CViewObjectsExt::LastSuccessfulIndex;
             if (CViewObjectsExt::LastSuccessfulHeightOffset != 0 || tileSet.ConnectedTile[index].HeightAdjust != 0)
             {
-                handleExit();
                 return;
             }
         }
@@ -3909,7 +3881,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         }
         else
         {
-            handleExit();
             return;
         }
         CViewObjectsExt::ThisPlacedCT = tileSet.ConnectedTile[index];
@@ -3921,7 +3892,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             {
                 if (CViewObjectsExt::LastPlacedCT.GetNextDirection() != facing)
                 {
-                    handleExit();
                     return;
                 }
             }
@@ -4156,7 +4126,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             }
         }
 
-        handleExit();
         return;
     }
 
@@ -4349,11 +4318,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             }
         }
     }
-
-    if (CViewObjectsExt::CliffConnectionHeight < 0)
-        CViewObjectsExt::CliffConnectionHeight = 0;
-    if (CViewObjectsExt::CliffConnectionHeight > 14)
-        CViewObjectsExt::CliffConnectionHeight = 14;
 
     if (place)
     {

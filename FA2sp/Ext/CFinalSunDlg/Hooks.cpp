@@ -388,8 +388,12 @@ DEFINE_HOOK(4340F0, CFinalSunDlg_Tools_ChangeMapHeight, 7)
             {
                 CMapData::Instance->CellDatas[i].Height =
                     std::clamp(CMapData::Instance->CellDatas[i].Height + nDelta, 0, 14);
-            }
 
+                int x = CMapData::Instance->GetXFromCoordIndex(i);
+                int y = CMapData::Instance->GetYFromCoordIndex(i);
+                CMapData::Instance->UpdateMapPreviewAt(x, y);
+            }
+            pThis->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
             pThis->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
         }
         else

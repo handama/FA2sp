@@ -860,6 +860,24 @@ void CMapDataExt::GenerateNoiseSlopeTerrain(
         {
             int thisX = CMapData::Instance->GetXFromCoordIndex(i);
             int thisY = CMapData::Instance->GetYFromCoordIndex(i);
+            int loops[3] = { 0, -1, 1 };
+            for (int i : loops)
+                for (int e : loops)
+                {
+                    int newX = thisX + i;
+                    int newY = thisY + e;
+                    int pos = CMapData::Instance->GetCoordIndex(newX, newY);
+                    if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
+                    CMapDataExt::CellDataExts[pos].CreateSlope = true;
+                }
+        }
+    }
+    for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
+    {
+        if (CMapDataExt::CellDataExts[i].CreateSlope)
+        {
+            int thisX = CMapData::Instance->GetXFromCoordIndex(i);
+            int thisY = CMapData::Instance->GetYFromCoordIndex(i);
             CMapDataExt::CreateSlopeAt(thisX, thisY);
         }
     }

@@ -2991,14 +2991,14 @@ void CMapDataExt::CheckCellRise(bool steep, int loopCount, bool IgnoreMorphable,
 						|| (w && se && sw && w->Height - cell->Height > 0 && sw->Height - cell->Height <= 0 && se->Height - cell->Height > 0);
 
 					int tallerCount = 0;
-					if (n && (n->Height - cell->Height > 0 || !isMorphable(n))) tallerCount++;
-					if (s && (s->Height - cell->Height > 0 || !isMorphable(s))) tallerCount++;
-					if (w && (w->Height - cell->Height > 0 || !isMorphable(w))) tallerCount++;
-					if (e && (e->Height - cell->Height > 0 || !isMorphable(e))) tallerCount++;
-					if (nw && (nw->Height - cell->Height > 0 || !isMorphable(nw))) tallerCount++;
-					if (ne && (ne->Height - cell->Height > 0 || !isMorphable(ne))) tallerCount++;
-					if (sw && (sw->Height - cell->Height > 0 || !isMorphable(sw))) tallerCount++;
-					if (se && (se->Height - cell->Height > 0 || !isMorphable(se))) tallerCount++;
+					if (n && (n->Height - cell->Height > 0)) tallerCount++;
+					if (s && (s->Height - cell->Height > 0)) tallerCount++;
+					if (w && (w->Height - cell->Height > 0)) tallerCount++;
+					if (e && (e->Height - cell->Height > 0)) tallerCount++;
+					if (nw && (nw->Height - cell->Height > 0)) tallerCount++;
+					if (ne && (ne->Height - cell->Height > 0)) tallerCount++;
+					if (sw && (sw->Height - cell->Height > 0)) tallerCount++;
+					if (se && (se->Height - cell->Height > 0)) tallerCount++;
 
 					if (!trigger && tallerCount < 6) continue;
 

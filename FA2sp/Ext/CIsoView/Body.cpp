@@ -4599,21 +4599,23 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                             if (tileData.TileBlockDatas[p].ImageData != NULL)
                             {
                                 int mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
-
-                                Map->SetHeightAt(Map->GetXFromCoordIndex(mypos),
-                                    Map->GetYFromCoordIndex(mypos),
-                                    startheight + tileData.TileBlockDatas[p].Height);
-
-                                auto tileSet = tileData.TileSet;
-                                bool isBridge = (tileSet == CMapDataExt::BridgeSet || tileSet == CMapDataExt::WoodBridgeSet);
-
                                 auto cell = Map->GetCellAt(mypos);
-                                cell->TileIndex = tile;
-                                cell->TileSubIndex = p;
-                                cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
 
-                                CMapData::Instance->UpdateMapPreviewAt(Map->GetXFromCoordIndex(mypos),
-                                    Map->GetYFromCoordIndex(mypos));
+                                if (!(ExtConfigs::PlaceTileSkipHide && cell->IsHidden()))
+                                {
+                                    Map->SetHeightAt(Map->GetXFromCoordIndex(mypos),
+                                        Map->GetYFromCoordIndex(mypos),
+                                        startheight + tileData.TileBlockDatas[p].Height);
+
+                                    auto tileSet = tileData.TileSet;
+                                    bool isBridge = (tileSet == CMapDataExt::BridgeSet || tileSet == CMapDataExt::WoodBridgeSet);
+
+                                    cell->TileIndex = tile;
+                                    cell->TileSubIndex = p;
+                                    cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
+                                    CMapData::Instance->UpdateMapPreviewAt(Map->GetXFromCoordIndex(mypos),
+                                        Map->GetYFromCoordIndex(mypos));
+                                }
                             }
                         p++;
                     }
@@ -4693,21 +4695,25 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                             if (block && block->ImageData != NULL)
                             {
                                 int mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
-                                auto tileData = CMapDataExt::TileData[tile.TileIndex];
-                                auto tileSet = tileData.TileSet;
-                                bool isBridge = (tileSet == CMapDataExt::BridgeSet || tileSet == CMapDataExt::WoodBridgeSet);
-
-                                Map->SetHeightAt(Map->GetXFromCoordIndex(mypos),
-                                    Map->GetYFromCoordIndex(mypos),
-                                    startheight + tile.GetHeight());
-
                                 auto cell = Map->GetCellAt(mypos);
-                                cell->TileIndex = tile.TileIndex;
-                                cell->TileSubIndex = tile.SubTileIndex;
-                                cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
 
-                                CMapData::Instance->UpdateMapPreviewAt(Map->GetXFromCoordIndex(mypos),
-                                    Map->GetYFromCoordIndex(mypos));
+                                if (!(ExtConfigs::PlaceTileSkipHide && cell->IsHidden()))
+                                {
+                                    auto tileData = CMapDataExt::TileData[tile.TileIndex];
+                                    auto tileSet = tileData.TileSet;
+                                    bool isBridge = (tileSet == CMapDataExt::BridgeSet || tileSet == CMapDataExt::WoodBridgeSet);
+
+                                    Map->SetHeightAt(Map->GetXFromCoordIndex(mypos),
+                                        Map->GetYFromCoordIndex(mypos),
+                                        startheight + tile.GetHeight());
+
+                                    cell->TileIndex = tile.TileIndex;
+                                    cell->TileSubIndex = tile.SubTileIndex;
+                                    cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
+
+                                    CMapData::Instance->UpdateMapPreviewAt(Map->GetXFromCoordIndex(mypos),
+                                        Map->GetYFromCoordIndex(mypos));
+                                }
                             }
                         }
                         p++;

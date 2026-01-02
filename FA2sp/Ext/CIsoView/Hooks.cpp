@@ -178,28 +178,6 @@ DEFINE_HOOK(46D620, CIsoView_FillArea, 9)
 	return 0x46D808;
 }
 
-DEFINE_HOOK(461C3E, CIsoView_OnLButtonDown_PlaceTile_SkipHide, 6)
-{
-	if (!ExtConfigs::PlaceTileSkipHide)
-		return 0;
-
-	GET_BASE(int, X, -0x64);
-	GET(int, Y, EDX);
-	const auto cell = CMapData::Instance->TryGetCellAt(X, Y);
-	return cell->IsHidden() ? 0x4622F2 : 0;
-}
-
-DEFINE_HOOK(457648, CIsoView_OnMouseMove_PlaceTile_SkipHide, B)
-{
-	if (!ExtConfigs::PlaceTileSkipHide)
-		return 0;
-
-	GET_STACK(int, X, STACK_OFFS(0x3D528, 0x3D4E0));
-	GET(int, Y, EAX);
-	const auto cell = CMapData::Instance->TryGetCellAt(X, Y);
-	return cell->IsHidden() ? 0x457D11 : 0;
-}
-
 DEFINE_HOOK(4691D0, CIsoView_ReInitializeDDraw_Begin, 6)
 {
 	CIsoViewExt::ReInitializingDDraw = true;

@@ -95,9 +95,12 @@ DEFINE_HOOK(460F00, CIsoView_ScreenCoord2MapCoord_Height, 7)
 
 DEFINE_HOOK(461167, CIsoView_ScreenCoord2MapCoord_Height_TileData, 6)
 {
-	R->ECX(&CMapDataExt::TileData);
-
-	return 0x46116D;
+	if (!CMapData::Instance->MapWidthPlusHeight)
+	{
+		R->ECX(&CMapDataExt::TileData);
+		return 0x46116D;
+	}
+	return 0;
 }
 
 DEFINE_HOOK(466890, CIsoView_ScreenCoord2MapCoord_Flat, 8)

@@ -4603,7 +4603,17 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                                 Map->SetHeightAt(Map->GetXFromCoordIndex(mypos),
                                     Map->GetYFromCoordIndex(mypos),
                                     startheight + tileData.TileBlockDatas[p].Height);
-                                Map->SetTileAt(mypos, tile, p);
+
+                                auto tileSet = tileData.TileSet;
+                                bool isBridge = (tileSet == CMapDataExt::BridgeSet || tileSet == CMapDataExt::WoodBridgeSet);
+
+                                auto cell = Map->GetCellAt(mypos);
+                                cell->TileIndex = tile;
+                                cell->TileSubIndex = p;
+                                cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
+
+                                CMapData::Instance->UpdateMapPreviewAt(Map->GetXFromCoordIndex(mypos),
+                                    Map->GetYFromCoordIndex(mypos));
                             }
                         p++;
                     }

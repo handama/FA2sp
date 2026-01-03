@@ -807,9 +807,11 @@ DEFINE_HOOK(46C38B, CIsoView_DrawMouseAttachedStuff_Ore, 9)
 					continue;
 
 				int curPos = dwPos + i + e * pMapData->MapWidthPlusHeight;
-				int curground = pMapData->GetSafeTileIndex(pMapData->GetCellAt(curPos)->TileIndex);
+				auto cell = pMapData->GetCellAt(curPos);
+				int curground = pMapData->GetSafeTileIndex(cell->TileIndex);
+				auto& tileData = pMapData->TileData[curground];
 
-				if (pMapData->TileData[curground].AllowTiberium)
+				if (tileData.AllowTiberium && tileData.TileBlockDatas[cell->TileSubIndex].RampType == 0)
 				{
 					int targetOre;
 					if (param == 2)

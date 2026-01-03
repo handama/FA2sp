@@ -716,9 +716,29 @@ DEFINE_HOOK(45EC1A, CIsoView_OnCommand_HandleProperty, A)
 
 DEFINE_HOOK(46CB77, CIsoView_DrawMouseAttachedStuff_Overlay_1, 6)
 {
-	GET(int, pos, ESI);
-	CMapDataExt::GetExtension()->SetNewOverlayAt(pos, CIsoView::CurrentCommand->Overlay);
-	return 0x46CB89;
+	GET(int, dwPos, ESI);
+
+	auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+	auto pMapData = CMapDataExt::GetExtension();
+	int X = CMapData::Instance->GetXFromCoordIndex(dwPos);
+	int Y = CMapData::Instance->GetYFromCoordIndex(dwPos);
+	for (int i = 0; i < pIsoView->BrushSizeX; i++)
+	{
+		for (int e = 0; e < pIsoView->BrushSizeY; e++)
+		{
+			if (!pMapData->IsCoordInMap(i + X, e + Y))
+				continue;
+
+			int curPos = dwPos + i + e * pMapData->MapWidthPlusHeight;
+			int curground = pMapData->GetSafeTileIndex(pMapData->GetCellAt(curPos)->TileIndex);
+
+			pMapData->SetNewOverlayAt(curPos, CIsoView::CurrentCommand->Overlay);
+			pMapData->SetOverlayDataAt(curPos, 0);
+			pIsoView->HandleTrail(i + X, e + Y);
+		}
+	}
+
+	return 0x46CC86;
 }
 
 DEFINE_HOOK(46CC03, CIsoView_DrawMouseAttachedStuff_Overlay_2, 5)

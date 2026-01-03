@@ -22,6 +22,7 @@
 #include "../CSearhReference/CSearhReference.h"
 #include <chrono>
 #include "../CTriggerAnnotation/CTriggerAnnotation.h"
+#include "../CNewAITrigger/CNewAITrigger.h"
 
 HWND CNewTeamTypes::m_hwnd;
 CFinalSunDlg* CNewTeamTypes::m_parent;
@@ -404,6 +405,7 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 map.WriteString(CurrentTeamID, "Name", buffer);
 
                 DropNeedUpdate = true;
+                CNewAITrigger::TeamListChanged = true;
 
                 FString name;
                 name.Format("%s (%s)", CurrentTeamID, buffer);
@@ -1409,10 +1411,10 @@ void CNewTeamTypes::OnClickNewTeam()
     map.WriteString(value, "TransportsReturnOnUnload", "no");
     map.WriteString(value, "AreTeamMembersRecruitable", "no");
 
-
     ExtraWindow::SortTeams(hSelectedTeam, "TeamTypes", SelectedTeamIndex, value);
 
     OnSelchangeTeamtypes();
+    CNewAITrigger::TeamListChanged = true;
 }
 
 void CNewTeamTypes::OnClickDelTeam(HWND& hWnd)
@@ -1447,6 +1449,7 @@ void CNewTeamTypes::OnClickDelTeam(HWND& hWnd)
         idx = 0;
     SendMessage(hSelectedTeam, CB_SETCURSEL, idx, NULL);
     OnSelchangeTeamtypes();
+    CNewAITrigger::TeamListChanged = true;
 }
 
 void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
@@ -1511,6 +1514,7 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
         ExtraWindow::SortTeams(hSelectedTeam, "TeamTypes", SelectedTeamIndex, value);
 
         OnSelchangeTeamtypes();
+        CNewAITrigger::TeamListChanged = true;
     }
 }
 

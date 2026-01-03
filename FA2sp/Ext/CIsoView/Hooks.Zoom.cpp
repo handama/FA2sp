@@ -78,7 +78,7 @@ DEFINE_HOOK(460F00, CIsoView_ScreenCoord2MapCoord_Height, 7)
 	GET_STACK(int*, X, 0x4);
 	GET_STACK(int*, Y, 0x8);
 
-	if (!CMapData::Instance->MapWidthPlusHeight || !CMapDataExt::TileData)
+	if (!CMapData::Instance->MapWidthPlusHeight || !CTileTypeClass::Instance)
 	{
 		*X = 0;
 		*Y = 0;

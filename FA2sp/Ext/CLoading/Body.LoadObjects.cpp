@@ -580,7 +580,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 				FString customPal = "";
 				if (!CINI::Art->GetBool(*pStr, "ShouldUseCellDrawer", true)) {
 					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
-					customPal.Replace("~~~", GetTheaterSuffix());
+					GetFullPaletteName(customPal);
 				}
 				int deltaX = CINI::Art->GetInteger(*pStr, "XDrawOffset");
 				int deltaY = CINI::Art->GetInteger(*pStr, "YDrawOffset");
@@ -988,7 +988,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 				FString customPal = "";
 				if (!CINI::Art->GetBool(*pStr, "ShouldUseCellDrawer", true)) {
 					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
-					customPal.Replace("~~~", GetTheaterSuffix());
+					GetFullPaletteName(customPal);
 				}
 				int deltaX = CINI::Art->GetInteger(*pStr, "XDrawOffset");
 				int deltaY = CINI::Art->GetInteger(*pStr, "YDrawOffset");
@@ -1009,7 +1009,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 				FString customPal = "";
 				if (!CINI::Art->GetBool(*pStr, "ShouldUseCellDrawer", true)) {
 					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
-					customPal.Replace("~~~", GetTheaterSuffix());
+					GetFullPaletteName(customPal);
 				}
 				loadSingleFrameShape(*pStr, nStartFrame, 0, 0, customPal);
 			}
@@ -2776,6 +2776,7 @@ void CLoadingExt::GetFullPaletteName(FString& PaletteName)
 		(PaletteName[len - 2] == 'a' || PaletteName[len - 2] == 'A') &&
 		(PaletteName[len - 1] == 'l' || PaletteName[len - 1] == 'L'))
 	{
+		PaletteName.Replace("~~~", GetTheaterSuffix());
 		return;
 	}
 
@@ -3730,7 +3731,7 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 					Palette* cellAnimPal = nullptr;
 					if (istiberium)
 						customPal = "unit~~~.pal";
-					customPal.Replace("~~~", GetTheaterSuffix());
+					GetFullPaletteName(customPal);
 					if (customPal != "")
 					{
 						if (istiberium)

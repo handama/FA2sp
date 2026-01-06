@@ -301,11 +301,10 @@ static void DrawTechnoAttachments
 				int parentFacing = (oriFacing * ParentFacings / 256) % ParentFacings;
 
 				int newFacing = 0;
-				if (Variables::RulesMap.GetBool(info.ID, "Turret"))
+				if (facings > 1)
 				{
-					int FacingCount = CLoadingExt::GetAvailableFacing(info.ID);
-					newFacing = (FacingCount + 7 * FacingCount / 8 - 
-						((oriFacing + info.RotationAdjust) * FacingCount / 256) % FacingCount) % FacingCount;
+					newFacing = (facings + 7 * facings / 8 -
+						((oriFacing + info.RotationAdjust) * facings / 256) % facings) % facings;
 				}
 
 				auto imageName = CLoadingExt::GetBuildingImageName(info.ID, newFacing, 0, isShadow);
@@ -1084,9 +1083,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							}
 
 							int nFacing = 0;
-							if (Variables::RulesMap.GetBool(objRender.ID, "Turret"))
+							int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
+							if (FacingCount > 1)
 							{
-								int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
 								nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
 							}
 
@@ -2024,7 +2023,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						auto draw = [&]
 						{
 							int nFacing = 0;
-							if (Variables::RulesMap.GetBool(objRender.ID, "Turret"))
+							int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
+							if (FacingCount > 1)
 							{
 								int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
 								nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;

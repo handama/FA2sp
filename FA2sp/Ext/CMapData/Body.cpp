@@ -2285,7 +2285,29 @@ void ObjectRecord::recover()
 	}
 	if (recordFlags & RecordType::Waypoint)
 	{
+		std::map<int, FString> oriWps;
+		if (map->IsMultiOnly())
+			if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+				for (const auto& data : pSection->GetEntities())
+					oriWps[atoi(data.first)] = data.second;
 		recoverIniMap("Waypoints", WaypointList);
+		if (map->IsMultiOnly())
+		{
+			for (int i = 0; i < map->CellDataCount; ++i)
+				map->CellDatas[i].Waypoint = -1;
+			for (const auto& data : oriWps)
+			{
+				if (data.first < 8)
+				{
+					int x = atoi(data.second) / 1000;
+					int y = atoi(data.second) % 1000;
+					int k, l;
+					for (k = -1; k < 2; k++)
+						for (l = -1; l < 2; l++)
+							map->UpdateMapPreviewAt(x + k, y + l);
+				}
+			}
+		}
 		map->UpdateFieldWaypointData(false);
 	}
 	if (recordFlags & RecordType::Celltag)

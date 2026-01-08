@@ -866,10 +866,12 @@ DEFINE_HOOK(457336, CIsoView_OnMouseMove_PlaceTile, 6)
 	const int& y = point.Y;
 	CIsoView::CancelDraw = true;
 
+	CMapDataExt::RecordingPreviewHistory = true;
 	pIsoView->PlaceTileOnMouse(x, y, nFlags, true);
 
 	CIsoView::CancelDraw = false;		
 	pIsoView->Draw();
+	CMapDataExt::RecordingPreviewHistory = true;
 	CMapData::Instance->DoUndo();
 	pIsoView->Drag = FALSE;
 
@@ -1528,18 +1530,6 @@ DEFINE_HOOK(469BED, CIsoView_HandleTrail_Range_2, 8)
 	R->Stack<int>(STACK_OFFS(0x14, -0x8), R->EBP() - 2);
 	R->EBP(R->EBP() + 2);
 	return 0x469BF5;
-}
-
-DEFINE_HOOK(4574A0, CIsoView_OnMouseMove_MakePreviewRecord, 7)
-{
-	CMapDataExt::RecordingPreviewHistory = true;
-	return 0;
-}
-
-DEFINE_HOOK(459AB9, CIsoView_OnMouseMove_RestorePreviewRecord, 5)
-{
-	CMapDataExt::RecordingPreviewHistory = true;
-	return 0;
 }
 
 DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)

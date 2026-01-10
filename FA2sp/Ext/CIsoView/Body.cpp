@@ -69,6 +69,7 @@ bool CIsoViewExt::RenderEmphasizeOres = false;
 bool CIsoViewExt::RenderMarkStartings = false;
 bool CIsoViewExt::RenderIgnoreObjects = false;
 bool CIsoViewExt::RenderSaveAsPNG = false;
+bool CIsoViewExt::EnableAutoTrack = false;
 RendererLighting CIsoViewExt::RenderLighing = RendererLighting::Current;
 
 bool CIsoViewExt::AutoPropertyBrush[4] = { false };

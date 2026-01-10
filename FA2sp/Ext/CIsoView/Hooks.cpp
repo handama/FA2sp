@@ -1525,6 +1525,13 @@ DEFINE_HOOK(469B71, CIsoView_HandleTrail_Range, 8)
 	return 0x469B79;
 }
 
+DEFINE_HOOK(469BA5, CIsoView_HandleTrail_Track, A)
+{
+	if (!CIsoViewExt::EnableAutoTrack)
+		return 0x469BC9;
+	return 0;
+}
+
 DEFINE_HOOK(469BED, CIsoView_HandleTrail_Range_2, 8)
 {
 	R->Stack<int>(STACK_OFFS(0x14, -0x8), R->EBP() - 2);

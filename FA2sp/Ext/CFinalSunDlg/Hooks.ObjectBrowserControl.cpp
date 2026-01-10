@@ -14,6 +14,7 @@
 #include "../CMapData/Body.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
+#include "../../Helpers/Helper.h"
 
 DEFINE_HOOK(51CD20, CViewObjects_Redraw, 7)
 {
@@ -778,6 +779,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
             {
                 if (command.Type == 6) // overlay
                 {
+                    TempValueHolder<bool> track(CIsoViewExt::EnableAutoTrack, true);
                     pMap->SaveUndoRedoData(true, 0, 0, 0, 0);
                     std::vector<int> randomRockList;
                     if (CViewObjectsExt::PlacingRandomRock >= 0)
@@ -823,7 +825,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                             return 0;
                         }
                         else
-                        {
+                        {                           
                             CIsoView::GetInstance()->DrawMouseAttachedStuff(mc.X, mc.Y);
                         }
                     }

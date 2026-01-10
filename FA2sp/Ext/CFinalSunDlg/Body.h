@@ -204,7 +204,8 @@ public:
         Const_House = 70000, Const_Smudge = 80000, Const_PropertyBrush = 90000,
         Const_InfantrySubCell = 100000, Const_BaseNode = 110000, Const_ViewObjectInfo = 120000,
         Const_MultiSelection = 130000, Const_ConnectedTile = 140000, Const_Annotation = 150000,
-        Const_WPColor = 160001, Const_TagColor = 160002, Const_RemoveWPColor = 160003, Const_RemoveTagColor = 160004
+        Const_WPColor = 160001, Const_TagColor = 160002, Const_RemoveWPColor = 160003, Const_RemoveTagColor = 160004,
+        Const_Track = 160005
     };
     static std::unordered_map<int, ConnectedTileInfo> TreeView_ConnectedTileMap;
     static int CurrentConnectedTileType;

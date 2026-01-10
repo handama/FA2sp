@@ -1682,8 +1682,6 @@ void CViewObjectsExt::Redraw_Overlay()
     HTREEITEM& hOverlay = ExtNodes[Root_Overlay];
     if (hOverlay == NULL)   return;
 
-    auto& rules = CINI::Rules();
-
     HTREEITEM hTemp;
     hTemp = this->InsertTranslatedString("DelOvrlObList", -1, hOverlay);
     this->InsertTranslatedString("DelOvrl0ObList", 60100, hTemp);
@@ -1730,19 +1728,36 @@ void CViewObjectsExt::Redraw_Overlay()
     // Walls
     HTREEITEM hWalls = this->InsertTranslatedString("WallsObList", -1, hOverlay);
 
+    std::vector<std::pair<HTREEITEM, std::vector<FString>>> nodes;
+    if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.Overlays"))
+    {
+        std::map<int, FString> collector;
+
+        for (auto& pair : pSection->GetIndices())
+            collector[pair.second] = pair.first;
+
+        for (auto& pair : collector)
+        {
+            const auto& contains = FString::SplitString(pair.second, "|");
+            const auto& translation = pSection->GetEntities().find(pair.second)->second;
+
+            if (!IsIgnored(translation))
+                nodes.push_back(std::make_pair(this->InsertTranslatedString(translation, -1, hOverlay), contains));
+        }
+    }
+
     hTemp = this->InsertTranslatedString("AllObList", -1, hOverlay);
 
     this->InsertTranslatedString("OvrlManuallyObList", 60001, hOverlay);
     this->InsertTranslatedString("OvrlDataManuallyObList", 60002, hOverlay);
 
-    if (!rules.SectionExists("OverlayTypes"))
+    if (Variables::RulesMap.GetSection("OverlayTypes").empty())
         return;
 
     // a rough support for tracks
-
     InsertingOverlay = 39;
     InsertingOverlayData = 0;
-    this->InsertTranslatedString("Tracks", Const_Overlay + 39, hOverlay);
+    this->InsertTranslatedString("Tracks", Const_Track, hOverlay);
     InsertingOverlay = -1;
 
     const auto& overlays = Variables::RulesMap.ParseIndicies("OverlayTypes", true);
@@ -1758,41 +1773,58 @@ void CViewObjectsExt::Redraw_Overlay()
             buffer += " (" + value + ")";
         FString id;
         id.Format("%03d %s", i, buffer);
-        if (rules.GetBool(value, "Wall"))
-        {
-            int damageLevel = CINI::Art().GetInteger(value, "DamageLevels", 1);
-            CViewObjectsExt::WallDamageStages[i] = damageLevel;
-            InsertingOverlay = i;
-            InsertingOverlayData = 5;
-            auto thisWall = this->InsertString(
-                QueryUIName(value),
-                Const_Overlay + i * 5 + indexWall,
-                hWalls
-            );
-
-            for (int s = 1; s < damageLevel + 1; s++)
-            {
-                FString damage;
-                damage.Format("WallDamageLevelDes%d", s);
-                this->InsertString(
-                    QueryUIName(value) + " " + Translations::TranslateOrDefault(damage, damage),
-                    Const_Overlay + i * 5 + s + indexWall,
-                    thisWall
-                );
-                InsertingOverlayData += 16;
-            }
-            InsertingOverlay = -1;
-            if (damageLevel > 1)
-            {
-                this->InsertString(
-                    QueryUIName(value) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
-                    Const_Overlay + i * 5 + 4 + indexWall,
-                    thisWall);
-            }
-        }
 
         if (IgnoreSet.find(value) == IgnoreSet.end())
         {
+            if (Variables::RulesMap.GetBool(value, "Wall"))
+            {
+                int damageLevel = CINI::Art().GetInteger(value, "DamageLevels", 1);
+                CViewObjectsExt::WallDamageStages[i] = damageLevel;
+                InsertingOverlay = i;
+                InsertingOverlayData = 5;
+                auto thisWall = this->InsertString(
+                    QueryUIName(value),
+                    Const_Overlay + i * 5 + indexWall,
+                    hWalls
+                );
+
+                for (int s = 1; s < damageLevel + 1; s++)
+                {
+                    FString damage;
+                    damage.Format("WallDamageLevelDes%d", s);
+                    this->InsertString(
+                        QueryUIName(value) + " " + Translations::TranslateOrDefault(damage, damage),
+                        Const_Overlay + i * 5 + s + indexWall,
+                        thisWall
+                    );
+                    InsertingOverlayData += 16;
+                }
+                InsertingOverlay = -1;
+                if (damageLevel > 1)
+                {
+                    this->InsertString(
+                        QueryUIName(value) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
+                        Const_Overlay + i * 5 + 4 + indexWall,
+                        thisWall);
+                }
+            }
+            for (const auto& node : nodes)
+            {
+                for (const auto& match : node.second)
+                {
+                    if (overlays[i].Find(match.c_str()) >= 0)
+                    {
+                        InsertingOverlay = i;
+                        if (CMapDataExt::IsOre((byte)i))
+                            InsertingOverlayData = 11;
+                        else
+                            InsertingOverlayData = 0;
+                        this->InsertString(id, Const_Overlay + i, node.first);
+                        break;
+                    }
+                }
+            }
+
             InsertingOverlay = i;
             if (CMapDataExt::IsOre((byte)i))
                 InsertingOverlayData = 11;
@@ -1802,7 +1834,6 @@ void CViewObjectsExt::Redraw_Overlay()
         }
         InsertingOverlay = -1;
     }
-
 
     HTREEITEM hTemp2 = this->InsertTranslatedString("PlaceRandomOverlayList", -1, hOverlay);
     if (auto pSection = CINI::FAData().GetSection("PlaceRandomOverlayList"))
@@ -1832,6 +1863,15 @@ void CViewObjectsExt::Redraw_Overlay()
                 }
             }
             index++;
+        }
+    }
+    // Clear up
+    if (ExtConfigs::ObjectBrowser_CleanUp)
+    {
+        for (auto& subnode : nodes)
+        {
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.first))
+                this->GetTreeCtrl().DeleteItem(subnode.first);
         }
     }
 }
@@ -3160,6 +3200,7 @@ void CViewObjectsExt::InitializeOnUpdateEngine()
     CViewObjectsExt::PlacingWall = -1;
     CViewObjectsExt::PlacingRandomRandomFacing = false;
     CViewObjectsExt::NeedChangeTreeViewSelect = true;
+    CIsoViewExt::EnableAutoTrack = false;
 
     CViewObjectsExt::CliffConnectionCoord.X = -1;
     CViewObjectsExt::CliffConnectionCoord.Y = -1;
@@ -3945,6 +3986,16 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     {
         CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
         CIsoView::CurrentCommand->Type = 3;
+        return true;
+    }
+    if (oriNData == Const_Track)
+    {
+        CIsoViewExt::EnableAutoTrack = true;
+        CIsoView::CurrentCommand->Command = 0x1;
+        CIsoView::CurrentCommand->Type = 6;
+        CIsoView::CurrentCommand->Param = 30;
+        CIsoView::CurrentCommand->Overlay = 39;
+        CIsoView::CurrentCommand->OverlayData = 0;
         return true;
     }
     // 0x1F Terrain Generator

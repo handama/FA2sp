@@ -1894,6 +1894,10 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 
 		FString barlFileName = ImageID + "barl.vxl";
 		FString barlHVAName = ImageID + "barl.hva";
+
+		if (!VoxelDrawer::IsVPLLoaded())
+			VoxelDrawer::LoadVPLFile("voxels.vpl");
+
 		bool hasVoxelBarl = bHasTurret && VoxelDrawer::LoadVXLFile(barlFileName) && VoxelDrawer::LoadHVAFile(barlHVAName);
 		if (hasVoxelBarl)
 		{

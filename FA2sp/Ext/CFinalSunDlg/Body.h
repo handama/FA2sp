@@ -216,6 +216,7 @@ public:
 private:
     static std::array<HTREEITEM, Root_Count> ExtNodes;
     static std::unordered_set<FString> IgnoreSet;
+    static std::unordered_set<FString> IgnoreOverlaySet;
     static std::unordered_set<FString> ForceName;
     static std::unordered_map<FString, FString> RenameString;
     static std::unordered_set<FString> ExtSets[Set_Count];

@@ -29,6 +29,7 @@ namespace fs = std::filesystem;
 
 std::array<HTREEITEM, CViewObjectsExt::Root_Count> CViewObjectsExt::ExtNodes;
 std::unordered_set<FString> CViewObjectsExt::IgnoreSet;
+std::unordered_set<FString> CViewObjectsExt::IgnoreOverlaySet;
 std::unordered_set<FString> CViewObjectsExt::ForceName;
 std::unordered_map<FString, FString> CViewObjectsExt::RenameString;
 std::unordered_set<FString> CViewObjectsExt::ExtSets[Set_Count];
@@ -494,6 +495,7 @@ void CViewObjectsExt::Redraw_Initialize()
         root = NULL;
     KnownItem.clear();
     IgnoreSet.clear();
+    IgnoreOverlaySet.clear();
     ForceName.clear();
     RenameString.clear();
     Owners.clear();
@@ -559,17 +561,11 @@ void CViewObjectsExt::Redraw_Initialize()
             IgnoreSet.insert(item.second);
         }
 
-    auto theaterIg = doc.GetString("Map", "Theater");
-    if (theaterIg != "")
-	{
-		if (theaterIg == "NEWURBAN")
-			theaterIg = "UBN";
-
-        FString suffix = theaterIg.Mid(0, 3);
-		if (auto theater_ignores = fadata.GetSection((FString)("IgnoreRA2" + suffix)))
-			for (auto& item : theater_ignores->GetEntities())
-				IgnoreSet.insert(item.second);
-	}
+    if (auto ignores = fadata.GetSection("IgnoreOverlays"))
+        for (auto& item : ignores->GetEntities())
+        {
+            IgnoreOverlaySet.insert(item.second);
+        }
 
     if (auto forcenames = fadata.GetSection("ForceName"))
         for (auto& item : forcenames->GetEntities())
@@ -582,19 +578,29 @@ void CViewObjectsExt::Redraw_Initialize()
         {
             RenameString[item.first] = item.second;
         }
+
+    auto theaterIg = doc.GetString("Map", "Theater");
     if (theaterIg != "")
-    {
-        if (theaterIg == "NEWURBAN")
-            theaterIg = "UBN";
+	{
+		if (theaterIg == "NEWURBAN")
+			theaterIg = "UBN";
 
         FString suffix = theaterIg.Mid(0, 3);
+        suffix.MakeUpper();
+		if (auto theater_ignores = fadata.GetSection((FString)("IgnoreRA2" + suffix)))
+			for (auto& item : theater_ignores->GetEntities())
+				IgnoreSet.insert(item.second);
+
+		if (auto theater_ignores = fadata.GetSection((FString)("IgnoreOverlays" + suffix)))
+			for (auto& item : theater_ignores->GetEntities())
+                IgnoreOverlaySet.insert(item.second);
 
         if (auto forcenames = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("RenameString") + suffix))
             for (auto& item : forcenames->GetEntities())
             {
                 RenameString[item.first] = item.second;
             }
-    }
+	}
 }
 
 void CViewObjectsExt::Redraw_MainList()
@@ -1767,65 +1773,65 @@ void CViewObjectsExt::Redraw_Overlay()
         overlays.size() : std::min((UINT)255, overlays.size()); i < sz; ++i)
     {
         const auto& value = overlays[i];
-        FString buffer;
-        buffer = QueryUIName(value);
-        if (buffer != value)
-            buffer += " (" + value + ")";
-        FString id;
-        id.Format("%03d %s", i, buffer);
-
-        if (Variables::RulesMap.GetBool(value, "Wall"))
+        if (IgnoreOverlaySet.find(value) == IgnoreOverlaySet.end())
         {
-            int damageLevel = CINI::Art().GetInteger(value, "DamageLevels", 1);
-            CViewObjectsExt::WallDamageStages[i] = damageLevel;
-            InsertingOverlay = i;
-            InsertingOverlayData = 5;
-            auto thisWall = this->InsertString(
-                QueryUIName(value),
-                Const_Overlay + i * 5 + indexWall,
-                hWalls
-            );
+            FString buffer;
+            buffer = QueryUIName(value);
+            if (buffer != value)
+                buffer += " (" + value + ")";
+            FString id;
+            id.Format("%03d %s", i, buffer);
 
-            for (int s = 1; s < damageLevel + 1; s++)
+            if (Variables::RulesMap.GetBool(value, "Wall"))
             {
-                FString damage;
-                damage.Format("WallDamageLevelDes%d", s);
-                this->InsertString(
-                    QueryUIName(value) + " " + Translations::TranslateOrDefault(damage, damage),
-                    Const_Overlay + i * 5 + s + indexWall,
-                    thisWall
+                int damageLevel = CINI::Art().GetInteger(value, "DamageLevels", 1);
+                CViewObjectsExt::WallDamageStages[i] = damageLevel;
+                InsertingOverlay = i;
+                InsertingOverlayData = 5;
+                auto thisWall = this->InsertString(
+                    QueryUIName(value),
+                    Const_Overlay + i * 5 + indexWall,
+                    hWalls
                 );
-                InsertingOverlayData += 16;
-            }
-            InsertingOverlay = -1;
-            if (damageLevel > 1)
-            {
-                this->InsertString(
-                    QueryUIName(value) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
-                    Const_Overlay + i * 5 + 4 + indexWall,
-                    thisWall);
-            }
-        }
 
-        for (const auto& node : nodes)
-        {
-            for (const auto& match : node.second)
-            {
-                if (overlays[i].Find(match.c_str()) >= 0)
+                for (int s = 1; s < damageLevel + 1; s++)
                 {
-                    InsertingOverlay = i;
-                    if (CMapDataExt::IsOre((byte)i))
-                        InsertingOverlayData = 11;
-                    else
-                        InsertingOverlayData = 0;
-                    this->InsertString(id, Const_Overlay + i, node.first);
-                    break;
+                    FString damage;
+                    damage.Format("WallDamageLevelDes%d", s);
+                    this->InsertString(
+                        QueryUIName(value) + " " + Translations::TranslateOrDefault(damage, damage),
+                        Const_Overlay + i * 5 + s + indexWall,
+                        thisWall
+                    );
+                    InsertingOverlayData += 16;
+                }
+                InsertingOverlay = -1;
+                if (damageLevel > 1)
+                {
+                    this->InsertString(
+                        QueryUIName(value) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
+                        Const_Overlay + i * 5 + 4 + indexWall,
+                        thisWall);
                 }
             }
-        }
 
-        if (IgnoreSet.find(value) == IgnoreSet.end())
-        {
+            for (const auto& node : nodes)
+            {
+                for (const auto& match : node.second)
+                {
+                    if (overlays[i].Find(match.c_str()) >= 0)
+                    {
+                        InsertingOverlay = i;
+                        if (CMapDataExt::IsOre((byte)i))
+                            InsertingOverlayData = 11;
+                        else
+                            InsertingOverlayData = 0;
+                        this->InsertString(id, Const_Overlay + i, node.first);
+                        break;
+                    }
+                }
+            }
+
             InsertingOverlay = i;
             if (CMapDataExt::IsOre((byte)i))
                 InsertingOverlayData = 11;
@@ -3164,6 +3170,7 @@ int CViewObjectsExt::GuessGenericSide(const char* pRegName, int nType)
 void CViewObjectsExt::OnExeTerminate()
 {
     IgnoreSet.clear();
+    IgnoreOverlaySet.clear();
     ForceName.clear();
     for (auto& set : ExtSets)
         set.clear();

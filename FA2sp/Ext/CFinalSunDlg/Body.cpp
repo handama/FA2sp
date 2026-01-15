@@ -785,7 +785,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, title, MB_ICONWARNING);
 		}
 	}
-	if (wmID == 40158 && CMapData::Instance->MapWidthPlusHeight)
+	if (wmID == 40158)
 	{
 		if (CLuaConsole::GetHandle() == NULL)
 			CLuaConsole::Create((CFinalSunDlg*)this);

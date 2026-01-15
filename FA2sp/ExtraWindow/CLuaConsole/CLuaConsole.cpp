@@ -234,6 +234,10 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("tag_count", []() { return CINI::CurrentDocument->GetKeyCount("Tags"); });
     Lua.set_function("theater", []() {return CINI::CurrentDocument->GetString("Map", "Theater").m_pchData; });
     Lua.set_function("is_multiplay", []() {return CMapData::Instance->IsMultiOnly(); });
+    Lua.set_function("language", []() {return (std::string)FinalAlertConfig::Language; });
+    Lua.set_function("exe_path", []() {return (std::string)CFinalSunAppExt::ExePathExt; });
+    Lua.set_function("game_path", []() {return std::string(CFinalSunApp::Instance->FilePath); });
+    Lua.set_function("map_path", []() {return std::string(CFinalSunApp::Instance->MapPath); });
 
     // misc functions
     Lua.set_function("print", lua_print);

@@ -1774,57 +1774,58 @@ void CViewObjectsExt::Redraw_Overlay()
         FString id;
         id.Format("%03d %s", i, buffer);
 
+        if (Variables::RulesMap.GetBool(value, "Wall"))
+        {
+            int damageLevel = CINI::Art().GetInteger(value, "DamageLevels", 1);
+            CViewObjectsExt::WallDamageStages[i] = damageLevel;
+            InsertingOverlay = i;
+            InsertingOverlayData = 5;
+            auto thisWall = this->InsertString(
+                QueryUIName(value),
+                Const_Overlay + i * 5 + indexWall,
+                hWalls
+            );
+
+            for (int s = 1; s < damageLevel + 1; s++)
+            {
+                FString damage;
+                damage.Format("WallDamageLevelDes%d", s);
+                this->InsertString(
+                    QueryUIName(value) + " " + Translations::TranslateOrDefault(damage, damage),
+                    Const_Overlay + i * 5 + s + indexWall,
+                    thisWall
+                );
+                InsertingOverlayData += 16;
+            }
+            InsertingOverlay = -1;
+            if (damageLevel > 1)
+            {
+                this->InsertString(
+                    QueryUIName(value) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
+                    Const_Overlay + i * 5 + 4 + indexWall,
+                    thisWall);
+            }
+        }
+
+        for (const auto& node : nodes)
+        {
+            for (const auto& match : node.second)
+            {
+                if (overlays[i].Find(match.c_str()) >= 0)
+                {
+                    InsertingOverlay = i;
+                    if (CMapDataExt::IsOre((byte)i))
+                        InsertingOverlayData = 11;
+                    else
+                        InsertingOverlayData = 0;
+                    this->InsertString(id, Const_Overlay + i, node.first);
+                    break;
+                }
+            }
+        }
+
         if (IgnoreSet.find(value) == IgnoreSet.end())
         {
-            if (Variables::RulesMap.GetBool(value, "Wall"))
-            {
-                int damageLevel = CINI::Art().GetInteger(value, "DamageLevels", 1);
-                CViewObjectsExt::WallDamageStages[i] = damageLevel;
-                InsertingOverlay = i;
-                InsertingOverlayData = 5;
-                auto thisWall = this->InsertString(
-                    QueryUIName(value),
-                    Const_Overlay + i * 5 + indexWall,
-                    hWalls
-                );
-
-                for (int s = 1; s < damageLevel + 1; s++)
-                {
-                    FString damage;
-                    damage.Format("WallDamageLevelDes%d", s);
-                    this->InsertString(
-                        QueryUIName(value) + " " + Translations::TranslateOrDefault(damage, damage),
-                        Const_Overlay + i * 5 + s + indexWall,
-                        thisWall
-                    );
-                    InsertingOverlayData += 16;
-                }
-                InsertingOverlay = -1;
-                if (damageLevel > 1)
-                {
-                    this->InsertString(
-                        QueryUIName(value) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
-                        Const_Overlay + i * 5 + 4 + indexWall,
-                        thisWall);
-                }
-            }
-            for (const auto& node : nodes)
-            {
-                for (const auto& match : node.second)
-                {
-                    if (overlays[i].Find(match.c_str()) >= 0)
-                    {
-                        InsertingOverlay = i;
-                        if (CMapDataExt::IsOre((byte)i))
-                            InsertingOverlayData = 11;
-                        else
-                            InsertingOverlayData = 0;
-                        this->InsertString(id, Const_Overlay + i, node.first);
-                        break;
-                    }
-                }
-            }
-
             InsertingOverlay = i;
             if (CMapDataExt::IsOre((byte)i))
                 InsertingOverlayData = 11;

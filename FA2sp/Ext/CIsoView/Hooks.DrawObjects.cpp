@@ -676,6 +676,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				tileSubIndex = 0;
 			}
 		}
+		tileIndex = CMapDataExt::GetSafeTileIndex(tileIndex);
 
 		CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
 		int tileSet = tile.TileSet;
@@ -748,8 +749,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
 		int tileSetOri = CMapDataExt::TileData[tileIndex].TileSet;
 		int tileSubIndex = cell->TileSubIndex;
-		if (tileIndex >= CMapDataExt::TileDataCount)
-			continue;
 
 		int virtualHeight = cell->Height;
 		if (CFinalSunApp::Instance->FrameMode)
@@ -764,6 +763,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				tileSubIndex = 0;
 			}
 		}
+		tileIndex = CMapDataExt::GetSafeTileIndex(tileIndex);
 
 		CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
 		int tileSet = tile.TileSet;
@@ -870,6 +870,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								tileSubIndex = 0;
 							}
 						}
+						tileIndex = CMapDataExt::GetSafeTileIndex(tileIndex);
 
 						CTileTypeClass* tile = &CMapDataExt::TileData[tileIndex];
 						int tileSet = tile->TileSet;
@@ -952,6 +953,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				tileSubIndex = 0;
 			}
 		}
+		tileIndex = CMapDataExt::GetSafeTileIndex(tileIndex);
 
 		CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
 		int tileSet = tile.TileSet;
@@ -1665,6 +1667,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							tileSubIndex = 0;
 						}
 					}
+					tileIndex = CMapDataExt::GetSafeTileIndex(tileIndex);
 
 					CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
 					int tileSet = tile.TileSet;
@@ -1731,6 +1734,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								tileSubIndex = 0;
 							}
 						}
+						tileIndex = CMapDataExt::GetSafeTileIndex(tileIndex);
 						drawTerrainAnim(tileIndex, tileSubIndex, x, y);
 					}
 				}

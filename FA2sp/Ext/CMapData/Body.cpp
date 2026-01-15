@@ -433,6 +433,13 @@ void CMapDataExt::GetBuildingDataByIniID(int bldID, CBuildingData& data)
 	data.Nominal = atoms[16];
 }
 
+int CMapDataExt::GetSafeTileIndex(int idx)
+{
+	if (idx >= CMapDataExt::TileDataCount)
+		idx = 0;
+	return idx;
+}
+
 void CMapDataExt::UpdateTriggers()
 {
 	CMapDataExt::Triggers.clear();

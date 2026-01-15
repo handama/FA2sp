@@ -1498,26 +1498,42 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
             auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
 
-            int tileIndex = cell->TileIndex;
-            if (tileIndex == 65535)
-                tileIndex = 0;
+            int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+            int tileUnsafeIndex = cell->TileIndex;
+            int tileSubIndex = cell->TileSubIndex;
+
+            if (CFinalSunApp::Instance->FrameMode)
+            {
+                if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
+                {
+                    tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
+                    tileUnsafeIndex = tileIndex;
+                }
+                else
+                {
+                    tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + cell->Height;
+                    tileUnsafeIndex = tileIndex;
+                    tileSubIndex = 0;
+                }
+            }
+            tileIndex = CMapDataExt::GetSafeTileIndex(tileIndex);
 
             line2.Format(Translations::TranslateOrDefault("ObjectInfo.Tile.1",
                 "Index: %d, SubTile: %d")
-                , tileIndex, cell->TileSubIndex);
+                , tileUnsafeIndex, tileSubIndex);
 
             auto theater = CINI::CurrentTheater();
 
-            if (CMapDataExt::TileData && tileIndex < CMapDataExt::TileDataCount && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
+            if (CMapDataExt::TileData && tileIndex < CMapDataExt::TileDataCount && tileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
             {
-                const auto& tileBlock = CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex];
                 const auto& tile = CMapDataExt::TileData[tileIndex];
+                const auto& tileBlock = tile.TileBlockDatas[tileSubIndex];
 
                 line1.Format(Translations::TranslateOrDefault("ObjectInfo.Tile.2",
-                    "Tile: %s (%d)")
+                    "TileSet: %s (%d)")
                     , Translations::TranslateTileSet(tile.TileSet), tile.TileSet);
 
-                auto ttype = CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex].TerrainType;
+                auto ttype = tileBlock.TerrainType;
                 FString setID;
                 setID.Format("TileSet%04d", tile.TileSet);
                 FString ttypes = "unknown";
@@ -1602,8 +1618,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             else
             {
                 line1.Format(Translations::TranslateOrDefault("ObjectInfo.Tile.2",
-                    "Tile: %s (%d)")
-                    , "MISSING", tileIndex);
+                    "TileSet: %s (%d)")
+                    , "MISSING", -1);
 
                 ::SetBkColor(hDC, RGB(0, 255, 255));
                 ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());

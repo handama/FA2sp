@@ -261,6 +261,7 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
                 iTileIndex = CMapDataExt::TileData[iTileIndex].FrameModeIndex;
             }
         }
+        iTileIndex = CMapDataExt::GetSafeTileIndex(iTileIndex);
         auto& tile = CMapDataExt::TileData[iTileIndex];
 
         auto pIsoView = CIsoView::GetInstance();

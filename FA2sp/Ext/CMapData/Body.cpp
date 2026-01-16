@@ -3623,6 +3623,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 
 					if (Variables::RulesMap.GetBool(ID, IsOnTurret[i]))
 					{
+						ta.IsOnTurret = true;
 						FString ArtID = CLoadingExt::GetArtID(ID);
 						int F, L, H;
 						GetFLH(F, L, H, CINI::Art->GetString(ArtID, "TurretOffset", "0,0,0"));
@@ -3640,15 +3641,29 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			auto aeTypes = STDHelpers::SplitString(Variables::RulesMap.GetString(ID, "AttachEffectTypes"));
 			for (auto& ae : aeTypes)
 			{
-				if (!Variables::RulesMap.TryGetString(ae, "Stand.Type") || !Variables::RulesMap.GetBool(ae, "AttachOnceInTechnoType"))
+				if (!Variables::RulesMap.TryGetString(ae, "Stand.Type"))
 					continue;
 
 				auto& ret = TechnoAttachments[ID];
 				auto& ta = ret.emplace_back();
 				ta.ID = Variables::RulesMap.GetString(ae, "Stand.Type");
 				ta.YSortPosition = Variables::RulesMap.GetInteger(ae, "Stand.ZOffset") < 0 ? 
-					TechnoAttachment::YSortPosition::Bottom: TechnoAttachment::YSortPosition::Default;
+					TechnoAttachment::YSortPosition::Bottom: TechnoAttachment::YSortPosition::Top;
 				GetFLH(ta.F, ta.L, ta.H, Variables::RulesMap.GetString(ae, "Stand.Offset", "0,0,0"));
+
+				if (Variables::RulesMap.GetBool(ae, "Stand.IsOnTurret"))
+				{
+					ta.IsOnTurret = true;
+					FString ArtID = CLoadingExt::GetArtID(ID);
+					int F, L, H;
+					GetFLH(F, L, H, CINI::Art->GetString(ArtID, "TurretOffset", "0,0,0"));
+					ta.F += F;
+					ta.L += L;
+					ta.H += H;
+					ta.DeltaX = Variables::RulesMap.GetInteger(ID, "TurretAnimX");
+					ta.DeltaY = Variables::RulesMap.GetInteger(ID, "TurretAnimY");
+				}
+				ta.RotationAdjust = Variables::RulesMap.GetInteger(ae, "Stand.Direction") * 16;
 			}
 
 			auto extraUnits = STDHelpers::SplitString(Variables::RulesMap.GetString(ID, "ExtraUnit.Definations"));
@@ -3679,6 +3694,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 				GetFLH(ta.F, ta.L, ta.H, Variables::RulesMap.GetString(ex, "ExtraUnit.Position", "0,0,0"));
 				if (Variables::RulesMap.GetBool(ex, "ExtraUnit.BindTurret"))
 				{
+					ta.IsOnTurret = true;
 					FString ArtID = CLoadingExt::GetArtID(ID);
 					int F, L, H;
 					GetFLH(F, L, H, CINI::Art->GetString(ArtID, "TurretOffset", "0,0,0"));
@@ -3707,6 +3723,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 				GetFLH(ta.F, ta.L, ta.H, Variables::RulesMap.GetString(vr, "FLH", "0,0,0"));
 				if (Variables::RulesMap.GetBool(vr, "OnTurret"))
 				{
+					ta.IsOnTurret = true;
 					FString ArtID = CLoadingExt::GetArtID(ID);
 					int F, L, H;
 					GetFLH(F, L, H, CINI::Art->GetString(ArtID, "TurretOffset", "0,0,0"));

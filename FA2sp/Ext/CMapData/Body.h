@@ -191,6 +191,7 @@ struct TechnoAttachment
     int DeltaX;
     int DeltaY;
     unsigned char RotationAdjust;
+    bool IsOnTurret;
 };
 
 struct CellDataExt

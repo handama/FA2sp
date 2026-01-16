@@ -204,12 +204,23 @@ static void DrawTechnoAttachments
 				firstGroupEnd = it; 
 		}
 
+		auto eParentType = CLoadingExt::GetExtension()->GetItemType(parentID);
+		int oriParentFacing = oriFacing;
 		std::size_t redrawIndex = std::distance(infos.begin(), firstGroupEnd);
 		for (int i = 0; i < infos.size(); ++i)
 		{
 			const auto& info = infos[i];
 			if (recursionStack.contains(info.ID))
 				continue;
+
+			if (eParentType == CLoadingExt::ObjectType::Building && !info.IsOnTurret)
+			{
+				oriFacing = 0;
+			}
+			else
+			{
+				oriFacing = oriParentFacing;
+			}
 
 			if (redrawIndex > 0 && i == redrawIndex)
 			{
@@ -1210,7 +1221,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 										shadowHeightMask, cell->Height);
 
 									std::set<FString> drawn;
-									DrawTechnoAttachments([] {}, drawn, objRender.ID, objRender.Facing,
+									DrawTechnoAttachments([] {}, drawn, objRender.ID, nFacing == 0 ? 0 : objRender.Facing,
 										CLoadingExt::ObjectType::Building, cell, lpDesc->lpSurface, boundary,
 										x1, y1, 0xffffff, true);
 								}
@@ -2024,13 +2035,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					}
 					if (firstDraw)
 					{
+						int nFacing = 0;
 						auto draw = [&]
 						{
-							int nFacing = 0;
 							int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
 							if (FacingCount > 1)
 							{
-								int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
 								nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
 							}
 							const auto& ImageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, part.Status);
@@ -2047,7 +2057,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						};
 
 						std::set<FString> drawn;
-						DrawTechnoAttachments(draw, drawn, objRender.ID, objRender.Facing,
+						DrawTechnoAttachments(draw, drawn, objRender.ID, nFacing == 0 ? 0 : objRender.Facing,
 							CLoadingExt::ObjectType::Building, cell, lpDesc->lpSurface, boundary,
 							x1, y1,
 							objRender.HouseColor, false);

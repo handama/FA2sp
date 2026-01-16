@@ -355,10 +355,33 @@ void CMapDataExt::ProcessBuildingType(const char* ID)
 			else
 				coord = { DataExt.Height + DataExt.Width - 2 - x, DataExt.Width - 1 };
 
+			int loopX = x;
 			while (std::find(coords.begin(), coords.end(), MapCoord{ coord.Y, coord.X }) == coords.end())
 			{
 				if (coord.X <= 0 || coord.Y <= 0)
-					break;
+				{
+					if (std::find(coords.begin(), coords.end(), MapCoord{ coord.Y, coord.X }) == coords.end())
+					{
+						if (loopX < DataExt.Width)
+						{
+							loopX++;
+							coord = { DataExt.Height, loopX + 1 };
+						}
+						else if (loopX > DataExt.Width)
+						{
+							loopX--;
+							coord = { DataExt.Height + DataExt.Width - 1 - loopX, DataExt.Width };
+						}
+						else
+						{
+							break;
+						}
+					}
+					else
+					{
+						break;
+					}
+				}
 				coord.X--;
 				coord.Y--;
 			}

@@ -175,6 +175,25 @@ struct TileAnimation
     FString ImageName;
 };
 
+struct TechnoAttachment
+{
+    FString ID;
+    enum YSortPosition : char
+    {
+        Default = 0,
+        Top = 1,
+        Bottom = 2,
+    };
+    YSortPosition YSortPosition;
+    int F;
+    int L;
+    int H;
+    int DeltaX;
+    int DeltaY;
+    unsigned char RotationAdjust;
+    bool IsOnTurret;
+};
+
 struct CellDataExt
 {
     WORD X;
@@ -480,12 +499,8 @@ public:
     static BuildingPowers GetStructurePower(CBuildingData object);
     static BuildingPowers GetStructurePower(ppmfc::CString value);
     static void GetBuildingDataByIniID(int bldID, CBuildingData& data);
-    static inline int GetSafeTileIndex(int idx)
-    {
-        if (idx == 0xFFFF)
-            idx = 0;
-        return idx;
-    }
+    static int GetSafeTileIndex(int idx);
+
     // damageStage = -1 means read the target cell overlayData to determine
     static void PlaceWallAt(int dwPos, int overlay, int damageStage = -1, bool firstRun = true);
     static int GetInfantryAt(int dwPos, int dwSubPos = -1);
@@ -584,6 +599,7 @@ public:
     static CustomTile* GetCustomTile(int tileIndex);
     static int GetCustomTileSet(int tileIndex);
     static int GetCustomTileIndex(int tileSet, int tileIndex);
+    static std::vector<TechnoAttachment>* GetTechnoAttachmentInfo(const FString& ID);
 
     static int OreValue[4];
     static std::vector<std::vector<int>> Tile_to_lat;
@@ -646,4 +662,5 @@ public:
     static std::map<int, std::vector<CustomTile>> CustomTiles;
     static std::map<FString, COLORREF> CustomWaypointColors;
     static std::map<FString, COLORREF> CustomCelltagColors;
+    static std::map<FString, std::vector<TechnoAttachment>> TechnoAttachments;
 };

@@ -26,13 +26,12 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
     if (!CMapData::Instance->MapWidthPlusHeight) return 0;
     if (CViewObjectsExt::CurrentConnectedTileType < 0 || CViewObjectsExt::CurrentConnectedTileType > CViewObjectsExt::ConnectedTileSets.size()) return 0;
     int currentCTtype = CViewObjectsExt::ConnectedTileSets[CViewObjectsExt::CurrentConnectedTileType].Type;
-    if (currentCTtype == CViewObjectsExt::DirtRoad || currentCTtype == CViewObjectsExt::CityDirtRoad || currentCTtype == CViewObjectsExt::Highway
-        && !CViewObjectsExt::IsInPlaceCliff_OnMouseMove)
+    if (!CViewObjectsExt::IsInPlaceCliff_OnMouseMove)
     {
         if (lpMsg->message == WM_KEYDOWN)
         {
             auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
-            if (lpMsg->wParam == VK_PRIOR || lpMsg->wParam == VK_UP)
+            if (lpMsg->wParam == VK_UP && (currentCTtype == CViewObjectsExt::DirtRoad || currentCTtype == CViewObjectsExt::CityDirtRoad || currentCTtype == CViewObjectsExt::Highway))
             {
                 if (CViewObjectsExt::CliffConnectionHeight < 14 && CViewObjectsExt::LastPlacedCT.GetNextHeightOffset() < 1 || CViewObjectsExt::NextCTHeightOffset < 0 || CViewObjectsExt::CliffConnectionHeight < 13)
                 {
@@ -41,12 +40,27 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
                 }
 
             }
-            else if (lpMsg->wParam == VK_NEXT || lpMsg->wParam == VK_DOWN)
+            else if (lpMsg->wParam == VK_DOWN && (currentCTtype == CViewObjectsExt::DirtRoad || currentCTtype == CViewObjectsExt::CityDirtRoad || currentCTtype == CViewObjectsExt::Highway))
             {
                 if (CViewObjectsExt::CliffConnectionHeight > 0 || CViewObjectsExt::NextCTHeightOffset > 0 || CViewObjectsExt::CliffConnectionHeight == 0 && CViewObjectsExt::LastPlacedCT.GetNextHeightOffset() > 0)
                 {
                     CViewObjectsExt::LowerNextCT();
                     CViewObjectsExt::PlaceConnectedTile_OnMouseMove(point.X, point.Y, false);
+                }
+            }
+            else if (lpMsg->wParam == VK_PRIOR)
+            {
+                if (CViewObjectsExt::CliffConnectionHeight < 14)
+                {
+                    CViewObjectsExt::CliffConnectionHeight++;
+                }
+
+            }
+            else if (lpMsg->wParam == VK_NEXT)
+            {
+                if (CViewObjectsExt::CliffConnectionHeight > 0)
+                {
+                    CViewObjectsExt::CliffConnectionHeight--;
                 }
             }
         }

@@ -165,6 +165,7 @@ bool ExtConfigs::TreeViewCameo_Display;
 float ExtConfigs::LightingSource[3];
 bool ExtConfigs::UseStrictNewTheater;
 bool ExtConfigs::InGameDisplay_Shadow;
+bool ExtConfigs::InGameDisplay_Shadow_OnGround;
 bool ExtConfigs::InGameDisplay_Deploy;
 bool ExtConfigs::InGameDisplay_Water;
 bool ExtConfigs::InGameDisplay_Damage;
@@ -322,6 +323,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DisableDirectoryCheck = CINI::FAData->GetBool("ExtConfigs", "DisableDirectoryCheck");
 	ExtConfigs::UseNewToolBarCameo = CINI::FAData->GetBool("ExtConfigs", "UseNewToolBarCameo", true);
 	ExtConfigs::InGameDisplay_Shadow = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Shadow", true);
+	ExtConfigs::InGameDisplay_Shadow_OnGround = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Shadow.OnGround");
 	ExtConfigs::InGameDisplay_Deploy = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Deploy", true);
 	ExtConfigs::InGameDisplay_Water = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Water", true);
 	ExtConfigs::InGameDisplay_Damage = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Damage", true);
@@ -662,6 +664,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Shadow", "Load and show shadows"),
 		.IniKey = "InGameDisplay.Shadow",
 		.Value = &ExtConfigs::InGameDisplay_Shadow,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Shadow.OnGround", "Display voxel shadow on the ground instead of bottom"),
+		.IniKey = "InGameDisplay.Shadow.OnGround",
+		.Value = &ExtConfigs::InGameDisplay_Shadow_OnGround,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 

@@ -369,19 +369,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
             auto& map = CINI::CurrentDocument();
             auto thisTheater = map.GetString("Map", "Theater");
 
-            CTileTypeClass* tiledata = nullptr;
-            if (thisTheater == "TEMPERATE")
-                tiledata = CTileTypeInfo::Temperate().Datas;
-            if (thisTheater == "SNOW")
-                tiledata = CTileTypeInfo::Snow().Datas;
-            if (thisTheater == "URBAN")
-                tiledata = CTileTypeInfo::Urban().Datas;
-            if (thisTheater == "NEWURBAN")
-                tiledata = CTileTypeInfo::NewUrban().Datas;
-            if (thisTheater == "LUNAR")
-                tiledata = CTileTypeInfo::Lunar().Datas;
-            if (thisTheater == "DESERT")
-                tiledata = CTileTypeInfo::Desert().Datas;
+            auto tiledata = CMapDataExt::TileData;
 
             auto size = STDHelpers::SplitString(map.GetString("Map", "Size", "0,0,0,0"));
             auto lSize = STDHelpers::SplitString(map.GetString("Map", "LocalSize", "0,0,0,0"));
@@ -489,7 +477,6 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                     int rx = (dx + dy) / 2 + 1;
                     int ry = dy - rx + mapwidth + 1;
 
-
                     int dPows = rx * mapData.MapWidthPlusHeight + ry;
                     if (dPows < mapData.CellDataCount)
                     {
@@ -498,33 +485,35 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                             CellDataExt& cellExt = CMapDataExt::CellDataExts[dPows];
                             CellData& cell = mapData.CellDatas[dPows];
                             int tileIndex = cell.TileIndex;
-                            if (tileIndex == 65535)
+                            if (tileIndex >= CMapDataExt::TileDataCount)
                                 tileIndex = 0;
+                            int tileSubIndex = cell.TileSubIndex;
+                            if (tileSubIndex >= tiledata[tileIndex].TileBlockCount)
+                                tileSubIndex = 0;
 
-                            auto colorL = tiledata[tileIndex].TileBlockDatas[cell.TileSubIndex].RadarColorLeft;
+                            auto colorL = tiledata[tileIndex].TileBlockDatas[tileSubIndex].RadarColorLeft;
+                            auto colorR = tiledata[tileIndex].TileBlockDatas[tileSubIndex].RadarColorRight;
                             RGBClass2 color;
                             //RadarColorLeft is BGR
-                            color.R = colorL.B;
-                            color.G = colorL.G;
-                            color.B = colorL.R;
+                            color.R = colorL.B * (14 - cell.Height) / 14 + colorR.B * cell.Height / 14;
+                            color.G = colorL.G * (14 - cell.Height) / 14 + colorR.G * cell.Height / 14;
+                            color.B = colorL.R * (14 - cell.Height) / 14 + colorR.R * cell.Height / 14;
 
-                            auto overlay = cell.Overlay;
+                            auto overlay = cellExt.NewOverlay;
                             auto overlayD = cell.OverlayData;
-                            if (overlay != 255)
+                            if (overlay != 0xFFFF)
                             {
                                 auto radarColor = CMapDataExt::GetOverlayTypeData(overlay).RadarColor;
-                                if (overlay >= 27 && overlay <= 38) //gems
-                                    color = RGB(radarColor.R, radarColor.G, radarColor.B);
-                                else if (overlay >= 102 && overlay <= 166) //ores
-                                    color = RGB(radarColor.R, radarColor.G, radarColor.B);
-                                else if (overlay == 100 || overlay == 101 || overlay == 231 || overlay == 232) //broken bridge
+                                if (overlay == 100 || overlay == 101 || overlay == 231 || overlay == 232) //broken bridge
                                 {
                                 }
                                 else if (overlay == 24 || overlay == 25 || overlay == 237 || overlay == 238) //high bridge
                                 {
                                 }
                                 else
-                                    color = RGB(91, 91, 93);
+                                {
+                                    color = RGB(radarColor.R, radarColor.G, radarColor.B);
+                                }
                             }
                             if (cellExt.AroundHighBridge)
                                 color = RGB(107, 109, 107);
@@ -609,8 +598,6 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                     }
                 }
             }
-
-
             auto data = lzo::compress(imageLocal.get(), sizeof(byte) * 3 * lwidth * lheight);
             data = base64::encode(data);
             pINI->WriteBase64String("PreviewPack", data.data(), data.length());
@@ -920,6 +907,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
     }
     catch (const std::ios_base::failure& e)
     {
+        UNREFERENCED_PARAMETER(e);
         ppmfc::CString buffer;
         buffer.Format(
             Translations::TranslateOrDefault(

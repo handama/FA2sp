@@ -12,6 +12,7 @@
 #include <fstream>
 #include "../Helpers/TheaterHelpers.h"
 #include "../Ext/CFinalSunApp/Body.h"
+#include "../Ext/CLoading/Body.h"
 
 bool StringtableLoader::bLoadRes = false;
 char* StringtableLoader::pEDIBuffer = nullptr;
@@ -160,7 +161,7 @@ void StringtableLoader::LoadCSFFiles()
 bool StringtableLoader::LoadCSFFile(const char* pName, bool fa2path)
 {
     DWORD dwSize;
-    if (auto pBuffer = CLoading::Instance->ReadWholeFile(pName, &dwSize, fa2path)) {
+    if (auto pBuffer = CLoadingExt::GetExtension()->ReadWholeFile(pName, &dwSize, fa2path)) {
         FString name = pName;
         name.MakeUpper();
         if (name.Mid(name.GetLength() - 3) == "LLF") {

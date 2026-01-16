@@ -53,7 +53,7 @@ std::map<int, FString> CNewAITrigger::ComparisonObjectLabels;
 std::map<int, FString> CNewAITrigger::CountryLabels;
 bool CNewAITrigger::Autodrop;
 bool CNewAITrigger::DropNeedUpdate;
-
+bool CNewAITrigger::TeamListChanged = false;
 
 void CNewAITrigger::Create(CFinalSunDlg* pWnd)
 {
@@ -236,8 +236,7 @@ void CNewAITrigger::Update(HWND& hWnd)
     int tmp = 0;
     ExtraWindow::SortTeams(hTeam1, "TeamTypes", tmp);
     SendMessage(hTeam1, CB_INSERTSTRING, SendMessage(hTeam1, CB_GETCOUNT, 0, 0), (LPARAM)(LPCSTR)"<none>");
-    ExtraWindow::SortTeams(hTeam2, "TeamTypes", tmp);
-    SendMessage(hTeam2, CB_INSERTSTRING, SendMessage(hTeam2, CB_GETCOUNT, 0, 0), (LPARAM)(LPCSTR)"<none>");
+    ExtraWindow::SyncComboBoxContent(hTeam1, hTeam2, false);
 
     DropNeedUpdate = false;
     Autodrop = false;
@@ -442,6 +441,8 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnCloseupCComboBox(hTeam1, TeamLabels[0]);
             else if (CODE == CBN_SELENDOK)
                 ExtraWindow::bComboLBoxSelected = true;
+            else if (CODE == CBN_DROPDOWN && TeamListChanged)
+                OnDropdownTeam();
             break;
         case Controls::Team2:
             if (CODE == CBN_SELCHANGE)
@@ -452,6 +453,8 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnCloseupCComboBox(hTeam2, TeamLabels[1]);
             else if (CODE == CBN_SELENDOK)
                 ExtraWindow::bComboLBoxSelected = true;
+            else if (CODE == CBN_DROPDOWN && TeamListChanged)
+                OnDropdownTeam();
             break;
         default:
             break;
@@ -591,6 +594,44 @@ void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
 
     //CurrentAITrigger->Save();
     DropNeedUpdate = false;
+}
+
+void CNewAITrigger::OnDropdownTeam()
+{
+    int curSel1 = SendMessage(hTeam1, CB_GETCURSEL, NULL, NULL);
+    int curSel2 = SendMessage(hTeam2, CB_GETCURSEL, NULL, NULL);
+    char buffer[512]{ 0 };
+    GetWindowText(hTeam1, buffer, 511);
+    FString text1(buffer);
+    GetWindowText(hTeam2, buffer, 511);
+    FString text2(buffer);
+
+    int tmp = 0;
+    ExtraWindow::SortTeams(hTeam1, "TeamTypes", tmp);
+    SendMessage(hTeam1, CB_INSERTSTRING, SendMessage(hTeam1, CB_GETCOUNT, 0, 0), (LPARAM)(LPCSTR)"<none>");
+    ExtraWindow::SyncComboBoxContent(hTeam1, hTeam2, false);
+    TeamListChanged = false;
+
+    int idx = SendMessage(hTeam1, CB_FINDSTRINGEXACT, 0, text1);
+    if (idx != CB_ERR)
+    {
+        SendMessage(hTeam1, CB_SETCURSEL, idx, NULL);
+    }
+    else
+    {
+        FString::TrimIndex(text1);
+        SendMessage(hTeam1, WM_SETTEXT, NULL, text1);
+    }
+    idx = SendMessage(hTeam2, CB_FINDSTRINGEXACT, 0, text2);
+    if (idx != CB_ERR)
+    {
+        SendMessage(hTeam2, CB_SETCURSEL, idx, NULL);
+    }
+    else
+    {
+        FString::TrimIndex(text2);
+        SendMessage(hTeam2, WM_SETTEXT, NULL, text2);
+    }
 }
 
 void CNewAITrigger::OnSelchangeCountry(bool edited)

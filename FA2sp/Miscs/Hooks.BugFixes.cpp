@@ -278,3 +278,11 @@ DEFINE_HOOK(4A2A10, CMapData_SetOverlayDataAt, 5)
 
 	return 0x4A2A88;
 }
+
+DEFINE_HOOK(41B637, CCliffModifier_PlaceCliff, 8)
+{
+	GET(int, nTileToPlace, EAX);
+	if (nTileToPlace < 0 || nTileToPlace >= CMapDataExt::TileDataCount)
+		return 0x41B66E;
+	return 0;
+}

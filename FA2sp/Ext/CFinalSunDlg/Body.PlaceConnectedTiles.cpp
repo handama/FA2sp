@@ -39,7 +39,7 @@ std::vector<int> CViewObjectsExt::LastCTTileRecords;
 std::vector<int> CViewObjectsExt::LastHeightRecords;
 
 
-void CViewObjectsExt::ConnectedTile_Initialize() 
+void CViewObjectsExt::ConnectedTile_Initialize()
 {
     TreeView_ConnectedTileMap.clear();
     CurrentConnectedTileType = -1;
@@ -52,7 +52,7 @@ void CViewObjectsExt::ConnectedTile_Initialize()
 
         CINI ini;
         ini.ClearAndLoad(path.c_str());
-        
+
 
         if (auto pSection = ini.GetSection("ConnectedTiles"))
         {
@@ -194,9 +194,9 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
     HTREEITEM& hCT = ExtNodes[Root_Cliff];
     if (hCT == NULL)    return;
 
-    HTREEITEM hCliff = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Cliff",-1, hCT);
-    HTREEITEM hCliffLand = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffLand",-1, hCliff);
-    HTREEITEM hCliffWater = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffWater",-1, hCliff);
+    HTREEITEM hCliff = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Cliff", -1, hCT);
+    HTREEITEM hCliffLand = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffLand", -1, hCliff);
+    HTREEITEM hCliffWater = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffWater", -1, hCliff);
 
     HTREEITEM hCliffLandSnowSnow = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXSnowSnow", -1, hCliffLand);
     HTREEITEM hCliffLandSnowStone = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXSnowStone", -1, hCliffLand);
@@ -205,8 +205,8 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
     HTREEITEM hCliffSnowWater = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXSnowWater", -1, hCliffWater);
     HTREEITEM hCliffStoneWater = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXStoneWater", -1, hCliffWater);
 
-    HTREEITEM hDirtRoad = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Road",-1, hCT);
-    HTREEITEM hShore = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Shore",-1, hCT);
+    HTREEITEM hDirtRoad = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Road", -1, hCT);
+    HTREEITEM hShore = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Shore", -1, hCT);
     HTREEITEM hHighway = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_PavedRoad", -1, hCT);
     HTREEITEM hSpecial = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Special", -1, hCT);
 
@@ -260,7 +260,7 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
                         }
                     }
                 }
-                else if (ct.ConnectedTile.size() > 28)
+                if (!ct.IsTXCityCliff && ct.ConnectedTile.size() > 28)
                     lastTileIndex = ct.ConnectedTile[28].TileIndices[0] + ct.StartTile;
             }
 
@@ -274,7 +274,7 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
                 if (!CMapDataExt::IsValidTileSet(firstTileset) || !CMapDataExt::IsValidTileSet(lastTileset))
                     continue;
             }
-            
+
             ConnectedTileInfo info{};
             info.Index = i;
             info.Front = true;
@@ -300,7 +300,7 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
                     }
                     else
                     {
- 
+
                         if (ct.SpecialType == SnowWater)
                         {
                             TreeView_ConnectedTileMap[index] = info;
@@ -319,7 +319,7 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
                             if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hCliffStoneWater);
                             index++;
                         }
-  
+
                     }
                 }
                 else
@@ -432,16 +432,21 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
     CViewObjectsExt::IsInPlaceCliff_OnMouseMove = true;
 
     auto handleExit = []()
-        {
-            CViewObjectsExt::NextCTHeightOffset = 0;
-            CViewObjectsExt::IsInPlaceCliff_OnMouseMove = false;
-        };
+    {
+        CViewObjectsExt::NextCTHeightOffset = 0;
+        CViewObjectsExt::IsInPlaceCliff_OnMouseMove = false;
+    };
 
     if (CViewObjectsExt::CliffConnectionCoord.X == -1 && CViewObjectsExt::CliffConnectionCoord.Y == -1)
     {
         handleExit();
         return;
     }
+
+    if (CViewObjectsExt::CliffConnectionHeight < 0)
+        CViewObjectsExt::CliffConnectionHeight = 0;
+    if (CViewObjectsExt::CliffConnectionHeight > 14)
+        CViewObjectsExt::CliffConnectionHeight = 14;
 
     auto& mapData = CMapData::Instance();
     auto cellDatas = mapData.CellDatas;
@@ -480,33 +485,33 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
     int offsetConnectY = 0;
     int offsetPlaceX = 0;
     int offsetPlaceY = 0;
-    
+
     int MultiPlaceDirection = -1;
     bool thisTileHeightOffest = false;
     bool opposite = false;
 
     auto getOppositeDirection = [](int dir)
-        {
-            if (dir > 7 || dir < 0)
-                return 0;
-            if (dir == 0)
-                return 4;
-            if (dir == 1)
-                return 5;
-            if (dir == 2)
-                return 6;
-            if (dir == 3)
-                return 7;
-            if (dir == 4)
-                return 0;
-            if (dir == 5)
-                return 1;
-            if (dir == 6)
-                return 2;
-            if (dir == 7)
-                return 3;
+    {
+        if (dir > 7 || dir < 0)
             return 0;
-        };
+        if (dir == 0)
+            return 4;
+        if (dir == 1)
+            return 5;
+        if (dir == 2)
+            return 6;
+        if (dir == 3)
+            return 7;
+        if (dir == 4)
+            return 0;
+        if (dir == 5)
+            return 1;
+        if (dir == 6)
+            return 2;
+        if (dir == 7)
+            return 3;
+        return 0;
+    };
 
     if (CIsoView::CurrentCommand->Type >= 9000)
     {
@@ -721,7 +726,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     {
                         index = 25;
                         if (tileSet.ConnectedTile[index].TileIndices[0] < 0)
-                        {                        
+                        {
                             index = STDHelpers::RandomSelectInt(backCornet1);
                         }
                     }
@@ -932,7 +937,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         continue;
                     }
                     if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 2
-                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 3 
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 3
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 29
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 4)
                     {
@@ -946,7 +951,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 29
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 11)
                     {
-                        if (!tileSet.IsTXCityCliff) 
+                        if (!tileSet.IsTXCityCliff)
                         {
                             facing = 1;
                             continue;
@@ -973,7 +978,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         index = 30;
                     }
 
-                    if (index == 30 && ( CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 12
+                    if (index == 30 && (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 12
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 13
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 27
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 17
@@ -1503,7 +1508,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 9)
                 {
-                    if (!tileSet.IsTXCityCliff) 
+                    if (!tileSet.IsTXCityCliff)
                     {
                         facing = 5;
                         continue;
@@ -1613,7 +1618,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     index = 3;
                     if (distance < SmallDistance)
                         index = 4;
-                    if ((CViewObjectsExt::LastPlacedCT.Index == 5 ||CViewObjectsExt::LastPlacedCT.Index == 6) && distance > LargeDistance && tileSet.IsTXCityCliff)
+                    if ((CViewObjectsExt::LastPlacedCT.Index == 5 || CViewObjectsExt::LastPlacedCT.Index == 6) && distance > LargeDistance && tileSet.IsTXCityCliff)
                     {
                         offsetPlaceX += 1;
                         index = 29;
@@ -1858,7 +1863,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         facing = 7;
                         continue;
                     }
-                    
+
                     bool txcliff = false;
                     if (!CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 0
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 1
@@ -1914,7 +1919,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     if (distance < SmallDistance)
                         index = 8;
 
-                    if ((CViewObjectsExt::LastPlacedCT.Index == 5 || CViewObjectsExt::LastPlacedCT.Index == 6) &&distance > LargeDistance && tileSet.IsTXCityCliff)
+                    if ((CViewObjectsExt::LastPlacedCT.Index == 5 || CViewObjectsExt::LastPlacedCT.Index == 6) && distance > LargeDistance && tileSet.IsTXCityCliff)
                     {
                         opposite = false;
                         offsetPlaceY += 1;
@@ -2428,7 +2433,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 || index == 2
                 || index == 3
                 || index == 4)
-            || index == 30 && opposite && 
+            || index == 30 && opposite &&
             (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 0
                 || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 1
                 || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 21
@@ -2615,25 +2620,25 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         }
 
         auto getSuitableBendy = [&tileSet, &getOppositeDirection, &opposite, &cityRoad](int lastDirection, int direction)
+        {
+            for (int i = 0; i < 24; i++)
             {
-                for (int i = 0; i < 24; i++)
+                if (cityRoad && i == 6)
+                    continue; //buggy tile
+                if (tileSet.ConnectedTile[i].Direction0 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction1 == direction)
                 {
-                    if (cityRoad && i == 6)
-                        continue; //buggy tile
-                    if (tileSet.ConnectedTile[i].Direction0 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction1 == direction)
-                    {
-                        opposite = false;
-                        return i;
-                    }
-
-                    if (tileSet.ConnectedTile[i].Direction1 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction0 == direction)
-                    {
-                        opposite = true;
-                        return i;
-                    }
+                    opposite = false;
+                    return i;
                 }
-                return -1;
-            };
+
+                if (tileSet.ConnectedTile[i].Direction1 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction0 == direction)
+                {
+                    opposite = true;
+                    return i;
+                }
+            }
+            return -1;
+        };
 
         //        7 
         //     6     0
@@ -2663,7 +2668,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         index = 25;
                 }
                 else if (facing == 2)
-                {  
+                {
                     if (distance < SmallDistance)
                         index = 33;
                     else if (distance < MiddleDistance)
@@ -3011,114 +3016,114 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         }
 
         auto getSuitableBendy = [&tileSet, &getOppositeDirection, &opposite, &distance, &SmallDistance, &LargeDistance](bool lastSide, int lastDirection, int direction)
+        {
+            bool met = false;
+            for (int i = 0; i < 24; i++)
             {
-                bool met = false;
-                for (int i = 0; i < 24; i++)
+                if (tileSet.ConnectedTile[i].Direction0 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction1 == direction && tileSet.ConnectedTile[i].Side0 == lastSide)
                 {
-                    if (tileSet.ConnectedTile[i].Direction0 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction1 == direction && tileSet.ConnectedTile[i].Side0 == lastSide)
-                    {
-                        met = true;
-                        opposite = false;
-                    }
-                    else if (tileSet.ConnectedTile[i].Direction1 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction0 == direction && tileSet.ConnectedTile[i].Side1 == lastSide)
-                    {
-                        met = true;
-                        opposite = true;
-                    }
-                    if (met)
-                    {
-                        if (i == 0 && distance < SmallDistance)
-                            i = 1;
-                        else if (i == 5 && distance < SmallDistance)
-                            i = 6;
-                        else if (i == 10 && distance < SmallDistance)
-                            i = 11;
-                        else if (i == 15 && distance < SmallDistance)
-                            i = 16;
-                        return i;
-                    }
+                    met = true;
+                    opposite = false;
                 }
-                return -1;
-            };
+                else if (tileSet.ConnectedTile[i].Direction1 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction0 == direction && tileSet.ConnectedTile[i].Side1 == lastSide)
+                {
+                    met = true;
+                    opposite = true;
+                }
+                if (met)
+                {
+                    if (i == 0 && distance < SmallDistance)
+                        i = 1;
+                    else if (i == 5 && distance < SmallDistance)
+                        i = 6;
+                    else if (i == 10 && distance < SmallDistance)
+                        i = 11;
+                    else if (i == 15 && distance < SmallDistance)
+                        i = 16;
+                    return i;
+                }
+            }
+            return -1;
+        };
 
         auto getSuitableBendy1357 = [&tileSet, &getOppositeDirection, &opposite, &distance, &SmallDistance, &LargeDistance](bool lastSide, int lastDirection, int direction)
-            {
-                if (direction == 1 || direction == 5)
-                    for (int i = 0; i < 24; i++)
+        {
+            if (direction == 1 || direction == 5)
+                for (int i = 0; i < 24; i++)
+                {
+                    if (i != 3 && i != 7 && i != 12 && i != 18)
+                        continue;
+
+                    if (((direction == 1 && i == 3)
+                        || (direction == 5 && i == 7)
+                        || (direction == 1 && i == 12)
+                        || (direction == 5 && i == 18))
+                        && tileSet.ConnectedTile[i].Direction0 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Side0 == lastSide)
                     {
-                        if (i != 3 && i != 7 && i != 12 && i != 18)
-                            continue;
+                        if (tileSet.ConnectedTile.size() < 25)
+                            return -1;
 
-                        if (((direction == 1 && i == 3)
-                            || (direction == 5 && i == 7)
-                            || (direction == 1 && i == 12)
-                            || (direction == 5 && i == 18))
-                            && tileSet.ConnectedTile[i].Direction0 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Side0 == lastSide)
-                        {
-                            if (tileSet.ConnectedTile.size() < 25)
-                                return -1;
+                        opposite = false;
 
-                            opposite = false;
-
-                            if (direction == 5 && i == 7 && distance >= SmallDistance)
-                            {
-                                opposite = true;
-                                i = 24;
-                            }
-                            if (direction == 5 && i == 24 && distance > LargeDistance)
-                            {
-                                opposite = true;
-                                i = 25;
-                            }
-
-                            return i;
-                        }
-                        else if (((direction == 5 && i == 3)
-                            || (direction == 1 && i == 7)
-                            || (direction == 5 && i == 12)
-                            || (direction == 1 && i == 18))
-                            && tileSet.ConnectedTile[i].Direction1 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Side1 == lastSide)
-                        {
-                            if (tileSet.ConnectedTile.size() < 25)
-                                return -1;
-
-                            opposite = true;
-
-                            if (direction == 1 && i == 7 && distance >= SmallDistance)
-                            {
-                                opposite = false;
-                                i = 24;
-                            }
-                            if (direction == 1 && i == 24 && distance > LargeDistance)
-                            {
-                                opposite = false;
-                                i = 25;
-                            }
-
-                            return i;
-                        }
-
-                    }
-                if (direction == 3 || direction == 7)
-                    for (int i = 0; i < 24; i++)
-                    {
-                        if (i != 2 && i != 8 && i != 13 && i != 17)
-                            continue;
-
-                        if (direction == 3 && tileSet.ConnectedTile[i].Direction0 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Side0 == lastSide)
-                        {
-                            opposite = false;
-                            return i;
-                        }
-                        else if (direction == 7 && tileSet.ConnectedTile[i].Direction1 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Side1 == lastSide)
+                        if (direction == 5 && i == 7 && distance >= SmallDistance)
                         {
                             opposite = true;
-                            return i;
+                            i = 24;
+                        }
+                        if (direction == 5 && i == 24 && distance > LargeDistance)
+                        {
+                            opposite = true;
+                            i = 25;
                         }
 
+                        return i;
                     }
-                return -1;
-            };
+                    else if (((direction == 5 && i == 3)
+                        || (direction == 1 && i == 7)
+                        || (direction == 5 && i == 12)
+                        || (direction == 1 && i == 18))
+                        && tileSet.ConnectedTile[i].Direction1 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Side1 == lastSide)
+                    {
+                        if (tileSet.ConnectedTile.size() < 25)
+                            return -1;
+
+                        opposite = true;
+
+                        if (direction == 1 && i == 7 && distance >= SmallDistance)
+                        {
+                            opposite = false;
+                            i = 24;
+                        }
+                        if (direction == 1 && i == 24 && distance > LargeDistance)
+                        {
+                            opposite = false;
+                            i = 25;
+                        }
+
+                        return i;
+                    }
+
+                }
+            if (direction == 3 || direction == 7)
+                for (int i = 0; i < 24; i++)
+                {
+                    if (i != 2 && i != 8 && i != 13 && i != 17)
+                        continue;
+
+                    if (direction == 3 && tileSet.ConnectedTile[i].Direction0 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Side0 == lastSide)
+                    {
+                        opposite = false;
+                        return i;
+                    }
+                    else if (direction == 7 && tileSet.ConnectedTile[i].Direction1 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Side1 == lastSide)
+                    {
+                        opposite = true;
+                        return i;
+                    }
+
+                }
+            return -1;
+        };
 
         //        7 
         //     6     0
@@ -3376,27 +3381,27 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         }
 
         auto getSuitableBendy = [&tileSet, &getOppositeDirection, &opposite, &distance, &SmallDistance, &LargeDistance](bool lastSide, int lastDirection, int direction)
+        {
+            bool met = false;
+            for (int i = 0; i < 12; i++)
             {
-                bool met = false;
-                for (int i = 0; i < 12; i++)
+                if (tileSet.ConnectedTile[i].Direction0 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction1 == direction && tileSet.ConnectedTile[i].Side0 == lastSide)
                 {
-                    if (tileSet.ConnectedTile[i].Direction0 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction1 == direction && tileSet.ConnectedTile[i].Side0 == lastSide)
-                    {
-                        met = true;
-                        opposite = false;
-                    }
-                    else if (tileSet.ConnectedTile[i].Direction1 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction0 == direction && tileSet.ConnectedTile[i].Side1 == lastSide)
-                    {
-                        met = true;
-                        opposite = true;
-                    }
-                    if (met)
-                    {
-                        return i;
-                    }
+                    met = true;
+                    opposite = false;
                 }
-                return -1;
-            };
+                else if (tileSet.ConnectedTile[i].Direction1 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction0 == direction && tileSet.ConnectedTile[i].Side1 == lastSide)
+                {
+                    met = true;
+                    opposite = true;
+                }
+                if (met)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        };
 
         //        7 
         //     6     0
@@ -3599,27 +3604,27 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         }
 
         auto getSuitableBendy = [&tileSet, &getOppositeDirection, &opposite, &distance, &SmallDistance, &LargeDistance](bool lastSide, int lastDirection, int direction)
+        {
+            bool met = false;
+            for (int i = 0; i < 6; i++)
             {
-                bool met = false;
-                for (int i = 0; i < 6; i++)
+                if (tileSet.ConnectedTile[i].Direction0 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction1 == direction && tileSet.ConnectedTile[i].Side0 == lastSide)
                 {
-                    if (tileSet.ConnectedTile[i].Direction0 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction1 == direction && tileSet.ConnectedTile[i].Side0 == lastSide)
-                    {
-                        met = true;
-                        opposite = false;
-                    }
-                    else if (tileSet.ConnectedTile[i].Direction1 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction0 == direction && tileSet.ConnectedTile[i].Side1 == lastSide)
-                    {
-                        met = true;
-                        opposite = true;
-                    }
-                    if (met)
-                    {
-                        return i;
-                    }
+                    met = true;
+                    opposite = false;
                 }
-                return -1;
-            };
+                else if (tileSet.ConnectedTile[i].Direction1 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction0 == direction && tileSet.ConnectedTile[i].Side1 == lastSide)
+                {
+                    met = true;
+                    opposite = true;
+                }
+                if (met)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        };
 
         //        7 
         //     6     0
@@ -3816,27 +3821,27 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
     {
         int index = -1;
         auto getSuitableBendy = [&tileSet, &getOppositeDirection, &opposite, &distance, &SmallDistance, &LargeDistance](int lastDirection, int direction)
+        {
+            bool met = false;
+            for (int i = 0; i < tileSet.ConnectedTile.size(); i++)
             {
-                bool met = false;
-                for (int i = 0; i < tileSet.ConnectedTile.size(); i++)
+                if (tileSet.ConnectedTile[i].Direction0 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction1 == direction)
                 {
-                    if (tileSet.ConnectedTile[i].Direction0 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction1 == direction)
-                    {
-                        met = true;
-                        opposite = false;
-                    }
-                    else if (tileSet.ConnectedTile[i].Direction1 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction0 == direction)
-                    {
-                        met = true;
-                        opposite = true;
-                    }
-                    if (met)
-                    {
-                        return i;
-                    }
+                    met = true;
+                    opposite = false;
                 }
-                return -1;
-            };
+                else if (tileSet.ConnectedTile[i].Direction1 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction0 == direction)
+                {
+                    met = true;
+                    opposite = true;
+                }
+                if (met)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        };
         if (CViewObjectsExt::LastPlacedCT.Index == -1)
         {
             if (facing == 0)
@@ -3878,7 +3883,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         }
         else
         {
-            index = getSuitableBendy(CViewObjectsExt::LastPlacedCT.GetNextDirection(), facing);       
+            index = getSuitableBendy(CViewObjectsExt::LastPlacedCT.GetNextDirection(), facing);
         }
 
         if (index < 0)
@@ -3916,7 +3921,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
         if (getOppositeDirection(CViewObjectsExt::LastPlacedCT.GetNextDirection(false))
             == CViewObjectsExt::LastPlacedCT.GetNextDirection(true)) // straight track
-        {      
+        {
             if (CViewObjectsExt::LastPlacedCT.Index == CViewObjectsExt::ThisPlacedCT.Index)
             {
                 if (CViewObjectsExt::LastPlacedCT.GetNextDirection() != facing)
@@ -4260,7 +4265,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     {
                         x = CliffConnectionCoord.X + i - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX;
                         y = CliffConnectionCoord.Y + j - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY;
-                        
+
                     }
                     else
                     {
@@ -4349,11 +4354,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             }
         }
     }
-
-    if (CViewObjectsExt::CliffConnectionHeight < 0)
-        CViewObjectsExt::CliffConnectionHeight = 0;
-    if (CViewObjectsExt::CliffConnectionHeight > 14)
-        CViewObjectsExt::CliffConnectionHeight = 14;
 
     if (place)
     {

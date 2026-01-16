@@ -234,6 +234,7 @@ public:
     static bool RenderIgnoreObjects;
     static bool RenderSaveAsPNG;
     static RendererLighting RenderLighing;
+    static bool EnableAutoTrack;
 
     static bool AutoPropertyBrush[4];
 

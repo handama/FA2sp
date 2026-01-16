@@ -289,6 +289,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(34007, "Menu.Paste.Terrains");
     translateMenuItem(34008, "Menu.Paste.Smudges");
     translateMenuItem(34050, "Menu.Paste.All");
+    translateMenuItem(34053, "Menu.Paste.Reset");
     translateMenuItem(34051, "Menu.Paste.Overriding");
     translateMenuItem(34052, "Menu.Paste.ShowOutline");
 
@@ -387,8 +388,12 @@ DEFINE_HOOK(4340F0, CFinalSunDlg_Tools_ChangeMapHeight, 7)
             {
                 CMapData::Instance->CellDatas[i].Height =
                     std::clamp(CMapData::Instance->CellDatas[i].Height + nDelta, 0, 14);
-            }
 
+                int x = CMapData::Instance->GetXFromCoordIndex(i);
+                int y = CMapData::Instance->GetYFromCoordIndex(i);
+                CMapData::Instance->UpdateMapPreviewAt(x, y);
+            }
+            pThis->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
             pThis->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
         }
         else
@@ -594,6 +599,7 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
     }
     CopyPaste::PastedCoords.clear();
+    CIsoViewExt::EnableAutoTrack = false;
     if (CIsoView::CurrentCommand->Command == 0x1B)
     {
         CIsoView::CurrentCommand->Command = 0x0;

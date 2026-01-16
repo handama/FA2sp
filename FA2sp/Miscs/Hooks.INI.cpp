@@ -158,6 +158,41 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
         }
     }
 
+    auto loadAresInheritedIni = [&](CINIExt* ini)
+    {
+        // ares mode
+        if (ExtConfigs::AllowInherits && !ExtConfigs::InheritType) {
+            auto itr = InheritSections.find(ini);
+            if (itr != InheritSections.end()) {
+                const auto& pairs = itr->second;
+                for (const auto& [main, inherit] : pairs) {
+                    auto pSectionA = GetSection(main);
+                    auto pSectionA_New = ini->GetSection(main);
+                    auto pSectionB = GetSection(inherit);
+                    if (pSectionA && pSectionB) {
+                        for (const auto& [key, value] : pSectionB->GetEntities())
+                        {
+                            if (pSectionA_New
+                                && pSectionA_New->GetEntities().find(key)
+                                != pSectionA_New->GetEntities().end())
+                                continue;
+
+                            size_t currentIndex = pSectionA->GetEntities().size();
+
+                            writeString(pSectionA, key, value);
+
+                            std::pair<ppmfc::CString, int> ins =
+                                std::make_pair((ppmfc::CString)key, (int)currentIndex);
+                            std::pair<INIIndiceDict::iterator, bool> ret;
+                            reinterpret_cast<FAINIIndicesMap*>(&pSectionA->GetIndices())->insert(&ret, &ins);
+                        }
+                    }
+                }
+                InheritSections.erase(itr);
+            }
+        }
+    };
+
     if (ExtConfigs::AllowIncludes && bAllowInclude)
     {
         using INIPair = std::pair<ppmfc::CString, ppmfc::CString>;
@@ -189,6 +224,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                             CINIExt ini;
                             if (auto pBuffer = static_cast<byte*>(pLoading->ReadWholeFile(includeFile, &dwSize))) {
                                 ini.LoadINIExt(pBuffer, dwSize, nullptr, true, true, false);
+                                GameDeleteArray(pBuffer, dwSize);
                             }
 
                             for (auto& [sectionName, pSection] : ini.Dict) {
@@ -231,46 +267,17 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                                     reinterpret_cast<FAINIIndicesMap*>(&pTargetSection->GetIndices())->insert(&ret, &ins);
                                 }
                             }
-
-                            // ares mode
-                            if (ExtConfigs::AllowInherits && !ExtConfigs::InheritType) {
-                                auto itr = InheritSections.find(&ini);
-                                if (itr != InheritSections.end())
-                                {
-                                    const auto& pairs = itr->second;
-                                    for (const auto& [main, inherit] : pairs) {
-                                        auto pSectionA = GetSection(main);
-                                        auto pSectionA_New = ini.GetSection(main);
-                                        auto pSectionB = GetSection(inherit);
-                                        if (pSectionA && pSectionB) {
-                                            for (const auto& [key, value] : pSectionB->GetEntities())
-                                            {
-                                                if (pSectionA_New 
-                                                    && pSectionA_New->GetEntities().find(key) 
-                                                    != pSectionA_New->GetEntities().end())
-                                                    continue;
-
-                                                size_t currentIndex = pSectionA->GetEntities().size();
-
-                                                writeString(pSectionA, key, value);
-
-                                                std::pair<ppmfc::CString, int> ins =
-                                                    std::make_pair((ppmfc::CString)key, (int)currentIndex);
-                                                std::pair<INIIndiceDict::iterator, bool> ret;
-                                                reinterpret_cast<FAINIIndicesMap*>(&pSectionA->GetIndices())->insert(&ret, &ins);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            loadAresInheritedIni(&ini);
                         }
                     }
                 }
                 currentIncludeInis = std::move(nextIncludeInis);
-            }
+            }            
         }
     }
-
+    // main ini
+    if(bAllowInclude)
+        loadAresInheritedIni(this);
     // phobos mode
     if (ExtConfigs::AllowInherits && ExtConfigs::InheritType) {
         for (auto& sectionA : Dict) {

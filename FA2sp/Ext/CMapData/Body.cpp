@@ -103,6 +103,7 @@ std::map<int, std::vector<CustomTile>> CMapDataExt::CustomTiles;
 std::map<FString, COLORREF> CMapDataExt::CustomWaypointColors;
 std::map<FString, COLORREF> CMapDataExt::CustomCelltagColors;
 ObjectRecord* ObjectRecord::ObjectRecord_HoldingPtr = nullptr;
+std::map<FString, std::vector<TechnoAttachment>> CMapDataExt::TechnoAttachments;
 
 int CMapDataExt::GetOreValue(unsigned short nOverlay, unsigned char nOverlayData)
 {
@@ -430,6 +431,13 @@ void CMapDataExt::GetBuildingDataByIniID(int bldID, CBuildingData& data)
 	data.Upgrade3 = atoms[14];
 	data.AIRepairable = atoms[15];
 	data.Nominal = atoms[16];
+}
+
+int CMapDataExt::GetSafeTileIndex(int idx)
+{
+	if (idx >= CMapDataExt::TileDataCount)
+		idx = 0;
+	return idx;
 }
 
 void CMapDataExt::UpdateTriggers()
@@ -2284,7 +2292,29 @@ void ObjectRecord::recover()
 	}
 	if (recordFlags & RecordType::Waypoint)
 	{
+		std::map<int, FString> oriWps;
+		if (map->IsMultiOnly())
+			if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+				for (const auto& data : pSection->GetEntities())
+					oriWps[atoi(data.first)] = data.second;
 		recoverIniMap("Waypoints", WaypointList);
+		if (map->IsMultiOnly())
+		{
+			for (int i = 0; i < map->CellDataCount; ++i)
+				map->CellDatas[i].Waypoint = -1;
+			for (const auto& data : oriWps)
+			{
+				if (data.first < 8)
+				{
+					int x = atoi(data.second) / 1000;
+					int y = atoi(data.second) % 1000;
+					int k, l;
+					for (k = -1; k < 2; k++)
+						for (l = -1; l < 2; l++)
+							map->UpdateMapPreviewAt(x + k, y + l);
+				}
+			}
+		}
 		map->UpdateFieldWaypointData(false);
 	}
 	if (recordFlags & RecordType::Celltag)
@@ -2678,6 +2708,14 @@ int CMapDataExt::GetCustomTileIndex(int tileSet, int tileIndex)
 	return 0;
 }
 
+std::vector<TechnoAttachment>* CMapDataExt::GetTechnoAttachmentInfo(const FString& ID)
+{
+	auto itr = TechnoAttachments.find(ID);
+	if (itr != TechnoAttachments.end())
+		return &itr->second;
+	return nullptr;
+}
+
 void CMapDataExt::CheckCellLow(bool steep, int loopCount, bool IgnoreMorphable, std::vector<int>* ignoreList)
 {
 	auto isMorphable = [IgnoreMorphable](CellData* cell)
@@ -2981,7 +3019,17 @@ void CMapDataExt::CheckCellRise(bool steep, int loopCount, bool IgnoreMorphable,
 						|| (w && ne && nw && w->Height - cell->Height > 0 && nw->Height - cell->Height <= 0 && ne->Height - cell->Height > 0)
 						|| (w && se && sw && w->Height - cell->Height > 0 && sw->Height - cell->Height <= 0 && se->Height - cell->Height > 0);
 
-					if (!trigger) continue;
+					int tallerCount = 0;
+					if (n && (n->Height - cell->Height > 0)) tallerCount++;
+					if (s && (s->Height - cell->Height > 0)) tallerCount++;
+					if (w && (w->Height - cell->Height > 0)) tallerCount++;
+					if (e && (e->Height - cell->Height > 0)) tallerCount++;
+					if (nw && (nw->Height - cell->Height > 0)) tallerCount++;
+					if (ne && (ne->Height - cell->Height > 0)) tallerCount++;
+					if (sw && (sw->Height - cell->Height > 0)) tallerCount++;
+					if (se && (se->Height - cell->Height > 0)) tallerCount++;
+
+					if (!trigger && tallerCount < 6) continue;
 
 					int idx2 = getIndex(newX, newY);
 					if (ignoreList && std::find(ignoreList->begin(), ignoreList->end(), idx2) != ignoreList->end())
@@ -2994,7 +3042,7 @@ void CMapDataExt::CheckCellRise(bool steep, int loopCount, bool IgnoreMorphable,
 
 					int cap = 14;
 					auto relax = [&](CellData* nb, int limit) {
-						if (nb) cap = std::min(cap, nb->Height + limit);
+						if (nb) cap = std::min(cap, (isMorphable(nb) ? nb->Height : height) + limit);
 					};
 
 					relax(nw, diagLimit);
@@ -3029,6 +3077,12 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	
 	if (updateMinimap && reloadCellDataExt && reloadImages)
 		CTileSetBrowserFrameExt::TerrainDlgLoaded = false;
+
+	CLoadingExt::g_cache[0].clear();
+	CLoadingExt::g_cache[1].clear();
+	CLoadingExt::g_cacheTime[0].clear();
+	CLoadingExt::g_cacheTime[1].clear();
+	CLoadingExt::g_lastCleanup = 0;
 	
 	CIsoView::CurrentCommand->Type = 0;
 	CIsoView::CurrentCommand->Command = 0;
@@ -3522,7 +3576,177 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		{
 			CLoadingExt::LoadFires(fire + ".shp");
 		}
+		TechnoAttachments.clear();
+		int loopCount = Variables::RulesMap.ParseIndicies("AttachmentTypes").size();
+		std::vector<FString> Type(loopCount);
+		std::vector<FString> TechnoType(loopCount);
+		std::vector<FString> FLH(loopCount);
+		std::vector<FString> IsOnTurret(loopCount);
+		std::vector<FString> RotationAdjust(loopCount);
+		for (int i = 0; i < loopCount; ++i)
+		{
+			Type[i].Format("Attachment%d.Type", i);
+			TechnoType[i].Format("Attachment%d.TechnoType", i);
+			FLH[i].Format("Attachment%d.FLH", i);
+			IsOnTurret[i].Format("Attachment%d.IsOnTurret", i);
+			RotationAdjust[i].Format("Attachment%d.RotationAdjust", i);
+		}
+		auto GetFLH = [](int& F, int& L, int& H, const ppmfc::CString value)
+		{
+			int s_count = sscanf_s(value, "%d,%d,%d", &F, &L, &H);
+			if (s_count == 0) F = L = H = 0;
+			else if (s_count == 1) L = H = 0;
+			else if (s_count == 2) H = 0;
+		};
+		auto GetTechnoAttachments = [&](const ppmfc::CString& ID)
+		{
+			for (int i = 0; i < loopCount; ++i)
+			{
+				if (Variables::RulesMap.KeyExists(ID, TechnoType[i]))
+				{
+					auto taType = Variables::RulesMap.GetString(ID, Type[i]);
+					if (!Variables::RulesMap.GetBool(taType, "RespawnAtCreation", true))
+						continue;
+
+					auto& ret = TechnoAttachments[ID];
+					auto& ta = ret.emplace_back();
+					ta.ID = Variables::RulesMap.GetString(ID, TechnoType[i]);
+					auto ySort = Variables::RulesMap.GetString(taType, "YSortPosition");
+					if (ySort == "underparent")
+						ta.YSortPosition = TechnoAttachment::YSortPosition::Bottom;
+					else if (ySort == "overparent")
+						ta.YSortPosition = TechnoAttachment::YSortPosition::Top;
+					else
+						ta.YSortPosition = TechnoAttachment::YSortPosition::Default;
+
+					GetFLH(ta.F, ta.L, ta.H, Variables::RulesMap.GetString(ID, FLH[i], "0,0,0"));
+
+					if (Variables::RulesMap.GetBool(ID, IsOnTurret[i]))
+					{
+						ta.IsOnTurret = true;
+						FString ArtID = CLoadingExt::GetArtID(ID);
+						int F, L, H;
+						GetFLH(F, L, H, CINI::Art->GetString(ArtID, "TurretOffset", "0,0,0"));
+						ta.F += F;
+						ta.L += L;
+						ta.H += H;
+						ta.DeltaX = Variables::RulesMap.GetInteger(ID, "TurretAnimX");
+						ta.DeltaY = Variables::RulesMap.GetInteger(ID, "TurretAnimY");
+					}
+
+					ta.RotationAdjust = Variables::RulesMap.GetInteger(ID, RotationAdjust[i]);
+				}
+			}
+
+			auto aeTypes = STDHelpers::SplitString(Variables::RulesMap.GetString(ID, "AttachEffectTypes"));
+			for (auto& ae : aeTypes)
+			{
+				if (!Variables::RulesMap.TryGetString(ae, "Stand.Type"))
+					continue;
+
+				auto& ret = TechnoAttachments[ID];
+				auto& ta = ret.emplace_back();
+				ta.ID = Variables::RulesMap.GetString(ae, "Stand.Type");
+				ta.YSortPosition = Variables::RulesMap.GetInteger(ae, "Stand.ZOffset") < 0 ? 
+					TechnoAttachment::YSortPosition::Bottom: TechnoAttachment::YSortPosition::Top;
+				GetFLH(ta.F, ta.L, ta.H, Variables::RulesMap.GetString(ae, "Stand.Offset", "0,0,0"));
+
+				if (Variables::RulesMap.GetBool(ae, "Stand.IsOnTurret"))
+				{
+					ta.IsOnTurret = true;
+					FString ArtID = CLoadingExt::GetArtID(ID);
+					int F, L, H;
+					GetFLH(F, L, H, CINI::Art->GetString(ArtID, "TurretOffset", "0,0,0"));
+					ta.F += F;
+					ta.L += L;
+					ta.H += H;
+					ta.DeltaX = Variables::RulesMap.GetInteger(ID, "TurretAnimX");
+					ta.DeltaY = Variables::RulesMap.GetInteger(ID, "TurretAnimY");
+				}
+				ta.RotationAdjust = Variables::RulesMap.GetInteger(ae, "Stand.Direction") * 16;
+			}
+
+			auto extraUnits = STDHelpers::SplitString(Variables::RulesMap.GetString(ID, "ExtraUnit.Definations"));
+			for (auto& ex : extraUnits)
+			{
+				if (!Variables::RulesMap.TryGetString(ex, "ExtraUnit.Type"))
+					continue;
+
+				auto& ret = TechnoAttachments[ID];
+				auto& ta = ret.emplace_back();
+				ta.ID = Variables::RulesMap.GetString(ex, "ExtraUnit.Type");
+
+				auto getLayer = [](const ppmfc::CString& value)
+				{
+					if (value == "air")
+						return 1;
+					if (value == "top")
+						return 2;
+					return 0;
+				};
+				int mainLayer = getLayer(Variables::RulesMap.GetString(ID, "Render.ForceLayer"));
+				int exLayer = getLayer(Variables::RulesMap.GetString(ex, "Render.ForceLayer"));
+
+				if (exLayer >= mainLayer)
+					ta.YSortPosition = TechnoAttachment::YSortPosition::Top;
+				else
+					ta.YSortPosition = TechnoAttachment::YSortPosition::Bottom;
+				GetFLH(ta.F, ta.L, ta.H, Variables::RulesMap.GetString(ex, "ExtraUnit.Position", "0,0,0"));
+				if (Variables::RulesMap.GetBool(ex, "ExtraUnit.BindTurret"))
+				{
+					ta.IsOnTurret = true;
+					FString ArtID = CLoadingExt::GetArtID(ID);
+					int F, L, H;
+					GetFLH(F, L, H, CINI::Art->GetString(ArtID, "TurretOffset", "0,0,0"));
+					ta.F += F;
+					ta.L += L;
+					ta.H += H;
+					ta.DeltaX = Variables::RulesMap.GetInteger(ID, "TurretAnimX");
+					ta.DeltaY = Variables::RulesMap.GetInteger(ID, "TurretAnimY");
+				}
+				ta.RotationAdjust = Variables::RulesMap.GetInteger(ex, "ExtraUnit.FacingAngleAdjust") * 256 / 360;
+			}
+
+			auto virtualUnits = STDHelpers::SplitString(Variables::RulesMap.GetString(ID, "VirtualUnits"));
+			for (auto& vr : virtualUnits)
+			{
+				if (!Variables::RulesMap.TryGetString(vr, "Techno"))
+					continue;
+
+				auto& ret = TechnoAttachments[ID];
+				auto& ta = ret.emplace_back();
+				ta.ID = Variables::RulesMap.GetString(vr, "Techno");
+				if (Variables::RulesMap.GetBool(vr, "DisplayUpon", true))
+					ta.YSortPosition = TechnoAttachment::YSortPosition::Top;
+				else
+					ta.YSortPosition = TechnoAttachment::YSortPosition::Bottom;
+				GetFLH(ta.F, ta.L, ta.H, Variables::RulesMap.GetString(vr, "FLH", "0,0,0"));
+				if (Variables::RulesMap.GetBool(vr, "OnTurret"))
+				{
+					ta.IsOnTurret = true;
+					FString ArtID = CLoadingExt::GetArtID(ID);
+					int F, L, H;
+					GetFLH(F, L, H, CINI::Art->GetString(ArtID, "TurretOffset", "0,0,0"));
+					ta.F += F;
+					ta.L += L;
+					ta.H += H;
+					ta.DeltaX = Variables::RulesMap.GetInteger(ID, "TurretAnimX");
+					ta.DeltaY = Variables::RulesMap.GetInteger(ID, "TurretAnimY");
+				}
+				ta.RotationAdjust = Variables::RulesMap.GetInteger(vr, "Rotation");
+			}
+		};
+
+		for (auto& [_, ID] : Variables::RulesMap.GetSection("InfantryTypes"))
+			GetTechnoAttachments(ID);
+		for (auto& [_, ID] : Variables::RulesMap.GetSection("VehicleTypes"))
+			GetTechnoAttachments(ID);
+		for (auto& [_, ID] : Variables::RulesMap.GetSection("BuildingTypes"))
+			GetTechnoAttachments(ID);
+		for (auto& [_, ID] : Variables::RulesMap.GetSection("AircraftTypes"))
+			GetTechnoAttachments(ID);
 	}
+
 	for (auto& [_, ID] : Variables::RulesMap.GetSection("InfantryTypes"))
 	{
 		auto ArtID = CLoadingExt::GetArtID(ID);
@@ -3602,4 +3826,5 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			}
 		}
 	}
+	CLoadingExt::DrawTurretShadow = Variables::RulesMap.GetBool("AudioVisual", "DrawTurretShadow");
 }

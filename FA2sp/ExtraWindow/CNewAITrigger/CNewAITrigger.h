@@ -207,6 +207,7 @@ public:
     }
     static bool OnEnterKeyDown(HWND& hWnd);
     static void OnSelchangeAITrigger(bool edited = false, int specificIdx = -1);
+    static bool TeamListChanged;
 
 protected:
     static void Initialize(HWND& hWnd);
@@ -223,6 +224,7 @@ protected:
     static void OnSelchangeComparisonObject(bool edited = false);
     static void OnSelchangeCountry(bool edited = false);
     static void OnSelchangeSide(bool edited = false);
+    static void OnDropdownTeam();
 
     static void OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly = false);
     static void SortAITriggers(FString id);

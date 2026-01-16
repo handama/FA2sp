@@ -178,28 +178,6 @@ DEFINE_HOOK(46D620, CIsoView_FillArea, 9)
 	return 0x46D808;
 }
 
-DEFINE_HOOK(461C3E, CIsoView_OnLButtonDown_PlaceTile_SkipHide, 6)
-{
-	if (!ExtConfigs::PlaceTileSkipHide)
-		return 0;
-
-	GET_BASE(int, X, -0x64);
-	GET(int, Y, EDX);
-	const auto cell = CMapData::Instance->TryGetCellAt(X, Y);
-	return cell->IsHidden() ? 0x4622F2 : 0;
-}
-
-DEFINE_HOOK(457648, CIsoView_OnMouseMove_PlaceTile_SkipHide, B)
-{
-	if (!ExtConfigs::PlaceTileSkipHide)
-		return 0;
-
-	GET_STACK(int, X, STACK_OFFS(0x3D528, 0x3D4E0));
-	GET(int, Y, EAX);
-	const auto cell = CMapData::Instance->TryGetCellAt(X, Y);
-	return cell->IsHidden() ? 0x457D11 : 0;
-}
-
 DEFINE_HOOK(4691D0, CIsoView_ReInitializeDDraw_Begin, 6)
 {
 	CIsoViewExt::ReInitializingDDraw = true;
@@ -512,28 +490,6 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 	return 0;
 }
 
-DEFINE_HOOK(4576C6, CIsoView_OnMouseMove_NoRndForBridge, 6)
-{
-	GET_STACK(DWORD, dwID, STACK_OFFS(0x3D528, 0x3D450));
-
-	if (dwID < CMapDataExt::TileDataCount)
-		if (CMapDataExt::TileData[dwID].TileSet == CMapDataExt::WoodBridgeSet)
-			return 0x4577F7;
-
-	return 0x4576CC;
-}
-
-DEFINE_HOOK(461CDB, CIsoView_OnLButtonDown_NoRndForBridge, 6)
-{
-	GET(DWORD, dwID6, EDI);
-	int dwID = dwID6 >> 6;
-	if (dwID < CMapDataExt::TileDataCount)
-		if (CMapDataExt::TileData[dwID].TileSet == CMapDataExt::WoodBridgeSet)
-			return 0x461DEE;
-
-	return 0x461CE1;
-}
-
 DEFINE_HOOK(45EBE0, CIsoView_OnCommand_ConfirmTube, 7)
 {
 	if (CIsoViewExt::IsPressingTube)
@@ -760,9 +716,29 @@ DEFINE_HOOK(45EC1A, CIsoView_OnCommand_HandleProperty, A)
 
 DEFINE_HOOK(46CB77, CIsoView_DrawMouseAttachedStuff_Overlay_1, 6)
 {
-	GET(int, pos, ESI);
-	CMapDataExt::GetExtension()->SetNewOverlayAt(pos, CIsoView::CurrentCommand->Overlay);
-	return 0x46CB89;
+	GET(int, dwPos, ESI);
+
+	auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+	auto pMapData = CMapDataExt::GetExtension();
+	int X = CMapData::Instance->GetXFromCoordIndex(dwPos);
+	int Y = CMapData::Instance->GetYFromCoordIndex(dwPos);
+	for (int i = 0; i < pIsoView->BrushSizeX; i++)
+	{
+		for (int e = 0; e < pIsoView->BrushSizeY; e++)
+		{
+			if (!pMapData->IsCoordInMap(i + X, e + Y))
+				continue;
+
+			int curPos = dwPos + i + e * pMapData->MapWidthPlusHeight;
+			int curground = pMapData->GetSafeTileIndex(pMapData->GetCellAt(curPos)->TileIndex);
+
+			pMapData->SetNewOverlayAt(curPos, CIsoView::CurrentCommand->Overlay);
+			pMapData->SetOverlayDataAt(curPos, 0);
+			pIsoView->HandleTrail(i + X, e + Y);
+		}
+	}
+
+	return 0x46CC86;
 }
 
 DEFINE_HOOK(46CC03, CIsoView_DrawMouseAttachedStuff_Overlay_2, 5)
@@ -831,9 +807,11 @@ DEFINE_HOOK(46C38B, CIsoView_DrawMouseAttachedStuff_Ore, 9)
 					continue;
 
 				int curPos = dwPos + i + e * pMapData->MapWidthPlusHeight;
-				int curground = pMapData->GetSafeTileIndex(pMapData->GetCellAt(curPos)->TileIndex);
+				auto cell = pMapData->GetCellAt(curPos);
+				int curground = pMapData->GetSafeTileIndex(cell->TileIndex);
+				auto& tileData = pMapData->TileData[curground];
 
-				if (pMapData->TileData[curground].AllowTiberium)
+				if (tileData.AllowTiberium && tileData.TileBlockDatas[cell->TileSubIndex].RampType == 0)
 				{
 					int targetOre;
 					if (param == 2)
@@ -888,10 +866,12 @@ DEFINE_HOOK(457336, CIsoView_OnMouseMove_PlaceTile, 6)
 	const int& y = point.Y;
 	CIsoView::CancelDraw = true;
 
+	CMapDataExt::RecordingPreviewHistory = true;
 	pIsoView->PlaceTileOnMouse(x, y, nFlags, true);
 
 	CIsoView::CancelDraw = false;		
 	pIsoView->Draw();
+	CMapDataExt::RecordingPreviewHistory = true;
 	CMapData::Instance->DoUndo();
 	pIsoView->Drag = FALSE;
 
@@ -1382,9 +1362,9 @@ DEFINE_HOOK(45C0CF, CIsoView_OnMouseMove_Waypoint_AddPlayerLocation, 6)
 
 	if (CMapData::Instance->IsMultiOnly())
 	{
-		GET_STACK(int, waypoint, STACK_OFFS(0x3D528, 0x3D518));
+		GET(int, waypoint, ECX);
 		ppmfc::CString key;
-		key.Format("%d", waypoint);
+		key.Format("%d", waypoint - 3);
 		deleteWaypoint(key);
 	}
 	else
@@ -1545,23 +1525,18 @@ DEFINE_HOOK(469B71, CIsoView_HandleTrail_Range, 8)
 	return 0x469B79;
 }
 
+DEFINE_HOOK(469BA5, CIsoView_HandleTrail_Track, A)
+{
+	if (!CIsoViewExt::EnableAutoTrack)
+		return 0x469BC9;
+	return 0;
+}
+
 DEFINE_HOOK(469BED, CIsoView_HandleTrail_Range_2, 8)
 {
 	R->Stack<int>(STACK_OFFS(0x14, -0x8), R->EBP() - 2);
 	R->EBP(R->EBP() + 2);
 	return 0x469BF5;
-}
-
-DEFINE_HOOK(4574A0, CIsoView_OnMouseMove_MakePreviewRecord, 7)
-{
-	CMapDataExt::RecordingPreviewHistory = true;
-	return 0;
-}
-
-DEFINE_HOOK(459AB9, CIsoView_OnMouseMove_RestorePreviewRecord, 5)
-{
-	CMapDataExt::RecordingPreviewHistory = true;
-	return 0;
 }
 
 DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)

@@ -176,6 +176,7 @@ public:
     static float LightingSource[3];
     static bool UseStrictNewTheater;
     static bool InGameDisplay_Shadow;
+    static bool InGameDisplay_Shadow_OnGround;
     static bool InGameDisplay_Deploy;
     static bool InGameDisplay_Water;
     static bool InGameDisplay_Damage;

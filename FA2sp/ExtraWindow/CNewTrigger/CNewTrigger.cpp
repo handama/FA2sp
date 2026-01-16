@@ -877,7 +877,14 @@ void CNewTrigger::OnSelchangeActionListbox(bool changeCursel)
             {
                 unsigned int nValue;
                 if (sscanf_s(value, "%u", &nValue) == 1)
-                    value.Format("%f", *(float*)&nValue);
+                {
+                    auto f = *(float*)&nValue;
+                    if (f > 0.0f)
+                        f = std::max(f, 0.000001f);
+                    else if (f < 0.0f)
+                        f = std::min(f, -0.000001f);
+                    value.Format("%f", f);
+                }
             }
 
             if (CurrentCSFActionParam == i)

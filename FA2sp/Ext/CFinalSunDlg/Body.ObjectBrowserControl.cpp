@@ -29,6 +29,7 @@ namespace fs = std::filesystem;
 
 std::array<HTREEITEM, CViewObjectsExt::Root_Count> CViewObjectsExt::ExtNodes;
 std::unordered_set<FString> CViewObjectsExt::IgnoreSet;
+std::unordered_set<FString> CViewObjectsExt::IgnoreOverlaySet;
 std::unordered_set<FString> CViewObjectsExt::ForceName;
 std::unordered_map<FString, FString> CViewObjectsExt::RenameString;
 std::unordered_set<FString> CViewObjectsExt::ExtSets[Set_Count];
@@ -494,6 +495,7 @@ void CViewObjectsExt::Redraw_Initialize()
         root = NULL;
     KnownItem.clear();
     IgnoreSet.clear();
+    IgnoreOverlaySet.clear();
     ForceName.clear();
     RenameString.clear();
     Owners.clear();
@@ -559,17 +561,11 @@ void CViewObjectsExt::Redraw_Initialize()
             IgnoreSet.insert(item.second);
         }
 
-    auto theaterIg = doc.GetString("Map", "Theater");
-    if (theaterIg != "")
-	{
-		if (theaterIg == "NEWURBAN")
-			theaterIg = "UBN";
-
-        FString suffix = theaterIg.Mid(0, 3);
-		if (auto theater_ignores = fadata.GetSection((FString)("IgnoreRA2" + suffix)))
-			for (auto& item : theater_ignores->GetEntities())
-				IgnoreSet.insert(item.second);
-	}
+    if (auto ignores = fadata.GetSection("IgnoreOverlays"))
+        for (auto& item : ignores->GetEntities())
+        {
+            IgnoreOverlaySet.insert(item.second);
+        }
 
     if (auto forcenames = fadata.GetSection("ForceName"))
         for (auto& item : forcenames->GetEntities())
@@ -582,19 +578,29 @@ void CViewObjectsExt::Redraw_Initialize()
         {
             RenameString[item.first] = item.second;
         }
+
+    auto theaterIg = doc.GetString("Map", "Theater");
     if (theaterIg != "")
-    {
-        if (theaterIg == "NEWURBAN")
-            theaterIg = "UBN";
+	{
+		if (theaterIg == "NEWURBAN")
+			theaterIg = "UBN";
 
         FString suffix = theaterIg.Mid(0, 3);
+        suffix.MakeUpper();
+		if (auto theater_ignores = fadata.GetSection((FString)("IgnoreRA2" + suffix)))
+			for (auto& item : theater_ignores->GetEntities())
+				IgnoreSet.insert(item.second);
+
+		if (auto theater_ignores = fadata.GetSection((FString)("IgnoreOverlays" + suffix)))
+			for (auto& item : theater_ignores->GetEntities())
+                IgnoreOverlaySet.insert(item.second);
 
         if (auto forcenames = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("RenameString") + suffix))
             for (auto& item : forcenames->GetEntities())
             {
                 RenameString[item.first] = item.second;
             }
-    }
+	}
 }
 
 void CViewObjectsExt::Redraw_MainList()
@@ -1682,8 +1688,6 @@ void CViewObjectsExt::Redraw_Overlay()
     HTREEITEM& hOverlay = ExtNodes[Root_Overlay];
     if (hOverlay == NULL)   return;
 
-    auto& rules = CINI::Rules();
-
     HTREEITEM hTemp;
     hTemp = this->InsertTranslatedString("DelOvrlObList", -1, hOverlay);
     this->InsertTranslatedString("DelOvrl0ObList", 60100, hTemp);
@@ -1730,19 +1734,36 @@ void CViewObjectsExt::Redraw_Overlay()
     // Walls
     HTREEITEM hWalls = this->InsertTranslatedString("WallsObList", -1, hOverlay);
 
+    std::vector<std::pair<HTREEITEM, std::vector<FString>>> nodes;
+    if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.Overlays"))
+    {
+        std::map<int, FString> collector;
+
+        for (auto& pair : pSection->GetIndices())
+            collector[pair.second] = pair.first;
+
+        for (auto& pair : collector)
+        {
+            const auto& contains = FString::SplitString(pair.second, "|");
+            const auto& translation = pSection->GetEntities().find(pair.second)->second;
+
+            if (!IsIgnored(translation))
+                nodes.push_back(std::make_pair(this->InsertTranslatedString(translation, -1, hOverlay), contains));
+        }
+    }
+
     hTemp = this->InsertTranslatedString("AllObList", -1, hOverlay);
 
     this->InsertTranslatedString("OvrlManuallyObList", 60001, hOverlay);
     this->InsertTranslatedString("OvrlDataManuallyObList", 60002, hOverlay);
 
-    if (!rules.SectionExists("OverlayTypes"))
+    if (Variables::RulesMap.GetSection("OverlayTypes").empty())
         return;
 
     // a rough support for tracks
-
     InsertingOverlay = 39;
     InsertingOverlayData = 0;
-    this->InsertTranslatedString("Tracks", Const_Overlay + 39, hOverlay);
+    this->InsertTranslatedString("Tracks", Const_Track, hOverlay);
     InsertingOverlay = -1;
 
     const auto& overlays = Variables::RulesMap.ParseIndicies("OverlayTypes", true);
@@ -1752,47 +1773,65 @@ void CViewObjectsExt::Redraw_Overlay()
         overlays.size() : std::min((UINT)255, overlays.size()); i < sz; ++i)
     {
         const auto& value = overlays[i];
-        FString buffer;
-        buffer = QueryUIName(value);
-        if (buffer != value)
-            buffer += " (" + value + ")";
-        FString id;
-        id.Format("%03d %s", i, buffer);
-        if (rules.GetBool(value, "Wall"))
+        if (IgnoreOverlaySet.find(value) == IgnoreOverlaySet.end())
         {
-            int damageLevel = CINI::Art().GetInteger(value, "DamageLevels", 1);
-            CViewObjectsExt::WallDamageStages[i] = damageLevel;
-            InsertingOverlay = i;
-            InsertingOverlayData = 5;
-            auto thisWall = this->InsertString(
-                QueryUIName(value),
-                Const_Overlay + i * 5 + indexWall,
-                hWalls
-            );
+            FString buffer;
+            buffer = QueryUIName(value);
+            if (buffer != value)
+                buffer += " (" + value + ")";
+            FString id;
+            id.Format("%03d %s", i, buffer);
 
-            for (int s = 1; s < damageLevel + 1; s++)
+            if (Variables::RulesMap.GetBool(value, "Wall"))
             {
-                FString damage;
-                damage.Format("WallDamageLevelDes%d", s);
-                this->InsertString(
-                    QueryUIName(value) + " " + Translations::TranslateOrDefault(damage, damage),
-                    Const_Overlay + i * 5 + s + indexWall,
-                    thisWall
+                int damageLevel = CINI::Art().GetInteger(value, "DamageLevels", 1);
+                CViewObjectsExt::WallDamageStages[i] = damageLevel;
+                InsertingOverlay = i;
+                InsertingOverlayData = 5;
+                auto thisWall = this->InsertString(
+                    QueryUIName(value),
+                    Const_Overlay + i * 5 + indexWall,
+                    hWalls
                 );
-                InsertingOverlayData += 16;
-            }
-            InsertingOverlay = -1;
-            if (damageLevel > 1)
-            {
-                this->InsertString(
-                    QueryUIName(value) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
-                    Const_Overlay + i * 5 + 4 + indexWall,
-                    thisWall);
-            }
-        }
 
-        if (IgnoreSet.find(value) == IgnoreSet.end())
-        {
+                for (int s = 1; s < damageLevel + 1; s++)
+                {
+                    FString damage;
+                    damage.Format("WallDamageLevelDes%d", s);
+                    this->InsertString(
+                        QueryUIName(value) + " " + Translations::TranslateOrDefault(damage, damage),
+                        Const_Overlay + i * 5 + s + indexWall,
+                        thisWall
+                    );
+                    InsertingOverlayData += 16;
+                }
+                InsertingOverlay = -1;
+                if (damageLevel > 1)
+                {
+                    this->InsertString(
+                        QueryUIName(value) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
+                        Const_Overlay + i * 5 + 4 + indexWall,
+                        thisWall);
+                }
+            }
+
+            for (const auto& node : nodes)
+            {
+                for (const auto& match : node.second)
+                {
+                    if (overlays[i].Find(match.c_str()) >= 0)
+                    {
+                        InsertingOverlay = i;
+                        if (CMapDataExt::IsOre((byte)i))
+                            InsertingOverlayData = 11;
+                        else
+                            InsertingOverlayData = 0;
+                        this->InsertString(id, Const_Overlay + i, node.first);
+                        break;
+                    }
+                }
+            }
+
             InsertingOverlay = i;
             if (CMapDataExt::IsOre((byte)i))
                 InsertingOverlayData = 11;
@@ -1802,7 +1841,6 @@ void CViewObjectsExt::Redraw_Overlay()
         }
         InsertingOverlay = -1;
     }
-
 
     HTREEITEM hTemp2 = this->InsertTranslatedString("PlaceRandomOverlayList", -1, hOverlay);
     if (auto pSection = CINI::FAData().GetSection("PlaceRandomOverlayList"))
@@ -1832,6 +1870,15 @@ void CViewObjectsExt::Redraw_Overlay()
                 }
             }
             index++;
+        }
+    }
+    // Clear up
+    if (ExtConfigs::ObjectBrowser_CleanUp)
+    {
+        for (auto& subnode : nodes)
+        {
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.first))
+                this->GetTreeCtrl().DeleteItem(subnode.first);
         }
     }
 }
@@ -2312,7 +2359,10 @@ void CViewObjectsExt::SetWpTagColor(int X, int Y, bool isWp)
                 CMapDataExt::CustomWaypointColors[id] = color;
                 ppmfc::CString key = "Wp";
                 key += id;
-                CINI::CurrentDocument->WriteString("FA2spColors", key, value);
+                if (color != ExtConfigs::DisplayColor_Waypoint)
+                    CINI::CurrentDocument->WriteString("FA2spColors", key, value);
+                else
+                    CINI::CurrentDocument->DeleteKey("FA2spColors", key);
                 ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
             }
         }
@@ -2327,7 +2377,10 @@ void CViewObjectsExt::SetWpTagColor(int X, int Y, bool isWp)
                 CMapDataExt::CustomCelltagColors[id] = color;
                 ppmfc::CString key = "Tag";
                 key += id;
-                CINI::CurrentDocument->WriteString("FA2spColors", key, value);
+                if (color != ExtConfigs::DisplayColor_Celltag)
+                    CINI::CurrentDocument->WriteString("FA2spColors", key, value);
+                else
+                    CINI::CurrentDocument->DeleteKey("FA2spColors", key);
                 ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
             }
         }
@@ -3117,6 +3170,7 @@ int CViewObjectsExt::GuessGenericSide(const char* pRegName, int nType)
 void CViewObjectsExt::OnExeTerminate()
 {
     IgnoreSet.clear();
+    IgnoreOverlaySet.clear();
     ForceName.clear();
     for (auto& set : ExtSets)
         set.clear();
@@ -3154,6 +3208,7 @@ void CViewObjectsExt::InitializeOnUpdateEngine()
     CViewObjectsExt::PlacingWall = -1;
     CViewObjectsExt::PlacingRandomRandomFacing = false;
     CViewObjectsExt::NeedChangeTreeViewSelect = true;
+    CIsoViewExt::EnableAutoTrack = false;
 
     CViewObjectsExt::CliffConnectionCoord.X = -1;
     CViewObjectsExt::CliffConnectionCoord.Y = -1;
@@ -3939,6 +3994,16 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     {
         CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
         CIsoView::CurrentCommand->Type = 3;
+        return true;
+    }
+    if (oriNData == Const_Track)
+    {
+        CIsoViewExt::EnableAutoTrack = true;
+        CIsoView::CurrentCommand->Command = 0x1;
+        CIsoView::CurrentCommand->Type = 6;
+        CIsoView::CurrentCommand->Param = 30;
+        CIsoView::CurrentCommand->Overlay = 39;
+        CIsoView::CurrentCommand->OverlayData = 0;
         return true;
     }
     // 0x1F Terrain Generator

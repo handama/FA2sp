@@ -1172,8 +1172,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									{
 										for (int dx = 0; dx < DataExt.Height; ++dx)
 										{
-											const int x = X + dx;
-											const int y = Y + dy;
+											const int x = objRender.X + dx;
+											const int y = objRender.Y + dy;
 											if (isCoordInFullMap(x, y))
 											{
 												found = true;
@@ -1200,11 +1200,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 							if (shadow && CIsoViewExt::DrawStructures && !isCloakable(objRender.ID))
 							{
-								int x1 = objRender.X;
-								int y1 = objRender.Y;
-								CIsoView::MapCoord2ScreenCoord(x1, y1);
-								x1 -= DrawOffsetX;
-								y1 -= DrawOffsetY;
 								int nFacing = 0;
 								if (Variables::RulesMap.GetBool(objRender.ID, "Turret") && !Variables::RulesMap.GetBool(objRender.ID, "TurretAnimIsVoxel"))
 								{
@@ -1358,8 +1353,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								{
 									for (int dx = 0; dx < DataExt.Height; ++dx)
 									{
-										const int x = X + dx;
-										const int y = Y + dy;
+										const int x = node.X + dx;
+										const int y = node.Y + dy;
 										if (isCoordInFullMap(x, y))
 										{
 											found = true;
@@ -2090,7 +2085,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						const int x = part.Data->X + dx;
 						const int y = part.Data->Y + dy;
 						int pos = CMapData::Instance->GetCoordIndex(x, y);
-						if (pos < CMapDataExt::CellDataExts.size());
+						if (pos < CMapDataExt::CellDataExts.size())
 						{
 							auto& cellExt = CMapDataExt::CellDataExts[pos];
 							for (const auto& [_, type] : cellExt.Structures)
@@ -2110,7 +2105,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					const int x = part.Data->X + block.Y;
 					const int y = part.Data->Y + block.X;
 					int pos = CMapData::Instance->GetCoordIndex(x, y);
-					if (pos < CMapDataExt::CellDataExts.size());
+					if (pos < CMapDataExt::CellDataExts.size())
 					{
 						auto& cellExt = CMapDataExt::CellDataExts[pos];
 						for (const auto& [_, type] : cellExt.Structures)

@@ -1148,7 +1148,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								auto pData = clips[i].get();
 
 								auto& coord = DataExt.BottomCoords[i];
-								MapCoord coordInMap = { X + coord.X, Y + coord.Y };		
+								MapCoord coordInMap = { objRender.X + coord.X, objRender.Y + coord.Y };
 								
 								while (IsCoordInWindowButOnBottom(coordInMap.X, coordInMap.Y))
 								{
@@ -1334,7 +1334,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							auto pData = clips[i].get();
 							auto& coord = DataExt.BottomCoords[i];
-							MapCoord coordInMap = { X + coord.X, Y + coord.Y };
+							MapCoord coordInMap = { node.X + coord.X, node.Y + coord.Y };
 
 							while (IsCoordInWindowButOnBottom(coordInMap.X, coordInMap.Y))
 							{

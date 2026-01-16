@@ -339,10 +339,31 @@ void CMapDataExt::ProcessBuildingType(const char* ID)
 	DataExt.BottomCoords.reserve(std::max(1, DataExt.Width + DataExt.Height - 1));
 	for (int x = 0; x < std::max(1, DataExt.Width + DataExt.Height - 1); ++x)
 	{
-		if (x < DataExt.Width)
-			DataExt.BottomCoords.emplace_back(DataExt.Height - 1, x);
+		if (!DataExt.IsCustomFoundation())
+		{
+			if (x < DataExt.Width)
+				DataExt.BottomCoords.emplace_back(DataExt.Height - 1, x);
+			else
+				DataExt.BottomCoords.emplace_back(DataExt.Height + DataExt.Width - 2 - x, DataExt.Width - 1);
+		}
 		else
-			DataExt.BottomCoords.emplace_back(DataExt.Height + DataExt.Width - 2 - x, DataExt.Width - 1);
+		{
+			auto& coords = *DataExt.Foundations;
+			MapCoord coord = { 0,0 };
+			if (x < DataExt.Width)
+				coord = { DataExt.Height - 1, x };
+			else
+				coord = { DataExt.Height + DataExt.Width - 2 - x, DataExt.Width - 1 };
+
+			while (std::find(coords.begin(), coords.end(), MapCoord{ coord.Y, coord.X }) == coords.end())
+			{
+				if (coord.X <= 0 || coord.Y <= 0)
+					break;
+				coord.X--;
+				coord.Y--;
+			}
+			DataExt.BottomCoords.emplace_back(coord);
+		}
 	}
 }
 

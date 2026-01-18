@@ -12,7 +12,7 @@ class SaveMapExt
 private:
     static UINT_PTR Timer;
 public:
-    static bool SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, int previewOption, bool showDialog);
+    static bool SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, int previewOption, bool showDialog, bool panic);
     static bool SaveMapSilent(FString filepath, bool panic = false);
     static void ResetTimer();
     static void StopTimer();

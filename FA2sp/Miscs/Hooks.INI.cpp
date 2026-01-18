@@ -1,7 +1,6 @@
 #include "Hooks.INI.h"
 #include "../Ext/CMapData/Body.h"
 #include "../Ext/CLoading/Body.h"
-#include <queue>
 
 using std::map;
 using std::vector;
@@ -14,11 +13,11 @@ vector<CINI*> INIIncludes::LoadedINIs;
 vector<FString> INIIncludes::LoadedINIFiles;
 vector<char*> INIIncludes::RulesIncludeFiles;
 map<FString, unsigned int> INIIncludes::CurrentINIIdxHelper;
-std::unordered_map<FString, std::unordered_map<FString, FString>> INIIncludes::MapIncludedKeys;
 std::unordered_map<CINI*, CINIInfo> CINIManager::propertyMap;
 bool INIIncludes::SkipBracketFix = false;
 
-void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection, bool bClear, bool bTrimSpace, bool bAllowInclude)
+void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
+    bool bClear, bool bTrimSpace, bool bAllowInclude, std::queue<ppmfc::CString>* parentIncludeInis)
 {
     if (bClear)
     {
@@ -52,6 +51,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
     const size_t len = content.length();
     static size_t plusEqual = 0;
     static std::map<CINIExt*, std::map<FString, FString>> InheritSections;
+    std::set<FString> LoadedSections;
     if (bAllowInclude) {
         plusEqual = 0;
         InheritSections.clear();
@@ -108,11 +108,24 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                     return;
                 }
 
-                pCurrentSection = AddOrGetSection(sectionName);
+                // only read first repeated section
+                if (LoadedSections.find(sectionName) != LoadedSections.end())
+                {
+                    pCurrentSection = nullptr;
+                }
+                else
+                {
+                    pCurrentSection = AddOrGetSection(sectionName);
+                    LoadedSections.insert(sectionName);
+                }
 
                 if (CMapDataExt::IsLoadingMapFile && ExtConfigs::SaveMap_PreserveINISorting)
                 {
-                    CMapDataExt::MapIniSectionSorting.push_back(sectionName);
+                    auto it = std::find(CMapDataExt::MapIniSectionSorting.begin(), CMapDataExt::MapIniSectionSorting.end(), sectionName);
+                    if (it == CMapDataExt::MapIniSectionSorting.end())
+                    {
+                        CMapDataExt::MapIniSectionSorting.push_back(sectionName);
+                    }
                 }
             }
             continue;
@@ -197,16 +210,22 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
     {
         using INIPair = std::pair<ppmfc::CString, ppmfc::CString>;
         const char* includeSection = ExtConfigs::IncludeType ? "$Include" : "#include";
-
-        if (auto pSection = GetSection(includeSection)) {
+        auto pIncludeSection = GetSection(includeSection);
+        if (pIncludeSection || parentIncludeInis) {
             if (this == &CINI::CurrentDocument) {
-                INIIncludes::MapIncludedKeys.clear();
                 INIIncludes::MapINIWarn = true;
             }
             std::set<ppmfc::CString> includedInis;
             std::queue<ppmfc::CString> currentIncludeInis;
-            for (auto& [index, key] : ParseIndiciesData(includeSection)) {
-                currentIncludeInis.push(pSection->GetString(key));
+            if (parentIncludeInis)
+            {
+                currentIncludeInis = *parentIncludeInis;
+            }
+            else
+            {
+                for (auto& [index, key] : ParseIndiciesData(includeSection)) {
+                    currentIncludeInis.push(pIncludeSection->GetString(key));
+                }
             }
             while (!currentIncludeInis.empty()) {
                 std::queue<ppmfc::CString> nextIncludeInis;
@@ -251,9 +270,6 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                                         targetIndicies.end()
                                     );
                                     targetIndicies.push_back(std::make_pair(key, value));
-                                    if (this == &CINI::CurrentDocument) {
-                                        INIIncludes::MapIncludedKeys[sectionName][key] = GetString(pTargetSection, key);
-                                    }
                                 }
                                 DeleteSection(sectionName);
                                 pTargetSection = AddSection(sectionName);

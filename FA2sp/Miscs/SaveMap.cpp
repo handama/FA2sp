@@ -87,7 +87,7 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
     pThis->MyViewFrame.StatusBar.SetWindowText(Translations::TranslateOrDefault("SavingMap", "Saving map..."));
     pThis->MyViewFrame.StatusBar.UpdateWindow();
 
-    SaveMapExt::SaveMap(pINI, pThis, filepath, previewOption, true);
+    SaveMapExt::SaveMap(pINI, pThis, filepath, previewOption, true, false);
 
     return 0x42A859;
 }
@@ -261,7 +261,7 @@ bool SaveMapExt::SaveMapSilent(FString filepath, bool panic)
 
     CMapData::Instance->UpdateINIFile(SaveMapFlag::UpdateMapFieldData);
 
-    if (SaveMap(ini, CFinalSunDlg::Instance(), filepath, 2, false))
+    if (SaveMap(ini, CFinalSunDlg::Instance(), filepath, 2, false, panic))
     {
         if (!panic)
         {
@@ -277,7 +277,7 @@ bool SaveMapExt::SaveMapSilent(FString filepath, bool panic)
     return false;
 }
 
-bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, int previewOption, bool showDialog)
+bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, int previewOption, bool showDialog, bool panic)
 {
     if (SaveMapExt::IsAutoSaving)
         previewOption = 2; //no preview to save time
@@ -679,53 +679,46 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
 
             oss << comments;
 
-            auto saveSection = [&oss](INISection* pSection, FString sectionName)
-            {
-                auto& exclude = INIIncludes::MapIncludedKeys;
-                if (!exclude.empty() && exclude.find(sectionName) != exclude.end())
-                {
-                    std::vector<int> skipLines;
-                    std::vector<int> useOriginLines;
+            const char* includeSection = ExtConfigs::IncludeType ? "$Include" : "#include";
+            auto pInclude = pINI->GetSection(includeSection);
 
-                    auto& keys = exclude[sectionName];
-                    int index = 0;
+            std::unique_ptr<CINIExt, GameUniqueDeleter<CINIExt>> includeIni;
+            if (pInclude && ExtConfigs::AllowIncludes && !panic)
+            {
+                includeIni = MakeGameUnique<CINIExt>();
+                FString buffer = " \n";
+
+                std::queue<ppmfc::CString> currentIncludeInis;
+
+                for (auto& pair : pInclude->GetEntities()) {
+                    currentIncludeInis.push(pair.second);
+                }
+                includeIni->LoadINIExt((uint8_t*)buffer.data(), buffer.length(), nullptr, true, true, true, &currentIncludeInis);
+            }
+
+            auto saveSection = [&oss, &pInclude, &includeIni](INISection* pSection, FString sectionName)
+            {
+                bool hasInclude = includeIni && includeIni->SectionExists(sectionName);
+                if (hasInclude)
+                {
+                    auto pIncludeSection = includeIni->GetSection(sectionName);
+                    auto& keys = pIncludeSection->GetEntities();
+                    bool wroteSection = false;
                     for (auto& pair : pSection->GetEntities())
                     {
-                        if (keys.find(pair.first) != keys.end())
+                        auto itr = keys.find(pair.first);
+                        if (itr == keys.end() || itr->second != pair.second)
                         {
-                            if (keys[pair.first] == "")
+                            if (!wroteSection)
                             {
-                                skipLines.push_back(index);
+                                oss << "[" << sectionName << "]\n";
+                                wroteSection = true;
                             }
-                            else
-                            {
-                                useOriginLines.push_back(index);
-                            }
+                            oss << pair.first << "=" << pair.second << "\n";
                         }
-                        index++;
                     }
-                    if (skipLines.size() < pSection->GetEntities().size())
-                    {
-                        oss << "[" << sectionName << "]\n";
-                        index = 0;
-                        for (auto& pair : pSection->GetEntities())
-                        {
-                            if (std::find(skipLines.begin(), skipLines.end(), index) != skipLines.end())
-                            {
-
-                            }
-                            else if (std::find(useOriginLines.begin(), useOriginLines.end(), index) != useOriginLines.end())
-                            {
-                                oss << pair.first << "=" << keys[pair.first] << "\n";
-                            }
-                            else
-                            {
-                                oss << pair.first << "=" << pair.second << "\n";
-                            }
-                            index++;
-                        }
+                    if (wroteSection)
                         oss << "\n";
-                    }
                 }
                 else
                 {

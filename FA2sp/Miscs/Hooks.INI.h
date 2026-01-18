@@ -10,6 +10,7 @@
 #include <CFinalSunApp.h>
 #include <CMixFile.h>
 #include <fstream>
+#include <queue>
 
 using std::map;
 using std::vector;
@@ -17,7 +18,8 @@ using std::vector;
 class NOVTABLE CINIExt : public CINI
 {
 public:
-    void LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection, bool bClear, bool bTrimSpace, bool bAllowInclude);
+    void LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
+        bool bClear, bool bTrimSpace, bool bAllowInclude, std::queue<ppmfc::CString>* parentIncludeInis = nullptr);
 };
 
 struct CINIInfo
@@ -73,5 +75,4 @@ public:
     static bool IsMapINI;
     static bool MapINIWarn;
     static bool SkipBracketFix;
-    static std::unordered_map<FString, std::unordered_map<FString, FString>> MapIncludedKeys;
 };

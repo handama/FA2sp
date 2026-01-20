@@ -428,9 +428,11 @@ public:
 
     static int CurrentCSFActionParam;
     static int CurrentTriggerActionParam;
+    static int CurrentTeamActionParam;
     static std::vector<ParamAffectedParams> ActionParamAffectedParams;
     static std::vector<ParamAffectedParams> EventParamAffectedParams;
     static bool ActionParamUsesFloat;
+    static bool TeamListChanged;
 
 private:
     static int SelectedTriggerIndex;

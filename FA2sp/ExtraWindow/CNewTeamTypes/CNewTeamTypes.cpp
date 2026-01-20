@@ -406,6 +406,7 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
 
                 DropNeedUpdate = true;
                 CNewAITrigger::TeamListChanged = true;
+                CNewTrigger::TeamListChanged = true;
 
                 FString name;
                 name.Format("%s (%s)", CurrentTeamID, buffer);
@@ -1415,6 +1416,7 @@ void CNewTeamTypes::OnClickNewTeam()
 
     OnSelchangeTeamtypes();
     CNewAITrigger::TeamListChanged = true;
+    CNewTrigger::TeamListChanged = true;
 }
 
 void CNewTeamTypes::OnClickDelTeam(HWND& hWnd)
@@ -1450,6 +1452,7 @@ void CNewTeamTypes::OnClickDelTeam(HWND& hWnd)
     SendMessage(hSelectedTeam, CB_SETCURSEL, idx, NULL);
     OnSelchangeTeamtypes();
     CNewAITrigger::TeamListChanged = true;
+    CNewTrigger::TeamListChanged = true;
 }
 
 void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
@@ -1515,6 +1518,7 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
 
         OnSelchangeTeamtypes();
         CNewAITrigger::TeamListChanged = true;
+        CNewTrigger::TeamListChanged = true;
     }
 }
 

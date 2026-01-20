@@ -20,6 +20,7 @@
 #include "../CTriggerAnnotation/CTriggerAnnotation.h"
 #include "../CCsfEditor/CCsfEditor.h"
 #include "../CNewTeamTypes/CNewTeamTypes.h"
+#include "../CNewAITrigger/CNewAITrigger.h"
 
 HWND CNewTrigger::m_hwnd;
 CFinalSunDlg* CNewTrigger::m_parent;
@@ -61,6 +62,7 @@ HWND CNewTrigger::hActionParameter[ACTION_PARAM_COUNT];
 HWND CNewTrigger::hActionParameterDesc[ACTION_PARAM_COUNT];
 int CNewTrigger::CurrentCSFActionParam;
 int CNewTrigger::CurrentTriggerActionParam;
+int CNewTrigger::CurrentTeamActionParam;
 int CNewTrigger::SelectedTriggerIndex = -1;
 int CNewTrigger::SelectedEventIndex = -1;
 int CNewTrigger::SelectedActionIndex = -1;
@@ -85,6 +87,7 @@ bool CNewTrigger::ActionParameterAutoDrop[ACTION_PARAM_COUNT];
 bool CNewTrigger::Autodrop;
 bool CNewTrigger::DropNeedUpdate;
 bool CNewTrigger::ActionParamUsesFloat;
+bool CNewTrigger::TeamListChanged = false;
 WNDPROC CNewTrigger::OriginalListBoxProcEvent;
 WNDPROC CNewTrigger::OriginalListBoxProcAction;
 RECT CNewTrigger::rectComboLBox = { 0 };
@@ -1148,7 +1151,6 @@ void CNewTrigger::OnSelchangeActionType(bool edited)
 
     text.Replace(",", "");
 
-
     UpdateActionAndParam(atoi(text), false); 
     OnSelchangeActionListbox(false);
     
@@ -1273,6 +1275,14 @@ void CNewTrigger::UpdateParamAffectedParam_Action(int index)
                 else if (paramType[1] == "9") // triggers
                 {
                     CurrentTriggerActionParam = target.AffectedParam;
+                }
+                else if (FString::SplitString(
+                    fadata.GetString(
+                        "NewParamTypes",
+                        paramType[1]), size_t(0))[0]
+                    == "TeamTypes")
+                {
+                    CurrentTeamActionParam = target.AffectedParam;
                 }
                 ExtraWindow::AdjustDropdownWidth(hActionParameter[target.AffectedParam]);
 
@@ -2051,6 +2061,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
 
     CurrentCSFActionParam = -1;
     CurrentTriggerActionParam = -1;
+    CurrentTeamActionParam = -1;
     for (int i = 0; i < ACTION_PARAM_COUNT; i++)
     {
         while (SendMessage(hActionParameter[i], CB_DELETESTRING, 0, NULL) != CB_ERR);
@@ -2070,14 +2081,22 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
                     //thisAction.Params[ActionParamsUsage[i].second].MakeLower();
                     CurrentCSFActionParam = i;
                 }
-                if (pParamTypes[ActionParamsUsage[i].second][1] == "1" && !ExtConfigs::SearchCombobox_Waypoint) // waypoints
+                else if (pParamTypes[ActionParamsUsage[i].second][1] == "1" && !ExtConfigs::SearchCombobox_Waypoint) // waypoints
                 {
                     CNewTrigger::ActionParameterAutoDrop[i] = false;
                 }
                 else if (pParamTypes[ActionParamsUsage[i].second][1] == "9") // triggers
                 {
                     CurrentTriggerActionParam = i;
-                }                    
+                }
+                else if (FString::SplitString(
+                    fadata.GetString(
+                        "NewParamTypes",
+                        pParamTypes[ActionParamsUsage[i].second][1]), size_t(0))[0]
+                    == "TeamTypes")
+                {
+                    CurrentTeamActionParam = i;
+                }
             }
             else
             {
@@ -2179,6 +2198,27 @@ void CNewTrigger::OnDropdownCComboBox(int index)
         CCsfEditor::CurrentSelectedCSF = text.c_str();
 
         ::SendMessage(CCsfEditor::GetHandle(), 114515, 0, 0);
+    }
+    else if (index == CurrentTeamActionParam && TeamListChanged)
+    {
+        int curSel = SendMessage(hActionParameter[index], CB_GETCURSEL, NULL, NULL);
+        char buffer[512]{ 0 };
+        GetWindowText(hActionParameter[index], buffer, 511);
+        FString text(buffer);
+
+        UpdateActionAndParam();
+        TeamListChanged = false;
+
+        int idx = SendMessage(hActionParameter[index], CB_FINDSTRINGEXACT, 0, text);
+        if (idx != CB_ERR)
+        {
+            SendMessage(hActionParameter[index], CB_SETCURSEL, idx, NULL);
+        }
+        else
+        {
+            FString::TrimIndex(text);
+            SendMessage(hActionParameter[index], WM_SETTEXT, NULL, text);
+        }
     }
 }
 

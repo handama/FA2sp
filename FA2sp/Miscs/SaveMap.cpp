@@ -706,7 +706,6 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
 
                 auto writeCommentBlock = [&oss](const FString& comment)
                 {
-                    Logger::Raw("%s\n", comment);
                     if (comment.empty())
                         return;
 

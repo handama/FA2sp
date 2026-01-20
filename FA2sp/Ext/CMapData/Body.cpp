@@ -104,6 +104,11 @@ std::map<FString, COLORREF> CMapDataExt::CustomWaypointColors;
 std::map<FString, COLORREF> CMapDataExt::CustomCelltagColors;
 ObjectRecord* ObjectRecord::ObjectRecord_HoldingPtr = nullptr;
 std::map<FString, std::vector<TechnoAttachment>> CMapDataExt::TechnoAttachments;
+std::map<FString, std::map<FString, FString>> CMapDataExt::MapInlineComments;
+std::map<FString, std::map<FString, FString>> CMapDataExt::MapFrontlineComments;
+std::map<FString, FString> CMapDataExt::MapInsectionComments;
+std::map<FString, FString> CMapDataExt::MapFrontsectionComments;
+bool CMapDataExt::IsNewMap;
 
 int CMapDataExt::GetOreValue(unsigned short nOverlay, unsigned char nOverlayData)
 {

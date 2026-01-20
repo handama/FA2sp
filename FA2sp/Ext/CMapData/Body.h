@@ -663,4 +663,9 @@ public:
     static std::map<FString, COLORREF> CustomWaypointColors;
     static std::map<FString, COLORREF> CustomCelltagColors;
     static std::map<FString, std::vector<TechnoAttachment>> TechnoAttachments;
+    static std::map<FString, std::map<FString, FString>> MapInlineComments;
+    static std::map<FString, std::map<FString, FString>> MapFrontlineComments;
+    static std::map<FString, FString> MapInsectionComments;
+    static std::map<FString, FString> MapFrontsectionComments;
+    static bool IsNewMap;
 };

@@ -98,6 +98,7 @@ int ExtConfigs::SaveMap_AutoSave_Interval;
 int ExtConfigs::SaveMap_AutoSave_Interval_Real;
 int ExtConfigs::SaveMap_AutoSave_MaxCount;
 bool ExtConfigs::SaveMap_OnlySaveMAP;
+bool ExtConfigs::SaveMap_KeepComments;
 //bool ExtConfigs::SaveMap_MultiPlayOnlySaveYRM;
 //bool ExtConfigs::SaveMap_SinglePlayOnlySaveMAP;
 int ExtConfigs::SaveMap_DefaultPreviewOptionMP;
@@ -372,6 +373,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::SaveMap_FileEncodingComment = CINI::FAData->GetBool("ExtConfigs", "SaveMap.FileEncodingComment");
 	ExtConfigs::SaveMap_OnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP");
+	ExtConfigs::SaveMap_KeepComments = CINI::FAData->GetBool("ExtConfigs", "SaveMap.KeepComments");
 	ExtConfigs::SaveMap_PreserveINISorting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.PreserveINISorting");
 	//ExtConfigs::SaveMap_MultiPlayOnlySaveYRM = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveYRM.MultiPlay");
 	//ExtConfigs::SaveMap_SinglePlayOnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP.SinglePlay");
@@ -848,6 +850,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "SaveMap.FileEncodingComment",
 		.Value = &ExtConfigs::SaveMap_FileEncodingComment,
 		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SaveMap.KeepComments", "Keep existing map comments"),
+		.IniKey = "SaveMap.KeepComments",
+		.Value = &ExtConfigs::SaveMap_KeepComments,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

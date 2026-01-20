@@ -109,6 +109,7 @@ public:
     static int SaveMap_AutoSave_Interval_Real;
     static int SaveMap_AutoSave_MaxCount;
     static bool SaveMap_OnlySaveMAP;
+    static bool SaveMap_KeepComments;
     //static bool SaveMap_MultiPlayOnlySaveYRM;
     //static bool SaveMap_SinglePlayOnlySaveMAP;
     static int SaveMap_DefaultPreviewOptionMP;

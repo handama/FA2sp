@@ -989,6 +989,7 @@ DEFINE_HOOK(49ED34, CMapData_LoadMap_InitializeMapDataExt, 5)
 {
 	Logger::Debug("CMapData::LoadMap(): About to call InitializeAllHdmEdition()\n");
 	CMapDataExt::InitializeAllHdmEdition();
+	CMapDataExt::IsNewMap = false;
 	return 0;
 }
 
@@ -997,6 +998,13 @@ DEFINE_HOOK(4B9E38, CMapData_CreateMap_InitializeMapDataExt, 5)
 	CMapDataExt::IsUTF8File = false;
 	Logger::Debug("CMapData::CreateMap(): About to call InitializeAllHdmEdition()\n");
 	CMapDataExt::InitializeAllHdmEdition();
+	CMapDataExt::MapIniSectionSorting.clear();
+	CMapDataExt::MapInlineComments.clear();
+	CMapDataExt::MapFrontlineComments.clear();
+	CMapDataExt::MapInsectionComments.clear();
+	CMapDataExt::MapFrontsectionComments.clear();
+	CMapDataExt::IsNewMap = true;
+
 	return 0;
 }
 

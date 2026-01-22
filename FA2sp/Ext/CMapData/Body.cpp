@@ -50,6 +50,7 @@ CellData CMapDataExt::ExtTempCellData;
 MapCoord CMapDataExt::CurrentMapCoordPaste;
 std::unordered_map<int, BuildingDataExt> CMapDataExt::BuildingDataExts;
 std::unordered_map<FString, int> CMapDataExt::BuildingTypes;
+std::map<int, MapCoord> CMapDataExt::BuildingCenterCoords;
 CTileTypeClass* CMapDataExt::TileData = nullptr;
 int CMapDataExt::TileDataCount = 0;
 int CMapDataExt::CurrentTheaterIndex;
@@ -109,6 +110,141 @@ std::map<FString, std::map<FString, FString>> CMapDataExt::MapFrontlineComments;
 std::map<FString, FString> CMapDataExt::MapInsectionComments;
 std::map<FString, FString> CMapDataExt::MapFrontsectionComments;
 bool CMapDataExt::IsNewMap;
+
+static inline int DistSqrByIndex(int a, int b)
+{
+	auto& Map = CMapData::Instance;
+	int dx = Map->GetXFromCoordIndex(a) - Map->GetXFromCoordIndex(b);
+	int dy = Map->GetYFromCoordIndex(a) - Map->GetYFromCoordIndex(b);
+	return dx * dx + dy * dy;
+}
+
+void CMapDataExt::RemapableOverlay_RefreshBuildingIndices()
+{
+	if (!ExtConfigs::InGameDisplay_RemapableOverlay)
+		return;
+
+	auto& Map = CMapData::Instance;
+	const int MAP_W = Map->MapWidthPlusHeight;
+	const int MAP_H = Map->MapWidthPlusHeight;
+	const int MAP_SIZE = MAP_W * MAP_H;
+	const int INF = INT_MAX;
+
+	for (auto& cell : CellDataExts) {
+		cell.CenterBuildingIndex = -1;
+		cell.NearestCenterCellIndex = -1;
+	}
+
+	for (const auto& [buildingIndex, coord] : BuildingCenterCoords) {
+		int centerIdx = Map->GetCoordIndex(coord.X, coord.Y);
+		if (centerIdx < 0 || centerIdx >= MAP_SIZE)
+			continue;
+
+		auto& cell = CellDataExts[centerIdx];
+		cell.CenterBuildingIndex = buildingIndex;
+		cell.NearestCenterCellIndex = centerIdx;
+	}
+
+	for (int y = 0; y < MAP_H; ++y) {
+		for (int x = 0; x < MAP_W; ++x) {
+			int idx = y * MAP_W + x;
+			if (idx >= MAP_SIZE)
+				continue;
+
+			auto& cur = CellDataExts[idx];
+			if (cur.NearestCenterCellIndex != -1)
+				continue;
+
+			int bestCenter = -1;
+			int bestDist = INF;
+
+			if (x > 0)
+				RemapableOverlay_CheckNeighbor(idx, idx - 1, bestCenter, bestDist);
+			if (y > 0)
+				RemapableOverlay_CheckNeighbor(idx, idx - MAP_W, bestCenter, bestDist);
+
+			if (bestCenter != -1) {
+				cur.NearestCenterCellIndex = bestCenter;
+				cur.CenterBuildingIndex =
+					CellDataExts[bestCenter].CenterBuildingIndex;
+			}
+		}
+	}
+
+	for (int y = MAP_H - 1; y >= 0; --y) {
+		for (int x = MAP_W - 1; x >= 0; --x) {
+			int idx = y * MAP_W + x;
+			if (idx >= MAP_SIZE)
+				continue;
+
+			auto& cur = CellDataExts[idx];
+
+			int curDist = (cur.NearestCenterCellIndex == -1)
+				? INF
+				: DistSqrByIndex(idx, cur.NearestCenterCellIndex);
+
+			int bestCenter = cur.NearestCenterCellIndex;
+			int bestDist = curDist;
+
+			if (x + 1 < MAP_W)
+				RemapableOverlay_CheckNeighbor(idx, idx + 1, bestCenter, bestDist);
+			if (y + 1 < MAP_H)
+				RemapableOverlay_CheckNeighbor(idx, idx + MAP_W, bestCenter, bestDist);
+
+			if (bestCenter != cur.NearestCenterCellIndex) {
+				cur.NearestCenterCellIndex = bestCenter;
+				cur.CenterBuildingIndex =
+					CellDataExts[bestCenter].CenterBuildingIndex;
+			}
+		}
+	}
+
+	for (auto& cell : CellDataExts) {
+		if (cell.CenterBuildingIndex == -1)
+			continue;
+
+		int strINI = StructureIndexMap[cell.CenterBuildingIndex];
+		if (strINI >= 0) {
+			cell.RemapableColor =
+				BuildingRenderDatasFix[strINI].HouseColor;
+		}
+	}
+}
+
+void CMapDataExt::RemapableOverlay_CheckNeighbor(
+	int currentIdx,
+	int neighborIdx,
+	int& bestCenterCellIdx,
+	int& bestDistSqr)
+{
+	if (neighborIdx < 0 || neighborIdx >= (int)CellDataExts.size())
+		return;
+
+	const auto& neighbor = CellDataExts[neighborIdx];
+	if (neighbor.NearestCenterCellIndex == -1)
+		return;
+
+	int dist = DistSqrByIndex(currentIdx, neighbor.NearestCenterCellIndex);
+	if (dist < bestDistSqr) {
+		bestDistSqr = dist;
+		bestCenterCellIdx = neighbor.NearestCenterCellIndex;
+	}
+}
+
+void CMapDataExt::RemapableOverlay_AddBuilding(int buildingIndex, const MapCoord& center)
+{
+	BuildingCenterCoords[buildingIndex] = center;
+	RemapableOverlay_RefreshBuildingIndices();
+}
+
+void CMapDataExt::RemapableOverlay_RemoveBuilding(int buildingIndex)
+{
+	auto it = BuildingCenterCoords.find(buildingIndex);
+	if (it != BuildingCenterCoords.end()) {
+		BuildingCenterCoords.erase(it);
+		RemapableOverlay_RefreshBuildingIndices();
+	}
+}
 
 int CMapDataExt::GetOreValue(unsigned short nOverlay, unsigned char nOverlayData)
 {
@@ -1445,7 +1581,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 	}
 }
 
-void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString value)
+void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString value, bool refreshCenter)
 {
 	if (value == "")
 		value = CINI::CurrentDocument->GetValueAt("Structures", iniIndex);
@@ -1463,6 +1599,7 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 				CMapDataExt::StructureIndexMap[i]++;
 		}
 		StructureIndexMap.push_back(iniIndex);
+
 		const auto splits = FString::SplitString(value, 16);
 
 		BuildingRenderData data;
@@ -1520,6 +1657,21 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 				}
 			}
 		}
+
+		if (ExtConfigs::InGameDisplay_RemapableOverlay)
+		{
+			if (refreshCenter)
+			{
+				// wall buildings can't affect overlays
+				if (!Variables::RulesMap.GetBool(data.ID, "Wall"))
+					CMapDataExt::RemapableOverlay_AddBuilding(cellIndex, { X + DataExt.Height / 2, Y + DataExt.Width / 2 });
+			}
+			else
+			{
+				if (!Variables::RulesMap.GetBool(data.ID, "Wall"))
+					BuildingCenterCoords[cellIndex] = { X + DataExt.Height / 2, Y + DataExt.Width / 2 };
+			}
+		}
 	}
 }
 
@@ -1528,6 +1680,7 @@ void CMapDataExt::UpdateFieldStructureData_Optimized()
 	auto Map = &CMapData::Instance();
 	auto& fielddata_size = Map->CellDataCount;
 	auto& fielddata = Map->CellDatas;
+	BuildingCenterCoords.clear();
 
 	int i = 0;
 	for (i = 0; i < fielddata_size; i++)
@@ -1543,8 +1696,12 @@ void CMapDataExt::UpdateFieldStructureData_Optimized()
 		i = 0;
 		for (const auto& data : sec->GetEntities())
 		{
-			UpdateFieldStructureData_Index(i, data.second);
+			UpdateFieldStructureData_Index(i, data.second, false);
 			i++;
+		}
+		if (ExtConfigs::InGameDisplay_RemapableOverlay)
+		{
+			RemapableOverlay_RefreshBuildingIndices();
 		}
 	}
 }

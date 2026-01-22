@@ -1409,6 +1409,8 @@ void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionLi
     int repeat = atoi(CurrentTrigger->RepeatType);
     if (repeat >= 0 && repeat <= 2)
         SendMessage(hType, CB_SETCURSEL, repeat, NULL);
+    else if (repeat == -1)
+        SendMessage(hType, WM_SETTEXT, 0, (FString("-1 - ") + Translations::TranslateOrDefault("TriggerRepeatType.NoTag", "No tag")));
     else
         SendMessage(hType, WM_SETTEXT, 0, (LPARAM)CurrentTrigger->RepeatType.c_str());
     

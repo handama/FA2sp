@@ -576,7 +576,6 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 	GET_STACK(DWORD, dwPos, 0x10);
 	GET_STACK(ppmfc::CString, suggestedID, 0x14);
 
-
 	auto Map = &CMapData::Instance();
 	auto& fielddata_size = Map->CellDataCount;
 	auto& fielddata = Map->CellDatas;
@@ -946,6 +945,8 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 	{
 		LightingSourceTint::CalculateMapLamps();
 	}
+
+	CMapDataExt::RemapableOverlay_RemoveBuilding(cellIndex);
 
 	return 0x4A98AC;
 }

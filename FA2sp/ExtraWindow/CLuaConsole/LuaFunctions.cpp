@@ -16,6 +16,10 @@
 #include "../../Sol/sol.hpp"
 #include <cctype>
 #include <chrono>
+#include <shobjidl.h> 
+#include <string>
+#include <fstream>
+#include <sstream>
 #include "../../Miscs/MultiSelection.h"
 #include <unordered_set>
 #include "../CNewComboUInputDlg/CNewComboUInputDlg.h"
@@ -3628,6 +3632,102 @@ namespace LuaFunctions
 		}
 	}
 
+	static std::string ReadFileToString(const std::wstring& path)
+	{
+		std::ifstream file(path, std::ios::binary);
+		if (!file) return {};
+
+		std::ostringstream ss;
+		ss << file.rdbuf();
+		return ss.str();
+	}
+
+	static std::string OpenFileToString()
+	{
+		HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+		bool needUninit = SUCCEEDED(hr);
+
+		IFileOpenDialog* pDialog = nullptr;
+		std::string result;
+
+		hr = CoCreateInstance(
+			CLSID_FileOpenDialog,
+			nullptr,
+			CLSCTX_INPROC_SERVER,
+			IID_PPV_ARGS(&pDialog)
+		);
+
+		if (SUCCEEDED(hr))
+		{
+			hr = pDialog->Show(nullptr);
+			if (SUCCEEDED(hr))
+			{
+				IShellItem* pItem = nullptr;
+				if (SUCCEEDED(pDialog->GetResult(&pItem)))
+				{
+					PWSTR pszFilePath = nullptr;
+					if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
+					{
+						result = ReadFileToString(pszFilePath);
+						CoTaskMemFree(pszFilePath);
+					}
+					pItem->Release();
+				}
+			}
+			pDialog->Release();
+		}
+
+		if (needUninit)
+			CoUninitialize();
+
+		return result;
+	}
+
+	static bool SaveStringToFile(const std::string& content)
+	{
+		HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+		bool needUninit = SUCCEEDED(hr);
+
+		IFileSaveDialog* pDialog = nullptr;
+		bool success = false;
+
+		hr = CoCreateInstance(
+			CLSID_FileSaveDialog,
+			nullptr,
+			CLSCTX_INPROC_SERVER,
+			IID_PPV_ARGS(&pDialog)
+		);
+
+		if (SUCCEEDED(hr))
+		{
+			hr = pDialog->Show(nullptr);
+			if (SUCCEEDED(hr))
+			{
+				IShellItem* pItem = nullptr;
+				if (SUCCEEDED(pDialog->GetResult(&pItem)))
+				{
+					PWSTR pszFilePath = nullptr;
+					if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
+					{
+						std::ofstream file(pszFilePath, std::ios::binary);
+						if (file)
+						{
+							file.write(content.data(), content.size());
+							success = true;
+						}
+						CoTaskMemFree(pszFilePath);
+					}
+					pItem->Release();
+				}
+			}
+			pDialog->Release();
+		}
+
+		if (needUninit)
+			CoUninitialize();
+
+		return success;
+	}
 
 	static void redraw_window()
 	{

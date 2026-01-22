@@ -2490,7 +2490,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			if (tileIndex == 65535)
 				tileIndex = 0;
 
-
 			if (CMapDataExt::TileData && tileIndex < CMapDataExt::TileDataCount && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
 			{
 				auto ttype = CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex].TerrainType;

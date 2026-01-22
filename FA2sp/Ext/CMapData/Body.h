@@ -265,6 +265,11 @@ struct CellDataExt
     };
     std::vector<BuildingRenderPart> BuildingRenderParts;
     std::vector<BaseNodeRenderPart> BaseNodeRenderParts;
+
+    // remapable overlay
+    COLORREF RemapableColor = 0x000000ff;
+    int CenterBuildingIndex = -1; 
+    int NearestCenterCellIndex = -1; 
 };
 
 class HistoryRecord {
@@ -491,7 +496,7 @@ public:
     static std::vector<BuildingRenderData> BuildingRenderDatasFix;
     static std::vector<OverlayTypeData> OverlayTypeDatas;
     static void UpdateFieldStructureData_Optimized();
-    static void UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString value = "");
+    static void UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString value = "", bool refreshCenter = true);
     static void SmoothAll();
     static void SmoothTileAt(int X, int Y, bool gameLAT = false);
     static void CreateSlopeAt(int x, int y, bool IgnoreMorphable = false);
@@ -600,6 +605,15 @@ public:
     static int GetCustomTileSet(int tileIndex);
     static int GetCustomTileIndex(int tileSet, int tileIndex);
     static std::vector<TechnoAttachment>* GetTechnoAttachmentInfo(const FString& ID);
+
+    static std::map<int, MapCoord> BuildingCenterCoords;
+    static void RemapableOverlay_RefreshBuildingIndices();
+    static void RemapableOverlay_CheckNeighbor(int currentIdx,
+        int neighborIdx,
+        int& bestCenterCellIdx,
+        int& bestDistSqr);
+    static void RemapableOverlay_AddBuilding(int buildingIndex, const MapCoord& center);
+    static void RemapableOverlay_RemoveBuilding(int buildingIndex);
 
     static int OreValue[4];
     static std::vector<std::vector<int>> Tile_to_lat;

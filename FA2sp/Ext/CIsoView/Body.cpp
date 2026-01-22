@@ -2623,16 +2623,6 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
         isMultiSelected = MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
         if (extraLightType >= 500) {
             int overlay = extraLightType - 500;
-            if (overlay == 0x18 || overlay == 0x19 || // BRIDGE1, BRIDGE2
-                overlay == 0x3B || overlay == 0x3C || // RAILBRDG1, RAILBRDG2
-                overlay == 0xED || overlay == 0xEE || // BRIDGEB1, BRIDGEB2
-                (overlay >= 0x4A && overlay <= 0x65) || // LOBRDG 1-28
-                (overlay >= 0xCD && overlay <= 0xEC)) { // LOBRDGB 1-4
-                isMultiSelected = MultiSelection::IsSelected(
-                    CIsoViewExt::CurrentDrawCellLocation.X + 1,
-                    CIsoViewExt::CurrentDrawCellLocation.Y + 1);
-            }
-
             if (RenderingMap && RenderEmphasizeOres && CMapDataExt::IsOre(overlay))
             {
                 isEmphasizingOre = true;
@@ -2663,6 +2653,21 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
         }
     }
     else {
+        if (extraLightType >= 500 
+            && ExtConfigs::InGameDisplay_RemapableOverlay
+            && CViewObjectsExt::WallDamageStages.find(extraLightType - 500) != CViewObjectsExt::WallDamageStages.end())
+        {
+            auto pos = CMapData::Instance->GetCoordIndex(CIsoViewExt::CurrentDrawCellLocation.X,
+                CIsoViewExt::CurrentDrawCellLocation.Y);
+            if (pos < CMapDataExt::CellDataExts.size())
+            {
+                auto pRGB = reinterpret_cast<ColorStruct*>(&CMapDataExt::CellDataExts[pos].RemapableColor);
+                color.R = pRGB->red;
+                color.G = pRGB->green;
+                color.B = pRGB->blue;
+                remap = true;
+            }
+        }
         newPal = PalettesManager::GetPalette(newPal, color, remap);
     }
 

@@ -859,6 +859,9 @@ void CLuaConsole::Initialize(HWND& hWnd)
 
     Lua.set_function("running_lua_brush", []() {return CLuaConsole::applyingScript; });
 
+    Lua.set_function("open_file", OpenFileToString);
+    Lua.set_function("save_file", SaveStringToFile);
+
     Update(hWnd);
 }
 

@@ -207,17 +207,31 @@ Palette* PalettesManager::GetObjectPalette(Palette* pPal, BGRStruct& color, bool
 Palette* PalettesManager::GetOverlayPalette(Palette* pPal, Cell3DLocation location, int overlay)
 {
     auto& p = PalettesManager::CalculatedObjectPaletteFiles.emplace_back(LightingPalette(*pPal));
-    p.ResetColors();
+
+    if (ExtConfigs::InGameDisplay_RemapableOverlay 
+        && CViewObjectsExt::WallDamageStages.find(overlay) != CViewObjectsExt::WallDamageStages.end())
+    {
+        auto pos = CMapData::Instance->GetCoordIndex(location.X, location.Y);
+        if (pos < CMapDataExt::CellDataExts.size())
+        {
+            BGRStruct color;
+            auto pRGB = reinterpret_cast<ColorStruct*>(&CMapDataExt::CellDataExts[pos].RemapableColor);
+            color.R = pRGB->red;
+            color.G = pRGB->green;
+            color.B = pRGB->blue;
+            p.RemapColors(color);
+        }
+        else
+        {
+            p.ResetColors();
+        }
+    }
+    else
+    {
+        p.ResetColors();
+    }
 
     auto& ret = LightingStruct::CurrentLighting;
-    auto safeColorBtye = [](int x)
-        {
-            if (x > 255)
-                x = 255;
-            if (x < 0)
-                x = 0;
-            return (byte)x;
-        };
 
     if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
     {
@@ -229,15 +243,6 @@ Palette* PalettesManager::GetOverlayPalette(Palette* pPal, Cell3DLocation locati
             p.AdjustLighting(LightingStruct::CurrentLighting, location);
             p.TintColors();
         }   
-    }
-    if (MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y))
-    {
-        for (int i = 0; i < 256; ++i)
-        {
-            p.Colors[i].R = (p.Colors[i].R * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->R) / 3;
-            p.Colors[i].G = (p.Colors[i].G * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->G) / 3;
-            p.Colors[i].B = (p.Colors[i].B * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->B) / 3;
-        }
     }
 
     return p.GetPalette();

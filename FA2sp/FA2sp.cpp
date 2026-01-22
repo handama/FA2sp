@@ -137,6 +137,7 @@ bool ExtConfigs::InfantrySubCell_OccupationBits;
 bool ExtConfigs::PlaceStructureOverlappingCheck;
 bool ExtConfigs::PlaceStructureUpgrades;
 bool ExtConfigs::PlaceStructureUpgradeStrength;
+bool ExtConfigs::PlaceStructurePlaceUpgrade;
 bool ExtConfigs::PlaceTileSkipHide;
 bool ExtConfigs::InitializeMap;
 bool ExtConfigs::ReloadGameFromMapFolder;
@@ -427,6 +428,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::PlaceStructureOverlappingCheck = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.OverlappingCheck");
 	ExtConfigs::PlaceStructureUpgrades = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.AutoUpgrade");
 	ExtConfigs::PlaceStructureUpgradeStrength = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.UpgradeStrength");
+	ExtConfigs::PlaceStructurePlaceUpgrade = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.PlaceUpgrade");
 	ExtConfigs::PlaceTileSkipHide = CINI::FAData->GetBool("ExtConfigs", "PlaceTileSkipHide");
 	ExtConfigs::ReloadGameFromMapFolder = CINI::FAData->GetBool("ExtConfigs", "ReloadGameFromMapFolder");
 	ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
@@ -1132,6 +1134,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.PlaceStructure.UpgradeStrength", "Set buildings with upgrades to full health (for its appearance in game)"),
 		.IniKey = "PlaceStructure.UpgradeStrength",
 		.Value = &ExtConfigs::PlaceStructureUpgradeStrength,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.PlaceStructure.PlaceUpgrade", "Upgrades can be directly placed onto buildings"),
+		.IniKey = "PlaceStructure.PlaceUpgrade",
+		.Value = &ExtConfigs::PlaceStructurePlaceUpgrade,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 

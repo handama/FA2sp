@@ -673,6 +673,10 @@ public:
     static bool SkipBuildingOverlappingCheck;
     static std::vector<FString> MapIniSectionSorting;
     static std::map<FString, std::set<FString>> PowersUpBuildings;
+    static std::set<FString> PowersUpBuildingSet;
+    static bool PlaceStructure_Preview;
+    static std::map<int, BuildingRenderData> PlaceStructure_OldData;
+
     static std::map<int, std::vector<CustomTile>> CustomTiles;
     static std::map<FString, COLORREF> CustomWaypointColors;
     static std::map<FString, COLORREF> CustomCelltagColors;

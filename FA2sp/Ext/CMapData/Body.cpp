@@ -100,7 +100,10 @@ bool CMapDataExt::IsUTF8File = false;
 bool CMapDataExt::SkipBuildingOverlappingCheck = false;
 std::vector<FString> CMapDataExt::MapIniSectionSorting;
 std::map<FString, std::set<FString>> CMapDataExt::PowersUpBuildings;
+std::set<FString> CMapDataExt::PowersUpBuildingSet;
 std::map<int, std::vector<CustomTile>> CMapDataExt::CustomTiles;
+bool CMapDataExt::PlaceStructure_Preview = false;
+std::map<int, BuildingRenderData> CMapDataExt::PlaceStructure_OldData;
 std::map<FString, COLORREF> CMapDataExt::CustomWaypointColors;
 std::map<FString, COLORREF> CMapDataExt::CustomCelltagColors;
 ObjectRecord* ObjectRecord::ObjectRecord_HoldingPtr = nullptr;
@@ -3988,6 +3991,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	UpdateAnnotation();
 	CIsoViewExt::DistanceRuler.clear();
 	CMapDataExt::PowersUpBuildings.clear();
+	CMapDataExt::PowersUpBuildingSet.clear();
 	auto buildings = Variables::RulesMap.ParseIndicies("BuildingTypes", true);
 	for (const auto& building : buildings)
 	{
@@ -3995,6 +3999,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		if (!parent.IsEmpty())
 		{
 			CMapDataExt::PowersUpBuildings[parent].insert(building);
+			CMapDataExt::PowersUpBuildingSet.insert(building);
 		}
 		auto parents = Variables::RulesMap.GetString(building, "PowersUp.Buildings");
 		if (!parents.IsEmpty())
@@ -4003,6 +4008,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			for (auto& p : atoms)
 			{
 				CMapDataExt::PowersUpBuildings[p].insert(building);
+				CMapDataExt::PowersUpBuildingSet.insert(building);
 			}
 		}
 	}

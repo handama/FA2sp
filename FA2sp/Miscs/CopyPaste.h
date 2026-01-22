@@ -29,6 +29,9 @@ struct MyClipboardData
     StringField TerrainData;
     StringField SmudgeData;
     StringField BuildingData;
+    // for overlapped buildings
+    StringField BuildingData_2;
+    StringField BuildingData_3;
     StringField AircraftData;
     StringField InfantryData_1;
     StringField InfantryData_2;

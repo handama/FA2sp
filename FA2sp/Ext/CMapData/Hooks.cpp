@@ -662,6 +662,7 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 		{
 			bool placePowerUp = false;
 			int iniIndex = -1;
+			int max = 0;
 			if (CMapData::Instance->IsCoordInMap(X, Y))
 			{
 				auto cell = CMapData::Instance->GetCellAt(X, Y);
@@ -678,6 +679,7 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 							{
 								placePowerUp = true;
 								iniIndex = StrINIIndex;
+								max = Variables::RulesMap.GetInteger(objRender.ID, "Upgrades", 0);
 							}
 						}
 					}
@@ -685,11 +687,14 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 			}
 			if (placePowerUp)
 			{
+				
 				if (!CMapDataExt::PlaceStructure_Preview)
 				{
 					auto key = m_mapfile->GetKeyAt("Structures", iniIndex);
 					FString value = m_mapfile->GetValueAt("Structures", iniIndex);
 					auto powerUpCount = atoi(value.GetParam(10));
+					if (powerUpCount == max)
+						powerUpCount--;
 					FString count;
 					if (powerUpCount == 0)
 					{
@@ -711,6 +716,8 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 				}
 				auto& renderData = CMapDataExt::BuildingRenderDatasFix[iniIndex];
 				CMapDataExt::PlaceStructure_OldData[iniIndex] = renderData;
+				if (renderData.PowerUpCount == max)
+					renderData.PowerUpCount--;
 				if (renderData.PowerUpCount == 0)
 				{
 					renderData.PowerUpCount++;

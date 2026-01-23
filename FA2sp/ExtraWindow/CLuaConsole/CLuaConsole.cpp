@@ -595,6 +595,24 @@ void CLuaConsole::Initialize(HWND& hWnd)
         }
         return luaTable;
         });
+    Lua.set_function("get_ordered_key_value_pairs", [](std::string section, sol::optional<std::string> loadFrom) {
+        if (!loadFrom) {
+            loadFrom = "map";
+        }
+
+        auto&& result = get_key_value_pairs(section, loadFrom.value());
+
+        sol::table luaTable = Lua.create_table();
+        int i = 1;
+        for (const auto& [key, value] : result) {
+            sol::table kv = Lua.create_table();
+            kv[1] = key;
+            kv[2] = value;
+            luaTable[i++] = kv;
+        }
+        return luaTable;
+    }
+    );
     Lua.set_function("get_ordered_values", [](std::string section, sol::optional<std::string> loadFrom) {
         if (!loadFrom) {
             loadFrom = "map";

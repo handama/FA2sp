@@ -1500,6 +1500,10 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
             int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
             int tileUnsafeIndex = cell->TileIndex;
+            if (tileUnsafeIndex == 0xffff)
+            {
+                tileUnsafeIndex = 0;
+            }
             int tileSubIndex = cell->TileSubIndex;
 
             if (CFinalSunApp::Instance->FrameMode)

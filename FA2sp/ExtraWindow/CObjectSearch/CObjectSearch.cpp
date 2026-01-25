@@ -383,26 +383,26 @@ void CObjectSearch::ListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam)
         case LBN_DBLCLK:
             if (CObjectSearch::bTrigger)
             {
-                if (IsWindowVisible(CNewTrigger::GetHandle()))
+                if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
                 {
-                    auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::SelectedTrigger);
+                    auto dlg = GetDlgItem(CNewTrigger::GetFirstValidInstance().GetHandle(), CNewTrigger::Controls::SelectedTrigger);
                     auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)CObjectSearch::ListBoxTexts[SendMessage(hListBox, LB_GETCURSEL, NULL, NULL)]);
                     if (idx == CB_ERR)
                         break;
                     SendMessage(dlg, CB_SETCURSEL, idx, NULL);
-                    CNewTrigger::OnSelchangeTrigger();
+                    CNewTrigger::GetFirstValidInstance().OnSelchangeTrigger();
                 }
             }
             else if (CObjectSearch::bAttachedTrigger)
             {
-                if (IsWindowVisible(CNewTrigger::GetHandle()))
+                if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
                 {
-                    auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::Attachedtrigger);
+                    auto dlg = GetDlgItem(CNewTrigger::GetFirstValidInstance().GetHandle(), CNewTrigger::Controls::Attachedtrigger);
                     auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)CObjectSearch::ListBoxTexts[SendMessage(hListBox, LB_GETCURSEL, NULL, NULL)]);
                     if (idx == CB_ERR)
                         break;
                     SendMessage(dlg, CB_SETCURSEL, idx, NULL);
-                    CNewTrigger::OnSelchangeAttachedTrigger();
+                    CNewTrigger::GetFirstValidInstance().OnSelchangeAttachedTrigger();
                 }
             }
             else if (CObjectSearch::bEvent_Action)
@@ -660,14 +660,14 @@ void CObjectSearch::OnSearchButtonUp(HWND hWnd)
             if (SendMessage(hListBox, LB_GETCOUNT, NULL, NULL) == 1)
                 SendMessage(hListBox, LB_SETCURSEL, 0, NULL);
             if (CObjectSearch::ListBoxTexts.size() == 1)
-                if (IsWindowVisible(CNewTrigger::GetHandle()))
+                if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
                 {
-                    auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::SelectedTrigger);
+                    auto dlg = GetDlgItem(CNewTrigger::GetFirstValidInstance().GetHandle(), CNewTrigger::Controls::SelectedTrigger);
                     auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)CObjectSearch::ListBoxTexts[0]);
                     if (idx == CB_ERR)
                         return;
                     SendMessage(dlg, CB_SETCURSEL, idx, NULL);
-                    CNewTrigger::OnSelchangeTrigger();
+                    CNewTrigger::GetFirstValidInstance().OnSelchangeTrigger();
                 }
         }
         else if (CObjectSearch::bAttachedTrigger)
@@ -676,14 +676,14 @@ void CObjectSearch::OnSearchButtonUp(HWND hWnd)
             if (SendMessage(hListBox, LB_GETCOUNT, NULL, NULL) == 1)
                 SendMessage(hListBox, LB_SETCURSEL, 0, NULL);
             if (CObjectSearch::ListBoxTexts.size() == 1)
-                if (IsWindowVisible(CNewTrigger::GetHandle()))
+                if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
                 {
-                    auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::Attachedtrigger);
+                    auto dlg = GetDlgItem(CNewTrigger::GetFirstValidInstance().GetHandle(), CNewTrigger::Controls::Attachedtrigger);
                     auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)CObjectSearch::ListBoxTexts[0]);
                     if (idx == CB_ERR)
                         return;
                     SendMessage(dlg, CB_SETCURSEL, idx, NULL);
-                    CNewTrigger::OnSelchangeAttachedTrigger();
+                    CNewTrigger::GetFirstValidInstance().OnSelchangeAttachedTrigger();
                 }
         }
         else if (CObjectSearch::bEvent_Action)
@@ -970,9 +970,9 @@ void CObjectSearch::SearchTriggers(HWND hWnd, const char* source)
     //        }
     //    }
     //}
-    if (IsWindowVisible(CNewTrigger::GetHandle()))
+    if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
     {
-        auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::SelectedTrigger);
+        auto dlg = GetDlgItem(CNewTrigger::GetFirstValidInstance().GetHandle(), CNewTrigger::Controls::SelectedTrigger);
         char buffer[512]{ 0 };
 
         for (int i = 0; i < SendMessage(dlg, CB_GETCOUNT, 0, 0); i++)
@@ -1025,9 +1025,9 @@ void CObjectSearch::SearchAttachedTriggers(HWND hWnd, const char* source)
     //        }
     //    }
     //}
-    if (IsWindowVisible(CNewTrigger::GetHandle()))
+    if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
     {
-        auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::Attachedtrigger);
+        auto dlg = GetDlgItem(CNewTrigger::GetFirstValidInstance().GetHandle(), CNewTrigger::Controls::Attachedtrigger);
         char buffer[512]{ 0 };
 
         for (int i = 0; i < SendMessage(dlg, CB_GETCOUNT, 0, 0); i++)

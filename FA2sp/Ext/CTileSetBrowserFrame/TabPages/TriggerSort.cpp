@@ -61,7 +61,7 @@ BOOL TriggerSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
             auto& pID = data->param;
             if (strlen(pID) && ExtConfigs::InitializeMap)
             {
-                if (IsWindowVisible(CNewTrigger::GetHandle()))
+                if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
                 {
                     FString pStr = CINI::CurrentDocument->GetString("Triggers", pID);
                     auto results = FString::SplitString(pStr);
@@ -73,12 +73,12 @@ BOOL TriggerSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                         FString tmp = pStr;
                         pStr.Format("%s (%s)", pID, tmp.c_str());
                     }
-                    auto idx = SendMessage(CNewTrigger::hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)pStr);
+                    auto idx = SendMessage(CNewTrigger::GetFirstValidInstance().hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)pStr);
                     if (idx == CB_ERR)
                         return FALSE;
 
-                    SendMessage(CNewTrigger::hSelectedTrigger, CB_SETCURSEL, idx, NULL);
-                    CNewTrigger::OnSelchangeTrigger();
+                    SendMessage(CNewTrigger::GetFirstValidInstance().hSelectedTrigger, CB_SETCURSEL, idx, NULL);
+                    CNewTrigger::GetFirstValidInstance().OnSelchangeTrigger();
                     return TRUE;
                 }
                 else

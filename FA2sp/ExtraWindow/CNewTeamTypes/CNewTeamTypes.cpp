@@ -406,7 +406,8 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
 
                 DropNeedUpdate = true;
                 CNewAITrigger::TeamListChanged = true;
-                CNewTrigger::TeamListChanged = true;
+                CNewTrigger::Instance[0].TeamListChanged = true;
+                CNewTrigger::Instance[1].TeamListChanged = true;
 
                 FString name;
                 name.Format("%s (%s)", CurrentTeamID, buffer);
@@ -1212,13 +1213,22 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         if (!found)
             SendMessage(hTag, WM_SETTEXT, 0, (LPARAM)tag.m_pchData);
 
-        SendMessage(hVeteranLevel, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "VeteranLevel").m_pchData);
-        SendMessage(hTechlevel, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "TechLevel").m_pchData);
-        SendMessage(hTransportWaypoint, WM_SETTEXT, 0, (LPARAM)tWaypoint.m_pchData);
-        SendMessage(hWaypoint, WM_SETTEXT, 0, (LPARAM)waypoint.m_pchData);
+        auto SetCurSel = [](HWND hwnd, char* text)
+        {
+            int idx = SendMessage(hwnd, CB_FINDSTRINGEXACT, 0, (LPARAM)text);
+            if (idx != CB_ERR)
+                SendMessage(hwnd, CB_SETCURSEL, idx, NULL);
+            else
+                SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)text);
+        };
+
+        SetCurSel(hVeteranLevel, map.GetString(pID, "VeteranLevel").m_pchData);
+        SetCurSel(hTechlevel, map.GetString(pID, "TechLevel").m_pchData);
+        SetCurSel(hTransportWaypoint, tWaypoint.m_pchData);
+        SetCurSel(hWaypoint, waypoint.m_pchData);
         SendMessage(hPriority, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "Priority").m_pchData);
         SendMessage(hMax, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "Max").m_pchData);
-        SendMessage(hGroup, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "Group").m_pchData);
+        SetCurSel(hGroup, map.GetString(pID, "Group").m_pchData);
         int idxMCD = SendMessage(hMindControlDecision, CB_FINDSTRING, 0, (LPARAM)map.GetString(pID, "MindControlDecision").m_pchData);
         if (idxMCD != CB_ERR)
             SendMessage(hMindControlDecision, CB_SETCURSEL, idxMCD, NULL);
@@ -1318,8 +1328,8 @@ void CNewTeamTypes::OnClickTurnToTag()
     FString::TrimIndex(text);
 
     // actually turn to first trigger with this tag, since tag is not important
-    if (CNewTrigger::GetHandle() == NULL)
-        CNewTrigger::Create(m_parent);
+    if (CNewTrigger::Instance[0].GetHandle() == NULL)
+        CNewTrigger::Instance[0].Create(m_parent);
 
     for (const auto& [ID, trigger] : CMapDataExt::Triggers)
     {
@@ -1330,13 +1340,13 @@ void CNewTeamTypes::OnClickTurnToTag()
         }
     }
 
-    auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::SelectedTrigger);
+    auto dlg = GetDlgItem(CNewTrigger::Instance[0].GetHandle(), CNewTrigger::Controls::SelectedTrigger);
     auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, ExtraWindow::GetTriggerDisplayName(text));
     if (idx == CB_ERR)
         return;
     SendMessage(dlg, CB_SETCURSEL, idx, NULL);
-    CNewTrigger::OnSelchangeTrigger();
-    SetWindowPos(CNewTrigger::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    CNewTrigger::Instance[0].OnSelchangeTrigger();
+    SetWindowPos(CNewTrigger::Instance[0].GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 }
 
 void CNewTeamTypes::OnClickNewTeam()
@@ -1416,7 +1426,8 @@ void CNewTeamTypes::OnClickNewTeam()
 
     OnSelchangeTeamtypes();
     CNewAITrigger::TeamListChanged = true;
-    CNewTrigger::TeamListChanged = true;
+    CNewTrigger::Instance[0].TeamListChanged = true;
+    CNewTrigger::Instance[1].TeamListChanged = true;
 }
 
 void CNewTeamTypes::OnClickDelTeam(HWND& hWnd)
@@ -1452,7 +1463,8 @@ void CNewTeamTypes::OnClickDelTeam(HWND& hWnd)
     SendMessage(hSelectedTeam, CB_SETCURSEL, idx, NULL);
     OnSelchangeTeamtypes();
     CNewAITrigger::TeamListChanged = true;
-    CNewTrigger::TeamListChanged = true;
+    CNewTrigger::Instance[0].TeamListChanged = true;
+    CNewTrigger::Instance[1].TeamListChanged = true;
 }
 
 void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
@@ -1518,7 +1530,8 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
 
         OnSelchangeTeamtypes();
         CNewAITrigger::TeamListChanged = true;
-        CNewTrigger::TeamListChanged = true;
+        CNewTrigger::Instance[0].TeamListChanged = true;
+        CNewTrigger::Instance[1].TeamListChanged = true;
     }
 }
 
@@ -1537,7 +1550,6 @@ void CNewTeamTypes::OnClickSearchReference(HWND& hWnd)
     {
         ::SendMessage(CSearhReference::GetHandle(), 114514, 0, 0);
     }
-
 }
 
 bool CNewTeamTypes::OnEnterKeyDown(HWND& hWnd)

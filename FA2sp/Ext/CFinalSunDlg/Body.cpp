@@ -308,7 +308,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			else if (hWnd == CNewTeamTypes::GetHandle()) {
 				return TRUE;
 			}
-			else if (hWnd == CNewTrigger::GetHandle()) {
+			else if (hWnd == CNewTrigger::Instance[0].GetHandle()) {
+				return TRUE;
+			}
+			else if (hWnd == CNewTrigger::Instance[1].GetHandle()) {
 				return TRUE;
 			}
 			else if (hWnd == CTerrainGenerator::GetHandle()) {
@@ -713,13 +716,16 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	}
 	if (wmID == 40151)
 	{
-		if (CNewTrigger::GetHandle() == NULL)
-			CNewTrigger::Create((CFinalSunDlg*)this);
+		if (CNewTrigger::Instance[0].GetHandle() == NULL)
+			CNewTrigger::Instance[0].Create((CFinalSunDlg*)this);
 		else
 		{
-			::SendMessage(CNewTrigger::GetHandle(), 114514, 0, 0);
+			::SendMessage(CNewTrigger::Instance[0].GetHandle(), 114514, 0, 0);
 		}
-
+		if (CNewTrigger::Instance[1].GetHandle())
+		{
+			::SendMessage(CNewTrigger::Instance[1].GetHandle(), 114514, 0, 0);
+		}
 	}
 	if (wmID == 40154)
 	{
@@ -729,7 +735,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		{
 			::SendMessage(CNewINIEditor::GetHandle(), 114514, 0, 0);
 		}
-
 	}
 	if (wmID == 40155)
 	{
@@ -739,7 +744,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		{
 			::SendMessage(CCsfEditor::GetHandle(), 114514, 0, 0);
 		}
-
 	}
 	if (wmID == 40156)
 	{
@@ -1320,8 +1324,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CNewTeamTypes::GetHandle(), 114514, 0, 0);
 			return TRUE;
 		}
-		else if (hWnd == CNewTrigger::GetHandle()) {
-			::SendMessage(CNewTrigger::GetHandle(), 114514, 0, 0);
+		else if (hWnd == CNewTrigger::Instance[0].GetHandle()) {
+			::SendMessage(CNewTrigger::Instance[0].GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CNewTrigger::Instance[1].GetHandle()) {
+			::SendMessage(CNewTrigger::Instance[1].GetHandle(), 114514, 0, 0);
 			return TRUE;
 		}
 		else if (hWnd == CTerrainGenerator::GetHandle()) {
@@ -1579,8 +1587,14 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 					return TRUE;
 				}
 			}
-			else if (hParent2 == CNewTrigger::GetHandle()) {
-				if (CNewTrigger::OnEnterKeyDown(hParent1)) {
+			else if (hParent2 == CNewTrigger::Instance[0].GetHandle()) {
+				if (CNewTrigger::Instance[0].OnEnterKeyDown(hParent1)) {
+					ExtraWindow::bEnterSearch = false;
+					return TRUE;
+				}
+			}
+			else if (hParent2 == CNewTrigger::Instance[1].GetHandle()) {
+				if (CNewTrigger::Instance[1].OnEnterKeyDown(hParent1)) {
 					ExtraWindow::bEnterSearch = false;
 					return TRUE;
 				}

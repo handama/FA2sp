@@ -264,7 +264,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 //        }
                 //    }
                 //}
-                if (IsWindowVisible(CNewTrigger::GetHandle()))
+                if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
                 {
                     FString pStr = CINI::CurrentDocument->GetString("Triggers", pID);
                     auto results = FString::SplitString(pStr);
@@ -273,11 +273,11 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                         pStr = results[2];
                         FString tmp = pStr;
                         pStr.Format("%s (%s)", pID, tmp);
-                        auto idx = SendMessage(CNewTrigger::hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)pStr);
+                        auto idx = SendMessage(CNewTrigger::GetFirstValidInstance().hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)pStr);
                         if (idx != CB_ERR)
                         {
-                            SendMessage(CNewTrigger::hSelectedTrigger, CB_SETCURSEL, idx, NULL);
-                            CNewTrigger::OnSelchangeTrigger();
+                            SendMessage(CNewTrigger::GetFirstValidInstance().hSelectedTrigger, CB_SETCURSEL, idx, NULL);
+                            CNewTrigger::GetFirstValidInstance().OnSelchangeTrigger();
                             finished = true;
                         }
                     }

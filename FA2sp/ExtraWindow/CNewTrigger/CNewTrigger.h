@@ -12,6 +12,7 @@
 
 #define EVENT_PARAM_COUNT 2
 #define ACTION_PARAM_COUNT 6
+#define TRIGGER_EDITOR_MAX_COUNT 10
 
 struct ParamAffectedParams
 {
@@ -104,8 +105,7 @@ public:
         CINI::CurrentDocument().WriteString("Actions", ID, cAction);
     }
 
-private:
-    Trigger(const char* id, std::map<FString, FString>* pTagMap = nullptr)
+    void LoadFromMap(const char* id, std::map<FString, FString>* pTagMap = nullptr)
     {
         auto atoms = FString::SplitString(CINI::CurrentDocument().GetString("Triggers", id));
         ID = id;
@@ -118,7 +118,12 @@ private:
         HardEnabled = atoms[6] == "1" ? true : false;
         Obsolete = atoms[7];
         Tag = "<none>";
+        TagName = "";
         RepeatType = "-1";
+        Events.clear();
+        Actions.clear();
+        EventCount = 0;
+        ActionCount = 0;
 
         if (pTagMap)
         {
@@ -126,7 +131,7 @@ private:
             auto itr = tagMap.find(ID);
             if (itr != tagMap.end())
             {
-                Tag = itr->second; 
+                Tag = itr->second;
                 auto atoms = FString::SplitString(CINI::CurrentDocument().GetString("Tags", Tag), 2);
                 RepeatType = atoms[0];
                 TagName = atoms[1];
@@ -219,13 +224,13 @@ private:
                             p1 = false;
                             p3 = true;
                         }
-                        else 
+                        else
                         {
                             p0 = true;
                             p1 = false;
                             p3 = false;
                             Events.push_back(thisEvent);
-                        } 
+                        }
                     }
                     else if (p3)
                     {
@@ -276,9 +281,15 @@ private:
             ActionCount = 0;
     }
 
+private:
+    Trigger(const char* id, std::map<FString, FString>* pTagMap = nullptr)
+    {
+        LoadFromMap(id, pTagMap);
+    }
+
 };
 
-// A static window class
+// A window class
 class CNewTrigger
 {
 public:
@@ -326,141 +337,175 @@ public:
         ActionParameter5 = 50952,
         ActionParameter6Desc = 50953,
         ActionParameter6 = 50954,
-        SearchReference = 1999
+        SearchReference = 1999,
+        OpenNewEditor = 2000,
+        DragPoint = 2001,
+        Compact = 2002,
     };
 
+    void Create(CFinalSunDlg* pWnd);
 
-    static void Create(CFinalSunDlg* pWnd);
-
-
-    static HWND GetHandle()
+    HWND GetHandle()
     {
-        return CNewTrigger::m_hwnd;
+        return m_hwnd;
     }
-    static bool OnEnterKeyDown(HWND& hWnd);
-    static void OnSelchangeTrigger(bool edited = false, int eventListCur = 0, int actionListCur = 0);
-    static void OnSelchangeAttachedTrigger(bool edited = false);
-    static void OnSelchangeEventType(bool edited = false);
-    static void OnSelchangeActionType(bool edited = false);
-    static void OnSelchangeEventParam(int index, bool edited = false);
-    static void OnSelchangeActionParam(int index, bool edited = false);
-    static void OnClickNewTrigger();
-    static void OnSelchangeEventListbox(bool changeCursel = true);
-    static void OnSelchangeActionListbox(bool changeCursel = true);
+    static CNewTrigger& GetFirstValidInstance();
+
+    bool OnEnterKeyDown(HWND& hWnd);
+    void OnSelchangeTrigger(bool edited = false, int eventListCur = 0, int actionListCur = 0, bool reloadTrigger = true);
+    void OnSelchangeAttachedTrigger(bool edited = false);
+    void OnSelchangeEventType(bool edited = false);
+    void OnSelchangeActionType(bool edited = false);
+    void OnSelchangeEventParam(int index, bool edited = false);
+    void OnSelchangeActionParam(int index, bool edited = false);
+    void OnClickNewTrigger();
+    void OnSelchangeEventListbox(bool changeCursel = true);
+    void OnSelchangeActionListbox(bool changeCursel = true);
 
 protected:
-    static void Initialize(HWND& hWnd);
-    static void Update(HWND& hWnd);
+    void Initialize(HWND& hWnd);
+    void Update(HWND& hWnd, bool UpdateTrigger = true);
 
-    static void OnSeldropdownTrigger(HWND& hWnd);
+    void OnSeldropdownTrigger(HWND& hWnd);
     
-    static void OnClickDelTrigger(HWND& hWnd);
-    static void OnClickCloTrigger(HWND& hWnd);
-    static void OnClickPlaceOnMap(HWND& hWnd);
-    static void OnClickNewEvent(HWND& hWnd);
-    static void OnClickDelEvent(HWND& hWnd);
-    static void OnClickCloEvent(HWND& hWnd);
-    static void OnClickNewAction(HWND& hWnd);
-    static void OnClickDelAction(HWND& hWnd);
-    static void OnClickCloAction(HWND& hWnd);
-    static void OnClickSearchReference(HWND& hWnd);
+    void OnClickDelTrigger(HWND& hWnd);
+    void OnClickCloTrigger(HWND& hWnd);
+    void OnClickPlaceOnMap(HWND& hWnd);
+    void OnClickNewEvent(HWND& hWnd);
+    void OnClickDelEvent(HWND& hWnd);
+    void OnClickCloEvent(HWND& hWnd);
+    void OnClickNewAction(HWND& hWnd);
+    void OnClickDelAction(HWND& hWnd);
+    void OnClickCloAction(HWND& hWnd);
+    void OnClickSearchReference(HWND& hWnd);
 
-    static void OnSelchangeHouse(bool edited = false);
-    static void OnSelchangeType(bool edited = false);
-    static void UpdateEventAndParam(int changedEvent = -1, bool changeCursel = true);
-    static void UpdateActionAndParam(int changedAction = -1, bool changeCursel = true);
-    static void AdjustActionHeight();
-    static void UpdateParamAffectedParam_Action(int index);
-    static void UpdateParamAffectedParam_Event(int index);
+    void OnSelchangeHouse(bool edited = false);
+    void OnSelchangeType(bool edited = false);
+    void UpdateEventAndParam(int changedEvent = -1, bool changeCursel = true);
+    void UpdateActionAndParam(int changedAction = -1, bool changeCursel = true);
+    void AdjustActionHeight();
+    void UpdateParamAffectedParam_Action(int index);
+    void UpdateParamAffectedParam_Event(int index);
 
-    static void OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly = false);
-    static void OnDropdownCComboBox(int index);
+    void OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly = false);
+    void OnDropdownCComboBox(int index);
 
-    static void SortTriggers(FString id = "");
+    void SortTriggers(FString id = "");
 
-    static void Close(HWND& hWnd);
+    void Close(HWND& hWnd);
 
     static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+    BOOL CALLBACK HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+
     static LRESULT CALLBACK ListBoxSubclassProcEvent(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
     static LRESULT CALLBACK ListBoxSubclassProcAction(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-    static void EventListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam);
-    static void ActionListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam);
+    LRESULT CALLBACK HandleListBoxEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+    LRESULT CALLBACK HandleListBoxAction(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+    static LRESULT CALLBACK DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+    LRESULT CALLBACK HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+    static LRESULT CALLBACK DragingDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+    LRESULT CALLBACK HandleDragingDot(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+    void EventListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam);
+    void ActionListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam);
+
+    std::map<int, CNewTrigger*> GetOtherInstances();
+    void RefreshOtherInstances();
+    int GetCurrentInstanceIndex();
+    bool IsMainInstance();
 
 private:
-    static HWND m_hwnd;
-    static CFinalSunDlg* m_parent;
+    HWND m_hwnd;
+    CFinalSunDlg* m_parent;
     static CINI& map;
     static CINI& fadata;
     static MultimapHelper& rules;
 public:
-    static HWND hSelectedTrigger;
-    static HWND hNewTrigger;
-    static HWND hCloneTrigger;
-    static HWND hDeleteTrigger;
-    static HWND hPlaceOnMap;
-    static HWND hType;
-    static HWND hName;
-    static HWND hHouse;
-    static HWND hAttachedtrigger;
-    static HWND hDisabled;
-    static HWND hEasy;
-    static HWND hMedium;
-    static HWND hHard;
-    static HWND hEventtype;
-    static HWND hNewEvent;
-    static HWND hCloneEvent;
-    static HWND hDeleteEvent;
-    static HWND hEventDescription;
-    static HWND hEventList;
-    static HWND hEventParameter[EVENT_PARAM_COUNT];
-    static HWND hEventParameterDesc[EVENT_PARAM_COUNT];
-    static HWND hActionoptions;
-    static HWND hActiontype;
-    static HWND hNewAction;
-    static HWND hDeleteAction;
-    static HWND hCloneAction;
-    static HWND hActionDescription;
-    static HWND hActionList;
-    static HWND hActionframe;
-    static HWND hSearchReference;
-    static HWND hActionParameter[ACTION_PARAM_COUNT];
-    static HWND hActionParameterDesc[ACTION_PARAM_COUNT];
+    HWND hSelectedTrigger;
+    HWND hNewTrigger;
+    HWND hCloneTrigger;
+    HWND hDeleteTrigger;
+    HWND hPlaceOnMap;
+    HWND hType;
+    HWND hName;
+    HWND hHouse;
+    HWND hAttachedtrigger;
+    HWND hDisabled;
+    HWND hEasy;
+    HWND hMedium;
+    HWND hHard;
+    HWND hEventtype;
+    HWND hNewEvent;
+    HWND hCloneEvent;
+    HWND hDeleteEvent;
+    HWND hEventDescription;
+    HWND hEventList;
+    HWND hEventParameter[EVENT_PARAM_COUNT];
+    HWND hEventParameterDesc[EVENT_PARAM_COUNT];
+    HWND hActionoptions;
+    HWND hActiontype;
+    HWND hNewAction;
+    HWND hDeleteAction;
+    HWND hCloneAction;
+    HWND hActionDescription;
+    HWND hActionList;
+    HWND hActionframe;
+    HWND hSearchReference;
+    HWND hOpenNewEditor;
+    HWND hDragPoint;
+    HWND hCompact;
+    HWND hActionParameter[ACTION_PARAM_COUNT];
+    HWND hActionParameterDesc[ACTION_PARAM_COUNT];
 
-    static int CurrentCSFActionParam;
-    static int CurrentTriggerActionParam;
-    static int CurrentTeamActionParam;
+    int CurrentCSFActionParam;
+    int CurrentTriggerActionParam;
+    int CurrentTeamActionParam;
     static std::vector<ParamAffectedParams> ActionParamAffectedParams;
     static std::vector<ParamAffectedParams> EventParamAffectedParams;
-    static bool ActionParamUsesFloat;
-    static bool TeamListChanged;
+    bool ActionParamUsesFloat;
+    bool TeamListChanged;
+
+    static CNewTrigger Instance[TRIGGER_EDITOR_MAX_COUNT];
 
 private:
-    static int SelectedTriggerIndex;
-    static int SelectedEventIndex;
-    static int SelectedActionIndex;
-    static int ActionParamsCount;
-    static int LastActionParamsCount;
-    static bool WindowShown;
-    static FString CurrentTriggerID;
-    static std::shared_ptr<Trigger> CurrentTrigger;
-    static std::map<int, FString> HouseLabels;
-    static std::map<int, FString> TriggerLabels;
-    static std::map<int, FString> AttachedTriggerLabels;
-    static std::map<int, FString> ActionTypeLabels;
-    static std::map<int, FString> EventTypeLabels;
-    static std::map<int, FString> EventParamLabels[EVENT_PARAM_COUNT];
-    static std::map<int, FString> ActionParamLabels[ACTION_PARAM_COUNT];
-    static std::pair<bool, int> EventParamsUsage[EVENT_PARAM_COUNT];
-    static std::pair<bool, int> ActionParamsUsage[ACTION_PARAM_COUNT];
+    int SelectedTriggerIndex;
+    int SelectedEventIndex;
+    int SelectedActionIndex;
+    int ActionParamsCount;
+    int LastActionParamsCount;
+    bool WindowShown;
+    FString CurrentTriggerID;
+    std::shared_ptr<Trigger> CurrentTrigger;
+    std::map<int, FString> HouseLabels;
+    std::map<int, FString> TriggerLabels;
+    std::map<int, FString> AttachedTriggerLabels;
+    std::map<int, FString> ActionTypeLabels;
+    std::map<int, FString> EventTypeLabels;
+    std::map<int, FString> EventParamLabels[EVENT_PARAM_COUNT];
+    std::map<int, FString> ActionParamLabels[ACTION_PARAM_COUNT];
+    std::pair<bool, int> EventParamsUsage[EVENT_PARAM_COUNT];
+    std::pair<bool, int> ActionParamsUsage[ACTION_PARAM_COUNT];
 
-    static bool EventParameterAutoDrop[EVENT_PARAM_COUNT];
-    static bool ActionParameterAutoDrop[ACTION_PARAM_COUNT];
+    bool EventParameterAutoDrop[EVENT_PARAM_COUNT];
+    bool ActionParameterAutoDrop[ACTION_PARAM_COUNT];
 
-    static bool Autodrop;
-    static bool DropNeedUpdate;
-    static WNDPROC OriginalListBoxProcEvent;
-    static WNDPROC OriginalListBoxProcAction;
-    static RECT rectComboLBox;
-    static HWND hComboLBox;
+    bool Autodrop;
+    bool DropNeedUpdate;
+    bool AutoChangeName;
+    bool CompactMode = false;
+    WNDPROC OriginalListBoxProcEvent;
+    WNDPROC OriginalListBoxProcAction;
+    WNDPROC OrigDragDotProc;
+    WNDPROC OrigDragingDotProc;
+    RECT rectComboLBox;
+    HWND hComboLBox;
+    static bool AvoidInfiLoop;
+
+    bool m_dragging = false;
+    POINT m_dragOffset{};
+    HWND m_hDragGhost = nullptr;
+    POINT windowPos{};
 };
 

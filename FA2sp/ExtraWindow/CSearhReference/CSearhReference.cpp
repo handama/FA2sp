@@ -30,6 +30,7 @@ int CSearhReference::origWndHeight;
 int CSearhReference::minWndWidth;
 int CSearhReference::minWndHeight;
 bool CSearhReference::minSizeSet;
+int CSearhReference::TriggerCaller;
 bool CSearhReference::IsTeamType = false;
 bool CSearhReference::IsTrigger = false;
 bool CSearhReference::IsVariable = false;
@@ -217,16 +218,16 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
         int data = SendMessage(hListbox, LB_GETITEMDATA, idx, 0);
         if (data >= 100 && data < 300)
         {
-            if (CNewTrigger::GetHandle() == NULL)
-                CNewTrigger::Create(m_parent);
+            if (CNewTrigger::Instance[TriggerCaller].GetHandle() == NULL)
+                CNewTrigger::Instance[TriggerCaller].Create(m_parent);
 
-            auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::SelectedTrigger);
+            auto dlg = GetDlgItem(CNewTrigger::Instance[TriggerCaller].GetHandle(), CNewTrigger::Controls::SelectedTrigger);
             auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, ExtraWindow::GetTriggerDisplayName(ID));
             if (idx == CB_ERR)
                 return;
             SendMessage(dlg, CB_SETCURSEL, idx, NULL);
-            CNewTrigger::OnSelchangeTrigger(false, data < 200 ? data - 100 : 0, data >= 200 ? data - 200 : 0);
-            SetWindowPos(CNewTrigger::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+            CNewTrigger::Instance[TriggerCaller].OnSelchangeTrigger(false, data < 200 ? data - 100 : 0, data >= 200 ? data - 200 : 0);
+            SetWindowPos(CNewTrigger::Instance[TriggerCaller].GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
         }
         else if (data == 2)
         {

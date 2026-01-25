@@ -681,8 +681,8 @@ FString CMapDataExt::AddTrigger(FString id) {
 
 std::shared_ptr<Trigger> CMapDataExt::GetTrigger(FString id) {
 	auto it = CMapDataExt::Triggers.find(id);
-	if (it != CMapDataExt::Triggers.end()) {
-		return std::shared_ptr<Trigger>(it->second.get(), [](Trigger*) {});
+	if (it != Triggers.end()) {
+		return it->second;
 	}
 	return nullptr;
 }
@@ -692,6 +692,14 @@ void CMapDataExt::DeleteTrigger(FString id)
 	auto it = CMapDataExt::Triggers.find(id);
 	if (it != CMapDataExt::Triggers.end()) {
 		CMapDataExt::Triggers.erase(it);
+	}
+}
+
+void CMapDataExt::ReloadTrigger(const FString& id)
+{
+	auto it = Triggers.find(id);
+	if (it != Triggers.end()) {
+		it->second->LoadFromMap(id);
 	}
 }
 
@@ -3371,9 +3379,16 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		if (CNewScript::GetHandle())
 			::SendMessage(CNewScript::GetHandle(), 114514, 0, 0);
 
-		if (CNewTrigger::GetHandle())
-			::SendMessage(CNewTrigger::GetHandle(), 114514, 0, 0);
-		else
+		bool noEditor = true;
+		for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+		{
+			if (CNewTrigger::Instance[i].GetHandle())
+			{
+				noEditor = false;
+				::SendMessage(CNewTrigger::Instance[i].GetHandle(), 114514, 0, 0);
+			}
+		}
+		if (noEditor)
 			CMapDataExt::UpdateTriggers();
 
 		if (CNewINIEditor::GetHandle())

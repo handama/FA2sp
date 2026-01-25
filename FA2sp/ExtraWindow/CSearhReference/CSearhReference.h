@@ -31,6 +31,10 @@ public:
     {
         SearchID = id;
     }
+    static void SetTriggerCaller(bool second) 
+    {
+        TriggerCaller = second;
+    }
     // 0 team, 1 trigger, 2 taskforce/script, 3 variable
     static void SetSearchType(int idx) 
     {
@@ -79,6 +83,7 @@ private:
     static int minWndWidth;
     static int minWndHeight;
     static bool minSizeSet;
+    static int TriggerCaller;
 public:
     static bool IsTeamType;
     static bool IsTrigger;

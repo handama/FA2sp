@@ -56,6 +56,7 @@ public:
     static FString CurrentSelectedCSF;
     static FString CurrentSelectedCSFApply;
     static bool NeedUpdate;
+    static int TriggerCaller;
     static WNDPROC g_pOriginalListViewProc;
     static LRESULT CALLBACK ListViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 };

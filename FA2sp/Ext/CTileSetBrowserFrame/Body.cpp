@@ -78,11 +78,11 @@ BOOL CTileSetBrowserFrameExt::PreTranslateMessageExt(MSG* pMsg)
 
 		if (nID == (UINT)TriggerSort::MenuItem::AddTrigger)
 		{
-			if (IsWindowVisible(CNewTrigger::GetHandle()))
+			if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
 			{
 				TriggerSort::CreateFromTriggerSort = true;
 				TriggerSort::Instance.Menu_AddTrigger();
-				CNewTrigger::OnClickNewTrigger();
+				CNewTrigger::GetFirstValidInstance().OnClickNewTrigger();
 				TriggerSort::CreateFromTriggerSort = false;
 				return TRUE;
 			}
@@ -281,7 +281,7 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.HideWindow();
 
-				if (IsWindowVisible(CNewTrigger::GetHandle()))
+				if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
 				{
 					if (!TreeView_GetCount(TriggerSort::Instance.GetHwnd()))
 						TriggerSort::Instance.LoadAllTriggers();
@@ -361,7 +361,7 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				ScriptSort::Instance.HideWindow();
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.ShowWindow();
-				if ( IsWindowVisible(CNewTrigger::GetHandle()) || CFinalSunDlg::Instance->Tags.m_hWnd)
+				if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()) || CFinalSunDlg::Instance->Tags.m_hWnd)
 				{
 					if (!TreeView_GetCount(TagSort::Instance.GetHwnd()))
 						TagSort::Instance.LoadAllTriggers();

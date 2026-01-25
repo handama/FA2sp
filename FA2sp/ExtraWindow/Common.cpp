@@ -16,6 +16,7 @@
 CINI& ExtraWindow::map = CINI::CurrentDocument;
 CINI& ExtraWindow::fadata = CINI::FAData;
 MultimapHelper& ExtraWindow::rules = Variables::RulesMap;
+std::vector<DropTarget> ExtraWindow::g_DropTargets;
 
 bool ExtraWindow::bComboLBoxSelected = false;
 bool ExtraWindow::bEnterSearch = false;
@@ -87,7 +88,7 @@ FString ExtraWindow::GetTriggerDisplayName(const char* id)
     FString name;
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = FString::SplitString(map.GetString("Triggers", id, "Americans,<none>,MISSING,0,1,1,1,0"));
+    auto atoms = FString::SplitString(map.GetString("Triggers", id, "Americans,<none>,MISSING,0,1,1,1,0"), 2);
     name.Format("%s (%s)", id, atoms[2]);
     return name;
 }
@@ -97,7 +98,7 @@ FString ExtraWindow::GetTriggerName(const char* id)
     FString name;
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = FString::SplitString(map.GetString("Triggers", id, "Americans,<none>,MISSING,0,1,1,1,0"));
+    auto atoms = FString::SplitString(map.GetString("Triggers", id, "Americans,<none>,MISSING,0,1,1,1,0"), 2);
     return atoms[2];
 }
 
@@ -106,7 +107,7 @@ FString ExtraWindow::GetAITriggerName(const char* id)
     FString name;
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = FString::SplitString(map.GetString("AITriggerTypes", id, "MISSING"));
+    auto atoms = FString::SplitString(map.GetString("AITriggerTypes", id, "MISSING"), size_t(0));
     return atoms[0];
 }
 
@@ -114,7 +115,7 @@ FString ExtraWindow::GetTagName(const char* id)
 {
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = FString::SplitString(map.GetString("Tags", id, "0,MISSING,01000000"));
+    auto atoms = FString::SplitString(map.GetString("Tags", id, "0,MISSING,01000000"), 1);
     return atoms[1];
 }
 
@@ -123,32 +124,32 @@ FString ExtraWindow::GetTagDisplayName(const char* id)
     FString name;
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = FString::SplitString(map.GetString("Tags", id, "0,MISSING,01000000"));
+    auto atoms = FString::SplitString(map.GetString("Tags", id, "0,MISSING,01000000"), 1);
     name.Format("%s (%s)", id, atoms[1]);
     return name;
 }
 
-FString ExtraWindow::GetEventDisplayName(const char* id, int index)
+FString ExtraWindow::GetEventDisplayName(const char* id, int index, bool addIndex)
 {
     FString name;
     FString name2;
-    FString atom = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), id, "MISSING"))[0];
+    FString atom = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), id, "MISSING"), size_t(0))[0];
     atom = FString::ReplaceSpeicalString(atom);
     name.Format("%s %s", id, atom);
-    if (index >= 0)
+    if (index >= 0 && addIndex)
         name2.Format("[%d] %s", index, name);
     else name2 = name;
     return name2;
 }
 
-FString ExtraWindow::GetActionDisplayName(const char* id, int index)
+FString ExtraWindow::GetActionDisplayName(const char* id, int index, bool addIndex)
 {
     FString name;
     FString name2;
-    FString atom = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), id, "MISSING"))[0];
+    FString atom = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), id, "MISSING"), size_t(0))[0];
     atom = FString::ReplaceSpeicalString(atom);
     name.Format("%s %s", id, atom);
-    if (index >= 0)
+    if (index >= 0 && addIndex)
         name2.Format("[%d] %s", index, name);
     else name2 = name;
     return name2;
@@ -202,6 +203,9 @@ void ExtraWindow::AdjustDropdownWidth(HWND hWnd)
 
 void ExtraWindow::SyncComboBoxContent(HWND hSource, HWND hTarget, bool addNone)
 {
+    char buffer[512]{ 0 };
+    GetWindowText(hTarget, buffer, 511);
+
     SendMessage(hTarget, CB_RESETCONTENT, 0, 0);
     if (addNone)
         SendMessage(hTarget, CB_INSERTSTRING, 0, (LPARAM)(LPCSTR)"<none>");
@@ -216,9 +220,13 @@ void ExtraWindow::SyncComboBoxContent(HWND hSource, HWND hTarget, bool addNone)
         else
             SendMessage(hTarget, CB_INSERTSTRING, i, (LPARAM)buffer);
     }
+
+    int index = SendMessage(hTarget, CB_FINDSTRINGEXACT, 0, (LPARAM)(LPCSTR)buffer);
+    if (index != CB_ERR)
+        SendMessage(hTarget, CB_SETCURSEL, index, NULL);
 }
 
-void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
+void ExtraWindow::LoadParams(HWND& hWnd, FString idx, CNewTrigger* instance)
 {
     FString addonN1 = "-1 - ";
     FString addonN2 = "-2 - ";
@@ -263,7 +271,7 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
         LoadParam_TechnoTypes(hWnd);
         break;
     case 9:
-        LoadParam_Triggers(hWnd);
+        LoadParam_Triggers(hWnd, instance);
         break;
     case 10:
         if (!ExtConfigs::TutorialTexts_Viewer)
@@ -273,7 +281,8 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
         LoadParam_Tags(hWnd);
         break;
     case 12: // float
-        CNewTrigger::ActionParamUsesFloat = true;
+        if (instance == &CNewTrigger::Instance[0]) CNewTrigger::Instance[0].ActionParamUsesFloat = true;
+        else if (instance == &CNewTrigger::Instance[1]) CNewTrigger::Instance[1].ActionParamUsesFloat = true;
         break;
     case 13:
         LoadParam_CountryList(hWnd);
@@ -551,9 +560,12 @@ void ExtraWindow::LoadParam_HouseAddon_MultiAres(HWND& hWnd)
     }
 }
 
-void ExtraWindow::LoadParam_Triggers(HWND& hWnd)
+void ExtraWindow::LoadParam_Triggers(HWND& hWnd, CNewTrigger* instance)
 {
-    ExtraWindow::SyncComboBoxContent(CNewTrigger::hSelectedTrigger, hWnd);
+    if (instance)
+        ExtraWindow::SyncComboBoxContent(instance->hSelectedTrigger, hWnd);
+    else
+        ExtraWindow::SyncComboBoxContent(CNewTrigger::Instance[0].hSelectedTrigger, hWnd);
 }
 
 void ExtraWindow::LoadParam_Tags(HWND& hWnd)
@@ -1005,4 +1017,83 @@ void ExtraWindow::TrimStringIndex(FString& str) {
         str = str.Mid(0, spaceIndex);
     }
     str.Trim();
+}
+
+void ExtraWindow::RegisterDropTarget(HWND hWnd, DropType type, CNewTrigger* trigger)
+{
+    RECT rc;
+    GetWindowRect(hWnd, &rc);
+
+    g_DropTargets.push_back({ hWnd, rc, type, trigger });
+}
+
+struct UnregisterCtx
+{
+    HWND hParent;
+};
+
+static void UpdateDropTargetRectChild(HWND hWnd)
+{
+    for (auto& t : ExtraWindow::g_DropTargets)
+    {
+        if (t.hWnd == hWnd)
+        {
+            GetWindowRect(hWnd, &t.screenRect);
+            return;
+        }
+    }
+}
+
+static BOOL CALLBACK EnumChildProcUpdate(HWND hWnd, LPARAM lParam)
+{
+    auto* ctx = reinterpret_cast<UnregisterCtx*>(lParam);
+    UpdateDropTargetRectChild(hWnd);
+    return TRUE;
+}
+
+void ExtraWindow::UpdateDropTargetRect(HWND hWnd)
+{
+    UpdateDropTargetRectChild(hWnd);
+    UnregisterCtx ctx{ hWnd };
+    EnumChildWindows(hWnd, EnumChildProcUpdate, (LPARAM)&ctx);
+}
+
+DropTarget ExtraWindow::FindDropTarget(POINT screenPt)
+{
+    for (auto& t : g_DropTargets)
+    {
+        if (PtInRect(&t.screenRect, screenPt))
+            return t;
+    }
+    return { nullptr, {0,0}, DropType::Unknown, nullptr };
+}
+
+void ExtraWindow::UnregisterDropTarget(HWND hWnd)
+{
+    g_DropTargets.erase(
+        std::remove_if(
+            g_DropTargets.begin(),
+            g_DropTargets.end(),
+            [hWnd](const DropTarget& t)
+    {
+        return t.hWnd == hWnd;
+    }
+        ),
+        g_DropTargets.end()
+    );
+}
+
+static BOOL CALLBACK EnumChildProcUnregister(HWND hWnd, LPARAM lParam)
+{
+    auto* ctx = reinterpret_cast<UnregisterCtx*>(lParam);
+    ExtraWindow::UnregisterDropTarget(hWnd);
+    return TRUE;
+}
+
+void ExtraWindow::UnregisterDropTargetsOfWindow(HWND hMainWnd)
+{
+    UnregisterDropTarget(hMainWnd);
+
+    UnregisterCtx ctx{ hMainWnd };
+    EnumChildWindows(hMainWnd, EnumChildProcUnregister, (LPARAM)&ctx);
 }

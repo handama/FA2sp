@@ -696,9 +696,16 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("update_smudge", []() {CMapData::Instance->UpdateFieldSmudgeData(FALSE); needRedraw = true; });
     Lua.set_function("update_tiles", []() {CMapData::Instance->UpdateMapFieldData(FALSE); needRedraw = true; });
     Lua.set_function("update_trigger", []() {        
-        if (CNewTrigger::GetHandle())
-            ::SendMessage(CNewTrigger::GetHandle(), 114514, 0, 0);
-        else
+        bool noEditor = true;
+        for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+        {
+            if (CNewTrigger::Instance[i].GetHandle())
+            {
+                noEditor = false;
+                ::SendMessage(CNewTrigger::Instance[i].GetHandle(), 114514, 0, 0);
+            }
+        }
+        if (noEditor)
             CMapDataExt::UpdateTriggers(); });
     Lua.set_function("redraw_window", redraw_window);
     Lua.set_function("update_minimap", [](sol::optional<int> y, sol::optional<int> x) {
@@ -1198,9 +1205,16 @@ void CLuaConsole::OnClickRun(bool fromFile)
     if (updateTrigger)
     {
         updateTrigger = false;
-        if (CNewTrigger::GetHandle())
-            ::SendMessage(CNewTrigger::GetHandle(), 114514, 0, 0);
-        else
+        bool noEditor = true;
+        for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+        {
+            if (CNewTrigger::Instance[i].GetHandle())
+            {
+                noEditor = false;
+                ::SendMessage(CNewTrigger::Instance[i].GetHandle(), 114514, 0, 0);
+            }
+        }
+        if (noEditor)
             CMapDataExt::UpdateTriggers();
     }
     if (updateAITrigger)

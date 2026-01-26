@@ -62,6 +62,7 @@ public:
     static void LoadParam_TechnoTypes(HWND& hWnd, int specificType = -1, int style = 0, bool sort = true);
     static void LoadParam_Triggers(HWND& hWnd, CNewTrigger* instance);
     static void LoadParam_Tags(HWND& hWnd);
+    static void LoadParam_Teamtypes(HWND& hWnd);
     static void LoadParam_Stringtables(HWND& hWnd);
 
     static bool bComboLBoxSelected;

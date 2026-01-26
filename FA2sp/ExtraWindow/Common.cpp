@@ -295,6 +295,9 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx, CNewTrigger* instance)
         SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("CancelForceEnemy", "Cancel force enemy")).c_str());
         SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN2 + Translations::TranslateOrDefault("ForceNoEnemy", "Force no enemy")).c_str());
         break;
+    case 15:
+        LoadParam_Teamtypes(hWnd);
+        break;
     default:
         if (atoi(idx) >= 500)
         {
@@ -580,6 +583,19 @@ void ExtraWindow::LoadParam_Tags(HWND& hWnd)
             FString text;
             text.Format("%s - %s", kvp.first, tagAtoms[1]);
             SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text.c_str());
+        }
+    }
+}
+
+void ExtraWindow::LoadParam_Teamtypes(HWND& hWnd)
+{
+    if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+    {
+        int idx = 0;
+        for (auto& [key, value] : pSection->GetEntities())
+        {
+            auto name = GetTeamDisplayName(value);
+            SendMessage(hWnd, CB_INSERTSTRING, idx++, name);
         }
     }
 }

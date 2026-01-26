@@ -12,6 +12,7 @@
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../Miscs/MultiSelection.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
+#include "../CTileSetBrowserFrame/Body.h"
 
 DEFINE_HOOK(424654, CFinalSunDlg_OnInitDialog_SetMenuItemStateByDefault, 7)
 {
@@ -565,6 +566,14 @@ DEFINE_HOOK(4353BD, CFinalSunDlg_OnMaptoolsBackcliff, 9)
     int cliff = CINI::CurrentTheater->GetInteger("General", "CliffSet", 1919810);
     if (CMapDataExt::IsValidTileSet(cliff))
         return 0x4353D0;
+    return 0;
+}
+
+DEFINE_HOOK(435FDD, CFinalSunDlg_OnMarblemadness, 6)
+{
+    auto view = CTileSetBrowserFrameExt::TileSetBrowserView_Instance;
+    if (view && view->CurrentMode == 2)
+        return 0x435FF7;
     return 0;
 }
 

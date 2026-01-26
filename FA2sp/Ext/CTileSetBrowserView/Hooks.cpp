@@ -597,6 +597,7 @@ DEFINE_HOOK(4F2B10, CTileSetBrowserView_SetTileSet, 7)
     GET_STACK(DWORD, dwTileSet, 0x4);
     GET_STACK(BOOL, bOnlyRedraw, 0x8);
 
+    CTileSetBrowserFrameExt::TileSetBrowserView_Instance = pThis;
     pThis->CurrentTileset = dwTileSet;
     pThis->CurrentMode = 1;
 
@@ -751,6 +752,7 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
     GET(CTileSetBrowserView*, pThis, ECX);
     GET_STACK(CDC* , pDC, 0x4);
 
+    CTileSetBrowserFrameExt::TileSetBrowserView_Instance = pThis;
     if (pThis->CurrentMode == 1)
     {
         auto pIsoView = CIsoView::GetInstance();

@@ -27,6 +27,7 @@
 
 HWND CTileSetBrowserFrameExt::hTabCtrl = NULL;
 bool CTileSetBrowserFrameExt::TerrainDlgLoaded = true;
+CTileSetBrowserView* CTileSetBrowserFrameExt::TileSetBrowserView_Instance = nullptr;
 
 void CTileSetBrowserFrameExt::ProgramStartupInit()
 {

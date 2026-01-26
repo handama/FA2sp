@@ -48,6 +48,7 @@ public:
 	static CTerrainGenerator m_terrainGenerator;
 	static HWND hTabCtrl;
     static bool TerrainDlgLoaded;
+    static CTileSetBrowserView* TileSetBrowserView_Instance;
 };
 
 class TreeViewHelper {

@@ -30,6 +30,7 @@ CNewTrigger CNewTrigger::Instance[TRIGGER_EDITOR_MAX_COUNT];
 std::vector<ParamAffectedParams> CNewTrigger::ActionParamAffectedParams;
 std::vector<ParamAffectedParams> CNewTrigger::EventParamAffectedParams;
 bool CNewTrigger::AvoidInfiLoop;
+static constexpr int DRAG_THRESHOLD = 4;
 
 void CNewTrigger::Create(CFinalSunDlg* pWnd)
 {
@@ -405,183 +406,250 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
     {
         if (CurrentTrigger)
         {
-            m_dragging = true;
-            SetCapture(hWnd);
+            m_pressed = true;
+            m_dragging = false;
 
-            POINT pt;
-            GetCursorPos(&pt);
+            GetCursorPos(&m_pressPtScreen);
+            m_lastPtScreen = m_pressPtScreen;
 
-            m_hDragGhost = CreateWindowEx(
-                WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
-                "STATIC",
-                nullptr,
-                WS_POPUP,
-                pt.x - 6, pt.y - 6,
-                12, 12,
-                nullptr, nullptr,
-                static_cast<HINSTANCE>(FA2sp::hInstance),
-                nullptr
-            );
-
-            if (m_hDragGhost)
-            {
-                SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, (LONG_PTR)this);
-                OrigDragingDotProc = (WNDPROC)SetWindowLongPtr(m_hDragGhost, GWLP_WNDPROC, (LONG_PTR)DragingDotProc);
-                SetLayeredWindowAttributes(m_hDragGhost, 0, 200, LWA_ALPHA);
-                ShowWindow(m_hDragGhost, SW_SHOW);
-            }
+            SetCapture(hWnd);        
             return 0;
         }
         break;
     }
     case WM_MOUSEMOVE:
     {
-        if (!m_dragging) break;
+        if (!m_pressed)
+            break;
 
         POINT pt;
         GetCursorPos(&pt);
 
-        SetWindowPos(
-            m_hDragGhost,
-            nullptr,
-            pt.x - 6, pt.y - 6,
-            0, 0,
-            SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
-        );
+        int dx = abs(pt.x - m_pressPtScreen.x);
+        int dy = abs(pt.y - m_pressPtScreen.y);
+
+        if (!m_dragging)
+        {
+            if (dx >= DRAG_THRESHOLD || dy >= DRAG_THRESHOLD)
+            {
+                m_dragging = true;
+                m_hDragGhost = CreateWindowEx(
+                    WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
+                    "STATIC",
+                    nullptr,
+                    WS_POPUP,
+                    m_pressPtScreen.x - 6, m_pressPtScreen.y - 6,
+                    12, 12,
+                    nullptr, nullptr,
+                    static_cast<HINSTANCE>(FA2sp::hInstance),
+                    nullptr
+                );
+
+                if (m_hDragGhost)
+                {
+                    SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, (LONG_PTR)this);
+                    OrigDragingDotProc = (WNDPROC)SetWindowLongPtr(m_hDragGhost, GWLP_WNDPROC, (LONG_PTR)DragingDotProc);
+                    SetLayeredWindowAttributes(m_hDragGhost, 0, 200, LWA_ALPHA);
+                    ShowWindow(m_hDragGhost, SW_SHOW);
+                }
+            }
+        }
+
+        if (m_dragging)
+        {
+            SetWindowPos(
+                m_hDragGhost,
+                nullptr,
+                pt.x - 6, pt.y - 6,
+                0, 0,
+                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+            );
+
+            if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt))
+            {
+                TempValueHolder<int> command(CIsoView::CurrentCommand->Command, 0x25);
+                TempValueHolder<int> type(CIsoView::CurrentCommand->Type, GetCurrentInstanceIndex());
+                ScreenToClient(CIsoView::GetInstance()->GetSafeHwnd(), &pt);
+                CIsoView::GetInstance()->OnMouseMove(0, pt);
+            }
+        }
 
         return 0;
     }
     case WM_LBUTTONUP:
     {
-        if (!m_dragging) break;
+        if (!m_pressed)
+            break;
 
-        m_dragging = false;
         ReleaseCapture();
+        m_pressed = false;
 
         POINT pt;
         GetCursorPos(&pt);
 
-        SetWindowLongPtr(
-            m_hDragGhost,
-            GWLP_WNDPROC,
-            (LONG_PTR)OrigDragingDotProc
-        );
-        SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
-
-        DestroyWindow(m_hDragGhost);
-        m_hDragGhost = nullptr;
-
-        auto target = ExtraWindow::FindDropTarget(pt);
-        if (target.hWnd)
+        if (m_dragging)
         {
-            auto triggerID = CurrentTriggerID + " ";
-            switch (target.type)
+            SetWindowLongPtr(
+                m_hDragGhost,
+                GWLP_WNDPROC,
+                (LONG_PTR)OrigDragingDotProc
+            );
+            SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+            DestroyWindow(m_hDragGhost);
+            m_hDragGhost = nullptr;
+
+            if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt) && CurrentTrigger)
             {
-            case DropType::AttachedTrigger:
-                if (target.triggerInstance && target.triggerInstance->GetHandle())
-                {
-                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
-                    if (idx != CB_ERR)
-                    {
-                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
-                        target.triggerInstance->OnSelchangeAttachedTrigger(idx == CB_ERR);
-                    }
-                }
-                break;
-            case DropType::ActionParam0:
-                if (target.triggerInstance && target.triggerInstance->GetHandle())
-                {
-                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
-                    if (idx != CB_ERR)
-                    {
-                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
-                        target.triggerInstance->OnSelchangeActionParam(0, idx == CB_ERR);
-                    }
-                }
-                break;
-            case DropType::ActionParam1:
-                if (target.triggerInstance && target.triggerInstance->GetHandle())
-                {
-                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
-                    if (idx != CB_ERR)
-                    {
-                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
-                        target.triggerInstance->OnSelchangeActionParam(1, idx == CB_ERR);
-                    }
-                }
-                break;
-            case DropType::ActionParam2:
-                if (target.triggerInstance && target.triggerInstance->GetHandle())
-                {
-                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
-                    if (idx != CB_ERR)
-                    {
-                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
-                        target.triggerInstance->OnSelchangeActionParam(2, idx == CB_ERR);
-                    }
-                }
-                break;
-            case DropType::ActionParam3:
-                if (target.triggerInstance && target.triggerInstance->GetHandle())
-                {
-                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
-                    if (idx != CB_ERR)
-                    {
-                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
-                        target.triggerInstance->OnSelchangeActionParam(3, idx == CB_ERR);
-                    }
-                }
-                break;
-            case DropType::ActionParam4:
-                if (target.triggerInstance && target.triggerInstance->GetHandle())
-                {
-                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
-                    if (idx != CB_ERR)
-                    {
-                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
-                        target.triggerInstance->OnSelchangeActionParam(4, idx == CB_ERR);
-                    }
-                }
-                break;
-            case DropType::ActionParam5:
-                if (target.triggerInstance && target.triggerInstance->GetHandle())
-                {
-                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
-                    if (idx != CB_ERR)
-                    {
-                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
-                        target.triggerInstance->OnSelchangeActionParam(5, idx == CB_ERR);
-                    }
-                }
-                break;
-            case DropType::EventParam0:
-                if (target.triggerInstance && target.triggerInstance->GetHandle())
-                {
-                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
-                    if (idx != CB_ERR)
-                    {
-                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
-                        target.triggerInstance->OnSelchangeEventParam(0, idx == CB_ERR);
-                    }
-                }
-                break;
-            case DropType::EventParam1:
-                if (target.triggerInstance && target.triggerInstance->GetHandle())
-                {
-                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
-                    if (idx != CB_ERR)
-                    {
-                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
-                        target.triggerInstance->OnSelchangeEventParam(1, idx == CB_ERR);
-                    }
-                }
-                break;
-            case DropType::Unknown:
-            default:
-                break;
+                ScreenToClient(CIsoView::GetInstance()->GetSafeHwnd(), &pt);
+                auto coord = CIsoView::GetInstance()->GetCurrentMapCoord(pt);
+                int& X = coord.X; int& Y = coord.Y;
+                CViewObjectsExt::ApplyTag(X, Y, CurrentTrigger->Tag);
             }
+            else
+            {
+                auto target = ExtraWindow::FindDropTarget(pt);
+                if (target.hWnd)
+                {
+                    auto triggerID = CurrentTriggerID + " ";
+                    switch (target.type)
+                    {
+                    case DropType::AttachedTrigger:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx == CB_ERR)
+                            {
+                                target.triggerInstance->OnSelchangeActionListbox();
+                                idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            }
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeAttachedTrigger();
+                            }
+                        }
+                        break;
+                    case DropType::ActionParam0:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeActionParam(0);
+                            }
+                        }
+                        break;
+                    case DropType::ActionParam1:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeActionParam(1);
+                            }
+                        }
+                        break;
+                    case DropType::ActionParam2:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeActionParam(2);
+                            }
+                        }
+                        break;
+                    case DropType::ActionParam3:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeActionParam(3);
+                            }
+                        }
+                        break;
+                    case DropType::ActionParam4:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeActionParam(4);
+                            }
+                        }
+                        break;
+                    case DropType::ActionParam5:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeActionParam(5);
+                            }
+                        }
+                        break;
+                    case DropType::EventParam0:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeEventParam(0);
+                            }
+                        }
+                        break;
+                    case DropType::EventParam1:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeEventParam(1);
+                            }
+                        }
+                        break;
+                    case DropType::TeamEditorTag:
+                        {
+                            auto tag = CurrentTrigger->Tag;
+                            tag += " ";
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, tag);
+                            if (idx == CB_ERR)
+                            {
+                                CNewTeamTypes::OnDropdownTag();
+                                idx = ExtraWindow::FindCBStringExactStart(target.hWnd, tag);
+                            }
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                CNewTeamTypes::OnSelchangeTag();
+                            }
+                        }
+                        break;
+                    case DropType::Unknown:
+                    default:
+                        break;
+                    }
+                }
+            }
+
         }
-        ReleaseCapture();
+        else
+        {
+            CIsoView::CurrentCommand->Command = 0x25;
+            CIsoView::CurrentCommand->Type = GetCurrentInstanceIndex();
+        }
+
+        m_dragging = false;     
         return 0;
     }
     }
@@ -2778,7 +2846,6 @@ void CNewTrigger::SortTriggers(FString id)
     auto sort = [&labels](CNewTrigger* pThis, FString id) {
         while (SendMessage(pThis->hSelectedTrigger, CB_DELETESTRING, 0, NULL) != CB_ERR);
 
-
         for (size_t i = 0; i < labels.size(); ++i) {
             SendMessage(pThis->hSelectedTrigger, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].c_str());
         }
@@ -2787,6 +2854,10 @@ void CNewTrigger::SortTriggers(FString id)
             pThis->SelectedTriggerIndex = SendMessage(pThis->hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(id).c_str());
             SendMessage(pThis->hSelectedTrigger, CB_SETCURSEL, pThis->SelectedTriggerIndex, NULL);
         }
+
+        if (pThis->CurrentTriggerActionParam > -1)
+            ExtraWindow::SyncComboBoxContent(pThis->hSelectedTrigger, 
+                pThis->hActionParameter[pThis->CurrentTriggerActionParam]);
     };
 
     sort(this, id);

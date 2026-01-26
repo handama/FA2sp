@@ -19,6 +19,7 @@
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../Miscs/StringtableLoader.h"
+#include "../../Helpers/Helper.h"
 
 void CIsoViewExt::DrawBridgeLine(HDC hDC)
 {
@@ -1965,6 +1966,86 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     }
                 }
             }
+        }
+    }
+    if (CIsoView::CurrentCommand->Command == 0x25)
+    {
+        int drawX = X - CIsoViewExt::drawOffsetX + 30;
+        int drawY = Y - CIsoViewExt::drawOffsetY - 15;
+        int i = 0;
+        // 0-9: trigger editors
+        if (CIsoView::CurrentCommand->Type >= 0
+            && CIsoView::CurrentCommand->Type <= 9
+            && CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger)
+        {
+            FString line1;
+            FString line2;
+            FString tag = CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger->Tag;
+            FString currentTag;
+
+            if (cell->Structure > -1)
+            {
+                TempValueHolder<bool> skipCheck(CMapDataExt::SkipBuildingOverlappingCheck, true);
+                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
+                CBuildingData data;
+                CMapData::Instance->GetBuildingData(cell->Structure, data);
+                currentTag = data.Tag;
+            }
+            if (cell->Unit > -1)
+            {
+                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit);
+                CUnitData data;
+                CMapData::Instance->GetUnitData(cell->Unit, data);
+                currentTag = data.Tag;
+            }
+            if (cell->Aircraft > -1)
+            {
+                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft);
+                CAircraftData data;
+                CMapData::Instance->GetAircraftData(cell->Aircraft, data);
+                currentTag = data.Tag;
+            }
+            int infantry = CMapDataExt::GetInfantryAt(point.X + point.Y * CMapData::Instance->MapWidthPlusHeight);
+            if (infantry > -1)
+            {
+                if (ExtConfigs::InfantrySubCell_Edit)
+                {
+                    infantry = CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X + point.Y);
+
+                }
+                if (infantry > -1)
+                {
+                    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
+                    CInfantryData data;
+                    CMapData::Instance->GetInfantryData(infantry, data);
+                    currentTag = data.Tag;
+                }
+            }
+
+            ::SetBkColor(hDC, RGB(255, 255, 255));
+            if (currentTag != "" && tag != "None")
+            {
+                auto tag = FString::SplitString(CINI::CurrentDocument->GetString("Tags", currentTag));
+                if (tag.size() > 1)
+                {
+                    line1.Format(Translations::TranslateOrDefault("DragAttachPreviousTag",
+                        "Previous tag: %s (%s)"), currentTag, tag[1]);
+                }
+                else
+                {
+                    line1.Format(Translations::TranslateOrDefault("DragAttachPreviousTagNone",
+                        "Previous tag: %s"), currentTag);
+                }
+                ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());
+            }
+
+            if (tag != "" && tag != "<none>")
+            {
+                line2.Format(Translations::TranslateOrDefault("DragAttachTag",
+                    "Attaching tag: %s (%s)"), tag, CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger->TagName);
+                ::TextOut(hDC, drawX, drawY + lineHeight * i++, line2, line2.GetLength());
+            }
+            ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
         }
     }
     if (!ExtConfigs::DisplayObjectsOutside && CMapData::Instance().IsCoordInMap(point.X, point.Y) 

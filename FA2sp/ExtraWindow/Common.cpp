@@ -1024,7 +1024,7 @@ void ExtraWindow::RegisterDropTarget(HWND hWnd, DropType type, CNewTrigger* trig
     RECT rc;
     GetWindowRect(hWnd, &rc);
 
-    g_DropTargets.push_back({ hWnd, rc, type, trigger });
+    g_DropTargets.push_back({ hWnd, rc, type, trigger, GetAncestor(hWnd, GA_ROOT) });
 }
 
 struct UnregisterCtx
@@ -1058,14 +1058,34 @@ void ExtraWindow::UpdateDropTargetRect(HWND hWnd)
     EnumChildWindows(hWnd, EnumChildProcUpdate, (LPARAM)&ctx);
 }
 
+bool IsWindowAbove(HWND a, HWND b)
+{
+    for (HWND h = a; h; h = GetWindow(h, GW_HWNDNEXT))
+    {
+        if (h == b)
+            return true;
+    }
+    return false;
+}
+
 DropTarget ExtraWindow::FindDropTarget(POINT screenPt)
 {
+    std::vector<DropTarget*> sorted;
     for (auto& t : g_DropTargets)
+        sorted.push_back(&t);
+
+    std::sort(sorted.begin(), sorted.end(),
+        [](DropTarget* a, DropTarget* b)
     {
-        if (PtInRect(&t.screenRect, screenPt))
-            return t;
+        return IsWindowAbove(a->hRoot, b->hRoot);
+    });
+
+    for (auto* t : sorted)
+    {
+        if (PtInRect(&t->screenRect, screenPt))
+            return *t;
     }
-    return { nullptr, {0,0}, DropType::Unknown, nullptr };
+    return { nullptr, {0,0}, DropType::Unknown, nullptr, nullptr };
 }
 
 void ExtraWindow::UnregisterDropTarget(HWND hWnd)
@@ -1096,4 +1116,22 @@ void ExtraWindow::UnregisterDropTargetsOfWindow(HWND hMainWnd)
 
     UnregisterCtx ctx{ hMainWnd };
     EnumChildWindows(hMainWnd, EnumChildProcUnregister, (LPARAM)&ctx);
+}
+
+bool ExtraWindow::IsPointOnIsoViewAndNotCovered(POINT ptScreen)
+{
+    auto hIsoView = CIsoView::GetInstance()->GetSafeHwnd();
+    RECT rc;
+    GetWindowRect(hIsoView, &rc);
+    if (!PtInRect(&rc, ptScreen))
+        return false;
+
+    HWND hTop = WindowFromPoint(ptScreen);
+
+    while (hTop && hTop != hIsoView)
+    {
+        hTop = GetParent(hTop);
+    }
+
+    return hTop == hIsoView;
 }

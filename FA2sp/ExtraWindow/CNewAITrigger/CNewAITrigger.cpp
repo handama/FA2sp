@@ -139,6 +139,9 @@ void CNewAITrigger::Initialize(HWND& hWnd)
     hBaseDefense = GetDlgItem(hWnd, Controls::BaseDefense);
     hSkrimish = GetDlgItem(hWnd, Controls::Skrimish);
 
+    ExtraWindow::RegisterDropTarget(hTeam1, DropType::AIEditorTeam0);
+    ExtraWindow::RegisterDropTarget(hTeam2, DropType::AIEditorTeam1);
+
     Update(hWnd);
 }
 
@@ -465,6 +468,12 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     {
         CNewAITrigger::Close(hWnd);
         return TRUE;
+    }
+    case WM_MOVE:
+    case WM_SIZE:
+    {
+        ExtraWindow::UpdateDropTargetRect(hWnd);
+        break;
     }
     case 114514: // used for update
     {

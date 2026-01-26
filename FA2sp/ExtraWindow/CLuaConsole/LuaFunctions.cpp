@@ -1093,7 +1093,7 @@ namespace LuaFunctions
 				if (val >= 0) maxID = std::max(maxID, val);
 			}
 			if (maxID < initNumber)
-				maxID = initNumber;
+				maxID = initNumber - 1;
 			int nextID = maxID + 1;
 			char idBuffer[9];
 			std::sprintf(idBuffer, "%08d", nextID);

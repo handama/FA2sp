@@ -2833,6 +2833,75 @@ void CViewObjectsExt::ApplyDragFacing(int X, int Y)
     }
 }
 
+void CViewObjectsExt::ApplyTag(int X, int Y, FString tag)
+{
+    if (CMapData::Instance->IsCoordInMap(X, Y))
+    {
+        int pos = CMapData::Instance->GetCoordIndex(X, Y);
+        auto cell = CMapData::Instance->GetCellAt(pos);
+        auto& cellExt = CMapDataExt::CellDataExts[pos];
+        if (tag != "" && tag != "<none>")
+        {
+            if (cell->Structure > -1)
+            {
+                TempValueHolder<bool> skipCheck(CMapDataExt::SkipBuildingOverlappingCheck, true);
+                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
+                CBuildingData data;
+                CMapData::Instance->GetBuildingData(cell->Structure, data);
+
+                data.Tag = tag;
+
+                CMapData::Instance->DeleteBuildingData(cell->Structure);
+                CMapData::Instance->SetBuildingData(&data, nullptr, nullptr, 0, "");
+            }
+
+            if (cell->Unit > -1)
+            {
+                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit);
+                CUnitData data;
+                CMapData::Instance->GetUnitData(cell->Unit, data);
+
+                data.Tag = tag;
+
+                CMapData::Instance->DeleteUnitData(cell->Unit);
+                CMapData::Instance->SetUnitData(&data, nullptr, nullptr, 0, "");
+            }
+
+            if (cell->Aircraft > -1)
+            {
+                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft);
+                CAircraftData data;
+                CMapData::Instance->GetAircraftData(cell->Aircraft, data);
+
+                data.Tag = tag;
+
+                CMapData::Instance->DeleteAircraftData(cell->Aircraft);
+                CMapData::Instance->SetAircraftData(&data, nullptr, nullptr, 0, "");
+            }
+
+            int infantry = CMapDataExt::GetInfantryAt(pos);
+            if (infantry > -1)
+            {
+                if (ExtConfigs::InfantrySubCell_Edit)
+                {
+                    infantry = CIsoViewExt::GetSelectedSubcellInfantryIdx(X, Y);
+                }
+                if (infantry > -1)
+                {
+                    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
+                    CInfantryData data;
+                    CMapData::Instance->GetInfantryData(infantry, data);
+
+                    data.Tag = tag;
+
+                    CMapData::Instance->DeleteInfantryData(infantry);
+                    CMapData::Instance->SetInfantryData(&data, nullptr, nullptr, 0, -1);
+                }
+            }
+        }
+    }
+}
+
 void CViewObjectsExt::ApplyPropertyBrush(int X, int Y)
 {
     auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
@@ -4012,5 +4081,6 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     // 0x22 Tube
     // 0x23 Lua Script
     // 0x24 WP/Tag color
+    // 0x25 Draging trigger dot
     return false;
 }

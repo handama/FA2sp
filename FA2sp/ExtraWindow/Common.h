@@ -16,6 +16,11 @@ enum class DropType : int
     ActionParam5,
     EventParam0,
     EventParam1,
+    TeamEditorTag,
+    TeamEditorTaskForce,
+    TeamEditorScript,
+    AIEditorTeam0,
+    AIEditorTeam1,
 
     Unknown,
 };
@@ -26,6 +31,7 @@ struct DropTarget
     RECT screenRect;
     DropType type;
     CNewTrigger* triggerInstance;
+    HWND hRoot;
 };
 
 class ExtraWindow
@@ -79,6 +85,7 @@ public:
     static void UpdateHoverTarget(POINT pt);
     static void UnregisterDropTarget(HWND hWnd);
     static void UnregisterDropTargetsOfWindow(HWND hMainWnd);
+    static bool IsPointOnIsoViewAndNotCovered(POINT ptScreen);
 
     static std::vector<DropTarget> g_DropTargets;
 

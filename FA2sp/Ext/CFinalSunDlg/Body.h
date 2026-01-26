@@ -392,6 +392,7 @@ public:
     static void InitializeOnUpdateEngine();
     static void ApplyDragFacing(int X, int Y);
     static void ApplyChangeOwner(int X, int Y);
+    static void ApplyTag(int X, int Y, FString tag);
     static void ApplyPropertyBrush(int X, int Y);
     static void ApplyPropertyBrush_Building(int nIndex);
     static void ApplyPropertyBrush_Infantry(int nIndex);

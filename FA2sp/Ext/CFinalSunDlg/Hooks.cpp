@@ -605,6 +605,11 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
         CIsoView::CurrentCommand->Command = 0x0;
         CIsoView::CurrentCommand->Type = 0;
     }   
+    if (CIsoView::CurrentCommand->Command == 0x25)
+    {
+        CIsoView::CurrentCommand->Command = 0x0;
+        CIsoView::CurrentCommand->Type = 0;
+    }   
     if (CIsoView::CurrentCommand->Command == 0x1F) {
         CTerrainGenerator::RangeFirstCell.X = -1;
         CTerrainGenerator::RangeFirstCell.Y = -1;

@@ -32,7 +32,8 @@ public:
         ActionParamDes = 1198,
         ActionExtraParamDes = 6303,
         Insert = 6302,
-        SearchReference = 1999
+        SearchReference = 1999,
+        DragPoint = 2001,
     };
 
     static void Create(CFinalSunDlg* pWnd);
@@ -74,6 +75,8 @@ protected:
     static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static LRESULT CALLBACK ListBoxSubclassProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
     static void ListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam);
+    static LRESULT CALLBACK DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+    static LRESULT CALLBACK DragingDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 private:
     static HWND m_hwnd;
@@ -101,6 +104,7 @@ public:
     static HWND hActionExtraParamDes;
     static HWND hInsert;
     static HWND hSearchReference;
+    static HWND hDragPoint;
     static FString CurrentScriptID;
     static std::map<FString, bool> ActionHasExtraParam;
     static std::map<FString, bool> ActionIsStringParam;
@@ -115,5 +119,10 @@ private:
     static bool DropNeedUpdate;
     static bool bInsert;
     static WNDPROC OriginalListBoxProc;
+    static WNDPROC OrigDragDotProc;
+    static WNDPROC OrigDragingDotProc;
+    static bool m_dragging;
+    static POINT m_dragOffset;
+    static HWND m_hDragGhost;
 };
 

@@ -469,6 +469,9 @@ public:
 
     static CNewTrigger Instance[TRIGGER_EDITOR_MAX_COUNT];
 
+    FString CurrentTriggerID;
+    std::shared_ptr<Trigger> CurrentTrigger;
+
 private:
     int SelectedTriggerIndex;
     int SelectedEventIndex;
@@ -476,8 +479,6 @@ private:
     int ActionParamsCount;
     int LastActionParamsCount;
     bool WindowShown;
-    FString CurrentTriggerID;
-    std::shared_ptr<Trigger> CurrentTrigger;
     std::map<int, FString> HouseLabels;
     std::map<int, FString> TriggerLabels;
     std::map<int, FString> AttachedTriggerLabels;
@@ -503,7 +504,12 @@ private:
     HWND hComboLBox;
     static bool AvoidInfiLoop;
 
-    bool m_dragging = false;
+    bool   m_pressed = false;
+    bool   m_dragging = false;
+
+    POINT  m_pressPtScreen; 
+    POINT  m_lastPtScreen;
+
     POINT m_dragOffset{};
     HWND m_hDragGhost = nullptr;
     POINT windowPos{};

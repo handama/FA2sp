@@ -60,6 +60,12 @@ bool CNewScript::ParamAutodrop[2];
 bool CNewScript::DropNeedUpdate;
 bool CNewScript::bInsert;
 WNDPROC CNewScript::OriginalListBoxProc;
+HWND CNewScript::hDragPoint;
+WNDPROC CNewScript::OrigDragDotProc;
+WNDPROC CNewScript::OrigDragingDotProc;
+bool CNewScript::m_dragging = false;
+POINT CNewScript::m_dragOffset{};
+HWND CNewScript::m_hDragGhost = nullptr;
 
 void CNewScript::Create(CFinalSunDlg* pWnd)
 {
@@ -132,6 +138,7 @@ void CNewScript::Initialize(HWND& hWnd)
     hActionExtraParamDes = GetDlgItem(hWnd, Controls::ActionExtraParamDes);
     hInsert = GetDlgItem(hWnd, Controls::Insert);
     hSearchReference = GetDlgItem(hWnd, Controls::SearchReference);
+    hDragPoint = GetDlgItem(hWnd, Controls::DragPoint);
     bInsert = false;
 
     ExtraWindow::SetEditControlFontSize(hDescription, 1.3f);
@@ -140,6 +147,11 @@ void CNewScript::Initialize(HWND& hWnd)
 
     if (hActionsListBox)
         OriginalListBoxProc = (WNDPROC)SetWindowLongPtr(hActionsListBox, GWLP_WNDPROC, (LONG_PTR)ListBoxSubclassProc);
+
+    if (hDragPoint)
+    {
+        OrigDragDotProc = (WNDPROC)SetWindowLongPtr(hDragPoint, GWLP_WNDPROC, (LONG_PTR)DragDotProc);
+    }
 
     Update(hWnd);
 }
@@ -224,6 +236,162 @@ void CNewScript::Close(HWND& hWnd)
     CNewScript::m_hwnd = NULL;
     CNewScript::m_parent = NULL;
 
+}
+
+
+LRESULT CALLBACK CNewScript::DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
+    case WM_SETCURSOR:
+    {
+        if (CurrentScriptID != "")
+        {
+            SetCursor(LoadCursor(nullptr, IDC_HAND));
+            return TRUE;
+        }
+        break;
+    }
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        HBRUSH hBrush = CreateSolidBrush(CurrentScriptID != "" ? RGB(0, 200, 0) : RGB(200, 0, 0));
+        FillRect(hdc, &ps.rcPaint, hBrush);
+        DeleteObject(hBrush);
+
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+    case WM_LBUTTONDOWN:
+    {
+        if (CurrentScriptID != "")
+        {
+            m_dragging = true;
+            SetCapture(hWnd);
+
+            POINT pt;
+            GetCursorPos(&pt);
+
+            m_hDragGhost = CreateWindowEx(
+                WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
+                "STATIC",
+                nullptr,
+                WS_POPUP,
+                pt.x - 6, pt.y - 6,
+                12, 12,
+                nullptr, nullptr,
+                static_cast<HINSTANCE>(FA2sp::hInstance),
+                nullptr
+            );
+
+            if (m_hDragGhost)
+            {
+                OrigDragingDotProc = (WNDPROC)SetWindowLongPtr(m_hDragGhost, GWLP_WNDPROC, (LONG_PTR)DragingDotProc);
+                SetLayeredWindowAttributes(m_hDragGhost, 0, 200, LWA_ALPHA);
+                ShowWindow(m_hDragGhost, SW_SHOW);
+            }
+            return 0;
+        }
+        break;
+    }
+    case WM_MOUSEMOVE:
+    {
+        if (!m_dragging) break;
+
+        POINT pt;
+        GetCursorPos(&pt);
+
+        SetWindowPos(
+            m_hDragGhost,
+            nullptr,
+            pt.x - 6, pt.y - 6,
+            0, 0,
+            SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+        );
+
+        return 0;
+    }
+    case WM_LBUTTONUP:
+    {
+        if (!m_dragging) break;
+
+        m_dragging = false;
+        ReleaseCapture();
+
+        POINT pt;
+        GetCursorPos(&pt);
+
+        SetWindowLongPtr(
+            m_hDragGhost,
+            GWLP_WNDPROC,
+            (LONG_PTR)OrigDragingDotProc
+        );
+        SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+        DestroyWindow(m_hDragGhost);
+        m_hDragGhost = nullptr;
+
+        auto target = ExtraWindow::FindDropTarget(pt);
+        if (target.hWnd)
+        {
+            auto scriptID = CurrentScriptID + " ";
+            switch (target.type)
+            {
+            case DropType::TeamEditorScript:
+                if (CNewTeamTypes::CurrentTeamID != "")
+                {
+                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, scriptID);
+                    if (idx == CB_ERR)
+                    {
+                        CNewTeamTypes::OnDropdownScript();
+                        idx = ExtraWindow::FindCBStringExactStart(target.hWnd, scriptID);
+                    }
+                    if (idx != CB_ERR)
+                    {
+                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                        CNewTeamTypes::OnSelchangeScript();
+                    }
+                }
+                break;
+            case DropType::Unknown:
+            default:
+                break;
+            }
+        }
+
+        ReleaseCapture();
+        return 0;
+    }
+    }
+
+    return DefWindowProc(
+        hWnd, message, wParam, lParam
+    );
+}
+
+LRESULT CALLBACK CNewScript::DragingDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        HBRUSH hBrush = CreateSolidBrush(RGB(0, 200, 0));
+        FillRect(hdc, &ps.rcPaint, hBrush);
+        DeleteObject(hBrush);
+
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+    }
+
+    return DefWindowProc(
+        hWnd, message, wParam, lParam
+    );
 }
 
 LRESULT CALLBACK CNewScript::ListBoxSubclassProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -783,6 +951,8 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
         SendMessage(hDescription, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
         while (SendMessage(hActionsListBox, LB_DELETESTRING, 0, NULL) != CB_ERR);
+        CurrentScriptID = "";
+        InvalidateRect(hDragPoint, nullptr, TRUE);
         return;
     }
 
@@ -792,6 +962,7 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
     FString::TrimIndex(pID);
 
     CurrentScriptID = pID;
+    InvalidateRect(hDragPoint, nullptr, TRUE);
 
     CTriggerAnnotation::Type = AnnoScript;
     CTriggerAnnotation::ID = CurrentScriptID;

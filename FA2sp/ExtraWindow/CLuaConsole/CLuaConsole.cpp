@@ -680,8 +680,8 @@ void CLuaConsole::Initialize(HWND& hWnd)
         set_param(section, key, value, index, delimiter.value());
         });
     Lua.set_function("trim_index", trim_index);
-    Lua.set_function("waypoint_to_string", [](std::string wp) { return STDHelpers::WaypointToString(wp).c_str(); });
-    Lua.set_function("string_to_waypoint", [](std::string str) { return STDHelpers::StringToWaypointStr(str).c_str(); });
+    Lua.set_function("waypoint_to_string", [](std::string wp) { return STDHelpers::WaypointToString(wp).ToStdString(); });
+    Lua.set_function("string_to_waypoint", [](std::string str) { return STDHelpers::StringToWaypointStr(str).ToStdString(); });
 
     // fa2 logic
     Lua.set_function("update_building", []() {CMapData::Instance->UpdateFieldStructureData(FALSE); needRedraw = true; });

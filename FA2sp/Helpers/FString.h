@@ -55,6 +55,10 @@ public:
     friend FString operator+(const FString& lhs, TCHAR rhs) { FString r = lhs; r += rhs; return r; }
     friend FString operator+(LPCSTR lhs, const FString& rhs) { FString r; if(lhs) r = lhs; r += rhs; return r; }
 
+    std::string ToStdString() const {
+        return static_cast<const std::string&>(*this);
+    }
+
     int GetLength() const { return static_cast<int>(length()); }
     bool IsEmpty() const { return empty(); }
     FString& MakeReverse() {

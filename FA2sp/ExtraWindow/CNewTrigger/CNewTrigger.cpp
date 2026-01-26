@@ -29,7 +29,9 @@ MultimapHelper& CNewTrigger::rules = Variables::RulesMap;
 CNewTrigger CNewTrigger::Instance[TRIGGER_EDITOR_MAX_COUNT];
 std::vector<ParamAffectedParams> CNewTrigger::ActionParamAffectedParams;
 std::vector<ParamAffectedParams> CNewTrigger::EventParamAffectedParams;
-bool CNewTrigger::AvoidInfiLoop;
+bool CNewTrigger::AvoidInfiLoop = false;
+bool CNewTrigger::SortTriggersExecuted = false;
+bool CNewTrigger::AutoChangeName = false;
 static constexpr int DRAG_THRESHOLD = 4;
 
 void CNewTrigger::Create(CFinalSunDlg* pWnd)
@@ -238,14 +240,11 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
     }
 
     DropNeedUpdate = false;
-    AutoChangeName = false;
 
     if (UpdateTrigger)
         CMapDataExt::UpdateTriggers();
 
-    AvoidInfiLoop = true;
-    SortTriggers();
-    AvoidInfiLoop = false;
+    SortTriggers("", true);
 
     if (UpdateTrigger)
     {
@@ -855,6 +854,10 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     case WM_USER + 100:
     {
         OnSelchangeTrigger();
+        for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+        {
+            Instance[i].DropNeedUpdate = false;
+        }
         return FALSE;
     }
     case WM_COMMAND:
@@ -1071,11 +1074,6 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             else if (CODE == CBN_DROPDOWN && DropNeedUpdate)
             {
                 SortTriggers(CurrentTrigger->ID);
-
-                if (CurrentTriggerActionParam > -1)
-                {
-                    OnSelchangeActionListbox();
-                }
                 DropNeedUpdate = false;
             }
             break;
@@ -1109,10 +1107,6 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 SortTriggers(CurrentTrigger->ID);
                 int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).c_str());
                 SendMessage(hAttachedtrigger, CB_SETCURSEL, idx, NULL);
-                if (CurrentTriggerActionParam > -1)
-                {
-                    OnSelchangeActionListbox();
-                }
                 DropNeedUpdate = false;
             }
             break;
@@ -1406,19 +1400,6 @@ void CNewTrigger::OnSelchangeActionListbox(bool changeCursel)
                     else
                         SendMessage(hActionParameter[i], WM_SETTEXT, 0, (LPARAM)value.c_str());
                 }
-            }
-        }
-    }
-
-    if (!AvoidInfiLoop)
-    {
-        TempValueHolder<bool> tmp(AvoidInfiLoop, true);
-        auto others = GetOtherInstances();
-        for (auto& [i, o] : others)
-        {
-            if (o->GetHandle() && o->CurrentTriggerActionParam > -1)
-            {
-                o->OnSelchangeActionListbox();
             }
         }
     }
@@ -1885,7 +1866,9 @@ void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionLi
             SendMessage(hEventDescription, WM_SETTEXT, 0, (LPARAM)"");
         if (!CompactMode)
             SendMessage(hActionDescription, WM_SETTEXT, 0, (LPARAM)"");
+        AutoChangeName = true;
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
+        AutoChangeName = false;
         while (SendMessage(hEventList, LB_DELETESTRING, 0, NULL) != CB_ERR);
         while (SendMessage(hActionList, LB_DELETESTRING, 0, NULL) != CB_ERR);
         OnSelchangeActionListbox();
@@ -1913,7 +1896,9 @@ void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionLi
     CTriggerAnnotation::ID = CurrentTriggerID;
     ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
 
+    AutoChangeName = true;
     SendMessage(hName, WM_SETTEXT, 0, (LPARAM)CurrentTrigger->Name.c_str());
+    AutoChangeName = false;
     
     int houseidx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)Translations::ParseHouseName(CurrentTrigger->House, true).c_str());
     if (houseidx != CB_ERR)
@@ -1989,11 +1974,6 @@ void CNewTrigger::OnSeldropdownTrigger(HWND& hWnd)
 
     int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).c_str());
     SendMessage(hAttachedtrigger, CB_SETCURSEL, idx, NULL);
-
-    if (CurrentTriggerActionParam > -1)
-    {
-        OnSelchangeActionListbox();
-    }
 }
 
 void CNewTrigger::OnClickNewTrigger()
@@ -2730,12 +2710,7 @@ void CNewTrigger::OnDropdownCComboBox(int index)
 {
     if (DropNeedUpdate)
     {
-        SortTriggers(CurrentTrigger->ID);
-
-        if (CurrentTriggerActionParam > -1)
-        {
-            OnSelchangeActionListbox();
-        }
+        SortTriggers(CurrentTrigger->ID, true);
         DropNeedUpdate = false;
     }
 
@@ -2828,48 +2803,61 @@ void CNewTrigger::OnClickSearchReference(HWND& hWnd)
     }
 }
 
-void CNewTrigger::SortTriggers(FString id)
+void CNewTrigger::SortTriggers(FString id, bool onlySelf)
 {
-    std::vector<FString> labels;
-    for (auto& triggerPair : CMapDataExt::Triggers) {
-        auto& trigger = triggerPair.second;
-        labels.push_back(ExtraWindow::GetTriggerDisplayName(trigger->ID));
-    }
-
-    bool tmp = ExtConfigs::SortByLabelName;
-    ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Trigger;
-
-    std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
-
-    ExtConfigs::SortByLabelName = tmp;
-
-    auto sort = [&labels](CNewTrigger* pThis, FString id) {
-        while (SendMessage(pThis->hSelectedTrigger, CB_DELETESTRING, 0, NULL) != CB_ERR);
-
-        for (size_t i = 0; i < labels.size(); ++i) {
-            SendMessage(pThis->hSelectedTrigger, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].c_str());
-        }
-        ExtraWindow::SyncComboBoxContent(pThis->hSelectedTrigger, pThis->hAttachedtrigger, true);
-        if (id != "") {
-            pThis->SelectedTriggerIndex = SendMessage(pThis->hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(id).c_str());
-            SendMessage(pThis->hSelectedTrigger, CB_SETCURSEL, pThis->SelectedTriggerIndex, NULL);
-        }
-
-        if (pThis->CurrentTriggerActionParam > -1)
-            ExtraWindow::SyncComboBoxContent(pThis->hSelectedTrigger, 
-                pThis->hActionParameter[pThis->CurrentTriggerActionParam]);
-    };
-
-    sort(this, id);
-
-    if (!AvoidInfiLoop)
+    if (!AvoidInfiLoop || AvoidInfiLoop && !SortTriggersExecuted)
     {
-        TempValueHolder<bool> tmp(AvoidInfiLoop, true);
-        auto others = GetOtherInstances();
-        for (auto& [i, o] : others)
+        SortTriggersExecuted = true;
+        TempValueHolder<bool> tmpLoop(AvoidInfiLoop, true);
+
+        std::vector<FString> labels;
+        for (auto& triggerPair : CMapDataExt::Triggers) {
+            auto& trigger = triggerPair.second;
+            labels.push_back(ExtraWindow::GetTriggerDisplayName(trigger->ID));
+        }
+
+        bool tmp = ExtConfigs::SortByLabelName;
+        ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Trigger;
+
+        std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
+
+        ExtConfigs::SortByLabelName = tmp;
+
+        auto sort = [&labels](CNewTrigger* pThis, FString id) {
+            pThis->DropNeedUpdate = false;
+            while (SendMessage(pThis->hSelectedTrigger, CB_DELETESTRING, 0, NULL) != CB_ERR);
+
+            for (size_t i = 0; i < labels.size(); ++i) {
+                SendMessage(pThis->hSelectedTrigger, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].c_str());
+            }
+            if (pThis->CompactMode) ExtraWindow::AdjustDropdownWidth(pThis->hSelectedTrigger);
+            int width = SendMessage(pThis->hSelectedTrigger, CB_GETDROPPEDWIDTH, NULL, NULL);
+            ExtraWindow::SyncComboBoxContent(pThis->hSelectedTrigger, pThis->hAttachedtrigger, true);
+            if (pThis->CompactMode) SendMessage(pThis->hAttachedtrigger, CB_SETDROPPEDWIDTH, width, NULL);
+            if (id != "") {
+                pThis->SelectedTriggerIndex = SendMessage(pThis->hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(id).c_str());
+                SendMessage(pThis->hSelectedTrigger, CB_SETCURSEL, pThis->SelectedTriggerIndex, NULL);
+            }
+
+            if (pThis->CurrentTriggerActionParam > -1)
+            {
+                ExtraWindow::SyncComboBoxContent(pThis->hSelectedTrigger,
+                    pThis->hActionParameter[pThis->CurrentTriggerActionParam]);
+                if (pThis->CompactMode) SendMessage(pThis->hActionParameter[pThis->CurrentTriggerActionParam],
+                    CB_SETDROPPEDWIDTH, width, NULL);
+            }
+        };
+
+        sort(this, id);
+
+        if (!onlySelf)
         {
-            if (o->GetHandle())
-                sort(o, o->CurrentTriggerID);
+            auto others = GetOtherInstances();
+            for (auto& [i, o] : others)
+            {
+                if (o->GetHandle())
+                    sort(o, o->CurrentTriggerID);
+            }
         }
     }
 }
@@ -2914,12 +2902,14 @@ void CNewTrigger::RefreshOtherInstances()
 {
     if (!AvoidInfiLoop && CurrentTrigger)
     {
+        SortTriggersExecuted = false;
         TempValueHolder<bool> tmp(AvoidInfiLoop, true);
         auto others = GetOtherInstances();
         for (auto& [i, o] : others)
         {
             if (o->CurrentTrigger == CurrentTrigger && o->GetHandle())
             {
+                TempValueHolder<bool> tmp(o->DropNeedUpdate, true);
                 int indexE = o->SelectedEventIndex;
                 int indexA = o->SelectedActionIndex;
                 o->OnSelchangeTrigger(false,

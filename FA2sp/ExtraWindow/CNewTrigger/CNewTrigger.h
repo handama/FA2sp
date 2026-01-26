@@ -390,7 +390,7 @@ protected:
     void OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly = false);
     void OnDropdownCComboBox(int index);
 
-    void SortTriggers(FString id = "");
+    void SortTriggers(FString id = "", bool onlySelf = false);
 
     void Close(HWND& hWnd);
 
@@ -494,7 +494,6 @@ private:
 
     bool Autodrop;
     bool DropNeedUpdate;
-    bool AutoChangeName;
     bool CompactMode = false;
     WNDPROC OriginalListBoxProcEvent;
     WNDPROC OriginalListBoxProcAction;
@@ -503,6 +502,8 @@ private:
     RECT rectComboLBox;
     HWND hComboLBox;
     static bool AvoidInfiLoop;
+    static bool SortTriggersExecuted;
+    static bool AutoChangeName;
 
     bool   m_pressed = false;
     bool   m_dragging = false;

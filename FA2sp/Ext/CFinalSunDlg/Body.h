@@ -157,7 +157,7 @@ public:
         SnowSnow = 0, SnowStone, StoneStone, StoneSnow, SnowWater, StoneWater
     };
 
-    enum {
+    enum PropertyBrushTypes{
         Set_Building = 0, Set_Infantry, Set_Vehicle, Set_Aircraft, Set_Count
     };
     enum{

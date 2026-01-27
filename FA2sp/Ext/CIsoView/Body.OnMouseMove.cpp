@@ -1972,83 +1972,390 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
     {
         int drawX = X - CIsoViewExt::drawOffsetX + 30;
         int drawY = Y - CIsoViewExt::drawOffsetY - 15;
-        int i = 0;
+        int i = 1;
         // 0-9: trigger editors
         if (CIsoView::CurrentCommand->Type >= 0
             && CIsoView::CurrentCommand->Type <= 9
             && CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger)
         {
             FString line1;
-            FString line2;
-            FString tag = CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger->Tag;
+            FString newTag = CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger->Tag;
             FString currentTag;
-
-            if (cell->Structure > -1)
+            bool hasObject = false;
+            if (newTag != "" && newTag != "<none>")
             {
-                TempValueHolder<bool> skipCheck(CMapDataExt::SkipBuildingOverlappingCheck, true);
-                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
-                CBuildingData data;
-                CMapData::Instance->GetBuildingData(cell->Structure, data);
-                currentTag = data.Tag;
-            }
-            if (cell->Unit > -1)
-            {
-                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit);
-                CUnitData data;
-                CMapData::Instance->GetUnitData(cell->Unit, data);
-                currentTag = data.Tag;
-            }
-            if (cell->Aircraft > -1)
-            {
-                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft);
-                CAircraftData data;
-                CMapData::Instance->GetAircraftData(cell->Aircraft, data);
-                currentTag = data.Tag;
-            }
-            int infantry = CMapDataExt::GetInfantryAt(point.X + point.Y * CMapData::Instance->MapWidthPlusHeight);
-            if (infantry > -1)
-            {
-                if (ExtConfigs::InfantrySubCell_Edit)
+                if (cell->Structure > -1)
                 {
-                    infantry = CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X + point.Y);
-
-                }
-                if (infantry > -1)
-                {
-                    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
-                    CInfantryData data;
-                    CMapData::Instance->GetInfantryData(infantry, data);
+                    hasObject = true;
+                    CBuildingData data;
+                    CMapData::Instance->GetBuildingData(cell->Structure, data);
                     currentTag = data.Tag;
                 }
+                if (cell->Unit > -1)
+                {
+                    hasObject = true;
+                    CUnitData data;
+                    CMapData::Instance->GetUnitData(cell->Unit, data);
+                    currentTag = data.Tag;
+                }
+                if (cell->Aircraft > -1)
+                {
+                    hasObject = true;
+                    CAircraftData data;
+                    CMapData::Instance->GetAircraftData(cell->Aircraft, data);
+                    currentTag = data.Tag;
+                }
+                int infantry = CMapDataExt::GetInfantryAt(point.X + point.Y * CMapData::Instance->MapWidthPlusHeight);
+                if (infantry > -1)
+                {
+                    if (ExtConfigs::InfantrySubCell_Edit)
+                    {
+                        infantry = CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X + point.Y);
+
+                    }
+                    if (infantry > -1)
+                    {
+                        hasObject = true;
+                        CInfantryData data;
+                        CMapData::Instance->GetInfantryData(infantry, data);
+                        currentTag = data.Tag;
+                    }
+                }
+                if (hasObject)
+                {
+                    ::SetBkColor(hDC, RGB(255, 255, 255));
+                    if (currentTag == "" || currentTag == "None")
+                    {
+                        currentTag = "None";
+                    }
+                    else
+                    {
+                        auto tag = FString::SplitString(CINI::CurrentDocument->GetString("Tags", currentTag));
+                        if (tag.size() > 1)
+                            currentTag.Format("%s (%s)", currentTag, tag[1]);
+                        else
+                            currentTag.Format("%s", currentTag);
+                    }
+                    auto tag = FString::SplitString(CINI::CurrentDocument->GetString("Tags", newTag));
+                    if (tag.size() > 1)
+                        newTag.Format("%s (%s)", newTag, tag[1]);
+                    else
+                        newTag.Format("%s", newTag);
+
+                    line1.Format(Translations::TranslateOrDefault("DragAttachTag",
+                        "Tag: %s -> %s"), currentTag, newTag);
+                    ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());
+                }
             }
 
-            ::SetBkColor(hDC, RGB(255, 255, 255));
-            if (currentTag != "" && tag != "None")
-            {
-                auto tag = FString::SplitString(CINI::CurrentDocument->GetString("Tags", currentTag));
-                if (tag.size() > 1)
-                {
-                    line1.Format(Translations::TranslateOrDefault("DragAttachPreviousTag",
-                        "Previous tag: %s (%s)"), currentTag, tag[1]);
-                }
-                else
-                {
-                    line1.Format(Translations::TranslateOrDefault("DragAttachPreviousTagNone",
-                        "Previous tag: %s"), currentTag);
-                }
-                ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());
-            }
-
-            if (tag != "" && tag != "<none>")
-            {
-                line2.Format(Translations::TranslateOrDefault("DragAttachTag",
-                    "Attaching tag: %s (%s)"), tag, CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger->TagName);
-                ::TextOut(hDC, drawX, drawY + lineHeight * i++, line2, line2.GetLength());
-            }
             ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
         }
     }
-    if (!ExtConfigs::DisplayObjectsOutside && CMapData::Instance().IsCoordInMap(point.X, point.Y) 
+    if (CIsoView::CurrentCommand->Command == 0x17)
+    {
+        int drawX = X - CIsoViewExt::drawOffsetX + 30;
+        int drawY = Y - CIsoViewExt::drawOffsetY - 15;
+        int i = 1;
+        bool hasObject = false;
+
+        auto display = 
+            [&i, drawX, drawY, &hDC, lineHeight]
+            (int nCheckBoxIdx, bool* pCheckBoxBools,
+                const ppmfc::CString& src, const ppmfc::CString& dst,
+                const char* lpLabelName, const char* lpDefault
+                )
+        {
+            FString line;
+            if (pCheckBoxBools[nCheckBoxIdx])
+            {
+                if (!src.IsEmpty() && src != dst)
+                {
+                    FString format = Translations::TranslateOrDefault(lpLabelName, lpDefault);
+                    format += ": %s -> %s";
+                    line.Format(format, dst, src);
+                    ::TextOut(hDC, drawX, drawY + lineHeight * i++, line, line.GetLength());
+                }
+            }
+        };
+        auto displayNew = 
+            [&i, drawX, drawY, &hDC, lineHeight]
+            (int nCheckBoxIdx, bool* pCheckBoxBools,
+                const ppmfc::CString& src,
+                const char* lpLabelName, const char* lpDefault
+                )
+        {
+            FString line;
+            if (pCheckBoxBools[nCheckBoxIdx])
+            {
+                if (!src.IsEmpty())
+                {
+                    FString format = Translations::TranslateOrDefault(lpLabelName, lpDefault);
+                    format += ": %s";
+                    line.Format(format, src);
+                    ::TextOut(hDC, drawX, drawY + lineHeight * i++, line, line.GetLength());
+                }
+            }
+        };
+
+        ::SetBkColor(hDC, RGB(255, 255, 255));
+        if (pIsoView->BrushSizeX == 1 && pIsoView->BrushSizeY == 1)
+        {
+            if (CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Building)
+            {
+                auto& dlg = CViewObjectsExt::BuildingBrushDlg;
+                auto& bools = CViewObjectsExt::BuildingBrushBools;
+                if (cell->Structure > -1 && dlg)
+                {
+                    for (int i = 0; i < 14; ++i)
+                    {
+                        if (bools[i])
+                        {
+                            hasObject = true;
+                            break;
+                        }
+                    }
+                    if (hasObject)
+                    {
+                        CBuildingData data;
+                        CMapData::Instance->GetBuildingData(cell->Structure, data);
+
+                        display(0, bools, dlg->CString_House, data.House, "PropertyBrush.House", "House");
+                        display(1, bools, dlg->CString_HealthPoint, data.Health, "PropertyBrush.Health", "Health");
+                        display(2, bools, dlg->CString_Direction, data.Facing, "PropertyBrush.Facing", "Facing");
+                        display(3, bools, dlg->CString_Sellable, data.AISellable, "PropertyBrush.AISellable", "AISellable");
+                        display(4, bools, dlg->CString_Rebuildable, data.AIRebuildable, "PropertyBrush.AIRebuildable", "AIRebuildable");
+                        display(5, bools, dlg->CString_EnergySupport, data.PoweredOn, "PropertyBrush.PoweredOn", "PoweredOn");
+                        display(6, bools, dlg->CString_UpgradeCount, data.Upgrades, "PropertyBrush.Upgrades", "Upgrades");
+                        display(7, bools, dlg->CString_Spotlight, data.SpotLight, "PropertyBrush.SpotLight", "SpotLight");
+                        display(8, bools, dlg->CString_Upgrade1, data.Upgrade1, "PropertyBrush.Upgrade1", "Upgrade1");
+                        display(9, bools, dlg->CString_Upgrade2, data.Upgrade2, "PropertyBrush.Upgrade2", "Upgrade2");
+                        display(10, bools, dlg->CString_Upgrade3, data.Upgrade3, "PropertyBrush.Upgrade3", "Upgrade3");
+                        display(11, bools, dlg->CString_AIRepairs, data.AIRepairable, "PropertyBrush.AIRepairable", "AIRepairable");
+                        display(12, bools, dlg->CString_ShowName, data.Nominal, "PropertyBrush.Nominal", "Nominal");
+                        display(13, bools, dlg->CString_Tag, data.Tag, "PropertyBrush.Tag", "Tag");
+                    }
+                }
+            }
+            else if (CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Infantry)
+            {
+                auto& dlg = CViewObjectsExt::InfantryBrushDlg;
+                auto& bools = CViewObjectsExt::InfantryBrushBools;
+                int infantry = CMapDataExt::GetInfantryAt(point.X + point.Y * CMapData::Instance->MapWidthPlusHeight);
+                if (infantry > -1 && dlg)
+                {
+                    if (ExtConfigs::InfantrySubCell_Edit)
+                    {
+                        infantry = CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X + point.Y);
+
+                    }
+                    if (infantry > -1)
+                    {
+                        for (int i = 0; i < 10; ++i)
+                        {
+                            if (bools[i])
+                            {
+                                hasObject = true;
+                                break;
+                            }
+                        }
+                        if (hasObject)
+                        {
+                            CInfantryData data;
+                            CMapData::Instance->GetInfantryData(infantry, data);
+
+                            display(0, bools, dlg->CString_House, data.House, "PropertyBrush.House", "House");
+                            display(1, bools, dlg->CString_HealthPoint, data.Health, "PropertyBrush.Health", "Health");
+                            display(2, bools, dlg->CString_State, data.Status, "PropertyBrush.Status", "Status");
+                            display(3, bools, dlg->CString_Direction, data.Facing, "PropertyBrush.Facing", "Facing");
+                            display(4, bools, dlg->CString_VerteranStatus, data.VeterancyPercentage, "PropertyBrush.VeterancyPercentage", "Veterancy");
+                            display(5, bools, dlg->CString_Group, data.Group, "PropertyBrush.Group", "Group");
+                            display(6, bools, dlg->CString_OnBridge, data.IsAboveGround, "PropertyBrush.IsAboveGround", "IsAboveGround");
+                            display(7, bools, dlg->CString_AutoCreateNoRecruitable, data.AutoNORecruitType, "PropertyBrush.AutoNORecruitType", "AutoNORecruitType");
+                            display(8, bools, dlg->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType, "PropertyBrush.AutoYESRecruitType", "AutoYESRecruitType");
+                            display(9, bools, dlg->CString_Tag, data.Tag, "PropertyBrush.Tag", "Tag");
+                        }
+                    }
+                }
+            }
+            else if (CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Vehicle)
+            {
+                auto& dlg = CViewObjectsExt::VehicleBrushDlg;
+                auto& bools = CViewObjectsExt::VehicleBrushBools;
+                if (cell->Unit > -1 && dlg)
+                {
+                    for (int i = 0; i < 11; ++i)
+                    {
+                        if (bools[i])
+                        {
+                            hasObject = true;
+                            break;
+                        }
+                    }
+                    if (hasObject)
+                    {
+                        CUnitData data;
+                        CMapData::Instance->GetUnitData(cell->Unit, data);
+
+                        display(0, bools, dlg->CString_House, data.House, "PropertyBrush.House", "House");
+                        display(1, bools, dlg->CString_HealthPoint, data.Health, "PropertyBrush.Health", "Health");
+                        display(2, bools, dlg->CString_State, data.Status, "PropertyBrush.Status", "Status");
+                        display(3, bools, dlg->CString_Direction, data.Facing, "PropertyBrush.Facing", "Facing");
+                        display(4, bools, dlg->CString_VeteranLevel, data.VeterancyPercentage, "PropertyBrush.VeterancyPercentage", "Veterancy");
+                        display(5, bools, dlg->CString_Group, data.Group, "PropertyBrush.Group", "Group");
+                        display(6, bools, dlg->CString_OnBridge, data.IsAboveGround, "PropertyBrush.IsAboveGround", "IsAboveGround");
+                        display(7, bools, dlg->CString_FollowerID, data.FollowsIndex, "PropertyBrush.FollowsIndex", "FollowsIndex");
+                        display(8, bools, dlg->CString_AutoCreateNoRecruitable, data.AutoNORecruitType, "PropertyBrush.AutoNORecruitType", "AutoNORecruitType");
+                        display(9, bools, dlg->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType, "PropertyBrush.AutoYESRecruitType", "AutoYESRecruitType");
+                        display(10, bools, dlg->CString_Tag, data.Tag, "PropertyBrush.Tag", "Tag");
+                    }
+                }
+            }
+            else if (CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Aircraft)
+            {
+                auto& dlg = CViewObjectsExt::AircraftBrushDlg;
+                auto& bools = CViewObjectsExt::AircraftBrushBools;
+                if (cell->Aircraft > -1 && dlg)
+                {
+                    for (int i = 0; i < 9; ++i)
+                    {
+                        if (bools[i])
+                        {
+                            hasObject = true;
+                            break;
+                        }
+                    }
+                    if (hasObject)
+                    {
+                        CAircraftData data;
+                        CMapData::Instance->GetAircraftData(cell->Aircraft, data);
+
+                        display(0, bools, dlg->CString_House, data.House, "PropertyBrush.House", "House");
+                        display(1, bools, dlg->CString_HealthPoint, data.Health, "PropertyBrush.Health", "Health");
+                        display(2, bools, dlg->CString_Direction, data.Facing, "PropertyBrush.Facing", "Facing");
+                        display(3, bools, dlg->CString_Status, data.Status, "PropertyBrush.Status", "Status");
+                        display(4, bools, dlg->CString_VeteranLevel, data.VeterancyPercentage, "PropertyBrush.VeterancyPercentage", "Veterancy");
+                        display(5, bools, dlg->CString_Group, data.Group, "PropertyBrush.Group", "Group");
+                        display(6, bools, dlg->CString_AutoCreateNoRecruitable, data.AutoNORecruitType, "PropertyBrush.AutoNORecruitType", "AutoNORecruitType");
+                        display(7, bools, dlg->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType, "PropertyBrush.AutoYESRecruitType", "AutoYESRecruitType");
+                        display(8, bools, dlg->CString_Tag, data.Tag, "PropertyBrush.Tag", "Tag");
+                    }
+                }
+            }
+        }
+        else
+        {
+            if (CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Building)
+            {
+                auto& dlg = CViewObjectsExt::BuildingBrushDlg;
+                auto& bools = CViewObjectsExt::BuildingBrushBools;
+                for (int i = 0; i < 14; ++i)
+                {
+                    if (bools[i])
+                    {
+                        hasObject = true;
+                        break;
+                    }
+                }
+                if (hasObject)
+                {
+                    displayNew(0, bools, dlg->CString_House, "PropertyBrush.House", "House");
+                    displayNew(1, bools, dlg->CString_HealthPoint, "PropertyBrush.Health", "Health");
+                    displayNew(2, bools, dlg->CString_Direction, "PropertyBrush.Facing", "Facing");
+                    displayNew(3, bools, dlg->CString_Sellable, "PropertyBrush.AISellable", "AISellable");
+                    displayNew(4, bools, dlg->CString_Rebuildable, "PropertyBrush.AIRebuildable", "AIRebuildable");
+                    displayNew(5, bools, dlg->CString_EnergySupport, "PropertyBrush.PoweredOn", "PoweredOn");
+                    displayNew(6, bools, dlg->CString_UpgradeCount, "PropertyBrush.Upgrades", "Upgrades");
+                    displayNew(7, bools, dlg->CString_Spotlight, "PropertyBrush.SpotLight", "SpotLight");
+                    displayNew(8, bools, dlg->CString_Upgrade1, "PropertyBrush.Upgrade1", "Upgrade1");
+                    displayNew(9, bools, dlg->CString_Upgrade2, "PropertyBrush.Upgrade2", "Upgrade2");
+                    displayNew(10, bools, dlg->CString_Upgrade3, "PropertyBrush.Upgrade3", "Upgrade3");
+                    displayNew(11, bools, dlg->CString_AIRepairs, "PropertyBrush.AIRepairable", "AIRepairable");
+                    displayNew(12, bools, dlg->CString_ShowName, "PropertyBrush.Nominal", "Nominal");
+                    displayNew(13, bools, dlg->CString_Tag, "PropertyBrush.Tag", "Tag");
+                }
+            }
+            else if (CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Infantry)
+            {
+                auto& dlg = CViewObjectsExt::InfantryBrushDlg;
+                auto& bools = CViewObjectsExt::InfantryBrushBools;
+                for (int i = 0; i < 10; ++i)
+                {
+                    if (bools[i])
+                    {
+                        hasObject = true;
+                        break;
+                    }
+                }
+                if (hasObject)
+                {
+                    displayNew(0, bools, dlg->CString_House, "PropertyBrush.House", "House");
+                    displayNew(1, bools, dlg->CString_HealthPoint, "PropertyBrush.Health", "Health");
+                    displayNew(2, bools, dlg->CString_State, "PropertyBrush.Status", "Status");
+                    displayNew(3, bools, dlg->CString_Direction, "PropertyBrush.Facing", "Facing");
+                    displayNew(4, bools, dlg->CString_VerteranStatus, "PropertyBrush.VeterancyPercentage", "Veterancy");
+                    displayNew(5, bools, dlg->CString_Group, "PropertyBrush.Group", "Group");
+                    displayNew(6, bools, dlg->CString_OnBridge, "PropertyBrush.IsAboveGround", "IsAboveGround");
+                    displayNew(7, bools, dlg->CString_AutoCreateNoRecruitable, "PropertyBrush.AutoNORecruitType", "AutoNORecruitType");
+                    displayNew(8, bools, dlg->CString_AutoCreateYesRecruitable, "PropertyBrush.AutoYESRecruitType", "AutoYESRecruitType");
+                    displayNew(9, bools, dlg->CString_Tag, "PropertyBrush.Tag", "Tag");
+                }
+            }
+            else if (CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Vehicle)
+            {
+                auto& dlg = CViewObjectsExt::VehicleBrushDlg;
+                auto& bools = CViewObjectsExt::VehicleBrushBools;
+                for (int i = 0; i < 11; ++i)
+                {
+                    if (bools[i])
+                    {
+                        hasObject = true;
+                        break;
+                    }
+                }
+                if (hasObject)
+                {
+                    displayNew(0, bools, dlg->CString_House, "PropertyBrush.House", "House");
+                    displayNew(1, bools, dlg->CString_HealthPoint, "PropertyBrush.Health", "Health");
+                    displayNew(2, bools, dlg->CString_State, "PropertyBrush.Status", "Status");
+                    displayNew(3, bools, dlg->CString_Direction, "PropertyBrush.Facing", "Facing");
+                    displayNew(4, bools, dlg->CString_VeteranLevel, "PropertyBrush.VeterancyPercentage", "Veterancy");
+                    displayNew(5, bools, dlg->CString_Group, "PropertyBrush.Group", "Group");
+                    displayNew(6, bools, dlg->CString_OnBridge, "PropertyBrush.IsAboveGround", "IsAboveGround");
+                    displayNew(7, bools, dlg->CString_FollowerID, "PropertyBrush.FollowsIndex", "FollowsIndex");
+                    displayNew(8, bools, dlg->CString_AutoCreateNoRecruitable, "PropertyBrush.AutoNORecruitType", "AutoNORecruitType");
+                    displayNew(9, bools, dlg->CString_AutoCreateYesRecruitable, "PropertyBrush.AutoYESRecruitType", "AutoYESRecruitType");
+                    displayNew(10, bools, dlg->CString_Tag, "PropertyBrush.Tag", "Tag");
+                }
+            }
+            else if (CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Aircraft)
+            {
+                auto& dlg = CViewObjectsExt::AircraftBrushDlg;
+                auto& bools = CViewObjectsExt::AircraftBrushBools;
+                for (int i = 0; i < 9; ++i)
+                {
+                    if (bools[i])
+                    {
+                        hasObject = true;
+                        break;
+                    }
+                }
+                if (hasObject)
+                {
+                    displayNew(0, bools, dlg->CString_House, "PropertyBrush.House", "House");
+                    displayNew(1, bools, dlg->CString_HealthPoint, "PropertyBrush.Health", "Health");
+                    displayNew(2, bools, dlg->CString_Direction, "PropertyBrush.Facing", "Facing");
+                    displayNew(3, bools, dlg->CString_Status, "PropertyBrush.Status", "Status");
+                    displayNew(4, bools, dlg->CString_VeteranLevel, "PropertyBrush.VeterancyPercentage", "Veterancy");
+                    displayNew(5, bools, dlg->CString_Group, "PropertyBrush.Group", "Group");
+                    displayNew(6, bools, dlg->CString_AutoCreateNoRecruitable, "PropertyBrush.AutoNORecruitType", "AutoNORecruitType");
+                    displayNew(7, bools, dlg->CString_AutoCreateYesRecruitable, "PropertyBrush.AutoYESRecruitType", "AutoYESRecruitType");
+                    displayNew(8, bools, dlg->CString_Tag, "PropertyBrush.Tag", "Tag");
+                }
+            }
+        }
+        ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
+    }
+    if (!ExtConfigs::DisplayObjectsOutside && CMapData::Instance().IsCoordInMap(point.X, point.Y)
         || ExtConfigs::DisplayObjectsOutside && CMapDataExt::IsCoordInFullMap(point.X, point.Y))
     {
         pIsoView->DrawLockedCellOutlinePaintCursor(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY,

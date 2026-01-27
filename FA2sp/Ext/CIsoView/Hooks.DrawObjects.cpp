@@ -793,8 +793,25 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			virtualHeight = cell->Height - subTile.YMinusExY / 15;
 		}
 
+		// bridge hack
 		if (tileSetOri == CMapDataExt::BridgeSet || tileSetOri == CMapDataExt::WoodBridgeSet)
-			virtualHeight = cell->Height;
+		{
+			int relativeIdx = cell->TileIndex - CMapDataExt::TileSet_starts[tileSetOri];
+			if (6 > relativeIdx && relativeIdx >= 0 && relativeIdx != 2 && relativeIdx != 5)
+			{
+				virtualHeight = cell->Height;
+			}
+			else if (11 > relativeIdx && relativeIdx >= 6)
+			{
+				if (tileSubIndex != 8 && tileSubIndex != 9)
+					virtualHeight = cell->Height;
+			}
+			else if (16 > relativeIdx && relativeIdx >= 11)
+			{
+				if (tileSubIndex != 4 && tileSubIndex != 9)
+					virtualHeight = cell->Height;
+			}
+		}
 
 		for (int i = 1; i <= 2 + virtualHeight - cell->Height + cell->Height / 2; i++)
 		{

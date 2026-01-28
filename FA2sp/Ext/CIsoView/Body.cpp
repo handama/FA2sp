@@ -2296,7 +2296,7 @@ void CIsoViewExt::BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURF
 }
 
 void CIsoViewExt::BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURFACE7 surface, DDSURFACEDESC2* pDestDesc,
-    DDSURFACEDESC2& srcDesc, DDCOLORKEY& srcColorKey, int x, int y, int width, int height, BYTE alpha, COLORREF oldColor, COLORREF newColor)
+    DDSURFACEDESC2& srcDesc, DDCOLORKEY& srcColorKey, int x, int y, int width, int height, BYTE alpha)
 {
     if (!pic || !pDestDesc || alpha == 0) {
         return;
@@ -2363,19 +2363,6 @@ void CIsoViewExt::BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDR
     int maxDestX = pDestDesc->dwWidth;
     int maxDestY = pDestDesc->dwHeight;
 
-    BGRStruct oldcolor;
-    auto pRGB = reinterpret_cast<ColorStruct*>(&oldColor);
-    oldcolor.R = pRGB->red;
-    oldcolor.G = pRGB->green;
-    oldcolor.B = pRGB->blue;
-    BGRStruct newcolor;
-    pRGB = reinterpret_cast<ColorStruct*>(&newColor);
-    newcolor.R = pRGB->red;
-    newcolor.G = pRGB->green;
-    newcolor.B = pRGB->blue;
-    DWORD newRGB = RGB(newcolor.B, newcolor.G, newcolor.R);
-    DWORD oldRGB = RGB(oldcolor.B, oldcolor.G, oldcolor.R);
-
     for (LONG row = 0; row < srcRect.bottom - srcRect.top; ++row) {
         LONG dy = destRect.top + row;
         if (dy < 0 || dy >= maxDestY) {
@@ -2395,10 +2382,6 @@ void CIsoViewExt::BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDR
             DWORD srcColor = *reinterpret_cast<DWORD*>(srcLine + srcIndex);
             if (srcColor >= colorKeyLow && srcColor <= colorKeyHigh) {
                 continue;
-            }
-
-            if (oldColor != 0xFFFFFFFF && (srcColor & 0x00FFFFFF) == oldRGB) {
-                srcColor = (srcColor & 0xFF000000) | newRGB;
             }
 
             BYTE* destPtr = destLine + destIndex;

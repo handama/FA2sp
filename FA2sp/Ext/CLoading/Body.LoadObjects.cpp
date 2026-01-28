@@ -35,6 +35,8 @@ std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::Cu
 std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::ImageDataMap;
 std::unordered_map<FString, std::vector<std::unique_ptr<ImageDataClassSafe>>> CLoadingExt::BuildingClipsImageDataMap;
 std::unordered_map<FString, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::SurfaceImageDataMap;
+std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomFlagMap;
+std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomCelltagMap;
 std::vector<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::DamageFires;
 std::map<unsigned int, MapCoord> CLoadingExt::TileExtraOffsets;
 unsigned int CLoadingExt::RandomFireSeed = 0;
@@ -273,13 +275,17 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 	LoadedSurfaceObjects.clear();
 	CIsoViewExt::textCache.clear();
 	for (auto& data : SurfaceImageDataMap)
-	{
 		if (data.second->lpSurface)
-		{
 			data.second->lpSurface->Release();
-		}
-	}
+	for (auto& data : CustomFlagMap)
+		if (data.second->lpSurface)
+			data.second->lpSurface->Release();
+	for (auto& data : CustomCelltagMap)
+		if (data.second->lpSurface)
+			data.second->lpSurface->Release();
 	SurfaceImageDataMap.clear();
+	CustomFlagMap.clear();
+	CustomCelltagMap.clear();
 }
 
 bool CLoadingExt::IsObjectLoaded(const FString& pRegName)
@@ -2886,6 +2892,97 @@ void CLoadingExt::LoadBitMap(FString ImageID, const CBitmap& cBitmap)
 	LoadedSurfaceObjects.insert(ImageID);
 }
 
+bool CLoadingExt::ReplaceBitmapColor(
+	CBitmap& bitmap,
+	COLORREF oldColor,
+	COLORREF newColor
+)
+{
+	if (bitmap.GetSafeHandle() == nullptr)
+		return false;
+
+	BITMAP bm;
+	if (!bitmap.GetBitmap(&bm))
+		return false;
+
+	if (bm.bmBitsPixel != 4 && bm.bmBitsPixel != 8 &&
+		bm.bmBitsPixel != 16 && bm.bmBitsPixel != 24 && bm.bmBitsPixel != 32)
+	{
+		return false;
+	}
+
+	CDC memDC;
+	if (!memDC.CreateCompatibleDC(nullptr))
+		return false;
+
+	CBitmap* pOldBitmap = memDC.SelectObject(&bitmap);
+	if (!pOldBitmap)
+	{
+		memDC.DeleteDC();
+		return false;
+	}
+
+	BITMAPINFO bmi = { 0 };
+	bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+	bmi.bmiHeader.biWidth = bm.bmWidth;
+	bmi.bmiHeader.biHeight = -bm.bmHeight;
+	bmi.bmiHeader.biPlanes = 1;
+	bmi.bmiHeader.biBitCount = 32;
+	bmi.bmiHeader.biCompression = BI_RGB;
+
+	std::vector<BYTE> buffer(bm.bmWidth * bm.bmHeight * 4);
+	if (GetDIBits(memDC.GetSafeHdc(),
+		(HBITMAP)bitmap.GetSafeHandle(),
+		0, bm.bmHeight,
+		buffer.data(),
+		&bmi,
+		DIB_RGB_COLORS) == 0)
+	{
+		memDC.SelectObject(pOldBitmap);
+		memDC.DeleteDC();
+		return false;
+	}
+
+	BYTE oldR = GetRValue(oldColor);
+	BYTE oldG = GetGValue(oldColor);
+	BYTE oldB = GetBValue(oldColor);
+
+	BYTE newR = GetRValue(newColor);
+	BYTE newG = GetGValue(newColor);
+	BYTE newB = GetBValue(newColor);
+
+	for (int y = 0; y < bm.bmHeight; ++y)
+	{
+		for (int x = 0; x < bm.bmWidth; ++x)
+		{
+			BYTE* pixel = &buffer[(y * bm.bmWidth + x) * 4];
+
+			BYTE b = pixel[0];
+			BYTE g = pixel[1];
+			BYTE r = pixel[2];
+
+			if (r == oldR && g == oldG && b == oldB)
+			{
+				pixel[0] = newB;
+				pixel[1] = newG;
+				pixel[2] = newR;
+			}
+		}
+	}
+
+	SetDIBits(memDC.GetSafeHdc(),
+		(HBITMAP)bitmap.GetSafeHandle(),
+		0, bm.bmHeight,
+		buffer.data(),
+		&bmi,
+		DIB_RGB_COLORS);
+
+	memDC.SelectObject(pOldBitmap);
+	memDC.DeleteDC();
+
+	return true;
+}
+
 void CLoadingExt::LoadShp(FString ImageID, FString FileName, FString PalName, int nFrame)
 {
 	auto loadingExt = (CLoadingExt*)CLoading::Instance();
@@ -3840,6 +3937,42 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 			GameDeleteArray(pBuffer[1], width * height);
 		}
 	}
+}
+
+ImageDataClassSurface* CLoadingExt::GetOrLoadFlagOrCelltagFromMap(COLORREF newColor, bool IsFlag)
+{
+	auto& map = IsFlag ? CustomFlagMap : CustomCelltagMap;
+	auto itr = map.find(newColor);
+	if (itr == map.end())
+	{
+		auto ret = std::make_unique<ImageDataClassSurface>();
+
+		HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(IsFlag ? 1023 : 1024),
+			IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+		CBitmap cBitmap;
+		cBitmap.Attach(hBmp);
+		auto r = ReplaceBitmapColor(cBitmap, 
+			IsFlag ? (COLORREF)ExtConfigs::DisplayColor_Waypoint 
+			: (COLORREF)ExtConfigs::DisplayColor_Celltag,
+			newColor);
+
+		auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
+		ret->lpSurface = CIsoViewExt::BitmapToSurface(pIsoView->lpDD7, cBitmap);
+		DDSURFACEDESC2 desc;
+		memset(&desc, 0, sizeof(DDSURFACEDESC2));
+		desc.dwSize = sizeof(DDSURFACEDESC2);
+		desc.dwFlags = DDSD_HEIGHT | DDSD_WIDTH;
+		ret->lpSurface->GetSurfaceDesc(&desc);
+		ret->FullWidth = desc.dwWidth;
+		ret->FullHeight = desc.dwHeight;
+		ret->Flag = ImageDataFlag::SurfaceData;
+		CIsoView::SetColorKey(ret->lpSurface, RGB(255, 255, 255));
+
+		auto [it, inserted] = map.emplace(newColor, std::move(ret));
+		return it->second.get();
+
+	}
+	return itr->second.get();
 }
 
 void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2path)

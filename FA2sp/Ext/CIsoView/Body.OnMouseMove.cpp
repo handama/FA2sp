@@ -1771,17 +1771,20 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             if (cell->Waypoint != -1)
             {
                 auto pSection = CINI::CurrentDocument->GetSection("Waypoints");
-                auto& pWP = *pSection->GetKeyAt(cell->Waypoint);
-                auto& pVal = *pSection->GetValueAt(cell->Waypoint);
-                int WPX = atoi(pVal) / 1000;
-                int WPY = atoi(pVal) % 1000;
-
-                if (point.X == WPX && point.Y == WPY)
+                auto pWP = pSection->GetKeyAt(cell->Waypoint);
+                auto pVal = pSection->GetValueAt(cell->Waypoint);
+                if (pWP && pVal)
                 {
-                    const int offset = 18;
-                    int i = 1;
-                    FString pSrc;
-                    auto process = [](const char* s)
+                    int waypoint = atoi(*pWP);
+                    int WPX = atoi(*pVal) / 1000;
+                    int WPY = atoi(*pVal) % 1000;
+
+                    if (point.X == WPX && point.Y == WPY)
+                    {
+                        const int offset = 18;
+                        int i = 1;
+                        FString pSrc;
+                        auto process = [](const char* s)
                         {
                             int n = 0;
                             int len = strlen(s);
@@ -1796,146 +1799,157 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             return n - 1;
                         };
 
-                    for (auto& triggerPair : CMapDataExt::Triggers)
-                    {
-                        auto& trigger = triggerPair.second;
-                        bool addEvent = false;
-                        bool addAction = false;
-                        for (auto& thisEvent : trigger->Events)
+                        for (auto& triggerPair : CMapDataExt::Triggers)
                         {
-
-                            auto eventInfos = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
-                            FString paramType[2];
-                            paramType[0] = eventInfos[1];
-                            paramType[1] = eventInfos[2];
-                            std::vector<FString> pParamTypes[2];
-                            pParamTypes[0] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[0], "MISSING,0"));
-                            pParamTypes[1] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[1], "MISSING,0"));
-                            FString thisWp = "-1";
-                            if (thisEvent.Params[0] == "2")
+                            auto& trigger = triggerPair.second;
+                            bool addEvent = false;
+                            bool addAction = false;
+                            for (auto& thisEvent : trigger->Events)
                             {
-                                if (pParamTypes[0][1] == "1")// waypoint
+
+                                auto eventInfos = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
+                                FString paramType[2];
+                                paramType[0] = eventInfos[1];
+                                paramType[1] = eventInfos[2];
+                                std::vector<FString> pParamTypes[2];
+                                pParamTypes[0] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[0], "MISSING,0"));
+                                pParamTypes[1] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[1], "MISSING,0"));
+                                FString thisWp = "-1";
+                                if (thisEvent.Params[0] == "2")
                                 {
-                                    thisWp = thisEvent.Params[1];
-                                    if (thisWp == pWP) addEvent = true;
+                                    if (pParamTypes[0][1] == "1")// waypoint
+                                    {
+                                        thisWp = thisEvent.Params[1];
+                                        if (thisWp == *pWP) addEvent = true;
+                                    }
+                                    if (pParamTypes[1][1] == "1")// waypoint
+                                    {
+                                        thisWp = thisEvent.Params[2];
+                                        if (thisWp == *pWP) addEvent = true;
+                                    }
                                 }
-                                if (pParamTypes[1][1] == "1")// waypoint
+                                else
                                 {
-                                    thisWp = thisEvent.Params[2];
-                                    if (thisWp == pWP) addEvent = true;
-                                }
-                            }
-                            else
-                            {
-                                if (pParamTypes[1][1] == "1")// waypoint
-                                {
-                                    thisWp = thisEvent.Params[1];
-                                    if (thisWp == pWP) addEvent = true;
-                                }
-                            }
-                        }
-                        if (addEvent)
-                        {
-                            pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Event",
-                                "Event: %s (%s)")
-                                , trigger->Name, trigger->ID);
-                            TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
-                            pSrc = "";
-                            i++;
-                        }
-
-                        for (auto& thisAction : trigger->Actions)
-                        {
-                            auto actionInfos = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
-                            FString thisWp = "-1";
-                            FString paramType[7];
-                            for (int i = 0; i < 7; i++)
-                                paramType[i] = actionInfos[i + 1];
-
-                            std::vector<FString> pParamTypes[6];
-                            for (int i = 0; i < 6; i++)
-                                pParamTypes[i] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[i], "MISSING,0"));
-
-                            thisAction.Param7isWP = true;
-                            for (auto& pair : CINI::FAData->GetSection("DontSaveAsWP")->GetEntities())
-                            {
-                                if (atoi(pair.second) == -atoi(paramType[0]))
-                                    thisAction.Param7isWP = false;
-                            }
-
-                            for (int i = 0; i < 6; i++)
-                            {
-                                auto& param = pParamTypes[i];
-                                if (param[1] == "1")// waypoint
-                                {
-                                    thisWp = thisAction.Params[i];
-                                    if (thisWp == pWP) addAction = true;
+                                    if (pParamTypes[1][1] == "1")// waypoint
+                                    {
+                                        thisWp = thisEvent.Params[1];
+                                        if (thisWp == *pWP) addEvent = true;
+                                    }
                                 }
                             }
-                            if (atoi(paramType[6]) > 0 && thisAction.Param7isWP)
+                            if (addEvent)
                             {
-                                thisWp.Format("%d", process(thisAction.Params[6]));
-                                if (thisWp == pWP) addAction = true;
-                            }
-                        }
-                        if (addAction)
-                        {
-                            pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Action",
-                                "Action: %s (%s)")
-                                , trigger->Name, trigger->ID);
-                            TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
-                            pSrc = "";
-                            i++;
-                        }
-                    }
-
-                    if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
-                    {
-
-                        for (auto& pair : pSection->GetEntities())
-                        {
-                            bool add = false;
-
-                            for (int i = 0; i < 50; i++)
-                            {
-                                char id[10];
-                                _itoa(i, id, 10);
-                                auto line = CINI::CurrentDocument->GetString(pair.second, id);
-                                if (line == "")
-                                    continue;
-
-                                auto app = FString::SplitString(line);
-                                if (app.size() != 2)
-                                    continue;
-
-                                int actionType = atoi(app[0]);
-                                switch (actionType)
-                                {
-                                case 1: if (app[1] == pWP) add = true; break;
-                                case 3: if (app[1] == pWP) add = true; break;
-                                case 15: if (app[1] == pWP) add = true; break;
-                                case 16: if (app[1] == pWP) add = true; break;
-                                case 59: if (app[1] == pWP) add = true; break;
-                                default: break;
-                                }
-                            }
-                            if (add)
-                            {
-                                pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Script",
-                                    "Script: %s (%s)")
-                                    , CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
+                                pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Event",
+                                    "Event: %s (%s)")
+                                    , trigger->Name, trigger->ID);
                                 TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
                                 pSrc = "";
                                 i++;
                             }
 
+                            for (auto& thisAction : trigger->Actions)
+                            {
+                                auto actionInfos = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
+                                FString thisWp = "-1";
+                                FString paramType[7];
+                                for (int i = 0; i < 7; i++)
+                                    paramType[i] = actionInfos[i + 1];
 
+                                std::vector<FString> pParamTypes[6];
+                                for (int i = 0; i < 6; i++)
+                                    pParamTypes[i] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[i], "MISSING,0"));
 
+                                thisAction.Param7isWP = true;
+                                for (auto& pair : CINI::FAData->GetSection("DontSaveAsWP")->GetEntities())
+                                {
+                                    if (atoi(pair.second) == -atoi(paramType[0]))
+                                        thisAction.Param7isWP = false;
+                                }
+
+                                for (int i = 0; i < 6; i++)
+                                {
+                                    auto& param = pParamTypes[i];
+                                    if (param[1] == "1")// waypoint
+                                    {
+                                        thisWp = thisAction.Params[i];
+                                        if (thisWp == *pWP) addAction = true;
+                                    }
+                                }
+                                if (atoi(paramType[6]) > 0 && thisAction.Param7isWP)
+                                {
+                                    thisWp.Format("%d", process(thisAction.Params[6]));
+                                    if (thisWp == *pWP) addAction = true;
+                                }
+                            }
+                            if (addAction)
+                            {
+                                pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Action",
+                                    "Action: %s (%s)")
+                                    , trigger->Name, trigger->ID);
+                                TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
+                                pSrc = "";
+                                i++;
+                            }
                         }
-                    }
-                    if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
-                    {
-                        auto process = [](const char* s)
+
+                        if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
+                        {
+                            for (auto& pair : pSection->GetEntities())
+                            {
+                                bool add = false;
+
+                                for (int i = 0; i < 50; i++)
+                                {
+                                    char id[10];
+                                    _itoa(i, id, 10);
+                                    auto line = CINI::CurrentDocument->GetString(pair.second, id);
+                                    if (line == "")
+                                        continue;
+
+                                    auto app = FString::SplitString(line);
+                                    if (app.size() != 2)
+                                        continue;
+
+                                    auto& actionType = app[0];
+                                    auto paramType = CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ScriptsRA2"), actionType);
+                                    FString param = FString::SplitString(paramType, 1)[1];
+                                    auto scriptParamType = CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ScriptParams"), param);
+                                    auto types = FString::SplitString(scriptParamType, 1);
+                                    bool hasExtra = types.size() >= 4;
+                                    auto& scriptParamA = types[1];
+                                    FString scriptParamB = hasExtra ? types[3] :FString("");
+                                    bool meetAtA = scriptParamA == "1";
+                                    bool meetAtB = scriptParamB == "1";
+                                    if (meetAtA || meetAtB)
+                                    {
+                                        int param = atoi(app[1]);
+                                        if (hasExtra)
+                                        {
+                                            int low = LOWORD(param);
+                                            int high = HIWORD(param);
+                                            if (meetAtA && low == waypoint) add = true;
+                                            if (meetAtB && high == waypoint) add = true;
+                                        }
+                                        else
+                                        {
+                                            if (meetAtA && param == waypoint) add = true;
+                                        }
+                                    }
+                                }
+                                if (add)
+                                {
+                                    pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Script",
+                                        "Script: %s (%s)")
+                                        , CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
+                                    TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
+                                    pSrc = "";
+                                    i++;
+                                }
+                            }
+                        }
+                        if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+                        {
+                            auto process = [](const char* s)
                             {
                                 int n = 0;
                                 int len = strlen(s);
@@ -1949,22 +1963,23 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                                     return -1;
                                 return n - 1;
                             };
-                        for (auto& pair : pSection->GetEntities())
-                        {
-                            auto wp = CINI::CurrentDocument->GetString(pair.second, "Waypoint");
-
-                            if (process(wp) == atoi(pWP))
+                            for (auto& pair : pSection->GetEntities())
                             {
-                                pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
-                                    "Team: %s (%s)")
-                                    , CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
-                                TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
-                                pSrc = "";
-                                i++;
+                                auto wp = CINI::CurrentDocument->GetString(pair.second, "Waypoint");
+
+                                if (process(wp) == atoi(*pWP))
+                                {
+                                    pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
+                                        "Team: %s (%s)")
+                                        , CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
+                                    TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
+                                    pSrc = "";
+                                    i++;
+                                }
                             }
                         }
                     }
-                }
+                }               
             }
         }
     }
@@ -2010,7 +2025,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 {
                     if (ExtConfigs::InfantrySubCell_Edit)
                     {
-                        infantry = CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X + point.Y);
+                        infantry = CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X, point.Y);
 
                     }
                     if (infantry > -1)
@@ -2098,7 +2113,13 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         };
 
         ::SetBkColor(hDC, RGB(255, 255, 255));
-        if (pIsoView->BrushSizeX == 1 && pIsoView->BrushSizeY == 1)
+
+
+        if ((pIsoView->BrushSizeX == 1 && pIsoView->BrushSizeY == 1) 
+            && ((ExtConfigs::InfantrySubCell_Edit &&
+                CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Infantry)
+                || (CIsoView::CurrentCommand->Type != CViewObjectsExt::PropertyBrushTypes::Set_Infantry))
+            )
         {
             if (CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Building)
             {
@@ -2145,7 +2166,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 {
                     if (ExtConfigs::InfantrySubCell_Edit)
                     {
-                        infantry = CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X + point.Y);
+                        infantry = CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X, point.Y);
 
                     }
                     if (infantry > -1)

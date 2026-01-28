@@ -4038,8 +4038,11 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			{
 				ppmfc::CString colorkey = "Wp";
 				colorkey += key;
-				auto color = CINI::CurrentDocument->GetColor(pColors, colorkey, ExtConfigs::DisplayColor_Waypoint);
-				CMapDataExt::CustomWaypointColors[key] = color;
+				if (CINI::CurrentDocument->KeyExists("FA2spColors", colorkey))
+				{
+					auto color = CINI::CurrentDocument->GetColor(pColors, colorkey, ExtConfigs::DisplayColor_Waypoint);
+					CMapDataExt::CustomWaypointColors[key] = color;
+				}
 			}
 		}
 		if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
@@ -4048,8 +4051,11 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			{
 				ppmfc::CString colorkey = "Tag";
 				colorkey += value;
-				auto color = CINI::CurrentDocument->GetColor(pColors, colorkey, ExtConfigs::DisplayColor_Celltag);
-				CMapDataExt::CustomCelltagColors[value] = color;
+				if (CINI::CurrentDocument->KeyExists("FA2spColors", colorkey))
+				{
+					auto color = CINI::CurrentDocument->GetColor(pColors, colorkey, ExtConfigs::DisplayColor_Celltag);
+					CMapDataExt::CustomCelltagColors[value] = color;
+				}
 			}
 		}
 	}

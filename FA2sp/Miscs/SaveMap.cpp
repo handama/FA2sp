@@ -535,12 +535,10 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                                 color = RGB(123, 125, 123);
                             if (cell.Structure != -1)
                             {
-                                auto pSection = CINI::CurrentDocument->GetSection("Structures");
-                                auto& pStr = *pSection->GetValueAt(cell.Structure);
-                                auto atoms = STDHelpers::SplitString(pStr, 1);
-                                auto& name = atoms[1];
+                                CBuildingData data;
+                                CMapData::Instance->GetBuildingData(cell.Structure, data);
 
-                                if (Variables::RulesMap.GetBool(name, "NeedsEngineer"))
+                                if (Variables::RulesMap.GetBool(data.TypeID, "NeedsEngineer"))
                                     color = RGB(215, 215, 215);
                             }
 

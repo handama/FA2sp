@@ -1664,6 +1664,32 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 			else if (s_count == 1) L = H = 0;
 			else if (s_count == 2) H = 0;
 
+			int AddiBarlL = CINI::Art->GetInteger(ArtID, "BarrelOffset", 0);
+			int TotalTurretCount = CINI::Art->GetInteger(ArtID, "ExtraTurretCount", 0) + 1;
+			int ExtraBarlCount = CINI::Art->GetInteger(ArtID, "ExtraBarrelCount", 0);
+			bool BarrelOverTurret = CINI::Art->GetBool(ArtID, "BarrelOverTurret");
+
+			std::vector<int> extraF, extraL, extraH;
+			extraF.resize(TotalTurretCount);
+			extraL.resize(TotalTurretCount);
+			extraH.resize(TotalTurretCount);
+			extraF[0] = F;
+			extraL[0] = L;
+			extraH[0] = H;
+			for (int k = 1; k < TotalTurretCount; ++k)
+			{
+				int F = 0, L = 0, H = 0;
+				FString key;
+				key.Format("ExtraTurretOffset%d", k - 1);
+				int s_count = sscanf_s(CINI::Art->GetString(ArtID, key, "0,0,0"), "%d,%d,%d", &F, &L, &H);
+				if (s_count == 0) F = L = H = 0;
+				else if (s_count == 1) L = H = 0;
+				else if (s_count == 2) H = 0;
+				extraF[k] = F;
+				extraL[k] = L;
+				extraH[k] = H;
+			}
+
 			FString turFileName = ImageID + "tur.vxl";
 			FString turHVAName = ImageID + "tur.hva";
 			if (VoxelDrawer::LoadVXLFile(turFileName))
@@ -1741,48 +1767,92 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 					int turdeltaX = CINI::FAData->GetInteger("VehicleVoxelTurretsRA2", pKey);
 					pKey.Format("%sY%d", ID, i);
 					int turdeltaY = CINI::FAData->GetInteger("VehicleVoxelTurretsRA2", pKey);
-
-					bool barrelInFront = IsBarrelInFront(i, facings);
-
-					if (barrelInFront)
-					{
-						VXL_Add(pTurretImage[i], turretrect[i].X + turdeltaX, turretrect[i].Y + turdeltaY, turretrect[i].W, turretrect[i].H);
-						CncImgFree(pTurretImage[i]);
-					}	
-
 					pKey.Format("%sX%d", ID, i);
 					int barldeltaX = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
 					pKey.Format("%sY%d", ID, i);
 					int barldeltaY = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
 
-					if (pBarrelImage[i])
-					{
-						VXL_Add(pBarrelImage[i], barrelrect[i].X + barldeltaX, barrelrect[i].Y + barldeltaY, barrelrect[i].W, barrelrect[i].H);
-						CncImgFree(pBarrelImage[i]);
-					}
+					bool barrelInFront = BarrelOverTurret || IsBarrelInFront(i, facings);
 
-					if (!barrelInFront)
+					for (int k = 0; k < TotalTurretCount; ++k)
 					{
-						VXL_Add(pTurretImage[i], turretrect[i].X + turdeltaX, turretrect[i].Y + turdeltaY, turretrect[i].W, turretrect[i].H);
-						CncImgFree(pTurretImage[i]);
-					}
+						int exF = extraF[k] - F, exL = extraL[k] - L, exH = extraH[k] - H;
+						Matrix3D turretOffset(exF, exL, exH, i, facings);
 
-					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
-					{
-						if (pShadowTurretImage[i])
+						if (barrelInFront)
 						{
-							VXL_Add(pShadowTurretImage[i], shadowturretrect[i].X + turdeltaX,
-								shadowturretrect[i].Y + turdeltaY, shadowturretrect[i].W, shadowturretrect[i].H, true);
-							CncImgFree(pShadowTurretImage[i]);
+							VXL_Add(pTurretImage[i], 
+								turretrect[i].X + turdeltaX + turretOffset.OutputX,
+								turretrect[i].Y + turdeltaY + turretOffset.OutputY,
+								turretrect[i].W, turretrect[i].H);
 						}
-						if (pShadowBarrelImage[i])
+
+						if (pBarrelImage[i])
 						{
-							VXL_Add(pShadowBarrelImage[i], shadowbarrelrect[i].X + barldeltaX,
-								shadowbarrelrect[i].Y + barldeltaY, shadowbarrelrect[i].W, shadowbarrelrect[i].H, true);
-							CncImgFree(pShadowBarrelImage[i]);
+							Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
+							VXL_Add(pBarrelImage[i],
+								barrelrect[i].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
+								barrelrect[i].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
+								barrelrect[i].W, barrelrect[i].H);
+							for (int j = 0; j < ExtraBarlCount; ++j)
+							{
+								FString key;
+								key.Format("ExtraBarrelOffset%d", j);
+								int AddiBarlL = CINI::Art->GetInteger(ArtID, key, 0);
+								Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
+								VXL_Add(pBarrelImage[i],
+									barrelrect[i].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
+									barrelrect[i].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
+									barrelrect[i].W, barrelrect[i].H);
+							}
+						}
+
+						if (!barrelInFront)
+						{
+							VXL_Add(pTurretImage[i],
+								turretrect[i].X + turdeltaX + turretOffset.OutputX,
+								turretrect[i].Y + turdeltaY + turretOffset.OutputY,
+								turretrect[i].W, turretrect[i].H);
+						}
+
+						if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
+						{
+							if (pShadowTurretImage[i])
+							{
+								VXL_Add(pShadowTurretImage[i],
+									shadowturretrect[i].X + turdeltaX + turretOffset.OutputX,
+									shadowturretrect[i].Y + turdeltaY + turretOffset.OutputY,
+									shadowturretrect[i].W, shadowturretrect[i].H, true);
+							}
+							if (pShadowBarrelImage[i])
+							{
+								VXL_Add(pShadowBarrelImage[i],
+									shadowbarrelrect[i].X + barldeltaX + turretOffset.OutputX,
+									shadowbarrelrect[i].Y + barldeltaY + turretOffset.OutputY, 
+									shadowbarrelrect[i].W, shadowbarrelrect[i].H, true);
+								for (int j = 0; j < ExtraBarlCount; ++j)
+								{
+									FString key;
+									key.Format("ExtraBarrelOffset%d", j);
+									int AddiBarlL = CINI::Art->GetInteger(ArtID, key, 0);
+									Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
+									VXL_Add(pShadowBarrelImage[i],
+										shadowbarrelrect[i].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
+										shadowbarrelrect[i].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
+										shadowbarrelrect[i].W, shadowbarrelrect[i].H, true);
+								}
+							}
 						}
 					}
 				}
+				if (pShadowBarrelImage[i])
+					CncImgFree(pShadowBarrelImage[i]);
+				if (pShadowTurretImage[i])
+					CncImgFree(pShadowTurretImage[i]);
+				if (pTurretImage[i])
+					CncImgFree(pTurretImage[i]);
+				if (pBarrelImage[i])
+					CncImgFree(pBarrelImage[i]);
 
 				VXL_GetAndClear(outBuffer, &outW, &outH);
 				SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));

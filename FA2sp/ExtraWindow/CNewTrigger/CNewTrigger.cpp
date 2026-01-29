@@ -1717,7 +1717,7 @@ void CNewTrigger::OnSelchangeActionParam(int index, bool edited)
     if (!text)
         return;
 
-    if (CurrentTriggerActionParam == index)
+    if (CurrentTriggerActionParam == index || CurrentTeamActionParam == index)
         FString::TrimIndex(text);
     else
         ExtraWindow::TrimStringIndex(text);
@@ -1767,7 +1767,7 @@ void CNewTrigger::UpdateParamAffectedParam_Action(int index)
                 {
                     CurrentTriggerActionParam = target.AffectedParam;
                 }
-                else if (FString::SplitString(
+                else if (paramType[1] == "15" || FString::SplitString(
                     fadata.GetString(
                         "NewParamTypes",
                         paramType[1]), size_t(0))[0]
@@ -2630,7 +2630,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
                 {
                     CurrentTriggerActionParam = i;
                 }
-                else if (FString::SplitString(
+                else if (pParamTypes[ActionParamsUsage[i].second][1] == "15" || FString::SplitString(
                     fadata.GetString(
                         "NewParamTypes",
                         pParamTypes[ActionParamsUsage[i].second][1]), size_t(0))[0]

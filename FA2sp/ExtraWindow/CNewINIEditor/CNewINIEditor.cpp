@@ -421,39 +421,142 @@ void CNewINIEditor::OnClickImportText(HWND& hWnd)
     }
 }
 
+inline static bool IsValidSectionLine(const FString& line)
+{
+    int lb = line.Find('[');
+    int rb = line.Find(']');
+    if (lb != 0 || rb <= lb)
+        return false;
+
+    int semicolon = line.Find(';');
+    if (semicolon >= 0 && semicolon < rb)
+        return false;
+
+    return true;
+}
+
+inline static void TrimFrontSemicolon(FString& line)
+{
+    line.Trim();
+    int semicolon = line.Find(';');
+    if (semicolon == 0) {
+        line = line.Mid(semicolon + 1);
+        line.Trim();
+    }
+}
+
 void CNewINIEditor::OnClickImporterOK(HWND& hWnd)
 {
     GetWindowText(hImporterText, INIBuffer, INI_BUFFER_SIZE - 1);
     FString text(INIBuffer);
-    auto lines = FString::SplitStringMultiSplit(text, "\n|\r");
-    FString section;
-    std::vector<FString> sections;
-    
-    
-    for (auto& line : lines)
+
+    FString currentSection;
+    FString inlineComments;
+    FString frontComments;
+
+    std::vector<FString> touchedSections;
+
+    std::istringstream iss(text);
+    FString line;
+    while (std::getline(iss, line))
     {
-        FString::TrimSemicolon(line);
-        line.Trim();
-
-        int nStart = line.Find('[');
-        int nEnd = line.Find(']');
-        if (nStart < nEnd && nStart == 0)
+        if (!line.empty())
         {
-            section = line.Mid(nStart + 1, nEnd - nStart - 1);
-            sections.push_back(section);
-            continue;
-        }
-        if (section == "")
-            continue;
+            FString rawLine = line;
+            line.Trim();
 
-        auto pair = FString::SplitKeyValue(line);
-        if (line != "" && pair.first != "" && pair.second != "")
-        {
-            map.WriteString(section, pair.first, pair.second);
+            const char* lb = strchr(line, '[');
+            const char* rb = strchr(line, ']');
+            const char* eq = strchr(line, '=');
+
+            if (IsValidSectionLine(line))
+            {
+                FString::TrimSemicolon(line);
+                line.Trim();
+
+                currentSection = line.Mid(1, rb - lb - 1);
+                touchedSections.push_back(currentSection);
+
+                auto comment = FString::GetComment(rawLine);
+                inlineComments += comment;
+                inlineComments += "\n";
+
+                inlineComments.Trim();
+                if (ExtConfigs::SaveMap_KeepComments && !inlineComments.IsEmpty())
+                {
+                    CMapDataExt::MapInsectionComments[currentSection] = inlineComments;
+                    inlineComments.clear();
+                }
+                frontComments.Trim();
+                if (ExtConfigs::SaveMap_KeepComments && !frontComments.IsEmpty())
+                {
+                    CMapDataExt::MapFrontsectionComments[currentSection] = frontComments;
+                    frontComments.clear();
+                }
+
+                inlineComments.clear();
+                frontComments.clear();
+
+                continue;
+            }
+
+            if (currentSection.IsEmpty())
+            {
+                TrimFrontSemicolon(rawLine);
+                frontComments += rawLine;
+                frontComments += "\n";
+                continue;
+            }
+
+            if (!lb || !rb || rb < lb || (eq && eq < lb))
+            {
+                FString semanticLine = line;
+                FString::TrimSemicolon(semanticLine);
+                semanticLine.Trim();
+
+                auto pair = FString::SplitKeyValue(semanticLine);
+
+                if (!semanticLine.IsEmpty() && !pair.first.IsEmpty())
+                {
+                    auto comment = FString::GetComment(rawLine);
+                    inlineComments += comment;
+
+                    map.WriteString(currentSection, pair.first, pair.second);
+
+                    inlineComments.Trim();
+                    if (ExtConfigs::SaveMap_KeepComments && !inlineComments.IsEmpty())
+                    {
+                        CMapDataExt::MapInlineComments[currentSection][pair.first] = inlineComments;
+                        inlineComments.clear();
+                    }
+
+                    frontComments.Trim();
+                    if (ExtConfigs::SaveMap_KeepComments && !frontComments.IsEmpty())
+                    {
+                        CMapDataExt::MapFrontlineComments[currentSection][pair.first] = frontComments;
+                        frontComments.clear();
+                    }
+                }
+                else
+                {
+                    TrimFrontSemicolon(rawLine);
+                    frontComments += rawLine;
+                    frontComments += "\n";
+                }
+            }
+            else
+            {
+                TrimFrontSemicolon(rawLine);
+                frontComments += rawLine;
+                frontComments += "\n";
+            }
         }
+        else if (!frontComments.IsEmpty())
+            frontComments += "\n";
     }
 
-    for (auto& sec : sections) {
+    for (auto& sec : touchedSections)
+    {
         UpdateGameObject(sec);
     }
 
@@ -544,9 +647,37 @@ void CNewINIEditor::OnSelchangeListbox(int index)
     {
         for (auto& pair : pSection->GetEntities())
         {
+            if (ExtConfigs::SaveMap_KeepComments)
+            {
+                auto fkIt = CMapDataExt::MapFrontlineComments[section].find(pair.first);
+                if (fkIt != CMapDataExt::MapFrontlineComments[section].end())
+                {
+                    std::istringstream iss(fkIt->second);
+                    std::string line;
+                    bool first = true;
+
+                    while (std::getline(iss, line))
+                    {
+                        if (!line.empty())
+                            text += "; " + line + "\r\n";
+                        else
+                            text += "\r\n";
+                    }
+                }
+            }
+
             FString line;
-            line.Format("%s=%s\r\n", pair.first, pair.second);
+            line.Format("%s=%s", pair.first, pair.second);
             text += line;
+            if (ExtConfigs::SaveMap_KeepComments)
+            {
+                auto ikIt = CMapDataExt::MapInlineComments[section].find(pair.first);
+                if (ikIt != CMapDataExt::MapInlineComments[section].end())
+                {
+                    text += " ; " + ikIt->second;
+                }
+            }
+            text += "\r\n";
         }
         SendMessage(hINIEdit, WM_SETTEXT, 0, text);
     }
@@ -567,23 +698,65 @@ void CNewINIEditor::OnEditchangeINIEdit()
     SendMessage(hSectionList, LB_GETTEXT, idx, (LPARAM)section);
     GetWindowText(hINIEdit, INIBuffer, INI_BUFFER_SIZE - 1);
     FString text(INIBuffer);
-    auto lines = FString::SplitStringMultiSplit(text, "\n|\r");
 
+    FString inlineComments;
+    FString frontComments;
     map.DeleteSection(section);
-    for (auto& line : lines)
-    {
-        const char* lb = strchr(line, '[');
-        const char* rb = strchr(line, ']');
-        const char* eq = strchr(line, '=');
 
-        if (!lb || !rb || rb < lb || (eq && eq < lb)) {
-            FString::TrimSemicolon(line);
+    std::istringstream iss(text);
+    FString line;
+    while (std::getline(iss, line))
+    {
+        if (!line.empty())
+        {
+            auto rawLine = line;
             line.Trim();
 
-            auto pair = FString::SplitKeyValue(line);
-            if (line != "" && pair.first != "")// && pair.second != "") // allow empty value
-                map.WriteString(section, pair.first, pair.second);
+            const char* lb = strchr(line, '[');
+            const char* rb = strchr(line, ']');
+            const char* eq = strchr(line, '=');
+
+            if (!lb || !rb || rb < lb || (eq && eq < lb)) {
+                FString::TrimSemicolon(line);
+                line.Trim();
+
+                auto pair = FString::SplitKeyValue(line);
+                if (line != "" && pair.first != "")// && pair.second != "") // allow empty value
+                {
+                    auto comment = FString::GetComment(rawLine);
+                    inlineComments += comment;
+
+                    map.WriteString(section, pair.first, pair.second);
+
+                    inlineComments.Trim();
+                    if (ExtConfigs::SaveMap_KeepComments && !inlineComments.IsEmpty())
+                    {
+                        CMapDataExt::MapInlineComments[section][pair.first] = inlineComments;
+                        inlineComments.clear();
+                    }
+                    frontComments.Trim();
+                    if (ExtConfigs::SaveMap_KeepComments && !frontComments.IsEmpty())
+                    {
+                        CMapDataExt::MapFrontlineComments[section][pair.first] = frontComments;
+                        frontComments.clear();
+                    }
+                }
+                else
+                {
+                    TrimFrontSemicolon(rawLine);
+                    frontComments += rawLine;
+                    frontComments += "\n";
+                }
+            }
+            else
+            {
+                TrimFrontSemicolon(rawLine);
+                frontComments += rawLine;
+                frontComments += "\n";
+            }
         }
+        else if (!frontComments.IsEmpty())
+            frontComments += "\n";
     }
 
     UpdateGameObject(section);

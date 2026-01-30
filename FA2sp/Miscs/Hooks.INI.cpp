@@ -62,207 +62,183 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
     bool firstLine = true;
     bool keepComment = this == &CINI::CurrentDocument && ExtConfigs::SaveMap_KeepComments;
 
-    while (idx < len) {
-        size_t lineEnd = content.find_first_of("\n", idx);
-        if (lineEnd == FString::npos) lineEnd = len;
-        FString line = content.substr(idx, lineEnd - idx);
+    std::istringstream iss(content);
+    FString line;
+    while (std::getline(iss, line))
+    {
         line.Trim();
-
-        idx = lineEnd;
-        int emptyLines = 0;
-        while (idx < len)
+        if (!line.empty())
         {
-            if (content[idx] == '\r')
-            {
-                if (idx + 1 < len && content[idx + 1] == '\n')
-                    idx += 2;
-                else
-                    ++idx;
-                ++emptyLines;
+            if (firstLine) {
+                firstLine = false;
+                if (encoding == UTF8_ASCII && line.find("UTF8") != FString::npos)
+                    loadAsUTF8 = true;
             }
-            else if (content[idx] == '\n')
-            {
-                ++idx;
-                ++emptyLines;
+            if (!keepComment) {
+                if (line[0] == ';') continue;
             }
-            else
-            {
-                break;
-            }
-        }
-
-        if (line.empty()) continue;
-
-        if (firstLine) {
-            firstLine = false;
-            if (encoding == UTF8_ASCII && line.find("UTF8") != FString::npos)
-                loadAsUTF8 = true;
-        }
-        if (!keepComment) {
-            if (line[0] == ';') continue;
-        }
-        else {
-            if (line[0] == ';') {
-                FString comment = line.substr(1);
-                comment.Trim();
-
-                if (!PendingComment.empty())
-                    PendingComment += "\n";
-
-                PendingComment += comment;
-
-                if (!PendingComment.empty()) {
-                    for (int i = 1; i < emptyLines; ++i)
-                        PendingComment += "\n";
-                }
-                continue;
-            }
-        }
-
-        // ------------------- Section -------------------
-        if (line[0] == '[') {
-            size_t closePos = line.find(']');
-
-            if (closePos == FString::npos) {
-                if (INIIncludes::SkipBracketFix) exit(1);
-                continue;
-            }
-
-            FString inlineSectionComment;
-            if (keepComment) {
-                size_t commentPos = line.find(';', closePos + 1);
-                if (commentPos != FString::npos) {
-                    inlineSectionComment = line.substr(commentPos + 1);
-                    inlineSectionComment.Trim();
-                    line = line.substr(0, commentPos);
-                }
-            }
-
-            CurrentSectionName = line.substr(1, closePos - 1);
-
-            if (closePos + 1 < line.size() && line[closePos + 1] == ':') {
-                size_t p = closePos + 2;
-                if (p < line.size() && line[p] == '[') {
-                    size_t close2 = line.find(']', p);
-                    if (close2 != FString::npos) {
-                        InheritSections[this][CurrentSectionName].push_back(line.substr(p + 1, close2 - (p + 1)));
-                    }
-                }
-            }
-
-            if (!CurrentSectionName.empty()) {
-                if (lpSection && CurrentSectionName != lpSection) {
-                    pCurrentSection = nullptr;
+            else {
+                if (line[0] == ';') {
+                    FString comment = line.substr(1);
+                    comment.Trim();
+                    PendingComment += comment + "\n";
                     continue;
                 }
-                else if (lpSection && CurrentSectionName == lpSection) {
-                    findTargetSection = true;
-                }
-                else if (lpSection && findTargetSection) {
-                    return;
+            }
+
+            // ------------------- Section -------------------
+            if (line[0] == '[') {
+                size_t closePos = line.find(']');
+
+                if (closePos == FString::npos) {
+                    if (INIIncludes::SkipBracketFix) exit(1);
+                    continue;
                 }
 
-                // only read first repeated section in the main file
-                // for include files, all sections will be read
-                if (bAllowInclude) {
-                    if (LoadedSections.find(CurrentSectionName) != LoadedSections.end()) {
+                FString inlineSectionComment;
+                if (keepComment) {
+                    size_t commentPos = line.find(';', closePos + 1);
+                    if (commentPos != FString::npos) {
+                        inlineSectionComment = line.substr(commentPos + 1);
+                        inlineSectionComment.Trim();
+                        line = line.substr(0, commentPos);
+                    }
+                }
+
+                CurrentSectionName = line.substr(1, closePos - 1);
+
+                if (closePos + 1 < line.size() && line[closePos + 1] == ':') {
+                    size_t p = closePos + 2;
+                    if (p < line.size() && line[p] == '[') {
+                        size_t close2 = line.find(']', p);
+                        if (close2 != FString::npos) {
+                            InheritSections[this][CurrentSectionName].push_back(line.substr(p + 1, close2 - (p + 1)));
+                        }
+                    }
+                }
+
+                if (!CurrentSectionName.empty()) {
+                    if (lpSection && CurrentSectionName != lpSection) {
                         pCurrentSection = nullptr;
+                        continue;
+                    }
+                    else if (lpSection && CurrentSectionName == lpSection) {
+                        findTargetSection = true;
+                    }
+                    else if (lpSection && findTargetSection) {
+                        return;
+                    }
+
+                    // only read first repeated section in the main file
+                    // for include files, all sections will be read
+                    if (bAllowInclude) {
+                        if (LoadedSections.find(CurrentSectionName) != LoadedSections.end()) {
+                            pCurrentSection = nullptr;
+                        }
+                        else {
+                            pCurrentSection = AddOrGetSection(CurrentSectionName);
+                            LoadedSections.insert(CurrentSectionName);
+                        }
                     }
                     else {
                         pCurrentSection = AddOrGetSection(CurrentSectionName);
-                        LoadedSections.insert(CurrentSectionName);
+                    }
+
+                    if (CMapDataExt::IsLoadingMapFile && ExtConfigs::SaveMap_PreserveINISorting) {
+                        auto it = std::find(CMapDataExt::MapIniSectionSorting.begin(), CMapDataExt::MapIniSectionSorting.end(), CurrentSectionName);
+                        if (it == CMapDataExt::MapIniSectionSorting.end()) {
+                            CMapDataExt::MapIniSectionSorting.push_back(CurrentSectionName);
+                        }
+                    }
+
+                    if (keepComment) {
+                        PendingComment.Trim();
+                        if (!PendingComment.empty()) {
+                            CMapDataExt::MapFrontsectionComments[CurrentSectionName] = PendingComment;
+                            PendingComment.clear();
+                        }
+                        inlineSectionComment.Trim();
+                        if (!inlineSectionComment.empty()) {
+                            CMapDataExt::MapInsectionComments[CurrentSectionName] = inlineSectionComment;
+                        }
                     }
                 }
-                else {
-                    pCurrentSection = AddOrGetSection(CurrentSectionName);
-                }
+                continue;
+            }
 
-                if (CMapDataExt::IsLoadingMapFile && ExtConfigs::SaveMap_PreserveINISorting) {
-                    auto it = std::find(CMapDataExt::MapIniSectionSorting.begin(), CMapDataExt::MapIniSectionSorting.end(), CurrentSectionName);
-                    if (it == CMapDataExt::MapIniSectionSorting.end()) {
-                        CMapDataExt::MapIniSectionSorting.push_back(CurrentSectionName);
-                    }
-                }
+            // -------------------  Key=Value -------------------
+            if (pCurrentSection) {
+                size_t eqPos = line.find('=');
 
+                FString inlineComment;
                 if (keepComment) {
-                    if (!PendingComment.empty()) {
-                        CMapDataExt::MapFrontsectionComments[CurrentSectionName] = PendingComment;
-                        PendingComment.clear();
-                    }
-                    if (!inlineSectionComment.empty()) {
-                        CMapDataExt::MapInsectionComments[CurrentSectionName] = inlineSectionComment;
-                    }
-                }
-            }
-            continue;
-        }
-
-        // -------------------  Key=Value -------------------
-        if (pCurrentSection) {
-            size_t eqPos = line.find('=');
-
-            FString inlineComment;
-            if (keepComment) {
-                size_t commentPos = line.find(';', eqPos + 1);
-                if (commentPos != FString::npos) {
-                    inlineComment = line.substr(commentPos + 1);
-                    inlineComment.Trim();
-                    line = line.substr(0, commentPos);
-                }
-            }
-
-            if (eqPos == FString::npos) continue;
-
-            FString key = line.substr(0, eqPos);
-            FString value = line.substr(eqPos + 1);
-
-            int semicolon = value.Find(';');
-            if (semicolon > 0) {
-                value = value.Mid(0, semicolon);
-            }
-
-            if (bTrimSpace) {
-                key.Trim();
-                value.Trim();
-            }
-
-            if (ExtConfigs::AllowPlusEqual) {
-                if (key == "+") {
-                    while (true)
-                    {
-                        key.Format("FA2sp%u", plusEqual);
-                        ++plusEqual;
-                        if (pCurrentSection->GetEntities().find(key) == pCurrentSection->GetEntities().end())
-                            break;
-                    }
-                }
-            }
-
-            if (!key.empty()) {
-                size_t currentIndex = pCurrentSection->GetEntities().size();
-                writeString(pCurrentSection, key, value);
-
-                if (keepComment) {
-                    if (!PendingComment.empty()) {
-                        CMapDataExt::MapFrontlineComments[CurrentSectionName][key] = PendingComment;
-                        PendingComment.clear();
-                    }
-                    if (!inlineComment.empty()) {
-                        CMapDataExt::MapInlineComments[CurrentSectionName][key] = inlineComment;
+                    size_t commentPos = line.find(';', eqPos + 1);
+                    if (commentPos != FString::npos) {
+                        inlineComment = line.substr(commentPos + 1);
+                        inlineComment.Trim();
+                        line = line.substr(0, commentPos);
                     }
                 }
 
-                std::pair<ppmfc::CString, int> ins =
-                    std::make_pair((ppmfc::CString)key, (int)currentIndex);
-                std::pair<INIIndiceDict::iterator, bool> ret;
-                reinterpret_cast<FAINIIndicesMap*>(&pCurrentSection->GetIndices())->insert(&ret, &ins);
+                if (eqPos == FString::npos) continue;
+
+                FString key = line.substr(0, eqPos);
+                FString value = line.substr(eqPos + 1);
+
+                int semicolon = value.Find(';');
+                if (semicolon > 0) {
+                    value = value.Mid(0, semicolon);
+                }
+
+                if (bTrimSpace) {
+                    key.Trim();
+                    value.Trim();
+                }
+
+                if (ExtConfigs::AllowPlusEqual) {
+                    if (key == "+") {
+                        while (true)
+                        {
+                            key.Format("FA2sp%u", plusEqual);
+                            ++plusEqual;
+                            if (pCurrentSection->GetEntities().find(key) == pCurrentSection->GetEntities().end())
+                                break;
+                        }
+                    }
+                }
+
+                if (!key.empty()) {
+                    size_t currentIndex = pCurrentSection->GetEntities().size();
+                    writeString(pCurrentSection, key, value);
+
+                    if (keepComment) {
+                        PendingComment.Trim();
+                        if (!PendingComment.empty()) {
+                            CMapDataExt::MapFrontlineComments[CurrentSectionName][key] = PendingComment;
+                            PendingComment.clear();
+                        }
+                        inlineComment.Trim();
+                        if (!inlineComment.empty()) {
+                            CMapDataExt::MapInlineComments[CurrentSectionName][key] = inlineComment;
+                        }
+                    }
+
+                    std::pair<ppmfc::CString, int> ins =
+                        std::make_pair((ppmfc::CString)key, (int)currentIndex);
+                    std::pair<INIIndiceDict::iterator, bool> ret;
+                    reinterpret_cast<FAINIIndicesMap*>(&pCurrentSection->GetIndices())->insert(&ret, &ins);
+                }
+            }
+            else {
+                continue;
             }
         }
-        else {
-            continue;
+        else if (!PendingComment.IsEmpty())
+        {
+            PendingComment += "\n";
         }
     }
-
+ 
     auto loadAresInheritedIni = [&](CINIExt* ini)
     {
         // ares mode

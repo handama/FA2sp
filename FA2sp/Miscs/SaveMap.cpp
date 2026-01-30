@@ -708,7 +708,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                         return;
 
                     std::istringstream iss(comment);
-                    std::string line;
+                    FString line;
                     bool first = true;
 
                     while (std::getline(iss, line))
@@ -717,6 +717,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                             oss << "\n";
                         first = false;
 
+                        line.Trim();
                         if (!line.empty())
                             oss << "; " << line;
                     }
@@ -740,7 +741,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                     auto isIt = CMapDataExt::MapInsectionComments.find(sectionName);
                     if (isIt != CMapDataExt::MapInsectionComments.end())
                     {
-                        oss << " ;" << isIt->second;
+                        oss << " ; " << isIt->second;
                     }
 
                     oss << "\n";
@@ -771,7 +772,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                         auto ikIt = CMapDataExt::MapInlineComments[sectionName].find(pair.first);
                         if (ikIt != CMapDataExt::MapInlineComments[sectionName].end())
                         {
-                            oss << " ;" << ikIt->second;
+                            oss << " ; " << ikIt->second;
                         }
 
                         oss << "\n";
@@ -794,7 +795,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                         auto ikIt = CMapDataExt::MapInlineComments[sectionName].find(pair.first);
                         if (ikIt != CMapDataExt::MapInlineComments[sectionName].end())
                         {
-                            oss << " ;" << ikIt->second;
+                            oss << " ; " << ikIt->second;
                         }
 
                         oss << "\n";

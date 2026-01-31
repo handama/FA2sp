@@ -722,7 +722,7 @@ void CNewINIEditor::SetupIniHighlight(HWND& hWnd)
         ::SendMessage(hWnd, SCI_STYLESETBOLD, 2, TRUE);
         ::SendMessage(hWnd, SCI_STYLESETBACK, 2, RGB(32, 32, 32));
 
-        ::SendMessage(hWnd, SCI_STYLESETFORE, 3, RGB(200, 160, 220));
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 3, RGB(212, 212, 39));
         ::SendMessage(hWnd, SCI_STYLESETBACK, 3, RGB(32, 32, 32));
 
         ::SendMessage(hWnd, SCI_STYLESETFORE, 4, RGB(160, 220, 160)); 
@@ -755,7 +755,7 @@ void CNewINIEditor::SetupIniHighlight(HWND& hWnd)
         ::SendMessage(hWnd, SCI_STYLESETBOLD, 2, TRUE);
         ::SendMessage(hWnd, SCI_STYLESETBACK, 2, RGB(255, 255, 255));
 
-        ::SendMessage(hWnd, SCI_STYLESETFORE, 3, RGB(160, 0, 160)); 
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 3, RGB(160, 160, 0));
         ::SendMessage(hWnd, SCI_STYLESETBACK, 3, RGB(255, 255, 255));
 
         ::SendMessage(hWnd, SCI_STYLESETFORE, 4, RGB(0, 120, 0));

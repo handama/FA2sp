@@ -955,7 +955,7 @@ void CLuaConsole::SetupLuaHighlight(HWND& hWnd)
         ::SendMessage(hWnd, SCI_STYLESETFORE, 4, RGB(180, 180, 255));
         ::SendMessage(hWnd, SCI_STYLESETBACK, 4, RGB(32, 32, 32));
 
-        ::SendMessage(hWnd, SCI_STYLESETFORE, 5, RGB(212, 212, 39));
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 5, RGB(138, 27, 255));
         ::SendMessage(hWnd, SCI_STYLESETBOLD, 5, TRUE);
         ::SendMessage(hWnd, SCI_STYLESETBACK, 5, RGB(32, 32, 32));
 
@@ -1009,7 +1009,7 @@ void CLuaConsole::SetupLuaHighlight(HWND& hWnd)
         ::SendMessage(hWnd, SCI_STYLESETFORE, 4, RGB(0, 0, 192));
         ::SendMessage(hWnd, SCI_STYLESETBACK, 4, RGB(255, 255, 255));
 
-        ::SendMessage(hWnd, SCI_STYLESETFORE, 5, RGB(160, 160, 0));
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 5, RGB(138, 27, 255));
         ::SendMessage(hWnd, SCI_STYLESETBOLD, 5, TRUE);
         ::SendMessage(hWnd, SCI_STYLESETBACK, 5, RGB(255, 255, 255));
 

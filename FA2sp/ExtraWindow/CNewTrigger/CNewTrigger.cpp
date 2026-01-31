@@ -2502,6 +2502,9 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
             }
         }
         ExtraWindow::AdjustDropdownWidth(hEventParameter[i]);
+    }
+    for (int i = 0; i < EVENT_PARAM_COUNT; i++)
+    {
         UpdateParamAffectedParam_Event(i);
     }
 
@@ -2663,6 +2666,10 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
                 (LPARAM)Translations::TranslateOrDefault(trans, ""));
         }
         ExtraWindow::AdjustDropdownWidth(hActionParameter[i]);
+    }
+
+    for (int i = 0; i < ACTION_PARAM_COUNT; i++)
+    {
         UpdateParamAffectedParam_Action(i);
     }
 

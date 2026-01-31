@@ -17,7 +17,7 @@
 #include "../../Ext/CTileSetBrowserFrame/TabPages/TriggerSort.h"
 #include "../CNewScript/CNewScript.h"
 #include <numeric>
-#define INI_BUFFER_SIZE 800000
+#include "../../Helpers/Helper.h"
 
 HWND CNewINIEditor::m_hwnd;
 CFinalSunDlg* CNewINIEditor::m_parent;
@@ -43,15 +43,17 @@ int CNewINIEditor::origWndHeight;
 int CNewINIEditor::minWndWidth;
 int CNewINIEditor::minWndHeight;
 bool CNewINIEditor::minSizeSet;
+bool CNewINIEditor::autoEdit = false;
 
 WNDPROC CNewINIEditor::OriginalListBoxProc;
-char INIBuffer[INI_BUFFER_SIZE]{ 0 };
 
 void CNewINIEditor::Create(CFinalSunDlg* pWnd)
 {
-    HMODULE hModule = LoadLibrary(TEXT("Riched32.dll"));
-    if (!hModule)
-        MessageBox(NULL, Translations::TranslateOrDefault("FailedLoadRiched32DLL", "Could not Load Riched32.dll!"), Translations::TranslateOrDefault("Error", "Error"), MB_ICONERROR);
+    HMODULE hScintilla = LoadLibrary(TEXT("Scintilla.dll"));
+    if (!hScintilla) {
+        MessageBox(NULL, Translations::TranslateOrDefault("FailedLoadScintillaDLL",
+            "Could not Load Scintilla.dll!"), Translations::TranslateOrDefault("Error", "Error"), MB_ICONERROR);
+    }
 
     m_parent = pWnd;
     m_hwnd = CreateDialog(
@@ -101,20 +103,12 @@ void CNewINIEditor::Initialize(HWND& hWnd)
     hImportButton = GetDlgItem(hWnd, Controls::ImportButton);
     hImportTextButton = GetDlgItem(hWnd, Controls::ImportTextButton);
 
-    ExtraWindow::SetEditControlFontSize(hINIEdit, 1.4f, true, "Consolas");
     ExtraWindow::SetEditControlFontSize(hSectionList, 1.2f, false, "Consolas");
-    SendMessage(hINIEdit, EM_LIMITTEXT, (WPARAM)INI_BUFFER_SIZE, 0);
-    SendMessage(hINIEdit, EM_SETEVENTMASK, 0, (LPARAM)(ENM_CHANGE));
 
-    if (ExtConfigs::EnableDarkMode)
-    {
-        ::SendMessage(hINIEdit, EM_SETBKGNDCOLOR, (WPARAM)FALSE, (LPARAM)RGB(32, 32, 32));
-        CHARFORMAT cf = { 0 };
-        cf.cbSize = sizeof(cf);
-        cf.dwMask = CFM_COLOR;
-        cf.crTextColor = RGB(220, 220, 220);
-        ::SendMessage(hINIEdit, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
-    }
+    SetupIniHighlight(hINIEdit);
+
+    int marginWidth = 35;
+    ::SendMessage(hINIEdit, SCI_SETMARGINWIDTHN, 0, marginWidth);
 
     if (hSectionList)
         OriginalListBoxProc = (WNDPROC)SetWindowLongPtr(hSectionList, GWLP_WNDPROC, (LONG_PTR)ListBoxSubclassProc);
@@ -141,19 +135,11 @@ void CNewINIEditor::InitializeImporter(HWND& hWnd)
     hImporterDesc = GetDlgItem(hWnd, Controls::ImporterDesc);
     hImporterOK = GetDlgItem(hWnd, Controls::ImporterOK);
     hImporterText = GetDlgItem(hWnd, Controls::ImporterText);
-    ExtraWindow::SetEditControlFontSize(hImporterText, 1.4f, true, "Consolas");
-    SendMessage(hImporterText, EM_LIMITTEXT, (WPARAM)INI_BUFFER_SIZE, 0);
-    SendMessage(hImporterText, EM_SETUNDOLIMIT, 0, 0);
 
-    if (ExtConfigs::EnableDarkMode)
-    {
-        ::SendMessage(hImporterText, EM_SETBKGNDCOLOR, (WPARAM)FALSE, (LPARAM)RGB(32, 32, 32));
-        CHARFORMAT cf = { 0 };
-        cf.cbSize = sizeof(cf);
-        cf.dwMask = CFM_COLOR;
-        cf.crTextColor = RGB(220, 220, 220);
-        ::SendMessage(hImporterText, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
-    }
+    SetupIniHighlight(hImporterText);
+
+    int marginWidth = 35;
+    ::SendMessage(hImporterText, SCI_SETMARGINWIDTHN, 0, marginWidth);
 }
 
 void CNewINIEditor::Update(HWND& hWnd)
@@ -187,6 +173,7 @@ void CNewINIEditor::CloseImporter(HWND& hWnd)
     CNewINIEditor::m_hwndImporter = NULL;
 
 }
+
 void CNewINIEditor::Close(HWND& hWnd)
 {
     EndDialog(hWnd, NULL);
@@ -414,11 +401,14 @@ void CNewINIEditor::OnClickImportText(HWND& hWnd)
     );
 
     if (m_hwndImporter)
+    {
         ShowWindow(m_hwndImporter, SW_SHOW);
+    }
     else
     {
         Logger::Error("Failed to create CNewINIEditorImporter.\n");
     }
+
 }
 
 inline static bool IsValidSectionLine(const FString& line)
@@ -447,8 +437,7 @@ inline static void TrimFrontSemicolon(FString& line)
 
 void CNewINIEditor::OnClickImporterOK(HWND& hWnd)
 {
-    GetWindowText(hImporterText, INIBuffer, INI_BUFFER_SIZE - 1);
-    FString text(INIBuffer);
+    FString text = ExtraWindow::GetScintillaText(hImporterText);
 
     FString currentSection;
     FString inlineComments;
@@ -521,7 +510,7 @@ void CNewINIEditor::OnClickImporterOK(HWND& hWnd)
                     auto comment = FString::GetComment(rawLine);
                     inlineComments += comment;
 
-                    map.WriteString(currentSection, pair.first, pair.second);
+                    map.WriteString(currentSection, pair.first.Trim(), pair.second.Trim());
 
                     inlineComments.Trim();
                     if (ExtConfigs::SaveMap_KeepComments && !inlineComments.IsEmpty())
@@ -635,7 +624,7 @@ void CNewINIEditor::OnSelchangeListbox(int index)
     }
     if (SendMessage(hSectionList, LB_GETCURSEL, NULL, NULL) < 0 || SendMessage(hSectionList, LB_GETCOUNT, NULL, NULL) <= 0)
     {
-        SendMessage(hINIEdit, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
+        SendMessage(hINIEdit, SCI_SETTEXT, 0, (LPARAM)(LPCSTR)"");
         return;
     }
     int idx = SendMessage(hSectionList, LB_GETCURSEL, 0, NULL);
@@ -679,25 +668,124 @@ void CNewINIEditor::OnSelchangeListbox(int index)
             }
             text += "\r\n";
         }
-        SendMessage(hINIEdit, WM_SETTEXT, 0, text);
+
+        TempValueHolder<bool> tmp(autoEdit, true);
+        ExtraWindow::SetScintillaText(hINIEdit, text);
     }
     else
-        SendMessage(hINIEdit, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
+        SendMessage(hINIEdit, SCI_SETTEXT, 0, (LPARAM)(LPCSTR)"");
 
+    int marginWidth = 35;
+    int lineCount = ::SendMessage(hINIEdit, SCI_GETLINECOUNT, 0, 0);
+    if (lineCount > 999) marginWidth = 45;
+    if (lineCount > 9999) marginWidth = 55;
+    ::SendMessage(hINIEdit, SCI_SETMARGINWIDTHN, 0, marginWidth);
+}
+
+void CNewINIEditor::SetupIniHighlight(HWND& hWnd)
+{
+    ::SendMessage(hWnd, SCI_SETCODEPAGE, SC_CP_UTF8, 0);
+    ::SendMessage(hWnd, SCI_STYLESETFONT, STYLE_DEFAULT, (LPARAM)"Consolas");
+    ::SendMessage(hWnd, SCI_STYLESETSIZE, STYLE_DEFAULT, 12);
+    ::SendMessage(hWnd, SCI_SETTABWIDTH, 4, 0);
+
+    ::SendMessage(hWnd, SCI_SETILEXER, 0, (LPARAM)CreateLexer("props"));
+    ::SendMessage(hWnd, SCI_CLEARDOCUMENTSTYLE, 0, 0);
+
+    bool isDark = ExtConfigs::EnableDarkMode;
+
+    int marginWidth = 35;
+    ::SendMessage(hWnd, SCI_SETMARGINWIDTHN, 0, marginWidth);
+    ::SendMessage(hWnd, SCI_SETMARGINWIDTHN, 1, 0);
+    ::SendMessage(hWnd, SCI_SETMARGINMASKN, 1, 0);
+    ::SendMessage(hWnd, SCI_SETMARGINTYPEN, 1, SC_MARGIN_SYMBOL);
+    ::SendMessage(hWnd, SCI_SETMARGINSENSITIVEN, 1, FALSE);
+    ::SendMessage(hWnd, SCI_SETMARGINLEFT, 0, 4);
+
+    ::SendMessage(hWnd, SCI_SETCARETFORE, 0, isDark ? RGB(220, 220, 220) : RGB(0, 0, 0));
+    ::SendMessage(hWnd, SCI_SETCARETLINEVISIBLE, 1, 0);
+
+    if (isDark)
+    {
+        ::SendMessage(hWnd, SCI_STYLESETBACK, STYLE_DEFAULT, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_SETCARETLINEBACK, RGB(50, 70, 90), 0); 
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 0, RGB(220, 220, 230));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 0, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 1, RGB(120, 160, 140));
+        ::SendMessage(hWnd, SCI_STYLESETITALIC, 1, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 1, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 2, RGB(220, 70, 70));
+        ::SendMessage(hWnd, SCI_STYLESETBOLD, 2, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 2, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 3, RGB(200, 160, 220));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 3, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 4, RGB(160, 220, 160)); 
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 4, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 5, RGB(100, 180, 255)); 
+        ::SendMessage(hWnd, SCI_STYLESETBOLD, 5, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 5, RGB(32, 32, 32));
+
+
+        ::SendMessage(hWnd, SCI_SETSELBACK, 1, RGB(60, 80, 120)); 
+        ::SendMessage(hWnd, SCI_SETSELFORE, 1, RGB(240, 240, 255)); 
+        ::SendMessage(hWnd, SCI_STYLESETFORE, STYLE_LINENUMBER, RGB(140, 140, 160));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, STYLE_LINENUMBER, RGB(48, 48, 48));
+    }
+    else
+    {
+        ::SendMessage(hWnd, SCI_STYLESETBACK, STYLE_DEFAULT, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_SETCARETLINEBACK, RGB(240, 245, 255), 0); 
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 0, RGB(0, 0, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 0, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 1, RGB(0, 128, 0)); 
+        ::SendMessage(hWnd, SCI_STYLESETITALIC, 1, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 1, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 2, RGB(220, 0, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBOLD, 2, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 2, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 3, RGB(160, 0, 160)); 
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 3, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 4, RGB(0, 120, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 4, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 5, RGB(0, 0, 220));
+        ::SendMessage(hWnd, SCI_STYLESETBOLD, 5, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 5, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_SETSELBACK, 1, RGB(180, 210, 255));
+        ::SendMessage(hWnd, SCI_SETSELFORE, 1, RGB(0, 0, 0));
+        ::SendMessage(hWnd, SCI_STYLESETFORE, STYLE_LINENUMBER, RGB(120, 120, 120));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, STYLE_LINENUMBER, RGB(240, 240, 240));
+    }
+
+    ::SendMessage(hWnd, SCI_COLOURISE, 0, -1);
 }
 
 void CNewINIEditor::OnEditchangeINIEdit()
 {
+    if (autoEdit) return;
     if (SendMessage(hSectionList, LB_GETCURSEL, NULL, NULL) < 0 || SendMessage(hSectionList, LB_GETCOUNT, NULL, NULL) <= 0)
     {
-        SendMessage(hINIEdit, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
+        SendMessage(hINIEdit, SCI_SETTEXT, 0, (LPARAM)(LPCSTR)"");
         return;
     }
     int idx = SendMessage(hSectionList, LB_GETCURSEL, 0, NULL);
     char section[512]{ 0 };
     SendMessage(hSectionList, LB_GETTEXT, idx, (LPARAM)section);
-    GetWindowText(hINIEdit, INIBuffer, INI_BUFFER_SIZE - 1);
-    FString text(INIBuffer);
+    FString text = ExtraWindow::GetScintillaText(hINIEdit);
 
     FString inlineComments;
     FString frontComments;
@@ -726,7 +814,7 @@ void CNewINIEditor::OnEditchangeINIEdit()
                     auto comment = FString::GetComment(rawLine);
                     inlineComments += comment;
 
-                    map.WriteString(section, pair.first, pair.second);
+                    map.WriteString(section, pair.first.Trim(), pair.second.Trim());
 
                     inlineComments.Trim();
                     if (ExtConfigs::SaveMap_KeepComments && !inlineComments.IsEmpty())
@@ -734,11 +822,19 @@ void CNewINIEditor::OnEditchangeINIEdit()
                         CMapDataExt::MapInlineComments[section][pair.first] = inlineComments;
                         inlineComments.clear();
                     }
+                    else if (ExtConfigs::SaveMap_KeepComments)
+                    {
+                        CMapDataExt::MapInlineComments[section].erase(pair.first);
+                    }
                     frontComments.Trim();
                     if (ExtConfigs::SaveMap_KeepComments && !frontComments.IsEmpty())
                     {
                         CMapDataExt::MapFrontlineComments[section][pair.first] = frontComments;
                         frontComments.clear();
+                    }
+                    else if (ExtConfigs::SaveMap_KeepComments)
+                    {
+                        CMapDataExt::MapFrontlineComments[section].erase(pair.first);
                     }
                 }
                 else

@@ -12,6 +12,10 @@
 #include <CFinalSunApp.h>
 #include "../Miscs/StringtableLoader.h"
 #include "../Ext/CMapData/Body.h"
+#include "ILexer.h"
+#include "Scintilla.h"
+#include "SciLexer.h"
+#include "Lexilla.h"
 
 CINI& ExtraWindow::map = CINI::CurrentDocument;
 CINI& ExtraWindow::fadata = CINI::FAData;
@@ -1150,4 +1154,28 @@ bool ExtraWindow::IsPointOnIsoViewAndNotCovered(POINT ptScreen)
     }
 
     return hTop == hIsoView;
+}
+
+
+FString ExtraWindow::GetScintillaText(HWND hScintilla)
+{
+    if (!hScintilla) return {};
+
+    size_t len = ::SendMessage(hScintilla, SCI_GETTEXTLENGTH, 0, 0);
+    FString text(len + 1, '\0');
+    ::SendMessage(hScintilla, SCI_GETTEXT, len + 1, (LPARAM)text.data());
+    text.resize(len);
+    text.toANSI();
+
+    return text;
+}
+
+void ExtraWindow::SetScintillaText(HWND hScintilla, FString& text)
+{
+    if (!hScintilla) return;
+
+    text.toUTF8();
+    SendMessage(hScintilla, SCI_SETTEXT, 0, text);
+
+    return;
 }

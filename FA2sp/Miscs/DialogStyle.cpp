@@ -1552,6 +1552,12 @@ void DarkTheme::SubclassAllControls(HWND hWndParent)
     {
         SetWindowSubclass(hWndChild, EditSubclassProc, 0, 0);
     }
+    
+    hWndChild = NULL;
+    while ((hWndChild = FindWindowEx(hWndParent, hWndChild, "Scintilla", NULL)) != NULL)
+    {
+        SetWindowSubclass(hWndChild, EditSubclassProc, 0, 0);
+    }
 
     hWndChild = NULL;
     while ((hWndChild = FindWindowEx(hWndParent, hWndChild, "SysListView32", NULL)) != NULL)

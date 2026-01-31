@@ -87,6 +87,8 @@ public:
     static void UnregisterDropTarget(HWND hWnd);
     static void UnregisterDropTargetsOfWindow(HWND hMainWnd);
     static bool IsPointOnIsoViewAndNotCovered(POINT ptScreen);
+    static FString GetScintillaText(HWND hScintilla);
+    static void SetScintillaText(HWND hScintilla, FString& text);
 
     static std::vector<DropTarget> g_DropTargets;
 

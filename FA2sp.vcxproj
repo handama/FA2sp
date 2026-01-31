@@ -60,19 +60,19 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>MFC42\include;FA2pp;$(IncludePath)</IncludePath>
+    <IncludePath>MFC42\include;FA2pp;lexilla\include;scintilla\include;$(IncludePath)</IncludePath>
     <LibraryPath>MFC42\lib;Release;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_Chinese|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>MFC42\include;FA2pp;$(IncludePath)</IncludePath>
+    <IncludePath>MFC42\include;FA2pp;lexilla\include;scintilla\include;$(IncludePath)</IncludePath>
     <LibraryPath>MFC42\lib;Release;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>MFC42\include;FA2pp;$(IncludePath)</IncludePath>
+    <IncludePath>MFC42\include;FA2pp;lexilla\include;scintilla\include;$(IncludePath)</IncludePath>
     <LibraryPath>MFC42\lib;Debug;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
   </PropertyGroup>
@@ -107,7 +107,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
-      <AdditionalDependencies>DbgHelp.lib;legacy_stdio_definitions.lib;CncVxlRenderText.lib;libssl.lib;libcrypto.lib;lua.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>DbgHelp.lib;legacy_stdio_definitions.lib;CncVxlRenderText.lib;libssl.lib;libcrypto.lib;lua.lib;Scintilla.lib;lexilla.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/SAFESEH:NO %(AdditionalOptions)</AdditionalOptions>
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
@@ -144,7 +144,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
-      <AdditionalDependencies>DbgHelp.lib;legacy_stdio_definitions.lib;CncVxlRenderText.lib;libssl.lib;libcrypto.lib;lua.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>DbgHelp.lib;legacy_stdio_definitions.lib;CncVxlRenderText.lib;libssl.lib;libcrypto.lib;lua.lib;Scintilla.lib;lexilla.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/SAFESEH:NO %(AdditionalOptions)</AdditionalOptions>
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
@@ -185,7 +185,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
-      <AdditionalDependencies>DbgHelp.lib;legacy_stdio_definitions.lib;CncVxlRenderText.lib;libssl.lib;libcrypto.lib;lua.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>DbgHelp.lib;legacy_stdio_definitions.lib;CncVxlRenderText.lib;libssl.lib;libcrypto.lib;lua.lib;Scintilla.lib;lexilla.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/SAFESEH:NO %(AdditionalOptions)</AdditionalOptions>
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>

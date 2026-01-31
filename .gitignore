@@ -10,6 +10,8 @@ MFC42
 *.obj
 /Debug/*
 /Release/*
+/scintilla/*
+/lexilla/*
 
 /FA2sp/Debug/*
 /FA2sp/Release/*
@@ -30,3 +32,11 @@ MFC42
 !Release/lua.dll
 !Release/libssl-1_1.dll
 !Release/CncVxlRenderText.dll
+!Release/lexilla.dll
+!Release/lexilla.lib
+!Release/Scintilla.dll
+!Release/Scintilla.lib
+!Debug/lexilla.dll
+!Debug/lexilla.lib
+!Debug/Scintilla.dll
+!Debug/Scintilla.lib

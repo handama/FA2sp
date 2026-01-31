@@ -9,6 +9,11 @@
 #include "../../Helpers/MultimapHelper.h"
 #include "../../Helpers/STDHelpers.h"
 
+#include "ILexer.h"
+#include "Scintilla.h"
+#include "SciLexer.h"
+#include "Lexilla.h"
+
 // A static window class
 class CNewINIEditor
 {
@@ -47,6 +52,7 @@ public:
     static bool IsMapPack(const char* lpSectionName);
     static bool IsHouse(const char* lpSectionName);
     static bool IsTeam(const char* lpSectionName);
+    static void SetupIniHighlight(HWND& hWnd);
 
 protected:
     static void Initialize(HWND& hWnd);
@@ -98,6 +104,6 @@ private:
     static int minWndWidth;
     static int minWndHeight;
     static bool minSizeSet;
-
+    static bool autoEdit;
 };
 

@@ -297,8 +297,7 @@ namespace LuaFunctions
 	
 	static std::string read_input()
 	{
-		GetWindowText(CLuaConsole::hInputBox, CLuaConsole::Buffer, BUFFER_SIZE);
-		return CLuaConsole::Buffer;
+		return ExtraWindow::GetScintillaText(CLuaConsole::hInputBox);
 	}
 
 	struct TimePoint {

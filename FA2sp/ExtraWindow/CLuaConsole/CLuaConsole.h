@@ -9,7 +9,10 @@
 #include "../../Sol/sol.hpp"
 #include "../../FA2sp.h"
 
-#define BUFFER_SIZE 800000
+#include "ILexer.h"
+#include "Scintilla.h"
+#include "SciLexer.h"
+#include "Lexilla.h"
 
 // A static window class
 class CLuaConsole
@@ -42,6 +45,7 @@ public:
 
 protected:
     static void Initialize(HWND& hWnd);
+    static void SetupLuaHighlight(HWND& hWnd);
     static void Close(HWND& hWnd);
     static void Update(HWND& hWnd, const char* filter = "");
 
@@ -87,6 +91,5 @@ public:
     static bool updateTaskforce;
     static bool updateCellTag;
     static bool skipBuildingUpdate;
-    static char Buffer[BUFFER_SIZE];
 };
 

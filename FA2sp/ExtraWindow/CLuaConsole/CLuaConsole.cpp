@@ -65,7 +65,6 @@ bool CLuaConsole::updateTeam = false;
 bool CLuaConsole::updateTaskforce = false;
 bool CLuaConsole::updateCellTag = false;
 bool CLuaConsole::skipBuildingUpdate = false;
-char CLuaConsole::Buffer[BUFFER_SIZE]{ 0 };
 sol::state CLuaConsole::Lua;
 using namespace::LuaFunctions;
 
@@ -74,6 +73,11 @@ void CLuaConsole::Create(CFinalSunDlg* pWnd)
     HMODULE hModule = LoadLibrary(TEXT("Riched32.dll"));
     if (!hModule)
         MessageBox(NULL, Translations::TranslateOrDefault("FailedLoadRiched32DLL", "Could not Load Riched32.dll!"), Translations::TranslateOrDefault("Error", "Error"), MB_ICONERROR);
+
+    HMODULE hScintilla = LoadLibrary(TEXT("Scintilla.dll"));
+    if (!hScintilla)
+        MessageBox(NULL, Translations::TranslateOrDefault("FailedLoadScintillaDLL",
+            "Could not Load Scintilla.dll!"), Translations::TranslateOrDefault("Error", "Error"), MB_ICONERROR);
 
     m_parent = pWnd;
     m_hwnd = CreateDialog(
@@ -137,8 +141,8 @@ void CLuaConsole::Initialize(HWND& hWnd)
     //hStop = GetDlgItem(hWnd, Controls::Stop);
     
     SendMessage(hOutputBox, EM_SETREADONLY, (WPARAM)TRUE, 0);
-    //SendMessage(hOutputBox, EM_SETBKGNDCOLOR, 0, (LPARAM)RGB(240, 240, 240));
-    ExtraWindow::SetEditControlFontSize(hInputBox, 1.4f, true);
+    SetupLuaHighlight(hInputBox);
+
     ExtraWindow::SetEditControlFontSize(hOutputBox, 1.4f, true);
     int tabWidth = 16;
     SendMessage(hInputBox, EM_SETTABSTOPS, 1, (LPARAM)&tabWidth);
@@ -151,13 +155,10 @@ void CLuaConsole::Initialize(HWND& hWnd)
 
     if (ExtConfigs::EnableDarkMode)
     {
-        ::SendMessage(hInputBox, EM_SETBKGNDCOLOR, (WPARAM)FALSE, (LPARAM)RGB(32, 32, 32));
         CHARFORMAT cf = { 0 };
         cf.cbSize = sizeof(cf);
         cf.dwMask = CFM_COLOR;
         cf.crTextColor = RGB(220, 220, 220);
-        ::SendMessage(hInputBox, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
-
         ::SendMessage(hOutputBox, EM_SETBKGNDCOLOR, (WPARAM)FALSE, (LPARAM)RGB(32, 32, 32));
         ::SendMessage(hOutputBox, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
     }
@@ -890,6 +891,158 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Update(hWnd);
 }
 
+void CLuaConsole::SetupLuaHighlight(HWND& hWnd)
+{
+    ::SendMessage(hWnd, SCI_SETCODEPAGE, SC_CP_UTF8, 0);
+    ::SendMessage(hWnd, SCI_STYLESETFONT, STYLE_DEFAULT, (LPARAM)"Consolas");
+    ::SendMessage(hWnd, SCI_STYLESETSIZE, STYLE_DEFAULT, 12);
+    ::SendMessage(hWnd, SCI_SETTABWIDTH, 4, 0);
+
+    ::SendMessage(hWnd, SCI_SETILEXER, 0, (LPARAM)CreateLexer("lua"));
+    ::SendMessage(hWnd, SCI_CLEARDOCUMENTSTYLE, 0, 0);
+
+    const char* luaKeywords =
+        "and       break     do        else      elseif    "
+        "end       false     for       function  if        "
+        "in        local     nil       not       or        "
+        "repeat    return    then      true      until     "
+        "while     goto";
+
+    ::SendMessage(hWnd, SCI_SETKEYWORDS, 0, (LPARAM)luaKeywords);
+
+    bool isDark = ExtConfigs::EnableDarkMode;
+
+    ::SendMessage(hWnd, SCI_SETMARGINMASKN, 0, SC_MASK_FOLDERS);
+    ::SendMessage(hWnd, SCI_SETMARGINTYPEN, 0, SC_MARGIN_NUMBER);
+
+    int marginWidth = 35;
+    ::SendMessage(hWnd, SCI_SETMARGINWIDTHN, 0, marginWidth);
+    ::SendMessage(hWnd, SCI_SETMARGINWIDTHN, 1, 0);
+    ::SendMessage(hWnd, SCI_SETMARGINMASKN, 1, 0);
+    ::SendMessage(hWnd, SCI_SETMARGINTYPEN, 1, SC_MARGIN_SYMBOL);
+    ::SendMessage(hWnd, SCI_SETMARGINSENSITIVEN, 1, FALSE);
+
+    ::SendMessage(hWnd, SCI_SETMARGINLEFT, 1, 0);
+    ::SendMessage(hWnd, SCI_SETFOLDFLAGS, 0, 0); 
+    ::SendMessage(hWnd, SCI_SETAUTOMATICFOLD, SC_AUTOMATICFOLD_NONE, 0);
+
+    ::SendMessage(hWnd, SCI_SETMARGINMASKN, 0, 0); 
+    ::SendMessage(hWnd, SCI_SETMARGINTYPEN, 0, SC_MARGIN_NUMBER);
+
+    ::SendMessage(hWnd, SCI_SETCARETFORE, 0, isDark ? RGB(220, 220, 220) : RGB(0, 0, 0));
+    ::SendMessage(hWnd, SCI_SETCARETLINEVISIBLE, 1, 0);
+
+    if (isDark)
+    {
+        ::SendMessage(hWnd, SCI_STYLESETBACK, STYLE_DEFAULT, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_SETCARETLINEBACK, RGB(50, 70, 90), 0);
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 0, RGB(220, 220, 230));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 0, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 1, RGB(100, 160, 100));
+        ::SendMessage(hWnd, SCI_STYLESETITALIC, 1, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 1, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 2, RGB(100, 160, 100));
+        ::SendMessage(hWnd, SCI_STYLESETITALIC, 2, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 2, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 3, RGB(140, 120, 180));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 3, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 4, RGB(180, 180, 255));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 4, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 5, RGB(212, 212, 39));
+        ::SendMessage(hWnd, SCI_STYLESETBOLD, 5, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 5, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 6, RGB(206, 145, 120));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 6, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 7, RGB(206, 145, 120));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 7, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 8, RGB(180, 180, 120));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 8, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 9, RGB(200, 120, 120));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 9, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 10, RGB(240, 120, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 10, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 11, RGB(220, 220, 230));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 11, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 12, RGB(255, 100, 100));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 12, RGB(80, 40, 40)); 
+
+        ::SendMessage(hWnd, SCI_SETSELBACK, 1, RGB(60, 80, 120));
+        ::SendMessage(hWnd, SCI_SETSELFORE, 1, RGB(240, 240, 255));
+        ::SendMessage(hWnd, SCI_STYLESETFORE, STYLE_LINENUMBER, RGB(140, 140, 160));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, STYLE_LINENUMBER, RGB(48, 48, 48));
+    }
+    else
+    {
+        ::SendMessage(hWnd, SCI_STYLESETBACK, STYLE_DEFAULT, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_SETCARETLINEBACK, RGB(240, 245, 255), 0);
+
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 0, RGB(0, 0, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 0, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 1, RGB(0, 128, 0));
+        ::SendMessage(hWnd, SCI_STYLESETITALIC, 1, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 1, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 2, RGB(0, 128, 0));
+        ::SendMessage(hWnd, SCI_STYLESETITALIC, 2, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 2, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 3, RGB(128, 0, 128));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 3, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 4, RGB(0, 0, 192));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 4, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 5, RGB(160, 160, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBOLD, 5, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 5, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 6, RGB(160, 0, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 6, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 7, RGB(160, 0, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 7, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 8, RGB(96, 96, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 8, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 9, RGB(128, 0, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 9, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 10, RGB(160, 80, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 10, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 11, RGB(0, 0, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 11, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 12, RGB(255, 0, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 12, RGB(255, 220, 220));
+
+        ::SendMessage(hWnd, SCI_SETSELBACK, 1, RGB(180, 210, 255));
+        ::SendMessage(hWnd, SCI_SETSELFORE, 1, RGB(0, 0, 0));
+        ::SendMessage(hWnd, SCI_STYLESETFORE, STYLE_LINENUMBER, RGB(120, 120, 120));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, STYLE_LINENUMBER, RGB(240, 240, 240));
+    }
+
+    ::SendMessage(hWnd, SCI_COLOURISE, 0, -1);
+}
+
 void CLuaConsole::Close(HWND& hWnd)
 {
     EndDialog(hWnd, NULL);
@@ -1100,8 +1253,7 @@ void CLuaConsole::OnClickRun(bool fromFile)
     }
     else
     {
-        GetWindowText(hInputBox, Buffer, BUFFER_SIZE);
-        script = Buffer;
+        script = ExtraWindow::GetScintillaText(hInputBox);
     }
 
     auto now = std::chrono::system_clock::now();

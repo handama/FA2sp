@@ -12,6 +12,8 @@
 #include "../../ExtraWindow/CNewTaskforce/CNewTaskforce.h"
 #include "../../ExtraWindow/CNewScript/CNewScript.h"
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
+#include "../../ExtraWindow/CSearhReference/CSearhReference.h"
+#include "../../ExtraWindow/CBatchTrigger/CBatchTrigger.h"
 #include "../../ExtraWindow/CNewINIEditor/CNewINIEditor.h"
 #include "../../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
@@ -308,12 +310,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			else if (hWnd == CNewTeamTypes::GetHandle()) {
 				return TRUE;
 			}
-			else if (hWnd == CNewTrigger::Instance[0].GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CNewTrigger::Instance[1].GetHandle()) {
-				return TRUE;
-			}
 			else if (hWnd == CTerrainGenerator::GetHandle()) {
 				return TRUE;
 			}
@@ -327,6 +323,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				return TRUE;
 			}
 			else if (hWnd == CNewLocalVariables::GetHandle()) {
+				return TRUE;
+			}
+			else if (hWnd == CSearhReference::GetHandle()) {
+				return TRUE;
+			}
+			else if (hWnd == CBatchTrigger::GetHandle()) {
 				return TRUE;
 			}
 			else if (hWnd == this->SingleplayerSettings.GetSafeHwnd()) {
@@ -370,7 +372,13 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			}	
 			else if (hWnd == this->MapD.GetSafeHwnd()) {
 				return TRUE;
-			}	
+			}
+			for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+			{
+				if (hWnd == CNewTrigger::Instance[i].GetHandle()) {
+					return TRUE;
+			}
+			}
 			return FALSE;
 		};
 
@@ -722,9 +730,14 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		{
 			::SendMessage(CNewTrigger::Instance[0].GetHandle(), 114514, 0, 0);
 		}
-		if (CNewTrigger::Instance[1].GetHandle())
+	}
+	if (wmID == 40168)
+	{
+		if (CBatchTrigger::GetHandle() == NULL)
+			CBatchTrigger::Create((CFinalSunDlg*)this);
+		else
 		{
-			::SendMessage(CNewTrigger::Instance[1].GetHandle(), 114514, 0, 0);
+			::SendMessage(CBatchTrigger::GetHandle(), 114514, 0, 0);
 		}
 	}
 	if (wmID == 40154)
@@ -1324,14 +1337,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CNewTeamTypes::GetHandle(), 114514, 0, 0);
 			return TRUE;
 		}
-		else if (hWnd == CNewTrigger::Instance[0].GetHandle()) {
-			::SendMessage(CNewTrigger::Instance[0].GetHandle(), 114514, 0, 0);
-			return TRUE;
-		}
-		else if (hWnd == CNewTrigger::Instance[1].GetHandle()) {
-			::SendMessage(CNewTrigger::Instance[1].GetHandle(), 114514, 0, 0);
-			return TRUE;
-		}
 		else if (hWnd == CTerrainGenerator::GetHandle()) {
 			::SendMessage(CTerrainGenerator::GetHandle(), 114514, 0, 0);
 			return TRUE;
@@ -1355,6 +1360,22 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		else if (hWnd == CLuaConsole::GetHandle()) {
 			::SendMessage(CLuaConsole::GetHandle(), 114514, 0, 0);
 			return TRUE;
+		}
+		else if (hWnd == CBatchTrigger::GetHandle()) {
+			::SendMessage(CBatchTrigger::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CSearhReference::GetHandle()) {
+			::SendMessage(CSearhReference::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+
+		for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+		{
+			if (hWnd == CNewTrigger::Instance[i].GetHandle()) {
+				::SendMessage(CNewTrigger::Instance[i].GetHandle(), 114514, 0, 0);
+				return TRUE;
+			}
 		}
 
 		int newParam = 0;
@@ -1587,22 +1608,19 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 					return TRUE;
 				}
 			}
-			else if (hParent2 == CNewTrigger::Instance[0].GetHandle()) {
-				if (CNewTrigger::Instance[0].OnEnterKeyDown(hParent1)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
-			else if (hParent2 == CNewTrigger::Instance[1].GetHandle()) {
-				if (CNewTrigger::Instance[1].OnEnterKeyDown(hParent1)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
 			else if (hParent2 == CTerrainGenerator::GetHandle()) {
 				if (CTerrainGenerator::OnEnterKeyDown(hParent1)) {
 					ExtraWindow::bEnterSearch = false;
 					return TRUE;
+				}
+			}
+			for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+			{
+				if (hParent2 == CNewTrigger::Instance[i].GetHandle()) {
+					if (CNewTrigger::Instance[i].OnEnterKeyDown(hParent1)) {
+						ExtraWindow::bEnterSearch = false;
+						return TRUE;
+					}
 				}
 			}
 			ExtraWindow::bEnterSearch = false;

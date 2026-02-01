@@ -19,6 +19,7 @@
 #include "../../ExtraWindow/CNewINIEditor/CNewINIEditor.h"
 #include "../../ExtraWindow/CSearhReference/CSearhReference.h"
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
+#include "../../ExtraWindow/CBatchTrigger/CBatchTrigger.h"
 #include "../../ExtraWindow/CNewAITrigger/CNewAITrigger.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 #include "../../ExtraWindow/CNewLocalVariables/CNewLocalVariables.h"
@@ -3390,6 +3391,9 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		}
 		if (noEditor)
 			CMapDataExt::UpdateTriggers();
+
+		if (CBatchTrigger::GetHandle())
+			::SendMessage(CBatchTrigger::GetHandle(), 114514, 0, 0);
 
 		if (CNewINIEditor::GetHandle())
 			::SendMessage(CNewINIEditor::GetHandle(), 114514, 0, 0);

@@ -181,6 +181,11 @@ void CNewTrigger::Initialize(HWND& hWnd)
     hOpenNewEditor = GetDlgItem(hWnd, Controls::OpenNewEditor);
     hDragPoint = GetDlgItem(hWnd, Controls::DragPoint);
     hCompact = GetDlgItem(hWnd, Controls::Compact);
+    hActionMoveUp = GetDlgItem(hWnd, Controls::ActionMoveUp);
+    hActionMoveDown = GetDlgItem(hWnd, Controls::ActionMoveDown);
+    SetWindowTextW(hActionMoveUp, L"¡ø");
+    SetWindowTextW(hActionMoveDown, L"¨‹");
+
     if (!IsMainInstance())
         ShowWindow(hOpenNewEditor, SW_HIDE);
     else
@@ -915,6 +920,14 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         case Controls::SearchReference:
             if (CODE == BN_CLICKED)
                 OnClickSearchReference(hWnd);
+            break;
+        case Controls::ActionMoveUp:
+            if (CODE == STN_CLICKED)
+                OnClickActionMove(hWnd, true);
+            break;
+        case Controls::ActionMoveDown:
+            if (CODE == STN_CLICKED)
+                OnClickActionMove(hWnd, false);
             break;
         case Controls::OpenNewEditor:
             if (CODE == BN_CLICKED && this == &Instance[0])
@@ -2808,6 +2821,28 @@ void CNewTrigger::OnClickSearchReference(HWND& hWnd)
     {
         ::SendMessage(CSearhReference::GetHandle(), 114514, 0, 0);
     }
+}
+
+void CNewTrigger::OnClickActionMove(HWND& hWnd, bool isUp)
+{
+    if (SelectedTriggerIndex < 0 || !CurrentTrigger || CurrentTrigger->ActionCount < 2)
+        return;
+
+    if (SelectedActionIndex <= 0 && isUp || SelectedActionIndex >= CurrentTrigger->ActionCount - 1 && !isUp)
+        return;
+
+    int index = isUp ? SelectedActionIndex : SelectedActionIndex + 1;
+    if (index > 0 && index < CurrentTrigger->Actions.size()) {
+        std::swap(CurrentTrigger->Actions[index], CurrentTrigger->Actions[index - 1]);
+    }
+    CurrentTrigger->Save();
+    while (SendMessage(hActionList, LB_DELETESTRING, 0, NULL) != CB_ERR);
+    for (int i = 0; i < CurrentTrigger->ActionCount; i++)
+    {
+        SendMessage(hActionList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(CurrentTrigger->Actions[i].ActionNum, i, !CompactMode));
+    }
+    SendMessage(hActionList, LB_SETCURSEL, isUp ? SelectedActionIndex - 1: SelectedActionIndex + 1, NULL);
+    OnSelchangeActionListbox();
 }
 
 void CNewTrigger::SortTriggers(FString id, bool onlySelf)

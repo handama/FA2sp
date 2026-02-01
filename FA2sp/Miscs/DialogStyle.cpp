@@ -1362,7 +1362,7 @@ LRESULT CALLBACK DarkTheme::DarkButtonSubclassProc(HWND hwnd, UINT uMsg, WPARAM 
             }
         }
 
-        RECT textRc = { glyphRc.right + 6, 0, w - 6, h };
+        RECT textRc = { glyphRc.right + 3, 0, w - 3, h };
         SetBkMode(hdcMem, TRANSPARENT);
         SetTextColor(hdcMem, enabled ? DarkColors::TextColor : DarkColors::DisabledTextColor);
         HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
@@ -1555,6 +1555,12 @@ void DarkTheme::SubclassAllControls(HWND hWndParent)
     
     hWndChild = NULL;
     while ((hWndChild = FindWindowEx(hWndParent, hWndChild, "Scintilla", NULL)) != NULL)
+    {
+        SetWindowSubclass(hWndChild, EditSubclassProc, 0, 0);
+    }
+    
+    hWndChild = NULL;
+    while ((hWndChild = FindWindowEx(hWndParent, hWndChild, WC_STATIC, NULL)) != NULL)
     {
         SetWindowSubclass(hWndChild, EditSubclassProc, 0, 0);
     }

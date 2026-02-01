@@ -341,6 +341,8 @@ public:
         OpenNewEditor = 2000,
         DragPoint = 2001,
         Compact = 2002,
+        ActionMoveUp = 2003,
+        ActionMoveDown = 2004,
     };
 
     void Create(CFinalSunDlg* pWnd);
@@ -378,6 +380,7 @@ protected:
     void OnClickDelAction(HWND& hWnd);
     void OnClickCloAction(HWND& hWnd);
     void OnClickSearchReference(HWND& hWnd);
+    void OnClickActionMove(HWND& hWnd, bool isUp);
 
     void OnSelchangeHouse(bool edited = false);
     void OnSelchangeType(bool edited = false);
@@ -456,6 +459,8 @@ public:
     HWND hOpenNewEditor;
     HWND hDragPoint;
     HWND hCompact;
+    HWND hActionMoveUp;
+    HWND hActionMoveDown;
     HWND hActionParameter[ACTION_PARAM_COUNT];
     HWND hActionParameterDesc[ACTION_PARAM_COUNT];
 

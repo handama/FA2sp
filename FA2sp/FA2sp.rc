@@ -28,6 +28,7 @@ BEGIN
     "T",            40139,                  VIRTKEY, CONTROL, NOINVERT
     "C",            40150,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
     "C",            40155,                  VIRTKEY, ALT, CONTROL, NOINVERT
+    "R",            40168,                  VIRTKEY, ALT, CONTROL, NOINVERT
     "S",            40158,                  VIRTKEY, ALT, CONTROL, NOINVERT
     "E",            40138,                  VIRTKEY, CONTROL, NOINVERT
     "J",            40156,                  VIRTKEY, CONTROL, NOINVERT

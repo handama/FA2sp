@@ -40,6 +40,7 @@ POPUP "Edit"
 	MENUITEM "Houses\tCtrl+H",  40039
 	MENUITEM SEPARATOR
 	MENUITEM "Trigger editor\tCtrl+R",  40151
+	MENUITEM "Batch trigger editor\tCtrl+Alt+R",  40168
 	MENUITEM "Tag editor\tCtrl+G",  40042
 	MENUITEM SEPARATOR
 	MENUITEM "Taskforces\tCtrl+T",  40139

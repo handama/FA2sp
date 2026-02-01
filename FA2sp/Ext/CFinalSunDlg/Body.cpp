@@ -739,6 +739,15 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CNewTrigger::Instance[0].GetHandle(), 114514, 0, 0);
 		}
 	}
+	if (wmID == 40168)
+	{
+		if (CBatchTrigger::GetHandle() == NULL)
+			CBatchTrigger::Create((CFinalSunDlg*)this);
+		else
+		{
+			::SendMessage(CBatchTrigger::GetHandle(), 114514, 0, 0);
+		}
+	}
 	if (wmID == 40154)
 	{
 		if (CNewINIEditor::GetHandle() == NULL)
@@ -1372,10 +1381,13 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CLuaConsole::GetHandle(), 114514, 0, 0);
 			return TRUE;
 		}
+		else if (hWnd == CBatchTrigger::GetHandle()) {
+			::SendMessage(CBatchTrigger::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
 		for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
 		{
-			if (hWnd == CNewTrigger::Instance[i].GetHandle())
-			{
+			if (hWnd == CNewTrigger::Instance[i].GetHandle()) {
 				::SendMessage(CNewTrigger::Instance[i].GetHandle(), 114514, 0, 0);
 				return TRUE;
 			}

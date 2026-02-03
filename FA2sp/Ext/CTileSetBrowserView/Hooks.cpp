@@ -406,11 +406,12 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
                 }
 
                 auto& tiledata = CMapDataExt::TileData[tile.GetDisplayTileIndex()];
-                if (tiledata.AltTypeCount > 0)
+                int randomIndex = STDHelpers::RandomSelectInt(-1, tiledata.AltTypeCount);
+                if (tiledata.AltTypeCount > 0 && randomIndex > -1)
                 {
                     bool isBridge = (tiledata.TileSet == CMapDataExt::BridgeSet
                         || tiledata.TileSet == CMapDataExt::WoodBridgeSet);
-                    auto& altType = tiledata.AltTypes[STDHelpers::RandomSelectInt(0, tiledata.AltTypeCount)];
+                    auto& altType = tiledata.AltTypes[randomIndex];
                     if (!isBridge && tile.SubTileIndex < altType.TileBlockCount)
                     {
                         block = &altType.TileBlockDatas[tile.SubTileIndex];

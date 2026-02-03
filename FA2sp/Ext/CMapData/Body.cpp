@@ -658,6 +658,14 @@ void CMapDataExt::UpdateTriggers()
 	{
 		TriggerSort::Instance.LoadAllTriggers();
 	}
+	for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+	{
+		auto o = &CNewTrigger::Instance[i];
+		if (o->CurrentTrigger)
+		{
+			o->CurrentTrigger = CMapDataExt::GetTrigger(o->CurrentTriggerID);
+		}
+	}
 }
 
 FString CMapDataExt::AddTrigger(std::shared_ptr<Trigger> trigger) {
@@ -866,8 +874,8 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 				{
 					if (!this->IsCoordInMap(m + X, n + Y))
 						continue;
-					if (customTileData->TileBlockDatas[subIdx].TileBlock 
-						&& customTileData->TileBlockDatas[subIdx].TileBlock->ImageData)
+					if (customTileData->TileBlockDatas[subIdx].HasTileBlock 
+						&& customTileData->TileBlockDatas[subIdx].GetTileBlock()->ImageData)
 					{
 						auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(m + X, n + Y)];
 						if (cellExt.AddRandomTile) return;
@@ -887,7 +895,7 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 			for (int n = 0; n < width; n++)
 			{
 				auto& tile = customTileData->TileBlockDatas[subIdx];
-				if (tile.TileBlock && tile.TileBlock->ImageData && this->IsCoordInMap(m + X, n + Y))
+				if (tile.GetTileBlock() && tile.GetTileBlock()->ImageData && this->IsCoordInMap(m + X, n + Y))
 				{
 					auto tileData = CMapDataExt::TileData[tile.TileIndex];
 					auto tileSet = tileData.TileSet;
@@ -2815,29 +2823,25 @@ void CustomTileBlock::SetTileBlock(int tile, int subtile, int height)
 	Height = height;
 	TileIndex = tile;
 	SubTileIndex = subtile;
-	if (CMapDataExt::TileDataCount > TileIndex
-		&& CMapDataExt::TileData[TileIndex].TileBlockCount > SubTileIndex
-		&& CMapDataExt::TileData[TileIndex].TileBlockDatas[SubTileIndex].ImageData)
-		TileBlock = &CMapDataExt::TileData[TileIndex].TileBlockDatas[SubTileIndex];
-	else
-		TileBlock = nullptr;
+
+	HasTileBlock = CMapDataExt::TileDataCount > TileIndex
+	&& CMapDataExt::TileData[TileIndex].TileBlockCount > SubTileIndex
+	&& CMapDataExt::TileData[TileIndex].TileBlockDatas[SubTileIndex].ImageData;
+
 
 	FrameTileIndex = TileIndex;
 	if (CMapDataExt::TileData[TileIndex].FrameModeIndex != 0xFFFF)
 		FrameTileIndex = CMapDataExt::TileData[TileIndex].FrameModeIndex;
 
-	if (CMapDataExt::TileDataCount > FrameTileIndex
+	HasFrameTileBlock = CMapDataExt::TileDataCount > FrameTileIndex
 		&& CMapDataExt::TileData[FrameTileIndex].TileBlockCount > SubTileIndex
-		&& CMapDataExt::TileData[FrameTileIndex].TileBlockDatas[SubTileIndex].ImageData)
-		FrameTileBlock = &CMapDataExt::TileData[FrameTileIndex].TileBlockDatas[SubTileIndex];
-	else
-		FrameTileBlock = TileBlock;
+		&& CMapDataExt::TileData[FrameTileIndex].TileBlockDatas[SubTileIndex].ImageData;
 }
 
 int CustomTileBlock::GetHeight() const
 {
 	int height = 0;
-	if (TileBlock)
+	if (HasTileBlock)
 		height = Height;// +TileBlock->Height;
 	if (height > 14) height = 14;
 	return height;
@@ -2845,16 +2849,21 @@ int CustomTileBlock::GetHeight() const
 
 CTileBlockClass* CustomTileBlock::GetDisplayTileBlock()
 {
-	if (CFinalSunApp::Instance->FrameMode && FrameTileBlock)
+	if (CFinalSunApp::Instance->FrameMode && HasFrameTileBlock)
 	{
-		return FrameTileBlock;
+		return &CMapDataExt::TileData[FrameTileIndex].TileBlockDatas[SubTileIndex];
 	}
-	return TileBlock;
+	return HasTileBlock ? &CMapDataExt::TileData[TileIndex].TileBlockDatas[SubTileIndex] : nullptr;
+}
+
+CTileBlockClass* CustomTileBlock::GetTileBlock()
+{
+	return HasTileBlock ? &CMapDataExt::TileData[TileIndex].TileBlockDatas[SubTileIndex] : nullptr;
 }
 
 int CustomTileBlock::GetDisplayTileIndex() const
 {
-	if (CFinalSunApp::Instance->FrameMode && FrameTileBlock)
+	if (CFinalSunApp::Instance->FrameMode && HasFrameTileBlock)
 	{
 		return FrameTileIndex;
 	}
@@ -3392,8 +3401,11 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		if (noEditor)
 			CMapDataExt::UpdateTriggers();
 
+		CBatchTrigger::NeedClear = true;
 		if (CBatchTrigger::GetHandle())
+		{
 			::SendMessage(CBatchTrigger::GetHandle(), 114514, 0, 0);
+		}
 
 		if (CNewINIEditor::GetHandle())
 			::SendMessage(CNewINIEditor::GetHandle(), 114514, 0, 0);

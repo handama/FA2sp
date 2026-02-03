@@ -4680,7 +4680,7 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                         else
                         {
                             auto& tile = tileData->TileBlockDatas[p];
-                            auto block = tile.TileBlock;
+                            auto block = tile.GetTileBlock();
                             if (block && block->ImageData != NULL)
                             {
                                 int mypos = cur_pos + i + e * Map->MapWidthPlusHeight;

@@ -418,11 +418,12 @@ struct CustomTileBlock
     int FrameTileIndex;
     int SubTileIndex;
     int Height;
-    CTileBlockClass* TileBlock;
-    CTileBlockClass* FrameTileBlock;
+    bool HasTileBlock = false;
+    bool HasFrameTileBlock = false;
     void SetTileBlock(int tile, int subtile, int height);
     int GetHeight() const;
     CTileBlockClass* GetDisplayTileBlock();
+    CTileBlockClass* GetTileBlock();
     int GetDisplayTileIndex() const;
 };
 

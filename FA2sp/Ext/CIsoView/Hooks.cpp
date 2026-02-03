@@ -22,6 +22,7 @@
 #include "../../Miscs/TheaterInfo.h"
 #include "../../Helpers/Helper.h"
 #include "../../Miscs/StringtableLoader.h"
+#include "../CTileSetBrowserFrame/Body.h"
 
 namespace CIsoViewDrawTemp
 {
@@ -209,7 +210,7 @@ DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 
 		CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 		auto tmp = CIsoView::CurrentCommand->Command;
-		if (CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->View.CurrentMode == 1) {
+		if (CTileSetBrowserFrameExt::TileSetBrowserView_Instance->CurrentMode == 1) {
 			HWND hParent = CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
 			HWND hTileComboBox = ::GetDlgItem(hParent, 1366);
 			::SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1366, CBN_SELCHANGE), (LPARAM)hTileComboBox);
@@ -218,6 +219,7 @@ DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 	}
 
 	CIsoViewExt::ReInitializingDDraw = false;
+
 	return 0;
 }
 

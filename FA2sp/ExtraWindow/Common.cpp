@@ -1156,7 +1156,6 @@ bool ExtraWindow::IsPointOnIsoViewAndNotCovered(POINT ptScreen)
     return hTop == hIsoView;
 }
 
-
 FString ExtraWindow::GetScintillaText(HWND hScintilla)
 {
     if (!hScintilla) return {};
@@ -1178,4 +1177,26 @@ void ExtraWindow::SetScintillaText(HWND hScintilla, FString& text)
     SendMessage(hScintilla, SCI_SETTEXT, 0, text);
 
     return;
+}
+
+bool ExtraWindow::HitTestListView(
+    HWND hListView,
+    POINT ptScreen,
+    ListViewHitResult& out
+)
+{
+    POINT ptClient = ptScreen;
+    ScreenToClient(hListView, &ptClient);
+
+    LVHITTESTINFO hti = {};
+    hti.pt = ptClient;
+
+    int item = ListView_SubItemHitTest(hListView, &hti);
+    if (item < 0)
+        return false;
+
+    out.item = item;
+    out.subItem = hti.iSubItem;
+    out.flags = hti.flags;
+    return true;
 }

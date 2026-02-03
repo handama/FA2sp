@@ -282,6 +282,9 @@ BOOL CALLBACK CObjectSearch::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
     case 114514:
         CObjectSearch::OnSearchButtonUp(hwnd);
         break;
+    case 114515:
+        UpdateTypes(hwnd);
+        break;
 
     }
 
@@ -1668,6 +1671,7 @@ void CObjectSearch::UpdateDetailsWaypoint(HWND hWnd)
 
 void CObjectSearch::UpdateTypes(HWND hWnd)
 {
+    CObjectSearch::Datas.clear();
     HWND hParent = m_parent->DialogBar.GetSafeHwnd();
     HWND hTileComboBox = GetDlgItem(hParent, 1366);
     int nTileCount = SendMessage(hTileComboBox, CB_GETCOUNT, NULL, NULL);

@@ -23,6 +23,7 @@
 #include <chrono>
 #include "../CTriggerAnnotation/CTriggerAnnotation.h"
 #include "../CNewAITrigger/CNewAITrigger.h"
+#include "../CBatchTrigger/CBatchTrigger.h"
 
 HWND CNewTeamTypes::m_hwnd;
 CFinalSunDlg* CNewTeamTypes::m_parent;
@@ -606,6 +607,15 @@ LRESULT CALLBACK CNewTeamTypes::DragDotProc(HWND hWnd, UINT message, WPARAM wPar
                     }
                 }
                 break;
+            case DropType::BatchTriggerListView:
+            {
+                ListViewHitResult hit;
+                if (ExtraWindow::HitTestListView(target.hWnd, pt, hit))
+                {
+                    CBatchTrigger::OnDroppedIntoCell(hit.item, hit.subItem, CurrentTeamID);
+                }
+            }
+            break;
             case DropType::Unknown:
             default:
                 break;

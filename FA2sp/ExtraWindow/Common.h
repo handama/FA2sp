@@ -21,6 +21,7 @@ enum class DropType : int
     TeamEditorScript,
     AIEditorTeam0,
     AIEditorTeam1,
+    BatchTriggerListView,
 
     Unknown,
 };
@@ -32,6 +33,13 @@ struct DropTarget
     DropType type;
     CNewTrigger* triggerInstance;
     HWND hRoot;
+};
+
+struct ListViewHitResult
+{
+    int item = -1;
+    int subItem = -1;
+    UINT flags = 0;
 };
 
 class ExtraWindow
@@ -89,6 +97,7 @@ public:
     static bool IsPointOnIsoViewAndNotCovered(POINT ptScreen);
     static FString GetScintillaText(HWND hScintilla);
     static void SetScintillaText(HWND hScintilla, FString& text);
+    static bool HitTestListView(HWND hListView, POINT ptScreen, ListViewHitResult& out);
 
     static std::vector<DropTarget> g_DropTargets;
 

@@ -419,8 +419,8 @@ void CSearhReference::Update()
                     paramType[0] = eventInfos[1];
                     paramType[1] = eventInfos[2];
                     std::vector<FString> pParamTypes[2];
-                    pParamTypes[0] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[0], "MISSING,0"));
-                    pParamTypes[1] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[1], "MISSING,0"));
+                    pParamTypes[0] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[0], "MISSING,0"), 1);
+                    pParamTypes[1] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[1], "MISSING,0"), 1);
                     FString code = "0";
                     if (pParamTypes[0].size() == 3) code = pParamTypes[0][2];
 
@@ -454,7 +454,7 @@ void CSearhReference::Update()
             {
                 for (const auto& [value, paramType] : param.ParamMap)
                 {
-                    FString type = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType, "MISSING,0"))[1];
+                    FString type = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType, "MISSING,0"), 1)[1];
                     if (CINI::FAData->KeyExists("NewParamTypes", type))
                     {
                         auto newParamTypes = FString::SplitString(CINI::FAData->GetString("NewParamTypes", type), 4);
@@ -470,8 +470,8 @@ void CSearhReference::Update()
                             paramType[0] = eventInfos[1];
                             paramType[1] = eventInfos[2];
                             std::vector<FString> pParamTypes[2];
-                            pParamTypes[0] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[0], "MISSING,0"));
-                            pParamTypes[1] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[1], "MISSING,0"));
+                            pParamTypes[0] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[0], "MISSING,0"), 1);
+                            pParamTypes[1] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[1], "MISSING,0"), 1);
                             FString code = "0";
                             if (pParamTypes[0].size() == 3) code = pParamTypes[0][2];
 
@@ -497,7 +497,7 @@ void CSearhReference::Update()
 
                     std::vector<FString> pParamTypes[7];
                     for (int i = 0; i < 7; i++)
-                        pParamTypes[i] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[i], "MISSING,0"));
+                        pParamTypes[i] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[i], "MISSING,0"), 1);
 
                     for (int i = 0; i < 7; i++)
                     {
@@ -522,7 +522,7 @@ void CSearhReference::Update()
             {
                 for (const auto& [value, paramType] : param.ParamMap)
                 {
-                    FString type = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType, "MISSING,0"))[1];
+                    FString type = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType, "MISSING,0"), 1)[1];
                     if (CINI::FAData->KeyExists("NewParamTypes", type))
                     {
                         auto newParamTypes = FString::SplitString(CINI::FAData->GetString("NewParamTypes", type), 4);

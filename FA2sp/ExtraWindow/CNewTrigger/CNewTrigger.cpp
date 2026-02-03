@@ -17,6 +17,7 @@
 #include "../CNewScript/CNewScript.h"
 #include <numeric>
 #include "../CSearhReference/CSearhReference.h"
+#include "../CBatchTrigger/CBatchTrigger.h"
 #include "../CTriggerAnnotation/CTriggerAnnotation.h"
 #include "../CCsfEditor/CCsfEditor.h"
 #include "../CNewTeamTypes/CNewTeamTypes.h"
@@ -183,8 +184,10 @@ void CNewTrigger::Initialize(HWND& hWnd)
     hCompact = GetDlgItem(hWnd, Controls::Compact);
     hActionMoveUp = GetDlgItem(hWnd, Controls::ActionMoveUp);
     hActionMoveDown = GetDlgItem(hWnd, Controls::ActionMoveDown);
+    hActionSplit = GetDlgItem(hWnd, Controls::ActionSplit);
     SetWindowTextW(hActionMoveUp, L"¡ø");
     SetWindowTextW(hActionMoveDown, L"¨‹");
+    Translate(2005, "TriggerActionSplit");
 
     if (!IsMainInstance())
         ShowWindow(hOpenNewEditor, SW_HIDE);
@@ -639,6 +642,15 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
                             }
                         }
                         break;
+                    case DropType::BatchTriggerListView:
+                    {
+                        ListViewHitResult hit;
+                        if (ExtraWindow::HitTestListView(target.hWnd, pt, hit))
+                        {
+                            CBatchTrigger::OnDroppedIntoCell(hit.item, hit.subItem, CurrentTriggerID);
+                        }
+                    }
+                        break;
                     case DropType::Unknown:
                     default:
                         break;
@@ -732,40 +744,35 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
     switch (message)
     {
     case WM_MOUSEWHEEL:
-
+    {
         POINT pt;
         GetCursorPos(&pt);
         ScreenToClient(hWnd, &pt);
+
         RECT rc;
         GetClientRect(hWnd, &rc);
 
-        if (pt.x >= rc.right)
+        if (pt.x >= rc.right - GetSystemMetrics(SM_CXVSCROLL))
         {
             return CallWindowProc(OriginalListBoxProcAction, hWnd, message, wParam, lParam);
         }
-        else
+
+        int delta = (short)HIWORD(wParam);
+
+        WPARAM keyParam = 0;
+        if (delta > 0)
+            keyParam = VK_UP;
+        else if (delta < 0)
+            keyParam = VK_DOWN;
+
+        if (keyParam != 0)
         {
-            int nCurSel = (int)SendMessage(hWnd, LB_GETCURSEL, 0, 0);
-            int nCount = (int)SendMessage(hWnd, LB_GETCOUNT, 0, 0);
-
-            if (nCurSel != LB_ERR && nCount > 0)
-            {
-                if ((short)HIWORD(wParam) > 0 && nCurSel > 0)
-                {
-                    SendMessage(hWnd, LB_SETCURSEL, nCurSel - 1, 0);
-                }
-                else if ((short)HIWORD(wParam) < 0 && nCurSel < nCount - 1)
-                {
-                    SendMessage(hWnd, LB_SETCURSEL, nCurSel + 1, 0);
-                }
-                OnSelchangeActionListbox();
-
-            }
-            else {
-                SendMessage(hWnd, LB_SETCURSEL, 0, 0);
-            }
-            return TRUE;
+            SendMessage(hWnd, WM_KEYDOWN, keyParam, 0x00000001);
+            SendMessage(hWnd, WM_KEYUP, keyParam, 0xC0000001);
         }
+
+        return TRUE;
+    }
     }
     return CallWindowProc(OriginalListBoxProcAction, hWnd, message, wParam, lParam);
 }
@@ -928,6 +935,10 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         case Controls::ActionMoveDown:
             if (CODE == STN_CLICKED)
                 OnClickActionMove(hWnd, false);
+            break;
+        case Controls::ActionSplit:
+            if (CODE == BN_CLICKED)
+                OnClickActionSplit(hWnd);
             break;
         case Controls::OpenNewEditor:
             if (CODE == BN_CLICKED && this == &Instance[0])
@@ -1329,9 +1340,9 @@ void CNewTrigger::OnSelchangeEventListbox(bool changeCursel)
     }
 }
 
-void CNewTrigger::OnSelchangeActionListbox(bool changeCursel)
+void CNewTrigger::OnSelchangeActionListbox(bool changeCursel, int index)
 {
-    if (SelectedTriggerIndex < 0 || SendMessage(hActionList, LB_GETCURSEL, NULL, NULL) < 0 || SendMessage(hActionList, LB_GETCOUNT, NULL, NULL) <= 0)
+    if (SelectedTriggerIndex < 0 || SendMessage(hActionList, LB_GETCARETINDEX, NULL, NULL) < 0 || SendMessage(hActionList, LB_GETCOUNT, NULL, NULL) <= 0)
     {
         SendMessage(hActiontype, CB_SETCURSEL, -1, NULL);
         for (int i = 0; i < ACTION_PARAM_COUNT; ++i) {
@@ -1353,8 +1364,16 @@ void CNewTrigger::OnSelchangeActionListbox(bool changeCursel)
         return;
     }
 
-    int idx = SendMessage(hActionList, LB_GETCURSEL, 0, NULL);
-    SelectedActionIndex = idx;
+    if (index != -1)
+    {
+        SelectedActionIndex = index;        
+        SetActionListBoxSel(SelectedActionIndex);
+    }
+    else
+    {
+        int idx = SendMessage(hActionList, LB_GETCARETINDEX, 0, NULL);
+        SelectedActionIndex = idx;
+    }
 
     UpdateActionAndParam(-1, changeCursel);
 
@@ -1620,6 +1639,7 @@ void CNewTrigger::OnSelchangeActionType(bool edited)
     if (SelectedTriggerIndex < 0 || SendMessage(hActiontype, LB_GETCURSEL, NULL, NULL) < 0 || !CurrentTrigger)
         return;
     int curSel = SendMessage(hActiontype, CB_GETCURSEL, NULL, NULL);
+    int listSel = SendMessage(hActionList, LB_GETCARETINDEX, NULL, NULL);
 
     FString text;
     char buffer[512]{ 0 };
@@ -1651,7 +1671,7 @@ void CNewTrigger::OnSelchangeActionType(bool edited)
     text.Replace(",", "");
 
     UpdateActionAndParam(atoi(text), false); 
-    OnSelchangeActionListbox(false);
+    OnSelchangeActionListbox(false, listSel);
 
     RefreshOtherInstances();
 }
@@ -1874,7 +1894,7 @@ void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionLi
         SendMessage(hHard, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hMedium, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hEventList, LB_SETCURSEL, -1, NULL);
-        SendMessage(hActionList, LB_SETCURSEL, -1, NULL);
+        SetActionListBoxSel(-1);
         if (!CompactMode)
             SendMessage(hEventDescription, WM_SETTEXT, 0, (LPARAM)"");
         if (!CompactMode)
@@ -1960,7 +1980,7 @@ void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionLi
         SelectedActionIndex = 0;
     if (SelectedActionIndex >= SendMessage(hActionList, LB_GETCOUNT, NULL, NULL))
         SelectedActionIndex = SendMessage(hActionList, LB_GETCOUNT, NULL, NULL) - 1;
-    SendMessage(hActionList, LB_SETCURSEL, actionListCur, NULL);
+    SetActionListBoxSel(actionListCur);
     OnSelchangeActionListbox();
 
     DropNeedUpdate = false;
@@ -2315,7 +2335,7 @@ void CNewTrigger::OnClickNewAction(HWND& hWnd)
         }
 
         SelectedActionIndex = SendMessage(hActionList, LB_GETCOUNT, NULL, NULL) - 1;
-        SendMessage(hActionList, LB_SETCURSEL, SelectedActionIndex, NULL);
+        SetActionListBoxSel(SelectedActionIndex);
         OnSelchangeActionListbox();
 
         RefreshOtherInstances();
@@ -2325,25 +2345,41 @@ void CNewTrigger::OnClickNewAction(HWND& hWnd)
 void CNewTrigger::OnClickCloAction(HWND& hWnd)
 {
     if (!CurrentTrigger) return;
-    if (SelectedActionIndex < 0 || SelectedActionIndex >= CurrentTrigger->ActionCount) return;
 
-    ActionParams newAction = CurrentTrigger->Actions[SelectedActionIndex];
+    std::vector<int> selected;
+    GetActionListBoxSels(selected);
 
-    FString value;
-    value.Format("%s=%s,%s,%s,%s,%s,%s,%s,%s,%s", CurrentTrigger->ID, map.GetString("Actions", CurrentTrigger->ID), 
-        newAction.ActionNum, newAction.Params[0], newAction.Params[1], newAction.Params[2], newAction.Params[3],
-        newAction.Params[4], newAction.Params[5], newAction.Params[6]);
+    FString length;
+    length.Format("%s=%s", CurrentTrigger->ID, map.GetString("Actions", CurrentTrigger->ID));
     FString pMessage = Translations::TranslateOrDefault("TriggerActionLengthExceededMessage",
         "After creating the new action, the length of the action INI will exceed 511, and the excess will not work properly. \nDo you want to continue?");
 
+    for (auto index : selected)
+    {
+        if (index < 0 || index >= CurrentTrigger->ActionCount) continue;
+        ActionParams newAction = CurrentTrigger->Actions[index];
+
+        FString value;
+        value.Format(",%s,%s,%s,%s,%s,%s,%s,%s",
+            newAction.ActionNum, newAction.Params[0], newAction.Params[1], newAction.Params[2], newAction.Params[3],
+            newAction.Params[4], newAction.Params[5], newAction.Params[6]);
+        length += value;
+    }
+
     int nResult = IDYES;
-    if (value.GetLength() >= 512)
+    if (length.GetLength() >= 512)
         nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"), MB_YESNO | MB_ICONWARNING);
 
     if (nResult == IDYES)
     {
-        CurrentTrigger->ActionCount++;
-        CurrentTrigger->Actions.push_back(newAction);
+        for (auto index : selected)
+        {
+            if (index < 0 || index >= CurrentTrigger->ActionCount) continue;
+            ActionParams newAction = CurrentTrigger->Actions[index];
+            CurrentTrigger->ActionCount++;
+            CurrentTrigger->Actions.push_back(newAction);
+        }
+
         CurrentTrigger->Save();
 
         while (SendMessage(hActionList, LB_DELETESTRING, 0, NULL) != CB_ERR);
@@ -2353,7 +2389,7 @@ void CNewTrigger::OnClickCloAction(HWND& hWnd)
         }
 
         SelectedActionIndex = SendMessage(hActionList, LB_GETCOUNT, NULL, NULL) - 1;
-        SendMessage(hActionList, LB_SETCURSEL, SelectedActionIndex, NULL);
+        SetActionListBoxSel(SelectedActionIndex);
         OnSelchangeActionListbox();
 
         RefreshOtherInstances();
@@ -2363,10 +2399,17 @@ void CNewTrigger::OnClickCloAction(HWND& hWnd)
 void CNewTrigger::OnClickDelAction(HWND& hWnd)
 {
     if (!CurrentTrigger) return;
-    if (SelectedActionIndex < 0 || SelectedActionIndex >= CurrentTrigger->ActionCount) return;
+    std::vector<int> selected;
+    GetActionListBoxSels(selected);
 
-    CurrentTrigger->ActionCount--;
-    CurrentTrigger->Actions.erase(CurrentTrigger->Actions.begin() + SelectedActionIndex);
+    for (auto rit = selected.rbegin(); rit != selected.rend(); ++rit)
+    {
+        auto& index = *rit;
+        if (index < 0 || index >= CurrentTrigger->ActionCount) continue;
+
+        CurrentTrigger->ActionCount--;
+        CurrentTrigger->Actions.erase(CurrentTrigger->Actions.begin() + index);
+    }
     CurrentTrigger->Save();
 
     while (SendMessage(hActionList, LB_DELETESTRING, 0, NULL) != CB_ERR);
@@ -2380,7 +2423,7 @@ void CNewTrigger::OnClickDelAction(HWND& hWnd)
         SelectedActionIndex = 0;
     if (SelectedActionIndex >= SendMessage(hActionList, LB_GETCOUNT, NULL, NULL))
         SelectedActionIndex = SendMessage(hActionList, LB_GETCOUNT, NULL, NULL) - 1;
-    SendMessage(hActionList, LB_SETCURSEL, SelectedActionIndex, NULL);
+    SetActionListBoxSel(SelectedActionIndex);
     OnSelchangeActionListbox();
 
     RefreshOtherInstances();
@@ -2545,7 +2588,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
         thisAction.ActionNum = buffer;
         SendMessage(hActionList, LB_DELETESTRING, SelectedActionIndex, NULL);
         SendMessage(hActionList, LB_INSERTSTRING, SelectedActionIndex, (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(thisAction.ActionNum, SelectedActionIndex, !CompactMode));
-        SendMessage(hActionList, LB_SETCURSEL, SelectedActionIndex, NULL);
+        SetActionListBoxSel(SelectedActionIndex);
     }
     auto actionInfos = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
     if (!CompactMode)
@@ -2805,6 +2848,39 @@ void CNewTrigger::OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels,
     }
 }
 
+void CNewTrigger::SetActionListBoxSel(int index)
+{
+    SendMessage(hActionList, LB_SETSEL, FALSE, -1);
+    if (index >= 0)
+        SendMessage(hActionList, LB_SETSEL, TRUE, index);
+    SendMessage(hActionList, LB_SETCURSEL, index, NULL);
+    SendMessage(hActionList, LB_SETCARETINDEX, index, TRUE);
+}
+
+void CNewTrigger::SetActionListBoxSels(std::vector<int>& indices)
+{
+    SendMessage(hActionList, LB_SETSEL, FALSE, -1);
+    for (int idx : indices)
+    {
+        if (idx >= 0 && idx < SendMessage(hActionList, LB_GETCOUNT, 0, 0))
+        {
+            SendMessage(hActionList, LB_SETSEL, TRUE, idx);
+        }
+    }
+    if (!indices.empty())
+    {
+        SendMessage(hActionList, LB_SETCARETINDEX, indices[0], TRUE);
+    }
+}
+
+void CNewTrigger::GetActionListBoxSels(std::vector<int>& indices)
+{
+    int numSelected = SendMessage(hActionList, LB_GETSELCOUNT, 0, 0);
+    indices.resize(numSelected);
+    SendMessage(hActionList, LB_GETSELITEMS, numSelected, (LPARAM)indices.data());
+    std::sort(indices.begin(), indices.end());
+}
+
 void CNewTrigger::OnClickSearchReference(HWND& hWnd)
 {
     if (SelectedTriggerIndex < 0 || !CurrentTrigger)
@@ -2828,21 +2904,120 @@ void CNewTrigger::OnClickActionMove(HWND& hWnd, bool isUp)
     if (SelectedTriggerIndex < 0 || !CurrentTrigger || CurrentTrigger->ActionCount < 2)
         return;
 
-    if (SelectedActionIndex <= 0 && isUp || SelectedActionIndex >= CurrentTrigger->ActionCount - 1 && !isUp)
-        return;
+    std::vector<int> selected;
+    GetActionListBoxSels(selected);
 
-    int index = isUp ? SelectedActionIndex : SelectedActionIndex + 1;
-    if (index > 0 && index < CurrentTrigger->Actions.size()) {
-        std::swap(CurrentTrigger->Actions[index], CurrentTrigger->Actions[index - 1]);
+    for (auto& i : selected)
+    {
+        if (isUp && i == 0) return;
+        else if(!isUp && i == CurrentTrigger->ActionCount - 1) return;
     }
+
+    if (isUp)
+    {
+        for (auto it = selected.begin(); it != selected.end(); ++it)
+        {
+            if (*it > 0 && *it < CurrentTrigger->Actions.size()) {
+                std::swap(CurrentTrigger->Actions[*it], CurrentTrigger->Actions[*it - 1]);
+            }
+        }
+    }
+    else
+    {
+        for (auto it = selected.rbegin(); it != selected.rend(); ++it)
+        {
+            if (*it >= 0 && *it < CurrentTrigger->Actions.size() - 1) {
+                std::swap(CurrentTrigger->Actions[*it + 1], CurrentTrigger->Actions[*it]);
+            }
+        }
+    }
+
     CurrentTrigger->Save();
     while (SendMessage(hActionList, LB_DELETESTRING, 0, NULL) != CB_ERR);
     for (int i = 0; i < CurrentTrigger->ActionCount; i++)
     {
         SendMessage(hActionList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(CurrentTrigger->Actions[i].ActionNum, i, !CompactMode));
     }
-    SendMessage(hActionList, LB_SETCURSEL, isUp ? SelectedActionIndex - 1: SelectedActionIndex + 1, NULL);
+
+    for (auto& i : selected)
+    {
+        if (isUp) i--;
+        else i++;
+    }
+    if (selected.size() > 1)
+        SetActionListBoxSels(selected);
+    else
+        SetActionListBoxSel(isUp ? SelectedActionIndex - 1 : SelectedActionIndex + 1);
+
     OnSelchangeActionListbox();
+    RefreshOtherInstances();
+}
+
+void CNewTrigger::OnClickActionSplit(HWND& hWnd)
+{
+    if (SelectedTriggerIndex < 0 || !CurrentTrigger || !CurrentTrigger->ActionCount)
+        return;
+
+    std::vector<int> selected;
+    GetActionListBoxSels(selected);
+    if (selected.empty())
+        return;
+
+    int firstIndex = CurrentTrigger->ActionCount;
+    std::vector<ActionParams> params;
+    for (auto it = selected.rbegin(); it != selected.rend(); ++it)
+    {
+        if (*it >= 0 && *it < CurrentTrigger->Actions.size()) {
+            params.push_back(CurrentTrigger->Actions[*it]);
+            CurrentTrigger->Actions.erase(CurrentTrigger->Actions.begin() + *it);
+            CurrentTrigger->ActionCount--;
+            firstIndex = *it;
+        }
+    }
+    FString id = CMapDataExt::GetAvailableIndex();
+    // allow new trigger
+    CurrentTrigger->Actions.insert(CurrentTrigger->Actions.begin() + firstIndex,
+        { "53", {"2",id,"0","0","0","0","A"}, false });
+    CurrentTrigger->ActionCount++;
+
+    CurrentTrigger->Save();
+
+    std::reverse(params.begin(), params.end());
+    TempValueHolder<bool> tmp(AutoChangeName, true);
+    CNewTeamTypes::TagListChanged = true;
+    FString value;
+    FString newName = CurrentTrigger->Name + " #Split";
+
+    value.Format("%s,<none>,%s,0,1,1,1,0", CurrentTrigger->House, newName);
+
+    map.WriteString("Triggers", id, value);
+    map.WriteString("Events", id, "1,13,0,0"); // elapsed 0s
+    FString tagId = CMapDataExt::GetAvailableIndex();
+    value.Format("0,%s 1,%s", newName, id);
+    map.WriteString("Tags", tagId, value);
+
+    CMapDataExt::AddTrigger(id);
+
+    if (auto newTrigger = CMapDataExt::GetTrigger(id))
+    {
+        newTrigger->Actions = params;
+        newTrigger->ActionCount = params.size();
+        newTrigger->EasyEnabled = CurrentTrigger->EasyEnabled;
+        newTrigger->MediumEnabled = CurrentTrigger->MediumEnabled;
+        newTrigger->HardEnabled = CurrentTrigger->HardEnabled;
+        newTrigger->RepeatType = CurrentTrigger->RepeatType;
+        newTrigger->Disabled = true;
+        if (CurrentTrigger->RepeatType == "2")
+        {
+            ActionParams disableSelf = { "54", {"2",id,"0","0","0","0","A"}, false };
+            newTrigger->Actions.push_back(disableSelf);
+            newTrigger->ActionCount++;
+        }
+        newTrigger->Save();
+    }
+
+    SortTriggers(id);
+    OnSelchangeTrigger();
 }
 
 void CNewTrigger::SortTriggers(FString id, bool onlySelf)
@@ -2958,6 +3133,18 @@ void CNewTrigger::RefreshOtherInstances()
                     o->SelectedEventIndex,
                     o->SelectedActionIndex,
                     false);
+            }
+        }
+
+        if (CBatchTrigger::GetHandle())
+        {
+            for (int i = 0; i < CBatchTrigger::ListedTriggerIDs.size(); ++i)
+            {
+                auto& id = CBatchTrigger::ListedTriggerIDs[i];
+                if (id == CurrentTriggerID)
+                {
+                    CBatchTrigger::RefreshTrigger(i);
+                }
             }
         }
     }

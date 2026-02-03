@@ -15,6 +15,7 @@
 #include "../CMapData/Body.h"
 #include "../../Miscs/MultiSelection.h"
 #include "../../ExtraWindow/CTileManager/CTileManager.h"
+#include "../../ExtraWindow/CObjectSearch/CObjectSearch.h"
 #include "../../ExtraWindow/CAnnotationDlg/CAnnotationDlg.h"
 #include "../CLoading/Body.h"
 #include <Miscs/Miscs.h>
@@ -488,6 +489,11 @@ void CViewObjectsExt::Redraw_Initialize()
     if (CTileManager::GetHandle())
     {
         ::SendMessage(CTileManager::GetHandle(), 114514, 0, 0);
+    }
+    if (CObjectSearch::GetHandle())
+    {
+        ::SendMessage(CObjectSearch::GetHandle(), 114515, 0, 0);
+        ::SendMessage(CObjectSearch::GetHandle(), 114514, 0, 0);
     }
     AddedItemCount = 0;
 

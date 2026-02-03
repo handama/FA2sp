@@ -304,7 +304,6 @@ void CCsfEditor::OnViewerSelectedChange(NMHDR* pNMHDR)
             CurrentSelectedCSFApply = "";
         }
     }
-    
 }
 
 void CCsfEditor::OnClickApply()

@@ -343,6 +343,7 @@ public:
         Compact = 2002,
         ActionMoveUp = 2003,
         ActionMoveDown = 2004,
+        ActionSplit = 2005,
     };
 
     void Create(CFinalSunDlg* pWnd);
@@ -362,7 +363,7 @@ public:
     void OnSelchangeActionParam(int index, bool edited = false);
     void OnClickNewTrigger();
     void OnSelchangeEventListbox(bool changeCursel = true);
-    void OnSelchangeActionListbox(bool changeCursel = true);
+    void OnSelchangeActionListbox(bool changeCursel = true, int index = -1);
 
 protected:
     void Initialize(HWND& hWnd);
@@ -381,6 +382,7 @@ protected:
     void OnClickCloAction(HWND& hWnd);
     void OnClickSearchReference(HWND& hWnd);
     void OnClickActionMove(HWND& hWnd, bool isUp);
+    void OnClickActionSplit(HWND& hWnd);
 
     void OnSelchangeHouse(bool edited = false);
     void OnSelchangeType(bool edited = false);
@@ -392,6 +394,9 @@ protected:
 
     void OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly = false);
     void OnDropdownCComboBox(int index);
+    void SetActionListBoxSel(int index);
+    void SetActionListBoxSels(std::vector<int>& indices);
+    void GetActionListBoxSels(std::vector<int>& indices);
 
     void SortTriggers(FString id = "", bool onlySelf = false);
 
@@ -461,6 +466,7 @@ public:
     HWND hCompact;
     HWND hActionMoveUp;
     HWND hActionMoveDown;
+    HWND hActionSplit;
     HWND hActionParameter[ACTION_PARAM_COUNT];
     HWND hActionParameterDesc[ACTION_PARAM_COUNT];
 
@@ -476,11 +482,12 @@ public:
 
     FString CurrentTriggerID;
     std::shared_ptr<Trigger> CurrentTrigger;
-
-private:
+    bool DropNeedUpdate;
     int SelectedTriggerIndex;
     int SelectedEventIndex;
     int SelectedActionIndex;
+
+private:
     int ActionParamsCount;
     int LastActionParamsCount;
     bool WindowShown;
@@ -498,7 +505,6 @@ private:
     bool ActionParameterAutoDrop[ACTION_PARAM_COUNT];
 
     bool Autodrop;
-    bool DropNeedUpdate;
     bool CompactMode = false;
     WNDPROC OriginalListBoxProcEvent;
     WNDPROC OriginalListBoxProcAction;

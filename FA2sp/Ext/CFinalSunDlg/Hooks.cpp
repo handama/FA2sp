@@ -179,6 +179,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(40043, "Menu.Edit.Lighting");
     translateMenuItem(40039, "Menu.Edit.Houses");
     translateMenuItem(40151, "Menu.Edit.TriggerEditor");
+    translateMenuItem(40168, "Menu.Edit.BatchTriggerEditor");
     translateMenuItem(40042, "Menu.Edit.TagEditor");
     translateMenuItem(40139, "Menu.Edit.Taskforces");
     translateMenuItem(40150, "Menu.Edit.Scripts");

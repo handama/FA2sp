@@ -2874,7 +2874,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	// line tool
 	auto& command = pThis->LastAltCommand;
 	if ((GetKeyState(VK_MENU) & 0x8000) && command.isSame() 
-		&& (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers))
+		&& (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers)
+		&& CIsoView::CurrentCommand->Command != 4)
 	{
 		auto point = pThis->GetCurrentMapCoord(pThis->MouseCurrentPosition);
 		auto mapCoords = pThis->GetLinePoints({ command.X, command.Y }, { point.X,point.Y });

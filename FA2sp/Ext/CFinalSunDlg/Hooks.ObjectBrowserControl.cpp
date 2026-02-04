@@ -638,7 +638,9 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
     else if ((GetKeyState(VK_MENU) & 0x8000) && 
         (CIsoView::CurrentCommand->Command == 1 ||
             CIsoView::CurrentCommand->Command == 10 ||
-            CIsoView::CurrentCommand->Command == 22))
+            CIsoView::CurrentCommand->Command == 22 ||
+            CIsoView::CurrentCommand->Command == 4
+            && CIsoView::CurrentCommand->Type == 4))
     {
         auto pMap = CMapDataExt::GetExtension();
         if (command.isSame())
@@ -1153,6 +1155,15 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                 {
                     CIsoView::GetInstance()->DrawMouseAttachedStuff(mc.X, mc.Y);
                 }
+            }
+            else if (command.Command == 4) // place tag
+            {
+                for (auto& m : mapCoords)
+                {
+                    int pos = pMap->GetCoordIndex(m.X, m.Y);
+                    pMap->AddCelltag(CIsoView::CurrentCommand->ObjectID, pos);
+                }
+                CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
             }
             command.reset();
         }

@@ -168,11 +168,9 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
 
             // -------------------  Key=Value -------------------
             if (pCurrentSection) {
-                size_t eqPos = line.find('=');
-
                 FString inlineComment;
                 if (keepComment) {
-                    size_t commentPos = line.find(';', eqPos + 1);
+                    size_t commentPos = line.find(';');
                     if (commentPos != FString::npos) {
                         inlineComment = line.substr(commentPos + 1);
                         inlineComment.Trim();
@@ -180,6 +178,8 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                     }
                 }
 
+                FString::TrimSemicolon(line);
+                size_t eqPos = line.find('=');
                 if (eqPos == FString::npos) continue;
 
                 FString key = line.substr(0, eqPos);

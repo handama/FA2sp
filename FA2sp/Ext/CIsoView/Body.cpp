@@ -4324,6 +4324,9 @@ std::vector<MapCoord> CIsoViewExt::GetLinePoints(MapCoord mc1, MapCoord mc2)
 {
     std::vector<MapCoord> points;
 
+    if (mc1.X == 0 && mc1.Y == 0 || mc2.X == 0 && mc2.Y == 0)
+        return points;
+
     int dx = std::abs(mc2.X - mc1.X);
     int dy = -std::abs(mc2.Y - mc1.Y);
     int sx = (mc1.X < mc2.X) ? 1 : -1;

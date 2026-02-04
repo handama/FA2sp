@@ -2376,6 +2376,17 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         }
         ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
     }
+
+    auto& command = pIsoView->LastAltCommand;
+    if ((GetKeyState(VK_MENU) & 0x8000) && command.isSame() &&
+        (CIsoView::CurrentCommand->Command == 4
+            && CIsoView::CurrentCommand->Type == 4))
+    {
+        auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+        auto mapCoords = pIsoView->GetLinePoints({ command.X, command.Y }, { point.X,point.Y });
+        CIsoViewExt::DrawMultiMapCoordBorders(hDC, mapCoords, ExtConfigs::CursorSelectionBound_Color);
+    }
+
     if (!ExtConfigs::DisplayObjectsOutside && CMapData::Instance().IsCoordInMap(point.X, point.Y)
         || ExtConfigs::DisplayObjectsOutside && CMapDataExt::IsCoordInFullMap(point.X, point.Y))
     {

@@ -2180,7 +2180,7 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
 void CNewTrigger::OnClickPlaceOnMap(HWND& hWnd)
 {
     if (!CurrentTrigger) return;
-    if (!CurrentTrigger->Tag) return;
+    if (CurrentTrigger->Tag.IsEmpty()) return;
     if (CurrentTrigger->Tag == "<none>") return;
 
     CIsoView::CurrentCommand->Command = 4;

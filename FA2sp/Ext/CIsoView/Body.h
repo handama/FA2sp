@@ -315,7 +315,7 @@ public:
         bool isValidCommand()
         {
             return
-                Command == 1 || Command == 10 || Command == 22;
+                Command == 1 || Command == 10 || Command == 22 || Command == 4;
         }
 
         bool isSame()

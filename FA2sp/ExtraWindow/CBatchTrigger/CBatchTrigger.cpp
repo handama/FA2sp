@@ -755,7 +755,7 @@ void CBatchTrigger::Update(bool afterInit, bool updateTrigger)
 
         std::sort(items.begin(), items.end(),
             [](const auto& a, const auto& b) {
-            return ExtraWindow::SortLabels(a.first, b.first);
+            return ExtraWindow::SortRawStrings(a.first, b.first);
         });
 
         ExtConfigs::SortByLabelName = tmp;

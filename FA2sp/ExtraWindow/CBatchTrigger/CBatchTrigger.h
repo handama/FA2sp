@@ -10,12 +10,12 @@
 #include "../../Helpers/FString.h"
 
 class Trigger;
+class HelpDlg;
 
 struct CellColor {
     int row;
     int col;
     COLORREF fontColor;
-    FString oriValue;
 };
 
 enum class ObjType
@@ -64,8 +64,11 @@ public:
         AutoFill = 1008,
         UseID = 1009,
         Search = 1011,
+        Help = 1012,
         MoveUp = 1015,
         MoveDown = 1016,
+        DisplayID = 1017,
+        ClearHighlight = 1018,
     };
     static void Create(CFinalSunDlg* pWnd);
 
@@ -89,7 +92,11 @@ protected:
     static void OnClickAutoFill();
     static void OnSearchEditChanged();
     static void OnClickUseID();
+    static void OnClickDisplayID();
+    static void UpdateListBox();
     static void OnClickMove(bool isUp);
+    static void OnClickClearHighlight();
+    static void OnClickHelp();
     static void OnViewerSelectedChange(LPNMHDR pNMHDR);
     static void AddTrigger(const FString& ID);
     static void InsertTrigger(int index, std::shared_ptr<Trigger> trigger);
@@ -104,7 +111,7 @@ protected:
     static bool GetCellRect(HWND hListView, int row, int col, RECT& outRect);
     static HWND CreateInplaceEdit(HWND hListView, int row, int col, const char* initialText);
     static void EndInplaceEdit(bool bSave);
-    static void SetFontColor(HWND hListView, int row, int col, COLORREF color, const FString& oriValue, const FString& newValue);
+    static void SetFontColor(HWND hListView, int row, int col, COLORREF color);
     static void AddObject(const FString& id, const FString& name, ObjType type);
     static FString IdToName(const FString& id);
     static FString NameToId(const FString& name, ObjType forceType);
@@ -126,6 +133,9 @@ private:
     static HWND hSearch;
     static HWND hMoveUp;
     static HWND hMoveDown;
+    static HWND hDisplayID;
+    static HWND hClearHighlight;
+    static HWND hHelp;
     static HWND g_hInplaceEdit;
     static int g_nEditRow;
     static int g_nEditCol;
@@ -143,12 +153,14 @@ private:
     static FString g_nEditOri;
     static bool IsUpdating;
     static bool bUseID;
+    static bool bDisplayID;
 
     static std::vector<ObjInfo> objects;
     static std::unordered_map<FString, ObjInfo*> idIndex;
     static std::unordered_map<FString, ObjInfo*> triggerNameIndex;
     static std::unordered_map<FString, ObjInfo*> tagNameIndex;
     static std::unordered_map<FString, ObjInfo*> teamNameIndex;
+    static HelpDlg hdHelp;
 
 public:
     static std::vector<FString> ListedTriggerIDs;

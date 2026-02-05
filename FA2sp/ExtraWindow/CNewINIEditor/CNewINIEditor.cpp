@@ -408,7 +408,6 @@ void CNewINIEditor::OnClickImportText(HWND& hWnd)
     {
         Logger::Error("Failed to create CNewINIEditorImporter.\n");
     }
-
 }
 
 inline static bool IsValidSectionLine(const FString& line)

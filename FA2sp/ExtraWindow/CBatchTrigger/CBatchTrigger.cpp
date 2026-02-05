@@ -34,6 +34,9 @@ HWND CBatchTrigger::hUseID;
 HWND CBatchTrigger::hSearch;
 HWND CBatchTrigger::hMoveUp;
 HWND CBatchTrigger::hMoveDown;
+HWND CBatchTrigger::hDisplayID;
+HWND CBatchTrigger::hClearHighlight;
+HWND CBatchTrigger::hHelp;
 HWND CBatchTrigger::g_hInplaceEdit;
 int CBatchTrigger::g_nEditRow = -1;
 int CBatchTrigger::g_nEditCol = -1;
@@ -53,12 +56,14 @@ FString CBatchTrigger::g_nEditOri;
 bool CBatchTrigger::NeedClear = false;
 bool CBatchTrigger::IsUpdating = false;
 bool CBatchTrigger::bUseID = false;
+bool CBatchTrigger::bDisplayID = false;
 static std::vector<ObjInfo> objects;
 std::vector<ObjInfo> CBatchTrigger::objects;
 std::unordered_map<FString, ObjInfo*> CBatchTrigger::idIndex;
 std::unordered_map<FString, ObjInfo*> CBatchTrigger::triggerNameIndex;
 std::unordered_map<FString, ObjInfo*> CBatchTrigger::tagNameIndex;
 std::unordered_map<FString, ObjInfo*> CBatchTrigger::teamNameIndex;
+HelpDlg CBatchTrigger::hdHelp;
 
 LRESULT CALLBACK CBatchTrigger::ListViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -107,9 +112,12 @@ void CBatchTrigger::Initialize(HWND& hWnd)
 	Translate(1013, "BatchTriggerAllTriggers");
 	Translate(1014, "BatchTriggerCurrentTriggers");
 	Translate(1010, "BatchTriggerSearchTrigger");
-	Translate(1012, "BatchTriggerDesc");
+	//Translate(1012, "BatchTriggerDesc");
+	Translate(1012, "BatchTriggerHelp");
 	Translate(1015, "BatchTriggerMoveUp");
 	Translate(1016, "BatchTriggerMoveDown");
+	Translate(1017, "BatchTriggerDisplayID");
+	Translate(1018, "BatchTriggerClearHighlight");
 
     hListbox = GetDlgItem(hWnd, Controls::Listbox);
     hListView = GetDlgItem(hWnd, Controls::ListView);
@@ -122,6 +130,9 @@ void CBatchTrigger::Initialize(HWND& hWnd)
     hSearch = GetDlgItem(hWnd, Controls::Search);
     hMoveUp = GetDlgItem(hWnd, Controls::MoveUp);
     hMoveDown = GetDlgItem(hWnd, Controls::MoveDown);
+    hDisplayID = GetDlgItem(hWnd, Controls::DisplayID);
+    hClearHighlight = GetDlgItem(hWnd, Controls::ClearHighlight);
+    hHelp = GetDlgItem(hWnd, Controls::Help);
 
     ExtraWindow::SetEditControlFontSize(hListView, 1.2f);
     ExtraWindow::RegisterDropTarget(hListView, DropType::BatchTriggerListView);
@@ -178,6 +189,7 @@ void CBatchTrigger::Close(HWND& hWnd)
 
     CBatchTrigger::m_hwnd = NULL;
     CBatchTrigger::m_parent = NULL;
+    hdHelp.CloseHelpDlg();
 }
 
 BOOL CALLBACK CBatchTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
@@ -302,6 +314,18 @@ BOOL CALLBACK CBatchTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         case Controls::UseID:
             if (CODE == BN_CLICKED)
                 OnClickUseID();
+            break;
+        case Controls::DisplayID:
+            if (CODE == BN_CLICKED)
+                OnClickDisplayID();
+            break;
+        case Controls::ClearHighlight:
+            if (CODE == BN_CLICKED)
+                OnClickClearHighlight();
+            break;
+        case Controls::Help:
+            if (CODE == BN_CLICKED)
+                OnClickHelp();
             break;
         case Controls::EventIndex:
             if (CODE == EN_CHANGE)
@@ -498,25 +522,15 @@ LRESULT CALLBACK CBatchTrigger::InplaceEditProc(HWND hWnd, UINT msg, WPARAM wPar
     return CallWindowProc(oldProc, hWnd, msg, wParam, lParam);
 }
 
-void CBatchTrigger::SetFontColor(HWND hListView, int row, int col, COLORREF color, const FString& oriValue, const FString& newValue)
+void CBatchTrigger::SetFontColor(HWND hListView, int row, int col, COLORREF color)
 {
     bool repeated = false;
     FString lastValue;
     g_specialCells.erase(std::remove_if(g_specialCells.begin(), g_specialCells.end(),
         [row, col, &lastValue, &repeated](CellColor& i) {
-        if (i.row == row && i.col == col)
-        {
-            repeated = true;
-            lastValue = i.oriValue;
-            return true;
-        }
-        return false;
+        return i.row == row && i.col == col;
     }), g_specialCells.end());
-    auto& origin = repeated ? lastValue : oriValue;
-    //if (origin != newValue)
-    //{
-        g_specialCells.push_back({ row, col, color, origin });
-    //}
+    g_specialCells.push_back({ row, col, color });
     InvalidateRect(hListView, NULL, TRUE);
 }
 
@@ -599,7 +613,7 @@ void CBatchTrigger::EndInplaceEdit(bool bSave)
             }
             else
             {
-                SetFontColor(hListView, g_nEditRow, g_nEditCol, RGB(255, 0, 0), g_nEditOri, buf);
+                SetFontColor(hListView, g_nEditRow, g_nEditCol, RGB(255, 0, 0));
             }
         }
     }
@@ -737,40 +751,11 @@ void CBatchTrigger::Update(bool afterInit, bool updateTrigger)
             }
         }
 
-        while (SendMessage(hListbox, LB_DELETESTRING, 0, NULL) != CB_ERR);
-        int idx = 0;
-        bool displayId = false;
-        std::vector<std::pair<FString, FString>> items;
-
-        for (auto& [_, trigger] : CMapDataExt::Triggers) {
-            FString label = displayId
-                ? ExtraWindow::GetTriggerDisplayName(trigger->ID)
-                : trigger->Name;
-
-            items.emplace_back(label, trigger->ID);
-        }
-
-        bool tmp = ExtConfigs::SortByLabelName;
-        ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Trigger;
-
-        std::sort(items.begin(), items.end(),
-            [](const auto& a, const auto& b) {
-            return ExtraWindow::SortRawStrings(a.first, b.first);
-        });
-
-        ExtConfigs::SortByLabelName = tmp;
-
-        ListboxTriggerID.clear();
-        for (auto& [label, id] : items)
-        {
-            SendMessage(hListbox, LB_INSERTSTRING, idx, label);
-            auto& data = ListboxTriggerID.emplace_back(id);
-            SendMessage(hListbox, LB_SETITEMDATA, idx, (LPARAM)&data);
-            idx++;
-        }
+        UpdateListBox();
     }
 
     SendMessage(hUseID, BM_SETCHECK, bUseID ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessage(hDisplayID, BM_SETCHECK, bDisplayID ? BST_CHECKED : BST_UNCHECKED, 0);
 
     std::vector<FString> listedTriggers;
     if (NeedClear)
@@ -801,6 +786,42 @@ void CBatchTrigger::Update(bool afterInit, bool updateTrigger)
         }
     }
     return;
+}
+
+void CBatchTrigger::UpdateListBox()
+{
+    while (SendMessage(hListbox, LB_DELETESTRING, 0, NULL) != CB_ERR);
+    int idx = 0;
+    std::vector<std::pair<FString, FString>> items;
+
+    for (auto& [_, trigger] : CMapDataExt::Triggers) {
+        FString label = bDisplayID
+            ? ExtraWindow::GetTriggerDisplayName(trigger->ID)
+            : trigger->Name;
+
+        items.emplace_back(label, trigger->ID);
+    }
+
+    bool tmp = ExtConfigs::SortByLabelName;
+    ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Trigger;
+
+    std::sort(items.begin(), items.end(),
+        [](const auto& a, const auto& b) {
+        return bDisplayID ? ExtraWindow::SortLabels(a.first, b.first) :
+            ExtraWindow::SortRawStrings(a.first, b.first);
+    });
+
+    ExtConfigs::SortByLabelName = tmp;
+
+    ListboxTriggerID.clear();
+    for (auto& [label, id] : items)
+    {
+        SendMessage(hListbox, LB_INSERTSTRING, idx, label);
+        auto& data = ListboxTriggerID.emplace_back(id);
+        SendMessage(hListbox, LB_SETITEMDATA, idx, (LPARAM)&data);
+        idx++;
+    }
+    ExtraWindow::UpdateListBoxHScroll(hListbox);
 }
 
 void CBatchTrigger::OnViewerSelectedChange(LPNMHDR pNMHDR)
@@ -972,7 +993,7 @@ static std::vector<std::string> AutoFillByPattern(const std::string& a, const st
 
 void CBatchTrigger::OnClickAutoFill()
 {
-    std::map<int, std::map<int, CellColor>> cells;
+    std::map<int, std::map<int, FString>> cells;
     int nRowCount = SendMessage(hListView, LVM_GETITEMCOUNT, 0, 0);
     auto getValue = [](int row, int col)
     {
@@ -985,13 +1006,12 @@ void CBatchTrigger::OnClickAutoFill()
     for (auto& c : g_specialCells)
     {
         auto& c2 = cells[c.col][c.row];
-        c2 = c;
-        c2.oriValue = getValue(c.row, c.col);
+        c2 = getValue(c.row, c.col);
     }
     for (auto& [col, colCells] : cells)
     {
         int firstLine = -1;
-        CellColor* reference[2]{};
+        FString* reference[2]{};
         for (auto& [row, rowCell] : colCells)
         {
             if (firstLine == -1)
@@ -1007,7 +1027,7 @@ void CBatchTrigger::OnClickAutoFill()
         if (reference[0] && reference[1])
         {
             int size = nRowCount - firstLine;
-            auto result = AutoFillByPattern(reference[0]->oriValue, reference[1]->oriValue, size);
+            auto result = AutoFillByPattern(*reference[0], *reference[1], size);
 
             if (result.size() == size)
             {
@@ -1044,6 +1064,12 @@ void CBatchTrigger::OnClickUseID()
     Update(false, false);
 }
 
+void CBatchTrigger::OnClickDisplayID()
+{
+    bDisplayID = SendMessage(hDisplayID, BM_GETCHECK, 0, 0); 
+    UpdateListBox();
+}
+
 void CBatchTrigger::SelectListViewRows(const std::vector<int>& indices)
 {
     int totalRows = (int)SendMessage(hListView, LVM_GETITEMCOUNT, 0, 0);
@@ -1063,6 +1089,20 @@ void CBatchTrigger::SelectListViewRows(const std::vector<int>& indices)
             LVIS_SELECTED | LVIS_FOCUSED);
     }
     SetFocus(hListView);
+}
+
+void CBatchTrigger::OnClickHelp()
+{
+    hdHelp.CreateHelpDlg(m_hwnd,
+        Translations::TranslateOrDefault("BatchTriggerHelp", "Help"),
+        Translations::TranslateOrDefault("BatchTriggerDesc", "DESC")
+    );
+}
+
+void CBatchTrigger::OnClickClearHighlight()
+{
+    g_specialCells.clear();
+    InvalidateRect(hListView, NULL, TRUE);
 }
 
 void CBatchTrigger::OnClickMove(bool isUp)

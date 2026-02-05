@@ -98,6 +98,7 @@ public:
     static FString GetScintillaText(HWND hScintilla);
     static void SetScintillaText(HWND hScintilla, FString& text);
     static bool HitTestListView(HWND hListView, POINT ptScreen, ListViewHitResult& out);
+    static void UpdateListBoxHScroll(HWND hListBox);
 
     static std::vector<DropTarget> g_DropTargets;
 
@@ -107,5 +108,21 @@ private:
     static MultimapHelper& rules;
 };
 
+class HelpDlg
+{
+public:
+    void CreateHelpDlg(HWND& hParent, const FString& Title, const FString& Text);
+    void CloseHelpDlg();
+protected:
+    static BOOL CALLBACK HelpDlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+    BOOL CALLBACK HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+    HWND hDlg;
+    HWND hText;
+    int origWndWidth;
+    int origWndHeight;
+    int minWndWidth;
+    int minWndHeight;
+    bool minSizeSet;
+};
 
 

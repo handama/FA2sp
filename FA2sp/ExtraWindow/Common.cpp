@@ -1200,3 +1200,139 @@ bool ExtraWindow::HitTestListView(
     out.flags = hti.flags;
     return true;
 }
+
+void ExtraWindow::UpdateListBoxHScroll(HWND hListBox)
+{
+    HDC hdc = GetDC(hListBox);
+    HFONT hFont = (HFONT)SendMessage(hListBox, WM_GETFONT, 0, 0);
+    HFONT old = (HFONT)SelectObject(hdc, hFont);
+
+    int count = (int)SendMessage(hListBox, LB_GETCOUNT, 0, 0);
+    int maxWidth = 0;
+
+    for (int i = 0; i < count; ++i)
+    {
+        int len = (int)SendMessageW(hListBox, LB_GETTEXTLEN, i, 0);
+        if (len <= 0) continue;
+
+        std::wstring text(len + 1, L'\0');
+        SendMessageW(hListBox, LB_GETTEXT, i, (LPARAM)text.data());
+
+        SIZE sz{};
+        GetTextExtentPoint32W(hdc, text.c_str(), len, &sz);
+        maxWidth = MAX(maxWidth, (int)sz.cx);
+    }
+
+    SelectObject(hdc, old);
+    ReleaseDC(hListBox, hdc);
+
+    SendMessage(hListBox, LB_SETHORIZONTALEXTENT, maxWidth + 10, 0);
+}
+
+void HelpDlg::CreateHelpDlg(HWND& hParent, const FString& Title, const FString& Text)
+{
+    if (hDlg) return;
+
+    hDlg = CreateDialogParam(
+        static_cast<HINSTANCE>(FA2sp::hInstance),
+        MAKEINTRESOURCE(334),
+        hParent,
+        HelpDlgProc,
+        reinterpret_cast<LPARAM>(this)
+    );
+
+    if (hDlg)
+    {
+        ShowWindow(hDlg, SW_SHOW);
+        hText = GetDlgItem(hDlg, 1000);
+        SetWindowText(hDlg, Title);
+        SetWindowText(hText, Text);
+        ExtraWindow::SetEditControlFontSize(hText, 1.2f);
+
+        RECT rect;
+        GetClientRect(hDlg, &rect);
+        origWndWidth = rect.right - rect.left;
+        origWndHeight = rect.bottom - rect.top;
+        minSizeSet = false;
+    }
+    else
+    {
+        Logger::Error("Failed to create HelpDlg.\n");
+    }
+}
+
+BOOL CALLBACK HelpDlg::HelpDlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+    HelpDlg* self = nullptr;
+
+    if (Msg == WM_INITDIALOG)
+    {
+        self = reinterpret_cast<HelpDlg*>(lParam);
+        if (self == nullptr) return FALSE;
+
+        self->hDlg = hWnd;
+        SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)self);
+        return TRUE;
+    }
+
+    self = reinterpret_cast<HelpDlg*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+    if (self == nullptr)
+        return FALSE;
+    return self->HandleMsg(hWnd, Msg, wParam, lParam);
+}
+
+BOOL CALLBACK HelpDlg::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (Msg)
+    {
+    case WM_INITDIALOG:
+    {
+        return TRUE;
+    }
+    case WM_GETMINMAXINFO: 
+    {
+        if (!minSizeSet) {
+            int borderWidth = GetSystemMetrics(SM_CXBORDER);
+            int borderHeight = GetSystemMetrics(SM_CYBORDER);
+            int captionHeight = GetSystemMetrics(SM_CYCAPTION);
+            minWndWidth = origWndWidth + 2 * borderWidth;
+            minWndHeight = origWndHeight + captionHeight + 2 * borderHeight;
+            minSizeSet = true;
+        }
+        MINMAXINFO* pMinMax = (MINMAXINFO*)lParam;
+        pMinMax->ptMinTrackSize.x = minWndWidth;
+        pMinMax->ptMinTrackSize.y = minWndHeight;
+        return TRUE;
+    }
+    case WM_SIZE: 
+    {
+        int newWndWidth = LOWORD(lParam);
+        int newWndHeight = HIWORD(lParam);
+
+        RECT rect;
+        GetWindowRect(hText, &rect);
+        POINT topLeft = { rect.left, rect.top };
+        ScreenToClient(hWnd, &topLeft);
+        int newWidth = rect.right - rect.left + newWndWidth - origWndWidth;
+        int newHeight = rect.bottom - rect.top + newWndHeight - origWndHeight;
+        MoveWindow(hText, topLeft.x, topLeft.y, newWidth, newHeight, TRUE);
+
+        origWndWidth = newWndWidth;
+        origWndHeight = newWndHeight;
+        break;
+    }
+    case WM_CLOSE:
+    {
+        CloseHelpDlg();
+        return TRUE;
+    }
+    }
+    return FALSE;
+}
+
+void HelpDlg::CloseHelpDlg()
+{
+    EndDialog(hDlg, NULL);
+    hDlg = NULL;
+    hText = NULL;
+}

@@ -14,6 +14,7 @@ public:
     static CFinalSunAppExt* GetInstance();
 
     BOOL InitInstanceExt();
+    void ParseCommandLine(const char* cmdLine);
 
     static std::vector<std::string> RecentFilesExt;
     static std::array<std::pair<std::string, std::string>, 7> ExternalLinks;

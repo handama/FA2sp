@@ -578,6 +578,12 @@ DEFINE_HOOK(435FDD, CFinalSunDlg_OnMarblemadness, 6)
     return 0;
 }
 
+DEFINE_HOOK(42459A, CFinalSunDlg_OnInitDialog_LoadMap, 6)
+{
+    CMapData::Instance->LoadMap(CFinalSunApp::MapPath());
+    return 0x4245CD;
+}
+
 DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp_CancelDistanceRuler, 6)
 {
     if (!CIsoView::GetInstance()->IsScrolling)

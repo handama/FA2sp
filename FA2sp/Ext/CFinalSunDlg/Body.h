@@ -230,7 +230,7 @@ private:
     static bool InsertingSpecialBitmap;
     static FString InsertingObjectID;
     static CBitmap SpecialBitmap;
-    static std::set<int> InsertedTileSets;
+    static std::set<int> InsertedTileIndices;
 
     HTREEITEM InsertString(const char* pString, DWORD dwItemData = 0, 
         HTREEITEM hParent = TVI_ROOT, HTREEITEM hInsertAfter = TVI_LAST);

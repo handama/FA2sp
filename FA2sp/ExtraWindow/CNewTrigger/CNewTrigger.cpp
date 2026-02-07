@@ -2129,6 +2129,16 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
                     CMapData::Instance->UpdateFieldCelltagData(FALSE);
                     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
                 }
+
+                if (CIsoView::CurrentCommand->Command == 4
+                    && CIsoView::CurrentCommand->Type == 4
+                    && CIsoView::CurrentCommand->ObjectID == CurrentTrigger->Tag
+                    )
+                {
+                    CIsoView::CurrentCommand->Command = 0;
+                    CIsoView::CurrentCommand->Type = 0;
+                    CIsoView::CurrentCommand->ObjectID = "";
+                }
             }
         }
         map.DeleteKey("Triggers", CurrentTrigger->ID);

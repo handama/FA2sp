@@ -1371,24 +1371,24 @@ void CMapDataExt::SmoothTileAt(int X, int Y, bool gameLAT)
 
 void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 {
-	std::vector<std::pair<int, int>> morphable;
-	for (int nMorphable = 0; nMorphable < TheaterInfo::CurrentInfo.size(); nMorphable++)
-		morphable.push_back(std::make_pair(TheaterInfo::CurrentInfo[nMorphable].Morphable, TheaterInfo::CurrentInfo[nMorphable].Ramp));
-
+	auto isDefinedMorphable = [](int tileIndex)
+	{
+		return CMapDataExt::TileData[tileIndex].Morphable;
+	};
 	auto cell = CMapData::Instance->TryGetCellAt(x, y);
 	int groundClick = cell->TileIndex;
 	if (groundClick == 0xFFFF) groundClick = 0;
-	if (!IgnoreMorphable && !CMapDataExt::TileData[groundClick].Morphable) return;
+	if (!IgnoreMorphable && !isDefinedMorphable(groundClick)) return;
 
 	// default use clear
 	int startTile = CMapDataExt::TileSet_starts[CINI::CurrentTheater->GetInteger("General", "RampBase", 9)];
 	int flatTile = CMapDataExt::TileSet_starts[0];
-	for (auto& pair : morphable)
+	for (auto& info : TheaterInfo::CurrentInfo)
 	{
-		if (CMapDataExt::TileData[groundClick].TileSet == pair.first || CMapDataExt::TileData[groundClick].TileSet == pair.second)
+		if (groundClick == info.MorphableIndex || CMapDataExt::TileData[groundClick].TileSet == info.Ramp)
 		{
-			startTile = CMapDataExt::TileSet_starts[pair.second];
-			flatTile = CMapDataExt::TileSet_starts[pair.first];
+			startTile = CMapDataExt::TileSet_starts[info.Ramp];
+			flatTile = info.MorphableIndex;
 			break;
 		}
 	}
@@ -1400,12 +1400,12 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 
 		if (CMapDataExt::TileData[groundClick].TileSet == iLatSet)
 		{
-			for (auto& pair : morphable)
+			for (auto& info : TheaterInfo::CurrentInfo)
 			{
-				if (iSmoothSet == pair.first)
+				if (iSmoothSet == info.Morphable)
 				{
-					startTile = CMapDataExt::TileSet_starts[pair.second];
-					flatTile = CMapDataExt::TileSet_starts[pair.first];
+					startTile = CMapDataExt::TileSet_starts[info.Ramp];
+					flatTile = info.MorphableIndex;
 					break;
 				}
 			}
@@ -1425,7 +1425,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 	};
 
 	int height = cell->Height;
-	auto isMorphable = [IgnoreMorphable](CellData* cell)
+	auto isMorphable = [IgnoreMorphable, isDefinedMorphable](CellData* cell)
 		{
 			if (!cell) return 0;
 			if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
@@ -1433,7 +1433,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 			if (IgnoreMorphable) return 1;
 			int groundClick = cell->TileIndex;
 			if (groundClick == 0xFFFF) groundClick = 0;
-			return CMapDataExt::TileData[groundClick].Morphable;
+			return isDefinedMorphable(groundClick) ? 1 : 0;
 		};
 	auto getIndex = [startTile](int idx)
 		{
@@ -1831,7 +1831,7 @@ bool CMapDataExt::IsValidTileSet(int tileset, bool allowToPlace)
 		exist = true;
 	auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
 	auto exist3 = CINI::CurrentTheater->GetInteger(buffer, "TilesInSet");
-	if (!exist || strcmp(exist2, "") == 0 || exist3 < 1)
+	if (!exist || strcmp(exist2, "") == 0 || exist3 < 1 || tileset > TileSet_starts.size())
 		return false;
 	return true;
 }

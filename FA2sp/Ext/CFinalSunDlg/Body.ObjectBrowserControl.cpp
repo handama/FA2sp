@@ -47,7 +47,7 @@ bool CViewObjectsExt::InsertingSpecialBitmap = false;
 FString CViewObjectsExt::InsertingObjectID;
 CBitmap CViewObjectsExt::SpecialBitmap;
 CImageList CViewObjectsExt::m_ImageList;
-std::set<int> CViewObjectsExt::InsertedTileSets;
+std::set<int> CViewObjectsExt::InsertedTileIndices;
 
 std::unique_ptr<CPropertyBuilding> CViewObjectsExt::BuildingBrushDlg;
 std::unique_ptr<CPropertyInfantry> CViewObjectsExt::InfantryBrushDlg;
@@ -649,7 +649,7 @@ void CViewObjectsExt::Redraw_Ground()
 {
     HTREEITEM& hGround = ExtNodes[Root_Ground];
     if (hGround == NULL)    return;
-    InsertedTileSets.clear();
+    InsertedTileIndices.clear();
 
     auto& doc = CINI::CurrentDocument();
     auto theater = doc.GetString("Map", "Theater");
@@ -660,17 +660,20 @@ void CViewObjectsExt::Redraw_Ground()
     if (theater != "")
         suffix = theater.Mid(0, 3);
 
-    auto setTileIndex = [](int tileSet)
+    auto setTileIndex = [](int tileSet, int tileIndex = -1)
         {
             if (CMapData::Instance->MapWidthPlusHeight)
             {
                 if (tileSet < 0)
-                    InsertingTileIndex = -1;
-                else
-                    InsertingTileIndex = CMapDataExt::TileSet_starts[tileSet];
-                if (InsertedTileSets.find(tileSet) == InsertedTileSets.end())
                 {
-                    InsertedTileSets.insert(tileSet);
+                    InsertingTileIndex = -1;
+                    return false;
+                }
+                else
+                    InsertingTileIndex = tileIndex >= 0 ? tileIndex : CMapDataExt::TileSet_starts[tileSet];
+                if (InsertedTileIndices.find(InsertingTileIndex) == InsertedTileIndices.end())
+                {
+                    InsertedTileIndices.insert(InsertingTileIndex);
                     return true;
                 }
                 return false;
@@ -714,13 +717,15 @@ void CViewObjectsExt::Redraw_Ground()
     if (CINI::CurrentTheater)
     {
         int i = 67;
-        auto InsertTile = [&](int nTileset)
+        auto InsertTile = [&](int nTileset, int nTileIndex)
         {
             FA2sp::Buffer.Format("TileSet%04d", nTileset);
             FA2sp::Buffer = CINI::CurrentTheater->GetString(FA2sp::Buffer, "SetName", FA2sp::Buffer);
             Translations::GetTranslationItem(FA2sp::Buffer, FA2sp::Buffer);
-            if (setTileIndex(nTileset))
+            if (setTileIndex(nTileset, nTileIndex))
             {
+                if (nTileIndex > CMapDataExt::TileSet_starts[nTileset])
+                    FA2sp::Buffer += "#" + STDHelpers::IntToString(nTileIndex - CMapDataExt::TileSet_starts[nTileset]);
                 this->InsertString(FA2sp::Buffer, i, hGround, TVI_LAST);
                 return true;
             }
@@ -728,16 +733,12 @@ void CViewObjectsExt::Redraw_Ground()
         };
         for (auto& morphables : TheaterInfo::CurrentInfo)
         {
-            if (CMapDataExt::IsValidTileSet(morphables.Morphable) && 
-                CMapDataExt::IsValidTileSet(morphables.Ramp, false))
-                InsertTile(morphables.Morphable);
+            InsertTile(morphables.Morphable, morphables.MorphableIndex);
             ++i;
         }
         for (auto& morphables : TheaterInfo::CurrentInfoNonMorphable)
         {
-            if (CMapDataExt::IsValidTileSet(morphables.Morphable) &&
-                CMapDataExt::IsValidTileSet(morphables.Ramp, false))
-                InsertTile(morphables.Morphable);
+            InsertTile(morphables.Morphable, morphables.MorphableIndex);
             ++i;
         }
         InsertingTileIndex = -1;
@@ -3310,31 +3311,21 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         int nMorphable = nData - 67;
         if (nMorphable >= 0 && nMorphable < TheaterInfo::CurrentInfo.size())
         {
-            int i;
-            for (i = 0; i < CMapDataExt::TileDataCount; ++i)
-                if (CMapDataExt::TileData[i].TileSet == TheaterInfo::CurrentInfo[nMorphable].Morphable)
-                {
-                    CIsoView::CurrentCommand->Param = 0;
-                    CIsoView::CurrentCommand->Height = 0;
-                    CIsoView::CurrentCommand->Type = i;
-                    CIsoView::CurrentCommand->Command = FACurrentCommand::TileDraw;
-                    CBrushSize::UpdateBrushSize(i);
-                    return true;
-                }
+            CIsoView::CurrentCommand->Param = 0;
+            CIsoView::CurrentCommand->Height = 0;
+            CIsoView::CurrentCommand->Type = TheaterInfo::CurrentInfo[nMorphable].MorphableIndex;
+            CIsoView::CurrentCommand->Command = FACurrentCommand::TileDraw;
+            CBrushSize::UpdateBrushSize(TheaterInfo::CurrentInfo[nMorphable].Morphable);
+            return true;
         }
         else if (nMorphable >= 0 && nMorphable < (TheaterInfo::CurrentInfo.size() + TheaterInfo::CurrentInfoNonMorphable.size()))
         {
-            int i;
-            for (i = 0; i < CMapDataExt::TileDataCount; ++i)
-                if (CMapDataExt::TileData[i].TileSet == TheaterInfo::CurrentInfoNonMorphable[nMorphable- TheaterInfo::CurrentInfo.size()].Morphable)
-                {
-                    CIsoView::CurrentCommand->Param = 0;
-                    CIsoView::CurrentCommand->Height = 0;
-                    CIsoView::CurrentCommand->Type = i;
-                    CIsoView::CurrentCommand->Command = FACurrentCommand::TileDraw;
-                    CBrushSize::UpdateBrushSize(i);
-                    return true;
-                }
+            CIsoView::CurrentCommand->Param = 0;
+            CIsoView::CurrentCommand->Height = 0;
+            CIsoView::CurrentCommand->Type = TheaterInfo::CurrentInfoNonMorphable[nMorphable - TheaterInfo::CurrentInfo.size()].MorphableIndex;
+            CIsoView::CurrentCommand->Command = FACurrentCommand::TileDraw;
+            CBrushSize::UpdateBrushSize(TheaterInfo::CurrentInfoNonMorphable[nMorphable - TheaterInfo::CurrentInfo.size()].Morphable);
+            return true;
         }
     } while (false);
 

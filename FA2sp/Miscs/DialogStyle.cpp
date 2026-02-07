@@ -1562,6 +1562,8 @@ void DarkTheme::SubclassAllControls(HWND hWndParent)
     hWndChild = NULL;
     while ((hWndChild = FindWindowEx(hWndParent, hWndChild, WC_STATIC, NULL)) != NULL)
     {
+        if (GetPropW(hWndParent, L"IS_CHOOSECOLOR"))
+            break;
         SetWindowSubclass(hWndChild, EditSubclassProc, 0, 0);
     }
 
@@ -1706,7 +1708,10 @@ void DarkTheme::InitDialogOptions(HWND hWnd)
                         {
                             // CHOOSECOLOR dialog
                             if (wcsstr(modPath, L"comdlg32") != nullptr || wcsstr(modPath, L"comdlg32.dll") != nullptr)
+                            {
+                                SetPropW(hWnd, L"IS_CHOOSECOLOR", (HANDLE)1);
                                 break;
+                            }
                         }
                     }
                     SetPropW(hWnd, L"IS_MESSAGEBOX", (HANDLE)1);

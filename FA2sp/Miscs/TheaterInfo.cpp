@@ -40,51 +40,54 @@ void TheaterInfo::UpdateTheaterInfo()
 	ppmfc::CString pSection = GetInfoSection();
 	ppmfc::CString buffer = CINI::FAData->GetString(pSection, "Morphables");
 	ppmfc::CString buffer2 = CINI::FAData->GetString(pSection, "Ramps");
-	auto buffer2s = STDHelpers::SplitString(buffer2);
-	int i = 0, j = 0;
-	for (auto& str : STDHelpers::SplitString(buffer))
+	auto SplitM = STDHelpers::SplitString(buffer);
+	auto SplitR = STDHelpers::SplitString(buffer2);
+	int i = 0;
+	for (int i = 0; i < std::min(SplitM.size(), SplitR.size()); ++i)
 	{
-		auto& str2 = buffer2s[i];
-		i++;
-		if (!CMapDataExt::IsValidTileSet(atoi(str)) || !CMapDataExt::IsValidTileSet(atoi(str2)))
+		auto& str = SplitM[i];
+		auto& str2 = SplitR[i];
+		auto morphableSlides = STDHelpers::SplitString(str, 1, "#");
+		auto morphableTileset = atoi(morphableSlides[0]);
+		auto morphableIndex = morphableSlides[1].IsEmpty() ? 0 : atoi(morphableSlides[1]);
+
+		if (!CMapDataExt::IsValidTileSet(morphableTileset) || !CMapDataExt::IsValidTileSet(atoi(str2)))
 			continue;
 
 		CurrentInfo.emplace_back(InfoStruct());
-		CurrentInfo.back().Morphable = atoi(str);
-		CurrentInfo.back().MorphableIndex = CTileTypeClass::GetTileIndex(CurrentInfo.back().Morphable);
+		CurrentInfo.back().Morphable = morphableTileset;
+		CurrentInfo.back().MorphableIndex = CMapDataExt::TileSet_starts[CurrentInfo.back().Morphable] + morphableIndex;
 		CurrentInfo.back().Ramp = atoi(str2);
-		CurrentInfo.back().RampIndex = CTileTypeClass::GetTileIndex(CurrentInfo.back().Ramp);
-		j++;
+		CurrentInfo.back().RampIndex = CMapDataExt::TileSet_starts[CurrentInfo.back().Ramp];
 	}
 	auto cliff2 = CINI::FAData->GetInteger(pSection, "Cliffs2", 1919810);
 	auto cliffWater2 = CINI::FAData->GetInteger(pSection, "CliffsWater2", 1919810);
 	if (CMapDataExt::IsValidTileSet(cliff2) && CMapDataExt::IsValidTileSet(cliffWater2))
 	{
 		CMapData::Cliff2 = cliff2;
-		CMapData::Cliffs2Count = CTileTypeClass::GetTileIndex(cliff2);
+		CMapData::Cliffs2Count = CMapDataExt::TileSet_starts[cliff2];
 		CMapData::CliffWaters2 = cliffWater2;
 		CurrentInfoHasCliff2 = true;
 	}
 
 	CurrentInfoNonMorphable.clear();
-	ppmfc::CString pSection2 = pSection + "2";
 	// Forward compatibility
-	if (!CINI::FAData->SectionExists(pSection2))
-		pSection2 = pSection;
-	buffer = CINI::FAData->GetString(pSection2, "AddTiles");
-
-	i = 0, j = 0;
-	for (auto& str : STDHelpers::SplitString(buffer))
+	ppmfc::CString pSections[2] = { pSection, pSection + "2" };
+	for (int k = 0; k < 2; ++k)
 	{
-		i++;
-		if (!CMapDataExt::IsValidTileSet(atoi(str)))
-			continue;
+		buffer = CINI::FAData->GetString(pSections[i], "AddTiles");
+		for (auto& str : STDHelpers::SplitString(buffer))
+		{
+			auto morphableSlides = STDHelpers::SplitString(str, 1, "#");
+			auto morphableTileset = atoi(morphableSlides[0]);
+			auto morphableIndex = morphableSlides[1].IsEmpty() ? 0 : atoi(morphableSlides[1]);
+			if (!CMapDataExt::IsValidTileSet(morphableTileset))
+				continue;
 
-		CurrentInfoNonMorphable.emplace_back(InfoStruct());
-		CurrentInfoNonMorphable.back().Morphable = atoi(str);
-		CurrentInfoNonMorphable.back().MorphableIndex = CTileTypeClass::GetTileIndex(CurrentInfoNonMorphable.back().Morphable);
-
-		j++;
+			CurrentInfoNonMorphable.emplace_back(InfoStruct());
+			CurrentInfoNonMorphable.back().Morphable = morphableTileset;
+			CurrentInfoNonMorphable.back().MorphableIndex = CMapDataExt::TileSet_starts[CurrentInfoNonMorphable.back().Morphable] + morphableIndex;
+		}
 	}
 }
 std::vector<InfoStruct> TheaterInfo::CurrentInfo;

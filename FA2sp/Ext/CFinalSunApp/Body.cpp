@@ -9,11 +9,13 @@
 #include <thread>
 #include <iostream>
 #include <future>
+#include <string.h>
 #include <filesystem>
 #include "../../Helpers/Translations.h"
 #include "../../Miscs/VoxelDrawer.h"
 #include "../CLoading/Body.h"
 #include "../../Miscs/DialogStyle.h"
+#include "../../Helpers/STDHelpers.h"
 namespace fs = std::filesystem;
 
 #pragma warning(disable : 6262)
@@ -64,6 +66,8 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	CFinalSunApp::MapPath[0] = '\0';
 	// Now let's parse the command line
 	// Nothing yet huh...
+	ParseCommandLine(CFinalSunApp::Instance->m_lpCmdLine);
+
 	CFinalSunAppExt::ExePathExt = CFinalSunApp::ExePath();
 	std::string path;
 	path = CFinalSunAppExt::ExePathExt;
@@ -243,4 +247,61 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	watcher.join(); // wait for thread exit
 
 	return FALSE;
+}
+
+void CFinalSunAppExt::ParseCommandLine(const char* cmdLine)
+{
+	Logger::Raw("%s\n", cmdLine);
+	FString line(cmdLine);
+	auto encoding = STDHelpers::GetFileEncoding((uint8_t*)line.data(), line.size());
+	if (encoding == FileEncoding::UTF8 || encoding == FileEncoding::UTF8_BOM)
+		line.toANSI();
+	std::vector<std::string> args;
+	if (!cmdLine || !*cmdLine) return;
+
+	const char* p = line.data();
+	std::string current;
+
+	while (*p) {
+		while (*p && std::isspace(static_cast<unsigned char>(*p))) ++p;
+
+		if (!*p) break;
+
+		current.clear();
+
+		if (*p == '"' || *p == '\'') {
+			char quote = *p;
+			++p;
+			while (*p && *p != quote) {
+				current += *p;
+				++p;
+			}
+			if (*p == quote) ++p;
+		}
+		else {
+			while (*p && !std::isspace(static_cast<unsigned char>(*p))) {
+				current += *p;
+				++p;
+			}
+		}
+
+		if (!current.empty()) {
+			args.push_back(std::move(current));
+		}
+	}
+
+	std::string output_file;
+
+	for (size_t i = 0; i < args.size(); ++i) {
+		std::string_view arg = args[i];
+
+		if (arg == "-o" || arg == "--open") {
+			if (i + 1 < args.size()) output_file = args[++i];
+		}
+	}
+
+	if (output_file.size() < MAX_PATH && std::filesystem::exists(output_file))
+	{
+		strcpy_s(CFinalSunApp::MapPath(), output_file.c_str());
+	}
 }

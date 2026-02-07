@@ -806,16 +806,39 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                     oss << "\n";
             };
 
+            // Add "Header" for single-player map to prevent loading error
+            if (const auto pSection = pINI->GetSection("Header"))
+            {
+                saveSection(pSection, "Header");
+            }
+            else if (!CMapData::Instance->IsMultiOnly())
+            {
+                oss << "[Header]\n";
+                oss << "NumberStartingPoints" << "=" << "0" << "\n";
+                oss << "\n";
+            }
+
+            // Dirty fix: vanilla YR needs "Preview" and "PreviewPack" before "Map"
+            // So we just put them at first.
+            if (const auto pSection = pINI->GetSection("Preview"))
+            {
+                saveSection(pSection, "Preview");
+            }
+            if (const auto pSection = pINI->GetSection("PreviewPack"))
+            {
+                saveSection(pSection, "PreviewPack");
+            }
+
             if (!SaveMapExt::IsAutoSaving && ExtConfigs::SaveMap_PreserveINISorting)
             {
-                if (!pINI->SectionExists("Header"))
-                {
-                    pINI->WriteString("Header", "NumberStartingPoints", "0");
-                }
                 for (const auto& sectionName : CMapDataExt::MapIniSectionSorting)
                 {
-                    if (sectionName == "Digest")
+                    if (!strcmp(sectionName, "Preview")
+                        || !strcmp(sectionName, "PreviewPack")
+                        || !strcmp(sectionName, "Header")
+                        || !strcmp(sectionName, "Digest"))
                         continue;
+
                     if (const auto pSection = pINI->GetSection(sectionName))
                     {
                         saveSection(pSection, sectionName);
@@ -823,7 +846,10 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                 }
                 for (auto& section : pINI->Dict)
                 {
-                    if (!strcmp(section.first, "Digest"))
+                    if (!strcmp(section.first, "Preview")
+                        || !strcmp(section.first, "PreviewPack")
+                        || !strcmp(section.first, "Header")
+                        || !strcmp(section.first, "Digest"))
                         continue;
 
                     auto it = std::find(CMapDataExt::MapIniSectionSorting.begin(), CMapDataExt::MapIniSectionSorting.end(), section.first);
@@ -835,29 +861,6 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
             }
             else
             {
-                // Add "Header" for single-player map to prevent loading error
-                if (const auto pSection = pINI->GetSection("Header"))
-                {
-                    saveSection(pSection, "Header");
-                }
-                else if (!CMapData::Instance->IsMultiOnly())
-                {
-                    oss << "[Header]\n";
-                    oss << "NumberStartingPoints" << "=" << "0" << "\n";
-                    oss << "\n";
-                }
-
-                // Dirty fix: vanilla YR needs "Preview" and "PreviewPack" before "Map"
-                // So we just put them at first.
-                if (const auto pSection = pINI->GetSection("Preview"))
-                {
-                    saveSection(pSection, "Preview");
-                }
-                if (const auto pSection = pINI->GetSection("PreviewPack"))
-                {
-                    saveSection(pSection, "PreviewPack");
-                }
-
                 for (auto& section : pINI->Dict)
                 {
                     if (!strcmp(section.first, "Preview")

@@ -3663,9 +3663,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	}
 
 	ppmfc::CString pInfoSection = TheaterInfo::GetInfoSection();
-	// Forward compatibility
-	if (CINI::FAData->SectionExists(pInfoSection + "2"))
-		pInfoSection += "2";
 	TheaterInfo::CurrentBigWaters.clear();
 	TheaterInfo::CurrentSmallWaters.clear();
 	if (CINI::FAData->KeyExists(pInfoSection, "BigWaterIndices"))

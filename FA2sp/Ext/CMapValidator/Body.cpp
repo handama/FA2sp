@@ -417,10 +417,10 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 	ppmfc::CString Format2 = this->FetchLanguageString(
 		"MV_ValidateEmptyTeamTriggerAction", "Action - %1 has wrong Team params! Please check.");
 
-	auto getLoadSectionName = [](ppmfc::CString index) {
+	auto getLoadSectionName = [](const ppmfc::CString& index) {
 			ppmfc::CString result = "";
 			if (atoi(index) < 500)
-				return result;
+				return index;
 			if (auto pSectionNewParamTypes = CINI::FAData().GetSection("NewParamTypes"))
 			{
 				auto atoms3 = STDHelpers::SplitString(CINI::FAData().GetString("NewParamTypes", index), 4);
@@ -428,6 +428,10 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 			}
 			return result;
 		};
+	auto isTeam = [](const ppmfc::CString& param)
+	{
+		return param == "15" || param == "TeamTypes";
+	};
 	auto teamExists = [](ppmfc::CString team) {
 			if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes")) {
 				for (auto& pair : pSection->GetEntities()) {
@@ -455,12 +459,12 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 			FString thisTeam = "-1";
 			if (thisEvent.Params[0] == "2")
 			{
-				if (getLoadSectionName(pParamTypes[0][1]) == "TeamTypes")
+				if (isTeam(getLoadSectionName(pParamTypes[0][1])))
 				{
 					thisTeam = thisEvent.Params[1];
 					if (!teamExists(thisTeam)) addEvent = true;
 				}
-				if (getLoadSectionName(pParamTypes[1][1]) == "TeamTypes")
+				if (isTeam(getLoadSectionName(pParamTypes[1][1])))
 				{
 					thisTeam = thisEvent.Params[2];
 					if (!teamExists(thisTeam)) addEvent = true;
@@ -468,7 +472,7 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 			}
 			else
 			{
-				if (getLoadSectionName(pParamTypes[1][1]) == "TeamTypes")
+				if (isTeam(getLoadSectionName(pParamTypes[1][1])))
 				{
 					thisTeam = thisEvent.Params[1];
 					if (!teamExists(thisTeam)) addEvent = true;
@@ -498,7 +502,7 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 			for (int i = 0; i < 6; i++)
 			{
 				auto& param = pParamTypes[i];
-				if (getLoadSectionName(param[1]) == "TeamTypes")
+				if (isTeam(getLoadSectionName(param[1])))
 				{
 					thisTeam = thisAction.Params[i];
 					if (!teamExists(thisTeam)) addAction = true;

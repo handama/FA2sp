@@ -25,6 +25,7 @@ unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
 unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
 bool CLoadingExt::DrawTurretShadow = false;
 std::unordered_set<FString> CLoadingExt::LoadedOverlays;
+std::unordered_map<FString, InsigniaGrid> CLoadingExt::LoadedInsignias;
 int CLoadingExt::TallestBuildingHeight = 0;
 
 std::unordered_map<std::string, std::vector<unsigned char>> CLoadingExt::g_cache[2];
@@ -49,9 +50,33 @@ bool CLoadingExt::IsImageLoaded(const FString& name)
 	return itr->second->pImageBuffer != nullptr;
 }
 
-ImageDataClassSafe* CLoadingExt::GetImageDataFromMap(const FString& name)
+ImageDataClassSafe* CLoadingExt::GetImageDataFromMap(const FString& name, 
+	ObjectType type, int facing, int totalFacings, bool shadow)
 {
 	auto itr = ImageDataMap.find(name);
+	if (ExtConfigs::UseDefaultUnitImage &&
+		name.Find("FA2DEFAULT_") == -1 &&
+		(itr == ImageDataMap.end() 
+			|| itr != ImageDataMap.end() && !itr->second->pImageBuffer))
+	{
+		if (type == ObjectType::Infantry)
+		{
+			const auto& imageName = CLoadingExt::GetImageName("FA2DEFAULT_INFANTRY", facing, shadow);
+			return GetImageDataFromMap(imageName);
+		}
+		else if (type == ObjectType::Vehicle)
+		{
+			int newFacing = facing * 32 / totalFacings;
+			const auto& imageName = CLoadingExt::GetImageName("FA2DEFAULT_UNIT", newFacing, shadow);
+			return GetImageDataFromMap(imageName);
+		}
+		else if (type == ObjectType::Aircraft)
+		{
+			int newFacing = facing * 32 / totalFacings;
+			const auto& imageName = CLoadingExt::GetImageName("FA2DEFAULT_AIRCRAFT", newFacing, shadow);
+			return GetImageDataFromMap(imageName);
+		}
+	}
 	if (itr == ImageDataMap.end())
 	{
 		auto ret = std::make_unique<ImageDataClassSafe>();
@@ -175,6 +200,12 @@ CLoadingExt::ObjectType CLoadingExt::GetItemType(FString ID)
 {
 	if (ID == "")
 		ObjectType::Unknown;
+	else if (ID == "FA2DEFAULT_INFANTRY")
+		ObjectType::Infantry;
+	else if (ID == "FA2DEFAULT_UNIT")
+		ObjectType::Vehicle;
+	else if (ID == "FA2DEFAULT_AIRCRAFT")
+		ObjectType::Aircraft;
 	if (ObjectTypes.size() == 0)
 	{
 		auto load = [](FString type, ObjectType e)
@@ -286,6 +317,7 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 	SurfaceImageDataMap.clear();
 	CustomFlagMap.clear();
 	CustomCelltagMap.clear();
+	LoadedInsignias.clear();
 }
 
 bool CLoadingExt::IsObjectLoaded(const FString& pRegName)
@@ -423,6 +455,7 @@ void CLoadingExt::LoadBuilding(FString ID)
 	LoadBuilding_Damaged(ID);
 	LoadBuilding_Rubble(ID);
 
+	LoadInsignia(ID);
 	if (ExtConfigs::InGameDisplay_AlphaImage)
 	{
 		if (auto pAIFile = Variables::RulesMap.TryGetString(ID, "AlphaImage"))
@@ -1435,7 +1468,8 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 }
 
 void CLoadingExt::LoadInfantry(FString ID)
-{	
+{
+	LoadInsignia(ID);
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetInfantryFileID(ID);
 	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow");
@@ -1591,8 +1625,57 @@ void CLoadingExt::LoadTerrainOrSmudge(FString ID, bool terrain)
 	}
 }
 
+InsigniaGrid CLoadingExt::GetInsignia(const FString& ID)
+{
+	auto itr = LoadedInsignias.find(ID);
+	if (itr != LoadedInsignias.end())
+	{
+		return itr->second;
+	}
+	return {};
+}
+
+void CLoadingExt::LoadInsignia(FString ID)
+{
+	const char* PaletteName = "palette.pal";
+
+	auto InsigniaRookie = Variables::RulesMap.GetString(ID, "Insignia.Rookie");
+	auto InsigniaVeteran = Variables::RulesMap.GetString(ID, "Insignia.Veteran");
+	auto InsigniaElite = Variables::RulesMap.GetString(ID, "Insignia.Elite");
+	int InsigniaIndex = Variables::RulesMap.GetInteger(ID, "InsigniaFrame");
+
+	InsigniaGrid ret;
+
+	if (!InsigniaRookie.IsEmpty())
+	{
+		InsigniaRookie += ".shp";
+		ret.Rookie = ID + "\233Insignia.Rookie";
+		CLoadingExt::LoadShp(ret.Rookie, InsigniaRookie, PaletteName,
+			Variables::RulesMap.GetInteger(ID, "InsigniaFrame.Rookie", InsigniaIndex));
+	}
+	if (!InsigniaVeteran.IsEmpty())
+	{
+		InsigniaVeteran += ".shp";
+		ret.Veteran = ID + "\233Insignia.Veteran";
+		CLoadingExt::LoadShp(ret.Veteran, InsigniaVeteran, PaletteName,
+			Variables::RulesMap.GetInteger(ID, "InsigniaFrame.Veteran", InsigniaIndex));
+	}
+	if (!InsigniaElite.IsEmpty())
+	{
+		InsigniaElite += ".shp";
+		ret.Elite = ID + "\233Insignia.Elite";
+		CLoadingExt::LoadShp(ret.Elite, InsigniaElite, PaletteName,
+			Variables::RulesMap.GetInteger(ID, "InsigniaFrame.Elite", InsigniaIndex));
+	}
+	if (!ret.Rookie.IsEmpty() || !ret.Veteran.IsEmpty() || !ret.Elite.IsEmpty())
+	{
+		LoadedInsignias[ID] = ret;
+	}
+}
+
 void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 {
+	LoadInsignia(ID);
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetVehicleOrAircraftFileID(ID);
 	bool bHasTurret = Variables::RulesMap.GetBool(ID, "Turret");
@@ -1761,93 +1844,94 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 					CncImgFree(pImage[i]);
 				}
 				FString pKey;
-				if (pTurretImage[i])
+
+				pKey.Format("%sX%d", ID, i);
+				int turdeltaX = CINI::FAData->GetInteger("VehicleVoxelTurretsRA2", pKey);
+				pKey.Format("%sY%d", ID, i);
+				int turdeltaY = CINI::FAData->GetInteger("VehicleVoxelTurretsRA2", pKey);
+				pKey.Format("%sX%d", ID, i);
+				int barldeltaX = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
+				pKey.Format("%sY%d", ID, i);
+				int barldeltaY = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
+
+				bool barrelInFront = BarrelOverTurret || IsBarrelInFront(i, facings);
+
+				for (int k = 0; k < TotalTurretCount; ++k)
 				{
-					pKey.Format("%sX%d", ID, i);
-					int turdeltaX = CINI::FAData->GetInteger("VehicleVoxelTurretsRA2", pKey);
-					pKey.Format("%sY%d", ID, i);
-					int turdeltaY = CINI::FAData->GetInteger("VehicleVoxelTurretsRA2", pKey);
-					pKey.Format("%sX%d", ID, i);
-					int barldeltaX = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
-					pKey.Format("%sY%d", ID, i);
-					int barldeltaY = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
+					int exF = extraF[k] - F, exL = extraL[k] - L, exH = extraH[k] - H;
+					Matrix3D turretOffset(exF, exL, exH, i, facings);
 
-					bool barrelInFront = BarrelOverTurret || IsBarrelInFront(i, facings);
-
-					for (int k = 0; k < TotalTurretCount; ++k)
+					if (barrelInFront)
 					{
-						int exF = extraF[k] - F, exL = extraL[k] - L, exH = extraH[k] - H;
-						Matrix3D turretOffset(exF, exL, exH, i, facings);
-
-						if (barrelInFront)
-						{
+						if (pTurretImage[i])
 							VXL_Add(pTurretImage[i], 
 								turretrect[i].X + turdeltaX + turretOffset.OutputX,
 								turretrect[i].Y + turdeltaY + turretOffset.OutputY,
 								turretrect[i].W, turretrect[i].H);
-						}
+					}
 
-						if (pBarrelImage[i])
+					if (pBarrelImage[i])
+					{
+						Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
+						VXL_Add(pBarrelImage[i],
+							barrelrect[i].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
+							barrelrect[i].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
+							barrelrect[i].W, barrelrect[i].H);
+						for (int j = 0; j < ExtraBarlCount; ++j)
 						{
+							FString key;
+							key.Format("ExtraBarrelOffset%d", j);
+							int AddiBarlL = CINI::Art->GetInteger(ArtID, key, 0);
 							Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
 							VXL_Add(pBarrelImage[i],
 								barrelrect[i].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
 								barrelrect[i].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
 								barrelrect[i].W, barrelrect[i].H);
+						}
+					}
+
+					if (!barrelInFront)
+					{
+						if (pTurretImage[i])
+							VXL_Add(pTurretImage[i],
+								turretrect[i].X + turdeltaX + turretOffset.OutputX,
+								turretrect[i].Y + turdeltaY + turretOffset.OutputY,
+								turretrect[i].W, turretrect[i].H);
+					}
+
+					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
+					{
+						if (pShadowTurretImage[i])
+						{
+							VXL_Add(pShadowTurretImage[i],
+								shadowturretrect[i].X + turdeltaX + turretOffset.OutputX,
+								shadowturretrect[i].Y + turdeltaY + turretOffset.OutputY,
+								shadowturretrect[i].W, shadowturretrect[i].H, true);
+						}
+						if (pShadowBarrelImage[i])
+						{
+							VXL_Add(pShadowBarrelImage[i],
+								shadowbarrelrect[i].X + barldeltaX + turretOffset.OutputX,
+								shadowbarrelrect[i].Y + barldeltaY + turretOffset.OutputY, 
+								shadowbarrelrect[i].W, shadowbarrelrect[i].H, true);
 							for (int j = 0; j < ExtraBarlCount; ++j)
 							{
 								FString key;
 								key.Format("ExtraBarrelOffset%d", j);
 								int AddiBarlL = CINI::Art->GetInteger(ArtID, key, 0);
 								Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
-								VXL_Add(pBarrelImage[i],
-									barrelrect[i].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
-									barrelrect[i].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
-									barrelrect[i].W, barrelrect[i].H);
-							}
-						}
-
-						if (!barrelInFront)
-						{
-							VXL_Add(pTurretImage[i],
-								turretrect[i].X + turdeltaX + turretOffset.OutputX,
-								turretrect[i].Y + turdeltaY + turretOffset.OutputY,
-								turretrect[i].W, turretrect[i].H);
-						}
-
-						if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
-						{
-							if (pShadowTurretImage[i])
-							{
-								VXL_Add(pShadowTurretImage[i],
-									shadowturretrect[i].X + turdeltaX + turretOffset.OutputX,
-									shadowturretrect[i].Y + turdeltaY + turretOffset.OutputY,
-									shadowturretrect[i].W, shadowturretrect[i].H, true);
-							}
-							if (pShadowBarrelImage[i])
-							{
 								VXL_Add(pShadowBarrelImage[i],
-									shadowbarrelrect[i].X + barldeltaX + turretOffset.OutputX,
-									shadowbarrelrect[i].Y + barldeltaY + turretOffset.OutputY, 
+									shadowbarrelrect[i].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
+									shadowbarrelrect[i].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
 									shadowbarrelrect[i].W, shadowbarrelrect[i].H, true);
-								for (int j = 0; j < ExtraBarlCount; ++j)
-								{
-									FString key;
-									key.Format("ExtraBarrelOffset%d", j);
-									int AddiBarlL = CINI::Art->GetInteger(ArtID, key, 0);
-									Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
-									VXL_Add(pShadowBarrelImage[i],
-										shadowbarrelrect[i].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
-										shadowbarrelrect[i].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
-										shadowbarrelrect[i].W, shadowbarrelrect[i].H, true);
-								}
 							}
 						}
 					}
 				}
-				if (pShadowBarrelImage[i])
+
+				if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow && pShadowBarrelImage[i])
 					CncImgFree(pShadowBarrelImage[i]);
-				if (pShadowTurretImage[i])
+				if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow && pShadowTurretImage[i])
 					CncImgFree(pShadowTurretImage[i]);
 				if (pTurretImage[i])
 					CncImgFree(pTurretImage[i]);
@@ -2172,6 +2256,11 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 				}
 			}
 		}
+		else
+		{
+			// no image
+			AvailableFacings[ID] = facings;
+		}
 	}
 }
 
@@ -2179,7 +2268,7 @@ void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, FString NameInDict, i
 {
 	auto pData = CLoadingExt::GetImageDataFromMap(NameInDict);
 	SetImageDataSafe(pBuffer, pData, FullWidth, FullHeight, pPal);
-	if (clip) TrimImageEdges(pData);
+	if (clip) TrimImageEdges(pData, pPal == &CMapDataExt::Palette_Shadow);
 }
 
 ImageDataClassSafe* CLoadingExt::SetBuildingImageDataSafe(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal)
@@ -2620,9 +2709,21 @@ void CLoadingExt::ScaleImageHalf(ImageDataClassSafe* pData)
 	SetValidBufferSafe(pData, newW, newH);
 }
 
-void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData)
+void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow)
 {
 	if (!pData || !pData->pImageBuffer || pData->FullWidth == 0 || pData->FullHeight == 0) return;
+
+	auto invalidateImage = [&pData]()
+	{
+		pData->pImageBuffer = nullptr;
+		pData->pPixelValidRanges = nullptr;
+		pData->FullWidth = 0;
+		pData->FullHeight = 0;
+		pData->ValidX = 0;
+		pData->ValidY = 0;
+		pData->ValidWidth = 0;
+		pData->ValidHeight = 0;
+	};
 
 	const int oldW = pData->FullWidth;
 	const int oldH = pData->FullHeight;
@@ -2647,7 +2748,11 @@ void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData)
 	}
 
 	if (minX > maxX || minY > maxY)
+	{
+		if (!shadow)
+			invalidateImage();
 		return;
+	}
 
 	int validW = maxX - minX + 1;
 	int validH = maxY - minY + 1;
@@ -2663,7 +2768,12 @@ void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData)
 	int newW = oldW - cropLR * 2;
 	int newH = oldH - cropTB * 2;
 
-	if (newW <= 0 || newH <= 0) return;
+	if (newW <= 0 || newH <= 0)
+	{
+		if (!shadow)
+			invalidateImage();
+		return;
+	}
 
 	std::unique_ptr<unsigned char[]> newBuffer(new unsigned char[newW * newH]);
 	for (int y = 0; y < newH; ++y)

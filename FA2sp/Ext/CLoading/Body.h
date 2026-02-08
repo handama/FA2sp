@@ -61,6 +61,13 @@ public:
 	ImageDataFlag Flag;
 };
 
+struct InsigniaGrid
+{
+	FString Rookie;
+	FString Veteran;
+	FString Elite;
+};
+
 class NOVTABLE CLoadingExt : public CLoading
 {
 public:
@@ -117,6 +124,8 @@ public:
 	void SetImageData(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
 	// returns the mix index, -1 for in folder / pack, -2 for not found
 	int HasFileMix(FString filename, int nMix = -114);
+	// 0 1 2
+	static InsigniaGrid GetInsignia(const FString& ID);
 
 	static int GetITheaterIndex()
 	{
@@ -140,8 +149,6 @@ public:
 	// mode 0 = vanilla YR, mode 1 = Ares
 	void SetTheaterLetter(FString& string, int mode = 1);
 	void SetGenericTheaterLetter(FString& string);
-
-
 private:
 	static FString* __cdecl GetDictName(FString* ret, const char* ID, int nFacing) { JMP_STD(0x475450); }
 	static FString GetDictName(FString ID, int nFacing)
@@ -162,6 +169,7 @@ private:
 	void LoadInfantry(FString ID);
 	void LoadTerrainOrSmudge(FString ID, bool terrain);
 	void LoadVehicleOrAircraft(FString ID);
+	void LoadInsignia(FString ID);
 
 	void SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void SetImageData(unsigned char* pBuffer, ImageDataClass* pData, int FullWidth, int FullHeight, Palette* pPal);
@@ -175,7 +183,7 @@ private:
 	
 	void SetValidBuffer(ImageDataClass* pData, int Width, int Height);
 	void SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int Height);
-	void TrimImageEdges(ImageDataClassSafe* pData);
+	void TrimImageEdges(ImageDataClassSafe* pData, bool shadow);
 	void ScaleImageHalf(ImageDataClassSafe* pData);
 	void TrimImageEdges(unsigned char*& pBuffer, int& width, int& height);
 
@@ -199,6 +207,7 @@ public:
 	FString GetBuildingFileID(FString ID);
 	FString GetInfantryFileID(FString ID);
 	static std::unordered_set<FString> LoadedOverlays;
+	static std::unordered_map<FString, InsigniaGrid> LoadedInsignias;
 	static Palette TempISOPalette;
 	static bool IsLoadingObjectView;
 	static std::unordered_set<FString> SwimableInfantries;
@@ -254,7 +263,8 @@ public:
 	}
 
 	static bool IsImageLoaded(const FString& name);
-	static ImageDataClassSafe* GetImageDataFromMap(const FString& name);
+	static ImageDataClassSafe* GetImageDataFromMap(const FString& name, 
+		ObjectType type = ObjectType::Unknown, int facing = 0, int totalFacings = 8, bool shadow = false);
 	static std::vector<std::unique_ptr<ImageDataClassSafe>>& GetBuildingClipImageDataFromMap(const FString& name);
 	static bool IsSurfaceImageLoaded(const FString& name);
 	static ImageDataClassSurface* GetSurfaceImageDataFromMap(const FString& name);

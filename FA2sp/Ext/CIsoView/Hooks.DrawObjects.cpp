@@ -243,7 +243,8 @@ static void DrawTechnoAttachments
 				int newFacing = (7 - (oriFacing + info.RotationAdjust) / 32 + facings) % facings;
 
 				const auto& imageName = CLoadingExt::GetImageName(info.ID, newFacing, isShadow);
-				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+				auto pData = CLoadingExt::GetImageDataFromMap(imageName,
+					eItemType, newFacing, facings, isShadow);
 
 				if (!isShadow && pData->pImageBuffer)
 				{
@@ -257,6 +258,15 @@ static void DrawTechnoAttachments
 						&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255, color, 0, true); };
 						
 					draw();
+
+					if (CIsoViewExt::DrawVeterancy)
+					{
+						auto& veter = DrawVeterancies.emplace_back();
+						veter.X = displayX + mat.OutputX + info.DeltaX;
+						veter.Y = displayY + mat.OutputY + info.DeltaY;
+						veter.VP = 0;
+						veter.ID = info.ID;
+					}
 
 					DrawTechnoAttachments(draw, recursionStack, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
 						displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
@@ -273,7 +283,8 @@ static void DrawTechnoAttachments
 				int newFacing = (parentFacing * facings / ParentFacings + additionalFacing) % facings;
 
 				FString imageName = CLoadingExt::GetImageName(info.ID, newFacing, isShadow);
-				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+				auto pData = CLoadingExt::GetImageDataFromMap(imageName,
+					eItemType, newFacing, facings, isShadow);
 
 				if (!isShadow && pData->pImageBuffer)
 				{
@@ -286,6 +297,15 @@ static void DrawTechnoAttachments
 						&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255, color, 0, true); };
 
 					draw();
+
+					if (CIsoViewExt::DrawVeterancy)
+					{
+						auto& veter = DrawVeterancies.emplace_back();
+						veter.X = displayX + mat.OutputX + info.DeltaX;
+						veter.Y = displayY + mat.OutputY + info.DeltaY;
+						veter.VP = 0;
+						veter.ID = info.ID;
+					}
 
 					DrawTechnoAttachments(draw, recursionStack, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
 						displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
@@ -337,6 +357,17 @@ static void DrawTechnoAttachments
 							color, -1, false, isoset.find(info.ID) != isoset.end()); };
 
 						draw();
+
+						if (CIsoViewExt::DrawVeterancy)
+						{
+							const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(info.ID);
+							const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
+							auto& veter = DrawVeterancies.emplace_back();
+							veter.X = displayX + mat.OutputX + info.DeltaX + (DataExt.Width - DataExt.Height) * 30 / 2;
+							veter.Y = displayY + mat.OutputY + info.DeltaY + (DataExt.Width + DataExt.Height - 2) * 15 / 2;
+							veter.VP = 0;
+							veter.ID = info.ID;
+						}
 
 						DrawTechnoAttachments(draw, recursionStack, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
 							displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
@@ -1429,13 +1460,13 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						bool deploy = ExtConfigs::InGameDisplay_Deploy
 							&& obj.Status == "Unload" && Variables::RulesMap.GetBool(obj.TypeID, "Deployer");
 
-						const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, true, deploy && !water, water);
-
 						if (!CLoadingExt::IsObjectLoaded(obj.TypeID))
 						{
 							CLoadingExt::GetExtension()->LoadObjects(obj.TypeID);
 						}
-						auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+						const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, true, deploy && !water, water);
+
+						auto pData = CLoadingExt::GetImageDataFromMap(imageName, CLoadingExt::ObjectType::Infantry, nFacing, 8, true);
 
 						if (pData->pImageBuffer)
 						{
@@ -1501,7 +1532,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 					const auto& imageName = CLoadingExt::GetImageName(ImageID, nFacing, true);
 
-					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+					auto pData = CLoadingExt::GetImageDataFromMap(imageName, 
+						CLoadingExt::ObjectType::Vehicle, nFacing, facings, true);
 
 					if (pData->pImageBuffer)
 					{
@@ -2013,6 +2045,16 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							}
 						}
 					}
+
+					if (firstDraw && CIsoViewExt::DrawVeterancy)
+					{
+						auto& veter = DrawVeterancies.emplace_back();
+						veter.X = x1 + (DataExt.Width - DataExt.Height) * 30 / 2;
+						veter.Y = y1 + (DataExt.Width + DataExt.Height - 2) * 15 / 2;
+						veter.VP = 0;
+						veter.ID = objRender.ID;
+					}
+
 					if (firstDraw && ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages && objRender.poweredOn)
 					{
 						if (auto pAIFile = Variables::RulesMap.TryGetString(objRender.ID, "AlphaImage"))
@@ -2192,7 +2234,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 					const auto& imageName = CLoadingExt::GetImageName(ImageID, nFacing);
 
-					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+					auto pData = CLoadingExt::GetImageDataFromMap(imageName,
+						CLoadingExt::ObjectType::Vehicle, nFacing, facings, false);
 
 					if (pData->pImageBuffer)
 					{
@@ -2220,6 +2263,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							veter.X = x;
 							veter.Y = y - (HoveringUnit ? 10 : 0) - (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0);
 							veter.VP = VP;
+							veter.ID = obj.TypeID;
 						}
 
 						std::set<FString> drawn;
@@ -2270,7 +2314,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
 					int nFacing = (atoi(obj.Facing) * facings / 256) % facings;
 					const auto& imageName = CLoadingExt::GetImageName(imageID, nFacing);
-					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+					auto pData = CLoadingExt::GetImageDataFromMap(imageName,
+						CLoadingExt::ObjectType::Aircraft, nFacing, facings, false);
 
 					if (pData->pImageBuffer)
 					{
@@ -2287,6 +2332,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							veter.X = x;
 							veter.Y = y;
 							veter.VP = VP;
+							veter.ID = obj.TypeID;
 						}
 
 						std::set<FString> drawn;
@@ -2336,7 +2382,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							CLoadingExt::GetExtension()->LoadObjects(obj.TypeID);
 						}
-						auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+						auto pData = CLoadingExt::GetImageDataFromMap(imageName, CLoadingExt::ObjectType::Infantry, nFacing, 8);
 
 						if (pData->pImageBuffer)
 						{
@@ -2380,6 +2426,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								veter.X = x1 - 5;
 								veter.Y = y1 - 4 - 15;
 								veter.VP = VP;
+								veter.ID = obj.TypeID;
 							}
 
 							std::set<FString> drawn;
@@ -2416,12 +2463,28 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 		for (auto& dv : DrawVeterancies)
 		{
+			ImageDataClassSafe* pImage = nullptr;
+			auto insignia = CLoadingExt::GetInsignia(dv.ID);
 			if (dv.VP >= 200)
-				CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-					dv.X - elite->FullWidth / 2 + 10, dv.Y + 21 - elite->FullHeight / 2, elite, 0, 255, 0, -100, false);
+			{
+				pImage = elite;
+				if (!insignia.Elite.IsEmpty())
+					pImage = CLoadingExt::GetImageDataFromMap(insignia.Elite);
+			}
 			else if (dv.VP >= 100)
+			{
+				pImage = veteran;
+				if (!insignia.Veteran.IsEmpty())
+					pImage = CLoadingExt::GetImageDataFromMap(insignia.Veteran);
+			}
+			else
+			{
+				if (!insignia.Rookie.IsEmpty())
+					pImage = CLoadingExt::GetImageDataFromMap(insignia.Rookie);
+			}
+			if (pImage)
 				CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-					dv.X - veteran->FullWidth / 2 + 10, dv.Y + 21 - veteran->FullWidth / 2, veteran, 0, 255, 0, -100, false);
+					dv.X - pImage->FullWidth / 2 + 10, dv.Y + 21 - pImage->FullHeight / 2, pImage, 0, 255, 0, -100, false);
 		}
 	}
 

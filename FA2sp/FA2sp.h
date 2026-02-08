@@ -177,6 +177,7 @@ public:
     static bool TreeViewCameo_Display;
     static float LightingSource[3];
     static bool UseStrictNewTheater;
+    static bool UseDefaultUnitImage;
     static bool InGameDisplay_Shadow;
     static bool InGameDisplay_Shadow_OnGround;
     static bool InGameDisplay_Deploy;

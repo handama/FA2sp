@@ -421,19 +421,18 @@ DEFINE_HOOK(4AC210, CMapData_AddInfantry, 7)
 	if (ExtConfigs::InfantrySubCell_OccupationBits)
 	{
 		auto cell = Map->TryGetCellAt(atoi(infantry.X), atoi(infantry.Y));
-		if (cell->Terrain > -1)
+		if (cell->Terrain > -1
+			&& cell->Terrain < CMapData::Instance->TerrainDatas.size())
 		{
 			std::vector<int> availableSubcells;
 			std::vector<int> availableAndEmptySubcells;
-			ppmfc::CString name;
+			auto& name = CMapData::Instance->TerrainDatas[cell->Terrain].TypeID;
 			ppmfc::CString key = "TemperateOccupationBits";
 			auto theaterIg = CINI::CurrentDocument->GetString("Map", "Theater");
 			if (theaterIg == "SNOW")
 				key = "SnowOccupationBits";
 
-			if (auto pTerrain = CINI::Rules().GetSection("TerrainTypes"))
-				name = *pTerrain->GetValueAt(cell->TerrainType);
-			int bits = (CINI::Rules().GetInteger(name, key, 7) % 8 + 8) % 8;
+			int bits = (Variables::RulesMap.GetInteger(name, key, 7) % 8 + 8) % 8;
 			switch (bits)
 			{
 			case 0:

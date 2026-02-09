@@ -1202,6 +1202,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->ShowBuildingCells, FALSE);
 				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->FlatToGround, FALSE);
 				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->FrameMode, FALSE);
+				ADD_TEMP_HOLDER(holders, ExtConfigs::UseDefaultUnitImage, false);
+				ADD_TEMP_HOLDER(holders, ExtConfigs::UseDefaultUnitImage_TechnoAttachment, false);
 			}
 			else if (dlg.b_Tube)
 			{

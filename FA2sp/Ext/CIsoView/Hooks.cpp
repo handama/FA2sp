@@ -72,8 +72,8 @@ DEFINE_HOOK(469A69, CIsoView_CalculateOverlayConnection_OverlayAutoConnectionFix
 	{
 		char lpKey[4];
 		_itoa(nOverlayIndex, lpKey, 10);
-		auto pRegName = CINI::Rules->GetString("OverlayTypes", lpKey, "");
-		bool bWall = CINI::Rules->GetBool(pRegName, "Wall", false);
+		auto pRegName = Variables::RulesMap.GetString("OverlayTypes", lpKey, "");
+		bool bWall = Variables::RulesMap.GetBool(pRegName, "Wall", false);
 		if (bWall)
 			return CanConnect;
 	}

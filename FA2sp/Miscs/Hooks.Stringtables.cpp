@@ -21,22 +21,18 @@ std::map<FString, FString> StringtableLoader::CSFFiles_Stringtable;
 
 FString StringtableLoader::QueryUIName(const char* pRegName, bool bOnlyOneLine)
 {
-    MultimapHelper mmh;
-    mmh.AddINI(&CINI::Rules());
-    mmh.AddINI(&CINI::CurrentDocument());
-
-    auto uiname = mmh.GetString(pRegName, "UIName", "");
+    auto uiname = Variables::RulesMap.GetString(pRegName, "UIName", "");
     uiname.MakeLower();
     FString ccstring = "";
     if (uiname != "" && StringtableLoader::CSFFiles_Stringtable.find(uiname) != StringtableLoader::CSFFiles_Stringtable.end())
         ccstring = StringtableLoader::CSFFiles_Stringtable[uiname];
     if (ccstring == "")
-        ccstring = mmh.GetString(pRegName, "Name", "");
+        ccstring = Variables::RulesMap.GetString(pRegName, "Name", "");
     if (ccstring == "")
         ccstring = "MISSING";
 
     if (uiname.Find("nostr:") == 0) {
-        ccstring = mmh.GetString(pRegName, "UIName", "").Mid(6);
+        ccstring = Variables::RulesMap.GetString(pRegName, "UIName", "").Mid(6);
     }
 
     auto lang = FinalAlertConfig::Language + "-";

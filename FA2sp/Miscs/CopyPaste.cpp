@@ -75,17 +75,19 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
         lowest = std::min(lowest, (int)pCell->Height);
         highest = std::max(highest, (int)pCell->Height);
 
-        if (pCell->Terrain > -1)
+        if (pCell->Terrain > -1 
+            && pCell->Terrain < CMapData::Instance->TerrainDatas.size())
         {
-            pushString(Variables::RulesMap.GetValueAt("TerrainTypes", pCell->TerrainType), item.TerrainData);
+            pushString(CMapData::Instance->TerrainDatas[pCell->Terrain].TypeID, item.TerrainData);
             objectMask |= ObjectRecord::RecordType::Terrain;
         }
 
-        if (pCell->Smudge > -1) {
+        if (pCell->Smudge > -1
+            && pCell->Smudge < CMapData::Instance->SmudgeDatas.size()) {
             auto& smudge = CMapData::Instance->SmudgeDatas[pCell->Smudge];
             if (smudge.X == coords.Y && smudge.Y == coords.X)
             {
-                pushString(Variables::RulesMap.GetValueAt("SmudgeTypes", pCell->SmudgeType), item.SmudgeData);
+                pushString(smudge.TypeID, item.SmudgeData);
                 objectMask |= ObjectRecord::RecordType::Smudge;
             }
         }

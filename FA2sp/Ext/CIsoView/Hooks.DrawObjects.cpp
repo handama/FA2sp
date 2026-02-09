@@ -42,6 +42,8 @@ struct CellInfo {
 
 static std::vector<std::pair<MapCoord, FString>> WaypointsToDraw;
 static std::vector<std::pair<MapCoord, FString>> OverlayTextsToDraw;
+static std::vector<std::pair<MapCoord, FString>> TerrainTextsToDraw;
+static std::vector<std::pair<MapCoord, FString>> SmudgeTextsToDraw;
 static std::vector<std::pair<MapCoord, DrawBuildings>> BuildingsToDraw;
 static std::vector<std::pair<MapCoord, ImageDataClassSafe*>> AlphaImagesToDraw;
 static std::vector<std::pair<MapCoord, ImageDataClassSafe*>> FiresToDraw;
@@ -411,6 +413,8 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 
 	WaypointsToDraw.clear();
 	OverlayTextsToDraw.clear();
+	SmudgeTextsToDraw.clear();
+	TerrainTextsToDraw.clear();
 	BuildingsToDraw.clear();
 	AlphaImagesToDraw.clear();
 	FiresToDraw.clear();
@@ -1083,9 +1087,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
 
 		//smudges
-		if (cell->Smudge != -1 && CIsoViewExt::DrawSmudges && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
+		if (cell->Smudge != -1 && cell->Smudge < CMapData::Instance->SmudgeDatas.size() 
+			&& CIsoViewExt::DrawSmudges && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
 		{
-			auto obj = Variables::RulesMap.GetValueAt("SmudgeTypes", cell->SmudgeType);
+			auto& obj = CMapData::Instance->SmudgeDatas[cell->Smudge].TypeID;
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(obj)
@@ -1098,10 +1103,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				}
 				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-				if (pData->pImageBuffer)
+				if (pData && pData->pImageBuffer)
 				{
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 						x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false);
+				}
+				else
+				{
+					SmudgeTextsToDraw.push_back(std::make_pair(MapCoord{ X,Y }, obj));
 				}
 			}
 		}
@@ -1602,9 +1611,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				}		
 			}
 		}
-		if (shadow && cell->Terrain != -1 && CIsoViewExt::DrawTerrains)
+		if (shadow && cell->Terrain != -1 
+			&& cell->Terrain < CMapData::Instance->TerrainDatas.size()
+			&& CIsoViewExt::DrawTerrains)
 		{
-			auto obj = Variables::RulesMap.GetValueAt("TerrainTypes", cell->TerrainType);
+			auto& obj = CMapData::Instance->TerrainDatas[cell->Terrain].TypeID;
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(obj)
@@ -1809,11 +1820,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 		//smudges in redrawn tiles
 		if (cell->Smudge != -1 
+			&& cell->Smudge < CMapData::Instance->SmudgeDatas.size()
 			&& CIsoViewExt::DrawSmudges 
 			&& cell->Flag.RedrawTerrain && !CFinalSunApp::Instance->FlatToGround
 			&& (info.isInMap || ExtConfigs::DisplayObjectsOutside))
 		{
-			auto obj = Variables::RulesMap.GetValueAt("SmudgeTypes", cell->SmudgeType);
+			auto& obj = CMapData::Instance->SmudgeDatas[cell->Smudge].TypeID;
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(obj)
@@ -1953,9 +1965,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 
 		//terrains
-		if (cell->Terrain != -1 && CIsoViewExt::DrawTerrains && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
+		if (cell->Terrain != -1
+			&& cell->Terrain < CMapData::Instance->TerrainDatas.size() 
+			&& CIsoViewExt::DrawTerrains && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
 		{
-			auto obj = Variables::RulesMap.GetValueAt("TerrainTypes", cell->TerrainType);
+			auto& obj = CMapData::Instance->TerrainDatas[cell->Terrain].TypeID;
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(obj)
@@ -1991,6 +2005,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							}
 						}
 					}
+				}
+				else
+				{
+					TerrainTextsToDraw.push_back(std::make_pair(MapCoord{ X,Y }, obj));
 				}
 			}		
 		}
@@ -2784,26 +2802,56 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		pThis->DrawBitmap("target", drawX - 20, drawY - 11, lpDesc);
 	}
 
-	if (CIsoViewExt::DrawOverlays 
-		&& (!CIsoViewExt::RenderingMap 
-			|| CIsoViewExt::RenderingMap && CIsoViewExt::RenderInvisibleInGame))
+	if (!CIsoViewExt::RenderingMap
+		|| CIsoViewExt::RenderingMap && CIsoViewExt::RenderInvisibleInGame)
 	{
 		SetBkMode(hDC, TRANSPARENT);
 		SetTextAlign(hDC, TA_CENTER);
 		SetTextColor(hDC, RGB(0, 0, 0));
-		for (const auto& [coord, index] : OverlayTextsToDraw)
+		if (CIsoViewExt::DrawOverlays)
 		{
-			if (IsCoordInWindow(coord.X, coord.Y))
+			for (const auto& [coord, index] : OverlayTextsToDraw)
 			{
-				MapCoord mc = coord;
-				CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
-				int drawX = mc.X - DrawOffsetX + 30;
-				int drawY = mc.Y - DrawOffsetY - 25;
-				TextOut(hDC, drawX, drawY, index, strlen(index));
+				if (IsCoordInWindow(coord.X, coord.Y))
+				{
+					MapCoord mc = coord;
+					CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
+					int drawX = mc.X - DrawOffsetX + 30;
+					int drawY = mc.Y - DrawOffsetY - 25;
+					TextOut(hDC, drawX, drawY, index, strlen(index));
+				}
+			}
+		}
+		if (CIsoViewExt::DrawTerrains)
+		{
+			for (const auto& [coord, index] : TerrainTextsToDraw)
+			{
+				if (IsCoordInWindow(coord.X, coord.Y))
+				{
+					MapCoord mc = coord;
+					CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
+					int drawX = mc.X - DrawOffsetX + 30;
+					int drawY = mc.Y - DrawOffsetY - 25;
+					TextOut(hDC, drawX, drawY, index, strlen(index));
+				}
+			}
+		}
+		if (CIsoViewExt::DrawSmudges)
+		{
+			for (const auto& [coord, index] : SmudgeTextsToDraw)
+			{
+				if (IsCoordInWindow(coord.X, coord.Y))
+				{
+					MapCoord mc = coord;
+					CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
+					int drawX = mc.X - DrawOffsetX + 30;
+					int drawY = mc.Y - DrawOffsetY - 25;
+					TextOut(hDC, drawX, drawY, index, strlen(index));
+				}
 			}
 		}
 	}
-
+	
 	if (CIsoViewExt::DrawBaseNodeIndex)
 	{
 		SetTextColor(hDC, ExtConfigs::BaseNodeIndex_Color);

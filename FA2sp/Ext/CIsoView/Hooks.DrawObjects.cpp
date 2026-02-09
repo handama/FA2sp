@@ -723,7 +723,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		int tileSubIndex = cell->TileSubIndex;
 		if (CFinalSunApp::Instance->FrameMode)
 		{
-			if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
+			if (CMapDataExt::TileData[tileIndex].FrameModeIndex < CMapDataExt::TileDataCount)
 			{
 				tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
 			}
@@ -810,7 +810,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		int virtualHeight = cell->Height;
 		if (CFinalSunApp::Instance->FrameMode)
 		{
-			if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
+			if (CMapDataExt::TileData[tileIndex].FrameModeIndex < CMapDataExt::TileDataCount)
 			{
 				tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
 			}
@@ -934,7 +934,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						if (CFinalSunApp::Instance->FrameMode)
 						{
-							if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
+							if (CMapDataExt::TileData[tileIndex].FrameModeIndex < CMapDataExt::TileDataCount)
 							{
 								tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
 							}
@@ -1017,7 +1017,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 		if (CFinalSunApp::Instance->FrameMode)
 		{
-			if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
+			if (CMapDataExt::TileData[tileIndex].FrameModeIndex < CMapDataExt::TileDataCount)
 			{
 				tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
 			}
@@ -1734,7 +1734,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					if (CFinalSunApp::Instance->FrameMode)
 					{
-						if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
+						if (CMapDataExt::TileData[tileIndex].FrameModeIndex < CMapDataExt::TileDataCount)
 						{
 							tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
 						}
@@ -1801,7 +1801,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						if (CFinalSunApp::Instance->FrameMode)
 						{
-							if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
+							if (CMapDataExt::TileData[tileIndex].FrameModeIndex < CMapDataExt::TileDataCount)
 							{
 								tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
 							}

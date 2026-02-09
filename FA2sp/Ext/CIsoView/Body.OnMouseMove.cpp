@@ -1506,13 +1506,18 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 tileUnsafeIndex = 0;
             }
             int tileSubIndex = cell->TileSubIndex;
+            int MarbleTileSet = -1;
 
             if (CFinalSunApp::Instance->FrameMode)
             {
+                // show raw tile
                 if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
                 {
+                    FString section;
+                    section.Format("TileSet%04d", CMapDataExt::TileData[tileIndex].TileSet);
                     tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
                     tileUnsafeIndex = tileIndex;
+                    MarbleTileSet = CINI::CurrentTheater->GetInteger(section, "MarbleMadness", -1);                  
                 }
                 else
                 {
@@ -1624,7 +1629,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             {
                 line1.Format(Translations::TranslateOrDefault("ObjectInfo.Tile.2",
                     "TileSet: %s (%d)")
-                    , "MISSING", -1);
+                    , "MISSING", MarbleTileSet);
 
                 ::SetBkColor(hDC, RGB(0, 255, 255));
                 ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());

@@ -38,6 +38,7 @@ DEFINE_HOOK(451A70, CPropertyInfantry_OnInitDialog, 7)
     pThis->CSCStrength.SetPos(atoi(pThis->CString_HealthPoint));
     pThis->UpdateData(FALSE);
     pThis->GetDlgItem(1088)->SetWindowTextA(pThis->CString_Direction);
+    pThis->GetDlgItem(1233)->ShowWindow(FALSE);
 
     if (!CViewObjectsExt::InitPropertyDlgFromProperty)
     {

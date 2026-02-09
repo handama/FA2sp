@@ -1537,7 +1537,7 @@ DEFINE_HOOK(469520, CIsoView_GetOverlayDirection, 6)
 		if (dir2) p |= 2 + damageStage * 16;
 		if (dir3) p |= 4 + damageStage * 16;
 		if (dir4) p |= 8 + damageStage * 16;
-		if (!dir1 && !dir2 && !dir3 && !dir4) p = overlayData;
+		if (!dir1 && !dir2 && !dir3 && !dir4) p = damageStage * 16;
 	}
 
 	R->EAX(p);

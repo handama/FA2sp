@@ -1122,6 +1122,104 @@ LRESULT CALLBACK DarkTheme::EditSubclassProc(
     return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
 
+LRESULT CALLBACK DarkTheme::StaticSubclassProc(
+    HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
+    UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+{
+    switch (uMsg)
+    {
+    case WM_NCPAINT:
+    {
+        LONG_PTR style = GetWindowLongPtr(hWnd, GWL_STYLE);
+        LONG_PTR exstyle = GetWindowLongPtr(hWnd, GWL_EXSTYLE);
+
+        bool shouldDrawBorder = false;
+
+        if (style & WS_BORDER) {
+            shouldDrawBorder = true;
+        }
+        else if (style & SS_SUNKEN) {
+            shouldDrawBorder = true;
+        }
+        else if (style & SS_ETCHEDHORZ) {
+            shouldDrawBorder = true;
+        }
+        else if (style & SS_ETCHEDVERT) {
+            shouldDrawBorder = true;
+        }
+        else if ((style & SS_TYPEMASK) == SS_BLACKFRAME ||
+            (style & SS_TYPEMASK) == SS_GRAYFRAME ||
+            (style & SS_TYPEMASK) == SS_WHITEFRAME) {
+            shouldDrawBorder = true;
+        }
+
+        if (!shouldDrawBorder)
+        {
+            return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+        }
+
+        DefWindowProc(hWnd, uMsg, wParam, lParam);
+        HDC hdc = GetWindowDC(hWnd);
+
+        RECT rcWindow;
+        GetWindowRect(hWnd, &rcWindow);
+        OffsetRect(&rcWindow, -rcWindow.left, -rcWindow.top);
+
+        int nCover = 3;
+
+        HPEN hOldPen = (HPEN)SelectObject(hdc, g_hBackGroundPen);
+
+        for (int i = 0; i < nCover; ++i)
+            MoveToEx(hdc, rcWindow.left, rcWindow.top + i, NULL), LineTo(hdc, rcWindow.right, rcWindow.top + i);
+        for (int i = 0; i < nCover; ++i)
+            MoveToEx(hdc, rcWindow.left + i, rcWindow.top, NULL), LineTo(hdc, rcWindow.left + i, rcWindow.bottom);
+        for (int i = 0; i < nCover; ++i)
+            MoveToEx(hdc, rcWindow.left, rcWindow.bottom - 1 - i, NULL), LineTo(hdc, rcWindow.right, rcWindow.bottom - 1 - i);
+        for (int i = 0; i < nCover; ++i)
+            MoveToEx(hdc, rcWindow.right - 1 - i, rcWindow.top, NULL), LineTo(hdc, rcWindow.right - 1 - i, rcWindow.bottom);
+
+        SelectObject(hdc, g_hBorderPen);
+
+        MoveToEx(hdc, rcWindow.left, rcWindow.top, NULL);
+        LineTo(hdc, rcWindow.right, rcWindow.top); 
+        MoveToEx(hdc, rcWindow.left, rcWindow.top, NULL);
+        LineTo(hdc, rcWindow.left, rcWindow.bottom); 
+        MoveToEx(hdc, rcWindow.left, rcWindow.bottom - 1, NULL);
+        LineTo(hdc, rcWindow.right, rcWindow.bottom - 1); 
+        MoveToEx(hdc, rcWindow.right - 1, rcWindow.top, NULL);
+        LineTo(hdc, rcWindow.right - 1, rcWindow.bottom);
+
+        ReleaseDC(hWnd, hdc);
+
+        return 0;
+    }
+    case WM_ERASEBKGND:
+    {
+        HDC hdc = (HDC)wParam;
+        RECT rc;
+        GetClientRect(hWnd, &rc);
+    
+        FillRect(hdc, &rc, g_hDarkBackgroundBrush);
+    
+        return TRUE;
+    }
+    case WM_CTLCOLOREDIT:
+    {
+        HDC hdc = (HDC)wParam;
+    
+        SetTextColor(hdc, DarkColors::LightText);
+        SetBkMode(hdc, TRANSPARENT);
+    
+        return (LRESULT)g_hDisabledBgBrush;
+    }
+    case WM_NCDESTROY:
+        RemoveWindowSubclass(hWnd, StaticSubclassProc, uIdSubclass);
+        break;
+    }
+
+    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
 void DarkTheme::DrawCheckMark(HDC hdc, RECT rc)
 {
     int h = rc.bottom - rc.top;
@@ -1564,7 +1662,7 @@ void DarkTheme::SubclassAllControls(HWND hWndParent)
     {
         if (GetPropW(hWndParent, L"IS_CHOOSECOLOR"))
             break;
-        SetWindowSubclass(hWndChild, EditSubclassProc, 0, 0);
+        SetWindowSubclass(hWndChild, StaticSubclassProc, 0, 0);
     }
 
     hWndChild = NULL;

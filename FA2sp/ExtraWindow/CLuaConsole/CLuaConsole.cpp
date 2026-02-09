@@ -26,6 +26,7 @@
 #include "../../Miscs/MultiSelection.h"
 #include <Miscs/Miscs.h>
 #include "../../Ext/CFinalSunApp/Body.h"
+#include <windowsx.h>
 
 namespace fs = std::filesystem;
 
@@ -41,6 +42,7 @@ HWND CLuaConsole::hScripts;
 HWND CLuaConsole::hRunFile;
 HWND CLuaConsole::hApply;
 HWND CLuaConsole::hSearchText;
+HWND CLuaConsole::hSplitter;
 bool CLuaConsole::applyingScript = false;
 bool CLuaConsole::applyingScriptFirst = true;
 bool CLuaConsole::runFile = true;
@@ -50,6 +52,11 @@ int CLuaConsole::origWndHeight;
 int CLuaConsole::minWndWidth;
 int CLuaConsole::minWndHeight;
 bool CLuaConsole::minSizeSet;
+WNDPROC CLuaConsole::OriginalSplitterProc = nullptr;
+int CLuaConsole::splitterY = 0;
+bool CLuaConsole::isDragging = false;
+int CLuaConsole::dragStartY = 0;
+
 bool CLuaConsole::needRedraw = false;
 bool CLuaConsole::recalculateOre = false;
 bool CLuaConsole::updateBuilding = false;
@@ -67,6 +74,7 @@ bool CLuaConsole::updateCellTag = false;
 bool CLuaConsole::skipBuildingUpdate = false;
 sol::state CLuaConsole::Lua;
 using namespace::LuaFunctions;
+const int splitterHeight = 4;
 
 void CLuaConsole::Create(CFinalSunDlg* pWnd)
 {
@@ -138,7 +146,11 @@ void CLuaConsole::Initialize(HWND& hWnd)
     hRunFile = GetDlgItem(hWnd, Controls::RunFile);
     hApply = GetDlgItem(hWnd, Controls::Apply);
     hSearchText = GetDlgItem(hWnd, Controls::SearchText);
+    hSplitter = GetDlgItem(hWnd, Controls::Splitter);
     //hStop = GetDlgItem(hWnd, Controls::Stop);
+
+    if (hSplitter)
+        OriginalSplitterProc = (WNDPROC)SetWindowLongPtr(hSplitter, GWLP_WNDPROC, (LONG_PTR)SplitterSubclassProc);
     
     SendMessage(hOutputBox, EM_SETREADONLY, (WPARAM)TRUE, 0);
     SetupLuaHighlight(hInputBox);
@@ -1073,6 +1085,108 @@ void CLuaConsole::Update(HWND& hWnd, const char* filter)
     }
 }
 
+LRESULT CALLBACK CLuaConsole::SplitterSubclassProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
+    case WM_SETCURSOR:
+        if (LOWORD(lParam) == HTCLIENT)
+        {
+            SetCursor(LoadCursor(NULL, IDC_SIZENS));
+            return TRUE;
+        }
+        break;
+
+    case WM_LBUTTONDOWN:
+        isDragging = true;
+        POINT ptDown;
+        GetCursorPos(&ptDown);
+        dragStartY = ptDown.y;  // 記錄螢幕Y座標
+        SetCapture(hSplitter);
+        return 0;
+
+    case WM_MOUSEMOVE:
+        if (isDragging && (wParam & MK_LBUTTON))
+        {
+            POINT pt;
+            GetCursorPos(&pt);
+            int deltaY = pt.y - dragStartY;  // 鼠標移動的像素量
+
+            // 先獲取當前三個控件的高度（關鍵！）
+            RECT rcTop, rcSplit, rcBottom, rcText;
+            GetWindowRect(hOutputBox, &rcTop);
+            GetWindowRect(hSplitter, &rcSplit);
+            GetWindowRect(hInputBox, &rcBottom);
+            GetWindowRect(hInputText, &rcText);
+
+            ScreenToClient(m_hwnd, (POINT*)&rcTop);
+            ScreenToClient(m_hwnd, (POINT*)&rcTop + 1);
+            ScreenToClient(m_hwnd, (POINT*)&rcSplit);
+            ScreenToClient(m_hwnd, (POINT*)&rcSplit + 1);
+            ScreenToClient(m_hwnd, (POINT*)&rcBottom);
+            ScreenToClient(m_hwnd, (POINT*)&rcBottom + 1);
+            ScreenToClient(m_hwnd, (POINT*)&rcText);
+            ScreenToClient(m_hwnd, (POINT*)&rcText + 1);
+
+            int currentTopHeight = rcTop.bottom - rcTop.top;
+            int splitterHeight = rcSplit.bottom - rcSplit.top;  // 固定6
+            int currentBottomHeight = rcBottom.bottom - rcBottom.top;
+
+            // 新上方高度 = 原高度 + deltaY（向下拖增高，向上拖減高）
+            int newTopHeight = currentTopHeight + deltaY;
+
+            // 限制：最低20px
+            if (newTopHeight < 50) newTopHeight = 50;
+            if (newTopHeight > currentTopHeight + currentBottomHeight - 50)
+                newTopHeight = currentTopHeight + currentBottomHeight - 50;
+
+            // 有變化才動
+            if (newTopHeight != currentTopHeight)
+            {
+                int deltaHeight = newTopHeight - currentTopHeight;  // 正=上方增高，下方減高
+                int newBottomHeight = currentBottomHeight - deltaHeight;
+
+                // 1. 上方：位置不變，只改高度
+                MoveWindow(hOutputBox, rcTop.left, rcTop.top,
+                    rcTop.right - rcTop.left, newTopHeight, TRUE);
+
+                // 2. 分割條：Y跟隨上方底部，寬高不變
+                int newSplitterY = rcSplit.top + deltaY;
+                MoveWindow(hSplitter, rcSplit.left, newSplitterY,
+                    rcSplit.right - rcSplit.left, splitterHeight, TRUE);
+
+                // 2. 分割條：Y跟隨上方底部，寬高不變
+                int newTextY = rcText.top + deltaY;
+                MoveWindow(hInputText, rcText.left, newTextY,
+                    rcText.right - rcText.left, rcText.bottom - rcText.top, TRUE);
+
+                // 3. 下方：Y = splitterY + splitterHeight，X寬不變，高度調整
+                int newBottomY = rcBottom.top + deltaY;
+                MoveWindow(hInputBox, rcBottom.left, newBottomY,
+                    rcBottom.right - rcBottom.left, newBottomHeight, TRUE);
+
+                // 更新splitterY追蹤（上方實際底部）
+                splitterY = newSplitterY;
+
+                // 重置基準，讓拖動連續平滑
+                dragStartY = pt.y;
+            }
+        }
+        return 0;
+
+    case WM_LBUTTONUP:
+    case WM_CAPTURECHANGED:
+        if (isDragging)
+        {
+            isDragging = false;
+            ReleaseCapture();
+        }
+        return 0;
+    }
+
+    return CallWindowProc(OriginalSplitterProc, hWnd, message, wParam, lParam);
+}
+
 BOOL CALLBACK CLuaConsole::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
     switch (Msg)
@@ -1124,6 +1238,12 @@ BOOL CALLBACK CLuaConsole::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
         newWidth = rect.right - rect.left + newWndWidth - origWndWidth;
         newHeight = rect.bottom - rect.top + heightOffsetInput;
         MoveWindow(hInputBox, topLeft.x, topLeft.y + heightOffsetOutput, newWidth, newHeight, TRUE);
+
+        GetWindowRect(hSplitter, &rect);
+        topLeft = { rect.left, rect.top };
+        ScreenToClient(hWnd, &topLeft);
+        newWidth = rect.right - rect.left + newWndWidth - origWndWidth;
+        MoveWindow(hSplitter, topLeft.x, topLeft.y + heightOffsetOutput, newWidth, rect.bottom - rect.top, TRUE);
 
         GetWindowRect(hInputText, &rect);
         topLeft = { rect.left, rect.top };

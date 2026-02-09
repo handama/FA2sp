@@ -31,6 +31,7 @@ public:
         RunFile = 1009,
         Apply = 1010,
         SearchText = 1012,
+        Splitter = 1013,
         //Stop = 1011,
     };
     static void Create(CFinalSunDlg* pWnd);
@@ -50,6 +51,7 @@ protected:
     static void Update(HWND& hWnd, const char* filter = "");
 
     static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+    static LRESULT CALLBACK SplitterSubclassProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 private:
     static HWND m_hwnd;
@@ -59,6 +61,10 @@ private:
     static int minWndWidth;
     static int minWndHeight;
     static bool minSizeSet;
+    static WNDPROC OriginalSplitterProc;
+    static int splitterY; 
+    static bool isDragging;
+    static int dragStartY;
 
 public:
     static HWND hExecute;
@@ -71,6 +77,7 @@ public:
     static HWND hRunFile;
     static HWND hApply;
     static HWND hSearchText;
+    static HWND hSplitter;
     //static HWND hStop;
     static bool applyingScript;
     static bool applyingScriptFirst;

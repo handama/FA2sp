@@ -105,5 +105,7 @@ private:
     static int minWndHeight;
     static bool minSizeSet;
     static bool autoEdit;
+    static UINT_PTR m_changeDebounceTimer;
+    static FString CurrentSection;
 };
 

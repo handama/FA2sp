@@ -46,6 +46,9 @@ bool CNewINIEditor::minSizeSet;
 bool CNewINIEditor::autoEdit = false;
 
 WNDPROC CNewINIEditor::OriginalListBoxProc;
+UINT_PTR CNewINIEditor::m_changeDebounceTimer = 0;
+FString CNewINIEditor::CurrentSection;
+const UINT DEBOUNCE_MS = 250;
 
 void CNewINIEditor::Create(CFinalSunDlg* pWnd)
 {
@@ -75,6 +78,7 @@ void CNewINIEditor::Create(CFinalSunDlg* pWnd)
 
 void CNewINIEditor::Initialize(HWND& hWnd)
 {
+    CurrentSection.clear();
     FString buffer;
     if (Translations::GetTranslationItem("INIEditorTitle", buffer))
         SetWindowText(hWnd, buffer);
@@ -310,16 +314,45 @@ BOOL CALLBACK CNewINIEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             if (CODE == BN_CLICKED)
                 OnClickDelSection(hWnd);
             break;
-        case Controls::INIEdit:
-            if (CODE == EN_CHANGE)
-                OnEditchangeINIEdit();
-            break;
+        //case Controls::INIEdit:
+        //    if (CODE == EN_CHANGE)
+        //        OnEditchangeINIEdit();
+        //    break;
         case Controls::SearchText:
             if (CODE == EN_CHANGE)
                 OnEditchangeSearch();
             break;
         default:
             break;
+        }
+        break;
+    }
+    case WM_NOTIFY:
+    {
+        SCNotification* scn = (SCNotification*)lParam;
+        if (scn->nmhdr.hwndFrom == hINIEdit && scn->nmhdr.code == SCN_MODIFIED)
+        {
+            if (scn->modificationType & (SC_MOD_INSERTTEXT | SC_MOD_DELETETEXT))
+            {
+                if (m_changeDebounceTimer)
+                {
+                    KillTimer(m_hwnd, m_changeDebounceTimer);
+                }
+
+                m_changeDebounceTimer = SetTimer(m_hwnd, 1002, DEBOUNCE_MS, NULL);
+            }
+        }
+        break;
+    }
+    case WM_TIMER:
+    {
+        if (wParam == 1002)
+        {
+            KillTimer(m_hwnd, 1002);
+            m_changeDebounceTimer = 0;
+            OnEditchangeINIEdit();
+
+            return 0;
         }
         break;
     }
@@ -620,6 +653,11 @@ void CNewINIEditor::OnClickDelSection(HWND& hWnd)
 
 void CNewINIEditor::OnSelchangeListbox(int index)
 {
+    if (m_changeDebounceTimer)
+    {
+        KillTimer(m_hwnd, m_changeDebounceTimer);
+        OnEditchangeINIEdit();
+    }
     if (index >= 0)
     {
         SendMessage(hSectionList, LB_SETCURSEL, index, NULL);
@@ -627,21 +665,23 @@ void CNewINIEditor::OnSelchangeListbox(int index)
     if (SendMessage(hSectionList, LB_GETCURSEL, NULL, NULL) < 0 || SendMessage(hSectionList, LB_GETCOUNT, NULL, NULL) <= 0)
     {
         SendMessage(hINIEdit, SCI_SETTEXT, 0, (LPARAM)(LPCSTR)"");
+        CurrentSection.clear();
         return;
     }
     int idx = SendMessage(hSectionList, LB_GETCURSEL, 0, NULL);
 
     char section[512]{ 0 };
     SendMessage(hSectionList, LB_GETTEXT, idx, (LPARAM)section);
+    CurrentSection = section;
     FString text;
-    if (auto pSection = map.GetSection(section))
+    if (auto pSection = map.GetSection(CurrentSection))
     {
         for (auto& pair : pSection->GetEntities())
         {
             if (ExtConfigs::SaveMap_KeepComments)
             {
-                auto fkIt = CMapDataExt::MapFrontlineComments[section].find(pair.first);
-                if (fkIt != CMapDataExt::MapFrontlineComments[section].end())
+                auto fkIt = CMapDataExt::MapFrontlineComments[CurrentSection].find(pair.first);
+                if (fkIt != CMapDataExt::MapFrontlineComments[CurrentSection].end())
                 {
                     std::istringstream iss(fkIt->second);
                     std::string line;
@@ -688,6 +728,8 @@ void CNewINIEditor::SetupIniHighlight(HWND& hWnd)
 {
     ::SendMessage(hWnd, SCI_SETMULTIPLESELECTION, TRUE, 0);
     ::SendMessage(hWnd, SCI_SETADDITIONALSELECTIONTYPING, TRUE, 0);
+    ::SendMessage(hWnd, SCI_SETMULTIPASTE, SC_MULTIPASTE_EACH, 0);
+    ::SendMessage(hWnd, SCI_SETVIRTUALSPACEOPTIONS, SCVS_RECTANGULARSELECTION, 0);
     ::SendMessage(hWnd, SCI_SETCODEPAGE, SC_CP_UTF8, 0);
     ::SendMessage(hWnd, SCI_STYLESETFONT, STYLE_DEFAULT, (LPARAM)"Consolas");
     ::SendMessage(hWnd, SCI_STYLESETSIZE, STYLE_DEFAULT, 12);
@@ -706,7 +748,7 @@ void CNewINIEditor::SetupIniHighlight(HWND& hWnd)
     ::SendMessage(hWnd, SCI_SETMARGINSENSITIVEN, 1, FALSE);
     ::SendMessage(hWnd, SCI_SETMARGINLEFT, 0, 4);
 
-    ::SendMessage(hWnd, SCI_SETCARETFORE, 0, isDark ? RGB(220, 220, 220) : RGB(0, 0, 0));
+    ::SendMessage(hWnd, SCI_SETCARETFORE, isDark ? RGB(220, 220, 220) : RGB(0, 0, 0), 0);
     ::SendMessage(hWnd, SCI_SETCARETLINEVISIBLE, 1, 0);
 
     if (isDark)
@@ -786,14 +828,11 @@ void CNewINIEditor::OnEditchangeINIEdit()
         SendMessage(hINIEdit, SCI_SETTEXT, 0, (LPARAM)(LPCSTR)"");
         return;
     }
-    int idx = SendMessage(hSectionList, LB_GETCURSEL, 0, NULL);
-    char section[512]{ 0 };
-    SendMessage(hSectionList, LB_GETTEXT, idx, (LPARAM)section);
     FString text = ExtraWindow::GetScintillaText(hINIEdit);
 
     FString inlineComments;
     FString frontComments;
-    map.DeleteSection(section);
+    map.DeleteSection(CurrentSection);
 
     std::istringstream iss(text);
     FString line;
@@ -818,27 +857,27 @@ void CNewINIEditor::OnEditchangeINIEdit()
                     auto comment = FString::GetComment(rawLine);
                     inlineComments += comment;
 
-                    map.WriteString(section, pair.first.Trim(), pair.second.Trim());
+                    map.WriteString(CurrentSection, pair.first.Trim(), pair.second.Trim());
 
                     inlineComments.Trim();
                     if (ExtConfigs::SaveMap_KeepComments && !inlineComments.IsEmpty())
                     {
-                        CMapDataExt::MapInlineComments[section][pair.first] = inlineComments;
+                        CMapDataExt::MapInlineComments[CurrentSection][pair.first] = inlineComments;
                         inlineComments.clear();
                     }
                     else if (ExtConfigs::SaveMap_KeepComments)
                     {
-                        CMapDataExt::MapInlineComments[section].erase(pair.first);
+                        CMapDataExt::MapInlineComments[CurrentSection].erase(pair.first);
                     }
                     frontComments.Trim();
                     if (ExtConfigs::SaveMap_KeepComments && !frontComments.IsEmpty())
                     {
-                        CMapDataExt::MapFrontlineComments[section][pair.first] = frontComments;
+                        CMapDataExt::MapFrontlineComments[CurrentSection][pair.first] = frontComments;
                         frontComments.clear();
                     }
                     else if (ExtConfigs::SaveMap_KeepComments)
                     {
-                        CMapDataExt::MapFrontlineComments[section].erase(pair.first);
+                        CMapDataExt::MapFrontlineComments[CurrentSection].erase(pair.first);
                     }
                 }
                 else
@@ -859,7 +898,7 @@ void CNewINIEditor::OnEditchangeINIEdit()
             frontComments += "\n";
     }
 
-    UpdateGameObject(section);
+    UpdateGameObject(CurrentSection);
 }
 
 void CNewINIEditor::OnEditchangeSearch()

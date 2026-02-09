@@ -895,6 +895,8 @@ void CLuaConsole::SetupLuaHighlight(HWND& hWnd)
 {
     ::SendMessage(hWnd, SCI_SETMULTIPLESELECTION, TRUE, 0);
     ::SendMessage(hWnd, SCI_SETADDITIONALSELECTIONTYPING, TRUE, 0);
+    ::SendMessage(hWnd, SCI_SETMULTIPASTE, SC_MULTIPASTE_EACH, 0);
+    ::SendMessage(hWnd, SCI_SETVIRTUALSPACEOPTIONS, SCVS_RECTANGULARSELECTION, 0);
     ::SendMessage(hWnd, SCI_SETCODEPAGE, SC_CP_UTF8, 0);
     ::SendMessage(hWnd, SCI_STYLESETFONT, STYLE_DEFAULT, (LPARAM)"Consolas");
     ::SendMessage(hWnd, SCI_STYLESETSIZE, STYLE_DEFAULT, 12);
@@ -931,7 +933,7 @@ void CLuaConsole::SetupLuaHighlight(HWND& hWnd)
     ::SendMessage(hWnd, SCI_SETMARGINMASKN, 0, 0); 
     ::SendMessage(hWnd, SCI_SETMARGINTYPEN, 0, SC_MARGIN_NUMBER);
 
-    ::SendMessage(hWnd, SCI_SETCARETFORE, 0, isDark ? RGB(220, 220, 220) : RGB(0, 0, 0));
+    ::SendMessage(hWnd, SCI_SETCARETFORE, isDark ? RGB(220, 220, 220) : RGB(0, 0, 0), 0);
     ::SendMessage(hWnd, SCI_SETCARETLINEVISIBLE, 1, 0);
 
     if (isDark)

@@ -893,6 +893,8 @@ void CLuaConsole::Initialize(HWND& hWnd)
 
 void CLuaConsole::SetupLuaHighlight(HWND& hWnd)
 {
+    ::SendMessage(hWnd, SCI_SETMULTIPLESELECTION, TRUE, 0);
+    ::SendMessage(hWnd, SCI_SETADDITIONALSELECTIONTYPING, TRUE, 0);
     ::SendMessage(hWnd, SCI_SETCODEPAGE, SC_CP_UTF8, 0);
     ::SendMessage(hWnd, SCI_STYLESETFONT, STYLE_DEFAULT, (LPARAM)"Consolas");
     ::SendMessage(hWnd, SCI_STYLESETSIZE, STYLE_DEFAULT, 12);

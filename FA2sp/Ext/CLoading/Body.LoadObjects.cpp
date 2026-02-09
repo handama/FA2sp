@@ -199,13 +199,13 @@ FString CLoadingExt::GetBuildingImageName(FString ID, int nFacing, int state, bo
 CLoadingExt::ObjectType CLoadingExt::GetItemType(FString ID)
 {
 	if (ID == "")
-		ObjectType::Unknown;
+		return ObjectType::Unknown;
 	else if (ID == "FA2DEFAULT_INFANTRY")
-		ObjectType::Infantry;
+		return ObjectType::Infantry;
 	else if (ID == "FA2DEFAULT_UNIT")
-		ObjectType::Vehicle;
+		return ObjectType::Vehicle;
 	else if (ID == "FA2DEFAULT_AIRCRAFT")
-		ObjectType::Aircraft;
+		return ObjectType::Aircraft;
 	if (ObjectTypes.size() == 0)
 	{
 		auto load = [](FString type, ObjectType e)

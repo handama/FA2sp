@@ -4078,9 +4078,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	if (reloadImages && ExtConfigs::UseDefaultUnitImage)
 	{
 		TempValueHolder facingTmp(ExtConfigs::ExtFacings, true);
-		CINI::Art->WriteString("FA2DEFAULT_UNIT", "Voxel", "true");
-		CINI::Art->WriteString("FA2DEFAULT_AIRCRAFT", "Voxel", "true");
-		CINI::Rules->WriteString("FA2DEFAULT_UNIT", "Turret", "true");
+		CINI::Art->WriteString("FA2DEFAULT_UNIT", "Facings", "32");
+		CINI::Art->WriteString("FA2DEFAULT_AIRCRAFT", "Facings", "32");
 		CLoadingExt::GetExtension()->LoadObjects("FA2DEFAULT_UNIT");
 		CLoadingExt::GetExtension()->LoadObjects("FA2DEFAULT_AIRCRAFT");
 		CLoadingExt::GetExtension()->LoadObjects("FA2DEFAULT_INFANTRY");

@@ -2893,6 +2893,102 @@ void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, Imag
     CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary, x, y, pd, newPal, alpha, houseColor);
 }
 
+bool CIsoViewExt::SaveImageDataToBMP(ImageDataClassSafe* pd,const char* outputPath   )
+{
+    if (!pd || !pd->pImageBuffer || pd->Flag == ImageDataFlag::SurfaceData)
+        return false;
+
+    const int BPP = 4; 
+
+    int width = pd->FullWidth;
+    int height = pd->FullHeight;
+
+    if (width <= 0 || height <= 0)
+        return false;
+
+    int pitch = ((width * BPP + 3) & ~3);
+    size_t bufferSize = static_cast<size_t>(pitch) * height;
+
+    std::unique_ptr<BYTE[]> pixels(new BYTE[bufferSize]());
+    if (!pixels)
+        return false;
+
+    Palette* newPal = pd->pPalette;
+    if (!newPal)
+        return false;
+
+    RGBClass oreColor{};
+    bool isEmphasizingOre = false;
+    BYTE oreOpacity = 0;
+
+    BYTE* src = static_cast<BYTE*>(pd->pImageBuffer.get());
+    int sw = pd->FullWidth;
+
+    for (size_t i = 0; i < bufferSize; i += 4) {
+        pixels[i + 0] = 255;
+        pixels[i + 1] = 0;
+        pixels[i + 2] = 255;
+        pixels[i + 3] = 255;
+    }
+
+    for (int row = 0; row < height; ++row)
+    {
+        LONG left = pd->pPixelValidRanges[row].First;
+        LONG right = pd->pPixelValidRanges[row].Last;
+
+        if (left > right)
+            continue;
+
+        left = std::max(left, 0L);
+        right = std::min(right, static_cast<LONG>(width) - 1);
+
+        BYTE* srcPtr = src + row * sw + left;
+
+        BYTE* destRow = pixels.get() + row * pitch + left * BPP;
+
+        for (LONG col = left; col <= right; ++col, ++srcPtr, destRow += BPP)
+        {
+            BYTE idx = *srcPtr;
+            if (idx == 0) continue;
+
+            BGRStruct c = newPal->Data[idx];
+
+            destRow[0] = c.B;
+            destRow[1] = c.G;
+            destRow[2] = c.R;
+            destRow[3] = 255;
+        }
+    }
+
+    BITMAPFILEHEADER bfh = {};
+    BITMAPINFOHEADER bih = {};
+
+    bih.biSize = sizeof(BITMAPINFOHEADER);
+    bih.biWidth = width;
+    bih.biHeight = -height; 
+    bih.biPlanes = 1;
+    bih.biBitCount = 32;
+    bih.biCompression = BI_RGB;
+    bih.biSizeImage = static_cast<DWORD>(bufferSize);
+    bih.biXPelsPerMeter = 2835;
+    bih.biYPelsPerMeter = 2835;
+
+    bfh.bfType = 0x4D42;
+    bfh.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+    bfh.bfSize = bfh.bfOffBits + bih.biSizeImage;
+
+    FILE* fp = fopen(outputPath, "wb");
+    if (!fp)
+        return false;
+
+    fwrite(&bfh, 1, sizeof(bfh), fp);
+    fwrite(&bih, 1, sizeof(bih), fp);
+    fwrite(pixels.get(), 1, bufferSize, fp);
+    fclose(fp);
+
+    return true;
+}
+
 void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
     const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha, 
     std::vector<byte>* mask, std::vector<byte>* heightMask, byte height, std::vector<byte>* cellHeightMask)

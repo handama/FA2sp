@@ -555,7 +555,10 @@ void CNewINIEditor::OnClickImporterOK(HWND& hWnd)
 void CNewINIEditor::OnClickNewSection()
 {
     SendMessage(hSearchText, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
-    SectionLabels.clear();
+    if (!SectionLabels.empty())
+    {
+        Update(m_hwnd);
+    }
     char section[512]{ 0 };
     GetWindowText(hNewSectionName, section, 511);
     if (strcmp(section, "") == 0) return;
@@ -683,6 +686,8 @@ void CNewINIEditor::OnSelchangeListbox(int index)
 
 void CNewINIEditor::SetupIniHighlight(HWND& hWnd)
 {
+    ::SendMessage(hWnd, SCI_SETMULTIPLESELECTION, TRUE, 0);
+    ::SendMessage(hWnd, SCI_SETADDITIONALSELECTIONTYPING, TRUE, 0);
     ::SendMessage(hWnd, SCI_SETCODEPAGE, SC_CP_UTF8, 0);
     ::SendMessage(hWnd, SCI_STYLESETFONT, STYLE_DEFAULT, (LPARAM)"Consolas");
     ::SendMessage(hWnd, SCI_STYLESETSIZE, STYLE_DEFAULT, 12);

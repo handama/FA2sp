@@ -243,19 +243,23 @@ static void DrawTechnoAttachments
 				int newFacing = (7 - (oriFacing + info.RotationAdjust) / 32 + facings) % facings;
 
 				const auto& imageName = CLoadingExt::GetImageName(info.ID, newFacing, isShadow);
-				auto pData = CLoadingExt::GetImageDataFromMap(imageName,
-					eItemType, newFacing, facings, isShadow);
+				auto pData = ExtConfigs::UseDefaultUnitImage_TechnoAttachment ?
+					CLoadingExt::GetImageDataFromMap(imageName, eItemType, newFacing, facings, isShadow) 
+					: CLoadingExt::GetImageDataFromMap(imageName);
 
-				if (!isShadow && pData->pImageBuffer)
+				if (!isShadow)
 				{
 					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
 
-					auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
-						displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
-						displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
-						pData, NULL,
-						ExtConfigs::InGameDisplay_Cloakable
-						&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255, color, 0, true); };
+					auto draw = [&] {
+						if (pData->pImageBuffer)
+							CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
+							displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
+							displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
+							pData, NULL,
+							ExtConfigs::InGameDisplay_Cloakable
+							&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255, color, 0, true); 
+					};
 						
 					draw();
 
@@ -283,18 +287,22 @@ static void DrawTechnoAttachments
 				int newFacing = (parentFacing * facings / ParentFacings + additionalFacing) % facings;
 
 				FString imageName = CLoadingExt::GetImageName(info.ID, newFacing, isShadow);
-				auto pData = CLoadingExt::GetImageDataFromMap(imageName,
-					eItemType, newFacing, facings, isShadow);
+				auto pData = ExtConfigs::UseDefaultUnitImage_TechnoAttachment ? 
+					CLoadingExt::GetImageDataFromMap(imageName, eItemType, newFacing, facings, isShadow) 
+					: CLoadingExt::GetImageDataFromMap(imageName);
 
-				if (!isShadow && pData->pImageBuffer)
+				if (!isShadow)
 				{
 					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
-					auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
-						displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
-						displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
-						pData, NULL,
-						ExtConfigs::InGameDisplay_Cloakable
-						&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255, color, 0, true); };
+					auto draw = [&] {
+						if (pData->pImageBuffer)
+							CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
+							displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
+							displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
+							pData, NULL,
+							ExtConfigs::InGameDisplay_Cloakable
+							&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255, color, 0, true); 
+					};
 
 					draw();
 
@@ -344,17 +352,20 @@ static void DrawTechnoAttachments
 				{
 					auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
 					auto pBldData = CLoadingExt::BindClippedImages(clips);
-					if (pBldData && pBldData->pImageBuffer)
+					if (pBldData)
 					{
 						auto ArtID = CLoadingExt::GetArtID(info.ID);			
 						auto& isoset = CMapDataExt::TerrainPaletteBuildings;
 						Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
-						auto draw = [&] {CIsoViewExt::BlitSHPTransparent_Building(pThis, lpSurface, window, boundary,
-							displayX - pBldData->FullWidth / 2 + mat.OutputX + info.DeltaX,
-							displayY - pBldData->FullHeight / 2 + mat.OutputY + info.DeltaY, pBldData.get(),
-							NULL, ExtConfigs::InGameDisplay_Cloakable
-							&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255,
-							color, -1, false, isoset.find(info.ID) != isoset.end()); };
+						auto draw = [&] {
+							if (pBldData->pImageBuffer)
+								CIsoViewExt::BlitSHPTransparent_Building(pThis, lpSurface, window, boundary,
+								displayX - pBldData->FullWidth / 2 + mat.OutputX + info.DeltaX,
+								displayY - pBldData->FullHeight / 2 + mat.OutputY + info.DeltaY, pBldData.get(),
+								NULL, ExtConfigs::InGameDisplay_Cloakable
+								&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255,
+								color, -1, false, isoset.find(info.ID) != isoset.end()); 
+						};
 
 						draw();
 

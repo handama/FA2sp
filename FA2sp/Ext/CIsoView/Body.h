@@ -132,6 +132,7 @@ public:
         DDSURFACEDESC2& srcDesc, DDCOLORKEY& srcColorKey, int x, int y, int width = -1, int height = -1, BYTE alpha = 255);
     static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1);
     static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1);
+    static bool SaveImageDataToBMP(ImageDataClassSafe* pd, const char* outputPath);
     static void BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false);
     static void BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,

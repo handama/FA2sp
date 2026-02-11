@@ -665,6 +665,7 @@ void CNewINIEditor::OnSelchangeListbox(int index)
     if (SendMessage(hSectionList, LB_GETCURSEL, NULL, NULL) < 0 || SendMessage(hSectionList, LB_GETCOUNT, NULL, NULL) <= 0)
     {
         SendMessage(hINIEdit, SCI_SETTEXT, 0, (LPARAM)(LPCSTR)"");
+        ::SendMessage(hINIEdit, SCI_EMPTYUNDOBUFFER, 0, 0);
         CurrentSection.clear();
         return;
     }
@@ -715,7 +716,10 @@ void CNewINIEditor::OnSelchangeListbox(int index)
         ExtraWindow::SetScintillaText(hINIEdit, text);
     }
     else
+    {
         SendMessage(hINIEdit, SCI_SETTEXT, 0, (LPARAM)(LPCSTR)"");
+        ::SendMessage(hINIEdit, SCI_EMPTYUNDOBUFFER, 0, 0);
+    }
 
     int marginWidth = 35;
     int lineCount = ::SendMessage(hINIEdit, SCI_GETLINECOUNT, 0, 0);
@@ -826,6 +830,7 @@ void CNewINIEditor::OnEditchangeINIEdit()
     if (SendMessage(hSectionList, LB_GETCURSEL, NULL, NULL) < 0 || SendMessage(hSectionList, LB_GETCOUNT, NULL, NULL) <= 0)
     {
         SendMessage(hINIEdit, SCI_SETTEXT, 0, (LPARAM)(LPCSTR)"");
+        ::SendMessage(hINIEdit, SCI_EMPTYUNDOBUFFER, 0, 0);
         return;
     }
     FString text = ExtraWindow::GetScintillaText(hINIEdit);

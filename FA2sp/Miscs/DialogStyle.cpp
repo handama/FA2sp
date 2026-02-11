@@ -2047,13 +2047,9 @@ BOOL WINAPI DarkTheme::MyGetOpenFileNameA(LPOPENFILENAMEA ofn)
     if (DarkTheme::b_isSelectingGameFolder)
     {
         DarkTheme::b_isSelectingGameFolder = false;
-#ifdef CHINESE
-        ofn->lpstrFilter = "Mix 文件 (ra2md.mix)\0*.mix\0可执行文件 (gamemd.exe)\0*.exe\0所有文件 (*.*)\0*.*\0";
-        ofn->lpstrTitle = "选择文件";
-#else
+
         ofn->lpstrFilter = "Mix Files (ra2md.mix)\0*.mix\0Executable Files (gamemd.exe)\0*.exe\0All Files (*.*)\0*.*\0";
         ofn->lpstrTitle = "Select File";
-#endif
     }
 
     auto filters = ConvertFilter(ofn->lpstrFilter);

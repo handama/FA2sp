@@ -1175,6 +1175,7 @@ void ExtraWindow::SetScintillaText(HWND hScintilla, FString& text)
 
     text.toUTF8();
     SendMessage(hScintilla, SCI_SETTEXT, 0, text);
+    ::SendMessage(hScintilla, SCI_EMPTYUNDOBUFFER, 0, 0);
 
     return;
 }

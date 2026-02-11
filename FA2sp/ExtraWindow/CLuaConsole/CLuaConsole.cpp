@@ -1101,7 +1101,7 @@ LRESULT CALLBACK CLuaConsole::SplitterSubclassProc(HWND hWnd, UINT message, WPAR
         isDragging = true;
         POINT ptDown;
         GetCursorPos(&ptDown);
-        dragStartY = ptDown.y;  // 記錄螢幕Y座標
+        dragStartY = ptDown.y;
         SetCapture(hSplitter);
         return 0;
 
@@ -1110,9 +1110,8 @@ LRESULT CALLBACK CLuaConsole::SplitterSubclassProc(HWND hWnd, UINT message, WPAR
         {
             POINT pt;
             GetCursorPos(&pt);
-            int deltaY = pt.y - dragStartY;  // 鼠標移動的像素量
+            int deltaY = pt.y - dragStartY; 
 
-            // 先獲取當前三個控件的高度（關鍵！）
             RECT rcTop, rcSplit, rcBottom, rcText;
             GetWindowRect(hOutputBox, &rcTop);
             GetWindowRect(hSplitter, &rcSplit);
@@ -1129,46 +1128,37 @@ LRESULT CALLBACK CLuaConsole::SplitterSubclassProc(HWND hWnd, UINT message, WPAR
             ScreenToClient(m_hwnd, (POINT*)&rcText + 1);
 
             int currentTopHeight = rcTop.bottom - rcTop.top;
-            int splitterHeight = rcSplit.bottom - rcSplit.top;  // 固定6
+            int splitterHeight = rcSplit.bottom - rcSplit.top;
             int currentBottomHeight = rcBottom.bottom - rcBottom.top;
 
-            // 新上方高度 = 原高度 + deltaY（向下拖增高，向上拖減高）
             int newTopHeight = currentTopHeight + deltaY;
 
-            // 限制：最低20px
             if (newTopHeight < 50) newTopHeight = 50;
             if (newTopHeight > currentTopHeight + currentBottomHeight - 50)
                 newTopHeight = currentTopHeight + currentBottomHeight - 50;
 
-            // 有變化才動
             if (newTopHeight != currentTopHeight)
             {
-                int deltaHeight = newTopHeight - currentTopHeight;  // 正=上方增高，下方減高
+                int deltaHeight = newTopHeight - currentTopHeight;
                 int newBottomHeight = currentBottomHeight - deltaHeight;
 
-                // 1. 上方：位置不變，只改高度
                 MoveWindow(hOutputBox, rcTop.left, rcTop.top,
                     rcTop.right - rcTop.left, newTopHeight, TRUE);
 
-                // 2. 分割條：Y跟隨上方底部，寬高不變
                 int newSplitterY = rcSplit.top + deltaY;
                 MoveWindow(hSplitter, rcSplit.left, newSplitterY,
                     rcSplit.right - rcSplit.left, splitterHeight, TRUE);
 
-                // 2. 分割條：Y跟隨上方底部，寬高不變
                 int newTextY = rcText.top + deltaY;
                 MoveWindow(hInputText, rcText.left, newTextY,
                     rcText.right - rcText.left, rcText.bottom - rcText.top, TRUE);
 
-                // 3. 下方：Y = splitterY + splitterHeight，X寬不變，高度調整
                 int newBottomY = rcBottom.top + deltaY;
                 MoveWindow(hInputBox, rcBottom.left, newBottomY,
                     rcBottom.right - rcBottom.left, newBottomHeight, TRUE);
 
-                // 更新splitterY追蹤（上方實際底部）
                 splitterY = newSplitterY;
 
-                // 重置基準，讓拖動連續平滑
                 dragStartY = pt.y;
             }
         }

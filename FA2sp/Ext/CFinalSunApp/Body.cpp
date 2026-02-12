@@ -23,6 +23,7 @@ namespace fs = std::filesystem;
 std::vector<std::string> CFinalSunAppExt::RecentFilesExt;
 bool CFinalSunAppExt::HoldingKey = false;
 FString CFinalSunAppExt::ExePathExt;
+FString CFinalSunAppExt::LauncherName;
 std::array<std::pair<std::string, std::string>, 7> CFinalSunAppExt::ExternalLinks
 {
 	std::make_pair("https://github.com/secsome/FA2sp", ""),
@@ -65,7 +66,6 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	CFinalSunDlg::SE2KMODE = FALSE; // We don't need SE2K stuff
 	CFinalSunApp::MapPath[0] = '\0';
 	// Now let's parse the command line
-	// Nothing yet huh...
 	ParseCommandLine(CFinalSunApp::Instance->m_lpCmdLine);
 
 	CFinalSunAppExt::ExePathExt = CFinalSunApp::ExePath();
@@ -251,7 +251,6 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 
 void CFinalSunAppExt::ParseCommandLine(const char* cmdLine)
 {
-	Logger::Raw("%s\n", cmdLine);
 	FString line(cmdLine);
 	auto encoding = STDHelpers::GetFileEncoding((uint8_t*)line.data(), line.size());
 	if (encoding == FileEncoding::UTF8 || encoding == FileEncoding::UTF8_BOM)
@@ -297,6 +296,9 @@ void CFinalSunAppExt::ParseCommandLine(const char* cmdLine)
 
 		if (arg == "-o" || arg == "--open") {
 			if (i + 1 < args.size()) output_file = args[++i];
+		}
+		else if (arg == "-x") {
+			if (i + 1 < args.size()) LauncherName = args[++i];
 		}
 	}
 

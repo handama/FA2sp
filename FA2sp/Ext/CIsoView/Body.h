@@ -47,6 +47,7 @@ struct DrawVeterancy
     int Y;
     int VP;
     FString ID;
+    bool Transp = false;
 };
 
 struct TilePlacement

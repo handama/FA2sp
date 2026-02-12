@@ -8,6 +8,9 @@
 #include "../Common.h"
 #include "../../Miscs/DialogStyle.h"
 #include "../../Ext/CFinalSunApp/Body.h"
+#include <shlwapi.h>
+#include <ShlObj.h>
+#pragma comment(lib, "shlwapi.lib")
 
 HWND CFA2spOptions::m_hwnd;
 HWND CFA2spOptions::hList;
@@ -20,6 +23,254 @@ WNDPROC CFA2spOptions::g_pOriginalListViewProc = nullptr;
 LRESULT CALLBACK CFA2spOptions::ListViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     return DarkTheme::MyCallWindowProcA(g_pOriginalListViewProc, hWnd, uMsg, wParam, lParam);
+}
+
+static std::string GetFileFormat(bool* value)
+{
+    for (auto& f : ExtConfigs::SupportedFormats)
+    {
+        if (value == &f.second)
+            return "." + f.first; 
+    }
+    return {};
+}
+
+FString GetExeFullPath()
+{
+    FString path = CFinalSunApp::ExePath();
+    path += "\\";
+    path += CFinalSunAppExt::LauncherName.IsEmpty() ? FString("\\FA2spLaunch.exe") : CFinalSunAppExt::LauncherName;
+    path.Replace("\\\\", "\\");
+    return path;
+}
+
+std::string MakeProgID(const std::string& ext)
+{
+    std::string cleanExt = ext;
+    if (!cleanExt.empty() && cleanExt[0] == '.')
+        cleanExt = cleanExt.substr(1);
+
+    return std::string("FinalAlert2.HDMEdition.") + cleanExt + ".1";
+}
+
+bool IsFileAssociationOwnedByThisApp(const std::string& extension)
+{
+    if (extension.empty()) return false;
+
+    std::string progId = MakeProgID(extension);
+
+    HKEY hKey = nullptr;
+    std::string keyPath = "Software\\Classes\\" + extension;
+    LONG ret = RegOpenKeyExA(HKEY_CURRENT_USER, keyPath.c_str(), 0, KEY_READ, &hKey);
+    if (ret != ERROR_SUCCESS) {
+        return false;
+    }
+
+    char buf[512] = {};
+    DWORD bufSize = sizeof(buf);
+    ret = RegQueryValueExA(hKey, nullptr, nullptr, nullptr, (LPBYTE)buf, &bufSize);
+    RegCloseKey(hKey);
+
+    if (ret != ERROR_SUCCESS) {
+        return false;
+    }
+
+    std::string currentProgId = buf;
+    return _stricmp(currentProgId.c_str(), progId.c_str()) == 0;
+}
+
+std::string ToLower(const std::string& str)
+{
+    std::string lower = str;
+    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+    return lower;
+}
+
+bool IsCommandLinePointingToExe(const std::string& commandLine, const std::string& targetExePath)
+{
+    if (commandLine.empty() || targetExePath.empty()) {
+        return false;
+    }
+
+    std::string cmdLower = ToLower(commandLine);
+    std::string targetLower = ToLower(targetExePath);
+
+    size_t start = cmdLower.find_first_of("\"");
+    if (start == std::string::npos) {
+        start = cmdLower.find_first_not_of(" \t");
+    }
+
+    if (start == std::string::npos) {
+        return false;
+    }
+
+    std::string firstToken;
+
+    if (cmdLower[start] == '"') {
+        size_t end = cmdLower.find('"', start + 1);
+        if (end != std::string::npos) {
+            firstToken = cmdLower.substr(start + 1, end - start - 1);
+        }
+    }
+    else {
+        size_t end = cmdLower.find(' ', start);
+        if (end == std::string::npos) {
+            firstToken = cmdLower.substr(start);
+        }
+        else {
+            firstToken = cmdLower.substr(start, end - start);
+        }
+    }
+
+    if (firstToken.empty()) {
+        return false;
+    }
+
+    return PathMatchSpecA(firstToken.c_str(), targetLower.c_str()) ||
+        (firstToken == targetLower);
+}
+
+bool IsOpenCommandPointingToMe(const std::string& extension)
+{
+    if (extension.empty()) {
+        return false;
+    }
+
+    std::string ext = extension;
+    if (ext[0] != '.') {
+        ext = "." + ext;
+    }
+
+    std::string currentExe = GetExeFullPath();
+
+    std::string progId = MakeProgID(ext);
+
+    std::string keyPath = "Software\\Classes\\" + progId + "\\shell\\open\\command";
+
+    HKEY hKey = nullptr;
+    LONG ret = RegOpenKeyExA(HKEY_CURRENT_USER, keyPath.c_str(), 0, KEY_READ, &hKey);
+    if (ret != ERROR_SUCCESS) {
+        ret = RegOpenKeyExA(HKEY_CLASSES_ROOT, keyPath.c_str(), 0, KEY_READ, &hKey);
+        if (ret != ERROR_SUCCESS) {
+            return false;
+        }
+    }
+
+    char buffer[1024] = {};
+    DWORD bufferSize = sizeof(buffer);
+    ret = RegQueryValueExA(hKey, nullptr, nullptr, nullptr, (LPBYTE)buffer, &bufferSize);
+    RegCloseKey(hKey);
+
+    if (ret != ERROR_SUCCESS) {
+        return false;
+    }
+
+    std::string commandLine = buffer;
+
+    return IsCommandLinePointingToExe(commandLine, currentExe);
+}
+
+std::string GetCurrentFileAssociationProgID(const std::string& extension)
+{
+    if (extension.empty()) return "";
+
+    HKEY hKey = nullptr;
+    std::string keyPath = "Software\\Classes\\" + extension;
+    LONG ret = RegOpenKeyExA(HKEY_CURRENT_USER, keyPath.c_str(), 0, KEY_READ, &hKey);
+    if (ret != ERROR_SUCCESS) {
+        return "";
+    }
+
+    char buf[512] = {};
+    DWORD bufSize = sizeof(buf);
+    ret = RegQueryValueExA(hKey, nullptr, nullptr, nullptr, (LPBYTE)buf, &bufSize);
+    RegCloseKey(hKey);
+
+    if (ret == ERROR_SUCCESS) {
+        return buf;
+    }
+    return "";
+}
+
+bool AssociateFileExtension(
+    const std::string& extension,
+    const std::string& description,
+    int iconIndex = 0)
+{
+    if (extension.empty()) return false;
+
+    std::string ext = extension;
+    if (ext[0] != '.') ext = "." + ext;
+
+    std::string progId = MakeProgID(ext);
+    std::string exePath = GetExeFullPath();
+
+    HKEY hKey = nullptr;
+    LONG ret;
+
+    std::string key1 = "Software\\Classes\\" + ext;
+    ret = RegCreateKeyExA(HKEY_CURRENT_USER, key1.c_str(), 0, nullptr,
+        REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, nullptr, &hKey, nullptr);
+    if (ret != ERROR_SUCCESS) return false;
+    RegSetValueExA(hKey, nullptr, 0, REG_SZ, (BYTE*)progId.c_str(),
+        (DWORD)(progId.length() + 1));
+    RegCloseKey(hKey);
+
+    std::string key2 = "Software\\Classes\\" + progId;
+    ret = RegCreateKeyExA(HKEY_CURRENT_USER, key2.c_str(), 0, nullptr,
+        REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, nullptr, &hKey, nullptr);
+    if (ret != ERROR_SUCCESS) return false;
+    RegSetValueExA(hKey, nullptr, 0, REG_SZ, (BYTE*)description.c_str(),
+        (DWORD)(description.length() + 1));
+    RegCloseKey(hKey);
+
+    std::string keyIcon = key2 + "\\DefaultIcon";
+    ret = RegCreateKeyExA(HKEY_CURRENT_USER, keyIcon.c_str(), 0, nullptr,
+        REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, nullptr, &hKey, nullptr);
+    if (ret == ERROR_SUCCESS) {
+        std::string iconStr = exePath + "," + std::to_string(iconIndex);
+        RegSetValueExA(hKey, nullptr, 0, REG_SZ, (BYTE*)iconStr.c_str(),
+            (DWORD)(iconStr.length() + 1));
+        RegCloseKey(hKey);
+    }
+
+    std::string keyOpen = key2 + "\\shell\\open\\command";
+    ret = RegCreateKeyExA(HKEY_CURRENT_USER, keyOpen.c_str(), 0, nullptr,
+        REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, nullptr, &hKey, nullptr);
+    if (ret != ERROR_SUCCESS) return false;
+
+    std::string cmd = "\"" + exePath + "\" \"%1\"";
+    RegSetValueExA(hKey, nullptr, 0, REG_SZ, (BYTE*)cmd.c_str(),
+        (DWORD)(cmd.length() + 1));
+    RegCloseKey(hKey);
+
+    SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
+
+    return true;
+}
+
+bool UnassociateFileExtension(const std::string& extension)
+{
+    if (extension.empty()) return false;
+
+    std::string ext = extension;
+    if (ext[0] != '.') ext = "." + ext;
+
+    if (!IsFileAssociationOwnedByThisApp(ext)) {
+        return false;
+    }
+
+    std::string progId = MakeProgID(ext);
+
+    std::string key1 = "Software\\Classes\\" + ext;
+    SHDeleteKeyA(HKEY_CURRENT_USER, key1.c_str());
+
+    std::string key2 = "Software\\Classes\\" + progId;
+    SHDeleteKeyA(HKEY_CURRENT_USER, key2.c_str());
+
+    SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
+
+    return true;
 }
 
 void CFA2spOptions::Create(CFinalSunDlg* pWnd)
@@ -123,13 +374,22 @@ void CFA2spOptions::Update(const char* filter)
         lvi.iItem = index;
         lvi.pszText = (char*)opt.DisplayName.c_str();
         ListView_InsertItem(hList, &lvi);
-        ListView_SetCheckState(hList, index, *opt.Value ? TRUE : FALSE);
+        if (opt.Type == ExtConfigs::SpecialOptionType::BindFormat)
+        {
+            auto ext = GetFileFormat(opt.Value);
+            ListView_SetCheckState(hList, index, 
+                (IsFileAssociationOwnedByThisApp(ext) && IsOpenCommandPointingToMe(ext))
+                ? TRUE : FALSE);
+        }
+        else
+        {
+            ListView_SetCheckState(hList, index, *opt.Value ? TRUE : FALSE);
+        }
         index++;
     }
     initialized = true;
     return;
 }
-
 
 void CFA2spOptions::Close(HWND& hWnd)
 {
@@ -176,7 +436,8 @@ BOOL CALLBACK CFA2spOptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
                         if (opt.DisplayName == buf)
                         {
                             *opt.Value = (checked != FALSE);
-                            fa2.WriteBool("Options", opt.IniKey, *opt.Value);
+                            if (!opt.IniKey.IsEmpty())
+                                fa2.WriteBool("Options", opt.IniKey, *opt.Value);
 
                             if (opt.Type == ExtConfigs::SpecialOptionType::ReloadMap && CMapData::Instance->MapWidthPlusHeight)
                             {
@@ -201,6 +462,23 @@ BOOL CALLBACK CFA2spOptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
                                     ExtConfigs::SaveMap_AutoSave_Interval = ExtConfigs::SaveMap_AutoSave_Interval_Real;
                                 }
                                 SaveMapExt::ResetTimer();
+                            }
+                            else if (opt.Type == ExtConfigs::SpecialOptionType::BindFormat)
+                            {
+                                auto ext = GetFileFormat(opt.Value);
+                                if (*opt.Value)
+                                {
+                                    std::string ext2 = ext.substr(1);
+                                    bool success = AssociateFileExtension(
+                                        ext,
+                                        "FinalAlert2 " + ext2 + " File",
+                                        0 
+                                    );
+                                }
+                                else
+                                {
+                                    UnassociateFileExtension(ext);
+                                }
                             }
                         }
                     }

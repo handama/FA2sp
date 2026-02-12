@@ -209,6 +209,7 @@ CInfantryData ExtConfigs::DefaultInfantryProperty;
 CUnitData ExtConfigs::DefaultUnitProperty;
 CAircraftData ExtConfigs::DefaultAircraftProperty;
 CBuildingData ExtConfigs::DefaultBuildingProperty;
+std::map<FString, bool> ExtConfigs::SupportedFormats;
 
 std::vector<ExtConfigs::DynamicOptions> ExtConfigs::Options;
 
@@ -502,6 +503,13 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DefaultBuildingProperty.Upgrade3 = building[14];
 	ExtConfigs::DefaultBuildingProperty.AIRepairable = building[15];
 	ExtConfigs::DefaultBuildingProperty.Nominal = building[16];
+
+	auto formats = STDHelpers::SplitString(CINI::FAData->GetString("ExtConfigs", "SupportedFormats", "map,mpr,yrm,mmx,yro"));
+	for (auto& f : formats)
+	{
+		f.MakeLower();
+		ExtConfigs::SupportedFormats[f] = false;
+	}
 
 	ExtConfigs::InitializeMap = false;
 	ExtConfigs::TestNotLoaded = false;
@@ -1269,6 +1277,18 @@ void ExtConfigs::UpdateOptionTranslations()
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
+	for (auto& f : ExtConfigs::SupportedFormats)
+	{
+		FString foramt = Translations::TranslateOrDefault("Options.BindFormat", "Set FA2 as the default program for %s files");
+		FString text;
+		text.Format(foramt, f.first);
+		ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+			.DisplayName = text,
+			.IniKey = "",
+			.Value = &f.second,
+			.Type = ExtConfigs::SpecialOptionType::BindFormat
+			});
+	}
 }
 
 bool FA2sp::IsDarkMode()

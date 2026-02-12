@@ -219,6 +219,7 @@ public:
     static CUnitData DefaultUnitProperty;
     static CAircraftData DefaultAircraftProperty;
     static CBuildingData DefaultBuildingProperty;
+    static std::map<FString, bool> SupportedFormats;
 
     enum SpecialOptionType : char
     {
@@ -226,6 +227,7 @@ public:
         Restart = 1,
         ReloadMap = 2,
         SaveMap_Timer = 3,
+        BindFormat = 4,
     };
 
     struct DynamicOptions

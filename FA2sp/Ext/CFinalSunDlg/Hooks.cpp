@@ -580,7 +580,7 @@ DEFINE_HOOK(435FDD, CFinalSunDlg_OnMarblemadness, 6)
 
 DEFINE_HOOK(42459A, CFinalSunDlg_OnInitDialog_LoadMap, 6)
 {
-    CMapData::Instance->LoadMap(CFinalSunApp::MapPath());
+    CFinalSunDlg::Instance->LoadMap(CFinalSunApp::MapPath());
     return 0x4245CD;
 }
 

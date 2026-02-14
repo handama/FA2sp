@@ -298,6 +298,7 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 		CMapDataExt::DamagedAsRubbleBuildings.clear();
 		CMapDataExt::BuildingTypes.clear();
 		BuildingClipsImageDataMap.clear();
+		LoadedInsignias.clear();
 		Logger::Debug("CLoadingExt: Clearing loaded objects.\n");
 	}							    
 	else {						    
@@ -317,7 +318,6 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 	SurfaceImageDataMap.clear();
 	CustomFlagMap.clear();
 	CustomCelltagMap.clear();
-	LoadedInsignias.clear();
 }
 
 bool CLoadingExt::IsObjectLoaded(const FString& pRegName)

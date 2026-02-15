@@ -115,6 +115,7 @@ std::map<FString, std::map<FString, FString>> CMapDataExt::MapFrontlineComments;
 std::map<FString, FString> CMapDataExt::MapInsectionComments;
 std::map<FString, FString> CMapDataExt::MapFrontsectionComments;
 bool CMapDataExt::IsNewMap;
+bool CMapDataExt::SkipUpdateMinimap = false;
 
 static inline int DistSqrByIndex(int a, int b)
 {
@@ -1656,7 +1657,8 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 						CMapDataExt::CellDataExts[coord].Structures[cellIndex] = BuildingIndex;
 						pCell->Structure = cellIndex;
 						pCell->TypeListIndex = BuildingIndex;
-						CMapData::Instance->UpdateMapPreviewAt(x, y);
+						if (!CMapDataExt::SkipUpdateMinimap)
+							CMapData::Instance->UpdateMapPreviewAt(x, y);
 					}
 				}
 			}
@@ -1674,7 +1676,8 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 					CMapDataExt::CellDataExts[coord].Structures[cellIndex] = BuildingIndex;
 					pCell->Structure = cellIndex;
 					pCell->TypeListIndex = BuildingIndex;
-					CMapData::Instance->UpdateMapPreviewAt(x, y);
+					if (!CMapDataExt::SkipUpdateMinimap)
+						CMapData::Instance->UpdateMapPreviewAt(x, y);
 				}
 			}
 		}
@@ -1979,8 +1982,8 @@ void CMapDataExt::SetNewOverlayAt(int x, int y, WORD ovr)
 			if (pExt->IsCoordInMap(x + i, y + e))
 				pExt->SmoothTiberium(pExt->GetCoordIndex(x + i, y + e));
 
-
-	pExt->UpdateMapPreviewAt(x, y);
+	if (!CMapDataExt::SkipUpdateMinimap)
+		pExt->UpdateMapPreviewAt(x, y);
 }
 
 void CMapDataExt::SetNewOverlayAt(int pos, WORD ovr)

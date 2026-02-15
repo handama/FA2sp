@@ -689,4 +689,5 @@ public:
     static std::map<FString, FString> MapInsectionComments;
     static std::map<FString, FString> MapFrontsectionComments;
     static bool IsNewMap;
+    static bool SkipUpdateMinimap;
 };

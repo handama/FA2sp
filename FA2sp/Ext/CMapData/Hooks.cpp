@@ -188,7 +188,6 @@ DEFINE_HOOK(4A2AB0, CMapData_UpdateInfantry, 7)
 	if (bMapToINI == FALSE)
 	{
 		m_infantry.clear();
-		m_infantry.reserve(100);
 
 		int i;
 		for (i = 0; i < Map->CellDataCount; i++)
@@ -200,6 +199,7 @@ DEFINE_HOOK(4A2AB0, CMapData_UpdateInfantry, 7)
 
 		if (auto pSection = m_mapfile.GetSection("Infantry"))
 		{
+			m_infantry.reserve(pSection->GetEntities().size());
 			std::vector<FString> values;
 			for (const auto& [key, value] : pSection->GetEntities())
 			{
@@ -250,7 +250,8 @@ DEFINE_HOOK(4A2AB0, CMapData_UpdateInfantry, 7)
 				if (spp < 3 && pos < fielddata_size)
 					fielddata[pos].Infantry[spp] = (short)m_infantry.size() - 1;
 
-				CMapData::Instance->UpdateMapPreviewAt(x, y);
+				if (!CMapDataExt::SkipUpdateMinimap)
+					CMapData::Instance->UpdateMapPreviewAt(x, y);
 			}
 			// resort section to match the order of InfantryDatas
 			m_mapfile.DeleteSection("Infantry");
@@ -562,7 +563,8 @@ DEFINE_HOOK(4AC210, CMapData_AddInfantry, 7)
 	
 	Map->INI.WriteString("Infantry", key, value);
 
-	CMapData::Instance->UpdateMapPreviewAt(atoi(infantry.X), atoi(infantry.Y));
+	if (!CMapDataExt::SkipUpdateMinimap)
+		CMapData::Instance->UpdateMapPreviewAt(atoi(infantry.X), atoi(infantry.Y));
 
 	return 0x4ACA49;
 }
@@ -973,7 +975,9 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 						pCell->Structure = cellExt.Structures.begin()->first;
 						pCell->TypeListIndex = cellExt.Structures.begin()->second;
 					}
-					CMapData::Instance->UpdateMapPreviewAt(x, y);
+
+					if (!CMapDataExt::SkipUpdateMinimap)
+						CMapData::Instance->UpdateMapPreviewAt(x, y);
 				}
 			}
 		}
@@ -1000,7 +1004,9 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 					pCell->Structure = cellExt.Structures.begin()->first;
 					pCell->TypeListIndex = cellExt.Structures.begin()->second;
 				}
-				CMapData::Instance->UpdateMapPreviewAt(x, y);
+
+				if (!CMapDataExt::SkipUpdateMinimap)
+					CMapData::Instance->UpdateMapPreviewAt(x, y);
 			}
 		}
 	}
@@ -1025,7 +1031,7 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 
 DEFINE_HOOK(456DA0, CIsoView_OnMouseMove_UpdateStructureData, 8)
 {
-	if (CMapDataExt::StructureIndexMap.size() > 65500)
+	if (CMapDataExt::StructureIndexMap.size() > SHRT_MAX - 5)
 	{
 		CMapDataExt::UpdateFieldStructureData_Optimized();
 	}
@@ -1221,7 +1227,8 @@ DEFINE_HOOK(4A6040, CMapData_UpdateUnits, 6)
 				if (pos < pThis->CellDataCount) 
 					pThis->CellDatas[pos].Unit = i;
 
-				pThis->UpdateMapPreviewAt(x, y);
+				if (!CMapDataExt::SkipUpdateMinimap)
+					pThis->UpdateMapPreviewAt(x, y);
 				i++;
 			}
 		}
@@ -1243,7 +1250,8 @@ DEFINE_HOOK(4A87A0, CMapData_DeleteUnit, 7)
 			int y = atoi(atoms[3]);
 			CINI::CurrentDocument->DeleteKey(pSection, *pSection->GetKeyAt(index));
 			pThis->UpdateFieldUnitData(false);
-			pThis->UpdateMapPreviewAt(x, y);
+			if (!CMapDataExt::SkipUpdateMinimap)
+				pThis->UpdateMapPreviewAt(x, y);
 		}
 	}
 	return 0x4A8F9F;
@@ -1273,7 +1281,8 @@ DEFINE_HOOK(4A4270, CMapData_UpdateAircraft, 6)
 				if (pos < pThis->CellDataCount)
 					pThis->CellDatas[pos].Aircraft = i;
 
-				pThis->UpdateMapPreviewAt(x, y);
+				if (!CMapDataExt::SkipUpdateMinimap)
+					pThis->UpdateMapPreviewAt(x, y);
 				i++;
 			}
 		}
@@ -1295,7 +1304,8 @@ DEFINE_HOOK(4A98B0, CMapData_DeleteAircraft, 7)
 			int y = atoi(atoms[3]);
 			CINI::CurrentDocument->DeleteKey(pSection, *pSection->GetKeyAt(index));
 			pThis->UpdateFieldAircraftData(false);
-			pThis->UpdateMapPreviewAt(x, y);
+			if (!CMapDataExt::SkipUpdateMinimap)
+				pThis->UpdateMapPreviewAt(x, y);
 		}
 	}
 	return 0x4AA0AF;

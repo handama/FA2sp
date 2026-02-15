@@ -913,7 +913,8 @@ DEFINE_HOOK(45A08A, CIsoView_OnMouseMove_Place, 5)
 	auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
 	const int& x = point.X;
 	const int& y = point.Y;
-	auto tmp = TempValueHolder(CMapDataExt::PlaceStructure_Preview, true);
+	TempValueHolder tmp(CMapDataExt::PlaceStructure_Preview, true);
+	TempValueHolder skipUpdate(CMapDataExt::SkipUpdateMinimap, true);
 	CMapDataExt::PlaceStructure_OldData.clear();
 
 	constexpr int MapBlockSize = 32;

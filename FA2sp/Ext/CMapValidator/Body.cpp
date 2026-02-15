@@ -145,11 +145,8 @@ void CMapValidatorExt::ValidateMissingParams(BOOL& result)
 		for (const auto& [key, value] : pSection->GetEntities())
 		{
 			auto atoms = STDHelpers::SplitString(value);
-			if (atoms.size() < 1)
+			if (atoms.empty())
 			{
-				auto tmp = Format;
-				tmp.ReplaceNumString(1, key);
-				InsertStringAsError(tmp);
 				continue;
 			}
 			int number = atoi(atoms[0]);
@@ -174,9 +171,8 @@ void CMapValidatorExt::ValidateMissingParams(BOOL& result)
 			auto atoms = STDHelpers::SplitString(value);
 			auto tmp = Format;
 			tmp.ReplaceNumString(1, key);
-			if (atoms.size() < 1)
+			if (atoms.empty())
 			{
-				InsertStringAsError(tmp);
 				continue;
 			}
 			int number = atoi(atoms[0]);

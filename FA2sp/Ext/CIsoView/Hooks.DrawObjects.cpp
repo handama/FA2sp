@@ -2692,11 +2692,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
 			for (auto& [key, value] : pSection->GetEntities())
 				Celltags.push_back(&value);
-	std::vector<ppmfc::CString*> Waypoints;
+	std::vector<const ppmfc::CString*> Waypoints;
 	if (CIsoViewExt::DrawWaypoints)
 		if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
 			for (auto& [key, value] : pSection->GetEntities())
-				Waypoints.push_back(&value);
+				Waypoints.push_back(&key);
 	for (const auto& info : visibleCells)
 	{
 		if (!info.isInMap && !ExtConfigs::DisplayObjectsOutside) continue;
@@ -2730,7 +2730,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			}
 		};
 
-		auto drawWaypoinyImage = [&](const ppmfc::CString& id)
+		auto drawWaypointImage = [&](const ppmfc::CString& id)
 		{
 			auto itr = CMapDataExt::CustomWaypointColors.find(id);
 			if (itr != CMapDataExt::CustomWaypointColors.end())
@@ -2789,7 +2789,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		{
 			auto id = Waypoints[cell->Waypoint];
 			if (id)
-				drawWaypoinyImage(*id);
+				drawWaypointImage(*id);
 		}
 
 		if (AnnotationLocked && CIsoViewExt::DrawAnnotations && CMapDataExt::HasAnnotation(pos))

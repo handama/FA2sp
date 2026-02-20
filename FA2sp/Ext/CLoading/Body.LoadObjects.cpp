@@ -1673,6 +1673,68 @@ void CLoadingExt::LoadInsignia(FString ID)
 	}
 }
 
+static int GetIFVTurretIndex(const char* infantrySection, const char* ifvSection)
+{
+	if (!infantrySection || !ifvSection || !*infantrySection || !*ifvSection)
+		return -1;
+
+	int ifvMode = Variables::RulesMap.GetInteger(infantrySection, "IFVMode", 0);
+	if (ifvMode < 0)
+		return -1;
+
+	int weaponSlot = ifvMode + 1; 
+	if (weaponSlot > 128) 
+		return -1;
+
+	bool isGunner = Variables::RulesMap.GetBool(ifvSection, "Gunner", false);
+
+	if (!isGunner)
+		return -1;
+
+	// ares mode
+	char keyName[64];
+	_snprintf_s(keyName, sizeof(keyName), "WeaponTurretIndex%d", weaponSlot);
+
+	int turretIndex = Variables::RulesMap.GetInteger(ifvSection, keyName, -1);
+	if (turretIndex >= 0)
+		return turretIndex;
+
+	const char* prefixList[] = {
+		"Normal", "Repair", "MachineGun", "Sniper", "Explode", "TerroristExplode",
+		"Chrono", "Pistol", "BrainBlast", "Flak", "Shock", "RadCannon", "Cow",
+		"Initiate", "Virus", "YuriPrime", "Guardian",
+		nullptr
+	};
+
+	const char* foundPrefix = nullptr;
+
+	for (int i = 0; prefixList[i] != nullptr; ++i)
+	{
+		const char* prefix = prefixList[i];
+		char weaponKey[64];
+		_snprintf_s(weaponKey, sizeof(weaponKey), "%sTurretWeapon", prefix);
+
+		int value = Variables::RulesMap.GetInteger(ifvSection, weaponKey, -1);
+		if (value == ifvMode)
+		{
+			foundPrefix = prefix;
+			break;
+		}
+	}
+
+	if (!foundPrefix)
+		return -1; 
+
+	char indexKey[64];
+	_snprintf_s(indexKey, sizeof(indexKey), "%sTurretIndex", foundPrefix);
+
+	turretIndex = Variables::RulesMap.GetInteger(ifvSection, indexKey, -1);
+	if (turretIndex < 0)
+		return -1;
+
+	return turretIndex;
+}
+
 void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 {
 	LoadInsignia(ID);
@@ -1682,6 +1744,15 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow");
 	int facings = ExtConfigs::ExtFacings ? 32 : 8;
 	bool turretShadow = bHasShadow && CINI::Art->GetBool(ArtID, "TurretShadow", DrawTurretShadow);
+	int ifvTurIndex = -1;
+	if (Variables::RulesMap.GetBool(ID, "Gunner"))
+	{
+		auto types = STDHelpers::SplitString(Variables::RulesMap.GetString(ID, "InitialPayload.Types"));
+		if (!types.empty())
+		{
+			ifvTurIndex = GetIFVTurretIndex(types[0], ID);
+		}
+	}
 
 	if (CINI::Art->GetBool(ArtID, "Voxel")) // As VXL
 	{
@@ -1775,6 +1846,11 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 
 			FString turFileName = ImageID + "tur.vxl";
 			FString turHVAName = ImageID + "tur.hva";
+			if (ifvTurIndex >= 0)
+			{
+				turFileName.Format("%stur%d.vxl", ImageID, ifvTurIndex);
+				turHVAName.Format("%stur%d.hva", ImageID, ifvTurIndex);
+			}
 			if (VoxelDrawer::LoadVXLFile(turFileName))
 			{
 				if (VoxelDrawer::LoadHVAFile(turHVAName))

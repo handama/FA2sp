@@ -298,7 +298,10 @@ void CFinalSunAppExt::ParseCommandLine(const char* cmdLine)
 			if (i + 1 < args.size()) output_file = args[++i];
 		}
 		else if (arg == "-x") {
-			if (i + 1 < args.size()) LauncherName = args[++i];
+			if (i + 1 < args.size()) {
+				LauncherName = args[++i];
+				LauncherName.Replace("\"", "");
+			}
 		}
 	}
 

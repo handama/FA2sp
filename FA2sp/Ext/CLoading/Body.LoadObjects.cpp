@@ -460,6 +460,18 @@ static bool IsPreOccupiedBunker(const FString& ID)
 	return true;
 }
 
+static FString GetFinalLoopAnim(const FString& image)
+{
+	int loopCount = CINI::Art->GetInteger(image, "LoopCount", 1);
+	if (loopCount < 0) return image;
+
+	if (auto next = CINI::Art->TryGetString(image, "Next"))
+	{
+		return GetFinalLoopAnim(next->m_pchData);
+	}
+	return image;
+}
+
 void CLoadingExt::LoadBuilding(FString ID)
 {
 	if (IsLoadingObjectView)
@@ -612,7 +624,8 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 				}
 			}
 		}
-
+		CurrentLoadingAnim.Replace("Damaged", "");
+		CurrentLoadingAnim.Replace("Garrisoned", "");
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, false,
 			CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "ZAdjust"),
 			CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "YSort"));
@@ -633,21 +646,22 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		{
 			if (ignorekey.IsEmpty() || !CINI::FAData->GetBool(ignorekey, ID))
 			{
-				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
+				auto anim = GetFinalLoopAnim(*pStr);
+				int nStartFrame = CINI::Art->GetInteger(anim, "LoopStart");
 				FString customPal = "";
-				if (!CINI::Art->GetBool(*pStr, "ShouldUseCellDrawer", true)) {
-					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
+				if (!CINI::Art->GetBool(anim, "ShouldUseCellDrawer", true)) {
+					customPal = CINI::Art->GetString(anim, "CustomPalette", "anim.pal");
 					GetFullPaletteName(customPal);
 				}
-				int deltaX = CINI::Art->GetInteger(*pStr, "XDrawOffset");
-				int deltaY = CINI::Art->GetInteger(*pStr, "YDrawOffset");
+				int deltaX = CINI::Art->GetInteger(anim, "XDrawOffset");
+				int deltaY = CINI::Art->GetInteger(anim, "YDrawOffset");
 				if (animkey.Find("ActiveAnim") != -1 || animkey == "IdleAnim")
 				{
 					deltaX += CINI::Art->GetInteger(ArtID, animkey + "X");
 					deltaY += CINI::Art->GetInteger(ArtID, animkey + "Y");
 				}
 
-				loadSingleFrameShape(*pStr, nStartFrame, deltaX, deltaY, customPal, CINI::Art->GetBool(*pStr, "Shadow"));
+				loadSingleFrameShape(anim, nStartFrame, deltaX, deltaY, customPal, CINI::Art->GetBool(anim, "Shadow"));
 			}
 		}
 	};
@@ -1019,8 +1033,8 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 				}
 			}
 		}
-
-
+		CurrentLoadingAnim.Replace("Damaged", "");
+		CurrentLoadingAnim.Replace("Garrisoned", "");
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, false,
 			CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "ZAdjust"),
 			CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "YSort"));
@@ -1042,21 +1056,22 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 		{
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
-				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
+				auto anim = GetFinalLoopAnim(*pStr);
+				int nStartFrame = CINI::Art->GetInteger(anim, "LoopStart");
 				FString customPal = "";
-				if (!CINI::Art->GetBool(*pStr, "ShouldUseCellDrawer", true)) {
-					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
+				if (!CINI::Art->GetBool(anim, "ShouldUseCellDrawer", true)) {
+					customPal = CINI::Art->GetString(anim, "CustomPalette", "anim.pal");
 					GetFullPaletteName(customPal);
 				}
-				int deltaX = CINI::Art->GetInteger(*pStr, "XDrawOffset");
-				int deltaY = CINI::Art->GetInteger(*pStr, "YDrawOffset");
+				int deltaX = CINI::Art->GetInteger(anim, "XDrawOffset");
+				int deltaY = CINI::Art->GetInteger(anim, "YDrawOffset");
 				if (animkey.Find("ActiveAnim") != -1 || animkey == "IdleAnim")
 				{
 					deltaX += CINI::Art->GetInteger(ArtID, animkey + "X");
 					deltaY += CINI::Art->GetInteger(ArtID, animkey + "Y");
 				}
 
-				loadSingleFrameShape(*pStr, nStartFrame, deltaX, deltaY, customPal, CINI::Art->GetBool(*pStr, "Shadow"));
+				loadSingleFrameShape(anim, nStartFrame, deltaX, deltaY, customPal, CINI::Art->GetBool(anim, "Shadow"));
 			}
 		}
 		else if (auto pStr = CINI::Art->TryGetString(ArtID, animkey))
@@ -1434,27 +1449,6 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 		}
 
 		return true;
-	};
-
-	auto loadAnimFrameShape = [&](FString animkey, FString ignorekey)
-	{
-		FString damagedAnimkey = animkey + "Damaged";
-		if (auto pStr = CINI::Art->TryGetString(ArtID, damagedAnimkey))
-		{
-			if (!CINI::FAData->GetBool(ignorekey, ID))
-			{
-				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
-				loadSingleFrameShape(*pStr, nStartFrame);
-			}
-		}
-		else if (auto pStr = CINI::Art->TryGetString(ArtID, animkey))
-		{
-			if (!CINI::FAData->GetBool(ignorekey, ID))
-			{
-				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
-				loadSingleFrameShape(*pStr, nStartFrame);
-			}
-		}
 	};
 
 	if (Variables::RulesMap.GetBool(ID, "LeaveRubble"))

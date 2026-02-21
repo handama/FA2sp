@@ -443,6 +443,23 @@ void CLoadingExt::ClipAndLoadBuilding(FString ID, FString ImageID, unsigned char
 	}
 }
 
+static bool IsPreOccupiedBunker(const FString& ID)
+{
+	bool isBunker = Variables::RulesMap.GetBool(ID, "CanBeOccupied");
+	if (!isBunker) return false;
+
+	FString firstInf;
+	auto types = STDHelpers::SplitString(Variables::RulesMap.GetString(ID, "InitialPayload.Types"));
+	if (types.empty()) return false;
+	
+	firstInf = types[0];
+
+	auto eItemType = CLoadingExt::GetExtension()->GetItemType(firstInf);
+	if (eItemType != CLoadingExt::ObjectType::Infantry) return false;
+
+	return true;
+}
+
 void CLoadingExt::LoadBuilding(FString ID)
 {
 	if (IsLoadingObjectView)
@@ -477,6 +494,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		(Variables::RulesMap.GetBool(ID, "TurretAnimIsVoxel") 
 		|| Variables::RulesMap.GetBool(ID, "Turret")) ? (ExtConfigs::ExtFacings ? 32 : 8) : 1;
 	AvailableFacings[ID] = facings;
+	bool isPreOccupiedBunker = IsPreOccupiedBunker(ID);
 
 	FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 	if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
@@ -519,54 +537,54 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 	auto loadSingleFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0, 
 		int deltaY = 0, FString customPal = "", bool shadow = false, int forceNewTheater = -1) -> bool
 	{
-			bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
-			name = CINI::Art->GetString(name, "Image", name);
-			applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
+		bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
+		name = CINI::Art->GetString(name, "Image", name);
+		applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
 
-			FString file = name + ".SHP";
-			int nMix = SearchFile(file);
-			int loadedMix = CLoadingExt::HasFileMix(file, nMix);
-			// if anim file in RA2(MD).mix, always use NewTheater = yes
-			if (Ra2dotMixes.find(loadedMix) != Ra2dotMixes.end())
-			{
-				applyNewTheater = true;
-			}
+		FString file = name + ".SHP";
+		int nMix = SearchFile(file);
+		int loadedMix = CLoadingExt::HasFileMix(file, nMix);
+		// if anim file in RA2(MD).mix, always use NewTheater = yes
+		if (Ra2dotMixes.find(loadedMix) != Ra2dotMixes.end())
+		{
+			applyNewTheater = true;
+		}
 
-			if (applyNewTheater || forceNewTheater == 1)
-				SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
+		if (applyNewTheater || forceNewTheater == 1)
+			SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
+		nMix = SearchFile(file);
+		if (!HasFile(file, nMix))
+		{
+			SetGenericTheaterLetter(file);
 			nMix = SearchFile(file);
 			if (!HasFile(file, nMix))
 			{
-				SetGenericTheaterLetter(file);
-				nMix = SearchFile(file);
-				if (!HasFile(file, nMix))
+				if (!ExtConfigs::UseStrictNewTheater)
 				{
-					if (!ExtConfigs::UseStrictNewTheater)
-					{
-						auto searchNewTheater = [&nMix, this, &file](char t)
-							{
-								if (file.GetLength() >= 2)
-									file.SetAt(1, t);
-								nMix = SearchFile(file);
-								return HasFile(file, nMix);
-							};
-						file = name + ".SHP";
-						nMix = SearchFile(file);
-						if (!HasFile(file, nMix))
-							if (!searchNewTheater('T'))
-								if (!searchNewTheater('A'))
-									if (!searchNewTheater('U'))
-										if (!searchNewTheater('N'))
-											if (!searchNewTheater('L'))
-												if (!searchNewTheater('D'))
-													return false;
-					}
-					else
-					{
-						return false;
-					}
+					auto searchNewTheater = [&nMix, this, &file](char t)
+						{
+							if (file.GetLength() >= 2)
+								file.SetAt(1, t);
+							nMix = SearchFile(file);
+							return HasFile(file, nMix);
+						};
+					file = name + ".SHP";
+					nMix = SearchFile(file);
+					if (!HasFile(file, nMix))
+						if (!searchNewTheater('T'))
+							if (!searchNewTheater('A'))
+								if (!searchNewTheater('U'))
+									if (!searchNewTheater('N'))
+										if (!searchNewTheater('L'))
+											if (!searchNewTheater('D'))
+												return false;
+				}
+				else
+				{
+					return false;
 				}
 			}
+		}
 
 		ShapeHeader header;
 		unsigned char* pBuffer;
@@ -608,12 +626,12 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		return true;
 	};
 
-	auto loadAnimFrameShape = [&](FString animkey, FString ignorekey)
+	auto loadAnimFrameShape = [&](FString animkey, FString ignorekey = "")
 	{
 		CurrentLoadingAnim = animkey;
 		if (auto pStr = CINI::Art->TryGetString(ArtID, animkey))
 		{
-			if (!CINI::FAData->GetBool(ignorekey, ID))
+			if (ignorekey.IsEmpty() || !CINI::FAData->GetBool(ignorekey, ID))
 			{
 				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
 				FString customPal = "";
@@ -640,7 +658,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 			LoadBuilding(*ppPowerUpBld);
 	}
 
-	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0);
+	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + (isPreOccupiedBunker ? 2 : 0);
 
 	if (Variables::RulesMap.GetBool(ID, "Gate"))
 	{
@@ -650,7 +668,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 	FString AnimKeys[9] = 
 	{	
 		"IdleAnim",
-		"ActiveAnim",
+		isPreOccupiedBunker ? "ActiveAnimGarrisoned": "ActiveAnim",
 		"ActiveAnimTwo",
 		"ActiveAnimThree",
 		"ActiveAnimFour",
@@ -671,7 +689,6 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		"IgnoreSuperAnim3",
 		"IgnoreSuperAnim4"
 	};
-	
 	loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow);
 	for (int i = 0; i < 9; ++i)
 	{
@@ -882,6 +899,8 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 		(Variables::RulesMap.GetBool(ID, "TurretAnimIsVoxel")
 			|| Variables::RulesMap.GetBool(ID, "Turret")) ? (ExtConfigs::ExtFacings ? 32 : 8) : 1;
 	AvailableFacings[ID] = facings;
+	bool isPreOccupiedBunker = IsPreOccupiedBunker(ID);
+	int techLevel = Variables::RulesMap.GetInteger(ID, "TechLevel");
 
 	FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 	if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
@@ -1055,7 +1074,8 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 		}
 	};
 
-	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + 1;
+	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + 1 
+		+ ((isPreOccupiedBunker && techLevel > -1) ? 2 : 0);
 	if (Variables::RulesMap.GetBool(ID, "Wall"))
 	{
 		nBldStartFrame--;

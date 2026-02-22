@@ -711,10 +711,10 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		"IgnoreSuperAnim3",
 		"IgnoreSuperAnim4"
 	};
-	loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow);
 	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
 		loadSingleFrameShape(*pStr, 0, 0, 0, "", bHasShadow, 1, true);
 	}
+	loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow);
 	for (int i = 0; i < 9; ++i)
 	{
 		loadAnimFrameShape(AnimKeys[i], IgnoreKeys[i]);
@@ -1140,10 +1140,10 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 		"IgnoreSuperAnim3",
 		"IgnoreSuperAnim4"
 	};
-	loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow);
 	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
 		loadSingleFrameShape(*pStr, 1, 0, 0, "", bHasShadow, 1, true);
 	}
+	loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow);
 	for (int i = 0; i < 9; ++i)
 	{
 		loadAnimFrameShape(AnimKeys[i], IgnoreKeys[i]);

@@ -1177,6 +1177,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
 							}
 
+							int techLevel = Variables::RulesMap.GetInteger(objRender.ID, "TechLevel");
+							bool isBunker = Variables::RulesMap.GetBool(objRender.ID, "CanOccupyFire");
 							const int HP = objRender.Strength;
 							int status = CLoadingExt::GBIN_NORMAL;
 							if (HP == 0)
@@ -1184,7 +1186,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							else if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
 								status = CLoadingExt::GBIN_DAMAGED;
 							else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP
-								&& !(Variables::RulesMap.GetInteger(objRender.ID, "TechLevel") < 0 && Variables::RulesMap.GetBool(objRender.ID, "CanOccupyFire")))
+								&& !(isBunker && techLevel < 0))
 								status = CLoadingExt::GBIN_DAMAGED;
 
 							int x1 = objRender.X;
@@ -1263,6 +1265,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								}
 
 								if (cellExt)
+								{
+									bool hasFire = status == CLoadingExt::GBIN_DAMAGED;
+									if (isBunker && techLevel > -1
+										&& static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) <= HP)
+										hasFire = false;
+
 									cellExt->BuildingRenderParts.push_back
 									({ StrINIIndex,(short)i,
 										x1 - pData->ClipOffsets.FullWidth / 2 + pData->ClipOffsets.LeftOffset,
@@ -1271,8 +1279,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 										status,
 										pData,
 										pPal,
-										i == DataExt.Width - 1
+										i == DataExt.Width - 1,
+										hasFire
 										});
+								}
 							}
 
 							if (shadow && CIsoViewExt::DrawStructures && !isCloakable(objRender.ID))
@@ -2110,7 +2120,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							}
 						}
 					}
-					if (firstDraw && CIsoViewExt::DrawFires && part.Status == CLoadingExt::GBIN_DAMAGED && DataExt.DamageFireOffsets.size() > 0)
+					if (firstDraw && CIsoViewExt::DrawFires && part.hasFire && DataExt.DamageFireOffsets.size() > 0)
 					{
 						auto fires = CLoadingExt::GetRandomFire({ objRender.X,objRender.Y }, DataExt.DamageFireOffsets.size());
 						for (int i = 0; i < fires.size(); ++i)

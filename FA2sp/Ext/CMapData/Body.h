@@ -253,6 +253,7 @@ struct CellDataExt
         ImageDataClassSafe* pData;
         Palette* pPal;
         bool IsBottom;
+        bool hasFire;
     };
     struct BaseNodeRenderPart
     {

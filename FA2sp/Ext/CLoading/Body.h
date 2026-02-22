@@ -188,7 +188,12 @@ private:
 	void TrimImageEdges(unsigned char*& pBuffer, int& width, int& height);
 
 	int ColorDistance(const ColorStruct& color1, const ColorStruct& color2); 
+	int ColorDistance(const BGRStruct& color1, const BGRStruct& color2);
 	std::vector<int> GeneratePalLookupTable(Palette* first, Palette* second);
+	bool AreColorsVeryClose(const BGRStruct& a, const BGRStruct& b);
+	Palette* CreateBalancedPalette(const Palette* palA, const Palette* palB);
+	void RemapImagePalette(unsigned char* pBuffer, int width, int height,
+		const Palette* oldPalette, const Palette* newPalette, bool remapable);
 
 public:
 	enum class ObjectType{

@@ -101,6 +101,7 @@ public:
 
     static bool NeedReloadLighting;
     static std::list<LightingPalette> CalculatedObjectPaletteFiles;
+    static std::vector<Palette*> CalculatedMixedPalettes;
 
     static Palette* GetCurrentIso();
     static Palette* LoadPalette(FString palname);

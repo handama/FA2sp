@@ -507,6 +507,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		|| Variables::RulesMap.GetBool(ID, "Turret")) ? (ExtConfigs::ExtFacings ? 32 : 8) : 1;
 	AvailableFacings[ID] = facings;
 	bool isPreOccupiedBunker = IsPreOccupiedBunker(ID);
+	Palette* pMixedPal = nullptr;
 
 	FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 	if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
@@ -516,6 +517,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 	}
 	GetFullPaletteName(PaletteName);
 	auto palette = PalettesManager::LoadPalette(PaletteName);
+	auto mainPalette = palette;
 
 	auto loadBuildingFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
 	{
@@ -547,7 +549,8 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 	};
 
 	auto loadSingleFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0, 
-		int deltaY = 0, FString customPal = "", bool shadow = false, int forceNewTheater = -1) -> bool
+		int deltaY = 0, FString customPal = "", bool shadow = false, int forceNewTheater = -1,
+		bool isBib = false) -> bool
 	{
 		bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
 		name = CINI::Art->GetString(name, "Image", name);
@@ -607,28 +610,33 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 			nFrame = 0;
 		}
 		CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &pBuffer, header);
+
+		Palette* thisPal = nullptr;
+		bool hasNewPal = pMixedPal != nullptr;
 		if (customPal != "")
 		{
-			if (auto thisPal = PalettesManager::LoadPalette(customPal))
+			thisPal = PalettesManager::LoadPalette(customPal);
+			if (thisPal && !hasNewPal)
 			{
-				std::vector<int> lookupTable = GeneratePalLookupTable(thisPal, palette);
-				int counter = 0;
-				for (int j = 0; j < header.Height; ++j)
+				pMixedPal = CreateBalancedPalette(palette, thisPal);
+				RemapImagePalette(pBuffer, header.Width, header.Height, thisPal, pMixedPal, false);
+				for (auto& added : UnionSHP_Data[0])
 				{
-					for (int i = 0; i < header.Width; ++i)
-					{
-						unsigned char& ch = pBuffer[counter];
-						ch = lookupTable[ch];
-						counter++;
-					}
+					RemapImagePalette(added.pBuffer, added.Width, added.Height, palette, pMixedPal, true);
 				}
+				palette = pMixedPal;
 			}
 		}
+		if (hasNewPal)
+		{
+			RemapImagePalette(pBuffer, header.Width, header.Height, thisPal ? thisPal : mainPalette, pMixedPal, true);
+		}
+
 		CurrentLoadingAnim.Replace("Damaged", "");
 		CurrentLoadingAnim.Replace("Garrisoned", "");
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, false,
-			CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "ZAdjust"),
-			CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "YSort"));
+			isBib ? 1000000000 : CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "ZAdjust"),
+			isBib ? -1000000000 : CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "YSort"));
 
 		if (shadow && ExtConfigs::InGameDisplay_Shadow)
 		{
@@ -704,12 +712,12 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		"IgnoreSuperAnim4"
 	};
 	loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow);
+	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
+		loadSingleFrameShape(*pStr, 0, 0, 0, "", bHasShadow, 1, true);
+	}
 	for (int i = 0; i < 9; ++i)
 	{
 		loadAnimFrameShape(AnimKeys[i], IgnoreKeys[i]);
-	}
-	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
-		loadSingleFrameShape(*pStr, 0, 0, 0, "", bHasShadow, 1);
 	}
 
 	FString DictName;
@@ -915,6 +923,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 	AvailableFacings[ID] = facings;
 	bool isPreOccupiedBunker = IsPreOccupiedBunker(ID);
 	int techLevel = Variables::RulesMap.GetInteger(ID, "TechLevel");
+	Palette* pMixedPal = nullptr;
 
 	FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 	if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
@@ -924,6 +933,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 	}
 	GetFullPaletteName(PaletteName);
 	auto palette = PalettesManager::LoadPalette(PaletteName);
+	auto mainPalette = palette;
 
 	auto loadBuildingFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
 	{
@@ -956,7 +966,8 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 	};
 
 	auto loadSingleFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0,
-		int deltaY = 0, FString customPal = "", bool shadow = false, int forceNewTheater = -1) -> bool
+		int deltaY = 0, FString customPal = "", bool shadow = false, int forceNewTheater = -1,
+		bool isBib = false) -> bool
 	{
 			bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
 			name = CINI::Art->GetString(name, "Image", name);
@@ -1016,28 +1027,33 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 			nFrame = 0;
 		}
 		CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &pBuffer, header);
+
+		Palette* thisPal = nullptr;
+		bool hasNewPal = pMixedPal != nullptr;
 		if (customPal != "")
 		{
-			if (auto thisPal = PalettesManager::LoadPalette(customPal))
+			thisPal = PalettesManager::LoadPalette(customPal);
+			if (thisPal && !hasNewPal)
 			{
-				std::vector<int> lookupTable = GeneratePalLookupTable(thisPal, palette);
-				int counter = 0;
-				for (int j = 0; j < header.Height; ++j)
+				pMixedPal = CreateBalancedPalette(palette, thisPal);
+				RemapImagePalette(pBuffer, header.Width, header.Height, thisPal, pMixedPal, false);
+				for (auto& added : UnionSHP_Data[0])
 				{
-					for (int i = 0; i < header.Width; ++i)
-					{
-						unsigned char& ch = pBuffer[counter];
-						ch = lookupTable[ch];
-						counter++;
-					}
+					RemapImagePalette(added.pBuffer, added.Width, added.Height, palette, pMixedPal, true);
 				}
+				palette = pMixedPal;
 			}
 		}
+		if (hasNewPal)
+		{
+			RemapImagePalette(pBuffer, header.Width, header.Height, thisPal ? thisPal : mainPalette, pMixedPal, true);
+		}
+
 		CurrentLoadingAnim.Replace("Damaged", "");
 		CurrentLoadingAnim.Replace("Garrisoned", "");
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, false,
-			CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "ZAdjust"),
-			CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "YSort"));
+			isBib ? 1000000000 : CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "ZAdjust"),
+			isBib ? -1000000000 : CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "YSort"));
 
 		if (shadow && ExtConfigs::InGameDisplay_Shadow)
 		{
@@ -1125,12 +1141,12 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 		"IgnoreSuperAnim4"
 	};
 	loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow);
+	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
+		loadSingleFrameShape(*pStr, 1, 0, 0, "", bHasShadow, 1, true);
+	}
 	for (int i = 0; i < 9; ++i)
 	{
 		loadAnimFrameShape(AnimKeys[i], IgnoreKeys[i]);
-	}
-	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
-		loadSingleFrameShape(*pStr, 1, 0, 0, "", bHasShadow, 1);
 	}
 
 	FString DictName;
@@ -1379,7 +1395,8 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 	};
 
 	auto loadSingleFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0,
-		int deltaY = 0, bool shadow = false, int forceNewTheater = -1) -> bool
+		int deltaY = 0, bool shadow = false, int forceNewTheater = -1,
+		bool isBib = false) -> bool
 	{
 			bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
 			name = CINI::Art->GetString(name, "Image", name);
@@ -3092,6 +3109,14 @@ int CLoadingExt::ColorDistance(const ColorStruct& color1, const ColorStruct& col
 	return diffRed * diffRed + diffGreen * diffGreen + diffBlue * diffBlue;
 }
 
+int CLoadingExt::ColorDistance(const BGRStruct& color1, const BGRStruct& color2)
+{
+	int diffRed = color1.R - color2.R;
+	int diffGreen = color1.G - color2.G;
+	int diffBlue = color1.B - color2.B;
+	return diffRed * diffRed + diffGreen * diffGreen + diffBlue * diffBlue;
+}
+
 std::vector<int> CLoadingExt::GeneratePalLookupTable(Palette* first, Palette* second)
 {
 	if (!first || !second) {
@@ -3120,6 +3145,172 @@ std::vector<int> CLoadingExt::GeneratePalLookupTable(Palette* first, Palette* se
 	}
 
 	return lookupTable;
+}
+
+struct ColorWithCount {
+	BGRStruct color;
+	int count = 1; 
+};
+
+bool CLoadingExt::AreColorsVeryClose(const BGRStruct& a, const BGRStruct& b) {
+	int d = ColorDistance(a, b);
+	return d <= 3 * 3; 
+}
+
+Palette* CLoadingExt::CreateBalancedPalette(const Palette* palA, const Palette* palB)
+{
+	Palette* result = GameCreate<Palette>();
+	PalettesManager::CalculatedMixedPalettes.push_back(result);
+
+	result->Data[0] = BGRStruct(0, 0, 0);
+
+	for (int i = 16; i < 32; ++i) {
+		result->Data[i] = palA->Data[i];
+	}
+
+	struct ColorNode {
+		BGRStruct color;
+		int count;
+		float hue;
+	};
+
+	std::vector<ColorNode> colors;
+	colors.reserve(512);
+
+	auto add_palette = [&](const Palette* pal) {
+		for (int i = 1; i < 256; ++i) {
+			if (i >= 16 && i < 32) continue;
+
+			bool found = false;
+			for (auto& c : colors) {
+				if (AreColorsVeryClose(c.color, pal->Data[i])) {
+					c.count++;
+					found = true;
+					break;
+				}
+			}
+
+			if (!found) {
+				BGRStruct col = pal->Data[i];
+
+				float r = col.R / 255.f;
+				float g = col.G / 255.f;
+				float b = col.B / 255.f;
+
+				float maxc = std::max({ r, g, b });
+				float minc = std::min({ r, g, b });
+				float delta = maxc - minc;
+
+				float hue = 0.f;
+				if (delta > 0.0001f) {
+					if (maxc == r)
+						hue = fmodf((g - b) / delta, 6.f);
+					else if (maxc == g)
+						hue = (b - r) / delta + 2.f;
+					else
+						hue = (r - g) / delta + 4.f;
+					hue *= 60.f;
+					if (hue < 0) hue += 360.f;
+				}
+
+				colors.push_back({ col, 1, hue });
+			}
+		}
+	};
+
+	add_palette(palA);
+	add_palette(palB);
+
+	if (colors.empty())
+		return result;
+
+	const int target = 224;
+
+	std::sort(colors.begin(), colors.end(),
+		[](const ColorNode& a, const ColorNode& b) {
+		return a.hue < b.hue;
+	});
+
+	int totalWeight = 0;
+	for (auto& c : colors)
+		totalWeight += c.count;
+
+	std::vector<BGRStruct> selected;
+	selected.reserve(target);
+
+	int cumulative = 0;
+	int idx = 0;
+
+	for (int i = 0; i < target; ++i) {
+
+		int threshold = (int)((long long)totalWeight * i / target);
+
+		while (idx < (int)colors.size() - 1 &&
+			cumulative + colors[idx].count <= threshold)
+		{
+			cumulative += colors[idx].count;
+			idx++;
+		}
+
+		selected.push_back(colors[idx].color);
+	}
+
+	int write_idx = 1;
+	for (auto& c : selected) {
+		if (write_idx >= 16 && write_idx < 32)
+			write_idx = 32;
+		if (write_idx >= 256)
+			break;
+
+		result->Data[write_idx++] = c;
+	}
+
+	return result;
+}
+
+void CLoadingExt::RemapImagePalette(
+	unsigned char* pBuffer,
+	int width,
+	int height,
+	const Palette* oldPalette,
+	const Palette* newPalette, 
+	bool remapable)
+{
+	if (!pBuffer || !oldPalette || !newPalette) return;
+
+	int lookup[256]{};
+
+	lookup[0] = 0;
+
+	if (remapable)
+		for (int i = 16; i < 32; ++i) {
+			lookup[i] = i; 
+		}
+
+	for (int i = 1; i < 256; ++i) {
+		if (remapable && i >= 16 && i < 32) continue;
+
+		const BGRStruct& target = oldPalette->Data[i];
+		int minDist = INT_MAX;
+		int best = i; 
+
+		for (int j = 1; j < 256; ++j) {
+			if (j >= 16 && j < 32) continue;
+			int dist = ColorDistance(target, newPalette->Data[j]);
+			if (dist < minDist) {
+				minDist = dist;
+				best = j;
+			}
+		}
+
+		lookup[i] = best;
+	}
+
+	const int total = width * height;
+	for (int i = 0; i < total; ++i) {
+		unsigned char oldIdx = pBuffer[i];
+		pBuffer[i] = static_cast<unsigned char>(lookup[oldIdx]);
+	}
 }
 
 void CLoadingExt::LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** ppBuffer, const ShapeHeader& header)

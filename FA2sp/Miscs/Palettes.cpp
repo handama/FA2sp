@@ -20,6 +20,7 @@ std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalett
 std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedDimmedPaletteFiles;
 std::map<Palette*, std::map<LightingStruct, LightingPalette>> PalettesManager::CalculatedPaletteFilesNoRemap;
 std::list<LightingPalette> PalettesManager::CalculatedObjectPaletteFiles;
+std::vector<Palette*> PalettesManager::CalculatedMixedPalettes;
 Palette* PalettesManager::CurrentIso;
 bool PalettesManager::NeedReloadLighting = false;
 
@@ -32,12 +33,15 @@ void PalettesManager::Release()
             pair.second != Palette::PALETTE_THEATER &&
             pair.second != Palette::PALETTE_LIB)
             GameDelete(pair.second);
+    for (auto& p : PalettesManager::CalculatedMixedPalettes)
+        if (p) GameDelete(p);
 
     PalettesManager::OriginPaletteFiles.clear();
     PalettesManager::CalculatedPaletteFiles.clear();
     PalettesManager::CalculatedPaletteFilesNoRemap.clear();
     PalettesManager::CalculatedDimmedPaletteFiles.clear();
     PalettesManager::CalculatedObjectPaletteFiles.clear();
+    PalettesManager::CalculatedMixedPalettes.clear();
     PalettesManager::NeedReloadLighting = true;
 }
 

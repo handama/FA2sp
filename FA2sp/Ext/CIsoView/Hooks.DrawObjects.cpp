@@ -1506,9 +1506,21 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 						const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, true, deploy && !water, water);
 
-						auto pData = CLoadingExt::GetImageDataFromMap(imageName, CLoadingExt::ObjectType::Infantry, nFacing, 8, true);
+						bool useDefault = false;
+						auto pData = CLoadingExt::GetImageDataFromMap(imageName, CLoadingExt::ObjectType::Infantry,
+							nFacing, 8, true, &useDefault);
 
-						if (pData->pImageBuffer)
+						bool allowDraw = true;
+						if (useDefault)
+						{
+							useDefault = false;
+							const auto& imageNameMain = CLoadingExt::GetImageName(obj.TypeID, nFacing, false, deploy && !water, water);
+							auto pDataMain = CLoadingExt::GetImageDataFromMap(imageNameMain, CLoadingExt::ObjectType::Infantry,
+								nFacing, 8, false, &useDefault);
+							allowDraw = useDefault;
+						}
+
+						if (allowDraw && pData->pImageBuffer)
 						{
 							int x1 = x;
 							int y1 = y;
@@ -1572,10 +1584,21 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 					const auto& imageName = CLoadingExt::GetImageName(ImageID, nFacing, true);
 
+					bool useDefault = false;
 					auto pData = CLoadingExt::GetImageDataFromMap(imageName, 
-						CLoadingExt::ObjectType::Vehicle, nFacing, facings, true);
+						CLoadingExt::ObjectType::Vehicle, nFacing, facings, true, &useDefault);
 
-					if (pData->pImageBuffer)
+					bool allowDraw = true;
+					if (useDefault)
+					{
+						useDefault = false;
+						const auto& imageNameMain = CLoadingExt::GetImageName(ImageID, nFacing, false);
+						auto pDataMain = CLoadingExt::GetImageDataFromMap(imageNameMain,
+							CLoadingExt::ObjectType::Vehicle, nFacing, facings, true, &useDefault);
+						allowDraw = useDefault;
+					}
+
+					if (allowDraw && pData->pImageBuffer)
 					{
 						int x1 = x;
 						int y1 = y;

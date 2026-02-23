@@ -51,27 +51,29 @@ bool CLoadingExt::IsImageLoaded(const FString& name)
 }
 
 ImageDataClassSafe* CLoadingExt::GetImageDataFromMap(const FString& name, 
-	ObjectType type, int facing, int totalFacings, bool shadow)
+	ObjectType type, int facing, int totalFacings, bool shadow, bool* isDefault)
 {
 	auto itr = ImageDataMap.find(name);
 	if (ExtConfigs::UseDefaultUnitImage &&
-		name.Find("FA2DEFAULT_") == -1 &&
-		(itr == ImageDataMap.end() 
-			|| itr != ImageDataMap.end() && !itr->second->pImageBuffer))
+		(itr == ImageDataMap.end() || itr != ImageDataMap.end() && !itr->second->pImageBuffer) &&
+		name.Find("FA2DEFAULT_") == -1)
 	{
 		if (type == ObjectType::Infantry)
 		{
+			if (isDefault) *isDefault = true;
 			const auto& imageName = CLoadingExt::GetImageName("FA2DEFAULT_INFANTRY", facing, shadow);
 			return GetImageDataFromMap(imageName);
 		}
 		else if (type == ObjectType::Vehicle)
 		{
+			if (isDefault) *isDefault = true;
 			int newFacing = facing * 32 / totalFacings;
 			const auto& imageName = CLoadingExt::GetImageName("FA2DEFAULT_UNIT", newFacing, shadow);
 			return GetImageDataFromMap(imageName);
 		}
 		else if (type == ObjectType::Aircraft)
 		{
+			if (isDefault) *isDefault = true;
 			int newFacing = facing * 32 / totalFacings;
 			const auto& imageName = CLoadingExt::GetImageName("FA2DEFAULT_AIRCRAFT", newFacing, shadow);
 			return GetImageDataFromMap(imageName);
@@ -3064,8 +3066,7 @@ void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow)
 
 	if (minX > maxX || minY > maxY)
 	{
-		if (!shadow)
-			invalidateImage();
+		invalidateImage();
 		return;
 	}
 
@@ -3085,8 +3086,7 @@ void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow)
 
 	if (newW <= 0 || newH <= 0)
 	{
-		if (!shadow)
-			invalidateImage();
+		invalidateImage();
 		return;
 	}
 

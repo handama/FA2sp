@@ -275,7 +275,7 @@ public:
 
 	static bool IsImageLoaded(const FString& name);
 	static ImageDataClassSafe* GetImageDataFromMap(const FString& name, 
-		ObjectType type = ObjectType::Unknown, int facing = 0, int totalFacings = 8, bool shadow = false);
+		ObjectType type = ObjectType::Unknown, int facing = 0, int totalFacings = 8, bool shadow = false, bool* isDefault = nullptr);
 	static std::vector<std::unique_ptr<ImageDataClassSafe>>& GetBuildingClipImageDataFromMap(const FString& name);
 	static bool IsSurfaceImageLoaded(const FString& name);
 	static ImageDataClassSurface* GetSurfaceImageDataFromMap(const FString& name);

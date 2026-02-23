@@ -2721,8 +2721,11 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
     y += Y_OFFSET;
 
     BYTE* src = static_cast<BYTE*>(pd->pImageBuffer.get());
+    BYTE* opacity = pd->pOpacity.get();
     int swidth = pd->FullWidth;
     int sheight = pd->FullHeight;
+
+    bool hasPerPixelOpacity = (opacity != nullptr);
 
     if (x + swidth < window.left || y + sheight < window.top) {
         return;
@@ -2766,6 +2769,7 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
     }
 
     BYTE* srcBase = src;
+    BYTE* opacityBase = opacity;
     BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
     BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
 
@@ -2784,7 +2788,8 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
 
         BYTE* srcPtr = srcBase + row * swidth + left;
         BYTE* destPtr = destBase + row * boundary.dpitch + left * BPP;
-        for (LONG col = left; col <= right; ++col, ++srcPtr, destPtr += BPP) {
+        BYTE* opacityPtr = opacityBase ? (opacityBase + row * swidth + left) : NULL;
+        for (LONG col = left; col <= right; ++col, ++srcPtr, ++opacityPtr, destPtr += BPP) {
             if (destRect.left + col < 0) {
                 continue;
             }
@@ -2792,11 +2797,18 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
             BYTE pixelValue = *srcPtr;
             if (pixelValue && destPtr >= dst && destPtr + BPP <= surfaceEnd) {
                 BGRStruct c = newPal->Data[pixelValue];
-                if (alpha < 255) {
+                BYTE finalAlpha = alpha;
+                if (hasPerPixelOpacity && opacityBase)
+                {
+                    unsigned int temp = (unsigned int)alpha * (*opacityPtr) / 255u;
+                    finalAlpha = (BYTE)temp;
+                    if (finalAlpha == 0) continue;
+                }
+                if (finalAlpha < 255) {
                     BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(destPtr);
-                    c.B = alphaBlendTable[c.B][alpha] + alphaBlendTable[oriColor.B][255 - alpha];
-                    c.G = alphaBlendTable[c.G][alpha] + alphaBlendTable[oriColor.G][255 - alpha];
-                    c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[oriColor.R][255 - alpha];
+                    c.B = alphaBlendTable[c.B][finalAlpha] + alphaBlendTable[oriColor.B][255 - finalAlpha];
+                    c.G = alphaBlendTable[c.G][finalAlpha] + alphaBlendTable[oriColor.G][255 - finalAlpha];
+                    c.R = alphaBlendTable[c.R][finalAlpha] + alphaBlendTable[oriColor.R][255 - finalAlpha];
                 }
                 memcpy(destPtr, &c, BPP);
             }

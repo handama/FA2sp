@@ -24,6 +24,7 @@ class NOVTABLE ImageDataClassSafe
 public:
 
 	std::unique_ptr<unsigned char[]> pImageBuffer; // draw from here, size = FullWidth*FullHeight
+	std::unique_ptr<unsigned char[]> pOpacity;
 
 	struct ValidRangeData
 	{
@@ -120,7 +121,7 @@ public:
 	void SetImageDataSafe(unsigned char* pBuffer, FString NameInDict,
 		int FullWidth, int FullHeight, Palette* pPal, bool clip = true);
 	ImageDataClassSafe* SetBuildingImageDataSafe(unsigned char* pBuffer, FString NameInDict,
-		int FullWidth, int FullHeight, Palette* pPal);
+		int FullWidth, int FullHeight, Palette* pPal, unsigned char* pAlphaBuffer);
 	void SetImageData(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
 	// returns the mix index, -1 for in folder / pack, -2 for not found
 	int HasFileMix(FString filename, int nMix = -114);
@@ -163,7 +164,8 @@ private:
 	void LoadBuilding_Normal(FString ID);
 	void LoadBuilding_Rubble(FString ID);
 	void LoadBuilding_Damaged(FString ID, bool loadAsRubble = false);
-	void ClipAndLoadBuilding(FString ID, FString ImageID, unsigned char* pBuffer, int width, int height, Palette* palette);
+	void ClipAndLoadBuilding(FString ID, FString ImageID, unsigned char* pBuffer,
+		int width, int height, Palette* palette, unsigned char*& pAlphaBuffer);
 	static unsigned char* ClipImageHorizontal(const unsigned char* pBuffer, int width, int height, int cutLeft, int cutRight, int& outWidth);
 
 	void LoadInfantry(FString ID);
@@ -175,9 +177,11 @@ private:
 	void SetImageData(unsigned char* pBuffer, ImageDataClass* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void ShrinkSHP(unsigned char* pIn, int InWidth, int InHeight, unsigned char*& pOut, int* OutWidth, int* OutHeight);
 	void UnionSHP_Add(unsigned char* pBuffer, int Width, int Height, int DeltaX = 0, int DeltaY = 0,
-		bool UseTemp = false, bool bShadow = false, int ZAdjust = 0, int YSort = 0, bool MainBody = false);
+		bool UseTemp = false, bool bShadow = false, int ZAdjust = 0, int YSort = 0, bool MainBody = false,
+		unsigned char Opacity = 255, bool Remapable = true);
 	void UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth, int* OutHeight,
-		bool UseTemp = false, bool bShadow = false, bool bSort = false);
+		bool UseTemp = false, bool bShadow = false, bool bSort = false, unsigned char** pOutAlphaBuffer = nullptr,
+		Palette* pPal = nullptr);
 	void VXL_Add(unsigned char* pCache, int X, int Y, int Width, int Height, bool shadow = false);
 	void VXL_GetAndClear(unsigned char*& pBuffer, int* OutWidth, int* OutHeight, bool shadow = false);
 	
@@ -185,7 +189,7 @@ private:
 	void SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int Height);
 	void TrimImageEdges(ImageDataClassSafe* pData, bool shadow);
 	void ScaleImageHalf(ImageDataClassSafe* pData);
-	void TrimImageEdges(unsigned char*& pBuffer, int& width, int& height);
+	void TrimImageEdges(unsigned char*& pBuffer, int& width, int& height, unsigned char** pSecondBuffer = nullptr);
 
 	int ColorDistance(const ColorStruct& color1, const ColorStruct& color2); 
 	int ColorDistance(const BGRStruct& color1, const BGRStruct& color2);
@@ -240,7 +244,9 @@ private:
 		int DeltaY;
 		int ZAdjust = 0;
 		int YSort = 0;
-		bool MainBody = false;
+		bool MainBody = false; 
+		unsigned char Opacity = 255; 
+		bool Remapable = true; 
 	};
 
 	static std::vector<SHPUnionData> UnionSHP_Data[2];

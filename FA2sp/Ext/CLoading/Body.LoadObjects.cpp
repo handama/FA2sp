@@ -2751,6 +2751,7 @@ void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer,
 	}
 
 	// Image[X][Y] <=> pOutBuffer[Y * W + X];
+	bool lastImgRemapable = true;
 	for (const auto& img : data[UseTemp])
 	{
 		int nStartX = ImageCenterX - img.Width / 2 + img.DeltaX;
@@ -2802,10 +2803,10 @@ void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer,
 				}
 				else
 				{
-					bool srcPlayer = (srcPal >= 16 && srcPal <= 31);
-					bool dstPlayer = (dstPal >= 16 && dstPal <= 31);
+					bool srcPlayer = (srcPal >= 16 && srcPal <= 31 && img.Remapable);
+					bool dstPlayer = (dstPal >= 16 && dstPal <= 31 && lastImgRemapable);
 
-					if (img.Remapable && (srcPlayer || dstPlayer))
+					if (srcPlayer || dstPlayer)
 					{
 						if (srcPlayer && dstPlayer)
 						{
@@ -2868,6 +2869,8 @@ void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer,
 			GameDeleteArray(alphaTempBuffer, img.Width* img.Height);
 			alphaTempBuffer = nullptr;
 		}
+
+		lastImgRemapable = img.Remapable;
 	}
 	data[UseTemp].clear();
 }

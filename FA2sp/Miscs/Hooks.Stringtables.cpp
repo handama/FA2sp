@@ -13,6 +13,7 @@
 #include "../Helpers/TheaterHelpers.h"
 #include "../Ext/CFinalSunApp/Body.h"
 #include "../Ext/CLoading/Body.h"
+#include "Hooks.INI.h"
 
 bool StringtableLoader::bLoadRes = false;
 char* StringtableLoader::pEDIBuffer = nullptr;
@@ -133,8 +134,14 @@ void StringtableLoader::LoadCSFFiles()
     };
 
     loadTranslatedCsf("fa2extra.csf");
+    loadTranslatedCsf("fa2extra.llf");
+    loadTranslatedCsf("fa2extra.ecs");
     if (ExtConfigs::LoadCivilianStringtable)
+    {
         loadTranslatedCsf("fa2civilian.csf");
+        loadTranslatedCsf("fa2civilian.llf");
+        loadTranslatedCsf("fa2civilian.ecs");
+    }
 
     if (auto pSection = CINI::FAData->GetSection("ExtraStringtables"))
     {
@@ -174,6 +181,14 @@ bool StringtableLoader::LoadCSFFile(const char* pName, bool fa2path)
                 return true;
             }
         }
+        else if (name.Mid(name.GetLength() - 3) == "INI") {
+            CINIExt ini;
+            ini.LoadINIExt((unsigned char*)pBuffer, dwSize, nullptr, true, true, false);
+            if (ParseINIFile(&ini)) {
+                Logger::Debug("Successfully Loaded file %s.\n", pName);
+                return true;
+            }
+        }
         else {
             if (ParseCSFFile((char*)pBuffer, dwSize)) {
                 Logger::Debug("Successfully Loaded file %s.\n", pName);
@@ -182,6 +197,30 @@ bool StringtableLoader::LoadCSFFile(const char* pName, bool fa2path)
         }
     }
     return false;
+}
+
+bool StringtableLoader::ParseINIFile(CINI* ini)
+{
+    auto itr = ini->Dict.begin();
+    for (size_t i = 0, sz = ini->Dict.size(); i < sz; ++i, ++itr)
+    {
+        auto& label = itr->first;
+        auto& section = itr->second;
+        if (auto firstLine = section.TryGetString("Value"))
+        {
+            FString value = *firstLine;
+            ppmfc::CString nextKey = "ValueLine2";
+            int index = 3;
+            while (auto line = section.TryGetString(nextKey))
+            {
+                nextKey.Format("ValueLine%d", index++);
+                value += "\n";
+                value += *line;
+            }
+            StringtableLoader::CSFFiles_Stringtable[label] = value;
+        }
+    }
+    return true;
 }
 
 bool StringtableLoader::ParseECSFile(std::vector<FString>& ret)

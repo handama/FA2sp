@@ -13,6 +13,7 @@ public:
     static bool ParseCSFFile(char* buffer, DWORD size);
     static bool ParseLLFFile(std::vector<FString>& ret);
     static bool ParseECSFile(std::vector<FString>& ret);
+    static bool ParseINIFile(CINI* ini);
     static void WriteCSFFile();
     static bool LoadToBuffer();
     static FString QueryUIName(const char* pRegName, bool bOnlyOneLine = false);

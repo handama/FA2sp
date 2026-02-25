@@ -3151,12 +3151,13 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
                         int yOffset = 0;
                         int cellRowIdx = col + subTile->XMinusExX;
                         if (cellRowIdx >= 0 && cellRowIdx <= 30)
-                            yOffset = cellRowIdx / 2 + 1;
+                            yOffset = (cellRowIdx + 2) / 2;
                         else if (cellRowIdx > 30 && cellRowIdx <= 60)
-                            yOffset = (60 - cellRowIdx) / 2 + 1;
+                            yOffset = (60 - cellRowIdx + 1) / 2;
+                        yOffset = std::min(15, yOffset);
 
                         int offset = (-subTile->YMinusExY - 15 - (row - srcRect.top));
-                        int value = height * 30 - yOffset + (ignoreExtra ? 0 : (subTile->YMinusExY < 0 ? (offset + 30) : 0));
+                        int value = height * 30 - yOffset + (ignoreExtra ? 0 : (subTile->YMinusExY < 0 ? (offset + 30) : 0)) - 2;
                         value = std::max(0, value);
                         (*cellHeightMask)[wx - window.left + (wy - window.top) * (window.right - window.left)]
                             = value;

@@ -1105,40 +1105,39 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 	{
 		FString damagedAnimkey = animkey + "Damaged";
 		CurrentLoadingAnim = animkey;
+		FString anim;
 		if (auto pStr = CINI::Art->TryGetString(ArtID, damagedAnimkey))
 		{
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
-				auto anim = GetFinalLoopAnim(*pStr);
-				int nStartFrame = CINI::Art->GetInteger(anim, "LoopStart");
-				FString customPal = "";
-				if (!CINI::Art->GetBool(anim, "ShouldUseCellDrawer", true)) {
-					customPal = CINI::Art->GetString(anim, "CustomPalette", "anim.pal");
-					GetFullPaletteName(customPal);
-				}
-				int deltaX = CINI::Art->GetInteger(anim, "XDrawOffset");
-				int deltaY = CINI::Art->GetInteger(anim, "YDrawOffset");
-				if (animkey.Find("ActiveAnim") != -1 || animkey == "IdleAnim")
-				{
-					deltaX += CINI::Art->GetInteger(ArtID, animkey + "X");
-					deltaY += CINI::Art->GetInteger(ArtID, animkey + "Y");
-				}
-
-				loadSingleFrameShape(anim, nStartFrame, deltaX, deltaY, customPal, CINI::Art->GetBool(anim, "Shadow"));
+				anim = GetFinalLoopAnim(*pStr);
 			}
 		}
 		else if (auto pStr = CINI::Art->TryGetString(ArtID, animkey))
 		{
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
-				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
-				FString customPal = "";
-				if (!CINI::Art->GetBool(*pStr, "ShouldUseCellDrawer", true)) {
-					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
-					GetFullPaletteName(customPal);
-				}
-				loadSingleFrameShape(*pStr, nStartFrame, 0, 0, customPal);
+				anim = GetFinalLoopAnim(*pStr);
 			}
+		}
+
+		if (!anim.IsEmpty())
+		{
+			int nStartFrame = CINI::Art->GetInteger(anim, "LoopStart");
+			FString customPal = "";
+			if (!CINI::Art->GetBool(anim, "ShouldUseCellDrawer", true)) {
+				customPal = CINI::Art->GetString(anim, "CustomPalette", "anim.pal");
+				GetFullPaletteName(customPal);
+			}
+			int deltaX = CINI::Art->GetInteger(anim, "XDrawOffset");
+			int deltaY = CINI::Art->GetInteger(anim, "YDrawOffset");
+			if (animkey.Find("ActiveAnim") != -1 || animkey == "IdleAnim")
+			{
+				deltaX += CINI::Art->GetInteger(ArtID, animkey + "X");
+				deltaY += CINI::Art->GetInteger(ArtID, animkey + "Y");
+			}
+
+			loadSingleFrameShape(anim, nStartFrame, deltaX, deltaY, customPal, CINI::Art->GetBool(anim, "Shadow"));
 		}
 	};
 

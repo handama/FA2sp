@@ -89,6 +89,7 @@ std::unordered_map<int, FString> CMapDataExt::TileSetOriginSetNames[6];
 std::unordered_set<FString> CMapDataExt::TerrainPaletteBuildings;
 std::unordered_set<FString> CMapDataExt::DamagedAsRubbleBuildings;
 std::unordered_set<int> CMapDataExt::RedrawExtraTileSets;
+std::unordered_set<int> CMapDataExt::NoHeightRedrawTileSets;
 std::unordered_map<int, Palette*> CMapDataExt::TileSetPalettes;
 int CMapDataExt::NewINIFormat = 4;
 WORD CMapDataExt::NewOverlay[0x40000] = {0xFFFF};
@@ -3491,6 +3492,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CMapDataExt::ShoreTileSets.clear();
 	CMapDataExt::SoftTileSets.clear();
 	CMapDataExt::RedrawExtraTileSets.clear();
+	CMapDataExt::NoHeightRedrawTileSets.clear();
 	CMapDataExt::TileSetPalettes.clear();
 
 	if (auto theater = CINI::CurrentTheater())
@@ -3568,6 +3570,15 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		for (const auto& [_, value] : pSection->GetEntities())
 		{
 			RedrawExtraTileSets.insert(atoi(value));
+		}
+	}
+	FString noRedraw = "NoExtraHeightRedrawTileSets";
+	noRedraw += theaterSuffix;
+	if (auto pSection = CINI::FAData->GetSection(noRedraw))
+	{
+		for (const auto& [_, value] : pSection->GetEntities())
+		{
+			NoHeightRedrawTileSets.insert(atoi(value));
 		}
 	}
 

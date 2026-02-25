@@ -3003,7 +3003,7 @@ bool CIsoViewExt::SaveImageDataToBMP(ImageDataClassSafe* pd,const char* outputPa
 
 void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
     const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha, 
-    std::vector<byte>* mask, std::vector<byte>* heightMask, byte height, std::vector<byte>* cellHeightMask)
+    std::vector<byte>* mask, std::vector<byte>* heightMask, byte height, std::vector<int>* cellHeightMask, int tileSet)
 {
     if (alpha == 0 || !subTile || !subTile->HasValidImage || !subTile->ImageData || !dst || !subTile->pPixelValidRanges) {
         return;
@@ -3088,6 +3088,9 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
     BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
     BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
 
+    auto& heightSet = CMapDataExt::NoHeightRedrawTileSets;
+    bool ignoreExtra = heightSet.find(tileSet) != heightSet.end();
+
     for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
         LONG left = std::max((LONG)subTile->pPixelValidRanges[row].First, srcRect.left);
         LONG right = std::min((LONG)subTile->pPixelValidRanges[row].Last, srcRect.right - 1);
@@ -3145,9 +3148,18 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
                     if (wx >= window.left && wx < window.right &&
                         wy >= window.top && wy < window.bottom)
                     {
+                        int yOffset = 0;
+                        int cellRowIdx = col + subTile->XMinusExX;
+                        if (cellRowIdx >= 0 && cellRowIdx <= 30)
+                            yOffset = cellRowIdx / 2 + 1;
+                        else if (cellRowIdx > 30 && cellRowIdx <= 60)
+                            yOffset = (60 - cellRowIdx) / 2 + 1;
+
                         int offset = (-subTile->YMinusExY - 15 - (row - srcRect.top));
-                        (*cellHeightMask)[wx - window.left + (wy - window.top) * (window.right - window.left)] 
-                            = height + (subTile->YMinusExY < 0 ? (offset > 0 ? (offset / 30 + 1) : 0) : 0);
+                        int value = height * 30 - yOffset + (ignoreExtra ? 0 : (subTile->YMinusExY < 0 ? (offset + 30) : 0));
+                        value = std::max(0, value);
+                        (*cellHeightMask)[wx - window.left + (wy - window.top) * (window.right - window.left)]
+                            = value;
                     }
                 }
 
@@ -3449,7 +3461,7 @@ void CIsoViewExt::MaskShadowPixels(const RECT& window, int x, int y, ImageDataCl
 }
 
 void CIsoViewExt::DrawShadowMask(void* dst, const DDBoundary& boundary, const RECT& window, 
-    const std::vector<byte>& mask, const std::vector<byte>& shadowHeightMask, const std::vector<byte>& cellHeightMask)
+    const std::vector<byte>& mask, const std::vector<byte>& shadowHeightMask, const std::vector<int>& cellHeightMask)
 {
     if (!dst || mask.empty()) {
         return;
@@ -3494,7 +3506,7 @@ void CIsoViewExt::DrawShadowMask(void* dst, const DDBoundary& boundary, const RE
                 continue;
             }
 
-            if (cellHeightMask[index] > shadowHeightMask[index]) {
+            if (cellHeightMask[index] > 30 * shadowHeightMask[index]) {
                 continue;
             }
 

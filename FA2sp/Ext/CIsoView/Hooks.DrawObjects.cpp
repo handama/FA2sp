@@ -791,7 +791,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	std::vector<char> shadowMask_Overlay(shadowMask_size, 0);
 	std::vector<byte> shadowMask(shadowMask_size, 0);
 	std::vector<byte> shadowHeightMask(shadowMask_size, 0);
-	std::vector<byte> cellHeightMask(shadowMask_size, 0);
+	std::vector<int> cellHeightMask(shadowMask_size, 0);
 
 	//loop1: tiles
 	std::vector<MapCoord> RedrawCoords;
@@ -847,7 +847,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 
 		// bridge hack
-		if (tileSetOri == CMapDataExt::BridgeSet || tileSetOri == CMapDataExt::WoodBridgeSet)
+		if (tileSetOri == CMapDataExt::BridgeSet 
+			|| tileSetOri == CMapDataExt::WoodBridgeSet)
 		{
 			int relativeIdx = cell->TileIndex - CMapDataExt::TileSet_starts[tileSetOri];
 			if (6 > relativeIdx && relativeIdx >= 0 && relativeIdx != 2 && relativeIdx != 5)
@@ -856,14 +857,17 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			}
 			else if (11 > relativeIdx && relativeIdx >= 6)
 			{
-				if (tileSubIndex != 8 && tileSubIndex != 9)
-					virtualHeight = cell->Height;
+				virtualHeight = cell->Height;
 			}
 			else if (16 > relativeIdx && relativeIdx >= 11)
 			{
-				if (tileSubIndex != 4 && tileSubIndex != 9)
-					virtualHeight = cell->Height;
+				virtualHeight = cell->Height;
 			}
+		}
+		auto& heightSet = CMapDataExt::NoHeightRedrawTileSets;
+		if (heightSet.find(tileSetOri) != heightSet.end())
+		{
+			virtualHeight = cell->Height;
 		}
 
 		for (int i = 1; i <= 2 + virtualHeight - cell->Height + cell->Height / 2; i++)
@@ -909,7 +913,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						
 					CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 						x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
-						isCellHidden(cell) ? 128 : 255, nullptr, nullptr, cell->Height, &cellHeightMask);
+						isCellHidden(cell) ? 128 : 255, nullptr, nullptr, cell->Height, &cellHeightMask, tileSetOri);
 
 					auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
 					cellExt.HasAnim = false;
@@ -1775,6 +1779,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 				if (cell->Flag.RedrawTerrain && !CFinalSunApp::Instance->FlatToGround)
 				{
+					int tileSetOri = CMapDataExt::TileData[tileIndex].TileSet;
 					if (CFinalSunApp::Instance->FrameMode)
 					{
 						if (CMapDataExt::TileData[tileIndex].FrameModeIndex < CMapDataExt::TileDataCount)
@@ -1816,7 +1821,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								isCellHidden(cell) ? 128 : 255,
 								shadow ? &shadowMask : nullptr,
 								shadow ? &shadowHeightMask : nullptr,
-								cell->Height + (subTile.YMinusExY < 0 ? ((subTile.YMinusExY + 15) / -30) : 0));
+								cell->Height + (subTile.YMinusExY < 0 ? ((subTile.YMinusExY + 15) / -30) : 0), nullptr, tileSetOri);
 
 							if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
 							{

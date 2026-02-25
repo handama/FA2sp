@@ -664,6 +664,7 @@ public:
     static std::unordered_set<FString> TerrainPaletteBuildings;
     static std::unordered_set<FString> DamagedAsRubbleBuildings;
     static std::unordered_set<int> RedrawExtraTileSets;
+    static std::unordered_set<int> NoHeightRedrawTileSets;
     static std::unordered_map<int, Palette*> TileSetPalettes;
     static int NewINIFormat;
     static WORD NewOverlay[0x40000];

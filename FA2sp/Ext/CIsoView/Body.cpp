@@ -3088,9 +3088,6 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
     BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
     BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
 
-    auto& heightSet = CMapDataExt::NoHeightRedrawTileSets;
-    bool ignoreExtra = heightSet.find(tileSet) != heightSet.end();
-
     for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
         LONG left = std::max((LONG)subTile->pPixelValidRanges[row].First, srcRect.left);
         LONG right = std::min((LONG)subTile->pPixelValidRanges[row].Last, srcRect.right - 1);
@@ -3157,7 +3154,7 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
                         yOffset = std::min(15, yOffset);
 
                         int offset = (-subTile->YMinusExY - 15 - (row - srcRect.top));
-                        int value = height * 30 - yOffset + (ignoreExtra ? 0 : (subTile->YMinusExY < 0 ? (offset + 30) : 0)) - 2;
+                        int value = height * 30 - yOffset + (subTile->YMinusExY < 0 ? (offset + 30) : 0) - 2;
                         value = std::max(0, value);
                         (*cellHeightMask)[wx - window.left + (wy - window.top) * (window.right - window.left)]
                             = value;

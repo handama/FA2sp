@@ -31,10 +31,9 @@
 #include "../Ext/CLoading/Body.h"
 #include "../ExtraWindow/CNewMMXSavingOptionsDlg/CNewMMXSavingOptionsDlg.h"
 #include "../Ext/CFinalSunApp/Body.h"
+#include "../Helpers/Helper.h"
 
 std::optional<std::filesystem::file_time_type> SaveMapExt::SaveTime;
-
-
 
 static std::string to_short_filename(const std::filesystem::path& p, const std::unordered_set<std::string>& existing) {
     FString stem = p.stem().string();
@@ -173,21 +172,7 @@ DEFINE_HOOK(42686A, CFinalSunDlg_SaveMap_SetDefaultExtension, 5)
 
 DEFINE_HOOK(42A8F5, CFinalSunDlg_SaveMap_ReplaceCopyFile, 7)
 {
-    REF_STACK(ppmfc::CString, filepath, STACK_OFFS(0x3F4, -0x4));
-
-    std::ifstream fin;
-    fin.open(filepath, std::ios::in | std::ios::binary);
-    if (fin.is_open())
-    {
-        fin.close();
-
-        if (!SaveMapExt::IsAutoSaving) {
-            SaveMapExt::SaveTime = std::filesystem::last_write_time(filepath.m_pchData);
-            FileWatcher::IsMapJustSaved = true;
-            FileWatcher::IsSavingMap = false;
-        }
-        return 0x42A92D;
-    }
+    //REF_STACK(ppmfc::CString, filepath, STACK_OFFS(0x3F4, -0x4));
     return 0x42A911;
 }
  
@@ -270,19 +255,21 @@ bool SaveMapExt::SaveMapSilent(FString filepath, bool panic)
             Translations::TranslateStringVariables(1, buffer, filepath);
             CIsoViewExt::SetStatusBarText(buffer);
         }
-        SaveMapExt::ResetTimer();
         return true;
     }
-    SaveMapExt::ResetTimer();
     return false;
 }
 
 bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, int previewOption, bool showDialog, bool panic)
 {
+    if (!panic)
+        SaveMapExt::ResetTimer();
+
     if (SaveMapExt::IsAutoSaving)
         previewOption = 2; //no preview to save time
 
-    FileWatcher::IsSavingMap = true;
+    FileWatcher::IsSavingMap = false;
+    TempValueHolder saving(FileWatcher::IsSavingMap, true);
 
     ppmfc::CString buffer;
     buffer.Format("%d", pINI->GetInteger("FA2spVersionControl", "Version") + 1);
@@ -985,6 +972,22 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
             MB_OK | MB_ICONERROR);
 
         return false;
+    }
+
+    if (panic)
+        SaveMapExt::ResetTimer();
+
+    std::ifstream fin;
+    fin.open(filepath, std::ios::in | std::ios::binary);
+    if (fin.is_open())
+    {
+        fin.close();
+
+        if (!SaveMapExt::IsAutoSaving) {
+            SaveMapExt::SaveTime = std::filesystem::last_write_time(filepath.c_str());
+            FileWatcher::IsMapJustSaved = true;
+            FileWatcher::IsSavingMap = false;
+        }
     }
 
     return true;

@@ -19,6 +19,13 @@ using namespace Gdiplus;
 struct CellData;
 class ImageDataClassSafe;
 
+struct EditedMarks
+{
+    short X;
+    short Y;
+    short subPos;
+};
+
 struct Cell3DLocation
 {
     short X;
@@ -41,7 +48,7 @@ struct DrawBuildings
     short buildingIndex;
 };
 
-struct DrawVeterancy
+struct Veterancy
 {
     int X;
     int Y;
@@ -208,6 +215,7 @@ public:
     static bool DrawAnnotations;
     static bool DrawFires;
     static bool RockCells;
+    static bool DrawPropertyBrushMark;
 
     static bool PasteStructures;
     static bool PasteInfantries;
@@ -251,6 +259,7 @@ public:
     static std::unordered_set<short> VisibleAircrafts;
 
     static std::unordered_set<ppmfc::CString> MapRendererIgnoreObjects;
+    static std::vector<EditedMarks> DrawEditedMarks;
     
     static bool IsPressingALT;
     static bool IsPressingTube;

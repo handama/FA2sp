@@ -114,6 +114,7 @@ DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 	loadInternalBitmap("annotation.bmp", 1001);
 	loadInternalBitmap("FLAG", 1023);
 	loadInternalBitmap("CELLTAG", 1024);
+	loadInternalBitmap("PROPERTY_MARK", 1036);
 
 	std::string pics = CFinalSunAppExt::ExePathExt;
 	pics += "\\pics";
@@ -141,9 +142,10 @@ DEFINE_HOOK(47FA2D, CLoading_InitPics_End_LoadDLLBitmaps, 7)
 			auto image_ori = CLoadingExt::GetSurfaceImageDataFromMap(Ori);
 			if (image_ori->lpSurface)
 			{
-				if (CLoadingExt::IsImageLoaded(New))
+				if (CLoadingExt::IsSurfaceImageLoaded(New))
 				{
 					auto image_new = CLoadingExt::GetSurfaceImageDataFromMap(New);
+					image_ori->lpSurface->Release();
 					image_ori->lpSurface = image_new->lpSurface;
 				}
 				DDSURFACEDESC2 ddsd;
@@ -158,6 +160,7 @@ DEFINE_HOOK(47FA2D, CLoading_InitPics_End_LoadDLLBitmaps, 7)
 
 	replace("CELLTAG", "celltag.bmp");
 	replace("FLAG", "waypoint.bmp");
+	replace("PROPERTY_MARK", "property_mark.bmp");
 
 	return 0;
 }

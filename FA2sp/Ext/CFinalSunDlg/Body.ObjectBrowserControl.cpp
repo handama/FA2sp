@@ -2972,6 +2972,10 @@ void CViewObjectsExt::ApplyPropertyBrush_Building(int nIndex)
     CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building, true);
     CBuildingData data;
     CMapData::Instance->GetBuildingData(nIndex, data);
+
+    CIsoViewExt::DrawPropertyBrushMark = true;
+    CIsoViewExt::DrawEditedMarks.push_back(
+        EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
     
     ApplyPropertyBrush_Building(data);
     CMapData::Instance->DeleteBuildingData(nIndex);
@@ -2983,6 +2987,10 @@ void CViewObjectsExt::ApplyPropertyBrush_Infantry(int nIndex)
     CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry, true);
     CInfantryData data;
     CMapData::Instance->GetInfantryData(nIndex, data);
+
+    CIsoViewExt::DrawPropertyBrushMark = true;
+    CIsoViewExt::DrawEditedMarks.push_back(
+        EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y), (short)atoi(data.SubCell) });
 
     ApplyPropertyBrush_Infantry(data);
 
@@ -2996,6 +3004,10 @@ void CViewObjectsExt::ApplyPropertyBrush_Aircraft(int nIndex)
     CAircraftData data;
     CMapData::Instance->GetAircraftData(nIndex, data);
 
+    CIsoViewExt::DrawPropertyBrushMark = true;
+    CIsoViewExt::DrawEditedMarks.push_back(
+        EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
+
     ApplyPropertyBrush_Aircraft(data);
 
     CMapData::Instance->DeleteAircraftData(nIndex);
@@ -3007,6 +3019,10 @@ void CViewObjectsExt::ApplyPropertyBrush_Vehicle(int nIndex)
     CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit, true);
     CUnitData data;
     CMapData::Instance->GetUnitData(nIndex, data);
+
+    CIsoViewExt::DrawPropertyBrushMark = true;
+    CIsoViewExt::DrawEditedMarks.push_back(
+        EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
 
     ApplyPropertyBrush_Vehicle(data);
 
@@ -3300,6 +3316,10 @@ void CViewObjectsExt::InitializeOnUpdateEngine()
     CViewObjectsExt::LastHeightRecords.clear();
     CViewObjectsExt::LastPlacedCT.HeightAdjust = 0;
     CViewObjectsExt::CliffConnectionHeightAdjust = 0;
+    if (CIsoView::CurrentCommand->Command != 0x17)
+    {
+        CIsoViewExt::DrawEditedMarks.clear();
+    }
 }
 
 bool CViewObjectsExt::UpdateEngine(int nData)

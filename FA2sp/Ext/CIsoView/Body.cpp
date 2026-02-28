@@ -42,6 +42,7 @@ bool CIsoViewExt::DrawBaseNodeIndex = true;
 bool CIsoViewExt::DrawAnnotations = true;
 bool CIsoViewExt::DrawFires = true;
 bool CIsoViewExt::RockCells = false;
+bool CIsoViewExt::DrawPropertyBrushMark = false;
 
 bool CIsoViewExt::PasteStructures = false;
 bool CIsoViewExt::PasteInfantries = false;

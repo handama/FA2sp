@@ -30,6 +30,7 @@ std::unordered_set<short> CIsoViewExt::VisibleInfantries;
 std::unordered_set<short> CIsoViewExt::VisibleUnits;
 std::unordered_set<short> CIsoViewExt::VisibleAircrafts;
 std::unordered_set<ppmfc::CString> CIsoViewExt::MapRendererIgnoreObjects;
+std::vector<EditedMarks> CIsoViewExt::DrawEditedMarks;
 
 struct CellInfo {
 	int X, Y;
@@ -47,7 +48,7 @@ static std::vector<std::pair<MapCoord, FString>> SmudgeTextsToDraw;
 static std::vector<std::pair<MapCoord, DrawBuildings>> BuildingsToDraw;
 static std::vector<std::pair<MapCoord, ImageDataClassSafe*>> AlphaImagesToDraw;
 static std::vector<std::pair<MapCoord, ImageDataClassSafe*>> FiresToDraw;
-static std::vector<DrawVeterancy> DrawVeterancies;
+static std::vector<Veterancy> DrawVeterancies;
 static std::vector<CellInfo> visibleCells;
 static std::unordered_set<short> DrawnBuildings;
 static std::vector<BaseNodeDataExt> DrawnBaseNodes;
@@ -2572,6 +2573,42 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 					dv.X - pImage->FullWidth / 2 + 10, dv.Y + 21 - pImage->FullHeight / 2,
 					pImage, 0, dv.Transp ? 128: 255, 0, -100, false);
+		}
+	}
+
+	if (CIsoView::CurrentCommand->Command == 0x17 && CIsoViewExt::DrawPropertyBrushMark)
+	{
+		if (auto image = CLoadingExt::GetSurfaceImageDataFromMap("PROPERTY_MARK"))
+		{
+			for (auto& dv : CIsoViewExt::DrawEditedMarks)
+			{
+				int x1 = dv.X, y1 = dv.Y;
+				CIsoView::MapCoord2ScreenCoord(x1, y1);
+				x1 -= DrawOffsetX;
+				y1 -= DrawOffsetY;
+				switch (dv.subPos)
+				{
+				case 2:
+					x1 += 15;
+					y1 += 15;
+					break;
+				case 3:
+					x1 -= 15;
+					y1 += 15;
+					break;
+				case 4:
+					y1 += 22;
+					break;
+				default:
+					y1 += 15;
+					break;
+				}
+				pThis->BlitTransparentDesc(image->lpSurface,
+					CIsoViewExt::GetBackBuffer(), lpDesc,
+					x1 - image->FullWidth / 2 + 30,
+					y1 - image->FullHeight / 2 - 15, -1, -1,
+					255);
+			}
 		}
 	}
 

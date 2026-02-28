@@ -656,6 +656,12 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
         CIsoView::CurrentCommand->Command = 0x0;
         CIsoView::CurrentCommand->Type = 0;
     }
+    if (!CIsoViewExt::DrawEditedMarks.empty())
+    {
+        CIsoView::CurrentCommand->Command = 0x0;
+        CIsoViewExt::DrawEditedMarks.clear();
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
     CIsoViewExt::LastAltCommand.reset();
 
     return 0x45EBC5;

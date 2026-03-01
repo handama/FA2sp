@@ -2886,9 +2886,16 @@ void CNewTrigger::SetActionListBoxSels(std::vector<int>& indices)
 void CNewTrigger::GetActionListBoxSels(std::vector<int>& indices)
 {
     int numSelected = SendMessage(hActionList, LB_GETSELCOUNT, 0, 0);
-    indices.resize(numSelected);
-    SendMessage(hActionList, LB_GETSELITEMS, numSelected, (LPARAM)indices.data());
-    std::sort(indices.begin(), indices.end());
+    if (numSelected > 0)
+    {
+        indices.resize(numSelected);
+        SendMessage(hActionList, LB_GETSELITEMS, numSelected, (LPARAM)indices.data());
+        std::sort(indices.begin(), indices.end());
+    }
+    else
+    {
+        indices.clear();
+    }
 }
 
 void CNewTrigger::OnClickSearchReference(HWND& hWnd)

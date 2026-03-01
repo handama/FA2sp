@@ -1558,10 +1558,14 @@ int CBatchTrigger::GetTriggerIndex(const FString& ID)
 
 std::vector<int> CBatchTrigger::GetListBoxSelected()
 {
+    std::vector<int> ret;
     int numSelected = SendMessage(hListbox, LB_GETSELCOUNT, 0, 0);
-    std::vector<int> ret(numSelected);
-    SendMessage(hListbox, LB_GETSELITEMS, numSelected, (LPARAM)ret.data());
-    std::sort(ret.begin(), ret.end());
+    if (numSelected > 0)
+    {
+        ret.resize(numSelected);
+        SendMessage(hListbox, LB_GETSELITEMS, numSelected, (LPARAM)ret.data());
+        std::sort(ret.begin(), ret.end());
+    }
     return ret;
 }
 

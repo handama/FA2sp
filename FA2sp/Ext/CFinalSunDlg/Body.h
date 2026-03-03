@@ -221,6 +221,7 @@ private:
     static std::unordered_map<FString, FString> RenameString;
     static std::unordered_set<FString> ExtSets[Set_Count];
     static std::unordered_map<FString, int[10]> KnownItem;
+    static std::unordered_map<FString, std::vector<int>[10]> MultiLayerItem;
     static std::unordered_map<FString, int> Owners;
     static std::unordered_set<FString> AddOnceSet;
     static int AddedItemCount;
@@ -236,6 +237,12 @@ private:
         HTREEITEM hParent = TVI_ROOT, HTREEITEM hInsertAfter = TVI_LAST);
     HTREEITEM InsertTranslatedString(const char* pOriginString, DWORD dwItemData = 0,
         HTREEITEM hParent = TVI_ROOT, HTREEITEM hInsertAfter = TVI_LAST);
+    void LoadMultiLayers(
+        std::vector<std::vector<int>>& multiLayers,
+        std::map<int, HTREEITEM>& subNodes,
+        std::map<int, FString>& subNodeNames,
+        std::map<std::array<int, 10>, HTREEITEM>& multiSubNodes,
+        int index, int sideLimit, const FString& display);
     void Redraw_Initialize();
     void Redraw_MainList();
     void Redraw_Ground();
@@ -424,6 +431,8 @@ public:
     static FString QueryUIName(const char* pRegName, bool bOnlyOneLine = true);
 
 public:
+
+    static std::vector<std::vector<int>> GetMultiLayers(const char* pRegName);
     /// <summary>
     /// Guess which type does the item belongs to.
     /// </summary>

@@ -35,6 +35,7 @@ std::unordered_set<FString> CViewObjectsExt::ForceName;
 std::unordered_map<FString, FString> CViewObjectsExt::RenameString;
 std::unordered_set<FString> CViewObjectsExt::ExtSets[Set_Count];
 std::unordered_map<FString, int[10]> CViewObjectsExt::KnownItem;
+std::unordered_map<FString, std::vector<int>[10]> CViewObjectsExt::MultiLayerItem;
 std::unordered_map<FString, int> CViewObjectsExt::Owners;
 std::unordered_set<FString> CViewObjectsExt::AddOnceSet;
 int CViewObjectsExt::AddedItemCount;
@@ -500,6 +501,7 @@ void CViewObjectsExt::Redraw_Initialize()
     for (auto root : ExtNodes)
         root = NULL;
     KnownItem.clear();
+    MultiLayerItem.clear();
     IgnoreSet.clear();
     IgnoreOverlaySet.clear();
     ForceName.clear();
@@ -546,12 +548,35 @@ void CViewObjectsExt::Redraw_Initialize()
             for (int i = 0; i < 9; ++i) {
                 if (i < forceSides.size())
                 {
-                    int sideIndex = STDHelpers::ParseToInt(forceSides[i]);
-                    if (sideIndex >= fadata.GetKeyCount(ExtraWindow::GetTranslatedSectionName("Sides")))
-                        sideIndex = -1;
-                    if (sideIndex < -1)
-                        sideIndex = -1;
-                    KnownItem[item.first][i] = sideIndex;
+                    if (STDHelpers::IsNumber(forceSides[i]) || forceSides[i].Find("#") == -1)
+                    {
+                        int sideIndex = STDHelpers::ParseToInt(forceSides[i]);
+                        if (sideIndex >= fadata.GetKeyCount(ExtraWindow::GetTranslatedSectionName("Sides")))
+                            sideIndex = -1;
+                        if (sideIndex < -1)
+                            sideIndex = -1;
+                        KnownItem[item.first][i] = sideIndex;
+                    }
+                    else
+                    {
+                        KnownItem[item.first][i] = -1;
+                        auto layers = STDHelpers::SplitString(forceSides[i], "#");
+                        for (int j = 0; j < 9; ++j) {
+                            if (j < layers.size())
+                            {
+                                int sideIndex = STDHelpers::ParseToInt(layers[j]);
+                                if (sideIndex >= fadata.GetKeyCount(ExtraWindow::GetTranslatedSectionName("Sides")))
+                                    sideIndex = -1;
+                                if (sideIndex < -1)
+                                    sideIndex = -1;
+                                MultiLayerItem[item.first][i].push_back(sideIndex);
+                            }
+                            else
+                            {
+                                MultiLayerItem[item.first][i].push_back(-1);
+                            }
+                        }
+                    }
                 }
                 else
                 {
@@ -1029,6 +1054,73 @@ static std::vector<int> GetUnique(std::vector<int> input)
     return input;
 }
 
+void CViewObjectsExt::LoadMultiLayers(
+    std::vector<std::vector<int>>& multiLayers,
+    std::map<int, HTREEITEM>& subNodes,
+    std::map<int, FString>& subNodeNames,
+    std::map<std::array<int, 10>, HTREEITEM>& multiSubNodes,
+    int index, int sideLimit, const FString& display)
+{
+    for (auto& layers : multiLayers)
+    {
+        for (int j = 0; j < std::min(9u, layers.size()); ++j)
+        {
+            auto side = layers[j];
+
+            if (side > -1 && side < sideLimit)
+            {
+                std::array<int, 10> arr{};
+                std::fill(arr.begin(), arr.end(), -1);
+
+                HTREEITEM hParent = NULL;
+                for (int k = 0; k < j; ++k)
+                {
+                    arr[k] = layers[k];
+                }
+                if (j == 0)
+                {
+                    auto parent = subNodes.find(side);
+                    if (parent != subNodes.end())
+                        hParent = parent->second;
+                }
+                else
+                {
+                    auto parent = multiSubNodes.find(arr);
+                    if (parent != multiSubNodes.end())
+                        hParent = parent->second;
+                }
+                if (hParent)
+                {
+                    arr[j] = side;
+                    HTREEITEM hThis = NULL;
+                    auto pThis = multiSubNodes.find(arr);
+                    if (pThis != multiSubNodes.end())
+                        hThis = pThis->second;
+                    if (!hThis)
+                    {
+                        hThis = j == 0 ? hParent : this->InsertString(subNodeNames[side], -1, hParent);
+                        multiSubNodes[arr] = hThis;
+                    }
+
+                    if (j >= 8 || layers[j + 1] == -1)
+                    {
+                        this->InsertString(
+                            display,
+                            index,
+                            hThis
+                        );
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+}
+
 void CViewObjectsExt::Redraw_Infantry()
 {
     AddOnceSet.clear();
@@ -1036,13 +1128,20 @@ void CViewObjectsExt::Redraw_Infantry()
     if (hInfantry == NULL)   return;
 
     std::map<int, HTREEITEM> subNodes;
+    std::map<int, FString> subNodeNames;
+    std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
 
     auto& fadata = CINI::FAData();
 
     int i = 0;
     if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
+    {
         for (auto& itr : sides->GetEntities())
+        {
+            subNodeNames[i] = itr.second;
             subNodes[i++] = this->InsertString(itr.second, -1, hInfantry);
+        }
+    }
     else
     {
         subNodes[i++] = this->InsertString("Allied", -1, hInfantry);
@@ -1065,12 +1164,13 @@ void CViewObjectsExt::Redraw_Infantry()
 
         InsertingObjectID = inf.second;
         auto sides = GetUnique(GuessSide(inf.second, Set_Infantry));
+        auto multiLayers = GetMultiLayers(inf.second);
+        FString display = QueryUIName(inf.second);
+        if (display != inf.second)
+            display += " (" + inf.second + ")";
         if (!sides.empty())
         {
-            FString display = QueryUIName(inf.second);
-            if (display != inf.second)
-                display += " (" + inf.second + ")";
-            if (sides.size() == 1 && sides[0] == -1)
+            if (sides.size() == 1 && sides[0] == -1 && multiLayers.empty())
             {
                 this->InsertString(
                     display,
@@ -1092,6 +1192,9 @@ void CViewObjectsExt::Redraw_Infantry()
                 }
             }   
         }
+        LoadMultiLayers(multiLayers, subNodes, subNodeNames, 
+            multiSubNodes, Const_Infantry + index, i, display);
+
         InsertingObjectID = "";
     }
     
@@ -1133,6 +1236,12 @@ void CViewObjectsExt::Redraw_Infantry()
             if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
                 this->GetTreeCtrl().DeleteItem(subnode.second);
         }
+        for (auto& subnode : multiSubNodes)
+        {
+            if (subnode.first[1] == -1) continue;
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
+                this->GetTreeCtrl().DeleteItem(subnode.second);
+        }
     }
 }
 
@@ -1143,13 +1252,20 @@ void CViewObjectsExt::Redraw_Vehicle()
     if (hVehicle == NULL)   return;
 
     std::map<int, HTREEITEM> subNodes;
+    std::map<int, FString> subNodeNames;
+    std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
 
     auto& fadata = CINI::FAData();
 
     int i = 0;
     if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
+    {
         for (auto& itr : sides->GetEntities())
+        {
+            subNodeNames[i] = itr.second;
             subNodes[i++] = this->InsertString(itr.second, -1, hVehicle);
+        }
+    }
     else
     {
         subNodes[i++] = this->InsertString("Allied", -1, hVehicle);
@@ -1172,12 +1288,13 @@ void CViewObjectsExt::Redraw_Vehicle()
 
         InsertingObjectID = veh.second;
         auto sides = GetUnique(GuessSide(veh.second, Set_Vehicle));
+        auto multiLayers = GetMultiLayers(veh.second);
+        FString display = QueryUIName(veh.second);
+        if (display != veh.second)
+            display += " (" + veh.second + ")";
         if (!sides.empty())
         {
-            FString display = QueryUIName(veh.second);
-            if (display != veh.second)
-                display += " (" + veh.second + ")";
-            if (sides.size() == 1 && sides[0] == -1)
+            if (sides.size() == 1 && sides[0] == -1 && multiLayers.empty())
             {
                 this->InsertString(
                     display,
@@ -1199,6 +1316,9 @@ void CViewObjectsExt::Redraw_Vehicle()
                 }
             }   
         }
+        LoadMultiLayers(multiLayers, subNodes, subNodeNames,
+            multiSubNodes, Const_Vehicle + index, i, display);
+
         InsertingObjectID = "";
     }
 
@@ -1240,6 +1360,12 @@ void CViewObjectsExt::Redraw_Vehicle()
             if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
                 this->GetTreeCtrl().DeleteItem(subnode.second);
         }
+        for (auto& subnode : multiSubNodes)
+        {
+            if (subnode.first[1] == -1) continue;
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
+                this->GetTreeCtrl().DeleteItem(subnode.second);
+        }
     }
 }
 
@@ -1250,14 +1376,20 @@ void CViewObjectsExt::Redraw_Aircraft()
     if (hAircraft == NULL)   return;
 
     std::map<int, HTREEITEM> subNodes;
+    std::map<int, FString> subNodeNames;
+    std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
 
-    auto& rules = CINI::Rules();
     auto& fadata = CINI::FAData();
 
     int i = 0;
     if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
+    {
         for (auto& itr : sides->GetEntities())
+        {
+            subNodeNames[i] = itr.second;
             subNodes[i++] = this->InsertString(itr.second, -1, hAircraft);
+        }
+    }
     else
     {
         subNodes[i++] = this->InsertString("Allied", -1, hAircraft);
@@ -1281,12 +1413,13 @@ void CViewObjectsExt::Redraw_Aircraft()
         
         InsertingObjectID = air.second;
         auto sides = GetUnique(GuessSide(air.second, Set_Aircraft));
+        auto multiLayers = GetMultiLayers(air.second);
+        FString display = QueryUIName(air.second);
+        if (display != air.second)
+            display += " (" + air.second + ")";
         if (!sides.empty())
         {
-            FString display = QueryUIName(air.second);
-            if (display != air.second)
-                display += " (" + air.second + ")";
-            if (sides.size() == 1 && sides[0] == -1)
+            if (sides.size() == 1 && sides[0] == -1 && multiLayers.empty())
             {
                 this->InsertString(
                     display,
@@ -1308,6 +1441,9 @@ void CViewObjectsExt::Redraw_Aircraft()
                 }
             }   
         }
+        LoadMultiLayers(multiLayers, subNodes, subNodeNames,
+            multiSubNodes, Const_Aircraft + index, i, display);
+
         InsertingObjectID = "";
     }
     HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomAircraftObList", -1, hAircraft);
@@ -1348,6 +1484,12 @@ void CViewObjectsExt::Redraw_Aircraft()
             if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
                 this->GetTreeCtrl().DeleteItem(subnode.second);
         }
+        for (auto& subnode : multiSubNodes)
+        {
+            if (subnode.first[1] == -1) continue;
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
+                this->GetTreeCtrl().DeleteItem(subnode.second);
+        }
     }
 }
 
@@ -1358,17 +1500,23 @@ void CViewObjectsExt::Redraw_Building()
     if (hBuilding == NULL)   return;
 
     std::map<int, HTREEITEM> subNodes;
+    std::map<int, FString> subNodeNames;
+    std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
     std::map<int, std::vector<std::pair<int, FString>>> foundationBuildings;
 
-    auto& rules = CINI::Rules();
     auto& fadata = CINI::FAData();
     auto& art = CINI::Art();
     auto& doc = CINI::CurrentDocument();
 
     int i = 0;
     if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
+    {
         for (auto& itr : sides->GetEntities())
+        {
+            subNodeNames[i] = itr.second;
             subNodes[i++] = this->InsertString(itr.second, -1, hBuilding);
+        }
+    }
     else
     {
         subNodes[i++] = this->InsertString("Allied", -1, hBuilding);
@@ -1391,12 +1539,13 @@ void CViewObjectsExt::Redraw_Building()
 
         InsertingObjectID = bud.second;
         auto sides = GetUnique(GuessSide(bud.second, Set_Building));
+        auto multiLayers = GetMultiLayers(bud.second);
+        FString display = QueryUIName(bud.second);
+        if (display != bud.second)
+            display += " (" + bud.second + ")";
         if (!sides.empty())
         {
-            FString display = QueryUIName(bud.second);
-            if (display != bud.second)
-                display += " (" + bud.second + ")";
-            if (sides.size() == 1 && sides[0] == -1)
+            if (sides.size() == 1 && sides[0] == -1 && multiLayers.empty())
             {
                 this->InsertString(
                     display,
@@ -1418,6 +1567,8 @@ void CViewObjectsExt::Redraw_Building()
                 }
             }
         }
+        LoadMultiLayers(multiLayers, subNodes, subNodeNames,
+            multiSubNodes, Const_Building + index, i, display);
 
         if (CMapData::Instance->MapWidthPlusHeight && ExtConfigs::ObjectBrowser_Foundation)
         {
@@ -1492,6 +1643,12 @@ void CViewObjectsExt::Redraw_Building()
     {
         for (auto& subnode : subNodes)
         {
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
+                this->GetTreeCtrl().DeleteItem(subnode.second);
+        }
+        for (auto& subnode : multiSubNodes)
+        {
+            if (subnode.first[1] == -1) continue;
             if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
                 this->GetTreeCtrl().DeleteItem(subnode.second);
         }
@@ -3156,6 +3313,19 @@ int CViewObjectsExt::GuessType(const char* pRegName)
     return -1;
 }
 
+std::vector<std::vector<int>> CViewObjectsExt::GetMultiLayers(const char* pRegName)
+{
+    auto&& knownIterator = MultiLayerItem.find(pRegName);
+    std::vector<std::vector<int>> result;
+    if (knownIterator != MultiLayerItem.end())
+    {
+        for (int i = 0; i < 9; ++i) {
+            result.push_back(knownIterator->second[i]);
+        }
+    }
+    return result;
+}
+
 std::vector<int> CViewObjectsExt::GuessSide(const char* pRegName, int nType)
 {
     auto&& knownIterator = KnownItem.find(pRegName);
@@ -3267,6 +3437,7 @@ void CViewObjectsExt::OnExeTerminate()
     for (auto& set : ExtSets)
         set.clear();
     KnownItem.clear();
+    MultiLayerItem.clear();
     Owners.clear();
     DarkTheme::CleanupDarkThemeBrushes();
     FA2sp::Buffer.~CString();

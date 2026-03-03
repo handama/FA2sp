@@ -3015,6 +3015,10 @@ void CViewObjectsExt::ApplyTag(int X, int Y, FString tag)
 
                 data.Tag = tag;
 
+                CIsoViewExt::DrawPropertyBrushMark = true;
+                CIsoViewExt::DrawEditedMarks.push_back(
+                    EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
+
                 CMapData::Instance->DeleteBuildingData(cell->Structure);
                 CMapData::Instance->SetBuildingData(&data, nullptr, nullptr, 0, "");
             }
@@ -3027,6 +3031,10 @@ void CViewObjectsExt::ApplyTag(int X, int Y, FString tag)
 
                 data.Tag = tag;
 
+                CIsoViewExt::DrawPropertyBrushMark = true;
+                CIsoViewExt::DrawEditedMarks.push_back(
+                    EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
+
                 CMapData::Instance->DeleteUnitData(cell->Unit);
                 CMapData::Instance->SetUnitData(&data, nullptr, nullptr, 0, "");
             }
@@ -3038,6 +3046,10 @@ void CViewObjectsExt::ApplyTag(int X, int Y, FString tag)
                 CMapData::Instance->GetAircraftData(cell->Aircraft, data);
 
                 data.Tag = tag;
+
+                CIsoViewExt::DrawPropertyBrushMark = true;
+                CIsoViewExt::DrawEditedMarks.push_back(
+                    EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
 
                 CMapData::Instance->DeleteAircraftData(cell->Aircraft);
                 CMapData::Instance->SetAircraftData(&data, nullptr, nullptr, 0, "");
@@ -3058,10 +3070,16 @@ void CViewObjectsExt::ApplyTag(int X, int Y, FString tag)
 
                     data.Tag = tag;
 
+                    CIsoViewExt::DrawPropertyBrushMark = true;
+                    CIsoViewExt::DrawEditedMarks.push_back(
+                        EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
+
                     CMapData::Instance->DeleteInfantryData(infantry);
                     CMapData::Instance->SetInfantryData(&data, nullptr, nullptr, 0, -1);
                 }
             }
+
+            ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
         }
     }
 }
@@ -3487,7 +3505,7 @@ void CViewObjectsExt::InitializeOnUpdateEngine()
     CViewObjectsExt::LastHeightRecords.clear();
     CViewObjectsExt::LastPlacedCT.HeightAdjust = 0;
     CViewObjectsExt::CliffConnectionHeightAdjust = 0;
-    if (CIsoView::CurrentCommand->Command != 0x17)
+    if (CIsoView::CurrentCommand->Command != 0x17 && CIsoView::CurrentCommand->Command != 0x25)
     {
         CIsoViewExt::DrawEditedMarks.clear();
     }

@@ -46,7 +46,7 @@ DEFINE_HOOK(45AEFF, CIsoView_OnMouseMove_UpdateCoordinateYXToXY, B)
 	R->EBX(nPointX);
 	R->EDI(nPointY);
 
-	if (CIsoView::CurrentCommand->Command != 0x17)
+	if (CIsoView::CurrentCommand->Command != 0x17 && CIsoView::CurrentCommand->Command != 0x25)
 	{
 		CIsoViewExt::DrawEditedMarks.clear();
 	}

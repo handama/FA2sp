@@ -249,11 +249,11 @@ void CNewAITrigger::Update(HWND& hWnd)
 
 void CNewAITrigger::Close(HWND& hWnd)
 {
+    ExtraWindow::UnregisterDropTargetsOfWindow(hWnd);
     EndDialog(hWnd, NULL);
 
     CNewAITrigger::m_hwnd = NULL;
     CNewAITrigger::m_parent = NULL;
-
 }
 
 BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)

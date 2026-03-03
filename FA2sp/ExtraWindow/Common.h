@@ -22,6 +22,7 @@ enum class DropType : int
     AIEditorTeam0,
     AIEditorTeam1,
     BatchTriggerListView,
+    ActionListBox,
 
     Unknown,
 };
@@ -125,4 +126,38 @@ protected:
     bool minSizeSet;
 };
 
+class TargetHighlighter {
+public:
+    TargetHighlighter();
+    ~TargetHighlighter();
+
+    void Attach(HWND hTargetWnd);
+    void Detach();
+    void UpdatePosition();
+
+    bool IsActive() const { return highlight_hwnd_ != nullptr && target_hwnd_ != nullptr; }
+    bool IsSameTarget(HWND hCheckWnd) const { return target_hwnd_ == hCheckWnd; }
+
+    void SetBorderColor(COLORREF color) { border_color_ = color; }
+    void SetBorderThickness(int thickness) { border_thickness_ = thickness; }
+    void SetBorderRadius(int radius) { border_radius_ = radius; }
+
+private:
+    HWND target_hwnd_ = nullptr;
+    HWND highlight_hwnd_ = nullptr;
+
+    COLORREF border_color_ = RGB(0, 180, 0);
+    int      border_thickness_ = 3;
+    int      border_radius_ = 0; 
+
+    static ATOM window_class_atom_;
+    static bool class_registered_;
+
+    static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+    bool RegisterWindowClassIfNeeded();
+    HWND CreateHighlightWindow(const RECT& rect);
+    void DestroyHighlightWindow();
+    void UpdateRegion(HWND hwnd, int width, int height);
+};
 

@@ -2,7 +2,6 @@
 #include "../../FA2sp.h"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/MultimapHelper.h"
-#include "../Common.h"
 
 #include <CLoading.h>
 #include <CFinalSunDlg.h>
@@ -203,6 +202,7 @@ void CNewTrigger::Initialize(HWND& hWnd)
     ExtraWindow::RegisterDropTarget(hActionParameter[5], DropType::ActionParam5, this);
     ExtraWindow::RegisterDropTarget(hEventParameter[0], DropType::EventParam0, this);
     ExtraWindow::RegisterDropTarget(hEventParameter[1], DropType::EventParam1, this);
+    ExtraWindow::RegisterDropTarget(hActionList, DropType::ActionListBox, this);
 
     LastActionParamsCount = 4;
     ActionParamsCount = 4;
@@ -233,6 +233,10 @@ void CNewTrigger::Initialize(HWND& hWnd)
         SetWindowLongPtr(hDragPoint, GWLP_USERDATA, (LONG_PTR)this);
         OrigDragDotProc = (WNDPROC)SetWindowLongPtr(hDragPoint, GWLP_WNDPROC, (LONG_PTR)DragDotProc);
     }
+
+    hl.SetBorderColor(ExtConfigs::EnableDarkMode ? RGB(0, 90, 0) : RGB(0, 180, 0));
+    hl.SetBorderThickness(3);
+    hl.SetBorderRadius(0);
 
     CurrentTrigger = nullptr;
 
@@ -346,6 +350,7 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
 
 void CNewTrigger::Close(HWND& hWnd)
 {
+    ExtraWindow::UnregisterDropTargetsOfWindow(hWnd);
     SetWindowLongPtr(
         hEventList,
         GWLP_WNDPROC,
@@ -479,6 +484,40 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
                 ScreenToClient(CIsoView::GetInstance()->GetSafeHwnd(), &pt);
                 CIsoView::GetInstance()->OnMouseMove(0, pt);
             }
+            else
+            {
+                auto target = ExtraWindow::FindDropTarget(pt);
+                if (target.hWnd && IsWindowEnabled(target.hWnd) && 
+                    (
+                        target.type == DropType::AttachedTrigger ||
+                        target.type == DropType::ActionParam0 ||
+                        target.type == DropType::ActionParam1 ||
+                        target.type == DropType::ActionParam2 ||
+                        target.type == DropType::ActionParam3 ||
+                        target.type == DropType::ActionParam4 ||
+                        target.type == DropType::ActionParam5 ||
+                        target.type == DropType::EventParam0 ||
+                        target.type == DropType::EventParam1 ||
+                        target.type == DropType::TeamEditorTag ||
+                        target.type == DropType::BatchTriggerListView
+                    )
+                    )
+                {
+                    if (!hl.IsActive())
+                    {
+                        hl.Attach(target.hWnd);
+                    }
+                    else if (!hl.IsSameTarget(target.hWnd))
+                    {
+                        hl.Detach();
+                        hl.Attach(target.hWnd);
+                    }
+                }
+                else if (hl.IsActive())
+                {
+                    hl.Detach();
+                }
+            }
         }
 
         return 0;
@@ -505,6 +544,7 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
 
             DestroyWindow(m_hDragGhost);
             m_hDragGhost = nullptr;
+            hl.Detach();
 
             if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt) && CurrentTrigger)
             {
@@ -713,6 +753,27 @@ LRESULT CALLBACK CNewTrigger::HandleDragingDot(HWND hWnd, UINT msg, WPARAM wPara
     );
 }
 
+LRESULT CALLBACK CNewTrigger::DragingListBoxProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    auto* self = reinterpret_cast<CNewTrigger*>(
+        GetWindowLongPtr(hWnd, GWLP_USERDATA)
+        );
+
+    if (self) {
+        return self->HandleDragingListBox(hWnd, msg, wParam, lParam);
+    }
+
+    return DefWindowProc(hWnd, msg, wParam, lParam);
+}
+
+LRESULT CALLBACK CNewTrigger::HandleDragingListBox(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    return CallWindowProc(
+        OrigDragingListboxProc,
+        hWnd, msg, wParam, lParam
+    );
+}
+
 LRESULT CALLBACK CNewTrigger::ListBoxSubclassProcEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 {
     auto* self = reinterpret_cast<CNewTrigger*>(
@@ -772,6 +833,198 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
         }
 
         return TRUE;
+    }
+    case WM_LBUTTONDOWN:
+    {
+        if (CurrentTrigger && CurrentTrigger->ActionCount > 0)
+        {
+            SelectedActions.clear();
+            GetActionListBoxSels(SelectedActions);
+            if (!SelectedActions.empty())
+            {
+                m_actionPressed = true;
+                m_dragging = false;
+                GetCursorPos(&m_pressPtScreen);
+                m_lastPtScreen = m_pressPtScreen;
+            }
+        }
+        break;
+    }
+    case WM_MOUSEMOVE:
+    {
+        if (!m_actionPressed)
+            break;
+
+        POINT pt;
+        GetCursorPos(&pt);
+
+        int dx = abs(pt.x - m_pressPtScreen.x);
+        int dy = abs(pt.y - m_pressPtScreen.y);
+
+        if (!m_dragging && HasOtherInstances())
+        {
+            if (dx >= DRAG_THRESHOLD || dy >= DRAG_THRESHOLD)
+            {
+                m_dragging = true;
+                SetCapture(hWnd);
+                SetActionListBoxSels(SelectedActions);
+
+                FString displayText;
+
+                for (int i = 0; i < SelectedActions.size(); ++i)
+                {
+                    displayText += ExtraWindow::GetActionDisplayName(CurrentTrigger->Actions[SelectedActions[i]].ActionNum, i);
+                    if (i != SelectedActions.size() -1)
+                        displayText += "\n";
+                }
+
+                int width = 120;
+                int height = 40;
+                HDC hdcScreen = GetDC(NULL);
+                HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+                HFONT hOld = (HFONT)SelectObject(hdcScreen, hFont);
+
+                RECT calcRect = { 0 };
+                DrawText(hdcScreen, displayText.c_str(), -1, &calcRect, DT_CALCRECT | DT_NOPREFIX);
+
+                width = calcRect.right - calcRect.left + 16;
+                height = calcRect.bottom - calcRect.top + 2;
+
+                SelectObject(hdcScreen, hOld);
+                ReleaseDC(NULL, hdcScreen);
+
+                m_hDragGhost = CreateWindowEx(
+                    WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
+                    WC_STATIC,
+                    displayText.c_str(), 
+                    WS_POPUP | WS_VISIBLE | WS_BORDER |
+                    SS_LEFT |
+                    WS_CLIPSIBLINGS, 
+                    m_pressPtScreen.x,
+                    m_pressPtScreen.y,
+                    width,
+                    height,
+                    nullptr,
+                    nullptr,
+                    static_cast<HINSTANCE>(FA2sp::hInstance),
+                    nullptr
+                );
+
+                if (m_hDragGhost)
+                {
+                    SendMessage(m_hDragGhost, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+                    SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, (LONG_PTR)this);
+                    //OrigDragingListboxProc = (WNDPROC)SetWindowLongPtr(m_hDragGhost, GWLP_WNDPROC, (LONG_PTR)DragingListBoxProc);
+                    SetLayeredWindowAttributes(m_hDragGhost, 0, 200, LWA_ALPHA);
+                    ShowWindow(m_hDragGhost, SW_SHOW);
+                }
+            }
+        }
+
+        if (m_dragging)
+        {
+            SetWindowPos(
+                m_hDragGhost,
+                nullptr,
+                pt.x - 6, pt.y - 6,
+                0, 0,
+                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+            );
+
+            auto target = ExtraWindow::FindDropTarget(pt);
+            if (target.hWnd && IsWindowEnabled(target.hWnd) && 
+                target.type == DropType::ActionListBox &&
+                target.hWnd != hActionList &&
+                target.triggerInstance->CurrentTrigger != CurrentTrigger
+                )
+            {
+                if (!hl.IsActive())
+                {
+                    hl.Attach(target.hWnd);
+                }
+                else if (!hl.IsSameTarget(target.hWnd))
+                {
+                    hl.Detach();
+                    hl.Attach(target.hWnd);
+                }
+            }
+            else if (hl.IsActive())
+            {
+                hl.Detach();
+            }
+        }
+
+        return 0;
+    }
+    case WM_LBUTTONUP:
+    {
+        if (!m_actionPressed)
+            break;
+
+        ReleaseCapture();
+        m_actionPressed = false;
+
+        POINT pt;
+        GetCursorPos(&pt);
+
+        if (m_dragging)
+        {
+            //SetWindowLongPtr(
+            //    m_hDragGhost,
+            //    GWLP_WNDPROC,
+            //    (LONG_PTR)OrigDragingListboxProc
+            //);
+            SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+            DestroyWindow(m_hDragGhost);
+            m_hDragGhost = nullptr;
+            hl.Detach();
+
+            auto target = ExtraWindow::FindDropTarget(pt);
+
+            if (target.hWnd && IsWindowEnabled(target.hWnd) &&
+                target.type == DropType::ActionListBox &&
+                target.hWnd != hActionList &&
+                target.triggerInstance->CurrentTrigger != CurrentTrigger
+                )
+            {
+                auto instances = GetOtherInstances();
+                for (auto& [_, o] : instances)
+                {
+                    if (o->hActionList == target.hWnd)
+                    {
+                        if (!o->CurrentTrigger) break;
+
+                        for (int i = 0; i < SelectedActions.size(); ++i)
+                        {
+                            o->CurrentTrigger->Actions.push_back(CurrentTrigger->Actions[SelectedActions[i]]);
+                            o->CurrentTrigger->ActionCount++;
+                        }
+                        o->CurrentTrigger->Save();
+                        o->OnSelchangeTrigger();
+                        if ((GetKeyState(VK_SHIFT) & 0x8000) == 0)
+                        {
+                            for (int i = SelectedActions.size() - 1; i >= 0; --i)
+                            {
+                                if (i >= 0 && i < CurrentTrigger->Actions.size())
+                                {
+                                    CurrentTrigger->Actions.erase(CurrentTrigger->Actions.begin() + i);
+                                    CurrentTrigger->ActionCount--;
+                                }
+                            }
+                            CurrentTrigger->Save();
+                            OnSelchangeTrigger();
+                        }
+
+                        RefreshOtherInstances();
+                        break;
+                    }
+                }
+            }
+        }
+
+        m_dragging = false;
+        return 0;
     }
     }
     return CallWindowProc(OriginalListBoxProcAction, hWnd, message, wParam, lParam);
@@ -3105,6 +3358,17 @@ std::map<int, CNewTrigger*> CNewTrigger::GetOtherInstances()
             ret[i] = &Instance[i];
     }
     return ret;
+}
+
+bool CNewTrigger::HasOtherInstances()
+{
+    auto others = GetOtherInstances();
+    for (auto& [i, o] : others)
+    {
+        if (o->GetHandle())
+            return true;
+    }
+    return false;
 }
 
 CNewTrigger& CNewTrigger::GetFirstValidInstance()

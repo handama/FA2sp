@@ -25,6 +25,9 @@ std::vector<DropTarget> ExtraWindow::g_DropTargets;
 bool ExtraWindow::bComboLBoxSelected = false;
 bool ExtraWindow::bEnterSearch = false;
 
+ATOM TargetHighlighter::window_class_atom_ = 0;
+bool TargetHighlighter::class_registered_ = false;
+
 FString ExtraWindow::GetTeamDisplayName(const char* id)
 {
     FString name;
@@ -1336,4 +1339,201 @@ void HelpDlg::CloseHelpDlg()
     EndDialog(hDlg, NULL);
     hDlg = NULL;
     hText = NULL;
+}
+
+TargetHighlighter::TargetHighlighter() = default;
+
+TargetHighlighter::~TargetHighlighter() {
+    Detach();
+}
+
+bool TargetHighlighter::RegisterWindowClassIfNeeded() {
+    if (class_registered_) return true;
+
+    WNDCLASSEXW wc{};
+    wc.cbSize = sizeof(WNDCLASSEXW);
+    wc.style = CS_HREDRAW | CS_VREDRAW;
+    wc.lpfnWndProc = WndProc;
+    wc.hInstance = GetModuleHandleW(nullptr);
+    wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    wc.lpszClassName = L"TargetHighlighterBorder";
+    wc.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
+
+    window_class_atom_ = RegisterClassExW(&wc);
+    if (window_class_atom_ == 0) {
+        return false;
+    }
+
+    class_registered_ = true;
+    return true;
+}
+
+HWND TargetHighlighter::CreateHighlightWindow(const RECT& rect) {
+    int width = rect.right - rect.left;
+    int height = rect.bottom - rect.top;
+
+    if (width < 4 || height < 4) return nullptr;
+
+    HWND hwnd = CreateWindowEx(
+        WS_EX_TOPMOST |
+        WS_EX_TOOLWINDOW |
+        WS_EX_TRANSPARENT |
+        WS_EX_NOACTIVATE,
+        MAKEINTATOM(window_class_atom_),
+        "",
+        WS_POPUP,
+        rect.left,
+        rect.top,
+        width,
+        height,
+        nullptr,
+        nullptr,
+        GetModuleHandle(nullptr),
+        this
+    );
+
+    if (!hwnd) return nullptr;
+
+    UpdateRegion(hwnd, width, height);
+
+    ShowWindow(hwnd, SW_SHOWNA);
+    return hwnd;
+}
+
+void TargetHighlighter::UpdateRegion(HWND hwnd, int width, int height)
+{
+    int t = border_thickness_;
+    if (t <= 0) return;
+
+    HRGN outer;
+    HRGN inner;
+
+    if (border_radius_ > 0) {
+        outer = CreateRoundRectRgn(
+            0, 0, width, height,
+            border_radius_ * 2,
+            border_radius_ * 2);
+
+        inner = CreateRoundRectRgn(
+            t, t, width - t, height - t,
+            border_radius_ * 2,
+            border_radius_ * 2);
+    }
+    else {
+        outer = CreateRectRgn(0, 0, width, height);
+        inner = CreateRectRgn(t, t, width - t, height - t);
+    }
+
+    CombineRgn(outer, outer, inner, RGN_DIFF);
+
+    SetWindowRgn(hwnd, outer, TRUE);
+
+    DeleteObject(inner);
+}
+
+void TargetHighlighter::Attach(HWND hTarget) {
+    Detach(); 
+
+    if (!IsWindow(hTarget)) {
+        return;
+    }
+
+    if (!RegisterWindowClassIfNeeded()) {
+        return;
+    }
+
+    target_hwnd_ = hTarget;
+
+    RECT rc{};
+    if (!GetWindowRect(target_hwnd_, &rc)) {
+        target_hwnd_ = nullptr;
+        return;
+    }
+
+    highlight_hwnd_ = CreateHighlightWindow(rc);
+    if (!highlight_hwnd_) {
+        target_hwnd_ = nullptr;
+    }
+}
+
+void TargetHighlighter::Detach() {
+    DestroyHighlightWindow();
+    target_hwnd_ = nullptr;
+}
+
+void TargetHighlighter::DestroyHighlightWindow() {
+    if (highlight_hwnd_) {
+        DestroyWindow(highlight_hwnd_);
+        highlight_hwnd_ = nullptr;
+    }
+}
+
+void TargetHighlighter::UpdatePosition() {
+    if (!IsActive()) return;
+
+    RECT rc{};
+    if (!GetWindowRect(target_hwnd_, &rc)) {
+        Detach();
+        return;
+    }
+
+    int width = rc.right - rc.left;
+    int height = rc.bottom - rc.top;
+
+    SetWindowPos(
+        highlight_hwnd_,
+        HWND_TOPMOST,
+        rc.left,
+        rc.top,
+        width,
+        height,
+        SWP_NOACTIVATE);
+
+    UpdateRegion(highlight_hwnd_, width, height);
+}
+
+LRESULT CALLBACK TargetHighlighter::WndProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wParam,
+    LPARAM lParam)
+{
+    TargetHighlighter* self = nullptr;
+
+    if (msg == WM_NCCREATE) {
+        auto* cs = reinterpret_cast<CREATESTRUCTW*>(lParam);
+        self = static_cast<TargetHighlighter*>(cs->lpCreateParams);
+        SetWindowLongPtrW(hwnd, GWLP_USERDATA,
+            reinterpret_cast<LONG_PTR>(self));
+    }
+    else {
+        self = reinterpret_cast<TargetHighlighter*>(
+            GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    }
+
+    switch (msg) {
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
+
+        RECT rc;
+        GetClientRect(hwnd, &rc);
+
+        HBRUSH brush = CreateSolidBrush(self->border_color_);
+        FillRect(hdc, &rc, brush);
+        DeleteObject(brush);
+
+        EndPaint(hwnd, &ps);
+        return 0;
+    }
+
+    case WM_NCHITTEST:
+        return HTTRANSPARENT;
+
+    case WM_ERASEBKGND:
+        return 1;
+    }
+
+    return DefWindowProcW(hwnd, msg, wParam, lParam);
 }

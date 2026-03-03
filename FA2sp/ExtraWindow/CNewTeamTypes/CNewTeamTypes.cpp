@@ -6,7 +6,6 @@
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Helpers/MultimapHelper.h"
-#include "../Common.h"
 
 #include <CLoading.h>
 #include <CFinalSunDlg.h>
@@ -91,6 +90,7 @@ bool CNewTeamTypes::m_dragging = false;
 POINT CNewTeamTypes::m_dragOffset{};
 HWND CNewTeamTypes::m_hDragGhost = nullptr;
 HWND CNewTeamTypes::hDragPoint = nullptr;
+TargetHighlighter CNewTeamTypes::hl;
 
 void CNewTeamTypes::Create(CFinalSunDlg* pWnd)
 {
@@ -225,6 +225,9 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
     {
         OrigDragDotProc = (WNDPROC)SetWindowLongPtr(hDragPoint, GWLP_WNDPROC, (LONG_PTR)DragDotProc);
     }
+    hl.SetBorderColor(ExtConfigs::EnableDarkMode ? RGB(0, 90, 0) : RGB(0, 180, 0));
+    hl.SetBorderThickness(3);
+    hl.SetBorderRadius(0);
 
     Update(hWnd);
 }
@@ -343,6 +346,7 @@ void CNewTeamTypes::Update(HWND& hWnd)
 
 void CNewTeamTypes::Close(HWND& hWnd)
 {
+    ExtraWindow::UnregisterDropTargetsOfWindow(hWnd);
     EndDialog(hWnd, NULL);
 
     CNewTeamTypes::m_hwnd = NULL;
@@ -421,6 +425,37 @@ LRESULT CALLBACK CNewTeamTypes::DragDotProc(HWND hWnd, UINT message, WPARAM wPar
             SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
         );
 
+        auto target = ExtraWindow::FindDropTarget(pt);
+        if (target.hWnd && IsWindowEnabled(target.hWnd) &&
+            (
+                target.type == DropType::AIEditorTeam0 ||
+                target.type == DropType::AIEditorTeam1 ||
+                target.type == DropType::ActionParam0 ||
+                target.type == DropType::ActionParam1 ||
+                target.type == DropType::ActionParam2 ||
+                target.type == DropType::ActionParam3 ||
+                target.type == DropType::ActionParam4 ||
+                target.type == DropType::ActionParam5 ||
+                target.type == DropType::EventParam0 ||
+                target.type == DropType::EventParam1 ||
+                target.type == DropType::BatchTriggerListView
+                ))
+        {
+            if (!hl.IsActive())
+            {
+                hl.Attach(target.hWnd);
+            }
+            else if (!hl.IsSameTarget(target.hWnd))
+            {
+                hl.Detach();
+                hl.Attach(target.hWnd);
+            }
+        }
+        else if (hl.IsActive())
+        {
+            hl.Detach();
+        }
+
         return 0;
     }
     case WM_LBUTTONUP:
@@ -442,6 +477,7 @@ LRESULT CALLBACK CNewTeamTypes::DragDotProc(HWND hWnd, UINT message, WPARAM wPar
 
         DestroyWindow(m_hDragGhost);
         m_hDragGhost = nullptr;
+        hl.Detach();
 
         auto target = ExtraWindow::FindDropTarget(pt);
         if (target.hWnd)

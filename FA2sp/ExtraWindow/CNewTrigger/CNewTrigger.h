@@ -9,6 +9,7 @@
 #include "../../Helpers/MultimapHelper.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Helpers/FString.h"
+#include "../Common.h"
 
 #define EVENT_PARAM_COUNT 2
 #define ACTION_PARAM_COUNT 6
@@ -416,10 +417,14 @@ protected:
     static LRESULT CALLBACK DragingDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
     LRESULT CALLBACK HandleDragingDot(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+    static LRESULT CALLBACK DragingListBoxProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+    LRESULT CALLBACK HandleDragingListBox(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
     void EventListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam);
     void ActionListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam);
 
     std::map<int, CNewTrigger*> GetOtherInstances();
+    bool HasOtherInstances();
     void RefreshOtherInstances();
     int GetCurrentInstanceIndex();
     bool IsMainInstance();
@@ -470,9 +475,9 @@ public:
     HWND hActionParameter[ACTION_PARAM_COUNT];
     HWND hActionParameterDesc[ACTION_PARAM_COUNT];
 
-    int CurrentCSFActionParam;
-    int CurrentTriggerActionParam;
-    int CurrentTeamActionParam;
+    int CurrentCSFActionParam = -1;
+    int CurrentTriggerActionParam = -1;
+    int CurrentTeamActionParam = -1;
     static std::vector<ParamAffectedParams> ActionParamAffectedParams;
     static std::vector<ParamAffectedParams> EventParamAffectedParams;
     bool ActionParamUsesFloat;
@@ -509,21 +514,25 @@ private:
     WNDPROC OriginalListBoxProcEvent;
     WNDPROC OriginalListBoxProcAction;
     WNDPROC OrigDragDotProc;
+    WNDPROC OrigDragingListboxProc;
     WNDPROC OrigDragingDotProc;
     RECT rectComboLBox;
     HWND hComboLBox;
+    POINT windowPos{};
+
     static bool AvoidInfiLoop;
     static bool SortTriggersExecuted;
     static bool AutoChangeName;
 
-    bool   m_pressed = false;
-    bool   m_dragging = false;
-
-    POINT  m_pressPtScreen; 
-    POINT  m_lastPtScreen;
-
+    bool m_pressed = false;
+    bool m_actionPressed = false;
+    bool m_dragging = false;
+    POINT m_pressPtScreen{};
+    POINT m_lastPtScreen{};
     POINT m_dragOffset{};
     HWND m_hDragGhost = nullptr;
-    POINT windowPos{};
+    std::vector<int> SelectedActions;
+
+    TargetHighlighter hl;
 };
 

@@ -2576,7 +2576,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 	}
 
-	if (CIsoView::CurrentCommand->Command == 0x17 && CIsoViewExt::DrawPropertyBrushMark)
+	if ((CIsoView::CurrentCommand->Command == 0x17 ||
+		CIsoView::CurrentCommand->Command == 0x25) && 
+		CIsoViewExt::DrawPropertyBrushMark)
 	{
 		if (auto image = CLoadingExt::GetSurfaceImageDataFromMap("PROPERTY_MARK"))
 		{

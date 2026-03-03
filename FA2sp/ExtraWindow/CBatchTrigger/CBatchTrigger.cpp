@@ -185,6 +185,7 @@ void CBatchTrigger::Initialize(HWND& hWnd)
 
 void CBatchTrigger::Close(HWND& hWnd)
 {
+    ExtraWindow::UnregisterDropTargetsOfWindow(hWnd);
     EndDialog(hWnd, NULL);
 
     CBatchTrigger::m_hwnd = NULL;

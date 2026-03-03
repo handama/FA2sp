@@ -3,7 +3,6 @@
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Helpers/MultimapHelper.h"
-#include "../Common.h"
 
 #include <CLoading.h>
 #include <CFinalSunDlg.h>
@@ -66,6 +65,7 @@ WNDPROC CNewScript::OrigDragingDotProc;
 bool CNewScript::m_dragging = false;
 POINT CNewScript::m_dragOffset{};
 HWND CNewScript::m_hDragGhost = nullptr;
+TargetHighlighter CNewScript::hl;
 
 void CNewScript::Create(CFinalSunDlg* pWnd)
 {
@@ -152,6 +152,10 @@ void CNewScript::Initialize(HWND& hWnd)
     {
         OrigDragDotProc = (WNDPROC)SetWindowLongPtr(hDragPoint, GWLP_WNDPROC, (LONG_PTR)DragDotProc);
     }
+
+    hl.SetBorderColor(ExtConfigs::EnableDarkMode ? RGB(0, 90, 0) : RGB(0, 180, 0));
+    hl.SetBorderThickness(3);
+    hl.SetBorderRadius(0);
 
     Update(hWnd);
 }
@@ -311,6 +315,25 @@ LRESULT CALLBACK CNewScript::DragDotProc(HWND hWnd, UINT message, WPARAM wParam,
             SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
         );
 
+        auto target = ExtraWindow::FindDropTarget(pt);
+        if (target.hWnd && IsWindowEnabled(target.hWnd) && target.type == DropType::TeamEditorScript
+            )
+        {
+            if (!hl.IsActive())
+            {
+                hl.Attach(target.hWnd);
+            }
+            else if (!hl.IsSameTarget(target.hWnd))
+            {
+                hl.Detach();
+                hl.Attach(target.hWnd);
+            }
+        }
+        else if (hl.IsActive())
+        {
+            hl.Detach();
+        }
+
         return 0;
     }
     case WM_LBUTTONUP:
@@ -332,6 +355,7 @@ LRESULT CALLBACK CNewScript::DragDotProc(HWND hWnd, UINT message, WPARAM wParam,
 
         DestroyWindow(m_hDragGhost);
         m_hDragGhost = nullptr;
+        hl.Detach();
 
         auto target = ExtraWindow::FindDropTarget(pt);
         if (target.hWnd)

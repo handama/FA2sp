@@ -848,6 +848,7 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
                 m_lastPtScreen = m_pressPtScreen;
             }
         }
+
         break;
     }
     case WM_MOUSEMOVE:
@@ -887,7 +888,7 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
                 RECT calcRect = { 0 };
                 DrawText(hdcScreen, displayText.c_str(), -1, &calcRect, DT_CALCRECT | DT_NOPREFIX);
 
-                width = calcRect.right - calcRect.left + 16;
+                width = calcRect.right - calcRect.left + 10;
                 height = calcRect.bottom - calcRect.top + 2;
 
                 SelectObject(hdcScreen, hOld);
@@ -961,14 +962,14 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
         if (!m_actionPressed)
             break;
 
-        ReleaseCapture();
         m_actionPressed = false;
-
-        POINT pt;
-        GetCursorPos(&pt);
 
         if (m_dragging)
         {
+            ReleaseCapture();
+
+            POINT pt;
+            GetCursorPos(&pt);
             //SetWindowLongPtr(
             //    m_hDragGhost,
             //    GWLP_WNDPROC,
@@ -1004,13 +1005,13 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
                         o->OnSelchangeTrigger();
                         if ((GetKeyState(VK_SHIFT) & 0x8000) == 0)
                         {
-                            for (int i = SelectedActions.size() - 1; i >= 0; --i)
+                            for (auto rit = SelectedActions.rbegin(); rit != SelectedActions.rend(); ++rit)
                             {
-                                if (i >= 0 && i < CurrentTrigger->Actions.size())
-                                {
-                                    CurrentTrigger->Actions.erase(CurrentTrigger->Actions.begin() + i);
-                                    CurrentTrigger->ActionCount--;
-                                }
+                                auto& index = *rit;
+                                if (index < 0 || index >= CurrentTrigger->ActionCount) continue;
+
+                                CurrentTrigger->ActionCount--;
+                                CurrentTrigger->Actions.erase(CurrentTrigger->Actions.begin() + index);
                             }
                             CurrentTrigger->Save();
                             OnSelchangeTrigger();
@@ -1021,9 +1022,12 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
                     }
                 }
             }
+            m_dragging = false;
         }
-
-        m_dragging = false;
+        else
+        {
+            return CallWindowProc(OriginalListBoxProcAction, hWnd, message, wParam, lParam);
+        }
         return 0;
     }
     }

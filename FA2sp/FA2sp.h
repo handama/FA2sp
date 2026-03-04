@@ -167,6 +167,7 @@ public:
     static bool SkipBrushSizeChangeOnTools;
     static bool INIEditor_IgnoreTeams;
     static bool StringBufferStackAllocation;
+    static bool RangeBound_DrawEllipse;
     static int RangeBound_MaxRange;
     static int SearchCombobox_MaxCount;
     static bool SearchCombobox_Waypoint;

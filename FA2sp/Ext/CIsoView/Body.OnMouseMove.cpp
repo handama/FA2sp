@@ -21,6 +21,8 @@
 #include "../../Miscs/StringtableLoader.h"
 #include "../../Helpers/Helper.h"
 
+constexpr float cellLength = 42.426407f;
+
 void CIsoViewExt::DrawBridgeLine(HDC hDC)
 {
     auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
@@ -368,6 +370,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
         if (CFinalSunApp::Instance().FlatToGround)
             leftIndex++;
+        if (CIsoViewExt::ScaledFactor != 1.0)
+            leftIndex++;
 
         SetTextAlign(hDC, TA_LEFT);
 
@@ -379,16 +383,13 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         mmh.AddINI(&CINI::Rules());
         mmh.AddINI(&CINI::CurrentDocument());
 
-
         if (!CMapDataExt::IsCoordInFullMap(point.X, point.Y))
         {
             SetTextAlign(hDC, TA_LEFT);
             return;
         }
-
         int drawX = X - CIsoViewExt::drawOffsetX + 30;
         int drawY = Y - CIsoViewExt::drawOffsetY - 15;
-
 
         FString buffer2;
         buffer2.Format(Translations::TranslateOrDefault("ObjectInfo.CurrentCoord",
@@ -400,7 +401,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             bDrawRange = true;
 
         auto drawRange = [&](float XCenter, float YCenter, float range, COLORREF color,
-            bool isBuilding, FString objectX, FString objectY, bool calculateElevation = false)
+            bool isBuilding, FString objectX, FString objectY, bool calculateElevation = false,
+            int subcell = 0)
             {
                 if (range <= 0) return;
                 range = range > ExtConfigs::RangeBound_MaxRange ? ExtConfigs::RangeBound_MaxRange : range;
@@ -448,46 +450,84 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     offsetY = static_cast<int>((hash >> 3) % 5) - 2;
                 }
 
-                float ElevationIncrement = mmh.GetSingle("ElevationModel", "ElevationIncrement");
-                float ElevationIncrementBonus = mmh.GetSingle("ElevationModel", "ElevationIncrementBonus");
-                float ElevationBonusCap = mmh.GetSingle("ElevationModel", "ElevationBonusCap");
-                if (!isBuilding)
-                    ElevationBonusCap = 1.0f;
-
-                for (int x = XCenter - range - 1 - ElevationBonusCap * ElevationIncrementBonus; x < XCenter + range + 1 + ElevationBonusCap * ElevationIncrementBonus; x++)
+                if (!ExtConfigs::RangeBound_DrawEllipse || ExtConfigs::WeaponRangeBound_SubjectToElevation && calculateElevation)
                 {
-                    for (int y = YCenter - range - 1 - ElevationBonusCap * ElevationIncrementBonus; y < YCenter + range + 1 + ElevationBonusCap * ElevationIncrementBonus; y++)
-                    {
-                        if (x > 0 && x < Map->MapWidthPlusHeight && y > 0 && y < Map->MapWidthPlusHeight)
-                        {
-                            float RangeBonus = 0;
-                            if (ExtConfigs::WeaponRangeBound_SubjectToElevation && calculateElevation)
-                            {
-                                float NumberOfBonuses = (Map->GetCellAt(atoi(objectX), atoi(objectY))->Height - Map->GetCellAt(x, y)->Height) / ElevationIncrement;
-                                if (NumberOfBonuses > ElevationBonusCap)
-                                    NumberOfBonuses = ElevationBonusCap;
-                                if (NumberOfBonuses < -ElevationBonusCap)
-                                    NumberOfBonuses = -ElevationBonusCap;
-                                RangeBonus = NumberOfBonuses * ElevationIncrementBonus;
-                                if (RangeBonus + 2 < 0)
-                                    RangeBonus += 2;
-                            }
+                    float ElevationIncrement = mmh.GetSingle("ElevationModel", "ElevationIncrement");
+                    float ElevationIncrementBonus = mmh.GetSingle("ElevationModel", "ElevationIncrementBonus");
+                    float ElevationBonusCap = mmh.GetSingle("ElevationModel", "ElevationBonusCap");
+                    if (!isBuilding)
+                        ElevationBonusCap = 1.0f;
 
-                            float distance = sqrt(((float)y - YCenter) * ((float)y - YCenter) + ((float)x - XCenter) * ((float)x - XCenter));
-                            if (range + RangeBonus >= distance)
+                    for (int x = XCenter - range - 1 - ElevationBonusCap * ElevationIncrementBonus; x < XCenter + range + 1 + ElevationBonusCap * ElevationIncrementBonus; x++)
+                    {
+                        for (int y = YCenter - range - 1 - ElevationBonusCap * ElevationIncrementBonus; y < YCenter + range + 1 + ElevationBonusCap * ElevationIncrementBonus; y++)
+                        {
+                            if (x > 0 && x < Map->MapWidthPlusHeight && y > 0 && y < Map->MapWidthPlusHeight)
                             {
-                                MapCoord mc;
-                                mc.X = x;
-                                mc.Y = y;
-                                mapCoordsInRange.push_back(mc);
+                                float RangeBonus = 0;
+                                if (ExtConfigs::WeaponRangeBound_SubjectToElevation && calculateElevation)
+                                {
+                                    float NumberOfBonuses = (Map->GetCellAt(atoi(objectX), atoi(objectY))->Height - Map->GetCellAt(x, y)->Height) / ElevationIncrement;
+                                    if (NumberOfBonuses > ElevationBonusCap)
+                                        NumberOfBonuses = ElevationBonusCap;
+                                    if (NumberOfBonuses < -ElevationBonusCap)
+                                        NumberOfBonuses = -ElevationBonusCap;
+                                    RangeBonus = NumberOfBonuses * ElevationIncrementBonus;
+                                    if (RangeBonus + 2 < 0)
+                                        RangeBonus += 2;
+                                }
+
+                                float distance = sqrt(((float)y - YCenter) * ((float)y - YCenter) + ((float)x - XCenter) * ((float)x - XCenter));
+                                if (range + RangeBonus >= distance)
+                                {
+                                    MapCoord mc;
+                                    mc.X = x;
+                                    mc.Y = y;
+                                    mapCoordsInRange.push_back(mc);
+                                }
                             }
                         }
                     }
+                    CIsoViewExt::DrawMultiMapCoordBorders(hDC, mapCoordsInRange, color, offsetX, offsetY);
                 }
-                CIsoViewExt::DrawMultiMapCoordBorders(hDC, mapCoordsInRange, color);
+                else
+                {
+                    switch (subcell)
+                    {
+                    case 2:
+                        offsetX += 15 / CIsoViewExt::ScaledFactor;
+                        break;
+                    case 3:
+                        offsetX -= 15 / CIsoViewExt::ScaledFactor;
+                        break;
+                    case 4:
+                        offsetY += 7 / CIsoViewExt::ScaledFactor;
+                        break;
+                    default:
+                        break;
+                    }
+
+                    int drawX = XCenter;
+                    int drawY = YCenter;
+                    float extraX = XCenter - drawX;
+                    float extraY = YCenter - drawY;
+                    CIsoViewExt::MapCoord2ScreenCoord(drawX, drawY);
+                    drawX -= CIsoViewExt::drawOffsetX;
+                    drawY -= CIsoViewExt::drawOffsetY;
+                    drawX += (extraY - extraX) * 30 / CIsoViewExt::ScaledFactor + offsetX;
+                    drawY += (extraX + extraY) * 15 / CIsoViewExt::ScaledFactor + offsetY;
+
+                    int width = 2;
+                    if (CIsoViewExt::ScaledFactor < 0.31)
+                        width = 4;
+                    else if (CIsoViewExt::ScaledFactor < 0.6)
+                        width = 3;
+                    pIsoView->DrawEllipsePaint(drawX, drawY, range* cellLength, color, hDC, width);
+                } 
             };
 
-        auto drawWeaponRange = [&](FString ID, FString objectX, FString objectY, bool isBuilding = false, bool secondary = false, bool elite = false, bool deathWeapon = false)
+        auto drawWeaponRange = [&](FString ID, FString objectX, FString objectY, bool isBuilding = false,
+            bool secondary = false, bool elite = false, bool deathWeapon = false, int subcell = 0)
             {
                 auto weapon = mmh.GetString(ID, elite && mmh.GetString(ID, "ElitePrimary") != "" ? "ElitePrimary" : "Primary");
                 int color = 0xFFFFFF;
@@ -566,7 +606,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             leftLine = Translations::TranslateOrDefault("ViewDeathWeaponRangeInfo", "Death Weapon Range");
                             ::TextOut(hDC, rect.left + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
 
-                            drawRange(XCenter, YCenter, range, ExtConfigs::DeathWeaponRangeBound_Color, isBuilding, objectX, objectY, useElevation);
+                            drawRange(XCenter, YCenter, range, ExtConfigs::DeathWeaponRangeBound_Color, isBuilding, objectX, objectY, useElevation, subcell);
                         }                      
                     }
                     else if (!secondary)
@@ -582,8 +622,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
                         }
 
-                        drawRange(XCenter, YCenter, range, ExtConfigs::WeaponRangeBound_Color, isBuilding, objectX, objectY, useElevation);
-                        drawRange(XCenter, YCenter, minimumRange, ExtConfigs::WeaponRangeMinimumBound_Color, isBuilding, objectX, objectY);
+                        drawRange(XCenter, YCenter, range, ExtConfigs::WeaponRangeBound_Color, isBuilding, objectX, objectY, useElevation, subcell);
+                        drawRange(XCenter, YCenter, minimumRange, ExtConfigs::WeaponRangeMinimumBound_Color, isBuilding, objectX, objectY, false, subcell);
                     }
                     else
                     {
@@ -598,11 +638,9 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
                         }
 
-                        drawRange(XCenter, YCenter, range, ExtConfigs::SecondaryWeaponRangeBound_Color, isBuilding, objectX, objectY, useElevation);
-                        drawRange(XCenter, YCenter, minimumRange, ExtConfigs::SecondaryWeaponRangeMinimumBound_Color, isBuilding, objectX, objectY);
+                        drawRange(XCenter, YCenter, range, ExtConfigs::SecondaryWeaponRangeBound_Color, isBuilding, objectX, objectY, useElevation, subcell);
+                        drawRange(XCenter, YCenter, minimumRange, ExtConfigs::SecondaryWeaponRangeMinimumBound_Color, isBuilding, objectX, objectY, false, subcell);
                     }
-
-
                     SetBkColor(hDC, 0xFFFFFF);
                 }
             };
@@ -685,7 +723,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 }
             };
 
-        auto displayRanges = [&](FString ID, FString objectX, FString objectY, bool isBuilding = false, bool elite = false)
+        auto displayRanges = [&](FString ID, FString objectX, FString objectY, bool isBuilding = false, bool elite = false, int subcell = 0)
             {
                 if ((CIsoView::CurrentCommand->Type >= CViewObjectsExt::ObjectTerrainType::WeaponRange && CIsoView::CurrentCommand->Type <= CViewObjectsExt::ObjectTerrainType::AllRange) || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                 {
@@ -713,15 +751,15 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     }
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::SecondaryWeaponRange || All) {
 
-                        drawWeaponRange(ID, objectX, objectY, isBuilding, true, elite);
+                        drawWeaponRange(ID, objectX, objectY, isBuilding, true, elite, false, subcell);
                     }
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::DeathWeaponRange || All) {
 
-                        drawWeaponRange(ID, objectX, objectY, isBuilding, false, elite, true);
+                        drawWeaponRange(ID, objectX, objectY, isBuilding, false, elite, true, subcell);
                     }
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::WeaponRange || All || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All) {
 
-                        drawWeaponRange(ID, objectX, objectY, isBuilding, false, elite);
+                        drawWeaponRange(ID, objectX, objectY, isBuilding, false, elite, false, subcell);
                     }
 
                 }
@@ -761,7 +799,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     Map->GetInfantryData(id, object);
 
                     if (bDrawRange)
-                        displayRanges(object.TypeID, object.X, object.Y, false, atoi(object.VeterancyPercentage) >= 200);
+                        displayRanges(object.TypeID, object.X, object.Y, false, 
+                            atoi(object.VeterancyPercentage) >= 200, atoi(object.SubCell));
 
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                     {

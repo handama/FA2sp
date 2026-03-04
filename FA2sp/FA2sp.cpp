@@ -157,6 +157,7 @@ bool ExtConfigs::SkipBrushSizeChangeOnTools;
 bool ExtConfigs::INIEditor_IgnoreTeams;
 bool ExtConfigs::StringBufferStackAllocation = true;
 int ExtConfigs::RangeBound_MaxRange;
+bool ExtConfigs::RangeBound_DrawEllipse;
 int ExtConfigs::SearchCombobox_MaxCount;
 bool ExtConfigs::SearchCombobox_Waypoint;
 bool ExtConfigs::NewTheaterType;
@@ -362,6 +363,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::RangeBound_MaxRange = CINI::FAData->GetInteger("ExtConfigs", "RangeBound.MaxRange", 50);
 	ExtConfigs::UndoRedoLimit = CINI::FAData->GetInteger("ExtConfigs", "UndoRedoLimit", 64);
 	ExtConfigs::UndoRedo_ShiftPlaceTile = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.ShiftPlaceTile", true);
+	ExtConfigs::RangeBound_DrawEllipse = CINI::FAData->GetBool("ExtConfigs", "RangeBound.DrawEllipse", true);
 	ExtConfigs::UndoRedo_HoldPlaceOverlay = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.HoldPlaceOverlay", true);
 	ExtConfigs::UndoRedo_RecordObjects = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.RecordObjects", true);
 
@@ -1174,6 +1176,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.WeaponRangeBound.SubjectToElevation", "Consider effect of cliff when showing weapon range"),
 		.IniKey = "WeaponRangeBound.SubjectToElevation",
 		.Value = &ExtConfigs::WeaponRangeBound_SubjectToElevation,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.RangeBound.DrawEllipse", "Draw all ranges except for weapons subject to elevation using ellipses"),
+		.IniKey = "RangeBound.DrawEllipse",
+		.Value = &ExtConfigs::RangeBound_DrawEllipse,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 

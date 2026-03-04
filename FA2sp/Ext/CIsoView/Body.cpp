@@ -1004,6 +1004,44 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
     }
 }
 
+void CIsoViewExt::DrawEllipsePaint(int X, int Y, int majorRadius, COLORREF color, HDC hdc, int width)
+{
+    X += 30 / CIsoViewExt::ScaledFactor;
+    Y -= 15 / CIsoViewExt::ScaledFactor;
+    X += 6 / CIsoViewExt::ScaledFactor - 6 + 2;
+    Y += 3 / CIsoViewExt::ScaledFactor - 3;
+    majorRadius /= CIsoViewExt::ScaledFactor;
+    if (!hdc)
+        return;
+
+    PAINTSTRUCT ps;
+    HPEN hPen = nullptr;
+    HPEN hPenOld = nullptr;
+    HBRUSH hBrush = nullptr;
+    HBRUSH hBrushOld = nullptr;
+
+    BeginPaint(this->GetSafeHwnd(), &ps);
+
+    hPen = CreatePen(PS_SOLID, width, color);
+    hPenOld = (HPEN)SelectObject(hdc, hPen);
+
+    hBrush = (HBRUSH)GetStockObject(NULL_BRUSH);
+    hBrushOld = (HBRUSH)SelectObject(hdc, hBrush);
+
+    int left = X - majorRadius;
+    int top = Y - majorRadius / 2;
+    int right = X + majorRadius;
+    int bottom = Y + majorRadius / 2;
+
+    Ellipse(hdc, left, top, right, bottom);
+
+    SelectObject(hdc, hPenOld);
+    SelectObject(hdc, hBrushOld);
+    DeleteObject(hPen);
+
+    EndPaint(this->GetSafeHwnd(), &ps);
+}
+
 void CIsoViewExt::DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORREF color, bool bUseDot, HDC hdc, HWND hwnd, bool s1, bool s2, bool s3, bool s4)
 {   
     if (!s1 && !s2 && !s3 && !s4)
@@ -4274,7 +4312,7 @@ void CIsoViewExt::Zoom(double offset)
     }
 }
 
-void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color)
+void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color, int offsetX, int offsetY)
 {
     auto pThis = static_cast<CIsoViewExt*>(CIsoView::GetInstance());
 
@@ -4303,8 +4341,8 @@ void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>&
         int y = mc.Y;
         CIsoViewExt::MapCoord2ScreenCoord(x, y);
 
-        int drawX = x - CIsoViewExt::drawOffsetX;
-        int drawY = y - CIsoViewExt::drawOffsetY;
+        int drawX = x - CIsoViewExt::drawOffsetX + offsetX;
+        int drawY = y - CIsoViewExt::drawOffsetY + offsetY;
 
         bool s1 = true;
         bool s2 = true;

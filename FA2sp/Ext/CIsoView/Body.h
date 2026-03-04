@@ -127,6 +127,7 @@ public:
 
     void ConfirmTube(bool addReverse = true);
 
+    void DrawEllipsePaint(int X, int Y, int majorRadius, COLORREF color, HDC hdc, int width = 2);
     void DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORREF color, bool bUseDot, HDC hdc, HWND hwnd, bool s1 = true, bool s2 = true, bool s3 = true, bool s4 = true);
     void DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor);
     static int GetSelectedSubcellInfantryIdx(int X = -1, int Y = -1, bool getSubcell = false);
@@ -175,7 +176,7 @@ public:
     static void DrawCopyBound(HDC hDC);
     static void DrawBridgeLine(HDC hDC);
     static void DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, int size = 0);
-    static void DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color);
+    static void DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color, int offsetX = 0, int offsetY = 0);
     static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::vector<MapCoord>& coords, COLORREF color);
     static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::set<MapCoord>& coords, COLORREF color);
     static bool StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CRect srcRect, LPDIRECTDRAWSURFACE7 dstSurface, CRect dstRect);

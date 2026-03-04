@@ -988,7 +988,7 @@ LRESULT CALLBACK DarkTheme::ComboBoxSubclassProc(
                 SetBkMode(hdc, TRANSPARENT);
                 SetTextColor(hdc, DarkColors::LightText);
 
-                HFONT hFont = (HFONT)SendMessage(hWnd, WM_GETFONT, 0, 0);
+                HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
                 HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
 
                 DrawText(hdc, text, -1, &rcText, DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS);
@@ -1524,7 +1524,7 @@ LRESULT CALLBACK DarkTheme::DarkGroupBoxclassProc(HWND hwnd, UINT uMsg, WPARAM w
         SetBkMode(hdc, TRANSPARENT);
         SetTextColor(hdc, enabled ? DarkColors::TextColor : DarkColors::DisabledTextColor);
 
-        HFONT hFont = (HFONT)SendMessage(hwnd, WM_GETFONT, 0, 0);
+        HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
         HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
 
         DrawTextW(hdc, textBuf, -1, &textRc, DT_CALCRECT | DT_SINGLELINE);
@@ -1577,7 +1577,7 @@ LRESULT CALLBACK DarkTheme::DarkStatusBarProc(HWND hwnd, UINT uMsg, WPARAM wPara
 
         int partCount = (int)SendMessage(hwnd, SB_GETPARTS, 0, 0);
 
-        HFONT hFont = (HFONT)SendMessage(hwnd, WM_GETFONT, 0, 0);
+        HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
         HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
 
         SetBkMode(hdc, TRANSPARENT);

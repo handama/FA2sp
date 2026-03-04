@@ -1,0 +1,76 @@
+You can adjust the program language in Menu→Options→Settings.\n你可以在菜单→Options→Settings中调整程序语言。
+When drawing connected terrain, use PageUp/PageDown to adjust the terrain placement height.
+Hold Alt to place celltags in a straight line.
+You can quickly save the map with the F1 shortcut key—no dialog box will pop up.
+In the Trigger Editor, you can drag behaviors from the list to multiple open editor windows.
+You can customize the colors of waypoints and celltags for easier identification.
+Hold Ctrl and drag a unit to quickly change its facing, supporting 32 directions.
+Default properties for buildings, infantry, etc., can be set in FAData.ini.
+The map can be rendered as an image, and batch processing of multiple maps is supported.
+Through Lua scripts, you can read and modify map data to automate operations.
+You can use the Lua script terminal to execute script brushes for batch operations.
+In map notes, you can add comments for triggers, teams, etc.
+Supports reading ini files exported by Ra2CsfToolsGUI as CSF text.
+In multi-select mode, you can hide selected cells for better observation.
+Map files can be associated with the launcher—just double-click to open.
+You can set a custom light source direction for VXL units to adjust rendering effects.
+Supports displaying cloaked units as semi‑transparent.
+You can use the distance ruler to measure the distance between two points on the map.
+Supports batch filling of terrain in multi‑selected areas with a specified type.
+You can preview thumbnails of all units and terrains in the Object Browser.
+Use Global Search to quickly locate units, waypoints, or coordinates.
+Supports ignoring specific overlays or objects per theater type.
+Terrain group presets can be saved as presets_XXX.map files for reuse.
+Supports retaining comments and INI section order when saving maps.
+You can set custom large and small water indices for each theater.
+You can set the owner color for fence overlays based on the nearest building.
+Supports precise placement of infantry in sub‑cells of terrain.
+Use the Terrain Generator to randomly generate terrain based on Perlin noise.
+Supports rendering shadows for VXL unit turrets and barrels.
+Use the shortcut Ctrl+Shift+O to quickly reload the current map.
+Supports Phobos‑style player house tags (e.g., <Player @ A‑H>) for multiplayer maps.
+You can add map notes and double‑click them to quickly edit the content.
+Use the brush to batch change the owner of units on the map.
+Customize the types and rules of connected terrain via ConnectedTileDrawer.ini.
+Configure automatic conversion rules when pasting across different terrains via TileConvertRules.ini.
+Use FADialog.ini to translate any FA2 dialog text for a fully localized interface.
+Place custom images like target.bmp or celltag.bmp into the [pics] folder to replace default icons.
+On a crash, the map is automatically backed up to the CrashBackups folder with a timestamp.
+Object Browser thumbnails are cached in the thumbnails folder, loading faster after the first generation.
+Put high‑priority resources into the Resources\HighPriority folder to load them first.
+Configure nested MIX file loading order via [NestedMixes] for flexible resource management.
+Set up encrypted resource packages in [ExtraPackages] to protect your original assets.
+Load additional CSF, LLF, or ECS string tables using [ExtraStringtables].
+Define new LAT terrain groups via [LATGroups] and [LATSettings] to support mod expansions.
+Customize the brush size list in [BrushSizes].
+Configure multiple shore styles per theater via [AutoShoreTypes] and switch them in real time.
+Use [SoftTileSetsXXX] to control whether auto‑shore affects specific terrain sets.
+Specify terrain sets that need a second draw of ExtraImage via [RedrawExtraTileSetsXXX].
+Prevent specific terrains from blocking elevated bridge overlays using [NoExtraHeightRedrawTileSetsXXX].
+Categorize overlays in the Object Browser with [ObjectBrowser.Overlays] for easier browsing.
+Hide unwanted overlays in the Object Browser via [IgnoreOverlays].
+Force‑translate object IDs with [RenameID] regardless of the original language files.
+Ignore certain units or overlays in the Map Renderer via [MapRendererIgnoreObjects].
+Register random placement presets in sections like [PlaceRandomTileList].
+When a map file is located in a different game folder, FA2 prompts whether to reload the corresponding resources.
+Type text in drop‑down menus to quickly search, supporting * and | wildcards.
+Use the “Find References” feature to quickly locate which triggers or teams reference the current object.
+One‑click “Auto‑compute LAT” fixes terrain connections across the whole map to match in‑game logic.
+Use the “Redraw Water” feature to repair incomplete water bodies, making them more natural.
+Turn on the “Impassable Cells” layer to visually see which cells units cannot reach.
+Filter layers to show only specific types of objects, reducing visual clutter.
+In the Terrain Generator, you can directly use multi‑selected areas as the generation range without manual setup.
+Override game settings with ini files prefixed with fa2extra_.
+Use [ForceSides] to place the same techno type into multiple groups in the Object Browser.
+When placing walls, you can choose different damage levels, and the system will automatically connect adjacent walls.
+Press Delete to quickly delete selected objects.
+A thin blue line at the top of the map indicates the actual reachable upper boundary in the game.
+The paste options let you paste only specific types, such as terrain or overlays.
+When importing a map from a BMP, you can specify the target theater type (e.g., Temperate).
+When placing buildings, automatic overlap checking can be enabled, with an option to force placement.
+Hold Shift for steep raising, creating two‑cell‑high cliffs.
+Hold Shift+Ctrl to force raising even on terrain that normally cannot be raised.
+Consecutive terrain or overlay placements are merged into a single undo step.
+In multiplayer maps, waypoints start from 8 to avoid conflict with player start locations.
+Use the “Remove Ore on Ramps” Lua script to quickly clear ore placed on slopes.
+Use the “Random Ore Images” Lua script to make ore appearances more varied.

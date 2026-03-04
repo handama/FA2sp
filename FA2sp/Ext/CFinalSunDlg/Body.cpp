@@ -37,6 +37,7 @@
 #include <CUpdateProgress.h>
 #include <filesystem>
 #include "../../Miscs/SaveMap.h"
+#include "../../ExtraWindow/CNewTipsOfTheDay/CNewTipsOfTheDay.h"
 namespace fs = std::filesystem;
 
 int CFinalSunDlgExt::CurrentLighting = 31000;
@@ -810,6 +811,11 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		{
 			::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, title, MB_ICONWARNING);
 		}
+	}
+	if (wmID == 40022)
+	{
+		CNewTipsOfTheDay::ShowNewTipsOfTheDay();
+		return TRUE;
 	}
 	if (wmID == 40158)
 	{

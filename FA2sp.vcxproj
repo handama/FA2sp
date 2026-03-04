@@ -221,6 +221,7 @@
     <ClCompile Include="FA2sp\ExtraWindow\CNewScript\CNewScript.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewTipsOfTheDay\CNewTipsOfTheDay.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\Common.cpp" />
@@ -363,6 +364,7 @@
     <ClInclude Include="FA2sp\ExtraWindow\CNewScript\CNewScript.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewTipsOfTheDay\CNewTipsOfTheDay.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.h" />
     <ClInclude Include="FA2sp\ExtraWindow\Common.h" />
@@ -449,6 +451,7 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewScript\CNewScript.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewTipsOfTheDay\CNewTipsOfTheDay.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CFA2spOptions\CFA2spOptions.rc" />

@@ -13,6 +13,7 @@
 #include "../../Miscs/MultiSelection.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 #include "../CTileSetBrowserFrame/Body.h"
+#include "../../ExtraWindow/CNewTipsOfTheDay/CNewTipsOfTheDay.h"
 
 DEFINE_HOOK(424654, CFinalSunDlg_OnInitDialog_SetMenuItemStateByDefault, 7)
 {
@@ -534,9 +535,15 @@ DEFINE_HOOK(433E28, CFinalSunDlg_OnTerrainFlatten_SkipBrushChange, 9)
 
 DEFINE_HOOK(4F4BF4, CTipDlg_SkipTipOfTheDay, 7)
 {
-    if (ExtConfigs::SkipTipsOfTheDay)
-        R->EAX(1);
+    R->EAX(1);
     return 0;
+}
+
+DEFINE_HOOK(424493, CFinalSunDlg_OnInitDialog_TipsOfTheDay, 7)
+{
+    if (!ExtConfigs::SkipTipsOfTheDay)
+        CNewTipsOfTheDay::ShowNewTipsOfTheDay();
+    return 0x424635;
 }
 
 static WORD StatusBar_Overlay = 0xFFFF;

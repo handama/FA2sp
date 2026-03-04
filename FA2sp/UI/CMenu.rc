@@ -196,6 +196,6 @@ POPUP "Help"
 	// MENUITEM SEPARATOR
 	MENUITEM "Info",  40006
 	MENUITEM "Credits",  40075
-	// MENUITEM "Tip of the day",  40022
+	MENUITEM "Tip of the day",  40022
 }
 }

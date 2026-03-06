@@ -141,6 +141,8 @@ BOOL CNewTipsOfTheDay::OnInitDialog()
 
 	if (Translations::GetTranslationItem("TipDialogNext", buffer))
 		GetDlgItem(1)->SetWindowTextA(buffer);
+	if (Translations::GetTranslationItem("TipDialogPrevious", buffer))
+		GetDlgItem(1005)->SetWindowTextA(buffer);
 	if (Translations::GetTranslationItem("TipDialogClose", buffer))
 		GetDlgItem(2)->SetWindowTextA(buffer);
 	if (Translations::GetTranslationItem("TipDialogShowAtStartup", buffer))
@@ -190,12 +192,39 @@ BOOL CNewTipsOfTheDay::OnInitDialog()
 	return TRUE;
 }
 
+BOOL CNewTipsOfTheDay::OnCommand(WPARAM wParam, LPARAM lParam)
+{
+    WORD nID = LOWORD(wParam);
+    WORD nNotify = HIWORD(wParam);
+
+    if (nNotify == BN_CLICKED)
+    {
+        switch (nID)
+        {
+        case 1005:  OnPrevious(); return TRUE;
+        }
+    }
+
+    return CDialog::OnCommand(wParam, lParam);
+}
+
 void CNewTipsOfTheDay::OnOK()
 {
     if (!m_Tips.empty())
     {
         m_CurrentPos++;
         if (m_CurrentPos >= m_Tips.size()) m_CurrentPos = 0;
+
+        ::SendMessage(GetDlgItem(1004)->GetSafeHwnd(), WM_SETTEXT, 0, m_Tips[m_CurrentPos]);
+    }
+}
+
+void CNewTipsOfTheDay::OnPrevious()
+{
+    if (!m_Tips.empty())
+    {
+        m_CurrentPos--;
+        if (m_CurrentPos < 0) m_CurrentPos = m_Tips.size() - 1;
 
         ::SendMessage(GetDlgItem(1004)->GetSafeHwnd(), WM_SETTEXT, 0, m_Tips[m_CurrentPos]);
     }
@@ -212,7 +241,8 @@ void CNewTipsOfTheDay::OnCancel()
     ini.WriteString("Tip", "StartUp", b_ShowAtStartup == TRUE ? "0" : "1");
     ExtConfigs::SkipTipsOfTheDay = b_ShowAtStartup != TRUE;
     ini.WriteString("Options", "SkipTipsOfTheDay", ExtConfigs::SkipTipsOfTheDay ? "yes" : "no");
-    ini.WriteString("Tip", "FilePos", STDHelpers::IntToString(m_CurrentPos));
+    // starts from n+1
+    ini.WriteString("Tip", "FilePos", STDHelpers::IntToString(m_CurrentPos + 1));
     ini.WriteToFile(path.c_str());
 
 	DestroyWindow();

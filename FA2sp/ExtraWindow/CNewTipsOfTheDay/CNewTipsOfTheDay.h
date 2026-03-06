@@ -17,7 +17,9 @@ protected:
 	virtual void OnOK();
 	virtual void OnCancel();
 	virtual void OnClose();
+	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);
 	virtual void PostNcDestroy();
+	void OnPrevious();
 	static CNewTipsOfTheDay* m_pNewTipsOfTheDayDlg;
 	ppmfc::CStatic m_staticPic;
 	ppmfc::CStatic m_staticText;

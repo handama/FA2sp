@@ -1019,7 +1019,7 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
                             OnSelchangeTrigger();
                         }
 
-                        RefreshOtherInstances();
+                        o->RefreshOtherInstances();
                         break;
                     }
                 }
@@ -1253,7 +1253,7 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxEvent(HWND hWnd, UINT message, WPARAM
                             OnSelchangeTrigger();
                         }
 
-                        RefreshOtherInstances();
+                        o->RefreshOtherInstances();
                         break;
                     }
                 }

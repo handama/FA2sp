@@ -203,6 +203,7 @@ void CNewTrigger::Initialize(HWND& hWnd)
     ExtraWindow::RegisterDropTarget(hEventParameter[0], DropType::EventParam0, this);
     ExtraWindow::RegisterDropTarget(hEventParameter[1], DropType::EventParam1, this);
     ExtraWindow::RegisterDropTarget(hActionList, DropType::ActionListBox, this);
+    ExtraWindow::RegisterDropTarget(hEventList, DropType::EventListBox, this);
 
     LastActionParamsCount = 4;
     ActionParamsCount = 4;
@@ -1003,7 +1004,8 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
                         }
                         o->CurrentTrigger->Save();
                         o->OnSelchangeTrigger();
-                        if ((GetKeyState(VK_SHIFT) & 0x8000) == 0)
+                        // opposite to drag move units in map
+                        if ((GetKeyState(VK_SHIFT) & 0x8000) != 0)
                         {
                             for (auto rit = SelectedActions.rbegin(); rit != SelectedActions.rend(); ++rit)
                             {
@@ -1039,40 +1041,231 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxEvent(HWND hWnd, UINT message, WPARAM
     switch (message)
     {
     case WM_MOUSEWHEEL:
-
+    {
         POINT pt;
         GetCursorPos(&pt);
         ScreenToClient(hWnd, &pt);
+
         RECT rc;
         GetClientRect(hWnd, &rc);
 
-        if (pt.x >= rc.right)
+        if (pt.x >= rc.right - GetSystemMetrics(SM_CXVSCROLL))
         {
             return CallWindowProc(OriginalListBoxProcEvent, hWnd, message, wParam, lParam);
         }
+
+        int delta = (short)HIWORD(wParam);
+
+        WPARAM keyParam = 0;
+        if (delta > 0)
+            keyParam = VK_UP;
+        else if (delta < 0)
+            keyParam = VK_DOWN;
+
+        if (keyParam != 0)
+        {
+            SendMessage(hWnd, WM_KEYDOWN, keyParam, 0x00000001);
+            SendMessage(hWnd, WM_KEYUP, keyParam, 0xC0000001);
+        }
+
+        return TRUE;
+    }
+    case WM_LBUTTONDOWN:
+    {
+        if (CurrentTrigger && CurrentTrigger->EventCount > 0)
+        {
+            SelectedEvents.clear();
+            GetEventListBoxSels(SelectedEvents);
+            if (!SelectedEvents.empty())
+            {
+                m_eventPressed = true;
+                m_dragging = false;
+                GetCursorPos(&m_pressPtScreen);
+                m_lastPtScreen = m_pressPtScreen;
+            }
+        }
+
+        break;
+    }
+    case WM_MOUSEMOVE:
+    {
+        if (!m_eventPressed)
+            break;
+
+        POINT pt;
+        GetCursorPos(&pt);
+
+        int dx = abs(pt.x - m_pressPtScreen.x);
+        int dy = abs(pt.y - m_pressPtScreen.y);
+
+        if (!m_dragging && HasOtherInstances())
+        {
+            if (dx >= DRAG_THRESHOLD || dy >= DRAG_THRESHOLD)
+            {
+                m_dragging = true;
+                SetCapture(hWnd);
+                SetEventListBoxSels(SelectedEvents);
+
+                FString displayText;
+
+                for (int i = 0; i < SelectedEvents.size(); ++i)
+                {
+                    displayText += ExtraWindow::GetEventDisplayName(CurrentTrigger->Events[SelectedEvents[i]].EventNum, i);
+                    if (i != SelectedEvents.size() - 1)
+                        displayText += "\n";
+                }
+
+                int width = 120;
+                int height = 40;
+                HDC hdcScreen = GetDC(NULL);
+                HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+                HFONT hOld = (HFONT)SelectObject(hdcScreen, hFont);
+
+                RECT calcRect = { 0 };
+                DrawText(hdcScreen, displayText.c_str(), -1, &calcRect, DT_CALCRECT | DT_NOPREFIX);
+
+                width = calcRect.right - calcRect.left + 10;
+                height = calcRect.bottom - calcRect.top + 2;
+
+                SelectObject(hdcScreen, hOld);
+                ReleaseDC(NULL, hdcScreen);
+
+                m_hDragGhost = CreateWindowEx(
+                    WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
+                    WC_STATIC,
+                    displayText.c_str(),
+                    WS_POPUP | WS_VISIBLE | WS_BORDER |
+                    SS_LEFT |
+                    WS_CLIPSIBLINGS,
+                    m_pressPtScreen.x,
+                    m_pressPtScreen.y,
+                    width,
+                    height,
+                    nullptr,
+                    nullptr,
+                    static_cast<HINSTANCE>(FA2sp::hInstance),
+                    nullptr
+                );
+
+                if (m_hDragGhost)
+                {
+                    SendMessage(m_hDragGhost, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+                    SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, (LONG_PTR)this);
+                    //OrigDragingListboxProc = (WNDPROC)SetWindowLongPtr(m_hDragGhost, GWLP_WNDPROC, (LONG_PTR)DragingListBoxProc);
+                    SetLayeredWindowAttributes(m_hDragGhost, 0, 200, LWA_ALPHA);
+                    ShowWindow(m_hDragGhost, SW_SHOW);
+                }
+            }
+        }
+
+        if (m_dragging)
+        {
+            SetWindowPos(
+                m_hDragGhost,
+                nullptr,
+                pt.x - 6, pt.y - 6,
+                0, 0,
+                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+            );
+
+            auto target = ExtraWindow::FindDropTarget(pt);
+            if (target.hWnd && IsWindowEnabled(target.hWnd) &&
+                target.type == DropType::EventListBox &&
+                target.hWnd != hEventList &&
+                target.triggerInstance->CurrentTrigger != CurrentTrigger
+                )
+            {
+                if (!hl.IsActive())
+                {
+                    hl.Attach(target.hWnd);
+                }
+                else if (!hl.IsSameTarget(target.hWnd))
+                {
+                    hl.Detach();
+                    hl.Attach(target.hWnd);
+                }
+            }
+            else if (hl.IsActive())
+            {
+                hl.Detach();
+            }
+        }
+
+        return 0;
+    }
+    case WM_LBUTTONUP:
+    {
+        if (!m_eventPressed)
+            break;
+
+        m_eventPressed = false;
+
+        if (m_dragging)
+        {
+            ReleaseCapture();
+
+            POINT pt;
+            GetCursorPos(&pt);
+            //SetWindowLongPtr(
+            //    m_hDragGhost,
+            //    GWLP_WNDPROC,
+            //    (LONG_PTR)OrigDragingListboxProc
+            //);
+            SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+            DestroyWindow(m_hDragGhost);
+            m_hDragGhost = nullptr;
+            hl.Detach();
+
+            auto target = ExtraWindow::FindDropTarget(pt);
+
+            if (target.hWnd && IsWindowEnabled(target.hWnd) &&
+                target.type == DropType::EventListBox &&
+                target.hWnd != hEventList &&
+                target.triggerInstance->CurrentTrigger != CurrentTrigger
+                )
+            {
+                auto instances = GetOtherInstances();
+                for (auto& [_, o] : instances)
+                {
+                    if (o->hEventList == target.hWnd)
+                    {
+                        if (!o->CurrentTrigger) break;
+
+                        for (int i = 0; i < SelectedEvents.size(); ++i)
+                        {
+                            o->CurrentTrigger->Events.push_back(CurrentTrigger->Events[SelectedEvents[i]]);
+                            o->CurrentTrigger->EventCount++;
+                        }
+                        o->CurrentTrigger->Save();
+                        o->OnSelchangeTrigger();
+                        if ((GetKeyState(VK_SHIFT) & 0x8000) != 0)
+                        {
+                            for (auto rit = SelectedEvents.rbegin(); rit != SelectedEvents.rend(); ++rit)
+                            {
+                                auto& index = *rit;
+                                if (index < 0 || index >= CurrentTrigger->EventCount) continue;
+
+                                CurrentTrigger->EventCount--;
+                                CurrentTrigger->Events.erase(CurrentTrigger->Events.begin() + index);
+                            }
+                            CurrentTrigger->Save();
+                            OnSelchangeTrigger();
+                        }
+
+                        RefreshOtherInstances();
+                        break;
+                    }
+                }
+            }
+            m_dragging = false;
+        }
         else
         {
-            int nCurSel = (int)SendMessage(hWnd, LB_GETCURSEL, 0, 0);
-            int nCount = (int)SendMessage(hWnd, LB_GETCOUNT, 0, 0);
-
-            if (nCurSel != LB_ERR && nCount > 0)
-            {
-                if ((short)HIWORD(wParam) > 0 && nCurSel > 0)
-                {
-                    SendMessage(hWnd, LB_SETCURSEL, nCurSel - 1, 0);
-                }
-                else if ((short)HIWORD(wParam) < 0 && nCurSel < nCount - 1)
-                {
-                    SendMessage(hWnd, LB_SETCURSEL, nCurSel + 1, 0);
-                }
-                OnSelchangeEventListbox();
-
-            }
-            else {
-                SendMessage(hWnd, LB_SETCURSEL, 0, 0);
-            }
-            return TRUE;
+            return CallWindowProc(OriginalListBoxProcEvent, hWnd, message, wParam, lParam);
         }
+        return 0;
+    }
     }
     return CallWindowProc(OriginalListBoxProcEvent, hWnd, message, wParam, lParam);
 }
@@ -1557,7 +1750,7 @@ void CNewTrigger::ActionListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam)
 
 void CNewTrigger::OnSelchangeEventListbox(bool changeCursel)
 {
-    if (SelectedTriggerIndex < 0 || SendMessage(hEventList, LB_GETCURSEL, NULL, NULL) < 0 || SendMessage(hEventList, LB_GETCOUNT, NULL, NULL) <= 0)
+    if (SelectedTriggerIndex < 0 || SendMessage(hEventList, LB_GETCARETINDEX, NULL, NULL) < 0 || SendMessage(hEventList, LB_GETCOUNT, NULL, NULL) <= 0)
     {
         SendMessage(hEventtype, CB_SETCURSEL, -1, NULL);
         for (int i = 0; i < EVENT_PARAM_COUNT; ++i) {
@@ -1570,7 +1763,7 @@ void CNewTrigger::OnSelchangeEventListbox(bool changeCursel)
         return;
     }
 
-    int idx = SendMessage(hEventList, LB_GETCURSEL, 0, NULL);
+    int idx = SendMessage(hEventList, LB_GETCARETINDEX, 0, NULL);
     SelectedEventIndex = idx;
 
     UpdateEventAndParam(-1, changeCursel);
@@ -2150,7 +2343,7 @@ void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionLi
         SendMessage(hEasy, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hHard, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hMedium, BM_SETCHECK, BST_UNCHECKED, 0);
-        SendMessage(hEventList, LB_SETCURSEL, -1, NULL);
+        SetEventListBoxSel(-1);
         SetActionListBoxSel(-1);
         if (!CompactMode)
             SendMessage(hEventDescription, WM_SETTEXT, 0, (LPARAM)"");
@@ -2230,7 +2423,7 @@ void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionLi
         SelectedEventIndex = 0;
     if (SelectedEventIndex >= SendMessage(hEventList, LB_GETCOUNT, NULL, NULL))
         SelectedEventIndex = SendMessage(hEventList, LB_GETCOUNT, NULL, NULL) - 1;
-    SendMessage(hEventList, LB_SETCURSEL, eventListCur, NULL);
+    SetEventListBoxSel(eventListCur);
     OnSelchangeEventListbox();
 
     if (SelectedActionIndex < 0)
@@ -2487,7 +2680,7 @@ void CNewTrigger::OnClickNewEvent(HWND& hWnd)
         }
 
         SelectedEventIndex = SendMessage(hEventList, LB_GETCOUNT, NULL, NULL) - 1;
-        SendMessage(hEventList, LB_SETCURSEL, SelectedEventIndex, NULL);
+        SetEventListBoxSel(SelectedEventIndex);
         OnSelchangeEventListbox();
 
         RefreshOtherInstances();
@@ -2496,31 +2689,42 @@ void CNewTrigger::OnClickNewEvent(HWND& hWnd)
 
 void CNewTrigger::OnClickCloEvent(HWND& hWnd)
 {
-    if (!CurrentTrigger) return;
-    if (SelectedEventIndex < 0 || SelectedEventIndex >= CurrentTrigger->EventCount) return;
+    if (!CurrentTrigger) return;    std::vector<int> selected;
+    GetEventListBoxSels(selected);
 
-    EventParams newEvent = CurrentTrigger->Events[SelectedEventIndex];
-
-    FString value;
-    value.Format("%s=%s,%s,%s,%s", CurrentTrigger->ID, map.GetString("Events", CurrentTrigger->ID), newEvent.EventNum, newEvent.Params[0], newEvent.Params[1]);
-    if (newEvent.P3Enabled)
-    {
-        FString tmp = value;
-        value.Format("%s,%s", tmp, newEvent.Params[2]);
-    }
-
+    FString length;
+    length.Format("%s=%s", CurrentTrigger->ID, map.GetString("Events", CurrentTrigger->ID));
     FString pMessage = Translations::TranslateOrDefault("TriggerEventLengthExceededMessage",
         "After creating the new event, the length of the event INI will exceed 511, and the excess will not work properly. \nDo you want to continue?");
 
+    for (auto index : selected)
+    {
+        if (index < 0 || index >= CurrentTrigger->EventCount) continue;
+        EventParams newEvent = CurrentTrigger->Events[index];
+
+        FString value;
+        value.Format(",%s,%s,%s", newEvent.EventNum, newEvent.Params[0], newEvent.Params[1]);
+        if (newEvent.P3Enabled)
+        {
+            FString tmp = value;
+            value.Format("%s,%s", tmp, newEvent.Params[2]);
+        }
+        length += value;
+    }
+
     int nResult = IDYES;
-    if (value.GetLength() >= 512)
+    if (length.GetLength() >= 512)
         nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"), MB_YESNO | MB_ICONWARNING);
 
     if (nResult == IDYES)
     {
-
-        CurrentTrigger->EventCount++;
-        CurrentTrigger->Events.push_back(newEvent);
+        for (auto index : selected)
+        {
+            if (index < 0 || index >= CurrentTrigger->EventCount) continue;
+            EventParams newEvent = CurrentTrigger->Events[index];
+            CurrentTrigger->EventCount++;
+            CurrentTrigger->Events.push_back(newEvent);
+        }
         CurrentTrigger->Save();
 
         while (SendMessage(hEventList, LB_DELETESTRING, 0, NULL) != CB_ERR);
@@ -2530,7 +2734,7 @@ void CNewTrigger::OnClickCloEvent(HWND& hWnd)
         }
 
         SelectedEventIndex = SendMessage(hEventList, LB_GETCOUNT, NULL, NULL) - 1;
-        SendMessage(hEventList, LB_SETCURSEL, SelectedEventIndex, NULL);
+        SetEventListBoxSel(SelectedEventIndex);
         OnSelchangeEventListbox();
 
         RefreshOtherInstances();
@@ -2540,10 +2744,17 @@ void CNewTrigger::OnClickCloEvent(HWND& hWnd)
 void CNewTrigger::OnClickDelEvent(HWND& hWnd)
 {
     if (!CurrentTrigger) return;
-    if (SelectedEventIndex < 0 || SelectedEventIndex >= CurrentTrigger->EventCount) return;
+    std::vector<int> selected;
+    GetEventListBoxSels(selected);
 
-    CurrentTrigger->EventCount--;
-    CurrentTrigger->Events.erase(CurrentTrigger->Events.begin() + SelectedEventIndex);
+    for (auto rit = selected.rbegin(); rit != selected.rend(); ++rit)
+    {
+        auto& index = *rit;
+        if (index < 0 || index >= CurrentTrigger->EventCount) continue;
+
+        CurrentTrigger->EventCount--;
+        CurrentTrigger->Events.erase(CurrentTrigger->Events.begin() + index);
+    }
     CurrentTrigger->Save();
 
     while (SendMessage(hEventList, LB_DELETESTRING, 0, NULL) != CB_ERR);
@@ -2557,7 +2768,7 @@ void CNewTrigger::OnClickDelEvent(HWND& hWnd)
         SelectedEventIndex = 0;
     if (SelectedEventIndex >= SendMessage(hEventList, LB_GETCOUNT, NULL, NULL))
         SelectedEventIndex = SendMessage(hEventList, LB_GETCOUNT, NULL, NULL) - 1;
-    SendMessage(hEventList, LB_SETCURSEL, SelectedEventIndex, NULL);
+    SetEventListBoxSel(SelectedEventIndex);
     OnSelchangeEventListbox();
 
     RefreshOtherInstances();
@@ -2714,7 +2925,7 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
         thisEvent.EventNum = buffer;
         SendMessage(hEventList, LB_DELETESTRING, SelectedEventIndex, NULL);
         SendMessage(hEventList, LB_INSERTSTRING, SelectedEventIndex, (LPARAM)(LPCSTR)ExtraWindow::GetEventDisplayName(thisEvent.EventNum, SelectedEventIndex, !CompactMode));
-        SendMessage(hEventList, LB_SETCURSEL, SelectedEventIndex, NULL);
+        SetEventListBoxSel(SelectedEventIndex);
     }
         
     auto eventInfos = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
@@ -3147,6 +3358,46 @@ void CNewTrigger::GetActionListBoxSels(std::vector<int>& indices)
     {
         indices.resize(numSelected);
         SendMessage(hActionList, LB_GETSELITEMS, numSelected, (LPARAM)indices.data());
+        std::sort(indices.begin(), indices.end());
+    }
+    else
+    {
+        indices.clear();
+    }
+}
+
+void CNewTrigger::SetEventListBoxSel(int index)
+{
+    SendMessage(hEventList, LB_SETSEL, FALSE, -1);
+    if (index >= 0)
+        SendMessage(hEventList, LB_SETSEL, TRUE, index);
+    SendMessage(hEventList, LB_SETCURSEL, index, NULL);
+    SendMessage(hEventList, LB_SETCARETINDEX, index, TRUE);
+}
+
+void CNewTrigger::SetEventListBoxSels(std::vector<int>& indices)
+{
+    SendMessage(hEventList, LB_SETSEL, FALSE, -1);
+    for (int idx : indices)
+    {
+        if (idx >= 0 && idx < SendMessage(hEventList, LB_GETCOUNT, 0, 0))
+        {
+            SendMessage(hEventList, LB_SETSEL, TRUE, idx);
+        }
+    }
+    if (!indices.empty())
+    {
+        SendMessage(hEventList, LB_SETCARETINDEX, indices[0], TRUE);
+    }
+}
+
+void CNewTrigger::GetEventListBoxSels(std::vector<int>& indices)
+{
+    int numSelected = SendMessage(hEventList, LB_GETSELCOUNT, 0, 0);
+    if (numSelected > 0)
+    {
+        indices.resize(numSelected);
+        SendMessage(hEventList, LB_GETSELITEMS, numSelected, (LPARAM)indices.data());
         std::sort(indices.begin(), indices.end());
     }
     else

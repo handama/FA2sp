@@ -23,6 +23,7 @@ enum class DropType : int
     AIEditorTeam1,
     BatchTriggerListView,
     ActionListBox,
+    EventListBox,
 
     Unknown,
 };

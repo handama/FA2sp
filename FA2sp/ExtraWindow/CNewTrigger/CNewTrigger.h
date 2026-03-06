@@ -398,6 +398,10 @@ protected:
     void SetActionListBoxSel(int index);
     void SetActionListBoxSels(std::vector<int>& indices);
     void GetActionListBoxSels(std::vector<int>& indices);
+    
+    void SetEventListBoxSel(int index);
+    void SetEventListBoxSels(std::vector<int>& indices);
+    void GetEventListBoxSels(std::vector<int>& indices);
 
     void SortTriggers(FString id = "", bool onlySelf = false);
 
@@ -526,12 +530,14 @@ private:
 
     bool m_pressed = false;
     bool m_actionPressed = false;
+    bool m_eventPressed = false;
     bool m_dragging = false;
     POINT m_pressPtScreen{};
     POINT m_lastPtScreen{};
     POINT m_dragOffset{};
     HWND m_hDragGhost = nullptr;
     std::vector<int> SelectedActions;
+    std::vector<int> SelectedEvents;
 
     TargetHighlighter hl;
 };

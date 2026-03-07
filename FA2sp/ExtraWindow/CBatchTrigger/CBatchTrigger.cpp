@@ -1234,6 +1234,7 @@ void CBatchTrigger::OnDroppedIntoCell(int row, int col, const FString& value)
         default:
             break;
         }
+        AdjustColumnWidth();
     }
 }
 

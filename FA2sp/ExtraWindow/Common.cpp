@@ -1431,9 +1431,10 @@ void TargetHighlighter::UpdateRegion(HWND hwnd, int width, int height)
     DeleteObject(inner);
 }
 
-void TargetHighlighter::Attach(HWND hTarget) {
-    Detach(); 
+void TargetHighlighter::Attach(DropTarget target) {
+    Detach();
 
+    auto hTarget = target.hWnd;
     if (!IsWindow(hTarget)) {
         return;
     }
@@ -1445,9 +1446,67 @@ void TargetHighlighter::Attach(HWND hTarget) {
     target_hwnd_ = hTarget;
 
     RECT rc{};
-    if (!GetWindowRect(target_hwnd_, &rc)) {
-        target_hwnd_ = nullptr;
-        return;
+
+    if (target.type == DropType::BatchTriggerListView)
+    {
+        ListViewHitResult hit;
+        POINT pt;
+        GetCursorPos(&pt);
+        if (ExtraWindow::HitTestListView(hTarget, pt, hit))
+        {
+            auto row = hit.item;
+            auto col = hit.subItem;
+            RECT sub{};
+            sub.top = col;
+
+            if (col == 0)
+            {
+                if (!ListView_GetItemRect(hTarget, row, &sub, LVIR_BOUNDS))
+                {
+                    target_hwnd_ = nullptr;
+                    return;
+                }
+
+                int colWidth = ListView_GetColumnWidth(hTarget, 0);
+                sub.right = sub.left + colWidth;
+            }
+            else
+            {
+                sub.top = col;
+
+                if (!ListView_GetSubItemRect(hTarget, row, col, LVIR_BOUNDS, &sub))
+                {
+                    target_hwnd_ = nullptr;
+                    return;
+                }
+            }
+
+            POINT pt1{ sub.left, sub.top };
+            POINT pt2{ sub.right, sub.bottom };
+
+            ClientToScreen(hTarget, &pt1);
+            ClientToScreen(hTarget, &pt2);
+
+            rc.left = pt1.x;
+            rc.top = pt1.y;
+            rc.right = pt2.x;
+            rc.bottom = pt2.y;
+
+            col_ = col;
+            row_ = row;
+        }
+        else
+        {
+            target_hwnd_ = nullptr;
+            return;
+        }
+    }
+    else
+    {
+        if (!GetWindowRect(target_hwnd_, &rc)) {
+            target_hwnd_ = nullptr;
+            return;
+        }
     }
 
     highlight_hwnd_ = CreateHighlightWindow(rc);
@@ -1490,6 +1549,30 @@ void TargetHighlighter::UpdatePosition() {
         SWP_NOACTIVATE);
 
     UpdateRegion(highlight_hwnd_, width, height);
+}
+
+bool TargetHighlighter::IsSameTarget(DropTarget target)
+{
+    if (target.type == DropType::BatchTriggerListView)
+    {
+        ListViewHitResult hit;
+        POINT pt;
+        GetCursorPos(&pt);
+        if (ExtraWindow::HitTestListView(target.hWnd, pt, hit))
+        {
+            auto row = hit.item;
+            auto col = hit.subItem;
+            return target.hWnd == target_hwnd_ && row_ == row && col_ == col;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else
+    {
+        return target.hWnd == target_hwnd_;
+    }
 }
 
 LRESULT CALLBACK TargetHighlighter::WndProc(

@@ -201,7 +201,11 @@ LRESULT CALLBACK CNewTaskforce::DragDotProc(HWND hWnd, UINT message, WPARAM wPar
 
             POINT pt;
             GetCursorPos(&pt);
-
+            if (m_hDragGhost)
+            {
+                DestroyWindow(m_hDragGhost);
+                m_hDragGhost = nullptr;
+            }
             m_hDragGhost = CreateWindowEx(
                 WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
                 "STATIC",
@@ -244,12 +248,12 @@ LRESULT CALLBACK CNewTaskforce::DragDotProc(HWND hWnd, UINT message, WPARAM wPar
         {
             if (!hl.IsActive())
             {
-                hl.Attach(target.hWnd);
+                hl.Attach(target);
             }
-            else if (!hl.IsSameTarget(target.hWnd))
+            else if (!hl.IsSameTarget(target))
             {
                 hl.Detach();
-                hl.Attach(target.hWnd);
+                hl.Attach(target);
             }
         }
         else if (hl.IsActive())
@@ -258,6 +262,26 @@ LRESULT CALLBACK CNewTaskforce::DragDotProc(HWND hWnd, UINT message, WPARAM wPar
         }
 
         return 0;
+    }
+    case WM_CAPTURECHANGED:
+    {
+        if (m_dragging)
+        {
+            m_dragging = false;
+            ReleaseCapture();
+
+            SetWindowLongPtr(
+                m_hDragGhost,
+                GWLP_WNDPROC,
+                (LONG_PTR)OrigDragingDotProc
+            );
+            SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+            DestroyWindow(m_hDragGhost);
+            m_hDragGhost = nullptr;
+            hl.Detach();
+        }
+        break;
     }
     case WM_LBUTTONUP:
     {

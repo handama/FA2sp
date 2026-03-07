@@ -132,12 +132,12 @@ public:
     TargetHighlighter();
     ~TargetHighlighter();
 
-    void Attach(HWND hTargetWnd);
+    void Attach(DropTarget target);
     void Detach();
     void UpdatePosition();
 
     bool IsActive() const { return highlight_hwnd_ != nullptr && target_hwnd_ != nullptr; }
-    bool IsSameTarget(HWND hCheckWnd) const { return target_hwnd_ == hCheckWnd; }
+    bool IsSameTarget(DropTarget target);
 
     void SetBorderColor(COLORREF color) { border_color_ = color; }
     void SetBorderThickness(int thickness) { border_thickness_ = thickness; }
@@ -146,6 +146,8 @@ public:
 private:
     HWND target_hwnd_ = nullptr;
     HWND highlight_hwnd_ = nullptr;
+    int col_ = -1;
+    int row_ = -1;
 
     COLORREF border_color_ = RGB(0, 180, 0);
     int      border_thickness_ = 3;

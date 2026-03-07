@@ -235,6 +235,7 @@
     <ClCompile Include="FA2sp\Ext\CCreateMap2\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CCreateMap3A\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CCreateMap3B\Body.cpp" />
+    <ClCompile Include="FA2sp\Ext\CCreateMap3B\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CCredits\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CEasterEgg\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CFinalSunApp\Body.cpp" />

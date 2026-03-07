@@ -117,6 +117,7 @@ std::map<FString, FString> CMapDataExt::MapInsectionComments;
 std::map<FString, FString> CMapDataExt::MapFrontsectionComments;
 bool CMapDataExt::IsNewMap;
 bool CMapDataExt::SkipUpdateMinimap = false;
+bool CMapDataExt::IsImportingMap = false;
 
 static inline int DistSqrByIndex(int a, int b)
 {

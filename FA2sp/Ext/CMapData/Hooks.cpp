@@ -939,12 +939,12 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 		if (!found)
 			return 0x4A98AC;
 	}
-	if (iniIndex >= ini->GetKeyCount("Structures"))
+	if (iniIndex >= ini->GetKeyCount("Structures") || iniIndex < 0)
 		return 0x4A98AC;
 
 	ppmfc::CString key = ini->GetKeyAt("Structures", iniIndex);
 	ppmfc::CString value = ini->GetValueAt("Structures", iniIndex);
-	auto splits =STDHelpers::SplitString(value, 4);
+	auto splits = STDHelpers::SplitString(value, 4);
 	bool isLamp = LightingSourceTint::IsLamp(splits[1]);
 	int Index = CMapDataExt::GetBuildingTypeIndex(splits[1]);
 	int Y = atoi(splits[3]);
@@ -1714,4 +1714,16 @@ DEFINE_HOOK(4A29E0, CMapData_GetOverlayAt, A)
 DEFINE_HOOK(469557, CMapData_GetOverlayDirection_skip, 5)
 {
 	return 0x46955C;
+}
+
+
+DEFINE_HOOK(4A16A0, CMapData_ClearOverlay, 8)
+{
+	GET(CMapDataExt*, pThis, ECX);
+
+	std::fill(std::begin(pThis->NewOverlay), std::end(pThis->NewOverlay), 0xFFFF);
+	std::fill(std::begin(pThis->Overlay), std::end(pThis->Overlay), 0xFF);
+	pThis->NewINIFormat = 4;
+
+	return 0x4A16B4;
 }

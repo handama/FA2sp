@@ -387,6 +387,7 @@ DEFINE_HOOK(4340F0, CFinalSunDlg_Tools_ChangeMapHeight, 7)
         int nDelta = 0;
         if (sscanf_s(CInputMessageBox::GetString(lpMessage, lpTitle), "%d", &nDelta) == 1 && nDelta >= -14 && nDelta <= 14)
         {
+            CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
             for (int i = 0; i < CMapData::Instance->CellDataCount; ++i)
             {
                 CMapData::Instance->CellDatas[i].Height =

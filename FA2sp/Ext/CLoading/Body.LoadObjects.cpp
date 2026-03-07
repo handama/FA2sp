@@ -19,6 +19,8 @@ std::unordered_map<FString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
 std::unordered_set<FString> CLoadingExt::LoadedObjects;
 std::unordered_set<FString> CLoadingExt::LoadedSurfaceObjects;
 std::unordered_set<FString> CLoadingExt::CustomPaletteTerrains;
+std::unordered_map<FString, int> CLoadingExt::IFVTurrets;
+std::unordered_set<FString> CLoadingExt::InitialOccupiedBuildings;
 std::unordered_map<FString, int> CLoadingExt::AvailableFacings;
 std::unordered_set<int> CLoadingExt::Ra2dotMixes;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
@@ -296,6 +298,8 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 		ImageDataMap.clear();
 		AvailableFacings.clear();
 		CustomPaletteTerrains.clear();
+		IFVTurrets.clear();
+		InitialOccupiedBuildings.clear();
 		CMapDataExt::TerrainPaletteBuildings.clear();
 		CMapDataExt::DamagedAsRubbleBuildings.clear();
 		CMapDataExt::BuildingTypes.clear();
@@ -337,7 +341,7 @@ bool CLoadingExt::IsOverlayLoaded(const FString& pRegName)
 	return LoadedOverlays.find(pRegName) != LoadedOverlays.end();
 }
 
-FString CLoadingExt::GetTerrainOrSmudgeFileID(FString ID)
+FString CLoadingExt::GetTerrainOrSmudgeFileID(const FString& ID)
 {
 	FString ArtID = GetArtID(ID);
 	FString ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
@@ -345,7 +349,7 @@ FString CLoadingExt::GetTerrainOrSmudgeFileID(FString ID)
 	return ImageID;
 }
 
-FString CLoadingExt::GetBuildingFileID(FString ID)
+FString CLoadingExt::GetBuildingFileID(const FString& ID)
 {
 	FString ArtID = GetArtID(ID);
 	FString ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
@@ -369,7 +373,7 @@ FString CLoadingExt::GetBuildingFileID(FString ID)
 	return ImageID;
 }
 
-FString CLoadingExt::GetInfantryFileID(FString ID)
+FString CLoadingExt::GetInfantryFileID(const FString& ID)
 {
 	FString ArtID = GetArtID(ID);
 
@@ -389,12 +393,12 @@ FString CLoadingExt::GetInfantryFileID(FString ID)
 	return ImageID;
 }
 
-FString CLoadingExt::GetArtID(FString ID)
+FString CLoadingExt::GetArtID(const FString& ID)
 {
 	return Variables::RulesMap.GetString(ID, "Image", ID);
 }
 
-FString CLoadingExt::GetVehicleOrAircraftFileID(FString ID)
+FString CLoadingExt::GetVehicleOrAircraftFileID(const FString& ID)
 {
 	FString ArtID = GetArtID(ID);
 
@@ -406,7 +410,7 @@ FString CLoadingExt::GetVehicleOrAircraftFileID(FString ID)
 	return ImageID;
 }
 
-void CLoadingExt::ClipAndLoadBuilding(FString ID, FString ImageID, unsigned char* pBuffer,
+void CLoadingExt::ClipAndLoadBuilding(const FString& ID, const FString& ImageID, unsigned char* pBuffer,
 	int width, int height, Palette* palette, unsigned char*& pAlphaBuffer)
 {
 	auto& ret = CLoadingExt::GetBuildingClipImageDataFromMap(ImageID);
@@ -451,7 +455,7 @@ void CLoadingExt::ClipAndLoadBuilding(FString ID, FString ImageID, unsigned char
 	}
 }
 
-static bool IsPreOccupiedBunker(const FString& ID)
+bool CLoadingExt::IsPreOccupiedBunker(const FString& ID)
 {
 	bool isBunker = Variables::RulesMap.GetBool(ID, "CanBeOccupied");
 	if (!isBunker) return false;
@@ -480,7 +484,7 @@ static FString GetFinalLoopAnim(const FString& image)
 	return image;
 }
 
-void CLoadingExt::LoadBuilding(FString ID)
+void CLoadingExt::LoadBuilding(const FString& ID)
 {
 	if (IsLoadingObjectView)
 	{
@@ -504,7 +508,7 @@ void CLoadingExt::LoadBuilding(FString ID)
 	}
 }
 
-void CLoadingExt::LoadBuilding_Normal(FString ID)
+void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 {
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetBuildingFileID(ID);
@@ -515,6 +519,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		|| Variables::RulesMap.GetBool(ID, "Turret")) ? (ExtConfigs::ExtFacings ? 32 : 8) : 1;
 	AvailableFacings[ID] = facings;
 	bool isPreOccupiedBunker = IsPreOccupiedBunker(ID);
+	if (isPreOccupiedBunker) InitialOccupiedBuildings.insert(ID);
 	Palette* pMixedPal = nullptr;
 
 	FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
@@ -946,7 +951,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		GameDelete(pOpacityBuffer);
 }
 
-void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
+void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 {
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetBuildingFileID(ID);
@@ -1418,7 +1423,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 		GameDelete(pOpacityBuffer);
 }
 
-void CLoadingExt::LoadBuilding_Rubble(FString ID)
+void CLoadingExt::LoadBuilding_Rubble(const FString& ID)
 {
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetBuildingFileID(ID);
@@ -1563,7 +1568,7 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 	}
 }
 
-void CLoadingExt::LoadInfantry(FString ID)
+void CLoadingExt::LoadInfantry(const FString& ID)
 {
 	LoadInsignia(ID);
 	FString ArtID = GetArtID(ID);
@@ -1671,7 +1676,7 @@ void CLoadingExt::LoadInfantry(FString ID)
 	}
 }
 
-void CLoadingExt::LoadTerrainOrSmudge(FString ID, bool terrain)
+void CLoadingExt::LoadTerrainOrSmudge(const FString& ID, bool terrain)
 {
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetTerrainOrSmudgeFileID(ID);
@@ -1731,7 +1736,7 @@ InsigniaGrid CLoadingExt::GetInsignia(const FString& ID)
 	return {};
 }
 
-void CLoadingExt::LoadInsignia(FString ID)
+void CLoadingExt::LoadInsignia(const FString& ID)
 {
 	const char* PaletteName = "palette.pal";
 
@@ -1769,69 +1774,73 @@ void CLoadingExt::LoadInsignia(FString ID)
 	}
 }
 
-static int GetIFVTurretIndex(const char* infantrySection, const char* ifvSection)
+int CLoadingExt::GetIFVTurretIndex(const FString& ID)
 {
-	if (!infantrySection || !ifvSection || !*infantrySection || !*ifvSection)
-		return -1;
-
-	int ifvMode = Variables::RulesMap.GetInteger(infantrySection, "IFVMode", 0);
-	if (ifvMode < 0)
-		return -1;
-
-	int weaponSlot = ifvMode + 1; 
-	if (weaponSlot > 128) 
-		return -1;
-
-	bool isGunner = Variables::RulesMap.GetBool(ifvSection, "Gunner", false);
-
-	if (!isGunner)
-		return -1;
-
-	// ares mode
-	char keyName[64];
-	_snprintf_s(keyName, sizeof(keyName), "WeaponTurretIndex%d", weaponSlot);
-
-	int turretIndex = Variables::RulesMap.GetInteger(ifvSection, keyName, -1);
-	if (turretIndex >= 0)
-		return turretIndex;
-
-	const char* prefixList[] = {
-		"Normal", "Repair", "MachineGun", "Sniper", "Explode", "TerroristExplode",
-		"Chrono", "Pistol", "BrainBlast", "Flak", "Shock", "RadCannon", "Cow",
-		"Initiate", "Virus", "YuriPrime", "Guardian",
-		nullptr
-	};
-
-	const char* foundPrefix = nullptr;
-
-	for (int i = 0; prefixList[i] != nullptr; ++i)
+	if (Variables::RulesMap.GetBool(ID, "Gunner"))
 	{
-		const char* prefix = prefixList[i];
-		char weaponKey[64];
-		_snprintf_s(weaponKey, sizeof(weaponKey), "%sTurretWeapon", prefix);
-
-		int value = Variables::RulesMap.GetInteger(ifvSection, weaponKey, -1);
-		if (value == ifvMode)
+		if (IFVTurrets.find(ID) == IFVTurrets.end())
+			IFVTurrets[ID] = 0;
+		auto types = STDHelpers::SplitString(Variables::RulesMap.GetString(ID, "InitialPayload.Types"));
+		if (!types.empty())
 		{
-			foundPrefix = prefix;
-			break;
+			auto& infantry = types[0];
+			if (infantry.IsEmpty() || ID.IsEmpty())
+				return 0;
+
+			int ifvMode = Variables::RulesMap.GetInteger(infantry, "IFVMode");
+			if (ifvMode < 0)
+				return 0;
+
+			int weaponSlot = ifvMode + 1;
+			if (weaponSlot > 128)
+				return 0;
+
+			// ares mode
+			char keyName[64];
+			_snprintf_s(keyName, sizeof(keyName), "WeaponTurretIndex%d", weaponSlot);
+
+			int turretIndex = Variables::RulesMap.GetInteger(ID, keyName, -1);
+			if (turretIndex >= 0)
+				return turretIndex;
+
+			const char* prefixList[] = {
+				"Normal", "Repair", "MachineGun", "Sniper", "Explode", "TerroristExplode",
+				"Chrono", "Pistol", "BrainBlast", "Flak", "Shock", "RadCannon", "Cow",
+				"Initiate", "Virus", "YuriPrime", "Guardian",
+				nullptr
+			};
+
+			const char* foundPrefix = nullptr;
+
+			for (int i = 0; prefixList[i] != nullptr; ++i)
+			{
+				const char* prefix = prefixList[i];
+				char weaponKey[64];
+				_snprintf_s(weaponKey, sizeof(weaponKey), "%sTurretWeapon", prefix);
+
+				int value = Variables::RulesMap.GetInteger(ID, weaponKey);
+				if (value == ifvMode)
+				{
+					foundPrefix = prefix;
+					break;
+				}
+			}
+
+			if (!foundPrefix)
+				return 0;
+
+			char indexKey[64];
+			_snprintf_s(indexKey, sizeof(indexKey), "%sTurretIndex", foundPrefix);
+
+			turretIndex = Variables::RulesMap.GetInteger(ID, indexKey);
+
+			return turretIndex;
 		}
 	}
-
-	if (!foundPrefix)
-		return -1; 
-
-	char indexKey[64];
-	_snprintf_s(indexKey, sizeof(indexKey), "%sTurretIndex", foundPrefix);
-
-	turretIndex = Variables::RulesMap.GetInteger(ifvSection, indexKey, -1);
-	if (turretIndex < 0)
-		return -1;
-
-	return turretIndex;
+	return 0;
 }
 
-void CLoadingExt::LoadVehicleOrAircraft(FString ID)
+void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 {
 	LoadInsignia(ID);
 	FString ArtID = GetArtID(ID);
@@ -1840,15 +1849,7 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow");
 	int facings = ExtConfigs::ExtFacings ? 32 : 8;
 	bool turretShadow = bHasShadow && CINI::Art->GetBool(ArtID, "TurretShadow", DrawTurretShadow);
-	int ifvTurIndex = -1;
-	if (Variables::RulesMap.GetBool(ID, "Gunner"))
-	{
-		auto types = STDHelpers::SplitString(Variables::RulesMap.GetString(ID, "InitialPayload.Types"));
-		if (!types.empty())
-		{
-			ifvTurIndex = GetIFVTurretIndex(types[0], ID);
-		}
-	}
+	int ifvTurIndex = GetIFVTurretIndex(ID);
 
 	if (CINI::Art->GetBool(ArtID, "Voxel")) // As VXL
 	{
@@ -1942,8 +1943,9 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 
 			FString turFileName = ImageID + "tur.vxl";
 			FString turHVAName = ImageID + "tur.hva";
-			if (ifvTurIndex >= 0)
+			if (ifvTurIndex > 0)
 			{
+				IFVTurrets[ID] = ifvTurIndex;
 				turFileName.Format("%stur%d.vxl", ImageID, ifvTurIndex);
 				turHVAName.Format("%stur%d.hva", ImageID, ifvTurIndex);
 			}

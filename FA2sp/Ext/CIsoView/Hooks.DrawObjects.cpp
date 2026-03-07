@@ -704,6 +704,28 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 	}
 
+	std::erase_if(CLoadingExt::IFVTurrets, [](auto& pair)
+	{
+		auto& ifv = pair.first;
+		auto& tur = pair.second;
+
+		if (CLoadingExt::GetIFVTurretIndex(ifv) != tur)
+		{
+			CLoadingExt::LoadedObjects.erase(ifv);
+			return true;
+		}
+		return false;
+	});
+	std::erase_if(CLoadingExt::InitialOccupiedBuildings, [](auto& building)
+	{
+		if (!CLoadingExt::IsPreOccupiedBunker(building))
+		{
+			CLoadingExt::LoadedObjects.erase(building);
+			return true;
+		}
+		return false;
+	});
+
 	auto isCoordInFullMap = [](int X, int Y)
 	{
 		if (!ExtConfigs::DisplayObjectsOutside)

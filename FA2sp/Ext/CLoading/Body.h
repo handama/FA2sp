@@ -152,7 +152,7 @@ public:
 	void SetGenericTheaterLetter(FString& string);
 private:
 	static FString* __cdecl GetDictName(FString* ret, const char* ID, int nFacing) { JMP_STD(0x475450); }
-	static FString GetDictName(FString ID, int nFacing)
+	static FString GetDictName(const FString& ID, int nFacing)
 	{
 		FString buffer;
 		GetDictName(&buffer, ID, nFacing);
@@ -160,18 +160,18 @@ private:
 	}
 	static bool IsBarrelInFront(int curFacing, int totFacing);
 
-	void LoadBuilding(FString ID);
-	void LoadBuilding_Normal(FString ID);
-	void LoadBuilding_Rubble(FString ID);
-	void LoadBuilding_Damaged(FString ID, bool loadAsRubble = false);
-	void ClipAndLoadBuilding(FString ID, FString ImageID, unsigned char* pBuffer,
+	void LoadBuilding(const FString& ID);
+	void LoadBuilding_Normal(const FString& ID);
+	void LoadBuilding_Rubble(const FString& ID);
+	void LoadBuilding_Damaged(const FString& ID, bool loadAsRubble = false);
+	void ClipAndLoadBuilding(const FString& ID, const FString& ImageID, unsigned char* pBuffer,
 		int width, int height, Palette* palette, unsigned char*& pAlphaBuffer);
 	static unsigned char* ClipImageHorizontal(const unsigned char* pBuffer, int width, int height, int cutLeft, int cutRight, int& outWidth);
 
-	void LoadInfantry(FString ID);
-	void LoadTerrainOrSmudge(FString ID, bool terrain);
-	void LoadVehicleOrAircraft(FString ID);
-	void LoadInsignia(FString ID);
+	void LoadInfantry(const FString& ID);
+	void LoadTerrainOrSmudge(const FString& ID, bool terrain);
+	void LoadVehicleOrAircraft(const FString& ID);
+	void LoadInsignia(const FString& ID);
 
 	void SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void SetImageData(unsigned char* pBuffer, ImageDataClass* pData, int FullWidth, int FullHeight, Palette* pPal);
@@ -210,11 +210,13 @@ public:
 		Smudge = 5
 	};
 
-	static FString GetArtID(FString ID);
-	FString GetVehicleOrAircraftFileID(FString ID);
-	FString GetTerrainOrSmudgeFileID(FString ID);
-	FString GetBuildingFileID(FString ID);
-	FString GetInfantryFileID(FString ID);
+	static FString GetArtID(const FString& ID);
+	FString GetVehicleOrAircraftFileID(const FString& ID);
+	FString GetTerrainOrSmudgeFileID(const FString& ID);
+	FString GetBuildingFileID(const FString& ID);
+	FString GetInfantryFileID(const FString& ID);
+	static int GetIFVTurretIndex(const FString& ID);
+	static bool IsPreOccupiedBunker(const FString& ID);
 	static std::unordered_set<FString> LoadedOverlays;
 	static std::unordered_map<FString, InsigniaGrid> LoadedInsignias;
 	static Palette TempISOPalette;
@@ -229,6 +231,8 @@ public:
 	static std::unordered_set<FString> LoadedObjects;
 	static std::unordered_set<FString> LoadedSurfaceObjects;
 	static std::unordered_set<FString> CustomPaletteTerrains;
+	static std::unordered_map<FString, int> IFVTurrets;
+	static std::unordered_set<FString> InitialOccupiedBuildings;
 	static std::unordered_set<int> Ra2dotMixes;
 	static int TallestBuildingHeight;
 private:

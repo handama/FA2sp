@@ -340,7 +340,6 @@ LRESULT CALLBACK CNewScript::DragDotProc(HWND hWnd, UINT message, WPARAM wParam,
 
         return 0;
     }
-
     case WM_CAPTURECHANGED:
     {
         if (m_dragging)

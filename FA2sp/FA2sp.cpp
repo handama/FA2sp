@@ -438,7 +438,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::PlaceStructurePlaceUpgrade = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.PlaceUpgrade");
 	ExtConfigs::PlaceTileSkipHide = CINI::FAData->GetBool("ExtConfigs", "PlaceTileSkipHide");
 	ExtConfigs::ReloadGameFromMapFolder = CINI::FAData->GetBool("ExtConfigs", "ReloadGameFromMapFolder");
-	ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
+	//ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
 	ExtConfigs::ExtraRaiseGroundTerrainSupport = CINI::FAData->GetBool("ExtConfigs", "ExtraRaiseGroundTerrainSupport");
 	ExtConfigs::ExtendedValidationAres = CINI::FAData->GetBool("ExtConfigs", "ExtendedValidationAres");
 	ExtConfigs::SaveMaps_BetterMapPreview = CINI::FAData->GetBool("ExtConfigs", "SaveMap.BetterMapPreview");
@@ -1011,12 +1011,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.ArtImageSwap", "Use Image= in art(md).ini (Phobos B25+)"),
-		.IniKey = "ArtImageSwap",
-		.Value = &ExtConfigs::ArtImageSwap,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+	//ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+	//	.DisplayName = Translations::TranslateOrDefault("Options.ArtImageSwap", "Use Image= in art(md).ini (Phobos B25+)"),
+	//	.IniKey = "ArtImageSwap",
+	//	.Value = &ExtConfigs::ArtImageSwap,
+	//	.Type = ExtConfigs::SpecialOptionType::ReloadMap
+	//	});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.AllowIncludes", "Load include INIs (Ares/Phobos B34+)"),

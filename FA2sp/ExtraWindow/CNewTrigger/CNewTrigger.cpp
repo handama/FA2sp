@@ -546,7 +546,6 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
 
         return 0;
     }
-
     case WM_CAPTURECHANGED:
     {
         if (m_dragging)
@@ -575,7 +574,6 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
         if (!m_pressed)
             break;
 
-        ReleaseCapture();
         m_pressed = false;
 
         POINT pt;
@@ -752,8 +750,8 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
             CIsoView::CurrentCommand->Command = 0x25;
             CIsoView::CurrentCommand->Type = GetCurrentInstanceIndex();
         }
-
-        m_dragging = false;     
+        m_dragging = false;
+        ReleaseCapture();     
         return 0;
     }
     }
@@ -1039,6 +1037,7 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
 
         if (m_dragging)
         {
+            m_dragging = false;
             ReleaseCapture();
 
             POINT pt;
@@ -1096,7 +1095,6 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
                     }
                 }
             }
-            m_dragging = false;
         }
         else
         {
@@ -1299,6 +1297,7 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxEvent(HWND hWnd, UINT message, WPARAM
 
         if (m_dragging)
         {
+            m_dragging = false;
             ReleaseCapture();
 
             POINT pt;
@@ -1355,7 +1354,6 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxEvent(HWND hWnd, UINT message, WPARAM
                     }
                 }
             }
-            m_dragging = false;
         }
         else
         {

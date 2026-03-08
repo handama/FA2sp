@@ -4089,6 +4089,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		}
 	}
 	CLoadingExt::DrawTurretShadow = Variables::RulesMap.GetBool("AudioVisual", "DrawTurretShadow");
+	// ArtImageSwap only available in rulesmd.ini
+	ExtConfigs::ArtImageSwap = Variables::Rules.GetBool("General", "ArtImageSwap");
 
 	if (reloadImages && ExtConfigs::UseDefaultUnitImage)
 	{

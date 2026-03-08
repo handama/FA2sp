@@ -187,6 +187,7 @@ bool SaveMapExt::SaveMapSilent(FString filepath, bool panic)
     FString buffer;
     FString buffer2;
 
+    int previewOption = 2;
     if (!panic)
     {
         SaveMapExt::StopTimer();
@@ -242,11 +243,12 @@ bool SaveMapExt::SaveMapSilent(FString filepath, bool panic)
             ini->WriteString("Header", "StartY", buffer);
         }
 
+        previewOption = ini->GetInteger("FA2spVersionControl", "LastPreviewOption", 2);
     }
 
     CMapData::Instance->UpdateINIFile(SaveMapFlag::UpdateMapFieldData);
 
-    if (SaveMap(ini, CFinalSunDlg::Instance(), filepath, 2, false, panic))
+    if (SaveMap(ini, CFinalSunDlg::Instance(), filepath, previewOption, false, panic))
     {
         if (!panic)
         {
@@ -595,6 +597,8 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
         // Do not update preview.
         Logger::Raw("SaveMap : Retaining current map preview.\n");
     }
+    if (!panic)
+        pINI->WriteString("FA2spVersionControl", "LastPreviewOption", STDHelpers::IntToString(previewOption));
 
     std::ofstream fout;
     fout.exceptions(std::ofstream::failbit | std::ofstream::badbit);

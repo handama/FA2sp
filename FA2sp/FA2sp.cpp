@@ -5,6 +5,7 @@
 #include "Helpers/MutexHelper.h"
 #include "Helpers/InstructionSet.h"
 #include "Helpers/STDHelpers.h"
+#include "Helpers/WinVer.h"
 #include "Miscs/Palettes.h"
 #include "Miscs/VoxelDrawer.h"
 #include "Miscs/Exception.h"
@@ -27,6 +28,7 @@ std::string FA2sp::STDBuffer;
 ppmfc::CString FA2sp::Buffer;
 void* FA2sp::pExceptionHandler = nullptr;
 bool FA2sp::g_VEH_Enabled = true;
+WindowsOSInfo FA2sp::WinInfo = {};
 
 bool ExtConfigs::IsQuitingProgram = false;
 bool ExtConfigs::BrowserRedraw;
@@ -1380,6 +1382,23 @@ DEFINE_HOOK(537129, ExeRun, 9)
 	Logger::Initialize();
 	Logger::Info(APPLY_INFO);
 	Logger::Wrap(1);
+
+	FA2sp::WinInfo = WindowsOSInfo::GetDetailedWindowsVersion();
+
+	if (!FA2sp::WinInfo.isValid)
+	{
+		Logger::Raw("Failed to get Windows version information\n");
+	}
+	std::string output = FA2sp::WinInfo.friendlyName + " Build " + std::to_string(FA2sp::WinInfo.buildNumber);
+	if (FA2sp::WinInfo.revision > 0)
+	{
+		output += "." + std::to_string(FA2sp::WinInfo.revision);
+	}
+	if (!FA2sp::WinInfo.csdVersion.empty())
+	{
+		output += " " + FA2sp::WinInfo.csdVersion;
+	}
+	Logger::Raw("[Info] Windows version: %s\n", output.c_str());
 
 	Logger::Raw("==============================\nCPU Report:\n%s==============================\n", 
 		InstructionSet::Report().c_str());

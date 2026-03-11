@@ -1853,11 +1853,7 @@ void CViewObjectsExt::Redraw_Overlay()
     if (hOverlay == NULL)   return;
 
     HTREEITEM hTemp;
-    hTemp = this->InsertTranslatedString("DelOvrlObList", -1, hOverlay);
-    this->InsertTranslatedString("DelOvrl0ObList", 60100, hTemp);
-    this->InsertTranslatedString("DelOvrl1ObList", 60101, hTemp);
-    this->InsertTranslatedString("DelOvrl2ObList", 60102, hTemp);
-    this->InsertTranslatedString("DelOvrl3ObList", 60103, hTemp);
+    hTemp = this->InsertTranslatedString("DelOvrlObList", 60100, hOverlay);
 
     hTemp = this->InsertTranslatedString("GrTibObList", -1, hOverlay);
     InsertingOverlay = 112;
@@ -2204,46 +2200,46 @@ void CViewObjectsExt::Redraw_MultiSelection()
 
 bool CViewObjectsExt::DoPropertyBrush_Building()
 {
-    if (this->BuildingBrushDlg.get() == nullptr)
-        this->BuildingBrushDlg = std::make_unique<CPropertyBuilding>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+    if (BuildingBrushDlg.get() == nullptr)
+        BuildingBrushDlg = std::make_unique<CPropertyBuilding>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
 
-    for (auto& v : this->BuildingBrushBools)
+    for (auto& v : BuildingBrushBools)
         v = false;
 
-    return this->BuildingBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
+    return BuildingBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
 }
 
 bool CViewObjectsExt::DoPropertyBrush_Aircraft()
 {
-    if (this->AircraftBrushDlg.get() == nullptr)
-        this->AircraftBrushDlg = std::make_unique<CPropertyAircraft>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+    if (AircraftBrushDlg.get() == nullptr)
+        AircraftBrushDlg = std::make_unique<CPropertyAircraft>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
 
-    for (auto& v : this->AircraftBrushBools)
+    for (auto& v : AircraftBrushBools)
         v = false;
 
-    return this->AircraftBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
+    return AircraftBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
 }
 
 bool CViewObjectsExt::DoPropertyBrush_Vehicle()
 {
-    if (this->VehicleBrushDlg.get() == nullptr)
-        this->VehicleBrushDlg = std::make_unique<CPropertyUnit>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+    if (VehicleBrushDlg.get() == nullptr)
+        VehicleBrushDlg = std::make_unique<CPropertyUnit>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
 
-    for (auto& v : this->VehicleBrushBools)
+    for (auto& v : VehicleBrushBools)
         v = false;
 
-    return this->VehicleBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
+    return VehicleBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
 }
 
 bool CViewObjectsExt::DoPropertyBrush_Infantry()
 {
-    if (this->InfantryBrushDlg.get() == nullptr)
-        this->InfantryBrushDlg = std::make_unique<CPropertyInfantry>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+    if (InfantryBrushDlg.get() == nullptr)
+        InfantryBrushDlg = std::make_unique<CPropertyInfantry>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
 
-    for (auto& v : this->InfantryBrushBools)
+    for (auto& v : InfantryBrushBools)
         v = false;
 
-    return this->InfantryBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
+    return InfantryBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
 }
 
 void CViewObjectsExt::BatchAddMultiSelection(int X, int Y, bool add)
@@ -3469,11 +3465,6 @@ void CViewObjectsExt::OnExeTerminate()
     ExtConfigs::DefaultUnitProperty.~CUnitData();
     ExtConfigs::DefaultAircraftProperty.~CAircraftData();
     ExtConfigs::DefaultBuildingProperty.~CBuildingData();
-
-    Variables::RulesMap.~MultimapHelper();
-    Variables::Rules.~MultimapHelper();
-    Variables::FAData.~MultimapHelper();
-    Variables::Rules_FAData.~MultimapHelper();
 }
 
 void CViewObjectsExt::InitializeOnUpdateEngine()
@@ -4279,6 +4270,13 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         CIsoView::CurrentCommand->Param = 30;
         CIsoView::CurrentCommand->Overlay = 39;
         CIsoView::CurrentCommand->OverlayData = 0;
+        return true;
+    }
+    if (oriNData == 60100)
+    {
+        CIsoView::CurrentCommand->Command = 1;
+        CIsoView::CurrentCommand->Type = 6;
+        CIsoView::CurrentCommand->Param = 1;
         return true;
     }
     // 0x1F Terrain Generator

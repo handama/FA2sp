@@ -17,7 +17,7 @@
 
 DEFINE_HOOK(424654, CFinalSunDlg_OnInitDialog_SetMenuItemStateByDefault, 7)
 {
-    GET(CFinalSunDlg*, pThis, ESI);
+    GET(CFinalSunDlgExt*, pThis, ESI);
 
     auto pMenu = pThis->GetMenu();
     if (ExtConfigs::EnableDarkMode)
@@ -26,20 +26,26 @@ DEFINE_HOOK(424654, CFinalSunDlg_OnInitDialog_SetMenuItemStateByDefault, 7)
         DarkTheme::InitializeMenuOverlay(pThis->GetSafeHwnd());
     }
 
-    pMenu->CheckMenuItem(30000, MF_CHECKED);
-    pMenu->CheckMenuItem(30001, MF_CHECKED);
-    pMenu->CheckMenuItem(30002, MF_CHECKED);
-    pMenu->CheckMenuItem(30003, MF_CHECKED);
-    pMenu->CheckMenuItem(30004, MF_CHECKED);
-    pMenu->CheckMenuItem(30005, MF_CHECKED);
-    pMenu->CheckMenuItem(30006, MF_CHECKED);
-    pMenu->CheckMenuItem(30007, MF_CHECKED);
-    pMenu->CheckMenuItem(30008, MF_CHECKED);
-    pMenu->CheckMenuItem(30009, MF_CHECKED);
-    pMenu->CheckMenuItem(30010, MF_CHECKED);
-    pMenu->CheckMenuItem(30011, MF_CHECKED);
-    pMenu->CheckMenuItem(30012, MF_CHECKED);
-    pMenu->CheckMenuItem(30021, MF_CHECKED);
+    auto check = [&pMenu, pThis](UINT id, UINT status)
+    {
+        pMenu->CheckMenuItem(id, status);
+        pThis->CheckToolBarButton(id, status == MF_CHECKED);
+    };
+
+    check(30000, MF_CHECKED);
+    check(30001, MF_CHECKED);
+    check(30002, MF_CHECKED);
+    check(30003, MF_CHECKED);
+    check(30004, MF_CHECKED);
+    check(30005, MF_CHECKED);
+    check(30006, MF_CHECKED);
+    check(30007, MF_CHECKED);
+    check(30008, MF_CHECKED);
+    check(30009, MF_CHECKED);
+    check(30010, MF_CHECKED);
+    check(30011, MF_CHECKED);
+    check(30012, MF_CHECKED);
+    check(30021, MF_CHECKED);
 
     pMenu->CheckMenuRadioItem(31000, 31003, CFinalSunDlgExt::CurrentLighting, MF_CHECKED);
 
@@ -56,6 +62,7 @@ DEFINE_HOOK(432304, CFinalSunDlg_Update_LayersVisibility, 5)
     auto SetItemCheckStatus = [&pMenu](int id, bool& param)
     {
         pMenu->CheckMenuItem(id, param ? MF_CHECKED : MF_UNCHECKED);
+        CFinalSunDlgExt::GetExtension()->CheckToolBarButton(id, param);
     };
 
     SetItemCheckStatus(30000, CIsoViewExt::DrawStructures);

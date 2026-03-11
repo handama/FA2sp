@@ -112,6 +112,9 @@
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
     </Link>
+    <Manifest>
+      <AdditionalManifestFiles>%(AdditionalManifestFiles)</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_Chinese|Win32'">
     <ClCompile>
@@ -153,6 +156,9 @@
       <PreprocessorDefinitions>
       </PreprocessorDefinitions>
     </ResourceCompile>
+    <Manifest>
+      <AdditionalManifestFiles>%(AdditionalManifestFiles)</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -191,6 +197,9 @@
       </IgnoreSpecificDefaultLibraries>
       <UACExecutionLevel>AsInvoker</UACExecutionLevel>
     </Link>
+    <Manifest>
+      <AdditionalManifestFiles>%(AdditionalManifestFiles)</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="FA2pp\FunctionInit.cpp" />
@@ -245,6 +254,7 @@
     <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Body.PlaceConnectedTiles.cpp" />
     <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Hooks.ObjectBrowserControl.cpp" />
+    <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Hooks.Toolbar.cpp" />
     <ClCompile Include="FA2sp\Ext\CHouses\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.cpp" />
@@ -302,6 +312,7 @@
     <ClCompile Include="FA2sp\Helpers\InstructionSet.cpp" />
     <ClCompile Include="FA2sp\Helpers\MultimapHelper.cpp" />
     <ClCompile Include="FA2sp\Helpers\STDHelpers.cpp" />
+    <ClCompile Include="FA2sp\Helpers\WinVer.cpp" />
     <ClCompile Include="FA2sp\Hooks.Debug.cpp" />
     <ClCompile Include="FA2sp\MFCWindow\Hooks.cpp" />
     <ClCompile Include="FA2sp\Miscs\CopyPaste.cpp" />
@@ -403,6 +414,7 @@
     <ClInclude Include="FA2sp\FA2sp.h" />
     <ClInclude Include="FA2sp\FA2sp.Constants.h" />
     <ClInclude Include="FA2sp\Helpers\FString.h" />
+    <ClInclude Include="FA2sp\Helpers\WinVer.h" />
     <ClInclude Include="FA2sp\Miscs\CopyPaste.h" />
     <ClInclude Include="FA2sp\Miscs\DialogStyle.h" />
     <ClInclude Include="FA2sp\Miscs\FileWatcher.h" />
@@ -498,7 +510,11 @@
     <ResourceCompile Include="FA2sp\UI\CUpdateProgress.rc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="FA2sp\FA2sp.manifest" />
+    <None Include="FA2sp\FA2sp.manifest">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</DeploymentContent>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release_Chinese|Win32'">true</DeploymentContent>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+    </None>
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -297,6 +297,9 @@
     <ClInclude Include="FA2sp\ExtraWindow\CNewTipsOfTheDay\CNewTipsOfTheDay.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\Helpers\WinVer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FA2sp\FA2sp.cpp">
@@ -728,6 +731,12 @@
     <ClCompile Include="FA2sp\Ext\CCreateMap3B\Hooks.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Hooks.Toolbar.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Helpers\WinVer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FA2sp\FA2sp.rc">
@@ -918,9 +927,9 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="packages.config" />
     <None Include="FA2sp\FA2sp.manifest">
       <Filter>资源文件</Filter>
     </None>
-    <None Include="packages.config" />
   </ItemGroup>
 </Project>

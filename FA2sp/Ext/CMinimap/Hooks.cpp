@@ -23,6 +23,8 @@ constexpr std::array<BYTE, 256> BrightnessLUT = MakeBrightnessLUT();
 
 DEFINE_HOOK(4D1E34, CMinimap_Update_NOTOPMOST, 7)
 {
+	CFinalSunDlgExt::HasMinimap = true;
+	CFinalSunDlgExt::GetExtension()->CheckToolBarButton(30107, true);
 	CFinalSunDlg::Instance->MyViewFrame.Minimap.SetWindowPos(ppmfc::CWnd::FromHandle(HWND_NOTOPMOST), 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
 	return 0;
 }
@@ -214,6 +216,14 @@ DEFINE_HOOK(4D1E70, CMinimap_OnMouseMove, 7)
 	}
 
 	return 0x4D1F57;
+}
+
+DEFINE_HOOK(4D1E4A, CMinimap_OnClose, 5)
+{
+	ShowWindow(CFinalSunDlg::Instance->MyViewFrame.Minimap, SW_HIDE);
+	CFinalSunDlgExt::HasMinimap = false;
+	CFinalSunDlgExt::GetExtension()->CheckToolBarButton(30107, false);
+	return 0x4D1E5B;
 }
 
 //

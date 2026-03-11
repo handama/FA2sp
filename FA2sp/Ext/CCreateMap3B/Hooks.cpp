@@ -12,6 +12,7 @@ DEFINE_HOOK(42CC84, CCreateMap3B_LoadMap, 5)
     CMapDataExt::IsImportingMap = true;
     return 0;
 }
+
 DEFINE_HOOK(42CCC8, CCreateMap3B_NoImportTrees, 5)
 {
     for (int i = 0; i < CMapData::Instance->TerrainDatas.size(); ++i)

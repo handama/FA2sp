@@ -774,6 +774,32 @@ DEFINE_HOOK(46CC5C, CIsoView_DrawMouseAttachedStuff_Overlay_3, 5)
 	return 0x46CC86;
 }
 
+DEFINE_HOOK(46C290, CIsoView_DrawMouseAttachedStuff_EraseOverlay, 5)
+{
+	GET_STACK(const int, X, STACK_OFFS(0x94, -0x4));
+	GET_STACK(const int, Y, STACK_OFFS(0x94, -0x8));
+	auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+	for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
+	{
+		for (int gy = Y - pIsoView->BrushSizeY / 2; gy <= Y + pIsoView->BrushSizeY / 2; gy++)
+		{
+			int pos = CMapDataExt::GetExtension()->GetCoordIndex(gx, gy);
+			CMapDataExt::GetExtension()->SetNewOverlayAt(pos, 0xFFFF);
+			CMapDataExt::GetExtension()->SetOverlayDataAt(pos, 0xFF);
+
+			pIsoView->HandleTrail(gx - 1, gy - 1);
+			pIsoView->HandleTrail(gx + 1, gy - 1);
+			pIsoView->HandleTrail(gx - 1, gy + 1);
+			pIsoView->HandleTrail(gx + 1, gy + 1);
+			pIsoView->HandleTrail(gx - 0, gy - 1);
+			pIsoView->HandleTrail(gx + 0, gy + 1);
+			pIsoView->HandleTrail(gx - 1, gy + 0);
+			pIsoView->HandleTrail(gx + 1, gy + 0);
+		}
+	}
+	return 0x46CC86;
+}
+
 DEFINE_HOOK(46C38B, CIsoView_DrawMouseAttachedStuff_Ore, 9)
 {
 	GET(int, param, EAX);

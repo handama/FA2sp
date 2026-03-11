@@ -281,8 +281,9 @@ void CMapValidatorExt::ValidateLoopTrigger_loop(ppmfc::CString attachedTrigger)
 void CMapValidatorExt::ValidateLoopTrigger(BOOL& result)
 {
 	ppmfc::CString Format1 = this->FetchLanguageString(
-		"MV_ValidateLoopTrigger", "Trigger - %1 is in a loop of attached trigger£¡This will make game stuck.");
+		"MV_ValidateLoopTrigger", "Trigger - %1 is in a loop of attached trigger! This will make game stuck.");
 
+	LoopedTriggers.clear();
 	if (auto pSection = CMapData::Instance->INI.GetSection("Triggers"))
 	{
 		for (auto& pair : pSection->GetEntities())

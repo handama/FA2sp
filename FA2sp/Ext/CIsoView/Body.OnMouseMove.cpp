@@ -119,22 +119,11 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
     CIsoViewExt::MapCoord2ScreenCoord(X, Y);
     auto cell = CMapData::Instance->TryGetCellAt(point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
 
-    // delete overlay
-    if (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 6 && CIsoView::CurrentCommand->Param == 1) 
-    {
-        int size = CIsoView::CurrentCommand->Overlay;
-        std::vector<MapCoord> cells;
-        for (int gx = point.X - size; gx <= point.X + size; gx++)
-        {
-            for (int gy = point.Y - size; gy <= point.Y + size; gy++)
-            {
-                cells.push_back({ gx, gy });
-            }
-        }
-        CIsoViewExt::DrawMultiMapCoordBorders(hDC, cells, ExtConfigs::CursorSelectionBound_Color);
-    }
-    // property brush && delete objects // change owner
-    if (CIsoView::CurrentCommand->Command == 0x17 || CIsoView::CurrentCommand->Command == 0x2 || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7))
+    // property brush && delete objects && change owner && delete overlay
+    if (CIsoView::CurrentCommand->Command == 0x17 
+        || CIsoView::CurrentCommand->Command == 0x2 
+        || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7)
+        || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 6 && CIsoView::CurrentCommand->Param == 1))
     {
         std::vector<MapCoord> cells;
         for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)

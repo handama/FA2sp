@@ -455,6 +455,42 @@ DEFINE_HOOK(47FFB0, CLoading_LoadTSINI, 7)
         GameDeleteArray(pBuffer, dwSize);
     }
 
+    int theaterIniType = -1;
+    if (pINI == &CINI::Temperate) {
+        theaterIniType = 0;
+    }
+    else if (pINI == &CINI::Snow) {
+        theaterIniType = 1;
+    }
+    else if (pINI == &CINI::Urban) {
+        theaterIniType = 2;
+    }
+    else if (pINI == &CINI::NewUrban) {
+        theaterIniType = 3;
+    }
+    else if (pINI == &CINI::Lunar) {
+        theaterIniType = 4;
+    }
+    else if (pINI == &CINI::Desert) {
+        theaterIniType = 5;
+    }
+    if (theaterIniType >= 0) {
+        FString sName = "";
+        auto& set = CMapDataExt::TileSetOriginSetNames[theaterIniType];
+        set.clear();
+        for (int index = 0; index < 10000; index++) {
+            sName.Format("TileSet%04d", index);
+            if (pINI->SectionExists(sName)) {
+                auto setName = pINI->GetString(sName, "SetName");
+                if (set.find(index) == set.end())
+                {
+                    set[index] = setName;
+                }
+            }
+            else break;
+        }
+    }
+
     if ((pINI == &CINI::Temperate
        || pINI == &CINI::Snow
        || pINI == &CINI::Urban
@@ -486,40 +522,8 @@ DEFINE_HOOK(47FFB0, CLoading_LoadTSINI, 7)
         }
     }
 
-    int theaterIniType = -1;
-    if (pINI == &CINI::Temperate) {
-        theaterIniType = 0;
-    }
-    else if (pINI == &CINI::Snow) {
-        theaterIniType = 1;
-    }
-    else if (pINI == &CINI::Urban) {
-        theaterIniType = 2;
-    }
-    else if (pINI == &CINI::NewUrban) {
-        theaterIniType = 3;
-    }
-    else if (pINI == &CINI::Lunar) {
-        theaterIniType = 4;
-    }
-    else if (pINI == &CINI::Desert) {
-        theaterIniType = 5;
-    }
     if (theaterIniType >= 0) {
         FString sName = "";
-        for (int index = 0; index < 10000; index++) {
-            sName.Format("TileSet%04d", index);
-            if (pINI->SectionExists(sName)) {
-                auto setName = pINI->GetString(sName, "SetName");
-                auto& set = CMapDataExt::TileSetOriginSetNames[theaterIniType];
-                if (set.find(index) == set.end())
-                {
-                    set[index] = setName;
-                }
-            }
-            else break;
-        }
-
         int index;
         std::map<int, FString> newMarbles;
         for (index = 0; index < 10000; index++) {

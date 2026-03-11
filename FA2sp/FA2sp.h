@@ -12,6 +12,7 @@
 #include <CObjectDatas.h>
 
 typedef unsigned char byte;
+struct WindowsOSInfo;
 
 #define RIPARIUS_BEGIN 102
 #define RIPARIUS_END 121
@@ -34,6 +35,7 @@ public:
     static bool g_VEH_Enabled;
     static void ExtConfigsInitialize();
     static bool IsDarkMode();
+    static WindowsOSInfo WinInfo;
 };
 
 class ExtConfigs

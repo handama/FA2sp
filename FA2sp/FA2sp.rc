@@ -84,6 +84,91 @@ BEGIN
 	"O",            40018,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
 END
 
+1100 TOOLBAR 16, 16
+BEGIN
+    BUTTON      57600 // new map
+    BUTTON      40001 // open map
+    BUTTON      57603 // save map
+	SEPARATOR
+	BUTTON      40053 // raise ground
+    BUTTON      40054 // lower ground
+    BUTTON      40064 // flatten ground
+    BUTTON      40062 // raise single tile
+    BUTTON      40063 // lower single tile
+	SEPARATOR
+	BUTTON      40065 // hide tile set
+    BUTTON      40066 // show all tile sets
+    BUTTON      40072 // hide single tile
+    BUTTON      40071 // show all tiles
+	SEPARATOR
+    BUTTON      40115 // frame mode
+    BUTTON      40085 // 2d mode
+	SEPARATOR
+    BUTTON      40092 // cliff front
+    BUTTON      40093 // cliff back
+	SEPARATOR
+	BUTTON      40096 // auto create shore
+    BUTTON      40152 // auto create LAT
+    BUTTON      40153 // smoothen water
+END
+
+1101 TOOLBAR 16, 16
+BEGIN
+	BUTTON      30105 // delete objects
+    BUTTON      30104 // erase overlay
+    BUTTON      30106 // object info
+    BUTTON      40163 // distance ruler
+	SEPARATOR
+    BUTTON      30100 // Building property brush
+    BUTTON      30101 // Infantry property brush
+    BUTTON      30102 // Vehicle property brush
+    BUTTON      30103 // Aircraft property brush
+	SEPARATOR
+	BUTTON      30107 // minimap
+    BUTTON      40159 // object view cameo
+    BUTTON      40123 // building outline
+    BUTTON      40104 // disable auto shore
+    BUTTON      40105 // disable auto LAT
+	SEPARATOR
+    BUTTON      40134 // global search
+    BUTTON      30108 // terrain generator
+    BUTTON      40165 // map renderer
+    BUTTON      40158 // lua script console
+    BUTTON      40004 // settings
+    BUTTON      40162 // preferences
+    BUTTON      40022 // tip of the day
+END
+
+1102 TOOLBAR 16, 16
+BEGIN
+
+	BUTTON		30050   // Reset Default  
+	SEPARATOR                                    
+	BUTTON		30000   // Structures 
+	BUTTON		30001   // Infantries
+	BUTTON		30002   // Units
+	BUTTON		30003   // Aircrafts
+	SEPARATOR                                    
+	BUTTON 		30008   // Overlays
+	BUTTON 		30009   // Terrains
+	BUTTON 		30010   // Smudges
+	SEPARATOR                                    
+	BUTTON 		30004   // Basenodes
+	BUTTON 		30013   // Basenode Index
+	BUTTON 		30005   // Waypoints	
+	BUTTON 		30006   // Celltags
+	BUTTON 		30011   // Tubes	
+	SEPARATOR                                    
+	BUTTON 		30007   // MoneyOnMap	
+	BUTTON 		30012   // Bounds
+	BUTTON 		30021   // Veterancy	
+	BUTTON 		30014   // Rock Cells 	
+	BUTTON 		30022   // Shadows	
+	BUTTON 		30023   // AlphaImages
+	BUTTON 		30024   // Annotations
+	BUTTON 		30025   // Damage Fires
+END
+
 101 RT_MANIFEST "FA2sp.manifest"
 1001 BITMAP "Resources/annotation.bmp"
 1002 BITMAP "Resources/default_cameo.bmp"
@@ -125,3 +210,9 @@ END
 1035 BITMAP "Resources/toolbar_D_3.bmp"
 1036 BITMAP "Resources/property_mark.bmp"
 1037 BITMAP "Resources/didyouknow.bmp"
+1110 BITMAP "Resources/toolbarA.bmp"
+1111 BITMAP "Resources/toolbarC.bmp"
+1112 BITMAP "Resources/toolbarD.bmp"
+1113 BITMAP "Resources/toolbarA_dark.bmp"
+1114 BITMAP "Resources/toolbarC_dark.bmp"
+1115 BITMAP "Resources/toolbarD_dark.bmp"

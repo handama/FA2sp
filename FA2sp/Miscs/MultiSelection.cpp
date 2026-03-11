@@ -286,8 +286,11 @@ DEFINE_HOOK(469470, CIsoView_OnKeyDown, 5)
     {
         if (MultiSelection::Control_D_IsDown)
             MultiSelection::Control_D_IsDown = false;
-		else
+        else
+        {
             CFinalSunApp::Instance->FlatToGround = !CFinalSunApp::Instance->FlatToGround;
+            CFinalSunDlgExt::GetExtension()->CheckToolBarButton(40085, CFinalSunApp::Instance->FlatToGround);
+        }
         pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }
     else if (nChar == 'A')

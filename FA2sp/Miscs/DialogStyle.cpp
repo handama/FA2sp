@@ -302,7 +302,7 @@ LRESULT CALLBACK DarkTheme::TabCtrlSubclassProc(
 
         if (!hDefaultFont)
         {
-            hDefaultFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+            hDefaultFont = (HFONT)GetModernDefaultGUIFont();
         }
         HFONT hFont = hDefaultFont;
         HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
@@ -407,7 +407,7 @@ LRESULT CALLBACK DarkTheme::HeaderSubclassProc(
         int colCount = Header_GetItemCount(hWnd);
         if (!hDefaultFont)
         {
-            hDefaultFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+            hDefaultFont = (HFONT)GetModernDefaultGUIFont();
         }
         HFONT hFont = hDefaultFont;
         HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
@@ -438,7 +438,7 @@ LRESULT CALLBACK DarkTheme::HeaderSubclassProc(
                 textRect.left += 5;
                 textRect.right -= 5;
 
-                UINT format = DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS;
+                UINT format = DT_VCENTER | DT_SINGLELINE;
                 if (hdi.fmt & HDF_CENTER)
                     format |= DT_CENTER;
                 else if (hdi.fmt & HDF_RIGHT)
@@ -610,7 +610,7 @@ LRESULT DarkTheme::HandleMenuMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
             }
 
             HDC hdc = GetDC(hWnd);
-            HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+            HFONT hFont = (HFONT)GetModernDefaultGUIFont();
             HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
 
             std::wstring leftText = pInfo->text;
@@ -785,7 +785,7 @@ void DarkTheme::InitMenuItems(HWND hOverlay)
 
 void DarkTheme::DrawMenuItems(HDC hdc, RECT rc)
 {
-    HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+    HFONT hFont = (HFONT)GetModernDefaultGUIFont();
     HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
 
     for (const auto& item : g_menuItems)
@@ -931,6 +931,20 @@ void DarkTheme::UpdateMenuOverlayPosition(HWND hWnd)
     InvalidateRect(g_hMenuOverlay, NULL, TRUE);
 }
 
+HFONT DarkTheme::GetModernDefaultGUIFont()
+{
+    static HFONT font = NULL;
+
+    if (!font)
+    {
+        if (!CFinalSunDlg::Instance)
+            return (HFONT)::GetStockObject(DEFAULT_GUI_FONT);
+        else
+            font = (HFONT)SendMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_GETFONT, 0, 0);
+    }
+    return font;
+}
+
 void DarkTheme::DrawComboBoxArrow(HDC hdc, RECT rc, bool enabled)
 {
     int arrowWidth = GetSystemMetrics(SM_CXVSCROLL);
@@ -988,10 +1002,10 @@ LRESULT CALLBACK DarkTheme::ComboBoxSubclassProc(
                 SetBkMode(hdc, TRANSPARENT);
                 SetTextColor(hdc, DarkColors::LightText);
 
-                HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+                HFONT hFont = (HFONT)GetModernDefaultGUIFont();
                 HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
 
-                DrawText(hdc, text, -1, &rcText, DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS);
+                DrawText(hdc, text, -1, &rcText, DT_SINGLELINE | DT_VCENTER | DT_LEFT);
 
                 SelectObject(hdc, hOldFont);
             }
@@ -1463,7 +1477,7 @@ LRESULT CALLBACK DarkTheme::DarkButtonSubclassProc(HWND hwnd, UINT uMsg, WPARAM 
         RECT textRc = { glyphRc.right + 3, 0, w - 3, h };
         SetBkMode(hdcMem, TRANSPARENT);
         SetTextColor(hdcMem, enabled ? DarkColors::TextColor : DarkColors::DisabledTextColor);
-        HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+        HFONT hFont = (HFONT)GetModernDefaultGUIFont();
         HFONT hOldFont = (HFONT)SelectObject(hdcMem, hFont);
 
         UINT dtFlags;
@@ -1524,7 +1538,7 @@ LRESULT CALLBACK DarkTheme::DarkGroupBoxclassProc(HWND hwnd, UINT uMsg, WPARAM w
         SetBkMode(hdc, TRANSPARENT);
         SetTextColor(hdc, enabled ? DarkColors::TextColor : DarkColors::DisabledTextColor);
 
-        HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+        HFONT hFont = (HFONT)GetModernDefaultGUIFont();
         HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
 
         DrawTextW(hdc, textBuf, -1, &textRc, DT_CALCRECT | DT_SINGLELINE);
@@ -1577,7 +1591,7 @@ LRESULT CALLBACK DarkTheme::DarkStatusBarProc(HWND hwnd, UINT uMsg, WPARAM wPara
 
         int partCount = (int)SendMessage(hwnd, SB_GETPARTS, 0, 0);
 
-        HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+        HFONT hFont = (HFONT)GetModernDefaultGUIFont();
         HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
 
         SetBkMode(hdc, TRANSPARENT);
@@ -1602,9 +1616,9 @@ LRESULT CALLBACK DarkTheme::DarkStatusBarProc(HWND hwnd, UINT uMsg, WPARAM wPara
             UINT dtFlags = DT_SINGLELINE | DT_VCENTER;
 
             if (i == partCount - 1)
-                dtFlags |= DT_RIGHT | DT_END_ELLIPSIS;
+                dtFlags |= DT_RIGHT;
             else
-                dtFlags |= DT_LEFT | DT_END_ELLIPSIS;
+                dtFlags |= DT_LEFT;
 
             DrawText(hdc, buf, -1, &rcPart, dtFlags);
         }

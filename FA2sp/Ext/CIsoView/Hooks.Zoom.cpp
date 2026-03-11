@@ -2,6 +2,7 @@
 #include "../../FA2sp.h"
 #include <CMapData.h>
 #include "../CMapData/Body.h"
+#include "../CLoading/Body.h"
 
 /*
 DEFINE_HOOK(45E880, CIsoView_MapCoord2ScreenCoord_Height, 5)
@@ -78,7 +79,9 @@ DEFINE_HOOK(460F00, CIsoView_ScreenCoord2MapCoord_Height, 7)
 	GET_STACK(int*, X, 0x4);
 	GET_STACK(int*, Y, 0x8);
 
-	if (!CMapData::Instance->MapWidthPlusHeight || !CTileTypeClass::Instance)
+	if (!CMapData::Instance->MapWidthPlusHeight
+		|| !CTileTypeClass::Instance
+		|| CLoadingExt::IsReloading)
 	{
 		*X = 0;
 		*Y = 0;

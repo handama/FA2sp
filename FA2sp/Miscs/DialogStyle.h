@@ -126,6 +126,8 @@ public:
     static LRESULT CALLBACK DarkGroupBoxclassProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
     static LRESULT CALLBACK DarkStatusBarProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
 
+    static HFONT GetModernDefaultGUIFont();
+
     static void DrawComboBoxArrow(HDC hdc, RECT rc, bool enabled);
     static void DrawCheckMark(HDC hdc, RECT rc);
     static void SubclassDarkButton(HWND hwndButton);

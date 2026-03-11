@@ -18,23 +18,38 @@
 #include <unordered_set>
 #include <unordered_map>
 
-class NOVTABLE CFinalSunDlgExt : CFinalSunDlg
+struct CheckButtonInfo {
+    HWND hParent;
+    UINT cmdID;
+    int index;
+    bool isChecked;
+    void* pExternalBool;
+};
+
+class NOVTABLE CFinalSunDlgExt : public CFinalSunDlg
 {
 public:
+    static CFinalSunDlgExt* GetExtension()
+    {
+        return reinterpret_cast<CFinalSunDlgExt*>(&CFinalSunDlg::Instance());
+    }
     static void ProgramStartupInit();
 
+    static bool HasMinimap;
     static int CurrentLighting;
     static int SearchObjectType;
     static std::pair<FString, int> SearchObjectIndex;
+    static std::map<UINT, CheckButtonInfo> CheckButtonMap;
 
     static bool CheckProperty_Vehicle(CUnitData data);
     static bool CheckProperty_Aircraft(CAircraftData data);
     static bool CheckProperty_Building(CBuildingData data);
     static bool CheckProperty_Infantry(CInfantryData data);
-
+    static void InitToolbar();
 
     BOOL PreTranslateMessageExt(MSG* pMsg);
     BOOL OnCommandExt(WPARAM wParam, LPARAM lParam);
+    void CheckToolBarButton(UINT dwID, bool check);
 };
 
 class ConnectedTiles
@@ -266,11 +281,6 @@ private:
     void Redraw_MultiSelection();
     void Redraw_Annotation();
 
-    bool DoPropertyBrush_Building();
-    bool DoPropertyBrush_Infantry();
-    bool DoPropertyBrush_Vehicle();
-    bool DoPropertyBrush_Aircraft();
-
     int PropagateFirstNonZeroIcon(HTREEITEM hItem);
     void UpdateTreeIconsForSubtree(HTREEITEM hItem);
 
@@ -425,6 +435,11 @@ public:
     static void BatchAddMultiSelection(int X, int Y, bool add);
     static void SquareBatchAddMultiSelection(int X, int Y, bool add);
     static void Redraw_ConnectedTile(CViewObjectsExt* pThis);
+
+    static bool DoPropertyBrush_Building();
+    static bool DoPropertyBrush_Infantry();
+    static bool DoPropertyBrush_Vehicle();
+    static bool DoPropertyBrush_Aircraft();
     
     static bool IsIgnored(const char* pItem);
 

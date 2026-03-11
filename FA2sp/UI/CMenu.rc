@@ -134,8 +134,8 @@ POPUP "Layers"
 	MENUITEM SEPARATOR
 	MENUITEM "MoneyOnMap\tAlt+3",  30007
 	MENUITEM "Bounds\tAlt+4",  30012
-	MENUITEM "Veterancy\tAlt+6",  30021
-	MENUITEM "Rock Cells\tAlt+5",  30014
+	MENUITEM "Veterancy\tAlt+5",  30021
+	MENUITEM "Rock Cells\tAlt+6",  30014
 	MENUITEM "Shadows\tAlt+7",  30022
 	MENUITEM "AlphaImages\tAlt+8",  30023
 	MENUITEM "Annotations\tAlt+9",  30024

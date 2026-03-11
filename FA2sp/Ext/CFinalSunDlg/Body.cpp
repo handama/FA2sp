@@ -1420,7 +1420,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					break;
 				}
 				auto& view = this->MyViewFrame.pTileSetBrowserFrame->View;
-				view.SelectTileSet(view.CurrentTileset, TRUE);
+				if (view.CurrentMode == 1)
+					view.SelectTileSet(view.CurrentTileset, TRUE);
 				::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 				break;
 			}

@@ -9,6 +9,7 @@
 
 #include "../CFinalSunDlg/Body.h"
 #include "../CMapData/Body.h"
+#include "../../Helpers/Translations.h"
 
 // FA2 Building Property window is messed up.
 DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
@@ -34,7 +35,6 @@ DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
             Miscs::LoadParams::Houses(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1079)), false, false, false);
     }
 	
-
     Miscs::LoadParams::Tags(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1083)), true);
 
     pThis->CSCStrength.SetRange(0, 256);
@@ -86,6 +86,16 @@ DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
             }
         }
     }
+
+    HWND hSpotLightComboBox = pThis->GetDlgItem(1090)->GetSafeHwnd();
+    while (::SendMessage(hSpotLightComboBox, CB_DELETESTRING, 0, NULL) != CB_ERR);
+
+    ::SendMessage(hSpotLightComboBox, CB_INSERTSTRING, 0, 
+        reinterpret_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.0", "0 - No spotlight")));
+    ::SendMessage(hSpotLightComboBox, CB_INSERTSTRING, 1, 
+        reinterpret_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.1", "1 - Rules.ini setting")));
+    ::SendMessage(hSpotLightComboBox, CB_INSERTSTRING, 2, 
+        reinterpret_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.2", "2 - Circle / Direction")));
 
     pThis->Translate();
 

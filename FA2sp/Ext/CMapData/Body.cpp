@@ -4101,4 +4101,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		CLoadingExt::GetExtension()->LoadObjects("FA2DEFAULT_AIRCRAFT");
 		CLoadingExt::GetExtension()->LoadObjects("FA2DEFAULT_INFANTRY");
 	}
+
+	CFinalSunDlg::Instance->MyViewFrame.Minimap.Update();
 }

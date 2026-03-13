@@ -300,6 +300,9 @@
     <ClInclude Include="FA2sp\Helpers\WinVer.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\Ext\CMinimap\Body.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FA2sp\FA2sp.cpp">
@@ -735,6 +738,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Helpers\WinVer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CMinimap\Body.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

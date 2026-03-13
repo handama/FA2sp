@@ -7,6 +7,7 @@
 
 #include "../FA2sp.h"
 #include "../Miscs/DialogStyle.h"
+#include "../Ext/CMinimap/Body.h"
 
 DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
 {
@@ -39,12 +40,20 @@ DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
 
                 LONG style = GetWindowLong(pThis->Minimap, GWL_STYLE);
                 style &= ~(WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
-                style |= WS_SYSMENU;
+                style |= WS_SYSMENU | WS_SIZEBOX;
                 SetWindowLong(pThis->Minimap, GWL_STYLE, style);
 
                 DarkTheme::SetDarkTheme(pThis->Minimap);
 
-                pThis->Minimap.Update();
+                if (pThis->Minimap.m_hWnd && !CMinimapExt::g_pfnOriginalMinimapProc)
+                {
+                    CMinimapExt::g_pfnOriginalMinimapProc = (WNDPROC)SetWindowLongPtr(
+                        pThis->Minimap.GetSafeHwnd(),
+                        GWLP_WNDPROC,
+                        (LONG_PTR)CMinimapExt::MinimapWndProc
+                    );
+                }
+
                 if (bRes = pThis->StatusBar.CreateEx(pThis, 0x900))
                 {
                     pThis->ppmfc::CFrameWnd::OnCreateClient(lpcs, pContent);

@@ -182,6 +182,7 @@ bool ExtConfigs::InGameDisplay_Bridge;
 bool ExtConfigs::InGameDisplay_AnimAdjust;
 bool ExtConfigs::InGameDisplay_Cloakable;
 bool ExtConfigs::InGameDisplay_RemapableOverlay;
+bool ExtConfigs::DisplayBridgeOverlay;
 bool ExtConfigs::ObjectBrowser_Ore_RandomPlacement;
 bool ExtConfigs::ObjectBrowser_Ore_ExtraSupport;
 bool ExtConfigs::FlatToGroundHideExtra;
@@ -344,6 +345,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::InGameDisplay_AnimAdjust = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AnimAdjust", true);
 	ExtConfigs::InGameDisplay_Cloakable = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Cloakable");
 	ExtConfigs::InGameDisplay_RemapableOverlay = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.RemapableOverlay");
+	ExtConfigs::DisplayBridgeOverlay = CINI::FAData->GetBool("ExtConfigs", "DisplayBridgeOverlay");
 	ExtConfigs::FlatToGroundHideExtra = CINI::FAData->GetBool("ExtConfigs", "FlatToGroundHideExtra");
 	ExtConfigs::ExtOverlays = CINI::FAData->GetBool("ExtConfigs", "ExtOverlays");
 
@@ -757,6 +759,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "InGameDisplay.RemapableOverlay",
 		.Value = &ExtConfigs::InGameDisplay_RemapableOverlay,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.DisplayBridgeOverlay", "Display invisible bridge overlays in numbers"),
+		.IniKey = "DisplayBridgeOverlay",
+		.Value = &ExtConfigs::DisplayBridgeOverlay,
+		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

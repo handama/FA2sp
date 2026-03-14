@@ -193,6 +193,7 @@ public:
     static bool InGameDisplay_AnimAdjust;
     static bool InGameDisplay_Cloakable;
     static bool InGameDisplay_RemapableOverlay;
+    static bool DisplayBridgeOverlay;
     static bool ObjectBrowser_Ore_RandomPlacement;
     static bool ObjectBrowser_Ore_ExtraSupport;
     static bool FlatToGroundHideExtra;

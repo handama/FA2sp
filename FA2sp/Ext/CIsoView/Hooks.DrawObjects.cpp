@@ -1953,7 +1953,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 						if (!pData || !pData->pImageBuffer)
 						{
-							if (!(cellNextExt.NewOverlay >= 0x4a && cellNextExt.NewOverlay <= 0x65) &&
+							if (ExtConfigs::DisplayBridgeOverlay ||
+								!(cellNextExt.NewOverlay >= 0x4a && cellNextExt.NewOverlay <= 0x65) &&
 								!(cellNextExt.NewOverlay >= 0xcd && cellNextExt.NewOverlay <= 0xec))
 							{
 								char cd[10];
@@ -2010,7 +2011,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 						if (!pData || !pData->pImageBuffer)
 						{
-							if (!(cellExt->NewOverlay >= 0x4a && cellExt->NewOverlay <= 0x65) &&
+							if (ExtConfigs::DisplayBridgeOverlay ||
+								!(cellExt->NewOverlay >= 0x4a && cellExt->NewOverlay <= 0x65) &&
 								!(cellExt->NewOverlay >= 0xcd && cellExt->NewOverlay <= 0xec))
 							{
 								char cd[10];

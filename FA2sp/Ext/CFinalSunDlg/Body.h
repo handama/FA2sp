@@ -17,6 +17,7 @@
 #include <CMapData.h>
 #include <unordered_set>
 #include <unordered_map>
+class CTechnoDialog;
 
 struct CheckButtonInfo {
     HWND hParent;
@@ -40,6 +41,7 @@ public:
     static int SearchObjectType;
     static std::pair<FString, int> SearchObjectIndex;
     static std::map<UINT, CheckButtonInfo> CheckButtonMap;
+    static std::unique_ptr<CTechnoDialog> TechnoDialog;
 
     static bool CheckProperty_Vehicle(CUnitData data);
     static bool CheckProperty_Aircraft(CAircraftData data);
@@ -411,10 +413,10 @@ public:
     static void ApplyChangeOwner(int X, int Y);
     static void ApplyTag(int X, int Y, FString tag);
     static void ApplyPropertyBrush(int X, int Y);
-    static void ApplyPropertyBrush_Building(int nIndex);
-    static void ApplyPropertyBrush_Infantry(int nIndex);
-    static void ApplyPropertyBrush_Aircraft(int nIndex);
-    static void ApplyPropertyBrush_Vehicle(int nIndex);
+    static void ApplyPropertyBrush_Building(int nIndex, bool useTechnoDlg = false);
+    static void ApplyPropertyBrush_Infantry(int nIndex, bool useTechnoDlg = false);
+    static void ApplyPropertyBrush_Aircraft(int nIndex, bool useTechnoDlg = false);
+    static void ApplyPropertyBrush_Vehicle(int nIndex, bool useTechnoDlg = false);
     static void ApplyPropertyBrush_Building(CBuildingData& data);
     static void ApplyPropertyBrush_Infantry(CInfantryData& data);
     static void ApplyPropertyBrush_Aircraft(CAircraftData& data);

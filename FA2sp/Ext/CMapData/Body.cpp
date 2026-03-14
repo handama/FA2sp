@@ -118,6 +118,34 @@ std::map<FString, FString> CMapDataExt::MapFrontsectionComments;
 bool CMapDataExt::IsNewMap;
 bool CMapDataExt::SkipUpdateMinimap = false;
 bool CMapDataExt::IsImportingMap = false;
+const std::vector<FString> CMapDataExt::TechnoStates = 
+{
+	"Ambush",
+	"Area Guard",
+	"Attack",
+	"Capture",
+	"Construction",
+	"Enter",
+	"Guard",
+	"Harmless",
+	"Harvest",
+	"Hunt",
+	"Missile",
+	"Move",
+	"Open",
+	"Patrol",
+	"QMove",
+	"Repair",
+	"Rescue",
+	"Retreat",
+	"Return",
+	"Sabotage",
+	"Selling",
+	"Sleep",
+	"Sticky",
+	"Stop",
+	"Unload"
+};
 
 static inline int DistSqrByIndex(int a, int b)
 {
@@ -2235,25 +2263,34 @@ void ObjectRecord::record(int recordType)
 				}
 			}
 		};
+	bool recordEditedMark = false;
 	if (recordType & RecordType::Building)
 	{
 		recordIniValue("Structures", BuildingList);
 		recordedFlages |= RecordType::Building;
+		recordEditedMark = true;
 	}
 	if (recordType & RecordType::Unit)
 	{
 		recordIniValue("Units", UnitList);
 		recordedFlages |= RecordType::Unit;
+		recordEditedMark = true;
 	}
 	if (recordType & RecordType::Aircraft)
 	{
 		recordIniValue("Aircraft", AircraftList);
 		recordedFlages |= RecordType::Aircraft;
+		recordEditedMark = true;
 	}
 	if (recordType & RecordType::Infantry)
 	{
 		recordIniValue("Infantry", InfantryList);
 		recordedFlages |= RecordType::Infantry;
+		recordEditedMark = true;
+	}
+	if (recordEditedMark && CIsoViewExt::DrawPropertyBrushMark)
+	{
+		DrawEditedMarkList = CIsoViewExt::DrawEditedMarks;
 	}
 	if (recordType & RecordType::Terrain)
 	{
@@ -2473,25 +2510,34 @@ void ObjectRecord::recover()
 				ini.WriteString(pSection, key, value);
 			}
 		};
+	bool recoverEditedMark = false;
 	if (recordFlags & RecordType::Building)
 	{
 		recoverIniValue("Structures", BuildingList);
 		CMapDataExt::UpdateFieldStructureData_RedrawMinimap();
+		recoverEditedMark = true;
 	}
 	if (recordFlags & RecordType::Unit)
 	{
 		recoverIniValue("Units", UnitList);
 		CMapDataExt::UpdateFieldUnitData_RedrawMinimap();
+		recoverEditedMark = true;
 	}
 	if (recordFlags & RecordType::Aircraft)
 	{
 		recoverIniValue("Aircraft", AircraftList);
 		CMapDataExt::UpdateFieldAircraftData_RedrawMinimap();
+		recoverEditedMark = true;
 	}
 	if (recordFlags & RecordType::Infantry)
 	{
 		recoverIniValue("Infantry", InfantryList);
 		CMapDataExt::UpdateFieldInfantryData_RedrawMinimap();
+		recoverEditedMark = true;
+	}
+	if (recoverEditedMark && CIsoViewExt::DrawPropertyBrushMark)
+	{
+		CIsoViewExt::DrawEditedMarks = DrawEditedMarkList;
 	}
 	if (recordFlags & RecordType::Terrain)
 	{

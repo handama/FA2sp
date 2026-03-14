@@ -25,6 +25,7 @@
 #include "../../Helpers/Helper.h"
 #include "../../Miscs/DialogStyle.h"
 #include "../../Miscs/UserScripts.h"
+#include "../../ExtraWindow/CTechnoDialog/CTechnoDialog.h"
 
 namespace fs = std::filesystem;
 
@@ -2121,6 +2122,7 @@ void CViewObjectsExt::Redraw_PropertyBrush()
     this->InsertTranslatedString("PropertyBrushInfantry", Const_PropertyBrush + Set_Infantry, hPropertyBrush);
     this->InsertTranslatedString("PropertyBrushVehicle", Const_PropertyBrush + Set_Vehicle, hPropertyBrush);
     this->InsertTranslatedString("PropertyBrushAircraft", Const_PropertyBrush + Set_Aircraft, hPropertyBrush);
+    this->InsertTranslatedString("PropertyBrushTechno", Const_PropertyBrush + Set_Count, hPropertyBrush);
 }
 
 void CViewObjectsExt::Redraw_InfantrySubCell()
@@ -3097,6 +3099,22 @@ void CViewObjectsExt::ApplyPropertyBrush(int X, int Y)
         }
         return;
     }
+    if (ExtConfigs::InfantrySubCell_Edit &&
+        CIsoView::CurrentCommand->Type == Set_Count &&
+        pIsoView->BrushSizeX == 1 && pIsoView->BrushSizeY == 1)
+    {
+        auto pCell = CMapData::Instance->GetCellAt(X, Y);
+        if (pCell->Unit == -1 && pCell->Aircraft == -1 && pCell->Structure == -1)
+        {
+            int idx = CIsoViewExt::GetSelectedSubcellInfantryIdx(X, Y);
+            if (idx != -1)
+            {
+                ApplyPropertyBrush_Infantry(idx, true);
+                ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+                return;
+            }
+        }
+    }
 
     for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
     {
@@ -3132,12 +3150,27 @@ void CViewObjectsExt::ApplyPropertyBrush(int X, int Y)
                 if (CellData.Aircraft != -1)
                     ApplyPropertyBrush_Aircraft(CellData.Aircraft);
             }
+            else if (CIsoView::CurrentCommand->Type == Set_Count)
+            {
+                if (CellData.Structure != -1)
+                    ApplyPropertyBrush_Building(CellData.Structure, true);
+                if (CellData.Infantry[0] != -1)
+                    ApplyPropertyBrush_Infantry(CellData.Infantry[0], true);
+                if (CellData.Infantry[1] != -1)
+                    ApplyPropertyBrush_Infantry(CellData.Infantry[1], true);
+                if (CellData.Infantry[2] != -1)
+                    ApplyPropertyBrush_Infantry(CellData.Infantry[2], true);
+                if (CellData.Unit != -1)
+                    ApplyPropertyBrush_Vehicle(CellData.Unit, true);
+                if (CellData.Aircraft != -1)
+                    ApplyPropertyBrush_Aircraft(CellData.Aircraft, true);
+            }
         }
     }  
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 
-void CViewObjectsExt::ApplyPropertyBrush_Building(int nIndex)
+void CViewObjectsExt::ApplyPropertyBrush_Building(int nIndex, bool useTechnoDlg)
 {
     TempValueHolder<bool> skipCheck(CMapDataExt::SkipBuildingOverlappingCheck, true);
     CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building, true);
@@ -3148,12 +3181,16 @@ void CViewObjectsExt::ApplyPropertyBrush_Building(int nIndex)
     CIsoViewExt::DrawEditedMarks.push_back(
         EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
     
-    ApplyPropertyBrush_Building(data);
+    if (useTechnoDlg)
+        CFinalSunDlgExt::TechnoDialog->ApplyToBuildingData(&data);
+    else
+        ApplyPropertyBrush_Building(data);
+
     CMapData::Instance->DeleteBuildingData(nIndex);
     CMapData::Instance->SetBuildingData(&data, nullptr, nullptr, 0, "");
 }
 
-void CViewObjectsExt::ApplyPropertyBrush_Infantry(int nIndex)
+void CViewObjectsExt::ApplyPropertyBrush_Infantry(int nIndex, bool useTechnoDlg)
 {
     CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry, true);
     CInfantryData data;
@@ -3163,13 +3200,16 @@ void CViewObjectsExt::ApplyPropertyBrush_Infantry(int nIndex)
     CIsoViewExt::DrawEditedMarks.push_back(
         EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y), (short)atoi(data.SubCell) });
 
-    ApplyPropertyBrush_Infantry(data);
+    if (useTechnoDlg)
+        CFinalSunDlgExt::TechnoDialog->ApplyToInfantryData(&data);
+    else
+        ApplyPropertyBrush_Infantry(data);
 
     CMapData::Instance->DeleteInfantryData(nIndex);
     CMapData::Instance->SetInfantryData(&data, nullptr, nullptr, 0, -1);
 }
 
-void CViewObjectsExt::ApplyPropertyBrush_Aircraft(int nIndex)
+void CViewObjectsExt::ApplyPropertyBrush_Aircraft(int nIndex, bool useTechnoDlg)
 {
     CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft, true);
     CAircraftData data;
@@ -3179,13 +3219,16 @@ void CViewObjectsExt::ApplyPropertyBrush_Aircraft(int nIndex)
     CIsoViewExt::DrawEditedMarks.push_back(
         EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
 
-    ApplyPropertyBrush_Aircraft(data);
+    if (useTechnoDlg)
+        CFinalSunDlgExt::TechnoDialog->ApplyToAircraftData(&data);
+    else
+        ApplyPropertyBrush_Aircraft(data);
 
     CMapData::Instance->DeleteAircraftData(nIndex);
     CMapData::Instance->SetAircraftData(&data, nullptr, nullptr, 0, "");
 }
 
-void CViewObjectsExt::ApplyPropertyBrush_Vehicle(int nIndex)
+void CViewObjectsExt::ApplyPropertyBrush_Vehicle(int nIndex, bool useTechnoDlg)
 {
     CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit, true);
     CUnitData data;
@@ -3195,7 +3238,10 @@ void CViewObjectsExt::ApplyPropertyBrush_Vehicle(int nIndex)
     CIsoViewExt::DrawEditedMarks.push_back(
         EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
 
-    ApplyPropertyBrush_Vehicle(data);
+    if (useTechnoDlg)
+        CFinalSunDlgExt::TechnoDialog->ApplyToUnitData(&data);
+    else
+        ApplyPropertyBrush_Vehicle(data);
 
     CMapData::Instance->DeleteUnitData(nIndex);
     CMapData::Instance->SetUnitData(&data, nullptr, nullptr, 0, "");
@@ -3879,6 +3925,19 @@ bool CViewObjectsExt::UpdateEngine(int nData)
 
             CViewObjectsExt::InitPropertyDlgFromProperty = false;
 
+            return true;
+        }
+        else if (nData == Set_Count)
+        {
+            CFinalSunDlgExt::TechnoDialog = nullptr;
+            CFinalSunDlgExt::TechnoDialog = std::make_unique<CTechnoDialog>();
+            if (CFinalSunDlgExt::TechnoDialog->DoModal() == IDOK)
+            {
+                CIsoView::CurrentCommand->Command = 0x17;
+                CIsoView::CurrentCommand->Type = CViewObjectsExt::Set_Count;
+            }
+            else
+                CIsoView::CurrentCommand->Command = FACurrentCommand::Nothing;
             return true;
         }
     }

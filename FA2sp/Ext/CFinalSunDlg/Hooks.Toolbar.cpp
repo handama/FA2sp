@@ -442,7 +442,7 @@ void CFinalSunDlgExt::InitToolbar()
     if (!STDHelpers::IsTrue(GetConfigIni("UserInterface", "HideToolBarB")))
         tbB = { g_Toolbars.hTbB, 200 };
     if (!STDHelpers::IsTrue(GetConfigIni("UserInterface", "HideToolBarC")))
-        others.push_back({ g_Toolbars.hTbC, 508 });
+        others.push_back({ g_Toolbars.hTbC, 532 });
     if (!STDHelpers::IsTrue(GetConfigIni("UserInterface", "HideToolBarD")))
         others.push_back({ g_Toolbars.hTbD, 540});
 

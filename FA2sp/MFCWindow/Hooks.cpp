@@ -45,6 +45,7 @@ DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
 
                 DarkTheme::SetDarkTheme(pThis->Minimap);
 
+                pThis->Minimap.Update();
                 if (pThis->Minimap.m_hWnd && !CMinimapExt::g_pfnOriginalMinimapProc)
                 {
                     CMinimapExt::g_pfnOriginalMinimapProc = (WNDPROC)SetWindowLongPtr(

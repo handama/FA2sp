@@ -682,6 +682,11 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
     return 0x45EBC5;
 }
 
+DEFINE_HOOK(433078, CFinalSunDlg_OnSize_Minimap, 5)
+{
+    return 0x4330A9;
+}
+
 DEFINE_HOOK(4326C0, CFinalSunDlg_QuitProgram_BeforeDialog, 5)
 {
     ExtConfigs::IsQuitingProgram = true;

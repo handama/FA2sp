@@ -237,6 +237,7 @@
     <ClCompile Include="FA2sp\ExtraWindow\CFA2spOptions\CFA2spOptions.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CTechnoDialog\CTechnoDialog.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.cpp" />
     <ClCompile Include="FA2sp\Ext\CBasic\Hooks.cpp" />
@@ -384,6 +385,7 @@
     <ClInclude Include="FA2sp\ExtraWindow\CFA2spOptions\CFA2spOptions.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CTechnoDialog\CTechnoDialog.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.h" />
     <ClInclude Include="FA2sp\Ext\CCreateMap3B\Body.h" />
@@ -472,6 +474,7 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CFA2spOptions\CFA2spOptions.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CTechnoDialog\CTechnoDialog.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.rc" />
     <ResourceCompile Include="FA2sp\UI\CAircraftDialog.rc" />

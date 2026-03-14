@@ -38,12 +38,14 @@
 #include <filesystem>
 #include "../../Miscs/SaveMap.h"
 #include "../../ExtraWindow/CNewTipsOfTheDay/CNewTipsOfTheDay.h"
+#include "../../ExtraWindow/CTechnoDialog/CTechnoDialog.h"
 namespace fs = std::filesystem;
 
 bool CFinalSunDlgExt::HasMinimap = false;
 int CFinalSunDlgExt::CurrentLighting = 31000;
-std::pair<FString, int> CFinalSunDlgExt::SearchObjectIndex ("", - 1);
+std::pair<FString, int> CFinalSunDlgExt::SearchObjectIndex("", -1);
 std::map<UINT, CheckButtonInfo> CFinalSunDlgExt::CheckButtonMap;
+std::unique_ptr<CTechnoDialog> CFinalSunDlgExt::TechnoDialog = nullptr;
 int CFinalSunDlgExt::SearchObjectType = -1;
 enum FindType { Aircraft = 0, Infantry, Structure, Unit };
 
@@ -1334,6 +1336,23 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				CIsoView::CurrentCommand->Type = CViewObjectsExt::Set_Aircraft;
 			}
 			CViewObjectsExt::InitPropertyDlgFromProperty = false;
+		}
+	}
+	if (wmID == 30109)
+	{
+		if (!CMapData::Instance->MapWidthPlusHeight)
+		{
+			this->PlaySound(FASoundType::Error);
+		}
+		else
+		{
+			TechnoDialog = nullptr;
+			TechnoDialog = std::make_unique<CTechnoDialog>();
+			if (TechnoDialog->DoModal() == IDOK)
+			{
+				CIsoView::CurrentCommand->Command = 0x17;
+				CIsoView::CurrentCommand->Type = CViewObjectsExt::Set_Count;
+			}
 		}
 	}
 	if (wmID == 30104)

@@ -329,6 +329,7 @@ public:
     std::map<FString, FString> WaypointList;
     std::map<FString, FString> CelltagList;
     std::map<FString, FString> AnnotationList;
+    std::vector<EditedMarks> DrawEditedMarkList;
 
     void record(int recordType);
     void appendRecord(int recordType);
@@ -690,6 +691,7 @@ public:
     static std::map<FString, std::map<FString, FString>> MapFrontlineComments;
     static std::map<FString, FString> MapInsectionComments;
     static std::map<FString, FString> MapFrontsectionComments;
+    const static std::vector<FString> TechnoStates;
     static bool IsNewMap;
     static bool SkipUpdateMinimap;
     static bool IsImportingMap;

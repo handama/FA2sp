@@ -123,6 +123,7 @@ BEGIN
     BUTTON      30101 // Infantry property brush
     BUTTON      30102 // Vehicle property brush
     BUTTON      30103 // Aircraft property brush
+    BUTTON      30109 // Techno property brush
 	SEPARATOR
 	BUTTON      30107 // minimap
     BUTTON      40159 // object view cameo

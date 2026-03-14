@@ -1858,6 +1858,12 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 					return TRUE;
 				}
 			}
+			else if (hParent1 == CBatchTrigger::GetHandle()) {
+				if (CBatchTrigger::OnEnterKeyDown(hWnd)) {
+					ExtraWindow::bEnterSearch = false;
+					return TRUE;
+				}
+			}
 			else if (hParent1 == CCsfEditor::GetHandle()) {
 				if (CCsfEditor::OnEnterKeyDown(hWnd)) {
 					ExtraWindow::bEnterSearch = false;

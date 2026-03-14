@@ -814,13 +814,21 @@ void CBatchTrigger::UpdateListBox()
 
     ExtConfigs::SortByLabelName = tmp;
 
+    char buffer[512]{};
+    SendMessage(hSearch, WM_GETTEXT, (WPARAM)512, (LPARAM)buffer);
+
     ListboxTriggerID.clear();
     for (auto& [label, id] : items)
     {
-        SendMessage(hListbox, LB_INSERTSTRING, idx, label);
         auto& data = ListboxTriggerID.emplace_back(id);
-        SendMessage(hListbox, LB_SETITEMDATA, idx, (LPARAM)&data);
-        idx++;
+        if (!strlen(buffer) 
+            || ExtraWindow::IsLabelMatch(id, buffer)
+            || ExtraWindow::IsLabelMatch(ExtraWindow::GetTriggerName(id), buffer))
+        {
+            SendMessage(hListbox, LB_INSERTSTRING, idx, label);
+            SendMessage(hListbox, LB_SETITEMDATA, idx, (LPARAM)&data);
+            idx++;
+        }
     }
     ExtraWindow::UpdateListBoxHScroll(hListbox);
 }
@@ -1161,22 +1169,11 @@ void CBatchTrigger::OnClickMove(bool isUp)
 void CBatchTrigger::OnSearchEditChanged()
 {
     if (IsUpdating) return;
-    char buffer[512]{};
-    SendMessage(hSearch, WM_GETTEXT, (WPARAM)512, (LPARAM)buffer);
-
-    while (SendMessage(hListbox, LB_DELETESTRING, 0, NULL) != CB_ERR);
-   
-    int idx = 0;
-    for (const auto& id : ListboxTriggerID)
+    if (ListboxTriggerID.size() > ExtConfigs::SearchCombobox_MaxCount && !ExtraWindow::bEnterSearch)
     {
-        auto name = FString::SplitString(map.GetString("Triggers", id, "Americans,<none>,MISSING,0,1,1,1,0"), 2)[2];
-        if (!strlen(buffer) || ExtraWindow::IsLabelMatch(id, buffer) || ExtraWindow::IsLabelMatch(name, buffer))
-        {
-            SendMessage(hListbox, LB_INSERTSTRING, idx, name);
-            SendMessage(hListbox, LB_SETITEMDATA, idx, (LPARAM)&id);
-            idx++;
-        }
+        return;
     }
+    UpdateListBox();
 }
 
 void CBatchTrigger::OnDroppedIntoCell(int row, int col, const FString& value)
@@ -1584,4 +1581,13 @@ void CBatchTrigger::AdjustColumnWidth()
             LVSCW_AUTOSIZE_USEHEADER
         );
     }
+}
+
+bool CBatchTrigger::OnEnterKeyDown(HWND& hWnd)
+{
+    if (hWnd == hSearch)
+        OnSearchEditChanged();
+    else
+        return false;
+    return true;
 }

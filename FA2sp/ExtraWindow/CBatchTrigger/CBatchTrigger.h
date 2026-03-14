@@ -78,6 +78,7 @@ public:
     }
     static void RefreshTrigger(int index);
     static void OnDroppedIntoCell(int row, int col, const FString& value);
+    static bool OnEnterKeyDown(HWND& hWnd);
 
 protected:
     static void Initialize(HWND& hWnd);

@@ -74,3 +74,4 @@ Consecutive terrain or overlay placements are merged into a single undo step.
 In multiplayer maps, waypoints start from 8 to avoid conflict with player start locations.
 Use the “Remove Ore on Ramps” Lua script to quickly clear ore placed on slopes.
 Use the “Random Ore Images” Lua script to make ore appearances more varied.
+When the number of elements in the drop-down menu or list exceeds SearchCombobox.MaxCount (default is 1000), you need to press Enter to do the search.

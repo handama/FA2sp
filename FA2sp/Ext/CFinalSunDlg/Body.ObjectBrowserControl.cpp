@@ -3007,7 +3007,7 @@ void CViewObjectsExt::ApplyTag(int X, int Y, FString tag)
             if (cell->Structure > -1)
             {
                 TempValueHolder<bool> skipCheck(CMapDataExt::SkipBuildingOverlappingCheck, true);
-                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
+                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building, true);
                 CBuildingData data;
                 CMapData::Instance->GetBuildingData(cell->Structure, data);
 
@@ -3023,7 +3023,7 @@ void CViewObjectsExt::ApplyTag(int X, int Y, FString tag)
 
             if (cell->Unit > -1)
             {
-                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit);
+                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit, true);
                 CUnitData data;
                 CMapData::Instance->GetUnitData(cell->Unit, data);
 
@@ -3039,7 +3039,7 @@ void CViewObjectsExt::ApplyTag(int X, int Y, FString tag)
 
             if (cell->Aircraft > -1)
             {
-                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft);
+                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft, true);
                 CAircraftData data;
                 CMapData::Instance->GetAircraftData(cell->Aircraft, data);
 
@@ -3062,7 +3062,7 @@ void CViewObjectsExt::ApplyTag(int X, int Y, FString tag)
                 }
                 if (infantry > -1)
                 {
-                    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
+                    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry, true);
                     CInfantryData data;
                     CMapData::Instance->GetInfantryData(infantry, data);
 

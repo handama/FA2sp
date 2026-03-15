@@ -475,27 +475,30 @@ bool CLoadingExt::IsPreOccupiedBunker(const FString& ID)
 
 static FString GetFinalLoopAnim(const FString& image)
 {
-	static std::set<ppmfc::CString*> ImageHistory;
+	static std::set<FString> visited; 
+
 	int loopCount = CINI::Art->GetInteger(image, "LoopCount", 1);
 	if (loopCount < 0)
 	{
-		ImageHistory.clear();
+		visited.clear();
 		return image;
 	}
 
 	if (auto next = CINI::Art->TryGetString(image, "Next"))
 	{
-		if (ImageHistory.find(next) != ImageHistory.end())
+		FString nextStr = *next;
+
+		if (visited.contains(nextStr))
 		{
-			FString result = (*ImageHistory.begin())->m_pchData;
-			ImageHistory.clear();
+			FString result = *visited.begin();
+			visited.clear();
 			return result;
 		}
-		ImageHistory.insert(next);
-		return GetFinalLoopAnim(next->m_pchData);
+		visited.insert(nextStr);
+		return GetFinalLoopAnim(nextStr);
 	}
 
-	ImageHistory.clear();
+	visited.clear();
 	return image;
 }
 

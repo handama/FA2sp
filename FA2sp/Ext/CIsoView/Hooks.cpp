@@ -1553,7 +1553,7 @@ DEFINE_HOOK(469520, CIsoView_GetOverlayDirection, 6)
 		else if (isTrack(Map->GetOverlayAt((x + 0) + (y + 1) * dwIsoSize)))
 			p = 3;
 	}
-	else if (isWall)
+	else if (isWall && !ExtConfigs::DisableAutoConnectWall)
 	{
 		p = 0;
 		auto overlayData = Map->GetOverlayDataAt(x + y * dwIsoSize);

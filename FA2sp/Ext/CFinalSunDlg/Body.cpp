@@ -686,6 +686,19 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 		return TRUE;
 	}
+	case 30110:
+	{
+		SetLayerStatus(30110, ExtConfigs::DisableAutoConnectWall);
+
+		CINI ini;
+		ppmfc::CString path = CFinalSunAppExt::ExePathExt;
+		path += "\\FinalAlert.ini";
+		ini.ClearAndLoad(path);
+		ini.WriteString("UserInterface", "DisableAutoConnectWall", ExtConfigs::DisableAutoConnectWall ? "1" : "0");
+		ini.WriteToFile(path);
+
+		return TRUE;
+	}
 	case 40163:
 		SetLayerStatus(40163, CIsoViewExt::EnableDistanceRuler);
 		CIsoViewExt::DistanceRuler.clear();

@@ -103,6 +103,7 @@ DEFINE_HOOK(432304, CFinalSunDlg_Update_LayersVisibility, 5)
     SetItemCheckStatus(34051, CIsoViewExt::PasteOverriding);
     SetItemCheckStatus(34052, CIsoViewExt::PasteShowOutline);
     SetItemCheckStatus(40159, ExtConfigs::TreeViewCameo_Display);
+    SetItemCheckStatus(30110, ExtConfigs::DisableAutoConnectWall);
     SetItemCheckStatus(40163, CIsoViewExt::EnableDistanceRuler);
 
     SetItemCheckStatus(32000, CIsoViewExt::AutoPropertyBrush[0]);
@@ -227,6 +228,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(40165, "Menu.MapTools.MapRenderer");
     translateMenuItem(40158, "Menu.Options.LuaScriptConsole");
     translateMenuItem(40159, "Menu.Options.ShowObjectViewCameo");
+    translateMenuItem(30110, "Menu.Options.DisableAutoConnectWall");
 
     translateMenuItem(40004, "Menu.Options.Settings");
     translateMenuItem(40024, "Menu.Options.ShowMinimap");

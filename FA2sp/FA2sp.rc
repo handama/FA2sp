@@ -130,6 +130,7 @@ BEGIN
     BUTTON      40123 // building outline
     BUTTON      40104 // disable auto shore
     BUTTON      40105 // disable auto LAT
+    BUTTON      30110 // disable auto connect wall
 	SEPARATOR
     BUTTON      40134 // global search
     BUTTON      30108 // terrain generator

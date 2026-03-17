@@ -206,6 +206,7 @@ bool ExtConfigs::EnableDarkMode;
 bool ExtConfigs::EnableDarkMode_Init;
 bool ExtConfigs::EnableDarkMode_DimMap;
 bool ExtConfigs::ShrinkTilesInTileSetBrowser;
+bool ExtConfigs::DisableAutoConnectWall;
 bool ExtConfigs::UTF8Support_InferEncoding = true;
 bool ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
 

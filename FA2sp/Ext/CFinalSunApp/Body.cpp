@@ -192,7 +192,8 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	this->ShowBuildingCells = ini.GetBool("UserInterface", "ShowBuildingCells");
 
 	ExtConfigs::TreeViewCameo_Display = ini.GetBool("UserInterface", "ShowTreeViewCameo");
-
+	ExtConfigs::DisableAutoConnectWall = ini.GetBool("UserInterface", "DisableAutoConnectWall");
+	
 	// recent files
 	this->RecentFilesExt.resize(ExtConfigs::RecentFileLimit);
 	for (size_t i = 0; i < this->RecentFilesExt.size(); ++i)

@@ -1051,37 +1051,42 @@ void CMapDataExt::PlaceWallAt(int dwPos, int overlay, int damageStage, bool firs
 	else
 		if (Map->GetOverlayAt(dwPos) != overlay)
 			return;
-	//                              8      2    4      1
-	//                              NW     SE   SW     NE
-	const int loopCheck[4][2] = { {0,-1},{0,1},{1,0},{-1,0} };
 
-	if (Map->IsCoordInMap(X + loopCheck[0][0], Y + loopCheck[0][1]))
+	if (!ExtConfigs::DisableAutoConnectWall)
 	{
-		int thisPos = Map->GetCoordIndex(X + loopCheck[0][0], Y + loopCheck[0][1]);
-		if (Map->GetOverlayAt(thisPos) == overlay)
-			overlayData += 8;
+		//                              8      2    4      1
+		//                              NW     SE   SW     NE
+		const int loopCheck[4][2] = { {0,-1},{0,1},{1,0},{-1,0} };
+
+		if (Map->IsCoordInMap(X + loopCheck[0][0], Y + loopCheck[0][1]))
+		{
+			int thisPos = Map->GetCoordIndex(X + loopCheck[0][0], Y + loopCheck[0][1]);
+			if (Map->GetOverlayAt(thisPos) == overlay)
+				overlayData += 8;
+		}
+		if (Map->IsCoordInMap(X + loopCheck[1][0], Y + loopCheck[1][1]))
+		{
+			int thisPos = Map->GetCoordIndex(X + loopCheck[1][0], Y + loopCheck[1][1]);
+			if (Map->GetOverlayAt(thisPos) == overlay)
+				overlayData += 2;
+		}
+		if (Map->IsCoordInMap(X + loopCheck[2][0], Y + loopCheck[2][1]))
+		{
+			int thisPos = Map->GetCoordIndex(X + loopCheck[2][0], Y + loopCheck[2][1]);
+			if (Map->GetOverlayAt(thisPos) == overlay)
+				overlayData += 4;
+		}
+		if (Map->IsCoordInMap(X + loopCheck[3][0], Y + loopCheck[3][1]))
+		{
+			int thisPos = Map->GetCoordIndex(X + loopCheck[3][0], Y + loopCheck[3][1]);
+			if (Map->GetOverlayAt(thisPos) == overlay)
+				overlayData += 1;
+		}
 	}
-	if (Map->IsCoordInMap(X + loopCheck[1][0], Y + loopCheck[1][1]))
-	{
-		int thisPos = Map->GetCoordIndex(X + loopCheck[1][0], Y + loopCheck[1][1]);
-		if (Map->GetOverlayAt(thisPos) == overlay)
-			overlayData += 2;
-	}
-	if (Map->IsCoordInMap(X + loopCheck[2][0], Y + loopCheck[2][1]))
-	{
-		int thisPos = Map->GetCoordIndex(X + loopCheck[2][0], Y + loopCheck[2][1]);
-		if (Map->GetOverlayAt(thisPos) == overlay)
-			overlayData += 4;
-	}
-	if (Map->IsCoordInMap(X + loopCheck[3][0], Y + loopCheck[3][1]))
-	{
-		int thisPos = Map->GetCoordIndex(X + loopCheck[3][0], Y + loopCheck[3][1]);
-		if (Map->GetOverlayAt(thisPos) == overlay)
-			overlayData += 1;
-	}
+
 	Map->SetOverlayDataAt(dwPos, overlayData);
 
-	if (firstRun)
+	if (firstRun && !ExtConfigs::DisableAutoConnectWall)
 	{
 		PlaceWallAt(Map->GetCoordIndex(X - 1, Y), overlay, -1, false);
 		PlaceWallAt(Map->GetCoordIndex(X + 1, Y), overlay, -1, false);

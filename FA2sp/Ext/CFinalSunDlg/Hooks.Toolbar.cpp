@@ -405,6 +405,7 @@ void CFinalSunDlgExt::InitToolbar()
             {30107, (void*)(&CFinalSunDlgExt::HasMinimap)},
             {40123, (void*)(&CFinalSunApp::Instance->ShowBuildingCells)},
             {40159, (void*)(&ExtConfigs::TreeViewCameo_Display)},
+            {30110, (void*)(&ExtConfigs::DisableAutoConnectWall)},
             {40104, (void*)(&CFinalSunApp::Instance->DisableAutoShore)},
             {40105, (void*)(&CFinalSunApp::Instance->DisableAutoLat)},
         };
@@ -426,7 +427,7 @@ void CFinalSunDlgExt::InitToolbar()
     RECT rc;
     ::GetClientRect(hReBar, &rc);
     int availableWidth = rc.right - rc.left;
-    const int EXTRA = 30;
+    const int EXTRA = 0;
 
     struct TbItem {
         HWND hTb;
@@ -442,7 +443,7 @@ void CFinalSunDlgExt::InitToolbar()
     if (!STDHelpers::IsTrue(GetConfigIni("UserInterface", "HideToolBarB")))
         tbB = { g_Toolbars.hTbB, 200 };
     if (!STDHelpers::IsTrue(GetConfigIni("UserInterface", "HideToolBarC")))
-        others.push_back({ g_Toolbars.hTbC, 532 });
+        others.push_back({ g_Toolbars.hTbC, 556 });
     if (!STDHelpers::IsTrue(GetConfigIni("UserInterface", "HideToolBarD")))
         others.push_back({ g_Toolbars.hTbD, 540});
 

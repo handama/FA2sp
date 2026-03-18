@@ -129,7 +129,7 @@ static void FindConnectedTiles(std::unordered_map<int, bool>& process, int start
 	{
 		int newX = pair[0] + startX;
 		int newY = pair[1] + startY;
-		if (!CMapDataExt::IsCoordInFullMap(newX, newY)) continue;
+		if (!CMapData::Instance->IsCoordInMap(newX, newY)) continue;
 		int pos = newX + newY * CMapData::Instance->MapWidthPlusHeight;
 		if (process.find(pos) == process.end())
 			continue;

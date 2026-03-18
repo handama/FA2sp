@@ -1025,7 +1025,6 @@ LandType CMapDataExt::GetAltLandType(int tileIndex, int TileSubIndex)
 	return TileData[tileIndex].TileBlockDatas[TileSubIndex].TerrainTypeAlt;
 }
 
-
 void CMapDataExt::PlaceWallAt(int dwPos, int overlay, int damageStage, bool firstRun)
 {
 	auto Map = CMapDataExt::GetExtension();
@@ -1584,10 +1583,10 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 			if (getE() > 1) return getIndex(15);
 			if (getN() > 0 && getS() > 0 && getNE() == 0 && getNW() == 0 && getSE() == 0 && getSW() == 0) return getIndex(17);
 			if (getE() > 0 && getW() > 0 && getNE() == 0 && getNW() == 0 && getSE() == 0 && getSW() == 0) return getIndex(16);
-			if (getSW() > 0 && getSE() > 0) return getIndex(8);
-			if (getNW() > 0 && getSW() > 0) return getIndex(9);
-			if (getNW() > 0 && getNE() > 0) return getIndex(10);
-			if (getNE() > 0 && getSE() > 0) return getIndex(11);
+			if (getSW() > 0 && getSE() > 0 && getN() <= 0) return getIndex(8);
+			if (getNW() > 0 && getSW() > 0 && getE() <= 0) return getIndex(9);
+			if (getNW() > 0 && getNE() > 0 && getS() <= 0) return getIndex(10);
+			if (getNE() > 0 && getSE() > 0 && getW() <= 0) return getIndex(11);
 
 			for (int i = 0; i < 8; ++i)
 			{

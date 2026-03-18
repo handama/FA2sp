@@ -16,6 +16,7 @@
 #include "../CLoading/Body.h"
 #include "../../Miscs/DialogStyle.h"
 #include "../../Helpers/STDHelpers.h"
+#include "../../Miscs/Hooks.INI.h"
 namespace fs = std::filesystem;
 
 #pragma warning(disable : 6262)
@@ -69,43 +70,15 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	ParseCommandLine(CFinalSunApp::Instance->m_lpCmdLine);
 
 	CFinalSunAppExt::ExePathExt = CFinalSunApp::ExePath();
-	std::string path;
-	path = CFinalSunAppExt::ExePathExt;
-	path += "\\FAData.ini";
-	CINI::FAData->ClearAndLoad(path.c_str());
 
-	if (auto pSection = CINI::FAData().GetSection("Include"))
-	{
-		for (auto& pair : pSection->GetEntities())
-		{
-			std::string includePath;
-			includePath = CFinalSunAppExt::ExePathExt;
-			includePath += "\\" + pair.second;
-			if (fs::exists(includePath))
-				CINI::FAData->ParseINI(includePath.c_str(), 0, 0);
-		}
-	}
-
-	path = CFinalSunAppExt::ExePathExt;
-	path += "\\FALanguage.ini";
-	CINI::FALanguage->ClearAndLoad(path.c_str());
-	if (auto pSection = CINI::FALanguage().GetSection("Include"))
-	{
-		for (auto& pair : pSection->GetEntities())
-		{
-			std::string includePath;
-			includePath = CFinalSunAppExt::ExePathExt;
-			includePath += "\\" + pair.second;
-			if (fs::exists(includePath))
-				CINI::FALanguage->ParseINI(includePath.c_str(), 0, 0);
-		}
-	}
-	// No need to validate falanguage I guess
+	((CINIExt*)&CINI::FAData())->LoadFASetting("FAData.ini");
+	((CINIExt*)&CINI::FALanguage())->LoadFASetting("FALanguage.ini");
 
 	FA2sp::ExtConfigsInitialize(); // ExtConfigs
 	VoxelDrawer::Initalize();
 
 	CINI ini;
+	std::string path;
 	path = CFinalSunAppExt::ExePathExt;
 	path += "\\FinalAlert.ini";
 

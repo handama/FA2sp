@@ -20,6 +20,8 @@ class NOVTABLE CINIExt : public CINI
 public:
     void LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
         bool bClear, bool bTrimSpace, bool bAllowInclude, std::queue<ppmfc::CString>* parentIncludeInis = nullptr);
+    void LoadFASetting(const FString& path);
+    static bool IsLoadingFAini;
 };
 
 struct CINIInfo

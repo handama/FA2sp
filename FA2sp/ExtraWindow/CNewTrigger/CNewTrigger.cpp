@@ -3189,10 +3189,13 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
         paramIdx[i] = atoi(paramType[i]);
 
     thisAction.Param7isWP = true;
-    for (auto& pair : fadata.GetSection("DontSaveAsWP")->GetEntities())
+    if (auto pSection = fadata.GetSection("DontSaveAsWP"))
     {
-        if (atoi(pair.second) == -paramIdx[0])
-            thisAction.Param7isWP = false;
+        for (auto& pair : pSection->GetEntities())
+        {
+            if (atoi(pair.second) == -paramIdx[0])
+                thisAction.Param7isWP = false;
+        }
     }
 
     int usageIdx = 0;

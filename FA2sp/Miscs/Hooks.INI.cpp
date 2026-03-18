@@ -1,6 +1,7 @@
 #include "Hooks.INI.h"
 #include "../Ext/CMapData/Body.h"
 #include "../Ext/CLoading/Body.h"
+#include "../Helpers/Helper.h"
 
 using std::map;
 using std::vector;
@@ -15,6 +16,7 @@ vector<char*> INIIncludes::RulesIncludeFiles;
 map<FString, unsigned int> INIIncludes::CurrentINIIdxHelper;
 std::unordered_map<CINI*, CINIInfo> CINIManager::propertyMap;
 bool INIIncludes::SkipBracketFix = false;
+bool CINIExt::IsLoadingFAini = false;
 
 void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
     bool bClear, bool bTrimSpace, bool bAllowInclude, std::queue<ppmfc::CString>* parentIncludeInis)
@@ -195,7 +197,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                     value.Trim();
                 }
 
-                if (ExtConfigs::AllowPlusEqual) {
+                if (ExtConfigs::AllowPlusEqual || IsLoadingFAini) {
                     if (key == "+") {
                         while (true)
                         {
@@ -276,10 +278,10 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
         }
     };
 
-    if (ExtConfigs::AllowIncludes && bAllowInclude)
+    if (ExtConfigs::AllowIncludes && bAllowInclude || IsLoadingFAini)
     {
         using INIPair = std::pair<ppmfc::CString, ppmfc::CString>;
-        const char* includeSection = ExtConfigs::IncludeType ? "$Include" : "#include";
+        const char* includeSection = IsLoadingFAini ? "Include" : (ExtConfigs::IncludeType ? "$Include" : "#include");
         auto pIncludeSection = GetSection(includeSection);
         if (pIncludeSection || parentIncludeInis) {
             if (this == &CINI::CurrentDocument) {
@@ -311,7 +313,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                             DWORD dwSize = 0;
                             auto pLoading = CLoadingExt::GetExtension();
                             CINIExt ini;
-                            if (auto pBuffer = static_cast<byte*>(pLoading->ReadWholeFile(includeFile, &dwSize))) {
+                            if (auto pBuffer = static_cast<byte*>(pLoading->ReadWholeFile(includeFile, &dwSize, IsLoadingFAini))) {
                                 ini.LoadINIExt(pBuffer, dwSize, nullptr, true, true, false);
                                 GameDeleteArray(pBuffer, dwSize);
                             }
@@ -365,7 +367,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
     if(bAllowInclude)
         loadAresInheritedIni(this);
     // phobos mode
-    if (ExtConfigs::AllowInherits && ExtConfigs::InheritType) {
+    if (ExtConfigs::AllowInherits && ExtConfigs::InheritType && !IsLoadingFAini) {
         for (auto& sectionA : Dict) {
             if (KeyExists(sectionA.first, "$Inherits"))  {
                 auto inherits = STDHelpers::SplitString(GetString(sectionA.first, "$Inherits"));
@@ -397,6 +399,17 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
         else {
             CMapDataExt::IsUTF8File = false;
         }
+    }
+}
+
+void CINIExt::LoadFASetting(const FString& path)
+{
+    DWORD size;
+    if (auto pBuffer = (byte*)CLoadingExt::GetExtension()->ReadWholeFile(path, &size, true))
+    {
+        TempValueHolder<bool> scaled(IsLoadingFAini, true);
+        LoadINIExt(pBuffer, size, nullptr, true, true, true);
+        GameDeleteArray(pBuffer, size);
     }
 }
 

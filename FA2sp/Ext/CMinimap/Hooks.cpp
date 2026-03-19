@@ -26,34 +26,8 @@ DEFINE_HOOK(4D1E34, CMinimap_Update_NOTOPMOST, 7)
 	CFinalSunDlgExt::HasMinimap = true;
 	CFinalSunDlgExt::GetExtension()->CheckToolBarButton(30107, true);
 	CFinalSunDlg::Instance->MyViewFrame.Minimap.SetWindowPos(ppmfc::CWnd::FromHandle(HWND_NOTOPMOST), 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+	::PostMessage(CFinalSunDlg::Instance->MyViewFrame.Minimap, WM_APP + 100, NULL, NULL);
 
-	int desiredWidth = CMapData::Instance->Size.Width * 2;  
-	int desiredHeight = CMapData::Instance->Size.Height; 
-
-	CRect clientRect;
-	CFinalSunDlg::Instance->MyViewFrame.Minimap.GetClientRect(&clientRect); 
-
-	CRect windowRect;
-	CFinalSunDlg::Instance->MyViewFrame.Minimap.GetWindowRect(&windowRect); 
-
-	int nonClientWidth = windowRect.Width() - clientRect.Width();
-	int nonClientHeight = windowRect.Height() - clientRect.Height();
-
-	int newWindowWidth = desiredWidth + nonClientWidth;
-	int newWindowHeight = desiredHeight + nonClientHeight;
-
-	CFinalSunDlg::Instance->MyViewFrame.Minimap.MoveWindow(
-		windowRect.left, 
-		windowRect.top,
-		newWindowWidth,
-		newWindowHeight,
-		TRUE 
-	);
-
-	CMinimapExt::ASPECT_RATIO = (double)desiredWidth / desiredHeight;
-	CMinimapExt::InitWidth = desiredWidth;
-	CMinimapExt::CurrentScale = 1.0;
-	
 	return 0;
 }
 

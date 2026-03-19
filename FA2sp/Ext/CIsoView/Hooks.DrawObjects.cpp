@@ -447,6 +447,11 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 		PalettesManager::NeedReloadLighting = false;
 	}
 
+	if (CMapDataExt::Init_OpenMinimap)
+	{
+		CFinalSunDlg::Instance->MyViewFrame.Minimap.Update();
+		CMapDataExt::Init_OpenMinimap = false;
+	}
 	if (INIIncludes::MapINIWarn)
 	{
 		if (!CINI::CurrentDocument->GetBool("FA2spVersionControl", "MapIncludeWarned"))

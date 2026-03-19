@@ -118,6 +118,7 @@ std::map<FString, FString> CMapDataExt::MapFrontsectionComments;
 bool CMapDataExt::IsNewMap;
 bool CMapDataExt::SkipUpdateMinimap = false;
 bool CMapDataExt::IsImportingMap = false;
+bool CMapDataExt::Init_OpenMinimap = false;
 const std::vector<FString> CMapDataExt::TechnoStates = 
 {
 	"Ambush",
@@ -4151,6 +4152,4 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		CLoadingExt::GetExtension()->LoadObjects("FA2DEFAULT_AIRCRAFT");
 		CLoadingExt::GetExtension()->LoadObjects("FA2DEFAULT_INFANTRY");
 	}
-
-	CFinalSunDlg::Instance->MyViewFrame.Minimap.Update();
 }

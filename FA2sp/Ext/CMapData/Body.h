@@ -695,4 +695,5 @@ public:
     static bool IsNewMap;
     static bool SkipUpdateMinimap;
     static bool IsImportingMap;
+    static bool Init_OpenMinimap;
 };

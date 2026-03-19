@@ -12,6 +12,36 @@ LRESULT CALLBACK CMinimapExt::MinimapWndProc(
     WPARAM wParam,
     LPARAM lParam)
 {
+    auto initSize = []()
+    {
+        int desiredWidth = CMapData::Instance->Size.Width * 2;
+        int desiredHeight = CMapData::Instance->Size.Height;
+
+        CRect clientRect;
+        CFinalSunDlg::Instance->MyViewFrame.Minimap.GetClientRect(&clientRect);
+
+        CRect windowRect;
+        CFinalSunDlg::Instance->MyViewFrame.Minimap.GetWindowRect(&windowRect);
+
+        int nonClientWidth = windowRect.Width() - clientRect.Width();
+        int nonClientHeight = windowRect.Height() - clientRect.Height();
+
+        int newWindowWidth = desiredWidth + nonClientWidth;
+        int newWindowHeight = desiredHeight + nonClientHeight;
+
+        CFinalSunDlg::Instance->MyViewFrame.Minimap.MoveWindow(
+            windowRect.left,
+            windowRect.top,
+            newWindowWidth,
+            newWindowHeight,
+            TRUE
+        );
+
+        CMinimapExt::ASPECT_RATIO = (double)desiredWidth / desiredHeight;
+        CMinimapExt::InitWidth = desiredWidth;
+        CMinimapExt::CurrentScale = 1.0;
+    };
+
     switch (uMsg)
     {
     case WM_SIZING:
@@ -119,7 +149,6 @@ LRESULT CALLBACK CMinimapExt::MinimapWndProc(
 
         return TRUE;
     }
-
     case WM_GETMINMAXINFO:
     {
         MINMAXINFO* pMMI = (MINMAXINFO*)lParam;
@@ -148,6 +177,17 @@ LRESULT CALLBACK CMinimapExt::MinimapWndProc(
         }
 
         break;
+    }
+    case WM_APP + 100:
+    {
+        initSize();
+        ::PostMessage(CFinalSunDlg::Instance->MyViewFrame.Minimap, WM_APP + 101, NULL, NULL);
+        return TRUE;
+    }
+    case WM_APP + 101:
+    {
+        initSize();
+        return TRUE;
     }
 
     default:

@@ -143,6 +143,7 @@ bool ExtConfigs::PlaceStructurePlaceUpgrade;
 bool ExtConfigs::PlaceTileSkipHide;
 bool ExtConfigs::InitializeMap;
 bool ExtConfigs::ReloadGameFromMapFolder;
+bool ExtConfigs::LoadGameFromMapFolder_OnInit;
 bool ExtConfigs::ArtImageSwap;
 bool ExtConfigs::ExtraRaiseGroundTerrainSupport;
 bool ExtConfigs::ExtendedValidationAres;
@@ -443,6 +444,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::PlaceStructurePlaceUpgrade = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.PlaceUpgrade");
 	ExtConfigs::PlaceTileSkipHide = CINI::FAData->GetBool("ExtConfigs", "PlaceTileSkipHide");
 	ExtConfigs::ReloadGameFromMapFolder = CINI::FAData->GetBool("ExtConfigs", "ReloadGameFromMapFolder");
+	ExtConfigs::LoadGameFromMapFolder_OnInit = CINI::FAData->GetBool("ExtConfigs", "LoadGameFromMapFolder.OnInit");
 	//ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
 	ExtConfigs::ExtraRaiseGroundTerrainSupport = CINI::FAData->GetBool("ExtConfigs", "ExtraRaiseGroundTerrainSupport");
 	ExtConfigs::ExtendedValidationAres = CINI::FAData->GetBool("ExtConfigs", "ExtendedValidationAres");
@@ -929,6 +931,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "ReloadGameFromMapFolder",
 		.Value = &ExtConfigs::ReloadGameFromMapFolder,
 		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.LoadGameFromMapFolder.OnInit", "Load game resources from map folder when directly open map"),
+		.IniKey = "LoadGameFromMapFolder.OnInit",
+		.Value = &ExtConfigs::LoadGameFromMapFolder_OnInit,
+		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

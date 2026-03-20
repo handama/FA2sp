@@ -154,6 +154,7 @@ public:
     static bool PlaceTileSkipHide;
     static bool InitializeMap;
     static bool ReloadGameFromMapFolder;
+    static bool LoadGameFromMapFolder_OnInit;
     static bool ArtImageSwap;
     static bool ExtraRaiseGroundTerrainSupport;
     static bool ExtendedValidationAres;

@@ -68,7 +68,7 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	CFinalSunApp::MapPath[0] = '\0';
 	// Now let's parse the command line
 	ParseCommandLine(CFinalSunApp::Instance->m_lpCmdLine);
-
+	
 	CFinalSunAppExt::ExePathExt = CFinalSunApp::ExePath();
 
 	((CINIExt*)&CINI::FAData())->LoadFASetting("FAData.ini");
@@ -76,6 +76,17 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 
 	FA2sp::ExtConfigsInitialize(); // ExtConfigs
 	VoxelDrawer::Initalize();
+
+	std::string newGamePath;
+	if (ExtConfigs::LoadGameFromMapFolder_OnInit && strlen(CFinalSunApp::MapPath()))
+	{
+		newGamePath = CFinalSunApp::MapPath();
+		newGamePath = newGamePath.substr(0, newGamePath.find_last_of("\\") + 1);
+		if (!fs::exists(newGamePath + "ra2.mix"))
+		{
+			newGamePath.clear();
+		}
+	}
 
 	CINI ini;
 	std::string path;
@@ -87,6 +98,8 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	ini.ClearAndLoad(path.c_str());
 	std::string installpath = std::string(ini.GetString("TS", "Exe"));
 	installpath = installpath.substr(0, installpath.find_last_of("\\") + 1);
+	if (!newGamePath.empty())
+		installpath = newGamePath;
 
 	if (!ExtConfigs::DisableDirectoryCheck)
 	{
@@ -128,7 +141,7 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 		}
 	}
 
-	this->InstallPath = ini.GetString("TS", "Exe");
+	this->InstallPath = newGamePath.empty() ? ini.GetString("TS", "Exe").m_pchData : newGamePath;
 	this->FileSearchLikeTS = ini.GetBool("FinalSun", "FileSearchLikeTS");
 	if (ini.KeyExists("FinalSun", "LanguageSP"))
 	{

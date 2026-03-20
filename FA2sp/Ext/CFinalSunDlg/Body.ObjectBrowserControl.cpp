@@ -510,7 +510,6 @@ void CViewObjectsExt::Redraw_Initialize()
     Owners.clear();
     this->GetTreeCtrl().DeleteAllItems();
 
-    auto& rules = CINI::Rules();
     auto& fadata = CINI::FAData();
     auto& doc = CINI::CurrentDocument();
 
@@ -598,6 +597,22 @@ void CViewObjectsExt::Redraw_Initialize()
         {
             IgnoreOverlaySet.insert(item.second);
         }
+
+    auto loadIgnore = [](const char* pTypeName, bool isOverlay = false)
+    {
+        auto&& section = Variables::RulesMap.GetSection(pTypeName);
+        for (auto& itr : section)
+            if (Variables::RulesMap.GetBool(itr.second, isOverlay ?  "FA2IgnoreOverlay" : "FA2Ignore", false))
+                isOverlay ? IgnoreOverlaySet.insert(itr.second) : IgnoreSet.insert(itr.second);
+    };
+
+    loadIgnore("BuildingTypes");
+    loadIgnore("InfantryTypes");
+    loadIgnore("VehicleTypes");
+    loadIgnore("AircraftTypes");
+    loadIgnore("TerrainTypes");
+    loadIgnore("SmudgeTypes");
+    loadIgnore("OverlayTypes", true);
 
     if (auto forcenames = fadata.GetSection("ForceName"))
         for (auto& item : forcenames->GetEntities())
@@ -819,7 +834,7 @@ void CViewObjectsExt::Redraw_Owner()
     HTREEITEM& hOwner = ExtNodes[Root_Owner];
     if (hOwner == NULL)    return;
 
-    auto& countries = CINI::Rules->GetSection("Countries")->GetEntities();
+    auto&& countries = Variables::Rules.GetSection("Countries");
     FString translated;
 
     if (ExtConfigs::ObjectBrowser_SafeHouses)
@@ -3422,24 +3437,34 @@ std::vector<int> CViewObjectsExt::GuessSide(const char* pRegName, int nType)
     return result;
 }
 
+int CViewObjectsExt::GetFinalAlert2Side(const char* pRegName)
+{
+    int fa2Side = Variables::RulesMap.GetInteger(pRegName, "FA2ForceSide", -2);
+    if (fa2Side >= 0)
+    {
+        return fa2Side;
+    }
+    return fa2Side;
+}
+
 int CViewObjectsExt::GuessBuildingSide(const char* pRegName)
 {
-    auto& rules = CINI::Rules();
-
-    int planning;
-    planning = rules.GetInteger(pRegName, "AIBasePlanningSide", -1);
-    if (planning >= rules.GetKeyCount("Sides"))
+    int fa2Side = GetFinalAlert2Side(pRegName);
+    if (fa2Side >= -1)
+        return fa2Side;
+    int planning = Variables::RulesMap.GetInteger(pRegName, "AIBasePlanningSide", -1);
+    if (planning >= Variables::RulesMap.GetSection("Sides").size())
         return -1;
     if (planning >= 0)
         return planning > ExtConfigs::ObjectBrowser_GuessMax ? -1 : planning;
-    auto&& cons = STDHelpers::SplitString(rules.GetString("AI", "BuildConst"));
+    auto&& cons = STDHelpers::SplitString(Variables::RulesMap.GetString("AI", "BuildConst"));
     int i;
     for (i = 0; i < cons.size(); ++i)
     {
         if (cons[i] == pRegName)
             return i > ExtConfigs::ObjectBrowser_GuessMax ? -1 : i;
     }
-    if (i >= rules.GetKeyCount("Sides"))
+    if (i >= Variables::RulesMap.GetSection("Sides").size())
         return -1;
     return GuessGenericSide(pRegName, Set_Building);
 }
@@ -3450,6 +3475,10 @@ int CViewObjectsExt::GuessGenericSide(const char* pRegName, int nType)
 
     if (set.find(pRegName) == set.end())
         return -1;
+
+    int fa2Side = GetFinalAlert2Side(pRegName);
+    if (fa2Side >= -1)
+        return fa2Side;
 
     switch (ExtConfigs::ObjectBrowser_GuessMode)
     {

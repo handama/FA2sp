@@ -485,4 +485,5 @@ public:
     /// </param>
     /// <returns>The index of side guessed. -1 if cannot be guessed.</returns>
     static int GuessGenericSide(const char* pRegName, int nType);
+    static int GetFinalAlert2Side(const char* pRegName);
 };

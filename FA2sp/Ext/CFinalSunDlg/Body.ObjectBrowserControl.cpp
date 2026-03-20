@@ -513,19 +513,6 @@ void CViewObjectsExt::Redraw_Initialize()
     auto& fadata = CINI::FAData();
     auto& doc = CINI::CurrentDocument();
 
-    auto loadSet = [](const char* pTypeName, int nType)
-    {
-        ExtSets[nType].clear();
-        auto&& section = Variables::RulesMap.GetSection(pTypeName);
-        for (auto& itr : section)
-            ExtSets[nType].insert(itr.second);
-    };
-
-    loadSet("BuildingTypes", Set_Building);
-    loadSet("InfantryTypes", Set_Infantry);
-    loadSet("VehicleTypes", Set_Vehicle);
-    loadSet("AircraftTypes", Set_Aircraft);
-
     if (ExtConfigs::ObjectBrowser_GuessMode == 1)
     {
         auto loadOwner = []()
@@ -538,65 +525,76 @@ void CViewObjectsExt::Redraw_Initialize()
         loadOwner();
     }
 
+    auto loadForceSides = [&fadata](const char* pTypeName, const char* pSpliter)
+    {
+        auto forceSides = STDHelpers::SplitString(pSpliter);
+
+        for (int i = 0; i < 9; ++i) {
+            if (i < forceSides.size())
+            {
+                if (STDHelpers::IsNumber(forceSides[i]) || forceSides[i].Find("#") == -1)
+                {
+                    int sideIndex = STDHelpers::ParseToInt(forceSides[i]);
+                    if (sideIndex >= fadata.GetKeyCount(ExtraWindow::GetTranslatedSectionName("Sides")))
+                        sideIndex = -1;
+                    if (sideIndex < -1)
+                        sideIndex = -1;
+                    KnownItem[pTypeName][i] = sideIndex;
+                }
+                else
+                {
+                    KnownItem[pTypeName][i] = -1;
+                    auto layers = STDHelpers::SplitString(forceSides[i], "#");
+                    for (int j = 0; j < 9; ++j) {
+                        if (j < layers.size())
+                        {
+                            int sideIndex = STDHelpers::ParseToInt(layers[j]);
+                            if (sideIndex >= fadata.GetKeyCount(ExtraWindow::GetTranslatedSectionName("Sides")))
+                                sideIndex = -1;
+                            if (sideIndex < -1)
+                                sideIndex = -1;
+                            MultiLayerItem[pTypeName][i].push_back(sideIndex);
+                        }
+                        else
+                        {
+                            MultiLayerItem[pTypeName][i].push_back(-1);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                KnownItem[pTypeName][i] = -1;
+            }
+        }
+    };
+
+    auto loadSet = [loadForceSides](const char* pTypeName, int nType)
+    {
+        ExtSets[nType].clear();
+        auto&& section = Variables::RulesMap.GetSection(pTypeName);
+        for (auto& itr : section)
+        {
+            if (auto pValue = Variables::RulesMap.TryGetString(itr.second, "FA2ForceSide"))
+            {
+                loadForceSides(itr.second, *pValue);
+            }
+            ExtSets[nType].insert(itr.second);
+        }
+    };
+
+    loadSet("BuildingTypes", Set_Building);
+    loadSet("InfantryTypes", Set_Infantry);
+    loadSet("VehicleTypes", Set_Vehicle);
+    loadSet("AircraftTypes", Set_Aircraft);
+
     if (auto knownSection = fadata.GetSection("ForceSides"))
     {
         for (auto& item : knownSection->GetEntities())
         {
-            
-            auto forceSides = STDHelpers::SplitString(item.second);
-
-            for (int i = 0; i < 9; ++i) {
-                if (i < forceSides.size())
-                {
-                    if (STDHelpers::IsNumber(forceSides[i]) || forceSides[i].Find("#") == -1)
-                    {
-                        int sideIndex = STDHelpers::ParseToInt(forceSides[i]);
-                        if (sideIndex >= fadata.GetKeyCount(ExtraWindow::GetTranslatedSectionName("Sides")))
-                            sideIndex = -1;
-                        if (sideIndex < -1)
-                            sideIndex = -1;
-                        KnownItem[item.first][i] = sideIndex;
-                    }
-                    else
-                    {
-                        KnownItem[item.first][i] = -1;
-                        auto layers = STDHelpers::SplitString(forceSides[i], "#");
-                        for (int j = 0; j < 9; ++j) {
-                            if (j < layers.size())
-                            {
-                                int sideIndex = STDHelpers::ParseToInt(layers[j]);
-                                if (sideIndex >= fadata.GetKeyCount(ExtraWindow::GetTranslatedSectionName("Sides")))
-                                    sideIndex = -1;
-                                if (sideIndex < -1)
-                                    sideIndex = -1;
-                                MultiLayerItem[item.first][i].push_back(sideIndex);
-                            }
-                            else
-                            {
-                                MultiLayerItem[item.first][i].push_back(-1);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    KnownItem[item.first][i] = -1;
-                }
-            }          
+            loadForceSides(item.first, item.second);
         }
     }
-
-    if (auto ignores = fadata.GetSection("IgnoreRA2"))
-        for (auto& item : ignores->GetEntities())
-        {
-            IgnoreSet.insert(item.second);
-        }
-
-    if (auto ignores = fadata.GetSection("IgnoreOverlays"))
-        for (auto& item : ignores->GetEntities())
-        {
-            IgnoreOverlaySet.insert(item.second);
-        }
 
     auto loadIgnore = [](const char* pTypeName, bool isOverlay = false)
     {
@@ -613,6 +611,18 @@ void CViewObjectsExt::Redraw_Initialize()
     loadIgnore("TerrainTypes");
     loadIgnore("SmudgeTypes");
     loadIgnore("OverlayTypes", true);
+
+    if (auto ignores = fadata.GetSection("IgnoreRA2"))
+        for (auto& item : ignores->GetEntities())
+        {
+            IgnoreSet.insert(item.second);
+        }
+
+    if (auto ignores = fadata.GetSection("IgnoreOverlays"))
+        for (auto& item : ignores->GetEntities())
+        {
+            IgnoreOverlaySet.insert(item.second);
+        }
 
     if (auto forcenames = fadata.GetSection("ForceName"))
         for (auto& item : forcenames->GetEntities())
@@ -3437,21 +3447,8 @@ std::vector<int> CViewObjectsExt::GuessSide(const char* pRegName, int nType)
     return result;
 }
 
-int CViewObjectsExt::GetFinalAlert2Side(const char* pRegName)
-{
-    int fa2Side = Variables::RulesMap.GetInteger(pRegName, "FA2ForceSide", -2);
-    if (fa2Side >= 0)
-    {
-        return fa2Side;
-    }
-    return fa2Side;
-}
-
 int CViewObjectsExt::GuessBuildingSide(const char* pRegName)
 {
-    int fa2Side = GetFinalAlert2Side(pRegName);
-    if (fa2Side >= -1)
-        return fa2Side;
     int planning = Variables::RulesMap.GetInteger(pRegName, "AIBasePlanningSide", -1);
     if (planning >= Variables::RulesMap.GetSection("Sides").size())
         return -1;
@@ -3475,10 +3472,6 @@ int CViewObjectsExt::GuessGenericSide(const char* pRegName, int nType)
 
     if (set.find(pRegName) == set.end())
         return -1;
-
-    int fa2Side = GetFinalAlert2Side(pRegName);
-    if (fa2Side >= -1)
-        return fa2Side;
 
     switch (ExtConfigs::ObjectBrowser_GuessMode)
     {

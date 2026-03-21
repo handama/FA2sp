@@ -2424,15 +2424,15 @@ void CViewObjectsExt::ModifyOre(int X, int Y)
             int moneyDelta = 0;
             int olyPos = y + x * 512;
             int pos = pExt->GetCoordIndex(x, y);
+
+            pExt->DeleteTiberium(std::min(ovr, (word)0xFF), pExt->OverlayData[olyPos]);
             if (data >= 0)
             {
-                moneyDelta = pExt->GetOreValue(ovr, data) - pExt->GetOreValue(ovr, ovrd);
                 pExt->OverlayData[olyPos] = data;
                 pExt->CellDatas[pos].OverlayData = data;
             }
             else
             {
-                moneyDelta = -pExt->GetOreValue(ovr, ovrd);
                 pExt->Overlay[olyPos] = 0xFF;
                 pExt->NewOverlay[olyPos] = 0xFFFF;
                 pExt->OverlayData[olyPos] = 0;
@@ -2440,8 +2440,7 @@ void CViewObjectsExt::ModifyOre(int X, int Y)
                 pExt->CellDataExts[pos].NewOverlay = 0xFFFF;
                 pExt->CellDatas[pos].OverlayData = 0;
             }
-
-            pExt->MoneyCount += moneyDelta;
+            pExt->AddTiberium(std::min(ovr, (word)0xFF), data);
         };
     if (CMapDataExt::IsOre(ovr))
     {

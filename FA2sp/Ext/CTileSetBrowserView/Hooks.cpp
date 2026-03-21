@@ -1174,10 +1174,6 @@ DEFINE_HOOK(4F12C0, CTileSetBrowserView_Update_LoadOverlay, 5)
             if (!forceDisplay && CViewObjectsExt::IgnoreOverlaySet.find(id) != CViewObjectsExt::IgnoreOverlaySet.end())
                 continue;
 
-            //if ((i >= 39 && i <= 60) || (i >= 180 && i <= 201) || i == 239 || i == 178 || i == 167 || i == 126
-            //    || (i >= 122 && i <= 125))
-            //    bListIt = false;
-
             FString text;
             FString display;
             FString name = Variables::RulesMap.GetString(id, "Name");

@@ -587,8 +587,10 @@ public:
     std::string convertToExtendedOverlayPack(const std::string& input);
     std::string convertFromExtendedOverlayPack(const std::string& input);
 
-    void SetNewOverlayAt(int x, int y, WORD ovr);
-    void SetNewOverlayAt(int pos, WORD ovr);
+    void SetNewOverlayAt(int x, int y, WORD ovr, bool smoothOre = true);
+    void SetNewOverlayAt(int pos, WORD ovr, bool smoothOre = true);
+    void SetNewOverlayDataAt(int x, int y, byte ovrd, bool smoothOre = true);
+    void SetNewOverlayDataAt(int pos, byte ovrd, bool smoothOre = true);
     WORD GetOverlayAt(int x, int y);
     WORD GetOverlayAt(int pos);
     static OverlayTypeData GetOverlayTypeData(WORD index);

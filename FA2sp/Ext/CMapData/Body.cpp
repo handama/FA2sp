@@ -1983,50 +1983,72 @@ void CMapDataExt::UpdateAnnotation()
 	}
 }
 
-void CMapDataExt::SetNewOverlayAt(int x, int y, WORD ovr)
+void CMapDataExt::SetNewOverlayAt(int x, int y, WORD ovr, bool smoothOre)
 {
 	if (ovr >= 0xFF && !ExtConfigs::ExtOverlays && NewINIFormat < 5)
 		ovr = 0xFFFF;
 
-	auto pExt = GetExtension();
-	int dwPos = pExt->GetCoordIndex(x, y);
+	int dwPos = GetCoordIndex(x, y);
 	int olyPos = y + x * 512;
 
-	if (olyPos > 262144 || dwPos > pExt->CellDataCount) return;
+	if (olyPos > 262144 || dwPos > CellDataCount) return;
 
-	auto& ovrl = pExt->CellDataExts[dwPos].NewOverlay;
-	auto& ovrld = pExt->CellDatas[dwPos].OverlayData;
+	auto& ovrl = CellDataExts[dwPos].NewOverlay;
+	auto& ovrld = CellDatas[dwPos].OverlayData;
 
-	pExt->DeleteTiberium(std::min(ovrl, (word)0xFF), ovrld);
+	DeleteTiberium(std::min(ovrl, (word)0xFF), ovrld);
 
-	pExt->NewOverlay[olyPos] = ovr;
-	pExt->Overlay[olyPos] = std::min(ovr, (WORD)0xff);
-	pExt->CellDataExts[dwPos].NewOverlay = ovr;
-	pExt->CellDatas[dwPos].Overlay = std::min(ovr, (WORD)0xff);
+	NewOverlay[olyPos] = ovr;
+	Overlay[olyPos] = std::min(ovr, (WORD)0xff);
+	CellDataExts[dwPos].NewOverlay = ovr;
+	CellDatas[dwPos].Overlay = std::min(ovr, (WORD)0xff);
 
-	pExt->OverlayData[olyPos] = 0;
-	pExt->CellDatas[dwPos].OverlayData = 0;
+	OverlayData[olyPos] = 0;
+	CellDatas[dwPos].OverlayData = 0;
 
-	auto& ovrl2 = pExt->CellDataExts[dwPos].NewOverlay;
-	auto& ovrld2 = pExt->CellDatas[dwPos].OverlayData;
-	pExt->AddTiberium(std::min(ovrl2, (word)0xFF), ovrld2);
+	auto& ovrl2 = CellDataExts[dwPos].NewOverlay;
+	auto& ovrld2 = CellDatas[dwPos].OverlayData;
+	AddTiberium(std::min(ovrl2, (word)0xFF), ovrld2);
 
-	int i, e;
-	for (i = -1; i < 2; i++)
-		for (e = -1; e < 2; e++)
-			if (pExt->IsCoordInMap(x + i, y + e))
-				pExt->SmoothTiberium(pExt->GetCoordIndex(x + i, y + e));
+	if (smoothOre)
+	{
+		int i, e;
+		for (i = -1; i < 2; i++)
+			for (e = -1; e < 2; e++)
+				if (IsCoordInMap(x + i, y + e))
+					SmoothTiberium(GetCoordIndex(x + i, y + e));
+	}
 
 	if (!CMapDataExt::SkipUpdateMinimap)
-		pExt->UpdateMapPreviewAt(x, y);
+		UpdateMapPreviewAt(x, y);
 }
 
-void CMapDataExt::SetNewOverlayAt(int pos, WORD ovr)
+void CMapDataExt::SetNewOverlayAt(int pos, WORD ovr, bool smoothOre)
 {
-	auto pExt = GetExtension();
-	int x = pExt->GetXFromCoordIndex(pos);
-	int y = pExt->GetYFromCoordIndex(pos);
-	SetNewOverlayAt(x, y, ovr);
+	int x = GetXFromCoordIndex(pos);
+	int y = GetYFromCoordIndex(pos);
+	SetNewOverlayAt(x, y, ovr, smoothOre);
+}
+
+void CMapDataExt::SetNewOverlayDataAt(int x, int y, byte ovrd, bool smoothOre)
+{
+	int pos = GetCoordIndex(x, y);
+	if (y + x * 512 > 262144 || pos >= CellDataCount) return;
+
+	auto ovrl = GetOverlayAt(pos);
+	auto ovrld = GetOverlayDataAt(pos);
+
+	if (smoothOre && IsOre(ovrl)) return;
+
+	OverlayData[y + x * 512] = ovrd;
+	CellDatas[pos].OverlayData = ovrd;
+}
+
+void CMapDataExt::SetNewOverlayDataAt(int pos, byte ovrd, bool smoothOre)
+{
+	int x = GetXFromCoordIndex(pos);
+	int y = GetYFromCoordIndex(pos);
+	SetNewOverlayDataAt(x, y, ovrd, smoothOre);
 }
 
 WORD CMapDataExt::GetOverlayAt(int x, int y)

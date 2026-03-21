@@ -938,6 +938,33 @@ DEFINE_HOOK(46CB19, CIsoView_DrawMouseAttachedStuff_VeinholeMonster_SetHeight, 5
 	return 0x46CC86;
 }
 
+DEFINE_HOOK(46CBDC, CIsoView_DrawMouseAttachedStuff_Overlay_TerrainBrowser, 5)
+{
+	GET(int, param, EAX);
+	GET(int, dwPos, ESI);
+	if (param == 33)
+	{
+		auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+		auto pMapData = CMapDataExt::GetExtension();
+		int X = pMapData->GetXFromCoordIndex(dwPos);
+		int Y = pMapData->GetYFromCoordIndex(dwPos);
+		int i, e;
+		for (i = 0; i < pIsoView->BrushSizeX; i++)
+		{
+			for (e = 0; e < pIsoView->BrushSizeY; e++)
+			{
+				if (!pMapData->IsCoordInMap(i + X, e + Y))
+					continue;
+
+				pMapData->SetNewOverlayAt(i + X, e + Y, CIsoView::CurrentCommand->Overlay, false);
+				pMapData->SetNewOverlayDataAt(i + X, e + Y, CIsoView::CurrentCommand->OverlayData, false);
+			}
+		}
+		return 0x46CC86;
+	}
+	return 0x46CC57;
+}
+
 DEFINE_HOOK(461A01, CIsoView_OnLButtonDown_PlaceTile, 6)
 {
 	GET_BASE(UINT, nFlags, 0x8);

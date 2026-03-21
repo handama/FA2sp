@@ -2038,7 +2038,18 @@ void CMapDataExt::SetNewOverlayDataAt(int x, int y, byte ovrd, bool smoothOre)
 	auto ovrl = GetOverlayAt(pos);
 	auto ovrld = GetOverlayDataAt(pos);
 
-	if (smoothOre && IsOre(ovrl)) return;
+	if (IsOre(ovrl))
+	{
+		if (smoothOre)
+		{
+			return;
+		}
+		else
+		{
+			DeleteTiberium(std::min(ovrl, (word)0xFF), ovrld);
+			AddTiberium(std::min(ovrl, (word)0xFF), ovrd);
+		}
+	}
 
 	OverlayData[y + x * 512] = ovrd;
 	CellDatas[pos].OverlayData = ovrd;

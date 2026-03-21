@@ -141,6 +141,7 @@ bool ExtConfigs::PlaceStructureUpgrades;
 bool ExtConfigs::PlaceStructureUpgradeStrength;
 bool ExtConfigs::PlaceStructurePlaceUpgrade;
 bool ExtConfigs::PlaceTileSkipHide;
+bool ExtConfigs::EnableVeinholeLogic;
 bool ExtConfigs::InitializeMap;
 bool ExtConfigs::ReloadGameFromMapFolder;
 bool ExtConfigs::LoadGameFromMapFolder_OnInit;
@@ -443,6 +444,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::PlaceStructureUpgradeStrength = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.UpgradeStrength");
 	ExtConfigs::PlaceStructurePlaceUpgrade = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.PlaceUpgrade");
 	ExtConfigs::PlaceTileSkipHide = CINI::FAData->GetBool("ExtConfigs", "PlaceTileSkipHide");
+	ExtConfigs::EnableVeinholeLogic = CINI::FAData->GetBool("ExtConfigs", "EnableVeinholeLogic");
 	ExtConfigs::ReloadGameFromMapFolder = CINI::FAData->GetBool("ExtConfigs", "ReloadGameFromMapFolder");
 	ExtConfigs::LoadGameFromMapFolder_OnInit = CINI::FAData->GetBool("ExtConfigs", "LoadGameFromMapFolder.OnInit");
 	//ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
@@ -662,14 +664,14 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.SafeHouses", "Block invalid houses"),
 		.IniKey = "ObjectBrowser.SafeHouses",
 		.Value = &ExtConfigs::ObjectBrowser_SafeHouses,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.Foundation", "Group buildings by foundation"),
 		.IniKey = "ObjectBrowser.Foundation",
 		.Value = &ExtConfigs::ObjectBrowser_Foundation,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -683,7 +685,7 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.Ore.ExtraSupport", "Support vinifera and aboreus ores"),
 		.IniKey = "ObjectBrowser.Ore.ExtraSupport",
 		.Value = &ExtConfigs::ObjectBrowser_Ore_ExtraSupport,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser
 		});
 
 	// Map Display and Rendering
@@ -969,6 +971,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.EnableVeinholeLogic", "Enable veinhole logic"),
+		.IniKey = "EnableVeinholeLogic",
+		.Value = &ExtConfigs::EnableVeinholeLogic,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.INIEditor.IgnoreTeams", "Ignore team sections in INI editor"),
 		.IniKey = "INIEditor.IgnoreTeams",
 		.Value = &ExtConfigs::INIEditor_IgnoreTeams,
@@ -1155,7 +1164,7 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.PlayerAtXForTechnos", "Show <Player @ X> options in unit property dialog (Phobos B37+)"),
 		.IniKey = "PlayerAtXForTechnos",
 		.Value = &ExtConfigs::PlayerAtXForTechnos,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

@@ -17,6 +17,7 @@
 #include "../../Miscs/DialogStyle.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Miscs/Hooks.INI.h"
+#include "../CFinalSunDlg/Body.h"
 namespace fs = std::filesystem;
 
 #pragma warning(disable : 6262)
@@ -210,6 +211,8 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	// Others
 	CLoading loading(nullptr);
 	this->Loading = &loading;
+
+	CViewObjectsExt::Redraw_Initialize();
 	
 	bool is_watcher_running = true;
 	std::thread watcher([&is_watcher_running]()

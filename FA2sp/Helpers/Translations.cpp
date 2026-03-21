@@ -418,25 +418,6 @@ DEFINE_HOOK(4F0E1A, CTerrainDlg_Update_SetTileName, 8)
     return 0;
 }
 
-DEFINE_HOOK(4F1620, CTerrainDlg_Update_SetOverlayName, 8)
-{
-    GET(int, index, ESI);
-    auto lang = FinalAlertConfig::Language + "-";
-    auto theater = TheaterHelpers::GetCurrentSuffix();
-    theater.MakeUpper();
-    theater = "RenameID" + theater;
-    const auto ovrID = Variables::RulesMap.GetValueAt("OverlayTypes", index);
-    auto name = CINI::FALanguage().TryGetString(lang +  theater, ovrID);
-    if (!name) {
-        name = CINI::FALanguage().TryGetString(lang + "RenameID", ovrID);
-    }
-    
-    if (name) {
-        R->EAX(name);
-    }
-    return 0;
-}
-
 DEFINE_HOOK(412EF7, CBasic_UpdateStrings_End, 7)
 {
     Translations::TranslateDialog(CFinalSunDlg::Instance->Basic.GetSafeHwnd());

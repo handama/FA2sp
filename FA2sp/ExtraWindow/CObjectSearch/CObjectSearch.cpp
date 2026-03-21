@@ -1465,7 +1465,7 @@ void CObjectSearch::SearchObjects(HWND hWnd, const char* source)
 
                         FString name;
 
-                        name = StringtableLoader::QueryUIName(pID);
+                        name = CViewObjectsExt::QueryUIName(pID, true);
                         if (name == "MISSING")
                             name = Variables::RulesMap.GetString(pID, "Name", pID);
                         if (name != pID) {
@@ -1701,7 +1701,7 @@ void CObjectSearch::UpdateTypes(HWND hWnd)
     {
         int nOverlay = SendMessage(hOverlayComboBox, CB_GETITEMDATA, idx, NULL);
         auto value = Variables::RulesMap.GetValueAt("OverlayTypes", nOverlay);
-        auto name = StringtableLoader::QueryUIName(value, true);
+        auto name = CViewObjectsExt::QueryUIName(value, true);
         name = Translations::TranslateOrDefault(name, name);
 
         auto lang = FinalAlertConfig::Language + "-";

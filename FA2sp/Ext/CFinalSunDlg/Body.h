@@ -229,11 +229,11 @@ public:
     static int RedrawCalledCount;
     static bool IsOpeningAnnotationDlg;
     static int InsertingOverlayData;
+    static std::unordered_set<FString> IgnoreSet;
+    static std::unordered_set<FString> IgnoreOverlaySet;
 
 private:
     static std::array<HTREEITEM, Root_Count> ExtNodes;
-    static std::unordered_set<FString> IgnoreSet;
-    static std::unordered_set<FString> IgnoreOverlaySet;
     static std::unordered_set<FString> ForceName;
     static std::unordered_map<FString, FString> RenameString;
     static std::unordered_set<FString> ExtSets[Set_Count];
@@ -260,7 +260,6 @@ private:
         std::map<int, FString>& subNodeNames,
         std::map<std::array<int, 10>, HTREEITEM>& multiSubNodes,
         int index, int sideLimit, const FString& display);
-    void Redraw_Initialize();
     void Redraw_MainList();
     void Redraw_Ground();
     void Redraw_Owner();
@@ -407,6 +406,7 @@ public:
 
     void Redraw();
     bool UpdateEngine(int nData);
+    static void Redraw_Initialize();
     static void OnExeTerminate();
     static void InitializeOnUpdateEngine();
     static void ApplyDragFacing(int X, int Y);

@@ -152,6 +152,7 @@ public:
     static bool PlaceStructureUpgradeStrength;
     static bool PlaceStructurePlaceUpgrade;
     static bool PlaceTileSkipHide;
+    static bool EnableVeinholeLogic;
     static bool InitializeMap;
     static bool ReloadGameFromMapFolder;
     static bool LoadGameFromMapFolder_OnInit;
@@ -234,6 +235,7 @@ public:
         ReloadMap = 2,
         SaveMap_Timer = 3,
         BindFormat = 4,
+        ReloadObjectBrowser = 5,
     };
 
     struct DynamicOptions

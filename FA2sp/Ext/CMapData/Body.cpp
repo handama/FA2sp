@@ -3362,6 +3362,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	if (updateMinimap && reloadCellDataExt && reloadImages)
 		CTileSetBrowserFrameExt::TerrainDlgLoaded = false;
 
+	CViewObjectsExt::Redraw_Initialize();
 	CLoadingExt::g_cache[0].clear();
 	CLoadingExt::g_cache[1].clear();
 	CLoadingExt::g_cacheTime[0].clear();

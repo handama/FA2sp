@@ -445,6 +445,25 @@ void CViewObjectsExt::Redraw()
         CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }
 
+    // must be here to load after tile view refresh
+    if (CTerrainGenerator::GetHandle())
+    {
+        ::SendMessage(CTerrainGenerator::GetHandle(), 114514, 0, 0);
+    }
+    if (CTileManager::GetHandle())
+    {
+        ::SendMessage(CTileManager::GetHandle(), 114514, 0, 0);
+    }
+    if (CObjectSearch::GetHandle())
+    {
+        ::SendMessage(CObjectSearch::GetHandle(), 114515, 0, 0);
+        ::SendMessage(CObjectSearch::GetHandle(), 114514, 0, 0);
+    }
+    AddedItemCount = 0;
+    for (auto root : ExtNodes)
+        root = NULL;
+    this->GetTreeCtrl().DeleteAllItems();
+
     Redraw_Initialize();
     Redraw_MainList();
     Redraw_Ground();
@@ -483,32 +502,13 @@ void CViewObjectsExt::Redraw()
 
 void CViewObjectsExt::Redraw_Initialize()
 {
-    // must be here to load after tile view refresh
-    if (CTerrainGenerator::GetHandle())
-    {
-        ::SendMessage(CTerrainGenerator::GetHandle(), 114514, 0, 0);
-    }
-    if (CTileManager::GetHandle())
-    {
-        ::SendMessage(CTileManager::GetHandle(), 114514, 0, 0);
-    }
-    if (CObjectSearch::GetHandle())
-    {
-        ::SendMessage(CObjectSearch::GetHandle(), 114515, 0, 0);
-        ::SendMessage(CObjectSearch::GetHandle(), 114514, 0, 0);
-    }
-    AddedItemCount = 0;
-
-    for (auto root : ExtNodes)
-        root = NULL;
     KnownItem.clear();
     MultiLayerItem.clear();
+    ForceName.clear();
     IgnoreSet.clear();
     IgnoreOverlaySet.clear();
-    ForceName.clear();
     RenameString.clear();
     Owners.clear();
-    this->GetTreeCtrl().DeleteAllItems();
 
     auto& fadata = CINI::FAData();
     auto& doc = CINI::CurrentDocument();
@@ -1920,6 +1920,19 @@ void CViewObjectsExt::Redraw_Overlay()
     // Walls
     HTREEITEM hWalls = this->InsertTranslatedString("WallsObList", -1, hOverlay);
 
+    // Veinhole monster
+    if (ExtConfigs::EnableVeinholeLogic)
+    {
+        hTemp = this->InsertTranslatedString("VeinholeObList", -1, hOverlay);
+        InsertingOverlay = 0xa7;
+        InsertingOverlayData = 0;
+        this->InsertTranslatedString("VeinholeObList", 60400, hTemp);
+        InsertingOverlay = 0x7e;
+        InsertingOverlayData = 0x30;
+        this->InsertTranslatedString("VeinsObList", 60401, hTemp);
+        InsertingOverlay = -1;
+    }
+
     std::vector<std::pair<HTREEITEM, std::vector<FString>>> nodes;
     if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.Overlays"))
     {
@@ -1959,14 +1972,19 @@ void CViewObjectsExt::Redraw_Overlay()
         overlays.size() : std::min((UINT)255, overlays.size()); i < sz; ++i)
     {
         const auto& value = overlays[i];
-        if (IgnoreOverlaySet.find(value) == IgnoreOverlaySet.end())
+        FString buffer;
+        FString name = Variables::RulesMap.GetString(value, "Name");
+        if (name.IsEmpty() || !Translations::GetTranslationItem(name, buffer))
         {
-            FString buffer;
-            buffer = QueryUIName(value);
-            if (buffer != value)
-                buffer += " (" + value + ")";
-            FString id;
-            id.Format("%03d %s", i, buffer);
+            buffer = QueryUIName(value, true);
+        }
+        if (buffer != value)
+            buffer += " (" + value + ")";
+        FString id;
+        id.Format("%03d %s", i, buffer);
+
+        if (!Variables::RulesMap.GetSection(value).empty() && IgnoreOverlaySet.find(value) == IgnoreOverlaySet.end())
+        {
 
             if (Variables::RulesMap.GetBool(value, "Wall"))
             {
@@ -2017,14 +2035,14 @@ void CViewObjectsExt::Redraw_Overlay()
                     }
                 }
             }
-
-            InsertingOverlay = i;
-            if (CMapDataExt::IsOre((byte)i))
-                InsertingOverlayData = 11;
-            else
-                InsertingOverlayData = 0;
-            this->InsertString(id, Const_Overlay + i, hTemp);
         }
+
+        InsertingOverlay = i;
+        if (CMapDataExt::IsOre((byte)i))
+            InsertingOverlayData = 11;
+        else
+            InsertingOverlayData = 0;
+        this->InsertString(id, Const_Overlay + i, hTemp);
         InsertingOverlay = -1;
     }
 

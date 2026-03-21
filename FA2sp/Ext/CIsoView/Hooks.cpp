@@ -888,6 +888,56 @@ DEFINE_HOOK(46C38B, CIsoView_DrawMouseAttachedStuff_Ore, 9)
 	return 0x46CA82;
 }
 
+DEFINE_HOOK(46CB19, CIsoView_DrawMouseAttachedStuff_VeinholeMonster_SetHeight, 5)
+{
+	GET(int, pos, ESI);
+
+	int x = CMapData::Instance->GetXFromCoordIndex(pos);
+	int y = CMapData::Instance->GetYFromCoordIndex(pos);
+
+	bool allMorphable = true;
+	int gx, gy;
+	for (gx = x - 1; gx <= x + 1; gx++)
+	{
+		for (gy = y - 1; gy <= y + 1; gy++)
+		{
+			if (!CMapData::Instance->IsCoordInMap(gx, gy))
+				continue;
+
+			auto cell = CMapData::Instance->GetCellAt(gx, gy);
+			auto tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+			allMorphable = CMapDataExt::TileData[tileIndex].Morphable;
+			if (!allMorphable)
+				break;
+		}
+	}
+	if (allMorphable)
+	{
+		int basicHeight = CMapDataExt::TryGetCellAt(x, y)->Height - 1;
+		for (gx = x - 1; gx <= x + 1; gx++)
+		{
+			for (gy = y - 1; gy <= y + 1; gy++)
+			{
+				CMapDataExt::GetExtension()->SetHeightAt(gx, gy, basicHeight);
+			}
+		}
+		for (gx = x - 2; gx <= x + 2; gx++)
+		{
+			for (gy = y - 2; gy <= y + 2; gy++)
+			{
+				CMapDataExt::CreateSlopeAt(gx, gy);
+			}
+		}
+	}
+	else
+	{
+		auto cell = CMapDataExt::TryGetCellAt(x, y);
+		CMapDataExt::GetExtension()->SetHeightAt(x, y, cell->Height - 1);
+	}
+
+	return 0x46CC86;
+}
+
 DEFINE_HOOK(461A01, CIsoView_OnLButtonDown_PlaceTile, 6)
 {
 	GET_BASE(UINT, nFlags, 0x8);
@@ -1703,7 +1753,7 @@ DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 			statusbar += " ";
 			FString plus;
 			plus.Format(Translations::TranslateOrDefault("StatusBarText3", "Structure: ID %d, %s (%s, %s) /"),
-				StrINIIndex, StringtableLoader::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
+				StrINIIndex, CViewObjectsExt::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
 			statusbar += plus;
 		}
 	}
@@ -1715,7 +1765,7 @@ DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 		statusbar += " ";
 		FString plus;
 		plus.Format(Translations::TranslateOrDefault("StatusBarText4", "Vehicle: ID %d, %s (%s, %s) /"),
-			cell->Unit, StringtableLoader::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
+			cell->Unit, CViewObjectsExt::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
 		statusbar += plus;
 	}
 
@@ -1726,7 +1776,7 @@ DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 		statusbar += " ";
 		FString plus;
 		plus.Format(Translations::TranslateOrDefault("StatusBarText5", "Aircraft: ID %d, %s (%s, %s) /"),
-			cell->Aircraft, StringtableLoader::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
+			cell->Aircraft, CViewObjectsExt::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
 		statusbar += plus;
 	}
 
@@ -1745,7 +1795,7 @@ DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 			statusbar += " ";
 			FString plus;
 			plus.Format(Translations::TranslateOrDefault("StatusBarText6", "Infantry: ID %d, %s (%s, %s) /"),
-				infantry, StringtableLoader::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
+				infantry, CViewObjectsExt::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
 			statusbar += plus;
 		}
 	}

@@ -2440,7 +2440,7 @@ void CViewObjectsExt::ModifyOre(int X, int Y)
                 pExt->CellDataExts[pos].NewOverlay = 0xFFFF;
                 pExt->CellDatas[pos].OverlayData = 0;
             }
-            pExt->AddTiberium(std::min(ovr, (word)0xFF), data);
+            pExt->AddTiberium(std::min(pExt->NewOverlay[olyPos], (word)0xFF), data);
         };
     if (CMapDataExt::IsOre(ovr))
     {

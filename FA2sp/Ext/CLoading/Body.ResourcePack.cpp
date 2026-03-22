@@ -88,7 +88,7 @@ bool ResourcePack::aesDecryptBlockwise(const uint8_t* input, size_t len, std::ve
     return true;
 }
 
-std::unique_ptr<uint8_t[]> ResourcePack::getFileData(const FString& filename, size_t* out_size)
+std::unique_ptr<uint8_t[]> ResourcePack::getFileData(const FString& filename, size_t* out_size, bool debugLog)
 {
     FString raw_name = filename;
     raw_name.MakeLower();
@@ -121,7 +121,8 @@ std::unique_ptr<uint8_t[]> ResourcePack::getFileData(const FString& filename, si
     if (out_size)
         *out_size = entry.original_size;
 #ifndef NDEBUG
-    Logger::Raw("Loaded from ResourcePack, file_path = [%s], data_offset = [%d]. ", file_path, data_offset);
+    if (debugLog)
+        Logger::Raw("Loaded from ResourcePack, file_path = [%s], data_offset = [%d]. ", file_path, data_offset);
 #endif
     return result;
 }
@@ -145,10 +146,20 @@ bool ResourcePackManager::loadPack(const FString& packPath)
 std::unique_ptr<uint8_t[]> ResourcePackManager::getFileData(const FString& filename, size_t* out_size) 
 {
     for (auto& pack : packs) {
-        auto data = pack->getFileData(filename, out_size);
+        auto data = pack->getFileData(filename, out_size, true);
         if (data) return data;
     }
     return nullptr;
+}
+
+bool ResourcePackManager::hasFile(const FString& filename) 
+{
+    size_t out_size = 0;
+    for (auto& pack : packs) {
+        auto data = pack->getFileData(filename, &out_size, false);
+        if (data) return true;
+    }
+    return false;
 }
 
 void ResourcePackManager::clear() 

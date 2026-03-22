@@ -7,6 +7,7 @@
 #include "../../FA2sp.h"
 #include <filesystem>
 #include "../CFinalSunApp/Body.h"
+#include "../../Helpers/STDHelpers.h"
 
 bool CLoadingExt::HasFile_ReadyToReadFromFolder = false;
 Palette CLoadingExt::TempISOPalette = { 0 };
@@ -45,6 +46,16 @@ bool CLoadingExt::InitMixFilesFix()
 			{
 				Logger::Raw("[MixLoader][Package] %s failed!\n", path);
 			}
+		}
+	}
+
+	// Init Ignored Mixes
+	std::set<FString> IgnoredMixes;
+	if (auto pSection = CINI::FAData->GetSection("IgnoredMixes"))
+	{
+		for (const auto& [_, mix] : pSection->GetEntities())
+		{
+			IgnoredMixes.insert(STDHelpers::ToUpperCase(mix.m_pchData));
 		}
 	}
 
@@ -121,8 +132,13 @@ bool CLoadingExt::InitMixFilesFix()
 
 		FString Dir = CFinalSunApp::Instance->FilePath();
 		Dir += "\\";
-		auto LoadMixFile = [this, Dir, &LoadNestedMix](const char* Mix, int Parent = 0, bool addToRA2 = false)
+		auto LoadMixFile = [this, Dir, &LoadNestedMix, IgnoredMixes](const char* Mix, int Parent = 0, bool addToRA2 = false)
 		{
+			if (IgnoredMixes.contains(STDHelpers::ToUpperCase(Mix)))
+			{
+				Logger::Raw("[MixLoader] %s ignored!\n", Mix);
+				return false;
+			}
 			if (Parent)
 			{
 				int result = CMixFile::Open(Mix, Parent);
@@ -182,17 +198,24 @@ bool CLoadingExt::InitMixFilesFix()
 			return value;
 		};
 
-		FString fa2extra = CFinalSunApp::Instance->ExePath();
-		fa2extra += "\\";
-		fa2extra += "fa2extra.mix";
-		if (auto id = CMixFile::Open(fa2extra, 0))
+		if (IgnoredMixes.contains("FA2EXTRA.MIX"))
 		{
-			Logger::Raw("[MixLoader] %04d - %s loaded.\n", id, fa2extra);
-			LoadNestedMix(LoadNestedMix, "fa2extra.mix", id);
+			Logger::Raw("[MixLoader] %s ignored!\n", "fa2extra.mix");
 		}
 		else
 		{
-			Logger::Raw("[MixLoader] %s failed!\n", fa2extra);
+			FString fa2extra = CFinalSunApp::Instance->ExePath();
+			fa2extra += "\\";
+			fa2extra += "fa2extra.mix";
+			if (auto id = CMixFile::Open(fa2extra, 0))
+			{
+				Logger::Raw("[MixLoader] %04d - %s loaded.\n", id, fa2extra);
+				LoadNestedMix(LoadNestedMix, "fa2extra.mix", id);
+			}
+			else
+			{
+				Logger::Raw("[MixLoader] %s failed!\n", fa2extra);
+			}
 		}
 
 		FString format = "EXPAND" + CINI::FAData->GetString("Filenames", "MixExtension", "MD") + "%02d.MIX";
@@ -244,29 +267,35 @@ bool CLoadingExt::InitMixFilesFix()
 		if (!LoadMixFile("ISOGEN.MIX", 0, true))		return false;
 		if (!LoadMixFile("CONQUER.MIX", 0, true))	return false;
 
-		//MARBLE should be ahead of normal theater mixes
-		FString FullPath = CFinalSunAppExt::ExePathExt;
-		FullPath += "\\MARBLE.MIX";
-		int result = CMixFile::Open(FullPath, 0);
-		if (result)
+		if (IgnoredMixes.contains("MARBLE.MIX"))
 		{
-			Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, FullPath);
-			CFinalSunApp::Instance->MarbleLoaded = TRUE;
-			LoadNestedMix(LoadNestedMix, "MARBLE.MIX", result);
+			Logger::Raw("[MixLoader] %s ignored!\n", "MARBLE.MIX");
 		}
-		else
+		else 
 		{
-			if (LoadMixFile("MARBLE.MIX"))
+			//MARBLE should be ahead of normal theater mixes
+			FString FullPath = CFinalSunAppExt::ExePathExt;
+			FullPath += "\\MARBLE.MIX";
+			int result = CMixFile::Open(FullPath, 0);
+			if (result)
+			{
+				Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, FullPath);
 				CFinalSunApp::Instance->MarbleLoaded = TRUE;
+				LoadNestedMix(LoadNestedMix, "MARBLE.MIX", result);
+			}
 			else
 			{
-				CFinalSunApp::Instance->MarbleLoaded = FALSE;
-				FString pMessage = Translations::TranslateOrDefault("MarbleMadnessNotLoaded",
-					"Failed to load marble.mix! Framework mode won't be able to use!");
-				::MessageBox(NULL, pMessage, Translations::TranslateOrDefault("Error", "Error"), MB_OK | MB_ICONEXCLAMATION);
+				if (LoadMixFile("MARBLE.MIX"))
+					CFinalSunApp::Instance->MarbleLoaded = TRUE;
+				else
+				{
+					CFinalSunApp::Instance->MarbleLoaded = FALSE;
+					FString pMessage = Translations::TranslateOrDefault("MarbleMadnessNotLoaded",
+						"Failed to load marble.mix! Framework mode won't be able to use!");
+					::MessageBox(NULL, pMessage, Translations::TranslateOrDefault("Error", "Error"), MB_OK | MB_ICONEXCLAMATION);
+				}
 			}
 		}
-
 
 		// Init_Theaters
 		LoadMixFile("TEMPERATMD.MIX", 0, true);
@@ -368,8 +397,13 @@ bool CLoadingExt::InitMixFilesFix()
 
 		FString Dir = CFinalSunApp::Instance->FilePath();
 		Dir += "\\";
-		auto LoadMixFile = [&manager, this, Dir, &LoadNestedMix](const char* Mix, int Parent = 0, bool addToRA2 = false)
+		auto LoadMixFile = [&manager, this, Dir, &LoadNestedMix, IgnoredMixes](const char* Mix, int Parent = 0, bool addToRA2 = false)
 		{
+			if (IgnoredMixes.contains(STDHelpers::ToUpperCase(Mix)))
+			{
+				Logger::Raw("[ExtMixLoader] %s ignored!\n", Mix);
+				return false;
+			}
 			FString FullPath = Dir + Mix;
 			int parent = -1;
 			auto id = manager.LoadMixFile(FullPath, &parent);
@@ -393,17 +427,24 @@ bool CLoadingExt::InitMixFilesFix()
 			return ExtConfigs::DisableDirectoryCheck || id;
 		};
 
-		FString fa2extra = CFinalSunApp::Instance->ExePath();
-		fa2extra += "\\";
-		fa2extra += "fa2extra.mix";
-		if (auto id = manager.LoadMixFile(fa2extra))
+		if (IgnoredMixes.contains("FA2EXTRA.MIX"))
 		{
-			Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", id, fa2extra);
-			LoadNestedMix(LoadNestedMix, "fa2extra.mix", id);
+			Logger::Raw("[ExtMixLoader] %s ignored!\n", "fa2extra.mix");
 		}
 		else
 		{
-			Logger::Raw("[ExtMixLoader] %s failed!\n", fa2extra);
+			FString fa2extra = CFinalSunApp::Instance->ExePath();
+			fa2extra += "\\";
+			fa2extra += "fa2extra.mix";
+			if (auto id = manager.LoadMixFile(fa2extra))
+			{
+				Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", id, fa2extra);
+				LoadNestedMix(LoadNestedMix, "fa2extra.mix", id);
+			}
+			else
+			{
+				Logger::Raw("[ExtMixLoader] %s failed!\n", fa2extra);
+			}
 		}
 
 		FString format = "EXPAND" + CINI::FAData->GetString("Filenames", "MixExtension", "MD") + "%02d.MIX";
@@ -455,29 +496,35 @@ bool CLoadingExt::InitMixFilesFix()
 		if (!LoadMixFile("ISOGEN.MIX", 0, true))		return false;
 		if (!LoadMixFile("CONQUER.MIX", 0, true))	return false;
 
-		//MARBLE should be ahead of normal theater mixes
-		FString FullPath = CFinalSunAppExt::ExePathExt();
-		FullPath += "\\MARBLE.MIX";
-		int id = manager.LoadMixFile(FullPath);
-		if (id)
+		if (IgnoredMixes.contains("MARBLE.MIX"))
 		{
-			Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", id, FullPath);
-			CFinalSunApp::Instance->MarbleLoaded = TRUE;
-			LoadNestedMix(LoadNestedMix, "MARBLE.MIX", id);
+			Logger::Raw("[ExtMixLoader] %s ignored!\n", "MARBLE.MIX");
 		}
 		else
 		{
-			if (LoadMixFile("MARBLE.MIX"))
+			//MARBLE should be ahead of normal theater mixes
+			FString FullPath = CFinalSunAppExt::ExePathExt();
+			FullPath += "\\MARBLE.MIX";
+			int id = manager.LoadMixFile(FullPath);
+			if (id)
+			{
+				Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", id, FullPath);
 				CFinalSunApp::Instance->MarbleLoaded = TRUE;
+				LoadNestedMix(LoadNestedMix, "MARBLE.MIX", id);
+			}
 			else
 			{
-				CFinalSunApp::Instance->MarbleLoaded = FALSE;
-				FString pMessage = Translations::TranslateOrDefault("MarbleMadnessNotLoaded",
-					"Failed to load marble.mix! Framework mode won't be able to use!");
-				::MessageBox(NULL, pMessage, Translations::TranslateOrDefault("Error", "Error"), MB_OK | MB_ICONEXCLAMATION);
+				if (LoadMixFile("MARBLE.MIX"))
+					CFinalSunApp::Instance->MarbleLoaded = TRUE;
+				else
+				{
+					CFinalSunApp::Instance->MarbleLoaded = FALSE;
+					FString pMessage = Translations::TranslateOrDefault("MarbleMadnessNotLoaded",
+						"Failed to load marble.mix! Framework mode won't be able to use!");
+					::MessageBox(NULL, pMessage, Translations::TranslateOrDefault("Error", "Error"), MB_OK | MB_ICONEXCLAMATION);
+				}
 			}
 		}
-
 
 		// Init_Theaters
 		LoadMixFile("TEMPERATMD.MIX", 0, true);

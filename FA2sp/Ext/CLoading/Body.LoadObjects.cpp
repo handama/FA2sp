@@ -3297,9 +3297,8 @@ int CLoadingExt::HasFileMix(FString filename, int nMix)
 		fin.close();
 		return -1;
 	}
-	size_t size = 0;
-	auto data = ResourcePackManager::instance().getFileData(filename, &size);
-	if (data && size > 0)
+
+	if (ResourcePackManager::instance().hasFile(filename))
 	{
 		return -1;
 	}
@@ -4902,9 +4901,7 @@ bool CLoadingExt::HasFile(ppmfc::CString filename, int nMix)
 		return true;
 	}
 
-	size_t size = 0;
-	auto data = ResourcePackManager::instance().getFileData(filename.m_pchData, &size);
-	if (data && size > 0)
+	if (ResourcePackManager::instance().hasFile(filename.m_pchData))
 	{
 		return true;
 	}

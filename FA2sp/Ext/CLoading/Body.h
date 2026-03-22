@@ -331,7 +331,7 @@ class ResourcePack
 {
 public:
 	bool load(const FString& filename);
-	std::unique_ptr<uint8_t[]> getFileData(const FString& filename, size_t* out_size = nullptr);
+	std::unique_ptr<uint8_t[]> getFileData(const FString& filename, size_t* out_size = nullptr, bool debugLog = false);
 
 private:
 	std::unordered_map<FString, FileEntry, CaseInsensitiveHash, CaseInsensitiveEqual> index_map;
@@ -352,6 +352,7 @@ public:
 	static ResourcePackManager& instance();
 	bool loadPack(const FString& packPath);
 	std::unique_ptr<uint8_t[]> getFileData(const FString& filename, size_t* out_size = nullptr);
+	bool hasFile(const FString& filename);
 	void clear();
 
 private:

@@ -295,8 +295,7 @@ BOOL CALLBACK CNewINIEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             break;
         case Controls::ImportButton:
             if (CODE == BN_CLICKED)
-            {
-                
+            {           
                 CFinalSunDlg::Instance()->INIEditor.OnClickImportINI();
                 UpdateAllGameObject();
                 Update(hWnd);
@@ -476,6 +475,7 @@ void CNewINIEditor::OnClickImporterOK(HWND& hWnd)
     FString frontComments;
 
     std::vector<FString> touchedSections;
+    std::vector<FString> imageChangedSections;
 
     std::istringstream iss(text);
     FString line;
@@ -541,8 +541,18 @@ void CNewINIEditor::OnClickImporterOK(HWND& hWnd)
                 {
                     auto comment = FString::GetComment(rawLine);
                     inlineComments += comment;
+                    pair.first.Trim();
+                    pair.second.Trim();
+                    if (pair.first == "Image")
+                    {
+                        if (map.GetString(currentSection, "Image") != pair.second)
+                        {
+                            imageChangedSections.push_back(currentSection);
+                        }
+                    }
 
-                    map.WriteString(currentSection, pair.first.Trim(), pair.second.Trim());
+                    map.WriteString(currentSection, pair.first, pair.second);
+
 
                     inlineComments.Trim();
                     if (ExtConfigs::SaveMap_KeepComments && !inlineComments.IsEmpty())
@@ -579,10 +589,17 @@ void CNewINIEditor::OnClickImporterOK(HWND& hWnd)
     for (auto& sec : touchedSections)
     {
         UpdateGameObject(sec);
+        Variables::RulesMap.ClearMap(sec);
     }
 
     SendMessage(m_hwnd, 114514, 0, 0);
     SendMessage(m_hwndImporter, WM_CLOSE, 0, 0);
+
+    for (auto& sec : imageChangedSections)
+    {
+        CLoadingExt::GetExtension()->LoadObjectOrOverlay(sec);
+        CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
 }
 
 void CNewINIEditor::OnClickNewSection()
@@ -637,8 +654,16 @@ void CNewINIEditor::OnClickDelSection(HWND& hWnd)
     if (result == IDNO)
         return;
 
+    bool reloadImage = map.KeyExists(section, "Image");
     map.DeleteSection(section);
     UpdateGameObject(section);
+    Variables::RulesMap.ClearMap(section);
+
+    if (reloadImage)
+    {
+        CLoadingExt::GetExtension()->LoadObjectOrOverlay(section);
+        CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
 
     SendMessage(hSectionList, LB_DELETESTRING, idx, NULL);
 
@@ -835,8 +860,10 @@ void CNewINIEditor::OnEditchangeINIEdit()
     }
     FString text = ExtraWindow::GetScintillaText(hINIEdit);
 
+    FString oldImage = map.GetString(CurrentSection, "Image");
     FString inlineComments;
     FString frontComments;
+
     map.DeleteSection(CurrentSection);
 
     std::istringstream iss(text);
@@ -904,6 +931,13 @@ void CNewINIEditor::OnEditchangeINIEdit()
     }
 
     UpdateGameObject(CurrentSection);
+    Variables::RulesMap.ClearMap(CurrentSection);
+
+    if (map.GetString(CurrentSection, "Image") != oldImage)
+    {
+        CLoadingExt::GetExtension()->LoadObjectOrOverlay(CurrentSection);
+        CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
 }
 
 void CNewINIEditor::OnEditchangeSearch()

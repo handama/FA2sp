@@ -234,16 +234,34 @@ CLoadingExt::ObjectType CLoadingExt::GetItemType(FString ID)
 	return ObjectType::Unknown;
 }
 
+void CLoadingExt::LoadObjectOrOverlay(const FString& ID)
+{
+	auto&& overlays = Variables::RulesMap.ParseIndicies("OverlayTypes", true);
+	bool isOverlay = true;
+	for (int i = 0; i < overlays.size(); ++i)
+	{
+		if (overlays[i] == ID)
+		{
+			isOverlay = true;
+			LoadOverlay(ID, i);
+			break;
+		}
+	}
+	LoadObjects(ID);
+}
+
 void CLoadingExt::LoadObjects(const FString& ID)
 {
 	if (ID == "")
 		return;
 
-    Logger::Debug("CLoadingExt::LoadObjects loading: %s\n", ID);
 	if (!IsLoadingObjectView)
 		LoadedObjects.insert(ID);
 
 	auto eItemType = GetItemType(ID);
+	if (eItemType != CLoadingExt::ObjectType::Unknown)
+		Logger::Debug("CLoadingExt::LoadObjects loading: %s\n", ID);
+
 	switch (eItemType)
 	{
 	case CLoadingExt::ObjectType::Infantry:
@@ -4689,6 +4707,10 @@ ImageDataClassSurface* CLoadingExt::GetOrLoadFlagOrCelltagFromMap(COLORREF newCo
 
 void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2path)
 {
+#ifndef NDEBUG
+	Logger::Debug("Requesting file [%s] in %s... ", filename, fa2path ? "FA2 path" : "Game path");	
+#endif
+
 	using Clock = std::chrono::steady_clock;
 	const uint64_t nowMs =
 		std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -4715,6 +4737,9 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 			g_cacheTime[fa2path].erase(filename);
 		}
 
+#ifndef NDEBUG
+		Logger::Raw("Loaded from CACHE. Done, dwSize = [%d].\n", src.size());
+#endif
 		return pBuffer;
 	}
 
@@ -4735,6 +4760,9 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 		f.seekg(0, std::ios::beg);
 		std::vector<unsigned char> buffer(size);
 		f.read((char*)buffer.data(), size);
+#ifndef NDEBUG
+		Logger::Raw("Loaded from [%s]. ", path);
+#endif
 		return buffer;
 	};
 
@@ -4766,7 +4794,9 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 		size_t size = 0;
 		auto data = ResourcePackManager::instance().getFileData(filename, &size);
 		if (data && size > 0)
+		{
 			loadedData.assign(data.get(), data.get() + size);
+		}
 	}
 
 	if (loadedData.empty() && ExtConfigs::ExtMixLoader)
@@ -4775,7 +4805,9 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 		size_t sizeM = 0;
 		auto result = manager.LoadFile(filename, &sizeM);
 		if (result && sizeM > 0)
+		{
 			loadedData.assign(result.get(), result.get() + sizeM);
+		}
 	}
 
 	if (loadedData.empty())
@@ -4789,6 +4821,9 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 				(unsigned char*)file.get_data(),
 				(unsigned char*)file.get_data() + file.get_size());
 			file.close();
+#ifndef NDEBUG
+			Logger::Raw("Loaded from MixLoader, nMix = [%d]. ", nMix);
+#endif
 		}
 	}
 
@@ -4801,7 +4836,12 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 	}
 
 	if (loadedData.empty())
+	{
+#ifndef NDEBUG
+		Logger::Raw("Failed.\n");
+#endif
 		return nullptr;
+	}
 
 	g_cache[fa2path][filename] = loadedData;
 	g_cacheTime[fa2path][filename] = nowMs;
@@ -4827,7 +4867,9 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 	memcpy(pBuffer, loadedData.data(), loadedData.size());
 	if (pDwSize)
 		*pDwSize = (DWORD)loadedData.size();
-
+#ifndef NDEBUG
+	Logger::Raw("Done, dwSize = [%d].\n", loadedData.size());
+#endif
 	return pBuffer;
 }
 

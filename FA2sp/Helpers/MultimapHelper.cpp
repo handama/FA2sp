@@ -112,6 +112,28 @@ bool MultimapHelper::GetBool(ppmfc::CString pSection, ppmfc::CString pKey, bool 
     }
 }
 
+std::set<ppmfc::CString> MultimapHelper::GetUniqueValues(ppmfc::CString pSection)
+{
+    std::set<ppmfc::CString> ret;
+    if (UniqueValuesMap.find(pSection) != UniqueValuesMap.end())
+    {
+        return UniqueValuesMap[pSection];
+    }
+    int index = 0;
+    ppmfc::CString tmp;
+    for (auto& pINI : data)
+        if (pINI)
+            if (auto section = pINI->GetSection(pSection))
+            {
+                for (auto& pair : section->GetEntities())
+                {
+                    ret.insert(pair.second);
+                }
+            }
+    UniqueValuesMap[pSection] = ret;
+    return ret;
+}
+
 std::vector<ppmfc::CString> MultimapHelper::ParseIndicies(ppmfc::CString pSection, bool bParseIntoValue)
 {
     if (bParseIntoValue && ValueIndiciesMap.find(pSection) != ValueIndiciesMap.end())
@@ -213,11 +235,13 @@ void MultimapHelper::ClearMap(ppmfc::CString section)
     {
         KeyIndiciesMap.clear();
         ValueIndiciesMap.clear();
+        UniqueValuesMap.clear();
     }
     else
     {
         KeyIndiciesMap.erase(section);
         ValueIndiciesMap.erase(section);
+        UniqueValuesMap.erase(section);
     }
 }
 
@@ -233,8 +257,7 @@ std::map<ppmfc::CString, ppmfc::CString, INISectionEntriesComparator> MultimapHe
                 for (auto& pair : section->GetEntities())
                 {
                     if (STDHelpers::IsNoneOrEmpty(pair.first) ||
-                        STDHelpers::IsNoneOrEmpty(pair.second) ||
-                        pair.first == "Name")
+                        STDHelpers::IsNoneOrEmpty(pair.second))
                     {
                         ++index;
                         continue;
@@ -267,7 +290,7 @@ std::map<ppmfc::CString, ppmfc::CString, INISectionEntriesComparator> MultimapHe
     return ret;
 }
 
-std::vector < std::pair<ppmfc::CString, ppmfc::CString>> MultimapHelper::GetUnorderedSection(ppmfc::CString pSection)
+std::vector <std::pair<ppmfc::CString, ppmfc::CString>> MultimapHelper::GetUnorderedSection(ppmfc::CString pSection)
 {
     std::vector<std::pair<ppmfc::CString, ppmfc::CString>> ret;
 

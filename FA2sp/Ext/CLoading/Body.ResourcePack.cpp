@@ -120,7 +120,9 @@ std::unique_ptr<uint8_t[]> ResourcePack::getFileData(const FString& filename, si
 
     if (out_size)
         *out_size = entry.original_size;
-
+#ifndef NDEBUG
+    Logger::Raw("Loaded from ResourcePack, file_path = [%s], data_offset = [%d]. ", file_path, data_offset);
+#endif
     return result;
 }
 

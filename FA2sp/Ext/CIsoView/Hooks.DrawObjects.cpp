@@ -2071,9 +2071,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 					if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages)
 					{
-						if (auto pAIFile = Variables::RulesMap.TryGetString(obj, "AlphaImage"))
+						int avaFacings = CLoadingExt::GetAlphaImageFacing(obj);
+						if (avaFacings > 0)
 						{
-							auto pAIData = CLoadingExt::GetImageDataFromMap(*pAIFile + "\233ALPHAIMAGE");
+							auto AIName = CLoadingExt::GetAlphaImageName(obj, 0, 0);
+							auto pAIData = CLoadingExt::GetImageDataFromMap(AIName);
 							if (pAIData && pAIData->pImageBuffer)
 							{
 								AlphaImagesToDraw.push_back(
@@ -2164,9 +2166,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 					if (firstDraw && ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages && objRender.poweredOn)
 					{
-						if (auto pAIFile = Variables::RulesMap.TryGetString(objRender.ID, "AlphaImage"))
+
+						int avaFacings = CLoadingExt::GetAlphaImageFacing(objRender.ID);
+						if (avaFacings > 0)
 						{
-							auto pAIData = CLoadingExt::GetImageDataFromMap(*pAIFile + "\233ALPHAIMAGE");
+							auto AIName = CLoadingExt::GetAlphaImageName(objRender.ID, objRender.Facing, avaFacings);
+							auto pAIData = CLoadingExt::GetImageDataFromMap(AIName);
 							if (pAIData && pAIData->pImageBuffer)
 							{
 								AlphaImagesToDraw.push_back(

@@ -96,6 +96,7 @@ public:
 	
 	// except buildings
 	static FString GetImageName(const FString& ID, int nFacing, bool bShadow = false, bool bDeploy = false, bool bWater = false);
+	static FString GetAlphaImageName(const FString& ID, int nRawFacing, int nAvaFacing);
 	static FString GetOverlayName(WORD ovr, BYTE ovrd, bool bShadow = false);
 	// only buildings
 	enum
@@ -103,6 +104,15 @@ public:
 		GBIN_NORMAL,
 		GBIN_RUBBLE,		
 		GBIN_DAMAGED,
+	};
+	enum class ObjectType {
+		Unknown = -1,
+		Infantry = 0,
+		Vehicle = 1,
+		Aircraft = 2,
+		Building = 3,
+		Terrain = 4,
+		Smudge = 5
 	};
 	static FString GetBuildingImageName(FString ID, int nFacing, int state, bool bShadow = false);
 	
@@ -173,6 +183,7 @@ private:
 	void LoadTerrainOrSmudge(const FString& ID, bool terrain);
 	void LoadVehicleOrAircraft(const FString& ID);
 	void LoadInsignia(const FString& ID);
+	void LoadAlphaImage(const FString& ID, CLoadingExt::ObjectType type);
 
 	void SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void SetImageData(unsigned char* pBuffer, ImageDataClass* pData, int FullWidth, int FullHeight, Palette* pPal);
@@ -201,16 +212,6 @@ private:
 		const Palette* oldPalette, const Palette* newPalette, bool remapable);
 
 public:
-	enum class ObjectType{
-		Unknown = -1,
-		Infantry = 0,
-		Vehicle = 1,
-		Aircraft = 2,
-		Building = 3,
-		Terrain = 4,
-		Smudge = 5
-	};
-
 	static FString GetArtID(const FString& ID);
 	FString GetVehicleOrAircraftFileID(const FString& ID);
 	FString GetTerrainOrSmudgeFileID(const FString& ID);
@@ -229,6 +230,7 @@ public:
 	static std::unique_ptr<ImageDataClassSafe> BindClippedImages(const std::vector<std::unique_ptr<ImageDataClassSafe>>& imgs);
 
 	static std::unordered_map<FString, int> AvailableFacings;
+	static std::unordered_map<FString, int> AlphaImageFacings;
 	static std::unordered_set<FString> LoadedObjects;
 	static std::unordered_set<FString> LoadedSurfaceObjects;
 	static std::unordered_set<FString> CustomPaletteTerrains;
@@ -287,6 +289,7 @@ public:
 	static ImageDataClassSurface* GetSurfaceImageDataFromMap(const FString& name);
 	static ImageDataClassSurface* GetOrLoadFlagOrCelltagFromMap(COLORREF newColor, bool IsFlag);
 	static int GetAvailableFacing(const FString& ID);
+	static int GetAlphaImageFacing(const FString& ID);
 	static void* ReadWholeFile(const char* filename, DWORD* pDwSize = nullptr, bool fa2path = false);
 	static bool HasFile(ppmfc::CString filename, int nMix = -114);
 

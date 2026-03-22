@@ -22,6 +22,7 @@ std::unordered_set<FString> CLoadingExt::CustomPaletteTerrains;
 std::unordered_map<FString, int> CLoadingExt::IFVTurrets;
 std::unordered_set<FString> CLoadingExt::InitialOccupiedBuildings;
 std::unordered_map<FString, int> CLoadingExt::AvailableFacings;
+std::unordered_map<FString, int> CLoadingExt::AlphaImageFacings;
 std::unordered_set<int> CLoadingExt::Ra2dotMixes;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
 unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
@@ -139,6 +140,14 @@ int CLoadingExt::GetAvailableFacing(const FString& ID)
 	return itr->second;
 }
 
+int CLoadingExt::GetAlphaImageFacing(const FString& ID)
+{
+	auto itr = AlphaImageFacings.find(ID);
+	if (itr == AlphaImageFacings.end())
+		return 0;
+	return itr->second;
+}
+
 FString CLoadingExt::GetImageName(const FString& ID, int nFacing, bool bShadow, bool bDeploy, bool bWater)
 {
 	FString ret;
@@ -146,6 +155,18 @@ FString CLoadingExt::GetImageName(const FString& ID, int nFacing, bool bShadow, 
 		ret.Format("%s\233%d\233%s%s%s", ID, nFacing, bDeploy ? "DEPLOY" : "", bWater ? "WATER" : "", bShadow ? "SHADOW" : "");
 	else
 		ret.Format("%s\233%d", ID, nFacing);
+	return ret;
+}
+
+FString CLoadingExt::GetAlphaImageName(const FString& ID, int nRawFacing, int nAvaFacing)
+{
+	FString ret;
+	int actFacing = 0;
+	if (nAvaFacing == 0)
+		actFacing = 1;
+	else
+		actFacing = nRawFacing * nAvaFacing / 256;
+	ret.Format("%s\233%d\233ALPHAIMAGE", ID, actFacing);
 	return ret;
 }
 
@@ -323,6 +344,7 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 		SwimableInfantries.clear();
 		ImageDataMap.clear();
 		AvailableFacings.clear();
+		AlphaImageFacings.clear();
 		CustomPaletteTerrains.clear();
 		IFVTurrets.clear();
 		InitialOccupiedBuildings.clear();
@@ -540,15 +562,7 @@ void CLoadingExt::LoadBuilding(const FString& ID)
 	LoadBuilding_Rubble(ID);
 
 	LoadInsignia(ID);
-	if (ExtConfigs::InGameDisplay_AlphaImage)
-	{
-		if (auto pAIFile = Variables::RulesMap.TryGetString(ID, "AlphaImage"))
-		{
-			auto AIDicName = *pAIFile + "\233ALPHAIMAGE";
-			if (!CLoadingExt::IsObjectLoaded(AIDicName))
-				LoadShp(AIDicName, *pAIFile + ".shp", "anim.pal", 0);
-		}
-	}
+	LoadAlphaImage(ID, CLoadingExt::ObjectType::Building);
 }
 
 void CLoadingExt::LoadBuilding_Normal(const FString& ID)
@@ -1757,14 +1771,9 @@ void CLoadingExt::LoadTerrainOrSmudge(const FString& ID, bool terrain)
 			SetImageDataSafe(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 		}
 
-		if (ExtConfigs::InGameDisplay_AlphaImage && terrain)
+		if (terrain)
 		{
-			if (auto pAIFile = Variables::RulesMap.TryGetString(ID, "AlphaImage"))
-			{
-				auto AIDicName = *pAIFile + "\233ALPHAIMAGE";
-				if (!CLoadingExt::IsObjectLoaded(AIDicName))
-					LoadShp(AIDicName, *pAIFile + ".shp", "anim.pal", 0);
-			}
+			LoadAlphaImage(ID, CLoadingExt::ObjectType::Terrain);
 		}
 	}
 }
@@ -1814,6 +1823,35 @@ void CLoadingExt::LoadInsignia(const FString& ID)
 	if (!ret.Rookie.IsEmpty() || !ret.Veteran.IsEmpty() || !ret.Elite.IsEmpty())
 	{
 		LoadedInsignias[ID] = ret;
+	}
+}
+
+void CLoadingExt::LoadAlphaImage(const FString& ID, CLoadingExt::ObjectType type)
+{
+	if (!ExtConfigs::InGameDisplay_AlphaImage) return;
+
+	if (auto pAIFile = Variables::RulesMap.TryGetString(ID, "AlphaImage"))
+	{
+		ShapeHeader header;
+		unsigned char* FramesBuffers;
+		if (!CMixFile::LoadSHP(*pAIFile + ".shp"))
+			return;
+		CShpFile::GetSHPHeader(&header);
+
+		int facings = std::min(256u, std::bit_floor((UINT)header.FrameCount));
+
+		Logger::Raw("%d %d\n", facings, header.FrameCount);
+		if (type == CLoadingExt::ObjectType::Terrain)
+			facings = 1;
+		AlphaImageFacings[ID] = facings;
+		FString AIDicName;
+		for (int i = 0; i < facings; ++i)
+		{
+			AIDicName.Format("%s\233%d\233ALPHAIMAGE", ID, i);
+			CLoadingExt::LoadSHPFrameSafe(i, 1, &FramesBuffers, header);
+			SetImageDataSafe(FramesBuffers, AIDicName, header.Width, header.Height, &CMapDataExt::Palette_ISO);
+			LoadedObjects.insert(AIDicName);
+		}
 	}
 }
 

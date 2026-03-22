@@ -91,7 +91,7 @@ public:
 	static bool IsOverlayLoaded(const FString& pRegName);
 
 	void LoadObjects(const FString& pRegName);
-	void LoadObjectOrOverlay(const FString& pRegName);
+	bool ReLoadObjectOrOverlay(const FString& pRegName);
 	void LoadOverlay(const FString& pRegName, int nIndex);
 	
 	// except buildings

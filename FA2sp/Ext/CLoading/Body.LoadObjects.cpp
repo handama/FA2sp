@@ -234,20 +234,27 @@ CLoadingExt::ObjectType CLoadingExt::GetItemType(FString ID)
 	return ObjectType::Unknown;
 }
 
-void CLoadingExt::LoadObjectOrOverlay(const FString& ID)
+bool CLoadingExt::ReLoadObjectOrOverlay(const FString& ID)
 {
+	bool reloaded = false;
 	auto&& overlays = Variables::RulesMap.ParseIndicies("OverlayTypes", true);
 	bool isOverlay = true;
 	for (int i = 0; i < overlays.size(); ++i)
 	{
-		if (overlays[i] == ID)
+		if (overlays[i] == ID && IsOverlayLoaded(ID))
 		{
 			isOverlay = true;
 			LoadOverlay(ID, i);
+			reloaded = true;
 			break;
 		}
 	}
-	LoadObjects(ID);
+	if (IsObjectLoaded(ID))
+	{
+		LoadObjects(ID);
+		reloaded = true;
+	}
+	return reloaded;
 }
 
 void CLoadingExt::LoadObjects(const FString& ID)

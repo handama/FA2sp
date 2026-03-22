@@ -597,8 +597,8 @@ void CNewINIEditor::OnClickImporterOK(HWND& hWnd)
 
     for (auto& sec : imageChangedSections)
     {
-        CLoadingExt::GetExtension()->LoadObjectOrOverlay(sec);
-        CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+        if (CLoadingExt::GetExtension()->ReLoadObjectOrOverlay(sec))
+            CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
     }
 }
 
@@ -661,8 +661,8 @@ void CNewINIEditor::OnClickDelSection(HWND& hWnd)
 
     if (reloadImage)
     {
-        CLoadingExt::GetExtension()->LoadObjectOrOverlay(section);
-        CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+        if (CLoadingExt::GetExtension()->ReLoadObjectOrOverlay(section))
+            CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
     }
 
     SendMessage(hSectionList, LB_DELETESTRING, idx, NULL);
@@ -935,8 +935,8 @@ void CNewINIEditor::OnEditchangeINIEdit()
 
     if (map.GetString(CurrentSection, "Image") != oldImage)
     {
-        CLoadingExt::GetExtension()->LoadObjectOrOverlay(CurrentSection);
-        CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+        if (CLoadingExt::GetExtension()->ReLoadObjectOrOverlay(CurrentSection))
+            CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
     }
 }
 

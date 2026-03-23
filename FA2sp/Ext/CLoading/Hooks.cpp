@@ -35,23 +35,28 @@ DEFINE_HOOK(48A650, CLoading_SearchFile, 6)
 		auto result = manager.QueryFileIndex(Filename);
 		if (result >= 0)
 		{
+#ifndef NDEBUG
+			Logger::Debug("[SearchFile] %s - %d\n", Filename, result);
+#endif
 			R->EAX(result);
 			return 0x48AA63;
 		}
 	}
-
-	for (int i = 0; i < CMixFile::ArraySize; ++i)
+	else
 	{
-		auto& mix = CMixFile::Array[i];
-		if (!mix.is_open())
-			break;
-		if (CMixFile::HasFile(Filename, i + 1))
+		for (int i = 0; i < CMixFile::ArraySize; ++i)
 		{
+			auto& mix = CMixFile::Array[i];
+			if (!mix.is_open())
+				break;
+			if (CMixFile::HasFile(Filename, i + 1))
+			{
 #ifndef NDEBUG
-			Logger::Debug("[SearchFile] %s - %d\n", Filename, i + 1);
+				Logger::Debug("[SearchFile] %s - %d\n", Filename, i + 1);
 #endif
-			R->EAX(i + 1);
-			return 0x48AA63;
+				R->EAX(i + 1);
+				return 0x48AA63;
+			}
 		}
 	}
 

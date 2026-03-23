@@ -169,7 +169,7 @@ bool CLoadingExt::InitMixFilesFix()
 					}
 					return ExtConfigs::DisableDirectoryCheck || result;
 				}
-				if (int nMix = SearchFile(Mix))
+				if (int nMix = SearchFileExt(Mix))
 				{
 					result = CMixFile::Open(Mix, nMix);
 					if (result)

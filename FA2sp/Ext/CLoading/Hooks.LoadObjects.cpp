@@ -233,8 +233,7 @@ DEFINE_HOOK(48DBB0, CLoading_InitTMPs_ReadFolder, E)
     if (nMIx)
         return 0x48DC52;
 
-    int result = CLoadingExt::GetExtension()->HasFileMix(lpFilename);
-    if (result > -2)
+    if (CLoadingExt::GetExtension()->HasFileExt(lpFilename))
         return 0x48DC52;
 
     if (CINI::CurrentTheater == &CINI::NewUrban)
@@ -249,8 +248,7 @@ DEFINE_HOOK(48E5C5, CLoading_LoadTile_ReadFolder, 8)
     GET(unsigned int, nMix, EDI);
     GET(BOOL, oriResult, EAX);
 
-    int result = CLoadingExt::GetExtension()->HasFileMix(lpFilename);
-    if (result > -2)
+    if (CLoadingExt::GetExtension()->HasFileExt(lpFilename))
     {
         R->EDI(0);
         return 0x48E5CD;

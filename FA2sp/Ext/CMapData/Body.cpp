@@ -3542,9 +3542,16 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	FString isoPal;
 	isoPal.Format("iso%s.pal", theaterSuffix);
 	isoPal.MakeUpper();
-	auto pal = PalettesManager::LoadPalette(isoPal);
-	CMapDataExt::Palette_ISO = *pal;
-	CMapDataExt::Palette_ISO_NoTint = *pal;
+	if (auto pal = PalettesManager::LoadPalette(isoPal))
+	{
+		CMapDataExt::Palette_ISO = *pal;
+		CMapDataExt::Palette_ISO_NoTint = *pal;
+	}
+	else
+	{
+		memset(&CMapDataExt::Palette_ISO, 0, sizeof(Palette));
+		memset(&CMapDataExt::Palette_ISO_NoTint, 0, sizeof(Palette));
+	}
 
 	Palette_Shadow.Data[0].R = 255;
 	Palette_Shadow.Data[0].G = 255;

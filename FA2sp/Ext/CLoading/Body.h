@@ -136,6 +136,7 @@ public:
 	void SetImageData(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
 	// returns the mix index, -1 for in folder / pack, -2 for not found
 	int HasFileMix(FString filename, int nMix = -114);
+	int SearchFileExt(const FString& filename, bool debugLog = true);
 	// 0 1 2
 	static InsigniaGrid GetInsignia(const FString& ID);
 
@@ -291,7 +292,7 @@ public:
 	static int GetAvailableFacing(const FString& ID);
 	static int GetAlphaImageFacing(const FString& ID);
 	static void* ReadWholeFile(const char* filename, DWORD* pDwSize = nullptr, bool fa2path = false);
-	static bool HasFile(ppmfc::CString filename, int nMix = -114);
+	static bool HasFileExt(ppmfc::CString filename, int nMix = -114);
 
 	static std::unordered_map<std::string, std::vector<unsigned char>> g_cache[2];
 	static std::unordered_map<std::string, uint64_t> g_cacheTime[2];

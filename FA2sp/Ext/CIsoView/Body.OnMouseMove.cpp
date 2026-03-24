@@ -1591,7 +1591,9 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 else if (cell->Flag.AltIndex == 7)
                     filename += "g";
 
-                filename += CLoadingExt::GetExtension()->GetFileExtension();
+                auto ext = CLoadingExt::GetExtension()->GetFileExtension();
+                ext.MakeLower();
+                filename += ext;
 
                 if (ttype == 0x0)
                     ttypes = "Clear";

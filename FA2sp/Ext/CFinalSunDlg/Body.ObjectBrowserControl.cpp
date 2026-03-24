@@ -123,6 +123,12 @@ struct SubGroupInfo
     std::vector<FString> collector;
     std::set<FString> insertedObjects;
 };
+struct TempOtherInfo
+{
+    int index;
+    FString display;
+    FString id;
+};
 
 HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
     HTREEITEM hParent, HTREEITEM hInsertAfter)
@@ -1176,7 +1182,10 @@ void CViewObjectsExt::Redraw_Infantry()
 
     std::map<int, HTREEITEM> subNodes;
     std::map<int, FString> subNodeNames;
+    std::map<int, FString> subNodeEngNames;
     std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
+    std::map<FString, SubGroupInfo> editorNodes;
+    std::vector<TempOtherInfo> otherList;
 
     auto& fadata = CINI::FAData();
 
@@ -1186,6 +1195,8 @@ void CViewObjectsExt::Redraw_Infantry()
         for (auto& itr : sides->GetEntities())
         {
             subNodeNames[i] = itr.second;
+            auto engName = fadata.GetValueAt("English-Sides", i);
+            subNodeEngNames[i] = engName.IsEmpty() ? itr.second : engName;
             subNodes[i++] = this->InsertString(itr.second, -1, hInfantry);
         }
     }
@@ -1195,9 +1206,8 @@ void CViewObjectsExt::Redraw_Infantry()
         subNodes[i++] = this->InsertString("Soviet", -1, hInfantry);
         subNodes[i++] = this->InsertString("Yuri", -1, hInfantry);
     }
-    subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hInfantry);
-
     auto&& infantries = Variables::RulesMap.GetSection("InfantryTypes");
+
     int index = -1;
     for (auto& inf : infantries)
     {
@@ -1211,38 +1221,68 @@ void CViewObjectsExt::Redraw_Infantry()
             continue;
 
         InsertingObjectID = inf.second;
-        auto sides = GetUnique(GuessSide(inf.second, Set_Infantry));
-        auto multiLayers = GetMultiLayers(inf.second);
         FString display = QueryUIName(inf.second);
         if (display != inf.second)
             display += " (" + inf.second + ")";
-        if (!sides.empty())
+        if (auto cat = Variables::RulesMap.TryGetString(inf.second, "EditorCategory"))
         {
-            if (sides.size() == 1 && sides[0] == -1 && multiLayers.empty())
+            bool isPrevious = false;
+            for (auto& [idx, eng] : subNodeEngNames)
             {
-                this->InsertString(
-                    display,
-                    Const_Infantry + index,
-                    subNodes[-1]
-                );
-            }
-            else
-            {
-                for (int side : sides) {
-                    if (subNodes.find(side) == subNodes.end())
-                        side = -1;
-                    if (side == -1) continue;
-                    this->InsertString(
-                        display,
-                        Const_Infantry + index,
-                        subNodes[side]
-                    );
+                if (eng == *cat)
+                {
+                    isPrevious = true;
+                    this->InsertString(display, Const_Infantry + index, subNodes[idx]);
+                    break;
                 }
-            }   
+            }
+            if (!isPrevious)
+            {
+                auto& node = editorNodes[*cat];
+                if (!node.item)
+                    node.item = this->InsertTranslatedString(*cat, -1, hInfantry);
+                this->InsertString(display, Const_Infantry + index, node.item);
+            }
         }
-        LoadMultiLayers(multiLayers, subNodes, subNodeNames, 
-            multiSubNodes, Const_Infantry + index, i, display);
+        else
+        {
+            auto sides = GetUnique(GuessSide(inf.second, Set_Infantry));
+            auto multiLayers = GetMultiLayers(inf.second);
 
+            if (!sides.empty())
+            {
+                if (sides.size() == 1 && sides[0] == -1 && multiLayers.empty())
+                {
+                    otherList.push_back({ index, display, inf.second });
+                }
+                else
+                {
+                    for (int side : sides) {
+                        if (subNodes.find(side) == subNodes.end())
+                            side = -1;
+                        if (side == -1) continue;
+                        this->InsertString(
+                            display,
+                            Const_Infantry + index,
+                            subNodes[side]
+                        );
+                    }
+                }
+            }
+            LoadMultiLayers(multiLayers, subNodes, subNodeNames,
+                multiSubNodes, Const_Infantry + index, i, display);
+        }
+        InsertingObjectID = "";
+    }
+    subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hInfantry);
+    for (auto& ob : otherList)
+    {
+        InsertingObjectID = ob.id;
+        this->InsertString(
+            ob.display,
+            Const_Infantry + ob.index,
+            subNodes[-1]
+        );
         InsertingObjectID = "";
     }
     
@@ -1290,6 +1330,11 @@ void CViewObjectsExt::Redraw_Infantry()
             if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
                 this->GetTreeCtrl().DeleteItem(subnode.second);
         }
+        for (auto& subnode : editorNodes)
+        {
+            if (subnode.second.item && !this->GetTreeCtrl().ItemHasChildren(subnode.second.item))
+                this->GetTreeCtrl().DeleteItem(subnode.second.item);
+        }
     }
 }
 
@@ -1301,7 +1346,10 @@ void CViewObjectsExt::Redraw_Vehicle()
 
     std::map<int, HTREEITEM> subNodes;
     std::map<int, FString> subNodeNames;
+    std::map<int, FString> subNodeEngNames;
     std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
+    std::map<FString, SubGroupInfo> editorNodes;
+    std::vector<TempOtherInfo> otherList;
 
     auto& fadata = CINI::FAData();
 
@@ -1311,6 +1359,8 @@ void CViewObjectsExt::Redraw_Vehicle()
         for (auto& itr : sides->GetEntities())
         {
             subNodeNames[i] = itr.second;
+            auto engName = fadata.GetValueAt("English-Sides", i);
+            subNodeEngNames[i] = engName.IsEmpty() ? itr.second : engName;
             subNodes[i++] = this->InsertString(itr.second, -1, hVehicle);
         }
     }
@@ -1320,9 +1370,8 @@ void CViewObjectsExt::Redraw_Vehicle()
         subNodes[i++] = this->InsertString("Soviet", -1, hVehicle);
         subNodes[i++] = this->InsertString("Yuri", -1, hVehicle);
     }
-    subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hVehicle);
-
     auto&& vehicles = Variables::RulesMap.GetSection("VehicleTypes");
+
     int index = -1;
     for (auto& veh : vehicles)
     {
@@ -1336,38 +1385,68 @@ void CViewObjectsExt::Redraw_Vehicle()
             continue;
 
         InsertingObjectID = veh.second;
-        auto sides = GetUnique(GuessSide(veh.second, Set_Vehicle));
-        auto multiLayers = GetMultiLayers(veh.second);
         FString display = QueryUIName(veh.second);
         if (display != veh.second)
             display += " (" + veh.second + ")";
-        if (!sides.empty())
+        if (auto cat = Variables::RulesMap.TryGetString(veh.second, "EditorCategory"))
         {
-            if (sides.size() == 1 && sides[0] == -1 && multiLayers.empty())
+            bool isPrevious = false;
+            for (auto& [idx, eng] : subNodeEngNames)
             {
-                this->InsertString(
-                    display,
-                    Const_Vehicle + index,
-                    subNodes[-1]
-                );
-            }
-            else
-            {
-                for (int side : sides) {
-                    if (subNodes.find(side) == subNodes.end())
-                        side = -1;
-                    if (side == -1) continue;
-                    this->InsertString(
-                        display,
-                        Const_Vehicle + index,
-                        subNodes[side]
-                    );
+                if (eng == *cat)
+                {
+                    isPrevious = true;
+                    this->InsertString(display, Const_Vehicle + index, subNodes[idx]);
+                    break;
                 }
-            }   
+            }
+            if (!isPrevious)
+            {
+                auto& node = editorNodes[*cat];
+                if(!node.item)
+                    node.item = this->InsertTranslatedString(*cat, -1, hVehicle);
+                this->InsertString(display, Const_Vehicle + index, node.item);
+            }
         }
-        LoadMultiLayers(multiLayers, subNodes, subNodeNames,
-            multiSubNodes, Const_Vehicle + index, i, display);
+        else
+        {
+            auto sides = GetUnique(GuessSide(veh.second, Set_Vehicle));
+            auto multiLayers = GetMultiLayers(veh.second);
+            if (!sides.empty())
+            {
+                if (sides.size() == 1 && sides[0] == -1 && multiLayers.empty())
+                {
+                    otherList.push_back({ index, display, veh.second });
+                }
+                else
+                {
+                    for (int side : sides) {
+                        if (subNodes.find(side) == subNodes.end())
+                            side = -1;
+                        if (side == -1) continue;
+                        this->InsertString(
+                            display,
+                            Const_Vehicle + index,
+                            subNodes[side]
+                        );
+                    }
+                }
+            }
+            LoadMultiLayers(multiLayers, subNodes, subNodeNames,
+                multiSubNodes, Const_Vehicle + index, i, display);
+        }
 
+        InsertingObjectID = "";
+    }
+    subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hVehicle);
+    for (auto& ob : otherList)
+    {
+        InsertingObjectID = ob.id;
+        this->InsertString(
+            ob.display,
+            Const_Vehicle + ob.index,
+            subNodes[-1]
+        );
         InsertingObjectID = "";
     }
 
@@ -1415,6 +1494,11 @@ void CViewObjectsExt::Redraw_Vehicle()
             if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
                 this->GetTreeCtrl().DeleteItem(subnode.second);
         }
+        for (auto& subnode : editorNodes)
+        {
+            if (subnode.second.item && !this->GetTreeCtrl().ItemHasChildren(subnode.second.item))
+                this->GetTreeCtrl().DeleteItem(subnode.second.item);
+        }
     }
 }
 
@@ -1426,7 +1510,10 @@ void CViewObjectsExt::Redraw_Aircraft()
 
     std::map<int, HTREEITEM> subNodes;
     std::map<int, FString> subNodeNames;
+    std::map<int, FString> subNodeEngNames;
     std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
+    std::map<FString, SubGroupInfo> editorNodes;
+    std::vector<TempOtherInfo> otherList;
 
     auto& fadata = CINI::FAData();
 
@@ -1436,6 +1523,8 @@ void CViewObjectsExt::Redraw_Aircraft()
         for (auto& itr : sides->GetEntities())
         {
             subNodeNames[i] = itr.second;
+            auto engName = fadata.GetValueAt("English-Sides", i);
+            subNodeEngNames[i] = engName.IsEmpty() ? itr.second : engName;
             subNodes[i++] = this->InsertString(itr.second, -1, hAircraft);
         }
     }
@@ -1445,9 +1534,8 @@ void CViewObjectsExt::Redraw_Aircraft()
         subNodes[i++] = this->InsertString("Soviet", -1, hAircraft);
         subNodes[i++] = this->InsertString("Yuri", -1, hAircraft);
     }
-    subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hAircraft);
-
     auto&& aircrafts = Variables::RulesMap.GetSection("AircraftTypes");
+
     int index = -1;
     for (auto& air : aircrafts)
     {
@@ -1461,38 +1549,69 @@ void CViewObjectsExt::Redraw_Aircraft()
             continue;
         
         InsertingObjectID = air.second;
-        auto sides = GetUnique(GuessSide(air.second, Set_Aircraft));
-        auto multiLayers = GetMultiLayers(air.second);
         FString display = QueryUIName(air.second);
         if (display != air.second)
             display += " (" + air.second + ")";
-        if (!sides.empty())
-        {
-            if (sides.size() == 1 && sides[0] == -1 && multiLayers.empty())
-            {
-                this->InsertString(
-                    display,
-                    Const_Aircraft + index,
-                    subNodes[-1]
-                );
-            }
-            else
-            {
-                for (int side : sides) {
-                    if (subNodes.find(side) == subNodes.end())
-                        side = -1;
-                    if (side == -1) continue;
-                    this->InsertString(
-                        display,
-                        Const_Aircraft + index,
-                        subNodes[side]
-                    );
-                }
-            }   
-        }
-        LoadMultiLayers(multiLayers, subNodes, subNodeNames,
-            multiSubNodes, Const_Aircraft + index, i, display);
 
+        if (auto cat = Variables::RulesMap.TryGetString(air.second, "EditorCategory"))
+        {
+            bool isPrevious = false;
+            for (auto& [idx, eng] : subNodeEngNames)
+            {
+                if (eng == *cat)
+                {
+                    isPrevious = true;
+                    this->InsertString(display, Const_Aircraft + index, subNodes[idx]);
+                    break;
+                }
+            }
+            if (!isPrevious)
+            {
+                auto& node = editorNodes[*cat];
+                if (!node.item)
+                    node.item = this->InsertTranslatedString(*cat, -1, hAircraft);
+                this->InsertString(display, Const_Aircraft + index, node.item);
+            }
+        }
+        else
+        {
+            auto sides = GetUnique(GuessSide(air.second, Set_Aircraft));
+            auto multiLayers = GetMultiLayers(air.second);
+            if (!sides.empty())
+            {
+                if (sides.size() == 1 && sides[0] == -1 && multiLayers.empty())
+                {
+                    otherList.push_back({ index, display, air.second });
+                }
+                else
+                {
+                    for (int side : sides) {
+                        if (subNodes.find(side) == subNodes.end())
+                            side = -1;
+                        if (side == -1) continue;
+                        this->InsertString(
+                            display,
+                            Const_Aircraft + index,
+                            subNodes[side]
+                        );
+                    }
+                }
+            }
+            LoadMultiLayers(multiLayers, subNodes, subNodeNames,
+                multiSubNodes, Const_Aircraft + index, i, display);
+        }   
+
+        InsertingObjectID = "";
+    }
+    subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hAircraft);
+    for (auto& ob : otherList)
+    {
+        InsertingObjectID = ob.id;
+        this->InsertString(
+            ob.display,
+            Const_Aircraft + ob.index,
+            subNodes[-1]
+        );
         InsertingObjectID = "";
     }
     HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomAircraftObList", -1, hAircraft);
@@ -1539,6 +1658,11 @@ void CViewObjectsExt::Redraw_Aircraft()
             if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
                 this->GetTreeCtrl().DeleteItem(subnode.second);
         }
+        for (auto& subnode : editorNodes)
+        {
+            if (subnode.second.item && !this->GetTreeCtrl().ItemHasChildren(subnode.second.item))
+                this->GetTreeCtrl().DeleteItem(subnode.second.item);
+        }
     }
 }
 
@@ -1550,8 +1674,11 @@ void CViewObjectsExt::Redraw_Building()
 
     std::map<int, HTREEITEM> subNodes;
     std::map<int, FString> subNodeNames;
+    std::map<int, FString> subNodeEngNames;
     std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
     std::map<int, std::vector<std::pair<int, FString>>> foundationBuildings;
+    std::map<FString, SubGroupInfo> editorNodes;
+    std::vector<TempOtherInfo> otherList;
 
     auto& fadata = CINI::FAData();
     auto& art = CINI::Art();
@@ -1563,6 +1690,8 @@ void CViewObjectsExt::Redraw_Building()
         for (auto& itr : sides->GetEntities())
         {
             subNodeNames[i] = itr.second;
+            auto engName = fadata.GetValueAt("English-Sides", i);
+            subNodeEngNames[i] = engName.IsEmpty() ? itr.second : engName;
             subNodes[i++] = this->InsertString(itr.second, -1, hBuilding);
         }
     }
@@ -1572,9 +1701,8 @@ void CViewObjectsExt::Redraw_Building()
         subNodes[i++] = this->InsertString("Soviet", -1, hBuilding);
         subNodes[i++] = this->InsertString("Yuri", -1, hBuilding);
     }
-    subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hBuilding);
-    
     auto&& buildings = Variables::RulesMap.GetSection("BuildingTypes");
+
     int index = -1;
     for (auto& bud : buildings)
     {
@@ -1588,37 +1716,57 @@ void CViewObjectsExt::Redraw_Building()
             continue;
 
         InsertingObjectID = bud.second;
-        auto sides = GetUnique(GuessSide(bud.second, Set_Building));
-        auto multiLayers = GetMultiLayers(bud.second);
         FString display = QueryUIName(bud.second);
         if (display != bud.second)
             display += " (" + bud.second + ")";
-        if (!sides.empty())
+        if (auto cat = Variables::RulesMap.TryGetString(bud.second, "EditorCategory"))
         {
-            if (sides.size() == 1 && sides[0] == -1 && multiLayers.empty())
+            bool isPrevious = false;
+            for (auto& [idx, eng] : subNodeEngNames)
             {
-                this->InsertString(
-                    display,
-                    Const_Building + index,
-                    subNodes[-1]
-                );
-            }
-            else
-            {
-                for (int side : sides) {
-                    if (subNodes.find(side) == subNodes.end())
-                        side = -1;
-                    if (side == -1) continue;
-                    this->InsertString(
-                        display,
-                        Const_Building + index,
-                        subNodes[side]
-                    );
+                if (eng == *cat)
+                {
+                    isPrevious = true;
+                    this->InsertString(display, Const_Building + index, subNodes[idx]);
+                    break;
                 }
             }
+            if (!isPrevious)
+            {
+                auto& node = editorNodes[*cat];
+                if (!node.item)
+                    node.item = this->InsertTranslatedString(*cat, -1, hBuilding);
+                this->InsertString(display, Const_Building + index, node.item);
+            }
         }
-        LoadMultiLayers(multiLayers, subNodes, subNodeNames,
-            multiSubNodes, Const_Building + index, i, display);
+        else
+        {
+            auto sides = GetUnique(GuessSide(bud.second, Set_Building));
+            auto multiLayers = GetMultiLayers(bud.second);
+            if (!sides.empty())
+            {
+                if (sides.size() == 1 && sides[0] == -1 && multiLayers.empty())
+                {
+                    otherList.push_back({ index, display, bud.second });
+                }
+                else
+                {
+                    for (int side : sides) {
+                        if (subNodes.find(side) == subNodes.end())
+                            side = -1;
+                        if (side == -1) continue;
+                        this->InsertString(
+                            display,
+                            Const_Building + index,
+                            subNodes[side]
+                        );
+                    }
+                }
+            }
+            LoadMultiLayers(multiLayers, subNodes, subNodeNames,
+                multiSubNodes, Const_Building + index, i, display);
+        }
+ 
 
         if (CMapData::Instance->MapWidthPlusHeight && ExtConfigs::ObjectBrowser_Foundation)
         {
@@ -1629,6 +1777,17 @@ void CViewObjectsExt::Redraw_Building()
     }
     InsertingObjectID = "";
 
+    subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hBuilding);
+    for (auto& ob : otherList)
+    {
+        InsertingObjectID = ob.id;
+        this->InsertString(
+            ob.display,
+            Const_Building + ob.index,
+            subNodes[-1]
+        );
+        InsertingObjectID = "";
+    }
     for (const auto& [foundation, buildingList] : foundationBuildings)
     {
         if (buildingList.empty())
@@ -1702,6 +1861,11 @@ void CViewObjectsExt::Redraw_Building()
             if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
                 this->GetTreeCtrl().DeleteItem(subnode.second);
         }
+        for (auto& subnode : editorNodes)
+        {
+            if (subnode.second.item && !this->GetTreeCtrl().ItemHasChildren(subnode.second.item))
+                this->GetTreeCtrl().DeleteItem(subnode.second.item);
+        }
     }
 }
 
@@ -1730,11 +1894,11 @@ void CViewObjectsExt::Redraw_Terrain()
         }
     }
 
-    for (auto& terrain : terrains)
+    for (auto& obj : terrains)
     {
-        if (IgnoreSet.find(terrain.second) == IgnoreSet.end())
+        if (IgnoreSet.find(obj.second) == IgnoreSet.end())
         {
-            if (auto cat = Variables::RulesMap.TryGetString(terrain.second, "EditorCategory"))
+            if (auto cat = Variables::RulesMap.TryGetString(obj.second, "EditorCategory"))
             {
                 auto& node = nodes[*cat];
                 if (!node.item)
@@ -1744,6 +1908,7 @@ void CViewObjectsExt::Redraw_Terrain()
             }
         }
     }
+
     HTREEITEM hOther = this->InsertTranslatedString("OthObList", -1, hTerrain);
 
     int index = -1;
@@ -1855,11 +2020,12 @@ void CViewObjectsExt::Redraw_Smudge()
                 nodes[translation] = { this->InsertTranslatedString(translation, -1, hSmudge), contains };
         }
     }
-    for (auto& smudge : smudges)
+
+    for (auto& obj : smudges)
     {
-        if (IgnoreSet.find(smudge.second) == IgnoreSet.end())
+        if (IgnoreSet.find(obj.second) == IgnoreSet.end())
         {
-            if (auto cat = Variables::RulesMap.TryGetString(smudge.second, "EditorCategory"))
+            if (auto cat = Variables::RulesMap.TryGetString(obj.second, "EditorCategory"))
             {
                 auto& node = nodes[*cat];
                 if (!node.item)

@@ -32,6 +32,7 @@
 #include "../ExtraWindow/CNewMMXSavingOptionsDlg/CNewMMXSavingOptionsDlg.h"
 #include "../Ext/CFinalSunApp/Body.h"
 #include "../Helpers/Helper.h"
+#include "../Helpers/TheaterHelpers.h"
 
 std::optional<std::filesystem::file_time_type> SaveMapExt::SaveTime;
 
@@ -797,6 +798,16 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                     oss << "\n";
             };
 
+
+            auto theater = pINI->GetString("Map", "Theater");
+            for (const auto& [o, n] : TheaterHelpers::GetIniTheaterNamePairs())
+            {
+                if (_strcmpi(o, theater) == 0)
+                {
+                    pINI->WriteString("Map", "Theater", n);
+                }
+            }
+
             // Add "Header" for single-player map to prevent loading error
             if (const auto pSection = pINI->GetSection("Header"))
             {
@@ -883,6 +894,15 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
             // As sha1 hash length is only 20, the length of base64 result won't
             // go over the limitation of uublock's 70 per line. So only one row!
             oss << "[Digest]\n1=" << base64::encode(hash, 20) << "\n";
+
+            theater = pINI->GetString("Map", "Theater");
+            for (const auto& [o, n] : TheaterHelpers::GetIniTheaterNamePairs())
+            {
+                if (_strcmpi(n, theater) == 0)
+                {
+                    pINI->WriteString("Map", "Theater", o);
+                }
+            }
 
             if (saveAsMMX)
             {

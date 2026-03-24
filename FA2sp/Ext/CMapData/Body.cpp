@@ -788,7 +788,6 @@ bool CMapDataExt::IsTileIntact(int x, int y, int startX, int startY, int right, 
 	}
 
 	return true;
-
 }
 
 void CMapDataExt::SetHeightAt(int x, int y, int height)
@@ -1002,7 +1001,7 @@ std::vector<MapCoord> CMapDataExt::GetIntactTileCoords(int x, int y, bool oriInt
 
 LandType CMapDataExt::GetAltLandType(int tileIndex, int TileSubIndex)
 {
-	if (tileIndex == 0xFFFF)
+	if (tileIndex >= CMapDataExt::TileDataCount)
 		tileIndex = 0;
 
 	if (TileData[tileIndex].TileSet != ShorePieces && TileData[tileIndex].TileSet == AutoShore_ShoreTileSet)
@@ -1023,7 +1022,24 @@ LandType CMapDataExt::GetAltLandType(int tileIndex, int TileSubIndex)
 		}
 	}
 
-	return TileData[tileIndex].TileBlockDatas[TileSubIndex].TerrainTypeAlt;
+	auto& tile = CMapDataExt::TileData[tileIndex];
+	if (tile.TileBlockCount == 0)
+		return LandType::Clear13;
+	if (TileSubIndex >= tile.TileBlockCount)
+		TileSubIndex = 0;
+	return tile.TileBlockDatas[TileSubIndex].TerrainTypeAlt;
+}
+
+LandType CMapDataExt::GetLandType(int tileIndex, int TileSubIndex)
+{
+	if (tileIndex >= CMapDataExt::TileDataCount)
+		tileIndex = 0;
+	auto& tile = CMapDataExt::TileData[tileIndex];
+	if (tile.TileBlockCount == 0)
+		return LandType::Clear13;
+	if (TileSubIndex >= tile.TileBlockCount)
+		TileSubIndex = 0;
+	return tile.TileBlockDatas[TileSubIndex].TerrainType;
 }
 
 void CMapDataExt::PlaceWallAt(int dwPos, int overlay, int damageStage, bool firstRun)
@@ -3540,7 +3556,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		theaterIg = "UBN";
 	FString theaterSuffix = theaterIg.Mid(0, 3);
 	FString isoPal;
-	isoPal.Format("iso%s.pal", theaterSuffix);
+	isoPal.Format("iso%s.pal", CLoadingExt::GetExtension()->GetTheaterSuffix());
 	isoPal.MakeUpper();
 	if (auto pal = PalettesManager::LoadPalette(isoPal))
 	{
@@ -3900,9 +3916,9 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 					sectionName.Format("TileSet%04d", index);
 					auto customPal = CINI::CurrentTheater->GetString(sectionName, "CustomPalette", "iso");
 					if (customPal == "iso")
-						CLoadingExt::LoadShp(imageName, anim.AnimName + CLoading::Instance->GetFileExtension(), &Palette_ISO_NoTint, 0);
+						CLoadingExt::LoadShp(imageName, anim.AnimName + CLoadingExt::GetExtension()->GetFileExtension(), &Palette_ISO_NoTint, 0);
 					else
-						CLoadingExt::LoadShp(imageName, anim.AnimName + CLoading::Instance->GetFileExtension(), customPal, 0);
+						CLoadingExt::LoadShp(imageName, anim.AnimName + CLoadingExt::GetExtension()->GetFileExtension(), customPal, 0);
 					anim.ImageName = imageName;
 				}
 			}

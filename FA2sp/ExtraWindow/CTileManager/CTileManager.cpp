@@ -4,6 +4,7 @@
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Helpers/MultimapHelper.h"
+#include "../../Ext/CLoading/Body.h"
 
 #include <CLoading.h>
 #include <CFinalSunApp.h>
@@ -58,7 +59,7 @@ void CTileManager::InitNodes()
     CTileManager::Nodes.clear();
 
     FString lpKey = FinalAlertConfig::Language + "-" + "TileManagerData";
-    lpKey += CLoading::Instance->GetTheaterSuffix();
+    lpKey += CLoadingExt::GetExtension()->GetTheaterSuffix();
 
     MultimapHelper mmh;
     mmh.AddINI(&CINI::FAData);
@@ -66,7 +67,7 @@ void CTileManager::InitNodes()
     if (mmh.GetSection(lpKey).empty())
     {
         lpKey = "TileManagerData";
-        lpKey += CLoading::Instance->GetTheaterSuffix();
+        lpKey += CLoadingExt::GetExtension()->GetTheaterSuffix();
     }
 
     auto const pKeys = mmh.ParseIndicies(lpKey);

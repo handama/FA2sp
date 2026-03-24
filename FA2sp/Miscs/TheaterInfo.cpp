@@ -10,8 +10,11 @@
 #include <vector>
 
 #include "../Helpers/STDHelpers.h"
+#include "../Helpers/TheaterHelpers.h"
 #include "../FA2sp.h"
 #include "../Ext/CMapData/Body.h"
+std::map<char, ppmfc::CString> TheaterHelpers::TheaterSuffixes;
+std::map<char, char> TheaterHelpers::TheaterLetters;
 
 const char* TheaterInfo::GetInfoSection()
 {

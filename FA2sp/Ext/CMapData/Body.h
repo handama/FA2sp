@@ -468,14 +468,8 @@ public:
 
     bool IsTileIntact(int x, int y, int startX = -1, int startY = -1, int right = -1, int bottom = -1);
     std::vector<MapCoord> GetIntactTileCoords(int x, int y, bool oriIntact);
-    LandType GetAltLandType(int tileIndex, int TileSubIndex);
-    static inline LandType GetLandType(int tileIndex, int TileSubIndex)
-    {
-        if (tileIndex == 0xFFFF)
-            tileIndex = 0;
-
-        return CMapDataExt::TileData[tileIndex].TileBlockDatas[TileSubIndex].TerrainType;
-    }
+    static LandType GetAltLandType(int tileIndex, int TileSubIndex);
+    static LandType GetLandType(int tileIndex, int TileSubIndex);
     void PlaceTileAt(int X, int Y, int index, int callType = -1);
     void SetHeightAt(int X, int Y, int height);
 

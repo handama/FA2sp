@@ -2,6 +2,7 @@
 #include "../Ext/CMapData/Body.h"
 #include "../Ext/CLoading/Body.h"
 #include "../Helpers/Helper.h"
+#include "../Helpers/TheaterHelpers.h"
 
 using std::map;
 using std::vector;
@@ -398,6 +399,18 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
         }
         else {
             CMapDataExt::IsUTF8File = false;
+        }
+    }
+
+    if (CMapDataExt::IsLoadingMapFile)
+    {
+        auto theater = GetString("Map", "Theater");
+        for (const auto& [o, n] : TheaterHelpers::GetIniTheaterNamePairs())
+        {
+            if (_strcmpi(n, theater) == 0)
+            {
+                WriteString("Map", "Theater", o);
+            }
         }
     }
 }

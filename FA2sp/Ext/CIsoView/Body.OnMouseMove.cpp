@@ -1525,8 +1525,6 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             FString line3;
             FString line4;
 
-            auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
-
             int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
             int tileUnsafeIndex = cell->TileIndex;
             if (tileUnsafeIndex == 0xffff)
@@ -1593,18 +1591,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 else if (cell->Flag.AltIndex == 7)
                     filename += "g";
 
-                if (thisTheater == "TEMPERATE")
-                    filename += ".tem";
-                if (thisTheater == "SNOW")
-                    filename += ".sno";
-                if (thisTheater == "URBAN")
-                    filename += ".urb";
-                if (thisTheater == "NEWURBAN")
-                    filename += ".ubn";
-                if (thisTheater == "LUNAR")
-                    filename += ".lun";
-                if (thisTheater == "DESERT")
-                    filename += ".des";
+                filename += CLoadingExt::GetExtension()->GetFileExtension();
 
                 if (ttype == 0x0)
                     ttypes = "Clear";

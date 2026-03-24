@@ -432,7 +432,10 @@ FString CLoadingExt::GetInfantryFileID(const FString& ID)
 		ImageID += this->TheaterIdentifier;
 	else if (Variables::RulesMap.GetBool(ID, "AlternateArcticArt"))
 		if (this->TheaterIdentifier == 'A')
-			ImageID += 'A';
+		{
+			auto& letter = TheaterHelpers::GetFileTheaterLetter();
+			ImageID += letter['A'];
+		}
 	if (!CINI::Art->SectionExists(ImageID))
 		ImageID = ArtID;
 
@@ -646,13 +649,15 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 							return HasFileExt(file);
 						};
 					file = name + ".SHP";
+
+					auto& letter = TheaterHelpers::GetFileTheaterLetter();
 					if (!HasFileExt(file))
-						if (!searchNewTheater('T'))
-							if (!searchNewTheater('A'))
-								if (!searchNewTheater('U'))
-									if (!searchNewTheater('N'))
-										if (!searchNewTheater('L'))
-											if (!searchNewTheater('D'))
+						if (!searchNewTheater(letter['T']))
+							if (!searchNewTheater(letter['A']))
+								if (!searchNewTheater(letter['U']))
+									if (!searchNewTheater(letter['N']))
+										if (!searchNewTheater(letter['L']))
+											if (!searchNewTheater(letter['D']))
 												return false;
 				}
 				else
@@ -1081,13 +1086,14 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 								return HasFileExt(file);
 							};
 						file = name + ".SHP";
+						auto& letter = TheaterHelpers::GetFileTheaterLetter();
 						if (!HasFileExt(file))
-							if (!searchNewTheater('T'))
-								if (!searchNewTheater('A'))
-									if (!searchNewTheater('U'))
-										if (!searchNewTheater('N'))
-											if (!searchNewTheater('L'))
-												if (!searchNewTheater('D'))
+							if (!searchNewTheater(letter['T']))
+								if (!searchNewTheater(letter['A']))
+									if (!searchNewTheater(letter['U']))
+										if (!searchNewTheater(letter['N']))
+											if (!searchNewTheater(letter['L']))
+												if (!searchNewTheater(letter['D']))
 													return false;
 					}
 					else
@@ -1528,13 +1534,14 @@ void CLoadingExt::LoadBuilding_Rubble(const FString& ID)
 								return HasFileExt(file);
 							};
 						file = name + ".SHP";
+						auto& letter = TheaterHelpers::GetFileTheaterLetter();
 						if (!HasFileExt(file))
-							if (!searchNewTheater('T'))
-								if (!searchNewTheater('A'))
-									if (!searchNewTheater('U'))
-										if (!searchNewTheater('N'))
-											if (!searchNewTheater('L'))
-												if (!searchNewTheater('D'))
+							if (!searchNewTheater(letter['T']))
+								if (!searchNewTheater(letter['A']))
+									if (!searchNewTheater(letter['U']))
+										if (!searchNewTheater(letter['N']))
+											if (!searchNewTheater(letter['L']))
+												if (!searchNewTheater(letter['D']))
 													return false;
 					}
 					else
@@ -3243,6 +3250,11 @@ void CLoadingExt::SetTheaterLetter(FString& string, int mode)
 
 	if (this->TheaterIdentifier != 0)
 	{
+		char letter = this->TheaterIdentifier;
+		auto& list = TheaterHelpers::GetFileTheaterLetter();
+		char newLetter = list[this->TheaterIdentifier];
+		if (newLetter != 0)
+			letter = newLetter;
 		if (mode == 1)
 		{
 			// Ares code here
@@ -3250,7 +3262,7 @@ void CLoadingExt::SetTheaterLetter(FString& string, int mode)
 			char c1 = string[1] & ~0x20; // evil hack to uppercase
 			if (isalpha(static_cast<unsigned char>(c0))) {
 				if (c1 == 'A' || c1 == 'T') {
-					string.SetAt(1, this->TheaterIdentifier);
+					string.SetAt(1, letter);
 				}
 			}
 		}
@@ -3261,7 +3273,7 @@ void CLoadingExt::SetTheaterLetter(FString& string, int mode)
 			char c1 = string[1] & ~0x20;
 			if (c0 == 'G' || c0 == 'N' || c0 == 'C' || c0 == 'Y') {
 				if (c1 == 'A' || c1 == 'T') {
-					string.SetAt(1, this->TheaterIdentifier);
+					string.SetAt(1, letter);
 				}
 			}
 		}
@@ -3368,28 +3380,9 @@ void CLoadingExt::GetFullPaletteName(FString& PaletteName)
 		return;
 	}
 
-	switch (this->TheaterIdentifier)
-	{
-	case 'A':
-		PaletteName += "sno.pal";
-		return;
-	case 'U':
-		PaletteName += "urb.pal";
-		return;
-	case 'N':
-		PaletteName += "ubn.pal";
-		return;
-	case 'D':
-		PaletteName += "des.pal";
-		return;
-	case 'L':
-		PaletteName += "lun.pal";
-		return;
-	case 'T':
-	default:
-		PaletteName += "tem.pal";
-		return;
-	}
+	PaletteName += GetTheaterSuffix();
+	PaletteName += ".pal";
+	return;
 }
 
 int CLoadingExt::ColorDistance(const ColorStruct& color1, const ColorStruct& color2)
@@ -4336,12 +4329,7 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 	ArtID = GetArtID(lpOvrlName);
 	ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
 
-	if (TheaterIdentifier == 'T') filename = ArtID + ".tem";
-	if (TheaterIdentifier == 'A') filename = ArtID + ".sno";
-	if (TheaterIdentifier == 'U') filename = ArtID + ".urb";
-	if (TheaterIdentifier == 'N') filename = ArtID + ".ubn";
-	if (TheaterIdentifier == 'L') filename = ArtID + ".lun";
-	if (TheaterIdentifier == 'D') filename = ArtID + ".des";
+	filename = ArtID + GetFileExtension();
 
 	bool findFile = false;
 	findFile = HasFileExt(filename);
@@ -4374,12 +4362,13 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 			searchNewTheater(ArtID[1]);
 			if (!ExtConfigs::UseStrictNewTheater)
 			{
-				searchNewTheater('T');
-				searchNewTheater('A');
-				searchNewTheater('U');
-				searchNewTheater('N');
-				searchNewTheater('L');
-				searchNewTheater('D');
+				auto& letter = TheaterHelpers::GetFileTheaterLetter();
+				searchNewTheater(letter['T']);
+				searchNewTheater(letter['A']);
+				searchNewTheater(letter['U']);
+				searchNewTheater(letter['N']);
+				searchNewTheater(letter['L']);
+				searchNewTheater(letter['D']);
 			}
 		}
 		else
@@ -4403,12 +4392,13 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 		};
 	if (!findFile)
 	{
-		searchOtherTheater("tem");
-		searchOtherTheater("sno");
-		searchOtherTheater("urb");
-		searchOtherTheater("ubn");
-		searchOtherTheater("lun");
-		searchOtherTheater("des");
+		auto& suffixes = TheaterHelpers::GetFileTheaterSuffix();
+		searchOtherTheater(suffixes['T']);
+		searchOtherTheater(suffixes['A']);
+		searchOtherTheater(suffixes['U']);
+		searchOtherTheater(suffixes['N']);
+		searchOtherTheater(suffixes['L']);
+		searchOtherTheater(suffixes['D']);
 	}
 	if (istiberium || isveinhole || isveins)
 		palette = PalettesManager::LoadPalette("temperat.pal");
@@ -4456,13 +4446,14 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 						return HasFileExt(file);
 					};
 					file = name + ".SHP";
+					auto& letter = TheaterHelpers::GetFileTheaterLetter();
 					if (!HasFileExt(file))
-						if (!searchNewTheater('T'))
-							if (!searchNewTheater('A'))
-								if (!searchNewTheater('U'))
-									if (!searchNewTheater('N'))
-										if (!searchNewTheater('L'))
-											if (!searchNewTheater('D'))
+						if (!searchNewTheater(letter['T']))
+							if (!searchNewTheater(letter['A']))
+								if (!searchNewTheater(letter['U']))
+									if (!searchNewTheater(letter['N']))
+										if (!searchNewTheater(letter['L']))
+											if (!searchNewTheater(letter['D']))
 												return false;
 				}
 				else

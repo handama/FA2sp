@@ -3,6 +3,7 @@
 #include <CLoading.h>
 #include "../FA2Expand.h"
 #include "../../FA2sp/Helpers/FString.h"
+#include "../../FA2sp/Helpers/TheaterHelpers.h"
 #include <CShpFile.h>
 #include <CMapData.h>
 #include <vector>
@@ -157,6 +158,59 @@ public:
 		case 'T':
 		default:
 			return 0;
+		}
+	}
+	ppmfc::CString GetFileExtension()
+	{
+		auto& list = TheaterHelpers::GetFileTheaterSuffix();
+		ppmfc::CString ret = ".";
+		ret += list[this->TheaterIdentifier];
+		if (ret != ".")
+		{
+			return ret;
+		}
+
+		switch (this->TheaterIdentifier)
+		{
+		case 'A':
+			return ".sno";
+		case 'U':
+			return ".urb";
+		case 'N':
+			return ".ubn";
+		case 'D':
+			return ".des";
+		case 'L':
+			return ".lun";
+		case 'T':
+		default:
+			return ".tem";
+		}
+	}
+	ppmfc::CString GetTheaterSuffix()
+	{
+		auto& list = TheaterHelpers::GetFileTheaterSuffix();
+		ppmfc::CString ret = list[this->TheaterIdentifier];
+		if (!ret.IsEmpty())
+		{
+			return ret;
+		}
+
+		switch (this->TheaterIdentifier)
+		{
+		case 'A':
+			return "SNO";
+		case 'U':
+			return "URB";
+		case 'N':
+			return "UBN";
+		case 'D':
+			return "DES";
+		case 'L':
+			return "LUN";
+		case 'T':
+		default:
+			return "TEM";
 		}
 	}
 	// mode 0 = vanilla YR, mode 1 = Ares

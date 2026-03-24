@@ -19,6 +19,7 @@
 #include <bit>
 #include "Helpers/Translations.h"
 #include "Miscs/DialogStyle.h"
+#include "Helpers/TheaterHelpers.h"
 
 #define ENABLE_VISUAL_STYLE
 static ULONG_PTR ulCookie;
@@ -1328,6 +1329,8 @@ void ExtConfigs::UpdateOptionTranslations()
 			.Type = ExtConfigs::SpecialOptionType::BindFormat
 			});
 	}
+
+	TheaterHelpers::InitTheaterSuffix();
 }
 
 bool FA2sp::IsDarkMode()

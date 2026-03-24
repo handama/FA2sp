@@ -110,6 +110,13 @@ const char* playersAtX[8]
     "<Player @ H>"
 };
 
+struct SubGroupInfo
+{
+    HTREEITEM item;
+    std::vector<FString> collector;
+    std::set<FString> insertedObjects;
+};
+
 HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
     HTREEITEM hParent, HTREEITEM hInsertAfter)
 {
@@ -1686,7 +1693,8 @@ void CViewObjectsExt::Redraw_Terrain()
     HTREEITEM& hTerrain = ExtNodes[Root_Terrain];
     if (hTerrain == NULL)   return;
 
-    std::vector<std::pair<HTREEITEM, std::vector<FString>>> nodes;
+    std::map<FString, SubGroupInfo> nodes;
+    auto&& terrains = Variables::RulesMap.ParseIndicies("TerrainTypes", true);
 
     if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.TerrainTypes"))
     {
@@ -1701,12 +1709,26 @@ void CViewObjectsExt::Redraw_Terrain()
             const auto& translation = pSection->GetEntities().find(pair.second)->second;
             
             if (!IsIgnored(translation))
-                nodes.push_back(std::make_pair(this->InsertTranslatedString(translation, -1, hTerrain), contains));
+                nodes[translation] = { this->InsertTranslatedString(translation, -1, hTerrain), contains };
+        }
+    }
+
+    for (size_t i = 0, sz = terrains.size(); i < sz; ++i)
+    {
+        if (IgnoreSet.find(terrains[i]) == IgnoreSet.end())
+        {
+            if (auto cat = Variables::RulesMap.TryGetString(terrains[i], "EditorCategory"))
+            {
+                auto& node = nodes[*cat];
+                if (!node.item)
+                {
+                    node.item = this->InsertTranslatedString(*cat, -1, hTerrain);
+                }
+            }
         }
     }
     HTREEITEM hOther = this->InsertTranslatedString("OthObList", -1, hTerrain);
 
-    auto&& terrains = Variables::RulesMap.ParseIndicies("TerrainTypes", true);
     for (size_t i = 0, sz = terrains.size(); i < sz; ++i)
     {
         if (IgnoreSet.find(terrains[i]) == IgnoreSet.end())
@@ -1716,18 +1738,29 @@ void CViewObjectsExt::Redraw_Terrain()
                 FA2sp::Buffer += " (" + terrains[i] + ")";
             bool bNotOther = false;
             InsertingObjectID = terrains[i];
-            for (const auto& node : nodes)
+            for (auto& [_, node] : nodes)
             {
-                for (const auto& match : node.second)
+                for (const auto& match : node.collector)
                 {
                     if (terrains[i].Find(match.c_str()) >= 0)
                     {
-                        this->InsertString(FA2sp::Buffer, Const_Terrain + i, node.first);
+                        this->InsertString(FA2sp::Buffer, Const_Terrain + i, node.item);
+                        node.insertedObjects.insert(terrains[i]);
                         bNotOther = true;
                         break;
                     }
                 }
             }
+            if (auto cat = Variables::RulesMap.TryGetString(terrains[i], "EditorCategory"))
+            {
+                auto& node = nodes[*cat];
+                if (!node.insertedObjects.contains(terrains[i]))
+                {
+                    this->InsertString(FA2sp::Buffer, Const_Terrain + i, node.item);
+                    bNotOther = true;
+                }
+            }
+
             if (!bNotOther)
                 this->InsertString(FA2sp::Buffer, Const_Terrain + i, hOther);
             InsertingObjectID = "";
@@ -1772,8 +1805,8 @@ void CViewObjectsExt::Redraw_Terrain()
     {
         for (auto& subnode : nodes)
         {
-            if (!this->GetTreeCtrl().ItemHasChildren(subnode.first))
-                this->GetTreeCtrl().DeleteItem(subnode.first);
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.second.item))
+                this->GetTreeCtrl().DeleteItem(subnode.second.item);
         }
     }
 }
@@ -1783,7 +1816,8 @@ void CViewObjectsExt::Redraw_Smudge()
     HTREEITEM& hSmudge = ExtNodes[Root_Smudge];
     if (hSmudge == NULL)   return;
 
-    std::vector<std::pair<HTREEITEM, std::vector<FString>>> nodes;
+    std::map<FString, SubGroupInfo> nodes;
+    auto&& smudges = Variables::RulesMap.ParseIndicies("SmudgeTypes", true);
 
     if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.SmudgeTypes"))
     {
@@ -1798,9 +1832,25 @@ void CViewObjectsExt::Redraw_Smudge()
             const auto& translation = pSection->GetEntities().find(pair.second)->second;
 
             if (!IsIgnored(translation))
-                nodes.push_back(std::make_pair(this->InsertTranslatedString(translation, -1, hSmudge), contains));
+                nodes[translation] = { this->InsertTranslatedString(translation, -1, hSmudge), contains };
         }
     }
+    for (size_t i = 0, sz = smudges.size(); i < sz; ++i)
+    {
+        if (IgnoreSet.find(smudges[i]) == IgnoreSet.end())
+        {
+            if (auto cat = Variables::RulesMap.TryGetString(smudges[i], "EditorCategory"))
+            {
+                auto& node = nodes[*cat];
+                if (!node.item)
+                {
+                    node.item = this->InsertTranslatedString(*cat, -1, hSmudge);
+                }
+            }
+        }
+    }
+
+    HTREEITEM hOther = this->InsertTranslatedString("OthObList", -1, hSmudge);
 
     HTREEITEM hRandomSmudge = this->InsertTranslatedString("PlaceRandomSmudgeList", -1, hSmudge);
     if (auto pSection = CINI::FAData().GetSection("PlaceRandomSmudgeList"))
@@ -1832,10 +1882,6 @@ void CViewObjectsExt::Redraw_Smudge()
         }
     }
 
-
-    HTREEITEM hOther = this->InsertTranslatedString("OthObList", -1, hSmudge);
-
-    auto&& smudges = Variables::RulesMap.ParseIndicies("SmudgeTypes", true);
     for (size_t i = 0, sz = smudges.size(); i < sz; ++i)
     {
         if (IgnoreSet.find(smudges[i]) == IgnoreSet.end())
@@ -1845,16 +1891,26 @@ void CViewObjectsExt::Redraw_Smudge()
                 FA2sp::Buffer += " (" + smudges[i] + ")";
             bool bNotOther = false;
             InsertingObjectID = smudges[i];
-            for (const auto& node : nodes)
+            for (auto& [_, node] : nodes)
             {
-                for (const auto& match : node.second)
+                for (const auto& match : node.collector)
                 {
                     if (smudges[i].Find(match.c_str()) >= 0)
                     {
-                        this->InsertString(FA2sp::Buffer, Const_Smudge + i, node.first);
+                        this->InsertString(FA2sp::Buffer, Const_Smudge + i, node.item);
+                        node.insertedObjects.insert(smudges[i]);
                         bNotOther = true;
                         break;
                     }
+                }
+            }
+            if (auto cat = Variables::RulesMap.TryGetString(smudges[i], "EditorCategory"))
+            {
+                auto& node = nodes[*cat];
+                if (!node.insertedObjects.contains(smudges[i]))
+                {
+                    this->InsertString(FA2sp::Buffer, Const_Smudge + i, node.item);
+                    bNotOther = true;
                 }
             }
             if (!bNotOther)
@@ -1867,8 +1923,8 @@ void CViewObjectsExt::Redraw_Smudge()
     {
         for (auto& subnode : nodes)
         {
-            if (!this->GetTreeCtrl().ItemHasChildren(subnode.first))
-                this->GetTreeCtrl().DeleteItem(subnode.first);
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.second.item))
+                this->GetTreeCtrl().DeleteItem(subnode.second.item);
         }
     }
 }
@@ -1933,7 +1989,7 @@ void CViewObjectsExt::Redraw_Overlay()
         InsertingOverlay = -1;
     }
 
-    std::vector<std::pair<HTREEITEM, std::vector<FString>>> nodes;
+    std::map<FString, SubGroupInfo> nodes;
     if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.Overlays"))
     {
         std::map<int, FString> collector;
@@ -1947,23 +2003,11 @@ void CViewObjectsExt::Redraw_Overlay()
             const auto& translation = pSection->GetEntities().find(pair.second)->second;
 
             if (!IsIgnored(translation))
-                nodes.push_back(std::make_pair(this->InsertTranslatedString(translation, -1, hOverlay), contains));
+                nodes[translation] = { this->InsertTranslatedString(translation, -1, hOverlay), contains };
         }
     }
-
-    hTemp = this->InsertTranslatedString("AllObList", -1, hOverlay);
-
-    this->InsertTranslatedString("OvrlManuallyObList", 60001, hOverlay);
-    this->InsertTranslatedString("OvrlDataManuallyObList", 60002, hOverlay);
-
     if (Variables::RulesMap.GetSection("OverlayTypes").empty())
         return;
-
-    // a rough support for tracks
-    InsertingOverlay = 39;
-    InsertingOverlayData = 0;
-    this->InsertTranslatedString("Tracks", Const_Track, hOverlay);
-    InsertingOverlay = -1;
 
     const auto& overlays = Variables::RulesMap.ParseIndicies("OverlayTypes", true);
     int indexWall = Wall;
@@ -1985,7 +2029,6 @@ void CViewObjectsExt::Redraw_Overlay()
 
         if (!Variables::RulesMap.GetSection(value).empty() && IgnoreOverlaySet.find(value) == IgnoreOverlaySet.end())
         {
-
             if (Variables::RulesMap.GetBool(value, "Wall"))
             {
                 int damageLevel = CINI::Art().GetInteger(value, "DamageLevels", 1);
@@ -2019,24 +2062,68 @@ void CViewObjectsExt::Redraw_Overlay()
                 }
             }
 
-            for (const auto& node : nodes)
+            for (auto& [_, node] : nodes)
             {
-                for (const auto& match : node.second)
+                for (const auto& match : node.collector)
                 {
-                    if (overlays[i].Find(match.c_str()) >= 0)
+                    if (value.Find(match.c_str()) >= 0)
                     {
                         InsertingOverlay = i;
                         if (CMapDataExt::IsOre((byte)i))
                             InsertingOverlayData = 11;
                         else
                             InsertingOverlayData = 0;
-                        this->InsertString(id, Const_Overlay + i, node.first);
+                        this->InsertString(id, Const_Overlay + i, node.item);
+                        node.insertedObjects.insert(value);
                         break;
                     }
                 }
             }
+            if (auto cat = Variables::RulesMap.TryGetString(value, "EditorCategory"))
+            {
+                auto& node = nodes[*cat];
+                if (!node.item)
+                {
+                    node.item = this->InsertTranslatedString(*cat, -1, hOverlay);
+                }
+                if (!node.insertedObjects.contains(value))
+                {
+                    InsertingOverlay = i;
+                    if (CMapDataExt::IsOre((byte)i))
+                        InsertingOverlayData = 11;
+                    else
+                        InsertingOverlayData = 0;
+                    this->InsertString(id, Const_Overlay + i, node.item);
+                }
+            }
         }
+    }
 
+    // a rough support for tracks
+    InsertingOverlay = 39;
+    InsertingOverlayData = 0;
+    this->InsertTranslatedString("Tracks", Const_Track, hOverlay);
+    InsertingOverlay = -1;
+
+    hTemp = this->InsertTranslatedString("AllObList", -1, hOverlay);
+
+    this->InsertTranslatedString("OvrlManuallyObList", 60001, hOverlay);
+    this->InsertTranslatedString("OvrlDataManuallyObList", 60002, hOverlay);
+
+    for (int i = 0, sz = (ExtConfigs::ExtOverlays || CMapDataExt::NewINIFormat >= 5) ?
+        overlays.size() : std::min((UINT)255, overlays.size()); i < sz; ++i)
+    {
+        const auto& value = overlays[i];
+        FString buffer;
+        FString name = Variables::RulesMap.GetString(value, "Name");
+        if (name.IsEmpty() || !Translations::GetTranslationItem(name, buffer))
+        {
+            buffer = QueryUIName(value, true);
+        }
+        if (buffer != value)
+            buffer += " (" + value + ")";
+        FString id;
+        id.Format("%03d %s", i, buffer);
         InsertingOverlay = i;
         if (CMapDataExt::IsOre((byte)i))
             InsertingOverlayData = 11;
@@ -2081,8 +2168,8 @@ void CViewObjectsExt::Redraw_Overlay()
     {
         for (auto& subnode : nodes)
         {
-            if (!this->GetTreeCtrl().ItemHasChildren(subnode.first))
-                this->GetTreeCtrl().DeleteItem(subnode.first);
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.second.item))
+                this->GetTreeCtrl().DeleteItem(subnode.second.item);
         }
     }
 }

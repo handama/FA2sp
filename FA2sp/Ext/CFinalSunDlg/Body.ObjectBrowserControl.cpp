@@ -3743,7 +3743,7 @@ std::vector<int> CViewObjectsExt::GuessSide(const char* pRegName, int nType)
 int CViewObjectsExt::GuessBuildingSide(const char* pRegName)
 {
     int planning = Variables::RulesMap.GetInteger(pRegName, "AIBasePlanningSide", -1);
-    if (planning >= Variables::RulesMap.GetSection("Sides").size())
+    if (planning >= (int)Variables::RulesMap.GetSection("Sides").size())
         return -1;
     if (planning >= 0)
         return planning > ExtConfigs::ObjectBrowser_GuessMax ? -1 : planning;
@@ -3754,7 +3754,7 @@ int CViewObjectsExt::GuessBuildingSide(const char* pRegName)
         if (cons[i] == pRegName)
             return i > ExtConfigs::ObjectBrowser_GuessMax ? -1 : i;
     }
-    if (i >= Variables::RulesMap.GetSection("Sides").size())
+    if (i >= (int)Variables::RulesMap.GetSection("Sides").size())
         return -1;
     return GuessGenericSide(pRegName, Set_Building);
 }

@@ -44,6 +44,13 @@ DEFINE_HOOK(51AF40, CViewObjects_OnSelectChanged, 7)
         0x51CC8B :
         0;
 }
+DEFINE_HOOK(51C453, CViewObjects_OnSelectChanged_RandomTree, 6)
+{
+    GET(const int, subpos, ESI);
+    if (subpos == 9999)
+        return 0x51C459;
+    return 0x51C4F2;
+}
 
 int infantryLoop = 0;
 MapCoord lastCoord = { 0,0 };

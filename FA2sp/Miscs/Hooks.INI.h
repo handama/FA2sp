@@ -21,6 +21,7 @@ public:
     void LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
         bool bClear, bool bTrimSpace, bool bAllowInclude, std::queue<ppmfc::CString>* parentIncludeInis = nullptr);
     void LoadFASetting(const FString& path);
+    void InheritSectionRecursive(const ppmfc::CString& sectionName, std::set<ppmfc::CString>& visited);
     static bool IsLoadingFAini;
 };
 

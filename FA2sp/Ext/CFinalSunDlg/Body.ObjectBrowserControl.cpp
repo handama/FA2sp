@@ -26,6 +26,7 @@
 #include "../../Miscs/DialogStyle.h"
 #include "../../Miscs/UserScripts.h"
 #include "../../ExtraWindow/CTechnoDialog/CTechnoDialog.h"
+#include <CRandomTree.h>
 
 namespace fs = std::filesystem;
 
@@ -61,6 +62,12 @@ std::unique_ptr<CPropertyInfantry> CViewObjectsExt::InfantryBrushDlgF;
 std::unique_ptr<CPropertyUnit> CViewObjectsExt::VehicleBrushDlgF;
 std::unique_ptr<CPropertyAircraft> CViewObjectsExt::AircraftBrushDlgF;
 std::unique_ptr<CPropertyBuilding> CViewObjectsExt::BuildingBrushDlgBNF;
+std::map<int, FString> CViewObjectsExt::TreeViewIndex_Building;
+std::map<int, FString> CViewObjectsExt::TreeViewIndex_Infantry;
+std::map<int, FString> CViewObjectsExt::TreeViewIndex_Vehicle;
+std::map<int, FString> CViewObjectsExt::TreeViewIndex_Aircraft;
+std::map<int, FString> CViewObjectsExt::TreeViewIndex_Terrain;
+std::map<int, FString> CViewObjectsExt::TreeViewIndex_Smudge;
 COLORREF CViewObjectsExt::WpColor;
 COLORREF CViewObjectsExt::TagColor;
 
@@ -516,6 +523,13 @@ void CViewObjectsExt::Redraw_Initialize()
     IgnoreOverlaySet.clear();
     RenameString.clear();
     Owners.clear();
+
+    TreeViewIndex_Building.clear();
+    TreeViewIndex_Infantry.clear();
+    TreeViewIndex_Vehicle.clear();
+    TreeViewIndex_Aircraft.clear();
+    TreeViewIndex_Terrain.clear();
+    TreeViewIndex_Smudge.clear();
 
     auto& fadata = CINI::FAData();
     auto& doc = CINI::CurrentDocument();
@@ -1184,16 +1198,17 @@ void CViewObjectsExt::Redraw_Infantry()
     subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hInfantry);
 
     auto&& infantries = Variables::RulesMap.GetSection("InfantryTypes");
+    int index = -1;
     for (auto& inf : infantries)
     {
+        index++;
+        TreeViewIndex_Infantry[index] = inf.second;
         if (AddOnceSet.find(inf.second) != AddOnceSet.end())
             continue;
         AddOnceSet.insert(inf.second);
 
         if (IgnoreSet.find(inf.second) != IgnoreSet.end())
             continue;
-        int index = STDHelpers::ParseToInt(inf.first, -1);
-        if (index == -1)   continue;
 
         InsertingObjectID = inf.second;
         auto sides = GetUnique(GuessSide(inf.second, Set_Infantry));
@@ -1308,16 +1323,17 @@ void CViewObjectsExt::Redraw_Vehicle()
     subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hVehicle);
 
     auto&& vehicles = Variables::RulesMap.GetSection("VehicleTypes");
+    int index = -1;
     for (auto& veh : vehicles)
     {
+        index++;
+        TreeViewIndex_Vehicle[index] = veh.second;
         if (AddOnceSet.find(veh.second) != AddOnceSet.end())
             continue;
         AddOnceSet.insert(veh.second);
 
         if (IgnoreSet.find(veh.second) != IgnoreSet.end())
             continue;
-        int index = STDHelpers::ParseToInt(veh.first, -1);
-        if (index == -1)   continue;
 
         InsertingObjectID = veh.second;
         auto sides = GetUnique(GuessSide(veh.second, Set_Vehicle));
@@ -1432,17 +1448,17 @@ void CViewObjectsExt::Redraw_Aircraft()
     subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hAircraft);
 
     auto&& aircrafts = Variables::RulesMap.GetSection("AircraftTypes");
+    int index = -1;
     for (auto& air : aircrafts)
     {
+        index++;
+        TreeViewIndex_Aircraft[index] = air.second;
         if (AddOnceSet.find(air.second) != AddOnceSet.end())
             continue;
         AddOnceSet.insert(air.second);
 
-
         if (IgnoreSet.find(air.second) != IgnoreSet.end())
             continue;
-        int index = STDHelpers::ParseToInt(air.first, -1);
-        if (index == -1)   continue;
         
         InsertingObjectID = air.second;
         auto sides = GetUnique(GuessSide(air.second, Set_Aircraft));
@@ -1559,16 +1575,17 @@ void CViewObjectsExt::Redraw_Building()
     subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hBuilding);
     
     auto&& buildings = Variables::RulesMap.GetSection("BuildingTypes");
+    int index = -1;
     for (auto& bud : buildings)
     {
+        index++;
+        TreeViewIndex_Building[index] = bud.second;
         if (AddOnceSet.find(bud.second) != AddOnceSet.end())
             continue;
         AddOnceSet.insert(bud.second);
 
         if (IgnoreSet.find(bud.second) != IgnoreSet.end())
             continue;
-        int index = STDHelpers::ParseToInt(bud.first, -1);
-        if (index == -1)   continue;
 
         InsertingObjectID = bud.second;
         auto sides = GetUnique(GuessSide(bud.second, Set_Building));
@@ -1694,7 +1711,7 @@ void CViewObjectsExt::Redraw_Terrain()
     if (hTerrain == NULL)   return;
 
     std::map<FString, SubGroupInfo> nodes;
-    auto&& terrains = Variables::RulesMap.ParseIndicies("TerrainTypes", true);
+    auto&& terrains = Variables::RulesMap.GetSection("TerrainTypes");
 
     if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.TerrainTypes"))
     {
@@ -1713,11 +1730,11 @@ void CViewObjectsExt::Redraw_Terrain()
         }
     }
 
-    for (size_t i = 0, sz = terrains.size(); i < sz; ++i)
+    for (auto& terrain : terrains)
     {
-        if (IgnoreSet.find(terrains[i]) == IgnoreSet.end())
+        if (IgnoreSet.find(terrain.second) == IgnoreSet.end())
         {
-            if (auto cat = Variables::RulesMap.TryGetString(terrains[i], "EditorCategory"))
+            if (auto cat = Variables::RulesMap.TryGetString(terrain.second, "EditorCategory"))
             {
                 auto& node = nodes[*cat];
                 if (!node.item)
@@ -1729,45 +1746,48 @@ void CViewObjectsExt::Redraw_Terrain()
     }
     HTREEITEM hOther = this->InsertTranslatedString("OthObList", -1, hTerrain);
 
-    for (size_t i = 0, sz = terrains.size(); i < sz; ++i)
+    int index = -1;
+    for (auto& terrain : terrains)
     {
-        if (IgnoreSet.find(terrains[i]) == IgnoreSet.end())
+        index++;
+        TreeViewIndex_Terrain[index] = terrain.second;
+        if (IgnoreSet.find(terrain.second) == IgnoreSet.end())
         {
-            FA2sp::Buffer = QueryUIName(terrains[i]);
-            if (FA2sp::Buffer != terrains[i])
-                FA2sp::Buffer += " (" + terrains[i] + ")";
+            FA2sp::Buffer = QueryUIName(terrain.second);
+            if (FA2sp::Buffer != terrain.second)
+                FA2sp::Buffer += " (" + terrain.second + ")";
             bool bNotOther = false;
-            InsertingObjectID = terrains[i];
+            InsertingObjectID = terrain.second;
             for (auto& [_, node] : nodes)
             {
                 for (const auto& match : node.collector)
                 {
-                    if (terrains[i].Find(match.c_str()) >= 0)
+                    if (terrain.second.Find(match.c_str()) >= 0)
                     {
-                        this->InsertString(FA2sp::Buffer, Const_Terrain + i, node.item);
-                        node.insertedObjects.insert(terrains[i]);
+                        this->InsertString(FA2sp::Buffer, Const_Terrain + index, node.item);
+                        node.insertedObjects.insert(terrain.second);
                         bNotOther = true;
                         break;
                     }
                 }
             }
-            if (auto cat = Variables::RulesMap.TryGetString(terrains[i], "EditorCategory"))
+            if (auto cat = Variables::RulesMap.TryGetString(terrain.second, "EditorCategory"))
             {
                 auto& node = nodes[*cat];
-                if (!node.insertedObjects.contains(terrains[i]))
+                if (!node.insertedObjects.contains(terrain.second))
                 {
-                    this->InsertString(FA2sp::Buffer, Const_Terrain + i, node.item);
+                    this->InsertString(FA2sp::Buffer, Const_Terrain + index, node.item);
                     bNotOther = true;
                 }
             }
 
             if (!bNotOther)
-                this->InsertString(FA2sp::Buffer, Const_Terrain + i, hOther);
+                this->InsertString(FA2sp::Buffer, Const_Terrain + index, hOther);
             InsertingObjectID = "";
         }
     }
 
-    this->InsertTranslatedString("RndTreeObList", 50999, hTerrain);
+    this->InsertTranslatedString("RndTreeObList", 59999, hTerrain);
 
 
     HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomTreeObList", -1, hTerrain);
@@ -1817,7 +1837,7 @@ void CViewObjectsExt::Redraw_Smudge()
     if (hSmudge == NULL)   return;
 
     std::map<FString, SubGroupInfo> nodes;
-    auto&& smudges = Variables::RulesMap.ParseIndicies("SmudgeTypes", true);
+    auto&& smudges = Variables::RulesMap.GetSection("SmudgeTypes");
 
     if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.SmudgeTypes"))
     {
@@ -1835,11 +1855,11 @@ void CViewObjectsExt::Redraw_Smudge()
                 nodes[translation] = { this->InsertTranslatedString(translation, -1, hSmudge), contains };
         }
     }
-    for (size_t i = 0, sz = smudges.size(); i < sz; ++i)
+    for (auto& smudge : smudges)
     {
-        if (IgnoreSet.find(smudges[i]) == IgnoreSet.end())
+        if (IgnoreSet.find(smudge.second) == IgnoreSet.end())
         {
-            if (auto cat = Variables::RulesMap.TryGetString(smudges[i], "EditorCategory"))
+            if (auto cat = Variables::RulesMap.TryGetString(smudge.second, "EditorCategory"))
             {
                 auto& node = nodes[*cat];
                 if (!node.item)
@@ -1882,39 +1902,42 @@ void CViewObjectsExt::Redraw_Smudge()
         }
     }
 
-    for (size_t i = 0, sz = smudges.size(); i < sz; ++i)
+    int index = -1;
+    for (auto& smudge : smudges)
     {
-        if (IgnoreSet.find(smudges[i]) == IgnoreSet.end())
+        index++;
+        TreeViewIndex_Smudge[index] = smudge.second;
+        if (IgnoreSet.find(smudge.second) == IgnoreSet.end())
         {
-            FA2sp::Buffer = QueryUIName(smudges[i]);
-            if (FA2sp::Buffer != smudges[i])
-                FA2sp::Buffer += " (" + smudges[i] + ")";
+            FA2sp::Buffer = QueryUIName(smudge.second);
+            if (FA2sp::Buffer != smudge.second)
+                FA2sp::Buffer += " (" + smudge.second + ")";
             bool bNotOther = false;
-            InsertingObjectID = smudges[i];
+            InsertingObjectID = smudge.second;
             for (auto& [_, node] : nodes)
             {
                 for (const auto& match : node.collector)
                 {
-                    if (smudges[i].Find(match.c_str()) >= 0)
+                    if (smudge.second.Find(match.c_str()) >= 0)
                     {
-                        this->InsertString(FA2sp::Buffer, Const_Smudge + i, node.item);
-                        node.insertedObjects.insert(smudges[i]);
+                        this->InsertString(FA2sp::Buffer, Const_Smudge + index, node.item);
+                        node.insertedObjects.insert(smudge.second);
                         bNotOther = true;
                         break;
                     }
                 }
             }
-            if (auto cat = Variables::RulesMap.TryGetString(smudges[i], "EditorCategory"))
+            if (auto cat = Variables::RulesMap.TryGetString(smudge.second, "EditorCategory"))
             {
                 auto& node = nodes[*cat];
-                if (!node.insertedObjects.contains(smudges[i]))
+                if (!node.insertedObjects.contains(smudge.second))
                 {
-                    this->InsertString(FA2sp::Buffer, Const_Smudge + i, node.item);
+                    this->InsertString(FA2sp::Buffer, Const_Smudge + index, node.item);
                     bNotOther = true;
                 }
             }
             if (!bNotOther)
-                this->InsertString(FA2sp::Buffer, Const_Smudge + i, hOther);
+                this->InsertString(FA2sp::Buffer, Const_Smudge + index, hOther);
             InsertingObjectID = "";
         }
     }
@@ -3775,6 +3798,49 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     int nCode = nData / 10000;
     nData %= 10000;
 
+    if (oriNData == Const_WPColor)
+    {
+        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
+        CIsoView::CurrentCommand->Type = 0;
+        OpenWpTagColorDlg(true);
+        return true;
+    }
+    if (oriNData == Const_TagColor)
+    {
+        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
+        CIsoView::CurrentCommand->Type = 1;
+        OpenWpTagColorDlg(false);
+        return true;
+    }
+    if (oriNData == Const_RemoveWPColor)
+    {
+        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
+        CIsoView::CurrentCommand->Type = 2;
+        return true;
+    }
+    if (oriNData == Const_RemoveTagColor)
+    {
+        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
+        CIsoView::CurrentCommand->Type = 3;
+        return true;
+    }
+    if (oriNData == Const_Track)
+    {
+        CIsoViewExt::EnableAutoTrack = true;
+        CIsoView::CurrentCommand->Command = 0x1;
+        CIsoView::CurrentCommand->Type = 6;
+        CIsoView::CurrentCommand->Param = 30;
+        CIsoView::CurrentCommand->Overlay = 39;
+        CIsoView::CurrentCommand->OverlayData = 0;
+        return true;
+    }
+    if (oriNData == 60100)
+    {
+        CIsoView::CurrentCommand->Command = 1;
+        CIsoView::CurrentCommand->Type = 6;
+        CIsoView::CurrentCommand->Param = 1;
+        return true;
+    }
     if (nCode == 0) // main list
     {
         CIsoView::CurrentCommand->Command = 0x00;
@@ -3782,6 +3848,15 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     }
     if (nCode == 1) // Infantry
     {
+        auto& obj = TreeViewIndex_Infantry[nData];
+        if (!obj.IsEmpty())
+        {
+            CIsoView::CurrentCommand->Command = 0x1;
+            CIsoView::CurrentCommand->Type = nCode;
+            CIsoView::CurrentCommand->Param = nData;
+            CIsoView::CurrentCommand->ObjectID = obj;
+            return true;
+        }
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomInfantryObList"))
         {
             int index = RandomTechno;
@@ -3799,9 +3874,19 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                 index++;
             }
         }
+        return true;
     }
     if (nCode == 2) // Building
     {
+        auto& obj = TreeViewIndex_Building[nData];
+        if (!obj.IsEmpty())
+        {
+            CIsoView::CurrentCommand->Command = 0x1;
+            CIsoView::CurrentCommand->Type = nCode;
+            CIsoView::CurrentCommand->Param = nData;
+            CIsoView::CurrentCommand->ObjectID = obj;
+            return true;
+        }
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomBuildingObList"))
         {
             int index = RandomTechno;
@@ -3819,9 +3904,19 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                 index++;
             }
         }
+        return true;
     }
     if (nCode == 3) // Aircraft
     {
+        auto& obj = TreeViewIndex_Aircraft[nData];
+        if (!obj.IsEmpty())
+        {
+            CIsoView::CurrentCommand->Command = 0x1;
+            CIsoView::CurrentCommand->Type = nCode;
+            CIsoView::CurrentCommand->Param = nData;
+            CIsoView::CurrentCommand->ObjectID = obj;
+            return true;
+        }
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomAircraftObList"))
         {
             int index = RandomTechno;
@@ -3839,9 +3934,19 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                 index++;
             }
         }
+        return true;
     }
     if (nCode == 4) // Vehicle
     {
+        auto& obj = TreeViewIndex_Vehicle[nData];
+        if (!obj.IsEmpty())
+        {
+            CIsoView::CurrentCommand->Command = 0x1;
+            CIsoView::CurrentCommand->Type = nCode;
+            CIsoView::CurrentCommand->Param = nData;
+            CIsoView::CurrentCommand->ObjectID = obj;
+            return true;
+        }
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomVehicleObList"))
         {
             int index = RandomTechno;
@@ -3859,9 +3964,28 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                 index++;
             }
         }
+        return true;
     }
     if (nCode == 5) // Terrain
     {
+        auto& obj = TreeViewIndex_Terrain[nData];
+        if (!obj.IsEmpty())
+        {
+            CIsoView::CurrentCommand->Command = 0x1;
+            CIsoView::CurrentCommand->Type = nCode;
+            CIsoView::CurrentCommand->Param = nData;
+            CIsoView::CurrentCommand->ObjectID = obj;
+            return true;
+        }
+        auto&& objs = Variables::RulesMap.ParseIndicies("TerrainTypes", true);
+        if (nData < objs.size())
+        {
+            CIsoView::CurrentCommand->Command = 0x1;
+            CIsoView::CurrentCommand->Type = nCode;
+            CIsoView::CurrentCommand->Param = nData;
+            CIsoView::CurrentCommand->ObjectID = objs[nData];
+            return true;
+        }
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomTreeObList"))
         {
             int index = RandomTree;
@@ -3879,6 +4003,7 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                 index++;
             }
         }
+        return true;
     }
     if (nCode == 6) // overlay
     {
@@ -3968,6 +4093,15 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     }
     if (nCode == 8) // Smudge
     {
+        auto& obj = TreeViewIndex_Smudge[nData];
+        if (!obj.IsEmpty())
+        {
+            CIsoView::CurrentCommand->Command = 0x1;
+            CIsoView::CurrentCommand->Type = nCode;
+            CIsoView::CurrentCommand->Param = nData;
+            CIsoView::CurrentCommand->ObjectID = obj;
+            return true;
+        }
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomSmudgeList"))
         {
             int index = random1x1crater;
@@ -3985,6 +4119,7 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                 index++;
             }
         }
+        return true;
     }
 
     if (nCode == 9) // PropertyBrush
@@ -4421,49 +4556,7 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         CIsoView::CurrentCommand->Type = nData;
         return true;
     }
-    if (oriNData == Const_WPColor)
-    {
-        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
-        CIsoView::CurrentCommand->Type = 0;
-        OpenWpTagColorDlg(true);
-        return true;
-    }
-    if (oriNData == Const_TagColor)
-    {
-        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
-        CIsoView::CurrentCommand->Type = 1;
-        OpenWpTagColorDlg(false);
-        return true;
-    }
-    if (oriNData == Const_RemoveWPColor)
-    {
-        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
-        CIsoView::CurrentCommand->Type = 2;
-        return true;
-    }
-    if (oriNData == Const_RemoveTagColor)
-    {
-        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
-        CIsoView::CurrentCommand->Type = 3;
-        return true;
-    }
-    if (oriNData == Const_Track)
-    {
-        CIsoViewExt::EnableAutoTrack = true;
-        CIsoView::CurrentCommand->Command = 0x1;
-        CIsoView::CurrentCommand->Type = 6;
-        CIsoView::CurrentCommand->Param = 30;
-        CIsoView::CurrentCommand->Overlay = 39;
-        CIsoView::CurrentCommand->OverlayData = 0;
-        return true;
-    }
-    if (oriNData == 60100)
-    {
-        CIsoView::CurrentCommand->Command = 1;
-        CIsoView::CurrentCommand->Type = 6;
-        CIsoView::CurrentCommand->Param = 1;
-        return true;
-    }
+ 
     // 0x1F Terrain Generator
     // 0x20 Modify Ore
     // 0x21 Annotation

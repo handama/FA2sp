@@ -1333,12 +1333,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 										x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData,
 										shadowMask_Building_Infantry,
 										shadowHeightMask, cell->Height);
-
-									std::set<FString> drawn;
-									DrawTechnoAttachments([] {}, drawn, objRender.ID, FacingCount == 1 ? 0 : objRender.Facing,
-										CLoadingExt::ObjectType::Building, cell, lpDesc->lpSurface, boundary,
-										x1, y1, 0xffffff, true);
 								}
+
+								std::set<FString> drawn;
+								DrawTechnoAttachments([] {}, drawn, objRender.ID, FacingCount == 1 ? 0 : objRender.Facing,
+									CLoadingExt::ObjectType::Building, cell, lpDesc->lpSurface, boundary,
+									x1, y1, 0xffffff, true);
 
 								for (int upgrade = 0; upgrade < objRender.PowerUpCount; ++upgrade)
 								{
@@ -1552,41 +1552,40 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							allowDraw = useDefault;
 						}
 
+						int x1 = x;
+						int y1 = y;
+						switch (atoi(obj.SubCell))
+						{
+						case 2:
+							x1 += 15;
+							y1 += 15;
+							break;
+						case 3:
+							x1 -= 15;
+							y1 += 15;
+							break;
+						case 4:
+							y1 += 22;
+							break;
+						default:
+							y1 += 15;
+							break;
+						}
+
+						if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
+							y1 -= 60;
+
 						if (allowDraw && pData->pImageBuffer)
 						{
-							int x1 = x;
-							int y1 = y;
-							switch (atoi(obj.SubCell))
-							{
-							case 2:
-								x1 += 15;
-								y1 += 15;
-								break;
-							case 3:
-								x1 -= 15;
-								y1 += 15;
-								break;
-							case 4:
-								y1 += 22;
-								break;
-							default:
-								y1 += 15;
-								break;
-							}
-
-							if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
-								y1 -= 60;
-
 							CIsoViewExt::MaskShadowPixels(window,
 								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData,
 								shadowMask_Building_Infantry,
 								shadowHeightMask, cell->Height);
-
-							std::set<FString> drawn;
-							DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
-								CLoadingExt::ObjectType::Infantry, cell, lpDesc->lpSurface, boundary,
-								x1, y1, 0xffffff, true);
 						}
+						std::set<FString> drawn;
+						DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
+							CLoadingExt::ObjectType::Infantry, cell, lpDesc->lpSurface, boundary,
+							x1, y1, 0xffffff, true);
 					}
 				}
 			}
@@ -1630,23 +1629,24 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						allowDraw = useDefault;
 					}
 
+					int x1 = x;
+					int y1 = y;
+
+					if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
+						y1 -= 60;
+
 					if (allowDraw && pData->pImageBuffer)
 					{
-						int x1 = x;
-						int y1 = y;
-
-						if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
-							y1 -= 60;
-
 						// units are special, they overlap with each other
 						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + 15, pData, NULL, 128);
 
-						std::set<FString> drawn;
-						DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
-							CLoadingExt::ObjectType::Vehicle, cell, lpDesc->lpSurface, boundary,
-							x1, y1 + 15 , 0xffffff, true);
 					}
+
+					std::set<FString> drawn;
+					DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
+						CLoadingExt::ObjectType::Vehicle, cell, lpDesc->lpSurface, boundary,
+						x1, y1 + 15, 0xffffff, true);
 				}		
 			}
 		}
@@ -1669,20 +1669,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						CLoadingExt::GetExtension()->LoadObjects(ImageID);
 					}
-					int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
-					int nFacing = (atoi(obj.Facing) * facings / 256) % facings;
-
-					const auto& imageName = CLoadingExt::GetImageName(ImageID, nFacing, true);
-
-					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
-
-					if (pData->pImageBuffer)
-					{
-						std::set<FString> drawn;
-						DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
-							CLoadingExt::ObjectType::Aircraft, cell, lpDesc->lpSurface, boundary,
-							x, y + 15 , 0xffffff, true);
-					}
+					std::set<FString> drawn;
+					DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
+						CLoadingExt::ObjectType::Aircraft, cell, lpDesc->lpSurface, boundary,
+						x, y + 15, 0xffffff, true);
 				}		
 			}
 		}
@@ -1751,7 +1741,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 	}
 	if (shadow)
-	{	
+	{
 		for (size_t i = 0; i < shadowMask_size; ++i) {
 			shadowMask[i] += shadowMask_Building_Infantry[i];
 			shadowMask[i] += shadowMask_Terrain[i];
@@ -2358,14 +2348,13 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					auto pData = CLoadingExt::GetImageDataFromMap(imageName,
 						CLoadingExt::ObjectType::Vehicle, nFacing, facings, false);
 
+					bool HoveringUnit = ExtConfigs::InGameDisplay_Hover && Variables::RulesMap.GetString(obj.TypeID, "SpeedType") == "Hover"
+						&& (Variables::RulesMap.GetString(obj.TypeID, "Locomotor") == "Hover"
+							|| Variables::RulesMap.GetString(obj.TypeID, "Locomotor") == "{4A582742-9839-11d1-B709-00A024DDAFD1}");
+					auto color = Miscs::GetColorRef(obj.House);
+
 					if (pData->pImageBuffer)
 					{
-						bool HoveringUnit = ExtConfigs::InGameDisplay_Hover && Variables::RulesMap.GetString(obj.TypeID, "SpeedType") == "Hover"
-							&& (Variables::RulesMap.GetString(obj.TypeID, "Locomotor") == "Hover"
-								|| Variables::RulesMap.GetString(obj.TypeID, "Locomotor") == "{4A582742-9839-11d1-B709-00A024DDAFD1}");
-
-						auto color = Miscs::GetColorRef(obj.House);
-
 						if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
 							pThis->DrawLine(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
 								x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 30, ExtConfigs::CursorSelectionBound_HeightColor, false, false, lpDesc, true);
@@ -2389,6 +2378,15 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 						std::set<FString> drawn;
 						DrawTechnoAttachments(draw, drawn, obj.TypeID, atoi(obj.Facing),
+							CLoadingExt::ObjectType::Vehicle, cell, lpDesc->lpSurface, boundary,
+							x, y + 15 - (HoveringUnit ? 10 : 0) -
+							(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
+							color, false);
+					}
+					else
+					{
+						std::set<FString> drawn;
+						DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
 							CLoadingExt::ObjectType::Vehicle, cell, lpDesc->lpSurface, boundary,
 							x, y + 15 - (HoveringUnit ? 10 : 0) -
 							(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
@@ -2438,9 +2436,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					auto pData = CLoadingExt::GetImageDataFromMap(imageName,
 						CLoadingExt::ObjectType::Aircraft, nFacing, facings, false);
 
+					auto color = Miscs::GetColorRef(obj.House);
 					if (pData->pImageBuffer)
 					{
-						auto color = Miscs::GetColorRef(obj.House);
 						auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 							x - pData->FullWidth / 2, y - pData->FullHeight / 2 + 15, pData, NULL,
 							isCloakable(obj.TypeID) ? 128 : 255, color, 2, true); };
@@ -2458,6 +2456,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 						std::set<FString> drawn;
 						DrawTechnoAttachments(draw, drawn, obj.TypeID, atoi(obj.Facing),
+							CLoadingExt::ObjectType::Aircraft, cell, lpDesc->lpSurface, boundary,
+							x, y + 15,
+							color, false);
+					}
+					else
+					{
+						std::set<FString> drawn;
+						DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
 							CLoadingExt::ObjectType::Aircraft, cell, lpDesc->lpSurface, boundary,
 							x, y + 15,
 							color, false);
@@ -2505,36 +2511,36 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 						auto pData = CLoadingExt::GetImageDataFromMap(imageName, CLoadingExt::ObjectType::Infantry, nFacing, 8);
 
+						int x1 = x;
+						int y1 = y;
+						switch (atoi(obj.SubCell))
+						{
+						case 2:
+							x1 += 15;
+							y1 += 15;
+							break;
+						case 3:
+							x1 -= 15;
+							y1 += 15;
+							break;
+						case 4:
+							y1 += 22;
+							break;
+						default:
+							y1 += 15;
+							break;
+						}
+
+						if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
+							y1 -= 60;
+
+						if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
+							pThis->DrawLine(x1 + 30, y1 - 30,
+								x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor, false, false, lpDesc, true);
+
+						auto color = Miscs::GetColorRef(obj.House);
 						if (pData->pImageBuffer)
 						{
-							int x1 = x;
-							int y1 = y;
-							switch (atoi(obj.SubCell))
-							{
-							case 2:
-								x1 += 15;
-								y1 += 15;
-								break;
-							case 3:
-								x1 -= 15;
-								y1 += 15;
-								break;
-							case 4:
-								y1 += 22;
-								break;
-							default:
-								y1 += 15;
-								break;
-							}
-
-							if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
-								y1 -= 60;
-
-							if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
-								pThis->DrawLine(x1 + 30, y1 - 30,
-									x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor, false, false, lpDesc, true);
-
-							auto color = Miscs::GetColorRef(obj.House);
 							auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL,
 								isCloakable(obj.TypeID) ? 128 : 255, color, 1, true); };
@@ -2552,6 +2558,15 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 							std::set<FString> drawn;
 							DrawTechnoAttachments(draw, drawn, obj.TypeID, atoi(obj.Facing),
+								CLoadingExt::ObjectType::Infantry, cell, lpDesc->lpSurface, boundary,
+								x1, y1,
+								color, false);
+						}
+						else
+						{
+
+							std::set<FString> drawn;
+							DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
 								CLoadingExt::ObjectType::Infantry, cell, lpDesc->lpSurface, boundary,
 								x1, y1,
 								color, false);

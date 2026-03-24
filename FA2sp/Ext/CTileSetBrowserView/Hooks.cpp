@@ -557,9 +557,9 @@ DEFINE_HOOK(4F3C00, CTileSetBrowserView_OnLButtonDown, 7)
         ovlIdx.Format("%d", pThis->SelectedOverlayIndex);
         int nDisplayLimit = Variables::RulesMap.GetInteger(
             Variables::RulesMap.GetValueAt("OverlayTypes", pThis->SelectedOverlayIndex),
-            "OverlayDisplayLimit", 60);
+            "OverlayDisplayLimit", ExtConfigs::OverlayDataLimit);
         nDisplayLimit = CINI::FAData->GetInteger("OverlayDisplayLimit", ovlIdx, nDisplayLimit);
-        for (int i = 0; i < std::min(nDisplayLimit, 60); i++)
+        for (int i = 0; i < std::min(nDisplayLimit, ExtConfigs::OverlayDataLimit); i++)
         {
             auto imageName = CLoadingExt::GetOverlayName(pThis->SelectedOverlayIndex, i);
             auto pData = CLoadingExt::GetImageDataFromMap(imageName);
@@ -1068,7 +1068,7 @@ DEFINE_HOOK(4F4774, CTileSetBrowserView_SetOverlay_LoadOverlayImage, 5)
 {
     GET(CTileSetBrowserView*, pThis, ESI);
     GET(int, Overlay, EBX);
-    const int max_ovrl_img = 60;
+    const int max_ovrl_img = ExtConfigs::OverlayDataLimit;
 
     int need_pos = -1;
     int need_width = 0;
@@ -1122,10 +1122,10 @@ DEFINE_HOOK(4F258B, CTileSetBrowserView_OnDraw_SetOverlayFrameToDisplay, 7)
     ovlIdx.Format("%d", pThis->SelectedOverlayIndex);
     int nDisplayLimit = Variables::RulesMap.GetInteger(
         Variables::RulesMap.GetValueAt("OverlayTypes", pThis->SelectedOverlayIndex),
-        "OverlayDisplayLimit", 60);
+        "OverlayDisplayLimit", ExtConfigs::OverlayDataLimit);
     nDisplayLimit = CINI::FAData->GetInteger("OverlayDisplayLimit", ovlIdx, nDisplayLimit);
-    if (nDisplayLimit > 60)
-        nDisplayLimit = 60;
+    if (nDisplayLimit > ExtConfigs::OverlayDataLimit)
+        nDisplayLimit = ExtConfigs::OverlayDataLimit;
 
     R->Stack(STACK_OFFS(0xDC, 0xB8), i);
     return i < nDisplayLimit ? 0x4F2230 : 0x4F2598;
@@ -1161,7 +1161,7 @@ DEFINE_HOOK(4F12C0, CTileSetBrowserView_Update_LoadOverlay, 5)
     HWND hParent = CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
     HWND hOverlayComboBox = GetDlgItem(hParent, 1367);
 
-    const int max_ovrl_img = 60;
+    const int max_ovrl_img = ExtConfigs::OverlayDataLimit;
     auto&& section = Variables::RulesMap.ParseIndicies("OverlayTypes", true);
     for (int i = 0; i < section.size(); i++)
     {

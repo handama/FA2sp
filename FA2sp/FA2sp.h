@@ -227,6 +227,7 @@ public:
     static CAircraftData DefaultAircraftProperty;
     static CBuildingData DefaultBuildingProperty;
     static std::map<FString, bool> SupportedFormats;
+    static int OverlayDataLimit;
 
     enum SpecialOptionType : char
     {

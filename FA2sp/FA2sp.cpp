@@ -218,6 +218,7 @@ CUnitData ExtConfigs::DefaultUnitProperty;
 CAircraftData ExtConfigs::DefaultAircraftProperty;
 CBuildingData ExtConfigs::DefaultBuildingProperty;
 std::map<FString, bool> ExtConfigs::SupportedFormats;
+int ExtConfigs::OverlayDataLimit;
 
 std::vector<ExtConfigs::DynamicOptions> ExtConfigs::Options;
 
@@ -322,6 +323,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
 
+	ExtConfigs::OverlayDataLimit = CINI::FAData->GetInteger("ExtConfigs", "OverlayDataLimit", 60);
+	ExtConfigs::OverlayDataLimit = std::clamp(ExtConfigs::OverlayDataLimit, 1, 256);
 	ExtConfigs::UTF8Support_InferEncoding = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.InferEncoding", true);
 	ExtConfigs::UTF8Support_AlwaysSaveAsUTF8 = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.AlwaysSaveAsUTF8");
 

@@ -428,10 +428,14 @@ void CMapDataExt::ProcessBuildingType(const char* ID)
 
 		for (const auto& block : *DataExt.Foundations)
 		{
-			LinesX[block.X][block.Y] = !LinesX[block.X][block.Y];
-			LinesX[block.X][block.Y + 1] = !LinesX[block.X][block.Y + 1];
-			LinesY[block.X][block.Y] = !LinesY[block.X][block.Y];
-			LinesY[block.X + 1][block.Y] = !LinesY[block.X + 1][block.Y];
+			int x = std::clamp(block.X, 0, DataExt.Width - 1);
+			int y = std::clamp(block.Y, 0, DataExt.Height - 1);
+
+			LinesX[x][y] = !LinesX[x][y];
+			LinesX[x][y + 1] = !LinesX[x][y + 1];
+
+			LinesY[x][y] = !LinesY[x][y];
+			LinesY[x + 1][y] = !LinesY[x + 1][y];
 		}
 
 		for (size_t y = 0; y < DataExt.Height + 1; ++y)
@@ -4032,6 +4036,20 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			{
 				if (!Variables::RulesMap.TryGetString(ex, "ExtraUnit.Type"))
 					continue;
+
+				if (auto binds = Variables::RulesMap.TryGetString(ex, "ExtraUnit.BindType"))
+				{
+					auto units = STDHelpers::SplitString(*binds);
+					bool valid = false;
+					for (auto& unit : units)
+					{
+						unit.Trim();
+						if (unit == ID)
+							valid = true;
+					}
+					if (!valid)
+						continue;
+				}
 
 				auto& ret = TechnoAttachments[ID];
 				auto& ta = ret.emplace_back();

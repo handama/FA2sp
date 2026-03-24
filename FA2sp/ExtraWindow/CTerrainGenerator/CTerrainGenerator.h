@@ -182,7 +182,7 @@ public:
 
                         if (atomsData.empty()) {
                             group.HasExtraIndex = false;
-                            for (int idx = 0; idx < 60; idx++)
+                            for (int idx = 0; idx < ExtConfigs::OverlayDataLimit; idx++)
                             {
                                 auto imageName = CLoadingExt::GetOverlayName(overlays.Overlay, idx);
                                 auto pic = CLoadingExt::GetImageDataFromMap(imageName);
@@ -193,7 +193,7 @@ public:
                         }
                         else {
                             group.HasExtraIndex = true;
-                            for (int idx = 0; idx < 60; idx++)
+                            for (int idx = 0; idx < ExtConfigs::OverlayDataLimit; idx++)
                             {
                                 auto imageName = CLoadingExt::GetOverlayName(overlays.Overlay, idx);
                                 auto pic = CLoadingExt::GetImageDataFromMap(imageName);

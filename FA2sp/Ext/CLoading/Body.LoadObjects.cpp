@@ -162,9 +162,7 @@ FString CLoadingExt::GetAlphaImageName(const FString& ID, int nRawFacing, int nA
 {
 	FString ret;
 	int actFacing = 0;
-	if (nAvaFacing == 0)
-		actFacing = 1;
-	else
+	if (nAvaFacing != 0)
 		actFacing = nRawFacing * nAvaFacing / 256;
 	ret.Format("%s\233%d\233ALPHAIMAGE", ID, actFacing);
 	return ret;
@@ -1810,7 +1808,6 @@ void CLoadingExt::LoadAlphaImage(const FString& ID, CLoadingExt::ObjectType type
 
 		int facings = std::min(256u, std::bit_floor((UINT)header.FrameCount));
 
-		Logger::Raw("%d %d\n", facings, header.FrameCount);
 		if (type == CLoadingExt::ObjectType::Terrain)
 			facings = 1;
 		AlphaImageFacings[ID] = facings;
@@ -1819,7 +1816,7 @@ void CLoadingExt::LoadAlphaImage(const FString& ID, CLoadingExt::ObjectType type
 		{
 			AIDicName.Format("%s\233%d\233ALPHAIMAGE", ID, i);
 			CLoadingExt::LoadSHPFrameSafe(i, 1, &FramesBuffers, header);
-			SetImageDataSafe(FramesBuffers, AIDicName, header.Width, header.Height, &CMapDataExt::Palette_ISO);
+			SetImageDataSafe(FramesBuffers, AIDicName, header.Width, header.Height, &CMapDataExt::Palette_ISO, false);
 			LoadedObjects.insert(AIDicName);
 		}
 	}
@@ -4522,7 +4519,7 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 			ShapeHeader header;
 			unsigned char* FramesBuffers[2]{ 0 };
 			CShpFile::GetSHPHeader(&header);
-			int nCount = std::min(header.FrameCount, (short)60);
+			int nCount = std::min(header.FrameCount, (short)ExtConfigs::OverlayDataLimit);
 
 			for (int i = 0; i < nCount; ++i)
 			{

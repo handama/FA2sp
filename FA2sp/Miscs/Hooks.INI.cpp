@@ -56,10 +56,12 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
     const size_t len = content.length();
     static size_t plusEqual = 0;
     static std::map<CINIExt*, std::map<FString, std::vector<FString>>> InheritSections;
+    static std::vector<FString> PhobosInheritSectionOrders;
     std::set<FString> LoadedSections;
     if (bAllowInclude) {
         plusEqual = 0;
         InheritSections.clear();
+        PhobosInheritSectionOrders.clear();
     }
     bool findTargetSection = false;
     bool firstLine = true;
@@ -230,6 +232,16 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                         std::make_pair((ppmfc::CString)key, (int)currentIndex);
                     std::pair<INIIndiceDict::iterator, bool> ret;
                     reinterpret_cast<FAINIIndicesMap*>(&pCurrentSection->GetIndices())->insert(&ret, &ins);
+
+                    if (ExtConfigs::AllowInherits && ExtConfigs::InheritType && !IsLoadingFAini
+                        && key == "$Inherits")
+                    {
+                        auto& order = PhobosInheritSectionOrders;
+                        if (std::find(order.begin(), order.end(), CurrentSectionName) == order.end())
+                        {
+                            order.push_back(CurrentSectionName);
+                        }
+                    }
                 }
             }
             else {
@@ -368,27 +380,13 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
     if(bAllowInclude)
         loadAresInheritedIni(this);
     // phobos mode
-    if (ExtConfigs::AllowInherits && ExtConfigs::InheritType && !IsLoadingFAini) {
-        for (auto& sectionA : Dict) {
-            if (KeyExists(sectionA.first, "$Inherits"))  {
-                auto inherits = STDHelpers::SplitString(GetString(sectionA.first, "$Inherits"));
-                for (const auto& sectionB : inherits) {
-                    if (auto pSectionB = GetSection(sectionB)) {
-                        for (const auto& [key, value] : pSectionB->GetEntities()) {
-                            if (!KeyExists(sectionA.first, key)) {
-                                size_t currentIndex = sectionA.second.GetEntities().size();
-
-                                writeString(&sectionA.second, key, value);
-
-                                std::pair<ppmfc::CString, int> ins =
-                                    std::make_pair((ppmfc::CString)key, (int)currentIndex);
-                                std::pair<INIIndiceDict::iterator, bool> ret;
-                                reinterpret_cast<FAINIIndicesMap*>(&sectionA.second.GetIndices())->insert(&ret, &ins);
-                            }
-                        }
-                    }
-                }
-            }
+    if (ExtConfigs::AllowInherits && ExtConfigs::InheritType && !IsLoadingFAini)
+    {
+        std::set<ppmfc::CString> visited; 
+        for (auto& sectionA : PhobosInheritSectionOrders)
+        {
+            visited.clear();
+            InheritSectionRecursive(sectionA, visited);
         }
     }
 
@@ -410,6 +408,68 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
             if (_strcmpi(n, theater) == 0)
             {
                 WriteString("Map", "Theater", o);
+            }
+        }
+    }
+}
+
+void CINIExt::InheritSectionRecursive(const ppmfc::CString& sectionName,
+    std::set<ppmfc::CString>& visited)
+{
+    auto writeString = [](INISection* pSection, const FString& key, const FString& value)
+    {
+        std::pair<ppmfc::CString, ppmfc::CString> ins = std::make_pair(key, value);
+        std::pair<INIStringDict::iterator, bool> ret;
+        reinterpret_cast<FAINIEntriesMap*>(&pSection->GetEntities())->insert(&ret, &ins);
+        if (!ret.second)
+            new(&ret.first->second) ppmfc::CString(value);
+    };
+
+    if (visited.count(sectionName)) {
+        return;
+    }
+    visited.insert(sectionName);
+
+    auto pSection = GetSection(sectionName);
+    if (!pSection) return;
+
+    if (KeyExists(sectionName, "$Inherits"))
+    {
+        auto inherits = STDHelpers::SplitString(GetString(pSection, "$Inherits"));
+
+        for (const auto& parent : inherits)
+        {
+            if (!parent.IsEmpty())
+            {
+                InheritSectionRecursive(parent, visited);
+            }
+        }
+    }
+
+    if (KeyExists(sectionName, "$Inherits"))
+    {
+        auto inherits = STDHelpers::SplitString(GetString(pSection, "$Inherits"));
+
+        for (const auto& parentName : inherits)
+        {
+            if (parentName.IsEmpty()) continue;
+
+            if (auto pParent = GetSection(parentName))
+            {
+                for (const auto& [key, value] : pParent->GetEntities())
+                {
+                    if (!KeyExists(sectionName, key))
+                    {
+                        size_t currentIndex = pSection->GetEntities().size();
+
+                        writeString(pSection, key, value);
+
+                        std::pair<ppmfc::CString, int> ins =
+                            std::make_pair((ppmfc::CString)key, (int)currentIndex);
+                        std::pair<INIIndiceDict::iterator, bool> ret;
+                        reinterpret_cast<FAINIIndicesMap*>(&pSection->GetIndices())->insert(&ret, &ins);
+                    }
+                }
             }
         }
     }

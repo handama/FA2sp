@@ -10,6 +10,7 @@
 #include "../../Algorithms/Matrix3D.h"
 #include "../CMapData/Body.h"
 #include "../CFinalSunDlg/Body.h"
+#include "../CTileSetBrowserFrame/TabPages/GridObjectViewer.h"
 #include <random>
 #include <chrono>
 
@@ -346,6 +347,7 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 		CustomPaletteTerrains.clear();
 		IFVTurrets.clear();
 		InitialOccupiedBuildings.clear();
+		GridObjectViewer::Instance.Clear();
 		CMapDataExt::TerrainPaletteBuildings.clear();
 		CMapDataExt::DamagedAsRubbleBuildings.clear();
 		CMapDataExt::BuildingTypes.clear();

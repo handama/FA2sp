@@ -306,6 +306,9 @@
     <ClInclude Include="FA2sp\ExtraWindow\CTechnoDialog\CTechnoDialog.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\GridObjectViewer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FA2sp\FA2sp.cpp">
@@ -747,6 +750,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\ExtraWindow\CTechnoDialog\CTechnoDialog.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\GridObjectViewer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

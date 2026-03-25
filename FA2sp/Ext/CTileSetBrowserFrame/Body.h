@@ -14,13 +14,13 @@ public:
 	enum class TabPage : int
 	{
 		TilesetBrowser = 0,
-		TriggerSort = 1,
-
-		TagSort = 2,
-		TeamSort = 3,
-		TaskforceSort = 4,
-		ScriptSort = 5,
-		WaypointSort = 6,
+		GridObjectViewer = 1,
+		TriggerSort = 2,
+		TagSort = 3,
+		TeamSort = 4,
+		TaskforceSort = 5,
+		ScriptSort = 6,
+		WaypointSort = 7,
 	};
 
 	//

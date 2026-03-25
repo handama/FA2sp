@@ -2944,7 +2944,7 @@ void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, Imag
     CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary, x, y, pd, newPal, alpha, houseColor);
 }
 
-bool CIsoViewExt::SaveImageDataToBMP(ImageDataClassSafe* pd,const char* outputPath   )
+bool CIsoViewExt::SaveImageDataToBMP(ImageDataClassSafe* pd,const char* outputPath)
 {
     if (!pd || !pd->pImageBuffer || pd->Flag == ImageDataFlag::SurfaceData)
         return false;

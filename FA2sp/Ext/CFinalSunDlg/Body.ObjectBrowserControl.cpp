@@ -4134,6 +4134,8 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     }
     if (nCode == 5) // Terrain
     {
+        if (nData == 9999)
+            return false;
         auto& obj = TreeViewIndex_Terrain[nData];
         if (!obj.IsEmpty())
         {

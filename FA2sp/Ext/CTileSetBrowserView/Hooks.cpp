@@ -1050,7 +1050,7 @@ DEFINE_HOOK(4F128A, CTileSetBrowserView_Update_AddCustomTiles, 5)
     return 0;
 }
 
-DEFINE_HOOK(4F2243, CTileSetBrowserView_OnDraw_LoadOverlayImage, 6)
+DEFINE_HOOK(4F2230, CTileSetBrowserView_OnDraw_LoadOverlayImage, 6)
 {
     GET(CTileSetBrowserView*, pThis, ESI);
     GET(const int, i, ECX);
@@ -1058,10 +1058,11 @@ DEFINE_HOOK(4F2243, CTileSetBrowserView_OnDraw_LoadOverlayImage, 6)
     auto imageName = CLoadingExt::GetOverlayName(pThis->SelectedOverlayIndex, i);
     auto pData = CLoadingExt::GetImageDataFromMap(imageName);
     if (setCurrentOverlay(pData))
-    {
         R->EAX(&CurrentOverlay);
-    }
-    return 0;
+    else
+        R->EAX(0);
+
+    return 0x4F2243;
 }
 
 DEFINE_HOOK(4F4774, CTileSetBrowserView_SetOverlay_LoadOverlayImage, 5)
@@ -1163,7 +1164,8 @@ DEFINE_HOOK(4F12C0, CTileSetBrowserView_Update_LoadOverlay, 5)
 
     const int max_ovrl_img = ExtConfigs::OverlayDataLimit;
     auto&& section = Variables::RulesMap.ParseIndicies("OverlayTypes", true);
-    for (int i = 0; i < section.size(); i++)
+    for (int i = 0, sz = (ExtConfigs::ExtOverlays || CMapDataExt::NewINIFormat >= 5) ?
+        section.size() : std::min((UINT)255, section.size()); i < sz; ++i)
     {
         auto& id = section[i];
         if (!Variables::RulesMap.GetSection(id).empty())

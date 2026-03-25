@@ -101,18 +101,3 @@ DEFINE_HOOK(4F1B00, CTileSetBrowserFrame_RecalcLayout, 7)
 
     return 0x4F1B8A;
 }
-
-DEFINE_HOOK(4F1670, CTileSetBrowserFrame_ReloadComboboxes_OverlayFilter, 6)
-{
-    GET_STACK(int, overlayIdx, 0x24);
-    GET(ppmfc::CComboBox*, pComboBox, EDI);
-    GET(ppmfc::CString, name, ECX);
-    if ((ExtConfigs::ExtOverlays || CMapDataExt::NewINIFormat >= 5) || overlayIdx < 255)
-    {
-        ppmfc::CString tmp = name;
-        name.Format("%04d (%s)", overlayIdx, tmp);
-        int idx = pComboBox->AddString(name);
-        pComboBox->SetItemData(idx, overlayIdx);
-    }
-    return 0x4F1695;
-}

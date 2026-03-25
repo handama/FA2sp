@@ -10,6 +10,7 @@
 #include "../../Ext/CFinalSunApp/Body.h"
 #include <shlwapi.h>
 #include <ShlObj.h>
+#include "../../Ext/CTileSetBrowserFrame/TabPages/GridObjectViewer.h"
 #pragma comment(lib, "shlwapi.lib")
 
 HWND CFA2spOptions::m_hwnd;
@@ -448,6 +449,11 @@ BOOL CALLBACK CFA2spOptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
                             else if (opt.Type == ExtConfigs::SpecialOptionType::ReloadObjectBrowser)
                             {
                                 ((CViewObjectsExt*)(m_parent->MyViewFrame.pViewObjects))->Redraw();
+                            }
+                            else if (opt.Type == ExtConfigs::SpecialOptionType::ReloadObjectViewer)
+                            {
+                                GridObjectViewer::Instance.UpdateControls();
+                                GridObjectViewer::Instance.UpdateImages();
                             }
                             else if (opt.Type == ExtConfigs::SpecialOptionType::Restart)
                             {

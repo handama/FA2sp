@@ -88,6 +88,7 @@ public:
 
 	bool InitMixFilesFix();
 	static bool IsObjectLoaded(const FString& pRegName);
+	static bool IsObjectPreviewLoaded(const FString& pRegName);
 	static bool IsSurfaceObjectLoaded(const FString& pRegName);
 	static bool IsOverlayLoaded(const FString& pRegName);
 
@@ -287,6 +288,7 @@ public:
 	static std::unordered_map<FString, int> AvailableFacings;
 	static std::unordered_map<FString, int> AlphaImageFacings;
 	static std::unordered_set<FString> LoadedObjects;
+	static std::unordered_set<FString> LoadedPreviewObjects;
 	static std::unordered_set<FString> LoadedSurfaceObjects;
 	static std::unordered_set<FString> CustomPaletteTerrains;
 	static std::unordered_map<FString, int> IFVTurrets;

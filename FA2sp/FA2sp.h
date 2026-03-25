@@ -222,6 +222,8 @@ public:
     static bool ShrinkTilesInTileSetBrowser;
     static bool UTF8Support_InferEncoding;
     static bool UTF8Support_AlwaysSaveAsUTF8;
+    static bool GridObjectViewer_LoadEditorCategory;
+    static bool GridObjectViewer_LoadForceSides;
     static CInfantryData DefaultInfantryProperty;
     static CUnitData DefaultUnitProperty;
     static CAircraftData DefaultAircraftProperty;
@@ -237,6 +239,7 @@ public:
         SaveMap_Timer = 3,
         BindFormat = 4,
         ReloadObjectBrowser = 5,
+        ReloadObjectViewer = 6,
     };
 
     struct DynamicOptions

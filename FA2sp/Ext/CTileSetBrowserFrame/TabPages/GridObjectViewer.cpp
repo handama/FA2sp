@@ -4,10 +4,19 @@
 #include "../../../Helpers/STDHelpers.h"
 #include "../../../Helpers/Translations.h"
 #include "../../../Miscs/DialogStyle.h"
+#include "../../../Helpers/Helper.h"
 
 GridObjectViewer GridObjectViewer::Instance;
 const int MIN_DISPLAY_WIDTH = 80; 
 const int MIN_DISPLAY_HEIGHT = 80;
+
+static std::vector<int> GetUnique(std::vector<int> input)
+{
+    std::sort(input.begin(), input.end());
+    auto last = std::unique(input.begin(), input.end());
+    input.erase(last, input.end());
+    return input;
+}
 
 BOOL GridObjectViewer::OnMessage(PMSG pMsg)
 {
@@ -75,6 +84,7 @@ void GridObjectViewer::ComputeCroppedInfo(ImageDataClassSafe* pd, ImageInfo& out
 void GridObjectViewer::FastBlitImage(HDC hdcDest, int displayX, int displayY, const ImageInfo& info)
 {
     auto* pd = info.pData;
+    if (!pd && !info.DataName.IsEmpty()) pd = CLoadingExt::GetImageDataFromMap(info.DataName);
     if (!pd) return;
 
     int cropW = info.CropWidth;
@@ -122,6 +132,7 @@ void GridObjectViewer::FastBlitImage(HDC hdcDest, int displayX, int displayY, co
 void GridObjectViewer::DrawImageDataCore(HDC hdcDest, int destX, int destY, const ImageInfo& info)
 {
     auto* pd = info.pData;
+    if (!pd && !info.DataName.IsEmpty()) pd = CLoadingExt::GetImageDataFromMap(info.DataName);
     if (!pd) return;
 
     int w = pd->FullWidth;
@@ -189,13 +200,13 @@ void GridObjectViewer::DrawImageDataCore(HDC hdcDest, int destX, int destY, cons
 void GridObjectViewer::DrawVisibleImagesOnly(HDC hdc)
 {
     RECT client{};
-    GetClientRect(m_hWnd, &client);
+    GetClientRect(m_hView, &client);
 
     RECT visibleLogical = { m_nScrollX, m_nScrollY,
                             m_nScrollX + client.right,
                             m_nScrollY + client.bottom };
 
-    for (size_t i = 0; i < g_images.size() && i < g_imageRects.size(); ++i)
+    for (size_t i = 0; i < g_filteredImages.size() && i < g_imageRects.size(); ++i)
     {
         RECT& displayRect = g_imageRects[i]; 
 
@@ -206,13 +217,13 @@ void GridObjectViewer::DrawVisibleImagesOnly(HDC hdc)
         int drawX = displayRect.left - m_nScrollX;
         int drawY = displayRect.top - m_nScrollY;
 
-        FastBlitImage(hdc, drawX, drawY, g_images[i]);
+        FastBlitImage(hdc, drawX, drawY, g_filteredImages[i]);
     }
 }
 
 void GridObjectViewer::LayoutImages()
 {
-    if (g_images.empty())
+    if (g_filteredImages.empty())
     {
         m_nContentWidth = m_nContentHeight = 0;
         UpdateScrollBars();
@@ -220,7 +231,7 @@ void GridObjectViewer::LayoutImages()
     }
 
     RECT client{};
-    GetClientRect(m_hWnd, &client);
+    GetClientRect(m_hView, &client);
     int clientWidth = client.right - client.left;
 
     const int padding = 20;
@@ -232,7 +243,7 @@ void GridObjectViewer::LayoutImages()
     int y = padding;
     int rowMaxDisplayH = 0;
 
-    for (auto& info : g_images)
+    for (auto& info : g_filteredImages)
     {
         int origW = info.CropWidth; 
         int origH = info.CropHeight;
@@ -272,7 +283,7 @@ void GridObjectViewer::LayoutImages()
 void GridObjectViewer::UpdateScrollBars()
 {
     RECT rc{};
-    GetClientRect(m_hWnd, &rc);
+    GetClientRect(m_hView, &rc);
     int clientW = rc.right - rc.left;
     int clientH = rc.bottom - rc.top;
 
@@ -284,12 +295,12 @@ void GridObjectViewer::UpdateScrollBars()
     si.nMax = m_nContentHeight + 100;
     si.nPage = clientH;
     si.nPos = m_nScrollY;
-    SetScrollInfo(m_hWnd, SB_VERT, &si, TRUE);
+    SetScrollInfo(m_hView, SB_VERT, &si, TRUE);
 
     si.nMax = m_nContentWidth;
     si.nPage = clientW;
     si.nPos = m_nScrollX;
-    SetScrollInfo(m_hWnd, SB_HORZ, &si, TRUE);
+    SetScrollInfo(m_hView, SB_HORZ, &si, TRUE);
 
     m_nScrollY = std::min(m_nScrollY, std::max(0, m_nContentHeight - clientH));
     m_nScrollX = std::min(m_nScrollX, std::max(0, m_nContentWidth - clientW));
@@ -322,20 +333,471 @@ void GridObjectViewer::DestroyDoubleBuffer()
     m_hOldBitmap = NULL;
 }
 
-LRESULT CALLBACK GridObjectViewer::SubClassProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK GridObjectViewer::ViewSubClassProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     auto* self = reinterpret_cast<GridObjectViewer*>(
         GetWindowLongPtr(hWnd, GWLP_USERDATA)
         );
 
     if (self) {
-        return self->HandleSubClassProc(hWnd, msg, wParam, lParam);
+        return self->HandleViewSubClassProc(hWnd, msg, wParam, lParam);
     }
 
     return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
-LRESULT CALLBACK GridObjectViewer::HandleSubClassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+BOOL CALLBACK GridObjectViewer::ControlSubClassProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    GridObjectViewer* self = (GridObjectViewer*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+
+    if (msg == WM_INITDIALOG)
+    {
+        self = (GridObjectViewer*)lParam;
+        SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)self);
+    }
+
+    if (self)
+    {
+        LRESULT ret = self->HandleControlSubClassProc(hWnd, msg, wParam, lParam);
+        if (ret)
+            return ret;
+    }
+
+    return FALSE;
+}
+
+LRESULT CALLBACK GridObjectViewer::HandleControlSubClassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg)
+    {
+    case WM_INITDIALOG:
+    {
+        FString buffer;
+        auto Translate = [&hwnd, &buffer](int nIDDlgItem, const char* pLabelName)
+        {
+            HWND hTarget = GetDlgItem(hwnd, nIDDlgItem);
+            if (Translations::GetTranslationItem(pLabelName, buffer))
+                SetWindowText(hTarget, buffer);
+        };
+
+        Translate(1368, "GridObjectViewer.Group");
+        Translate(1369, "GridObjectViewer.Search");
+        Translate(1370, "GridObjectViewer.CurrentSelect");
+        m_hControlGroup = GetDlgItem(hwnd, 1366);
+        m_hControlSearch = GetDlgItem(hwnd, 1367);
+        m_hControlCurrentSelect = GetDlgItem(hwnd, 1371);
+        g_currentCurSel = -1;
+
+        return FALSE;
+    }
+    case WM_COMMAND:
+    {
+        WORD ID = LOWORD(wParam);
+        WORD CODE = HIWORD(wParam);
+        switch (ID)
+        {
+        case 1366:
+        {
+            if (CODE == CBN_SELCHANGE)
+                OnSelchange();
+            break;
+        }
+        case 1367:
+        {
+            if (CODE == EN_CHANGE)
+                OnEditchange();
+            break;
+        }
+        }
+        return TRUE;
+    }
+    case WM_CTLCOLORSTATIC:
+    case WM_CTLCOLOREDIT:
+    {
+        if (ExtConfigs::EnableDarkMode)
+        {
+            HDC hdc = (HDC)wParam;
+            HWND hCtrl = (HWND)lParam;
+
+            SetTextColor(hdc, DarkColors::LightText);
+            SetBkColor(hdc, DarkColors::Background);
+
+            return (LRESULT)DarkTheme::g_hDarkBackgroundBrush;
+        }
+
+        break;
+    }
+    case WM_ERASEBKGND:
+    {
+        if (ExtConfigs::EnableDarkMode)
+        {
+            HDC hdc = (HDC)wParam;
+            RECT rc;
+            GetClientRect(hwnd, &rc);
+
+            FillRect(hdc, &rc, DarkTheme::g_hDarkBackgroundBrush);
+            return TRUE;
+        }
+        break;
+    }
+    case 114514: // used for update
+    {
+        UpdateControls();
+        return TRUE;
+    }
+    case 114515: // used for update
+    {
+        UpdateImages();
+        return TRUE;
+    }
+    default:
+        break;
+    }
+
+    return FALSE;
+}
+
+void GridObjectViewer::UpdateControls()
+{
+    g_currentCurSel = -1;
+    SendMessage(m_hControlGroup, CB_SETCURSEL, g_currentCurSel, NULL);
+    g_groups.clear();
+    std::vector<FString> translatedSides;
+    std::vector<FString> engSides;
+    if (auto pSection = CINI::FAData->GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
+        for (auto& [_, value] : pSection->GetEntities())
+            translatedSides.push_back(value);
+    if (auto pSection = CINI::FAData->GetSection("English-Sides"))
+        for (auto& [_, value] : pSection->GetEntities())
+            engSides.push_back(value);
+
+    if (auto pSection = CINI::FAData->GetSection("GridObjectViewerLists"))
+    {
+        for (auto& [_, section] : pSection->GetEntities())
+        {
+            if (auto pSection = CINI::FAData->GetSection(section))
+            {
+                auto& info = g_groups.emplace_back();
+                auto lang = FinalAlertConfig::Language + "-";
+                lang += "Name";
+                info.DisplayName = CINI::FAData->GetString(section, lang);
+                info.InternalName = section;
+                info.ForceFront = true;
+                if (info.DisplayName.IsEmpty())
+                    info.DisplayName = info.InternalName;
+                for (auto& [key, value] : pSection->GetEntities())
+                {
+                    if (key.Find("Name") > -1)
+                        continue;
+                    info.IDs.push_back(value);
+                }
+            }
+        }
+    }
+
+    auto addEditorCategory = [&](const char* section, CViewObjectsExt::PropertyBrushTypes type)
+    {        
+        for (auto& [_, obj] : Variables::RulesMap.GetSection(section))
+        {
+            GroupInfo* info = nullptr;
+            if (ExtConfigs::GridObjectViewer_LoadEditorCategory)
+            {
+                if (auto cat = Variables::RulesMap.TryGetString(obj, "EditorCategory"))
+                {
+                    for (auto& g : g_groups)
+                    {
+                        if (g.InternalName == *cat)
+                        {
+                            info = &g;
+                            break;
+                        }
+                    }
+                    if (!info)
+                    {
+                        info = &g_groups.emplace_back();
+                        info->DisplayName = Translations::TranslateOrDefault(*cat, *cat);
+                        info->InternalName = *cat;
+                    }
+                    if (info)
+                    {
+                        if (!CViewObjectsExt::IsIgnored(obj))
+                            info->IDs.push_back(obj);
+                    }
+                }
+            }
+
+            if (type == CViewObjectsExt::PropertyBrushTypes::Set_Count)
+                continue;
+            if (!ExtConfigs::GridObjectViewer_LoadForceSides)
+                continue;
+
+            auto multiLayers = CViewObjectsExt::GetMultiLayers(obj);
+            auto singleSides = GetUnique(CViewObjectsExt::GuessSide(obj, type));
+            for (auto& sides : multiLayers)
+            {
+                if (!sides.empty())
+                {
+                    int side = sides.front();
+                    if (side < 0) continue;
+                    FString displayName = side >= (int)translatedSides.size() ? FString("") : translatedSides[side];
+                    FString engName = side >= (int)engSides.size() ? displayName : engSides[side];
+                    if (!engName.IsEmpty() && !displayName.IsEmpty())
+                    {
+                        info = nullptr;
+                        for (auto& g : g_groups)
+                        {
+                            if (g.InternalName == engName)
+                            {
+                                info = &g;
+                                break;
+                            }
+                        }
+                        if (!info)
+                        {
+                            info = &g_groups.emplace_back();
+                            info->DisplayName = displayName;
+                            info->InternalName = engName;
+                        }
+                        if (info)
+                        {
+                            if (!CViewObjectsExt::IsIgnored(obj))
+                                info->IDs.push_back(obj);
+                        }
+                    }
+                }
+            }
+            for (auto& side : singleSides)
+            {
+                if (side < 0) continue;
+                FString displayName = side >= (int)translatedSides.size() ? FString("") : translatedSides[side];
+                FString engName = side >= (int)engSides.size() ? displayName : engSides[side];
+                if (!engName.IsEmpty() && !displayName.IsEmpty())
+                {
+                    info = nullptr;
+                    for (auto& g : g_groups)
+                    {
+                        if (g.InternalName == engName)
+                        {
+                            info = &g;
+                            break;
+                        }
+                    }
+                    if (!info)
+                    {
+                        info = &g_groups.emplace_back();
+                        info->DisplayName = displayName;
+                        info->InternalName = engName;
+                    }
+                    if (info)
+                    {
+                        if (!CViewObjectsExt::IsIgnored(obj))
+                            info->IDs.push_back(obj);
+                    }
+                }
+            }
+        }
+    };
+
+    if (ExtConfigs::GridObjectViewer_LoadForceSides || ExtConfigs::GridObjectViewer_LoadEditorCategory)
+    {
+        addEditorCategory("InfantryTypes", CViewObjectsExt::PropertyBrushTypes::Set_Infantry);
+        addEditorCategory("VehicleTypes", CViewObjectsExt::PropertyBrushTypes::Set_Vehicle);
+        addEditorCategory("AircraftTypes", CViewObjectsExt::PropertyBrushTypes::Set_Aircraft);
+        addEditorCategory("BuildingTypes", CViewObjectsExt::PropertyBrushTypes::Set_Building);
+        addEditorCategory("TerrainTypes", CViewObjectsExt::PropertyBrushTypes::Set_Count);
+        addEditorCategory("SmudgeTypes", CViewObjectsExt::PropertyBrushTypes::Set_Count);
+
+        int max = -1;
+        std::map<FString, int> orderIndex;
+        if (auto pSection = CINI::FAData->GetSection("ObjectCategoryPriorities"))
+        {
+            for (auto& [value, order] : pSection->GetEntities())
+            {
+                int o = atoi(order);
+                orderIndex[value] = o;
+                max = std::max(max, o);
+            }
+        }
+        for (auto& order : engSides)
+        {
+            orderIndex[order] = max++;
+        }
+        auto getIndex = [&](const FString& name) {
+            auto it = orderIndex.find(name);
+            return it != orderIndex.end() ? it->second : INT_MAX;
+        };
+        std::stable_sort(g_groups.begin(), g_groups.end(),
+            [&](const GroupInfo& a, const GroupInfo& b) {
+            if (a.ForceFront != b.ForceFront)
+                return a.ForceFront > b.ForceFront;
+
+            if (a.ForceFront)
+                return false;
+
+            return getIndex(a.InternalName) < getIndex(b.InternalName);
+        });
+    }
+
+    auto addGroup = [this](const char* section, const char* displayName) -> int
+    {
+        auto& g = g_groups.emplace_back();
+        for (auto& [_, obj] : Variables::RulesMap.GetSection(section))
+            if(!CViewObjectsExt::IsIgnored(obj))
+                g.IDs.push_back(obj);
+        g.DisplayName = displayName;
+
+        return g_groups.size() - 1;
+    };
+    auto allI = addGroup("InfantryTypes", Translations::TranslateOrDefault("GridObjectViewer.AllInfantry", "All infantries"));
+    auto allV = addGroup("VehicleTypes", Translations::TranslateOrDefault("GridObjectViewer.AllVehicle", "All vehicles"));
+    auto allA = addGroup("AircraftTypes", Translations::TranslateOrDefault("GridObjectViewer.AllAircraft", "All aircrafts"));
+    auto allB = addGroup("BuildingTypes", Translations::TranslateOrDefault("GridObjectViewer.AllBuilding", "All buildings"));
+    auto allT = addGroup("TerrainTypes", Translations::TranslateOrDefault("GridObjectViewer.AllTerrain", "All terrain types"));
+    auto allS = addGroup("SmudgeTypes", Translations::TranslateOrDefault("GridObjectViewer.AllSmudge", "All smudges"));
+
+    auto& all = g_groups.emplace_back();
+    all.DisplayName = Translations::TranslateOrDefault("GridObjectViewer.All", "All objects");
+    for (auto& o : g_groups[allI].IDs) all.IDs.push_back(o);
+    for (auto& o : g_groups[allV].IDs) all.IDs.push_back(o);
+    for (auto& o : g_groups[allA].IDs) all.IDs.push_back(o);
+    for (auto& o : g_groups[allB].IDs) all.IDs.push_back(o);
+    for (auto& o : g_groups[allT].IDs) all.IDs.push_back(o);
+    for (auto& o : g_groups[allS].IDs) all.IDs.push_back(o);
+
+    while (SendMessage(m_hControlGroup, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    int i = 0;
+    for (auto& g : g_groups)
+    {
+        if (g.IDs.empty()) continue;
+        SendMessage(m_hControlGroup, CB_INSERTSTRING, i, g.DisplayName);
+        ++i;
+    }
+}
+
+void GridObjectViewer::OnSelchange()
+{
+    int curSel = SendMessage(m_hControlGroup, CB_GETCURSEL, NULL, NULL);
+    g_currentCurSel = curSel;
+    UpdateImages();
+}
+
+void GridObjectViewer::OnEditchange()
+{
+    char buffer[512]{ 0 };
+    GetWindowText(m_hControlSearch, buffer, 511);
+
+    g_filteredImages.clear();    
+    g_selectedIndex = -1;
+    m_nScrollX = 0;
+    m_nScrollY = 0;
+
+    if (strcmp(buffer, "") == 0)
+        g_filteredImages = g_images;
+    else
+    {
+        for (auto& g : g_images)
+        {
+            auto uiName = CViewObjectsExt::QueryUIName(g.ID);
+            if (ExtraWindow::IsLabelMatch(g.ID, buffer) || ExtraWindow::IsLabelMatch(uiName, buffer))
+            {
+                g_filteredImages.push_back(g);
+            }
+        }
+    }
+    LayoutImages();
+    InvalidateRect(GetView(), NULL, FALSE);
+}
+
+void GridObjectViewer::UpdateImages()
+{
+    Clear();
+
+    auto loadImageBuilding = [this](ImageDataClassSafe* pd, const ppmfc::CString id, const CLoadingExt::ObjectType type)
+    {
+        if (!pd || !pd->pImageBuffer || pd->FullWidth <= 0 || pd->FullHeight <= 0)
+            return;
+        ImageInfo info;
+        info.ID = id;
+        info.Type = type;
+        ComputeCroppedInfo(pd, info);
+
+        g_images.push_back(info);
+
+    };
+    auto loadImage = [this](const FString& DataName, const ppmfc::CString id, const CLoadingExt::ObjectType type)
+    {
+        auto pd = CLoadingExt::GetImageDataFromMap(DataName);
+        if (!pd || !pd->pImageBuffer || pd->FullWidth <= 0 || pd->FullHeight <= 0)
+            return;
+        ImageInfo info;
+        info.ID = id;
+        info.Type = type;
+        ComputeCroppedInfo(pd, info);
+        info.pData = nullptr;
+        info.DataName = DataName;
+
+        g_images.push_back(info);
+
+    };
+    if (g_currentCurSel >= 0 && g_currentCurSel < g_groups.size())
+    {
+        TempValueHolder<bool> tmp1(ExtConfigs::InGameDisplay_Shadow, false);
+        TempValueHolder<bool> tmp2(CLoadingExt::IsLoadingObjectView, true);
+
+        auto& g = g_groups[g_currentCurSel];
+        for (auto& id : g.IDs)
+        {
+            auto type = CLoadingExt::GetExtension()->GetItemType(id);
+
+            if (!CLoadingExt::IsObjectPreviewLoaded(id))
+                CLoadingExt::GetExtension()->LoadObjects(id);
+            switch (type)
+            {
+            case CLoadingExt::ObjectType::Infantry:
+            {
+                int facings = CLoadingExt::GetAvailableFacing(id);
+                auto imageName = CLoadingExt::GetImageName(id, 5);
+                loadImage(imageName, id, type);
+                break;
+            }
+            case CLoadingExt::ObjectType::Vehicle:
+            case CLoadingExt::ObjectType::Aircraft:
+            {
+                int facings = CLoadingExt::GetAvailableFacing(id);
+                auto imageName = CLoadingExt::GetImageName(id, facings / 4);
+                loadImage(imageName, id, type);
+                break;
+            }
+            case CLoadingExt::ObjectType::Terrain:
+            case CLoadingExt::ObjectType::Smudge:
+            {
+                auto imageName = CLoadingExt::GetImageName(id, 0);
+                loadImage(imageName, id, type);
+                break;
+            }
+            case CLoadingExt::ObjectType::Building:
+            {
+                auto imageName = CLoadingExt::GetBuildingImageName(id, 0, 0);
+                auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
+                auto pd = CLoadingExt::BindClippedImages(clips);
+                g_buildingImages.push_back(std::move(pd));
+                loadImageBuilding(g_buildingImages.back().get(), id, type);
+                break;
+            }
+            case CLoadingExt::ObjectType::Unknown:
+            default:
+                break;
+            }
+        }
+        OnEditchange();
+    }
+    else
+    {
+        InvalidateRect(GetView(), NULL, FALSE);
+    }
+}
+
+LRESULT CALLBACK GridObjectViewer::HandleViewSubClassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg)
     {
@@ -415,7 +877,7 @@ LRESULT CALLBACK GridObjectViewer::HandleSubClassProc(HWND hwnd, UINT msg, WPARA
         RECT client;
         GetClientRect(hwnd, &client);
 
-        if (!m_hMemDC || (client.right != GetDeviceCaps(m_hMemDC, HORZRES) /* ¼òµ¥¼ì²é */))
+        if (!m_hMemDC || (client.right != GetDeviceCaps(m_hMemDC, HORZRES)))
         {
             CreateDoubleBuffer(hdc, client.right, client.bottom);
         }
@@ -468,7 +930,7 @@ LRESULT CALLBACK GridObjectViewer::HandleSubClassProc(HWND hwnd, UINT msg, WPARA
     {
         POINT pt = { LOWORD(lParam), HIWORD(lParam) };
         g_selectedIndex = -1;
-        for (size_t i = 0; i < g_images.size() && i < g_imageRects.size(); ++i)
+        for (size_t i = 0; i < g_filteredImages.size() && i < g_imageRects.size(); ++i)
         {
             RECT rect = g_imageRects[i];
             rect.left -= m_nScrollX;
@@ -478,7 +940,7 @@ LRESULT CALLBACK GridObjectViewer::HandleSubClassProc(HWND hwnd, UINT msg, WPARA
             if (PtInRect(&rect, pt))
             {
                 g_selectedIndex = (int)i;
-                auto& id = g_images[i].ID;
+                auto& id = g_filteredImages[i].ID;
                 auto type = CLoadingExt::GetExtension()->GetItemType(id);
 
                 switch (type)
@@ -509,6 +971,12 @@ LRESULT CALLBACK GridObjectViewer::HandleSubClassProc(HWND hwnd, UINT msg, WPARA
                 CIsoView::CurrentCommand->Command = 1;
                 CIsoView::CurrentCommand->Param = 1;
                 CIsoView::CurrentCommand->ObjectID = id;
+
+                FString display = CViewObjectsExt::QueryUIName(id);
+                if (display != id)
+                    display += " (" + id + ")";
+                SetWindowText(m_hControlCurrentSelect, display);
+
                 break;
             }
         }
@@ -522,7 +990,7 @@ LRESULT CALLBACK GridObjectViewer::HandleSubClassProc(HWND hwnd, UINT msg, WPARA
         break;
     }
 
-    return CallWindowProc(g_oldWndProc, hwnd, msg, wParam, lParam);
+    return CallWindowProc(g_oldViewProc, hwnd, msg, wParam, lParam);
 }
 
 void GridObjectViewer::Create(HWND hParent)
@@ -537,25 +1005,59 @@ void GridObjectViewer::Create(HWND hParent)
 
     RegisterClassEx(&wc);
 
-    RECT rect;
-    ::GetClientRect(hParent, &rect);
-    m_hWnd = CreateWindowEx(NULL, "ImageDataGallery", nullptr,
+    m_hControl = CreateDialogParam(
+        static_cast<HINSTANCE>(FA2sp::hInstance),
+        MAKEINTRESOURCE(ExtConfigs::VerticalLayout ? 337 : 338),
+        hParent,
+        ControlSubClassProc,
+        reinterpret_cast<LPARAM>(this)
+    );
+    m_hView = CreateWindowEx(NULL, "ImageDataGallery", nullptr,
         WS_CHILD | WS_BORDER | WS_VISIBLE | WS_HSCROLL | WS_VSCROLL | WS_CLIPCHILDREN,
-        rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, hParent,
+        0, 0, 1, 1, hParent,
         NULL, static_cast<HINSTANCE>(FA2sp::hInstance), nullptr);
-    SetWindowLongPtr(m_hWnd, GWLP_USERDATA, (LONG_PTR)this);
 
-    g_oldWndProc = (WNDPROC)SetWindowLongPtr(
-        m_hWnd, GWLP_WNDPROC, (LONG_PTR)SubClassProc);
+    if (m_hControl && m_hView)
+    {
+        LONG_PTR style = GetWindowLongPtr(m_hControl, GWL_STYLE);
+        style &= ~(WS_BORDER | WS_DLGFRAME | WS_THICKFRAME);
+        SetWindowLongPtr(m_hControl, GWL_STYLE, style);
+        SetWindowPos(m_hControl, nullptr, 0, 0, 0, 0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
 
-    SendMessage(m_hWnd, WM_CREATE, 0, 0);
+        CRect rect;
+        ::GetClientRect(hParent, &rect);
+        CRect controlRect;
+        GetWindowRect(m_hControl, &controlRect);
+
+        SetWindowLongPtr(m_hView, GWLP_USERDATA, (LONG_PTR)this);
+        g_oldViewProc = (WNDPROC)SetWindowLongPtr(
+            m_hView, GWLP_WNDPROC, (LONG_PTR)ViewSubClassProc);
+    }   
 }
 
 void GridObjectViewer::OnSize() const
 {
     RECT rect;
-    ::GetClientRect(::GetParent(this->GetHwnd()), &rect);
-    ::MoveWindow(this->GetHwnd(), 2, 29, rect.right - rect.left - 6, rect.bottom - rect.top - 35, FALSE);
+    ::GetClientRect(::GetParent(this->GetView()), &rect);
+    CRect controlRect;
+    GetWindowRect(this->GetControl(), &controlRect);
+
+    if (ExtConfigs::VerticalLayout)
+    {
+        ::MoveWindow(m_hControl, 2, 29,
+            rect.right - rect.left - 6, controlRect.Height(), FALSE);
+        ::MoveWindow(this->GetView(), 2, controlRect.Height(),
+            rect.right - rect.left - 6, rect.bottom - rect.top - 35 - controlRect.Height(), FALSE);
+    }
+    else
+    {
+        ::MoveWindow(m_hControl, 2, 29,
+            rect.right - rect.left - 6, controlRect.Height(), FALSE);
+        ::MoveWindow(this->GetView(), 2, controlRect.Height(),
+            rect.right - rect.left - 6, rect.bottom - rect.top - 6 - controlRect.Height(), FALSE);
+    }
+
 }
 
 void GridObjectViewer::ShowWindow(bool bShow)
@@ -568,76 +1070,50 @@ void GridObjectViewer::ShowWindow(bool bShow)
 
 void GridObjectViewer::ShowWindow()
 {
-    auto loadImage = [this](ImageDataClassSafe* pd, const ppmfc::CString id)
-    {        
-        if (!pd || !pd->pImageBuffer || pd->FullWidth <= 0 || pd->FullHeight <= 0)
-            return;
-        ImageInfo info;
-        info.ID = id;
-        ComputeCroppedInfo(pd, info);
-
-        g_images.push_back(info);
-
-    };
-    Clear();
-    auto vehicles = Variables::RulesMap.GetSection("VehicleTypes");
-    for (auto& [_, obj] : vehicles)
-    {
-        auto imageName = CLoadingExt::GetImageName(obj, 0);
-        auto pd = CLoadingExt::GetImageDataFromMap(imageName);
-        loadImage(pd, obj);
-    }
-    auto terrains = Variables::RulesMap.GetSection("TerrainTypes");
-    for (auto& [_, obj] : terrains)
-    {
-        auto imageName = CLoadingExt::GetImageName(obj, 0);
-        auto pd = CLoadingExt::GetImageDataFromMap(imageName);
-        loadImage(pd, obj);
-    }
-    auto buildings = Variables::RulesMap.GetSection("BuildingTypes");
-    for (auto& [_, obj] : buildings)
-    {
-        auto imageName = CLoadingExt::GetBuildingImageName(obj, 0, 0);
-        auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
-        auto pd = CLoadingExt::BindClippedImages(clips);
-        g_buildingImages.push_back(std::move(pd));
-        loadImage(g_buildingImages.back().get(), obj);
-    }
-    LayoutImages();
-    ::ShowWindow(this->GetHwnd(), SW_SHOW);
+    UpdateImages();
+    ::ShowWindow(this->GetView(), SW_SHOW);
+    ::ShowWindow(this->GetControl(), SW_SHOW);
 }
 
 void GridObjectViewer::HideWindow()
 {
-    ::ShowWindow(this->GetHwnd(), SW_HIDE);
+    ::ShowWindow(this->GetView(), SW_HIDE);
+    ::ShowWindow(this->GetControl(), SW_HIDE);
 }
 
 bool GridObjectViewer::IsValid() const
 {
-    return this->GetHwnd() != NULL;
+    return this->GetView() != NULL;
 }
 
 bool GridObjectViewer::IsVisible() const
 {
-    return this->IsValid() && ::IsWindowVisible(this->m_hWnd);
+    return this->IsValid() && ::IsWindowVisible(this->m_hView);
 }
 
 void GridObjectViewer::Clear()
 {
     m_nScrollX = m_nScrollY = 0;
+    g_filteredImages.clear();
     g_images.clear();
     g_imageRects.clear();
     g_buildingImages.clear();
     g_selectedIndex = -1;
-    InvalidateRect(m_hWnd, NULL, TRUE);
+    SetWindowText(m_hControlCurrentSelect, "");
+    InvalidateRect(m_hView, NULL, TRUE);
 }
 
-HWND GridObjectViewer::GetHwnd() const
+HWND GridObjectViewer::GetView() const
 {
-    return this->m_hWnd;
+    return this->m_hView;
+}
+
+HWND GridObjectViewer::GetControl() const
+{
+    return this->m_hControl;
 }
 
 GridObjectViewer::operator HWND() const
 {
-    return this->GetHwnd();
+    return this->GetView();
 }

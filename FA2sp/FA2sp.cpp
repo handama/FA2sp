@@ -212,6 +212,8 @@ bool ExtConfigs::ShrinkTilesInTileSetBrowser;
 bool ExtConfigs::DisableAutoConnectWall;
 bool ExtConfigs::UTF8Support_InferEncoding = true;
 bool ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
+bool ExtConfigs::GridObjectViewer_LoadEditorCategory;
+bool ExtConfigs::GridObjectViewer_LoadForceSides;
 
 CInfantryData ExtConfigs::DefaultInfantryProperty;
 CUnitData ExtConfigs::DefaultUnitProperty;
@@ -238,6 +240,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ObjectBrowser_Foundation = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Foundation");
 	ExtConfigs::ObjectBrowser_Ore_RandomPlacement = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Ore.RandomPlacement");
 	ExtConfigs::ObjectBrowser_Ore_ExtraSupport = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Ore.ExtraSupport");
+	ExtConfigs::GridObjectViewer_LoadEditorCategory = CINI::FAData->GetBool("ExtConfigs", "GridObjectViewer.LoadEditorCategory", true);
+	ExtConfigs::GridObjectViewer_LoadForceSides = CINI::FAData->GetBool("ExtConfigs", "GridObjectViewer.LoadForceSides", true);
 	ExtConfigs::LoadCivilianStringtable = CINI::FAData->GetBool("ExtConfigs", "LoadCivilianStringtable");
 	ExtConfigs::PasteShowOutlineDefault = CINI::FAData->GetBool("ExtConfigs", "PasteShowOutline");
 	
@@ -690,6 +694,20 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "ObjectBrowser.Ore.ExtraSupport",
 		.Value = &ExtConfigs::ObjectBrowser_Ore_ExtraSupport,
 		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.GridObjectViewer.LoadEditorCategory", "Classify objects in the object viewer based on their EditCategory"),
+		.IniKey = "GridObjectViewer.LoadEditorCategory",
+		.Value = &ExtConfigs::GridObjectViewer_LoadEditorCategory,
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectViewer
+		});
+	
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.GridObjectViewer.LoadForceSides", "Classify objects in the object viewer based on their ForceSides"),
+		.IniKey = "GridObjectViewer.LoadForceSides",
+		.Value = &ExtConfigs::GridObjectViewer_LoadForceSides,
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectViewer
 		});
 
 	// Map Display and Rendering

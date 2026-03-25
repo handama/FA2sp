@@ -40,6 +40,7 @@
 #include "../../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
 #include <random>
 #include "../../Helpers/Helper.h"
+#include "../CTileSetBrowserFrame/TabPages/GridObjectViewer.h"
 
 int CMapDataExt::OreValue[4] { -1,-1,-1,-1 };
 unsigned short CMapDataExt::CurrentRenderBuildingStrength;
@@ -4227,4 +4228,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		CLoadingExt::GetExtension()->LoadObjects("FA2DEFAULT_AIRCRAFT");
 		CLoadingExt::GetExtension()->LoadObjects("FA2DEFAULT_INFANTRY");
 	}
+
+	GridObjectViewer::Instance.UpdateControls();
 }

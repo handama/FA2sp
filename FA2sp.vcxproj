@@ -479,6 +479,7 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CTechnoDialog\CTechnoDialog.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.rc" />
+    <ResourceCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\GridObjectViewer.rc" />
     <ResourceCompile Include="FA2sp\UI\CAircraftDialog.rc" />
     <ResourceCompile Include="FA2sp\UI\CAITriggerTypes.rc" />
     <ResourceCompile Include="FA2sp\UI\CChangeMapSize.rc" />

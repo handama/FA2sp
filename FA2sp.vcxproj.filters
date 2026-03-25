@@ -946,6 +946,9 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CTechnoDialog\CTechnoDialog.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
+    <ResourceCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\GridObjectViewer.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

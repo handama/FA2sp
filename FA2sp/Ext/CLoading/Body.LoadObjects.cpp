@@ -18,6 +18,7 @@ std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
 std::unordered_map<FString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
 std::unordered_set<FString> CLoadingExt::LoadedObjects;
+std::unordered_set<FString> CLoadingExt::LoadedPreviewObjects;
 std::unordered_set<FString> CLoadingExt::LoadedSurfaceObjects;
 std::unordered_set<FString> CLoadingExt::CustomPaletteTerrains;
 std::unordered_map<FString, int> CLoadingExt::IFVTurrets;
@@ -284,6 +285,8 @@ void CLoadingExt::LoadObjects(const FString& ID)
 
 	if (!IsLoadingObjectView)
 		LoadedObjects.insert(ID);
+	else
+		LoadedPreviewObjects.insert(ID);
 
 	auto eItemType = GetItemType(ID);
 	if (eItemType != CLoadingExt::ObjectType::Unknown)
@@ -339,6 +342,7 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 	{
 		ObjectTypes.clear();
 		LoadedObjects.clear();
+		LoadedPreviewObjects.clear();
 		LoadedOverlays.clear();
 		SwimableInfantries.clear();
 		ImageDataMap.clear();
@@ -377,6 +381,11 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 bool CLoadingExt::IsObjectLoaded(const FString& pRegName)
 {
 	return LoadedObjects.find(pRegName) != LoadedObjects.end();
+}
+
+bool CLoadingExt::IsObjectPreviewLoaded(const FString& pRegName)
+{
+	return LoadedPreviewObjects.find(pRegName) != LoadedPreviewObjects.end();
 }
 
 bool CLoadingExt::IsSurfaceObjectLoaded(const FString& pRegName)

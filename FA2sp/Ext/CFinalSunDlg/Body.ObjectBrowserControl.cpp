@@ -91,15 +91,15 @@ std::vector<FString> CViewObjectsExt::ObjectFilterCT;
 std::map<int, int> CViewObjectsExt::WallDamageStages;
 
 bool CViewObjectsExt::InitPropertyDlgFromProperty{ false };
-int CViewObjectsExt::PlacingWall;
-int CViewObjectsExt::PlacingRandomRock;
-int CViewObjectsExt::PlacingRandomSmudge;
-int CViewObjectsExt::PlacingRandomTerrain;
-int CViewObjectsExt::PlacingRandomInfantry;
-int CViewObjectsExt::PlacingRandomVehicle;
-int CViewObjectsExt::PlacingRandomStructure;
-int CViewObjectsExt::PlacingRandomAircraft;
-int CViewObjectsExt::PlacingRandomTile;
+int CViewObjectsExt::PlacingWall = -1;
+int CViewObjectsExt::PlacingRandomRock = -1;
+int CViewObjectsExt::PlacingRandomSmudge = -1;
+int CViewObjectsExt::PlacingRandomTerrain = -1;
+int CViewObjectsExt::PlacingRandomInfantry = -1;
+int CViewObjectsExt::PlacingRandomVehicle = -1;
+int CViewObjectsExt::PlacingRandomStructure = -1;
+int CViewObjectsExt::PlacingRandomAircraft = -1;
+int CViewObjectsExt::PlacingRandomTile = -1;
 bool CViewObjectsExt::PlacingRandomRandomFacing;
 bool CViewObjectsExt::PlacingRandomStructureAIRepairs;
 bool CViewObjectsExt::NeedChangeTreeViewSelect = true;
@@ -308,7 +308,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 }
             }
 
-            if (!CLoadingExt::IsObjectLoaded(InsertingObjectID)
+            if (!CLoadingExt::IsObjectPreviewLoaded(InsertingObjectID)
                 && InsertingOverlay < 0 && InsertingTileIndex < 0 && !InsertingSpecialBitmap)
             {
                 bool temp = ExtConfigs::InGameDisplay_Shadow;

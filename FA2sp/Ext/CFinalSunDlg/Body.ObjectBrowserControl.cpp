@@ -308,7 +308,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 }
             }
 
-            if (!CLoadingExt::IsObjectPreviewLoaded(InsertingObjectID)
+            if (!CLoadingExt::IsObjectPreviewLoaded(InsertingObjectID) && !CLoadingExt::IsObjectLoaded(InsertingObjectID)
                 && InsertingOverlay < 0 && InsertingTileIndex < 0 && !InsertingSpecialBitmap)
             {
                 bool temp = ExtConfigs::InGameDisplay_Shadow;
@@ -1198,10 +1198,13 @@ void CViewObjectsExt::Redraw_Infantry()
     int i = 0;
     if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
     {
+        auto engSide = ExtraWindow::GetTranslatedSectionName("English-Sides");
+        if (!CINI::FAData->SectionExists(engSide))
+            engSide = "Sides";
         for (auto& itr : sides->GetEntities())
         {
             subNodeNames[i] = itr.second;
-            auto engName = fadata.GetValueAt("English-Sides", i);
+            auto engName = fadata.GetValueAt(engSide, i);
             subNodeEngNames[i] = engName.IsEmpty() ? itr.second : engName;
             subNodes[i++] = this->InsertString(itr.second, -1, hInfantry);
         }
@@ -1362,10 +1365,13 @@ void CViewObjectsExt::Redraw_Vehicle()
     int i = 0;
     if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
     {
+        auto engSide = ExtraWindow::GetTranslatedSectionName("English-Sides");
+        if (!CINI::FAData->SectionExists(engSide))
+            engSide = "Sides";
         for (auto& itr : sides->GetEntities())
         {
             subNodeNames[i] = itr.second;
-            auto engName = fadata.GetValueAt("English-Sides", i);
+            auto engName = fadata.GetValueAt(engSide, i);
             subNodeEngNames[i] = engName.IsEmpty() ? itr.second : engName;
             subNodes[i++] = this->InsertString(itr.second, -1, hVehicle);
         }
@@ -1526,10 +1532,13 @@ void CViewObjectsExt::Redraw_Aircraft()
     int i = 0;
     if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
     {
+        auto engSide = ExtraWindow::GetTranslatedSectionName("English-Sides");
+        if (!CINI::FAData->SectionExists(engSide))
+            engSide = "Sides";
         for (auto& itr : sides->GetEntities())
         {
             subNodeNames[i] = itr.second;
-            auto engName = fadata.GetValueAt("English-Sides", i);
+            auto engName = fadata.GetValueAt(engSide, i);
             subNodeEngNames[i] = engName.IsEmpty() ? itr.second : engName;
             subNodes[i++] = this->InsertString(itr.second, -1, hAircraft);
         }
@@ -1693,10 +1702,13 @@ void CViewObjectsExt::Redraw_Building()
     int i = 0;
     if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
     {
+        auto engSide = ExtraWindow::GetTranslatedSectionName("English-Sides");
+        if (!CINI::FAData->SectionExists(engSide))
+            engSide = "Sides";
         for (auto& itr : sides->GetEntities())
         {
             subNodeNames[i] = itr.second;
-            auto engName = fadata.GetValueAt("English-Sides", i);
+            auto engName = fadata.GetValueAt(engSide, i);
             subNodeEngNames[i] = engName.IsEmpty() ? itr.second : engName;
             subNodes[i++] = this->InsertString(itr.second, -1, hBuilding);
         }

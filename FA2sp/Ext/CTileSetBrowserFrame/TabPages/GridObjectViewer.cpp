@@ -464,10 +464,18 @@ void GridObjectViewer::UpdateControls()
     g_groups.clear();
     std::vector<FString> translatedSides;
     std::vector<FString> engSides;
-    if (auto pSection = CINI::FAData->GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
+
+    auto trandSide = ExtraWindow::GetTranslatedSectionName("Sides");
+    if (!CINI::FAData->SectionExists(trandSide))
+        trandSide = "Sides";
+    auto engSide = ExtraWindow::GetTranslatedSectionName("English-Sides");
+    if (!CINI::FAData->SectionExists(engSide))
+        engSide = "Sides";
+
+    if (auto pSection = CINI::FAData->GetSection(trandSide))
         for (auto& [_, value] : pSection->GetEntities())
             translatedSides.push_back(value);
-    if (auto pSection = CINI::FAData->GetSection("English-Sides"))
+    if (auto pSection = CINI::FAData->GetSection(engSide))
         for (auto& [_, value] : pSection->GetEntities())
             engSides.push_back(value);
 
@@ -665,7 +673,6 @@ void GridObjectViewer::UpdateControls()
     for (auto& o : g_groups[allS].IDs) all.IDs.push_back(o);
 
     while (SendMessage(m_hControlGroup, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    int i = 0;
     for (auto& g : g_groups)
     {
         std::unordered_set<FString> seen;
@@ -678,8 +685,11 @@ void GridObjectViewer::UpdateControls()
             }
         }
         g.IDs.resize(writeIndex);
-
-        if (g.IDs.empty()) continue;
+    }
+    std::erase_if(g_groups, [](GroupInfo& g) { return g.IDs.empty(); });
+    int i = 0;
+    for (auto& g : g_groups)
+    {
         SendMessage(m_hControlGroup, CB_INSERTSTRING, i, g.DisplayName);
         ++i;
     }
@@ -760,7 +770,7 @@ void GridObjectViewer::UpdateImages()
         {
             auto type = CLoadingExt::GetExtension()->GetItemType(id);
 
-            if (!CLoadingExt::IsObjectPreviewLoaded(id))
+            if (!CLoadingExt::IsObjectPreviewLoaded(id) && !CLoadingExt::IsObjectLoaded(id))
                 CLoadingExt::GetExtension()->LoadObjects(id);
             switch (type)
             {

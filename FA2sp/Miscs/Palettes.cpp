@@ -439,8 +439,8 @@ void LightingSourceTint::CalculateMapLamps()
                     const int X = atoi(atoms[4]);
                     const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
 
-                    ls.CenterX = X + DataExt.Height / 2.0f;
-                    ls.CenterY = Y + DataExt.Width / 2.0f;
+                    ls.CenterX = X + DataExt.Height / 2.0f - 0.5f;
+                    ls.CenterY = Y + DataExt.Width / 2.0f - 0.5f;
                     LightingSourcePosition lsp;
                     lsp.X = X;
                     lsp.Y = Y;
@@ -454,6 +454,7 @@ void LightingSourceTint::CalculateMapLamps()
     {
         for (int y = 0; y < CMapData::Instance->MapWidthPlusHeight; ++y)
         {
+            if (!CMapData::Instance->IsCoordInMap(x, y)) continue;
             auto& ret = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(x, y)].Lighting;
             ret.RedTint = 0.0f;
             ret.GreenTint = 0.0f;
@@ -465,9 +466,12 @@ void LightingSourceTint::CalculateMapLamps()
                 float sqY = (y - ls.CenterY) * (y - ls.CenterY);
                 float distanceSquare = sqX + sqY;
 
-                if ((0 < ls.LightVisibility) && (distanceSquare < ls.LightVisibility * ls.LightVisibility / 65536))
+                if ((0 < ls.LightVisibility) && (distanceSquare * 65536 < ls.LightVisibility * ls.LightVisibility))
                 {
-                    float lsEffect = (ls.LightVisibility - 256 * sqrt(distanceSquare)) / ls.LightVisibility;
+                    float distUnits = 256.0f * sqrtf(distanceSquare);
+                    float lsEffect = (ls.LightVisibility > distUnits)
+                        ? (ls.LightVisibility - distUnits) / ls.LightVisibility
+                        : 0.0f;
                     switch (CFinalSunDlgExt::CurrentLighting)
                     {
                         // color doesn't apply in superweapons

@@ -440,6 +440,13 @@ void CViewObjectsExt::UpdateTreeIconsForSubtree(HTREEITEM hItem)
 
 void CViewObjectsExt::Redraw()
 {
+    // first loading is before rules loaded
+    static bool firstRun = true;
+    if (firstRun)
+    {
+        firstRun = false;
+        return;
+    }
     if (ExtConfigs::TreeViewCameo_Display)
     {
         if (m_ImageList.GetSafeHandle())
@@ -539,7 +546,6 @@ void CViewObjectsExt::Redraw_Initialize()
 
     auto& fadata = CINI::FAData();
     auto& doc = CINI::CurrentDocument();
-
     if (ExtConfigs::ObjectBrowser_GuessMode == 1)
     {
         auto loadOwner = []()
@@ -3795,10 +3801,13 @@ int CViewObjectsExt::GuessGenericSide(const char* pRegName, int nType)
         auto&& owners = STDHelpers::SplitString(Variables::RulesMap.GetString(pRegName, "Owner"));
         if (owners.size() <= 0)
             return -1;
-        auto&& itr = Owners.find(owners[0]);
-        if (itr == Owners.end())
-            return -1;
-        return itr->second > ExtConfigs::ObjectBrowser_GuessMax ? -1 : itr->second;
+        for (auto& o : owners)
+        {
+            auto&& itr = Owners.find(o);
+            if (itr != Owners.end())
+                return itr->second > ExtConfigs::ObjectBrowser_GuessMax ? -1 : itr->second;
+        }
+        return -1;
     }
     }
 }

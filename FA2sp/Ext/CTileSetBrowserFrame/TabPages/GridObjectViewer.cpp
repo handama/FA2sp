@@ -668,6 +668,17 @@ void GridObjectViewer::UpdateControls()
     int i = 0;
     for (auto& g : g_groups)
     {
+        std::unordered_set<FString> seen;
+        size_t writeIndex = 0;
+        for (size_t i = 0; i < g.IDs.size(); ++i)
+        {
+            if (seen.insert(g.IDs[i]).second)
+            {
+                g.IDs[writeIndex++] = std::move(g.IDs[i]);
+            }
+        }
+        g.IDs.resize(writeIndex);
+
         if (g.IDs.empty()) continue;
         SendMessage(m_hControlGroup, CB_INSERTSTRING, i, g.DisplayName);
         ++i;

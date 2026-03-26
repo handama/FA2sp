@@ -1159,6 +1159,8 @@ DEFINE_HOOK(4F22D6, CTileSetBrowserView_OnDraw_OverlayBackground, 6)
 
 DEFINE_HOOK(4F12C0, CTileSetBrowserView_Update_LoadOverlay, 5)
 {
+    CViewObjectsExt::Redraw_Initialize();
+
     HWND hParent = CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
     HWND hOverlayComboBox = GetDlgItem(hParent, 1367);
 

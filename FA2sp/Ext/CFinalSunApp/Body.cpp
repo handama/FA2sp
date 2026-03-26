@@ -212,8 +212,6 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	CLoading loading(nullptr);
 	this->Loading = &loading;
 
-	CViewObjectsExt::Redraw_Initialize();
-	
 	bool is_watcher_running = true;
 	std::thread watcher([&is_watcher_running]()
 		{

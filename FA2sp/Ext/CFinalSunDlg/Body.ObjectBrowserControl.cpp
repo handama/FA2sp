@@ -3864,6 +3864,7 @@ void CViewObjectsExt::InitializeOnUpdateEngine()
     CViewObjectsExt::NeedChangeTreeViewSelect = true;
     CIsoViewExt::EnableAutoTrack = false;
 
+    CViewObjectsExt::CurrentConnectedTileType = -1;
     CViewObjectsExt::CliffConnectionCoord.X = -1;
     CViewObjectsExt::CliffConnectionCoord.Y = -1;
     CViewObjectsExt::CliffConnectionHeight = -1;

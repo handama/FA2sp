@@ -1857,3 +1857,36 @@ DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 
 	return 0x46AAA1;
 }
+
+DEFINE_HOOK(469470, CIsoView_OnKeyDown, 5)
+{
+	if (!ExtConfigs::EnableMultiSelection)
+		return 0;
+
+	GET(CIsoView*, pThis, ECX);
+	GET_STACK(UINT, nChar, 0x4);
+
+	switch (nChar)
+	{
+	case 'D':
+	{
+		if (MultiSelection::Control_D_IsDown)
+			MultiSelection::Control_D_IsDown = false;
+		else
+		{
+			CFinalSunApp::Instance->FlatToGround = !CFinalSunApp::Instance->FlatToGround;
+			CFinalSunDlgExt::GetExtension()->CheckToolBarButton(40085, CFinalSunApp::Instance->FlatToGround);
+		}
+		pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+		break;
+	}
+	case 'A':
+	{
+		pThis->KeyboardAMode = !pThis->KeyboardAMode;
+	}
+	}
+
+	R->EAX(pThis->Default());
+
+	return 0x4694A9;
+}

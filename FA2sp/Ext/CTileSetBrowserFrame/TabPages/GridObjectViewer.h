@@ -44,7 +44,15 @@ public:
     void Clear();
     HWND GetView() const;
     HWND GetControl() const;
+    int GetSelectedSel() const;
+    int GetSelectedIndex() const;
     operator HWND() const;
+    bool SelectLeft();
+    bool SelectRight();
+    bool SelectUp();
+    bool SelectDown();
+    void EnsureVisible(int index);
+    void OnSelChanged(int index);
     void UpdateControls();
     void UpdateImages();
 
@@ -64,6 +72,9 @@ private:
     void OnSelchange();
     void OnEditchange();
     COLORREF GetBackgroundColor();
+    int FindRowStart(int index);
+    int GetRowLength(int startIndex);
+    bool SelectClosestInRow(int rowStart, int rowEnd, int targetCenterX);
 
     HWND m_hView;
     HWND m_hControl;

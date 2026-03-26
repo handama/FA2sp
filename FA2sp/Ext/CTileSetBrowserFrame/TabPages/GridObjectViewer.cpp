@@ -961,43 +961,7 @@ LRESULT CALLBACK GridObjectViewer::HandleViewSubClassProc(HWND hwnd, UINT msg, W
             if (PtInRect(&rect, pt))
             {
                 g_selectedIndex = (int)i;
-                auto& id = g_filteredImages[i].ID;
-                auto type = CLoadingExt::GetExtension()->GetItemType(id);
-
-                switch (type)
-                {
-                case CLoadingExt::ObjectType::Infantry:
-                    CIsoView::CurrentCommand->Type = 1;
-                    break;
-                case CLoadingExt::ObjectType::Terrain:
-                    CIsoView::CurrentCommand->Type = 5;
-                    break;
-                case CLoadingExt::ObjectType::Smudge:
-                    CIsoView::CurrentCommand->Type = 8;
-                    break;
-                case CLoadingExt::ObjectType::Vehicle:
-                    CIsoView::CurrentCommand->Type = 4;
-                    break;
-                case CLoadingExt::ObjectType::Aircraft:
-                    CIsoView::CurrentCommand->Type = 3;
-                    break;
-                case CLoadingExt::ObjectType::Building:
-                    CIsoView::CurrentCommand->Type = 2;
-                    break;
-                case CLoadingExt::ObjectType::Unknown:
-                default:
-                    break;
-                }
-
-                CIsoView::CurrentCommand->Command = 1;
-                CIsoView::CurrentCommand->Param = 1;
-                CIsoView::CurrentCommand->ObjectID = id;
-
-                FString display = CViewObjectsExt::QueryUIName(id);
-                if (display != id)
-                    display += " (" + id + ")";
-                SetWindowText(m_hControlCurrentSelect, display);
-
+                OnSelChanged(g_selectedIndex);
                 break;
             }
         }
@@ -1134,7 +1098,199 @@ HWND GridObjectViewer::GetControl() const
     return this->m_hControl;
 }
 
+int GridObjectViewer::GetSelectedSel() const
+{
+    return g_currentCurSel;
+}
+
+int GridObjectViewer::GetSelectedIndex() const
+{
+    return g_selectedIndex;
+}
+
 GridObjectViewer::operator HWND() const
 {
     return this->GetView();
+}
+
+bool GridObjectViewer::SelectLeft()
+{
+    if (g_imageRects.empty()) return false;
+    if (g_selectedIndex < 0)
+    {
+        g_selectedIndex = 0;
+        return true;
+    }
+    if (g_selectedIndex <= 0) return false;
+    g_selectedIndex--;
+    return true;
+}
+
+bool GridObjectViewer::SelectRight()
+{
+    if (g_imageRects.empty()) return false;
+    if (g_selectedIndex >= (int)g_imageRects.size() - 1) return false;
+    g_selectedIndex++;
+    return true;
+}
+
+bool GridObjectViewer::SelectUp()
+{
+    if (g_imageRects.empty()) return false;
+    if (g_selectedIndex < 0)
+    {
+        g_selectedIndex = 0;
+        return true;
+    }
+
+    RECT current = g_imageRects[g_selectedIndex];
+    int centerX = (current.left + current.right) / 2;  
+
+    int currentRowStart = FindRowStart(g_selectedIndex);
+    if (currentRowStart <= 0) return false; 
+
+    int prevRowStart = FindRowStart(currentRowStart - 1);
+    int prevRowEnd = currentRowStart - 1;
+
+    return SelectClosestInRow(prevRowStart, prevRowEnd, centerX);
+}
+
+bool GridObjectViewer::SelectDown()
+{
+    if (g_imageRects.empty()) return false;
+    if (g_selectedIndex < 0)
+    {
+        g_selectedIndex = 0;
+        return true;
+    }
+
+    RECT current = g_imageRects[g_selectedIndex];
+    int centerX = (current.left + current.right) / 2;
+
+    int currentRowStart = FindRowStart(g_selectedIndex);
+    int nextRowStart = currentRowStart + GetRowLength(currentRowStart);
+
+    if (nextRowStart >= (int)g_imageRects.size()) return false;
+
+    int nextRowEnd = std::min(nextRowStart + GetRowLength(nextRowStart) - 1,
+        (int)g_imageRects.size() - 1);
+
+    return SelectClosestInRow(nextRowStart, nextRowEnd, centerX);
+}
+
+int GridObjectViewer::FindRowStart(int index)
+{
+    if (index < 0 || index >= (int)g_imageRects.size()) return 0;
+
+    for (int i = index; i > 0; --i)
+    {
+        if (g_imageRects[i].left < g_imageRects[i - 1].right - 5) 
+            return i;
+    }
+    return 0;
+}
+
+int GridObjectViewer::GetRowLength(int startIndex)
+{
+    if (startIndex < 0 || startIndex >= (int)g_imageRects.size()) return 0;
+
+    int count = 1;
+    for (int i = startIndex + 1; i < (int)g_imageRects.size(); ++i)
+    {
+        if (g_imageRects[i].left < g_imageRects[i - 1].right - 5)
+            break;
+        count++;
+    }
+    return count;
+}
+
+bool GridObjectViewer::SelectClosestInRow(int rowStart, int rowEnd, int targetCenterX)
+{
+    if (rowStart > rowEnd || rowStart < 0) return false;
+
+    int closestIndex = rowStart;
+    int minDistance = INT_MAX;
+
+    for (int i = rowStart; i <= rowEnd; ++i)
+    {
+        RECT r = g_imageRects[i];
+        int center = (r.left + r.right) / 2;
+        int distance = abs(center - targetCenterX);
+
+        if (distance < minDistance)
+        {
+            minDistance = distance;
+            closestIndex = i;
+        }
+    }
+
+    if (closestIndex != g_selectedIndex)
+    {
+        g_selectedIndex = closestIndex;
+        return true;
+    }
+    return false;
+}
+
+void GridObjectViewer::EnsureVisible(int index)
+{
+    if (index < 0 || index >= (int)g_imageRects.size()) return;
+
+    RECT r = g_imageRects[index];
+    RECT client{};
+    GetClientRect(m_hView, &client);
+
+    if (r.left < m_nScrollX)
+        m_nScrollX = r.left;
+    else if (r.right > m_nScrollX + client.right)
+        m_nScrollX = r.right - client.right;
+
+    if (r.top < m_nScrollY)
+        m_nScrollY = r.top;
+    else if (r.bottom > m_nScrollY + client.bottom)
+        m_nScrollY = r.bottom - client.bottom;
+
+    UpdateScrollBars();
+    InvalidateRect(m_hView, NULL, TRUE);
+}
+
+void GridObjectViewer::OnSelChanged(int index)
+{
+    auto& id = g_filteredImages[index].ID;
+    auto type = CLoadingExt::GetExtension()->GetItemType(id);
+
+    switch (type)
+    {
+    case CLoadingExt::ObjectType::Infantry:
+        CIsoView::CurrentCommand->Type = 1;
+        break;
+    case CLoadingExt::ObjectType::Terrain:
+        CIsoView::CurrentCommand->Type = 5;
+        break;
+    case CLoadingExt::ObjectType::Smudge:
+        CIsoView::CurrentCommand->Type = 8;
+        break;
+    case CLoadingExt::ObjectType::Vehicle:
+        CIsoView::CurrentCommand->Type = 4;
+        break;
+    case CLoadingExt::ObjectType::Aircraft:
+        CIsoView::CurrentCommand->Type = 3;
+        break;
+    case CLoadingExt::ObjectType::Building:
+        CIsoView::CurrentCommand->Type = 2;
+        break;
+    case CLoadingExt::ObjectType::Unknown:
+    default:
+        break;
+    }
+
+    CIsoView::CurrentCommand->Command = 1;
+    CIsoView::CurrentCommand->Param = 1;
+    CIsoView::CurrentCommand->ObjectID = id;
+
+    FString display = CViewObjectsExt::QueryUIName(id);
+    if (display != id)
+        display += " (" + id + ")";
+    SetWindowText(m_hControlCurrentSelect, display);
+
 }

@@ -106,6 +106,14 @@ enum RendererLighting : int
     Dominator,
 };
 
+struct ImageDataView
+{
+    int FullWidth;
+    int FullHeight;
+    const BYTE* pImageBuffer;
+    const Palette* pPalette;
+}; 
+
 class NOVTABLE CIsoViewExt : public CIsoView
 {
 public:
@@ -163,6 +171,12 @@ public:
     static void DrawShadowMask(void* dst, const DDBoundary& boundary, const RECT& window, 
         const std::vector<byte>& mask, const std::vector<byte>& shadowHeightMask, const std::vector<int>& cellHeightMask);
     static void ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, bool removeHalo = true, bool trim = true);
+    static bool LoadAndScaleToBitmap(const ImageDataView* pData,
+        CBitmap& outBitmap,
+        int maxSize,
+        COLORREF bgColor,
+        bool trim = true,
+        bool removeHalo = true);
     static std::vector<MapCoord> GetTubePath(int x1, int y1, int x2, int y2, bool first = true);
     static std::vector<int> GetTubeDirections(const std::vector<MapCoord>& path);
     static std::vector<MapCoord> GetPathFromDirections(int x0, int y0, const std::vector<int>& directions);
@@ -194,6 +208,9 @@ public:
     static int GetOverlayDrawOffset(WORD nOverlay, BYTE nOverlayData = 0);
     static void SetStatusBarText(const char* text);
     void PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory);
+    static ImageDataView MakeImageDataView(ImageDataClassSafe* p);
+    static ImageDataView MakeImageDataView(ImageDataClass* p);
+
 
     static Bitmap* pFullBitmap;
     static bool DrawStructures;

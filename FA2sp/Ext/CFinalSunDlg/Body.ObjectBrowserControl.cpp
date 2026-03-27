@@ -201,8 +201,8 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 data.pPalette = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[InsertingTileIndex].TileSet];
 
                 CBitmap cBitmap;
-                CLoadingExt::LoadShpToBitmap(&data, cBitmap);
-                CIsoViewExt::ScaleBitmap(&cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
+                auto view = CIsoViewExt::MakeImageDataView(&data);
+                CIsoViewExt::LoadAndScaleToBitmap(&view, cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
                 int index = m_ImageList.Add(&cBitmap, RGB(255, 0, 255));
                 this->GetTreeCtrl().SetItemImage(item, index, index);
                 CLoadingExt::SaveCBitmapToFile(&cBitmap, path.c_str(), RGB(255, 0, 255));
@@ -344,8 +344,8 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             if (pData && pData->pImageBuffer)
             {
                 CBitmap cBitmap;
-                CLoadingExt::LoadShpToBitmap(pData, cBitmap);
-                CIsoViewExt::ScaleBitmap(&cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
+                auto view = CIsoViewExt::MakeImageDataView(pData);
+                CIsoViewExt::LoadAndScaleToBitmap(&view, cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
                 int index = m_ImageList.Add(&cBitmap, RGB(255, 0, 255));
                 this->GetTreeCtrl().SetItemImage(item, index, index);
 

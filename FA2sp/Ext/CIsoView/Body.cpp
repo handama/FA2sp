@@ -3422,6 +3422,173 @@ void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, b
     return;
 }
 
+bool CIsoViewExt::LoadAndScaleToBitmap(const ImageDataView* pData,
+    CBitmap& outBitmap,
+    int maxSize,
+    COLORREF bgColor,
+    bool trim,
+    bool removeHalo)
+{
+    if (!pData || maxSize <= 0)
+        return false;
+
+    int srcW = pData->FullWidth;
+    int srcH = pData->FullHeight;
+
+    if (srcW <= 0 || srcH <= 0)
+        return false;
+
+    int left = srcW, right = 0, top = srcH, bottom = 0;
+
+    auto isBG = [&](BYTE idx) { return idx == 0; };
+
+    if (trim)
+    {
+        for (int y = 0; y < srcH; ++y)
+        {
+            for (int x = 0; x < srcW; ++x)
+            {
+                BYTE idx = pData->pImageBuffer[y * srcW + x];
+                if (!isBG(idx))
+                {
+                    left = MIN(left, x);
+                    right = MAX(right, x);
+                    top = MIN(top, y);
+                    bottom = MAX(bottom, y);
+                }
+            }
+        }
+    }
+    else
+    {
+        left = 0; top = 0; right = srcW - 1; bottom = srcH - 1;
+    }
+
+    if (left > right || top > bottom)
+    {
+        left = 0; top = 0; right = srcW - 1; bottom = srcH - 1;
+    }
+
+    int cropW = right - left + 1;
+    int cropH = bottom - top + 1;
+
+    float scale = MIN((float)maxSize / cropW, (float)maxSize / cropH);
+
+    int newW = int(cropW * scale);
+    int newH = int(cropH * scale);
+
+    int offsetX = (maxSize - newW) / 2;
+    int offsetY = (maxSize - newH) / 2;
+
+    BITMAPINFO bmi = {};
+    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bmi.bmiHeader.biWidth = maxSize;
+    bmi.bmiHeader.biHeight = -maxSize;
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+
+    void* pBits = nullptr;
+    HBITMAP hBmp = CreateDIBSection(NULL, &bmi, DIB_RGB_COLORS, &pBits, NULL, 0);
+    if (!hBmp || !pBits)
+        return false;
+
+    DWORD* dst = (DWORD*)pBits;
+
+    DWORD transparentRGB =
+        (GetRValue(bgColor) << 16) |
+        (GetGValue(bgColor) << 8) |
+        GetBValue(bgColor);
+
+    std::fill(dst, dst + maxSize * maxSize, transparentRGB);
+
+    std::vector<int> x0(newW), x1(newW);
+    std::vector<float> dx(newW);
+
+    for (int x = 0; x < newW; ++x)
+    {
+        float fx = left + x / scale;
+        int ix = (int)fx;
+
+        x0[x] = std::clamp(ix, 0, srcW - 1);
+        x1[x] = std::clamp(ix + 1, 0, srcW - 1);
+        dx[x] = fx - ix;
+    }
+
+    for (int y = 0; y < newH; ++y)
+    {
+        float fy = top + y / scale;
+        int iy = (int)fy;
+
+        int y0 = std::clamp(iy, 0, srcH - 1);
+        int y1 = std::clamp(iy + 1, 0, srcH - 1);
+        float dy = fy - iy;
+
+        DWORD* dstRow = dst + (offsetY + y) * maxSize + offsetX;
+
+        for (int x = 0; x < newW; ++x)
+        {
+            BYTE i00 = pData->pImageBuffer[y0 * srcW + x0[x]];
+            BYTE i10 = pData->pImageBuffer[y0 * srcW + x1[x]];
+            BYTE i01 = pData->pImageBuffer[y1 * srcW + x0[x]];
+            BYTE i11 = pData->pImageBuffer[y1 * srcW + x1[x]];
+
+            float w00 = (1 - dx[x]) * (1 - dy);
+            float w10 = dx[x] * (1 - dy);
+            float w01 = (1 - dx[x]) * dy;
+            float w11 = dx[x] * dy;
+
+            float r = 0, g = 0, b = 0, total = 0;
+
+            auto sample = [&](BYTE idx, float w)
+            {
+                if (idx == 0) return;
+
+                auto& p = pData->pPalette->Data[idx];
+                r += p.R * w;
+                g += p.G * w;
+                b += p.B * w;
+                total += w;
+            };
+
+            sample(i00, w00);
+            sample(i10, w10);
+            sample(i01, w01);
+            sample(i11, w11);
+
+            if (total > 0.0f)
+            {
+                int ir = int(r / total);
+                int ig = int(g / total);
+                int ib = int(b / total);
+
+                dstRow[x] = (ir << 16) | (ig << 8) | ib;
+            }
+        }
+    }
+
+    if (removeHalo)
+    {
+        for (int i = 0; i < maxSize * maxSize; ++i)
+        {
+            if (dst[i] == transparentRGB)
+                continue;
+
+            int r = (dst[i] >> 16) & 0xFF;
+            int g = (dst[i] >> 8) & 0xFF;
+            int b = dst[i] & 0xFF;
+
+            if (abs(r - 255) < 2 && g < 2 && abs(b - 255) < 2)
+                dst[i] = transparentRGB;
+        }
+    }
+
+    outBitmap.DeleteObject();
+    outBitmap.Attach(hBmp);
+
+    return true;
+}
+
 void CIsoViewExt::MaskShadowPixels(const RECT& window, int x, int y, ImageDataClassSafe* pd,
     std::vector<char>& mask, std::vector<byte>& heightMask, byte height)
 {
@@ -4900,6 +5067,26 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
             }
         }
     }
+}
+
+ImageDataView CIsoViewExt::MakeImageDataView(ImageDataClassSafe* p)
+{
+    return {
+        p->FullWidth,
+        p->FullHeight,
+        p->pImageBuffer.get(),
+        p->pPalette
+    };
+}
+
+ImageDataView CIsoViewExt::MakeImageDataView(ImageDataClass* p)
+{
+    return {
+        p->FullWidth,
+        p->FullHeight,
+        p->pImageBuffer,
+        p->pPalette
+    };
 }
 
 BOOL CIsoViewExt::PreTranslateMessageExt(MSG* pMsg)

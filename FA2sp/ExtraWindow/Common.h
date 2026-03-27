@@ -164,3 +164,26 @@ private:
     void UpdateRegion(HWND hwnd, int width, int height);
 };
 
+class LabelMatcher
+{
+public:
+    struct Pattern
+    {
+        std::vector<FString> atoms;
+    };
+
+    LabelMatcher(const char* source, bool exactMatch = false)
+        : m_exactMatch(exactMatch)
+    {
+        Build(source);
+    }
+
+    bool Match(const char* target) const;
+
+private:
+    std::vector<Pattern> m_patterns;
+    bool m_exactMatch;
+
+    void Build(const char* source);
+    bool MatchPattern(const FString& target, const Pattern& pattern) const;
+};

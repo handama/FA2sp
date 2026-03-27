@@ -50,7 +50,7 @@ DEFINE_HOOK(50E55F, COptions_OnInitDialog, 8)
 
     if (auto pSection = CINI::FALanguage->GetSection("Languages"))
     {
-        std::vector<const char*> names;
+        std::vector<FString> names;
         int index = 0;
         int i = 0;
         for (const auto& [key, value] : pSection->GetEntities())
@@ -62,7 +62,7 @@ DEFINE_HOOK(50E55F, COptions_OnInitDialog, 8)
                 ::SendMessage(hLang, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)name);
                 if (FinalAlertConfig::Language == value)
                     index = i;
-                names.push_back(name.m_pchData);
+                names.push_back(name);
             }
             else
             {

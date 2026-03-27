@@ -399,14 +399,14 @@ ppmfc::CString STDHelpers::ReplaceSpeicalString(ppmfc::CString ori)
     return ret;
 }
 
-std::string STDHelpers::ChineseTraditional_ToSimple(const std::string& _str)
+FString STDHelpers::ChineseTraditional_ToSimple(const FString& _str)
 {
     LPCSTR lpSrcStr = _str.c_str();
     int cchSrc = static_cast<int>(_str.size());
     int cchDest = static_cast<int>(1 + _str.size());
     LPSTR lpDestStr = new CHAR[cchDest]{ 0 };
     LCMapStringA(0x0804, LCMAP_SIMPLIFIED_CHINESE, lpSrcStr, cchSrc, lpDestStr, cchDest);
-    std::string str(lpDestStr);
+    FString str(lpDestStr);
     delete[] lpDestStr;
     lpDestStr = nullptr;
     return str;

@@ -963,12 +963,13 @@ void CNewINIEditor::OnEditchangeSearch()
     GetWindowText(hSearchText, buffer, 511);
 
     std::vector<int> deletedLabels;
+    LabelMatcher matcher(buffer);
     for (int idx = SendMessage(hSectionList, LB_GETCOUNT, NULL, NULL) - 1; idx >= 0; idx--)
     {
         SendMessage(hSectionList, LB_GETTEXT, idx, (LPARAM)buffer2);
         bool del = false;
         FString tmp(buffer2);
-        if (!(ExtraWindow::IsLabelMatch(buffer2, buffer) || strcmp(buffer, "") == 0))
+        if (!(matcher.Match(buffer2) || strcmp(buffer, "") == 0))
         {
             deletedLabels.push_back(idx);
         }

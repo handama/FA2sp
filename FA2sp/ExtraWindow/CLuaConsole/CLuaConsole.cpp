@@ -1076,9 +1076,11 @@ void CLuaConsole::Update(HWND& hWnd, const char* filter)
     std::string scriptPath = CFinalSunAppExt::ExePathExt;
     scriptPath += "\\Scripts\\";
     if (fs::exists(scriptPath) && fs::is_directory(scriptPath)) {
+
+        LabelMatcher matcher(filter);
         for (const auto& entry : fs::directory_iterator(scriptPath)) {
             if (entry.is_regular_file() && entry.path().extension().string() == ".lua") {
-                if ((strlen(filter) && ExtraWindow::IsLabelMatch(entry.path().filename().string().c_str(), filter)) || !strlen(filter))
+                if ((strlen(filter) && matcher.Match(entry.path().filename().string().c_str())) || !strlen(filter))
                     SendMessage(hScripts, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)entry.path().filename().string().c_str());
             }
         }

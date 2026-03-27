@@ -69,7 +69,7 @@ public:
 
 	static ppmfc::CString GetRandomFacing();
 
-    static std::string ChineseTraditional_ToSimple(const std::string& _str);
+    static FString ChineseTraditional_ToSimple(const FString& _str);
     static std::string ToUpperCase(const std::string& _str);
 
     static std::string WStringToString(const std::wstring& wstr);

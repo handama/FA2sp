@@ -40,6 +40,7 @@ std::unordered_map<FString, int[10]> CViewObjectsExt::KnownItem;
 std::unordered_map<FString, std::vector<int>[10]> CViewObjectsExt::MultiLayerItem;
 std::unordered_map<FString, int> CViewObjectsExt::Owners;
 std::unordered_set<FString> CViewObjectsExt::AddOnceSet;
+std::vector<int> CViewObjectsExt::WallIndices;
 int CViewObjectsExt::AddedItemCount;
 int CViewObjectsExt::RedrawCalledCount = 0;
 bool CViewObjectsExt::IsOpeningAnnotationDlg = false;
@@ -2219,6 +2220,7 @@ void CViewObjectsExt::Redraw_Overlay()
     const auto& overlays = Variables::RulesMap.ParseIndicies("OverlayTypes", true);
     int indexWall = Wall;
     CViewObjectsExt::WallDamageStages.clear();
+    CViewObjectsExt::WallIndices.clear();
     for (int i = 0, sz = (ExtConfigs::ExtOverlays || CMapDataExt::NewINIFormat >= 5) ?
         overlays.size() : std::min((UINT)255, overlays.size()); i < sz; ++i)
     {
@@ -2242,19 +2244,19 @@ void CViewObjectsExt::Redraw_Overlay()
                 CViewObjectsExt::WallDamageStages[i] = damageLevel;
                 InsertingOverlay = i;
                 InsertingOverlayData = 5;
+                int wallIndex = CViewObjectsExt::WallIndices.size();
                 auto thisWall = this->InsertString(
                     QueryUIName(value),
-                    Const_Overlay + i * 5 + indexWall,
+                    Const_Overlay + wallIndex * 5 + indexWall,
                     hWalls
                 );
-
                 for (int s = 1; s < damageLevel + 1; s++)
                 {
                     FString damage;
                     damage.Format("WallDamageLevelDes%d", s);
                     this->InsertString(
                         QueryUIName(value) + " " + Translations::TranslateOrDefault(damage, damage),
-                        Const_Overlay + i * 5 + s + indexWall,
+                        Const_Overlay + wallIndex * 5 + s + indexWall,
                         thisWall
                     );
                     InsertingOverlayData += 16;
@@ -2264,9 +2266,10 @@ void CViewObjectsExt::Redraw_Overlay()
                 {
                     this->InsertString(
                         QueryUIName(value) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
-                        Const_Overlay + i * 5 + 4 + indexWall,
+                        Const_Overlay + wallIndex * 5 + 4 + indexWall,
                         thisWall);
                 }
+                CViewObjectsExt::WallIndices.push_back(i);
             }
 
             for (auto& [_, node] : nodes)
@@ -4199,9 +4202,14 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     {
         if (nData - 3000 >= Wall && nData - 3000 < WallEnd)
         {
-            CIsoView::CurrentCommand->Command = 0x1;
-            PlacingWall = nData - 3000 - Wall;
-            return true;
+            int index = (nData - 3000 - Wall) / 5;
+            int state = (nData - 3000 - Wall) % 5;
+            if (index < WallIndices.size())
+            {
+                CIsoView::CurrentCommand->Command = 0x1;
+                PlacingWall = WallIndices[index] * 5 + state;
+                return true;
+            }
         }
         else if (nData - 3000 == AddOre)
         {

@@ -682,12 +682,13 @@ void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, FString>& labels)
     SendMessage(hWnd, CB_SHOWDROPDOWN, TRUE, NULL);
 
     std::vector<int> deletedLabels;
+    LabelMatcher matcher(buffer);
     for (int idx = SendMessage(hWnd, CB_GETCOUNT, NULL, NULL) - 1; idx >= 0; idx--)
     {
         SendMessage(hWnd, CB_GETLBTEXT, idx, (LPARAM)buffer2);
         bool del = false;
         FString tmp(buffer2);
-        if (!(IsLabelMatch(buffer2, buffer) || strcmp(buffer, "")   == 0))
+        if (!(matcher.Match(buffer2) || strcmp(buffer, "")   == 0))
         {
             deletedLabels.push_back(idx);
         }
@@ -865,27 +866,25 @@ void ExtraWindow::SortAITriggers(HWND& hWnd, int& selectedIndex, FString id)
 
 bool ExtraWindow::IsLabelMatch(const char* target, const char* source, bool exactMatch)
 {
-    std::string simple_target = target;
-    std::string simple_source = source;
+    FString simple_target = target;
+    FString simple_source = source;
 
     if (!exactMatch)
     {
-        simple_target = STDHelpers::ToUpperCase(simple_target);
-        simple_source = STDHelpers::ToUpperCase(simple_source);
-        simple_target = STDHelpers::ChineseTraditional_ToSimple((std::string)simple_target);
-        simple_source = STDHelpers::ChineseTraditional_ToSimple((std::string)simple_source);
+        simple_target.MakeUpper();
+        simple_source.MakeUpper();
+        simple_target = STDHelpers::ChineseTraditional_ToSimple(simple_target);
+        simple_source = STDHelpers::ChineseTraditional_ToSimple(simple_source);
     }
 
-    ppmfc::CString divide = simple_source.c_str();
-    STDHelpers::TrimString(divide);
-    auto splits = STDHelpers::SplitString(divide, "|");
+    simple_source.Trim();
+    auto splits = FString::SplitString(simple_source, "|");
     for (auto& split : splits)
     {
-        auto atoms = STDHelpers::SplitString(split, "*");
+        auto atoms = FString::SplitString(split, "*");
         if (atoms.size() > 1)
         {
-            ppmfc::CString tmp = simple_target.c_str();
-            char* pCompare = tmp.m_pchData;
+            FString compare = simple_target;
             bool match = true;
             for (int i = 0; i < atoms.size(); i++)
             {
@@ -896,8 +895,8 @@ bool ExtraWindow::IsLabelMatch(const char* target, const char* source, bool exac
                         continue;
                     else
                     {
-                        if (auto pSub = (char*)_mbsstr((unsigned char*)pCompare, (unsigned char*)atom.m_pchData))
-                            if (strcmp(pCompare, pSub) != 0)
+                        if (auto pSub = (char*)_mbsstr((const unsigned char*)compare.c_str(), (const unsigned char*)atom.c_str()))
+                            if (strcmp(compare, pSub) != 0)
                             {
                                 match = false;
                                 break;
@@ -910,7 +909,7 @@ bool ExtraWindow::IsLabelMatch(const char* target, const char* source, bool exac
                         continue;
                     else
                     {
-                        if (strcmp(pCompare, atom) != 0)
+                        if (strcmp(compare, atom) != 0)
                         {
                             match = false;
                             break;
@@ -920,10 +919,10 @@ bool ExtraWindow::IsLabelMatch(const char* target, const char* source, bool exac
 
                 if (atom == "")
                     continue;
-                auto pSub = (char*)_mbsstr((unsigned char*)pCompare, (unsigned char*)atom.m_pchData);
+                auto pSub = (char*)_mbsstr((const unsigned char*)compare.c_str(), (const unsigned char*)atom.c_str());
                 if (pSub != NULL)
                 {
-                    pCompare = pSub;
+                    compare = pSub;
                 }
                 else
                 {
@@ -943,7 +942,7 @@ bool ExtraWindow::IsLabelMatch(const char* target, const char* source, bool exac
             }
             else
             {
-                if ((char*)_mbsstr((unsigned char*)simple_target.c_str(), (unsigned char*)split.m_pchData) != NULL)
+                if ((char*)_mbsstr((unsigned char*)simple_target.c_str(), (unsigned char*)split.c_str()) != NULL)
                     return true;
             }
 
@@ -1619,4 +1618,99 @@ LRESULT CALLBACK TargetHighlighter::WndProc(
     }
 
     return DefWindowProcW(hwnd, msg, wParam, lParam);
+}
+
+bool LabelMatcher::Match(const char* target) const
+{
+    FString simple_target = target;
+
+    if (!m_exactMatch)
+    {
+        simple_target.MakeUpper();
+        simple_target = STDHelpers::ChineseTraditional_ToSimple(simple_target);
+    }
+
+    for (const auto& pattern : m_patterns)
+    {
+        if (MatchPattern(simple_target, pattern))
+            return true;
+    }
+    return false;
+}
+
+void LabelMatcher::Build(const char* source)
+{
+    FString simple_source = source;
+
+    if (!m_exactMatch)
+    {
+        simple_source.MakeUpper();
+        simple_source = STDHelpers::ChineseTraditional_ToSimple(simple_source);
+    }
+
+    simple_source.Trim();
+
+    auto splits = FString::SplitString(simple_source, "|");
+
+    for (auto& split : splits)
+    {
+        Pattern pattern;
+        pattern.atoms = FString::SplitString(split, "*");
+        m_patterns.emplace_back(std::move(pattern));
+    }
+}
+
+bool LabelMatcher::MatchPattern(const FString& target, const Pattern& pattern) const
+{
+    const auto& atoms = pattern.atoms;
+
+    if (atoms.size() == 1)
+    {
+        const FString& atom = atoms[0];
+
+        if (m_exactMatch)
+        {
+            return strcmp(target.c_str(), atom.c_str()) == 0;
+        }
+        else
+        {
+            return _mbsstr(
+                (const unsigned char*)target.c_str(),
+                (const unsigned char*)atom.c_str()
+            ) != nullptr;
+        }
+    }
+
+    const char* compare = target.c_str();
+
+    for (size_t i = 0; i < atoms.size(); ++i)
+    {
+        const FString& atom = atoms[i];
+
+        if (atom.empty())
+            continue;
+
+        const char* pSub = (const char*)_mbsstr(
+            (const unsigned char*)compare,
+            (const unsigned char*)atom.c_str()
+        );
+
+        if (!pSub)
+            return false;
+
+        if (m_exactMatch)
+        {
+            if (i == 0 && pSub != compare)
+                return false;
+
+            if (i == atoms.size() - 1)
+            {
+                size_t remainLen = strlen(pSub);
+                if (remainLen != atom.length())
+                    return false;
+            }
+        }
+        compare = pSub + atom.length();
+    }
+    return true;
 }

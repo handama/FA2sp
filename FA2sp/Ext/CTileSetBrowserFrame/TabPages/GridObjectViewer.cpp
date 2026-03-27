@@ -716,10 +716,11 @@ void GridObjectViewer::OnEditchange()
         g_filteredImages = g_images;
     else
     {
+        LabelMatcher matcher(buffer);
         for (auto& g : g_images)
         {
             auto uiName = CViewObjectsExt::QueryUIName(g.ID);
-            if (ExtraWindow::IsLabelMatch(g.ID, buffer) || ExtraWindow::IsLabelMatch(uiName, buffer))
+            if (matcher.Match(g.ID) || matcher.Match(uiName))
             {
                 g_filteredImages.push_back(g);
             }

@@ -363,11 +363,13 @@ void CFA2spOptions::Update(const char* filter)
     ListView_InsertColumn(hList, 0, &lvc);
 
     int index = 0;
+
+    LabelMatcher matcher(filter);
     for (const auto& opt : ExtConfigs::Options)
     {
         if (filter && strlen(filter))
         {
-            if (!ExtraWindow::IsLabelMatch(opt.DisplayName, filter) && !ExtraWindow::IsLabelMatch(opt.IniKey, filter))
+            if (!matcher.Match(opt.DisplayName) && !matcher.Match(opt.IniKey))
                 continue;
         }
         LVITEM lvi = { 0 };

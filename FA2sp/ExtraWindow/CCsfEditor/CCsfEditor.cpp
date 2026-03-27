@@ -385,9 +385,10 @@ void CCsfEditor::FilterRows(std::map<FString, FString> csfMap, const char* searc
 {
     std::map<FString, FString> newCsfMap;
 
+    LabelMatcher matcher(searchText);
     for (auto& csf : csfMap) 
     {
-        if (ExtraWindow::IsLabelMatch(csf.first, searchText) || ExtraWindow::IsLabelMatch(csf.second, searchText)) 
+        if (matcher.Match(csf.first) || matcher.Match(csf.second))
         {
             newCsfMap[csf.first] = csf.second;
         }

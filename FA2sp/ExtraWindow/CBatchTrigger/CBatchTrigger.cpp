@@ -818,12 +818,14 @@ void CBatchTrigger::UpdateListBox()
     SendMessage(hSearch, WM_GETTEXT, (WPARAM)512, (LPARAM)buffer);
 
     ListboxTriggerID.clear();
+
+    LabelMatcher matcher(buffer);
     for (auto& [label, id] : items)
     {
         auto& data = ListboxTriggerID.emplace_back(id);
         if (!strlen(buffer) 
-            || ExtraWindow::IsLabelMatch(id, buffer)
-            || ExtraWindow::IsLabelMatch(ExtraWindow::GetTriggerName(id), buffer))
+            || matcher.Match(id)
+            || matcher.Match(ExtraWindow::GetTriggerName(id)))
         {
             SendMessage(hListbox, LB_INSERTSTRING, idx, label);
             SendMessage(hListbox, LB_SETITEMDATA, idx, (LPARAM)&data);

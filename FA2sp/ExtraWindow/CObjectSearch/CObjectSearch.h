@@ -57,8 +57,6 @@ protected:
     static void ToggleListBoxRangeVisibility(HWND hWnd, bool show);
     static void ToggleWindowSize(HWND hWnd);
 
-    static bool IsLabelMatch(const char* target, const char* source);
-
 private:
     static HWND m_hwnd;
     static CTileSetBrowserFrame* m_parent;

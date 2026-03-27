@@ -241,6 +241,7 @@ private:
     static std::unordered_map<FString, std::vector<int>[10]> MultiLayerItem;
     static std::unordered_map<FString, int> Owners;
     static std::unordered_set<FString> AddOnceSet;
+    static std::vector<int> WallIndices;
     static int AddedItemCount;
     static CImageList m_ImageList;
     static int InsertingTileIndex;

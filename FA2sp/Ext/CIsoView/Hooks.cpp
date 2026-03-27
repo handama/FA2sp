@@ -1115,10 +1115,10 @@ DEFINE_HOOK(45A08A, CIsoView_OnMouseMove_Place, 5)
 			Map->DeleteUnitData(cur_field->Unit);
 
 		if (cur_fieldExt.NewOverlay != oldNewOverlay[ix][ex])
-			Map->SetNewOverlayAt(dwPos, oldNewOverlay[ix][ex]);
+			Map->SetNewOverlayAt(dwPos, oldNewOverlay[ix][ex], false);
 
 		if (cur_field->OverlayData != oldData[ix * TotalSize + ex].OverlayData)
-			Map->SetOverlayDataAt(dwPos, oldData[ix * TotalSize + ex].OverlayData);
+			Map->SetNewOverlayDataAt(dwPos, oldData[ix * TotalSize + ex].OverlayData, false);
 
 		Map->DeleteTiberium(std::min(cur_fieldExt.NewOverlay, (word)0xFF), cur_field->OverlayData);
 		Map->AssignCellData(Map->CellDatas[dwPos], oldData[ix * TotalSize + ex]);

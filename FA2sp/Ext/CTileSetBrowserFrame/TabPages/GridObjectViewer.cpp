@@ -1040,7 +1040,7 @@ void GridObjectViewer::OnSize() const
         ::MoveWindow(m_hControl, 2, 29,
             rect.right - rect.left - 6, controlRect.Height(), FALSE);
         ::MoveWindow(this->GetView(), 2, controlRect.Height(),
-            rect.right - rect.left - 6, rect.bottom - rect.top - 35 - controlRect.Height(), FALSE);
+            rect.right - rect.left - 6, rect.bottom - rect.top - 6 - controlRect.Height(), FALSE);
     }
     else
     {

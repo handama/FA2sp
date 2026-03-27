@@ -169,6 +169,8 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             if (InsertingTileIndex > -1)
             {
                 auto& tile = CMapDataExt::TileData[InsertingTileIndex];
+                if (tile.TileBlockCount == 0)
+                    return item;
                 auto& subTile = tile.TileBlockDatas[0];
 
                 FString fileName;

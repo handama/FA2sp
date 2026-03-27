@@ -459,6 +459,19 @@ void STDHelpers::WStringReplace(std::wstring& str, const std::wstring& oldStr, c
     }
 }
 
+std::string STDHelpers::ReplaceEnding(const std::string& str,
+    const std::string& oldSuffix,
+    const std::string& newSuffix)
+{
+    if (!str.ends_with(oldSuffix))
+        return str;
+
+    std::string ret = str;
+    ret.resize(ret.size() - oldSuffix.size());
+    ret += newSuffix;
+    return ret;
+}
+
 FileEncoding STDHelpers::GetFileEncoding(const uint8_t* data, size_t size) {
     if (!data || size == 0)
         return FileEncoding::ANSI;

@@ -799,7 +799,13 @@ void GridObjectViewer::UpdateImages()
             }
             case CLoadingExt::ObjectType::Building:
             {
-                auto imageName = CLoadingExt::GetBuildingImageName(id, 0, 0);
+                bool hasTur = Variables::RulesMap.GetBool(id, "Turret")
+                    || Variables::RulesMap.GetBool(id, "TurretAnimIsVoxel");
+                int facings = hasTur ? (ExtConfigs::ExtFacings ? 32 : 8) : 1;
+                auto itr = CLoadingExt::AvailableFacings.find(id);
+                if (itr != CLoadingExt::AvailableFacings.end())
+                    facings = itr->second;
+                auto imageName = CLoadingExt::GetBuildingImageName(id, facings / 8 * 5, 0);
                 auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
                 auto pd = CLoadingExt::BindClippedImages(clips);
                 g_buildingImages.push_back(std::move(pd));

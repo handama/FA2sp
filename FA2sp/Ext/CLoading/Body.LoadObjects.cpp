@@ -870,7 +870,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 
 		for (int i = 0; i < facings; ++i)
 		{
-			if (IsLoadingObjectView && i != 0)
+			if (IsLoadingObjectView && i != facings / 8 * 5)
 				continue;
 			auto pTempBuf = GameCreateArray<unsigned char>(width * height);
 			memcpy_s(pTempBuf, width * height, pBuffer, width * height);
@@ -951,7 +951,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 		bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
 		for (int i = 0; i < facings; ++i)
 		{
-			if (IsLoadingObjectView && i != 0)
+			if (IsLoadingObjectView && i != facings / 8 * 5)
 				continue;
 			auto pTempBuf = GameCreateArray<unsigned char>(width * height);
 			memcpy_s(pTempBuf, width * height, pBuffer, width * height);

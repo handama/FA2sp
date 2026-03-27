@@ -230,7 +230,13 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 break;
             case CLoadingExt::ObjectType::Building:
             {
-                imageName = CLoadingExt::GetBuildingImageName(InsertingObjectID, 0, 0);
+                bool hasTur = Variables::RulesMap.GetBool(InsertingObjectID, "Turret")
+                    || Variables::RulesMap.GetBool(InsertingObjectID, "TurretAnimIsVoxel");
+                int facings = hasTur ? (ExtConfigs::ExtFacings ? 32 : 8) : 1;
+                auto itr = CLoadingExt::AvailableFacings.find(InsertingObjectID);
+                if (itr != CLoadingExt::AvailableFacings.end())
+                    facings = itr->second;
+                imageName = CLoadingExt::GetBuildingImageName(InsertingObjectID, facings / 8 * 5, 0);
                 fileID = CLoadingExt::GetExtension()->GetBuildingFileID(InsertingObjectID);
 
                 // some buildings share the same image while have different anims

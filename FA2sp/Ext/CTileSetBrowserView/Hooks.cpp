@@ -785,7 +785,11 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
 
         for (int i = 0; i < pThis->TileSurfacesCount; i++)
         {
-            if (!pThis->TileSurfaces[i]) continue;
+            if (!pThis->TileSurfaces[i])
+            {
+                tileIndex++;
+                continue;
+            }
 
             int curwidth, curheight;
             if (pThis->CurrentTileset < 10000)

@@ -79,6 +79,8 @@ protected:
     static LRESULT CALLBACK DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
     static LRESULT CALLBACK DragingDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
+    static FString GetOneBasedIndex(const FString& key);
+
 private:
     static HWND m_hwnd;
     static CFinalSunDlg* m_parent;

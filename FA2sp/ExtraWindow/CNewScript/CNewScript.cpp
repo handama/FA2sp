@@ -649,7 +649,14 @@ void CNewScript::ListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam)
     default:
         break;
     }
+}
 
+FString CNewScript::GetOneBasedIndex(const FString& key)
+{
+    int i = atoi(key) + 1;
+    FString ret;
+    ret.Format("%d", i);
+    return ret;
 }
 
 void CNewScript::OnSelchangeActionListbox()
@@ -729,7 +736,7 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
 
         value.Format("%s,%s,%s", atoms[0], param, extraParam);
         map.WriteString(CurrentScriptID, key, value);
-        text.Format("[%s] : %s - (%s, %s)", key, atoms[0], param, extraParam);
+        text.Format("[%s] : %s - (%s, %s)", GetOneBasedIndex(key), atoms[0], param, extraParam);
     }
     else
     {
@@ -740,7 +747,7 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
         int newParam = MAKELONG(low, high);
         value.Format("%s,%d", atoms[0], newParam);
         map.WriteString(CurrentScriptID, key, value);
-        text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
+        text.Format("[%s] : %s - (%d, %d)", GetOneBasedIndex(key), atoms[0], low, high);
     }
 
     FString actionName = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptsRA2"), atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
@@ -816,13 +823,13 @@ void CNewScript::OnSelchangeActionParam(bool edited)
             auto atoms = FString::SplitString(value, 2);
             value.Format("%s,%s,%s", atoms[0], param, atoms[2]);
             map.WriteString(CurrentScriptID, key, value);
-            text.Format("[%s] : %s - (%s, %s)", key, atoms[0], param, atoms[2]);
+            text.Format("[%s] : %s - (%s, %s)", GetOneBasedIndex(key), atoms[0], param, atoms[2]);
         }
         else
         {
             value.Format("%s,%s", atoms[0], param);
             map.WriteString(CurrentScriptID, key, value);
-            text.Format("[%s] : %s - %s", key, atoms[0], param);
+            text.Format("[%s] : %s - %s", GetOneBasedIndex(key), atoms[0], param);
         }
     }
     else
@@ -836,13 +843,13 @@ void CNewScript::OnSelchangeActionParam(bool edited)
             int newParam = MAKELONG(low, high);
             value.Format("%s,%d", atoms[0], newParam);
             map.WriteString(CurrentScriptID, key, value);
-            text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
+            text.Format("[%s] : %s - (%d, %d)", GetOneBasedIndex(key), atoms[0], low, high);
         }
         else
         {
             value.Format("%s,%d", atoms[0], param);
             map.WriteString(CurrentScriptID, key, value);
-            text.Format("[%s] : %s - %d", key, atoms[0], param);
+            text.Format("[%s] : %s - %d", GetOneBasedIndex(key), atoms[0], param);
         }
     }
 
@@ -919,11 +926,11 @@ void CNewScript::OnSelchangeActionType(bool edited)
         if (ActionHasExtraParam[atoms[0]])
         {
             auto atoms = FString::SplitString(value, 2);
-            text.Format("[%s] : %s - (%s, %s)", key, atoms[0], atoms[1], atoms[2]);
+            text.Format("[%s] : %s - (%s, %s)", GetOneBasedIndex(key), atoms[0], atoms[1], atoms[2]);
         }
         else
         {
-            text.Format("[%s] : %s - %s", key, atoms[0], atoms[1]);
+            text.Format("[%s] : %s - %s", GetOneBasedIndex(key), atoms[0], atoms[1]);
         }
     }
     else
@@ -933,11 +940,11 @@ void CNewScript::OnSelchangeActionType(bool edited)
             int actionParam = atoi(atoms[1]);
             int low = LOWORD(actionParam);
             int high = HIWORD(actionParam);
-            text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
+            text.Format("[%s] : %s - (%d, %d)", GetOneBasedIndex(key), atoms[0], low, high);
         }
         else
         {
-            text.Format("[%s] : %s - %s", key, atoms[0], atoms[1]);
+            text.Format("[%s] : %s - %s", GetOneBasedIndex(key), atoms[0], atoms[1]);
         }
     }
 
@@ -1048,11 +1055,11 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
                 if (ActionHasExtraParam[atoms[0]])
                 {
                     auto atoms = FString::SplitString(value, 2);
-                    text.Format("[%s] : %s - (%s, %s)", key, atoms[0], atoms[1], atoms[2]);
+                    text.Format("[%s] : %s - (%s, %s)", GetOneBasedIndex(key), atoms[0], atoms[1], atoms[2]);
                 }
                 else
                 {
-                    text.Format("[%s] : %s - %s", key, atoms[0], atoms[1]);
+                    text.Format("[%s] : %s - %s", GetOneBasedIndex(key), atoms[0], atoms[1]);
                 }
             }
             else
@@ -1062,11 +1069,11 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
                     int param = atoi(atoms[1]);
                     int low = LOWORD(param);
                     int high = HIWORD(param);
-                    text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
+                    text.Format("[%s] : %s - (%d, %d)", GetOneBasedIndex(key), atoms[0], low, high);
                 }
                 else
                 {
-                    text.Format("[%s] : %s - %s", key, atoms[0], atoms[1]);
+                    text.Format("[%s] : %s - %s", GetOneBasedIndex(key), atoms[0], atoms[1]);
                 }
             }
 
@@ -1250,7 +1257,7 @@ void CNewScript::OnClickAddAction(HWND& hWnd)
         keyThis.Format("%d", count);
         map.WriteString(CurrentScriptID, keyThis, "0,0");
 
-        text.Format("[%s] : %s - %s", keyThis, "0", "0");
+        text.Format("[%s] : %s - %s", GetOneBasedIndex(keyThis), "0", "0");
         FString actionName = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptsRA2"), "0"))[0];
         actionName = FString::ReplaceSpeicalString(actionName);
         FString::TrimIndexElse(actionName);
@@ -1327,7 +1334,7 @@ void CNewScript::OnClickCloneAction(HWND& hWnd)
         {
             if (first)
             {
-                text.Format("[%s]", key);
+                text.Format("[%s]", GetOneBasedIndex(key));
                 first = false;
             }
             else
@@ -1389,7 +1396,7 @@ void CNewScript::OnClickMoveupAction(HWND& hWnd, bool reverse)
     {
         if (first)
         {
-            text.Format("[%s]", key2);
+            text.Format("[%s]", GetOneBasedIndex(key2));
             first = false;
         }
         else
@@ -1405,7 +1412,7 @@ void CNewScript::OnClickMoveupAction(HWND& hWnd, bool reverse)
     {
         if (first)
         {
-            text.Format("[%s]", key);
+            text.Format("[%s]", GetOneBasedIndex(key));
             first = false;
         }
         else

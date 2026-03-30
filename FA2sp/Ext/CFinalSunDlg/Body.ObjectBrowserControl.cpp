@@ -27,6 +27,7 @@
 #include "../../Miscs/UserScripts.h"
 #include "../../ExtraWindow/CTechnoDialog/CTechnoDialog.h"
 #include <CRandomTree.h>
+#include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
 
 namespace fs = std::filesystem;
 
@@ -3894,6 +3895,10 @@ void CViewObjectsExt::InitializeOnUpdateEngine()
     {
         CIsoViewExt::DrawEditedMarks.clear();
     }
+    if (CIsoView::CurrentCommand->Command == 0x26)
+    {
+        CMeasurementToolbox::OnRightButtonDown();
+    }
 }
 
 bool CViewObjectsExt::UpdateEngine(int nData)
@@ -4770,5 +4775,6 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     // 0x23 Lua Script
     // 0x24 WP/Tag color
     // 0x25 Draging trigger dot
+    // 0x26 Measurement Toolbox
     return false;
 }

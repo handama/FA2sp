@@ -401,7 +401,6 @@ void CFinalSunDlgExt::InitToolbar()
             {30025, (void*)(&CIsoViewExt::DrawFires)},
             {40115, (void*)(&CFinalSunApp::Instance->FrameMode)},
             {40085, (void*)(&CFinalSunApp::Instance->FlatToGround)},
-            {40163, (void*)(&CIsoViewExt::EnableDistanceRuler)},
             {30107, (void*)(&CFinalSunDlgExt::HasMinimap)},
             {40123, (void*)(&CFinalSunApp::Instance->ShowBuildingCells)},
             {40159, (void*)(&ExtConfigs::TreeViewCameo_Display)},

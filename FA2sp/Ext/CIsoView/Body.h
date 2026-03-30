@@ -106,6 +106,15 @@ enum RendererLighting : int
     Dominator,
 };
 
+enum MeasurementTypes : int
+{
+    TwoPointDistance = 0,
+    SetSymmetryAxis,
+    PlaceSymmetricPoint,
+    SetCentralSymmetryCenter,
+    PlaceCentralSymmetricPoint
+};
+
 struct ImageDataView
 {
     int FullWidth;
@@ -190,6 +199,7 @@ public:
     static void DrawCopyBound(HDC hDC);
     static void DrawBridgeLine(HDC hDC);
     static void DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, int size = 0);
+    static void DrawDashLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, int size = 0);
     static void DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color, int offsetX = 0, int offsetY = 0);
     static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::vector<MapCoord>& coords, COLORREF color);
     static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::set<MapCoord>& coords, COLORREF color);
@@ -198,6 +208,7 @@ public:
     static CRect GetVisibleIsoViewRect();
     static void DrawCreditOnMap(HDC hDC);
     static void DrawDistanceRuler(HDC hDC);
+    static void DrawOtherMeasurementTools(HDC hDC);
     static void MoveToMapCoord(int X, int Y);
     static void Zoom(double offset);
     static std::vector<MapCoord> GetLinePoints(MapCoord mc1, MapCoord mc2);
@@ -292,8 +303,15 @@ public:
 
     static UINT nFlagsMove;
 
-    static std::vector<MapCoord> DistanceRuler;
-    static bool EnableDistanceRuler;
+    static std::vector<MapCoord> LiveDistanceRuler;
+    static bool EnableLiveDistanceRuler;
+    static bool EnableOtherMeasurementTools;
+    static std::vector<std::array<MapCoord, 2>> TwoPointDistance;
+    static MapCoord AxialSymmetryLine[2];
+    static MapCoord CentralSymmetryCenter;
+    static std::vector<std::pair<MapCoord, MapCoord>> AxialSymmetricPoints;
+    static std::vector<std::pair<MapCoord, MapCoord>> CentralSymmetricPoints;
+
     static bool ReInitializingDDraw;
 
     static bool CliffBackAlt;

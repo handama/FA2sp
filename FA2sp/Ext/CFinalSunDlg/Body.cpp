@@ -39,6 +39,7 @@
 #include "../../Miscs/SaveMap.h"
 #include "../../ExtraWindow/CNewTipsOfTheDay/CNewTipsOfTheDay.h"
 #include "../../ExtraWindow/CTechnoDialog/CTechnoDialog.h"
+#include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
 namespace fs = std::filesystem;
 
 bool CFinalSunDlgExt::HasMinimap = false;
@@ -309,106 +310,13 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 	};
 
-	auto isInChildWindow = [this]()
-		{
-			HWND hWnd = GetActiveWindow();
-			if (hWnd == CNewAITrigger::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CNewINIEditor::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CNewINIEditor::GetImporter()) {
-				return TRUE;
-			}
-			else if (hWnd == CNewScript::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CNewTaskforce::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CNewTeamTypes::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CTerrainGenerator::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CLuaConsole::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CCsfEditor::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CFA2spOptions::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CNewLocalVariables::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CSearhReference::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CTriggerAnnotation::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CGoBang::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CChineseChess::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CObjectSearch::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == this->SingleplayerSettings.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->AITriggerTypes.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->AITriggerTypesEnable.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->ScriptTypes.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->TriggerFrame.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->Tags.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->TaskForce.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->TeamTypes.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->Houses.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->SpecialFlags.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->Lighting.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->INIEditor.GetSafeHwnd()) {
-				return TRUE;
-			}		
-			else if (hWnd == this->Basic.GetSafeHwnd()) {
-				return TRUE;
-			}	
-			else if (hWnd == this->MapD.GetSafeHwnd()) {
-				return TRUE;
-			}	
-			for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
-			{
-				if (hWnd == CNewTrigger::Instance[i].GetHandle())
-					return TRUE;
-			}
-			return FALSE;
-		};
+	auto isInIsoView = []()
+	{
+		POINT pt;
+		GetCursorPos(&pt);
+		HWND hTopWnd = WindowFromPoint(pt);
+		return hTopWnd == CIsoView::GetInstance()->GetSafeHwnd();
+	};
 
 	switch (wmID)
 	{
@@ -699,10 +607,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 		return TRUE;
 	}
-	case 40163:
-		SetLayerStatus(40163, CIsoViewExt::EnableDistanceRuler);
-		CIsoViewExt::DistanceRuler.clear();
-		return TRUE;
 	default:
 		break;
 	}
@@ -858,6 +762,18 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	if (wmID == 40022)
 	{
 		CNewTipsOfTheDay::ShowNewTipsOfTheDay();
+		return TRUE;
+	}
+	if (wmID == 40163)
+	{
+		if (!CMapData::Instance->MapWidthPlusHeight)
+		{
+			this->PlaySound(FASoundType::Error);
+		}
+		else
+		{
+			CMeasurementToolbox::ShowMeasurementToolbox();
+		}
 		return TRUE;
 	}
 	if (wmID == 40158)
@@ -1235,7 +1151,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAircraftsFilter, false);
 				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBasenodesFilter, false);
 				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawCellTagsFilter, false);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::EnableDistanceRuler, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::EnableLiveDistanceRuler, false);
 				ADD_TEMP_HOLDER(holders, ExtConfigs::InGameDisplay_Cloakable, true);
 				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->ShowBuildingCells, FALSE);
 				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->FlatToGround, FALSE);
@@ -1570,7 +1486,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	//delete objects
 	if (wmID == 40136)
 	{
-		if (isInChildWindow())
+		if (!isInIsoView())
 			return TRUE;
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1692,7 +1608,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	// CTRL+C CTRL+V CTRL+Z CTRL+Y CTRL+X
 	if (wmID == 57634 || wmID == 57637 || wmID == 57643 || wmID == 57644 || wmID == 40166)
 	{
-		if (isInChildWindow())
+		if (!isInIsoView())
 			return TRUE;
 	}
 	CopyPaste::IsCutting = false;

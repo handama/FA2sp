@@ -14,6 +14,7 @@
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 #include "../CTileSetBrowserFrame/Body.h"
 #include "../../ExtraWindow/CNewTipsOfTheDay/CNewTipsOfTheDay.h"
+#include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
 
 DEFINE_HOOK(424654, CFinalSunDlg_OnInitDialog_SetMenuItemStateByDefault, 7)
 {
@@ -104,7 +105,7 @@ DEFINE_HOOK(432304, CFinalSunDlg_Update_LayersVisibility, 5)
     SetItemCheckStatus(34052, CIsoViewExt::PasteShowOutline);
     SetItemCheckStatus(40159, ExtConfigs::TreeViewCameo_Display);
     SetItemCheckStatus(30110, ExtConfigs::DisableAutoConnectWall);
-    SetItemCheckStatus(40163, CIsoViewExt::EnableDistanceRuler);
+    SetItemCheckStatus(40163, CIsoViewExt::EnableLiveDistanceRuler);
 
     SetItemCheckStatus(32000, CIsoViewExt::AutoPropertyBrush[0]);
     SetItemCheckStatus(32001, CIsoViewExt::AutoPropertyBrush[1]);
@@ -224,7 +225,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(40134, "Menu.MapTools.GlobalSearch");
     translateMenuItem(40135, "Menu.MapTools.ToolScripts");
     translateMenuItem(40136, "Menu.MapTools.DeleteObjects");
-    translateMenuItem(40163, "Menu.MapTools.DistanceRuler");
+    translateMenuItem(40163, "Menu.MapTools.MeasurementToolbox");
     translateMenuItem(40165, "Menu.MapTools.MapRenderer");
     translateMenuItem(40158, "Menu.Options.LuaScriptConsole");
     translateMenuItem(40159, "Menu.Options.ShowObjectViewCameo");
@@ -604,29 +605,12 @@ DEFINE_HOOK(42459A, CFinalSunDlg_OnInitDialog_LoadMap, 6)
 DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp_CancelDistanceRuler, 6)
 {
     if (!CIsoView::GetInstance()->IsScrolling)
-        CIsoViewExt::DistanceRuler.clear();
+        CIsoViewExt::LiveDistanceRuler.clear();
     return 0;
 }
 
-DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
+DEFINE_HOOK(45EB8C, CIsoView_OnRButtonUp_ResetCommand, 6)
 {
-    if (!CViewObjectsExt::NeedChangeTreeViewSelect)
-        return 0x45EBC5;
-
-    auto hWnd = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->m_hWnd;
-    HTREEITEM hSelectedItem = TreeView_GetSelection(hWnd);
-    HTREEITEM hParent = TreeView_GetParent(hWnd, hSelectedItem);
-    HTREEITEM hPrevSibling = TreeView_GetPrevSibling(hWnd, hSelectedItem);
-    if (hParent != NULL)
-        TreeView_SelectItem(hWnd, hParent);
-    else if (hPrevSibling != NULL) {
-        TreeView_SelectItem(hWnd, hPrevSibling);
-    }
-    else {
-        HTREEITEM hRoot = TreeView_GetRoot(hWnd);
-        if (hRoot != NULL)
-            TreeView_SelectItem(hWnd, hRoot);
-    }
     if (!CopyPaste::PastedCoords.empty())
     {
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
@@ -637,12 +621,16 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
     {
         CIsoView::CurrentCommand->Command = 0x0;
         CIsoView::CurrentCommand->Type = 0;
-    }   
+    }
     if (CIsoView::CurrentCommand->Command == 0x25)
     {
         CIsoView::CurrentCommand->Command = 0x0;
         CIsoView::CurrentCommand->Type = 0;
-    }   
+    }
+    if (CIsoView::CurrentCommand->Command == 0x26)
+    {
+        CMeasurementToolbox::OnRightButtonDown();
+    }
     if (CIsoView::CurrentCommand->Command == 0x1F) {
         CTerrainGenerator::RangeFirstCell.X = -1;
         CTerrainGenerator::RangeFirstCell.Y = -1;
@@ -650,7 +638,7 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
         CTerrainGenerator::RangeSecondCell.Y = -1;
         CIsoView::CurrentCommand->Command = 0x0;
         CIsoView::CurrentCommand->Type = 0;
-    }  
+    }
     if (CViewObjectsExt::MoveBaseNode_SelectedObj.X > -1) {
         CViewObjectsExt::MoveBaseNode_SelectedObj.House = "";
         CViewObjectsExt::MoveBaseNode_SelectedObj.ID = "";
@@ -681,6 +669,28 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
     }
     CIsoViewExt::LastAltCommand.reset();
 
+    return 0;
+}
+
+DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
+{
+    if (!CViewObjectsExt::NeedChangeTreeViewSelect)
+        return 0x45EBC5;
+
+    auto hWnd = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->m_hWnd;
+    HTREEITEM hSelectedItem = TreeView_GetSelection(hWnd);
+    HTREEITEM hParent = TreeView_GetParent(hWnd, hSelectedItem);
+    HTREEITEM hPrevSibling = TreeView_GetPrevSibling(hWnd, hSelectedItem);
+    if (hParent != NULL)
+        TreeView_SelectItem(hWnd, hParent);
+    else if (hPrevSibling != NULL) {
+        TreeView_SelectItem(hWnd, hPrevSibling);
+    }
+    else {
+        HTREEITEM hRoot = TreeView_GetRoot(hWnd);
+        if (hRoot != NULL)
+            TreeView_SelectItem(hWnd, hRoot);
+    }
     return 0x45EBC5;
 }
 

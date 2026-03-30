@@ -15,6 +15,7 @@
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 #include "../../Helpers/Helper.h"
+#include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
 
 DEFINE_HOOK(51CD20, CViewObjects_Redraw, 7)
 {
@@ -597,14 +598,14 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
     GET(const int, X, EDI);
     GET(const int, Y, ESI);
 
-    if (CIsoViewExt::EnableDistanceRuler)
+    if (CIsoViewExt::EnableLiveDistanceRuler)
     {
-        if (CIsoViewExt::DistanceRuler.empty() || 
-            (!CIsoViewExt::DistanceRuler.empty() && CIsoViewExt::DistanceRuler.back() != MapCoord{ X,Y }))
+        if (CIsoViewExt::LiveDistanceRuler.empty() || 
+            (!CIsoViewExt::LiveDistanceRuler.empty() && CIsoViewExt::LiveDistanceRuler.back() != MapCoord{ X,Y }))
         {
-            CIsoViewExt::DistanceRuler.push_back({ X,Y });
-            if (CIsoViewExt::DistanceRuler.size() > ExtConfigs::DistanceRuler_Records)
-                CIsoViewExt::DistanceRuler.erase(CIsoViewExt::DistanceRuler.begin());
+            CIsoViewExt::LiveDistanceRuler.push_back({ X,Y });
+            if (CIsoViewExt::LiveDistanceRuler.size() > ExtConfigs::DistanceRuler_Records)
+                CIsoViewExt::LiveDistanceRuler.erase(CIsoViewExt::LiveDistanceRuler.begin());
         }
     }
 
@@ -1324,6 +1325,11 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
             CViewObjectsExt::ApplyTag(X, Y, CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger->Tag);
             return 0x466860;
         }
+    }
+    else if (CIsoView::CurrentCommand->Command == 0x26)
+    {        
+        CMeasurementToolbox::SetMeasurementToolbox(X, Y);
+        return 0x466860;
     }
     else if (CIsoView::CurrentCommand->Command == 0x11)
     {        

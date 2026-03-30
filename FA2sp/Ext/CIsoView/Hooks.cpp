@@ -1286,6 +1286,25 @@ DEFINE_HOOK(457223, CIsoView_OnMouseMove_MouseRange_1_DisableIME, 9)
 		::ImmReleaseContext(pIsoView->GetSafeHwnd(), hIMC);
 	}
 
+	if (CIsoView::CurrentCommand->Command != 0x26)
+	{
+		if (!CIsoViewExt::TwoPointDistance.empty())
+		{
+			if (CIsoViewExt::TwoPointDistance.back()[0] != MapCoord{ 0,0 }
+				&& CIsoViewExt::TwoPointDistance.back()[1] == MapCoord{ 0,0 })
+			{
+				CIsoViewExt::TwoPointDistance.back()[0] = MapCoord{ 0,0 };
+				CIsoViewExt::TwoPointDistance.back()[1] = MapCoord{ 0,0 };
+			}
+		}
+		if (CIsoViewExt::AxialSymmetryLine[0] != MapCoord{ 0,0 }
+			&& CIsoViewExt::AxialSymmetryLine[1] == MapCoord{ 0,0 })
+		{
+			CIsoViewExt::AxialSymmetryLine[0] = MapCoord{ 0,0 };
+			CIsoViewExt::AxialSymmetryLine[1] = MapCoord{ 0,0 };
+		}
+	}
+
 	GET(int, command, EDX);
 	if (commandHasBorderRange(command))
 		return 0x4572B9;

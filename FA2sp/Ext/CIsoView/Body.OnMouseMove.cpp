@@ -20,6 +20,7 @@
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../Miscs/StringtableLoader.h"
 #include "../../Helpers/Helper.h"
+#include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
 
 constexpr float cellLength = 42.426407f;
 

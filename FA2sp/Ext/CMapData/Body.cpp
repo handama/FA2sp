@@ -4169,7 +4169,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		}
 	}
 	UpdateAnnotation();
-	CIsoViewExt::DistanceRuler.clear();
+	CIsoViewExt::LiveDistanceRuler.clear();
 	CMapDataExt::PowersUpBuildings.clear();
 	CMapDataExt::PowersUpBuildingSet.clear();
 	auto buildings = Variables::RulesMap.ParseIndicies("BuildingTypes", true);

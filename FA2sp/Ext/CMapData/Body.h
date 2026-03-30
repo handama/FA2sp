@@ -504,6 +504,7 @@ public:
     static BuildingPowers GetStructurePower(ppmfc::CString value);
     static void GetBuildingDataByIniID(int bldID, CBuildingData& data);
     static int GetSafeTileIndex(int idx);
+    static int GetSafeSubTileIndex(int tile, int idx);
 
     // damageStage = -1 means read the target cell overlayData to determine
     static void PlaceWallAt(int dwPos, int overlay, int damageStage = -1, bool firstRun = true);

@@ -4879,16 +4879,17 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
         int pos = x - width + 1 + (y - height + 1) * Map->MapWidthPlusHeight;
         int startheight = cell->Height + CIsoView::CurrentCommand->Height;
         int ground = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+        int subGround = CMapDataExt::GetSafeSubTileIndex(cell->TileIndex, cell->TileSubIndex);
 
-        startheight -= CMapDataExt::TileData[ground].TileBlockDatas[cell->TileSubIndex].Height;
+        startheight -= CMapDataExt::TileData[ground].TileBlockDatas[subGround].Height;
 
         if (recordHistory)
             Map->SaveUndoRedoData(TRUE, x - width - 4,
                 y - height - 4,
                 x - width + this->BrushSizeX * width + 7,
                 y - height + this->BrushSizeY * height + 7);
-        int cur_pos = pos;
-        int height_add = height * Map->MapWidthPlusHeight;
+        int ori_x = x - width + 1;
+        int ori_y = y - height + 1;
 
         for (f = 0; f < this->BrushSizeX; f++)
         {
@@ -4901,38 +4902,36 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                     tile = CIsoViewExt::GetRandomTileIndex();
                 }
 
-                cur_pos = pos + f * width + n * height_add;
                 p = 0;
                 for (i = 0; i < tileData.Height; i++)
                 {
                     for (e = 0; e < tileData.Width; e++)
                     {
-                        if (x - width + 1 + f * width + i >= Map->MapWidthPlusHeight ||
-                            y - height + 1 + n * height + e >= Map->MapWidthPlusHeight)
+                        if (tileData.TileBlockDatas[p].ImageData != NULL)
                         {
-                        }
-                        else
-                            if (tileData.TileBlockDatas[p].ImageData != NULL)
+                            int my_x = ori_x + f * width + i;
+                            int my_y = ori_y + n * height + e;
+                            if (!Map->IsCoordInMap(my_x, my_y))
                             {
-                                int mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
-                                auto cell = Map->GetCellAt(mypos);
-
-                                if (!(ExtConfigs::PlaceTileSkipHide && cell->IsHidden()))
-                                {
-                                    Map->SetHeightAt(Map->GetXFromCoordIndex(mypos),
-                                        Map->GetYFromCoordIndex(mypos),
-                                        startheight + tileData.TileBlockDatas[p].Height);
-
-                                    auto tileSet = tileData.TileSet;
-                                    bool isBridge = (tileSet == CMapDataExt::BridgeSet || tileSet == CMapDataExt::WoodBridgeSet);
-
-                                    cell->TileIndex = tile;
-                                    cell->TileSubIndex = p;
-                                    cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
-                                    CMapData::Instance->UpdateMapPreviewAt(Map->GetXFromCoordIndex(mypos),
-                                        Map->GetYFromCoordIndex(mypos));
-                                }
+                                p++;
+                                continue;
                             }
+                            auto cell = Map->GetCellAt(my_x, my_y);
+
+                            if (!(ExtConfigs::PlaceTileSkipHide && cell->IsHidden()))
+                            {
+                                Map->SetHeightAt(my_x, my_y,
+                                    startheight + tileData.TileBlockDatas[p].Height);
+
+                                auto tileSet = tileData.TileSet;
+                                bool isBridge = (tileSet == CMapDataExt::BridgeSet || tileSet == CMapDataExt::WoodBridgeSet);
+
+                                cell->TileIndex = tile;
+                                cell->TileSubIndex = p;
+                                cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
+                                CMapData::Instance->UpdateMapPreviewAt(my_x, my_y);
+                            }
+                        }
                         p++;
                     }
                 }
@@ -4951,15 +4950,18 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                 {
                     for (n = 0; n < this->BrushSizeY; n++)
                     {
-                        cur_pos = pos + f * width + n * height_add;
                         p = 0;
                         for (i = -1; i < tileData.Height + 1; i++)
                         {
                             for (e = -1; e < tileData.Width + 1; e++)
                             {
-                                auto mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
-                                Map->SmoothTileAt(Map->GetXFromCoordIndex(mypos),
-                                    Map->GetYFromCoordIndex(mypos));
+                                int my_x = ori_x + f * width + i;
+                                int my_y = ori_y + n * height + e;
+                                if (!Map->IsCoordInMap(my_x, my_y))
+                                {
+                                    continue;
+                                }
+                                Map->SmoothTileAt(my_x, my_y);
                             }
                         }
                     }
@@ -4979,57 +4981,54 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
         int pos = x - width + 1 + (y - height + 1) * Map->MapWidthPlusHeight;
         int startheight = cell->Height + CIsoView::CurrentCommand->Height;
         int ground = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+        int subGround = CMapDataExt::GetSafeSubTileIndex(cell->TileIndex, cell->TileSubIndex);
 
-        startheight -= CMapDataExt::TileData[ground].TileBlockDatas[cell->TileSubIndex].Height;
+        startheight -= CMapDataExt::TileData[ground].TileBlockDatas[subGround].Height;
 
         if (recordHistory)
             Map->SaveUndoRedoData(TRUE, x - width - 4,
                 y - height - 4,
                 x - width + this->BrushSizeX * width + 7,
                 y - height + this->BrushSizeY * height + 7);
-        int cur_pos = pos;
-        int height_add = height * Map->MapWidthPlusHeight;
+        int ori_x = x - width + 1;
+        int ori_y = y - height + 1;
 
         for (f = 0; f < this->BrushSizeX; f++)
         {
             for (n = 0; n < this->BrushSizeY; n++)
             {
-                cur_pos = pos + f * width + n * height_add;
                 p = 0;
                 for (i = 0; i < tileData->Height; i++)
                 {
                     for (e = 0; e < tileData->Width; e++)
                     {
-                        if (x - width + 1 + f * width + i >= Map->MapWidthPlusHeight ||
-                            y - height + 1 + n * height + e >= Map->MapWidthPlusHeight)
+                        auto& tile = tileData->TileBlockDatas[p];
+                        auto block = tile.GetTileBlock();
+                        if (block && block->ImageData != NULL)
                         {
-                        }
-                        else
-                        {
-                            auto& tile = tileData->TileBlockDatas[p];
-                            auto block = tile.GetTileBlock();
-                            if (block && block->ImageData != NULL)
+                            int my_x = ori_x + f * width + i;
+                            int my_y = ori_y + n * height + e;
+                            if (!Map->IsCoordInMap(my_x, my_y))
                             {
-                                int mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
-                                auto cell = Map->GetCellAt(mypos);
+                                p++;
+                                continue;
+                            }
+                            auto cell = Map->GetCellAt(my_x, my_y);
 
-                                if (!(ExtConfigs::PlaceTileSkipHide && cell->IsHidden()))
-                                {
-                                    auto tileData = CMapDataExt::TileData[tile.TileIndex];
-                                    auto tileSet = tileData.TileSet;
-                                    bool isBridge = (tileSet == CMapDataExt::BridgeSet || tileSet == CMapDataExt::WoodBridgeSet);
+                            if (!(ExtConfigs::PlaceTileSkipHide && cell->IsHidden()))
+                            {
+                                auto tileData = CMapDataExt::TileData[tile.TileIndex];
+                                auto tileSet = tileData.TileSet;
+                                bool isBridge = (tileSet == CMapDataExt::BridgeSet || tileSet == CMapDataExt::WoodBridgeSet);
 
-                                    Map->SetHeightAt(Map->GetXFromCoordIndex(mypos),
-                                        Map->GetYFromCoordIndex(mypos),
-                                        startheight + tile.GetHeight());
+                                Map->SetHeightAt(my_x, my_y,
+                                    startheight + tile.GetHeight());
 
-                                    cell->TileIndex = tile.TileIndex;
-                                    cell->TileSubIndex = tile.SubTileIndex;
-                                    cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
+                                cell->TileIndex = tile.TileIndex;
+                                cell->TileSubIndex = tile.SubTileIndex;
+                                cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
 
-                                    CMapData::Instance->UpdateMapPreviewAt(Map->GetXFromCoordIndex(mypos),
-                                        Map->GetYFromCoordIndex(mypos));
-                                }
+                                CMapData::Instance->UpdateMapPreviewAt(my_x, my_y);
                             }
                         }
                         p++;
@@ -5051,15 +5050,18 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                 {
                     for (n = 0; n < this->BrushSizeY; n++)
                     {
-                        cur_pos = pos + f * width + n * height_add;
                         p = 0;
                         for (i = -1; i < tileData->Height + 1; i++)
                         {
                             for (e = -1; e < tileData->Width + 1; e++)
                             {
-                                auto mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
-                                Map->SmoothTileAt(Map->GetXFromCoordIndex(mypos),
-                                    Map->GetYFromCoordIndex(mypos));
+                                int my_x = ori_x + f * width + i;
+                                int my_y = ori_y + n * height + e;
+                                if (!Map->IsCoordInMap(my_x, my_y))
+                                {
+                                    continue;
+                                }
+                                Map->SmoothTileAt(my_x, my_y);
                             }
                         }
                     }

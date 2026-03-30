@@ -667,6 +667,15 @@ int CMapDataExt::GetSafeTileIndex(int idx)
 	return idx;
 }
 
+int CMapDataExt::GetSafeSubTileIndex(int tile, int idx)
+{
+	int tileIndex = GetSafeTileIndex(tile);
+	const auto& Tile = TileData[tileIndex];
+	if (0 <= idx && idx < Tile.TileBlockCount)
+		return idx;
+	return 0;
+}
+
 void CMapDataExt::UpdateTriggers()
 {
 	CMapDataExt::Triggers.clear();

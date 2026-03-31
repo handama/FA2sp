@@ -96,6 +96,8 @@ struct BuildingDataExt
 
     int Width{ 0 };
     int Height{ 0 };
+    int RealWidth{ 0 };
+    int RealHeight{ 0 };
     std::vector<MapCoord>* Foundations{ nullptr };
     std::vector<std::pair<MapCoord, MapCoord>>* LinesToDraw{ nullptr };
     std::vector<POINT> DamageFireOffsets;

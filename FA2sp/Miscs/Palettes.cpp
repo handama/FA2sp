@@ -439,8 +439,8 @@ void LightingSourceTint::CalculateMapLamps()
                     const int X = atoi(atoms[4]);
                     const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
 
-                    ls.CenterX = X + DataExt.Height / 2.0f - 0.5f;
-                    ls.CenterY = Y + DataExt.Width / 2.0f - 0.5f;
+                    ls.CenterX = X + DataExt.RealHeight / 2.0f - 0.5f;
+                    ls.CenterY = Y + DataExt.RealWidth / 2.0f - 0.5f;
                     LightingSourcePosition lsp;
                     lsp.X = X;
                     lsp.Y = Y;

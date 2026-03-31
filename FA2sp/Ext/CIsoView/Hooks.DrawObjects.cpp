@@ -215,8 +215,8 @@ static void DrawTechnoAttachments
 		{
 			const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(parentID);
 			const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
-			displayX += (DataExt.Width - DataExt.Height) * 30 / 2;
-			displayY += (DataExt.Width + DataExt.Height - 2) * 15 / 2 + 15;
+			displayX += (DataExt.RealHeight - DataExt.RealHeight) * 30 / 2;
+			displayY += (DataExt.RealWidth + DataExt.RealHeight - 2) * 15 / 2 + 15;
 		}
 		for (int i = 0; i < infos.size(); ++i)
 		{
@@ -384,8 +384,8 @@ static void DrawTechnoAttachments
 							const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(info.ID);
 							const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
 							auto& veter = DrawVeterancies.emplace_back();
-							veter.X = displayX + mat.OutputX + info.DeltaX + (DataExt.Width - DataExt.Height) * 30 / 2;
-							veter.Y = displayY + mat.OutputY + info.DeltaY + (DataExt.Width + DataExt.Height - 2) * 15 / 2;
+							veter.X = displayX + mat.OutputX + info.DeltaX + (DataExt.RealWidth - DataExt.RealHeight) * 30 / 2;
+							veter.Y = displayY + mat.OutputY + info.DeltaY + (DataExt.RealWidth + DataExt.RealHeight - 2) * 15 / 2;
 							veter.VP = 0;
 							veter.ID = info.ID;
 						}
@@ -2148,8 +2148,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					if (firstDraw && CIsoViewExt::DrawVeterancy)
 					{
 						auto& veter = DrawVeterancies.emplace_back();
-						veter.X = x1 + (DataExt.Width - DataExt.Height) * 30 / 2;
-						veter.Y = y1 + (DataExt.Width + DataExt.Height - 2) * 15 / 2;
+						veter.X = x1 + (DataExt.RealWidth - DataExt.RealHeight) * 30 / 2;
+						veter.Y = y1 + (DataExt.RealWidth + DataExt.RealHeight - 2) * 15 / 2;
 						veter.VP = 0;
 						veter.ID = objRender.ID;
 					}
@@ -2167,8 +2167,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								AlphaImagesToDraw.push_back(
 									std::make_pair(
 										MapCoord{
-											x1 - pAIData->FullWidth / 2 + (DataExt.Width - DataExt.Height) * 30 / 2,
-											y1 - pAIData->FullHeight / 2 + (DataExt.Width + DataExt.Height) * 15 / 2
+											x1 - pAIData->FullWidth / 2 + (DataExt.RealWidth - DataExt.RealHeight) * 30 / 2,
+											y1 - pAIData->FullHeight / 2 + (DataExt.RealWidth + DataExt.RealHeight) * 15 / 2
 										}, pAIData));
 							}
 						}
@@ -2305,8 +2305,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				if (firstDraw && CIsoViewExt::DrawVeterancy)
 				{
 					auto& veter = DrawVeterancies.emplace_back();
-					veter.X = x1 + (DataExt.Width - DataExt.Height) * 30 / 2;
-					veter.Y = y1 + (DataExt.Width + DataExt.Height - 2) * 15 / 2;
+					veter.X = x1 + (DataExt.RealWidth - DataExt.RealHeight) * 30 / 2;
+					veter.Y = y1 + (DataExt.RealWidth + DataExt.RealHeight - 2) * 15 / 2;
 					veter.VP = 0;
 					veter.ID = part.Data->ID;
 					veter.Transp = true;

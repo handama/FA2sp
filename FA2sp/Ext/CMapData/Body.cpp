@@ -353,6 +353,10 @@ void CMapDataExt::ProcessBuildingType(const char* ID)
 			DataExt.Width = 1;
 			DataExt.Height = 1;
 		}
+
+		DataExt.RealWidth = DataExt.Width;
+		DataExt.RealHeight = DataExt.Height;
+
 		if (DataExt.Width == 0)
 			DataExt.Width = 1;
 		if (DataExt.Height == 0)
@@ -385,10 +389,16 @@ void CMapDataExt::ProcessBuildingType(const char* ID)
 			// Custom, code reference Ares
 			DataExt.Width = CINI::Art->GetInteger(ImageID, "Foundation.X", 0);
 			DataExt.Height = CINI::Art->GetInteger(ImageID, "Foundation.Y", 0);
+
 			if (DataExt.Width == 0)
 				DataExt.Width = 1;
 			if (DataExt.Height == 0)
 				DataExt.Height = 1;
+
+			// ares won't accept 0 as a side
+			DataExt.RealWidth = DataExt.Width;
+			DataExt.RealHeight = DataExt.Height;
+
 			DataExt.Foundations = new std::vector<MapCoord>;
 			for (int i = 0; i < DataExt.Width * DataExt.Height; ++i)
 			{

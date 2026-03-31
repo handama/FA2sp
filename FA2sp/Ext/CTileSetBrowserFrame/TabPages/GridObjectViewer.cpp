@@ -18,6 +18,117 @@ static std::vector<int> GetUnique(std::vector<int> input)
     return input;
 }
 
+static bool ParseUInt8(const FString& s, int& out)
+{
+    if (s.empty())
+        return false;
+
+    int val = 0;
+    for (char c : s)
+    {
+        if (c < '0' || c > '9')
+            return false;
+
+        val = val * 10 + (c - '0');
+        if (val > 255)
+            return false;
+    }
+
+    out = val;
+    return true;
+}
+
+static bool ParseDataString(const FString& str,
+    std::set<int>& AvailableData,
+    int& Overlay)
+{
+    AvailableData.clear();
+    Overlay = 0;
+
+    auto ParseNumber = [](const FString& s, int& out, int maxVal) -> bool
+    {
+        if (s.empty())
+            return false;
+
+        int val = 0;
+        for (char c : s)
+        {
+            if (c < '0' || c > '9')
+                return false;
+
+            val = val * 10 + (c - '0');
+            if (val > maxVal)
+            {
+                out = maxVal;
+                return true;
+            }
+        }
+
+        out = val;
+        return true;
+    };
+
+    int MaxOverlay = (ExtConfigs::ExtOverlays || CMapDataExt::NewINIFormat >= 5) ? 65535 : 255;
+    std::vector<FString> parts = FString::SplitString(str, "#");
+
+    if (parts.size() == 1)
+    {
+        if (!ParseNumber(parts[0], Overlay, MaxOverlay))
+            return false;
+
+        return true;
+    }
+
+    if (parts.size() != 2)
+        return false;
+
+    if (!ParseNumber(parts[0], Overlay, MaxOverlay))
+        return false;
+
+    if (parts[1].empty())
+        return false;
+
+    std::vector<FString> items = FString::SplitString(parts[1], ",");
+
+    for (const auto& item : items)
+    {
+        if (item.empty())
+            return false;
+
+        size_t pos = item.find('-');
+
+        if (pos == FString::npos)
+        {
+            int value = 0;
+            if (!ParseNumber(item, value, 255))
+                return false;
+
+            AvailableData.insert(value);
+        }
+        else
+        {
+            if (item.find('-', pos + 1) != FString::npos)
+                return false;
+
+            FString left = item.substr(0, pos);
+            FString right = item.substr(pos + 1);
+
+            int start = 0, end = 0;
+            if (!ParseNumber(left, start, 255) ||
+                !ParseNumber(right, end, 255))
+                return false;
+
+            if (start > end)
+                return false;
+
+            for (int i = start; i <= end; ++i)
+                AvailableData.insert(i);
+        }
+    }
+
+    return true;
+}
+
 BOOL GridObjectViewer::OnMessage(PMSG pMsg)
 {
     switch (pMsg->message)
@@ -481,6 +592,8 @@ void GridObjectViewer::UpdateControls()
 
     if (auto pSection = CINI::FAData->GetSection("GridObjectViewerLists"))
     {
+        std::set<int> overlayDatas;
+        int overlay;
         for (auto& [_, section] : pSection->GetEntities())
         {
             if (auto pSection = CINI::FAData->GetSection(section))
@@ -497,7 +610,15 @@ void GridObjectViewer::UpdateControls()
                 {
                     if (key.Find("Name") > -1)
                         continue;
-                    info.IDs.push_back(value);
+
+                    if (ParseDataString(value, overlayDatas, overlay))
+                    {                       
+                        info.IDs.push_back({ STDHelpers::IntToString(overlay), true, overlayDatas});
+                    }
+                    else
+                    {
+                        info.IDs.push_back({ value, false });
+                    }
                 }
             }
         }
@@ -529,7 +650,7 @@ void GridObjectViewer::UpdateControls()
                     if (info)
                     {
                         if (!CViewObjectsExt::IsIgnored(obj))
-                            info->IDs.push_back(obj);
+                            info->IDs.push_back({ obj, false });
                     }
                 }
             }
@@ -569,7 +690,7 @@ void GridObjectViewer::UpdateControls()
                         if (info)
                         {
                             if (!CViewObjectsExt::IsIgnored(obj))
-                                info->IDs.push_back(obj);
+                                info->IDs.push_back({ obj, false });
                         }
                     }
                 }
@@ -599,7 +720,7 @@ void GridObjectViewer::UpdateControls()
                     if (info)
                     {
                         if (!CViewObjectsExt::IsIgnored(obj))
-                            info->IDs.push_back(obj);
+                            info->IDs.push_back({ obj, false });
                     }
                 }
             }
@@ -651,17 +772,40 @@ void GridObjectViewer::UpdateControls()
         auto& g = g_groups.emplace_back();
         for (auto& [_, obj] : Variables::RulesMap.GetSection(section))
             if(!CViewObjectsExt::IsIgnored(obj))
-                g.IDs.push_back(obj);
+                g.IDs.push_back({ obj, false });
         g.DisplayName = displayName;
 
         return g_groups.size() - 1;
     };
+    
+    auto addOverlay = [this](const char* displayName) -> int
+    {
+        auto& g = g_groups.emplace_back();
+        int index = 0;
+        FString buffer;
+        for (auto& obj : Variables::RulesMap.ParseIndicies("OverlayTypes"))
+        {
+            if (index >= 255 && (ExtConfigs::ExtOverlays || CMapDataExt::NewINIFormat >= 5))
+                break;
+            if (!CViewObjectsExt::IgnoreOverlaySet.contains(obj))
+            {
+                buffer.Format("%d", index);
+                g.IDs.push_back({ buffer, true });
+            }
+            index++;
+        }
+        g.DisplayName = displayName;
+
+        return g_groups.size() - 1;
+    };
+
     auto allI = addGroup("InfantryTypes", Translations::TranslateOrDefault("GridObjectViewer.AllInfantry", "All infantries"));
     auto allV = addGroup("VehicleTypes", Translations::TranslateOrDefault("GridObjectViewer.AllVehicle", "All vehicles"));
     auto allA = addGroup("AircraftTypes", Translations::TranslateOrDefault("GridObjectViewer.AllAircraft", "All aircrafts"));
     auto allB = addGroup("BuildingTypes", Translations::TranslateOrDefault("GridObjectViewer.AllBuilding", "All buildings"));
     auto allT = addGroup("TerrainTypes", Translations::TranslateOrDefault("GridObjectViewer.AllTerrain", "All terrain types"));
     auto allS = addGroup("SmudgeTypes", Translations::TranslateOrDefault("GridObjectViewer.AllSmudge", "All smudges"));
+    auto allO = addOverlay(Translations::TranslateOrDefault("GridObjectViewer.AllOverlay", "All overlays"));
 
     auto& all = g_groups.emplace_back();
     all.DisplayName = Translations::TranslateOrDefault("GridObjectViewer.All", "All objects");
@@ -671,6 +815,8 @@ void GridObjectViewer::UpdateControls()
     for (auto& o : g_groups[allB].IDs) all.IDs.push_back(o);
     for (auto& o : g_groups[allT].IDs) all.IDs.push_back(o);
     for (auto& o : g_groups[allS].IDs) all.IDs.push_back(o);
+    // overlay is too much
+    //for (auto& o : g_groups[allO].IDs) all.IDs.push_back(o);
 
     while (SendMessage(m_hControlGroup, CB_DELETESTRING, 0, NULL) != CB_ERR);
     for (auto& g : g_groups)
@@ -679,7 +825,7 @@ void GridObjectViewer::UpdateControls()
         size_t writeIndex = 0;
         for (size_t i = 0; i < g.IDs.size(); ++i)
         {
-            if (seen.insert(g.IDs[i]).second)
+            if (seen.insert(g.IDs[i].ID).second)
             {
                 g.IDs[writeIndex++] = std::move(g.IDs[i]);
             }
@@ -746,7 +892,12 @@ void GridObjectViewer::UpdateImages()
         g_images.push_back(info);
 
     };
-    auto loadImage = [this](const FString& DataName, const ppmfc::CString id, const CLoadingExt::ObjectType type)
+    auto loadImage = [this](const FString& DataName, 
+        const ppmfc::CString id, 
+        const CLoadingExt::ObjectType type,
+        int overlay = -1,
+        int overlayData = -1
+        )
     {
         auto pd = CLoadingExt::GetImageDataFromMap(DataName);
         if (!pd || !pd->pImageBuffer || pd->FullWidth <= 0 || pd->FullHeight <= 0)
@@ -757,64 +908,89 @@ void GridObjectViewer::UpdateImages()
         ComputeCroppedInfo(pd, info);
         info.pData = nullptr;
         info.DataName = DataName;
+        info.Overlay = overlay;
+        info.OverlayData = overlayData;
 
         g_images.push_back(info);
 
     };
     if (g_currentCurSel >= 0 && g_currentCurSel < g_groups.size())
     {
-        TempValueHolder<bool> tmp1(ExtConfigs::InGameDisplay_Shadow, false);
-        TempValueHolder<bool> tmp2(CLoadingExt::IsLoadingObjectView, true);
-
         auto& g = g_groups[g_currentCurSel];
         for (auto& id : g.IDs)
         {
-            auto type = CLoadingExt::GetExtension()->GetItemType(id);
+            if (id.IsOverlay)
+            {
+                auto& datas = id.OverlayDatas;
+                int index = STDHelpers::ParseToInt(id.ID);
+                auto oid = Variables::RulesMap.GetValueAt("OverlayTypes", index);
+                if (!CLoadingExt::IsOverlayLoaded(oid))
+                    CLoadingExt::GetExtension()->LoadOverlay(oid, index);
+                int nDisplayLimit = Variables::RulesMap.GetInteger(oid, "OverlayDisplayLimit", ExtConfigs::OverlayDataLimit);
+                nDisplayLimit = CINI::FAData->GetInteger("OverlayDisplayLimit", id.ID, nDisplayLimit);
+                if (nDisplayLimit > ExtConfigs::OverlayDataLimit)
+                    nDisplayLimit = ExtConfigs::OverlayDataLimit;
 
-            if (!CLoadingExt::IsObjectPreviewLoaded(id) && !CLoadingExt::IsObjectLoaded(id))
-                CLoadingExt::GetExtension()->LoadObjects(id);
-            switch (type)
-            {
-            case CLoadingExt::ObjectType::Infantry:
-            {
-                int facings = CLoadingExt::GetAvailableFacing(id);
-                auto imageName = CLoadingExt::GetImageName(id, 5);
-                loadImage(imageName, id, type);
-                break;
+                for (int i = 0; i < nDisplayLimit; ++i)
+                {
+                    if (!datas.empty() && !datas.contains(i))
+                        continue;
+                    auto imageName = CLoadingExt::GetOverlayName(index, i);
+                    loadImage(imageName, id.ID, CLoadingExt::ObjectType::Unknown, index, i);
+                }
             }
-            case CLoadingExt::ObjectType::Vehicle:
-            case CLoadingExt::ObjectType::Aircraft:
+            else
             {
-                int facings = CLoadingExt::GetAvailableFacing(id);
-                auto imageName = CLoadingExt::GetImageName(id, facings / 4);
-                loadImage(imageName, id, type);
-                break;
-            }
-            case CLoadingExt::ObjectType::Terrain:
-            case CLoadingExt::ObjectType::Smudge:
-            {
-                auto imageName = CLoadingExt::GetImageName(id, 0);
-                loadImage(imageName, id, type);
-                break;
-            }
-            case CLoadingExt::ObjectType::Building:
-            {
-                bool hasTur = Variables::RulesMap.GetBool(id, "Turret")
-                    || Variables::RulesMap.GetBool(id, "TurretAnimIsVoxel");
-                int facings = hasTur ? (ExtConfigs::ExtFacings ? 32 : 8) : 1;
-                auto itr = CLoadingExt::AvailableFacings.find(id);
-                if (itr != CLoadingExt::AvailableFacings.end())
-                    facings = itr->second;
-                auto imageName = CLoadingExt::GetBuildingImageName(id, facings / 8 * 5, 0);
-                auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
-                auto pd = CLoadingExt::BindClippedImages(clips);
-                g_buildingImages.push_back(std::move(pd));
-                loadImageBuilding(g_buildingImages.back().get(), id, type);
-                break;
-            }
-            case CLoadingExt::ObjectType::Unknown:
-            default:
-                break;
+                TempValueHolder<bool> tmp1(ExtConfigs::InGameDisplay_Shadow, false);
+                TempValueHolder<bool> tmp2(CLoadingExt::IsLoadingObjectView, true);
+
+                auto type = CLoadingExt::GetExtension()->GetItemType(id.ID);
+
+                if (!CLoadingExt::IsObjectPreviewLoaded(id.ID) && !CLoadingExt::IsObjectLoaded(id.ID))
+                    CLoadingExt::GetExtension()->LoadObjects(id.ID);
+                switch (type)
+                {
+                case CLoadingExt::ObjectType::Infantry:
+                {
+                    int facings = CLoadingExt::GetAvailableFacing(id.ID);
+                    auto imageName = CLoadingExt::GetImageName(id.ID, 5);
+                    loadImage(imageName, id.ID, type);
+                    break;
+                }
+                case CLoadingExt::ObjectType::Vehicle:
+                case CLoadingExt::ObjectType::Aircraft:
+                {
+                    int facings = CLoadingExt::GetAvailableFacing(id.ID);
+                    auto imageName = CLoadingExt::GetImageName(id.ID, facings / 4);
+                    loadImage(imageName, id.ID, type);
+                    break;
+                }
+                case CLoadingExt::ObjectType::Terrain:
+                case CLoadingExt::ObjectType::Smudge:
+                {
+                    auto imageName = CLoadingExt::GetImageName(id.ID, 0);
+                    loadImage(imageName, id.ID, type);
+                    break;
+                }
+                case CLoadingExt::ObjectType::Building:
+                {
+                    bool hasTur = Variables::RulesMap.GetBool(id.ID, "Turret")
+                        || Variables::RulesMap.GetBool(id.ID, "TurretAnimIsVoxel");
+                    int facings = hasTur ? (ExtConfigs::ExtFacings ? 32 : 8) : 1;
+                    auto itr = CLoadingExt::AvailableFacings.find(id.ID);
+                    if (itr != CLoadingExt::AvailableFacings.end())
+                        facings = itr->second;
+                    auto imageName = CLoadingExt::GetBuildingImageName(id.ID, facings / 8 * 5, 0);
+                    auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
+                    auto pd = CLoadingExt::BindClippedImages(clips);
+                    g_buildingImages.push_back(std::move(pd));
+                    loadImageBuilding(g_buildingImages.back().get(), id.ID, type);
+                    break;
+                }
+                case CLoadingExt::ObjectType::Unknown:
+                default:
+                    break;
+                }
             }
         }
         OnEditchange();
@@ -1263,41 +1439,67 @@ void GridObjectViewer::EnsureVisible(int index)
 
 void GridObjectViewer::OnSelChanged(int index)
 {
-    auto& id = g_filteredImages[index].ID;
-    auto type = CLoadingExt::GetExtension()->GetItemType(id);
+    auto& data = g_filteredImages[index];
+    auto& id = data.ID;
 
-    switch (type)
+    if (data.Overlay >= 0)
     {
-    case CLoadingExt::ObjectType::Infantry:
-        CIsoView::CurrentCommand->Type = 1;
-        break;
-    case CLoadingExt::ObjectType::Terrain:
-        CIsoView::CurrentCommand->Type = 5;
-        break;
-    case CLoadingExt::ObjectType::Smudge:
-        CIsoView::CurrentCommand->Type = 8;
-        break;
-    case CLoadingExt::ObjectType::Vehicle:
-        CIsoView::CurrentCommand->Type = 4;
-        break;
-    case CLoadingExt::ObjectType::Aircraft:
-        CIsoView::CurrentCommand->Type = 3;
-        break;
-    case CLoadingExt::ObjectType::Building:
-        CIsoView::CurrentCommand->Type = 2;
-        break;
-    case CLoadingExt::ObjectType::Unknown:
-    default:
-        break;
+        CIsoView::CurrentCommand->Command = 1;
+        CIsoView::CurrentCommand->Type = 6;
+        CIsoView::CurrentCommand->Param = 33;
+        CIsoView::CurrentCommand->Overlay = data.Overlay;
+        CIsoView::CurrentCommand->OverlayData = data.OverlayData;
+        CIsoView::CurrentCommand->Height = 0;
+
+        auto oid = Variables::RulesMap.GetValueAt("OverlayTypes", data.Overlay);
+        FString display;
+        FString name = Variables::RulesMap.GetString(oid, "Name");
+        if (name.IsEmpty() || !Translations::GetTranslationItem(name, display))
+        {
+            display = CViewObjectsExt::QueryUIName(id, true);
+        }
+        if (display != oid)
+            display += " (" + oid + ")";
+        FString format = "%s, ";
+        format += Translations::TranslateOrDefault("GridObjectViewer.OverlayText", "Index: %d, OverlayData: %d");
+        display.Format(format, display, data.Overlay, data.OverlayData);
+        SetWindowText(m_hControlCurrentSelect, display);
     }
+    else
+    {
+        auto type = CLoadingExt::GetExtension()->GetItemType(id);
+        switch (type)
+        {
+        case CLoadingExt::ObjectType::Infantry:
+            CIsoView::CurrentCommand->Type = 1;
+            break;
+        case CLoadingExt::ObjectType::Terrain:
+            CIsoView::CurrentCommand->Type = 5;
+            break;
+        case CLoadingExt::ObjectType::Smudge:
+            CIsoView::CurrentCommand->Type = 8;
+            break;
+        case CLoadingExt::ObjectType::Vehicle:
+            CIsoView::CurrentCommand->Type = 4;
+            break;
+        case CLoadingExt::ObjectType::Aircraft:
+            CIsoView::CurrentCommand->Type = 3;
+            break;
+        case CLoadingExt::ObjectType::Building:
+            CIsoView::CurrentCommand->Type = 2;
+            break;
+        case CLoadingExt::ObjectType::Unknown:
+        default:
+            break;
+        }
 
-    CIsoView::CurrentCommand->Command = 1;
-    CIsoView::CurrentCommand->Param = 1;
-    CIsoView::CurrentCommand->ObjectID = id;
+        CIsoView::CurrentCommand->Command = 1;
+        CIsoView::CurrentCommand->Param = 1;
+        CIsoView::CurrentCommand->ObjectID = id;
 
-    FString display = CViewObjectsExt::QueryUIName(id);
-    if (display != id)
-        display += " (" + id + ")";
-    SetWindowText(m_hControlCurrentSelect, display);
-
+        FString display = CViewObjectsExt::QueryUIName(id);
+        if (display != id)
+            display += " (" + id + ")";
+        SetWindowText(m_hControlCurrentSelect, display);
+    }
 }

@@ -16,13 +16,21 @@ struct ImageInfo
     int CropTop = 0;
     int CropWidth = 0;
     int CropHeight = 0;
-    bool isOverlay;
+    int Overlay = -1;
+    int OverlayData = 0;
 };
+
 struct GroupInfo
 {
+    struct ObjectID
+    {
+        FString ID;
+        bool IsOverlay;
+        std::set<int> OverlayDatas;
+    };
     FString DisplayName;
     FString InternalName;
-    std::vector<FString> IDs;
+    std::vector<ObjectID> IDs;
     bool ForceFront = false;
 };
 

@@ -1123,7 +1123,7 @@ DEFINE_HOOK(4F258B, CTileSetBrowserView_OnDraw_SetOverlayFrameToDisplay, 7)
     GET(CTileSetBrowserView*, pThis, ESI);
     GET(const int, i, ECX);
 
-    ppmfc::CString ovlIdx;
+    FString ovlIdx;
     ovlIdx.Format("%d", pThis->SelectedOverlayIndex);
     int nDisplayLimit = Variables::RulesMap.GetInteger(
         Variables::RulesMap.GetValueAt("OverlayTypes", pThis->SelectedOverlayIndex),

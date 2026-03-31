@@ -949,12 +949,45 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 		FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "tur");
 		int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
 		bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
+
+		bool hasBarl = false;
+		int fireAngle = Variables::RulesMap.GetInteger(ID, "FireAngle", 10);
+		std::vector<unsigned char*> pBarlImages;
+		std::vector<VoxelRectangle> barlrect;
+		if (Variables::RulesMap.GetBool(ID, "BarrelAnimIsVoxel"))
+		{
+			FString BarlName = Variables::RulesMap.GetString(ID, "VoxelBarrelFile");
+
+			if (!VoxelDrawer::IsVPLLoaded())
+				VoxelDrawer::LoadVPLFile("voxels.vpl");
+
+			FString VXLName = BarlName + ".vxl";
+			FString HVAName = BarlName + ".hva";
+
+			if (VoxelDrawer::LoadVXLFile(VXLName))
+			{
+				if (VoxelDrawer::LoadHVAFile(HVAName))
+				{
+					hasBarl = true;
+					pBarlImages.resize(facings, nullptr);
+					barlrect.resize(facings);
+					for (int i = 0; i < facings; ++i)
+					{
+						bool result = VoxelDrawer::GetImageData((facings + 5 * facings / 8 - i) % facings,
+							pBarlImages[i], barlrect[i], 0, 0, 0, false, fireAngle);
+						if (!result)
+							break;
+					}
+				}
+			}
+		}
+		
 		for (int i = 0; i < facings; ++i)
 		{
 			if (IsLoadingObjectView && i != facings / 8 * 5)
 				continue;
 			auto pTempBuf = GameCreateArray<unsigned char>(width * height);
-			memcpy_s(pTempBuf, width * height, pBuffer, width * height);
+			memcpy_s(pTempBuf, width* height, pBuffer, width* height);
 			UnionSHP_Add(pTempBuf, width, height);
 
 			if (shadow)
@@ -966,9 +999,35 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 
 			int deltaX = Variables::RulesMap.GetInteger(ID, "TurretAnimX", 0);
 			int deltaY = Variables::RulesMap.GetInteger(ID, "TurretAnimY", 0);
-			loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-				nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
+			if (!hasBarl || !pBarlImages[i])
+			{
+				loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
+					nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
+			}
+			else
+			{
+				bool barrelInFront = IsBarrelInFront((7 * facings / 8 - i + facings) % facings, facings);
 
+				VXL_Add(pBarlImages[i], barlrect[i].X, barlrect[i].Y, barlrect[i].W, barlrect[i].H);
+				CncImgFree(pBarlImages[i]);
+
+				int nW = 0x100, nH = 0x100;
+				VXL_GetAndClear(pBarlImages[i], &nW, &nH);
+
+				if (barrelInFront)
+				{
+					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
+						nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
+					UnionSHP_Add(pBarlImages[i], 0x100, 0x100, deltaX, deltaY);
+				}
+				else
+				{
+					UnionSHP_Add(pBarlImages[i], 0x100, 0x100, deltaX, deltaY);
+					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
+						nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
+				}
+			}
+			
 			unsigned char* pImage;
 			int width1, height1;
 			unsigned char* pAlphaImage = nullptr;
@@ -1399,12 +1458,44 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 	}
 	else if (Variables::RulesMap.GetBool(ID, "Turret")) // Shape turret
 	{
-
 		FString TurName = Variables::RulesMap.GetString(ID, 
 			Variables::RulesMap.KeyExists(ID,"TurretAnimDamaged") ? "TurretAnimDamaged" : "TurretAnim",
 			ID + "tur");
 		int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
 		bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
+
+		bool hasBarl = false;
+		int fireAngle = Variables::RulesMap.GetInteger(ID, "FireAngle", 10);
+		std::vector<unsigned char*> pBarlImages;
+		std::vector<VoxelRectangle> barlrect;
+		if (Variables::RulesMap.GetBool(ID, "BarrelAnimIsVoxel"))
+		{
+			FString BarlName = Variables::RulesMap.GetString(ID, "VoxelBarrelFile");
+
+			if (!VoxelDrawer::IsVPLLoaded())
+				VoxelDrawer::LoadVPLFile("voxels.vpl");
+
+			FString VXLName = BarlName + ".vxl";
+			FString HVAName = BarlName + ".hva";
+
+			if (VoxelDrawer::LoadVXLFile(VXLName))
+			{
+				if (VoxelDrawer::LoadHVAFile(HVAName))
+				{
+					hasBarl = true;
+					pBarlImages.resize(facings, nullptr);
+					barlrect.resize(facings);
+					for (int i = 0; i < facings; ++i)
+					{
+						bool result = VoxelDrawer::GetImageData((facings + 5 * facings / 8 - i) % facings,
+							pBarlImages[i], barlrect[i], 0, 0, 0, false, fireAngle);
+						if (!result)
+							break;
+					}
+				}
+			}
+		}
+
 		for (int i = 0; i < facings; ++i)
 		{
 			auto pTempBuf = GameCreateArray<unsigned char>(width * height);
@@ -1420,8 +1511,34 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 
 			int deltaX = Variables::RulesMap.GetInteger(ID, "TurretAnimX", 0);
 			int deltaY = Variables::RulesMap.GetInteger(ID, "TurretAnimY", 0);
-			loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-				nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
+			if (!hasBarl || !pBarlImages[i])
+			{
+				loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
+					nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
+			}
+			else
+			{
+				bool barrelInFront = IsBarrelInFront((7 * facings / 8 - i + facings) % facings, facings);
+
+				VXL_Add(pBarlImages[i], barlrect[i].X, barlrect[i].Y, barlrect[i].W, barlrect[i].H);
+				CncImgFree(pBarlImages[i]);
+
+				int nW = 0x100, nH = 0x100;
+				VXL_GetAndClear(pBarlImages[i], &nW, &nH);
+
+				if (barrelInFront)
+				{
+					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
+						nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
+					UnionSHP_Add(pBarlImages[i], 0x100, 0x100, deltaX, deltaY);
+				}
+				else
+				{
+					UnionSHP_Add(pBarlImages[i], 0x100, 0x100, deltaX, deltaY);
+					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
+						nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
+				}
+			}
 
 			unsigned char* pImage;
 			int width1, height1;

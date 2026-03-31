@@ -18,19 +18,24 @@
 #include "../../Helpers/STDHelpers.h"
 #include "../../Miscs/Hooks.INI.h"
 #include "../CFinalSunDlg/Body.h"
+#include <wininet.h>
+#include "../../FA2sp.Constants.h"
+
 namespace fs = std::filesystem;
 
 #pragma warning(disable : 6262)
 
 std::vector<std::string> CFinalSunAppExt::RecentFilesExt;
 bool CFinalSunAppExt::HoldingKey = false;
+bool CFinalSunAppExt::HasNewVersion = false;
+FString CFinalSunAppExt::NewVersion;
 FString CFinalSunAppExt::ExePathExt;
 FString CFinalSunAppExt::LauncherName;
 std::array<std::pair<std::string, std::string>, 7> CFinalSunAppExt::ExternalLinks
 {
 	std::make_pair("https://github.com/secsome/FA2sp", ""),
 	std::make_pair("https://github.com/handama/FA2sp", ""),
-	std::make_pair("https://phobos.readthedocs.io/zh-cn/latest/", ""),
+	std::make_pair("https://phobos.readthedocs.io/en/latest/", ""),
 	std::make_pair("https://www.ppmforums.com/", ""),
 	std::make_pair("https://modenc.renegadeprojects.com/Main_Page", ""),
 	std::make_pair("https://ra2map.com/", ""),
@@ -225,6 +230,9 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 		}
 	);
 
+	std::thread([]() {
+		CheckUpdate();
+	}).detach();
 
 	CFinalSunDlg dlg(nullptr);
 	this->m_pMainWnd = &dlg;
@@ -296,5 +304,116 @@ void CFinalSunAppExt::ParseCommandLine(const char* cmdLine)
 	if (output_file.size() < MAX_PATH && std::filesystem::exists(output_file))
 	{
 		strcpy_s(CFinalSunApp::MapPath(), output_file.c_str());
+	}
+}
+
+#pragma comment(lib, "wininet.lib")
+std::string HttpGetSimple(const std::wstring& url)
+{
+	std::string result;
+
+	HINTERNET hInternet = InternetOpenW(
+		L"Mozilla/5.0",
+		INTERNET_OPEN_TYPE_PRECONFIG,
+		NULL, NULL, 0);
+
+	if (!hInternet) return result;
+
+	HINTERNET hFile = InternetOpenUrlW(
+		hInternet,
+		url.c_str(),
+		NULL, 0,
+		INTERNET_FLAG_RELOAD | INTERNET_FLAG_SECURE,
+		0);
+
+	if (!hFile) {
+		InternetCloseHandle(hInternet);
+		return result;
+	}
+
+	char buffer[4096];
+	DWORD bytesRead = 0;
+
+	while (InternetReadFile(hFile, buffer, sizeof(buffer), &bytesRead) && bytesRead)
+	{
+		result.append(buffer, bytesRead);
+	}
+
+	InternetCloseHandle(hFile);
+	InternetCloseHandle(hInternet);
+
+	return result;
+}
+
+Version ParseVersionFromJson(const std::string& json)
+{
+	Version v{};
+
+	size_t pos = json.find("\"tag_name\"");
+	if (pos == std::string::npos)
+		return v;
+
+	size_t start = json.find("\"", pos + 10);
+	if (start == std::string::npos)
+		return v;
+
+	start++;
+
+	size_t end = json.find("\"", start);
+	if (end == std::string::npos)
+		return v;
+
+	std::string tag = json.substr(start, end - start);
+
+	size_t numStart = tag.find_first_of("0123456789");
+	if (numStart == std::string::npos)
+		return v;
+
+	std::string versionPart = tag.substr(numStart);
+
+	sscanf_s(versionPart.c_str(), "%d.%d.%d",
+		&v.major, &v.minor, &v.revision);
+
+	return v;
+}
+
+bool IsNewer(const Version& local, const Version& remote)
+{
+	if (remote.major != local.major)
+		return remote.major > local.major;
+
+	if (remote.minor != local.minor)
+		return remote.minor > local.minor;
+
+	return remote.revision > local.revision;
+}
+
+void CFinalSunAppExt::CheckUpdate()
+{
+	std::string json = HttpGetSimple(
+		L"https://api.github.com/repos/handama/fa2sp/releases/latest"
+	);
+	if (json.empty())
+		return;
+
+	Version remote = ParseVersionFromJson(json);
+	Version local = { HE_PRODUCT_MAJOR, HE_PRODUCT_MINOR, HE_PRODUCT_REVISION };
+
+	if (IsNewer(local, remote))
+	{
+		HasNewVersion = true;
+		NewVersion.Format("%d.%d.%d", remote.major, remote.minor, remote.revision);
+
+		if (!CMapData::Instance->MapWidthPlusHeight)
+		{
+			ppmfc::CString caption;
+			CFinalSunDlg::Instance->GetWindowTextA(caption);
+			FString title(caption);
+			title += " - ";
+			title += Translations::TranslateOrDefault("NewVersionAvailable", "New version available:");
+			title += " ";
+			title += CFinalSunAppExt::NewVersion;
+			CFinalSunDlg::Instance->SetWindowTextA(title);
+		}
 	}
 }

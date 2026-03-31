@@ -602,6 +602,27 @@ DEFINE_HOOK(42459A, CFinalSunDlg_OnInitDialog_LoadMap, 6)
     return 0x4245CD;
 }
 
+DEFINE_HOOK(423F2A, CFinalSunDlg_OnInitDialog_SetDefaultCaption, 6)
+{
+    GET(LPCSTR, lpCaption, EAX);
+    GET(CFinalSunDlg*, pThis, ECX);
+
+    if (CFinalSunAppExt::HasNewVersion)
+    {
+        FString title(lpCaption);
+        title += " - ";
+        title += Translations::TranslateOrDefault("NewVersionAvailable", "New version available:");
+        title += " ";
+        title += CFinalSunAppExt::NewVersion;
+        pThis->SetWindowTextA(title);
+    }
+    else
+    {
+        pThis->SetWindowTextA(lpCaption);
+    }
+    return 0x423F30;
+}
+
 DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp_CancelDistanceRuler, 6)
 {
     if (!CIsoView::GetInstance()->IsScrolling)

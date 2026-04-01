@@ -426,7 +426,7 @@ void CFinalSunDlgExt::InitToolbar()
     RECT rc;
     ::GetClientRect(hReBar, &rc);
     int availableWidth = rc.right - rc.left;
-    const int EXTRA = 0;
+    const int EXTRA = 15;
 
     struct TbItem {
         HWND hTb;

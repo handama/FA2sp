@@ -1473,9 +1473,9 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
     }
 
     SelectedTeamIndex = SendMessage(hSelectedTeam, CB_GETCURSEL, NULL, NULL);
-    if (SelectedTeamIndex < 0 || SelectedTeamIndex >= SendMessage(hSelectedTeam, CB_GETCOUNT, NULL, NULL))
+
+    auto clear = []()
     {
-        CurrentTeamID = "";
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hHouse, WM_SETTEXT, 0, (LPARAM)"");
@@ -1511,6 +1511,12 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         SendMessage(hCheckBoxIsBaseDefense, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hCheckBoxOnlyTargetHouseEnemy, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hSearchReference, BM_SETCHECK, BST_UNCHECKED, 0);
+    };
+
+    if (SelectedTeamIndex < 0 || SelectedTeamIndex >= SendMessage(hSelectedTeam, CB_GETCOUNT, NULL, NULL))
+    {
+        CurrentTeamID = "";
+        clear();
         InvalidateRect(hDragPoint, nullptr, TRUE);
         return;
     }
@@ -1645,7 +1651,10 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         SendMessage(hCheckBoxAreTeamMembersRecruitable, BM_SETCHECK, map.GetBool(pID, "AreTeamMembersRecruitable"), 0);
         SendMessage(hCheckBoxIsBaseDefense, BM_SETCHECK, map.GetBool(pID, "IsBaseDefense"), 0);
         SendMessage(hCheckBoxOnlyTargetHouseEnemy, BM_SETCHECK, map.GetBool(pID, "OnlyTargetHouseEnemy"), 0);
-
+    }
+    else
+    {
+        clear();
     }
     DropNeedUpdate = false;
 }
@@ -1742,7 +1751,7 @@ void CNewTeamTypes::OnClickTurnToTag()
 void CNewTeamTypes::OnClickNewTeam()
 {
     FString key = CINI::GetAvailableKey("TeamTypes");
-    FString value = CMapDataExt::GetAvailableIndex();
+    FString value = CMapDataExt::GetAvailableIndex(EIndexType::Team);
     char buffer[512];
     FString buffer2;
 
@@ -1864,7 +1873,7 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
     if (SendMessage(hSelectedTeam, CB_GETCOUNT, NULL, NULL) > 0 && SelectedTeamIndex >= 0)
     {
         FString key = CINI::GetAvailableKey("TeamTypes");
-        FString value = CMapDataExt::GetAvailableIndex();
+        FString value = CMapDataExt::GetAvailableIndex(EIndexType::Team);
 
         CINI::CurrentDocument->WriteString("TeamTypes", key, value);
 

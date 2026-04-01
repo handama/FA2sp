@@ -2558,7 +2558,7 @@ void CNewTrigger::OnClickNewTrigger()
 {
     TempValueHolder<bool> tmp(AutoChangeName, true);
     CNewTeamTypes::TagListChanged = true;
-    FString id = CMapDataExt::GetAvailableIndex();
+    FString id = CMapDataExt::GetAvailableIndex(EIndexType::Trigger);
     FString value;
     FString house;
     char buffer[512]{ 0 };
@@ -2578,7 +2578,7 @@ void CNewTrigger::OnClickNewTrigger()
     value.Format("%s,<none>,%s,0,1,1,1,0", house, newName);
 
     map.WriteString("Triggers", id, value);
-    FString tagId = CMapDataExt::GetAvailableIndex();
+    FString tagId = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
     value.Format("0,%s 1,%s", newName, id);
     map.WriteString("Tags", tagId, value);
 
@@ -2597,7 +2597,7 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
     auto& oriID = CurrentTrigger->ID;
     auto& oriTagID = CurrentTrigger->Tag;
 
-    FString id = CMapDataExt::GetAvailableIndex();
+    FString id = CMapDataExt::GetAvailableIndex(EIndexType::Trigger);
     FString value;
     auto& Name = CurrentTrigger->Name;
 
@@ -2611,7 +2611,7 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
     if (oriTagID != "<none>")
     {
         CNewTeamTypes::TagListChanged = true;
-        FString tagId = CMapDataExt::GetAvailableIndex();
+        FString tagId = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
         value.Format("%s,%s 1,%s", CurrentTrigger->RepeatType, newName, id);
         map.WriteString("Tags", tagId, value);
     }
@@ -3597,7 +3597,7 @@ void CNewTrigger::OnClickActionSplit(HWND& hWnd)
             firstIndex = *it;
         }
     }
-    FString id = CMapDataExt::GetAvailableIndex();
+    FString id = CMapDataExt::GetAvailableIndex(EIndexType::Trigger);
     // allow new trigger
     CurrentTrigger->Actions.insert(CurrentTrigger->Actions.begin() + firstIndex,
         { "53", {"2",id,"0","0","0","0","A"}, false });
@@ -3615,7 +3615,7 @@ void CNewTrigger::OnClickActionSplit(HWND& hWnd)
 
     map.WriteString("Triggers", id, value);
     map.WriteString("Events", id, "1,13,0,0"); // elapsed 0s
-    FString tagId = CMapDataExt::GetAvailableIndex();
+    FString tagId = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
     value.Format("0,%s 1,%s", newName, id);
     map.WriteString("Tags", tagId, value);
 

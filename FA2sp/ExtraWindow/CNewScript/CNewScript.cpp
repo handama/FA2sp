@@ -997,8 +997,7 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
         return;
     }
 
-    SelectedScriptIndex = SendMessage(hSelectedScript, CB_GETCURSEL, NULL, NULL);
-    if (SelectedScriptIndex < 0 || SelectedScriptIndex >= SendMessage(hSelectedScript, CB_GETCOUNT, NULL, NULL))
+    auto clear = []()
     {
         SendMessage(hActionType, CB_SETCURSEL, -1, NULL);
         SendMessage(hActionParam, CB_SETCURSEL, -1, NULL);
@@ -1006,6 +1005,12 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
         SendMessage(hDescription, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
         while (SendMessage(hActionsListBox, LB_DELETESTRING, 0, NULL) != CB_ERR);
+    };
+
+    SelectedScriptIndex = SendMessage(hSelectedScript, CB_GETCURSEL, NULL, NULL);
+    if (SelectedScriptIndex < 0 || SelectedScriptIndex >= SendMessage(hSelectedScript, CB_GETCOUNT, NULL, NULL))
+    {
+        clear();
         CurrentScriptID = "";
         InvalidateRect(hDragPoint, nullptr, TRUE);
         return;
@@ -1089,6 +1094,10 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
             i++;
         }
     }
+    else
+    {
+        clear();
+    }
     if (specificIdx > -1)
     {
         while (specificIdx >= SendMessage(hActionsListBox, LB_GETCOUNT, NULL, NULL))
@@ -1115,7 +1124,7 @@ void CNewScript::OnClickNewScript()
 {
     CNewTeamTypes::ScriptListChanged = true;
     FString key = CINI::GetAvailableKey("ScriptTypes");
-    FString value = CMapDataExt::GetAvailableIndex();
+    FString value = CMapDataExt::GetAvailableIndex(EIndexType::Script);
     FString buffer2;
 
     FString newName = "";
@@ -1173,7 +1182,7 @@ void CNewScript::OnClickCloScript(HWND& hWnd)
     if (SendMessage(hSelectedScript, CB_GETCOUNT, NULL, NULL) > 0 && SelectedScriptIndex >= 0)
     {
         FString key = CINI::GetAvailableKey("ScriptTypes");
-        FString value = CMapDataExt::GetAvailableIndex();
+        FString value = CMapDataExt::GetAvailableIndex(EIndexType::Script);
 
         CINI::CurrentDocument->WriteString("ScriptTypes", key, value);
 

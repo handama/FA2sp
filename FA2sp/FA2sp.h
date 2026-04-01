@@ -66,6 +66,7 @@ public:
     static bool SortByLabelName_Script;
     static bool NewTriggerPlusID;
     static bool UseSequentialIndexing;
+    static bool UseSeparateIndexing;
     static bool AdjustDropdownWidth;
     static int AdjustDropdownWidth_Factor;
     static int AdjustDropdownWidth_Max;

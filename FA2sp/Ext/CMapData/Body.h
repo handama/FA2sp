@@ -276,6 +276,16 @@ struct CellDataExt
     int NearestCenterCellIndex = -1; 
 };
 
+enum class EIndexType : int {
+    Trigger = 0,
+    Tag,
+    Team,
+    Script,
+    TaskForce,
+    AITrigger,
+    Generic
+};
+
 class HistoryRecord {
 public:
     virtual ~HistoryRecord() = default;
@@ -516,7 +526,7 @@ public:
     static int GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, int numFacings = 8);
     static int GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord);
     static bool IsValidTileSet(int tileset, bool allowToPlace = true);
-    static ppmfc::CString GetAvailableIndex();
+    static ppmfc::CString GetAvailableIndex(EIndexType type = EIndexType::Generic);
     static void UpdateMapSectionIndicies(const ppmfc::CString& lpSection);
     inline static bool HasAnnotation(int pos)
     {

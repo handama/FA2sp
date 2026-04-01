@@ -749,7 +749,8 @@ void GridObjectViewer::UpdateControls()
         }
         for (auto& order : engSides)
         {
-            orderIndex[order] = max++;
+            if (!orderIndex.contains(order))
+                orderIndex[order] = max++;
         }
         auto getIndex = [&](const FString& name) {
             auto it = orderIndex.find(name);
@@ -757,11 +758,22 @@ void GridObjectViewer::UpdateControls()
         };
         std::stable_sort(g_groups.begin(), g_groups.end(),
             [&](const GroupInfo& a, const GroupInfo& b) {
+            auto hasA = orderIndex.contains(a.InternalName);
+            auto hasB = orderIndex.contains(b.InternalName);
+            if (hasA && hasB)
+            {
+                return getIndex(a.InternalName) < getIndex(b.InternalName);
+            }
             if (a.ForceFront != b.ForceFront)
+            {
+                if (hasA )
                 return a.ForceFront > b.ForceFront;
+            }
 
             if (a.ForceFront)
+            {               
                 return false;
+            }
 
             return getIndex(a.InternalName) < getIndex(b.InternalName);
         });

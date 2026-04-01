@@ -699,13 +699,19 @@ void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
         return;
     }
 
-    SelectedTaskForceIndex = SendMessage(hSelectedTaskforce, CB_GETCURSEL, NULL, NULL);
-    if (SelectedTaskForceIndex < 0 || SelectedTaskForceIndex >= SendMessage(hSelectedTaskforce, CB_GETCOUNT, NULL, NULL)) 
+    auto clear = []()
     {
         SendMessage(hUnitType, CB_SETCURSEL, -1, NULL);
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hGroup, WM_SETTEXT, 0, (LPARAM)"");
         while (SendMessage(hUnitsListBox, LB_DELETESTRING, 0, NULL) != CB_ERR);
+    };
+
+    SelectedTaskForceIndex = SendMessage(hSelectedTaskforce, CB_GETCURSEL, NULL, NULL);
+    if (SelectedTaskForceIndex < 0 || SelectedTaskForceIndex >= SendMessage(hSelectedTaskforce, CB_GETCOUNT, NULL, NULL)) 
+    {
+        clear();
+        CurrentTaskForceID = "";
         InvalidateRect(hDragPoint, nullptr, TRUE);
     }
 
@@ -756,6 +762,10 @@ void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
             i++;
         }
     }
+    else
+    {
+        clear();
+    }
     if (specificIdx > -1)
     {
         while (specificIdx >= SendMessage(hUnitsListBox, LB_GETCOUNT, NULL, NULL))
@@ -780,7 +790,7 @@ void CNewTaskforce::OnClickNewTaskforce()
 {
     CNewTeamTypes::TaskforceListChanged = true;
     FString key = CINI::GetAvailableKey("TaskForces");
-    FString value = CMapDataExt::GetAvailableIndex();
+    FString value = CMapDataExt::GetAvailableIndex(EIndexType::TaskForce);
     FString buffer2;
 
     FString newName = "";
@@ -838,7 +848,7 @@ void CNewTaskforce::OnClickCloTaskforce(HWND& hWnd)
     if (SendMessage(hSelectedTaskforce, CB_GETCOUNT, NULL, NULL) > 0 && SelectedTaskForceIndex >= 0)
     {
         FString key = CINI::GetAvailableKey("TaskForces");
-        FString value = CMapDataExt::GetAvailableIndex();
+        FString value = CMapDataExt::GetAvailableIndex(EIndexType::TaskForce);
 
         CINI::CurrentDocument->WriteString("TaskForces", key, value);
 

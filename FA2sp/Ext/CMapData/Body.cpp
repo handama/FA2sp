@@ -1915,65 +1915,99 @@ bool CMapDataExt::IsValidTileSet(int tileset, bool allowToPlace)
 	return true;
 }
 
-ppmfc::CString CMapDataExt::GetAvailableIndex()
+ppmfc::CString CMapDataExt::GetAvailableIndex(EIndexType type)
 {
+	if (!ExtConfigs::UseSeparateIndexing)
+		type = EIndexType::Generic;
+
 	auto v = VEHGuard(false);
 	auto& ini = CINI::CurrentDocument;
-	int initNumber = 1000000;
+	const int initNumber = 1000000;
+
+	const char* suffix = "";
+	switch (type) {
+	case EIndexType::Trigger:   suffix = "TR"; break;
+	case EIndexType::Tag:       suffix = "TG"; break;
+	case EIndexType::Script:    suffix = "SC"; break;
+	case EIndexType::Team:      suffix = "TM"; break;
+	case EIndexType::TaskForce: suffix = "TF"; break;
+	case EIndexType::AITrigger: suffix = "AT"; break;
+	default: break;
+	}
+
+	struct SectionInfo { const char* name; bool idIsKey; };
+	const std::vector<SectionInfo> allSections = {
+		{"ScriptTypes", false}, {"TaskForces", false}, {"TeamTypes", false},
+		{"Triggers", true},     {"Events", true},     {"Tags", true},
+		{"Actions", true},      {"AITriggerTypes", true}
+	};
 
 	std::unordered_set<std::string> usedIDs;
 	int maxID = 0;
 
-	auto parseID = [&](const std::string& s) {
-		try {
-			return std::stoi(s);
+	auto extractNumber = [suffix](const std::string& id) -> int {
+		if (suffix && *suffix) {
+			size_t dash = id.find('-');
+			if (dash != std::string::npos) {
+				if (id.substr(dash + 1) != suffix)
+					return -1;
+				try { return std::stoi(id.substr(0, dash)); }
+				catch (...) { return -1; }
+			}
 		}
-		catch (...) {
-			return -1;
+		else {
+			if (id.find('-') == std::string::npos) {
+				try { return std::stoi(id); }
+				catch (...) { return -1; }
+			}
 		}
+		return -1;
 	};
 
-	for (const auto& sec : { "ScriptTypes", "TaskForces", "TeamTypes" }) {
-		if (auto pSection = ini->GetSection(sec)) {
+	for (const auto& sec : allSections) {
+		if (auto pSection = ini->GetSection(sec.name)) {
 			for (const auto& [k, v] : pSection->GetEntities()) {
-				std::string id = v.m_pchData;
+				std::string id = sec.idIsKey ? k.m_pchData : v.m_pchData;
 				usedIDs.insert(id);
-				int val = parseID(id);
+				int val = extractNumber(id);
 				if (val >= 0) maxID = std::max(maxID, val);
 			}
 		}
-	}
-
-	for (const auto& sec : { "Triggers", "Events", "Tags", "Actions", "AITriggerTypes" }) {
-		if (auto pSection = ini->GetSection(sec)) {
-			for (const auto& [k, v] : pSection->GetEntities()) {
-				std::string id = k.m_pchData;
-				usedIDs.insert(id);
-				int val = parseID(id);
-				if (val >= 0) maxID = std::max(maxID, val);
-			}
+		for (const auto& [section, _] : ini->Dict) {
+			usedIDs.insert(section.m_pchData);
 		}
 	}
 
 	if (ExtConfigs::UseSequentialIndexing) {
-		if (maxID < initNumber)
-			maxID = initNumber - 1;
-		int nextID = maxID + 1;
+		int nextID = (maxID >= initNumber) ? maxID + 1 : initNumber;
 		char idBuffer[9];
-		std::sprintf(idBuffer, "%08d", nextID);
-		return idBuffer;
+		while (true) {
+			std::sprintf(idBuffer, "%08d", nextID);
+			std::string fullID = idBuffer;
+			if (suffix && *suffix) {
+				fullID += "-";
+				fullID += suffix;
+			}
+			if (usedIDs.find(fullID) == usedIDs.end()) {
+				return fullID.c_str();
+			}
+			++nextID;
+		}
 	}
 
+	int candidate = initNumber;
 	char idBuffer[9];
 	while (true) {
-		std::sprintf(idBuffer, "%08d", initNumber);
-		std::string id(idBuffer);
-
-		if (usedIDs.find(id) == usedIDs.end() && !ini->SectionExists(id.c_str())) {
-			return id.c_str();
+		std::sprintf(idBuffer, "%08d", candidate);
+		std::string fullID = idBuffer;
+		if (suffix && *suffix) {
+			fullID += "-";
+			fullID += suffix;
 		}
-
-		initNumber++;
+		if (usedIDs.find(fullID) == usedIDs.end() && !ini->SectionExists(fullID.c_str())) {
+			return fullID.c_str();
+		}
+		++candidate;
 	}
 
 	return "";

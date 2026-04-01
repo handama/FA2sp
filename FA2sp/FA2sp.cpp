@@ -56,6 +56,7 @@ bool ExtConfigs::SortByLabelName_Taskforce;
 bool ExtConfigs::SortByLabelName_Script;
 bool ExtConfigs::NewTriggerPlusID;
 bool ExtConfigs::UseSequentialIndexing;
+bool ExtConfigs::UseSeparateIndexing;
 bool ExtConfigs::AdjustDropdownWidth;
 int ExtConfigs::AdjustDropdownWidth_Factor;
 int ExtConfigs::AdjustDropdownWidth_Max;
@@ -266,6 +267,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::NewTriggerPlusID = CINI::FAData->GetBool("ExtConfigs", "NewTriggerPlusID");
 	ExtConfigs::UseSequentialIndexing = CINI::FAData->GetBool("ExtConfigs", "UseSequentialIndexing");
+	ExtConfigs::UseSeparateIndexing = CINI::FAData->GetBool("ExtConfigs", "UseSeparateIndexing");
 
 	ExtConfigs::AdjustDropdownWidth = CINI::FAData->GetBool("ExtConfigs", "AdjustDropdownWidth");
 	ExtConfigs::AdjustDropdownWidth_Factor = CINI::FAData->GetInteger("ExtConfigs", "AdjustDropdownWidth.Factor", 8);
@@ -570,9 +572,16 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.UseSequentialIndexing", "Always assign the next incremental index when creating triggers"),
+		.DisplayName = Translations::TranslateOrDefault("Options.UseSequentialIndexing", "Always assign the next incremental index when creating triggers and teams"),
 		.IniKey = "UseSequentialIndexing",
 		.Value = &ExtConfigs::UseSequentialIndexing,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.UseSeparateIndexing", "Assign independent suffixes to different types (triggers, teams...)"),
+		.IniKey = "UseSeparateIndexing",
+		.Value = &ExtConfigs::UseSeparateIndexing,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 

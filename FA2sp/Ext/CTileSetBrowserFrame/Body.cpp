@@ -96,7 +96,7 @@ BOOL CTileSetBrowserFrameExt::PreTranslateMessageExt(MSG* pMsg)
 				TagSort::Instance.Menu_AddTrigger();
 				ppmfc::CString name;
 				ppmfc::CString value;
-				ppmfc::CString key = CMapDataExt::GetAvailableIndex();
+				ppmfc::CString key = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
 				name = (TagSort::Instance.GetCurrentPrefix() + "New Tag").c_str();
 				value.Format("0,%s,%s", name, CINI::CurrentDocument->GetKeyCount("Triggers") > 0 ?
 					CINI::CurrentDocument->GetKeyAt("Triggers", 0).m_pchData : "01000000");

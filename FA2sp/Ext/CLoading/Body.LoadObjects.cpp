@@ -2951,8 +2951,6 @@ void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer,
 				unsigned char srcPal = img.pBuffer[j * img.Width + i];
 				if (srcPal == 0) continue;
 
-				//srcPal = 16;
-
 				int dstX = nStartX + i;
 				if (dstX < 0 || dstX >= W) continue;
 
@@ -2960,7 +2958,7 @@ void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer,
 
 				unsigned char& dstPal = pOutBuffer[dstIdx];
 
-				if (alphaBuffer)
+				if (alphaBuffer && !bShadow)
 				{
 					if (alphaTempBuffer)
 					{
@@ -2979,7 +2977,7 @@ void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer,
 					}
 				}
 
-				if (dstPal == 0 || layerOpacity == 255)
+				if (bShadow || dstPal == 0 || layerOpacity == 255)
 				{
 					dstPal = srcPal;
 				}
@@ -3004,7 +3002,7 @@ void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer,
 							dstPal = srcPal;
 						}
 					}
-					else
+					else if (pPal)
 					{
 						BGRStruct bg = pPal->Data[dstPal]; 
 						float bg_r = bg.R, bg_g = bg.G, bg_b = bg.B;

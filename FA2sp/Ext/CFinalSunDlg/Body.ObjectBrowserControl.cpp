@@ -547,13 +547,6 @@ void CViewObjectsExt::Redraw_Initialize()
     RenameString.clear();
     Owners.clear();
 
-    TreeViewIndex_Building.clear();
-    TreeViewIndex_Infantry.clear();
-    TreeViewIndex_Vehicle.clear();
-    TreeViewIndex_Aircraft.clear();
-    TreeViewIndex_Terrain.clear();
-    TreeViewIndex_Smudge.clear();
-
     auto& fadata = CINI::FAData();
     auto& doc = CINI::CurrentDocument();
     if (ExtConfigs::ObjectBrowser_GuessMode == 1)
@@ -1192,6 +1185,7 @@ void CViewObjectsExt::LoadMultiLayers(
 
 void CViewObjectsExt::Redraw_Infantry()
 {
+    TreeViewIndex_Infantry.clear();
     AddOnceSet.clear();
     HTREEITEM& hInfantry = ExtNodes[Root_Infantry];
     if (hInfantry == NULL)   return;
@@ -1359,6 +1353,7 @@ void CViewObjectsExt::Redraw_Infantry()
 
 void CViewObjectsExt::Redraw_Vehicle()
 {
+    TreeViewIndex_Vehicle.clear();
     AddOnceSet.clear();
     HTREEITEM& hVehicle = ExtNodes[Root_Vehicle];
     if (hVehicle == NULL)   return;
@@ -1526,6 +1521,7 @@ void CViewObjectsExt::Redraw_Vehicle()
 
 void CViewObjectsExt::Redraw_Aircraft()
 {
+    TreeViewIndex_Aircraft.clear();
     AddOnceSet.clear();
     HTREEITEM& hAircraft = ExtNodes[Root_Aircraft];
     if (hAircraft == NULL)   return;
@@ -1694,6 +1690,7 @@ void CViewObjectsExt::Redraw_Aircraft()
 void CViewObjectsExt::Redraw_Building()
 {
     AddOnceSet.clear();
+    TreeViewIndex_Building.clear();
     HTREEITEM& hBuilding = ExtNodes[Root_Building];
     if (hBuilding == NULL)   return;
 
@@ -1899,6 +1896,7 @@ void CViewObjectsExt::Redraw_Building()
 
 void CViewObjectsExt::Redraw_Terrain()
 {
+    TreeViewIndex_Terrain.clear();
     HTREEITEM& hTerrain = ExtNodes[Root_Terrain];
     if (hTerrain == NULL)   return;
 
@@ -2026,6 +2024,7 @@ void CViewObjectsExt::Redraw_Terrain()
 
 void CViewObjectsExt::Redraw_Smudge()
 {
+    TreeViewIndex_Smudge.clear();
     HTREEITEM& hSmudge = ExtNodes[Root_Smudge];
     if (hSmudge == NULL)   return;
 

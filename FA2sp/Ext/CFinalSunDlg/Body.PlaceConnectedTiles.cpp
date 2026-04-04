@@ -2033,8 +2033,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             cellDatas[dwposFix2].TileSubIndex = 0;
             auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
             cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight
-                + thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height;
+            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
             cellDatas[dwposFix2].Height = newHeight;
@@ -2084,7 +2083,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             cellDatas[dwposFix2].TileSubIndex = 0;
             auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
             cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height;
+            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
             cellDatas[dwposFix2].Height = newHeight;
@@ -2137,7 +2136,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             cellDatas[dwposFix].TileSubIndex = 0;
             auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
             cellDatas[dwposFix].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height;
+            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
             cellDatas[dwposFix].Height = newHeight;
@@ -2167,7 +2166,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             cellDatas[dwposFix].TileSubIndex = 0;
             auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
             cellDatas[dwposFix].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height;
+            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
             cellDatas[dwposFix].Height = newHeight;
@@ -2217,7 +2216,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             cellDatas[dwposFix].TileSubIndex = 0;
             auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
             cellDatas[dwposFix].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height;
+            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
             cellDatas[dwposFix].Height = newHeight;
@@ -2272,7 +2271,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             cellDatas[dwposFix].TileSubIndex = 0;
             auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
             cellDatas[dwposFix].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height;
+            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
             cellDatas[dwposFix].Height = newHeight;
@@ -2349,7 +2348,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             cellDatas[dwposFix2].TileSubIndex = 0;
             auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
             cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height;
+            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
             cellDatas[dwposFix2].Height = newHeight;
@@ -2403,7 +2402,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             cellDatas[dwposFix2].TileSubIndex = 0;
             auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
             cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height;
+            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
             cellDatas[dwposFix2].Height = newHeight;
@@ -2489,7 +2488,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             cellDatas[dwposFix2].TileSubIndex = 0;
             auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
             cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height;
+            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
             cellDatas[dwposFix2].Height = newHeight;
@@ -2538,7 +2537,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             cellDatas[dwposFix2].TileSubIndex = 0;
             auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
             cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height;
+            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
             cellDatas[dwposFix2].Height = newHeight;
@@ -2592,7 +2591,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             cellDatas[dwposFix2].TileSubIndex = 0;
             auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
             cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height;
+            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
             if (newHeight > 14) newHeight = 14;
             if (newHeight < 0) newHeight = 0;
             cellDatas[dwposFix2].Height = newHeight;

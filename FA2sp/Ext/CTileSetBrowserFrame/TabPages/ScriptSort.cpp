@@ -63,7 +63,7 @@ BOOL ScriptSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 //    FString space1 = " (";
                 //    FString space2 = ")";
                 //
-                //    int idx = SendMessage(CNewTeamTypes::hScript, CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space1 + pStr + space2).m_pchData);
+                //    int idx = SendMessage(CNewTeamTypes::hScript, CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space1 + pStr + space2).GetString());
                 //    if (idx != CB_ERR)
                 //    {
                 //        SendMessage(CNewTeamTypes::hScript, CB_SETCURSEL, idx, NULL);

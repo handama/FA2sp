@@ -359,7 +359,8 @@ void CFA2spOptions::Update(const char* filter)
     GetClientRect(hList, &rcClient);
     int fullWidth = rcClient.right - rcClient.left;
     lvc.cx = fullWidth;
-    lvc.pszText = title.m_pchData;
+    std::string text = title.GetString();
+    lvc.pszText = (char*)text.c_str();
     ListView_InsertColumn(hList, 0, &lvc);
 
     int index = 0;

@@ -341,12 +341,14 @@ void CCsfEditor::InsertCSFContent(std::map<FString, FString> csfMap)
 
     LVCOLUMN lvColumn = { 0 };
     lvColumn.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
-    lvColumn.pszText = const_cast<LPSTR>(Translations::TranslateOrDefault("CsfEditorColumnLabel", "Label"));
+    auto textA = Translations::TranslateOrDefault("CsfEditorColumnLabel", "Label");
+    lvColumn.pszText = const_cast<LPSTR>(textA.c_str());
     lvColumn.cx = 100;
     SendMessage(hCSFViewer, LVM_INSERTCOLUMN, 0, (LPARAM)&lvColumn);
 
     lvColumn.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
-    lvColumn.pszText = const_cast<LPSTR>(Translations::TranslateOrDefault("CsfEditorColumnText", "Text"));
+    auto textB = Translations::TranslateOrDefault("CsfEditorColumnText", "Text");
+    lvColumn.pszText = const_cast<LPSTR>(textB.c_str());
     lvColumn.cx = 400;
     SendMessage(hCSFViewer, LVM_INSERTCOLUMN, 1, (LPARAM)&lvColumn);
 

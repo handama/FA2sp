@@ -147,7 +147,7 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 		}
 	}
 
-	this->InstallPath = newGamePath.empty() ? ini.GetString("TS", "Exe").m_pchData : newGamePath;
+	this->InstallPath = newGamePath.empty() ? ini.GetString("TS", "Exe").GetString() : newGamePath;
 	this->FileSearchLikeTS = ini.GetBool("FinalSun", "FileSearchLikeTS");
 	if (ini.KeyExists("FinalSun", "LanguageSP"))
 	{
@@ -229,10 +229,11 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 			fw.start(fw.Callback);
 		}
 	);
-
+#ifdef NDEBUG
 	std::thread([]() {
 		CheckUpdate();
 	}).detach();
+#endif
 
 	CFinalSunDlg dlg(nullptr);
 	this->m_pMainWnd = &dlg;
@@ -390,6 +391,8 @@ bool IsNewer(const Version& local, const Version& remote)
 
 void CFinalSunAppExt::CheckUpdate()
 {
+	Sleep(5);
+
 	std::string json = HttpGetSimple(
 		L"https://api.github.com/repos/handama/fa2sp/releases/latest"
 	);
@@ -404,16 +407,7 @@ void CFinalSunAppExt::CheckUpdate()
 		HasNewVersion = true;
 		NewVersion.Format("%d.%d.%d", remote.major, remote.minor, remote.revision);
 
-		if (!CMapData::Instance->MapWidthPlusHeight)
-		{
-			ppmfc::CString caption;
-			CFinalSunDlg::Instance->GetWindowTextA(caption);
-			FString title(caption);
-			title += " - ";
-			title += Translations::TranslateOrDefault("NewVersionAvailable", "New version available:");
-			title += " ";
-			title += CFinalSunAppExt::NewVersion;
-			CFinalSunDlg::Instance->SetWindowTextA(title);
-		}
+		if (CFinalSunDlg::Instance)
+			::PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), 114514, 0, 0);
 	}
 }

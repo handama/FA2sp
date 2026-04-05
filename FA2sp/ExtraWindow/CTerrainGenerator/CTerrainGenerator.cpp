@@ -1476,7 +1476,7 @@ void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
         return;
     }
 
-    SendMessage(hScale, WM_SETTEXT, 0, (LPARAM)STDHelpers::IntToString(CurrentPreset->Scale).m_pchData);
+    SendMessage(hScale, WM_SETTEXT, 0, (LPARAM)STDHelpers::IntToString(CurrentPreset->Scale).GetString());
     SendMessage(hName, WM_SETTEXT, 0, (LPARAM)CurrentPreset->Name);
 
     for (auto idx = 0; idx < TERRAIN_GENERATOR_DISPLAY; idx++) {

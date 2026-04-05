@@ -336,7 +336,7 @@ DEFINE_HOOK(436EE0, CFinalSunDlg_AddToRecentFile, 7)
 {
     REF_STACK(ppmfc::CString, lpPath, 0x4);
 
-    std::string filepath = lpPath.m_pchData;
+    std::string filepath = lpPath.GetString();
     auto& recentfiles = CFinalSunAppExt::RecentFilesExt;
     std::vector<std::string> sortedrecentfiles;
     auto itr = std::find_if(recentfiles.begin(), recentfiles.end(),
@@ -600,27 +600,6 @@ DEFINE_HOOK(42459A, CFinalSunDlg_OnInitDialog_LoadMap, 6)
 {
     CFinalSunDlg::Instance->LoadMap(CFinalSunApp::MapPath());
     return 0x4245CD;
-}
-
-DEFINE_HOOK(423F2A, CFinalSunDlg_OnInitDialog_SetDefaultCaption, 6)
-{
-    GET(LPCSTR, lpCaption, EAX);
-    GET(CFinalSunDlg*, pThis, ECX);
-
-    if (CFinalSunAppExt::HasNewVersion)
-    {
-        FString title(lpCaption);
-        title += " - ";
-        title += Translations::TranslateOrDefault("NewVersionAvailable", "New version available:");
-        title += " ";
-        title += CFinalSunAppExt::NewVersion;
-        pThis->SetWindowTextA(title);
-    }
-    else
-    {
-        pThis->SetWindowTextA(lpCaption);
-    }
-    return 0x423F30;
 }
 
 DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp_CancelDistanceRuler, 6)

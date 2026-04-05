@@ -323,6 +323,7 @@
     <ClCompile Include="FA2sp\Miscs\FileWatcher.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Bitmap2MapConverter.cpp" />
     <ClCompile Include="FA2sp\Miscs\DialogStyle.cpp" />
+    <ClCompile Include="FA2sp\Miscs\Hooks.CString.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.DirectDraw.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.ShpLoad.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Memory.cpp" />

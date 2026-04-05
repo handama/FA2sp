@@ -245,7 +245,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("tile_count", []() { return CMapDataExt::TileDataCount; });
     Lua.set_function("tile_set_count", []() { return CMapDataExt::TileSet_starts.size() - 1; });
     Lua.set_function("tag_count", []() { return CINI::CurrentDocument->GetKeyCount("Tags"); });
-    Lua.set_function("theater", []() {return CINI::CurrentDocument->GetString("Map", "Theater").m_pchData; });
+    Lua.set_function("theater", []() {return CINI::CurrentDocument->GetString("Map", "Theater").GetString(); });
     Lua.set_function("is_multiplay", []() {return CMapData::Instance->IsMultiOnly(); });
     Lua.set_function("language", []() {return (std::string)FinalAlertConfig::Language; });
     Lua.set_function("exe_path", []() {return (std::string)CFinalSunAppExt::ExePathExt; });

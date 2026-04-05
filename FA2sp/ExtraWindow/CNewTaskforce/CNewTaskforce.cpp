@@ -733,8 +733,8 @@ void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
     {
         auto name = map.GetString(pID, "Name");
         auto group = map.GetString(pID, "Group");
-        SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.m_pchData);
-        SendMessage(hGroup, WM_SETTEXT, 0, (LPARAM)group.m_pchData);
+        SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.GetString());
+        SendMessage(hGroup, WM_SETTEXT, 0, (LPARAM)group.GetString());
 
         std::vector<FString> sortedList;
         for (int i = 0; i < 6; i++)

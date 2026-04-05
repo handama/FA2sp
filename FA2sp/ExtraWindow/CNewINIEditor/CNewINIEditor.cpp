@@ -160,7 +160,7 @@ void CNewINIEditor::Update(HWND& hWnd)
         auto& sectionName = itr->first;
         if (IsMapPack(sectionName)) continue;
         if (ExtConfigs::INIEditor_IgnoreTeams && IsTeam(sectionName)) continue;
-        SendMessage(hSectionList, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)sectionName.m_pchData);
+        SendMessage(hSectionList, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)sectionName.GetString());
     }
     char buffer[512]{ 0 };
     GetWindowText(hSearchText, buffer, 511);

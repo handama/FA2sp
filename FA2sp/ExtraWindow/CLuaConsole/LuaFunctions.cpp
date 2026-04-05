@@ -266,7 +266,7 @@ namespace LuaFunctions
 				{
 					if (value == "")
 					{
-						if (key == text.m_pchData)
+						if (key == text.GetString())
 						{
 							ret.push_back(key);
 							selected_keys.push_back(key);
@@ -276,7 +276,7 @@ namespace LuaFunctions
 					}
 					else
 					{
-						if (key + " - " + value == text.m_pchData)
+						if (key + " - " + value == text.GetString())
 						{
 							ret.push_back(key);
 							selected_keys.push_back(key);
@@ -292,7 +292,7 @@ namespace LuaFunctions
 
 	static std::string input_box(std::string message)
 	{
-		return CInputMessageBox::GetString(message.c_str(), Translations::TranslateOrDefault("LuaConsole.InputBoxTitle", "Please enter")).m_pchData;
+		return CInputMessageBox::GetString(message.c_str(), Translations::TranslateOrDefault("LuaConsole.InputBoxTitle", "Please enter")).GetString();
 	}
 	
 	static std::string read_input()
@@ -430,20 +430,20 @@ namespace LuaFunctions
 		static infantry convert(CInfantryData& obj)
 		{
 			infantry ret{ "","" ,0 ,0 };
-			ret.House = obj.House.m_pchData;
-			ret.TypeID = obj.TypeID.m_pchData;
-			ret.Health = obj.Health.m_pchData;
+			ret.House = obj.House.GetString();
+			ret.TypeID = obj.TypeID.GetString();
+			ret.Health = obj.Health.GetString();
 			ret.Y = atoi(obj.Y);
 			ret.X = atoi(obj.X);
-			ret.SubCell = obj.SubCell.m_pchData;
-			ret.Status = obj.Status.m_pchData;
-			ret.Facing = obj.Facing.m_pchData;
-			ret.Tag = obj.Tag.m_pchData;
-			ret.VeterancyPercentage = obj.VeterancyPercentage.m_pchData;
-			ret.Group = obj.Group.m_pchData;
-			ret.IsAboveGround = obj.IsAboveGround.m_pchData;
-			ret.AutoNORecruitType = obj.AutoNORecruitType.m_pchData;
-			ret.AutoYESRecruitType = obj.AutoYESRecruitType.m_pchData;
+			ret.SubCell = obj.SubCell.GetString();
+			ret.Status = obj.Status.GetString();
+			ret.Facing = obj.Facing.GetString();
+			ret.Tag = obj.Tag.GetString();
+			ret.VeterancyPercentage = obj.VeterancyPercentage.GetString();
+			ret.Group = obj.Group.GetString();
+			ret.IsAboveGround = obj.IsAboveGround.GetString();
+			ret.AutoNORecruitType = obj.AutoNORecruitType.GetString();
+			ret.AutoYESRecruitType = obj.AutoYESRecruitType.GetString();
 			return ret;
 		}
 		void remove() const
@@ -539,20 +539,20 @@ namespace LuaFunctions
 		static unit convert(CUnitData& obj)
 		{
 			unit ret{ "","" ,0 ,0 };
-			ret.House = obj.House.m_pchData;
-			ret.TypeID = obj.TypeID.m_pchData;
-			ret.Health = obj.Health.m_pchData;
+			ret.House = obj.House.GetString();
+			ret.TypeID = obj.TypeID.GetString();
+			ret.Health = obj.Health.GetString();
 			ret.Y = atoi(obj.Y);
 			ret.X = atoi(obj.X);
-			ret.FollowsIndex = obj.FollowsIndex.m_pchData;
-			ret.Status = obj.Status.m_pchData;
-			ret.Facing = obj.Facing.m_pchData;
-			ret.Tag = obj.Tag.m_pchData;
-			ret.VeterancyPercentage = obj.VeterancyPercentage.m_pchData;
-			ret.Group = obj.Group.m_pchData;
-			ret.IsAboveGround = obj.IsAboveGround.m_pchData;
-			ret.AutoNORecruitType = obj.AutoNORecruitType.m_pchData;
-			ret.AutoYESRecruitType = obj.AutoYESRecruitType.m_pchData;
+			ret.FollowsIndex = obj.FollowsIndex.GetString();
+			ret.Status = obj.Status.GetString();
+			ret.Facing = obj.Facing.GetString();
+			ret.Tag = obj.Tag.GetString();
+			ret.VeterancyPercentage = obj.VeterancyPercentage.GetString();
+			ret.Group = obj.Group.GetString();
+			ret.IsAboveGround = obj.IsAboveGround.GetString();
+			ret.AutoNORecruitType = obj.AutoNORecruitType.GetString();
+			ret.AutoYESRecruitType = obj.AutoYESRecruitType.GetString();
 			return ret;
 		}
 		void remove() const
@@ -639,18 +639,18 @@ namespace LuaFunctions
 		static aircraft convert(CAircraftData& obj)
 		{
 			aircraft ret{ "","" ,0 ,0 };
-			ret.House = obj.House.m_pchData;
-			ret.TypeID = obj.TypeID.m_pchData;
-			ret.Health = obj.Health.m_pchData;
+			ret.House = obj.House.GetString();
+			ret.TypeID = obj.TypeID.GetString();
+			ret.Health = obj.Health.GetString();
 			ret.Y = atoi(obj.Y);
 			ret.X = atoi(obj.X);
-			ret.Status = obj.Status.m_pchData;
-			ret.Facing = obj.Facing.m_pchData;
-			ret.Tag = obj.Tag.m_pchData;
-			ret.VeterancyPercentage = obj.VeterancyPercentage.m_pchData;
-			ret.Group = obj.Group.m_pchData;
-			ret.AutoNORecruitType = obj.AutoNORecruitType.m_pchData;
-			ret.AutoYESRecruitType = obj.AutoYESRecruitType.m_pchData;
+			ret.Status = obj.Status.GetString();
+			ret.Facing = obj.Facing.GetString();
+			ret.Tag = obj.Tag.GetString();
+			ret.VeterancyPercentage = obj.VeterancyPercentage.GetString();
+			ret.Group = obj.Group.GetString();
+			ret.AutoNORecruitType = obj.AutoNORecruitType.GetString();
+			ret.AutoYESRecruitType = obj.AutoYESRecruitType.GetString();
 			return ret;
 		}
 		void remove() const
@@ -798,23 +798,23 @@ namespace LuaFunctions
 		static building convert(CBuildingData& obj)
 		{
 			building ret{ "","" ,0 ,0 };
-			ret.House = obj.House.m_pchData;
-			ret.TypeID = obj.TypeID.m_pchData;
-			ret.Health = obj.Health.m_pchData;
+			ret.House = obj.House.GetString();
+			ret.TypeID = obj.TypeID.GetString();
+			ret.Health = obj.Health.GetString();
 			ret.Y = atoi(obj.Y);
 			ret.X = atoi(obj.X);
-			ret.Facing = obj.Facing.m_pchData;
-			ret.Tag = obj.Tag.m_pchData;
-			ret.AISellable = obj.AISellable.m_pchData;
-			ret.AIRebuildable = obj.AIRebuildable.m_pchData;
-			ret.PoweredOn = obj.PoweredOn.m_pchData;
-			ret.Upgrades = obj.Upgrades.m_pchData;
-			ret.SpotLight = obj.SpotLight.m_pchData;
-			ret.Upgrade1 = obj.Upgrade1.m_pchData;
-			ret.Upgrade2 = obj.Upgrade2.m_pchData;
-			ret.Upgrade3 = obj.Upgrade3.m_pchData;
-			ret.AIRepairable = obj.AIRepairable.m_pchData;
-			ret.Nominal = obj.Nominal.m_pchData;
+			ret.Facing = obj.Facing.GetString();
+			ret.Tag = obj.Tag.GetString();
+			ret.AISellable = obj.AISellable.GetString();
+			ret.AIRebuildable = obj.AIRebuildable.GetString();
+			ret.PoweredOn = obj.PoweredOn.GetString();
+			ret.Upgrades = obj.Upgrades.GetString();
+			ret.SpotLight = obj.SpotLight.GetString();
+			ret.Upgrade1 = obj.Upgrade1.GetString();
+			ret.Upgrade2 = obj.Upgrade2.GetString();
+			ret.Upgrade3 = obj.Upgrade3.GetString();
+			ret.AIRepairable = obj.AIRepairable.GetString();
+			ret.Nominal = obj.Nominal.GetString();
 			return ret;
 		}
 		CBuildingData convert() const
@@ -1096,14 +1096,14 @@ namespace LuaFunctions
 		for (const auto& sec : allSections) {
 			if (auto pSection = ini->GetSection(sec.name)) {
 				for (const auto& [k, v] : pSection->GetEntities()) {
-					std::string id = sec.idIsKey ? k.m_pchData : v.m_pchData;
+					std::string id = sec.idIsKey ? k.GetString() : v.GetString();
 					usedIDs.insert(id);
 					int val = extractNumber(id);
 					if (val >= 0) maxID = std::max(maxID, val);
 				}
 			}
 			for (const auto& [section, _] : ini->Dict) {
-				usedIDs.insert(section.m_pchData);
+				usedIDs.insert(section.GetString());
 			}
 		}
 
@@ -1389,9 +1389,9 @@ namespace LuaFunctions
 						if (atoms[2] == ID.c_str())
 						{
 							auto& tag = ret.Tags.emplace_back();
-							tag.ID = key.m_pchData;
-							tag.Name = atoms[1].m_pchData;
-							tag.RepeatType = atoms[0].m_pchData;
+							tag.ID = key.GetString();
+							tag.Name = atoms[1].GetString();
+							tag.RepeatType = atoms[0].GetString();
 						}
 					}
 				}
@@ -1510,20 +1510,20 @@ namespace LuaFunctions
 			{
 				team ret;
 				ret.ID = id;
-				ret.Name = CINI::CurrentDocument->GetString(id.c_str(), "Name", "New Teamtype").m_pchData;
-				ret.House = CINI::CurrentDocument->GetString(id.c_str(), "House").m_pchData;
-				ret.Taskforce = CINI::CurrentDocument->GetString(id.c_str(), "TaskForce").m_pchData;
-				ret.Script = CINI::CurrentDocument->GetString(id.c_str(), "Script").m_pchData;
-				ret.Tag = CINI::CurrentDocument->GetString(id.c_str(), "Tag").m_pchData;
-				ret.VeteranLevel = CINI::CurrentDocument->GetString(id.c_str(), "VeteranLevel").m_pchData;
-				ret.Priority = CINI::CurrentDocument->GetString(id.c_str(), "Priority").m_pchData;
-				ret.Max = CINI::CurrentDocument->GetString(id.c_str(), "Max").m_pchData;
-				ret.Techlevel = CINI::CurrentDocument->GetString(id.c_str(), "TechLevel").m_pchData;
+				ret.Name = CINI::CurrentDocument->GetString(id.c_str(), "Name", "New Teamtype").GetString();
+				ret.House = CINI::CurrentDocument->GetString(id.c_str(), "House").GetString();
+				ret.Taskforce = CINI::CurrentDocument->GetString(id.c_str(), "TaskForce").GetString();
+				ret.Script = CINI::CurrentDocument->GetString(id.c_str(), "Script").GetString();
+				ret.Tag = CINI::CurrentDocument->GetString(id.c_str(), "Tag").GetString();
+				ret.VeteranLevel = CINI::CurrentDocument->GetString(id.c_str(), "VeteranLevel").GetString();
+				ret.Priority = CINI::CurrentDocument->GetString(id.c_str(), "Priority").GetString();
+				ret.Max = CINI::CurrentDocument->GetString(id.c_str(), "Max").GetString();
+				ret.Techlevel = CINI::CurrentDocument->GetString(id.c_str(), "TechLevel").GetString();
 				if (CINI::CurrentDocument->KeyExists(id.c_str(), "TransportWaypoint"))
-					ret.TransportWaypoint = STDHelpers::StringToWaypointStr(CINI::CurrentDocument->GetString(id.c_str(), "TransportWaypoint")).m_pchData;
-				ret.Group = CINI::CurrentDocument->GetString(id.c_str(), "Group").m_pchData;
-				ret.Waypoint = STDHelpers::StringToWaypointStr(CINI::CurrentDocument->GetString(id.c_str(), "Waypoint")).m_pchData;
-				ret.MindControlDecision = CINI::CurrentDocument->GetString(id.c_str(), "MindControlDecision").m_pchData;
+					ret.TransportWaypoint = STDHelpers::StringToWaypointStr(CINI::CurrentDocument->GetString(id.c_str(), "TransportWaypoint")).GetString();
+				ret.Group = CINI::CurrentDocument->GetString(id.c_str(), "Group").GetString();
+				ret.Waypoint = STDHelpers::StringToWaypointStr(CINI::CurrentDocument->GetString(id.c_str(), "Waypoint")).GetString();
+				ret.MindControlDecision = CINI::CurrentDocument->GetString(id.c_str(), "MindControlDecision").GetString();
 				ret.Full = CINI::CurrentDocument->GetBool(id.c_str(), "Full");
 				ret.Whiner = CINI::CurrentDocument->GetBool(id.c_str(), "Whiner");
 				ret.Droppod = CINI::CurrentDocument->GetBool(id.c_str(), "Droppod");
@@ -1745,8 +1745,8 @@ namespace LuaFunctions
 			{
 				task_force ret;
 				ret.ID = id;
-				ret.Name = CINI::CurrentDocument->GetString(id.c_str(), "Name", "New task force").m_pchData;
-				ret.Group = CINI::CurrentDocument->GetString(id.c_str(), "Group", "-1").m_pchData;
+				ret.Name = CINI::CurrentDocument->GetString(id.c_str(), "Name", "New task force").GetString();
+				ret.Group = CINI::CurrentDocument->GetString(id.c_str(), "Group", "-1").GetString();
 				FString key;
 				for (int i = 0; i < 6; ++i)
 				{
@@ -1755,7 +1755,7 @@ namespace LuaFunctions
 					{
 						auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString(id.c_str(), key, "1,E1"), 1);
 						ret.Numbers.push_back(atoi(atoms[0]));
-						ret.Units.push_back(atoms[1].m_pchData);
+						ret.Units.push_back(atoms[1].GetString());
 					}
 				}
 				return sol::make_object(CLuaConsole::Lua, ret);
@@ -1902,7 +1902,7 @@ namespace LuaFunctions
 			{
 				script ret;
 				ret.ID = id;
-				ret.Name = CINI::CurrentDocument->GetString(id.c_str(), "Name", "New script").m_pchData;
+				ret.Name = CINI::CurrentDocument->GetString(id.c_str(), "Name", "New script").GetString();
 				FString key;
 				for (int i = 0; i < 50; ++i)
 				{
@@ -2037,12 +2037,12 @@ namespace LuaFunctions
 			{
 				ai_trigger ret(id);
 				ret.ID = id;
-				ret.Name = atoms[0].m_pchData;
-				ret.Team1 = atoms[1].m_pchData;
-				ret.House = atoms[2].m_pchData;
-				ret.TechLevel = atoms[3].m_pchData;
-				ret.ConditionType = atoms[4].m_pchData;
-				ret.ComparisonObject = atoms[5].m_pchData;
+				ret.Name = atoms[0].GetString();
+				ret.Team1 = atoms[1].GetString();
+				ret.House = atoms[2].GetString();
+				ret.TechLevel = atoms[3].GetString();
+				ret.ConditionType = atoms[4].GetString();
+				ret.ComparisonObject = atoms[5].GetString();
 				for (int i = 0; i < 8; i++) {
 					ret.Comparators[i] = ReadComparator(atoms[6], i);
 				}
@@ -2050,10 +2050,10 @@ namespace LuaFunctions
 				ret.MinWeight = std::atof(atoms[8]);
 				ret.MaxWeight = std::atof(atoms[9]);
 				ret.IsForSkirmish = atoms[10] == "0" ? false : true;
-				ret.unused = atoms[11].m_pchData;
-				ret.Side = atoms[12].m_pchData;
+				ret.unused = atoms[11].GetString();
+				ret.Side = atoms[12].GetString();
 				ret.IsBaseDefense = atoms[13] == "0" ? false : true;
-				ret.Team2 = atoms[14].m_pchData;
+				ret.Team2 = atoms[14].GetString();
 				ret.EnabledInE = atoms[15] == "0" ? false : true;
 				ret.EnabledInM = atoms[16] == "0" ? false : true;
 				ret.EnabledInH = atoms[17] == "0" ? false : true;
@@ -2380,7 +2380,7 @@ namespace LuaFunctions
 		if (oldWp > -1)
 		{
 			write_lua_console(std::format("Waypoint {} already exists at ({},{}), abort.", 
-				CINI::CurrentDocument->GetKeyAt("Waypoints", oldWp).m_pchData, x, y));
+				CINI::CurrentDocument->GetKeyAt("Waypoints", oldWp).GetString(), x, y));
 			return atoi(CINI::CurrentDocument->GetKeyAt("Waypoints", oldWp));
 		}
 
@@ -2460,12 +2460,12 @@ namespace LuaFunctions
 				LoadedINIs[loadFrom] = ini;
 				CLoading::Instance->LoadTSINI(loadFrom.c_str(), ini, TRUE);
 			}
-			return ini->GetString(section.c_str(), key.c_str(), def.c_str()).m_pchData;
+			return ini->GetString(section.c_str(), key.c_str(), def.c_str()).GetString();
 		}
 		
 		MultimapHelper mmh;
 		ExtraWindow::LoadFrom(mmh, loadFrom.c_str());
-		return mmh.GetString(section.c_str(), key.c_str(), def.c_str()).m_pchData;
+		return mmh.GetString(section.c_str(), key.c_str(), def.c_str()).GetString();
 	}
 
 	static int get_integer(std::string section, std::string key, int def = 0, std::string loadFrom = "map")
@@ -2548,7 +2548,7 @@ namespace LuaFunctions
 			auto itr = ini->Dict.begin();
 			for (size_t i = 0, sz = ini->Dict.size(); i < sz; ++i, ++itr)
 			{
-				ret.insert(itr->first.m_pchData);
+				ret.insert(itr->first.GetString());
 			}
 			return ret;
 		}
@@ -2562,7 +2562,7 @@ namespace LuaFunctions
 				auto itr = pINI->Dict.begin();
 				for (size_t i = 0, sz = pINI->Dict.size(); i < sz; ++i, ++itr)
 				{
-					ret.insert(itr->first.m_pchData);
+					ret.insert(itr->first.GetString());
 				}
 			}
 		}
@@ -2601,7 +2601,7 @@ namespace LuaFunctions
 			{
 				for (auto& [key, value] : pSection->GetEntities())
 				{
-					ret.push_back(key.m_pchData);
+					ret.push_back(key.GetString());
 				}
 			}
 			return ret;
@@ -2611,7 +2611,7 @@ namespace LuaFunctions
 		ExtraWindow::LoadFrom(mmh, loadFrom.c_str());
 		for (auto& [key, value] : mmh.GetUnorderedUnionSection(section.c_str()))
 		{
-			ret.push_back(key.m_pchData);
+			ret.push_back(key.GetString());
 		}
 		return ret;
 	}
@@ -2648,7 +2648,7 @@ namespace LuaFunctions
 			{
 				for (auto& [key, value] : pSection->GetEntities())
 				{
-					ret.push_back(value.m_pchData);
+					ret.push_back(value.GetString());
 				}
 			}
 			return ret;
@@ -2658,7 +2658,7 @@ namespace LuaFunctions
 		ExtraWindow::LoadFrom(mmh, loadFrom.c_str());
 		for (auto& [key, value] : mmh.GetUnorderedUnionSection(section.c_str()))
 		{
-			ret.push_back(value.m_pchData);
+			ret.push_back(value.GetString());
 		}
 		return ret;
 	}
@@ -2695,7 +2695,7 @@ namespace LuaFunctions
 			{
 				for (auto& [key, value] : pSection->GetEntities())
 				{
-					ret.push_back(std::make_pair(key.m_pchData, value.m_pchData));
+					ret.push_back(std::make_pair(key.GetString(), value.GetString()));
 				}
 			}
 			return ret;
@@ -2705,7 +2705,7 @@ namespace LuaFunctions
 		ExtraWindow::LoadFrom(mmh, loadFrom.c_str());
 		for (auto& [key, value] : mmh.GetUnorderedUnionSection(section.c_str()))
 		{
-			ret.push_back(std::make_pair(key.m_pchData, value.m_pchData));
+			ret.push_back(std::make_pair(key.GetString(), value.GetString()));
 		}
 		return ret;
 	}
@@ -2749,7 +2749,7 @@ namespace LuaFunctions
 				{
 					const auto& contains = pair.second;
 					const auto& value = pSection->GetEntities().find(contains)->second;
-					ret.push_back(std::make_pair(pair.first, value.m_pchData));
+					ret.push_back(std::make_pair(pair.first, value.GetString()));
 				}
 			}
 		}
@@ -2760,7 +2760,7 @@ namespace LuaFunctions
 			auto&& entries = mmh.ParseIndicies(section.c_str(), true);
 			for (size_t i = 0, sz = entries.size(); i < sz; i++)
 			{
-				ret.push_back(std::make_pair(i, entries[i].m_pchData));
+				ret.push_back(std::make_pair(i, entries[i].GetString()));
 			}
 		}
 		return ret;
@@ -2783,12 +2783,12 @@ namespace LuaFunctions
 
 	static std::string get_free_waypoint()
 	{
-		return CINI::CurrentDocument->GetAvailableKey("Waypoints").m_pchData;
+		return CINI::CurrentDocument->GetAvailableKey("Waypoints").GetString();
 	}
 
 	static std::string get_free_key(std::string section)
 	{
-		return CINI::CurrentDocument->GetAvailableKey(section.c_str()).m_pchData;
+		return CINI::CurrentDocument->GetAvailableKey(section.c_str()).GetString();
 	}
 
 	static std::string get_param(std::string section, std::string key, int index, std::string delimiter = ",", std::string loadFrom = "map")
@@ -3120,7 +3120,7 @@ namespace LuaFunctions
 		if (CINI::CurrentDocument->KeyExists("CellTags", key))
 		{
 			write_lua_console(std::format("CellTag {} already exists at ({},{}), abort.",
-				CINI::CurrentDocument->GetString("CellTags", key).m_pchData, x, y));
+				CINI::CurrentDocument->GetString("CellTags", key).GetString(), x, y));
 			return;
 		}
 		CINI::CurrentDocument->WriteString("CellTags", key, id.c_str());
@@ -3292,7 +3292,7 @@ namespace LuaFunctions
 		c.Waypoint = pCell->Waypoint;
 		c.BuildingID = pCell->BaseNode.BuildingID;
 		c.BasenodeID = pCell->BaseNode.BasenodeID;
-		c.House = pCell->BaseNode.House.m_pchData;
+		c.House = pCell->BaseNode.House.GetString();
 		c.Overlay = pCellExt.NewOverlay;
 		c.OverlayData = pCell->OverlayData;
 		c.TileIndex = pCell->TileIndex;

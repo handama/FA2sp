@@ -5015,7 +5015,7 @@ bool CLoadingExt::HasFileExt(ppmfc::CString filename, int nMix)
 		return true;
 	}
 
-	if (ResourcePackManager::instance().hasFile(filename.m_pchData))
+	if (ResourcePackManager::instance().hasFile(filename.GetString()))
 	{
 		return true;
 	}
@@ -5023,7 +5023,7 @@ bool CLoadingExt::HasFileExt(ppmfc::CString filename, int nMix)
 	if (ExtConfigs::ExtMixLoader)
 	{
 		auto& manager = MixLoader::Instance();
-		int result = manager.QueryFileIndex(filename.m_pchData, nMix);
+		int result = manager.QueryFileIndex(filename.GetString(), nMix);
 		if (result >= 0)
 			return true;
 	}

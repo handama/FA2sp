@@ -45,7 +45,7 @@ void CMapValidatorExt::ValidateStructureOverlapping(BOOL& result)
 			const auto splits = STDHelpers::SplitString(Data, 4);
 
 			// In the list, ignore it.
-			if (StructureOverlappingIgnores.count(splits[1].m_pchData))
+			if (StructureOverlappingIgnores.count(splits[1].GetString()))
 				continue;
 
 			const int Index = CMapDataExt::GetBuildingTypeIndex(splits[1]);
@@ -61,7 +61,7 @@ void CMapValidatorExt::ValidateStructureOverlapping(BOOL& result)
 					{
 						MapCoord coord = { X + dx, Y + dy };
 						if (CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
-							Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)].emplace_back(splits[1].m_pchData);
+							Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)].emplace_back(splits[1].GetString());
 					}
 				}
 			}
@@ -71,7 +71,7 @@ void CMapValidatorExt::ValidateStructureOverlapping(BOOL& result)
 				{
 					MapCoord coord = { X + block.Y, Y + block.X };
 					if (CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
-						Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)].emplace_back(splits[1].m_pchData);
+						Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)].emplace_back(splits[1].GetString());
 				}
 			}
 		}
@@ -109,13 +109,13 @@ void CMapValidatorExt::ValidateMissingParams(BOOL& result)
 			ppmfc::CString Format = this->FetchLanguageString(
 				"MV_LogicMissingParams", "%1 - %2 may have a missing param! Please check.");
 			if (section=="Triggers")
-				Format.ReplaceNumString(1, Translations::TranslateOrDefault("Trigger", "Trigger"));
+				Format.ReplaceNumString(1, Translations::TranslateOrDefault("Trigger", "Trigger").c_str());
 			else if (section == "Actions")
-				Format.ReplaceNumString(1, Translations::TranslateOrDefault("Action", "Action"));
+				Format.ReplaceNumString(1, Translations::TranslateOrDefault("Action", "Action").c_str());
 			else if (section == "Events")
-				Format.ReplaceNumString(1, Translations::TranslateOrDefault("Event", "Event"));
+				Format.ReplaceNumString(1, Translations::TranslateOrDefault("Event", "Event").c_str());
 			else if (section == "Tags")
-				Format.ReplaceNumString(1, Translations::TranslateOrDefault("Tag", "Tag"));
+				Format.ReplaceNumString(1, Translations::TranslateOrDefault("Tag", "Tag").c_str());
 
 			for (const auto& [key, value] : pSection->GetEntities())
 			{

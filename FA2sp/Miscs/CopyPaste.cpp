@@ -101,7 +101,7 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
             auto atoms = STDHelpers::SplitString(value, 16);
             if (coords.X == atoi(atoms[4]) && coords.Y == atoi(atoms[3]))
             {
-                pushString(value.m_pchData, item.BuildingData);
+                pushString(value.GetString(), item.BuildingData);
                 objectMask |= ObjectRecord::RecordType::Building;
             }
         }
@@ -114,7 +114,7 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
             auto atoms = STDHelpers::SplitString(value, 16);
             if (coords.X == atoi(atoms[4]) && coords.Y == atoi(atoms[3]))
             {
-                pushString(value.m_pchData, item.BuildingData_2);
+                pushString(value.GetString(), item.BuildingData_2);
                 objectMask |= ObjectRecord::RecordType::Building;
             }
         }
@@ -127,36 +127,36 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
             auto atoms = STDHelpers::SplitString(value, 16);
             if (coords.X == atoi(atoms[4]) && coords.Y == atoi(atoms[3]))
             {
-                pushString(value.m_pchData, item.BuildingData_3);
+                pushString(value.GetString(), item.BuildingData_3);
                 objectMask |= ObjectRecord::RecordType::Building;
             }
         }
 
         if (pCell->Aircraft > -1) {
             ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Aircraft", pCell->Aircraft);
-            pushString(value.m_pchData, item.AircraftData);
+            pushString(value.GetString(), item.AircraftData);
             objectMask |= ObjectRecord::RecordType::Aircraft;
         }
 
         if (pCell->Infantry[0] > -1) {
             ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Infantry", pCell->Infantry[0]);
-            pushString(value.m_pchData, item.InfantryData_1);
+            pushString(value.GetString(), item.InfantryData_1);
             objectMask |= ObjectRecord::RecordType::Infantry;
         }
         if (pCell->Infantry[1] > -1) {
             ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Infantry", pCell->Infantry[1]);
-            pushString(value.m_pchData, item.InfantryData_2);
+            pushString(value.GetString(), item.InfantryData_2);
             objectMask |= ObjectRecord::RecordType::Infantry;
         }
         if (pCell->Infantry[2] > -1) {
             ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Infantry", pCell->Infantry[2]);
-            pushString(value.m_pchData, item.InfantryData_3);
+            pushString(value.GetString(), item.InfantryData_3);
             objectMask |= ObjectRecord::RecordType::Infantry;
         }
 
         if (pCell->Unit > -1) {
             ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Units", pCell->Unit);
-            pushString(value.m_pchData, item.UnitData);
+            pushString(value.GetString(), item.UnitData);
             objectMask |= ObjectRecord::RecordType::Unit;
         }
         data.push_back(item);

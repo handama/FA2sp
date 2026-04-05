@@ -1032,7 +1032,7 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
     if (auto pScript = map.GetSection(pID))
     {
         auto name = map.GetString(pID, "Name");
-        SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.m_pchData);
+        SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.GetString());
 
         std::vector<FString> sortedList;
         for (int i = 0; i < 50; i++)

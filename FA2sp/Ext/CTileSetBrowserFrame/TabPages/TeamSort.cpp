@@ -67,7 +67,7 @@ BOOL TeamSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 //    FString space = " - ";
                 //    for (int i = 0; i < EVENT_PARAM_COUNT; i++)
                 //    {
-                //        int idx = SendMessage(CNewTrigger::hEventParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space + pStr).m_pchData);
+                //        int idx = SendMessage(CNewTrigger::hEventParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space + pStr).GetString());
                 //        if (idx != CB_ERR)
                 //        {
                 //            SendMessage(CNewTrigger::CNewTrigger::hEventParameter[i], CB_SETCURSEL, idx, NULL);
@@ -77,7 +77,7 @@ BOOL TeamSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 //    }
                 //    for (int i = 0; i < ACTION_PARAM_COUNT; i++)
                 //    {
-                //        int idx = SendMessage(CNewTrigger::hActionParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space + pStr).m_pchData);
+                //        int idx = SendMessage(CNewTrigger::hActionParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space + pStr).GetString());
                 //        if (idx != CB_ERR)
                 //        {
                 //            SendMessage(CNewTrigger::CNewTrigger::hActionParameter[i], CB_SETCURSEL, idx, NULL);

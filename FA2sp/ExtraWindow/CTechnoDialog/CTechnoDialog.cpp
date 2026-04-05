@@ -164,11 +164,11 @@ BOOL CTechnoDialog::OnInitDialog()
     if (m_hSpotlight)
     {
         ::SendMessage(m_hSpotlight, CB_INSERTSTRING, 0,
-            reinterpret_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.0", "0 - No spotlight")));
+            Translations::TranslateOrDefault("StructSpotlight.0", "0 - No spotlight"));
         ::SendMessage(m_hSpotlight, CB_INSERTSTRING, 1,
-            reinterpret_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.1", "1 - Rules.ini setting")));
+            Translations::TranslateOrDefault("StructSpotlight.1", "1 - Rules.ini setting"));
         ::SendMessage(m_hSpotlight, CB_INSERTSTRING, 2,
-            reinterpret_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.2", "2 - Circle / Direction")));
+            Translations::TranslateOrDefault("StructSpotlight.2", "2 - Circle / Direction"));
     }
 
     auto cbbHouse = reinterpret_cast<ppmfc::CComboBox*>(ppmfc::CWnd::FromHandle(m_hHouse));
@@ -196,7 +196,7 @@ BOOL CTechnoDialog::OnInitDialog()
             FString key = "FootClassStatus.";
             key += state;
             ::SendMessage(m_hState, CB_INSERTSTRING, i, 
-                reinterpret_cast<LPARAM>(Translations::TranslateOrDefault(key, state)));
+                Translations::TranslateOrDefault(key, state));
         }
     }
 

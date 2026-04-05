@@ -1900,6 +1900,18 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 		}
 		break;
 	}
+	case 114514:
+	{
+		ppmfc::CString caption;
+		CFinalSunDlg::Instance->GetWindowTextA(caption);
+		FString title(caption);
+		title += " - ";
+		title += Translations::TranslateOrDefault("NewVersionAvailable", "New version available:");
+		title += " ";
+		title += CFinalSunAppExt::NewVersion;
+		CFinalSunDlg::Instance->SetWindowTextA(title);
+		break;
+	}
 	}
 	return ppmfc::CDialog::PreTranslateMessage(pMsg);
 }

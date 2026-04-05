@@ -324,9 +324,9 @@ void CNewTeamTypes::Update(HWND& hWnd)
     {
         for (auto& pair : pSection->GetEntities())
         {
-            SendMessage(hWaypoint, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)pair.first.m_pchData);
+            SendMessage(hWaypoint, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)pair.first.GetString());
             idx++;
-            SendMessage(hTransportWaypoint, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)pair.first.m_pchData);
+            SendMessage(hTransportWaypoint, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)pair.first.GetString());
         }
     }
 
@@ -1544,13 +1544,13 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         auto waypoint = STDHelpers::StringToWaypointStr(map.GetString(pID, "Waypoint"));
 
 
-        SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.m_pchData);
+        SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.GetString());
 
         int houseidx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)Translations::ParseHouseName(house, true));
         if (houseidx != CB_ERR)
             SendMessage(hHouse, CB_SETCURSEL, houseidx, NULL);
         else
-            SendMessage(hHouse, WM_SETTEXT, 0, (LPARAM)house.m_pchData);
+            SendMessage(hHouse, WM_SETTEXT, 0, (LPARAM)house.GetString());
 
         bool found = false;
         for (int idx = 0; idx < SendMessage(hTaskforce, CB_GETCOUNT, NULL, NULL); idx++)
@@ -1569,7 +1569,7 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         if (taskforce == "")
             taskforce = "None";
         if (!found)
-            SendMessage(hTaskforce, WM_SETTEXT, 0, (LPARAM)taskforce.m_pchData);
+            SendMessage(hTaskforce, WM_SETTEXT, 0, (LPARAM)taskforce.GetString());
 
         found = false;
         for (int idx = 0; idx < SendMessage(hScript, CB_GETCOUNT, NULL, NULL); idx++)
@@ -1588,7 +1588,7 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         if (script == "")
             script = "None";
         if (!found)
-            SendMessage(hScript, WM_SETTEXT, 0, (LPARAM)script.m_pchData);
+            SendMessage(hScript, WM_SETTEXT, 0, (LPARAM)script.GetString());
 
         found = false;
         for (int idx = 0; idx < SendMessage(hTag, CB_GETCOUNT, NULL, NULL); idx++)
@@ -1607,9 +1607,9 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         if (tag == "")
             tag = "None";
         if (!found)
-            SendMessage(hTag, WM_SETTEXT, 0, (LPARAM)tag.m_pchData);
+            SendMessage(hTag, WM_SETTEXT, 0, (LPARAM)tag.GetString());
 
-        auto SetCurSel = [](HWND hwnd, char* text)
+        auto SetCurSel = [](HWND hwnd, const char* text)
         {
             int idx = SendMessage(hwnd, CB_FINDSTRINGEXACT, 0, (LPARAM)text);
             if (idx != CB_ERR)
@@ -1618,18 +1618,18 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
                 SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)text);
         };
 
-        SetCurSel(hVeteranLevel, map.GetString(pID, "VeteranLevel").m_pchData);
-        SetCurSel(hTechlevel, map.GetString(pID, "TechLevel").m_pchData);
-        SetCurSel(hTransportWaypoint, tWaypoint.m_pchData);
-        SetCurSel(hWaypoint, waypoint.m_pchData);
-        SendMessage(hPriority, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "Priority").m_pchData);
-        SendMessage(hMax, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "Max").m_pchData);
-        SetCurSel(hGroup, map.GetString(pID, "Group").m_pchData);
-        int idxMCD = SendMessage(hMindControlDecision, CB_FINDSTRING, 0, (LPARAM)map.GetString(pID, "MindControlDecision").m_pchData);
+        SetCurSel(hVeteranLevel, map.GetString(pID, "VeteranLevel").GetString());
+        SetCurSel(hTechlevel, map.GetString(pID, "TechLevel").GetString());
+        SetCurSel(hTransportWaypoint, tWaypoint.GetString());
+        SetCurSel(hWaypoint, waypoint.GetString());
+        SendMessage(hPriority, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "Priority").GetString());
+        SendMessage(hMax, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "Max").GetString());
+        SetCurSel(hGroup, map.GetString(pID, "Group").GetString());
+        int idxMCD = SendMessage(hMindControlDecision, CB_FINDSTRING, 0, (LPARAM)map.GetString(pID, "MindControlDecision").GetString());
         if (idxMCD != CB_ERR)
             SendMessage(hMindControlDecision, CB_SETCURSEL, idxMCD, NULL);
         else
-            SendMessage(hMindControlDecision, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "MindControlDecision").m_pchData);
+            SendMessage(hMindControlDecision, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "MindControlDecision").GetString());
 
         SendMessage(hCheckBoxLoadable, BM_SETCHECK, map.GetBool(pID, "Loadable"), 0);
         SendMessage(hCheckBoxFull, BM_SETCHECK, map.GetBool(pID, "Full"), 0);

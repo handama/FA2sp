@@ -42,9 +42,9 @@ BOOL CALLBACK CAllieEditor::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM l
 			if (strcmp(FA2sp::Buffer, currentCountry) == 0)
 				continue;
 			if (allies.find(FA2sp::Buffer) != allies.end())
-				SendMessage(hLBAllies, LB_ADDSTRING, NULL, (LPARAM)FA2sp::Buffer.m_pchData);
+				SendMessage(hLBAllies, LB_ADDSTRING, NULL, (LPARAM)FA2sp::Buffer.GetString());
 			else
-				SendMessage(hLBEnemies, LB_ADDSTRING, NULL, (LPARAM)FA2sp::Buffer.m_pchData);
+				SendMessage(hLBEnemies, LB_ADDSTRING, NULL, (LPARAM)FA2sp::Buffer.GetString());
 		}
 
 		SetWindowText(hETCurrent, currentCountry);

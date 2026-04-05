@@ -2078,7 +2078,7 @@ void CNewTrigger::OnSelchangeHouse(bool edited)
         text = buffer;
         int idx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)text.c_str());
         //if (idx == CB_ERR)
-        //    idx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)FString::ParseHouseName(text, true).m_pchData);
+        //    idx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)FString::ParseHouseName(text, true).GetString());
         if (idx != CB_ERR)
         {
             SendMessage(hHouse, CB_GETLBTEXT, idx, (LPARAM)buffer);
@@ -2336,7 +2336,7 @@ void CNewTrigger::UpdateParamAffectedParam_Action(int index)
             {
                 auto paramType = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), target.ParamMap[text]), 1);
                 ExtraWindow::LoadParams(hActionParameter[target.AffectedParam], paramType[1], this);
-                //SendMessage(hActionParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].m_pchData);
+                //SendMessage(hActionParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].GetString());
                 if (paramType[1] == "10") // stringtables
                 {
                     CurrentCSFActionParam = target.AffectedParam;
@@ -3025,7 +3025,7 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
         
     auto eventInfos = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
     if (!CompactMode)
-        SendMessage(hEventDescription, WM_SETTEXT, 0, (LPARAM)STDHelpers::ReplaceSpeicalString(eventInfos[5]).m_pchData);
+        SendMessage(hEventDescription, WM_SETTEXT, 0, (LPARAM)STDHelpers::ReplaceSpeicalString(eventInfos[5]).GetString());
 
     if (changeCursel)
     {

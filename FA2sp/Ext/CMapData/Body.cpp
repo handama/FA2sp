@@ -1967,14 +1967,14 @@ ppmfc::CString CMapDataExt::GetAvailableIndex(EIndexType type)
 	for (const auto& sec : allSections) {
 		if (auto pSection = ini->GetSection(sec.name)) {
 			for (const auto& [k, v] : pSection->GetEntities()) {
-				std::string id = sec.idIsKey ? k.m_pchData : v.m_pchData;
+				std::string id = sec.idIsKey ? k.GetString() : v.GetString();
 				usedIDs.insert(id);
 				int val = extractNumber(id);
 				if (val >= 0) maxID = std::max(maxID, val);
 			}
 		}
 		for (const auto& [section, _] : ini->Dict) {
-			usedIDs.insert(section.m_pchData);
+			usedIDs.insert(section.GetString());
 		}
 	}
 

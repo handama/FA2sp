@@ -25,7 +25,7 @@ public:
     FString(const char* str) : std::string(str ? str : "") {}
     FString(const std::string& str) : std::string(str) {}
     FString(size_t n, char c) : std::string(n, c) {}
-    FString(const ppmfc::CString& cstr) : std::string(cstr.m_pchData) {}
+    FString(const ppmfc::CString& cstr) : std::string(cstr.GetString()) {}
     operator ppmfc::CString() const { return ppmfc::CString(c_str()); }
 
     operator LPCSTR() const { return c_str(); }
@@ -45,12 +45,12 @@ public:
     }
 
     FString& operator+=(const FString& other) { append(other); return *this; }
-    FString& operator+=(const ppmfc::CString& other) { append(other.m_pchData); return *this; }
+    FString& operator+=(const ppmfc::CString& other) { append(other.GetString()); return *this; }
     FString& operator+=(LPCSTR other) { if(other) append(other); return *this; }
     FString& operator+=(TCHAR ch) { push_back(ch); return *this; }
 
     friend FString operator+(const FString& lhs, const FString& rhs) { FString r = lhs; r += rhs; return r; }
-    friend FString operator+(const FString& lhs, const ppmfc::CString& rhs) { FString r = lhs; r += rhs.m_pchData; return r; }
+    friend FString operator+(const FString& lhs, const ppmfc::CString& rhs) { FString r = lhs; r += rhs; return r; }
     friend FString operator+(const FString& lhs, LPCSTR rhs) { FString r = lhs; r += rhs; return r; }
     friend FString operator+(const FString& lhs, TCHAR rhs) { FString r = lhs; r += rhs; return r; }
     friend FString operator+(LPCSTR lhs, const FString& rhs) { FString r; if(lhs) r = lhs; r += rhs; return r; }
@@ -95,7 +95,7 @@ public:
     }
 
     bool operator==(const FString& other) const { return Compare(other) == 0; }
-    bool operator==(const ppmfc::CString& other) const { return Compare(other.m_pchData) == 0; }
+    bool operator==(const ppmfc::CString& other) const { return Compare(other.GetString()) == 0; }
     bool operator==(LPCSTR other) const { return Compare(other) == 0; }
     bool operator==(const std::string& other) const { return Compare(other.c_str()) == 0; }
     bool operator!=(const FString& other) const { return !(*this == other); }
@@ -200,7 +200,7 @@ private:
             vec.push_back(arg.c_str());
         }
         else if constexpr (std::is_same_v<U, ppmfc::CString>) {
-            vec.push_back(arg.m_pchData);
+            vec.push_back(arg.GetString());
         }
         else if constexpr (std::is_same_v<U, std::string>) {
             vec.push_back(arg.c_str());
@@ -230,6 +230,9 @@ private:
             vec.push_back(static_cast<int>(arg));
         }
         else if constexpr (std::is_same_v<U, dword>) {
+            vec.push_back(static_cast<int>(arg));
+        }
+        else if constexpr (std::is_same_v<U, ULONG>) {
             vec.push_back(static_cast<int>(arg));
         }
         else if constexpr (std::is_same_v<U, long>) {

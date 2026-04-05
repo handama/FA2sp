@@ -55,7 +55,7 @@ bool CLoadingExt::InitMixFilesFix()
 	{
 		for (const auto& [_, mix] : pSection->GetEntities())
 		{
-			IgnoredMixes.insert(STDHelpers::ToUpperCase(mix.m_pchData));
+			IgnoredMixes.insert(STDHelpers::ToUpperCase(mix.GetString()));
 		}
 	}
 

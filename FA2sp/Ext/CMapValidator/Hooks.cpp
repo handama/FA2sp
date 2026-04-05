@@ -27,7 +27,7 @@ DEFINE_HOOK(4CEA50, CMapValidator_CTOR, 7)
 	if (auto pSection = CINI::FAData->GetSection("StructureOverlappingCheckIgnores"))
 	{
 		for (const auto& [key, value] : pSection->GetEntities())
-			CMapValidatorExt::StructureOverlappingIgnores.emplace(std::string{value.m_pchData});
+			CMapValidatorExt::StructureOverlappingIgnores.emplace(std::string{value.GetString()});
 	}
 
 	return 0;

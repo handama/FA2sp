@@ -75,7 +75,7 @@ void CTileManager::InitNodes()
     for (auto& key : pKeys)
     {
         CTileManager::Nodes.push_back(
-            std::make_pair<FString, std::regex>(key.m_pchData, std::regex(mmh.GetString(lpKey, key), std::regex::icase))
+            std::make_pair<FString, std::regex>(key.GetString(), std::regex(mmh.GetString(lpKey, key), std::regex::icase))
         );
     }
 

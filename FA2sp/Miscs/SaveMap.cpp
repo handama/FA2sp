@@ -509,12 +509,12 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                                 color = RGB(107, 109, 107);
 
                             int type = cell.TerrainType;
-                            std::string name = Variables::RulesMap.GetValueAt("TerrainTypes", type).m_pchData;
-                            if (!name.empty())
+                            auto name = Variables::RulesMap.GetValueAt("TerrainTypes", type);
+                            if (!name.IsEmpty())
                             {
-                                if (name.find("TREE") != std::string::npos)
+                                if (name.Find("TREE") != -1)
                                     color = RGB(0, 194, 0);
-                                else if (name.find("TIBTRE") != std::string::npos)
+                                else if (name.Find("TIBTRE") != -1)
                                     color = RGB(10, 10, 10);
                                 else
                                     color = RGB(69, 68, 69);

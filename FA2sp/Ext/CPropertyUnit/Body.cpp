@@ -78,7 +78,7 @@ void CPropertyUnitExt::StatusUpdate(LPARAM lParam)
 		FString key = "FootClassStatus.";
 		key += state;
 		::SendMessage(hStatusComboBox, CB_INSERTSTRING, i,
-			reinterpret_cast<LPARAM>(Translations::TranslateOrDefault(key, state)));
+			static_cast<LPARAM>(Translations::TranslateOrDefault(key, state)));
 	}
 	::SendMessage(hStatusComboBox, CB_SETCURSEL, uNode, 0);
 

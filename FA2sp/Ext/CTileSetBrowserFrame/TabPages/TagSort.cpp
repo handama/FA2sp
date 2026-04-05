@@ -224,7 +224,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 //        FString space1 = " (";
                 //        FString space2 = ")";
                 //
-                //        int idx = SendMessage(CNewTeamTypes::hTag, CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space1 + results[1] + space2).m_pchData);
+                //        int idx = SendMessage(CNewTeamTypes::hTag, CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space1 + results[1] + space2).GetString());
                 //        if (idx != CB_ERR)
                 //        {
                 //            SendMessage(CNewTeamTypes::hTag, CB_SETCURSEL, idx, NULL);
@@ -244,7 +244,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 //        pStr = pIDs + " - " + results[1];
                 //        for (int i = 0; i < EVENT_PARAM_COUNT; i++)
                 //        {
-                //            int idx = SendMessage(CNewTrigger::hEventParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)pStr.m_pchData);
+                //            int idx = SendMessage(CNewTrigger::hEventParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)pStr.GetString());
                 //            if (idx != CB_ERR)
                 //            {
                 //                SendMessage(CNewTrigger::CNewTrigger::hEventParameter[i], CB_SETCURSEL, idx, NULL);
@@ -254,7 +254,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 //        }
                 //        for (int i = 0; i < ACTION_PARAM_COUNT; i++)
                 //        {
-                //            int idx = SendMessage(CNewTrigger::hActionParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)pStr.m_pchData);
+                //            int idx = SendMessage(CNewTrigger::hActionParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)pStr.GetString());
                 //            if (idx != CB_ERR)
                 //            {
                 //                SendMessage(CNewTrigger::CNewTrigger::hActionParameter[i], CB_SETCURSEL, idx, NULL);

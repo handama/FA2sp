@@ -78,7 +78,7 @@ DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
                 {
                     const auto UIName = CMapData::Instance->GetUIName(upgrade.c_str());
                     FString name;
-                    name.Format("%s (%s)", upgrade, UIName.m_pchData);
+                    name.Format("%s (%s)", upgrade, UIName.GetString());
 
                     for (int i = 0; i < nUpgrades; ++i)
                         pUpgrades[i]->AddString(name.c_str());
@@ -91,11 +91,11 @@ DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
     while (::SendMessage(hSpotLightComboBox, CB_DELETESTRING, 0, NULL) != CB_ERR);
 
     ::SendMessage(hSpotLightComboBox, CB_INSERTSTRING, 0, 
-        reinterpret_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.0", "0 - No spotlight")));
+        static_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.0", "0 - No spotlight")));
     ::SendMessage(hSpotLightComboBox, CB_INSERTSTRING, 1, 
-        reinterpret_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.1", "1 - Rules.ini setting")));
+        static_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.1", "1 - Rules.ini setting")));
     ::SendMessage(hSpotLightComboBox, CB_INSERTSTRING, 2, 
-        reinterpret_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.2", "2 - Circle / Direction")));
+        static_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.2", "2 - Circle / Direction")));
 
     pThis->Translate();
 

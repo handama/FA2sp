@@ -161,7 +161,7 @@ bool Translations::GetTranslationItem(const char* pLabelName, FString& ret)
     return false;
 }
 
-const char* Translations::TranslateOrDefault(const char* lpLabelName, const char* lpDefault)
+FString Translations::TranslateOrDefault(const char* lpLabelName, const char* lpDefault)
 {
     for (const auto& language : Translations::pLanguage)
     {
@@ -170,14 +170,13 @@ const char* Translations::TranslateOrDefault(const char* lpLabelName, const char
             auto itr = section->GetEntities().find(lpLabelName);
             if (itr != section->GetEntities().end())
             {
-                ppmfc::CString buffer = itr->second;
+                FString buffer = itr->second;
                 buffer.Replace("\\n", "\n");
                 buffer.Replace("\\t", "\t");
                 buffer.Replace("\\r", "\r");
                 TranslateStringVariables(9, buffer, __str(PROGRAM_TITLE));
                 return buffer;
-            }
-                
+            }               
         }
     }
 

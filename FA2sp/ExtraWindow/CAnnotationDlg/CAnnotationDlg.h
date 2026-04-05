@@ -2,6 +2,7 @@
 
 #include <FA2PP.h>
 #include "../../Helpers/Translations.h"
+#include "../../Helpers/FString.h"
 
 class CAnnotationDlg : public ppmfc::CDialog
 {

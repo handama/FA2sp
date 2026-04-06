@@ -17,6 +17,8 @@ static const int POOL_LIMIT_64 = 262144;
 static const int POOL_LIMIT_256 = 8192;
 static const int POOL_LIMIT_1024 = 1024; 
 
+static char** lpEmptyStringPtr = (char**)0x5D4498;
+
 static char* AllocFromPool(int total)
 {
 	FreeBlock** pool = nullptr;
@@ -107,8 +109,11 @@ DEFINE_HOOK(555D7C, CString_AllocBuffer, 6)
 	GET(ppmfc::CString*, pThis, ECX);
 	GET_STACK(int, nLen, 0x4);
 
-	if (nLen < 0)
-		nLen = 0;
+	if (nLen == 0)
+	{
+		*(char**)pThis = *lpEmptyStringPtr;
+		return 0x555DFB;
+	}
 
 	int total = nLen + 1 + 0xC;
 
@@ -135,6 +140,20 @@ DEFINE_HOOK(555DFE, CString_FreeData, 6)
 		return 0x555E45;
 
 	int allocLen = *(int*)(pRaw + 0x8);
+
+#ifndef NDEBUG
+	if (allocLen < 0 || allocLen > 1048576)
+	{
+		Logger::Debug("Invalid CString! allocLen=%d, pRaw=%p, header: %p %p %p\n",
+			allocLen, pRaw,
+			*(void**)(pRaw + 0x0),
+			*(void**)(pRaw + 0x4),
+			*(void**)(pRaw + 0x8));
+		__debugbreak();
+		return 0x555E45;
+	}
+#endif
+
 	int total = allocLen + 1 + 0xC;
 
 	FreeToPool(pRaw, total);

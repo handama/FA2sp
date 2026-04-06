@@ -3847,17 +3847,9 @@ void CViewObjectsExt::OnExeTerminate()
     MultiLayerItem.clear();
     Owners.clear();
     DarkTheme::CleanupDarkThemeBrushes();
-    FA2sp::Buffer.~CString();
     CIsoViewExt::MapRendererIgnoreObjects.clear();
-    for (int i = 0; i < 10; ++i)
-        UserScriptExt::ParamsTemp[i].~CString();
     UserScriptExt::VariablePool.clear();
     UserScriptExt::Temps.clear();
-
-    ExtConfigs::DefaultInfantryProperty.~CInfantryData();
-    ExtConfigs::DefaultUnitProperty.~CUnitData();
-    ExtConfigs::DefaultAircraftProperty.~CAircraftData();
-    ExtConfigs::DefaultBuildingProperty.~CBuildingData();
 }
 
 void CViewObjectsExt::InitializeOnUpdateEngine()

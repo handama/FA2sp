@@ -13,6 +13,8 @@
 #include "../CTileSetBrowserFrame/TabPages/GridObjectViewer.h"
 #include <random>
 #include <chrono>
+#include <emmintrin.h>
+#include <immintrin.h>
 
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
@@ -33,7 +35,7 @@ bool CLoadingExt::IsReloading = false;
 std::unordered_set<FString> CLoadingExt::LoadedOverlays;
 std::unordered_map<FString, InsigniaGrid> CLoadingExt::LoadedInsignias;
 int CLoadingExt::TallestBuildingHeight = 0;
-
+std::unordered_set<FString> CLoadingExt::NotFoundFiles;
 std::unordered_map<std::string, std::vector<unsigned char>> CLoadingExt::g_cache[2];
 std::unordered_map<std::string, uint64_t> CLoadingExt::g_cacheTime[2];
 uint64_t CLoadingExt::g_lastCleanup = 0;
@@ -3075,31 +3077,6 @@ void CLoadingExt::VXL_Add(unsigned char* pCache, int X, int Y, int Width, int He
 
 void CLoadingExt::VXL_GetAndClear(unsigned char*& pBuffer, int* OutWidth, int* OutHeight, bool shadow)
 {
-	/* TODO : Save memory
-	int validFirstX = 0x100 - 1;
-	int validFirstY = 0x100 - 1;
-	int validLastX = 0;
-	int validLastY = 0;
-
-	for (int j = 0; j < 0x100; ++j)
-	{
-		for (int i = 0; i < 0x100; ++i)
-		{
-			unsigned char ch = VXL_Data[j * 0x100 + i];
-			if (ch != 0)
-			{
-				if (i < validFirstX)
-					validFirstX = i;
-				if (j < validFirstY)
-					validFirstY = j;
-				if (i > validLastX)
-					validLastX = i;
-				if (j > validLastY)
-					validLastY = j;
-			}
-		}
-	}
-	*/
 	if (shadow)
 	{
 		pBuffer = GameCreateArray<unsigned char>(0x10000);
@@ -3115,25 +3092,182 @@ void CLoadingExt::VXL_GetAndClear(unsigned char*& pBuffer, int* OutWidth, int* O
 
 }
 
+inline int FindFirstNonZero_SIMD(const unsigned char* data, int width)
+{
+	if (ExtConfigs::AVX2_Support && width >= 32)
+	{
+		__m256i zero = _mm256_setzero_si256();
+
+		for (int i = 0; i < width; i += 32)
+		{
+			if (i + 32 <= width)
+			{
+				__m256i v = _mm256_loadu_si256((__m256i*)(data + i));
+				__m256i cmp = _mm256_cmpeq_epi8(v, zero);
+				int mask = _mm256_movemask_epi8(cmp);
+
+				if (mask != 0xFFFFFFFF)
+				{
+					for (int j = 0; j < 32; ++j)
+					{
+						if (data[i + j] != 0)
+							return i + j;
+					}
+				}
+			}
+			else
+			{
+				for (int j = i; j < width; ++j)
+				{
+					if (data[j] != 0)
+						return j;
+				}
+				return width - 1;
+			}
+		}
+		return width - 1;
+	}
+	else
+	{
+		__m128i zero = _mm_setzero_si128();
+
+		for (int i = 0; i < width; i += 16)
+		{
+			if (i + 16 <= width)
+			{
+				__m128i v = _mm_loadu_si128((__m128i*)(data + i));
+				__m128i cmp = _mm_cmpeq_epi8(v, zero);
+				int mask = _mm_movemask_epi8(cmp);
+
+				if (mask != 0xFFFF)
+				{
+					for (int j = 0; j < 16; ++j)
+					{
+						if (data[i + j] != 0)
+							return i + j;
+					}
+				}
+			}
+			else
+			{
+				for (int j = i; j < width; ++j)
+				{
+					if (data[j] != 0)
+						return j;
+				}
+				return width - 1;
+			}
+		}
+		return width - 1;
+	}
+}
+
+inline int FindLastNonZero_SIMD(const unsigned char* data, int width)
+{
+	if (ExtConfigs::AVX2_Support && width >= 32)
+	{
+		__m256i zero = _mm256_setzero_si256();
+
+		for (int i = ((width - 1) / 32) * 32; i >= 0; i -= 32)
+		{
+			int scanEnd = std::min(i + 32, width);
+
+			if (scanEnd - i == 32)
+			{
+				__m256i v = _mm256_loadu_si256((__m256i*)(data + i));
+				__m256i cmp = _mm256_cmpeq_epi8(v, zero);
+				int mask = _mm256_movemask_epi8(cmp);
+
+				if (mask != 0xFFFFFFFF)
+				{
+					for (int j = 31; j >= 0; --j)
+					{
+						if (data[i + j] != 0)
+							return i + j;
+					}
+				}
+			}
+			else
+			{
+				for (int j = scanEnd - 1; j >= i; --j)
+				{
+					if (data[j] != 0)
+						return j;
+				}
+			}
+		}
+		return 0;
+	}
+	else
+	{
+		__m128i zero = _mm_setzero_si128();
+
+		for (int i = ((width - 1) / 16) * 16; i >= 0; i -= 16)
+		{
+			int scanEnd = std::min(i + 16, width);
+
+			if (scanEnd - i == 16)
+			{
+				__m128i v = _mm_loadu_si128((__m128i*)(data + i));
+				__m128i cmp = _mm_cmpeq_epi8(v, zero);
+				int mask = _mm_movemask_epi8(cmp);
+
+				if (mask != 0xFFFF)
+				{
+					for (int j = 15; j >= 0; --j)
+					{
+						if (data[i + j] != 0)
+							return j;
+					}
+				}
+			}
+			else
+			{
+				for (int j = scanEnd - 1; j >= i; --j)
+				{
+					if (data[j] != 0)
+						return j;
+				}
+			}
+		}
+		return 0;
+	}
+}
+
+inline void GetSHPValidRange_SIMD(const BYTE* data, int width, int line, int& left, int& right)
+{
+	const BYTE* lpStart = data + (size_t)line * width;
+	left = FindFirstNonZero_SIMD(lpStart, width);
+	right = FindLastNonZero_SIMD(lpStart, width);
+}
+
+void CLoadingExt::SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int Height)
+{
+	if (!pData || !pData->pImageBuffer || Width <= 0 || Height <= 0)
+		return;
+
+	pData->pPixelValidRanges = std::unique_ptr<ImageDataClassSafe::ValidRangeData[]>(
+		new ImageDataClassSafe::ValidRangeData[Height]);
+
+	ImageDataClassSafe::ValidRangeData* pRanges = pData->pPixelValidRanges.get();
+	const unsigned char* pBuffer = pData->pImageBuffer.get();
+
+	for (int i = 0; i < Height; ++i)
+	{
+		int begin, end;
+		GetSHPValidRange_SIMD(pBuffer, Width, i, begin, end);
+		pRanges[i].First = begin;
+		pRanges[i].Last = end;
+	}
+}
+
 void CLoadingExt::SetValidBuffer(ImageDataClass* pData, int Width, int Height)
 {
 	pData->pPixelValidRanges = GameCreateArray<ImageDataClass::ValidRangeData>(Height);
 	for (int i = 0; i < Height; ++i)
 	{
 		int begin, end;
-		this->GetSHPValidRange(pData->pImageBuffer, Width, i, &begin, &end);
-		pData->pPixelValidRanges[i].First = begin;
-		pData->pPixelValidRanges[i].Last = end;
-	}
-}
-
-void CLoadingExt::SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int Height)
-{
-	pData->pPixelValidRanges = std::unique_ptr<ImageDataClassSafe::ValidRangeData[]>(new ImageDataClassSafe::ValidRangeData[Height]);
-	for (int i = 0; i < Height; ++i)
-	{
-		int begin, end;
-		this->GetSHPValidRange(pData->pImageBuffer.get(), Width, i, &begin, &end);
+		GetSHPValidRange_SIMD(pData->pImageBuffer, Width, i, begin, end);
 		pData->pPixelValidRanges[i].First = begin;
 		pData->pPixelValidRanges[i].Last = end;
 	}
@@ -3206,10 +3340,175 @@ void CLoadingExt::ScaleImageHalf(ImageDataClassSafe* pData)
 
 void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow)
 {
-	if (!pData || !pData->pImageBuffer || pData->FullWidth == 0 || pData->FullHeight == 0) return;
+	if (!pData || !pData->pImageBuffer || pData->FullWidth <= 0 || pData->FullHeight <= 0) {
+		return;
+	}
 
-	auto invalidateImage = [&pData]()
+	const int oldW = pData->FullWidth;
+	const int oldH = pData->FullHeight;
+	unsigned char* buffer = pData->pImageBuffer.get();
+
+	int minY = oldH;
+	int maxY = -1;
+
+	if (ExtConfigs::AVX2_Support && oldW >= 32)
 	{
+		__m256i zero = _mm256_setzero_si256();
+
+		for (int y = 0; y < oldH && minY == oldH; ++y)
+		{
+			const unsigned char* row = buffer + (size_t)y * oldW;
+			int foundInRow = 0;
+
+			for (int x = 0; x < oldW; x += 32)
+			{
+				if (x + 32 <= oldW)
+				{
+					__m256i v = _mm256_loadu_si256((__m256i*)(row + x));
+					__m256i cmp = _mm256_cmpeq_epi8(v, zero);
+					int mask = _mm256_movemask_epi8(cmp);
+
+					if (mask != 0xFFFFFFFF)
+					{
+						foundInRow = 1;
+						break;
+					}
+				}
+				else
+				{
+					for (int j = x; j < oldW; ++j)
+					{
+						if (row[j] != 0)
+						{
+							foundInRow = 1;
+							break;
+						}
+					}
+					if (foundInRow) break;
+				}
+			}
+
+			if (foundInRow)
+				minY = y;
+		}
+
+		for (int y = oldH - 1; y >= minY && maxY == -1; --y)
+		{
+			const unsigned char* row = buffer + (size_t)y * oldW;
+			int foundInRow = 0;
+
+			for (int x = 0; x < oldW; x += 32)
+			{
+				if (x + 32 <= oldW)
+				{
+					__m256i v = _mm256_loadu_si256((__m256i*)(row + x));
+					__m256i cmp = _mm256_cmpeq_epi8(v, zero);
+					int mask = _mm256_movemask_epi8(cmp);
+
+					if (mask != 0xFFFFFFFF)
+					{
+						foundInRow = 1;
+						break;
+					}
+				}
+				else
+				{
+					for (int j = x; j < oldW; ++j)
+					{
+						if (row[j] != 0)
+						{
+							foundInRow = 1;
+							break;
+						}
+					}
+					if (foundInRow) break;
+				}
+			}
+
+			if (foundInRow)
+				maxY = y;
+		}
+	}
+	else
+	{
+		__m128i zero = _mm_setzero_si128();
+
+		for (int y = 0; y < oldH && minY == oldH; ++y)
+		{
+			const unsigned char* row = buffer + (size_t)y * oldW;
+			int foundInRow = 0;
+
+			for (int x = 0; x < oldW; x += 16)
+			{
+				if (x + 16 <= oldW)
+				{
+					__m128i v = _mm_loadu_si128((__m128i*)(row + x));
+					__m128i cmp = _mm_cmpeq_epi8(v, zero);
+					int mask = _mm_movemask_epi8(cmp);
+
+					if (mask != 0xFFFF)
+					{
+						foundInRow = 1;
+						break;
+					}
+				}
+				else
+				{
+					for (int j = x; j < oldW; ++j)
+					{
+						if (row[j] != 0)
+						{
+							foundInRow = 1;
+							break;
+						}
+					}
+					if (foundInRow) break;
+				}
+			}
+
+			if (foundInRow)
+				minY = y;
+		}
+
+		for (int y = oldH - 1; y >= minY && maxY == -1; --y)
+		{
+			const unsigned char* row = buffer + (size_t)y * oldW;
+			int foundInRow = 0;
+
+			for (int x = 0; x < oldW; x += 16)
+			{
+				if (x + 16 <= oldW)
+				{
+					__m128i v = _mm_loadu_si128((__m128i*)(row + x));
+					__m128i cmp = _mm_cmpeq_epi8(v, zero);
+					int mask = _mm_movemask_epi8(cmp);
+
+					if (mask != 0xFFFF)
+					{
+						foundInRow = 1;
+						break;
+					}
+				}
+				else
+				{
+					for (int j = x; j < oldW; ++j)
+					{
+						if (row[j] != 0)
+						{
+							foundInRow = 1;
+							break;
+						}
+					}
+					if (foundInRow) break;
+				}
+			}
+
+			if (foundInRow)
+				maxY = y;
+		}
+	}
+
+	if (minY == oldH || maxY == -1) _UNLIKELY{
 		pData->pImageBuffer = nullptr;
 		pData->pPixelValidRanges = nullptr;
 		pData->FullWidth = 0;
@@ -3218,63 +3517,165 @@ void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow)
 		pData->ValidY = 0;
 		pData->ValidWidth = 0;
 		pData->ValidHeight = 0;
-	};
+		return;
+	}
 
-	const int oldW = pData->FullWidth;
-	const int oldH = pData->FullHeight;
-	unsigned char* buffer = pData->pImageBuffer.get();
+	int minX = oldW;
+	int maxX = -1;
 
-	int minX = oldW - 1, minY = oldH - 1;
-	int maxX = 0, maxY = 0;
-
-	for (int y = 0; y < oldH; ++y)
+	for (int x = 0; x < oldW && minX == oldW; ++x)
 	{
-		for (int x = 0; x < oldW; ++x)
+		for (int y = minY; y <= maxY; ++y)
 		{
-			unsigned char px = buffer[y * oldW + x];
-			if (px != 0)
+			if (buffer[(size_t)y * oldW + x] != 0)
 			{
-				if (x < minX) minX = x;
-				if (y < minY) minY = y;
-				if (x > maxX) maxX = x;
-				if (y > maxY) maxY = y;
+				minX = x;
+				break;
 			}
 		}
 	}
 
-	if (minX > maxX || minY > maxY)
+	for (int x = oldW - 1; x >= minX && maxX == -1; --x)
 	{
-		invalidateImage();
+		for (int y = minY; y <= maxY; ++y)
+		{
+			if (buffer[(size_t)y * oldW + x] != 0)
+			{
+				maxX = x;
+				break;
+			}
+		}
+	}
+
+	if (minX == oldW || maxX == -1) _UNLIKELY{
+		pData->pImageBuffer = nullptr;
+		pData->pPixelValidRanges = nullptr;
+		pData->FullWidth = 0;
+		pData->FullHeight = 0;
+		pData->ValidX = 0;
+		pData->ValidY = 0;
+		pData->ValidWidth = 0;
+		pData->ValidHeight = 0;
 		return;
 	}
 
-	int validW = maxX - minX + 1;
-	int validH = maxY - minY + 1;
+	const int validW = maxX - minX + 1;
+	const int validH = maxY - minY + 1;
 
-	int leftSpace = minX;
-	int rightSpace = oldW - 1 - maxX;
-	int topSpace = minY;
-	int bottomSpace = oldH - 1 - maxY;
+	const int leftSpace = minX;
+	const int rightSpace = oldW - 1 - maxX;
+	const int topSpace = minY;
+	const int bottomSpace = oldH - 1 - maxY;
 
-	int cropLR = std::min(leftSpace, rightSpace);
-	int cropTB = std::min(topSpace, bottomSpace);
+	const int cropLR = std::min(leftSpace, rightSpace);
+	const int cropTB = std::min(topSpace, bottomSpace);
 
-	int newW = oldW - cropLR * 2;
-	int newH = oldH - cropTB * 2;
+	const int newW = oldW - cropLR * 2;
+	const int newH = oldH - cropTB * 2;
 
-	if (newW <= 0 || newH <= 0)
-	{
-		invalidateImage();
+	if (newW <= 0 || newH <= 0) _UNLIKELY{
+		pData->pImageBuffer = nullptr;
+		pData->pPixelValidRanges = nullptr;
+		pData->FullWidth = 0;
+		pData->FullHeight = 0;
+		pData->ValidX = 0;
+		pData->ValidY = 0;
+		pData->ValidWidth = 0;
+		pData->ValidHeight = 0;
 		return;
 	}
 
-	std::unique_ptr<unsigned char[]> newBuffer(new unsigned char[newW * newH]);
-	for (int y = 0; y < newH; ++y)
+	if (cropLR == 0 && cropTB == 0) _UNLIKELY{
+		pData->ValidX = minX;
+		pData->ValidY = minY;
+		pData->ValidWidth = validW;
+		pData->ValidHeight = validH;
+		if (pData->pPixelValidRanges) {
+			pData->pPixelValidRanges = nullptr;
+		}
+		SetValidBufferSafe(pData, newW, newH);
+		return;
+	}
+
+	std::unique_ptr<unsigned char[]> newBuffer(new unsigned char[static_cast<size_t>(newW) * newH]);
+
+	if (ExtConfigs::AVX2_Support && newW >= 32)
 	{
-		int srcY = y + cropTB;
-		std::memcpy(&newBuffer[y * newW],
-			&buffer[srcY * oldW + cropLR],
-			newW);
+		const int fullBlocks32 = newW / 32;
+		const int remainBytes = newW % 32;
+
+		for (int y = 0; y < newH; ++y)
+		{
+			const int srcY = y + cropTB;
+			const unsigned char* srcPtr = buffer + (size_t)srcY * oldW + cropLR;
+			unsigned char* dstPtr = newBuffer.get() + (size_t)y * newW;
+
+			for (int block = 0; block < fullBlocks32; ++block)
+			{
+				__m256i data = _mm256_loadu_si256((__m256i*)(srcPtr + block * 32));
+				_mm256_storeu_si256((__m256i*)(dstPtr + block * 32), data);
+			}
+
+			if (remainBytes > 0)
+			{
+				if (remainBytes >= 16)
+				{
+					__m128i data = _mm_loadu_si128((__m128i*)(srcPtr + fullBlocks32 * 32));
+					_mm_storeu_si128((__m128i*)(dstPtr + fullBlocks32 * 32), data);
+
+					if (remainBytes > 16)
+					{
+						std::memcpy(dstPtr + fullBlocks32 * 32 + 16,
+							srcPtr + fullBlocks32 * 32 + 16,
+							remainBytes - 16);
+					}
+				}
+				else
+				{
+					std::memcpy(dstPtr + fullBlocks32 * 32,
+						srcPtr + fullBlocks32 * 32,
+						remainBytes);
+				}
+			}
+		}
+	}
+	else
+	{
+		if (newW >= 16)
+		{
+			const int fullBlocks16 = newW / 16;
+			const int remainBytes = newW % 16;
+
+			for (int y = 0; y < newH; ++y)
+			{
+				const int srcY = y + cropTB;
+				const unsigned char* srcPtr = buffer + (size_t)srcY * oldW + cropLR;
+				unsigned char* dstPtr = newBuffer.get() + (size_t)y * newW;
+
+				for (int block = 0; block < fullBlocks16; ++block)
+				{
+					__m128i data = _mm_loadu_si128((__m128i*)(srcPtr + block * 16));
+					_mm_storeu_si128((__m128i*)(dstPtr + block * 16), data);
+				}
+
+				if (remainBytes > 0)
+				{
+					std::memcpy(dstPtr + fullBlocks16 * 16,
+						srcPtr + fullBlocks16 * 16,
+						remainBytes);
+				}
+			}
+		}
+		else
+		{
+			for (int y = 0; y < newH; ++y)
+			{
+				const int srcY = y + cropTB;
+				std::memcpy(newBuffer.get() + (size_t)y * newW,
+					buffer + (size_t)srcY * oldW + cropLR,
+					static_cast<size_t>(newW));
+			}
+		}
 	}
 
 	pData->pImageBuffer = std::move(newBuffer);
@@ -3284,8 +3685,11 @@ void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow)
 	pData->ValidY = minY - cropTB;
 	pData->ValidWidth = validW;
 	pData->ValidHeight = validH;
-	if (pData->pPixelValidRanges)
+
+	if (pData->pPixelValidRanges) {
 		pData->pPixelValidRanges = nullptr;
+	}
+
 	SetValidBufferSafe(pData, newW, newH);
 }
 
@@ -3294,81 +3698,566 @@ void CLoadingExt::TrimImageEdges(unsigned char*& pBuffer, int& width, int& heigh
 	if (!pBuffer || width <= 0 || height <= 0)
 		return;
 
-	const int oldW = width;
-	const int oldH = height;
-
-	int minX = oldW - 1, minY = oldH - 1;
-	int maxX = 0, maxY = 0;
-
-	for (int y = 0; y < oldH; ++y)
+	if (ExtConfigs::AVX2_Support) _LIKELY
 	{
-		const unsigned char* row = pBuffer + y * oldW;
-		for (int x = 0; x < oldW; ++x)
+		const int oldW = width;
+		const int oldH = height;
+
+		int minY = oldH;
+		int maxY = -1;
+		int minX = oldW;
+		int maxX = -1;
+
+		__m256i zero = _mm256_setzero_si256();
+
+		for (int y = 0; y < oldH && minY == oldH; ++y)
 		{
-			if (row[x] != 0)
+			const unsigned char* row = pBuffer + (size_t)y * oldW;
+			int foundInRow = 0;
+
+			for (int x = 0; x < oldW; x += 32)
 			{
-				if (x < minX) minX = x;
-				if (y < minY) minY = y;
-				if (x > maxX) maxX = x;
-				if (y > maxY) maxY = y;
+				if (x + 32 <= oldW)
+				{
+					__m256i v = _mm256_loadu_si256((__m256i*)(row + x));
+					__m256i cmp = _mm256_cmpeq_epi8(v, zero);
+					int mask = _mm256_movemask_epi8(cmp);
+
+					if (mask != 0xFFFFFFFF)
+					{
+						foundInRow = 1;
+						break;
+					}
+				}
+				else if (x + 16 <= oldW)
+				{
+					__m128i v = _mm_loadu_si128((__m128i*)(row + x));
+					__m128i cmp = _mm_cmpeq_epi8(v, _mm_setzero_si128());
+					int mask = _mm_movemask_epi8(cmp);
+
+					if (mask != 0xFFFF)
+					{
+						foundInRow = 1;
+						break;
+					}
+					x += 16;
+
+					if (x < oldW)
+					{
+						for (int i = x; i < oldW; ++i)
+						{
+							if (row[i] != 0)
+							{
+								foundInRow = 1;
+								break;
+							}
+						}
+					}
+				}
+				else
+				{
+					for (int i = x; i < oldW; ++i)
+					{
+						if (row[i] != 0)
+						{
+							foundInRow = 1;
+							break;
+						}
+					}
+					if (foundInRow) break;
+				}
+			}
+
+			if (foundInRow)
+			{
+				minY = y;
 			}
 		}
-	}
 
-	if (minX > maxX || minY > maxY)
-	{
-		return;
-	}
+		if (minY == oldH)
+			return;
 
-	int leftSpace = minX;
-	int rightSpace = oldW - 1 - maxX;
-	int topSpace = minY;
-	int bottomSpace = oldH - 1 - maxY;
+		for (int y = oldH - 1; y >= minY && maxY == -1; --y)
+		{
+			const unsigned char* row = pBuffer + (size_t)y * oldW;
+			int foundInRow = 0;
 
-	int cropLR = std::min(leftSpace, rightSpace);
-	int cropTB = std::min(topSpace, bottomSpace);
+			for (int x = 0; x < oldW; x += 32)
+			{
+				if (x + 32 <= oldW)
+				{
+					__m256i v = _mm256_loadu_si256((__m256i*)(row + x));
+					__m256i cmp = _mm256_cmpeq_epi8(v, zero);
+					int mask = _mm256_movemask_epi8(cmp);
 
-	int newW = oldW - cropLR * 2;
-	int newH = oldH - cropTB * 2;
+					if (mask != 0xFFFFFFFF)
+					{
+						foundInRow = 1;
+						break;
+					}
+				}
+				else if (x + 16 <= oldW)
+				{
+					__m128i v = _mm_loadu_si128((__m128i*)(row + x));
+					__m128i cmp = _mm_cmpeq_epi8(v, _mm_setzero_si128());
+					int mask = _mm_movemask_epi8(cmp);
 
-	if (newW <= 0 || newH <= 0)
-		return;
+					if (mask != 0xFFFF)
+					{
+						foundInRow = 1;
+						break;
+					}
+					x += 16;
 
-	unsigned char* newBuffer = GameCreateArray<unsigned char>(newW * newH);
-	unsigned char* newSecondBuffer = nullptr;
-	if (pSecondBuffer && *pSecondBuffer)
-	{
-		newSecondBuffer = GameCreateArray<unsigned char>(newW * newH);
-	}
+					if (x < oldW)
+					{
+						for (int i = x; i < oldW; ++i)
+						{
+							if (row[i] != 0)
+							{
+								foundInRow = 1;
+								break;
+							}
+						}
+					}
+				}
+				else
+				{
+					for (int i = x; i < oldW; ++i)
+					{
+						if (row[i] != 0)
+						{
+							foundInRow = 1;
+							break;
+						}
+					}
+					if (foundInRow) break;
+				}
+			}
 
-	for (int y = 0; y < newH; ++y)
-	{
-		int srcY = y + cropTB;
-		std::memcpy(
-			newBuffer + y * newW,
-			pBuffer + srcY * oldW + cropLR,
-			newW
-		);
+			if (foundInRow)
+			{
+				maxY = y;
+			}
+		}
+
+		for (int x = 0; x < oldW && minX == oldW; ++x)
+		{
+			for (int y = minY; y <= maxY; ++y)
+			{
+				if (pBuffer[(size_t)y * oldW + x] != 0)
+				{
+					minX = x;
+					break;
+				}
+			}
+		}
+
+		for (int x = oldW - 1; x >= minX && maxX == -1; --x)
+		{
+			for (int y = minY; y <= maxY; ++y)
+			{
+				if (pBuffer[(size_t)y * oldW + x] != 0)
+				{
+					maxX = x;
+					break;
+				}
+			}
+		}
+
+		if (minX > maxX || minY > maxY)
+			return;
+
+		int leftSpace = minX;
+		int rightSpace = oldW - 1 - maxX;
+		int topSpace = minY;
+		int bottomSpace = oldH - 1 - maxY;
+
+		int cropLR = std::min(leftSpace, rightSpace);
+		int cropTB = std::min(topSpace, bottomSpace);
+
+		if (cropLR == 0 && cropTB == 0)
+			return;
+
+		int newW = oldW - cropLR * 2;
+		int newH = oldH - cropTB * 2;
+
+		if (newW <= 0 || newH <= 0)
+			return;
+
+		unsigned char* newBuffer = GameCreateArray<unsigned char>(newW * newH);
+		unsigned char* newSecondBuffer = nullptr;
+
 		if (pSecondBuffer && *pSecondBuffer)
 		{
-			std::memcpy(
-				newSecondBuffer + y * newW,
-				*pSecondBuffer + srcY * oldW + cropLR,
-				newW
-			);
+			newSecondBuffer = GameCreateArray<unsigned char>(newW * newH);
 		}
-	}
 
-	GameDeleteArray(pBuffer, oldW * oldH);
-	if (pSecondBuffer && *pSecondBuffer)
+		if (newW >= 32 && newW % 32 == 0)
+		{
+			const int copySize = newW / 32;
+
+			for (int y = 0; y < newH; ++y)
+			{
+				const unsigned char* srcRow = pBuffer + (size_t)(y + cropTB) * oldW + cropLR;
+				unsigned char* dstRow = newBuffer + (size_t)y * newW;
+
+				for (int block = 0; block < copySize; ++block)
+				{
+					__m256i data = _mm256_loadu_si256((__m256i*)(srcRow + block * 32));
+					_mm256_storeu_si256((__m256i*)(dstRow + block * 32), data);
+				}
+			}
+
+			if (pSecondBuffer && *pSecondBuffer)
+			{
+				for (int y = 0; y < newH; ++y)
+				{
+					const unsigned char* srcRow = *pSecondBuffer + (size_t)(y + cropTB) * oldW + cropLR;
+					unsigned char* dstRow = newSecondBuffer + (size_t)y * newW;
+
+					for (int block = 0; block < copySize; ++block)
+					{
+						__m256i data = _mm256_loadu_si256((__m256i*)(srcRow + block * 32));
+						_mm256_storeu_si256((__m256i*)(dstRow + block * 32), data);
+					}
+				}
+			}
+		}
+		else if (newW >= 32)
+		{
+			const int fullBlocks = newW / 32;
+			const int remainBytes = newW % 32;
+
+			for (int y = 0; y < newH; ++y)
+			{
+				const unsigned char* srcRow = pBuffer + (size_t)(y + cropTB) * oldW + cropLR;
+				unsigned char* dstRow = newBuffer + (size_t)y * newW;
+
+				for (int block = 0; block < fullBlocks; ++block)
+				{
+					__m256i data = _mm256_loadu_si256((__m256i*)(srcRow + block * 32));
+					_mm256_storeu_si256((__m256i*)(dstRow + block * 32), data);
+				}
+
+				if (remainBytes > 0)
+				{
+					std::memcpy(dstRow + fullBlocks * 32, srcRow + fullBlocks * 32, remainBytes);
+				}
+			}
+
+			if (pSecondBuffer && *pSecondBuffer)
+			{
+				for (int y = 0; y < newH; ++y)
+				{
+					const unsigned char* srcRow = *pSecondBuffer + (size_t)(y + cropTB) * oldW + cropLR;
+					unsigned char* dstRow = newSecondBuffer + (size_t)y * newW;
+
+					for (int block = 0; block < fullBlocks; ++block)
+					{
+						__m256i data = _mm256_loadu_si256((__m256i*)(srcRow + block * 32));
+						_mm256_storeu_si256((__m256i*)(dstRow + block * 32), data);
+					}
+
+					if (remainBytes > 0)
+					{
+						std::memcpy(dstRow + fullBlocks * 32, srcRow + fullBlocks * 32, remainBytes);
+					}
+				}
+			}
+		}
+		else
+		{
+			for (int y = 0; y < newH; ++y)
+			{
+				int srcY = y + cropTB;
+				std::memcpy(
+					newBuffer + (size_t)y * newW,
+					pBuffer + (size_t)srcY * oldW + cropLR,
+					newW
+				);
+				if (pSecondBuffer && *pSecondBuffer)
+				{
+					std::memcpy(
+						newSecondBuffer + (size_t)y * newW,
+						*pSecondBuffer + (size_t)srcY * oldW + cropLR,
+						newW
+					);
+				}
+			}
+		}
+
+		GameDeleteArray(pBuffer, oldW * oldH);
+		if (pSecondBuffer && *pSecondBuffer)
+		{
+			GameDeleteArray(*pSecondBuffer, oldW * oldH);
+			*pSecondBuffer = newSecondBuffer;
+		}
+
+		pBuffer = newBuffer;
+		width = newW;
+		height = newH;
+	}
+	else
 	{
-		GameDeleteArray(*pSecondBuffer, oldW * oldH);
-		*pSecondBuffer = newSecondBuffer;
-	}
-	pBuffer = newBuffer;
+		const int oldW = width;
+		const int oldH = height;
 
-	width = newW;
-	height = newH;
+		int minY = oldH;
+		int maxY = -1;
+		int minX = oldW;
+		int maxX = -1;
+
+		__m128i zero = _mm_setzero_si128();
+
+		for (int y = 0; y < oldH && minY == oldH; ++y)
+		{
+			const unsigned char* row = pBuffer + (size_t)y * oldW;
+			int foundInRow = 0;
+
+			for (int x = 0; x < oldW; x += 16)
+			{
+				if (x + 16 <= oldW)
+				{
+					__m128i v = _mm_loadu_si128((__m128i*)(row + x));
+					__m128i cmp = _mm_cmpeq_epi8(v, zero);
+					int mask = _mm_movemask_epi8(cmp);
+
+					if (mask != 0xFFFF)
+					{
+						foundInRow = 1;
+						break;
+					}
+				}
+				else
+				{
+					for (int i = x; i < oldW; ++i)
+					{
+						if (row[i] != 0)
+						{
+							foundInRow = 1;
+							break;
+						}
+					}
+					if (foundInRow) break;
+				}
+			}
+
+			if (foundInRow)
+			{
+				minY = y;
+			}
+		}
+
+		if (minY == oldH)
+			return;
+
+		for (int y = oldH - 1; y >= minY && maxY == -1; --y)
+		{
+			const unsigned char* row = pBuffer + (size_t)y * oldW;
+			int foundInRow = 0;
+
+			for (int x = 0; x < oldW; x += 16)
+			{
+				if (x + 16 <= oldW)
+				{
+					__m128i v = _mm_loadu_si128((__m128i*)(row + x));
+					__m128i cmp = _mm_cmpeq_epi8(v, zero);
+					int mask = _mm_movemask_epi8(cmp);
+
+					if (mask != 0xFFFF)
+					{
+						foundInRow = 1;
+						break;
+					}
+				}
+				else
+				{
+					for (int i = x; i < oldW; ++i)
+					{
+						if (row[i] != 0)
+						{
+							foundInRow = 1;
+							break;
+						}
+					}
+					if (foundInRow) break;
+				}
+			}
+
+			if (foundInRow)
+			{
+				maxY = y;
+			}
+		}
+
+		for (int x = 0; x < oldW && minX == oldW; ++x)
+		{
+			int foundInCol = 0;
+			for (int y = minY; y <= maxY; ++y)
+			{
+				if (pBuffer[(size_t)y * oldW + x] != 0)
+				{
+					foundInCol = 1;
+					break;
+				}
+			}
+			if (foundInCol)
+			{
+				minX = x;
+			}
+		}
+
+		for (int x = oldW - 1; x >= minX && maxX == -1; --x)
+		{
+			int foundInCol = 0;
+			for (int y = minY; y <= maxY; ++y)
+			{
+				if (pBuffer[(size_t)y * oldW + x] != 0)
+				{
+					foundInCol = 1;
+					break;
+				}
+			}
+			if (foundInCol)
+			{
+				maxX = x;
+			}
+		}
+
+		if (minX > maxX || minY > maxY)
+			return;
+
+		int leftSpace = minX;
+		int rightSpace = oldW - 1 - maxX;
+		int topSpace = minY;
+		int bottomSpace = oldH - 1 - maxY;
+
+		int cropLR = std::min(leftSpace, rightSpace);
+		int cropTB = std::min(topSpace, bottomSpace);
+
+		if (cropLR == 0 && cropTB == 0)
+			return;
+
+		int newW = oldW - cropLR * 2;
+		int newH = oldH - cropTB * 2;
+
+		if (newW <= 0 || newH <= 0)
+			return;
+
+		unsigned char* newBuffer = GameCreateArray<unsigned char>(newW * newH);
+		unsigned char* newSecondBuffer = nullptr;
+
+		if (pSecondBuffer && *pSecondBuffer)
+		{
+			newSecondBuffer = GameCreateArray<unsigned char>(newW * newH);
+		}
+
+		if (newW >= 16 && newW % 16 == 0)
+		{
+			const int copySize = newW / 16;
+
+			for (int y = 0; y < newH; ++y)
+			{
+				const unsigned char* srcRow = pBuffer + (size_t)(y + cropTB) * oldW + cropLR;
+				unsigned char* dstRow = newBuffer + (size_t)y * newW;
+
+				for (int block = 0; block < copySize; ++block)
+				{
+					__m128i data = _mm_loadu_si128((__m128i*)(srcRow + block * 16));
+					_mm_storeu_si128((__m128i*)(dstRow + block * 16), data);
+				}
+			}
+
+			if (pSecondBuffer && *pSecondBuffer)
+			{
+				for (int y = 0; y < newH; ++y)
+				{
+					const unsigned char* srcRow = *pSecondBuffer + (size_t)(y + cropTB) * oldW + cropLR;
+					unsigned char* dstRow = newSecondBuffer + (size_t)y * newW;
+
+					for (int block = 0; block < copySize; ++block)
+					{
+						__m128i data = _mm_loadu_si128((__m128i*)(srcRow + block * 16));
+						_mm_storeu_si128((__m128i*)(dstRow + block * 16), data);
+					}
+				}
+			}
+		}
+		else if (newW >= 16)
+		{
+			const int fullBlocks = newW / 16;
+			const int remainBytes = newW % 16;
+
+			for (int y = 0; y < newH; ++y)
+			{
+				const unsigned char* srcRow = pBuffer + (size_t)(y + cropTB) * oldW + cropLR;
+				unsigned char* dstRow = newBuffer + (size_t)y * newW;
+
+				for (int block = 0; block < fullBlocks; ++block)
+				{
+					__m128i data = _mm_loadu_si128((__m128i*)(srcRow + block * 16));
+					_mm_storeu_si128((__m128i*)(dstRow + block * 16), data);
+				}
+
+				if (remainBytes > 0)
+				{
+					std::memcpy(dstRow + fullBlocks * 16, srcRow + fullBlocks * 16, remainBytes);
+				}
+			}
+
+			if (pSecondBuffer && *pSecondBuffer)
+			{
+				for (int y = 0; y < newH; ++y)
+				{
+					const unsigned char* srcRow = *pSecondBuffer + (size_t)(y + cropTB) * oldW + cropLR;
+					unsigned char* dstRow = newSecondBuffer + (size_t)y * newW;
+
+					for (int block = 0; block < fullBlocks; ++block)
+					{
+						__m128i data = _mm_loadu_si128((__m128i*)(srcRow + block * 16));
+						_mm_storeu_si128((__m128i*)(dstRow + block * 16), data);
+					}
+
+					if (remainBytes > 0)
+					{
+						std::memcpy(dstRow + fullBlocks * 16, srcRow + fullBlocks * 16, remainBytes);
+					}
+				}
+			}
+		}
+		else
+		{
+			for (int y = 0; y < newH; ++y)
+			{
+				int srcY = y + cropTB;
+				std::memcpy(
+					newBuffer + (size_t)y * newW,
+					pBuffer + (size_t)srcY * oldW + cropLR,
+					newW
+				);
+				if (pSecondBuffer && *pSecondBuffer)
+				{
+					std::memcpy(
+						newSecondBuffer + (size_t)y * newW,
+						*pSecondBuffer + (size_t)srcY * oldW + cropLR,
+						newW
+					);
+				}
+			}
+		}
+
+		GameDeleteArray(pBuffer, oldW * oldH);
+		if (pSecondBuffer && *pSecondBuffer)
+		{
+			GameDeleteArray(*pSecondBuffer, oldW * oldH);
+			*pSecondBuffer = newSecondBuffer;
+		}
+
+		pBuffer = newBuffer;
+		width = newW;
+		height = newH;
+	}
 }
 
 void CLoadingExt::SetTheaterLetter(FString& string, int mode)
@@ -3474,19 +4363,23 @@ int CLoadingExt::HasFileMix(FString filename, int nMix)
 
 int CLoadingExt::SearchFileExt(const FString& filename, bool debugLog)
 {
-	for (int i = 0; i < CMixFile::ArraySize; ++i)
+	if (!CLoadingExt::NotFoundFiles.contains(filename))
 	{
-		auto& mix = CMixFile::Array[i];
-		if (!mix.is_open())
-			break;
-		if (CMixFile::HasFile(filename, i + 1))
+		for (int i = 0; i < CMixFile::ArraySize; ++i)
 		{
+			auto& mix = CMixFile::Array[i];
+			if (!mix.is_open())
+				break;
+			if (CMixFile::HasFile(filename, i + 1))
+			{
 #ifndef NDEBUG
-			if(debugLog)
-				Logger::Debug("[SearchFileExt] %s - %d\n", filename, i + 1);
+				if (debugLog)
+					Logger::Debug("[SearchFileExt] %s - %d\n", filename, i + 1);
 #endif
-			return i + 1;
+				return i + 1;
+			}
 		}
+		CLoadingExt::NotFoundFiles.insert(filename);
 	}
 #ifndef NDEBUG
 	if (debugLog)

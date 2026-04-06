@@ -29,39 +29,44 @@ DEFINE_HOOK(48A650, CLoading_SearchFile, 6)
 	GET_STACK(const char*, Filename, 0x4);
 	GET_STACK(unsigned char*, pTheaterType, 0x8);
 
-	if (ExtConfigs::ExtMixLoader)
+	FString fileName = Filename;
+	if (!CLoadingExt::NotFoundFiles.contains(fileName))
 	{
-		auto& manager = MixLoader::Instance();
-		auto result = manager.QueryFileIndex(Filename);
-		if (result >= 0)
+		if (ExtConfigs::ExtMixLoader)
 		{
-#ifndef NDEBUG
-			Logger::Debug("[SearchFile] %s - %d\n", Filename, result);
-#endif
-			R->EAX(result);
-			return 0x48AA63;
-		}
-	}
-	else
-	{
-		for (int i = 0; i < CMixFile::ArraySize; ++i)
-		{
-			auto& mix = CMixFile::Array[i];
-			if (!mix.is_open())
-				break;
-			if (CMixFile::HasFile(Filename, i + 1))
+			auto& manager = MixLoader::Instance();
+			auto result = manager.QueryFileIndex(fileName);
+			if (result >= 0)
 			{
 #ifndef NDEBUG
-				Logger::Debug("[SearchFile] %s - %d\n", Filename, i + 1);
+				Logger::Debug("[SearchFile] %s - %d\n", fileName, result);
 #endif
-				R->EAX(i + 1);
+				R->EAX(result);
 				return 0x48AA63;
 			}
 		}
+		else
+		{
+			for (int i = 0; i < CMixFile::ArraySize; ++i)
+			{
+				auto& mix = CMixFile::Array[i];
+				if (!mix.is_open())
+					break;
+				if (CMixFile::HasFile(fileName, i + 1))
+				{
+#ifndef NDEBUG
+					Logger::Debug("[SearchFile] %s - %d\n", fileName, i + 1);
+#endif
+					R->EAX(i + 1);
+					return 0x48AA63;
+				}
+			}
+		}
+		CLoadingExt::NotFoundFiles.insert(fileName);
 	}
 
 #ifndef NDEBUG
-	Logger::Debug("[SearchFile] %s - NOT FOUND\n", Filename);
+	Logger::Debug("[SearchFile] %s - NOT FOUND\n", fileName);
 #endif
 	R->EAX(0);
 	return 0x48AA63;

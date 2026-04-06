@@ -163,7 +163,6 @@ struct BaseNodeDataExt
             House == another.House &&
             ID == another.ID;
     }
-
 };
 
 struct TileAnimation

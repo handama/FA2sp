@@ -1,14 +1,11 @@
 #include "Body.h"
 
 #include "../../FA2sp.h"
-
 #include <WindowsX.h>
 #include <CPalette.h>
-
 #include <CMapData.h>
 #include <Drawing.h>
 #include <CINI.h>
-
 #include <ranges>
 #include "../../Helpers/STDHelpers.h"
 #include "../CMapData/Body.h"
@@ -311,7 +308,7 @@ void CIsoViewExt::DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF co
     RECT rect = CIsoViewExt::GetScaledWindowRect();
 
     auto lPitch = lpDesc->lPitch;
-    auto nBytesPerPixel = *(int*)0x72A8C0;
+    auto nBytesPerPixel = 4;
 
     unsigned char* base = (unsigned char*)lpDesc->lpSurface;
     unsigned char* end = base + lPitch * lpDesc->dwHeight;
@@ -563,7 +560,7 @@ void CIsoViewExt::DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF col
     RECT rect = CIsoViewExt::GetScaledWindowRect();
 
     auto lPitch = lpDesc->lPitch;
-    auto nBytesPerPixel = *(int*)0x72A8C0;
+    auto nBytesPerPixel = 4;
 
     unsigned char* base = (unsigned char*)lpDesc->lpSurface;
     unsigned char* end = base + lPitch * lpDesc->dwHeight;
@@ -1212,7 +1209,7 @@ void CIsoViewExt::DrawLine(
     const int surfW = (int)lpDesc->dwWidth;
     const int surfH = (int)lpDesc->dwHeight;
     const int pitch = lpDesc->lPitch;
-    const int bpp = *(int*)0x72A8C0;
+    const int bpp = 4;
 
     RECT rect = { 0, 0, surfW - 1, surfH - 1 };
 
@@ -1375,7 +1372,7 @@ void CIsoViewExt::DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord
     RECT rect = CIsoViewExt::GetScaledWindowRect();
 
     auto lPitch = lpDesc->lPitch;
-    auto nBytesPerPixel = *(int*)0x72A8C0;
+    auto nBytesPerPixel = 4;
 
     unsigned char* base = (unsigned char*)lpDesc->lpSurface;
     unsigned char* end = base + lPitch * lpDesc->dwHeight;
@@ -2095,7 +2092,7 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
 
     const int X_OFFSET = 1;
     const int Y_OFFSET = -29;
-    const int BPP = *(int*)0x72A8C0;
+    const int BPP = 4;
 
     auto pThis = CIsoView::GetInstance();
     RECT windowRect;
@@ -2224,7 +2221,7 @@ void CIsoViewExt::BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURF
 
     const int X_OFFSET = 1;
     const int Y_OFFSET = -29;
-    const int BPP = *(int*)0x72A8C0;
+    const int BPP = 4;
 
     auto pThis = CIsoView::GetInstance();
     RECT windowRect;
@@ -2349,7 +2346,7 @@ void CIsoViewExt::BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDR
 
     const int X_OFFSET = 1;
     const int Y_OFFSET = -29;
-    const int BPP = *(int*)0x72A8C0;
+    const int BPP = 4;
 
     auto pThis = CIsoView::GetInstance();
     RECT windowRect;
@@ -2462,7 +2459,7 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
 
     const int X_OFFSET = 31;
     const int Y_OFFSET = -29;
-    const int BPP = *(int*)0x72A8C0;
+    const int BPP = 4;
 
     x += X_OFFSET;
     y += Y_OFFSET;
@@ -2599,7 +2596,8 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
 }
 
 void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
-    const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha, COLORREF houseColor, int extraLightType, bool remap)
+    const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha,
+    COLORREF houseColor, int extraLightType, bool remap)
 {
     if (alpha == 0 || !pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst) {
         return;
@@ -2607,30 +2605,25 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
 
     const int X_OFFSET = 31;
     const int Y_OFFSET = -29;
-    const int BPP = *(int*)0x72A8C0;
+    const int BPP = 4;
 
     x += X_OFFSET;
     y += Y_OFFSET;
 
-    BYTE* src = static_cast<BYTE*>(pd->pImageBuffer.get());
+    BYTE* srcBase = static_cast<BYTE*>(pd->pImageBuffer.get());
     int swidth = pd->FullWidth;
     int sheight = pd->FullHeight;
 
-    if (x + swidth < window.left || y + sheight < window.top) {
-        return;
-    }
-    if (x >= window.right || y >= window.bottom) {
+    if (x + swidth < window.left || y + sheight < window.top ||
+        x >= window.right || y >= window.bottom) {
         return;
     }
 
     RECT srcRect = { 0, 0, swidth, sheight };
     RECT destRect = { x, y, x + swidth, y + sheight };
-    if (destRect.left < 0) {
-        srcRect.left = 1 - destRect.left;
-    }
-    if (destRect.top < 0) {
-        srcRect.top = 1 - destRect.top;
-    }
+
+    if (destRect.left < 0) srcRect.left = 1 - destRect.left;
+    if (destRect.top < 0)  srcRect.top = 1 - destRect.top;
     if (x + swidth > window.right) {
         srcRect.right = swidth - ((x + swidth) - window.right);
         destRect.right = window.right;
@@ -2640,112 +2633,115 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
         destRect.bottom = window.bottom;
     }
 
-    if (!newPal) {
+    if (srcRect.right <= srcRect.left || srcRect.bottom <= srcRect.top) {
+        return;
+    }
+
+    if (!newPal) _LIKELY{
         newPal = pd->pPalette;
     }
+
     bool isMultiSelected = false;
-    RGBClass oreColor;
     bool isEmphasizingOre = false;
-    byte oreOpacity;
+    RGBClass oreColor{};
+    byte oreOpacity = 0;
+
     if (extraLightType == -10 || extraLightType >= 500) {
-        isMultiSelected = MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
-        if (extraLightType >= 500) {
+        isMultiSelected = MultiSelection::IsSelected(
+            CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
+
+        if (extraLightType >= 500 && RenderingMap && RenderEmphasizeOres) {
             int overlay = extraLightType - 500;
-            if (RenderingMap && RenderEmphasizeOres && CMapDataExt::IsOre(overlay))
-            {
+            if (CMapDataExt::IsOre(overlay)) {
                 isEmphasizingOre = true;
-                auto ovrd = CMapData::Instance->GetOverlayDataAt(
-                    CMapData::Instance->GetCoordIndex(
-                        CIsoViewExt::CurrentDrawCellLocation.X,
-                        CIsoViewExt::CurrentDrawCellLocation.Y));
+                int pos = CMapData::Instance->GetCoordIndex(
+                    CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
+                auto ovrd = CMapData::Instance->GetOverlayDataAt(pos);
                 oreColor = CMapDataExt::GetOverlayTypeData(overlay).RadarColor;
                 oreOpacity = oreOpacityTable[std::min(ovrd, (byte)13)];
             }
         }
     }
 
-    BGRStruct color;
+    BGRStruct houseBGR{};
     auto pRGB = reinterpret_cast<ColorStruct*>(&houseColor);
-    color.R = pRGB->red;
-    color.G = pRGB->green;
-    color.B = pRGB->blue;
+    houseBGR.R = pRGB->red;
+    houseBGR.G = pRGB->green;
+    houseBGR.B = pRGB->blue;
+
     if (LightingStruct::CurrentLighting != LightingStruct::NoLighting) {
         if (extraLightType >= 500) {
             newPal = PalettesManager::GetOverlayPalette(newPal, CIsoViewExt::CurrentDrawCellLocation, extraLightType - 500);
         }
-        else if (extraLightType <= -100){
-            // do not tint color
-        }
-        else {
-            newPal = PalettesManager::GetObjectPalette(newPal, color, remap, CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
+        else if (extraLightType > -100) {
+            newPal = PalettesManager::GetObjectPalette(newPal, houseBGR, remap,
+                CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
         }
     }
     else {
-        if (extraLightType >= 500 
-            && ExtConfigs::InGameDisplay_RemapableOverlay
-            && CViewObjectsExt::WallDamageStages.find(extraLightType - 500) != CViewObjectsExt::WallDamageStages.end())
-        {
-            auto pos = CMapData::Instance->GetCoordIndex(CIsoViewExt::CurrentDrawCellLocation.X,
-                CIsoViewExt::CurrentDrawCellLocation.Y);
-            if (pos < CMapDataExt::CellDataExts.size())
-            {
-                auto pRGB = reinterpret_cast<ColorStruct*>(&CMapDataExt::CellDataExts[pos].RemapableColor);
-                color.R = pRGB->red;
-                color.G = pRGB->green;
-                color.B = pRGB->blue;
-                remap = true;
+        if (extraLightType >= 500 && ExtConfigs::InGameDisplay_RemapableOverlay) {
+            auto it = CViewObjectsExt::WallDamageStages.find(extraLightType - 500);
+            if (it != CViewObjectsExt::WallDamageStages.end()) {
+                int pos = CMapData::Instance->GetCoordIndex(
+                    CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
+                if (pos < static_cast<int>(CMapDataExt::CellDataExts.size())) {
+                    auto pCellRGB = reinterpret_cast<ColorStruct*>(&CMapDataExt::CellDataExts[pos].RemapableColor);
+                    houseBGR.R = pCellRGB->red;
+                    houseBGR.G = pCellRGB->green;
+                    houseBGR.B = pCellRGB->blue;
+                    remap = true;
+                }
             }
         }
-        newPal = PalettesManager::GetPalette(newPal, color, remap);
+        newPal = PalettesManager::GetPalette(newPal, houseBGR, remap);
     }
 
-    BYTE* srcBase = src;
-    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
+    const bool doAlphaBlend = alpha < 255;
+    const bool doMultiSel = isMultiSelected && (!RenderingMap || (RenderingMap && RenderCurrentLayers));
+    const bool doOre = isEmphasizingOre;
+
+    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * 4;
     BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
 
     for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
-        LONG left = pd->pPixelValidRanges[row].First;
-        LONG right = pd->pPixelValidRanges[row].Last;
-        if (left < srcRect.left) {
-            left = srcRect.left;
-        }
-        if (right >= srcRect.right) {
-            right = srcRect.right - 1;
-        }
-        if (left > right) {
-            continue;
-        }
+        LONG left = std::max((LONG)pd->pPixelValidRanges[row].First, srcRect.left);
+        LONG right = std::min((LONG)pd->pPixelValidRanges[row].Last, srcRect.right - 1);
+        if (left > right) continue;
 
         BYTE* srcPtr = srcBase + row * swidth + left;
         BYTE* destPtr = destBase + row * boundary.dpitch + left * BPP;
+
         for (LONG col = left; col <= right; ++col, ++srcPtr, destPtr += BPP) {
-            if (destRect.left + col < 0) {
-                continue;
-            }
+            if (destRect.left + col < 0) continue;
 
             BYTE pixelValue = *srcPtr;
-            if (pixelValue && destPtr >= dst && destPtr + BPP <= surfaceEnd) {
-                BGRStruct c = newPal->Data[pixelValue];
-                if (alpha < 255) {
-                    BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(destPtr);
-                    c.B = alphaBlendTable[c.B][alpha] + alphaBlendTable[oriColor.B][255 - alpha];
-                    c.G = alphaBlendTable[c.G][alpha] + alphaBlendTable[oriColor.G][255 - alpha];
-                    c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[oriColor.R][255 - alpha];
-                }
-                if (isMultiSelected && (!RenderingMap || RenderingMap && RenderCurrentLayers)) {
-                    RGBClass* selColor = reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor);
-                    c.B = (c.B * 2 + selColor->B) / 3;
-                    c.G = (c.G * 2 + selColor->G) / 3;
-                    c.R = (c.R * 2 + selColor->R) / 3;
-                }
-                if (isEmphasizingOre)
-                {
-                    c.B = alphaBlendTable[c.B][oreOpacity] + alphaBlendTable[oreColor.B][255 - oreOpacity];
-                    c.G = alphaBlendTable[c.G][oreOpacity] + alphaBlendTable[oreColor.G][255 - oreOpacity];
-                    c.R = alphaBlendTable[c.R][oreOpacity] + alphaBlendTable[oreColor.R][255 - oreOpacity];
-                }
-                memcpy(destPtr, &c, BPP);
+            if (pixelValue == 0) [[likely]] continue;
+
+            if (destPtr + BPP > surfaceEnd) break;
+
+            BGRStruct c = newPal->Data[pixelValue];
+
+            if (doAlphaBlend) {
+                BGRStruct ori = *reinterpret_cast<const BGRStruct*>(destPtr);
+                c.B = alphaBlendTable[c.B][alpha] + alphaBlendTable[ori.B][255 - alpha];
+                c.G = alphaBlendTable[c.G][alpha] + alphaBlendTable[ori.G][255 - alpha];
+                c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[ori.R][255 - alpha];
             }
+
+            if (doMultiSel) {
+                RGBClass* selColor = reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor);
+                c.B = (c.B * 2 + selColor->B) / 3;
+                c.G = (c.G * 2 + selColor->G) / 3;
+                c.R = (c.R * 2 + selColor->R) / 3;
+            }
+
+            if (doOre) {
+                c.B = alphaBlendTable[c.B][oreOpacity] + alphaBlendTable[oreColor.B][255 - oreOpacity];
+                c.G = alphaBlendTable[c.G][oreOpacity] + alphaBlendTable[oreColor.G][255 - oreOpacity];
+                c.R = alphaBlendTable[c.R][oreOpacity] + alphaBlendTable[oreColor.R][255 - oreOpacity];
+            }
+
+            memcpy(destPtr, &c, BPP);
         }
     }
 }
@@ -2797,7 +2793,7 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
     }
 
     // buildings use pre-calculate palettes
-    if (!newPal) {
+    if (!newPal) _LIKELY{
         newPal = pd->pPalette;
         BGRStruct color;
         auto pRGB = reinterpret_cast<ColorStruct*>(&houseColor);
@@ -2870,30 +2866,25 @@ void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, cons
 
     const int X_OFFSET = 31;
     const int Y_OFFSET = -29;
-    const int BPP = *(int*)0x72A8C0; 
+    const int BPP = 4;
 
     x += X_OFFSET;
     y += Y_OFFSET;
 
-    BYTE* src = static_cast<BYTE*>(pd->pImageBuffer.get());
+    BYTE* srcBase = static_cast<BYTE*>(pd->pImageBuffer.get());
     int swidth = pd->FullWidth;
     int sheight = pd->FullHeight;
 
-    if (x + swidth < window.left || y + sheight < window.top) {
-        return;
-    }
-    if (x >= window.right || y >= window.bottom) {
+    if (x + swidth < window.left || y + sheight < window.top ||
+        x >= window.right || y >= window.bottom) {
         return;
     }
 
     RECT srcRect = { 0, 0, swidth, sheight };
     RECT destRect = { x, y, x + swidth, y + sheight };
-    if (destRect.left < 0) {
-        srcRect.left = 1 - destRect.left;
-    }
-    if (destRect.top < 0) {
-        srcRect.top = 1 - destRect.top;
-    }
+
+    if (destRect.left < 0) srcRect.left = 1 - destRect.left;
+    if (destRect.top < 0)  srcRect.top = 1 - destRect.top;
     if (x + swidth > window.right) {
         srcRect.right = swidth - ((x + swidth) - window.right);
         destRect.right = window.right;
@@ -2903,33 +2894,36 @@ void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, cons
         destRect.bottom = window.bottom;
     }
 
-    BYTE* srcBase = src;
-    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
+    if (srcRect.right <= srcRect.left || srcRect.bottom <= srcRect.top) {
+        return;
+    }
+
+    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * 4;
     BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
 
     for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
         LONG left = srcRect.left;
         LONG right = srcRect.right - 1;
-        if (left > right) {
-            continue;
-        }
+        if (left > right) continue;
 
         BYTE* srcPtr = srcBase + row * swidth + left;
         BYTE* destPtr = destBase + row * boundary.dpitch + left * BPP;
+
         for (LONG col = left; col <= right; ++col, ++srcPtr, destPtr += BPP) {
-            if (destRect.left + col < 0) {
-                continue;
-            }
+            if (destRect.left + col < 0) continue;
 
             BYTE pixelValue = *srcPtr;
-            if (pixelValue != 127 && destPtr >= dst && destPtr + BPP <= surfaceEnd) {
-                BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(destPtr);
-                BGRStruct c;
-                c.B = std::min(static_cast<int>(oriColor.B * pixelValue * 2 / 256), 255);
-                c.G = std::min(static_cast<int>(oriColor.G * pixelValue * 2 / 256), 255);
-                c.R = std::min(static_cast<int>(oriColor.R * pixelValue * 2 / 256), 255);
-                memcpy(destPtr, &c, BPP);
-            }
+            if (pixelValue == 127 || destPtr + BPP > surfaceEnd) [[likely]] continue;
+
+            BGRStruct ori = *reinterpret_cast<const BGRStruct*>(destPtr);
+            BGRStruct c;
+
+            int factor = pixelValue * 2;
+            c.B = std::min((ori.B * factor) >> 8, 255);
+            c.G = std::min((ori.G * factor) >> 8, 255);
+            c.R = std::min((ori.R * factor) >> 8, 255);
+
+            memcpy(destPtr, &c, BPP);
         }
     }
 }
@@ -3047,7 +3041,7 @@ bool CIsoViewExt::SaveImageDataToBMP(ImageDataClassSafe* pd,const char* outputPa
 }
 
 void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
-    const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha, 
+    const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha,
     std::vector<byte>* mask, std::vector<byte>* heightMask, byte height, std::vector<int>* cellHeightMask, int tileSet)
 {
     if (alpha == 0 || !subTile || !subTile->HasValidImage || !subTile->ImageData || !dst || !subTile->pPixelValidRanges) {
@@ -3058,7 +3052,7 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
     const int TILE_HEIGHT = 30;
     const int X_OFFSET = 61;
     const int Y_OFFSET = 1;
-    const int BPP = *(int*)0x72A8C0;
+    const int BPP = 4;
     const BGRStruct SHADOW_COLOR = { 0, 0, 0 };
 
     x += X_OFFSET;
@@ -3066,19 +3060,12 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
 
     int swidth = subTile->BlockWidth;
     int sheight = subTile->BlockHeight;
+
     RECT srcRect = { 0, 0, swidth, sheight };
     RECT destRect = { x, y, x + swidth, y + sheight };
 
-    srcRect.left = 0;
-    srcRect.top = 0;
-    srcRect.right = swidth;
-    srcRect.bottom = sheight;
-    if (destRect.left < 0) {
-        srcRect.left = 1 - destRect.left;
-    }
-    if (destRect.top < 0) {
-        srcRect.top = 1 - destRect.top;
-    }
+    if (destRect.left < 0) srcRect.left = 1 - destRect.left;
+    if (destRect.top < 0)  srcRect.top = 1 - destRect.top;
     if (x + swidth > window.right) {
         srcRect.right = swidth - ((x + swidth) - window.right);
         destRect.right = window.right;
@@ -3093,58 +3080,63 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
     }
 
     Palette* newPal = pal;
-    BGRStruct color;
+    BGRStruct dummyColor{};
     if (LightingStruct::CurrentLighting != LightingStruct::NoLighting) {
-        newPal = PalettesManager::GetObjectPalette(pal, color, false, CIsoViewExt::CurrentDrawCellLocation);
+        newPal = PalettesManager::GetObjectPalette(pal, dummyColor, false, CIsoViewExt::CurrentDrawCellLocation);
     }
+
     bool multiSelected = MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
-    RGBClass oreColor;
+
+    RGBClass oreColor{};
     bool isEmphasizingOre = false;
-    byte oreOpacity;
-    bool isEmphasizingPlayer = false;
-    byte playerOpacity;
-    if (RenderingMap && RenderEmphasizeOres)
-    {
-        int pos = CMapData::Instance->GetCoordIndex(
-                CIsoViewExt::CurrentDrawCellLocation.X,
-                CIsoViewExt::CurrentDrawCellLocation.Y);
+    byte oreOpacity = 0;
+    if (RenderingMap && RenderEmphasizeOres) {
+        int pos = CMapData::Instance->GetCoordIndex(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
         auto ovr = CMapDataExt::GetExtension()->GetOverlayAt(pos);
-        if (CMapDataExt::IsOre(ovr))
-        {
+        if (CMapDataExt::IsOre(ovr)) {
             isEmphasizingOre = true;
             auto ovrd = CMapData::Instance->GetOverlayDataAt(pos);
             oreColor = CMapDataExt::GetOverlayTypeData(ovr).RadarColor;
             oreOpacity = oreOpacityTable[std::min(ovrd, (byte)13)];
         }
     }
-    if (RenderingMap && RenderMarkStartings)
-    {
+
+    bool isEmphasizingPlayer = false;
+    byte playerOpacity = 0;
+    if (RenderingMap && RenderMarkStartings) {
         int players = CMapDataExt::GetPlayerLocationCountAtCell(
-            CIsoViewExt::CurrentDrawCellLocation.X,
-            CIsoViewExt::CurrentDrawCellLocation.Y);
-        if (players > 0)
-        {
+            CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
+        if (players > 0) {
             isEmphasizingPlayer = true;
             playerOpacity = playerLocationOpacityTable[players - 1];
         }
     }
 
+    const bool doFlatToGround = ExtConfigs::FlatToGroundHideExtra && CFinalSunApp::Instance->FlatToGround;
+    const bool doMaskShadow = mask != nullptr;
+    const bool doCellHeight = cellHeightMask != nullptr;
+    const bool doAlphaBlend = alpha < 255;
+    const bool doMultiSel = multiSelected && (!RenderingMap || (RenderingMap && RenderCurrentLayers));
+    const bool doOre = isEmphasizingOre;
+    const bool doPlayer = isEmphasizingPlayer;
+
+    const RGBClass* selColor = doMultiSel ? reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor) : nullptr;
+    const RGBClass* playerColor = doPlayer ? reinterpret_cast<RGBClass*>(&ExtConfigs::PlayerLocation_Color) : nullptr;
+
     BYTE* srcBase = static_cast<BYTE*>(subTile->ImageData);
-    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
+    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * 4;
     BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
 
     for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
         LONG left = std::max((LONG)subTile->pPixelValidRanges[row].First, srcRect.left);
         LONG right = std::min((LONG)subTile->pPixelValidRanges[row].Last, srcRect.right - 1);
-        if (left > right) {
-            continue;
-        }
+        if (left > right) continue;
 
         BYTE* srcPtr = srcBase + row * swidth + left;
         BYTE* destPtr = destBase + row * boundary.dpitch + left * BPP;
 
         for (LONG col = left; col <= right; ++col, ++srcPtr, destPtr += BPP) {
-            if (ExtConfigs::FlatToGroundHideExtra && CFinalSunApp::Instance->FlatToGround) {
+            if (doFlatToGround) {
                 int posInTile = col + subTile->XMinusExX + (row + subTile->YMinusExY) * TILE_WIDTH;
                 if (col + subTile->XMinusExX < 0 ||
                     col + subTile->XMinusExX >= TILE_WIDTH ||
@@ -3156,40 +3148,35 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
             }
 
             BYTE pixelValue = *srcPtr;
-            if (pixelValue && destPtr + BPP <= surfaceEnd) {
-                BGRStruct c = newPal->Data[pixelValue];
+            if (pixelValue == 0) [[likely]] continue;
 
-                if (mask)
-                {
-                    int wy = destRect.top + row;
-                    int wx = destRect.left + col;
+            if (destPtr + BPP > surfaceEnd) break;
 
-                    if (wx >= window.left && wx < window.right &&
-                        wy >= window.top && wy < window.bottom)
-                    {
-                        int index = wx - window.left + (wy - window.top) * (window.right - window.left);
-                        if ((*heightMask)[index] >= height)
-                        {
-                            if (auto shadow = (*mask)[index])
-                            {
-                                BYTE keep = alphaBlendTable[255][127];
-                                BYTE blend = 255 - keep;
-                                c.R = alphaBlendTable[SHADOW_COLOR.R][blend] + alphaBlendTable[c.R][keep];
-                                c.G = alphaBlendTable[SHADOW_COLOR.G][blend] + alphaBlendTable[c.G][keep];
-                                c.B = alphaBlendTable[SHADOW_COLOR.B][blend] + alphaBlendTable[c.B][keep];
-                            }
+            BGRStruct c = newPal->Data[pixelValue];
+
+            if (doMaskShadow) _LIKELY{
+                int wy = destRect.top + row;
+                int wx = destRect.left + col;
+                if (wx >= window.left && wx < window.right &&
+                    wy >= window.top && wy < window.bottom) {
+                    int index = wx - window.left + (wy - window.top) * (window.right - window.left);
+                    if ((*heightMask)[index] >= height) {
+                        if (auto shadow = (*mask)[index]) {
+                            BYTE keep = alphaBlendTable[255][127];
+                            BYTE blend = 255 - keep;
+                            c.R = alphaBlendTable[SHADOW_COLOR.R][blend] + alphaBlendTable[c.R][keep];
+                            c.G = alphaBlendTable[SHADOW_COLOR.G][blend] + alphaBlendTable[c.G][keep];
+                            c.B = alphaBlendTable[SHADOW_COLOR.B][blend] + alphaBlendTable[c.B][keep];
                         }
                     }
                 }
+            }
 
-                if (cellHeightMask)
-                {
+                if (doCellHeight) _LIKELY{
                     int wy = destRect.top + row;
                     int wx = destRect.left + col;
-
                     if (wx >= window.left && wx < window.right &&
-                        wy >= window.top && wy < window.bottom)
-                    {
+                        wy >= window.top && wy < window.bottom) {
                         int yOffset = 0;
                         int cellRowIdx = col + subTile->XMinusExX;
                         if (cellRowIdx >= 0 && cellRowIdx <= 30)
@@ -3201,42 +3188,37 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
                         int offset = (-subTile->YMinusExY - 15 - (row - srcRect.top));
                         int value = height * 30 - yOffset + (subTile->YMinusExY < 0 ? (offset + 30) : 0) - 2;
                         value = std::max(0, value);
-                        (*cellHeightMask)[wx - window.left + (wy - window.top) * (window.right - window.left)]
-                            = value;
+
+                        (*cellHeightMask)[wx - window.left + (wy - window.top) * (window.right - window.left)] = value;
                     }
                 }
 
-                if (alpha < 255) {
-                    BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(destPtr);
-                    c.B = alphaBlendTable[c.B][alpha] + alphaBlendTable[oriColor.B][255 - alpha];
-                    c.G = alphaBlendTable[c.G][alpha] + alphaBlendTable[oriColor.G][255 - alpha];
-                    c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[oriColor.R][255 - alpha];
-                }
+                    if (doAlphaBlend) {
+                        BGRStruct ori = *reinterpret_cast<const BGRStruct*>(destPtr);
+                        c.B = alphaBlendTable[c.B][alpha] + alphaBlendTable[ori.B][255 - alpha];
+                        c.G = alphaBlendTable[c.G][alpha] + alphaBlendTable[ori.G][255 - alpha];
+                        c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[ori.R][255 - alpha];
+                    }
 
-                if (multiSelected && (!RenderingMap || RenderingMap && RenderCurrentLayers)) {
-                    RGBClass* selColor = reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor);
-                    c.B = (c.B * 2 + selColor->B) / 3;
-                    c.G = (c.G * 2 + selColor->G) / 3;
-                    c.R = (c.R * 2 + selColor->R) / 3;
-                }
+            if (doMultiSel) _UNLIKELY{
+                c.B = (c.B * 2 + selColor->B) / 3;
+                c.G = (c.G * 2 + selColor->G) / 3;
+                c.R = (c.R * 2 + selColor->R) / 3;
+            }
 
-                if (isEmphasizingOre)
-                {
+                if (doOre) _UNLIKELY{
                     c.B = alphaBlendTable[c.B][oreOpacity] + alphaBlendTable[oreColor.B][255 - oreOpacity];
                     c.G = alphaBlendTable[c.G][oreOpacity] + alphaBlendTable[oreColor.G][255 - oreOpacity];
                     c.R = alphaBlendTable[c.R][oreOpacity] + alphaBlendTable[oreColor.R][255 - oreOpacity];
                 }
 
-                if (isEmphasizingPlayer)
-                {
-                    RGBClass* playerColor = reinterpret_cast<RGBClass*>(&ExtConfigs::PlayerLocation_Color);             
-                    c.B = alphaBlendTable[c.B][playerOpacity] + alphaBlendTable[playerColor->B][255 - playerOpacity];
-                    c.G = alphaBlendTable[c.G][playerOpacity] + alphaBlendTable[playerColor->G][255 - playerOpacity];
-                    c.R = alphaBlendTable[c.R][playerOpacity] + alphaBlendTable[playerColor->R][255 - playerOpacity];
-                }
+                    if (doPlayer) _UNLIKELY{
+                        c.B = alphaBlendTable[c.B][playerOpacity] + alphaBlendTable[playerColor->B][255 - playerOpacity];
+                        c.G = alphaBlendTable[c.G][playerOpacity] + alphaBlendTable[playerColor->G][255 - playerOpacity];
+                        c.R = alphaBlendTable[c.R][playerOpacity] + alphaBlendTable[playerColor->R][255 - playerOpacity];
+                    }
 
-                memcpy(destPtr, &c, BPP);
-            }
+            memcpy(destPtr, &c, BPP);
         }
     }
 }
@@ -3595,144 +3577,141 @@ bool CIsoViewExt::LoadAndScaleToBitmap(const ImageDataView* pData,
     return true;
 }
 
-void CIsoViewExt::MaskShadowPixels(const RECT& window, int x, int y, ImageDataClassSafe* pd,
-    std::vector<char>& mask, std::vector<byte>& heightMask, byte height)
+void CIsoViewExt::MaskShadowPixels(
+    const RECT& window, int x, int y,
+    ImageDataClassSafe* pd,
+    std::vector<char>& mask,
+    std::vector<byte>& heightMask,
+    byte height)
 {
     if (!pd || !pd->pImageBuffer || !pd->pPixelValidRanges || mask.empty()) {
         return;
     }
 
-    const int X_OFFSET = 31;
-    const int Y_OFFSET = -29;
+    constexpr int X_OFFSET = 31;
+    constexpr int Y_OFFSET = -29;
+
     x += X_OFFSET;
     y += Y_OFFSET;
 
-    BYTE* src = static_cast<BYTE*>(pd->pImageBuffer.get());
-    int swidth = pd->FullWidth;
-    int sheight = pd->FullHeight;
+    const int swidth = pd->FullWidth;
+    const int sheight = pd->FullHeight;
 
-    if (x + swidth < window.left || y + sheight < window.top) {
-        return;
-    }
-    if (x >= window.right || y >= window.bottom) {
+    if (x + swidth < window.left || y + sheight < window.top ||
+        x >= window.right || y >= window.bottom) {
         return;
     }
 
-    RECT srcRect = { 0, 0, swidth, sheight };
-    RECT destRect = { x, y, x + swidth, y + sheight };
-    if (destRect.left < 0) {
-        srcRect.left = 1 - destRect.left;
-    }
-    if (destRect.top < 0) {
-        srcRect.top = 1 - destRect.top;
-    }
-    if (x + swidth > window.right) {
-        srcRect.right = swidth - ((x + swidth) - window.right);
-        destRect.right = window.right;
-    }
-    if (y + sheight > window.bottom) {
-        srcRect.bottom = sheight - ((y + sheight) - window.bottom);
-        destRect.bottom = window.bottom;
-    }
+    RECT srcRect{ 0,0,swidth,sheight };
+    RECT destRect{ x,y,x + swidth,y + sheight };
+
+    if (destRect.left < window.left)
+        srcRect.left = window.left - destRect.left;
+    if (destRect.top < window.top)
+        srcRect.top = window.top - destRect.top;
+    if (destRect.right > window.right)
+        srcRect.right -= destRect.right - window.right;
+    if (destRect.bottom > window.bottom)
+        srcRect.bottom -= destRect.bottom - window.bottom;
 
     const int maskWidth = window.right - window.left;
-    const int maskHeight = window.bottom - window.top;
-    if (mask.size() < static_cast<size_t>(maskWidth * maskHeight)) {
-        return;
-    }
 
-    BYTE* srcBase = src;
-    for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
-        LONG left = std::max(static_cast<LONG>(pd->pPixelValidRanges[row].First), srcRect.left);
-        LONG right = std::min(static_cast<LONG>(pd->pPixelValidRanges[row].Last), srcRect.right - 1);
-        if (left > right) {
-            continue;
-        }
+    BYTE* src = static_cast<BYTE*>(pd->pImageBuffer.get());
 
-        BYTE* srcPtr = srcBase + row * swidth + left;
-        LONG destXBase = destRect.left + left;
+    for (int row = srcRect.top; row < srcRect.bottom; ++row)
+    {
+        auto& range = pd->pPixelValidRanges[row];
 
-        for (LONG col = left; col <= right; ++col, ++srcPtr) {
-            BYTE pixelValue = *srcPtr;
-            if (!pixelValue) {
+        int left = std::max<int>(range.First, srcRect.left);
+        int right = std::min<int>(range.Last, srcRect.right - 1);
+        if (left > right) continue;
+
+        BYTE* srcPtr = src + row * swidth + left;
+
+        int dy = destRect.top + row - window.top;
+        int dxBase = destRect.left + left - window.left;
+
+        BYTE* maskPtr = reinterpret_cast<BYTE*>(mask.data()) + dy * maskWidth + dxBase;
+        BYTE* heightPtr = heightMask.data() + dy * maskWidth + dxBase;
+
+        for (int col = left; col <= right; ++col)
+        {
+            BYTE pixel = *srcPtr++;
+            if (!pixel) {
+                ++maskPtr;
+                ++heightPtr;
                 continue;
             }
 
-            LONG localX = destXBase + (col - left) - window.left;
-            LONG localY = destRect.top + row - window.top;
-
-            if (localX >= 0 && localX < maskWidth && localY >= 0 && localY < maskHeight) {
-                size_t maskIndex = static_cast<size_t>(localY * maskWidth + localX);
-                mask[maskIndex] = 1;
-                heightMask[maskIndex] = height;
-            }
+            *maskPtr++ = 1;
+            *heightPtr++ = height;
         }
     }
 }
 
-void CIsoViewExt::DrawShadowMask(void* dst, const DDBoundary& boundary, const RECT& window, 
-    const std::vector<byte>& mask, const std::vector<byte>& shadowHeightMask, const std::vector<int>& cellHeightMask)
+void CIsoViewExt::DrawShadowMask(
+    void* dst,
+    const DDBoundary& boundary,
+    const RECT& window,
+    const std::vector<byte>& mask,
+    const std::vector<byte>& shadowHeightMask,
+    const std::vector<int>& cellHeightMask)
 {
-    if (!dst || mask.empty()) {
-        return;
-    }
+    if (!dst || mask.empty()) return;
+ 
+    const int BPP = 4;
+    constexpr BYTE ALPHA = 128;
 
-    const int BPP = *(int*)0x72A8C0;
-    const BGRStruct SHADOW_COLOR = { 0, 0, 0 };
-    const BYTE ALPHA = 128;
     const int maskWidth = window.right - window.left;
     const int maskHeight = window.bottom - window.top;
+
+    BYTE* base = static_cast<BYTE*>(dst);
+
     const int width = boundary.dwWidth;
     const int height = boundary.dwHeight;
 
-    if (mask.size() < static_cast<size_t>(maskWidth * maskHeight)) {
-        return;
-    }
+    BYTE keep = alphaBlendTable[255][255 - ALPHA];
+    BYTE blend = 255 - keep;
 
-    BYTE* base = static_cast<BYTE*>(dst);
-    BYTE* surfaceEnd = base + boundary.dpitch * height;
-
-    for (LONG y = 0; y < maskHeight; ++y) {
-        LONG dy = window.top + y;
-        if (dy < 0 || dy >= height) {
-            continue;
-        }
+    for (int y = 0; y < maskHeight; ++y)
+    {
+        int dy = window.top + y;
+        if ((unsigned)dy >= (unsigned)height) continue;
 
         BYTE* destLine = base + dy * boundary.dpitch + window.left * BPP;
-        for (LONG x = 0; x < maskWidth; ++x) {
-            int index = y * maskWidth + x;
-            BYTE count = mask[y * maskWidth + x];
-            if (count == 0) {
-                continue;
-            }
 
-            LONG dx = window.left + x;
-            if (dx < 0 || dx >= width) {
-                continue;
-            }
+        const BYTE* maskPtr = mask.data() + y * maskWidth;
+        const BYTE* shadowPtr = shadowHeightMask.data() + y * maskWidth;
+        const int* cellPtr = cellHeightMask.data() + y * maskWidth;
+
+        for (int x = 0; x < maskWidth; ++x)
+        {
+            BYTE count = maskPtr[x];
+            if (!count) continue;
+
+            int dx = window.left + x;
+            if ((unsigned)dx >= (unsigned)width) continue;
+
+            if (cellPtr[x] > 30 * shadowPtr[x]) continue;
 
             BYTE* dest = destLine + x * BPP;
-            if (dest + BPP > surfaceEnd) {
-                continue;
+
+            BGRStruct color = *reinterpret_cast<BGRStruct*>(dest);
+
+            BYTE r = color.R;
+            BYTE g = color.G;
+            BYTE b = color.B;
+
+            for (BYTE i = 0; i < count; ++i)
+            {
+                r = alphaBlendTable[0][blend] + alphaBlendTable[r][keep];
+                g = alphaBlendTable[0][blend] + alphaBlendTable[g][keep];
+                b = alphaBlendTable[0][blend] + alphaBlendTable[b][keep];
             }
 
-            if (cellHeightMask[index] > 30 * shadowHeightMask[index]) {
-                continue;
-            }
-
-            BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(dest);
-            BGRStruct blended = oriColor;
-
-            BYTE keep = alphaBlendTable[255][255 - ALPHA];
-            BYTE blend = 255 - keep;
-
-            for (BYTE i = 0; i < count; ++i) {
-                blended.R = alphaBlendTable[SHADOW_COLOR.R][blend] + alphaBlendTable[blended.R][keep];
-                blended.G = alphaBlendTable[SHADOW_COLOR.G][blend] + alphaBlendTable[blended.G][keep];
-                blended.B = alphaBlendTable[SHADOW_COLOR.B][blend] + alphaBlendTable[blended.B][keep];
-            }
-
-            memcpy(dest, &blended, BPP);
+            reinterpret_cast<BGRStruct*>(dest)->R = r;
+            reinterpret_cast<BGRStruct*>(dest)->G = g;
+            reinterpret_cast<BGRStruct*>(dest)->B = b;
         }
     }
 }
@@ -4022,7 +4001,7 @@ bool CIsoViewExt::StretchCopySurfaceBilinear(
 
         int x = 0;
 
-        if (ExtConfigs::AVX2_Support)
+        if (ExtConfigs::AVX2_Support) _LIKELY
         {
             for (; x + 7 < dstW; x += 8) {
                 __m256i outPix;

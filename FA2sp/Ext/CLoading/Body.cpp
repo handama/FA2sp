@@ -18,6 +18,7 @@ bool CLoadingExt::InitMixFilesFix()
 {
 	HasMdFile = true;
 	CLoadingExt::Ra2dotMixes.clear();
+	CLoadingExt::NotFoundFiles.clear();
 
 	// Load encrypted packages
 	ResourcePackManager::instance().clear();

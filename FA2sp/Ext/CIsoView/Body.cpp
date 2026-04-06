@@ -2637,7 +2637,7 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
         return;
     }
 
-    if (!newPal) _LIKELY{
+    if (!newPal) [[likely]]{
         newPal = pd->pPalette;
     }
 
@@ -2793,7 +2793,7 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
     }
 
     // buildings use pre-calculate palettes
-    if (!newPal) _LIKELY{
+    if (!newPal) [[likely]]{
         newPal = pd->pPalette;
         BGRStruct color;
         auto pRGB = reinterpret_cast<ColorStruct*>(&houseColor);
@@ -3154,7 +3154,7 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
 
             BGRStruct c = newPal->Data[pixelValue];
 
-            if (doMaskShadow) _LIKELY{
+            if (doMaskShadow) [[likely]]{
                 int wy = destRect.top + row;
                 int wx = destRect.left + col;
                 if (wx >= window.left && wx < window.right &&
@@ -3172,7 +3172,7 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
                 }
             }
 
-                if (doCellHeight) _LIKELY{
+                if (doCellHeight) [[likely]]{
                     int wy = destRect.top + row;
                     int wx = destRect.left + col;
                     if (wx >= window.left && wx < window.right &&
@@ -3200,19 +3200,19 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
                         c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[ori.R][255 - alpha];
                     }
 
-            if (doMultiSel) _UNLIKELY{
+            if (doMultiSel) [[unlikely]]{
                 c.B = (c.B * 2 + selColor->B) / 3;
                 c.G = (c.G * 2 + selColor->G) / 3;
                 c.R = (c.R * 2 + selColor->R) / 3;
             }
 
-                if (doOre) _UNLIKELY{
+                if (doOre) [[unlikely]]{
                     c.B = alphaBlendTable[c.B][oreOpacity] + alphaBlendTable[oreColor.B][255 - oreOpacity];
                     c.G = alphaBlendTable[c.G][oreOpacity] + alphaBlendTable[oreColor.G][255 - oreOpacity];
                     c.R = alphaBlendTable[c.R][oreOpacity] + alphaBlendTable[oreColor.R][255 - oreOpacity];
                 }
 
-                    if (doPlayer) _UNLIKELY{
+                    if (doPlayer) [[unlikely]]{
                         c.B = alphaBlendTable[c.B][playerOpacity] + alphaBlendTable[playerColor->B][255 - playerOpacity];
                         c.G = alphaBlendTable[c.G][playerOpacity] + alphaBlendTable[playerColor->G][255 - playerOpacity];
                         c.R = alphaBlendTable[c.R][playerOpacity] + alphaBlendTable[playerColor->R][255 - playerOpacity];
@@ -4001,7 +4001,7 @@ bool CIsoViewExt::StretchCopySurfaceBilinear(
 
         int x = 0;
 
-        if (ExtConfigs::AVX2_Support) _LIKELY
+        if (ExtConfigs::AVX2_Support) [[likely]]
         {
             for (; x + 7 < dstW; x += 8) {
                 __m256i outPix;

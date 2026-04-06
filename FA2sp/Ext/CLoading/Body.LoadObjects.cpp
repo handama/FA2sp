@@ -3508,7 +3508,7 @@ void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow)
 		}
 	}
 
-	if (minY == oldH || maxY == -1) _UNLIKELY{
+	if (minY == oldH || maxY == -1) [[unlikely]]{
 		pData->pImageBuffer = nullptr;
 		pData->pPixelValidRanges = nullptr;
 		pData->FullWidth = 0;
@@ -3547,7 +3547,7 @@ void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow)
 		}
 	}
 
-	if (minX == oldW || maxX == -1) _UNLIKELY{
+	if (minX == oldW || maxX == -1) [[unlikely]]{
 		pData->pImageBuffer = nullptr;
 		pData->pPixelValidRanges = nullptr;
 		pData->FullWidth = 0;
@@ -3573,7 +3573,7 @@ void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow)
 	const int newW = oldW - cropLR * 2;
 	const int newH = oldH - cropTB * 2;
 
-	if (newW <= 0 || newH <= 0) _UNLIKELY{
+	if (newW <= 0 || newH <= 0) [[unlikely]]{
 		pData->pImageBuffer = nullptr;
 		pData->pPixelValidRanges = nullptr;
 		pData->FullWidth = 0;
@@ -3585,7 +3585,7 @@ void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow)
 		return;
 	}
 
-	if (cropLR == 0 && cropTB == 0) _UNLIKELY{
+	if (cropLR == 0 && cropTB == 0) [[unlikely]]{
 		pData->ValidX = minX;
 		pData->ValidY = minY;
 		pData->ValidWidth = validW;
@@ -3698,7 +3698,7 @@ void CLoadingExt::TrimImageEdges(unsigned char*& pBuffer, int& width, int& heigh
 	if (!pBuffer || width <= 0 || height <= 0)
 		return;
 
-	if (ExtConfigs::AVX2_Support) _LIKELY
+	if (ExtConfigs::AVX2_Support) [[likely]]
 	{
 		const int oldW = width;
 		const int oldH = height;

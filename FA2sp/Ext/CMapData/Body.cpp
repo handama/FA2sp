@@ -86,6 +86,7 @@ std::unordered_map<FString, std::shared_ptr<Trigger>> CMapDataExt::Triggers;
 std::vector<short> CMapDataExt::StructureIndexMap;
 std::vector<TubeData> CMapDataExt::Tubes;
 std::unordered_map<int, TileAnimation> CMapDataExt::TileAnimations;
+std::unordered_map<FString, COLORREF> CMapDataExt::Colors;
 std::unordered_map<int, FString> CMapDataExt::TileSetOriginSetNames[6];
 std::unordered_set<FString> CMapDataExt::TerrainPaletteBuildings;
 std::unordered_set<FString> CMapDataExt::DamagedAsRubbleBuildings;
@@ -4280,6 +4281,23 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		CLoadingExt::GetExtension()->LoadObjects("FA2DEFAULT_UNIT");
 		CLoadingExt::GetExtension()->LoadObjects("FA2DEFAULT_AIRCRAFT");
 		CLoadingExt::GetExtension()->LoadObjects("FA2DEFAULT_INFANTRY");
+	}
+
+	Colors.clear();
+	if (auto pSection = CINI::Rules->GetSection("Colors"))
+	{
+		for (auto& [key, value] : pSection->GetEntities())
+		{
+			HSVClass hsv{ 0,0,0 };
+			sscanf_s(value, "%hhu,%hhu,%hhu", &hsv.H, &hsv.S, &hsv.V);
+			RGBClass rgb;
+			if (!ExtConfigs::UseRGBHouseColor)
+				rgb = hsv;
+			else
+				rgb = { hsv.H,hsv.S,hsv.V };
+
+			Colors[key] = (COLORREF)rgb;
+		}
 	}
 
 	GridObjectViewer::Instance.UpdateControls();

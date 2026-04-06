@@ -955,7 +955,7 @@ void BlitTerrainImpl(
     std::vector<byte>* heightMask, byte height,
     std::vector<int>* cellHeightMask, int tileSet,
     const RGBClass* selColor, byte playerOpacity, const RGBClass* playerColor,
-    bool hasOre, const RGBClass& oreColor, byte oreOpacity)
+    const RGBClass& oreColor, byte oreOpacity)
 {
     const int TILE_WIDTH = 60;
     const int TILE_HEIGHT = 30;
@@ -1011,9 +1011,9 @@ void BlitTerrainImpl(
             }
 
             BYTE pixelValue = *srcPtr;
-            if (pixelValue == 0) [[likely]] continue;
+            if (pixelValue == 0) continue;
 
-            if (destPtr + BPP > surfaceEnd) break;
+            if (destPtr + BPP > surfaceEnd) [[unlikely]] break;
 
             BGRStruct c = pal->Data[pixelValue];
 
@@ -1021,7 +1021,7 @@ void BlitTerrainImpl(
                 int wx = destRect.left + col;
                 int wy = destRect.top + row;
                 if (wx >= window.left && wx < window.right &&
-                    wy >= window.top && wy < window.bottom) {
+                    wy >= window.top && wy < window.bottom) [[likely]] {
                     int index = wx - window.left + (wy - window.top) * (window.right - window.left);
                     if ((*heightMask)[index] >= height) {
                         if (auto shadow = (*mask)[index]) {
@@ -1035,7 +1035,7 @@ void BlitTerrainImpl(
                 }
             }
 
-            if constexpr (CellHeight) { 
+            if constexpr (CellHeight) [[likely]] {
                 int wx = destRect.left + col; 
                 int wy = destRect.top + row; 
                 if (wx >= window.left && wx < window.right 
@@ -1070,11 +1070,9 @@ void BlitTerrainImpl(
             }
 
             if constexpr (Ore) {
-                if (hasOre) {
-                    c.B = alphaBlendTable[c.B][oreOpacity] + alphaBlendTable[oreColor.B][255 - oreOpacity];
-                    c.G = alphaBlendTable[c.G][oreOpacity] + alphaBlendTable[oreColor.G][255 - oreOpacity];
-                    c.R = alphaBlendTable[c.R][oreOpacity] + alphaBlendTable[oreColor.R][255 - oreOpacity];
-                }
+                c.B = alphaBlendTable[c.B][oreOpacity] + alphaBlendTable[oreColor.B][255 - oreOpacity];
+                c.G = alphaBlendTable[c.G][oreOpacity] + alphaBlendTable[oreColor.G][255 - oreOpacity];
+                c.R = alphaBlendTable[c.R][oreOpacity] + alphaBlendTable[oreColor.R][255 - oreOpacity];
             }
 
             if constexpr (Player) {
@@ -1093,7 +1091,7 @@ void BlitTerrainImpl(
 using ImplFunc = void(*)(CIsoView*, void*, const RECT&, const DDBoundary&, int, int,
     CTileBlockClass*, Palette*, BYTE, std::vector<byte>*,
     std::vector<byte>*, byte, std::vector<int>*, int,
-    const RGBClass*, byte, const RGBClass*, bool, const RGBClass&, byte);
+    const RGBClass*, byte, const RGBClass*, const RGBClass&, byte);
 
 template<size_t... Is>
 static constexpr std::array<ImplFunc, 128> make_dispatch_table(std::index_sequence<Is...>) {
@@ -1164,7 +1162,7 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
     DISPATCH_TABLE[idx](
         pThis, dst, window, boundary, x, y, subTile, newPal, alpha,
         mask, heightMask, height, cellHeightMask, tileSet,
-        selColor, playerOpacity, playerColor, isEmphasizingOre, oreColor, oreOpacity
+        selColor, playerOpacity, playerColor, oreColor, oreOpacity
         );
 }
 

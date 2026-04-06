@@ -35,7 +35,7 @@ DEFINE_HOOK(468760, Miscs_GetColor, 7)
 	GET_STACK(const char*, pHouse, 0x4);
 	GET_STACK(const char*, pColor, 0x8);
 
-	ppmfc::CString color = "";
+	FString color = "";
 	if (pHouse)
 		if (auto pStr = Variables::RulesMap.TryGetString(pHouse, "Color")) {
 			color = *pStr;
@@ -44,21 +44,12 @@ DEFINE_HOOK(468760, Miscs_GetColor, 7)
 	if (pColor)
 		color = pColor;
 
-	HSVClass hsv{ 0,0,0 };
-	if (!color.IsEmpty())
-		if (auto const pValue = CINI::Rules->TryGetString("Colors", color)) {
-			sscanf_s(*pValue, "%hhu,%hhu,%hhu", &hsv.H, &hsv.S, &hsv.V);
-		}
-			
-
-	RGBClass rgb;
-	if (!ExtConfigs::UseRGBHouseColor)
-		rgb = hsv;
+	auto itr = CMapDataExt::Colors.find(color);
+	if (itr != CMapDataExt::Colors.end())
+		R->EAX(itr->second);
 	else
-		rgb = { hsv.H,hsv.S,hsv.V };
-
-	R->EAX<int>(rgb);
-
+		R->EAX(0);
+	
 	return 0x468EEB;
 }
 

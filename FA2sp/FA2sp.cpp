@@ -1464,7 +1464,7 @@ DEFINE_HOOK(537129, ExeRun, 9)
 	Logger::Raw("==============================\nCPU Report:\n%s==============================\n", 
 		InstructionSet::Report().c_str());
 
-	ExtConfigs::AVX2_Support = InstructionSet::AVX2();
+	ExtConfigs::AVX2_Support = InstructionSet::AVX2() && InstructionSet::OSXSAVE();
 
 	if (DetachFromDebugger())
 		Logger::Info("Syringe detached!\n");

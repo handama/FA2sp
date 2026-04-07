@@ -36,15 +36,12 @@ void BltToWindow(HWND hwnd, LPDIRECTDRAWSURFACE7 src, const RECT* rcSrc, const R
 
 	HDC wndDC = GetDC(hwnd);
 
-	int width = rcDst->right - rcDst->left;
-	int height = rcDst->bottom - rcDst->top;
-
 	StretchBlt(
 		wndDC,
 		0,
 		0,
-		width,
-		height,
+		rcDst->right - rcDst->left,
+		rcDst->bottom - rcDst->top,
 		srcDC,
 		rcSrc->left,
 		rcSrc->top,

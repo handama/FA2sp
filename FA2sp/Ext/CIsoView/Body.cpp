@@ -3153,14 +3153,15 @@ CRect CIsoViewExt::GetVisibleIsoViewRect()
 
     if (ExtConfigs::SecondScreenSupport)
     {
-        HMONITOR hMonitor = MonitorFromWindow(CFinalSunDlg::Instance->m_hWnd, MONITOR_DEFAULTTONEAREST);
-        MONITORINFO mi = {};
-        mi.cbSize = sizeof(mi);
-        GetMonitorInfo(hMonitor, &mi);
-        CRect monitorRect = mi.rcMonitor;
+        int vx = GetSystemMetrics(SM_XVIRTUALSCREEN);
+        int vy = GetSystemMetrics(SM_YVIRTUALSCREEN);
+        int vw = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+        int vh = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+
+        CRect virtualRect(vx, vy, vx + vw, vy + vh);
 
         CRect destRect;
-        destRect.IntersectRect(&rect, &monitorRect);
+        destRect.IntersectRect(&rect, &virtualRect);
 
         return destRect;
     }

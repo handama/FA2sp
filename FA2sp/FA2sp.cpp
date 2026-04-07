@@ -118,6 +118,7 @@ unsigned int ExtConfigs::MaxVoxelFacing;
 bool ExtConfigs::DDrawInVideoMem;
 bool ExtConfigs::DDrawEmulation;
 bool ExtConfigs::SecondScreenSupport;
+bool ExtConfigs::SecondScreenSupport_INI;
 bool ExtConfigs::NoHouseNameTranslation;
 bool ExtConfigs::BetterHouseNameTranslation;
 bool ExtConfigs::EnableMultiSelection;
@@ -429,7 +430,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::DDrawInVideoMem = CINI::FAData->GetBool("ExtConfigs", "DDrawInVideoMem", true);
 	ExtConfigs::DDrawEmulation = CINI::FAData->GetBool("ExtConfigs", "DDrawEmulation");
-	ExtConfigs::SecondScreenSupport = CINI::FAData->GetBool("ExtConfigs", "SecondScreenSupport");
+	ExtConfigs::SecondScreenSupport_INI = CINI::FAData->GetBool("ExtConfigs", "SecondScreenSupport", true);
 
 	ExtConfigs::NoHouseNameTranslation = CINI::FAData->GetBool("ExtConfigs", "NoHouseNameTranslation");
 	ExtConfigs::BetterHouseNameTranslation = CINI::FAData->GetBool("ExtConfigs", "BetterHouseNameTranslation");
@@ -552,6 +553,11 @@ void FA2sp::ExtConfigsInitialize()
 
 	CIsoViewExt::PasteShowOutline = ExtConfigs::PasteShowOutlineDefault;
 
+	TheaterHelpers::InitTheaterSuffix();
+
+	ExtConfigs::SecondScreenSupport =
+		ExtConfigs::SecondScreenSupport_INI
+		&& (GetSystemMetrics(SM_CMONITORS) > 1);
 }
 
 void ExtConfigs::UpdateOptionTranslations()
@@ -1324,7 +1330,7 @@ void ExtConfigs::UpdateOptionTranslations()
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SecondScreenSupport", "Support displaying IsoView on non-primary screens (slower)"),
 		.IniKey = "SecondScreenSupport",
-		.Value = &ExtConfigs::SecondScreenSupport,
+		.Value = &ExtConfigs::SecondScreenSupport_INI,
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
@@ -1368,8 +1374,6 @@ void ExtConfigs::UpdateOptionTranslations()
 			.Type = ExtConfigs::SpecialOptionType::BindFormat
 			});
 	}
-
-	TheaterHelpers::InitTheaterSuffix();
 }
 
 bool FA2sp::IsDarkMode()

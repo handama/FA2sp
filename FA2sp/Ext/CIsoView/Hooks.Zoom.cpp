@@ -28,6 +28,35 @@ DEFINE_HOOK(476240, CIsoView_MapCoord2ScreenCoord_Flat, 5)
 }
 */
 
+void BltToWindow(HWND hwnd, LPDIRECTDRAWSURFACE7 src, const RECT* rcSrc, const RECT* rcDst)
+{
+	HDC srcDC = nullptr;
+	if (FAILED(src->GetDC(&srcDC)))
+		return;
+
+	HDC wndDC = GetDC(hwnd);
+
+	int width = rcDst->right - rcDst->left;
+	int height = rcDst->bottom - rcDst->top;
+
+	StretchBlt(
+		wndDC,
+		0,
+		0,
+		width,
+		height,
+		srcDC,
+		rcSrc->left,
+		rcSrc->top,
+		rcSrc->right - rcSrc->left,
+		rcSrc->bottom - rcSrc->top,
+		SRCCOPY
+	);
+
+	ReleaseDC(hwnd, wndDC);
+	src->ReleaseDC(srcDC);
+}
+
 #define BACK_BUFFER_TO_PRIMARY(hook_addr, hook_name, hook_size, return_addr, special_draw) \
 DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 { \
@@ -40,7 +69,10 @@ DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 		}\
 		if (special_draw != 3)\
 			CIsoViewExt::ReduceBrightness(CIsoViewExt::GetBackBuffer(), dr);\
-		pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::GetBackBuffer(), &dr, DDBLT_WAIT, 0);\
+		if (ExtConfigs::SecondScreenSupport)\
+			BltToWindow(pThis->m_hWnd,  CIsoViewExt::GetBackBuffer(), &dr, &dr);\
+		else\
+			pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::GetBackBuffer(), &dr, DDBLT_WAIT, 0);\
 		return return_addr; \
 	}\
 	CRect backDr;\
@@ -51,7 +83,10 @@ DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 		CIsoViewExt::lpDDBackBufferZoomSurface, dr);\
 	CIsoViewExt::SpecialDraw(CIsoViewExt::lpDDBackBufferZoomSurface, special_draw);\
 	CIsoViewExt::ReduceBrightness(CIsoViewExt::lpDDBackBufferZoomSurface, dr);\
-	pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::lpDDBackBufferZoomSurface, &dr, DDBLT_WAIT, 0);\
+	if (ExtConfigs::SecondScreenSupport)\
+		BltToWindow(pThis->m_hWnd,  CIsoViewExt::lpDDBackBufferZoomSurface, &dr, &dr);\
+	else\
+		pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::lpDDBackBufferZoomSurface, &dr, DDBLT_WAIT, 0);\
 	return return_addr; \
 }
 
@@ -210,17 +245,33 @@ DEFINE_HOOK(476419, CIsoView_MoveTo, 7)
 	RECT r;
 	pThis->GetWindowRect(&r);
 
+	int vx = GetSystemMetrics(SM_XVIRTUALSCREEN);
+	int vy = GetSystemMetrics(SM_YVIRTUALSCREEN);
+
+	int left = r.left - vx;
+	int top = r.top - vy;
+
+	int widthPx = r.right - r.left;
+	int heightPx = r.bottom - r.top;
+
 	int& height = CMapData::Instance->Size.Height;
 	int& width = CMapData::Instance->Size.Width;
 
-	if (pThis->ViewPosition.x < (height / 2 - 4 - r.left / 60) * 60)
-		pThis->ViewPosition.x = (height / 2 - 4 - r.left / 60) * 60;
-	if (pThis->ViewPosition.x + r.right * CIsoViewExt::ScaledFactor * 0.8 > (height / 2 + width + 7) * 60)
-		pThis->ViewPosition.x = (height / 2 + width + 7) * 60 - r.right * CIsoViewExt::ScaledFactor * 0.8;
-	if (pThis->ViewPosition.y < (width / 2 - 10 - r.top / 30) * 30)
-		pThis->ViewPosition.y = (width / 2 - 10 - r.top / 30) * 30;
-	if (pThis->ViewPosition.y + r.bottom * CIsoViewExt::ScaledFactor * 0.8 > (width / 2 + height + 6) * 30)
-		pThis->ViewPosition.y = (width / 2 + height + 6) * 30 - r.bottom * CIsoViewExt::ScaledFactor * 0.8;
+	if (pThis->ViewPosition.x < (height / 2 - 4 - left / 60) * 60)
+		pThis->ViewPosition.x = (height / 2 - 4 - left / 60) * 60;
+
+	double visibleRight = left + widthPx * CIsoViewExt::ScaledFactor * 0.8;
+
+	if (pThis->ViewPosition.x + visibleRight > (height / 2 + width + 7) * 60)
+		pThis->ViewPosition.x = (height / 2 + width + 7) * 60 - visibleRight;
+
+	if (pThis->ViewPosition.y < (width / 2 - 10 - top / 30) * 30)
+		pThis->ViewPosition.y = (width / 2 - 10 - top / 30) * 30;
+
+	double visibleBottom = top + heightPx * CIsoViewExt::ScaledFactor * 0.8;
+
+	if (pThis->ViewPosition.y + visibleBottom > (width / 2 + height + 6) * 30)
+		pThis->ViewPosition.y = (width / 2 + height + 6) * 30 - visibleBottom;
 
 	SetScrollPos(pThis->GetSafeHwnd(), SB_VERT, pThis->ViewPosition.y / 30 - width / 2 + 4, TRUE);
 	SetScrollPos(pThis->GetSafeHwnd(), SB_HORZ, pThis->ViewPosition.x / 60 - height / 2 + 1, TRUE);

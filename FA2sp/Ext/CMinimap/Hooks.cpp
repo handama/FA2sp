@@ -222,7 +222,15 @@ DEFINE_HOOK(4D1E70, CMinimap_OnMouseMove, 7)
 		int x = (point.x / resizedXScale) / 2 + CMapData::Instance->Size.Height / 2;
 		int y = (point.y / resizedYScale) + CMapData::Instance->Size.Width / 2;
 
-		pIsoView->MoveTo((x - r.right / 60 / 2) * 60, (y - r.bottom / 30 / 2) * 30);
+		int X = (x - r.right / 60 / 2) * 60;
+		int Y = (y - r.bottom / 30 / 2) * 30;
+
+		RECT wr;
+		pIsoView->GetWindowRect(&wr);
+		X -= wr.left / 2;
+		Y -= wr.top / 2;
+
+		pIsoView->MoveTo(X, Y);
 		pIsoView->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 		pThis->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 	}

@@ -64,15 +64,6 @@ static bool TilePixels[1800] =
 };
 
 static BYTE alphaBlendTable[256][256];
-static const int yOffsetTable[61] = {
-    0,0,0,0,0,0,0,0,0,0,   // 0~9
-    1,1,2,2,3,3,4,4,5,5,   // 10~19
-    6,6,7,7,8,8,9,9,10,10, // 20~29
-    11,11,12,12,13,13,14,14,15,15, // 30~39
-    16,15,14,14,13,13,12,12,11,11, // 40~49
-    10,10,9,9,8,8,7,7,6,6,         // 50~59
-    5                              // 60
-};
 
 void CIsoViewExt::InitAlphaTable() {
     static bool initialized = false;
@@ -702,7 +693,7 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
     const bool doMultiSel = isMultiSelected && (!RenderingMap || (RenderingMap && RenderCurrentLayers));
     const bool doOre = isEmphasizingOre;
 
-    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * 4;
+    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
     BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
 
     for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
@@ -758,7 +749,7 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
 
     const int X_OFFSET = 31;
     const int Y_OFFSET = -29;
-    const int BPP = *(int*)0x72A8C0;
+    const int BPP = 4;
 
     x += X_OFFSET;
     y += Y_OFFSET;
@@ -900,7 +891,7 @@ void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, cons
         return;
     }
 
-    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * 4;
+    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
     BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
 
     for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
@@ -987,7 +978,7 @@ void BlitTerrainImpl(
     if (srcRect.right <= srcRect.left || srcRect.bottom <= srcRect.top) return;
 
     BYTE* srcBase = static_cast<BYTE*>(subTile->ImageData);
-    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * 4;
+    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
     BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
 
     for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {

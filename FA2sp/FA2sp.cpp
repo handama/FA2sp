@@ -117,6 +117,7 @@ bool ExtConfigs::RandomTerrainObjects;
 unsigned int ExtConfigs::MaxVoxelFacing;
 bool ExtConfigs::DDrawInVideoMem;
 bool ExtConfigs::DDrawEmulation;
+bool ExtConfigs::SecondScreenSupport;
 bool ExtConfigs::NoHouseNameTranslation;
 bool ExtConfigs::BetterHouseNameTranslation;
 bool ExtConfigs::EnableMultiSelection;
@@ -428,6 +429,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::DDrawInVideoMem = CINI::FAData->GetBool("ExtConfigs", "DDrawInVideoMem", true);
 	ExtConfigs::DDrawEmulation = CINI::FAData->GetBool("ExtConfigs", "DDrawEmulation");
+	ExtConfigs::SecondScreenSupport = CINI::FAData->GetBool("ExtConfigs", "SecondScreenSupport");
 
 	ExtConfigs::NoHouseNameTranslation = CINI::FAData->GetBool("ExtConfigs", "NoHouseNameTranslation");
 	ExtConfigs::BetterHouseNameTranslation = CINI::FAData->GetBool("ExtConfigs", "BetterHouseNameTranslation");
@@ -1316,6 +1318,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.DDrawEmulation", "Use emulation mode in DirectDrawCreate"),
 		.IniKey = "DDrawEmulation",
 		.Value = &ExtConfigs::DDrawEmulation,
+		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SecondScreenSupport", "Support displaying IsoView on non-primary screens (slower)"),
+		.IniKey = "SecondScreenSupport",
+		.Value = &ExtConfigs::SecondScreenSupport,
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 

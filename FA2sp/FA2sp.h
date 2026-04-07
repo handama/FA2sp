@@ -127,6 +127,7 @@ public:
     static unsigned int MaxVoxelFacing;
     static bool DDrawInVideoMem;
     static bool DDrawEmulation;
+    static bool SecondScreenSupport;
     static bool NoHouseNameTranslation;
     static bool BetterHouseNameTranslation;
     static bool EnableMultiSelection;

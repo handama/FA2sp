@@ -149,6 +149,14 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 	dds.ddsCaps.dwCaps |= DDSCAPS_SYSTEMMEMORY;
 	dds.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH;
 
+	if (ExtConfigs::SecondScreenSupport)
+	{
+		int vw = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+		int vh = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+		dds.dwWidth = vw;
+		dds.dwHeight = vh;
+	}
+
 	int witdh = dds.dwWidth;
 	int height = dds.dwHeight;
 	dds.dwWidth *= CIsoViewExt::ScaledMax;

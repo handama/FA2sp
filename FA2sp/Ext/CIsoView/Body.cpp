@@ -251,7 +251,7 @@ void CIsoViewExt::DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF co
     RECT rect = CIsoViewExt::GetScaledWindowRect();
 
     auto lPitch = lpDesc->lPitch;
-    auto nBytesPerPixel = 4;
+    const auto nBytesPerPixel = 4;
 
     unsigned char* base = (unsigned char*)lpDesc->lpSurface;
     unsigned char* end = base + lPitch * lpDesc->dwHeight;
@@ -503,7 +503,7 @@ void CIsoViewExt::DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF col
     RECT rect = CIsoViewExt::GetScaledWindowRect();
 
     auto lPitch = lpDesc->lPitch;
-    auto nBytesPerPixel = 4;
+    const auto nBytesPerPixel = 4;
 
     unsigned char* base = (unsigned char*)lpDesc->lpSurface;
     unsigned char* end = base + lPitch * lpDesc->dwHeight;
@@ -1315,7 +1315,7 @@ void CIsoViewExt::DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord
     RECT rect = CIsoViewExt::GetScaledWindowRect();
 
     auto lPitch = lpDesc->lPitch;
-    auto nBytesPerPixel = 4;
+    const auto nBytesPerPixel = 4;
 
     unsigned char* base = (unsigned char*)lpDesc->lpSurface;
     unsigned char* end = base + lPitch * lpDesc->dwHeight;
@@ -1802,7 +1802,7 @@ void CIsoViewExt::BlitText(const std::wstring& text, COLORREF textColor, COLORRE
     CIsoView* pThis, void* dst, const RECT& window, const DDBoundary& boundary,
     int x, int y, int fontSize, BYTE alpha, bool bold)
 {
-    int bpp = 4;
+    const int bpp = 4;
 
     TextCacheKey key{ text, textColor, bgColor, fontSize, bold };
     auto it = textCache.find(key);
@@ -1886,7 +1886,7 @@ void CIsoViewExt::BlitText(const std::wstring& text, COLORREF textColor, COLORRE
         for (int yy = 0; yy < sheight; yy++) {
             for (int xx = 0; xx < swidth; xx++) {
                 int srcIndex = (yy + borderWidth) * finalWidth + (xx + borderWidth);
-                int tempIndex = (yy * swidth + xx) * 4;
+                int tempIndex = (yy * swidth + xx) * bpp;
                 src[srcIndex] = BGRStruct(tempPixels[tempIndex + 0], // B
                     tempPixels[tempIndex + 1], // G
                     tempPixels[tempIndex + 2]);// R
@@ -2032,7 +2032,7 @@ bool CIsoViewExt::SaveImageDataToBMP(ImageDataClassSafe* pd,const char* outputPa
     if (!pd || !pd->pImageBuffer || pd->Flag == ImageDataFlag::SurfaceData)
         return false;
 
-    const int BPP = 4; 
+    const int BPP = 4;
 
     int width = pd->FullWidth;
     int height = pd->FullHeight;
@@ -3147,12 +3147,28 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC)
 
 CRect CIsoViewExt::GetVisibleIsoViewRect()
 {
-    auto pThis = CIsoView::GetInstance();
-    CRect rect;
-    pThis->GetWindowRect(&rect);
-    CRect screenRect(0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
-    CRect destRect;
-    destRect.IntersectRect(&rect, &screenRect);
+    auto pThis = CIsoView::GetInstance(); 
+    CRect rect; 
+    pThis->GetWindowRect(&rect); 
+
+    if (ExtConfigs::SecondScreenSupport)
+    {
+        HMONITOR hMonitor = MonitorFromWindow(CFinalSunDlg::Instance->m_hWnd, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO mi = {};
+        mi.cbSize = sizeof(mi);
+        GetMonitorInfo(hMonitor, &mi);
+        CRect monitorRect = mi.rcMonitor;
+
+        CRect destRect;
+        destRect.IntersectRect(&rect, &monitorRect);
+
+        return destRect;
+    }
+
+    CRect screenRect(0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN)); 
+    CRect destRect; 
+    destRect.IntersectRect(&rect, &screenRect); 
+
     return destRect;
 }
 

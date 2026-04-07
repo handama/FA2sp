@@ -1307,6 +1307,9 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		{
 			CIsoView::CurrentCommand->Command = 0x2; // delete
 			CIsoView::CurrentCommand->Type = 0;
+
+			ScopedTimer t("233");
+			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 		}
 	}
 	if (wmID == 30106)

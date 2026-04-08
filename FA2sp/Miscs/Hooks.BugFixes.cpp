@@ -200,6 +200,45 @@ DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenodeAndTubeAndAn
 	}
 	CMapDataExt::UpdateAnnotation();
 
+	for (auto& twoPoints : CIsoViewExt::TwoPointDistance)
+	{
+		twoPoints[0].X += XOFF;
+		twoPoints[0].Y += YOFF;
+		twoPoints[1].X += XOFF;
+		twoPoints[1].Y += YOFF;
+	}
+	for (auto& [mc, radius] : CIsoViewExt::Circles)
+	{
+		mc.X += XOFF;
+		mc.Y += YOFF;
+	}
+	if (CIsoViewExt::AxialSymmetryLine[0] != MapCoord{ 0,0 })
+	{
+		CIsoViewExt::AxialSymmetryLine[0].X += XOFF;
+		CIsoViewExt::AxialSymmetryLine[0].Y += YOFF;
+		CIsoViewExt::AxialSymmetryLine[1].X += XOFF;
+		CIsoViewExt::AxialSymmetryLine[1].Y += YOFF;
+	}
+	for (auto& [mc1, mc2] : CIsoViewExt::AxialSymmetricPoints)
+	{
+		mc1.X += XOFF;
+		mc1.Y += YOFF;
+		mc2.X += XOFF;
+		mc2.Y += YOFF;
+	}
+	for (auto& [mc1, mc2] : CIsoViewExt::CentralSymmetricPoints)
+	{
+		mc1.X += XOFF;
+		mc1.Y += YOFF;
+		mc2.X += XOFF;
+		mc2.Y += YOFF;
+	}
+	if (CIsoViewExt::CentralSymmetryCenter != MapCoord{ 0,0 })
+	{
+		CIsoViewExt::CentralSymmetryCenter.X += XOFF;
+		CIsoViewExt::CentralSymmetryCenter.Y += YOFF;
+	}
+
 	return 0;
 }
 

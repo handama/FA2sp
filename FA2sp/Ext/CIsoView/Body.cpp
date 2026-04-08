@@ -80,6 +80,8 @@ MapCoord CIsoViewExt::AxialSymmetryLine[2]{};
 MapCoord CIsoViewExt::CentralSymmetryCenter{};
 std::vector<std::pair<MapCoord, MapCoord>> CIsoViewExt::AxialSymmetricPoints;
 std::vector<std::pair<MapCoord, MapCoord>> CIsoViewExt::CentralSymmetricPoints;
+std::vector<std::pair<MapCoord, float>> CIsoViewExt::Circles;
+float CIsoViewExt::CircleRadius;
 bool CIsoViewExt::ReInitializingDDraw = false;
 bool CIsoViewExt::CliffBackAlt = false;
 bool CIsoViewExt::HistoryRecord_IsHoldingLButton = false;
@@ -120,6 +122,7 @@ COLORREF CIsoViewExt::CellHilightColors[16] = {
     RGB(255, 255, 255)	// level 15
 };
 
+constexpr float cellLength = 42.426407f;
 constexpr float kFactor = 0.7f;
 constexpr BYTE MakeValue(int i) {
     int v = static_cast<int>(i * kFactor);
@@ -2884,11 +2887,11 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC)
     pThis->GetWindowRect(&rect);
     int leftIndex = 0;
     int fontSize = ExtConfigs::DisplayTextSize;
-    if (CIsoViewExt::ScaledFactor < 0.75)
-        fontSize += 2;
-    if (CIsoViewExt::ScaledFactor < 0.5)
-        fontSize += 2;
     if (CIsoViewExt::ScaledFactor < 0.3)
+        fontSize += 6;
+    else if (CIsoViewExt::ScaledFactor < 0.5)
+        fontSize += 4;
+    else if (CIsoViewExt::ScaledFactor < 0.75)
         fontSize += 2;
     int lineHeight = fontSize + 2;
     ::SetBkMode(hDC, OPAQUE);
@@ -3004,13 +3007,19 @@ void CIsoViewExt::DrawDistanceRuler(HDC hDC)
 void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC)
 {
     int fontSize = ExtConfigs::DisplayTextSize;
-    if (CIsoViewExt::ScaledFactor < 0.75)
-        fontSize += 2;
-    if (CIsoViewExt::ScaledFactor < 0.5)
-        fontSize += 2;
     if (CIsoViewExt::ScaledFactor < 0.3)
+        fontSize += 6;
+    else if (CIsoViewExt::ScaledFactor < 0.5)
+        fontSize += 4;
+    else if (CIsoViewExt::ScaledFactor < 0.75)
         fontSize += 2;
     int lineHeight = fontSize + 2;
+    auto reversedColor = RGB(
+        255 - GetRValue(ExtConfigs::DistanceRuler_Color),
+        255 - GetGValue(ExtConfigs::DistanceRuler_Color),
+        255 - GetBValue(ExtConfigs::DistanceRuler_Color)
+    );
+    auto pIsoView = CIsoViewExt::GetExtension();
     for (auto& twoPoints : TwoPointDistance)
     {
         if (twoPoints[0] != MapCoord{ 0,0 })
@@ -3029,7 +3038,6 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC)
             auto coord2 = twoPoints[1];
             if (twoPoints[1] == MapCoord{ 0,0 })
             {
-                auto pIsoView = CIsoView::GetInstance();
                 auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
                 coord2 = point;
 
@@ -3060,6 +3068,17 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC)
             ::TextOut(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength());
         }
     }
+    for (auto& [mc, radius] : CIsoViewExt::Circles)
+    {
+        int drawX = mc.X;
+        int drawY = mc.Y;
+        CIsoViewExt::MapCoord2ScreenCoord(drawX, drawY);
+        float rad = radius * cellLength;
+        CIsoViewExt::DrawDashLineHDC(hDC, drawX, drawY, drawX + rad / CIsoViewExt::ScaledFactor, drawY, reversedColor, 1);
+        drawX -= CIsoViewExt::drawOffsetX;
+        drawY -= CIsoViewExt::drawOffsetY;
+        pIsoView->DrawEllipsePaint(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, hDC, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
+    }
     if (AxialSymmetryLine[0] != MapCoord{ 0,0 })
     {
         int j = 0;
@@ -3069,7 +3088,6 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC)
         auto coord2 = AxialSymmetryLine[1];
         if (AxialSymmetryLine[1] == MapCoord{ 0,0 })
         {
-            auto pIsoView = CIsoView::GetInstance();
             auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
             coord2 = point;
         }
@@ -3082,11 +3100,6 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC)
             CIsoViewExt::DrawDashLineHDC(hDC, x1, y1, x2, y2, ExtConfigs::DistanceRuler_Color, 3);
         }
     }
-    auto reversedColor = RGB(
-        255 - GetRValue(ExtConfigs::DistanceRuler_Color),
-        255 - GetGValue(ExtConfigs::DistanceRuler_Color),
-        255 - GetBValue(ExtConfigs::DistanceRuler_Color) 
-    );
     int i = 0;
     for (auto& [mc1, mc2] : AxialSymmetricPoints)
     {
@@ -3194,11 +3207,11 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         HDC hDC;
         surface->GetDC(&hDC);
         int fontSize = ExtConfigs::DisplayTextSize;
-        if (CIsoViewExt::ScaledFactor < 0.75)
-            fontSize += 2;
-        if (CIsoViewExt::ScaledFactor < 0.5)
-            fontSize += 2;
         if (CIsoViewExt::ScaledFactor < 0.3)
+            fontSize += 6;
+        else if (CIsoViewExt::ScaledFactor < 0.5)
+            fontSize += 4;
+        else if (CIsoViewExt::ScaledFactor < 0.75)
             fontSize += 2;
         HFONT hFont = CreateFont(fontSize, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
             OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
@@ -3226,11 +3239,11 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         HDC hDC;
         surface->GetDC(&hDC);
         int fontSize = ExtConfigs::DisplayTextSize;
-        if (CIsoViewExt::ScaledFactor < 0.75)
-            fontSize += 2;
-        if (CIsoViewExt::ScaledFactor < 0.5)
-            fontSize += 2;
         if (CIsoViewExt::ScaledFactor < 0.3)
+            fontSize += 6;
+        else if (CIsoViewExt::ScaledFactor < 0.5)
+            fontSize += 4;
+        else if (CIsoViewExt::ScaledFactor < 0.75)
             fontSize += 2;
         HFONT hFont = CreateFont(fontSize, 0, 0, 0,  FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
             OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
@@ -3259,11 +3272,11 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         HDC hDC;
         surface->GetDC(&hDC);
         int fontSize = ExtConfigs::DisplayTextSize;
-        if (CIsoViewExt::ScaledFactor < 0.75)
-            fontSize += 2;
-        if (CIsoViewExt::ScaledFactor < 0.5)
-            fontSize += 2;
         if (CIsoViewExt::ScaledFactor < 0.3)
+            fontSize += 6;
+        else if (CIsoViewExt::ScaledFactor < 0.5)
+            fontSize += 4;
+        else if (CIsoViewExt::ScaledFactor < 0.75)
             fontSize += 2;
         HFONT hFont = CreateFont(fontSize, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
             OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
@@ -3294,11 +3307,11 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         if (EnableLiveDistanceRuler || EnableOtherMeasurementTools)
         {
             int fontSize = ExtConfigs::DisplayTextSize;
-            if (CIsoViewExt::ScaledFactor < 0.75)
-                fontSize += 2;
-            if (CIsoViewExt::ScaledFactor < 0.5)
-                fontSize += 2;
             if (CIsoViewExt::ScaledFactor < 0.3)
+                fontSize += 6;
+            else if (CIsoViewExt::ScaledFactor < 0.5)
+                fontSize += 4;
+            else if (CIsoViewExt::ScaledFactor < 0.75)
                 fontSize += 2;
             HFONT hFont = CreateFont(fontSize, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
                 OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
@@ -3324,11 +3337,11 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
             HDC hDC;
             surface->GetDC(&hDC);
             int fontSize = ExtConfigs::DisplayTextSize;
-            if (CIsoViewExt::ScaledFactor < 0.75)
-                fontSize += 2;
-            if (CIsoViewExt::ScaledFactor < 0.5)
-                fontSize += 2;
             if (CIsoViewExt::ScaledFactor < 0.3)
+                fontSize += 6;
+            else if (CIsoViewExt::ScaledFactor < 0.5)
+                fontSize += 4;
+            else if (CIsoViewExt::ScaledFactor < 0.75)
                 fontSize += 2;
             HFONT hFont = CreateFont(fontSize, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
                 OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,

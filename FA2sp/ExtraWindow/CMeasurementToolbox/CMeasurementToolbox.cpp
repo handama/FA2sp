@@ -49,6 +49,8 @@ BOOL CMeasurementToolbox::OnInitDialog()
 	translate(900, "MeasurementToolbox.DistanceRuler");
 	translate(901, "MeasurementToolbox.AxialSymmetry");
 	translate(902, "MeasurementToolbox.CentralSymmetry");
+	translate(903, "MeasurementToolbox.CircleTool");
+	translate(1300, "MeasurementToolbox.Radius");
 	translate(TwoPointDistance, "MeasurementToolbox.TwoPointDistance");
 	translate(LiveDistance, "MeasurementToolbox.LiveDistance");
 	translate(ClearDistancePoints, "MeasurementToolbox.ClearDistancePoints");
@@ -58,6 +60,9 @@ BOOL CMeasurementToolbox::OnInitDialog()
 	translate(SetCentralSymmetryCenter, "MeasurementToolbox.SetCentralSymmetryCenter");
 	translate(PlaceCentralSymmetricPoint, "MeasurementToolbox.PlaceCentralSymmetricPoint");
 	translate(ClearCentralSymmetricPoints, "MeasurementToolbox.ClearCentralSymmetricPoints");
+	translate(SetRadius, "MeasurementToolbox.SetRadius");
+	translate(PlaceCircleCenter, "MeasurementToolbox.PlaceCircleCenter");
+	translate(ClearCircles, "MeasurementToolbox.ClearCircles");
 
 	if (Translations::GetTranslationItem("MeasurementToolboxCaption", buffer))
 		SetWindowTextA(buffer);
@@ -101,12 +106,31 @@ BOOL CMeasurementToolbox::OnCommand(WPARAM wParam, LPARAM lParam)
 		case CMeasurementToolbox::ClearCentralSymmetricPoints:
 			OnClickClearCentralSymmetricPoints();
 			break;
+		case CMeasurementToolbox::PlaceCircleCenter:
+			OnClickPlaceCircle();
+			break;
+		case CMeasurementToolbox::ClearCircles:
+			OnClickClearCircles();
+			break;
 		default:
 			break;
 		}
     }
+	else if (nNotify == EN_CHANGE)
+	{
+		if (nID == CMeasurementToolbox::SetRadius)
+		{
+			OnEditSetRadius();
+		}
+	}
 
     return CDialog::OnCommand(wParam, lParam);
+}
+
+void CMeasurementToolbox::DoDataExchange(ppmfc::CDataExchange* pDX)
+{
+	CDialog::DoDataExchange(pDX);
+	DDX_Text(pDX, 1301, m_radius);
 }
 
 MapCoord CMeasurementToolbox::GetAxialSymmetricPoint(const MapCoord& p)
@@ -235,6 +259,12 @@ void CMeasurementToolbox::SetMeasurementToolbox(int X, int Y)
 		}
 
 	}
+	else if (CIsoView::CurrentCommand->Type == MeasurementTypes::PlaceCircle)
+	{
+		MapCoord mc1 = { X,Y };
+		CIsoViewExt::Circles.push_back(std::make_pair(mc1, CIsoViewExt::CircleRadius));
+		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+	}
 }
 
 void CMeasurementToolbox::OnClickLiveDistance()
@@ -302,6 +332,30 @@ void CMeasurementToolbox::OnClickClearCentralSymmetricPoints()
 	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 }
 
+void CMeasurementToolbox::OnEditSetRadius()
+{
+	UpdateData(TRUE);
+	auto v = VEHGuard(false);
+	try {
+		CIsoViewExt::CircleRadius = std::stof(m_radius.GetString());
+	}
+	catch (const std::exception&) {
+		CIsoViewExt::CircleRadius = 0.0f;
+	}
+}
+
+void CMeasurementToolbox::OnClickPlaceCircle()
+{
+	CIsoView::CurrentCommand->Command = 0x26;
+	CIsoView::CurrentCommand->Type = MeasurementTypes::PlaceCircle;
+}
+
+void CMeasurementToolbox::OnClickClearCircles()
+{
+	CIsoViewExt::Circles.clear();
+	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+}
+
 void CMeasurementToolbox::PostNcDestroy()
 {
 	ClearStatus();
@@ -334,6 +388,7 @@ void CMeasurementToolbox::ClearStatus()
 	CIsoViewExt::CentralSymmetryCenter = MapCoord{ 0,0 };
 	CIsoViewExt::AxialSymmetricPoints.clear();
 	CIsoViewExt::CentralSymmetricPoints.clear();
+	CIsoViewExt::Circles.clear();
 }
 
 void CMeasurementToolbox::OnRightButtonDown()

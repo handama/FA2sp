@@ -28,11 +28,15 @@ protected:
 		SetCentralSymmetryCenter = 1201,
 		PlaceCentralSymmetricPoint = 1202,
 		ClearCentralSymmetricPoints = 1203,
+		SetRadius = 1301,
+		PlaceCircleCenter = 1302,
+		ClearCircles = 1303,
 	};
 
 	CMeasurementToolbox(CWnd* pParent = NULL);
 	virtual BOOL OnInitDialog();
 	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);
+	virtual void DoDataExchange(ppmfc::CDataExchange* pDX);
 	virtual void PostNcDestroy();
 	virtual void OnCancel();
 	virtual void OnClose();
@@ -45,8 +49,12 @@ protected:
 	void OnClickSetCentralSymmetryCenter();
 	void OnClickPlaceCentralSymmetricPoint();
 	void OnClickClearCentralSymmetricPoints();
+	void OnEditSetRadius();
+	void OnClickPlaceCircle();
+	void OnClickClearCircles();
 	static MapCoord GetAxialSymmetricPoint(const MapCoord& p);
 	static MapCoord GetCentralSymmetricPoint(const MapCoord& p);
+	ppmfc::CString m_radius;
 
 	BOOL b_LiveDistance;
 };

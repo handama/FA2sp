@@ -112,7 +112,8 @@ enum MeasurementTypes : int
     SetSymmetryAxis,
     PlaceSymmetricPoint,
     SetCentralSymmetryCenter,
-    PlaceCentralSymmetricPoint
+    PlaceCentralSymmetricPoint,
+    PlaceCircle,
 };
 
 struct ImageDataView
@@ -127,6 +128,10 @@ class NOVTABLE CIsoViewExt : public CIsoView
 {
 public:
     static void ProgramStartupInit();
+    static CIsoViewExt* GetExtension()
+    {
+        return (CIsoViewExt*)CIsoView::GetInstance();
+    }
 
     BOOL PreTranslateMessageExt(MSG* pMsg);
 
@@ -311,6 +316,8 @@ public:
     static MapCoord CentralSymmetryCenter;
     static std::vector<std::pair<MapCoord, MapCoord>> AxialSymmetricPoints;
     static std::vector<std::pair<MapCoord, MapCoord>> CentralSymmetricPoints;
+    static std::vector<std::pair<MapCoord, float>> Circles;
+    static float CircleRadius;
 
     static bool ReInitializingDDraw;
 

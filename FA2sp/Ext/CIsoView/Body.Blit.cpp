@@ -1026,12 +1026,11 @@ void BlitTerrainImpl(
                 }
             }
 
-            if constexpr (CellHeight) [[likely]] {
+            if constexpr (CellHeight){
                 int wx = destRect.left + col; 
                 int wy = destRect.top + row; 
                 if (wx >= window.left && wx < window.right 
-                    && wy >= window.top && wy < window.bottom)
-                { 
+                    && wy >= window.top && wy < window.bottom) [[likely]] { 
                     int yOffset = 0; 
                     int cellRowIdx = col + subTile->XMinusExX; 
                     if (cellRowIdx >= 0 && cellRowIdx <= 30) 

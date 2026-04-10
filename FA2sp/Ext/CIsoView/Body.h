@@ -114,6 +114,7 @@ enum MeasurementTypes : int
     SetCentralSymmetryCenter,
     PlaceCentralSymmetricPoint,
     PlaceCircle,
+    LineSegment,
 };
 
 struct ImageDataView
@@ -123,6 +124,13 @@ struct ImageDataView
     const BYTE* pImageBuffer;
     const Palette* pPalette;
 }; 
+
+struct TwoPointStruct
+{
+    MapCoord Point1;
+    MapCoord Point2;
+    bool drawText;
+};
 
 class NOVTABLE CIsoViewExt : public CIsoView
 {
@@ -311,7 +319,7 @@ public:
     static std::vector<MapCoord> LiveDistanceRuler;
     static bool EnableLiveDistanceRuler;
     static bool EnableOtherMeasurementTools;
-    static std::vector<std::array<MapCoord, 2>> TwoPointDistance;
+    static std::vector<TwoPointStruct> TwoPointDistance;
     static MapCoord AxialSymmetryLine[2];
     static MapCoord CentralSymmetryCenter;
     static std::vector<std::pair<MapCoord, MapCoord>> AxialSymmetricPoints;

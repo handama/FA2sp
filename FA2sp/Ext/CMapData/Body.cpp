@@ -41,6 +41,7 @@
 #include <random>
 #include "../../Helpers/Helper.h"
 #include "../CTileSetBrowserFrame/TabPages/GridObjectViewer.h"
+#include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
 
 int CMapDataExt::OreValue[4] { -1,-1,-1,-1 };
 unsigned short CMapDataExt::CurrentRenderBuildingStrength;
@@ -3908,6 +3909,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 
 	if (reloadImages)
 	{
+		CMeasurementToolbox::ClearStatus();
 		if (TagSort::Instance.IsVisible())
 		{
 			TagSort::Instance.LoadAllTriggers();

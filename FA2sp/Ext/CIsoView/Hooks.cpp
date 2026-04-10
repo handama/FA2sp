@@ -1290,11 +1290,11 @@ DEFINE_HOOK(457223, CIsoView_OnMouseMove_MouseRange_1_DisableIME, 9)
 	{
 		if (!CIsoViewExt::TwoPointDistance.empty())
 		{
-			if (CIsoViewExt::TwoPointDistance.back()[0] != MapCoord{ 0,0 }
-				&& CIsoViewExt::TwoPointDistance.back()[1] == MapCoord{ 0,0 })
+			if (CIsoViewExt::TwoPointDistance.back().Point1 != MapCoord{ 0,0 }
+				&& CIsoViewExt::TwoPointDistance.back().Point2 == MapCoord{ 0,0 })
 			{
-				CIsoViewExt::TwoPointDistance.back()[0] = MapCoord{ 0,0 };
-				CIsoViewExt::TwoPointDistance.back()[1] = MapCoord{ 0,0 };
+				CIsoViewExt::TwoPointDistance.back().Point1 = MapCoord{ 0,0 };
+				CIsoViewExt::TwoPointDistance.back().Point2 = MapCoord{ 0,0 };
 			}
 		}
 		if (CIsoViewExt::AxialSymmetryLine[0] != MapCoord{ 0,0 }

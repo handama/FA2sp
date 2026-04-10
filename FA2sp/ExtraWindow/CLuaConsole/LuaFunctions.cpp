@@ -3642,7 +3642,7 @@ namespace LuaFunctions
 		if (newSize.right != oldSize.right || newSize.bottom != oldSize.bottom)
 		{
 			MapRect rect{ 0, 0, newSize.right, newSize.bottom };
-			CMapDataExt::GetExtension()->ResizeMapExt(&rect);
+			CMapDataExt::GetExtension()->ResizeMap_AllocCellData(&rect);
 		}
 
 		std::vector<FString> sections;
@@ -3673,8 +3673,6 @@ namespace LuaFunctions
 		CMapDataExt::UpdateFieldStructureData_Optimized();
 		CMapData::Instance->UpdateFieldOverlayData(false);
 		CMapData::Instance->UpdateINIFile(SaveMapFlag::LoadFromINI);
-		// load objects to avoid weird palette issue
-		CIsoView::GetInstance()->PrimarySurfaceLost();
 		CFinalSunDlg::Instance->MyViewFrame.Minimap.Update();
 		CLuaConsole::needRedraw = true;
 		CLuaConsole::updateMinimap = true;

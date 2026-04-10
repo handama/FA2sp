@@ -52,6 +52,7 @@ BOOL CMeasurementToolbox::OnInitDialog()
 	translate(903, "MeasurementToolbox.CircleTool");
 	translate(1300, "MeasurementToolbox.Radius");
 	translate(TwoPointDistance, "MeasurementToolbox.TwoPointDistance");
+	translate(LineSegment, "MeasurementToolbox.LineSegment");
 	translate(LiveDistance, "MeasurementToolbox.LiveDistance");
 	translate(ClearDistancePoints, "MeasurementToolbox.ClearDistancePoints");
 	translate(SetSymmetryAxis, "MeasurementToolbox.SetSymmetryAxis");
@@ -81,6 +82,9 @@ BOOL CMeasurementToolbox::OnCommand(WPARAM wParam, LPARAM lParam)
 		{
 		case CMeasurementToolbox::TwoPointDistance:	
 			OnClickTwoPointDistance();
+			break;
+		case CMeasurementToolbox::LineSegment:
+			OnClickLineSegment();
 			break;
 		case CMeasurementToolbox::LiveDistance:
 			OnClickLiveDistance();
@@ -196,21 +200,29 @@ void CMeasurementToolbox::OnClickTwoPointDistance()
 	CIsoViewExt::EnableLiveDistanceRuler = false;
 }
 
+void CMeasurementToolbox::OnClickLineSegment()
+{
+	CIsoView::CurrentCommand->Command = 0x26;
+	CIsoView::CurrentCommand->Type = MeasurementTypes::LineSegment;
+}
+
 void CMeasurementToolbox::SetMeasurementToolbox(int X, int Y)
 {
-	if (CIsoView::CurrentCommand->Type == MeasurementTypes::TwoPointDistance)
+	if (CIsoView::CurrentCommand->Type == MeasurementTypes::TwoPointDistance 
+		|| CIsoView::CurrentCommand->Type == MeasurementTypes::LineSegment)
 	{
-		if (CIsoViewExt::TwoPointDistance.empty() || CIsoViewExt::TwoPointDistance.back()[1] != MapCoord{ 0, 0 })
+		if (CIsoViewExt::TwoPointDistance.empty() || CIsoViewExt::TwoPointDistance.back().Point2 != MapCoord{ 0, 0 })
 		{
-			CIsoViewExt::TwoPointDistance.push_back({ MapCoord{ 0, 0 }, MapCoord{ 0, 0 } });
+			CIsoViewExt::TwoPointDistance.push_back({ MapCoord{ 0, 0 }, MapCoord{ 0, 0 },
+				CIsoView::CurrentCommand->Type == MeasurementTypes::TwoPointDistance });
 		}
-		if (CIsoViewExt::TwoPointDistance.back()[0] == MapCoord{ 0, 0 })
+		if (CIsoViewExt::TwoPointDistance.back().Point1 == MapCoord{ 0, 0 })
 		{
-			CIsoViewExt::TwoPointDistance.back()[0] = { X,Y };
+			CIsoViewExt::TwoPointDistance.back().Point1 = { X,Y };
 		}
-		else if (CIsoViewExt::TwoPointDistance.back()[0] != MapCoord{ X,Y })
+		else if (CIsoViewExt::TwoPointDistance.back().Point1 != MapCoord{ X,Y })
 		{
-			CIsoViewExt::TwoPointDistance.back()[1] = { X,Y };
+			CIsoViewExt::TwoPointDistance.back().Point2 = { X,Y };
 		}
 	}
 	else if (CIsoView::CurrentCommand->Type == MeasurementTypes::SetSymmetryAxis)
@@ -366,6 +378,7 @@ void CMeasurementToolbox::PostNcDestroy()
 
 void CMeasurementToolbox::OnClose()
 {
+	CIsoViewExt::EnableOtherMeasurementTools = false;
 	ClearStatus();
 	DestroyWindow();
 }
@@ -381,7 +394,6 @@ void CMeasurementToolbox::ClearStatus()
 	CIsoView::CurrentCommand->Type = 0;
 	CIsoViewExt::LiveDistanceRuler.clear();
 	CIsoViewExt::EnableLiveDistanceRuler = false;
-	CIsoViewExt::EnableOtherMeasurementTools = false;
 	CIsoViewExt::TwoPointDistance.clear();
 	CIsoViewExt::AxialSymmetryLine[0] = MapCoord{ 0,0 };
 	CIsoViewExt::AxialSymmetryLine[1] = MapCoord{ 0,0 };
@@ -397,11 +409,11 @@ void CMeasurementToolbox::OnRightButtonDown()
 	{
 		if (!CIsoViewExt::TwoPointDistance.empty())
 		{
-			if (CIsoViewExt::TwoPointDistance.back()[0] != MapCoord{ 0,0 }
-				&& CIsoViewExt::TwoPointDistance.back()[1] == MapCoord{ 0,0 })
+			if (CIsoViewExt::TwoPointDistance.back().Point1 != MapCoord{ 0,0 }
+				&& CIsoViewExt::TwoPointDistance.back().Point2 == MapCoord{ 0,0 })
 			{
-				CIsoViewExt::TwoPointDistance.back()[0] = MapCoord{ 0,0 };
-				CIsoViewExt::TwoPointDistance.back()[1] = MapCoord{ 0,0 };
+				CIsoViewExt::TwoPointDistance.back().Point1 = MapCoord{ 0,0 };
+				CIsoViewExt::TwoPointDistance.back().Point2 = MapCoord{ 0,0 };
 			}
 		}
 	}

@@ -468,6 +468,7 @@ public:
     void PackExt(bool UpdatePreview, bool Description);
     static void UnPackExt(CINI& ini, std::vector<IsoMapPack5Entry>& entry);
     // just alter CellData size for lua.restore_snapshot
+    bool ResizeMap_AllocCellData(MapRect* const pRect);
     bool ResizeMapExt(MapRect* const pRect);
     
     enum OreType { Riparius = 0, Cruentus, Vinifera, Aboreus };

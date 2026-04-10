@@ -75,7 +75,7 @@ bool CIsoViewExt::IsPressingALT = false;
 bool CIsoViewExt::IsPressingTube = false;
 bool CIsoViewExt::EnableLiveDistanceRuler = false;
 bool CIsoViewExt::EnableOtherMeasurementTools = false;
-std::vector<std::array<MapCoord, 2>> CIsoViewExt::TwoPointDistance{};
+std::vector<TwoPointStruct> CIsoViewExt::TwoPointDistance{};
 MapCoord CIsoViewExt::AxialSymmetryLine[2]{};
 MapCoord CIsoViewExt::CentralSymmetryCenter{};
 std::vector<std::pair<MapCoord, MapCoord>> CIsoViewExt::AxialSymmetricPoints;
@@ -3022,21 +3022,24 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC)
     auto pIsoView = CIsoViewExt::GetExtension();
     for (auto& twoPoints : TwoPointDistance)
     {
-        if (twoPoints[0] != MapCoord{ 0,0 })
+        if (twoPoints.Point1 != MapCoord{ 0,0 })
         {
             int j = 0;
-            int x1 = twoPoints[0].X;
-            int y1 = twoPoints[0].Y;
+            int x1 = twoPoints.Point1.X;
+            int y1 = twoPoints.Point1.Y;
             FString buffer;
             CIsoViewExt::MapCoord2ScreenCoord(x1, y1);
             int drawX = x1 - CIsoViewExt::drawOffsetX + 30;
             int drawY = y1 - CIsoViewExt::drawOffsetY - 15;
-            buffer.Format(Translations::TranslateOrDefault("DistanceRuler.InitCoordinate", "XY: %d, %d"),
-                twoPoints[0].Y, twoPoints[0].X);
-            ::TextOut(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength());
+            if (twoPoints.drawText)
+            {
+                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.InitCoordinate", "XY: %d, %d"),
+                    twoPoints.Point1.Y, twoPoints.Point1.X);
+                ::TextOut(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength());
+            }
 
-            auto coord2 = twoPoints[1];
-            if (twoPoints[1] == MapCoord{ 0,0 })
+            auto coord2 = twoPoints.Point2;
+            if (twoPoints.Point2 == MapCoord{ 0,0 })
             {
                 auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
                 coord2 = point;
@@ -3052,20 +3055,23 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC)
             drawX = x2 - CIsoViewExt::drawOffsetX + 30;
             drawY = y2 - CIsoViewExt::drawOffsetY - 15;
             double distance = sqrt((
-                twoPoints[0].X - coord2.X)
-                * (twoPoints[0].X - coord2.X)
-                + (twoPoints[0].Y - coord2.Y)
-                * (twoPoints[0].Y - coord2.Y));
+                twoPoints.Point1.X - coord2.X)
+                * (twoPoints.Point1.X - coord2.X)
+                + (twoPoints.Point1.Y - coord2.Y)
+                * (twoPoints.Point1.Y - coord2.Y));
             CIsoViewExt::DrawLineHDC(hDC, x1, y1, x2, y2, ExtConfigs::DistanceRuler_Color, 2);
-            std::ostringstream oss;
-            oss.precision(2);
-            oss << std::fixed << distance;
-            buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Distance", "Distance: %s"), oss.str().c_str());
-            ::TextOut(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength());
-            buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Coordinate", "XY: %d, %d, ¦¤XY: %d, %d"),
-                coord2.Y, coord2.X,
-                coord2.Y - twoPoints[0].Y, coord2.X - twoPoints[0].X);
-            ::TextOut(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength());
+            if (twoPoints.drawText)
+            {
+                std::ostringstream oss;
+                oss.precision(2);
+                oss << std::fixed << distance;
+                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Distance", "Distance: %s"), oss.str().c_str());
+                ::TextOut(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength());
+                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Coordinate", "XY: %d, %d, ¦¤XY: %d, %d"),
+                    coord2.Y, coord2.X,
+                    coord2.Y - twoPoints.Point1.Y, coord2.X - twoPoints.Point1.X);
+                ::TextOut(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength());
+            }
         }
     }
     for (auto& [mc, radius] : CIsoViewExt::Circles)

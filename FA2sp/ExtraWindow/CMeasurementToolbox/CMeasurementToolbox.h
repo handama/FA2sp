@@ -22,6 +22,7 @@ protected:
 		TwoPointDistance = 1001,
 		LiveDistance = 1002,
 		ClearDistancePoints = 1003,
+		LineSegment = 1004,
 		SetSymmetryAxis = 1101,
 		PlaceSymmetricPoint = 1102,
 		ClearSymmetricPoints = 1103,
@@ -41,6 +42,7 @@ protected:
 	virtual void OnCancel();
 	virtual void OnClose();
 	void OnClickTwoPointDistance();
+	void OnClickLineSegment();
 	void OnClickLiveDistance();
 	void OnClickClearDistancePoints();
 	void OnClickSetSymmetryAxis();

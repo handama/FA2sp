@@ -482,20 +482,6 @@ void CViewObjectsExt::Redraw()
         CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }
 
-    // must be here to load after tile view refresh
-    if (CTerrainGenerator::GetHandle())
-    {
-        ::SendMessage(CTerrainGenerator::GetHandle(), 114514, 0, 0);
-    }
-    if (CTileManager::GetHandle())
-    {
-        ::SendMessage(CTileManager::GetHandle(), 114514, 0, 0);
-    }
-    if (CObjectSearch::GetHandle())
-    {
-        ::SendMessage(CObjectSearch::GetHandle(), 114515, 0, 0);
-        ::SendMessage(CObjectSearch::GetHandle(), 114514, 0, 0);
-    }
     AddedItemCount = 0;
     for (auto root : ExtNodes)
         root = NULL;
@@ -535,6 +521,21 @@ void CViewObjectsExt::Redraw()
     }
 
     Logger::Raw("[CViewObjectsExt] Redraw TreeView_ViewObjects done. %d labels loaded.\n", AddedItemCount);
+
+    // must be here to load after tile view refresh
+    if (CTerrainGenerator::GetHandle())
+    {
+        ::SendMessage(CTerrainGenerator::GetHandle(), 114514, 0, 0);
+    }
+    if (CTileManager::GetHandle())
+    {
+        ::SendMessage(CTileManager::GetHandle(), 114514, 0, 0);
+    }
+    if (CObjectSearch::GetHandle())
+    {
+        ::SendMessage(CObjectSearch::GetHandle(), 114515, 0, 0);
+        ::SendMessage(CObjectSearch::GetHandle(), 114514, 0, 0);
+    }
 }
 
 void CViewObjectsExt::Redraw_Initialize()

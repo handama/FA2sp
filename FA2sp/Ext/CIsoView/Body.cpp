@@ -17,6 +17,7 @@
 #include <mutex>
 #include "../../Miscs/TheaterInfo.h"
 #include <stack>
+#include "../../ExtraWindow/CNewScript/CNewScript.h"
 
 Bitmap* CIsoViewExt::pFullBitmap = nullptr;
 bool CIsoViewExt::DrawStructures = true;
@@ -82,11 +83,13 @@ std::vector<std::pair<MapCoord, MapCoord>> CIsoViewExt::AxialSymmetricPoints;
 std::vector<std::pair<MapCoord, MapCoord>> CIsoViewExt::CentralSymmetricPoints;
 std::vector<std::pair<MapCoord, float>> CIsoViewExt::Circles;
 float CIsoViewExt::CircleRadius;
+bool CIsoViewExt::DrawScriptPath = false;
 bool CIsoViewExt::ReInitializingDDraw = false;
 bool CIsoViewExt::CliffBackAlt = false;
 bool CIsoViewExt::HistoryRecord_IsHoldingLButton = false;
 std::vector<MapCoord> CIsoViewExt::TubeNodes;
 std::vector<MapCoord> CIsoViewExt::LiveDistanceRuler;
+std::vector<MapCoord> CIsoViewExt::ScriptPath;
 FString CIsoViewExt::CurrentCellObjectHouse = "";
 int CIsoViewExt::EXTRA_BORDER_BOTTOM = 25;
 Cell3DLocation CIsoViewExt::CurrentDrawCellLocation;
@@ -3004,6 +3007,23 @@ void CIsoViewExt::DrawDistanceRuler(HDC hDC)
     }
 }
 
+void CIsoViewExt::DrawScriptPaths(HDC hDC)
+{
+    for (int i = 1; i < ScriptPath.size(); ++i)
+    {
+        auto& coord1 = ScriptPath[i - 1];
+        auto& coord2 = ScriptPath[i];
+
+        int x1 = coord1.X;
+        int y1 = coord1.Y;
+        CIsoViewExt::MapCoord2ScreenCoord(x1, y1);
+        int x2 = coord2.X;
+        int y2 = coord2.Y;
+        CIsoViewExt::MapCoord2ScreenCoord(x2, y2);
+        CIsoViewExt::DrawArrowHDC(hDC, x1, y1, x2, y2, ExtConfigs::DistanceRuler_Color, 2);
+    }
+}
+
 void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC)
 {
     int fontSize = ExtConfigs::DisplayTextSize;
@@ -3232,6 +3252,10 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         {
             DrawOtherMeasurementTools(hDC);
         }
+        if (DrawScriptPath)
+        {
+            DrawScriptPaths(hDC);
+        }
         DrawCreditOnMap(hDC);
 
         SelectObject(hDC, hOldFont);
@@ -3263,6 +3287,10 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         if (EnableOtherMeasurementTools)
         {
             DrawOtherMeasurementTools(hDC);
+        }
+        if (DrawScriptPath)
+        {
+            DrawScriptPaths(hDC);
         }
         DrawMouseMove(hDC);
         DrawCreditOnMap(hDC);
@@ -3297,6 +3325,10 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         {
             DrawOtherMeasurementTools(hDC);
         }
+        if (DrawScriptPath)
+        {
+            DrawScriptPaths(hDC);
+        }
         DrawCopyBound(hDC);
         DrawCreditOnMap(hDC);
 
@@ -3328,6 +3360,8 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
                 DrawDistanceRuler(hDC);
             if (EnableOtherMeasurementTools)
                 DrawOtherMeasurementTools(hDC);
+            if (DrawScriptPath)
+                DrawScriptPaths(hDC);
 
             SelectObject(hDC, hOldFont);
             DeleteObject(hFont);
@@ -3358,6 +3392,8 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
                 DrawDistanceRuler(hDC);
             if (EnableOtherMeasurementTools)
                 DrawOtherMeasurementTools(hDC);
+            if (DrawScriptPath)
+                DrawScriptPaths(hDC);
 
             SelectObject(hDC, hOldFont);
             DeleteObject(hFont);
@@ -3585,6 +3621,69 @@ void CIsoViewExt::DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color
     LineTo(hDC, x2 - CIsoViewExt::drawOffsetX, y2 - CIsoViewExt::drawOffsetY);
     SelectObject(hDC, hPenOld);
     DeleteObject(hPen);
+    EndPaint(pThis->m_hWnd, &ps);
+}
+
+void CIsoViewExt::DrawArrowHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, int size)
+{
+    auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
+
+    x1 += 36 / CIsoViewExt::ScaledFactor - 6;
+    x2 += 36 / CIsoViewExt::ScaledFactor - 6;
+    y1 -= 12.5 / CIsoViewExt::ScaledFactor + 2.5;
+    y2 -= 12.5 / CIsoViewExt::ScaledFactor + 2.5;
+
+    PAINTSTRUCT ps;
+    BeginPaint(pThis->m_hWnd, &ps);
+
+    HPEN hPen = CreatePen(PS_SOLID, CIsoViewExt::ScaledFactor < 0.61 ? (2 + size) : size, color);
+    HPEN hPenOld = (HPEN)SelectObject(hDC, hPen);
+
+    int sx1 = x1 - CIsoViewExt::drawOffsetX;
+    int sy1 = y1 - CIsoViewExt::drawOffsetY;
+    int sx2 = x2 - CIsoViewExt::drawOffsetX;
+    int sy2 = y2 - CIsoViewExt::drawOffsetY;
+
+    MoveToEx(hDC, sx1, sy1, NULL);
+    LineTo(hDC, sx2, sy2);
+
+    double dx = sx2 - sx1;
+    double dy = sy2 - sy1;
+    double len = sqrt(dx * dx + dy * dy);
+    if (len > 0.0001)
+    {
+        double ux = dx / len;
+        double uy = dy / len;
+
+        double arrowLen = 10.0 / CIsoViewExt::ScaledFactor;
+        double arrowWidth = 5.0 / CIsoViewExt::ScaledFactor;
+
+        double px = -uy;
+        double py = ux;
+
+        POINT pts[3];
+
+        pts[0].x = sx2;
+        pts[0].y = sy2;
+
+        pts[1].x = (LONG)(sx2 - ux * arrowLen + px * arrowWidth);
+        pts[1].y = (LONG)(sy2 - uy * arrowLen + py * arrowWidth);
+
+        pts[2].x = (LONG)(sx2 - ux * arrowLen - px * arrowWidth);
+        pts[2].y = (LONG)(sy2 - uy * arrowLen - py * arrowWidth);
+
+        HBRUSH hBrush = CreateSolidBrush(color);
+        HBRUSH hOldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+
+        Polygon(hDC, pts, 3);
+
+        SelectObject(hDC, hOldBrush);
+        DeleteObject(hBrush);
+    }
+
+    SelectObject(hDC, hPenOld);
+    DeleteObject(hPen);
+
     EndPaint(pThis->m_hWnd, &ps);
 }
 

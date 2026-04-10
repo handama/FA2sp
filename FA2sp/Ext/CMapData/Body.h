@@ -9,6 +9,7 @@
 #include "../../Helpers/FString.h"
 
 #define CUSTOM_TILE_START 100000
+struct TwoPointStruct;
 
 struct TerrainGeneratorOverlay
 {
@@ -311,6 +312,16 @@ public:
     void recover();
 };
 
+struct MeasurementRecord
+{
+    std::vector<TwoPointStruct> TwoPointDistance;
+    MapCoord AxialSymmetryLine[2];
+    MapCoord CentralSymmetryCenter;
+    std::vector<std::pair<MapCoord, MapCoord>> AxialSymmetricPoints;
+    std::vector<std::pair<MapCoord, MapCoord>> CentralSymmetricPoints;
+    std::vector<std::pair<MapCoord, float>> Circles;
+};
+
 class ObjectRecord : public HistoryRecord {
 public:
     enum RecordType : int
@@ -325,7 +336,8 @@ public:
         Tunnel = 0x00000080,
         Waypoint = 0x00000100,
         Celltag = 0x00000200,
-        Annotation = 0x00000400
+        Annotation = 0x00000400,
+        Measurements = 0x00000800,
     };
     int recordFlags = 0;
     int recordedFlages = 0;
@@ -341,6 +353,7 @@ public:
     std::map<FString, FString> CelltagList;
     std::map<FString, FString> AnnotationList;
     std::vector<EditedMarks> DrawEditedMarkList;
+    std::unique_ptr<MeasurementRecord> MeasurementRecords;
 
     void record(int recordType);
     void appendRecord(int recordType);

@@ -6,6 +6,7 @@
 #include "../../Ext/CLoading/Body.h"
 #include <CFinalSunApp.h>
 #include "../../Ext/CIsoView/Body.h"
+#include "../../Ext/CMapData/Body.h"
 
 CMeasurementToolbox* CMeasurementToolbox::m_pMeasurementToolbox = nullptr;
 
@@ -222,6 +223,7 @@ void CMeasurementToolbox::SetMeasurementToolbox(int X, int Y)
 		}
 		else if (CIsoViewExt::TwoPointDistance.back().Point1 != MapCoord{ X,Y })
 		{
+			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
 			CIsoViewExt::TwoPointDistance.back().Point2 = { X,Y };
 		}
 	}
@@ -240,11 +242,13 @@ void CMeasurementToolbox::SetMeasurementToolbox(int X, int Y)
 		}
 		else if (CIsoViewExt::AxialSymmetryLine[0] != MapCoord{ X,Y })
 		{
+			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
 			CIsoViewExt::AxialSymmetryLine[1] = { X,Y };
 		}
 	}
 	else if (CIsoView::CurrentCommand->Type == MeasurementTypes::SetCentralSymmetryCenter)
 	{
+		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
 		CIsoViewExt::CentralSymmetryCenter = MapCoord{ X, Y };
 		CIsoViewExt::CentralSymmetricPoints.clear();
 		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
@@ -254,6 +258,7 @@ void CMeasurementToolbox::SetMeasurementToolbox(int X, int Y)
 		if (CIsoViewExt::AxialSymmetryLine[0] != MapCoord{ 0, 0 }
 			&& CIsoViewExt::AxialSymmetryLine[1] != MapCoord{ 0, 0 })
 		{
+			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
 			MapCoord mc1 = { X,Y };
 			auto mc2 = GetAxialSymmetricPoint(mc1);
 			CIsoViewExt::AxialSymmetricPoints.push_back(std::make_pair(mc1, mc2));
@@ -264,6 +269,7 @@ void CMeasurementToolbox::SetMeasurementToolbox(int X, int Y)
 	{
 		if (CIsoViewExt::CentralSymmetryCenter != MapCoord{ 0, 0 })
 		{
+			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
 			MapCoord mc1 = { X,Y };
 			auto mc2 = GetCentralSymmetricPoint(mc1);
 			CIsoViewExt::CentralSymmetricPoints.push_back(std::make_pair(mc1, mc2));
@@ -273,6 +279,7 @@ void CMeasurementToolbox::SetMeasurementToolbox(int X, int Y)
 	}
 	else if (CIsoView::CurrentCommand->Type == MeasurementTypes::PlaceCircle)
 	{
+		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
 		MapCoord mc1 = { X,Y };
 		CIsoViewExt::Circles.push_back(std::make_pair(mc1, CIsoViewExt::CircleRadius));
 		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
@@ -298,6 +305,7 @@ void CMeasurementToolbox::OnClickLiveDistance()
 
 void CMeasurementToolbox::OnClickClearDistancePoints()
 {
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
 	CIsoViewExt::LiveDistanceRuler.clear();
 	CIsoViewExt::EnableLiveDistanceRuler = false;
 	CIsoViewExt::TwoPointDistance.clear();
@@ -319,6 +327,7 @@ void CMeasurementToolbox::OnClickPlaceSymmetricPoint()
 
 void CMeasurementToolbox::OnClickClearSymmetricPoints()
 {
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
 	CIsoViewExt::AxialSymmetricPoints.clear();
 	CIsoViewExt::AxialSymmetryLine[0] = { 0,0 };
 	CIsoViewExt::AxialSymmetryLine[1] = { 0,0 };
@@ -339,6 +348,7 @@ void CMeasurementToolbox::OnClickPlaceCentralSymmetricPoint()
 
 void CMeasurementToolbox::OnClickClearCentralSymmetricPoints()
 {
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
 	CIsoViewExt::CentralSymmetricPoints.clear();
 	CIsoViewExt::CentralSymmetryCenter = { 0,0 };
 	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
@@ -364,6 +374,7 @@ void CMeasurementToolbox::OnClickPlaceCircle()
 
 void CMeasurementToolbox::OnClickClearCircles()
 {
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
 	CIsoViewExt::Circles.clear();
 	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 }

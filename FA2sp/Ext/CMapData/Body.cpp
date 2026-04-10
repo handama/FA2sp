@@ -2452,6 +2452,20 @@ void ObjectRecord::record(int recordType)
 		recordedFlages |= RecordType::Annotation;
 		recordIniMap("Annotations", AnnotationList);
 	}
+	if (recordType & RecordType::Measurements)
+	{
+		recordedFlages |= RecordType::Measurements;
+		if(!MeasurementRecords)
+			MeasurementRecords = std::make_unique<MeasurementRecord>();
+				
+		MeasurementRecords->TwoPointDistance = CIsoViewExt::TwoPointDistance;
+		MeasurementRecords->AxialSymmetryLine[0] = CIsoViewExt::AxialSymmetryLine[0];
+		MeasurementRecords->AxialSymmetryLine[1] = CIsoViewExt::AxialSymmetryLine[1];
+		MeasurementRecords->CentralSymmetryCenter = CIsoViewExt::CentralSymmetryCenter;
+		MeasurementRecords->AxialSymmetricPoints = CIsoViewExt::AxialSymmetricPoints;
+		MeasurementRecords->CentralSymmetricPoints = CIsoViewExt::CentralSymmetricPoints;
+		MeasurementRecords->Circles = CIsoViewExt::Circles;
+	}
 	if (recordType & RecordType::Basenode)
 	{
 		recordedFlages |= RecordType::Basenode;
@@ -2567,6 +2581,20 @@ void ObjectRecord::appendRecord(int recordType)
 	{
 		recordedFlages |= RecordType::Annotation;
 		recordIniMap("Annotations", AnnotationList);
+	}
+	if (recordType & RecordType::Measurements && !(recordedFlages & RecordType::Measurements))
+	{
+		recordedFlages |= RecordType::Measurements;
+		if (!MeasurementRecords)
+			MeasurementRecords = std::make_unique<MeasurementRecord>();
+
+		MeasurementRecords->TwoPointDistance = CIsoViewExt::TwoPointDistance;
+		MeasurementRecords->AxialSymmetryLine[0] = CIsoViewExt::AxialSymmetryLine[0];
+		MeasurementRecords->AxialSymmetryLine[1] = CIsoViewExt::AxialSymmetryLine[1];
+		MeasurementRecords->CentralSymmetryCenter = CIsoViewExt::CentralSymmetryCenter;
+		MeasurementRecords->AxialSymmetricPoints = CIsoViewExt::AxialSymmetricPoints;
+		MeasurementRecords->CentralSymmetricPoints = CIsoViewExt::CentralSymmetricPoints;
+		MeasurementRecords->Circles = CIsoViewExt::Circles;
 	}
 	if (recordType & RecordType::Basenode && !(recordedFlages & RecordType::Basenode))
 	{
@@ -2718,6 +2746,29 @@ void ObjectRecord::recover()
 	{
 		recoverIniMap("Annotations", AnnotationList);
 		CMapDataExt::UpdateAnnotation();
+	}
+	if ((recordFlags & RecordType::Measurements) && MeasurementRecords)
+	{
+		CIsoViewExt::TwoPointDistance = MeasurementRecords->TwoPointDistance;
+		CIsoViewExt::AxialSymmetryLine[0] = MeasurementRecords->AxialSymmetryLine[0];
+		CIsoViewExt::AxialSymmetryLine[1] = MeasurementRecords->AxialSymmetryLine[1];
+		CIsoViewExt::CentralSymmetryCenter = MeasurementRecords->CentralSymmetryCenter;
+		CIsoViewExt::AxialSymmetricPoints = MeasurementRecords->AxialSymmetricPoints;
+		CIsoViewExt::CentralSymmetricPoints = MeasurementRecords->CentralSymmetricPoints;
+		CIsoViewExt::Circles = MeasurementRecords->Circles;
+
+		if (CIsoViewExt::AxialSymmetryLine[1] == MapCoord{ 0,0 })
+		{
+			CIsoViewExt::AxialSymmetryLine[0] = { 0,0 };
+		}
+		if (!CIsoViewExt::TwoPointDistance.empty())
+		{
+			auto& last = CIsoViewExt::TwoPointDistance.back();
+			if (last.Point2 == MapCoord{ 0,0 })
+			{
+				last.Point1 = { 0,0 };
+			}
+		}
 	}
 	if (recordFlags & RecordType::Basenode)
 	{

@@ -33,6 +33,7 @@ public:
         ActionParamDes = 1198,
         ActionExtraParamDes = 6303,
         Insert = 6302,
+        RenderPath = 6307,
         SearchReference = 1999,
         DragPoint = 2001,
     };
@@ -65,6 +66,7 @@ protected:
     static void OnClickSearchReference(HWND& hWnd);
     static void OnClickMoveupAction(HWND& hWnd, bool reverse);
     static void UpdateActionAndParam(int actionChanged = -1, int listBoxCurChanged = -1, bool changeActionIdx = true);
+    static void UpdateScriptPath();
 
     static void OnCloseupActionType();
     static void OnCloseupScript();
@@ -106,6 +108,7 @@ public:
     static HWND hActionParamDes;
     static HWND hActionExtraParamDes;
     static HWND hInsert;
+    static HWND hRenderPath;
     static HWND hSearchReference;
     static HWND hDragPoint;
     static FString CurrentScriptID;

@@ -44,6 +44,7 @@ HWND CNewScript::hMoveDown;
 HWND CNewScript::hActionParamDes;
 HWND CNewScript::hActionExtraParamDes;
 HWND CNewScript::hInsert;
+HWND CNewScript::hRenderPath;
 HWND CNewScript::hSearchReference;
 
 int CNewScript::SelectedScriptIndex = -1;
@@ -117,6 +118,7 @@ void CNewScript::Initialize(HWND& hWnd)
     Translate(6303, "ScriptTypesExtraParam");
     Translate(6305, "ScriptTypesMoveUp");
     Translate(6306, "ScriptTypesMoveDown");
+    Translate(6307, "ScriptTypesRenderPath");
     Translate(1999, "SearchReferenceTitle");
 
     hSelectedScript = GetDlgItem(hWnd, Controls::SelectedScript);
@@ -137,9 +139,11 @@ void CNewScript::Initialize(HWND& hWnd)
     hActionParamDes = GetDlgItem(hWnd, Controls::ActionParamDes);
     hActionExtraParamDes = GetDlgItem(hWnd, Controls::ActionExtraParamDes);
     hInsert = GetDlgItem(hWnd, Controls::Insert);
+    hRenderPath = GetDlgItem(hWnd, Controls::RenderPath);
     hSearchReference = GetDlgItem(hWnd, Controls::SearchReference);
     hDragPoint = GetDlgItem(hWnd, Controls::DragPoint);
     bInsert = false;
+    CIsoViewExt::DrawScriptPath = false;
 
     ExtraWindow::SetEditControlFontSize(hDescription, 1.3f);
     int tabstops[2] = { 80, 100 };
@@ -235,13 +239,17 @@ void CNewScript::Update(HWND& hWnd)
 
 void CNewScript::Close(HWND& hWnd)
 {
+    if (CIsoViewExt::DrawScriptPath)
+    {
+        CIsoViewExt::DrawScriptPath = false;
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->GetSafeHwnd(), 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+    }
+
     EndDialog(hWnd, NULL);
 
     CNewScript::m_hwnd = NULL;
     CNewScript::m_parent = NULL;
-
 }
-
 
 LRESULT CALLBACK CNewScript::DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -613,6 +621,13 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
         case Controls::Insert:
             bInsert = SendMessage(hInsert, BM_GETCHECK, 0, 0);
             break;
+        case Controls::RenderPath:
+            CIsoViewExt::DrawScriptPath = SendMessage(hRenderPath, BM_GETCHECK, 0, 0);
+            if (CIsoViewExt::DrawScriptPath)
+                UpdateScriptPath();
+            else
+                ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->GetSafeHwnd(), 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);           
+            break;
         default:
             break;
         }
@@ -760,6 +775,8 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
     SendMessage(hActionsListBox, LB_DELETESTRING, idx, NULL);
     SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text);
     SendMessage(hActionsListBox, LB_SETCURSEL, idx, NULL);
+
+    UpdateScriptPath();
 }
 
 void CNewScript::OnCloseupActionExtraParam()
@@ -863,6 +880,7 @@ void CNewScript::OnSelchangeActionParam(bool edited)
     SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text);
     SendMessage(hActionsListBox, LB_SETCURSEL, idx, NULL);
 
+    UpdateScriptPath();
 }
 
 void CNewScript::OnCloseupActionParam()
@@ -959,6 +977,7 @@ void CNewScript::OnSelchangeActionType(bool edited)
     SendMessage(hActionsListBox, LB_SETCURSEL, idx, NULL);
 
     UpdateActionAndParam(actionIdx, -1, false);
+    UpdateScriptPath();
 }
 
 void CNewScript::OnCloseupActionType()
@@ -1110,6 +1129,8 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
 
     OnSelchangeActionListbox();
     DropNeedUpdate = false;
+
+    UpdateScriptPath();
 }
 
 void CNewScript::OnCloseupScript()
@@ -1278,6 +1299,7 @@ void CNewScript::OnClickAddAction(HWND& hWnd)
         SendMessage(hActionsListBox, LB_SETCURSEL, count, NULL);
     }
     OnSelchangeActionListbox();
+    UpdateScriptPath();
 }
 
 void CNewScript::OnClickCloneAction(HWND& hWnd)
@@ -1354,6 +1376,7 @@ void CNewScript::OnClickCloneAction(HWND& hWnd)
         SendMessage(hActionsListBox, LB_SETCURSEL, count, NULL);
     }
     OnSelchangeActionListbox();
+    UpdateScriptPath();
 }
 
 void CNewScript::OnClickDeleteAction(HWND& hWnd)
@@ -1367,6 +1390,7 @@ void CNewScript::OnClickDeleteAction(HWND& hWnd)
     map.DeleteKey(CurrentScriptID, key);
 
     OnSelchangeScript(false, idx);
+    UpdateScriptPath();
 }
 
 void CNewScript::OnClickMoveupAction(HWND& hWnd, bool reverse)
@@ -1431,6 +1455,7 @@ void CNewScript::OnClickMoveupAction(HWND& hWnd, bool reverse)
     SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text);
 
     OnSelchangeScript(false, idx2);
+    UpdateScriptPath();
 }
 
 void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, bool changeActionIdx)
@@ -1623,9 +1648,82 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
             Translations::GetTranslationItem("ScriptTypesExtraParam", buffer);
             SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)buffer);
         }
-
     }
+}
 
+void CNewScript::UpdateScriptPath()
+{
+    if (!CIsoViewExt::DrawScriptPath
+        ||CurrentScriptID.IsEmpty() 
+        || !CINI::CurrentDocument->SectionExists(CurrentScriptID))
+        return;
+
+    CIsoViewExt::ScriptPath.clear();
+    std::set<int> jumpLines;
+    for (int i = 0; i < 50; i++)
+    {
+        FString key;
+        key.Format("%d", i);
+        auto value = CINI::CurrentDocument->GetString(CurrentScriptID, key);
+        auto atoms = FString::SplitString(value);
+        auto& action = atoms[0];
+        auto& actionParam = atoms[1];
+        if (atoms.size() < 2) break;
+        if (action == "6")
+        {
+            i = atoi(actionParam) - 2;
+            if (jumpLines.contains(i))
+                break;
+
+            jumpLines.insert(i);
+            continue;
+        }
+
+        if (auto pSection = CINI::FAData->GetSection(ExtraWindow::GetTranslatedSectionName("ScriptsRA2")))
+        {
+            auto pValue = CINI::FAData->TryGetString(
+                ExtraWindow::GetTranslatedSectionName("ScriptsRA2"),
+                action);
+            if (!pValue)
+                continue;
+            auto atoms2 = FString::SplitString(*pValue, 4);
+            FString name = atoms2[0];
+            auto& paramIdx = atoms2[1];
+            auto& disable = atoms2[2];
+            auto& hasParam = atoms2[3];
+            auto& description = atoms2[4];
+
+            FString::TrimIndex(name);
+            if (hasParam == "1")
+            {
+                if (auto pSectionParam = CINI::FAData->GetSection(ExtraWindow::GetTranslatedSectionName("ScriptParams")))
+                {
+                    auto param = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ScriptParams"), paramIdx));
+                    if (ActionHasExtraParam[name])
+                    {
+                        if (param[3] == "1") // waypoints
+                        {
+                            auto pos = CINI::CurrentDocument->GetInteger("Waypoints", actionParam);
+                            int x = pos / 1000;
+                            int y = pos % 1000;
+                            CIsoViewExt::ScriptPath.push_back({ x,y });
+                        }
+                    }
+                    else if (param.size() >= 2)
+                    {
+                        if (param[1] == "1") // waypoints
+                        {
+                            auto pos = CINI::CurrentDocument->GetInteger("Waypoints", actionParam);
+                            int x = pos / 1000;
+                            int y = pos % 1000;
+                            CIsoViewExt::ScriptPath.push_back({ x,y });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->GetSafeHwnd(), 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 
 void CNewScript::OnClickSearchReference(HWND& hWnd)

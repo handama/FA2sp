@@ -280,6 +280,15 @@ BOOL CALLBACK CObjectSearch::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
         return TRUE;
     }
     case 114514:
+        if (CObjectSearch::bWaypoints)
+        {
+            CObjectSearch::UpdateDetailsWaypoint(hwnd);
+            break;
+        }
+        else if (CObjectSearch::bMapCoords)
+        {
+            break;
+        }
         CObjectSearch::OnSearchButtonUp(hwnd);
         break;
     case 114515:
@@ -574,18 +583,19 @@ void CObjectSearch::OnSearchButtonUp(HWND hWnd)
     ShowWindow(m_hwnd, SW_SHOW);
     SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 
-    CObjectSearch::ListBoxIndex = 0;
     CObjectSearch::ListBox_TreeView.clear();
     CObjectSearch::ListBox_Tile.clear();
     CObjectSearch::ListBox_MapCoord.clear();
     CObjectSearch::ListBoxTexts.clear();
     HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
     if (!CObjectSearch::bMapCoords && !CObjectSearch::bWaypoints)
+    {
+        CObjectSearch::ListBoxIndex = 0;
         while (SendMessage(hListBox, LB_DELETESTRING, 0, NULL) != LB_ERR);
+    }
 
     char buffer[256];
     GetDlgItemText(m_hwnd, Input, buffer, 256);
-
 
     if (CObjectSearch::bTreeView)
     {
@@ -1607,6 +1617,9 @@ void CObjectSearch::UpdateDetailsTile(HWND hWnd, int index)
 
 void CObjectSearch::UpdateDetailsWaypoint(HWND hWnd)
 {
+    HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
+    while (SendMessage(hListBox, LB_DELETESTRING, 0, NULL) != LB_ERR);
+    CObjectSearch::ListBoxIndex = 0;
     CObjectSearch::ListBox_MapCoord.clear();
     if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
     {
@@ -1620,7 +1633,6 @@ void CObjectSearch::UpdateDetailsWaypoint(HWND hWnd)
                 wp.second = second % 1000;
                 wp.first = second / 1000;
                 
-                HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
                 FString text;
                 text.Format("%03d (%d, %d)", atoi(pair.first), wp.second, wp.first);
                 SendMessage(

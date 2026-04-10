@@ -212,6 +212,7 @@ public:
     static void DrawCopyBound(HDC hDC);
     static void DrawBridgeLine(HDC hDC);
     static void DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, int size = 0);
+    static void DrawArrowHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, int size = 0);
     static void DrawDashLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, int size = 0);
     static void DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color, int offsetX = 0, int offsetY = 0);
     static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::vector<MapCoord>& coords, COLORREF color);
@@ -222,6 +223,7 @@ public:
     static void DrawCreditOnMap(HDC hDC);
     static void DrawDistanceRuler(HDC hDC);
     static void DrawOtherMeasurementTools(HDC hDC);
+    static void DrawScriptPaths(HDC hDC);
     static void MoveToMapCoord(int X, int Y);
     static void Zoom(double offset);
     static std::vector<MapCoord> GetLinePoints(MapCoord mc1, MapCoord mc2);
@@ -326,6 +328,8 @@ public:
     static std::vector<std::pair<MapCoord, MapCoord>> CentralSymmetricPoints;
     static std::vector<std::pair<MapCoord, float>> Circles;
     static float CircleRadius;
+    static bool DrawScriptPath;
+    static std::vector<MapCoord> ScriptPath;
 
     static bool ReInitializingDDraw;
 

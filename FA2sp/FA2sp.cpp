@@ -217,6 +217,7 @@ bool ExtConfigs::UTF8Support_InferEncoding = true;
 bool ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
 bool ExtConfigs::GridObjectViewer_LoadEditorCategory;
 bool ExtConfigs::GridObjectViewer_LoadForceSides;
+bool ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory;
 
 CInfantryData ExtConfigs::DefaultInfantryProperty;
 CUnitData ExtConfigs::DefaultUnitProperty;
@@ -245,6 +246,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ObjectBrowser_Ore_ExtraSupport = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Ore.ExtraSupport");
 	ExtConfigs::GridObjectViewer_LoadEditorCategory = CINI::FAData->GetBool("ExtConfigs", "GridObjectViewer.LoadEditorCategory", true);
 	ExtConfigs::GridObjectViewer_LoadForceSides = CINI::FAData->GetBool("ExtConfigs", "GridObjectViewer.LoadForceSides", true);
+	ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory = CINI::FAData->GetBool("ExtConfigs", "GridObjectViewer.LoadObjectBrowserCategory", true);
 	ExtConfigs::LoadCivilianStringtable = CINI::FAData->GetBool("ExtConfigs", "LoadCivilianStringtable");
 	ExtConfigs::PasteShowOutlineDefault = CINI::FAData->GetBool("ExtConfigs", "PasteShowOutline");
 	
@@ -724,6 +726,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.GridObjectViewer.LoadForceSides", "Classify objects in the object viewer based on their ForceSides"),
 		.IniKey = "GridObjectViewer.LoadForceSides",
 		.Value = &ExtConfigs::GridObjectViewer_LoadForceSides,
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectViewer
+		});
+	
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.GridObjectViewer.LoadObjectBrowserCategory", "Classify smudges/terrains/overlays in the object viewer based on their ObjectBrowser group"),
+		.IniKey = "GridObjectViewer.LoadObjectBrowserCategory",
+		.Value = &ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory,
 		.Type = ExtConfigs::SpecialOptionType::ReloadObjectViewer
 		});
 

@@ -227,6 +227,7 @@ public:
     static bool UTF8Support_AlwaysSaveAsUTF8;
     static bool GridObjectViewer_LoadEditorCategory;
     static bool GridObjectViewer_LoadForceSides;
+    static bool GridObjectViewer_LoadObjectBrowserCategory;
     static CInfantryData DefaultInfantryProperty;
     static CUnitData DefaultUnitProperty;
     static CAircraftData DefaultAircraftProperty;

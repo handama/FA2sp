@@ -625,7 +625,7 @@ void GridObjectViewer::UpdateControls()
     }
 
     auto addEditorCategory = [&](const char* section, CViewObjectsExt::PropertyBrushTypes type)
-    {        
+    {       
         for (auto& [_, obj] : Variables::RulesMap.GetSection(section))
         {
             GroupInfo* info = nullptr;
@@ -727,7 +727,90 @@ void GridObjectViewer::UpdateControls()
         }
     };
 
-    if (ExtConfigs::GridObjectViewer_LoadForceSides || ExtConfigs::GridObjectViewer_LoadEditorCategory)
+    auto addObjectBrowserCategory = [&](const char* section, const char* faDataSection, bool isOverlay)
+    {
+        struct OBCInfo
+        {
+            int index;
+            std::vector<FString> contains;
+        };
+        std::vector<OBCInfo> availableGroups;
+        if (auto pSection = CINI::FAData->GetSection(faDataSection))
+        {
+            std::map<int, FString> collector;
+
+            for (auto& pair : pSection->GetIndices())
+                collector[pair.second] = pair.first;
+
+            for (auto& pair : collector)
+            {
+                const auto& contains = FString::SplitString(pair.second, "|");
+                const auto& groupName = pSection->GetEntities().find(pair.second)->second;
+                GroupInfo* info = nullptr;
+
+                if (!CViewObjectsExt::IsIgnored(groupName))
+                {
+                    int i = 0;
+                    for (auto& g : g_groups)
+                    {
+                        if (g.InternalName == groupName)
+                        {
+                            info = &g;
+                            availableGroups.push_back({ i,contains });
+                            break;
+                        }
+                        i++;
+                    }
+                    if (!info)
+                    {
+                        info = &g_groups.emplace_back();
+                        info->DisplayName = Translations::TranslateOrDefault(groupName, groupName);
+                        info->InternalName = groupName;
+
+                        availableGroups.push_back({ (int)g_groups.size() - 1,contains });
+                    }
+                }
+            }
+            if (availableGroups.empty())
+                return;
+
+            int index = -1;
+            for (auto& [_, obj] : Variables::RulesMap.GetSection(section))
+            {
+                index++;
+                if (CViewObjectsExt::IsIgnored(obj))
+                    continue;
+
+                for (auto& group : availableGroups)
+                {
+                    bool match = false;
+                    for (auto& c : group.contains)
+                    {
+                        if (obj.Find(c) != -1)
+                        {
+                            match = true;
+                            break;
+                        }
+                    }
+                    if (match)
+                    {
+                        if (isOverlay)
+                        {
+                            g_groups[group.index].IDs.push_back({ STDHelpers::IntToString(index), true});
+                        }
+                        else
+                        {
+                            g_groups[group.index].IDs.push_back({ obj, false });
+                        }                      
+                    }
+                }
+            }
+        }
+    };
+
+    if (ExtConfigs::GridObjectViewer_LoadForceSides 
+        || ExtConfigs::GridObjectViewer_LoadEditorCategory
+        || ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory)
     {
         addEditorCategory("InfantryTypes", CViewObjectsExt::PropertyBrushTypes::Set_Infantry);
         addEditorCategory("VehicleTypes", CViewObjectsExt::PropertyBrushTypes::Set_Vehicle);
@@ -735,6 +818,13 @@ void GridObjectViewer::UpdateControls()
         addEditorCategory("BuildingTypes", CViewObjectsExt::PropertyBrushTypes::Set_Building);
         addEditorCategory("TerrainTypes", CViewObjectsExt::PropertyBrushTypes::Set_Count);
         addEditorCategory("SmudgeTypes", CViewObjectsExt::PropertyBrushTypes::Set_Count);
+
+        if (ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory)
+        {
+            addObjectBrowserCategory("SmudgeTypes", "ObjectBrowser.SmudgeTypes", false);
+            addObjectBrowserCategory("TerrainTypes", "ObjectBrowser.TerrainTypes", false);
+            addObjectBrowserCategory("OverlayTypes", "ObjectBrowser.Overlays", true);
+        }
 
         int max = -1;
         std::map<FString, int> orderIndex;
@@ -750,7 +840,7 @@ void GridObjectViewer::UpdateControls()
         for (auto& order : engSides)
         {
             if (!orderIndex.contains(order))
-                orderIndex[order] = max++;
+                orderIndex[order] = ++max;
         }
         auto getIndex = [&](const FString& name) {
             auto it = orderIndex.find(name);

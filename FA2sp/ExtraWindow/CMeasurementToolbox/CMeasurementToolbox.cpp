@@ -214,9 +214,10 @@ void CMeasurementToolbox::SetMeasurementToolbox(int X, int Y)
 	{
 		if (CIsoViewExt::TwoPointDistance.empty() || CIsoViewExt::TwoPointDistance.back().Point2 != MapCoord{ 0, 0 })
 		{
-			CIsoViewExt::TwoPointDistance.push_back({ MapCoord{ 0, 0 }, MapCoord{ 0, 0 },
-				CIsoView::CurrentCommand->Type == MeasurementTypes::TwoPointDistance });
+			CIsoViewExt::TwoPointDistance.push_back({ MapCoord{ 0, 0 }, MapCoord{ 0, 0 }, false });
 		}
+		CIsoViewExt::TwoPointDistance.back().drawText =
+		CIsoView::CurrentCommand->Type == MeasurementTypes::TwoPointDistance;
 		if (CIsoViewExt::TwoPointDistance.back().Point1 == MapCoord{ 0, 0 })
 		{
 			CIsoViewExt::TwoPointDistance.back().Point1 = { X,Y };

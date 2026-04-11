@@ -87,7 +87,8 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
     pThis->MyViewFrame.StatusBar.SetWindowText(Translations::TranslateOrDefault("SavingMap", "Saving map..."));
     pThis->MyViewFrame.StatusBar.UpdateWindow();
 
-    SaveMapExt::SaveMap(pINI, pThis, filepath, previewOption, true, false);
+    if (SaveMapExt::SaveMap(pINI, pThis, filepath, previewOption, true, false))
+        pThis->AddToRecentFile(filepath);
 
     return 0x42A859;
 }

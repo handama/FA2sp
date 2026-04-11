@@ -128,6 +128,17 @@ DEFINE_HOOK(460F00, CIsoView_ScreenCoord2MapCoord_Height, 7)
 	return 0;
 }
 
+DEFINE_HOOK(460FF1, CIsoView_ScreenCoord2MapCoord_Height_IgnoreOutside, 8)
+{
+	GET(int, Y, EDI);
+	GET(int, X, EBP);
+
+	if (CMapData::Instance->IsCoordInMap(X, Y))
+		return 0x461001;
+
+	return 0x46126E;
+}
+
 DEFINE_HOOK(461167, CIsoView_ScreenCoord2MapCoord_Height_TileData, 6)
 {
 	if (!CMapData::Instance->MapWidthPlusHeight)

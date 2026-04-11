@@ -2357,7 +2357,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
 							pThis->DrawLine(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
-								x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 30, ExtConfigs::CursorSelectionBound_HeightColor, false, false, lpDesc, true);
+								x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+								false, false, lpDesc, window, true);
 
 						auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 							x - pData->FullWidth / 2,
@@ -2536,7 +2537,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 						if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
 							pThis->DrawLine(x1 + 30, y1 - 30,
-								x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor, false, false, lpDesc, true);
+								x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+								false, false, lpDesc, window, true);
 
 						auto color = Miscs::GetColorRef(obj.House);
 						if (pData->pImageBuffer)
@@ -2700,7 +2702,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					x2 -= 1;
 					y2 -= 1;
 				}
-				pThis->DrawLine(x1 + 30, y1 - 15 - height, x2 + 30, y2 - 15 - height, color, false, false, lpDesc);
+				pThis->DrawLine(x1 + 30, y1 - 15 - height, x2 + 30, y2 - 15 - height, color, false, false, lpDesc, window);
 			}
 			int x1, x2, y1, y2;
 			x1 = tube.StartCoord.X;
@@ -3220,14 +3222,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 			if (y4 > y1 && x4 > x1)
 			{
-				pThis->DrawLine(x1 - 1, y1, x4 + 2, y1, RGB(0, 0, 255), false, false, lpDesc, false, 5);
-				pThis->DrawLine(x4, y1, x4, y4, RGB(0, 0, 255), false, false, lpDesc, false, 5);
-				pThis->DrawLine(x1 - 1, y4, x4 + 2, y4, RGB(0, 0, 255), false, false, lpDesc, false, 5);
-				pThis->DrawLine(x1, y4, x1, y1, RGB(0, 0, 255), false, false, lpDesc, false, 5);
+				pThis->DrawLine(x1 - 1, y1, x4 + 2, y1, RGB(0, 0, 255), false, false, lpDesc, window, false, 5);
+				pThis->DrawLine(x4, y1, x4, y4, RGB(0, 0, 255), false, false, lpDesc, window, false, 5);
+				pThis->DrawLine(x1 - 1, y4, x4 + 2, y4, RGB(0, 0, 255), false, false, lpDesc, window, false, 5);
+				pThis->DrawLine(x1, y4, x1, y1, RGB(0, 0, 255), false, false, lpDesc, window, false, 5);
 
 				// thin blue bound on top
 				if (y1 + 75 < y4)
-					pThis->DrawLine(x1 - 1, y1 + 75, x4 + 2, y1 + 75, RGB(0, 0, 255), false, false, lpDesc, false, 1);
+					pThis->DrawLine(x1 - 1, y1 + 75, x4 + 2, y1 + 75, RGB(0, 0, 255), false, false, lpDesc, window, false, 1);
 			}
 		}
 		// red bound
@@ -3246,10 +3248,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			y1 -= DrawOffsetY + 15;
 			y4 -= DrawOffsetY + 15;
 
-			pThis->DrawLine(x1 - 1, y1, x4 + 2, y1, RGB(255, 0, 0), false, false, lpDesc, false, 5);
-			pThis->DrawLine(x4, y1, x4, y4, RGB(255, 0, 0), false, false, lpDesc, false, 5);
-			pThis->DrawLine(x1 - 1, y4, x4 + 2, y4, RGB(255, 0, 0), false, false, lpDesc, false, 5);
-			pThis->DrawLine(x1, y4, x1, y1, RGB(255, 0, 0), false, false, lpDesc, false, 5);
+			pThis->DrawLine(x1 - 1, y1, x4 + 2, y1, RGB(255, 0, 0), false, false, lpDesc, window, false, 5);
+			pThis->DrawLine(x4, y1, x4, y4, RGB(255, 0, 0), false, false, lpDesc, window, false, 5);
+			pThis->DrawLine(x1 - 1, y4, x4 + 2, y4, RGB(255, 0, 0), false, false, lpDesc, window, false, 5);
+			pThis->DrawLine(x1, y4, x1, y1, RGB(255, 0, 0), false, false, lpDesc, window, false, 5);
 		}
 	}
 

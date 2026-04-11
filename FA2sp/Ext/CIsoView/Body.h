@@ -149,7 +149,7 @@ public:
     void DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF color, COLORREF colorX, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc, bool onlyX = false);
     void DrawLine(int x1, int y1, int x2, int y2, 
         COLORREF color, bool bUseDot, bool bUsePrimary, 
-        LPDDSURFACEDESC2 lpDesc, bool bDashed = false, int nThickness = 1);
+        LPDDSURFACEDESC2 lpDesc, const RECT& rect, bool bDashed = false, int nThickness = 1);
     void DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord>>& lines, int X, int Y, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc);
     void DrawCelltag(int X, int Y, LPDDSURFACEDESC2 lpDesc);
     void DrawBitmap(FString filename, int X, int Y, LPDDSURFACEDESC2 lpDesc);
@@ -157,7 +157,7 @@ public:
 
     void ConfirmTube(bool addReverse = true);
 
-    void DrawEllipsePaint(int X, int Y, int majorRadius, COLORREF color, HDC hdc, int width = 2);
+    void DrawEllipsePaint(int X, int Y, int majorRadius, COLORREF color, HDC hdc, const RECT& rect, int width = 2);
     void DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORREF color, bool bUseDot, HDC hdc, HWND hwnd, bool s1 = true, bool s2 = true, bool s3 = true, bool s4 = true);
     void DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor);
     static int GetSelectedSubcellInfantryIdx(int X = -1, int Y = -1, bool getSubcell = false);
@@ -208,22 +208,24 @@ public:
 
     // flatMode 0 = auto, 1 = flat, 2 = height
     static void MapCoord2ScreenCoord(int& X, int& Y, int flatMode = 0);
-    static void DrawMouseMove(HDC hDC);
+    static bool ClipLineToRect(int& x1, int& y1, int& x2, int& y2, const RECT& rect);
+    static void DrawMouseMove(HDC hDC, const RECT& rect);
     static void DrawCopyBound(HDC hDC);
     static void DrawBridgeLine(HDC hDC);
-    static void DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, int size = 0);
-    static void DrawArrowHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, int size = 0);
-    static void DrawDashLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, int size = 0);
+    static void DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, const RECT& rect, int size = 0);
+    static void DrawArrowHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, const RECT& rect, int size = 0);
+    static void DrawDashLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, const RECT& rect, int size = 0);
     static void DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color, int offsetX = 0, int offsetY = 0);
     static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::vector<MapCoord>& coords, COLORREF color);
     static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::set<MapCoord>& coords, COLORREF color);
+    static void TextOutClipped(HDC hdc, int x, int y, const char* text, int len, const RECT& rect);
     static bool StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CRect srcRect, LPDIRECTDRAWSURFACE7 dstSurface, CRect dstRect);
     static void SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw);
     static CRect GetVisibleIsoViewRect();
     static void DrawCreditOnMap(HDC hDC);
-    static void DrawDistanceRuler(HDC hDC);
-    static void DrawOtherMeasurementTools(HDC hDC);
-    static void DrawScriptPaths(HDC hDC);
+    static void DrawDistanceRuler(HDC hDC, const RECT& rect);
+    static void DrawOtherMeasurementTools(HDC hDC, const RECT& rect);
+    static void DrawScriptPaths(HDC hDC, const RECT& rect);
     static void MoveToMapCoord(int X, int Y);
     static void Zoom(double offset);
     static std::vector<MapCoord> GetLinePoints(MapCoord mc1, MapCoord mc2);

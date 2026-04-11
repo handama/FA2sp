@@ -104,7 +104,7 @@ void CIsoViewExt::DrawCopyBound(HDC hDC)
     CIsoViewExt::DrawMultiMapCoordBorders(hDC, coords, ExtConfigs::CopySelectionBound_Color);
 }
 
-void CIsoViewExt::DrawMouseMove(HDC hDC)
+void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
 {
     int fontSize = ExtConfigs::DisplayTextSize;
     if (CIsoViewExt::ScaledFactor < 0.75)
@@ -190,7 +190,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         }
 
         SetROP2(hDC, R2_NOT);
-        CIsoViewExt::DrawLineHDC(hDC, x1, y1, x2, y2, RGB(255, 0, 0));
+        CIsoViewExt::DrawLineHDC(hDC, x1, y1, x2, y2, RGB(255, 0, 0), rect);
         SetROP2(hDC, R2_COPYPEN);
     }
     if (CIsoView::CurrentCommand->Command == 0x1D && MultiSelection::LastAddedCoord.X > -1)
@@ -323,7 +323,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 CIsoViewExt::DrawLineHDC(hDC, x1,
                     y1 - height,
                     x2,
-                    y2 - height, color);
+                    y2 - height, color, rect);
             }
             ::SetBkMode(hDC, TRANSPARENT);
             for (int i = 0; i < path.size(); ++i)
@@ -512,7 +512,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         width = 4;
                     else if (CIsoViewExt::ScaledFactor < 0.6)
                         width = 3;
-                    pIsoView->DrawEllipsePaint(drawX, drawY, range* cellLength, color, hDC, width);
+                    pIsoView->DrawEllipsePaint(drawX, drawY, range* cellLength, color, hDC, rect, width);
                 } 
             };
 

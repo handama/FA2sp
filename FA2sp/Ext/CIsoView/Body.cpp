@@ -974,9 +974,8 @@ void CIsoViewExt::DrawEllipsePaint(int X, int Y, int majorRadius, COLORREF color
     int bottom = cy + majorRadius / 2;
 
     RECT ellipseRect = { left, top, right, bottom };
-
-    RECT intersect;
-    if (!IntersectRect(&intersect, &ellipseRect, &rect))
+    RECT tmp;
+    if (!IntersectRect(&tmp, &ellipseRect, &rect))
     {
         return;
     }
@@ -986,8 +985,16 @@ void CIsoViewExt::DrawEllipsePaint(int X, int Y, int majorRadius, COLORREF color
 
     HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
 
+    int savedDC = SaveDC(hdc);
+
+    HRGN rgn = CreateRectRgnIndirect(&rect);
+    SelectClipRgn(hdc, rgn);
+
     Ellipse(hdc, left, top, right, bottom);
 
+    RestoreDC(hdc, savedDC);
+
+    DeleteObject(rgn);
     SelectObject(hdc, hOldPen);
     SelectObject(hdc, hOldBrush);
     DeleteObject(hPen);
@@ -3096,8 +3103,6 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC, const RECT& rect)
         CIsoViewExt::MapCoord2ScreenCoord(drawX, drawY);
         float rad = radius * cellLength;
         CIsoViewExt::DrawDashLineHDC(hDC, drawX, drawY, drawX + rad / CIsoViewExt::ScaledFactor, drawY, reversedColor, rect, 1);
-        drawX -= CIsoViewExt::drawOffsetX;
-        drawY -= CIsoViewExt::drawOffsetY;
         pIsoView->DrawEllipsePaint(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, hDC, rect, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
     }
     if (AxialSymmetryLine[0] != MapCoord{ 0,0 })

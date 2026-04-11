@@ -502,8 +502,6 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
                     float extraX = XCenter - drawX;
                     float extraY = YCenter - drawY;
                     CIsoViewExt::MapCoord2ScreenCoord(drawX, drawY);
-                    drawX -= CIsoViewExt::drawOffsetX;
-                    drawY -= CIsoViewExt::drawOffsetY;
                     drawX += (extraY - extraX) * 30 / CIsoViewExt::ScaledFactor + offsetX;
                     drawY += (extraX + extraY) * 15 / CIsoViewExt::ScaledFactor + offsetY;
 

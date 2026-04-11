@@ -130,17 +130,6 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 	delete[] oldOverlay;
 	delete[] oldOverlayData;
 
-	InitMinimap();
-
-	for (int y = 0; y < MapWidthPlusHeight; ++y)
-	{
-		for (int x = 0; x < MapWidthPlusHeight; ++x)
-		{
-			CellDataExts[x + y * MapWidthPlusHeight].NewOverlay = NewOverlay[x * 512 + y];
-			UpdateMapPreviewAt(x, y);
-		}
-	}
-
 	FString buffer;
 	auto recoverIniValue = [&x_move, &y_move, &buffer, this](const char* lpName, std::vector<FString>& list, int x_pos, int y_pos)
 	{
@@ -376,6 +365,17 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 	{
 		CIsoViewExt::CentralSymmetryCenter.X += x_move;
 		CIsoViewExt::CentralSymmetryCenter.Y += y_move;
+	}
+
+	InitMinimap();
+
+	for (int y = 0; y < MapWidthPlusHeight; ++y)
+	{
+		for (int x = 0; x < MapWidthPlusHeight; ++x)
+		{
+			CellDataExts[x + y * MapWidthPlusHeight].NewOverlay = NewOverlay[x * 512 + y];
+			UpdateMapPreviewAt(x, y);
+		}
 	}
 
 	CIsoViewExt::MoveToMapCoord(MapWidthPlusHeight / 2, MapWidthPlusHeight / 2);

@@ -31,7 +31,6 @@ std::unordered_set<int> CLoadingExt::Ra2dotMixes;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
 unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
 bool CLoadingExt::DrawTurretShadow = false;
-bool CLoadingExt::IsReloading = false;
 std::unordered_set<FString> CLoadingExt::LoadedOverlays;
 std::unordered_map<FString, InsigniaGrid> CLoadingExt::LoadedInsignias;
 int CLoadingExt::TallestBuildingHeight = 0;

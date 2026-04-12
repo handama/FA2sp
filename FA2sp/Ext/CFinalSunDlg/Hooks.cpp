@@ -613,9 +613,9 @@ DEFINE_HOOK(45EB8C, CIsoView_OnRButtonUp_ResetCommand, 6)
 {
     if (!CopyPaste::PastedCoords.empty())
     {
+        CopyPaste::PastedCoords.clear();
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
     }
-    CopyPaste::PastedCoords.clear();
     CIsoViewExt::EnableAutoTrack = false;
     if (CIsoView::CurrentCommand->Command == 0x1B)
     {

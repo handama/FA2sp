@@ -20,6 +20,7 @@
 #include "../../ExtraWindow/CNewScript/CNewScript.h"
 
 Bitmap* CIsoViewExt::pFullBitmap = nullptr;
+bool CIsoViewExt::SkipMapScreenConvert = false;
 bool CIsoViewExt::DrawStructures = true;
 bool CIsoViewExt::DrawInfantries = true;
 bool CIsoViewExt::DrawUnits = true;
@@ -3424,10 +3425,9 @@ void CIsoViewExt::MoveToMapCoord(int X, int Y)
         return;
 
     auto pThis = CIsoView::GetInstance();
-    int nMapCoord = CMapData::Instance->GetCoordIndex(X, Y);
     RECT rect = GetScaledWindowRect();
     int x = 30 * (CMapData::Instance->MapWidthPlusHeight + Y - X) - (rect.right - rect.left) / 2 - rect.left;
-    int y = 15 * (Y + X) - CMapData::Instance->CellDatas[nMapCoord].Height - (rect.bottom - rect.top) / 2 - rect.top;
+    int y = 15 * (Y + X) - CMapData::Instance->TryGetCellAt(X, Y)->Height - (rect.bottom - rect.top) / 2 - rect.top;
     pThis->MoveTo(x, y);
     pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);

@@ -100,7 +100,7 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
     GET(const char*, mapPath, EDI);
 
     Logger::Debug("CLoading::LoadMap(): Loading %s\n", mapPath);
-    TempValueHolder tmp(CLoadingExt::IsReloading, true);
+    TempValueHolder tmp(CIsoViewExt::SkipMapScreenConvert, true);
     CViewObjectsExt::InitializeOnUpdateEngine();
     CIsoView::CurrentCommand->Command = 0;
 

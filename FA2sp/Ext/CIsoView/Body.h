@@ -239,7 +239,7 @@ public:
     static ImageDataView MakeImageDataView(ImageDataClassSafe* p);
     static ImageDataView MakeImageDataView(ImageDataClass* p);
 
-
+    static bool SkipMapScreenConvert;
     static Bitmap* pFullBitmap;
     static bool DrawStructures;
     static bool DrawInfantries;

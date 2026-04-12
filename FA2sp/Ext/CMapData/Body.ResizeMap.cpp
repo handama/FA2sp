@@ -2,9 +2,11 @@
 #include <CUpdateProgress.h>
 #include "../../Helpers/Translations.h"
 #include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
+#include "../../Helpers/Helper.h"
 
 bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
-{	
+{
+	TempValueHolder tmp(CIsoViewExt::SkipMapScreenConvert, true);
 	std::vector<FString> BuildingList;
 	std::vector<FString> UnitList;
 	std::vector<FString> AircraftList;
@@ -385,6 +387,7 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 
 bool CMapDataExt::ResizeMap_AllocCellData(MapRect* const pRect)
 {
+	TempValueHolder tmp(CIsoViewExt::SkipMapScreenConvert, true);
 	GameDeleteVector(CellDatas);
 	CellDatas = NULL;
 	CellDataCount = 0;

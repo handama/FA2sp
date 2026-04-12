@@ -315,13 +315,6 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
 
     idx = 0;
     while (SendMessage(hHouse, CB_DELETESTRING, 0, NULL) != CB_ERR); 
-    const auto& indicies = Variables::RulesMap.ParseIndicies("Countries", true);
-    for (auto& value : indicies)
-    {
-        if (value == "GDI" || value == "Nod")
-            continue;
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName(value, true).c_str());
-    }
     if (CMapData::Instance->IsMultiOnly() && ExtConfigs::PlayerAtXForTriggers)
     {
         SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ A>").c_str());
@@ -332,6 +325,13 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
         SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ F>").c_str());
         SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ G>").c_str());
         SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ H>").c_str());
+    }
+    const auto& indicies = Variables::RulesMap.ParseIndicies("Countries", true);
+    for (auto& value : indicies)
+    {
+        if (value == "GDI" || value == "Nod")
+            continue;
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName(value, true).c_str());
     }
     if (CompactMode) ExtraWindow::AdjustDropdownWidth(hHouse);
 
@@ -2562,13 +2562,21 @@ void CNewTrigger::OnClickNewTrigger()
     FString value;
     FString house;
     char buffer[512]{ 0 };
-    if (SendMessage(hHouse, CB_GETCOUNT, NULL, NULL) > 0)
+    auto neutralHouse = Translations::ParseHouseName("Neutral", true);
+    int idx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, neutralHouse);
+    if (idx != CB_ERR)
+    {
+        house = "Neutral";
+    }
+    else if (SendMessage(hHouse, CB_GETCOUNT, NULL, NULL) > 0)
     {
         SendMessage(hHouse, CB_GETLBTEXT, 0, (LPARAM)buffer);
         house = Translations::ParseHouseName(buffer, false);
     }
     else
+    {
         house = "Americans";
+    }
 
     FString newName =
         TriggerSort::CreateFromTriggerSort ?

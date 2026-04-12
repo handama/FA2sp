@@ -2084,6 +2084,7 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
     }
 
     std::vector<std::pair<std::vector<int>, float>> tiles;
+    std::vector<MapCoord> processedTiles;
     for (const auto& group : CurrentPreset->TileSets) {
         tiles.push_back(std::make_pair(group.AvailableTiles, group.Chance));  
     }
@@ -2096,11 +2097,11 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
         overlays.push_back(std::make_pair(group.Overlays, group.Chance));
     }
     if (!overlays.empty() && !onlyClear || (onlyClear && CurrentTabPage == 2)) {
-        CMapDataExt::CreateRandomOverlay(x1, y1, x2, y2, overlays, bOverride, UseMultiSelection, onlyClear);
+        CMapDataExt::CreateRandomOverlay(x1, y1, x2, y2, overlays, bOverride, UseMultiSelection, processedTiles, onlyClear);
     }
 
     if (!terrains.empty() && !onlyClear || (onlyClear && CurrentTabPage == 1)) {
-        CMapDataExt::CreateRandomTerrain(x1, y1, x2, y2, terrains, bOverride, UseMultiSelection, onlyClear);
+        CMapDataExt::CreateRandomTerrain(x1, y1, x2, y2, terrains, bOverride, UseMultiSelection, processedTiles, onlyClear);
     }
 
     if (!smudges.empty() && !onlyClear || (onlyClear && CurrentTabPage == 3)) {

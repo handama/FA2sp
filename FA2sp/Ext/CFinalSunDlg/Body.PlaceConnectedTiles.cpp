@@ -4437,13 +4437,20 @@ void CViewObjectsExt::PlaceConnectedTile_OnLButtonDown(int X, int Y)
     auto& mapData = CMapData::Instance();
     auto cellDatas = mapData.CellDatas;
 
-    if (CViewObjectsExt::CliffConnectionCoord.X == -1 || CViewObjectsExt::CliffConnectionCoord.Y == -1 || CViewObjectsExt::CliffConnectionHeight == -1)
+    if (CViewObjectsExt::CliffConnectionCoord.X == -1 
+        || CViewObjectsExt::CliffConnectionCoord.Y == -1 
+        || CViewObjectsExt::CliffConnectionHeight == -1)
     {
         CViewObjectsExt::CliffConnectionCoord.X = X;
         CViewObjectsExt::CliffConnectionCoord.Y = Y;
         CViewObjectsExt::CliffConnectionCoordRecords.clear();
         auto dwpos = Y * mapData.MapWidthPlusHeight + X;
-        CViewObjectsExt::CliffConnectionHeight = cellDatas[dwpos].Height;
+        auto& cell = cellDatas[dwpos];
+        int tileIndex = CMapDataExt::GetSafeTileIndex(cell.TileIndex);
+        int tileSubIndex = CMapDataExt::GetSafeSubTileIndex(cell.TileIndex, cell.TileSubIndex);
+        auto internalHeight = CMapDataExt::TileData[tileIndex].TileBlockDatas[tileSubIndex].Height;
+        CViewObjectsExt::CliffConnectionHeight = cellDatas[dwpos].Height - internalHeight;
+        CViewObjectsExt::CliffConnectionHeight = std::clamp(CViewObjectsExt::CliffConnectionHeight, 0, 14);
         CViewObjectsExt::PlaceConnectedTile_Start = true;
         CViewObjectsExt::LastTempPlacedCTIndex = -1;
         CViewObjectsExt::LastTempFacing = -1;

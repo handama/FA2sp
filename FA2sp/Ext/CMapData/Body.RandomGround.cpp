@@ -290,7 +290,10 @@ void CMapDataExt::CreateRandomGround(int TopX, int TopY, int BottomX, int Bottom
 
 }
 
-void CMapDataExt::CreateRandomOverlay(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<TerrainGeneratorOverlay>, float>> overlays, bool override, bool multiSelection, bool onlyClear)
+void CMapDataExt::CreateRandomOverlay(int TopX, int TopY, 
+    int BottomX, int BottomY, 
+    std::vector<std::pair<std::vector<TerrainGeneratorOverlay>, float>> overlays,
+    bool override, bool multiSelection, std::vector<MapCoord>& processedTiles, bool onlyClear)
 {
     std::vector<float> weights;
     for (auto& ovr : overlays) {
@@ -336,12 +339,18 @@ void CMapDataExt::CreateRandomOverlay(int TopX, int TopY, int BottomX, int Botto
 
                 CMapDataExt::GetExtension()->SetNewOverlayAt(pos, overlay.Overlay);
                 CMapData::Instance->SetOverlayDataAt(pos, STDHelpers::RandomSelectInt(overlay.AvailableOverlayData));
+                auto&& data = CMapDataExt::GetOverlayTypeData(overlay.Overlay);
+                if (data.TerrainRock || data.Rock)
+                    processedTiles.push_back(MapCoord{ i, j });
             }
         }
     }
 }
 
-void CMapDataExt::CreateRandomTerrain(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<FString>, float>> terrains, bool override, bool multiSelection, bool onlyClear)
+void CMapDataExt::CreateRandomTerrain(int TopX, int TopY,
+    int BottomX, int BottomY,
+    std::vector<std::pair<std::vector<FString>, float>> terrains,
+    bool override, bool multiSelection, std::vector<MapCoord>& processedTiles, bool onlyClear)
 {
     std::vector<float> weights;
     for (auto& ter : terrains) {
@@ -387,14 +396,21 @@ void CMapDataExt::CreateRandomTerrain(int TopX, int TopY, int BottomX, int Botto
                 if (cell->Terrain > -1) {
                     CMapData::Instance->DeleteTerrainData(cell->Terrain);
                 }
-                auto& terrain = terrains[randomIdx].first;
-                CMapData::Instance->SetTerrainData(STDHelpers::RandomSelect(terrain), pos);
+                if (std::find(processedTiles.begin(), processedTiles.end(), MapCoord{ i,j })
+                    == processedTiles.end())
+                {
+                    auto& terrain = terrains[randomIdx].first;
+                    CMapData::Instance->SetTerrainData(STDHelpers::RandomSelect(terrain), pos);
+                }
             }
         }
     }
 }
 
-void CMapDataExt::CreateRandomSmudge(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<FString>, float>> smudges, bool override, bool multiSelection, bool onlyClear)
+void CMapDataExt::CreateRandomSmudge(int TopX, int TopY,
+    int BottomX, int BottomY, 
+    std::vector<std::pair<std::vector<FString>, float>> smudges,
+    bool override, bool multiSelection, bool onlyClear)
 {
     std::vector<float> weights;
     for (auto& smu : smudges) {

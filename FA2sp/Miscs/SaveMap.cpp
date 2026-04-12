@@ -351,6 +351,11 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                     return dPows;
                 return 0;
             };
+            auto isIgnored = [](const char* id)
+            {
+                return CIsoViewExt::MapRendererIgnoreObjects.find(id)
+                    == CIsoViewExt::MapRendererIgnoreObjects.end();
+            };
 
             std::vector<int[2]>playerLocation;
 
@@ -492,7 +497,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
 
                             auto overlay = cellExt.NewOverlay;
                             auto overlayD = cell.OverlayData;
-                            if (overlay != 0xFFFF)
+                            if (overlay != 0xFFFF && !isIgnored(Variables::RulesMap.GetValueAt("OverlayTypes", overlay)))
                             {
                                 auto radarColor = CMapDataExt::GetOverlayTypeData(overlay).RadarColor;
                                 if (overlay == 100 || overlay == 101 || overlay == 231 || overlay == 232) //broken bridge
@@ -526,11 +531,13 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                                 color = RGB(123, 125, 123);
                             if (cell.Structure != -1)
                             {
-                                CBuildingData data;
-                                CMapData::Instance->GetBuildingData(cell.Structure, data);
-
-                                if (Variables::RulesMap.GetBool(data.TypeID, "NeedsEngineer"))
-                                    color = RGB(215, 215, 215);
+                                auto StrINIIndex = CMapDataExt::StructureIndexMap[cell.Structure];
+                                if (StrINIIndex != -1)
+                                {
+                                    auto& objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
+                                    if (Variables::RulesMap.GetBool(objRender.ID, "NeedsEngineer"))
+                                        color = RGB(215, 215, 215);
+                                }
                             }
 
                             LightingStruct ret;

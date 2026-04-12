@@ -207,8 +207,11 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 	for (size_t i = 0; i < SmudgeDatas.size(); ++i)
 	{
 		const auto& data = SmudgeDatas[i];
-		buffer.Format("%d", i);
-		smudges.emplace_back(buffer, data.TypeID, data.X + y_move, data.Y + x_move);
+		if (!data.Flag)
+		{
+			buffer.Format("%d", i);
+			smudges.emplace_back(buffer, data.TypeID, data.X + y_move, data.Y + x_move);
+		}
 	}
 	INI.DeleteSection("Smudge");
 	if (auto pSection = INI.AddSection("Smudge"))
@@ -228,7 +231,8 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 	for (size_t i = 0; i < TerrainDatas.size(); ++i)
 	{
 		const auto& data = TerrainDatas[i];
-		terrains.emplace_back(data.TypeID, data.Y + x_move, data.X + y_move);
+		if(!data.Flag)
+			terrains.emplace_back(data.TypeID, data.Y + x_move, data.X + y_move);
 	}
 	INI.DeleteSection("Terrain");
 	if (auto pSection = INI.AddSection("Terrain"))

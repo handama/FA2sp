@@ -879,7 +879,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			|| tileSetOri == CMapDataExt::WoodBridgeSet)
 		{
 			int relativeIdx = cell->TileIndex - CMapDataExt::TileSet_starts[tileSetOri];
-			if (6 > relativeIdx && relativeIdx >= 0 && relativeIdx != 2 && relativeIdx != 5)
+			if ((relativeIdx == 0 || relativeIdx == 1) && tileSubIndex != 1)
+			{
+				virtualHeight = cell->Height;
+			}
+			else if ((relativeIdx == 3 || relativeIdx == 4) && tileSubIndex != 5)
 			{
 				virtualHeight = cell->Height;
 			}

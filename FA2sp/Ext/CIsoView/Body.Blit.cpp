@@ -1163,7 +1163,7 @@ void CIsoViewExt::MaskShadowPixels(
     std::vector<byte>& heightMask,
     byte height)
 {
-    if (!pd || !pd->pImageBuffer || !pd->pPixelValidRanges || mask.empty()) {
+    if (!pd || !pd->pImageBuffer || !pd->pPixelValidRanges || pd->IsEmptyImage || mask.empty()) {
         return;
     }
 

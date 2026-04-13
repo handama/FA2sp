@@ -1720,7 +1720,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			{
 				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-				if (!ImageDataClassSafe::IsVisibleImage(pData))
+				if (!ImageDataClassSafe::IsValidImage(pData))
 				{
 					auto obj = Variables::RulesMap.GetValueAt("OverlayTypes", cellExt->NewOverlay);
 					if (!CLoadingExt::IsOverlayLoaded(obj))

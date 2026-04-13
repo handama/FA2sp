@@ -29,6 +29,7 @@ HWND CTerrainGenerator::hPreset;
 HWND CTerrainGenerator::hDelete;
 HWND CTerrainGenerator::hCopy;
 HWND CTerrainGenerator::hOverride;
+HWND CTerrainGenerator::hIgnoreLandtypes;
 HWND CTerrainGenerator::hSetRange;
 HWND CTerrainGenerator::hApply;
 HWND CTerrainGenerator::hClear;
@@ -64,6 +65,7 @@ std::map<int, FString> CTerrainGenerator::PresetLabels;
 bool CTerrainGenerator::Autodrop;
 bool CTerrainGenerator::DropNeedUpdate;
 bool CTerrainGenerator::bOverride;
+bool CTerrainGenerator::bIgnoreLandtypes;
 bool CTerrainGenerator::ProgrammaticallySettingText;
 int CTerrainGenerator::CurrentPresetIndex;
 int CTerrainGenerator::CurrentTabPage;
@@ -267,6 +269,7 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     Translate(1008, "CTerrainGenerator.Apply", NULL);
     Translate(1009, "CTerrainGenerator.Clear", NULL);
     Translate(1010, "CTerrainGenerator.Override", NULL);
+    Translate(1015, "CTerrainGenerator.IgnoreLandtypes", NULL);
     Translate(1012, "CTerrainGenerator.Scale", NULL);
     Translate(1014, "CTerrainGenerator.Copy", NULL);
 
@@ -276,6 +279,7 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     hDelete = GetDlgItem(hWnd, Controls::Delete);
     hCopy = GetDlgItem(hWnd, Controls::Copy);
     hOverride = GetDlgItem(hWnd, Controls::Override);
+    hIgnoreLandtypes = GetDlgItem(hWnd, Controls::IgnoreLandtypes);
     hSetRange = GetDlgItem(hWnd, Controls::SetRange);
     hApply = GetDlgItem(hWnd, Controls::Apply);
     hClear = GetDlgItem(hWnd, Controls::Clear);
@@ -352,6 +356,7 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     EnableWindow(hSlopeCoordHeight2, FALSE);
 
     bOverride = true;
+    bIgnoreLandtypes = false;
     ProgrammaticallySettingText = false;
 
     ShowTabPage(hWnd, 0);
@@ -394,6 +399,7 @@ void CTerrainGenerator::Update(HWND& hWnd)
         SendMessage(hTileSet[4], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)"<none>");
     }
     SendMessage(hOverride, BM_SETCHECK, bOverride, 0);
+    SendMessage(hIgnoreLandtypes, BM_SETCHECK, bIgnoreLandtypes, 0);
 
     if (!ini) {
         ini = MakeGameUnique<CINI>();
@@ -501,6 +507,10 @@ BOOL CALLBACK CTerrainGenerator::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPA
         case Controls::Override:
             if (CODE == BN_CLICKED)
                 bOverride =  SendMessage(hOverride, BM_GETCHECK, 0, 0);
+            break;
+        case Controls::IgnoreLandtypes:
+            if (CODE == BN_CLICKED)
+                bIgnoreLandtypes =  SendMessage(hIgnoreLandtypes, BM_GETCHECK, 0, 0);
             break;
         case Controls::SetRange:
             if (CODE == BN_CLICKED)
@@ -2089,7 +2099,7 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
         tiles.push_back(std::make_pair(group.AvailableTiles, group.Chance));  
     }
     if (!tiles.empty() && !onlyClear || (onlyClear && CurrentTabPage == 0)) {
-        CMapDataExt::CreateRandomGround(x1, y1, x2, y2, CurrentPreset->Scale, tiles, bOverride, UseMultiSelection, onlyClear);
+        CMapDataExt::CreateRandomGround(x1, y1, x2, y2, CurrentPreset->Scale, tiles, bOverride, UseMultiSelection, onlyClear, bIgnoreLandtypes);
     }
 
     std::vector<std::pair<std::vector<TerrainGeneratorOverlay>, float>> overlays;
@@ -2097,15 +2107,15 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
         overlays.push_back(std::make_pair(group.Overlays, group.Chance));
     }
     if (!overlays.empty() && !onlyClear || (onlyClear && CurrentTabPage == 2)) {
-        CMapDataExt::CreateRandomOverlay(x1, y1, x2, y2, overlays, bOverride, UseMultiSelection, processedTiles, onlyClear);
+        CMapDataExt::CreateRandomOverlay(x1, y1, x2, y2, overlays, bOverride, UseMultiSelection, processedTiles, onlyClear, bIgnoreLandtypes);
     }
 
     if (!terrains.empty() && !onlyClear || (onlyClear && CurrentTabPage == 1)) {
-        CMapDataExt::CreateRandomTerrain(x1, y1, x2, y2, terrains, bOverride, UseMultiSelection, processedTiles, onlyClear);
+        CMapDataExt::CreateRandomTerrain(x1, y1, x2, y2, terrains, bOverride, UseMultiSelection, processedTiles, onlyClear, bIgnoreLandtypes);
     }
 
     if (!smudges.empty() && !onlyClear || (onlyClear && CurrentTabPage == 3)) {
-        CMapDataExt::CreateRandomSmudge(x1, y1, x2, y2, smudges, bOverride, UseMultiSelection, onlyClear);
+        CMapDataExt::CreateRandomSmudge(x1, y1, x2, y2, smudges, bOverride, UseMultiSelection, onlyClear, bIgnoreLandtypes);
     }
 
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);

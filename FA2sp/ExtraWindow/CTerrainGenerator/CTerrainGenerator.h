@@ -261,6 +261,7 @@ public:
         Override = 1010,
         Scale = 1013,
         Copy = 1014,
+        IgnoreLandtypes = 1015,
         TileSet1 = 2001,
         TileSet2 = 2007,
         TileSet3 = 2013,
@@ -401,6 +402,7 @@ private:
     static HWND hDelete;
     static HWND hCopy;
     static HWND hOverride;
+    static HWND hIgnoreLandtypes;
     static HWND hSetRange;
     static HWND hApply;
     static HWND hClear;
@@ -438,6 +440,7 @@ private:
     static int CurrentPresetIndex;
     static int CurrentTabPage;
     static bool bOverride;
+    static bool bIgnoreLandtypes;
     static bool ProgrammaticallySettingText;
 
     static CINI& map;

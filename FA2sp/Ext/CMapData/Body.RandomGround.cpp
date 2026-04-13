@@ -124,9 +124,11 @@ static std::pair<float, float> rotateCoordinates(float x, float y, float angle) 
     return { newX, newY };
 }
 
-static std::vector<int> getIgnoreTileSets()
+static std::vector<int> getIgnoreTileSets(bool ignoreLandtypes)
 {
     std::vector<int> roadSets;
+    if (ignoreLandtypes)
+        return roadSets;
     roadSets.push_back(CINI::CurrentTheater->GetInteger("General", "PavedRoads", -1));
     roadSets.push_back(CINI::CurrentTheater->GetInteger("General", "PavedRoadEnds", -1));
     roadSets.push_back(CINI::CurrentTheater->GetInteger("General", "DirtRoadJunction", -1));
@@ -138,8 +140,10 @@ static std::vector<int> getIgnoreTileSets()
     roadSets.push_back(CINI::CurrentTheater->GetInteger("General", "SlopeSetPieces", -1));
     return roadSets;
 }
-static bool isTerrainTypeIgnored(int ttype)
+static bool isLandTypeIgnored(int ttype, bool ignoreLandtypes)
 {
+    if (ignoreLandtypes)
+        return false;
     switch (ttype)
     {
     case Rock7:
@@ -157,13 +161,15 @@ static bool isTerrainTypeIgnored(int ttype)
     return false;
 }
 
-void CMapDataExt::CreateRandomGround(int TopX, int TopY, int BottomX, int BottomY, int scale, std::vector<std::pair<std::vector<int>, float>> tiles, bool override, bool multiSelection, bool onlyClear)
+void CMapDataExt::CreateRandomGround(int TopX, int TopY, int BottomX, int BottomY, int scale, 
+    std::vector<std::pair<std::vector<int>, float>> tiles,
+    bool override, bool multiSelection, bool onlyClear, bool ignoreLandType)
 {
     seed = std::chrono::system_clock::now().time_since_epoch().count();
     rng = std::mt19937(seed); 
     dist = std::uniform_real_distribution<float>(-1.0f, 1.0f); 
 
-    std::vector<int> roadSets = getIgnoreTileSets();
+    std::vector<int> roadSets = getIgnoreTileSets(ignoreLandType);
 
     int randomAngle = STDHelpers::RandomSelectInt(0, 180);
 
@@ -220,7 +226,7 @@ void CMapDataExt::CreateRandomGround(int TopX, int TopY, int BottomX, int Bottom
 
             if (std::find(tileindexes.begin(), tileindexes.end(), CMapDataExt::GetSafeTileIndex(cell->TileIndex)) == tileindexes.end()) {
                 auto ttype = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileBlockDatas[cell->TileSubIndex].TerrainType;
-                if (isTerrainTypeIgnored(ttype)) {
+                if (isLandTypeIgnored(ttype, ignoreLandType)) {
                     continue;
                 }
                 if (std::find(roadSets.begin(), roadSets.end(), CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet) != roadSets.end()) {
@@ -239,7 +245,7 @@ void CMapDataExt::CreateRandomGround(int TopX, int TopY, int BottomX, int Bottom
                         }
 
                         auto ttype2 = CMapDataExt::GetExtension()->GetLandType(CMapDataExt::GetSafeTileIndex(cell->TileIndex), subIdx);
-                        if (isTerrainTypeIgnored(ttype2)) {
+                        if (isLandTypeIgnored(ttype2, ignoreLandType)) {
                             skip = true;
                             break;
                         }
@@ -293,13 +299,13 @@ void CMapDataExt::CreateRandomGround(int TopX, int TopY, int BottomX, int Bottom
 void CMapDataExt::CreateRandomOverlay(int TopX, int TopY, 
     int BottomX, int BottomY, 
     std::vector<std::pair<std::vector<TerrainGeneratorOverlay>, float>> overlays,
-    bool override, bool multiSelection, std::vector<MapCoord>& processedTiles, bool onlyClear)
+    bool override, bool multiSelection, std::vector<MapCoord>& processedTiles, bool onlyClear, bool ignoreLandType)
 {
     std::vector<float> weights;
     for (auto& ovr : overlays) {
         weights.push_back(ovr.second);
     }
-    std::vector<int> roadSets = getIgnoreTileSets();
+    std::vector<int> roadSets = getIgnoreTileSets(ignoreLandType);
     for (int i = TopX; i <= BottomX; ++i) {
         for (int j = TopY; j <= BottomY; ++j) {
             if (!CMapData::Instance->IsCoordInMap(i, j)) continue;
@@ -317,7 +323,7 @@ void CMapDataExt::CreateRandomOverlay(int TopX, int TopY,
             }
             auto ttype = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileBlockDatas[cell->TileSubIndex].TerrainType;
 
-            if (isTerrainTypeIgnored(ttype)) {
+            if (isLandTypeIgnored(ttype, ignoreLandType)) {
                 continue;
             }
             if (std::find(roadSets.begin(), roadSets.end(), CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet) != roadSets.end()) {
@@ -350,13 +356,13 @@ void CMapDataExt::CreateRandomOverlay(int TopX, int TopY,
 void CMapDataExt::CreateRandomTerrain(int TopX, int TopY,
     int BottomX, int BottomY,
     std::vector<std::pair<std::vector<FString>, float>> terrains,
-    bool override, bool multiSelection, std::vector<MapCoord>& processedTiles, bool onlyClear)
+    bool override, bool multiSelection, std::vector<MapCoord>& processedTiles, bool onlyClear, bool ignoreLandType)
 {
     std::vector<float> weights;
     for (auto& ter : terrains) {
         weights.push_back(ter.second);
     }
-    std::vector<int> roadSets = getIgnoreTileSets();
+    std::vector<int> roadSets = getIgnoreTileSets(ignoreLandType);
     for (int i = TopX; i <= BottomX; ++i) {
         for (int j = TopY; j <= BottomY; ++j) {
             if (!CMapData::Instance->IsCoordInMap(i, j)) continue;
@@ -374,7 +380,7 @@ void CMapDataExt::CreateRandomTerrain(int TopX, int TopY,
             }
             auto ttype = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileBlockDatas[cell->TileSubIndex].TerrainType;
 
-            if (isTerrainTypeIgnored(ttype)) {
+            if (isLandTypeIgnored(ttype, ignoreLandType)) {
                 continue;
             }
             if (std::find(roadSets.begin(), roadSets.end(), CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet) != roadSets.end()) {
@@ -410,13 +416,13 @@ void CMapDataExt::CreateRandomTerrain(int TopX, int TopY,
 void CMapDataExt::CreateRandomSmudge(int TopX, int TopY,
     int BottomX, int BottomY, 
     std::vector<std::pair<std::vector<FString>, float>> smudges,
-    bool override, bool multiSelection, bool onlyClear)
+    bool override, bool multiSelection, bool onlyClear, bool ignoreLandType)
 {
     std::vector<float> weights;
     for (auto& smu : smudges) {
         weights.push_back(smu.second);
     }
-    std::vector<int> roadSets = getIgnoreTileSets();
+    std::vector<int> roadSets = getIgnoreTileSets(ignoreLandType);
     auto& rules = Variables::RulesMap;
     for (int i = TopX; i <= BottomX; ++i) {
         for (int j = TopY; j <= BottomY; ++j) {
@@ -435,7 +441,7 @@ void CMapDataExt::CreateRandomSmudge(int TopX, int TopY,
             }
             auto ttype = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileBlockDatas[cell->TileSubIndex].TerrainType;
 
-            if (isTerrainTypeIgnored(ttype)) {
+            if (isLandTypeIgnored(ttype, ignoreLandType)) {
                 continue;
             }
             if (std::find(roadSets.begin(), roadSets.end(), CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet) != roadSets.end()) {
@@ -474,7 +480,7 @@ void CMapDataExt::CreateRandomSmudge(int TopX, int TopY,
 
                         auto ttype = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cellCheck->TileIndex)].TileBlockDatas[cellCheck->TileSubIndex].TerrainType;
 
-                        if (isTerrainTypeIgnored(ttype)) {
+                        if (isLandTypeIgnored(ttype, ignoreLandType)) {
                             skip = true;
                         }
                         if (CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cellCheck->TileIndex)].TileBlockDatas[cellCheck->TileSubIndex].RampType != 0) skip = true;

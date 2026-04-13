@@ -509,16 +509,18 @@ public:
     static std::shared_ptr<Trigger> GetTrigger(FString id);
     static void DeleteTrigger(FString id);
     static void ReloadTrigger(const FString& id);
-    static void CreateRandomGround(int TopX, int TopY, int BottomX, int BottomY, int scale, std::vector<std::pair<std::vector<int>, float>> tiles, bool override, bool multiSelection, bool onlyClear = false);
+    static void CreateRandomGround(int TopX, int TopY, int BottomX, int BottomY, 
+        int scale, std::vector<std::pair<std::vector<int>, float>> tiles,
+        bool override, bool multiSelection, bool onlyClear = false, bool ignoreLandType = false);
     static void CreateRandomOverlay(int TopX, int TopY, int BottomX, int BottomY,
         std::vector<std::pair<std::vector<TerrainGeneratorOverlay>, float>> overlays,
-        bool override, bool multiSelection, std::vector<MapCoord>& processedTiles, bool onlyClear = false);
+        bool override, bool multiSelection, std::vector<MapCoord>& processedTiles, bool onlyClear = false, bool ignoreLandType = false);
     static void CreateRandomTerrain(int TopX, int TopY, int BottomX, int BottomY,
         std::vector<std::pair<std::vector<FString>, float>> terrains, 
-        bool override, bool multiSelection, std::vector<MapCoord>& processedTiles, bool onlyClear = false);
+        bool override, bool multiSelection, std::vector<MapCoord>& processedTiles, bool onlyClear = false, bool ignoreLandType = false);
     static void CreateRandomSmudge(int TopX, int TopY, int BottomX, int BottomY,
         std::vector<std::pair<std::vector<FString>, float>> smudges,
-        bool override, bool multiSelection, bool onlyClear = false);
+        bool override, bool multiSelection, bool onlyClear = false, bool ignoreLandType = false);
 
     static unsigned short CurrentRenderBuildingStrength;
     static std::unordered_map<int, BuildingDataExt> BuildingDataExts;

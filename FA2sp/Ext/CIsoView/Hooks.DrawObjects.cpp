@@ -263,7 +263,7 @@ static void DrawTechnoAttachments
 					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
 
 					auto draw = [&] {
-						if (pData->pImageBuffer)
+						if (ImageDataClassSafe::IsValidImage(pData))
 							CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
 							displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
 							displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
@@ -306,7 +306,7 @@ static void DrawTechnoAttachments
 				{
 					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
 					auto draw = [&] {
-						if (pData->pImageBuffer)
+						if (ImageDataClassSafe::IsValidImage(pData))
 							CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
 							displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
 							displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
@@ -1103,7 +1103,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					CLoadingExt::GetTileIdentifier(tileIndex, tileSubIndex, altImage)];
 
 				auto pData = CLoadingExt::GetImageDataFromMap(extraImageID);
-				if (pData->pImageBuffer)
+				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 						x + 30 + offset.X,
@@ -1146,7 +1146,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				}
 				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-				if (pData && pData->pImageBuffer)
+				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 						x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false);
@@ -1331,7 +1331,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								}
 								const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, true);
 								auto pData = CLoadingExt::GetImageDataFromMap(imageName);
-								if (pData->pImageBuffer)
+								if (ImageDataClassSafe::IsValidImage(pData))
 								{
 									CIsoViewExt::MaskShadowPixels(window,
 										x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData,
@@ -1698,7 +1698,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				}
 				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-				if (pData->pImageBuffer)
+				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
 					int x1 = x;
 					int y1 = y;
@@ -1720,7 +1720,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			{
 				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-				if (!pData || !pData->pImageBuffer)
+				if (!ImageDataClassSafe::IsVisibleImage(pData))
 				{
 					auto obj = Variables::RulesMap.GetValueAt("OverlayTypes", cellExt->NewOverlay);
 					if (!CLoadingExt::IsOverlayLoaded(obj))
@@ -1730,7 +1730,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					}
 				}
 
-				if (pData && pData->pImageBuffer)
+				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
 					int x1 = x;
 					int y1 = y;
@@ -1788,7 +1788,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							{
 								auto pData = CLoadingExt::GetImageDataFromMap(tileAnim.ImageName);
 
-								if (pData->pImageBuffer)
+								if (ImageDataClassSafe::IsVisibleImage(pData))
 								{
 									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 										x - pData->FullWidth / 2 + tileAnim.XOffset,
@@ -1853,7 +1853,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									CLoadingExt::GetTileIdentifier(tileIndex, tileSubIndex, altImage)];
 
 								auto pData = CLoadingExt::GetImageDataFromMap(extraImageID);
-								if (pData->pImageBuffer)
+								if (ImageDataClassSafe::IsVisibleImage(pData))
 								{
 									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 										x1 + 30 + offset.X,
@@ -1908,7 +1908,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				}
 				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-				if (pData->pImageBuffer)
+				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 						x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false);
@@ -1942,7 +1942,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					auto imageName = CLoadingExt::GetOverlayName(cellNextExt.NewOverlay, cellNext->OverlayData);
 					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-					if (!pData || !pData->pImageBuffer)
+					if (!ImageDataClassSafe::IsVisibleImage(pData))
 					{
 						auto obj = Variables::RulesMap.GetValueAt("OverlayTypes", cellNextExt.NewOverlay);
 						if (!CLoadingExt::IsOverlayLoaded(obj))
@@ -1950,7 +1950,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							CLoadingExt::GetExtension()->LoadOverlay(obj, cellNextExt.NewOverlay);
 							pData = CLoadingExt::GetImageDataFromMap(imageName);
 						}
-						if (!pData || !pData->pImageBuffer)
+						if (!ImageDataClassSafe::IsVisibleImage(pData))
 						{
 							if (ExtConfigs::DisplayBridgeOverlay ||
 								!(cellNextExt.NewOverlay >= 0x4a && cellNextExt.NewOverlay <= 0x65) &&
@@ -1964,7 +1964,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							}
 						}
 					}
-					if (pData && pData->pImageBuffer)
+					if (ImageDataClassSafe::IsVisibleImage(pData))
 					{
 						int x1 = x;
 						int y1 = y;
@@ -2000,7 +2000,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					auto imageName = CLoadingExt::GetOverlayName(cellExt->NewOverlay, cell->OverlayData);
 					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-					if (!pData || !pData->pImageBuffer)
+					if (!ImageDataClassSafe::IsVisibleImage(pData))
 					{
 						auto obj = Variables::RulesMap.GetValueAt("OverlayTypes", cellExt->NewOverlay);
 						if (!CLoadingExt::IsOverlayLoaded(obj))
@@ -2008,7 +2008,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							CLoadingExt::GetExtension()->LoadOverlay(obj, cellExt->NewOverlay);
 							pData = CLoadingExt::GetImageDataFromMap(imageName);
 						}
-						if (!pData || !pData->pImageBuffer)
+						if (!ImageDataClassSafe::IsVisibleImage(pData))
 						{
 							if (ExtConfigs::DisplayBridgeOverlay ||
 								!(cellExt->NewOverlay >= 0x4a && cellExt->NewOverlay <= 0x65) &&
@@ -2022,7 +2022,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							}
 						}
 					}
-					if (pData && pData->pImageBuffer)
+					if (ImageDataClassSafe::IsVisibleImage(pData))
 					{
 						int x1 = x;
 						int y1 = y;
@@ -2055,34 +2055,33 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				}
 				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-				if (pData->pImageBuffer)
+				bool isTiberiumTree = Variables::RulesMap.GetBool(obj, "SpawnsTiberium");
+				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
 					bool customPalette = CLoadingExt::CustomPaletteTerrains.find(obj) != CLoadingExt::CustomPaletteTerrains.end();
-					bool isTiberiumTree = Variables::RulesMap.GetBool(obj, "SpawnsTiberium");
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 						x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (isTiberiumTree ? -1 : 15),
 						pData, NULL, 255, 0, isTiberiumTree ? 6 : (customPalette ? 5 : -1), false);
-
-					if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages)
-					{
-						int avaFacings = CLoadingExt::GetAlphaImageFacing(obj);
-						if (avaFacings > 0)
-						{
-							auto AIName = CLoadingExt::GetAlphaImageName(obj, 0, 0);
-							auto pAIData = CLoadingExt::GetImageDataFromMap(AIName);
-							if (pAIData && pAIData->pImageBuffer)
-							{
-								AlphaImagesToDraw.push_back(
-									std::make_pair(MapCoord{ x - pAIData->FullWidth / 2,
-										y - pAIData->FullHeight / 2 + (isTiberiumTree ? 0 : 12) },
-										pAIData));
-							}
-						}
-					}
 				}
 				else
 				{
 					TerrainTextsToDraw.push_back(std::make_pair(MapCoord{ X,Y }, obj));
+				}
+				if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages)
+				{
+					int avaFacings = CLoadingExt::GetAlphaImageFacing(obj);
+					if (avaFacings > 0)
+					{
+						auto AIName = CLoadingExt::GetAlphaImageName(obj, 0, 0);
+						auto pAIData = CLoadingExt::GetImageDataFromMap(AIName);
+						if (pAIData && pAIData->pImageBuffer)
+						{
+							AlphaImagesToDraw.push_back(
+								std::make_pair(MapCoord{ x - pAIData->FullWidth / 2,
+									y - pAIData->FullHeight / 2 + (isTiberiumTree ? 0 : 12) },
+									pAIData));
+						}
+					}
 				}
 			}		
 		}
@@ -2113,7 +2112,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 			if (CIsoViewExt::DrawStructures)
 			{
-				if (part.pData && part.pData->pImageBuffer)
+				if (ImageDataClassSafe::IsValidImage(part.pData))
 				{
 					auto& isoset = CMapDataExt::TerrainPaletteBuildings;
 					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
@@ -2206,7 +2205,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							const auto& ImageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, part.Status);
 							auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(ImageName);
 							auto pData = CLoadingExt::BindClippedImages(clips);
-							if (pData && pData->pImageBuffer)
+							if (ImageDataClassSafe::IsValidImage(pData.get()))
 							{
 								auto ArtID = CLoadingExt::GetArtID(objRender.ID);
 
@@ -2222,6 +2221,20 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							x1, y1,
 							objRender.HouseColor, false);
 					}
+				}
+				else if (part.IsBottom)
+				{
+					int nFacing = 0;
+					int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
+					if (FacingCount > 1)
+					{
+						nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
+					}
+					std::set<FString> drawn;
+					DrawTechnoAttachments([] {}, drawn, objRender.ID, FacingCount <= 1 ? 0 : objRender.Facing,
+						CLoadingExt::ObjectType::Building, cell, lpDesc->lpSurface, boundary,
+						x1, y1,
+						objRender.HouseColor, false);
 				}
 			}
 		}
@@ -2300,7 +2313,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 			if (CIsoViewExt::DrawBasenodes)
 			{
-				if (part.pData && part.pData->pImageBuffer)
+				if (ImageDataClassSafe::IsValidImage(part.pData))
 				{
 					auto& isoset = CMapDataExt::TerrainPaletteBuildings;
 					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
@@ -2357,7 +2370,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							|| Variables::RulesMap.GetString(obj.TypeID, "Locomotor") == "{4A582742-9839-11d1-B709-00A024DDAFD1}");
 					auto color = Miscs::GetColorRef(obj.House);
 
-					if (pData->pImageBuffer)
+					if (ImageDataClassSafe::IsValidImage(pData))
 					{
 						if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
 							pThis->DrawLine(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
@@ -2442,7 +2455,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						CLoadingExt::ObjectType::Aircraft, nFacing, facings, false);
 
 					auto color = Miscs::GetColorRef(obj.House);
-					if (pData->pImageBuffer)
+					if (ImageDataClassSafe::IsValidImage(pData))
 					{
 						auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 							x - pData->FullWidth / 2, y - pData->FullHeight / 2 + 15, pData, NULL,
@@ -2545,7 +2558,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								false, false, lpDesc, window, true);
 
 						auto color = Miscs::GetColorRef(obj.House);
-						if (pData->pImageBuffer)
+						if (ImageDataClassSafe::IsValidImage(pData))
 						{
 							auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL,
@@ -2570,7 +2583,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 						else
 						{
-
 							std::set<FString> drawn;
 							DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
 								CLoadingExt::ObjectType::Infantry, cell, lpDesc->lpSurface, boundary,

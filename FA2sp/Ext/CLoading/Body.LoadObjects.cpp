@@ -2679,6 +2679,7 @@ void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* p
 	int validFirstY = FullHeight - 1;
 	int validLastX = 0;
 	int validLastY = 0;
+	pData->IsEmptyImage = true;
 	for (int j = 0; j < FullHeight; ++j)
 	{
 		for (int i = 0; i < FullWidth; ++i)
@@ -2686,6 +2687,7 @@ void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* p
 			unsigned char ch = pBuffer[counter++];
 			if (ch != 0)
 			{
+				pData->IsEmptyImage = false;
 				if (i < validFirstX)
 					validFirstX = i;
 				if (j < validFirstY)
@@ -5422,6 +5424,8 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 		loadSingleFrameShape(CellAnimImageID, nStartFrame, deltaX, deltaY, "", shadow);
 	};
 
+	auto ignoreUnused = CINI::FAData->GetBool("Debug", "IgnoreSHPImageHeadUnused");
+
 	if (findFile)
 	{
 		auto customPal = typeData.CustomPaletteName;
@@ -5462,7 +5466,7 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 				ShapeImageHeader imageHeader;
 				CShpFile::GetSHPImageHeader(i, &imageHeader);
 
-				if (imageHeader.Unknown == 0 && !CINI::FAData->GetBool("Debug", "IgnoreSHPImageHeadUnused"))
+				if (imageHeader.Unknown == 0 && !ignoreUnused)
 					continue;
 
 				FString DictName = GetOverlayName(nIndex, i);

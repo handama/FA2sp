@@ -290,7 +290,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             {
                 auto imageName = CLoadingExt::GetOverlayName(InsertingOverlay, InsertingOverlayData);
                 auto pData = CLoadingExt::GetImageDataFromMap(imageName);
-                if (!pData || !pData->pImageBuffer)
+                if (!ImageDataClassSafe::IsVisibleImage(pData))
                 {
                     auto obj = Variables::RulesMap.GetValueAt("OverlayTypes", InsertingOverlay);
                     if (!CLoadingExt::IsOverlayLoaded(obj))
@@ -304,7 +304,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                         pData = CLoadingExt::GetImageDataFromMap(imageName);
                     }
                 }
-                if (pData && pData->pImageBuffer)
+                if (ImageDataClassSafe::IsVisibleImage(pData))
                 {
                     CBitmap cBitmap;
                     CLoadingExt::LoadShpToBitmap(pData, cBitmap);
@@ -344,7 +344,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 pBuildingData = CLoadingExt::BindClippedImages(clips);
             }
             auto pData = pBuildingData ? pBuildingData.get() : CLoadingExt::GetImageDataFromMap(imageName);
-            if (pData && pData->pImageBuffer)
+            if (ImageDataClassSafe::IsVisibleImage(pData))
             {
                 CBitmap cBitmap;
                 auto view = CIsoViewExt::MakeImageDataView(pData);
@@ -4705,8 +4705,8 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     {
         if (nData == AllDelete)
         {
-            CIsoView::CurrentCommand->Command = 0;
-            CIsoView::CurrentCommand->Type = 0;
+            CIsoView::CurrentCommand->Command = 0x1D;
+            CIsoView::CurrentCommand->Type = 114;
             MultiSelection::Clear();
             ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
             return true;
@@ -4715,8 +4715,8 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         {
             MultiSelection::LastAddedCoord.X = -1;
             MultiSelection::LastAddedCoord.Y = -1;
-            CIsoView::CurrentCommand->Command = 0;
-            CIsoView::CurrentCommand->Type = 0;
+            CIsoView::CurrentCommand->Command = 0x1D;
+            CIsoView::CurrentCommand->Type = 114;
             for (auto& coord : MultiSelection::SelectedCoords)
             {
                 if (CMapData::Instance->IsCoordInMap(coord.X, coord.Y))

@@ -52,6 +52,16 @@ public:
 		short LeftOffset;
 	};
 	BuildingClipOffset ClipOffsets;
+	bool IsEmptyImage;
+
+	static inline bool IsVisibleImage(const ImageDataClassSafe* pData)
+	{
+		return pData && pData->pImageBuffer && !pData->IsEmptyImage;
+	}
+	static inline bool IsValidImage(const ImageDataClassSafe* pData)
+	{
+		return pData && pData->pImageBuffer;
+	}
 };
 
 class NOVTABLE ImageDataClassSurface

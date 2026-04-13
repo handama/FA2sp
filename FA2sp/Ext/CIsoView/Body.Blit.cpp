@@ -592,7 +592,7 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
     const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha,
     COLORREF houseColor, int extraLightType, bool remap)
 {
-    if (alpha == 0 || !pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst) {
+    if (alpha == 0 || !pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst || pd->IsEmptyImage) {
         return;
     }
 
@@ -743,7 +743,7 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
     const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha,
     COLORREF houseColor, COLORREF addOnColor, bool isRubble, bool isTerrain)
 {
-    if (alpha == 0 || !pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst) {
+    if (alpha == 0 || !pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst || pd->IsEmptyImage) {
         return;
     }
 
@@ -853,7 +853,7 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
 void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
     const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd)
 {
-    if (!pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst) {
+    if (!pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst || pd->IsEmptyImage) {
         return;
     }
 

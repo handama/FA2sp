@@ -752,7 +752,7 @@ void CViewObjectsExt::Redraw_Ground()
         {
             if (CMapData::Instance->MapWidthPlusHeight)
             {
-                if (tileSet < 0)
+                if (tileSet < 0 || tileSet > CMapDataExt::TileSet_starts.size())
                 {
                     InsertingTileIndex = -1;
                     return false;

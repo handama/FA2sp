@@ -325,6 +325,14 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
             auto image = std::unique_ptr<unsigned char[]>(new unsigned char[256 * 512 * 3] {0});
             auto imageLocal = std::unique_ptr<unsigned char[]>(new unsigned char[256 * 512 * 3] {0});
 
+            std::unordered_set<ppmfc::CString> IgnoreObjects;
+            const auto& overlays = Variables::RulesMap.GetSection("OverlayTypes");
+            for (auto& [_, ID] : overlays)
+            {
+                if (Variables::RulesMap.GetBool(ID, "IsRubble"))
+                    IgnoreObjects.insert(ID);
+            }
+
             auto safeColorBtye = [](int x)
             {
                 if (x > 255)
@@ -351,10 +359,9 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                     return dPows;
                 return 0;
             };
-            auto isIgnored = [](const char* id)
+            auto isIgnored = [&IgnoreObjects](const char* id)
             {
-                return CIsoViewExt::MapRendererIgnoreObjects.find(id)
-                    == CIsoViewExt::MapRendererIgnoreObjects.end();
+                return IgnoreObjects.find(id) != IgnoreObjects.end();
             };
 
             std::vector<int[2]>playerLocation;

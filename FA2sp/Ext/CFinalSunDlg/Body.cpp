@@ -895,7 +895,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			}
 			if (!CIsoViewExt::RenderInvisibleInGame)
 			{
-				FString ignoreSection = "MapRendererIgnoreObjects";
 				const auto&& buildings = Variables::RulesMap.GetSection("BuildingTypes");
 				for (auto& [_, ID] : buildings)
 				{

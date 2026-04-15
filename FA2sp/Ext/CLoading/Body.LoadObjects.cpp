@@ -586,6 +586,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 		(Variables::RulesMap.GetBool(ID, "TurretAnimIsVoxel") 
 		|| Variables::RulesMap.GetBool(ID, "Turret")) ? (ExtConfigs::ExtFacings ? 32 : 8) : 1;
 	AvailableFacings[ID] = facings;
+	bool isPowerup = CMapDataExt::PowersUpBuildingSet.contains(ID);
 	bool isPreOccupiedBunker = IsPreOccupiedBunker(ID);
 	if (isPreOccupiedBunker) InitialOccupiedBuildings.insert(ID);
 	Palette* pMixedPal = nullptr;
@@ -610,7 +611,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 		ShapeHeader header;
 		unsigned char* pBuffer;
 		CShpFile::GetSHPHeader(&header);
-		if (header.FrameCount / 2 <= nFrame) {
+		if (isPowerup ? (header.FrameCount <= nFrame) : (header.FrameCount / 2 <= nFrame)) {
 			nFrame = 0;
 		}
 		CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &pBuffer, header);
@@ -766,7 +767,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 	FString AnimKeys[9] = 
 	{	
 		"IdleAnim",
-		isPreOccupiedBunker ? "ActiveAnimGarrisoned": "ActiveAnim",
+		(isPreOccupiedBunker && CINI::Art->KeyExists(ArtID, "ActiveAnimGarrisoned")) ? "ActiveAnimGarrisoned" : "ActiveAnim",
 		"ActiveAnimTwo",
 		"ActiveAnimThree",
 		"ActiveAnimFour",
@@ -1082,6 +1083,7 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 		(Variables::RulesMap.GetBool(ID, "TurretAnimIsVoxel")
 			|| Variables::RulesMap.GetBool(ID, "Turret")) ? (ExtConfigs::ExtFacings ? 32 : 8) : 1;
 	AvailableFacings[ID] = facings;
+	bool isPowerup = CMapDataExt::PowersUpBuildingSet.contains(ID);
 	bool isPreOccupiedBunker = IsPreOccupiedBunker(ID);
 	int techLevel = Variables::RulesMap.GetInteger(ID, "TechLevel");
 	Palette* pMixedPal = nullptr;
@@ -1106,7 +1108,7 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 		ShapeHeader header;
 		unsigned char* pBuffer;
 		CShpFile::GetSHPHeader(&header);
-		if (header.FrameCount / 2 <= nFrame) {
+		if (isPowerup ? (header.FrameCount <= nFrame) : (header.FrameCount / 2 <= nFrame)) {
 			nFrame = 0;
 		}
 		CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &pBuffer, header);

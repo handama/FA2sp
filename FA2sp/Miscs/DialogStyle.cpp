@@ -283,6 +283,13 @@ COLORREF WINAPI DarkTheme::MySetTextColor(HDC hdc, COLORREF crColor)
     return ::SetTextColor(hdc, crColor);
 }
 
+BOOL WINAPI DarkTheme::MyGetWindowRect(HWND hWnd, LPRECT lpRect)
+{
+    auto result = ::GetWindowRect(hWnd, lpRect);
+    ::OffsetRect(lpRect, -GetSystemMetrics(SM_XVIRTUALSCREEN), -GetSystemMetrics(SM_YVIRTUALSCREEN));
+    return result;
+}
+
 LRESULT CALLBACK DarkTheme::TabCtrlSubclassProc(
     HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
     UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
@@ -2211,4 +2218,5 @@ void DarkTheme::ExeStart_DrakThemeHooks()
     RunTime::ResetMemoryContentAt(0x5915D4, DarkTheme::MyGetOpenFileNameA);
     RunTime::ResetMemoryContentAt(0x5915DC, DarkTheme::MyGetSaveFileNameA);
     RunTime::ResetMemoryContentAt(0x591364, DarkTheme::MyLoadStringA);
+    //RunTime::ResetMemoryContentAt(0x59155C, DarkTheme::MyGetWindowRect);
 }

@@ -120,10 +120,10 @@ void MultiSelection::FindConnectedTiles(
 
         if (dlg.ConsiderLAT)
         {
-            for (int latidx = 0; latidx < CMapDataExt::Tile_to_lat.size(); ++latidx)
+            for (const auto& latInfo : CMapDataExt::Tile_to_lat)
             {
-                int& iSmoothSet = CMapDataExt::Tile_to_lat[latidx][0];
-                int& iLatSet = CMapDataExt::Tile_to_lat[latidx][1];
+                int iSmoothSet = latInfo.SmoothSet;
+                int iLatSet = latInfo.LatSet;
 
                 if (iSmoothSet == *tileSet.begin())
                     tileSet.insert(iLatSet);
@@ -225,7 +225,7 @@ DEFINE_HOOK(456EFC, CIsoView_OnMouseMove_MultiSelect_SelectStatus, 6)
     if (CIsoView::CurrentCommand->Command == 0x1D && (eFlags & MK_LBUTTON))
     {
         {
-            auto coord = CIsoView::GetInstance()->GetCurrentMapCoord(point);
+            auto coord = CIsoViewExt::GetExtension()->GetCurrentMapCoord(point);
             if (CIsoView::CurrentCommand->Type == 0)
                 if (MultiSelection::AddCoord(coord.X, coord.Y))
                 {

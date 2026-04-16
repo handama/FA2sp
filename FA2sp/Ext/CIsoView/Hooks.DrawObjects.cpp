@@ -17,11 +17,9 @@
 #include "../../Algorithms/Matrix3D.h"
 #include <functional>
 
-static int Left, Right, Top, Bottom;
 static CRect window;
 static MapCoord VisibleCoordTL;
 static MapCoord VisibleCoordBR;
-static int HorizontalLoopIndex;
 static ppmfc::CPoint ViewPosition;
 using DrawCall = std::function<void()>;
 
@@ -488,12 +486,9 @@ DEFINE_HOOK(46DF49, CIsoView_Draw_ScaledBorder, 6)
 
 DEFINE_HOOK(46E815, CIsoView_Draw_Optimize_GetBorder, 5)
 {
-	Left = R->Stack<int>(STACK_OFFS(0xD18, 0xC10)) - EXTRA_BORDER;
-	Right = R->Stack<int>(STACK_OFFS(0xD18, 0xC64)) + EXTRA_BORDER;
-	Top = R->Stack<int>(STACK_OFFS(0xD18, 0xCBC)) - EXTRA_BORDER;
-	Bottom = R->Stack<int>(STACK_OFFS(0xD18, 0xC18)) + CIsoViewExt::EXTRA_BORDER_BOTTOM;
 	auto pThis = CIsoView::GetInstance();
 	pThis->GetWindowRect(&window);
+	CIsoViewExt::AdaptRectForSecondScreen(&window);
 
 	double scale = CIsoViewExt::ScaledFactor;
 	if (scale < 0.9)
@@ -523,8 +518,6 @@ DEFINE_HOOK(46E815, CIsoView_Draw_Optimize_GetBorder, 5)
 		VisibleCoordTL.X = CMapData::Instance->Size.Width;
 		VisibleCoordTL.Y = 0;
 	}
-
-	HorizontalLoopIndex = VisibleCoordTL.X + VisibleCoordTL.Y - EXTRA_BORDER;
 
 	return 0x46E9D5;
 }
@@ -788,7 +781,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		return cell->Height;
 	};
 
-	for (int XplusY = Left + Top; XplusY < Right + Bottom; XplusY++) {
+	for (int XplusY = VisibleCoordTL.X + VisibleCoordTL.Y - EXTRA_BORDER; 
+		XplusY < VisibleCoordBR.X + VisibleCoordBR.Y + CIsoViewExt::EXTRA_BORDER_BOTTOM; 
+		XplusY++) {
 		for (int X = 0; X < XplusY; X++) {
 			int Y = XplusY - X;
 			if (!IsCoordInWindow(X, Y) || !isCoordInFullMap(X, Y)) continue;
@@ -3194,6 +3189,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 		RECT r;
 		pThis->GetWindowRect(&r);
+		pThis->AdaptRectForSecondScreen(&r);
 
 		int pngPosX = r.left + pThis->ViewPosition.x - startX - 4;
 		int pngPosY = r.top + pThis->ViewPosition.y - startY - 3 + (CIsoViewExt::RenderFullMap ? 0 : 15);

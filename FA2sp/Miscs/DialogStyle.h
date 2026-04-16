@@ -115,6 +115,7 @@ public:
     static HGDIOBJ WINAPI MyGetStockObject(int fnObject);
     static HPEN WINAPI MyCreatePen(int iStyle, int cWidth, COLORREF crColor);
     static COLORREF WINAPI MySetTextColor(HDC hdc, COLORREF crColor);
+    static BOOL WINAPI MyGetWindowRect(HWND hWnd, LPRECT lpRect);
 
     static LRESULT CALLBACK HeaderSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
     static LRESULT HandleMenuMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);

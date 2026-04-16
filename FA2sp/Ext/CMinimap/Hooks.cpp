@@ -175,6 +175,7 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 	RECT cr;
 	CRect selRect;
 	CIsoView::GetInstance()->GetWindowRect(&cr);
+	CIsoViewExt::AdaptRectForSecondScreen(&cr);
 
 	auto topLeft = GetMiniMapPos(cr.left, cr.top);
 	auto topRight = GetMiniMapPos(cr.right, cr.top);
@@ -227,6 +228,7 @@ DEFINE_HOOK(4D1E70, CMinimap_OnMouseMove, 7)
 
 		RECT wr;
 		pIsoView->GetWindowRect(&wr);
+		CIsoViewExt::AdaptRectForSecondScreen(&wr);
 		X -= wr.left / 2;
 		Y -= wr.top / 2;
 

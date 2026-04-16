@@ -909,7 +909,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				}
 			}
 
-			auto pIsoView = CIsoView::GetInstance();
+			auto pIsoView = CIsoViewExt::GetExtension();
 
 			int& height = CMapData::Instance->Size.Height;
 			int& width = CMapData::Instance->Size.Width;
@@ -970,6 +970,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 				CRect r;
 				pIsoView->GetWindowRect(&r);
+				pIsoView->AdaptRectForSecondScreen(&r);
 
 				CRect validRange;
 				validRange.left = 30 * (height + width + startY - startX) - (r.right - r.left) / 2 - r.left;

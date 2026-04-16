@@ -87,6 +87,8 @@ float CIsoViewExt::CircleRadius;
 bool CIsoViewExt::DrawScriptPath = false;
 bool CIsoViewExt::ReInitializingDDraw = false;
 bool CIsoViewExt::CliffBackAlt = false;
+bool CIsoViewExt::OnLButtonDown_CalledFromOnMouseMove = false;
+bool CIsoViewExt::OnMouseMove_CalledFromOnLButtonDown = false;
 bool CIsoViewExt::HistoryRecord_IsHoldingLButton = false;
 std::vector<MapCoord> CIsoViewExt::TubeNodes;
 std::vector<MapCoord> CIsoViewExt::LiveDistanceRuler;
@@ -755,6 +757,7 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
     CRect rect;
     auto pThis = CIsoView::GetInstance();
     pThis->GetWindowRect(&rect);
+    AdaptRectForSecondScreen(&rect);
 
     COLORREF heightColor = color;
     if (useHeightColor)
@@ -1016,6 +1019,7 @@ void CIsoViewExt::DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORRE
     CRect rect;
     auto pThis = CIsoView::GetInstance();
     pThis->GetWindowRect(&rect);
+    AdaptRectForSecondScreen(&rect);
 
     auto DrawLine = [hwnd, color, hdc, &rect](int X1, int Y1, int X2, int Y2)
     {
@@ -1529,6 +1533,7 @@ int CIsoViewExt::GetSelectedSubcellInfantryIdx(int X, int Y, bool getSubcel)
 
         RECT rect;
         pIsoView->GetWindowRect(&rect);
+        //AdaptRectForSecondScreen(&rect);
         int mouseX = mouse.x + rect.left + pIsoView->ViewPosition.x;
         int mouseY = mouse.y + rect.top + pIsoView->ViewPosition.y;
 
@@ -1689,10 +1694,11 @@ void CIsoViewExt::GetSameConnectedCells(int X, int Y, int oriX, int oriY, std::s
             match = tileIndex_cell2 == tileIndex_cell && cell2->TileSubIndex == cell->TileSubIndex;
 
             if (ExtConfigs::FillArea_ConsiderLAT && !match) {
-                for (auto& latPair : CMapDataExt::Tile_to_lat)
+                for (const auto& latInfo : CMapDataExt::Tile_to_lat)
                 {
-                    int iSmoothSet = latPair[0];
-                    int iLatSet = latPair[1];
+                    int iSmoothSet = latInfo.SmoothSet;
+                    int iLatSet = latInfo.LatSet;
+
                     if (iLatSet >= 0 && iSmoothSet >= 0 &&
                         iSmoothSet < CMapDataExt::TileSet_starts.size() &&
                         iLatSet < CMapDataExt::TileSet_starts.size() &&
@@ -2593,6 +2599,7 @@ RECT CIsoViewExt::GetScaledWindowRect()
     CRect rect;
     auto pThis = CIsoView::GetInstance();
     pThis->GetWindowRect(&rect);
+    AdaptRectForSecondScreen(&rect);
     rect.right += rect.Width() * (CIsoViewExt::ScaledFactor - 1.0);
     rect.bottom += rect.Height() * (CIsoViewExt::ScaledFactor - 1.0);
     return rect;
@@ -2670,6 +2677,7 @@ void CIsoViewExt::MapCoord2ScreenCoord(int& X, int& Y, int flatMode)
     CRect rect;
     auto pThis = CIsoView::GetInstance();
     pThis->GetWindowRect(&rect);
+    AdaptRectForSecondScreen(&rect);
     if (flatMode == 0)
         pThis->MapCoord2ScreenCoord(X, Y);
     else if (flatMode == 1)
@@ -2891,6 +2899,7 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC)
     auto pThis = CIsoView::GetInstance();
     CRect rect;
     pThis->GetWindowRect(&rect);
+    AdaptRectForSecondScreen(&rect);
     int leftIndex = 0;
     int fontSize = ExtConfigs::DisplayTextSize;
     if (CIsoViewExt::ScaledFactor < 0.3)
@@ -2965,7 +2974,7 @@ void CIsoViewExt::DrawDistanceRuler(HDC hDC, const RECT& rect)
             int x2, y2 = 0;
             if (i == CIsoViewExt::LiveDistanceRuler.size() - 1)
             {
-                auto pIsoView = CIsoView::GetInstance();
+                auto pIsoView = CIsoViewExt::GetExtension();
                 auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
                 x2 = point.X;
                 y2 = point.Y;
@@ -3189,16 +3198,15 @@ CRect CIsoViewExt::GetVisibleIsoViewRect()
 {
     auto pThis = CIsoView::GetInstance(); 
     CRect rect; 
-    pThis->GetWindowRect(&rect); 
+    pThis->GetWindowRect(&rect);
+    AdaptRectForSecondScreen(&rect);
 
     if (ExtConfigs::SecondScreenSupport)
     {
-        int vx = GetSystemMetrics(SM_XVIRTUALSCREEN);
-        int vy = GetSystemMetrics(SM_YVIRTUALSCREEN);
         int vw = GetSystemMetrics(SM_CXVIRTUALSCREEN);
         int vh = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 
-        CRect virtualRect(vx, vy, vx + vw, vy + vh);
+        CRect virtualRect(0, 0, vw, vh);
 
         CRect destRect;
         destRect.IntersectRect(&rect, &virtualRect);
@@ -3225,8 +3233,8 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         if (pThis->IsScrolling)
         {
             auto point = pThis->MoveCenterPosition;
-            point.x += rect.left - 16 - 18;
-            point.y += rect.top + 14 - 12;
+            point.x += rect.left - 16 - 18 + GetSystemMetrics(SM_XVIRTUALSCREEN);
+            point.y += rect.top + 14 - 12 + GetSystemMetrics(SM_YVIRTUALSCREEN);
             auto cursor = CLoadingExt::GetSurfaceImageDataFromMap("scrollcursor.bmp");
             CIsoViewExt::BlitTransparent(cursor->lpSurface, point.x, point.y, -1, -1, 255, surface);
         }
@@ -3284,6 +3292,7 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         RECT rect;
         auto pThis = CIsoView::GetInstance();
         pThis->GetWindowRect(&rect);
+        AdaptRectForSecondScreen(&rect);
         if (EnableLiveDistanceRuler)
         {
             DrawDistanceRuler(hDC, rect);
@@ -3324,6 +3333,7 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         RECT rect;
         auto pThis = CIsoView::GetInstance();
         pThis->GetWindowRect(&rect);
+        AdaptRectForSecondScreen(&rect);
         if (EnableLiveDistanceRuler)
         {
             DrawDistanceRuler(hDC, rect);
@@ -3366,6 +3376,7 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
             RECT rect;
             auto pThis = CIsoView::GetInstance();
             pThis->GetWindowRect(&rect);
+            AdaptRectForSecondScreen(&rect);
             if (EnableLiveDistanceRuler)
                 DrawDistanceRuler(hDC, rect);
             if (EnableOtherMeasurementTools)
@@ -3401,6 +3412,7 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
             RECT rect;
             auto pThis = CIsoView::GetInstance();
             pThis->GetWindowRect(&rect);
+            AdaptRectForSecondScreen(&rect);
             if (EnableLiveDistanceRuler)
                 DrawDistanceRuler(hDC, rect);
             if (EnableOtherMeasurementTools)
@@ -3457,10 +3469,19 @@ void CIsoViewExt::Zoom(double offset)
             CRect newRect = GetScaledWindowRect();
             CRect oriRect;
             pThis->GetWindowRect(&oriRect);
+            AdaptRectForSecondScreen(&oriRect);
             double mousePosX;
             double mousePosY;
-            mousePosX = static_cast<double>(pThis->MouseCurrentPosition.x) / oriRect.Width();
-            mousePosY = static_cast<double>(pThis->MouseCurrentPosition.y) / oriRect.Height();
+            if (ExtConfigs::SecondScreenSupport)
+            {
+                mousePosX = static_cast<double>(pThis->MouseCurrentPosition.x + GetSystemMetrics(SM_XVIRTUALSCREEN)) / oriRect.Width();
+                mousePosY = static_cast<double>(pThis->MouseCurrentPosition.y + GetSystemMetrics(SM_YVIRTUALSCREEN)) / oriRect.Height();
+            }
+            else
+            {
+                mousePosX = static_cast<double>(pThis->MouseCurrentPosition.x) / oriRect.Width();
+                mousePosY = static_cast<double>(pThis->MouseCurrentPosition.y) / oriRect.Height();
+            }
 
             pThis->ViewPosition.x += (oldRect.Width() - newRect.Width()) * mousePosX;
             pThis->ViewPosition.y += (oldRect.Height() - newRect.Height()) * mousePosY;

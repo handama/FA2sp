@@ -11,6 +11,14 @@
 #define CUSTOM_TILE_START 100000
 struct TwoPointStruct;
 
+struct LatInfo
+{
+    int SmoothSet;
+    int ClearSet;
+    int LatSet;
+    std::vector<int> IgnoredSets;
+};
+
 struct TerrainGeneratorOverlay
 {
     WORD Overlay;
@@ -651,7 +659,9 @@ public:
     static void RemapableOverlay_RemoveBuilding(int buildingIndex);
 
     static int OreValue[4];
-    static std::vector<std::vector<int>> Tile_to_lat;
+    static std::vector<LatInfo> Tile_to_lat;
+    static std::set<int> Lat_releated_sets;
+    static std::map<int, std::vector<int>> Same_Smooth_tile_lats;
     static std::vector<int> TileSet_starts;
 
     static CellDataExt CellDataExt_FindCell;
@@ -673,6 +683,7 @@ public:
     static int BridgeSet;
     static int WoodBridgeSet;
     static int HeightBase;
+    static int ClearSet;
     static Palette Palette_ISO;
     static Palette Palette_ISO_NoTint;
     static Palette Palette_Shadow;

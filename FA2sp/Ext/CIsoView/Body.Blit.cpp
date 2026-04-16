@@ -98,6 +98,7 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
     }
     else {
         pThis->GetWindowRect(&windowRect);
+        AdaptRectForSecondScreen(&windowRect);
     }
 
     x += X_OFFSET;
@@ -223,6 +224,7 @@ void CIsoViewExt::BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURF
     }
     else {
         pThis->GetWindowRect(&windowRect);
+        AdaptRectForSecondScreen(&windowRect);
     }
 
     x += X_OFFSET;
@@ -348,6 +350,7 @@ void CIsoViewExt::BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDR
     }
     else {
         pThis->GetWindowRect(&windowRect);
+        AdaptRectForSecondScreen(&windowRect);
     }
 
     x += X_OFFSET;

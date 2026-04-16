@@ -885,7 +885,7 @@ DEFINE_HOOK(466FE0, CIsoView_OnLButtonUp_Drag_Building, 5)
 	GET_STACK(int, screenCoordY, 0x220);
 
 	auto Map = &CMapData::Instance();
-	auto isoView = CIsoView::GetInstance();
+	auto isoView = CIsoViewExt::GetExtension();
 	auto m_id = isoView->CurrentCellObjectIndex;
 	
 	int X = screenCoordX;

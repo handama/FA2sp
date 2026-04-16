@@ -178,6 +178,7 @@ DEFINE_HOOK(45B53E, CIsoView_OnMouseMove_SkipPlaceTileUndoRedo_Notify, 7)
 	R->EDX(R->Stack<int>(STACK_OFFS(0x3D528, -0xC)));
 	R->EAX(R->Stack<int>(STACK_OFFS(0x3D528, -0x8)));
 	R->ECX(R->Stack<int>(STACK_OFFS(0x3D528, -0x4)));
+	CIsoViewExt::OnLButtonDown_CalledFromOnMouseMove = true;
 
 	return 0x45B55D;
 }
@@ -970,7 +971,7 @@ DEFINE_HOOK(461A01, CIsoView_OnLButtonDown_PlaceTile, 6)
 	GET_BASE(UINT, nFlags, 0x8);
 	GET(int, x, EDI);
 	GET(int, y, ESI);
-
+	
 	((CIsoViewExt*)CIsoView::GetInstance())->PlaceTileOnMouse(x, y, nFlags, !(IsPlacingTiles && ExtConfigs::UndoRedo_ShiftPlaceTile));
 
 	return 0x4616D8;

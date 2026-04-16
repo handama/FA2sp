@@ -347,6 +347,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
     {
         RECT rect;
         ::GetWindowRect(pIsoView->m_hWnd, &rect);
+        pIsoView->AdaptRectForSecondScreen(&rect);
         int leftIndex = 0;
 
         if (CIsoViewExt::DrawMoneyOnMap)

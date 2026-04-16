@@ -4,6 +4,7 @@
 
 #include <CIsoView.h>
 #include "../FA2Expand.h"
+#include "../../FA2sp.h"
 #include "../CFinalSunDlg/Body.h"
 #include <unordered_map>
 #include <unordered_set>
@@ -238,6 +239,21 @@ public:
     void PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory);
     static ImageDataView MakeImageDataView(ImageDataClassSafe* p);
     static ImageDataView MakeImageDataView(ImageDataClass* p);
+    static void inline AdaptRectForSecondScreen(LPRECT lpRect)
+    {
+        if (ExtConfigs::SecondScreenSupport)
+            ::OffsetRect(lpRect, -GetSystemMetrics(SM_XVIRTUALSCREEN), -GetSystemMetrics(SM_YVIRTUALSCREEN));
+    }
+    inline MapCoord GetCurrentMapCoord(const CPoint& point)
+    {
+        RECT rect;
+        this->GetWindowRect(&rect);
+        //AdaptRectForSecondScreen(&rect);
+        int x = point.x + rect.left + this->ViewPosition.x;
+        int y = point.y + rect.top + this->ViewPosition.y;
+        ScreenCoord2MapCoord(x, y);
+        return MapCoord{ x,y };
+    }
 
     static bool SkipMapScreenConvert;
     static Bitmap* pFullBitmap;
@@ -332,6 +348,8 @@ public:
     static float CircleRadius;
     static bool DrawScriptPath;
     static std::vector<MapCoord> ScriptPath;
+    static bool OnLButtonDown_CalledFromOnMouseMove;
+    static bool OnMouseMove_CalledFromOnLButtonDown;
 
     static bool ReInitializingDDraw;
 

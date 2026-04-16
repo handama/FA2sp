@@ -595,7 +595,12 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
             if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt) && CurrentTrigger)
             {
                 ScreenToClient(CIsoView::GetInstance()->GetSafeHwnd(), &pt);
-                auto coord = CIsoView::GetInstance()->GetCurrentMapCoord(pt);
+                if (ExtConfigs::SecondScreenSupport)
+                {
+                    pt.x -= GetSystemMetrics(SM_XVIRTUALSCREEN);
+                    pt.y -= GetSystemMetrics(SM_YVIRTUALSCREEN);
+                }
+                auto coord = CIsoViewExt::GetExtension()->GetCurrentMapCoord(pt);
                 int& X = coord.X; int& Y = coord.Y;
                 CViewObjectsExt::ApplyTag(X, Y, CurrentTrigger->Tag);
             }

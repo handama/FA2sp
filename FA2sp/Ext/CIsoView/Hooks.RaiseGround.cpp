@@ -206,10 +206,10 @@ DEFINE_HOOK(46404B, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN, 7)
 
 			std::vector<int> matchTiles;
 			matchTiles.push_back(tileSet);
-			for (int latidx = 0; latidx < CMapDataExt::Tile_to_lat.size(); ++latidx)
+			for (const auto& latInfo : CMapDataExt::Tile_to_lat)
 			{
-				int iSmoothSet = CMapDataExt::Tile_to_lat[latidx][0];
-				int iLatSet = CMapDataExt::Tile_to_lat[latidx][1];
+				int iSmoothSet = latInfo.SmoothSet;
+				int iLatSet = latInfo.LatSet;
 
 				if (tileSet == iSmoothSet) matchTiles.push_back(iLatSet);
 				if (tileSet == iLatSet) matchTiles.push_back(iSmoothSet);
@@ -381,10 +381,10 @@ DEFINE_HOOK(464B01, CIsoView_OnLButtonDown_ACTIONMODE_LOWER, 7)
 
 			std::vector<int> matchTiles;
 			matchTiles.push_back(tileSet);
-			for (int latidx = 0; latidx < CMapDataExt::Tile_to_lat.size(); ++latidx)
+			for (const auto& latInfo : CMapDataExt::Tile_to_lat)
 			{
-				int iSmoothSet = CMapDataExt::Tile_to_lat[latidx][0];
-				int iLatSet = CMapDataExt::Tile_to_lat[latidx][1];
+				int iSmoothSet = latInfo.SmoothSet;
+				int iLatSet = latInfo.LatSet;
 
 				if (tileSet == iSmoothSet) matchTiles.push_back(iLatSet);
 				if (tileSet == iLatSet) matchTiles.push_back(iSmoothSet);
@@ -542,7 +542,7 @@ DEFINE_HOOK(464B01, CIsoView_OnLButtonDown_ACTIONMODE_LOWER, 7)
 // already TakeSnapshot()
 DEFINE_HOOK(46557C, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTENTILE, 6)
 {
-	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
+	auto pIsoView = CIsoViewExt::GetExtension();
 	auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
 	auto& mapData = CMapData::Instance();
 	int X = point.X;
@@ -618,7 +618,7 @@ DEFINE_HOOK(46557C, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTENTILE, 6)
 // already TakeSnapshot()
 DEFINE_HOOK(465CC7, CIsoView_OnLButtonDown_ACTIONMODE_LOWERTILE, 6)
 {
-	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
+	auto pIsoView = CIsoViewExt::GetExtension();
 	auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
 	auto& mapData = CMapData::Instance();
 	int X = point.X;
@@ -758,7 +758,7 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 		}
 	}
 
-	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
+	auto pIsoView = CIsoViewExt::GetExtension();
 	int height = pIsoView->FlattenHeight;
 	auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
 	int X = point.X;

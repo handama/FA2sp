@@ -68,6 +68,7 @@ int CMapDataExt::WaterBridge;
 int CMapDataExt::BridgeSet;
 int CMapDataExt::WoodBridgeSet;
 int CMapDataExt::HeightBase;
+int CMapDataExt::ClearSet;
 int CMapDataExt::AutoShore_ShoreTileSet;
 int CMapDataExt::AutoShore_GreenTileSet;
 float CMapDataExt::ConditionYellow = 0.5f;
@@ -81,7 +82,9 @@ Palette CMapDataExt::Palette_ISO_NoTint;
 Palette CMapDataExt::Palette_Shadow;
 Palette CMapDataExt::Palette_AlphaImage;
 std::vector<std::pair<LightingSourcePosition, LightingSource>> CMapDataExt::LightingSources;
-std::vector<std::vector<int>> CMapDataExt::Tile_to_lat;
+std::vector<LatInfo> CMapDataExt::Tile_to_lat;
+std::set<int> CMapDataExt::Lat_releated_sets;
+std::map<int, std::vector<int>> CMapDataExt::Same_Smooth_tile_lats;
 std::vector<int> CMapDataExt::TileSet_starts;
 std::unordered_map<FString, std::shared_ptr<Trigger>> CMapDataExt::Triggers;
 std::vector<short> CMapDataExt::StructureIndexMap;
@@ -1174,7 +1177,7 @@ void CMapDataExt::SmoothAll()
 
 	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
 	auto tileDataBrush = CMapDataExt::TileData[CIsoView::CurrentCommand->Type];
-	auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
+	auto point = CIsoViewExt::GetExtension()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
 
 	for (int x = -tileDataBrush.Height; x < (pIsoView->BrushSizeX - 1) * tileDataBrush.Height + 2; x++)
 	{
@@ -1272,6 +1275,11 @@ void CMapDataExt::SmoothTileAt(int X, int Y, bool gameLAT)
 	if (!CMapData::Instance->IsCoordInMap(X, Y))
 		return;
 
+	auto isValidSet = [](int set)
+	{
+		return set >= 0 && set + 1 < CMapDataExt::TileSet_starts.size();
+	};
+
 	auto& mapData = CMapData::Instance();
 	auto cellDatas = mapData.CellDatas;
 	auto& ini = CINI::CurrentTheater();
@@ -1279,9 +1287,9 @@ void CMapDataExt::SmoothTileAt(int X, int Y, bool gameLAT)
 
 	auto cell = CMapData::Instance().TryGetCellAt(X, Y);
 	if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
-		return ;
+		return;
 
-	if (cell->TileIndex == 0xFFFF) cell->TileIndex = 0;
+	int tileIndex = GetSafeTileIndex(cell->TileIndex);
 	int dwPos = X + Y * mapData.MapWidthPlusHeight;
 			
 	int loopLimit = CMapDataExt::Tile_to_lat.size();
@@ -1289,19 +1297,23 @@ void CMapDataExt::SmoothTileAt(int X, int Y, bool gameLAT)
 		loopLimit = 7;
 	for (int latidx = 0; latidx < loopLimit; ++latidx)
 	{
-		int iSmoothSet = CMapDataExt::Tile_to_lat[latidx][0];
-		int iLatSet = CMapDataExt::Tile_to_lat[latidx][1];
+		const auto& latInfo = CMapDataExt::Tile_to_lat[latidx];
+		int iSmoothSet = latInfo.SmoothSet;
+		int iLatSet = latInfo.LatSet;
+		int iClearSet = latInfo.ClearSet;
 
-		if (iLatSet >= 0 && iSmoothSet >= 0 && iSmoothSet < CMapDataExt::TileSet_starts.size() && iLatSet < CMapDataExt::TileSet_starts.size() &&//iTargetSet >= 0 &&
-			(CMapDataExt::TileData[GetSafeTileIndex(cell->TileIndex)].TileSet == iSmoothSet ||
-				CMapDataExt::TileData[GetSafeTileIndex(cell->TileIndex)].TileSet == iLatSet ))
-				// || CMapDataExt::TileData[cell->TileIndex].TileSet == iTargetSet))
+		int tileSet = CMapDataExt::TileData[tileIndex].TileSet;
+
+		if (isValidSet(iLatSet) && isValidSet(iSmoothSet) &&
+			(tileSet == iSmoothSet || tileSet == iLatSet))
 		{
+			const auto& otherLats = Same_Smooth_tile_lats[iSmoothSet];
 			std::vector<int> SmoothLatList;
 			for (int slIdx = CMapDataExt::TileSet_starts[iLatSet]; slIdx < CMapDataExt::TileSet_starts[iLatSet + 1]; slIdx++)
 				SmoothLatList.push_back(slIdx);
 			for (int slIdx = CMapDataExt::TileSet_starts[iSmoothSet]; slIdx < CMapDataExt::TileSet_starts[iSmoothSet + 1]; slIdx++)
 				SmoothLatList.push_back(slIdx);
+
 			//PaveTile	-	MiscPaveTile	
 			//PaveTile	-	Medians	
 			//PaveTile	-	PavedRoads	
@@ -1310,116 +1322,184 @@ void CMapDataExt::SmoothTileAt(int X, int Y, bool gameLAT)
 			//GreenTile	-	WaterBridge	(Red Alert 2/Yuri's Revenge only)
 			if (iSmoothSet == PaveTile)
 			{
-				if (MiscPaveTile >= 0)
-				for (int slIdx = CMapDataExt::TileSet_starts[MiscPaveTile]; slIdx < CMapDataExt::TileSet_starts[MiscPaveTile + 1]; slIdx++)
-					SmoothLatList.push_back(slIdx);
-				if (Medians >= 0)
-				for (int slIdx = CMapDataExt::TileSet_starts[Medians]; slIdx < CMapDataExt::TileSet_starts[Medians + 1]; slIdx++)
-					SmoothLatList.push_back(slIdx);
-				if (PavedRoads >= 0)
-				for (int slIdx = CMapDataExt::TileSet_starts[PavedRoads]; slIdx < CMapDataExt::TileSet_starts[PavedRoads + 1]; slIdx++)
-					SmoothLatList.push_back(slIdx);
+				if (isValidSet(MiscPaveTile))
+					for (int slIdx = CMapDataExt::TileSet_starts[MiscPaveTile]; slIdx < CMapDataExt::TileSet_starts[MiscPaveTile + 1]; slIdx++)
+						SmoothLatList.push_back(slIdx);
+				if (isValidSet(Medians))
+					for (int slIdx = CMapDataExt::TileSet_starts[Medians]; slIdx < CMapDataExt::TileSet_starts[Medians + 1]; slIdx++)
+						SmoothLatList.push_back(slIdx);
+				if (isValidSet(PavedRoads))
+					for (int slIdx = CMapDataExt::TileSet_starts[PavedRoads]; slIdx < CMapDataExt::TileSet_starts[PavedRoads + 1]; slIdx++)
+						SmoothLatList.push_back(slIdx);
 			}
 			if (iSmoothSet == GreenTile)
 			{
-				if (ShorePieces >= 0)
-				for (int slIdx = CMapDataExt::TileSet_starts[ShorePieces]; slIdx < CMapDataExt::TileSet_starts[ShorePieces + 1]; slIdx++)
-					SmoothLatList.push_back(slIdx);
-				if (WaterBridge >= 0)
-				for (int slIdx = CMapDataExt::TileSet_starts[WaterBridge]; slIdx < CMapDataExt::TileSet_starts[WaterBridge + 1]; slIdx++)
-					SmoothLatList.push_back(slIdx);
+				if (isValidSet(ShorePieces))
+					for (int slIdx = CMapDataExt::TileSet_starts[ShorePieces]; slIdx < CMapDataExt::TileSet_starts[ShorePieces + 1]; slIdx++)
+						SmoothLatList.push_back(slIdx);
+				if (isValidSet(WaterBridge))
+					for (int slIdx = CMapDataExt::TileSet_starts[WaterBridge]; slIdx < CMapDataExt::TileSet_starts[WaterBridge + 1]; slIdx++)
+						SmoothLatList.push_back(slIdx);
+			}
+			for (const auto& info : Tile_to_lat)
+			{
+				if (info.ClearSet != ClearSet && tileSet == info.ClearSet)
+				{
+					if (isValidSet(info.SmoothSet))
+					{
+						for (int slIdx = CMapDataExt::TileSet_starts[info.SmoothSet]; slIdx < CMapDataExt::TileSet_starts[info.SmoothSet + 1]; slIdx++)
+							SmoothLatList.push_back(slIdx);
+					}
+					if (isValidSet(info.LatSet))
+					{
+						for (int slIdx = CMapDataExt::TileSet_starts[info.LatSet]; slIdx < CMapDataExt::TileSet_starts[info.LatSet + 1]; slIdx++)
+							SmoothLatList.push_back(slIdx);
+					}
+				}
+			}
+			for (auto index : otherLats)
+			{
+				const auto& info = Tile_to_lat[index];
+				if (isValidSet(info.LatSet))
+				{
+					for (int slIdx = CMapDataExt::TileSet_starts[info.LatSet]; slIdx < CMapDataExt::TileSet_starts[info.LatSet + 1]; slIdx++)
+						SmoothLatList.push_back(slIdx);
+				}
 			}
 			
 			if (!gameLAT)
-				if (CMapDataExt::Tile_to_lat[latidx].size() >= 3)
+				if (!latInfo.IgnoredSets.empty())
 				{
-					for (int i = 2; i < CMapDataExt::Tile_to_lat[latidx].size(); ++i)
+					for (auto& ingore : latInfo.IgnoredSets)
 					{
-						SmoothLatList.push_back(CMapDataExt::Tile_to_lat[latidx][i]);
+						SmoothLatList.push_back(ingore);
 					}
 				}
 
-
-
-			if (CMapDataExt::TileData[GetSafeTileIndex(cell->TileIndex)].TileSet != iSmoothSet && CMapDataExt::TileData[GetSafeTileIndex(cell->TileIndex)].TileSet != iLatSet) break;
-
-			int ts[3][3];  // terrain info
-			for (int i = 0; i < 3; i++)
+			bool ts[3][3]{ false };
+			const int loop[5][2] = { {0, 0},{0, -1},{0, 1},{1, 0},{-1, 0} };
+			std::set<int> neighbourSets;
+			bool hasDifferentLatNeighbours = false;
+			for (auto pair : loop)
 			{
-				for (int e = 0; e < 3; e++)
+				int x = pair[0];
+				int y = pair[1];
+				if (CMapData::Instance->IsCoordInMap(X + x, Y + y))
 				{
-					if ( CMapData::Instance->IsCoordInMap(X + i - 1, Y + e - 1))
-					{
-						auto cell2 = CMapData::Instance().TryGetCellAt(X + i - 1, Y + e - 1);
-						auto it = std::find(SmoothLatList.begin(), SmoothLatList.end(), GetSafeTileIndex(cell2->TileIndex));
+					auto cell2 = CMapData::Instance().TryGetCellAt(X + x, Y + y);
+					int tileIndex2 = GetSafeTileIndex(cell2->TileIndex);
+					int tileSet2 = TileData[tileIndex2].TileSet;
+					auto it = std::find(SmoothLatList.begin(), SmoothLatList.end(), tileIndex2);
 
-						if (it != SmoothLatList.end())
-							ts[i][e] = 1;
-						else
-							ts[i][e] = 0;
+					if (it != SmoothLatList.end())
+					{
+						ts[x + 1][y + 1] = true;
 					}
 					else
-						ts[i][e] = 0;
+					{
+						ts[x + 1][y + 1] = false;
+						for (const auto& info : Tile_to_lat)
+						{
+							if (tileSet2 == info.SmoothSet || tileSet2 == info.LatSet)
+							{
+								tileSet2 = info.SmoothSet;
+								break;
+							}
+						}
+						bool added = false;
+						for (auto& index : otherLats)
+						{
+							const auto& info = Tile_to_lat[index];
+							if (tileSet2 == info.ClearSet)
+							{
+								neighbourSets.insert(tileSet2);
+								added = true;
+								break;
+							}
+						}
+						if (!added)
+							neighbourSets.insert(ClearSet);
+					}
+				}
+				else
+					ts[x + 1][y + 1] = false;
+			}
+
+			hasDifferentLatNeighbours = neighbourSets.size() > 1;
+			if (hasDifferentLatNeighbours)
+			{
+				for (auto index : otherLats)
+				{
+					const auto& info = Tile_to_lat[index];
+					if (info.ClearSet == ClearSet)
+					{
+						iLatSet = info.LatSet;
+						break;
+					}
+				}
+			}
+			else if (neighbourSets.size() == 1)
+			{
+				for (auto index : otherLats)
+				{
+					const auto& info = Tile_to_lat[index];
+					if (info.ClearSet == *neighbourSets.begin())
+					{
+						iLatSet = info.LatSet;
+						break;
+					}
 				}
 			}
 
 			int needed = -1;
-			int ils = 1;
-
-			if (ts[1][1] == ils)
+			if (ts[1][1])
 			{
 				// single lat
-				if (ts[0][1] != ils && ts[1][0] != ils
-					&& ts[1][2] != ils && ts[2][1] != ils)
+				if (!ts[0][1] && !ts[1][0] && !ts[1][2] && !ts[2][1])
 					needed = 16;
-				else if (ts[0][1] == ils && ts[1][0] == ils
-					&& ts[1][2] == ils && ts[2][1] == ils)
+				else if (ts[0][1] && ts[1][0] && ts[1][2] && ts[2][1])
 					needed = 0;
-				else if (ts[0][1] == ils && ts[2][1] == ils &&
-					ts[1][0] != ils && ts[1][2] != ils)
+				else if (ts[0][1] && ts[2][1] && !ts[1][0] && !ts[1][2])
 					needed = 11;
-				else if (ts[1][0] == ils && ts[1][2] == ils &&
-					ts[0][1] != ils && ts[2][1] != ils)
+				else if (ts[1][0] && ts[1][2] && !ts[0][1] && !ts[2][1])
 					needed = 6;
-				else if (ts[1][0] != ils && ts[0][1] == ils &&
-					ts[2][1] == ils)
+				else if (!ts[1][0] && ts[0][1] && ts[2][1])
 					needed = 9;
-				else if (ts[2][1] != ils && ts[1][0] == ils &&
-					ts[1][2] == ils)
+				else if (!ts[2][1] && ts[1][0] && ts[1][2])
 					needed = 5;
-				else if (ts[1][2] != ils && ts[0][1] == ils &&
-					ts[2][1] == ils)
+				else if (!ts[1][2] && ts[0][1] && ts[2][1])
 					needed = 3;
-				else if (ts[0][1] != ils && ts[1][0] == ils &&
-					ts[1][2] == ils)
+				else if (!ts[0][1] && ts[1][0] && ts[1][2])
 					needed = 2;
-				else if (ts[0][1] == ils && ts[1][0] != ils &&
-					ts[1][2] != ils && ts[2][1] != ils)
+				else if (ts[0][1] && !ts[1][0] && !ts[1][2] && !ts[2][1])
 					needed = 15;
-				else if (ts[1][2] == ils && ts[1][0] != ils &&
-					ts[0][1] != ils && ts[2][1] != ils)
+				else if (ts[1][2] && !ts[1][0] && !ts[0][1] && !ts[2][1])
 					needed = 14;
-				else if (ts[2][1] == ils && ts[1][0] != ils &&
-					ts[0][1] != ils && ts[1][2] != ils)
+				else if (ts[2][1] && !ts[1][0] && !ts[0][1] && !ts[1][2])
 					needed = 12;
-				else if (ts[1][0] == ils && ts[0][1] != ils &&
-					ts[1][2] != ils && ts[2][1] != ils)
+				else if (ts[1][0] && !ts[0][1] && !ts[1][2] && !ts[2][1])
 					needed = 8;
-				else if (ts[1][0] != ils && ts[2][1] != ils)
-					needed = 13;
-				else if (ts[1][0] != ils && ts[0][1] != ils)
-					needed = 10;
-				else if (ts[2][1] != ils && ts[1][2] != ils)
-					needed = 7;
-				else if (ts[0][1] != ils && ts[1][2] != ils)
+				else if (!ts[1][0] && !ts[2][1])
+					needed = 13;   			    
+				else if (!ts[1][0] && !ts[0][1])
+					needed = 10;   			    
+				else if (!ts[2][1] && !ts[1][2])
+					needed = 7;	   			    
+				else if (!ts[0][1] && !ts[1][2])
 					needed = 4;
-
-
 			}
 
 			needed -= 1;
 			int i = 0;
-			if (needed >= 0)
+			if (needed == -1)
+			{
+				i = CMapDataExt::TileSet_starts[iSmoothSet];
+
+				cellDatas[dwPos].TileIndex = i;
+				cellDatas[dwPos].TileSubIndex = 0;
+				cellDatas[dwPos].Flag.AltIndex = STDHelpers::RandomSelectInt(0, CMapDataExt::TileData[i].AltTypeCount + 1);
+			}
+			else if (needed >= 0)
 			{
 				i = CMapDataExt::TileSet_starts[iLatSet];
 
@@ -1430,20 +1510,11 @@ void CMapDataExt::SmoothTileAt(int X, int Y, bool gameLAT)
 					i += CMapDataExt::TileData[i].TileBlockCount;
 				}
 
-
-				cellDatas[dwPos].TileIndex = i;
-				cellDatas[dwPos].TileSubIndex = 0;
-				cellDatas[dwPos].Flag.AltIndex = STDHelpers::RandomSelectInt(0, CMapDataExt::TileData[i].AltTypeCount + 1);
-				//SetTileAt(dwPos, i, 0);
-			}
-			else if (needed == -1)
-			{
-				i = CMapDataExt::TileSet_starts[iSmoothSet];
-
 				cellDatas[dwPos].TileIndex = i;
 				cellDatas[dwPos].TileSubIndex = 0;
 				cellDatas[dwPos].Flag.AltIndex = STDHelpers::RandomSelectInt(0, CMapDataExt::TileData[i].AltTypeCount + 1);
 			}
+
 		}
 	}
 }
@@ -1472,10 +1543,10 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		}
 	}
 	// take LAT into consideration
-	for (int latidx = 0; latidx < CMapDataExt::Tile_to_lat.size(); ++latidx)
+	for (const auto& latInfo : CMapDataExt::Tile_to_lat)
 	{
-		int iSmoothSet = CMapDataExt::Tile_to_lat[latidx][0];
-		int iLatSet = CMapDataExt::Tile_to_lat[latidx][1];
+		int iSmoothSet = latInfo.SmoothSet;
+		int iLatSet = latInfo.LatSet;
 
 		if (CMapDataExt::TileData[groundClick].TileSet == iLatSet)
 		{
@@ -3841,6 +3912,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CViewObjectsExt::ConnectedTile_Initialize();
 
 	CMapDataExt::Tile_to_lat.clear();
+	CMapDataExt::Lat_releated_sets.clear();
+	CMapDataExt::Same_Smooth_tile_lats.clear();
 
 	std::vector<std::vector<FString>> lats = {
 	{"SandTile", "ClearToSandLat"},
@@ -3866,6 +3939,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 				group.push_back(atoms[2]);
 				if (atoms.size() >= 4)
 					group.push_back(atoms[3]);
+				if (atoms.size() >= 5)
+					group.push_back(atoms[4]);
 				lats.push_back(group);
 			}
 		}
@@ -3878,8 +3953,9 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		iSmoothSet = CINI::CurrentTheater->GetInteger("General", lats[latidx][0], iSmoothSet);
 		iLatSet = CINI::CurrentTheater->GetInteger("General", lats[latidx][1], iLatSet);
 		auto& lat = CMapDataExt::Tile_to_lat.emplace_back();
-		lat.push_back(iSmoothSet);
-		lat.push_back(iLatSet);
+		lat.SmoothSet = iSmoothSet;
+		lat.LatSet = iLatSet;
+		lat.ClearSet = 0;
 
 		if (lats[latidx].size() == 3)
 		{
@@ -3891,10 +3967,25 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 					int noLatTileIdx = atoi(noLatTile);
 					if (noLatTileIdx < CMapDataExt::TileSet_starts.size() - 1)
 						for (int slIdx = CMapDataExt::TileSet_starts[noLatTileIdx]; slIdx < CMapDataExt::TileSet_starts[noLatTileIdx + 1]; slIdx++)
-							lat.push_back(slIdx);
+							lat.IgnoredSets.push_back(slIdx);
 				}
 			}
 		}
+		if (lats[latidx].size() == 4)
+		{
+			int iClearSet = CINI::FAData->GetInteger("LATSettings", lats[latidx][3], -1);
+			iClearSet = CINI::CurrentTheater->GetInteger("General", lats[latidx][3], iClearSet);
+			lat.ClearSet = iClearSet;
+		}
+		CMapDataExt::Lat_releated_sets.insert(lat.ClearSet);
+		CMapDataExt::Lat_releated_sets.insert(lat.LatSet);
+		CMapDataExt::Lat_releated_sets.insert(lat.SmoothSet);
+	}
+
+	for (int i = 0; i < CMapDataExt::Tile_to_lat.size(); ++i)
+	{
+		const auto& info = CMapDataExt::Tile_to_lat[i];
+		CMapDataExt::Same_Smooth_tile_lats[info.SmoothSet].push_back(i);
 	}
 
 	ppmfc::CString pInfoSection = TheaterInfo::GetInfoSection();

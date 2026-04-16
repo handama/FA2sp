@@ -315,7 +315,7 @@ DEFINE_HOOK(4F0A40, CTerrainDlg_OnSelchangeTileset, 7)
 
 DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
 {
-    auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
+    auto point = CIsoViewExt::GetExtension()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
     if (CIsoView::CurrentCommand->Command == 0x1E)
     {
         CViewObjectsExt::PlaceConnectedTile_OnMouseMove(point.X, point.Y);
@@ -1445,12 +1445,12 @@ DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
             return 0x45CD6D;
         }
     }
-    else if (CIsoView::CurrentCommand->Command == 0x11)
-    {
-        CMapData::Instance->TryGetCellAt(X, Y)->Flag.IsHiddenCell = true;
-        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-        return 0x45CD6D;
-    }
+    //else if (CIsoView::CurrentCommand->Command == 0x11)
+    //{
+    //    CMapData::Instance->TryGetCellAt(X, Y)->Flag.IsHiddenCell = true;
+    //    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+    //    return 0x45CD6D;
+    //}
 
     return CIsoView::CurrentCommand->Command == FACurrentCommand::WaypointHandle ? 0x45BF7C : 0x45C168;
 }

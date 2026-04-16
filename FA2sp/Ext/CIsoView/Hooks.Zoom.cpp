@@ -58,8 +58,10 @@ DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 		}\
 		if (special_draw != 3)\
 			CIsoViewExt::ReduceBrightness(CIsoViewExt::GetBackBuffer(), dr);\
-		if (ExtConfigs::SecondScreenSupport)\
-			BltToWindow(pThis->m_hWnd,  CIsoViewExt::GetBackBuffer(), &dr, &dr);\
+		if (ExtConfigs::SecondScreenSupport) {\
+			CRect drFixed = dr; \
+			BltToWindow(pThis->m_hWnd,  CIsoViewExt::GetBackBuffer(), &dr, &drFixed);\
+		}\
 		else\
 			pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::GetBackBuffer(), &dr, DDBLT_WAIT, 0);\
 		return return_addr; \
@@ -115,6 +117,7 @@ DEFINE_HOOK(460F00, CIsoView_ScreenCoord2MapCoord_Height, 7)
 	auto pThis = CIsoView::GetInstance();
 	CRect dr;
 	GetWindowRect(pThis->GetSafeHwnd(), &dr);
+	CIsoViewExt::AdaptRectForSecondScreen(&dr);
 	*X += (*X - pThis->ViewPosition.x - dr.left) * (CIsoViewExt::ScaledFactor - 1.0);
 	*Y += (*Y - pThis->ViewPosition.y - dr.top) * (CIsoViewExt::ScaledFactor - 1.0);
 	return 0;
@@ -149,6 +152,8 @@ DEFINE_HOOK(466890, CIsoView_ScreenCoord2MapCoord_Flat, 8)
 	auto pThis = CIsoView::GetInstance();
 	CRect dr;
 	pThis->GetWindowRect(&dr);
+	CIsoViewExt::AdaptRectForSecondScreen(&dr);
+
 	*X += (*X - pThis->ViewPosition.x - dr.left) * (CIsoViewExt::ScaledFactor - 1.0);
 	*Y += (*Y - pThis->ViewPosition.y - dr.top) * (CIsoViewExt::ScaledFactor - 1.0);
 	return 0;
@@ -156,7 +161,7 @@ DEFINE_HOOK(466890, CIsoView_ScreenCoord2MapCoord_Flat, 8)
 
 DEFINE_HOOK(456F37, CIsoView_OnMouseMove_CursorScaled, 8)
 {
-	auto pThis = CIsoView::GetInstance();
+	auto pThis = CIsoViewExt::GetExtension();
 	auto coord = pThis->GetCurrentMapCoord(pThis->MouseCurrentPosition);
 
 	R->EBX(coord.X);
@@ -170,14 +175,24 @@ DEFINE_HOOK(456F37, CIsoView_OnMouseMove_CursorScaled, 8)
 static CPoint OnLButtonDown_pos;
 DEFINE_HOOK(4612F0, CIsoView_OnLButtonDown_Update_Pos, 5)
 {
-	OnLButtonDown_pos.x = R->Stack<UINT>(0x8);
-	OnLButtonDown_pos.y = R->Stack<UINT>(0xC);
+	if (ExtConfigs::SecondScreenSupport && CIsoViewExt::OnLButtonDown_CalledFromOnMouseMove)
+	{
+		CIsoViewExt::OnLButtonDown_CalledFromOnMouseMove = false;
+	}
+	else if (ExtConfigs::SecondScreenSupport)
+	{
+		R->Stack(0x8, R->Stack<int>(0x8) - GetSystemMetrics(SM_XVIRTUALSCREEN));
+		R->Stack(0xC, R->Stack<int>(0xC) - GetSystemMetrics(SM_YVIRTUALSCREEN));
+	}
+
+	OnLButtonDown_pos.x = R->Stack<int>(0x8);
+	OnLButtonDown_pos.y = R->Stack<int>(0xC);
 	return 0;
 }
 
 DEFINE_HOOK(46133D, CIsoView_OnLButtonDown_Scaled_1, 9)
 {
-	auto coord = CIsoView::GetInstance()->GetCurrentMapCoord(OnLButtonDown_pos);
+	auto coord = CIsoViewExt::GetExtension()->GetCurrentMapCoord(OnLButtonDown_pos);
 
 	R->EDI(coord.X);
 	R->Base(-0x50, coord.Y);
@@ -186,17 +201,55 @@ DEFINE_HOOK(46133D, CIsoView_OnLButtonDown_Scaled_1, 9)
 	return 0x4615CE;
 }
 
+DEFINE_HOOK(4616F0, CIsoView_OnLButtonDown_Scaled_2, 6)
+{
+	auto coord = CIsoViewExt::GetExtension()->GetCurrentMapCoord(OnLButtonDown_pos);
+
+	R->Base(-0x94, coord.X);
+	R->Base(-0x84, coord.Y);
+	R->EDI(coord.X);
+	R->ESI(coord.Y);
+
+	return 0x4616FC;
+}
+
+#define CIsoView_OnMouseMove_CallOnLButtonDown(hook_addr, hook_name, hook_size) \
+DEFINE_HOOK(hook_addr,hook_name,hook_size) \
+{ \
+	CIsoViewExt::OnLButtonDown_CalledFromOnMouseMove = true;\
+	return 0;\
+}
+CIsoView_OnMouseMove_CallOnLButtonDown(45B583, CallOnLButtonDown2, 7)
+CIsoView_OnMouseMove_CallOnLButtonDown(45B5A3, CallOnLButtonDown3, 7)
+CIsoView_OnMouseMove_CallOnLButtonDown(45BF40, CallOnLButtonDown4, 7)
+#undef CIsoView_OnMouseMove_CallOnLButtonDown
+
+#define CIsoView_OnLButtonDown_CallOnMouseMove(hook_addr, hook_name, hook_size) \
+DEFINE_HOOK(hook_addr,hook_name,hook_size) \
+{ \
+	CIsoViewExt::OnMouseMove_CalledFromOnLButtonDown = true;\
+	return 0;\
+}
+CIsoView_OnLButtonDown_CallOnMouseMove(4665D0, CallOnMouseMove1, 6)
+CIsoView_OnLButtonDown_CallOnMouseMove(46684D, CallOnMouseMove2, 6)
+#undef CIsoView_OnLButtonDown_CallOnMouseMove
+
 static CPoint OnLButtonUp_pos;
 DEFINE_HOOK(466970, CIsoView_OnLButtonUp_Update_Pos, 6)
 {
-	OnLButtonUp_pos.x = R->Stack<UINT>(0x8);
-	OnLButtonUp_pos.y = R->Stack<UINT>(0xC);
+	if (ExtConfigs::SecondScreenSupport)
+	{
+		R->Stack(0x8, R->Stack<int>(0x8) - GetSystemMetrics(SM_XVIRTUALSCREEN));
+		R->Stack(0xC, R->Stack<int>(0xC) - GetSystemMetrics(SM_YVIRTUALSCREEN));
+	}
+	OnLButtonUp_pos.x = R->Stack<int>(0x8);
+	OnLButtonUp_pos.y = R->Stack<int>(0xC);
 	return 0;
 }
 
 DEFINE_HOOK(4669A8, CIsoView_OnLButtonUp_Scaled_1, A)
 {
-	auto coord = CIsoView::GetInstance()->GetCurrentMapCoord(OnLButtonUp_pos);
+	auto coord = CIsoViewExt::GetExtension()->GetCurrentMapCoord(OnLButtonUp_pos);
 
 	R->Stack(STACK_OFFS(0x214, 0x204), coord.X);
 	R->EDI(coord.Y);
@@ -208,7 +261,7 @@ DEFINE_HOOK(45AFFC, CIsoView_OnMouseMove_Drag_skip_dragFacing, 7)
 {
 	if (ExtConfigs::ExtFacings_DragPreview)
 	{
-		auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+		auto pIsoView = CIsoViewExt::GetExtension();
 		auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
 		if (CIsoView::CurrentCommand->Command == 0
 			&& (GetKeyState(VK_CONTROL) & 0x8000)
@@ -244,12 +297,10 @@ DEFINE_HOOK(476419, CIsoView_MoveTo, 7)
 
 	RECT r;
 	pThis->GetWindowRect(&r);
+	CIsoViewExt::AdaptRectForSecondScreen(&r);
 
-	int vx = GetSystemMetrics(SM_XVIRTUALSCREEN);
-	int vy = GetSystemMetrics(SM_YVIRTUALSCREEN);
-
-	int left = r.left - vx;
-	int top = r.top - vy;
+	int left = r.left;
+	int top = r.top;
 
 	int widthPx = r.right - r.left;
 	int heightPx = r.bottom - r.top;
@@ -277,4 +328,41 @@ DEFINE_HOOK(476419, CIsoView_MoveTo, 7)
 	SetScrollPos(pThis->GetSafeHwnd(), SB_HORZ, pThis->ViewPosition.x / 60 - height / 2 + 1, TRUE);
 
 	return 0x476571;
+}
+
+DEFINE_HOOK(456DA0, CIsoView_OnMouseMove_FixPos, 8)
+{
+	if (ExtConfigs::SecondScreenSupport && !CIsoViewExt::OnMouseMove_CalledFromOnLButtonDown)
+	{
+		R->Stack(0x8, R->Stack<int>(0x8) - GetSystemMetrics(SM_XVIRTUALSCREEN));
+		R->Stack(0xC, R->Stack<int>(0xC) - GetSystemMetrics(SM_YVIRTUALSCREEN));
+	}
+	CIsoViewExt::OnMouseMove_CalledFromOnLButtonDown = false;
+	return 0;
+}
+
+DEFINE_HOOK(4763B0, CIsoView_OnRButtonDown_FixPos, 8)
+{
+	if (ExtConfigs::SecondScreenSupport)
+	{
+		R->Stack(0x8, R->Stack<int>(0x8) - GetSystemMetrics(SM_XVIRTUALSCREEN));
+		R->Stack(0xC, R->Stack<int>(0xC) - GetSystemMetrics(SM_YVIRTUALSCREEN));
+	}
+	return 0;
+}
+
+DEFINE_HOOK(460DA0, CIsoView_OnLButtonDblClk_FixPos, 8)
+{
+	if (ExtConfigs::SecondScreenSupport)
+	{
+		R->Stack(0x8, R->Stack<int>(0x8) - GetSystemMetrics(SM_XVIRTUALSCREEN));
+		R->Stack(0xC, R->Stack<int>(0xC) - GetSystemMetrics(SM_YVIRTUALSCREEN));
+	}
+	return 0;
+}
+
+DEFINE_HOOK(456CED, CIsoView_UpdateDialog, 9)
+{
+	CIsoViewExt::MoveToMapCoord(CMapData::Instance->MapWidthPlusHeight / 2, CMapData::Instance->MapWidthPlusHeight / 2);
+	return 0x456D53;
 }

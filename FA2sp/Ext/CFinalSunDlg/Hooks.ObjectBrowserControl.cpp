@@ -608,6 +608,11 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                 CIsoViewExt::LiveDistanceRuler.erase(CIsoViewExt::LiveDistanceRuler.begin());
         }
     }
+    auto isBridgeOrVeinhole = []()
+    {
+        return CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 6
+            && (CIsoView::CurrentCommand->Param == 4 || CIsoView::CurrentCommand->Param == 5);
+    };
 
     auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
     auto& command = pIsoView->LastAltCommand;
@@ -643,12 +648,15 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
         CViewObjectsExt::NeedChangeTreeViewSelect = false;
         return 0x466860;
     }
-    else if ((GetKeyState(VK_MENU) & 0x8000) && 
+    else if (
+        (GetKeyState(VK_MENU) & 0x8000) && 
         (CIsoView::CurrentCommand->Command == 1 ||
             CIsoView::CurrentCommand->Command == 10 ||
             CIsoView::CurrentCommand->Command == 22 ||
             CIsoView::CurrentCommand->Command == 4
-            && CIsoView::CurrentCommand->Type == 4))
+            && CIsoView::CurrentCommand->Type == 4)
+        && !isBridgeOrVeinhole()
+        )
     {
         auto pMap = CMapDataExt::GetExtension();
         if (command.isSame())
@@ -829,10 +837,6 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                             CIsoView::CurrentCommand->Overlay = STDHelpers::RandomSelectInt(randomRockList);
                             CIsoView::CurrentCommand->OverlayData = 0;
                             CIsoView::GetInstance()->DrawMouseAttachedStuff(mc.X, mc.Y);
-                        }
-                        else if (command.Param == 5) // bridge
-                        {
-                            return 0;
                         }
                         else
                         {                           

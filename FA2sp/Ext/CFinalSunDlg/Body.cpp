@@ -1611,8 +1611,29 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		if (!isInIsoView())
 			return TRUE;
 	}
+
+	if (wmID == 40169)
+	{
+		auto newParam = MAKELONG(57643, wmMsg);
+		return this->ppmfc::CDialog::OnCommand(newParam, lParam);
+	}
+	if (wmID == 40170)
+	{
+		auto newParam = MAKELONG(57644, wmMsg);
+		return this->ppmfc::CDialog::OnCommand(newParam, lParam);
+	}
+	if (wmID == 40171)
+	{
+		auto newParam = MAKELONG(57634, wmMsg);
+		return this->ppmfc::CDialog::OnCommand(newParam, lParam);
+	}
+	if (wmID == 40173)
+	{
+		auto newParam = MAKELONG(57637, wmMsg);
+		return this->ppmfc::CDialog::OnCommand(newParam, lParam);
+	}
 	CopyPaste::IsCutting = false;
-	if (wmID == 40166)
+	if (wmID == 40166 || wmID == 40172)
 	{
 		// cutting also uses copying logic
 		CopyPaste::IsCutting = true;

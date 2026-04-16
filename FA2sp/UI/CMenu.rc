@@ -23,13 +23,13 @@ POPUP "File"
 }
 POPUP "Edit"
 {
-	MENUITEM "Undo\tCtrl+Z",  57643
-	MENUITEM "Redo\tCtrl+Y",  57644
+	MENUITEM "Undo\tCtrl+Z",  40169
+	MENUITEM "Redo\tCtrl+Y",  40170
 	MENUITEM SEPARATOR
-	MENUITEM "Copy\tCtrl+C",  57634
-	MENUITEM "Cut\tCtrl+X",  40166
+	MENUITEM "Copy\tCtrl+C",  40171
+	MENUITEM "Cut\tCtrl+X",  40172
 	MENUITEM "Copy whole map",  40109
-	MENUITEM "Paste\tCtrl+V",  57637
+	MENUITEM "Paste\tCtrl+V",  40173
 	MENUITEM "Paste centered",  40110
 	MENUITEM SEPARATOR
 	MENUITEM "Map\tCtrl+M",  40040

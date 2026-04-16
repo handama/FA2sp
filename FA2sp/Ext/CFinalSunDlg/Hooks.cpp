@@ -176,12 +176,12 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(40018, "Menu.File.Reopen");
     translateMenuItem(40003, "Menu.File.Quit");
 
-    translateMenuItem(57643, "Menu.Edit.Undo");
-    translateMenuItem(57644, "Menu.Edit.Redo");
-    translateMenuItem(57634, "Menu.Edit.Copy");
-    translateMenuItem(40166, "Menu.Edit.Cut");
+    translateMenuItem(40169, "Menu.Edit.Undo");
+    translateMenuItem(40170, "Menu.Edit.Redo");
+    translateMenuItem(40171, "Menu.Edit.Copy");
+    translateMenuItem(40172, "Menu.Edit.Cut");
     translateMenuItem(40109, "Menu.Edit.CopyWholeMap");
-    translateMenuItem(57637, "Menu.Edit.Paste");
+    translateMenuItem(40173, "Menu.Edit.Paste");
     translateMenuItem(40110, "Menu.Edit.PasteCentered");
     translateMenuItem(40040, "Menu.Edit.Map");
     translateMenuItem(40036, "Menu.Edit.Basic");

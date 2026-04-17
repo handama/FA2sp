@@ -83,9 +83,9 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
         return;
     }
 
-    const int X_OFFSET = 1;
-    const int Y_OFFSET = -29;
-    const int BPP = 4;
+    constexpr int X_OFFSET = 1;
+    constexpr int Y_OFFSET = -29;
+    constexpr int BPP = 4;
 
     auto pThis = CIsoView::GetInstance();
     RECT windowRect;
@@ -213,9 +213,9 @@ void CIsoViewExt::BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURF
         return;
     }
 
-    const int X_OFFSET = 1;
-    const int Y_OFFSET = -29;
-    const int BPP = 4;
+    constexpr int X_OFFSET = 1;
+    constexpr int Y_OFFSET = -29;
+    constexpr int BPP = 4;
 
     auto pThis = CIsoView::GetInstance();
     RECT windowRect;
@@ -339,9 +339,9 @@ void CIsoViewExt::BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDR
         return;
     }
 
-    const int X_OFFSET = 1;
-    const int Y_OFFSET = -29;
-    const int BPP = 4;
+    constexpr int X_OFFSET = 1;
+    constexpr int Y_OFFSET = -29;
+    constexpr int BPP = 4;
 
     auto pThis = CIsoView::GetInstance();
     RECT windowRect;
@@ -453,9 +453,9 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
         return;
     }
 
-    const int X_OFFSET = 31;
-    const int Y_OFFSET = -29;
-    const int BPP = 4;
+    constexpr int X_OFFSET = 31;
+    constexpr int Y_OFFSET = -29;
+    constexpr int BPP = 4;
 
     x += X_OFFSET;
     y += Y_OFFSET;
@@ -593,15 +593,15 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
 
 void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
     const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha,
-    COLORREF houseColor, int extraLightType, bool remap)
+    COLORREF houseColor, int extraLightType, bool remap, std::vector<char>* objectOverlapMask)
 {
     if (alpha == 0 || !pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst || pd->IsEmptyImage) {
         return;
     }
 
-    const int X_OFFSET = 31;
-    const int Y_OFFSET = -29;
-    const int BPP = 4;
+    constexpr int X_OFFSET = 31;
+    constexpr int Y_OFFSET = -29;
+    constexpr int BPP = 4;
 
     x += X_OFFSET;
     y += Y_OFFSET;
@@ -717,21 +717,31 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
 
             BGRStruct c = newPal->Data[pixelValue];
 
-            if (doAlphaBlend) {
+            if (objectOverlapMask) {
+                int wx = destRect.left + col;
+                int wy = destRect.top + row;
+                if (wx >= window.left && wx < window.right &&
+                    wy >= window.top && wy < window.bottom) [[likely]] {
+                    int index = wx - window.left + (wy - window.top) * (window.right - window.left);
+                    (*objectOverlapMask)[index] = CIsoViewExt::CurrentDrawCellLocation.Height;
+                }
+            }
+
+            if (doAlphaBlend) [[unlikely]] {
                 BGRStruct ori = *reinterpret_cast<const BGRStruct*>(destPtr);
                 c.B = alphaBlendTable[c.B][alpha] + alphaBlendTable[ori.B][255 - alpha];
                 c.G = alphaBlendTable[c.G][alpha] + alphaBlendTable[ori.G][255 - alpha];
                 c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[ori.R][255 - alpha];
             }
 
-            if (doMultiSel) {
+            if (doMultiSel) [[unlikely]] {
                 RGBClass* selColor = reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor);
                 c.B = (c.B * 2 + selColor->B) / 3;
                 c.G = (c.G * 2 + selColor->G) / 3;
                 c.R = (c.R * 2 + selColor->R) / 3;
             }
 
-            if (doOre) {
+            if (doOre) [[unlikely]] {
                 c.B = alphaBlendTable[c.B][oreOpacity] + alphaBlendTable[oreColor.B][255 - oreOpacity];
                 c.G = alphaBlendTable[c.G][oreOpacity] + alphaBlendTable[oreColor.G][255 - oreOpacity];
                 c.R = alphaBlendTable[c.R][oreOpacity] + alphaBlendTable[oreColor.R][255 - oreOpacity];
@@ -750,9 +760,9 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
         return;
     }
 
-    const int X_OFFSET = 31;
-    const int Y_OFFSET = -29;
-    const int BPP = 4;
+    constexpr int X_OFFSET = 31;
+    constexpr int Y_OFFSET = -29;
+    constexpr int BPP = 4;
 
     x += X_OFFSET;
     y += Y_OFFSET;
@@ -860,9 +870,9 @@ void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, cons
         return;
     }
 
-    const int X_OFFSET = 31;
-    const int Y_OFFSET = -29;
-    const int BPP = 4;
+    constexpr int X_OFFSET = 31;
+    constexpr int Y_OFFSET = -29;
+    constexpr int BPP = 4;
 
     x += X_OFFSET;
     y += Y_OFFSET;
@@ -941,7 +951,7 @@ void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, Imag
 }
 
 template<bool FlatToGround, bool MaskShadow, bool CellHeight,
-    bool AlphaBlend, bool MultiSel, bool Ore, bool Player>
+    bool AlphaBlend, bool MultiSel, bool Ore, bool Player, bool ObjectOverlap>
 void BlitTerrainImpl(
     CIsoView* pThis, void* dst, const RECT& window,
     const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile,
@@ -949,13 +959,13 @@ void BlitTerrainImpl(
     std::vector<byte>* heightMask, byte height,
     std::vector<int>* cellHeightMask, int tileSet,
     const RGBClass* selColor, byte playerOpacity, const RGBClass* playerColor,
-    const RGBClass& oreColor, byte oreOpacity)
+    const RGBClass& oreColor, byte oreOpacity, std::vector<char>* objectOverlapMask)
 {
-    const int TILE_WIDTH = 60;
-    const int TILE_HEIGHT = 30;
-    const int X_OFFSET = 61;
-    const int Y_OFFSET = 1;
-    const int BPP = 4;
+    constexpr int TILE_WIDTH = 60;
+    constexpr int TILE_HEIGHT = 30;
+    constexpr int X_OFFSET = 61;
+    constexpr int Y_OFFSET = 1;
+    constexpr int BPP = 4;
     const BGRStruct SHADOW_COLOR = { 0, 0, 0 };
 
     x += X_OFFSET;
@@ -1049,6 +1059,17 @@ void BlitTerrainImpl(
                 } 
             }
 
+            if constexpr (ObjectOverlap){
+                int wx = destRect.left + col; 
+                int wy = destRect.top + row; 
+                if (wx >= window.left && wx < window.right 
+                    && wy >= window.top && wy < window.bottom) [[likely]] { 
+                    int index = wx - window.left + (wy - window.top) * (window.right - window.left); 
+                    if ((*objectOverlapMask)[index] >= height)
+                        continue;
+                } 
+            }
+
             if constexpr (AlphaBlend) {
                 BGRStruct ori = *reinterpret_cast<const BGRStruct*>(destPtr);
                 c.B = alphaBlendTable[c.B][alpha] + alphaBlendTable[ori.B][255 - alpha];
@@ -1084,19 +1105,20 @@ void BlitTerrainImpl(
 using ImplFunc = void(*)(CIsoView*, void*, const RECT&, const DDBoundary&, int, int,
     CTileBlockClass*, Palette*, BYTE, std::vector<byte>*,
     std::vector<byte>*, byte, std::vector<int>*, int,
-    const RGBClass*, byte, const RGBClass*, const RGBClass&, byte);
+    const RGBClass*, byte, const RGBClass*, const RGBClass&, byte, std::vector<char>*);
 
 template<size_t... Is>
-static constexpr std::array<ImplFunc, 128> make_dispatch_table(std::index_sequence<Is...>) {
+static constexpr std::array<ImplFunc, 256> make_dispatch_table(std::index_sequence<Is...>) {
     return { BlitTerrainImpl<(Is & 1) != 0, (Is & 2) != 0, (Is & 4) != 0,
                              (Is & 8) != 0, (Is & 16) != 0, (Is & 32) != 0,
-                             (Is & 64) != 0>... };
+                             (Is & 64) != 0, (Is & 128) != 0 > ... };
 }
-static constexpr auto DISPATCH_TABLE = make_dispatch_table(std::make_index_sequence<128>());
+static constexpr auto DISPATCH_TABLE = make_dispatch_table(std::make_index_sequence<256>());
 
 void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
     const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha,
-    std::vector<byte>* mask, std::vector<byte>* heightMask, byte height, std::vector<int>* cellHeightMask, int tileSet)
+    std::vector<byte>* mask, std::vector<byte>* heightMask, byte height, std::vector<int>* cellHeightMask, 
+    int tileSet, std::vector<char>* objectOverlapMask)
 {
     if (alpha == 0 || !subTile || !subTile->HasValidImage || !subTile->ImageData || !dst || !subTile->pPixelValidRanges) {
         return;
@@ -1140,6 +1162,7 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
     const bool doMultiSel = multiSelected && (!RenderingMap || (RenderingMap && RenderCurrentLayers));
     const bool doOre = isEmphasizingOre;
     const bool doPlayer = isEmphasizingPlayer;
+    const bool doObjectOverlap = objectOverlapMask != nullptr;
 
     const RGBClass* selColor = doMultiSel ? reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor) : nullptr;
     const RGBClass* playerColor = doPlayer ? reinterpret_cast<RGBClass*>(&ExtConfigs::PlayerLocation_Color) : nullptr;
@@ -1150,12 +1173,13 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
         (doAlphaBlend ? 8 : 0) |
         (doMultiSel ? 16 : 0) |
         (doOre ? 32 : 0) |
-        (doPlayer ? 64 : 0);
+        (doPlayer ? 64 : 0)|
+        (doObjectOverlap ? 128 : 0);
 
     DISPATCH_TABLE[idx](
         pThis, dst, window, boundary, x, y, subTile, newPal, alpha,
         mask, heightMask, height, cellHeightMask, tileSet,
-        selColor, playerOpacity, playerColor, oreColor, oreOpacity
+        selColor, playerOpacity, playerColor, oreColor, oreOpacity, objectOverlapMask
         );
 }
 
@@ -1241,7 +1265,7 @@ void CIsoViewExt::DrawShadowMask(
 {
     if (!dst || mask.empty()) return;
 
-    const int BPP = 4;
+    constexpr int BPP = 4;
     constexpr BYTE ALPHA = 128;
     constexpr int KEEP = 255 - ALPHA;
     constexpr int BLEND = ALPHA; 

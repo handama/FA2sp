@@ -116,6 +116,7 @@ public:
 		GBIN_NORMAL,
 		GBIN_RUBBLE,		
 		GBIN_DAMAGED,
+		GBIN_GARRISONDAMAGED,
 	};
 	enum class ObjectType {
 		Unknown = -1,
@@ -238,7 +239,7 @@ private:
 	static bool IsBarrelInFront(int curFacing, int totFacing);
 
 	void LoadBuilding(const FString& ID);
-	void LoadBuilding_Normal(const FString& ID);
+	void LoadBuilding_Normal(const FString& ID, bool loadAsGarrisonDamaged = false);
 	void LoadBuilding_Rubble(const FString& ID);
 	void LoadBuilding_Damaged(const FString& ID, bool loadAsRubble = false);
 	void ClipAndLoadBuilding(const FString& ID, const FString& ImageID, unsigned char* pBuffer,
@@ -285,6 +286,7 @@ public:
 	FString GetInfantryFileID(const FString& ID);
 	static int GetIFVTurretIndex(const FString& ID);
 	static bool IsPreOccupiedBunker(const FString& ID);
+	static bool IsBioReactor(const FString& ID);
 	static std::unordered_set<FString> LoadedOverlays;
 	static std::unordered_map<FString, InsigniaGrid> LoadedInsignias;
 	static Palette TempISOPalette;
@@ -303,6 +305,7 @@ public:
 	static std::unordered_set<FString> CustomPaletteTerrains;
 	static std::unordered_map<FString, int> IFVTurrets;
 	static std::unordered_set<FString> InitialOccupiedBuildings;
+	static std::unordered_map<FString, int> BioReactors;
 	static std::unordered_set<int> Ra2dotMixes;
 	static int TallestBuildingHeight;
 private:

@@ -25,6 +25,7 @@ std::unordered_set<FString> CLoadingExt::LoadedSurfaceObjects;
 std::unordered_set<FString> CLoadingExt::CustomPaletteTerrains;
 std::unordered_map<FString, int> CLoadingExt::IFVTurrets;
 std::unordered_set<FString> CLoadingExt::InitialOccupiedBuildings;
+std::unordered_map<FString, int> CLoadingExt::BioReactors;
 std::unordered_map<FString, int> CLoadingExt::AvailableFacings;
 std::unordered_map<FString, int> CLoadingExt::AlphaImageFacings;
 std::unordered_set<int> CLoadingExt::Ra2dotMixes;
@@ -213,6 +214,17 @@ FString CLoadingExt::GetBuildingImageName(FString ID, int nFacing, int state, bo
 		}
 
 	}
+	else if (state == GBIN_GARRISONDAMAGED)
+	{
+		if (bShadow)
+		{
+			ret.Format("%s\233%d\233GARRISONDAMAGEDSHADOW", ID, nFacing);
+		}
+		else
+		{
+			ret.Format("%s\233%d\233GARRISONDAMAGED", ID, nFacing);
+		}
+	}
 	else // GBIN_NORMAL
 	{
 		if (bShadow)
@@ -352,6 +364,7 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 		CustomPaletteTerrains.clear();
 		IFVTurrets.clear();
 		InitialOccupiedBuildings.clear();
+		BioReactors.clear();
 		GridObjectViewer::Instance.Clear();
 		CMapDataExt::TerrainPaletteBuildings.clear();
 		CMapDataExt::DamagedAsRubbleBuildings.clear();
@@ -531,6 +544,16 @@ bool CLoadingExt::IsPreOccupiedBunker(const FString& ID)
 	return true;
 }
 
+bool CLoadingExt::IsBioReactor(const FString& ID)
+{
+	bool isBioReactor = Variables::RulesMap.GetInteger(ID, "Passengers") > 0 
+		&& Variables::RulesMap.GetInteger(ID, "SizeLimit") > 0 
+		&& Variables::RulesMap.GetInteger(ID, "ExtraPower") > 0;
+	if (!isBioReactor) return false;
+
+	return true;
+}
+
 static FString GetFinalLoopAnim(const FString& image)
 {
 	static std::set<FString> visited; 
@@ -576,7 +599,7 @@ void CLoadingExt::LoadBuilding(const FString& ID)
 	LoadAlphaImage(ID, CLoadingExt::ObjectType::Building);
 }
 
-void CLoadingExt::LoadBuilding_Normal(const FString& ID)
+void CLoadingExt::LoadBuilding_Normal(const FString& ID, bool loadAsGarrisonDamaged)
 {
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetBuildingFileID(ID);
@@ -589,6 +612,12 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 	bool isPowerup = CMapDataExt::PowersUpBuildingSet.contains(ID);
 	bool isPreOccupiedBunker = IsPreOccupiedBunker(ID);
 	if (isPreOccupiedBunker) InitialOccupiedBuildings.insert(ID);
+	auto bioItr = BioReactors.find(ID);
+	bool isBioReactor = bioItr != BioReactors.end();
+	int BioPower = isBioReactor ? bioItr->second : 0;
+	int techLevel = Variables::RulesMap.GetInteger(ID, "TechLevel");
+	bool isBunker = Variables::RulesMap.GetBool(ID, "CanOccupyFire");
+	bool hasGarrisonDamagedState = !loadAsGarrisonDamaged && isBunker && techLevel < 0;
 	Palette* pMixedPal = nullptr;
 
 	FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
@@ -727,7 +756,10 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 	auto loadAnimFrameShape = [&](FString animkey, FString ignorekey = "")
 	{
 		CurrentLoadingAnim = animkey;
-		if (auto pStr = CINI::Art->TryGetString(ArtID, animkey))
+		FString LoadingAnimkey = animkey;
+		if(loadAsGarrisonDamaged)
+			LoadingAnimkey += "Damaged";
+		if (auto pStr = CINI::Art->TryGetString(ArtID, LoadingAnimkey))
 		{
 			if (ignorekey.IsEmpty() || !CINI::FAData->GetBool(ignorekey, ID))
 			{
@@ -751,10 +783,13 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 		}
 	};
 
-	if (auto ppPowerUpBld = Variables::RulesMap.TryGetString(ID, "PowersUpBuilding")) // Early load
+	if (!loadAsGarrisonDamaged)
 	{
-		if (!CLoadingExt::IsObjectLoaded(*ppPowerUpBld))
-			LoadBuilding(*ppPowerUpBld);
+		if (auto ppPowerUpBld = Variables::RulesMap.TryGetString(ID, "PowersUpBuilding")) // Early load
+		{
+			if (!CLoadingExt::IsObjectLoaded(*ppPowerUpBld))
+				LoadBuilding(*ppPowerUpBld);
+		}
 	}
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + (isPreOccupiedBunker ? 2 : 0);
@@ -767,8 +802,10 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 	FString AnimKeys[9] = 
 	{	
 		"IdleAnim",
-		(isPreOccupiedBunker && CINI::Art->KeyExists(ArtID, "ActiveAnimGarrisoned")) ? "ActiveAnimGarrisoned" : "ActiveAnim",
-		"ActiveAnimTwo",
+		(isPreOccupiedBunker && CINI::Art->KeyExists(ArtID, "ActiveAnimGarrisoned")) 
+		? "ActiveAnimGarrisoned" : ((isBioReactor && BioPower > 0) 
+			? "DUMMY" : "ActiveAnim"),
+		isBioReactor ? (BioPower > 0 ? "ActiveAnimTwo" : "DUMMY") : "ActiveAnimTwo",
 		"ActiveAnimThree",
 		"ActiveAnimFour",
 		"SuperAnim",
@@ -932,7 +969,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 			}
 			UnionSHP_GetAndClear(pImage, &width1, &height1, false, false, false, 
 				hasTranspaernt ? &pAlphaImage : nullptr, palette);
-			DictName.Format("%s\233%d", ID, i);
+			DictName.Format(loadAsGarrisonDamaged ? "%s\233%d\233GARRISONDAMAGED" : "%s\233%d", ID, i);
 			ClipAndLoadBuilding(ID, DictName, pImage, width1, height1, palette, pAlphaImage);
 			if (pAlphaImage)
 				GameDeleteArray(pAlphaImage, width * height);
@@ -940,7 +977,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 
 		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 		{
-			DictNameShadow.Format("%s\233%d\233SHADOW", ID, 0);
+			DictNameShadow.Format(loadAsGarrisonDamaged ? "%s\233%d\233GARRISONDAMAGEDSHADOW" : "%s\233%d\233SHADOW", ID, 0);
 			SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 		}
 
@@ -1041,7 +1078,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 			UnionSHP_GetAndClear(pImage, &width1, &height1, false, false, false,
 				hasTranspaernt ? &pAlphaImage : nullptr, palette);
 
-			DictName.Format("%s\233%d", ID, i);
+			DictName.Format(loadAsGarrisonDamaged ? "%s\233%d\233GARRISONDAMAGED" : "%s\233%d", ID, i);
 			ClipAndLoadBuilding(ID, DictName, pImage, width1, height1, palette, pAlphaImage);
 			if (pAlphaImage)
 				GameDeleteArray(pAlphaImage, width * height);
@@ -1052,7 +1089,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 				unsigned char* pImageShadow;
 				int width1Shadow, height1Shadow;
 				UnionSHP_GetAndClear(pImageShadow, &width1Shadow, &height1Shadow, false, true);
-				DictNameShadow.Format("%s\233%d\233SHADOW", ID, i);
+				DictNameShadow.Format(loadAsGarrisonDamaged ? "%s\233%d\233GARRISONDAMAGEDSHADOW" : "%s\233%d\233SHADOW", ID, i);
 				SetImageDataSafe(pImageShadow, DictNameShadow, width1Shadow, height1Shadow, &CMapDataExt::Palette_Shadow);
 			}
 		}
@@ -1061,16 +1098,19 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 	}
 	else // No turret
 	{
-		DictName.Format("%s\233%d", ID, 0);
+		DictName.Format(loadAsGarrisonDamaged ? "%s\233%d\233GARRISONDAMAGED" : "%s\233%d", ID, 0);
 		ClipAndLoadBuilding(ID, DictName, pBuffer, width, height, palette, pOpacityBuffer);
 		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 		{
-			DictNameShadow.Format("%s\233%d\233SHADOW", ID, 0);
+			DictNameShadow.Format(loadAsGarrisonDamaged ? "%s\233%d\233GARRISONDAMAGEDSHADOW" : "%s\233%d\233SHADOW", ID, 0);
 			SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 		}
 	}
 	if (pOpacityBuffer)
 		GameDelete(pOpacityBuffer);
+
+	if (hasGarrisonDamagedState)
+		LoadBuilding_Normal(ID, true);
 }
 
 void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
@@ -1085,6 +1125,9 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 	AvailableFacings[ID] = facings;
 	bool isPowerup = CMapDataExt::PowersUpBuildingSet.contains(ID);
 	bool isPreOccupiedBunker = IsPreOccupiedBunker(ID);
+	auto bioItr = BioReactors.find(ID);
+	bool isBioReactor = bioItr != BioReactors.end();
+	int BioPower = isBioReactor ? bioItr->second : 0;
 	int techLevel = Variables::RulesMap.GetInteger(ID, "TechLevel");
 	Palette* pMixedPal = nullptr;
 
@@ -1275,8 +1318,8 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 	FString AnimKeys[9] =
 	{
 		"IdleAnim",
-		"ActiveAnim",
-		"ActiveAnimTwo",
+		(isBioReactor && BioPower > 0) ? "DUMMY" : "ActiveAnim",
+		isBioReactor ? (BioPower > 0 ? "ActiveAnimTwo" : "DUMMY") : "ActiveAnimTwo",
 		"ActiveAnimThree",
 		"ActiveAnimFour",
 		"SuperAnim",
@@ -1857,7 +1900,7 @@ void CLoadingExt::LoadTerrainOrSmudge(const FString& ID, bool terrain)
 	FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "iso");
 	if (!CINI::Art->KeyExists(ArtID, "Palette") && Variables::RulesMap.GetBool(ID, "SpawnsTiberium"))
 	{
-		PaletteName = "unitsno.pal";
+		PaletteName = "unit~~~.pal";
 	}
 	if (CINI::Art->KeyExists(ArtID, "Palette") || Variables::RulesMap.GetBool(ID, "SpawnsTiberium"))
 	{

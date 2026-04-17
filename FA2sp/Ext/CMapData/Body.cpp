@@ -606,6 +606,9 @@ BuildingPowers CMapDataExt::GetStructurePower(CBuildingData object)
 	int power2 = 0;
 	int power3 = 0;
 	int powerMain = Variables::RulesMap.GetInteger(object.TypeID, "Power");
+	auto bioItr = CLoadingExt::BioReactors.find(object.TypeID);
+	if (bioItr != CLoadingExt::BioReactors.end())
+		powerMain += bioItr->second;
 	if (powerMain > 0)
 		powerMain = ((double)powerMain) * roundToPrecision(((double)strength / (double)Variables::RulesMap.GetInteger(object.TypeID, "Strength")), 5);
 
@@ -4084,9 +4087,46 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		tempBuildingData.Height = 1;
 		tempBuildingData.BottomCoords = { {0,0} };
 		CMapDataExt::BuildingDataExts[-1] = tempBuildingData;
+
+		CMapDataExt::PowersUpBuildings.clear();
+		CMapDataExt::PowersUpBuildingSet.clear();
+		auto buildings = Variables::RulesMap.ParseIndicies("BuildingTypes", true);
 		const auto Types = Variables::RulesMap.GetSection("BuildingTypes");
-		for (auto& Type : Types)
-			CMapDataExt::GetExtension()->ProcessBuildingType(Type.second);
+		for (auto& [_, building] : Types)
+		{
+			CMapDataExt::GetExtension()->ProcessBuildingType(building);
+
+			auto parent = Variables::RulesMap.GetString(building, "PowersUpBuilding");
+			if (!parent.IsEmpty())
+			{
+				CMapDataExt::PowersUpBuildings[parent].insert(building);
+				CMapDataExt::PowersUpBuildingSet.insert(building);
+			}
+			auto parents = Variables::RulesMap.GetString(building, "PowersUp.Buildings");
+			if (!parents.IsEmpty())
+			{
+				auto atoms = STDHelpers::SplitString(parents);
+				for (auto& p : atoms)
+				{
+					CMapDataExt::PowersUpBuildings[p].insert(building);
+					CMapDataExt::PowersUpBuildingSet.insert(building);
+				}
+			}
+			if (CLoadingExt::IsBioReactor(building))
+			{
+				auto types = STDHelpers::SplitString(Variables::RulesMap.GetString(building, "InitialPayload.Types"));
+				auto numbers = STDHelpers::SplitString(Variables::RulesMap.GetString(building, "InitialPayload.Nums"));
+
+				int extraPower = Variables::RulesMap.GetInteger(building, "ExtraPower");
+				int totalPower = 0;
+				for (int i = 0; i < types.size(); ++i)
+				{
+					int num = i < numbers.size() ? atoi(numbers[i]) : 1;
+					totalPower += num * extraPower;
+				}
+				CLoadingExt::BioReactors[building] = totalPower;
+			}
+		}
 
 		TileAnimations.clear();
 		for (auto& [index, setName] : CMapDataExt::TileSetOriginSetNames[CLoadingExt::GetITheaterIndex()])
@@ -4359,28 +4399,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	}
 	UpdateAnnotation();
 	CIsoViewExt::LiveDistanceRuler.clear();
-	CMapDataExt::PowersUpBuildings.clear();
-	CMapDataExt::PowersUpBuildingSet.clear();
-	auto buildings = Variables::RulesMap.ParseIndicies("BuildingTypes", true);
-	for (const auto& building : buildings)
-	{
-		auto parent = Variables::RulesMap.GetString(building, "PowersUpBuilding");
-		if (!parent.IsEmpty())
-		{
-			CMapDataExt::PowersUpBuildings[parent].insert(building);
-			CMapDataExt::PowersUpBuildingSet.insert(building);
-		}
-		auto parents = Variables::RulesMap.GetString(building, "PowersUp.Buildings");
-		if (!parents.IsEmpty())
-		{
-			auto atoms = STDHelpers::SplitString(parents);
-			for (auto& p : atoms)
-			{
-				CMapDataExt::PowersUpBuildings[p].insert(building);
-				CMapDataExt::PowersUpBuildingSet.insert(building);
-			}
-		}
-	}
 
 	CustomWaypointColors.clear();
 	CustomCelltagColors.clear();

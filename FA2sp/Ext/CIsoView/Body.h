@@ -174,9 +174,12 @@ public:
     static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1);
     static bool SaveImageDataToBMP(ImageDataClassSafe* pd, const char* outputPath);
     static void BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
-        const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false);
+        const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, 
+        BYTE alpha = 255, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false);
     static void BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
-        const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false);
+        const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL, 
+        BYTE alpha = 255, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false,
+        std::vector<char>* objectOverlapMask = nullptr);
     static void BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
         BYTE alpha = 255, COLORREF houseColor = -1, COLORREF addOnColor = -1, bool isRubble = false, bool isTerrain = false);
@@ -185,7 +188,7 @@ public:
     static void BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha = 255,
         std::vector<byte>* mask = nullptr, std::vector<byte>* heightMask = nullptr, byte height = 0,
-        std::vector<int>* cellHeightMask = nullptr, int tileSet = -1);
+        std::vector<int>* cellHeightMask = nullptr, int tileSet = -1, std::vector<char>* objectOverlapMask = nullptr);
     static void BlitText(const std::wstring& text, COLORREF textColor, COLORREF bgColor,
         CIsoView* pThis, void* dst, const RECT& window, const DDBoundary& boundary,
         int x, int y, int fontSize = 20, BYTE alpha = 255, bool bold = false);

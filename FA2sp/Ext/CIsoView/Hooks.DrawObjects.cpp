@@ -2151,7 +2151,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					bool customPalette = CLoadingExt::CustomPaletteTerrains.find(obj) != CLoadingExt::CustomPaletteTerrains.end();
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 						x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (isTiberiumTree ? -1 : 15),
-						pData, NULL, 255, 0, isTiberiumTree ? 6 : (customPalette ? 5 : -1), false);
+						pData, NULL, 255, 0, isTiberiumTree ? 6 : (customPalette ? 5 : -1), false,
+						info.aroundRedrawCell ? &objectOverlapMask : nullptr);
 				}
 				else
 				{

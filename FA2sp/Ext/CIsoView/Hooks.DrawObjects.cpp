@@ -37,6 +37,7 @@ struct CellInfo {
 	bool isInMap;
 	CellData* cell;
 	CellDataExt* cellExt;
+	bool aroundRedrawCell;
 };
 
 static std::vector<std::pair<MapCoord, FString>> WaypointsToDraw;
@@ -50,6 +51,14 @@ static std::vector<Veterancy> DrawVeterancies;
 static std::vector<CellInfo> visibleCells;
 static std::unordered_set<short> DrawnBuildings;
 static std::vector<BaseNodeDataExt> DrawnBaseNodes;
+static std::map<MapCoord, int> coordToIndex;
+static std::vector<char> shadowMask_Building_Infantry;
+static std::vector<char> shadowMask_Terrain;
+static std::vector<char> shadowMask_Overlay;
+static std::vector<byte> shadowMask;
+static std::vector<byte> shadowHeightMask;
+static std::vector<int> cellHeightMask;
+static std::vector<char> objectOverlapMask;
 
 #define EXTRA_BORDER 15
 
@@ -426,6 +435,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 	FiresToDraw.clear();
 	DrawVeterancies.clear();
 	visibleCells.clear();
+	coordToIndex.clear();
 	DrawnBuildings.clear();
 	DrawnBaseNodes.clear();
 
@@ -795,10 +805,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			screenY -= DrawOffsetY;
 			auto cell = CMapData::Instance->GetCellAt(pos);
 			auto& cellExt = CMapDataExt::CellDataExts[pos];
+			coordToIndex[{X, Y}] = visibleCells.size();
 			visibleCells.push_back({ X, Y, screenX, screenY, pos,
 				CMapData::Instance->IsCoordInMap(X, Y), 
 				cell,
-				&cellExt });
+				&cellExt,
+				false });
 
 			cell->Flag.RedrawTerrain = false;
 			cellExt.BuildingRenderParts.clear();
@@ -810,13 +822,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	int shadowMask_width = window.right - window.left;
 	int shadowMask_height = window.bottom - window.top;
 	int shadowMask_size = shadowMask_width * shadowMask_height;
-	std::vector<char> shadowMask_Building_Infantry(shadowMask_size, 0);
-	std::vector<char> shadowMask_Terrain(shadowMask_size, 0);
-	std::vector<char> shadowMask_Overlay(shadowMask_size, 0);
-	std::vector<byte> shadowMask(shadowMask_size, 0);
-	std::vector<byte> shadowHeightMask(shadowMask_size, 0);
-	std::vector<int> cellHeightMask(shadowMask_size, 0);
-	std::vector<char> objectOverlapMask(shadowMask_size, -1);
+
+	shadowMask_Building_Infantry.assign(shadowMask_size, 0);
+	shadowMask_Terrain.assign(shadowMask_size, 0);
+	shadowMask_Overlay.assign(shadowMask_size, 0);
+	shadowMask.assign(shadowMask_size, 0);
+	shadowHeightMask.assign(shadowMask_size, 0);
+	cellHeightMask.assign(shadowMask_size, 0);
+	objectOverlapMask.assign(shadowMask_size, CHAR_MIN);
 
 	//loop1: tiles
 	std::vector<MapCoord> RedrawCoords;
@@ -1036,6 +1049,23 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							}
 						}
 						continue;
+					}
+				}
+			}
+		}
+
+		if (cell->Flag.RedrawTerrain)
+		{
+			for (int dx = -2; dx <= 2; ++dx) {
+				for (int dy = -2; dy <= 2; ++dy) {
+
+					int nx = X + dx;
+					int ny = Y + dy;
+					auto it = coordToIndex.find({ nx,ny });
+					if (it != coordToIndex.end()) {
+						int neighborIndex = it->second;
+						auto& neighbor = visibleCells[neighborIndex];
+						neighbor.aroundRedrawCell = true;
 					}
 				}
 			}
@@ -1904,7 +1934,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								shadow ? &shadowMask : nullptr,
 								shadow ? &shadowHeightMask : nullptr,
 								cell->Height + (subTile.YMinusExY < 0 ? ((subTile.YMinusExY + 15) / -30) : 0), 
-								nullptr, tileSetOri, cell->Flag.RedrawTerrain ? &objectOverlapMask : nullptr);
+								nullptr, tileSetOri, &objectOverlapMask);
 
 							if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
 							{
@@ -1972,7 +2002,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-						x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false);
+						x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false,
+						info.aroundRedrawCell ? &objectOverlapMask : nullptr);
 				}
 			}
 		}
@@ -2441,7 +2472,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							x - pData->FullWidth / 2,
 							y - pData->FullHeight / 2 + 15 - (HoveringUnit ? 10 : 0) -
 							(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
-							pData, NULL, isCloakable(obj.TypeID) ? 128 : 255, color, 0, true, &objectOverlapMask); };
+							pData, NULL, isCloakable(obj.TypeID) ? 128 : 255, color, 0, true, 
+							info.aroundRedrawCell ? &objectOverlapMask : nullptr); };
 						draw();
 
 						if (CIsoViewExt::DrawVeterancy)
@@ -2519,7 +2551,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 							x - pData->FullWidth / 2, y - pData->FullHeight / 2 + 15, pData, NULL,
-							isCloakable(obj.TypeID) ? 128 : 255, color, 2, true); };
+							isCloakable(obj.TypeID) ? 128 : 255, color, 2, true,
+							info.aroundRedrawCell ? &objectOverlapMask : nullptr); };
 						draw();
 
 						if (CIsoViewExt::DrawVeterancy)
@@ -2622,7 +2655,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL,
-								isCloakable(obj.TypeID) ? 128 : 255, color, 1, true); };
+								isCloakable(obj.TypeID) ? 128 : 255, color, 1, true,
+								info.aroundRedrawCell ? &objectOverlapMask : nullptr); };
 							draw();
 
 							if (CIsoViewExt::DrawVeterancy)

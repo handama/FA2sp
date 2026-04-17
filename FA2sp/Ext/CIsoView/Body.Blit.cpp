@@ -1065,7 +1065,7 @@ void BlitTerrainImpl(
                 if (wx >= window.left && wx < window.right 
                     && wy >= window.top && wy < window.bottom) [[likely]] { 
                     int index = wx - window.left + (wy - window.top) * (window.right - window.left); 
-                    if ((*objectOverlapMask)[index] >= height)
+                    if ((*objectOverlapMask)[index] + 2 >= height)
                         continue;
                 } 
             }

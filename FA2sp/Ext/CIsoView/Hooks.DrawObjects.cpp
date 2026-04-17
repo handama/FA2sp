@@ -931,7 +931,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			if (CMapData::Instance->IsCoordInMap(X + i, Y + i))
 			{
 				auto frontCell = CMapData::Instance->GetCellAt(X + i, Y + i);
-				if (frontCell->Height - cell->Height >= 2 * i)
+				if (getTileVirtualHeight(frontCell) - cell->Height >= 2 * i)
 				{
 					info.isBlocked = true;
 					break;

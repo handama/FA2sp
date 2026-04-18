@@ -1798,7 +1798,7 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			}
 			else if (hWnd == ::GetDlgItem(CObjectSearch::GetHandle(), CObjectSearch::Input)) {
 				::ShowWindow(CObjectSearch::GetHandle(), SW_SHOW);
-				::SendMessage(CObjectSearch::GetHandle(), 114514, 0, 0);
+				::SendMessage(CObjectSearch::GetHandle(), 114516, 0, 0);
 				ExtraWindow::bEnterSearch = false;
 				return TRUE;
 			}

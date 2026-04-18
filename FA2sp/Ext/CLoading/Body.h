@@ -125,7 +125,8 @@ public:
 		Aircraft = 2,
 		Building = 3,
 		Terrain = 4,
-		Smudge = 5
+		Smudge = 5,
+		Overlay = 6
 	};
 	static FString GetBuildingImageName(FString ID, int nFacing, int state, bool bShadow = false);
 	

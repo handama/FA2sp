@@ -59,9 +59,61 @@ static std::vector<byte> shadowMask;
 static std::vector<byte> shadowHeightMask;
 static std::vector<int> cellHeightMask;
 static std::vector<char> objectOverlapMask;
+static std::vector<MapCoord> RedrawCoords;
+static std::unordered_map<int, CBuildingData> BuildingDataCache;
+static std::unordered_map<int, CInfantryData> InfantryDataCache;
+static std::unordered_map<int, CUnitData> UnitDataCache;
+static std::unordered_map<int, CAircraftData> AircraftDataCache;
 
 #define EXTRA_BORDER 15
 
+inline static CBuildingData& GetBuildingData(int index)
+{
+	return BuildingDataCache[index];
+}
+
+inline static CInfantryData& GetInfantryData(int index)
+{
+	return InfantryDataCache[index];
+}
+
+inline static CUnitData& GetUnitData(int index)
+{
+	return UnitDataCache[index];
+}
+
+inline static CAircraftData& GetAircraftData(int index)
+{
+	return AircraftDataCache[index];
+}
+
+inline static CBuildingData& SetBuildingData(int index)
+{
+	auto& obj = BuildingDataCache[index];
+	CMapDataExt::GetBuildingDataByIniID(index, obj);
+	return obj;
+}
+
+inline static CInfantryData& SetInfantryData(int index)
+{
+	auto& obj = InfantryDataCache[index];
+	CMapData::Instance->GetInfantryData(index, obj);
+	return obj;
+}
+
+inline static CUnitData& SetUnitData(int index)
+{
+	auto& obj = UnitDataCache[index];
+	CMapData::Instance->GetUnitData(index, obj);
+	return obj;
+}
+
+inline static CAircraftData& SetAircraftData(int index)
+{
+	auto& obj = AircraftDataCache[index];
+	CMapData::Instance->GetAircraftData(index, obj);
+	return obj;
+}
 inline static bool IsCoordInWindow(int X, int Y)
 {
 	return
@@ -438,6 +490,11 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 	coordToIndex.clear();
 	DrawnBuildings.clear();
 	DrawnBaseNodes.clear();
+	RedrawCoords.clear();
+	BuildingDataCache.clear();
+	InfantryDataCache.clear();
+	UnitDataCache.clear();
+	AircraftDataCache.clear();
 
 	RECT rect;
 	::GetClientRect(pThis->GetSafeHwnd(), &rect);
@@ -534,6 +591,7 @@ DEFINE_HOOK(46E815, CIsoView_Draw_Optimize_GetBorder, 5)
 
 DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 {
+	ScopedTimer t("1");
 	GET_STACK(float, DrawOffsetX, STACK_OFFS(0xD18, 0xCB0));
 	GET_STACK(float, DrawOffsetY, STACK_OFFS(0xD18, 0xCB8));
 
@@ -578,136 +636,177 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	HDC hDC;
 	CIsoViewExt::GetBackBuffer()->GetDC(&hDC);
 
-	if (CIsoViewExt::DrawInfantries && CIsoViewExt::DrawInfantriesFilter && CViewObjectsExt::InfantryBrushDlgF)
+	auto isCoordInFullMap = [](int X, int Y)
 	{
-		auto CheckValue = [&](int nCheckBoxIdx, const ppmfc::CString& src, const ppmfc::CString& dst)
+		if (!ExtConfigs::DisplayObjectsOutside)
+			return CMapData::Instance->IsCoordInMap(X, Y);
+
+		return X >= 0 && Y >= 0 &&
+			X < CMapData::Instance->MapWidthPlusHeight &&
+			Y < CMapData::Instance->MapWidthPlusHeight;
+	};
+
+	for (int XplusY = VisibleCoordTL.X + VisibleCoordTL.Y - EXTRA_BORDER;
+		XplusY < VisibleCoordBR.X + VisibleCoordBR.Y + CIsoViewExt::EXTRA_BORDER_BOTTOM;
+		XplusY++) {
+		for (int X = 0; X < XplusY; X++) {
+			int Y = XplusY - X;
+			if (!IsCoordInWindow(X, Y) || !isCoordInFullMap(X, Y)) continue;
+			int pos = CMapData::Instance->GetCoordIndex(X, Y);
+			int screenX = X, screenY = Y;
+			CIsoView::MapCoord2ScreenCoord(screenX, screenY);
+			screenX -= DrawOffsetX;
+			screenY -= DrawOffsetY;
+			auto cell = CMapData::Instance->GetCellAt(pos);
+			auto& cellExt = CMapDataExt::CellDataExts[pos];
+			coordToIndex[{X, Y}] = visibleCells.size();
+			visibleCells.push_back({ X, Y, screenX, screenY, pos,
+				CMapData::Instance->IsCoordInMap(X, Y),
+				cell,
+				&cellExt,
+				false });
+
+			cell->Flag.RedrawTerrain = false;
+			cellExt.BuildingRenderParts.clear();
+			cellExt.BaseNodeRenderParts.clear();
+
+			if (cell->Structure > -1 && cell->Structure < CMapDataExt::StructureIndexMap.size()
+				&& CIsoViewExt::DrawStructures&& CIsoViewExt::DrawStructuresFilter&& CViewObjectsExt::BuildingBrushDlgBF)
 			{
-				if (CViewObjectsExt::InfantryBrushBoolsF[nCheckBoxIdx - 1300])
+				auto StrINIIndex = CMapDataExt::StructureIndexMap[cell->Structure];
+				if (StrINIIndex != -1)
 				{
-					if (dst == src) return true;
-					else return false;
+					auto& data = SetBuildingData(StrINIIndex);
+					auto CheckValue = [&](int nCheckBoxIdx, const ppmfc::CString& src, const ppmfc::CString& dst)
+					{
+						if (CViewObjectsExt::BuildingBrushBoolsBF[nCheckBoxIdx - 1300])
+						{
+							if (dst == src) return true;
+							else return false;
+						}
+						return true;
+					};
+
+					const auto& filter = CViewObjectsExt::ObjectFilterB;
+					if (filter.empty() || std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
+					{
+						if (CheckValue(1300, CViewObjectsExt::BuildingBrushDlgBF->CString_House, data.House) &&
+							CheckValue(1301, CViewObjectsExt::BuildingBrushDlgBF->CString_HealthPoint, data.Health) &&
+							CheckValue(1302, CViewObjectsExt::BuildingBrushDlgBF->CString_Direction, data.Facing) &&
+							CheckValue(1303, CViewObjectsExt::BuildingBrushDlgBF->CString_Sellable, data.AISellable) &&
+							CheckValue(1304, CViewObjectsExt::BuildingBrushDlgBF->CString_Rebuildable, data.AIRebuildable) &&
+							CheckValue(1305, CViewObjectsExt::BuildingBrushDlgBF->CString_EnergySupport, data.PoweredOn) &&
+							CheckValue(1306, CViewObjectsExt::BuildingBrushDlgBF->CString_UpgradeCount, data.Upgrades) &&
+							CheckValue(1307, CViewObjectsExt::BuildingBrushDlgBF->CString_Spotlight, data.SpotLight) &&
+							CheckValue(1308, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade1, data.Upgrade1) &&
+							CheckValue(1309, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade2, data.Upgrade2) &&
+							CheckValue(1310, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade3, data.Upgrade3) &&
+							CheckValue(1311, CViewObjectsExt::BuildingBrushDlgBF->CString_AIRepairs, data.AIRepairable) &&
+							CheckValue(1312, CViewObjectsExt::BuildingBrushDlgBF->CString_ShowName, data.Nominal) &&
+							CheckValue(1313, CViewObjectsExt::BuildingBrushDlgBF->CString_Tag, data.Tag))
+							CIsoViewExt::VisibleStructures.insert(StrINIIndex);
+					}
 				}
-				return true;
-			};
-		short idx = 0;
-		for (const auto& data : CMapData::Instance->InfantryDatas)
-		{
-			const auto& filter = CViewObjectsExt::ObjectFilterI;
-			if (filter.empty() || std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
-			{
-				if (CheckValue(1300, CViewObjectsExt::InfantryBrushDlgF->CString_House, data.House) &&
-					CheckValue(1301, CViewObjectsExt::InfantryBrushDlgF->CString_HealthPoint, data.Health) &&
-					CheckValue(1302, CViewObjectsExt::InfantryBrushDlgF->CString_State, data.Status) &&
-					CheckValue(1303, CViewObjectsExt::InfantryBrushDlgF->CString_Direction, data.Facing) &&
-					CheckValue(1304, CViewObjectsExt::InfantryBrushDlgF->CString_VerteranStatus, data.VeterancyPercentage) &&
-					CheckValue(1305, CViewObjectsExt::InfantryBrushDlgF->CString_Group, data.Group) &&
-					CheckValue(1306, CViewObjectsExt::InfantryBrushDlgF->CString_OnBridge, data.IsAboveGround) &&
-					CheckValue(1307, CViewObjectsExt::InfantryBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
-					CheckValue(1308, CViewObjectsExt::InfantryBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
-					CheckValue(1309, CViewObjectsExt::InfantryBrushDlgF->CString_Tag, data.Tag))
-					CIsoViewExt::VisibleInfantries.insert(idx);
 			}
-			idx++;
-		}
-	}
-	if (CIsoViewExt::DrawUnits && CIsoViewExt::DrawUnitsFilter && CViewObjectsExt::VehicleBrushDlgF)
-	{
-		auto CheckValue = [&](int nCheckBoxIdx, const ppmfc::CString& src, const ppmfc::CString& dst)
+			if (cell->Unit > -1)
 			{
-				if (CViewObjectsExt::VehicleBrushBoolsF[nCheckBoxIdx - 1300])
+				auto& data = SetUnitData(cell->Unit);
+
+				if (CIsoViewExt::DrawUnits && CIsoViewExt::DrawUnitsFilter && CViewObjectsExt::VehicleBrushDlgF)
 				{
-					if (dst == src) return true;
-					else return false;
+					auto CheckValue = [&](int nCheckBoxIdx, const ppmfc::CString& src, const ppmfc::CString& dst)
+					{
+						if (CViewObjectsExt::VehicleBrushBoolsF[nCheckBoxIdx - 1300])
+						{
+							if (dst == src) return true;
+							else return false;
+						}
+						return true;
+					};
+					const auto& filter = CViewObjectsExt::ObjectFilterV;
+					if (filter.empty() || std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
+					{
+						if (CheckValue(1300, CViewObjectsExt::VehicleBrushDlgF->CString_House, data.House) &&
+							CheckValue(1301, CViewObjectsExt::VehicleBrushDlgF->CString_HealthPoint, data.Health) &&
+							CheckValue(1302, CViewObjectsExt::VehicleBrushDlgF->CString_State, data.Status) &&
+							CheckValue(1303, CViewObjectsExt::VehicleBrushDlgF->CString_Direction, data.Facing) &&
+							CheckValue(1304, CViewObjectsExt::VehicleBrushDlgF->CString_VeteranLevel, data.VeterancyPercentage) &&
+							CheckValue(1305, CViewObjectsExt::VehicleBrushDlgF->CString_Group, data.Group) &&
+							CheckValue(1306, CViewObjectsExt::VehicleBrushDlgF->CString_OnBridge, data.IsAboveGround) &&
+							CheckValue(1307, CViewObjectsExt::VehicleBrushDlgF->CString_FollowerID, data.FollowsIndex) &&
+							CheckValue(1308, CViewObjectsExt::VehicleBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
+							CheckValue(1309, CViewObjectsExt::VehicleBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
+							CheckValue(1310, CViewObjectsExt::VehicleBrushDlgF->CString_Tag, data.Tag))
+							CIsoViewExt::VisibleUnits.insert(cell->Unit);
+					}
 				}
-				return true;
-			};
-		short idx = 0;
-		for (short idx = 0; idx < CINI::CurrentDocument->GetKeyCount("Units"); idx++)
-		{
-			CUnitData data;
-			CMapData::Instance->GetUnitData(idx, data);
-			const auto& filter = CViewObjectsExt::ObjectFilterV;
-			if (filter.empty() || std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
-			{
-				if (CheckValue(1300, CViewObjectsExt::VehicleBrushDlgF->CString_House, data.House) &&
-					CheckValue(1301, CViewObjectsExt::VehicleBrushDlgF->CString_HealthPoint, data.Health) &&
-					CheckValue(1302, CViewObjectsExt::VehicleBrushDlgF->CString_State, data.Status) &&
-					CheckValue(1303, CViewObjectsExt::VehicleBrushDlgF->CString_Direction, data.Facing) &&
-					CheckValue(1304, CViewObjectsExt::VehicleBrushDlgF->CString_VeteranLevel, data.VeterancyPercentage) &&
-					CheckValue(1305, CViewObjectsExt::VehicleBrushDlgF->CString_Group, data.Group) &&
-					CheckValue(1306, CViewObjectsExt::VehicleBrushDlgF->CString_OnBridge, data.IsAboveGround) &&
-					CheckValue(1307, CViewObjectsExt::VehicleBrushDlgF->CString_FollowerID, data.FollowsIndex) &&
-					CheckValue(1308, CViewObjectsExt::VehicleBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
-					CheckValue(1309, CViewObjectsExt::VehicleBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
-					CheckValue(1310, CViewObjectsExt::VehicleBrushDlgF->CString_Tag, data.Tag))
-					CIsoViewExt::VisibleUnits.insert(idx);
 			}
-		}
-	}
-	if (CIsoViewExt::DrawAircrafts && CIsoViewExt::DrawAircraftsFilter && CViewObjectsExt::AircraftBrushDlgF)
-	{
-		auto CheckValue = [&](int nCheckBoxIdx, const ppmfc::CString& src, const ppmfc::CString& dst)
+			if (cell->Aircraft > -1)
 			{
-				if (CViewObjectsExt::AircraftBrushBoolsF[nCheckBoxIdx - 1300])
+				auto& data = SetAircraftData(cell->Aircraft);
+
+				if (CIsoViewExt::DrawAircrafts && CIsoViewExt::DrawAircraftsFilter && CViewObjectsExt::AircraftBrushDlgF)
 				{
-					if (dst == src) return true;
-					else return false;
+					auto CheckValue = [&](int nCheckBoxIdx, const ppmfc::CString& src, const ppmfc::CString& dst)
+					{
+						if (CViewObjectsExt::AircraftBrushBoolsF[nCheckBoxIdx - 1300])
+						{
+							if (dst == src) return true;
+							else return false;
+						}
+						return true;
+					};
+					const auto& filter = CViewObjectsExt::ObjectFilterA;
+					if (filter.empty() || std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
+					{
+						if (CheckValue(1300, CViewObjectsExt::AircraftBrushDlgF->CString_House, data.House) &&
+							CheckValue(1301, CViewObjectsExt::AircraftBrushDlgF->CString_HealthPoint, data.Health) &&
+							CheckValue(1302, CViewObjectsExt::AircraftBrushDlgF->CString_Direction, data.Facing) &&
+							CheckValue(1303, CViewObjectsExt::AircraftBrushDlgF->CString_Status, data.Status) &&
+							CheckValue(1304, CViewObjectsExt::AircraftBrushDlgF->CString_VeteranLevel, data.VeterancyPercentage) &&
+							CheckValue(1305, CViewObjectsExt::AircraftBrushDlgF->CString_Group, data.Group) &&
+							CheckValue(1306, CViewObjectsExt::AircraftBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
+							CheckValue(1307, CViewObjectsExt::AircraftBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
+							CheckValue(1308, CViewObjectsExt::AircraftBrushDlgF->CString_Tag, data.Tag))
+							CIsoViewExt::VisibleAircrafts.insert(cell->Aircraft);
+					}
 				}
-				return true;
-			};
-		for (short idx = 0; idx < CINI::CurrentDocument->GetKeyCount("Aircraft"); idx++)
-		{
-			CAircraftData data;
-			CMapData::Instance->GetAircraftData(idx, data);
-			const auto& filter = CViewObjectsExt::ObjectFilterA;
-			if (filter.empty() || std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
-			{
-				if (CheckValue(1300, CViewObjectsExt::AircraftBrushDlgF->CString_House, data.House) &&
-					CheckValue(1301, CViewObjectsExt::AircraftBrushDlgF->CString_HealthPoint, data.Health) &&
-					CheckValue(1302, CViewObjectsExt::AircraftBrushDlgF->CString_Direction, data.Facing) &&
-					CheckValue(1303, CViewObjectsExt::AircraftBrushDlgF->CString_Status, data.Status) &&
-					CheckValue(1304, CViewObjectsExt::AircraftBrushDlgF->CString_VeteranLevel, data.VeterancyPercentage) &&
-					CheckValue(1305, CViewObjectsExt::AircraftBrushDlgF->CString_Group, data.Group) &&
-					CheckValue(1306, CViewObjectsExt::AircraftBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
-					CheckValue(1307, CViewObjectsExt::AircraftBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
-					CheckValue(1308, CViewObjectsExt::AircraftBrushDlgF->CString_Tag, data.Tag))
-					CIsoViewExt::VisibleAircrafts.insert(idx);
 			}
-		}
-	}
-	if (CIsoViewExt::DrawStructures && CIsoViewExt::DrawStructuresFilter && CViewObjectsExt::BuildingBrushDlgBF)
-	{
-		auto CheckValue = [&](int nCheckBoxIdx, const ppmfc::CString& src, const ppmfc::CString& dst)
+			for (int i = 0; i < 3; ++i)
 			{
-				if (CViewObjectsExt::BuildingBrushBoolsBF[nCheckBoxIdx - 1300])
+				if (cell->Infantry[i] > -1)
 				{
-					if (dst == src) return true;
-					else return false;
+					auto& data = SetInfantryData(cell->Infantry[i]);
+
+					if (CIsoViewExt::DrawInfantries && CIsoViewExt::DrawInfantriesFilter && CViewObjectsExt::InfantryBrushDlgF)
+					{
+						auto CheckValue = [&](int nCheckBoxIdx, const ppmfc::CString& src, const ppmfc::CString& dst)
+						{
+							if (CViewObjectsExt::InfantryBrushBoolsF[nCheckBoxIdx - 1300])
+							{
+								if (dst == src) return true;
+								else return false;
+							}
+							return true;
+						};
+
+						const auto& filter = CViewObjectsExt::ObjectFilterI;
+						if (filter.empty() || std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
+						{
+							if (CheckValue(1300, CViewObjectsExt::InfantryBrushDlgF->CString_House, data.House) &&
+								CheckValue(1301, CViewObjectsExt::InfantryBrushDlgF->CString_HealthPoint, data.Health) &&
+								CheckValue(1302, CViewObjectsExt::InfantryBrushDlgF->CString_State, data.Status) &&
+								CheckValue(1303, CViewObjectsExt::InfantryBrushDlgF->CString_Direction, data.Facing) &&
+								CheckValue(1304, CViewObjectsExt::InfantryBrushDlgF->CString_VerteranStatus, data.VeterancyPercentage) &&
+								CheckValue(1305, CViewObjectsExt::InfantryBrushDlgF->CString_Group, data.Group) &&
+								CheckValue(1306, CViewObjectsExt::InfantryBrushDlgF->CString_OnBridge, data.IsAboveGround) &&
+								CheckValue(1307, CViewObjectsExt::InfantryBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
+								CheckValue(1308, CViewObjectsExt::InfantryBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
+								CheckValue(1309, CViewObjectsExt::InfantryBrushDlgF->CString_Tag, data.Tag))
+								CIsoViewExt::VisibleInfantries.insert(cell->Infantry[i]);
+						}
+					}
 				}
-				return true;
-			};
-		for (short idx = 0; idx < CINI::CurrentDocument->GetKeyCount("Structures"); idx++)
-		{
-			CBuildingData data;
-			CMapDataExt::GetBuildingDataByIniID(idx, data);
-			const auto& filter = CViewObjectsExt::ObjectFilterB;
-			if (filter.empty() || std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
-			{
-				if (CheckValue(1300, CViewObjectsExt::BuildingBrushDlgBF->CString_House, data.House) &&
-					CheckValue(1301, CViewObjectsExt::BuildingBrushDlgBF->CString_HealthPoint, data.Health) &&
-					CheckValue(1302, CViewObjectsExt::BuildingBrushDlgBF->CString_Direction, data.Facing) &&
-					CheckValue(1303, CViewObjectsExt::BuildingBrushDlgBF->CString_Sellable, data.AISellable) &&
-					CheckValue(1304, CViewObjectsExt::BuildingBrushDlgBF->CString_Rebuildable, data.AIRebuildable) &&
-					CheckValue(1305, CViewObjectsExt::BuildingBrushDlgBF->CString_EnergySupport, data.PoweredOn) &&
-					CheckValue(1306, CViewObjectsExt::BuildingBrushDlgBF->CString_UpgradeCount, data.Upgrades) &&
-					CheckValue(1307, CViewObjectsExt::BuildingBrushDlgBF->CString_Spotlight, data.SpotLight) &&
-					CheckValue(1308, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade1, data.Upgrade1) &&
-					CheckValue(1309, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade2, data.Upgrade2) &&
-					CheckValue(1310, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade3, data.Upgrade3) &&
-					CheckValue(1311, CViewObjectsExt::BuildingBrushDlgBF->CString_AIRepairs, data.AIRepairable) &&
-					CheckValue(1312, CViewObjectsExt::BuildingBrushDlgBF->CString_ShowName, data.Nominal) &&
-					CheckValue(1313, CViewObjectsExt::BuildingBrushDlgBF->CString_Tag, data.Tag))
-					CIsoViewExt::VisibleStructures.insert(idx);
 			}
 		}
 	}
@@ -733,16 +832,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 		return false;
 	});
-
-	auto isCoordInFullMap = [](int X, int Y)
-	{
-		if (!ExtConfigs::DisplayObjectsOutside)
-			return CMapData::Instance->IsCoordInMap(X, Y);
-
-		return X >= 0 && Y >= 0 &&
-			X < CMapData::Instance->MapWidthPlusHeight &&
-			Y < CMapData::Instance->MapWidthPlusHeight;
-	};
 
 	auto isCellHidden = [](CellData* pCell)
 	{
@@ -791,32 +880,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		return cell->Height;
 	};
 
-	for (int XplusY = VisibleCoordTL.X + VisibleCoordTL.Y - EXTRA_BORDER; 
-		XplusY < VisibleCoordBR.X + VisibleCoordBR.Y + CIsoViewExt::EXTRA_BORDER_BOTTOM; 
-		XplusY++) {
-		for (int X = 0; X < XplusY; X++) {
-			int Y = XplusY - X;
-			if (!IsCoordInWindow(X, Y) || !isCoordInFullMap(X, Y)) continue;
-			int pos = CMapData::Instance->GetCoordIndex(X, Y);
-			int screenX = X, screenY = Y;
-			CIsoView::MapCoord2ScreenCoord(screenX, screenY);
-			screenX -= DrawOffsetX;
-			screenY -= DrawOffsetY;
-			auto cell = CMapData::Instance->GetCellAt(pos);
-			auto& cellExt = CMapDataExt::CellDataExts[pos];
-			coordToIndex[{X, Y}] = visibleCells.size();
-			visibleCells.push_back({ X, Y, screenX, screenY, pos,
-				CMapData::Instance->IsCoordInMap(X, Y), 
-				cell,
-				&cellExt,
-				false });
-
-			cell->Flag.RedrawTerrain = false;
-			cellExt.BuildingRenderParts.clear();
-			cellExt.BaseNodeRenderParts.clear();
-		}
-	}
-
 	bool shadow = CIsoViewExt::DrawShadows && ExtConfigs::InGameDisplay_Shadow;
 	int shadowMask_width = window.right - window.left;
 	int shadowMask_height = window.bottom - window.top;
@@ -831,7 +894,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	objectOverlapMask.assign(shadowMask_size, CHAR_MIN);
 
 	//loop1: tiles
-	std::vector<MapCoord> RedrawCoords;
 	for (auto& info : visibleCells)
 	{
 		if (!info.isInMap) continue;
@@ -1387,7 +1449,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									}
 								}
 
-
 								if (cellExt)
 								{
 									bool hasFire = status == CLoadingExt::GBIN_DAMAGED;
@@ -1515,6 +1576,13 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						x1 -= DrawOffsetX;
 						y1 -= DrawOffsetY;
 
+						MapCoord buildingOrigin{ node.X , node.Y };
+						if (!IsCoordInWindow(node.X, node.Y))
+						{
+							buildingOrigin.X = X;
+							buildingOrigin.Y = Y;
+						}
+
 						const auto& imageName = CLoadingExt::GetBuildingImageName(node.ID, 0, 0);
 						auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
 						Palette* pPal = nullptr;
@@ -1551,8 +1619,52 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									break;
 								}
 							}
+							if (!IsCoordInWindow(coordInMap.X, coordInMap.Y))
+							{
+								coordInMap.X = X;
+								coordInMap.Y = Y;
+							}
 							CellDataExt* cellExt = nullptr;
-							if (isCoordInFullMap(coordInMap.X, coordInMap.Y))
+							bool objectsOnBuilding = false;
+							if (!DataExt.IsCustomFoundation())
+							{
+								for (int dy = 0; dy < DataExt.Width; ++dy)
+								{
+									for (int dx = 0; dx < DataExt.Height; ++dx)
+									{
+										const int x = node.X + dx;
+										const int y = node.Y + dy;
+										auto cell = CMapData::Instance->TryGetCellAt(x, y);
+										if (cell->Aircraft > -1 || cell->Unit > -1
+											|| cell->Infantry[0] > -1 || cell->Infantry[1] > -1 || cell->Infantry[2] > -1)
+										{
+											objectsOnBuilding = true;
+											break;
+										}
+									}
+								}
+							}
+							else
+							{
+								for (const auto& block : *DataExt.Foundations)
+								{
+									const int x = node.X + block.Y;
+									const int y = node.Y + block.X;
+									auto cell = CMapData::Instance->TryGetCellAt(x, y);
+									if (cell->Aircraft > -1 || cell->Unit > -1
+										|| cell->Infantry[0] > -1 || cell->Infantry[1] > -1 || cell->Infantry[2] > -1)
+									{
+										objectsOnBuilding = true;
+										break;
+									}
+								}
+							}
+							if (objectsOnBuilding)
+							{
+								cellExt = &CMapDataExt::CellDataExts
+									[CMapData::Instance->GetCoordIndex(buildingOrigin.X, buildingOrigin.Y)];
+							}
+							else if (isCoordInFullMap(coordInMap.X, coordInMap.Y))
 							{
 								cellExt = &CMapDataExt::CellDataExts
 									[CMapData::Instance->GetCoordIndex(coordInMap.X, coordInMap.Y)];
@@ -1601,8 +1713,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					|| std::find(filter.begin(), filter.end(), cell->Infantry[i]) != filter.end()
 					)
 				{
-					CInfantryData obj;
-					CMapData::Instance->GetInfantryData(cell->Infantry[i], obj);				
+					auto& obj = GetInfantryData(cell->Infantry[i]);
 					if ((!CIsoViewExt::RenderingMap
 						|| CIsoViewExt::RenderingMap
 						&& CIsoViewExt::MapRendererIgnoreObjects.find(obj.TypeID)
@@ -1688,8 +1799,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			if (!CIsoViewExt::DrawUnitsFilter
 				|| std::find(filter.begin(), filter.end(), cell->Unit) != filter.end())
 			{
-				CUnitData obj;
-				CMapData::Instance->GetUnitData(cell->Unit, obj);
+				auto& obj = GetUnitData(cell->Unit);
 				if ((!CIsoViewExt::RenderingMap
 					|| CIsoViewExt::RenderingMap
 					&& CIsoViewExt::MapRendererIgnoreObjects.find(obj.TypeID)
@@ -1748,8 +1858,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			if (!CIsoViewExt::DrawAircraftsFilter
 				|| std::find(filter.begin(), filter.end(), cell->Aircraft) != filter.end())
 			{
-				CAircraftData obj;
-				CMapData::Instance->GetAircraftData(cell->Aircraft, obj);
+				auto& obj = GetAircraftData(cell->Aircraft);
 				if ((!CIsoViewExt::RenderingMap
 					|| CIsoViewExt::RenderingMap
 					&& CIsoViewExt::MapRendererIgnoreObjects.find(obj.TypeID)
@@ -2433,9 +2542,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			if (!CIsoViewExt::DrawUnitsFilter
 				|| std::find(filter.begin(), filter.end(), cell->Unit) != filter.end())
 			{
-				CUnitData obj;
-				CMapData::Instance->GetUnitData(cell->Unit, obj);
-
+				auto& obj = GetUnitData(cell->Unit);
 				if (!CIsoViewExt::RenderingMap
 					|| CIsoViewExt::RenderingMap
 					&& CIsoViewExt::MapRendererIgnoreObjects.find(obj.TypeID)
@@ -2513,8 +2620,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			if (!CIsoViewExt::DrawAircraftsFilter
 				|| std::find(filter.begin(), filter.end(), cell->Aircraft) != filter.end())
 			{
-				CAircraftData obj;
-				CMapData::Instance->GetAircraftData(cell->Aircraft, obj);
+				auto& obj = GetAircraftData(cell->Aircraft);
 				if (!CIsoViewExt::RenderingMap
 					|| CIsoViewExt::RenderingMap
 					&& CIsoViewExt::MapRendererIgnoreObjects.find(obj.TypeID)
@@ -2592,8 +2698,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				if (!CIsoViewExt::DrawInfantriesFilter
 					|| std::find(filter.begin(), filter.end(), cell->Infantry[i]) != filter.end())
 				{
-					CInfantryData obj;
-					CMapData::Instance->GetInfantryData(cell->Infantry[i], obj);
+					auto& obj = GetInfantryData(cell->Infantry[i]);
 					if (!CIsoViewExt::RenderingMap
 						|| CIsoViewExt::RenderingMap
 						&& CIsoViewExt::MapRendererIgnoreObjects.find(obj.TypeID)

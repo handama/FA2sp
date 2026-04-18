@@ -1052,6 +1052,12 @@ DEFINE_HOOK(4AAE98, CMapData_GetStructureData, A)
 	return 0;
 }
 
+//void GetBuildingData(int bldID, CBuildingData& data) { JMP_THIS(0x4AADB0); }
+//void GetInfantryData(int infID, CInfantryData& data) { JMP_THIS(0x4AEC30); }
+//void GetUnitData(int unitID, CUnitData& data) { JMP_THIS(0x4AED40); }
+//void GetAircraftData(int aircraftID, CAircraftData& data) { JMP_THIS(0x4AF430); }
+//void GetTerrainData(int terrainID, ppmfc::CString lpType) { JMP_THIS(0x4B1740); }
+
 DEFINE_HOOK(4B4996, CMapData_UpdateMapFieldData_NoRndForBridge, 6)
 {
 	GET(DWORD, dwID6, EAX);

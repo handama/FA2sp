@@ -291,10 +291,12 @@ BOOL CALLBACK CObjectSearch::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
         }
         CObjectSearch::OnSearchButtonUp(hwnd);
         break;
+    case 114516:
+        CObjectSearch::OnSearchButtonUp(hwnd);
+        break;
     case 114515:
         UpdateTypes(hwnd);
         break;
-
     }
 
     // Process this message through default handler

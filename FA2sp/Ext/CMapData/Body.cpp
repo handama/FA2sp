@@ -2731,6 +2731,8 @@ void ObjectRecord::recover()
 	{
 		recoverIniValue("Structures", BuildingList);
 		CMapDataExt::UpdateFieldStructureData_RedrawMinimap();
+		if (CFinalSunDlgExt::CurrentLighting != 31000)
+			LightingSourceTint::CalculateMapLamps();
 		recoverEditedMark = true;
 	}
 	if (recordFlags & RecordType::Unit)

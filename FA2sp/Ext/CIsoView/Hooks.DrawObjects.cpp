@@ -897,7 +897,6 @@ DEFINE_HOOK(46E815, CIsoView_Draw_Optimize_GetBorder, 5)
 
 DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 {
-	ScopedTimer t("1");
 	GET_STACK(float, DrawOffsetX, STACK_OFFS(0xD18, 0xCB0));
 	GET_STACK(float, DrawOffsetY, STACK_OFFS(0xD18, 0xCB8));
 

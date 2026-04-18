@@ -40,6 +40,84 @@ struct CellInfo {
 	bool aroundRedrawCell;
 };
 
+class CBuildingDataFS
+{
+public:
+
+	FString House;
+	FString TypeID;
+	FString Health;
+	FString Y;
+	FString X;
+	FString Facing;
+	FString Tag;
+	FString AISellable;
+	FString AIRebuildable;
+	FString PoweredOn;
+	FString Upgrades;
+	FString SpotLight;
+	FString Upgrade1;
+	FString Upgrade2;
+	FString Upgrade3;
+	FString AIRepairable;
+	FString Nominal;
+};
+
+class CInfantryDataFS
+{
+public:
+	FString House;
+	FString TypeID;
+	FString Health;
+	FString Y;
+	FString X;
+	FString SubCell;
+	FString Status;
+	FString Facing;
+	FString Tag;
+	FString VeterancyPercentage;
+	FString Group;
+	FString IsAboveGround;
+	FString AutoNORecruitType;
+	FString AutoYESRecruitType;
+};
+
+class CUnitDataFS
+{
+public:
+	FString House;
+	FString TypeID;
+	FString Health;
+	FString Y;
+	FString X;
+	FString Facing;
+	FString Status;
+	FString Tag;
+	FString VeterancyPercentage;
+	FString Group;
+	FString IsAboveGround;
+	FString FollowsIndex;
+	FString AutoNORecruitType;
+	FString AutoYESRecruitType;
+};
+
+class CAircraftDataFS
+{
+public:
+	FString House;
+	FString TypeID;
+	FString Health;
+	FString Y;
+	FString X;
+	FString Facing;
+	FString Status;
+	FString Tag;
+	FString VeterancyPercentage;
+	FString Group;
+	FString AutoNORecruitType;
+	FString AutoYESRecruitType;
+};
+
 static std::vector<std::pair<MapCoord, FString>> WaypointsToDraw;
 static std::vector<std::pair<MapCoord, FString>> OverlayTextsToDraw;
 static std::vector<std::pair<MapCoord, FString>> TerrainTextsToDraw;
@@ -60,58 +138,229 @@ static std::vector<byte> shadowHeightMask;
 static std::vector<int> cellHeightMask;
 static std::vector<char> objectOverlapMask;
 static std::vector<MapCoord> RedrawCoords;
-static std::unordered_map<int, CBuildingData> BuildingDataCache;
-static std::unordered_map<int, CInfantryData> InfantryDataCache;
-static std::unordered_map<int, CUnitData> UnitDataCache;
-static std::unordered_map<int, CAircraftData> AircraftDataCache;
+static std::unordered_map<int, CBuildingDataFS> BuildingDataCache;
+static std::unordered_map<int, CInfantryDataFS> InfantryDataCache;
+static std::unordered_map<int, CUnitDataFS> UnitDataCache;
+static std::unordered_map<int, CAircraftDataFS> AircraftDataCache;
+static std::vector<const ppmfc::CString*> BuildingINICache;
+static std::vector<const ppmfc::CString*> InfantryINICache;
+static std::vector<const ppmfc::CString*> UnitINICache;
+static std::vector<const ppmfc::CString*> AircraftINICache;
+static std::vector<ppmfc::CString*> Celltags;
+static std::vector<const ppmfc::CString*> Waypoints;
 
 #define EXTRA_BORDER 15
 
-inline static CBuildingData& GetBuildingData(int index)
+inline static void GetBuildingDataByIniID(int bldID, CBuildingDataFS& data)
+{
+	const char* str = bldID < BuildingINICache.size() ? BuildingINICache[bldID]->GetString() 
+		: CINI::CurrentDocument->GetValueAt("Structures", bldID).GetString();
+
+	const char* start = str;
+	int field = 0;
+
+	auto assign = [&](int idx, const char* s, const char* e)
+	{
+		switch (idx)
+		{
+		case 0:  data.House.assign(s, e - s); break;
+		case 1:  data.TypeID.assign(s, e - s); break;
+		case 2:  data.Health.assign(s, e - s); break;
+		case 3:  data.Y.assign(s, e - s); break;
+		case 4:  data.X.assign(s, e - s); break;
+		case 5:  data.Facing.assign(s, e - s); break;
+		case 6:  data.Tag.assign(s, e - s); break;
+		case 7:  data.AISellable.assign(s, e - s); break;
+		case 8:  data.AIRebuildable.assign(s, e - s); break;
+		case 9:  data.PoweredOn.assign(s, e - s); break;
+		case 10: data.Upgrades.assign(s, e - s); break;
+		case 11: data.SpotLight.assign(s, e - s); break;
+		case 12: data.Upgrade1.assign(s, e - s); break;
+		case 13: data.Upgrade2.assign(s, e - s); break;
+		case 14: data.Upgrade3.assign(s, e - s); break;
+		case 15: data.AIRepairable.assign(s, e - s); break;
+		case 16: data.Nominal.assign(s, e - s); break;
+		default: break;
+		}
+	};
+
+	for (const char* p = str; ; ++p)
+	{
+		if (*p == ',' || *p == '\0')
+		{
+			assign(field++, start, p);
+			if (*p == '\0') break;
+			start = p + 1;
+		}
+	}
+}
+
+inline static void GetInfantryDataByIniID(int id, CInfantryDataFS& data)
+{
+	const char* str = id < InfantryINICache.size() ? InfantryINICache[id]->GetString()
+		: CINI::CurrentDocument->GetValueAt("Infantry", id).GetString();
+
+	const char* start = str;
+	int field = 0;
+
+	auto assign = [&](int idx, const char* s, const char* e)
+	{
+		switch (idx)
+		{
+		case 0:  data.House.assign(s, e - s); break;
+		case 1:  data.TypeID.assign(s, e - s); break;
+		case 2:  data.Health.assign(s, e - s); break;
+		case 3:  data.Y.assign(s, e - s); break;
+		case 4:  data.X.assign(s, e - s); break;
+		case 5:  data.SubCell.assign(s, e - s); break;
+		case 6:  data.Status.assign(s, e - s); break;
+		case 7:  data.Facing.assign(s, e - s); break;
+		case 8:  data.Tag.assign(s, e - s); break;
+		case 9:  data.VeterancyPercentage.assign(s, e - s); break;
+		case 10: data.Group.assign(s, e - s); break;
+		case 11: data.IsAboveGround.assign(s, e - s); break;
+		case 12: data.AutoNORecruitType.assign(s, e - s); break;
+		case 13: data.AutoYESRecruitType.assign(s, e - s); break;
+		default: break;
+		}
+	};
+
+	for (const char* p = str; ; ++p)
+	{
+		if (*p == ',' || *p == '\0')
+		{
+			assign(field++, start, p);
+			if (*p == '\0') break;
+			start = p + 1;
+		}
+	}
+}
+
+inline static void GetUnitDataByIniID(int id, CUnitDataFS& data)
+{
+	const char* str = id < UnitINICache.size() ? UnitINICache[id]->GetString()
+		: CINI::CurrentDocument->GetValueAt("Units", id).GetString();
+
+	const char* start = str;
+	int field = 0;
+
+	auto assign = [&](int idx, const char* s, const char* e)
+	{
+		switch (idx)
+		{
+		case 0:  data.House.assign(s, e - s); break;
+		case 1:  data.TypeID.assign(s, e - s); break;
+		case 2:  data.Health.assign(s, e - s); break;
+		case 3:  data.Y.assign(s, e - s); break;
+		case 4:  data.X.assign(s, e - s); break;
+		case 5:  data.Facing.assign(s, e - s); break;
+		case 6:  data.Status.assign(s, e - s); break;
+		case 7:  data.Tag.assign(s, e - s); break;
+		case 8:  data.VeterancyPercentage.assign(s, e - s); break;
+		case 9:  data.Group.assign(s, e - s); break;
+		case 10: data.IsAboveGround.assign(s, e - s); break;
+		case 11: data.FollowsIndex.assign(s, e - s); break;
+		case 12: data.AutoNORecruitType.assign(s, e - s); break;
+		case 13: data.AutoYESRecruitType.assign(s, e - s); break;
+		default: break;
+		}
+	};
+
+	for (const char* p = str; ; ++p)
+	{
+		if (*p == ',' || *p == '\0')
+		{
+			assign(field++, start, p);
+			if (*p == '\0') break;
+			start = p + 1;
+		}
+	}
+}
+
+inline static void GetAircraftDataByIniID(int id, CAircraftDataFS& data)
+{
+	const char* str = id < AircraftINICache.size() ? AircraftINICache[id]->GetString()
+		: CINI::CurrentDocument->GetValueAt("Aircraft", id).GetString();
+
+	const char* start = str;
+	int field = 0;
+
+	auto assign = [&](int idx, const char* s, const char* e)
+	{
+		switch (idx)
+		{
+		case 0:  data.House.assign(s, e - s); break;
+		case 1:  data.TypeID.assign(s, e - s); break;
+		case 2:  data.Health.assign(s, e - s); break;
+		case 3:  data.Y.assign(s, e - s); break;
+		case 4:  data.X.assign(s, e - s); break;
+		case 5:  data.Facing.assign(s, e - s); break;
+		case 6:  data.Status.assign(s, e - s); break;
+		case 7:  data.Tag.assign(s, e - s); break;
+		case 8:  data.VeterancyPercentage.assign(s, e - s); break;
+		case 9:  data.Group.assign(s, e - s); break;
+		case 10: data.AutoNORecruitType.assign(s, e - s); break;
+		case 11: data.AutoYESRecruitType.assign(s, e - s); break;
+		default: break;
+		}
+	};
+
+	for (const char* p = str; ; ++p)
+	{
+		if (*p == ',' || *p == '\0')
+		{
+			assign(field++, start, p);
+			if (*p == '\0') break;
+			start = p + 1;
+		}
+	}
+}
+
+inline static CBuildingDataFS& GetBuildingData(int index)
 {
 	return BuildingDataCache[index];
 }
 
-inline static CInfantryData& GetInfantryData(int index)
+inline static CInfantryDataFS& GetInfantryData(int index)
 {
 	return InfantryDataCache[index];
 }
 
-inline static CUnitData& GetUnitData(int index)
+inline static CUnitDataFS& GetUnitData(int index)
 {
 	return UnitDataCache[index];
 }
 
-inline static CAircraftData& GetAircraftData(int index)
+inline static CAircraftDataFS& GetAircraftData(int index)
 {
 	return AircraftDataCache[index];
 }
 
-inline static CBuildingData& SetBuildingData(int index)
+inline static CBuildingDataFS& SetBuildingData(int index)
 {
 	auto& obj = BuildingDataCache[index];
-	CMapDataExt::GetBuildingDataByIniID(index, obj);
+	GetBuildingDataByIniID(index, obj);
 	return obj;
 }
 
-inline static CInfantryData& SetInfantryData(int index)
+inline static CInfantryDataFS& SetInfantryData(int index)
 {
 	auto& obj = InfantryDataCache[index];
-	CMapData::Instance->GetInfantryData(index, obj);
+	GetInfantryDataByIniID(index, obj);
 	return obj;
 }
 
-inline static CUnitData& SetUnitData(int index)
+inline static CUnitDataFS& SetUnitData(int index)
 {
 	auto& obj = UnitDataCache[index];
-	CMapData::Instance->GetUnitData(index, obj);
+	GetUnitDataByIniID(index, obj);
 	return obj;
 }
 
-inline static CAircraftData& SetAircraftData(int index)
+inline static CAircraftDataFS& SetAircraftData(int index)
 {
 	auto& obj = AircraftDataCache[index];
-	CMapData::Instance->GetAircraftData(index, obj);
+	GetAircraftDataByIniID(index, obj);
 	return obj;
 }
 inline static bool IsCoordInWindow(int X, int Y)
@@ -132,7 +381,7 @@ inline static bool IsCoordInWindowButOnBottom(int X, int Y)
 		X < Y + VisibleCoordTL.X - VisibleCoordTL.Y + EXTRA_BORDER;
 }
 
-inline static void GetUnitImageID(FString& ImageID, const CUnitData& obj, const LandType& landType)
+inline static void GetUnitImageID(FString& ImageID, const CUnitDataFS& obj, const LandType& landType)
 {
 	if (ExtConfigs::InGameDisplay_Water)
 	{
@@ -495,6 +744,63 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 	InfantryDataCache.clear();
 	UnitDataCache.clear();
 	AircraftDataCache.clear();
+	BuildingINICache.clear();
+	InfantryINICache.clear();
+	UnitINICache.clear();
+	AircraftINICache.clear();
+	Celltags.clear();
+	Waypoints.clear();
+	if (auto pSection = CINI::CurrentDocument->GetSection("Structures"))
+	{
+		auto& entities = pSection->GetEntities();
+		BuildingINICache.reserve(entities.size());
+		for (auto& [key, value] : entities)
+		{
+			BuildingINICache.push_back(&value);
+		}
+	}
+	if (auto pSection = CINI::CurrentDocument->GetSection("Units"))
+	{
+		auto& entities = pSection->GetEntities();
+		UnitINICache.reserve(entities.size());
+		for (auto& [key, value] : entities)
+		{
+			UnitINICache.push_back(&value);
+		}
+	}
+	if (auto pSection = CINI::CurrentDocument->GetSection("Infantry"))
+	{
+		auto& entities = pSection->GetEntities();
+		InfantryINICache.reserve(entities.size());
+		for (auto& [key, value] : entities)
+		{
+			InfantryINICache.push_back(&value);
+		}
+	}
+	if (auto pSection = CINI::CurrentDocument->GetSection("Aircraft"))
+	{
+		auto& entities = pSection->GetEntities();
+		AircraftINICache.reserve(entities.size());
+		for (auto& [key, value] : entities)
+		{
+			AircraftINICache.push_back(&value);
+		}
+	}
+	if (CIsoViewExt::DrawCelltags)
+		if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
+		{
+			Celltags.reserve(pSection->GetEntities().size());
+			for (auto& [key, value] : pSection->GetEntities())
+				Celltags.push_back(&value);
+		}
+	if (CIsoViewExt::DrawWaypoints)
+		if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+		{
+			Waypoints.reserve(pSection->GetEntities().size());
+			for (auto& [key, value] : pSection->GetEntities())
+				Waypoints.push_back(&key);
+		}
+
 
 	RECT rect;
 	::GetClientRect(pThis->GetSafeHwnd(), &rect);
@@ -1264,10 +1570,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		CIsoViewExt::CurrentDrawCellLocation.Y = Y;
 		CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
 
-		if (cell->Waypoint != -1)
+		if (cell->Waypoint != -1 && CIsoViewExt::DrawWaypoints)
 		{
-			WaypointsToDraw.push_back(std::make_pair(MapCoord{ X, Y },
-				CINI::CurrentDocument->GetKeyAt("Waypoints", cell->Waypoint)));
+			WaypointsToDraw.push_back(std::make_pair(MapCoord{ X, Y }, 
+				cell->Waypoint < Waypoints.size() ? Waypoints[cell->Waypoint]->GetString() : ""));
 		}
 		if (cell->Structure > -1 && cell->Structure < CMapDataExt::StructureIndexMap.size())
 		{
@@ -3030,16 +3336,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		AnnotationImage->lpSurface->Lock(NULL, &AnnotationDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) == DD_OK;
 	if (AnnotationImage) AnnotationImage->lpSurface->GetColorKey(DDCKEY_SRCBLT, &AnnotationColorKey);
 
-	std::vector<ppmfc::CString*> Celltags;
-	if (CIsoViewExt::DrawCelltags)
-		if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
-			for (auto& [key, value] : pSection->GetEntities())
-				Celltags.push_back(&value);
-	std::vector<const ppmfc::CString*> Waypoints;
-	if (CIsoViewExt::DrawWaypoints)
-		if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
-			for (auto& [key, value] : pSection->GetEntities())
-				Waypoints.push_back(&key);
 	for (const auto& info : visibleCells)
 	{
 		if (!info.isInMap && !ExtConfigs::DisplayObjectsOutside) continue;

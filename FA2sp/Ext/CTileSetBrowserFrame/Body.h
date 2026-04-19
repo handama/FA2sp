@@ -56,15 +56,16 @@ public:
     struct TreeItemData {
         FString label;
         FString param;
-        TreeItemData(const FString& l, const FString& p) : label(l), param(p) {}
+        bool isParent;
+        TreeItemData(const FString& l, const FString& p, bool is) : label(l), param(p), isParent(is) {}
     };
 
 private:
     static inline std::unordered_map<HWND, std::unordered_map<HTREEITEM, std::unique_ptr<TreeItemData>>> storage;
 
 public:
-    static HTREEITEM InsertTreeItem(HWND hwndTree, const FString& label, const FString& param = "", HTREEITEM hParent = TVI_ROOT) {
-        auto data = std::make_unique<TreeItemData>(label, param);
+    static HTREEITEM InsertTreeItem(HWND hwndTree, const FString& label, const FString& param = "", HTREEITEM hParent = TVI_ROOT, bool isParent = false) {
+        auto data = std::make_unique<TreeItemData>(label, param, isParent);
 
         TVINSERTSTRUCT tvis{};
         tvis.hParent = hParent;

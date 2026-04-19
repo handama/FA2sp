@@ -42,6 +42,7 @@ BOOL TeamSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
     case TVN_SELCHANGED:
         if (auto data = TreeViewHelper::GetTreeItemData(this->GetHwnd(), lpNmTreeView->itemNew.hItem))
         {
+            if (data->isParent) break;
             auto& pID = data->param;
             if (strlen(pID) && ExtConfigs::InitializeMap)
             {
@@ -175,6 +176,7 @@ void TeamSort::Menu_AddTrigger()
 {
     HTREEITEM hItem = TreeView_GetSelection(this->GetHwnd());
     FString prefix = "";
+    TreeViewHelper::TreeItemData* data = nullptr;
     if (hItem != NULL)
     {
         const char* pID = nullptr;
@@ -183,7 +185,7 @@ void TeamSort::Menu_AddTrigger()
             TVITEM tvi;
             tvi.hItem = hItem;
             TreeView_GetItem(this->GetHwnd(), &tvi);
-            if (auto data = TreeViewHelper::GetTreeItemData(this->GetHwnd(), tvi.hItem))
+            if (data = TreeViewHelper::GetTreeItemData(this->GetHwnd(), tvi.hItem))
             {
                 pID = data->param.c_str();
                 break;
@@ -198,16 +200,31 @@ void TeamSort::Menu_AddTrigger()
 
         FString buffer;
         prefix += "[";
-        for (auto& group : this->GetGroup(pID, buffer))
-            prefix += group + ".";
-        if (prefix[prefix.length() - 1] == '.')
+        if (data->isParent)
         {
-            prefix[prefix.length() - 1] = ']';
-            if (prefix.length() == 2)
+            if (strlen(pID) > 0)
+            {
+                prefix += pID;
+                prefix += "]";
+            }
+            else
+            {
                 prefix = "";
+            }
         }
         else
-            prefix = "";
+        {
+            for (auto& group : this->GetGroup(pID, buffer))
+                prefix += group + ".";
+            if (prefix[prefix.length() - 1] == '.')
+            {
+                prefix[prefix.length() - 1] = ']';
+                if (prefix.length() == 2)
+                    prefix = "";
+            }
+            else
+                prefix = "";
+        }
     }
     this->m_strPrefix = prefix;
 }
@@ -277,8 +294,10 @@ std::vector<FString> TeamSort::GetGroup(FString triggerId, FString& name) const
 void TeamSort::AddTrigger(std::vector<FString> group, FString name, FString id) const
 {
     HTREEITEM hParent = TVI_ROOT;
+    std::vector<FString> currentNodes;
     for (auto& node : group)
     {
+        currentNodes.push_back(node);
         if (HTREEITEM hNode = this->FindLabel(hParent, node))
         {
             hParent = hNode;
@@ -286,7 +305,8 @@ void TeamSort::AddTrigger(std::vector<FString> group, FString name, FString id) 
         }
         else
         {
-            hParent = TreeViewHelper::InsertTreeItem(this->GetHwnd(), node, "", hParent);
+            FString nodeCombo = FString::Join(currentNodes, ".");
+            hParent = TreeViewHelper::InsertTreeItem(this->GetHwnd(), node, nodeCombo, hParent, true);
         }
     }
 

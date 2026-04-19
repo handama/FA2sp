@@ -50,6 +50,7 @@ BOOL WaypointSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
     case TVN_SELCHANGED:
         if (auto data = TreeViewHelper::GetTreeItemData(this->GetHwnd(), lpNmTreeView->itemNew.hItem))
         {
+            if (data->isParent) break;
             auto& pID = data->param;
             bool Success = false;
             if (strlen(pID) && ExtConfigs::InitializeMap)

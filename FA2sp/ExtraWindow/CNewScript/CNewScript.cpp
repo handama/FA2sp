@@ -186,7 +186,7 @@ void CNewScript::Update(HWND& hWnd)
     SendMessage(hSelectedScript, CB_SETCURSEL, SelectedScriptIndex, NULL);
     
     idx = 0;
-    while (SendMessage(hActionType, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hActionType);
     if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("ScriptsRA2")))
     {
         for (auto& pair : pSection->GetEntities())
@@ -1629,7 +1629,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
         {
             EnableWindow(hActionParam, TRUE);
             EnableWindow(hActionExtraParam, FALSE);
-            while (SendMessage(hActionParam, CB_DELETESTRING, 0, NULL) != CB_ERR);
+            ExtraWindow::ClearComboKeepText(hActionParam);
             SendMessage(hActionExtraParam, WM_SETTEXT, 0, (LPARAM)"");
             SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)atoms[1]);
             Translations::GetTranslationItem("ScriptTypesActionParam", buffer);

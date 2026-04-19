@@ -272,7 +272,6 @@ std::map<ppmfc::CString, ppmfc::CString, INISectionEntriesComparator> MultimapHe
 std::map<ppmfc::CString, ppmfc::CString, INISectionEntriesComparator> MultimapHelper::GetUnorderedUnionSection(ppmfc::CString pSection)
 {
     std::map<ppmfc::CString, ppmfc::CString, INISectionEntriesComparator> ret;
-    ppmfc::CString tmp;
     for (auto& pINI : data)
         if (pINI)
             if (auto section = pINI->GetSection(pSection))

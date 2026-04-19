@@ -81,14 +81,18 @@ public:
     static bool OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly = false);
     static void OnEditCComboBox(HWND& hWnd, std::map<int, FString>& labels);
 
-    static bool SortLabels(FString a, FString b);
-    static bool SortRawStrings(std::string sa, std::string sb);
+    static void SortLabels(std::vector<FString>& labels);
+    static void SortLabels(std::vector<std::pair<FString, FString>>& labels, bool first = true);
+    static void SortRawStrings(std::vector<FString>& labels);
+    static void SortRawStrings(std::vector<std::pair<FString, FString>>& labels, bool first = true);
+    static void SortRawStrings(std::vector<std::pair<std::string, std::string>>& labels, bool first = true);
     static void SortTeams(HWND& hWnd, FString section, int& selectedIndex, FString id = "");
     static void SortAITriggers(HWND& hWnd, int& selectedIndex, FString id = "");
     static bool IsLabelMatch(const char* target, const char* source, bool exactMatch = false);
     static FString GetCloneName(FString oriName);
     static void LoadFrom(MultimapHelper& mmh, FString loadfrom);
     static void TrimStringIndex(FString& str);
+    static void ClearComboKeepText(HWND hWnd);
 
     static void RegisterDropTarget(HWND hWnd, DropType type, CNewTrigger* trigger = nullptr);
     static void UpdateDropTargetRect(HWND hWnd);
@@ -186,4 +190,77 @@ private:
 
     void Build(const char* source);
     bool MatchPattern(const FString& target, const Pattern& pattern) const;
+};
+
+class ComboBoxBatchUpdater
+{
+public:
+    ComboBoxBatchUpdater(HWND hTarget,
+        int reserveCount = 0,
+        bool preserveSelection = false,
+        int avgTextLen = 512,
+        bool reset = true)
+        : hWnd(hTarget), preserve(preserveSelection)
+    {
+        if (!hWnd)
+            return;
+
+        if (preserve)
+        {
+            char buffer[512]{ 0 };
+            GetWindowText(hWnd, buffer, 511);
+            oldText = buffer;
+        }
+
+        SendMessage(hWnd, WM_SETREDRAW, FALSE, 0);
+
+        if (reset)
+        {
+            SendMessage(hWnd, CB_RESETCONTENT, 0, 0);
+        }
+
+        if (reserveCount > 0)
+        {
+            SendMessage(hWnd, CB_INITSTORAGE, reserveCount, avgTextLen);
+        }
+    }
+
+    ~ComboBoxBatchUpdater()
+    {
+        if (!hWnd)
+            return;
+
+        if (preserve && !oldText.empty())
+        {
+            int index = (int)SendMessage(hWnd, CB_FINDSTRINGEXACT, 0, oldText);
+            if (index != CB_ERR)
+            {
+                SendMessage(hWnd, CB_SETCURSEL, index, 0);
+            }
+            else
+            {
+                FString::TrimIndex(oldText);
+                SetWindowText(hWnd, oldText);
+            }
+        }
+
+        SendMessage(hWnd, WM_SETREDRAW, TRUE, 0);
+        InvalidateRect(hWnd, NULL, TRUE);
+    }
+
+    ComboBoxBatchUpdater(const ComboBoxBatchUpdater&) = delete;
+    ComboBoxBatchUpdater& operator=(const ComboBoxBatchUpdater&) = delete;
+
+    ComboBoxBatchUpdater(ComboBoxBatchUpdater&& other) noexcept
+    {
+        hWnd = other.hWnd;
+        preserve = other.preserve;
+        oldText = std::move(other.oldText);
+        other.hWnd = nullptr;
+    }
+
+private:
+    HWND hWnd = nullptr;
+    bool preserve = false;
+    FString oldText;
 };

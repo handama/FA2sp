@@ -920,7 +920,7 @@ void GridObjectViewer::UpdateControls()
     // overlay is too much
     //for (auto& o : g_groups[allO].IDs) all.IDs.push_back(o);
 
-    while (SendMessage(m_hControlGroup, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(m_hControlGroup);
     for (auto& g : g_groups)
     {
         std::unordered_set<FString> seen;

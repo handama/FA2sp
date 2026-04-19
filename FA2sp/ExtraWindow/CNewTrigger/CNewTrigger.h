@@ -73,10 +73,10 @@ public:
         auto tag = CINI::CurrentDocument().GetString("Tags", Tag, "");
         if (tag != "")
         {
-            auto atoms = FString::SplitString(tag, 2);
-            if (atoms[2] == ID)
+            auto triggerId = FString::GetParam(tag, 2);
+            if (triggerId == ID)
             {
-                tag.Format("%s,%s,%s", RepeatType, TagName, atoms[2]);
+                tag.Format("%s,%s,%s", RepeatType, TagName, triggerId);
                 CINI::CurrentDocument().WriteString("Tags", Tag, tag);
             }
         }

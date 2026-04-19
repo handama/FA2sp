@@ -151,7 +151,7 @@ void CNewTaskforce::Update(HWND& hWnd)
         SelectedTaskForceIndex = count - 1;
     SendMessage(hSelectedTaskforce, CB_SETCURSEL, SelectedTaskForceIndex, NULL);
 
-    while (SendMessage(hUnitType, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hUnitType);
     ExtraWindow::LoadParam_TechnoTypes(hUnitType, 4, 1);
     Autodrop = false;
     

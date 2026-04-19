@@ -159,7 +159,7 @@ void CNewAITrigger::Update(HWND& hWnd)
     SendMessage(hSelectedAITrigger, CB_SETCURSEL, SelectedAITriggerIndex, NULL);
 
     int idx = 0;
-    while (SendMessage(hSide, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hSide);
 
     auto transed = FinalAlertConfig::Language + "-" + "AITriggerSides";
     if (!CINI::FAData().SectionExists(transed))
@@ -176,7 +176,7 @@ void CNewAITrigger::Update(HWND& hWnd)
     }
     
     idx = 0;
-    while (SendMessage(hCountry, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hCountry);
     const auto& indicies = Variables::RulesMap.ParseIndicies("Countries", true);
     SendMessage(hCountry, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"<all>");
     for (auto& value : indicies)
@@ -187,7 +187,7 @@ void CNewAITrigger::Update(HWND& hWnd)
     }
     
     idx = 0;
-    while (SendMessage(hComparator, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hComparator);
     SendMessage(hComparator, CB_INSERTSTRING, idx++, 
         (LPARAM)(LPCSTR)(FString("0 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator1", "Less than")));
     SendMessage(hComparator, CB_INSERTSTRING, idx++, 
@@ -202,7 +202,7 @@ void CNewAITrigger::Update(HWND& hWnd)
         (LPARAM)(LPCSTR)(FString("5 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator6", "Not equal to")));
 
     idx = 0;
-    while (SendMessage(hConditionType, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hConditionType);
     SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
         (LPARAM)(LPCSTR)(FString("-1 - ") + 
             Translations::TranslateOrDefault("AITriggerEditorCondition-1", "Always true")));
@@ -232,7 +232,7 @@ void CNewAITrigger::Update(HWND& hWnd)
             Translations::TranslateOrDefault("AITriggerEditorCondition7", "Neutral/civilian house owns X object <Comparator> N")));
 
     idx = 0;
-    while (SendMessage(hComparisonObject, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hComparisonObject);
     ExtraWindow::LoadParam_TechnoTypes(hComparisonObject, -1, 1);
     SendMessage(hComparisonObject, CB_INSERTSTRING, SendMessage(hComparisonObject, CB_GETCOUNT, 0, 0), (LPARAM)(LPCSTR)"<none>");
 
@@ -969,7 +969,7 @@ void CNewAITrigger::SortAITriggers(FString id)
     bool tmp = ExtConfigs::SortByLabelName;
     ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_AITrigger;
 
-    std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
+    ExtraWindow::SortLabels(labels);
 
     ExtConfigs::SortByLabelName = tmp;
 

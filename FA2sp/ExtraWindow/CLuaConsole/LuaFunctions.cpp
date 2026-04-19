@@ -170,16 +170,7 @@ namespace LuaFunctions
 			options.push_back(std::make_pair(key, value));
 		}
 		void sort_options(bool second = false) {
-			if (!second) {
-				std::sort(options.begin(), options.end(), [](const auto& lhs, const auto& rhs) {
-					return ExtraWindow::SortRawStrings(lhs.first, rhs.first);
-					});
-			}
-			else {
-				std::sort(options.begin(), options.end(), [](const auto& lhs, const auto& rhs) {
-					return ExtraWindow::SortRawStrings(lhs.second, rhs.second);
-					});
-			}
+			ExtraWindow::SortRawStrings(options, !second);
 		}
 		std::string do_modal()
 		{
@@ -236,16 +227,7 @@ namespace LuaFunctions
 			options.push_back(std::make_pair(key, value));
 		}
 		void sort_options(bool second = false) {
-			if (!second) {
-				std::sort(options.begin(), options.end(), [](const auto& lhs, const auto& rhs) {
-					return ExtraWindow::SortRawStrings(lhs.first, rhs.first);
-					});
-			}
-			else {
-				std::sort(options.begin(), options.end(), [](const auto& lhs, const auto& rhs) {
-					return ExtraWindow::SortRawStrings(lhs.second, rhs.second);
-					});
-			}
+			ExtraWindow::SortRawStrings(options, !second);
 		}
 		std::vector<std::string> do_modal()
 		{

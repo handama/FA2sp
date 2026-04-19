@@ -375,11 +375,11 @@ void CTerrainGenerator::Update(HWND& hWnd)
     //int nOverlayCount = SendMessage(hOverlayComboBox, CB_GETCOUNT, NULL, NULL);
     char buffer[512] = { 0 };
 
-    while (SendMessage(hTileSet[0], CB_DELETESTRING, 0, NULL) != CB_ERR);
-    while (SendMessage(hTileSet[1], CB_DELETESTRING, 0, NULL) != CB_ERR);
-    while (SendMessage(hTileSet[2], CB_DELETESTRING, 0, NULL) != CB_ERR);
-    while (SendMessage(hTileSet[3], CB_DELETESTRING, 0, NULL) != CB_ERR);
-    while (SendMessage(hTileSet[4], CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hTileSet[0]);
+    ExtraWindow::ClearComboKeepText(hTileSet[1]);
+    ExtraWindow::ClearComboKeepText(hTileSet[2]);
+    ExtraWindow::ClearComboKeepText(hTileSet[3]);
+    ExtraWindow::ClearComboKeepText(hTileSet[4]);
     if (nTileCount > 0) {
         int index = 0;
         for (int idx = 0; idx < nTileCount; ++idx)
@@ -2524,13 +2524,13 @@ void CTerrainGenerator::AdjustTabPagePosition(HWND hTab, HWND hTabPage)
 
 void CTerrainGenerator::SortPresets(const char* id)
 {
-    while (SendMessage(hPreset, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hPreset);
     std::vector<FString> labels;
 
     for (const auto& [id, preset] : TerrainGeneratorPresets) {
         labels.push_back(ExtraWindow::FormatTriggerDisplayName(id, preset->Name));
     }
-    std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
+    ExtraWindow::SortLabels(labels);
 
     for (size_t i = 0; i < labels.size(); ++i) {
         SendMessage(hPreset, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i]);

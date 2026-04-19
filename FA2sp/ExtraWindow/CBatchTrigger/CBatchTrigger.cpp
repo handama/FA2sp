@@ -806,11 +806,14 @@ void CBatchTrigger::UpdateListBox()
     bool tmp = ExtConfigs::SortByLabelName;
     ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Trigger;
 
-    std::sort(items.begin(), items.end(),
-        [](const auto& a, const auto& b) {
-        return bDisplayID ? ExtraWindow::SortLabels(a.first, b.first) :
-            ExtraWindow::SortRawStrings(a.first, b.first);
-    });
+    if (bDisplayID)
+    {
+        ExtraWindow::SortLabels(items);
+    }
+    else
+    {
+        ExtraWindow::SortRawStrings(items);
+    }
 
     ExtConfigs::SortByLabelName = tmp;
 

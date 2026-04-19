@@ -70,7 +70,7 @@ void CPropertyUnitExt::StatusUpdate(LPARAM lParam)
 		uTheFirst = false;
 	}
 
-	while (::SendMessage(hStatusComboBox, CB_DELETESTRING, 0, NULL) != CB_ERR);
+	ExtraWindow::ClearComboKeepText(hStatusComboBox);
 
 	for (int i = 0; i < CMapDataExt::TechnoStates.size(); ++i)
 	{

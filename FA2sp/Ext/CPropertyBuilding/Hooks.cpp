@@ -88,7 +88,7 @@ DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
     }
 
     HWND hSpotLightComboBox = pThis->GetDlgItem(1090)->GetSafeHwnd();
-    while (::SendMessage(hSpotLightComboBox, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hSpotLightComboBox);
 
     ::SendMessage(hSpotLightComboBox, CB_INSERTSTRING, 0, 
         static_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.0", "0 - No spotlight")));

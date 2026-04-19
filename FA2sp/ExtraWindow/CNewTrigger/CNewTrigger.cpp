@@ -253,7 +253,6 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
     }
 
     DropNeedUpdate = false;
-
     if (UpdateTrigger)
         CMapDataExt::UpdateTriggers();
 
@@ -277,7 +276,7 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
     SendMessage(hSelectedTrigger, CB_SETCURSEL, SelectedTriggerIndex, NULL);
 
     int idx = 0;
-    while (SendMessage(hEventtype, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hEventtype);
     if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("EventsRA2")))
     {
         for (auto& pair : pSection->GetEntities())
@@ -295,7 +294,7 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
     }
     if (CompactMode) ExtraWindow::AdjustDropdownWidth(hEventtype);
     idx = 0;
-    while (SendMessage(hActiontype, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hActiontype);
     if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("ActionsRA2")))
     {
         for (auto& pair : pSection->GetEntities())
@@ -314,7 +313,7 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
     if (CompactMode) ExtraWindow::AdjustDropdownWidth(hActiontype);
 
     idx = 0;
-    while (SendMessage(hHouse, CB_DELETESTRING, 0, NULL) != CB_ERR); 
+    ExtraWindow::ClearComboKeepText(hHouse);
     if (CMapData::Instance->IsMultiOnly() && ExtConfigs::PlayerAtXForTriggers)
     {
         SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ A>").c_str());
@@ -336,7 +335,7 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
     if (CompactMode) ExtraWindow::AdjustDropdownWidth(hHouse);
 
     idx = 0;
-    while (SendMessage(hType, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hType);
     SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("0 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeOr", "One Time OR")));
     SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("1 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeAnd", "One Time AND")));
     SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("2 - ") + Translations::TranslateOrDefault("TriggerRepeatType.RepeatingOr", "Repeating OR")));
@@ -2339,21 +2338,21 @@ void CNewTrigger::UpdateParamAffectedParam_Action(int index)
             auto& text = CurrentTrigger->Actions[SelectedActionIndex].Params[ActionParamsUsage[index].second];
             if (target.ParamMap.find(text) != target.ParamMap.end())
             {
-                auto paramType = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), target.ParamMap[text]), 1);
-                ExtraWindow::LoadParams(hActionParameter[target.AffectedParam], paramType[1], this);
+                auto paramType = FString::GetParam(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), target.ParamMap[text]), 1);
+                ExtraWindow::LoadParams(hActionParameter[target.AffectedParam], paramType, this);
                 //SendMessage(hActionParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].GetString());
-                if (paramType[1] == "10") // stringtables
+                if (paramType == "10") // stringtables
                 {
                     CurrentCSFActionParam = target.AffectedParam;
                 }
-                else if (paramType[1] == "9") // triggers
+                else if (paramType == "9") // triggers
                 {
                     CurrentTriggerActionParam = target.AffectedParam;
                 }
-                else if (paramType[1] == "15" || FString::SplitString(
+                else if (paramType == "15" || FString::GetParam(
                     fadata.GetString(
                         "NewParamTypes",
-                        paramType[1]), size_t(0))[0]
+                        paramType), 0)
                     == "TeamTypes")
                 {
                     CurrentTeamActionParam = target.AffectedParam;
@@ -2389,8 +2388,8 @@ void CNewTrigger::UpdateParamAffectedParam_Event(int index)
             auto& text = CurrentTrigger->Events[SelectedEventIndex].Params[EventParamsUsage[index].second];
             if (target.ParamMap.find(text) != target.ParamMap.end())
             {
-                auto paramType = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), target.ParamMap[text]), 1);
-                ExtraWindow::LoadParams(hEventParameter[target.AffectedParam], paramType[1], this);
+                auto paramType = FString::GetParam(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), target.ParamMap[text]), 1);
+                ExtraWindow::LoadParams(hEventParameter[target.AffectedParam], paramType, this);
                 //SendMessage(hEventParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].c_str());
                 ExtraWindow::AdjustDropdownWidth(hEventParameter[target.AffectedParam]);
 
@@ -2659,8 +2658,8 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
                 std::set<FString> TagsToRemove;
                 for (auto& pair : pTagsSection->GetEntities())
                 {
-                    auto splits = FString::SplitString(pair.second, 2);
-                    if (strcmp(splits[2], CurrentTrigger->ID) == 0)
+                    auto splits = FString::GetParam(pair.second, 2);
+                    if (strcmp(splits, CurrentTrigger->ID) == 0)
                         TagsToRemove.insert(pair.first);
                 }
                 for (auto& tag : TagsToRemove)
@@ -3096,7 +3095,7 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
     }    
     for (int i = 0; i < EVENT_PARAM_COUNT; i++)
     {
-        while (SendMessage(hEventParameter[i], CB_DELETESTRING, 0, NULL) != CB_ERR);
+        ExtraWindow::ClearComboKeepText(hEventParameter[i]);
         CNewTrigger::EventParameterAutoDrop[i] = true;
         if (thisEvent.P3Enabled)
         {
@@ -3253,7 +3252,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
     CurrentTeamActionParam = -1;
     for (int i = 0; i < ACTION_PARAM_COUNT; i++)
     {
-        while (SendMessage(hActionParameter[i], CB_DELETESTRING, 0, NULL) != CB_ERR);
+        ExtraWindow::ClearComboKeepText(hActionParameter[i]);
         CNewTrigger::ActionParameterAutoDrop[i] = true;
         if (ActionParamsUsage[i].first)
         {
@@ -3278,10 +3277,10 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
                 {
                     CurrentTriggerActionParam = i;
                 }
-                else if (pParamTypes[ActionParamsUsage[i].second][1] == "15" || FString::SplitString(
+                else if (pParamTypes[ActionParamsUsage[i].second][1] == "15" || FString::GetParam(
                     fadata.GetString(
                         "NewParamTypes",
-                        pParamTypes[ActionParamsUsage[i].second][1]), size_t(0))[0]
+                        pParamTypes[ActionParamsUsage[i].second][1]), 0)
                     == "TeamTypes")
                 {
                     CurrentTeamActionParam = i;
@@ -3672,31 +3671,42 @@ void CNewTrigger::SortTriggers(FString id, bool onlySelf)
         bool tmp = ExtConfigs::SortByLabelName;
         ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Trigger;
 
-        std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
+        ExtraWindow::SortLabels(labels);
 
         ExtConfigs::SortByLabelName = tmp;
 
         auto sort = [&labels](CNewTrigger* pThis, FString id) {
             pThis->DropNeedUpdate = false;
-            while (SendMessage(pThis->hSelectedTrigger, CB_DELETESTRING, 0, NULL) != CB_ERR);
 
+            ComboBoxBatchUpdater t1(pThis->hSelectedTrigger, labels.size(), false);
+            ComboBoxBatchUpdater t2(pThis->hAttachedtrigger, labels.size() + 1, true);
+            std::unique_ptr<ComboBoxBatchUpdater> triggerAction;
+            if (pThis->CurrentTriggerActionParam > -1)
+            {
+                triggerAction = std::make_unique<ComboBoxBatchUpdater>(pThis->hActionParameter[pThis->CurrentTriggerActionParam], labels.size(), true);
+            }
+
+            SendMessage(pThis->hAttachedtrigger, CB_ADDSTRING, 0, (LPARAM)"<none>");
             for (size_t i = 0; i < labels.size(); ++i) {
-                SendMessage(pThis->hSelectedTrigger, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].c_str());
+                SendMessage(pThis->hSelectedTrigger, CB_ADDSTRING, i, labels[i]);
+                SendMessage(pThis->hAttachedtrigger, CB_ADDSTRING, i + 1, labels[i]);
+                if (pThis->CurrentTriggerActionParam > -1)
+                {
+                    SendMessage(pThis->hActionParameter[pThis->CurrentTriggerActionParam], CB_ADDSTRING, i, labels[i]);
+                }
             }
             if (pThis->CompactMode) ExtraWindow::AdjustDropdownWidth(pThis->hSelectedTrigger);
             int width = SendMessage(pThis->hSelectedTrigger, CB_GETDROPPEDWIDTH, NULL, NULL);
-            ExtraWindow::SyncComboBoxContent(pThis->hSelectedTrigger, pThis->hAttachedtrigger, true);
             if (pThis->CompactMode) SendMessage(pThis->hAttachedtrigger, CB_SETDROPPEDWIDTH, width, NULL);
+
             if (id != "") {
                 pThis->SelectedTriggerIndex = SendMessage(pThis->hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(id).c_str());
                 SendMessage(pThis->hSelectedTrigger, CB_SETCURSEL, pThis->SelectedTriggerIndex, NULL);
             }
 
-            if (pThis->CurrentTriggerActionParam > -1)
+            if (pThis->CurrentTriggerActionParam > -1 && pThis->CompactMode)
             {
-                ExtraWindow::SyncComboBoxContent(pThis->hSelectedTrigger,
-                    pThis->hActionParameter[pThis->CurrentTriggerActionParam]);
-                if (pThis->CompactMode) SendMessage(pThis->hActionParameter[pThis->CurrentTriggerActionParam],
+                SendMessage(pThis->hActionParameter[pThis->CurrentTriggerActionParam],
                     CB_SETDROPPEDWIDTH, width, NULL);
             }
         };

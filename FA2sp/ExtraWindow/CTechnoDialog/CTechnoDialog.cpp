@@ -188,7 +188,7 @@ BOOL CTechnoDialog::OnInitDialog()
 
     if (m_hState)
     {
-        while (::SendMessage(m_hState, CB_DELETESTRING, 0, NULL) != CB_ERR);
+        ExtraWindow::ClearComboKeepText(m_hState);
 
         for (int i = 0; i < CMapDataExt::TechnoStates.size(); ++i)
         {

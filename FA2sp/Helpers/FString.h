@@ -492,27 +492,111 @@ public:
         assign(utf8.data());
     }
 
-    FString GetParam(int index)
+    FString GetParam(int index) const
     {
-        std::vector<FString> tokens = SplitString(*this, ",");
-        if (index < 0 || index >= (int)tokens.size())
+        if (index < 0)
             return {};
-        return tokens[index];
+
+        const std::string& s = *this;
+
+        size_t start = 0;
+        int current = 0;
+
+        for (size_t i = 0; i <= s.size(); ++i)
+        {
+            if (i == s.size() || s[i] == ',')
+            {
+                if (current == index)
+                {
+                    return s.substr(start, i - start);
+                }
+
+                current++;
+                start = i + 1;
+            }
+        }
+
+        return {};
+    }
+
+    static FString GetParam(const char* str, int index)
+    {
+        if (!str || index < 0)
+            return {};
+
+        const char* start = str;
+        int current = 0;
+
+        for (const char* p = str; ; ++p)
+        {
+            if (*p == ',' || *p == '\0')
+            {
+                if (current == index)
+                {
+                    return FString(start, p - start);
+                }
+
+                if (*p == '\0')
+                    break;
+
+                current++;
+                start = p + 1;
+            }
+        }
+
+        return {};
     }
 
     void SetParam(int index, const FString& value)
     {
-        std::vector<FString> tokens = SplitString(*this, ",");
         if (index < 0)
             return;
 
-        if (index >= (int)tokens.size())
+        const std::string& s = *this;
+        std::string result;
+        result.reserve(s.size() + value.size() + 4);
+
+        size_t start = 0;
+        int current = 0;
+        bool replaced = false;
+
+        for (size_t i = 0; i <= s.size(); ++i)
         {
-            tokens.resize(index + 1, _T(""));
+            if (i == s.size() || s[i] == ',')
+            {
+                if (current == index)
+                {
+                    result.append(value);
+                    replaced = true;
+                }
+                else
+                {
+                    result.append(s, start, i - start);
+                }
+
+                if (i != s.size())
+                    result.push_back(',');
+
+                current++;
+                start = i + 1;
+            }
         }
 
-        tokens[index] = value;
-        *this = Join(tokens);
+        while (current <= index)
+        {
+            if (!result.empty())
+                result.push_back(',');
+
+            if (current == index)
+            {
+                result.append(value);
+                break;
+            }
+
+            current++;
+        }
+
+        *this = std::move(result);
     }
 
     static std::vector<FString> SplitString(const FString& pSource, const char* pSplit = ",") {

@@ -252,7 +252,7 @@ void CNewTeamTypes::Update(HWND& hWnd)
 
 
     idx = 0;
-    while (SendMessage(hHouse, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hHouse);
     auto&& entries = rules.ParseIndicies("Countries", true);
     if (CMapData::Instance->IsMultiOnly())
     {
@@ -279,7 +279,7 @@ void CNewTeamTypes::Update(HWND& hWnd)
     ExtraWindow::SortTeams(hScript, "ScriptTypes", tmp);
 
     idx = 0;
-    while (SendMessage(hTag, CB_DELETESTRING, 0, NULL) != CB_ERR);
+   ExtraWindow::ClearComboKeepText(hTag);
     std::vector<FString> labels;
     if (auto pSection = map.GetSection("Tags")) {
         for (auto& pair : pSection->GetEntities()) {
@@ -289,20 +289,20 @@ void CNewTeamTypes::Update(HWND& hWnd)
             labels.push_back(name);
         }
     }
-    std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
+    ExtraWindow::SortLabels(labels);
     SendMessage(hTag, CB_INSERTSTRING, 0, (LPARAM)(LPCSTR)"None");
     for (size_t i = 0; i < labels.size(); ++i) {
         SendMessage(hTag, CB_INSERTSTRING, i+1, (LPARAM)(LPCSTR)labels[i]);
     }
 
     idx = 0;
-    while (SendMessage(hVeteranLevel, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hVeteranLevel);
     SendMessage(hVeteranLevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"1");
     SendMessage(hVeteranLevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"2");
     SendMessage(hVeteranLevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"3");
 
     idx = 0;
-    while (SendMessage(hTechlevel, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hTechlevel);
     SendMessage(hTechlevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"0");
     SendMessage(hTechlevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"1");
     SendMessage(hTechlevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"2");
@@ -316,8 +316,8 @@ void CNewTeamTypes::Update(HWND& hWnd)
     SendMessage(hTechlevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"10");
 
     idx = 0;
-    while (SendMessage(hWaypoint, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    while (SendMessage(hTransportWaypoint, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hWaypoint);
+    ExtraWindow::ClearComboKeepText(hTransportWaypoint);
     SendMessage(hTransportWaypoint, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)"None");
 
     if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
@@ -331,11 +331,11 @@ void CNewTeamTypes::Update(HWND& hWnd)
     }
 
     idx = 0;
-    while (SendMessage(hGroup, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hGroup);
     SendMessage(hGroup, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"-1");
 
     idx = 0;
-    while (SendMessage(hMindControlDecision, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hMindControlDecision);
     for (auto& decision : mindControlDecisions)
         SendMessage(hMindControlDecision, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)decision);
 
@@ -1290,7 +1290,7 @@ void CNewTeamTypes::OnDropdownTag()
             labels.push_back(name);
         }
     }
-    std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
+    ExtraWindow::SortLabels(labels);
     SendMessage(hTag, CB_INSERTSTRING, 0, (LPARAM)(LPCSTR)"None");
     for (size_t i = 0; i < labels.size(); ++i) {
         SendMessage(hTag, CB_INSERTSTRING, i + 1, (LPARAM)(LPCSTR)labels[i]);

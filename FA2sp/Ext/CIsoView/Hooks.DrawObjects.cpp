@@ -3190,8 +3190,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		for (const auto& tube : CMapDataExt::Tubes)
 		{
 			int color = tube.PositiveFacing ? RGB(255, 0, 0) : RGB(0, 0, 255);
-			int height = std::min(CMapData::Instance->TryGetCellAt(tube.StartCoord.X, tube.StartCoord.Y)->Height,
-				CMapData::Instance->TryGetCellAt(tube.EndCoord.X, tube.EndCoord.Y)->Height);
+			int height = std::min(CMapDataExt::TryGetCellAt(tube.StartCoord.X, tube.StartCoord.Y)->Height,
+				CMapDataExt::TryGetCellAt(tube.EndCoord.X, tube.EndCoord.Y)->Height);
 			height *= 15;
 			if (CFinalSunApp::Instance->FlatToGround)
 				height = 0;

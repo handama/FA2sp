@@ -188,7 +188,6 @@ DEFINE_HOOK(4A2AB0, CMapData_UpdateInfantry, 7)
 	if (bMapToINI == FALSE)
 	{
 		m_infantry.clear();
-		m_infantry.reserve(100);
 
 		int i;
 		for (i = 0; i < Map->CellDataCount; i++)
@@ -200,6 +199,7 @@ DEFINE_HOOK(4A2AB0, CMapData_UpdateInfantry, 7)
 
 		if (auto pSection = m_mapfile.GetSection("Infantry"))
 		{
+			m_infantry.reserve(pSection->GetEntities().size());
 			std::vector<FString> values;
 			for (const auto& [key, value] : pSection->GetEntities())
 			{
@@ -250,7 +250,8 @@ DEFINE_HOOK(4A2AB0, CMapData_UpdateInfantry, 7)
 				if (spp < 3 && pos < fielddata_size)
 					fielddata[pos].Infantry[spp] = (short)m_infantry.size() - 1;
 
-				CMapData::Instance->UpdateMapPreviewAt(x, y);
+				if (!CMapDataExt::SkipUpdateMinimap)
+					CMapData::Instance->UpdateMapPreviewAt(x, y);
 			}
 			// resort section to match the order of InfantryDatas
 			m_mapfile.DeleteSection("Infantry");
@@ -421,19 +422,18 @@ DEFINE_HOOK(4AC210, CMapData_AddInfantry, 7)
 	if (ExtConfigs::InfantrySubCell_OccupationBits)
 	{
 		auto cell = Map->TryGetCellAt(atoi(infantry.X), atoi(infantry.Y));
-		if (cell->Terrain > -1)
+		if (cell->Terrain > -1
+			&& cell->Terrain < CMapData::Instance->TerrainDatas.size())
 		{
 			std::vector<int> availableSubcells;
 			std::vector<int> availableAndEmptySubcells;
-			ppmfc::CString name;
+			auto& name = CMapData::Instance->TerrainDatas[cell->Terrain].TypeID;
 			ppmfc::CString key = "TemperateOccupationBits";
 			auto theaterIg = CINI::CurrentDocument->GetString("Map", "Theater");
 			if (theaterIg == "SNOW")
 				key = "SnowOccupationBits";
 
-			if (auto pTerrain = CINI::Rules().GetSection("TerrainTypes"))
-				name = *pTerrain->GetValueAt(cell->TerrainType);
-			int bits = (CINI::Rules().GetInteger(name, key, 7) % 8 + 8) % 8;
+			int bits = (Variables::RulesMap.GetInteger(name, key, 7) % 8 + 8) % 8;
 			switch (bits)
 			{
 			case 0:
@@ -563,7 +563,8 @@ DEFINE_HOOK(4AC210, CMapData_AddInfantry, 7)
 	
 	Map->INI.WriteString("Infantry", key, value);
 
-	CMapData::Instance->UpdateMapPreviewAt(atoi(infantry.X), atoi(infantry.Y));
+	if (!CMapDataExt::SkipUpdateMinimap)
+		CMapData::Instance->UpdateMapPreviewAt(atoi(infantry.X), atoi(infantry.Y));
 
 	return 0x4ACA49;
 }
@@ -576,7 +577,6 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 	GET_STACK(DWORD, dwPos, 0x10);
 	GET_STACK(ppmfc::CString, suggestedID, 0x14);
 
-
 	auto Map = &CMapData::Instance();
 	auto& fielddata_size = Map->CellDataCount;
 	auto& fielddata = Map->CellDatas;
@@ -585,19 +585,22 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 
 	bool skipOverlapping = false;
 	bool overlappingWarning = false;
+	int X = dwPos % Map->MapWidthPlusHeight;
+	int Y = dwPos / Map->MapWidthPlusHeight;
 
 	CBuildingData structure;
 	if (lpStructure != NULL)
 	{
 		structure = *lpStructure;
-		skipOverlapping = true;
-		
+		skipOverlapping = true;	
+		X = atoi(structure.X);
+		Y = atoi(structure.Y);
 	}
 	else
 	{
 		char cx[10], cy[10];
-		_itoa(dwPos % Map->MapWidthPlusHeight, cx, 10);
-		_itoa(dwPos / Map->MapWidthPlusHeight, cy, 10);
+		_itoa(X, cx, 10);
+		_itoa(Y, cy, 10);
 
 		structure.Health = ExtConfigs::DefaultBuildingProperty.Health;
 		structure.Facing = ExtConfigs::DefaultBuildingProperty.Facing;
@@ -616,8 +619,8 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 		structure.TypeID = lpType;
 		structure.X = cx;
 		structure.Y = cy;
-		
 	}
+
 	if (ExtConfigs::PlaceStructureUpgrades) 
 	{
 		int upgradeCount = 0;
@@ -653,6 +656,88 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 	}
 
 	auto pSection = m_mapfile->AddOrGetSection("Structures");
+	if (ExtConfigs::PlaceStructurePlaceUpgrade)
+	{
+		bool isPowerUp = CMapDataExt::PowersUpBuildingSet.find(structure.TypeID) != CMapDataExt::PowersUpBuildingSet.end();
+		if (isPowerUp)
+		{
+			bool placePowerUp = false;
+			int iniIndex = -1;
+			int max = 0;
+			if (CMapData::Instance->IsCoordInMap(X, Y))
+			{
+				auto cell = CMapData::Instance->GetCellAt(X, Y);
+				if (cell->Structure > -1)
+				{
+					auto StrINIIndex = CMapDataExt::StructureIndexMap[cell->Structure];
+					if (StrINIIndex != -1)
+					{
+						auto& objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
+						auto itr = CMapDataExt::PowersUpBuildings.find(objRender.ID);
+						if (itr != CMapDataExt::PowersUpBuildings.end())
+						{
+							if (itr->second.find(structure.TypeID) != itr->second.end())
+							{
+								placePowerUp = true;
+								iniIndex = StrINIIndex;
+								max = Variables::RulesMap.GetInteger(objRender.ID, "Upgrades", 0);
+							}
+						}
+					}
+				}
+			}
+			if (placePowerUp)
+			{
+				
+				if (!CMapDataExt::PlaceStructure_Preview)
+				{
+					auto key = m_mapfile->GetKeyAt("Structures", iniIndex);
+					FString value = m_mapfile->GetValueAt("Structures", iniIndex);
+					auto powerUpCount = atoi(value.GetParam(10));
+					if (powerUpCount == max)
+						powerUpCount--;
+					FString count;
+					if (powerUpCount == 0)
+					{
+						value.SetParam(10, "1");
+						value.SetParam(12, structure.TypeID);
+					}
+					else if (powerUpCount == 1)
+					{
+						value.SetParam(10, "2");
+						value.SetParam(13, structure.TypeID);
+					}
+					else if (powerUpCount == 2)
+					{
+						value.SetParam(10, "3");
+						value.SetParam(14, structure.TypeID);
+					}
+
+					m_mapfile->WriteString("Structures", key, value);
+				}
+				auto& renderData = CMapDataExt::BuildingRenderDatasFix[iniIndex];
+				CMapDataExt::PlaceStructure_OldData[iniIndex] = renderData;
+				if (renderData.PowerUpCount == max)
+					renderData.PowerUpCount--;
+				if (renderData.PowerUpCount == 0)
+				{
+					renderData.PowerUpCount++;
+					renderData.PowerUp1 = structure.TypeID;
+				}
+				else if (renderData.PowerUpCount == 1)
+				{
+					renderData.PowerUpCount++;
+					renderData.PowerUp2 = structure.TypeID;
+				}
+				else if (renderData.PowerUpCount == 2)
+				{
+					renderData.PowerUpCount++;
+					renderData.PowerUp3 = structure.TypeID;
+				}
+				return 0x4AD921;
+			}
+		}
+	}
 	if (!CopyPaste::OnLButtonDownPasted && !CMapDataExt::SkipBuildingOverlappingCheck)
 	{
 		// check overlap
@@ -661,101 +746,89 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 		for (const auto& pair : ignoreList)
 		{
 			if (pair.second == structure.TypeID)
+			{
 				skipCheck = true;
-
+				break;
+			}
 		}
 
 		if (!skipCheck && ExtConfigs::PlaceStructureOverlappingCheck)
 		{
-			std::map<int, int> Occupied;
-			int length = CMapData::Instance->MapWidthPlusHeight;
-			length *= length;
+			bool overlapping = false;
+			const int Index = CMapDataExt::GetBuildingTypeIndex(structure.TypeID);
+			const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
 
+			if (!DataExt.IsCustomFoundation())
 			{
-				const int Index = CMapDataExt::GetBuildingTypeIndex(structure.TypeID);
-				const int Y = atoi(structure.Y);
-				const int X = atoi(structure.X);
-				const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
-
-				if (!DataExt.IsCustomFoundation())
+				for (int dx = 0; dx < DataExt.Height; ++dx)
 				{
-					for (int dx = 0; dx < DataExt.Height; ++dx)
+					for (int dy = 0; dy < DataExt.Width; ++dy)
 					{
-						for (int dy = 0; dy < DataExt.Width; ++dy)
+						if (CMapData::Instance->IsCoordInMap(X + dx, Y + dy))
 						{
-							MapCoord coord = { X + dx, Y + dy };
-							if (CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
+							auto cell = CMapData::Instance->GetCellAt(X + dx, Y + dy);
+							if (cell->Structure > -1)
 							{
-								Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)] = 114514;
+								bool skipCheck = false;
+								auto StrINIIndex = CMapDataExt::StructureIndexMap[cell->Structure];
+								if (StrINIIndex != -1)
+								{
+									auto& objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
+									for (const auto& pair : ignoreList)
+									{
+										if (pair.second == objRender.ID)
+										{
+											skipCheck = true;
+											break;
+										}
+									}
+									if (!skipCheck)
+										overlapping = true;
+								}
 							}
-
 						}
-					}
-				}
-				else
-				{
-					for (const auto& block : *DataExt.Foundations)
-					{
-						MapCoord coord = { X + block.Y, Y + block.X };
-						if (CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
-						{
-							Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)] = 114514;
-						}
-
 					}
 				}
 			}
-
-			for (const auto& pair : pSection->GetEntities())
+			else
 			{
-				bool skipThis = false;
-				auto values = STDHelpers::SplitString(pair.second, 4);
-				auto& type = values[1];
-
-				for (const auto& pair2 : ignoreList)
-					if (pair2.second == type)
-						skipThis = true;
-				if (skipThis)
-					continue;
-
-				const int Index = CMapDataExt::GetBuildingTypeIndex(type);
-				const int Y = atoi(values[3]);
-				const int X = atoi(values[4]);
-				const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
-
-				if (!DataExt.IsCustomFoundation())
+				for (const auto& block : *DataExt.Foundations)
 				{
-					for (int dx = 0; dx < DataExt.Height; ++dx)
+					if (CMapData::Instance->IsCoordInMap(X + block.Y, Y + block.X))
 					{
-						for (int dy = 0; dy < DataExt.Width; ++dy)
+						auto cell = CMapData::Instance->GetCellAt(X + block.Y, Y + block.X);
+						if (cell->Structure > -1)
 						{
-							MapCoord coord = { X + dx, Y + dy };
-							if (CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
-								if (Occupied.find(CMapData::Instance->GetCoordIndex(coord.X, coord.Y)) != Occupied.end())
-									if (Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)] >= 114514)
-										Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)] += 1;
+							bool skipCheck = false;
+							auto StrINIIndex = CMapDataExt::StructureIndexMap[cell->Structure];
+							if (StrINIIndex != -1)
+							{
+								auto& objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
+								for (const auto& pair : ignoreList)
+								{
+									if (pair.second == objRender.ID)
+									{
+										skipCheck = true;
+										break;
+									}
+								}
+								if (!skipCheck)
+									overlapping = true;
+							}
 						}
 					}
 				}
+			}
+	
+			if (overlapping)
+			{
+				if (!skipOverlapping)
+					return 0x4AD921;
 				else
 				{
-					for (const auto& block : *DataExt.Foundations)
-					{
-						MapCoord coord = { X + block.Y, Y + block.X };
-						if (CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
-							if (Occupied.find(CMapData::Instance->GetCoordIndex(coord.X, coord.Y)) != Occupied.end())
-								if (Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)] >= 114514)
-									Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)] += 1;
-					}
+					Logger::Raw("over?????\n");
+					overlappingWarning = true;
 				}
-			}
-			for (auto& o : Occupied)
-			{
-				if (o.second > 114514)
-					if (!skipOverlapping)
-						return 0x4AD921;
-					else
-						overlappingWarning = true;
 			}
 		}
 
@@ -812,7 +885,7 @@ DEFINE_HOOK(466FE0, CIsoView_OnLButtonUp_Drag_Building, 5)
 	GET_STACK(int, screenCoordY, 0x220);
 
 	auto Map = &CMapData::Instance();
-	auto isoView = CIsoView::GetInstance();
+	auto isoView = CIsoViewExt::GetExtension();
 	auto m_id = isoView->CurrentCellObjectIndex;
 	
 	int X = screenCoordX;
@@ -866,12 +939,12 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 		if (!found)
 			return 0x4A98AC;
 	}
-	if (iniIndex >= ini->GetKeyCount("Structures"))
+	if (iniIndex >= ini->GetKeyCount("Structures") || iniIndex < 0)
 		return 0x4A98AC;
 
 	ppmfc::CString key = ini->GetKeyAt("Structures", iniIndex);
 	ppmfc::CString value = ini->GetValueAt("Structures", iniIndex);
-	auto splits =STDHelpers::SplitString(value, 4);
+	auto splits = STDHelpers::SplitString(value, 4);
 	bool isLamp = LightingSourceTint::IsLamp(splits[1]);
 	int Index = CMapDataExt::GetBuildingTypeIndex(splits[1]);
 	int Y = atoi(splits[3]);
@@ -902,7 +975,9 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 						pCell->Structure = cellExt.Structures.begin()->first;
 						pCell->TypeListIndex = cellExt.Structures.begin()->second;
 					}
-					CMapData::Instance->UpdateMapPreviewAt(x, y);
+
+					if (!CMapDataExt::SkipUpdateMinimap)
+						CMapData::Instance->UpdateMapPreviewAt(x, y);
 				}
 			}
 		}
@@ -929,7 +1004,9 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 					pCell->Structure = cellExt.Structures.begin()->first;
 					pCell->TypeListIndex = cellExt.Structures.begin()->second;
 				}
-				CMapData::Instance->UpdateMapPreviewAt(x, y);
+
+				if (!CMapDataExt::SkipUpdateMinimap)
+					CMapData::Instance->UpdateMapPreviewAt(x, y);
 			}
 		}
 	}
@@ -947,12 +1024,14 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 		LightingSourceTint::CalculateMapLamps();
 	}
 
+	CMapDataExt::RemapableOverlay_RemoveBuilding(cellIndex);
+
 	return 0x4A98AC;
 }
 
 DEFINE_HOOK(456DA0, CIsoView_OnMouseMove_UpdateStructureData, 8)
 {
-	if (CMapDataExt::StructureIndexMap.size() > 65500)
+	if (CMapDataExt::StructureIndexMap.size() > SHRT_MAX - 5)
 	{
 		CMapDataExt::UpdateFieldStructureData_Optimized();
 	}
@@ -989,6 +1068,7 @@ DEFINE_HOOK(49ED34, CMapData_LoadMap_InitializeMapDataExt, 5)
 {
 	Logger::Debug("CMapData::LoadMap(): About to call InitializeAllHdmEdition()\n");
 	CMapDataExt::InitializeAllHdmEdition();
+	CMapDataExt::IsNewMap = false;
 	return 0;
 }
 
@@ -997,6 +1077,13 @@ DEFINE_HOOK(4B9E38, CMapData_CreateMap_InitializeMapDataExt, 5)
 	CMapDataExt::IsUTF8File = false;
 	Logger::Debug("CMapData::CreateMap(): About to call InitializeAllHdmEdition()\n");
 	CMapDataExt::InitializeAllHdmEdition();
+	CMapDataExt::MapIniSectionSorting.clear();
+	CMapDataExt::MapInlineComments.clear();
+	CMapDataExt::MapFrontlineComments.clear();
+	CMapDataExt::MapInsectionComments.clear();
+	CMapDataExt::MapFrontsectionComments.clear();
+	CMapDataExt::IsNewMap = true;
+
 	return 0;
 }
 
@@ -1018,100 +1105,6 @@ DEFINE_HOOK(4B8AD2, CMapData_CreateMap_FixLocalSize, 5)
 
 	memcpy(lpBuffer, localSize.c_str(), std::min(localSize.GetLength(), 40));
 	lpBuffer[std::min(localSize.GetLength(), 40)] = '\0';
-
-	return 0;
-}
-
-DEFINE_HOOK(4C5E1E, CMapData_ResizeMap_FixLocalSize, 7)
-{
-	REF_STACK(ppmfc::CString, lpBuffer, STACK_OFFS(0x1C4, 0x178));
-	GET_STACK(int, dwWidth, STACK_OFFS(0x1C4, -0xC));
-	GET(int, dwHeight, EDI);
-
-	lpBuffer.Format("%d,%d,%d,%d", 3, 5, dwWidth - 6, dwHeight - 11);
-	CMapDataExt::SkipBuildingOverlappingCheck = true;
-
-	return 0x4C5E64;
-}
-
-DEFINE_HOOK(4C55F7, CMapData_ResizeMap_DeleteBuilding, 7)
-{
-	CMapDataExt::DeleteBuildingByIniID = true;
-	return 0;
-}
-
-DEFINE_HOOK(4C560D, CMapData_ResizeMap_DeleteBuilding_2, 6)
-{
-	CMapDataExt::DeleteBuildingByIniID = false;
-	return 0;
-}
-
-DEFINE_HOOK(4C536C, CMapData_ResizeMap_GetBuildingData, 7)
-{
-	GET(int, index, EDI);
-	REF_STACK(CBuildingData, pBld, STACK_OFFS(0x1C4, 0x130));
-
-	CMapDataExt::GetBuildingDataByIniID(index, pBld);
-	return 0;
-}
-
-DEFINE_HOOK(4C6456, CMapData_ResizeMap_ResizeCellDataExts, 8)
-{
-	CMapDataExt::UndoRedoDatas.clear();
-	CMapDataExt::UndoRedoDataIndex = -1;
-	CMapDataExt::CellDataExts.clear();
-	CMapDataExt::CellDataExts.resize(CMapData::Instance->CellDataCount);
-	return 0;
-}
-
-DEFINE_HOOK(4C76C6, CMapData_ResizeMap_Overlay, 5)
-{
-	GET_STACK(int, x_move, STACK_OFFS(0x1C4, 0x19C));
-	GET_STACK(int, y_move, STACK_OFFS(0x1C4, 0x194));
-
-	auto pThis = CMapDataExt::GetExtension();
-	auto original = new WORD[0x40000];
-	std::copy(std::begin(pThis->NewOverlay), std::end(pThis->NewOverlay), original);
-	std::fill(std::begin(pThis->NewOverlay), std::end(pThis->NewOverlay), 0xFFFF);
-
-	for (int y = 0; y < 512; ++y)
-	{
-		for (int x = 0; x < 512; ++x)
-		{
-			int new_x = x + x_move;
-			int new_y = y + y_move;
-
-			if (new_x >= 0 && new_x < 512 && new_y >= 0 && new_y < 512)
-			{
-				pThis->NewOverlay[new_y * 512 + new_x] = original[y * 512 + x];
-			}
-		}
-	}
-	delete[] original;
-
-	int u, v;
-	for (u = 0; u < pThis->MapWidthPlusHeight; u++)
-	{
-		for (v = 0; v < pThis->MapWidthPlusHeight; v++)
-		{
-			pThis->CellDataExts[u + v * pThis->MapWidthPlusHeight].NewOverlay = pThis->NewOverlay[v + u * 512];
-		}
-	}
-
-	return 0;
-}
-
-DEFINE_HOOK(4C7DAF, CMapData_ResizeMap_InitializeMapDataExt, 7)
-{
-	// load objects to avoid weird palette issue
-	CIsoView::GetInstance()->PrimarySurfaceLost();
-	CMapDataExt::SkipBuildingOverlappingCheck = false;
-
-	for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
-		for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
-			CMapData::Instance->UpdateMapPreviewAt(i, j);
-		}
-	}
 
 	return 0;
 }
@@ -1140,7 +1133,8 @@ DEFINE_HOOK(4A6040, CMapData_UpdateUnits, 6)
 				if (pos < pThis->CellDataCount) 
 					pThis->CellDatas[pos].Unit = i;
 
-				pThis->UpdateMapPreviewAt(x, y);
+				if (!CMapDataExt::SkipUpdateMinimap)
+					pThis->UpdateMapPreviewAt(x, y);
 				i++;
 			}
 		}
@@ -1162,7 +1156,8 @@ DEFINE_HOOK(4A87A0, CMapData_DeleteUnit, 7)
 			int y = atoi(atoms[3]);
 			CINI::CurrentDocument->DeleteKey(pSection, *pSection->GetKeyAt(index));
 			pThis->UpdateFieldUnitData(false);
-			pThis->UpdateMapPreviewAt(x, y);
+			if (!CMapDataExt::SkipUpdateMinimap)
+				pThis->UpdateMapPreviewAt(x, y);
 		}
 	}
 	return 0x4A8F9F;
@@ -1192,7 +1187,8 @@ DEFINE_HOOK(4A4270, CMapData_UpdateAircraft, 6)
 				if (pos < pThis->CellDataCount)
 					pThis->CellDatas[pos].Aircraft = i;
 
-				pThis->UpdateMapPreviewAt(x, y);
+				if (!CMapDataExt::SkipUpdateMinimap)
+					pThis->UpdateMapPreviewAt(x, y);
 				i++;
 			}
 		}
@@ -1214,7 +1210,8 @@ DEFINE_HOOK(4A98B0, CMapData_DeleteAircraft, 7)
 			int y = atoi(atoms[3]);
 			CINI::CurrentDocument->DeleteKey(pSection, *pSection->GetKeyAt(index));
 			pThis->UpdateFieldAircraftData(false);
-			pThis->UpdateMapPreviewAt(x, y);
+			if (!CMapDataExt::SkipUpdateMinimap)
+				pThis->UpdateMapPreviewAt(x, y);
 		}
 	}
 	return 0x4AA0AF;
@@ -1623,4 +1620,16 @@ DEFINE_HOOK(4A29E0, CMapData_GetOverlayAt, A)
 DEFINE_HOOK(469557, CMapData_GetOverlayDirection_skip, 5)
 {
 	return 0x46955C;
+}
+
+
+DEFINE_HOOK(4A16A0, CMapData_ClearOverlay, 8)
+{
+	GET(CMapDataExt*, pThis, ECX);
+
+	std::fill(std::begin(pThis->NewOverlay), std::end(pThis->NewOverlay), 0xFFFF);
+	std::fill(std::begin(pThis->Overlay), std::end(pThis->Overlay), 0xFF);
+	pThis->NewINIFormat = 4;
+
+	return 0x4A16B4;
 }

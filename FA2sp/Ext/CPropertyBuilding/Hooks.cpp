@@ -9,6 +9,7 @@
 
 #include "../CFinalSunDlg/Body.h"
 #include "../CMapData/Body.h"
+#include "../../Helpers/Translations.h"
 
 // FA2 Building Property window is messed up.
 DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
@@ -34,13 +35,13 @@ DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
             Miscs::LoadParams::Houses(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1079)), false, false, false);
     }
 	
-
     Miscs::LoadParams::Tags(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1083)), true);
 
     pThis->CSCStrength.SetRange(0, 256);
     pThis->CSCStrength.SetPos(atoi(pThis->CString_HealthPoint));
     pThis->UpdateData(FALSE);
     pThis->GetDlgItem(1088)->SetWindowTextA(pThis->CString_Direction);
+    pThis->GetDlgItem(1233)->ShowWindow(FALSE);
     
     ppmfc::CComboBox* pUpgrades[3]
     {
@@ -77,7 +78,7 @@ DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
                 {
                     const auto UIName = CMapData::Instance->GetUIName(upgrade.c_str());
                     FString name;
-                    name.Format("%s (%s)", upgrade, UIName.m_pchData);
+                    name.Format("%s (%s)", upgrade, UIName.GetString());
 
                     for (int i = 0; i < nUpgrades; ++i)
                         pUpgrades[i]->AddString(name.c_str());
@@ -85,6 +86,16 @@ DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
             }
         }
     }
+
+    HWND hSpotLightComboBox = pThis->GetDlgItem(1090)->GetSafeHwnd();
+    ExtraWindow::ClearComboKeepText(hSpotLightComboBox);
+
+    ::SendMessage(hSpotLightComboBox, CB_INSERTSTRING, 0, 
+        static_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.0", "0 - No spotlight")));
+    ::SendMessage(hSpotLightComboBox, CB_INSERTSTRING, 1, 
+        static_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.1", "1 - Rules.ini setting")));
+    ::SendMessage(hSpotLightComboBox, CB_INSERTSTRING, 2, 
+        static_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.2", "2 - Circle / Direction")));
 
     pThis->Translate();
 

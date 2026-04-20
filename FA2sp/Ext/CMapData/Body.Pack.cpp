@@ -162,7 +162,7 @@ void CMapDataExt::UnPackExt(CINI& ini, std::vector<IsoMapPack5Entry>& entry)
 	{
 		for (const auto& [k, v] : pSection->GetEntities())
 		{
-			pack += v.m_pchData;
+			pack += v.GetString();
 		}
 		pack = base64::decode(pack.data());
 		pack = lzo::decompress(pack.data(), pack.size());
@@ -201,7 +201,7 @@ DEFINE_HOOK(49EF81, CMapData_UnPack_OverlayData, 8)
 	{
 		for (const auto& [k, v] : pSection->GetEntities())
 		{
-			ovr += v.m_pchData;
+			ovr += v.GetString();
 		}
 		ovr = base64::decode(ovr.data());
 		ovr = lcw::decompress(ovr.data(), ovr.size());
@@ -223,7 +223,7 @@ DEFINE_HOOK(49EF81, CMapData_UnPack_OverlayData, 8)
 	{
 		for (const auto& [k, v] : pSection->GetEntities())
 		{
-			ovr += v.m_pchData;
+			ovr += v.GetString();
 		}
 		ovr = base64::decode(ovr.data());
 		ovr = lcw::decompress(ovr.data(), ovr.size());

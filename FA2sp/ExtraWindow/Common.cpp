@@ -12,13 +12,21 @@
 #include <CFinalSunApp.h>
 #include "../Miscs/StringtableLoader.h"
 #include "../Ext/CMapData/Body.h"
+#include "ILexer.h"
+#include "Scintilla.h"
+#include "SciLexer.h"
+#include "Lexilla.h"
 
 CINI& ExtraWindow::map = CINI::CurrentDocument;
 CINI& ExtraWindow::fadata = CINI::FAData;
 MultimapHelper& ExtraWindow::rules = Variables::RulesMap;
+std::vector<DropTarget> ExtraWindow::g_DropTargets;
 
 bool ExtraWindow::bComboLBoxSelected = false;
 bool ExtraWindow::bEnterSearch = false;
+
+ATOM TargetHighlighter::window_class_atom_ = 0;
+bool TargetHighlighter::class_registered_ = false;
 
 FString ExtraWindow::GetTeamDisplayName(const char* id)
 {
@@ -26,6 +34,7 @@ FString ExtraWindow::GetTeamDisplayName(const char* id)
     name.Format("%s (%s)", id, map.GetString(id, "Name"));
     return name;
 }
+
 FString ExtraWindow::GetAITriggerDisplayName(const char* id)
 {
     FString name = "";
@@ -36,6 +45,7 @@ FString ExtraWindow::GetAITriggerDisplayName(const char* id)
     name.Format("%s (%s)", id, atoms[0]);
     return name;
 }
+
 void ExtraWindow::SetEditControlFontSize(HWND hWnd, float nFontSizeMultiplier, bool richEdit, const char* newFont)
 {
     if (richEdit)
@@ -84,71 +94,64 @@ FString ExtraWindow::FormatTriggerDisplayName(const char* id, const char* name)
 
 FString ExtraWindow::GetTriggerDisplayName(const char* id)
 {
-    FString name;
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = FString::SplitString(map.GetString("Triggers", id, "Americans,<none>,MISSING,0,1,1,1,0"));
-    name.Format("%s (%s)", id, atoms[2]);
+    auto name = FString::GetParam(map.GetString("Triggers", id, "Americans,<none>,MISSING,0,1,1,1,0"), 2);
+    name.Format("%s (%s)", id, name);
     return name;
 }
 
 FString ExtraWindow::GetTriggerName(const char* id)
 {
-    FString name;
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = FString::SplitString(map.GetString("Triggers", id, "Americans,<none>,MISSING,0,1,1,1,0"));
-    return atoms[2];
+    return FString::GetParam(map.GetString("Triggers", id, "Americans,<none>,MISSING,0,1,1,1,0"), 2);
 }
 
 FString ExtraWindow::GetAITriggerName(const char* id)
 {
-    FString name;
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = FString::SplitString(map.GetString("AITriggerTypes", id, "MISSING"));
-    return atoms[0];
+    return FString::GetParam(map.GetString("AITriggerTypes", id, "MISSING"), 0);
 }
 
 FString ExtraWindow::GetTagName(const char* id)
 {
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = FString::SplitString(map.GetString("Tags", id, "0,MISSING,01000000"));
-    return atoms[1];
+    return FString::GetParam(map.GetString("Tags", id, "0,MISSING,01000000"), 1);
 }
 
 FString ExtraWindow::GetTagDisplayName(const char* id)
 {
-    FString name;
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = FString::SplitString(map.GetString("Tags", id, "0,MISSING,01000000"));
-    name.Format("%s (%s)", id, atoms[1]);
+    FString name;
+    name.Format("%s (%s)", id, FString::GetParam(map.GetString("Tags", id, "0,MISSING,01000000"), 1));
     return name;
 }
 
-FString ExtraWindow::GetEventDisplayName(const char* id, int index)
+FString ExtraWindow::GetEventDisplayName(const char* id, int index, bool addIndex)
 {
     FString name;
     FString name2;
-    FString atom = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), id, "MISSING"))[0];
+    FString atom = FString::GetParam(fadata.GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), id, "MISSING"), 0);
     atom = FString::ReplaceSpeicalString(atom);
     name.Format("%s %s", id, atom);
-    if (index >= 0)
+    if (index >= 0 && addIndex)
         name2.Format("[%d] %s", index, name);
     else name2 = name;
     return name2;
 }
 
-FString ExtraWindow::GetActionDisplayName(const char* id, int index)
+FString ExtraWindow::GetActionDisplayName(const char* id, int index, bool addIndex)
 {
     FString name;
     FString name2;
-    FString atom = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), id, "MISSING"))[0];
+    FString atom = FString::GetParam(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), id, "MISSING"), 0);
     atom = FString::ReplaceSpeicalString(atom);
     name.Format("%s %s", id, atom);
-    if (index >= 0)
+    if (index >= 0 && addIndex)
         name2.Format("[%d] %s", index, name);
     else name2 = name;
     return name2;
@@ -202,23 +205,39 @@ void ExtraWindow::AdjustDropdownWidth(HWND hWnd)
 
 void ExtraWindow::SyncComboBoxContent(HWND hSource, HWND hTarget, bool addNone)
 {
+    char buffer[512]{ 0 };
+    GetWindowText(hTarget, buffer, 511);
+
+    SendMessage(hTarget, WM_SETREDRAW, FALSE, 0);
     SendMessage(hTarget, CB_RESETCONTENT, 0, 0);
-    if (addNone)
-        SendMessage(hTarget, CB_INSERTSTRING, 0, (LPARAM)(LPCSTR)"<none>");
 
     int count = (int)SendMessage(hSource, CB_GETCOUNT, 0, 0);
+    SendMessage(hTarget, CB_INITSTORAGE, count + (addNone ? 1 : 0), 512);
+
+    int insertIndex = 0;
+
+    if (addNone)
+    {
+        SendMessage(hTarget, CB_ADDSTRING, 0, (LPARAM)"<none>");
+        insertIndex = 1;
+    }
+
     for (int i = 0; i < count; i++)
     {
-        char buffer[512]{ 0 };
-        SendMessage(hSource, CB_GETLBTEXT, i, (LPARAM)buffer);
-        if (addNone)
-            SendMessage(hTarget, CB_INSERTSTRING, i + 1, (LPARAM)buffer);
-        else
-            SendMessage(hTarget, CB_INSERTSTRING, i, (LPARAM)buffer);
+        char buffer2[512]{ 0 };
+        SendMessage(hSource, CB_GETLBTEXT, i, (LPARAM)buffer2);
+        SendMessage(hTarget, CB_ADDSTRING, 0, (LPARAM)buffer2);
     }
+
+    int index = SendMessage(hTarget, CB_FINDSTRINGEXACT, 0, (LPARAM)buffer);
+    if (index != CB_ERR)
+        SendMessage(hTarget, CB_SETCURSEL, index, 0);
+
+    SendMessage(hTarget, WM_SETREDRAW, TRUE, 0);
+    InvalidateRect(hTarget, NULL, TRUE);
 }
 
-void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
+void ExtraWindow::LoadParams(HWND& hWnd, FString idx, CNewTrigger* instance)
 {
     FString addonN1 = "-1 - ";
     FString addonN2 = "-2 - ";
@@ -235,16 +254,15 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
     case 3:
         LoadParam_CountryList(hWnd);
         LoadParam_HouseAddon_Multi(hWnd);
-
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("NonNeutralrandomhouse", "Non-Neutral random house")).c_str());
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN2 + Translations::TranslateOrDefault("FirstNeutralhouse", "First Neutral house")).c_str());
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN3 + Translations::TranslateOrDefault("RandomHumanplayer", "Random Human player")).c_str());
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("NonNeutralrandomhouse", "Non-Neutral random house")).c_str());
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)(addonN2 + Translations::TranslateOrDefault("FirstNeutralhouse", "First Neutral house")).c_str());
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)(addonN3 + Translations::TranslateOrDefault("RandomHumanplayer", "Random Human player")).c_str());
         break;
     case 4:
         LoadParam_CountryList(hWnd);
         LoadParam_HouseAddon_Multi(hWnd);
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("Anyhouse", "Any house")).c_str());
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN2 + Translations::TranslateOrDefault("Triggerhouse", "Trigger house")).c_str());
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("Anyhouse", "Any house")).c_str());
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)(addonN2 + Translations::TranslateOrDefault("Triggerhouse", "Trigger house")).c_str());
         break;
     case 5:
         LoadParam_CountryList(hWnd);
@@ -253,7 +271,7 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
     case 6:
         LoadParam_CountryList(hWnd);
         LoadParam_HouseAddon_MultiAres(hWnd);
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("Anyhouse", "Any house")).c_str());
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("Anyhouse", "Any house")).c_str());
         break;
     case 7:
         LoadParam_CountryList(hWnd);
@@ -263,7 +281,7 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
         LoadParam_TechnoTypes(hWnd);
         break;
     case 9:
-        LoadParam_Triggers(hWnd);
+        LoadParam_Triggers(hWnd, instance);
         break;
     case 10:
         if (!ExtConfigs::TutorialTexts_Viewer)
@@ -273,18 +291,22 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
         LoadParam_Tags(hWnd);
         break;
     case 12: // float
-        CNewTrigger::ActionParamUsesFloat = true;
+        if (instance == &CNewTrigger::Instance[0]) CNewTrigger::Instance[0].ActionParamUsesFloat = true;
+        else if (instance == &CNewTrigger::Instance[1]) CNewTrigger::Instance[1].ActionParamUsesFloat = true;
         break;
     case 13:
         LoadParam_CountryList(hWnd);
         LoadParam_HouseAddon_Multi(hWnd);
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("Allhouse", "All house")).c_str());
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("Allhouse", "All house")).c_str());
         break;
     case 14:
         LoadParam_CountryList(hWnd);
         LoadParam_HouseAddon_Multi(hWnd);
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("CancelForceEnemy", "Cancel force enemy")).c_str());
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN2 + Translations::TranslateOrDefault("ForceNoEnemy", "Force no enemy")).c_str());
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("CancelForceEnemy", "Cancel force enemy")).c_str());
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)(addonN2 + Translations::TranslateOrDefault("ForceNoEnemy", "Force no enemy")).c_str());
+        break;
+    case 15:
+        LoadParam_Teamtypes(hWnd);
         break;
     default:
         if (atoi(idx) >= 500)
@@ -306,8 +328,9 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
 
                 if (useValue == "1")
                 {
-                    int i = 0;
-                    for (auto& kvp : mmh.GetSection(sectionName))
+                    auto section = mmh.GetSection(sectionName);
+                    ComboBoxBatchUpdater t(hWnd, section.size(), false, 512, false);
+                    for (auto& kvp : section)
                     {
                         FString output;
                         output.Format("%s", kvp.second);
@@ -316,12 +339,10 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
                             FString uiname = CViewObjectsExt::QueryUIName(kvp.second, true);
                             if (uiname != kvp.second && uiname != "")
                             {
-                                FString tmp = output;
-                                output.Format("%s - %s", tmp, uiname);
+                                output.Format("%s - %s", output, uiname);
                             }
                         }
-                        SendMessage(hWnd, CB_INSERTSTRING, i, output);
-                        i++;
+                        SendMessage(hWnd, CB_ADDSTRING, 0, output);
                     }
                 }
                 else
@@ -337,6 +358,7 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
                             }
                         }
                         auto&& entries = mmh.ParseIndicies(sectionName, true);
+                        ComboBoxBatchUpdater t(hWnd, entries.size(), false, 512, false);
                         for (size_t i = 0, sz = entries.size(); i < sz; i++)
                         {
                             FString output;
@@ -346,17 +368,18 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
                                 FString uiname = CViewObjectsExt::QueryUIName(entries[i], true);
                                 if (uiname != entries[i] && uiname != "")
                                 {
-                                    FString tmp = output;
-                                    output.Format("%s - %s", tmp, uiname);
+                                    output.Format("%s - %s", output, uiname);
                                 }
                             }
-                            SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.c_str());
+                            SendMessage(hWnd, CB_ADDSTRING, 0, output);
                         }
                     }
                     else
                     {
                         int i = 0;
-                        for (auto& kvp : mmh.GetUnorderedUnionSection(sectionName.c_str()))
+                        auto section = mmh.GetUnorderedUnionSection(sectionName);
+                        ComboBoxBatchUpdater t(hWnd, section.size(), false, 512, false);
+                        for (auto& kvp : section)
                         {
                             FString output;
                             output.Format("%s - %s", kvp.first, kvp.second);
@@ -365,11 +388,10 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
                                 FString uiname = CViewObjectsExt::QueryUIName(kvp.second, true);
                                 if (uiname != kvp.second && uiname != "")
                                 {
-                                    FString tmp = output;
-                                    output.Format("%s - %s", tmp, uiname);
+                                    output.Format("%s - %s", output, uiname);
                                 }
                             }
-                            SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.c_str());
+                            SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)output.c_str());
                             i++;
                         }
                     }
@@ -382,9 +404,9 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
 
 void ExtraWindow::LoadParam_Waypoints(HWND& hWnd)
 {
-    int i = 0;
     if (auto pSection = map.GetSection("Waypoints")) 
     {
+        ComboBoxBatchUpdater t(hWnd, pSection->GetEntities().size(), false, 128, false);
         for (auto& kvp : pSection->GetEntities())
         {
             FString output;
@@ -393,8 +415,7 @@ void ExtraWindow::LoadParam_Waypoints(HWND& hWnd)
             int y = point / 1000;
 
             output.Format("%s - (%d, %d)", kvp.first, x, y);
-            SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.c_str());
-            i++;
+            SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)output.c_str());
         }
     }
 
@@ -422,7 +443,7 @@ void ExtraWindow::LoadParam_ActionList(HWND& hWnd)
             else
                 text.Format("%s - [%s - %s]", key, atoms[0], atoms[1]);
 
-            SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)text.c_str());
+            SendMessage(hWnd, CB_ADDSTRING, 0, text);
         }
     }
 }
@@ -433,7 +454,6 @@ void ExtraWindow::LoadParam_CountryList(HWND& hWnd)
     mmh.AddINI(&CINI::Rules);
     mmh.AddINI(&CINI::CurrentDocument);
 
-    int idx = 0;
     int rIdx = 0;
     const auto& indicies = Variables::RulesMap.ParseIndicies("Countries", true);
     for (auto& value : indicies)
@@ -443,15 +463,14 @@ void ExtraWindow::LoadParam_CountryList(HWND& hWnd)
             continue;
         }
         FString output;
-            output.Format("%d - %s", rIdx, value);
-            FString uiname = CViewObjectsExt::QueryUIName(value, true);
-            if (uiname != value && uiname != "")
-            {
-                FString tmp = output;
-                output.Format("%s - %s", tmp, uiname);
-            }
+        output.Format("%d - %s", rIdx, value);
+        FString uiname = CViewObjectsExt::QueryUIName(value, true);
+        if (uiname != value && uiname != "")
+        {
+            output.Format("%s - %s", output, uiname);
+        }
 
-        SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)output.c_str());
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)output.c_str());
         rIdx++;
     }
 }
@@ -459,37 +478,40 @@ void ExtraWindow::LoadParam_CountryList(HWND& hWnd)
 void ExtraWindow::LoadParam_TechnoTypes(HWND& hWnd, int specificType, int style, bool sort)
 {
     int idx = 0;
-
+    std::vector<FString> technos;
     auto addValueList = [&](const char* secName)
         {
-            const auto& indicies = Variables::RulesMap.ParseIndicies(secName, true);
-            for (auto& value : indicies)
+            if (sort)
             {
-                FString output;
-                output.Format("%s", value);
-                FString uiname = CViewObjectsExt::QueryUIName(value, true);
-                switch (style)
+                for (auto& [key, value] : Variables::RulesMap.GetSection(secName))
                 {
-                case 0:
-                {
-                    FString tmp = output;
-                    output.Format("%s - %s", tmp, uiname);
+                    technos.push_back(value);
                 }
-                break;
-                case 1:
+            }
+            else
+            {
+                for (auto& [key, value] : Variables::RulesMap.GetSection(secName))
                 {
-                    FString tmp = output;
-                    output.Format("%s - %s", tmp, uiname);
-                }
-                break;
-                default:
+                    FString output;
+                    output.Format("%s", value);
+                    FString uiname = CViewObjectsExt::QueryUIName(value, true);
+                    switch (style)
+                    {
+                    case 0:
+                    {
+                        output.Format("%s - %s", output, uiname);
+                    }
                     break;
+                    case 1:
+                    {
+                        output.Format("%s - %s", output, uiname);
+                    }
+                    break;
+                    default:
+                        break;
+                    }
+                    SendMessage(hWnd, CB_ADDSTRING, 0, output);
                 }
-
-                if (sort)
-                    SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)output.c_str());
-                else
-                    SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)output.c_str());
             }
         };
 
@@ -519,20 +541,47 @@ void ExtraWindow::LoadParam_TechnoTypes(HWND& hWnd, int specificType, int style,
         addValueList("VehicleTypes");
         break;
     }
+    if (sort)
+    {
+        ComboBoxBatchUpdater t(hWnd, technos.size(), false, 128, false);
+        SortRawStrings(technos);
+        for (auto& value : technos)
+        {
+            FString output;
+            output.Format("%s", value);
+            FString uiname = CViewObjectsExt::QueryUIName(value, true);
+            switch (style)
+            {
+            case 0:
+            {
+                output.Format("%s - %s", output, uiname);
+            }
+            break;
+            case 1:
+            {
+                output.Format("%s - %s", output, uiname);
+            }
+            break;
+            default:
+                break;
+            }
+            SendMessage(hWnd, CB_ADDSTRING, 0, output);
+        }
+    }
 }
 
 void ExtraWindow::LoadParam_HouseAddon_Multi(HWND& hWnd)
 {
     if (CMapData::Instance->IsMultiOnly())
     {
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4475 - <Player @ A>");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4476 - <Player @ B>");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4477 - <Player @ C>");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4478 - <Player @ D>");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4479 - <Player @ E>");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4480 - <Player @ F>");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4481 - <Player @ G>");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4482 - <Player @ H>");
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"4475 - <Player @ A>");
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"4476 - <Player @ B>");
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"4477 - <Player @ C>");
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"4478 - <Player @ D>");
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"4479 - <Player @ E>");
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"4480 - <Player @ F>");
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"4481 - <Player @ G>");
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"4482 - <Player @ H>");
     }
 }
 
@@ -540,34 +589,50 @@ void ExtraWindow::LoadParam_HouseAddon_MultiAres(HWND& hWnd)
 {
     if (CMapData::Instance->IsMultiOnly())
     {
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4475 - <Player @ A> (Ares0.A+)");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4476 - <Player @ B> (Ares0.A+)");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4477 - <Player @ C> (Ares0.A+)");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4478 - <Player @ D> (Ares0.A+)");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4479 - <Player @ E> (Ares0.A+)");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4480 - <Player @ F> (Ares0.A+)");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4481 - <Player @ G> (Ares0.A+)");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4482 - <Player @ H> (Ares0.A+)");
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"4475 - <Player @ A> (Ares0.A+)");
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"4476 - <Player @ B> (Ares0.A+)");
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"4477 - <Player @ C> (Ares0.A+)");
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"4478 - <Player @ D> (Ares0.A+)");
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"4479 - <Player @ E> (Ares0.A+)");
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"4480 - <Player @ F> (Ares0.A+)");
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"4481 - <Player @ G> (Ares0.A+)");
+        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"4482 - <Player @ H> (Ares0.A+)");
     }
 }
 
-void ExtraWindow::LoadParam_Triggers(HWND& hWnd)
+void ExtraWindow::LoadParam_Triggers(HWND& hWnd, CNewTrigger* instance)
 {
-    ExtraWindow::SyncComboBoxContent(CNewTrigger::hSelectedTrigger, hWnd);
+    if (instance)
+        ExtraWindow::SyncComboBoxContent(instance->hSelectedTrigger, hWnd);
+    else
+        ExtraWindow::SyncComboBoxContent(CNewTrigger::Instance[0].hSelectedTrigger, hWnd);
 }
 
 void ExtraWindow::LoadParam_Tags(HWND& hWnd)
 {
     if (auto pSection = CINI::CurrentDocument().GetSection("Tags"))
     {
-        int idx = 0;
+        ComboBoxBatchUpdater t(hWnd, pSection->GetEntities().size(), false, 512, false);
         for (auto& kvp : pSection->GetEntities())
         {
             auto tagAtoms = FString::SplitString(kvp.second);
             if (tagAtoms.size() < 3) continue;
             FString text;
             text.Format("%s - %s", kvp.first, tagAtoms[1]);
-            SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text.c_str());
+            SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)text.c_str());
+        }
+    }
+}
+
+void ExtraWindow::LoadParam_Teamtypes(HWND& hWnd)
+{
+    if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+    {
+        ComboBoxBatchUpdater t(hWnd, pSection->GetEntities().size(), false, 512, false);
+        for (auto& [key, value] : pSection->GetEntities())
+        {
+            auto name = GetTeamDisplayName(value);
+            SendMessage(hWnd, CB_ADDSTRING, 0, name);
         }
     }
 }
@@ -596,7 +661,7 @@ bool ExtraWindow::OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels,
         SendMessage(hWnd, CB_GETLBTEXT, SendMessage(hWnd, CB_GETCURSEL, NULL, NULL), (LPARAM)buffer);
         while (SendMessage(hWnd, CB_DELETESTRING, 0, NULL) != CB_ERR);
         for (auto& pair : labels)
-            SendMessage(hWnd, CB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second.c_str());
+            SendMessage(hWnd, CB_INSERTSTRING, pair.first, pair.second);
         labels.clear();
         int idx = SendMessage(hWnd, CB_FINDSTRINGEXACT, 0, (LPARAM)buffer);
         if (idx == CB_ERR)
@@ -638,7 +703,7 @@ void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, FString>& labels)
         while (SendMessage(hWnd, CB_DELETESTRING, 0, NULL) != CB_ERR);
         for (auto& pair : labels)
         {
-            SendMessage(hWnd, CB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second.c_str());
+            SendMessage(hWnd, CB_INSERTSTRING, pair.first, pair.second);
         }
         labels.clear();
     }
@@ -647,12 +712,13 @@ void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, FString>& labels)
     SendMessage(hWnd, CB_SHOWDROPDOWN, TRUE, NULL);
 
     std::vector<int> deletedLabels;
+    LabelMatcher matcher(buffer);
     for (int idx = SendMessage(hWnd, CB_GETCOUNT, NULL, NULL) - 1; idx >= 0; idx--)
     {
         SendMessage(hWnd, CB_GETLBTEXT, idx, (LPARAM)buffer2);
         bool del = false;
         FString tmp(buffer2);
-        if (!(IsLabelMatch(buffer2, buffer) || strcmp(buffer, "")   == 0))
+        if (!(matcher.Match(buffer2) || strcmp(buffer, "")   == 0))
         {
             deletedLabels.push_back(idx);
         }
@@ -671,108 +737,289 @@ void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, FString>& labels)
     SetCursor(hCursor);
 }
 
-bool ExtraWindow::SortLabels(FString a, FString b)
+struct Part
 {
-    if (!ExtConfigs::SortByLabelName) {
-        return a < b;
-    }
-    FString::TrimIndexElse(a);
-    FString::TrimIndexElse(b);
-    a = a.Mid(1, a.GetLength() - 2);
-    b = b.Mid(1, b.GetLength() - 2);
+    std::string text;
+    std::string number;
+    bool isNumber;
+};
 
-    auto sa = std::string(a);
-    auto sb = std::string(b);
+struct LabelKey
+{
+    FString original;
+    std::vector<Part> parts;
+};
 
-    std::regex re("(\\D*)(\\d+)");
-    std::sregex_iterator itA(sa.begin(), sa.end(), re);
-    std::sregex_iterator itB(sb.begin(), sb.end(), re);
-    std::sregex_iterator end;
-    VEHGuard guard(false);
+struct KeyIndex
+{
+    LabelKey key;
+    size_t index;
+};
 
-    while (itA != end && itB != end) {
+static LabelKey BuildKey(const FString& input)
+{
+    LabelKey key;
 
-        std::string prefixA = (*itA)[1].str();
-        std::string prefixB = (*itB)[1].str();
-        if (prefixA != prefixB) return prefixA < prefixB;
+    FString s = input;
+    FString::TrimIndexElse(s);
+    s = s.Mid(1, s.GetLength() - 2);
 
-        int numA = INT_MAX;
-        int numB = INT_MAX;
-        try {
-            numA = std::stoi((*itA)[2].str());
-        }
-        catch (const std::out_of_range& e)
+    key.original = input;
+
+    const char* str = s.c_str();
+    std::string text;
+
+    while (*str)
+    {
+        if (*str >= '0' && *str <= '9')
         {
-            UNREFERENCED_PARAMETER(e);
-        }
-        try {
-            numB = std::stoi((*itB)[2].str());
-        }
-        catch (const std::out_of_range& e)
-        {
-            UNREFERENCED_PARAMETER(e);
-        }
-        if (numA != numB) return numA < numB;
+            if (!text.empty())
+            {
+                key.parts.push_back({ text, "", false });
+                text.clear();
+            }
 
-        if (numA == INT_MAX) {
-            std::string suffixA = (*itA)[2].str();
-            std::string suffixB = (*itB)[2].str();
-            if (suffixA != suffixB) return suffixA < suffixB;
+            const char* start = str;
+            while (*str >= '0' && *str <= '9')
+                ++str;
+
+            key.parts.push_back({ "", std::string(start, str - start), true });
         }
-        ++itA;
-        ++itB;
+        else
+        {
+            text += *str;
+            ++str;
+        }
     }
 
-    return sa < sb;
+    if (!text.empty())
+        key.parts.push_back({ text, "", false });
+
+    return key;
 }
 
-bool ExtraWindow::SortRawStrings(std::string sa, std::string sb)
+static int CompareNumber(const std::string& a, const std::string& b)
 {
-    std::regex re("(\\D*)(\\d+)");
-    std::sregex_iterator itA(sa.begin(), sa.end(), re);
-    std::sregex_iterator itB(sb.begin(), sb.end(), re);
-    std::sregex_iterator end;
-    VEHGuard guard(false);
+    size_t i = 0; while (i < a.size() && a[i] == '0') ++i;
+    size_t j = 0; while (j < b.size() && b[j] == '0') ++j;
 
-    while (itA != end && itB != end) {
+    size_t lenA = a.size() - i;
+    size_t lenB = b.size() - j;
 
-        std::string prefixA = (*itA)[1].str();
-        std::string prefixB = (*itB)[1].str();
-        if (prefixA != prefixB) return prefixA < prefixB;
+    if (lenA != lenB)
+        return (lenA < lenB) ? -1 : 1;
 
-        int numA = INT_MAX;
-        int numB = INT_MAX;
-        try {
-            numA = std::stoi((*itA)[2].str());
-        }
-        catch (const std::out_of_range& e)
+    int cmp = std::memcmp(a.data() + i, b.data() + j, lenA);
+    if (cmp < 0) return -1;
+    if (cmp > 0) return 1;
+
+    return 0;
+}
+
+static bool CompareKey(const LabelKey& a, const LabelKey& b)
+{
+    const auto& pa = a.parts;
+    const auto& pb = b.parts;
+
+    size_t n = std::min(pa.size(), pb.size());
+
+    for (size_t i = 0; i < n; ++i)
+    {
+        const auto& A = pa[i];
+        const auto& B = pb[i];
+
+        if (!A.isNumber && !B.isNumber)
         {
-            UNREFERENCED_PARAMETER(e);
+            if (A.text != B.text)
+                return A.text < B.text;
         }
-        try {
-            numB = std::stoi((*itB)[2].str());
-        }
-        catch (const std::out_of_range& e)
+        else if (A.isNumber && B.isNumber)
         {
-            UNREFERENCED_PARAMETER(e);
+            int cmp = CompareNumber(A.number, B.number);
+            if (cmp != 0)
+                return cmp < 0;
         }
-        if (numA != numB) return numA < numB;
-
-        if (numA == INT_MAX) {
-            std::string suffixA = (*itA)[2].str();
-            std::string suffixB = (*itB)[2].str();
-            if (suffixA != suffixB) return suffixA < suffixB;
+        else
+        {
+            return A.isNumber;
         }
-        ++itA;
-        ++itB;
     }
 
-    return sa < sb;
+    if (pa.size() != pb.size())
+        return pa.size() < pb.size();
+
+    return a.original < b.original;
+}
+
+void ExtraWindow::SortLabels(std::vector<FString>& labels)
+{
+    if (!ExtConfigs::SortByLabelName)
+    {
+        std::sort(labels.begin(), labels.end());
+        return;
+    }
+
+    std::vector<LabelKey> keys;
+    keys.reserve(labels.size());
+
+    for (const auto& l : labels)
+        keys.push_back(BuildKey(l));
+
+    std::sort(keys.begin(), keys.end(), CompareKey);
+
+    for (size_t i = 0; i < labels.size(); ++i)
+        labels[i] = std::move(keys[i].original);
+}
+
+void ExtraWindow::SortLabels(std::vector<std::pair<FString, FString>>& labels, bool first)
+{
+    if (!ExtConfigs::SortByLabelName)
+    {
+        std::sort(labels.begin(), labels.end(),
+            [first](const auto& a, const auto& b)
+        {
+            return first ? (a.first < b.first) : (a.second < b.second);
+        });
+        return;
+    }
+
+    std::vector<KeyIndex> keys;
+    keys.reserve(labels.size());
+
+    for (size_t i = 0; i < labels.size(); ++i)
+    {
+        const FString& target = first ? labels[i].first : labels[i].second;
+        keys.push_back({ BuildKey(target), i });
+    }
+
+    std::sort(keys.begin(), keys.end(),
+        [](const KeyIndex& a, const KeyIndex& b)
+    {
+        return CompareKey(a.key, b.key);
+    });
+
+    std::vector<std::pair<FString, FString>> temp;
+    temp.reserve(labels.size());
+
+    for (auto& k : keys)
+    {
+        temp.push_back(std::move(labels[k.index]));
+    }
+
+    labels = std::move(temp);
+}
+
+static LabelKey BuildRawKey(const FString& input)
+{
+    LabelKey key;
+
+    key.original = input;
+
+    const char* str = input.c_str();
+    std::string text;
+
+    while (*str)
+    {
+        if (*str >= '0' && *str <= '9')
+        {
+            if (!text.empty())
+            {
+                key.parts.push_back({ text, "", false });
+                text.clear();
+            }
+
+            const char* start = str;
+            while (*str >= '0' && *str <= '9')
+                ++str;
+
+            key.parts.push_back({ "", std::string(start, str - start), true });
+        }
+        else
+        {
+            text += *str;
+            ++str;
+        }
+    }
+
+    if (!text.empty())
+        key.parts.push_back({ text, "", false });
+
+    return key;
+}
+
+void ExtraWindow::SortRawStrings(std::vector<FString>& labels)
+{
+    std::vector<LabelKey> keys;
+    keys.reserve(labels.size());
+
+    for (const auto& l : labels)
+        keys.push_back(BuildRawKey(l));
+
+    std::sort(keys.begin(), keys.end(), CompareKey);
+
+    for (size_t i = 0; i < labels.size(); ++i)
+        labels[i] = std::move(keys[i].original);
+}
+
+void ExtraWindow::SortRawStrings(std::vector<std::pair<FString, FString>>& labels, bool first)
+{
+    std::vector<KeyIndex> keys;
+    keys.reserve(labels.size());
+
+    for (size_t i = 0; i < labels.size(); ++i)
+    {
+        const FString& target = first ? labels[i].first : labels[i].second;
+        keys.push_back({ BuildRawKey(target), i });
+    }
+
+    std::sort(keys.begin(), keys.end(),
+        [](const KeyIndex& a, const KeyIndex& b)
+    {
+        return CompareKey(a.key, b.key);
+    });
+
+    std::vector<std::pair<FString, FString>> temp;
+    temp.reserve(labels.size());
+
+    for (auto& k : keys)
+    {
+        temp.push_back(std::move(labels[k.index]));
+    }
+
+    labels = std::move(temp);
+}
+
+void ExtraWindow::SortRawStrings(std::vector<std::pair<std::string, std::string>>& labels, bool first)
+{
+    std::vector<KeyIndex> keys;
+    keys.reserve(labels.size());
+
+    for (size_t i = 0; i < labels.size(); ++i)
+    {
+        const std::string& target = first ? labels[i].first : labels[i].second;
+        keys.push_back({ BuildRawKey(target), i });
+    }
+
+    std::sort(keys.begin(), keys.end(),
+        [](const KeyIndex& a, const KeyIndex& b)
+    {
+        return CompareKey(a.key, b.key);
+    });
+
+    std::vector<std::pair<std::string, std::string>> temp;
+    temp.reserve(labels.size());
+
+    for (auto& k : keys)
+    {
+        temp.push_back(std::move(labels[k.index]));
+    }
+
+    labels = std::move(temp);
 }
 
 void ExtraWindow::SortTeams(HWND& hWnd, FString section, int& selectedIndex, FString id)
 {
-    while (SendMessage(hWnd, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hWnd);
     std::vector<FString> labels;
     if (auto pSection = map.GetSection(section)) {
         for (auto& pair : pSection->GetEntities()) {
@@ -789,12 +1036,13 @@ void ExtraWindow::SortTeams(HWND& hWnd, FString section, int& selectedIndex, FSt
     else if (section == "TeamTypes")
         ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Team;
 
-    std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
+    ExtraWindow::SortLabels(labels);
 
     ExtConfigs::SortByLabelName = tmp;
 
+    ComboBoxBatchUpdater t(hWnd, labels.size(), false, 512, false);
     for (size_t i = 0; i < labels.size(); ++i) {
-        SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].c_str());
+        SendMessage(hWnd, CB_ADDSTRING, 0, labels[i]);
     }
     if (id != "") {
         selectedIndex = SendMessage(hWnd, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTeamDisplayName(id).c_str());
@@ -804,7 +1052,7 @@ void ExtraWindow::SortTeams(HWND& hWnd, FString section, int& selectedIndex, FSt
 
 void ExtraWindow::SortAITriggers(HWND& hWnd, int& selectedIndex, FString id)
 {
-    while (SendMessage(hWnd, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hWnd);
     std::vector<FString> labels;
     if (auto pSection = map.GetSection("AITriggerTypes")) {
         for (auto& pair : pSection->GetEntities()) {
@@ -815,12 +1063,13 @@ void ExtraWindow::SortAITriggers(HWND& hWnd, int& selectedIndex, FString id)
     bool tmp = ExtConfigs::SortByLabelName;
     ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_AITrigger;
 
-    std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
+    ExtraWindow::SortLabels(labels);
 
     ExtConfigs::SortByLabelName = tmp;
 
+    ComboBoxBatchUpdater t(hWnd, labels.size(), false, 512, false);
     for (size_t i = 0; i < labels.size(); ++i) {
-        SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].c_str());
+        SendMessage(hWnd, CB_ADDSTRING, 0, labels[i]);
     }
     if (id != "") {
         selectedIndex = SendMessage(hWnd, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetAITriggerDisplayName(id).c_str());
@@ -830,27 +1079,25 @@ void ExtraWindow::SortAITriggers(HWND& hWnd, int& selectedIndex, FString id)
 
 bool ExtraWindow::IsLabelMatch(const char* target, const char* source, bool exactMatch)
 {
-    std::string simple_target = target;
-    std::string simple_source = source;
+    FString simple_target = target;
+    FString simple_source = source;
 
     if (!exactMatch)
     {
-        simple_target = STDHelpers::ToUpperCase(simple_target);
-        simple_source = STDHelpers::ToUpperCase(simple_source);
-        simple_target = STDHelpers::ChineseTraditional_ToSimple((std::string)simple_target);
-        simple_source = STDHelpers::ChineseTraditional_ToSimple((std::string)simple_source);
+        simple_target.MakeUpper();
+        simple_source.MakeUpper();
+        simple_target = STDHelpers::ChineseTraditional_ToSimple(simple_target);
+        simple_source = STDHelpers::ChineseTraditional_ToSimple(simple_source);
     }
 
-    ppmfc::CString divide = simple_source.c_str();
-    STDHelpers::TrimString(divide);
-    auto splits = STDHelpers::SplitString(divide, "|");
+    simple_source.Trim();
+    auto splits = FString::SplitString(simple_source, "|");
     for (auto& split : splits)
     {
-        auto atoms = STDHelpers::SplitString(split, "*");
+        auto atoms = FString::SplitString(split, "*");
         if (atoms.size() > 1)
         {
-            ppmfc::CString tmp = simple_target.c_str();
-            char* pCompare = tmp.m_pchData;
+            FString compare = simple_target;
             bool match = true;
             for (int i = 0; i < atoms.size(); i++)
             {
@@ -861,8 +1108,8 @@ bool ExtraWindow::IsLabelMatch(const char* target, const char* source, bool exac
                         continue;
                     else
                     {
-                        if (auto pSub = (char*)_mbsstr((unsigned char*)pCompare, (unsigned char*)atom.m_pchData))
-                            if (strcmp(pCompare, pSub) != 0)
+                        if (auto pSub = (char*)_mbsstr((const unsigned char*)compare.c_str(), (const unsigned char*)atom.c_str()))
+                            if (strcmp(compare, pSub) != 0)
                             {
                                 match = false;
                                 break;
@@ -875,7 +1122,7 @@ bool ExtraWindow::IsLabelMatch(const char* target, const char* source, bool exac
                         continue;
                     else
                     {
-                        if (strcmp(pCompare, atom) != 0)
+                        if (strcmp(compare, atom) != 0)
                         {
                             match = false;
                             break;
@@ -885,10 +1132,10 @@ bool ExtraWindow::IsLabelMatch(const char* target, const char* source, bool exac
 
                 if (atom == "")
                     continue;
-                auto pSub = (char*)_mbsstr((unsigned char*)pCompare, (unsigned char*)atom.m_pchData);
+                auto pSub = (char*)_mbsstr((const unsigned char*)compare.c_str(), (const unsigned char*)atom.c_str());
                 if (pSub != NULL)
                 {
-                    pCompare = pSub;
+                    compare = pSub;
                 }
                 else
                 {
@@ -908,7 +1155,7 @@ bool ExtraWindow::IsLabelMatch(const char* target, const char* source, bool exac
             }
             else
             {
-                if ((char*)_mbsstr((unsigned char*)simple_target.c_str(), (unsigned char*)split.m_pchData) != NULL)
+                if ((char*)_mbsstr((unsigned char*)simple_target.c_str(), (unsigned char*)split.c_str()) != NULL)
                     return true;
             }
 
@@ -1005,4 +1252,686 @@ void ExtraWindow::TrimStringIndex(FString& str) {
         str = str.Mid(0, spaceIndex);
     }
     str.Trim();
+}
+
+void ExtraWindow::ClearComboKeepText(HWND hWnd)
+{
+    char buffer[512]{ 0 };
+    GetWindowText(hWnd, buffer, 511);
+    SendMessage(hWnd, CB_RESETCONTENT, 0, 0);
+    SetWindowText(hWnd, buffer);
+}
+
+void ExtraWindow::RegisterDropTarget(HWND hWnd, DropType type, CNewTrigger* trigger)
+{
+    RECT rc;
+    GetWindowRect(hWnd, &rc);
+
+    g_DropTargets.push_back({ hWnd, rc, type, trigger, GetAncestor(hWnd, GA_ROOT) });
+}
+
+struct UnregisterCtx
+{
+    HWND hParent;
+};
+
+static void UpdateDropTargetRectChild(HWND hWnd)
+{
+    for (auto& t : ExtraWindow::g_DropTargets)
+    {
+        if (t.hWnd == hWnd)
+        {
+            GetWindowRect(hWnd, &t.screenRect);
+            return;
+        }
+    }
+}
+
+static BOOL CALLBACK EnumChildProcUpdate(HWND hWnd, LPARAM lParam)
+{
+    auto* ctx = reinterpret_cast<UnregisterCtx*>(lParam);
+    UpdateDropTargetRectChild(hWnd);
+    return TRUE;
+}
+
+void ExtraWindow::UpdateDropTargetRect(HWND hWnd)
+{
+    UpdateDropTargetRectChild(hWnd);
+    UnregisterCtx ctx{ hWnd };
+    EnumChildWindows(hWnd, EnumChildProcUpdate, (LPARAM)&ctx);
+}
+
+bool IsWindowAbove(HWND a, HWND b)
+{
+    for (HWND h = a; h; h = GetWindow(h, GW_HWNDNEXT))
+    {
+        if (h == b)
+            return true;
+    }
+    return false;
+}
+
+DropTarget ExtraWindow::FindDropTarget(POINT screenPt)
+{
+    std::vector<DropTarget*> sorted;
+    for (auto& t : g_DropTargets)
+        sorted.push_back(&t);
+
+    std::sort(sorted.begin(), sorted.end(),
+        [](DropTarget* a, DropTarget* b)
+    {
+        return IsWindowAbove(a->hRoot, b->hRoot);
+    });
+
+    for (auto* t : sorted)
+    {
+        if (PtInRect(&t->screenRect, screenPt))
+            return *t;
+    }
+    return { nullptr, {0,0}, DropType::Unknown, nullptr, nullptr };
+}
+
+void ExtraWindow::UnregisterDropTarget(HWND hWnd)
+{
+    g_DropTargets.erase(
+        std::remove_if(
+            g_DropTargets.begin(),
+            g_DropTargets.end(),
+            [hWnd](const DropTarget& t)
+    {
+        return t.hWnd == hWnd;
+    }
+        ),
+        g_DropTargets.end()
+    );
+}
+
+static BOOL CALLBACK EnumChildProcUnregister(HWND hWnd, LPARAM lParam)
+{
+    auto* ctx = reinterpret_cast<UnregisterCtx*>(lParam);
+    ExtraWindow::UnregisterDropTarget(hWnd);
+    return TRUE;
+}
+
+void ExtraWindow::UnregisterDropTargetsOfWindow(HWND hMainWnd)
+{
+    UnregisterDropTarget(hMainWnd);
+
+    UnregisterCtx ctx{ hMainWnd };
+    EnumChildWindows(hMainWnd, EnumChildProcUnregister, (LPARAM)&ctx);
+}
+
+bool ExtraWindow::IsPointOnIsoViewAndNotCovered(POINT ptScreen)
+{
+    auto hIsoView = CIsoView::GetInstance()->GetSafeHwnd();
+    RECT rc;
+    GetWindowRect(hIsoView, &rc);
+    if (!PtInRect(&rc, ptScreen))
+        return false;
+
+    HWND hTop = WindowFromPoint(ptScreen);
+
+    while (hTop && hTop != hIsoView)
+    {
+        hTop = GetParent(hTop);
+    }
+
+    return hTop == hIsoView;
+}
+
+FString ExtraWindow::GetScintillaText(HWND hScintilla)
+{
+    if (!hScintilla) return {};
+
+    size_t len = ::SendMessage(hScintilla, SCI_GETTEXTLENGTH, 0, 0);
+    FString text(len + 1, '\0');
+    ::SendMessage(hScintilla, SCI_GETTEXT, len + 1, (LPARAM)text.data());
+    text.resize(len);
+    text.toANSI();
+
+    return text;
+}
+
+void ExtraWindow::SetScintillaText(HWND hScintilla, FString& text)
+{
+    if (!hScintilla) return;
+
+    text.toUTF8();
+    SendMessage(hScintilla, SCI_SETTEXT, 0, text);
+    ::SendMessage(hScintilla, SCI_EMPTYUNDOBUFFER, 0, 0);
+
+    return;
+}
+
+bool ExtraWindow::HitTestListView(
+    HWND hListView,
+    POINT ptScreen,
+    ListViewHitResult& out
+)
+{
+    POINT ptClient = ptScreen;
+    ScreenToClient(hListView, &ptClient);
+
+    LVHITTESTINFO hti = {};
+    hti.pt = ptClient;
+
+    int item = ListView_SubItemHitTest(hListView, &hti);
+    if (item < 0)
+        return false;
+
+    out.item = item;
+    out.subItem = hti.iSubItem;
+    out.flags = hti.flags;
+    return true;
+}
+
+void ExtraWindow::UpdateListBoxHScroll(HWND hListBox)
+{
+    HDC hdc = GetDC(hListBox);
+    HFONT hFont = (HFONT)SendMessage(hListBox, WM_GETFONT, 0, 0);
+    HFONT old = (HFONT)SelectObject(hdc, hFont);
+
+    int count = (int)SendMessage(hListBox, LB_GETCOUNT, 0, 0);
+    int maxWidth = 0;
+
+    for (int i = 0; i < count; ++i)
+    {
+        int len = (int)SendMessageW(hListBox, LB_GETTEXTLEN, i, 0);
+        if (len <= 0) continue;
+
+        std::wstring text(len + 1, L'\0');
+        SendMessageW(hListBox, LB_GETTEXT, i, (LPARAM)text.data());
+
+        SIZE sz{};
+        GetTextExtentPoint32W(hdc, text.c_str(), len, &sz);
+        maxWidth = MAX(maxWidth, (int)sz.cx);
+    }
+
+    SelectObject(hdc, old);
+    ReleaseDC(hListBox, hdc);
+
+    SendMessage(hListBox, LB_SETHORIZONTALEXTENT, maxWidth + 10, 0);
+}
+
+void HelpDlg::CreateHelpDlg(HWND& hParent, const FString& Title, const FString& Text)
+{
+    if (hDlg) return;
+
+    hDlg = CreateDialogParam(
+        static_cast<HINSTANCE>(FA2sp::hInstance),
+        MAKEINTRESOURCE(334),
+        hParent,
+        HelpDlgProc,
+        reinterpret_cast<LPARAM>(this)
+    );
+
+    if (hDlg)
+    {
+        ShowWindow(hDlg, SW_SHOW);
+        hText = GetDlgItem(hDlg, 1000);
+        SetWindowText(hDlg, Title);
+        SetWindowText(hText, Text);
+        ExtraWindow::SetEditControlFontSize(hText, 1.2f);
+
+        RECT rect;
+        GetClientRect(hDlg, &rect);
+        origWndWidth = rect.right - rect.left;
+        origWndHeight = rect.bottom - rect.top;
+        minSizeSet = false;
+    }
+    else
+    {
+        Logger::Error("Failed to create HelpDlg.\n");
+    }
+}
+
+BOOL CALLBACK HelpDlg::HelpDlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+    HelpDlg* self = nullptr;
+
+    if (Msg == WM_INITDIALOG)
+    {
+        self = reinterpret_cast<HelpDlg*>(lParam);
+        if (self == nullptr) return FALSE;
+
+        self->hDlg = hWnd;
+        SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)self);
+        return TRUE;
+    }
+
+    self = reinterpret_cast<HelpDlg*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+    if (self == nullptr)
+        return FALSE;
+    return self->HandleMsg(hWnd, Msg, wParam, lParam);
+}
+
+BOOL CALLBACK HelpDlg::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (Msg)
+    {
+    case WM_INITDIALOG:
+    {
+        return TRUE;
+    }
+    case WM_GETMINMAXINFO: 
+    {
+        if (!minSizeSet) {
+            int borderWidth = GetSystemMetrics(SM_CXBORDER);
+            int borderHeight = GetSystemMetrics(SM_CYBORDER);
+            int captionHeight = GetSystemMetrics(SM_CYCAPTION);
+            minWndWidth = origWndWidth + 2 * borderWidth;
+            minWndHeight = origWndHeight + captionHeight + 2 * borderHeight;
+            minSizeSet = true;
+        }
+        MINMAXINFO* pMinMax = (MINMAXINFO*)lParam;
+        pMinMax->ptMinTrackSize.x = minWndWidth;
+        pMinMax->ptMinTrackSize.y = minWndHeight;
+        return TRUE;
+    }
+    case WM_SIZE: 
+    {
+        int newWndWidth = LOWORD(lParam);
+        int newWndHeight = HIWORD(lParam);
+
+        RECT rect;
+        GetWindowRect(hText, &rect);
+        POINT topLeft = { rect.left, rect.top };
+        ScreenToClient(hWnd, &topLeft);
+        int newWidth = rect.right - rect.left + newWndWidth - origWndWidth;
+        int newHeight = rect.bottom - rect.top + newWndHeight - origWndHeight;
+        MoveWindow(hText, topLeft.x, topLeft.y, newWidth, newHeight, TRUE);
+
+        origWndWidth = newWndWidth;
+        origWndHeight = newWndHeight;
+        break;
+    }
+    case WM_CLOSE:
+    {
+        CloseHelpDlg();
+        return TRUE;
+    }
+    }
+    return FALSE;
+}
+
+void HelpDlg::CloseHelpDlg()
+{
+    EndDialog(hDlg, NULL);
+    hDlg = NULL;
+    hText = NULL;
+}
+
+TargetHighlighter::TargetHighlighter() = default;
+
+TargetHighlighter::~TargetHighlighter() {
+    Detach();
+}
+
+bool TargetHighlighter::RegisterWindowClassIfNeeded() {
+    if (class_registered_) return true;
+
+    WNDCLASSEXW wc{};
+    wc.cbSize = sizeof(WNDCLASSEXW);
+    wc.style = CS_HREDRAW | CS_VREDRAW;
+    wc.lpfnWndProc = WndProc;
+    wc.hInstance = GetModuleHandleW(nullptr);
+    wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    wc.lpszClassName = L"TargetHighlighterBorder";
+    wc.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
+
+    window_class_atom_ = RegisterClassExW(&wc);
+    if (window_class_atom_ == 0) {
+        return false;
+    }
+
+    class_registered_ = true;
+    return true;
+}
+
+HWND TargetHighlighter::CreateHighlightWindow(const RECT& rect) {
+    int width = rect.right - rect.left;
+    int height = rect.bottom - rect.top;
+
+    if (width < 4 || height < 4) return nullptr;
+
+    HWND hwnd = CreateWindowEx(
+        WS_EX_TOPMOST |
+        WS_EX_TOOLWINDOW |
+        WS_EX_TRANSPARENT |
+        WS_EX_NOACTIVATE,
+        MAKEINTATOM(window_class_atom_),
+        "",
+        WS_POPUP,
+        rect.left,
+        rect.top,
+        width,
+        height,
+        nullptr,
+        nullptr,
+        GetModuleHandle(nullptr),
+        this
+    );
+
+    if (!hwnd) return nullptr;
+
+    UpdateRegion(hwnd, width, height);
+
+    ShowWindow(hwnd, SW_SHOWNA);
+    return hwnd;
+}
+
+void TargetHighlighter::UpdateRegion(HWND hwnd, int width, int height)
+{
+    int t = border_thickness_;
+    if (t <= 0) return;
+
+    HRGN outer;
+    HRGN inner;
+
+    if (border_radius_ > 0) {
+        outer = CreateRoundRectRgn(
+            0, 0, width, height,
+            border_radius_ * 2,
+            border_radius_ * 2);
+
+        inner = CreateRoundRectRgn(
+            t, t, width - t, height - t,
+            border_radius_ * 2,
+            border_radius_ * 2);
+    }
+    else {
+        outer = CreateRectRgn(0, 0, width, height);
+        inner = CreateRectRgn(t, t, width - t, height - t);
+    }
+
+    CombineRgn(outer, outer, inner, RGN_DIFF);
+
+    SetWindowRgn(hwnd, outer, TRUE);
+
+    DeleteObject(inner);
+}
+
+void TargetHighlighter::Attach(DropTarget target) {
+    Detach();
+
+    auto hTarget = target.hWnd;
+    if (!IsWindow(hTarget)) {
+        return;
+    }
+
+    if (!RegisterWindowClassIfNeeded()) {
+        return;
+    }
+
+    target_hwnd_ = hTarget;
+
+    RECT rc{};
+
+    if (target.type == DropType::BatchTriggerListView)
+    {
+        ListViewHitResult hit;
+        POINT pt;
+        GetCursorPos(&pt);
+        if (ExtraWindow::HitTestListView(hTarget, pt, hit))
+        {
+            auto row = hit.item;
+            auto col = hit.subItem;
+            RECT sub{};
+            sub.top = col;
+
+            if (col == 0)
+            {
+                if (!ListView_GetItemRect(hTarget, row, &sub, LVIR_BOUNDS))
+                {
+                    target_hwnd_ = nullptr;
+                    return;
+                }
+
+                int colWidth = ListView_GetColumnWidth(hTarget, 0);
+                sub.right = sub.left + colWidth;
+            }
+            else
+            {
+                sub.top = col;
+
+                if (!ListView_GetSubItemRect(hTarget, row, col, LVIR_BOUNDS, &sub))
+                {
+                    target_hwnd_ = nullptr;
+                    return;
+                }
+            }
+
+            POINT pt1{ sub.left, sub.top };
+            POINT pt2{ sub.right, sub.bottom };
+
+            ClientToScreen(hTarget, &pt1);
+            ClientToScreen(hTarget, &pt2);
+
+            rc.left = pt1.x;
+            rc.top = pt1.y;
+            rc.right = pt2.x;
+            rc.bottom = pt2.y;
+
+            col_ = col;
+            row_ = row;
+        }
+        else
+        {
+            target_hwnd_ = nullptr;
+            return;
+        }
+    }
+    else
+    {
+        if (!GetWindowRect(target_hwnd_, &rc)) {
+            target_hwnd_ = nullptr;
+            return;
+        }
+    }
+
+    highlight_hwnd_ = CreateHighlightWindow(rc);
+    if (!highlight_hwnd_) {
+        target_hwnd_ = nullptr;
+    }
+}
+
+void TargetHighlighter::Detach() {
+    DestroyHighlightWindow();
+    target_hwnd_ = nullptr;
+}
+
+void TargetHighlighter::DestroyHighlightWindow() {
+    if (highlight_hwnd_) {
+        DestroyWindow(highlight_hwnd_);
+        highlight_hwnd_ = nullptr;
+    }
+}
+
+void TargetHighlighter::UpdatePosition() {
+    if (!IsActive()) return;
+
+    RECT rc{};
+    if (!GetWindowRect(target_hwnd_, &rc)) {
+        Detach();
+        return;
+    }
+
+    int width = rc.right - rc.left;
+    int height = rc.bottom - rc.top;
+
+    SetWindowPos(
+        highlight_hwnd_,
+        HWND_TOPMOST,
+        rc.left,
+        rc.top,
+        width,
+        height,
+        SWP_NOACTIVATE);
+
+    UpdateRegion(highlight_hwnd_, width, height);
+}
+
+bool TargetHighlighter::IsSameTarget(DropTarget target)
+{
+    if (target.type == DropType::BatchTriggerListView)
+    {
+        ListViewHitResult hit;
+        POINT pt;
+        GetCursorPos(&pt);
+        if (ExtraWindow::HitTestListView(target.hWnd, pt, hit))
+        {
+            auto row = hit.item;
+            auto col = hit.subItem;
+            return target.hWnd == target_hwnd_ && row_ == row && col_ == col;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else
+    {
+        return target.hWnd == target_hwnd_;
+    }
+}
+
+LRESULT CALLBACK TargetHighlighter::WndProc(
+    HWND hwnd,
+    UINT msg,
+    WPARAM wParam,
+    LPARAM lParam)
+{
+    TargetHighlighter* self = nullptr;
+
+    if (msg == WM_NCCREATE) {
+        auto* cs = reinterpret_cast<CREATESTRUCTW*>(lParam);
+        self = static_cast<TargetHighlighter*>(cs->lpCreateParams);
+        SetWindowLongPtrW(hwnd, GWLP_USERDATA,
+            reinterpret_cast<LONG_PTR>(self));
+    }
+    else {
+        self = reinterpret_cast<TargetHighlighter*>(
+            GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    }
+
+    switch (msg) {
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
+
+        RECT rc;
+        GetClientRect(hwnd, &rc);
+
+        HBRUSH brush = CreateSolidBrush(self->border_color_);
+        FillRect(hdc, &rc, brush);
+        DeleteObject(brush);
+
+        EndPaint(hwnd, &ps);
+        return 0;
+    }
+
+    case WM_NCHITTEST:
+        return HTTRANSPARENT;
+
+    case WM_ERASEBKGND:
+        return 1;
+    }
+
+    return DefWindowProcW(hwnd, msg, wParam, lParam);
+}
+
+bool LabelMatcher::Match(const char* target) const
+{
+    FString simple_target = target;
+
+    if (!m_exactMatch)
+    {
+        simple_target.MakeUpper();
+        simple_target = STDHelpers::ChineseTraditional_ToSimple(simple_target);
+    }
+
+    for (const auto& pattern : m_patterns)
+    {
+        if (MatchPattern(simple_target, pattern))
+            return true;
+    }
+    return false;
+}
+
+void LabelMatcher::Build(const char* source)
+{
+    FString simple_source = source;
+
+    if (!m_exactMatch)
+    {
+        simple_source.MakeUpper();
+        simple_source = STDHelpers::ChineseTraditional_ToSimple(simple_source);
+    }
+
+    simple_source.Trim();
+
+    auto splits = FString::SplitString(simple_source, "|");
+
+    for (auto& split : splits)
+    {
+        Pattern pattern;
+        pattern.atoms = FString::SplitString(split, "*");
+        m_patterns.emplace_back(std::move(pattern));
+    }
+}
+
+bool LabelMatcher::MatchPattern(const FString& target, const Pattern& pattern) const
+{
+    const auto& atoms = pattern.atoms;
+
+    if (atoms.size() == 1)
+    {
+        const FString& atom = atoms[0];
+
+        if (m_exactMatch)
+        {
+            return strcmp(target.c_str(), atom.c_str()) == 0;
+        }
+        else
+        {
+            return _mbsstr(
+                (const unsigned char*)target.c_str(),
+                (const unsigned char*)atom.c_str()
+            ) != nullptr;
+        }
+    }
+
+    const char* compare = target.c_str();
+
+    for (size_t i = 0; i < atoms.size(); ++i)
+    {
+        const FString& atom = atoms[i];
+
+        if (atom.empty())
+            continue;
+
+        const char* pSub = (const char*)_mbsstr(
+            (const unsigned char*)compare,
+            (const unsigned char*)atom.c_str()
+        );
+
+        if (!pSub)
+            return false;
+
+        if (m_exactMatch)
+        {
+            if (i == 0 && pSub != compare)
+                return false;
+
+            if (i == atoms.size() - 1)
+            {
+                size_t remainLen = strlen(pSub);
+                if (remainLen != atom.length())
+                    return false;
+            }
+        }
+        compare = pSub + atom.length();
+    }
+    return true;
 }

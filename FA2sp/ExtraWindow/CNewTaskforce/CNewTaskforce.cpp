@@ -3,7 +3,6 @@
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Helpers/MultimapHelper.h"
-#include "../Common.h"
 
 #include <CLoading.h>
 #include <CFinalSunDlg.h>
@@ -40,6 +39,7 @@ HWND CNewTaskforce::hUnitsListBox;
 HWND CNewTaskforce::hNumber;
 HWND CNewTaskforce::hUnitType;
 HWND CNewTaskforce::hSearchReference;
+HWND CNewTaskforce::hDragPoint;
 
 int CNewTaskforce::SelectedTaskForceIndex = -1;
 FString CNewTaskforce::CurrentTaskForceID;
@@ -48,6 +48,12 @@ std::map<int, FString> CNewTaskforce::UnitTypeLabels;
 bool CNewTaskforce::Autodrop;
 bool CNewTaskforce::DropNeedUpdate;
 WNDPROC CNewTaskforce::OriginalListBoxProc;
+WNDPROC CNewTaskforce::OrigDragDotProc;
+WNDPROC CNewTaskforce::OrigDragingDotProc;
+bool CNewTaskforce::m_dragging = false;
+POINT CNewTaskforce::m_dragOffset{};
+HWND CNewTaskforce::m_hDragGhost = nullptr;
+TargetHighlighter CNewTaskforce::hl;
 
 void CNewTaskforce::Create(CFinalSunDlg* pWnd)
 {
@@ -108,9 +114,18 @@ void CNewTaskforce::Initialize(HWND& hWnd)
     hNumber = GetDlgItem(hWnd, Controls::Number);
     hUnitType = GetDlgItem(hWnd, Controls::UnitType);
     hSearchReference = GetDlgItem(hWnd, Controls::SearchReference);
+    hDragPoint = GetDlgItem(hWnd, Controls::DragPoint);
 
     if (hUnitsListBox)
         OriginalListBoxProc = (WNDPROC)SetWindowLongPtr(hUnitsListBox, GWLP_WNDPROC, (LONG_PTR)ListBoxSubclassProc);
+
+    if (hDragPoint)
+    {
+        OrigDragDotProc = (WNDPROC)SetWindowLongPtr(hDragPoint, GWLP_WNDPROC, (LONG_PTR)DragDotProc);
+    }
+    hl.SetBorderColor(ExtConfigs::EnableDarkMode ? RGB(0, 90, 0) : RGB(0, 180, 0));
+    hl.SetBorderThickness(3);
+    hl.SetBorderRadius(0);
 
     Update(hWnd);
 }
@@ -136,8 +151,7 @@ void CNewTaskforce::Update(HWND& hWnd)
         SelectedTaskForceIndex = count - 1;
     SendMessage(hSelectedTaskforce, CB_SETCURSEL, SelectedTaskForceIndex, NULL);
 
-
-    while (SendMessage(hUnitType, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hUnitType);
     ExtraWindow::LoadParam_TechnoTypes(hUnitType, 4, 1);
     Autodrop = false;
     
@@ -153,6 +167,203 @@ void CNewTaskforce::Close(HWND& hWnd)
 
 }
 
+LRESULT CALLBACK CNewTaskforce::DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
+    case WM_SETCURSOR:
+    {
+        if (CurrentTaskForceID != "")
+        {
+            SetCursor(LoadCursor(nullptr, IDC_HAND));
+            return TRUE;
+        }
+        break;
+    }
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        HBRUSH hBrush = CreateSolidBrush(CurrentTaskForceID != "" ? RGB(0, 200, 0) : RGB(200, 0, 0));
+        FillRect(hdc, &ps.rcPaint, hBrush);
+        DeleteObject(hBrush);
+
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+    case WM_LBUTTONDOWN:
+    {
+        if (CurrentTaskForceID != "")
+        {
+            m_dragging = true;
+            SetCapture(hWnd);
+
+            POINT pt;
+            GetCursorPos(&pt);
+            if (m_hDragGhost)
+            {
+                DestroyWindow(m_hDragGhost);
+                m_hDragGhost = nullptr;
+            }
+            m_hDragGhost = CreateWindowEx(
+                WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
+                "STATIC",
+                nullptr,
+                WS_POPUP,
+                pt.x - 6, pt.y - 6,
+                12, 12,
+                nullptr, nullptr,
+                static_cast<HINSTANCE>(FA2sp::hInstance),
+                nullptr
+            );
+
+            if (m_hDragGhost)
+            {
+                OrigDragingDotProc = (WNDPROC)SetWindowLongPtr(m_hDragGhost, GWLP_WNDPROC, (LONG_PTR)DragingDotProc);
+                SetLayeredWindowAttributes(m_hDragGhost, 0, 200, LWA_ALPHA);
+                ShowWindow(m_hDragGhost, SW_SHOW);
+            }
+            return 0;
+        }
+        break;
+    }
+    case WM_MOUSEMOVE:
+    {
+        if (!m_dragging) break;
+
+        POINT pt;
+        GetCursorPos(&pt);
+
+        SetWindowPos(
+            m_hDragGhost,
+            nullptr,
+            pt.x - 6, pt.y - 6,
+            0, 0,
+            SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+        );
+
+        auto target = ExtraWindow::FindDropTarget(pt);
+        if (target.hWnd && IsWindowEnabled(target.hWnd) && target.type == DropType::TeamEditorTaskForce)
+        {
+            if (!hl.IsActive())
+            {
+                hl.Attach(target);
+            }
+            else if (!hl.IsSameTarget(target))
+            {
+                hl.Detach();
+                hl.Attach(target);
+            }
+        }
+        else if (hl.IsActive())
+        {
+            hl.Detach();
+        }
+
+        return 0;
+    }
+    case WM_CAPTURECHANGED:
+    {
+        if (m_dragging)
+        {
+            m_dragging = false;
+            ReleaseCapture();
+
+            SetWindowLongPtr(
+                m_hDragGhost,
+                GWLP_WNDPROC,
+                (LONG_PTR)OrigDragingDotProc
+            );
+            SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+            DestroyWindow(m_hDragGhost);
+            m_hDragGhost = nullptr;
+            hl.Detach();
+        }
+        break;
+    }
+    case WM_LBUTTONUP:
+    {
+        if (!m_dragging) break;
+
+        m_dragging = false;
+        ReleaseCapture();
+
+        POINT pt;
+        GetCursorPos(&pt);
+
+        SetWindowLongPtr(
+            m_hDragGhost,
+            GWLP_WNDPROC,
+            (LONG_PTR)OrigDragingDotProc
+        );
+        SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+        DestroyWindow(m_hDragGhost);
+        m_hDragGhost = nullptr;
+        hl.Detach();
+
+        auto target = ExtraWindow::FindDropTarget(pt);
+        if (target.hWnd)
+        {
+            auto taskforceID = CurrentTaskForceID + " ";
+            switch (target.type)
+            {
+            case DropType::TeamEditorTaskForce:
+                if (CNewTeamTypes::CurrentTeamID != "")
+                {
+                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, taskforceID);
+                    if (idx == CB_ERR)
+                    {
+                        CNewTeamTypes::OnDropdownTaskForce();
+                        idx = ExtraWindow::FindCBStringExactStart(target.hWnd, taskforceID);
+                    }
+                    if (idx != CB_ERR)
+                    {
+                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                        CNewTeamTypes::OnSelchangeTaskForce();
+                    }
+                }
+                break;
+            case DropType::Unknown:
+            default:
+                break;
+            }
+        }
+
+        ReleaseCapture();
+        return 0;
+    }
+    }
+
+    return DefWindowProc(
+        hWnd, message, wParam, lParam
+    );
+}
+
+LRESULT CALLBACK CNewTaskforce::DragingDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        HBRUSH hBrush = CreateSolidBrush(RGB(0, 200, 0));
+        FillRect(hdc, &ps.rcPaint, hBrush);
+        DeleteObject(hBrush);
+
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+    }
+
+    return DefWindowProc(
+        hWnd, message, wParam, lParam
+    );
+}
 LRESULT CALLBACK CNewTaskforce::ListBoxSubclassProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
@@ -195,6 +406,7 @@ LRESULT CALLBACK CNewTaskforce::ListBoxSubclassProc(HWND hWnd, UINT message, WPA
     }
     return CallWindowProc(OriginalListBoxProc, hWnd, message, wParam, lParam);
 }
+
 BOOL CALLBACK CNewTaskforce::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
     switch (Msg)
@@ -342,7 +554,6 @@ void CNewTaskforce::ListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam)
    
 }
 
-
 void CNewTaskforce::OnEditchangeNumber()
 {
     if (SelectedTaskForceIndex < 0 || SendMessage(hUnitsListBox, LB_GETCURSEL, NULL, NULL) < 0)
@@ -488,13 +699,20 @@ void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
         return;
     }
 
-    SelectedTaskForceIndex = SendMessage(hSelectedTaskforce, CB_GETCURSEL, NULL, NULL);
-    if (SelectedTaskForceIndex < 0 || SelectedTaskForceIndex >= SendMessage(hSelectedTaskforce, CB_GETCOUNT, NULL, NULL)) 
+    auto clear = []()
     {
         SendMessage(hUnitType, CB_SETCURSEL, -1, NULL);
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hGroup, WM_SETTEXT, 0, (LPARAM)"");
         while (SendMessage(hUnitsListBox, LB_DELETESTRING, 0, NULL) != CB_ERR);
+    };
+
+    SelectedTaskForceIndex = SendMessage(hSelectedTaskforce, CB_GETCURSEL, NULL, NULL);
+    if (SelectedTaskForceIndex < 0 || SelectedTaskForceIndex >= SendMessage(hSelectedTaskforce, CB_GETCOUNT, NULL, NULL)) 
+    {
+        clear();
+        CurrentTaskForceID = "";
+        InvalidateRect(hDragPoint, nullptr, TRUE);
     }
 
     FString pID;
@@ -503,6 +721,7 @@ void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
     FString::TrimIndex(pID);
 
     CurrentTaskForceID = pID;
+    InvalidateRect(hDragPoint, nullptr, TRUE);
 
     CTriggerAnnotation::Type = AnnoTaskforce;
     CTriggerAnnotation::ID = CurrentTaskForceID;
@@ -514,8 +733,8 @@ void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
     {
         auto name = map.GetString(pID, "Name");
         auto group = map.GetString(pID, "Group");
-        SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.m_pchData);
-        SendMessage(hGroup, WM_SETTEXT, 0, (LPARAM)group.m_pchData);
+        SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.GetString());
+        SendMessage(hGroup, WM_SETTEXT, 0, (LPARAM)group.GetString());
 
         std::vector<FString> sortedList;
         for (int i = 0; i < 6; i++)
@@ -543,6 +762,10 @@ void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
             i++;
         }
     }
+    else
+    {
+        clear();
+    }
     if (specificIdx > -1)
     {
         while (specificIdx >= SendMessage(hUnitsListBox, LB_GETCOUNT, NULL, NULL))
@@ -567,7 +790,7 @@ void CNewTaskforce::OnClickNewTaskforce()
 {
     CNewTeamTypes::TaskforceListChanged = true;
     FString key = CINI::GetAvailableKey("TaskForces");
-    FString value = CMapDataExt::GetAvailableIndex();
+    FString value = CMapDataExt::GetAvailableIndex(EIndexType::TaskForce);
     FString buffer2;
 
     FString newName = "";
@@ -625,7 +848,7 @@ void CNewTaskforce::OnClickCloTaskforce(HWND& hWnd)
     if (SendMessage(hSelectedTaskforce, CB_GETCOUNT, NULL, NULL) > 0 && SelectedTaskForceIndex >= 0)
     {
         FString key = CINI::GetAvailableKey("TaskForces");
-        FString value = CMapDataExt::GetAvailableIndex();
+        FString value = CMapDataExt::GetAvailableIndex(EIndexType::TaskForce);
 
         CINI::CurrentDocument->WriteString("TaskForces", key, value);
 

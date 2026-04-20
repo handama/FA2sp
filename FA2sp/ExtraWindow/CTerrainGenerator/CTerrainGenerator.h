@@ -79,28 +79,30 @@ public:
                 group.Items.push_back(STDHelpers::IntToString(tileSet, "%04d"));
                 if (tileSet < 10000)
                 {
-                    if (tileSet < CMapDataExt::TileSet_starts.size() - 1);
-                    int start = CMapDataExt::TileSet_starts[tileSet];
-                    int end = CMapDataExt::TileSet_starts[tileSet + 1];
+                    if (tileSet + 1 < CMapDataExt::TileSet_starts.size())
+                    {
+                        int start = CMapDataExt::TileSet_starts[tileSet];
+                        int end = CMapDataExt::TileSet_starts[tileSet + 1];
 
-                    key += "AvailableIndexes";
-                    TileSetAvailableIndexesText.push_back(pSection->GetString(key));
-                    auto atomsIdx = FString::SplitString(TileSetAvailableIndexesText.back());
-                    if (atomsIdx.empty()) {
-                        group.HasExtraIndex = false;
-                        for (auto j = start; j < end; j++) {
-                            group.AvailableTiles.push_back(j);
-                        }
-                    }
-                    else {
-                        group.HasExtraIndex = true;
-                        for (auto& idx : atomsIdx) {
-                            if (start + atoi(idx) < end) {
-                                group.AvailableTiles.push_back(start + atoi(idx));
+                        key += "AvailableIndexes";
+                        TileSetAvailableIndexesText.push_back(pSection->GetString(key));
+                        auto atomsIdx = FString::SplitString(TileSetAvailableIndexesText.back());
+                        if (atomsIdx.empty()) {
+                            group.HasExtraIndex = false;
+                            for (auto j = start; j < end; j++) {
+                                group.AvailableTiles.push_back(j);
                             }
                         }
+                        else {
+                            group.HasExtraIndex = true;
+                            for (auto& idx : atomsIdx) {
+                                if (start + atoi(idx) < end) {
+                                    group.AvailableTiles.push_back(start + atoi(idx));
+                                }
+                            }
+                        }
+                        TileSets.push_back(group);
                     }
-                    TileSets.push_back(group);
                 }
                 else
                 {
@@ -182,7 +184,7 @@ public:
 
                         if (atomsData.empty()) {
                             group.HasExtraIndex = false;
-                            for (int idx = 0; idx < 60; idx++)
+                            for (int idx = 0; idx < ExtConfigs::OverlayDataLimit; idx++)
                             {
                                 auto imageName = CLoadingExt::GetOverlayName(overlays.Overlay, idx);
                                 auto pic = CLoadingExt::GetImageDataFromMap(imageName);
@@ -193,7 +195,7 @@ public:
                         }
                         else {
                             group.HasExtraIndex = true;
-                            for (int idx = 0; idx < 60; idx++)
+                            for (int idx = 0; idx < ExtConfigs::OverlayDataLimit; idx++)
                             {
                                 auto imageName = CLoadingExt::GetOverlayName(overlays.Overlay, idx);
                                 auto pic = CLoadingExt::GetImageDataFromMap(imageName);
@@ -261,6 +263,7 @@ public:
         Override = 1010,
         Scale = 1013,
         Copy = 1014,
+        IgnoreLandtypes = 1015,
         TileSet1 = 2001,
         TileSet2 = 2007,
         TileSet3 = 2013,
@@ -401,6 +404,7 @@ private:
     static HWND hDelete;
     static HWND hCopy;
     static HWND hOverride;
+    static HWND hIgnoreLandtypes;
     static HWND hSetRange;
     static HWND hApply;
     static HWND hClear;
@@ -438,12 +442,13 @@ private:
     static int CurrentPresetIndex;
     static int CurrentTabPage;
     static bool bOverride;
+    static bool bIgnoreLandtypes;
     static bool ProgrammaticallySettingText;
 
     static CINI& map;
     static MultimapHelper& rules;
     static std::shared_ptr<TerrainGeneratorPreset> CurrentPreset;
-    static std::map<FString, std::shared_ptr<TerrainGeneratorPreset>> TerrainGeneratorPresets;
+    static FMap<std::shared_ptr<TerrainGeneratorPreset>> TerrainGeneratorPresets;
     static WNDPROC g_pOriginalTabPageProc;
     static LRESULT CALLBACK TabPageSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 

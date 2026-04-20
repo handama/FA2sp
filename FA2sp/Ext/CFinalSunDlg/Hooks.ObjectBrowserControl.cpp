@@ -14,6 +14,8 @@
 #include "../CMapData/Body.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
+#include "../../Helpers/Helper.h"
+#include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
 
 DEFINE_HOOK(51CD20, CViewObjects_Redraw, 7)
 {
@@ -42,6 +44,13 @@ DEFINE_HOOK(51AF40, CViewObjects_OnSelectChanged, 7)
         ((CViewObjectsExt*)&CFinalSunDlg::Instance->ViewObjects)->UpdateEngine(pNM->itemNew.lParam) ?
         0x51CC8B :
         0;
+}
+DEFINE_HOOK(51C453, CViewObjects_OnSelectChanged_RandomTree, 6)
+{
+    GET(const int, subpos, ESI);
+    if (subpos == 9999)
+        return 0x51C459;
+    return 0x51C4F2;
 }
 
 int infantryLoop = 0;
@@ -306,7 +315,7 @@ DEFINE_HOOK(4F0A40, CTerrainDlg_OnSelchangeTileset, 7)
 
 DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
 {
-    auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
+    auto point = CIsoViewExt::GetExtension()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
     if (CIsoView::CurrentCommand->Command == 0x1E)
     {
         CViewObjectsExt::PlaceConnectedTile_OnMouseMove(point.X, point.Y);
@@ -589,16 +598,21 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
     GET(const int, X, EDI);
     GET(const int, Y, ESI);
 
-    if (CIsoViewExt::EnableDistanceRuler)
+    if (CIsoViewExt::EnableLiveDistanceRuler)
     {
-        if (CIsoViewExt::DistanceRuler.empty() || 
-            (!CIsoViewExt::DistanceRuler.empty() && CIsoViewExt::DistanceRuler.back() != MapCoord{ X,Y }))
+        if (CIsoViewExt::LiveDistanceRuler.empty() || 
+            (!CIsoViewExt::LiveDistanceRuler.empty() && CIsoViewExt::LiveDistanceRuler.back() != MapCoord{ X,Y }))
         {
-            CIsoViewExt::DistanceRuler.push_back({ X,Y });
-            if (CIsoViewExt::DistanceRuler.size() > ExtConfigs::DistanceRuler_Records)
-                CIsoViewExt::DistanceRuler.erase(CIsoViewExt::DistanceRuler.begin());
+            CIsoViewExt::LiveDistanceRuler.push_back({ X,Y });
+            if (CIsoViewExt::LiveDistanceRuler.size() > ExtConfigs::DistanceRuler_Records)
+                CIsoViewExt::LiveDistanceRuler.erase(CIsoViewExt::LiveDistanceRuler.begin());
         }
     }
+    auto isBridgeOrVeinhole = []()
+    {
+        return CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 6
+            && (CIsoView::CurrentCommand->Param == 4 || CIsoView::CurrentCommand->Param == 5);
+    };
 
     auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
     auto& command = pIsoView->LastAltCommand;
@@ -634,10 +648,15 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
         CViewObjectsExt::NeedChangeTreeViewSelect = false;
         return 0x466860;
     }
-    else if ((GetKeyState(VK_MENU) & 0x8000) && 
+    else if (
+        (GetKeyState(VK_MENU) & 0x8000) && 
         (CIsoView::CurrentCommand->Command == 1 ||
             CIsoView::CurrentCommand->Command == 10 ||
-            CIsoView::CurrentCommand->Command == 22))
+            CIsoView::CurrentCommand->Command == 22 ||
+            CIsoView::CurrentCommand->Command == 4
+            && CIsoView::CurrentCommand->Type == 4)
+        && !isBridgeOrVeinhole()
+        )
     {
         auto pMap = CMapDataExt::GetExtension();
         if (command.isSame())
@@ -778,6 +797,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
             {
                 if (command.Type == 6) // overlay
                 {
+                    TempValueHolder<bool> track(CIsoViewExt::EnableAutoTrack, true);
                     pMap->SaveUndoRedoData(true, 0, 0, 0, 0);
                     std::vector<int> randomRockList;
                     if (CViewObjectsExt::PlacingRandomRock >= 0)
@@ -818,12 +838,8 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                             CIsoView::CurrentCommand->OverlayData = 0;
                             CIsoView::GetInstance()->DrawMouseAttachedStuff(mc.X, mc.Y);
                         }
-                        else if (command.Param == 5) // bridge
-                        {
-                            return 0;
-                        }
                         else
-                        {
+                        {                           
                             CIsoView::GetInstance()->DrawMouseAttachedStuff(mc.X, mc.Y);
                         }
                     }
@@ -1152,6 +1168,15 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                     CIsoView::GetInstance()->DrawMouseAttachedStuff(mc.X, mc.Y);
                 }
             }
+            else if (command.Command == 4) // place tag
+            {
+                for (auto& m : mapCoords)
+                {
+                    int pos = pMap->GetCoordIndex(m.X, m.Y);
+                    pMap->AddCelltag(CIsoView::CurrentCommand->ObjectID, pos);
+                }
+                CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+            }
             command.reset();
         }
         else
@@ -1294,6 +1319,28 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
         CViewObjectsExt::ApplyChangeOwner(X, Y);
         return 0x466860;
     }
+    else if (CIsoView::CurrentCommand->Command == 0x25)
+    {        
+        // 0-9: trigger editors
+        if (CIsoView::CurrentCommand->Type >= 0
+            && CIsoView::CurrentCommand->Type <= 9
+            && CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger)
+        {
+            CViewObjectsExt::ApplyTag(X, Y, CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger->Tag);
+            return 0x466860;
+        }
+    }
+    else if (CIsoView::CurrentCommand->Command == 0x26)
+    {        
+        CMeasurementToolbox::SetMeasurementToolbox(X, Y);
+        return 0x466860;
+    }
+    else if (CIsoView::CurrentCommand->Command == 0x11)
+    {        
+        CMapData::Instance->TryGetCellAt(X, Y)->Flag.IsHiddenCell = true;
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+        return 0x466860;
+    }
 
     return 0;
 }
@@ -1391,6 +1438,23 @@ DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
         CViewObjectsExt::ApplyChangeOwner(X, Y);
         return 0x45CD6D;
     }
+    else if (CIsoView::CurrentCommand->Command == 0x25)
+    {
+        // 0-9: trigger editors
+        if (CIsoView::CurrentCommand->Type >= 0
+            && CIsoView::CurrentCommand->Type <= 9
+            && CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger)
+        {
+            CViewObjectsExt::ApplyTag(X, Y, CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger->Tag);
+            return 0x45CD6D;
+        }
+    }
+    //else if (CIsoView::CurrentCommand->Command == 0x11)
+    //{
+    //    CMapData::Instance->TryGetCellAt(X, Y)->Flag.IsHiddenCell = true;
+    //    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+    //    return 0x45CD6D;
+    //}
 
     return CIsoView::CurrentCommand->Command == FACurrentCommand::WaypointHandle ? 0x45BF7C : 0x45C168;
 }

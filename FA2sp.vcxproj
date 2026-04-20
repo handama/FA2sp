@@ -60,19 +60,19 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>MFC42\include;FA2pp;$(IncludePath)</IncludePath>
+    <IncludePath>MFC42\include;FA2pp;lexilla\include;scintilla\include;$(IncludePath)</IncludePath>
     <LibraryPath>MFC42\lib;Release;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_Chinese|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>MFC42\include;FA2pp;$(IncludePath)</IncludePath>
+    <IncludePath>MFC42\include;FA2pp;lexilla\include;scintilla\include;$(IncludePath)</IncludePath>
     <LibraryPath>MFC42\lib;Release;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>MFC42\include;FA2pp;$(IncludePath)</IncludePath>
+    <IncludePath>MFC42\include;FA2pp;lexilla\include;scintilla\include;$(IncludePath)</IncludePath>
     <LibraryPath>MFC42\lib;Debug;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
   </PropertyGroup>
@@ -107,11 +107,14 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
-      <AdditionalDependencies>DbgHelp.lib;legacy_stdio_definitions.lib;CncVxlRenderText.lib;libssl.lib;libcrypto.lib;lua.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>DbgHelp.lib;legacy_stdio_definitions.lib;CncVxlRenderText.lib;libssl.lib;libcrypto.lib;lua.lib;Scintilla.lib;lexilla.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/SAFESEH:NO %(AdditionalOptions)</AdditionalOptions>
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
     </Link>
+    <Manifest>
+      <AdditionalManifestFiles>%(AdditionalManifestFiles)</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_Chinese|Win32'">
     <ClCompile>
@@ -144,7 +147,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
-      <AdditionalDependencies>DbgHelp.lib;legacy_stdio_definitions.lib;CncVxlRenderText.lib;libssl.lib;libcrypto.lib;lua.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>DbgHelp.lib;legacy_stdio_definitions.lib;CncVxlRenderText.lib;libssl.lib;libcrypto.lib;lua.lib;Scintilla.lib;lexilla.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/SAFESEH:NO %(AdditionalOptions)</AdditionalOptions>
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
@@ -153,6 +156,9 @@
       <PreprocessorDefinitions>
       </PreprocessorDefinitions>
     </ResourceCompile>
+    <Manifest>
+      <AdditionalManifestFiles>%(AdditionalManifestFiles)</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -185,12 +191,15 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
-      <AdditionalDependencies>DbgHelp.lib;legacy_stdio_definitions.lib;CncVxlRenderText.lib;libssl.lib;libcrypto.lib;lua.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>DbgHelp.lib;legacy_stdio_definitions.lib;CncVxlRenderText.lib;libssl.lib;libcrypto.lib;lua.lib;Scintilla.lib;lexilla.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/SAFESEH:NO %(AdditionalOptions)</AdditionalOptions>
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
       <UACExecutionLevel>AsInvoker</UACExecutionLevel>
     </Link>
+    <Manifest>
+      <AdditionalManifestFiles>%(AdditionalManifestFiles)</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="FA2pp\FunctionInit.cpp" />
@@ -205,11 +214,13 @@
     <ClCompile Include="FA2sp\Algorithms\sha1impl.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CAllieEditor\CAllieEditor.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CAnnotationDlg\CAnnotationDlg.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CBatchTrigger\CBatchTrigger.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\LuaFunctions.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CMapRendererDlg\CMapRendererDlg.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CMeasurementToolbox\CMeasurementToolbox.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CMultiSelectionOptionDlg\CMultiSelectionOptionDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.cpp" />
@@ -220,12 +231,14 @@
     <ClCompile Include="FA2sp\ExtraWindow\CNewScript\CNewScript.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewTipsOfTheDay\CNewTipsOfTheDay.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\Common.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CFA2spOptions\CFA2spOptions.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CTechnoDialog\CTechnoDialog.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.cpp" />
     <ClCompile Include="FA2sp\Extra\Encryption.cpp" />
@@ -235,6 +248,7 @@
     <ClCompile Include="FA2sp\Ext\CCreateMap2\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CCreateMap3A\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CCreateMap3B\Body.cpp" />
+    <ClCompile Include="FA2sp\Ext\CCreateMap3B\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CCredits\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CEasterEgg\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CFinalSunApp\Body.cpp" />
@@ -244,7 +258,9 @@
     <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Body.PlaceConnectedTiles.cpp" />
     <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Hooks.ObjectBrowserControl.cpp" />
+    <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Hooks.Toolbar.cpp" />
     <ClCompile Include="FA2sp\Ext\CHouses\Body.cpp" />
+    <ClCompile Include="FA2sp\Ext\CIsoView\Body.Blit.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.DrawObjects.cpp" />
@@ -273,6 +289,7 @@
     <ClCompile Include="FA2sp\Ext\CMapD\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapValidator\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapValidator\Hooks.cpp" />
+    <ClCompile Include="FA2sp\Ext\CMinimap\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CMinimap\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\COptions\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CPropertyAircraft\Body.cpp" />
@@ -289,6 +306,7 @@
     <ClCompile Include="FA2sp\Ext\CSingleplayerSettings\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CTags\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\Hooks.cpp" />
+    <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\GridObjectViewer.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\ScriptSort.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TagSort.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TaskForceSort.cpp" />
@@ -297,15 +315,18 @@
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\WaypointSort.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserView\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\FA2Expand.cpp" />
+    <ClCompile Include="FA2sp\Helpers\FString.cpp" />
     <ClCompile Include="FA2sp\Helpers\InstructionSet.cpp" />
     <ClCompile Include="FA2sp\Helpers\MultimapHelper.cpp" />
     <ClCompile Include="FA2sp\Helpers\STDHelpers.cpp" />
+    <ClCompile Include="FA2sp\Helpers\WinVer.cpp" />
     <ClCompile Include="FA2sp\Hooks.Debug.cpp" />
     <ClCompile Include="FA2sp\MFCWindow\Hooks.cpp" />
     <ClCompile Include="FA2sp\Miscs\CopyPaste.cpp" />
     <ClCompile Include="FA2sp\Miscs\FileWatcher.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Bitmap2MapConverter.cpp" />
     <ClCompile Include="FA2sp\Miscs\DialogStyle.cpp" />
+    <ClCompile Include="FA2sp\Miscs\Hooks.CString.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.DirectDraw.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.ShpLoad.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Memory.cpp" />
@@ -347,11 +368,13 @@
     <ClInclude Include="FA2sp\Algorithms\sha1impl.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CAllieEditor\CAllieEditor.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CAnnotationDlg\CAnnotationDlg.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CBatchTrigger\CBatchTrigger.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CCheckBox.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CMapRendererDlg\CMapRendererDlg.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CMeasurementToolbox\CMeasurementToolbox.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CMultiSelectionOptionDlg\CMultiSelectionOptionDlg.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.h" />
@@ -362,12 +385,14 @@
     <ClInclude Include="FA2sp\ExtraWindow\CNewScript\CNewScript.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewTipsOfTheDay\CNewTipsOfTheDay.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.h" />
     <ClInclude Include="FA2sp\ExtraWindow\Common.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CFA2spOptions\CFA2spOptions.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CTechnoDialog\CTechnoDialog.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.h" />
     <ClInclude Include="FA2sp\Extra\GeneralLoad.h" />
@@ -381,6 +406,7 @@
     <ClInclude Include="FA2sp\Ext\CLoading\Body.h" />
     <ClInclude Include="FA2sp\Ext\CMapData\Body.h" />
     <ClInclude Include="FA2sp\Ext\CMapValidator\Body.h" />
+    <ClInclude Include="FA2sp\Ext\CMinimap\Body.h" />
     <ClInclude Include="FA2sp\Ext\COptions\Body.h" />
     <ClInclude Include="FA2sp\Ext\CPropertyAircraft\Body.h" />
     <ClInclude Include="FA2sp\Ext\CPropertyBuilding\Body.h" />
@@ -389,6 +415,7 @@
     <ClInclude Include="FA2sp\Ext\CRandomTree\Body.h" />
     <ClInclude Include="FA2sp\Ext\CSingleplayerSettings\Body.h" />
     <ClInclude Include="FA2sp\Ext\CTags\Body.h" />
+    <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\GridObjectViewer.h" />
     <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\ScriptSort.h" />
     <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TagSort.h" />
     <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TaskForceSort.h" />
@@ -400,6 +427,7 @@
     <ClInclude Include="FA2sp\FA2sp.h" />
     <ClInclude Include="FA2sp\FA2sp.Constants.h" />
     <ClInclude Include="FA2sp\Helpers\FString.h" />
+    <ClInclude Include="FA2sp\Helpers\WinVer.h" />
     <ClInclude Include="FA2sp\Miscs\CopyPaste.h" />
     <ClInclude Include="FA2sp\Miscs\DialogStyle.h" />
     <ClInclude Include="FA2sp\Miscs\FileWatcher.h" />
@@ -433,10 +461,12 @@
   <ItemGroup>
     <ResourceCompile Include="FA2sp\ExtraWindow\CAllieEditor\CAllieEditor.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CAnnotationDlg\CAnnotationDlg.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CBatchTrigger\CBatchTrigger.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CMapRendererDlg\CMapRendererDlg.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CMeasurementToolbox\CMeasurementToolbox.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CMultiSelectionOptionDlg\CMultiSelectionOptionDlg.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.rc" />
@@ -448,13 +478,16 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewScript\CNewScript.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewTipsOfTheDay\CNewTipsOfTheDay.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CFA2spOptions\CFA2spOptions.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CTechnoDialog\CTechnoDialog.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.rc" />
+    <ResourceCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\GridObjectViewer.rc" />
     <ResourceCompile Include="FA2sp\UI\CAircraftDialog.rc" />
     <ResourceCompile Include="FA2sp\UI\CAITriggerTypes.rc" />
     <ResourceCompile Include="FA2sp\UI\CChangeMapSize.rc" />
@@ -493,7 +526,11 @@
     <ResourceCompile Include="FA2sp\UI\CUpdateProgress.rc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="FA2sp\FA2sp.manifest" />
+    <None Include="FA2sp\FA2sp.manifest">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</DeploymentContent>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release_Chinese|Win32'">true</DeploymentContent>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+    </None>
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

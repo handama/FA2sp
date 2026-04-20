@@ -2,7 +2,6 @@
 #include "../../FA2sp.h"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/MultimapHelper.h"
-#include "../Common.h"
 
 #include <CLoading.h>
 #include <CFinalSunDlg.h>
@@ -17,91 +16,59 @@
 #include "../CNewScript/CNewScript.h"
 #include <numeric>
 #include "../CSearhReference/CSearhReference.h"
+#include "../CBatchTrigger/CBatchTrigger.h"
 #include "../CTriggerAnnotation/CTriggerAnnotation.h"
 #include "../CCsfEditor/CCsfEditor.h"
 #include "../CNewTeamTypes/CNewTeamTypes.h"
+#include "../CNewAITrigger/CNewAITrigger.h"
+#include "../../Helpers/Helper.h"
 
-HWND CNewTrigger::m_hwnd;
-CFinalSunDlg* CNewTrigger::m_parent;
 CINI& CNewTrigger::map = CINI::CurrentDocument;
 CINI& CNewTrigger::fadata = CINI::FAData;
 MultimapHelper& CNewTrigger::rules = Variables::RulesMap;
-
-HWND CNewTrigger::hSelectedTrigger;
-HWND CNewTrigger::hNewTrigger;
-HWND CNewTrigger::hCloneTrigger;
-HWND CNewTrigger::hDeleteTrigger;
-HWND CNewTrigger::hPlaceOnMap;
-HWND CNewTrigger::hType;
-HWND CNewTrigger::hName;
-HWND CNewTrigger::hHouse;
-HWND CNewTrigger::hAttachedtrigger;
-HWND CNewTrigger::hDisabled;
-HWND CNewTrigger::hEasy;
-HWND CNewTrigger::hMedium;
-HWND CNewTrigger::hHard;
-HWND CNewTrigger::hEventtype;
-HWND CNewTrigger::hNewEvent;
-HWND CNewTrigger::hCloneEvent;
-HWND CNewTrigger::hDeleteEvent;
-HWND CNewTrigger::hEventDescription;
-HWND CNewTrigger::hEventList;
-HWND CNewTrigger::hEventParameter[EVENT_PARAM_COUNT];
-HWND CNewTrigger::hEventParameterDesc[EVENT_PARAM_COUNT];
-HWND CNewTrigger::hActionoptions;
-HWND CNewTrigger::hActiontype;
-HWND CNewTrigger::hNewAction;
-HWND CNewTrigger::hDeleteAction;
-HWND CNewTrigger::hCloneAction;
-HWND CNewTrigger::hActionDescription;
-HWND CNewTrigger::hActionList;
-HWND CNewTrigger::hActionframe;
-HWND CNewTrigger::hSearchReference;
-HWND CNewTrigger::hActionParameter[ACTION_PARAM_COUNT];
-HWND CNewTrigger::hActionParameterDesc[ACTION_PARAM_COUNT];
-int CNewTrigger::CurrentCSFActionParam;
-int CNewTrigger::CurrentTriggerActionParam;
-int CNewTrigger::SelectedTriggerIndex = -1;
-int CNewTrigger::SelectedEventIndex = -1;
-int CNewTrigger::SelectedActionIndex = -1;
-int CNewTrigger::ActionParamsCount;
-int CNewTrigger::LastActionParamsCount;
-bool CNewTrigger::WindowShown;
-FString CNewTrigger::CurrentTriggerID;
-std::shared_ptr<Trigger> CNewTrigger::CurrentTrigger;
-std::map<int, FString> CNewTrigger::TriggerLabels;
-std::map<int, FString> CNewTrigger::AttachedTriggerLabels;
-std::map<int, FString> CNewTrigger::HouseLabels;
-std::map<int, FString> CNewTrigger::ActionTypeLabels;
-std::map<int, FString> CNewTrigger::EventTypeLabels;
-std::map<int, FString> CNewTrigger::ActionParamLabels[ACTION_PARAM_COUNT];
-std::map<int, FString> CNewTrigger::EventParamLabels[EVENT_PARAM_COUNT];
-std::pair<bool, int> CNewTrigger::EventParamsUsage[EVENT_PARAM_COUNT];
-std::pair<bool, int> CNewTrigger::ActionParamsUsage[ACTION_PARAM_COUNT];
+CNewTrigger CNewTrigger::Instance[TRIGGER_EDITOR_MAX_COUNT];
 std::vector<ParamAffectedParams> CNewTrigger::ActionParamAffectedParams;
 std::vector<ParamAffectedParams> CNewTrigger::EventParamAffectedParams;
-bool CNewTrigger::EventParameterAutoDrop[EVENT_PARAM_COUNT];
-bool CNewTrigger::ActionParameterAutoDrop[ACTION_PARAM_COUNT];
-bool CNewTrigger::Autodrop;
-bool CNewTrigger::DropNeedUpdate;
-bool CNewTrigger::ActionParamUsesFloat;
-WNDPROC CNewTrigger::OriginalListBoxProcEvent;
-WNDPROC CNewTrigger::OriginalListBoxProcAction;
-RECT CNewTrigger::rectComboLBox = { 0 };
-HWND CNewTrigger::hComboLBox = NULL;
+bool CNewTrigger::AvoidInfiLoop = false;
+bool CNewTrigger::SortTriggersExecuted = false;
+bool CNewTrigger::AutoChangeName = false;
+static constexpr int DRAG_THRESHOLD = 4;
 
 void CNewTrigger::Create(CFinalSunDlg* pWnd)
 {
     m_parent = pWnd;
-    m_hwnd = CreateDialog(
+    m_hwnd = CreateDialogParam(
         static_cast<HINSTANCE>(FA2sp::hInstance),
-        MAKEINTRESOURCE(307),
+        MAKEINTRESOURCE(CompactMode ? 332 : 307),
         pWnd->GetSafeHwnd(),
-        CNewTrigger::DlgProc
+        DlgProc,
+        reinterpret_cast<LPARAM>(this)
     );
 
     if (m_hwnd)
+    {
+        RECT rc;
+        GetWindowRect(m_hwnd, &rc);
+
+        const int offset = 20;
+
+        int index = GetCurrentInstanceIndex();
+        int dx = index * offset;
+        int dy = index * offset;
+
+        SetWindowPos(
+            m_hwnd,
+            nullptr,
+            windowPos.x == 0 ? (rc.left + dx) : windowPos.x,
+            windowPos.y == 0 ? (rc.top + dy) : windowPos.y,
+            0, 0,
+            SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+        );
+        PostMessage(m_hwnd, WM_USER + 100, 0, 0);
         ShowWindow(m_hwnd, SW_SHOW);
+        CNewTrigger::Initialize(m_hwnd);
+        WindowShown = true;
+    }
     else
     {
         Logger::Error("Failed to create CNewTrigger.\n");
@@ -114,7 +81,12 @@ void CNewTrigger::Initialize(HWND& hWnd)
 {
     FString buffer;
     if (Translations::GetTranslationItem("TriggerTypesTitle", buffer))
+    {
+        int index = GetCurrentInstanceIndex();
+        if (index > 0)
+            buffer.Format("%s - %d", buffer, index + 1);
         SetWindowText(hWnd, buffer);
+    }
 
     auto Translate = [&hWnd, &buffer](int nIDDlgItem, const char* pLabelName)
         {
@@ -125,32 +97,32 @@ void CNewTrigger::Initialize(HWND& hWnd)
 
     Translate(50901, "TriggerTriggeroptions");
     Translate(50902, "TriggerSelectedTrigger");
-    Translate(50904, "TriggerNew");
-    Translate(50905, "TriggerClone");
-    Translate(50906, "TriggerDelete");
-    Translate(50907, "TriggerPlaceOnMap");
+    Translate(50904, CompactMode ? "TriggerNewShort" : "TriggerNew");
+    Translate(50905, CompactMode ? "TriggerCloneShort" : "TriggerClone");
+    Translate(50906, CompactMode ? "TriggerDeleteShort" : "TriggerDelete");
+    Translate(50907, CompactMode ? "TriggerPlaceOnMapShort" : "TriggerPlaceOnMap");
     Translate(50908, "TriggerType");
     Translate(50910, "TriggerName");
     Translate(50912, "TriggerHouse");
     Translate(50914, "TriggerAttachedtrigger");
     Translate(50915, "TriggerCannotbeitselforformsaloop");
-    Translate(50917, "TriggerDisabled");
-    Translate(50918, "TriggerEasy");
-    Translate(50919, "TriggerMedium");
-    Translate(50920, "TriggerHard");
+    Translate(50917, CompactMode ? "TriggerDisabledShort" : "TriggerDisabled");
+    Translate(50918, CompactMode ? "TriggerEasyShort" : "TriggerEasy");
+    Translate(50919, CompactMode ? "TriggerMediumShort" : "TriggerMedium");
+    Translate(50920, CompactMode ? "TriggerHardShort" : "TriggerHard");
     Translate(50921, "TriggerEventoptions");
     Translate(50922, "TriggerEventtype");
-    Translate(50924, "TriggerAdd");
-    Translate(50925, "TriggerClone");
-    Translate(50926, "TriggerDelete");
+    Translate(50924, CompactMode ? "TriggerAddShort" : "TriggerAdd");
+    Translate(50925, CompactMode ? "TriggerCloneShort" : "TriggerClone");
+    Translate(50926, CompactMode ? "TriggerDeleteShort" : "TriggerDelete");
     Translate(50928, "TriggerEventList");
     Translate(50930, "TriggerParameter#1value");
     Translate(50932, "TriggerParameter#2value");
     Translate(50934, "TriggerActionoptions");
     Translate(50935, "TriggerActiontype");
-    Translate(50937, "TriggerAdd");
-    Translate(50938, "TriggerDelete");
-    Translate(50939, "TriggerClone");
+    Translate(50937, CompactMode ? "TriggerAddShort" : "TriggerAdd");
+    Translate(50939, CompactMode ? "TriggerCloneShort" : "TriggerClone");
+    Translate(50938, CompactMode ? "TriggerDeleteShort" : "TriggerDelete");
     Translate(50941, "TriggerActionList");
     Translate(50943, "TriggerParameter#1value");
     Translate(50945, "TriggerParameter#2value");
@@ -158,7 +130,9 @@ void CNewTrigger::Initialize(HWND& hWnd)
     Translate(50949, "TriggerParameter#4value");
     Translate(50951, "TriggerParameter#5value");
     Translate(50953, "TriggerParameter#6value");
-    Translate(1999, "SearchReferenceTitle");
+    Translate(1999, CompactMode ? "SearchReferenceTitleShort" : "SearchReferenceTitle");
+    Translate(2000, "TriggerOpenNewEditor");
+    Translate(2002, CompactMode ? "TriggerCompactModeShort" : "TriggerCompactMode");
 
     hSelectedTrigger = GetDlgItem(hWnd, Controls::SelectedTrigger);
     hNewTrigger = GetDlgItem(hWnd, Controls::NewTrigger);
@@ -204,10 +178,35 @@ void CNewTrigger::Initialize(HWND& hWnd)
     hActionParameterDesc[4] = GetDlgItem(hWnd, Controls::ActionParameter5Desc);
     hActionParameterDesc[5] = GetDlgItem(hWnd, Controls::ActionParameter6Desc);
     hSearchReference = GetDlgItem(hWnd, Controls::SearchReference);
+    hOpenNewEditor = GetDlgItem(hWnd, Controls::OpenNewEditor);
+    hDragPoint = GetDlgItem(hWnd, Controls::DragPoint);
+    hCompact = GetDlgItem(hWnd, Controls::Compact);
+    hActionMoveUp = GetDlgItem(hWnd, Controls::ActionMoveUp);
+    hActionMoveDown = GetDlgItem(hWnd, Controls::ActionMoveDown);
+    hActionSplit = GetDlgItem(hWnd, Controls::ActionSplit);
+    SetWindowTextW(hActionMoveUp, L"¡ø");
+    SetWindowTextW(hActionMoveDown, L"¨");
+    Translate(2005, "TriggerActionSplit");
+
+    if (!IsMainInstance())
+        ShowWindow(hOpenNewEditor, SW_HIDE);
+    else
+        ShowWindow(hCompact, SW_HIDE);
+
+    ExtraWindow::RegisterDropTarget(hAttachedtrigger, DropType::AttachedTrigger, this);
+    ExtraWindow::RegisterDropTarget(hActionParameter[0], DropType::ActionParam0, this);
+    ExtraWindow::RegisterDropTarget(hActionParameter[1], DropType::ActionParam1, this);
+    ExtraWindow::RegisterDropTarget(hActionParameter[2], DropType::ActionParam2, this);
+    ExtraWindow::RegisterDropTarget(hActionParameter[3], DropType::ActionParam3, this);
+    ExtraWindow::RegisterDropTarget(hActionParameter[4], DropType::ActionParam4, this);
+    ExtraWindow::RegisterDropTarget(hActionParameter[5], DropType::ActionParam5, this);
+    ExtraWindow::RegisterDropTarget(hEventParameter[0], DropType::EventParam0, this);
+    ExtraWindow::RegisterDropTarget(hEventParameter[1], DropType::EventParam1, this);
+    ExtraWindow::RegisterDropTarget(hActionList, DropType::ActionListBox, this);
+    ExtraWindow::RegisterDropTarget(hEventList, DropType::EventListBox, this);
 
     LastActionParamsCount = 4;
     ActionParamsCount = 4;
-    WindowShown = false;
 
     for (int i = 0; i < EVENT_PARAM_COUNT; ++i)
         EventParamsUsage[i] = std::make_pair(false, 0);
@@ -221,25 +220,53 @@ void CNewTrigger::Initialize(HWND& hWnd)
     ExtraWindow::SetEditControlFontSize(hActionDescription, 1.3f);
 
     if (hEventList)
+    {
+        SetWindowLongPtr(hEventList, GWLP_USERDATA, (LONG_PTR)this);
         OriginalListBoxProcEvent = (WNDPROC)SetWindowLongPtr(hEventList, GWLP_WNDPROC, (LONG_PTR)ListBoxSubclassProcEvent);
+    }
     if (hActionList)
+    {
+        SetWindowLongPtr(hActionList, GWLP_USERDATA, (LONG_PTR)this);
         OriginalListBoxProcAction = (WNDPROC)SetWindowLongPtr(hActionList, GWLP_WNDPROC, (LONG_PTR)ListBoxSubclassProcAction);
+    }
+    if (hDragPoint)
+    {
+        SetWindowLongPtr(hDragPoint, GWLP_USERDATA, (LONG_PTR)this);
+        OrigDragDotProc = (WNDPROC)SetWindowLongPtr(hDragPoint, GWLP_WNDPROC, (LONG_PTR)DragDotProc);
+    }
+
+    hl.SetBorderColor(ExtConfigs::EnableDarkMode ? RGB(0, 90, 0) : RGB(0, 180, 0));
+    hl.SetBorderThickness(3);
+    hl.SetBorderRadius(0);
 
     CurrentTrigger = nullptr;
 
     Update(hWnd);
 }
 
-void CNewTrigger::Update(HWND& hWnd)
+void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
 {
-    ShowWindow(m_hwnd, SW_SHOW);
-    SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    if (m_hwnd)
+    {
+        ShowWindow(m_hwnd, SW_SHOW);
+        SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    }
 
     DropNeedUpdate = false;
+    if (UpdateTrigger)
+        CMapDataExt::UpdateTriggers();
 
-    CMapDataExt::UpdateTriggers();
+    SortTriggers("", true);
 
-    SortTriggers();
+    if (UpdateTrigger)
+    {
+        auto others = GetOtherInstances();
+        for (auto& [i, o] : others)
+        {
+            if (o->GetHandle())
+                o->CurrentTrigger = CMapDataExt::GetTrigger(o->CurrentTriggerID);
+        }
+    }
         
     int count = SendMessage(hSelectedTrigger, CB_GETCOUNT, NULL, NULL);
     if (SelectedTriggerIndex < 0)
@@ -249,7 +276,7 @@ void CNewTrigger::Update(HWND& hWnd)
     SendMessage(hSelectedTrigger, CB_SETCURSEL, SelectedTriggerIndex, NULL);
 
     int idx = 0;
-    while (SendMessage(hEventtype, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hEventtype);
     if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("EventsRA2")))
     {
         for (auto& pair : pSection->GetEntities())
@@ -265,8 +292,9 @@ void CNewTrigger::Update(HWND& hWnd)
             }
         }
     }
+    if (CompactMode) ExtraWindow::AdjustDropdownWidth(hEventtype);
     idx = 0;
-    while (SendMessage(hActiontype, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hActiontype);
     if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("ActionsRA2")))
     {
         for (auto& pair : pSection->GetEntities())
@@ -282,9 +310,10 @@ void CNewTrigger::Update(HWND& hWnd)
             }
         }
     }
+    if (CompactMode) ExtraWindow::AdjustDropdownWidth(hActiontype);
 
     idx = 0;
-    while (SendMessage(hHouse, CB_DELETESTRING, 0, NULL) != CB_ERR); 
+    ExtraWindow::ClearComboKeepText(hHouse);
     if (CMapData::Instance->IsMultiOnly() && ExtConfigs::PlayerAtXForTriggers)
     {
         SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ A>").c_str());
@@ -303,16 +332,22 @@ void CNewTrigger::Update(HWND& hWnd)
             continue;
         SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName(value, true).c_str());
     }
+
     if (!CMapData::Instance->IsMultiOnly())
     {
         SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName("Player", true).c_str());
     }
 
+    if (CompactMode) ExtraWindow::AdjustDropdownWidth(hHouse);
+
     idx = 0;
-    while (SendMessage(hType, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hType);
     SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("0 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeOr", "One Time OR")));
     SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("1 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeAnd", "One Time AND")));
     SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("2 - ") + Translations::TranslateOrDefault("TriggerRepeatType.RepeatingOr", "Repeating OR")));
+    if (CompactMode) ExtraWindow::AdjustDropdownWidth(hType);
+
+    SendMessage(hCompact, BM_SETCHECK, CompactMode ? BST_CHECKED : BST_UNCHECKED, 0);
 
     Autodrop = false;
 
@@ -321,100 +356,1063 @@ void CNewTrigger::Update(HWND& hWnd)
 
 void CNewTrigger::Close(HWND& hWnd)
 {
+    ExtraWindow::UnregisterDropTargetsOfWindow(hWnd);
+    SetWindowLongPtr(
+        hEventList,
+        GWLP_WNDPROC,
+        (LONG_PTR)OriginalListBoxProcEvent
+    );
+    SetWindowLongPtr(hEventList, GWLP_USERDATA, 0);
+    SetWindowLongPtr(
+        hActionList,
+        GWLP_WNDPROC,
+        (LONG_PTR)OriginalListBoxProcAction
+    );
+    SetWindowLongPtr(hActionList, GWLP_USERDATA, 0);
+    SetWindowLongPtr(
+        hDragPoint,
+        GWLP_WNDPROC,
+        (LONG_PTR)OrigDragDotProc
+    );
+    SetWindowLongPtr(hDragPoint, GWLP_USERDATA, 0);
+    if (m_hDragGhost)
+    {
+        m_dragging = false;
+        m_actionPressed = false;
+        m_eventPressed = false;
+        m_pressed = false;
+
+        SetWindowLongPtr(
+            m_hDragGhost,
+            GWLP_WNDPROC,
+            (LONG_PTR)OrigDragingDotProc
+        );
+        SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+        DestroyWindow(m_hDragGhost);
+        m_hDragGhost = nullptr;
+        hl.Detach();
+    }
     EndDialog(hWnd, NULL);
 
-    CNewTrigger::m_hwnd = NULL;
-    CNewTrigger::m_parent = NULL;
-
+    CurrentTrigger = nullptr;
+    m_hwnd = NULL;
+    m_parent = NULL;
 }
 
-LRESULT CALLBACK CNewTrigger::ListBoxSubclassProcAction(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK CNewTrigger::DragDotProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    auto* self = reinterpret_cast<CNewTrigger*>(
+        GetWindowLongPtr(hWnd, GWLP_USERDATA)
+        );
+
+    if (self) {
+        return self->HandleDragDot(hWnd, msg, wParam, lParam);
+    }
+
+    return DefWindowProc(hWnd, msg, wParam, lParam);
+}
+
+LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg)
+    {
+    case WM_SETCURSOR:
+    {
+        if (CurrentTrigger)
+        {
+            SetCursor(LoadCursor(nullptr, IDC_HAND));
+            return TRUE;
+        }
+        break;
+    }
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        HBRUSH hBrush = CreateSolidBrush(CurrentTrigger ? RGB(0, 200, 0) : RGB(200, 0, 0));
+        FillRect(hdc, &ps.rcPaint, hBrush);
+        DeleteObject(hBrush);
+
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+    case WM_LBUTTONDOWN:
+    {
+        if (CurrentTrigger)
+        {
+            m_pressed = true;
+            m_dragging = false;
+
+            GetCursorPos(&m_pressPtScreen);
+            m_lastPtScreen = m_pressPtScreen;
+
+            SetCapture(hWnd);        
+            return 0;
+        }
+        break;
+    }
+    case WM_MOUSEMOVE:
+    {
+        if (!m_pressed)
+            break;
+
+        POINT pt;
+        GetCursorPos(&pt);
+
+        int dx = abs(pt.x - m_pressPtScreen.x);
+        int dy = abs(pt.y - m_pressPtScreen.y);
+
+        if (!m_dragging)
+        {
+            if (dx >= DRAG_THRESHOLD || dy >= DRAG_THRESHOLD)
+            {
+                m_dragging = true;
+                if (m_hDragGhost)
+                {
+                    DestroyWindow(m_hDragGhost);
+                    m_hDragGhost = nullptr;
+                }
+                m_hDragGhost = CreateWindowEx(
+                    WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
+                    "STATIC",
+                    nullptr,
+                    WS_POPUP,
+                    m_pressPtScreen.x - 6, m_pressPtScreen.y - 6,
+                    12, 12,
+                    nullptr, nullptr,
+                    static_cast<HINSTANCE>(FA2sp::hInstance),
+                    nullptr
+                );
+
+                if (m_hDragGhost)
+                {
+                    SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, (LONG_PTR)this);
+                    OrigDragingDotProc = (WNDPROC)SetWindowLongPtr(m_hDragGhost, GWLP_WNDPROC, (LONG_PTR)DragingDotProc);
+                    SetLayeredWindowAttributes(m_hDragGhost, 0, 200, LWA_ALPHA);
+                    ShowWindow(m_hDragGhost, SW_SHOW);
+                }
+            }
+        }
+
+        if (m_dragging)
+        {
+            SetWindowPos(
+                m_hDragGhost,
+                nullptr,
+                pt.x - 6, pt.y - 6,
+                0, 0,
+                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+            );
+
+            if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt))
+            {
+                TempValueHolder<int> command(CIsoView::CurrentCommand->Command, 0x25);
+                TempValueHolder<int> type(CIsoView::CurrentCommand->Type, GetCurrentInstanceIndex());
+                ScreenToClient(CIsoView::GetInstance()->GetSafeHwnd(), &pt);
+                CIsoView::GetInstance()->OnMouseMove(0, pt);
+            }
+            else
+            {
+                auto target = ExtraWindow::FindDropTarget(pt);
+                if (target.hWnd && IsWindowEnabled(target.hWnd) && 
+                    (
+                        target.type == DropType::AttachedTrigger ||
+                        target.type == DropType::ActionParam0 ||
+                        target.type == DropType::ActionParam1 ||
+                        target.type == DropType::ActionParam2 ||
+                        target.type == DropType::ActionParam3 ||
+                        target.type == DropType::ActionParam4 ||
+                        target.type == DropType::ActionParam5 ||
+                        target.type == DropType::EventParam0 ||
+                        target.type == DropType::EventParam1 ||
+                        target.type == DropType::TeamEditorTag ||
+                        target.type == DropType::BatchTriggerListView
+                    )
+                    )
+                {
+                    if (!hl.IsActive())
+                    {
+                        hl.Attach(target);
+                    }
+                    else if (!hl.IsSameTarget(target))
+                    {
+                        hl.Detach();
+                        hl.Attach(target);
+                    }
+                }
+                else if (hl.IsActive())
+                {
+                    hl.Detach();
+                }
+            }
+        }
+
+        return 0;
+    }
+    case WM_CAPTURECHANGED:
+    {
+        if (m_dragging)
+        {
+            m_dragging = false;
+            m_actionPressed = false;
+            m_eventPressed = false;
+            m_pressed = false;
+            ReleaseCapture();
+
+            SetWindowLongPtr(
+                m_hDragGhost,
+                GWLP_WNDPROC,
+                (LONG_PTR)OrigDragingDotProc
+            );
+            SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+            DestroyWindow(m_hDragGhost);
+            m_hDragGhost = nullptr;
+            hl.Detach();
+        }
+        break;
+    }
+    case WM_LBUTTONUP:
+    {
+        if (!m_pressed)
+            break;
+
+        m_pressed = false;
+
+        POINT pt;
+        GetCursorPos(&pt);
+
+        if (m_dragging)
+        {
+            SetWindowLongPtr(
+                m_hDragGhost,
+                GWLP_WNDPROC,
+                (LONG_PTR)OrigDragingDotProc
+            );
+            SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+            DestroyWindow(m_hDragGhost);
+            m_hDragGhost = nullptr;
+            hl.Detach();
+
+            if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt) && CurrentTrigger)
+            {
+                ScreenToClient(CIsoView::GetInstance()->GetSafeHwnd(), &pt);
+                if (ExtConfigs::SecondScreenSupport)
+                {
+                    pt.x -= GetSystemMetrics(SM_XVIRTUALSCREEN);
+                    pt.y -= GetSystemMetrics(SM_YVIRTUALSCREEN);
+                }
+                auto coord = CIsoViewExt::GetExtension()->GetCurrentMapCoord(pt);
+                int& X = coord.X; int& Y = coord.Y;
+                CViewObjectsExt::ApplyTag(X, Y, CurrentTrigger->Tag);
+            }
+            else
+            {
+                auto target = ExtraWindow::FindDropTarget(pt);
+                if (target.hWnd)
+                {
+                    auto triggerID = CurrentTriggerID + " ";
+                    switch (target.type)
+                    {
+                    case DropType::AttachedTrigger:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx == CB_ERR)
+                            {
+                                target.triggerInstance->OnSelchangeActionListbox();
+                                idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            }
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeAttachedTrigger();
+                            }
+                        }
+                        break;
+                    case DropType::ActionParam0:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeActionParam(0);
+                            }
+                        }
+                        break;
+                    case DropType::ActionParam1:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeActionParam(1);
+                            }
+                        }
+                        break;
+                    case DropType::ActionParam2:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeActionParam(2);
+                            }
+                        }
+                        break;
+                    case DropType::ActionParam3:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeActionParam(3);
+                            }
+                        }
+                        break;
+                    case DropType::ActionParam4:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeActionParam(4);
+                            }
+                        }
+                        break;
+                    case DropType::ActionParam5:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeActionParam(5);
+                            }
+                        }
+                        break;
+                    case DropType::EventParam0:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeEventParam(0);
+                            }
+                        }
+                        break;
+                    case DropType::EventParam1:
+                        if (target.triggerInstance && target.triggerInstance->GetHandle())
+                        {
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, triggerID);
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                target.triggerInstance->OnSelchangeEventParam(1);
+                            }
+                        }
+                        break;
+                    case DropType::TeamEditorTag:
+                        {
+                            auto tag = CurrentTrigger->Tag;
+                            tag += " ";
+                            auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, tag);
+                            if (idx == CB_ERR)
+                            {
+                                CNewTeamTypes::OnDropdownTag();
+                                idx = ExtraWindow::FindCBStringExactStart(target.hWnd, tag);
+                            }
+                            if (idx != CB_ERR)
+                            {
+                                SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                                CNewTeamTypes::OnSelchangeTag();
+                            }
+                        }
+                        break;
+                    case DropType::BatchTriggerListView:
+                    {
+                        ListViewHitResult hit;
+                        if (ExtraWindow::HitTestListView(target.hWnd, pt, hit))
+                        {
+                            CBatchTrigger::OnDroppedIntoCell(hit.item, hit.subItem, CurrentTriggerID);
+                        }
+                    }
+                        break;
+                    case DropType::Unknown:
+                    default:
+                        break;
+                    }
+                }
+            }
+
+        }
+        else
+        {
+            CIsoView::CurrentCommand->Command = 0x25;
+            CIsoView::CurrentCommand->Type = GetCurrentInstanceIndex();
+        }
+        m_dragging = false;
+        ReleaseCapture();     
+        return 0;
+    }
+    }
+
+    return CallWindowProc(
+        OrigDragDotProc,
+        hWnd, msg, wParam, lParam
+    );
+}
+
+LRESULT CALLBACK CNewTrigger::DragingDotProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    auto* self = reinterpret_cast<CNewTrigger*>(
+        GetWindowLongPtr(hWnd, GWLP_USERDATA)
+        );
+
+    if (self) {
+        return self->HandleDragingDot(hWnd, msg, wParam, lParam);
+    }
+
+    return DefWindowProc(hWnd, msg, wParam, lParam);
+}
+
+LRESULT CALLBACK CNewTrigger::HandleDragingDot(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg)
+    {
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        HBRUSH hBrush = CreateSolidBrush(RGB(0, 200, 0));
+        FillRect(hdc, &ps.rcPaint, hBrush);
+        DeleteObject(hBrush);
+
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+    }
+
+    return CallWindowProc(
+        OrigDragingDotProc,
+        hWnd, msg, wParam, lParam
+    );
+}
+
+LRESULT CALLBACK CNewTrigger::DragingListBoxProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    auto* self = reinterpret_cast<CNewTrigger*>(
+        GetWindowLongPtr(hWnd, GWLP_USERDATA)
+        );
+
+    if (self) {
+        return self->HandleDragingListBox(hWnd, msg, wParam, lParam);
+    }
+
+    return DefWindowProc(hWnd, msg, wParam, lParam);
+}
+
+LRESULT CALLBACK CNewTrigger::HandleDragingListBox(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    return CallWindowProc(
+        OrigDragingListboxProc,
+        hWnd, msg, wParam, lParam
+    );
+}
+
+LRESULT CALLBACK CNewTrigger::ListBoxSubclassProcEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
+{
+    auto* self = reinterpret_cast<CNewTrigger*>(
+        GetWindowLongPtr(hWnd, GWLP_USERDATA)
+        );
+
+    if (self) {
+        return self->HandleListBoxEvent(hWnd, msg, wParam, lParam);
+    }
+
+    return DefWindowProc(hWnd, msg, wParam, lParam);
+}
+
+LRESULT CALLBACK CNewTrigger::ListBoxSubclassProcAction(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
+{
+    auto* self = reinterpret_cast<CNewTrigger*>(
+        GetWindowLongPtr(hWnd, GWLP_USERDATA)
+        );
+
+    if (self) {
+        return self->HandleListBoxAction(hWnd, msg, wParam, lParam);
+    }
+
+    return DefWindowProc(hWnd, msg, wParam, lParam);
+}
+
+LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
     case WM_MOUSEWHEEL:
-
+    {
         POINT pt;
         GetCursorPos(&pt);
         ScreenToClient(hWnd, &pt);
+
         RECT rc;
         GetClientRect(hWnd, &rc);
 
-        if (pt.x >= rc.right)
+        if (pt.x >= rc.right - GetSystemMetrics(SM_CXVSCROLL))
         {
             return CallWindowProc(OriginalListBoxProcAction, hWnd, message, wParam, lParam);
         }
+
+        int delta = (short)HIWORD(wParam);
+
+        WPARAM keyParam = 0;
+        if (delta > 0)
+            keyParam = VK_UP;
+        else if (delta < 0)
+            keyParam = VK_DOWN;
+
+        if (keyParam != 0)
+        {
+            SendMessage(hWnd, WM_KEYDOWN, keyParam, 0x00000001);
+            SendMessage(hWnd, WM_KEYUP, keyParam, 0xC0000001);
+        }
+
+        return TRUE;
+    }
+    case WM_LBUTTONDOWN:
+    {
+        POINT pt = { (int)(short)LOWORD(lParam), (int)(short)HIWORD(lParam) };
+        int index = SendMessage(hWnd, LB_ITEMFROMPOINT, 0, MAKELPARAM(pt.x, pt.y));
+
+        if (HIWORD(index))
+        {
+            return 0;
+        }
+
+        if (CurrentTrigger && CurrentTrigger->ActionCount > 0)
+        {
+            SelectedActions.clear();
+            GetActionListBoxSels(SelectedActions);
+            if (!SelectedActions.empty())
+            {
+                m_actionPressed = true;
+                m_dragging = false;
+                GetCursorPos(&m_pressPtScreen);
+                m_lastPtScreen = m_pressPtScreen;
+            }
+        }
+
+        break;
+    }
+    case WM_MOUSEMOVE:
+    {
+        if (!(GetAsyncKeyState(VK_LBUTTON) & 0x8000) && m_hDragGhost)
+        {
+            m_dragging = false;
+            m_actionPressed = false;
+            m_eventPressed = false;
+            m_pressed = false;
+            ReleaseCapture();
+
+            SetWindowLongPtr(
+                m_hDragGhost,
+                GWLP_WNDPROC,
+                (LONG_PTR)OrigDragingDotProc
+            );
+            SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+            DestroyWindow(m_hDragGhost);
+            m_hDragGhost = nullptr;
+            hl.Detach();
+            break;
+        }
+
+        if (!m_actionPressed)
+            break;
+
+        POINT pt;
+        GetCursorPos(&pt);
+
+        int dx = abs(pt.x - m_pressPtScreen.x);
+        int dy = abs(pt.y - m_pressPtScreen.y);
+
+        if (!m_dragging && HasOtherInstances())
+        {
+            if (dx >= DRAG_THRESHOLD || dy >= DRAG_THRESHOLD)
+            {
+                m_dragging = true;
+                SetCapture(hWnd);
+                SetActionListBoxSels(SelectedActions);
+
+                FString displayText;
+
+                for (int i = 0; i < SelectedActions.size(); ++i)
+                {
+                    displayText += ExtraWindow::GetActionDisplayName(CurrentTrigger->Actions[SelectedActions[i]].ActionNum, i);
+                    if (i != SelectedActions.size() -1)
+                        displayText += "\n";
+                }
+
+                int width = 120;
+                int height = 40;
+                HDC hdcScreen = GetDC(NULL);
+                HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+                HFONT hOld = (HFONT)SelectObject(hdcScreen, hFont);
+
+                RECT calcRect = { 0 };
+                DrawText(hdcScreen, displayText.c_str(), -1, &calcRect, DT_CALCRECT | DT_NOPREFIX);
+
+                width = calcRect.right - calcRect.left + 10;
+                height = calcRect.bottom - calcRect.top + 2;
+
+                SelectObject(hdcScreen, hOld);
+                ReleaseDC(NULL, hdcScreen);
+                if (m_hDragGhost)
+                {
+                    DestroyWindow(m_hDragGhost);
+                    m_hDragGhost = nullptr;
+                }
+                m_hDragGhost = CreateWindowEx(
+                    WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
+                    WC_STATIC,
+                    displayText.c_str(), 
+                    WS_POPUP | WS_VISIBLE | WS_BORDER |
+                    SS_LEFT |
+                    WS_CLIPSIBLINGS, 
+                    m_pressPtScreen.x,
+                    m_pressPtScreen.y,
+                    width,
+                    height,
+                    nullptr,
+                    nullptr,
+                    static_cast<HINSTANCE>(FA2sp::hInstance),
+                    nullptr
+                );
+
+                if (m_hDragGhost)
+                {
+                    SendMessage(m_hDragGhost, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+                    SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, (LONG_PTR)this);
+                    //OrigDragingListboxProc = (WNDPROC)SetWindowLongPtr(m_hDragGhost, GWLP_WNDPROC, (LONG_PTR)DragingListBoxProc);
+                    SetLayeredWindowAttributes(m_hDragGhost, 0, 200, LWA_ALPHA);
+                    ShowWindow(m_hDragGhost, SW_SHOW);
+                }
+            }
+        }
+
+        if (m_dragging)
+        {
+            SetWindowPos(
+                m_hDragGhost,
+                nullptr,
+                pt.x - 6, pt.y - 6,
+                0, 0,
+                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+            );
+
+            auto target = ExtraWindow::FindDropTarget(pt);
+            if (target.hWnd && IsWindowEnabled(target.hWnd) && 
+                target.type == DropType::ActionListBox &&
+                target.hWnd != hActionList &&
+                target.triggerInstance->CurrentTrigger != CurrentTrigger
+                )
+            {
+                if (!hl.IsActive())
+                {
+                    hl.Attach(target);
+                }
+                else if (!hl.IsSameTarget(target))
+                {
+                    hl.Detach();
+                    hl.Attach(target);
+                }
+            }
+            else if (hl.IsActive())
+            {
+                hl.Detach();
+            }
+        }
+
+        return 0;
+    }
+    case WM_LBUTTONUP:
+    {
+        if (!m_actionPressed)
+            break;
+
+        m_actionPressed = false;
+
+        if (m_dragging)
+        {
+            m_dragging = false;
+            ReleaseCapture();
+
+            POINT pt;
+            GetCursorPos(&pt);
+            //SetWindowLongPtr(
+            //    m_hDragGhost,
+            //    GWLP_WNDPROC,
+            //    (LONG_PTR)OrigDragingListboxProc
+            //);
+            SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+            DestroyWindow(m_hDragGhost);
+            m_hDragGhost = nullptr;
+            hl.Detach();
+
+            auto target = ExtraWindow::FindDropTarget(pt);
+
+            if (target.hWnd && IsWindowEnabled(target.hWnd) &&
+                target.type == DropType::ActionListBox &&
+                target.hWnd != hActionList &&
+                target.triggerInstance->CurrentTrigger != CurrentTrigger
+                )
+            {
+                auto instances = GetOtherInstances();
+                for (auto& [_, o] : instances)
+                {
+                    if (o->hActionList == target.hWnd)
+                    {
+                        if (!o->CurrentTrigger) break;
+
+                        for (int i = 0; i < SelectedActions.size(); ++i)
+                        {
+                            o->CurrentTrigger->Actions.push_back(CurrentTrigger->Actions[SelectedActions[i]]);
+                            o->CurrentTrigger->ActionCount++;
+                        }
+                        o->CurrentTrigger->Save();
+                        o->OnSelchangeTrigger();
+                        // opposite to drag move units in map
+                        if ((GetKeyState(VK_SHIFT) & 0x8000) != 0)
+                        {
+                            for (auto rit = SelectedActions.rbegin(); rit != SelectedActions.rend(); ++rit)
+                            {
+                                auto& index = *rit;
+                                if (index < 0 || index >= CurrentTrigger->ActionCount) continue;
+
+                                CurrentTrigger->ActionCount--;
+                                CurrentTrigger->Actions.erase(CurrentTrigger->Actions.begin() + index);
+                            }
+                            CurrentTrigger->Save();
+                            OnSelchangeTrigger();
+                        }
+
+                        o->RefreshOtherInstances();
+                        break;
+                    }
+                }
+            }
+        }
         else
         {
-            int nCurSel = (int)SendMessage(hWnd, LB_GETCURSEL, 0, 0);
-            int nCount = (int)SendMessage(hWnd, LB_GETCOUNT, 0, 0);
-
-            if (nCurSel != LB_ERR && nCount > 0)
-            {
-                if ((short)HIWORD(wParam) > 0 && nCurSel > 0)
-                {
-                    SendMessage(hWnd, LB_SETCURSEL, nCurSel - 1, 0);
-                }
-                else if ((short)HIWORD(wParam) < 0 && nCurSel < nCount - 1)
-                {
-                    SendMessage(hWnd, LB_SETCURSEL, nCurSel + 1, 0);
-                }
-                OnSelchangeActionListbox();
-
-            }
-            else {
-                SendMessage(hWnd, LB_SETCURSEL, 0, 0);
-            }
-            return TRUE;
+            return CallWindowProc(OriginalListBoxProcAction, hWnd, message, wParam, lParam);
         }
+        return 0;
+    }
     }
     return CallWindowProc(OriginalListBoxProcAction, hWnd, message, wParam, lParam);
 }
 
-LRESULT CALLBACK CNewTrigger::ListBoxSubclassProcEvent(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK CNewTrigger::HandleListBoxEvent(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
     case WM_MOUSEWHEEL:
-
+    {
         POINT pt;
         GetCursorPos(&pt);
         ScreenToClient(hWnd, &pt);
+
         RECT rc;
         GetClientRect(hWnd, &rc);
 
-        if (pt.x >= rc.right)
+        if (pt.x >= rc.right - GetSystemMetrics(SM_CXVSCROLL))
         {
             return CallWindowProc(OriginalListBoxProcEvent, hWnd, message, wParam, lParam);
         }
+
+        int delta = (short)HIWORD(wParam);
+
+        WPARAM keyParam = 0;
+        if (delta > 0)
+            keyParam = VK_UP;
+        else if (delta < 0)
+            keyParam = VK_DOWN;
+
+        if (keyParam != 0)
+        {
+            SendMessage(hWnd, WM_KEYDOWN, keyParam, 0x00000001);
+            SendMessage(hWnd, WM_KEYUP, keyParam, 0xC0000001);
+        }
+
+        return TRUE;
+    }
+    case WM_LBUTTONDOWN:
+    {
+        POINT pt = { (int)(short)LOWORD(lParam), (int)(short)HIWORD(lParam) };
+        int index = SendMessage(hWnd, LB_ITEMFROMPOINT, 0, MAKELPARAM(pt.x, pt.y));
+
+        if (HIWORD(index))
+        {
+            return 0;
+        }
+
+        if (CurrentTrigger && CurrentTrigger->EventCount > 0)
+        {
+            SelectedEvents.clear();
+            GetEventListBoxSels(SelectedEvents);
+            if (!SelectedEvents.empty())
+            {
+                m_eventPressed = true;
+                m_dragging = false;
+                GetCursorPos(&m_pressPtScreen);
+                m_lastPtScreen = m_pressPtScreen;
+            }
+        }
+
+        break;
+    }
+    case WM_MOUSEMOVE:
+    {
+        if (!(GetAsyncKeyState(VK_LBUTTON) & 0x8000) && m_hDragGhost)
+        {
+            m_dragging = false;
+            m_actionPressed = false;
+            m_eventPressed = false;
+            m_pressed = false;
+            ReleaseCapture();
+
+            SetWindowLongPtr(
+                m_hDragGhost,
+                GWLP_WNDPROC,
+                (LONG_PTR)OrigDragingDotProc
+            );
+            SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+            DestroyWindow(m_hDragGhost);
+            m_hDragGhost = nullptr;
+            hl.Detach();
+            break;
+        }
+
+        if (!m_eventPressed)
+            break;
+
+        POINT pt;
+        GetCursorPos(&pt);
+
+        int dx = abs(pt.x - m_pressPtScreen.x);
+        int dy = abs(pt.y - m_pressPtScreen.y);
+
+        if (!m_dragging && HasOtherInstances())
+        {
+            if (dx >= DRAG_THRESHOLD || dy >= DRAG_THRESHOLD)
+            {
+                m_dragging = true;
+                SetCapture(hWnd);
+                SetEventListBoxSels(SelectedEvents);
+
+                FString displayText;
+
+                for (int i = 0; i < SelectedEvents.size(); ++i)
+                {
+                    displayText += ExtraWindow::GetEventDisplayName(CurrentTrigger->Events[SelectedEvents[i]].EventNum, i);
+                    if (i != SelectedEvents.size() - 1)
+                        displayText += "\n";
+                }
+
+                int width = 120;
+                int height = 40;
+                HDC hdcScreen = GetDC(NULL);
+                HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+                HFONT hOld = (HFONT)SelectObject(hdcScreen, hFont);
+
+                RECT calcRect = { 0 };
+                DrawText(hdcScreen, displayText.c_str(), -1, &calcRect, DT_CALCRECT | DT_NOPREFIX);
+
+                width = calcRect.right - calcRect.left + 10;
+                height = calcRect.bottom - calcRect.top + 2;
+
+                SelectObject(hdcScreen, hOld);
+                ReleaseDC(NULL, hdcScreen);
+                if (m_hDragGhost)
+                {
+                    DestroyWindow(m_hDragGhost);
+                    m_hDragGhost = nullptr;
+                }
+                m_hDragGhost = CreateWindowEx(
+                    WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
+                    WC_STATIC,
+                    displayText.c_str(),
+                    WS_POPUP | WS_VISIBLE | WS_BORDER |
+                    SS_LEFT |
+                    WS_CLIPSIBLINGS,
+                    m_pressPtScreen.x,
+                    m_pressPtScreen.y,
+                    width,
+                    height,
+                    nullptr,
+                    nullptr,
+                    static_cast<HINSTANCE>(FA2sp::hInstance),
+                    nullptr
+                );
+
+                if (m_hDragGhost)
+                {
+                    SendMessage(m_hDragGhost, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+                    SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, (LONG_PTR)this);
+                    //OrigDragingListboxProc = (WNDPROC)SetWindowLongPtr(m_hDragGhost, GWLP_WNDPROC, (LONG_PTR)DragingListBoxProc);
+                    SetLayeredWindowAttributes(m_hDragGhost, 0, 200, LWA_ALPHA);
+                    ShowWindow(m_hDragGhost, SW_SHOW);
+                }
+            }
+        }
+
+        if (m_dragging)
+        {
+            SetWindowPos(
+                m_hDragGhost,
+                nullptr,
+                pt.x - 6, pt.y - 6,
+                0, 0,
+                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+            );
+
+            auto target = ExtraWindow::FindDropTarget(pt);
+            if (target.hWnd && IsWindowEnabled(target.hWnd) &&
+                target.type == DropType::EventListBox &&
+                target.hWnd != hEventList &&
+                target.triggerInstance->CurrentTrigger != CurrentTrigger
+                )
+            {
+                if (!hl.IsActive())
+                {
+                    hl.Attach(target);
+                }
+                else if (!hl.IsSameTarget(target))
+                {
+                    hl.Detach();
+                    hl.Attach(target);
+                }
+            }
+            else if (hl.IsActive())
+            {
+                hl.Detach();
+            }
+        }
+
+        return 0;
+    }
+    case WM_LBUTTONUP:
+    {
+        if (!m_eventPressed)
+            break;
+
+        m_eventPressed = false;
+
+        if (m_dragging)
+        {
+            m_dragging = false;
+            ReleaseCapture();
+
+            POINT pt;
+            GetCursorPos(&pt);
+            //SetWindowLongPtr(
+            //    m_hDragGhost,
+            //    GWLP_WNDPROC,
+            //    (LONG_PTR)OrigDragingListboxProc
+            //);
+            SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+            DestroyWindow(m_hDragGhost);
+            m_hDragGhost = nullptr;
+            hl.Detach();
+
+            auto target = ExtraWindow::FindDropTarget(pt);
+
+            if (target.hWnd && IsWindowEnabled(target.hWnd) &&
+                target.type == DropType::EventListBox &&
+                target.hWnd != hEventList &&
+                target.triggerInstance->CurrentTrigger != CurrentTrigger
+                )
+            {
+                auto instances = GetOtherInstances();
+                for (auto& [_, o] : instances)
+                {
+                    if (o->hEventList == target.hWnd)
+                    {
+                        if (!o->CurrentTrigger) break;
+
+                        for (int i = 0; i < SelectedEvents.size(); ++i)
+                        {
+                            o->CurrentTrigger->Events.push_back(CurrentTrigger->Events[SelectedEvents[i]]);
+                            o->CurrentTrigger->EventCount++;
+                        }
+                        o->CurrentTrigger->Save();
+                        o->OnSelchangeTrigger();
+                        if ((GetKeyState(VK_SHIFT) & 0x8000) != 0)
+                        {
+                            for (auto rit = SelectedEvents.rbegin(); rit != SelectedEvents.rend(); ++rit)
+                            {
+                                auto& index = *rit;
+                                if (index < 0 || index >= CurrentTrigger->EventCount) continue;
+
+                                CurrentTrigger->EventCount--;
+                                CurrentTrigger->Events.erase(CurrentTrigger->Events.begin() + index);
+                            }
+                            CurrentTrigger->Save();
+                            OnSelchangeTrigger();
+                        }
+
+                        o->RefreshOtherInstances();
+                        break;
+                    }
+                }
+            }
+        }
         else
         {
-            int nCurSel = (int)SendMessage(hWnd, LB_GETCURSEL, 0, 0);
-            int nCount = (int)SendMessage(hWnd, LB_GETCOUNT, 0, 0);
-
-            if (nCurSel != LB_ERR && nCount > 0)
-            {
-                if ((short)HIWORD(wParam) > 0 && nCurSel > 0)
-                {
-                    SendMessage(hWnd, LB_SETCURSEL, nCurSel - 1, 0);
-                }
-                else if ((short)HIWORD(wParam) < 0 && nCurSel < nCount - 1)
-                {
-                    SendMessage(hWnd, LB_SETCURSEL, nCurSel + 1, 0);
-                }
-                OnSelchangeEventListbox();
-
-            }
-            else {
-                SendMessage(hWnd, LB_SETCURSEL, 0, 0);
-            }
-            return TRUE;
+            return CallWindowProc(OriginalListBoxProcEvent, hWnd, message, wParam, lParam);
         }
+        return 0;
+    }
     }
     return CallWindowProc(OriginalListBoxProcEvent, hWnd, message, wParam, lParam);
 }
 
 BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+    CNewTrigger* self = nullptr;
+
+    if (Msg == WM_INITDIALOG)
+    {
+        self = reinterpret_cast<CNewTrigger*>(lParam);
+        if (self == nullptr) return FALSE;
+
+        self->WindowShown = false;
+        self->m_hwnd = hWnd;
+        SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)self);
+        return TRUE;
+    }
+
+    self = reinterpret_cast<CNewTrigger*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+    if (self == nullptr)
+        return FALSE;
+    return self->HandleMsg(hWnd, Msg, wParam, lParam);
+}
+
+BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
     switch (Msg)
     {
@@ -430,15 +1428,18 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
     }
     case WM_INITDIALOG:
     {
-        CNewTrigger::Initialize(hWnd);
         return TRUE;
     }
     case WM_SHOWWINDOW:
     {
-        if (!WindowShown)
+        return FALSE;
+    }
+    case WM_USER + 100:
+    {
+        OnSelchangeTrigger();
+        for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
         {
-            WindowShown = true;
-            OnSelchangeTrigger();
+            Instance[i].DropNeedUpdate = false;
         }
         return FALSE;
     }
@@ -498,8 +1499,34 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
             if (CODE == BN_CLICKED)
                 OnClickSearchReference(hWnd);
             break;
+        case Controls::ActionMoveUp:
+            if (CODE == STN_CLICKED)
+                OnClickActionMove(hWnd, true);
+            break;
+        case Controls::ActionMoveDown:
+            if (CODE == STN_CLICKED)
+                OnClickActionMove(hWnd, false);
+            break;
+        case Controls::ActionSplit:
+            if (CODE == BN_CLICKED)
+                OnClickActionSplit(hWnd);
+            break;
+        case Controls::OpenNewEditor:
+            if (CODE == BN_CLICKED && this == &Instance[0])
+            {
+                for (int i = 1; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+                {
+                    if (Instance[i].GetHandle() == NULL)
+                    {
+                        CNewTrigger::Instance[i].CompactMode = true;
+                        CNewTrigger::Instance[i].Create(CFinalSunDlg::Instance);
+                        break;
+                    }
+                }
+            }
+            break;
         case Controls::Name:
-            if (CODE == EN_CHANGE && CurrentTrigger)
+            if (CODE == EN_CHANGE && CurrentTrigger && !AutoChangeName)
             {
                 CNewTeamTypes::TagListChanged = true;
                 char buffer[512]{ 0 };
@@ -531,6 +1558,36 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                     SendMessage(hActionParameter[CurrentTriggerActionParam], CB_INSERTSTRING, SelectedTriggerIndex, (LPARAM)(LPCSTR)newName.c_str());
                     SendMessage(hActionParameter[CurrentTriggerActionParam], CB_SETCURSEL, hActionParameterCur, NULL);
                 }
+
+                auto others = GetOtherInstances();
+                bool needRefresh = false;
+                for (auto& [i, other] : others)
+                {
+                    if (other->GetHandle())
+                    {
+                        needRefresh = true;
+                        other->DropNeedUpdate = true;
+
+                        SendMessage(other->hSelectedTrigger, CB_DELETESTRING, SelectedTriggerIndex, NULL);
+                        SendMessage(other->hSelectedTrigger, CB_INSERTSTRING, SelectedTriggerIndex, (LPARAM)(LPCSTR)newName.c_str());
+                        SendMessage(other->hSelectedTrigger, CB_SETCURSEL, other->SelectedTriggerIndex, NULL);
+
+                        hAttachedtriggerCur = SendMessage(other->hAttachedtrigger, CB_GETCURSEL, NULL, NULL);
+                        SendMessage(other->hAttachedtrigger, CB_DELETESTRING, SelectedTriggerIndex + 1, NULL);
+                        SendMessage(other->hAttachedtrigger, CB_INSERTSTRING, SelectedTriggerIndex + 1, (LPARAM)(LPCSTR)newName.c_str());
+                        SendMessage(other->hAttachedtrigger, CB_SETCURSEL, hAttachedtriggerCur, NULL);
+
+                        if (other->CurrentTriggerActionParam > -1)
+                        {
+                            int hActionParameterCur = SendMessage(other->hActionParameter[other->CurrentTriggerActionParam], CB_GETCURSEL, NULL, NULL);
+                            SendMessage(other->hActionParameter[other->CurrentTriggerActionParam], CB_DELETESTRING, SelectedTriggerIndex, NULL);
+                            SendMessage(other->hActionParameter[other->CurrentTriggerActionParam], CB_INSERTSTRING, SelectedTriggerIndex, (LPARAM)(LPCSTR)newName.c_str());
+                            SendMessage(other->hActionParameter[other->CurrentTriggerActionParam], CB_SETCURSEL, hActionParameterCur, NULL);
+                        }
+                    }
+                }
+                if (needRefresh)
+                    RefreshOtherInstances();
             }
             break;
         case Controls::Disabled:
@@ -538,6 +1595,7 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
             {
                 CurrentTrigger->Disabled = SendMessage(hDisabled, BM_GETCHECK, 0, 0);
                 CurrentTrigger->Save();
+                RefreshOtherInstances();
             }
             break;
         case Controls::Easy:
@@ -545,6 +1603,7 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
             {
                 CurrentTrigger->EasyEnabled = SendMessage(hEasy, BM_GETCHECK, 0, 0);
                 CurrentTrigger->Save();
+                RefreshOtherInstances();
             }
             break;
         case Controls::Medium:
@@ -552,6 +1611,7 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
             {
                 CurrentTrigger->MediumEnabled = SendMessage(hMedium, BM_GETCHECK, 0, 0);
                 CurrentTrigger->Save();
+                RefreshOtherInstances();
             }
             break;
         case Controls::Hard:
@@ -559,6 +1619,20 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
             {
                 CurrentTrigger->HardEnabled = SendMessage(hHard, BM_GETCHECK, 0, 0);
                 CurrentTrigger->Save();
+                RefreshOtherInstances();
+            }
+            break;
+        case Controls::Compact:
+            if (CODE == BN_CLICKED && this != &Instance[0])
+            {
+                CompactMode = SendMessage(hCompact, BM_GETCHECK, 0, 0);
+                RECT rc;
+                GetWindowRect(m_hwnd, &rc);
+                windowPos.x = rc.left;
+                windowPos.y = rc.top;               
+                Close(hWnd);
+                Create(CFinalSunDlg::Instance);
+                return TRUE;
             }
             break;
         case Controls::SelectedTrigger:
@@ -595,12 +1669,6 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
             else if (CODE == CBN_DROPDOWN && DropNeedUpdate)
             {
                 SortTriggers(CurrentTrigger->ID);
-                int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).c_str());
-                SendMessage(hAttachedtrigger, CB_SETCURSEL, idx, NULL);
-                if (CurrentTriggerActionParam > -1)
-                {
-                    OnSelchangeActionListbox();
-                }
                 DropNeedUpdate = false;
             }
             break;
@@ -634,10 +1702,6 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 SortTriggers(CurrentTrigger->ID);
                 int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).c_str());
                 SendMessage(hAttachedtrigger, CB_SETCURSEL, idx, NULL);
-                if (CurrentTriggerActionParam > -1)
-                {
-                    OnSelchangeActionListbox();
-                }
                 DropNeedUpdate = false;
             }
             break;
@@ -750,9 +1814,18 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
         CNewTrigger::Close(hWnd);
         return TRUE;
     }
+    case WM_MOVE:
+    case WM_SIZE:
+    {
+        ExtraWindow::UpdateDropTargetRect(hWnd);
+        break;
+    }
     case 114514: // used for update
     {
-        Update(hWnd);
+        if (this == &Instance[0])
+            Update(hWnd);
+        else
+            Update(hWnd, Instance[0].GetHandle() == NULL);
         return TRUE;
     }
 
@@ -798,7 +1871,7 @@ void CNewTrigger::ActionListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam)
 
 void CNewTrigger::OnSelchangeEventListbox(bool changeCursel)
 {
-    if (SelectedTriggerIndex < 0 || SendMessage(hEventList, LB_GETCURSEL, NULL, NULL) < 0 || SendMessage(hEventList, LB_GETCOUNT, NULL, NULL) <= 0)
+    if (SelectedTriggerIndex < 0 || SendMessage(hEventList, LB_GETCARETINDEX, NULL, NULL) < 0 || SendMessage(hEventList, LB_GETCOUNT, NULL, NULL) <= 0)
     {
         SendMessage(hEventtype, CB_SETCURSEL, -1, NULL);
         for (int i = 0; i < EVENT_PARAM_COUNT; ++i) {
@@ -806,12 +1879,12 @@ void CNewTrigger::OnSelchangeEventListbox(bool changeCursel)
             SendMessage(hEventParameterDesc[i], WM_SETTEXT, 0, (LPARAM)"");
             EnableWindow(hEventParameter[i], FALSE);
         }
-            
-        SendMessage(hEventDescription, WM_SETTEXT, 0, (LPARAM)"");
+        if(!CompactMode)
+            SendMessage(hEventDescription, WM_SETTEXT, 0, (LPARAM)"");
         return;
     }
 
-    int idx = SendMessage(hEventList, LB_GETCURSEL, 0, NULL);
+    int idx = SendMessage(hEventList, LB_GETCARETINDEX, 0, NULL);
     SelectedEventIndex = idx;
 
     UpdateEventAndParam(-1, changeCursel);
@@ -836,12 +1909,11 @@ void CNewTrigger::OnSelchangeEventListbox(bool changeCursel)
             }
         }
     }
-
 }
 
-void CNewTrigger::OnSelchangeActionListbox(bool changeCursel)
+void CNewTrigger::OnSelchangeActionListbox(bool changeCursel, int index)
 {
-    if (SelectedTriggerIndex < 0 || SendMessage(hActionList, LB_GETCURSEL, NULL, NULL) < 0 || SendMessage(hActionList, LB_GETCOUNT, NULL, NULL) <= 0)
+    if (SelectedTriggerIndex < 0 || SendMessage(hActionList, LB_GETCARETINDEX, NULL, NULL) < 0 || SendMessage(hActionList, LB_GETCOUNT, NULL, NULL) <= 0)
     {
         SendMessage(hActiontype, CB_SETCURSEL, -1, NULL);
         for (int i = 0; i < ACTION_PARAM_COUNT; ++i) {
@@ -850,7 +1922,8 @@ void CNewTrigger::OnSelchangeActionListbox(bool changeCursel)
             SendMessage(hActionParameterDesc[i], WM_SETTEXT, 0, (LPARAM)"");
             EnableWindow(hActionParameter[i], FALSE);
         }
-        SendMessage(hActionDescription, WM_SETTEXT, 0, (LPARAM)"");
+        if (!CompactMode)
+            SendMessage(hActionDescription, WM_SETTEXT, 0, (LPARAM)"");
 
         if (WindowShown)
         {
@@ -862,8 +1935,16 @@ void CNewTrigger::OnSelchangeActionListbox(bool changeCursel)
         return;
     }
 
-    int idx = SendMessage(hActionList, LB_GETCURSEL, 0, NULL);
-    SelectedActionIndex = idx;
+    if (index != -1)
+    {
+        SelectedActionIndex = index;        
+        SetActionListBoxSel(SelectedActionIndex);
+    }
+    else
+    {
+        int idx = SendMessage(hActionList, LB_GETCARETINDEX, 0, NULL);
+        SelectedActionIndex = idx;
+    }
 
     UpdateActionAndParam(-1, changeCursel);
 
@@ -993,6 +2074,8 @@ void CNewTrigger::OnSelchangeAttachedTrigger(bool edited)
 
     CurrentTrigger->AttachedTrigger = text;
     CurrentTrigger->Save();
+
+    RefreshOtherInstances();
 }
 
 void CNewTrigger::OnSelchangeHouse(bool edited)
@@ -1021,7 +2104,7 @@ void CNewTrigger::OnSelchangeHouse(bool edited)
         text = buffer;
         int idx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)text.c_str());
         //if (idx == CB_ERR)
-        //    idx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)FString::ParseHouseName(text, true).m_pchData);
+        //    idx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)FString::ParseHouseName(text, true).GetString());
         if (idx != CB_ERR)
         {
             SendMessage(hHouse, CB_GETLBTEXT, idx, (LPARAM)buffer);
@@ -1042,6 +2125,8 @@ void CNewTrigger::OnSelchangeHouse(bool edited)
 
     CurrentTrigger->House = Translations::ParseHouseName(text, false);
     CurrentTrigger->Save();
+
+    RefreshOtherInstances();
 }
 
 void CNewTrigger::OnSelchangeType(bool edited)
@@ -1075,6 +2160,8 @@ void CNewTrigger::OnSelchangeType(bool edited)
 
     CurrentTrigger->RepeatType = text;
     CurrentTrigger->Save();
+
+    RefreshOtherInstances();
 }
 
 void CNewTrigger::OnSelchangeEventType(bool edited)
@@ -1115,6 +2202,7 @@ void CNewTrigger::OnSelchangeEventType(bool edited)
     UpdateEventAndParam(atoi(text), false); 
     OnSelchangeEventListbox(false);
 
+    RefreshOtherInstances();
 }
 
 void CNewTrigger::OnSelchangeActionType(bool edited)
@@ -1122,6 +2210,7 @@ void CNewTrigger::OnSelchangeActionType(bool edited)
     if (SelectedTriggerIndex < 0 || SendMessage(hActiontype, LB_GETCURSEL, NULL, NULL) < 0 || !CurrentTrigger)
         return;
     int curSel = SendMessage(hActiontype, CB_GETCURSEL, NULL, NULL);
+    int listSel = SendMessage(hActionList, LB_GETCARETINDEX, NULL, NULL);
 
     FString text;
     char buffer[512]{ 0 };
@@ -1152,10 +2241,10 @@ void CNewTrigger::OnSelchangeActionType(bool edited)
 
     text.Replace(",", "");
 
-
     UpdateActionAndParam(atoi(text), false); 
-    OnSelchangeActionListbox(false);
-    
+    OnSelchangeActionListbox(false, listSel);
+
+    RefreshOtherInstances();
 }
 
 void CNewTrigger::OnSelchangeEventParam(int index, bool edited)
@@ -1198,6 +2287,8 @@ void CNewTrigger::OnSelchangeEventParam(int index, bool edited)
     CurrentTrigger->Save();
 
     UpdateParamAffectedParam_Event(index);
+
+    RefreshOtherInstances();
 }
 
 void CNewTrigger::OnSelchangeActionParam(int index, bool edited)
@@ -1230,7 +2321,7 @@ void CNewTrigger::OnSelchangeActionParam(int index, bool edited)
     if (!text)
         return;
 
-    if (CurrentTriggerActionParam == index)
+    if (CurrentTriggerActionParam == index || CurrentTeamActionParam == index)
         FString::TrimIndex(text);
     else
         ExtraWindow::TrimStringIndex(text);
@@ -1255,6 +2346,8 @@ void CNewTrigger::OnSelchangeActionParam(int index, bool edited)
     CurrentTrigger->Save();
 
     UpdateParamAffectedParam_Action(index);
+
+    RefreshOtherInstances();
 }
 
 void CNewTrigger::UpdateParamAffectedParam_Action(int index)
@@ -1267,16 +2360,24 @@ void CNewTrigger::UpdateParamAffectedParam_Action(int index)
             auto& text = CurrentTrigger->Actions[SelectedActionIndex].Params[ActionParamsUsage[index].second];
             if (target.ParamMap.find(text) != target.ParamMap.end())
             {
-                auto paramType = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), target.ParamMap[text]), 1);
-                ExtraWindow::LoadParams(hActionParameter[target.AffectedParam], paramType[1]);
-                //SendMessage(hActionParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].m_pchData);
-                if (paramType[1] == "10") // stringtables
+                auto paramType = FString::GetParam(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), target.ParamMap[text]), 1);
+                ExtraWindow::LoadParams(hActionParameter[target.AffectedParam], paramType, this);
+                //SendMessage(hActionParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].GetString());
+                if (paramType == "10") // stringtables
                 {
                     CurrentCSFActionParam = target.AffectedParam;
                 }
-                else if (paramType[1] == "9") // triggers
+                else if (paramType == "9") // triggers
                 {
                     CurrentTriggerActionParam = target.AffectedParam;
+                }
+                else if (paramType == "15" || FString::GetParam(
+                    fadata.GetString(
+                        "NewParamTypes",
+                        paramType), 0)
+                    == "TeamTypes")
+                {
+                    CurrentTeamActionParam = target.AffectedParam;
                 }
                 ExtraWindow::AdjustDropdownWidth(hActionParameter[target.AffectedParam]);
 
@@ -1309,8 +2410,8 @@ void CNewTrigger::UpdateParamAffectedParam_Event(int index)
             auto& text = CurrentTrigger->Events[SelectedEventIndex].Params[EventParamsUsage[index].second];
             if (target.ParamMap.find(text) != target.ParamMap.end())
             {
-                auto paramType = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), target.ParamMap[text]), 1);
-                ExtraWindow::LoadParams(hEventParameter[target.AffectedParam], paramType[1]);
+                auto paramType = FString::GetParam(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), target.ParamMap[text]), 1);
+                ExtraWindow::LoadParams(hEventParameter[target.AffectedParam], paramType, this);
                 //SendMessage(hEventParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].c_str());
                 ExtraWindow::AdjustDropdownWidth(hEventParameter[target.AffectedParam]);
 
@@ -1333,7 +2434,7 @@ void CNewTrigger::UpdateParamAffectedParam_Event(int index)
     }
 }
 
-void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionListCur)
+void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionListCur, bool reloadTrigger)
 {
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
@@ -1363,15 +2464,21 @@ void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionLi
         SendMessage(hEasy, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hHard, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hMedium, BM_SETCHECK, BST_UNCHECKED, 0);
-        SendMessage(hEventList, LB_SETCURSEL, -1, NULL);
-        SendMessage(hActionList, LB_SETCURSEL, -1, NULL);
-        SendMessage(hEventDescription, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hActionDescription, WM_SETTEXT, 0, (LPARAM)"");
+        SetEventListBoxSel(-1);
+        SetActionListBoxSel(-1);
+        if (!CompactMode)
+            SendMessage(hEventDescription, WM_SETTEXT, 0, (LPARAM)"");
+        if (!CompactMode)
+            SendMessage(hActionDescription, WM_SETTEXT, 0, (LPARAM)"");
+        AutoChangeName = true;
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
+        AutoChangeName = false;
         while (SendMessage(hEventList, LB_DELETESTRING, 0, NULL) != CB_ERR);
         while (SendMessage(hActionList, LB_DELETESTRING, 0, NULL) != CB_ERR);
         OnSelchangeActionListbox();
         OnSelchangeEventListbox();
+
+        InvalidateRect(hDragPoint, nullptr, TRUE);
         return;
     }
 
@@ -1382,17 +2489,20 @@ void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionLi
 
     CurrentTriggerID = pID;
 
-    CMapDataExt::DeleteTrigger(CurrentTriggerID);
-    CMapDataExt::AddTrigger(CurrentTriggerID);
-
+    if (reloadTrigger)
+        CMapDataExt::ReloadTrigger(CurrentTriggerID);
     CurrentTrigger = CMapDataExt::GetTrigger(CurrentTriggerID);
+    InvalidateRect(hDragPoint, nullptr, TRUE);
+
     if (!CurrentTrigger) return;
 
     CTriggerAnnotation::Type = AnnoTrigger;
     CTriggerAnnotation::ID = CurrentTriggerID;
     ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
 
+    AutoChangeName = true;
     SendMessage(hName, WM_SETTEXT, 0, (LPARAM)CurrentTrigger->Name.c_str());
+    AutoChangeName = false;
     
     int houseidx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)Translations::ParseHouseName(CurrentTrigger->House, true).c_str());
     if (houseidx != CB_ERR)
@@ -1403,6 +2513,8 @@ void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionLi
     int repeat = atoi(CurrentTrigger->RepeatType);
     if (repeat >= 0 && repeat <= 2)
         SendMessage(hType, CB_SETCURSEL, repeat, NULL);
+    else if (repeat == -1)
+        SendMessage(hType, WM_SETTEXT, 0, (FString("-1 - ") + Translations::TranslateOrDefault("TriggerRepeatType.NoTag", "No tag")));
     else
         SendMessage(hType, WM_SETTEXT, 0, (LPARAM)CurrentTrigger->RepeatType.c_str());
     
@@ -1421,25 +2533,25 @@ void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionLi
     while (SendMessage(hActionList, LB_DELETESTRING, 0, NULL) != CB_ERR);
     for (int i = 0; i < CurrentTrigger->EventCount; i++)
     {
-        SendMessage(hEventList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetEventDisplayName(CurrentTrigger->Events[i].EventNum, i));
+        SendMessage(hEventList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetEventDisplayName(CurrentTrigger->Events[i].EventNum, i, !CompactMode));
     }
     for (int i = 0; i < CurrentTrigger->ActionCount; i++)
     {
-        SendMessage(hActionList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(CurrentTrigger->Actions[i].ActionNum, i));
+        SendMessage(hActionList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(CurrentTrigger->Actions[i].ActionNum, i, !CompactMode));
     }
 
     if (SelectedEventIndex < 0)
         SelectedEventIndex = 0;
     if (SelectedEventIndex >= SendMessage(hEventList, LB_GETCOUNT, NULL, NULL))
         SelectedEventIndex = SendMessage(hEventList, LB_GETCOUNT, NULL, NULL) - 1;
-    SendMessage(hEventList, LB_SETCURSEL, eventListCur, NULL);
+    SetEventListBoxSel(eventListCur);
     OnSelchangeEventListbox();
 
     if (SelectedActionIndex < 0)
         SelectedActionIndex = 0;
     if (SelectedActionIndex >= SendMessage(hActionList, LB_GETCOUNT, NULL, NULL))
         SelectedActionIndex = SendMessage(hActionList, LB_GETCOUNT, NULL, NULL) - 1;
-    SendMessage(hActionList, LB_SETCURSEL, actionListCur, NULL);
+    SetActionListBoxSel(actionListCur);
     OnSelchangeActionListbox();
 
     DropNeedUpdate = false;
@@ -1458,32 +2570,39 @@ void CNewTrigger::OnSeldropdownTrigger(HWND& hWnd)
         return;
 
     DropNeedUpdate = false;
+    auto others = GetOtherInstances();
+    for (auto& [i, o] : others)
+        o->DropNeedUpdate = false;
 
     SortTriggers(CurrentTrigger->ID);
 
     int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).c_str());
     SendMessage(hAttachedtrigger, CB_SETCURSEL, idx, NULL);
-
-    if (CurrentTriggerActionParam > -1)
-    {
-        OnSelchangeActionListbox();
-    }
 }
 
 void CNewTrigger::OnClickNewTrigger()
 {
+    TempValueHolder<bool> tmp(AutoChangeName, true);
     CNewTeamTypes::TagListChanged = true;
-    FString id = CMapDataExt::GetAvailableIndex();
+    FString id = CMapDataExt::GetAvailableIndex(EIndexType::Trigger);
     FString value;
     FString house;
     char buffer[512]{ 0 };
-    if (SendMessage(hHouse, CB_GETCOUNT, NULL, NULL) > 0)
+    auto neutralHouse = Translations::ParseHouseName("Neutral", true);
+    int idx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, neutralHouse);
+    if (idx != CB_ERR)
+    {
+        house = "Neutral";
+    }
+    else if (SendMessage(hHouse, CB_GETCOUNT, NULL, NULL) > 0)
     {
         SendMessage(hHouse, CB_GETLBTEXT, 0, (LPARAM)buffer);
         house = Translations::ParseHouseName(buffer, false);
     }
     else
+    {
         house = "Americans";
+    }
 
     FString newName =
         TriggerSort::CreateFromTriggerSort ?
@@ -1493,7 +2612,7 @@ void CNewTrigger::OnClickNewTrigger()
     value.Format("%s,<none>,%s,0,1,1,1,0", house, newName);
 
     map.WriteString("Triggers", id, value);
-    FString tagId = CMapDataExt::GetAvailableIndex();
+    FString tagId = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
     value.Format("0,%s 1,%s", newName, id);
     map.WriteString("Tags", tagId, value);
 
@@ -1507,11 +2626,12 @@ void CNewTrigger::OnClickNewTrigger()
 void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
 {
     if (!CurrentTrigger) return;
+    TempValueHolder<bool> tmp(AutoChangeName, true);
 
     auto& oriID = CurrentTrigger->ID;
     auto& oriTagID = CurrentTrigger->Tag;
 
-    FString id = CMapDataExt::GetAvailableIndex();
+    FString id = CMapDataExt::GetAvailableIndex(EIndexType::Trigger);
     FString value;
     auto& Name = CurrentTrigger->Name;
 
@@ -1525,7 +2645,7 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
     if (oriTagID != "<none>")
     {
         CNewTeamTypes::TagListChanged = true;
-        FString tagId = CMapDataExt::GetAvailableIndex();
+        FString tagId = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
         value.Format("%s,%s 1,%s", CurrentTrigger->RepeatType, newName, id);
         map.WriteString("Tags", tagId, value);
     }
@@ -1543,6 +2663,7 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
 void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
 {
     if (!CurrentTrigger) return;
+    TempValueHolder<bool> tmp(AutoChangeName, true);
     FString pMessage = Translations::TranslateOrDefault("TriggerDeleteMessage",
         "If you want to delete ALL attached tags, too, press Yes.\n"
         "If you don't want to delete these tags, press No.\n"
@@ -1556,11 +2677,11 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
         {
             if (auto pTagsSection = map.GetSection("Tags"))
             {
-                std::set<FString> TagsToRemove;
+                FSet TagsToRemove;
                 for (auto& pair : pTagsSection->GetEntities())
                 {
-                    auto splits = FString::SplitString(pair.second, 2);
-                    if (strcmp(splits[2], CurrentTrigger->ID) == 0)
+                    auto splits = FString::GetParam(pair.second, 2);
+                    if (strcmp(splits, CurrentTrigger->ID) == 0)
                         TagsToRemove.insert(pair.first);
                 }
                 for (auto& tag : TagsToRemove)
@@ -1587,6 +2708,16 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
                     CMapData::Instance->UpdateFieldCelltagData(FALSE);
                     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
                 }
+
+                if (CIsoView::CurrentCommand->Command == 4
+                    && CIsoView::CurrentCommand->Type == 4
+                    && CIsoView::CurrentCommand->ObjectID == CurrentTrigger->Tag
+                    )
+                {
+                    CIsoView::CurrentCommand->Command = 0;
+                    CIsoView::CurrentCommand->Type = 0;
+                    CIsoView::CurrentCommand->ObjectID = "";
+                }
             }
         }
         map.DeleteKey("Triggers", CurrentTrigger->ID);
@@ -1599,20 +2730,46 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
         int idx = SelectedTriggerIndex;
         SendMessage(hSelectedTrigger, CB_DELETESTRING, idx, NULL);
         SendMessage(hAttachedtrigger, CB_DELETESTRING, idx + 1, NULL);
+        auto others = GetOtherInstances();
+        for (auto& [i, o] : others)
+            if (o->GetHandle())
+            {
+                SendMessage(o->hSelectedTrigger, CB_DELETESTRING, idx, NULL);
+                SendMessage(o->hAttachedtrigger, CB_DELETESTRING, idx + 1, NULL);
+            }
+
         if (idx >= SendMessage(hSelectedTrigger, CB_GETCOUNT, NULL, NULL))
             idx--;
         if (idx < 0)
             idx = 0;
         SendMessage(hSelectedTrigger, CB_SETCURSEL, idx, NULL);
-
         OnSelchangeTrigger();
+
+        for (auto& [i, o] : others)
+            if (o->GetHandle())
+            {
+                o->CurrentTrigger = nullptr;
+                int idx2 = o->SelectedTriggerIndex;
+                if (idx2 >= SendMessage(o->hSelectedTrigger, CB_GETCOUNT, NULL, NULL))
+                    idx2--;
+                if (idx2 > idx)
+                    idx2--;
+                if (idx2 < 0)
+                    idx2 = 0;
+                SendMessage(o->hSelectedTrigger, CB_SETCURSEL, idx2, NULL);
+
+                o->OnSelchangeTrigger(false,
+                    o->SelectedEventIndex,
+                    o->SelectedActionIndex,
+                    false);
+            }
     }
 }
 
 void CNewTrigger::OnClickPlaceOnMap(HWND& hWnd)
 {
     if (!CurrentTrigger) return;
-    if (!CurrentTrigger->Tag) return;
+    if (CurrentTrigger->Tag.IsEmpty()) return;
     if (CurrentTrigger->Tag == "<none>") return;
 
     CIsoView::CurrentCommand->Command = 4;
@@ -1648,69 +2805,91 @@ void CNewTrigger::OnClickNewEvent(HWND& hWnd)
         while (SendMessage(hEventList, LB_DELETESTRING, 0, NULL) != CB_ERR);
         for (int i = 0; i < CurrentTrigger->EventCount; i++)
         {
-            SendMessage(hEventList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetEventDisplayName(CurrentTrigger->Events[i].EventNum, i));
+            SendMessage(hEventList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetEventDisplayName(CurrentTrigger->Events[i].EventNum, i, !CompactMode));
         }
 
         SelectedEventIndex = SendMessage(hEventList, LB_GETCOUNT, NULL, NULL) - 1;
-        SendMessage(hEventList, LB_SETCURSEL, SelectedEventIndex, NULL);
+        SetEventListBoxSel(SelectedEventIndex);
         OnSelchangeEventListbox();
+
+        RefreshOtherInstances();
     }
 }
 
 void CNewTrigger::OnClickCloEvent(HWND& hWnd)
 {
-    if (!CurrentTrigger) return;
-    if (SelectedEventIndex < 0 || SelectedEventIndex >= CurrentTrigger->EventCount) return;
+    if (!CurrentTrigger) return;    std::vector<int> selected;
+    GetEventListBoxSels(selected);
 
-    EventParams newEvent = CurrentTrigger->Events[SelectedEventIndex];
-
-    FString value;
-    value.Format("%s=%s,%s,%s,%s", CurrentTrigger->ID, map.GetString("Events", CurrentTrigger->ID), newEvent.EventNum, newEvent.Params[0], newEvent.Params[1]);
-    if (newEvent.P3Enabled)
-    {
-        FString tmp = value;
-        value.Format("%s,%s", tmp, newEvent.Params[2]);
-    }
-
+    FString length;
+    length.Format("%s=%s", CurrentTrigger->ID, map.GetString("Events", CurrentTrigger->ID));
     FString pMessage = Translations::TranslateOrDefault("TriggerEventLengthExceededMessage",
         "After creating the new event, the length of the event INI will exceed 511, and the excess will not work properly. \nDo you want to continue?");
 
+    for (auto index : selected)
+    {
+        if (index < 0 || index >= CurrentTrigger->EventCount) continue;
+        EventParams newEvent = CurrentTrigger->Events[index];
+
+        FString value;
+        value.Format(",%s,%s,%s", newEvent.EventNum, newEvent.Params[0], newEvent.Params[1]);
+        if (newEvent.P3Enabled)
+        {
+            FString tmp = value;
+            value.Format("%s,%s", tmp, newEvent.Params[2]);
+        }
+        length += value;
+    }
+
     int nResult = IDYES;
-    if (value.GetLength() >= 512)
+    if (length.GetLength() >= 512)
         nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"), MB_YESNO | MB_ICONWARNING);
 
     if (nResult == IDYES)
     {
-
-        CurrentTrigger->EventCount++;
-        CurrentTrigger->Events.push_back(newEvent);
+        for (auto index : selected)
+        {
+            if (index < 0 || index >= CurrentTrigger->EventCount) continue;
+            EventParams newEvent = CurrentTrigger->Events[index];
+            CurrentTrigger->EventCount++;
+            CurrentTrigger->Events.push_back(newEvent);
+        }
         CurrentTrigger->Save();
 
         while (SendMessage(hEventList, LB_DELETESTRING, 0, NULL) != CB_ERR);
         for (int i = 0; i < CurrentTrigger->EventCount; i++)
         {
-            SendMessage(hEventList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetEventDisplayName(CurrentTrigger->Events[i].EventNum, i));
+            SendMessage(hEventList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetEventDisplayName(CurrentTrigger->Events[i].EventNum, i, !CompactMode));
         }
 
         SelectedEventIndex = SendMessage(hEventList, LB_GETCOUNT, NULL, NULL) - 1;
-        SendMessage(hEventList, LB_SETCURSEL, SelectedEventIndex, NULL);
+        SetEventListBoxSel(SelectedEventIndex);
         OnSelchangeEventListbox();
+
+        RefreshOtherInstances();
     }
 }
 
 void CNewTrigger::OnClickDelEvent(HWND& hWnd)
 {
     if (!CurrentTrigger) return;
-    if (SelectedEventIndex < 0 || SelectedEventIndex >= CurrentTrigger->EventCount) return;
+    std::vector<int> selected;
+    GetEventListBoxSels(selected);
 
-    CurrentTrigger->EventCount--;
-    CurrentTrigger->Events.erase(CurrentTrigger->Events.begin() + SelectedEventIndex);
+    for (auto rit = selected.rbegin(); rit != selected.rend(); ++rit)
+    {
+        auto& index = *rit;
+        if (index < 0 || index >= CurrentTrigger->EventCount) continue;
+
+        CurrentTrigger->EventCount--;
+        CurrentTrigger->Events.erase(CurrentTrigger->Events.begin() + index);
+    }
     CurrentTrigger->Save();
 
     while (SendMessage(hEventList, LB_DELETESTRING, 0, NULL) != CB_ERR);
     for (int i = 0; i < CurrentTrigger->EventCount; i++)
     {
-        SendMessage(hEventList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetEventDisplayName(CurrentTrigger->Events[i].EventNum, i));
+        SendMessage(hEventList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetEventDisplayName(CurrentTrigger->Events[i].EventNum, i, !CompactMode));
     }
 
     SelectedEventIndex -= 1;
@@ -1718,8 +2897,10 @@ void CNewTrigger::OnClickDelEvent(HWND& hWnd)
         SelectedEventIndex = 0;
     if (SelectedEventIndex >= SendMessage(hEventList, LB_GETCOUNT, NULL, NULL))
         SelectedEventIndex = SendMessage(hEventList, LB_GETCOUNT, NULL, NULL) - 1;
-    SendMessage(hEventList, LB_SETCURSEL, SelectedEventIndex, NULL);
+    SetEventListBoxSel(SelectedEventIndex);
     OnSelchangeEventListbox();
+
+    RefreshOtherInstances();
 }
 
 void CNewTrigger::OnClickNewAction(HWND& hWnd)
@@ -1757,64 +2938,91 @@ void CNewTrigger::OnClickNewAction(HWND& hWnd)
         while (SendMessage(hActionList, LB_DELETESTRING, 0, NULL) != CB_ERR);
         for (int i = 0; i < CurrentTrigger->ActionCount; i++)
         {
-            SendMessage(hActionList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(CurrentTrigger->Actions[i].ActionNum, i));
+            SendMessage(hActionList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(CurrentTrigger->Actions[i].ActionNum, i, !CompactMode));
         }
 
         SelectedActionIndex = SendMessage(hActionList, LB_GETCOUNT, NULL, NULL) - 1;
-        SendMessage(hActionList, LB_SETCURSEL, SelectedActionIndex, NULL);
+        SetActionListBoxSel(SelectedActionIndex);
         OnSelchangeActionListbox();
+
+        RefreshOtherInstances();
     }
 }
 
 void CNewTrigger::OnClickCloAction(HWND& hWnd)
 {
     if (!CurrentTrigger) return;
-    if (SelectedActionIndex < 0 || SelectedActionIndex >= CurrentTrigger->ActionCount) return;
 
-    ActionParams newAction = CurrentTrigger->Actions[SelectedActionIndex];
+    std::vector<int> selected;
+    GetActionListBoxSels(selected);
 
-    FString value;
-    value.Format("%s=%s,%s,%s,%s,%s,%s,%s,%s,%s", CurrentTrigger->ID, map.GetString("Actions", CurrentTrigger->ID), 
-        newAction.ActionNum, newAction.Params[0], newAction.Params[1], newAction.Params[2], newAction.Params[3],
-        newAction.Params[4], newAction.Params[5], newAction.Params[6]);
+    FString length;
+    length.Format("%s=%s", CurrentTrigger->ID, map.GetString("Actions", CurrentTrigger->ID));
     FString pMessage = Translations::TranslateOrDefault("TriggerActionLengthExceededMessage",
         "After creating the new action, the length of the action INI will exceed 511, and the excess will not work properly. \nDo you want to continue?");
 
+    for (auto index : selected)
+    {
+        if (index < 0 || index >= CurrentTrigger->ActionCount) continue;
+        ActionParams newAction = CurrentTrigger->Actions[index];
+
+        FString value;
+        value.Format(",%s,%s,%s,%s,%s,%s,%s,%s",
+            newAction.ActionNum, newAction.Params[0], newAction.Params[1], newAction.Params[2], newAction.Params[3],
+            newAction.Params[4], newAction.Params[5], newAction.Params[6]);
+        length += value;
+    }
+
     int nResult = IDYES;
-    if (value.GetLength() >= 512)
+    if (length.GetLength() >= 512)
         nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"), MB_YESNO | MB_ICONWARNING);
 
     if (nResult == IDYES)
     {
-        CurrentTrigger->ActionCount++;
-        CurrentTrigger->Actions.push_back(newAction);
+        for (auto index : selected)
+        {
+            if (index < 0 || index >= CurrentTrigger->ActionCount) continue;
+            ActionParams newAction = CurrentTrigger->Actions[index];
+            CurrentTrigger->ActionCount++;
+            CurrentTrigger->Actions.push_back(newAction);
+        }
+
         CurrentTrigger->Save();
 
         while (SendMessage(hActionList, LB_DELETESTRING, 0, NULL) != CB_ERR);
         for (int i = 0; i < CurrentTrigger->ActionCount; i++)
         {
-            SendMessage(hActionList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(CurrentTrigger->Actions[i].ActionNum, i));
+            SendMessage(hActionList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(CurrentTrigger->Actions[i].ActionNum, i, !CompactMode));
         }
 
         SelectedActionIndex = SendMessage(hActionList, LB_GETCOUNT, NULL, NULL) - 1;
-        SendMessage(hActionList, LB_SETCURSEL, SelectedActionIndex, NULL);
+        SetActionListBoxSel(SelectedActionIndex);
         OnSelchangeActionListbox();
+
+        RefreshOtherInstances();
     }
 }
 
 void CNewTrigger::OnClickDelAction(HWND& hWnd)
 {
     if (!CurrentTrigger) return;
-    if (SelectedActionIndex < 0 || SelectedActionIndex >= CurrentTrigger->ActionCount) return;
+    std::vector<int> selected;
+    GetActionListBoxSels(selected);
 
-    CurrentTrigger->ActionCount--;
-    CurrentTrigger->Actions.erase(CurrentTrigger->Actions.begin() + SelectedActionIndex);
+    for (auto rit = selected.rbegin(); rit != selected.rend(); ++rit)
+    {
+        auto& index = *rit;
+        if (index < 0 || index >= CurrentTrigger->ActionCount) continue;
+
+        CurrentTrigger->ActionCount--;
+        CurrentTrigger->Actions.erase(CurrentTrigger->Actions.begin() + index);
+    }
     CurrentTrigger->Save();
 
     while (SendMessage(hActionList, LB_DELETESTRING, 0, NULL) != CB_ERR);
     for (int i = 0; i < CurrentTrigger->ActionCount; i++)
     {
-        SendMessage(hActionList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(CurrentTrigger->Actions[i].ActionNum, i));
+        SendMessage(hActionList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(CurrentTrigger->Actions[i].ActionNum, i, !CompactMode));
     }
 
     SelectedActionIndex -= 1;
@@ -1822,8 +3030,10 @@ void CNewTrigger::OnClickDelAction(HWND& hWnd)
         SelectedActionIndex = 0;
     if (SelectedActionIndex >= SendMessage(hActionList, LB_GETCOUNT, NULL, NULL))
         SelectedActionIndex = SendMessage(hActionList, LB_GETCOUNT, NULL, NULL) - 1;
-    SendMessage(hActionList, LB_SETCURSEL, SelectedActionIndex, NULL);
+    SetActionListBoxSel(SelectedActionIndex);
     OnSelchangeActionListbox();
+
+    RefreshOtherInstances();
 }
 
 void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
@@ -1843,13 +3053,13 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
         buffer.Format("%d", changedEvent);
         thisEvent.EventNum = buffer;
         SendMessage(hEventList, LB_DELETESTRING, SelectedEventIndex, NULL);
-        SendMessage(hEventList, LB_INSERTSTRING, SelectedEventIndex, (LPARAM)(LPCSTR)ExtraWindow::GetEventDisplayName(thisEvent.EventNum, SelectedEventIndex));
-        SendMessage(hEventList, LB_SETCURSEL, SelectedEventIndex, NULL);
+        SendMessage(hEventList, LB_INSERTSTRING, SelectedEventIndex, (LPARAM)(LPCSTR)ExtraWindow::GetEventDisplayName(thisEvent.EventNum, SelectedEventIndex, !CompactMode));
+        SetEventListBoxSel(SelectedEventIndex);
     }
         
     auto eventInfos = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
-
-    SendMessage(hEventDescription, WM_SETTEXT, 0, (LPARAM)STDHelpers::ReplaceSpeicalString(eventInfos[5]).m_pchData);
+    if (!CompactMode)
+        SendMessage(hEventDescription, WM_SETTEXT, 0, (LPARAM)STDHelpers::ReplaceSpeicalString(eventInfos[5]).GetString());
 
     if (changeCursel)
     {
@@ -1907,14 +3117,14 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
     }    
     for (int i = 0; i < EVENT_PARAM_COUNT; i++)
     {
-        while (SendMessage(hEventParameter[i], CB_DELETESTRING, 0, NULL) != CB_ERR);
+        ExtraWindow::ClearComboKeepText(hEventParameter[i]);
         CNewTrigger::EventParameterAutoDrop[i] = true;
         if (thisEvent.P3Enabled)
         {
             if (EventParamsUsage[i].first)
             {
                 EnableWindow(hEventParameter[i], TRUE);
-                ExtraWindow::LoadParams(hEventParameter[i], pParamTypes[EventParamsUsage[i].second - 1][1]);
+                ExtraWindow::LoadParams(hEventParameter[i], pParamTypes[EventParamsUsage[i].second - 1][1], this);
                 if (pParamTypes[EventParamsUsage[i].second - 1][1] == "1" && !ExtConfigs::SearchCombobox_Waypoint) // waypoints
                 {
                     CNewTrigger::EventParameterAutoDrop[i] = false;
@@ -1937,7 +3147,7 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
             if (EventParamsUsage[i].first)
             {
                 EnableWindow(hEventParameter[i], TRUE);
-                ExtraWindow::LoadParams(hEventParameter[i], pParamTypes[EventParamsUsage[i].second][1]);
+                ExtraWindow::LoadParams(hEventParameter[i], pParamTypes[EventParamsUsage[i].second][1], this);
                 if (pParamTypes[EventParamsUsage[i].second][1] == "1" && !ExtConfigs::SearchCombobox_Waypoint) // waypoints
                 {
                     CNewTrigger::EventParameterAutoDrop[i] = false;
@@ -1955,6 +3165,9 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
             }
         }
         ExtraWindow::AdjustDropdownWidth(hEventParameter[i]);
+    }
+    for (int i = 0; i < EVENT_PARAM_COUNT; i++)
+    {
         UpdateParamAffectedParam_Event(i);
     }
 
@@ -1981,12 +3194,12 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
         buffer.Format("%d", changedAction);
         thisAction.ActionNum = buffer;
         SendMessage(hActionList, LB_DELETESTRING, SelectedActionIndex, NULL);
-        SendMessage(hActionList, LB_INSERTSTRING, SelectedActionIndex, (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(thisAction.ActionNum, SelectedActionIndex));
-        SendMessage(hActionList, LB_SETCURSEL, SelectedActionIndex, NULL);
+        SendMessage(hActionList, LB_INSERTSTRING, SelectedActionIndex, (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(thisAction.ActionNum, SelectedActionIndex, !CompactMode));
+        SetActionListBoxSel(SelectedActionIndex);
     }
     auto actionInfos = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
-
-    SendMessage(hActionDescription, WM_SETTEXT, 0, (LPARAM)FString::ReplaceSpeicalString(actionInfos[10]).c_str());
+    if (!CompactMode)
+        SendMessage(hActionDescription, WM_SETTEXT, 0, (LPARAM)FString::ReplaceSpeicalString(actionInfos[10]).c_str());
 
     if (changeCursel)
     {
@@ -2010,10 +3223,13 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
         paramIdx[i] = atoi(paramType[i]);
 
     thisAction.Param7isWP = true;
-    for (auto& pair : fadata.GetSection("DontSaveAsWP")->GetEntities())
+    if (auto pSection = fadata.GetSection("DontSaveAsWP"))
     {
-        if (atoi(pair.second) == -paramIdx[0])
-            thisAction.Param7isWP = false;
+        for (auto& pair : pSection->GetEntities())
+        {
+            if (atoi(pair.second) == -paramIdx[0])
+                thisAction.Param7isWP = false;
+        }
     }
 
     int usageIdx = 0;
@@ -2055,9 +3271,10 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
 
     CurrentCSFActionParam = -1;
     CurrentTriggerActionParam = -1;
+    CurrentTeamActionParam = -1;
     for (int i = 0; i < ACTION_PARAM_COUNT; i++)
     {
-        while (SendMessage(hActionParameter[i], CB_DELETESTRING, 0, NULL) != CB_ERR);
+        ExtraWindow::ClearComboKeepText(hActionParameter[i]);
         CNewTrigger::ActionParameterAutoDrop[i] = true;
         if (ActionParamsUsage[i].first)
         {
@@ -2066,7 +3283,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
             ShowWindow(hActionParameterDesc[i], SW_SHOW);
             if (ActionParamsUsage[i].second != 6)
             {
-                ExtraWindow::LoadParams(hActionParameter[i], pParamTypes[ActionParamsUsage[i].second][1]);
+                ExtraWindow::LoadParams(hActionParameter[i], pParamTypes[ActionParamsUsage[i].second][1], this);
 
                 SendMessage(hActionParameterDesc[i], WM_SETTEXT, 0, (LPARAM)pParamTypes[ActionParamsUsage[i].second][0].c_str());
                 if (pParamTypes[ActionParamsUsage[i].second][1] == "10") // stringtables
@@ -2074,14 +3291,22 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
                     //thisAction.Params[ActionParamsUsage[i].second].MakeLower();
                     CurrentCSFActionParam = i;
                 }
-                if (pParamTypes[ActionParamsUsage[i].second][1] == "1" && !ExtConfigs::SearchCombobox_Waypoint) // waypoints
+                else if (pParamTypes[ActionParamsUsage[i].second][1] == "1" && !ExtConfigs::SearchCombobox_Waypoint) // waypoints
                 {
                     CNewTrigger::ActionParameterAutoDrop[i] = false;
                 }
                 else if (pParamTypes[ActionParamsUsage[i].second][1] == "9") // triggers
                 {
                     CurrentTriggerActionParam = i;
-                }                    
+                }
+                else if (pParamTypes[ActionParamsUsage[i].second][1] == "15" || FString::GetParam(
+                    fadata.GetString(
+                        "NewParamTypes",
+                        pParamTypes[ActionParamsUsage[i].second][1]), 0)
+                    == "TeamTypes")
+                {
+                    CurrentTeamActionParam = i;
+                }
             }
             else
             {
@@ -2107,6 +3332,10 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
                 (LPARAM)Translations::TranslateOrDefault(trans, ""));
         }
         ExtraWindow::AdjustDropdownWidth(hActionParameter[i]);
+    }
+
+    for (int i = 0; i < ACTION_PARAM_COUNT; i++)
+    {
         UpdateParamAffectedParam_Action(i);
     }
 
@@ -2131,7 +3360,7 @@ void CNewTrigger::AdjustActionHeight()
     GetWindowRect(hActionParameterDesc[1], &rect);
     heightDistance = rect.top - heightDistance;
 
-    auto adjustHeight = [&heightDistance](HWND& hWnd)
+    auto adjustHeight = [this, &heightDistance](HWND& hWnd)
         {
             RECT rect;
             GetWindowRect(hWnd, &rect);
@@ -2154,19 +3383,14 @@ void CNewTrigger::OnDropdownCComboBox(int index)
 {
     if (DropNeedUpdate)
     {
-        SortTriggers(CurrentTrigger->ID);
-        int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).c_str());
-        SendMessage(hAttachedtrigger, CB_SETCURSEL, idx, NULL);
-        if (CurrentTriggerActionParam > -1)
-        {
-            OnSelchangeActionListbox();
-        }
+        SortTriggers(CurrentTrigger->ID, true);
         DropNeedUpdate = false;
     }
 
     if (index == CurrentCSFActionParam && ExtConfigs::TutorialTexts_Viewer)
     {
         PostMessage(hActionParameter[index], CB_SHOWDROPDOWN, FALSE, 0);
+        CCsfEditor::TriggerCaller = GetCurrentInstanceIndex();
         if (CCsfEditor::GetHandle() == NULL)
             CCsfEditor::Create(m_parent);
         else
@@ -2183,6 +3407,27 @@ void CNewTrigger::OnDropdownCComboBox(int index)
         CCsfEditor::CurrentSelectedCSF = text.c_str();
 
         ::SendMessage(CCsfEditor::GetHandle(), 114515, 0, 0);
+    }
+    else if (index == CurrentTeamActionParam && TeamListChanged)
+    {
+        int curSel = SendMessage(hActionParameter[index], CB_GETCURSEL, NULL, NULL);
+        char buffer[512]{ 0 };
+        GetWindowText(hActionParameter[index], buffer, 511);
+        FString text(buffer);
+
+        UpdateActionAndParam();
+        TeamListChanged = false;
+
+        int idx = SendMessage(hActionParameter[index], CB_FINDSTRINGEXACT, 0, text);
+        if (idx != CB_ERR)
+        {
+            SendMessage(hActionParameter[index], CB_SETCURSEL, idx, NULL);
+        }
+        else
+        {
+            FString::TrimIndex(text);
+            SendMessage(hActionParameter[index], WM_SETTEXT, NULL, text);
+        }
     }
 }
 
@@ -2213,6 +3458,86 @@ void CNewTrigger::OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels,
     }
 }
 
+void CNewTrigger::SetActionListBoxSel(int index)
+{
+    SendMessage(hActionList, LB_SETSEL, FALSE, -1);
+    if (index >= 0)
+        SendMessage(hActionList, LB_SETSEL, TRUE, index);
+    SendMessage(hActionList, LB_SETCURSEL, index, NULL);
+    SendMessage(hActionList, LB_SETCARETINDEX, index, TRUE);
+}
+
+void CNewTrigger::SetActionListBoxSels(std::vector<int>& indices)
+{
+    SendMessage(hActionList, LB_SETSEL, FALSE, -1);
+    for (int idx : indices)
+    {
+        if (idx >= 0 && idx < SendMessage(hActionList, LB_GETCOUNT, 0, 0))
+        {
+            SendMessage(hActionList, LB_SETSEL, TRUE, idx);
+        }
+    }
+    if (!indices.empty())
+    {
+        SendMessage(hActionList, LB_SETCARETINDEX, indices[0], TRUE);
+    }
+}
+
+void CNewTrigger::GetActionListBoxSels(std::vector<int>& indices)
+{
+    int numSelected = SendMessage(hActionList, LB_GETSELCOUNT, 0, 0);
+    if (numSelected > 0)
+    {
+        indices.resize(numSelected);
+        SendMessage(hActionList, LB_GETSELITEMS, numSelected, (LPARAM)indices.data());
+        std::sort(indices.begin(), indices.end());
+    }
+    else
+    {
+        indices.clear();
+    }
+}
+
+void CNewTrigger::SetEventListBoxSel(int index)
+{
+    SendMessage(hEventList, LB_SETSEL, FALSE, -1);
+    if (index >= 0)
+        SendMessage(hEventList, LB_SETSEL, TRUE, index);
+    SendMessage(hEventList, LB_SETCURSEL, index, NULL);
+    SendMessage(hEventList, LB_SETCARETINDEX, index, TRUE);
+}
+
+void CNewTrigger::SetEventListBoxSels(std::vector<int>& indices)
+{
+    SendMessage(hEventList, LB_SETSEL, FALSE, -1);
+    for (int idx : indices)
+    {
+        if (idx >= 0 && idx < SendMessage(hEventList, LB_GETCOUNT, 0, 0))
+        {
+            SendMessage(hEventList, LB_SETSEL, TRUE, idx);
+        }
+    }
+    if (!indices.empty())
+    {
+        SendMessage(hEventList, LB_SETCARETINDEX, indices[0], TRUE);
+    }
+}
+
+void CNewTrigger::GetEventListBoxSels(std::vector<int>& indices)
+{
+    int numSelected = SendMessage(hEventList, LB_GETSELCOUNT, 0, 0);
+    if (numSelected > 0)
+    {
+        indices.resize(numSelected);
+        SendMessage(hEventList, LB_GETSELITEMS, numSelected, (LPARAM)indices.data());
+        std::sort(indices.begin(), indices.end());
+    }
+    else
+    {
+        indices.clear();
+    }
+}
+
 void CNewTrigger::OnClickSearchReference(HWND& hWnd)
 {
     if (SelectedTriggerIndex < 0 || !CurrentTrigger)
@@ -2220,6 +3545,7 @@ void CNewTrigger::OnClickSearchReference(HWND& hWnd)
 
     CSearhReference::SetSearchType(1);
     CSearhReference::SetSearchID(CurrentTrigger->ID);
+    CSearhReference::SetTriggerCaller(GetCurrentInstanceIndex());
     if (CSearhReference::GetHandle() == NULL)
     {
         CSearhReference::Create(m_parent);
@@ -2230,30 +3556,277 @@ void CNewTrigger::OnClickSearchReference(HWND& hWnd)
     }
 }
 
-void CNewTrigger::SortTriggers(FString id)
+void CNewTrigger::OnClickActionMove(HWND& hWnd, bool isUp)
 {
-    while (SendMessage(hSelectedTrigger, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    std::vector<FString> labels;
-    for (auto& triggerPair : CMapDataExt::Triggers) {
-        auto& trigger = triggerPair.second;
-        labels.push_back(ExtraWindow::GetTriggerDisplayName(trigger->ID));
+    if (SelectedTriggerIndex < 0 || !CurrentTrigger || CurrentTrigger->ActionCount < 2)
+        return;
+
+    std::vector<int> selected;
+    GetActionListBoxSels(selected);
+
+    for (auto& i : selected)
+    {
+        if (isUp && i == 0) return;
+        else if(!isUp && i == CurrentTrigger->ActionCount - 1) return;
     }
-   
-    bool tmp = ExtConfigs::SortByLabelName;
-    ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Trigger;
 
-    std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
-
-    ExtConfigs::SortByLabelName = tmp;
-
-    for (size_t i = 0; i < labels.size(); ++i) {
-        SendMessage(hSelectedTrigger, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].c_str());
+    if (isUp)
+    {
+        for (auto it = selected.begin(); it != selected.end(); ++it)
+        {
+            if (*it > 0 && *it < CurrentTrigger->Actions.size()) {
+                std::swap(CurrentTrigger->Actions[*it], CurrentTrigger->Actions[*it - 1]);
+            }
+        }
     }
-    ExtraWindow::SyncComboBoxContent(hSelectedTrigger, hAttachedtrigger, true);
-    if (id != "") {
-        SelectedTriggerIndex = SendMessage(hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(id).c_str());
-        SendMessage(hSelectedTrigger, CB_SETCURSEL, SelectedTriggerIndex, NULL);
-    }  
+    else
+    {
+        for (auto it = selected.rbegin(); it != selected.rend(); ++it)
+        {
+            if (*it >= 0 && *it < CurrentTrigger->Actions.size() - 1) {
+                std::swap(CurrentTrigger->Actions[*it + 1], CurrentTrigger->Actions[*it]);
+            }
+        }
+    }
+
+    CurrentTrigger->Save();
+    while (SendMessage(hActionList, LB_DELETESTRING, 0, NULL) != CB_ERR);
+    for (int i = 0; i < CurrentTrigger->ActionCount; i++)
+    {
+        SendMessage(hActionList, LB_INSERTSTRING, i, (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(CurrentTrigger->Actions[i].ActionNum, i, !CompactMode));
+    }
+
+    for (auto& i : selected)
+    {
+        if (isUp) i--;
+        else i++;
+    }
+    if (selected.size() > 1)
+        SetActionListBoxSels(selected);
+    else
+        SetActionListBoxSel(isUp ? SelectedActionIndex - 1 : SelectedActionIndex + 1);
+
+    OnSelchangeActionListbox();
+    RefreshOtherInstances();
+}
+
+void CNewTrigger::OnClickActionSplit(HWND& hWnd)
+{
+    if (SelectedTriggerIndex < 0 || !CurrentTrigger || !CurrentTrigger->ActionCount)
+        return;
+
+    std::vector<int> selected;
+    GetActionListBoxSels(selected);
+    if (selected.empty())
+        return;
+
+    int firstIndex = CurrentTrigger->ActionCount;
+    std::vector<ActionParams> params;
+    for (auto it = selected.rbegin(); it != selected.rend(); ++it)
+    {
+        if (*it >= 0 && *it < CurrentTrigger->Actions.size()) {
+            params.push_back(CurrentTrigger->Actions[*it]);
+            CurrentTrigger->Actions.erase(CurrentTrigger->Actions.begin() + *it);
+            CurrentTrigger->ActionCount--;
+            firstIndex = *it;
+        }
+    }
+    FString id = CMapDataExt::GetAvailableIndex(EIndexType::Trigger);
+    // allow new trigger
+    CurrentTrigger->Actions.insert(CurrentTrigger->Actions.begin() + firstIndex,
+        { "53", {"2",id,"0","0","0","0","A"}, false });
+    CurrentTrigger->ActionCount++;
+
+    CurrentTrigger->Save();
+
+    std::reverse(params.begin(), params.end());
+    TempValueHolder<bool> tmp(AutoChangeName, true);
+    CNewTeamTypes::TagListChanged = true;
+    FString value;
+    FString newName = CurrentTrigger->Name + " #Split";
+
+    value.Format("%s,<none>,%s,0,1,1,1,0", CurrentTrigger->House, newName);
+
+    map.WriteString("Triggers", id, value);
+    map.WriteString("Events", id, "1,13,0,0"); // elapsed 0s
+    FString tagId = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
+    value.Format("0,%s 1,%s", newName, id);
+    map.WriteString("Tags", tagId, value);
+
+    CMapDataExt::AddTrigger(id);
+
+    if (auto newTrigger = CMapDataExt::GetTrigger(id))
+    {
+        newTrigger->Actions = params;
+        newTrigger->ActionCount = params.size();
+        newTrigger->EasyEnabled = CurrentTrigger->EasyEnabled;
+        newTrigger->MediumEnabled = CurrentTrigger->MediumEnabled;
+        newTrigger->HardEnabled = CurrentTrigger->HardEnabled;
+        newTrigger->RepeatType = CurrentTrigger->RepeatType;
+        newTrigger->Disabled = true;
+        if (CurrentTrigger->RepeatType == "2")
+        {
+            ActionParams disableSelf = { "54", {"2",id,"0","0","0","0","A"}, false };
+            newTrigger->Actions.push_back(disableSelf);
+            newTrigger->ActionCount++;
+        }
+        newTrigger->Save();
+    }
+
+    SortTriggers(id);
+    OnSelchangeTrigger();
+}
+
+void CNewTrigger::SortTriggers(FString id, bool onlySelf)
+{
+    if (!AvoidInfiLoop || AvoidInfiLoop && !SortTriggersExecuted)
+    {
+        SortTriggersExecuted = true;
+        TempValueHolder<bool> tmpLoop(AvoidInfiLoop, true);
+
+        std::vector<FString> labels;
+        for (auto& triggerPair : CMapDataExt::Triggers) {
+            auto& trigger = triggerPair.second;
+            labels.push_back(ExtraWindow::GetTriggerDisplayName(trigger->ID));
+        }
+
+        bool tmp = ExtConfigs::SortByLabelName;
+        ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Trigger;
+
+        ExtraWindow::SortLabels(labels);
+
+        ExtConfigs::SortByLabelName = tmp;
+
+        auto sort = [&labels](CNewTrigger* pThis, FString id) {
+            pThis->DropNeedUpdate = false;
+
+            ComboBoxBatchUpdater t1(pThis->hSelectedTrigger, labels.size(), false);
+            ComboBoxBatchUpdater t2(pThis->hAttachedtrigger, labels.size() + 1, true);
+            std::unique_ptr<ComboBoxBatchUpdater> triggerAction;
+            if (pThis->CurrentTriggerActionParam > -1)
+            {
+                triggerAction = std::make_unique<ComboBoxBatchUpdater>(pThis->hActionParameter[pThis->CurrentTriggerActionParam], labels.size(), true);
+            }
+
+            SendMessage(pThis->hAttachedtrigger, CB_ADDSTRING, 0, (LPARAM)"<none>");
+            for (size_t i = 0; i < labels.size(); ++i) {
+                SendMessage(pThis->hSelectedTrigger, CB_ADDSTRING, i, labels[i]);
+                SendMessage(pThis->hAttachedtrigger, CB_ADDSTRING, i + 1, labels[i]);
+                if (pThis->CurrentTriggerActionParam > -1)
+                {
+                    SendMessage(pThis->hActionParameter[pThis->CurrentTriggerActionParam], CB_ADDSTRING, i, labels[i]);
+                }
+            }
+            if (pThis->CompactMode) ExtraWindow::AdjustDropdownWidth(pThis->hSelectedTrigger);
+            int width = SendMessage(pThis->hSelectedTrigger, CB_GETDROPPEDWIDTH, NULL, NULL);
+            if (pThis->CompactMode) SendMessage(pThis->hAttachedtrigger, CB_SETDROPPEDWIDTH, width, NULL);
+
+            if (id != "") {
+                pThis->SelectedTriggerIndex = SendMessage(pThis->hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(id).c_str());
+                SendMessage(pThis->hSelectedTrigger, CB_SETCURSEL, pThis->SelectedTriggerIndex, NULL);
+            }
+
+            if (pThis->CurrentTriggerActionParam > -1 && pThis->CompactMode)
+            {
+                SendMessage(pThis->hActionParameter[pThis->CurrentTriggerActionParam],
+                    CB_SETDROPPEDWIDTH, width, NULL);
+            }
+        };
+
+        sort(this, id);
+
+        if (!onlySelf)
+        {
+            auto others = GetOtherInstances();
+            for (auto& [i, o] : others)
+            {
+                if (o->GetHandle())
+                    sort(o, o->CurrentTriggerID);
+            }
+        }
+    }
+}
+
+std::map<int, CNewTrigger*> CNewTrigger::GetOtherInstances()
+{
+    std::map<int, CNewTrigger*> ret;
+    for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+    {
+        if (this != &Instance[i])
+            ret[i] = &Instance[i];
+    }
+    return ret;
+}
+
+bool CNewTrigger::HasOtherInstances()
+{
+    auto others = GetOtherInstances();
+    for (auto& [i, o] : others)
+    {
+        if (o->GetHandle())
+            return true;
+    }
+    return false;
+}
+
+CNewTrigger& CNewTrigger::GetFirstValidInstance()
+{
+    for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+    {
+        if (Instance[i].GetHandle())
+            return Instance[i];
+    }
+    return Instance[0];
+}
+
+int CNewTrigger::GetCurrentInstanceIndex()
+{
+    for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+    {
+        if (this == &Instance[i])
+            return i;
+    }
+    return -1;
+}
+
+bool CNewTrigger::IsMainInstance()
+{
+    return this == &Instance[0];
+}
+
+void CNewTrigger::RefreshOtherInstances()
+{
+    if (!AvoidInfiLoop && CurrentTrigger)
+    {
+        SortTriggersExecuted = false;
+        TempValueHolder<bool> tmp(AvoidInfiLoop, true);
+        auto others = GetOtherInstances();
+        for (auto& [i, o] : others)
+        {
+            if (o->CurrentTrigger == CurrentTrigger && o->GetHandle())
+            {
+                TempValueHolder<bool> tmp(o->DropNeedUpdate, true);
+                int indexE = o->SelectedEventIndex;
+                int indexA = o->SelectedActionIndex;
+                o->OnSelchangeTrigger(false,
+                    o->SelectedEventIndex,
+                    o->SelectedActionIndex,
+                    false);
+            }
+        }
+
+        if (CBatchTrigger::GetHandle())
+        {
+            for (int i = 0; i < CBatchTrigger::ListedTriggerIDs.size(); ++i)
+            {
+                auto& id = CBatchTrigger::ListedTriggerIDs[i];
+                if (id == CurrentTriggerID)
+                {
+                    CBatchTrigger::RefreshTrigger(i);
+                }
+            }
+        }
+    }
 }
 
 bool CNewTrigger::OnEnterKeyDown(HWND& hWnd)

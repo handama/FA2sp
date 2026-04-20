@@ -12,6 +12,13 @@
 #include <type_traits>
 #include <utility>
 #include <variant>
+#include <string_view>
+#include <unordered_set>
+#include <set>
+#include <map>
+#include <unordered_map>
+
+class FString_view;
 
 class FString : public std::string {
 public:
@@ -25,7 +32,8 @@ public:
     FString(const char* str) : std::string(str ? str : "") {}
     FString(const std::string& str) : std::string(str) {}
     FString(size_t n, char c) : std::string(n, c) {}
-    FString(const ppmfc::CString& cstr) : std::string(cstr.m_pchData) {}
+    FString(const ppmfc::CString& cstr) : std::string(cstr.GetString()) {}
+    FString(std::string_view sv) : std::string(sv) {}
     operator ppmfc::CString() const { return ppmfc::CString(c_str()); }
 
     operator LPCSTR() const { return c_str(); }
@@ -45,15 +53,19 @@ public:
     }
 
     FString& operator+=(const FString& other) { append(other); return *this; }
-    FString& operator+=(const ppmfc::CString& other) { append(other.m_pchData); return *this; }
+    FString& operator+=(const ppmfc::CString& other) { append(other.GetString()); return *this; }
     FString& operator+=(LPCSTR other) { if(other) append(other); return *this; }
     FString& operator+=(TCHAR ch) { push_back(ch); return *this; }
 
     friend FString operator+(const FString& lhs, const FString& rhs) { FString r = lhs; r += rhs; return r; }
-    friend FString operator+(const FString& lhs, const ppmfc::CString& rhs) { FString r = lhs; r += rhs.m_pchData; return r; }
+    friend FString operator+(const FString& lhs, const ppmfc::CString& rhs) { FString r = lhs; r += rhs; return r; }
     friend FString operator+(const FString& lhs, LPCSTR rhs) { FString r = lhs; r += rhs; return r; }
     friend FString operator+(const FString& lhs, TCHAR rhs) { FString r = lhs; r += rhs; return r; }
     friend FString operator+(LPCSTR lhs, const FString& rhs) { FString r; if(lhs) r = lhs; r += rhs; return r; }
+
+    std::string ToStdString() const {
+        return static_cast<const std::string&>(*this);
+    }
 
     int GetLength() const { return static_cast<int>(length()); }
     bool IsEmpty() const { return empty(); }
@@ -91,7 +103,7 @@ public:
     }
 
     bool operator==(const FString& other) const { return Compare(other) == 0; }
-    bool operator==(const ppmfc::CString& other) const { return Compare(other.m_pchData) == 0; }
+    bool operator==(const ppmfc::CString& other) const { return Compare(other.GetString()) == 0; }
     bool operator==(LPCSTR other) const { return Compare(other) == 0; }
     bool operator==(const std::string& other) const { return Compare(other.c_str()) == 0; }
     bool operator!=(const FString& other) const { return !(*this == other); }
@@ -196,7 +208,7 @@ private:
             vec.push_back(arg.c_str());
         }
         else if constexpr (std::is_same_v<U, ppmfc::CString>) {
-            vec.push_back(arg.m_pchData);
+            vec.push_back(arg.GetString());
         }
         else if constexpr (std::is_same_v<U, std::string>) {
             vec.push_back(arg.c_str());
@@ -226,6 +238,9 @@ private:
             vec.push_back(static_cast<int>(arg));
         }
         else if constexpr (std::is_same_v<U, dword>) {
+            vec.push_back(static_cast<int>(arg));
+        }
+        else if constexpr (std::is_same_v<U, ULONG>) {
             vec.push_back(static_cast<int>(arg));
         }
         else if constexpr (std::is_same_v<U, long>) {
@@ -485,175 +500,126 @@ public:
         assign(utf8.data());
     }
 
-    FString GetParam(int index)
+    FString GetParam(int index) const
     {
-        std::vector<FString> tokens = SplitString(*this, ",");
-        if (index < 0 || index >= (int)tokens.size())
+        if (index < 0)
             return {};
-        return tokens[index];
+
+        const std::string& s = *this;
+
+        size_t start = 0;
+        int current = 0;
+
+        for (size_t i = 0; i <= s.size(); ++i)
+        {
+            if (i == s.size() || s[i] == ',')
+            {
+                if (current == index)
+                {
+                    return s.substr(start, i - start);
+                }
+
+                current++;
+                start = i + 1;
+            }
+        }
+
+        return {};
+    }
+
+    static FString GetParam(const char* str, int index)
+    {
+        if (!str || index < 0)
+            return {};
+
+        const char* start = str;
+        int current = 0;
+
+        for (const char* p = str; ; ++p)
+        {
+            if (*p == ',' || *p == '\0')
+            {
+                if (current == index)
+                {
+                    return FString(start, p - start);
+                }
+
+                if (*p == '\0')
+                    break;
+
+                current++;
+                start = p + 1;
+            }
+        }
+
+        return {};
     }
 
     void SetParam(int index, const FString& value)
     {
-        std::vector<FString> tokens = SplitString(*this, ",");
         if (index < 0)
             return;
 
-        if (index >= (int)tokens.size())
+        const std::string& s = *this;
+        std::string result;
+        result.reserve(s.size() + value.size() + 4);
+
+        size_t start = 0;
+        int current = 0;
+        bool replaced = false;
+
+        for (size_t i = 0; i <= s.size(); ++i)
         {
-            tokens.resize(index + 1, _T(""));
-        }
+            if (i == s.size() || s[i] == ',')
+            {
+                if (current == index)
+                {
+                    result.append(value);
+                    replaced = true;
+                }
+                else
+                {
+                    result.append(s, start, i - start);
+                }
 
-        tokens[index] = value;
-        *this = Join(tokens);
-    }
+                if (i != s.size())
+                    result.push_back(',');
 
-    static std::vector<FString> SplitString(const FString& pSource, const char* pSplit = ",") {
-        std::vector<FString> ret;
-        if (pSplit == nullptr || pSource.GetLength() == 0) {
-            return ret;
-        }
-
-        int nIdx = 0;
-        while (true) {
-            int nPos = pSource.Find(FString(pSplit), nIdx);
-            if (nPos == -1) break;
-
-            if (nPos >= nIdx) {
-                ret.push_back(pSource.Mid(nIdx, nPos - nIdx));
+                current++;
+                start = i + 1;
             }
-            nIdx = nPos + strlen(pSplit);
-        }
-        ret.push_back(pSource.Mid(nIdx));
-        return ret;
-    }
-
-    static std::vector<FString> SplitString(const FString& pSource, size_t nth, const char* pSplit = ",") {
-        std::vector<FString> ret = SplitString(pSource, pSplit);
-        while (ret.size() <= nth) {
-            ret.push_back("");
-        }
-        return ret;
-    }
-
-    static std::vector<FString> SplitStringMultiSplit(const FString& pSource, const char* pSplit) {
-        auto splits = SplitString(pSplit, "|");
-        std::vector<FString> ret;
-        if (pSource.GetLength() == 0) {
-            return ret;
         }
 
-        int nIdx = 0;
-        while (true) {
-            int nPos = INT_MAX;
-            bool found = false;
-            for (auto& p : splits) {
-                int thisPos = pSource.Find(p, nIdx);
-                if (thisPos == -1) continue;
-                nPos = std::min(thisPos, nPos);
-                found = true;
-            }
-            if (!found) break;
-
-            ret.push_back(pSource.Mid(nIdx, nPos - nIdx));
-            nIdx = nPos + 1;
-        }
-        ret.push_back(pSource.Mid(nIdx));
-        return ret;
-    }
-
-    static std::pair<FString, FString> SplitKeyValue(const FString& pSource) {
-        const char* pSplit = "=";
-        std::pair<FString, FString> ret;
-        if (pSource.GetLength() == 0) {
-            return ret;
-        }
-
-        int nIdx = 0;
-        int nPos = pSource.Find(pSplit, nIdx);
-        if (nPos == -1) {
-            return ret;
-        }
-
-        ret.first = pSource.Mid(nIdx, nPos - nIdx);
-        nIdx = nPos + 1;
-        ret.second = pSource.Mid(nIdx);
-        return ret;
-    }
-
-    static std::vector<FString> SplitStringAction(const FString& pSource, size_t nth, const char* pSplit = ",") {
-        std::vector<FString> ret = SplitString(pSource, pSplit);
-        while (ret.size() <= nth) {
-            ret.push_back("0");
-        }
-        return ret;
-    }
-
-    static std::vector<FString> SplitStringTrimmed(const FString& pSource, const char* pSplit = ",") {
-        std::vector<FString> ret;
-        if (pSplit == nullptr || pSource.GetLength() == 0) {
-            return ret;
-        }
-
-        int nIdx = 0;
-        while (true) {
-            int nPos = pSource.Find(FString(pSplit), nIdx);
-            if (nPos == -1) break;
-
-            if (nPos >= nIdx) {
-                ret.push_back(pSource.Mid(nIdx, nPos - nIdx).Trim());
-            }
-            nIdx = nPos + strlen(pSplit);
-        }
-        ret.push_back(pSource.Mid(nIdx).Trim());
-        return ret;
-    }
-
-    static void TrimIndex(FString& str) {
-        str.Trim();
-        int spaceIndex = str.Find(' ');
-        if (spaceIndex > 0) {
-            str = str.Mid(0, spaceIndex);
-        }
-    }
-
-    static void TrimSemicolon(FString& str) {
-        str.Trim();
-        int semicolon = str.Find(';');
-        if (semicolon > 0) {
-            str = str.Mid(0, semicolon);
-        }
-    }
-
-    static void TrimIndexElse(FString& str) {
-        str.Trim();
-        int spaceIndex = str.Find(' ');
-        if (spaceIndex > 0) {
-            str = str.Mid(spaceIndex + 1);
-        }
-    }
-
-    static FString ReplaceSpeicalString(const FString& ori)
-    {
-        FString ret = ori;
-        ret.Replace("%1", ",");
-        ret.Replace("%2", ";");
-        ret.Replace("\\t", "\t");
-        ret.Replace("\\n", "\r\n");
-        return ret;
-    }
-
-    static FString Join(const std::vector<FString>& tokens, const char* delim = ",")
-    {
-        FString result;
-        for (size_t i = 0; i < tokens.size(); ++i)
+        while (current <= index)
         {
-            if (i > 0)
-                result += delim;
-            result += tokens[i];
+            if (!result.empty())
+                result.push_back(',');
+
+            if (current == index)
+            {
+                result.append(value);
+                break;
+            }
+
+            current++;
         }
-        return result;
+
+        *this = std::move(result);
     }
+
+    static std::vector<FString> SplitString(FString_view source, const char* pSplit = ",");
+    static std::vector<FString> SplitString(FString_view source, size_t nth, const char* pSplit = ",");
+    static std::vector<FString> SplitStringMultiSplit(FString_view source, const char* split);
+    static std::pair<FString, FString> SplitKeyValue(FString_view source);
+    static std::vector<FString> SplitStringAction(FString_view source, size_t nth, const char* pSplit = ",");
+    static std::vector<FString> SplitStringTrimmed(FString_view source, const char* pSplit = ",");
+    static void TrimIndex(FString& str);
+    static void TrimSemicolon(FString& str);
+    static FString GetComment(FString_view line);
+    static void TrimSemicolonElse(FString& str);
+    static void TrimIndexElse(FString& str);
+    static FString ReplaceSpeicalString(FString_view ori);
+    static FString Join(const std::vector<FString>& tokens, const char* delim = ",");
 };
 
 namespace std {
@@ -664,3 +630,98 @@ namespace std {
         }
     };
 }
+
+inline std::string_view ToSV(const FString& s) noexcept
+{
+    return std::string_view(s);
+}
+
+inline std::string_view ToSV(const std::string& s) noexcept
+{
+    return std::string_view(s);
+}
+
+inline std::string_view ToSV(const char* s) noexcept
+{
+    return std::string_view(s ? s : "");
+}
+
+inline std::string_view ToSV(const ppmfc::CString& s) noexcept
+{
+    return std::string_view(s.GetString());
+}
+
+struct FStringLess
+{
+    using is_transparent = void;
+
+    template<typename A, typename B>
+    bool operator()(const A& a, const B& b) const noexcept
+    {
+        return ToSV(a) < ToSV(b);
+    }
+};
+
+struct FStringEqual
+{
+    using is_transparent = void;
+
+    template<typename A, typename B>
+    bool operator()(const A& a, const B& b) const noexcept
+    {
+        return ToSV(a) == ToSV(b);
+    }
+};
+
+struct FStringHash
+{
+    using is_transparent = void;
+
+    template<typename T>
+    size_t operator()(const T& s) const noexcept
+    {
+        return std::hash<std::string_view>()(ToSV(s));
+    }
+};
+
+template<typename T>
+using FMap = std::map<FString, T, FStringLess>;
+
+template<typename T>
+using FHashMap = std::unordered_map<FString, T, FStringHash, FStringEqual>;
+
+using FSet = std::set<FString, FStringLess>;
+using FHashSet = std::unordered_set<FString, FStringHash, FStringEqual>;
+
+class FString_view : public std::string_view
+{
+public:
+    using base = std::string_view;
+
+    using base::base;
+
+    FString_view(const FString& s) noexcept
+        : base(s.data(), s.size())
+    {
+    }
+
+    FString_view(const std::string& s) noexcept
+        : base(s.data(), s.size())
+    {
+    }
+
+    FString_view(const ppmfc::CString& s) noexcept
+        : base(s.GetString())
+    {
+    }
+
+    FString_view(const char* s) noexcept
+        : base(s ? s : "")
+    {
+    }
+
+    const char* c_str() const noexcept
+    {
+        return data();
+    }
+};

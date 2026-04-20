@@ -31,10 +31,10 @@
 #include "../Ext/CLoading/Body.h"
 #include "../ExtraWindow/CNewMMXSavingOptionsDlg/CNewMMXSavingOptionsDlg.h"
 #include "../Ext/CFinalSunApp/Body.h"
+#include "../Helpers/Helper.h"
+#include "../Helpers/TheaterHelpers.h"
 
 std::optional<std::filesystem::file_time_type> SaveMapExt::SaveTime;
-
-
 
 static std::string to_short_filename(const std::filesystem::path& p, const std::unordered_set<std::string>& existing) {
     FString stem = p.stem().string();
@@ -87,7 +87,8 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
     pThis->MyViewFrame.StatusBar.SetWindowText(Translations::TranslateOrDefault("SavingMap", "Saving map..."));
     pThis->MyViewFrame.StatusBar.UpdateWindow();
 
-    SaveMapExt::SaveMap(pINI, pThis, filepath, previewOption, true);
+    if (SaveMapExt::SaveMap(pINI, pThis, filepath, previewOption, true, false))
+        pThis->AddToRecentFile(filepath);
 
     return 0x42A859;
 }
@@ -173,21 +174,7 @@ DEFINE_HOOK(42686A, CFinalSunDlg_SaveMap_SetDefaultExtension, 5)
 
 DEFINE_HOOK(42A8F5, CFinalSunDlg_SaveMap_ReplaceCopyFile, 7)
 {
-    REF_STACK(ppmfc::CString, filepath, STACK_OFFS(0x3F4, -0x4));
-
-    std::ifstream fin;
-    fin.open(filepath, std::ios::in | std::ios::binary);
-    if (fin.is_open())
-    {
-        fin.close();
-
-        if (!SaveMapExt::IsAutoSaving) {
-            SaveMapExt::SaveTime = std::filesystem::last_write_time(filepath.m_pchData);
-            FileWatcher::IsMapJustSaved = true;
-            FileWatcher::IsSavingMap = false;
-        }
-        return 0x42A92D;
-    }
+    //REF_STACK(ppmfc::CString, filepath, STACK_OFFS(0x3F4, -0x4));
     return 0x42A911;
 }
  
@@ -202,6 +189,7 @@ bool SaveMapExt::SaveMapSilent(FString filepath, bool panic)
     FString buffer;
     FString buffer2;
 
+    int previewOption = 2;
     if (!panic)
     {
         SaveMapExt::StopTimer();
@@ -257,11 +245,12 @@ bool SaveMapExt::SaveMapSilent(FString filepath, bool panic)
             ini->WriteString("Header", "StartY", buffer);
         }
 
+        previewOption = ini->GetInteger("FA2spVersionControl", "LastPreviewOption", 2);
     }
 
     CMapData::Instance->UpdateINIFile(SaveMapFlag::UpdateMapFieldData);
 
-    if (SaveMap(ini, CFinalSunDlg::Instance(), filepath, 2, false))
+    if (SaveMap(ini, CFinalSunDlg::Instance(), filepath, previewOption, false, panic))
     {
         if (!panic)
         {
@@ -270,19 +259,21 @@ bool SaveMapExt::SaveMapSilent(FString filepath, bool panic)
             Translations::TranslateStringVariables(1, buffer, filepath);
             CIsoViewExt::SetStatusBarText(buffer);
         }
-        SaveMapExt::ResetTimer();
         return true;
     }
-    SaveMapExt::ResetTimer();
     return false;
 }
 
-bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, int previewOption, bool showDialog)
+bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, int previewOption, bool showDialog, bool panic)
 {
+    if (!panic)
+        SaveMapExt::ResetTimer();
+
     if (SaveMapExt::IsAutoSaving)
         previewOption = 2; //no preview to save time
 
-    FileWatcher::IsSavingMap = true;
+    FileWatcher::IsSavingMap = false;
+    TempValueHolder saving(FileWatcher::IsSavingMap, true);
 
     ppmfc::CString buffer;
     buffer.Format("%d", pINI->GetInteger("FA2spVersionControl", "Version") + 1);
@@ -334,6 +325,14 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
             auto image = std::unique_ptr<unsigned char[]>(new unsigned char[256 * 512 * 3] {0});
             auto imageLocal = std::unique_ptr<unsigned char[]>(new unsigned char[256 * 512 * 3] {0});
 
+            std::unordered_set<ppmfc::CString> IgnoreObjects;
+            const auto& overlays = Variables::RulesMap.GetSection("OverlayTypes");
+            for (auto& [_, ID] : overlays)
+            {
+                if (Variables::RulesMap.GetBool(ID, "IsRubble"))
+                    IgnoreObjects.insert(ID);
+            }
+
             auto safeColorBtye = [](int x)
             {
                 if (x > 255)
@@ -359,6 +358,10 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                 if (dPows < CMapData::Instance().CellDataCount)
                     return dPows;
                 return 0;
+            };
+            auto isIgnored = [&IgnoreObjects](const char* id)
+            {
+                return IgnoreObjects.find(id) != IgnoreObjects.end();
             };
 
             std::vector<int[2]>playerLocation;
@@ -501,7 +504,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
 
                             auto overlay = cellExt.NewOverlay;
                             auto overlayD = cell.OverlayData;
-                            if (overlay != 0xFFFF)
+                            if (overlay != 0xFFFF && !isIgnored(Variables::RulesMap.GetValueAt("OverlayTypes", overlay)))
                             {
                                 auto radarColor = CMapDataExt::GetOverlayTypeData(overlay).RadarColor;
                                 if (overlay == 100 || overlay == 101 || overlay == 231 || overlay == 232) //broken bridge
@@ -519,12 +522,12 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                                 color = RGB(107, 109, 107);
 
                             int type = cell.TerrainType;
-                            std::string name = Variables::RulesMap.GetValueAt("TerrainTypes", type).m_pchData;
-                            if (!name.empty())
+                            auto name = Variables::RulesMap.GetValueAt("TerrainTypes", type);
+                            if (!name.IsEmpty())
                             {
-                                if (name.find("TREE") != std::string::npos)
+                                if (name.Find("TREE") != -1)
                                     color = RGB(0, 194, 0);
-                                else if (name.find("TIBTRE") != std::string::npos)
+                                else if (name.Find("TIBTRE") != -1)
                                     color = RGB(10, 10, 10);
                                 else
                                     color = RGB(69, 68, 69);
@@ -535,13 +538,13 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                                 color = RGB(123, 125, 123);
                             if (cell.Structure != -1)
                             {
-                                auto pSection = CINI::CurrentDocument->GetSection("Structures");
-                                auto& pStr = *pSection->GetValueAt(cell.Structure);
-                                auto atoms = STDHelpers::SplitString(pStr, 1);
-                                auto& name = atoms[1];
-
-                                if (Variables::RulesMap.GetBool(name, "NeedsEngineer"))
-                                    color = RGB(215, 215, 215);
+                                auto StrINIIndex = CMapDataExt::StructureIndexMap[cell.Structure];
+                                if (StrINIIndex != -1)
+                                {
+                                    auto& objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
+                                    if (Variables::RulesMap.GetBool(objRender.ID, "NeedsEngineer"))
+                                        color = RGB(215, 215, 215);
+                                }
                             }
 
                             LightingStruct ret;
@@ -610,6 +613,8 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
         // Do not update preview.
         Logger::Raw("SaveMap : Retaining current map preview.\n");
     }
+    if (!panic)
+        pINI->WriteString("FA2spVersionControl", "LastPreviewOption", STDHelpers::IntToString(previewOption));
 
     std::ofstream fout;
     fout.exceptions(std::ofstream::failbit | std::ofstream::badbit);
@@ -649,103 +654,208 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
             pINI->DeleteSection("Digest");
 
             std::ostringstream oss;
-            FString comments;
 
-            if (ExtConfigs::SaveMap_FileEncodingComment)
+            if (CMapDataExt::IsNewMap || !ExtConfigs::SaveMap_KeepComments)
             {
-                comments += "; ";
-                if (saveAsUTF8)
-                    comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1_UTF8", "This file is encoded as UTF8, please open it in this format");
-                else
-                    comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1", "This file is encoded as ANSI/GBK, please open it in this format");
+                FString comments;
+                if (ExtConfigs::SaveMap_FileEncodingComment)
+                {
+                    comments += "; ";
+                    if (saveAsUTF8)
+                        comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1_UTF8", "This file is encoded as UTF8, please open it in this format");
+                    else
+                        comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1", "This file is encoded as ANSI/GBK, please open it in this format");
 
+                    comments += "\n";
+                    comments += "; ";
+                    comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment2", "If non ASCII characters (such as Chinese) are used");
+                    comments += "\n";
+                    comments += "; ";
+                    comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment3", "modifying the file with incorrect encoding will result in garbled characters");
+                    comments += "\n";
+                    comments += "\n";
+                }
+
+                comments += "; Map created with FinalAlert 2(tm) Mission Editor\n";
+                comments += "; Get it at http://www.westwood.com\n";
+                comments += "; note that all comments were truncated\n";
                 comments += "\n";
-                comments += "; ";
-                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment2", "If non ASCII characters (such as Chinese) are used");
-                comments += "\n";
-                comments += "; ";
-                comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment3", "modifying the file with incorrect encoding will result in garbled characters");
-                comments += "\n";
-                comments += "\n";
+                comments += "; This FA2 uses FA2sp created by secsome, modified by Handama & E1Elite\n";
+                comments += "; Get the lastest dll at https://github.com/handama/FA2sp\n";
+                comments += "; Current version : "  PRODUCT_STR  ", "  __str(HDM_PRODUCT_VERSION)  "\n\n";
+
+                oss << comments;
             }
 
-            comments += "; Map created with FinalAlert 2(tm) Mission Editor\n";
-            comments += "; Get it at http://www.westwood.com\n";
-            comments += "; note that all comments were truncated\n";
-            comments += "\n";
-            comments += "; This FA2 uses FA2sp created by secsome, modified by Handama & E1Elite\n";
-            comments += "; Get the lastest dll at https://github.com/handama/FA2sp\n";
-            comments += "; Current version : "  PRODUCT_STR  ", "  __str(HDM_PRODUCT_VERSION)  "\n\n";
+            const char* includeSection = ExtConfigs::IncludeType ? "$Include" : "#include";
+            auto pInclude = pINI->GetSection(includeSection);
 
-            oss << comments;
-
-            auto saveSection = [&oss](INISection* pSection, FString sectionName)
+            std::unique_ptr<CINIExt, GameUniqueDeleter<CINIExt>> includeIni;
+            if (pInclude && ExtConfigs::AllowIncludes && !panic)
             {
-                auto& exclude = INIIncludes::MapIncludedKeys;
-                if (!exclude.empty() && exclude.find(sectionName) != exclude.end())
-                {
-                    std::vector<int> skipLines;
-                    std::vector<int> useOriginLines;
+                includeIni = MakeGameUnique<CINIExt>();
+                FString buffer = " \n";
 
-                    auto& keys = exclude[sectionName];
-                    int index = 0;
+                std::queue<ppmfc::CString> currentIncludeInis;
+
+                for (auto& pair : pInclude->GetEntities()) {
+                    currentIncludeInis.push(pair.second);
+                }
+                includeIni->LoadINIExt((uint8_t*)buffer.data(), buffer.length(), nullptr, true, true, true, &currentIncludeInis);
+            }
+
+            auto saveSection = [&oss, &pInclude, &includeIni](INISection* pSection, FString sectionName)
+            {
+                bool hasInclude = includeIni && includeIni->SectionExists(sectionName);
+                bool wroteSection = false;
+
+                auto writeCommentBlock = [&oss](const FString& comment)
+                {
+                    if (comment.empty())
+                        return;
+
+                    std::istringstream iss(comment);
+                    FString line;
+                    bool first = true;
+
+                    while (std::getline(iss, line))
+                    {
+                        if (!first)
+                            oss << "\n";
+                        first = false;
+
+                        line.Trim();
+                        if (!line.empty())
+                            oss << "; " << line;
+                    }
+
+                    oss << "\n";
+                };
+
+                auto writeSectionHeaderOnce = [&]()
+                {
+                    if (wroteSection)
+                        return;
+
+                    auto fsIt = CMapDataExt::MapFrontsectionComments.find(sectionName);
+                    if (fsIt != CMapDataExt::MapFrontsectionComments.end())
+                    {
+                        writeCommentBlock(fsIt->second);
+                    }
+
+                    oss << "[" << sectionName << "]";
+
+                    auto isIt = CMapDataExt::MapInsectionComments.find(sectionName);
+                    if (isIt != CMapDataExt::MapInsectionComments.end())
+                    {
+                        oss << " ; " << isIt->second;
+                    }
+
+                    oss << "\n";
+                    wroteSection = true;
+                };
+
+                if (hasInclude)
+                {
+                    auto pIncludeSection = includeIni->GetSection(sectionName);
+                    auto& keys = pIncludeSection->GetEntities();
+
                     for (auto& pair : pSection->GetEntities())
                     {
-                        if (keys.find(pair.first) != keys.end())
-                        {
-                            if (keys[pair.first] == "")
-                            {
-                                skipLines.push_back(index);
-                            }
-                            else
-                            {
-                                useOriginLines.push_back(index);
-                            }
-                        }
-                        index++;
-                    }
-                    if (skipLines.size() < pSection->GetEntities().size())
-                    {
-                        oss << "[" << sectionName << "]\n";
-                        index = 0;
-                        for (auto& pair : pSection->GetEntities())
-                        {
-                            if (std::find(skipLines.begin(), skipLines.end(), index) != skipLines.end())
-                            {
+                        auto itr = keys.find(pair.first);
+                        if (itr != keys.end() && itr->second == pair.second)
+                            continue;
 
-                            }
-                            else if (std::find(useOriginLines.begin(), useOriginLines.end(), index) != useOriginLines.end())
-                            {
-                                oss << pair.first << "=" << keys[pair.first] << "\n";
-                            }
-                            else
-                            {
-                                oss << pair.first << "=" << pair.second << "\n";
-                            }
-                            index++;
+                        writeSectionHeaderOnce();
+
+                        auto fkIt = CMapDataExt::MapFrontlineComments[sectionName].find(pair.first);
+                        if (fkIt != CMapDataExt::MapFrontlineComments[sectionName].end())
+                        {
+                            writeCommentBlock(fkIt->second);
                         }
+
+                        oss << pair.first << "=" << pair.second;
+
+                        auto ikIt = CMapDataExt::MapInlineComments[sectionName].find(pair.first);
+                        if (ikIt != CMapDataExt::MapInlineComments[sectionName].end())
+                        {
+                            oss << " ; " << ikIt->second;
+                        }
+
                         oss << "\n";
                     }
                 }
                 else
                 {
-                    oss << "[" << sectionName << "]\n";
                     for (const auto& pair : pSection->GetEntities())
-                        oss << pair.first << "=" << pair.second << "\n";
-                    oss << "\n";
+                    {
+                        writeSectionHeaderOnce();
+
+                        auto fkIt = CMapDataExt::MapFrontlineComments[sectionName].find(pair.first);
+                        if (fkIt != CMapDataExt::MapFrontlineComments[sectionName].end())
+                        {
+                            writeCommentBlock(fkIt->second);
+                        }
+
+                        oss << pair.first << "=" << pair.second;
+
+                        auto ikIt = CMapDataExt::MapInlineComments[sectionName].find(pair.first);
+                        if (ikIt != CMapDataExt::MapInlineComments[sectionName].end())
+                        {
+                            oss << " ; " << ikIt->second;
+                        }
+
+                        oss << "\n";
+                    }
                 }
+
+                if (wroteSection)
+                    oss << "\n";
             };
+
+
+            auto theater = pINI->GetString("Map", "Theater");
+            for (const auto& [o, n] : TheaterHelpers::GetIniTheaterNamePairs())
+            {
+                if (_strcmpi(o, theater) == 0)
+                {
+                    pINI->WriteString("Map", "Theater", n);
+                }
+            }
+
+            // Add "Header" for single-player map to prevent loading error
+            if (const auto pSection = pINI->GetSection("Header"))
+            {
+                saveSection(pSection, "Header");
+            }
+            else if (!CMapData::Instance->IsMultiOnly())
+            {
+                oss << "[Header]\n";
+                oss << "NumberStartingPoints" << "=" << "0" << "\n";
+                oss << "\n";
+            }
+
+            // Dirty fix: vanilla YR needs "Preview" and "PreviewPack" before "Map"
+            // So we just put them at first.
+            if (const auto pSection = pINI->GetSection("Preview"))
+            {
+                saveSection(pSection, "Preview");
+            }
+            if (const auto pSection = pINI->GetSection("PreviewPack"))
+            {
+                saveSection(pSection, "PreviewPack");
+            }
 
             if (!SaveMapExt::IsAutoSaving && ExtConfigs::SaveMap_PreserveINISorting)
             {
-                if (!pINI->SectionExists("Header"))
-                {
-                    pINI->WriteString("Header", "NumberStartingPoints", "0");
-                }
                 for (const auto& sectionName : CMapDataExt::MapIniSectionSorting)
                 {
-                    if (sectionName == "Digest")
+                    if (!strcmp(sectionName, "Preview")
+                        || !strcmp(sectionName, "PreviewPack")
+                        || !strcmp(sectionName, "Header")
+                        || !strcmp(sectionName, "Digest"))
                         continue;
+
                     if (const auto pSection = pINI->GetSection(sectionName))
                     {
                         saveSection(pSection, sectionName);
@@ -753,7 +863,10 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                 }
                 for (auto& section : pINI->Dict)
                 {
-                    if (!strcmp(section.first, "Digest"))
+                    if (!strcmp(section.first, "Preview")
+                        || !strcmp(section.first, "PreviewPack")
+                        || !strcmp(section.first, "Header")
+                        || !strcmp(section.first, "Digest"))
                         continue;
 
                     auto it = std::find(CMapDataExt::MapIniSectionSorting.begin(), CMapDataExt::MapIniSectionSorting.end(), section.first);
@@ -765,38 +878,6 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
             }
             else
             {
-                // Add "Header" for single-player map to prevent loading error
-                if (const auto pSection = pINI->GetSection("Header"))
-                {
-                    oss << "[Header]\n";
-                    for (const auto& pair : pSection->GetEntities())
-                        oss << pair.first << "=" << pair.second << "\n";
-                    oss << "\n";
-                }
-                else if (!CMapData::Instance->IsMultiOnly())
-                {
-                    oss << "[Header]\n";
-                    oss << "NumberStartingPoints" << "=" << "0" << "\n";
-                    oss << "\n";
-                }
-
-                // Dirty fix: vanilla YR needs "Preview" and "PreviewPack" before "Map"
-                // So we just put them at first.
-                if (const auto pSection = pINI->GetSection("Preview"))
-                {
-                    oss << "[Preview]\n";
-                    for (const auto& pair : pSection->GetEntities())
-                        oss << pair.first << "=" << pair.second << "\n";
-                    oss << "\n";
-                }
-                if (const auto pSection = pINI->GetSection("PreviewPack"))
-                {
-                    oss << "[PreviewPack]\n";
-                    for (const auto& pair : pSection->GetEntities())
-                        oss << pair.first << "=" << pair.second << "\n";
-                    oss << "\n";
-                }
-
                 for (auto& section : pINI->Dict)
                 {
                     if (!strcmp(section.first, "Preview")
@@ -828,6 +909,15 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
             // As sha1 hash length is only 20, the length of base64 result won't
             // go over the limitation of uublock's 70 per line. So only one row!
             oss << "[Digest]\n1=" << base64::encode(hash, 20) << "\n";
+
+            theater = pINI->GetString("Map", "Theater");
+            for (const auto& [o, n] : TheaterHelpers::GetIniTheaterNamePairs())
+            {
+                if (_strcmpi(n, theater) == 0)
+                {
+                    pINI->WriteString("Map", "Theater", o);
+                }
+            }
 
             if (saveAsMMX)
             {
@@ -921,6 +1011,22 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
             MB_OK | MB_ICONERROR);
 
         return false;
+    }
+
+    if (panic)
+        SaveMapExt::ResetTimer();
+
+    std::ifstream fin;
+    fin.open(filepath, std::ios::in | std::ios::binary);
+    if (fin.is_open())
+    {
+        fin.close();
+
+        if (!SaveMapExt::IsAutoSaving) {
+            SaveMapExt::SaveTime = std::filesystem::last_write_time(filepath.c_str());
+            FileWatcher::IsMapJustSaved = true;
+            FileWatcher::IsSavingMap = false;
+        }
     }
 
     return true;

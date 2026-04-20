@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <map>
+#include <set>
 
 class MultimapHelper
 {
@@ -29,6 +30,7 @@ public:
     void ClearMap(ppmfc::CString section = "");
 
     std::vector<ppmfc::CString> ParseIndicies(ppmfc::CString pSection, bool bParseIntoValue = false);
+    std::set<ppmfc::CString> GetUniqueValues(ppmfc::CString pSection);
     std::map<ppmfc::CString, ppmfc::CString, INISectionEntriesComparator> GetSection(ppmfc::CString pSection);
     std::map<ppmfc::CString, ppmfc::CString, INISectionEntriesComparator> GetUnorderedUnionSection(ppmfc::CString pSection);
     std::vector < std::pair<ppmfc::CString, ppmfc::CString>> GetUnorderedSection(ppmfc::CString pSection);
@@ -38,4 +40,5 @@ private:
     std::vector<CINI*> data;
     std::map<ppmfc::CString, std::vector<ppmfc::CString>> KeyIndiciesMap;
     std::map<ppmfc::CString, std::vector<ppmfc::CString>> ValueIndiciesMap;
+    std::map<ppmfc::CString, std::set<ppmfc::CString>> UniqueValuesMap;
 };

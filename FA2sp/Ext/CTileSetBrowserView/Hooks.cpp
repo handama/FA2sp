@@ -261,6 +261,7 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
                 iTileIndex = CMapDataExt::TileData[iTileIndex].FrameModeIndex;
             }
         }
+        iTileIndex = CMapDataExt::GetSafeTileIndex(iTileIndex);
         auto& tile = CMapDataExt::TileData[iTileIndex];
 
         auto pIsoView = CIsoView::GetInstance();
@@ -405,11 +406,12 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
                 }
 
                 auto& tiledata = CMapDataExt::TileData[tile.GetDisplayTileIndex()];
-                if (tiledata.AltTypeCount > 0)
+                int randomIndex = STDHelpers::RandomSelectInt(-1, tiledata.AltTypeCount);
+                if (tiledata.AltTypeCount > 0 && randomIndex > -1)
                 {
                     bool isBridge = (tiledata.TileSet == CMapDataExt::BridgeSet
                         || tiledata.TileSet == CMapDataExt::WoodBridgeSet);
-                    auto& altType = tiledata.AltTypes[STDHelpers::RandomSelectInt(0, tiledata.AltTypeCount)];
+                    auto& altType = tiledata.AltTypes[randomIndex];
                     if (!isBridge && tile.SubTileIndex < altType.TileBlockCount)
                     {
                         block = &altType.TileBlockDatas[tile.SubTileIndex];
@@ -553,8 +555,11 @@ DEFINE_HOOK(4F3C00, CTileSetBrowserView_OnLButtonDown, 7)
     {
         FString ovlIdx;
         ovlIdx.Format("%d", pThis->SelectedOverlayIndex);
-        int nDisplayLimit = CINI::FAData->GetInteger("OverlayDisplayLimit", ovlIdx, 60);
-        for (int i = 0; i < std::min(nDisplayLimit, 60); i++)
+        int nDisplayLimit = Variables::RulesMap.GetInteger(
+            Variables::RulesMap.GetValueAt("OverlayTypes", pThis->SelectedOverlayIndex),
+            "OverlayDisplayLimit", ExtConfigs::OverlayDataLimit);
+        nDisplayLimit = CINI::FAData->GetInteger("OverlayDisplayLimit", ovlIdx, nDisplayLimit);
+        for (int i = 0; i < std::min(nDisplayLimit, ExtConfigs::OverlayDataLimit); i++)
         {
             auto imageName = CLoadingExt::GetOverlayName(pThis->SelectedOverlayIndex, i);
             auto pData = CLoadingExt::GetImageDataFromMap(imageName);
@@ -596,6 +601,7 @@ DEFINE_HOOK(4F2B10, CTileSetBrowserView_SetTileSet, 7)
     GET_STACK(DWORD, dwTileSet, 0x4);
     GET_STACK(BOOL, bOnlyRedraw, 0x8);
 
+    CTileSetBrowserFrameExt::TileSetBrowserView_Instance = pThis;
     pThis->CurrentTileset = dwTileSet;
     pThis->CurrentMode = 1;
 
@@ -750,6 +756,7 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
     GET(CTileSetBrowserView*, pThis, ECX);
     GET_STACK(CDC* , pDC, 0x4);
 
+    CTileSetBrowserFrameExt::TileSetBrowserView_Instance = pThis;
     if (pThis->CurrentMode == 1)
     {
         auto pIsoView = CIsoView::GetInstance();
@@ -778,7 +785,11 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
 
         for (int i = 0; i < pThis->TileSurfacesCount; i++)
         {
-            if (!pThis->TileSurfaces[i]) continue;
+            if (!pThis->TileSurfaces[i])
+            {
+                tileIndex++;
+                continue;
+            }
 
             int curwidth, curheight;
             if (pThis->CurrentTileset < 10000)
@@ -868,7 +879,7 @@ DEFINE_HOOK(4F4650, CTileSetBrowserView_GetAddedHeight, 9)
     return 0x4F4734;
 }
 
-DEFINE_HOOK(4F0B20, CTerrainDlg_Update_Init, 7)
+DEFINE_HOOK(4F0B20, CTileSetBrowserView_Update_Init, 7)
 {
     if (CTileSetBrowserFrameExt::TerrainDlgLoaded)
         return 0x4F17AB;
@@ -903,7 +914,7 @@ static bool ParsePrefixedInt(const std::string& input, const std::string& prefix
     return true;
 }
 
-DEFINE_HOOK(4F128A, CTerrainDlg_Update_AddCustomTiles, 5)
+DEFINE_HOOK(4F128A, CTileSetBrowserView_Update_AddCustomTiles, 5)
 {
     auto theater = TheaterHelpers::GetCurrentSuffix();
 
@@ -1043,7 +1054,7 @@ DEFINE_HOOK(4F128A, CTerrainDlg_Update_AddCustomTiles, 5)
     return 0;
 }
 
-DEFINE_HOOK(4F2243, CTileSetBrowserView_OnDraw_LoadOverlayImage, 6)
+DEFINE_HOOK(4F2230, CTileSetBrowserView_OnDraw_LoadOverlayImage, 6)
 {
     GET(CTileSetBrowserView*, pThis, ESI);
     GET(const int, i, ECX);
@@ -1051,17 +1062,18 @@ DEFINE_HOOK(4F2243, CTileSetBrowserView_OnDraw_LoadOverlayImage, 6)
     auto imageName = CLoadingExt::GetOverlayName(pThis->SelectedOverlayIndex, i);
     auto pData = CLoadingExt::GetImageDataFromMap(imageName);
     if (setCurrentOverlay(pData))
-    {
         R->EAX(&CurrentOverlay);
-    }
-    return 0;
+    else
+        R->EAX(0);
+
+    return 0x4F2243;
 }
 
 DEFINE_HOOK(4F4774, CTileSetBrowserView_SetOverlay_LoadOverlayImage, 5)
 {
     GET(CTileSetBrowserView*, pThis, ESI);
     GET(int, Overlay, EBX);
-    const int max_ovrl_img = 60;
+    const int max_ovrl_img = ExtConfigs::OverlayDataLimit;
 
     int need_pos = -1;
     int need_width = 0;
@@ -1111,11 +1123,14 @@ DEFINE_HOOK(4F258B, CTileSetBrowserView_OnDraw_SetOverlayFrameToDisplay, 7)
     GET(CTileSetBrowserView*, pThis, ESI);
     GET(const int, i, ECX);
 
-    ppmfc::CString ovlIdx;
+    FString ovlIdx;
     ovlIdx.Format("%d", pThis->SelectedOverlayIndex);
-    int nDisplayLimit = CINI::FAData->GetInteger("OverlayDisplayLimit", ovlIdx, 60);
-    if (nDisplayLimit > 60)
-        nDisplayLimit = 60;
+    int nDisplayLimit = Variables::RulesMap.GetInteger(
+        Variables::RulesMap.GetValueAt("OverlayTypes", pThis->SelectedOverlayIndex),
+        "OverlayDisplayLimit", ExtConfigs::OverlayDataLimit);
+    nDisplayLimit = CINI::FAData->GetInteger("OverlayDisplayLimit", ovlIdx, nDisplayLimit);
+    if (nDisplayLimit > ExtConfigs::OverlayDataLimit)
+        nDisplayLimit = ExtConfigs::OverlayDataLimit;
 
     R->Stack(STACK_OFFS(0xDC, 0xB8), i);
     return i < nDisplayLimit ? 0x4F2230 : 0x4F2598;
@@ -1144,4 +1159,42 @@ DEFINE_HOOK(4F22D6, CTileSetBrowserView_OnDraw_OverlayBackground, 6)
     R->EAX(ExtConfigs::EnableDarkMode ? 0x20202020 : 0xFFFFFFFF);
     R->ECX(R->ECX() >> 2);
     return 0x4F22DC;
+}
+
+DEFINE_HOOK(4F12C0, CTileSetBrowserView_Update_LoadOverlay, 5)
+{
+    CViewObjectsExt::Redraw_Initialize();
+
+    HWND hParent = CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
+    HWND hOverlayComboBox = GetDlgItem(hParent, 1367);
+
+    const int max_ovrl_img = ExtConfigs::OverlayDataLimit;
+    auto&& section = Variables::RulesMap.ParseIndicies("OverlayTypes", true);
+    for (int i = 0, sz = (ExtConfigs::ExtOverlays || CMapDataExt::NewINIFormat >= 5) ?
+        section.size() : std::min((UINT)255, section.size()); i < sz; ++i)
+    {
+        auto& id = section[i];
+        if (!Variables::RulesMap.GetSection(id).empty())
+        {
+            bool forceDisplay = false;
+            if (ExtConfigs::EnableVeinholeLogic && (i == 178 || i == 167 || i == 126))
+                forceDisplay = true;
+            if (!forceDisplay && CViewObjectsExt::IgnoreOverlaySet.find(id) != CViewObjectsExt::IgnoreOverlaySet.end())
+                continue;
+
+            FString text;
+            FString display;
+            FString name = Variables::RulesMap.GetString(id, "Name");
+            if (name.IsEmpty() || !Translations::GetTranslationItem(name, text))
+            {
+                text = CViewObjectsExt::QueryUIName(id, true);
+            }
+            display.Format("%04d (%s)", i, text);
+
+            int index = (int)::SendMessage(hOverlayComboBox, CB_ADDSTRING, 0, display);
+            ::SendMessage(hOverlayComboBox, CB_SETITEMDATA, index, (LPARAM)i);
+        }        
+    }
+
+    return 0x4F1793;
 }

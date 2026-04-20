@@ -32,19 +32,34 @@ DEFINE_HOOK(48B020, CLoading_InitPalettes, 7)
         return false;
     };
 
-    loadPalette("isotem.pal", pThis->PAL_ISOTEM);
-    loadPalette("isosno.pal", pThis->PAL_ISOSNO);
-    loadPalette("isourb.pal", pThis->PAL_ISOURB);
-    loadPalette("isoubn.pal", pThis->PAL_ISOUBN);
-    loadPalette("isolun.pal", pThis->PAL_ISOLUN);
-    loadPalette("isodes.pal", pThis->PAL_ISODES);
+    auto& suffixes = TheaterHelpers::GetFileTheaterSuffix();
+    ppmfc::CString isoPal = "iso~~~.pal";
+    isoPal.Replace("~~~", suffixes['T']);
+    loadPalette(isoPal, pThis->PAL_ISOTEM);
+    isoPal.Replace("~~~", suffixes['A']);
+    loadPalette(isoPal, pThis->PAL_ISOSNO);
+    isoPal.Replace("~~~", suffixes['U']);
+    loadPalette(isoPal, pThis->PAL_ISOURB);
+    isoPal.Replace("~~~", suffixes['N']);
+    loadPalette(isoPal, pThis->PAL_ISOUBN);
+    isoPal.Replace("~~~", suffixes['L']);
+    loadPalette(isoPal, pThis->PAL_ISOLUN);
+    isoPal.Replace("~~~", suffixes['D']);
+    loadPalette(isoPal, pThis->PAL_ISODES);
 
-    loadPalette("unittem.pal", pThis->PAL_UNITTEM);
-    loadPalette("unitsno.pal", pThis->PAL_UNITSNO);
-    loadPalette("uniturb.pal", pThis->PAL_UNITURB);
-    loadPalette("unitubn.pal", pThis->PAL_UNITUBN);
-    loadPalette("unitlun.pal", pThis->PAL_UNITLUN);
-    loadPalette("unitdes.pal", pThis->PAL_UNITDES);
+    ppmfc::CString unitPal = "unit~~~.pal";
+    unitPal.Replace("~~~", suffixes['T']);
+    loadPalette(unitPal, pThis->PAL_UNITTEM);
+    unitPal.Replace("~~~", suffixes['A']);
+    loadPalette(unitPal, pThis->PAL_UNITSNO);
+    unitPal.Replace("~~~", suffixes['U']);
+    loadPalette(unitPal, pThis->PAL_UNITURB);
+    unitPal.Replace("~~~", suffixes['N']);
+    loadPalette(unitPal, pThis->PAL_UNITUBN);
+    unitPal.Replace("~~~", suffixes['L']);
+    loadPalette(unitPal, pThis->PAL_UNITLUN);
+    unitPal.Replace("~~~", suffixes['D']);
+    loadPalette(unitPal, pThis->PAL_UNITDES);
 
     loadPalette("temperat.pal", pThis->PAL_TEMPERAT);
     loadPalette("snow.pal", pThis->PAL_SNOW);
@@ -53,8 +68,9 @@ DEFINE_HOOK(48B020, CLoading_InitPalettes, 7)
     loadPalette("lunar.pal", pThis->PAL_LUNAR);
     loadPalette("desert.pal", pThis->PAL_DESERT);
 
-    loadPalette("libtem.pal", pThis->PAL_LIBTEM);
-
+    ppmfc::CString libPal = "lib~~~.pal";
+    libPal.Replace("~~~", suffixes['T']);
+    loadPalette(libPal, pThis->PAL_LIBTEM);
 
     return 0x48C3CD;
 }

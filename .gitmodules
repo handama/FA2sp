@@ -4,6 +4,12 @@
 [submodule "MFC42"]
 	path = MFC42
 	url = https://github.com/secsome/MFC42
+[submodule "lexilla"]
+	path = lexilla
+	url = https://github.com/ScintillaOrg/lexilla
+[submodule "scintilla"]
+	path = scintilla
+	url = https://github.com/mirror/scintilla
 [submodule "FA2sp/Extra"]
 	path = FA2sp/Extra
 	url = https://github.com/Fly-Star-him/FA2SP-Extra.git

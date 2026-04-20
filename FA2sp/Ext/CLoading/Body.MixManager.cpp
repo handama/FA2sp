@@ -699,6 +699,10 @@ std::unique_ptr<uint8_t[]> MixLoader::LoadFile(const std::string& fileName, size
                     return nullptr;
                 }
                 if (outSize) *outSize = (size_t)e.size;
+
+#ifndef NDEBUG
+                Logger::Raw("Loaded from ExtMixLoader, file_path = [%s], data_offset = [%d]. ", mf.path, e.offset);
+#endif
                 return buf;
             }
         }
@@ -723,6 +727,9 @@ std::unique_ptr<uint8_t[]> MixLoader::LoadFile(const std::string& fileName, size
             return nullptr;
         }
         if (outSize) *outSize = (size_t)e.size;
+#ifndef NDEBUG
+        Logger::Raw("Loaded from ExtMixLoader, file_path = [%s], data_offset = [%d]. ", mf.path, e.offset);
+#endif
         return buf;
     }
 

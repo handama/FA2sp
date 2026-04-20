@@ -19,6 +19,7 @@
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
 #include "../CMapData/Body.h"
 #include "../../Miscs/Hooks.INI.h"
+#include "../../Helpers/Helper.h"
 
 DEFINE_HOOK(4808A0, CLoading_LoadObjects, 5)
 {
@@ -99,10 +100,11 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
     GET(const char*, mapPath, EDI);
 
     Logger::Debug("CLoading::LoadMap(): Loading %s\n", mapPath);
+    TempValueHolder tmp(CIsoViewExt::SkipMapScreenConvert, true);
     CViewObjectsExt::InitializeOnUpdateEngine();
     CIsoView::CurrentCommand->Command = 0;
 
-    if (ExtConfigs::ReloadGameFromMapFolder)
+    if (ExtConfigs::ReloadGameFromMapFolder && !CMapDataExt::IsImportingMap)
     {
         std::string buffer = std::string(mapPath);
         buffer = buffer.substr(0, buffer.find_last_of("\\") + 1);
@@ -165,9 +167,16 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
         }
     }
 
+    if (CMapDataExt::IsImportingMap)
+        CMapDataExt::IsImportingMap = false;
+
     INIIncludes::SkipBracketFix = true;
     CMapDataExt::IsLoadingMapFile = true;
     CMapDataExt::MapIniSectionSorting.clear();
+    CMapDataExt::MapInlineComments.clear();
+    CMapDataExt::MapFrontlineComments.clear();
+    CMapDataExt::MapInsectionComments.clear();
+    CMapDataExt::MapFrontsectionComments.clear();
 
     return 0;
 }
@@ -224,8 +233,7 @@ DEFINE_HOOK(48DBB0, CLoading_InitTMPs_ReadFolder, E)
     if (nMIx)
         return 0x48DC52;
 
-    int result = CLoadingExt::GetExtension()->HasFileMix(lpFilename);
-    if (result > -2)
+    if (CLoadingExt::GetExtension()->HasFileExt(lpFilename))
         return 0x48DC52;
 
     if (CINI::CurrentTheater == &CINI::NewUrban)
@@ -240,8 +248,7 @@ DEFINE_HOOK(48E5C5, CLoading_LoadTile_ReadFolder, 8)
     GET(unsigned int, nMix, EDI);
     GET(BOOL, oriResult, EAX);
 
-    int result = CLoadingExt::GetExtension()->HasFileMix(lpFilename);
-    if (result > -2)
+    if (CLoadingExt::GetExtension()->HasFileExt(lpFilename))
     {
         R->EDI(0);
         return 0x48E5CD;

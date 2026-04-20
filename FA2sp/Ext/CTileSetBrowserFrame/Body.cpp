@@ -24,9 +24,11 @@
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../Miscs/DialogStyle.h"
+#include "TabPages/GridObjectViewer.h"
 
 HWND CTileSetBrowserFrameExt::hTabCtrl = NULL;
 bool CTileSetBrowserFrameExt::TerrainDlgLoaded = true;
+CTileSetBrowserView* CTileSetBrowserFrameExt::TileSetBrowserView_Instance = nullptr;
 
 void CTileSetBrowserFrameExt::ProgramStartupInit()
 {
@@ -78,11 +80,11 @@ BOOL CTileSetBrowserFrameExt::PreTranslateMessageExt(MSG* pMsg)
 
 		if (nID == (UINT)TriggerSort::MenuItem::AddTrigger)
 		{
-			if (IsWindowVisible(CNewTrigger::GetHandle()))
+			if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
 			{
 				TriggerSort::CreateFromTriggerSort = true;
 				TriggerSort::Instance.Menu_AddTrigger();
-				CNewTrigger::OnClickNewTrigger();
+				CNewTrigger::GetFirstValidInstance().OnClickNewTrigger();
 				TriggerSort::CreateFromTriggerSort = false;
 				return TRUE;
 			}
@@ -94,10 +96,10 @@ BOOL CTileSetBrowserFrameExt::PreTranslateMessageExt(MSG* pMsg)
 				TagSort::Instance.Menu_AddTrigger();
 				ppmfc::CString name;
 				ppmfc::CString value;
-				ppmfc::CString key = CMapDataExt::GetAvailableIndex();
+				ppmfc::CString key = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
 				name = (TagSort::Instance.GetCurrentPrefix() + "New Tag").c_str();
 				value.Format("0,%s,%s", name, CINI::CurrentDocument->GetKeyCount("Triggers") > 0 ?
-					CINI::CurrentDocument->GetKeyAt("Triggers", 0).m_pchData : "01000000");
+					CINI::CurrentDocument->GetKeyAt("Triggers", 0).GetString() : "01000000");
 				CINI::CurrentDocument->WriteString("Tags", key, value);
 				CFinalSunDlg::Instance->Tags.UpdateDialog();
 				auto hTag = ::GetDlgItem(CFinalSunDlg::Instance->Tags, 1083);
@@ -243,6 +245,11 @@ BOOL CTileSetBrowserFrameExt::PreTranslateMessageExt(MSG* pMsg)
 		if (TagSort::Instance.OnMessage(pMsg))
 			return TRUE;
 	}
+	if (pMsg->hwnd == GridObjectViewer::Instance)
+	{
+		if (GridObjectViewer::Instance.OnMessage(pMsg))
+			return TRUE;
+	}
 	
 
 	return this->ppmfc::CFrameWnd::PreTranslateMessage(pMsg);
@@ -269,6 +276,7 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				ScriptSort::Instance.HideWindow();
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.HideWindow();
+				GridObjectViewer::Instance.HideWindow();
 				break;
 			case TabPage::TriggerSort:
 				this->DialogBar.ShowWindow(SW_HIDE);
@@ -280,8 +288,9 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				TriggerSort::Instance.ShowWindow();
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.HideWindow();
+				GridObjectViewer::Instance.HideWindow();
 
-				if (IsWindowVisible(CNewTrigger::GetHandle()))
+				if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
 				{
 					if (!TreeView_GetCount(TriggerSort::Instance.GetHwnd()))
 						TriggerSort::Instance.LoadAllTriggers();
@@ -297,6 +306,7 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				ScriptSort::Instance.HideWindow();
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.HideWindow();
+				GridObjectViewer::Instance.HideWindow();
 				if (IsWindowVisible(CNewTeamTypes::GetHandle()))
 				{
 					if (!TreeView_GetCount(TeamSort::Instance.GetHwnd()))
@@ -313,6 +323,7 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				ScriptSort::Instance.HideWindow();
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.HideWindow();
+				GridObjectViewer::Instance.HideWindow();
 				if (IsWindowVisible(CNewTaskforce::GetHandle()) || IsWindowVisible(CNewTeamTypes::GetHandle()))
 				{
 					if (!TreeView_GetCount(TaskforceSort::Instance.GetHwnd()))
@@ -329,6 +340,7 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				ScriptSort::Instance.ShowWindow();
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.HideWindow();
+				GridObjectViewer::Instance.HideWindow();
 				if (IsWindowVisible(CNewScript::GetHandle()) || IsWindowVisible(CNewTeamTypes::GetHandle()))
 				{
 					if (!TreeView_GetCount(ScriptSort::Instance.GetHwnd()))
@@ -345,6 +357,7 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				ScriptSort::Instance.HideWindow();
 				TagSort::Instance.HideWindow();
 				WaypointSort::Instance.ShowWindow();
+				GridObjectViewer::Instance.HideWindow();
 				if (IsWindowVisible(CNewTeamTypes::GetHandle()) || CFinalSunDlg::Instance->TriggerFrame.m_hWnd || IsWindowVisible(CNewScript::GetHandle()))
 				{
 					if (!TreeView_GetCount(WaypointSort::Instance.GetHwnd()))
@@ -361,11 +374,24 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				ScriptSort::Instance.HideWindow();
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.ShowWindow();
-				if ( IsWindowVisible(CNewTrigger::GetHandle()) || CFinalSunDlg::Instance->Tags.m_hWnd)
+				GridObjectViewer::Instance.HideWindow();
+				if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()) || CFinalSunDlg::Instance->Tags.m_hWnd)
 				{
 					if (!TreeView_GetCount(TagSort::Instance.GetHwnd()))
 						TagSort::Instance.LoadAllTriggers();
 				}
+				break;
+			case TabPage::GridObjectViewer:
+				this->DialogBar.ShowWindow(SW_HIDE);
+				this->View.ShowWindow(SW_HIDE);
+
+				TeamSort::Instance.HideWindow();
+				TriggerSort::Instance.HideWindow();
+				TaskforceSort::Instance.HideWindow();
+				ScriptSort::Instance.HideWindow();
+				WaypointSort::Instance.HideWindow();
+				TagSort::Instance.HideWindow();
+				GridObjectViewer::Instance.ShowWindow();
 				break;
 			}
 
@@ -439,11 +465,13 @@ void CTileSetBrowserFrameExt::InitTabControl()
 		pitem.mask = TCIF_TEXT;
 		FA2sp::Buffer = lpszDefault;
 		Translations::GetTranslationItem(lpszTranslate, FA2sp::Buffer);
-		pitem.pszText = FA2sp::Buffer.m_pchData;
+		std::string text = FA2sp::Buffer.GetString();
+		pitem.pszText = (char*)text.c_str();
 		TabCtrl_InsertItem(this->hTabCtrl, i++, &pitem);
 	};
 
 	insertItem("Tiles && Overlays", "TabPages.TilePlacement");
+	insertItem("Object Viewer", "TabPages.GridObjectViewer");
 	insertItem("Trigger Sort", "TabPages.TriggerSort");
 	insertItem("Tag Sort", "TabPages.TagSort");
 	insertItem("Team Sort", "TabPages.TeamSort");
@@ -467,8 +495,9 @@ void CTileSetBrowserFrameExt::InitTabControl()
 	ScriptSort::Instance.Create(hTabCtrl);
 	ScriptSort::Instance.HideWindow();
 	
-
 	WaypointSort::Instance.Create(hTabCtrl);
 	WaypointSort::Instance.HideWindow();
-
+	
+	GridObjectViewer::Instance.Create(hTabCtrl);
+	GridObjectViewer::Instance.HideWindow();
 }

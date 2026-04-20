@@ -12,10 +12,13 @@
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../Miscs/MultiSelection.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
+#include "../CTileSetBrowserFrame/Body.h"
+#include "../../ExtraWindow/CNewTipsOfTheDay/CNewTipsOfTheDay.h"
+#include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
 
 DEFINE_HOOK(424654, CFinalSunDlg_OnInitDialog_SetMenuItemStateByDefault, 7)
 {
-    GET(CFinalSunDlg*, pThis, ESI);
+    GET(CFinalSunDlgExt*, pThis, ESI);
 
     auto pMenu = pThis->GetMenu();
     if (ExtConfigs::EnableDarkMode)
@@ -24,20 +27,26 @@ DEFINE_HOOK(424654, CFinalSunDlg_OnInitDialog_SetMenuItemStateByDefault, 7)
         DarkTheme::InitializeMenuOverlay(pThis->GetSafeHwnd());
     }
 
-    pMenu->CheckMenuItem(30000, MF_CHECKED);
-    pMenu->CheckMenuItem(30001, MF_CHECKED);
-    pMenu->CheckMenuItem(30002, MF_CHECKED);
-    pMenu->CheckMenuItem(30003, MF_CHECKED);
-    pMenu->CheckMenuItem(30004, MF_CHECKED);
-    pMenu->CheckMenuItem(30005, MF_CHECKED);
-    pMenu->CheckMenuItem(30006, MF_CHECKED);
-    pMenu->CheckMenuItem(30007, MF_CHECKED);
-    pMenu->CheckMenuItem(30008, MF_CHECKED);
-    pMenu->CheckMenuItem(30009, MF_CHECKED);
-    pMenu->CheckMenuItem(30010, MF_CHECKED);
-    pMenu->CheckMenuItem(30011, MF_CHECKED);
-    pMenu->CheckMenuItem(30012, MF_CHECKED);
-    pMenu->CheckMenuItem(30021, MF_CHECKED);
+    auto check = [&pMenu, pThis](UINT id, UINT status)
+    {
+        pMenu->CheckMenuItem(id, status);
+        pThis->CheckToolBarButton(id, status == MF_CHECKED);
+    };
+
+    check(30000, MF_CHECKED);
+    check(30001, MF_CHECKED);
+    check(30002, MF_CHECKED);
+    check(30003, MF_CHECKED);
+    check(30004, MF_CHECKED);
+    check(30005, MF_CHECKED);
+    check(30006, MF_CHECKED);
+    check(30007, MF_CHECKED);
+    check(30008, MF_CHECKED);
+    check(30009, MF_CHECKED);
+    check(30010, MF_CHECKED);
+    check(30011, MF_CHECKED);
+    check(30012, MF_CHECKED);
+    check(30021, MF_CHECKED);
 
     pMenu->CheckMenuRadioItem(31000, 31003, CFinalSunDlgExt::CurrentLighting, MF_CHECKED);
 
@@ -54,6 +63,7 @@ DEFINE_HOOK(432304, CFinalSunDlg_Update_LayersVisibility, 5)
     auto SetItemCheckStatus = [&pMenu](int id, bool& param)
     {
         pMenu->CheckMenuItem(id, param ? MF_CHECKED : MF_UNCHECKED);
+        CFinalSunDlgExt::GetExtension()->CheckToolBarButton(id, param);
     };
 
     SetItemCheckStatus(30000, CIsoViewExt::DrawStructures);
@@ -94,7 +104,8 @@ DEFINE_HOOK(432304, CFinalSunDlg_Update_LayersVisibility, 5)
     SetItemCheckStatus(34051, CIsoViewExt::PasteOverriding);
     SetItemCheckStatus(34052, CIsoViewExt::PasteShowOutline);
     SetItemCheckStatus(40159, ExtConfigs::TreeViewCameo_Display);
-    SetItemCheckStatus(40163, CIsoViewExt::EnableDistanceRuler);
+    SetItemCheckStatus(30110, ExtConfigs::DisableAutoConnectWall);
+    SetItemCheckStatus(40163, CIsoViewExt::EnableLiveDistanceRuler);
 
     SetItemCheckStatus(32000, CIsoViewExt::AutoPropertyBrush[0]);
     SetItemCheckStatus(32001, CIsoViewExt::AutoPropertyBrush[1]);
@@ -165,12 +176,12 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(40018, "Menu.File.Reopen");
     translateMenuItem(40003, "Menu.File.Quit");
 
-    translateMenuItem(57643, "Menu.Edit.Undo");
-    translateMenuItem(57644, "Menu.Edit.Redo");
-    translateMenuItem(57634, "Menu.Edit.Copy");
-    translateMenuItem(40166, "Menu.Edit.Cut");
+    translateMenuItem(40169, "Menu.Edit.Undo");
+    translateMenuItem(40170, "Menu.Edit.Redo");
+    translateMenuItem(40171, "Menu.Edit.Copy");
+    translateMenuItem(40172, "Menu.Edit.Cut");
     translateMenuItem(40109, "Menu.Edit.CopyWholeMap");
-    translateMenuItem(57637, "Menu.Edit.Paste");
+    translateMenuItem(40173, "Menu.Edit.Paste");
     translateMenuItem(40110, "Menu.Edit.PasteCentered");
     translateMenuItem(40040, "Menu.Edit.Map");
     translateMenuItem(40036, "Menu.Edit.Basic");
@@ -178,6 +189,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(40043, "Menu.Edit.Lighting");
     translateMenuItem(40039, "Menu.Edit.Houses");
     translateMenuItem(40151, "Menu.Edit.TriggerEditor");
+    translateMenuItem(40168, "Menu.Edit.BatchTriggerEditor");
     translateMenuItem(40042, "Menu.Edit.TagEditor");
     translateMenuItem(40139, "Menu.Edit.Taskforces");
     translateMenuItem(40150, "Menu.Edit.Scripts");
@@ -213,10 +225,11 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(40134, "Menu.MapTools.GlobalSearch");
     translateMenuItem(40135, "Menu.MapTools.ToolScripts");
     translateMenuItem(40136, "Menu.MapTools.DeleteObjects");
-    translateMenuItem(40163, "Menu.MapTools.DistanceRuler");
+    translateMenuItem(40163, "Menu.MapTools.MeasurementToolbox");
     translateMenuItem(40165, "Menu.MapTools.MapRenderer");
     translateMenuItem(40158, "Menu.Options.LuaScriptConsole");
     translateMenuItem(40159, "Menu.Options.ShowObjectViewCameo");
+    translateMenuItem(30110, "Menu.Options.DisableAutoConnectWall");
 
     translateMenuItem(40004, "Menu.Options.Settings");
     translateMenuItem(40024, "Menu.Options.ShowMinimap");
@@ -323,7 +336,7 @@ DEFINE_HOOK(436EE0, CFinalSunDlg_AddToRecentFile, 7)
 {
     REF_STACK(ppmfc::CString, lpPath, 0x4);
 
-    std::string filepath = lpPath.m_pchData;
+    std::string filepath = lpPath.GetString();
     auto& recentfiles = CFinalSunAppExt::RecentFilesExt;
     std::vector<std::string> sortedrecentfiles;
     auto itr = std::find_if(recentfiles.begin(), recentfiles.end(),
@@ -384,12 +397,17 @@ DEFINE_HOOK(4340F0, CFinalSunDlg_Tools_ChangeMapHeight, 7)
         int nDelta = 0;
         if (sscanf_s(CInputMessageBox::GetString(lpMessage, lpTitle), "%d", &nDelta) == 1 && nDelta >= -14 && nDelta <= 14)
         {
+            CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
             for (int i = 0; i < CMapData::Instance->CellDataCount; ++i)
             {
                 CMapData::Instance->CellDatas[i].Height =
                     std::clamp(CMapData::Instance->CellDatas[i].Height + nDelta, 0, 14);
-            }
 
+                int x = CMapData::Instance->GetXFromCoordIndex(i);
+                int y = CMapData::Instance->GetYFromCoordIndex(i);
+                CMapData::Instance->UpdateMapPreviewAt(x, y);
+            }
+            pThis->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
             pThis->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
         }
         else
@@ -528,9 +546,15 @@ DEFINE_HOOK(433E28, CFinalSunDlg_OnTerrainFlatten_SkipBrushChange, 9)
 
 DEFINE_HOOK(4F4BF4, CTipDlg_SkipTipOfTheDay, 7)
 {
-    if (ExtConfigs::SkipTipsOfTheDay)
-        R->EAX(1);
+    R->EAX(1);
     return 0;
+}
+
+DEFINE_HOOK(424493, CFinalSunDlg_OnInitDialog_TipsOfTheDay, 7)
+{
+    if (!ExtConfigs::SkipTipsOfTheDay)
+        CNewTipsOfTheDay::ShowNewTipsOfTheDay();
+    return 0x424635;
 }
 
 static WORD StatusBar_Overlay = 0xFFFF;
@@ -564,42 +588,49 @@ DEFINE_HOOK(4353BD, CFinalSunDlg_OnMaptoolsBackcliff, 9)
     return 0;
 }
 
-DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp_CancelDistanceRuler, 6)
+DEFINE_HOOK(435FDD, CFinalSunDlg_OnMarblemadness, 6)
 {
-    if (!CIsoView::GetInstance()->IsScrolling)
-        CIsoViewExt::DistanceRuler.clear();
+    auto view = CTileSetBrowserFrameExt::TileSetBrowserView_Instance;
+    if (view && view->CurrentMode == 2)
+        return 0x435FF7;
     return 0;
 }
 
-DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
+DEFINE_HOOK(42459A, CFinalSunDlg_OnInitDialog_LoadMap, 6)
 {
-    if (!CViewObjectsExt::NeedChangeTreeViewSelect)
-        return 0x45EBC5;
+    CFinalSunDlg::Instance->LoadMap(CFinalSunApp::MapPath());
+    return 0x4245CD;
+}
 
-    auto hWnd = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->m_hWnd;
-    HTREEITEM hSelectedItem = TreeView_GetSelection(hWnd);
-    HTREEITEM hParent = TreeView_GetParent(hWnd, hSelectedItem);
-    HTREEITEM hPrevSibling = TreeView_GetPrevSibling(hWnd, hSelectedItem);
-    if (hParent != NULL)
-        TreeView_SelectItem(hWnd, hParent);
-    else if (hPrevSibling != NULL) {
-        TreeView_SelectItem(hWnd, hPrevSibling);
-    }
-    else {
-        HTREEITEM hRoot = TreeView_GetRoot(hWnd);
-        if (hRoot != NULL)
-            TreeView_SelectItem(hWnd, hRoot);
-    }
+DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp_CancelDistanceRuler, 6)
+{
+    if (!CIsoView::GetInstance()->IsScrolling)
+        CIsoViewExt::LiveDistanceRuler.clear();
+    return 0;
+}
+
+DEFINE_HOOK(45EB8C, CIsoView_OnRButtonUp_ResetCommand, 6)
+{
     if (!CopyPaste::PastedCoords.empty())
     {
+        CopyPaste::PastedCoords.clear();
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
     }
-    CopyPaste::PastedCoords.clear();
+    CIsoViewExt::EnableAutoTrack = false;
     if (CIsoView::CurrentCommand->Command == 0x1B)
     {
         CIsoView::CurrentCommand->Command = 0x0;
         CIsoView::CurrentCommand->Type = 0;
-    }   
+    }
+    if (CIsoView::CurrentCommand->Command == 0x25)
+    {
+        CIsoView::CurrentCommand->Command = 0x0;
+        CIsoView::CurrentCommand->Type = 0;
+    }
+    if (CIsoView::CurrentCommand->Command == 0x26)
+    {
+        CMeasurementToolbox::OnRightButtonDown();
+    }
     if (CIsoView::CurrentCommand->Command == 0x1F) {
         CTerrainGenerator::RangeFirstCell.X = -1;
         CTerrainGenerator::RangeFirstCell.Y = -1;
@@ -607,7 +638,7 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
         CTerrainGenerator::RangeSecondCell.Y = -1;
         CIsoView::CurrentCommand->Command = 0x0;
         CIsoView::CurrentCommand->Type = 0;
-    }  
+    }
     if (CViewObjectsExt::MoveBaseNode_SelectedObj.X > -1) {
         CViewObjectsExt::MoveBaseNode_SelectedObj.House = "";
         CViewObjectsExt::MoveBaseNode_SelectedObj.ID = "";
@@ -630,9 +661,42 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
         CIsoView::CurrentCommand->Command = 0x0;
         CIsoView::CurrentCommand->Type = 0;
     }
+    if (!CIsoViewExt::DrawEditedMarks.empty())
+    {
+        CIsoView::CurrentCommand->Command = 0x0;
+        CIsoViewExt::DrawEditedMarks.clear();
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
     CIsoViewExt::LastAltCommand.reset();
 
+    return 0;
+}
+
+DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
+{
+    if (!CViewObjectsExt::NeedChangeTreeViewSelect)
+        return 0x45EBC5;
+
+    auto hWnd = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->m_hWnd;
+    HTREEITEM hSelectedItem = TreeView_GetSelection(hWnd);
+    HTREEITEM hParent = TreeView_GetParent(hWnd, hSelectedItem);
+    HTREEITEM hPrevSibling = TreeView_GetPrevSibling(hWnd, hSelectedItem);
+    if (hParent != NULL)
+        TreeView_SelectItem(hWnd, hParent);
+    else if (hPrevSibling != NULL) {
+        TreeView_SelectItem(hWnd, hPrevSibling);
+    }
+    else {
+        HTREEITEM hRoot = TreeView_GetRoot(hWnd);
+        if (hRoot != NULL)
+            TreeView_SelectItem(hWnd, hRoot);
+    }
     return 0x45EBC5;
+}
+
+DEFINE_HOOK(433078, CFinalSunDlg_OnSize_Minimap, 5)
+{
+    return 0x4330A9;
 }
 
 DEFINE_HOOK(4326C0, CFinalSunDlg_QuitProgram_BeforeDialog, 5)

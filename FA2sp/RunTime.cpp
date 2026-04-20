@@ -46,3 +46,9 @@ void RunTime::ResetStaticCharAt(ptr_type addr, const char* content)
 	char* targetAddress = reinterpret_cast<char*>(addr);
 	std::memcpy(targetAddress, content, std::strlen(content) + 1);
 }
+
+void RunTime::NopMemory(ptr_type addr, size_t size)
+{
+	std::vector<BYTE> buf(size, 0x90);
+	ResetMemoryContentAt(addr, buf.data(), size, 0);
+}

@@ -11,7 +11,7 @@ DEFINE_HOOK(466E07, CIsoView_OnLButtonUp_DragInfantrySubcell, 5)
 	GET_STACK(int, screenCoordX, 0x21C);
 	GET_STACK(int, screenCoordY, 0x220);
 	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
-	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
+	auto pIsoView = CIsoViewExt::GetExtension();
 	CInfantryData inf;
 	CMapData::Instance->GetInfantryData(pIsoView->CurrentCellObjectIndex, inf);
 	CPoint point(screenCoordX, screenCoordY);
@@ -133,7 +133,7 @@ DEFINE_HOOK(45B4D4, CIsoView_OnMouseMove_DrawSubcellDragLine_Target, 9)
 
 	if (ExtConfigs::InfantrySubCell_Edit && ExtConfigs::InfantrySubCell_Edit_Drag)
 	{
-		auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
+		auto pIsoView = CIsoViewExt::GetExtension();
 		if (pIsoView->CurrentCellObjectType == 0)
 		{
 			auto point = pIsoView->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);

@@ -283,6 +283,13 @@ COLORREF WINAPI DarkTheme::MySetTextColor(HDC hdc, COLORREF crColor)
     return ::SetTextColor(hdc, crColor);
 }
 
+BOOL WINAPI DarkTheme::MyGetWindowRect(HWND hWnd, LPRECT lpRect)
+{
+    auto result = ::GetWindowRect(hWnd, lpRect);
+    ::OffsetRect(lpRect, -GetSystemMetrics(SM_XVIRTUALSCREEN), -GetSystemMetrics(SM_YVIRTUALSCREEN));
+    return result;
+}
+
 LRESULT CALLBACK DarkTheme::TabCtrlSubclassProc(
     HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
     UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
@@ -302,7 +309,7 @@ LRESULT CALLBACK DarkTheme::TabCtrlSubclassProc(
 
         if (!hDefaultFont)
         {
-            hDefaultFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+            hDefaultFont = (HFONT)GetModernDefaultGUIFont();
         }
         HFONT hFont = hDefaultFont;
         HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
@@ -407,7 +414,7 @@ LRESULT CALLBACK DarkTheme::HeaderSubclassProc(
         int colCount = Header_GetItemCount(hWnd);
         if (!hDefaultFont)
         {
-            hDefaultFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+            hDefaultFont = (HFONT)GetModernDefaultGUIFont();
         }
         HFONT hFont = hDefaultFont;
         HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
@@ -438,7 +445,7 @@ LRESULT CALLBACK DarkTheme::HeaderSubclassProc(
                 textRect.left += 5;
                 textRect.right -= 5;
 
-                UINT format = DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS;
+                UINT format = DT_VCENTER | DT_SINGLELINE;
                 if (hdi.fmt & HDF_CENTER)
                     format |= DT_CENTER;
                 else if (hdi.fmt & HDF_RIGHT)
@@ -610,7 +617,7 @@ LRESULT DarkTheme::HandleMenuMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
             }
 
             HDC hdc = GetDC(hWnd);
-            HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+            HFONT hFont = (HFONT)GetModernDefaultGUIFont();
             HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
 
             std::wstring leftText = pInfo->text;
@@ -785,7 +792,7 @@ void DarkTheme::InitMenuItems(HWND hOverlay)
 
 void DarkTheme::DrawMenuItems(HDC hdc, RECT rc)
 {
-    HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+    HFONT hFont = (HFONT)GetModernDefaultGUIFont();
     HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
 
     for (const auto& item : g_menuItems)
@@ -931,6 +938,20 @@ void DarkTheme::UpdateMenuOverlayPosition(HWND hWnd)
     InvalidateRect(g_hMenuOverlay, NULL, TRUE);
 }
 
+HFONT DarkTheme::GetModernDefaultGUIFont()
+{
+    static HFONT font = NULL;
+
+    if (!font)
+    {
+        if (!CFinalSunDlg::Instance)
+            return (HFONT)::GetStockObject(DEFAULT_GUI_FONT);
+        else
+            font = (HFONT)SendMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_GETFONT, 0, 0);
+    }
+    return font;
+}
+
 void DarkTheme::DrawComboBoxArrow(HDC hdc, RECT rc, bool enabled)
 {
     int arrowWidth = GetSystemMetrics(SM_CXVSCROLL);
@@ -988,10 +1009,10 @@ LRESULT CALLBACK DarkTheme::ComboBoxSubclassProc(
                 SetBkMode(hdc, TRANSPARENT);
                 SetTextColor(hdc, DarkColors::LightText);
 
-                HFONT hFont = (HFONT)SendMessage(hWnd, WM_GETFONT, 0, 0);
+                HFONT hFont = (HFONT)GetModernDefaultGUIFont();
                 HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
 
-                DrawText(hdc, text, -1, &rcText, DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS);
+                DrawText(hdc, text, -1, &rcText, DT_SINGLELINE | DT_VCENTER | DT_LEFT);
 
                 SelectObject(hdc, hOldFont);
             }
@@ -1116,6 +1137,104 @@ LRESULT CALLBACK DarkTheme::EditSubclassProc(
     }
     case WM_NCDESTROY:
         RemoveWindowSubclass(hWnd, EditSubclassProc, uIdSubclass);
+        break;
+    }
+
+    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
+LRESULT CALLBACK DarkTheme::StaticSubclassProc(
+    HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
+    UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+{
+    switch (uMsg)
+    {
+    case WM_NCPAINT:
+    {
+        LONG_PTR style = GetWindowLongPtr(hWnd, GWL_STYLE);
+        LONG_PTR exstyle = GetWindowLongPtr(hWnd, GWL_EXSTYLE);
+
+        bool shouldDrawBorder = false;
+
+        if (style & WS_BORDER) {
+            shouldDrawBorder = true;
+        }
+        else if (style & SS_SUNKEN) {
+            shouldDrawBorder = true;
+        }
+        else if (style & SS_ETCHEDHORZ) {
+            shouldDrawBorder = true;
+        }
+        else if (style & SS_ETCHEDVERT) {
+            shouldDrawBorder = true;
+        }
+        else if ((style & SS_TYPEMASK) == SS_BLACKFRAME ||
+            (style & SS_TYPEMASK) == SS_GRAYFRAME ||
+            (style & SS_TYPEMASK) == SS_WHITEFRAME) {
+            shouldDrawBorder = true;
+        }
+
+        if (!shouldDrawBorder)
+        {
+            return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+        }
+
+        DefWindowProc(hWnd, uMsg, wParam, lParam);
+        HDC hdc = GetWindowDC(hWnd);
+
+        RECT rcWindow;
+        GetWindowRect(hWnd, &rcWindow);
+        OffsetRect(&rcWindow, -rcWindow.left, -rcWindow.top);
+
+        int nCover = 3;
+
+        HPEN hOldPen = (HPEN)SelectObject(hdc, g_hBackGroundPen);
+
+        for (int i = 0; i < nCover; ++i)
+            MoveToEx(hdc, rcWindow.left, rcWindow.top + i, NULL), LineTo(hdc, rcWindow.right, rcWindow.top + i);
+        for (int i = 0; i < nCover; ++i)
+            MoveToEx(hdc, rcWindow.left + i, rcWindow.top, NULL), LineTo(hdc, rcWindow.left + i, rcWindow.bottom);
+        for (int i = 0; i < nCover; ++i)
+            MoveToEx(hdc, rcWindow.left, rcWindow.bottom - 1 - i, NULL), LineTo(hdc, rcWindow.right, rcWindow.bottom - 1 - i);
+        for (int i = 0; i < nCover; ++i)
+            MoveToEx(hdc, rcWindow.right - 1 - i, rcWindow.top, NULL), LineTo(hdc, rcWindow.right - 1 - i, rcWindow.bottom);
+
+        SelectObject(hdc, g_hBorderPen);
+
+        MoveToEx(hdc, rcWindow.left, rcWindow.top, NULL);
+        LineTo(hdc, rcWindow.right, rcWindow.top); 
+        MoveToEx(hdc, rcWindow.left, rcWindow.top, NULL);
+        LineTo(hdc, rcWindow.left, rcWindow.bottom); 
+        MoveToEx(hdc, rcWindow.left, rcWindow.bottom - 1, NULL);
+        LineTo(hdc, rcWindow.right, rcWindow.bottom - 1); 
+        MoveToEx(hdc, rcWindow.right - 1, rcWindow.top, NULL);
+        LineTo(hdc, rcWindow.right - 1, rcWindow.bottom);
+
+        ReleaseDC(hWnd, hdc);
+
+        return 0;
+    }
+    case WM_ERASEBKGND:
+    {
+        HDC hdc = (HDC)wParam;
+        RECT rc;
+        GetClientRect(hWnd, &rc);
+    
+        FillRect(hdc, &rc, g_hDarkBackgroundBrush);
+    
+        return TRUE;
+    }
+    case WM_CTLCOLOREDIT:
+    {
+        HDC hdc = (HDC)wParam;
+    
+        SetTextColor(hdc, DarkColors::LightText);
+        SetBkMode(hdc, TRANSPARENT);
+    
+        return (LRESULT)g_hDisabledBgBrush;
+    }
+    case WM_NCDESTROY:
+        RemoveWindowSubclass(hWnd, StaticSubclassProc, uIdSubclass);
         break;
     }
 
@@ -1362,10 +1481,10 @@ LRESULT CALLBACK DarkTheme::DarkButtonSubclassProc(HWND hwnd, UINT uMsg, WPARAM 
             }
         }
 
-        RECT textRc = { glyphRc.right + 6, 0, w - 6, h };
+        RECT textRc = { glyphRc.right + 3, 0, w - 3, h };
         SetBkMode(hdcMem, TRANSPARENT);
         SetTextColor(hdcMem, enabled ? DarkColors::TextColor : DarkColors::DisabledTextColor);
-        HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+        HFONT hFont = (HFONT)GetModernDefaultGUIFont();
         HFONT hOldFont = (HFONT)SelectObject(hdcMem, hFont);
 
         UINT dtFlags;
@@ -1426,7 +1545,7 @@ LRESULT CALLBACK DarkTheme::DarkGroupBoxclassProc(HWND hwnd, UINT uMsg, WPARAM w
         SetBkMode(hdc, TRANSPARENT);
         SetTextColor(hdc, enabled ? DarkColors::TextColor : DarkColors::DisabledTextColor);
 
-        HFONT hFont = (HFONT)SendMessage(hwnd, WM_GETFONT, 0, 0);
+        HFONT hFont = (HFONT)GetModernDefaultGUIFont();
         HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
 
         DrawTextW(hdc, textBuf, -1, &textRc, DT_CALCRECT | DT_SINGLELINE);
@@ -1479,7 +1598,7 @@ LRESULT CALLBACK DarkTheme::DarkStatusBarProc(HWND hwnd, UINT uMsg, WPARAM wPara
 
         int partCount = (int)SendMessage(hwnd, SB_GETPARTS, 0, 0);
 
-        HFONT hFont = (HFONT)SendMessage(hwnd, WM_GETFONT, 0, 0);
+        HFONT hFont = (HFONT)GetModernDefaultGUIFont();
         HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
 
         SetBkMode(hdc, TRANSPARENT);
@@ -1504,9 +1623,9 @@ LRESULT CALLBACK DarkTheme::DarkStatusBarProc(HWND hwnd, UINT uMsg, WPARAM wPara
             UINT dtFlags = DT_SINGLELINE | DT_VCENTER;
 
             if (i == partCount - 1)
-                dtFlags |= DT_RIGHT | DT_END_ELLIPSIS;
+                dtFlags |= DT_RIGHT;
             else
-                dtFlags |= DT_LEFT | DT_END_ELLIPSIS;
+                dtFlags |= DT_LEFT;
 
             DrawText(hdc, buf, -1, &rcPart, dtFlags);
         }
@@ -1551,6 +1670,20 @@ void DarkTheme::SubclassAllControls(HWND hWndParent)
     while ((hWndChild = FindWindowEx(hWndParent, hWndChild, "RichEdit", NULL)) != NULL)
     {
         SetWindowSubclass(hWndChild, EditSubclassProc, 0, 0);
+    }
+    
+    hWndChild = NULL;
+    while ((hWndChild = FindWindowEx(hWndParent, hWndChild, "Scintilla", NULL)) != NULL)
+    {
+        SetWindowSubclass(hWndChild, EditSubclassProc, 0, 0);
+    }
+    
+    hWndChild = NULL;
+    while ((hWndChild = FindWindowEx(hWndParent, hWndChild, WC_STATIC, NULL)) != NULL)
+    {
+        if (GetPropW(hWndParent, L"IS_CHOOSECOLOR"))
+            break;
+        SetWindowSubclass(hWndChild, StaticSubclassProc, 0, 0);
     }
 
     hWndChild = NULL;
@@ -1694,7 +1827,10 @@ void DarkTheme::InitDialogOptions(HWND hWnd)
                         {
                             // CHOOSECOLOR dialog
                             if (wcsstr(modPath, L"comdlg32") != nullptr || wcsstr(modPath, L"comdlg32.dll") != nullptr)
+                            {
+                                SetPropW(hWnd, L"IS_CHOOSECOLOR", (HANDLE)1);
                                 break;
+                            }
                         }
                     }
                     SetPropW(hWnd, L"IS_MESSAGEBOX", (HANDLE)1);
@@ -1932,13 +2068,9 @@ BOOL WINAPI DarkTheme::MyGetOpenFileNameA(LPOPENFILENAMEA ofn)
     if (DarkTheme::b_isSelectingGameFolder)
     {
         DarkTheme::b_isSelectingGameFolder = false;
-#ifdef CHINESE
-        ofn->lpstrFilter = "Mix 文件 (ra2md.mix)\0*.mix\0可执行文件 (gamemd.exe)\0*.exe\0所有文件 (*.*)\0*.*\0";
-        ofn->lpstrTitle = "选择文件";
-#else
+
         ofn->lpstrFilter = "Mix Files (ra2md.mix)\0*.mix\0Executable Files (gamemd.exe)\0*.exe\0All Files (*.*)\0*.*\0";
         ofn->lpstrTitle = "Select File";
-#endif
     }
 
     auto filters = ConvertFilter(ofn->lpstrFilter);
@@ -2086,4 +2218,5 @@ void DarkTheme::ExeStart_DrakThemeHooks()
     RunTime::ResetMemoryContentAt(0x5915D4, DarkTheme::MyGetOpenFileNameA);
     RunTime::ResetMemoryContentAt(0x5915DC, DarkTheme::MyGetSaveFileNameA);
     RunTime::ResetMemoryContentAt(0x591364, DarkTheme::MyLoadStringA);
+    //RunTime::ResetMemoryContentAt(0x59155C, DarkTheme::MyGetWindowRect);
 }

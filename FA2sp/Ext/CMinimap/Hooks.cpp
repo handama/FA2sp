@@ -23,7 +23,11 @@ constexpr std::array<BYTE, 256> BrightnessLUT = MakeBrightnessLUT();
 
 DEFINE_HOOK(4D1E34, CMinimap_Update_NOTOPMOST, 7)
 {
+	CFinalSunDlgExt::HasMinimap = true;
+	CFinalSunDlgExt::GetExtension()->CheckToolBarButton(30107, true);
 	CFinalSunDlg::Instance->MyViewFrame.Minimap.SetWindowPos(ppmfc::CWnd::FromHandle(HWND_NOTOPMOST), 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+	::PostMessage(CFinalSunDlg::Instance->MyViewFrame.Minimap, WM_APP + 100, NULL, NULL);
+
 	return 0;
 }
 
@@ -160,12 +164,18 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 		borderRect.right = bottomRight2.x;
 		borderRect.bottom = bottomRight2.y;
 
+		borderRect.left *= CMinimapExt::CurrentScale;
+		borderRect.top *= CMinimapExt::CurrentScale;
+		borderRect.right *= CMinimapExt::CurrentScale;
+		borderRect.bottom *= CMinimapExt::CurrentScale;
+
 		pDC->Draw3dRect(&borderRect, RGB(0, 0, 255), RGB(0, 0, 200));
 	}	
 
 	RECT cr;
 	CRect selRect;
 	CIsoView::GetInstance()->GetWindowRect(&cr);
+	CIsoViewExt::AdaptRectForSecondScreen(&cr);
 
 	auto topLeft = GetMiniMapPos(cr.left, cr.top);
 	auto topRight = GetMiniMapPos(cr.right, cr.top);
@@ -180,6 +190,11 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 	selRect.top = top;
 	selRect.right = right;
 	selRect.bottom = bottom;
+
+	selRect.left *= CMinimapExt::CurrentScale;
+	selRect.top *= CMinimapExt::CurrentScale;
+	selRect.right *= CMinimapExt::CurrentScale;
+	selRect.bottom *= CMinimapExt::CurrentScale;
 
 	pDC->Draw3dRect(&selRect, RGB(200, 0, 0), RGB(120, 0, 0));
 
@@ -208,12 +223,29 @@ DEFINE_HOOK(4D1E70, CMinimap_OnMouseMove, 7)
 		int x = (point.x / resizedXScale) / 2 + CMapData::Instance->Size.Height / 2;
 		int y = (point.y / resizedYScale) + CMapData::Instance->Size.Width / 2;
 
-		pIsoView->MoveTo((x - r.right / 60 / 2) * 60, (y - r.bottom / 30 / 2) * 30);
+		int X = (x - r.right / 60 / 2) * 60;
+		int Y = (y - r.bottom / 30 / 2) * 30;
+
+		RECT wr;
+		pIsoView->GetWindowRect(&wr);
+		CIsoViewExt::AdaptRectForSecondScreen(&wr);
+		X -= wr.left / 2;
+		Y -= wr.top / 2;
+
+		pIsoView->MoveTo(X, Y);
 		pIsoView->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 		pThis->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 	}
 
 	return 0x4D1F57;
+}
+
+DEFINE_HOOK(4D1E4A, CMinimap_OnSysCommand, 5)
+{
+	ShowWindow(CFinalSunDlg::Instance->MyViewFrame.Minimap, SW_HIDE);
+	CFinalSunDlgExt::HasMinimap = false;
+	CFinalSunDlgExt::GetExtension()->CheckToolBarButton(30107, false);
+	return 0x4D1E5B;
 }
 
 //

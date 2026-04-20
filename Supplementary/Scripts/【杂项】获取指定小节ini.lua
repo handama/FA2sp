@@ -24,9 +24,11 @@ for i,sec in pairs(sections) do
 	end
 end
 local section = box2:do_modal()
-local kvps = get_key_value_pairs(section, load_from)
+local kvps = get_ordered_key_value_pairs(section, load_from)
 local output = "输出：\n["..section.."]\n"
-for k,v in pairs(kvps) do
-	output = output..k.."="..v.."\n"
+for _, kv in ipairs(kvps) do
+    local k = kv[1]
+    local v = kv[2]
+    output = output .. k .. "=" .. v .. "\n"
 end
 print(output)

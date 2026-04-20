@@ -5,6 +5,7 @@
 #include "Helpers/MutexHelper.h"
 #include "Helpers/InstructionSet.h"
 #include "Helpers/STDHelpers.h"
+#include "Helpers/WinVer.h"
 #include "Miscs/Palettes.h"
 #include "Miscs/VoxelDrawer.h"
 #include "Miscs/Exception.h"
@@ -18,6 +19,7 @@
 #include <bit>
 #include "Helpers/Translations.h"
 #include "Miscs/DialogStyle.h"
+#include "Helpers/TheaterHelpers.h"
 
 #define ENABLE_VISUAL_STYLE
 static ULONG_PTR ulCookie;
@@ -27,6 +29,7 @@ std::string FA2sp::STDBuffer;
 ppmfc::CString FA2sp::Buffer;
 void* FA2sp::pExceptionHandler = nullptr;
 bool FA2sp::g_VEH_Enabled = true;
+WindowsOSInfo FA2sp::WinInfo = {};
 
 bool ExtConfigs::IsQuitingProgram = false;
 bool ExtConfigs::BrowserRedraw;
@@ -53,6 +56,7 @@ bool ExtConfigs::SortByLabelName_Taskforce;
 bool ExtConfigs::SortByLabelName_Script;
 bool ExtConfigs::NewTriggerPlusID;
 bool ExtConfigs::UseSequentialIndexing;
+bool ExtConfigs::UseSeparateIndexing;
 bool ExtConfigs::AdjustDropdownWidth;
 int ExtConfigs::AdjustDropdownWidth_Factor;
 int ExtConfigs::AdjustDropdownWidth_Max;
@@ -98,6 +102,7 @@ int ExtConfigs::SaveMap_AutoSave_Interval;
 int ExtConfigs::SaveMap_AutoSave_Interval_Real;
 int ExtConfigs::SaveMap_AutoSave_MaxCount;
 bool ExtConfigs::SaveMap_OnlySaveMAP;
+bool ExtConfigs::SaveMap_KeepComments;
 //bool ExtConfigs::SaveMap_MultiPlayOnlySaveYRM;
 //bool ExtConfigs::SaveMap_SinglePlayOnlySaveMAP;
 int ExtConfigs::SaveMap_DefaultPreviewOptionMP;
@@ -112,6 +117,8 @@ bool ExtConfigs::RandomTerrainObjects;
 unsigned int ExtConfigs::MaxVoxelFacing;
 bool ExtConfigs::DDrawInVideoMem;
 bool ExtConfigs::DDrawEmulation;
+bool ExtConfigs::SecondScreenSupport;
+bool ExtConfigs::SecondScreenSupport_INI;
 bool ExtConfigs::NoHouseNameTranslation;
 bool ExtConfigs::BetterHouseNameTranslation;
 bool ExtConfigs::EnableMultiSelection;
@@ -136,9 +143,12 @@ bool ExtConfigs::InfantrySubCell_OccupationBits;
 bool ExtConfigs::PlaceStructureOverlappingCheck;
 bool ExtConfigs::PlaceStructureUpgrades;
 bool ExtConfigs::PlaceStructureUpgradeStrength;
+bool ExtConfigs::PlaceStructurePlaceUpgrade;
 bool ExtConfigs::PlaceTileSkipHide;
+bool ExtConfigs::EnableVeinholeLogic;
 bool ExtConfigs::InitializeMap;
 bool ExtConfigs::ReloadGameFromMapFolder;
+bool ExtConfigs::LoadGameFromMapFolder_OnInit;
 bool ExtConfigs::ArtImageSwap;
 bool ExtConfigs::ExtraRaiseGroundTerrainSupport;
 bool ExtConfigs::ExtendedValidationAres;
@@ -155,6 +165,7 @@ bool ExtConfigs::SkipBrushSizeChangeOnTools;
 bool ExtConfigs::INIEditor_IgnoreTeams;
 bool ExtConfigs::StringBufferStackAllocation = true;
 int ExtConfigs::RangeBound_MaxRange;
+bool ExtConfigs::RangeBound_DrawEllipse;
 int ExtConfigs::SearchCombobox_MaxCount;
 bool ExtConfigs::SearchCombobox_Waypoint;
 bool ExtConfigs::NewTheaterType;
@@ -164,6 +175,8 @@ int ExtConfigs::TreeViewCameo_Size;
 bool ExtConfigs::TreeViewCameo_Display;
 float ExtConfigs::LightingSource[3];
 bool ExtConfigs::UseStrictNewTheater;
+bool ExtConfigs::UseDefaultUnitImage;
+bool ExtConfigs::UseDefaultUnitImage_TechnoAttachment;
 bool ExtConfigs::InGameDisplay_Shadow;
 bool ExtConfigs::InGameDisplay_Shadow_OnGround;
 bool ExtConfigs::InGameDisplay_Deploy;
@@ -174,6 +187,8 @@ bool ExtConfigs::InGameDisplay_AlphaImage;
 bool ExtConfigs::InGameDisplay_Bridge;
 bool ExtConfigs::InGameDisplay_AnimAdjust;
 bool ExtConfigs::InGameDisplay_Cloakable;
+bool ExtConfigs::InGameDisplay_RemapableOverlay;
+bool ExtConfigs::DisplayBridgeOverlay;
 bool ExtConfigs::ObjectBrowser_Ore_RandomPlacement;
 bool ExtConfigs::ObjectBrowser_Ore_ExtraSupport;
 bool ExtConfigs::FlatToGroundHideExtra;
@@ -197,13 +212,19 @@ bool ExtConfigs::EnableDarkMode;
 bool ExtConfigs::EnableDarkMode_Init;
 bool ExtConfigs::EnableDarkMode_DimMap;
 bool ExtConfigs::ShrinkTilesInTileSetBrowser;
+bool ExtConfigs::DisableAutoConnectWall;
 bool ExtConfigs::UTF8Support_InferEncoding = true;
 bool ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
+bool ExtConfigs::GridObjectViewer_LoadEditorCategory;
+bool ExtConfigs::GridObjectViewer_LoadForceSides;
+bool ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory;
 
 CInfantryData ExtConfigs::DefaultInfantryProperty;
 CUnitData ExtConfigs::DefaultUnitProperty;
 CAircraftData ExtConfigs::DefaultAircraftProperty;
 CBuildingData ExtConfigs::DefaultBuildingProperty;
+FMap<bool> ExtConfigs::SupportedFormats;
+int ExtConfigs::OverlayDataLimit;
 
 std::vector<ExtConfigs::DynamicOptions> ExtConfigs::Options;
 
@@ -223,6 +244,9 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ObjectBrowser_Foundation = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Foundation");
 	ExtConfigs::ObjectBrowser_Ore_RandomPlacement = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Ore.RandomPlacement");
 	ExtConfigs::ObjectBrowser_Ore_ExtraSupport = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Ore.ExtraSupport");
+	ExtConfigs::GridObjectViewer_LoadEditorCategory = CINI::FAData->GetBool("ExtConfigs", "GridObjectViewer.LoadEditorCategory", true);
+	ExtConfigs::GridObjectViewer_LoadForceSides = CINI::FAData->GetBool("ExtConfigs", "GridObjectViewer.LoadForceSides", true);
+	ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory = CINI::FAData->GetBool("ExtConfigs", "GridObjectViewer.LoadObjectBrowserCategory", true);
 	ExtConfigs::LoadCivilianStringtable = CINI::FAData->GetBool("ExtConfigs", "LoadCivilianStringtable");
 	ExtConfigs::PasteShowOutlineDefault = CINI::FAData->GetBool("ExtConfigs", "PasteShowOutline");
 	
@@ -235,7 +259,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::TutorialTexts_Viewer = CINI::FAData->GetBool("ExtConfigs", "TutorialTexts.Viewer");
 	ExtConfigs::CloneWithOrderedID = CINI::FAData->GetBool("ExtConfigs", "CloneWithOrderedID", true);
 
-	ExtConfigs::SkipTipsOfTheDay = CINI::FAData->GetBool("ExtConfigs", "SkipTipsOfTheDay", true);
+	ExtConfigs::SkipTipsOfTheDay = CINI::FAData->GetBool("ExtConfigs", "SkipTipsOfTheDay", false);
 	
 	ExtConfigs::SortByTriggerName = CINI::FAData->GetBool("ExtConfigs", "SortByTriggerName");
 	ExtConfigs::SortByLabelName = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName");
@@ -247,6 +271,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::NewTriggerPlusID = CINI::FAData->GetBool("ExtConfigs", "NewTriggerPlusID");
 	ExtConfigs::UseSequentialIndexing = CINI::FAData->GetBool("ExtConfigs", "UseSequentialIndexing");
+	ExtConfigs::UseSeparateIndexing = CINI::FAData->GetBool("ExtConfigs", "UseSeparateIndexing");
 
 	ExtConfigs::AdjustDropdownWidth = CINI::FAData->GetBool("ExtConfigs", "AdjustDropdownWidth");
 	ExtConfigs::AdjustDropdownWidth_Factor = CINI::FAData->GetInteger("ExtConfigs", "AdjustDropdownWidth.Factor", 8);
@@ -308,6 +333,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
 
+	ExtConfigs::OverlayDataLimit = CINI::FAData->GetInteger("ExtConfigs", "OverlayDataLimit", 60);
+	ExtConfigs::OverlayDataLimit = std::clamp(ExtConfigs::OverlayDataLimit, 1, 256);
 	ExtConfigs::UTF8Support_InferEncoding = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.InferEncoding", true);
 	ExtConfigs::UTF8Support_AlwaysSaveAsUTF8 = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.AlwaysSaveAsUTF8");
 
@@ -319,6 +346,8 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::LightingPreview_TintTileSetBrowserView = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.TintTileSetBrowserView");
+	ExtConfigs::UseDefaultUnitImage = CINI::FAData->GetBool("ExtConfigs", "UseDefaultUnitImage");
+	ExtConfigs::UseDefaultUnitImage_TechnoAttachment = CINI::FAData->GetBool("ExtConfigs", "UseDefaultUnitImage.TechnoAttachment");
 	ExtConfigs::UseStrictNewTheater = CINI::FAData->GetBool("ExtConfigs", "UseStrictNewTheater");
 	ExtConfigs::DisableDirectoryCheck = CINI::FAData->GetBool("ExtConfigs", "DisableDirectoryCheck");
 	ExtConfigs::UseNewToolBarCameo = CINI::FAData->GetBool("ExtConfigs", "UseNewToolBarCameo", true);
@@ -331,7 +360,9 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::InGameDisplay_AlphaImage = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AlphaImage", true);
 	ExtConfigs::InGameDisplay_Bridge = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Bridge", true);
 	ExtConfigs::InGameDisplay_AnimAdjust = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AnimAdjust", true);
-	ExtConfigs::InGameDisplay_Cloakable = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Cloakable", false);
+	ExtConfigs::InGameDisplay_Cloakable = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Cloakable");
+	ExtConfigs::InGameDisplay_RemapableOverlay = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.RemapableOverlay");
+	ExtConfigs::DisplayBridgeOverlay = CINI::FAData->GetBool("ExtConfigs", "DisplayBridgeOverlay");
 	ExtConfigs::FlatToGroundHideExtra = CINI::FAData->GetBool("ExtConfigs", "FlatToGroundHideExtra");
 	ExtConfigs::ExtOverlays = CINI::FAData->GetBool("ExtConfigs", "ExtOverlays");
 
@@ -353,12 +384,13 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::RangeBound_MaxRange = CINI::FAData->GetInteger("ExtConfigs", "RangeBound.MaxRange", 50);
 	ExtConfigs::UndoRedoLimit = CINI::FAData->GetInteger("ExtConfigs", "UndoRedoLimit", 64);
 	ExtConfigs::UndoRedo_ShiftPlaceTile = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.ShiftPlaceTile", true);
+	ExtConfigs::RangeBound_DrawEllipse = CINI::FAData->GetBool("ExtConfigs", "RangeBound.DrawEllipse", true);
 	ExtConfigs::UndoRedo_HoldPlaceOverlay = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.HoldPlaceOverlay", true);
 	ExtConfigs::UndoRedo_RecordObjects = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.RecordObjects", true);
 
 	ExtConfigs::UseRGBHouseColor = CINI::FAData->GetBool("ExtConfigs", "UseRGBHouseColor");
 	ExtConfigs::INIEditor_IgnoreTeams = CINI::FAData->GetBool("ExtConfigs", "INIEditor.IgnoreTeams");
-	ExtConfigs::StringBufferStackAllocation = CINI::FAData->GetBool("ExtConfigs", "StringBufferStackAllocation", true);
+	//ExtConfigs::StringBufferStackAllocation = CINI::FAData->GetBool("ExtConfigs", "StringBufferStackAllocation", true);
 
 	ExtConfigs::SaveMap_AutoSave = CINI::FAData->GetBool("ExtConfigs", "SaveMap.AutoSave");
 	ExtConfigs::SaveMap_AutoSave_Interval = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.AutoSave.Interval", 300);
@@ -372,6 +404,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::SaveMap_FileEncodingComment = CINI::FAData->GetBool("ExtConfigs", "SaveMap.FileEncodingComment");
 	ExtConfigs::SaveMap_OnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP");
+	ExtConfigs::SaveMap_KeepComments = CINI::FAData->GetBool("ExtConfigs", "SaveMap.KeepComments");
 	ExtConfigs::SaveMap_PreserveINISorting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.PreserveINISorting");
 	//ExtConfigs::SaveMap_MultiPlayOnlySaveYRM = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveYRM.MultiPlay");
 	//ExtConfigs::SaveMap_SinglePlayOnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP.SinglePlay");
@@ -399,6 +432,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::DDrawInVideoMem = CINI::FAData->GetBool("ExtConfigs", "DDrawInVideoMem", true);
 	ExtConfigs::DDrawEmulation = CINI::FAData->GetBool("ExtConfigs", "DDrawEmulation");
+	ExtConfigs::SecondScreenSupport_INI = CINI::FAData->GetBool("ExtConfigs", "SecondScreenSupport", true);
 
 	ExtConfigs::NoHouseNameTranslation = CINI::FAData->GetBool("ExtConfigs", "NoHouseNameTranslation");
 	ExtConfigs::BetterHouseNameTranslation = CINI::FAData->GetBool("ExtConfigs", "BetterHouseNameTranslation");
@@ -423,9 +457,12 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::PlaceStructureOverlappingCheck = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.OverlappingCheck");
 	ExtConfigs::PlaceStructureUpgrades = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.AutoUpgrade");
 	ExtConfigs::PlaceStructureUpgradeStrength = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.UpgradeStrength");
+	ExtConfigs::PlaceStructurePlaceUpgrade = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.PlaceUpgrade");
 	ExtConfigs::PlaceTileSkipHide = CINI::FAData->GetBool("ExtConfigs", "PlaceTileSkipHide");
+	ExtConfigs::EnableVeinholeLogic = CINI::FAData->GetBool("ExtConfigs", "EnableVeinholeLogic");
 	ExtConfigs::ReloadGameFromMapFolder = CINI::FAData->GetBool("ExtConfigs", "ReloadGameFromMapFolder");
-	ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
+	ExtConfigs::LoadGameFromMapFolder_OnInit = CINI::FAData->GetBool("ExtConfigs", "LoadGameFromMapFolder.OnInit");
+	//ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
 	ExtConfigs::ExtraRaiseGroundTerrainSupport = CINI::FAData->GetBool("ExtConfigs", "ExtraRaiseGroundTerrainSupport");
 	ExtConfigs::ExtendedValidationAres = CINI::FAData->GetBool("ExtConfigs", "ExtendedValidationAres");
 	ExtConfigs::SaveMaps_BetterMapPreview = CINI::FAData->GetBool("ExtConfigs", "SaveMap.BetterMapPreview");
@@ -493,6 +530,13 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DefaultBuildingProperty.AIRepairable = building[15];
 	ExtConfigs::DefaultBuildingProperty.Nominal = building[16];
 
+	auto formats = STDHelpers::SplitString(CINI::FAData->GetString("ExtConfigs", "SupportedFormats", "map,mpr,yrm,mmx,yro"));
+	for (auto& f : formats)
+	{
+		f.MakeLower();
+		ExtConfigs::SupportedFormats[f] = false;
+	}
+
 	ExtConfigs::InitializeMap = false;
 	ExtConfigs::TestNotLoaded = false;
 
@@ -511,6 +555,11 @@ void FA2sp::ExtConfigsInitialize()
 
 	CIsoViewExt::PasteShowOutline = ExtConfigs::PasteShowOutlineDefault;
 
+	TheaterHelpers::InitTheaterSuffix();
+
+	ExtConfigs::SecondScreenSupport =
+		ExtConfigs::SecondScreenSupport_INI
+		&& (GetSystemMetrics(SM_CMONITORS) > 1);
 }
 
 void ExtConfigs::UpdateOptionTranslations()
@@ -533,9 +582,16 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.UseSequentialIndexing", "Always assign the next incremental index when creating triggers"),
+		.DisplayName = Translations::TranslateOrDefault("Options.UseSequentialIndexing", "Always assign the next incremental index when creating triggers and teams"),
 		.IniKey = "UseSequentialIndexing",
 		.Value = &ExtConfigs::UseSequentialIndexing,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.UseSeparateIndexing", "Assign independent suffixes to different types (triggers, teams...)"),
+		.IniKey = "UseSeparateIndexing",
+		.Value = &ExtConfigs::UseSeparateIndexing,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
@@ -635,14 +691,14 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.SafeHouses", "Block invalid houses"),
 		.IniKey = "ObjectBrowser.SafeHouses",
 		.Value = &ExtConfigs::ObjectBrowser_SafeHouses,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.Foundation", "Group buildings by foundation"),
 		.IniKey = "ObjectBrowser.Foundation",
 		.Value = &ExtConfigs::ObjectBrowser_Foundation,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -656,7 +712,28 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.Ore.ExtraSupport", "Support vinifera and aboreus ores"),
 		.IniKey = "ObjectBrowser.Ore.ExtraSupport",
 		.Value = &ExtConfigs::ObjectBrowser_Ore_ExtraSupport,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.GridObjectViewer.LoadEditorCategory", "Classify objects in the object viewer based on their EditCategory"),
+		.IniKey = "GridObjectViewer.LoadEditorCategory",
+		.Value = &ExtConfigs::GridObjectViewer_LoadEditorCategory,
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectViewer
+		});
+	
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.GridObjectViewer.LoadForceSides", "Classify objects in the object viewer based on their ForceSides"),
+		.IniKey = "GridObjectViewer.LoadForceSides",
+		.Value = &ExtConfigs::GridObjectViewer_LoadForceSides,
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectViewer
+		});
+	
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.GridObjectViewer.LoadObjectBrowserCategory", "Classify smudges/terrains/overlays in the object viewer based on their ObjectBrowser group"),
+		.IniKey = "GridObjectViewer.LoadObjectBrowserCategory",
+		.Value = &ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory,
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectViewer
 		});
 
 	// Map Display and Rendering
@@ -727,6 +804,34 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Cloakable", "Display cloakable units translucently"),
 		.IniKey = "InGameDisplay.Cloakable",
 		.Value = &ExtConfigs::InGameDisplay_Cloakable,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.RemapableOverlay", "Display remapble colors of overlays"),
+		.IniKey = "InGameDisplay.RemapableOverlay",
+		.Value = &ExtConfigs::InGameDisplay_RemapableOverlay,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.DisplayBridgeOverlay", "Display invisible bridge overlays in numbers"),
+		.IniKey = "DisplayBridgeOverlay",
+		.Value = &ExtConfigs::DisplayBridgeOverlay,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.UseDefaultUnitImage", "Display default images for vehicles, infantry, aircraft without images"),
+		.IniKey = "UseDefaultUnitImage",
+		.Value = &ExtConfigs::UseDefaultUnitImage,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.UseDefaultUnitImage.TechnoAttachment", "Display default images for techno attachments without images"),
+		.IniKey = "UseDefaultUnitImage.TechnoAttachment",
+		.Value = &ExtConfigs::UseDefaultUnitImage_TechnoAttachment,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
@@ -851,6 +956,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SaveMap.KeepComments", "Keep existing map comments"),
+		.IniKey = "SaveMap.KeepComments",
+		.Value = &ExtConfigs::SaveMap_KeepComments,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SaveMap.PreserveINISorting", "Preserve existing INI section sorting when saving"),
 		.IniKey = "SaveMap.PreserveINISorting",
 		.Value = &ExtConfigs::SaveMap_PreserveINISorting,
@@ -869,6 +981,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "ReloadGameFromMapFolder",
 		.Value = &ExtConfigs::ReloadGameFromMapFolder,
 		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.LoadGameFromMapFolder.OnInit", "Load game resources from map folder when directly open map"),
+		.IniKey = "LoadGameFromMapFolder.OnInit",
+		.Value = &ExtConfigs::LoadGameFromMapFolder_OnInit,
+		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -897,6 +1016,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "PlaceTileSkipHide",
 		.Value = &ExtConfigs::PlaceTileSkipHide,
 		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.EnableVeinholeLogic", "Enable veinhole logic"),
+		.IniKey = "EnableVeinholeLogic",
+		.Value = &ExtConfigs::EnableVeinholeLogic,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -963,12 +1089,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.ArtImageSwap", "Use Image= in art(md).ini (Phobos B25+)"),
-		.IniKey = "ArtImageSwap",
-		.Value = &ExtConfigs::ArtImageSwap,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+	//ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+	//	.DisplayName = Translations::TranslateOrDefault("Options.ArtImageSwap", "Use Image= in art(md).ini (Phobos B25+)"),
+	//	.IniKey = "ArtImageSwap",
+	//	.Value = &ExtConfigs::ArtImageSwap,
+	//	.Type = ExtConfigs::SpecialOptionType::ReloadMap
+	//	});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.AllowIncludes", "Load include INIs (Ares/Phobos B34+)"),
@@ -1086,7 +1212,7 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.PlayerAtXForTechnos", "Show <Player @ X> options in unit property dialog (Phobos B37+)"),
 		.IniKey = "PlayerAtXForTechnos",
 		.Value = &ExtConfigs::PlayerAtXForTechnos,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -1118,9 +1244,23 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.PlaceStructure.PlaceUpgrade", "Upgrades can be directly placed onto buildings"),
+		.IniKey = "PlaceStructure.PlaceUpgrade",
+		.Value = &ExtConfigs::PlaceStructurePlaceUpgrade,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.WeaponRangeBound.SubjectToElevation", "Consider effect of cliff when showing weapon range"),
 		.IniKey = "WeaponRangeBound.SubjectToElevation",
 		.Value = &ExtConfigs::WeaponRangeBound_SubjectToElevation,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.RangeBound.DrawEllipse", "Draw all ranges except for weapons subject to elevation using ellipses"),
+		.IniKey = "RangeBound.DrawEllipse",
+		.Value = &ExtConfigs::RangeBound_DrawEllipse,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
@@ -1197,6 +1337,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SecondScreenSupport", "Support displaying IsoView on non-primary screens (slower)"),
+		.IniKey = "SecondScreenSupport",
+		.Value = &ExtConfigs::SecondScreenSupport_INI,
+		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.DDrawScalingBilinear", "Use bilinear scaling (smoother, but slower)"),
 		.IniKey = "DDrawScalingBilinear",
 		.Value = &ExtConfigs::DDrawScalingBilinear,
@@ -1210,12 +1357,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.StringBufferStackAllocation", "Always allocate CString memory in stack"),
-		.IniKey = "StringBufferStackAllocation",
-		.Value = &ExtConfigs::StringBufferStackAllocation,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+	//ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+	//	.DisplayName = Translations::TranslateOrDefault("Options.StringBufferStackAllocation", "Always allocate CString memory in stack"),
+	//	.IniKey = "StringBufferStackAllocation",
+	//	.Value = &ExtConfigs::StringBufferStackAllocation,
+	//	.Type = ExtConfigs::SpecialOptionType::None
+	//	});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.StrictExceptionFilter", "Use strict exception filter (catch C++ EH exceptions)"),
@@ -1224,6 +1371,18 @@ void ExtConfigs::UpdateOptionTranslations()
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
+	for (auto& f : ExtConfigs::SupportedFormats)
+	{
+		FString foramt = Translations::TranslateOrDefault("Options.BindFormat", "Set FA2 as the default program for %s files");
+		FString text;
+		text.Format(foramt, f.first);
+		ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+			.DisplayName = text,
+			.IniKey = "",
+			.Value = &f.second,
+			.Type = ExtConfigs::SpecialOptionType::BindFormat
+			});
+	}
 }
 
 bool FA2sp::IsDarkMode()
@@ -1307,10 +1466,27 @@ DEFINE_HOOK(537129, ExeRun, 9)
 	Logger::Info(APPLY_INFO);
 	Logger::Wrap(1);
 
+	FA2sp::WinInfo = WindowsOSInfo::GetDetailedWindowsVersion();
+
+	if (!FA2sp::WinInfo.isValid)
+	{
+		Logger::Raw("Failed to get Windows version information\n");
+	}
+	std::string output = FA2sp::WinInfo.friendlyName + " Build " + std::to_string(FA2sp::WinInfo.buildNumber);
+	if (FA2sp::WinInfo.revision > 0)
+	{
+		output += "." + std::to_string(FA2sp::WinInfo.revision);
+	}
+	if (!FA2sp::WinInfo.csdVersion.empty())
+	{
+		output += " " + FA2sp::WinInfo.csdVersion;
+	}
+	Logger::Raw("[Info] Windows version: %s\n", output.c_str());
+
 	Logger::Raw("==============================\nCPU Report:\n%s==============================\n", 
 		InstructionSet::Report().c_str());
 
-	ExtConfigs::AVX2_Support = InstructionSet::AVX2();
+	ExtConfigs::AVX2_Support = InstructionSet::AVX2() && InstructionSet::OSXSAVE();
 
 	if (DetachFromDebugger())
 		Logger::Info("Syringe detached!\n");

@@ -14,13 +14,13 @@ public:
 	enum class TabPage : int
 	{
 		TilesetBrowser = 0,
-		TriggerSort = 1,
-
-		TagSort = 2,
-		TeamSort = 3,
-		TaskforceSort = 4,
-		ScriptSort = 5,
-		WaypointSort = 6,
+		GridObjectViewer = 1,
+		TriggerSort = 2,
+		TagSort = 3,
+		TeamSort = 4,
+		TaskforceSort = 5,
+		ScriptSort = 6,
+		WaypointSort = 7,
 	};
 
 	//
@@ -48,6 +48,7 @@ public:
 	static CTerrainGenerator m_terrainGenerator;
 	static HWND hTabCtrl;
     static bool TerrainDlgLoaded;
+    static CTileSetBrowserView* TileSetBrowserView_Instance;
 };
 
 class TreeViewHelper {
@@ -55,15 +56,16 @@ public:
     struct TreeItemData {
         FString label;
         FString param;
-        TreeItemData(const FString& l, const FString& p) : label(l), param(p) {}
+        bool isParent;
+        TreeItemData(const FString& l, const FString& p, bool is) : label(l), param(p), isParent(is) {}
     };
 
 private:
     static inline std::unordered_map<HWND, std::unordered_map<HTREEITEM, std::unique_ptr<TreeItemData>>> storage;
 
 public:
-    static HTREEITEM InsertTreeItem(HWND hwndTree, const FString& label, const FString& param = "", HTREEITEM hParent = TVI_ROOT) {
-        auto data = std::make_unique<TreeItemData>(label, param);
+    static HTREEITEM InsertTreeItem(HWND hwndTree, const FString& label, const FString& param = "", HTREEITEM hParent = TVI_ROOT, bool isParent = false) {
+        auto data = std::make_unique<TreeItemData>(label, param, isParent);
 
         TVINSERTSTRUCT tvis{};
         tvis.hParent = hParent;

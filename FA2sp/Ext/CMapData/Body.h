@@ -9,6 +9,15 @@
 #include "../../Helpers/FString.h"
 
 #define CUSTOM_TILE_START 100000
+struct TwoPointStruct;
+
+struct LatInfo
+{
+    int SmoothSet;
+    int ClearSet;
+    int LatSet;
+    std::vector<int> IgnoredSets;
+};
 
 struct TerrainGeneratorOverlay
 {
@@ -96,6 +105,8 @@ struct BuildingDataExt
 
     int Width{ 0 };
     int Height{ 0 };
+    int RealWidth{ 0 };
+    int RealHeight{ 0 };
     std::vector<MapCoord>* Foundations{ nullptr };
     std::vector<std::pair<MapCoord, MapCoord>>* LinesToDraw{ nullptr };
     std::vector<POINT> DamageFireOffsets;
@@ -161,7 +172,6 @@ struct BaseNodeDataExt
             House == another.House &&
             ID == another.ID;
     }
-
 };
 
 struct TileAnimation
@@ -173,6 +183,25 @@ struct TileAnimation
     int ZAdjust;
     FString AnimName;
     FString ImageName;
+};
+
+struct TechnoAttachment
+{
+    FString ID;
+    enum YSortPosition : char
+    {
+        Default = 0,
+        Top = 1,
+        Bottom = 2,
+    };
+    YSortPosition YSortPosition;
+    int F;
+    int L;
+    int H;
+    int DeltaX;
+    int DeltaY;
+    unsigned char RotationAdjust;
+    bool IsOnTurret;
 };
 
 struct CellDataExt
@@ -233,6 +262,8 @@ struct CellDataExt
         int Status;
         ImageDataClassSafe* pData;
         Palette* pPal;
+        bool IsBottom;
+        bool hasFire;
     };
     struct BaseNodeRenderPart
     {
@@ -246,6 +277,21 @@ struct CellDataExt
     };
     std::vector<BuildingRenderPart> BuildingRenderParts;
     std::vector<BaseNodeRenderPart> BaseNodeRenderParts;
+
+    // remapable overlay
+    COLORREF RemapableColor = 0x000000ff;
+    int CenterBuildingIndex = -1; 
+    int NearestCenterCellIndex = -1; 
+};
+
+enum class EIndexType : int {
+    Trigger = 0,
+    Tag,
+    Team,
+    Script,
+    TaskForce,
+    AITrigger,
+    Generic
 };
 
 class HistoryRecord {
@@ -274,6 +320,16 @@ public:
     void recover();
 };
 
+struct MeasurementRecord
+{
+    std::vector<TwoPointStruct> TwoPointDistance;
+    MapCoord AxialSymmetryLine[2];
+    MapCoord CentralSymmetryCenter;
+    std::vector<std::pair<MapCoord, MapCoord>> AxialSymmetricPoints;
+    std::vector<std::pair<MapCoord, MapCoord>> CentralSymmetricPoints;
+    std::vector<std::pair<MapCoord, float>> Circles;
+};
+
 class ObjectRecord : public HistoryRecord {
 public:
     enum RecordType : int
@@ -288,7 +344,8 @@ public:
         Tunnel = 0x00000080,
         Waypoint = 0x00000100,
         Celltag = 0x00000200,
-        Annotation = 0x00000400
+        Annotation = 0x00000400,
+        Measurements = 0x00000800,
     };
     int recordFlags = 0;
     int recordedFlages = 0;
@@ -296,13 +353,15 @@ public:
     std::vector<FString> UnitList;
     std::vector<FString> AircraftList;
     std::vector<FString> InfantryList;
-    std::map<FString, FString> TerrainList;
+    FMap<FString> TerrainList;
     std::vector<FString> SmudgeList;
-    std::map<FString, std::vector<FString>> BasenodeList;
+    FMap<std::vector<FString>> BasenodeList;
     std::vector<FString> TunnelList;
-    std::map<FString, FString> WaypointList;
-    std::map<FString, FString> CelltagList;
-    std::map<FString, FString> AnnotationList;
+    FMap<FString> WaypointList;
+    FMap<FString> CelltagList;
+    FMap<FString> AnnotationList;
+    std::vector<EditedMarks> DrawEditedMarkList;
+    std::unique_ptr<MeasurementRecord> MeasurementRecords;
 
     void record(int recordType);
     void appendRecord(int recordType);
@@ -394,11 +453,12 @@ struct CustomTileBlock
     int FrameTileIndex;
     int SubTileIndex;
     int Height;
-    CTileBlockClass* TileBlock;
-    CTileBlockClass* FrameTileBlock;
+    bool HasTileBlock = false;
+    bool HasFrameTileBlock = false;
     void SetTileBlock(int tile, int subtile, int height);
     int GetHeight() const;
     CTileBlockClass* GetDisplayTileBlock();
+    CTileBlockClass* GetTileBlock();
     int GetDisplayTileIndex() const;
 };
 
@@ -429,6 +489,7 @@ public:
     void PackExt(bool UpdatePreview, bool Description);
     static void UnPackExt(CINI& ini, std::vector<IsoMapPack5Entry>& entry);
     // just alter CellData size for lua.restore_snapshot
+    bool ResizeMap_AllocCellData(MapRect* const pRect);
     bool ResizeMapExt(MapRect* const pRect);
     
     enum OreType { Riparius = 0, Cruentus, Vinifera, Aboreus };
@@ -440,14 +501,8 @@ public:
 
     bool IsTileIntact(int x, int y, int startX = -1, int startY = -1, int right = -1, int bottom = -1);
     std::vector<MapCoord> GetIntactTileCoords(int x, int y, bool oriIntact);
-    LandType GetAltLandType(int tileIndex, int TileSubIndex);
-    static inline LandType GetLandType(int tileIndex, int TileSubIndex)
-    {
-        if (tileIndex == 0xFFFF)
-            tileIndex = 0;
-
-        return CMapDataExt::TileData[tileIndex].TileBlockDatas[TileSubIndex].TerrainType;
-    }
+    static LandType GetAltLandType(int tileIndex, int TileSubIndex);
+    static LandType GetLandType(int tileIndex, int TileSubIndex);
     void PlaceTileAt(int X, int Y, int index, int callType = -1);
     void SetHeightAt(int X, int Y, int height);
 
@@ -461,18 +516,27 @@ public:
     static FString AddTrigger(FString id);
     static std::shared_ptr<Trigger> GetTrigger(FString id);
     static void DeleteTrigger(FString id);
-    static void CreateRandomGround(int TopX, int TopY, int BottomX, int BottomY, int scale, std::vector<std::pair<std::vector<int>, float>> tiles, bool override, bool multiSelection, bool onlyClear = false);
-    static void CreateRandomOverlay(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<TerrainGeneratorOverlay>, float>> overlays, bool override, bool multiSelection, bool onlyClear = false);
-    static void CreateRandomTerrain(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<FString>, float>> terrains, bool override, bool multiSelection, bool onlyClear = false);
-    static void CreateRandomSmudge(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<FString>, float>> smudges, bool override, bool multiSelection, bool onlyClear = false);
+    static void ReloadTrigger(const FString& id);
+    static void CreateRandomGround(int TopX, int TopY, int BottomX, int BottomY, 
+        int scale, std::vector<std::pair<std::vector<int>, float>> tiles,
+        bool override, bool multiSelection, bool onlyClear = false, bool ignoreLandType = false);
+    static void CreateRandomOverlay(int TopX, int TopY, int BottomX, int BottomY,
+        std::vector<std::pair<std::vector<TerrainGeneratorOverlay>, float>> overlays,
+        bool override, bool multiSelection, std::vector<MapCoord>& processedTiles, bool onlyClear = false, bool ignoreLandType = false);
+    static void CreateRandomTerrain(int TopX, int TopY, int BottomX, int BottomY,
+        std::vector<std::pair<std::vector<FString>, float>> terrains, 
+        bool override, bool multiSelection, std::vector<MapCoord>& processedTiles, bool onlyClear = false, bool ignoreLandType = false);
+    static void CreateRandomSmudge(int TopX, int TopY, int BottomX, int BottomY,
+        std::vector<std::pair<std::vector<FString>, float>> smudges,
+        bool override, bool multiSelection, bool onlyClear = false, bool ignoreLandType = false);
 
     static unsigned short CurrentRenderBuildingStrength;
     static std::unordered_map<int, BuildingDataExt> BuildingDataExts;
-    static std::unordered_map<FString, int> BuildingTypes;
+    static FHashMap<int> BuildingTypes;
     static std::vector<BuildingRenderData> BuildingRenderDatasFix;
     static std::vector<OverlayTypeData> OverlayTypeDatas;
     static void UpdateFieldStructureData_Optimized();
-    static void UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString value = "");
+    static void UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString value = "", bool refreshCenter = true);
     static void SmoothAll();
     static void SmoothTileAt(int X, int Y, bool gameLAT = false);
     static void CreateSlopeAt(int x, int y, bool IgnoreMorphable = false);
@@ -480,12 +544,9 @@ public:
     static BuildingPowers GetStructurePower(CBuildingData object);
     static BuildingPowers GetStructurePower(ppmfc::CString value);
     static void GetBuildingDataByIniID(int bldID, CBuildingData& data);
-    static inline int GetSafeTileIndex(int idx)
-    {
-        if (idx == 0xFFFF)
-            idx = 0;
-        return idx;
-    }
+    static int GetSafeTileIndex(int idx);
+    static int GetSafeSubTileIndex(int tile, int idx);
+
     // damageStage = -1 means read the target cell overlayData to determine
     static void PlaceWallAt(int dwPos, int overlay, int damageStage = -1, bool firstRun = true);
     static int GetInfantryAt(int dwPos, int dwSubPos = -1);
@@ -494,7 +555,7 @@ public:
     static int GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, int numFacings = 8);
     static int GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord);
     static bool IsValidTileSet(int tileset, bool allowToPlace = true);
-    static ppmfc::CString GetAvailableIndex();
+    static ppmfc::CString GetAvailableIndex(EIndexType type = EIndexType::Generic);
     static void UpdateMapSectionIndicies(const ppmfc::CString& lpSection);
     inline static bool HasAnnotation(int pos)
     {
@@ -562,8 +623,10 @@ public:
     std::string convertToExtendedOverlayPack(const std::string& input);
     std::string convertFromExtendedOverlayPack(const std::string& input);
 
-    void SetNewOverlayAt(int x, int y, WORD ovr);
-    void SetNewOverlayAt(int pos, WORD ovr);
+    void SetNewOverlayAt(int x, int y, WORD ovr, bool smoothOre = true);
+    void SetNewOverlayAt(int pos, WORD ovr, bool smoothOre = true);
+    void SetNewOverlayDataAt(int x, int y, byte ovrd, bool smoothOre = true);
+    void SetNewOverlayDataAt(int pos, byte ovrd, bool smoothOre = true);
     WORD GetOverlayAt(int x, int y);
     WORD GetOverlayAt(int pos);
     static OverlayTypeData GetOverlayTypeData(WORD index);
@@ -584,9 +647,21 @@ public:
     static CustomTile* GetCustomTile(int tileIndex);
     static int GetCustomTileSet(int tileIndex);
     static int GetCustomTileIndex(int tileSet, int tileIndex);
+    static std::vector<TechnoAttachment>* GetTechnoAttachmentInfo(const FString& ID);
+
+    static std::map<int, MapCoord> BuildingCenterCoords;
+    static void RemapableOverlay_RefreshBuildingIndices();
+    static void RemapableOverlay_CheckNeighbor(int currentIdx,
+        int neighborIdx,
+        int& bestCenterCellIdx,
+        int& bestDistSqr);
+    static void RemapableOverlay_AddBuilding(int buildingIndex, const MapCoord& center);
+    static void RemapableOverlay_RemoveBuilding(int buildingIndex);
 
     static int OreValue[4];
-    static std::vector<std::vector<int>> Tile_to_lat;
+    static std::vector<LatInfo> Tile_to_lat;
+    static std::set<int> Lat_releated_sets;
+    static std::map<int, std::vector<int>> Same_Smooth_tile_lats;
     static std::vector<int> TileSet_starts;
 
     static CellDataExt CellDataExt_FindCell;
@@ -608,6 +683,7 @@ public:
     static int BridgeSet;
     static int WoodBridgeSet;
     static int HeightBase;
+    static int ClearSet;
     static Palette Palette_ISO;
     static Palette Palette_ISO_NoTint;
     static Palette Palette_Shadow;
@@ -621,15 +697,17 @@ public:
     static float ConditionYellow;
     static float ConditionRed;
     static bool DeleteBuildingByIniID;
-    static std::unordered_map<FString, std::shared_ptr<Trigger>> Triggers;
+    static FHashMap<std::shared_ptr<Trigger>> Triggers;
     static std::vector<short> StructureIndexMap;
     static std::vector<TubeData> Tubes;
+    static FHashMap<COLORREF> Colors;
     static std::unordered_map<int, TileAnimation> TileAnimations;
     // 0 = tem, 1 = sno, 2 = urban, 3 = newurban, 4 = lunar, 5 = desert
     static std::unordered_map<int, FString> TileSetOriginSetNames[6];
-    static std::unordered_set<FString> TerrainPaletteBuildings;
-    static std::unordered_set<FString> DamagedAsRubbleBuildings;
+    static FHashSet TerrainPaletteBuildings;
+    static FHashSet DamagedAsRubbleBuildings;
     static std::unordered_set<int> RedrawExtraTileSets;
+    static std::unordered_set<int> NoHeightRedrawTileSets;
     static std::unordered_map<int, Palette*> TileSetPalettes;
     static int NewINIFormat;
     static WORD NewOverlay[0x40000];
@@ -642,8 +720,22 @@ public:
     static bool IsUTF8File;
     static bool SkipBuildingOverlappingCheck;
     static std::vector<FString> MapIniSectionSorting;
-    static std::map<FString, std::set<FString>> PowersUpBuildings;
+    static FMap<FSet> PowersUpBuildings;
+    static FSet PowersUpBuildingSet;
+    static bool PlaceStructure_Preview;
+    static std::map<int, BuildingRenderData> PlaceStructure_OldData;
+
     static std::map<int, std::vector<CustomTile>> CustomTiles;
-    static std::map<FString, COLORREF> CustomWaypointColors;
-    static std::map<FString, COLORREF> CustomCelltagColors;
+    static FMap<COLORREF> CustomWaypointColors;
+    static FMap<COLORREF> CustomCelltagColors;
+    static FMap<std::vector<TechnoAttachment>> TechnoAttachments;
+    static FMap<FMap<FString>> MapInlineComments;
+    static FMap<FMap<FString>> MapFrontlineComments;
+    static FMap<FString> MapInsectionComments;
+    static FMap<FString> MapFrontsectionComments;
+    const static std::vector<FString> TechnoStates;
+    static bool IsNewMap;
+    static bool SkipUpdateMinimap;
+    static bool IsImportingMap;
+    static bool Init_OpenMinimap;
 };

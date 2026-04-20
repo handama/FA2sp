@@ -23,13 +23,13 @@ POPUP "File"
 }
 POPUP "Edit"
 {
-	MENUITEM "Undo\tCtrl+Z",  57643
-	MENUITEM "Redo\tCtrl+Y",  57644
+	MENUITEM "Undo\tCtrl+Z",  40169
+	MENUITEM "Redo\tCtrl+Y",  40170
 	MENUITEM SEPARATOR
-	MENUITEM "Copy\tCtrl+C",  57634
-	MENUITEM "Cut\tCtrl+X",  40166
+	MENUITEM "Copy\tCtrl+C",  40171
+	MENUITEM "Cut\tCtrl+X",  40172
 	MENUITEM "Copy whole map",  40109
-	MENUITEM "Paste\tCtrl+V",  57637
+	MENUITEM "Paste\tCtrl+V",  40173
 	MENUITEM "Paste centered",  40110
 	MENUITEM SEPARATOR
 	MENUITEM "Map\tCtrl+M",  40040
@@ -40,6 +40,7 @@ POPUP "Edit"
 	MENUITEM "Houses\tCtrl+H",  40039
 	MENUITEM SEPARATOR
 	MENUITEM "Trigger editor\tCtrl+R",  40151
+	MENUITEM "Batch trigger editor\tCtrl+Alt+R",  40168
 	MENUITEM "Tag editor\tCtrl+G",  40042
 	MENUITEM SEPARATOR
 	MENUITEM "Taskforces\tCtrl+T",  40139
@@ -78,7 +79,7 @@ POPUP "Map tools"
 	MENUITEM "Autocreate shores",  40096
 	MENUITEM "Autocreate LAT",  40152
 	MENUITEM "Smoothen water",  40153
-	MENUITEM "Distance ruler",  40163
+	MENUITEM "Measurement toolbox",  40163
 	// MENUITEM "Auto level using cliffs",  40085
 	MENUITEM SEPARATOR
 	MENUITEM "Paint cliff front\tF3",  40092
@@ -100,14 +101,15 @@ POPUP "Map tools"
 POPUP "Options"
 {
 	MENUITEM "Settings",  40004
-	MENUITEM "Show minimap\tF2",  40024
+	MENUITEM "Show Minimap\tF2",  40024
 	// MENUITEM "Easy mode",  40023
 	MENUITEM "Sounds",  40118
 	MENUITEM "Show Building Outline",  40123
-	MENUITEM "Disable AutoShore\tCtrl+A",  40104
-	MENUITEM "Disable AutoLat\tCtrl+L",  40105
+	MENUITEM "Disable Auto Shore\tCtrl+A",  40104
+	MENUITEM "Disable Auto LAT\tCtrl+L",  40105
+	MENUITEM "Disable Auto Connect Wall",  30110
     // MENUITEM "Disable Slope Correction",  40120
-	MENUITEM "Select AutoShore Type",  40157
+	MENUITEM "Select Auto Shore Type",  40157
 	MENUITEM "Show Object View Cameo",  40159
 	MENUITEM "Preferences\tCtrl+Shift+P",  40162
 }
@@ -133,8 +135,8 @@ POPUP "Layers"
 	MENUITEM SEPARATOR
 	MENUITEM "MoneyOnMap\tAlt+3",  30007
 	MENUITEM "Bounds\tAlt+4",  30012
-	MENUITEM "Veterancy\tAlt+6",  30021
-	MENUITEM "Rock Cells\tAlt+5",  30014
+	MENUITEM "Veterancy\tAlt+5",  30021
+	MENUITEM "Rock Cells\tAlt+6",  30014
 	MENUITEM "Shadows\tAlt+7",  30022
 	MENUITEM "AlphaImages\tAlt+8",  30023
 	MENUITEM "Annotations\tAlt+9",  30024
@@ -195,6 +197,6 @@ POPUP "Help"
 	// MENUITEM SEPARATOR
 	MENUITEM "Info",  40006
 	MENUITEM "Credits",  40075
-	// MENUITEM "Tip of the day",  40022
+	MENUITEM "Tip of the day",  40022
 }
 }

@@ -13,30 +13,27 @@
 #include "../Helpers/TheaterHelpers.h"
 #include "../Ext/CFinalSunApp/Body.h"
 #include "../Ext/CLoading/Body.h"
+#include "Hooks.INI.h"
 
 bool StringtableLoader::bLoadRes = false;
 char* StringtableLoader::pEDIBuffer = nullptr;
 wchar_t StringtableLoader::pStringBuffer[0x400] = {};
-std::map<FString, FString> StringtableLoader::CSFFiles_Stringtable;
+FMap<FString> StringtableLoader::CSFFiles_Stringtable;
 
 FString StringtableLoader::QueryUIName(const char* pRegName, bool bOnlyOneLine)
 {
-    MultimapHelper mmh;
-    mmh.AddINI(&CINI::Rules());
-    mmh.AddINI(&CINI::CurrentDocument());
-
-    auto uiname = mmh.GetString(pRegName, "UIName", "");
+    auto uiname = Variables::RulesMap.GetString(pRegName, "UIName", "");
     uiname.MakeLower();
     FString ccstring = "";
     if (uiname != "" && StringtableLoader::CSFFiles_Stringtable.find(uiname) != StringtableLoader::CSFFiles_Stringtable.end())
         ccstring = StringtableLoader::CSFFiles_Stringtable[uiname];
     if (ccstring == "")
-        ccstring = mmh.GetString(pRegName, "Name", "");
+        ccstring = Variables::RulesMap.GetString(pRegName, "Name", "");
     if (ccstring == "")
         ccstring = "MISSING";
 
     if (uiname.Find("nostr:") == 0) {
-        ccstring = mmh.GetString(pRegName, "UIName", "").Mid(6);
+        ccstring = Variables::RulesMap.GetString(pRegName, "UIName", "").Mid(6);
     }
 
     auto lang = FinalAlertConfig::Language + "-";
@@ -137,8 +134,14 @@ void StringtableLoader::LoadCSFFiles()
     };
 
     loadTranslatedCsf("fa2extra.csf");
+    loadTranslatedCsf("fa2extra.llf");
+    loadTranslatedCsf("fa2extra.ecs");
     if (ExtConfigs::LoadCivilianStringtable)
+    {
         loadTranslatedCsf("fa2civilian.csf");
+        loadTranslatedCsf("fa2civilian.llf");
+        loadTranslatedCsf("fa2civilian.ecs");
+    }
 
     if (auto pSection = CINI::FAData->GetSection("ExtraStringtables"))
     {
@@ -178,6 +181,14 @@ bool StringtableLoader::LoadCSFFile(const char* pName, bool fa2path)
                 return true;
             }
         }
+        else if (name.Mid(name.GetLength() - 3) == "INI") {
+            CINIExt ini;
+            ini.LoadINIExt((unsigned char*)pBuffer, dwSize, nullptr, true, true, false);
+            if (ParseINIFile(&ini)) {
+                Logger::Debug("Successfully Loaded file %s.\n", pName);
+                return true;
+            }
+        }
         else {
             if (ParseCSFFile((char*)pBuffer, dwSize)) {
                 Logger::Debug("Successfully Loaded file %s.\n", pName);
@@ -186,6 +197,30 @@ bool StringtableLoader::LoadCSFFile(const char* pName, bool fa2path)
         }
     }
     return false;
+}
+
+bool StringtableLoader::ParseINIFile(CINI* ini)
+{
+    auto itr = ini->Dict.begin();
+    for (size_t i = 0, sz = ini->Dict.size(); i < sz; ++i, ++itr)
+    {
+        auto& label = itr->first;
+        auto& section = itr->second;
+        if (auto firstLine = section.TryGetString("Value"))
+        {
+            FString value = *firstLine;
+            ppmfc::CString nextKey = "ValueLine2";
+            int index = 3;
+            while (auto line = section.TryGetString(nextKey))
+            {
+                nextKey.Format("ValueLine%d", index++);
+                value += "\n";
+                value += *line;
+            }
+            StringtableLoader::CSFFiles_Stringtable[label] = value;
+        }
+    }
+    return true;
 }
 
 bool StringtableLoader::ParseECSFile(std::vector<FString>& ret)

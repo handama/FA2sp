@@ -45,7 +45,7 @@ void CMapValidatorExt::ValidateStructureOverlapping(BOOL& result)
 			const auto splits = STDHelpers::SplitString(Data, 4);
 
 			// In the list, ignore it.
-			if (StructureOverlappingIgnores.count(splits[1].m_pchData))
+			if (StructureOverlappingIgnores.count(splits[1].GetString()))
 				continue;
 
 			const int Index = CMapDataExt::GetBuildingTypeIndex(splits[1]);
@@ -61,7 +61,7 @@ void CMapValidatorExt::ValidateStructureOverlapping(BOOL& result)
 					{
 						MapCoord coord = { X + dx, Y + dy };
 						if (CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
-							Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)].emplace_back(splits[1].m_pchData);
+							Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)].emplace_back(splits[1].GetString());
 					}
 				}
 			}
@@ -71,7 +71,7 @@ void CMapValidatorExt::ValidateStructureOverlapping(BOOL& result)
 				{
 					MapCoord coord = { X + block.Y, Y + block.X };
 					if (CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
-						Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)].emplace_back(splits[1].m_pchData);
+						Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)].emplace_back(splits[1].GetString());
 				}
 			}
 		}
@@ -109,13 +109,13 @@ void CMapValidatorExt::ValidateMissingParams(BOOL& result)
 			ppmfc::CString Format = this->FetchLanguageString(
 				"MV_LogicMissingParams", "%1 - %2 may have a missing param! Please check.");
 			if (section=="Triggers")
-				Format.ReplaceNumString(1, Translations::TranslateOrDefault("Trigger", "Trigger"));
+				Format.ReplaceNumString(1, Translations::TranslateOrDefault("Trigger", "Trigger").c_str());
 			else if (section == "Actions")
-				Format.ReplaceNumString(1, Translations::TranslateOrDefault("Action", "Action"));
+				Format.ReplaceNumString(1, Translations::TranslateOrDefault("Action", "Action").c_str());
 			else if (section == "Events")
-				Format.ReplaceNumString(1, Translations::TranslateOrDefault("Event", "Event"));
+				Format.ReplaceNumString(1, Translations::TranslateOrDefault("Event", "Event").c_str());
 			else if (section == "Tags")
-				Format.ReplaceNumString(1, Translations::TranslateOrDefault("Tag", "Tag"));
+				Format.ReplaceNumString(1, Translations::TranslateOrDefault("Tag", "Tag").c_str());
 
 			for (const auto& [key, value] : pSection->GetEntities())
 			{
@@ -145,11 +145,8 @@ void CMapValidatorExt::ValidateMissingParams(BOOL& result)
 		for (const auto& [key, value] : pSection->GetEntities())
 		{
 			auto atoms = STDHelpers::SplitString(value);
-			if (atoms.size() < 1)
+			if (atoms.empty())
 			{
-				auto tmp = Format;
-				tmp.ReplaceNumString(1, key);
-				InsertStringAsError(tmp);
 				continue;
 			}
 			int number = atoi(atoms[0]);
@@ -174,9 +171,8 @@ void CMapValidatorExt::ValidateMissingParams(BOOL& result)
 			auto atoms = STDHelpers::SplitString(value);
 			auto tmp = Format;
 			tmp.ReplaceNumString(1, key);
-			if (atoms.size() < 1)
+			if (atoms.empty())
 			{
-				InsertStringAsError(tmp);
 				continue;
 			}
 			int number = atoi(atoms[0]);
@@ -285,8 +281,9 @@ void CMapValidatorExt::ValidateLoopTrigger_loop(ppmfc::CString attachedTrigger)
 void CMapValidatorExt::ValidateLoopTrigger(BOOL& result)
 {
 	ppmfc::CString Format1 = this->FetchLanguageString(
-		"MV_ValidateLoopTrigger", "Trigger - %1 is in a loop of attached trigger£¡This will make game stuck.");
+		"MV_ValidateLoopTrigger", "Trigger - %1 is in a loop of attached trigger! This will make game stuck.");
 
+	LoopedTriggers.clear();
 	if (auto pSection = CMapData::Instance->INI.GetSection("Triggers"))
 	{
 		for (auto& pair : pSection->GetEntities())
@@ -417,10 +414,10 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 	ppmfc::CString Format2 = this->FetchLanguageString(
 		"MV_ValidateEmptyTeamTriggerAction", "Action - %1 has wrong Team params! Please check.");
 
-	auto getLoadSectionName = [](ppmfc::CString index) {
+	auto getLoadSectionName = [](const ppmfc::CString& index) {
 			ppmfc::CString result = "";
 			if (atoi(index) < 500)
-				return result;
+				return index;
 			if (auto pSectionNewParamTypes = CINI::FAData().GetSection("NewParamTypes"))
 			{
 				auto atoms3 = STDHelpers::SplitString(CINI::FAData().GetString("NewParamTypes", index), 4);
@@ -428,6 +425,10 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 			}
 			return result;
 		};
+	auto isTeam = [](const ppmfc::CString& param)
+	{
+		return param == "15" || param == "TeamTypes";
+	};
 	auto teamExists = [](ppmfc::CString team) {
 			if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes")) {
 				for (auto& pair : pSection->GetEntities()) {
@@ -455,12 +456,12 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 			FString thisTeam = "-1";
 			if (thisEvent.Params[0] == "2")
 			{
-				if (getLoadSectionName(pParamTypes[0][1]) == "TeamTypes")
+				if (isTeam(getLoadSectionName(pParamTypes[0][1])))
 				{
 					thisTeam = thisEvent.Params[1];
 					if (!teamExists(thisTeam)) addEvent = true;
 				}
-				if (getLoadSectionName(pParamTypes[1][1]) == "TeamTypes")
+				if (isTeam(getLoadSectionName(pParamTypes[1][1])))
 				{
 					thisTeam = thisEvent.Params[2];
 					if (!teamExists(thisTeam)) addEvent = true;
@@ -468,7 +469,7 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 			}
 			else
 			{
-				if (getLoadSectionName(pParamTypes[1][1]) == "TeamTypes")
+				if (isTeam(getLoadSectionName(pParamTypes[1][1])))
 				{
 					thisTeam = thisEvent.Params[1];
 					if (!teamExists(thisTeam)) addEvent = true;
@@ -498,7 +499,7 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 			for (int i = 0; i < 6; i++)
 			{
 				auto& param = pParamTypes[i];
-				if (getLoadSectionName(param[1]) == "TeamTypes")
+				if (isTeam(getLoadSectionName(param[1])))
 				{
 					thisTeam = thisAction.Params[i];
 					if (!teamExists(thisTeam)) addAction = true;

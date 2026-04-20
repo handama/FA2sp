@@ -162,7 +162,7 @@ bool Translations::GetTranslationItem(const char* pLabelName, FString& ret)
     return false;
 }
 
-const char* Translations::TranslateOrDefault(const char* lpLabelName, const char* lpDefault)
+FString Translations::TranslateOrDefault(const char* lpLabelName, const char* lpDefault)
 {
     for (const auto& language : Translations::pLanguage)
     {
@@ -171,14 +171,13 @@ const char* Translations::TranslateOrDefault(const char* lpLabelName, const char
             auto itr = section->GetEntities().find(lpLabelName);
             if (itr != section->GetEntities().end())
             {
-                ppmfc::CString buffer = itr->second;
+                FString buffer = itr->second;
                 buffer.Replace("\\n", "\n");
                 buffer.Replace("\\t", "\t");
                 buffer.Replace("\\r", "\r");
                 TranslateStringVariables(9, buffer, __str(PROGRAM_TITLE));
                 return buffer;
-            }
-                
+            }               
         }
     }
 
@@ -413,25 +412,6 @@ DEFINE_HOOK(4F0E1A, CTerrainDlg_Update_SetTileName, 8)
         name = CINI::FALanguage().TryGetString(lang + "RenameID", Translations::CurrentTileSet);
     }
 
-    if (name) {
-        R->EAX(name);
-    }
-    return 0;
-}
-
-DEFINE_HOOK(4F1620, CTerrainDlg_Update_SetOverlayName, 8)
-{
-    GET(int, index, ESI);
-    auto lang = FinalAlertConfig::Language + "-";
-    auto theater = TheaterHelpers::GetCurrentSuffix();
-    theater.MakeUpper();
-    theater = "RenameID" + theater;
-    const auto ovrID = Variables::RulesMap.GetValueAt("OverlayTypes", index);
-    auto name = CINI::FALanguage().TryGetString(lang +  theater, ovrID);
-    if (!name) {
-        name = CINI::FALanguage().TryGetString(lang + "RenameID", ovrID);
-    }
-    
     if (name) {
         R->EAX(name);
     }

@@ -3,6 +3,7 @@
 #include <CLoading.h>
 #include "../FA2Expand.h"
 #include "../../FA2sp/Helpers/FString.h"
+#include "../../FA2sp/Helpers/TheaterHelpers.h"
 #include <CShpFile.h>
 #include <CMapData.h>
 #include <vector>
@@ -24,6 +25,7 @@ class NOVTABLE ImageDataClassSafe
 public:
 
 	std::unique_ptr<unsigned char[]> pImageBuffer; // draw from here, size = FullWidth*FullHeight
+	std::unique_ptr<unsigned char[]> pOpacity;
 
 	struct ValidRangeData
 	{
@@ -50,6 +52,16 @@ public:
 		short LeftOffset;
 	};
 	BuildingClipOffset ClipOffsets;
+	bool IsEmptyImage;
+
+	static inline bool IsVisibleImage(const ImageDataClassSafe* pData)
+	{
+		return pData && pData->pImageBuffer && !pData->IsEmptyImage;
+	}
+	static inline bool IsValidImage(const ImageDataClassSafe* pData)
+	{
+		return pData && pData->pImageBuffer;
+	}
 };
 
 class NOVTABLE ImageDataClassSurface
@@ -59,6 +71,13 @@ public:
 	short FullWidth;
 	short FullHeight;
 	ImageDataFlag Flag;
+};
+
+struct InsigniaGrid
+{
+	FString Rookie;
+	FString Veteran;
+	FString Elite;
 };
 
 class NOVTABLE CLoadingExt : public CLoading
@@ -79,14 +98,17 @@ public:
 
 	bool InitMixFilesFix();
 	static bool IsObjectLoaded(const FString& pRegName);
+	static bool IsObjectPreviewLoaded(const FString& pRegName);
 	static bool IsSurfaceObjectLoaded(const FString& pRegName);
 	static bool IsOverlayLoaded(const FString& pRegName);
 
 	void LoadObjects(const FString& pRegName);
+	bool ReLoadObjectOrOverlay(const FString& pRegName);
 	void LoadOverlay(const FString& pRegName, int nIndex);
 	
 	// except buildings
 	static FString GetImageName(const FString& ID, int nFacing, bool bShadow = false, bool bDeploy = false, bool bWater = false);
+	static FString GetAlphaImageName(const FString& ID, int nRawFacing, int nAvaFacing);
 	static FString GetOverlayName(WORD ovr, BYTE ovrd, bool bShadow = false);
 	// only buildings
 	enum
@@ -94,6 +116,17 @@ public:
 		GBIN_NORMAL,
 		GBIN_RUBBLE,		
 		GBIN_DAMAGED,
+		GBIN_GARRISONDAMAGED,
+	};
+	enum class ObjectType {
+		Unknown = -1,
+		Infantry = 0,
+		Vehicle = 1,
+		Aircraft = 2,
+		Building = 3,
+		Terrain = 4,
+		Smudge = 5,
+		Overlay = 6
 	};
 	static FString GetBuildingImageName(FString ID, int nFacing, int state, bool bShadow = false);
 	
@@ -109,13 +142,17 @@ public:
 	static bool LoadShpToBitmap(ImageDataClass* pData, CBitmap& outBitmap);
 	static void LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** ppBuffer, const ShapeHeader& header);
 	static void LoadBitMap(FString ImageID, const CBitmap& cBitmap);
+	static bool ReplaceBitmapColor(CBitmap& bitmap,COLORREF oldColor,COLORREF newColor);
 	void SetImageDataSafe(unsigned char* pBuffer, FString NameInDict,
 		int FullWidth, int FullHeight, Palette* pPal, bool clip = true);
 	ImageDataClassSafe* SetBuildingImageDataSafe(unsigned char* pBuffer, FString NameInDict,
-		int FullWidth, int FullHeight, Palette* pPal);
+		int FullWidth, int FullHeight, Palette* pPal, unsigned char* pAlphaBuffer);
 	void SetImageData(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
 	// returns the mix index, -1 for in folder / pack, -2 for not found
 	int HasFileMix(FString filename, int nMix = -114);
+	int SearchFileExt(const FString& filename, bool debugLog = true);
+	// 0 1 2
+	static InsigniaGrid GetInsignia(const FString& ID);
 
 	static int GetITheaterIndex()
 	{
@@ -136,14 +173,65 @@ public:
 			return 0;
 		}
 	}
+	ppmfc::CString GetFileExtension()
+	{
+		auto& list = TheaterHelpers::GetFileTheaterSuffix();
+		ppmfc::CString ret = ".";
+		ret += list[this->TheaterIdentifier];
+		if (ret != ".")
+		{
+			return ret;
+		}
+
+		switch (this->TheaterIdentifier)
+		{
+		case 'A':
+			return ".sno";
+		case 'U':
+			return ".urb";
+		case 'N':
+			return ".ubn";
+		case 'D':
+			return ".des";
+		case 'L':
+			return ".lun";
+		case 'T':
+		default:
+			return ".tem";
+		}
+	}
+	ppmfc::CString GetTheaterSuffix()
+	{
+		auto& list = TheaterHelpers::GetFileTheaterSuffix();
+		ppmfc::CString ret = list[this->TheaterIdentifier];
+		if (!ret.IsEmpty())
+		{
+			return ret;
+		}
+
+		switch (this->TheaterIdentifier)
+		{
+		case 'A':
+			return "SNO";
+		case 'U':
+			return "URB";
+		case 'N':
+			return "UBN";
+		case 'D':
+			return "DES";
+		case 'L':
+			return "LUN";
+		case 'T':
+		default:
+			return "TEM";
+		}
+	}
 	// mode 0 = vanilla YR, mode 1 = Ares
 	void SetTheaterLetter(FString& string, int mode = 1);
 	void SetGenericTheaterLetter(FString& string);
-
-
 private:
 	static FString* __cdecl GetDictName(FString* ret, const char* ID, int nFacing) { JMP_STD(0x475450); }
-	static FString GetDictName(FString ID, int nFacing)
+	static FString GetDictName(const FString& ID, int nFacing)
 	{
 		FString buffer;
 		GetDictName(&buffer, ID, nFacing);
@@ -151,65 +239,74 @@ private:
 	}
 	static bool IsBarrelInFront(int curFacing, int totFacing);
 
-	void LoadBuilding(FString ID);
-	void LoadBuilding_Normal(FString ID);
-	void LoadBuilding_Rubble(FString ID);
-	void LoadBuilding_Damaged(FString ID, bool loadAsRubble = false);
-	void ClipAndLoadBuilding(FString ID, FString ImageID, unsigned char* pBuffer, int width, int height, Palette* palette);
+	void LoadBuilding(const FString& ID);
+	void LoadBuilding_Normal(const FString& ID, bool loadAsGarrisonDamaged = false);
+	void LoadBuilding_Rubble(const FString& ID);
+	void LoadBuilding_Damaged(const FString& ID, bool loadAsRubble = false);
+	void ClipAndLoadBuilding(const FString& ID, const FString& ImageID, unsigned char* pBuffer,
+		int width, int height, Palette* palette, unsigned char*& pAlphaBuffer);
 	static unsigned char* ClipImageHorizontal(const unsigned char* pBuffer, int width, int height, int cutLeft, int cutRight, int& outWidth);
 
-	void LoadInfantry(FString ID);
-	void LoadTerrainOrSmudge(FString ID, bool terrain);
-	void LoadVehicleOrAircraft(FString ID);
+	void LoadInfantry(const FString& ID);
+	void LoadTerrainOrSmudge(const FString& ID, bool terrain);
+	void LoadVehicleOrAircraft(const FString& ID);
+	void LoadInsignia(const FString& ID);
+	void LoadAlphaImage(const FString& ID, CLoadingExt::ObjectType type);
 
 	void SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void SetImageData(unsigned char* pBuffer, ImageDataClass* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void ShrinkSHP(unsigned char* pIn, int InWidth, int InHeight, unsigned char*& pOut, int* OutWidth, int* OutHeight);
 	void UnionSHP_Add(unsigned char* pBuffer, int Width, int Height, int DeltaX = 0, int DeltaY = 0,
-		bool UseTemp = false, bool bShadow = false, int ZAdjust = 0, int YSort = 0, bool MainBody = false);
+		bool UseTemp = false, bool bShadow = false, int ZAdjust = 0, int YSort = 0, bool MainBody = false,
+		unsigned char Opacity = 255, bool Remapable = true);
 	void UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth, int* OutHeight,
-		bool UseTemp = false, bool bShadow = false, bool bSort = false);
+		bool UseTemp = false, bool bShadow = false, bool bSort = false, unsigned char** pOutAlphaBuffer = nullptr,
+		Palette* pPal = nullptr);
 	void VXL_Add(unsigned char* pCache, int X, int Y, int Width, int Height, bool shadow = false);
 	void VXL_GetAndClear(unsigned char*& pBuffer, int* OutWidth, int* OutHeight, bool shadow = false);
 	
 	void SetValidBuffer(ImageDataClass* pData, int Width, int Height);
 	void SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int Height);
-	void TrimImageEdges(ImageDataClassSafe* pData);
+	void TrimImageEdges(ImageDataClassSafe* pData, bool shadow);
 	void ScaleImageHalf(ImageDataClassSafe* pData);
-	void TrimImageEdges(unsigned char*& pBuffer, int& width, int& height);
+	void TrimImageEdges(unsigned char*& pBuffer, int& width, int& height, unsigned char** pSecondBuffer = nullptr);
 
 	int ColorDistance(const ColorStruct& color1, const ColorStruct& color2); 
+	int ColorDistance(const BGRStruct& color1, const BGRStruct& color2);
 	std::vector<int> GeneratePalLookupTable(Palette* first, Palette* second);
+	bool AreColorsVeryClose(const BGRStruct& a, const BGRStruct& b);
+	Palette* CreateBalancedPalette(const Palette* palA, const Palette* palB);
+	void RemapImagePalette(unsigned char* pBuffer, int width, int height,
+		const Palette* oldPalette, const Palette* newPalette, bool remapable);
 
 public:
-	enum class ObjectType{
-		Unknown = -1,
-		Infantry = 0,
-		Vehicle = 1,
-		Aircraft = 2,
-		Building = 3,
-		Terrain = 4,
-		Smudge = 5
-	};
-
-	static FString GetArtID(FString ID);
-	FString GetVehicleOrAircraftFileID(FString ID);
-	FString GetTerrainOrSmudgeFileID(FString ID);
-	FString GetBuildingFileID(FString ID);
-	FString GetInfantryFileID(FString ID);
-	static std::unordered_set<FString> LoadedOverlays;
+	static FString GetArtID(const FString& ID);
+	FString GetVehicleOrAircraftFileID(const FString& ID);
+	FString GetTerrainOrSmudgeFileID(const FString& ID);
+	FString GetBuildingFileID(const FString& ID);
+	FString GetInfantryFileID(const FString& ID);
+	static int GetIFVTurretIndex(const FString& ID);
+	static bool IsPreOccupiedBunker(const FString& ID);
+	static bool IsBioReactor(const FString& ID);
+	static FHashSet LoadedOverlays;
+	static FHashMap<InsigniaGrid> LoadedInsignias;
 	static Palette TempISOPalette;
 	static bool IsLoadingObjectView;
-	static std::unordered_set<FString> SwimableInfantries;
+	static FHashSet SwimableInfantries;
 	ObjectType GetItemType(FString ID);
 	static bool SaveCBitmapToFile(CBitmap* pBitmap, const FString& filePath, COLORREF bgColor);
 	static bool LoadBMPToCBitmap(const FString& filePath, CBitmap& outBitmap);
 	static std::unique_ptr<ImageDataClassSafe> BindClippedImages(const std::vector<std::unique_ptr<ImageDataClassSafe>>& imgs);
 
-	static std::unordered_map<FString, int> AvailableFacings;
-	static std::unordered_set<FString> LoadedObjects;
-	static std::unordered_set<FString> LoadedSurfaceObjects;
-	static std::unordered_set<FString> CustomPaletteTerrains;
+	static FHashMap<int> AvailableFacings;
+	static FHashMap<int> AlphaImageFacings;
+	static FHashSet LoadedObjects;
+	static FHashSet LoadedPreviewObjects;
+	static FHashSet LoadedSurfaceObjects;
+	static FHashSet CustomPaletteTerrains;
+	static FHashMap<int> IFVTurrets;
+	static FHashSet InitialOccupiedBuildings;
+	static FHashMap<int> BioReactors;
 	static std::unordered_set<int> Ra2dotMixes;
 	static int TallestBuildingHeight;
 private:
@@ -225,21 +322,25 @@ private:
 		int DeltaY;
 		int ZAdjust = 0;
 		int YSort = 0;
-		bool MainBody = false;
+		bool MainBody = false; 
+		unsigned char Opacity = 255; 
+		bool Remapable = true; 
 	};
 
 	static std::vector<SHPUnionData> UnionSHP_Data[2];
 	static std::vector<SHPUnionData> UnionSHPShadow_Data[2];
-	static std::unordered_map<FString, ObjectType> ObjectTypes;
+	static FHashMap<ObjectType> ObjectTypes;
 	static unsigned char VXL_Data[0x10000];
 	static unsigned char VXL_Shadow_Data[0x10000];
 
 public:
 	static bool DrawTurretShadow;
-	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CurrentFrameImageDataMap;
-	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> ImageDataMap;
-	static std::unordered_map<FString, std::vector<std::unique_ptr<ImageDataClassSafe>>> BuildingClipsImageDataMap;
-	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSurface>> SurfaceImageDataMap;
+	static FHashMap<std::unique_ptr<ImageDataClassSafe>> CurrentFrameImageDataMap;
+	static FHashMap<std::unique_ptr<ImageDataClassSafe>> ImageDataMap;
+	static FHashMap<std::vector<std::unique_ptr<ImageDataClassSafe>>> BuildingClipsImageDataMap;
+	static FHashMap<std::unique_ptr<ImageDataClassSurface>> SurfaceImageDataMap;
+	static std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CustomFlagMap;
+	static std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CustomCelltagMap;
 	static std::vector<std::unique_ptr<ImageDataClassSafe>> DamageFires;
 	static unsigned int RandomFireSeed;
 	static std::map<unsigned int, MapCoord> TileExtraOffsets;
@@ -251,14 +352,18 @@ public:
 	}
 
 	static bool IsImageLoaded(const FString& name);
-	static ImageDataClassSafe* GetImageDataFromMap(const FString& name);
+	static ImageDataClassSafe* GetImageDataFromMap(const FString& name, 
+		ObjectType type = ObjectType::Unknown, int facing = 0, int totalFacings = 8, bool shadow = false, bool* isDefault = nullptr);
 	static std::vector<std::unique_ptr<ImageDataClassSafe>>& GetBuildingClipImageDataFromMap(const FString& name);
 	static bool IsSurfaceImageLoaded(const FString& name);
 	static ImageDataClassSurface* GetSurfaceImageDataFromMap(const FString& name);
+	static ImageDataClassSurface* GetOrLoadFlagOrCelltagFromMap(COLORREF newColor, bool IsFlag);
 	static int GetAvailableFacing(const FString& ID);
+	static int GetAlphaImageFacing(const FString& ID);
 	static void* ReadWholeFile(const char* filename, DWORD* pDwSize = nullptr, bool fa2path = false);
-	static bool HasFile(ppmfc::CString filename, int nMix = -114);
+	static bool HasFileExt(ppmfc::CString filename, int nMix = -114);
 
+	static FHashSet NotFoundFiles;
 	static std::unordered_map<std::string, std::vector<unsigned char>> g_cache[2];
 	static std::unordered_map<std::string, uint64_t> g_cacheTime[2];
 	static uint64_t g_lastCleanup;
@@ -300,7 +405,7 @@ class ResourcePack
 {
 public:
 	bool load(const FString& filename);
-	std::unique_ptr<uint8_t[]> getFileData(const FString& filename, size_t* out_size = nullptr);
+	std::unique_ptr<uint8_t[]> getFileData(const FString& filename, size_t* out_size = nullptr, bool debugLog = false);
 
 private:
 	std::unordered_map<FString, FileEntry, CaseInsensitiveHash, CaseInsensitiveEqual> index_map;
@@ -321,6 +426,7 @@ public:
 	static ResourcePackManager& instance();
 	bool loadPack(const FString& packPath);
 	std::unique_ptr<uint8_t[]> getFileData(const FString& filename, size_t* out_size = nullptr);
+	bool hasFile(const FString& filename);
 	void clear();
 
 private:

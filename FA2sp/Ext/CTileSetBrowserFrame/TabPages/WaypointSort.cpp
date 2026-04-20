@@ -50,6 +50,7 @@ BOOL WaypointSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
     case TVN_SELCHANGED:
         if (auto data = TreeViewHelper::GetTreeItemData(this->GetHwnd(), lpNmTreeView->itemNew.hItem))
         {
+            if (data->isParent) break;
             auto& pID = data->param;
             bool Success = false;
             if (strlen(pID) && ExtConfigs::InitializeMap)
@@ -66,7 +67,7 @@ BOOL WaypointSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                         }
                     }
                 }
-                if (IsWindowVisible(CNewTrigger::GetHandle()))
+                if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
                 {
                     FString pStr = CINI::CurrentDocument->GetString("Triggers", pID);
                     auto results = FString::SplitString(pStr);
@@ -75,11 +76,11 @@ BOOL WaypointSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                         pStr = results[2];
                         FString tmp = pStr;
                         pStr.Format("%s (%s)", pID, tmp);
-                        auto idx = SendMessage(CNewTrigger::hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)pStr);
+                        auto idx = SendMessage(CNewTrigger::GetFirstValidInstance().hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)pStr);
                         if (idx != CB_ERR)
                         {
-                            SendMessage(CNewTrigger::hSelectedTrigger, CB_SETCURSEL, idx, NULL);
-                            CNewTrigger::OnSelchangeTrigger();
+                            SendMessage(CNewTrigger::GetFirstValidInstance().hSelectedTrigger, CB_SETCURSEL, idx, NULL);
+                            CNewTrigger::GetFirstValidInstance().OnSelchangeTrigger();
                             Success = true;
                         }
                     }

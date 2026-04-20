@@ -34,10 +34,11 @@ HWND CCsfEditor::hSave;
 HWND CCsfEditor::hSetLabel;
 HWND CCsfEditor::hReload;
 HWND CCsfEditor::hApply;
-std::map<FString, FString>& CCsfEditor::CurrentCSFMap = StringtableLoader::CSFFiles_Stringtable;
+FMap<FString>& CCsfEditor::CurrentCSFMap = StringtableLoader::CSFFiles_Stringtable;
 FString CCsfEditor::CurrentSelectedCSF;
 FString CCsfEditor::CurrentSelectedCSFApply;
 bool CCsfEditor::NeedUpdate = false;
+int CCsfEditor::TriggerCaller = 0;
 WNDPROC CCsfEditor::g_pOriginalListViewProc = nullptr;
 
 LRESULT CALLBACK CCsfEditor::ListViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -303,7 +304,6 @@ void CCsfEditor::OnViewerSelectedChange(NMHDR* pNMHDR)
             CurrentSelectedCSFApply = "";
         }
     }
-    
 }
 
 void CCsfEditor::OnClickApply()
@@ -311,34 +311,44 @@ void CCsfEditor::OnClickApply()
     if (CurrentSelectedCSFApply == "")
         return;
 
-    if (IsWindowVisible(CNewTrigger::GetHandle()))
+    if (IsWindowVisible(CNewTrigger::Instance[TriggerCaller].GetHandle()) 
+        && CNewTrigger::Instance[TriggerCaller].CurrentCSFActionParam >= 0)
     {
-        if (CNewTrigger::CurrentCSFActionParam >= 0)
-        {
-            FString text;
-            auto it = CurrentCSFMap.find(CurrentSelectedCSFApply);
-            if (it != CurrentCSFMap.end())
-                text.Format("%s - %s", CurrentSelectedCSFApply, CurrentCSFMap[CurrentSelectedCSFApply]);
-            SendMessage(CNewTrigger::hActionParameter[CNewTrigger::CurrentCSFActionParam], WM_SETTEXT, 0, text);
-            CNewTrigger::OnSelchangeActionParam(CNewTrigger::CurrentCSFActionParam, true);
-        }
+        FString text;
+        auto it = CurrentCSFMap.find(CurrentSelectedCSFApply);
+        if (it != CurrentCSFMap.end())
+            text.Format("%s - %s", CurrentSelectedCSFApply, CurrentCSFMap[CurrentSelectedCSFApply]);
+        SendMessage(CNewTrigger::Instance[TriggerCaller].hActionParameter[CNewTrigger::Instance[TriggerCaller].CurrentCSFActionParam], WM_SETTEXT, 0, text);
+        CNewTrigger::Instance[TriggerCaller].OnSelchangeActionParam(CNewTrigger::Instance[TriggerCaller].CurrentCSFActionParam, true);
+    }
+    else if (IsWindowVisible(CNewTrigger::Instance[!TriggerCaller].GetHandle())
+        && CNewTrigger::Instance[!TriggerCaller].CurrentCSFActionParam >= 0)
+    {
+        FString text;
+        auto it = CurrentCSFMap.find(CurrentSelectedCSFApply);
+        if (it != CurrentCSFMap.end())
+            text.Format("%s - %s", CurrentSelectedCSFApply, CurrentCSFMap[CurrentSelectedCSFApply]);
+        SendMessage(CNewTrigger::Instance[!TriggerCaller].hActionParameter[CNewTrigger::Instance[!TriggerCaller].CurrentCSFActionParam], WM_SETTEXT, 0, text);
+        CNewTrigger::Instance[!TriggerCaller].OnSelchangeActionParam(CNewTrigger::Instance[!TriggerCaller].CurrentCSFActionParam, true);
+    }
 
-    } 
 }
 
-void CCsfEditor::InsertCSFContent(std::map<FString, FString> csfMap)
+void CCsfEditor::InsertCSFContent(FMap<FString> csfMap)
 {
     SendMessage(hCSFViewer, LVM_DELETEALLITEMS, 0, 0);
     while (SendMessage(hCSFViewer, LVM_DELETECOLUMN, 0, 0)) {}
 
     LVCOLUMN lvColumn = { 0 };
     lvColumn.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
-    lvColumn.pszText = const_cast<LPSTR>(Translations::TranslateOrDefault("CsfEditorColumnLabel", "Label"));
+    auto textA = Translations::TranslateOrDefault("CsfEditorColumnLabel", "Label");
+    lvColumn.pszText = const_cast<LPSTR>(textA.c_str());
     lvColumn.cx = 100;
     SendMessage(hCSFViewer, LVM_INSERTCOLUMN, 0, (LPARAM)&lvColumn);
 
     lvColumn.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
-    lvColumn.pszText = const_cast<LPSTR>(Translations::TranslateOrDefault("CsfEditorColumnText", "Text"));
+    auto textB = Translations::TranslateOrDefault("CsfEditorColumnText", "Text");
+    lvColumn.pszText = const_cast<LPSTR>(textB.c_str());
     lvColumn.cx = 400;
     SendMessage(hCSFViewer, LVM_INSERTCOLUMN, 1, (LPARAM)&lvColumn);
 
@@ -373,13 +383,14 @@ void CCsfEditor::InsertCSFContent(std::map<FString, FString> csfMap)
     SendMessage(hCSFViewer, LVM_SETCOLUMNWIDTH, 1, LVSCW_AUTOSIZE_USEHEADER);
 }
 
-void CCsfEditor::FilterRows(std::map<FString, FString> csfMap, const char* searchText)
+void CCsfEditor::FilterRows(FMap<FString> csfMap, const char* searchText)
 {
-    std::map<FString, FString> newCsfMap;
+    FMap<FString> newCsfMap;
 
+    LabelMatcher matcher(searchText);
     for (auto& csf : csfMap) 
     {
-        if (ExtraWindow::IsLabelMatch(csf.first, searchText) || ExtraWindow::IsLabelMatch(csf.second, searchText)) 
+        if (matcher.Match(csf.first) || matcher.Match(csf.second))
         {
             newCsfMap[csf.first] = csf.second;
         }

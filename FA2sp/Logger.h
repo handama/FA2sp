@@ -2,6 +2,7 @@
 
 #include "FA2PP.h"
 #include "../FA2sp/Helpers/FString.h"
+#include <chrono>
 
 class Logger {
 public:
@@ -84,4 +85,24 @@ private:
     static char pBuffer[0x800];
     static FILE* pFile;
     static bool bInitialized;
+};
+
+class ScopedTimer
+{
+public:
+    explicit ScopedTimer(const char* name)
+        : m_name(name), m_start(std::chrono::high_resolution_clock::now())
+    {}
+
+    ~ScopedTimer()
+    {
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration_ms = std::chrono::duration<double, std::milli>(end - m_start).count();
+
+        Logger::Raw("%s took %.3f ms\n", m_name, duration_ms);
+    }
+
+private:
+    const char* m_name;
+    std::chrono::high_resolution_clock::time_point m_start;
 };

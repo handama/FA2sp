@@ -17,24 +17,41 @@
 #include <CMapData.h>
 #include <unordered_set>
 #include <unordered_map>
+class CTechnoDialog;
 
-class NOVTABLE CFinalSunDlgExt : CFinalSunDlg
+struct CheckButtonInfo {
+    HWND hParent;
+    UINT cmdID;
+    int index;
+    bool isChecked;
+    void* pExternalBool;
+};
+
+class NOVTABLE CFinalSunDlgExt : public CFinalSunDlg
 {
 public:
+    static CFinalSunDlgExt* GetExtension()
+    {
+        return reinterpret_cast<CFinalSunDlgExt*>(&CFinalSunDlg::Instance());
+    }
     static void ProgramStartupInit();
 
+    static bool HasMinimap;
     static int CurrentLighting;
     static int SearchObjectType;
     static std::pair<FString, int> SearchObjectIndex;
+    static std::map<UINT, CheckButtonInfo> CheckButtonMap;
+    static std::unique_ptr<CTechnoDialog> TechnoDialog;
 
     static bool CheckProperty_Vehicle(CUnitData data);
     static bool CheckProperty_Aircraft(CAircraftData data);
     static bool CheckProperty_Building(CBuildingData data);
     static bool CheckProperty_Infantry(CInfantryData data);
-
+    static void InitToolbar();
 
     BOOL PreTranslateMessageExt(MSG* pMsg);
     BOOL OnCommandExt(WPARAM wParam, LPARAM lParam);
+    void CheckToolBarButton(UINT dwID, bool check);
 };
 
 class ConnectedTiles
@@ -157,18 +174,18 @@ public:
         SnowSnow = 0, SnowStone, StoneStone, StoneSnow, SnowWater, StoneWater
     };
 
-    enum {
+    enum PropertyBrushTypes{
         Set_Building = 0, Set_Infantry, Set_Vehicle, Set_Aircraft, Set_Count
     };
     enum{
-        RandomRock = 2000, Wall = 2100, WallEnd = 3999, AddOre , ReduceOre
+        RandomRock = 6000, Wall = 6500, WallEnd = 6990, AddOre , ReduceOre
     };
     enum{
         RandomTechno = 9900
     };
 
     enum {
-        RandomTree = 2000
+        RandomTree = 9500
     };
     
     enum {
@@ -204,23 +221,27 @@ public:
         Const_House = 70000, Const_Smudge = 80000, Const_PropertyBrush = 90000,
         Const_InfantrySubCell = 100000, Const_BaseNode = 110000, Const_ViewObjectInfo = 120000,
         Const_MultiSelection = 130000, Const_ConnectedTile = 140000, Const_Annotation = 150000,
-        Const_WPColor = 160001, Const_TagColor = 160002, Const_RemoveWPColor = 160003, Const_RemoveTagColor = 160004
+        Const_WPColor = 160001, Const_TagColor = 160002, Const_RemoveWPColor = 160003, Const_RemoveTagColor = 160004,
+        Const_Track = 160005
     };
     static std::unordered_map<int, ConnectedTileInfo> TreeView_ConnectedTileMap;
     static int CurrentConnectedTileType;
     static int RedrawCalledCount;
     static bool IsOpeningAnnotationDlg;
     static int InsertingOverlayData;
+    static FHashSet IgnoreSet;
+    static FHashSet IgnoreOverlaySet;
 
 private:
     static std::array<HTREEITEM, Root_Count> ExtNodes;
-    static std::unordered_set<FString> IgnoreSet;
-    static std::unordered_set<FString> ForceName;
-    static std::unordered_map<FString, FString> RenameString;
-    static std::unordered_set<FString> ExtSets[Set_Count];
-    static std::unordered_map<FString, int[10]> KnownItem;
-    static std::unordered_map<FString, int> Owners;
-    static std::unordered_set<FString> AddOnceSet;
+    static FHashSet ForceName;
+    static FHashMap<FString> RenameString;
+    static FHashSet ExtSets[Set_Count];
+    static FHashMap<int[10]> KnownItem;
+    static FHashMap<std::vector<int>[10]> MultiLayerItem;
+    static FHashMap<int> Owners;
+    static FHashSet AddOnceSet;
+    static std::vector<int> WallIndices;
     static int AddedItemCount;
     static CImageList m_ImageList;
     static int InsertingTileIndex;
@@ -228,13 +249,18 @@ private:
     static bool InsertingSpecialBitmap;
     static FString InsertingObjectID;
     static CBitmap SpecialBitmap;
-    static std::set<int> InsertedTileSets;
+    static std::set<int> InsertedTileIndices;
 
     HTREEITEM InsertString(const char* pString, DWORD dwItemData = 0, 
         HTREEITEM hParent = TVI_ROOT, HTREEITEM hInsertAfter = TVI_LAST);
     HTREEITEM InsertTranslatedString(const char* pOriginString, DWORD dwItemData = 0,
         HTREEITEM hParent = TVI_ROOT, HTREEITEM hInsertAfter = TVI_LAST);
-    void Redraw_Initialize();
+    void LoadMultiLayers(
+        std::vector<std::vector<int>>& multiLayers,
+        std::map<int, HTREEITEM>& subNodes,
+        std::map<int, FString>& subNodeNames,
+        std::map<std::array<int, 10>, HTREEITEM>& multiSubNodes,
+        int index, int sideLimit, const FString& display);
     void Redraw_MainList();
     void Redraw_Ground();
     void Redraw_Owner();
@@ -256,11 +282,6 @@ private:
     void Redraw_ViewObjectInfo();
     void Redraw_MultiSelection();
     void Redraw_Annotation();
-
-    bool DoPropertyBrush_Building();
-    bool DoPropertyBrush_Infantry();
-    bool DoPropertyBrush_Vehicle();
-    bool DoPropertyBrush_Aircraft();
 
     int PropagateFirstNonZeroIcon(HTREEITEM hItem);
     void UpdateTreeIconsForSubtree(HTREEITEM hItem);
@@ -384,17 +405,26 @@ public:
     static COLORREF WpColor;
     static COLORREF TagColor;
 
+    static std::map<int, FString> TreeViewIndex_Building;
+    static std::map<int, FString> TreeViewIndex_Infantry;
+    static std::map<int, FString> TreeViewIndex_Vehicle;
+    static std::map<int, FString> TreeViewIndex_Aircraft;
+    static std::map<int, FString> TreeViewIndex_Terrain;
+    static std::map<int, FString> TreeViewIndex_Smudge;
+
     void Redraw();
     bool UpdateEngine(int nData);
+    static void Redraw_Initialize();
     static void OnExeTerminate();
     static void InitializeOnUpdateEngine();
     static void ApplyDragFacing(int X, int Y);
     static void ApplyChangeOwner(int X, int Y);
+    static void ApplyTag(int X, int Y, FString tag);
     static void ApplyPropertyBrush(int X, int Y);
-    static void ApplyPropertyBrush_Building(int nIndex);
-    static void ApplyPropertyBrush_Infantry(int nIndex);
-    static void ApplyPropertyBrush_Aircraft(int nIndex);
-    static void ApplyPropertyBrush_Vehicle(int nIndex);
+    static void ApplyPropertyBrush_Building(int nIndex, bool useTechnoDlg = false);
+    static void ApplyPropertyBrush_Infantry(int nIndex, bool useTechnoDlg = false);
+    static void ApplyPropertyBrush_Aircraft(int nIndex, bool useTechnoDlg = false);
+    static void ApplyPropertyBrush_Vehicle(int nIndex, bool useTechnoDlg = false);
     static void ApplyPropertyBrush_Building(CBuildingData& data);
     static void ApplyPropertyBrush_Infantry(CInfantryData& data);
     static void ApplyPropertyBrush_Aircraft(CAircraftData& data);
@@ -415,12 +445,19 @@ public:
     static void BatchAddMultiSelection(int X, int Y, bool add);
     static void SquareBatchAddMultiSelection(int X, int Y, bool add);
     static void Redraw_ConnectedTile(CViewObjectsExt* pThis);
+
+    static bool DoPropertyBrush_Building();
+    static bool DoPropertyBrush_Infantry();
+    static bool DoPropertyBrush_Vehicle();
+    static bool DoPropertyBrush_Aircraft();
     
     static bool IsIgnored(const char* pItem);
 
     static FString QueryUIName(const char* pRegName, bool bOnlyOneLine = true);
 
 public:
+
+    static std::vector<std::vector<int>> GetMultiLayers(const char* pRegName);
     /// <summary>
     /// Guess which type does the item belongs to.
     /// </summary>

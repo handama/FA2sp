@@ -12,6 +12,7 @@
 #include <CObjectDatas.h>
 
 typedef unsigned char byte;
+struct WindowsOSInfo;
 
 #define RIPARIUS_BEGIN 102
 #define RIPARIUS_END 121
@@ -34,6 +35,7 @@ public:
     static bool g_VEH_Enabled;
     static void ExtConfigsInitialize();
     static bool IsDarkMode();
+    static WindowsOSInfo WinInfo;
 };
 
 class ExtConfigs
@@ -64,6 +66,7 @@ public:
     static bool SortByLabelName_Script;
     static bool NewTriggerPlusID;
     static bool UseSequentialIndexing;
+    static bool UseSeparateIndexing;
     static bool AdjustDropdownWidth;
     static int AdjustDropdownWidth_Factor;
     static int AdjustDropdownWidth_Max;
@@ -109,6 +112,7 @@ public:
     static int SaveMap_AutoSave_Interval_Real;
     static int SaveMap_AutoSave_MaxCount;
     static bool SaveMap_OnlySaveMAP;
+    static bool SaveMap_KeepComments;
     //static bool SaveMap_MultiPlayOnlySaveYRM;
     //static bool SaveMap_SinglePlayOnlySaveMAP;
     static int SaveMap_DefaultPreviewOptionMP;
@@ -123,6 +127,8 @@ public:
     static unsigned int MaxVoxelFacing;
     static bool DDrawInVideoMem;
     static bool DDrawEmulation;
+    static bool SecondScreenSupport;
+    static bool SecondScreenSupport_INI;
     static bool NoHouseNameTranslation;
     static bool BetterHouseNameTranslation;
     static bool EnableMultiSelection;
@@ -147,9 +153,12 @@ public:
     static bool PlaceStructureOverlappingCheck;
     static bool PlaceStructureUpgrades;
     static bool PlaceStructureUpgradeStrength;
+    static bool PlaceStructurePlaceUpgrade;
     static bool PlaceTileSkipHide;
+    static bool EnableVeinholeLogic;
     static bool InitializeMap;
     static bool ReloadGameFromMapFolder;
+    static bool LoadGameFromMapFolder_OnInit;
     static bool ArtImageSwap;
     static bool ExtraRaiseGroundTerrainSupport;
     static bool ExtendedValidationAres;
@@ -165,6 +174,7 @@ public:
     static bool SkipBrushSizeChangeOnTools;
     static bool INIEditor_IgnoreTeams;
     static bool StringBufferStackAllocation;
+    static bool RangeBound_DrawEllipse;
     static int RangeBound_MaxRange;
     static int SearchCombobox_MaxCount;
     static bool SearchCombobox_Waypoint;
@@ -175,6 +185,8 @@ public:
     static bool TreeViewCameo_Display;
     static float LightingSource[3];
     static bool UseStrictNewTheater;
+    static bool UseDefaultUnitImage;
+    static bool UseDefaultUnitImage_TechnoAttachment;
     static bool InGameDisplay_Shadow;
     static bool InGameDisplay_Shadow_OnGround;
     static bool InGameDisplay_Deploy;
@@ -185,6 +197,8 @@ public:
     static bool InGameDisplay_Bridge;
     static bool InGameDisplay_AnimAdjust;
     static bool InGameDisplay_Cloakable;
+    static bool InGameDisplay_RemapableOverlay;
+    static bool DisplayBridgeOverlay;
     static bool ObjectBrowser_Ore_RandomPlacement;
     static bool ObjectBrowser_Ore_ExtraSupport;
     static bool FlatToGroundHideExtra;
@@ -207,13 +221,19 @@ public:
     static bool EnableDarkMode;
     static bool EnableDarkMode_Init;
     static bool EnableDarkMode_DimMap;
+    static bool DisableAutoConnectWall;
     static bool ShrinkTilesInTileSetBrowser;
     static bool UTF8Support_InferEncoding;
     static bool UTF8Support_AlwaysSaveAsUTF8;
+    static bool GridObjectViewer_LoadEditorCategory;
+    static bool GridObjectViewer_LoadForceSides;
+    static bool GridObjectViewer_LoadObjectBrowserCategory;
     static CInfantryData DefaultInfantryProperty;
     static CUnitData DefaultUnitProperty;
     static CAircraftData DefaultAircraftProperty;
     static CBuildingData DefaultBuildingProperty;
+    static FMap<bool> SupportedFormats;
+    static int OverlayDataLimit;
 
     enum SpecialOptionType : char
     {
@@ -221,6 +241,9 @@ public:
         Restart = 1,
         ReloadMap = 2,
         SaveMap_Timer = 3,
+        BindFormat = 4,
+        ReloadObjectBrowser = 5,
+        ReloadObjectViewer = 6,
     };
 
     struct DynamicOptions

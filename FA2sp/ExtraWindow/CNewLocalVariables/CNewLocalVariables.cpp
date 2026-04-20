@@ -171,7 +171,7 @@ void CNewLocalVariables::Update()
     ShowWindow(m_hwnd, SW_SHOW);
     SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 
-    while (SendMessage(hVariables, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hVariables);
     if (auto pSection = map.GetSection("VariableNames"))
     {
         int i = 0;

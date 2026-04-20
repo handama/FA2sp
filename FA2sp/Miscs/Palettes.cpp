@@ -15,11 +15,12 @@
 const LightingStruct LightingStruct::NoLighting = { -1,-1,-1,-1,-1,-1 };
 LightingStruct LightingStruct::CurrentLighting;
 
-std::map<FString, Palette*> PalettesManager::OriginPaletteFiles;
+FMap<Palette*> PalettesManager::OriginPaletteFiles;
 std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedPaletteFiles;
 std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedDimmedPaletteFiles;
 std::map<Palette*, std::map<LightingStruct, LightingPalette>> PalettesManager::CalculatedPaletteFilesNoRemap;
 std::list<LightingPalette> PalettesManager::CalculatedObjectPaletteFiles;
+std::vector<Palette*> PalettesManager::CalculatedMixedPalettes;
 Palette* PalettesManager::CurrentIso;
 bool PalettesManager::NeedReloadLighting = false;
 
@@ -32,12 +33,15 @@ void PalettesManager::Release()
             pair.second != Palette::PALETTE_THEATER &&
             pair.second != Palette::PALETTE_LIB)
             GameDelete(pair.second);
+    for (auto& p : PalettesManager::CalculatedMixedPalettes)
+        if (p) GameDelete(p);
 
     PalettesManager::OriginPaletteFiles.clear();
     PalettesManager::CalculatedPaletteFiles.clear();
     PalettesManager::CalculatedPaletteFilesNoRemap.clear();
     PalettesManager::CalculatedDimmedPaletteFiles.clear();
     PalettesManager::CalculatedObjectPaletteFiles.clear();
+    PalettesManager::CalculatedMixedPalettes.clear();
     PalettesManager::NeedReloadLighting = true;
 }
 
@@ -207,17 +211,31 @@ Palette* PalettesManager::GetObjectPalette(Palette* pPal, BGRStruct& color, bool
 Palette* PalettesManager::GetOverlayPalette(Palette* pPal, Cell3DLocation location, int overlay)
 {
     auto& p = PalettesManager::CalculatedObjectPaletteFiles.emplace_back(LightingPalette(*pPal));
-    p.ResetColors();
+
+    if (ExtConfigs::InGameDisplay_RemapableOverlay 
+        && CViewObjectsExt::WallDamageStages.find(overlay) != CViewObjectsExt::WallDamageStages.end())
+    {
+        auto pos = CMapData::Instance->GetCoordIndex(location.X, location.Y);
+        if (pos < CMapDataExt::CellDataExts.size())
+        {
+            BGRStruct color;
+            auto pRGB = reinterpret_cast<ColorStruct*>(&CMapDataExt::CellDataExts[pos].RemapableColor);
+            color.R = pRGB->red;
+            color.G = pRGB->green;
+            color.B = pRGB->blue;
+            p.RemapColors(color);
+        }
+        else
+        {
+            p.ResetColors();
+        }
+    }
+    else
+    {
+        p.ResetColors();
+    }
 
     auto& ret = LightingStruct::CurrentLighting;
-    auto safeColorBtye = [](int x)
-        {
-            if (x > 255)
-                x = 255;
-            if (x < 0)
-                x = 0;
-            return (byte)x;
-        };
 
     if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
     {
@@ -229,15 +247,6 @@ Palette* PalettesManager::GetOverlayPalette(Palette* pPal, Cell3DLocation locati
             p.AdjustLighting(LightingStruct::CurrentLighting, location);
             p.TintColors();
         }   
-    }
-    if (MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y))
-    {
-        for (int i = 0; i < 256; ++i)
-        {
-            p.Colors[i].R = (p.Colors[i].R * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->R) / 3;
-            p.Colors[i].G = (p.Colors[i].G * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->G) / 3;
-            p.Colors[i].B = (p.Colors[i].B * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->B) / 3;
-        }
     }
 
     return p.GetPalette();
@@ -430,8 +439,8 @@ void LightingSourceTint::CalculateMapLamps()
                     const int X = atoi(atoms[4]);
                     const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
 
-                    ls.CenterX = X + DataExt.Height / 2.0f;
-                    ls.CenterY = Y + DataExt.Width / 2.0f;
+                    ls.CenterX = X + DataExt.RealHeight / 2.0f - 0.5f;
+                    ls.CenterY = Y + DataExt.RealWidth / 2.0f - 0.5f;
                     LightingSourcePosition lsp;
                     lsp.X = X;
                     lsp.Y = Y;
@@ -445,6 +454,7 @@ void LightingSourceTint::CalculateMapLamps()
     {
         for (int y = 0; y < CMapData::Instance->MapWidthPlusHeight; ++y)
         {
+            if (!CMapData::Instance->IsCoordInMap(x, y)) continue;
             auto& ret = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(x, y)].Lighting;
             ret.RedTint = 0.0f;
             ret.GreenTint = 0.0f;
@@ -456,9 +466,12 @@ void LightingSourceTint::CalculateMapLamps()
                 float sqY = (y - ls.CenterY) * (y - ls.CenterY);
                 float distanceSquare = sqX + sqY;
 
-                if ((0 < ls.LightVisibility) && (distanceSquare < ls.LightVisibility * ls.LightVisibility / 65536))
+                if ((0 < ls.LightVisibility) && (distanceSquare * 65536 < ls.LightVisibility * ls.LightVisibility))
                 {
-                    float lsEffect = (ls.LightVisibility - 256 * sqrt(distanceSquare)) / ls.LightVisibility;
+                    float distUnits = 256.0f * sqrtf(distanceSquare);
+                    float lsEffect = (ls.LightVisibility > distUnits)
+                        ? (ls.LightVisibility - distUnits) / ls.LightVisibility
+                        : 0.0f;
                     switch (CFinalSunDlgExt::CurrentLighting)
                     {
                         // color doesn't apply in superweapons

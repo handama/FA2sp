@@ -8,6 +8,7 @@
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../Helpers/MultimapHelper.h"
 #include "../../Helpers/FString.h"
+#include "../Common.h"
 
 // A static window class
 class CNewScript
@@ -32,7 +33,9 @@ public:
         ActionParamDes = 1198,
         ActionExtraParamDes = 6303,
         Insert = 6302,
-        SearchReference = 1999
+        RenderPath = 6307,
+        SearchReference = 1999,
+        DragPoint = 2001,
     };
 
     static void Create(CFinalSunDlg* pWnd);
@@ -63,6 +66,7 @@ protected:
     static void OnClickSearchReference(HWND& hWnd);
     static void OnClickMoveupAction(HWND& hWnd, bool reverse);
     static void UpdateActionAndParam(int actionChanged = -1, int listBoxCurChanged = -1, bool changeActionIdx = true);
+    static void UpdateScriptPath();
 
     static void OnCloseupActionType();
     static void OnCloseupScript();
@@ -74,6 +78,10 @@ protected:
     static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static LRESULT CALLBACK ListBoxSubclassProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
     static void ListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam);
+    static LRESULT CALLBACK DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+    static LRESULT CALLBACK DragingDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+
+    static FString GetOneBasedIndex(const FString& key);
 
 private:
     static HWND m_hwnd;
@@ -100,10 +108,12 @@ public:
     static HWND hActionParamDes;
     static HWND hActionExtraParamDes;
     static HWND hInsert;
+    static HWND hRenderPath;
     static HWND hSearchReference;
+    static HWND hDragPoint;
     static FString CurrentScriptID;
-    static std::map<FString, bool> ActionHasExtraParam;
-    static std::map<FString, bool> ActionIsStringParam;
+    static FMap<bool> ActionHasExtraParam;
+    static FMap<bool> ActionIsStringParam;
 private:
     static int SelectedScriptIndex;
     static std::map<int, FString> ScriptLabels;
@@ -115,5 +125,11 @@ private:
     static bool DropNeedUpdate;
     static bool bInsert;
     static WNDPROC OriginalListBoxProc;
+    static WNDPROC OrigDragDotProc;
+    static WNDPROC OrigDragingDotProc;
+    static bool m_dragging;
+    static POINT m_dragOffset;
+    static HWND m_hDragGhost;
+    static TargetHighlighter hl;
 };
 

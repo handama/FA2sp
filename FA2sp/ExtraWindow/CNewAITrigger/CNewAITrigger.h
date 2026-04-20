@@ -207,6 +207,9 @@ public:
     }
     static bool OnEnterKeyDown(HWND& hWnd);
     static void OnSelchangeAITrigger(bool edited = false, int specificIdx = -1);
+    static bool TeamListChanged;
+    static void OnSelchangeTeam(int index, bool edited = false);
+    static void OnDropdownTeam();
 
 protected:
     static void Initialize(HWND& hWnd);
@@ -217,7 +220,6 @@ protected:
     static void OnClickDelAITrigger();
     static void OnClickCloAITrigger();
 
-    static void OnSelchangeTeam(int index, bool edited = false);
     static void OnSelchangeConditionType();
     static void OnSelchangeComparator();
     static void OnSelchangeComparisonObject(bool edited = false);

@@ -280,9 +280,23 @@ BOOL CALLBACK CObjectSearch::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
         return TRUE;
     }
     case 114514:
+        if (CObjectSearch::bWaypoints)
+        {
+            CObjectSearch::UpdateDetailsWaypoint(hwnd);
+            break;
+        }
+        else if (CObjectSearch::bMapCoords)
+        {
+            break;
+        }
         CObjectSearch::OnSearchButtonUp(hwnd);
         break;
-
+    case 114516:
+        CObjectSearch::OnSearchButtonUp(hwnd);
+        break;
+    case 114515:
+        UpdateTypes(hwnd);
+        break;
     }
 
     // Process this message through default handler
@@ -383,26 +397,26 @@ void CObjectSearch::ListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam)
         case LBN_DBLCLK:
             if (CObjectSearch::bTrigger)
             {
-                if (IsWindowVisible(CNewTrigger::GetHandle()))
+                if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
                 {
-                    auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::SelectedTrigger);
+                    auto dlg = GetDlgItem(CNewTrigger::GetFirstValidInstance().GetHandle(), CNewTrigger::Controls::SelectedTrigger);
                     auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)CObjectSearch::ListBoxTexts[SendMessage(hListBox, LB_GETCURSEL, NULL, NULL)]);
                     if (idx == CB_ERR)
                         break;
                     SendMessage(dlg, CB_SETCURSEL, idx, NULL);
-                    CNewTrigger::OnSelchangeTrigger();
+                    CNewTrigger::GetFirstValidInstance().OnSelchangeTrigger();
                 }
             }
             else if (CObjectSearch::bAttachedTrigger)
             {
-                if (IsWindowVisible(CNewTrigger::GetHandle()))
+                if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
                 {
-                    auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::Attachedtrigger);
+                    auto dlg = GetDlgItem(CNewTrigger::GetFirstValidInstance().GetHandle(), CNewTrigger::Controls::Attachedtrigger);
                     auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)CObjectSearch::ListBoxTexts[SendMessage(hListBox, LB_GETCURSEL, NULL, NULL)]);
                     if (idx == CB_ERR)
                         break;
                     SendMessage(dlg, CB_SETCURSEL, idx, NULL);
-                    CNewTrigger::OnSelchangeAttachedTrigger();
+                    CNewTrigger::GetFirstValidInstance().OnSelchangeAttachedTrigger();
                 }
             }
             else if (CObjectSearch::bEvent_Action)
@@ -571,18 +585,19 @@ void CObjectSearch::OnSearchButtonUp(HWND hWnd)
     ShowWindow(m_hwnd, SW_SHOW);
     SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 
-    CObjectSearch::ListBoxIndex = 0;
     CObjectSearch::ListBox_TreeView.clear();
     CObjectSearch::ListBox_Tile.clear();
     CObjectSearch::ListBox_MapCoord.clear();
     CObjectSearch::ListBoxTexts.clear();
     HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
     if (!CObjectSearch::bMapCoords && !CObjectSearch::bWaypoints)
+    {
+        CObjectSearch::ListBoxIndex = 0;
         while (SendMessage(hListBox, LB_DELETESTRING, 0, NULL) != LB_ERR);
+    }
 
     char buffer[256];
     GetDlgItemText(m_hwnd, Input, buffer, 256);
-
 
     if (CObjectSearch::bTreeView)
     {
@@ -597,9 +612,10 @@ void CObjectSearch::OnSearchButtonUp(HWND hWnd)
     }
     else if (CObjectSearch::bTileSet)
     {
+        LabelMatcher matcher(buffer, bExactMatch);
         for (auto& tile : CObjectSearch::Datas)
         {
-            if (CObjectSearch::IsLabelMatch(tile.second, buffer))
+            if (matcher.Match(tile.second))
             {
                 CObjectSearch::UpdateDetailsTile(hWnd, tile.first);
             }
@@ -660,14 +676,14 @@ void CObjectSearch::OnSearchButtonUp(HWND hWnd)
             if (SendMessage(hListBox, LB_GETCOUNT, NULL, NULL) == 1)
                 SendMessage(hListBox, LB_SETCURSEL, 0, NULL);
             if (CObjectSearch::ListBoxTexts.size() == 1)
-                if (IsWindowVisible(CNewTrigger::GetHandle()))
+                if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
                 {
-                    auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::SelectedTrigger);
+                    auto dlg = GetDlgItem(CNewTrigger::GetFirstValidInstance().GetHandle(), CNewTrigger::Controls::SelectedTrigger);
                     auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)CObjectSearch::ListBoxTexts[0]);
                     if (idx == CB_ERR)
                         return;
                     SendMessage(dlg, CB_SETCURSEL, idx, NULL);
-                    CNewTrigger::OnSelchangeTrigger();
+                    CNewTrigger::GetFirstValidInstance().OnSelchangeTrigger();
                 }
         }
         else if (CObjectSearch::bAttachedTrigger)
@@ -676,14 +692,14 @@ void CObjectSearch::OnSearchButtonUp(HWND hWnd)
             if (SendMessage(hListBox, LB_GETCOUNT, NULL, NULL) == 1)
                 SendMessage(hListBox, LB_SETCURSEL, 0, NULL);
             if (CObjectSearch::ListBoxTexts.size() == 1)
-                if (IsWindowVisible(CNewTrigger::GetHandle()))
+                if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
                 {
-                    auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::Attachedtrigger);
+                    auto dlg = GetDlgItem(CNewTrigger::GetFirstValidInstance().GetHandle(), CNewTrigger::Controls::Attachedtrigger);
                     auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)CObjectSearch::ListBoxTexts[0]);
                     if (idx == CB_ERR)
                         return;
                     SendMessage(dlg, CB_SETCURSEL, idx, NULL);
-                    CNewTrigger::OnSelchangeAttachedTrigger();
+                    CNewTrigger::GetFirstValidInstance().OnSelchangeAttachedTrigger();
                 }
         }
         else if (CObjectSearch::bEvent_Action)
@@ -947,32 +963,10 @@ void CObjectSearch::OnSearchButtonUp(HWND hWnd)
 }
 void CObjectSearch::SearchTriggers(HWND hWnd, const char* source)
 {
-    //if (IsWindowVisible(CFinalSunDlg::Instance->TriggerFrame.m_hWnd))
-    //{
-    //    auto& cTrigger = CFinalSunDlg::Instance->TriggerFrame.CCBCurrentTrigger;
-    //    for (int i = 0; i < cTrigger.GetCount(); i++)
-    //    {
-    //        FString strItem;
-    //        cTrigger.GetLBText(i, strItem);
-    //        if (IsLabelMatch(strItem, source))
-    //        {
-    //
-    //            HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
-    //            SendMessage(
-    //                hListBox,
-    //                LB_SETITEMDATA,
-    //                SendMessage(hListBox, LB_INSERTSTRING, CObjectSearch::ListBoxIndex, (LPARAM)(LPCSTR)strItem),
-    //                0
-    //            );
-    //
-    //            CObjectSearch::ListBoxTexts.push_back(strItem);
-    //            CObjectSearch::ListBoxIndex++;
-    //        }
-    //    }
-    //}
-    if (IsWindowVisible(CNewTrigger::GetHandle()))
+    if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
     {
-        auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::SelectedTrigger);
+        LabelMatcher matcher(source, bExactMatch);
+        auto dlg = GetDlgItem(CNewTrigger::GetFirstValidInstance().GetHandle(), CNewTrigger::Controls::SelectedTrigger);
         char buffer[512]{ 0 };
 
         for (int i = 0; i < SendMessage(dlg, CB_GETCOUNT, 0, 0); i++)
@@ -980,7 +974,7 @@ void CObjectSearch::SearchTriggers(HWND hWnd, const char* source)
             FString strItem;
             SendMessage(dlg, CB_GETLBTEXT, i, (LPARAM)buffer);
             strItem = buffer;
-            if (IsLabelMatch(strItem, source))
+            if (matcher.Match(strItem))
             {
 
                 HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
@@ -1002,32 +996,10 @@ void CObjectSearch::SearchTriggers(HWND hWnd, const char* source)
 
 void CObjectSearch::SearchAttachedTriggers(HWND hWnd, const char* source)
 {
-    //if (IsWindowVisible(CFinalSunDlg::Instance->TriggerFrame.m_hWnd) && CFinalSunDlg::Instance->TriggerFrame.TabCtrl.GetCurSel() == 0)
-    //{
-    //    auto& cTrigger = CFinalSunDlg::Instance->TriggerFrame.TriggerOption.CCBAttachedTag;
-    //    for (int i = 0; i < cTrigger.GetCount(); i++)
-    //    {
-    //        FString strItem;
-    //        cTrigger.GetLBText(i, strItem);
-    //        if (IsLabelMatch(strItem, source))
-    //        {
-    //
-    //            HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
-    //            SendMessage(
-    //                hListBox,
-    //                LB_SETITEMDATA,
-    //                SendMessage(hListBox, LB_INSERTSTRING, CObjectSearch::ListBoxIndex, (LPARAM)(LPCSTR)strItem),
-    //                0
-    //            );
-    //
-    //            CObjectSearch::ListBoxTexts.push_back(strItem);
-    //            CObjectSearch::ListBoxIndex++;
-    //        }
-    //    }
-    //}
-    if (IsWindowVisible(CNewTrigger::GetHandle()))
+    if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
     {
-        auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::Attachedtrigger);
+        LabelMatcher matcher(source, bExactMatch);
+        auto dlg = GetDlgItem(CNewTrigger::GetFirstValidInstance().GetHandle(), CNewTrigger::Controls::Attachedtrigger);
         char buffer[512]{ 0 };
 
         for (int i = 0; i < SendMessage(dlg, CB_GETCOUNT, 0, 0); i++)
@@ -1035,7 +1007,7 @@ void CObjectSearch::SearchAttachedTriggers(HWND hWnd, const char* source)
             FString strItem;
             SendMessage(dlg, CB_GETLBTEXT, i, (LPARAM)buffer);
             strItem = buffer;
-            if (IsLabelMatch(strItem, source))
+            if (matcher.Match(strItem))
             {
 
                 HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
@@ -1058,12 +1030,13 @@ void CObjectSearch::SearchEvent_Action(HWND hWnd, const char* source)
 {
     if (IsWindowVisible(CFinalSunDlg::Instance->TriggerFrame.m_hWnd) && CFinalSunDlg::Instance->TriggerFrame.TabCtrl.GetCurSel() == 2)
     {
+        LabelMatcher matcher(source, bExactMatch);
         auto& cTrigger = CFinalSunDlg::Instance->TriggerFrame.TriggerAction.CCBActionType;
         for (int i = 0; i < cTrigger.GetCount(); i++)
         {
             ppmfc::CString strItem;
             cTrigger.GetLBText(i, strItem);
-            if (IsLabelMatch(strItem, source))
+            if (matcher.Match(strItem))
             {
 
                 HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
@@ -1081,12 +1054,13 @@ void CObjectSearch::SearchEvent_Action(HWND hWnd, const char* source)
     }
     else if (IsWindowVisible(CFinalSunDlg::Instance->TriggerFrame.m_hWnd) && CFinalSunDlg::Instance->TriggerFrame.TabCtrl.GetCurSel() == 1)
     {
+        LabelMatcher matcher(source, bExactMatch);
         auto& cTrigger = CFinalSunDlg::Instance->TriggerFrame.TriggerEvent.CCBEventType;
         for (int i = 0; i < cTrigger.GetCount(); i++)
         {
             ppmfc::CString strItem;
             cTrigger.GetLBText(i, strItem);
-            if (IsLabelMatch(strItem, source))
+            if (matcher.Match(strItem))
             {
 
                 HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
@@ -1110,12 +1084,13 @@ void CObjectSearch::SearchTriggerParam(HWND hWnd, const char* source)
 {
     if (IsWindowVisible(CFinalSunDlg::Instance->TriggerFrame.m_hWnd) && CFinalSunDlg::Instance->TriggerFrame.TabCtrl.GetCurSel() == 2)
     {
+        LabelMatcher matcher(source, bExactMatch);
         auto& cTrigger = CFinalSunDlg::Instance->TriggerFrame.TriggerAction.CCBParameters;
         for (int i = 0; i < cTrigger.GetCount(); i++)
         {
             ppmfc::CString strItem;
             cTrigger.GetLBText(i, strItem);
-            if (IsLabelMatch(strItem, source))
+            if (matcher.Match(strItem))
             {
 
                 HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
@@ -1133,12 +1108,13 @@ void CObjectSearch::SearchTriggerParam(HWND hWnd, const char* source)
     }
     else if (IsWindowVisible(CFinalSunDlg::Instance->TriggerFrame.m_hWnd) && CFinalSunDlg::Instance->TriggerFrame.TabCtrl.GetCurSel() == 1)
     {
+        LabelMatcher matcher(source, bExactMatch);
         auto& cTrigger = CFinalSunDlg::Instance->TriggerFrame.TriggerEvent.CCBParameters;
         for (int i = 0; i < cTrigger.GetCount(); i++)
         {
             ppmfc::CString strItem;
             cTrigger.GetLBText(i, strItem);
-            if (IsLabelMatch(strItem, source))
+            if (matcher.Match(strItem))
             {
 
                 HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
@@ -1162,6 +1138,7 @@ void CObjectSearch::SearchTeamType(HWND hWnd, const char* source)
 {
     if (IsWindowVisible(CNewTeamTypes::GetHandle()))
     {
+        LabelMatcher matcher(source, bExactMatch);
         auto dlg = GetDlgItem(CNewTeamTypes::GetHandle(), CNewTeamTypes::Controls::SelectedTeam);
         char buffer[512]{ 0 };
 
@@ -1170,7 +1147,7 @@ void CObjectSearch::SearchTeamType(HWND hWnd, const char* source)
             FString strItem;
             SendMessage(dlg, CB_GETLBTEXT, i, (LPARAM)buffer);
             strItem = buffer;
-            if (IsLabelMatch(strItem, source))
+            if (matcher.Match(strItem))
             {
 
                 HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
@@ -1194,6 +1171,7 @@ void CObjectSearch::SearchTaskForce(HWND hWnd, const char* source)
 {
     if (IsWindowVisible(CNewTaskforce::GetHandle()))
     {
+        LabelMatcher matcher(source, bExactMatch);
         auto dlg = GetDlgItem(CNewTaskforce::GetHandle(), CNewTaskforce::Controls::SelectedTaskforce);
         char buffer[512]{ 0 };
 
@@ -1202,7 +1180,7 @@ void CObjectSearch::SearchTaskForce(HWND hWnd, const char* source)
             FString strItem;
             SendMessage(dlg, CB_GETLBTEXT, i, (LPARAM)buffer);
             strItem = buffer;
-            if (IsLabelMatch(strItem, source))
+            if (matcher.Match(strItem))
             {
 
                 HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
@@ -1220,6 +1198,7 @@ void CObjectSearch::SearchTaskForce(HWND hWnd, const char* source)
     }
     else if (IsWindowVisible(CNewTeamTypes::GetHandle()))
     {
+        LabelMatcher matcher(source, bExactMatch);
         auto dlg = GetDlgItem(CNewTeamTypes::GetHandle(), CNewTeamTypes::Controls::Taskforce);
         char buffer[512]{ 0 };
 
@@ -1228,7 +1207,7 @@ void CObjectSearch::SearchTaskForce(HWND hWnd, const char* source)
             FString strItem;
             SendMessage(dlg, CB_GETLBTEXT, i, (LPARAM)buffer);
             strItem = buffer;
-            if (IsLabelMatch(strItem, source))
+            if (matcher.Match(strItem))
             {
 
                 HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
@@ -1251,6 +1230,7 @@ void CObjectSearch::SearchScript(HWND hWnd, const char* source)
 {
     if (IsWindowVisible(CNewScript::GetHandle()))
     {
+        LabelMatcher matcher(source, bExactMatch);
         auto dlg = GetDlgItem(CNewScript::GetHandle(), CNewScript::Controls::SelectedScript);
         char buffer[512]{ 0 };
 
@@ -1259,7 +1239,7 @@ void CObjectSearch::SearchScript(HWND hWnd, const char* source)
             FString strItem;
             SendMessage(dlg, CB_GETLBTEXT, i, (LPARAM)buffer);
             strItem = buffer;
-            if (IsLabelMatch(strItem, source))
+            if (matcher.Match(strItem))
             {
 
                 HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
@@ -1277,6 +1257,7 @@ void CObjectSearch::SearchScript(HWND hWnd, const char* source)
     }
     else if (IsWindowVisible(CNewTeamTypes::GetHandle()))
     {
+        LabelMatcher matcher(source, bExactMatch);
         auto dlg = GetDlgItem(CNewTeamTypes::GetHandle(), CNewTeamTypes::Controls::Script);
         char buffer[512]{ 0 };
 
@@ -1285,7 +1266,7 @@ void CObjectSearch::SearchScript(HWND hWnd, const char* source)
             FString strItem;
             SendMessage(dlg, CB_GETLBTEXT, i, (LPARAM)buffer);
             strItem = buffer;
-            if (IsLabelMatch(strItem, source))
+            if (matcher.Match(strItem))
             {
 
                 HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
@@ -1324,13 +1305,14 @@ void CObjectSearch::SearchInfoTag(HWND hWnd, const char* source)
     char buffer[512]{ 0 };
     auto hTag = GetDlgItem(propertyDlg, 1083);
     CComboBox& cTrigger = *(CComboBox*)CWnd::FromHandle(hTag);
+    LabelMatcher matcher(source, bExactMatch);
     for (int i = 0; i < cTrigger.GetCount(); i++)
     {
         FString strItem;
         
         cTrigger.GetLBText(i, buffer);
         strItem = buffer;
-        if (IsLabelMatch(strItem, source))
+        if (matcher.Match(strItem))
         {
             HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
             SendMessage(
@@ -1354,13 +1336,13 @@ void CObjectSearch::SearchAITrigger(HWND hWnd, const char* source)
     {
         auto dlg = GetDlgItem(CNewAITrigger::GetHandle(), CNewAITrigger::Controls::SelectedAITrigger);
         char buffer[512]{ 0 };
-
+        LabelMatcher matcher(source, bExactMatch);
         for (int i = 0; i < SendMessage(dlg, CB_GETCOUNT, 0, 0); i++)
         {
             FString strItem;
             SendMessage(dlg, CB_GETLBTEXT, i, (LPARAM)buffer);
             strItem = buffer;
-            if (IsLabelMatch(strItem, source))
+            if (matcher.Match(strItem))
             {
 
                 HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
@@ -1415,10 +1397,11 @@ void CObjectSearch::SearchObjects(HWND hWnd, const char* source)
             std::pair<int, int> location;  //x, y
             if (SearchObjectType == FindType::Terrain)
             {
+                LabelMatcher matcher(source, bExactMatch);
                 for (const auto& terrain : CMapData::Instance->TerrainDatas)
                 {
                     if (terrain.Flag) continue;
-                    if (IsLabelMatch(terrain.TypeID, source)) 
+                    if (matcher.Match(terrain.TypeID))
                     {
                         location.second = terrain.X;
                         location.first = terrain.Y;
@@ -1444,6 +1427,7 @@ void CObjectSearch::SearchObjects(HWND hWnd, const char* source)
                 if (auto pSection = CMapData::Instance->INI.GetSection(section))
                 {
                     int index = -1;
+                    LabelMatcher matcher(source, bExactMatch);
                     for (auto& pair : pSection->GetEntities())
                     {
                         index++;
@@ -1462,7 +1446,7 @@ void CObjectSearch::SearchObjects(HWND hWnd, const char* source)
 
                         FString name;
 
-                        name = StringtableLoader::QueryUIName(pID);
+                        name = CViewObjectsExt::QueryUIName(pID, true);
                         if (name == "MISSING")
                             name = Variables::RulesMap.GetString(pID, "Name", pID);
                         if (name != pID) {
@@ -1470,10 +1454,10 @@ void CObjectSearch::SearchObjects(HWND hWnd, const char* source)
                             name.Format("%s (%s)", tmp, pID);
                         }
 
-                        if (IsLabelMatch(name, source)) {
+                        if (matcher.Match(name)) {
                             met = true;
                         }
-                        else if (pTag != "None" && IsLabelMatch(pTag, source)) {
+                        else if (pTag != "None" && matcher.Match(pTag)) {
                             tagMet = true;
                             met = true;
                         }
@@ -1564,7 +1548,7 @@ HTREEITEM CObjectSearch::FindLabel(HWND hWnd, HTREEITEM hItemParent, LPCSTR pszL
     TVITEM tvi;
     char chLabel[0x200] = { 0 };
     auto cViewObjects = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->m_hWnd;
-
+    LabelMatcher matcher(pszLabel, bExactMatch);
     for (tvi.hItem = TreeView_GetChild(cViewObjects, hItemParent); tvi.hItem;
         tvi.hItem = TreeView_GetNextSibling(cViewObjects, tvi.hItem))
     {
@@ -1579,7 +1563,7 @@ HTREEITEM CObjectSearch::FindLabel(HWND hWnd, HTREEITEM hItemParent, LPCSTR pszL
             }
             else
             {
-                if (CObjectSearch::IsLabelMatch(tvi.pszText, pszLabel))
+                if (matcher.Match(tvi.pszText))
                     CObjectSearch::UpdateDetailsTreeView(hWnd, tvi);
             }
         }
@@ -1635,6 +1619,9 @@ void CObjectSearch::UpdateDetailsTile(HWND hWnd, int index)
 
 void CObjectSearch::UpdateDetailsWaypoint(HWND hWnd)
 {
+    HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
+    while (SendMessage(hListBox, LB_DELETESTRING, 0, NULL) != LB_ERR);
+    CObjectSearch::ListBoxIndex = 0;
     CObjectSearch::ListBox_MapCoord.clear();
     if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
     {
@@ -1648,7 +1635,6 @@ void CObjectSearch::UpdateDetailsWaypoint(HWND hWnd)
                 wp.second = second % 1000;
                 wp.first = second / 1000;
                 
-                HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
                 FString text;
                 text.Format("%03d (%d, %d)", atoi(pair.first), wp.second, wp.first);
                 SendMessage(
@@ -1668,6 +1654,7 @@ void CObjectSearch::UpdateDetailsWaypoint(HWND hWnd)
 
 void CObjectSearch::UpdateTypes(HWND hWnd)
 {
+    CObjectSearch::Datas.clear();
     HWND hParent = m_parent->DialogBar.GetSafeHwnd();
     HWND hTileComboBox = GetDlgItem(hParent, 1366);
     int nTileCount = SendMessage(hTileComboBox, CB_GETCOUNT, NULL, NULL);
@@ -1697,7 +1684,7 @@ void CObjectSearch::UpdateTypes(HWND hWnd)
     {
         int nOverlay = SendMessage(hOverlayComboBox, CB_GETITEMDATA, idx, NULL);
         auto value = Variables::RulesMap.GetValueAt("OverlayTypes", nOverlay);
-        auto name = StringtableLoader::QueryUIName(value, true);
+        auto name = CViewObjectsExt::QueryUIName(value, true);
         name = Translations::TranslateOrDefault(name, name);
 
         auto lang = FinalAlertConfig::Language + "-";
@@ -1869,9 +1856,4 @@ void CObjectSearch::ToggleWindowSize(HWND hWnd)
 
         CObjectSearch::ToggleWindowSize_once = false;
     }
-}
-
-bool CObjectSearch::IsLabelMatch(const char* target, const char* source)
-{
-    return ExtraWindow::IsLabelMatch(target, source, bExactMatch);
 }

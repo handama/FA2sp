@@ -62,6 +62,9 @@ void FileWatcher::start(const std::function<void(std::string, Status)>& action)
         if (IsSavingMap)
             continue;     
 
+        if (IsMessageBoxShowing)
+            continue;
+
         if (ExtConfigs::IsQuitingProgram)
             continue;
 

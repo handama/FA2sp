@@ -75,57 +75,88 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
         lowest = std::min(lowest, (int)pCell->Height);
         highest = std::max(highest, (int)pCell->Height);
 
-        if (pCell->Terrain > -1)
+        if (pCell->Terrain > -1 
+            && pCell->Terrain < CMapData::Instance->TerrainDatas.size())
         {
-            pushString(Variables::RulesMap.GetValueAt("TerrainTypes", pCell->TerrainType), item.TerrainData);
+            pushString(CMapData::Instance->TerrainDatas[pCell->Terrain].TypeID, item.TerrainData);
             objectMask |= ObjectRecord::RecordType::Terrain;
         }
 
-        if (pCell->Smudge > -1) {
+        if (pCell->Smudge > -1
+            && pCell->Smudge < CMapData::Instance->SmudgeDatas.size()) {
             auto& smudge = CMapData::Instance->SmudgeDatas[pCell->Smudge];
             if (smudge.X == coords.Y && smudge.Y == coords.X)
             {
-                pushString(Variables::RulesMap.GetValueAt("SmudgeTypes", pCell->SmudgeType), item.SmudgeData);
+                pushString(smudge.TypeID, item.SmudgeData);
                 objectMask |= ObjectRecord::RecordType::Smudge;
             }
         }
 
-        if (pCell->Structure > -1) {
-            int iniIndex = CMapDataExt::StructureIndexMap[pCell->Structure];
+        if (pCellExt.Structures.size() >= 1)
+        {
+            auto it = pCellExt.Structures.begin();
+            std::advance(it, 0);
+            int iniIndex = CMapDataExt::StructureIndexMap[it->first];
             ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Structures", iniIndex);
             auto atoms = STDHelpers::SplitString(value, 16);
             if (coords.X == atoi(atoms[4]) && coords.Y == atoi(atoms[3]))
             {
-                pushString(value.m_pchData, item.BuildingData);
+                pushString(value.GetString(), item.BuildingData);
+                objectMask |= ObjectRecord::RecordType::Building;
+            }
+        }
+        if (pCellExt.Structures.size() >= 2)
+        {
+            auto it = pCellExt.Structures.begin();
+            std::advance(it, 1);
+            int iniIndex = CMapDataExt::StructureIndexMap[it->first];
+            ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Structures", iniIndex);
+            auto atoms = STDHelpers::SplitString(value, 16);
+            if (coords.X == atoi(atoms[4]) && coords.Y == atoi(atoms[3]))
+            {
+                pushString(value.GetString(), item.BuildingData_2);
+                objectMask |= ObjectRecord::RecordType::Building;
+            }
+        }
+        if (pCellExt.Structures.size() >= 3)
+        {
+            auto it = pCellExt.Structures.begin();
+            std::advance(it, 2);
+            int iniIndex = CMapDataExt::StructureIndexMap[it->first];
+            ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Structures", iniIndex);
+            auto atoms = STDHelpers::SplitString(value, 16);
+            if (coords.X == atoi(atoms[4]) && coords.Y == atoi(atoms[3]))
+            {
+                pushString(value.GetString(), item.BuildingData_3);
                 objectMask |= ObjectRecord::RecordType::Building;
             }
         }
 
         if (pCell->Aircraft > -1) {
             ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Aircraft", pCell->Aircraft);
-            pushString(value.m_pchData, item.AircraftData);
+            pushString(value.GetString(), item.AircraftData);
             objectMask |= ObjectRecord::RecordType::Aircraft;
         }
 
         if (pCell->Infantry[0] > -1) {
             ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Infantry", pCell->Infantry[0]);
-            pushString(value.m_pchData, item.InfantryData_1);
+            pushString(value.GetString(), item.InfantryData_1);
             objectMask |= ObjectRecord::RecordType::Infantry;
         }
         if (pCell->Infantry[1] > -1) {
             ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Infantry", pCell->Infantry[1]);
-            pushString(value.m_pchData, item.InfantryData_2);
+            pushString(value.GetString(), item.InfantryData_2);
             objectMask |= ObjectRecord::RecordType::Infantry;
         }
         if (pCell->Infantry[2] > -1) {
             ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Infantry", pCell->Infantry[2]);
-            pushString(value.m_pchData, item.InfantryData_3);
+            pushString(value.GetString(), item.InfantryData_3);
             objectMask |= ObjectRecord::RecordType::Infantry;
         }
 
         if (pCell->Unit > -1) {
             ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Units", pCell->Unit);
-            pushString(value.m_pchData, item.UnitData);
+            pushString(value.GetString(), item.UnitData);
             objectMask |= ObjectRecord::RecordType::Unit;
         }
         data.push_back(item);
@@ -194,6 +225,8 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
         fixOffset(item.TerrainData);
         fixOffset(item.SmudgeData);
         fixOffset(item.BuildingData);
+        fixOffset(item.BuildingData_2);
+        fixOffset(item.BuildingData_3);
         fixOffset(item.AircraftData);
         fixOffset(item.InfantryData_1);
         fixOffset(item.InfantryData_2);
@@ -432,30 +465,35 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
             pCell->Flag = cell.Flag;
         }
 
-        const char* buildingStr = GetString(cell, cell.BuildingData, data);
-        if (OnLButtonDownPasted && CIsoViewExt::PasteStructures && *buildingStr)
+        for (int i = 0; i < 3; ++i)
         {
-            FString value(buildingStr);
-            auto atoms = FString::SplitString(value, 16);
-            CBuildingData data;
-            data.House = atoms[0];
-            data.TypeID = atoms[1];
-            data.Health = atoms[2];
-            data.Y.Format("%d", Y + offset_y);
-            data.X.Format("%d", X + offset_x);
-            data.Facing = atoms[5];
-            data.Tag = atoms[6];
-            data.AISellable = atoms[7];
-            data.AIRebuildable = atoms[8];
-            data.PoweredOn = atoms[9];
-            data.Upgrades = atoms[10];
-            data.SpotLight = atoms[11];
-            data.Upgrade1 = atoms[12];
-            data.Upgrade2 = atoms[13];
-            data.Upgrade3 = atoms[14];
-            data.AIRepairable = atoms[15];
-            data.Nominal = atoms[16];
-            CMapData::Instance->SetBuildingData(&data, NULL, NULL, 0, "");
+            const char* buildingStr = (i == 0) ? GetString(cell, cell.BuildingData, data) :
+                (i == 1) ? GetString(cell, cell.BuildingData_2, data) :
+                GetString(cell, cell.BuildingData_3, data);
+            if (OnLButtonDownPasted && CIsoViewExt::PasteStructures && *buildingStr)
+            {
+                FString value(buildingStr);
+                auto atoms = FString::SplitString(value, 16);
+                CBuildingData data;
+                data.House = atoms[0];
+                data.TypeID = atoms[1];
+                data.Health = atoms[2];
+                data.Y.Format("%d", Y + offset_y);
+                data.X.Format("%d", X + offset_x);
+                data.Facing = atoms[5];
+                data.Tag = atoms[6];
+                data.AISellable = atoms[7];
+                data.AIRebuildable = atoms[8];
+                data.PoweredOn = atoms[9];
+                data.Upgrades = atoms[10];
+                data.SpotLight = atoms[11];
+                data.Upgrade1 = atoms[12];
+                data.Upgrade2 = atoms[13];
+                data.Upgrade3 = atoms[14];
+                data.AIRepairable = atoms[15];
+                data.Nominal = atoms[16];
+                CMapData::Instance->SetBuildingData(&data, NULL, NULL, 0, "");
+            }
         }
 
         const char* smudgeStr = GetString(cell, cell.SmudgeData, data);

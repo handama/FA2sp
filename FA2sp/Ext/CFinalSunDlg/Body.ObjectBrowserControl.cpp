@@ -15,6 +15,7 @@
 #include "../CMapData/Body.h"
 #include "../../Miscs/MultiSelection.h"
 #include "../../ExtraWindow/CTileManager/CTileManager.h"
+#include "../../ExtraWindow/CObjectSearch/CObjectSearch.h"
 #include "../../ExtraWindow/CAnnotationDlg/CAnnotationDlg.h"
 #include "../CLoading/Body.h"
 #include <Miscs/Miscs.h>
@@ -24,17 +25,23 @@
 #include "../../Helpers/Helper.h"
 #include "../../Miscs/DialogStyle.h"
 #include "../../Miscs/UserScripts.h"
+#include "../../ExtraWindow/CTechnoDialog/CTechnoDialog.h"
+#include <CRandomTree.h>
+#include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
 
 namespace fs = std::filesystem;
 
 std::array<HTREEITEM, CViewObjectsExt::Root_Count> CViewObjectsExt::ExtNodes;
-std::unordered_set<FString> CViewObjectsExt::IgnoreSet;
-std::unordered_set<FString> CViewObjectsExt::ForceName;
-std::unordered_map<FString, FString> CViewObjectsExt::RenameString;
-std::unordered_set<FString> CViewObjectsExt::ExtSets[Set_Count];
-std::unordered_map<FString, int[10]> CViewObjectsExt::KnownItem;
-std::unordered_map<FString, int> CViewObjectsExt::Owners;
-std::unordered_set<FString> CViewObjectsExt::AddOnceSet;
+FHashSet CViewObjectsExt::IgnoreSet;
+FHashSet CViewObjectsExt::IgnoreOverlaySet;
+FHashSet CViewObjectsExt::ForceName;
+FHashMap<FString> CViewObjectsExt::RenameString;
+FHashSet CViewObjectsExt::ExtSets[Set_Count];
+FHashMap<int[10]> CViewObjectsExt::KnownItem;
+FHashMap<std::vector<int>[10]> CViewObjectsExt::MultiLayerItem;
+FHashMap<int> CViewObjectsExt::Owners;
+FHashSet CViewObjectsExt::AddOnceSet;
+std::vector<int> CViewObjectsExt::WallIndices;
 int CViewObjectsExt::AddedItemCount;
 int CViewObjectsExt::RedrawCalledCount = 0;
 bool CViewObjectsExt::IsOpeningAnnotationDlg = false;
@@ -45,7 +52,7 @@ bool CViewObjectsExt::InsertingSpecialBitmap = false;
 FString CViewObjectsExt::InsertingObjectID;
 CBitmap CViewObjectsExt::SpecialBitmap;
 CImageList CViewObjectsExt::m_ImageList;
-std::set<int> CViewObjectsExt::InsertedTileSets;
+std::set<int> CViewObjectsExt::InsertedTileIndices;
 
 std::unique_ptr<CPropertyBuilding> CViewObjectsExt::BuildingBrushDlg;
 std::unique_ptr<CPropertyInfantry> CViewObjectsExt::InfantryBrushDlg;
@@ -57,6 +64,12 @@ std::unique_ptr<CPropertyInfantry> CViewObjectsExt::InfantryBrushDlgF;
 std::unique_ptr<CPropertyUnit> CViewObjectsExt::VehicleBrushDlgF;
 std::unique_ptr<CPropertyAircraft> CViewObjectsExt::AircraftBrushDlgF;
 std::unique_ptr<CPropertyBuilding> CViewObjectsExt::BuildingBrushDlgBNF;
+std::map<int, FString> CViewObjectsExt::TreeViewIndex_Building;
+std::map<int, FString> CViewObjectsExt::TreeViewIndex_Infantry;
+std::map<int, FString> CViewObjectsExt::TreeViewIndex_Vehicle;
+std::map<int, FString> CViewObjectsExt::TreeViewIndex_Aircraft;
+std::map<int, FString> CViewObjectsExt::TreeViewIndex_Terrain;
+std::map<int, FString> CViewObjectsExt::TreeViewIndex_Smudge;
 COLORREF CViewObjectsExt::WpColor;
 COLORREF CViewObjectsExt::TagColor;
 
@@ -80,15 +93,15 @@ std::vector<FString> CViewObjectsExt::ObjectFilterCT;
 std::map<int, int> CViewObjectsExt::WallDamageStages;
 
 bool CViewObjectsExt::InitPropertyDlgFromProperty{ false };
-int CViewObjectsExt::PlacingWall;
-int CViewObjectsExt::PlacingRandomRock;
-int CViewObjectsExt::PlacingRandomSmudge;
-int CViewObjectsExt::PlacingRandomTerrain;
-int CViewObjectsExt::PlacingRandomInfantry;
-int CViewObjectsExt::PlacingRandomVehicle;
-int CViewObjectsExt::PlacingRandomStructure;
-int CViewObjectsExt::PlacingRandomAircraft;
-int CViewObjectsExt::PlacingRandomTile;
+int CViewObjectsExt::PlacingWall = -1;
+int CViewObjectsExt::PlacingRandomRock = -1;
+int CViewObjectsExt::PlacingRandomSmudge = -1;
+int CViewObjectsExt::PlacingRandomTerrain = -1;
+int CViewObjectsExt::PlacingRandomInfantry = -1;
+int CViewObjectsExt::PlacingRandomVehicle = -1;
+int CViewObjectsExt::PlacingRandomStructure = -1;
+int CViewObjectsExt::PlacingRandomAircraft = -1;
+int CViewObjectsExt::PlacingRandomTile = -1;
 bool CViewObjectsExt::PlacingRandomRandomFacing;
 bool CViewObjectsExt::PlacingRandomStructureAIRepairs;
 bool CViewObjectsExt::NeedChangeTreeViewSelect = true;
@@ -104,6 +117,20 @@ const char* playersAtX[8]
     "<Player @ F>",
     "<Player @ G>",
     "<Player @ H>"
+};
+
+struct SubGroupInfo
+{
+    HTREEITEM item;
+    std::vector<FString> collector;
+    FSet insertedObjects;
+};
+
+struct TempOtherInfo
+{
+    int index;
+    FString display;
+    FString id;
 };
 
 HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
@@ -144,6 +171,8 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             if (InsertingTileIndex > -1)
             {
                 auto& tile = CMapDataExt::TileData[InsertingTileIndex];
+                if (tile.TileBlockCount == 0)
+                    return item;
                 auto& subTile = tile.TileBlockDatas[0];
 
                 FString fileName;
@@ -176,8 +205,8 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 data.pPalette = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[InsertingTileIndex].TileSet];
 
                 CBitmap cBitmap;
-                CLoadingExt::LoadShpToBitmap(&data, cBitmap);
-                CIsoViewExt::ScaleBitmap(&cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
+                auto view = CIsoViewExt::MakeImageDataView(&data);
+                CIsoViewExt::LoadAndScaleToBitmap(&view, cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
                 int index = m_ImageList.Add(&cBitmap, RGB(255, 0, 255));
                 this->GetTreeCtrl().SetItemImage(item, index, index);
                 CLoadingExt::SaveCBitmapToFile(&cBitmap, path.c_str(), RGB(255, 0, 255));
@@ -205,7 +234,13 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 break;
             case CLoadingExt::ObjectType::Building:
             {
-                imageName = CLoadingExt::GetBuildingImageName(InsertingObjectID, 0, 0);
+                bool hasTur = Variables::RulesMap.GetBool(InsertingObjectID, "Turret")
+                    || Variables::RulesMap.GetBool(InsertingObjectID, "TurretAnimIsVoxel");
+                int facings = hasTur ? (ExtConfigs::ExtFacings ? 32 : 8) : 1;
+                auto itr = CLoadingExt::AvailableFacings.find(InsertingObjectID);
+                if (itr != CLoadingExt::AvailableFacings.end())
+                    facings = itr->second;
+                imageName = CLoadingExt::GetBuildingImageName(InsertingObjectID, facings / 8 * 5, 0);
                 fileID = CLoadingExt::GetExtension()->GetBuildingFileID(InsertingObjectID);
 
                 // some buildings share the same image while have different anims
@@ -256,7 +291,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             {
                 auto imageName = CLoadingExt::GetOverlayName(InsertingOverlay, InsertingOverlayData);
                 auto pData = CLoadingExt::GetImageDataFromMap(imageName);
-                if (!pData || !pData->pImageBuffer)
+                if (!ImageDataClassSafe::IsVisibleImage(pData))
                 {
                     auto obj = Variables::RulesMap.GetValueAt("OverlayTypes", InsertingOverlay);
                     if (!CLoadingExt::IsOverlayLoaded(obj))
@@ -270,7 +305,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                         pData = CLoadingExt::GetImageDataFromMap(imageName);
                     }
                 }
-                if (pData && pData->pImageBuffer)
+                if (ImageDataClassSafe::IsVisibleImage(pData))
                 {
                     CBitmap cBitmap;
                     CLoadingExt::LoadShpToBitmap(pData, cBitmap);
@@ -284,7 +319,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 }
             }
 
-            if (!CLoadingExt::IsObjectLoaded(InsertingObjectID)
+            if (!CLoadingExt::IsObjectPreviewLoaded(InsertingObjectID) && !CLoadingExt::IsObjectLoaded(InsertingObjectID)
                 && InsertingOverlay < 0 && InsertingTileIndex < 0 && !InsertingSpecialBitmap)
             {
                 bool temp = ExtConfigs::InGameDisplay_Shadow;
@@ -310,11 +345,11 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 pBuildingData = CLoadingExt::BindClippedImages(clips);
             }
             auto pData = pBuildingData ? pBuildingData.get() : CLoadingExt::GetImageDataFromMap(imageName);
-            if (pData && pData->pImageBuffer)
+            if (ImageDataClassSafe::IsVisibleImage(pData))
             {
                 CBitmap cBitmap;
-                CLoadingExt::LoadShpToBitmap(pData, cBitmap);
-                CIsoViewExt::ScaleBitmap(&cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
+                auto view = CIsoViewExt::MakeImageDataView(pData);
+                CIsoViewExt::LoadAndScaleToBitmap(&view, cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
                 int index = m_ImageList.Add(&cBitmap, RGB(255, 0, 255));
                 this->GetTreeCtrl().SetItemImage(item, index, index);
 
@@ -416,6 +451,13 @@ void CViewObjectsExt::UpdateTreeIconsForSubtree(HTREEITEM hItem)
 
 void CViewObjectsExt::Redraw()
 {
+    // first loading is before rules loaded
+    static bool firstRun = true;
+    if (firstRun)
+    {
+        firstRun = false;
+        return;
+    }
     if (ExtConfigs::TreeViewCameo_Display)
     {
         if (m_ImageList.GetSafeHandle())
@@ -440,6 +482,11 @@ void CViewObjectsExt::Redraw()
         CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.RecalcLayout();
         CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }
+
+    AddedItemCount = 0;
+    for (auto root : ExtNodes)
+        root = NULL;
+    this->GetTreeCtrl().DeleteAllItems();
 
     Redraw_Initialize();
     Redraw_MainList();
@@ -475,10 +522,7 @@ void CViewObjectsExt::Redraw()
     }
 
     Logger::Raw("[CViewObjectsExt] Redraw TreeView_ViewObjects done. %d labels loaded.\n", AddedItemCount);
-}
 
-void CViewObjectsExt::Redraw_Initialize()
-{
     // must be here to load after tile view refresh
     if (CTerrainGenerator::GetHandle())
     {
@@ -488,34 +532,25 @@ void CViewObjectsExt::Redraw_Initialize()
     {
         ::SendMessage(CTileManager::GetHandle(), 114514, 0, 0);
     }
-    AddedItemCount = 0;
+    if (CObjectSearch::GetHandle())
+    {
+        ::SendMessage(CObjectSearch::GetHandle(), 114515, 0, 0);
+        ::SendMessage(CObjectSearch::GetHandle(), 114514, 0, 0);
+    }
+}
 
-    for (auto root : ExtNodes)
-        root = NULL;
+void CViewObjectsExt::Redraw_Initialize()
+{
     KnownItem.clear();
-    IgnoreSet.clear();
+    MultiLayerItem.clear();
     ForceName.clear();
+    IgnoreSet.clear();
+    IgnoreOverlaySet.clear();
     RenameString.clear();
     Owners.clear();
-    this->GetTreeCtrl().DeleteAllItems();
 
-    auto& rules = CINI::Rules();
     auto& fadata = CINI::FAData();
     auto& doc = CINI::CurrentDocument();
-
-    auto loadSet = [](const char* pTypeName, int nType)
-    {
-        ExtSets[nType].clear();
-        auto&& section = Variables::RulesMap.GetSection(pTypeName);
-        for (auto& itr : section)
-            ExtSets[nType].insert(itr.second);
-    };
-
-    loadSet("BuildingTypes", Set_Building);
-    loadSet("InfantryTypes", Set_Infantry);
-    loadSet("VehicleTypes", Set_Vehicle);
-    loadSet("AircraftTypes", Set_Aircraft);
-
     if (ExtConfigs::ObjectBrowser_GuessMode == 1)
     {
         auto loadOwner = []()
@@ -528,30 +563,92 @@ void CViewObjectsExt::Redraw_Initialize()
         loadOwner();
     }
 
-    if (auto knownSection = fadata.GetSection("ForceSides"))
+    auto loadForceSides = [&fadata](const char* pTypeName, const char* pSpliter)
     {
-        for (auto& item : knownSection->GetEntities())
-        {
-            
-            auto forceSides = STDHelpers::SplitString(item.second);
+        auto forceSides = STDHelpers::SplitString(pSpliter);
 
-            for (int i = 0; i < 9; ++i) {
-                if (i < forceSides.size())
+        for (int i = 0; i < 9; ++i) {
+            if (i < forceSides.size())
+            {
+                if (STDHelpers::IsNumber(forceSides[i]) || forceSides[i].Find("#") == -1)
                 {
                     int sideIndex = STDHelpers::ParseToInt(forceSides[i]);
                     if (sideIndex >= fadata.GetKeyCount(ExtraWindow::GetTranslatedSectionName("Sides")))
                         sideIndex = -1;
                     if (sideIndex < -1)
                         sideIndex = -1;
-                    KnownItem[item.first][i] = sideIndex;
+                    KnownItem[pTypeName][i] = sideIndex;
                 }
                 else
                 {
-                    KnownItem[item.first][i] = -1;
+                    KnownItem[pTypeName][i] = -1;
+                    auto layers = STDHelpers::SplitString(forceSides[i], "#");
+                    for (int j = 0; j < 9; ++j) {
+                        if (j < layers.size())
+                        {
+                            int sideIndex = STDHelpers::ParseToInt(layers[j]);
+                            if (sideIndex >= fadata.GetKeyCount(ExtraWindow::GetTranslatedSectionName("Sides")))
+                                sideIndex = -1;
+                            if (sideIndex < -1)
+                                sideIndex = -1;
+                            MultiLayerItem[pTypeName][i].push_back(sideIndex);
+                        }
+                        else
+                        {
+                            MultiLayerItem[pTypeName][i].push_back(-1);
+                        }
+                    }
                 }
-            }          
+            }
+            else
+            {
+                KnownItem[pTypeName][i] = -1;
+            }
+        }
+    };
+
+    auto loadSet = [loadForceSides](const char* pTypeName, int nType)
+    {
+        ExtSets[nType].clear();
+        auto&& section = Variables::RulesMap.GetSection(pTypeName);
+        for (auto& itr : section)
+        {
+            if (auto pValue = Variables::RulesMap.TryGetString(itr.second, "FA2ForceSide"))
+            {
+                loadForceSides(itr.second, *pValue);
+            }
+            ExtSets[nType].insert(itr.second);
+        }
+    };
+
+    loadSet("BuildingTypes", Set_Building);
+    loadSet("InfantryTypes", Set_Infantry);
+    loadSet("VehicleTypes", Set_Vehicle);
+    loadSet("AircraftTypes", Set_Aircraft);
+
+    if (auto knownSection = fadata.GetSection("ForceSides"))
+    {
+        for (auto& item : knownSection->GetEntities())
+        {
+            loadForceSides(item.first, item.second);
         }
     }
+
+    auto loadIgnore = [](const char* pTypeName, bool isOverlay = false)
+    {
+        auto&& section = Variables::RulesMap.GetSection(pTypeName);
+        for (auto& itr : section)
+            if (Variables::RulesMap.GetBool(itr.second, isOverlay ?  "FA2IgnoreOverlay" : "FA2Ignore", false))
+                isOverlay ? IgnoreOverlaySet.insert(itr.second) : IgnoreSet.insert(itr.second);
+    };
+
+    loadIgnore("BuildingTypes");
+    loadIgnore("InfantryTypes");
+    loadIgnore("VehicleTypes");
+    loadIgnore("AircraftTypes");
+    loadIgnore("TerrainTypes");
+    loadIgnore("SmudgeTypes");
+    loadIgnore("OverlayTypes", true);
 
     if (auto ignores = fadata.GetSection("IgnoreRA2"))
         for (auto& item : ignores->GetEntities())
@@ -559,17 +656,11 @@ void CViewObjectsExt::Redraw_Initialize()
             IgnoreSet.insert(item.second);
         }
 
-    auto theaterIg = doc.GetString("Map", "Theater");
-    if (theaterIg != "")
-	{
-		if (theaterIg == "NEWURBAN")
-			theaterIg = "UBN";
-
-        FString suffix = theaterIg.Mid(0, 3);
-		if (auto theater_ignores = fadata.GetSection((FString)("IgnoreRA2" + suffix)))
-			for (auto& item : theater_ignores->GetEntities())
-				IgnoreSet.insert(item.second);
-	}
+    if (auto ignores = fadata.GetSection("IgnoreOverlays"))
+        for (auto& item : ignores->GetEntities())
+        {
+            IgnoreOverlaySet.insert(item.second);
+        }
 
     if (auto forcenames = fadata.GetSection("ForceName"))
         for (auto& item : forcenames->GetEntities())
@@ -582,19 +673,29 @@ void CViewObjectsExt::Redraw_Initialize()
         {
             RenameString[item.first] = item.second;
         }
+
+    auto theaterIg = doc.GetString("Map", "Theater");
     if (theaterIg != "")
-    {
-        if (theaterIg == "NEWURBAN")
-            theaterIg = "UBN";
+	{
+		if (theaterIg == "NEWURBAN")
+			theaterIg = "UBN";
 
         FString suffix = theaterIg.Mid(0, 3);
+        suffix.MakeUpper();
+		if (auto theater_ignores = fadata.GetSection((FString)("IgnoreRA2" + suffix)))
+			for (auto& item : theater_ignores->GetEntities())
+				IgnoreSet.insert(item.second);
+
+		if (auto theater_ignores = fadata.GetSection((FString)("IgnoreOverlays" + suffix)))
+			for (auto& item : theater_ignores->GetEntities())
+                IgnoreOverlaySet.insert(item.second);
 
         if (auto forcenames = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("RenameString") + suffix))
             for (auto& item : forcenames->GetEntities())
             {
                 RenameString[item.first] = item.second;
             }
-    }
+	}
 }
 
 void CViewObjectsExt::Redraw_MainList()
@@ -637,7 +738,7 @@ void CViewObjectsExt::Redraw_Ground()
 {
     HTREEITEM& hGround = ExtNodes[Root_Ground];
     if (hGround == NULL)    return;
-    InsertedTileSets.clear();
+    InsertedTileIndices.clear();
 
     auto& doc = CINI::CurrentDocument();
     auto theater = doc.GetString("Map", "Theater");
@@ -648,17 +749,20 @@ void CViewObjectsExt::Redraw_Ground()
     if (theater != "")
         suffix = theater.Mid(0, 3);
 
-    auto setTileIndex = [](int tileSet)
+    auto setTileIndex = [](int tileSet, int tileIndex = -1)
         {
             if (CMapData::Instance->MapWidthPlusHeight)
             {
-                if (tileSet < 0)
-                    InsertingTileIndex = -1;
-                else
-                    InsertingTileIndex = CMapDataExt::TileSet_starts[tileSet];
-                if (InsertedTileSets.find(tileSet) == InsertedTileSets.end())
+                if (tileSet < 0 || tileSet > CMapDataExt::TileSet_starts.size())
                 {
-                    InsertedTileSets.insert(tileSet);
+                    InsertingTileIndex = -1;
+                    return false;
+                }
+                else
+                    InsertingTileIndex = tileIndex >= 0 ? tileIndex : CMapDataExt::TileSet_starts[tileSet];
+                if (InsertedTileIndices.find(InsertingTileIndex) == InsertedTileIndices.end())
+                {
+                    InsertedTileIndices.insert(InsertingTileIndex);
                     return true;
                 }
                 return false;
@@ -702,13 +806,15 @@ void CViewObjectsExt::Redraw_Ground()
     if (CINI::CurrentTheater)
     {
         int i = 67;
-        auto InsertTile = [&](int nTileset)
+        auto InsertTile = [&](int nTileset, int nTileIndex)
         {
             FA2sp::Buffer.Format("TileSet%04d", nTileset);
             FA2sp::Buffer = CINI::CurrentTheater->GetString(FA2sp::Buffer, "SetName", FA2sp::Buffer);
             Translations::GetTranslationItem(FA2sp::Buffer, FA2sp::Buffer);
-            if (setTileIndex(nTileset))
+            if (setTileIndex(nTileset, nTileIndex))
             {
+                if (nTileIndex > CMapDataExt::TileSet_starts[nTileset])
+                    FA2sp::Buffer += "#" + STDHelpers::IntToString(nTileIndex - CMapDataExt::TileSet_starts[nTileset]);
                 this->InsertString(FA2sp::Buffer, i, hGround, TVI_LAST);
                 return true;
             }
@@ -716,16 +822,12 @@ void CViewObjectsExt::Redraw_Ground()
         };
         for (auto& morphables : TheaterInfo::CurrentInfo)
         {
-            if (CMapDataExt::IsValidTileSet(morphables.Morphable) && 
-                CMapDataExt::IsValidTileSet(morphables.Ramp, false))
-                InsertTile(morphables.Morphable);
+            InsertTile(morphables.Morphable, morphables.MorphableIndex);
             ++i;
         }
         for (auto& morphables : TheaterInfo::CurrentInfoNonMorphable)
         {
-            if (CMapDataExt::IsValidTileSet(morphables.Morphable) &&
-                CMapDataExt::IsValidTileSet(morphables.Ramp, false))
-                InsertTile(morphables.Morphable);
+            InsertTile(morphables.Morphable, morphables.MorphableIndex);
             ++i;
         }
         InsertingTileIndex = -1;
@@ -780,7 +882,7 @@ void CViewObjectsExt::Redraw_Owner()
     HTREEITEM& hOwner = ExtNodes[Root_Owner];
     if (hOwner == NULL)    return;
 
-    auto& countries = CINI::Rules->GetSection("Countries")->GetEntities();
+    auto&& countries = Variables::Rules.GetSection("Countries");
     FString translated;
 
     if (ExtConfigs::ObjectBrowser_SafeHouses)
@@ -1016,69 +1118,186 @@ static std::vector<int> GetUnique(std::vector<int> input)
     return input;
 }
 
+void CViewObjectsExt::LoadMultiLayers(
+    std::vector<std::vector<int>>& multiLayers,
+    std::map<int, HTREEITEM>& subNodes,
+    std::map<int, FString>& subNodeNames,
+    std::map<std::array<int, 10>, HTREEITEM>& multiSubNodes,
+    int index, int sideLimit, const FString& display)
+{
+    for (auto& layers : multiLayers)
+    {
+        for (int j = 0; j < std::min(9u, layers.size()); ++j)
+        {
+            auto side = layers[j];
+
+            if (side > -1 && side < sideLimit)
+            {
+                std::array<int, 10> arr{};
+                std::fill(arr.begin(), arr.end(), -1);
+
+                HTREEITEM hParent = NULL;
+                for (int k = 0; k < j; ++k)
+                {
+                    arr[k] = layers[k];
+                }
+                if (j == 0)
+                {
+                    auto parent = subNodes.find(side);
+                    if (parent != subNodes.end())
+                        hParent = parent->second;
+                }
+                else
+                {
+                    auto parent = multiSubNodes.find(arr);
+                    if (parent != multiSubNodes.end())
+                        hParent = parent->second;
+                }
+                if (hParent)
+                {
+                    arr[j] = side;
+                    HTREEITEM hThis = NULL;
+                    auto pThis = multiSubNodes.find(arr);
+                    if (pThis != multiSubNodes.end())
+                        hThis = pThis->second;
+                    if (!hThis)
+                    {
+                        hThis = j == 0 ? hParent : this->InsertString(subNodeNames[side], -1, hParent);
+                        multiSubNodes[arr] = hThis;
+                    }
+
+                    if (j >= 8 || layers[j + 1] == -1)
+                    {
+                        this->InsertString(
+                            display,
+                            index,
+                            hThis
+                        );
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+}
+
 void CViewObjectsExt::Redraw_Infantry()
 {
+    TreeViewIndex_Infantry.clear();
     AddOnceSet.clear();
     HTREEITEM& hInfantry = ExtNodes[Root_Infantry];
     if (hInfantry == NULL)   return;
 
     std::map<int, HTREEITEM> subNodes;
+    std::map<int, FString> subNodeNames;
+    std::map<int, FString> subNodeEngNames;
+    std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
+    FMap<SubGroupInfo> editorNodes;
+    std::vector<TempOtherInfo> otherList;
 
     auto& fadata = CINI::FAData();
 
     int i = 0;
     if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
+    {
+        auto engSide = ExtraWindow::GetTranslatedSectionName("English-Sides");
+        if (!CINI::FAData->SectionExists(engSide))
+            engSide = "Sides";
         for (auto& itr : sides->GetEntities())
+        {
+            subNodeNames[i] = itr.second;
+            auto engName = fadata.GetValueAt(engSide, i);
+            subNodeEngNames[i] = engName.IsEmpty() ? itr.second : engName;
             subNodes[i++] = this->InsertString(itr.second, -1, hInfantry);
+        }
+    }
     else
     {
         subNodes[i++] = this->InsertString("Allied", -1, hInfantry);
         subNodes[i++] = this->InsertString("Soviet", -1, hInfantry);
         subNodes[i++] = this->InsertString("Yuri", -1, hInfantry);
     }
-    subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hInfantry);
-
     auto&& infantries = Variables::RulesMap.GetSection("InfantryTypes");
+
+    int index = -1;
     for (auto& inf : infantries)
     {
+        index++;
+        TreeViewIndex_Infantry[index] = inf.second;
         if (AddOnceSet.find(inf.second) != AddOnceSet.end())
             continue;
         AddOnceSet.insert(inf.second);
 
         if (IgnoreSet.find(inf.second) != IgnoreSet.end())
             continue;
-        int index = STDHelpers::ParseToInt(inf.first, -1);
-        if (index == -1)   continue;
 
         InsertingObjectID = inf.second;
-        auto sides = GetUnique(GuessSide(inf.second, Set_Infantry));
-        if (!sides.empty())
+        FString display = QueryUIName(inf.second);
+        if (display != inf.second)
+            display += " (" + inf.second + ")";
+        if (auto cat = Variables::RulesMap.TryGetString(inf.second, "EditorCategory"))
         {
-            FString display = QueryUIName(inf.second);
-            if (display != inf.second)
-                display += " (" + inf.second + ")";
-            if (sides.size() == 1 && sides[0] == -1)
+            bool isPrevious = false;
+            for (auto& [idx, eng] : subNodeEngNames)
             {
-                this->InsertString(
-                    display,
-                    Const_Infantry + index,
-                    subNodes[-1]
-                );
-            }
-            else
-            {
-                for (int side : sides) {
-                    if (subNodes.find(side) == subNodes.end())
-                        side = -1;
-                    if (side == -1) continue;
-                    this->InsertString(
-                        display,
-                        Const_Infantry + index,
-                        subNodes[side]
-                    );
+                if (eng == *cat)
+                {
+                    isPrevious = true;
+                    this->InsertString(display, Const_Infantry + index, subNodes[idx]);
+                    break;
                 }
-            }   
+            }
+            if (!isPrevious)
+            {
+                auto& node = editorNodes[*cat];
+                if (!node.item)
+                    node.item = this->InsertTranslatedString(*cat, -1, hInfantry);
+                this->InsertString(display, Const_Infantry + index, node.item);
+            }
         }
+        else
+        {
+            auto sides = GetUnique(GuessSide(inf.second, Set_Infantry));
+            auto multiLayers = GetMultiLayers(inf.second);
+
+            if (!sides.empty())
+            {
+                if (sides.size() == 1 && sides[0] == -1 && multiLayers.empty())
+                {
+                    otherList.push_back({ index, display, inf.second });
+                }
+                else
+                {
+                    for (int side : sides) {
+                        if (subNodes.find(side) == subNodes.end())
+                            side = -1;
+                        if (side == -1) continue;
+                        this->InsertString(
+                            display,
+                            Const_Infantry + index,
+                            subNodes[side]
+                        );
+                    }
+                }
+            }
+            LoadMultiLayers(multiLayers, subNodes, subNodeNames,
+                multiSubNodes, Const_Infantry + index, i, display);
+        }
+        InsertingObjectID = "";
+    }
+    subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hInfantry);
+    for (auto& ob : otherList)
+    {
+        InsertingObjectID = ob.id;
+        this->InsertString(
+            ob.display,
+            Const_Infantry + ob.index,
+            subNodes[-1]
+        );
         InsertingObjectID = "";
     }
     
@@ -1120,72 +1339,133 @@ void CViewObjectsExt::Redraw_Infantry()
             if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
                 this->GetTreeCtrl().DeleteItem(subnode.second);
         }
+        for (auto& subnode : multiSubNodes)
+        {
+            if (subnode.first[1] == -1) continue;
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
+                this->GetTreeCtrl().DeleteItem(subnode.second);
+        }
+        for (auto& subnode : editorNodes)
+        {
+            if (subnode.second.item && !this->GetTreeCtrl().ItemHasChildren(subnode.second.item))
+                this->GetTreeCtrl().DeleteItem(subnode.second.item);
+        }
     }
 }
 
 void CViewObjectsExt::Redraw_Vehicle()
 {
+    TreeViewIndex_Vehicle.clear();
     AddOnceSet.clear();
     HTREEITEM& hVehicle = ExtNodes[Root_Vehicle];
     if (hVehicle == NULL)   return;
 
     std::map<int, HTREEITEM> subNodes;
+    std::map<int, FString> subNodeNames;
+    std::map<int, FString> subNodeEngNames;
+    std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
+    FMap<SubGroupInfo> editorNodes;
+    std::vector<TempOtherInfo> otherList;
 
     auto& fadata = CINI::FAData();
 
     int i = 0;
     if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
+    {
+        auto engSide = ExtraWindow::GetTranslatedSectionName("English-Sides");
+        if (!CINI::FAData->SectionExists(engSide))
+            engSide = "Sides";
         for (auto& itr : sides->GetEntities())
+        {
+            subNodeNames[i] = itr.second;
+            auto engName = fadata.GetValueAt(engSide, i);
+            subNodeEngNames[i] = engName.IsEmpty() ? itr.second : engName;
             subNodes[i++] = this->InsertString(itr.second, -1, hVehicle);
+        }
+    }
     else
     {
         subNodes[i++] = this->InsertString("Allied", -1, hVehicle);
         subNodes[i++] = this->InsertString("Soviet", -1, hVehicle);
         subNodes[i++] = this->InsertString("Yuri", -1, hVehicle);
     }
-    subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hVehicle);
-
     auto&& vehicles = Variables::RulesMap.GetSection("VehicleTypes");
+
+    int index = -1;
     for (auto& veh : vehicles)
     {
+        index++;
+        TreeViewIndex_Vehicle[index] = veh.second;
         if (AddOnceSet.find(veh.second) != AddOnceSet.end())
             continue;
         AddOnceSet.insert(veh.second);
 
         if (IgnoreSet.find(veh.second) != IgnoreSet.end())
             continue;
-        int index = STDHelpers::ParseToInt(veh.first, -1);
-        if (index == -1)   continue;
 
         InsertingObjectID = veh.second;
-        auto sides = GetUnique(GuessSide(veh.second, Set_Vehicle));
-        if (!sides.empty())
+        FString display = QueryUIName(veh.second);
+        if (display != veh.second)
+            display += " (" + veh.second + ")";
+        if (auto cat = Variables::RulesMap.TryGetString(veh.second, "EditorCategory"))
         {
-            FString display = QueryUIName(veh.second);
-            if (display != veh.second)
-                display += " (" + veh.second + ")";
-            if (sides.size() == 1 && sides[0] == -1)
+            bool isPrevious = false;
+            for (auto& [idx, eng] : subNodeEngNames)
             {
-                this->InsertString(
-                    display,
-                    Const_Vehicle + index,
-                    subNodes[-1]
-                );
-            }
-            else
-            {
-                for (int side : sides) {
-                    if (subNodes.find(side) == subNodes.end())
-                        side = -1;
-                    if (side == -1) continue;
-                    this->InsertString(
-                        display,
-                        Const_Vehicle + index,
-                        subNodes[side]
-                    );
+                if (eng == *cat)
+                {
+                    isPrevious = true;
+                    this->InsertString(display, Const_Vehicle + index, subNodes[idx]);
+                    break;
                 }
-            }   
+            }
+            if (!isPrevious)
+            {
+                auto& node = editorNodes[*cat];
+                if(!node.item)
+                    node.item = this->InsertTranslatedString(*cat, -1, hVehicle);
+                this->InsertString(display, Const_Vehicle + index, node.item);
+            }
         }
+        else
+        {
+            auto sides = GetUnique(GuessSide(veh.second, Set_Vehicle));
+            auto multiLayers = GetMultiLayers(veh.second);
+            if (!sides.empty())
+            {
+                if (sides.size() == 1 && sides[0] == -1 && multiLayers.empty())
+                {
+                    otherList.push_back({ index, display, veh.second });
+                }
+                else
+                {
+                    for (int side : sides) {
+                        if (subNodes.find(side) == subNodes.end())
+                            side = -1;
+                        if (side == -1) continue;
+                        this->InsertString(
+                            display,
+                            Const_Vehicle + index,
+                            subNodes[side]
+                        );
+                    }
+                }
+            }
+            LoadMultiLayers(multiLayers, subNodes, subNodeNames,
+                multiSubNodes, Const_Vehicle + index, i, display);
+        }
+
+        InsertingObjectID = "";
+    }
+    subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hVehicle);
+    for (auto& ob : otherList)
+    {
+        InsertingObjectID = ob.id;
+        this->InsertString(
+            ob.display,
+            Const_Vehicle + ob.index,
+            subNodes[-1]
+        );
         InsertingObjectID = "";
     }
 
@@ -1227,74 +1507,134 @@ void CViewObjectsExt::Redraw_Vehicle()
             if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
                 this->GetTreeCtrl().DeleteItem(subnode.second);
         }
+        for (auto& subnode : multiSubNodes)
+        {
+            if (subnode.first[1] == -1) continue;
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
+                this->GetTreeCtrl().DeleteItem(subnode.second);
+        }
+        for (auto& subnode : editorNodes)
+        {
+            if (subnode.second.item && !this->GetTreeCtrl().ItemHasChildren(subnode.second.item))
+                this->GetTreeCtrl().DeleteItem(subnode.second.item);
+        }
     }
 }
 
 void CViewObjectsExt::Redraw_Aircraft()
 {
+    TreeViewIndex_Aircraft.clear();
     AddOnceSet.clear();
     HTREEITEM& hAircraft = ExtNodes[Root_Aircraft];
     if (hAircraft == NULL)   return;
 
     std::map<int, HTREEITEM> subNodes;
+    std::map<int, FString> subNodeNames;
+    std::map<int, FString> subNodeEngNames;
+    std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
+    FMap<SubGroupInfo> editorNodes;
+    std::vector<TempOtherInfo> otherList;
 
-    auto& rules = CINI::Rules();
     auto& fadata = CINI::FAData();
 
     int i = 0;
     if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
+    {
+        auto engSide = ExtraWindow::GetTranslatedSectionName("English-Sides");
+        if (!CINI::FAData->SectionExists(engSide))
+            engSide = "Sides";
         for (auto& itr : sides->GetEntities())
+        {
+            subNodeNames[i] = itr.second;
+            auto engName = fadata.GetValueAt(engSide, i);
+            subNodeEngNames[i] = engName.IsEmpty() ? itr.second : engName;
             subNodes[i++] = this->InsertString(itr.second, -1, hAircraft);
+        }
+    }
     else
     {
         subNodes[i++] = this->InsertString("Allied", -1, hAircraft);
         subNodes[i++] = this->InsertString("Soviet", -1, hAircraft);
         subNodes[i++] = this->InsertString("Yuri", -1, hAircraft);
     }
-    subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hAircraft);
-
     auto&& aircrafts = Variables::RulesMap.GetSection("AircraftTypes");
+
+    int index = -1;
     for (auto& air : aircrafts)
     {
+        index++;
+        TreeViewIndex_Aircraft[index] = air.second;
         if (AddOnceSet.find(air.second) != AddOnceSet.end())
             continue;
         AddOnceSet.insert(air.second);
 
-
         if (IgnoreSet.find(air.second) != IgnoreSet.end())
             continue;
-        int index = STDHelpers::ParseToInt(air.first, -1);
-        if (index == -1)   continue;
         
         InsertingObjectID = air.second;
-        auto sides = GetUnique(GuessSide(air.second, Set_Aircraft));
-        if (!sides.empty())
+        FString display = QueryUIName(air.second);
+        if (display != air.second)
+            display += " (" + air.second + ")";
+
+        if (auto cat = Variables::RulesMap.TryGetString(air.second, "EditorCategory"))
         {
-            FString display = QueryUIName(air.second);
-            if (display != air.second)
-                display += " (" + air.second + ")";
-            if (sides.size() == 1 && sides[0] == -1)
+            bool isPrevious = false;
+            for (auto& [idx, eng] : subNodeEngNames)
             {
-                this->InsertString(
-                    display,
-                    Const_Aircraft + index,
-                    subNodes[-1]
-                );
-            }
-            else
-            {
-                for (int side : sides) {
-                    if (subNodes.find(side) == subNodes.end())
-                        side = -1;
-                    if (side == -1) continue;
-                    this->InsertString(
-                        display,
-                        Const_Aircraft + index,
-                        subNodes[side]
-                    );
+                if (eng == *cat)
+                {
+                    isPrevious = true;
+                    this->InsertString(display, Const_Aircraft + index, subNodes[idx]);
+                    break;
                 }
-            }   
+            }
+            if (!isPrevious)
+            {
+                auto& node = editorNodes[*cat];
+                if (!node.item)
+                    node.item = this->InsertTranslatedString(*cat, -1, hAircraft);
+                this->InsertString(display, Const_Aircraft + index, node.item);
+            }
         }
+        else
+        {
+            auto sides = GetUnique(GuessSide(air.second, Set_Aircraft));
+            auto multiLayers = GetMultiLayers(air.second);
+            if (!sides.empty())
+            {
+                if (sides.size() == 1 && sides[0] == -1 && multiLayers.empty())
+                {
+                    otherList.push_back({ index, display, air.second });
+                }
+                else
+                {
+                    for (int side : sides) {
+                        if (subNodes.find(side) == subNodes.end())
+                            side = -1;
+                        if (side == -1) continue;
+                        this->InsertString(
+                            display,
+                            Const_Aircraft + index,
+                            subNodes[side]
+                        );
+                    }
+                }
+            }
+            LoadMultiLayers(multiLayers, subNodes, subNodeNames,
+                multiSubNodes, Const_Aircraft + index, i, display);
+        }   
+
+        InsertingObjectID = "";
+    }
+    subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hAircraft);
+    for (auto& ob : otherList)
+    {
+        InsertingObjectID = ob.id;
+        this->InsertString(
+            ob.display,
+            Const_Aircraft + ob.index,
+            subNodes[-1]
+        );
         InsertingObjectID = "";
     }
     HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomAircraftObList", -1, hAircraft);
@@ -1335,76 +1675,125 @@ void CViewObjectsExt::Redraw_Aircraft()
             if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
                 this->GetTreeCtrl().DeleteItem(subnode.second);
         }
+        for (auto& subnode : multiSubNodes)
+        {
+            if (subnode.first[1] == -1) continue;
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
+                this->GetTreeCtrl().DeleteItem(subnode.second);
+        }
+        for (auto& subnode : editorNodes)
+        {
+            if (subnode.second.item && !this->GetTreeCtrl().ItemHasChildren(subnode.second.item))
+                this->GetTreeCtrl().DeleteItem(subnode.second.item);
+        }
     }
 }
 
 void CViewObjectsExt::Redraw_Building()
 {
     AddOnceSet.clear();
+    TreeViewIndex_Building.clear();
     HTREEITEM& hBuilding = ExtNodes[Root_Building];
     if (hBuilding == NULL)   return;
 
     std::map<int, HTREEITEM> subNodes;
+    std::map<int, FString> subNodeNames;
+    std::map<int, FString> subNodeEngNames;
+    std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
     std::map<int, std::vector<std::pair<int, FString>>> foundationBuildings;
+    FMap<SubGroupInfo> editorNodes;
+    std::vector<TempOtherInfo> otherList;
 
-    auto& rules = CINI::Rules();
     auto& fadata = CINI::FAData();
     auto& art = CINI::Art();
     auto& doc = CINI::CurrentDocument();
 
     int i = 0;
     if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
+    {
+        auto engSide = ExtraWindow::GetTranslatedSectionName("English-Sides");
+        if (!CINI::FAData->SectionExists(engSide))
+            engSide = "Sides";
         for (auto& itr : sides->GetEntities())
+        {
+            subNodeNames[i] = itr.second;
+            auto engName = fadata.GetValueAt(engSide, i);
+            subNodeEngNames[i] = engName.IsEmpty() ? itr.second : engName;
             subNodes[i++] = this->InsertString(itr.second, -1, hBuilding);
+        }
+    }
     else
     {
         subNodes[i++] = this->InsertString("Allied", -1, hBuilding);
         subNodes[i++] = this->InsertString("Soviet", -1, hBuilding);
         subNodes[i++] = this->InsertString("Yuri", -1, hBuilding);
     }
-    subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hBuilding);
-    
     auto&& buildings = Variables::RulesMap.GetSection("BuildingTypes");
+
+    int index = -1;
     for (auto& bud : buildings)
     {
+        index++;
+        TreeViewIndex_Building[index] = bud.second;
         if (AddOnceSet.find(bud.second) != AddOnceSet.end())
             continue;
         AddOnceSet.insert(bud.second);
 
         if (IgnoreSet.find(bud.second) != IgnoreSet.end())
             continue;
-        int index = STDHelpers::ParseToInt(bud.first, -1);
-        if (index == -1)   continue;
 
         InsertingObjectID = bud.second;
-        auto sides = GetUnique(GuessSide(bud.second, Set_Building));
-        if (!sides.empty())
+        FString display = QueryUIName(bud.second);
+        if (display != bud.second)
+            display += " (" + bud.second + ")";
+        if (auto cat = Variables::RulesMap.TryGetString(bud.second, "EditorCategory"))
         {
-            FString display = QueryUIName(bud.second);
-            if (display != bud.second)
-                display += " (" + bud.second + ")";
-            if (sides.size() == 1 && sides[0] == -1)
+            bool isPrevious = false;
+            for (auto& [idx, eng] : subNodeEngNames)
             {
-                this->InsertString(
-                    display,
-                    Const_Building + index,
-                    subNodes[-1]
-                );
-            }
-            else
-            {
-                for (int side : sides) {
-                    if (subNodes.find(side) == subNodes.end())
-                        side = -1;
-                    if (side == -1) continue;
-                    this->InsertString(
-                        display,
-                        Const_Building + index,
-                        subNodes[side]
-                    );
+                if (eng == *cat)
+                {
+                    isPrevious = true;
+                    this->InsertString(display, Const_Building + index, subNodes[idx]);
+                    break;
                 }
             }
+            if (!isPrevious)
+            {
+                auto& node = editorNodes[*cat];
+                if (!node.item)
+                    node.item = this->InsertTranslatedString(*cat, -1, hBuilding);
+                this->InsertString(display, Const_Building + index, node.item);
+            }
         }
+        else
+        {
+            auto sides = GetUnique(GuessSide(bud.second, Set_Building));
+            auto multiLayers = GetMultiLayers(bud.second);
+            if (!sides.empty())
+            {
+                if (sides.size() == 1 && sides[0] == -1 && multiLayers.empty())
+                {
+                    otherList.push_back({ index, display, bud.second });
+                }
+                else
+                {
+                    for (int side : sides) {
+                        if (subNodes.find(side) == subNodes.end())
+                            side = -1;
+                        if (side == -1) continue;
+                        this->InsertString(
+                            display,
+                            Const_Building + index,
+                            subNodes[side]
+                        );
+                    }
+                }
+            }
+            LoadMultiLayers(multiLayers, subNodes, subNodeNames,
+                multiSubNodes, Const_Building + index, i, display);
+        }
+ 
 
         if (CMapData::Instance->MapWidthPlusHeight && ExtConfigs::ObjectBrowser_Foundation)
         {
@@ -1415,6 +1804,17 @@ void CViewObjectsExt::Redraw_Building()
     }
     InsertingObjectID = "";
 
+    subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hBuilding);
+    for (auto& ob : otherList)
+    {
+        InsertingObjectID = ob.id;
+        this->InsertString(
+            ob.display,
+            Const_Building + ob.index,
+            subNodes[-1]
+        );
+        InsertingObjectID = "";
+    }
     for (const auto& [foundation, buildingList] : foundationBuildings)
     {
         if (buildingList.empty())
@@ -1482,15 +1882,28 @@ void CViewObjectsExt::Redraw_Building()
             if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
                 this->GetTreeCtrl().DeleteItem(subnode.second);
         }
+        for (auto& subnode : multiSubNodes)
+        {
+            if (subnode.first[1] == -1) continue;
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.second))
+                this->GetTreeCtrl().DeleteItem(subnode.second);
+        }
+        for (auto& subnode : editorNodes)
+        {
+            if (subnode.second.item && !this->GetTreeCtrl().ItemHasChildren(subnode.second.item))
+                this->GetTreeCtrl().DeleteItem(subnode.second.item);
+        }
     }
 }
 
 void CViewObjectsExt::Redraw_Terrain()
 {
+    TreeViewIndex_Terrain.clear();
     HTREEITEM& hTerrain = ExtNodes[Root_Terrain];
     if (hTerrain == NULL)   return;
 
-    std::vector<std::pair<HTREEITEM, std::vector<FString>>> nodes;
+    FMap<SubGroupInfo> nodes;
+    auto&& terrains = Variables::RulesMap.GetSection("TerrainTypes");
 
     if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.TerrainTypes"))
     {
@@ -1505,40 +1918,69 @@ void CViewObjectsExt::Redraw_Terrain()
             const auto& translation = pSection->GetEntities().find(pair.second)->second;
             
             if (!IsIgnored(translation))
-                nodes.push_back(std::make_pair(this->InsertTranslatedString(translation, -1, hTerrain), contains));
+                nodes[translation] = { this->InsertTranslatedString(translation, -1, hTerrain), contains };
         }
     }
+
+    for (auto& obj : terrains)
+    {
+        if (IgnoreSet.find(obj.second) == IgnoreSet.end())
+        {
+            if (auto cat = Variables::RulesMap.TryGetString(obj.second, "EditorCategory"))
+            {
+                auto& node = nodes[*cat];
+                if (!node.item)
+                {
+                    node.item = this->InsertTranslatedString(*cat, -1, hTerrain);
+                }
+            }
+        }
+    }
+
     HTREEITEM hOther = this->InsertTranslatedString("OthObList", -1, hTerrain);
 
-    auto&& terrains = Variables::RulesMap.ParseIndicies("TerrainTypes", true);
-    for (size_t i = 0, sz = terrains.size(); i < sz; ++i)
+    int index = -1;
+    for (auto& terrain : terrains)
     {
-        if (IgnoreSet.find(terrains[i]) == IgnoreSet.end())
+        index++;
+        TreeViewIndex_Terrain[index] = terrain.second;
+        if (IgnoreSet.find(terrain.second) == IgnoreSet.end())
         {
-            FA2sp::Buffer = QueryUIName(terrains[i]);
-            if (FA2sp::Buffer != terrains[i])
-                FA2sp::Buffer += " (" + terrains[i] + ")";
+            FA2sp::Buffer = QueryUIName(terrain.second);
+            if (FA2sp::Buffer != terrain.second)
+                FA2sp::Buffer += " (" + terrain.second + ")";
             bool bNotOther = false;
-            InsertingObjectID = terrains[i];
-            for (const auto& node : nodes)
+            InsertingObjectID = terrain.second;
+            for (auto& [_, node] : nodes)
             {
-                for (const auto& match : node.second)
+                for (const auto& match : node.collector)
                 {
-                    if (terrains[i].Find(match.c_str()) >= 0)
+                    if (terrain.second.Find(match.c_str()) >= 0)
                     {
-                        this->InsertString(FA2sp::Buffer, Const_Terrain + i, node.first);
+                        this->InsertString(FA2sp::Buffer, Const_Terrain + index, node.item);
+                        node.insertedObjects.insert(terrain.second);
                         bNotOther = true;
                         break;
                     }
                 }
             }
+            if (auto cat = Variables::RulesMap.TryGetString(terrain.second, "EditorCategory"))
+            {
+                auto& node = nodes[*cat];
+                if (!node.insertedObjects.contains(terrain.second))
+                {
+                    this->InsertString(FA2sp::Buffer, Const_Terrain + index, node.item);
+                    bNotOther = true;
+                }
+            }
+
             if (!bNotOther)
-                this->InsertString(FA2sp::Buffer, Const_Terrain + i, hOther);
+                this->InsertString(FA2sp::Buffer, Const_Terrain + index, hOther);
             InsertingObjectID = "";
         }
     }
 
-    this->InsertTranslatedString("RndTreeObList", 50999, hTerrain);
+    this->InsertTranslatedString("RndTreeObList", 59999, hTerrain);
 
 
     HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomTreeObList", -1, hTerrain);
@@ -1576,18 +2018,20 @@ void CViewObjectsExt::Redraw_Terrain()
     {
         for (auto& subnode : nodes)
         {
-            if (!this->GetTreeCtrl().ItemHasChildren(subnode.first))
-                this->GetTreeCtrl().DeleteItem(subnode.first);
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.second.item))
+                this->GetTreeCtrl().DeleteItem(subnode.second.item);
         }
     }
 }
 
 void CViewObjectsExt::Redraw_Smudge()
 {
+    TreeViewIndex_Smudge.clear();
     HTREEITEM& hSmudge = ExtNodes[Root_Smudge];
     if (hSmudge == NULL)   return;
 
-    std::vector<std::pair<HTREEITEM, std::vector<FString>>> nodes;
+    FMap<SubGroupInfo> nodes;
+    auto&& smudges = Variables::RulesMap.GetSection("SmudgeTypes");
 
     if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.SmudgeTypes"))
     {
@@ -1602,9 +2046,26 @@ void CViewObjectsExt::Redraw_Smudge()
             const auto& translation = pSection->GetEntities().find(pair.second)->second;
 
             if (!IsIgnored(translation))
-                nodes.push_back(std::make_pair(this->InsertTranslatedString(translation, -1, hSmudge), contains));
+                nodes[translation] = { this->InsertTranslatedString(translation, -1, hSmudge), contains };
         }
     }
+
+    for (auto& obj : smudges)
+    {
+        if (IgnoreSet.find(obj.second) == IgnoreSet.end())
+        {
+            if (auto cat = Variables::RulesMap.TryGetString(obj.second, "EditorCategory"))
+            {
+                auto& node = nodes[*cat];
+                if (!node.item)
+                {
+                    node.item = this->InsertTranslatedString(*cat, -1, hSmudge);
+                }
+            }
+        }
+    }
+
+    HTREEITEM hOther = this->InsertTranslatedString("OthObList", -1, hSmudge);
 
     HTREEITEM hRandomSmudge = this->InsertTranslatedString("PlaceRandomSmudgeList", -1, hSmudge);
     if (auto pSection = CINI::FAData().GetSection("PlaceRandomSmudgeList"))
@@ -1636,33 +2097,42 @@ void CViewObjectsExt::Redraw_Smudge()
         }
     }
 
-
-    HTREEITEM hOther = this->InsertTranslatedString("OthObList", -1, hSmudge);
-
-    auto&& smudges = Variables::RulesMap.ParseIndicies("SmudgeTypes", true);
-    for (size_t i = 0, sz = smudges.size(); i < sz; ++i)
+    int index = -1;
+    for (auto& smudge : smudges)
     {
-        if (IgnoreSet.find(smudges[i]) == IgnoreSet.end())
+        index++;
+        TreeViewIndex_Smudge[index] = smudge.second;
+        if (IgnoreSet.find(smudge.second) == IgnoreSet.end())
         {
-            FA2sp::Buffer = QueryUIName(smudges[i]);
-            if (FA2sp::Buffer != smudges[i])
-                FA2sp::Buffer += " (" + smudges[i] + ")";
+            FA2sp::Buffer = QueryUIName(smudge.second);
+            if (FA2sp::Buffer != smudge.second)
+                FA2sp::Buffer += " (" + smudge.second + ")";
             bool bNotOther = false;
-            InsertingObjectID = smudges[i];
-            for (const auto& node : nodes)
+            InsertingObjectID = smudge.second;
+            for (auto& [_, node] : nodes)
             {
-                for (const auto& match : node.second)
+                for (const auto& match : node.collector)
                 {
-                    if (smudges[i].Find(match.c_str()) >= 0)
+                    if (smudge.second.Find(match.c_str()) >= 0)
                     {
-                        this->InsertString(FA2sp::Buffer, Const_Smudge + i, node.first);
+                        this->InsertString(FA2sp::Buffer, Const_Smudge + index, node.item);
+                        node.insertedObjects.insert(smudge.second);
                         bNotOther = true;
                         break;
                     }
                 }
             }
+            if (auto cat = Variables::RulesMap.TryGetString(smudge.second, "EditorCategory"))
+            {
+                auto& node = nodes[*cat];
+                if (!node.insertedObjects.contains(smudge.second))
+                {
+                    this->InsertString(FA2sp::Buffer, Const_Smudge + index, node.item);
+                    bNotOther = true;
+                }
+            }
             if (!bNotOther)
-                this->InsertString(FA2sp::Buffer, Const_Smudge + i, hOther);
+                this->InsertString(FA2sp::Buffer, Const_Smudge + index, hOther);
             InsertingObjectID = "";
         }
     }
@@ -1671,8 +2141,8 @@ void CViewObjectsExt::Redraw_Smudge()
     {
         for (auto& subnode : nodes)
         {
-            if (!this->GetTreeCtrl().ItemHasChildren(subnode.first))
-                this->GetTreeCtrl().DeleteItem(subnode.first);
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.second.item))
+                this->GetTreeCtrl().DeleteItem(subnode.second.item);
         }
     }
 }
@@ -1682,14 +2152,8 @@ void CViewObjectsExt::Redraw_Overlay()
     HTREEITEM& hOverlay = ExtNodes[Root_Overlay];
     if (hOverlay == NULL)   return;
 
-    auto& rules = CINI::Rules();
-
     HTREEITEM hTemp;
-    hTemp = this->InsertTranslatedString("DelOvrlObList", -1, hOverlay);
-    this->InsertTranslatedString("DelOvrl0ObList", 60100, hTemp);
-    this->InsertTranslatedString("DelOvrl1ObList", 60101, hTemp);
-    this->InsertTranslatedString("DelOvrl2ObList", 60102, hTemp);
-    this->InsertTranslatedString("DelOvrl3ObList", 60103, hTemp);
+    hTemp = this->InsertTranslatedString("DelOvrlObList", 60100, hOverlay);
 
     hTemp = this->InsertTranslatedString("GrTibObList", -1, hOverlay);
     InsertingOverlay = 112;
@@ -1730,79 +2194,164 @@ void CViewObjectsExt::Redraw_Overlay()
     // Walls
     HTREEITEM hWalls = this->InsertTranslatedString("WallsObList", -1, hOverlay);
 
-    hTemp = this->InsertTranslatedString("AllObList", -1, hOverlay);
+    // Veinhole monster
+    if (ExtConfigs::EnableVeinholeLogic)
+    {
+        hTemp = this->InsertTranslatedString("VeinholeObList", -1, hOverlay);
+        InsertingOverlay = 0xa7;
+        InsertingOverlayData = 0;
+        this->InsertTranslatedString("VeinholeObList", 60400, hTemp);
+        InsertingOverlay = 0x7e;
+        InsertingOverlayData = 0x30;
+        this->InsertTranslatedString("VeinsObList", 60401, hTemp);
+        InsertingOverlay = -1;
+    }
 
-    this->InsertTranslatedString("OvrlManuallyObList", 60001, hOverlay);
-    this->InsertTranslatedString("OvrlDataManuallyObList", 60002, hOverlay);
+    FMap<SubGroupInfo> nodes;
+    if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.Overlays"))
+    {
+        std::map<int, FString> collector;
 
-    if (!rules.SectionExists("OverlayTypes"))
+        for (auto& pair : pSection->GetIndices())
+            collector[pair.second] = pair.first;
+
+        for (auto& pair : collector)
+        {
+            const auto& contains = FString::SplitString(pair.second, "|");
+            const auto& translation = pSection->GetEntities().find(pair.second)->second;
+
+            if (!IsIgnored(translation))
+                nodes[translation] = { this->InsertTranslatedString(translation, -1, hOverlay), contains };
+        }
+    }
+    if (Variables::RulesMap.GetSection("OverlayTypes").empty())
         return;
-
-    // a rough support for tracks
-
-    InsertingOverlay = 39;
-    InsertingOverlayData = 0;
-    this->InsertTranslatedString("Tracks", Const_Overlay + 39, hOverlay);
-    InsertingOverlay = -1;
 
     const auto& overlays = Variables::RulesMap.ParseIndicies("OverlayTypes", true);
     int indexWall = Wall;
     CViewObjectsExt::WallDamageStages.clear();
+    CViewObjectsExt::WallIndices.clear();
     for (int i = 0, sz = (ExtConfigs::ExtOverlays || CMapDataExt::NewINIFormat >= 5) ?
         overlays.size() : std::min((UINT)255, overlays.size()); i < sz; ++i)
     {
         const auto& value = overlays[i];
         FString buffer;
-        buffer = QueryUIName(value);
+        FString name = Variables::RulesMap.GetString(value, "Name");
+        if (name.IsEmpty() || !Translations::GetTranslationItem(name, buffer))
+        {
+            buffer = QueryUIName(value, true);
+        }
         if (buffer != value)
             buffer += " (" + value + ")";
         FString id;
         id.Format("%03d %s", i, buffer);
-        if (rules.GetBool(value, "Wall"))
-        {
-            int damageLevel = CINI::Art().GetInteger(value, "DamageLevels", 1);
-            CViewObjectsExt::WallDamageStages[i] = damageLevel;
-            InsertingOverlay = i;
-            InsertingOverlayData = 5;
-            auto thisWall = this->InsertString(
-                QueryUIName(value),
-                Const_Overlay + i * 5 + indexWall,
-                hWalls
-            );
 
-            for (int s = 1; s < damageLevel + 1; s++)
+        if (!Variables::RulesMap.GetSection(value).empty() && IgnoreOverlaySet.find(value) == IgnoreOverlaySet.end())
+        {
+            if (Variables::RulesMap.GetBool(value, "Wall"))
             {
-                FString damage;
-                damage.Format("WallDamageLevelDes%d", s);
-                this->InsertString(
-                    QueryUIName(value) + " " + Translations::TranslateOrDefault(damage, damage),
-                    Const_Overlay + i * 5 + s + indexWall,
-                    thisWall
+                int damageLevel = CINI::Art().GetInteger(value, "DamageLevels", 1);
+                CViewObjectsExt::WallDamageStages[i] = damageLevel;
+                InsertingOverlay = i;
+                InsertingOverlayData = 5;
+                int wallIndex = CViewObjectsExt::WallIndices.size();
+                auto thisWall = this->InsertString(
+                    QueryUIName(value),
+                    Const_Overlay + wallIndex * 5 + indexWall,
+                    hWalls
                 );
-                InsertingOverlayData += 16;
+                for (int s = 1; s < damageLevel + 1; s++)
+                {
+                    FString damage;
+                    damage.Format("WallDamageLevelDes%d", s);
+                    this->InsertString(
+                        QueryUIName(value) + " " + Translations::TranslateOrDefault(damage, damage),
+                        Const_Overlay + wallIndex * 5 + s + indexWall,
+                        thisWall
+                    );
+                    InsertingOverlayData += 16;
+                }
+                InsertingOverlay = -1;
+                if (damageLevel > 1)
+                {
+                    this->InsertString(
+                        QueryUIName(value) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
+                        Const_Overlay + wallIndex * 5 + 4 + indexWall,
+                        thisWall);
+                }
+                CViewObjectsExt::WallIndices.push_back(i);
             }
-            InsertingOverlay = -1;
-            if (damageLevel > 1)
-            {
-                this->InsertString(
-                    QueryUIName(value) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
-                    Const_Overlay + i * 5 + 4 + indexWall,
-                    thisWall);
-            }
-        }
 
-        if (IgnoreSet.find(value) == IgnoreSet.end())
-        {
-            InsertingOverlay = i;
-            if (CMapDataExt::IsOre((byte)i))
-                InsertingOverlayData = 11;
-            else
-                InsertingOverlayData = 0;
-            this->InsertString(id, Const_Overlay + i, hTemp);
+            for (auto& [_, node] : nodes)
+            {
+                for (const auto& match : node.collector)
+                {
+                    if (value.Find(match.c_str()) >= 0)
+                    {
+                        InsertingOverlay = i;
+                        if (CMapDataExt::IsOre((byte)i))
+                            InsertingOverlayData = 11;
+                        else
+                            InsertingOverlayData = 0;
+                        this->InsertString(id, Const_Overlay + i, node.item);
+                        node.insertedObjects.insert(value);
+                        break;
+                    }
+                }
+            }
+            if (auto cat = Variables::RulesMap.TryGetString(value, "EditorCategory"))
+            {
+                auto& node = nodes[*cat];
+                if (!node.item)
+                {
+                    node.item = this->InsertTranslatedString(*cat, -1, hOverlay);
+                }
+                if (!node.insertedObjects.contains(value))
+                {
+                    InsertingOverlay = i;
+                    if (CMapDataExt::IsOre((byte)i))
+                        InsertingOverlayData = 11;
+                    else
+                        InsertingOverlayData = 0;
+                    this->InsertString(id, Const_Overlay + i, node.item);
+                }
+            }
         }
-        InsertingOverlay = -1;
     }
 
+    // a rough support for tracks
+    InsertingOverlay = 39;
+    InsertingOverlayData = 0;
+    this->InsertTranslatedString("Tracks", Const_Track, hOverlay);
+    InsertingOverlay = -1;
+
+    hTemp = this->InsertTranslatedString("AllObList", -1, hOverlay);
+
+    this->InsertTranslatedString("OvrlManuallyObList", 60001, hOverlay);
+    this->InsertTranslatedString("OvrlDataManuallyObList", 60002, hOverlay);
+
+    for (int i = 0, sz = (ExtConfigs::ExtOverlays || CMapDataExt::NewINIFormat >= 5) ?
+        overlays.size() : std::min((UINT)255, overlays.size()); i < sz; ++i)
+    {
+        const auto& value = overlays[i];
+        FString buffer;
+        FString name = Variables::RulesMap.GetString(value, "Name");
+        if (name.IsEmpty() || !Translations::GetTranslationItem(name, buffer))
+        {
+            buffer = QueryUIName(value, true);
+        }
+        if (buffer != value)
+            buffer += " (" + value + ")";
+        FString id;
+        id.Format("%03d %s", i, buffer);
+        InsertingOverlay = i;
+        if (CMapDataExt::IsOre((byte)i))
+            InsertingOverlayData = 11;
+        else
+            InsertingOverlayData = 0;
+        this->InsertString(id, Const_Overlay + i, hTemp);
+        InsertingOverlay = -1;
+    }
 
     HTREEITEM hTemp2 = this->InsertTranslatedString("PlaceRandomOverlayList", -1, hOverlay);
     if (auto pSection = CINI::FAData().GetSection("PlaceRandomOverlayList"))
@@ -1832,6 +2381,15 @@ void CViewObjectsExt::Redraw_Overlay()
                 }
             }
             index++;
+        }
+    }
+    // Clear up
+    if (ExtConfigs::ObjectBrowser_CleanUp)
+    {
+        for (auto& subnode : nodes)
+        {
+            if (!this->GetTreeCtrl().ItemHasChildren(subnode.second.item))
+                this->GetTreeCtrl().DeleteItem(subnode.second.item);
         }
     }
 }
@@ -1914,6 +2472,7 @@ void CViewObjectsExt::Redraw_PropertyBrush()
     this->InsertTranslatedString("PropertyBrushInfantry", Const_PropertyBrush + Set_Infantry, hPropertyBrush);
     this->InsertTranslatedString("PropertyBrushVehicle", Const_PropertyBrush + Set_Vehicle, hPropertyBrush);
     this->InsertTranslatedString("PropertyBrushAircraft", Const_PropertyBrush + Set_Aircraft, hPropertyBrush);
+    this->InsertTranslatedString("PropertyBrushTechno", Const_PropertyBrush + Set_Count, hPropertyBrush);
 }
 
 void CViewObjectsExt::Redraw_InfantrySubCell()
@@ -1993,46 +2552,46 @@ void CViewObjectsExt::Redraw_MultiSelection()
 
 bool CViewObjectsExt::DoPropertyBrush_Building()
 {
-    if (this->BuildingBrushDlg.get() == nullptr)
-        this->BuildingBrushDlg = std::make_unique<CPropertyBuilding>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+    if (BuildingBrushDlg.get() == nullptr)
+        BuildingBrushDlg = std::make_unique<CPropertyBuilding>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
 
-    for (auto& v : this->BuildingBrushBools)
+    for (auto& v : BuildingBrushBools)
         v = false;
 
-    return this->BuildingBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
+    return BuildingBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
 }
 
 bool CViewObjectsExt::DoPropertyBrush_Aircraft()
 {
-    if (this->AircraftBrushDlg.get() == nullptr)
-        this->AircraftBrushDlg = std::make_unique<CPropertyAircraft>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+    if (AircraftBrushDlg.get() == nullptr)
+        AircraftBrushDlg = std::make_unique<CPropertyAircraft>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
 
-    for (auto& v : this->AircraftBrushBools)
+    for (auto& v : AircraftBrushBools)
         v = false;
 
-    return this->AircraftBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
+    return AircraftBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
 }
 
 bool CViewObjectsExt::DoPropertyBrush_Vehicle()
 {
-    if (this->VehicleBrushDlg.get() == nullptr)
-        this->VehicleBrushDlg = std::make_unique<CPropertyUnit>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+    if (VehicleBrushDlg.get() == nullptr)
+        VehicleBrushDlg = std::make_unique<CPropertyUnit>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
 
-    for (auto& v : this->VehicleBrushBools)
+    for (auto& v : VehicleBrushBools)
         v = false;
 
-    return this->VehicleBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
+    return VehicleBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
 }
 
 bool CViewObjectsExt::DoPropertyBrush_Infantry()
 {
-    if (this->InfantryBrushDlg.get() == nullptr)
-        this->InfantryBrushDlg = std::make_unique<CPropertyInfantry>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+    if (InfantryBrushDlg.get() == nullptr)
+        InfantryBrushDlg = std::make_unique<CPropertyInfantry>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
 
-    for (auto& v : this->InfantryBrushBools)
+    for (auto& v : InfantryBrushBools)
         v = false;
 
-    return this->InfantryBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
+    return InfantryBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
 }
 
 void CViewObjectsExt::BatchAddMultiSelection(int X, int Y, bool add)
@@ -2172,15 +2731,15 @@ void CViewObjectsExt::ModifyOre(int X, int Y)
             int moneyDelta = 0;
             int olyPos = y + x * 512;
             int pos = pExt->GetCoordIndex(x, y);
+
+            pExt->DeleteTiberium(std::min(ovr, (word)0xFF), pExt->OverlayData[olyPos]);
             if (data >= 0)
             {
-                moneyDelta = pExt->GetOreValue(ovr, data) - pExt->GetOreValue(ovr, ovrd);
                 pExt->OverlayData[olyPos] = data;
                 pExt->CellDatas[pos].OverlayData = data;
             }
             else
             {
-                moneyDelta = -pExt->GetOreValue(ovr, ovrd);
                 pExt->Overlay[olyPos] = 0xFF;
                 pExt->NewOverlay[olyPos] = 0xFFFF;
                 pExt->OverlayData[olyPos] = 0;
@@ -2188,8 +2747,7 @@ void CViewObjectsExt::ModifyOre(int X, int Y)
                 pExt->CellDataExts[pos].NewOverlay = 0xFFFF;
                 pExt->CellDatas[pos].OverlayData = 0;
             }
-
-            pExt->MoneyCount += moneyDelta;
+            pExt->AddTiberium(std::min(pExt->NewOverlay[olyPos], (word)0xFF), data);
         };
     if (CMapDataExt::IsOre(ovr))
     {
@@ -2786,6 +3344,93 @@ void CViewObjectsExt::ApplyDragFacing(int X, int Y)
     }
 }
 
+void CViewObjectsExt::ApplyTag(int X, int Y, FString tag)
+{
+    if (CMapData::Instance->IsCoordInMap(X, Y))
+    {
+        int pos = CMapData::Instance->GetCoordIndex(X, Y);
+        auto cell = CMapData::Instance->GetCellAt(pos);
+        auto& cellExt = CMapDataExt::CellDataExts[pos];
+        if (tag != "" && tag != "<none>")
+        {
+            if (cell->Structure > -1)
+            {
+                TempValueHolder<bool> skipCheck(CMapDataExt::SkipBuildingOverlappingCheck, true);
+                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building, true);
+                CBuildingData data;
+                CMapData::Instance->GetBuildingData(cell->Structure, data);
+
+                data.Tag = tag;
+
+                CIsoViewExt::DrawPropertyBrushMark = true;
+                CIsoViewExt::DrawEditedMarks.push_back(
+                    EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
+
+                CMapData::Instance->DeleteBuildingData(cell->Structure);
+                CMapData::Instance->SetBuildingData(&data, nullptr, nullptr, 0, "");
+            }
+
+            if (cell->Unit > -1)
+            {
+                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit, true);
+                CUnitData data;
+                CMapData::Instance->GetUnitData(cell->Unit, data);
+
+                data.Tag = tag;
+
+                CIsoViewExt::DrawPropertyBrushMark = true;
+                CIsoViewExt::DrawEditedMarks.push_back(
+                    EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
+
+                CMapData::Instance->DeleteUnitData(cell->Unit);
+                CMapData::Instance->SetUnitData(&data, nullptr, nullptr, 0, "");
+            }
+
+            if (cell->Aircraft > -1)
+            {
+                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft, true);
+                CAircraftData data;
+                CMapData::Instance->GetAircraftData(cell->Aircraft, data);
+
+                data.Tag = tag;
+
+                CIsoViewExt::DrawPropertyBrushMark = true;
+                CIsoViewExt::DrawEditedMarks.push_back(
+                    EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
+
+                CMapData::Instance->DeleteAircraftData(cell->Aircraft);
+                CMapData::Instance->SetAircraftData(&data, nullptr, nullptr, 0, "");
+            }
+
+            int infantry = CMapDataExt::GetInfantryAt(pos);
+            if (infantry > -1)
+            {
+                if (ExtConfigs::InfantrySubCell_Edit)
+                {
+                    infantry = CIsoViewExt::GetSelectedSubcellInfantryIdx(X, Y);
+                }
+                if (infantry > -1)
+                {
+                    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry, true);
+                    CInfantryData data;
+                    CMapData::Instance->GetInfantryData(infantry, data);
+
+                    data.Tag = tag;
+
+                    CIsoViewExt::DrawPropertyBrushMark = true;
+                    CIsoViewExt::DrawEditedMarks.push_back(
+                        EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
+
+                    CMapData::Instance->DeleteInfantryData(infantry);
+                    CMapData::Instance->SetInfantryData(&data, nullptr, nullptr, 0, -1);
+                }
+            }
+
+            ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+        }
+    }
+}
+
 void CViewObjectsExt::ApplyPropertyBrush(int X, int Y)
 {
     auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
@@ -2802,6 +3447,22 @@ void CViewObjectsExt::ApplyPropertyBrush(int X, int Y)
             ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
         }
         return;
+    }
+    if (ExtConfigs::InfantrySubCell_Edit &&
+        CIsoView::CurrentCommand->Type == Set_Count &&
+        pIsoView->BrushSizeX == 1 && pIsoView->BrushSizeY == 1)
+    {
+        auto pCell = CMapData::Instance->GetCellAt(X, Y);
+        if (pCell->Unit == -1 && pCell->Aircraft == -1 && pCell->Structure == -1)
+        {
+            int idx = CIsoViewExt::GetSelectedSubcellInfantryIdx(X, Y);
+            if (idx != -1)
+            {
+                ApplyPropertyBrush_Infantry(idx, true);
+                ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+                return;
+            }
+        }
     }
 
     for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
@@ -2838,54 +3499,98 @@ void CViewObjectsExt::ApplyPropertyBrush(int X, int Y)
                 if (CellData.Aircraft != -1)
                     ApplyPropertyBrush_Aircraft(CellData.Aircraft);
             }
+            else if (CIsoView::CurrentCommand->Type == Set_Count)
+            {
+                if (CellData.Structure != -1)
+                    ApplyPropertyBrush_Building(CellData.Structure, true);
+                if (CellData.Infantry[0] != -1)
+                    ApplyPropertyBrush_Infantry(CellData.Infantry[0], true);
+                if (CellData.Infantry[1] != -1)
+                    ApplyPropertyBrush_Infantry(CellData.Infantry[1], true);
+                if (CellData.Infantry[2] != -1)
+                    ApplyPropertyBrush_Infantry(CellData.Infantry[2], true);
+                if (CellData.Unit != -1)
+                    ApplyPropertyBrush_Vehicle(CellData.Unit, true);
+                if (CellData.Aircraft != -1)
+                    ApplyPropertyBrush_Aircraft(CellData.Aircraft, true);
+            }
         }
     }  
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 
-void CViewObjectsExt::ApplyPropertyBrush_Building(int nIndex)
+void CViewObjectsExt::ApplyPropertyBrush_Building(int nIndex, bool useTechnoDlg)
 {
     TempValueHolder<bool> skipCheck(CMapDataExt::SkipBuildingOverlappingCheck, true);
     CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building, true);
     CBuildingData data;
     CMapData::Instance->GetBuildingData(nIndex, data);
+
+    CIsoViewExt::DrawPropertyBrushMark = true;
+    CIsoViewExt::DrawEditedMarks.push_back(
+        EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
     
-    ApplyPropertyBrush_Building(data);
+    if (useTechnoDlg)
+        CFinalSunDlgExt::TechnoDialog->ApplyToBuildingData(&data);
+    else
+        ApplyPropertyBrush_Building(data);
+
     CMapData::Instance->DeleteBuildingData(nIndex);
     CMapData::Instance->SetBuildingData(&data, nullptr, nullptr, 0, "");
 }
 
-void CViewObjectsExt::ApplyPropertyBrush_Infantry(int nIndex)
+void CViewObjectsExt::ApplyPropertyBrush_Infantry(int nIndex, bool useTechnoDlg)
 {
     CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry, true);
     CInfantryData data;
     CMapData::Instance->GetInfantryData(nIndex, data);
 
-    ApplyPropertyBrush_Infantry(data);
+    CIsoViewExt::DrawPropertyBrushMark = true;
+    CIsoViewExt::DrawEditedMarks.push_back(
+        EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y), (short)atoi(data.SubCell) });
+
+    if (useTechnoDlg)
+        CFinalSunDlgExt::TechnoDialog->ApplyToInfantryData(&data);
+    else
+        ApplyPropertyBrush_Infantry(data);
 
     CMapData::Instance->DeleteInfantryData(nIndex);
     CMapData::Instance->SetInfantryData(&data, nullptr, nullptr, 0, -1);
 }
 
-void CViewObjectsExt::ApplyPropertyBrush_Aircraft(int nIndex)
+void CViewObjectsExt::ApplyPropertyBrush_Aircraft(int nIndex, bool useTechnoDlg)
 {
     CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft, true);
     CAircraftData data;
     CMapData::Instance->GetAircraftData(nIndex, data);
 
-    ApplyPropertyBrush_Aircraft(data);
+    CIsoViewExt::DrawPropertyBrushMark = true;
+    CIsoViewExt::DrawEditedMarks.push_back(
+        EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
+
+    if (useTechnoDlg)
+        CFinalSunDlgExt::TechnoDialog->ApplyToAircraftData(&data);
+    else
+        ApplyPropertyBrush_Aircraft(data);
 
     CMapData::Instance->DeleteAircraftData(nIndex);
     CMapData::Instance->SetAircraftData(&data, nullptr, nullptr, 0, "");
 }
 
-void CViewObjectsExt::ApplyPropertyBrush_Vehicle(int nIndex)
+void CViewObjectsExt::ApplyPropertyBrush_Vehicle(int nIndex, bool useTechnoDlg)
 {
     CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit, true);
     CUnitData data;
     CMapData::Instance->GetUnitData(nIndex, data);
 
-    ApplyPropertyBrush_Vehicle(data);
+    CIsoViewExt::DrawPropertyBrushMark = true;
+    CIsoViewExt::DrawEditedMarks.push_back(
+        EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
+
+    if (useTechnoDlg)
+        CFinalSunDlgExt::TechnoDialog->ApplyToUnitData(&data);
+    else
+        ApplyPropertyBrush_Vehicle(data);
 
     CMapData::Instance->DeleteUnitData(nIndex);
     CMapData::Instance->SetUnitData(&data, nullptr, nullptr, 0, "");
@@ -3017,6 +3722,19 @@ int CViewObjectsExt::GuessType(const char* pRegName)
     return -1;
 }
 
+std::vector<std::vector<int>> CViewObjectsExt::GetMultiLayers(const char* pRegName)
+{
+    auto&& knownIterator = MultiLayerItem.find(pRegName);
+    std::vector<std::vector<int>> result;
+    if (knownIterator != MultiLayerItem.end())
+    {
+        for (int i = 0; i < 9; ++i) {
+            result.push_back(knownIterator->second[i]);
+        }
+    }
+    return result;
+}
+
 std::vector<int> CViewObjectsExt::GuessSide(const char* pRegName, int nType)
 {
     auto&& knownIterator = KnownItem.find(pRegName);
@@ -3055,22 +3773,19 @@ std::vector<int> CViewObjectsExt::GuessSide(const char* pRegName, int nType)
 
 int CViewObjectsExt::GuessBuildingSide(const char* pRegName)
 {
-    auto& rules = CINI::Rules();
-
-    int planning;
-    planning = rules.GetInteger(pRegName, "AIBasePlanningSide", -1);
-    if (planning >= rules.GetKeyCount("Sides"))
+    int planning = Variables::RulesMap.GetInteger(pRegName, "AIBasePlanningSide", -1);
+    if (planning >= (int)Variables::RulesMap.GetSection("Sides").size())
         return -1;
     if (planning >= 0)
         return planning > ExtConfigs::ObjectBrowser_GuessMax ? -1 : planning;
-    auto&& cons = STDHelpers::SplitString(rules.GetString("AI", "BuildConst"));
+    auto&& cons = STDHelpers::SplitString(Variables::RulesMap.GetString("AI", "BuildConst"));
     int i;
     for (i = 0; i < cons.size(); ++i)
     {
         if (cons[i] == pRegName)
             return i > ExtConfigs::ObjectBrowser_GuessMax ? -1 : i;
     }
-    if (i >= rules.GetKeyCount("Sides"))
+    if (i >= (int)Variables::RulesMap.GetSection("Sides").size())
         return -1;
     return GuessGenericSide(pRegName, Set_Building);
 }
@@ -3111,10 +3826,13 @@ int CViewObjectsExt::GuessGenericSide(const char* pRegName, int nType)
         auto&& owners = STDHelpers::SplitString(Variables::RulesMap.GetString(pRegName, "Owner"));
         if (owners.size() <= 0)
             return -1;
-        auto&& itr = Owners.find(owners[0]);
-        if (itr == Owners.end())
-            return -1;
-        return itr->second > ExtConfigs::ObjectBrowser_GuessMax ? -1 : itr->second;
+        for (auto& o : owners)
+        {
+            auto&& itr = Owners.find(o);
+            if (itr != Owners.end())
+                return itr->second > ExtConfigs::ObjectBrowser_GuessMax ? -1 : itr->second;
+        }
+        return -1;
     }
     }
 }
@@ -3123,28 +3841,17 @@ int CViewObjectsExt::GuessGenericSide(const char* pRegName, int nType)
 void CViewObjectsExt::OnExeTerminate()
 {
     IgnoreSet.clear();
+    IgnoreOverlaySet.clear();
     ForceName.clear();
     for (auto& set : ExtSets)
         set.clear();
     KnownItem.clear();
+    MultiLayerItem.clear();
     Owners.clear();
     DarkTheme::CleanupDarkThemeBrushes();
-    FA2sp::Buffer.~CString();
     CIsoViewExt::MapRendererIgnoreObjects.clear();
-    for (int i = 0; i < 10; ++i)
-        UserScriptExt::ParamsTemp[i].~CString();
     UserScriptExt::VariablePool.clear();
     UserScriptExt::Temps.clear();
-
-    ExtConfigs::DefaultInfantryProperty.~CInfantryData();
-    ExtConfigs::DefaultUnitProperty.~CUnitData();
-    ExtConfigs::DefaultAircraftProperty.~CAircraftData();
-    ExtConfigs::DefaultBuildingProperty.~CBuildingData();
-
-    Variables::RulesMap.~MultimapHelper();
-    Variables::Rules.~MultimapHelper();
-    Variables::FAData.~MultimapHelper();
-    Variables::Rules_FAData.~MultimapHelper();
 }
 
 void CViewObjectsExt::InitializeOnUpdateEngine()
@@ -3160,7 +3867,9 @@ void CViewObjectsExt::InitializeOnUpdateEngine()
     CViewObjectsExt::PlacingWall = -1;
     CViewObjectsExt::PlacingRandomRandomFacing = false;
     CViewObjectsExt::NeedChangeTreeViewSelect = true;
+    CIsoViewExt::EnableAutoTrack = false;
 
+    CViewObjectsExt::CurrentConnectedTileType = -1;
     CViewObjectsExt::CliffConnectionCoord.X = -1;
     CViewObjectsExt::CliffConnectionCoord.Y = -1;
     CViewObjectsExt::CliffConnectionHeight = -1;
@@ -3175,6 +3884,14 @@ void CViewObjectsExt::InitializeOnUpdateEngine()
     CViewObjectsExt::LastHeightRecords.clear();
     CViewObjectsExt::LastPlacedCT.HeightAdjust = 0;
     CViewObjectsExt::CliffConnectionHeightAdjust = 0;
+    if (CIsoView::CurrentCommand->Command != 0x17 && CIsoView::CurrentCommand->Command != 0x25)
+    {
+        CIsoViewExt::DrawEditedMarks.clear();
+    }
+    if (CIsoView::CurrentCommand->Command == 0x26)
+    {
+        CMeasurementToolbox::OnRightButtonDown();
+    }
 }
 
 bool CViewObjectsExt::UpdateEngine(int nData)
@@ -3186,31 +3903,21 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         int nMorphable = nData - 67;
         if (nMorphable >= 0 && nMorphable < TheaterInfo::CurrentInfo.size())
         {
-            int i;
-            for (i = 0; i < CMapDataExt::TileDataCount; ++i)
-                if (CMapDataExt::TileData[i].TileSet == TheaterInfo::CurrentInfo[nMorphable].Morphable)
-                {
-                    CIsoView::CurrentCommand->Param = 0;
-                    CIsoView::CurrentCommand->Height = 0;
-                    CIsoView::CurrentCommand->Type = i;
-                    CIsoView::CurrentCommand->Command = FACurrentCommand::TileDraw;
-                    CBrushSize::UpdateBrushSize(i);
-                    return true;
-                }
+            CIsoView::CurrentCommand->Param = 0;
+            CIsoView::CurrentCommand->Height = 0;
+            CIsoView::CurrentCommand->Type = TheaterInfo::CurrentInfo[nMorphable].MorphableIndex;
+            CIsoView::CurrentCommand->Command = FACurrentCommand::TileDraw;
+            CBrushSize::UpdateBrushSize(TheaterInfo::CurrentInfo[nMorphable].Morphable);
+            return true;
         }
         else if (nMorphable >= 0 && nMorphable < (TheaterInfo::CurrentInfo.size() + TheaterInfo::CurrentInfoNonMorphable.size()))
         {
-            int i;
-            for (i = 0; i < CMapDataExt::TileDataCount; ++i)
-                if (CMapDataExt::TileData[i].TileSet == TheaterInfo::CurrentInfoNonMorphable[nMorphable- TheaterInfo::CurrentInfo.size()].Morphable)
-                {
-                    CIsoView::CurrentCommand->Param = 0;
-                    CIsoView::CurrentCommand->Height = 0;
-                    CIsoView::CurrentCommand->Type = i;
-                    CIsoView::CurrentCommand->Command = FACurrentCommand::TileDraw;
-                    CBrushSize::UpdateBrushSize(i);
-                    return true;
-                }
+            CIsoView::CurrentCommand->Param = 0;
+            CIsoView::CurrentCommand->Height = 0;
+            CIsoView::CurrentCommand->Type = TheaterInfo::CurrentInfoNonMorphable[nMorphable - TheaterInfo::CurrentInfo.size()].MorphableIndex;
+            CIsoView::CurrentCommand->Command = FACurrentCommand::TileDraw;
+            CBrushSize::UpdateBrushSize(TheaterInfo::CurrentInfoNonMorphable[nMorphable - TheaterInfo::CurrentInfo.size()].Morphable);
+            return true;
         }
     } while (false);
 
@@ -3288,6 +3995,49 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     int nCode = nData / 10000;
     nData %= 10000;
 
+    if (oriNData == Const_WPColor)
+    {
+        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
+        CIsoView::CurrentCommand->Type = 0;
+        OpenWpTagColorDlg(true);
+        return true;
+    }
+    if (oriNData == Const_TagColor)
+    {
+        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
+        CIsoView::CurrentCommand->Type = 1;
+        OpenWpTagColorDlg(false);
+        return true;
+    }
+    if (oriNData == Const_RemoveWPColor)
+    {
+        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
+        CIsoView::CurrentCommand->Type = 2;
+        return true;
+    }
+    if (oriNData == Const_RemoveTagColor)
+    {
+        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
+        CIsoView::CurrentCommand->Type = 3;
+        return true;
+    }
+    if (oriNData == Const_Track)
+    {
+        CIsoViewExt::EnableAutoTrack = true;
+        CIsoView::CurrentCommand->Command = 0x1;
+        CIsoView::CurrentCommand->Type = 6;
+        CIsoView::CurrentCommand->Param = 30;
+        CIsoView::CurrentCommand->Overlay = 39;
+        CIsoView::CurrentCommand->OverlayData = 0;
+        return true;
+    }
+    if (oriNData == 60100)
+    {
+        CIsoView::CurrentCommand->Command = 1;
+        CIsoView::CurrentCommand->Type = 6;
+        CIsoView::CurrentCommand->Param = 1;
+        return true;
+    }
     if (nCode == 0) // main list
     {
         CIsoView::CurrentCommand->Command = 0x00;
@@ -3295,6 +4045,15 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     }
     if (nCode == 1) // Infantry
     {
+        auto& obj = TreeViewIndex_Infantry[nData];
+        if (!obj.IsEmpty())
+        {
+            CIsoView::CurrentCommand->Command = 0x1;
+            CIsoView::CurrentCommand->Type = nCode;
+            CIsoView::CurrentCommand->Param = nData;
+            CIsoView::CurrentCommand->ObjectID = obj;
+            return true;
+        }
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomInfantryObList"))
         {
             int index = RandomTechno;
@@ -3312,9 +4071,19 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                 index++;
             }
         }
+        return true;
     }
     if (nCode == 2) // Building
     {
+        auto& obj = TreeViewIndex_Building[nData];
+        if (!obj.IsEmpty())
+        {
+            CIsoView::CurrentCommand->Command = 0x1;
+            CIsoView::CurrentCommand->Type = nCode;
+            CIsoView::CurrentCommand->Param = nData;
+            CIsoView::CurrentCommand->ObjectID = obj;
+            return true;
+        }
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomBuildingObList"))
         {
             int index = RandomTechno;
@@ -3332,9 +4101,19 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                 index++;
             }
         }
+        return true;
     }
     if (nCode == 3) // Aircraft
     {
+        auto& obj = TreeViewIndex_Aircraft[nData];
+        if (!obj.IsEmpty())
+        {
+            CIsoView::CurrentCommand->Command = 0x1;
+            CIsoView::CurrentCommand->Type = nCode;
+            CIsoView::CurrentCommand->Param = nData;
+            CIsoView::CurrentCommand->ObjectID = obj;
+            return true;
+        }
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomAircraftObList"))
         {
             int index = RandomTechno;
@@ -3352,9 +4131,19 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                 index++;
             }
         }
+        return true;
     }
     if (nCode == 4) // Vehicle
     {
+        auto& obj = TreeViewIndex_Vehicle[nData];
+        if (!obj.IsEmpty())
+        {
+            CIsoView::CurrentCommand->Command = 0x1;
+            CIsoView::CurrentCommand->Type = nCode;
+            CIsoView::CurrentCommand->Param = nData;
+            CIsoView::CurrentCommand->ObjectID = obj;
+            return true;
+        }
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomVehicleObList"))
         {
             int index = RandomTechno;
@@ -3372,9 +4161,30 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                 index++;
             }
         }
+        return true;
     }
     if (nCode == 5) // Terrain
     {
+        if (nData == 9999)
+            return false;
+        auto& obj = TreeViewIndex_Terrain[nData];
+        if (!obj.IsEmpty())
+        {
+            CIsoView::CurrentCommand->Command = 0x1;
+            CIsoView::CurrentCommand->Type = nCode;
+            CIsoView::CurrentCommand->Param = nData;
+            CIsoView::CurrentCommand->ObjectID = obj;
+            return true;
+        }
+        auto&& objs = Variables::RulesMap.ParseIndicies("TerrainTypes", true);
+        if (nData < objs.size())
+        {
+            CIsoView::CurrentCommand->Command = 0x1;
+            CIsoView::CurrentCommand->Type = nCode;
+            CIsoView::CurrentCommand->Param = nData;
+            CIsoView::CurrentCommand->ObjectID = objs[nData];
+            return true;
+        }
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomTreeObList"))
         {
             int index = RandomTree;
@@ -3392,14 +4202,20 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                 index++;
             }
         }
+        return true;
     }
     if (nCode == 6) // overlay
     {
         if (nData - 3000 >= Wall && nData - 3000 < WallEnd)
         {
-            CIsoView::CurrentCommand->Command = 0x1;
-            PlacingWall = nData - 3000 - Wall;
-            return true;
+            int index = (nData - 3000 - Wall) / 5;
+            int state = (nData - 3000 - Wall) % 5;
+            if (index < WallIndices.size())
+            {
+                CIsoView::CurrentCommand->Command = 0x1;
+                PlacingWall = WallIndices[index] * 5 + state;
+                return true;
+            }
         }
         else if (nData - 3000 == AddOre)
         {
@@ -3481,6 +4297,15 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     }
     if (nCode == 8) // Smudge
     {
+        auto& obj = TreeViewIndex_Smudge[nData];
+        if (!obj.IsEmpty())
+        {
+            CIsoView::CurrentCommand->Command = 0x1;
+            CIsoView::CurrentCommand->Type = nCode;
+            CIsoView::CurrentCommand->Param = nData;
+            CIsoView::CurrentCommand->ObjectID = obj;
+            return true;
+        }
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomSmudgeList"))
         {
             int index = random1x1crater;
@@ -3498,6 +4323,7 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                 index++;
             }
         }
+        return true;
     }
 
     if (nCode == 9) // PropertyBrush
@@ -3564,6 +4390,19 @@ bool CViewObjectsExt::UpdateEngine(int nData)
 
             CViewObjectsExt::InitPropertyDlgFromProperty = false;
 
+            return true;
+        }
+        else if (nData == Set_Count)
+        {
+            CFinalSunDlgExt::TechnoDialog = nullptr;
+            CFinalSunDlgExt::TechnoDialog = std::make_unique<CTechnoDialog>();
+            if (CFinalSunDlgExt::TechnoDialog->DoModal() == IDOK)
+            {
+                CIsoView::CurrentCommand->Command = 0x17;
+                CIsoView::CurrentCommand->Type = CViewObjectsExt::Set_Count;
+            }
+            else
+                CIsoView::CurrentCommand->Command = FACurrentCommand::Nothing;
             return true;
         }
     }
@@ -3867,8 +4706,8 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     {
         if (nData == AllDelete)
         {
-            CIsoView::CurrentCommand->Command = 0;
-            CIsoView::CurrentCommand->Type = 0;
+            CIsoView::CurrentCommand->Command = 0x1D;
+            CIsoView::CurrentCommand->Type = 114;
             MultiSelection::Clear();
             ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
             return true;
@@ -3877,8 +4716,8 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         {
             MultiSelection::LastAddedCoord.X = -1;
             MultiSelection::LastAddedCoord.Y = -1;
-            CIsoView::CurrentCommand->Command = 0;
-            CIsoView::CurrentCommand->Type = 0;
+            CIsoView::CurrentCommand->Command = 0x1D;
+            CIsoView::CurrentCommand->Type = 114;
             for (auto& coord : MultiSelection::SelectedCoords)
             {
                 if (CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
@@ -3921,37 +4760,14 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         CIsoView::CurrentCommand->Type = nData;
         return true;
     }
-    if (oriNData == Const_WPColor)
-    {
-        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
-        CIsoView::CurrentCommand->Type = 0;
-        OpenWpTagColorDlg(true);
-        return true;
-    }
-    if (oriNData == Const_TagColor)
-    {
-        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
-        CIsoView::CurrentCommand->Type = 1;
-        OpenWpTagColorDlg(false);
-        return true;
-    }
-    if (oriNData == Const_RemoveWPColor)
-    {
-        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
-        CIsoView::CurrentCommand->Type = 2;
-        return true;
-    }
-    if (oriNData == Const_RemoveTagColor)
-    {
-        CIsoView::CurrentCommand->Command = 0x24; // WP/Tag color
-        CIsoView::CurrentCommand->Type = 3;
-        return true;
-    }
+ 
     // 0x1F Terrain Generator
     // 0x20 Modify Ore
     // 0x21 Annotation
     // 0x22 Tube
     // 0x23 Lua Script
     // 0x24 WP/Tag color
+    // 0x25 Draging trigger dot
+    // 0x26 Measurement Toolbox
     return false;
 }

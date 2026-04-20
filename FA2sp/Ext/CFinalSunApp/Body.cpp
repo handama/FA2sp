@@ -9,23 +9,33 @@
 #include <thread>
 #include <iostream>
 #include <future>
+#include <string.h>
 #include <filesystem>
 #include "../../Helpers/Translations.h"
 #include "../../Miscs/VoxelDrawer.h"
 #include "../CLoading/Body.h"
 #include "../../Miscs/DialogStyle.h"
+#include "../../Helpers/STDHelpers.h"
+#include "../../Miscs/Hooks.INI.h"
+#include "../CFinalSunDlg/Body.h"
+#include <wininet.h>
+#include "../../FA2sp.Constants.h"
+
 namespace fs = std::filesystem;
 
 #pragma warning(disable : 6262)
 
 std::vector<std::string> CFinalSunAppExt::RecentFilesExt;
 bool CFinalSunAppExt::HoldingKey = false;
+bool CFinalSunAppExt::HasNewVersion = false;
+FString CFinalSunAppExt::NewVersion;
 FString CFinalSunAppExt::ExePathExt;
+FString CFinalSunAppExt::LauncherName;
 std::array<std::pair<std::string, std::string>, 7> CFinalSunAppExt::ExternalLinks
 {
 	std::make_pair("https://github.com/secsome/FA2sp", ""),
 	std::make_pair("https://github.com/handama/FA2sp", ""),
-	std::make_pair("https://phobos.readthedocs.io/zh-cn/latest/", ""),
+	std::make_pair("https://phobos.readthedocs.io/en/latest/", ""),
 	std::make_pair("https://www.ppmforums.com/", ""),
 	std::make_pair("https://modenc.renegadeprojects.com/Main_Page", ""),
 	std::make_pair("https://ra2map.com/", ""),
@@ -63,45 +73,29 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	CFinalSunDlg::SE2KMODE = FALSE; // We don't need SE2K stuff
 	CFinalSunApp::MapPath[0] = '\0';
 	// Now let's parse the command line
-	// Nothing yet huh...
+	ParseCommandLine(CFinalSunApp::Instance->m_lpCmdLine);
+	
 	CFinalSunAppExt::ExePathExt = CFinalSunApp::ExePath();
-	std::string path;
-	path = CFinalSunAppExt::ExePathExt;
-	path += "\\FAData.ini";
-	CINI::FAData->ClearAndLoad(path.c_str());
 
-	if (auto pSection = CINI::FAData().GetSection("Include"))
-	{
-		for (auto& pair : pSection->GetEntities())
-		{
-			std::string includePath;
-			includePath = CFinalSunAppExt::ExePathExt;
-			includePath += "\\" + pair.second;
-			if (fs::exists(includePath))
-				CINI::FAData->ParseINI(includePath.c_str(), 0, 0);
-		}
-	}
-
-	path = CFinalSunAppExt::ExePathExt;
-	path += "\\FALanguage.ini";
-	CINI::FALanguage->ClearAndLoad(path.c_str());
-	if (auto pSection = CINI::FALanguage().GetSection("Include"))
-	{
-		for (auto& pair : pSection->GetEntities())
-		{
-			std::string includePath;
-			includePath = CFinalSunAppExt::ExePathExt;
-			includePath += "\\" + pair.second;
-			if (fs::exists(includePath))
-				CINI::FALanguage->ParseINI(includePath.c_str(), 0, 0);
-		}
-	}
-	// No need to validate falanguage I guess
+	((CINIExt*)&CINI::FAData())->LoadFASetting("FAData.ini");
+	((CINIExt*)&CINI::FALanguage())->LoadFASetting("FALanguage.ini");
 
 	FA2sp::ExtConfigsInitialize(); // ExtConfigs
 	VoxelDrawer::Initalize();
 
+	std::string newGamePath;
+	if (ExtConfigs::LoadGameFromMapFolder_OnInit && strlen(CFinalSunApp::MapPath()))
+	{
+		newGamePath = CFinalSunApp::MapPath();
+		newGamePath = newGamePath.substr(0, newGamePath.find_last_of("\\") + 1);
+		if (!fs::exists(newGamePath + "ra2.mix"))
+		{
+			newGamePath.clear();
+		}
+	}
+
 	CINI ini;
+	std::string path;
 	path = CFinalSunAppExt::ExePathExt;
 	path += "\\FinalAlert.ini";
 
@@ -110,6 +104,8 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	ini.ClearAndLoad(path.c_str());
 	std::string installpath = std::string(ini.GetString("TS", "Exe"));
 	installpath = installpath.substr(0, installpath.find_last_of("\\") + 1);
+	if (!newGamePath.empty())
+		installpath = newGamePath;
 
 	if (!ExtConfigs::DisableDirectoryCheck)
 	{
@@ -151,7 +147,7 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 		}
 	}
 
-	this->InstallPath = ini.GetString("TS", "Exe");
+	this->InstallPath = newGamePath.empty() ? ini.GetString("TS", "Exe").GetString() : newGamePath;
 	this->FileSearchLikeTS = ini.GetBool("FinalSun", "FileSearchLikeTS");
 	if (ini.KeyExists("FinalSun", "LanguageSP"))
 	{
@@ -188,7 +184,8 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	this->ShowBuildingCells = ini.GetBool("UserInterface", "ShowBuildingCells");
 
 	ExtConfigs::TreeViewCameo_Display = ini.GetBool("UserInterface", "ShowTreeViewCameo");
-
+	ExtConfigs::DisableAutoConnectWall = ini.GetBool("UserInterface", "DisableAutoConnectWall");
+	
 	// recent files
 	this->RecentFilesExt.resize(ExtConfigs::RecentFileLimit);
 	for (size_t i = 0; i < this->RecentFilesExt.size(); ++i)
@@ -219,7 +216,7 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	// Others
 	CLoading loading(nullptr);
 	this->Loading = &loading;
-	
+
 	bool is_watcher_running = true;
 	std::thread watcher([&is_watcher_running]()
 		{
@@ -232,7 +229,11 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 			fw.start(fw.Callback);
 		}
 	);
-
+#ifdef NDEBUG
+	std::thread([]() {
+		CheckUpdate();
+	}).detach();
+#endif
 
 	CFinalSunDlg dlg(nullptr);
 	this->m_pMainWnd = &dlg;
@@ -243,4 +244,170 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	watcher.join(); // wait for thread exit
 
 	return FALSE;
+}
+
+void CFinalSunAppExt::ParseCommandLine(const char* cmdLine)
+{
+	FString line(cmdLine);
+	auto encoding = STDHelpers::GetFileEncoding((uint8_t*)line.data(), line.size());
+	if (encoding == FileEncoding::UTF8 || encoding == FileEncoding::UTF8_BOM)
+		line.toANSI();
+	std::vector<std::string> args;
+	if (!cmdLine || !*cmdLine) return;
+
+	const char* p = line.data();
+	std::string current;
+
+	while (*p) {
+		while (*p && std::isspace(static_cast<unsigned char>(*p))) ++p;
+
+		if (!*p) break;
+
+		current.clear();
+
+		if (*p == '"' || *p == '\'') {
+			char quote = *p;
+			++p;
+			while (*p && *p != quote) {
+				current += *p;
+				++p;
+			}
+			if (*p == quote) ++p;
+		}
+		else {
+			while (*p && !std::isspace(static_cast<unsigned char>(*p))) {
+				current += *p;
+				++p;
+			}
+		}
+
+		if (!current.empty()) {
+			args.push_back(std::move(current));
+		}
+	}
+
+	std::string output_file;
+
+	for (size_t i = 0; i < args.size(); ++i) {
+		std::string_view arg = args[i];
+
+		if (arg == "-o" || arg == "--open") {
+			if (i + 1 < args.size()) output_file = args[++i];
+		}
+		else if (arg == "-x") {
+			if (i + 1 < args.size()) {
+				LauncherName = args[++i];
+				LauncherName.Replace("\"", "");
+			}
+		}
+	}
+
+	if (output_file.size() < MAX_PATH && std::filesystem::exists(output_file))
+	{
+		strcpy_s(CFinalSunApp::MapPath(), output_file.c_str());
+	}
+}
+
+#pragma comment(lib, "wininet.lib")
+std::string HttpGetSimple(const std::wstring& url)
+{
+	std::string result;
+
+	HINTERNET hInternet = InternetOpenW(
+		L"Mozilla/5.0",
+		INTERNET_OPEN_TYPE_PRECONFIG,
+		NULL, NULL, 0);
+
+	if (!hInternet) return result;
+
+	HINTERNET hFile = InternetOpenUrlW(
+		hInternet,
+		url.c_str(),
+		NULL, 0,
+		INTERNET_FLAG_RELOAD | INTERNET_FLAG_SECURE,
+		0);
+
+	if (!hFile) {
+		InternetCloseHandle(hInternet);
+		return result;
+	}
+
+	char buffer[4096];
+	DWORD bytesRead = 0;
+
+	while (InternetReadFile(hFile, buffer, sizeof(buffer), &bytesRead) && bytesRead)
+	{
+		result.append(buffer, bytesRead);
+	}
+
+	InternetCloseHandle(hFile);
+	InternetCloseHandle(hInternet);
+
+	return result;
+}
+
+Version ParseVersionFromJson(const std::string& json)
+{
+	Version v{};
+
+	size_t pos = json.find("\"tag_name\"");
+	if (pos == std::string::npos)
+		return v;
+
+	size_t start = json.find("\"", pos + 10);
+	if (start == std::string::npos)
+		return v;
+
+	start++;
+
+	size_t end = json.find("\"", start);
+	if (end == std::string::npos)
+		return v;
+
+	std::string tag = json.substr(start, end - start);
+
+	size_t numStart = tag.find_first_of("0123456789");
+	if (numStart == std::string::npos)
+		return v;
+
+	std::string versionPart = tag.substr(numStart);
+
+	sscanf_s(versionPart.c_str(), "%d.%d.%d",
+		&v.major, &v.minor, &v.revision);
+
+	return v;
+}
+
+bool IsNewer(const Version& local, const Version& remote)
+{
+	if (remote.major != local.major)
+		return remote.major > local.major;
+
+	if (remote.minor != local.minor)
+		return remote.minor > local.minor;
+
+	return remote.revision > local.revision;
+}
+
+void CFinalSunAppExt::CheckUpdate()
+{
+	Sleep(5);
+
+	std::string json = HttpGetSimple(
+		L"https://api.github.com/repos/handama/fa2sp/releases/latest"
+	);
+	if (json.empty())
+		return;
+
+	Version remote = ParseVersionFromJson(json);
+	Version local = { HE_PRODUCT_MAJOR, HE_PRODUCT_MINOR, HE_PRODUCT_REVISION };
+
+	if (IsNewer(local, remote))
+	{
+		HasNewVersion = true;
+		NewVersion.Format("%d.%d.%d", remote.major, remote.minor, remote.revision);
+
+		if (CFinalSunDlg::Instance)
+			::PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), 114514, 0, 0);
+	}
 }

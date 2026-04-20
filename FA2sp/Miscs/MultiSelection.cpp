@@ -120,10 +120,10 @@ void MultiSelection::FindConnectedTiles(
 
         if (dlg.ConsiderLAT)
         {
-            for (int latidx = 0; latidx < CMapDataExt::Tile_to_lat.size(); ++latidx)
+            for (const auto& latInfo : CMapDataExt::Tile_to_lat)
             {
-                int& iSmoothSet = CMapDataExt::Tile_to_lat[latidx][0];
-                int& iLatSet = CMapDataExt::Tile_to_lat[latidx][1];
+                int iSmoothSet = latInfo.SmoothSet;
+                int iLatSet = latInfo.LatSet;
 
                 if (iSmoothSet == *tileSet.begin())
                     tileSet.insert(iLatSet);
@@ -225,7 +225,7 @@ DEFINE_HOOK(456EFC, CIsoView_OnMouseMove_MultiSelect_SelectStatus, 6)
     if (CIsoView::CurrentCommand->Command == 0x1D && (eFlags & MK_LBUTTON))
     {
         {
-            auto coord = CIsoView::GetInstance()->GetCurrentMapCoord(point);
+            auto coord = CIsoViewExt::GetExtension()->GetCurrentMapCoord(point);
             if (CIsoView::CurrentCommand->Type == 0)
                 if (MultiSelection::AddCoord(coord.X, coord.Y))
                 {
@@ -272,30 +272,6 @@ DEFINE_HOOK(456EFC, CIsoView_OnMouseMove_MultiSelect_SelectStatus, 6)
     }
 
     return 0;
-}
-
-DEFINE_HOOK(469470, CIsoView_OnKeyDown, 5)
-{
-    if (!ExtConfigs::EnableMultiSelection)
-        return 0;
-
-    GET(CIsoView*, pThis, ECX);
-    GET_STACK(UINT, nChar, 0x4);
-
-    if (nChar == 'D')
-    {
-        if (MultiSelection::Control_D_IsDown)
-            MultiSelection::Control_D_IsDown = false;
-		else
-            CFinalSunApp::Instance->FlatToGround = !CFinalSunApp::Instance->FlatToGround;
-        pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
-    }
-    else if (nChar == 'A')
-        pThis->KeyboardAMode = !pThis->KeyboardAMode;
-
-    R->EAX(pThis->Default());
-
-    return 0x4694A9;
 }
 
 DEFINE_HOOK(433DA0, CFinalSunDlg_Tools_RaiseSingleTile, 5)

@@ -17,7 +17,7 @@
 #include "../../Ext/CTileSetBrowserFrame/TabPages/TriggerSort.h"
 #include "../CNewScript/CNewScript.h"
 #include <numeric>
-#define INI_BUFFER_SIZE 800000
+#include "../../Helpers/Helper.h"
 
 HWND CNewINIEditor::m_hwnd;
 CFinalSunDlg* CNewINIEditor::m_parent;
@@ -43,15 +43,20 @@ int CNewINIEditor::origWndHeight;
 int CNewINIEditor::minWndWidth;
 int CNewINIEditor::minWndHeight;
 bool CNewINIEditor::minSizeSet;
+bool CNewINIEditor::autoEdit = false;
 
 WNDPROC CNewINIEditor::OriginalListBoxProc;
-char INIBuffer[INI_BUFFER_SIZE]{ 0 };
+UINT_PTR CNewINIEditor::m_changeDebounceTimer = 0;
+FString CNewINIEditor::CurrentSection;
+const UINT DEBOUNCE_MS = 250;
 
 void CNewINIEditor::Create(CFinalSunDlg* pWnd)
 {
-    HMODULE hModule = LoadLibrary(TEXT("Riched32.dll"));
-    if (!hModule)
-        MessageBox(NULL, Translations::TranslateOrDefault("FailedLoadRiched32DLL", "Could not Load Riched32.dll!"), Translations::TranslateOrDefault("Error", "Error"), MB_ICONERROR);
+    HMODULE hScintilla = LoadLibrary(TEXT("Scintilla.dll"));
+    if (!hScintilla) {
+        MessageBox(NULL, Translations::TranslateOrDefault("FailedLoadScintillaDLL",
+            "Could not Load Scintilla.dll!"), Translations::TranslateOrDefault("Error", "Error"), MB_ICONERROR);
+    }
 
     m_parent = pWnd;
     m_hwnd = CreateDialog(
@@ -73,6 +78,7 @@ void CNewINIEditor::Create(CFinalSunDlg* pWnd)
 
 void CNewINIEditor::Initialize(HWND& hWnd)
 {
+    CurrentSection.clear();
     FString buffer;
     if (Translations::GetTranslationItem("INIEditorTitle", buffer))
         SetWindowText(hWnd, buffer);
@@ -101,20 +107,12 @@ void CNewINIEditor::Initialize(HWND& hWnd)
     hImportButton = GetDlgItem(hWnd, Controls::ImportButton);
     hImportTextButton = GetDlgItem(hWnd, Controls::ImportTextButton);
 
-    ExtraWindow::SetEditControlFontSize(hINIEdit, 1.4f, true, "Consolas");
     ExtraWindow::SetEditControlFontSize(hSectionList, 1.2f, false, "Consolas");
-    SendMessage(hINIEdit, EM_LIMITTEXT, (WPARAM)INI_BUFFER_SIZE, 0);
-    SendMessage(hINIEdit, EM_SETEVENTMASK, 0, (LPARAM)(ENM_CHANGE));
 
-    if (ExtConfigs::EnableDarkMode)
-    {
-        ::SendMessage(hINIEdit, EM_SETBKGNDCOLOR, (WPARAM)FALSE, (LPARAM)RGB(32, 32, 32));
-        CHARFORMAT cf = { 0 };
-        cf.cbSize = sizeof(cf);
-        cf.dwMask = CFM_COLOR;
-        cf.crTextColor = RGB(220, 220, 220);
-        ::SendMessage(hINIEdit, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
-    }
+    SetupIniHighlight(hINIEdit);
+
+    int marginWidth = 35;
+    ::SendMessage(hINIEdit, SCI_SETMARGINWIDTHN, 0, marginWidth);
 
     if (hSectionList)
         OriginalListBoxProc = (WNDPROC)SetWindowLongPtr(hSectionList, GWLP_WNDPROC, (LONG_PTR)ListBoxSubclassProc);
@@ -141,19 +139,11 @@ void CNewINIEditor::InitializeImporter(HWND& hWnd)
     hImporterDesc = GetDlgItem(hWnd, Controls::ImporterDesc);
     hImporterOK = GetDlgItem(hWnd, Controls::ImporterOK);
     hImporterText = GetDlgItem(hWnd, Controls::ImporterText);
-    ExtraWindow::SetEditControlFontSize(hImporterText, 1.4f, true, "Consolas");
-    SendMessage(hImporterText, EM_LIMITTEXT, (WPARAM)INI_BUFFER_SIZE, 0);
-    SendMessage(hImporterText, EM_SETUNDOLIMIT, 0, 0);
 
-    if (ExtConfigs::EnableDarkMode)
-    {
-        ::SendMessage(hImporterText, EM_SETBKGNDCOLOR, (WPARAM)FALSE, (LPARAM)RGB(32, 32, 32));
-        CHARFORMAT cf = { 0 };
-        cf.cbSize = sizeof(cf);
-        cf.dwMask = CFM_COLOR;
-        cf.crTextColor = RGB(220, 220, 220);
-        ::SendMessage(hImporterText, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
-    }
+    SetupIniHighlight(hImporterText);
+
+    int marginWidth = 35;
+    ::SendMessage(hImporterText, SCI_SETMARGINWIDTHN, 0, marginWidth);
 }
 
 void CNewINIEditor::Update(HWND& hWnd)
@@ -170,7 +160,7 @@ void CNewINIEditor::Update(HWND& hWnd)
         auto& sectionName = itr->first;
         if (IsMapPack(sectionName)) continue;
         if (ExtConfigs::INIEditor_IgnoreTeams && IsTeam(sectionName)) continue;
-        SendMessage(hSectionList, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)sectionName.m_pchData);
+        SendMessage(hSectionList, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)sectionName.GetString());
     }
     char buffer[512]{ 0 };
     GetWindowText(hSearchText, buffer, 511);
@@ -187,6 +177,7 @@ void CNewINIEditor::CloseImporter(HWND& hWnd)
     CNewINIEditor::m_hwndImporter = NULL;
 
 }
+
 void CNewINIEditor::Close(HWND& hWnd)
 {
     EndDialog(hWnd, NULL);
@@ -304,8 +295,7 @@ BOOL CALLBACK CNewINIEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             break;
         case Controls::ImportButton:
             if (CODE == BN_CLICKED)
-            {
-                
+            {           
                 CFinalSunDlg::Instance()->INIEditor.OnClickImportINI();
                 UpdateAllGameObject();
                 Update(hWnd);
@@ -323,16 +313,45 @@ BOOL CALLBACK CNewINIEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             if (CODE == BN_CLICKED)
                 OnClickDelSection(hWnd);
             break;
-        case Controls::INIEdit:
-            if (CODE == EN_CHANGE)
-                OnEditchangeINIEdit();
-            break;
+        //case Controls::INIEdit:
+        //    if (CODE == EN_CHANGE)
+        //        OnEditchangeINIEdit();
+        //    break;
         case Controls::SearchText:
             if (CODE == EN_CHANGE)
                 OnEditchangeSearch();
             break;
         default:
             break;
+        }
+        break;
+    }
+    case WM_NOTIFY:
+    {
+        SCNotification* scn = (SCNotification*)lParam;
+        if (scn->nmhdr.hwndFrom == hINIEdit && scn->nmhdr.code == SCN_MODIFIED)
+        {
+            if (scn->modificationType & (SC_MOD_INSERTTEXT | SC_MOD_DELETETEXT))
+            {
+                if (m_changeDebounceTimer)
+                {
+                    KillTimer(m_hwnd, m_changeDebounceTimer);
+                }
+
+                m_changeDebounceTimer = SetTimer(m_hwnd, 1002, DEBOUNCE_MS, NULL);
+            }
+        }
+        break;
+    }
+    case WM_TIMER:
+    {
+        if (wParam == 1002)
+        {
+            KillTimer(m_hwnd, 1002);
+            m_changeDebounceTimer = 0;
+            OnEditchangeINIEdit();
+
+            return 0;
         }
         break;
     }
@@ -414,57 +433,182 @@ void CNewINIEditor::OnClickImportText(HWND& hWnd)
     );
 
     if (m_hwndImporter)
+    {
         ShowWindow(m_hwndImporter, SW_SHOW);
+    }
     else
     {
         Logger::Error("Failed to create CNewINIEditorImporter.\n");
     }
 }
 
+inline static bool IsValidSectionLine(const FString& line)
+{
+    int lb = line.Find('[');
+    int rb = line.Find(']');
+    if (lb != 0 || rb <= lb)
+        return false;
+
+    int semicolon = line.Find(';');
+    if (semicolon >= 0 && semicolon < rb)
+        return false;
+
+    return true;
+}
+
+inline static void TrimFrontSemicolon(FString& line)
+{
+    line.Trim();
+    int semicolon = line.Find(';');
+    if (semicolon == 0) {
+        line = line.Mid(semicolon + 1);
+        line.Trim();
+    }
+}
+
 void CNewINIEditor::OnClickImporterOK(HWND& hWnd)
 {
-    GetWindowText(hImporterText, INIBuffer, INI_BUFFER_SIZE - 1);
-    FString text(INIBuffer);
-    auto lines = FString::SplitStringMultiSplit(text, "\n|\r");
-    FString section;
-    std::vector<FString> sections;
-    
-    
-    for (auto& line : lines)
+    FString text = ExtraWindow::GetScintillaText(hImporterText);
+
+    FString currentSection;
+    FString inlineComments;
+    FString frontComments;
+
+    std::vector<FString> touchedSections;
+    std::vector<FString> imageChangedSections;
+
+    std::istringstream iss(text);
+    FString line;
+    while (std::getline(iss, line))
     {
-        FString::TrimSemicolon(line);
-        line.Trim();
-
-        int nStart = line.Find('[');
-        int nEnd = line.Find(']');
-        if (nStart < nEnd && nStart == 0)
+        if (!line.empty())
         {
-            section = line.Mid(nStart + 1, nEnd - nStart - 1);
-            sections.push_back(section);
-            continue;
-        }
-        if (section == "")
-            continue;
+            FString rawLine = line;
+            line.Trim();
 
-        auto pair = FString::SplitKeyValue(line);
-        if (line != "" && pair.first != "" && pair.second != "")
-        {
-            map.WriteString(section, pair.first, pair.second);
+            const char* lb = strchr(line, '[');
+            const char* rb = strchr(line, ']');
+            const char* eq = strchr(line, '=');
+
+            if (IsValidSectionLine(line))
+            {
+                FString::TrimSemicolon(line);
+                line.Trim();
+
+                currentSection = line.Mid(1, rb - lb - 1);
+                touchedSections.push_back(currentSection);
+
+                auto comment = FString::GetComment(rawLine);
+                inlineComments += comment;
+                inlineComments += "\n";
+
+                inlineComments.Trim();
+                if (ExtConfigs::SaveMap_KeepComments && !inlineComments.IsEmpty())
+                {
+                    CMapDataExt::MapInsectionComments[currentSection] = inlineComments;
+                    inlineComments.clear();
+                }
+                frontComments.Trim();
+                if (ExtConfigs::SaveMap_KeepComments && !frontComments.IsEmpty())
+                {
+                    CMapDataExt::MapFrontsectionComments[currentSection] = frontComments;
+                    frontComments.clear();
+                }
+
+                inlineComments.clear();
+                frontComments.clear();
+
+                continue;
+            }
+
+            if (currentSection.IsEmpty())
+            {
+                TrimFrontSemicolon(rawLine);
+                frontComments += rawLine;
+                frontComments += "\n";
+                continue;
+            }
+
+            if (!lb || !rb || rb < lb || (eq && eq < lb))
+            {
+                FString semanticLine = line;
+                FString::TrimSemicolon(semanticLine);
+                semanticLine.Trim();
+
+                auto pair = FString::SplitKeyValue(semanticLine);
+
+                if (!semanticLine.IsEmpty() && !pair.first.IsEmpty())
+                {
+                    auto comment = FString::GetComment(rawLine);
+                    inlineComments += comment;
+                    pair.first.Trim();
+                    pair.second.Trim();
+                    if (pair.first == "Image")
+                    {
+                        if (map.GetString(currentSection, "Image") != pair.second)
+                        {
+                            imageChangedSections.push_back(currentSection);
+                        }
+                    }
+
+                    map.WriteString(currentSection, pair.first, pair.second);
+
+
+                    inlineComments.Trim();
+                    if (ExtConfigs::SaveMap_KeepComments && !inlineComments.IsEmpty())
+                    {
+                        CMapDataExt::MapInlineComments[currentSection][pair.first] = inlineComments;
+                        inlineComments.clear();
+                    }
+
+                    frontComments.Trim();
+                    if (ExtConfigs::SaveMap_KeepComments && !frontComments.IsEmpty())
+                    {
+                        CMapDataExt::MapFrontlineComments[currentSection][pair.first] = frontComments;
+                        frontComments.clear();
+                    }
+                }
+                else
+                {
+                    TrimFrontSemicolon(rawLine);
+                    frontComments += rawLine;
+                    frontComments += "\n";
+                }
+            }
+            else
+            {
+                TrimFrontSemicolon(rawLine);
+                frontComments += rawLine;
+                frontComments += "\n";
+            }
         }
+        else if (!frontComments.IsEmpty())
+            frontComments += "\n";
     }
 
-    for (auto& sec : sections) {
+    for (auto& sec : touchedSections)
+    {
         UpdateGameObject(sec);
+        Variables::RulesMap.ClearMap(sec);
     }
 
     SendMessage(m_hwnd, 114514, 0, 0);
     SendMessage(m_hwndImporter, WM_CLOSE, 0, 0);
+
+    for (auto& sec : imageChangedSections)
+    {
+        if (CLoadingExt::GetExtension()->ReLoadObjectOrOverlay(sec))
+            CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
 }
 
 void CNewINIEditor::OnClickNewSection()
 {
     SendMessage(hSearchText, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
-    SectionLabels.clear();
+    if (!SectionLabels.empty())
+    {
+        Update(m_hwnd);
+    }
     char section[512]{ 0 };
     GetWindowText(hNewSectionName, section, 511);
     if (strcmp(section, "") == 0) return;
@@ -510,8 +654,16 @@ void CNewINIEditor::OnClickDelSection(HWND& hWnd)
     if (result == IDNO)
         return;
 
+    bool reloadImage = map.KeyExists(section, "Image");
     map.DeleteSection(section);
     UpdateGameObject(section);
+    Variables::RulesMap.ClearMap(section);
+
+    if (reloadImage)
+    {
+        if (CLoadingExt::GetExtension()->ReLoadObjectOrOverlay(section))
+            CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
 
     SendMessage(hSectionList, LB_DELETESTRING, idx, NULL);
 
@@ -526,67 +678,266 @@ void CNewINIEditor::OnClickDelSection(HWND& hWnd)
 
 void CNewINIEditor::OnSelchangeListbox(int index)
 {
+    if (m_changeDebounceTimer)
+    {
+        KillTimer(m_hwnd, m_changeDebounceTimer);
+        OnEditchangeINIEdit();
+    }
     if (index >= 0)
     {
         SendMessage(hSectionList, LB_SETCURSEL, index, NULL);
     }
     if (SendMessage(hSectionList, LB_GETCURSEL, NULL, NULL) < 0 || SendMessage(hSectionList, LB_GETCOUNT, NULL, NULL) <= 0)
     {
-        SendMessage(hINIEdit, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
+        SendMessage(hINIEdit, SCI_SETTEXT, 0, (LPARAM)(LPCSTR)"");
+        ::SendMessage(hINIEdit, SCI_EMPTYUNDOBUFFER, 0, 0);
+        CurrentSection.clear();
         return;
     }
     int idx = SendMessage(hSectionList, LB_GETCURSEL, 0, NULL);
 
     char section[512]{ 0 };
     SendMessage(hSectionList, LB_GETTEXT, idx, (LPARAM)section);
+    CurrentSection = section;
     FString text;
-    if (auto pSection = map.GetSection(section))
+    if (auto pSection = map.GetSection(CurrentSection))
     {
         for (auto& pair : pSection->GetEntities())
         {
+            if (ExtConfigs::SaveMap_KeepComments)
+            {
+                auto fkIt = CMapDataExt::MapFrontlineComments[CurrentSection].find(pair.first);
+                if (fkIt != CMapDataExt::MapFrontlineComments[CurrentSection].end())
+                {
+                    std::istringstream iss(fkIt->second);
+                    std::string line;
+                    bool first = true;
+
+                    while (std::getline(iss, line))
+                    {
+                        if (!line.empty())
+                            text += "; " + line + "\r\n";
+                        else
+                            text += "\r\n";
+                    }
+                }
+            }
+
             FString line;
-            line.Format("%s=%s\r\n", pair.first, pair.second);
+            line.Format("%s=%s", pair.first, pair.second);
             text += line;
+            if (ExtConfigs::SaveMap_KeepComments)
+            {
+                auto ikIt = CMapDataExt::MapInlineComments[section].find(pair.first);
+                if (ikIt != CMapDataExt::MapInlineComments[section].end())
+                {
+                    text += " ; " + ikIt->second;
+                }
+            }
+            text += "\r\n";
         }
-        SendMessage(hINIEdit, WM_SETTEXT, 0, text);
+
+        TempValueHolder<bool> tmp(autoEdit, true);
+        ExtraWindow::SetScintillaText(hINIEdit, text);
     }
     else
-        SendMessage(hINIEdit, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
+    {
+        SendMessage(hINIEdit, SCI_SETTEXT, 0, (LPARAM)(LPCSTR)"");
+        ::SendMessage(hINIEdit, SCI_EMPTYUNDOBUFFER, 0, 0);
+    }
 
+    int marginWidth = 35;
+    int lineCount = ::SendMessage(hINIEdit, SCI_GETLINECOUNT, 0, 0);
+    if (lineCount > 999) marginWidth = 45;
+    if (lineCount > 9999) marginWidth = 55;
+    ::SendMessage(hINIEdit, SCI_SETMARGINWIDTHN, 0, marginWidth);
+}
+
+void CNewINIEditor::SetupIniHighlight(HWND& hWnd)
+{
+    ::SendMessage(hWnd, SCI_SETMULTIPLESELECTION, TRUE, 0);
+    ::SendMessage(hWnd, SCI_SETADDITIONALSELECTIONTYPING, TRUE, 0);
+    ::SendMessage(hWnd, SCI_SETMULTIPASTE, SC_MULTIPASTE_EACH, 0);
+    ::SendMessage(hWnd, SCI_SETVIRTUALSPACEOPTIONS, SCVS_RECTANGULARSELECTION, 0);
+    ::SendMessage(hWnd, SCI_SETCODEPAGE, SC_CP_UTF8, 0);
+    ::SendMessage(hWnd, SCI_STYLESETFONT, STYLE_DEFAULT, (LPARAM)"Consolas");
+    ::SendMessage(hWnd, SCI_STYLESETSIZE, STYLE_DEFAULT, 12);
+    ::SendMessage(hWnd, SCI_SETTABWIDTH, 4, 0);
+
+    ::SendMessage(hWnd, SCI_SETILEXER, 0, (LPARAM)CreateLexer("props"));
+    ::SendMessage(hWnd, SCI_CLEARDOCUMENTSTYLE, 0, 0);
+
+    bool isDark = ExtConfigs::EnableDarkMode;
+
+    int marginWidth = 35;
+    ::SendMessage(hWnd, SCI_SETMARGINWIDTHN, 0, marginWidth);
+    ::SendMessage(hWnd, SCI_SETMARGINWIDTHN, 1, 0);
+    ::SendMessage(hWnd, SCI_SETMARGINMASKN, 1, 0);
+    ::SendMessage(hWnd, SCI_SETMARGINTYPEN, 1, SC_MARGIN_SYMBOL);
+    ::SendMessage(hWnd, SCI_SETMARGINSENSITIVEN, 1, FALSE);
+    ::SendMessage(hWnd, SCI_SETMARGINLEFT, 0, 4);
+
+    ::SendMessage(hWnd, SCI_SETCARETFORE, isDark ? RGB(220, 220, 220) : RGB(0, 0, 0), 0);
+    ::SendMessage(hWnd, SCI_SETCARETLINEVISIBLE, 1, 0);
+
+    if (isDark)
+    {
+        ::SendMessage(hWnd, SCI_STYLESETBACK, STYLE_DEFAULT, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_SETCARETLINEBACK, RGB(50, 70, 90), 0); 
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 0, RGB(220, 220, 230));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 0, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 1, RGB(120, 160, 140));
+        ::SendMessage(hWnd, SCI_STYLESETITALIC, 1, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 1, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 2, RGB(220, 70, 70));
+        ::SendMessage(hWnd, SCI_STYLESETBOLD, 2, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 2, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 3, RGB(240, 120, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 3, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 4, RGB(160, 220, 160)); 
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 4, RGB(32, 32, 32));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 5, RGB(100, 180, 255)); 
+        ::SendMessage(hWnd, SCI_STYLESETBOLD, 5, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 5, RGB(32, 32, 32));
+
+
+        ::SendMessage(hWnd, SCI_SETSELBACK, 1, RGB(60, 80, 120)); 
+        ::SendMessage(hWnd, SCI_SETSELFORE, 1, RGB(240, 240, 255)); 
+        ::SendMessage(hWnd, SCI_STYLESETFORE, STYLE_LINENUMBER, RGB(140, 140, 160));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, STYLE_LINENUMBER, RGB(48, 48, 48));
+    }
+    else
+    {
+        ::SendMessage(hWnd, SCI_STYLESETBACK, STYLE_DEFAULT, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_SETCARETLINEBACK, RGB(240, 245, 255), 0); 
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 0, RGB(0, 0, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 0, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 1, RGB(0, 128, 0)); 
+        ::SendMessage(hWnd, SCI_STYLESETITALIC, 1, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 1, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 2, RGB(220, 0, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBOLD, 2, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 2, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 3, RGB(160, 80, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 3, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 4, RGB(0, 120, 0));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 4, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 5, RGB(0, 0, 220));
+        ::SendMessage(hWnd, SCI_STYLESETBOLD, 5, TRUE);
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 5, RGB(255, 255, 255));
+
+        ::SendMessage(hWnd, SCI_SETSELBACK, 1, RGB(180, 210, 255));
+        ::SendMessage(hWnd, SCI_SETSELFORE, 1, RGB(0, 0, 0));
+        ::SendMessage(hWnd, SCI_STYLESETFORE, STYLE_LINENUMBER, RGB(120, 120, 120));
+        ::SendMessage(hWnd, SCI_STYLESETBACK, STYLE_LINENUMBER, RGB(240, 240, 240));
+    }
+
+    ::SendMessage(hWnd, SCI_COLOURISE, 0, -1);
 }
 
 void CNewINIEditor::OnEditchangeINIEdit()
 {
+    if (autoEdit) return;
     if (SendMessage(hSectionList, LB_GETCURSEL, NULL, NULL) < 0 || SendMessage(hSectionList, LB_GETCOUNT, NULL, NULL) <= 0)
     {
-        SendMessage(hINIEdit, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
+        SendMessage(hINIEdit, SCI_SETTEXT, 0, (LPARAM)(LPCSTR)"");
+        ::SendMessage(hINIEdit, SCI_EMPTYUNDOBUFFER, 0, 0);
         return;
     }
-    int idx = SendMessage(hSectionList, LB_GETCURSEL, 0, NULL);
-    char section[512]{ 0 };
-    SendMessage(hSectionList, LB_GETTEXT, idx, (LPARAM)section);
-    GetWindowText(hINIEdit, INIBuffer, INI_BUFFER_SIZE - 1);
-    FString text(INIBuffer);
-    auto lines = FString::SplitStringMultiSplit(text, "\n|\r");
+    FString text = ExtraWindow::GetScintillaText(hINIEdit);
 
-    map.DeleteSection(section);
-    for (auto& line : lines)
+    FString oldImage = map.GetString(CurrentSection, "Image");
+    FString inlineComments;
+    FString frontComments;
+
+    map.DeleteSection(CurrentSection);
+
+    std::istringstream iss(text);
+    FString line;
+    while (std::getline(iss, line))
     {
-        const char* lb = strchr(line, '[');
-        const char* rb = strchr(line, ']');
-        const char* eq = strchr(line, '=');
-
-        if (!lb || !rb || rb < lb || (eq && eq < lb)) {
-            FString::TrimSemicolon(line);
+        if (!line.empty())
+        {
+            auto rawLine = line;
             line.Trim();
 
-            auto pair = FString::SplitKeyValue(line);
-            if (line != "" && pair.first != "")// && pair.second != "") // allow empty value
-                map.WriteString(section, pair.first, pair.second);
+            const char* lb = strchr(line, '[');
+            const char* rb = strchr(line, ']');
+            const char* eq = strchr(line, '=');
+
+            if (!lb || !rb || rb < lb || (eq && eq < lb)) {
+                FString::TrimSemicolon(line);
+                line.Trim();
+
+                auto pair = FString::SplitKeyValue(line);
+                if (line != "" && pair.first != "")// && pair.second != "") // allow empty value
+                {
+                    auto comment = FString::GetComment(rawLine);
+                    inlineComments += comment;
+
+                    map.WriteString(CurrentSection, pair.first.Trim(), pair.second.Trim());
+
+                    inlineComments.Trim();
+                    if (ExtConfigs::SaveMap_KeepComments && !inlineComments.IsEmpty())
+                    {
+                        CMapDataExt::MapInlineComments[CurrentSection][pair.first] = inlineComments;
+                        inlineComments.clear();
+                    }
+                    else if (ExtConfigs::SaveMap_KeepComments)
+                    {
+                        CMapDataExt::MapInlineComments[CurrentSection].erase(pair.first);
+                    }
+                    frontComments.Trim();
+                    if (ExtConfigs::SaveMap_KeepComments && !frontComments.IsEmpty())
+                    {
+                        CMapDataExt::MapFrontlineComments[CurrentSection][pair.first] = frontComments;
+                        frontComments.clear();
+                    }
+                    else if (ExtConfigs::SaveMap_KeepComments)
+                    {
+                        CMapDataExt::MapFrontlineComments[CurrentSection].erase(pair.first);
+                    }
+                }
+                else
+                {
+                    TrimFrontSemicolon(rawLine);
+                    frontComments += rawLine;
+                    frontComments += "\n";
+                }
+            }
+            else
+            {
+                TrimFrontSemicolon(rawLine);
+                frontComments += rawLine;
+                frontComments += "\n";
+            }
         }
+        else if (!frontComments.IsEmpty())
+            frontComments += "\n";
     }
 
-    UpdateGameObject(section);
+    UpdateGameObject(CurrentSection);
+    Variables::RulesMap.ClearMap(CurrentSection);
+
+    if (map.GetString(CurrentSection, "Image") != oldImage)
+    {
+        if (CLoadingExt::GetExtension()->ReLoadObjectOrOverlay(CurrentSection))
+            CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
 }
 
 void CNewINIEditor::OnEditchangeSearch()
@@ -612,12 +963,13 @@ void CNewINIEditor::OnEditchangeSearch()
     GetWindowText(hSearchText, buffer, 511);
 
     std::vector<int> deletedLabels;
+    LabelMatcher matcher(buffer);
     for (int idx = SendMessage(hSectionList, LB_GETCOUNT, NULL, NULL) - 1; idx >= 0; idx--)
     {
         SendMessage(hSectionList, LB_GETTEXT, idx, (LPARAM)buffer2);
         bool del = false;
         FString tmp(buffer2);
-        if (!(ExtraWindow::IsLabelMatch(buffer2, buffer) || strcmp(buffer, "") == 0))
+        if (!(matcher.Match(buffer2) || strcmp(buffer, "") == 0))
         {
             deletedLabels.push_back(idx);
         }

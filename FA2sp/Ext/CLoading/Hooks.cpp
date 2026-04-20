@@ -29,34 +29,44 @@ DEFINE_HOOK(48A650, CLoading_SearchFile, 6)
 	GET_STACK(const char*, Filename, 0x4);
 	GET_STACK(unsigned char*, pTheaterType, 0x8);
 
-	if (ExtConfigs::ExtMixLoader)
+	FString fileName = Filename;
+	if (!CLoadingExt::NotFoundFiles.contains(fileName))
 	{
-		auto& manager = MixLoader::Instance();
-		auto result = manager.QueryFileIndex(Filename);
-		if (result >= 0)
+		if (ExtConfigs::ExtMixLoader)
 		{
-			R->EAX(result);
-			return 0x48AA63;
-		}
-	}
-
-	for (int i = 0; i < CMixFile::ArraySize; ++i)
-	{
-		auto& mix = CMixFile::Array[i];
-		if (!mix.is_open())
-			break;
-		if (CMixFile::HasFile(Filename, i + 1))
-		{
+			auto& manager = MixLoader::Instance();
+			auto result = manager.QueryFileIndex(fileName);
+			if (result >= 0)
+			{
 #ifndef NDEBUG
-			Logger::Debug("[SearchFile] %s - %d\n", Filename, i + 1);
+				Logger::Debug("[SearchFile] %s - %d\n", fileName, result);
 #endif
-			R->EAX(i + 1);
-			return 0x48AA63;
+				R->EAX(result);
+				return 0x48AA63;
+			}
 		}
+		else
+		{
+			for (int i = 0; i < CMixFile::ArraySize; ++i)
+			{
+				auto& mix = CMixFile::Array[i];
+				if (!mix.is_open())
+					break;
+				if (CMixFile::HasFile(fileName, i + 1))
+				{
+#ifndef NDEBUG
+					Logger::Debug("[SearchFile] %s - %d\n", fileName, i + 1);
+#endif
+					R->EAX(i + 1);
+					return 0x48AA63;
+				}
+			}
+		}
+		CLoadingExt::NotFoundFiles.insert(fileName);
 	}
 
 #ifndef NDEBUG
-	Logger::Debug("[SearchFile] %s - NOT FOUND\n", Filename);
+	Logger::Debug("[SearchFile] %s - NOT FOUND\n", fileName);
 #endif
 	R->EAX(0);
 	return 0x48AA63;
@@ -114,6 +124,7 @@ DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 	loadInternalBitmap("annotation.bmp", 1001);
 	loadInternalBitmap("FLAG", 1023);
 	loadInternalBitmap("CELLTAG", 1024);
+	loadInternalBitmap("PROPERTY_MARK", 1036);
 
 	std::string pics = CFinalSunAppExt::ExePathExt;
 	pics += "\\pics";
@@ -141,9 +152,10 @@ DEFINE_HOOK(47FA2D, CLoading_InitPics_End_LoadDLLBitmaps, 7)
 			auto image_ori = CLoadingExt::GetSurfaceImageDataFromMap(Ori);
 			if (image_ori->lpSurface)
 			{
-				if (CLoadingExt::IsImageLoaded(New))
+				if (CLoadingExt::IsSurfaceImageLoaded(New))
 				{
 					auto image_new = CLoadingExt::GetSurfaceImageDataFromMap(New);
+					image_ori->lpSurface->Release();
 					image_ori->lpSurface = image_new->lpSurface;
 				}
 				DDSURFACEDESC2 ddsd;
@@ -158,6 +170,7 @@ DEFINE_HOOK(47FA2D, CLoading_InitPics_End_LoadDLLBitmaps, 7)
 
 	replace("CELLTAG", "celltag.bmp");
 	replace("FLAG", "waypoint.bmp");
+	replace("PROPERTY_MARK", "property_mark.bmp");
 
 	return 0;
 }

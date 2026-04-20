@@ -1143,7 +1143,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		return pCell->IsHidden() && (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers);
 	};
 
-	auto isCloakable = [](const ppmfc::CString& ID)
+	auto isCloakable = [](const FString& ID)
 	{
 		return ExtConfigs::InGameDisplay_Cloakable && Variables::RulesMap.GetBool(ID, "Cloakable");
 	};

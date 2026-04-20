@@ -276,6 +276,7 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
     SendMessage(hSelectedTrigger, CB_SETCURSEL, SelectedTriggerIndex, NULL);
 
     int idx = 0;
+    FString text;
     ExtraWindow::ClearComboKeepText(hEventtype);
     if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("EventsRA2")))
     {
@@ -286,8 +287,8 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
             {
                 if (atoms[7] == "1")
                 {
-                    SendMessage(hEventtype, CB_INSERTSTRING, idx++, 
-                        (LPARAM)(LPCSTR)(FString(pair.first) + " " + FString::ReplaceSpeicalString(atoms[0])).c_str());
+                    text.Format("%s %s", pair.first, FString::ReplaceSpeicalString(atoms[0]));
+                    SendMessage(hEventtype, CB_INSERTSTRING, idx++, text);
                 }
             }
         }
@@ -304,13 +305,20 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
             {
                 if (atoms[12] == "1")
                 {
-                    SendMessage(hActiontype, CB_INSERTSTRING, idx++, 
-                        (LPARAM)(LPCSTR)(FString(pair.first) + " " + FString::ReplaceSpeicalString(atoms[0])).c_str());
+                    text.Format("%s %s", pair.first, FString::ReplaceSpeicalString(atoms[0]));
+                    SendMessage(hActiontype, CB_INSERTSTRING, idx++, text);
                 }
             }
         }
     }
     if (CompactMode) ExtraWindow::AdjustDropdownWidth(hActiontype);
+
+    idx = 0;
+    ExtraWindow::ClearComboKeepText(hType);
+    SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("0 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeOr", "One Time OR")));
+    SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("1 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeAnd", "One Time AND")));
+    SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("2 - ") + Translations::TranslateOrDefault("TriggerRepeatType.RepeatingOr", "Repeating OR")));
+    if (CompactMode) ExtraWindow::AdjustDropdownWidth(hType);
 
     idx = 0;
     ExtraWindow::ClearComboKeepText(hHouse);
@@ -333,13 +341,6 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
         SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName(value, true).c_str());
     }
     if (CompactMode) ExtraWindow::AdjustDropdownWidth(hHouse);
-
-    idx = 0;
-    ExtraWindow::ClearComboKeepText(hType);
-    SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("0 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeOr", "One Time OR")));
-    SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("1 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeAnd", "One Time AND")));
-    SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("2 - ") + Translations::TranslateOrDefault("TriggerRepeatType.RepeatingOr", "Repeating OR")));
-    if (CompactMode) ExtraWindow::AdjustDropdownWidth(hType);
 
     SendMessage(hCompact, BM_SETCHECK, CompactMode ? BST_CHECKED : BST_UNCHECKED, 0);
 

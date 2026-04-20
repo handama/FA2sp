@@ -189,6 +189,7 @@ void CNewScript::Update(HWND& hWnd)
     ExtraWindow::ClearComboKeepText(hActionType);
     if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("ScriptsRA2")))
     {
+        ComboBoxBatchUpdater cbb(hActionType, pSection->GetEntities().size(), false, 256, false);
         for (auto& pair : pSection->GetEntities())
         {
             auto atoms = FString::SplitString(pair.second, 4);

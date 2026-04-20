@@ -62,7 +62,7 @@ public:
         auto atoms = FString::SplitString(CINI::CurrentDocument().GetString("Triggers", id));
         if (atoms.size() < 8)
             return nullptr;
-        return new Trigger(id, pTagMap);
+        return new Trigger(id, atoms, pTagMap);
     }
 
     void Save() {
@@ -106,21 +106,24 @@ public:
         CINI::CurrentDocument().WriteString("Actions", ID, cAction);
     }
 
-    void LoadFromMap(const char* id, FMap<FString>* pTagMap = nullptr)
+    void LoadFromMap(const char* id, std::vector<FString>& atoms, FMap<FString>* pTagMap = nullptr)
     {
-        auto atoms = FString::SplitString(CINI::CurrentDocument().GetString("Triggers", id));
+        auto& doc = CINI::CurrentDocument();
+
         ID = id;
         House = atoms[0];
         AttachedTrigger = atoms[1];
         Name = atoms[2];
-        Disabled = atoms[3] == "1" ? true : false;
-        EasyEnabled = atoms[4] == "1" ? true : false;
-        MediumEnabled = atoms[5] == "1" ? true : false;
-        HardEnabled = atoms[6] == "1" ? true : false;
+        Disabled = atoms[3] == "1";
+        EasyEnabled = atoms[4] == "1";
+        MediumEnabled = atoms[5] == "1";
+        HardEnabled = atoms[6] == "1";
         Obsolete = atoms[7];
+
         Tag = "<none>";
         TagName = "";
         RepeatType = "-1";
+
         Events.clear();
         Actions.clear();
         EventCount = 0;
@@ -133,23 +136,26 @@ public:
             if (itr != tagMap.end())
             {
                 Tag = itr->second;
-                auto atoms = FString::SplitString(CINI::CurrentDocument().GetString("Tags", Tag), 2);
-                RepeatType = atoms[0];
-                TagName = atoms[1];
+
+                FString tagStr = doc.GetString("Tags", Tag);
+                auto tagAtoms = FString::SplitString(tagStr, 2);
+
+                RepeatType = tagAtoms[0];
+                TagName = tagAtoms[1];
             }
         }
         else
         {
-            // let's assume that tag is the next ID of trigger, for most of them are.
             int assumeIdx = atoi(ID) + 1;
             FString assumeIdxTag;
             assumeIdxTag.Format("%08d", assumeIdx);
-            auto assumeTagValue = CINI::CurrentDocument().GetString("Tags", assumeIdxTag);
+
+            FString assumeTagValue = doc.GetString("Tags", assumeIdxTag);
             bool scanTag = true;
 
-            if (assumeTagValue != "")
+            if (!assumeTagValue.empty())
             {
-                auto assumeTagAtoms = FString::SplitString(CINI::CurrentDocument().GetString("Tags", assumeIdxTag), 2);
+                auto assumeTagAtoms = FString::SplitString(assumeTagValue, 2);
                 if (assumeTagAtoms[2] == ID)
                 {
                     Tag = assumeIdxTag;
@@ -158,14 +164,19 @@ public:
                     scanTag = false;
                 }
             }
+
             if (scanTag)
             {
-                if (auto pSection = CINI::CurrentDocument().GetSection("Tags"))
+                if (auto pSection = doc.GetSection("Tags"))
                 {
                     for (auto& kvp : pSection->GetEntities())
                     {
+                        if (kvp.second.Find(ID) == -1)
+                            continue;
+
                         auto tagAtoms = FString::SplitString(kvp.second);
                         if (tagAtoms.size() < 3) continue;
+
                         if (tagAtoms[2] == ID)
                         {
                             Tag = kvp.first;
@@ -178,114 +189,143 @@ public:
             }
         }
 
-        auto eventAtoms = FString::SplitString(CINI::CurrentDocument().GetString("Events", ID));
+        FString eventsStr = doc.GetString("Events", ID);
+        auto eventAtoms = FString::SplitString(eventsStr);
+
         if (!eventAtoms.empty())
         {
             EventCount = atoi(eventAtoms[0]);
             if (EventCount != 0)
             {
-                int readIdx = 1; //read atoms one by one;
+                Events.reserve(EventCount);
+
+                int readIdx = 1;
+
                 bool p0 = true;
                 bool p1 = false;
                 bool p2 = false;
                 bool p3 = false;
+
                 EventParams thisEvent;
+
+                static const FString zero = "0";
+
                 while (true)
                 {
-                    FString atom;
-                    if (eventAtoms.size() > readIdx)
-                        atom = eventAtoms[readIdx];
-                    else
-                        atom = "0";
+                    const FString& atom =
+                        (readIdx < (int)eventAtoms.size())
+                        ? eventAtoms[readIdx]
+                        : zero;
+
                     if (p0)
                     {
-                        p0 = false;
-                        p1 = true;
-                        p2 = false;
-                        p3 = false;
+                        p0 = false; p1 = true;
                         thisEvent.EventNum = atom;
                     }
                     else if (p1)
                     {
-                        p0 = false;
-                        p1 = false;
-                        p2 = true;
-                        p3 = false;
+                        p1 = false; p2 = true;
                         thisEvent.Params[0] = atom;
-                        if (atoi(atom) == 2) thisEvent.P3Enabled = true;
-                        else thisEvent.P3Enabled = false;
+                        thisEvent.P3Enabled = (atoi(atom) == 2);
                     }
                     else if (p2)
                     {
                         p2 = false;
                         thisEvent.Params[1] = atom;
+
                         if (thisEvent.P3Enabled)
                         {
-                            p0 = false;
-                            p1 = false;
                             p3 = true;
                         }
                         else
                         {
                             p0 = true;
-                            p1 = false;
-                            p3 = false;
                             Events.push_back(thisEvent);
                         }
                     }
                     else if (p3)
                     {
-                        p0 = true;
-                        p1 = false;
-                        p2 = false;
                         p3 = false;
+                        p0 = true;
                         thisEvent.Params[2] = atom;
                         Events.push_back(thisEvent);
                     }
-                    if (Events.size() == EventCount) break;
-                    readIdx++;
+
+                    if ((int)Events.size() == EventCount)
+                        break;
+
+                    ++readIdx;
                 }
             }
         }
         else
+        {
             EventCount = 0;
+        }
 
-        auto actionAtoms = FString::SplitString(CINI::CurrentDocument().GetString("Actions", ID));
+        FString actionsStr = doc.GetString("Actions", ID);
+        auto actionAtoms = FString::SplitString(actionsStr);
+
         if (!actionAtoms.empty())
         {
             ActionCount = atoi(actionAtoms[0]);
+
             if (ActionCount != 0)
             {
-                actionAtoms = FString::SplitStringAction(CINI::CurrentDocument().GetString("Actions", ID), ActionCount * 8);
+                Actions.reserve(ActionCount);
+
+                actionAtoms = FString::SplitStringAction(actionsStr, ActionCount * 8);
+
+                static std::unordered_set<int> dontSaveSet;
+                if (dontSaveSet.empty())
+                {
+                    if (auto sec = CINI::FAData().GetSection("DontSaveAsWP"))
+                    {
+                        dontSaveSet.reserve(sec->GetEntities().size());
+                        for (auto& pair : sec->GetEntities())
+                        {
+                            dontSaveSet.insert(atoi(pair.second));
+                        }
+                    }
+                }
+
                 for (int i = 0; i < ActionCount; i++)
                 {
                     ActionParams thisAction;
-                    thisAction.ActionNum = actionAtoms[1 + i * 8];
-                    thisAction.Params[0] = actionAtoms[2 + i * 8];
-                    thisAction.Params[1] = actionAtoms[3 + i * 8];
-                    thisAction.Params[2] = actionAtoms[4 + i * 8];
-                    thisAction.Params[3] = actionAtoms[5 + i * 8];
-                    thisAction.Params[4] = actionAtoms[6 + i * 8];
-                    thisAction.Params[5] = actionAtoms[7 + i * 8];
-                    thisAction.Params[6] = actionAtoms[8 + i * 8];
+
+                    int base = 1 + i * 8;
+
+                    thisAction.ActionNum = actionAtoms[base + 0];
+                    thisAction.Params[0] = actionAtoms[base + 1];
+                    thisAction.Params[1] = actionAtoms[base + 2];
+                    thisAction.Params[2] = actionAtoms[base + 3];
+                    thisAction.Params[3] = actionAtoms[base + 4];
+                    thisAction.Params[4] = actionAtoms[base + 5];
+                    thisAction.Params[5] = actionAtoms[base + 6];
+                    thisAction.Params[6] = actionAtoms[base + 7];
+
                     thisAction.Param7isWP = true;
-                    for (auto& pair : CINI::FAData().GetSection("DontSaveAsWP")->GetEntities())
+
+                    int p0 = atoi(thisAction.Params[0]);
+                    if (dontSaveSet.count(-p0))
                     {
-                        if (atoi(pair.second) == -atoi(thisAction.Params[0]))
-                            thisAction.Param7isWP = false;
+                        thisAction.Param7isWP = false;
                     }
-                    Actions.push_back(thisAction);
+
+                    Actions.push_back(std::move(thisAction));
                 }
             }
         }
         else
+        {
             ActionCount = 0;
+        }
     }
 
 private:
-    Trigger(const char* id, FMap<FString>* pTagMap = nullptr)
+    Trigger(const char* id, std::vector<FString>& value, FMap<FString>* pTagMap = nullptr)
     {
-        LoadFromMap(id, pTagMap);
+        LoadFromMap(id, value, pTagMap);
     }
 
 };

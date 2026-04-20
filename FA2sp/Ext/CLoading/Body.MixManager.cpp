@@ -36,6 +36,49 @@ namespace MinInfo
             : std::istream(&buf_), buf_(static_cast<const char*>(data), size) {}
     };
 
+    class LimitedStreamBuf : public std::streambuf {
+    public:
+        LimitedStreamBuf(std::ifstream& in, std::streampos start, std::streamsize max_size)
+            : in_(in), start_(start), max_size_(max_size), pos_(0) {
+            in_.seekg(start_);
+            buffer_.resize(4096);
+            setg(nullptr, nullptr, nullptr);
+        }
+
+    protected:
+        int underflow() override {
+            if (pos_ >= max_size_) return traits_type::eof();
+            if (gptr() < egptr()) return traits_type::to_int_type(*gptr());
+
+            std::streamsize remaining = max_size_ - pos_;
+            std::streamsize to_read = std::min(static_cast<std::streamsize>(buffer_.size()), remaining);
+            if (to_read == 0) return traits_type::eof();
+
+            in_.read(buffer_.data(), to_read);
+            std::streamsize n = in_.gcount();
+            if (n == 0) return traits_type::eof();
+
+            pos_ += n;
+            setg(buffer_.data(), buffer_.data(), buffer_.data() + n);
+            return traits_type::to_int_type(*gptr());
+        }
+
+    private:
+        std::ifstream& in_;
+        std::streampos start_;
+        std::streamsize max_size_;
+        std::streamsize pos_;
+        std::vector<char> buffer_;
+    };
+
+    class LimitedIStream : public std::istream {
+    public:
+        LimitedIStream(std::ifstream& in, std::streampos start, std::streamsize max_size)
+            : std::istream(&buf_), buf_(in, start, max_size) {}
+    private:
+        LimitedStreamBuf buf_;
+    };
+
     static inline uint32_t align_up(uint32_t x, uint32_t a) {
         return (x + (a - 1)) & ~(a - 1);
     }
@@ -403,25 +446,20 @@ namespace MinInfo
     static std::vector<MixEntry> GetMixInfoFromRange(const std::string& cPath, uint32_t offset, uint32_t size) {
         VEHGuard guard(false);
         try {
-            if (offset < 0 || size <= 0)  return {};
+            if (size <= 0) return {};
 
             std::ifstream f(cPath, std::ios::binary);
-            if (!f)  return {};
+            if (!f) return {};
 
             f.seekg(0, std::ios::end);
             uint32_t file_end = static_cast<uint32_t>(f.tellg());
-            uint32_t start = static_cast<uint32_t>(offset);
-            uint32_t length = static_cast<uint32_t>(size);
-            if (start > file_end || start + length > file_end)  return {};
+            if (offset > file_end || static_cast<uint64_t>(offset) + size > file_end) return {};
 
-            std::vector<char> buf(size);
-            f.seekg(offset, std::ios::beg);
-            if (!read_exact(f, buf.data(), buf.size())) return {};
-
-            auto mix = unpack_mix_from_memory(buf.data(), buf.size());
+            LimitedIStream limited(f, static_cast<std::streampos>(offset), static_cast<std::streamsize>(size));
+            auto mix = unpack_mix(limited, size); 
 
             for (auto& e : mix->files) {
-                e.offset += start + mix->offset;
+                e.offset += offset + mix->offset;
             }
             return std::move(mix->files);
         }

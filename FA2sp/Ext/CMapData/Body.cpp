@@ -773,7 +773,8 @@ void CMapDataExt::ReloadTrigger(const FString& id)
 {
 	auto it = Triggers.find(id);
 	if (it != Triggers.end()) {
-		it->second->LoadFromMap(id);
+		auto atoms = FString::SplitString(CINI::CurrentDocument->GetString("Triggers", id));
+		it->second->LoadFromMap(id, atoms);
 	}
 }
 

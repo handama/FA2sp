@@ -2488,7 +2488,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 		FString FileNameTurret = GeneralLoad::LoadTurretOrBarrel(ID, ArtID, ImageID, false, false, true);
 		int nMix = this->SearchFile(FileName);
 
-		if (HasFile(FileName, nMix))
+		if (HasFileExt(FileName, nMix))
 		{
 			ShapeHeader header{};
 			ShapeHeader headerTurret{};

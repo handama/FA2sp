@@ -55,9 +55,9 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
     size_t idx = 0;
     const size_t len = content.length();
     static size_t plusEqual = 0;
-    static std::map<CINIExt*, std::map<FString, std::vector<FString>>> InheritSections;
+    static std::map<CINIExt*, FMap<std::vector<FString>>> InheritSections;
     static std::vector<FString> PhobosInheritSectionOrders;
-    std::set<FString> LoadedSections;
+    FSet LoadedSections;
     if (bAllowInclude) {
         plusEqual = 0;
         InheritSections.clear();

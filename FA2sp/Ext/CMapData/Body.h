@@ -353,13 +353,13 @@ public:
     std::vector<FString> UnitList;
     std::vector<FString> AircraftList;
     std::vector<FString> InfantryList;
-    std::map<FString, FString> TerrainList;
+    FMap<FString> TerrainList;
     std::vector<FString> SmudgeList;
-    std::map<FString, std::vector<FString>> BasenodeList;
+    FMap<std::vector<FString>> BasenodeList;
     std::vector<FString> TunnelList;
-    std::map<FString, FString> WaypointList;
-    std::map<FString, FString> CelltagList;
-    std::map<FString, FString> AnnotationList;
+    FMap<FString> WaypointList;
+    FMap<FString> CelltagList;
+    FMap<FString> AnnotationList;
     std::vector<EditedMarks> DrawEditedMarkList;
     std::unique_ptr<MeasurementRecord> MeasurementRecords;
 
@@ -532,7 +532,7 @@ public:
 
     static unsigned short CurrentRenderBuildingStrength;
     static std::unordered_map<int, BuildingDataExt> BuildingDataExts;
-    static std::unordered_map<FString, int> BuildingTypes;
+    static FHashMap<int> BuildingTypes;
     static std::vector<BuildingRenderData> BuildingRenderDatasFix;
     static std::vector<OverlayTypeData> OverlayTypeDatas;
     static void UpdateFieldStructureData_Optimized();
@@ -697,15 +697,15 @@ public:
     static float ConditionYellow;
     static float ConditionRed;
     static bool DeleteBuildingByIniID;
-    static std::unordered_map<FString, std::shared_ptr<Trigger>> Triggers;
+    static FHashMap<std::shared_ptr<Trigger>> Triggers;
     static std::vector<short> StructureIndexMap;
     static std::vector<TubeData> Tubes;
-    static std::unordered_map<FString, COLORREF> Colors;
+    static FHashMap<COLORREF> Colors;
     static std::unordered_map<int, TileAnimation> TileAnimations;
     // 0 = tem, 1 = sno, 2 = urban, 3 = newurban, 4 = lunar, 5 = desert
     static std::unordered_map<int, FString> TileSetOriginSetNames[6];
-    static std::unordered_set<FString> TerrainPaletteBuildings;
-    static std::unordered_set<FString> DamagedAsRubbleBuildings;
+    static FHashSet TerrainPaletteBuildings;
+    static FHashSet DamagedAsRubbleBuildings;
     static std::unordered_set<int> RedrawExtraTileSets;
     static std::unordered_set<int> NoHeightRedrawTileSets;
     static std::unordered_map<int, Palette*> TileSetPalettes;
@@ -720,19 +720,19 @@ public:
     static bool IsUTF8File;
     static bool SkipBuildingOverlappingCheck;
     static std::vector<FString> MapIniSectionSorting;
-    static std::map<FString, std::set<FString>> PowersUpBuildings;
-    static std::set<FString> PowersUpBuildingSet;
+    static FMap<FSet> PowersUpBuildings;
+    static FSet PowersUpBuildingSet;
     static bool PlaceStructure_Preview;
     static std::map<int, BuildingRenderData> PlaceStructure_OldData;
 
     static std::map<int, std::vector<CustomTile>> CustomTiles;
-    static std::map<FString, COLORREF> CustomWaypointColors;
-    static std::map<FString, COLORREF> CustomCelltagColors;
-    static std::map<FString, std::vector<TechnoAttachment>> TechnoAttachments;
-    static std::map<FString, std::map<FString, FString>> MapInlineComments;
-    static std::map<FString, std::map<FString, FString>> MapFrontlineComments;
-    static std::map<FString, FString> MapInsectionComments;
-    static std::map<FString, FString> MapFrontsectionComments;
+    static FMap<COLORREF> CustomWaypointColors;
+    static FMap<COLORREF> CustomCelltagColors;
+    static FMap<std::vector<TechnoAttachment>> TechnoAttachments;
+    static FMap<FMap<FString>> MapInlineComments;
+    static FMap<FMap<FString>> MapFrontlineComments;
+    static FMap<FString> MapInsectionComments;
+    static FMap<FString> MapFrontsectionComments;
     const static std::vector<FString> TechnoStates;
     static bool IsNewMap;
     static bool SkipUpdateMinimap;

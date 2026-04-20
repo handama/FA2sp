@@ -34,7 +34,7 @@ HWND CCsfEditor::hSave;
 HWND CCsfEditor::hSetLabel;
 HWND CCsfEditor::hReload;
 HWND CCsfEditor::hApply;
-std::map<FString, FString>& CCsfEditor::CurrentCSFMap = StringtableLoader::CSFFiles_Stringtable;
+FMap<FString>& CCsfEditor::CurrentCSFMap = StringtableLoader::CSFFiles_Stringtable;
 FString CCsfEditor::CurrentSelectedCSF;
 FString CCsfEditor::CurrentSelectedCSFApply;
 bool CCsfEditor::NeedUpdate = false;
@@ -334,7 +334,7 @@ void CCsfEditor::OnClickApply()
 
 }
 
-void CCsfEditor::InsertCSFContent(std::map<FString, FString> csfMap)
+void CCsfEditor::InsertCSFContent(FMap<FString> csfMap)
 {
     SendMessage(hCSFViewer, LVM_DELETEALLITEMS, 0, 0);
     while (SendMessage(hCSFViewer, LVM_DELETECOLUMN, 0, 0)) {}
@@ -383,9 +383,9 @@ void CCsfEditor::InsertCSFContent(std::map<FString, FString> csfMap)
     SendMessage(hCSFViewer, LVM_SETCOLUMNWIDTH, 1, LVSCW_AUTOSIZE_USEHEADER);
 }
 
-void CCsfEditor::FilterRows(std::map<FString, FString> csfMap, const char* searchText)
+void CCsfEditor::FilterRows(FMap<FString> csfMap, const char* searchText)
 {
-    std::map<FString, FString> newCsfMap;
+    FMap<FString> newCsfMap;
 
     LabelMatcher matcher(searchText);
     for (auto& csf : csfMap) 

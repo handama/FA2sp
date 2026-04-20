@@ -38,16 +38,16 @@ public:
     HWND GetHwnd() const;
     operator HWND() const;
 
-    static std::unordered_set<FString> attachedTriggers;
-    static std::unordered_map<FString, std::vector<FString>>BuildingTags;
-    static std::unordered_map<FString, std::vector<FString>>AircraftTags;
-    static std::unordered_map<FString, std::vector<FString>>UnitTags;
-    static std::unordered_map<FString, std::vector<FString>>InfantryTags;
-    static std::unordered_map<FString, FString>TagTriggers;
-    static std::unordered_map<FString, FString>TriggerTags;
-    static std::unordered_map<FString, std::vector<FString>>TriggerTagsParent;
-    static std::unordered_map<FString, std::vector<FString>>CellTagTags;
-    static std::unordered_map<FString, std::vector<FString>>TeamTags;
+    static FHashSet attachedTriggers;
+    static FHashMap<std::vector<FString>>BuildingTags;
+    static FHashMap<std::vector<FString>>AircraftTags;
+    static FHashMap<std::vector<FString>>UnitTags;
+    static FHashMap<std::vector<FString>>InfantryTags;
+    static FHashMap<FString>TagTriggers;
+    static FHashMap<FString>TriggerTags;
+    static FHashMap<std::vector<FString>>TriggerTagsParent;
+    static FHashMap<std::vector<FString>>CellTagTags;
+    static FHashMap<std::vector<FString>>TeamTags;
 
 private:
     HTREEITEM FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const;

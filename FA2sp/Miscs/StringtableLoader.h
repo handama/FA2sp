@@ -18,7 +18,7 @@ public:
     static bool LoadToBuffer();
     static FString QueryUIName(const char* pRegName, bool bOnlyOneLine = false);
 
-    static std::map<FString, FString> CSFFiles_Stringtable;
+    static FMap<FString> CSFFiles_Stringtable;
     static char* pEDIBuffer;
     static wchar_t pStringBuffer[0x400];
     static bool bLoadRes;

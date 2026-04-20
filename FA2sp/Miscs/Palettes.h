@@ -90,7 +90,7 @@ public:
 
 class PalettesManager
 {
-    static std::map<FString, Palette*> OriginPaletteFiles;
+    static FMap<Palette*> OriginPaletteFiles;
     static std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedPaletteFiles;
     static std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedDimmedPaletteFiles;
     static std::map<Palette*, std::map<LightingStruct, LightingPalette>> CalculatedPaletteFilesNoRemap;

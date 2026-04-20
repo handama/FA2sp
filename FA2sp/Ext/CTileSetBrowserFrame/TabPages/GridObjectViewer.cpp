@@ -827,7 +827,7 @@ void GridObjectViewer::UpdateControls()
         }
 
         int max = -1;
-        std::map<FString, int> orderIndex;
+        FMap<int> orderIndex;
         if (auto pSection = CINI::FAData->GetSection("ObjectCategoryPriorities"))
         {
             for (auto& [value, order] : pSection->GetEntities())
@@ -923,7 +923,7 @@ void GridObjectViewer::UpdateControls()
     ExtraWindow::ClearComboKeepText(m_hControlGroup);
     for (auto& g : g_groups)
     {
-        std::unordered_set<FString> seen;
+        FHashSet seen;
         size_t writeIndex = 0;
         for (size_t i = 0; i < g.IDs.size(); ++i)
         {
@@ -1561,7 +1561,10 @@ void GridObjectViewer::OnSelChanged(int index)
             display = CViewObjectsExt::QueryUIName(id, true);
         }
         if (display != oid)
-            display += " (" + oid + ")";
+        {
+            display.Format("%s (%s)", display, oid);
+
+        }
         FString format = "%s, ";
         format += Translations::TranslateOrDefault("GridObjectViewer.OverlayText", "Index: %d, OverlayData: %d");
         display.Format(format, display, data.Overlay, data.OverlayData);

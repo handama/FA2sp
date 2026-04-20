@@ -425,10 +425,10 @@ inline static void GetUnitImageID(FString& ImageID, const CUnitDataFS& obj, cons
 
 struct RecursionGuard
 {
-	std::set<FString>& stack;
+	FSet& stack;
 	const FString& id;
 
-	RecursionGuard(std::set<FString>& s, const FString& i)
+	RecursionGuard(FSet& s, const FString& i)
 		: stack(s), id(i)
 	{
 		stack.insert(id);
@@ -443,7 +443,7 @@ struct RecursionGuard
 static void DrawTechnoAttachments
 (
 	DrawCall originalDraw,
-	std::set<FString>& recursionStack,
+	FSet& recursionStack,
 	const FString& parentID,
 	int oriFacing,
 	CLoadingExt::ObjectType parentType,
@@ -1793,7 +1793,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 										shadowHeightMask, cell->Height);
 								}
 
-								std::set<FString> drawn;
+								FSet drawn;
 								DrawTechnoAttachments([] {}, drawn, objRender.ID, FacingCount == 1 ? 0 : objRender.Facing,
 									CLoadingExt::ObjectType::Building, cell, lpDesc->lpSurface, boundary,
 									x1, y1, 0xffffff, true);
@@ -2090,7 +2090,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								shadowMask_Building_Infantry,
 								shadowHeightMask, cell->Height);
 						}
-						std::set<FString> drawn;
+						FSet drawn;
 						DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
 							CLoadingExt::ObjectType::Infantry, cell, lpDesc->lpSurface, boundary,
 							x1, y1, 0xffffff, true);
@@ -2150,7 +2150,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 					}
 
-					std::set<FString> drawn;
+					FSet drawn;
 					DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
 						CLoadingExt::ObjectType::Vehicle, cell, lpDesc->lpSurface, boundary,
 						x1, y1 + 15, 0xffffff, true);
@@ -2175,7 +2175,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						CLoadingExt::GetExtension()->LoadObjects(ImageID);
 					}
-					std::set<FString> drawn;
+					FSet drawn;
 					DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
 						CLoadingExt::ObjectType::Aircraft, cell, lpDesc->lpSurface, boundary,
 						x, y + 15, 0xffffff, true);
@@ -2720,7 +2720,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							}
 						};
 
-						std::set<FString> drawn;
+						FSet drawn;
 						DrawTechnoAttachments(draw, drawn, objRender.ID, FacingCount <= 1 ? 0 : objRender.Facing,
 							CLoadingExt::ObjectType::Building, cell, lpDesc->lpSurface, boundary,
 							x1, y1,
@@ -2735,7 +2735,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
 					}
-					std::set<FString> drawn;
+					FSet drawn;
 					DrawTechnoAttachments([] {}, drawn, objRender.ID, FacingCount <= 1 ? 0 : objRender.Facing,
 						CLoadingExt::ObjectType::Building, cell, lpDesc->lpSurface, boundary,
 						x1, y1,
@@ -2898,7 +2898,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							veter.ID = obj.TypeID;
 						}
 
-						std::set<FString> drawn;
+						FSet drawn;
 						DrawTechnoAttachments(draw, drawn, obj.TypeID, atoi(obj.Facing),
 							CLoadingExt::ObjectType::Vehicle, cell, lpDesc->lpSurface, boundary,
 							x, y + 15 - (HoveringUnit ? 10 : 0) -
@@ -2907,7 +2907,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					}
 					else
 					{
-						std::set<FString> drawn;
+						FSet drawn;
 						DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
 							CLoadingExt::ObjectType::Vehicle, cell, lpDesc->lpSurface, boundary,
 							x, y + 15 - (HoveringUnit ? 10 : 0) -
@@ -2976,7 +2976,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							veter.ID = obj.TypeID;
 						}
 
-						std::set<FString> drawn;
+						FSet drawn;
 						DrawTechnoAttachments(draw, drawn, obj.TypeID, atoi(obj.Facing),
 							CLoadingExt::ObjectType::Aircraft, cell, lpDesc->lpSurface, boundary,
 							x, y + 15,
@@ -2984,7 +2984,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					}
 					else
 					{
-						std::set<FString> drawn;
+						FSet drawn;
 						DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
 							CLoadingExt::ObjectType::Aircraft, cell, lpDesc->lpSurface, boundary,
 							x, y + 15,
@@ -3079,7 +3079,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								veter.ID = obj.TypeID;
 							}
 
-							std::set<FString> drawn;
+							FSet drawn;
 							DrawTechnoAttachments(draw, drawn, obj.TypeID, atoi(obj.Facing),
 								CLoadingExt::ObjectType::Infantry, cell, lpDesc->lpSurface, boundary,
 								x1, y1,
@@ -3087,7 +3087,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 						else
 						{
-							std::set<FString> drawn;
+							FSet drawn;
 							DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
 								CLoadingExt::ObjectType::Infantry, cell, lpDesc->lpSurface, boundary,
 								x1, y1,

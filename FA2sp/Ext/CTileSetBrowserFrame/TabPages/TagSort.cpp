@@ -13,16 +13,16 @@
 #include "../../../Miscs/DialogStyle.h"
 
 TagSort TagSort::Instance;
-std::unordered_set<FString> TagSort::attachedTriggers;
-std::unordered_map<FString, std::vector<FString>> TagSort::BuildingTags;
-std::unordered_map<FString, std::vector<FString>> TagSort::AircraftTags;
-std::unordered_map<FString, std::vector<FString>> TagSort::UnitTags;
-std::unordered_map<FString, std::vector<FString>> TagSort::InfantryTags;
-std::unordered_map<FString, FString> TagSort::TagTriggers;
-std::unordered_map<FString, FString> TagSort::TriggerTags;
-std::unordered_map<FString, std::vector<FString>> TagSort::TriggerTagsParent;
-std::unordered_map<FString, std::vector<FString>> TagSort::CellTagTags;
-std::unordered_map<FString, std::vector<FString>> TagSort::TeamTags;
+FHashSet TagSort::attachedTriggers;
+FHashMap<std::vector<FString>> TagSort::BuildingTags;
+FHashMap<std::vector<FString>> TagSort::AircraftTags;
+FHashMap<std::vector<FString>> TagSort::UnitTags;
+FHashMap<std::vector<FString>> TagSort::InfantryTags;
+FHashMap<FString> TagSort::TagTriggers;
+FHashMap<FString> TagSort::TriggerTags;
+FHashMap<std::vector<FString>> TagSort::TriggerTagsParent;
+FHashMap<std::vector<FString>> TagSort::CellTagTags;
+FHashMap<std::vector<FString>> TagSort::TeamTags;
 
 enum FindType { Aircraft = 0, Infantry, Structure, Unit };
 void TagSort::LoadAllTriggers()

@@ -48,12 +48,12 @@ public:
     static bool Contains(ppmfc::CString pStr, ppmfc::CString pQuery, bool bIgnoreCase = false);
     static ppmfc::CString GetComboBoxText(const ppmfc::CComboBox& cbb);
     static bool IsNumber(const std::string& str);
-    static bool IsNumber(const char * str);
+    static bool IsNumber(const char* str);
 	static bool IsTrue(const char* str, bool nDefault = false);
 	static COLORREF HexStringToColorRefRGB(const char* hexStr);
 	static ppmfc::CString ColorRefRGBToHexString(COLORREF color);
 
-    static ppmfc::CString ReplaceSpeicalString(ppmfc::CString ori);
+    static ppmfc::CString ReplaceSpeicalString(FString_view ori);
 
     static ppmfc::CString RandomSelect(std::vector<ppmfc::CString>& vec);
     static FString RandomSelect(std::vector<FString>& vec);
@@ -69,13 +69,13 @@ public:
 
 	static ppmfc::CString GetRandomFacing();
 
-    static FString ChineseTraditional_ToSimple(const FString& _str);
-    static std::string ToUpperCase(const std::string& _str);
+    static FString ChineseTraditional_ToSimple(FString_view str);
+    static std::string ToUpperCase(FString_view str);
 
     static std::string WStringToString(const std::wstring& wstr);
-    static std::wstring StringToWString(const std::string& str);
+    static std::wstring StringToWString(FString_view str);
 	static void WStringReplace(std::wstring& str, const std::wstring& oldStr, const std::wstring& newStr);
-	static std::string ReplaceEnding(const std::string& str, const std::string& oldSuffix, const std::string& newSuffix);
+	static std::string ReplaceEnding(FString_view str, FString_view oldSuffix, FString_view newSuffix);
 
 	static FileEncoding GetFileEncoding(const uint8_t* data, size_t size);
 

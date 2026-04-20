@@ -13,9 +13,9 @@
 using namespace std;
 
 TriggerSort TriggerSort::Instance;
-std::unordered_map<FString, FString> TriggerSort::TriggerTags;
-std::unordered_map<FString, std::vector<FString>> TriggerSort::TriggerTagsParent;
-std::unordered_set<FString> TriggerSort::attachedTriggers;
+FHashMap<FString> TriggerSort::TriggerTags;
+FHashMap<std::vector<FString>> TriggerSort::TriggerTagsParent;
+FHashSet TriggerSort::attachedTriggers;
 bool TriggerSort::CreateFromTriggerSort = false;
 
 void TriggerSort::LoadAllTriggers()

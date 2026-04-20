@@ -53,7 +53,7 @@ CellData CMapDataExt::ExtTempCellData;
 //MapCoord CMapDataExt::CurrentMapCoord;
 MapCoord CMapDataExt::CurrentMapCoordPaste;
 std::unordered_map<int, BuildingDataExt> CMapDataExt::BuildingDataExts;
-std::unordered_map<FString, int> CMapDataExt::BuildingTypes;
+FHashMap<int> CMapDataExt::BuildingTypes;
 std::map<int, MapCoord> CMapDataExt::BuildingCenterCoords;
 CTileTypeClass* CMapDataExt::TileData = nullptr;
 int CMapDataExt::TileDataCount = 0;
@@ -86,14 +86,14 @@ std::vector<LatInfo> CMapDataExt::Tile_to_lat;
 std::set<int> CMapDataExt::Lat_releated_sets;
 std::map<int, std::vector<int>> CMapDataExt::Same_Smooth_tile_lats;
 std::vector<int> CMapDataExt::TileSet_starts;
-std::unordered_map<FString, std::shared_ptr<Trigger>> CMapDataExt::Triggers;
+FHashMap<std::shared_ptr<Trigger>> CMapDataExt::Triggers;
 std::vector<short> CMapDataExt::StructureIndexMap;
 std::vector<TubeData> CMapDataExt::Tubes;
 std::unordered_map<int, TileAnimation> CMapDataExt::TileAnimations;
-std::unordered_map<FString, COLORREF> CMapDataExt::Colors;
+FHashMap<COLORREF> CMapDataExt::Colors;
 std::unordered_map<int, FString> CMapDataExt::TileSetOriginSetNames[6];
-std::unordered_set<FString> CMapDataExt::TerrainPaletteBuildings;
-std::unordered_set<FString> CMapDataExt::DamagedAsRubbleBuildings;
+FHashSet CMapDataExt::TerrainPaletteBuildings;
+FHashSet CMapDataExt::DamagedAsRubbleBuildings;
 std::unordered_set<int> CMapDataExt::RedrawExtraTileSets;
 std::unordered_set<int> CMapDataExt::NoHeightRedrawTileSets;
 std::unordered_map<int, Palette*> CMapDataExt::TileSetPalettes;
@@ -108,19 +108,19 @@ bool CMapDataExt::IsMMXFile = false;
 bool CMapDataExt::IsUTF8File = false;
 bool CMapDataExt::SkipBuildingOverlappingCheck = false;
 std::vector<FString> CMapDataExt::MapIniSectionSorting;
-std::map<FString, std::set<FString>> CMapDataExt::PowersUpBuildings;
-std::set<FString> CMapDataExt::PowersUpBuildingSet;
+FMap<FSet> CMapDataExt::PowersUpBuildings;
+FSet CMapDataExt::PowersUpBuildingSet;
 std::map<int, std::vector<CustomTile>> CMapDataExt::CustomTiles;
 bool CMapDataExt::PlaceStructure_Preview = false;
 std::map<int, BuildingRenderData> CMapDataExt::PlaceStructure_OldData;
-std::map<FString, COLORREF> CMapDataExt::CustomWaypointColors;
-std::map<FString, COLORREF> CMapDataExt::CustomCelltagColors;
+FMap<COLORREF> CMapDataExt::CustomWaypointColors;
+FMap<COLORREF> CMapDataExt::CustomCelltagColors;
 ObjectRecord* ObjectRecord::ObjectRecord_HoldingPtr = nullptr;
-std::map<FString, std::vector<TechnoAttachment>> CMapDataExt::TechnoAttachments;
-std::map<FString, std::map<FString, FString>> CMapDataExt::MapInlineComments;
-std::map<FString, std::map<FString, FString>> CMapDataExt::MapFrontlineComments;
-std::map<FString, FString> CMapDataExt::MapInsectionComments;
-std::map<FString, FString> CMapDataExt::MapFrontsectionComments;
+FMap<std::vector<TechnoAttachment>> CMapDataExt::TechnoAttachments;
+FMap<FMap<FString>> CMapDataExt::MapInlineComments;
+FMap<FMap<FString>> CMapDataExt::MapFrontlineComments;
+FMap<FString> CMapDataExt::MapInsectionComments;
+FMap<FString> CMapDataExt::MapFrontsectionComments;
 bool CMapDataExt::IsNewMap;
 bool CMapDataExt::SkipUpdateMinimap = false;
 bool CMapDataExt::IsImportingMap = false;
@@ -697,7 +697,7 @@ int CMapDataExt::GetSafeSubTileIndex(int tile, int idx)
 void CMapDataExt::UpdateTriggers()
 {
 	CMapDataExt::Triggers.clear();
-	std::map<FString, FString> TagMap;
+	FMap<FString> TagMap;
 	if (auto pSection = CINI::CurrentDocument().GetSection("Tags"))
 	{
 		for (auto& kvp : pSection->GetEntities())
@@ -2441,7 +2441,7 @@ void ObjectRecord::record(int recordType)
 				}
 			}
 		};
-	auto recordIniMap = [&ini](const char* lpName, std::map<FString, FString>& list)
+	auto recordIniMap = [&ini](const char* lpName, FMap<FString>& list)
 		{
 			if (auto pSection = ini.GetSection(lpName))
 			{
@@ -2580,7 +2580,7 @@ void ObjectRecord::appendRecord(int recordType)
 				}
 			}
 		};
-	auto recordIniMap = [&ini](const char* lpName, std::map<FString, FString>& list)
+	auto recordIniMap = [&ini](const char* lpName, FMap<FString>& list)
 		{
 			if (auto pSection = ini.GetSection(lpName))
 			{
@@ -2715,7 +2715,7 @@ void ObjectRecord::recover()
 				ini.WriteString(pSection, key, value);
 			}
 		};
-	auto recoverIniMap = [&ini](const char* lpName, std::map<FString, FString>& list)
+	auto recoverIniMap = [&ini](const char* lpName, FMap<FString>& list)
 		{
 			ini.DeleteSection(lpName);
 			if (list.empty())

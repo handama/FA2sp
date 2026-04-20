@@ -18,32 +18,32 @@
 
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
-std::unordered_map<FString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
-std::unordered_set<FString> CLoadingExt::LoadedObjects;
-std::unordered_set<FString> CLoadingExt::LoadedPreviewObjects;
-std::unordered_set<FString> CLoadingExt::LoadedSurfaceObjects;
-std::unordered_set<FString> CLoadingExt::CustomPaletteTerrains;
-std::unordered_map<FString, int> CLoadingExt::IFVTurrets;
-std::unordered_set<FString> CLoadingExt::InitialOccupiedBuildings;
-std::unordered_map<FString, int> CLoadingExt::BioReactors;
-std::unordered_map<FString, int> CLoadingExt::AvailableFacings;
-std::unordered_map<FString, int> CLoadingExt::AlphaImageFacings;
+FHashMap<CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
+FHashSet CLoadingExt::LoadedObjects;
+FHashSet CLoadingExt::LoadedPreviewObjects;
+FHashSet CLoadingExt::LoadedSurfaceObjects;
+FHashSet CLoadingExt::CustomPaletteTerrains;
+FHashMap<int> CLoadingExt::IFVTurrets;
+FHashSet CLoadingExt::InitialOccupiedBuildings;
+FHashMap<int> CLoadingExt::BioReactors;
+FHashMap<int> CLoadingExt::AvailableFacings;
+FHashMap<int> CLoadingExt::AlphaImageFacings;
 std::unordered_set<int> CLoadingExt::Ra2dotMixes;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
 unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
 bool CLoadingExt::DrawTurretShadow = false;
-std::unordered_set<FString> CLoadingExt::LoadedOverlays;
-std::unordered_map<FString, InsigniaGrid> CLoadingExt::LoadedInsignias;
+FHashSet CLoadingExt::LoadedOverlays;
+FHashMap<InsigniaGrid> CLoadingExt::LoadedInsignias;
 int CLoadingExt::TallestBuildingHeight = 0;
-std::unordered_set<FString> CLoadingExt::NotFoundFiles;
+FHashSet CLoadingExt::NotFoundFiles;
 std::unordered_map<std::string, std::vector<unsigned char>> CLoadingExt::g_cache[2];
 std::unordered_map<std::string, uint64_t> CLoadingExt::g_cacheTime[2];
 uint64_t CLoadingExt::g_lastCleanup = 0;
 
-std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::CurrentFrameImageDataMap;
-std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::ImageDataMap;
-std::unordered_map<FString, std::vector<std::unique_ptr<ImageDataClassSafe>>> CLoadingExt::BuildingClipsImageDataMap;
-std::unordered_map<FString, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::SurfaceImageDataMap;
+FHashMap<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::CurrentFrameImageDataMap;
+FHashMap<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::ImageDataMap;
+FHashMap<std::vector<std::unique_ptr<ImageDataClassSafe>>> CLoadingExt::BuildingClipsImageDataMap;
+FHashMap<std::unique_ptr<ImageDataClassSurface>> CLoadingExt::SurfaceImageDataMap;
 std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomFlagMap;
 std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomCelltagMap;
 std::vector<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::DamageFires;
@@ -556,7 +556,7 @@ bool CLoadingExt::IsBioReactor(const FString& ID)
 
 static FString GetFinalLoopAnim(const FString& image)
 {
-	static std::set<FString> visited; 
+	static FSet visited; 
 
 	int loopCount = CINI::Art->GetInteger(image, "LoopCount", 1);
 	if (loopCount < 0)
@@ -1939,9 +1939,9 @@ void CLoadingExt::LoadInsignia(const FString& ID)
 {
 	const char* PaletteName = "palette.pal";
 
-	auto InsigniaRookie = Variables::RulesMap.GetString(ID, "Insignia.Rookie");
-	auto InsigniaVeteran = Variables::RulesMap.GetString(ID, "Insignia.Veteran");
-	auto InsigniaElite = Variables::RulesMap.GetString(ID, "Insignia.Elite");
+	FString InsigniaRookie = Variables::RulesMap.GetString(ID, "Insignia.Rookie");
+	FString InsigniaVeteran = Variables::RulesMap.GetString(ID, "Insignia.Veteran");
+	FString InsigniaElite = Variables::RulesMap.GetString(ID, "Insignia.Elite");
 	int InsigniaIndex = Variables::RulesMap.GetInteger(ID, "InsigniaFrame");
 
 	InsigniaGrid ret;

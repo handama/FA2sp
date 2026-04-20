@@ -29,7 +29,7 @@
 namespace LuaFunctions
 {
 	static long long time = 0;
-	static std::map<FString, CINI*> LoadedINIs;
+	static FMap<CINI*> LoadedINIs;
 	static std::unordered_set<std::string> UsedINIIndices;
 
 	static void write_lua_console(std::string text)
@@ -1019,7 +1019,7 @@ namespace LuaFunctions
 	public:
 		TimePoint savedTime;
 		std::string fileName;
-		std::map<FString, std::map<FString, FString>> INI;
+		FMap<FMap<FString>> INI;
 		unsigned short Overlay[0x40000];
 		unsigned char OverlayData[0x40000];
 		std::vector<CellData> CellDatas;
@@ -2447,7 +2447,7 @@ namespace LuaFunctions
 		
 		MultimapHelper mmh;
 		ExtraWindow::LoadFrom(mmh, loadFrom.c_str());
-		return mmh.GetString(section.c_str(), key.c_str(), def.c_str()).GetString();
+		return std::string(mmh.GetString(section.c_str(), key.c_str(), def.c_str()));
 	}
 
 	static int get_integer(std::string section, std::string key, int def = 0, std::string loadFrom = "map")

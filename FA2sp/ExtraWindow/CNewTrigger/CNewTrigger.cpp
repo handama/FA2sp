@@ -886,6 +886,14 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
     }
     case WM_LBUTTONDOWN:
     {
+        POINT pt = { (int)(short)LOWORD(lParam), (int)(short)HIWORD(lParam) };
+        int index = SendMessage(hWnd, LB_ITEMFROMPOINT, 0, MAKELPARAM(pt.x, pt.y));
+
+        if (HIWORD(index))
+        {
+            return 0;
+        }
+
         if (CurrentTrigger && CurrentTrigger->ActionCount > 0)
         {
             SelectedActions.clear();
@@ -1146,6 +1154,14 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxEvent(HWND hWnd, UINT message, WPARAM
     }
     case WM_LBUTTONDOWN:
     {
+        POINT pt = { (int)(short)LOWORD(lParam), (int)(short)HIWORD(lParam) };
+        int index = SendMessage(hWnd, LB_ITEMFROMPOINT, 0, MAKELPARAM(pt.x, pt.y));
+
+        if (HIWORD(index))
+        {
+            return 0;
+        }
+
         if (CurrentTrigger && CurrentTrigger->EventCount > 0)
         {
             SelectedEvents.clear();
@@ -2655,7 +2671,7 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
         {
             if (auto pTagsSection = map.GetSection("Tags"))
             {
-                std::set<FString> TagsToRemove;
+                FSet TagsToRemove;
                 for (auto& pair : pTagsSection->GetEntities())
                 {
                     auto splits = FString::GetParam(pair.second, 2);

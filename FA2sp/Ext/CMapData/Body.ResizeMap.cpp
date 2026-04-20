@@ -11,8 +11,8 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 	std::vector<FString> UnitList;
 	std::vector<FString> AircraftList;
 	std::vector<FString> InfantryList;
-	std::map<FString, FString> WaypointList;
-	std::map<FString, FString> CelltagList;
+	FMap<FString> WaypointList;
+	FMap<FString> CelltagList;
 	CellData* oldCellDatas = CellDatas;
 
 	int ow = Size.Width;
@@ -29,7 +29,7 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 			}
 		}
 	};
-	auto recordIniMap = [this](const char* lpName, std::map<FString, FString>& list)
+	auto recordIniMap = [this](const char* lpName, FMap<FString>& list)
 	{
 		if (auto pSection = INI.GetSection(lpName))
 		{

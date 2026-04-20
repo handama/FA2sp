@@ -223,7 +223,7 @@ CInfantryData ExtConfigs::DefaultInfantryProperty;
 CUnitData ExtConfigs::DefaultUnitProperty;
 CAircraftData ExtConfigs::DefaultAircraftProperty;
 CBuildingData ExtConfigs::DefaultBuildingProperty;
-std::map<FString, bool> ExtConfigs::SupportedFormats;
+FMap<bool> ExtConfigs::SupportedFormats;
 int ExtConfigs::OverlayDataLimit;
 
 std::vector<ExtConfigs::DynamicOptions> ExtConfigs::Options;

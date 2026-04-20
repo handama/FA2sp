@@ -26,7 +26,7 @@ BOOL CALLBACK CAllieEditor::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM l
 		HWND hLBEnemies = GetDlgItem(hwnd, 6303);
 		HWND hETCurrent = GetDlgItem(hwnd, 6304);
 
-		std::set<FString> allies;
+		FSet allies;
 		cHouses.CETAllies.GetWindowText(FA2sp::Buffer);
 		for (auto& str : FString::SplitString(FA2sp::Buffer))
 			if (!STDHelpers::IsNoneOrEmpty(str))

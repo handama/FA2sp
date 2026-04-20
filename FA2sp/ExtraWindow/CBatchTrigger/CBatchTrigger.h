@@ -157,10 +157,10 @@ private:
     static bool bDisplayID;
 
     static std::vector<ObjInfo> objects;
-    static std::unordered_map<FString, ObjInfo*> idIndex;
-    static std::unordered_map<FString, ObjInfo*> triggerNameIndex;
-    static std::unordered_map<FString, ObjInfo*> tagNameIndex;
-    static std::unordered_map<FString, ObjInfo*> teamNameIndex;
+    static FHashMap<ObjInfo*> idIndex;
+    static FHashMap<ObjInfo*> triggerNameIndex;
+    static FHashMap<ObjInfo*> tagNameIndex;
+    static FHashMap<ObjInfo*> teamNameIndex;
     static HelpDlg hdHelp;
 
 public:

@@ -314,6 +314,7 @@
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\WaypointSort.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserView\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\FA2Expand.cpp" />
+    <ClCompile Include="FA2sp\Helpers\FString.cpp" />
     <ClCompile Include="FA2sp\Helpers\InstructionSet.cpp" />
     <ClCompile Include="FA2sp\Helpers\MultimapHelper.cpp" />
     <ClCompile Include="FA2sp\Helpers\STDHelpers.cpp" />

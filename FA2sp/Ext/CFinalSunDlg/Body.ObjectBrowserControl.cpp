@@ -32,15 +32,15 @@
 namespace fs = std::filesystem;
 
 std::array<HTREEITEM, CViewObjectsExt::Root_Count> CViewObjectsExt::ExtNodes;
-std::unordered_set<FString> CViewObjectsExt::IgnoreSet;
-std::unordered_set<FString> CViewObjectsExt::IgnoreOverlaySet;
-std::unordered_set<FString> CViewObjectsExt::ForceName;
-std::unordered_map<FString, FString> CViewObjectsExt::RenameString;
-std::unordered_set<FString> CViewObjectsExt::ExtSets[Set_Count];
-std::unordered_map<FString, int[10]> CViewObjectsExt::KnownItem;
-std::unordered_map<FString, std::vector<int>[10]> CViewObjectsExt::MultiLayerItem;
-std::unordered_map<FString, int> CViewObjectsExt::Owners;
-std::unordered_set<FString> CViewObjectsExt::AddOnceSet;
+FHashSet CViewObjectsExt::IgnoreSet;
+FHashSet CViewObjectsExt::IgnoreOverlaySet;
+FHashSet CViewObjectsExt::ForceName;
+FHashMap<FString> CViewObjectsExt::RenameString;
+FHashSet CViewObjectsExt::ExtSets[Set_Count];
+FHashMap<int[10]> CViewObjectsExt::KnownItem;
+FHashMap<std::vector<int>[10]> CViewObjectsExt::MultiLayerItem;
+FHashMap<int> CViewObjectsExt::Owners;
+FHashSet CViewObjectsExt::AddOnceSet;
 std::vector<int> CViewObjectsExt::WallIndices;
 int CViewObjectsExt::AddedItemCount;
 int CViewObjectsExt::RedrawCalledCount = 0;
@@ -123,8 +123,9 @@ struct SubGroupInfo
 {
     HTREEITEM item;
     std::vector<FString> collector;
-    std::set<FString> insertedObjects;
+    FSet insertedObjects;
 };
+
 struct TempOtherInfo
 {
     int index;
@@ -1195,7 +1196,7 @@ void CViewObjectsExt::Redraw_Infantry()
     std::map<int, FString> subNodeNames;
     std::map<int, FString> subNodeEngNames;
     std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
-    std::map<FString, SubGroupInfo> editorNodes;
+    FMap<SubGroupInfo> editorNodes;
     std::vector<TempOtherInfo> otherList;
 
     auto& fadata = CINI::FAData();
@@ -1363,7 +1364,7 @@ void CViewObjectsExt::Redraw_Vehicle()
     std::map<int, FString> subNodeNames;
     std::map<int, FString> subNodeEngNames;
     std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
-    std::map<FString, SubGroupInfo> editorNodes;
+    FMap<SubGroupInfo> editorNodes;
     std::vector<TempOtherInfo> otherList;
 
     auto& fadata = CINI::FAData();
@@ -1531,7 +1532,7 @@ void CViewObjectsExt::Redraw_Aircraft()
     std::map<int, FString> subNodeNames;
     std::map<int, FString> subNodeEngNames;
     std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
-    std::map<FString, SubGroupInfo> editorNodes;
+    FMap<SubGroupInfo> editorNodes;
     std::vector<TempOtherInfo> otherList;
 
     auto& fadata = CINI::FAData();
@@ -1700,7 +1701,7 @@ void CViewObjectsExt::Redraw_Building()
     std::map<int, FString> subNodeEngNames;
     std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
     std::map<int, std::vector<std::pair<int, FString>>> foundationBuildings;
-    std::map<FString, SubGroupInfo> editorNodes;
+    FMap<SubGroupInfo> editorNodes;
     std::vector<TempOtherInfo> otherList;
 
     auto& fadata = CINI::FAData();
@@ -1901,7 +1902,7 @@ void CViewObjectsExt::Redraw_Terrain()
     HTREEITEM& hTerrain = ExtNodes[Root_Terrain];
     if (hTerrain == NULL)   return;
 
-    std::map<FString, SubGroupInfo> nodes;
+    FMap<SubGroupInfo> nodes;
     auto&& terrains = Variables::RulesMap.GetSection("TerrainTypes");
 
     if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.TerrainTypes"))
@@ -2029,7 +2030,7 @@ void CViewObjectsExt::Redraw_Smudge()
     HTREEITEM& hSmudge = ExtNodes[Root_Smudge];
     if (hSmudge == NULL)   return;
 
-    std::map<FString, SubGroupInfo> nodes;
+    FMap<SubGroupInfo> nodes;
     auto&& smudges = Variables::RulesMap.GetSection("SmudgeTypes");
 
     if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.SmudgeTypes"))
@@ -2206,7 +2207,7 @@ void CViewObjectsExt::Redraw_Overlay()
         InsertingOverlay = -1;
     }
 
-    std::map<FString, SubGroupInfo> nodes;
+    FMap<SubGroupInfo> nodes;
     if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.Overlays"))
     {
         std::map<int, FString> collector;

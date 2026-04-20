@@ -161,6 +161,7 @@ std::vector<ppmfc::CString> STDHelpers::SplitString(const ppmfc::CString& pSourc
         nIdx = nPos + strlen(pSplit);
     }
     ret.push_back(pSource.Mid(nIdx));
+
     return ret;
 }
 
@@ -192,6 +193,7 @@ std::vector<ppmfc::CString> STDHelpers::SplitStringMultiSplit(const ppmfc::CStri
     ret.push_back(pSource.Mid(nIdx));
     return ret;
 }
+
 std::pair<ppmfc::CString, ppmfc::CString> STDHelpers::SplitKeyValue(const ppmfc::CString& pSource)
 {
     const char* pSplit = "=";
@@ -389,9 +391,9 @@ ppmfc::CString STDHelpers::GetComboBoxText(const ppmfc::CComboBox& cbb)
     return ret;
 }
 
-ppmfc::CString STDHelpers::ReplaceSpeicalString(ppmfc::CString ori)
+ppmfc::CString STDHelpers::ReplaceSpeicalString(FString_view ori)
 {
-    ppmfc::CString ret = ori;
+    ppmfc::CString ret(ori.c_str());
     ret.Replace("%1", ",");
     ret.Replace("%2", ";");
     ret.Replace("\\t", "\t");
@@ -399,27 +401,53 @@ ppmfc::CString STDHelpers::ReplaceSpeicalString(ppmfc::CString ori)
     return ret;
 }
 
-FString STDHelpers::ChineseTraditional_ToSimple(const FString& _str)
+FString STDHelpers::ChineseTraditional_ToSimple(FString_view str)
 {
-    LPCSTR lpSrcStr = _str.c_str();
-    int cchSrc = static_cast<int>(_str.size());
-    int cchDest = static_cast<int>(1 + _str.size());
-    LPSTR lpDestStr = new CHAR[cchDest]{ 0 };
-    LCMapStringA(0x0804, LCMAP_SIMPLIFIED_CHINESE, lpSrcStr, cchSrc, lpDestStr, cchDest);
-    FString str(lpDestStr);
-    delete[] lpDestStr;
-    lpDestStr = nullptr;
-    return str;
+    if (str.empty())
+        return {};
+
+    int srcLen = (int)str.size();
+
+    int destLen = LCMapStringA(
+        0x0804,
+        LCMAP_SIMPLIFIED_CHINESE,
+        str.data(),
+        srcLen,
+        nullptr,
+        0
+    );
+
+    if (destLen <= 0)
+        return FString(str);
+
+    std::string buffer(destLen, 0);
+
+    LCMapStringA(
+        0x0804,
+        LCMAP_SIMPLIFIED_CHINESE,
+        str.data(),
+        srcLen,
+        buffer.data(),
+        destLen
+    );
+
+    return FString(buffer);
 }
 
-std::string STDHelpers::ToUpperCase(const std::string& _str) {
-    std::string upperStr;
-    for (char c : _str) {
-        upperStr += std::toupper(static_cast<unsigned char>(c));
+std::string STDHelpers::ToUpperCase(FString_view str)
+{
+    std::string ret;
+    ret.resize(str.size());
+
+    for (size_t i = 0; i < str.size(); ++i)
+    {
+        ret[i] = static_cast<char>(
+            std::toupper(static_cast<unsigned char>(str[i]))
+            );
     }
-    return upperStr;
-}
 
+    return ret;
+}
 std::string STDHelpers::WStringToString(const std::wstring& wstr) {
 
     int len = WideCharToMultiByte(CP_ACP, 0, wstr.c_str(), wstr.size(), nullptr, 0, nullptr, nullptr);
@@ -438,17 +466,36 @@ std::string STDHelpers::WStringToString(const std::wstring& wstr) {
     return result;
 }
 
-std::wstring STDHelpers::StringToWString(const std::string& str) 
+std::wstring STDHelpers::StringToWString(FString_view str)
 {
-    int wideSize = MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, nullptr, 0);
-    if (wideSize == 0) return L"";
+    if (str.empty())
+        return L"";
+
+    int wideSize = MultiByteToWideChar(
+        CP_ACP,
+        0,
+        str.data(),
+        (int)str.size(),
+        nullptr,
+        0
+    );
+
+    if (wideSize <= 0)
+        return L"";
 
     std::wstring wstr(wideSize, 0);
-    MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, &wstr[0], wideSize);
+
+    MultiByteToWideChar(
+        CP_ACP,
+        0,
+        str.data(),
+        (int)str.size(),
+        &wstr[0],
+        wideSize
+    );
 
     return wstr;
 }
-
 void STDHelpers::WStringReplace(std::wstring& str, const std::wstring& oldStr, const std::wstring& newStr)
 {
     if (oldStr.empty()) return;
@@ -459,16 +506,22 @@ void STDHelpers::WStringReplace(std::wstring& str, const std::wstring& oldStr, c
     }
 }
 
-std::string STDHelpers::ReplaceEnding(const std::string& str,
-    const std::string& oldSuffix,
-    const std::string& newSuffix)
+std::string STDHelpers::ReplaceEnding(FString_view str,
+    FString_view oldSuffix,
+    FString_view newSuffix)
 {
-    if (!str.ends_with(oldSuffix))
-        return str;
+    if (str.size() < oldSuffix.size() ||
+        !str.ends_with(oldSuffix))
+    {
+        return std::string(str);
+    }
 
-    std::string ret = str;
-    ret.resize(ret.size() - oldSuffix.size());
-    ret += newSuffix;
+    std::string ret;
+    ret.reserve(str.size() - oldSuffix.size() + newSuffix.size());
+
+    ret.append(str.data(), str.size() - oldSuffix.size());
+    ret.append(newSuffix.data(), newSuffix.size());
+
     return ret;
 }
 

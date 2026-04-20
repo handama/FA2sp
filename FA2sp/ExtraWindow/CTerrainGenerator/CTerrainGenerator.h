@@ -448,7 +448,7 @@ private:
     static CINI& map;
     static MultimapHelper& rules;
     static std::shared_ptr<TerrainGeneratorPreset> CurrentPreset;
-    static std::map<FString, std::shared_ptr<TerrainGeneratorPreset>> TerrainGeneratorPresets;
+    static FMap<std::shared_ptr<TerrainGeneratorPreset>> TerrainGeneratorPresets;
     static WNDPROC g_pOriginalTabPageProc;
     static LRESULT CALLBACK TabPageSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 

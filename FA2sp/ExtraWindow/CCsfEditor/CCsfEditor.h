@@ -26,8 +26,8 @@ protected:
     static void Initialize(HWND& hWnd);
     static void Close(HWND& hWnd);
     static void Update(HWND& hWnd);
-    static void InsertCSFContent(std::map<FString, FString> csfMap);
-    static void FilterRows(std::map<FString, FString> csfMap, const char* searchText);
+    static void InsertCSFContent(FMap<FString> csfMap);
+    static void FilterRows(FMap<FString> csfMap, const char* searchText);
     static void OnEditchangeSearch();
     static void OnViewerSelectedChange(NMHDR* pNMHDR);
     static void OnClickApply();
@@ -52,7 +52,7 @@ private:
     static HWND hReload;
     static HWND hApply;
 public:
-    static std::map<FString, FString>& CurrentCSFMap;
+    static FMap<FString>& CurrentCSFMap;
     static FString CurrentSelectedCSF;
     static FString CurrentSelectedCSFApply;
     static bool NeedUpdate;

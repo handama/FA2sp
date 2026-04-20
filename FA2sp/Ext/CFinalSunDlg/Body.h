@@ -229,18 +229,18 @@ public:
     static int RedrawCalledCount;
     static bool IsOpeningAnnotationDlg;
     static int InsertingOverlayData;
-    static std::unordered_set<FString> IgnoreSet;
-    static std::unordered_set<FString> IgnoreOverlaySet;
+    static FHashSet IgnoreSet;
+    static FHashSet IgnoreOverlaySet;
 
 private:
     static std::array<HTREEITEM, Root_Count> ExtNodes;
-    static std::unordered_set<FString> ForceName;
-    static std::unordered_map<FString, FString> RenameString;
-    static std::unordered_set<FString> ExtSets[Set_Count];
-    static std::unordered_map<FString, int[10]> KnownItem;
-    static std::unordered_map<FString, std::vector<int>[10]> MultiLayerItem;
-    static std::unordered_map<FString, int> Owners;
-    static std::unordered_set<FString> AddOnceSet;
+    static FHashSet ForceName;
+    static FHashMap<FString> RenameString;
+    static FHashSet ExtSets[Set_Count];
+    static FHashMap<int[10]> KnownItem;
+    static FHashMap<std::vector<int>[10]> MultiLayerItem;
+    static FHashMap<int> Owners;
+    static FHashSet AddOnceSet;
     static std::vector<int> WallIndices;
     static int AddedItemCount;
     static CImageList m_ImageList;

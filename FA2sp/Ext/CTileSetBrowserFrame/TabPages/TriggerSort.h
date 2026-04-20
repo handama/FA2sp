@@ -12,8 +12,8 @@ class TriggerSort
 public:
     static TriggerSort Instance;
 
-    static std::unordered_map<FString, FString>TriggerTags;
-    static std::unordered_map<FString, std::vector<FString>>TriggerTagsParent;
+    static FHashMap<FString>TriggerTags;
+    static FHashMap<std::vector<FString>>TriggerTagsParent;
 
     TriggerSort() : m_hWnd{ NULL } {}
 
@@ -42,7 +42,7 @@ public:
     HWND GetHwnd() const;
     operator HWND() const;
 
-    static std::unordered_set<FString> attachedTriggers;
+    static FHashSet attachedTriggers;
     static bool CreateFromTriggerSort;
 
 private:

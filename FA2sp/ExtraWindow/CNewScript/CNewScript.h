@@ -112,8 +112,8 @@ public:
     static HWND hSearchReference;
     static HWND hDragPoint;
     static FString CurrentScriptID;
-    static std::map<FString, bool> ActionHasExtraParam;
-    static std::map<FString, bool> ActionIsStringParam;
+    static FMap<bool> ActionHasExtraParam;
+    static FMap<bool> ActionIsStringParam;
 private:
     static int SelectedScriptIndex;
     static std::map<int, FString> ScriptLabels;

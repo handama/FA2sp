@@ -288,25 +288,25 @@ public:
 	static int GetIFVTurretIndex(const FString& ID);
 	static bool IsPreOccupiedBunker(const FString& ID);
 	static bool IsBioReactor(const FString& ID);
-	static std::unordered_set<FString> LoadedOverlays;
-	static std::unordered_map<FString, InsigniaGrid> LoadedInsignias;
+	static FHashSet LoadedOverlays;
+	static FHashMap<InsigniaGrid> LoadedInsignias;
 	static Palette TempISOPalette;
 	static bool IsLoadingObjectView;
-	static std::unordered_set<FString> SwimableInfantries;
+	static FHashSet SwimableInfantries;
 	ObjectType GetItemType(FString ID);
 	static bool SaveCBitmapToFile(CBitmap* pBitmap, const FString& filePath, COLORREF bgColor);
 	static bool LoadBMPToCBitmap(const FString& filePath, CBitmap& outBitmap);
 	static std::unique_ptr<ImageDataClassSafe> BindClippedImages(const std::vector<std::unique_ptr<ImageDataClassSafe>>& imgs);
 
-	static std::unordered_map<FString, int> AvailableFacings;
-	static std::unordered_map<FString, int> AlphaImageFacings;
-	static std::unordered_set<FString> LoadedObjects;
-	static std::unordered_set<FString> LoadedPreviewObjects;
-	static std::unordered_set<FString> LoadedSurfaceObjects;
-	static std::unordered_set<FString> CustomPaletteTerrains;
-	static std::unordered_map<FString, int> IFVTurrets;
-	static std::unordered_set<FString> InitialOccupiedBuildings;
-	static std::unordered_map<FString, int> BioReactors;
+	static FHashMap<int> AvailableFacings;
+	static FHashMap<int> AlphaImageFacings;
+	static FHashSet LoadedObjects;
+	static FHashSet LoadedPreviewObjects;
+	static FHashSet LoadedSurfaceObjects;
+	static FHashSet CustomPaletteTerrains;
+	static FHashMap<int> IFVTurrets;
+	static FHashSet InitialOccupiedBuildings;
+	static FHashMap<int> BioReactors;
 	static std::unordered_set<int> Ra2dotMixes;
 	static int TallestBuildingHeight;
 private:
@@ -329,16 +329,16 @@ private:
 
 	static std::vector<SHPUnionData> UnionSHP_Data[2];
 	static std::vector<SHPUnionData> UnionSHPShadow_Data[2];
-	static std::unordered_map<FString, ObjectType> ObjectTypes;
+	static FHashMap<ObjectType> ObjectTypes;
 	static unsigned char VXL_Data[0x10000];
 	static unsigned char VXL_Shadow_Data[0x10000];
 
 public:
 	static bool DrawTurretShadow;
-	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CurrentFrameImageDataMap;
-	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> ImageDataMap;
-	static std::unordered_map<FString, std::vector<std::unique_ptr<ImageDataClassSafe>>> BuildingClipsImageDataMap;
-	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSurface>> SurfaceImageDataMap;
+	static FHashMap<std::unique_ptr<ImageDataClassSafe>> CurrentFrameImageDataMap;
+	static FHashMap<std::unique_ptr<ImageDataClassSafe>> ImageDataMap;
+	static FHashMap<std::vector<std::unique_ptr<ImageDataClassSafe>>> BuildingClipsImageDataMap;
+	static FHashMap<std::unique_ptr<ImageDataClassSurface>> SurfaceImageDataMap;
 	static std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CustomFlagMap;
 	static std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CustomCelltagMap;
 	static std::vector<std::unique_ptr<ImageDataClassSafe>> DamageFires;
@@ -363,7 +363,7 @@ public:
 	static void* ReadWholeFile(const char* filename, DWORD* pDwSize = nullptr, bool fa2path = false);
 	static bool HasFileExt(ppmfc::CString filename, int nMix = -114);
 
-	static std::unordered_set<FString> NotFoundFiles;
+	static FHashSet NotFoundFiles;
 	static std::unordered_map<std::string, std::vector<unsigned char>> g_cache[2];
 	static std::unordered_map<std::string, uint64_t> g_cacheTime[2];
 	static uint64_t g_lastCleanup;

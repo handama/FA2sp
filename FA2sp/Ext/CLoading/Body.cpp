@@ -12,7 +12,7 @@
 bool CLoadingExt::HasFile_ReadyToReadFromFolder = false;
 Palette CLoadingExt::TempISOPalette = { 0 };
 bool CLoadingExt::IsLoadingObjectView = false;
-std::unordered_set<FString> CLoadingExt::SwimableInfantries;
+FHashSet CLoadingExt::SwimableInfantries;
 
 bool CLoadingExt::InitMixFilesFix()
 {
@@ -51,7 +51,7 @@ bool CLoadingExt::InitMixFilesFix()
 	}
 
 	// Init Ignored Mixes
-	std::set<FString> IgnoredMixes;
+	FSet IgnoredMixes;
 	if (auto pSection = CINI::FAData->GetSection("IgnoredMixes"))
 	{
 		for (const auto& [_, mix] : pSection->GetEntities())
@@ -61,7 +61,7 @@ bool CLoadingExt::InitMixFilesFix()
 	}
 
 	// Init Nested Mixes
-	std::map<FString, std::vector<FString>> NestedMixes;
+	FMap<std::vector<FString>> NestedMixes;
 	if (auto pSection = CINI::FAData->GetSection("NestedMixes"))
 	{
 		std::map<int, FString> collector;

@@ -18,7 +18,7 @@
 bool StringtableLoader::bLoadRes = false;
 char* StringtableLoader::pEDIBuffer = nullptr;
 wchar_t StringtableLoader::pStringBuffer[0x400] = {};
-std::map<FString, FString> StringtableLoader::CSFFiles_Stringtable;
+FMap<FString> StringtableLoader::CSFFiles_Stringtable;
 
 FString StringtableLoader::QueryUIName(const char* pRegName, bool bOnlyOneLine)
 {

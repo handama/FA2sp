@@ -59,10 +59,10 @@ bool CBatchTrigger::bUseID = false;
 bool CBatchTrigger::bDisplayID = false;
 static std::vector<ObjInfo> objects;
 std::vector<ObjInfo> CBatchTrigger::objects;
-std::unordered_map<FString, ObjInfo*> CBatchTrigger::idIndex;
-std::unordered_map<FString, ObjInfo*> CBatchTrigger::triggerNameIndex;
-std::unordered_map<FString, ObjInfo*> CBatchTrigger::tagNameIndex;
-std::unordered_map<FString, ObjInfo*> CBatchTrigger::teamNameIndex;
+FHashMap<ObjInfo*> CBatchTrigger::idIndex;
+FHashMap<ObjInfo*> CBatchTrigger::triggerNameIndex;
+FHashMap<ObjInfo*> CBatchTrigger::tagNameIndex;
+FHashMap<ObjInfo*> CBatchTrigger::teamNameIndex;
 HelpDlg CBatchTrigger::hdHelp;
 
 LRESULT CALLBACK CBatchTrigger::ListViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -634,7 +634,7 @@ void CBatchTrigger::AddObject(const FString& id, const FString& name, ObjType ty
 
     idIndex[id] = obj;
 
-    auto& index = [&]() -> std::unordered_map<FString, ObjInfo*>& {
+    auto& index = [&]() -> FHashMap<ObjInfo*>& {
         switch (type)
         {
         case ObjType::Trigger:   return triggerNameIndex;
@@ -722,7 +722,7 @@ void CBatchTrigger::Update(bool afterInit, bool updateTrigger)
         );
 
         CMapDataExt::Triggers.clear();
-        std::map<FString, FString> TagMap;
+        FMap<FString> TagMap;
         if (pTag)
         {
             for (auto& kvp : pTag->GetEntities())

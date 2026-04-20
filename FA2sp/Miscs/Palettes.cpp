@@ -15,7 +15,7 @@
 const LightingStruct LightingStruct::NoLighting = { -1,-1,-1,-1,-1,-1 };
 LightingStruct LightingStruct::CurrentLighting;
 
-std::map<FString, Palette*> PalettesManager::OriginPaletteFiles;
+FMap<Palette*> PalettesManager::OriginPaletteFiles;
 std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedPaletteFiles;
 std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedDimmedPaletteFiles;
 std::map<Palette*, std::map<LightingStruct, LightingPalette>> PalettesManager::CalculatedPaletteFilesNoRemap;

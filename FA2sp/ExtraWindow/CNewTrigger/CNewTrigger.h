@@ -20,7 +20,7 @@ struct ParamAffectedParams
     int Index;
     int SourceParam;
     int AffectedParam;
-    std::map<FString, FString> ParamMap;
+    FMap<FString> ParamMap;
 };
 
 struct EventParams
@@ -57,7 +57,7 @@ public:
     int ActionCount;
     std::vector<ActionParams> Actions;
 
-    static Trigger* create(const char* id, std::map<FString, FString>* pTagMap = nullptr)
+    static Trigger* create(const char* id, FMap<FString>* pTagMap = nullptr)
     {
         auto atoms = FString::SplitString(CINI::CurrentDocument().GetString("Triggers", id));
         if (atoms.size() < 8)
@@ -106,7 +106,7 @@ public:
         CINI::CurrentDocument().WriteString("Actions", ID, cAction);
     }
 
-    void LoadFromMap(const char* id, std::map<FString, FString>* pTagMap = nullptr)
+    void LoadFromMap(const char* id, FMap<FString>* pTagMap = nullptr)
     {
         auto atoms = FString::SplitString(CINI::CurrentDocument().GetString("Triggers", id));
         ID = id;
@@ -283,7 +283,7 @@ public:
     }
 
 private:
-    Trigger(const char* id, std::map<FString, FString>* pTagMap = nullptr)
+    Trigger(const char* id, FMap<FString>* pTagMap = nullptr)
     {
         LoadFromMap(id, pTagMap);
     }

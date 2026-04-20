@@ -73,7 +73,7 @@ MapCoord CTerrainGenerator::RangeFirstCell;
 MapCoord CTerrainGenerator::RangeSecondCell;
 bool CTerrainGenerator::UseMultiSelection;
 
-std::map<FString, std::shared_ptr<TerrainGeneratorPreset>> CTerrainGenerator::TerrainGeneratorPresets;
+FMap<std::shared_ptr<TerrainGeneratorPreset>> CTerrainGenerator::TerrainGeneratorPresets;
 std::shared_ptr<TerrainGeneratorPreset> CTerrainGenerator::CurrentPreset;
 
 WNDPROC CTerrainGenerator::g_pOriginalTabPageProc = nullptr;

@@ -572,6 +572,10 @@ public:
     {
         return IsCoordInFullMap(CMapData::Instance->GetXFromCoordIndex(CoordIndex), CMapData::Instance->GetYFromCoordIndex(CoordIndex));
     }
+    inline static bool IsCoordInFullMap(MapCoord coord)
+    {
+        return IsCoordInFullMap(coord.X, coord.Y);
+    }
     static CellData ExtTempCellData;
     inline static CellData* TryGetCellAt(int X, int Y)
     {

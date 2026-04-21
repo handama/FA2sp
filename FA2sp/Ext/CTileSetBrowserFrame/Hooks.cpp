@@ -52,28 +52,31 @@ DEFINE_HOOK(4F1B00, CTileSetBrowserFrame_RecalcLayout, 7)
 
     ::GetClientRect(CTileSetBrowserFrameExt::hTabCtrl, &tabRect);
 
-    HWND hTemp = CreateDialog(
-        static_cast<HINSTANCE>(FA2sp::hInstance),
-        MAKEINTRESOURCE(ExtConfigs::VerticalLayout ? 0xE4 : 0xE3),
-        CTileSetBrowserFrameExt::hTabCtrl,
-        NULL
-    );
+    static int cachedHeight = -1;
 
-    CRect rect;
-    GetWindowRect(hTemp, &rect);
+    if (cachedHeight == -1) {
+        HWND hTemp = CreateDialog(
+            static_cast<HINSTANCE>(FA2sp::hInstance),
+            MAKEINTRESOURCE(ExtConfigs::VerticalLayout ? 0xE4 : 0xE3),
+            CTileSetBrowserFrameExt::hTabCtrl,
+            NULL
+        );
+        CRect rect;
+        GetWindowRect(hTemp, &rect);
+        cachedHeight = rect.Height();
+        DestroyWindow(hTemp);
+    }
 
     if (ExtConfigs::VerticalLayout)
     {
-        pThis->DialogBar.MoveWindow(2, 29, tabRect.right - tabRect.left - 6, rect.Height(), FALSE);
-        pThis->View.MoveWindow(2, 29 + rect.Height(), tabRect.right - tabRect.left - 6, tabRect.bottom - rect.Height() - 29, FALSE);
+        pThis->DialogBar.MoveWindow(2, 29, tabRect.right - tabRect.left - 6, cachedHeight, FALSE);
+        pThis->View.MoveWindow(2, 29 + cachedHeight, tabRect.right - tabRect.left - 6, tabRect.bottom - cachedHeight - 29, FALSE);
     }
     else
     {
-        pThis->DialogBar.MoveWindow(2, 29, tabRect.right - tabRect.left - 6, rect.Height(), FALSE);
-        pThis->View.MoveWindow(2, 29 + rect.Height(), tabRect.right - tabRect.left - 6, tabRect.bottom - rect.Height() - 29, FALSE);
+        pThis->DialogBar.MoveWindow(2, 29, tabRect.right - tabRect.left - 6, cachedHeight, FALSE);
+        pThis->View.MoveWindow(2, 29 + cachedHeight, tabRect.right - tabRect.left - 6, tabRect.bottom - cachedHeight - 29, FALSE);
     }
-
-    EndDialog(hTemp, NULL);
 
     SIZE sz{ tabRect.right,pThis->View.ScrollWidth };
     pThis->View.SetScrollSizes(1, sz);

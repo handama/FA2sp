@@ -290,6 +290,7 @@ void CNewTeamTypes::Update(HWND& hWnd)
         }
     }
     ExtraWindow::SortLabels(labels);
+    ComboBoxBatchUpdater cbb(hTag, labels.size() + 1, false, 256, false);
     SendMessage(hTag, CB_INSERTSTRING, 0, (LPARAM)(LPCSTR)"None");
     for (size_t i = 0; i < labels.size(); ++i) {
         SendMessage(hTag, CB_INSERTSTRING, i+1, (LPARAM)(LPCSTR)labels[i]);

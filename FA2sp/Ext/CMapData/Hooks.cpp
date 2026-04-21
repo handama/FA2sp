@@ -1535,7 +1535,7 @@ DEFINE_HOOK(4AA111, CMapData_DeleteTerrain, 6)
 	return 0x4C9F93;
 }
 
-DEFINE_HOOK(4BAEE0, CMapData_UpdateFieldTubeData, 7)
+DEFINE_HOOK(4BA5F0, CMapData_UpdateFieldTubeData, 6)
 {
 	CMapDataExt::Tubes.clear();
 	if (auto pSection = CINI::CurrentDocument->GetSection("Tubes"))
@@ -1543,9 +1543,13 @@ DEFINE_HOOK(4BAEE0, CMapData_UpdateFieldTubeData, 7)
 		for (const auto& [key, value] : pSection->GetEntities())
 		{
 			auto atom = STDHelpers::SplitString(value, 5);
+			MapCoord StartCoord = { atoi(atom[1]),atoi(atom[0]) };
+			MapCoord EndCoord = { atoi(atom[4]),atoi(atom[3]) };
+			if (!CMapDataExt::IsCoordInFullMap(StartCoord) || !CMapDataExt::IsCoordInFullMap(EndCoord))
+				continue;
 			auto& tube = CMapDataExt::Tubes.emplace_back();
-			tube.StartCoord = { atoi(atom[1]),atoi(atom[0]) };
-			tube.EndCoord = { atoi(atom[4]),atoi(atom[3]) };
+			tube.StartCoord = StartCoord;
+			tube.EndCoord = EndCoord;
 			tube.StartFacing = atoi(atom[2]);
 			for (int i = 5; i < atom.size(); ++i)
 			{
@@ -1561,7 +1565,7 @@ DEFINE_HOOK(4BAEE0, CMapData_UpdateFieldTubeData, 7)
 			tube.key = key;
 		}
 	}
-	return 0;
+	return 0x4BAEF8;
 }
 
 DEFINE_HOOK(4A7830, CMapData_UpdateFieldOverlayData, 5)

@@ -696,10 +696,10 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                 includeIni = MakeGameUnique<CINIExt>();
                 FString buffer = " \n";
 
-                std::queue<ppmfc::CString> currentIncludeInis;
+                std::vector<std::pair<ppmfc::CString, ppmfc::CString>> currentIncludeInis;
 
                 for (auto& pair : pInclude->GetEntities()) {
-                    currentIncludeInis.push(pair.second);
+                    currentIncludeInis.push_back(pair);
                 }
                 includeIni->LoadINIExt((uint8_t*)buffer.data(), buffer.length(), nullptr, true, true, true, &currentIncludeInis);
             }

@@ -1495,12 +1495,14 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnClickSearchReference(hWnd);
             break;
         case Controls::ActionMoveUp:
-            if (CODE == STN_CLICKED)
+            if (CODE == STN_CLICKED || CODE == STN_DBLCLK) {
                 OnClickActionMove(hWnd, true);
+            }
             break;
         case Controls::ActionMoveDown:
-            if (CODE == STN_CLICKED)
+            if (CODE == STN_CLICKED || CODE == STN_DBLCLK) {
                 OnClickActionMove(hWnd, false);
+            }
             break;
         case Controls::ActionSplit:
             if (CODE == BN_CLICKED)

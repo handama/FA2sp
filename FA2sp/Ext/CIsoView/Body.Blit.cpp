@@ -950,26 +950,21 @@ void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, Imag
     CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary, x, y, pd, newPal, alpha, houseColor);
 }
 
+// CellHeight is useless, kept for future use
 template<bool FlatToGround, bool MaskShadow, bool CellHeight,
     bool AlphaBlend, bool MultiSel, bool Ore, bool Player, bool ObjectOverlap>
 void BlitTerrainImpl(
     CIsoView* pThis, void* dst, const RECT& window,
     const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile,
     Palette* pal, BYTE alpha, std::vector<byte>* mask,
-    std::vector<byte>* heightMask, byte height,
-    std::vector<int>* cellHeightMask, int tileSet,
+    std::vector<byte>* heightMask, byte height, int tileSet,
     const RGBClass* selColor, byte playerOpacity, const RGBClass* playerColor,
     const RGBClass& oreColor, byte oreOpacity, std::vector<char>* objectOverlapMask)
 {
     constexpr int TILE_WIDTH = 60;
     constexpr int TILE_HEIGHT = 30;
-    constexpr int X_OFFSET = 61;
-    constexpr int Y_OFFSET = 1;
     constexpr int BPP = 4;
     const BGRStruct SHADOW_COLOR = { 0, 0, 0 };
-
-    x += X_OFFSET;
-    y += Y_OFFSET;
 
     int swidth = subTile->BlockWidth;
     int sheight = subTile->BlockHeight;
@@ -1039,26 +1034,6 @@ void BlitTerrainImpl(
                 }
             }
 
-            if constexpr (CellHeight){
-                int wx = destRect.left + col; 
-                int wy = destRect.top + row; 
-                if (wx >= window.left && wx < window.right 
-                    && wy >= window.top && wy < window.bottom) [[likely]] { 
-                    int yOffset = 0; 
-                    int cellRowIdx = col + subTile->XMinusExX; 
-                    if (cellRowIdx >= 0 && cellRowIdx <= 30) 
-                        yOffset = (cellRowIdx + 2) / 2; 
-                    else if (cellRowIdx > 30 && cellRowIdx <= 60) 
-                        yOffset = (60 - cellRowIdx + 1) / 2; 
-                    yOffset = std::min(15, yOffset); 
-                    int offset = (-subTile->YMinusExY - 15 - (row - srcRect.top)); 
-                    int value = height * 30 - yOffset + (subTile->YMinusExY < 0 ? (offset + 30) : 0) - 2; 
-                    value = std::max(0, value); 
-                    int index = wx - window.left + (wy - window.top) * (window.right - window.left); 
-                    (*cellHeightMask)[index] = value; 
-                } 
-            }
-
             if constexpr (ObjectOverlap){
                 int wx = destRect.left + col; 
                 int wy = destRect.top + row; 
@@ -1103,8 +1078,7 @@ void BlitTerrainImpl(
 }
 
 using ImplFunc = void(*)(CIsoView*, void*, const RECT&, const DDBoundary&, int, int,
-    CTileBlockClass*, Palette*, BYTE, std::vector<byte>*,
-    std::vector<byte>*, byte, std::vector<int>*, int,
+    CTileBlockClass*, Palette*, BYTE, std::vector<byte>*, std::vector<byte>*, byte, int,
     const RGBClass*, byte, const RGBClass*, const RGBClass&, byte, std::vector<char>*);
 
 template<size_t... Is>
@@ -1123,6 +1097,11 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
     if (alpha == 0 || !subTile || !subTile->HasValidImage || !subTile->ImageData || !dst || !subTile->pPixelValidRanges) {
         return;
     }
+
+    constexpr int X_OFFSET = 61;
+    constexpr int Y_OFFSET = 1;
+    x += X_OFFSET;
+    y += Y_OFFSET;
 
     Palette* newPal = pal;
     BGRStruct dummyColor{};
@@ -1169,7 +1148,7 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
 
     int idx = (doFlatToGround ? 1 : 0) |
         (doMaskShadow ? 2 : 0) |
-        (doCellHeight ? 4 : 0) |
+        //(doCellHeight ? 4 : 0) |
         (doAlphaBlend ? 8 : 0) |
         (doMultiSel ? 16 : 0) |
         (doOre ? 32 : 0) |
@@ -1178,9 +1157,75 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
 
     DISPATCH_TABLE[idx](
         pThis, dst, window, boundary, x, y, subTile, newPal, alpha,
-        mask, heightMask, height, cellHeightMask, tileSet,
-        selColor, playerOpacity, playerColor, oreColor, oreOpacity, objectOverlapMask
+        mask, heightMask, height, tileSet, selColor, playerOpacity,
+        playerColor, oreColor, oreOpacity, objectOverlapMask
         );
+
+    if (doCellHeight)
+    {
+        BlitCellHeightMask(*cellHeightMask, &window, x, y, subTile, height);
+    }
+}
+
+void CIsoViewExt::BlitCellHeightMask(std::vector<int>& cellHeightMask, const RECT* window,
+    int x, int y, CTileBlockClass* subTile, int height)
+{
+    auto itr = CMapDataExt::TileBaseHeightMask.find(subTile);
+    if (itr == CMapDataExt::TileBaseHeightMask.end())
+        return;
+
+    const auto& mask = itr->second;
+
+    const int swidth = subTile->BlockWidth;
+    const int sheight = subTile->BlockHeight;
+
+    const int winTop = window->top;
+    const int winLeft = window->left;
+    const int maskWidth = window->right - winLeft;
+    const int maskHeight = window->bottom - winTop;
+
+    const int add = height * 30;
+
+    const int8_t* baseRow = reinterpret_cast<const int8_t*>(mask.data());
+
+    for (int row = 0; row < sheight; ++row, baseRow += swidth) {
+
+        int wy = y + row - winTop;
+        if (wy < 0 || wy >= maskHeight) continue;
+
+        int left = subTile->pPixelValidRanges[row].First;
+        int right = subTile->pPixelValidRanges[row].Last;
+
+        if (left < 0) left = 0;
+        if (right >= swidth) right = swidth - 1;
+        if (left > right) continue;
+
+        int startX = x + left - winLeft;
+        int shift = 0;
+
+        if (startX < 0) {
+            shift = -startX;
+            startX = 0;
+        }
+
+        int count = right - left + 1 - shift;
+        if (count <= 0) continue;
+
+        if (startX + count > maskWidth) {
+            count = maskWidth - startX;
+            if (count <= 0) continue;
+        }
+
+        int dstIndex = wy * maskWidth + startX;
+
+        int* __restrict dstPtr = cellHeightMask.data() + dstIndex;
+        const int8_t* __restrict basePtr = baseRow + left + shift;
+
+        for (int i = 0; i < count; ++i) {
+            int value = static_cast<int>(basePtr[i]) + add;
+            dstPtr[i] = (value > 0) ? value : 0;
+        }
+    }
 }
 
 void CIsoViewExt::MaskShadowPixels(

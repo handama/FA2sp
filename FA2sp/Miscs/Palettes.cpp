@@ -32,9 +32,9 @@ void PalettesManager::Release()
             pair.second != Palette::PALETTE_ISO &&
             pair.second != Palette::PALETTE_THEATER &&
             pair.second != Palette::PALETTE_LIB)
-            GameDelete(pair.second);
+            delete pair.second;
     for (auto& p : PalettesManager::CalculatedMixedPalettes)
-        if (p) GameDelete(p);
+        if (p) delete p;
 
     PalettesManager::OriginPaletteFiles.clear();
     PalettesManager::CalculatedPaletteFiles.clear();
@@ -62,7 +62,7 @@ Palette* PalettesManager::LoadPalette(FString palname)
 
     if (auto pBuffer = (BytePalette*)CLoadingExt::GetExtension()->ReadWholeFile(palToLoad))
     {
-        auto pPalette = GameCreate<Palette>();
+        auto pPalette = new Palette();
         for (int i = 0; i < 256; ++i)
         {
             pPalette->Data[i].R = pBuffer->Data[i].red << 2;
@@ -87,7 +87,7 @@ Palette* PalettesManager::LoadTiberiumCellAnimPalette(BGRStruct& color, FString 
     
     if (auto pBuffer = (BytePalette*)CLoadingExt::GetExtension()->ReadWholeFile(palname))
     {
-        auto pPalette = GameCreate<Palette>();
+        auto pPalette = new Palette();
         for (int i = 0; i < 256; ++i)
         {
             pPalette->Data[i].R = pBuffer->Data[i].red << 2;
@@ -369,33 +369,43 @@ void LightingPalette::RemapColors(BGRStruct color)
 
 void LightingPalette::TintColors(bool isObject)
 {
-    this->RedMult = std::clamp(this->RedMult, 0.0f, 2.0f);
-    this->GreenMult = std::clamp(this->GreenMult, 0.0f, 2.0f);
-    this->BlueMult = std::clamp(this->BlueMult, 0.0f, 2.0f);
-    this->AmbientMult = std::clamp(this->AmbientMult, 0.0f, 2.0f);
+    this->Colors = *PaletteCache::GetOrCreate(
+        this->OriginPalette,
+        &this->Colors,
+        this->RedMult,
+        this->GreenMult,
+        this->BlueMult,
+        this->AmbientMult,
+        isObject
+    );
 
-    auto rmult = this->AmbientMult * this->RedMult;
-    auto gmult = this->AmbientMult * this->GreenMult;
-    auto bmult = this->AmbientMult * this->BlueMult;
-
-    for (int i = 0; i < 240; ++i)
-    {
-        this->Colors[i].R = (unsigned char)std::min(this->Colors[i].R * rmult, 255.0f);
-        this->Colors[i].G = (unsigned char)std::min(this->Colors[i].G * gmult, 255.0f);
-        this->Colors[i].B = (unsigned char)std::min(this->Colors[i].B * bmult, 255.0f);
-    }
-    if (!isObject)
-    {
-        for (int i = 240; i < 255; ++i)
-        {
-            this->Colors[i].R = (unsigned char)std::min(this->Colors[i].R * rmult, 255.0f);
-            this->Colors[i].G = (unsigned char)std::min(this->Colors[i].G * gmult, 255.0f);
-            this->Colors[i].B = (unsigned char)std::min(this->Colors[i].B * bmult, 255.0f);
-        }
-    }
-    this->Colors[255].R = (unsigned char)std::min(this->Colors[255].R * rmult, 255.0f);
-    this->Colors[255].G = (unsigned char)std::min(this->Colors[255].G * gmult, 255.0f);
-    this->Colors[255].B = (unsigned char)std::min(this->Colors[255].B * bmult, 255.0f);
+    //this->RedMult = std::clamp(this->RedMult, 0.0f, 2.0f);
+    //this->GreenMult = std::clamp(this->GreenMult, 0.0f, 2.0f);
+    //this->BlueMult = std::clamp(this->BlueMult, 0.0f, 2.0f);
+    //this->AmbientMult = std::clamp(this->AmbientMult, 0.0f, 2.0f);
+    //
+    //auto rmult = this->AmbientMult * this->RedMult;
+    //auto gmult = this->AmbientMult * this->GreenMult;
+    //auto bmult = this->AmbientMult * this->BlueMult;
+    //
+    //for (int i = 0; i < 240; ++i)
+    //{
+    //    this->Colors[i].R = (unsigned char)std::min(this->Colors[i].R * rmult, 255.0f);
+    //    this->Colors[i].G = (unsigned char)std::min(this->Colors[i].G * gmult, 255.0f);
+    //    this->Colors[i].B = (unsigned char)std::min(this->Colors[i].B * bmult, 255.0f);
+    //}
+    //if (!isObject)
+    //{
+    //    for (int i = 240; i < 255; ++i)
+    //    {
+    //        this->Colors[i].R = (unsigned char)std::min(this->Colors[i].R * rmult, 255.0f);
+    //        this->Colors[i].G = (unsigned char)std::min(this->Colors[i].G * gmult, 255.0f);
+    //        this->Colors[i].B = (unsigned char)std::min(this->Colors[i].B * bmult, 255.0f);
+    //    }
+    //}
+    //this->Colors[255].R = (unsigned char)std::min(this->Colors[255].R * rmult, 255.0f);
+    //this->Colors[255].G = (unsigned char)std::min(this->Colors[255].G * gmult, 255.0f);
+    //this->Colors[255].B = (unsigned char)std::min(this->Colors[255].B * bmult, 255.0f);
 }
 
 Palette* LightingPalette::GetPalette()
@@ -502,4 +512,57 @@ bool LightingSourceTint::IsLamp(ppmfc::CString ID)
 {
     const float TOLERANCE = 0.001f;
     return abs(Variables::RulesMap.GetSingle(ID, "LightIntensity", 0.0f)) > TOLERANCE;
+}
+
+PaletteCache::CacheMap PaletteCache::Cache;
+
+Palette* PaletteCache::GetOrCreate(
+    Palette* origin, Palette* remapped,
+    float rMult, float gMult, float bMult, float ambient,
+    bool isObject)
+{
+    float rf = std::clamp(rMult * ambient, 0.0f, 2.0f);
+    float gf = std::clamp(gMult * ambient, 0.0f, 2.0f);
+    float bf = std::clamp(bMult * ambient, 0.0f, 2.0f);
+
+    LightingKey key{
+        origin,
+        static_cast<uint16_t>(rf * 256.0f),
+        static_cast<uint16_t>(gf * 256.0f),
+        static_cast<uint16_t>(bf * 256.0f),
+        static_cast<uint8_t>(isObject)
+    };
+
+    auto it = Cache.find(key);
+    if (it != Cache.end())
+        return &it->second;
+
+    Palette pal;
+
+    const auto* src = remapped->Data;
+    auto* dst = pal.Data;
+
+    int rmult = key.rmult;
+    int gmult = key.gmult;
+    int bmult = key.bmult;
+
+    for (int i = 0; i < 256; ++i)
+    {
+        if (isObject && i >= 240 && i < 255)
+        {
+            dst[i] = src[i];
+            continue;
+        }
+
+        int r = (src[i].R * rmult) >> 8;
+        int g = (src[i].G * gmult) >> 8;
+        int b = (src[i].B * bmult) >> 8;
+
+        dst[i].R = (r > 255) ? 255 : r;
+        dst[i].G = (g > 255) ? 255 : g;
+        dst[i].B = (b > 255) ? 255 : b;
+    }
+
+    auto [iter, _] = Cache.emplace(key, std::move(pal));
+    return &iter->second;
 }

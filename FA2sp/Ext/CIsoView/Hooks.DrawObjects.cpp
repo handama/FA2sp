@@ -63,25 +63,6 @@ public:
 	FString Nominal;
 };
 
-class CInfantryDataFS
-{
-public:
-	FString House;
-	FString TypeID;
-	FString Health;
-	FString Y;
-	FString X;
-	FString SubCell;
-	FString Status;
-	FString Facing;
-	FString Tag;
-	FString VeterancyPercentage;
-	FString Group;
-	FString IsAboveGround;
-	FString AutoNORecruitType;
-	FString AutoYESRecruitType;
-};
-
 class CUnitDataFS
 {
 public:
@@ -139,17 +120,18 @@ static std::vector<int> cellHeightMask;
 static std::vector<char> objectOverlapMask;
 static std::vector<MapCoord> RedrawCoords;
 static std::unordered_map<int, CBuildingDataFS> BuildingDataCache;
-static std::unordered_map<int, CInfantryDataFS> InfantryDataCache;
+static std::unordered_map<int, CInfantryData*> InfantryDataCache;
 static std::unordered_map<int, CUnitDataFS> UnitDataCache;
 static std::unordered_map<int, CAircraftDataFS> AircraftDataCache;
 static std::vector<const ppmfc::CString*> BuildingINICache;
-static std::vector<const ppmfc::CString*> InfantryINICache;
 static std::vector<const ppmfc::CString*> UnitINICache;
 static std::vector<const ppmfc::CString*> AircraftINICache;
 static std::vector<ppmfc::CString*> Celltags;
 static std::vector<const ppmfc::CString*> Waypoints;
 
 #define EXTRA_BORDER 15
+
+static CInfantryData Empty_Infantry;
 
 inline static void GetBuildingDataByIniID(int bldID, CBuildingDataFS& data)
 {
@@ -180,47 +162,6 @@ inline static void GetBuildingDataByIniID(int bldID, CBuildingDataFS& data)
 		case 14: data.Upgrade3.assign(s, e - s); break;
 		case 15: data.AIRepairable.assign(s, e - s); break;
 		case 16: data.Nominal.assign(s, e - s); break;
-		default: break;
-		}
-	};
-
-	for (const char* p = str; ; ++p)
-	{
-		if (*p == ',' || *p == '\0')
-		{
-			assign(field++, start, p);
-			if (*p == '\0') break;
-			start = p + 1;
-		}
-	}
-}
-
-inline static void GetInfantryDataByIniID(int id, CInfantryDataFS& data)
-{
-	const char* str = id < InfantryINICache.size() ? InfantryINICache[id]->GetString()
-		: CINI::CurrentDocument->GetValueAt("Infantry", id).GetString();
-
-	const char* start = str;
-	int field = 0;
-
-	auto assign = [&](int idx, const char* s, const char* e)
-	{
-		switch (idx)
-		{
-		case 0:  data.House.assign(s, e - s); break;
-		case 1:  data.TypeID.assign(s, e - s); break;
-		case 2:  data.Health.assign(s, e - s); break;
-		case 3:  data.Y.assign(s, e - s); break;
-		case 4:  data.X.assign(s, e - s); break;
-		case 5:  data.SubCell.assign(s, e - s); break;
-		case 6:  data.Status.assign(s, e - s); break;
-		case 7:  data.Facing.assign(s, e - s); break;
-		case 8:  data.Tag.assign(s, e - s); break;
-		case 9:  data.VeterancyPercentage.assign(s, e - s); break;
-		case 10: data.Group.assign(s, e - s); break;
-		case 11: data.IsAboveGround.assign(s, e - s); break;
-		case 12: data.AutoNORecruitType.assign(s, e - s); break;
-		case 13: data.AutoYESRecruitType.assign(s, e - s); break;
 		default: break;
 		}
 	};
@@ -321,9 +262,10 @@ inline static CBuildingDataFS& GetBuildingData(int index)
 	return BuildingDataCache[index];
 }
 
-inline static CInfantryDataFS& GetInfantryData(int index)
+inline static const CInfantryData& GetInfantryData(int index)
 {
-	return InfantryDataCache[index];
+	auto data = InfantryDataCache[index];
+	return data ? *data : Empty_Infantry;
 }
 
 inline static CUnitDataFS& GetUnitData(int index)
@@ -343,11 +285,13 @@ inline static CBuildingDataFS& SetBuildingData(int index)
 	return obj;
 }
 
-inline static CInfantryDataFS& SetInfantryData(int index)
+inline static const CInfantryData& SetInfantryData(int index)
 {
 	auto& obj = InfantryDataCache[index];
-	GetInfantryDataByIniID(index, obj);
-	return obj;
+	if (index >= 0 && index < CMapData::Instance->InfantryDatas.size())
+		obj = &CMapData::Instance->InfantryDatas.at(index);
+
+	return obj ? *obj :Empty_Infantry;
 }
 
 inline static CUnitDataFS& SetUnitData(int index)
@@ -745,7 +689,6 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 	UnitDataCache.clear();
 	AircraftDataCache.clear();
 	BuildingINICache.clear();
-	InfantryINICache.clear();
 	UnitINICache.clear();
 	AircraftINICache.clear();
 	Celltags.clear();
@@ -766,15 +709,6 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 		for (auto& [key, value] : entities)
 		{
 			UnitINICache.push_back(&value);
-		}
-	}
-	if (auto pSection = CINI::CurrentDocument->GetSection("Infantry"))
-	{
-		auto& entities = pSection->GetEntities();
-		InfantryINICache.reserve(entities.size());
-		for (auto& [key, value] : entities)
-		{
-			InfantryINICache.push_back(&value);
 		}
 	}
 	if (auto pSection = CINI::CurrentDocument->GetSection("Aircraft"))

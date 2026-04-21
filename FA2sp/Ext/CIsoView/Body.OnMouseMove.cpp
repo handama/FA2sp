@@ -357,12 +357,12 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
             if (ExtConfigs::EnableMultiSelection)
                 if (!MultiSelection::SelectedCoords.empty())
                     leftIndex++;
+            if (CFinalSunApp::Instance().FlatToGround)
+                leftIndex++;
+            if (CIsoViewExt::ScaledFactor != 1.0)
+                leftIndex++;
         }
 
-        if (CFinalSunApp::Instance().FlatToGround)
-            leftIndex++;
-        if (CIsoViewExt::ScaledFactor != 1.0)
-            leftIndex++;
 
         SetTextAlign(hDC, TA_LEFT);
 

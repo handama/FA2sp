@@ -5510,8 +5510,9 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 
 				ShapeImageHeader imageHeader;
 				CShpFile::GetSHPImageHeader(i, &imageHeader);
-
-				if (imageHeader.Unknown == 0 && !ignoreUnused)
+				
+				// only skip last half
+				if (imageHeader.Unknown == 0 && !ignoreUnused && i >= header.FrameCount / 2)
 					continue;
 
 				FString DictName = GetOverlayName(nIndex, i);

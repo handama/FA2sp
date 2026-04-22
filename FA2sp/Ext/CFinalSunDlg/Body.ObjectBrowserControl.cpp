@@ -408,6 +408,18 @@ FString CViewObjectsExt::QueryUIName(const char* pRegName, bool bOnlyOneLine)
     return idx == -1 ? buffer : buffer.Mid(0, idx);
 }
 
+static ppmfc::CString GetFirstValidRandomObject(INISection* pSection)
+{
+    for (auto& [key, value] : pSection->GetEntities())
+    {
+        if (key.Find("Name") < 0 && key != "BannedTheater" && key != "RandomFacing" && key != "AIRepairs")
+        {
+            return value;
+        }
+    }
+    return {};
+}
+
 int CViewObjectsExt::PropagateFirstNonZeroIcon(HTREEITEM hItem)
 {
     if (!hItem) return 0;
@@ -865,7 +877,7 @@ void CViewObjectsExt::Redraw_Ground()
                             else
                                 FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "MISSING");
 
-                            InsertingTileIndex = CINI::FAData().GetInteger(pKey.second, "0");
+                            InsertingTileIndex = atoi(GetFirstValidRandomObject(pSection2));
                             this->InsertString(FA2sp::Buffer, index, hTemp, TVI_LAST);
                         }
                     }
@@ -1317,7 +1329,7 @@ void CViewObjectsExt::Redraw_Infantry()
                             add = false;
                 if (add)
                 {
-                    InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
+                    InsertingObjectID = GetFirstValidRandomObject(pSection2);
                     auto transed = FinalAlertConfig::Language + "-" + "Name";
                     if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
                         FA2sp::Buffer = *pName;
@@ -1485,7 +1497,7 @@ void CViewObjectsExt::Redraw_Vehicle()
                             add = false;
                 if (add)
                 {
-                    InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
+                    InsertingObjectID = GetFirstValidRandomObject(pSection2);
                     auto transed = FinalAlertConfig::Language + "-" + "Name";
                     if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
                         FA2sp::Buffer = *pName;
@@ -1653,7 +1665,7 @@ void CViewObjectsExt::Redraw_Aircraft()
                             add = false;
                 if (add)
                 {
-                    InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
+                    InsertingObjectID = GetFirstValidRandomObject(pSection2);
                     auto transed = FinalAlertConfig::Language + "-" + "Name";
                     if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
                         FA2sp::Buffer = *pName;
@@ -1860,7 +1872,7 @@ void CViewObjectsExt::Redraw_Building()
                             add = false;
                 if (add)
                 {
-                    InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
+                    InsertingObjectID = GetFirstValidRandomObject(pSection2);
                     auto transed = FinalAlertConfig::Language + "-" + "Name";
                     if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
                         FA2sp::Buffer = *pName;
@@ -1999,7 +2011,7 @@ void CViewObjectsExt::Redraw_Terrain()
                             add = false;
                 if (add)
                 {
-                    InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
+                    InsertingObjectID = GetFirstValidRandomObject(pSection2);
                     auto transed = FinalAlertConfig::Language + "-" + "Name";
                     if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
                         FA2sp::Buffer = *pName;
@@ -2083,7 +2095,7 @@ void CViewObjectsExt::Redraw_Smudge()
                             add = false;
                 if (add)
                 {
-                    InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
+                    InsertingObjectID = GetFirstValidRandomObject(pSection2);
                     auto transed = FinalAlertConfig::Language + "-" + "Name";
                     if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
                         FA2sp::Buffer = *pName;
@@ -2369,7 +2381,7 @@ void CViewObjectsExt::Redraw_Overlay()
                             add = false;
                 if (add)
                 {
-                    InsertingOverlay = CINI::FAData().GetInteger(pKey.second, "0");
+                    InsertingOverlay = atoi(GetFirstValidRandomObject(pSection2));
                     InsertingOverlayData = 0;
                     auto transed = FinalAlertConfig::Language + "-" + "Name";
                     if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))

@@ -32,9 +32,9 @@ void PalettesManager::Release()
             pair.second != Palette::PALETTE_ISO &&
             pair.second != Palette::PALETTE_THEATER &&
             pair.second != Palette::PALETTE_LIB)
-            delete pair.second;
+            GameDelete(pair.second);
     for (auto& p : PalettesManager::CalculatedMixedPalettes)
-        if (p) delete p;
+        if (p) GameDelete(p);
 
     PalettesManager::OriginPaletteFiles.clear();
     PalettesManager::CalculatedPaletteFiles.clear();
@@ -62,7 +62,7 @@ Palette* PalettesManager::LoadPalette(FString palname)
 
     if (auto pBuffer = (BytePalette*)CLoadingExt::GetExtension()->ReadWholeFile(palToLoad))
     {
-        auto pPalette = new Palette();
+        auto pPalette = GameCreate<Palette>();
         for (int i = 0; i < 256; ++i)
         {
             pPalette->Data[i].R = pBuffer->Data[i].red << 2;
@@ -87,7 +87,7 @@ Palette* PalettesManager::LoadTiberiumCellAnimPalette(BGRStruct& color, FString 
     
     if (auto pBuffer = (BytePalette*)CLoadingExt::GetExtension()->ReadWholeFile(palname))
     {
-        auto pPalette = new Palette();
+        auto pPalette = GameCreate<Palette>();
         for (int i = 0; i < 256; ++i)
         {
             pPalette->Data[i].R = pBuffer->Data[i].red << 2;

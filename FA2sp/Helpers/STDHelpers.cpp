@@ -420,7 +420,7 @@ FString STDHelpers::ChineseTraditional_ToSimple(FString_view str)
     if (destLen <= 0)
         return FString(str);
 
-    std::string buffer(destLen, 0);
+    FString buffer(destLen, 0);
 
     LCMapStringA(
         0x0804,
@@ -431,7 +431,7 @@ FString STDHelpers::ChineseTraditional_ToSimple(FString_view str)
         destLen
     );
 
-    return FString(buffer);
+    return buffer;
 }
 
 std::string STDHelpers::ToUpperCase(FString_view str)
@@ -579,4 +579,118 @@ FileEncoding STDHelpers::GetFileEncoding(const uint8_t* data, size_t size) {
         return FileEncoding::UTF8_ASCII;
 
     return FileEncoding::UTF8;
+}
+
+int STDHelpers::letter2number(char let) {
+    return let - 'A';
+}
+
+char STDHelpers::number2letter(int let) {
+    return let + 'A';
+}
+
+int STDHelpers::StringToWaypoint(ppmfc::CString str)
+{
+    if (str == "None")
+        return -1;
+    int n = 0;
+    int len = strlen(str);
+    for (int i = len - 1, j = 1; i >= 0; i--, j *= 26)
+    {
+        int c = toupper(str[i]);
+        if (c < 'A' || c > 'Z') return 0;
+        n += ((int)c - 64) * j;
+    }
+    if (n <= 0)
+        return -1;
+    return n - 1;
+}
+
+ppmfc::CString STDHelpers::StringToWaypointStr(ppmfc::CString str)
+{
+    ppmfc::CString ret;
+    ret.Format("%d", StringToWaypoint(str));
+    if (ret == "-1") ret = "None";
+    return ret;
+}
+
+ppmfc::CString STDHelpers::WaypointToString(int nWaypoint)
+{
+    static char buffer[8]{ '\0' };
+
+    if (nWaypoint < 0)
+        return "0";
+    else if (nWaypoint == INT_MAX)
+        return "FXSHRXX";
+    else
+    {
+        ++nWaypoint;
+        int pos = 7;
+        while (nWaypoint > 0)
+        {
+            --pos;
+            char m = nWaypoint % 26;
+            if (m == 0) m = 26;
+            buffer[pos] = m + '@';
+            nWaypoint = (nWaypoint - m) / 26;
+        }
+        return buffer + pos;
+    }
+}
+
+ppmfc::CString STDHelpers::WaypointToString(ppmfc::CString numStr)
+{
+    int nWaypoint = atoi(numStr);
+    return WaypointToString(nWaypoint);
+}
+
+int STDHelpers::StringToWaypoint(std::string str)
+{
+    if (str == "None")
+        return -1;
+    int n = 0;
+    int len = str.size();
+    for (int i = len - 1, j = 1; i >= 0; i--, j *= 26)
+    {
+        int c = toupper(str[i]);
+        if (c < 'A' || c > 'Z') return 0;
+        n += ((int)c - 64) * j;
+    }
+    if (n <= 0)
+        return -1;
+    return n - 1;
+}
+
+FString STDHelpers::StringToWaypointStr(std::string str)
+{
+    FString ret;
+    ret.Format("%d", StringToWaypoint(str));
+    if (ret == "-1") ret = "None";
+    return ret;
+}
+
+FString STDHelpers::WaypointToString(std::string numStr)
+{
+    int nWaypoint = atoi(numStr.c_str());
+    static char buffer[8]{ '\0' };
+
+    if (nWaypoint < 0)
+        return "0";
+    else if (nWaypoint == INT_MAX)
+        return "FXSHRXX";
+    else
+    {
+        ++nWaypoint;
+        int pos = 7;
+        while (nWaypoint > 0)
+        {
+            --pos;
+            char m = nWaypoint % 26;
+            if (m == 0) m = 26;
+            buffer[pos] = m + '@';
+            nWaypoint = (nWaypoint - m) / 26;
+        }
+        return buffer + pos;
+    }
+    return "0";
 }

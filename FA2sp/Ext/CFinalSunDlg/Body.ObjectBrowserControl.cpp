@@ -3472,8 +3472,8 @@ void CViewObjectsExt::ApplyPropertyBrush(int X, int Y)
             {
                 ApplyPropertyBrush_Infantry(idx, true);
                 ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-                return;
             }
+            return;
         }
     }
 
@@ -3534,7 +3534,10 @@ void CViewObjectsExt::ApplyPropertyBrush(int X, int Y)
 void CViewObjectsExt::ApplyPropertyBrush_Building(int nIndex, bool useTechnoDlg)
 {
     TempValueHolder<bool> skipCheck(CMapDataExt::SkipBuildingOverlappingCheck, true);
-    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building, true);
+    if (!ObjectRecord::ObjectRecord_HoldingPtr)
+        ObjectRecord::ObjectRecord_HoldingPtr = CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building, true);
+    else
+        ObjectRecord::ObjectRecord_HoldingPtr->appendRecord(ObjectRecord::RecordType::Building);
     CBuildingData data;
     CMapData::Instance->GetBuildingData(nIndex, data);
 
@@ -3553,7 +3556,10 @@ void CViewObjectsExt::ApplyPropertyBrush_Building(int nIndex, bool useTechnoDlg)
 
 void CViewObjectsExt::ApplyPropertyBrush_Infantry(int nIndex, bool useTechnoDlg)
 {
-    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry, true);
+    if (!ObjectRecord::ObjectRecord_HoldingPtr)
+        ObjectRecord::ObjectRecord_HoldingPtr = CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry, true);
+    else
+        ObjectRecord::ObjectRecord_HoldingPtr->appendRecord(ObjectRecord::RecordType::Infantry);
     CInfantryData data;
     CMapData::Instance->GetInfantryData(nIndex, data);
 
@@ -3572,7 +3578,10 @@ void CViewObjectsExt::ApplyPropertyBrush_Infantry(int nIndex, bool useTechnoDlg)
 
 void CViewObjectsExt::ApplyPropertyBrush_Aircraft(int nIndex, bool useTechnoDlg)
 {
-    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft, true);
+    if (!ObjectRecord::ObjectRecord_HoldingPtr)
+        ObjectRecord::ObjectRecord_HoldingPtr = CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft, true);
+    else
+        ObjectRecord::ObjectRecord_HoldingPtr->appendRecord(ObjectRecord::RecordType::Aircraft);
     CAircraftData data;
     CMapData::Instance->GetAircraftData(nIndex, data);
 
@@ -3591,7 +3600,10 @@ void CViewObjectsExt::ApplyPropertyBrush_Aircraft(int nIndex, bool useTechnoDlg)
 
 void CViewObjectsExt::ApplyPropertyBrush_Vehicle(int nIndex, bool useTechnoDlg)
 {
-    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit, true);
+    if (!ObjectRecord::ObjectRecord_HoldingPtr)
+        ObjectRecord::ObjectRecord_HoldingPtr = CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit, true);
+    else
+        ObjectRecord::ObjectRecord_HoldingPtr->appendRecord(ObjectRecord::RecordType::Unit);
     CUnitData data;
     CMapData::Instance->GetUnitData(nIndex, data);
 

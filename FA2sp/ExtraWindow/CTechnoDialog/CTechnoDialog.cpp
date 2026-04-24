@@ -384,6 +384,36 @@ void CTechnoDialog::ApplyToCurrentTechno(void* pData, CLoadingExt::ObjectType ty
     }
 }
 
+bool CTechnoDialog::HasAnyEnabledItem() const
+{
+    if ((m_bEnableHouse && !m_strHouse.IsEmpty()) ||
+        (m_bEnableDirection && !m_strDirection.IsEmpty()) ||
+        (m_bEnableState && !m_strState.IsEmpty()) ||
+        (m_bEnableVeteran && !m_strVeteranLevel.IsEmpty()) ||
+        (m_bEnableGroup && !m_strGroup.IsEmpty()) ||
+        (m_bEnableAboveGround && !m_strAboveGround.IsEmpty()) ||
+        (m_bEnableFollowsIndex && !m_strFollowsIndex.IsEmpty()) ||
+        (m_bEnableAutoNO && !m_strAutoNO_Recruit.IsEmpty()) ||
+        (m_bEnableAutoYES && !m_strAutoYES_Recruit.IsEmpty()) ||
+        (m_bEnableTag && !m_strTag.IsEmpty()) ||
+        (m_bEnableSellable && !m_strSellable.IsEmpty()) ||
+        (m_bEnableRebuild && !m_strRebuild.IsEmpty()) ||
+        (m_bEnablePowered && !m_strPowered.IsEmpty()) ||
+        (m_bEnableUpgradeCount && !m_strUpgradeCount.IsEmpty()) ||
+        (m_bEnableSpotlight && !m_strSpotlight.IsEmpty()) ||
+        (m_bEnableUpgrade1 && !m_strUpgrade1.IsEmpty()) ||
+        (m_bEnableUpgrade2 && !m_strUpgrade2.IsEmpty()) ||
+        (m_bEnableUpgrade3 && !m_strUpgrade3.IsEmpty()) ||
+        (m_bEnableAIRepairs && !m_strAIRepairs.IsEmpty()) ||
+        (m_bEnableNominal && !m_strNominal.IsEmpty()) ||
+        (m_bEnableStrength == TRUE))
+    {
+        return true;
+    }
+
+    return false;
+}
+
 void CTechnoDialog::OnOK()
 {
 	UpdateData(TRUE);

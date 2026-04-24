@@ -203,33 +203,46 @@ void CNewAITrigger::Update(HWND& hWnd)
         (LPARAM)(LPCSTR)(FString("5 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator6", "Not equal to")));
 
     ExtraWindow::ClearComboKeepText(hConditionType);
-    SendMessage(hConditionType, CB_ADDSTRING, 0, 
-        (LPARAM)(LPCSTR)(FString("-1 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition-1", "Always true")));
-    SendMessage(hConditionType, CB_ADDSTRING, 0, 
-        (LPARAM)(LPCSTR)(FString("0 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition0", "Enemy house owns X object <Comparator> N")));
-    SendMessage(hConditionType, CB_ADDSTRING, 0, 
-        (LPARAM)(LPCSTR)(FString("1 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition1", "Owning house owns X object <Comparator> N")));
-    SendMessage(hConditionType, CB_ADDSTRING, 0, 
-        (LPARAM)(LPCSTR)(FString("2 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition2", "Enemy house in low power (yellow)")));
-    SendMessage(hConditionType, CB_ADDSTRING, 0, 
-        (LPARAM)(LPCSTR)(FString("3 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition3", "Enemy house in low power (red)")));
-    SendMessage(hConditionType, CB_ADDSTRING, 0, 
-        (LPARAM)(LPCSTR)(FString("4 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition4", "Enemy house has credits <Comparator> N")));
-    SendMessage(hConditionType, CB_ADDSTRING, 0, 
-        (LPARAM)(LPCSTR)(FString("5 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition5", "Iron Curtain is about to be ready")));
-    SendMessage(hConditionType, CB_ADDSTRING, 0, 
-        (LPARAM)(LPCSTR)(FString("6 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition6", "ChronoSphere is about to be ready")));
-    SendMessage(hConditionType, CB_ADDSTRING, 0, 
-        (LPARAM)(LPCSTR)(FString("7 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition7", "Neutral/civilian house owns X object <Comparator> N")));
+    auto conditionSection = ExtraWindow::GetTranslatedSectionName("AITriggerConditionTypes");
+    if (auto pSection = fadata.GetSection(conditionSection))
+    {
+        FString text;
+        for (const auto& [index, key] : fadata.ParseIndiciesData(conditionSection))
+        {
+            text.Format("%s - %s", key, fadata.GetString(conditionSection, key));
+            SendMessage(hConditionType, CB_ADDSTRING, 0, text);
+        }
+    }
+    else
+    {
+        SendMessage(hConditionType, CB_ADDSTRING, 0,
+            (LPARAM)(LPCSTR)(FString("-1 - ") +
+                Translations::TranslateOrDefault("AITriggerEditorCondition-1", "Always true")));
+        SendMessage(hConditionType, CB_ADDSTRING, 0,
+            (LPARAM)(LPCSTR)(FString("0 - ") +
+                Translations::TranslateOrDefault("AITriggerEditorCondition0", "Enemy house owns X object <Comparator> N")));
+        SendMessage(hConditionType, CB_ADDSTRING, 0,
+            (LPARAM)(LPCSTR)(FString("1 - ") +
+                Translations::TranslateOrDefault("AITriggerEditorCondition1", "Owning house owns X object <Comparator> N")));
+        SendMessage(hConditionType, CB_ADDSTRING, 0,
+            (LPARAM)(LPCSTR)(FString("2 - ") +
+                Translations::TranslateOrDefault("AITriggerEditorCondition2", "Enemy house in low power (yellow)")));
+        SendMessage(hConditionType, CB_ADDSTRING, 0,
+            (LPARAM)(LPCSTR)(FString("3 - ") +
+                Translations::TranslateOrDefault("AITriggerEditorCondition3", "Enemy house in low power (red)")));
+        SendMessage(hConditionType, CB_ADDSTRING, 0,
+            (LPARAM)(LPCSTR)(FString("4 - ") +
+                Translations::TranslateOrDefault("AITriggerEditorCondition4", "Enemy house has credits <Comparator> N")));
+        SendMessage(hConditionType, CB_ADDSTRING, 0,
+            (LPARAM)(LPCSTR)(FString("5 - ") +
+                Translations::TranslateOrDefault("AITriggerEditorCondition5", "Iron Curtain is about to be ready")));
+        SendMessage(hConditionType, CB_ADDSTRING, 0,
+            (LPARAM)(LPCSTR)(FString("6 - ") +
+                Translations::TranslateOrDefault("AITriggerEditorCondition6", "ChronoSphere is about to be ready")));
+        SendMessage(hConditionType, CB_ADDSTRING, 0,
+            (LPARAM)(LPCSTR)(FString("7 - ") +
+                Translations::TranslateOrDefault("AITriggerEditorCondition7", "Neutral/civilian house owns X object <Comparator> N")));
+    }
 
     ExtraWindow::LoadParam_TechnoTypes(vcbComparisonObject, -1, 1);
     SendMessage(hComparisonObject, CB_ADDSTRING, SendMessage(hComparisonObject, CB_GETCOUNT, 0, 0), (LPARAM)(LPCSTR)"<none>");
@@ -521,6 +534,7 @@ void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
     FString::TrimIndex(pID);
 
     CurrentAITrigger = AITrigger::create(pID);
+    if (!CurrentAITrigger) return;
 
     CTriggerAnnotation::Type = AnnoAITrigger;
     CTriggerAnnotation::ID = CurrentAITrigger->ID;

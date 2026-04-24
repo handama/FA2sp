@@ -2555,6 +2555,7 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
     case CB_RESETCONTENT:
     case CB_ADDSTRING:
     case CB_INSERTSTRING:
+    case CB_DELETESTRING:
     {
         return pThis->OnComboMessage(hwnd, msg, wParam, lParam);
     }

@@ -1425,7 +1425,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				Palette* pal = CMapDataExt::TileSetPalettes[tileSet];
 
 				FString extraImageID;
-				extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
+				extraImageID.Format("EXTRAIMAGE\233%d\233%d\233%d", tileIndex, tileSubIndex, altImage);
 				const auto& offset = CLoadingExt::TileExtraOffsets[
 					CLoadingExt::GetTileIdentifier(tileIndex, tileSubIndex, altImage)];
 
@@ -2286,7 +2286,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
 							{
 								FString extraImageID;
-								extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
+								extraImageID.Format("EXTRAIMAGE\233%d\233%d\233%d", tileIndex, tileSubIndex, altImage);
 								const auto& offset = CLoadingExt::TileExtraOffsets[
 									CLoadingExt::GetTileIdentifier(tileIndex, tileSubIndex, altImage)];
 

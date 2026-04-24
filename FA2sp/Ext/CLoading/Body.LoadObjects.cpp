@@ -989,6 +989,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID, bool loadAsGarrisonDama
 		int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
 		bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
 		int actualFacings = CINI::Art->GetInteger(TurName, "Facings", 32);
+		int idleFrames = Variables::RulesMap.GetInteger(ID, "TurretAnim.IdleFrames", 1);
 
 		bool hasBarl = false;
 		int fireAngle = Variables::RulesMap.GetInteger(ID, "FireAngle", 10);
@@ -1042,7 +1043,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID, bool loadAsGarrisonDama
 			if (!hasBarl || !pBarlImages[i])
 			{
 				loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-					nStartFrame + i * actualFacings / facings, deltaX, deltaY, "", shadow);
+					nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
 			}
 			else
 			{
@@ -1057,14 +1058,14 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID, bool loadAsGarrisonDama
 				if (barrelInFront)
 				{
 					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-						nStartFrame + i * actualFacings / facings, deltaX, deltaY, "", shadow);
+						nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
 					UnionSHP_Add(pBarlImages[i], 0x100, 0x100, deltaX, deltaY);
 				}
 				else
 				{
 					UnionSHP_Add(pBarlImages[i], 0x100, 0x100, deltaX, deltaY);
 					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-						nStartFrame + i * actualFacings / facings, deltaX, deltaY, "", shadow);
+						nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
 				}
 			}
 			
@@ -1511,6 +1512,7 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 		int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
 		bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
 		int actualFacings = CINI::Art->GetInteger(TurName, "Facings", 32);
+		int idleFrames = Variables::RulesMap.GetInteger(ID, "TurretAnim.IdleFrames", 1);
 
 		bool hasBarl = false;
 		int fireAngle = Variables::RulesMap.GetInteger(ID, "FireAngle", 10);
@@ -1562,7 +1564,7 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 			if (!hasBarl || !pBarlImages[i])
 			{
 				loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-					nStartFrame + i * actualFacings / facings, deltaX, deltaY, "", shadow);
+					nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
 			}
 			else
 			{
@@ -1577,14 +1579,14 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 				if (barrelInFront)
 				{
 					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-						nStartFrame + i * actualFacings / facings, deltaX, deltaY, "", shadow);
+						nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
 					UnionSHP_Add(pBarlImages[i], 0x100, 0x100, deltaX, deltaY);
 				}
 				else
 				{
 					UnionSHP_Add(pBarlImages[i], 0x100, 0x100, deltaX, deltaY);
 					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-						nStartFrame + i * actualFacings / facings, deltaX, deltaY, "", shadow);
+						nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
 				}
 			}
 

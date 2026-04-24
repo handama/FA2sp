@@ -59,11 +59,8 @@ HWND CTerrainGenerator::hSlopeMarcoMinDelta;
 HWND CTerrainGenerator::hSlopeMarcoMaxDelta;
 HWND CTerrainGenerator::hSlopeAvoidEdges;
 
-std::map<int, FString> CTerrainGenerator::TileSetLabels[TERRAIN_GENERATOR_DISPLAY];
-std::map<int, FString> CTerrainGenerator::OverlayLabels[TERRAIN_GENERATOR_DISPLAY];
-std::map<int, FString> CTerrainGenerator::PresetLabels;
-bool CTerrainGenerator::Autodrop;
-bool CTerrainGenerator::DropNeedUpdate;
+VirtualComboBoxEx CTerrainGenerator::vcbTileSet[TERRAIN_GENERATOR_DISPLAY];
+VirtualComboBoxEx CTerrainGenerator::vcbPreset;
 bool CTerrainGenerator::bOverride;
 bool CTerrainGenerator::bIgnoreLandtypes;
 bool CTerrainGenerator::ProgrammaticallySettingText;
@@ -359,45 +356,37 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     bIgnoreLandtypes = false;
     ProgrammaticallySettingText = false;
 
+    for (int i = 0; i < TERRAIN_GENERATOR_DISPLAY; ++i)
+    {
+        vcbTileSet[i].Attach(hTileSet[i], nullptr, false);
+    }
+    vcbPreset.Attach(hPreset, &ExtConfigs::SortByLabelName, false);
+
     ShowTabPage(hWnd, 0);
     Update(hWnd);
 }
 
 void CTerrainGenerator::Update(HWND& hWnd)
 {
-    DropNeedUpdate = false;
     CurrentPreset = nullptr;
     TerrainGeneratorPresets.clear();
     HWND hParent = m_parent->DialogBar.GetSafeHwnd();
     HWND hTileComboBox = GetDlgItem(hParent, 1366);
-    //HWND hOverlayComboBox = GetDlgItem(hParent, 1367);
     int nTileCount = SendMessage(hTileComboBox, CB_GETCOUNT, NULL, NULL);
-    //int nOverlayCount = SendMessage(hOverlayComboBox, CB_GETCOUNT, NULL, NULL);
     char buffer[512] = { 0 };
 
-    ExtraWindow::ClearComboKeepText(hTileSet[0]);
-    ExtraWindow::ClearComboKeepText(hTileSet[1]);
-    ExtraWindow::ClearComboKeepText(hTileSet[2]);
-    ExtraWindow::ClearComboKeepText(hTileSet[3]);
-    ExtraWindow::ClearComboKeepText(hTileSet[4]);
-    if (nTileCount > 0) {
-        int index = 0;
-        for (int idx = 0; idx < nTileCount; ++idx)
-        {
-            SendMessage(hTileComboBox, CB_GETLBTEXT, idx, (LPARAM)(LPCSTR)buffer);
-            SendMessage(hTileSet[0], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)buffer);
-            SendMessage(hTileSet[1], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)buffer);
-            SendMessage(hTileSet[2], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)buffer);
-            SendMessage(hTileSet[3], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)buffer);
-            SendMessage(hTileSet[4], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)buffer);
-            index++;
-        }
-        SendMessage(hTileSet[0], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)"<none>");
-        SendMessage(hTileSet[1], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)"<none>");
-        SendMessage(hTileSet[2], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)"<none>");
-        SendMessage(hTileSet[3], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)"<none>");
-        SendMessage(hTileSet[4], CB_INSERTSTRING, index, (LPARAM)(LPCSTR)"<none>");
+    std::vector<FString> tilesets(nTileCount);
+    for (int idx = 0; idx < nTileCount; ++idx)
+    {
+        SendMessage(hTileComboBox, CB_GETLBTEXT, idx, (LPARAM)(LPCSTR)buffer);
+        tilesets[idx] = buffer;
     }
+    for (int i = 0; i < TERRAIN_GENERATOR_DISPLAY; ++i)
+    {
+        vcbTileSet[i].AddStrings(tilesets);
+        vcbTileSet[i].AddString("<none>");
+    }
+
     SendMessage(hOverride, BM_SETCHECK, bOverride, 0);
     SendMessage(hIgnoreLandtypes, BM_SETCHECK, bIgnoreLandtypes, 0);
 
@@ -430,7 +419,6 @@ void CTerrainGenerator::Update(HWND& hWnd)
     if (CurrentPresetIndex > count - 1)
         CurrentPresetIndex = count - 1;
     SendMessage(hPreset, CB_SETCURSEL, CurrentPresetIndex, NULL);
-    Autodrop = false;
     OnSelchangePreset();
 }
 
@@ -472,14 +460,6 @@ BOOL CALLBACK CTerrainGenerator::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPA
         case Controls::Preset:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangePreset();
-            else if (CODE == CBN_DROPDOWN)
-                OnSeldropdownPreset(hWnd);
-            else if (CODE == CBN_EDITCHANGE)
-                OnSelchangePreset(true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupCComboBox(hPreset, PresetLabels, true);
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Name:
             if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
@@ -487,11 +467,9 @@ BOOL CALLBACK CTerrainGenerator::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPA
                 char buffer[512]{ 0 };
                 GetWindowText(hName, buffer, 511);
                 CurrentPreset->Name = buffer;
-                DropNeedUpdate = true;
-                SendMessage(hPreset, CB_DELETESTRING, CurrentPresetIndex, NULL);
-                SendMessage(hPreset, CB_INSERTSTRING, CurrentPresetIndex, 
-                    (LPARAM)(LPCSTR)ExtraWindow::FormatTriggerDisplayName(CurrentPreset->ID, CurrentPreset->Name));
-                SendMessage(hPreset, CB_SETCURSEL, CurrentPresetIndex, NULL);
+
+                vcbPreset.ReplaceString(CurrentPresetIndex, ExtraWindow::FormatTriggerDisplayName(CurrentPreset->ID, CurrentPreset->Name));
+                vcbPreset.SetCurSel(CurrentPresetIndex);
                 SaveAndReloadPreset();
             }
             break;
@@ -562,7 +540,11 @@ BOOL CALLBACK CTerrainGenerator::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPA
         Update(hWnd);
         return TRUE;
     }
-
+    case WM_MEASUREITEM:
+    {
+        VirtualComboBoxEx::SetWindowHeight(hWnd, lParam);
+        return TRUE;
+    }
     }
 
     // Process this message through default handler
@@ -588,50 +570,30 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab1(HWND hWnd, UINT Msg, WPARAM wParam,
                 OnSelchangeTileSet(0);
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeTileSet(0, true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupCComboBox(hTileSet[0], TileSetLabels[0], false);
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::TileSet2:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeTileSet(1);
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeTileSet(1, true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupCComboBox(hTileSet[1], TileSetLabels[2], false);
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::TileSet3:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeTileSet(2);
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeTileSet(2, true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupCComboBox(hTileSet[2], TileSetLabels[2], false);
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::TileSet4:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeTileSet(3);
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeTileSet(3, true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupCComboBox(hTileSet[3], TileSetLabels[3], false);
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::TileSet5:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeTileSet(4);
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeTileSet(4, true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupCComboBox(hTileSet[4], TileSetLabels[4], false);
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::TileChance1:
             if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
@@ -782,7 +744,11 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab1(HWND hWnd, UINT Msg, WPARAM wParam,
     {
         return TRUE;
     }
-
+    case WM_MEASUREITEM:
+    {
+        VirtualComboBoxEx::SetWindowHeight(hWnd, lParam);
+        return TRUE;
+    }
     }
     return FALSE;
 }
@@ -1391,38 +1357,11 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab5(HWND hWnd, UINT Msg, WPARAM wParam,
     return FALSE;
 }
 
-void CTerrainGenerator::OnSeldropdownPreset(HWND& hWnd)
-{
-    if (Autodrop)
-    {
-        Autodrop = false;
-        return;
-    }
-
-    if (!DropNeedUpdate)
-        return;
-
-    DropNeedUpdate = false;
-
-    FString id = "";
-    if (CurrentPreset) {
-        id = CurrentPreset->ID;
-    }
-    SortPresets(id);
-}
-
 void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
 {
     ProgrammaticallySettingText = true;
     char buffer[512]{ 0 };
 
-    if (edited && (SendMessage(hPreset, CB_GETCOUNT, NULL, NULL) > 0 || !PresetLabels.empty()))
-    {
-        Autodrop = true;
-        ExtraWindow::OnEditCComboBox(hPreset, PresetLabels);
-        ProgrammaticallySettingText = false;
-        return;
-    }
     CurrentPresetIndex = SendMessage(hPreset, CB_GETCURSEL, NULL, NULL);
     if (CurrentPresetIndex < 0 || CurrentPresetIndex >= SendMessage(hPreset, CB_GETCOUNT, NULL, NULL))
     {
@@ -1651,36 +1590,15 @@ void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
     }
 
     EnableWindows();
-    DropNeedUpdate = false;
     ProgrammaticallySettingText = false;
 }
 
 void CTerrainGenerator::OnSelchangeTileSet(int index, bool edited)
 {
     if (index < 0 || TERRAIN_GENERATOR_DISPLAY <= index || !CurrentPreset) return;
-    auto& hwnd = hTileSet[index];
-    auto& label = TileSetLabels[index];
 
-    int curSel = SendMessage(hwnd, CB_GETCURSEL, NULL, NULL);
-    FString text;
-    char buffer[512]{ 0 };
-    if (edited && (SendMessage(hwnd, CB_GETCOUNT, NULL, NULL) > 0 || !label.empty()))
-    {
-        ExtraWindow::OnEditCComboBox(hwnd, label);
-    }
-
-    if (curSel >= 0 && curSel < SendMessage(hwnd, CB_GETCOUNT, NULL, NULL))
-    {
-        SendMessage(hwnd, CB_GETLBTEXT, curSel, (LPARAM)buffer);
-        text = buffer;
-    }
-    if (edited)
-    {
-        GetWindowText(hwnd, buffer, 511);
-        text = buffer;
-    }
-
-    if (!text)
+    FString text = vcbTileSet[index].GetSelectedText(edited);
+    if (text.empty())
         return;
 
     FString::TrimIndex(text);
@@ -2121,16 +2039,6 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 
-void CTerrainGenerator::OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly)
-{
-    if (!ExtraWindow::OnCloseupCComboBox(hWnd, labels, isComboboxSelectOnly))
-    {
-        if (hWnd == hPreset)
-        {
-            OnSelchangePreset();
-        }
-    }
-}
 void CTerrainGenerator::SaveAndReloadPreset()
 {
     if (!CurrentPreset) return;

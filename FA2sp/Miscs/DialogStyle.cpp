@@ -30,6 +30,7 @@ std::vector<TopMenuItemInfo> DarkTheme::g_menuItems;
 std::map<HMENU, std::map<UINT, MenuItemInfo>> DarkTheme::g_menuItemData;
 bool DarkTheme::b_isImportingINI = false;
 bool DarkTheme::b_isSelectingGameFolder = false;
+const wchar_t* const DarkTheme::PROP_ORIGINAL_WNDPROC = L"DarkTheme_OriginalComboWndProc";
 
 DEFINE_HOOK(40B740, CINIEditor_OnClickImportINI, 7)
 {
@@ -977,15 +978,17 @@ void DarkTheme::DrawComboBoxArrow(HDC hdc, RECT rc, bool enabled)
     DeleteObject(hPen);
 }
 
-LRESULT CALLBACK DarkTheme::ComboBoxSubclassProc(
-    HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
-    UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+LRESULT CALLBACK DarkTheme::ComboBoxSubclassProcA(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+    WNDPROC originalProc = (WNDPROC)GetPropW(hWnd, PROP_ORIGINAL_WNDPROC);
+    if (!originalProc)
+        return DefWindowProcA(hWnd, uMsg, wParam, lParam);
+
     switch (uMsg)
     {
     case WM_PAINT:
     {
-        LONG style = GetWindowLong(hWnd, GWL_STYLE);
+        LONG style = GetWindowLongA(hWnd, GWL_STYLE);
         BOOL bDropdownList = (style & CBS_DROPDOWNLIST) == CBS_DROPDOWNLIST;
 
         PAINTSTRUCT ps;
@@ -996,66 +999,59 @@ LRESULT CALLBACK DarkTheme::ComboBoxSubclassProc(
 
         if (bDropdownList)
         {
-            int idx = (int)SendMessage(hWnd, CB_GETCURSEL, 0, 0);
+            int idx = (int)SendMessageA(hWnd, CB_GETCURSEL, 0, 0);
             if (idx >= 0)
             {
-                char text[512]{ 0 };
-                SendMessage(hWnd, CB_GETLBTEXT, idx, (LPARAM)text);
+                char text[512] = { 0 };
+                SendMessageA(hWnd, CB_GETLBTEXT, idx, (LPARAM)text);
 
                 RECT rcText = rc;
                 rcText.right -= GetSystemMetrics(SM_CXVSCROLL);
                 rcText.left += 5;
 
                 SetBkMode(hdc, TRANSPARENT);
-                SetTextColor(hdc, DarkColors::LightText);
+                SetTextColor(hdc, IsWindowEnabled(hWnd) ? DarkColors::LightText : DarkColors::DisabledText);
 
-                HFONT hFont = (HFONT)GetModernDefaultGUIFont();
+                HFONT hFont = GetModernDefaultGUIFont();
                 HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
-
-                DrawText(hdc, text, -1, &rcText, DT_SINGLELINE | DT_VCENTER | DT_LEFT);
-
+                DrawTextA(hdc, text, -1, &rcText, DT_SINGLELINE | DT_VCENTER | DT_LEFT);
                 SelectObject(hdc, hOldFont);
             }
         }
 
         HPEN hOldPen = (HPEN)SelectObject(hdc, g_hBorderPen);
         HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
-
         Rectangle(hdc, rc.left, rc.top, rc.right, rc.bottom);
-
         DrawComboBoxArrow(hdc, rc, IsWindowEnabled(hWnd));
-
         SelectObject(hdc, hOldPen);
         SelectObject(hdc, hOldBrush);
 
         EndPaint(hWnd, &ps);
-
         return TRUE;
     }
+
     case WM_ERASEBKGND:
     {
         HDC hdc = (HDC)wParam;
         RECT rc;
         GetClientRect(hWnd, &rc);
-
         FillRect(hdc, &rc, g_hDisabledBgBrush);
-
         return TRUE;
     }
+
     case WM_CTLCOLOREDIT:
     {
         HDC hdc = (HDC)wParam;
-
-        SetTextColor(hdc, IsWindowEnabled(hWnd) ? DarkColors::LightText : DarkColors::DisabledText);
+        SetTextColor(hdc, IsWindowEnabled(hWnd) ? RGB(255, 255, 255) : RGB(128, 128, 128));
         SetBkMode(hdc, TRANSPARENT);
-
         return (LRESULT)g_hDarkControlBrush;
     }
+
     case WM_CTLCOLORLISTBOX:
     {
         HDC hdc = (HDC)wParam;
         HWND hComboLBox = (HWND)lParam;
-        SetTextColor(hdc, IsWindowEnabled(hWnd) ? DarkColors::LightText : DarkColors::DisabledText);
+        SetTextColor(hdc, IsWindowEnabled(hWnd) ? RGB(255, 255, 255) : RGB(128, 128, 128));
         SetBkMode(hdc, TRANSPARENT);
         if (!GetPropW(hComboLBox, L"DarkThemeApplied"))
         {
@@ -1066,11 +1062,46 @@ LRESULT CALLBACK DarkTheme::ComboBoxSubclassProc(
     }
 
     case WM_NCDESTROY:
-        RemoveWindowSubclass(hWnd, ComboBoxSubclassProc, uIdSubclass);
+    {
+        DarkTheme::DetachFromComboBox(hWnd);
         break;
     }
+    }
+    return CallWindowProcA(originalProc, hWnd, uMsg, wParam, lParam);
+}
 
-    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+BOOL DarkTheme::AttachToComboBox(HWND hWndCombo)
+{
+    if (!hWndCombo || !IsWindow(hWndCombo))
+        return FALSE;
+
+    if (GetPropW(hWndCombo, PROP_ORIGINAL_WNDPROC))
+        return TRUE;
+
+    WNDPROC originalProc = (WNDPROC)GetWindowLongPtrA(hWndCombo, GWLP_WNDPROC);
+    if (!originalProc)
+        return FALSE;
+
+    if (!SetPropW(hWndCombo, PROP_ORIGINAL_WNDPROC, (HANDLE)originalProc))
+        return FALSE;
+
+    SetWindowLongPtrA(hWndCombo, GWLP_WNDPROC, (LONG_PTR)ComboBoxSubclassProcA);
+
+    InvalidateRect(hWndCombo, NULL, TRUE);
+    return TRUE;
+}
+
+void DarkTheme::DetachFromComboBox(HWND hWndCombo)
+{
+    if (!hWndCombo || !IsWindow(hWndCombo))
+        return;
+
+    WNDPROC originalProc = (WNDPROC)GetPropW(hWndCombo, PROP_ORIGINAL_WNDPROC);
+    if (originalProc)
+    {
+        SetWindowLongPtrA(hWndCombo, GWLP_WNDPROC, (LONG_PTR)originalProc);
+        RemovePropW(hWndCombo, PROP_ORIGINAL_WNDPROC);
+    }
 }
 
 LRESULT CALLBACK DarkTheme::EditSubclassProc(
@@ -1649,9 +1680,9 @@ void DarkTheme::SubclassAllControls(HWND hWndParent)
         return;
 
     HWND hWndChild = NULL;
-    while ((hWndChild = FindWindowEx(hWndParent, hWndChild, WC_COMBOBOX, NULL)) != NULL)
+    while ((hWndChild = FindWindowExA(hWndParent, hWndChild, "ComboBox", NULL)) != NULL)
     {
-        SetWindowSubclass(hWndChild, ComboBoxSubclassProc, 0, 0);
+        DarkTheme::AttachToComboBox(hWndChild);
     }
 
     hWndChild = NULL;

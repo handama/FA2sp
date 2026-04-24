@@ -47,12 +47,10 @@ HWND CNewAITrigger::hSkrimish;
 
 int CNewAITrigger::SelectedAITriggerIndex = -1;
 std::unique_ptr<AITrigger> CNewAITrigger::CurrentAITrigger;
-std::map<int, FString> CNewAITrigger::AITriggerLabels;
-std::map<int, FString> CNewAITrigger::TeamLabels[2];
-std::map<int, FString> CNewAITrigger::ComparisonObjectLabels;
-std::map<int, FString> CNewAITrigger::CountryLabels;
-bool CNewAITrigger::Autodrop;
-bool CNewAITrigger::DropNeedUpdate;
+VirtualComboBoxEx CNewAITrigger::vcbSelectedAITrigger;
+VirtualComboBoxEx CNewAITrigger::vcbTeam[2];
+VirtualComboBoxEx CNewAITrigger::vcbComparisonObject;
+VirtualComboBoxEx CNewAITrigger::vcbCountry;
 bool CNewAITrigger::TeamListChanged = false;
 
 void CNewAITrigger::Create(CFinalSunDlg* pWnd)
@@ -139,6 +137,12 @@ void CNewAITrigger::Initialize(HWND& hWnd)
     hBaseDefense = GetDlgItem(hWnd, Controls::BaseDefense);
     hSkrimish = GetDlgItem(hWnd, Controls::Skrimish);
 
+    vcbSelectedAITrigger.Attach(hSelectedAITrigger, &ExtConfigs::SortByLabelName_AITrigger, false);
+    vcbTeam[0].Attach(hTeam1);
+    vcbTeam[1].Attach(hTeam2);
+    vcbComparisonObject.Attach(hComparisonObject);
+    vcbCountry.Attach(hCountry);
+
     ExtraWindow::RegisterDropTarget(hTeam1, DropType::AIEditorTeam0);
     ExtraWindow::RegisterDropTarget(hTeam2, DropType::AIEditorTeam1);
 
@@ -150,7 +154,7 @@ void CNewAITrigger::Update(HWND& hWnd)
     ShowWindow(m_hwnd, SW_SHOW);
     SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 
-    ExtraWindow::SortAITriggers(hSelectedAITrigger, SelectedAITriggerIndex);
+    SortAITriggers(CurrentAITrigger ? CurrentAITrigger->ID : FString());
     int count = SendMessage(hSelectedAITrigger, CB_GETCOUNT, NULL, NULL);
     if (SelectedAITriggerIndex < 0)
         SelectedAITriggerIndex = 0;
@@ -158,7 +162,6 @@ void CNewAITrigger::Update(HWND& hWnd)
         SelectedAITriggerIndex = count - 1;
     SendMessage(hSelectedAITrigger, CB_SETCURSEL, SelectedAITriggerIndex, NULL);
 
-    int idx = 0;
     ExtraWindow::ClearComboKeepText(hSide);
 
     auto transed = FinalAlertConfig::Language + "-" + "AITriggerSides";
@@ -171,78 +174,82 @@ void CNewAITrigger::Update(HWND& hWnd)
         {
             FString text;
             text.Format("%s - %s", pair.first, pair.second);
-            SendMessage(hSide, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text);
+            SendMessage(hSide, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)text);
         }
     }
     
-    idx = 0;
     ExtraWindow::ClearComboKeepText(hCountry);
     const auto& indicies = Variables::RulesMap.ParseIndicies("Countries", true);
-    SendMessage(hCountry, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"<all>");
+    SendMessage(hCountry, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"<all>");
     for (auto& value : indicies)
     {
         if (value == "GDI" || value == "Nod")
             continue;
-        SendMessage(hCountry, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName(value, true));
+        SendMessage(hCountry, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)Translations::ParseHouseName(value, true));
     }
     
-    idx = 0;
     ExtraWindow::ClearComboKeepText(hComparator);
-    SendMessage(hComparator, CB_INSERTSTRING, idx++, 
+    SendMessage(hComparator, CB_ADDSTRING, 0, 
         (LPARAM)(LPCSTR)(FString("0 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator1", "Less than")));
-    SendMessage(hComparator, CB_INSERTSTRING, idx++, 
+    SendMessage(hComparator, CB_ADDSTRING, 0, 
         (LPARAM)(LPCSTR)(FString("1 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator2", "Less than or equal to")));
-    SendMessage(hComparator, CB_INSERTSTRING, idx++, 
+    SendMessage(hComparator, CB_ADDSTRING, 0, 
         (LPARAM)(LPCSTR)(FString("2 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator3", "Equal to")));
-    SendMessage(hComparator, CB_INSERTSTRING, idx++, 
+    SendMessage(hComparator, CB_ADDSTRING, 0, 
         (LPARAM)(LPCSTR)(FString("3 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator4", "Greater than or equal to")));
-    SendMessage(hComparator, CB_INSERTSTRING, idx++, 
+    SendMessage(hComparator, CB_ADDSTRING, 0, 
         (LPARAM)(LPCSTR)(FString("4 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator5", "Greater than")));
-    SendMessage(hComparator, CB_INSERTSTRING, idx++, 
+    SendMessage(hComparator, CB_ADDSTRING, 0, 
         (LPARAM)(LPCSTR)(FString("5 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator6", "Not equal to")));
 
-    idx = 0;
     ExtraWindow::ClearComboKeepText(hConditionType);
-    SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
+    SendMessage(hConditionType, CB_ADDSTRING, 0, 
         (LPARAM)(LPCSTR)(FString("-1 - ") + 
             Translations::TranslateOrDefault("AITriggerEditorCondition-1", "Always true")));
-    SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
+    SendMessage(hConditionType, CB_ADDSTRING, 0, 
         (LPARAM)(LPCSTR)(FString("0 - ") + 
             Translations::TranslateOrDefault("AITriggerEditorCondition0", "Enemy house owns X object <Comparator> N")));
-    SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
+    SendMessage(hConditionType, CB_ADDSTRING, 0, 
         (LPARAM)(LPCSTR)(FString("1 - ") + 
             Translations::TranslateOrDefault("AITriggerEditorCondition1", "Owning house owns X object <Comparator> N")));
-    SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
+    SendMessage(hConditionType, CB_ADDSTRING, 0, 
         (LPARAM)(LPCSTR)(FString("2 - ") + 
             Translations::TranslateOrDefault("AITriggerEditorCondition2", "Enemy house in low power (yellow)")));
-    SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
+    SendMessage(hConditionType, CB_ADDSTRING, 0, 
         (LPARAM)(LPCSTR)(FString("3 - ") + 
             Translations::TranslateOrDefault("AITriggerEditorCondition3", "Enemy house in low power (red)")));
-    SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
+    SendMessage(hConditionType, CB_ADDSTRING, 0, 
         (LPARAM)(LPCSTR)(FString("4 - ") + 
             Translations::TranslateOrDefault("AITriggerEditorCondition4", "Enemy house has credits <Comparator> N")));
-    SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
+    SendMessage(hConditionType, CB_ADDSTRING, 0, 
         (LPARAM)(LPCSTR)(FString("5 - ") + 
             Translations::TranslateOrDefault("AITriggerEditorCondition5", "Iron Curtain is about to be ready")));
-    SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
+    SendMessage(hConditionType, CB_ADDSTRING, 0, 
         (LPARAM)(LPCSTR)(FString("6 - ") + 
             Translations::TranslateOrDefault("AITriggerEditorCondition6", "ChronoSphere is about to be ready")));
-    SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
+    SendMessage(hConditionType, CB_ADDSTRING, 0, 
         (LPARAM)(LPCSTR)(FString("7 - ") + 
             Translations::TranslateOrDefault("AITriggerEditorCondition7", "Neutral/civilian house owns X object <Comparator> N")));
 
-    idx = 0;
-    ExtraWindow::ClearComboKeepText(hComparisonObject);
-    ExtraWindow::LoadParam_TechnoTypes(hComparisonObject, -1, 1);
-    SendMessage(hComparisonObject, CB_INSERTSTRING, SendMessage(hComparisonObject, CB_GETCOUNT, 0, 0), (LPARAM)(LPCSTR)"<none>");
+    ExtraWindow::LoadParam_TechnoTypes(vcbComparisonObject, -1, 1);
+    SendMessage(hComparisonObject, CB_ADDSTRING, SendMessage(hComparisonObject, CB_GETCOUNT, 0, 0), (LPARAM)(LPCSTR)"<none>");
 
-    int tmp = 0;
-    ExtraWindow::SortTeams(hTeam1, "TeamTypes", tmp);
-    SendMessage(hTeam1, CB_INSERTSTRING, SendMessage(hTeam1, CB_GETCOUNT, 0, 0), (LPARAM)(LPCSTR)"<none>");
-    ExtraWindow::SyncComboBoxContent(hTeam1, hTeam2, false);
+    std::vector<FString> labels;
+    if (auto pSection = map.GetSection("TeamTypes")) {
+        for (auto& pair : pSection->GetEntities()) {
+            labels.push_back(ExtraWindow::GetTeamDisplayName(pair.second));
+        }
+    }
+    bool tmp = ExtConfigs::SortByLabelName;
+    ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Team;
+    ExtraWindow::SortLabels(labels);
+    ExtConfigs::SortByLabelName = tmp;
 
-    DropNeedUpdate = false;
-    Autodrop = false;
+    vcbTeam[0].Clear();
+    vcbTeam[0].AddString("<none>");
+    vcbTeam[0].AddStrings(labels);
+
+    vcbTeam[1].CopyFrom(vcbTeam[0]);
 
     OnSelchangeAITrigger();
 }
@@ -296,14 +303,6 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         case Controls::SelectedAITrigger:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeAITrigger();
-            else if (CODE == CBN_DROPDOWN)
-                OnSeldropdownAITrigger(hWnd);
-            else if (CODE == CBN_EDITCHANGE)
-                OnSelchangeAITrigger(true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupCComboBox(hSelectedAITrigger, AITriggerLabels, true);
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Name:
             if (CODE == EN_CHANGE && CurrentAITrigger)
@@ -315,12 +314,11 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
 
                 CurrentAITrigger->Name = name;
                 CurrentAITrigger->Save();
-                DropNeedUpdate = true;
-
+  
                 auto newName = ExtraWindow::FormatTriggerDisplayName(CurrentAITrigger->ID, CurrentAITrigger->Name);
-                SendMessage(hSelectedAITrigger, CB_DELETESTRING, SelectedAITriggerIndex, NULL);
-                SendMessage(hSelectedAITrigger, CB_INSERTSTRING, SelectedAITriggerIndex, (LPARAM)(LPCSTR)newName);
-                SendMessage(hSelectedAITrigger, CB_SETCURSEL, SelectedAITriggerIndex, NULL);
+
+                vcbSelectedAITrigger.ReplaceString(SelectedAITriggerIndex, newName);
+                vcbSelectedAITrigger.SetEditText(newName);
             }
             break;
         case Controls::Enabled:
@@ -406,10 +404,6 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeCountry();
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeCountry(true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupCComboBox(hCountry, CountryLabels);
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Side:
             if (CODE == CBN_SELCHANGE)
@@ -430,20 +424,12 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeComparisonObject();
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeComparisonObject(true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupCComboBox(hComparisonObject, ComparisonObjectLabels);
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Team1:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeTeam(0);
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeTeam(0, true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupCComboBox(hTeam1, TeamLabels[0]);
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             else if (CODE == CBN_DROPDOWN && TeamListChanged)
                 OnDropdownTeam();
             break;
@@ -452,10 +438,6 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeTeam(1);
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeTeam(1, true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupCComboBox(hTeam2, TeamLabels[1]);
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             else if (CODE == CBN_DROPDOWN && TeamListChanged)
                 OnDropdownTeam();
             break;
@@ -474,6 +456,11 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     {
         ExtraWindow::UpdateDropTargetRect(hWnd);
         break;
+    }
+    case WM_MEASUREITEM:
+    {
+        VirtualComboBoxEx::SetWindowHeight(hWnd, lParam);
+        return TRUE;
     }
     case 114514: // used for update
     {
@@ -501,13 +488,6 @@ double CNewAITrigger::safe_stod(const char* s) {
 void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
 {
     char buffer[512]{ 0 };
-
-    if (edited && (SendMessage(hSelectedAITrigger, CB_GETCOUNT, NULL, NULL) > 0 || !AITriggerLabels.empty()))
-    {
-        Autodrop = true;
-        ExtraWindow::OnEditCComboBox(hSelectedAITrigger, AITriggerLabels);
-        return;
-    }
 
     SelectedAITriggerIndex = SendMessage(hSelectedAITrigger, CB_GETCURSEL, NULL, NULL);
     if (SelectedAITriggerIndex < 0 || SelectedAITriggerIndex >= SendMessage(hSelectedAITrigger, CB_GETCOUNT, NULL, NULL))
@@ -600,9 +580,6 @@ void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
     SendMessage(hInitialWeight, WM_SETTEXT, 0, (LPARAM)initial);
     SendMessage(hMinWeight, WM_SETTEXT, 0, (LPARAM)min);
     SendMessage(hMaxWeight, WM_SETTEXT, 0, (LPARAM)max);
-
-    //CurrentAITrigger->Save();
-    DropNeedUpdate = false;
 }
 
 void CNewAITrigger::OnDropdownTeam()
@@ -647,35 +624,9 @@ void CNewAITrigger::OnSelchangeCountry(bool edited)
 {
     if (SelectedAITriggerIndex < 0 || SendMessage(hCountry, LB_GETCURSEL, NULL, NULL) < 0 || !CurrentAITrigger)
         return;
-    int curSel = SendMessage(hCountry, CB_GETCURSEL, NULL, NULL);
 
-    FString text;
-    char buffer[512]{ 0 };
-    char buffer2[512]{ 0 };
-
-    if (edited && (SendMessage(hCountry, CB_GETCOUNT, NULL, NULL) > 0 || !CountryLabels.empty()))
-    {
-        ExtraWindow::OnEditCComboBox(hCountry, CountryLabels);
-    }
-
-    if (curSel >= 0 && curSel < SendMessage(hCountry, CB_GETCOUNT, NULL, NULL))
-    {
-        SendMessage(hCountry, CB_GETLBTEXT, curSel, (LPARAM)buffer);
-        text = buffer;
-    }
-    if (edited)
-    {
-        GetWindowText(hCountry, buffer, 511);
-        text = buffer;
-        int idx = SendMessage(hCountry, CB_FINDSTRINGEXACT, 0, (LPARAM)text);
-        if (idx != CB_ERR)
-        {
-            SendMessage(hCountry, CB_GETLBTEXT, idx, (LPARAM)buffer);
-            text = buffer;
-        }
-    }
-
-    if (!text)
+    FString text = vcbCountry.GetSelectedText(edited);
+    if (text.empty())
         return;
 
     FString::TrimIndex(text);
@@ -785,35 +736,9 @@ void CNewAITrigger::OnSelchangeComparisonObject(bool edited)
 {
     if (SelectedAITriggerIndex < 0 || SendMessage(hComparisonObject, LB_GETCURSEL, NULL, NULL) < 0 || !CurrentAITrigger)
         return;
-    int curSel = SendMessage(hComparisonObject, CB_GETCURSEL, NULL, NULL);
 
-    FString text;
-    char buffer[512]{ 0 };
-    char buffer2[512]{ 0 };
-
-    if (edited && (SendMessage(hComparisonObject, CB_GETCOUNT, NULL, NULL) > 0 || !ComparisonObjectLabels.empty()))
-    {
-        ExtraWindow::OnEditCComboBox(hComparisonObject, ComparisonObjectLabels);
-    }
-
-    if (curSel >= 0 && curSel < SendMessage(hComparisonObject, CB_GETCOUNT, NULL, NULL))
-    {
-        SendMessage(hComparisonObject, CB_GETLBTEXT, curSel, (LPARAM)buffer);
-        text = buffer;
-    }
-    if (edited)
-    {
-        GetWindowText(hComparisonObject, buffer, 511);
-        text = buffer;
-        int idx = SendMessage(hComparisonObject, CB_FINDSTRINGEXACT, 0, (LPARAM)text);
-        if (idx != CB_ERR)
-        {
-            SendMessage(hComparisonObject, CB_GETLBTEXT, idx, (LPARAM)buffer);
-            text = buffer;
-        }
-    }
-
-    if (!text)
+    FString text = vcbComparisonObject.GetSelectedText(edited);
+    if (text.empty())
         return;
 
     FString::TrimIndex(text);
@@ -835,12 +760,6 @@ void CNewAITrigger::OnSelchangeTeam(int index, bool edited)
 
     FString text;
     char buffer[512]{ 0 };
-    char buffer2[512]{ 0 };
-
-    if (edited && (SendMessage(hwnd, CB_GETCOUNT, NULL, NULL) > 0 || !TeamLabels[index].empty()))
-    {
-        ExtraWindow::OnEditCComboBox(hwnd, TeamLabels[index]);
-    }
 
     if (curSel >= 0 && curSel < SendMessage(hwnd, CB_GETCOUNT, NULL, NULL))
     {
@@ -927,38 +846,9 @@ void CNewAITrigger::OnClickDelAITrigger()
     }
 }
 
-void CNewAITrigger::OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly)
-{
-    if (!ExtraWindow::OnCloseupCComboBox(hWnd, labels, isComboboxSelectOnly))
-    {
-        if (hWnd == hSelectedAITrigger)
-        {
-            OnSelchangeAITrigger();
-        }
-
-    }
-}
-
-void CNewAITrigger::OnSeldropdownAITrigger(HWND& hWnd)
-{
-    if (Autodrop)
-    {
-        Autodrop = false;
-        return;
-    }
-    if (!CurrentAITrigger)
-        return;
-    if (!DropNeedUpdate)
-        return;
-
-    DropNeedUpdate = false;
-
-    SortAITriggers(CurrentAITrigger->ID);
-}
-
 void CNewAITrigger::SortAITriggers(FString id)
 {
-    while (SendMessage(hSelectedAITrigger, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    vcbSelectedAITrigger.Clear();
     std::vector<FString> labels;
     if (auto pSection = map.GetSection("AITriggerTypes")) {
         for (auto& pair : pSection->GetEntities()) {
@@ -968,14 +858,11 @@ void CNewAITrigger::SortAITriggers(FString id)
 
     bool tmp = ExtConfigs::SortByLabelName;
     ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_AITrigger;
-
     ExtraWindow::SortLabels(labels);
-
     ExtConfigs::SortByLabelName = tmp;
 
-    for (size_t i = 0; i < labels.size(); ++i) {
-        SendMessage(hSelectedAITrigger, CB_INSERTSTRING, i, labels[i]);
-    }
+    vcbSelectedAITrigger.AddStrings(labels);
+
     if (id != "") {
         SelectedAITriggerIndex = SendMessage(hSelectedAITrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetAITriggerDisplayName(id));
         SendMessage(hSelectedAITrigger, CB_SETCURSEL, SelectedAITriggerIndex, NULL);
@@ -984,17 +871,5 @@ void CNewAITrigger::SortAITriggers(FString id)
 
 bool CNewAITrigger::OnEnterKeyDown(HWND& hWnd)
 {
-    if (hWnd == hSelectedAITrigger)
-        OnSelchangeAITrigger(true);
-    else if (hWnd == hTeam1)
-        OnSelchangeTeam(0, true);
-    else if (hWnd == hTeam2)
-        OnSelchangeTeam(1, true);
-    else if (hWnd == hCountry)
-        OnSelchangeCountry(true);
-    else if (hWnd == hComparisonObject)
-        OnSelchangeComparisonObject(true);
-    else
-        return false;
-    return true;
+    return false;
 }

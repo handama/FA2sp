@@ -1900,7 +1900,7 @@ void CLoadingExt::LoadTerrainOrSmudge(const FString& ID, bool terrain)
 	FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "iso");
 	if (!CINI::Art->KeyExists(ArtID, "Palette") && Variables::RulesMap.GetBool(ID, "SpawnsTiberium"))
 	{
-		PaletteName = "unit~~~.pal";
+		PaletteName = "unitsno.pal";
 	}
 	if (CINI::Art->KeyExists(ArtID, "Palette") || Variables::RulesMap.GetBool(ID, "SpawnsTiberium"))
 	{

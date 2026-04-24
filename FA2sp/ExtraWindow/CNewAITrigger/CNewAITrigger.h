@@ -10,6 +10,8 @@
 #include "../../Helpers/STDHelpers.h"
 #include "../../Helpers/FString.h"
 
+class VirtualComboBoxEx;
+
 class AITrigger
 {
 public:
@@ -195,7 +197,6 @@ public:
         Hard = 1037,
         BaseDefense = 1038,
         Skrimish = 1039,
-
     };
 
     static void Create(CFinalSunDlg* pWnd);
@@ -215,7 +216,6 @@ protected:
     static void Initialize(HWND& hWnd);
     static void Update(HWND& hWnd);
 
-    static void OnSeldropdownAITrigger(HWND& hWnd);
     static void OnClickNewAITrigger();
     static void OnClickDelAITrigger();
     static void OnClickCloAITrigger();
@@ -226,9 +226,7 @@ protected:
     static void OnSelchangeCountry(bool edited = false);
     static void OnSelchangeSide(bool edited = false);
 
-    static void OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly = false);
     static void SortAITriggers(FString id);
-
     static void Close(HWND& hWnd);
 
     static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
@@ -264,12 +262,11 @@ private:
     static HWND hBaseDefense;
     static HWND hSkrimish;
 
+    static VirtualComboBoxEx vcbSelectedAITrigger;
+    static VirtualComboBoxEx vcbTeam[2];
+    static VirtualComboBoxEx vcbComparisonObject;
+    static VirtualComboBoxEx vcbCountry;
+
     static int SelectedAITriggerIndex;
     static std::unique_ptr<AITrigger> CurrentAITrigger;
-    static std::map<int, FString> AITriggerLabels;
-    static std::map<int, FString> TeamLabels[2];
-    static std::map<int, FString> ComparisonObjectLabels;
-    static std::map<int, FString> CountryLabels;
-    static bool Autodrop;
-    static bool DropNeedUpdate;
 };

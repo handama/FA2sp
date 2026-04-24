@@ -24,7 +24,9 @@
 #define TERRAIN_GENERATOR_DISPLAY 5
 #define TERRAIN_GENERATOR_PRECISION 6
 
-class TerrainGeneratorPreset 
+class VirtualComboBoxEx;
+
+class TerrainGeneratorPreset
 {
 public:
     FString Name;
@@ -63,7 +65,7 @@ public:
             Name = *pName;
         else
             Name = pSection->GetString("Name");
-    
+
         for (auto& t : FString::SplitString(pSection->GetString("Theaters"))) {
             Theaters.push_back(t);
         }
@@ -214,7 +216,7 @@ public:
                     {
                         group.HasExtraIndex = false;
                         overlays.AvailableOverlayData.push_back(0);
-                    }              
+                    }
                     group.Overlays.push_back(overlays);
                 }
                 Overlays.push_back(group);
@@ -358,8 +360,6 @@ protected:
     static void OnEditchangeTerrain(int index);
     static void OnEditchangeSmudge(int index);
     static void OnEditchangeOverlay(int index);
-    static void OnSeldropdownPreset(HWND& hWnd);
-    static void OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly);
 
     static void OnClickSetRange();
     static void EnableWindows();
@@ -434,11 +434,9 @@ private:
     static HWND hSlopeMarcoMaxDelta;
     static HWND hSlopeAvoidEdges;
 
-    static std::map<int, FString> TileSetLabels[TERRAIN_GENERATOR_DISPLAY];
-    static std::map<int, FString> OverlayLabels[TERRAIN_GENERATOR_DISPLAY];
-    static std::map<int, FString> PresetLabels;
-    static bool Autodrop;
-    static bool DropNeedUpdate;
+    static VirtualComboBoxEx vcbTileSet[TERRAIN_GENERATOR_DISPLAY];
+    static VirtualComboBoxEx vcbPreset;
+
     static int CurrentPresetIndex;
     static int CurrentTabPage;
     static bool bOverride;

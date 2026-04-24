@@ -15,12 +15,20 @@ for Y=start_Y,0,-ds do
 	for y=Y,max_iso,step do
 		x = y - Y
 		if in_map(x, y) then
-			local wp = place_waypoint(x, y)
-			if wp >= 0 then
-				table.insert(line, wp)
-			end
-			if wp > biggest_wp then
-				biggest_wp = wp
+			local cell = get_cell(x, y)
+			if cell.waypoint == -1 then	
+				local wpk = get_free_key("Waypoints")
+				local value = tostring(y * 1000 + x)
+				write_string("Waypoints", wpk, value)
+				local wp = tonumber(wpk)
+				if wp >= 0 then
+					table.insert(line, wp)
+				end
+				if wp > biggest_wp then
+					biggest_wp = wp
+				end
+			else
+				print("Location: "..tostring(x)..", "..tostring(y).." already has waypoint, skip...")
 			end
 		end
 	end
@@ -34,12 +42,20 @@ for X=ds,max_iso,ds do
 	for x=X,max_iso,step do
 		y = x - X
 		if in_map(x, y) then
-			local wp = place_waypoint(x, y)
-			if wp >= 0 then
-				table.insert(line, wp)
-			end
-			if wp > biggest_wp then
-				biggest_wp = wp
+			local cell = get_cell(x, y)
+			if cell.waypoint == -1 then	
+				local wpk = get_free_key("Waypoints")
+				local value = tostring(y * 1000 + x)
+				write_string("Waypoints", wpk, value)
+				local wp = tonumber(wpk)
+				if wp >= 0 then
+					table.insert(line, wp)
+				end
+				if wp > biggest_wp then
+					biggest_wp = wp
+				end
+			else
+				print("Location: "..tostring(x)..", "..tostring(y).." already has waypoint, skip...")
 			end
 		end
 	end
@@ -48,6 +64,7 @@ for X=ds,max_iso,ds do
 	end
 end
 
+update_waypoint()
 local width = #wps
 local height = #wps[1]
 print("Waypoint Matrix:")

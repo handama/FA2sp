@@ -1790,70 +1790,31 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			HWND hParent1 = ::GetParent(hWnd);		// WINDOW	COMBOBOX
 			HWND hParent2 = ::GetParent(hParent1);	//			WINDOW
 			ExtraWindow::bEnterSearch = true;
-			if (hParent2 == CNewAITrigger::GetHandle()) {
-				if (CNewAITrigger::OnEnterKeyDown(hParent1)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
-			else if (hWnd == ::GetDlgItem(CObjectSearch::GetHandle(), CObjectSearch::Input)) {
+			
+			if (hWnd == ::GetDlgItem(CObjectSearch::GetHandle(), CObjectSearch::Input)) {
 				::ShowWindow(CObjectSearch::GetHandle(), SW_SHOW);
 				::SendMessage(CObjectSearch::GetHandle(), 114516, 0, 0);
 				ExtraWindow::bEnterSearch = false;
 				return TRUE;
 			}
-			else if (hParent1 == CNewINIEditor::GetHandle()) {
-				if (CNewINIEditor::OnEnterKeyDown(hWnd)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
-			else if (hParent1 == CBatchTrigger::GetHandle()) {
-				if (CBatchTrigger::OnEnterKeyDown(hWnd)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
-			else if (hParent1 == CCsfEditor::GetHandle()) {
-				if (CCsfEditor::OnEnterKeyDown(hWnd)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
-			else if (hParent2 == CNewScript::GetHandle()) {
-				if (CNewScript::OnEnterKeyDown(hParent1)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
-			else if (hParent2 == CNewTaskforce::GetHandle()) {
-				if (CNewTaskforce::OnEnterKeyDown(hParent1)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
-			else if (hParent2 == CNewTeamTypes::GetHandle()) {
-				if (CNewTeamTypes::OnEnterKeyDown(hParent1)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
-			else if (hParent2 == CTerrainGenerator::GetHandle()) {
-				if (CTerrainGenerator::OnEnterKeyDown(hParent1)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
-			for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
-			{
-				if (hParent2 == CNewTrigger::Instance[i].GetHandle())
-				{
-					if (CNewTrigger::Instance[i].OnEnterKeyDown(hParent1)) {
-						ExtraWindow::bEnterSearch = false;
-						return TRUE;
-					}
-				}
-			}
+			//else if (hParent1 == CNewINIEditor::GetHandle()) {
+			//	if (CNewINIEditor::OnEnterKeyDown(hWnd)) {
+			//		ExtraWindow::bEnterSearch = false;
+			//		return TRUE;
+			//	}
+			//}
+			//else if (hParent1 == CBatchTrigger::GetHandle()) {
+			//	if (CBatchTrigger::OnEnterKeyDown(hWnd)) {
+			//		ExtraWindow::bEnterSearch = false;
+			//		return TRUE;
+			//	}
+			//}
+			//else if (hParent1 == CCsfEditor::GetHandle()) {
+			//	if (CCsfEditor::OnEnterKeyDown(hWnd)) {
+			//		ExtraWindow::bEnterSearch = false;
+			//		return TRUE;
+			//	}
+			//}
 			ExtraWindow::bEnterSearch = false;
 		}
 		if (CIsoView::CurrentCommand->Command == 0x1E)

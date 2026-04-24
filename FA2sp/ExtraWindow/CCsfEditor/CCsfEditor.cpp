@@ -41,16 +41,15 @@ bool CCsfEditor::NeedUpdate = false;
 int CCsfEditor::TriggerCaller = 0;
 WNDPROC CCsfEditor::g_pOriginalListViewProc = nullptr;
 
-LRESULT CALLBACK CCsfEditor::ListViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    return DarkTheme::MyCallWindowProcA(g_pOriginalListViewProc, hWnd, uMsg, wParam, lParam);
-}
+std::vector<std::pair<FString, FString>> CCsfEditor::m_DisplayData;
+FString CCsfEditor::m_SearchText;
 
 void CCsfEditor::Create(CFinalSunDlg* pWnd)
 {
     HMODULE hModule = LoadLibrary(TEXT("Riched32.dll"));
     if (!hModule)
-        MessageBox(NULL, Translations::TranslateOrDefault("FailedLoadRiched32DLL", "Could not Load Riched32.dll!"), Translations::TranslateOrDefault("Error", "Error"), MB_ICONERROR);
+        MessageBox(NULL, Translations::TranslateOrDefault("FailedLoadRiched32DLL", "Could not Load Riched32.dll!"), 
+            Translations::TranslateOrDefault("Error", "Error"), MB_ICONERROR);
 
     m_parent = pWnd;
     m_hwnd = CreateDialog(
@@ -77,12 +76,12 @@ void CCsfEditor::Initialize(HWND& hWnd)
         SetWindowText(hWnd, buffer);
 
     auto Translate = [&hWnd, &buffer](int nIDDlgItem, const char* pLabelName)
-        {
-            HWND hTarget = GetDlgItem(hWnd, nIDDlgItem);
-            if (Translations::GetTranslationItem(pLabelName, buffer))
-                SetWindowText(hTarget, buffer);
-        };
-    
+    {
+        HWND hTarget = GetDlgItem(hWnd, nIDDlgItem);
+        if (Translations::GetTranslationItem(pLabelName, buffer))
+            SetWindowText(hTarget, buffer);
+    };
+
     Translate(1000, "CsfEditorSelectedCsfFile");
     Translate(1002, "CsfEditorNewFile");
     Translate(1003, "CsfEditorSearchLabelText");
@@ -109,9 +108,26 @@ void CCsfEditor::Initialize(HWND& hWnd)
     hReload = GetDlgItem(hWnd, Controls::Reload);
     hApply = GetDlgItem(hWnd, Controls::Apply);
 
+    SetWindowLongPtr(hCSFViewer, GWL_STYLE, GetWindowLongPtr(hCSFViewer, GWL_STYLE) | LVS_OWNERDATA);
     SendMessage(hCSFViewer, LVM_SETEXTENDEDLISTVIEWSTYLE, 0, LVS_EX_FULLROWSELECT);
+
+    LVCOLUMN lvColumn = { 0 };
+    lvColumn.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
+    auto textA = Translations::TranslateOrDefault("CsfEditorColumnLabel", "Label");
+    lvColumn.pszText = const_cast<LPSTR>(textA.c_str());
+    lvColumn.cx = 100;
+    SendMessage(hCSFViewer, LVM_INSERTCOLUMN, 0, (LPARAM)&lvColumn);
+
+    lvColumn.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
+    auto textB = Translations::TranslateOrDefault("CsfEditorColumnText", "Text");
+    lvColumn.pszText = const_cast<LPSTR>(textB.c_str());
+    lvColumn.cx = 400;
+    SendMessage(hCSFViewer, LVM_INSERTCOLUMN, 1, (LPARAM)&lvColumn);
+
     SendMessage(hCSFEditor, EM_SETREADONLY, (WPARAM)TRUE, 0);
     ExtraWindow::SetEditControlFontSize(hCSFEditor, 1.4f, true);
+
+    g_pOriginalListViewProc = (WNDPROC)GetWindowLongPtr(hCSFViewer, GWLP_WNDPROC);
 
     if (ExtConfigs::EnableDarkMode)
     {
@@ -125,11 +141,6 @@ void CCsfEditor::Initialize(HWND& hWnd)
         ::SendMessage(hCSFViewer, LVM_SETTEXTCOLOR, 0, RGB(220, 220, 220));
 
         DarkTheme::SubclassListViewHeader(hCSFViewer);
-        g_pOriginalListViewProc = (WNDPROC)GetWindowLongPtr(hCSFViewer, GWLP_WNDPROC);
-        if (g_pOriginalListViewProc)
-        {
-            SetWindowLongPtr(hCSFViewer, GWLP_WNDPROC, (LONG_PTR)ListViewSubclassProc);
-        }
         InvalidateRect(hCSFViewer, NULL, TRUE);
     }
 
@@ -138,26 +149,49 @@ void CCsfEditor::Initialize(HWND& hWnd)
 
 void CCsfEditor::Close(HWND& hWnd)
 {
-    // reduce lag
-    //EndDialog(hWnd, NULL);
     ShowWindow(hWnd, SW_HIDE);
+}
 
-    //CCsfEditor::m_hwnd = NULL;
-    //CCsfEditor::m_parent = NULL;
+void CCsfEditor::BuildDisplayData()
+{
+    m_DisplayData.clear();
+    if (m_SearchText.IsEmpty())
+    {
+        m_DisplayData.reserve(CurrentCSFMap.size());
+        for (auto& csf : CurrentCSFMap)
+            m_DisplayData.emplace_back(csf.first, csf.second);
+    }
+    else
+    {
+        LabelMatcher matcher(m_SearchText);
+        for (auto& csf : CurrentCSFMap)
+        {
+            if (matcher.Match(csf.first) || matcher.Match(csf.second))
+                m_DisplayData.emplace_back(csf.first, csf.second);
+        }
+    }
+}
 
+void CCsfEditor::RefreshListView()
+{
+    SendMessage(hCSFViewer, WM_SETREDRAW, FALSE, 0);
+    ListView_SetItemCountEx(hCSFViewer, m_DisplayData.size(), LVSICF_NOINVALIDATEALL);
+    InvalidateRect(hCSFViewer, NULL, TRUE);
+    SendMessage(hCSFViewer, WM_SETREDRAW, TRUE, 0);
+    SendMessage(hCSFEditor, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
+    SendMessage(hSetLabel, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
+    CurrentSelectedCSFApply = "";
 }
 
 void CCsfEditor::Update(HWND& hWnd)
 {
-    InsertCSFContent(CurrentCSFMap);
-    SendMessage(hCSFEditor, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
-    SendMessage(hSetLabel, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
-    CurrentSelectedCSFApply = "";
+    BuildDisplayData();
+    RefreshListView();
 
     char buffer[512]{ 0 };
     GetWindowText(hSearch, buffer, 511);
     if (strlen(buffer) != 0)
-        OnEditchangeSearch();
+        OnEditchangeSearch(); 
 
     NeedUpdate = false;
 }
@@ -202,9 +236,7 @@ BOOL CALLBACK CCsfEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
             break;
         case Controls::Apply:
             if (CODE == BN_CLICKED)
-            {
                 OnClickApply();
-            }
             break;
         default:
             break;
@@ -214,13 +246,35 @@ BOOL CALLBACK CCsfEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
     case WM_NOTIFY:
     {
         LPNMHDR pNMHDR = (LPNMHDR)lParam;
-        if (pNMHDR->idFrom == Controls::CSFViewer && pNMHDR->code == LVN_ITEMCHANGED)
+
+        if (pNMHDR->idFrom == Controls::CSFViewer)
         {
-            OnViewerSelectedChange(pNMHDR);
-        }
-        else if (pNMHDR->idFrom == Controls::CSFViewer && pNMHDR->code == NM_DBLCLK)
-        {
-            OnClickApply();
+            if (pNMHDR->code == LVN_GETDISPINFO)
+            {
+                NMLVDISPINFO* plvdi = (NMLVDISPINFO*)lParam;
+                int index = plvdi->item.iItem;
+
+                if (index >= 0 && index < (int)m_DisplayData.size())
+                {
+                    if (plvdi->item.mask & LVIF_TEXT)
+                    {
+                        if (plvdi->item.iSubItem == 0)
+                            lstrcpynA(plvdi->item.pszText,
+                                m_DisplayData[index].first.c_str(),
+                                plvdi->item.cchTextMax);
+                        else if (plvdi->item.iSubItem == 1)
+                            lstrcpynA(plvdi->item.pszText,
+                                m_DisplayData[index].second.c_str(),
+                                plvdi->item.cchTextMax);
+                    }
+                }
+                return TRUE;
+            }
+
+            if (pNMHDR->code == LVN_ITEMCHANGED)
+                OnViewerSelectedChange(pNMHDR);
+            else if (pNMHDR->code == NM_DBLCLK)
+                OnClickApply();
         }
         break;
     }
@@ -240,19 +294,19 @@ BOOL CALLBACK CCsfEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
     {
         if (CurrentSelectedCSF != "")
         {
-            auto it = CurrentCSFMap.find(CurrentSelectedCSF);
-            if (it != CurrentCSFMap.end())
+            SetWindowText(hSearch, "");
+            for (size_t i = 0; i < m_DisplayData.size(); ++i)
             {
-                int index = std::distance(CurrentCSFMap.begin(), it);
-
-                LVITEM lvItem = { 0 };
-                lvItem.stateMask = LVIS_SELECTED | LVIS_FOCUSED;
-                lvItem.state = LVIS_SELECTED | LVIS_FOCUSED;
-
-                SendMessage(hCSFViewer, LVM_SETITEMSTATE, (WPARAM)index, (LPARAM)&lvItem);
-                SendMessage(hCSFViewer, LVM_ENSUREVISIBLE, (WPARAM)index, TRUE);
-
-                SetFocus(hCSFViewer);
+                if (m_DisplayData[i].first == CurrentSelectedCSF)
+                {
+                    LVITEM lvItem = { 0 };
+                    lvItem.stateMask = LVIS_SELECTED | LVIS_FOCUSED;
+                    lvItem.state = LVIS_SELECTED | LVIS_FOCUSED;
+                    SendMessage(hCSFViewer, LVM_SETITEMSTATE, (WPARAM)i, (LPARAM)&lvItem);
+                    SendMessage(hCSFViewer, LVM_ENSUREVISIBLE, (WPARAM)i, TRUE);
+                    SetFocus(hCSFViewer);
+                    break;
+                }
             }
         }
         CurrentSelectedCSF = "";
@@ -265,7 +319,6 @@ BOOL CALLBACK CCsfEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
     }
     }
 
-    // Process this message through default handler
     return FALSE;
 }
 
@@ -273,29 +326,15 @@ void CCsfEditor::OnViewerSelectedChange(NMHDR* pNMHDR)
 {
     LPNMLISTVIEW pNMListView = (LPNMLISTVIEW)pNMHDR;
     if ((pNMListView->uChanged & LVIF_STATE) &&
-        (pNMListView->uNewState & LVIS_SELECTED)) 
+        (pNMListView->uNewState & LVIS_SELECTED))
     {
         int selectedRow = pNMListView->iItem;
-        
-        if (selectedRow >= 0) 
+        if (selectedRow >= 0 && selectedRow < (int)m_DisplayData.size())
         {
-            char buffer[512] = { 0 };
-            LVITEM lvItem = { 0 };
-            lvItem.iSubItem = 0;
-            lvItem.pszText = buffer;
-            lvItem.cchTextMax = sizeof(buffer);
-            lvItem.iItem = selectedRow;
-            SendMessage(hCSFViewer, LVM_GETITEMTEXT, selectedRow, (LPARAM)&lvItem);
-
-            FString value = "";
-            auto it = CurrentCSFMap.find(buffer);
-            if (it != CurrentCSFMap.end())
-                value = CurrentCSFMap[buffer];
-
-            SendMessage(hCSFEditor, WM_SETTEXT, 0, value);
-            SendMessage(hSetLabel, WM_SETTEXT, 0, (LPARAM)(LPCSTR)buffer);
-
-            CurrentSelectedCSFApply = buffer;
+            const auto& entry = m_DisplayData[selectedRow];
+            SendMessage(hCSFEditor, WM_SETTEXT, 0, (LPARAM)entry.second.c_str());
+            SendMessage(hSetLabel, WM_SETTEXT, 0, (LPARAM)entry.first.c_str());
+            CurrentSelectedCSFApply = entry.first;
         }
         else
         {
@@ -308,115 +347,39 @@ void CCsfEditor::OnViewerSelectedChange(NMHDR* pNMHDR)
 
 void CCsfEditor::OnClickApply()
 {
-    if (CurrentSelectedCSFApply == "")
+    if (CurrentSelectedCSFApply.IsEmpty())
         return;
 
-    if (IsWindowVisible(CNewTrigger::Instance[TriggerCaller].GetHandle()) 
+    if (IsWindowVisible(CNewTrigger::Instance[TriggerCaller].GetHandle())
         && CNewTrigger::Instance[TriggerCaller].CurrentCSFActionParam >= 0)
     {
         FString text;
         auto it = CurrentCSFMap.find(CurrentSelectedCSFApply);
         if (it != CurrentCSFMap.end())
             text.Format("%s - %s", CurrentSelectedCSFApply, CurrentCSFMap[CurrentSelectedCSFApply]);
-        SendMessage(CNewTrigger::Instance[TriggerCaller].hActionParameter[CNewTrigger::Instance[TriggerCaller].CurrentCSFActionParam], WM_SETTEXT, 0, text);
+        SendMessage(CNewTrigger::Instance[TriggerCaller].hActionParameter[CNewTrigger::Instance[TriggerCaller].CurrentCSFActionParam], WM_SETTEXT, 0, (LPARAM)(LPCSTR)text);
         CNewTrigger::Instance[TriggerCaller].OnSelchangeActionParam(CNewTrigger::Instance[TriggerCaller].CurrentCSFActionParam, true);
     }
-    else if (IsWindowVisible(CNewTrigger::Instance[!TriggerCaller].GetHandle())
-        && CNewTrigger::Instance[!TriggerCaller].CurrentCSFActionParam >= 0)
+    else if (IsWindowVisible(CNewTrigger::Instance[0].GetHandle())
+        && CNewTrigger::Instance[0].CurrentCSFActionParam >= 0)
     {
         FString text;
         auto it = CurrentCSFMap.find(CurrentSelectedCSFApply);
         if (it != CurrentCSFMap.end())
             text.Format("%s - %s", CurrentSelectedCSFApply, CurrentCSFMap[CurrentSelectedCSFApply]);
-        SendMessage(CNewTrigger::Instance[!TriggerCaller].hActionParameter[CNewTrigger::Instance[!TriggerCaller].CurrentCSFActionParam], WM_SETTEXT, 0, text);
-        CNewTrigger::Instance[!TriggerCaller].OnSelchangeActionParam(CNewTrigger::Instance[!TriggerCaller].CurrentCSFActionParam, true);
+        SendMessage(CNewTrigger::Instance[0].hActionParameter[CNewTrigger::Instance[0].CurrentCSFActionParam], WM_SETTEXT, 0, (LPARAM)(LPCSTR)text);
+        CNewTrigger::Instance[0].OnSelchangeActionParam(CNewTrigger::Instance[0].CurrentCSFActionParam, true);
     }
-
-}
-
-void CCsfEditor::InsertCSFContent(FMap<FString> csfMap)
-{
-    SendMessage(hCSFViewer, LVM_DELETEALLITEMS, 0, 0);
-    while (SendMessage(hCSFViewer, LVM_DELETECOLUMN, 0, 0)) {}
-
-    LVCOLUMN lvColumn = { 0 };
-    lvColumn.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
-    auto textA = Translations::TranslateOrDefault("CsfEditorColumnLabel", "Label");
-    lvColumn.pszText = const_cast<LPSTR>(textA.c_str());
-    lvColumn.cx = 100;
-    SendMessage(hCSFViewer, LVM_INSERTCOLUMN, 0, (LPARAM)&lvColumn);
-
-    lvColumn.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
-    auto textB = Translations::TranslateOrDefault("CsfEditorColumnText", "Text");
-    lvColumn.pszText = const_cast<LPSTR>(textB.c_str());
-    lvColumn.cx = 400;
-    SendMessage(hCSFViewer, LVM_INSERTCOLUMN, 1, (LPARAM)&lvColumn);
-
-    LVITEM lvItem = { 0 };
-    lvItem.mask = LVIF_TEXT;
-
-
-    int i = 0;
-    for (auto& csf : csfMap)
-    {
-        LVITEM lvItem = { 0 };
-        lvItem.mask = LVIF_TEXT;
-        lvItem.iItem = i;
-        lvItem.iSubItem = 0;
-
-        lvItem.pszText = const_cast<LPSTR>(csf.first.c_str());
-
-        SendMessage(hCSFViewer, LVM_INSERTITEM, 0, (LPARAM)&lvItem);
-
-        LVITEM subItem = { 0 };
-        subItem.mask = LVIF_TEXT;
-        subItem.iItem = i;
-        subItem.iSubItem = 1;
-
-        subItem.pszText = const_cast<LPSTR>(csf.second.c_str());
-
-        SendMessage(hCSFViewer, LVM_SETITEM, 0, (LPARAM)&subItem);
-
-        i++;
-    }
-
-    SendMessage(hCSFViewer, LVM_SETCOLUMNWIDTH, 1, LVSCW_AUTOSIZE_USEHEADER);
-}
-
-void CCsfEditor::FilterRows(FMap<FString> csfMap, const char* searchText)
-{
-    FMap<FString> newCsfMap;
-
-    LabelMatcher matcher(searchText);
-    for (auto& csf : csfMap) 
-    {
-        if (matcher.Match(csf.first) || matcher.Match(csf.second))
-        {
-            newCsfMap[csf.first] = csf.second;
-        }
-    }
-    CCsfEditor::InsertCSFContent(newCsfMap);
 }
 
 void CCsfEditor::OnEditchangeSearch()
 {
-
-    if (CurrentCSFMap.size() > ExtConfigs::SearchCombobox_MaxCount && !ExtraWindow::bEnterSearch)
-    {
-        return;
-    }
-
     char buffer[512]{ 0 };
-
     GetWindowText(hSearch, buffer, 511);
-    if (strlen(buffer) == 0)
-    {
-        InsertCSFContent(CurrentCSFMap);
-    }
-    else
-    {
-        FilterRows(CurrentCSFMap, buffer);
-    }
+    m_SearchText = buffer;
+
+    BuildDisplayData();
+    RefreshListView();
     NeedUpdate = false;
 }
 

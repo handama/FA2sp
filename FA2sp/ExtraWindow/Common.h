@@ -4,6 +4,7 @@
 
 class FString;
 class CNewTrigger;
+class VirtualComboBoxEx;
 
 enum class DropType : int
 {
@@ -44,6 +45,31 @@ struct ListViewHitResult
     UINT flags = 0;
 };
 
+struct SortPart
+{
+    std::string text;
+    std::string number;
+    bool isNumber;
+};
+
+struct SortLabelKey
+{
+    FString original;
+    std::vector<SortPart> parts;
+};
+
+struct SortKeyIndex
+{
+    SortLabelKey key;
+    size_t index;
+};
+
+struct VCBItemEntry
+{
+    FString text;
+    SortLabelKey key;
+};
+
 class ExtraWindow
 {
 public:
@@ -63,17 +89,17 @@ public:
     static FString GetTagDisplayName(const char* id);
     static FString GetTranslatedSectionName(const char* section);
 
-    static void LoadParams(HWND& hWnd, FString idx, CNewTrigger* instance = nullptr);
-    static void LoadParam_Waypoints(HWND& hWnd);
-    static void LoadParam_ActionList(HWND& hWnd);
-    static void LoadParam_CountryList(HWND& hWnd);
-    static void LoadParam_HouseAddon_Multi(HWND& hWnd);
-    static void LoadParam_HouseAddon_MultiAres(HWND& hWnd);
-    static void LoadParam_TechnoTypes(HWND& hWnd, int specificType = -1, int style = 0, bool sort = true);
-    static void LoadParam_Triggers(HWND& hWnd, CNewTrigger* instance);
-    static void LoadParam_Tags(HWND& hWnd);
-    static void LoadParam_Teamtypes(HWND& hWnd);
-    static void LoadParam_Stringtables(HWND& hWnd);
+    static void LoadParams(VirtualComboBoxEx& vcb, FString idx, CNewTrigger* instance = nullptr);
+    static void LoadParam_Waypoints(VirtualComboBoxEx& vcb);
+    static void LoadParam_ActionList(VirtualComboBoxEx& vcb);
+    static void LoadParam_CountryList(VirtualComboBoxEx& vcb);
+    static void LoadParam_HouseAddon_Multi(VirtualComboBoxEx& vcb);
+    static void LoadParam_HouseAddon_MultiAres(VirtualComboBoxEx& vcb);
+    static void LoadParam_TechnoTypes(VirtualComboBoxEx& vcb, int specificType = -1, int style = 0, bool sort = true);
+    static void LoadParam_Triggers(VirtualComboBoxEx& vcbd, CNewTrigger* instance);
+    static void LoadParam_Tags(VirtualComboBoxEx& vcb);
+    static void LoadParam_Teamtypes(VirtualComboBoxEx& vcb);
+    static void LoadParam_Stringtables(VirtualComboBoxEx& vcb);
 
     static bool bComboLBoxSelected;
     static bool bEnterSearch; 
@@ -87,7 +113,7 @@ public:
     static void SortRawStrings(std::vector<std::pair<FString, FString>>& labels, bool first = true);
     static void SortRawStrings(std::vector<std::pair<std::string, std::string>>& labels, bool first = true);
     static void SortTeams(HWND& hWnd, FString section, int& selectedIndex, FString id = "");
-    static void SortAITriggers(HWND& hWnd, int& selectedIndex, FString id = "");
+    static void SortTeams(VirtualComboBoxEx& vcb, FString section, int& selectedIndex, FString id = "", bool clear = true);
     static bool IsLabelMatch(const char* target, const char* source, bool exactMatch = false);
     static FString GetCloneName(FString oriName);
     static void LoadFrom(MultimapHelper& mmh, FString loadfrom);
@@ -263,4 +289,91 @@ private:
     HWND hWnd = nullptr;
     bool preserve = false;
     FString oldText;
+};
+
+class VirtualComboBoxEx
+{
+public:
+    VirtualComboBoxEx();
+    ~VirtualComboBoxEx();
+
+    enum DropWidthMode
+    {
+        DropWidth_FollowCombo,
+        DropWidth_AutoMax
+    };
+
+    void Attach(HWND hCombo, bool* sortType = nullptr, bool allowFreeText = true);
+    void SetAutoSearchRestriction(bool* restrict);
+    void Detach();
+    void CopyFrom(const VirtualComboBoxEx& other, 
+        const std::vector<FString>* addToFront = nullptr,
+        const std::vector<FString>* addToEnd = nullptr);
+
+    void AddString(const char* str);
+    void AddStrings(const std::vector<FString>& ret, const char* oriText = nullptr);
+    int InsertString(int index, const char* str);
+    int ReplaceString(int index, const char* str);
+    int DeleteString(int index);
+    void Clear();
+
+    int GetCurSel() const;
+    void SetCurSel(int idx);
+    int GetCount() const;
+    int GetFilteredCount() const;
+
+    void SetEditText(const char* text) const;
+    const char* GetEditText() const;
+    const char* GetItemText(int index) const;
+    const char* GetFilteredText(int index) const;
+    const char* GetSelectedText(bool allowEdit) const;
+
+    int FindStringExact(const char* str) const;
+    int FindString(const char* str) const;
+
+    static void SetWindowHeight(HWND hwnd, LPARAM lParam);
+    void SetDropWidthMode(DropWidthMode mode);
+
+    void SortItems(int* pSelIndex = nullptr);
+
+private:
+    HWND hCombo = nullptr;
+    HWND hEdit = nullptr;
+    HWND hList = nullptr;
+
+    WNDPROC oldComboProc = nullptr;
+    WNDPROC oldEditProc = nullptr;
+    WNDPROC oldListProc = nullptr;
+
+    std::vector<VCBItemEntry> items;
+    std::vector<int> filtered;
+
+    int curSel = -1;
+    int pendingSelect = -1;
+    bool m_filterActive = false;
+    bool m_programmaticDropdown = false;
+    bool m_programmaticPostDropdown = false;
+    bool m_sortByLabelKey = false;
+    bool* m_sortType = nullptr;
+    bool m_nextDropSort = false;
+    bool m_allowFreeText = false;
+    bool* m_allowFilter = nullptr;
+    bool m_needFixSelection = false;
+    bool m_inFixSelection = false;
+
+    DropWidthMode m_dropWidthMode = DropWidth_AutoMax;
+    int m_cachedMaxWidth = 0;
+
+private:
+    void Filter(const char* text);
+    void EnsureFilteredAll();
+    void SyncListCount();
+    int CalcMaxItemWidth();
+    int CalcItemWidth(int index);
+    void UpdateDropWidth();
+
+    static LRESULT CALLBACK ComboProc(HWND, UINT, WPARAM, LPARAM);
+    static LRESULT CALLBACK EditProc(HWND, UINT, WPARAM, LPARAM);
+    static LRESULT CALLBACK ListProc(HWND, UINT, WPARAM, LPARAM);
+    LRESULT OnComboMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 };

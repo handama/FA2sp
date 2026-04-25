@@ -125,6 +125,7 @@ bool CMapDataExt::IsNewMap;
 bool CMapDataExt::SkipUpdateMinimap = false;
 bool CMapDataExt::IsImportingMap = false;
 bool CMapDataExt::Init_OpenMinimap = false;
+std::unordered_map<CTileBlockClass*, std::vector<char>> CMapDataExt::TileBaseHeightMask;
 const std::vector<FString> CMapDataExt::TechnoStates = 
 {
 	"Ambush",
@@ -3060,6 +3061,7 @@ void CMapDataExt::InitializeTileData()
 	if (CMapDataExt::TileData)
 		delete[] CMapDataExt::TileData;
 	CMapDataExt::TileData = nullptr;
+	CMapDataExt::TileBaseHeightMask.clear();
 
 	auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
 	thisTheater.MakeUpper();
@@ -3105,10 +3107,72 @@ void CMapDataExt::InitializeTileData()
 		TileData = new CTileTypeClass[CMapDataExt::TileDataCount];
 		memcpy(TileData, CTileTypeInfo::Desert().Datas, TileDataCount * sizeof(CTileTypeClass));
 	}
+	else
+	{
+		Logger::Error("CMapDataExt::InitializeTileData() invalid theater!\n");
+		return;
+	}
+
+	for (int i = 0; i < TileDataCount; ++i)
+	{
+		auto& tileData = TileData[i];
+		CTileTypeClass* currentTile = &tileData;
+		for (int j = -1; j < (int)tileData.AltTypeCount; ++j)
+		{
+			if (j > -1)
+				currentTile = &tileData.AltTypes[j];
+
+			for (int k = 0; k < currentTile->TileBlockCount; ++k)
+			{
+				auto tileBlock = &currentTile->TileBlockDatas[k];
+				if (tileBlock && tileBlock->ImageData)
+				{
+					BuildBaseHeightMask(tileBlock);
+				}
+			}
+		}
+	}
 
 	if (!CMapDataExt::TileData)
 	{
 		Logger::Error("CMapDataExt::InitializeTileData() cannot initialize tile data!\n");
+	}
+}
+
+void CMapDataExt::BuildBaseHeightMask(CTileBlockClass* subTile)
+{
+	auto itr = TileBaseHeightMask.find(subTile);
+	if (itr != TileBaseHeightMask.end()) return;
+
+	auto& mask = TileBaseHeightMask[subTile];
+
+	int swidth = subTile->BlockWidth;
+	int sheight = subTile->BlockHeight;
+
+	mask.resize(swidth * sheight);
+
+	for (int row = 0; row < sheight; ++row) {
+		for (int col = 0; col < swidth; ++col) {
+
+			int yOffset = 0;
+			int cellRowIdx = col + subTile->XMinusExX;
+
+			if (cellRowIdx >= 0 && cellRowIdx <= 30)
+				yOffset = (cellRowIdx + 2) / 2;
+			else if (cellRowIdx > 30 && cellRowIdx <= 60)
+				yOffset = (60 - cellRowIdx + 1) / 2;
+
+			yOffset = std::min(15, yOffset);
+
+			int offset = (-subTile->YMinusExY - 15 - row);
+
+			int base =
+				-yOffset +
+				(subTile->YMinusExY < 0 ? (offset + 30) : 0)
+				- 2;
+
+			mask[row * swidth + col] = base;
+		}
 	}
 }
 

@@ -10,6 +10,8 @@
 #include "../../Helpers/FString.h"
 #include "../Common.h"
 
+class VirtualComboBoxEx;
+
 // A static window class
 class CNewTaskforce
 {
@@ -46,7 +48,6 @@ protected:
     static void Initialize(HWND& hWnd);
     static void Update(HWND& hWnd);
 
-    static void OnSeldropdownTaskforce(HWND& hWnd);
     static void OnClickDelTaskforce(HWND& hWnd);
     static void OnClickCloTaskforce(HWND& hWnd);
     static void OnClickAddUnit(HWND& hWnd);
@@ -54,9 +55,6 @@ protected:
     static void OnClickSearchReference(HWND& hWnd);
     static void OnEditchangeNumber();
     static void OnSelchangeUnitListbox();
-
-    static void OnCloseupUnitType();
-    static void OnCloseupTaskforce();
 
     static void Close(HWND& hWnd);
 
@@ -88,16 +86,20 @@ public:
 private:
     static int SelectedTaskForceIndex;
     static FString CurrentTaskForceID;
-    static std::map<int, FString> TaskForceLabels;
-    static std::map<int, FString> UnitTypeLabels;
-    static bool Autodrop;
-    static bool DropNeedUpdate;
-    static WNDPROC OriginalListBoxProc;
 
+    static VirtualComboBoxEx vcbSelectedTaskforce;
+    static VirtualComboBoxEx vcbUnitType;
+
+    static WNDPROC OriginalListBoxProc;
     static WNDPROC OrigDragDotProc;
     static WNDPROC OrigDragingDotProc;
     static bool m_dragging;
     static POINT m_dragOffset;
     static HWND m_hDragGhost;
     static TargetHighlighter hl;
+    static bool m_programmaticEdit;
+
+    static void SetListBoxSel(int index);
+    static void SetListBoxSels(std::vector<int>& indices);
+    static void GetListBoxSels(std::vector<int>& indices);
 };

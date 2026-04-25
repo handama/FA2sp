@@ -410,8 +410,6 @@ protected:
     void Initialize(HWND& hWnd);
     void Update(HWND& hWnd, bool UpdateTrigger = true);
 
-    void OnSeldropdownTrigger(HWND& hWnd);
-    
     void OnClickDelTrigger(HWND& hWnd);
     void OnClickCloTrigger(HWND& hWnd);
     void OnClickPlaceOnMap(HWND& hWnd);
@@ -433,7 +431,6 @@ protected:
     void UpdateParamAffectedParam_Action(int index);
     void UpdateParamAffectedParam_Event(int index);
 
-    void OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly = false);
     void OnDropdownCComboBox(int index);
     void SetActionListBoxSel(int index);
     void SetActionListBoxSels(std::vector<int>& indices);
@@ -519,6 +516,14 @@ public:
     HWND hActionParameter[ACTION_PARAM_COUNT];
     HWND hActionParameterDesc[ACTION_PARAM_COUNT];
 
+    VirtualComboBoxEx vcbSelectedTrigger;
+    VirtualComboBoxEx vcbAttachedTrigger;
+    VirtualComboBoxEx vcbHouse;
+    VirtualComboBoxEx vcbActionType;
+    VirtualComboBoxEx vcbEventType;
+    VirtualComboBoxEx vcbEventParameter[EVENT_PARAM_COUNT];
+    VirtualComboBoxEx vcbActionParameter[ACTION_PARAM_COUNT];
+
     int CurrentCSFActionParam = -1;
     int CurrentTriggerActionParam = -1;
     int CurrentTeamActionParam = -1;
@@ -531,7 +536,6 @@ public:
 
     FString CurrentTriggerID;
     std::shared_ptr<Trigger> CurrentTrigger;
-    bool DropNeedUpdate;
     int SelectedTriggerIndex;
     int SelectedEventIndex;
     int SelectedActionIndex;
@@ -540,20 +544,11 @@ private:
     int ActionParamsCount;
     int LastActionParamsCount;
     bool WindowShown;
-    std::map<int, FString> HouseLabels;
-    std::map<int, FString> TriggerLabels;
-    std::map<int, FString> AttachedTriggerLabels;
-    std::map<int, FString> ActionTypeLabels;
-    std::map<int, FString> EventTypeLabels;
-    std::map<int, FString> EventParamLabels[EVENT_PARAM_COUNT];
-    std::map<int, FString> ActionParamLabels[ACTION_PARAM_COUNT];
     std::pair<bool, int> EventParamsUsage[EVENT_PARAM_COUNT];
     std::pair<bool, int> ActionParamsUsage[ACTION_PARAM_COUNT];
-
     bool EventParameterAutoDrop[EVENT_PARAM_COUNT];
     bool ActionParameterAutoDrop[ACTION_PARAM_COUNT];
 
-    bool Autodrop;
     bool CompactMode = false;
     WNDPROC OriginalListBoxProcEvent;
     WNDPROC OriginalListBoxProcAction;

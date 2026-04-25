@@ -43,14 +43,13 @@ HWND CNewTaskforce::hDragPoint;
 
 int CNewTaskforce::SelectedTaskForceIndex = -1;
 FString CNewTaskforce::CurrentTaskForceID;
-std::map<int, FString> CNewTaskforce::TaskForceLabels;
-std::map<int, FString> CNewTaskforce::UnitTypeLabels;
-bool CNewTaskforce::Autodrop;
-bool CNewTaskforce::DropNeedUpdate;
+VirtualComboBoxEx CNewTaskforce::vcbSelectedTaskforce;
+VirtualComboBoxEx CNewTaskforce::vcbUnitType;
 WNDPROC CNewTaskforce::OriginalListBoxProc;
 WNDPROC CNewTaskforce::OrigDragDotProc;
 WNDPROC CNewTaskforce::OrigDragingDotProc;
 bool CNewTaskforce::m_dragging = false;
+bool CNewTaskforce::m_programmaticEdit = false;
 POINT CNewTaskforce::m_dragOffset{};
 HWND CNewTaskforce::m_hDragGhost = nullptr;
 TargetHighlighter CNewTaskforce::hl;
@@ -127,6 +126,9 @@ void CNewTaskforce::Initialize(HWND& hWnd)
     hl.SetBorderThickness(3);
     hl.SetBorderRadius(0);
 
+    vcbSelectedTaskforce.Attach(hSelectedTaskforce, &ExtConfigs::SortByLabelName_Taskforce, false);
+    vcbUnitType.Attach(hUnitType);
+
     Update(hWnd);
 }
 
@@ -138,11 +140,7 @@ void CNewTaskforce::Update(HWND& hWnd)
     if (TaskforceSort::Instance.IsVisible())
         TaskforceSort::Instance.LoadAllTriggers();
 
-    DropNeedUpdate = false;
-
-    int idx = 0;
-
-    ExtraWindow::SortTeams(hSelectedTaskforce, "TaskForces", SelectedTaskForceIndex);
+    ExtraWindow::SortTeams(vcbSelectedTaskforce, "TaskForces", SelectedTaskForceIndex);
 
     int count = SendMessage(hSelectedTaskforce, CB_GETCOUNT, NULL, NULL);
     if (SelectedTaskForceIndex < 0)
@@ -151,10 +149,8 @@ void CNewTaskforce::Update(HWND& hWnd)
         SelectedTaskForceIndex = count - 1;
     SendMessage(hSelectedTaskforce, CB_SETCURSEL, SelectedTaskForceIndex, NULL);
 
-    ExtraWindow::ClearComboKeepText(hUnitType);
-    ExtraWindow::LoadParam_TechnoTypes(hUnitType, 4, 1);
-    Autodrop = false;
-    
+    ExtraWindow::LoadParam_TechnoTypes(vcbUnitType, 4, 1);
+
     OnSelchangeTaskforce();
 }
 
@@ -164,7 +160,6 @@ void CNewTaskforce::Close(HWND& hWnd)
 
     CNewTaskforce::m_hwnd = NULL;
     CNewTaskforce::m_parent = NULL;
-
 }
 
 LRESULT CALLBACK CNewTaskforce::DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -364,46 +359,54 @@ LRESULT CALLBACK CNewTaskforce::DragingDotProc(HWND hWnd, UINT message, WPARAM w
         hWnd, message, wParam, lParam
     );
 }
+
 LRESULT CALLBACK CNewTaskforce::ListBoxSubclassProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
     case WM_MOUSEWHEEL:
-
+    {
         POINT pt;
         GetCursorPos(&pt);
         ScreenToClient(hWnd, &pt);
+
         RECT rc;
         GetClientRect(hWnd, &rc);
 
-        if (pt.x >= rc.right)
+        if (pt.x >= rc.right - GetSystemMetrics(SM_CXVSCROLL))
         {
             return CallWindowProc(OriginalListBoxProc, hWnd, message, wParam, lParam);
         }
-        else
+
+        int delta = (short)HIWORD(wParam);
+
+        WPARAM keyParam = 0;
+        if (delta > 0)
+            keyParam = VK_UP;
+        else if (delta < 0)
+            keyParam = VK_DOWN;
+
+        if (keyParam != 0)
         {
-            int nCurSel = (int)SendMessage(hWnd, LB_GETCURSEL, 0, 0);
-            int nCount = (int)SendMessage(hWnd, LB_GETCOUNT, 0, 0);
-
-            if (nCurSel != LB_ERR && nCount > 0)
-            {
-                if ((short)HIWORD(wParam) > 0 && nCurSel > 0)
-                {
-                    SendMessage(hWnd, LB_SETCURSEL, nCurSel - 1, 0);
-                }
-                else if ((short)HIWORD(wParam) < 0 && nCurSel < nCount - 1)
-                {
-                    SendMessage(hWnd, LB_SETCURSEL, nCurSel + 1, 0);
-                }
-                OnSelchangeUnitListbox();
-
-            }
-            else {
-                SendMessage(hWnd, LB_SETCURSEL, 0, 0);
-            }
-            return TRUE;
+            SendMessage(hWnd, WM_KEYDOWN, keyParam, 0x00000001);
+            SendMessage(hWnd, WM_KEYUP, keyParam, 0xC0000001);
         }
+
+        return TRUE;
     }
+    case WM_LBUTTONDOWN:
+    {
+        POINT pt = { (int)(short)LOWORD(lParam), (int)(short)HIWORD(lParam) };
+        int index = SendMessage(hWnd, LB_ITEMFROMPOINT, 0, MAKELPARAM(pt.x, pt.y));
+
+        if (HIWORD(index))
+        {
+            return 0;
+        }
+        break;
+    }
+    }
+
     return CallWindowProc(OriginalListBoxProc, hWnd, message, wParam, lParam);
 }
 
@@ -462,17 +465,9 @@ BOOL CALLBACK CNewTaskforce::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         case Controls::SelectedTaskforce:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeTaskforce();
-            else if (CODE == CBN_DROPDOWN)
-                OnSeldropdownTaskforce(hWnd);
-            else if (CODE == CBN_EDITCHANGE)
-                OnSelchangeTaskforce(true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupTaskforce();
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Name:
-            if (CODE == EN_CHANGE)
+            if (CODE == EN_CHANGE && !m_programmaticEdit)
             {
                 if (SelectedTaskForceIndex < 0)
                     break;
@@ -481,21 +476,17 @@ BOOL CALLBACK CNewTaskforce::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 GetWindowText(hName, buffer, 511);
                 map.WriteString(CurrentTaskForceID, "Name", buffer);
 
-                DropNeedUpdate = true;
-
-                FString name;
-                name.Format("%s (%s)", CurrentTaskForceID, buffer);
-                SendMessage(hSelectedTaskforce, CB_DELETESTRING, SelectedTaskForceIndex, NULL);
-                SendMessage(hSelectedTaskforce, CB_INSERTSTRING, SelectedTaskForceIndex, (LPARAM)(LPCSTR)name);
-                SendMessage(hSelectedTaskforce, CB_SETCURSEL, SelectedTaskForceIndex, NULL);
+                FString name = ExtraWindow::FormatTriggerDisplayName(CurrentTaskForceID, buffer);
+                vcbSelectedTaskforce.ReplaceString(SelectedTaskForceIndex, name);
+                vcbSelectedTaskforce.SetCurSel(SelectedTaskForceIndex);
             }
             break;
         case Controls::Number:
-            if (CODE == EN_CHANGE)
+            if (CODE == EN_CHANGE && !m_programmaticEdit)
                 OnEditchangeNumber();
             break;
         case Controls::Group:
-            if (CODE == EN_CHANGE)
+            if (CODE == EN_CHANGE && !m_programmaticEdit)
             {
                 if (SelectedTaskForceIndex < 0)
                     break;
@@ -509,10 +500,6 @@ BOOL CALLBACK CNewTaskforce::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeUnitType();
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeUnitType(true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupUnitType();
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         
         default:
@@ -530,7 +517,11 @@ BOOL CALLBACK CNewTaskforce::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         Update(hWnd);
         return TRUE;
     }
-
+    case WM_MEASUREITEM:
+    {
+        VirtualComboBoxEx::SetWindowHeight(hWnd, lParam);
+        return TRUE;
+    }
     }
 
     // Process this message through default handler
@@ -556,11 +547,11 @@ void CNewTaskforce::ListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam)
 
 void CNewTaskforce::OnEditchangeNumber()
 {
-    if (SelectedTaskForceIndex < 0 || SendMessage(hUnitsListBox, LB_GETCURSEL, NULL, NULL) < 0)
+    if (SelectedTaskForceIndex < 0 || SendMessage(hUnitsListBox, LB_GETCARETINDEX, NULL, NULL) < 0)
         return;
     char buffer[512]{ 0 };
     GetWindowText(hNumber, buffer, 511);
-    int idx = SendMessage(hUnitsListBox, LB_GETCURSEL, 0, NULL);
+    int idx = SendMessage(hUnitsListBox, LB_GETCARETINDEX, 0, NULL);
     FString key;
     key.Format("%d", idx);
     auto value = map.GetString(CurrentTaskForceID, key);
@@ -575,21 +566,21 @@ void CNewTaskforce::OnEditchangeNumber()
     text.Format("%s %s (%s)", atoms[0], atoms[1], CViewObjectsExt::QueryUIName(atoms[1], true));
     SendMessage(hUnitsListBox, LB_DELETESTRING, idx, NULL);
     SendMessage(hUnitsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text);
-    SendMessage(hUnitsListBox, LB_SETCURSEL, idx, NULL);
-
+    SetListBoxSel(idx);
 }
 
 void CNewTaskforce::OnSelchangeUnitListbox()
 {
-    if (SelectedTaskForceIndex < 0 || SendMessage(hUnitsListBox, LB_GETCURSEL, NULL, NULL) < 0 || SendMessage(hUnitsListBox, LB_GETCOUNT, NULL, NULL) <= 0)
+    if (SelectedTaskForceIndex < 0 || SendMessage(hUnitsListBox, LB_GETCARETINDEX, NULL, NULL) < 0 || SendMessage(hUnitsListBox, LB_GETCOUNT, NULL, NULL) <= 0)
     {
+        m_programmaticEdit = true;
         SendMessage(hUnitType, CB_SETCURSEL, -1, NULL);
         SendMessage(hNumber, WM_SETTEXT, 0, (LPARAM)"");
+        m_programmaticEdit = false;
         return;
     }
 
-
-    int idx = SendMessage(hUnitsListBox, LB_GETCURSEL, 0, NULL);
+    int idx = SendMessage(hUnitsListBox, LB_GETCARETINDEX, 0, NULL);
     if (idx < 0)
         idx = 0;
     if (idx > 5)
@@ -600,46 +591,27 @@ void CNewTaskforce::OnSelchangeUnitListbox()
     auto value = map.GetString(CurrentTaskForceID, key);
     auto atoms = FString::SplitString(value, 1);
 
+    m_programmaticEdit = true;
     SendMessage(hNumber, WM_SETTEXT, 0, (LPARAM)atoms[0]);
 
     FString text;
-    text.Format("%s (%s)", atoms[1], CViewObjectsExt::QueryUIName(atoms[1], true));
+    text.Format("%s - %s", atoms[1], CViewObjectsExt::QueryUIName(atoms[1], true));
     int unitIdx = SendMessage(hUnitType, CB_FINDSTRINGEXACT, 0, (LPARAM)text);
 
     if (unitIdx != CB_ERR)
         SendMessage(hUnitType, CB_SETCURSEL, unitIdx, NULL);
     else
         SendMessage(hUnitType, WM_SETTEXT, 0, (LPARAM)atoms[1]);
-
+    m_programmaticEdit = false;
 }
 
 void CNewTaskforce::OnSelchangeUnitType(bool edited)
 {
-    if (SelectedTaskForceIndex < 0 || SendMessage(hUnitsListBox, LB_GETCURSEL, NULL, NULL) < 0)
+    if (SelectedTaskForceIndex < 0 || SendMessage(hUnitsListBox, LB_GETCARETINDEX, NULL, NULL) < 0)
         return;
-    int curSel = SendMessage(hUnitType, CB_GETCURSEL, NULL, NULL);
 
-    FString text;
-    char buffer[512]{ 0 };
-    char buffer2[512]{ 0 };
-    
-    if (edited && (SendMessage(hUnitType, CB_GETCOUNT, NULL, NULL) > 0 || !UnitTypeLabels.empty()))
-    {
-        ExtraWindow::OnEditCComboBox(hUnitType, UnitTypeLabels);
-    }
-    
-    if (curSel >= 0 && curSel < SendMessage(hUnitType, CB_GETCOUNT, NULL, NULL))
-    {
-        SendMessage(hUnitType, CB_GETLBTEXT, curSel, (LPARAM)buffer);
-        text = buffer;
-    }
-    if (edited)
-    {
-        GetWindowText(hUnitType, buffer, 511);
-        text = buffer;
-    }
-    
-    if (!text)
+    FString text = vcbUnitType.GetSelectedText(edited);
+    if (text.empty())
         return;
     
     FString::TrimIndex(text);
@@ -648,7 +620,7 @@ void CNewTaskforce::OnSelchangeUnitType(bool edited)
 
     text.Replace(",", "");
 
-    int idx = SendMessage(hUnitsListBox, LB_GETCURSEL, 0, NULL);
+    int idx = SendMessage(hUnitsListBox, LB_GETCARETINDEX, 0, NULL);
     FString key;
     key.Format("%d", idx);
     auto value = map.GetString(CurrentTaskForceID, key);
@@ -662,48 +634,20 @@ void CNewTaskforce::OnSelchangeUnitType(bool edited)
     text.Format("%s %s (%s)", atoms[0], atoms[1], CViewObjectsExt::QueryUIName(atoms[1], true));
     SendMessage(hUnitsListBox, LB_DELETESTRING, idx, NULL);
     SendMessage(hUnitsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text);
-    SendMessage(hUnitsListBox, LB_SETCURSEL, idx, NULL);
-}
-
-void CNewTaskforce::OnCloseupUnitType()
-{
-    if (!ExtraWindow::OnCloseupCComboBox(hUnitType, UnitTypeLabels))
-        OnSelchangeUnitListbox();
-
-}
-
-void CNewTaskforce::OnSeldropdownTaskforce(HWND& hWnd)
-{
-    if (Autodrop)
-    {
-        Autodrop = false;
-        return;
-    }
-    if (!DropNeedUpdate)
-        return;
-
-    DropNeedUpdate = false;
-
-    ExtraWindow::SortTeams(hSelectedTaskforce, "TaskForces", SelectedTaskForceIndex, CurrentTaskForceID);
+    SetListBoxSel(idx);
 }
 
 void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
 {
     char buffer[512]{ 0 };
-    char buffer2[512]{ 0 };
-
-    if (edited && (SendMessage(hSelectedTaskforce, CB_GETCOUNT, NULL, NULL) > 0 || !TaskForceLabels.empty()))
-    {
-        Autodrop = true;
-        ExtraWindow::OnEditCComboBox(hSelectedTaskforce, TaskForceLabels);
-        return;
-    }
 
     auto clear = []()
     {
         SendMessage(hUnitType, CB_SETCURSEL, -1, NULL);
+        m_programmaticEdit = true;
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hGroup, WM_SETTEXT, 0, (LPARAM)"");
+        m_programmaticEdit = false;
         while (SendMessage(hUnitsListBox, LB_DELETESTRING, 0, NULL) != CB_ERR);
     };
 
@@ -733,8 +677,10 @@ void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
     {
         auto name = map.GetString(pID, "Name");
         auto group = map.GetString(pID, "Group");
+        m_programmaticEdit = true;
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.GetString());
         SendMessage(hGroup, WM_SETTEXT, 0, (LPARAM)group.GetString());
+        m_programmaticEdit = false;
 
         std::vector<FString> sortedList;
         for (int i = 0; i < 6; i++)
@@ -770,20 +716,13 @@ void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
     {
         while (specificIdx >= SendMessage(hUnitsListBox, LB_GETCOUNT, NULL, NULL))
             specificIdx--;
-        SendMessage(hUnitsListBox, LB_SETCURSEL, specificIdx, NULL);
+        SetListBoxSel(specificIdx);
     }
     else
         if (SendMessage(hUnitsListBox, LB_GETCOUNT, NULL, NULL) > 0)
-            SendMessage(hUnitsListBox, LB_SETCURSEL, 0, NULL);
+            SetListBoxSel(0);
 
     OnSelchangeUnitListbox();
-    DropNeedUpdate = false;
-}
-
-void CNewTaskforce::OnCloseupTaskforce()
-{
-    if (!ExtraWindow::OnCloseupCComboBox(hSelectedTaskforce, TaskForceLabels, true))
-        OnSelchangeTaskforce();
 }
 
 void CNewTaskforce::OnClickNewTaskforce()
@@ -801,7 +740,7 @@ void CNewTaskforce::OnClickNewTaskforce()
     map.WriteString(value, "Name", newName);
     map.WriteString(value, "Group", "-1");
 
-    ExtraWindow::SortTeams(hSelectedTaskforce, "TaskForces", SelectedTaskForceIndex, value);
+    ExtraWindow::SortTeams(vcbSelectedTaskforce, "TaskForces", SelectedTaskForceIndex, value);
 
     OnSelchangeTaskforce();
 }
@@ -875,7 +814,7 @@ void CNewTaskforce::OnClickCloTaskforce(HWND& hWnd)
         copyitem("4");
         copyitem("5");
 
-        ExtraWindow::SortTeams(hSelectedTaskforce, "TaskForces", SelectedTaskForceIndex, value);
+        ExtraWindow::SortTeams(vcbSelectedTaskforce, "TaskForces", SelectedTaskForceIndex, value);
 
         OnSelchangeTaskforce();
     }
@@ -897,20 +836,29 @@ void CNewTaskforce::OnClickAddUnit(HWND& hWnd)
 
     text.Format("%s %s (%s)", "1", "E1", CViewObjectsExt::QueryUIName("E1", true));
     SendMessage(hUnitsListBox, LB_INSERTSTRING, count, (LPARAM)(LPCSTR)text);
-    SendMessage(hUnitsListBox, LB_SETCURSEL, count, NULL);
+    SetListBoxSel(count);
     OnSelchangeUnitListbox();
 }
+
 void CNewTaskforce::OnClickDeleteUnit(HWND& hWnd)
 {
-    if (SelectedTaskForceIndex < 0 || SendMessage(hUnitsListBox, LB_GETCURSEL, NULL, NULL) < 0)
+    if (SelectedTaskForceIndex < 0 || SendMessage(hUnitsListBox, LB_GETCARETINDEX, NULL, NULL) < 0)
         return;
-    int idx = SendMessage(hUnitsListBox, LB_GETCURSEL, 0, NULL);
-    SendMessage(hUnitsListBox, LB_DELETESTRING, idx, NULL);
-    FString key;
-    key.Format("%d", idx);
-    map.DeleteKey(CurrentTaskForceID, key);
 
-    OnSelchangeTaskforce(false, idx);
+    std::vector<int> selected;
+    GetListBoxSels(selected);
+
+    int index = 0;
+    for (auto rit = selected.rbegin(); rit != selected.rend(); ++rit)
+    {
+        index = *rit;
+        SendMessage(hUnitsListBox, LB_DELETESTRING, index, NULL);
+        FString key;
+        key.Format("%d", index);
+        map.DeleteKey(CurrentTaskForceID, key);
+    }
+
+    OnSelchangeTaskforce(false, index);
 }
 
 void CNewTaskforce::OnClickSearchReference(HWND& hWnd)
@@ -932,11 +880,45 @@ void CNewTaskforce::OnClickSearchReference(HWND& hWnd)
 
 bool CNewTaskforce::OnEnterKeyDown(HWND& hWnd)
 {
-    if (hWnd == hSelectedTaskforce)
-        OnSelchangeTaskforce(true);
-    else if (hWnd == hUnitType)
-        OnSelchangeUnitType(true);
+    return false;
+}
+
+void CNewTaskforce::SetListBoxSel(int index)
+{
+    SendMessage(hUnitsListBox, LB_SETSEL, FALSE, -1);
+    if (index >= 0)
+        SendMessage(hUnitsListBox, LB_SETSEL, TRUE, index);
+    SendMessage(hUnitsListBox, LB_SETCURSEL, index, NULL);
+    SendMessage(hUnitsListBox, LB_SETCARETINDEX, index, TRUE);
+}
+
+void CNewTaskforce::SetListBoxSels(std::vector<int>& indices)
+{
+    SendMessage(hUnitsListBox, LB_SETSEL, FALSE, -1);
+    for (int idx : indices)
+    {
+        if (idx >= 0 && idx < SendMessage(hUnitsListBox, LB_GETCOUNT, 0, 0))
+        {
+            SendMessage(hUnitsListBox, LB_SETSEL, TRUE, idx);
+        }
+    }
+    if (!indices.empty())
+    {
+        SendMessage(hUnitsListBox, LB_SETCARETINDEX, indices[0], TRUE);
+    }
+}
+
+void CNewTaskforce::GetListBoxSels(std::vector<int>& indices)
+{
+    int numSelected = SendMessage(hUnitsListBox, LB_GETSELCOUNT, 0, 0);
+    if (numSelected > 0)
+    {
+        indices.resize(numSelected);
+        SendMessage(hUnitsListBox, LB_GETSELITEMS, numSelected, (LPARAM)indices.data());
+        std::sort(indices.begin(), indices.end());
+    }
     else
-        return false;
-    return true;
+    {
+        indices.clear();
+    }
 }

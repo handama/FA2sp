@@ -1052,6 +1052,16 @@ DEFINE_HOOK(4AAE98, CMapData_GetStructureData, A)
 	return 0;
 }
 
+DEFINE_HOOK(4B4978, CMapData_UpdateMapFieldData_TileIndexSafeGuard, 5)
+{
+	GET(UINT, iTileIndex, EAX);
+
+	if (iTileIndex >= CMapDataExt::TileDataCount)
+		R->EAX(0);
+
+	return 0x4B4981;
+}
+
 DEFINE_HOOK(4B4996, CMapData_UpdateMapFieldData_NoRndForBridge, 6)
 {
 	GET(DWORD, dwID6, EAX);

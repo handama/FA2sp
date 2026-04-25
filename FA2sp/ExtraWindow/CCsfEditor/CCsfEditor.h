@@ -12,7 +12,18 @@ class CCsfEditor
 {
 public:
     enum Controls {
-        SelectedCSF = 1001, NewFile = 1002, Search = 1004, Add = 1005, Clone = 1006, Delete = 1007, CSFViewer = 1008, CSFEditor = 1009, Save = 1011, SetLabel = 1013, Reload = 1015, Apply = 1016
+        SelectedCSF = 1001, 
+        NewFile = 1002,
+        Search = 1004, 
+        Add = 1005, 
+        Clone = 1006,
+        Delete = 1007, 
+        CSFViewer = 1008, 
+        CSFEditor = 1009, 
+        Save = 1011, 
+        SetLabel = 1013, 
+        Reload = 1015,
+        Apply = 1016
     };
     static void Create(CFinalSunDlg* pWnd);
 
@@ -26,14 +37,13 @@ protected:
     static void Initialize(HWND& hWnd);
     static void Close(HWND& hWnd);
     static void Update(HWND& hWnd);
-    static void InsertCSFContent(FMap<FString> csfMap);
-    static void FilterRows(FMap<FString> csfMap, const char* searchText);
+    static void BuildDisplayData();  
+    static void RefreshListView();
     static void OnEditchangeSearch();
     static void OnViewerSelectedChange(NMHDR* pNMHDR);
     static void OnClickApply();
 
     static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
-
 
 private:
     static HWND m_hwnd;
@@ -51,6 +61,7 @@ private:
     static HWND hSetLabel;
     static HWND hReload;
     static HWND hApply;
+
 public:
     static FMap<FString>& CurrentCSFMap;
     static FString CurrentSelectedCSF;
@@ -58,6 +69,7 @@ public:
     static bool NeedUpdate;
     static int TriggerCaller;
     static WNDPROC g_pOriginalListViewProc;
-    static LRESULT CALLBACK ListViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-};
 
+    static std::vector<std::pair<FString, FString>> m_DisplayData; 
+    static FString m_SearchText; 
+};

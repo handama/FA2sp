@@ -228,7 +228,7 @@ DEFINE_HOOK(52D098, CLoading_DrawTMP_5, 5)
 
 		auto loadingExt = (CLoadingExt*)CLoading::Instance();
 		FString ImageID;
-		ImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, subTileIndex, altCount[subTileIndex]);
+		ImageID.Format("EXTRAIMAGE\233%d\233%d\233%d", tileIndex, subTileIndex, altCount[subTileIndex]);
 
 		CLoadingExt::TileExtraOffsets[
 			CLoadingExt::GetTileIdentifier(tileIndex, subTileIndex, altCount[subTileIndex])]

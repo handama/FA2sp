@@ -37,7 +37,7 @@ HWND CNewINIEditor::hImportTextButton;
 HWND CNewINIEditor::hImporterDesc;
 HWND CNewINIEditor::hImporterOK;
 HWND CNewINIEditor::hImporterText;
-std::map<int, FString> CNewINIEditor::SectionLabels;
+std::vector<FString> CNewINIEditor::AllSections;
 int CNewINIEditor::origWndWidth;
 int CNewINIEditor::origWndHeight;
 int CNewINIEditor::minWndWidth;
@@ -152,7 +152,7 @@ void CNewINIEditor::Update(HWND& hWnd)
     SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
     int currentIndex = SendMessage(hSectionList, LB_GETCURSEL, NULL, NULL);
 
-    SectionLabels.clear();
+    AllSections.clear();
     while (SendMessage(hSectionList, LB_DELETESTRING, 0, NULL) != CB_ERR);
     auto itr = map.Dict.begin();
     for (size_t i = 0, sz = map.Dict.size(); i < sz; ++i, ++itr)
@@ -161,6 +161,7 @@ void CNewINIEditor::Update(HWND& hWnd)
         if (IsMapPack(sectionName)) continue;
         if (ExtConfigs::INIEditor_IgnoreTeams && IsTeam(sectionName)) continue;
         SendMessage(hSectionList, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)sectionName.GetString());
+        AllSections.push_back(sectionName);
     }
     char buffer[512]{ 0 };
     GetWindowText(hSearchText, buffer, 511);
@@ -605,36 +606,26 @@ void CNewINIEditor::OnClickImporterOK(HWND& hWnd)
 void CNewINIEditor::OnClickNewSection()
 {
     SendMessage(hSearchText, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
-    if (!SectionLabels.empty())
-    {
-        Update(m_hwnd);
-    }
     char section[512]{ 0 };
     GetWindowText(hNewSectionName, section, 511);
     if (strcmp(section, "") == 0) return;
     if (IsGameObject(section) || IsMapPack(section) || IsHouse(section)) return;
     if (ExtConfigs::INIEditor_IgnoreTeams && IsTeam(section)) return;
 
-    int idx = FindLBTextCaseSensitive(hSectionList, section);
     if (map.SectionExists(section))
     {
+        int idx = FindLBTextCaseSensitive(hSectionList, section);
         SendMessage(hSectionList, LB_SETCURSEL, idx, 0);
         OnSelchangeListbox();
         return;
     }
-    else if (idx != LB_ERR)
-    {
-        map.AddSection(section);
-        SendMessage(hSectionList, LB_SETCURSEL, idx, 0);
-        OnSelchangeListbox();
-        return;
-    }
-    else
-    {
-        SendMessage(hSectionList, LB_SETCURSEL, SendMessage(hSectionList, LB_ADDSTRING, 0, (LPARAM)section), 0);
-        map.AddSection(section);
-        OnSelchangeListbox();
-    }
+
+    map.AddSection(section);
+    Update(m_hwnd);
+
+    int idx = FindLBTextCaseSensitive(hSectionList, section);
+    SendMessage(hSectionList, LB_SETCURSEL, idx, 0);
+    OnSelchangeListbox();
 }
 
 void CNewINIEditor::OnClickDelSection(HWND& hWnd)
@@ -672,6 +663,8 @@ void CNewINIEditor::OnClickDelSection(HWND& hWnd)
     if (idx < 0)
         idx = 0;
     SendMessage(hSectionList, LB_SETCURSEL, idx, NULL);
+
+    std::erase_if(AllSections, [&section](const ppmfc::CString& text) { return text == section; });
 
     OnSelchangeListbox();
 }
@@ -942,43 +935,26 @@ void CNewINIEditor::OnEditchangeINIEdit()
 
 void CNewINIEditor::OnEditchangeSearch()
 {
-    if ((SendMessage(hSectionList, LB_GETCOUNT, NULL, NULL) > ExtConfigs::SearchCombobox_MaxCount
-        || SectionLabels.size() > ExtConfigs::SearchCombobox_MaxCount) && !ExtraWindow::bEnterSearch)
-    {
-        return;
-    }
-    char buffer[512]{ 0 };
-    char buffer2[512]{ 0 };
+    char keyword[512]{ 0 };
+    GetWindowText(hSearchText, keyword, 511);
 
-    if (!SectionLabels.empty())
+    bool empty = keyword[0] == '\0';
+    LabelMatcher matcher(keyword);
+
+    SendMessage(hSectionList, WM_SETREDRAW, FALSE, 0);
+    SendMessage(hSectionList, LB_RESETCONTENT, 0, 0);
+    SendMessage(hSectionList, LB_INITSTORAGE, AllSections.size(), 256);
+
+    for (const auto& str : AllSections)
     {
-        while (SendMessage(hSectionList, LB_DELETESTRING, 0, NULL) != LB_ERR);
-        for (auto& pair : SectionLabels)
+        if (empty || matcher.Match(str))
         {
-            SendMessage(hSectionList, LB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second);
+            SendMessage(hSectionList, LB_ADDSTRING, 0, str);
         }
-        SectionLabels.clear();
     }
 
-    GetWindowText(hSearchText, buffer, 511);
-
-    std::vector<int> deletedLabels;
-    LabelMatcher matcher(buffer);
-    for (int idx = SendMessage(hSectionList, LB_GETCOUNT, NULL, NULL) - 1; idx >= 0; idx--)
-    {
-        SendMessage(hSectionList, LB_GETTEXT, idx, (LPARAM)buffer2);
-        bool del = false;
-        FString tmp(buffer2);
-        if (!(matcher.Match(buffer2) || strcmp(buffer, "") == 0))
-        {
-            deletedLabels.push_back(idx);
-        }
-        SectionLabels[idx] = tmp;
-    }
-    for (int idx : deletedLabels)
-    {
-        SendMessage(hSectionList, LB_DELETESTRING, idx, NULL);
-    }
+    SendMessage(hSectionList, WM_SETREDRAW, TRUE, 0);
+    InvalidateRect(hSectionList, NULL, TRUE);
 }
 
 int CNewINIEditor::FindLBTextCaseSensitive(HWND hwndCtl, const char* searchString)

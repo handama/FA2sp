@@ -994,9 +994,11 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID, bool loadAsGarrisonDama
 	} 
 	else if (Variables::RulesMap.GetBool(ID, "Turret")) // Shape turret
 	{
-		FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "tur");
+		FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "TUR");
 		int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
 		bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
+		int actualFacings = CINI::Art->GetInteger(TurName, "Facings", 32);
+		int idleFrames = Variables::RulesMap.GetInteger(ID, "TurretAnim.IdleFrames", 1);
 
 		bool hasBarl = false;
 		int fireAngle = Variables::RulesMap.GetInteger(ID, "FireAngle", 10);
@@ -1050,7 +1052,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID, bool loadAsGarrisonDama
 			if (!hasBarl || !pBarlImages[i])
 			{
 				loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-					nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
+					nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
 			}
 			else
 			{
@@ -1065,14 +1067,14 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID, bool loadAsGarrisonDama
 				if (barrelInFront)
 				{
 					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-						nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
+						nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
 					UnionSHP_Add(pBarlImages[i], 0x100, 0x100, deltaX, deltaY);
 				}
 				else
 				{
 					UnionSHP_Add(pBarlImages[i], 0x100, 0x100, deltaX, deltaY);
 					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-						nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
+						nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
 				}
 			}
 			
@@ -1378,7 +1380,7 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 
 	if (Variables::RulesMap.GetBool(ID, "TurretAnimIsVoxel")) // Voxel turret
 	{
-		FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "tur");
+		FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "TUR");
 		TurName.MakeLower();
 		FString BarlName = TurName.ends_with("tur") ? STDHelpers::ReplaceEnding(TurName, "tur", "barl") : ID + "barl";
 		int fireAngle = Variables::RulesMap.GetInteger(ID, "FireAngle", 10);
@@ -1515,9 +1517,11 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 	{
 		FString TurName = Variables::RulesMap.GetString(ID, 
 			Variables::RulesMap.KeyExists(ID,"TurretAnimDamaged") ? "TurretAnimDamaged" : "TurretAnim",
-			ID + "tur");
+			ID + "TUR");
 		int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
 		bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
+		int actualFacings = CINI::Art->GetInteger(TurName, "Facings", 32);
+		int idleFrames = Variables::RulesMap.GetInteger(ID, "TurretAnim.IdleFrames", 1);
 
 		bool hasBarl = false;
 		int fireAngle = Variables::RulesMap.GetInteger(ID, "FireAngle", 10);
@@ -1569,7 +1573,7 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 			if (!hasBarl || !pBarlImages[i])
 			{
 				loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-					nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
+					nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
 			}
 			else
 			{
@@ -1584,14 +1588,14 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 				if (barrelInFront)
 				{
 					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-						nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
+						nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
 					UnionSHP_Add(pBarlImages[i], 0x100, 0x100, deltaX, deltaY);
 				}
 				else
 				{
 					UnionSHP_Add(pBarlImages[i], 0x100, 0x100, deltaX, deltaY);
 					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-						nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
+						nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
 				}
 			}
 
@@ -1909,7 +1913,7 @@ void CLoadingExt::LoadTerrainOrSmudge(const FString& ID, bool terrain)
 	FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "iso");
 	if (!CINI::Art->KeyExists(ArtID, "Palette") && Variables::RulesMap.GetBool(ID, "SpawnsTiberium"))
 	{
-		PaletteName = "unit~~~.pal";
+		PaletteName = "unitsno.pal";
 	}
 	if (CINI::Art->KeyExists(ArtID, "Palette") || Variables::RulesMap.GetBool(ID, "SpawnsTiberium"))
 	{
@@ -5523,8 +5527,9 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 
 				ShapeImageHeader imageHeader;
 				CShpFile::GetSHPImageHeader(i, &imageHeader);
-
-				if (imageHeader.Unknown == 0 && !ignoreUnused)
+				
+				// only skip last half
+				if (imageHeader.Unknown == 0 && !ignoreUnused && i >= header.FrameCount / 2)
 					continue;
 
 				FString DictName = GetOverlayName(nIndex, i);

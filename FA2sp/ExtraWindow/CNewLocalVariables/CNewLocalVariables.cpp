@@ -12,7 +12,7 @@
 HWND CNewLocalVariables::m_hwnd;
 CFinalSunDlg* CNewLocalVariables::m_parent;
 CINI& CNewLocalVariables::map = CINI::CurrentDocument;
-std::map<int, FString> CNewLocalVariables::VaribaleLabels;
+VirtualComboBoxEx CNewLocalVariables::vcbVariables;
 
 HWND CNewLocalVariables::hVariables;
 HWND CNewLocalVariables::hName;
@@ -67,6 +67,8 @@ void CNewLocalVariables::Initialize(HWND& hWnd)
     hNew = GetDlgItem(hWnd, Controls::New);
     hSearch = GetDlgItem(hWnd, Controls::Search);
 
+    vcbVariables.Attach(hVariables, nullptr, false);
+
     Update();
 }
 
@@ -96,12 +98,6 @@ BOOL CALLBACK CNewLocalVariables::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LP
         case Controls::Variables:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeVariable();
-            else if (CODE == CBN_EDITCHANGE)
-                OnSelchangeVariable(true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupCComboBox(hVariables, VaribaleLabels, true);
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::New:
             if (CODE == BN_CLICKED)
@@ -123,9 +119,8 @@ BOOL CALLBACK CNewLocalVariables::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LP
                 FString text;
                 text.Format("%s - %s", SelectedKey, value);
 
-                SendMessage(hVariables, CB_DELETESTRING, SelectedIndex, NULL);
-                SendMessage(hVariables, CB_INSERTSTRING, SelectedIndex, (LPARAM)(LPCSTR)text);
-                SendMessage(hVariables, CB_SETCURSEL, SelectedIndex, NULL);
+                vcbVariables.ReplaceString(SelectedIndex, text);
+                vcbVariables.SetCurSel(SelectedIndex);
             }
             break;
         case Controls::Value:
@@ -140,9 +135,8 @@ BOOL CALLBACK CNewLocalVariables::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LP
                 FString text;
                 text.Format("%s - %s", SelectedKey, value);
 
-                SendMessage(hVariables, CB_DELETESTRING, SelectedIndex, NULL);
-                SendMessage(hVariables, CB_INSERTSTRING, SelectedIndex, (LPARAM)(LPCSTR)text);
-                SendMessage(hVariables, CB_SETCURSEL, SelectedIndex, NULL);
+                vcbVariables.ReplaceString(SelectedIndex, text);
+                vcbVariables.SetCurSel(SelectedIndex);
             }
             break;
         default:
@@ -153,6 +147,11 @@ BOOL CALLBACK CNewLocalVariables::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LP
     case WM_CLOSE:
     {
         CNewLocalVariables::Close(hWnd);
+        return TRUE;
+    }
+    case WM_MEASUREITEM:
+    {
+        VirtualComboBoxEx::SetWindowHeight(hWnd, lParam);
         return TRUE;
     }
     case 114514: // used for update
@@ -200,12 +199,6 @@ void CNewLocalVariables::OnSelchangeVariable(bool edited)
 {
     char buffer[512]{ 0 };
 
-    if (edited && (SendMessage(hVariables, CB_GETCOUNT, NULL, NULL) > 0 || !VaribaleLabels.empty()))
-    {
-        ExtraWindow::OnEditCComboBox(hVariables, VaribaleLabels);
-        return;
-    }
-
     SelectedIndex = SendMessage(hVariables, CB_GETCURSEL, NULL, NULL);
     if (SelectedIndex < 0 || SelectedIndex >= SendMessage(hVariables, CB_GETCOUNT, NULL, NULL))
     {
@@ -248,18 +241,6 @@ void CNewLocalVariables::OnClickNew()
     SendMessage(hVariables, CB_SETCURSEL, index, NULL);
     OnSelchangeVariable();
 }
-
-void CNewLocalVariables::OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly)
-{
-    if (!ExtraWindow::OnCloseupCComboBox(hWnd, labels, isComboboxSelectOnly))
-    {
-        if (hWnd == hVariables)
-        {
-            OnSelchangeVariable();
-        } 
-    }
-}
-
 
 void CNewLocalVariables::OnClickSearchReference()
 {

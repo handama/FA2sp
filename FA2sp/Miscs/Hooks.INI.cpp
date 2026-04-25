@@ -19,8 +19,9 @@ std::unordered_map<CINI*, CINIInfo> CINIManager::propertyMap;
 bool INIIncludes::SkipBracketFix = false;
 bool CINIExt::IsLoadingFAini = false;
 
+using INIPair = std::pair<ppmfc::CString, ppmfc::CString>;
 void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
-    bool bClear, bool bTrimSpace, bool bAllowInclude, std::queue<ppmfc::CString>* parentIncludeInis)
+    bool bClear, bool bTrimSpace, bool bAllowInclude, std::vector<INIPair>* parentIncludeInis)
 {
     if (bClear)
     {
@@ -54,12 +55,12 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
 
     size_t idx = 0;
     const size_t len = content.length();
-    static size_t plusEqual = 0;
+    static FMap<int> plusEuqal;
     static std::map<CINIExt*, FMap<std::vector<FString>>> InheritSections;
     static std::vector<FString> PhobosInheritSectionOrders;
     FSet LoadedSections;
     if (bAllowInclude) {
-        plusEqual = 0;
+        plusEuqal.clear();
         InheritSections.clear();
         PhobosInheritSectionOrders.clear();
     }
@@ -204,8 +205,9 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                     if (key == "+") {
                         while (true)
                         {
-                            key.Format("FA2sp%u", plusEqual);
-                            ++plusEqual;
+                            auto& index = plusEuqal[CurrentSectionName];
+                            key.Format("FA2sp%u", index);
+                            ++index;
                             if (pCurrentSection->GetEntities().find(key) == pCurrentSection->GetEntities().end())
                                 break;
                         }
@@ -293,7 +295,6 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
 
     if (ExtConfigs::AllowIncludes && bAllowInclude || IsLoadingFAini)
     {
-        using INIPair = std::pair<ppmfc::CString, ppmfc::CString>;
         const char* includeSection = IsLoadingFAini ? "Include" : (ExtConfigs::IncludeType ? "$Include" : "#include");
         auto pIncludeSection = GetSection(includeSection);
         if (pIncludeSection || parentIncludeInis) {
@@ -301,31 +302,35 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                 INIIncludes::MapINIWarn = true;
             }
             std::set<ppmfc::CString> includedInis;
-            std::queue<ppmfc::CString> currentIncludeInis;
+
+            std::vector<INIPair> currentIncludeInis;
+
             if (parentIncludeInis)
             {
-                currentIncludeInis = *parentIncludeInis;
+                currentIncludeInis.assign(parentIncludeInis->begin(), parentIncludeInis->end());
             }
             else
             {
                 for (auto& [index, key] : ParseIndiciesData(includeSection)) {
-                    currentIncludeInis.push(pIncludeSection->GetString(key));
+                    currentIncludeInis.emplace_back(key, pIncludeSection->GetString(key));
                 }
             }
+
             while (!currentIncludeInis.empty()) {
-                std::queue<ppmfc::CString> nextIncludeInis;
-                while (!currentIncludeInis.empty()) {
-                    ppmfc::CString includeFile = currentIncludeInis.front();
-                    currentIncludeInis.pop();
+                std::vector<INIPair> nextIncludeInis;
+
+                for (size_t i = 0; i < currentIncludeInis.size(); ++i) {
+                    ppmfc::CString includeFile = currentIncludeInis[i].second;
 
                     if (!includeFile.IsEmpty()) {
                         if (includedInis.find(includeFile) == includedInis.end()) {
                             includedInis.insert(includeFile);
-                            Logger::Debug("Include Ext Loaded File: %s\n", includeFile);
 
+                            Logger::Debug("Include Ext Loaded File: %s\n", includeFile);
                             DWORD dwSize = 0;
                             auto pLoading = CLoadingExt::GetExtension();
                             CINIExt ini;
+
                             if (auto pBuffer = static_cast<byte*>(pLoading->ReadWholeFile(includeFile, &dwSize, IsLoadingFAini))) {
                                 ini.LoadINIExt(pBuffer, dwSize, nullptr, true, true, false);
                                 GameDeleteArray(pBuffer, dwSize);
@@ -333,20 +338,27 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
 
                             for (auto& [sectionName, pSection] : ini.Dict) {
                                 auto pTargetSection = AddOrGetSection(sectionName);
+
                                 std::vector<INIPair> targetIndicies;
                                 for (const auto& [index, key] : ParseIndiciesData(sectionName)) {
-                                    targetIndicies.push_back(std::make_pair(key, GetString(pTargetSection, key)));
+                                    targetIndicies.emplace_back(key, GetString(pTargetSection, key));
                                 }
-                                for (const auto& [index, key] : ini.ParseIndiciesData(sectionName))
-                                {
+
+                                for (const auto& [index, key] : ini.ParseIndiciesData(sectionName)) {
                                     if (key.IsEmpty()) continue;
+
                                     auto value = ini.GetString(&pSection, key);
+
                                     if (sectionName == includeSection) {
-                                        nextIncludeInis.push(value);
+                                        nextIncludeInis.emplace_back(key, value);
+
+                                        for (auto& [key2, value2] : currentIncludeInis) {
+                                            if (key2 == key) {
+                                                value2 = value;
+                                            }
+                                        }
                                     }
-                                    // the include of Ares will delete the same key in registries
-                                    // and then add it to the bottom
-                                    // it will ignore empty values
+
                                     targetIndicies.erase(
                                         std::remove_if(targetIndicies.begin(), targetIndicies.end(),
                                             [&key](const INIPair& item) {
@@ -354,26 +366,33 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                                     }),
                                         targetIndicies.end()
                                     );
-                                    targetIndicies.push_back(std::make_pair(key, value));
+
+                                    targetIndicies.emplace_back(key, value);
                                 }
+
                                 DeleteSection(sectionName);
                                 pTargetSection = AddSection(sectionName);
+
                                 int index = 0;
                                 for (const auto& [key, value] : targetIndicies)
                                 {
                                     writeString(pTargetSection, key, value);
+
                                     std::pair<ppmfc::CString, int> ins =
                                         std::make_pair((ppmfc::CString)key, index++);
+
                                     std::pair<INIIndiceDict::iterator, bool> ret;
                                     reinterpret_cast<FAINIIndicesMap*>(&pTargetSection->GetIndices())->insert(&ret, &ins);
                                 }
                             }
+
                             loadAresInheritedIni(&ini);
                         }
                     }
                 }
+
                 currentIncludeInis = std::move(nextIncludeInis);
-            }            
+            }
         }
     }
     // main ini

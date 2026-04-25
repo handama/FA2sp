@@ -2940,18 +2940,18 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC)
                 ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
             }
         }
-    }
-    if (CFinalSunApp::Instance().FlatToGround)
-    {
-        FString buffer;
-        buffer.Format(Translations::TranslateOrDefault("FlatToGroundModeEnabled", "2D Mode Enabled"));
-        ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
-    }
-    if (CIsoViewExt::ScaledFactor != 1.0)
-    {
-        FString buffer;
-        buffer.Format(Translations::TranslateOrDefault("ScaledFactorText", "Zoom: %.02fx, Middle-click to reset"), 1.0 / CIsoViewExt::ScaledFactor);
-        ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
+        if (CFinalSunApp::Instance().FlatToGround)
+        {
+            FString buffer;
+            buffer.Format(Translations::TranslateOrDefault("FlatToGroundModeEnabled", "2D Mode Enabled"));
+            ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
+        }
+        if (CIsoViewExt::ScaledFactor != 1.0)
+        {
+            FString buffer;
+            buffer.Format(Translations::TranslateOrDefault("ScaledFactorText", "Zoom: %.02fx, Middle-click to reset"), 1.0 / CIsoViewExt::ScaledFactor);
+            ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
+        }
     }
 }
 

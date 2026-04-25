@@ -57,7 +57,6 @@ protected:
     static void Initialize(HWND& hWnd);
     static void Update(HWND& hWnd);
 
-    static void OnSeldropdownScript(HWND& hWnd);
     static void OnClickDelScript(HWND& hWnd);
     static void OnClickCloScript(HWND& hWnd);
     static void OnClickAddAction(HWND& hWnd);
@@ -67,11 +66,6 @@ protected:
     static void OnClickMoveupAction(HWND& hWnd, bool reverse);
     static void UpdateActionAndParam(int actionChanged = -1, int listBoxCurChanged = -1, bool changeActionIdx = true);
     static void UpdateScriptPath();
-
-    static void OnCloseupActionType();
-    static void OnCloseupScript();
-    static void OnCloseupActionParam();
-    static void OnCloseupActionExtraParam();
     
     static void Close(HWND& hWnd);
 
@@ -82,6 +76,10 @@ protected:
     static LRESULT CALLBACK DragingDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
     static FString GetOneBasedIndex(const FString& key);
+
+    static void SetListBoxSel(int index);
+    static void SetListBoxSels(std::vector<int>& indices);
+    static void GetListBoxSels(std::vector<int>& indices);
 
 private:
     static HWND m_hwnd;
@@ -116,13 +114,13 @@ public:
     static FMap<bool> ActionIsStringParam;
 private:
     static int SelectedScriptIndex;
-    static std::map<int, FString> ScriptLabels;
-    static std::map<int, FString> ActionTypeLabels;
-    static std::map<int, FString> ActionParamLabels;
-    static std::map<int, FString> ActionExtraParamLabels;
-    static bool Autodrop;
+
+    static VirtualComboBoxEx vcbSelectedScript;
+    static VirtualComboBoxEx vcbActionType;
+    static VirtualComboBoxEx vcbActionParam;
+    static VirtualComboBoxEx vcbActionExtraParam;
+
     static bool ParamAutodrop[2];
-    static bool DropNeedUpdate;
     static bool bInsert;
     static WNDPROC OriginalListBoxProc;
     static WNDPROC OrigDragDotProc;

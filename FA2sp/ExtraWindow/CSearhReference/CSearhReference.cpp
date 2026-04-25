@@ -226,7 +226,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
             if (idx == CB_ERR)
                 return;
             SendMessage(dlg, CB_SETCURSEL, idx, NULL);
-            CNewTrigger::Instance[TriggerCaller].OnSelchangeTrigger(false, data < 200 ? data - 100 : 0, data >= 200 ? data - 200 : 0);
+            CNewTrigger::Instance[TriggerCaller].OnSelchangeTrigger(false, data < 200 ? (data - 100) : 0, data >= 200 ? (data - 200) : 0);
             SetWindowPos(CNewTrigger::Instance[TriggerCaller].GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
         }
         else if (data == 2)
@@ -597,7 +597,7 @@ void CSearhReference::Update()
                                 if (atoi(SearchID) == targetParam)
                                 {
                                     FString text;
-                                    text.Format("%s%s %s[%d]", GetPrefix(3), ExtraWindow::GetTeamDisplayName(id), Translations::TranslateOrDefault("SearchReferenceScriptLine", "Line"), i);
+                                    text.Format("%s%s %s[%d]", GetPrefix(3), ExtraWindow::GetTeamDisplayName(id), Translations::TranslateOrDefault("SearchReferenceScriptLine", "Line"), i + 1);
 
                                     SendMessage(
                                         hListbox,

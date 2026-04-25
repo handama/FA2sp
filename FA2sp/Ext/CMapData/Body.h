@@ -672,6 +672,8 @@ public:
     static std::vector<CellDataExt> CellDataExts;
     //static MapCoord CurrentMapCoord;
     static MapCoord CurrentMapCoordPaste;
+    static std::unordered_map<CTileBlockClass*, std::vector<char>> TileBaseHeightMask;
+    static void BuildBaseHeightMask(CTileBlockClass* subTile);
 
     static CTileTypeClass* TileData;
     static int TileDataCount;

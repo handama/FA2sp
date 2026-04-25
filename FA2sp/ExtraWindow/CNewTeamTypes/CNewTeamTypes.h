@@ -10,6 +10,7 @@
 #include "../../Helpers/FString.h"
 #include "../Common.h"
 
+class VirtualComboBoxEx;
 // A static window class
 class CNewTeamTypes
 {
@@ -72,7 +73,6 @@ public:
     static void OnSelchangeScript(bool edited = false);
     static void OnSelchangeTag(bool edited = false);
     static void OnClickNewTeam();
-
     static void OnDropdownTaskForce();
     static void OnDropdownScript();
     static void OnDropdownTag();
@@ -80,7 +80,6 @@ public:
 protected:
     static void Initialize(HWND& hWnd);
     static void Update(HWND& hWnd);
-    static void OnSeldropdownTeamtypes(HWND& hWnd);
     static void OnSelchangeTransportWaypoint(HWND& hWnd, bool edited = false);
     static void OnSelchangeWaypoint(HWND& hWnd, bool edited = false);
     static void OnSelchangeHouse(bool edited = false);
@@ -91,12 +90,6 @@ protected:
     static void OnClickDelTeam(HWND& hWnd);
     static void OnClickCloTeam(HWND& hWnd);
     static void OnClickSearchReference(HWND& hWnd);
-
-    static void OnCloseupTaskForce();
-    static void OnCloseupScript();
-    static void OnCloseupTeamtypes();
-    static void OnCloseupTag();
-    static void OnCloseupHouse();
 
     static void OnClickTurnToTaskforce();
     static void OnClickTurnToScript();
@@ -164,14 +157,15 @@ public:
     static FString CurrentTeamID;
 private:
     static int SelectedTeamIndex;
-    static std::map<int, FString> TaskForceLabels;
-    static std::map<int, FString> TeamLabels;
-    static std::map<int, FString> ScriptLabels;
-    static std::map<int, FString> TagLabels;
-    static std::map<int, FString> HouseLabels;
-    static bool Autodrop;
-    static bool WaypointAutodrop;
-    static bool DropNeedUpdate;
+
+    static VirtualComboBoxEx vcbSelectedTeam;
+    static VirtualComboBoxEx vcbTaskForce;
+    static VirtualComboBoxEx vcbScript;
+    static VirtualComboBoxEx vcbTag;
+    static VirtualComboBoxEx vcbHouse;
+    static VirtualComboBoxEx vcbWaypoint;
+    static VirtualComboBoxEx vcbTransportWaypoint;
+
     static std::vector<FString> mindControlDecisions;
 
     static WNDPROC OrigDragDotProc;

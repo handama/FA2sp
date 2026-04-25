@@ -47,6 +47,7 @@ public:
     static bool CheckProperty_Aircraft(CAircraftData data);
     static bool CheckProperty_Building(CBuildingData data);
     static bool CheckProperty_Infantry(CInfantryData data);
+    static bool DeleteMousePointedObjects(int X, int Y);
     static void InitToolbar();
 
     BOOL PreTranslateMessageExt(MSG* pMsg);

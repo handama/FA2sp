@@ -113,6 +113,7 @@ FSet CMapDataExt::PowersUpBuildingSet;
 std::map<int, std::vector<CustomTile>> CMapDataExt::CustomTiles;
 bool CMapDataExt::PlaceStructure_Preview = false;
 std::map<int, BuildingRenderData> CMapDataExt::PlaceStructure_OldData;
+FMap<std::pair<byte, byte>> CMapDataExt::SmudgeSizes;
 FMap<COLORREF> CMapDataExt::CustomWaypointColors;
 FMap<COLORREF> CMapDataExt::CustomCelltagColors;
 ObjectRecord* ObjectRecord::ObjectRecord_HoldingPtr = nullptr;
@@ -1807,7 +1808,7 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 					if (coord < CMapData::Instance->CellDataCount)
 					{
 						auto pCell = CMapData::Instance->GetCellAt(coord);
-						CMapDataExt::CellDataExts[coord].Structures[cellIndex] = BuildingIndex;
+						CMapDataExt::CellDataExts[coord].Structures_insert(cellIndex, BuildingIndex);
 						pCell->Structure = cellIndex;
 						pCell->TypeListIndex = BuildingIndex;
 						if (!CMapDataExt::SkipUpdateMinimap)
@@ -1826,7 +1827,7 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 				if (coord < CMapData::Instance->CellDataCount)
 				{
 					auto pCell = CMapData::Instance->GetCellAt(coord);
-					CMapDataExt::CellDataExts[coord].Structures[cellIndex] = BuildingIndex;
+					CMapDataExt::CellDataExts[coord].Structures_insert(cellIndex, BuildingIndex);
 					pCell->Structure = cellIndex;
 					pCell->TypeListIndex = BuildingIndex;
 					if (!CMapDataExt::SkipUpdateMinimap)
@@ -4527,6 +4528,14 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 
 			Colors[key] = (COLORREF)rgb;
 		}
+	}
+
+	SmudgeSizes.clear();
+	for (auto& [_, value] : Variables::RulesMap.GetSection("SmudgeTypes"))
+	{
+		int Width = Variables::RulesMap.GetInteger(value, "Width", 1);
+		int Height = Variables::RulesMap.GetInteger(value, "Height", 1);
+		SmudgeSizes[value] = { Width , Height };
 	}
 
 	GridObjectViewer::Instance.UpdateControls();

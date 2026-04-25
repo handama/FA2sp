@@ -19,6 +19,8 @@ FMap<Palette*> PalettesManager::OriginPaletteFiles;
 std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedPaletteFiles;
 std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedDimmedPaletteFiles;
 std::map<Palette*, std::map<LightingStruct, LightingPalette>> PalettesManager::CalculatedPaletteFilesNoRemap;
+PaletteCache::CacheMap PaletteCache::Cache;
+std::map<BGRStruct, std::array<BGRStruct, 16>> PaletteCache::CalculatedRemapableColors;
 std::list<LightingPalette> PalettesManager::CalculatedObjectPaletteFiles;
 std::vector<Palette*> PalettesManager::CalculatedMixedPalettes;
 Palette* PalettesManager::CurrentIso;
@@ -37,6 +39,8 @@ void PalettesManager::Release()
         if (p) GameDelete(p);
 
     PalettesManager::OriginPaletteFiles.clear();
+    PaletteCache::CalculatedRemapableColors.clear();
+    PaletteCache::Cache.clear();
     PalettesManager::CalculatedPaletteFiles.clear();
     PalettesManager::CalculatedPaletteFilesNoRemap.clear();
     PalettesManager::CalculatedDimmedPaletteFiles.clear();
@@ -121,7 +125,6 @@ Palette* PalettesManager::GetPalette(Palette* pPal, BGRStruct& color, bool remap
         if (itr != PalettesManager::CalculatedPaletteFilesNoRemap[pPal].end())
             return itr->second.GetPalette();
     }
-
 
     auto& p = remap ? PalettesManager::CalculatedPaletteFiles[pPal].emplace(
         std::make_pair(std::make_pair(color, LightingStruct::CurrentLighting), LightingPalette(*pPal))
@@ -347,23 +350,34 @@ void LightingPalette::ResetColors()
 
 void LightingPalette::RemapColors(BGRStruct color)
 {
+    RemapColor = color;
     this->ResetColors();
-    for (int i = 16; i <= 31; ++i)
+    auto itr = PaletteCache::CalculatedRemapableColors.find(color);
+    if (itr != PaletteCache::CalculatedRemapableColors.end())
     {
-        int ii = i - 16;
-        double cosval = ii * 0.08144869842640204 + 0.3490658503988659;
-        double sinval = ii * 0.04654211338651545 + 0.8726646259971648;
-        if (!ii)
-            cosval = 0.1963495408493621;
+        memcpy(&this->Colors[16], itr->second.data(), 16 * sizeof(BGRStruct));
+    }
+    else
+    {
+        auto& cache = PaletteCache::CalculatedRemapableColors[color];
+        for (int i = 16; i <= 31; ++i)
+        {
+            int ii = i - 16;
+            double cosval = ii * 0.08144869842640204 + 0.3490658503988659;
+            double sinval = ii * 0.04654211338651545 + 0.8726646259971648;
+            if (!ii)
+                cosval = 0.1963495408493621;
 
-        RGBClass rgb_remap{ color.R,color.G,color.B };
-        HSVClass hsv_remap = rgb_remap;
-        hsv_remap.H = hsv_remap.H;
-        hsv_remap.S = (unsigned char)(std::sin(sinval) * hsv_remap.S);
-        hsv_remap.V = (unsigned char)(std::cos(cosval) * hsv_remap.V);
-        RGBClass result = hsv_remap;
+            RGBClass rgb_remap{ color.R,color.G,color.B };
+            HSVClass hsv_remap = rgb_remap;
+            hsv_remap.H = hsv_remap.H;
+            hsv_remap.S = (unsigned char)(std::sin(sinval) * hsv_remap.S);
+            hsv_remap.V = (unsigned char)(std::cos(cosval) * hsv_remap.V);
+            RGBClass result = hsv_remap;
 
-        this->Colors[i] = { result.B,result.G,result.R };
+            this->Colors[i] = { result.B,result.G,result.R };
+            cache[i - 16] = { result.B,result.G,result.R };
+        }
     }
 }
 
@@ -376,36 +390,11 @@ void LightingPalette::TintColors(bool isObject)
         this->GreenMult,
         this->BlueMult,
         this->AmbientMult,
-        isObject
+        isObject,
+        RemapColor.R,
+        RemapColor.G, 
+        RemapColor.B
     );
-
-    //this->RedMult = std::clamp(this->RedMult, 0.0f, 2.0f);
-    //this->GreenMult = std::clamp(this->GreenMult, 0.0f, 2.0f);
-    //this->BlueMult = std::clamp(this->BlueMult, 0.0f, 2.0f);
-    //this->AmbientMult = std::clamp(this->AmbientMult, 0.0f, 2.0f);
-    //
-    //auto rmult = this->AmbientMult * this->RedMult;
-    //auto gmult = this->AmbientMult * this->GreenMult;
-    //auto bmult = this->AmbientMult * this->BlueMult;
-    //
-    //for (int i = 0; i < 240; ++i)
-    //{
-    //    this->Colors[i].R = (unsigned char)std::min(this->Colors[i].R * rmult, 255.0f);
-    //    this->Colors[i].G = (unsigned char)std::min(this->Colors[i].G * gmult, 255.0f);
-    //    this->Colors[i].B = (unsigned char)std::min(this->Colors[i].B * bmult, 255.0f);
-    //}
-    //if (!isObject)
-    //{
-    //    for (int i = 240; i < 255; ++i)
-    //    {
-    //        this->Colors[i].R = (unsigned char)std::min(this->Colors[i].R * rmult, 255.0f);
-    //        this->Colors[i].G = (unsigned char)std::min(this->Colors[i].G * gmult, 255.0f);
-    //        this->Colors[i].B = (unsigned char)std::min(this->Colors[i].B * bmult, 255.0f);
-    //    }
-    //}
-    //this->Colors[255].R = (unsigned char)std::min(this->Colors[255].R * rmult, 255.0f);
-    //this->Colors[255].G = (unsigned char)std::min(this->Colors[255].G * gmult, 255.0f);
-    //this->Colors[255].B = (unsigned char)std::min(this->Colors[255].B * bmult, 255.0f);
 }
 
 Palette* LightingPalette::GetPalette()
@@ -514,12 +503,10 @@ bool LightingSourceTint::IsLamp(ppmfc::CString ID)
     return abs(Variables::RulesMap.GetSingle(ID, "LightIntensity", 0.0f)) > TOLERANCE;
 }
 
-PaletteCache::CacheMap PaletteCache::Cache;
-
 Palette* PaletteCache::GetOrCreate(
     Palette* origin, Palette* remapped,
     float rMult, float gMult, float bMult, float ambient,
-    bool isObject)
+    bool isObject, uint8_t R, uint8_t G, uint8_t B)
 {
     float rf = std::clamp(rMult * ambient, 0.0f, 2.0f);
     float gf = std::clamp(gMult * ambient, 0.0f, 2.0f);
@@ -530,7 +517,8 @@ Palette* PaletteCache::GetOrCreate(
         static_cast<uint16_t>(rf * 256.0f),
         static_cast<uint16_t>(gf * 256.0f),
         static_cast<uint16_t>(bf * 256.0f),
-        static_cast<uint8_t>(isObject)
+        static_cast<uint8_t>(isObject),
+        R, G, B
     };
 
     auto it = Cache.find(key);

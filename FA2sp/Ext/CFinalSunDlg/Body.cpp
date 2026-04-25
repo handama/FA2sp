@@ -23,6 +23,7 @@
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 #include "../../ExtraWindow/CNewLocalVariables/CNewLocalVariables.h"
 #include "../../ExtraWindow/CFA2spOptions/CFA2spOptions.h"
+#include "../../ExtraWindow/CD3D11/CD3D11.h"
 #include "../../Helpers/STDHelpers.h"
 
 #include "../../Helpers/Translations.h"
@@ -1486,6 +1487,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	//delete objects
 	if (wmID == 40136)
 	{
+		if (!CD3D11::GetHandle()) {
+			CD3D11::Create(this->GetSafeHwnd());
+			return TRUE;
+		}
 		if (!isInIsoView())
 			return TRUE;
 		if (!CMapData::Instance->MapWidthPlusHeight)

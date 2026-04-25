@@ -216,6 +216,8 @@
     <ClCompile Include="FA2sp\ExtraWindow\CAnnotationDlg\CAnnotationDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CBatchTrigger\CBatchTrigger.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CD3D11\CD3D11.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CD3D11\DirectXCore.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\LuaFunctions.cpp" />
@@ -371,6 +373,8 @@
     <ClInclude Include="FA2sp\ExtraWindow\CBatchTrigger\CBatchTrigger.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CCheckBox.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CD3D11\CD3D11.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CD3D11\DirectXCore.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CMapRendererDlg\CMapRendererDlg.h" />
@@ -462,6 +466,7 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CAnnotationDlg\CAnnotationDlg.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CBatchTrigger\CBatchTrigger.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CD3D11\CD3D11.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CMapRendererDlg\CMapRendererDlg.rc" />

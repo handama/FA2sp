@@ -123,11 +123,12 @@ public:
     using CacheMap = std::unordered_map<LightingKey, Palette, LightingKeyHash>;
 
     static CacheMap Cache;
+    static std::map<BGRStruct, std::array<BGRStruct, 16>> CalculatedRemapableColors;
 
     static Palette* GetOrCreate(
         Palette* origin, Palette* remapped,
         float rMult, float gMult, float bMult, float ambient,
-        bool isObject);
+        bool isObject, uint8_t R, uint8_t G, uint8_t B);
 };
 
 class LightingPalette
@@ -140,6 +141,7 @@ public:
     float BlueMult;
     float AmbientMult;
     Palette Colors;
+    BGRStruct RemapColor;
     LightingPalette(Palette& originPal);
     // objectType : -1 = others, 0 = unit, 1 = inf, 2 = air, 3 = building, 
     // 4 = building rubble & TerrainPalette building, 5 = custom-palette terrains

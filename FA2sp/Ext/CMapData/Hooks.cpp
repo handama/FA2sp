@@ -826,7 +826,6 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 					return 0x4AD921;
 				else
 				{
-					Logger::Raw("over?????\n");
 					overlappingWarning = true;
 				}
 			}
@@ -964,7 +963,7 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 				{
 					auto pCell = CMapData::Instance->GetCellAt(pos);
 					auto& cellExt = CMapDataExt::CellDataExts[pos];
-					cellExt.Structures.erase(cellIndex);
+					cellExt.Structures_erase(cellIndex);
 					if (cellExt.Structures.empty())
 					{
 						pCell->Structure = -1;
@@ -993,7 +992,7 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 			{
 				auto pCell = CMapData::Instance->GetCellAt(pos);
 				auto& cellExt = CMapDataExt::CellDataExts[pos];
-				cellExt.Structures.erase(cellIndex);
+				cellExt.Structures_erase(cellIndex);
 				if (cellExt.Structures.empty())
 				{
 					pCell->Structure = -1;
@@ -1443,7 +1442,24 @@ DEFINE_HOOK(4C9EFB, CMapData_AddSmudge, 6)
 	uint32_t value = *reinterpret_cast<uint32_t*>(smudgeType + 16);
 
 	auto& cellExt = CMapDataExt::CellDataExts[pos];
-	cellExt.Smudges[CMapData::Instance->CellDatas[pos].Smudge] = value;
+	auto index = CMapData::Instance->CellDatas[pos].Smudge;
+	cellExt.Smudges_insert(index, value);
+	const auto& size = CMapDataExt::SmudgeSizes[CMapData::Instance->SmudgeDatas[index].TypeID];
+	int X = CMapData::Instance->GetXFromCoordIndex(pos);
+	int Y = CMapData::Instance->GetYFromCoordIndex(pos);
+
+	for (byte i = 0; i < std::max(byte(1), size.first); ++i)
+	{
+		for (byte j = 0; j < std::max(byte(1), size.second); ++j)
+		{
+			if (!CMapData::Instance->IsCoordInMap(X + i, Y + j))
+				continue;
+
+			int newPos = CMapData::Instance->GetCoordIndex(X + i, Y + j);
+			auto& cellExt2 = CMapDataExt::CellDataExts[newPos];
+			cellExt2.SmudgeParts_insert(index);
+		}
+	}
 
 	return 0;
 }
@@ -1453,6 +1469,7 @@ DEFINE_HOOK(4CA1B4, CMapData_UpdateSmudge_Clear, 5)
 	for (auto& cellExt : CMapDataExt::CellDataExts)
 	{
 		cellExt.Smudges.clear();
+		cellExt.SmudgeParts.clear();
 	}
 	return 0;
 }
@@ -1464,7 +1481,24 @@ DEFINE_HOOK(4CA41E, CMapData_UpdateSmudge, 8)
 	pos >>= 6;
 
 	auto& cellExt = CMapDataExt::CellDataExts[pos];
-	cellExt.Smudges[CMapData::Instance->CellDatas[pos].Smudge] = smudgeType;
+	auto index = CMapData::Instance->CellDatas[pos].Smudge;
+	cellExt.Smudges_insert(index, smudgeType);
+
+	const auto& size = CMapDataExt::SmudgeSizes[CMapData::Instance->SmudgeDatas[index].TypeID];
+	int X = CMapData::Instance->GetXFromCoordIndex(pos);
+	int Y = CMapData::Instance->GetYFromCoordIndex(pos);
+	for (byte i = 0; i < std::max(byte(1), size.first); ++i)
+	{
+		for (byte j = 0; j < std::max(byte(1), size.second); ++j)
+		{
+			if (!CMapData::Instance->IsCoordInMap(X + i, Y + j))
+				continue;
+
+			int newPos = CMapData::Instance->GetCoordIndex(X + i, Y + j);
+			auto& cellExt2 = CMapDataExt::CellDataExts[newPos];
+			cellExt2.SmudgeParts_insert(index);
+		}
+	}
 
 	return 0;
 }
@@ -1474,7 +1508,8 @@ DEFINE_HOOK(4C9F78, CMapData_DeleteSmudge, 6)
 	GET(int, pos, EAX);
 	auto& cellExt = CMapDataExt::CellDataExts[pos];
 	auto cell = CMapData::Instance->GetCellAt(pos);
-	cellExt.Smudges.erase(cell->Smudge);
+	auto index = cell->Smudge;
+	cellExt.Smudges_erase(index);
 	if (cellExt.Smudges.empty())
 	{
 		cell->Smudge = -1;
@@ -1484,6 +1519,22 @@ DEFINE_HOOK(4C9F78, CMapData_DeleteSmudge, 6)
 	{
 		cell->Smudge = cellExt.Smudges.begin()->first;
 		cell->SmudgeType = cellExt.Smudges.begin()->second;
+	}
+
+	const auto& size = CMapDataExt::SmudgeSizes[CMapData::Instance->SmudgeDatas[index].TypeID];
+	int X = CMapData::Instance->GetXFromCoordIndex(pos);
+	int Y = CMapData::Instance->GetYFromCoordIndex(pos);
+	for (byte i = 0; i < std::max(byte(1), size.first); ++i)
+	{
+		for (byte j = 0; j < std::max(byte(1), size.second); ++j)
+		{
+			if (!CMapData::Instance->IsCoordInMap(X + i, Y + j))
+				continue;
+	
+			int newPos = CMapData::Instance->GetCoordIndex(X + i, Y + j);
+			auto& cellExt2 = CMapDataExt::CellDataExts[newPos];
+			cellExt2.SmudgeParts_erase(index);
+		}
 	}
 
 	return 0x4C9F93;
@@ -1497,7 +1548,7 @@ DEFINE_HOOK(4B1B1F, CMapData_AddTerrain, 8)
 	if (cell->Terrain > -1)
 	{
 		auto& cellExt = CMapDataExt::CellDataExts[pos];
-		cellExt.Terrains[cell->Terrain] = cell->TerrainType;
+		cellExt.Terrains_insert(cell->Terrain, cell->TerrainType);
 	}
 
 	return 0;
@@ -1519,7 +1570,7 @@ DEFINE_HOOK(4A5C63, CMapData_UpdateTerrain, 8)
 	pos >>= 6;
 
 	auto& cellExt = CMapDataExt::CellDataExts[pos];
-	cellExt.Terrains[CMapData::Instance->CellDatas[pos].Terrain] = terrainType;
+	cellExt.Terrains_insert(CMapData::Instance->CellDatas[pos].Terrain, terrainType);
 
 	return 0;
 }
@@ -1530,7 +1581,7 @@ DEFINE_HOOK(4AA111, CMapData_DeleteTerrain, 6)
 
 	auto& cellExt = CMapDataExt::CellDataExts[pos];
 	auto cell = CMapData::Instance->GetCellAt(pos);
-	cellExt.Terrains.erase(cell->Terrain);
+	cellExt.Terrains_erase(cell->Terrain);
 	if (cellExt.Terrains.empty())
 	{
 		cell->Terrain = -1;

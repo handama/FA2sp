@@ -1684,8 +1684,11 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
             {
                 if (thisSmudge.X <= 0 || thisSmudge.Y <= 0 || thisSmudge.Flag)
                     continue;
-                int thisWidth = Variables::RulesMap.GetInteger(thisSmudge.TypeID, "Width", 1);
-                int thisHeight = Variables::RulesMap.GetInteger(thisSmudge.TypeID, "Height", 1);
+
+                auto& size = CMapDataExt::SmudgeSizes[thisSmudge.TypeID];
+
+                int thisWidth = MAX(1, size.first);
+                int thisHeight = MAX(1, size.second);
                 int thisX = thisSmudge.Y;
                 int thisY = thisSmudge.X;//opposite
                 for (int i = 0; i < thisWidth; i++)

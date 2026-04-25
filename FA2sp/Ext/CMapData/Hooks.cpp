@@ -1452,10 +1452,10 @@ DEFINE_HOOK(4C9EFB, CMapData_AddSmudge, 6)
 	{
 		for (byte j = 0; j < std::max(byte(1), size.second); ++j)
 		{
-			if (!CMapData::Instance->IsCoordInMap(X + i, Y + j))
+			if (!CMapData::Instance->IsCoordInMap(X + j, Y + i))
 				continue;
 
-			int newPos = CMapData::Instance->GetCoordIndex(X + i, Y + j);
+			int newPos = CMapData::Instance->GetCoordIndex(X + j, Y + i);
 			auto& cellExt2 = CMapDataExt::CellDataExts[newPos];
 			cellExt2.SmudgeParts_insert(index);
 		}
@@ -1491,10 +1491,10 @@ DEFINE_HOOK(4CA41E, CMapData_UpdateSmudge, 8)
 	{
 		for (byte j = 0; j < std::max(byte(1), size.second); ++j)
 		{
-			if (!CMapData::Instance->IsCoordInMap(X + i, Y + j))
+			if (!CMapData::Instance->IsCoordInMap(X + j, Y + i))
 				continue;
 
-			int newPos = CMapData::Instance->GetCoordIndex(X + i, Y + j);
+			int newPos = CMapData::Instance->GetCoordIndex(X + j, Y + i);
 			auto& cellExt2 = CMapDataExt::CellDataExts[newPos];
 			cellExt2.SmudgeParts_insert(index);
 		}
@@ -1528,10 +1528,10 @@ DEFINE_HOOK(4C9F78, CMapData_DeleteSmudge, 6)
 	{
 		for (byte j = 0; j < std::max(byte(1), size.second); ++j)
 		{
-			if (!CMapData::Instance->IsCoordInMap(X + i, Y + j))
+			if (!CMapData::Instance->IsCoordInMap(X + j, Y + i))
 				continue;
 	
-			int newPos = CMapData::Instance->GetCoordIndex(X + i, Y + j);
+			int newPos = CMapData::Instance->GetCoordIndex(X + j, Y + i);
 			auto& cellExt2 = CMapDataExt::CellDataExts[newPos];
 			cellExt2.SmudgeParts_erase(index);
 		}

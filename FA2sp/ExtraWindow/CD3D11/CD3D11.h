@@ -22,6 +22,4 @@ public:
     static void Close(HWND& hWnd);
     static void Initialize(HWND& hWnd);
     static void InitializeResources();
-
-    static std::vector<void*> textures;
 };

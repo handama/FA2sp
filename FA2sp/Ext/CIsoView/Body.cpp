@@ -4285,23 +4285,42 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
     }
 }
 
-ImageDataView CIsoViewExt::MakeImageDataView(ImageDataClassSafe* p)
+ImageDataView CIsoViewExt::MakeImageDataView(ImageDataClassSafe* p, Palette* pPal)
 {
     return {
         p->FullWidth,
         p->FullHeight,
         p->pImageBuffer.get(),
-        p->pPalette
+        p->pOpacity.get(),
+        pPal ? pPal :p->pPalette,
+        ImageDataView::ImageDataViewType::ImageDataSafe,
+        p
     };
 }
 
-ImageDataView CIsoViewExt::MakeImageDataView(ImageDataClass* p)
+ImageDataView CIsoViewExt::MakeImageDataView(ImageDataClass* p, Palette* pPal)
 {
     return {
         p->FullWidth,
         p->FullHeight,
         p->pImageBuffer,
-        p->pPalette
+        nullptr,
+        pPal ? pPal : p->pPalette,
+        ImageDataView::ImageDataViewType::ImageData,
+        p
+    };
+}
+
+ImageDataView CIsoViewExt::MakeImageDataView(CTileBlockClass* p, Palette* pPal)
+{
+    return {
+        p->BlockWidth,
+        p->BlockHeight,
+        p->ImageData,
+        nullptr,
+        pPal,
+        ImageDataView::ImageDataViewType::TileBlockData,
+        p
     };
 }
 

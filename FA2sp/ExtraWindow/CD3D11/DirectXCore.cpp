@@ -1,6 +1,9 @@
 #include <DirectXMath.h>
 #include <vector>
-#include "../../Ext/CLoading/Body.h"
+#include <cstring>
+#include <string>
+#include "../../Ext/CLoading/Body.h" 
+#include "../../Ext/CIsoView/Body.h" 
 #include "DirectXCore.h"
 
 #pragma comment(lib, "d3dcompiler.lib")
@@ -10,45 +13,66 @@
 using namespace Microsoft::WRL;
 using namespace DirectX;
 
-// 静态成员定义
-ComPtr<ID3D11Device>           DirectXCore::m_pDevice;
-ComPtr<ID3D11DeviceContext>    DirectXCore::m_pContext;
-ComPtr<IDXGISwapChain>         DirectXCore::m_pSwapChain;
-ComPtr<ID3D11RenderTargetView> DirectXCore::m_pRTV;
-
-ComPtr<ID3D11VertexShader>     DirectXCore::m_pVS;
-ComPtr<ID3D11PixelShader>      DirectXCore::m_pPS;
-ComPtr<ID3D11InputLayout>      DirectXCore::m_pInputLayout;
-ComPtr<ID3D11SamplerState>     DirectXCore::m_pSampler;
-ComPtr<ID3D11BlendState>       DirectXCore::m_pBlendState;
-ComPtr<ID3D11Buffer>           DirectXCore::m_pQuadVB;
-ComPtr<ID3D11Buffer>           DirectXCore::m_pConstantBuffer;
-
-std::vector<std::unique_ptr<DirectXCore::TextureResource>> DirectXCore::m_textures;
-std::vector<DirectXCore::DrawCommand> DirectXCore::m_drawCommands;
-int DirectXCore::m_clientWidth = 0;
-int DirectXCore::m_clientHeight = 0;
-
 struct QuadVertex { XMFLOAT3 pos; XMFLOAT2 uv; };
-struct CBPerObject { XMMATRIX world; XMFLOAT4 color; };
+struct CBPerObject {
+    XMMATRIX world;
+    XMFLOAT4 colorMul;
+    XMFLOAT4 mixColor;
+    float mixFactor;
+    float padding[3];
+};
 
 // ------------------------------------------------------------
-bool DirectXCore::InitializeDX(HWND hwnd) {
-    if (!CreateDeviceAndSwapChain(hwnd)) return false;
-    if (!CreateShadersAndInputLayout()) return false;
-    if (!CreateQuadVertexBuffer()) return false;
+DirectXCore::DirectXCore() = default;
+DirectXCore::~DirectXCore() { Cleanup(); }
+
+bool DirectXCore::Initialize(HWND hwnd) {
+    Cleanup();
+
+    if (!IsWindow(hwnd)) {
+        OutputDebugStringW(L"Initialize: Invalid HWND\n");
+        return false;
+    }
+
+    if (!CreateDeviceAndSwapChain(hwnd)) {
+        OutputDebugStringW(L"CreateDeviceAndSwapChain failed\n");
+        return false;
+    }
+    if (!CreateShadersAndInputLayout()) {
+        OutputDebugStringW(L"CreateShadersAndInputLayout failed\n");
+        return false;
+    }
+    if (!CreateQuadVertexBuffer()) {
+        OutputDebugStringW(L"CreateQuadVertexBuffer failed\n");
+        return false;
+    }
 
     RECT rc;
     GetClientRect(hwnd, &rc);
     m_clientWidth = rc.right - rc.left;
     m_clientHeight = rc.bottom - rc.top;
     UpdateViewportAndRTV(hwnd);
+
+    m_bInitialized = true;
+    OutputDebugStringW(L"Initialize succeeded\n");
     return true;
+}
+
+void DirectXCore::ClearTextures() {
+    m_textureMap.clear();
+    m_tileTextureMap.clear();
 }
 
 void DirectXCore::Cleanup() {
     m_drawCommands.clear();
-    m_textures.clear();
+    m_textureMap.clear();
+    m_tileTextureMap.clear();
+
+    if (m_pContext) {
+        m_pContext->ClearState();
+        m_pContext->Flush();
+    }
+
     m_pQuadVB.Reset();
     m_pConstantBuffer.Reset();
     m_pInputLayout.Reset();
@@ -60,13 +84,16 @@ void DirectXCore::Cleanup() {
     m_pSwapChain.Reset();
     m_pContext.Reset();
     m_pDevice.Reset();
+
     m_clientWidth = m_clientHeight = 0;
+    m_globalScaleX = m_globalScaleY = 1.0f;
+    m_globalOffsetX = m_globalOffsetY = 0.0f;
+    m_bInitialized = false;
 }
 
 void DirectXCore::OnResize(HWND hwnd) {
     if (!m_pSwapChain) return;
     m_pRTV.Reset();
-
     RECT rc;
     GetClientRect(hwnd, &rc);
     UINT width = rc.right - rc.left;
@@ -88,19 +115,27 @@ void DirectXCore::UpdateViewportAndRTV(HWND hwnd) {
     m_pContext->RSSetViewports(1, &vp);
 }
 
+void DirectXCore::SetGlobalTransform(float scaleX, float scaleY, float offsetX, float offsetY) {
+    m_globalScaleX = scaleX;
+    m_globalScaleY = scaleY;
+    m_globalOffsetX = offsetX;
+    m_globalOffsetY = offsetY;
+}
+
 bool DirectXCore::CreateDeviceAndSwapChain(HWND hwnd) {
     DXGI_SWAP_CHAIN_DESC scd = {};
-    scd.BufferCount = 1;
+    scd.BufferCount = 2;
     scd.BufferDesc.Width = 0;
     scd.BufferDesc.Height = 0;
     scd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    scd.BufferDesc.RefreshRate.Numerator = 60;
+    scd.BufferDesc.RefreshRate.Numerator = 0;
     scd.BufferDesc.RefreshRate.Denominator = 1;
     scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     scd.OutputWindow = hwnd;
     scd.SampleDesc.Count = 1;
     scd.Windowed = TRUE;
-    scd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+    scd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    scd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
     UINT createFlags = 0;
 #ifdef _DEBUG
@@ -112,7 +147,10 @@ bool DirectXCore::CreateDeviceAndSwapChain(HWND hwnd) {
         createFlags, featureLevels, 2,
         D3D11_SDK_VERSION, &scd,
         &m_pSwapChain, &m_pDevice, nullptr, &m_pContext);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) {
+        OutputDebugStringW(L"D3D11CreateDeviceAndSwapChain failed\n");
+        return false;
+    }
 
     ComPtr<ID3D11Texture2D> pBackBuffer;
     hr = m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), &pBackBuffer);
@@ -126,7 +164,9 @@ bool DirectXCore::CreateShadersAndInputLayout() {
     const char* vsCode = R"(
         cbuffer CBPerObject : register(b0) {
             float4x4 g_World;
-            float4   g_Color;
+            float4   g_ColorMul;
+            float4   g_MixColor;
+            float    g_MixFactor;
         };
         struct VSInput {
             float3 pos : POSITION0;
@@ -134,14 +174,18 @@ bool DirectXCore::CreateShadersAndInputLayout() {
         };
         struct VSOutput {
             float4 pos : SV_POSITION;
-            float2 tex : TEXCOORD0;
-            float4 color : COLOR0;
+            float2 uv  : TEXCOORD0;
+            float4 colorMul : COLOR0;
+            float4 mixColor : COLOR1;
+            float  mixFactor : TEXCOORD1;
         };
         VSOutput main(VSInput input) {
             VSOutput output;
             output.pos = mul(float4(input.pos, 1.0f), g_World);
-            output.tex = input.tex;
-            output.color = g_Color;
+            output.uv = input.tex;
+            output.colorMul = g_ColorMul;
+            output.mixColor = g_MixColor;
+            output.mixFactor = g_MixFactor;
             return output;
         }
     )";
@@ -149,8 +193,14 @@ bool DirectXCore::CreateShadersAndInputLayout() {
     const char* psCode = R"(
         Texture2D tex : register(t0);
         SamplerState samp : register(s0);
-        float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0, float4 color : COLOR0) : SV_Target {
-            return tex.Sample(samp, uv) * color;
+        float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0,
+                    float4 colorMul : COLOR0, float4 mixColor : COLOR1,
+                    float mixFactor : TEXCOORD1) : SV_Target {
+            float4 texColor = tex.Sample(samp, uv);
+            float3 multRGB = texColor * colorMul.rgb;
+            float3 finalRGB = lerp(multRGB.rgb, mixColor.rgb, mixFactor);
+            float finalAlpha = texColor.a * colorMul.a;
+            return float4(finalRGB, finalAlpha);
         }
     )";
 
@@ -196,6 +246,7 @@ bool DirectXCore::CreateShadersAndInputLayout() {
     cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     m_pDevice->CreateBuffer(&cbDesc, nullptr, &m_pConstantBuffer);
+
     return true;
 }
 
@@ -215,22 +266,29 @@ bool DirectXCore::CreateQuadVertexBuffer() {
     return SUCCEEDED(hr);
 }
 
-DirectXCore::TextureHandle DirectXCore::LoadTexture(ImageDataClassSafe* pImg) {
-    if (!m_pDevice) return nullptr;
-    if (!ImageDataClassSafe::IsValidImage(pImg) || pImg->FullWidth == 0 || pImg->FullHeight == 0)
-        return nullptr;
+// LoadTexture 返回 TextureResource* 而非 void*
+DirectXCore::TextureResource* DirectXCore::LoadTexture(const FString& name, const ImageDataView& view) {
+    if (!m_pDevice || name.empty()) return nullptr;
+    if (view.FullWidth <= 0 || view.FullHeight <= 0 || !view.pImageBuffer) return nullptr;
+
+    auto itr = m_textureMap.find(name);
+    if (itr != m_textureMap.end()) {
+        return itr->second.get();
+    }
 
     auto texRes = std::make_unique<TextureResource>();
-    texRes->width = pImg->FullWidth;
-    texRes->height = pImg->FullHeight;
-    int w = texRes->width, h = texRes->height;
+    texRes->sourceView = view;          // 浅拷贝，存储所有指针信息
 
+    int w = view.FullWidth;
+    int h = view.FullHeight;
+
+    // 转换像素数据（索引色 + 调色板 -> RGBA）
     std::vector<uint32_t> rgbaData(w * h);
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
-            unsigned char idx = pImg->pImageBuffer[y * w + x];
-            unsigned char opacity = idx == 0 ? 0 : (pImg->pOpacity ? pImg->pOpacity[y * w + x] : 255);
-            BGRStruct color = pImg->pPalette->Data[idx];
+            unsigned char idx = view.pImageBuffer[y * w + x];
+            unsigned char opacity = idx == 0 ? 0 : (view.pOpacity ? view.pOpacity[y * w + x] : 255);
+            BGRStruct color = view.pPalette->Data[idx];
             uint32_t rgba = (color.R << 0) | (color.G << 8) | (color.B << 16) | (opacity << 24);
             rgbaData[y * w + x] = rgba;
         }
@@ -255,23 +313,97 @@ DirectXCore::TextureHandle DirectXCore::LoadTexture(ImageDataClassSafe* pImg) {
     hr = m_pDevice->CreateShaderResourceView(texRes->texture.Get(), nullptr, &texRes->srv);
     if (FAILED(hr)) return nullptr;
 
-    m_textures.push_back(std::move(texRes));
-    return m_textures.back().get();
+    TextureResource* ret = texRes.get();
+    m_textureMap[name] = std::move(texRes);
+    return ret;
 }
 
-void DirectXCore::DrawTexture(TextureHandle handle, const DrawParams& params) {
-    if (!handle) return;
-    TextureResource* tex = reinterpret_cast<TextureResource*>(handle);
+// LoadTexture 返回 TextureResource* 而非 void*
+DirectXCore::TextureResource* DirectXCore::LoadTileTexture(CTileBlockClass* tileBlock, const ImageDataView& view) {
+    if (!m_pDevice || !tileBlock) return nullptr;
+    if (view.FullWidth <= 0 || view.FullHeight <= 0 || !view.pImageBuffer) return nullptr;
+
+    auto itr = m_tileTextureMap.find(tileBlock);
+    if (itr != m_tileTextureMap.end()) {
+        return itr->second.get();
+    }
+
+    auto texRes = std::make_unique<TextureResource>();
+    texRes->sourceView = view;          // 浅拷贝，存储所有指针信息
+
+    int w = view.FullWidth;
+    int h = view.FullHeight;
+
+    // 转换像素数据（索引色 + 调色板 -> RGBA）
+    std::vector<uint32_t> rgbaData(w * h);
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            unsigned char idx = view.pImageBuffer[y * w + x];
+            unsigned char opacity = idx == 0 ? 0 : 255;
+            BGRStruct color = view.pPalette->Data[idx];
+            uint32_t rgba = (color.R << 0) | (color.G << 8) | (color.B << 16) | (opacity << 24);
+            rgbaData[y * w + x] = rgba;
+        }
+    }
+
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Width = w;
+    desc.Height = h;
+    desc.MipLevels = 1;
+    desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+    D3D11_SUBRESOURCE_DATA initData = {};
+    initData.pSysMem = rgbaData.data();
+    initData.SysMemPitch = w * 4;
+
+    HRESULT hr = m_pDevice->CreateTexture2D(&desc, &initData, &texRes->texture);
+    if (FAILED(hr)) return nullptr;
+    hr = m_pDevice->CreateShaderResourceView(texRes->texture.Get(), nullptr, &texRes->srv);
+    if (FAILED(hr)) return nullptr;
+
+    TextureResource* ret = texRes.get();
+    m_tileTextureMap[tileBlock] = std::move(texRes);
+    return ret;
+}
+
+// GetTexture 直接返回 TextureResource*
+DirectXCore::TextureResource* DirectXCore::GetTexture(const FString& name) const {
+    auto it = m_textureMap.find(name);
+    if (it != m_textureMap.end()) return it->second.get();
+    return nullptr;
+}
+
+// GetTexture 直接返回 TextureResource*
+DirectXCore::TextureResource* DirectXCore::GetTileTexture(CTileBlockClass* tileBlock) const {
+    auto it = m_tileTextureMap.find(tileBlock);
+    if (it != m_tileTextureMap.end()) return it->second.get();
+    return nullptr;
+}
+
+// DrawTexture 内部使用 TextureResource* 存储（原 m_drawCommands 已经是 TextureResource*）
+void DirectXCore::DrawTexture(TextureResource* tex, const DrawParams& params) {
+    if (!tex) return;
     m_drawCommands.push_back({ tex, params });
 }
 
 void DirectXCore::Render() {
-    if (!m_pContext || !m_pRTV || m_drawCommands.empty()) return;
+    if (!m_bInitialized || !m_pContext || !m_pSwapChain || !m_pRTV ||
+        !m_pVS || !m_pPS || !m_pInputLayout || !m_pQuadVB || !m_pConstantBuffer) {
+        return;
+    }
+    if (m_drawCommands.empty()) return;
+
+    D3D11_VIEWPORT vp = { 0, 0, (float)m_clientWidth, (float)m_clientHeight, 0.0f, 1.0f };
+    m_pContext->RSSetViewports(1, &vp);
+    m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
 
     float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     m_pContext->ClearRenderTargetView(m_pRTV.Get(), clearColor);
 
-    m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
     m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
     m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
     m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
@@ -283,13 +415,16 @@ void DirectXCore::Render() {
     m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &stride, &offset);
     m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
+    XMMATRIX globalMat = XMMatrixScaling(m_globalScaleX, m_globalScaleY, 1.0f) *
+        XMMatrixTranslation(m_globalOffsetX, -m_globalOffsetY, 0.0f);
+
     for (const auto& cmd : m_drawCommands) {
         TextureResource* tex = cmd.texRes;
-        if (!tex) continue;
+        if (!tex || !tex->srv) continue;
 
         const auto& p = cmd.params;
-        float w_px = tex->width * p.scaleX;
-        float h_px = tex->height * p.scaleY;
+        float w_px = tex->sourceView.FullWidth * p.scaleX;
+        float h_px = tex->sourceView.FullHeight * p.scaleY;
         float centerX_px = p.x + w_px * 0.5f;
         float centerY_px = p.y + h_px * 0.5f;
 
@@ -301,16 +436,19 @@ void DirectXCore::Render() {
         XMMATRIX S = XMMatrixScaling(ndc_width, ndc_height, 1.0f);
         XMMATRIX T = XMMatrixTranslation(ndc_centerX, ndc_centerY, 0.0f);
         XMMATRIX world = S * T;
+        XMMATRIX finalWorld = world * globalMat;
 
         CBPerObject cb;
-        cb.world = XMMatrixTranspose(world);
-        cb.color = XMFLOAT4(p.redMult, p.greenMult, p.blueMult, p.opacity);
+        cb.world = XMMatrixTranspose(finalWorld);
+        cb.colorMul = XMFLOAT4(p.redMult, p.greenMult, p.blueMult, p.opacity);
+        cb.mixColor = XMFLOAT4(p.mixR, p.mixG, p.mixB, 1.0f);
+        cb.mixFactor = p.mixFactor;
 
         D3D11_MAPPED_SUBRESOURCE mapped;
-        if (SUCCEEDED(m_pContext->Map(m_pConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
-            memcpy(mapped.pData, &cb, sizeof(cb));
-            m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
-        }
+        HRESULT hr = m_pContext->Map(m_pConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+        if (FAILED(hr)) continue;
+        memcpy(mapped.pData, &cb, sizeof(cb));
+        m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
 
         m_pContext->VSSetConstantBuffers(0, 1, m_pConstantBuffer.GetAddressOf());
         m_pContext->PSSetShaderResources(0, 1, tex->srv.GetAddressOf());

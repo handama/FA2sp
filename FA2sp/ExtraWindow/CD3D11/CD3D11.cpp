@@ -2,11 +2,11 @@
 #include "../../Ext/CLoading/Body.h"
 #include "DirectXCore.h"
 #include "../../Miscs/Palettes.h"
+#include "../../Ext/CMapData/Body.h"
 
 HWND CD3D11::m_hwnd;
 
-static DirectXCore::TextureHandle tex;
-std::vector<DirectXCore::TextureHandle> CD3D11::textures;
+std::unique_ptr<DirectXCore> g_pDX = nullptr;
 
 // CD3D11.cpp
 void CD3D11::Create(HWND hParent) {
@@ -16,8 +16,12 @@ void CD3D11::Create(HWND hParent) {
         CD3D11::DlgProc);
     if (m_hwnd) {
         ShowWindow(m_hwnd, SW_SHOW);
-        DirectXCore::InitializeDX(m_hwnd);  // 在创建后立即初始化 DX
-
+        g_pDX = std::make_unique<DirectXCore>();
+        if (!g_pDX->Initialize(m_hwnd)) {
+            g_pDX = nullptr;
+            EndDialog(m_hwnd, IDCANCEL);
+            return;
+        }
         InitializeResources();
 
     }
@@ -30,6 +34,7 @@ void CD3D11::Close(HWND& hWnd)
 {
     EndDialog(hWnd, NULL);
     CD3D11::m_hwnd = NULL;
+    g_pDX = nullptr;
 }
 
 void CD3D11::Initialize(HWND& hWnd)
@@ -39,18 +44,45 @@ void CD3D11::Initialize(HWND& hWnd)
 
 void CD3D11::InitializeResources()
 {
-    for (auto& [_, obj] : Variables::RulesMap.GetSection("VehicleTypes"))
+    //for (auto& [_, obj] : Variables::RulesMap.GetSection("BuildingTypes"))
+    //{
+    //    CLoadingExt::GetExtension()->LoadObjects(obj);
+    //    auto imageName = CLoadingExt::GetBuildingImageName(obj, 0, 0);
+    //    auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
+    //    auto pData = CLoadingExt::BindClippedImages(clips);
+    //
+    //    //auto imageName = CLoadingExt::GetImageName(obj, 0);
+    //    //auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+    //    //if (pData->IsValidImage(pData))
+    //    //{
+    //    //    CD3D11::textures.push_back(g_pDX->LoadTexture(pData));
+    //    //}
+    //    if (pData->IsValidImage(pData.get()))
+    //    {     
+    //        g_pDX->LoadTexture(imageName, CIsoViewExt::MakeImageDataView(pData.get()));
+    //    }
+    //}
+    ScopedTimer t("init tiles\n");
+    for (int i = 0; i < CMapDataExt::TileDataCount; ++i)
     {
-        CLoadingExt::GetExtension()->LoadObjects(obj);
-        //auto imageName = CLoadingExt::GetBuildingImageName("NATECH", 0, 0);
-        //auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
-        //auto pData = CLoadingExt::BindClippedImages(clips);
-
-        auto imageName = CLoadingExt::GetImageName(obj, 0);
-        auto pData = CLoadingExt::GetImageDataFromMap(imageName);
-        if (pData->IsValidImage(pData))
+        auto& tileData = CMapDataExt::TileData[i];
+        CTileTypeClass* currentTile = &tileData;
+        for (int j = -1; j < (int)tileData.AltTypeCount; ++j)
         {
-            CD3D11::textures.push_back(DirectXCore::LoadTexture(pData));
+            if (j > -1)
+                currentTile = &tileData.AltTypes[j];
+
+            if (Palette* pal = CMapDataExt::TileSetPalettes[currentTile->TileSet])
+            {
+                for (int k = 0; k < currentTile->TileBlockCount; ++k)
+                {
+                    auto tileBlock = &currentTile->TileBlockDatas[k];
+                    if (tileBlock && tileBlock->ImageData)
+                    {
+                        g_pDX->LoadTileTexture(tileBlock, CIsoViewExt::MakeImageDataView(tileBlock, pal));
+                    }
+                }
+            }
         }
     }
 }
@@ -66,15 +98,35 @@ BOOL CALLBACK CD3D11::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
     case WM_MOUSEMOVE:
         //if (wParam == 1)
         {
+            std::vector<DirectXCore::TextureResource*> textures;
+            for (int i = 0; i < CMapDataExt::TileDataCount; ++i)
+            {
+                auto& tileData = CMapDataExt::TileData[i];
+                CTileTypeClass* currentTile = &tileData;
+                for (int j = -1; j < (int)tileData.AltTypeCount; ++j)
+                {
+                    if (j > -1)
+                        currentTile = &tileData.AltTypes[j];
 
-            //static float opacity = 1.0f;
-            //opacity -= 0.02f;
-            //if (opacity <= 0.0f)
-            //    opacity = 1.0f;
+                    for (int k = 0; k < currentTile->TileBlockCount; ++k)
+                    {
+                        auto tileBlock = &currentTile->TileBlockDatas[k];
+                        if (tileBlock && tileBlock->ImageData)
+                        {
+                            if (auto tex = g_pDX->GetTileTexture(tileBlock))
+                            {
+                                textures.push_back(tex);
+                            }
+                        }
+                    }
+                }
+            }
             RECT rc;
             GetClientRect(hwnd, &rc);
-            UINT width = rc.right - rc.left;
-            UINT height = rc.bottom - rc.top;
+            int scaleFactor = 1;
+
+            UINT width = (rc.right - rc.left) * scaleFactor;
+            UINT height = (rc.bottom - rc.top) * scaleFactor;
 
             int displayX = 0;
             int displayY = 0;
@@ -100,45 +152,68 @@ BOOL CALLBACK CD3D11::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
             j++;
             if (j == textures.size() - 1)
                 j = 0;
-            for (int i = j; i < textures.size(); ++i)
+            bool end = false;
+            int i = 0;
+            bool oddLine = true;
+            for (i = j; i < textures.size(); ++i)
             {
                 auto tex = textures[i];
 
                 DrawParams params;
-                params.SetPosition(displayX, displayY)
+                params.SetPosition(displayX - tex->sourceView.FullWidth / 2, displayY - tex->sourceView.FullHeight / 2)
                     //.SetScale(1.0f, 1.0f)
                     //.SetOpacity(opacity)
-                    .SetColorMul(RedMult, GreenMult, BlueMult);  // 红色调
-                DirectXCore::DrawTexture(tex, params);
+                    .SetColorMul(RedMult, GreenMult, BlueMult);
+                    //.SetColorMix(0.0f, 1.0f, 0.0f, 0.5f);
+                g_pDX->DrawTexture(tex, params);
                 if (displayX < width)
                 {
-                    displayX += 10;
+                    displayX += 60;
                 }
                 else
                 {
-                    displayX = 0;
-                    displayY += 10;
+                    oddLine = !oddLine;
+                    if (oddLine)
+                    {
+                        displayX = 0;
+                    }
+                    else
+                    {
+                        displayX = 30;
+                    }
+                    displayY += 15;
                 }
                 if (displayY >= height)
                     break;
 
                 if (i == textures.size() - 1)
+                {
                     i = 0;
+                    end = true;
+                }
             }
+            if (!end)
+                j = i;
 
-            DirectXCore::Render();  // 或者在单独线程/消息循环中调用
+            g_pDX->SetGlobalTransform(1.0f / scaleFactor, 1.0f / scaleFactor,  1.0f / scaleFactor - 1.0f, 1.0f / scaleFactor - 1.0f);
+            g_pDX->Render();  // 或者在单独线程/消息循环中调用
         }
         break;
 
     case WM_SIZE:
-        DirectXCore::OnResize(hwnd);
+        g_pDX->OnResize(hwnd);
         // Resize swap chain & RTV（需重新创建 RTV）
         break;
 
     case WM_CLOSE:
-        DirectXCore::Cleanup();
         CD3D11::Close(hwnd);
         return TRUE;
+    case 114514: // used for update
+    {
+        g_pDX->ClearTextures();
+        InitializeResources();
+        return TRUE;
+    }
     }
     return FALSE;
 }

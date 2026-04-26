@@ -1491,6 +1491,11 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CD3D11::Create(this->GetSafeHwnd());
 			return TRUE;
 		}
+		else
+		{
+			::SendMessage(CD3D11::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
 		if (!isInIsoView())
 			return TRUE;
 		if (!CMapData::Instance->MapWidthPlusHeight)

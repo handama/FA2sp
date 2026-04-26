@@ -123,7 +123,17 @@ struct ImageDataView
     int FullWidth;
     int FullHeight;
     const BYTE* pImageBuffer;
+    const BYTE* pOpacity;
     const Palette* pPalette;
+    enum ImageDataViewType
+    {
+        Unknown = -1,
+        ImageDataSafe,
+        ImageData,
+        TileBlockData,
+    };
+    ImageDataViewType Type = ImageDataViewType::Unknown;
+    void* pOriginData;
 }; 
 
 struct TwoPointStruct
@@ -242,8 +252,9 @@ public:
     static int GetOverlayDrawOffset(WORD nOverlay, BYTE nOverlayData = 0);
     static void SetStatusBarText(const char* text);
     void PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory);
-    static ImageDataView MakeImageDataView(ImageDataClassSafe* p);
-    static ImageDataView MakeImageDataView(ImageDataClass* p);
+    static ImageDataView MakeImageDataView(ImageDataClassSafe* p, Palette* pPal = nullptr);
+    static ImageDataView MakeImageDataView(ImageDataClass* p, Palette* pPal = nullptr);
+    static ImageDataView MakeImageDataView(CTileBlockClass* p, Palette* pPal);
     static void inline AdaptRectForSecondScreen(LPRECT lpRect)
     {
         if (ExtConfigs::SecondScreenSupport)

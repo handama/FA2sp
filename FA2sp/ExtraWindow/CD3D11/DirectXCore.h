@@ -10,7 +10,7 @@
 #include <map>
 #include "../../Ext/CIsoView/Body.h" 
 
-// 绘制参数（保持不变）
+// 绘制参数
 class DrawParams
 {
 public:
@@ -45,25 +45,27 @@ public:
 
     bool Initialize(HWND hwnd);
     void Cleanup();
-    void ClearTextures();               // 清空所有纹理
+    void ClearTextures();
     void OnResize(HWND hwnd);
 
-    // 纹理资源结构体（公开，以便外部直接访问其成员）
+    // 纹理资源结构体
     struct TextureResource {
-        ImageDataView sourceView;                       // 存储原始视图（浅拷贝）
+        ImageDataView sourceView;
         Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
         Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
+        bool bIsIndexTexture = false;   // 是否为索引纹理（用于特效）
     };
 
-    // 加载纹理（必须提供名称）
+    // 加载普通纹理（带调色板，RGBA）
     TextureResource* LoadTexture(const FString& name, const ImageDataView& view);
     TextureResource* LoadTileTexture(CTileBlockClass* tileBlock, const ImageDataView& view);
+    // 加载索引纹理（用于特效，格式R8_UNORM）
+    TextureResource* LoadIndexTexture(const FString& name, const ImageDataView& view);
 
-    // 通过名称获取纹理资源（包含所有元数据）
     TextureResource* GetTexture(const FString& name) const;
     TextureResource* GetTileTexture(CTileBlockClass* tileBlock) const;
 
-    // 绘制（原有接口，使用 TextureHandle 兼容旧代码，但推荐直接传 TextureResource*）
+    // 绘制普通纹理
     void DrawTexture(TextureResource* tex, const DrawParams& params);
     void DrawTexture(TextureResource* tex, float x, float y) {
         DrawParams p; p.x = x; p.y = y; DrawTexture(tex, p);
@@ -77,28 +79,55 @@ private:
     struct DrawCommand {
         TextureResource* texRes = nullptr;
         DrawParams params;
+        bool bIsEffect = false;   // 特效命令
     };
 
     bool CreateDeviceAndSwapChain(HWND hwnd);
-    bool CreateShadersAndInputLayout();
+    bool CreateShadersAndInputLayout();      // 普通纹理着色器
+    bool CreateEffectShaders();              // 特效着色器（输出因子）
+    bool CreateCompositeShaders();           // 合成着色器（原色 * 因子）
     bool CreateQuadVertexBuffer();
     void UpdateViewportAndRTV(HWND hwnd);
+    void EnsureFactorTexture(UINT width, UINT height);
+    void EnsureScreenCopyTexture(UINT width, UINT height);
+    void CopyScreenToTexture();
+    void DrawFullscreenQuad();
 
     Microsoft::WRL::ComPtr<ID3D11Device>           m_pDevice;
     Microsoft::WRL::ComPtr<ID3D11DeviceContext>    m_pContext;
     Microsoft::WRL::ComPtr<IDXGISwapChain>         m_pSwapChain;
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_pRTV;
+
+    // 普通纹理绘制资源
     Microsoft::WRL::ComPtr<ID3D11VertexShader>     m_pVS;
     Microsoft::WRL::ComPtr<ID3D11PixelShader>      m_pPS;
     Microsoft::WRL::ComPtr<ID3D11InputLayout>      m_pInputLayout;
-    Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSampler;
+    Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSamplerLinear;
+    Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSamplerPoint;
     Microsoft::WRL::ComPtr<ID3D11BlendState>       m_pBlendState;
     Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pQuadVB;
     Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pConstantBuffer;
+    Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pFullscreenQuadVB;
 
+    // 特效资源
+    Microsoft::WRL::ComPtr<ID3D11VertexShader>     m_pEffectVS;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader>      m_pEffectPS;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D>        m_pFactorTexture;   // 累积因子纹理 (R16_FLOAT)
+    Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_pFactorRTV;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_pFactorSRV;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D>        m_pScreenCopy;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_pScreenCopySRV;
+    Microsoft::WRL::ComPtr<ID3D11BlendState>       m_pMulBlendState;    // 乘法混合
+
+    // 合成着色器
+    Microsoft::WRL::ComPtr<ID3D11VertexShader>     m_pCompositeVS;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader>      m_pCompositePS;
+
+    // 纹理缓存
     FMap<std::unique_ptr<TextureResource>> m_textureMap;
     std::map<CTileBlockClass*, std::unique_ptr<TextureResource>> m_tileTextureMap;
     std::vector<DrawCommand> m_drawCommands;
+
     int m_clientWidth = 0;
     int m_clientHeight = 0;
     float m_globalScaleX = 1.0f;

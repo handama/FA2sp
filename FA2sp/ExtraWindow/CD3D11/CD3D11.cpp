@@ -44,25 +44,13 @@ void CD3D11::Initialize(HWND& hWnd)
 
 void CD3D11::InitializeResources()
 {
-    //for (auto& [_, obj] : Variables::RulesMap.GetSection("BuildingTypes"))
-    //{
-    //    CLoadingExt::GetExtension()->LoadObjects(obj);
-    //    auto imageName = CLoadingExt::GetBuildingImageName(obj, 0, 0);
-    //    auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
-    //    auto pData = CLoadingExt::BindClippedImages(clips);
-    //
-    //    //auto imageName = CLoadingExt::GetImageName(obj, 0);
-    //    //auto pData = CLoadingExt::GetImageDataFromMap(imageName);
-    //    //if (pData->IsValidImage(pData))
-    //    //{
-    //    //    CD3D11::textures.push_back(g_pDX->LoadTexture(pData));
-    //    //}
-    //    if (pData->IsValidImage(pData.get()))
-    //    {     
-    //        g_pDX->LoadTexture(imageName, CIsoViewExt::MakeImageDataView(pData.get()));
-    //    }
-    //}
-    ScopedTimer t("init tiles\n");
+    CLoadingExt::LoadShp("Furina", "Furina.shp", &CMapDataExt::Palette_Shadow, 0);
+    auto pData = CLoadingExt::GetImageDataFromMap("Furina");
+
+    if (pData->IsValidImage(pData))
+    {     
+        g_pDX->LoadIndexTexture("Furina", CIsoViewExt::MakeImageDataView(pData));
+    }
     for (int i = 0; i < CMapDataExt::TileDataCount; ++i)
     {
         auto& tileData = CMapDataExt::TileData[i];
@@ -95,6 +83,11 @@ BOOL CALLBACK CD3D11::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
         //SetTimer(hwnd, 1, 16, nullptr);  // ~60 FPS
         return TRUE;
 
+    case WM_PAINT:
+    {
+  
+        break;
+    }
     case WM_MOUSEMOVE:
         //if (wParam == 1)
         {
@@ -121,9 +114,12 @@ BOOL CALLBACK CD3D11::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
                     }
                 }
             }
+
+            auto Furina = g_pDX->GetTexture("Furina");
+
             RECT rc;
             GetClientRect(hwnd, &rc);
-            int scaleFactor = 1;
+            float scaleFactor = 2.0f;
 
             UINT width = (rc.right - rc.left) * scaleFactor;
             UINT height = (rc.bottom - rc.top) * scaleFactor;
@@ -165,6 +161,7 @@ BOOL CALLBACK CD3D11::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
                     //.SetOpacity(opacity)
                     .SetColorMul(RedMult, GreenMult, BlueMult);
                     //.SetColorMix(0.0f, 1.0f, 0.0f, 0.5f);
+
                 g_pDX->DrawTexture(tex, params);
                 if (displayX < width)
                 {
@@ -194,6 +191,11 @@ BOOL CALLBACK CD3D11::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
             }
             if (!end)
                 j = i;
+
+
+            g_pDX->DrawTexture(Furina, 0, 0);
+            g_pDX->DrawTexture(Furina, 400, 0);
+            g_pDX->DrawTexture(Furina, 800, 0);
 
             g_pDX->SetGlobalTransform(1.0f / scaleFactor, 1.0f / scaleFactor,  1.0f / scaleFactor - 1.0f, 1.0f / scaleFactor - 1.0f);
             g_pDX->Render();  // 或者在单独线程/消息循环中调用

@@ -22,7 +22,6 @@ struct CBPerObject {
     float padding[3];
 };
 
-// ------------------------------------------------------------
 DirectXCore::DirectXCore() = default;
 DirectXCore::~DirectXCore() { Cleanup(); }
 
@@ -61,20 +60,31 @@ bool DirectXCore::Initialize(HWND hwnd) {
     m_clientHeight = rc.bottom - rc.top;
     UpdateViewportAndRTV(hwnd);
 
-    EnsureFactorTexture(m_clientWidth, m_clientHeight);
-    EnsureScreenCopyTexture(m_clientWidth, m_clientHeight);
+    UINT vw = (UINT)(m_clientWidth * m_renderScale);
+    UINT vh = (UINT)(m_clientHeight * m_renderScale);
+    if (vw == 0) vw = 1;
+    if (vh == 0) vh = 1;
 
-    // 创建乘法混合状态（用于累积因子：Dest = Dest * Src）
+    if (!CreateOffscreenResources(vw, vh)) {
+        OutputDebugStringW(L"CreateOffscreenResources failed\n");
+        return false;
+    }
+    if (!CreateFinalShaders()) {
+        OutputDebugStringW(L"CreateFinalShaders failed\n");
+        return false;
+    }
+
+    EnsureFactorTexture(vw, vh);
+    EnsureScreenCopyTexture(vw, vh);
+
     D3D11_BLEND_DESC blendMul = {};
     blendMul.RenderTarget[0].BlendEnable = TRUE;
-    blendMul.RenderTarget[0].SrcBlend = D3D11_BLEND_ZERO;        // SrcColor 不贡献
-    blendMul.RenderTarget[0].DestBlend = D3D11_BLEND_SRC_COLOR;  // Dest *= SrcColor
+    blendMul.RenderTarget[0].SrcBlend = D3D11_BLEND_ZERO;
+    blendMul.RenderTarget[0].DestBlend = D3D11_BLEND_SRC_COLOR;
     blendMul.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-
     blendMul.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ZERO;
-    blendMul.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;   // 保留目标 alpha 原值
+    blendMul.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
     blendMul.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-
     blendMul.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
     m_pDevice->CreateBlendState(&blendMul, &m_pMulBlendState);
 
@@ -122,17 +132,28 @@ void DirectXCore::Cleanup() {
     m_pScreenCopySRV.Reset();
     m_pFullscreenQuadVB.Reset();
 
+    m_OffscreenTex.Reset();
+    m_OffscreenRTV.Reset();
+    m_OffscreenSRV.Reset();
+    m_pFinalVS.Reset();
+    m_pFinalPS.Reset();
+    m_pFinalConstantBuffer.Reset();
+
     m_clientWidth = m_clientHeight = 0;
     m_globalScaleX = m_globalScaleY = 1.0f;
     m_globalOffsetX = m_globalOffsetY = 0.0f;
+    m_renderScale = 1.0f;
     m_bInitialized = false;
 }
 
 void DirectXCore::OnResize(HWND hwnd) {
     if (!m_pSwapChain) return;
+
     m_pRTV.Reset();
+    m_OffscreenRTV.Reset(); m_OffscreenSRV.Reset(); m_OffscreenTex.Reset();
     m_pFactorTexture.Reset(); m_pFactorRTV.Reset(); m_pFactorSRV.Reset();
     m_pScreenCopy.Reset(); m_pScreenCopySRV.Reset();
+
     RECT rc;
     GetClientRect(hwnd, &rc);
     UINT width = rc.right - rc.left;
@@ -146,8 +167,15 @@ void DirectXCore::OnResize(HWND hwnd) {
     m_clientWidth = width;
     m_clientHeight = height;
     UpdateViewportAndRTV(hwnd);
-    EnsureFactorTexture(width, height);
-    EnsureScreenCopyTexture(width, height);
+
+    UINT vw = (UINT)(width * m_renderScale);
+    UINT vh = (UINT)(height * m_renderScale);
+    if (vw == 0) vw = 1;
+    if (vh == 0) vh = 1;
+
+    CreateOffscreenResources(vw, vh);
+    EnsureFactorTexture(vw, vh);
+    EnsureScreenCopyTexture(vw, vh);
 }
 
 void DirectXCore::UpdateViewportAndRTV(HWND hwnd) {
@@ -161,6 +189,25 @@ void DirectXCore::SetGlobalTransform(float scaleX, float scaleY, float offsetX, 
     m_globalScaleY = scaleY;
     m_globalOffsetX = offsetX;
     m_globalOffsetY = offsetY;
+}
+
+void DirectXCore::SetZoomOut(float scaleFactor) {
+    if (scaleFactor < 0.01f) scaleFactor = 0.01f;
+    if (m_renderScale == scaleFactor) return;
+    m_renderScale = scaleFactor;
+
+    UINT vw = (UINT)(m_clientWidth * m_renderScale);
+    UINT vh = (UINT)(m_clientHeight * m_renderScale);
+    if (vw == 0) vw = 1;
+    if (vh == 0) vh = 1;
+
+    m_OffscreenTex.Reset(); m_OffscreenRTV.Reset(); m_OffscreenSRV.Reset();
+    m_pFactorTexture.Reset(); m_pFactorRTV.Reset(); m_pFactorSRV.Reset();
+    m_pScreenCopy.Reset(); m_pScreenCopySRV.Reset();
+
+    CreateOffscreenResources(vw, vh);
+    EnsureFactorTexture(vw, vh);
+    EnsureScreenCopyTexture(vw, vh);
 }
 
 bool DirectXCore::CreateDeviceAndSwapChain(HWND hwnd) {
@@ -386,7 +433,6 @@ bool DirectXCore::CreateQuadVertexBuffer() {
     bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     D3D11_SUBRESOURCE_DATA initData = { vertices };
     HRESULT hr = m_pDevice->CreateBuffer(&bd, &initData, &m_pQuadVB);
-    // 全屏 Quad（持久化，避免每帧创建）
     QuadVertex fsVertices[] = {
         { XMFLOAT3(-1.0f, -1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f) },
         { XMFLOAT3(-1.0f,  1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
@@ -440,10 +486,8 @@ void DirectXCore::EnsureScreenCopyTexture(UINT width, UINT height) {
 }
 
 void DirectXCore::CopyScreenToTexture() {
-    if (!m_pContext || !m_pRTV || !m_pScreenCopy) return;
-    ComPtr<ID3D11Resource> pBackBuffer;
-    m_pRTV->GetResource(&pBackBuffer);
-    m_pContext->CopyResource(m_pScreenCopy.Get(), pBackBuffer.Get());
+    if (!m_pContext || !m_OffscreenRTV || !m_pScreenCopy) return;
+    m_pContext->CopyResource(m_pScreenCopy.Get(), m_OffscreenTex.Get());
 }
 
 void DirectXCore::DrawFullscreenQuad() {
@@ -452,6 +496,249 @@ void DirectXCore::DrawFullscreenQuad() {
     m_pContext->IASetVertexBuffers(0, 1, m_pFullscreenQuadVB.GetAddressOf(), &stride, &offset);
     m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     m_pContext->Draw(4, 0);
+}
+
+bool DirectXCore::CreateOffscreenResources(UINT width, UINT height) {
+    if (width == 0 || height == 0) return false;
+
+    m_OffscreenTex.Reset();
+    m_OffscreenRTV.Reset();
+    m_OffscreenSRV.Reset();
+
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Width = width;
+    desc.Height = height;
+    desc.MipLevels = 1;
+    desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+
+    HRESULT hr = m_pDevice->CreateTexture2D(&desc, nullptr, &m_OffscreenTex);
+    if (FAILED(hr)) return false;
+    hr = m_pDevice->CreateRenderTargetView(m_OffscreenTex.Get(), nullptr, &m_OffscreenRTV);
+    if (FAILED(hr)) return false;
+    hr = m_pDevice->CreateShaderResourceView(m_OffscreenTex.Get(), nullptr, &m_OffscreenSRV);
+    return SUCCEEDED(hr);
+}
+
+bool DirectXCore::CreateFinalShaders() {
+    const char* vsCode = R"(
+        struct VSInput {
+            float3 pos : POSITION;
+            float2 uv  : TEXCOORD0;
+        };
+        struct VSOutput {
+            float4 pos : SV_POSITION;
+            float2 uv  : TEXCOORD0;
+        };
+        VSOutput main(VSInput input) {
+            VSOutput output;
+            output.pos = float4(input.pos, 1.0f);
+            output.uv = input.uv;
+            return output;
+        }
+    )";
+
+    const char* psCode = R"(
+        Texture2D tex : register(t0);
+        SamplerState sam : register(s0);
+        cbuffer CBFinal : register(b0) {
+            float2 scale;
+            float2 offset;
+        };
+        float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_Target {
+            float2 ndc = uv * 2.0 - 1.0;
+            float2 originalNdc = (ndc - offset) / scale;
+            float2 originalUv = (originalNdc + 1.0) / 2.0;
+            if (any(originalUv < 0.0) || any(originalUv > 1.0))
+                return float4(0,0,0,0);
+            return tex.Sample(sam, originalUv);
+        }
+    )";
+
+    ComPtr<ID3DBlob> vsBlob, psBlob, error;
+    HRESULT hr = D3DCompile(vsCode, strlen(vsCode), nullptr, nullptr, nullptr, "main", "vs_5_0", 0, 0, &vsBlob, &error);
+    if (FAILED(hr)) { if (error) OutputDebugStringA((char*)error->GetBufferPointer()); return false; }
+    hr = D3DCompile(psCode, strlen(psCode), nullptr, nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &error);
+    if (FAILED(hr)) { if (error) OutputDebugStringA((char*)error->GetBufferPointer()); return false; }
+
+    hr = m_pDevice->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &m_pFinalVS);
+    if (FAILED(hr)) return false;
+    hr = m_pDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &m_pFinalPS);
+    if (FAILED(hr)) return false;
+
+    D3D11_BUFFER_DESC cbDesc = {};
+    cbDesc.ByteWidth = sizeof(float) * 4;
+    cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+    cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    hr = m_pDevice->CreateBuffer(&cbDesc, nullptr, &m_pFinalConstantBuffer);
+    return SUCCEEDED(hr);
+}
+
+void DirectXCore::RenderOffscreenContent() {
+
+    m_pContext->OMSetRenderTargets(1, m_OffscreenRTV.GetAddressOf(), nullptr);
+    float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    m_pContext->ClearRenderTargetView(m_OffscreenRTV.Get(), clearColor);
+
+    float vw = (float)(m_clientWidth * m_renderScale);
+    float vh = (float)(m_clientHeight * m_renderScale);
+    D3D11_VIEWPORT offscreenVP = { 0, 0, vw, vh, 0.0f, 1.0f };
+    m_pContext->RSSetViewports(1, &offscreenVP);
+
+    m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
+    m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
+    m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
+    m_pContext->PSSetSamplers(0, 1, m_pSamplerLinear.GetAddressOf());
+    m_pContext->IASetInputLayout(m_pInputLayout.Get());
+
+    UINT stride = sizeof(QuadVertex);
+    UINT offset = 0;
+    m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &stride, &offset);
+    m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+    auto CalcWorldMatrixNoGlobal = [&](const DrawParams& p, int texW, int texH) -> XMMATRIX {
+        float w_px = texW * p.scaleX;
+        float h_px = texH * p.scaleY;
+        float centerX_px = p.x + w_px * 0.5f;
+        float centerY_px = p.y + h_px * 0.5f;
+        float ndc_width = (w_px / vw) * 2.0f;
+        float ndc_height = (h_px / vh) * 2.0f;
+        float ndc_centerX = (centerX_px / vw) * 2.0f - 1.0f;
+        float ndc_centerY = 1.0f - (centerY_px / vh) * 2.0f;
+        XMMATRIX S = XMMatrixScaling(ndc_width, ndc_height, 1.0f);
+        XMMATRIX T = XMMatrixTranslation(ndc_centerX, ndc_centerY, 0.0f);
+        return S * T;
+    };
+
+    for (const auto& cmd : m_drawCommands) {
+        if (cmd.bIsEffect) continue;
+        TextureResource* tex = cmd.texRes;
+        if (!tex || !tex->srv || tex->bIsIndexTexture) continue;
+
+        const auto& p = cmd.params;
+        XMMATRIX world = CalcWorldMatrixNoGlobal(p, tex->sourceView.FullWidth, tex->sourceView.FullHeight);
+        CBPerObject cb;
+        cb.world = XMMatrixTranspose(world);
+        cb.colorMul = XMFLOAT4(p.redMult, p.greenMult, p.blueMult, p.opacity);
+        cb.mixColor = XMFLOAT4(p.mixR, p.mixG, p.mixB, 1.0f);
+        cb.mixFactor = p.mixFactor;
+
+        D3D11_MAPPED_SUBRESOURCE mapped;
+        HRESULT hr = m_pContext->Map(m_pConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+        if (FAILED(hr)) continue;
+        memcpy(mapped.pData, &cb, sizeof(cb));
+        m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
+
+        m_pContext->VSSetConstantBuffers(0, 1, m_pConstantBuffer.GetAddressOf());
+        m_pContext->PSSetShaderResources(0, 1, tex->srv.GetAddressOf());
+        m_pContext->Draw(4, 0);
+    }
+
+
+    bool hasEffect = false;
+    for (auto& cmd : m_drawCommands) if (cmd.bIsEffect) { hasEffect = true; break; }
+    if (hasEffect) {
+
+        CopyScreenToTexture();
+
+
+        float one[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+        m_pContext->ClearRenderTargetView(m_pFactorRTV.Get(), one);
+
+        m_pContext->OMSetRenderTargets(1, m_pFactorRTV.GetAddressOf(), nullptr);
+        m_pContext->OMSetBlendState(m_pMulBlendState.Get(), nullptr, 0xffffffff);
+        m_pContext->VSSetShader(m_pEffectVS.Get(), nullptr, 0);
+        m_pContext->PSSetShader(m_pEffectPS.Get(), nullptr, 0);
+        m_pContext->PSSetSamplers(0, 1, m_pSamplerPoint.GetAddressOf());
+
+        for (const auto& cmd : m_drawCommands) {
+            if (!cmd.bIsEffect) continue;
+            TextureResource* idxTex = cmd.texRes;
+            if (!idxTex || !idxTex->srv || !idxTex->bIsIndexTexture) continue;
+
+            const auto& p = cmd.params;
+            XMMATRIX world = CalcWorldMatrixNoGlobal(p, idxTex->sourceView.FullWidth, idxTex->sourceView.FullHeight);
+            CBPerObject cb;
+            cb.world = XMMatrixTranspose(world);
+            memset(&cb.colorMul, 0, sizeof(cb.colorMul) + sizeof(cb.mixColor) + sizeof(cb.mixFactor));
+
+            D3D11_MAPPED_SUBRESOURCE mapped;
+            HRESULT hr = m_pContext->Map(m_pConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+            if (FAILED(hr)) continue;
+            memcpy(mapped.pData, &cb, sizeof(cb));
+            m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
+
+            m_pContext->VSSetConstantBuffers(0, 1, m_pConstantBuffer.GetAddressOf());
+            m_pContext->PSSetShaderResources(0, 1, idxTex->srv.GetAddressOf());
+            m_pContext->Draw(4, 0);
+        }
+
+        m_pContext->OMSetRenderTargets(1, m_OffscreenRTV.GetAddressOf(), nullptr);
+        m_pContext->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+        m_pContext->VSSetShader(m_pCompositeVS.Get(), nullptr, 0);
+        m_pContext->PSSetShader(m_pCompositePS.Get(), nullptr, 0);
+        m_pContext->PSSetSamplers(0, 1, m_pSamplerLinear.GetAddressOf());
+
+        ID3D11ShaderResourceView* srvs[2] = { m_pScreenCopySRV.Get(), m_pFactorSRV.Get() };
+        m_pContext->PSSetShaderResources(0, 2, srvs);
+        DrawFullscreenQuad();
+
+        ID3D11ShaderResourceView* nullSRV[2] = { nullptr, nullptr };
+        m_pContext->PSSetShaderResources(0, 2, nullSRV);
+    }
+}
+
+void DirectXCore::RenderFinalToBackBuffer() {
+    D3D11_VIEWPORT windowVP = { 0, 0, (float)m_clientWidth, (float)m_clientHeight, 0.0f, 1.0f };
+    m_pContext->RSSetViewports(1, &windowVP);
+
+    m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
+    float clearColor[4] = { 0,0,0,1 };
+    m_pContext->ClearRenderTargetView(m_pRTV.Get(), clearColor);
+    m_pContext->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+
+    m_pContext->VSSetShader(m_pFinalVS.Get(), nullptr, 0);
+    m_pContext->PSSetShader(m_pFinalPS.Get(), nullptr, 0);
+    m_pContext->PSSetSamplers(0, 1, m_pSamplerLinear.GetAddressOf());
+
+    struct FinalCB {
+        float scaleX, scaleY;
+        float offsetX, offsetY;
+    } cbData = { 1.0f, 1.0f, 0.0f, 0.0f };
+
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    if (SUCCEEDED(m_pContext->Map(m_pFinalConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+        memcpy(mapped.pData, &cbData, sizeof(cbData));
+        m_pContext->Unmap(m_pFinalConstantBuffer.Get(), 0);
+    }
+    m_pContext->PSSetConstantBuffers(0, 1, m_pFinalConstantBuffer.GetAddressOf());
+
+    m_pContext->PSSetShaderResources(0, 1, m_OffscreenSRV.GetAddressOf());
+
+    UINT stride = sizeof(QuadVertex);
+    UINT offset = 0;
+    m_pContext->IASetVertexBuffers(0, 1, m_pFullscreenQuadVB.GetAddressOf(), &stride, &offset);
+    m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    m_pContext->Draw(4, 0);
+
+    ID3D11ShaderResourceView* nullSRV = nullptr;
+    m_pContext->PSSetShaderResources(0, 1, &nullSRV);
+}
+
+void DirectXCore::Render() {
+    if (!m_bInitialized || !m_pContext || !m_pSwapChain || !m_pRTV || m_drawCommands.empty()) {
+        return;
+    }
+
+    RenderOffscreenContent();
+    RenderFinalToBackBuffer();
+
+    m_pSwapChain->Present(1, 0);
+    m_drawCommands.clear();
 }
 
 DirectXCore::TextureResource* DirectXCore::LoadTexture(const FString& name, const ImageDataView& view) {
@@ -557,129 +844,4 @@ DirectXCore::TextureResource* DirectXCore::GetTileTexture(CTileBlockClass* tileB
 void DirectXCore::DrawTexture(TextureResource* tex, const DrawParams& params) {
     if (!tex) return;
     m_drawCommands.push_back({ tex, params, tex->bIsIndexTexture });
-}
-
-void DirectXCore::Render() {
-    if (!m_bInitialized || !m_pContext || !m_pSwapChain || !m_pRTV || m_drawCommands.empty()) {
-        return;
-    }
-
-    // ========== 第一步：绘制所有普通纹理 ==========
-    m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
-    float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-    m_pContext->ClearRenderTargetView(m_pRTV.Get(), clearColor);
-    m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
-    m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
-    m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
-    m_pContext->PSSetSamplers(0, 1, m_pSamplerLinear.GetAddressOf());
-    m_pContext->IASetInputLayout(m_pInputLayout.Get());
-
-    UINT stride = sizeof(QuadVertex);
-    UINT offset = 0;
-    m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &stride, &offset);
-    m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-
-    XMMATRIX globalMat = XMMatrixScaling(m_globalScaleX, m_globalScaleY, 1.0f) *
-        XMMatrixTranslation(m_globalOffsetX, -m_globalOffsetY, 0.0f);
-
-    // 辅助函数：计算世界矩阵
-    auto CalcWorldMatrix = [&](const DrawParams& p, int texW, int texH) -> XMMATRIX {
-        float w_px = texW * p.scaleX;
-        float h_px = texH * p.scaleY;
-        float centerX_px = p.x + w_px * 0.5f;
-        float centerY_px = p.y + h_px * 0.5f;
-        float ndc_width = (w_px / m_clientWidth) * 2.0f;
-        float ndc_height = (h_px / m_clientHeight) * 2.0f;
-        float ndc_centerX = (centerX_px / m_clientWidth) * 2.0f - 1.0f;
-        float ndc_centerY = 1.0f - (centerY_px / m_clientHeight) * 2.0f;
-        XMMATRIX S = XMMatrixScaling(ndc_width, ndc_height, 1.0f);
-        XMMATRIX T = XMMatrixTranslation(ndc_centerX, ndc_centerY, 0.0f);
-        return S * T * globalMat;
-    };
-
-    for (const auto& cmd : m_drawCommands) {
-        if (cmd.bIsEffect) continue; // 特效稍后处理
-        TextureResource* tex = cmd.texRes;
-        if (!tex || !tex->srv || tex->bIsIndexTexture) continue;
-
-        const auto& p = cmd.params;
-        XMMATRIX world = CalcWorldMatrix(p, tex->sourceView.FullWidth, tex->sourceView.FullHeight);
-        CBPerObject cb;
-        cb.world = XMMatrixTranspose(world);
-        cb.colorMul = XMFLOAT4(p.redMult, p.greenMult, p.blueMult, p.opacity);
-        cb.mixColor = XMFLOAT4(p.mixR, p.mixG, p.mixB, 1.0f);
-        cb.mixFactor = p.mixFactor;
-
-        D3D11_MAPPED_SUBRESOURCE mapped;
-        HRESULT hr = m_pContext->Map(m_pConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-        if (FAILED(hr)) continue;
-        memcpy(mapped.pData, &cb, sizeof(cb));
-        m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
-
-        m_pContext->VSSetConstantBuffers(0, 1, m_pConstantBuffer.GetAddressOf());
-        m_pContext->PSSetShaderResources(0, 1, tex->srv.GetAddressOf());
-        m_pContext->Draw(4, 0);
-    }
-
-    // ========== 第二步：处理特效（累积因子） ==========
-    bool hasEffect = false;
-    for (auto& cmd : m_drawCommands) if (cmd.bIsEffect) { hasEffect = true; break; }
-    if (hasEffect) {
-        // 复制当前屏幕（普通纹理绘制后）到副本
-        CopyScreenToTexture();
-
-        // 初始化因子纹理为 1.0（白色，float 1.0）
-        float one[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-        m_pContext->ClearRenderTargetView(m_pFactorRTV.Get(), one);
-
-        // 设置渲染目标为因子纹理，使用乘法混合
-        m_pContext->OMSetRenderTargets(1, m_pFactorRTV.GetAddressOf(), nullptr);
-        m_pContext->OMSetBlendState(m_pMulBlendState.Get(), nullptr, 0xffffffff);
-        m_pContext->VSSetShader(m_pEffectVS.Get(), nullptr, 0);
-        m_pContext->PSSetShader(m_pEffectPS.Get(), nullptr, 0);
-        m_pContext->PSSetSamplers(0, 1, m_pSamplerPoint.GetAddressOf());
-        // 顶点缓冲区复用普通绘制的 Quad VB，拓扑相同
-
-        for (const auto& cmd : m_drawCommands) {
-            if (!cmd.bIsEffect) continue;
-            TextureResource* idxTex = cmd.texRes;
-            if (!idxTex || !idxTex->srv || !idxTex->bIsIndexTexture) continue;
-
-            const auto& p = cmd.params;
-            XMMATRIX world = CalcWorldMatrix(p, idxTex->sourceView.FullWidth, idxTex->sourceView.FullHeight);
-            CBPerObject cb;
-            cb.world = XMMatrixTranspose(world);
-            // 其他成员无用，清零
-            memset(&cb.colorMul, 0, sizeof(cb.colorMul) + sizeof(cb.mixColor) + sizeof(cb.mixFactor));
-
-            D3D11_MAPPED_SUBRESOURCE mapped;
-            HRESULT hr = m_pContext->Map(m_pConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-            if (FAILED(hr)) continue;
-            memcpy(mapped.pData, &cb, sizeof(cb));
-            m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
-
-            m_pContext->VSSetConstantBuffers(0, 1, m_pConstantBuffer.GetAddressOf());
-            m_pContext->PSSetShaderResources(0, 1, idxTex->srv.GetAddressOf());
-            m_pContext->Draw(4, 0);
-        }
-
-        // ========== 第三步：合成最终图像 ==========
-        m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
-        m_pContext->OMSetBlendState(nullptr, nullptr, 0xffffffff); // 禁用混合
-        m_pContext->VSSetShader(m_pCompositeVS.Get(), nullptr, 0);
-        m_pContext->PSSetShader(m_pCompositePS.Get(), nullptr, 0);
-        m_pContext->PSSetSamplers(0, 1, m_pSamplerLinear.GetAddressOf());
-
-        ID3D11ShaderResourceView* srvs[2] = { m_pScreenCopySRV.Get(), m_pFactorSRV.Get() };
-        m_pContext->PSSetShaderResources(0, 2, srvs);
-        DrawFullscreenQuad();
-
-        // 解绑资源
-        ID3D11ShaderResourceView* nullSRV[2] = { nullptr, nullptr };
-        m_pContext->PSSetShaderResources(0, 2, nullSRV);
-    }
-
-    // 呈现并清空命令队列
-    m_pSwapChain->Present(1, 0);
-    m_drawCommands.clear();
 }

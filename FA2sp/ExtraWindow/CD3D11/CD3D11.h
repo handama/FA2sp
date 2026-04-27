@@ -22,4 +22,5 @@ public:
     static void Close(HWND& hWnd);
     static void Initialize(HWND& hWnd);
     static void InitializeResources();
+    static void Render();
 };

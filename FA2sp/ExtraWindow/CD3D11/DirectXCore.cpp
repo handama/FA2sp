@@ -29,28 +29,28 @@ bool DirectXCore::Initialize(HWND hwnd) {
     Cleanup();
 
     if (!IsWindow(hwnd)) {
-        OutputDebugStringW(L"Initialize: Invalid HWND\n");
+        Logger::Info("Initialize: Invalid HWND\n");
         return false;
     }
 
     if (!CreateDeviceAndSwapChain(hwnd)) {
-        OutputDebugStringW(L"CreateDeviceAndSwapChain failed\n");
+        Logger::Info("CreateDeviceAndSwapChain failed\n");
         return false;
     }
     if (!CreateShadersAndInputLayout()) {
-        OutputDebugStringW(L"CreateShadersAndInputLayout failed\n");
+        Logger::Info("CreateShadersAndInputLayout failed\n");
         return false;
     }
     if (!CreateEffectShaders()) {
-        OutputDebugStringW(L"CreateEffectShaders failed\n");
+        Logger::Info("CreateEffectShaders failed\n");
         return false;
     }
     if (!CreateCompositeShaders()) {
-        OutputDebugStringW(L"CreateCompositeShaders failed\n");
+        Logger::Info("CreateCompositeShaders failed\n");
         return false;
     }
     if (!CreateQuadVertexBuffer()) {
-        OutputDebugStringW(L"CreateQuadVertexBuffer failed\n");
+        Logger::Info("CreateQuadVertexBuffer failed\n");
         return false;
     }
 
@@ -66,11 +66,11 @@ bool DirectXCore::Initialize(HWND hwnd) {
     if (vh == 0) vh = 1;
 
     if (!CreateOffscreenResources(vw, vh)) {
-        OutputDebugStringW(L"CreateOffscreenResources failed\n");
+        Logger::Info("CreateOffscreenResources failed\n");
         return false;
     }
     if (!CreateFinalShaders()) {
-        OutputDebugStringW(L"CreateFinalShaders failed\n");
+        Logger::Info("CreateFinalShaders failed\n");
         return false;
     }
 
@@ -89,7 +89,7 @@ bool DirectXCore::Initialize(HWND hwnd) {
     m_pDevice->CreateBlendState(&blendMul, &m_pMulBlendState);
 
     m_bInitialized = true;
-    OutputDebugStringW(L"Initialize succeeded\n");
+    Logger::Info("Initialize succeeded\n");
     return true;
 }
 
@@ -236,7 +236,7 @@ bool DirectXCore::CreateDeviceAndSwapChain(HWND hwnd) {
         D3D11_SDK_VERSION, &scd,
         &m_pSwapChain, &m_pDevice, nullptr, &m_pContext);
     if (FAILED(hr)) {
-        OutputDebugStringW(L"D3D11CreateDeviceAndSwapChain failed\n");
+        Logger::Info("D3D11CreateDeviceAndSwapChain failed\n");
         return false;
     }
 

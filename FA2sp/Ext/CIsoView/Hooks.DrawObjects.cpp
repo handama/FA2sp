@@ -5,6 +5,7 @@
 #include "../../Miscs/Palettes.h"
 #include "../CFinalSunDlg/Body.h"
 #include "../CIsoView/Body.h"
+#include "../CIsoView/DirectXCore.h"
 #include "../CLoading/Body.h"
 #include "../CMapData/Body.h"
 #include <Miscs/Miscs.h>
@@ -307,6 +308,7 @@ inline static CAircraftDataFS& SetAircraftData(int index)
 	GetAircraftDataByIniID(index, obj);
 	return obj;
 }
+
 inline static bool IsCoordInWindow(int X, int Y)
 {
 	return
@@ -661,9 +663,286 @@ static void DrawTechnoAttachments
 	}
 }
 
-DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
+DEFINE_HOOK(456E99, CIsoView_OnMouseMove_SetTimer, 6)
 {
-	auto pThis = CIsoView::GetInstance();
+	GET(HWND, hIsoView, EAX);
+	SetTimer(hIsoView, 11, 16, NULL);
+	return 0x456EA6;
+}
+
+DEFINE_HOOK(468690, CIsoView_OnSize, A)
+{
+	auto pThis = CIsoViewExt::GetExtension();
+	if(pThis->g_pDX)
+		pThis->g_pDX->OnResize(pThis->GetSafeHwnd());
+	return 0;
+}
+
+DEFINE_HOOK(46DE00, CIsoView_Draw, 7)
+{
+	enum { FunctionEnd = 0x47519D };
+
+	auto pThis = CIsoViewExt::GetExtension();
+	auto pMap = CMapDataExt::GetExtension();
+	auto pFinalSunDlg = CFinalSunDlg::Instance();
+
+	if (pMap->MapNotLoaded) return FunctionEnd;
+
+	if (pThis->CancelDraw)
+	{
+		pThis->CancelDraw = false;
+		return FunctionEnd;
+	}
+
+	pFinalSunDlg->LastSucceededOperation = 100;
+
+	if (pThis->lpDDPrimarySurface == NULL 
+		|| pThis->IsInitializing 
+		|| pMap->TileData == NULL 
+		|| pMap->TileDataCount == 0
+		|| (*CTileTypeClass::Instance) == NULL
+		|| (*CTileTypeClass::InstanceCount) == 0
+		|| pMap->MapWidthPlusHeight == 0)
+		return FunctionEnd;
+
+
+	if (!pThis->g_pDX)
+		pThis->g_pDX = std::make_unique<DirectXCore>();
+
+	if (pThis->g_pDX->IsInitialized())
+	{
+		pThis->GetWindowRect(&window);
+		CIsoViewExt::AdaptRectForSecondScreen(&window);
+
+		double scale = CIsoViewExt::ScaledFactor;
+		if (scale < 0.9)
+			scale += 0.1;
+		if (scale < 0.7)
+			scale += 0.1;
+		if (scale < 0.5)
+			scale += 0.1;
+		window.right += window.Width() * (scale - 1.0);
+		if (scale < 1.0)
+			scale = 1.0;
+		window.bottom += window.Height() * (scale - 1.0);
+
+		VisibleCoordTL.X = window.left + pThis->ViewPosition.x;
+		VisibleCoordTL.Y = window.top + pThis->ViewPosition.y;
+		VisibleCoordBR.X = window.right + pThis->ViewPosition.x;
+		VisibleCoordBR.Y = window.bottom + pThis->ViewPosition.y;
+		pThis->ScreenCoord2MapCoord_Flat(VisibleCoordTL.X, VisibleCoordTL.Y);
+		pThis->ScreenCoord2MapCoord_Flat(VisibleCoordBR.X, VisibleCoordBR.Y);
+		if (VisibleCoordBR.X < 0 || VisibleCoordBR.Y < 0)
+		{
+			VisibleCoordBR.X = CMapData::Instance->Size.Width;
+			VisibleCoordBR.Y = CMapData::Instance->MapWidthPlusHeight + 1;
+		}
+		if (VisibleCoordTL.X < 0 || VisibleCoordTL.Y < 0)
+		{
+			VisibleCoordTL.X = CMapData::Instance->Size.Width;
+			VisibleCoordTL.Y = 0;
+		}
+
+		int DrawOffsetX = pThis->ViewPosition.x;
+		int DrawOffsetY = pThis->ViewPosition.y;
+
+		CIsoViewExt::drawOffsetX = DrawOffsetX;
+		CIsoViewExt::drawOffsetY = DrawOffsetY;
+
+		auto isCoordInFullMap = [](int X, int Y)
+		{
+			if (!ExtConfigs::DisplayObjectsOutside)
+				return CMapData::Instance->IsCoordInMap(X, Y);
+
+			return X >= 0 && Y >= 0 &&
+				X < CMapData::Instance->MapWidthPlusHeight &&
+				Y < CMapData::Instance->MapWidthPlusHeight;
+		};
+
+		visibleCells.clear();
+		for (int XplusY = VisibleCoordTL.X + VisibleCoordTL.Y - EXTRA_BORDER;
+			XplusY < VisibleCoordBR.X + VisibleCoordBR.Y + CIsoViewExt::EXTRA_BORDER_BOTTOM;
+			XplusY++) {
+			for (int X = 0; X < XplusY; X++) {
+				int Y = XplusY - X;
+				if (!IsCoordInWindow(X, Y) || !isCoordInFullMap(X, Y)) continue;
+				int pos = CMapData::Instance->GetCoordIndex(X, Y);
+				int screenX = X, screenY = Y;
+				CIsoView::MapCoord2ScreenCoord(screenX, screenY);
+				screenX -= DrawOffsetX;
+				screenY -= DrawOffsetY;
+				auto cell = CMapData::Instance->GetCellAt(pos);
+				auto& cellExt = CMapDataExt::CellDataExts[pos];
+				coordToIndex[{X, Y}] = visibleCells.size();
+				visibleCells.push_back({ X, Y, screenX, screenY, pos,
+					CMapData::Instance->IsCoordInMap(X, Y),
+					cell,
+					&cellExt,
+					false });
+
+				cell->Flag.RedrawTerrain = false;
+				cellExt.BuildingRenderParts.clear();
+				cellExt.BaseNodeRenderParts.clear();
+			}
+		}
+		auto lighting = LightingStruct::GetCurrentLighting();
+		float AmbientMult, RedMult, GreenMult, BlueMult;
+		if (lighting == LightingStruct::NoLighting)
+		{
+			AmbientMult = 1.0f;
+			RedMult = 1.0f;
+			GreenMult = 1.0f;
+			BlueMult = 1.0f;
+		}
+		else
+		{
+			AmbientMult = lighting.Ambient - lighting.Ground;
+			RedMult = lighting.Red * AmbientMult;
+			GreenMult = lighting.Green * AmbientMult;
+			BlueMult = lighting.Blue * AmbientMult;
+		}
+		for (auto& info : visibleCells)
+		{
+			if (!info.isInMap) continue;
+			auto& X = info.X;
+			auto& Y = info.Y;
+			auto& cell = info.cell;
+			auto& cellExt = info.cellExt;
+			auto& screenX = info.screenX;
+			auto& screenY = info.screenY;
+
+			CIsoViewExt::CurrentDrawCellLocation.X = X;
+			CIsoViewExt::CurrentDrawCellLocation.Y = Y;
+			CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
+
+			int altImage = cell->Flag.AltIndex;
+			int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+			int tileSetOri = CMapDataExt::TileData[tileIndex].TileSet;
+			int tileSubIndex = cell->TileSubIndex;
+
+			int virtualHeight = cell->Height;
+			if (CFinalSunApp::Instance->FrameMode)
+			{
+				if (CMapDataExt::TileData[tileIndex].FrameModeIndex < CMapDataExt::TileDataCount)
+				{
+					tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
+				}
+				else
+				{
+					tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + cell->Height;
+					tileSubIndex = 0;
+				}
+			}
+			tileIndex = CMapDataExt::GetSafeTileIndex(tileIndex);
+
+			CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
+			int tileSet = tile.TileSet;
+			if (tile.AltTypeCount)
+			{
+				if (altImage > 0)
+				{
+					altImage = altImage < tile.AltTypeCount ? altImage : tile.AltTypeCount;
+					tile = tile.AltTypes[altImage - 1];
+				}
+			}
+
+			if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
+			{
+				auto& subTile = tile.TileBlockDatas[tileSubIndex];
+				int x = screenX;
+				int y = screenY;
+				x -= 60;
+				y -= 30;
+
+				if (subTile.HasValidImage)
+				{
+					auto isCellHidden = [](CellData* pCell)
+					{
+						return pCell->IsHidden() && (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers);
+					};
+
+					Palette* pal = CMapDataExt::TileSetPalettes[tileSet];
+					auto tex = pThis->g_pDX->GetTileTexture(&subTile);
+
+					DrawParams params;
+					params.SetPosition(x + subTile.XMinusExX - 61, y + subTile.YMinusExY - 1)
+						.SetOpacity(isCellHidden(cell) ? 0.5f : 1.0f)
+						.SetColorMul(RedMult, GreenMult, BlueMult);
+
+					pThis->g_pDX->DrawTexture(tex, params);
+
+				}
+			}
+		}
+
+		pThis->g_pDX->Render(); 
+
+		return FunctionEnd;
+	}
+	else 
+	{
+		if (!pThis->g_pDX->Initialize(pThis->GetSafeHwnd())) {
+			pThis->g_pDX = nullptr;
+		}
+		else
+		{
+			CLoadingExt::LoadShp("Furina", "Furina.shp", &CMapDataExt::Palette_Shadow, 0);
+			auto pData = CLoadingExt::GetImageDataFromMap("Furina");
+
+			if (pData->IsValidImage(pData))
+			{
+				pThis->g_pDX->LoadIndexTexture("Furina", CIsoViewExt::MakeImageDataView(pData));
+			}
+			for (int i = 0; i < CMapDataExt::TileDataCount; ++i)
+			{
+				auto& tileData = CMapDataExt::TileData[i];
+				CTileTypeClass* currentTile = &tileData;
+				for (int j = -1; j < (int)tileData.AltTypeCount; ++j)
+				{
+					if (j > -1)
+						currentTile = &tileData.AltTypes[j];
+
+					if (Palette* pal = CMapDataExt::TileSetPalettes[currentTile->TileSet])
+					{
+						for (int k = 0; k < currentTile->TileBlockCount; ++k)
+						{
+							auto tileBlock = &currentTile->TileBlockDatas[k];
+							if (tileBlock && tileBlock->ImageData)
+							{
+								pThis->g_pDX->LoadTileTexture(tileBlock, CIsoViewExt::MakeImageDataView(tileBlock, pal));
+							}
+						}
+					}
+				}
+			}
+			pThis->g_pDX->SetZoomOut(CIsoViewExt::ScaledFactor);
+		}
+	}
+
+
+	DDSURFACEDESC2 ddsd{};
+	LPDIRECTDRAWSURFACE7 lpSurface = pThis->GetBackBuffer();
+
+	DDBLTFX fx;
+	memset(&fx, 0, sizeof(DDBLTFX));
+	fx.dwSize = sizeof(DDBLTFX);
+	fx.dwFillColor = CIsoViewExt::RenderingMap ? RGB(0, 0, 0) :
+		(ExtConfigs::EnableDarkMode ? RGB(32, 32, 32) : RGB(255, 255, 255));
+
+	lpSurface->Blt(NULL, NULL, NULL, DDBLT_COLORFILL, &fx);
+	ddsd.dwSize = sizeof(DDSURFACEDESC2);
+	ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT;
+	lpSurface->GetSurfaceDesc(&ddsd);
+	lpSurface->Lock(NULL, &ddsd, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_NOSYSLOCK, NULL);
+
+	DDBoundary boundary{ ddsd.dwWidth, ddsd.dwHeight, ddsd.lPitch };
+
+	if (pThis->lpDDPrimarySurface->IsLost() != DD_OK || ddsd.lpSurface == NULL)
+	{
+		pThis->PrimarySurfaceLost();
+		return FunctionEnd;
+	}
+
 	PalettesManager::CalculatedObjectPaletteFiles.clear();
 	CIsoViewExt::VisibleStructures.clear();
 	CIsoViewExt::VisibleInfantries.clear();
@@ -735,7 +1014,6 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 				Waypoints.push_back(&key);
 		}
 
-
 	RECT rect;
 	::GetClientRect(pThis->GetSafeHwnd(), &rect);
 	POINT topLeft = { rect.left, rect.top };
@@ -751,7 +1029,6 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 		LightingStruct::GetCurrentLighting();
 		PalettesManager::NeedReloadLighting = false;
 	}
-
 	if (CMapDataExt::Init_OpenMinimap)
 	{
 		CFinalSunDlg::Instance->MyViewFrame.Minimap.Update();
@@ -774,26 +1051,6 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 		INIIncludes::MapINIWarn = false;
 	}
 
-	return 0;
-}
-
-DEFINE_HOOK(46DEF7, CIsoView_Draw_BackgroundColor_Skip, 5)
-{
-	return 0x46DF38;
-}
-
-DEFINE_HOOK(46DF49, CIsoView_Draw_ScaledBorder, 6)
-{
-	GET_STACK(CRect, viewRect, STACK_OFFS(0xD18, 0xCCC));
-	viewRect.right += viewRect.Width() * (CIsoViewExt::ScaledFactor - 1.0);
-	viewRect.bottom += viewRect.Height() * (CIsoViewExt::ScaledFactor - 1.0);
-	R->Stack(STACK_OFFS(0xD18, 0xCCC), viewRect);
-	return 0;
-}
-
-DEFINE_HOOK(46E815, CIsoView_Draw_Optimize_GetBorder, 5)
-{
-	auto pThis = CIsoView::GetInstance();
 	pThis->GetWindowRect(&window);
 	CIsoViewExt::AdaptRectForSecondScreen(&window);
 
@@ -826,55 +1083,14 @@ DEFINE_HOOK(46E815, CIsoView_Draw_Optimize_GetBorder, 5)
 		VisibleCoordTL.Y = 0;
 	}
 
-	return 0x46E9D5;
-}
+	int DrawOffsetX = pThis->ViewPosition.x;
+	int DrawOffsetY = pThis->ViewPosition.y;
 
-DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
-{
-	ScopedTimer t("CIsoView_Draw_MainLoop");
-	GET_STACK(float, DrawOffsetX, STACK_OFFS(0xD18, 0xCB0));
-	GET_STACK(float, DrawOffsetY, STACK_OFFS(0xD18, 0xCB8));
-
-	auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
-	LPDDSURFACEDESC2 lpDesc = nullptr;
-	DDSURFACEDESC2 ddsd;
-
-	DDBLTFX fx;
-	memset(&fx, 0, sizeof(DDBLTFX));
-	fx.dwSize = sizeof(DDBLTFX);
-	fx.dwFillColor = CIsoViewExt::RenderingMap ? RGB(0, 0, 0) :
-		(ExtConfigs::EnableDarkMode ? RGB(32, 32, 32) : RGB(255, 255, 255));
-
-	if (pThis->ScaledFactor == 1.0)
-	{
-		pThis->lpDDBackBufferZoomSurface->Blt(NULL, NULL, NULL, DDBLT_COLORFILL, &fx);
-		ZeroMemory(&ddsd, sizeof(DDSURFACEDESC2));
-		ddsd.dwSize = sizeof(DDSURFACEDESC2);
-		ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT;
-		pThis->lpDDBackBufferZoomSurface->GetSurfaceDesc(&ddsd);
-		pThis->lpDDBackBufferZoomSurface->Lock(NULL, &ddsd, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_NOSYSLOCK, NULL);
-		lpDesc = &ddsd;
-	}
-	else
-	{
-		pThis->lpDDBackBufferSurface->Unlock(NULL);
-		pThis->lpDDBackBufferSurface->Blt(NULL, NULL, NULL, DDBLT_COLORFILL, &fx);
-		pThis->lpDDBackBufferSurface->Lock(NULL, &ddsd, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_NOSYSLOCK, NULL);
-		lpDesc = R->lea_Stack<LPDDSURFACEDESC2>((0xD18 - 0x92C));
-	}
-
-	if (lpDesc->lpSurface == NULL) 
-	{
-		pThis->PrimarySurfaceLost();
-		return 0x474DB3;
-	}
-
-	DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
 	CIsoViewExt::drawOffsetX = DrawOffsetX;
 	CIsoViewExt::drawOffsetY = DrawOffsetY;
 
 	HDC hDC;
-	CIsoViewExt::GetBackBuffer()->GetDC(&hDC);
+	lpSurface->GetDC(&hDC);
 
 	auto isCoordInFullMap = [](int X, int Y)
 	{
@@ -1254,7 +1470,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					Palette* pal = CMapDataExt::TileSetPalettes[tileSet];
 						
-					CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
+					CIsoViewExt::BlitTerrain(pThis, ddsd.lpSurface, window, boundary,
 						x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
 						isCellHidden(cell) ? 128 : 255, nullptr, nullptr, cell->Height, &cellHeightMask, tileSetOri);
 
@@ -1433,7 +1649,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				auto pData = CLoadingExt::GetImageDataFromMap(extraImageID);
 				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
-					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
 						x + 30 + offset.X,
 						y + 30 + offset.Y,
 						pData, pal, isCellHidden(cell) ? 128 : 255, -2, -10);
@@ -1476,7 +1692,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
-					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
 						x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false);
 				}
 				else
@@ -1730,7 +1946,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 								FSet drawn;
 								DrawTechnoAttachments([] {}, drawn, objRender.ID, FacingCount == 1 ? 0 : objRender.Facing,
-									CLoadingExt::ObjectType::Building, cell, lpDesc->lpSurface, boundary,
+									CLoadingExt::ObjectType::Building, cell, ddsd.lpSurface, boundary,
 									x1, y1, 0xffffff, true);
 
 								for (int upgrade = 0; upgrade < objRender.PowerUpCount; ++upgrade)
@@ -2027,7 +2243,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 						FSet drawn;
 						DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
-							CLoadingExt::ObjectType::Infantry, cell, lpDesc->lpSurface, boundary,
+							CLoadingExt::ObjectType::Infantry, cell, ddsd.lpSurface, boundary,
 							x1, y1, 0xffffff, true);
 					}
 				}
@@ -2080,14 +2296,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					if (allowDraw && pData->pImageBuffer)
 					{
 						// units are special, they overlap with each other
-						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
 							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + 15, pData, NULL, 128);
 
 					}
 
 					FSet drawn;
 					DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
-						CLoadingExt::ObjectType::Vehicle, cell, lpDesc->lpSurface, boundary,
+						CLoadingExt::ObjectType::Vehicle, cell, ddsd.lpSurface, boundary,
 						x1, y1 + 15, 0xffffff, true);
 				}		
 			}
@@ -2112,7 +2328,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					}
 					FSet drawn;
 					DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
-						CLoadingExt::ObjectType::Aircraft, cell, lpDesc->lpSurface, boundary,
+						CLoadingExt::ObjectType::Aircraft, cell, ddsd.lpSurface, boundary,
 						x, y + 15, 0xffffff, true);
 				}		
 			}
@@ -2188,7 +2404,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			shadowMask[i] += shadowMask_Terrain[i];
 			shadowMask[i] += shadowMask_Overlay[i];
 		}
-		CIsoViewExt::DrawShadowMask(lpDesc->lpSurface, boundary, window, shadowMask, shadowHeightMask, cellHeightMask);
+		CIsoViewExt::DrawShadowMask(ddsd.lpSurface, boundary, window, shadowMask, shadowHeightMask, cellHeightMask);
 	}
 
 	//loop4: objects
@@ -2217,7 +2433,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			int tileSubIndex = cell->TileSubIndex;
 			if (tileIndex < CMapDataExt::TileDataCount)
 			{
-				auto drawTerrainAnim = [&pThis, &lpDesc, &boundary, &cell, &isCellHidden](int tileIndex, int tileSubIndex, int x, int y)
+				auto drawTerrainAnim = [&pThis, &ddsd, &boundary, &cell, &isCellHidden](int tileIndex, int tileSubIndex, int x, int y)
 				{
 					if (CMapDataExt::TileAnimations.find(tileIndex) != CMapDataExt::TileAnimations.end())
 					{
@@ -2228,7 +2444,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 							if (ImageDataClassSafe::IsVisibleImage(pData))
 							{
-								CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+								CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
 									x - pData->FullWidth / 2 + tileAnim.XOffset,
 									y - pData->FullHeight / 2 + tileAnim.YOffset + 15,
 									pData, NULL, isCellHidden(cell) ? 128 : 255, -2, -10);
@@ -2276,7 +2492,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							Palette* pal = CMapDataExt::TileSetPalettes[tileSet];
 
-							CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
+							CIsoViewExt::BlitTerrain(pThis, ddsd.lpSurface, window, boundary,
 								x1 + subTile.XMinusExX, y1 + subTile.YMinusExY, &subTile, pal,
 								isCellHidden(cell) ? 128 : 255,
 								shadow ? &shadowMask : nullptr,
@@ -2294,7 +2510,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								auto pData = CLoadingExt::GetImageDataFromMap(extraImageID);
 								if (ImageDataClassSafe::IsVisibleImage(pData))
 								{
-									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+									CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
 										x1 + 30 + offset.X,
 										y1 + 30 + offset.Y,
 										pData, pal, isCellHidden(cell) ? 128 : 255, -2, -10);
@@ -2349,7 +2565,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
-					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
 						x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false,
 						info.aroundRedrawCell ? &objectOverlapMask : nullptr);
 				}
@@ -2416,7 +2632,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						auto tmp = CIsoViewExt::CurrentDrawCellLocation;
 						CIsoViewExt::CurrentDrawCellLocation.X++;
 						CIsoViewExt::CurrentDrawCellLocation.Y++;
-						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
 							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, 255, 0, 500 + cellNextExt.NewOverlay, false);
 						CIsoViewExt::CurrentDrawCellLocation = tmp;
 					}
@@ -2468,7 +2684,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 						y1 += CIsoViewExt::GetOverlayDrawOffset(cellExt->NewOverlay, cell->OverlayData);
 
-						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
 							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, 255, 0, 500 + cellExt->NewOverlay, false);
 					}
 				}
@@ -2498,7 +2714,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
 					bool customPalette = CLoadingExt::CustomPaletteTerrains.find(obj) != CLoadingExt::CustomPaletteTerrains.end();
-					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
 						x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (isTiberiumTree ? -1 : 15),
 						pData, NULL, 255, 0, isTiberiumTree ? 6 : (customPalette ? 5 : -1), false,
 						info.aroundRedrawCell ? &objectOverlapMask : nullptr);
@@ -2545,9 +2761,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			if (firstDraw && CFinalSunApp::Instance->ShowBuildingCells)
 			{
 				if (DataExt.IsCustomFoundation())
-					pThis->DrawLockedLines(*DataExt.LinesToDraw, x1, y1, objRender.HouseColor, false, false, lpDesc);
+					pThis->DrawLockedLines(*DataExt.LinesToDraw, x1, y1, objRender.HouseColor, false, false, &ddsd);
 				else
-					pThis->DrawLockedCellOutline(x1, y1, DataExt.Width, DataExt.Height, objRender.HouseColor, false, false, lpDesc);
+					pThis->DrawLockedCellOutline(x1, y1, DataExt.Width, DataExt.Height, objRender.HouseColor, false, false, &ddsd);
 			}
 
 			if (CIsoViewExt::DrawStructures)
@@ -2555,7 +2771,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				if (ImageDataClassSafe::IsValidImage(part.pData))
 				{
 					auto& isoset = CMapDataExt::TerrainPaletteBuildings;
-					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
+					CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
 						part.DrawX, part.DrawY - part.pData->FullHeight / 2,
 						part.pData, part.pPal, isCloakable(objRender.ID) ? 128 : 255);
 
@@ -2581,7 +2797,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								int y2 = y1;
 								x2 += CINI::Art->GetInteger(ArtID, upgXX, 0);
 								y2 += CINI::Art->GetInteger(ArtID, upgYY, 0);
-								CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
+								CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
 									x2 - pUpgData->FullWidth / 2, y2 - pUpgData->FullHeight / 2, pUpgData.get(), NULL, isCloakable(objRender.ID) ? 128 : 255,
 									objRender.HouseColor, -1, false, isoset.find(objRender.ID) != isoset.end());
 							}
@@ -2649,7 +2865,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							{
 								auto ArtID = CLoadingExt::GetArtID(objRender.ID);
 
-								CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
+								CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
 									x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData.get(), NULL, isCloakable(objRender.ID) ? 128 : 255,
 									objRender.HouseColor, -1, false, isoset.find(objRender.ID) != isoset.end());
 							}
@@ -2657,7 +2873,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 						FSet drawn;
 						DrawTechnoAttachments(draw, drawn, objRender.ID, FacingCount <= 1 ? 0 : objRender.Facing,
-							CLoadingExt::ObjectType::Building, cell, lpDesc->lpSurface, boundary,
+							CLoadingExt::ObjectType::Building, cell, ddsd.lpSurface, boundary,
 							x1, y1,
 							objRender.HouseColor, false);
 					}
@@ -2672,7 +2888,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					}
 					FSet drawn;
 					DrawTechnoAttachments([] {}, drawn, objRender.ID, FacingCount <= 1 ? 0 : objRender.Facing,
-						CLoadingExt::ObjectType::Building, cell, lpDesc->lpSurface, boundary,
+						CLoadingExt::ObjectType::Building, cell, ddsd.lpSurface, boundary,
 						x1, y1,
 						objRender.HouseColor, false);
 				}
@@ -2741,13 +2957,13 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			{
 				if (DataExt.IsCustomFoundation())
 				{
-					pThis->DrawLockedLines(*DataExt.LinesToDraw, x1, y1, color, true, false, lpDesc);
-					pThis->DrawLockedLines(*DataExt.LinesToDraw, x1 + 1, y1, color, true, false, lpDesc);
+					pThis->DrawLockedLines(*DataExt.LinesToDraw, x1, y1, color, true, false, &ddsd);
+					pThis->DrawLockedLines(*DataExt.LinesToDraw, x1 + 1, y1, color, true, false, &ddsd);
 				}
 				else
 				{
-					pThis->DrawLockedCellOutline(x1, y1, DataExt.Width, DataExt.Height, color, true, false, lpDesc);
-					pThis->DrawLockedCellOutline(x1 + 1, y1, DataExt.Width, DataExt.Height, color, true, false, lpDesc);
+					pThis->DrawLockedCellOutline(x1, y1, DataExt.Width, DataExt.Height, color, true, false, &ddsd);
+					pThis->DrawLockedCellOutline(x1 + 1, y1, DataExt.Width, DataExt.Height, color, true, false, &ddsd);
 				}
 			}
 
@@ -2756,7 +2972,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				if (ImageDataClassSafe::IsValidImage(part.pData))
 				{
 					auto& isoset = CMapDataExt::TerrainPaletteBuildings;
-					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
+					CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
 						part.DrawX, part.DrawY - part.pData->FullHeight / 2, part.pData, part.pPal, 128);
 				}
 				if (firstDraw && CIsoViewExt::DrawVeterancy)
@@ -2813,9 +3029,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
 							pThis->DrawLine(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
 								x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 30, ExtConfigs::CursorSelectionBound_HeightColor,
-								false, false, lpDesc, window, true);
+								false, false, &ddsd, window, true);
 
-						auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+						auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
 							x - pData->FullWidth / 2,
 							y - pData->FullHeight / 2 + 15 - (HoveringUnit ? 10 : 0) -
 							(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
@@ -2835,7 +3051,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 						FSet drawn;
 						DrawTechnoAttachments(draw, drawn, obj.TypeID, atoi(obj.Facing),
-							CLoadingExt::ObjectType::Vehicle, cell, lpDesc->lpSurface, boundary,
+							CLoadingExt::ObjectType::Vehicle, cell, ddsd.lpSurface, boundary,
 							x, y + 15 - (HoveringUnit ? 10 : 0) -
 							(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
 							color, false);
@@ -2844,7 +3060,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						FSet drawn;
 						DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
-							CLoadingExt::ObjectType::Vehicle, cell, lpDesc->lpSurface, boundary,
+							CLoadingExt::ObjectType::Vehicle, cell, ddsd.lpSurface, boundary,
 							x, y + 15 - (HoveringUnit ? 10 : 0) -
 							(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
 							color, false);
@@ -2895,7 +3111,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					auto color = Miscs::GetColorRef(obj.House);
 					if (ImageDataClassSafe::IsValidImage(pData))
 					{
-						auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+						auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
 							x - pData->FullWidth / 2, y - pData->FullHeight / 2 + 15, pData, NULL,
 							isCloakable(obj.TypeID) ? 128 : 255, color, 2, true,
 							info.aroundRedrawCell ? &objectOverlapMask : nullptr); };
@@ -2913,7 +3129,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 						FSet drawn;
 						DrawTechnoAttachments(draw, drawn, obj.TypeID, atoi(obj.Facing),
-							CLoadingExt::ObjectType::Aircraft, cell, lpDesc->lpSurface, boundary,
+							CLoadingExt::ObjectType::Aircraft, cell, ddsd.lpSurface, boundary,
 							x, y + 15,
 							color, false);
 					}
@@ -2921,7 +3137,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						FSet drawn;
 						DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
-							CLoadingExt::ObjectType::Aircraft, cell, lpDesc->lpSurface, boundary,
+							CLoadingExt::ObjectType::Aircraft, cell, ddsd.lpSurface, boundary,
 							x, y + 15,
 							color, false);
 					}
@@ -2993,12 +3209,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
 							pThis->DrawLine(x1 + 30, y1 - 30,
 								x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
-								false, false, lpDesc, window, true);
+								false, false, &ddsd, window, true);
 
 						auto color = Miscs::GetColorRef(obj.House);
 						if (ImageDataClassSafe::IsValidImage(pData))
 						{
-							auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+							auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
 								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL,
 								isCloakable(obj.TypeID) ? 128 : 255, color, 1, true,
 								info.aroundRedrawCell ? &objectOverlapMask : nullptr); };
@@ -3016,7 +3232,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 							FSet drawn;
 							DrawTechnoAttachments(draw, drawn, obj.TypeID, atoi(obj.Facing),
-								CLoadingExt::ObjectType::Infantry, cell, lpDesc->lpSurface, boundary,
+								CLoadingExt::ObjectType::Infantry, cell, ddsd.lpSurface, boundary,
 								x1, y1,
 								color, false);
 						}
@@ -3024,7 +3240,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							FSet drawn;
 							DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
-								CLoadingExt::ObjectType::Infantry, cell, lpDesc->lpSurface, boundary,
+								CLoadingExt::ObjectType::Infantry, cell, ddsd.lpSurface, boundary,
 								x1, y1,
 								color, false);
 						}
@@ -3036,14 +3252,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 	for (const auto& fire : FiresToDraw)
 	{
-		CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+		CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
 			fire.first.X, fire.first.Y,
 			fire.second, NULL, 255, 0, -100, false);
 	}
 
 	for (const auto& ai : AlphaImagesToDraw)
 	{
-		CIsoViewExt::BlitSHPTransparent_AlphaImage(pThis, lpDesc->lpSurface, window, boundary,
+		CIsoViewExt::BlitSHPTransparent_AlphaImage(pThis, ddsd.lpSurface, window, boundary,
 			ai.first.X, ai.first.Y, ai.second);
 	}
 
@@ -3076,7 +3292,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					pImage = CLoadingExt::GetImageDataFromMap(insignia.Rookie);
 			}
 			if (pImage)
-				CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+				CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
 					dv.X - pImage->FullWidth / 2 + 10, dv.Y + 21 - pImage->FullHeight / 2,
 					pImage, 0, dv.Transp ? 128: 255, 0, -100, false);
 		}
@@ -3112,7 +3328,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					break;
 				}
 				pThis->BlitTransparentDesc(image->lpSurface,
-					CIsoViewExt::GetBackBuffer(), lpDesc,
+					lpSurface, &ddsd,
 					x1 - image->FullWidth / 2 + 30,
 					y1 - image->FullHeight / 2 - 15, -1, -1,
 					255);
@@ -3157,7 +3373,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					x2 -= 1;
 					y2 -= 1;
 				}
-				pThis->DrawLine(x1 + 30, y1 - 15 - height, x2 + 30, y2 - 15 - height, color, false, false, lpDesc, window);
+				pThis->DrawLine(x1 + 30, y1 - 15 - height, x2 + 30, y2 - 15 - height, color, false, false, &ddsd, window);
 			}
 			int x1, x2, y1, y2;
 			x1 = tube.StartCoord.X;
@@ -3184,8 +3400,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				x2 -= 1;
 				y2 -= 1;
 			}
-			pThis->DrawLockedCellOutline(x1, y1 - height, 1, 1, color, true, false, lpDesc);
-			pThis->DrawLockedCellOutlineX(x2, y2 - height, 1, 1, color, color, false, false, lpDesc, true);
+			pThis->DrawLockedCellOutline(x1, y1 - height, 1, 1, color, true, false, &ddsd);
+			pThis->DrawLockedCellOutlineX(x2, y2 - height, 1, 1, color, color, false, false, &ddsd, true);
 		}
 	}
 	if (CIsoViewExt::RockCells)
@@ -3211,7 +3427,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					CIsoView::MapCoord2ScreenCoord(x, y);
 					int drawX = x - DrawOffsetX;
 					int drawY = y - DrawOffsetY;
-					pThis->DrawLockedCellOutlineX(drawX, drawY, 1, 1, RGB(255, 0, 0), RGB(40, 0, 0), true, false, lpDesc);
+					pThis->DrawLockedCellOutlineX(drawX, drawY, 1, 1, RGB(255, 0, 0), RGB(40, 0, 0), true, false, &ddsd);
 				}
 			}
 		}
@@ -3237,7 +3453,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					coords.push_back({ i,j });
 				}
 			}
-			CIsoViewExt::DrawMultiMapCoordBorders(lpDesc, coords, ExtConfigs::TerrainGeneratorColor);
+			CIsoViewExt::DrawMultiMapCoordBorders(&ddsd, coords, ExtConfigs::TerrainGeneratorColor);
 		}
 		else
 		{
@@ -3288,7 +3504,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			{
 				auto image = CLoadingExt::GetOrLoadFlagOrCelltagFromMap(itr->second, false);
 				pThis->BlitTransparentDesc(image->lpSurface,
-					CIsoViewExt::GetBackBuffer(), lpDesc,
+					lpSurface, &ddsd,
 					x + 29 - image->FullWidth / 2,
 					y + 13 - image->FullHeight / 2, -1, -1,
 					ExtConfigs::DrawCelltagTranslucent ? 128 : 255);
@@ -3296,7 +3512,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			else
 			{
 				pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface,
-					CIsoViewExt::GetBackBuffer(), lpDesc, CellTagDesc, CellTagColorKey,
+					lpSurface, &ddsd, CellTagDesc, CellTagColorKey,
 					x + 29 - CellTagImage->FullWidth / 2,
 					y + 13 - CellTagImage->FullHeight / 2, -1, -1,
 					ExtConfigs::DrawCelltagTranslucent ? 128 : 255);
@@ -3310,14 +3526,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			{
 				auto image = CLoadingExt::GetOrLoadFlagOrCelltagFromMap(itr->second, true);
 				pThis->BlitTransparentDesc(image->lpSurface,
-					CIsoViewExt::GetBackBuffer(), lpDesc,
+					lpSurface, &ddsd,
 					x + 30 - WaypointImage->FullWidth / 2,
 					y + 12 - WaypointImage->FullHeight / 2);
 			}
 			else
 			{
 				pThis->BlitTransparentDescNoLock(WaypointImage->lpSurface,
-					CIsoViewExt::GetBackBuffer(), lpDesc, WaypointDesc, WaypointColorKey,
+					lpSurface, &ddsd, WaypointDesc, WaypointColorKey,
 					x + 30 - WaypointImage->FullWidth / 2,
 					y + 12 - WaypointImage->FullHeight / 2, -1, -1);
 			}
@@ -3367,7 +3583,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 		if (AnnotationLocked && CIsoViewExt::DrawAnnotations && CMapDataExt::HasAnnotation(pos))
 			pThis->BlitTransparentDescNoLock(AnnotationImage->lpSurface,
-				CIsoViewExt::GetBackBuffer(), lpDesc, AnnotationDesc, AnnotationColorKey,
+				lpSurface, &ddsd, AnnotationDesc, AnnotationColorKey,
 				x + 5,
 				y - 2, -1, -1);
 	}
@@ -3392,7 +3608,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		int drawX = x - DrawOffsetX;
 		int drawY = y - DrawOffsetY;
 
-		pThis->DrawBitmap("target", drawX - 20, drawY - 11, lpDesc);
+		pThis->DrawBitmap("target", drawX - 20, drawY - 11, &ddsd);
 	}
 
 	if (!CIsoViewExt::RenderingMap
@@ -3573,7 +3789,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						fontSize = 18;
 				}
 				CIsoViewExt::BlitText(result, textColor, bgColor,
-					pThis, lpDesc->lpSurface, window, boundary, x, y, fontSize, 128, folded ? false : bold);
+					pThis, ddsd.lpSurface, window, boundary, x, y, fontSize, 128, folded ? false : bold);
 			}
 		}
 	}
@@ -3584,7 +3800,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		&& !CopyPaste::CopyWholeMap
 		&& (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers))
 	{
-		CIsoViewExt::DrawMultiMapCoordBorders(lpDesc, CopyPaste::PastedCoords, ExtConfigs::CopySelectionBound_Color);
+		CIsoViewExt::DrawMultiMapCoordBorders(&ddsd, CopyPaste::PastedCoords, ExtConfigs::CopySelectionBound_Color);
 	}
 	// line tool
 	auto& command = pThis->LastAltCommand;
@@ -3594,7 +3810,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	{
 		auto point = pThis->GetCurrentMapCoord(pThis->MouseCurrentPosition);
 		auto mapCoords = pThis->GetLinePoints({ command.X, command.Y }, { point.X,point.Y });
-		CIsoViewExt::DrawMultiMapCoordBorders(lpDesc, mapCoords, ExtConfigs::CursorSelectionBound_Color);
+		CIsoViewExt::DrawMultiMapCoordBorders(&ddsd, mapCoords, ExtConfigs::CursorSelectionBound_Color);
 	}
 
 	if (CIsoViewExt::RenderingMap)
@@ -3668,14 +3884,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 			if (y4 > y1 && x4 > x1)
 			{
-				pThis->DrawLine(x1 - 1, y1, x4 + 2, y1, RGB(0, 0, 255), false, false, lpDesc, window, false, 5);
-				pThis->DrawLine(x4, y1, x4, y4, RGB(0, 0, 255), false, false, lpDesc, window, false, 5);
-				pThis->DrawLine(x1 - 1, y4, x4 + 2, y4, RGB(0, 0, 255), false, false, lpDesc, window, false, 5);
-				pThis->DrawLine(x1, y4, x1, y1, RGB(0, 0, 255), false, false, lpDesc, window, false, 5);
+				pThis->DrawLine(x1 - 1, y1, x4 + 2, y1, RGB(0, 0, 255), false, false, &ddsd, window, false, 5);
+				pThis->DrawLine(x4, y1, x4, y4, RGB(0, 0, 255), false, false, &ddsd, window, false, 5);
+				pThis->DrawLine(x1 - 1, y4, x4 + 2, y4, RGB(0, 0, 255), false, false, &ddsd, window, false, 5);
+				pThis->DrawLine(x1, y4, x1, y1, RGB(0, 0, 255), false, false, &ddsd, window, false, 5);
 
 				// thin blue bound on top
 				if (y1 + 75 < y4)
-					pThis->DrawLine(x1 - 1, y1 + 75, x4 + 2, y1 + 75, RGB(0, 0, 255), false, false, lpDesc, window, false, 1);
+					pThis->DrawLine(x1 - 1, y1 + 75, x4 + 2, y1 + 75, RGB(0, 0, 255), false, false, &ddsd, window, false, 1);
 			}
 		}
 		// red bound
@@ -3694,29 +3910,46 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			y1 -= DrawOffsetY + 15;
 			y4 -= DrawOffsetY + 15;
 
-			pThis->DrawLine(x1 - 1, y1, x4 + 2, y1, RGB(255, 0, 0), false, false, lpDesc, window, false, 5);
-			pThis->DrawLine(x4, y1, x4, y4, RGB(255, 0, 0), false, false, lpDesc, window, false, 5);
-			pThis->DrawLine(x1 - 1, y4, x4 + 2, y4, RGB(255, 0, 0), false, false, lpDesc, window, false, 5);
-			pThis->DrawLine(x1, y4, x1, y1, RGB(255, 0, 0), false, false, lpDesc, window, false, 5);
+			pThis->DrawLine(x1 - 1, y1, x4 + 2, y1, RGB(255, 0, 0), false, false, &ddsd, window, false, 5);
+			pThis->DrawLine(x4, y1, x4, y4, RGB(255, 0, 0), false, false, &ddsd, window, false, 5);
+			pThis->DrawLine(x1 - 1, y4, x4 + 2, y4, RGB(255, 0, 0), false, false, &ddsd, window, false, 5);
+			pThis->DrawLine(x1, y4, x1, y1, RGB(255, 0, 0), false, false, &ddsd, window, false, 5);
 		}
 	}
 
-	CIsoViewExt::GetBackBuffer()->ReleaseDC(hDC);
-	if (pThis->ScaledFactor == 1.0)
+	lpSurface->ReleaseDC(hDC);
+	lpSurface->Unlock(NULL);
+
+	pThis->ViewPosition = ViewPosition;
+
+	if (CIsoViewExt::RenderingMap) return FunctionEnd;
+	CRect dr = CIsoViewExt::GetVisibleIsoViewRect();
+	if (CIsoViewExt::ScaledFactor == 1.0) {
+		CIsoViewExt::SpecialDraw(CIsoViewExt::GetBackBuffer(), 0);
+		CIsoViewExt::ReduceBrightness(CIsoViewExt::GetBackBuffer(), dr);
+		if (ExtConfigs::SecondScreenSupport) {
+
+			CRect drFixed = dr;
+			pThis->BltToWindow(pThis->m_hWnd, CIsoViewExt::GetBackBuffer(), &dr, &drFixed);
+		}
+		else
+			pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::GetBackBuffer(), &dr, DDBLT_WAIT, 0);
+	}
+	else
 	{
-		pThis->lpDDBackBufferZoomSurface->Unlock(NULL);
+		CRect backDr;
+		backDr = dr;
+		backDr.right += backDr.Width() * (CIsoViewExt::ScaledFactor - 1.0);
+		backDr.bottom += backDr.Height() * (CIsoViewExt::ScaledFactor - 1.0);
+		CIsoViewExt::StretchCopySurfaceBilinear(pThis->lpDDBackBufferSurface, backDr,
+			CIsoViewExt::lpDDBackBufferZoomSurface, dr);
+		CIsoViewExt::SpecialDraw(CIsoViewExt::lpDDBackBufferZoomSurface, 0);
+		CIsoViewExt::ReduceBrightness(CIsoViewExt::lpDDBackBufferZoomSurface, dr);
+		if (ExtConfigs::SecondScreenSupport)
+			pThis->BltToWindow(pThis->m_hWnd, CIsoViewExt::lpDDBackBufferZoomSurface, &dr, &dr);
+		else
+			pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::lpDDBackBufferZoomSurface, &dr, DDBLT_WAIT, 0);
 	}
 
-	return 0x474DB3;
-}
-
-DEFINE_HOOK(474DDF, CIsoView_Draw_SkipBoundsAndMoneyOnMap, 5)
-{
-	return 0x4750B0;
-}
-
-DEFINE_HOOK(475187, CIsoView_Draw_End, 7)
-{
-	CIsoView::GetInstance()->ViewPosition = ViewPosition;
-	return 0;
+	return FunctionEnd;
 }

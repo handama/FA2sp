@@ -9,6 +9,7 @@
 #include <ranges>
 #include "../../Helpers/STDHelpers.h"
 #include "../CMapData/Body.h"
+#include "../CIsoView/DirectXCore.h"
 #include "../../Helpers/Translations.h"
 #include "../../Miscs/MultiSelection.h"
 #include "../../Miscs/Palettes.h"
@@ -3449,7 +3450,7 @@ void CIsoViewExt::Zoom(double offset)
 {
     if (CMapData::Instance->MapWidthPlusHeight)
     {
-        auto pThis = CIsoView::GetInstance();
+        auto pThis = CIsoViewExt::GetExtension();
         double scaledOld = CIsoViewExt::ScaledFactor;
         CRect oldRect = GetScaledWindowRect();
         if (offset == 0.0)
@@ -3486,6 +3487,9 @@ void CIsoViewExt::Zoom(double offset)
             pThis->ViewPosition.x += (oldRect.Width() - newRect.Width()) * mousePosX;
             pThis->ViewPosition.y += (oldRect.Height() - newRect.Height()) * mousePosY;
             pThis->MoveTo(pThis->ViewPosition.x, pThis->ViewPosition.y);
+
+            pThis->g_pDX->SetZoomOut(CIsoViewExt::ScaledFactor);
+
             pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
             CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
         }

@@ -20,37 +20,11 @@ DEFINE_HOOK(476240, CIsoView_MapCoord2ScreenCoord_Flat, 5)
 	return 0;
 }
 
-void BltToWindow(HWND hwnd, LPDIRECTDRAWSURFACE7 src, const RECT* rcSrc, const RECT* rcDst)
-{
-	HDC srcDC = nullptr;
-	if (FAILED(src->GetDC(&srcDC)))
-		return;
-
-	HDC wndDC = GetDC(hwnd);
-
-	StretchBlt(
-		wndDC,
-		0,
-		0,
-		rcDst->right - rcDst->left,
-		rcDst->bottom - rcDst->top,
-		srcDC,
-		rcSrc->left,
-		rcSrc->top,
-		rcSrc->right - rcSrc->left,
-		rcSrc->bottom - rcSrc->top,
-		SRCCOPY
-	);
-
-	ReleaseDC(hwnd, wndDC);
-	src->ReleaseDC(srcDC);
-}
-
 #define BACK_BUFFER_TO_PRIMARY(hook_addr, hook_name, hook_size, return_addr, special_draw) \
 DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 { \
 	if (CIsoViewExt::RenderingMap) return return_addr; \
-	auto pThis = CIsoView::GetInstance();\
+	auto pThis = CIsoViewExt::GetExtension();\
 	CRect dr = CIsoViewExt::GetVisibleIsoViewRect();\
 	if (special_draw >= 1 || CIsoViewExt::ScaledFactor == 1.0) {\
 		if (special_draw > -1){\
@@ -60,7 +34,7 @@ DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 			CIsoViewExt::ReduceBrightness(CIsoViewExt::GetBackBuffer(), dr);\
 		if (ExtConfigs::SecondScreenSupport) {\
 			CRect drFixed = dr; \
-			BltToWindow(pThis->m_hWnd,  CIsoViewExt::GetBackBuffer(), &dr, &drFixed);\
+			pThis->BltToWindow(pThis->m_hWnd,  CIsoViewExt::GetBackBuffer(), &dr, &drFixed);\
 		}\
 		else\
 			pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::GetBackBuffer(), &dr, DDBLT_WAIT, 0);\
@@ -75,13 +49,12 @@ DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 	CIsoViewExt::SpecialDraw(CIsoViewExt::lpDDBackBufferZoomSurface, special_draw);\
 	CIsoViewExt::ReduceBrightness(CIsoViewExt::lpDDBackBufferZoomSurface, dr);\
 	if (ExtConfigs::SecondScreenSupport)\
-		BltToWindow(pThis->m_hWnd,  CIsoViewExt::lpDDBackBufferZoomSurface, &dr, &dr);\
+		pThis->BltToWindow(pThis->m_hWnd,  CIsoViewExt::lpDDBackBufferZoomSurface, &dr, &dr);\
 	else\
 		pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::lpDDBackBufferZoomSurface, &dr, DDBLT_WAIT, 0);\
 	return return_addr; \
 }
 
-BACK_BUFFER_TO_PRIMARY(475150, CIsoView_Draw_BackBufferToPrimary, 6, 0x47517B, 0);
 BACK_BUFFER_TO_PRIMARY(459DEB, CIsoView_OnMouseMove_BackBufferToPrimary_Copy, 5, 0x459FE7, 2);
 BACK_BUFFER_TO_PRIMARY(45CDF2, CIsoView_OnMouseMove_BackBufferToPrimary_Bridge, 6, 0x45D079, 3);
 BACK_BUFFER_TO_PRIMARY(45AD6A, CIsoView_OnMouseMove_BackBufferToPrimary_Cursor, 9, 0x45AEF6, 1);
@@ -93,11 +66,6 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_BltTempBuffer, 6)
 	CRect rect = CIsoViewExt::GetVisibleIsoViewRect();
 	CIsoViewExt::GetBackBuffer()->Blt(&rect, pThis->lpDDTempBufferSurface, &rect, DDBLT_WAIT, 0);
 	return 0x4572FC;
-}
-
-DEFINE_HOOK(4750CF, CIsoView_Draw_SkipScroll_SkipTempBufferBlt, 6)
-{
-	return 0x475150;
 }
 
 DEFINE_HOOK(460F00, CIsoView_ScreenCoord2MapCoord_Height, 7)

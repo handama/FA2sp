@@ -8,7 +8,7 @@
 #include <memory>
 #include <string>
 #include <map>
-#include "../../Ext/CIsoView/Body.h" 
+#include "Body.h" 
 
 class DrawParams
 {
@@ -43,6 +43,7 @@ public:
     ~DirectXCore();
 
     bool Initialize(HWND hwnd);
+    bool IsInitialized();
     void Cleanup();
     void ClearTextures();
     void OnResize(HWND hwnd);
@@ -142,6 +143,6 @@ private:
     float m_globalScaleY = 1.0f;
     float m_globalOffsetX = 0.0f;
     float m_globalOffsetY = 0.0f;
-    float m_renderScale = 1.0f; 
+    float m_renderScale = 1.0f;
     bool m_bInitialized = false;
 };

@@ -1362,3 +1362,29 @@ void CIsoViewExt::DrawShadowMask(
         }
     }
 }
+
+void CIsoViewExt::BltToWindow(HWND hwnd, LPDIRECTDRAWSURFACE7 src, const RECT* rcSrc, const RECT* rcDst)
+{
+    HDC srcDC = nullptr;
+    if (FAILED(src->GetDC(&srcDC)))
+        return;
+
+    HDC wndDC = GetDC(hwnd);
+
+    StretchBlt(
+        wndDC,
+        0,
+        0,
+        rcDst->right - rcDst->left,
+        rcDst->bottom - rcDst->top,
+        srcDC,
+        rcSrc->left,
+        rcSrc->top,
+        rcSrc->right - rcSrc->left,
+        rcSrc->bottom - rcSrc->top,
+        SRCCOPY
+    );
+
+    ReleaseDC(hwnd, wndDC);
+    src->ReleaseDC(srcDC);
+}

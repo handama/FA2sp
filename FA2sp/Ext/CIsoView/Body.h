@@ -19,6 +19,7 @@ using namespace Gdiplus;
 
 struct CellData;
 class ImageDataClassSafe;
+class DirectXCore;
 
 struct EditedMarks
 {
@@ -255,6 +256,7 @@ public:
     static ImageDataView MakeImageDataView(ImageDataClassSafe* p, Palette* pPal = nullptr);
     static ImageDataView MakeImageDataView(ImageDataClass* p, Palette* pPal = nullptr);
     static ImageDataView MakeImageDataView(CTileBlockClass* p, Palette* pPal);
+    static void BltToWindow(HWND hwnd, LPDIRECTDRAWSURFACE7 src, const RECT* rcSrc, const RECT* rcDst);
     static void inline AdaptRectForSecondScreen(LPRECT lpRect)
     {
         if (ExtConfigs::SecondScreenSupport)
@@ -346,6 +348,7 @@ public:
     static int EXTRA_BORDER_BOTTOM;
 
     static LPDIRECTDRAWSURFACE7 lpDDBackBufferZoomSurface;
+    static std::unique_ptr<DirectXCore> g_pDX;
     static double ScaledFactor;
     static double ScaledMax;
     static double ScaledMin;

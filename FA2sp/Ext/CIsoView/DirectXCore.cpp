@@ -2,8 +2,8 @@
 #include <vector>
 #include <cstring>
 #include <string>
-#include "../../Ext/CLoading/Body.h" 
-#include "../../Ext/CIsoView/Body.h" 
+#include "../CLoading/Body.h" 
+#include "Body.h" 
 #include "DirectXCore.h"
 
 #pragma comment(lib, "d3dcompiler.lib")
@@ -12,6 +12,7 @@
 
 using namespace Microsoft::WRL;
 using namespace DirectX;
+std::unique_ptr<DirectXCore> CIsoViewExt::g_pDX;
 
 struct QuadVertex { XMFLOAT3 pos; XMFLOAT2 uv; };
 struct CBPerObject {
@@ -91,6 +92,11 @@ bool DirectXCore::Initialize(HWND hwnd) {
     m_bInitialized = true;
     Logger::Info("Initialize succeeded\n");
     return true;
+}
+
+bool DirectXCore::IsInitialized()
+{
+    return m_bInitialized;
 }
 
 void DirectXCore::ClearTextures() {

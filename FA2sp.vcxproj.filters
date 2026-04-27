@@ -312,10 +312,7 @@
     <ClInclude Include="FA2sp\ExtraWindow\CMeasurementToolbox\CMeasurementToolbox.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="FA2sp\ExtraWindow\CD3D11\CD3D11.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="FA2sp\ExtraWindow\CD3D11\DirectXCore.h">
+    <ClInclude Include="FA2sp\Ext\CIsoView\DirectXCore.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -779,10 +776,7 @@
     <ClCompile Include="FA2sp\Ext\CHouses\Hooks.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FA2sp\ExtraWindow\CD3D11\CD3D11.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FA2sp\ExtraWindow\CD3D11\DirectXCore.cpp">
+    <ClCompile Include="FA2sp\Ext\CIsoView\DirectXCore.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -980,9 +974,6 @@
       <Filter>资源文件</Filter>
     </ResourceCompile>
     <ResourceCompile Include="FA2sp\ExtraWindow\CMeasurementToolbox\CMeasurementToolbox.rc">
-      <Filter>资源文件</Filter>
-    </ResourceCompile>
-    <ResourceCompile Include="FA2sp\ExtraWindow\CD3D11\CD3D11.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
   </ItemGroup>

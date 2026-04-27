@@ -86,12 +86,6 @@ DEFINE_HOOK(469A69, CIsoView_CalculateOverlayConnection_OverlayAutoConnectionFix
 	return NotAWall;
 }
 
-DEFINE_HOOK(459F4F, CIsoView_Draw_CopySelectionBoundColor, 6)
-{
-	R->Stack<COLORREF>(0x0, ExtConfigs::CopySelectionBound_Color);
-	return 0;
-}
-
 DEFINE_HOOK(46BDFA, CIsoView_DrawMouseAttachedStuff_Structure, 5)
 {
 	GET_STACK(const int, X, STACK_OFFS(0x94, -0x4));

@@ -2378,6 +2378,8 @@ void CNewTrigger::OnClickNewTrigger()
     value.Format("%s,<none>,%s,0,1,1,1,0", house, newName);
 
     map.WriteString("Triggers", id, value);
+    map.WriteString("Events", id, "1,0,0,0");
+    map.WriteString("Actions", id, "1,0,0,0,0,0,0,0,A");
     FString tagId = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
     value.Format("0,%s 1,%s", newName, id);
     map.WriteString("Tags", tagId, value);

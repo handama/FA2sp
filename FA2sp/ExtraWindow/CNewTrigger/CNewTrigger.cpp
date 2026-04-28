@@ -196,6 +196,8 @@ void CNewTrigger::Initialize(HWND& hWnd)
     vcbHouse.Attach(hHouse);
     vcbActionType.Attach(hActiontype);
     vcbEventType.Attach(hEventtype);
+    vcbActionType.SetAutoSearchRestriction(&ExtConfigs::SearchCombobox_AllowNonParams);
+    vcbEventType.SetAutoSearchRestriction(&ExtConfigs::SearchCombobox_AllowNonParams);
     for (int i = 0; i < EVENT_PARAM_COUNT; ++i)
     {
         vcbEventParameter[i].Attach(hEventParameter[i]);

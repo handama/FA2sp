@@ -158,6 +158,7 @@ void CNewScript::Initialize(HWND& hWnd)
 
     vcbSelectedScript.Attach(hSelectedScript, &ExtConfigs::SortByLabelName_Script, false);
     vcbActionType.Attach(hActionType);
+    vcbActionType.SetAutoSearchRestriction(&ExtConfigs::SearchCombobox_AllowNonParams);
     vcbActionParam.Attach(hActionParam);
     vcbActionParam.SetAutoSearchRestriction(&ParamAutodrop[0]);
     vcbActionExtraParam.Attach(hActionExtraParam);

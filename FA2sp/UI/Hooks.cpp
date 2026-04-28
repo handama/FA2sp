@@ -18,33 +18,21 @@ DEFINE_HOOK(56543B, FetchResource_CToolBar_LoadBitmapA, 6)
 
 	if ((int)lpName == 128)
 	{
-		if (!ExtConfigs::UseNewToolBarCameo)
-		{
-			lpName = (char*)1025;
-		}
-		else if (ExtConfigs::EnableDarkMode)
+		if (ExtConfigs::EnableDarkMode)
 		{
 			lpName = (char*)1033;
 		}
 	}
 	else if ((int)lpName == 225)
 	{
-		if (!ExtConfigs::UseNewToolBarCameo)
-		{
-			lpName = (char*)1026;
-		}
-		else if (ExtConfigs::EnableDarkMode)
+		if (ExtConfigs::EnableDarkMode)
 		{
 			lpName = (char*)1034;
 		}
 	}
 	else if ((int)lpName == 264)
 	{
-		if (!ExtConfigs::UseNewToolBarCameo)
-		{
-			lpName = (char*)1027;
-		}
-		else if (ExtConfigs::EnableDarkMode)
+		if (ExtConfigs::EnableDarkMode)
 		{
 			lpName = (char*)1035;
 		}

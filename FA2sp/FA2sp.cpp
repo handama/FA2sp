@@ -166,8 +166,9 @@ bool ExtConfigs::INIEditor_IgnoreTeams;
 bool ExtConfigs::StringBufferStackAllocation = true;
 int ExtConfigs::RangeBound_MaxRange;
 bool ExtConfigs::RangeBound_DrawEllipse;
-int ExtConfigs::SearchCombobox_MaxCount;
 bool ExtConfigs::SearchCombobox_Waypoint;
+bool ExtConfigs::SearchCombobox_Disabled;
+bool ExtConfigs::SearchCombobox_AllowNonParams;
 bool ExtConfigs::NewTheaterType;
 bool ExtConfigs::IncludeType;
 bool ExtConfigs::InheritType;
@@ -196,7 +197,6 @@ bool ExtConfigs::LightingPreview_MultUnitColor;
 bool ExtConfigs::LightingPreview_TintTileSetBrowserView;
 bool ExtConfigs::DDrawScalingBilinear;
 bool ExtConfigs::DDrawScalingBilinear_OnlyShrink;
-bool ExtConfigs::UseNewToolBarCameo;
 bool ExtConfigs::DisableDirectoryCheck;
 bool ExtConfigs::ExtOverlays;
 bool ExtConfigs::SaveMap_PreserveINISorting;
@@ -350,7 +350,6 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::UseDefaultUnitImage_TechnoAttachment = CINI::FAData->GetBool("ExtConfigs", "UseDefaultUnitImage.TechnoAttachment");
 	ExtConfigs::UseStrictNewTheater = CINI::FAData->GetBool("ExtConfigs", "UseStrictNewTheater");
 	ExtConfigs::DisableDirectoryCheck = CINI::FAData->GetBool("ExtConfigs", "DisableDirectoryCheck");
-	ExtConfigs::UseNewToolBarCameo = CINI::FAData->GetBool("ExtConfigs", "UseNewToolBarCameo", true);
 	ExtConfigs::InGameDisplay_Shadow = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Shadow", true);
 	ExtConfigs::InGameDisplay_Shadow_OnGround = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Shadow.OnGround");
 	ExtConfigs::InGameDisplay_Deploy = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Deploy", true);
@@ -378,9 +377,9 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::InheritType = CINI::FAData->GetBool("ExtConfigs", "InheritType");
 	ExtConfigs::IncludeType = CINI::FAData->GetBool("ExtConfigs", "IncludeType");
 	ExtConfigs::SearchCombobox_Waypoint = CINI::FAData->GetBool("ExtConfigs", "SearchCombobox.Waypoint");
-	ExtConfigs::SearchCombobox_MaxCount = CINI::FAData->GetInteger("ExtConfigs", "SearchCombobox.MaxCount", 1000);
-	if (ExtConfigs::SearchCombobox_MaxCount < 0)
-		ExtConfigs::SearchCombobox_MaxCount = INT_MAX;
+	ExtConfigs::SearchCombobox_Disabled = CINI::FAData->GetBool("ExtConfigs", "SearchCombobox.Disabled");
+	ExtConfigs::SearchCombobox_AllowNonParams = CINI::FAData->GetBool("ExtConfigs", "SearchCombobox.AllowNonParams", true);
+
 	ExtConfigs::RangeBound_MaxRange = CINI::FAData->GetInteger("ExtConfigs", "RangeBound.MaxRange", 50);
 	ExtConfigs::UndoRedoLimit = CINI::FAData->GetInteger("ExtConfigs", "UndoRedoLimit", 64);
 	ExtConfigs::UndoRedo_ShiftPlaceTile = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.ShiftPlaceTile", true);
@@ -645,9 +644,23 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.SearchCombobox.Waypoint", "Popup dropdown when editing waypoint params"),
-		.IniKey = "SearchCombobox.Waypoint",
-		.Value = &ExtConfigs::SearchCombobox_Waypoint,
+		.DisplayName = Translations::TranslateOrDefault("Options.SearchCombobox.Disabled", "Disable automatic search for dropdown menus; search only when pressing Enter"),
+		.IniKey = "SearchCombobox.Disabled",
+		.Value = &ExtConfigs::SearchCombobox_Disabled,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+	.DisplayName = Translations::TranslateOrDefault("Options.SearchCombobox.Waypoint", "Automatically perform search when editing waypoint params"),
+	.IniKey = "SearchCombobox.Waypoint",
+	.Value = &ExtConfigs::SearchCombobox_Waypoint,
+	.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SearchCombobox.AllowNonParams", "Allow automatic search for non-parameter dropdown menus"),
+		.IniKey = "SearchCombobox.AllowNonParams",
+		.Value = &ExtConfigs::SearchCombobox_AllowNonParams,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
@@ -677,13 +690,6 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "EnableDarkMode.DimMap",
 		.Value = &ExtConfigs::EnableDarkMode_DimMap,
 		.Type = ExtConfigs::SpecialOptionType::None
-		});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.UseNewToolBarCameo", "Use new tool bar cameo"),
-		.IniKey = "UseNewToolBarCameo",
-		.Value = &ExtConfigs::UseNewToolBarCameo,
-		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
 	// Object Browser Settings

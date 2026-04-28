@@ -1863,33 +1863,12 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			HWND hWnd = GetFocus();					// EDIT		COMBOBOX_DROPDOWN
 			HWND hParent1 = ::GetParent(hWnd);		// WINDOW	COMBOBOX
 			HWND hParent2 = ::GetParent(hParent1);	//			WINDOW
-			ExtraWindow::bEnterSearch = true;
 			
 			if (hWnd == ::GetDlgItem(CObjectSearch::GetHandle(), CObjectSearch::Input)) {
 				::ShowWindow(CObjectSearch::GetHandle(), SW_SHOW);
 				::SendMessage(CObjectSearch::GetHandle(), 114516, 0, 0);
-				ExtraWindow::bEnterSearch = false;
 				return TRUE;
 			}
-			//else if (hParent1 == CNewINIEditor::GetHandle()) {
-			//	if (CNewINIEditor::OnEnterKeyDown(hWnd)) {
-			//		ExtraWindow::bEnterSearch = false;
-			//		return TRUE;
-			//	}
-			//}
-			//else if (hParent1 == CBatchTrigger::GetHandle()) {
-			//	if (CBatchTrigger::OnEnterKeyDown(hWnd)) {
-			//		ExtraWindow::bEnterSearch = false;
-			//		return TRUE;
-			//	}
-			//}
-			//else if (hParent1 == CCsfEditor::GetHandle()) {
-			//	if (CCsfEditor::OnEnterKeyDown(hWnd)) {
-			//		ExtraWindow::bEnterSearch = false;
-			//		return TRUE;
-			//	}
-			//}
-			ExtraWindow::bEnterSearch = false;
 		}
 		if (CIsoView::CurrentCommand->Command == 0x1E)
 		{

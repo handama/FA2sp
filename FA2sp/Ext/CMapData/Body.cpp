@@ -1933,9 +1933,7 @@ int CMapDataExt::GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, int numFa
 	else if (angle >= 2 * M_PI)
 		angle -= 2 * M_PI;
 
-	double sector = (2 * M_PI) / numFacings;
-
-	int facing = (int)floor(angle / sector + 0.5);
+	int facing = (int)(angle * numFacings / (2 * M_PI) + 0.5);
 	if (facing >= numFacings)
 		facing -= numFacings;
 

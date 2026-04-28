@@ -176,8 +176,9 @@ public:
     static bool StringBufferStackAllocation;
     static bool RangeBound_DrawEllipse;
     static int RangeBound_MaxRange;
-    static int SearchCombobox_MaxCount;
     static bool SearchCombobox_Waypoint;
+    static bool SearchCombobox_Disabled;
+    static bool SearchCombobox_AllowNonParams;
     static bool NewTheaterType;
     static bool IncludeType;
     static bool InheritType;
@@ -209,7 +210,6 @@ public:
     static int DisplayTextSize;
     static int DistanceRuler_Records;
     static bool DisplayObjectsOutside;
-    static bool UseNewToolBarCameo;
     static bool DisableDirectoryCheck;
     static bool ExtOverlays;
     static bool SaveMap_PreserveINISorting;

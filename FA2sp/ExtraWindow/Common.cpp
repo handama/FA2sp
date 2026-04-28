@@ -24,9 +24,6 @@ CINI& ExtraWindow::fadata = CINI::FAData;
 MultimapHelper& ExtraWindow::rules = Variables::RulesMap;
 std::vector<DropTarget> ExtraWindow::g_DropTargets;
 
-bool ExtraWindow::bComboLBoxSelected = false;
-bool ExtraWindow::bEnterSearch = false;
-
 ATOM TargetHighlighter::window_class_atom_ = 0;
 bool TargetHighlighter::class_registered_ = false;
 
@@ -614,92 +611,6 @@ void ExtraWindow::LoadParam_Stringtables(VirtualComboBoxEx& vcb)
         buffer[MAX_COMBOBOX_STRING_LENGTH] = _T('\0');
         vcb.AddString(buffer);
     }
-}
-
-bool ExtraWindow::OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly)
-{
-    if (!labels.empty())
-    {
-        char buffer[512]{ 0 };
-        GetWindowText(hWnd, buffer, 511);
-        FString text(buffer);
-        SendMessage(hWnd, CB_GETLBTEXT, SendMessage(hWnd, CB_GETCURSEL, NULL, NULL), (LPARAM)buffer);
-        while (SendMessage(hWnd, CB_DELETESTRING, 0, NULL) != CB_ERR);
-        for (auto& pair : labels)
-            SendMessage(hWnd, CB_INSERTSTRING, pair.first, pair.second);
-        labels.clear();
-        int idx = SendMessage(hWnd, CB_FINDSTRINGEXACT, 0, (LPARAM)buffer);
-        if (idx == CB_ERR)
-        {
-            if (isComboboxSelectOnly)
-                SendMessage(hWnd, CB_SETCURSEL, 0, NULL);
-            else
-                SendMessage(hWnd, WM_SETTEXT, 0, (LPARAM)text.c_str());
-        }
-        else
-            SendMessage(hWnd, CB_SETCURSEL, idx, NULL);
-
-        if (!ExtraWindow::bComboLBoxSelected || isComboboxSelectOnly)
-        {
-            ExtraWindow::bComboLBoxSelected = false;
-            return false;
-        }
-    }
-    ExtraWindow::bComboLBoxSelected = false;
-    return true;
-}
-
-void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, FString>& labels)
-{
-    if ((SendMessage(hWnd, CB_GETCOUNT, NULL, NULL) > ExtConfigs::SearchCombobox_MaxCount 
-        || labels.size() > ExtConfigs::SearchCombobox_MaxCount) 
-        && !bEnterSearch)
-    {
-        return;
-    }
-
-    ExtraWindow::bComboLBoxSelected = false;
-
-    char buffer[512]{ 0 };
-    char buffer2[512]{ 0 };
-
-    if (!labels.empty())
-    {
-        while (SendMessage(hWnd, CB_DELETESTRING, 0, NULL) != CB_ERR);
-        for (auto& pair : labels)
-        {
-            SendMessage(hWnd, CB_INSERTSTRING, pair.first, pair.second);
-        }
-        labels.clear();
-    }
-
-    GetWindowText(hWnd, buffer, 511);
-    SendMessage(hWnd, CB_SHOWDROPDOWN, TRUE, NULL);
-
-    std::vector<int> deletedLabels;
-    LabelMatcher matcher(buffer);
-    for (int idx = SendMessage(hWnd, CB_GETCOUNT, NULL, NULL) - 1; idx >= 0; idx--)
-    {
-        SendMessage(hWnd, CB_GETLBTEXT, idx, (LPARAM)buffer2);
-        bool del = false;
-        FString tmp(buffer2);
-        if (!(matcher.Match(buffer2) || strcmp(buffer, "")   == 0))
-        {
-            deletedLabels.push_back(idx);
-        }
-        labels[idx] = tmp;
-    }
-    for (int idx : deletedLabels)
-    {
-        SendMessage(hWnd, CB_DELETESTRING, idx, NULL);
-    }
-    if (strlen(buffer) == 1)
-    {
-        SetWindowText(hWnd, (LPCSTR)buffer);
-        SendMessage(hWnd, CB_SETEDITSEL, 0, MAKELPARAM(1, 1));
-    }
-    HCURSOR hCursor = LoadCursor(NULL, IDC_ARROW);
-    SetCursor(hCursor);
 }
 
 static SortLabelKey BuildKey(const FString& input)
@@ -2182,7 +2093,9 @@ void VirtualComboBoxEx::SyncListCount()
 
 void VirtualComboBoxEx::Filter(const char* text)
 {
-    if (m_allowFilter && !*m_allowFilter)
+    if (!m_EnterKeyPressed 
+        && (m_allowFilter && !*m_allowFilter || ExtConfigs::SearchCombobox_Disabled)
+        && !m_filterActive)
         return;
 
     m_filterActive = true;
@@ -2190,7 +2103,8 @@ void VirtualComboBoxEx::Filter(const char* text)
 
     if (!text || !*text)
     {
-        m_filterActive = false;
+        if (!IsWindowVisible(hList))
+            m_filterActive = false;
         newFiltered.resize(items.size());
         for (int i = 0; i < (int)items.size(); ++i)
             newFiltered[i] = i;
@@ -2693,14 +2607,47 @@ LRESULT CALLBACK VirtualComboBoxEx::EditProc(HWND hwnd, UINT msg, WPARAM wParam,
     {
     case WM_CHAR:
     {
-        if (wParam == VK_RETURN || GetKeyState(VK_CONTROL) & 0x8000 || (GetKeyState(VK_MENU) & 0x8000))
+        if (GetKeyState(VK_CONTROL) & 0x8000 || (GetKeyState(VK_MENU) & 0x8000))
             break;
+
+        if (wParam == VK_RETURN)
+            return 0;
 
         LRESULT ret = CallWindowProc(pThis->oldEditProc, hwnd, msg, wParam, lParam);
 
         char buf[512];
         GetWindowTextA(hwnd, buf, sizeof(buf));
         pThis->Filter(buf);
+
+        if (wParam == VK_BACK)
+        {
+            auto NeedVScrollBar = [&](HWND hList)
+            {
+                int total = (int)SendMessage(hList, LB_GETCOUNT, 0, 0);
+                if (total <= 0)
+                    return false;
+
+                RECT rc;
+                GetClientRect(hList, &rc);
+
+                int listHeight = rc.bottom - rc.top;
+                if (listHeight <= 0)
+                    return false;
+
+                HDC hdc = GetDC(hwnd);
+                int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
+                ReleaseDC(hwnd, hdc);
+                int itemHeight = ITEM_HEIGHT * dpi / 96.0f;
+
+                int visible = listHeight / itemHeight;
+
+                return total > visible;
+            };
+            if (!NeedVScrollBar(pThis->hList))
+            {
+                ShowScrollBar(pThis->hList, SB_VERT, FALSE);
+            }
+        }
 
         return ret;
     }
@@ -2720,14 +2667,24 @@ LRESULT CALLBACK VirtualComboBoxEx::EditProc(HWND hwnd, UINT msg, WPARAM wParam,
 
     case WM_KEYDOWN:
     {
-        if (wParam == VK_BACK || wParam == VK_DELETE)
+        if (wParam == VK_RETURN && !IsWindowVisible(pThis->hList))
+        {
+            LRESULT ret = CallWindowProc(pThis->oldEditProc, hwnd, msg, wParam, lParam);
+
+            char buf[512];
+            GetWindowTextA(hwnd, buf, sizeof(buf));
+            pThis->m_EnterKeyPressed = true;
+            pThis->Filter(buf);
+            pThis->m_EnterKeyPressed = false;
+            return ret;
+        }
+        if (wParam == VK_DELETE)
         {
             LRESULT ret = CallWindowProc(pThis->oldEditProc, hwnd, msg, wParam, lParam);
 
             char buf[512];
             GetWindowTextA(hwnd, buf, sizeof(buf));
             pThis->Filter(buf);
-
             return ret;
         }
         else if (wParam == VK_DOWN || wParam == VK_UP)
@@ -2761,7 +2718,7 @@ LRESULT CALLBACK VirtualComboBoxEx::EditProc(HWND hwnd, UINT msg, WPARAM wParam,
 
             return 0;
         }
-        else if (wParam == VK_RETURN)
+        else if (wParam == VK_RETURN && pThis->m_filterActive)
         {
             HWND hParent = GetParent(pThis->hCombo);
             int sel = (int)SendMessage(pThis->hList, LB_GETCURSEL, 0, 0);

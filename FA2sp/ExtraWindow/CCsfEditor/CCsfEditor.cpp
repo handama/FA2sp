@@ -228,9 +228,7 @@ BOOL CALLBACK CCsfEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
                 strcat_s(tmpCsfFile, "\\RA2Tmp.csf");
                 DeleteFile(tmpCsfFile);
 
-                ExtraWindow::bEnterSearch = true;
                 Update(hWnd);
-                ExtraWindow::bEnterSearch = false;
                 ((CViewObjectsExt*)(CFinalSunDlg::Instance->MyViewFrame.pViewObjects))->Redraw();
             }
             break;

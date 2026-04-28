@@ -68,11 +68,26 @@ update_waypoint()
 local width = #wps
 local height = #wps[1]
 print("Waypoint Matrix:")
-for col = 1, height do
-	local line = ""
-	local format = "%0"..tostring(get_digit_count(biggest_wp)).."d"
-	for row = 1, width do
-		line = line.." "..string.format(format, wps[row][col])
-	end
-	print(line)
+if #wps == 0 then
+    print("未生成任何路径点！")
+    return
+end
+
+local max_col = 0
+for _, row in ipairs(wps) do
+    if #row > max_col then
+        max_col = #row
+    end
+end
+
+local digit = get_digit_count(biggest_wp)
+local format_str = "%0" .. digit .. "d"
+
+for col = 1, max_col do
+    local line = ""
+    for row = 1, #wps do
+        local val = wps[row][col] or -1
+        line = line .. " " .. string.format(format_str, val)
+    end
+    print(line)
 end

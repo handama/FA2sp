@@ -1494,18 +1494,11 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 		else
 		{
-			CIsoView::CurrentCommand->Command = 0x2; // delete
-			CIsoView::CurrentCommand->Type = 0;
-
 			MessageBeep(MB_ICONWARNING);
 
-			POINT ptScreen;
-			::GetCursorPos(&ptScreen);
-			::ScreenToClient(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, &ptScreen);
-			LPARAM lParam = MAKELPARAM(ptScreen.x, ptScreen.y);
-			WPARAM wParam = 0;
-			::SendMessage(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, WM_MOUSEMOVE, wParam, lParam);
-			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+			auto point = CIsoViewExt::GetExtension()->GetCurrentMapCoord(CIsoViewExt::GetExtension()->MouseCurrentPosition);
+			if (DeleteMousePointedObjects(point.X, point.Y))
+				::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 		}
 	}
 
@@ -1769,6 +1762,87 @@ bool CFinalSunDlgExt::CheckProperty_Aircraft(CAircraftData data)
 	return true;
 	else
 		return false;
+}
+
+bool CFinalSunDlgExt::DeleteMousePointedObjects(int X, int Y)
+{
+	auto makeOrAppendRecord = [](int recordType)
+	{
+		if (!ObjectRecord::ObjectRecord_HoldingPtr)
+			ObjectRecord::ObjectRecord_HoldingPtr = CMapDataExt::MakeObjectRecord(recordType, true);
+		else
+			ObjectRecord::ObjectRecord_HoldingPtr->appendRecord(recordType);
+	};
+
+	if (!CMapDataExt::IsCoordInFullMap(X, Y))
+		return false;
+
+	auto cell = CMapData::Instance->GetCellAt(X, Y);
+
+	bool deleted = false;
+	int infIndex = CIsoViewExt::GetSelectedSubcellInfantryIdx(X, Y);
+	int infCount = CMapDataExt::GetExtension()->GetInfantryCountAt(CMapData::Instance->GetCoordIndex(X, Y));
+	if (ExtConfigs::InfantrySubCell_Edit && (infCount == 1 || infIndex != -1)
+		&& cell->Structure == -1 && cell->Unit == -1 && cell->Aircraft == -1
+		&& cell->Terrain == -1 && cell->Smudge == -1)
+	{
+		makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
+		CMapData::Instance->DeleteInfantryData(infIndex);
+		return true;
+	}
+	else
+	{
+		if (cell->Infantry[0] != -1)
+		{
+			makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
+			CMapData::Instance->DeleteInfantryData(cell->Infantry[0]);
+			deleted = true;
+		}
+		if (cell->Infantry[1] != -1)
+		{
+			makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
+			CMapData::Instance->DeleteInfantryData(cell->Infantry[1]);
+			deleted = true;
+		}
+		if (cell->Infantry[2] != -1)
+		{
+			makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
+			CMapData::Instance->DeleteInfantryData(cell->Infantry[2]);
+			deleted = true;
+		}
+		if (cell->Structure != -1)
+		{
+			makeOrAppendRecord(ObjectRecord::RecordType::Building);
+			CMapData::Instance->DeleteBuildingData(cell->Structure);
+			deleted = true;
+		}
+		if (cell->Unit != -1)
+		{
+			makeOrAppendRecord(ObjectRecord::RecordType::Unit);
+			CMapData::Instance->DeleteUnitData(cell->Unit);
+			deleted = true;
+		}
+		if (cell->Aircraft != -1)
+		{
+			makeOrAppendRecord(ObjectRecord::RecordType::Aircraft);
+			CMapData::Instance->DeleteAircraftData(cell->Aircraft);
+			deleted = true;
+		}
+		if (cell->Terrain != -1)
+		{
+			makeOrAppendRecord(ObjectRecord::RecordType::Terrain);
+			CMapData::Instance->DeleteTerrainData(cell->Terrain);
+			deleted = true;
+		}
+		if (cell->Smudge != -1)
+		{
+			makeOrAppendRecord(ObjectRecord::RecordType::Smudge);
+			CMapData::Instance->DeleteSmudgeData(cell->Smudge);
+			deleted = true;
+		}
+	}
+
+	return deleted;
 }
 
 BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)

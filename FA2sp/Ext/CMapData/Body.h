@@ -241,11 +241,13 @@ struct CellDataExt
 
     std::vector<BaseNodeDataExt> BaseNodes;
     // first = index of StructureIndexMap, second = index in GetBuildingTypeID 
-    std::unordered_map<short, short> Structures;
+    std::vector<std::pair<short, short>> Structures;
 
     // first = index, second = type 
-    std::unordered_map<short, short> Terrains;
-    std::unordered_map<short, short> Smudges;
+    std::vector<std::pair<short, short>> Terrains;
+    std::vector<std::pair<short, short>> Smudges;
+    // stores smudge index for dragging
+    std::vector<short> SmudgeParts;
 
     bool HasAnim = false;
     bool HasAnnotation = false;
@@ -282,6 +284,125 @@ struct CellDataExt
     COLORREF RemapableColor = 0x000000ff;
     int CenterBuildingIndex = -1; 
     int NearestCenterCellIndex = -1; 
+
+    void Structures_insert(short key, short value)
+    {
+        for (auto& p : Structures) {
+            if (p.first == key) {
+                p.second = value;
+                return;
+            }
+        }
+        Structures.emplace_back(key, value);
+    }
+
+    short Structures_find(short key)
+    {
+        for (auto& p : Structures) {
+            if (p.first == key)
+                return p.second;
+        }
+        return -1;
+    }
+
+    void Structures_erase(short key)
+    {
+        for (auto it = Structures.begin(); it != Structures.end(); ++it) {
+            if (it->first == key) {
+                Structures.erase(it);
+                return;
+            }
+        }
+    }
+
+    void Terrains_insert(short key, short value)
+    {
+        for (auto& p : Terrains) {
+            if (p.first == key) {
+                p.second = value;
+                return;
+            }
+        }
+        Terrains.emplace_back(key, value);
+    }
+
+    short Terrains_find(short key)
+    {
+        for (auto& p : Terrains) {
+            if (p.first == key)
+                return p.second;
+        }
+        return -1;
+    }
+
+    void Terrains_erase(short key)
+    {
+        for (auto it = Terrains.begin(); it != Terrains.end(); ++it) {
+            if (it->first == key) {
+                Terrains.erase(it);
+                return;
+            }
+        }
+    }
+
+    void Smudges_insert(short key, short value)
+    {
+        for (auto& p : Smudges) {
+            if (p.first == key) {
+                p.second = value;
+                return;
+            }
+        }
+        Smudges.emplace_back(key, value);
+    }
+
+    short Smudges_find(short key)
+    {
+        for (auto& p : Smudges) {
+            if (p.first == key)
+                return p.second;
+        }
+        return -1;
+    }
+
+    void Smudges_erase(short key)
+    {
+        for (auto it = Smudges.begin(); it != Smudges.end(); ++it) {
+            if (it->first == key) {
+                Smudges.erase(it);
+                return;
+            }
+        }
+    }
+
+    void SmudgeParts_insert(short value)
+    {
+        for (auto& v : SmudgeParts) {
+            if (v == value) {
+                return;
+            }
+        }
+        SmudgeParts.push_back(value);
+    }
+
+    short SmudgeParts_find(short value)
+    {
+        for (auto& v : SmudgeParts) {
+            if (v == value)
+                return 1;
+        }
+        return -1;
+    }
+
+    void SmudgeParts_erase(short value)
+    {
+        for (auto it = SmudgeParts.begin(); it != SmudgeParts.end(); ++it) {
+            if (*it == value) {
+                SmudgeParts.erase(it);
+                return;
+            }
+        }
+    }
 };
 
 enum class EIndexType : int {
@@ -730,6 +851,7 @@ public:
     static FSet PowersUpBuildingSet;
     static bool PlaceStructure_Preview;
     static std::map<int, BuildingRenderData> PlaceStructure_OldData;
+    static FMap<std::pair<byte, byte>> SmudgeSizes;
 
     static std::map<int, std::vector<CustomTile>> CustomTiles;
     static FMap<COLORREF> CustomWaypointColors;

@@ -919,7 +919,7 @@ void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, cons
             if (destRect.left + col < 0) continue;
 
             BYTE pixelValue = *srcPtr;
-            if (pixelValue == 127 || destPtr + BPP > surfaceEnd) [[likely]] continue;
+            if (pixelValue == 127 || destPtr + BPP > surfaceEnd) [[unlikely]] continue;
 
             BGRStruct ori = *reinterpret_cast<const BGRStruct*>(destPtr);
             BGRStruct c;

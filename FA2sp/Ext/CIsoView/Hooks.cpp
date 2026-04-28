@@ -330,8 +330,19 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 	}
 	if (CIsoViewExt::DrawSmudges && pThis->CurrentCellObjectIndex < 0)
 	{
-		pThis->CurrentCellObjectIndex = cell->Smudge;
-		pThis->CurrentCellObjectType = 9;
+		if (pos < CMapData::Instance->CellDataCount)
+		{
+			auto& cellExt = CMapDataExt::CellDataExts[pos];
+			pThis->CurrentCellObjectIndex = cellExt.SmudgeParts.empty() ? cell->Smudge : cellExt.SmudgeParts.back();
+			pThis->CurrentCellObjectType = 9;
+
+			if (pThis->CurrentCellObjectIndex > -1)
+			{
+				auto& data = CMapData::Instance->SmudgeDatas[pThis->CurrentCellObjectIndex];
+				pThis->StartCell.X = data.Y;
+				pThis->StartCell.Y = data.X;
+			}
+		}
 	}
 	if (CIsoViewExt::DrawAnnotations && pThis->CurrentCellObjectIndex < 0)
 	{

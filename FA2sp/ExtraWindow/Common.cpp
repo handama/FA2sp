@@ -2619,6 +2619,36 @@ LRESULT CALLBACK VirtualComboBoxEx::EditProc(HWND hwnd, UINT msg, WPARAM wParam,
         GetWindowTextA(hwnd, buf, sizeof(buf));
         pThis->Filter(buf);
 
+        if (wParam == VK_BACK)
+        {
+            auto NeedVScrollBar = [&](HWND hList)
+            {
+                int total = (int)SendMessage(hList, LB_GETCOUNT, 0, 0);
+                if (total <= 0)
+                    return false;
+
+                RECT rc;
+                GetClientRect(hList, &rc);
+
+                int listHeight = rc.bottom - rc.top;
+                if (listHeight <= 0)
+                    return false;
+
+                HDC hdc = GetDC(hwnd);
+                int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
+                ReleaseDC(hwnd, hdc);
+                int itemHeight = ITEM_HEIGHT * dpi / 96.0f;
+
+                int visible = listHeight / itemHeight;
+
+                return total > visible;
+            };
+            if (!NeedVScrollBar(pThis->hList))
+            {
+                ShowScrollBar(pThis->hList, SB_VERT, FALSE);
+            }
+        }
+
         return ret;
     }
     case WM_PASTE:
@@ -2648,7 +2678,7 @@ LRESULT CALLBACK VirtualComboBoxEx::EditProc(HWND hwnd, UINT msg, WPARAM wParam,
             pThis->m_EnterKeyPressed = false;
             return ret;
         }
-        if (wParam == VK_BACK || wParam == VK_DELETE)
+        if (wParam == VK_DELETE)
         {
             LRESULT ret = CallWindowProc(pThis->oldEditProc, hwnd, msg, wParam, lParam);
 

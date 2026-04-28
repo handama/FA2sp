@@ -133,7 +133,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_OffscreenRTV;
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_OffscreenSRV;
 
-    FMap<std::unique_ptr<TextureResource>> m_textureMap;
+    FHashMap<std::unique_ptr<TextureResource>> m_textureMap;
     std::map<CTileBlockClass*, std::unique_ptr<TextureResource>> m_tileTextureMap;
     std::vector<DrawCommand> m_drawCommands;
 

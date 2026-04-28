@@ -129,6 +129,7 @@ public:
         Palette* origin, Palette* remapped,
         float rMult, float gMult, float bMult, float ambient,
         bool isObject, uint8_t R, uint8_t G, uint8_t B);
+    static const std::array<BGRStruct, 16>& GetRemapableColorArray(BGRStruct color);
 };
 
 class LightingPalette
@@ -151,7 +152,6 @@ public:
     void RemapColors(BGRStruct color);
     void TintColors(bool isObject = false);
     Palette* GetPalette();
-    
 };
 
 class PalettesManager

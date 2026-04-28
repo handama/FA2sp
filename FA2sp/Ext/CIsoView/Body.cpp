@@ -3488,7 +3488,8 @@ void CIsoViewExt::Zoom(double offset)
             pThis->ViewPosition.y += (oldRect.Height() - newRect.Height()) * mousePosY;
             pThis->MoveTo(pThis->ViewPosition.x, pThis->ViewPosition.y);
 
-            pThis->g_pDX->SetZoomOut(CIsoViewExt::ScaledFactor);
+            if(pThis->g_pDX)
+                pThis->g_pDX->SetZoomOut(CIsoViewExt::ScaledFactor);
 
             pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
             CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);

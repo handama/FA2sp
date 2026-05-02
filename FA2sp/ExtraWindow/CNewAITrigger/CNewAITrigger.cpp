@@ -500,8 +500,6 @@ double CNewAITrigger::safe_stod(const char* s) {
 
 void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
 {
-    char buffer[512]{ 0 };
-
     SelectedAITriggerIndex = SendMessage(hSelectedAITrigger, CB_GETCURSEL, NULL, NULL);
     if (SelectedAITriggerIndex < 0 || SelectedAITriggerIndex >= SendMessage(hSelectedAITrigger, CB_GETCOUNT, NULL, NULL))
     {
@@ -528,9 +526,7 @@ void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
         return;
     }
 
-    FString pID;
-    SendMessage(hSelectedAITrigger, CB_GETLBTEXT, SelectedAITriggerIndex, (LPARAM)buffer);
-    pID = buffer;
+    FString pID = vcbSelectedAITrigger.GetItemText(SelectedAITriggerIndex);
     FString::TrimIndex(pID);
 
     CurrentAITrigger = AITrigger::create(pID);
@@ -768,31 +764,13 @@ void CNewAITrigger::OnSelchangeComparisonObject(bool edited)
 void CNewAITrigger::OnSelchangeTeam(int index, bool edited)
 {
     auto& hwnd = index == 1 ? hTeam2 : hTeam1;
+    auto& vcb = index == 1 ? vcbTeam[1] : vcbTeam[0];
     if (SelectedAITriggerIndex < 0 || SendMessage(hwnd, LB_GETCURSEL, NULL, NULL) < 0 || !CurrentAITrigger)
         return;
     int curSel = SendMessage(hwnd, CB_GETCURSEL, NULL, NULL);
 
-    FString text;
-    char buffer[512]{ 0 };
-
-    if (curSel >= 0 && curSel < SendMessage(hwnd, CB_GETCOUNT, NULL, NULL))
-    {
-        SendMessage(hwnd, CB_GETLBTEXT, curSel, (LPARAM)buffer);
-        text = buffer;
-    }
-    if (edited)
-    {
-        GetWindowText(hwnd, buffer, 511);
-        text = buffer;
-        int idx = SendMessage(hwnd, CB_FINDSTRINGEXACT, 0, (LPARAM)text);
-        if (idx != CB_ERR)
-        {
-            SendMessage(hwnd, CB_GETLBTEXT, idx, (LPARAM)buffer);
-            text = buffer;
-        }
-    }
-
-    if (!text)
+    FString text = vcb.GetSelectedText(edited);
+    if (text.empty())
         return;
 
     FString::TrimIndex(text);

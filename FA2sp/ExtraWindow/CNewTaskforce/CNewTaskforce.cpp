@@ -639,8 +639,6 @@ void CNewTaskforce::OnSelchangeUnitType(bool edited)
 
 void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
 {
-    char buffer[512]{ 0 };
-
     auto clear = []()
     {
         SendMessage(hUnitType, CB_SETCURSEL, -1, NULL);
@@ -659,9 +657,7 @@ void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
         InvalidateRect(hDragPoint, nullptr, TRUE);
     }
 
-    FString pID;
-    SendMessage(hSelectedTaskforce, CB_GETLBTEXT, SelectedTaskForceIndex, (LPARAM)buffer);
-    pID = buffer;
+    FString pID = vcbSelectedTaskforce.GetItemText(SelectedTaskForceIndex);
     FString::TrimIndex(pID);
 
     CurrentTaskForceID = pID;

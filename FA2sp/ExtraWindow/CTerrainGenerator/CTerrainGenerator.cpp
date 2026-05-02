@@ -1360,8 +1360,6 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab5(HWND hWnd, UINT Msg, WPARAM wParam,
 void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
 {
     ProgrammaticallySettingText = true;
-    char buffer[512]{ 0 };
-
     CurrentPresetIndex = SendMessage(hPreset, CB_GETCURSEL, NULL, NULL);
     if (CurrentPresetIndex < 0 || CurrentPresetIndex >= SendMessage(hPreset, CB_GETCOUNT, NULL, NULL))
     {
@@ -1416,8 +1414,7 @@ void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
         return;
     }
 
-    SendMessage(hPreset, CB_GETLBTEXT, CurrentPresetIndex, (LPARAM)buffer);
-    FString id = buffer;
+    FString id = vcbPreset.GetItemText(CurrentPresetIndex);
     FString::TrimIndex(id);
     CurrentPreset = GetPreset(id);
     if (!CurrentPreset) {

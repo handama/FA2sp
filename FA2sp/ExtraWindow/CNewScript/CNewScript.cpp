@@ -895,8 +895,6 @@ void CNewScript::OnSelchangeActionType(bool edited)
 
 void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
 {
-    char buffer[512]{ 0 };
-
     auto clear = []()
     {
         SendMessage(hActionType, CB_SETCURSEL, -1, NULL);
@@ -916,9 +914,7 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
         return;
     }
 
-    FString pID;
-    SendMessage(hSelectedScript, CB_GETLBTEXT, SelectedScriptIndex, (LPARAM)buffer);
-    pID = buffer;
+    FString pID = vcbSelectedScript.GetItemText(SelectedScriptIndex);
     FString::TrimIndex(pID);
 
     CurrentScriptID = pID;

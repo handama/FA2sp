@@ -2353,7 +2353,6 @@ void CNewTrigger::OnClickNewTrigger()
     FString id = CMapDataExt::GetAvailableIndex(EIndexType::Trigger);
     FString value;
     FString house;
-    char buffer[512]{ 0 };
     auto neutralHouse = Translations::ParseHouseName("Neutral", true);
     int idx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, neutralHouse);
     if (idx != CB_ERR)
@@ -2362,7 +2361,7 @@ void CNewTrigger::OnClickNewTrigger()
     }
     else if (SendMessage(hHouse, CB_GETCOUNT, NULL, NULL) > 0)
     {
-        SendMessage(hHouse, CB_GETLBTEXT, 0, (LPARAM)buffer);
+        FString buffer = vcbHouse.GetItemText(0);
         house = Translations::ParseHouseName(buffer, false);
     }
     else

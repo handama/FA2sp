@@ -1131,70 +1131,97 @@ static std::vector<int> GetUnique(std::vector<int> input)
 }
 
 void CViewObjectsExt::LoadMultiLayers(
-    std::vector<std::vector<int>>& multiLayers,
+    std::vector<int>& layers,
     std::map<int, HTREEITEM>& subNodes,
     std::map<int, FString>& subNodeNames,
     std::map<std::array<int, 10>, HTREEITEM>& multiSubNodes,
     int index, int sideLimit, const FString& display)
 {
-    for (auto& layers : multiLayers)
+    for (int j = 0; j < std::min(9u, layers.size()); ++j)
     {
-        for (int j = 0; j < std::min(9u, layers.size()); ++j)
+        auto side = layers[j];
+
+        if (side > -1 && side < sideLimit)
         {
-            auto side = layers[j];
+            std::array<int, 10> arr{};
+            std::fill(arr.begin(), arr.end(), -1);
 
-            if (side > -1 && side < sideLimit)
+            HTREEITEM hParent = NULL;
+            for (int k = 0; k < j; ++k)
             {
-                std::array<int, 10> arr{};
-                std::fill(arr.begin(), arr.end(), -1);
-
-                HTREEITEM hParent = NULL;
-                for (int k = 0; k < j; ++k)
-                {
-                    arr[k] = layers[k];
-                }
-                if (j == 0)
-                {
-                    auto parent = subNodes.find(side);
-                    if (parent != subNodes.end())
-                        hParent = parent->second;
-                }
-                else
-                {
-                    auto parent = multiSubNodes.find(arr);
-                    if (parent != multiSubNodes.end())
-                        hParent = parent->second;
-                }
-                if (hParent)
-                {
-                    arr[j] = side;
-                    HTREEITEM hThis = NULL;
-                    auto pThis = multiSubNodes.find(arr);
-                    if (pThis != multiSubNodes.end())
-                        hThis = pThis->second;
-                    if (!hThis)
-                    {
-                        hThis = j == 0 ? hParent : this->InsertString(subNodeNames[side], -1, hParent);
-                        multiSubNodes[arr] = hThis;
-                    }
-
-                    if (j >= 8 || layers[j + 1] == -1)
-                    {
-                        this->InsertString(
-                            display,
-                            index,
-                            hThis
-                        );
-                        break;
-                    }
-                }
+                arr[k] = layers[k];
+            }
+            if (j == 0)
+            {
+                auto parent = subNodes.find(side);
+                if (parent != subNodes.end())
+                    hParent = parent->second;
             }
             else
             {
-                break;
+                auto parent = multiSubNodes.find(arr);
+                if (parent != multiSubNodes.end())
+                    hParent = parent->second;
+            }
+            if (hParent)
+            {
+                arr[j] = side;
+                HTREEITEM hThis = NULL;
+                auto pThis = multiSubNodes.find(arr);
+                if (pThis != multiSubNodes.end())
+                    hThis = pThis->second;
+                if (!hThis)
+                {
+                    hThis = j == 0 ? hParent : this->InsertString(subNodeNames[side], -1, hParent);
+                    multiSubNodes[arr] = hThis;
+                }
+
+                if (j >= 8 || layers[j + 1] == -1)
+                {
+                    this->InsertString(
+                        display,
+                        index,
+                        hThis
+                    );
+                    break;
+                }
             }
         }
+        else
+        {
+            break;
+        }
     }
+}
+
+struct InsertStringInfo
+{
+    FString ID;
+    FString displayName;
+    std::vector<int> layers;
+    HTREEITEM parent;
+    int index;
+    int sideLimit;
+};
+
+static void SortStringInfo(std::vector<InsertStringInfo>& stringList)
+{
+    std::sort(stringList.begin(), stringList.end(),
+        [](const InsertStringInfo& a, const InsertStringInfo& b)
+        {
+            size_t maxLen = std::max(a.layers.size(), b.layers.size());
+
+            for (size_t i = 0; i < maxLen; ++i)
+            {
+                int va = (i < a.layers.size()) ? a.layers[i] : -1;
+                int vb = (i < b.layers.size()) ? b.layers[i] : -1;
+
+                if (va != vb)
+                    return va < vb;
+            }
+
+            return false;
+        });
 }
 
 void CViewObjectsExt::Redraw_Infantry()
@@ -1210,6 +1237,7 @@ void CViewObjectsExt::Redraw_Infantry()
     std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
     FMap<SubGroupInfo> editorNodes;
     std::vector<TempOtherInfo> otherList;
+    std::vector<InsertStringInfo> stringList;
 
     auto& fadata = CINI::FAData();
 
@@ -1296,11 +1324,31 @@ void CViewObjectsExt::Redraw_Infantry()
                     }
                 }
             }
-            LoadMultiLayers(multiLayers, subNodes, subNodeNames,
-                multiSubNodes, Const_Infantry + index, i, display);
+            for (auto& layer : multiLayers)
+            {
+                if (layer.empty())
+                    continue;
+
+                auto& info = stringList.emplace_back();
+                info.ID = InsertingObjectID;
+                info.displayName = display;
+                info.layers = layer;
+                info.sideLimit = i;
+                info.index = Const_Infantry + index;
+            }
         }
         InsertingObjectID = "";
     }
+
+    SortStringInfo(stringList);
+    for (auto& info : stringList)
+    {
+        InsertingObjectID = info.ID;
+        LoadMultiLayers(info.layers, subNodes, subNodeNames,
+            multiSubNodes, Const_Building + index, i, info.displayName);
+    }
+    InsertingObjectID = "";
+
     subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hInfantry);
     for (auto& ob : otherList)
     {
@@ -1378,6 +1426,7 @@ void CViewObjectsExt::Redraw_Vehicle()
     std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
     FMap<SubGroupInfo> editorNodes;
     std::vector<TempOtherInfo> otherList;
+    std::vector<InsertStringInfo> stringList;
 
     auto& fadata = CINI::FAData();
 
@@ -1463,12 +1512,32 @@ void CViewObjectsExt::Redraw_Vehicle()
                     }
                 }
             }
-            LoadMultiLayers(multiLayers, subNodes, subNodeNames,
-                multiSubNodes, Const_Vehicle + index, i, display);
+            for (auto& layer : multiLayers)
+            {
+                if (layer.empty())
+                    continue;
+
+                auto& info = stringList.emplace_back();
+                info.ID = InsertingObjectID;
+                info.displayName = display;
+                info.layers = layer;
+                info.sideLimit = i;
+                info.index = Const_Infantry + index;
+            }
         }
 
         InsertingObjectID = "";
     }
+
+    SortStringInfo(stringList);
+    for (auto& info : stringList)
+    {
+        InsertingObjectID = info.ID;
+        LoadMultiLayers(info.layers, subNodes, subNodeNames,
+            multiSubNodes, Const_Building + index, i, info.displayName);
+    }
+    InsertingObjectID = "";
+
     subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hVehicle);
     for (auto& ob : otherList)
     {
@@ -1546,6 +1615,7 @@ void CViewObjectsExt::Redraw_Aircraft()
     std::map<std::array<int, 10>, HTREEITEM> multiSubNodes;
     FMap<SubGroupInfo> editorNodes;
     std::vector<TempOtherInfo> otherList;
+    std::vector<InsertStringInfo> stringList;
 
     auto& fadata = CINI::FAData();
 
@@ -1632,12 +1702,31 @@ void CViewObjectsExt::Redraw_Aircraft()
                     }
                 }
             }
-            LoadMultiLayers(multiLayers, subNodes, subNodeNames,
-                multiSubNodes, Const_Aircraft + index, i, display);
-        }   
+            for (auto& layer : multiLayers)
+            {
+                if (layer.empty())
+                    continue;
 
+                auto& info = stringList.emplace_back();
+                info.ID = InsertingObjectID;
+                info.displayName = display;
+                info.layers = layer;
+                info.sideLimit = i;
+                info.index = Const_Infantry + index;
+            }
+        }   
         InsertingObjectID = "";
     }
+
+    SortStringInfo(stringList);
+    for (auto& info : stringList)
+    {
+        InsertingObjectID = info.ID;
+        LoadMultiLayers(info.layers, subNodes, subNodeNames,
+            multiSubNodes, Const_Building + index, i, info.displayName);
+    }
+    InsertingObjectID = "";
+
     subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hAircraft);
     for (auto& ob : otherList)
     {
@@ -1715,6 +1804,7 @@ void CViewObjectsExt::Redraw_Building()
     std::map<int, std::vector<std::pair<int, FString>>> foundationBuildings;
     FMap<SubGroupInfo> editorNodes;
     std::vector<TempOtherInfo> otherList;
+    std::vector<InsertStringInfo> stringList;
 
     auto& fadata = CINI::FAData();
     auto& art = CINI::Art();
@@ -1802,17 +1892,35 @@ void CViewObjectsExt::Redraw_Building()
                     }
                 }
             }
-            LoadMultiLayers(multiLayers, subNodes, subNodeNames,
-                multiSubNodes, Const_Building + index, i, display);
+            for (auto& layer : multiLayers)
+            {
+                if (layer.empty())
+                    continue;
+
+                auto& info = stringList.emplace_back();
+                info.ID = InsertingObjectID;
+                info.displayName = display;
+                info.layers = layer;
+                info.sideLimit = i;
+                info.index = Const_Infantry + index;
+            }
         }
  
-
         if (CMapData::Instance->MapWidthPlusHeight && ExtConfigs::ObjectBrowser_Foundation)
         {
             const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(bud.second);
             const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
             foundationBuildings[DataExt.Width * 100 + DataExt.Height].push_back(std::make_pair(index, bud.second));
         }
+        InsertingObjectID = "";
+    }
+
+    SortStringInfo(stringList);
+    for (auto& info : stringList)
+    {
+        InsertingObjectID = info.ID;
+        LoadMultiLayers(info.layers, subNodes, subNodeNames,
+            multiSubNodes, Const_Building + index, i, info.displayName);
     }
     InsertingObjectID = "";
 

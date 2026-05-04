@@ -1310,8 +1310,6 @@ void CNewTeamTypes::OnSelchangeMindControlDecision(HWND& hWnd, bool edited)
 
 void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
 {
-    char buffer[512]{ 0 };
-
     SelectedTeamIndex = SendMessage(hSelectedTeam, CB_GETCURSEL, NULL, NULL);
 
     auto clear = []()
@@ -1361,9 +1359,7 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         return;
     }
 
-    FString pID;
-    SendMessage(hSelectedTeam, CB_GETLBTEXT, SelectedTeamIndex, (LPARAM)buffer);
-    pID = buffer;
+    FString pID = vcbSelectedTeam.GetItemText(SelectedTeamIndex);
     FString::TrimIndex(pID);
 
     CurrentTeamID = pID;
@@ -1395,9 +1391,7 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         bool found = false;
         for (int idx = 0; idx < SendMessage(hTaskforce, CB_GETCOUNT, NULL, NULL); idx++)
         {
-            FString id;
-            SendMessage(hTaskforce, CB_GETLBTEXT, idx, (LPARAM)buffer);
-            id = buffer;
+            FString id = vcbTaskForce.GetItemText(idx);
             FString::TrimIndex(id);
             if (id == taskforce)
             {
@@ -1414,9 +1408,7 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         found = false;
         for (int idx = 0; idx < SendMessage(hScript, CB_GETCOUNT, NULL, NULL); idx++)
         {
-            FString id;
-            SendMessage(hScript, CB_GETLBTEXT, idx, (LPARAM)buffer);
-            id = buffer;
+            FString id = vcbScript.GetItemText(idx);
             FString::TrimIndex(id);
             if (id == script)
             {
@@ -1433,9 +1425,7 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         found = false;
         for (int idx = 0; idx < SendMessage(hTag, CB_GETCOUNT, NULL, NULL); idx++)
         {
-            FString id;
-            SendMessage(hTag, CB_GETLBTEXT, idx, (LPARAM)buffer);
-            id = buffer;
+            FString id = vcbTag.GetItemText(idx);
             FString::TrimIndex(id);
             if (id == tag)
             {
@@ -1583,8 +1573,7 @@ void CNewTeamTypes::OnClickNewTeam()
 {
     FString key = CINI::GetAvailableKey("TeamTypes");
     FString value = CMapDataExt::GetAvailableIndex(EIndexType::Team);
-    char buffer[512];
-    FString buffer2;
+    FString buffer;
 
     FString newName = "";
     if (TeamSort::CreateFromTeamSort)
@@ -1597,17 +1586,16 @@ void CNewTeamTypes::OnClickNewTeam()
     map.WriteString(value, "Group", "-1");
     if (SendMessage(hHouse, CB_GETCOUNT, NULL, NULL) > 0)
     {
-        SendMessage(hHouse, CB_GETLBTEXT, 0, (LPARAM)buffer);
+        buffer = vcbHouse.GetItemText(0);
         map.WriteString(value, "House", Translations::ParseHouseName(buffer, false));
     }
     else
         map.WriteString(value, "House", "<all>");
     if (SendMessage(hScript, CB_GETCOUNT, NULL, NULL) > 0)
     {
-        SendMessage(hScript, CB_GETLBTEXT, 0, (LPARAM)buffer);
-        buffer2 = buffer;
-        FString::TrimIndex(buffer2);
-        map.WriteString(value, "Script", buffer2);
+        buffer = vcbScript.GetItemText(0);
+        FString::TrimIndex(buffer);
+        map.WriteString(value, "Script", buffer);
     }
     else
         map.WriteString(value, "Script", "");
@@ -1619,8 +1607,9 @@ void CNewTeamTypes::OnClickNewTeam()
     map.WriteString(value, "Priority", "5");
     if (SendMessage(hWaypoint, CB_GETCOUNT, NULL, NULL) > 0)
     {
-        SendMessage(hWaypoint, CB_GETLBTEXT, 0, (LPARAM)buffer);
-        map.WriteString(value, "Waypoint", STDHelpers::WaypointToString(ppmfc::CString(buffer)));
+        buffer = vcbWaypoint.GetItemText(0);
+        FString::TrimIndex(buffer);
+        map.WriteString(value, "Waypoint", STDHelpers::WaypointToString(buffer));
     }
     else
         map.WriteString(value, "Waypoint", "A");
@@ -1630,10 +1619,9 @@ void CNewTeamTypes::OnClickNewTeam()
     map.WriteString(value, "Reinforce", "no");
     if (SendMessage(hTaskforce, CB_GETCOUNT, NULL, NULL) > 0)
     {
-        SendMessage(hTaskforce, CB_GETLBTEXT, 0, (LPARAM)buffer);
-        buffer2 = buffer;
-        FString::TrimIndex(buffer2);
-        map.WriteString(value, "TaskForce", buffer2);
+        buffer = vcbTaskForce.GetItemText(0);
+        FString::TrimIndex(buffer);
+        map.WriteString(value, "TaskForce", buffer);
     }
     else
         map.WriteString(value, "TaskForce", "");

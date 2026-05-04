@@ -104,6 +104,11 @@ private:
     static int minWndWidth;
     static int minWndHeight;
     static bool minSizeSet;
+    static int i_origWndWidth;
+    static int i_origWndHeight;
+    static int i_minWndWidth;
+    static int i_minWndHeight;
+    static bool i_minSizeSet;
     static bool autoEdit;
     static UINT_PTR m_changeDebounceTimer;
     static FString CurrentSection;

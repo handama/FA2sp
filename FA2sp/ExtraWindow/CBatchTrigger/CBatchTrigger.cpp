@@ -792,7 +792,6 @@ void CBatchTrigger::Update(bool afterInit, bool updateTrigger)
 void CBatchTrigger::UpdateListBox()
 {
     while (SendMessage(hListbox, LB_DELETESTRING, 0, NULL) != CB_ERR);
-    int idx = 0;
     std::vector<std::pair<FString, FString>> items;
 
     for (auto& [_, trigger] : CMapDataExt::Triggers) {
@@ -831,6 +830,7 @@ void CBatchTrigger::UpdateListBox()
     HFONT hFont = (HFONT)SendMessage(hListbox, WM_GETFONT, 0, 0);
     HFONT old = (HFONT)SelectObject(hdc, hFont);
 
+    int idx = 0;
     LabelMatcher matcher(buffer);
     for (auto& [label, id] : items)
     {
@@ -843,7 +843,7 @@ void CBatchTrigger::UpdateListBox()
             GetTextExtentPoint32(hdc, label, label.length(), &sz);
             MaxWidth = std::max(MaxWidth, (int)sz.cx);
 
-            SendMessage(hListbox, LB_ADDSTRING, 0, label);
+            SendMessage(hListbox, LB_INSERTSTRING, idx, label);
             SendMessage(hListbox, LB_SETITEMDATA, idx, (LPARAM)&data);
             idx++;
         }

@@ -229,6 +229,7 @@
     <ClCompile Include="FA2sp\ExtraWindow\CNewLocalVariables\CNewLocalVariables.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewMMXSavingOptionsDlg\CNewMMXSavingOptionsDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewScript\CNewScript.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewTag\CNewTag.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTipsOfTheDay\CNewTipsOfTheDay.cpp" />
@@ -383,6 +384,7 @@
     <ClInclude Include="FA2sp\ExtraWindow\CNewLocalVariables\CNewLocalVariables.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewMMXSavingOptionsDlg\CNewMMXSavingOptionsDlg.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewScript\CNewScript.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewTag\CNewTag.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTipsOfTheDay\CNewTipsOfTheDay.h" />
@@ -475,6 +477,7 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewLocalVariables\CNewLocalVariables.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewMMXSavingOptionsDlg\CNewMMXSavingOptionsDlg.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewScript\CNewScript.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewTag\CNewTag.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewTipsOfTheDay\CNewTipsOfTheDay.rc" />

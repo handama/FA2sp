@@ -16,6 +16,7 @@
 #include "../../ExtraWindow/CNewTaskforce/CNewTaskforce.h"
 #include "../../ExtraWindow/CNewScript/CNewScript.h"
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
+#include "../../ExtraWindow/CNewTag/CNewTag.h"
 #include "../../ExtraWindow/CNewINIEditor/CNewINIEditor.h"
 #include "../../ExtraWindow/CSearhReference/CSearhReference.h"
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
@@ -3756,6 +3757,12 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 				::SendMessage(CNewTrigger::Instance[i].GetHandle(), 114514, 0, 0);
 			}
 		}
+		if (CNewTag::GetHandle())
+		{
+			noEditor = false;
+			::SendMessage(CNewTag::GetHandle(), 114514, 0, 0);
+		}
+
 		if (noEditor)
 			CMapDataExt::UpdateTriggers();
 

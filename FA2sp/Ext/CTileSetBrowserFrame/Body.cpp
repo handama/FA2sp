@@ -19,6 +19,7 @@
 #include "TabPages/TagSort.h"
 #include "../../ExtraWindow/CObjectSearch/CObjectSearch.h"
 #include "../../ExtraWindow//CNewTeamTypes/CNewTeamTypes.h"
+#include "../../ExtraWindow//CNewTag/CNewTag.h"
 #include "../../ExtraWindow//CNewTaskforce/CNewTaskforce.h"
 #include "../../ExtraWindow//CNewScript/CNewScript.h"
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
@@ -93,23 +94,10 @@ BOOL CTileSetBrowserFrameExt::PreTranslateMessageExt(MSG* pMsg)
 		{
 			if (CFinalSunDlg::Instance->Tags && IsWindowVisible(CFinalSunDlg::Instance->Tags))
 			{
+				TagSort::CreateFromTagSort = true;
 				TagSort::Instance.Menu_AddTrigger();
-				ppmfc::CString name;
-				ppmfc::CString value;
-				ppmfc::CString key = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
-				name = (TagSort::Instance.GetCurrentPrefix() + "New Tag").c_str();
-				value.Format("0,%s,%s", name, CINI::CurrentDocument->GetKeyCount("Triggers") > 0 ?
-					CINI::CurrentDocument->GetKeyAt("Triggers", 0).GetString() : "01000000");
-				CINI::CurrentDocument->WriteString("Tags", key, value);
-				CFinalSunDlg::Instance->Tags.UpdateDialog();
-				auto hTag = ::GetDlgItem(CFinalSunDlg::Instance->Tags, 1083);
-				CComboBox& cTag = *(CComboBox*)CWnd::FromHandle(hTag);
-				auto idx = cTag.FindStringExact(0, key + " (" + name + ")");
-				if (idx != CB_ERR)
-				{
-					cTag.SetCurSel(idx);
-					CFinalSunDlg::Instance->Tags.OnCBCurrentTagSelectedChanged();
-				}
+				CNewTag::OnClickNewTag();
+				TagSort::CreateFromTagSort = false;
 				return TRUE;
 			}
 		}

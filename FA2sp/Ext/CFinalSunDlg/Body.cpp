@@ -23,6 +23,7 @@
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 #include "../../ExtraWindow/CNewLocalVariables/CNewLocalVariables.h"
 #include "../../ExtraWindow/CFA2spOptions/CFA2spOptions.h"
+#include "../../ExtraWindow/CNewTag/CNewTag.h"
 #include "../../Helpers/STDHelpers.h"
 
 #include "../../Helpers/Translations.h"
@@ -617,7 +618,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		if (CLoading::IsFileExists(file.c_str()))
 			this->LoadMap(file.c_str());
 	}
-	if (wmID == 40018 && CMapData::Instance->MapWidthPlusHeight)
+	else if (wmID == 40018 && CMapData::Instance->MapWidthPlusHeight)
 	{
 		ppmfc::CString buffer;
 		buffer = CFinalSunApp::MapPath;
@@ -626,12 +627,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	}
 
 	// object search
-	if (wmID == 40134 || wmID == 40161)
+	else if (wmID == 40134 || wmID == 40161)
 	{
 		auto pTSB = (CTileSetBrowserFrameExt*)CFinalSunDlg::Instance()->MyViewFrame.pTileSetBrowserFrame;
 		pTSB->OnBNSearchClicked();
 	}
-	if (wmID == 30108)
+	else if (wmID == 30108)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -643,13 +644,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			pTSB->OnBNTerrainGeneratorClicked();
 		}
 	}
-
-	if (wmID == 40137 && CMapData::Instance->MapWidthPlusHeight)
+	else if (wmID == 40137 && CMapData::Instance->MapWidthPlusHeight)
 	{
 		auto pTSB = (CTileSetBrowserFrameExt*)CFinalSunDlg::Instance()->MyViewFrame.pTileSetBrowserFrame;
 		pTSB->OnBNTileManagerClicked();
 	}
-	if (wmID == 40138)
+	else if (wmID == 40138)
 	{
 		if (CNewTeamTypes::GetHandle() == NULL)
 			CNewTeamTypes::Create((CFinalSunDlg*)this);
@@ -659,7 +659,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 
 	}
-	if (wmID == 40139)
+	else if (wmID == 40139)
 	{
 		if (CNewTaskforce::GetHandle() == NULL)
 			CNewTaskforce::Create((CFinalSunDlg*)this);
@@ -669,7 +669,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 
 	}
-	if (wmID == 40150)
+	else if (wmID == 40150)
 	{
 		if (CNewScript::GetHandle() == NULL)
 			CNewScript::Create((CFinalSunDlg*)this);
@@ -679,7 +679,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 
 	}
-	if (wmID == 40151)
+	else if (wmID == 40151)
 	{
 		if (CNewTrigger::Instance[0].GetHandle() == NULL)
 			CNewTrigger::Instance[0].Create((CFinalSunDlg*)this);
@@ -688,7 +688,17 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CNewTrigger::Instance[0].GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40168)
+	else if (wmID == 40042)
+	{
+		if (CNewTag::GetHandle() == NULL)
+			CNewTag::Create((CFinalSunDlg*)this);
+		else
+		{
+			::SendMessage(CNewTag::GetHandle(), 114514, 0, 0);
+		}
+		return TRUE;
+	}
+	else if (wmID == 40168)
 	{
 		if (CBatchTrigger::GetHandle() == NULL)
 			CBatchTrigger::Create((CFinalSunDlg*)this);
@@ -697,7 +707,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CBatchTrigger::GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40154)
+	else if (wmID == 40154)
 	{
 		if (CNewINIEditor::GetHandle() == NULL)
 			CNewINIEditor::Create((CFinalSunDlg*)this);
@@ -706,7 +716,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CNewINIEditor::GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40155)
+	else if (wmID == 40155)
 	{
 		if (CCsfEditor::GetHandle() == NULL)
 			CCsfEditor::Create((CFinalSunDlg*)this);
@@ -715,7 +725,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CCsfEditor::GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40156)
+	else if (wmID == 40156)
 	{
 		if (CNewAITrigger::GetHandle() == NULL)
 			CNewAITrigger::Create((CFinalSunDlg*)this);
@@ -724,7 +734,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CNewAITrigger::GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40157)
+	else if (wmID == 40157)
 	{
 		const FString title = Translations::TranslateOrDefault(
 			"Error", "Error"
@@ -759,12 +769,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, title, MB_ICONWARNING);
 		}
 	}
-	if (wmID == 40022)
+	else if (wmID == 40022)
 	{
 		CNewTipsOfTheDay::ShowNewTipsOfTheDay();
 		return TRUE;
 	}
-	if (wmID == 40163)
+	else if (wmID == 40163)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -776,7 +786,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 		return TRUE;
 	}
-	if (wmID == 40158)
+	else if (wmID == 40158)
 	{
 		if (CLuaConsole::GetHandle() == NULL)
 			CLuaConsole::Create((CFinalSunDlg*)this);
@@ -785,7 +795,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CLuaConsole::GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40160 && CMapData::Instance->MapWidthPlusHeight)
+	else if (wmID == 40160 && CMapData::Instance->MapWidthPlusHeight)
 	{
 		if (CNewLocalVariables::GetHandle() == NULL)
 			CNewLocalVariables::Create((CFinalSunDlg*)this);
@@ -794,7 +804,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CNewLocalVariables::GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40162)
+	else if (wmID == 40162)
 	{
 		if (CFA2spOptions::GetHandle() == NULL)
 			CFA2spOptions::Create((CFinalSunDlg*)this);
@@ -803,7 +813,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CFA2spOptions::GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40164)
+	else if (wmID == 40164)
 	{
 		if (CTriggerAnnotation::GetHandle() == NULL)
 			CTriggerAnnotation::Create((CFinalSunDlg*)this);
@@ -812,7 +822,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CTriggerAnnotation::GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40165)
+	else if (wmID == 40165)
 	{
 		auto setLighting = [](int id)
 		{
@@ -1178,7 +1188,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			}
 		}
 	}
-	if (wmID == 40167)
+	else if (wmID == 40167)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1199,7 +1209,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 		return TRUE;
 	}
-	if (wmID == 30100)
+	else if (wmID == 30100)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1216,7 +1226,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CViewObjectsExt::InitPropertyDlgFromProperty = false;
 		}
 	}
-	if (wmID == 30101)
+	else if (wmID == 30101)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1233,7 +1243,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CViewObjectsExt::InitPropertyDlgFromProperty = false;
 		}
 	}
-	if (wmID == 30102)
+	else if (wmID == 30102)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1250,7 +1260,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CViewObjectsExt::InitPropertyDlgFromProperty = false;
 		}
 	}
-	if (wmID == 30103)
+	else if (wmID == 30103)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1267,7 +1277,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CViewObjectsExt::InitPropertyDlgFromProperty = false;
 		}
 	}
-	if (wmID == 30109)
+	else if (wmID == 30109)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1284,7 +1294,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			}
 		}
 	}
-	if (wmID == 30104)
+	else if (wmID == 30104)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1297,7 +1307,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CIsoView::CurrentCommand->Param = 1;
 		}
 	}
-	if (wmID == 30105)
+	else if (wmID == 30105)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1309,7 +1319,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CIsoView::CurrentCommand->Type = 0;
 		}
 	}
-	if (wmID == 30106)
+	else if (wmID == 30106)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1427,7 +1437,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	closeFA2Window(40043, this->Lighting);
 	closeFA2Window(40048, this->AITriggerTypesEnable);
 	closeFA2Window(40037, this->SingleplayerSettings);
-	closeFA2Window(40042, this->Tags);
 
 	if (wmID == 40152)
 	{
@@ -1592,7 +1601,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		refreshFA2Window(40043, this->Lighting);
 		refreshFA2Window(40048, this->AITriggerTypesEnable);
 		refreshFA2Window(40037, this->SingleplayerSettings);
-		refreshFA2Window(40042, this->Tags);
 
 		if (newParam != 0)
 			return this->ppmfc::CDialog::OnCommand(newParam, lParam);

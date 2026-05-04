@@ -23,6 +23,7 @@
 #include "../CNewAITrigger/CNewAITrigger.h"
 #include "../../Helpers/Helper.h"
 #include "../../Miscs/StringtableLoader.h"
+#include "../CNewTag/CNewTag.h"
 
 CINI& CNewTrigger::map = CINI::CurrentDocument;
 CINI& CNewTrigger::fadata = CINI::FAData;
@@ -333,29 +334,29 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
 
     idx = 0;
     ExtraWindow::ClearComboKeepText(hType);
-    SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("0 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeOr", "One Time OR")));
-    SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("1 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeAnd", "One Time AND")));
-    SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("2 - ") + Translations::TranslateOrDefault("TriggerRepeatType.RepeatingOr", "Repeating OR")));
+    SendMessage(hType, CB_INSERTSTRING, idx++, (FString("0 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeOr", "One Time OR")));
+    SendMessage(hType, CB_INSERTSTRING, idx++, (FString("1 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeAnd", "One Time AND")));
+    SendMessage(hType, CB_INSERTSTRING, idx++, (FString("2 - ") + Translations::TranslateOrDefault("TriggerRepeatType.RepeatingOr", "Repeating OR")));
 
     idx = 0;
     ExtraWindow::ClearComboKeepText(hHouse);
     if (CMapData::Instance->IsMultiOnly() && ExtConfigs::PlayerAtXForTriggers)
     {
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ A>").c_str());
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ B>").c_str());
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ C>").c_str());
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ D>").c_str());
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ E>").c_str());
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ F>").c_str());
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ G>").c_str());
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)FString("<Player @ H>").c_str());
+        vcbHouse.AddString("<Player @ A>");
+        vcbHouse.AddString("<Player @ B>");
+        vcbHouse.AddString("<Player @ C>");
+        vcbHouse.AddString("<Player @ D>");
+        vcbHouse.AddString("<Player @ E>");
+        vcbHouse.AddString("<Player @ F>");
+        vcbHouse.AddString("<Player @ G>");
+        vcbHouse.AddString("<Player @ H>");
     }
     const auto& indicies = Variables::RulesMap.ParseIndicies("Countries", true);
     for (auto& value : indicies)
     {
         if (value == "GDI" || value == "Nod")
             continue;
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName(value, true).c_str());
+        vcbHouse.AddString(Translations::ParseHouseName(value, true));
     }
 
     SendMessage(hCompact, BM_SETCHECK, CompactMode ? BST_CHECKED : BST_UNCHECKED, 0);
@@ -1546,8 +1547,27 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 FString name(buffer);
                 name.Replace(",", "");
 
+                FString tagName = name + " 1";
+                if (!CurrentTrigger->Tag.IsEmpty())
+                {
+                    auto text = ExtraWindow::GetTagDisplayName(CurrentTrigger->Tag);
+                    auto Triggertext = ExtraWindow::GetTriggerDisplayName(CurrentTrigger->ID);
+                    int index = CNewTag::vcbSelectedTag.FindStringExact(text);
+                    int Triggerindex = CNewTag::vcbTrigger.FindStringExact(Triggertext);
+                    CNewTag::vcbSelectedTag.ReplaceString(index, tagName);
+                    CNewTag::vcbTrigger.ReplaceString(Triggerindex, ExtraWindow::FormatTriggerDisplayName(CurrentTrigger->ID, name));
+                    if (CNewTag::GetHandle())
+                    {
+                        if (index == CNewTag::SelectedTagIndex)
+                            SendMessage(CNewTag::hName, WM_SETTEXT, 0, tagName);
+
+                        if (Triggerindex == CNewTag::vcbTrigger.GetCurSel())
+                            CNewTag::vcbTrigger.SetCurSel(Triggerindex);
+                    }
+                }
+
                 CurrentTrigger->Name = name;
-                CurrentTrigger->TagName = name + " 1";
+                CurrentTrigger->TagName = tagName;
                 CurrentTrigger->Save();
 
                 auto newName = ExtraWindow::FormatTriggerDisplayName(CurrentTrigger->ID, CurrentTrigger->Name);
@@ -2350,7 +2370,7 @@ void CNewTrigger::OnClickNewTrigger()
 {
     TempValueHolder<bool> tmp(AutoChangeName, true);
     CNewTeamTypes::TagListChanged = true;
-    FString id = CMapDataExt::GetAvailableIndex(EIndexType::Trigger);
+    auto id = CMapDataExt::GetAvailableIndex(EIndexType::Trigger);
     FString value;
     FString house;
     auto neutralHouse = Translations::ParseHouseName("Neutral", true);
@@ -2379,7 +2399,7 @@ void CNewTrigger::OnClickNewTrigger()
     map.WriteString("Triggers", id, value);
     map.WriteString("Events", id, "1,0,0,0");
     map.WriteString("Actions", id, "1,0,0,0,0,0,0,0,A");
-    FString tagId = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
+    auto tagId = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
     value.Format("0,%s 1,%s", newName, id);
     map.WriteString("Tags", tagId, value);
 
@@ -2388,6 +2408,13 @@ void CNewTrigger::OnClickNewTrigger()
     SortTriggers(id);
 
     OnSelchangeTrigger();
+
+    if (CNewTag::GetHandle())
+    {
+        auto text = ExtraWindow::GetTagDisplayName(tagId);
+        CNewTag::vcbSelectedTag.AddString(text);
+        CNewTag::TriggerListChanged = true;
+    }
 }
 
 void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
@@ -2398,7 +2425,7 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
     auto& oriID = CurrentTrigger->ID;
     auto& oriTagID = CurrentTrigger->Tag;
 
-    FString id = CMapDataExt::GetAvailableIndex(EIndexType::Trigger);
+    auto id = CMapDataExt::GetAvailableIndex(EIndexType::Trigger);
     FString value;
     auto& Name = CurrentTrigger->Name;
 
@@ -2409,10 +2436,11 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
         CurrentTrigger->MediumEnabled ? "1" : "0", CurrentTrigger->HardEnabled ? "1" : "0", CurrentTrigger->Obsolete);
     map.WriteString("Triggers", id, value);
 
+    FString tagId;
     if (oriTagID != "<none>")
     {
         CNewTeamTypes::TagListChanged = true;
-        FString tagId = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
+        tagId = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
         value.Format("%s,%s 1,%s", CurrentTrigger->RepeatType, newName, id);
         map.WriteString("Tags", tagId, value);
     }
@@ -2425,6 +2453,13 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
     SortTriggers(id);
 
     OnSelchangeTrigger();
+
+    if (oriTagID != "<none>" && CNewTag::GetHandle())
+    {
+        auto text = ExtraWindow::GetTagDisplayName(tagId);
+        CNewTag::vcbSelectedTag.AddString(text);
+        CNewTag::TriggerListChanged = true;
+    }
 }
 
 void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
@@ -2487,6 +2522,8 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
                 }
             }
         }
+
+        FString tagId = CurrentTrigger->Tag;
         map.DeleteKey("Triggers", CurrentTrigger->ID);
         map.DeleteKey("Events", CurrentTrigger->ID);
         map.DeleteKey("Actions", CurrentTrigger->ID);
@@ -2531,6 +2568,21 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
                     o->SelectedActionIndex,
                     false);
             }
+
+        if (CNewTag::GetHandle())
+        {
+            CNewTag::TriggerListChanged = true;
+            if (nResult == IDYES)
+            {
+                auto text = ExtraWindow::GetTagDisplayName(tagId);
+                int index = CNewTag::vcbSelectedTag.FindStringExact(text);
+                CNewTag::vcbSelectedTag.DeleteString(index);
+                if (index == CNewTag::SelectedTagIndex)
+                {
+                    CNewTag::OnSelchangeTag();
+                }
+            }
+        }
     }
 }
 
@@ -3364,7 +3416,7 @@ void CNewTrigger::OnClickActionSplit(HWND& hWnd)
             firstIndex = *it;
         }
     }
-    FString id = CMapDataExt::GetAvailableIndex(EIndexType::Trigger);
+    auto id = CMapDataExt::GetAvailableIndex(EIndexType::Trigger);
     // allow new trigger
     CurrentTrigger->Actions.insert(CurrentTrigger->Actions.begin() + firstIndex,
         { "53", {"2",id,"0","0","0","0","A"}, false });
@@ -3382,7 +3434,7 @@ void CNewTrigger::OnClickActionSplit(HWND& hWnd)
 
     map.WriteString("Triggers", id, value);
     map.WriteString("Events", id, "1,13,0,0"); // elapsed 0s
-    FString tagId = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
+    auto tagId = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
     value.Format("0,%s 1,%s", newName, id);
     map.WriteString("Tags", tagId, value);
 

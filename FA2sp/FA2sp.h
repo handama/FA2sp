@@ -61,6 +61,7 @@ public:
     static bool SortByLabelName;
     static bool SortByLabelName_AITrigger;
     static bool SortByLabelName_Trigger;
+    static bool SortByLabelName_Tag;
     static bool SortByLabelName_Team;
     static bool SortByLabelName_Taskforce;
     static bool SortByLabelName_Script;

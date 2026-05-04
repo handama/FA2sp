@@ -23,6 +23,7 @@ FHashMap<FString> TagSort::TriggerTags;
 FHashMap<std::vector<FString>> TagSort::TriggerTagsParent;
 FHashMap<std::vector<FString>> TagSort::CellTagTags;
 FHashMap<std::vector<FString>> TagSort::TeamTags;
+bool TagSort::CreateFromTagSort = false;
 
 enum FindType { Aircraft = 0, Infantry, Structure, Unit };
 void TagSort::LoadAllTriggers()
@@ -926,14 +927,4 @@ void TagSort::AddTrigger(FString triggerId) const
         this->AddTrigger(group, name, triggerId);
 
     }
-}
-
-DEFINE_HOOK(4DE7F0, CTagFrame_Update_TagSort, 7)
-{
-    
-  if (TagSort::Instance.IsVisible())
-  {
-      TagSort::Instance.LoadAllTriggers();
-  }
-    return 0;
 }

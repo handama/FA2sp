@@ -33,6 +33,7 @@ bool CSearhReference::minSizeSet;
 int CSearhReference::TriggerCaller;
 bool CSearhReference::IsTeamType = false;
 bool CSearhReference::IsTrigger = false;
+bool CSearhReference::IsTag = false;
 bool CSearhReference::IsVariable = false;
 std::map<int, ScriptParamPos> CSearhReference::LocalVariableScripts;
 std::map<int, int> CSearhReference::LocalVariableEvents;
@@ -213,7 +214,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
     FString fullName = ID;
     FString::TrimIndex(ID);
 
-    if (IsTeamType || IsTrigger || IsVariable)
+    if (IsTeamType || IsTrigger || IsVariable || IsTag)
     {
         int data = SendMessage(hListbox, LB_GETITEMDATA, idx, 0);
         if (data >= 100 && data < 300)
@@ -241,6 +242,19 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
             SendMessage(dlg, CB_SETCURSEL, idx, NULL);
             CNewAITrigger::OnSelchangeAITrigger();
             SetWindowPos(CNewAITrigger::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+        }
+        else if (data == 3)
+        {
+            if (CNewTeamTypes::GetHandle() == NULL)
+                CNewTeamTypes::Create(m_parent);
+
+            auto dlg = GetDlgItem(CNewTeamTypes::GetHandle(), CNewTeamTypes::Controls::SelectedTeam);
+            auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, fullName);
+            if (idx == CB_ERR)
+                return;
+            SendMessage(dlg, CB_SETCURSEL, idx, NULL);
+            CNewTeamTypes::OnSelchangeTeamtypes();
+            SetWindowPos(CNewTeamTypes::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
         }
         else if (data >= 500 && data < 550)
         {
@@ -272,7 +286,6 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
         CNewTeamTypes::OnSelchangeTeamtypes();
         SetWindowPos(CNewTeamTypes::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
     }
-
 }
 
 void CSearhReference::Update()
@@ -283,12 +296,14 @@ void CSearhReference::Update()
     while (SendMessage(hListbox, LB_DELETESTRING, 0, NULL) != CB_ERR);
     int idx = 0;
     FString tmp;
-    if (IsTeamType || IsTrigger)
+    if (IsTeamType || IsTrigger || IsTag)
     {
         if (IsTeamType)
             SendMessage(hObjectText, WM_SETTEXT, 0, (LPARAM)ExtraWindow::GetTeamDisplayName(SearchID));
         else if (IsTrigger)
             SendMessage(hObjectText, WM_SETTEXT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(SearchID));
+        else if (IsTag)
+            SendMessage(hObjectText, WM_SETTEXT, 0, (LPARAM)ExtraWindow::GetTagDisplayName(SearchID));
         for (auto& triggerPair : CMapDataExt::Triggers)
         {
             auto& trigger = triggerPair.second;
@@ -367,6 +382,29 @@ void CSearhReference::Update()
                     }
                 }
             }
+        if (IsTag)
+        {
+            if (auto pSection = map.GetSection("TeamTypes"))
+            {
+                for (auto& [_, id] : pSection->GetEntities())
+                {
+                    if (auto pTag = map.TryGetString(id, "Tag"))
+                    {
+                        if (SearchID == *pTag)
+                        {
+                            auto text = GetPrefix(0) + ExtraWindow::GetTeamDisplayName(id);
+                            SendMessage(
+                                hListbox,
+                                LB_SETITEMDATA,
+                                SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
+                                3
+                            );
+                            // 3 means tag in team
+                        }
+                    }
+                }
+            }
+        }
     }
     else if (IsVariable)
     {

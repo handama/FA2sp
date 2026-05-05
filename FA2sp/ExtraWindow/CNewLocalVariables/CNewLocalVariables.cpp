@@ -197,8 +197,6 @@ void CNewLocalVariables::Update()
 
 void CNewLocalVariables::OnSelchangeVariable(bool edited)
 {
-    char buffer[512]{ 0 };
-
     SelectedIndex = SendMessage(hVariables, CB_GETCURSEL, NULL, NULL);
     if (SelectedIndex < 0 || SelectedIndex >= SendMessage(hVariables, CB_GETCOUNT, NULL, NULL))
     {
@@ -208,9 +206,7 @@ void CNewLocalVariables::OnSelchangeVariable(bool edited)
         return;
     }
 
-    FString key;
-    SendMessage(hVariables, CB_GETLBTEXT, SelectedIndex, (LPARAM)buffer);
-    key = buffer;
+    FString key = vcbVariables.GetItemText(SelectedIndex);
     FString::TrimIndex(key);
 
     SelectedKey = key;

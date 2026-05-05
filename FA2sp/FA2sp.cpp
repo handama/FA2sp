@@ -51,6 +51,7 @@ bool ExtConfigs::SortByTriggerName;
 bool ExtConfigs::SortByLabelName;
 bool ExtConfigs::SortByLabelName_AITrigger;
 bool ExtConfigs::SortByLabelName_Trigger;
+bool ExtConfigs::SortByLabelName_Tag;
 bool ExtConfigs::SortByLabelName_Team;
 bool ExtConfigs::SortByLabelName_Taskforce;
 bool ExtConfigs::SortByLabelName_Script;
@@ -265,6 +266,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::SortByLabelName = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName");
 	ExtConfigs::SortByLabelName_AITrigger = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.AITrigger");
 	ExtConfigs::SortByLabelName_Trigger = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.Trigger");
+	ExtConfigs::SortByLabelName_Tag = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.Tag");
 	ExtConfigs::SortByLabelName_Team = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.Team");
 	ExtConfigs::SortByLabelName_Taskforce = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.Taskforce");
 	ExtConfigs::SortByLabelName_Script = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.Script");
@@ -612,6 +614,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName.AITrigger", "Sort AI triggers by label name, override global setting"),
 		.IniKey = "SortByLabelName.AITrigger",
 		.Value = &ExtConfigs::SortByLabelName_AITrigger,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName.Tag", "Sort Tags by label name, override global setting"),
+		.IniKey = "SortByLabelName.Tag",
+		.Value = &ExtConfigs::SortByLabelName_Tag,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 

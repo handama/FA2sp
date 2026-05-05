@@ -1997,7 +1997,7 @@ int VirtualComboBoxEx::InsertString(int index, const char* str)
 
     if (m_dropWidthMode == VirtualComboBoxEx::DropWidthMode::DropWidth_AutoMax)
     {
-        int thisWidth = CalcItemWidth(items.size() - 1);
+        int thisWidth = CalcItemWidth(index);
         if (m_cachedMaxWidth < thisWidth)
         {
             m_cachedMaxWidth = thisWidth;
@@ -2032,7 +2032,7 @@ int VirtualComboBoxEx::ReplaceString(int index, const char* str)
 
     if (m_dropWidthMode == VirtualComboBoxEx::DropWidthMode::DropWidth_AutoMax)
     {
-        int thisWidth = CalcItemWidth(items.size() - 1);
+        int thisWidth = CalcItemWidth(index);
         if (m_cachedMaxWidth < thisWidth)
         {
             m_cachedMaxWidth = thisWidth;
@@ -2138,6 +2138,16 @@ int VirtualComboBoxEx::GetCount() const
     return (int)items.size();
 }
 
+void VirtualComboBoxEx::AdjustCurSel(int& selectedIndex)
+{
+    int count = GetCount();
+    if (selectedIndex < 0)
+        selectedIndex = 0;
+    if (selectedIndex > count - 1)
+        selectedIndex = count - 1;
+    SetCurSel(selectedIndex);
+}
+
 int VirtualComboBoxEx::GetFilteredCount() const
 {
     return (int)filtered.size();
@@ -2189,19 +2199,31 @@ const char* VirtualComboBoxEx::GetSelectedText(bool allowEdit) const
 
 int VirtualComboBoxEx::FindStringExact(const char* str) const
 {
-    if (!str) return -1;
+    if (!str) return CB_ERR;
 
     for (int i = 0; i < (int)items.size(); ++i)
     {
         if (strcmp(items[i].text, str) == 0)
             return i;
     }
-    return -1;
+    return CB_ERR;
+}
+
+int VirtualComboBoxEx::FindStringExactStart(const char* str) const
+{
+    if (!str) return CB_ERR;
+
+    for (int i = 0; i < (int)items.size(); ++i)
+    {
+        if (strncmp(items[i].text, str, strlen(str)) == 0)
+            return i;
+    }
+    return CB_ERR;
 }
 
 int VirtualComboBoxEx::FindString(const char* str) const
 {
-    if (!str) return -1;
+    if (!str) return CB_ERR;
 
     LabelMatcher matcher(str);
     for (int i = 0; i < (int)items.size(); ++i)
@@ -2209,7 +2231,7 @@ int VirtualComboBoxEx::FindString(const char* str) const
         if (matcher.Match(items[i].text))
             return i;
     }
-    return -1;
+    return CB_ERR;
 }
 
 int VirtualComboBoxEx::DeleteString(int index)
@@ -2510,6 +2532,16 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
     }
     case WM_MOUSEWHEEL:
     {
+        POINT pt;
+        pt.x = ((int)(short)LOWORD(lParam));
+        pt.y = ((int)(short)HIWORD(lParam));
+
+        RECT rc;
+        GetWindowRect(pThis->hCombo, &rc);
+
+        if (!PtInRect(&rc, pt))
+            return CallWindowProc(pThis->oldComboProc, hwnd, msg, wParam, lParam);
+
         int curSel = pThis->curSel;
         if ((short)HIWORD(wParam) > 0)
         {
@@ -2540,6 +2572,20 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
 
         if (!pThis) break;
 
+        FString* text = nullptr;
+
+        if (dis->itemID == (UINT)-1)
+        {
+            if (pThis->curSel >= 0 && pThis->curSel < (int)pThis->items.size())
+                text = &pThis->items[pThis->curSel].text;
+        }
+        else if (dis->itemID < pThis->filtered.size())
+        {
+            text = &pThis->items[pThis->filtered[dis->itemID]].text;
+        }
+
+        if (!text) break;
+
         HDC hdc = dis->hDC;
         RECT rc = dis->rcItem;
 
@@ -2547,18 +2593,6 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
         HFONT oldFont = (HFONT)SelectObject(hdc, hFont);
 
         SetBkMode(hdc, TRANSPARENT);
-
-        std::string text;
-
-        if (dis->itemID == (UINT)-1)
-        {
-            if (pThis->curSel >= 0 && pThis->curSel < (int)pThis->items.size())
-                text = pThis->items[pThis->curSel].text;
-        }
-        else if (dis->itemID < pThis->filtered.size())
-        {
-            text = pThis->items[pThis->filtered[dis->itemID]].text;
-        }
 
         if (dis->itemState & ODS_SELECTED)
         {
@@ -2579,7 +2613,7 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
 
         rc.left += 4;
 
-        DrawTextA(hdc, text.c_str(), -1, &rc,
+        DrawTextA(hdc, *text, -1, &rc,
             DT_SINGLELINE | DT_VCENTER | DT_LEFT);
 
         SelectObject(hdc, oldFont);

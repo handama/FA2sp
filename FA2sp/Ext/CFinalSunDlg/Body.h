@@ -257,7 +257,7 @@ private:
     HTREEITEM InsertTranslatedString(const char* pOriginString, DWORD dwItemData = 0,
         HTREEITEM hParent = TVI_ROOT, HTREEITEM hInsertAfter = TVI_LAST);
     void LoadMultiLayers(
-        std::vector<std::vector<int>>& multiLayers,
+        std::vector<int>& layers,
         std::map<int, HTREEITEM>& subNodes,
         std::map<int, FString>& subNodeNames,
         std::map<std::array<int, 10>, HTREEITEM>& multiSubNodes,

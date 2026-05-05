@@ -895,8 +895,6 @@ void CNewScript::OnSelchangeActionType(bool edited)
 
 void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
 {
-    char buffer[512]{ 0 };
-
     auto clear = []()
     {
         SendMessage(hActionType, CB_SETCURSEL, -1, NULL);
@@ -916,9 +914,7 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
         return;
     }
 
-    FString pID;
-    SendMessage(hSelectedScript, CB_GETLBTEXT, SelectedScriptIndex, (LPARAM)buffer);
-    pID = buffer;
+    FString pID = vcbSelectedScript.GetItemText(SelectedScriptIndex);
     FString::TrimIndex(pID);
 
     CurrentScriptID = pID;
@@ -1016,8 +1012,8 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
 void CNewScript::OnClickNewScript()
 {
     CNewTeamTypes::ScriptListChanged = true;
-    FString key = CINI::GetAvailableKey("ScriptTypes");
-    FString value = CMapDataExt::GetAvailableIndex(EIndexType::Script);
+    auto key = CINI::GetAvailableKey("ScriptTypes");
+    auto value = CMapDataExt::GetAvailableIndex(EIndexType::Script);
     FString buffer2;
 
     FString newName = "";
@@ -1074,8 +1070,8 @@ void CNewScript::OnClickCloScript(HWND& hWnd)
         return;
     if (SendMessage(hSelectedScript, CB_GETCOUNT, NULL, NULL) > 0 && SelectedScriptIndex >= 0)
     {
-        FString key = CINI::GetAvailableKey("ScriptTypes");
-        FString value = CMapDataExt::GetAvailableIndex(EIndexType::Script);
+        auto key = CINI::GetAvailableKey("ScriptTypes");
+        auto value = CMapDataExt::GetAvailableIndex(EIndexType::Script);
 
         CINI::CurrentDocument->WriteString("ScriptTypes", key, value);
 

@@ -32,22 +32,23 @@ public:
     bool IsValid() const;
     bool IsVisible() const;
     void Menu_AddTrigger();
-    void DeleteTrigger(FString triggerId, HTREEITEM hItemParent = TVI_ROOT) const;
     void AddTrigger(FString triggerId) const;
     const FString& GetCurrentPrefix() const;
     HWND GetHwnd() const;
     operator HWND() const;
 
     static FHashSet attachedTriggers;
-    static FHashMap<std::vector<FString>>BuildingTags;
-    static FHashMap<std::vector<FString>>AircraftTags;
-    static FHashMap<std::vector<FString>>UnitTags;
-    static FHashMap<std::vector<FString>>InfantryTags;
-    static FHashMap<FString>TagTriggers;
-    static FHashMap<FString>TriggerTags;
-    static FHashMap<std::vector<FString>>TriggerTagsParent;
-    static FHashMap<std::vector<FString>>CellTagTags;
-    static FHashMap<std::vector<FString>>TeamTags;
+    static FHashMap<std::vector<FString>> BuildingTags;
+    static FHashMap<std::vector<FString>> AircraftTags;
+    static FHashMap<std::vector<FString>> UnitTags;
+    static FHashMap<std::vector<FString>> InfantryTags;
+    static FHashMap<FString> TagTriggers;  
+    static FHashMap<FString> TriggerTags;  
+    static FHashMap<std::vector<FString>> TriggerTagsParent;
+    static FHashMap<std::vector<FString>> CellTagTags;
+    static FHashMap<std::vector<FString>> TeamTags;
+
+    static bool CreateFromTagSort;
 
 private:
     HTREEITEM FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const;

@@ -16,7 +16,7 @@ public:
 	void ApplyToInfantryData(CInfantryData* pInf);
 	void ApplyToAircraftData(CAircraftData* pAir);
 	void ApplyToBuildingData(CBuildingData* pBld);
-	void ApplyToCurrentTechno(void* pData, CLoadingExt::ObjectType type);
+	void ApplyToCurrentTechno(void* pData, CLoadingExt::GameObjectType type);
 	bool HasAnyEnabledItem() const;
 
 	ppmfc::CString m_strHouse;

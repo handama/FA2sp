@@ -10,6 +10,9 @@
 
 #define CUSTOM_TILE_START 100000
 struct TwoPointStruct;
+namespace Renderer {
+    class BuildingType;
+}
 
 struct LatInfo
 {
@@ -266,6 +269,7 @@ struct CellDataExt
         Palette* pPal;
         bool IsBottom;
         bool hasFire;
+        Renderer::BuildingType* pType;
     };
     struct BaseNodeRenderPart
     {
@@ -276,6 +280,7 @@ struct CellDataExt
         ImageDataClassSafe* pData;
         Palette* pPal;
         BaseNodeDataExt* Data;
+        Renderer::BuildingType* pType;
     };
     std::vector<BuildingRenderPart> BuildingRenderParts;
     std::vector<BaseNodeRenderPart> BaseNodeRenderParts;

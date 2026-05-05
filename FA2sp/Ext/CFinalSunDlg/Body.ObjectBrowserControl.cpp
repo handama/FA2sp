@@ -218,21 +218,21 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             auto eItemType = CLoadingExt::GetExtension()->GetItemType(InsertingObjectID);
             switch (eItemType)
             {
-            case CLoadingExt::ObjectType::Infantry:
+            case CLoadingExt::GameObjectType::Infantry:
                 imageName = CLoadingExt::GetImageName(InsertingObjectID, 5);
                 fileID = CLoadingExt::GetExtension()->GetInfantryFileID(InsertingObjectID);
                 break;
-            case CLoadingExt::ObjectType::Terrain:
-            case CLoadingExt::ObjectType::Smudge:
+            case CLoadingExt::GameObjectType::Terrain:
+            case CLoadingExt::GameObjectType::Smudge:
                 imageName = CLoadingExt::GetImageName(InsertingObjectID, 0);
                 fileID = FString(CINI::CurrentDocument->GetString("Map", "Theater")) + "-" +
                     CLoadingExt::GetExtension()->GetTerrainOrSmudgeFileID(InsertingObjectID);
                 break;
-            case CLoadingExt::ObjectType::Vehicle:
-            case CLoadingExt::ObjectType::Aircraft:
+            case CLoadingExt::GameObjectType::Vehicle:
+            case CLoadingExt::GameObjectType::Aircraft:
                 fileID = CLoadingExt::GetExtension()->GetVehicleOrAircraftFileID(InsertingObjectID);
                 break;
-            case CLoadingExt::ObjectType::Building:
+            case CLoadingExt::GameObjectType::Building:
             {
                 bool hasTur = Variables::RulesMap.GetBool(InsertingObjectID, "Turret")
                     || Variables::RulesMap.GetBool(InsertingObjectID, "TurretAnimIsVoxel");
@@ -252,7 +252,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 }
                 break;
             }
-            case CLoadingExt::ObjectType::Unknown:
+            case CLoadingExt::GameObjectType::Unknown:
             default:
 
                 if (InsertingOverlay < 0 && InsertingTileIndex < 0 && !InsertingSpecialBitmap)
@@ -334,12 +334,12 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 ExtConfigs::InGameDisplay_Water = temp3;
             }
             std::unique_ptr<ImageDataClassSafe> pBuildingData;
-            if (eItemType == CLoadingExt::ObjectType::Aircraft || eItemType == CLoadingExt::ObjectType::Vehicle)
+            if (eItemType == CLoadingExt::GameObjectType::Aircraft || eItemType == CLoadingExt::GameObjectType::Vehicle)
             {
                 int facings = CLoadingExt::GetAvailableFacing(InsertingObjectID);
                 imageName = CLoadingExt::GetImageName(InsertingObjectID, facings / 4);
             }
-            else if (eItemType == CLoadingExt::ObjectType::Building)
+            else if (eItemType == CLoadingExt::GameObjectType::Building)
             {
                 auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
                 pBuildingData = CLoadingExt::BindClippedImages(clips);

@@ -15,10 +15,11 @@
 #include <chrono>
 #include <emmintrin.h>
 #include <immintrin.h>
+#include "../CIsoView/RendererTypes.h"
 
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
-FHashMap<CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
+FHashMap<CLoadingExt::GameObjectType> CLoadingExt::ObjectTypes;
 FHashSet CLoadingExt::LoadedObjects;
 FHashSet CLoadingExt::LoadedPreviewObjects;
 FHashSet CLoadingExt::LoadedSurfaceObjects;
@@ -34,6 +35,7 @@ unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
 bool CLoadingExt::DrawTurretShadow = false;
 FHashSet CLoadingExt::LoadedOverlays;
 FHashMap<InsigniaGrid> CLoadingExt::LoadedInsignias;
+std::map<WORD, BYTE> CLoadingExt::OverlayDataLimits;
 int CLoadingExt::TallestBuildingHeight = 0;
 FHashSet CLoadingExt::NotFoundFiles;
 std::unordered_map<std::string, std::vector<unsigned char>> CLoadingExt::g_cache[2];
@@ -59,27 +61,27 @@ bool CLoadingExt::IsImageLoaded(const FString& name)
 }
 
 ImageDataClassSafe* CLoadingExt::GetImageDataFromMap(const FString& name, 
-	ObjectType type, int facing, int totalFacings, bool shadow, bool* isDefault)
+	GameObjectType type, int facing, int totalFacings, bool shadow, bool* isDefault)
 {
 	auto itr = ImageDataMap.find(name);
 	if (ExtConfigs::UseDefaultUnitImage &&
 		(itr == ImageDataMap.end() || itr != ImageDataMap.end() && !itr->second->pImageBuffer) &&
 		name.Find("FA2DEFAULT_") == -1)
 	{
-		if (type == ObjectType::Infantry)
+		if (type == GameObjectType::Infantry)
 		{
 			if (isDefault) *isDefault = true;
 			const auto& imageName = CLoadingExt::GetImageName("FA2DEFAULT_INFANTRY", facing, shadow);
 			return GetImageDataFromMap(imageName);
 		}
-		else if (type == ObjectType::Vehicle)
+		else if (type == GameObjectType::Vehicle)
 		{
 			if (isDefault) *isDefault = true;
 			int newFacing = facing * 32 / totalFacings;
 			const auto& imageName = CLoadingExt::GetImageName("FA2DEFAULT_UNIT", newFacing, shadow);
 			return GetImageDataFromMap(imageName);
 		}
-		else if (type == ObjectType::Aircraft)
+		else if (type == GameObjectType::Aircraft)
 		{
 			if (isDefault) *isDefault = true;
 			int newFacing = facing * 32 / totalFacings;
@@ -235,37 +237,37 @@ FString CLoadingExt::GetBuildingImageName(FString ID, int nFacing, int state, bo
 	return ret;
 }
 
-CLoadingExt::ObjectType CLoadingExt::GetItemType(FString ID)
+CLoadingExt::GameObjectType CLoadingExt::GetItemType(FString ID)
 {
 	if (ID == "")
-		return ObjectType::Unknown;
+		return GameObjectType::Unknown;
 	else if (ID == "FA2DEFAULT_INFANTRY")
-		return ObjectType::Infantry;
+		return GameObjectType::Infantry;
 	else if (ID == "FA2DEFAULT_UNIT")
-		return ObjectType::Vehicle;
+		return GameObjectType::Vehicle;
 	else if (ID == "FA2DEFAULT_AIRCRAFT")
-		return ObjectType::Aircraft;
+		return GameObjectType::Aircraft;
 	if (ObjectTypes.size() == 0)
 	{
-		auto load = [](FString type, ObjectType e)
+		auto load = [](FString type, GameObjectType e)
 		{
 			auto section = Variables::RulesMap.GetSection(type);
 			for (auto& pair : section)
 				ObjectTypes[pair.second] = e;
 		};
 
-		load("InfantryTypes", ObjectType::Infantry);
-		load("VehicleTypes", ObjectType::Vehicle);
-		load("AircraftTypes", ObjectType::Aircraft);
-		load("BuildingTypes", ObjectType::Building);
-		load("SmudgeTypes", ObjectType::Smudge);
-		load("TerrainTypes", ObjectType::Terrain);
+		load("InfantryTypes", GameObjectType::Infantry);
+		load("VehicleTypes", GameObjectType::Vehicle);
+		load("AircraftTypes", GameObjectType::Aircraft);
+		load("BuildingTypes", GameObjectType::Building);
+		load("SmudgeTypes", GameObjectType::Smudge);
+		load("TerrainTypes", GameObjectType::Terrain);
 	}
 
 	auto itr = ObjectTypes.find(ID);
 	if (itr != ObjectTypes.end())
 		return itr->second;
-	return ObjectType::Unknown;
+	return GameObjectType::Unknown;
 }
 
 bool CLoadingExt::ReLoadObjectOrOverlay(const FString& ID)
@@ -291,7 +293,7 @@ bool CLoadingExt::ReLoadObjectOrOverlay(const FString& ID)
 	return reloaded;
 }
 
-void CLoadingExt::LoadObjects(const FString& ID)
+void CLoadingExt::LoadObjects(const FString& ID, GameObjectType eItemType)
 {
 	if (ID == "")
 		return;
@@ -301,22 +303,23 @@ void CLoadingExt::LoadObjects(const FString& ID)
 	else
 		LoadedPreviewObjects.insert(ID);
 
-	auto eItemType = GetItemType(ID);
-	if (eItemType != CLoadingExt::ObjectType::Unknown)
+	if (eItemType == CLoadingExt::GameObjectType::Unknown)
+		eItemType = GetItemType(ID);
+	if (eItemType != CLoadingExt::GameObjectType::Unknown)
 		Logger::Debug("CLoadingExt::LoadObjects loading: %s\n", ID);
 
 	switch (eItemType)
 	{
-	case CLoadingExt::ObjectType::Infantry:
+	case CLoadingExt::GameObjectType::Infantry:
 		LoadInfantry(ID);
 		break;
-	case CLoadingExt::ObjectType::Terrain:
+	case CLoadingExt::GameObjectType::Terrain:
 		LoadTerrainOrSmudge(ID, true);
 		break;
-	case CLoadingExt::ObjectType::Smudge:
+	case CLoadingExt::GameObjectType::Smudge:
 		LoadTerrainOrSmudge(ID, false);
 		break;
-	case CLoadingExt::ObjectType::Vehicle:
+	case CLoadingExt::GameObjectType::Vehicle:
 	{
 		LoadVehicleOrAircraft(ID);
 		if (ExtConfigs::InGameDisplay_Deploy)
@@ -337,13 +340,13 @@ void CLoadingExt::LoadObjects(const FString& ID)
 		}
 		break;
 	}
-	case CLoadingExt::ObjectType::Aircraft:
+	case CLoadingExt::GameObjectType::Aircraft:
 		LoadVehicleOrAircraft(ID);
 		break;
-	case CLoadingExt::ObjectType::Building:
+	case CLoadingExt::GameObjectType::Building:
 		LoadBuilding(ID);
 		break;
-	case CLoadingExt::ObjectType::Unknown:
+	case CLoadingExt::GameObjectType::Unknown:
 	default:
 		break;
 	}
@@ -365,12 +368,20 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 		IFVTurrets.clear();
 		InitialOccupiedBuildings.clear();
 		BioReactors.clear();
+		OverlayDataLimits.clear();
 		GridObjectViewer::Instance.Clear();
 		CMapDataExt::TerrainPaletteBuildings.clear();
 		CMapDataExt::DamagedAsRubbleBuildings.clear();
 		CMapDataExt::BuildingTypes.clear();
 		BuildingClipsImageDataMap.clear();
 		LoadedInsignias.clear();
+		Renderer::SmudgeTypes.clear();
+		Renderer::TerrainTypes.clear();
+		Renderer::OverlayTypes.clear();
+		Renderer::BuildingTypes.clear();
+		Renderer::InfantryTypes.clear();
+		Renderer::VehicleTypes.clear();
+		Renderer::AircraftTypes.clear();
 		Logger::Debug("CLoadingExt: Clearing loaded objects.\n");
 	}							    
 	else {						    
@@ -539,7 +550,7 @@ bool CLoadingExt::IsPreOccupiedBunker(const FString& ID)
 	firstInf = types[0];
 
 	auto eItemType = CLoadingExt::GetExtension()->GetItemType(firstInf);
-	if (eItemType != CLoadingExt::ObjectType::Infantry) return false;
+	if (eItemType != CLoadingExt::GameObjectType::Infantry) return false;
 
 	return true;
 }
@@ -596,7 +607,7 @@ void CLoadingExt::LoadBuilding(const FString& ID)
 	LoadBuilding_Rubble(ID);
 
 	LoadInsignia(ID);
-	LoadAlphaImage(ID, CLoadingExt::ObjectType::Building);
+	LoadAlphaImage(ID, CLoadingExt::GameObjectType::Building);
 }
 
 void CLoadingExt::LoadBuilding_Normal(const FString& ID, bool loadAsGarrisonDamaged)
@@ -1925,7 +1936,7 @@ void CLoadingExt::LoadTerrainOrSmudge(const FString& ID, bool terrain)
 
 	if (terrain)
 	{
-		LoadAlphaImage(ID, CLoadingExt::ObjectType::Terrain);
+		LoadAlphaImage(ID, CLoadingExt::GameObjectType::Terrain);
 	}
 }
 
@@ -1977,7 +1988,7 @@ void CLoadingExt::LoadInsignia(const FString& ID)
 	}
 }
 
-void CLoadingExt::LoadAlphaImage(const FString& ID, CLoadingExt::ObjectType type)
+void CLoadingExt::LoadAlphaImage(const FString& ID, CLoadingExt::GameObjectType type)
 {
 	if (!ExtConfigs::InGameDisplay_AlphaImage) return;
 
@@ -1991,7 +2002,7 @@ void CLoadingExt::LoadAlphaImage(const FString& ID, CLoadingExt::ObjectType type
 
 		int facings = std::min(256u, std::bit_floor((UINT)header.FrameCount));
 
-		if (type == CLoadingExt::ObjectType::Terrain)
+		if (type == CLoadingExt::GameObjectType::Terrain)
 			facings = 1;
 		AlphaImageFacings[ID] = facings;
 		FString AIDicName;
@@ -5505,7 +5516,13 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 			ShapeHeader header;
 			unsigned char* FramesBuffers[2]{ 0 };
 			CShpFile::GetSHPHeader(&header);
-			int nCount = std::min(header.FrameCount, (short)ExtConfigs::OverlayDataLimit);
+
+			FString ovlIdx;
+			ovlIdx.Format("%d", nIndex);
+			short nDisplayLimit = Variables::RulesMap.GetInteger(pRegName, "OverlayDisplayLimit", ExtConfigs::OverlayDataLimit);
+			nDisplayLimit = CINI::FAData->GetInteger("OverlayDisplayLimit", ovlIdx, nDisplayLimit);
+			int nCount = std::min({ header.FrameCount, (short)ExtConfigs::OverlayDataLimit, nDisplayLimit });
+			int nMaxData = 0;
 
 			for (int i = 0; i < nCount; ++i)
 			{
@@ -5635,7 +5652,10 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 						SetImageDataSafe(FramesBuffers[1], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 					}
 				}
+
+				nMaxData = i;
 			}
+			OverlayDataLimits[nIndex] = nMaxData + 1;
 		}
 
 		GameDeleteArray(pBuffer[0], width * height);

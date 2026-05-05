@@ -83,7 +83,23 @@ struct InsigniaGrid
 class NOVTABLE CLoadingExt : public CLoading
 {
 public:
-
+	enum
+	{
+		GBIN_NORMAL,
+		GBIN_RUBBLE,
+		GBIN_DAMAGED,
+		GBIN_GARRISONDAMAGED,
+	};
+	enum class GameObjectType {
+		Unknown = -1,
+		Infantry = 0,
+		Vehicle = 1,
+		Aircraft = 2,
+		Building = 3,
+		Terrain = 4,
+		Smudge = 5,
+		Overlay = 6
+	};
 	//hook function to replace in virtual function map
 	//BOOL PreTranslateMessageExt(MSG* pMsg);
 
@@ -102,32 +118,13 @@ public:
 	static bool IsSurfaceObjectLoaded(const FString& pRegName);
 	static bool IsOverlayLoaded(const FString& pRegName);
 
-	void LoadObjects(const FString& pRegName);
+	void LoadObjects(const FString& pRegName, GameObjectType eItemType = GameObjectType::Unknown);
 	bool ReLoadObjectOrOverlay(const FString& pRegName);
 	void LoadOverlay(const FString& pRegName, int nIndex);
 	
-	// except buildings
 	static FString GetImageName(const FString& ID, int nFacing, bool bShadow = false, bool bDeploy = false, bool bWater = false);
 	static FString GetAlphaImageName(const FString& ID, int nRawFacing, int nAvaFacing);
 	static FString GetOverlayName(WORD ovr, BYTE ovrd, bool bShadow = false);
-	// only buildings
-	enum
-	{
-		GBIN_NORMAL,
-		GBIN_RUBBLE,		
-		GBIN_DAMAGED,
-		GBIN_GARRISONDAMAGED,
-	};
-	enum class ObjectType {
-		Unknown = -1,
-		Infantry = 0,
-		Vehicle = 1,
-		Aircraft = 2,
-		Building = 3,
-		Terrain = 4,
-		Smudge = 5,
-		Overlay = 6
-	};
 	static FString GetBuildingImageName(FString ID, int nFacing, int state, bool bShadow = false);
 	
 	static void ClearItemTypes(bool releaseNonsurfaces = true);
@@ -251,7 +248,7 @@ private:
 	void LoadTerrainOrSmudge(const FString& ID, bool terrain);
 	void LoadVehicleOrAircraft(const FString& ID);
 	void LoadInsignia(const FString& ID);
-	void LoadAlphaImage(const FString& ID, CLoadingExt::ObjectType type);
+	void LoadAlphaImage(const FString& ID, CLoadingExt::GameObjectType type);
 
 	void SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void SetImageData(unsigned char* pBuffer, ImageDataClass* pData, int FullWidth, int FullHeight, Palette* pPal);
@@ -293,10 +290,11 @@ public:
 	static Palette TempISOPalette;
 	static bool IsLoadingObjectView;
 	static FHashSet SwimableInfantries;
-	ObjectType GetItemType(FString ID);
+	GameObjectType GetItemType(FString ID);
 	static bool SaveCBitmapToFile(CBitmap* pBitmap, const FString& filePath, COLORREF bgColor);
 	static bool LoadBMPToCBitmap(const FString& filePath, CBitmap& outBitmap);
 	static std::unique_ptr<ImageDataClassSafe> BindClippedImages(const std::vector<std::unique_ptr<ImageDataClassSafe>>& imgs);
+	static std::map<WORD, BYTE> OverlayDataLimits;
 
 	static FHashMap<int> AvailableFacings;
 	static FHashMap<int> AlphaImageFacings;
@@ -329,7 +327,7 @@ private:
 
 	static std::vector<SHPUnionData> UnionSHP_Data[2];
 	static std::vector<SHPUnionData> UnionSHPShadow_Data[2];
-	static FHashMap<ObjectType> ObjectTypes;
+	static FHashMap<GameObjectType> ObjectTypes;
 	static unsigned char VXL_Data[0x10000];
 	static unsigned char VXL_Shadow_Data[0x10000];
 
@@ -353,7 +351,7 @@ public:
 
 	static bool IsImageLoaded(const FString& name);
 	static ImageDataClassSafe* GetImageDataFromMap(const FString& name, 
-		ObjectType type = ObjectType::Unknown, int facing = 0, int totalFacings = 8, bool shadow = false, bool* isDefault = nullptr);
+		GameObjectType type = GameObjectType::Unknown, int facing = 0, int totalFacings = 8, bool shadow = false, bool* isDefault = nullptr);
 	static std::vector<std::unique_ptr<ImageDataClassSafe>>& GetBuildingClipImageDataFromMap(const FString& name);
 	static bool IsSurfaceImageLoaded(const FString& name);
 	static ImageDataClassSurface* GetSurfaceImageDataFromMap(const FString& name);

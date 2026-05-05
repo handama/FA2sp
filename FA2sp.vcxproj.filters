@@ -313,9 +313,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="FA2sp\Ext\CIsoView\DirectXCore.h">
-		<Filter>头文件</Filter>
-	</ClInclude>
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="FA2sp\ExtraWindow\CNewTag\CNewTag.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\Ext\CIsoView\RendererTypes.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -671,7 +674,7 @@
     <ClCompile Include="FA2sp\Ext\CCreateMap3B\Body.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.DrawObjects.cpp">
+    <ClCompile Include="FA2sp\Ext\CIsoView\Body.DrawObjects.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.cpp">
@@ -779,11 +782,14 @@
     <ClCompile Include="FA2sp\Ext\CHouses\Hooks.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-	<ClCompile Include="FA2sp\Ext\CIsoView\DirectXCore.cpp">
-		<Filter>源文件</Filter>
-	</ClCompile>
-	<ClCompile Include="FA2sp\ExtraWindow\CNewTag\CNewTag.cpp">
-        <Filter>源文件</Filter>
+    <ClCompile Include="FA2sp\Ext\CIsoView\DirectXCore.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CNewTag\CNewTag.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CIsoView\RendererTypes.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

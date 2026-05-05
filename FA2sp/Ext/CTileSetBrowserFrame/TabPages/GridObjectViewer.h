@@ -9,7 +9,7 @@
 struct ImageInfo
 {
     FString ID;
-    CLoadingExt::ObjectType Type = CLoadingExt::ObjectType::Unknown;
+    CLoadingExt::GameObjectType Type = CLoadingExt::GameObjectType::Unknown;
     ImageDataClassSafe* pData;
     FString DataName;
     int CropLeft = 0;

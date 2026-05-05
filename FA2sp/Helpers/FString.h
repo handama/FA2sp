@@ -711,7 +711,7 @@ public:
     }
 
     FString_view(const ppmfc::CString& s) noexcept
-        : base(s.GetString())
+        : base(s.GetString(), s.GetLength())
     {
     }
 

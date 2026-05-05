@@ -17,6 +17,7 @@
 #include "../CFinalSunApp/Body.h"
 #include "../../Algorithms/Matrix3D.h"
 #include <functional>
+#include "RendererTypes.h"
 
 static CRect window;
 static MapCoord VisibleCoordTL;
@@ -392,7 +393,7 @@ static void DrawTechnoAttachments
 	FSet& recursionStack,
 	const FString& parentID,
 	int oriFacing,
-	CLoadingExt::ObjectType parentType,
+	CLoadingExt::GameObjectType parentType,
 	CellData* cell,
 	LPVOID lpSurface,
 	DDBoundary& boundary,
@@ -465,7 +466,7 @@ static void DrawTechnoAttachments
 		int oriParentFacing = oriFacing;
 		std::size_t redrawIndex = std::distance(infos.begin(), firstGroupEnd);
 
-		if (eParentType == CLoadingExt::ObjectType::Building)
+		if (eParentType == CLoadingExt::GameObjectType::Building)
 		{
 			const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(parentID);
 			const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
@@ -478,7 +479,7 @@ static void DrawTechnoAttachments
 			if (recursionStack.contains(info.ID))
 				continue;
 
-			if (eParentType == CLoadingExt::ObjectType::Building && !info.IsOnTurret)
+			if (eParentType == CLoadingExt::GameObjectType::Building && !info.IsOnTurret)
 			{
 				oriFacing = 0;
 			}
@@ -500,7 +501,7 @@ static void DrawTechnoAttachments
 			auto eItemType = CLoadingExt::GetExtension()->GetItemType(info.ID);
 			switch (eItemType)
 			{
-			case CLoadingExt::ObjectType::Infantry:
+			case CLoadingExt::GameObjectType::Infantry:
 			{
 				int facings = 8;
 				int ParentFacings = CLoadingExt::GetAvailableFacing(parentID);
@@ -542,8 +543,8 @@ static void DrawTechnoAttachments
 				}
 			}
 			break;
-			case CLoadingExt::ObjectType::Vehicle:
-			case CLoadingExt::ObjectType::Aircraft:
+			case CLoadingExt::GameObjectType::Vehicle:
+			case CLoadingExt::GameObjectType::Aircraft:
 			{
 				int facings = CLoadingExt::GetAvailableFacing(info.ID);
 				int ParentFacings = CLoadingExt::GetAvailableFacing(parentID);
@@ -584,7 +585,7 @@ static void DrawTechnoAttachments
 						displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
 				}
 				else if (isShadow && pData->pImageBuffer && !(ExtConfigs::InGameDisplay_Cloakable
-					&& Variables::RulesMap.GetBool(info.ID, "Cloakable")) && eItemType != CLoadingExt::ObjectType::Aircraft)
+					&& Variables::RulesMap.GetBool(info.ID, "Cloakable")) && eItemType != CLoadingExt::GameObjectType::Aircraft)
 				{
 					// shadow always on the ground
 					Matrix3D mat(info.F, info.L, 0, parentFacing, ParentFacings);
@@ -598,7 +599,7 @@ static void DrawTechnoAttachments
 				}
 			}
 			break;
-			case CLoadingExt::ObjectType::Building:
+			case CLoadingExt::GameObjectType::Building:
 			{
 				int facings = CLoadingExt::GetAvailableFacing(info.ID);
 				int ParentFacings = CLoadingExt::GetAvailableFacing(parentID);
@@ -650,7 +651,7 @@ static void DrawTechnoAttachments
 				}
 			}
 			break;
-			case CLoadingExt::ObjectType::Unknown:
+			case CLoadingExt::GameObjectType::Unknown:
 			default:
 				break;
 			}
@@ -901,10 +902,10 @@ static void DrawMapDriect3D11()
 						FString imageName = CLoadingExt::GetImageName(ImageID, nFacing);
 						FString imageNameShadow = CLoadingExt::GetImageName(ImageID, nFacing, true);
 						auto pData = CLoadingExt::GetImageDataFromMap(imageName,
-							CLoadingExt::ObjectType::Vehicle, nFacing, facings, false);
+							CLoadingExt::GameObjectType::Vehicle, nFacing, facings, false);
 						bool useDefault = false;
 						auto pDataShadow = CLoadingExt::GetImageDataFromMap(imageNameShadow,
-							CLoadingExt::ObjectType::Vehicle, nFacing, facings, true, &useDefault);
+							CLoadingExt::GameObjectType::Vehicle, nFacing, facings, true, &useDefault);
 
 						bool allowDraw = true;
 						if (useDefault)
@@ -912,7 +913,7 @@ static void DrawMapDriect3D11()
 							useDefault = false;
 							const auto& imageNameMain = CLoadingExt::GetImageName(ImageID, nFacing, false);
 							auto pDataMain = CLoadingExt::GetImageDataFromMap(imageNameMain,
-								CLoadingExt::ObjectType::Vehicle, nFacing, facings, true, &useDefault);
+								CLoadingExt::GameObjectType::Vehicle, nFacing, facings, true, &useDefault);
 							allowDraw = useDefault;
 						}
 
@@ -1805,13 +1806,8 @@ static void DrawMapDriectDraw()
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(obj)
 				== CIsoViewExt::MapRendererIgnoreObjects.end())
 			{
-				const auto& imageName = CLoadingExt::GetImageName(obj, 0);
-				if (!CLoadingExt::IsObjectLoaded(obj))
-				{
-					CLoadingExt::GetExtension()->LoadObjects(obj);
-				}
-				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
-
+				auto pType = Renderer::GetOrCreateSmudge(obj);
+				auto pData = pType->GetImageData();
 				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
 					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
@@ -1865,25 +1861,12 @@ static void DrawMapDriectDraw()
 						if (std::find(DrawnBuildings.begin(), DrawnBuildings.end(), StrINIIndex) == DrawnBuildings.end())
 						{
 							DrawnBuildings.insert(StrINIIndex);
-							const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(objRender.ID);
-							const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
-							if (!CLoadingExt::IsObjectLoaded(objRender.ID))
-							{
-								CLoadingExt::GetExtension()->LoadObjects(objRender.ID);
-							}
+							auto pType = Renderer::GetOrCreateBuilding(objRender.ID);
+							const auto& DataExt = *pType->pDataExt;
 
-							int nFacing = 0;
-							int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
-							if (FacingCount > 1)
-							{
-								nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
-							}
-
-							int techLevel = Variables::RulesMap.GetInteger(objRender.ID, "TechLevel");
-							bool isBunker = Variables::RulesMap.GetBool(objRender.ID, "CanOccupyFire");
 							const int HP = objRender.Strength;
 							int status = CLoadingExt::GBIN_NORMAL;
-							if (isBunker && techLevel < 0)
+							if (pType->CanOccupyFire && pType->TechLevel < 0)
 							{
 								if (HP == 0)
 									status = CLoadingExt::GBIN_RUBBLE;
@@ -1913,8 +1896,7 @@ static void DrawMapDriectDraw()
 								buildingOrigin.Y = Y;
 							}
 
-							const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status);
-							auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
+							auto& clips = *pType->GetImageData(objRender.Facing, status);
 
 							Palette* pPal = nullptr;
 							BGRStruct color;
@@ -1923,12 +1905,10 @@ static void DrawMapDriectDraw()
 							color.G = pRGB->green;
 							color.B = pRGB->blue;
 
-							auto& isoset = CMapDataExt::TerrainPaletteBuildings;
-							auto& dam_rubble = CMapDataExt::DamagedAsRubbleBuildings;
 							auto isRubble = status == CLoadingExt::GBIN_RUBBLE &&
-								dam_rubble.find(objRender.ID) == dam_rubble.end()
-								&& imageName != CLoadingExt::GetBuildingImageName(objRender.ID, 0, CLoadingExt::GBIN_DAMAGED);
-							auto isTerrain = isoset.find(objRender.ID) != isoset.end();
+								!pType->IsDamagedAsRubble
+								&& (pType->LeaveRubble || ExtConfigs::HideNoRubbleBuilding);
+							auto isTerrain = pType->IsTerrainPalette;
 
 							if (LightingStruct::CurrentLighting == LightingStruct::NoLighting) {
 								pPal = PalettesManager::GetPalette(clips[0]->pPalette, color, !isTerrain && !isRubble);
@@ -2030,7 +2010,7 @@ static void DrawMapDriectDraw()
 								if (cellExt)
 								{
 									bool hasFire = status == CLoadingExt::GBIN_DAMAGED;
-									if (isBunker && techLevel > -1
+									if (pType->CanOccupyFire && pType->TechLevel > -1
 										&& static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) <= HP)
 										hasFire = false;
 
@@ -2038,12 +2018,13 @@ static void DrawMapDriectDraw()
 									({ StrINIIndex,(short)i,
 										x1 - pData->ClipOffsets.FullWidth / 2 + pData->ClipOffsets.LeftOffset,
 										y1,
-										BuildingIndex,
+										pType->BuildingIndex,
 										status,
 										pData,
 										pPal,
 										i == DataExt.Width - 1,
-										hasFire
+										hasFire,
+										pType
 										});
 								}
 							}
@@ -2052,12 +2033,11 @@ static void DrawMapDriectDraw()
 							{
 								int nFacing = 0;
 								int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
-								if (Variables::RulesMap.GetBool(objRender.ID, "Turret") && !Variables::RulesMap.GetBool(objRender.ID, "TurretAnimIsVoxel"))
+								if (pType->HasTurret && !pType->TurretAnimIsVoxel)
 								{
 									nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
 								}
-								const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, true);
-								auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+								auto pData = pType->GetShadowData(nFacing, status);
 								if (ImageDataClassSafe::IsValidImage(pData))
 								{
 									CIsoViewExt::MaskShadowPixels(window,
@@ -2068,31 +2048,25 @@ static void DrawMapDriectDraw()
 
 								FSet drawn;
 								DrawTechnoAttachments([] {}, drawn, objRender.ID, FacingCount == 1 ? 0 : objRender.Facing,
-									CLoadingExt::ObjectType::Building, cell, ddsd.lpSurface, boundary,
+									CLoadingExt::GameObjectType::Building, cell, ddsd.lpSurface, boundary,
 									x1, y1, 0xffffff, true);
 
 								for (int upgrade = 0; upgrade < objRender.PowerUpCount; ++upgrade)
 								{
 									const auto& upg = upgrade == 0 ? objRender.PowerUp1 : (upgrade == 1 ? objRender.PowerUp2 : objRender.PowerUp3);
-									const auto& upgXX = upgrade == 0 ? "PowerUp1LocXX" : (upgrade == 1 ? "PowerUp2LocXX" : "PowerUp3LocXX");
-									const auto& upgYY = upgrade == 0 ? "PowerUp1LocYY" : (upgrade == 1 ? "PowerUp2LocYY" : "PowerUp3LocYY");
+									const auto& upgXX = upgrade == 0 ? pType->PowerUp1LocXX : (upgrade == 1 ? pType->PowerUp2LocXX : pType->PowerUp3LocXX);
+									const auto& upgYY = upgrade == 0 ? pType->PowerUp1LocYY : (upgrade == 1 ? pType->PowerUp2LocYY : pType->PowerUp3LocYY);
 									if (upg.GetLength() == 0)
 										continue;
 
-									auto pUpgData = CLoadingExt::GetImageDataFromMap(
-										CLoadingExt::GetBuildingImageName(upg, 0, 0, true));
-									if ((!pUpgData || !pUpgData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(upg))
+									auto pUpgType = Renderer::GetOrCreateBuilding(upg);
+									auto pUpgData = pUpgType->GetShadowData(0, 0);
+									if (ImageDataClassSafe::IsValidImage(pUpgData))
 									{
-										CLoadingExt::GetExtension()->LoadObjects(upg);
-									}
-									if (pUpgData && pUpgData->pImageBuffer)
-									{
-										auto ArtID = CLoadingExt::GetArtID(objRender.ID);
-
 										int x1 = x;
 										int y1 = y;
-										x1 += CINI::Art->GetInteger(ArtID, upgXX, 0);
-										y1 += CINI::Art->GetInteger(ArtID, upgYY, 0);
+										x1 += upgXX;
+										y1 += upgYY;
 
 										CIsoViewExt::MaskShadowPixels(window,
 											x1 - pUpgData->FullWidth / 2, y1 - pUpgData->FullHeight / 2,
@@ -2142,12 +2116,10 @@ static void DrawMapDriectDraw()
 								continue;
 							}
 						}
-						const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(node.ID);
-						const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
-						if (!CLoadingExt::IsObjectLoaded(node.ID))
-						{
-							CLoadingExt::GetExtension()->LoadObjects(node.ID);
-						}
+
+						auto pType = Renderer::GetOrCreateBuilding(node.ID);
+						const auto& DataExt = *pType->pDataExt;
+
 						int x1 = node.X;
 						int y1 = node.Y;
 						CIsoView::MapCoord2ScreenCoord(x1, y1);
@@ -2161,8 +2133,7 @@ static void DrawMapDriectDraw()
 							buildingOrigin.Y = Y;
 						}
 
-						const auto& imageName = CLoadingExt::GetBuildingImageName(node.ID, 0, 0);
-						auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
+						auto& clips = *pType->GetImageData(0, 0);
 						Palette* pPal = nullptr;
 						BGRStruct color;
 						int houseColor = Miscs::GetColorRef(node.House);
@@ -2171,8 +2142,7 @@ static void DrawMapDriectDraw()
 						color.G = pRGB->green;
 						color.B = pRGB->blue;
 
-						auto& isoset = CMapDataExt::TerrainPaletteBuildings;
-						auto isTerrain = isoset.find(node.ID) != isoset.end();
+						auto isTerrain = pType->IsTerrainPalette;
 
 						if (LightingStruct::CurrentLighting == LightingStruct::NoLighting) {
 							pPal = PalettesManager::GetPalette(clips[0]->pPalette, color, !isTerrain);
@@ -2272,10 +2242,11 @@ static void DrawMapDriectDraw()
 								({ (short)i,
 									x1 - pData->ClipOffsets.FullWidth / 2 + pData->ClipOffsets.LeftOffset,
 									y1,
-									BuildingIndex,
+									pType->BuildingIndex,
 									pData,
 									pPal,
-									&node
+									&node,
+									pType
 									});
 						}
 					}
@@ -2320,7 +2291,7 @@ static void DrawMapDriectDraw()
 						const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, true, deploy && !water, water);
 
 						bool useDefault = false;
-						auto pData = CLoadingExt::GetImageDataFromMap(imageName, CLoadingExt::ObjectType::Infantry,
+						auto pData = CLoadingExt::GetImageDataFromMap(imageName, CLoadingExt::GameObjectType::Infantry,
 							nFacing, 8, true, &useDefault);
 
 						bool allowDraw = true;
@@ -2328,7 +2299,7 @@ static void DrawMapDriectDraw()
 						{
 							useDefault = false;
 							const auto& imageNameMain = CLoadingExt::GetImageName(obj.TypeID, nFacing, false, deploy && !water, water);
-							auto pDataMain = CLoadingExt::GetImageDataFromMap(imageNameMain, CLoadingExt::ObjectType::Infantry,
+							auto pDataMain = CLoadingExt::GetImageDataFromMap(imageNameMain, CLoadingExt::GameObjectType::Infantry,
 								nFacing, 8, false, &useDefault);
 							allowDraw = useDefault;
 						}
@@ -2365,7 +2336,7 @@ static void DrawMapDriectDraw()
 						}
 						FSet drawn;
 						DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
-							CLoadingExt::ObjectType::Infantry, cell, ddsd.lpSurface, boundary,
+							CLoadingExt::GameObjectType::Infantry, cell, ddsd.lpSurface, boundary,
 							x1, y1, 0xffffff, true);
 					}
 				}
@@ -2397,7 +2368,7 @@ static void DrawMapDriectDraw()
 
 					bool useDefault = false;
 					auto pData = CLoadingExt::GetImageDataFromMap(imageName,
-						CLoadingExt::ObjectType::Vehicle, nFacing, facings, true, &useDefault);
+						CLoadingExt::GameObjectType::Vehicle, nFacing, facings, true, &useDefault);
 
 					bool allowDraw = true;
 					if (useDefault)
@@ -2405,7 +2376,7 @@ static void DrawMapDriectDraw()
 						useDefault = false;
 						const auto& imageNameMain = CLoadingExt::GetImageName(ImageID, nFacing, false);
 						auto pDataMain = CLoadingExt::GetImageDataFromMap(imageNameMain,
-							CLoadingExt::ObjectType::Vehicle, nFacing, facings, true, &useDefault);
+							CLoadingExt::GameObjectType::Vehicle, nFacing, facings, true, &useDefault);
 						allowDraw = useDefault;
 					}
 
@@ -2425,7 +2396,7 @@ static void DrawMapDriectDraw()
 
 					FSet drawn;
 					DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
-						CLoadingExt::ObjectType::Vehicle, cell, ddsd.lpSurface, boundary,
+						CLoadingExt::GameObjectType::Vehicle, cell, ddsd.lpSurface, boundary,
 						x1, y1 + 15, 0xffffff, true);
 				}
 			}
@@ -2450,7 +2421,7 @@ static void DrawMapDriectDraw()
 					}
 					FSet drawn;
 					DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
-						CLoadingExt::ObjectType::Aircraft, cell, ddsd.lpSurface, boundary,
+						CLoadingExt::GameObjectType::Aircraft, cell, ddsd.lpSurface, boundary,
 						x, y + 15, 0xffffff, true);
 				}
 			}
@@ -2465,21 +2436,15 @@ static void DrawMapDriectDraw()
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(obj)
 				== CIsoViewExt::MapRendererIgnoreObjects.end())
 			{
-				const auto& imageName = CLoadingExt::GetImageName(obj, 0, true);
-
-				if (!CLoadingExt::IsObjectLoaded(obj))
-				{
-					CLoadingExt::GetExtension()->LoadObjects(obj);
-				}
-				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
-
+				auto pType = Renderer::GetOrCreateTerrain(obj);
+				auto pData = pType->GetShadowData();
 				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
 					int x1 = x;
 					int y1 = y;
 
 					CIsoViewExt::MaskShadowPixels(window,
-						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + (Variables::RulesMap.GetBool(obj, "SpawnsTiberium") ? -1 : 15),
+						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
 						pData, shadowMask_Terrain,
 						shadowHeightMask, cell->Height);
 				}
@@ -2487,24 +2452,13 @@ static void DrawMapDriectDraw()
 		}
 		if (shadow && cellExt->NewOverlay != 0xFFFF && CIsoViewExt::DrawOverlays)
 		{
-			auto imageName = CLoadingExt::GetOverlayName(cellExt->NewOverlay, cell->OverlayData, true);
+			auto pType = Renderer::GetOrCreateOverlay(cellExt->NewOverlay);
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
-				&& CIsoViewExt::MapRendererIgnoreObjects.find(Variables::RulesMap.GetValueAt("OverlayTypes", cellExt->NewOverlay))
+				&& CIsoViewExt::MapRendererIgnoreObjects.find(pType->ID)
 				== CIsoViewExt::MapRendererIgnoreObjects.end())
 			{
-				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
-
-				if (!ImageDataClassSafe::IsValidImage(pData))
-				{
-					auto obj = Variables::RulesMap.GetValueAt("OverlayTypes", cellExt->NewOverlay);
-					if (!CLoadingExt::IsOverlayLoaded(obj))
-					{
-						CLoadingExt::GetExtension()->LoadOverlay(obj, cellExt->NewOverlay);
-						pData = CLoadingExt::GetImageDataFromMap(imageName);
-					}
-				}
-
+				auto pData = pType->GetShadowData(cell->OverlayData);
 				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
 					int x1 = x;
@@ -2678,13 +2632,8 @@ static void DrawMapDriectDraw()
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(obj)
 				== CIsoViewExt::MapRendererIgnoreObjects.end())
 			{
-				const auto& imageName = CLoadingExt::GetImageName(obj, 0);
-				if (!CLoadingExt::IsObjectLoaded(obj))
-				{
-					CLoadingExt::GetExtension()->LoadObjects(obj);
-				}
-				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
-
+				auto pType = Renderer::GetOrCreateSmudge(obj);
+				auto pData = pType->GetImageData();
 				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
 					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
@@ -2703,9 +2652,11 @@ static void DrawMapDriectDraw()
 		if ((cellExt->NewOverlay != 0xFFFF || cellNextExt.NewOverlay != 0xFFFF) && CIsoViewExt::DrawOverlays
 			&& (info.isInMap || ExtConfigs::DisplayObjectsOutside))
 		{
+			auto pNextType = Renderer::GetOrCreateOverlay(cellNextExt.NewOverlay);
+			auto pType = Renderer::GetOrCreateOverlay(cellExt->NewOverlay);
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
-				&& CIsoViewExt::MapRendererIgnoreObjects.find(Variables::RulesMap.GetValueAt("OverlayTypes", cellNextExt.NewOverlay))
+				&& CIsoViewExt::MapRendererIgnoreObjects.find(pNextType->ID)
 				== CIsoViewExt::MapRendererIgnoreObjects.end())
 			{
 				if (
@@ -2716,32 +2667,22 @@ static void DrawMapDriectDraw()
 					(cellNextExt.NewOverlay >= 0xCD && cellNextExt.NewOverlay <= 0xEC) // LOBRDGB 1-4
 					)
 				{
-					auto imageName = CLoadingExt::GetOverlayName(cellNextExt.NewOverlay, cellNext->OverlayData);
-					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+					auto pData = pNextType->GetImageData(cellNext->OverlayData);
 
 					if (!ImageDataClassSafe::IsVisibleImage(pData))
 					{
-						auto obj = Variables::RulesMap.GetValueAt("OverlayTypes", cellNextExt.NewOverlay);
-						if (!CLoadingExt::IsOverlayLoaded(obj))
+						if (ExtConfigs::DisplayBridgeOverlay ||
+							!(cellNextExt.NewOverlay >= 0x4a && cellNextExt.NewOverlay <= 0x65) &&
+							!(cellNextExt.NewOverlay >= 0xcd && cellNextExt.NewOverlay <= 0xec))
 						{
-							CLoadingExt::GetExtension()->LoadOverlay(obj, cellNextExt.NewOverlay);
-							pData = CLoadingExt::GetImageDataFromMap(imageName);
-						}
-						if (!ImageDataClassSafe::IsVisibleImage(pData))
-						{
-							if (ExtConfigs::DisplayBridgeOverlay ||
-								!(cellNextExt.NewOverlay >= 0x4a && cellNextExt.NewOverlay <= 0x65) &&
-								!(cellNextExt.NewOverlay >= 0xcd && cellNextExt.NewOverlay <= 0xec))
-							{
-								char cd[10];
-								cd[0] = '0';
-								cd[1] = 'x';
-								_itoa(cellNextExt.NewOverlay, cd + 2, 16);
-								OverlayTextsToDraw.push_back(std::make_pair(MapCoord{ X + 1,Y + 1 }, cd));
-							}
+							char cd[10];
+							cd[0] = '0';
+							cd[1] = 'x';
+							_itoa(cellNextExt.NewOverlay, cd + 2, 16);
+							OverlayTextsToDraw.push_back(std::make_pair(MapCoord{ X + 1,Y + 1 }, cd));
 						}
 					}
-					if (ImageDataClassSafe::IsVisibleImage(pData))
+					else
 					{
 						int x1 = x;
 						int y1 = y;
@@ -2762,7 +2703,7 @@ static void DrawMapDriectDraw()
 			}
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
-				&& CIsoViewExt::MapRendererIgnoreObjects.find(Variables::RulesMap.GetValueAt("OverlayTypes", cellExt->NewOverlay))
+				&& CIsoViewExt::MapRendererIgnoreObjects.find(pType->ID)
 				== CIsoViewExt::MapRendererIgnoreObjects.end())
 			{
 				if (
@@ -2774,32 +2715,22 @@ static void DrawMapDriectDraw()
 					!(cellExt->NewOverlay >= 0xCD && cellExt->NewOverlay <= 0xEC) // LOBRDGB 1-4
 					)
 				{
-					auto imageName = CLoadingExt::GetOverlayName(cellExt->NewOverlay, cell->OverlayData);
-					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+					auto pData = pType->GetImageData(cell->OverlayData);
 
 					if (!ImageDataClassSafe::IsVisibleImage(pData))
 					{
-						auto obj = Variables::RulesMap.GetValueAt("OverlayTypes", cellExt->NewOverlay);
-						if (!CLoadingExt::IsOverlayLoaded(obj))
+						if (ExtConfigs::DisplayBridgeOverlay ||
+							!(cellExt->NewOverlay >= 0x4a && cellExt->NewOverlay <= 0x65) &&
+							!(cellExt->NewOverlay >= 0xcd && cellExt->NewOverlay <= 0xec))
 						{
-							CLoadingExt::GetExtension()->LoadOverlay(obj, cellExt->NewOverlay);
-							pData = CLoadingExt::GetImageDataFromMap(imageName);
-						}
-						if (!ImageDataClassSafe::IsVisibleImage(pData))
-						{
-							if (ExtConfigs::DisplayBridgeOverlay ||
-								!(cellExt->NewOverlay >= 0x4a && cellExt->NewOverlay <= 0x65) &&
-								!(cellExt->NewOverlay >= 0xcd && cellExt->NewOverlay <= 0xec))
-							{
-								char cd[10];
-								cd[0] = '0';
-								cd[1] = 'x';
-								_itoa(cellExt->NewOverlay, cd + 2, 16);
-								OverlayTextsToDraw.push_back(std::make_pair(MapCoord{ X,Y }, cd));
-							}
+							char cd[10];
+							cd[0] = '0';
+							cd[1] = 'x';
+							_itoa(cellExt->NewOverlay, cd + 2, 16);
+							OverlayTextsToDraw.push_back(std::make_pair(MapCoord{ X,Y }, cd));
 						}
 					}
-					if (ImageDataClassSafe::IsVisibleImage(pData))
+					else
 					{
 						int x1 = x;
 						int y1 = y;
@@ -2824,21 +2755,14 @@ static void DrawMapDriectDraw()
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(obj)
 				== CIsoViewExt::MapRendererIgnoreObjects.end())
 			{
-				const auto& imageName = CLoadingExt::GetImageName(obj, 0);
+				auto pType = Renderer::GetOrCreateTerrain(obj);
+				auto pData = pType->GetImageData();
 
-				if (!CLoadingExt::IsObjectLoaded(obj))
-				{
-					CLoadingExt::GetExtension()->LoadObjects(obj);
-				}
-				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
-
-				bool isTiberiumTree = Variables::RulesMap.GetBool(obj, "SpawnsTiberium");
 				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
-					bool customPalette = CLoadingExt::CustomPaletteTerrains.find(obj) != CLoadingExt::CustomPaletteTerrains.end();
 					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-						x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (isTiberiumTree ? -1 : 15),
-						pData, NULL, 255, 0, isTiberiumTree ? 6 : (customPalette ? 5 : -1), false,
+						x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
+						pData, NULL, 255, 0, pType->IsTiberiumTree ? 6 : (pType->HasCustomPalette ? 5 : -1), false,
 						info.aroundRedrawCell ? &objectOverlapMask : nullptr);
 				}
 				else
@@ -2847,18 +2771,13 @@ static void DrawMapDriectDraw()
 				}
 				if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages)
 				{
-					int avaFacings = CLoadingExt::GetAlphaImageFacing(obj);
-					if (avaFacings > 0)
+					auto pAIData = pType->GetAlphaImageData();
+					if (ImageDataClassSafe::IsVisibleImage(pAIData))
 					{
-						auto AIName = CLoadingExt::GetAlphaImageName(obj, 0, 0);
-						auto pAIData = CLoadingExt::GetImageDataFromMap(AIName);
-						if (pAIData && pAIData->pImageBuffer)
-						{
-							AlphaImagesToDraw.push_back(
-								std::make_pair(MapCoord{ x - pAIData->FullWidth / 2,
-									y - pAIData->FullHeight / 2 + (isTiberiumTree ? 0 : 12) },
-									pAIData));
-						}
+						AlphaImagesToDraw.push_back(
+							std::make_pair(MapCoord{ x - pAIData->FullWidth / 2,
+								y - pAIData->FullHeight / 2 + (pType->IsTiberiumTree ? 0 : 12) },
+								pAIData));
 					}
 				}
 			}
@@ -2902,23 +2821,21 @@ static void DrawMapDriectDraw()
 						for (int upgrade = 0; upgrade < objRender.PowerUpCount; ++upgrade)
 						{
 							const auto& upg = upgrade == 0 ? objRender.PowerUp1 : (upgrade == 1 ? objRender.PowerUp2 : objRender.PowerUp3);
-							const auto& upgXX = upgrade == 0 ? "PowerUp1LocXX" : (upgrade == 1 ? "PowerUp2LocXX" : "PowerUp3LocXX");
-							const auto& upgYY = upgrade == 0 ? "PowerUp1LocYY" : (upgrade == 1 ? "PowerUp2LocYY" : "PowerUp3LocYY");
+							const auto& upgXX = upgrade == 0 ? part.pType->PowerUp1LocXX : (upgrade == 1 ? part.pType->PowerUp2LocXX : part.pType->PowerUp3LocXX);
+							const auto& upgYY = upgrade == 0 ? part.pType->PowerUp1LocYY : (upgrade == 1 ? part.pType->PowerUp2LocYY : part.pType->PowerUp3LocYY);
 
 							if (upg.GetLength() == 0)
 								continue;
 
-							const auto& ImageName = CLoadingExt::GetBuildingImageName(upg, 0, 0);
-							auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(ImageName);
+							auto pUpgType = Renderer::GetOrCreateBuilding(upg);
+							auto& clips = *pUpgType->GetImageData(0, 0);
 							auto pUpgData = CLoadingExt::BindClippedImages(clips);
-							if (pUpgData && pUpgData->pImageBuffer)
+							if (ImageDataClassSafe::IsValidImage(pUpgData.get()))
 							{
-								auto ArtID = CLoadingExt::GetArtID(objRender.ID);
-
 								int x2 = x1;
 								int y2 = y1;
-								x2 += CINI::Art->GetInteger(ArtID, upgXX, 0);
-								y2 += CINI::Art->GetInteger(ArtID, upgYY, 0);
+								x2 += upgXX;
+								y2 += upgYY;
 								CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
 									x2 - pUpgData->FullWidth / 2, y2 - pUpgData->FullHeight / 2, pUpgData.get(), NULL, isCloakable(objRender.ID) ? 128 : 255,
 									objRender.HouseColor, -1, false, isoset.find(objRender.ID) != isoset.end());
@@ -2937,21 +2854,15 @@ static void DrawMapDriectDraw()
 
 					if (firstDraw && ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages && objRender.poweredOn)
 					{
-
-						int avaFacings = CLoadingExt::GetAlphaImageFacing(objRender.ID);
-						if (avaFacings > 0)
+						auto pAIData = part.pType->GetAlphaImageData(objRender.Facing);
+						if (ImageDataClassSafe::IsValidImage(pAIData))
 						{
-							auto AIName = CLoadingExt::GetAlphaImageName(objRender.ID, objRender.Facing, avaFacings);
-							auto pAIData = CLoadingExt::GetImageDataFromMap(AIName);
-							if (pAIData && pAIData->pImageBuffer)
-							{
-								AlphaImagesToDraw.push_back(
-									std::make_pair(
-										MapCoord{
-											x1 - pAIData->FullWidth / 2 + (DataExt.RealWidth - DataExt.RealHeight) * 30 / 2,
-											y1 - pAIData->FullHeight / 2 + (DataExt.RealWidth + DataExt.RealHeight) * 15 / 2
-										}, pAIData));
-							}
+							AlphaImagesToDraw.push_back(
+								std::make_pair(
+									MapCoord{
+										x1 - pAIData->FullWidth / 2 + (DataExt.RealWidth - DataExt.RealHeight) * 30 / 2,
+										y1 - pAIData->FullHeight / 2 + (DataExt.RealWidth + DataExt.RealHeight) * 15 / 2
+									}, pAIData));
 						}
 					}
 					if (firstDraw && CIsoViewExt::DrawFires && part.hasFire && DataExt.DamageFireOffsets.size() > 0)
@@ -2960,7 +2871,7 @@ static void DrawMapDriectDraw()
 						for (int i = 0; i < fires.size(); ++i)
 						{
 							const auto& fire = fires[i];
-							if (fire && fire->pImageBuffer)
+							if (ImageDataClassSafe::IsValidImage(fire))
 							{
 								FiresToDraw.push_back(std::make_pair(
 									MapCoord{ x1 - fire->FullWidth / 2 + DataExt.DamageFireOffsets[i].x ,
@@ -2972,21 +2883,12 @@ static void DrawMapDriectDraw()
 					}
 					if (part.IsBottom)
 					{
-						int nFacing = 0;
-						int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
-						if (FacingCount > 1)
-						{
-							nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
-						}
 						auto draw = [&]
 						{
-							const auto& ImageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, part.Status);
-							auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(ImageName);
+							auto& clips = *part.pType->GetImageData(objRender.Facing, part.Status);
 							auto pData = CLoadingExt::BindClippedImages(clips);
 							if (ImageDataClassSafe::IsValidImage(pData.get()))
 							{
-								auto ArtID = CLoadingExt::GetArtID(objRender.ID);
-
 								CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
 									x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData.get(), NULL, isCloakable(objRender.ID) ? 128 : 255,
 									objRender.HouseColor, -1, false, isoset.find(objRender.ID) != isoset.end());
@@ -2994,23 +2896,17 @@ static void DrawMapDriectDraw()
 						};
 
 						FSet drawn;
-						DrawTechnoAttachments(draw, drawn, objRender.ID, FacingCount <= 1 ? 0 : objRender.Facing,
-							CLoadingExt::ObjectType::Building, cell, ddsd.lpSurface, boundary,
+						DrawTechnoAttachments(draw, drawn, objRender.ID, part.pType->FacingCount <= 1 ? 0 : objRender.Facing,
+							CLoadingExt::GameObjectType::Building, cell, ddsd.lpSurface, boundary,
 							x1, y1,
 							objRender.HouseColor, false);
 					}
 				}
 				else if (part.IsBottom)
 				{
-					int nFacing = 0;
-					int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
-					if (FacingCount > 1)
-					{
-						nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
-					}
 					FSet drawn;
-					DrawTechnoAttachments([] {}, drawn, objRender.ID, FacingCount <= 1 ? 0 : objRender.Facing,
-						CLoadingExt::ObjectType::Building, cell, ddsd.lpSurface, boundary,
+					DrawTechnoAttachments([] {}, drawn, objRender.ID, part.pType->FacingCount <= 1 ? 0 : objRender.Facing,
+						CLoadingExt::GameObjectType::Building, cell, ddsd.lpSurface, boundary,
 						x1, y1,
 						objRender.HouseColor, false);
 				}
@@ -3139,7 +3035,7 @@ static void DrawMapDriectDraw()
 					const auto& imageName = CLoadingExt::GetImageName(ImageID, nFacing);
 
 					auto pData = CLoadingExt::GetImageDataFromMap(imageName,
-						CLoadingExt::ObjectType::Vehicle, nFacing, facings, false);
+						CLoadingExt::GameObjectType::Vehicle, nFacing, facings, false);
 
 					bool HoveringUnit = ExtConfigs::InGameDisplay_Hover && Variables::RulesMap.GetString(obj.TypeID, "SpeedType") == "Hover"
 						&& (Variables::RulesMap.GetString(obj.TypeID, "Locomotor") == "Hover"
@@ -3173,7 +3069,7 @@ static void DrawMapDriectDraw()
 
 						FSet drawn;
 						DrawTechnoAttachments(draw, drawn, obj.TypeID, atoi(obj.Facing),
-							CLoadingExt::ObjectType::Vehicle, cell, ddsd.lpSurface, boundary,
+							CLoadingExt::GameObjectType::Vehicle, cell, ddsd.lpSurface, boundary,
 							x, y + 15 - (HoveringUnit ? 10 : 0) -
 							(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
 							color, false);
@@ -3182,7 +3078,7 @@ static void DrawMapDriectDraw()
 					{
 						FSet drawn;
 						DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
-							CLoadingExt::ObjectType::Vehicle, cell, ddsd.lpSurface, boundary,
+							CLoadingExt::GameObjectType::Vehicle, cell, ddsd.lpSurface, boundary,
 							x, y + 15 - (HoveringUnit ? 10 : 0) -
 							(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
 							color, false);
@@ -3228,7 +3124,7 @@ static void DrawMapDriectDraw()
 					int nFacing = (atoi(obj.Facing) * facings / 256) % facings;
 					const auto& imageName = CLoadingExt::GetImageName(imageID, nFacing);
 					auto pData = CLoadingExt::GetImageDataFromMap(imageName,
-						CLoadingExt::ObjectType::Aircraft, nFacing, facings, false);
+						CLoadingExt::GameObjectType::Aircraft, nFacing, facings, false);
 
 					auto color = Miscs::GetColorRef(obj.House);
 					if (ImageDataClassSafe::IsValidImage(pData))
@@ -3251,7 +3147,7 @@ static void DrawMapDriectDraw()
 
 						FSet drawn;
 						DrawTechnoAttachments(draw, drawn, obj.TypeID, atoi(obj.Facing),
-							CLoadingExt::ObjectType::Aircraft, cell, ddsd.lpSurface, boundary,
+							CLoadingExt::GameObjectType::Aircraft, cell, ddsd.lpSurface, boundary,
 							x, y + 15,
 							color, false);
 					}
@@ -3259,7 +3155,7 @@ static void DrawMapDriectDraw()
 					{
 						FSet drawn;
 						DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
-							CLoadingExt::ObjectType::Aircraft, cell, ddsd.lpSurface, boundary,
+							CLoadingExt::GameObjectType::Aircraft, cell, ddsd.lpSurface, boundary,
 							x, y + 15,
 							color, false);
 					}
@@ -3303,7 +3199,7 @@ static void DrawMapDriectDraw()
 						{
 							CLoadingExt::GetExtension()->LoadObjects(obj.TypeID);
 						}
-						auto pData = CLoadingExt::GetImageDataFromMap(imageName, CLoadingExt::ObjectType::Infantry, nFacing, 8);
+						auto pData = CLoadingExt::GetImageDataFromMap(imageName, CLoadingExt::GameObjectType::Infantry, nFacing, 8);
 
 						int x1 = x;
 						int y1 = y;
@@ -3354,7 +3250,7 @@ static void DrawMapDriectDraw()
 
 							FSet drawn;
 							DrawTechnoAttachments(draw, drawn, obj.TypeID, atoi(obj.Facing),
-								CLoadingExt::ObjectType::Infantry, cell, ddsd.lpSurface, boundary,
+								CLoadingExt::GameObjectType::Infantry, cell, ddsd.lpSurface, boundary,
 								x1, y1,
 								color, false);
 						}
@@ -3362,7 +3258,7 @@ static void DrawMapDriectDraw()
 						{
 							FSet drawn;
 							DrawTechnoAttachments([] {}, drawn, obj.TypeID, atoi(obj.Facing),
-								CLoadingExt::ObjectType::Infantry, cell, ddsd.lpSurface, boundary,
+								CLoadingExt::GameObjectType::Infantry, cell, ddsd.lpSurface, boundary,
 								x1, y1,
 								color, false);
 						}
@@ -4091,7 +3987,7 @@ DEFINE_HOOK(468690, CIsoView_OnSize, A)
 
 DEFINE_HOOK(46DE00, CIsoView_Draw, 7)
 {
-	//DrawMapDriectDraw();
-	DrawMapDriect3D11();
+	DrawMapDriectDraw();
+	//DrawMapDriect3D11();
 	return  0x47519D;
 }

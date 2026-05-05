@@ -264,11 +264,12 @@
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\DirectXCore.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.cpp" />
-    <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.DrawObjects.cpp" />
+    <ClCompile Include="FA2sp\Ext\CIsoView\Body.DrawObjects.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.InfantrySubcell.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.OnMouseMove.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.RaiseGround.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.Zoom.cpp" />
+    <ClCompile Include="FA2sp\Ext\CIsoView\RendererTypes.cpp" />
     <ClCompile Include="FA2sp\Ext\CLighting\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CLighting\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Body.cpp" />
@@ -405,6 +406,7 @@
     <ClInclude Include="FA2sp\Ext\CHouses\Body.h" />
     <ClInclude Include="FA2sp\Ext\CIsoView\Body.h" />
     <ClInclude Include="FA2sp\Ext\CIsoView\DirectXCore.h" />
+    <ClInclude Include="FA2sp\Ext\CIsoView\RendererTypes.h" />
     <ClInclude Include="FA2sp\Ext\CLighting\Body.h" />
     <ClInclude Include="FA2sp\Ext\CLoading\Body.h" />
     <ClInclude Include="FA2sp\Ext\CMapData\Body.h" />

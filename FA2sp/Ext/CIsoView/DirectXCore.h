@@ -4,11 +4,33 @@
 #include <d3d11.h>
 #include <dxgi.h>
 #include <d3dcompiler.h>
+#include <functional>
 #include <vector>
 #include <memory>
 #include <string>
 #include <map>
 #include "Body.h" 
+
+struct TextureIndex {
+    const void* pData;
+    const Palette* pPal;
+
+    bool operator==(const TextureIndex& other) const {
+        return pData == other.pData && pPal == other.pPal;
+    }
+};
+
+namespace std {
+    template<>
+    struct hash<TextureIndex> {
+        size_t operator()(const TextureIndex& k) const noexcept {
+            size_t seed = 0;
+            seed ^= hash<const void*>{}(k.pData) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            seed ^= hash<const Palette*>{}(k.pPal) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            return seed;
+        }
+    };
+}
 
 class DrawParams
 {
@@ -60,7 +82,7 @@ public:
     TextureResource* LoadTileTexture(CTileBlockClass* tileBlock, const ImageDataView& view);
     TextureResource* LoadIndexTexture(const ImageDataView& view);
 
-    TextureResource* GetTexture(void* pData) const;
+    TextureResource* GetTexture(void* pData, Palette* pPal = nullptr) const;
     TextureResource* GetTileTexture(CTileBlockClass* tileBlock) const;
 
     void DrawTexture(TextureResource* tex, const DrawParams& params);
@@ -133,7 +155,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_OffscreenRTV;
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_OffscreenSRV;
 
-    std::unordered_map<void*, std::unique_ptr<TextureResource>> m_textureMap;
+    std::unordered_map<TextureIndex, std::unique_ptr<TextureResource>> m_textureMap;
     std::unordered_map<CTileBlockClass*, std::unique_ptr<TextureResource>> m_tileTextureMap;
     std::vector<DrawCommand> m_drawCommands;
 

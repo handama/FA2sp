@@ -128,6 +128,9 @@ bool CMapDataExt::IsNewMap;
 bool CMapDataExt::SkipUpdateMinimap = false;
 bool CMapDataExt::IsImportingMap = false;
 bool CMapDataExt::Init_OpenMinimap = false;
+std::vector<CUnitDataFS> CMapDataExt::UnitDatasExt;
+std::vector<CAircraftDataFS> CMapDataExt::AircraftDatasExt;
+std::vector<CBuildingDataFS> CMapDataExt::BuildingDatasExt;
 std::unordered_map<CTileBlockClass*, std::vector<char>> CMapDataExt::TileBaseHeightMask;
 const std::vector<FString> CMapDataExt::TechnoStates = 
 {
@@ -291,6 +294,230 @@ void CMapDataExt::RemapableOverlay_RemoveBuilding(int buildingIndex)
 		BuildingCenterCoords.erase(it);
 		RemapableOverlay_RefreshBuildingIndices();
 	}
+}
+
+void CMapDataExt::GetBuildingDataFS(const char* str, CBuildingDataFS& data)
+{
+	const char* start = str;
+	int field = 0;
+
+	auto assign = [&](int idx, const char* s, const char* e)
+	{
+		switch (idx)
+		{
+		case 0:  data.House.assign(s, e - s); break;
+		case 1:  data.TypeID.assign(s, e - s); break;
+		case 2:  data.Health.assign(s, e - s); break;
+		case 3:  data.Y.assign(s, e - s); break;
+		case 4:  data.X.assign(s, e - s); break;
+		case 5:  data.Facing.assign(s, e - s); break;
+		case 6:  data.Tag.assign(s, e - s); break;
+		case 7:  data.AISellable.assign(s, e - s); break;
+		case 8:  data.AIRebuildable.assign(s, e - s); break;
+		case 9:  data.PoweredOn.assign(s, e - s); break;
+		case 10: data.Upgrades.assign(s, e - s); break;
+		case 11: data.SpotLight.assign(s, e - s); break;
+		case 12: data.Upgrade1.assign(s, e - s); break;
+		case 13: data.Upgrade2.assign(s, e - s); break;
+		case 14: data.Upgrade3.assign(s, e - s); break;
+		case 15: data.AIRepairable.assign(s, e - s); break;
+		case 16: data.Nominal.assign(s, e - s); break;
+		default: break;
+		}
+	};
+
+	for (const char* p = str; ; ++p)
+	{
+		if (*p == ',' || *p == '\0')
+		{
+			assign(field++, start, p);
+			if (*p == '\0') break;
+			start = p + 1;
+		}
+	}
+}
+
+void CMapDataExt::GetUnitDataFS(const char* str, CUnitDataFS& data)
+{
+	const char* start = str;
+	int field = 0;
+
+	auto assign = [&](int idx, const char* s, const char* e)
+	{
+		switch (idx)
+		{
+		case 0:  data.House.assign(s, e - s); break;
+		case 1:  data.TypeID.assign(s, e - s); break;
+		case 2:  data.Health.assign(s, e - s); break;
+		case 3:  data.Y.assign(s, e - s); break;
+		case 4:  data.X.assign(s, e - s); break;
+		case 5:  data.Facing.assign(s, e - s); break;
+		case 6:  data.Status.assign(s, e - s); break;
+		case 7:  data.Tag.assign(s, e - s); break;
+		case 8:  data.VeterancyPercentage.assign(s, e - s); break;
+		case 9:  data.Group.assign(s, e - s); break;
+		case 10: data.IsAboveGround.assign(s, e - s); break;
+		case 11: data.FollowsIndex.assign(s, e - s); break;
+		case 12: data.AutoNORecruitType.assign(s, e - s); break;
+		case 13: data.AutoYESRecruitType.assign(s, e - s); break;
+		default: break;
+		}
+	};
+
+	for (const char* p = str; ; ++p)
+	{
+		if (*p == ',' || *p == '\0')
+		{
+			assign(field++, start, p);
+			if (*p == '\0') break;
+			start = p + 1;
+		}
+	}
+}
+
+void CMapDataExt::GetAircraftDataFS(const char* str, CAircraftDataFS& data)
+{
+	const char* start = str;
+	int field = 0;
+
+	auto assign = [&](int idx, const char* s, const char* e)
+	{
+		switch (idx)
+		{
+		case 0:  data.House.assign(s, e - s); break;
+		case 1:  data.TypeID.assign(s, e - s); break;
+		case 2:  data.Health.assign(s, e - s); break;
+		case 3:  data.Y.assign(s, e - s); break;
+		case 4:  data.X.assign(s, e - s); break;
+		case 5:  data.Facing.assign(s, e - s); break;
+		case 6:  data.Status.assign(s, e - s); break;
+		case 7:  data.Tag.assign(s, e - s); break;
+		case 8:  data.VeterancyPercentage.assign(s, e - s); break;
+		case 9:  data.Group.assign(s, e - s); break;
+		case 10: data.AutoNORecruitType.assign(s, e - s); break;
+		case 11: data.AutoYESRecruitType.assign(s, e - s); break;
+		default: break;
+		}
+	};
+
+	for (const char* p = str; ; ++p)
+	{
+		if (*p == ',' || *p == '\0')
+		{
+			assign(field++, start, p);
+			if (*p == '\0') break;
+			start = p + 1;
+		}
+	}
+}
+
+CBuildingDataFS& CMapDataExt::GetBuildingDataFsFromMap(size_t index)
+{
+	static CBuildingDataFS empty = [] {
+		CBuildingDataFS fs;
+		fs.House = "none";
+		fs.TypeID = "none";
+		fs.Health = "256";
+		fs.Y = "0";
+		fs.X = "0";
+		fs.Facing = "0";
+		fs.Tag = "None";
+		fs.AISellable = "0";
+		fs.AIRebuildable = "0";
+		fs.PoweredOn = "0";
+		fs.Upgrades = "0";
+		fs.SpotLight = "0";
+		fs.Upgrade1 = "None";
+		fs.Upgrade2 = "None";
+		fs.Upgrade3 = "None";
+		fs.AIRepairable = "0";
+		fs.Nominal = "0";
+
+		return fs;
+	}();
+
+	if (index < BuildingDatasExt.size())
+		return BuildingDatasExt[index];
+	return empty;
+}
+
+CUnitDataFS& CMapDataExt::GetUnitDadaFsFromMap(size_t index)
+{
+	static CUnitDataFS empty = [] {
+		CUnitDataFS fs;
+		fs.House = "none";
+		fs.TypeID = "none";
+		fs.Health = "256";
+		fs.Y = "0";
+		fs.X = "0";
+		fs.Facing = "0";
+		fs.Tag = "None";
+		fs.Status = "Guard";
+		fs.VeterancyPercentage = "0";
+		fs.Group = "-1";
+		fs.IsAboveGround = "0";
+		fs.FollowsIndex = "-1";
+		fs.AutoNORecruitType = "0";
+		fs.AutoYESRecruitType = "0";
+
+		return fs;
+	}();
+
+	if (index < UnitDatasExt.size())
+		return UnitDatasExt[index];
+	return empty;
+}
+
+CInfantryData& CMapDataExt::GetInfantryDataFromMap(size_t index)
+{
+	static CInfantryData empty = [] {
+		CInfantryData fs;
+		fs.House = "none";
+		fs.TypeID = "none";
+		fs.Health = "256";
+		fs.Y = "0";
+		fs.X = "0";
+		fs.Facing = "0";
+		fs.SubCell = "0";
+		fs.Tag = "None";
+		fs.Status = "Guard";
+		fs.VeterancyPercentage = "0";
+		fs.Group = "-1";
+		fs.IsAboveGround = "0";
+		fs.AutoNORecruitType = "0";
+		fs.AutoYESRecruitType = "0";
+
+		return fs;
+	}();
+
+	if (index < CMapData::Instance->InfantryDatas.size())
+		return CMapData::Instance->InfantryDatas[index];
+	return empty;
+}
+
+CAircraftDataFS& CMapDataExt::GetAircraftDataFsFromMap(size_t index)
+{
+	static CAircraftDataFS empty = [] {
+		CAircraftDataFS fs;
+		fs.House = "none";
+		fs.TypeID = "none";
+		fs.Health = "256";
+		fs.Y = "0";
+		fs.X = "0";
+		fs.Facing = "0";
+		fs.Tag = "None";
+		fs.Status = "Guard";
+		fs.VeterancyPercentage = "0";
+		fs.Group = "-1";
+		fs.AutoNORecruitType = "0";
+		fs.AutoYESRecruitType = "0";
+
+		return fs;
+	}();
+
+	if (index < AircraftDatasExt.size())
+		return AircraftDatasExt[index];
+	return empty;
 }
 
 int CMapDataExt::GetOreValue(unsigned short nOverlay, unsigned char nOverlayData)
@@ -1778,25 +2005,27 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 		}
 		StructureIndexMap.push_back(iniIndex);
 
-		const auto splits = FString::SplitString(value, 16);
+		CBuildingDataFS obj;
+		GetBuildingDataFS(value.GetString(), obj);
 
 		BuildingRenderData data;
-		data.HouseColor = Miscs::GetColorRef(splits[0]);
-		data.ID = splits[1];
-		data.Strength = std::clamp(atoi(splits[2]), 0, 256);
-		data.Y = atoi(splits[3]);
-		data.X = atoi(splits[4]);
-		data.Facing = atoi(splits[5]);
-		data.PowerUpCount = atoi(splits[10]);
-		data.PowerUp1 = splits[12];
-		data.PowerUp2 = splits[13];
-		data.PowerUp3 = splits[14];
-		data.poweredOn = splits[9] != "0";
+		data.HouseColor = Miscs::GetColorRef(obj.House);
+		data.ID = obj.TypeID;
+		data.Strength = std::clamp(atoi(obj.Health), 0, 256);
+		data.Y = atoi(obj.Y);
+		data.X = atoi(obj.X);
+		data.Facing = atoi(obj.Facing);
+		data.PowerUpCount = atoi(obj.Upgrades);
+		data.PowerUp1 = obj.Upgrade1;
+		data.PowerUp2 = obj.Upgrade2;
+		data.PowerUp3 = obj.Upgrade3;
+		data.poweredOn = obj.PoweredOn != "0";
 		CMapDataExt::BuildingRenderDatasFix.insert(CMapDataExt::BuildingRenderDatasFix.begin() + iniIndex, data);
+		CMapDataExt::BuildingDatasExt.insert(CMapDataExt::BuildingDatasExt.begin() + iniIndex, std::move(obj));
 
-		int X = atoi(splits[4]);
-		int Y = atoi(splits[3]);
-		const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(splits[1]);
+		int X = data.X;
+		int Y = data.Y;
+		const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(data.ID);
 		const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
 		if (!DataExt.IsCustomFoundation())
 		{
@@ -1861,6 +2090,7 @@ void CMapDataExt::UpdateFieldStructureData_Optimized()
 	auto& fielddata_size = Map->CellDataCount;
 	auto& fielddata = Map->CellDatas;
 	BuildingCenterCoords.clear();
+	BuildingDatasExt.clear();
 
 	int i = 0;
 	for (i = 0; i < fielddata_size; i++)
@@ -1871,9 +2101,12 @@ void CMapDataExt::UpdateFieldStructureData_Optimized()
 	}
 	StructureIndexMap.clear();
 	BuildingRenderDatasFix.clear();
+	BuildingDatasExt.clear();
 	if (auto sec = CINI::CurrentDocument->GetSection("Structures"))
 	{
 		i = 0;
+		BuildingRenderDatasFix.reserve(sec->GetEntities().size());
+		BuildingDatasExt.reserve(sec->GetEntities().size());
 		for (const auto& data : sec->GetEntities())
 		{
 			UpdateFieldStructureData_Index(i, data.second, false);

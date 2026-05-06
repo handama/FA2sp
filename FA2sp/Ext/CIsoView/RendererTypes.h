@@ -4,65 +4,6 @@
 #include "../CMapData/Body.h"
 #include "CTileTypeClass.h"
 
-class CBuildingDataFS
-{
-public:
-
-    FString House;
-    FString TypeID;
-    FString Health;
-    FString Y;
-    FString X;
-    FString Facing;
-    FString Tag;
-    FString AISellable;
-    FString AIRebuildable;
-    FString PoweredOn;
-    FString Upgrades;
-    FString SpotLight;
-    FString Upgrade1;
-    FString Upgrade2;
-    FString Upgrade3;
-    FString AIRepairable;
-    FString Nominal;
-};
-
-class CUnitDataFS
-{
-public:
-    FString House;
-    FString TypeID;
-    FString Health;
-    FString Y;
-    FString X;
-    FString Facing;
-    FString Status;
-    FString Tag;
-    FString VeterancyPercentage;
-    FString Group;
-    FString IsAboveGround;
-    FString FollowsIndex;
-    FString AutoNORecruitType;
-    FString AutoYESRecruitType;
-};
-
-class CAircraftDataFS
-{
-public:
-    FString House;
-    FString TypeID;
-    FString Health;
-    FString Y;
-    FString X;
-    FString Facing;
-    FString Status;
-    FString Tag;
-    FString VeterancyPercentage;
-    FString Group;
-    FString AutoNORecruitType;
-    FString AutoYESRecruitType;
-};
-
 namespace Renderer
 {
     constexpr int FACING_MAX = 32;

@@ -208,6 +208,7 @@ public:
     static bool LightingPreview_TintTileSetBrowserView;
     static bool DDrawScalingBilinear;
     static bool DDrawScalingBilinear_OnlyShrink;
+    static bool DirectXRendering;
     static int DisplayTextSize;
     static int DistanceRuler_Records;
     static bool DisplayObjectsOutside;

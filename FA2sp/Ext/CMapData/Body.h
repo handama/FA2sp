@@ -14,6 +14,68 @@ namespace Renderer {
     class BuildingType;
 }
 
+class CBuildingDataFS
+{
+public:
+
+    FString House;
+    FString TypeID;
+    FString Health;
+    FString Y;
+    FString X;
+    FString Facing;
+    FString Tag;
+    FString AISellable;
+    FString AIRebuildable;
+    FString PoweredOn;
+    FString Upgrades;
+    FString SpotLight;
+    FString Upgrade1;
+    FString Upgrade2;
+    FString Upgrade3;
+    FString AIRepairable;
+    FString Nominal;
+    bool Deleted = false;
+};
+
+class CUnitDataFS
+{
+public:
+    FString House;
+    FString TypeID;
+    FString Health;
+    FString Y;
+    FString X;
+    FString Facing;
+    FString Status;
+    FString Tag;
+    FString VeterancyPercentage;
+    FString Group;
+    FString IsAboveGround;
+    FString FollowsIndex;
+    FString AutoNORecruitType;
+    FString AutoYESRecruitType;
+    bool Deleted = false;
+};
+
+class CAircraftDataFS
+{
+public:
+    FString House;
+    FString TypeID;
+    FString Health;
+    FString Y;
+    FString X;
+    FString Facing;
+    FString Status;
+    FString Tag;
+    FString VeterancyPercentage;
+    FString Group;
+    FString AutoNORecruitType;
+    FString AutoYESRecruitType;
+    bool Deleted = false;
+};
+
 struct LatInfo
 {
     int SmoothSet;
@@ -788,6 +850,14 @@ public:
     static void RemapableOverlay_AddBuilding(int buildingIndex, const MapCoord& center);
     static void RemapableOverlay_RemoveBuilding(int buildingIndex);
 
+    static void GetBuildingDataFS(const char* str, CBuildingDataFS& data);
+    static void GetUnitDataFS(const char* str, CUnitDataFS& data);
+    static void GetAircraftDataFS(const char* str, CAircraftDataFS& data);
+    static CBuildingDataFS& GetBuildingDataFsFromMap(size_t index);
+    static CUnitDataFS& GetUnitDadaFsFromMap(size_t index);
+    static CAircraftDataFS& GetAircraftDataFsFromMap(size_t index);
+    static CInfantryData& GetInfantryDataFromMap(size_t index);
+
     static int OreValue[4];
     static std::vector<LatInfo> Tile_to_lat;
     static std::set<int> Lat_releated_sets;
@@ -871,4 +941,8 @@ public:
     static bool SkipUpdateMinimap;
     static bool IsImportingMap;
     static bool Init_OpenMinimap;
+
+    static std::vector<CUnitDataFS> UnitDatasExt;
+    static std::vector<CAircraftDataFS> AircraftDatasExt;
+    static std::vector<CBuildingDataFS> BuildingDatasExt;
 };

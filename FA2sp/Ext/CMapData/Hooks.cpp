@@ -524,6 +524,7 @@ DEFINE_HOOK(4AC210, CMapData_AddInfantry, 7)
 	}
 
 	if (realIndex < 0)
+	{
 		for (i = 0; i < m_infantry.size(); i++)
 		{
 			if (m_infantry[i].Flag) // yep, found one, replace it
@@ -535,8 +536,6 @@ DEFINE_HOOK(4AC210, CMapData_AddInfantry, 7)
 			}
 		}
 
-	if (realIndex < 0)
-	{
 		m_infantry.push_back(infantry);
 		realIndex = m_infantry.size() - 1;
 		if (dwPos < fielddata_size) fielddata[dwPos].Infantry[sp] = (short)realIndex;
@@ -1012,6 +1011,7 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 	CMapDataExt::StructureIndexMap[cellIndex] = -1;
 	ini->DeleteKey("Structures", key);
 	CMapDataExt::BuildingRenderDatasFix.erase(CMapDataExt::BuildingRenderDatasFix.begin() + iniIndex);
+	CMapDataExt::BuildingDatasExt.erase(CMapDataExt::BuildingDatasExt.begin() + iniIndex);
 	for (int i = 0; i < CMapDataExt::StructureIndexMap.size(); ++i)
 	{
 		if (CMapDataExt::StructureIndexMap[i] > iniIndex)
@@ -1130,21 +1130,25 @@ DEFINE_HOOK(4A6040, CMapData_UpdateUnits, 6)
 			pThis->CellDatas[i].Unit = -1;
 		}
 
+		CMapDataExt::UnitDatasExt.clear();
+
 		if (auto pSection = CINI::CurrentDocument->GetSection("Units"))
 		{
+			CMapDataExt::UnitDatasExt.reserve(pSection->GetEntities().size());
 			int i = 0;
 			for (const auto& data : pSection->GetEntities())
 			{
-				auto atoms = STDHelpers::SplitString(data.second, 4);
-				int x = atoi(atoms[4]);
-				int y = atoi(atoms[3]);
+				auto& obj = CMapDataExt::UnitDatasExt.emplace_back();
+				CMapDataExt::GetUnitDataFS(data.second, obj);
+				int x = atoi(obj.X);
+				int y = atoi(obj.Y);
 				int pos = pThis->GetCoordIndex(x, y);
 				if (pos < pThis->CellDataCount) 
 					pThis->CellDatas[pos].Unit = i;
 
 				if (!CMapDataExt::SkipUpdateMinimap)
 					pThis->UpdateMapPreviewAt(x, y);
-				i++;
+				i++;		
 			}
 		}
 	}
@@ -1183,15 +1187,18 @@ DEFINE_HOOK(4A4270, CMapData_UpdateAircraft, 6)
 		{
 			pThis->CellDatas[i].Aircraft = -1;
 		}
+		CMapDataExt::AircraftDatasExt.clear();
 
 		if (auto pSection = CINI::CurrentDocument->GetSection("Aircraft"))
 		{
 			int i = 0;
+			CMapDataExt::AircraftDatasExt.reserve(pSection->GetEntities().size());
 			for (const auto& data : pSection->GetEntities())
 			{
-				auto atoms = STDHelpers::SplitString(data.second, 4);
-				int x = atoi(atoms[4]);
-				int y = atoi(atoms[3]);
+				auto& obj = CMapDataExt::AircraftDatasExt.emplace_back();
+				CMapDataExt::GetAircraftDataFS(data.second, obj);
+				int x = atoi(obj.X);
+				int y = atoi(obj.Y);
 				int pos = pThis->GetCoordIndex(x, y);
 				if (pos < pThis->CellDataCount)
 					pThis->CellDatas[pos].Aircraft = i;

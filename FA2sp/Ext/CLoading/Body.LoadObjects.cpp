@@ -60,35 +60,9 @@ bool CLoadingExt::IsImageLoaded(const FString& name)
 	return itr->second->pImageBuffer != nullptr;
 }
 
-ImageDataClassSafe* CLoadingExt::GetImageDataFromMap(const FString& name, 
-	GameObjectType type, int facing, int totalFacings, bool shadow, bool* isDefault)
+ImageDataClassSafe* CLoadingExt::GetImageDataFromMap(const FString& name)
 {
 	auto itr = ImageDataMap.find(name);
-	if (ExtConfigs::UseDefaultUnitImage &&
-		(itr == ImageDataMap.end() || itr != ImageDataMap.end() && !itr->second->pImageBuffer) &&
-		name.Find("FA2DEFAULT_") == -1)
-	{
-		if (type == GameObjectType::Infantry)
-		{
-			if (isDefault) *isDefault = true;
-			const auto& imageName = CLoadingExt::GetImageName("FA2DEFAULT_INFANTRY", facing, shadow);
-			return GetImageDataFromMap(imageName);
-		}
-		else if (type == GameObjectType::Vehicle)
-		{
-			if (isDefault) *isDefault = true;
-			int newFacing = facing * 32 / totalFacings;
-			const auto& imageName = CLoadingExt::GetImageName("FA2DEFAULT_UNIT", newFacing, shadow);
-			return GetImageDataFromMap(imageName);
-		}
-		else if (type == GameObjectType::Aircraft)
-		{
-			if (isDefault) *isDefault = true;
-			int newFacing = facing * 32 / totalFacings;
-			const auto& imageName = CLoadingExt::GetImageName("FA2DEFAULT_AIRCRAFT", newFacing, shadow);
-			return GetImageDataFromMap(imageName);
-		}
-	}
 	if (itr == ImageDataMap.end())
 	{
 		auto ret = std::make_unique<ImageDataClassSafe>();

@@ -350,8 +350,7 @@ public:
 	}
 
 	static bool IsImageLoaded(const FString& name);
-	static ImageDataClassSafe* GetImageDataFromMap(const FString& name, 
-		GameObjectType type = GameObjectType::Unknown, int facing = 0, int totalFacings = 8, bool shadow = false, bool* isDefault = nullptr);
+	static ImageDataClassSafe* GetImageDataFromMap(const FString& name);
 	static std::vector<std::unique_ptr<ImageDataClassSafe>>& GetBuildingClipImageDataFromMap(const FString& name);
 	static bool IsSurfaceImageLoaded(const FString& name);
 	static ImageDataClassSurface* GetSurfaceImageDataFromMap(const FString& name);

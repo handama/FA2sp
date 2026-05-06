@@ -56,11 +56,11 @@ public:
     };
 
 
-    TextureResource* LoadTexture(const FString& name, const ImageDataView& view);
+    TextureResource* LoadTexture(const ImageDataView& view);
     TextureResource* LoadTileTexture(CTileBlockClass* tileBlock, const ImageDataView& view);
-    TextureResource* LoadIndexTexture(const FString& name, const ImageDataView& view);
+    TextureResource* LoadIndexTexture(const ImageDataView& view);
 
-    TextureResource* GetTexture(const FString& name) const;
+    TextureResource* GetTexture(void* pData) const;
     TextureResource* GetTileTexture(CTileBlockClass* tileBlock) const;
 
     void DrawTexture(TextureResource* tex, const DrawParams& params);
@@ -133,8 +133,8 @@ private:
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_OffscreenRTV;
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_OffscreenSRV;
 
-    FHashMap<std::unique_ptr<TextureResource>> m_textureMap;
-    std::map<CTileBlockClass*, std::unique_ptr<TextureResource>> m_tileTextureMap;
+    std::unordered_map<void*, std::unique_ptr<TextureResource>> m_textureMap;
+    std::unordered_map<CTileBlockClass*, std::unique_ptr<TextureResource>> m_tileTextureMap;
     std::vector<DrawCommand> m_drawCommands;
 
     int m_clientWidth = 0;

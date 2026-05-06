@@ -747,10 +747,10 @@ void DirectXCore::Render() {
     m_drawCommands.clear();
 }
 
-DirectXCore::TextureResource* DirectXCore::LoadTexture(const FString& name, const ImageDataView& view) {
-    if (!m_pDevice || name.empty()) return nullptr;
+DirectXCore::TextureResource* DirectXCore::LoadTexture(const ImageDataView& view) {
+    if (!m_pDevice || !view.pOriginData) return nullptr;
     if (view.FullWidth <= 0 || view.FullHeight <= 0 || !view.pImageBuffer) return nullptr;
-    auto itr = m_textureMap.find(name);
+    auto itr = m_textureMap.find(view.pOriginData);
     if (itr != m_textureMap.end()) return itr->second.get();
 
     auto texRes = std::make_unique<TextureResource>();
@@ -777,7 +777,7 @@ DirectXCore::TextureResource* DirectXCore::LoadTexture(const FString& name, cons
     hr = m_pDevice->CreateShaderResourceView(texRes->texture.Get(), nullptr, &texRes->srv);
     if (FAILED(hr)) return nullptr;
     TextureResource* ret = texRes.get();
-    m_textureMap[name] = std::move(texRes);
+    m_textureMap[view.pOriginData] = std::move(texRes);
     return ret;
 }
 
@@ -813,10 +813,10 @@ DirectXCore::TextureResource* DirectXCore::LoadTileTexture(CTileBlockClass* tile
     return ret;
 }
 
-DirectXCore::TextureResource* DirectXCore::LoadIndexTexture(const FString& name, const ImageDataView& view) {
-    if (!m_pDevice || name.empty()) return nullptr;
+DirectXCore::TextureResource* DirectXCore::LoadIndexTexture(const ImageDataView& view) {
+    if (!m_pDevice || !view.pOriginData) return nullptr;
     if (view.FullWidth <= 0 || view.FullHeight <= 0 || !view.pImageBuffer) return nullptr;
-    auto itr = m_textureMap.find(name);
+    auto itr = m_textureMap.find(view.pOriginData);
     if (itr != m_textureMap.end()) return itr->second.get();
 
     auto texRes = std::make_unique<TextureResource>();
@@ -833,12 +833,12 @@ DirectXCore::TextureResource* DirectXCore::LoadIndexTexture(const FString& name,
     hr = m_pDevice->CreateShaderResourceView(texRes->texture.Get(), nullptr, &texRes->srv);
     if (FAILED(hr)) return nullptr;
     TextureResource* ret = texRes.get();
-    m_textureMap[name] = std::move(texRes);
+    m_textureMap[view.pOriginData] = std::move(texRes);
     return ret;
 }
 
-DirectXCore::TextureResource* DirectXCore::GetTexture(const FString& name) const {
-    auto it = m_textureMap.find(name);
+DirectXCore::TextureResource* DirectXCore::GetTexture(void* pData) const {
+    auto it = m_textureMap.find(pData);
     return (it != m_textureMap.end()) ? it->second.get() : nullptr;
 }
 

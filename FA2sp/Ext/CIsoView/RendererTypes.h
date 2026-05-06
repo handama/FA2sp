@@ -2,10 +2,71 @@
 #include "Body.h"
 #include "../CLoading/Body.h"
 #include "../CMapData/Body.h"
+#include "CTileTypeClass.h"
+
+class CBuildingDataFS
+{
+public:
+
+    FString House;
+    FString TypeID;
+    FString Health;
+    FString Y;
+    FString X;
+    FString Facing;
+    FString Tag;
+    FString AISellable;
+    FString AIRebuildable;
+    FString PoweredOn;
+    FString Upgrades;
+    FString SpotLight;
+    FString Upgrade1;
+    FString Upgrade2;
+    FString Upgrade3;
+    FString AIRepairable;
+    FString Nominal;
+};
+
+class CUnitDataFS
+{
+public:
+    FString House;
+    FString TypeID;
+    FString Health;
+    FString Y;
+    FString X;
+    FString Facing;
+    FString Status;
+    FString Tag;
+    FString VeterancyPercentage;
+    FString Group;
+    FString IsAboveGround;
+    FString FollowsIndex;
+    FString AutoNORecruitType;
+    FString AutoYESRecruitType;
+};
+
+class CAircraftDataFS
+{
+public:
+    FString House;
+    FString TypeID;
+    FString Health;
+    FString Y;
+    FString X;
+    FString Facing;
+    FString Status;
+    FString Tag;
+    FString VeterancyPercentage;
+    FString Group;
+    FString AutoNORecruitType;
+    FString AutoYESRecruitType;
+};
 
 namespace Renderer
 {
     constexpr int FACING_MAX = 32;
+    constexpr int INFANTRY_FACING = 8;
     class ObjectType
     {
     public:
@@ -17,7 +78,8 @@ namespace Renderer
     class SmudgeType : public ObjectType
     {
     public:
-        SmudgeType(FString_view id);
+        SmudgeType() = default;
+        void Init(FString_view id);
         ImageDataClassSafe* GetImageData() const;
 
         static const char* IniSection;
@@ -32,7 +94,8 @@ namespace Renderer
         bool IsTiberiumTree = false;
         bool HasCustomPalette = false;
 
-        TerrainType(FString_view id);
+        TerrainType() = default;
+        void Init(FString_view id);
         ImageDataClassSafe* GetImageData() const;
         ImageDataClassSafe* GetShadowData() const;
         ImageDataClassSafe* GetAlphaImageData() const;
@@ -51,7 +114,8 @@ namespace Renderer
         WORD OverlayIndex = 0;
         //OverlayTypeData TypeData{};
 
-        OverlayType(WORD nOverlay);
+        OverlayType() = default;
+        void Init(WORD nOverlay);
         ImageDataClassSafe* GetImageData(BYTE nOverlayData) const;
         ImageDataClassSafe* GetShadowData(BYTE nOverlayData) const;
 
@@ -62,7 +126,17 @@ namespace Renderer
         ImageDataClassSafe* pShadowData[256]{ nullptr };
     };
 
-    class BuildingType : public ObjectType
+    class TechnoType : public ObjectType
+    {
+    public:
+        std::vector<TechnoAttachment>* TechnoAttachmentInfo = nullptr;
+        int FacingCount = 1;
+        bool Cloakable = false;
+        TechnoType() = default;
+        void InitTechnoAttachmentInfo();
+    };
+
+    class BuildingType : public TechnoType
     {
     public:
         int BuildingIndex = -1;
@@ -73,7 +147,6 @@ namespace Renderer
         bool HasTurret = false;
         bool TurretAnimIsVoxel = false;
         char TechLevel = 0;
-        int FacingCount = 1;
         short PowerUp1LocXX = 0;
         short PowerUp1LocYY = 0;
         short PowerUp2LocXX = 0;
@@ -82,8 +155,9 @@ namespace Renderer
         short PowerUp3LocYY = 0;
         BuildingDataExt* pDataExt = nullptr;
 
-        BuildingType(FString_view id);
-        std::vector<std::unique_ptr<ImageDataClassSafe>>* GetImageData(int rawFacing, int status) const;
+        BuildingType() = default;
+        void Init(FString_view id);
+        std::vector<std::unique_ptr<ImageDataClassSafe>>* GetImageData(int rawFacing, int status, int forceFacing = -1) const;
         ImageDataClassSafe* GetShadowData(int nFacing, int status) const;
         ImageDataClassSafe* GetAlphaImageData(int rawFacing) const;
 
@@ -100,20 +174,77 @@ namespace Renderer
         ImageDataClassSafe* pGarrisonDamagedShadowData[FACING_MAX]{ nullptr };
         ImageDataClassSafe* pAlphaImageData[FACING_MAX]{ nullptr };
     };
-    class InfantryType : public ObjectType
+
+    class InfantryType : public TechnoType
     {
+    public:
+        InfantryType* DefaultImage = nullptr;
+        bool IsDeployer = false;
+        bool Swimable = false;
+        bool ShouldUseDefaultImage = false;
+
+        InfantryType() = default;
+        void Init(FString_view id);
+        ImageDataClassSafe* GetImageData(const CInfantryData& obj, const LandType landType) const;
+        ImageDataClassSafe* GetShadowData(const CInfantryData& obj, const LandType landType) const;
+        ImageDataClassSafe* GetTechnoAttachmentImageData(int nFacing, bool bShadow) const;
 
         static const char* IniSection;
+
+    private:
+        ImageDataClassSafe* pImageData[INFANTRY_FACING]{ nullptr };
+        ImageDataClassSafe* pShadowData[INFANTRY_FACING]{ nullptr };
+        ImageDataClassSafe* pWaterImageData[INFANTRY_FACING]{ nullptr };
+        ImageDataClassSafe* pWaterShadowData[INFANTRY_FACING]{ nullptr };
+        ImageDataClassSafe* pDeployImageData[INFANTRY_FACING]{ nullptr };
+        ImageDataClassSafe* pDeployShadowData[INFANTRY_FACING]{ nullptr };
     };
-    class VehicleType : public ObjectType
+
+    class VehicleType : public TechnoType
     {
+    public:
+        VehicleType* WaterImage = nullptr;
+        VehicleType* ConditionYellowImage = nullptr;
+        VehicleType* ConditionRedImage = nullptr;
+        VehicleType* ConditionYellowWaterImage = nullptr;
+        VehicleType* ConditionRedWaterImage = nullptr;
+        VehicleType* UnloadingImage = nullptr;
+        VehicleType* DefaultImage = nullptr;
+        bool IsHoveringUnit = false;
+        bool ShouldUseDefaultImage = false;
+
+        VehicleType() = default;
+        void Init(FString_view id);
+        ImageDataClassSafe* GetImageData(const CUnitDataFS& obj, const LandType landType);
+        ImageDataClassSafe* GetShadowData(const CUnitDataFS& obj, const LandType landType);
+        ImageDataClassSafe* GetTechnoAttachmentImageData(int nFacing, bool bShadow) const;
 
         static const char* IniSection;
+
+    private:
+        VehicleType* GetAlteredType(const CUnitDataFS& obj, const LandType landType);
+        ImageDataClassSafe* pImageData[FACING_MAX]{ nullptr };
+        ImageDataClassSafe* pShadowData[FACING_MAX]{ nullptr };
     };
-    class AircraftType : public ObjectType
+
+    class AircraftType : public TechnoType
     {
+    public:
+        AircraftType* ConditionYellowImage = nullptr;
+        AircraftType* ConditionRedImage = nullptr;
+        AircraftType* DefaultImage = nullptr;
+        bool ShouldUseDefaultImage = false;
+
+        AircraftType() = default;
+        void Init(FString_view id);
+        ImageDataClassSafe* GetImageData(const CAircraftDataFS& obj);
+        ImageDataClassSafe* GetTechnoAttachmentImageData(int nFacing) const;
 
         static const char* IniSection;
+
+    private:
+        AircraftType* GetAlteredType(const CAircraftDataFS& obj);
+        ImageDataClassSafe* pImageData[FACING_MAX]{ nullptr };
     };
 
     inline FHashMap<SmudgeType> SmudgeTypes;
@@ -128,5 +259,8 @@ namespace Renderer
     TerrainType* GetOrCreateTerrain(FString_view id);
     OverlayType* GetOrCreateOverlay(WORD nOverlay);
     BuildingType* GetOrCreateBuilding(FString_view id);
+    VehicleType* GetOrCreateVehicle(FString_view id);
+    AircraftType* GetOrCreateAircraft(FString_view id);
+    InfantryType* GetOrCreateInfantry(FString_view id);
 }
 

@@ -43,6 +43,7 @@
 #include "../../Helpers/Helper.h"
 #include "../CTileSetBrowserFrame/TabPages/GridObjectViewer.h"
 #include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
+#include "../CIsoView/RendererTypes.h"
 
 int CMapDataExt::OreValue[4] { -1,-1,-1,-1 };
 unsigned short CMapDataExt::CurrentRenderBuildingStrength;
@@ -4513,9 +4514,9 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		TempValueHolder facingTmp(ExtConfigs::ExtFacings, true);
 		CINI::Art->WriteString("FA2DEFAULT_UNIT", "Facings", "32");
 		CINI::Art->WriteString("FA2DEFAULT_AIRCRAFT", "Facings", "32");
-		CLoadingExt::GetExtension()->LoadObjects("FA2DEFAULT_UNIT");
-		CLoadingExt::GetExtension()->LoadObjects("FA2DEFAULT_AIRCRAFT");
-		CLoadingExt::GetExtension()->LoadObjects("FA2DEFAULT_INFANTRY");
+		Renderer::GetOrCreateVehicle("FA2DEFAULT_UNIT");
+		Renderer::GetOrCreateAircraft("FA2DEFAULT_AIRCRAFT");
+		Renderer::GetOrCreateInfantry("FA2DEFAULT_INFANTRY");
 	}
 
 	Colors.clear();

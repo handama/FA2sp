@@ -13,10 +13,10 @@
 
 struct TextureIndex {
     const void* pData;
-    const Palette* pPal;
+    const BGRStruct color;
 
     bool operator==(const TextureIndex& other) const {
-        return pData == other.pData && pPal == other.pPal;
+        return pData == other.pData && color == other.color;
     }
 };
 
@@ -26,7 +26,7 @@ namespace std {
         size_t operator()(const TextureIndex& k) const noexcept {
             size_t seed = 0;
             seed ^= hash<const void*>{}(k.pData) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-            seed ^= hash<const Palette*>{}(k.pPal) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            seed ^= hash<int>{}(*reinterpret_cast<const int*>(&k.color)) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
             return seed;
         }
     };
@@ -78,11 +78,11 @@ public:
     };
 
 
-    TextureResource* LoadTexture(const ImageDataView& view);
+    TextureResource* LoadTexture(const ImageDataView& view, BGRStruct color = { 0,0,0 });
     TextureResource* LoadTileTexture(CTileBlockClass* tileBlock, const ImageDataView& view);
     TextureResource* LoadIndexTexture(const ImageDataView& view);
 
-    TextureResource* GetTexture(void* pData, Palette* pPal = nullptr) const;
+    TextureResource* GetTexture(void* pData, BGRStruct color = {0,0,0}) const;
     TextureResource* GetTileTexture(CTileBlockClass* tileBlock) const;
 
     void DrawTexture(TextureResource* tex, const DrawParams& params);

@@ -716,13 +716,13 @@ static void DrawMapDriect3D11()
 							auto pPal = PalettesManager::GetObjectPalette(pData->pPalette, col, true, CIsoViewExt::CurrentDrawCellLocation);
 
 							DirectXCore::TextureResource* pTexture = nullptr;
-							if (auto texture = pThis->g_pDX->GetTexture(pData, pPal))
+							if (auto texture = pThis->g_pDX->GetTexture(pData, col))
 							{
 								pTexture = texture;
 							}
 							else
 							{
-								pTexture = pThis->g_pDX->LoadTexture(CIsoViewExt::MakeImageDataView(pData, pPal));
+								pTexture = pThis->g_pDX->LoadTexture(CIsoViewExt::MakeImageDataView(pData, pPal), col);
 							}
 
 							if (pTexture)

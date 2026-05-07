@@ -23,6 +23,7 @@
 #include "../../Helpers/Helper.h"
 #include "../../Miscs/StringtableLoader.h"
 #include "../CTileSetBrowserFrame/Body.h"
+#include "RendererTypes.h"
 
 namespace CIsoViewDrawTemp
 {
@@ -236,7 +237,6 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 	pThis->CurrentCellObjectType = -1;
 	if (CIsoViewExt::DrawInfantries)
 	{
-		const auto& filter = CIsoViewExt::VisibleInfantries;
 		if (!ExtConfigs::InfantrySubCell_Edit)
 		{
 			pThis->CurrentCellObjectIndex = CMapDataExt::GetInfantryAt(pos);
@@ -245,23 +245,22 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 		{
 			pThis->CurrentCellObjectIndex = CIsoViewExt::GetSelectedSubcellInfantryIdx(pThis->StartCell.X, pThis->StartCell.Y);
 		}
-		if (CIsoViewExt::DrawInfantriesFilter && filter.find(pThis->CurrentCellObjectIndex) == filter.end())
+		if (pThis->CurrentCellObjectIndex != -1 
+			&& !Renderer::Infantries[pThis->CurrentCellObjectIndex].IsVisible())
 			pThis->CurrentCellObjectIndex = -1;
 		pThis->CurrentCellObjectType = 0;
 	}
-	if (CIsoViewExt::DrawAircrafts && pThis->CurrentCellObjectIndex < 0)
+	if (CIsoViewExt::DrawAircrafts && pThis->CurrentCellObjectIndex < 0 && cell->Aircraft > -1)
 	{
 		pThis->CurrentCellObjectIndex = cell->Aircraft;
-		const auto& filter = CIsoViewExt::VisibleAircrafts;
-		if (CIsoViewExt::DrawAircraftsFilter && filter.find(pThis->CurrentCellObjectIndex) == filter.end())
+		if (!Renderer::Aircrafts[cell->Aircraft].IsVisible())
 			pThis->CurrentCellObjectIndex = -1;
 		pThis->CurrentCellObjectType = 2;
 	}
-	if (CIsoViewExt::DrawUnits && pThis->CurrentCellObjectIndex < 0)
+	if (CIsoViewExt::DrawUnits && pThis->CurrentCellObjectIndex < 0 && cell->Unit > -1)
 	{
 		pThis->CurrentCellObjectIndex = cell->Unit;
-		const auto& filter = CIsoViewExt::VisibleUnits;
-		if (CIsoViewExt::DrawUnitsFilter && filter.find(pThis->CurrentCellObjectIndex) == filter.end())
+		if (!Renderer::Vehicles[cell->Unit].IsVisible())
 			pThis->CurrentCellObjectIndex = -1;
 		pThis->CurrentCellObjectType = 3;
 	}
@@ -274,8 +273,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 			auto StrINIIndex = CMapDataExt::StructureIndexMap[cell->Structure];
 			if (StrINIIndex != -1)
 			{
-				const auto& filter = CIsoViewExt::VisibleStructures;
-				if (CIsoViewExt::DrawStructuresFilter && filter.find(StrINIIndex) == filter.end())
+				if (!Renderer::Buildings[cell->Structure].IsVisible())
 					pThis->CurrentCellObjectIndex = -1;
 				else
 				{

@@ -19,11 +19,17 @@
 
 class ImageDataClass;
 class Palette;
+struct TextureResource;
 
-class NOVTABLE ImageDataClassSafe
+struct BGRHash {
+	size_t operator()(const BGRStruct& s) const noexcept {
+		return std::hash<int>()(*reinterpret_cast<const int*>(&s));
+	}
+};
+
+class ImageDataClassSafe
 {
 public:
-
 	std::unique_ptr<unsigned char[]> pImageBuffer; // draw from here, size = FullWidth*FullHeight
 	std::unique_ptr<unsigned char[]> pOpacity;
 
@@ -43,9 +49,9 @@ public:
 	short ValidHeight; // same as full for vxl, dunno why
 	short FullWidth;
 	short FullHeight;
-	ImageDataFlag Flag;
-	BuildingImageFlag BuildingFlag; // see BuildingData
-	BOOL IsOverlay; // Only OVRLXX_XX will set this true
+	//ImageDataFlag Flag;
+	//BuildingImageFlag BuildingFlag; // see BuildingData
+	//BOOL IsOverlay; // Only OVRLXX_XX will set this true
 	struct BuildingClipOffset
 	{
 		short FullWidth;
@@ -53,7 +59,6 @@ public:
 	};
 	BuildingClipOffset ClipOffsets;
 	bool IsEmptyImage;
-
 	static inline bool IsVisibleImage(const ImageDataClassSafe* pData)
 	{
 		return pData && pData->pImageBuffer && !pData->IsEmptyImage;
@@ -62,9 +67,11 @@ public:
 	{
 		return pData && pData->pImageBuffer;
 	}
+	TextureResource* GetTexture(Palette* newPal = nullptr, bool isAlphaImage = false);
+	TextureResource* GetColoredTexture(Palette* newPal, BGRStruct color);
 };
 
-class NOVTABLE ImageDataClassSurface
+class ImageDataClassSurface
 {
 public:
 	LPDIRECTDRAWSURFACE7 lpSurface; // Only available for flag = 0, if this is used, only ValidWidth and ValidHeight are set
@@ -341,13 +348,6 @@ public:
 	static std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CustomCelltagMap;
 	static std::vector<std::unique_ptr<ImageDataClassSafe>> DamageFires;
 	static unsigned int RandomFireSeed;
-	static std::map<unsigned int, MapCoord> TileExtraOffsets;
-	static inline unsigned int GetTileIdentifier(unsigned short TileIndex, unsigned char SubTileIndex, unsigned char AltType)
-	{
-		return (static_cast<unsigned int>(AltType) << 24) |
-			(static_cast<unsigned int>(SubTileIndex) << 16) |
-			(static_cast<unsigned int>(TileIndex));
-	}
 
 	static bool IsImageLoaded(const FString& name);
 	static ImageDataClassSafe* GetImageDataFromMap(const FString& name);

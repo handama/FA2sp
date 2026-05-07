@@ -14,6 +14,7 @@ namespace Renderer
         CLoadingExt::GameObjectType Type = CLoadingExt::GameObjectType::Unknown;
         FString ID = "";
         bool IsImageLoaded = false;
+        virtual bool IsVisibleInMapRendererOrNormal() const;
     };
 
     class SmudgeType : public ObjectType
@@ -59,6 +60,8 @@ namespace Renderer
         void Init(WORD nOverlay);
         ImageDataClassSafe* GetImageData(BYTE nOverlayData) const;
         ImageDataClassSafe* GetShadowData(BYTE nOverlayData) const;
+        bool IsBridge() const;
+        virtual bool IsVisibleInMapRendererOrNormal() const override;
 
         static const char* IniSection;
 
@@ -188,6 +191,53 @@ namespace Renderer
         ImageDataClassSafe* pImageData[FACING_MAX]{ nullptr };
     };
 
+    class Object
+    {
+    protected:
+        bool Visible = false;
+        void* pObjectData = nullptr;
+        ObjectType* pType = nullptr;
+    public:
+        bool IsVisible();
+    };
+
+    class Building : public Object
+    {
+    public:
+        void Reload(short index);
+        CBuildingDataFS* GetData();
+        BuildingType* GetType();
+        BuildingRenderData* GetRender();
+        
+    private:
+        BuildingRenderData* pRenderData = nullptr;
+    };
+
+    class Vehicle : public Object
+    {
+    public:
+        void Reload(short index);
+        CUnitDataFS* GetData();
+        VehicleType* GetType();
+    };
+
+    class Infantry : public Object
+    {
+    public:
+        void Reload(short index);
+        CInfantryData* GetData();
+        void OffsetInfantrySubcell(int& x, int& y);
+        InfantryType* GetType();
+    };
+
+    class Aircraft : public Object
+    {
+    public:
+        void Reload(short index);
+        CAircraftDataFS* GetData();
+        AircraftType* GetType();
+    };
+
     inline FHashMap<SmudgeType> SmudgeTypes;
     inline FHashMap<TerrainType> TerrainTypes;
     inline std::unordered_map<WORD, OverlayType> OverlayTypes;
@@ -195,6 +245,11 @@ namespace Renderer
     inline FHashMap<InfantryType> InfantryTypes;
     inline FHashMap<VehicleType> VehicleTypes;
     inline FHashMap<AircraftType> AircraftTypes;
+
+    inline Building Buildings[SHRT_MAX + 1];
+    inline Vehicle Vehicles[SHRT_MAX + 1];
+    inline Infantry Infantries[SHRT_MAX + 1];
+    inline Aircraft Aircrafts[SHRT_MAX + 1];
 
     SmudgeType* GetOrCreateSmudge(FString_view id);
     TerrainType* GetOrCreateTerrain(FString_view id);

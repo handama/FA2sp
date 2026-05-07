@@ -179,7 +179,7 @@ static bool hasExtraImage = false;
 static int width, height;
 static int tileIndex = -1;
 static int subTileIndex = -1;
-static int altCount[100];
+static byte altCount[256];
 static t_tmp_image_header* currentTMP = nullptr;
 static byte* tmp_file_image = nullptr;
 
@@ -222,6 +222,22 @@ DEFINE_HOOK(52D098, CLoading_DrawTMP_5, 5)
 {
 	if (hasExtraImage)
 	{
+		if (!CMapDataExt::TileData || tileIndex >= CMapDataExt::TileDataCount)
+			return 0;
+
+		auto& tile = CMapDataExt::TileData[tileIndex];
+
+		if (tile.AltTypeCount < altCount[subTileIndex])
+			return 0;
+
+		if (altCount[subTileIndex] > 0)
+			tile = tile.AltTypes[altCount[subTileIndex] - 1];
+
+		if (tile.TileBlockCount <= subTileIndex)
+			return 0;
+
+		auto& tileBlock = tile.TileBlockDatas[subTileIndex];
+
 		int size = currentTMP->cx_extra * currentTMP->cy_extra;
 		byte* extra_image = GameCreateArray<byte>(size);
 		memcpy(extra_image, tmp_file_image, size);
@@ -230,20 +246,28 @@ DEFINE_HOOK(52D098, CLoading_DrawTMP_5, 5)
 		FString ImageID;
 		ImageID.Format("EXTRAIMAGE\233%d\233%d\233%d", tileIndex, subTileIndex, altCount[subTileIndex]);
 
-		CLoadingExt::TileExtraOffsets[
-			CLoadingExt::GetTileIdentifier(tileIndex, subTileIndex, altCount[subTileIndex])]
-			= MapCoord{ currentTMP->x_extra - currentTMP->x, currentTMP->y_extra - currentTMP->y };
+		auto& dataExt = CMapDataExt::TileBlockDataExt[&tileBlock];
+
+		dataExt.ExtraOffset = { currentTMP->x_extra - currentTMP->x, currentTMP->y_extra - currentTMP->y };
 
 		Palette* pal = &CMapDataExt::Palette_ISO;
-		if (CMapDataExt::TileData && tileIndex < CMapDataExt::TileDataCount 
-			&& CMapDataExt::TileData[tileIndex].TileSet < CMapDataExt::TileSetPalettes.size())
+		if (tile.TileSet < CMapDataExt::TileSetPalettes.size())
 		{
-			pal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
+			pal = CMapDataExt::TileSetPalettes[tile.TileSet];
 		}
 		loadingExt->SetImageDataSafe(extra_image, ImageID, currentTMP->cx_extra, currentTMP->cy_extra, pal, false);
 		CLoadingExt::LoadedObjects.insert(ImageID);
+		auto pData = CLoadingExt::GetImageDataFromMap(ImageID);
+		pData->GetTexture();
+		dataExt.pExtraImage = pData;
 		altCount[subTileIndex]++;
 	}
+	return 0;
+}
+
+DEFINE_HOOK(48C3D0, CLoading_InitTMPs_InitTileData, 7)
+{
+	CMapDataExt::InitializeTileDataInfo();
 	return 0;
 }
 

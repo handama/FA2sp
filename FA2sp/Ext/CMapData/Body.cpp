@@ -44,6 +44,7 @@
 #include "../CTileSetBrowserFrame/TabPages/GridObjectViewer.h"
 #include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
 #include "../CIsoView/RendererTypes.h"
+#include "../CIsoView/DirectXCore.h"
 
 int CMapDataExt::OreValue[4] { -1,-1,-1,-1 };
 unsigned short CMapDataExt::CurrentRenderBuildingStrength;
@@ -131,7 +132,7 @@ bool CMapDataExt::Init_OpenMinimap = false;
 std::vector<CUnitDataFS> CMapDataExt::UnitDatasExt;
 std::vector<CAircraftDataFS> CMapDataExt::AircraftDatasExt;
 std::vector<CBuildingDataFS> CMapDataExt::BuildingDatasExt;
-std::unordered_map<CTileBlockClass*, std::vector<char>> CMapDataExt::TileBaseHeightMask;
+std::unordered_map<CTileBlockClass*, TileBlockExt> CMapDataExt::TileBlockDataExt;
 const std::vector<FString> CMapDataExt::TechnoStates = 
 {
 	"Ambush",
@@ -3290,12 +3291,234 @@ void CMapDataExt::UpdateFieldAircraftData_RedrawMinimap()
 	}
 }
 
+void CMapDataExt::InitializeTileDataInfo()
+{
+	FString thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+	thisTheater.MakeUpper();
+	if (thisTheater == "NEWURBAN")
+		thisTheater = "UBN";
+	FString theaterSuffix = thisTheater.Mid(0, 3);
+
+	FString isoPal;
+	isoPal.Format("iso%s.pal", theaterSuffix);
+	isoPal.MakeUpper();
+	if (auto pal = PalettesManager::LoadPalette(isoPal))
+	{
+		CMapDataExt::Palette_ISO = *pal;
+		CMapDataExt::Palette_ISO_NoTint = *pal;
+	}
+	else
+	{
+		memset(&CMapDataExt::Palette_ISO, 0, sizeof(Palette));
+		memset(&CMapDataExt::Palette_ISO_NoTint, 0, sizeof(Palette));
+	}
+
+	if (Palette_Shadow.Data[0].R != 255)
+	{
+		Palette_Shadow.Data[0].R = 255;
+		Palette_Shadow.Data[0].G = 255;
+		Palette_Shadow.Data[0].B = 255;
+		Palette_Shadow.Data[0].Zero = 0;
+		for (int i = 1; i < 256; i++)
+		{
+			Palette_Shadow.Data[i].R = 0;
+			Palette_Shadow.Data[i].G = 0;
+			Palette_Shadow.Data[i].B = 0;
+			Palette_Shadow.Data[i].Zero = 0;
+		}
+	}
+
+	PaveTile = CINI::CurrentTheater->GetInteger("General", "PaveTile", -10);
+	GreenTile = CINI::CurrentTheater->GetInteger("General", "GreenTile", -10);
+	MiscPaveTile = CINI::CurrentTheater->GetInteger("General", "MiscPaveTile", -10);
+	Medians = CINI::CurrentTheater->GetInteger("General", "Medians", -10);
+	PavedRoads = CINI::CurrentTheater->GetInteger("General", "PavedRoads", -10);
+	ShorePieces = CINI::CurrentTheater->GetInteger("General", "ShorePieces", -10);
+	WaterBridge = CINI::CurrentTheater->GetInteger("General", "WaterBridge", -10);
+	BridgeSet = CINI::CurrentTheater->GetInteger("General", "BridgeSet", -10);
+	WoodBridgeSet = CINI::CurrentTheater->GetInteger("General", "WoodBridgeSet", -10);
+	HeightBase = CINI::CurrentTheater->GetInteger("General", "HeightBase", -10);
+	ConditionYellow = Variables::RulesMap.GetSingle("AudioVisual", "ConditionYellow", 0.5f);
+	ConditionRed = Variables::RulesMap.GetSingle("AudioVisual", "ConditionRed", 0.25f);
+
+	AutoShore_ShoreTileSet = ShorePieces;
+	AutoShore_GreenTileSet = GreenTile;
+
+	CMapDataExt::TileSet_starts.clear();
+	CMapDataExt::ShoreTileSets.clear();
+	CMapDataExt::SoftTileSets.clear();
+	CMapDataExt::RedrawExtraTileSets.clear();
+	CMapDataExt::NoHeightRedrawTileSets.clear();
+	CMapDataExt::TileSetPalettes.clear();
+
+	if (auto theater = CINI::CurrentTheater())
+	{
+		int totalIndex = 0;
+		FString sName = "";
+		CMapDataExt::TileSet_starts.push_back(0);
+		for (int index = 0; index < 10000; index++)
+		{
+			sName.Format("TileSet%04d", index);
+
+			if (theater->SectionExists(sName))
+			{
+				totalIndex += theater->GetInteger(sName, "TilesInSet");
+				CMapDataExt::TileSet_starts.push_back(totalIndex);
+
+				auto setName = theater->GetString(sName, "SetName");
+				setName.MakeLower();
+				if (setName.Find("shore") != -1)
+					ShoreTileSets.insert(index);
+
+				if (theater->KeyExists(sName, "CustomPalette"))
+				{
+					Palette* pal = &CMapDataExt::Palette_ISO;
+					FString custom = CINI::CurrentTheater->GetString(sName, "CustomPalette");
+					((CLoadingExt*)CLoading::Instance())->GetFullPaletteName(custom);
+					if (auto pPal = PalettesManager::LoadPalette(custom))
+						pal = pPal;
+					CMapDataExt::TileSetPalettes[index] = pal;
+				}
+				else
+				{
+					CMapDataExt::TileSetPalettes[index] = &CMapDataExt::Palette_ISO;
+				}
+			}
+			else break;
+		}
+		FString theaterSoft = "SoftTileSets";
+		if (auto pSection = CINI::FAData->GetSection(theaterSoft))
+		{
+			for (const auto& [key, value] : pSection->GetEntities())
+			{
+				int tileSet = CINI::CurrentTheater->GetInteger("General", STDHelpers::GetTrimString(key), -1);
+				if (atoi(value) > 0)
+				{
+					SoftTileSets[tileSet] = true;
+				}
+				else
+				{
+					SoftTileSets[tileSet] = false;
+				}
+			}
+		}
+		theaterSoft += theaterSuffix;
+		if (auto pSection = CINI::FAData->GetSection(theaterSoft))
+		{
+			for (const auto& [key, value] : pSection->GetEntities())
+			{
+				int tileSet = atoi(STDHelpers::GetTrimString(key));
+				if (atoi(value) > 0)
+				{
+					SoftTileSets[tileSet] = true;
+				}
+				else
+				{
+					SoftTileSets[tileSet] = false;
+				}
+			}
+		}
+	}
+	FString redrawExtra = "RedrawExtraTileSets";
+	redrawExtra += theaterSuffix;
+	if (auto pSection = CINI::FAData->GetSection(redrawExtra))
+	{
+		for (const auto& [_, value] : pSection->GetEntities())
+		{
+			RedrawExtraTileSets.insert(atoi(value));
+		}
+	}
+	FString noRedraw = "NoExtraHeightRedrawTileSets";
+	noRedraw += theaterSuffix;
+	if (auto pSection = CINI::FAData->GetSection(noRedraw))
+	{
+		for (const auto& [_, value] : pSection->GetEntities())
+		{
+			NoHeightRedrawTileSets.insert(atoi(value));
+		}
+	}
+
+	if (auto pSection = CINI::FAData->GetSection("AutoShoreTypes"))
+	{
+		auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+		for (const auto& type : pSection->GetEntities())
+		{
+			auto atoms = STDHelpers::SplitString(type.second, 3);
+			if (atoms[0] == thisTheater)
+			{
+				int shore = -1;
+				int green = -1;
+				if (!STDHelpers::IsNumber(atoms[2]))
+				{
+					shore = CINI::CurrentTheater->GetInteger("General", atoms[2], -1);
+				}
+				else
+				{
+					shore = atoi(atoms[2]);
+				}
+				if (!STDHelpers::IsNumber(atoms[3]))
+				{
+					green = CINI::CurrentTheater->GetInteger("General", atoms[3], -1);
+				}
+				else
+				{
+					green = atoi(atoms[3]);
+				}
+				if (shore >= 0 && CMapDataExt::IsValidTileSet(shore))
+				{
+					AutoShore_ShoreTileSet = shore;
+					AutoShore_GreenTileSet = green;
+					break;
+				}
+			}
+		}
+	}
+	TileAnimations.clear();
+	for (auto& [index, setName] : CMapDataExt::TileSetOriginSetNames[CLoadingExt::GetITheaterIndex()])
+	{
+		if (CINI::CurrentTheater->SectionExists(setName) && index + 1 < TileSet_starts.size())
+		{
+			for (int i = TileSet_starts[index]; i < TileSet_starts[index + 1]; ++i)
+			{
+				int relativeIndex = i - TileSet_starts[index] + 1;
+				auto& anim = TileAnimations[i];
+				anim.TileIndex = i;
+				FString Anim;
+				FString XOffset;
+				FString YOffset;
+				FString AttachesTo;
+				FString ZAdjust;
+				Anim.Format("Tile%02dAnim", relativeIndex);
+				XOffset.Format("Tile%02dXOffset", relativeIndex);
+				YOffset.Format("Tile%02dYOffset", relativeIndex);
+				AttachesTo.Format("Tile%02dAttachesTo", relativeIndex);
+				ZAdjust.Format("Tile%02dZAdjust", relativeIndex);
+				anim.AnimName = CINI::CurrentTheater->GetString(setName, Anim);
+				anim.XOffset = CINI::CurrentTheater->GetInteger(setName, XOffset);
+				anim.YOffset = CINI::CurrentTheater->GetInteger(setName, YOffset);
+				anim.AttachedSubTile = CINI::CurrentTheater->GetInteger(setName, AttachesTo);
+				anim.ZAdjust = CINI::CurrentTheater->GetInteger(setName, ZAdjust);
+				FString imageName;
+				imageName.Format("TileAnim%s\233%d%d", anim.AnimName, index, CLoadingExt::GetITheaterIndex());
+				FString sectionName;
+				sectionName.Format("TileSet%04d", index);
+				auto customPal = CINI::CurrentTheater->GetString(sectionName, "CustomPalette", "iso");
+				if (customPal == "iso")
+					CLoadingExt::LoadShp(imageName, anim.AnimName + CLoadingExt::GetExtension()->GetFileExtension(), &Palette_ISO_NoTint, 0);
+				else
+					CLoadingExt::LoadShp(imageName, anim.AnimName + CLoadingExt::GetExtension()->GetFileExtension(), customPal, 0);
+				anim.ImageName = imageName;
+			}
+		}
+	}
+}
+
 void CMapDataExt::InitializeTileData()
 {
 	if (CMapDataExt::TileData)
 		delete[] CMapDataExt::TileData;
 	CMapDataExt::TileData = nullptr;
-	CMapDataExt::TileBaseHeightMask.clear();
+	CMapDataExt::TileBlockDataExt.clear();
 
 	auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
 	thisTheater.MakeUpper();
@@ -3347,6 +3570,12 @@ void CMapDataExt::InitializeTileData()
 		return;
 	}
 
+	bool loadDX = CIsoViewExt::DirectXReady();
+	if (loadDX)
+	{
+		CIsoViewExt::GetExtension()->g_pDX->ClearTileTextures();
+	}
+
 	for (int i = 0; i < TileDataCount; ++i)
 	{
 		auto& tileData = TileData[i];
@@ -3362,6 +3591,16 @@ void CMapDataExt::InitializeTileData()
 				if (tileBlock && tileBlock->ImageData)
 				{
 					BuildBaseHeightMask(tileBlock);
+					if (loadDX)
+					{
+						auto itr = CMapDataExt::TileSetPalettes.find(currentTile->TileSet);
+						if (itr != CMapDataExt::TileSetPalettes.end())
+						{
+							Palette* pal = itr->second;
+							auto& tileExt = TileBlockDataExt[tileBlock];
+							tileExt.pTexture = CIsoViewExt::g_pDX->LoadTileTexture(tileBlock, CIsoViewExt::MakeImageDataView(tileBlock, pal));
+						}
+					}
 				}
 			}
 		}
@@ -3375,10 +3614,9 @@ void CMapDataExt::InitializeTileData()
 
 void CMapDataExt::BuildBaseHeightMask(CTileBlockClass* subTile)
 {
-	auto itr = TileBaseHeightMask.find(subTile);
-	if (itr != TileBaseHeightMask.end()) return;
+	if (TileBlockDataExt.contains(subTile)) return;
 
-	auto& mask = TileBaseHeightMask[subTile];
+	auto& mask = TileBlockDataExt[subTile].HeightMask;
 
 	int swidth = subTile->BlockWidth;
 	int sheight = subTile->BlockHeight;
@@ -4039,185 +4277,11 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 
 	CFinalSunDlgExt::CurrentLighting = 31000;
 	CheckMenuRadioItem(*CFinalSunDlg::Instance->GetMenu(), 31000, 31003, 31000, MF_UNCHECKED);
-	if (reloadImages)
-	{
-		PalettesManager::Release();
-	}
+
 	FString theaterIg = thisTheater;
 	if (theaterIg == "NEWURBAN")
 		theaterIg = "UBN";
 	FString theaterSuffix = theaterIg.Mid(0, 3);
-	FString isoPal;
-	isoPal.Format("iso%s.pal", CLoadingExt::GetExtension()->GetTheaterSuffix());
-	isoPal.MakeUpper();
-	if (auto pal = PalettesManager::LoadPalette(isoPal))
-	{
-		CMapDataExt::Palette_ISO = *pal;
-		CMapDataExt::Palette_ISO_NoTint = *pal;
-	}
-	else
-	{
-		memset(&CMapDataExt::Palette_ISO, 0, sizeof(Palette));
-		memset(&CMapDataExt::Palette_ISO_NoTint, 0, sizeof(Palette));
-	}
-
-	Palette_Shadow.Data[0].R = 255;
-	Palette_Shadow.Data[0].G = 255;
-	Palette_Shadow.Data[0].B = 255;
-	Palette_Shadow.Data[0].Zero = 0;
-	for (int i = 1; i < 256; i++)
-	{
-		Palette_Shadow.Data[i].R = 0;
-		Palette_Shadow.Data[i].G = 0;
-		Palette_Shadow.Data[i].B = 0;
-		Palette_Shadow.Data[i].Zero = 0;
-	}
-
-	PaveTile = CINI::CurrentTheater->GetInteger("General", "PaveTile", -10);
-	GreenTile = CINI::CurrentTheater->GetInteger("General", "GreenTile", -10);
-	MiscPaveTile = CINI::CurrentTheater->GetInteger("General", "MiscPaveTile", -10);
-	Medians = CINI::CurrentTheater->GetInteger("General", "Medians", -10);
-	PavedRoads = CINI::CurrentTheater->GetInteger("General", "PavedRoads", -10);
-	ShorePieces = CINI::CurrentTheater->GetInteger("General", "ShorePieces", -10);
-	WaterBridge = CINI::CurrentTheater->GetInteger("General", "WaterBridge", -10);
-	BridgeSet = CINI::CurrentTheater->GetInteger("General", "BridgeSet", -10);
-	WoodBridgeSet = CINI::CurrentTheater->GetInteger("General", "WoodBridgeSet", -10);
-	HeightBase = CINI::CurrentTheater->GetInteger("General", "HeightBase", -10);
-	ConditionYellow = Variables::RulesMap.GetSingle("AudioVisual", "ConditionYellow", 0.5f);
-	ConditionRed = Variables::RulesMap.GetSingle("AudioVisual", "ConditionRed", 0.25f);
-
-	AutoShore_ShoreTileSet = ShorePieces;
-	AutoShore_GreenTileSet = GreenTile;
-
-	CMapDataExt::TileSet_starts.clear();
-	CMapDataExt::ShoreTileSets.clear();
-	CMapDataExt::SoftTileSets.clear();
-	CMapDataExt::RedrawExtraTileSets.clear();
-	CMapDataExt::NoHeightRedrawTileSets.clear();
-	CMapDataExt::TileSetPalettes.clear();
-
-	if (auto theater = CINI::CurrentTheater())
-	{
-		int totalIndex = 0;
-		FString sName = "";
-		CMapDataExt::TileSet_starts.push_back(0);
-		for (int index = 0; index < 10000; index++)
-		{
-			sName.Format("TileSet%04d", index);
-
-			if (theater->SectionExists(sName))
-			{
-				totalIndex += theater->GetInteger(sName, "TilesInSet");
-				CMapDataExt::TileSet_starts.push_back(totalIndex);
-
-				auto setName = theater->GetString(sName, "SetName");
-				setName.MakeLower();
-				if (setName.Find("shore") != -1)
-					ShoreTileSets.insert(index);
-
-				if (theater->KeyExists(sName, "CustomPalette"))
-				{
-					Palette* pal = &CMapDataExt::Palette_ISO;
-					FString custom = CINI::CurrentTheater->GetString(sName, "CustomPalette");
-					((CLoadingExt*)CLoading::Instance())->GetFullPaletteName(custom);
-					if (auto pPal = PalettesManager::LoadPalette(custom))
-						pal = pPal;
-					CMapDataExt::TileSetPalettes[index] = pal;
-				}
-				else
-				{
-					CMapDataExt::TileSetPalettes[index] = &CMapDataExt::Palette_ISO;
-				}
-			}
-			else break;
-		}
-		FString theaterSoft = "SoftTileSets";
-		if (auto pSection = CINI::FAData->GetSection(theaterSoft))
-		{
-			for (const auto& [key, value] : pSection->GetEntities())
-			{
-				int tileSet = CINI::CurrentTheater->GetInteger("General", STDHelpers::GetTrimString(key), -1);
-				if (atoi(value) > 0)
-				{
-					SoftTileSets[tileSet] = true;
-				}
-				else
-				{
-					SoftTileSets[tileSet] = false;
-				}
-			}
-		}
-		theaterSoft += theaterSuffix;
-		if (auto pSection = CINI::FAData->GetSection(theaterSoft))
-		{
-			for (const auto& [key, value] : pSection->GetEntities())
-			{
-				int tileSet = atoi(STDHelpers::GetTrimString(key));
-				if (atoi(value) > 0)
-				{
-					SoftTileSets[tileSet] = true;
-				}
-				else
-				{
-					SoftTileSets[tileSet] = false;
-				}
-			}
-		}
-	}
-	FString redrawExtra = "RedrawExtraTileSets";
-	redrawExtra += theaterSuffix;
-	if (auto pSection = CINI::FAData->GetSection(redrawExtra))
-	{
-		for (const auto& [_, value] : pSection->GetEntities())
-		{
-			RedrawExtraTileSets.insert(atoi(value));
-		}
-	}
-	FString noRedraw = "NoExtraHeightRedrawTileSets";
-	noRedraw += theaterSuffix;
-	if (auto pSection = CINI::FAData->GetSection(noRedraw))
-	{
-		for (const auto& [_, value] : pSection->GetEntities())
-		{
-			NoHeightRedrawTileSets.insert(atoi(value));
-		}
-	}
-
-	if (auto pSection = CINI::FAData->GetSection("AutoShoreTypes"))
-	{
-		auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
-		for (const auto& type : pSection->GetEntities())
-		{
-			auto atoms = STDHelpers::SplitString(type.second, 3);
-			if (atoms[0] == thisTheater)
-			{
-				int shore = -1;
-				int green = -1;
-				if (!STDHelpers::IsNumber(atoms[2]))
-				{
-					shore = CINI::CurrentTheater->GetInteger("General", atoms[2], -1);
-				}
-				else
-				{
-					shore = atoi(atoms[2]);
-				}
-				if (!STDHelpers::IsNumber(atoms[3]))
-				{
-					green = CINI::CurrentTheater->GetInteger("General", atoms[3], -1);
-				}
-				else
-				{
-					green = atoi(atoms[3]);
-				}
-				if (shore >= 0 && CMapDataExt::IsValidTileSet(shore))
-				{
-					AutoShore_ShoreTileSet = shore;
-					AutoShore_GreenTileSet = green;
-					break;
-				}
-			}
-		}
-	}
 
 	CViewObjectsExt::ConnectedTile_Initialize();
 
@@ -4435,44 +4499,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			}
 		}
 
-		TileAnimations.clear();
-		for (auto& [index, setName] : CMapDataExt::TileSetOriginSetNames[CLoadingExt::GetITheaterIndex()])
-		{
-			if (CINI::CurrentTheater->SectionExists(setName) && index + 1 < TileSet_starts.size())
-			{
-				for (int i = TileSet_starts[index]; i < TileSet_starts[index + 1]; ++i)
-				{
-					int relativeIndex = i - TileSet_starts[index] + 1;
-					auto& anim = TileAnimations[i];
-					anim.TileIndex = i;
-					FString Anim;
-					FString XOffset;
-					FString YOffset;
-					FString AttachesTo;
-					FString ZAdjust;
-					Anim.Format("Tile%02dAnim", relativeIndex);
-					XOffset.Format("Tile%02dXOffset", relativeIndex);
-					YOffset.Format("Tile%02dYOffset", relativeIndex);
-					AttachesTo.Format("Tile%02dAttachesTo", relativeIndex);
-					ZAdjust.Format("Tile%02dZAdjust", relativeIndex);
-					anim.AnimName = CINI::CurrentTheater->GetString(setName, Anim);
-					anim.XOffset = CINI::CurrentTheater->GetInteger(setName, XOffset);
-					anim.YOffset = CINI::CurrentTheater->GetInteger(setName, YOffset);
-					anim.AttachedSubTile = CINI::CurrentTheater->GetInteger(setName, AttachesTo);
-					anim.ZAdjust = CINI::CurrentTheater->GetInteger(setName, ZAdjust);
-					FString imageName;
-					imageName.Format("TileAnim%s\233%d%d", anim.AnimName, index, CLoadingExt::GetITheaterIndex());
-					FString sectionName;
-					sectionName.Format("TileSet%04d", index);
-					auto customPal = CINI::CurrentTheater->GetString(sectionName, "CustomPalette", "iso");
-					if (customPal == "iso")
-						CLoadingExt::LoadShp(imageName, anim.AnimName + CLoadingExt::GetExtension()->GetFileExtension(), &Palette_ISO_NoTint, 0);
-					else
-						CLoadingExt::LoadShp(imageName, anim.AnimName + CLoadingExt::GetExtension()->GetFileExtension(), customPal, 0);
-					anim.ImageName = imageName;
-				}
-			}
-		}
 		const char* InsigniaVeteran = "FA2spInsigniaVeteran";
 		const char* InsigniaElite = "FA2spInsigniaElite";
 		const char* DefaultInsigniaFile = "pips.shp";

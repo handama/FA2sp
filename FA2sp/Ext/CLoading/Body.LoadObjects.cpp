@@ -16,6 +16,7 @@
 #include <emmintrin.h>
 #include <immintrin.h>
 #include "../CIsoView/RendererTypes.h"
+#include "../CIsoView/DirectXCore.h"
 
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
@@ -49,7 +50,6 @@ FHashMap<std::unique_ptr<ImageDataClassSurface>> CLoadingExt::SurfaceImageDataMa
 std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomFlagMap;
 std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomCelltagMap;
 std::vector<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::DamageFires;
-std::map<unsigned int, MapCoord> CLoadingExt::TileExtraOffsets;
 unsigned int CLoadingExt::RandomFireSeed = 0;
 
 bool CLoadingExt::IsImageLoaded(const FString& name)
@@ -78,8 +78,6 @@ std::vector<std::unique_ptr<ImageDataClassSafe>>& CLoadingExt::GetBuildingClipIm
 	if (itr == BuildingClipsImageDataMap.end())
 	{
 		auto pEmpty = std::make_unique<ImageDataClassSafe>();
-		pEmpty->Flag = ImageDataFlag::SHP;
-		pEmpty->IsOverlay = false;
 		pEmpty->pPalette = Palette::PALETTE_UNIT;
 		pEmpty->ClipOffsets.FullWidth = 0;
 		pEmpty->ClipOffsets.LeftOffset = 0;
@@ -356,6 +354,13 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 		Renderer::InfantryTypes.clear();
 		Renderer::VehicleTypes.clear();
 		Renderer::AircraftTypes.clear();
+		PalettesManager::Release();
+
+		if (CIsoViewExt::DirectXReady())
+		{
+			CIsoViewExt::GetExtension()->g_pDX->ClearTextures();
+		}
+
 		Logger::Debug("CLoadingExt: Clearing loaded objects.\n");
 	}							    
 	else {						    
@@ -2676,8 +2681,6 @@ ImageDataClassSafe* CLoadingExt::SetBuildingImageDataSafe(unsigned char* pBuffer
 	}
 	else
 	{
-		pData->Flag = ImageDataFlag::SHP;
-		pData->IsOverlay = false;
 		pData->pPalette = pPal ? pPal : Palette::PALETTE_UNIT;
 	}
 	return pData;
@@ -2690,8 +2693,6 @@ void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* p
 	if (pData->pPixelValidRanges)
 		pData->pPixelValidRanges = nullptr;
 
-	pData->Flag = ImageDataFlag::SHP;
-	pData->IsOverlay = false;
 	pData->pPalette = pPal ? pPal : Palette::PALETTE_UNIT;
 
 	if (!pBuffer)
@@ -5252,11 +5253,7 @@ std::unique_ptr<ImageDataClassSafe> CLoadingExt::BindClippedImages(const std::ve
 			vr.Last = 0;
 		}
 	}
-
-	result->Flag = imgs[0]->Flag;
-	result->IsOverlay = imgs[0]->IsOverlay;
 	result->pPalette = imgs[0]->pPalette;
-	result->BuildingFlag = imgs[0]->BuildingFlag;
 
 	return result;
 }
@@ -5898,3 +5895,27 @@ bool CLoadingExt::HasFileExt(ppmfc::CString filename, int nMix)
 	return false;
 }
 
+TextureResource* ImageDataClassSafe::GetTexture(Palette* newPal, bool isAlphaImage)
+{
+	if (pImageBuffer)
+	{
+		if (isAlphaImage)
+		{
+			return CIsoViewExt::g_pDX->LoadIndexTexture(CIsoViewExt::MakeImageDataView(this));
+		}
+		else
+		{
+			return CIsoViewExt::g_pDX->LoadTexture(CIsoViewExt::MakeImageDataView(this, newPal));
+		}
+	}
+	return nullptr;
+}
+
+TextureResource* ImageDataClassSafe::GetColoredTexture(Palette* coloredPal, BGRStruct color)
+{
+	if (pImageBuffer)
+	{
+		return CIsoViewExt::g_pDX->LoadTexture(CIsoViewExt::MakeImageDataView(this, coloredPal), color);
+	}
+	return nullptr;
+}

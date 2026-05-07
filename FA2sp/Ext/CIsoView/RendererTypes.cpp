@@ -84,6 +84,7 @@ void OverlayType::Init(WORD nOverlay)
     {
         auto imageName = CLoadingExt::GetOverlayName(nOverlay, i);
         pImageData[i] = CLoadingExt::GetImageDataFromMap(imageName);
+
         if (ExtConfigs::InGameDisplay_Shadow)
         {
             auto shadowImageName = CLoadingExt::GetOverlayName(nOverlay, i, true);
@@ -198,8 +199,11 @@ void VehicleType::Init(FString_view id)
         if (ImageDataClassSafe::IsVisibleImage(pImageData[i]))
             ShouldUseDefaultImage = false;
 
-        imageName = CLoadingExt::GetImageName(ID, i, true);
-        pShadowData[i] = CLoadingExt::GetImageDataFromMap(imageName);
+        if (ExtConfigs::InGameDisplay_Shadow)
+        {
+            imageName = CLoadingExt::GetImageName(ID, i, true);
+            pShadowData[i] = CLoadingExt::GetImageDataFromMap(imageName);
+        }
     }
 
     if (auto pValue = Variables::RulesMap.TryGetString(ID, "WaterImage"))
@@ -291,22 +295,28 @@ void InfantryType::Init(FString_view id)
         if (ImageDataClassSafe::IsVisibleImage(pImageData[i]))
             ShouldUseDefaultImage = false;
 
-        imageName = CLoadingExt::GetImageName(ID, i, true);
-        pShadowData[i] = CLoadingExt::GetImageDataFromMap(imageName);
+        if (ExtConfigs::InGameDisplay_Shadow)
+        {
+            imageName = CLoadingExt::GetImageName(ID, i, true);
+            pShadowData[i] = CLoadingExt::GetImageDataFromMap(imageName);
+        }
 
         if (IsDeployer)
         {
             imageName = CLoadingExt::GetImageName(ID, i, false, true, false);
             pDeployImageData[i] = CLoadingExt::GetImageDataFromMap(imageName);
 
-            imageName = CLoadingExt::GetImageName(ID, i, true, true, false);
-            pDeployShadowData[i] = CLoadingExt::GetImageDataFromMap(imageName);
-
             if (!ImageDataClassSafe::IsValidImage(pDeployImageData[i]))
                 pDeployImageData[i] = pImageData[i];
 
-            if (!ImageDataClassSafe::IsValidImage(pWaterImageData[i]))
-                pWaterImageData[i] = pImageData[i];
+            if (ExtConfigs::InGameDisplay_Shadow)
+            {
+                imageName = CLoadingExt::GetImageName(ID, i, true, true, false);
+                pDeployShadowData[i] = CLoadingExt::GetImageDataFromMap(imageName);
+
+                if (!ImageDataClassSafe::IsValidImage(pDeployShadowData[i]))
+                    pDeployShadowData[i] = pShadowData[i];
+            }
         }
 
         if (Swimable)
@@ -314,14 +324,17 @@ void InfantryType::Init(FString_view id)
             imageName = CLoadingExt::GetImageName(ID, i, false, false, true);
             pWaterImageData[i] = CLoadingExt::GetImageDataFromMap(imageName);
 
-            imageName = CLoadingExt::GetImageName(ID, i, true, false, true);
-            pWaterShadowData[i] = CLoadingExt::GetImageDataFromMap(imageName);
+            if (!ImageDataClassSafe::IsValidImage(pWaterImageData[i]))
+                pWaterImageData[i] = pImageData[i];
 
-            if (!ImageDataClassSafe::IsValidImage(pDeployShadowData[i]))
-                pDeployShadowData[i] = pShadowData[i];
+            if (ExtConfigs::InGameDisplay_Shadow)
+            {
+                imageName = CLoadingExt::GetImageName(ID, i, true, false, true);
+                pWaterShadowData[i] = CLoadingExt::GetImageDataFromMap(imageName);
 
-            if (!ImageDataClassSafe::IsValidImage(pWaterShadowData[i]))
-                pWaterShadowData[i] = pShadowData[i];
+                if (!ImageDataClassSafe::IsValidImage(pWaterShadowData[i]))
+                    pWaterShadowData[i] = pShadowData[i];
+            }
         }
     }
 
@@ -361,6 +374,23 @@ ImageDataClassSafe* OverlayType::GetShadowData(BYTE nOverlayData) const
     return pShadowData[nOverlayData];
 }
 
+bool Renderer::OverlayType::IsBridge() const
+{
+    return OverlayIndex == 0x18 || OverlayIndex == 0x19 ||
+        OverlayIndex == 0x3B || OverlayIndex == 0x3C ||
+        OverlayIndex == 0xED || OverlayIndex == 0xEE ||
+        (OverlayIndex >= 0x4A && OverlayIndex <= 0x65) ||
+        (OverlayIndex >= 0xCD && OverlayIndex <= 0xEC);
+}
+
+bool Renderer::OverlayType::IsVisibleInMapRendererOrNormal() const
+{
+    return OverlayIndex != 0xffff && (!CIsoViewExt::RenderingMap
+        || CIsoViewExt::RenderingMap
+        && CIsoViewExt::MapRendererIgnoreObjects.find(ID)
+        == CIsoViewExt::MapRendererIgnoreObjects.end());
+}
+
 std::vector<std::unique_ptr<ImageDataClassSafe>>* BuildingType::GetImageData(int rawFacing, int status, int forceFacing) const
 {
     int nFacing = 0;
@@ -396,8 +426,6 @@ std::vector<std::unique_ptr<ImageDataClassSafe>>* BuildingType::GetImageData(int
         std::vector<std::unique_ptr<ImageDataClassSafe>> v;
 
         auto p = std::make_unique<ImageDataClassSafe>();
-        p->Flag = ImageDataFlag::SHP;
-        p->IsOverlay = false;
         p->pPalette = Palette::PALETTE_UNIT;
         p->ClipOffsets.FullWidth = 0;
         p->ClipOffsets.LeftOffset = 0;
@@ -672,4 +700,338 @@ InfantryType* Renderer::GetOrCreateInfantry(FString_view id)
         itr->second.Init(id);
 
     return &itr->second;
+}
+
+void Renderer::Building::Reload(short index)
+{
+    Visible = false;
+    pType = nullptr;
+    pRenderData = nullptr;
+
+    if (index < 0 || index >= CMapDataExt::StructureIndexMap.size())
+    {
+        return;
+    }
+
+    auto StrINIIndex = CMapDataExt::StructureIndexMap[index];
+    if (StrINIIndex < 0 
+        || StrINIIndex >= CMapDataExt::BuildingDatasExt.size()
+        || StrINIIndex >= CMapDataExt::BuildingRenderDatasFix.size())
+        return;
+
+    auto& data = CMapDataExt::GetBuildingDataFsFromMap(StrINIIndex);
+    pObjectData = &data;
+    pType = GetOrCreateBuilding(data.TypeID);
+    pRenderData = &CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
+
+    if (!CIsoViewExt::DrawStructures)
+        return;
+
+    bool FilterVisible = false;
+    bool RenderMapVisible = false;
+    if (CIsoViewExt::DrawStructuresFilter && CViewObjectsExt::BuildingBrushDlgBF)
+    {     
+        auto CheckValue = [&](int nCheckBoxIdx, const ppmfc::CString& src, const ppmfc::CString& dst)
+        {
+            if (CViewObjectsExt::BuildingBrushBoolsBF[nCheckBoxIdx - 1300])
+            {
+                if (dst == src) return true;
+                else return false;
+            }
+            return true;
+        };
+
+        const auto& filter = CViewObjectsExt::ObjectFilterB;
+        if (filter.empty() || std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
+        {
+            if (CheckValue(1300, CViewObjectsExt::BuildingBrushDlgBF->CString_House, data.House) &&
+                CheckValue(1301, CViewObjectsExt::BuildingBrushDlgBF->CString_HealthPoint, data.Health) &&
+                CheckValue(1302, CViewObjectsExt::BuildingBrushDlgBF->CString_Direction, data.Facing) &&
+                CheckValue(1303, CViewObjectsExt::BuildingBrushDlgBF->CString_Sellable, data.AISellable) &&
+                CheckValue(1304, CViewObjectsExt::BuildingBrushDlgBF->CString_Rebuildable, data.AIRebuildable) &&
+                CheckValue(1305, CViewObjectsExt::BuildingBrushDlgBF->CString_EnergySupport, data.PoweredOn) &&
+                CheckValue(1306, CViewObjectsExt::BuildingBrushDlgBF->CString_UpgradeCount, data.Upgrades) &&
+                CheckValue(1307, CViewObjectsExt::BuildingBrushDlgBF->CString_Spotlight, data.SpotLight) &&
+                CheckValue(1308, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade1, data.Upgrade1) &&
+                CheckValue(1309, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade2, data.Upgrade2) &&
+                CheckValue(1310, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade3, data.Upgrade3) &&
+                CheckValue(1311, CViewObjectsExt::BuildingBrushDlgBF->CString_AIRepairs, data.AIRepairable) &&
+                CheckValue(1312, CViewObjectsExt::BuildingBrushDlgBF->CString_ShowName, data.Nominal) &&
+                CheckValue(1313, CViewObjectsExt::BuildingBrushDlgBF->CString_Tag, data.Tag))
+                FilterVisible = true;
+        }
+    }
+    else if (!CIsoViewExt::DrawStructuresFilter)
+    {
+        FilterVisible = true;
+    }
+
+    if (!CIsoViewExt::RenderingMap
+        || CIsoViewExt::RenderingMap
+        && CIsoViewExt::MapRendererIgnoreObjects.find(GetData()->TypeID)
+        == CIsoViewExt::MapRendererIgnoreObjects.end())
+        RenderMapVisible = true;
+
+    Visible = FilterVisible && RenderMapVisible;
+}
+
+CBuildingDataFS* Renderer::Building::GetData()
+{
+    return static_cast<CBuildingDataFS*>(pObjectData);
+}
+
+bool Renderer::Object::IsVisible()
+{
+    return Visible;
+}
+
+void Renderer::Vehicle::Reload(short index)
+{
+    Visible = false;
+    pType = nullptr;
+
+    if (index < 0 || index >= CMapDataExt::UnitDatasExt.size())
+    {
+        return;
+    }
+
+    auto& data = CMapDataExt::GetUnitDadaFsFromMap(index);
+    pObjectData = &data;
+    pType = GetOrCreateVehicle(data.TypeID);
+
+    if (!CIsoViewExt::DrawUnits)
+        return;
+
+    bool FilterVisible = false;
+    bool RenderMapVisible = false;
+
+    if (CIsoViewExt::DrawUnitsFilter && CViewObjectsExt::VehicleBrushDlgF)
+    {
+        auto CheckValue = [&](int nCheckBoxIdx, const ppmfc::CString& src, const ppmfc::CString& dst)
+        {
+            if (CViewObjectsExt::VehicleBrushBoolsF[nCheckBoxIdx - 1300])
+            {
+                if (dst == src) return true;
+                else return false;
+            }
+            return true;
+        };
+        const auto& filter = CViewObjectsExt::ObjectFilterV;
+        if (filter.empty() || std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
+        {
+            if (CheckValue(1300, CViewObjectsExt::VehicleBrushDlgF->CString_House, data.House) &&
+                CheckValue(1301, CViewObjectsExt::VehicleBrushDlgF->CString_HealthPoint, data.Health) &&
+                CheckValue(1302, CViewObjectsExt::VehicleBrushDlgF->CString_State, data.Status) &&
+                CheckValue(1303, CViewObjectsExt::VehicleBrushDlgF->CString_Direction, data.Facing) &&
+                CheckValue(1304, CViewObjectsExt::VehicleBrushDlgF->CString_VeteranLevel, data.VeterancyPercentage) &&
+                CheckValue(1305, CViewObjectsExt::VehicleBrushDlgF->CString_Group, data.Group) &&
+                CheckValue(1306, CViewObjectsExt::VehicleBrushDlgF->CString_OnBridge, data.IsAboveGround) &&
+                CheckValue(1307, CViewObjectsExt::VehicleBrushDlgF->CString_FollowerID, data.FollowsIndex) &&
+                CheckValue(1308, CViewObjectsExt::VehicleBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
+                CheckValue(1309, CViewObjectsExt::VehicleBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
+                CheckValue(1310, CViewObjectsExt::VehicleBrushDlgF->CString_Tag, data.Tag))
+                FilterVisible = true;
+        }
+    }
+    else if (!CIsoViewExt::DrawUnitsFilter)
+    {
+        FilterVisible = true;
+    }
+
+    if (!CIsoViewExt::RenderingMap
+        || CIsoViewExt::RenderingMap
+        && CIsoViewExt::MapRendererIgnoreObjects.find(GetData()->TypeID)
+        == CIsoViewExt::MapRendererIgnoreObjects.end())
+        RenderMapVisible = true;
+
+    Visible = FilterVisible && RenderMapVisible;
+}
+
+CUnitDataFS* Renderer::Vehicle::GetData()
+{
+    return static_cast<CUnitDataFS*>(pObjectData);
+}
+
+void Renderer::Infantry::Reload(short index)
+{
+    Visible = false;
+    pType = nullptr;
+
+    if (index < 0 || index >= CMapDataExt::Instance->InfantryDatas.size())
+    {
+        return;
+    }
+
+    auto& data = CMapDataExt::GetInfantryDataFromMap(index);
+    pObjectData = &data;
+    pType = GetOrCreateInfantry(data.TypeID);
+
+    if (!CIsoViewExt::DrawInfantries)
+        return;
+
+    bool FilterVisible = false;
+    bool RenderMapVisible = false;
+    if (CIsoViewExt::DrawInfantriesFilter && CViewObjectsExt::InfantryBrushDlgF)
+    {
+        auto CheckValue = [&](int nCheckBoxIdx, const ppmfc::CString& src, const ppmfc::CString& dst)
+        {
+            if (CViewObjectsExt::InfantryBrushBoolsF[nCheckBoxIdx - 1300])
+            {
+                if (dst == src) return true;
+                else return false;
+            }
+            return true;
+        };
+
+        const auto& filter = CViewObjectsExt::ObjectFilterI;
+        if (filter.empty() || std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
+        {
+            if (CheckValue(1300, CViewObjectsExt::InfantryBrushDlgF->CString_House, data.House) &&
+                CheckValue(1301, CViewObjectsExt::InfantryBrushDlgF->CString_HealthPoint, data.Health) &&
+                CheckValue(1302, CViewObjectsExt::InfantryBrushDlgF->CString_State, data.Status) &&
+                CheckValue(1303, CViewObjectsExt::InfantryBrushDlgF->CString_Direction, data.Facing) &&
+                CheckValue(1304, CViewObjectsExt::InfantryBrushDlgF->CString_VerteranStatus, data.VeterancyPercentage) &&
+                CheckValue(1305, CViewObjectsExt::InfantryBrushDlgF->CString_Group, data.Group) &&
+                CheckValue(1306, CViewObjectsExt::InfantryBrushDlgF->CString_OnBridge, data.IsAboveGround) &&
+                CheckValue(1307, CViewObjectsExt::InfantryBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
+                CheckValue(1308, CViewObjectsExt::InfantryBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
+                CheckValue(1309, CViewObjectsExt::InfantryBrushDlgF->CString_Tag, data.Tag))
+                FilterVisible = true;
+        }
+    }
+    else if (!CIsoViewExt::DrawInfantriesFilter)
+    {
+        FilterVisible = true;
+    }
+
+    if (!CIsoViewExt::RenderingMap
+        || CIsoViewExt::RenderingMap
+        && CIsoViewExt::MapRendererIgnoreObjects.find(GetData()->TypeID)
+        == CIsoViewExt::MapRendererIgnoreObjects.end())
+        RenderMapVisible = true;
+
+    Visible = FilterVisible && RenderMapVisible;
+}
+
+CInfantryData* Renderer::Infantry::GetData()
+{
+    return static_cast<CInfantryData*>(pObjectData);
+}
+
+void Renderer::Infantry::OffsetInfantrySubcell(int& x, int& y)
+{
+    switch (atoi(GetData()->SubCell))
+    {
+    case 2:
+        x += 15;
+        y += 15;
+        break;
+    case 3:
+        x -= 15;
+        y += 15;
+        break;
+    case 4:
+        y += 22;
+        break;
+    default:
+        y += 15;
+        break;
+    }
+}
+
+void Renderer::Aircraft::Reload(short index)
+{
+    Visible = false;
+    pType = nullptr;
+
+    if (index < 0 || index >= CMapDataExt::AircraftDatasExt.size())
+    {
+        return;
+    }
+
+    auto& data = CMapDataExt::GetAircraftDataFsFromMap(index);
+    pObjectData = &data;
+    pType = GetOrCreateAircraft(data.TypeID);
+
+    if (!CIsoViewExt::DrawAircrafts)
+        return;
+
+    bool FilterVisible = false;
+    bool RenderMapVisible = false;
+    if (CIsoViewExt::DrawAircraftsFilter && CViewObjectsExt::AircraftBrushDlgF)
+    {
+        auto CheckValue = [&](int nCheckBoxIdx, const ppmfc::CString& src, const ppmfc::CString& dst)
+        {
+            if (CViewObjectsExt::AircraftBrushBoolsF[nCheckBoxIdx - 1300])
+            {
+                if (dst == src) return true;
+                else return false;
+            }
+            return true;
+        };
+        const auto& filter = CViewObjectsExt::ObjectFilterA;
+        if (filter.empty() || std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
+        {
+            if (CheckValue(1300, CViewObjectsExt::AircraftBrushDlgF->CString_House, data.House) &&
+                CheckValue(1301, CViewObjectsExt::AircraftBrushDlgF->CString_HealthPoint, data.Health) &&
+                CheckValue(1302, CViewObjectsExt::AircraftBrushDlgF->CString_Direction, data.Facing) &&
+                CheckValue(1303, CViewObjectsExt::AircraftBrushDlgF->CString_Status, data.Status) &&
+                CheckValue(1304, CViewObjectsExt::AircraftBrushDlgF->CString_VeteranLevel, data.VeterancyPercentage) &&
+                CheckValue(1305, CViewObjectsExt::AircraftBrushDlgF->CString_Group, data.Group) &&
+                CheckValue(1306, CViewObjectsExt::AircraftBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
+                CheckValue(1307, CViewObjectsExt::AircraftBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
+                CheckValue(1308, CViewObjectsExt::AircraftBrushDlgF->CString_Tag, data.Tag))
+                FilterVisible = true;
+        }
+    }
+    else if (!CIsoViewExt::DrawAircraftsFilter)
+    {
+        FilterVisible = true;
+    }
+
+    if (!CIsoViewExt::RenderingMap
+        || CIsoViewExt::RenderingMap
+        && CIsoViewExt::MapRendererIgnoreObjects.find(GetData()->TypeID)
+        == CIsoViewExt::MapRendererIgnoreObjects.end())
+        RenderMapVisible = true;
+
+    Visible = FilterVisible && RenderMapVisible;
+}
+
+CAircraftDataFS* Renderer::Aircraft::GetData()
+{
+    return static_cast<CAircraftDataFS*>(pObjectData);
+}
+
+VehicleType* Renderer::Vehicle::GetType()
+{
+    return static_cast<VehicleType*>(pType);
+}
+
+InfantryType* Renderer::Infantry::GetType()
+{
+    return static_cast<InfantryType*>(pType);
+}
+
+AircraftType* Renderer::Aircraft::GetType()
+{
+    return static_cast<AircraftType*>(pType);
+}
+
+BuildingType* Renderer::Building::GetType()
+{
+    return static_cast<BuildingType*>(pType);
+}
+
+BuildingRenderData* Renderer::Building::GetRender()
+{
+    return pRenderData;
+}
+
+bool Renderer::ObjectType::IsVisibleInMapRendererOrNormal() const
+{
+    return !CIsoViewExt::RenderingMap
+        || CIsoViewExt::RenderingMap
+        && CIsoViewExt::MapRendererIgnoreObjects.find(ID)
+        == CIsoViewExt::MapRendererIgnoreObjects.end();
 }

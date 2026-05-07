@@ -272,6 +272,7 @@ public:
         ScreenCoord2MapCoord(x, y);
         return MapCoord{ x,y };
     }
+    static bool DirectXReady();
 
     static bool SkipMapScreenConvert;
     static Bitmap* pFullBitmap;
@@ -329,8 +330,8 @@ public:
     static bool AutoPropertyBrush[4];
 
     static COLORREF CellHilightColors[16];
-    static float drawOffsetX;
-    static float drawOffsetY;
+    static int drawOffsetX;
+    static int drawOffsetY;
     static Cell3DLocation CurrentDrawCellLocation;
 
     static std::unordered_set<short> VisibleStructures;
@@ -338,7 +339,7 @@ public:
     static std::unordered_set<short> VisibleUnits;
     static std::unordered_set<short> VisibleAircrafts;
 
-    static std::unordered_set<ppmfc::CString> MapRendererIgnoreObjects;
+    static FHashSet MapRendererIgnoreObjects;
     static std::vector<EditedMarks> DrawEditedMarks;
     
     static bool IsPressingALT;

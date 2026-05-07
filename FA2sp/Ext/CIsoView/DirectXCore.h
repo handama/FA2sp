@@ -58,6 +58,13 @@ public:
     }
 };
 
+struct TextureResource {
+    ImageDataView sourceView;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
+    bool bIsIndexTexture = false;
+};
+
 class DirectXCore
 {
 public:
@@ -68,15 +75,8 @@ public:
     bool IsInitialized();
     void Cleanup();
     void ClearTextures();
+    void ClearTileTextures();
     void OnResize(HWND hwnd);
-
-    struct TextureResource {
-        ImageDataView sourceView;
-        Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
-        Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
-        bool bIsIndexTexture = false;
-    };
-
 
     TextureResource* LoadTexture(const ImageDataView& view, BGRStruct color = { 0,0,0 });
     TextureResource* LoadTileTexture(CTileBlockClass* tileBlock, const ImageDataView& view);

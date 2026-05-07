@@ -100,8 +100,8 @@ int CIsoViewExt::EXTRA_BORDER_BOTTOM = 25;
 Cell3DLocation CIsoViewExt::CurrentDrawCellLocation;
 std::unordered_map<TextCacheKey, TextCacheEntry, TextCacheHasher> CIsoViewExt::textCache;
 
-float CIsoViewExt::drawOffsetX;
-float CIsoViewExt::drawOffsetY;
+int CIsoViewExt::drawOffsetX;
+int CIsoViewExt::drawOffsetY;
 
 LPDIRECTDRAWSURFACE7 CIsoViewExt::lpDDBackBufferZoomSurface;
 double CIsoViewExt::ScaledFactor = 1.0;
@@ -2046,7 +2046,7 @@ IDirectDrawSurface7* CIsoViewExt::BitmapToSurface(IDirectDraw7* pDD, const CBitm
 
 bool CIsoViewExt::SaveImageDataToBMP(ImageDataClassSafe* pd,const char* outputPath)
 {
-    if (!pd || !pd->pImageBuffer || pd->Flag == ImageDataFlag::SurfaceData)
+    if (!pd || !pd->pImageBuffer)
         return false;
 
     const int BPP = 4;

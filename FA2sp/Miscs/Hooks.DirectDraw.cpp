@@ -8,9 +8,23 @@
 #include "../Logger.h"
 #include "../FA2sp.h"
 #include "../Ext/CIsoView/Body.h"
+#include "../Ext/CIsoView/DirectXCore.h"
 
 DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 {
+	auto pIsoView = CIsoViewExt::GetExtension();
+
+	if (ExtConfigs::DirectXRendering)
+	{
+		if (!pIsoView->g_pDX)
+			pIsoView->g_pDX = std::make_unique<DirectXCore>();
+
+		if (!pIsoView->g_pDX->IsInitialized())
+		{
+			pIsoView->g_pDX->Initialize(pIsoView->GetSafeHwnd());
+		}
+	}
+
 	static constexpr GUID _IID_IDirectDraw4 =
 	{
 		0x9c59509a, 0x39bd, 0x11d1,
@@ -35,7 +49,6 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 	);
 
 	HRESULT hr = S_OK;
-	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
 	HRESULT(WINAPI * *ppDirectDrawCreate)(GUID*, LPDIRECTDRAW*, IUnknown*) = decltype(ppDirectDrawCreate)(0x591030);
 
 	hr = (*ppDirectDrawCreate)(ExtConfigs::DDrawEmulation ? pIID_DirectDrawEmulation : nullptr, &pIsoView->lpDirectDraw, nullptr);
@@ -157,10 +170,21 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 		dds.dwHeight = vh;
 	}
 
+	// create a small surface for compatibility
+	if (ExtConfigs::DirectXRendering)
+	{
+		dds.dwWidth = 10;
+		dds.dwHeight = 10;
+	}
+
 	int witdh = dds.dwWidth;
 	int height = dds.dwHeight;
-	dds.dwWidth *= CIsoViewExt::ScaledMax;
-	dds.dwHeight *= CIsoViewExt::ScaledMax;
+
+	if (!ExtConfigs::DirectXRendering)
+	{
+		dds.dwWidth *= CIsoViewExt::ScaledMax;
+		dds.dwHeight *= CIsoViewExt::ScaledMax;
+	}
 
 	hr = pIsoView->lpDD7->CreateSurface(&dds, &pIsoView->lpDDBackBufferSurface, nullptr);
 	if (FAILED(hr))

@@ -30,28 +30,28 @@ bool DirectXCore::Initialize(HWND hwnd) {
     Cleanup();
 
     if (!IsWindow(hwnd)) {
-        Logger::Info("Initialize: Invalid HWND\n");
+        Logger::Raw("[DirectXCore] Initialize: Invalid HWND\n");
         return false;
     }
 
     if (!CreateDeviceAndSwapChain(hwnd)) {
-        Logger::Info("CreateDeviceAndSwapChain failed\n");
+        Logger::Raw("[DirectXCore] CreateDeviceAndSwapChain failed\n");
         return false;
     }
     if (!CreateShadersAndInputLayout()) {
-        Logger::Info("CreateShadersAndInputLayout failed\n");
+        Logger::Raw("[DirectXCore] CreateShadersAndInputLayout failed\n");
         return false;
     }
     if (!CreateEffectShaders()) {
-        Logger::Info("CreateEffectShaders failed\n");
+        Logger::Raw("[DirectXCore] CreateEffectShaders failed\n");
         return false;
     }
     if (!CreateCompositeShaders()) {
-        Logger::Info("CreateCompositeShaders failed\n");
+        Logger::Raw("[DirectXCore] CreateCompositeShaders failed\n");
         return false;
     }
     if (!CreateQuadVertexBuffer()) {
-        Logger::Info("CreateQuadVertexBuffer failed\n");
+        Logger::Raw("[DirectXCore] CreateQuadVertexBuffer failed\n");
         return false;
     }
 
@@ -67,11 +67,11 @@ bool DirectXCore::Initialize(HWND hwnd) {
     if (vh == 0) vh = 1;
 
     if (!CreateOffscreenResources(vw, vh)) {
-        Logger::Info("CreateOffscreenResources failed\n");
+        Logger::Raw("[DirectXCore] CreateOffscreenResources failed\n");
         return false;
     }
     if (!CreateFinalShaders()) {
-        Logger::Info("CreateFinalShaders failed\n");
+        Logger::Raw("[DirectXCore] CreateFinalShaders failed\n");
         return false;
     }
 
@@ -90,7 +90,7 @@ bool DirectXCore::Initialize(HWND hwnd) {
     m_pDevice->CreateBlendState(&blendMul, &m_pMulBlendState);
 
     m_bInitialized = true;
-    Logger::Info("Initialize succeeded\n");
+    Logger::Raw("[DirectXCore] Initialize succeeded\n");
     return true;
 }
 
@@ -101,7 +101,12 @@ bool DirectXCore::IsInitialized()
 
 void DirectXCore::ClearTextures() {
     m_textureMap.clear();
+    Logger::Raw("[DirectXCore] Clear textures\n");
+}
+
+void DirectXCore::ClearTileTextures() {
     m_tileTextureMap.clear();
+    Logger::Raw("[DirectXCore] Clear tile textures\n");
 }
 
 void DirectXCore::Cleanup() {
@@ -150,6 +155,8 @@ void DirectXCore::Cleanup() {
     m_globalOffsetX = m_globalOffsetY = 0.0f;
     m_renderScale = 1.0f;
     m_bInitialized = false;
+
+    Logger::Raw("[DirectXCore] Reset all\n");
 }
 
 void DirectXCore::OnResize(HWND hwnd) {
@@ -242,7 +249,7 @@ bool DirectXCore::CreateDeviceAndSwapChain(HWND hwnd) {
         D3D11_SDK_VERSION, &scd,
         &m_pSwapChain, &m_pDevice, nullptr, &m_pContext);
     if (FAILED(hr)) {
-        Logger::Info("D3D11CreateDeviceAndSwapChain failed\n");
+        Logger::Raw("D3D11CreateDeviceAndSwapChain failed\n");
         return false;
     }
 
@@ -747,12 +754,12 @@ void DirectXCore::Render() {
     m_drawCommands.clear();
 }
 
-DirectXCore::TextureResource* DirectXCore::LoadTexture(const ImageDataView& view, BGRStruct color) {
+TextureResource* DirectXCore::LoadTexture(const ImageDataView& view, BGRStruct color) {
+    auto index = TextureIndex{ view.pOriginData ,color };
+    auto [itr, inserted] = m_textureMap.try_emplace(index);
+    if (!inserted) return itr->second.get();
     if (!m_pDevice || !view.pOriginData) return nullptr;
     if (view.FullWidth <= 0 || view.FullHeight <= 0 || !view.pImageBuffer) return nullptr;
-    auto index = TextureIndex{ view.pOriginData ,color };
-    auto itr = m_textureMap.find(index);
-    if (itr != m_textureMap.end()) return itr->second.get();
 
     auto texRes = std::make_unique<TextureResource>();
     texRes->sourceView = view;
@@ -778,14 +785,14 @@ DirectXCore::TextureResource* DirectXCore::LoadTexture(const ImageDataView& view
     hr = m_pDevice->CreateShaderResourceView(texRes->texture.Get(), nullptr, &texRes->srv);
     if (FAILED(hr)) return nullptr;
     TextureResource* ret = texRes.get();
-    m_textureMap[index] = std::move(texRes);
+    itr->second = std::move(texRes);
     return ret;
 }
 
-DirectXCore::TextureResource* DirectXCore::LoadTileTexture(CTileBlockClass* tileBlock, const ImageDataView& view) {
+TextureResource* DirectXCore::LoadTileTexture(CTileBlockClass* tileBlock, const ImageDataView& view) {
+    auto [itr, inserted] = m_tileTextureMap.try_emplace(tileBlock);
+    if (!inserted) return itr->second.get();
     if (!m_pDevice || !tileBlock) return nullptr;
-    auto itr = m_tileTextureMap.find(tileBlock);
-    if (itr != m_tileTextureMap.end()) return itr->second.get();
     auto texRes = std::make_unique<TextureResource>();
     texRes->sourceView = view;
     texRes->bIsIndexTexture = false;
@@ -810,16 +817,16 @@ DirectXCore::TextureResource* DirectXCore::LoadTileTexture(CTileBlockClass* tile
     hr = m_pDevice->CreateShaderResourceView(texRes->texture.Get(), nullptr, &texRes->srv);
     if (FAILED(hr)) return nullptr;
     TextureResource* ret = texRes.get();
-    m_tileTextureMap[tileBlock] = std::move(texRes);
+    itr->second = std::move(texRes);
     return ret;
 }
 
-DirectXCore::TextureResource* DirectXCore::LoadIndexTexture(const ImageDataView& view) {
+TextureResource* DirectXCore::LoadIndexTexture(const ImageDataView& view) {
+    auto index = TextureIndex{ view.pOriginData };
+    auto [itr, inserted] = m_textureMap.try_emplace(index);
+    if (!inserted) return itr->second.get();
     if (!m_pDevice || !view.pOriginData) return nullptr;
     if (view.FullWidth <= 0 || view.FullHeight <= 0 || !view.pImageBuffer) return nullptr;
-    auto index = TextureIndex{ view.pOriginData };
-    auto itr = m_textureMap.find(index);
-    if (itr != m_textureMap.end()) return itr->second.get();
 
     auto texRes = std::make_unique<TextureResource>();
     texRes->sourceView = view;
@@ -835,16 +842,16 @@ DirectXCore::TextureResource* DirectXCore::LoadIndexTexture(const ImageDataView&
     hr = m_pDevice->CreateShaderResourceView(texRes->texture.Get(), nullptr, &texRes->srv);
     if (FAILED(hr)) return nullptr;
     TextureResource* ret = texRes.get();
-    m_textureMap[index] = std::move(texRes);
+    itr->second = std::move(texRes);
     return ret;
 }
 
-DirectXCore::TextureResource* DirectXCore::GetTexture(void* pData, BGRStruct color) const {
+TextureResource* DirectXCore::GetTexture(void* pData, BGRStruct color) const {
     auto it = m_textureMap.find(TextureIndex{ pData ,color });
     return (it != m_textureMap.end()) ? it->second.get() : nullptr;
 }
 
-DirectXCore::TextureResource* DirectXCore::GetTileTexture(CTileBlockClass* tileBlock) const {
+TextureResource* DirectXCore::GetTileTexture(CTileBlockClass* tileBlock) const {
     auto it = m_tileTextureMap.find(tileBlock);
     return (it != m_tileTextureMap.end()) ? it->second.get() : nullptr;
 }

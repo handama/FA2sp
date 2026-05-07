@@ -13,6 +13,7 @@
 #include "../../Miscs/MultiSelection.h"
 #include "../../Miscs/Palettes.h"
 #include "../CLoading/Body.h"
+#include "DirectXCore.h"
 #include <immintrin.h>
 #include <mutex>
 #include "../../Miscs/TheaterInfo.h"
@@ -595,7 +596,7 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
     const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha,
     COLORREF houseColor, int extraLightType, bool remap, std::vector<char>* objectOverlapMask)
 {
-    if (alpha == 0 || !pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst || pd->IsEmptyImage) {
+    if (alpha == 0 || !pd || !pd->pImageBuffer || !dst || pd->IsEmptyImage) {
         return;
     }
 
@@ -756,7 +757,7 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
     const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha,
     COLORREF houseColor, COLORREF addOnColor, bool isRubble, bool isTerrain)
 {
-    if (alpha == 0 || !pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst || pd->IsEmptyImage) {
+    if (alpha == 0 || !pd|| !pd->pImageBuffer || !dst || pd->IsEmptyImage) {
         return;
     }
 
@@ -866,7 +867,7 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
 void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
     const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd)
 {
-    if (!pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst || pd->IsEmptyImage) {
+    if (!pd || !pd->pImageBuffer || !dst || pd->IsEmptyImage) {
         return;
     }
 
@@ -1170,11 +1171,11 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
 void CIsoViewExt::BlitCellHeightMask(std::vector<int>& cellHeightMask, const RECT* window,
     int x, int y, CTileBlockClass* subTile, int height)
 {
-    auto itr = CMapDataExt::TileBaseHeightMask.find(subTile);
-    if (itr == CMapDataExt::TileBaseHeightMask.end())
+    auto itr = CMapDataExt::TileBlockDataExt.find(subTile);
+    if (itr == CMapDataExt::TileBlockDataExt.end())
         return;
 
-    const auto& mask = itr->second;
+    const auto& mask = itr->second.HeightMask;
 
     const int swidth = subTile->BlockWidth;
     const int sheight = subTile->BlockHeight;
@@ -1387,4 +1388,9 @@ void CIsoViewExt::BltToWindow(HWND hwnd, LPDIRECTDRAWSURFACE7 src, const RECT* r
 
     ReleaseDC(hwnd, wndDC);
     src->ReleaseDC(srcDC);
+}
+
+bool CIsoViewExt::DirectXReady()
+{
+    return g_pDX && g_pDX->IsInitialized();
 }

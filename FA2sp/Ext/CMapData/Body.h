@@ -10,9 +10,19 @@
 
 #define CUSTOM_TILE_START 100000
 struct TwoPointStruct;
+struct TextureResource;
 namespace Renderer {
     class BuildingType;
+    class Building;
 }
+
+struct TileBlockExt
+{
+    std::vector<char> HeightMask{};
+    ImageDataClassSafe* pExtraImage = nullptr;
+    POINT ExtraOffset{};
+    TextureResource* pTexture = nullptr;
+};
 
 class CBuildingDataFS
 {
@@ -321,17 +331,15 @@ struct CellDataExt
 
     struct BuildingRenderPart
     {
-        short Index;
         short Part;
+        bool IsBottom;
+        bool hasFire;
         int DrawX;
         int DrawY;
-        int INIIndex;
         int Status;
         ImageDataClassSafe* pData;
         Palette* pPal;
-        bool IsBottom;
-        bool hasFire;
-        Renderer::BuildingType* pType;
+        Renderer::Building* pBuilding;
     };
     struct BaseNodeRenderPart
     {
@@ -699,6 +707,7 @@ public:
         bool reloadCellDataExt = true,
         bool reloadImages = true);
     static void InitializeTileData();
+    static void InitializeTileDataInfo();
     static void UpdateTriggers();
     static FString AddTrigger(std::shared_ptr<Trigger> trigger);
     static FString AddTrigger(FString id);
@@ -868,7 +877,7 @@ public:
     static std::vector<CellDataExt> CellDataExts;
     //static MapCoord CurrentMapCoord;
     static MapCoord CurrentMapCoordPaste;
-    static std::unordered_map<CTileBlockClass*, std::vector<char>> TileBaseHeightMask;
+    static std::unordered_map<CTileBlockClass*, TileBlockExt> TileBlockDataExt;
     static void BuildBaseHeightMask(CTileBlockClass* subTile);
 
     static CTileTypeClass* TileData;

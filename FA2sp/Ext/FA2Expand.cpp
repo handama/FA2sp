@@ -54,7 +54,7 @@ void __stdcall FA2Expand::ExeRun()
     CPropertyUnitExt::ProgramStartupInit();
     CTileSetBrowserFrameExt::ProgramStartupInit();
     CSingleplayerSettingsExt::ProgramStartupInit();
-    CTagsExt::ProgramStartupInit();
+    //CTagsExt::ProgramStartupInit();
     //CTaskForceExt::ProgramStartupInit();
     COptionsExt::ProgramStartupInit();
 }

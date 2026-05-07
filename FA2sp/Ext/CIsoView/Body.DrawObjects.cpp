@@ -17,6 +17,8 @@
 #include "../CFinalSunApp/Body.h"
 #include "../../Algorithms/Matrix3D.h"
 #include <functional>
+#include <thread>
+#include <atomic>
 #include "RendererTypes.h"
 
 static CRect window;
@@ -3583,26 +3585,113 @@ static void DrawMapDriectDraw()
 	}
 }
 
-DEFINE_HOOK(456E99, CIsoView_OnMouseMove_SetTimer, 6)
+DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 {
-	GET(HWND, hIsoView, EAX);
-	SetTimer(hIsoView, 11, 10, NULL);
-	return 0x456EA6;
+	GET(CIsoViewExt*, pThis, EBP);
+	GET_STACK(UINT, nFlags, STACK_OFFS(0x3D528, -0x4));
+
+	POINT pt;
+	GetCursorPos(&pt);
+	::ScreenToClient(pThis->GetSafeHwnd(), &pt);
+
+	pt.x -= ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0;
+	pt.y -= ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0;
+
+	const bool rightDown = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
+	const int dx = pt.x - pThis->MoveCenterPosition.x;
+	const int dy = pt.y - pThis->MoveCenterPosition.y;
+	const bool shouldScroll = rightDown && (abs(dx) > 2 || abs(dy) > 2);
+
+	if (shouldScroll)
+	{
+		pThis->IsScrolling = true;
+
+		int adaptedDx = dx * 20 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate;
+		int adaptedDy = dy * 20 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate;
+
+		if (dx > 0)
+			adaptedDx = std::max(1, adaptedDx);
+		else if (dx < 0)
+			adaptedDx = std::min(-1, adaptedDx);
+
+		if (dy > 0)
+			adaptedDy = std::max(1, adaptedDy);
+		else if (dy < 0)
+			adaptedDy = std::min(-1, adaptedDy);
+
+		pThis->ViewPosition.x += adaptedDx;
+		pThis->ViewPosition.y += adaptedDy;
+
+		pThis->MoveTo(pThis->ViewPosition.x, pThis->ViewPosition.y);
+
+		pThis->Draw();
+
+		pThis->IsMouseMoving = false;
+
+		LPARAM lParam = MAKELPARAM(
+			pt.x + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0),
+			pt.y + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0)
+		);
+
+		PostMessage(pThis->GetSafeHwnd(), WM_MOUSEMOVE, MK_RBUTTON, lParam);
+
+		return 0x456EC0;
+	}
+
+	if (!rightDown)
+	{
+		pThis->MoveCenterPosition.x = pt.x;
+		pThis->MoveCenterPosition.y = pt.y;
+	}
+
+	return 0x456EDB;
+}
+
+DEFINE_HOOK(45EB20, CIsoView_OnRButtonUp_CancelScroll, 8)
+{
+	GET(CIsoViewExt*, pThis, ESI);
+
+	ShowCursor(TRUE);
+
+	return 0x45EB28;
 }
 
 DEFINE_HOOK(468690, CIsoView_OnSize, A)
 {
-	auto pThis = CIsoViewExt::GetExtension();
-	if(pThis->g_pDX)
+	GET(CIsoViewExt*, pThis, ECX);
+	if (pThis->g_pDX)
 		pThis->g_pDX->OnResize(pThis->GetSafeHwnd());
 	return 0;
 }
 
+//FpsCounter counter("CIsoView_Draw");
 DEFINE_HOOK(46DE00, CIsoView_Draw, 7)
 {
+	//counter.update();
+	auto start = std::chrono::high_resolution_clock::now();
+	static float smoothedFps = (float)CFinalSunAppExt::ScreenRefreshRate;
+
 	if(ExtConfigs::DirectXRendering)
 		DrawMapDriect3D11();
 	else
 		DrawMapDriectDraw();
-	return  0x47519D;
+
+	auto end = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+	auto count = duration.count();
+
+	float currentFps;
+	if (count == 0)
+		currentFps = (float)CFinalSunAppExt::ScreenRefreshRate;
+	else
+		currentFps = 1000.0f / count;
+
+	smoothedFps = smoothedFps * 0.85f + currentFps * 0.15f;
+
+	if (smoothedFps < 10.0f) smoothedFps = 10.0f;
+	if (smoothedFps > 300.0f) smoothedFps = 300.0f;
+
+	CFinalSunAppExt::ScreenRefreshRate = (int)smoothedFps;
+
+	return 0x47519D;
 }

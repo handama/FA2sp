@@ -19,6 +19,7 @@
 #include "../../Miscs/TheaterInfo.h"
 #include <stack>
 #include "../../ExtraWindow/CNewScript/CNewScript.h"
+#include "../CFinalSunApp/Body.h"
 
 Bitmap* CIsoViewExt::pFullBitmap = nullptr;
 bool CIsoViewExt::SkipMapScreenConvert = false;
@@ -158,7 +159,7 @@ void CIsoViewExt::InitGdiplus()
 
 void CIsoViewExt::ProgramStartupInit()
 {
-    // RunTime::ResetMemoryContentAt(0x594518, CIsoViewExt::PreTranslateMessageExt);
+    RunTime::ResetMemoryContentAt(0x594518, &CIsoViewExt::PreTranslateMessageExt);
 }
 
 void CIsoViewExt::ConfirmTube(bool addReverse)
@@ -3234,8 +3235,8 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         if (pThis->IsScrolling)
         {
             auto point = pThis->MoveCenterPosition;
-            point.x += rect.left - 16 - 18 + GetSystemMetrics(SM_XVIRTUALSCREEN);
-            point.y += rect.top + 14 - 12 + GetSystemMetrics(SM_YVIRTUALSCREEN);
+            point.x += rect.left - 16 - 18 + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0);
+            point.y += rect.top + 14 - 12 + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0);
             auto cursor = CLoadingExt::GetSurfaceImageDataFromMap("scrollcursor.bmp");
             CIsoViewExt::BlitTransparent(cursor->lpSurface, point.x, point.y, -1, -1, 255, surface);
         }

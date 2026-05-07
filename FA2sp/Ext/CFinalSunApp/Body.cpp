@@ -31,6 +31,8 @@ bool CFinalSunAppExt::HasNewVersion = false;
 FString CFinalSunAppExt::NewVersion;
 FString CFinalSunAppExt::ExePathExt;
 FString CFinalSunAppExt::LauncherName;
+int CFinalSunAppExt::ScreenRefreshRate = 60;
+
 std::array<std::pair<std::string, std::string>, 7> CFinalSunAppExt::ExternalLinks
 {
 	std::make_pair("https://github.com/secsome/FA2sp", ""),
@@ -234,6 +236,10 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 		CheckUpdate();
 	}).detach();
 #endif
+
+	HDC hdc = GetDC(NULL);
+	ScreenRefreshRate = GetDeviceCaps(hdc, VREFRESH);
+	ReleaseDC(NULL, hdc);
 
 	CFinalSunDlg dlg(nullptr);
 	this->m_pMainWnd = &dlg;

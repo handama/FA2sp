@@ -10,6 +10,7 @@
 #include <string>
 #include <map>
 #include "Body.h" 
+#include "../../Miscs/Palettes.h"
 
 struct TextureIndex {
     const void* pData;
@@ -52,8 +53,25 @@ public:
     DrawParams& SetScale(float sx, float sy) { scaleX = sx; scaleY = sy; return *this; }
     DrawParams& SetOpacity(float o) { opacity = o; return *this; }
     DrawParams& SetColorMul(float r, float g, float b) { redMult = r; greenMult = g; blueMult = b; return *this; }
+    DrawParams& SetColorMul(ColorMults mults) { redMult = mults.RedTint; greenMult = mults.GreenTint; blueMult = mults.BlueTint; return *this; }
     DrawParams& SetColorMix(float r, float g, float b, float factor) {
-        mixR = r; mixG = g; mixB = b; mixFactor = factor;
+        float newFactor =
+            mixFactor + factor * (1.0f - mixFactor);
+        if (newFactor > 0.0001f)
+        {
+            float oldWeight = mixFactor * (1.0f - factor);
+            float newWeight = factor;
+            mixR =
+                (mixR * oldWeight + r * newWeight)
+                / newFactor;
+            mixG =
+                (mixG * oldWeight + g * newWeight)
+                / newFactor;
+            mixB =
+                (mixB * oldWeight + b * newWeight)
+                / newFactor;
+        }
+        mixFactor = newFactor;
         return *this;
     }
 };

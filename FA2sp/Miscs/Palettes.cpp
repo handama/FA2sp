@@ -16,9 +16,10 @@ const LightingStruct LightingStruct::NoLighting = { -1,-1,-1,-1,-1,-1 };
 LightingStruct LightingStruct::CurrentLighting;
 
 FMap<Palette*> PalettesManager::OriginPaletteFiles;
-std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedPaletteFiles;
-std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedDimmedPaletteFiles;
-std::map<Palette*, std::map<LightingStruct, LightingPalette>> PalettesManager::CalculatedPaletteFilesNoRemap;
+std::unordered_map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedPaletteFiles;
+std::unordered_map<Palette*, std::unordered_map<BGRStruct, LightingPalette>> PalettesManager::CalculatedColoredPaletteFiles;
+std::unordered_map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedDimmedPaletteFiles;
+std::unordered_map<Palette*, std::map<LightingStruct, LightingPalette>> PalettesManager::CalculatedPaletteFilesNoRemap;
 PaletteCache::CacheMap PaletteCache::Cache;
 std::map<BGRStruct, std::array<BGRStruct, 16>> PaletteCache::CalculatedRemapableColors;
 std::list<LightingPalette> PalettesManager::CalculatedObjectPaletteFiles;
@@ -42,6 +43,7 @@ void PalettesManager::Release()
     PaletteCache::CalculatedRemapableColors.clear();
     PaletteCache::Cache.clear();
     PalettesManager::CalculatedPaletteFiles.clear();
+    PalettesManager::CalculatedColoredPaletteFiles.clear();
     PalettesManager::CalculatedPaletteFilesNoRemap.clear();
     PalettesManager::CalculatedDimmedPaletteFiles.clear();
     PalettesManager::CalculatedObjectPaletteFiles.clear();
@@ -211,6 +213,15 @@ Palette* PalettesManager::GetObjectPalette(Palette* pPal, BGRStruct& color, bool
     return p.GetPalette();
 }
 
+Palette* PalettesManager::GetColoredPalette(Palette* pPal, BGRStruct& color)
+{
+    auto [itr, inserted] = PalettesManager::CalculatedColoredPaletteFiles[pPal].try_emplace(color, *pPal);
+    if (!inserted)
+        return itr->second.GetPalette();
+    itr->second.RemapColors(color);
+    return itr->second.GetPalette();
+}
+
 Palette* PalettesManager::GetOverlayPalette(Palette* pPal, Cell3DLocation location, int overlay)
 {
     auto& p = PalettesManager::CalculatedObjectPaletteFiles.emplace_back(LightingPalette(*pPal));
@@ -308,15 +319,15 @@ void LightingPalette::AdjustLighting(LightingStruct& lighting, Cell3DLocation lo
     }
     if (extraLightType == 0)
     {
-        this->AmbientMult += Variables::RulesMap.GetSingle("AudioVisual", "ExtraUnitLight", 0.2f);
+        this->AmbientMult += CMapDataExt::ExtraUnitLight;
     }
     else if (extraLightType == 1)
     {
-        this->AmbientMult += Variables::RulesMap.GetSingle("AudioVisual", "ExtraInfantryLight", 0.2f);
+        this->AmbientMult += CMapDataExt::ExtraInfantryLight;
     }
     else if (extraLightType == 2)
     {
-        this->AmbientMult += Variables::RulesMap.GetSingle("AudioVisual", "ExtraAircraftLight", 0.2f);
+        this->AmbientMult += CMapDataExt::ExtraAircraftLight;
     }
 
     if (tint)
@@ -584,4 +595,111 @@ const std::array<BGRStruct, 16>& PaletteCache::GetRemapableColorArray(BGRStruct 
         }
         return cache;
     }
+}
+
+ColorMults ColorMults::GetTerrainColorMult(Cell3DLocation location)
+{
+    auto& lighting = LightingStruct::CurrentLighting;
+    if (LightingStruct::CurrentLighting == LightingStruct::NoLighting)
+        return { 1.0f,1.0f,1.0f };
+
+    ColorMults ret{ 1.0f,1.0f,1.0f };
+    float AmbientMult = 1.0f;
+    const auto lamp = LightingSourceTint::ApplyLamp(location.X, location.Y);
+
+    AmbientMult = lighting.Ambient + lamp.AmbientTint - lighting.Ground + lighting.Level * location.Height;
+    ret.RedTint = lighting.Red + lamp.RedTint;
+    ret.GreenTint = lighting.Green + lamp.GreenTint;
+    ret.BlueTint = lighting.Blue + lamp.BlueTint;
+
+    ret.RedTint = std::clamp(ret.RedTint * AmbientMult, 0.0f, 2.0f);
+    ret.GreenTint = std::clamp(ret.GreenTint * AmbientMult, 0.0f, 2.0f);
+    ret.BlueTint = std::clamp(ret.BlueTint * AmbientMult, 0.0f, 2.0f);
+
+    return ret;
+}
+
+ColorMults ColorMults::GetObjectColorMult(bool remap, Cell3DLocation location, bool isopal, int extraLightType)
+{
+    auto& lighting = LightingStruct::CurrentLighting;
+    if (LightingStruct::CurrentLighting == LightingStruct::NoLighting)
+        return { 1.0f,1.0f,1.0f };
+
+    bool tintRGB = true;
+    // normal lighting won't tint unit RGB
+    if (remap && !ExtConfigs::LightingPreview_MultUnitColor && CFinalSunDlgExt::CurrentLighting == 31001 && extraLightType != 4)
+        tintRGB = false;
+    else if (!ExtConfigs::LightingPreview_MultUnitColor && CFinalSunDlgExt::CurrentLighting == 31001 && extraLightType == 5)
+        tintRGB = false;
+    else if (extraLightType == 6)
+        tintRGB = false;
+
+    ColorMults ret{ 1.0f,1.0f,1.0f };
+    float AmbientMult = 1.0f;
+    if (!isopal)
+    {
+        const auto lamp = LightingSourceTint::ApplyLamp(location.X, location.Y);
+        if (extraLightType != 6)
+        {
+            AmbientMult = lighting.Ambient + lamp.AmbientTint - lighting.Ground + lighting.Level * location.Height;
+        }
+        else
+        {
+            AmbientMult = lighting.Ambient - lighting.Ground + lighting.Level * location.Height;
+        }
+        if (extraLightType == 0)
+        {
+            AmbientMult += CMapDataExt::ExtraUnitLight;
+        }
+        else if (extraLightType == 1)
+        {
+            AmbientMult += CMapDataExt::ExtraInfantryLight;
+        }
+        else if (extraLightType == 2)
+        {
+            AmbientMult += CMapDataExt::ExtraAircraftLight;
+        }
+
+        if (tintRGB)
+        {
+            if (extraLightType >= 0 && extraLightType != 4)
+            {
+                // lamp won't tint unit RGB
+                ret.RedTint = lighting.Red;
+                ret.GreenTint = lighting.Green;
+                ret.BlueTint = lighting.Blue;
+            }
+            else
+            {
+                ret.RedTint = lighting.Red + lamp.RedTint;
+                ret.GreenTint = lighting.Green + lamp.GreenTint;
+                ret.BlueTint = lighting.Blue + lamp.BlueTint;
+            }
+        }
+        else
+        {
+            ret.RedTint = 1.0f;
+            ret.GreenTint = 1.0f;
+            ret.BlueTint = 1.0f;
+        }
+    }
+    else // isopal already tinted, so only apply level color
+    {
+        for (int i = 0; i < 256; ++i)
+        {
+            float ambLevel = lighting.Ambient - lighting.Ground + lighting.Level * location.Height;
+            ambLevel = std::clamp(ambLevel, 0.0f, 2.0f);
+            float amb = lighting.Ambient - lighting.Ground;
+            amb = std::clamp(amb, 0.0f, 2.0f);
+            ret.RedTint = std::min(amb * ambLevel, 1.0f);
+            ret.GreenTint = std::min(amb * ambLevel, 1.0f);
+            ret.BlueTint = std::min(amb * ambLevel, 1.0f);
+        }
+    }
+
+    ret.RedTint = std::clamp(ret.RedTint * AmbientMult, 0.0f, 2.0f);
+    ret.GreenTint = std::clamp(ret.GreenTint * AmbientMult, 0.0f, 2.0f);
+    ret.BlueTint = std::clamp(ret.BlueTint * AmbientMult, 0.0f, 2.0f);
+
+    return ret;
 }

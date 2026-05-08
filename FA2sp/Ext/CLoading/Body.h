@@ -21,12 +21,6 @@ class ImageDataClass;
 class Palette;
 struct TextureResource;
 
-struct BGRHash {
-	size_t operator()(const BGRStruct& s) const noexcept {
-		return std::hash<int>()(*reinterpret_cast<const int*>(&s));
-	}
-};
-
 class ImageDataClassSafe
 {
 public:

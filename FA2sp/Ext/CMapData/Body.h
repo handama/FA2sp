@@ -351,6 +351,7 @@ struct CellDataExt
         Palette* pPal;
         BaseNodeDataExt* Data;
         Renderer::BuildingType* pType;
+        COLORREF HouseColor;
     };
     std::vector<BuildingRenderPart> BuildingRenderParts;
     std::vector<BaseNodeRenderPart> BaseNodeRenderParts;
@@ -950,6 +951,9 @@ public:
     static bool SkipUpdateMinimap;
     static bool IsImportingMap;
     static bool Init_OpenMinimap;
+    static float ExtraUnitLight;
+    static float ExtraInfantryLight;
+    static float ExtraAircraftLight;
 
     static std::vector<CUnitDataFS> UnitDatasExt;
     static std::vector<CAircraftDataFS> AircraftDatasExt;

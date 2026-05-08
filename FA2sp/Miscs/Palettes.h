@@ -17,6 +17,16 @@
 // Level = Lighting.Level * 1000.0 + 0.1
 // I just choose to take a reference from ccmaps-net code - secsome
 
+struct ColorMults
+{
+    float RedTint;
+    float GreenTint;
+    float BlueTint;
+
+    static ColorMults GetTerrainColorMult(Cell3DLocation location);
+    static ColorMults GetObjectColorMult(bool remap, Cell3DLocation location, bool isopal = false, int extraLightType = -1);
+};
+
 struct LightingSourceTint
 {
     float RedTint;
@@ -157,9 +167,10 @@ public:
 class PalettesManager
 {
     static FMap<Palette*> OriginPaletteFiles;
-    static std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedPaletteFiles;
-    static std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedDimmedPaletteFiles;
-    static std::map<Palette*, std::map<LightingStruct, LightingPalette>> CalculatedPaletteFilesNoRemap;
+    static std::unordered_map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedPaletteFiles;
+    static std::unordered_map<Palette*, std::unordered_map<BGRStruct, LightingPalette>> CalculatedColoredPaletteFiles;
+    static std::unordered_map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedDimmedPaletteFiles;
+    static std::unordered_map<Palette*, std::map<LightingStruct, LightingPalette>> CalculatedPaletteFilesNoRemap;
     static Palette* CurrentIso;
 
 public:
@@ -175,6 +186,7 @@ public:
     static Palette* GetPalette(Palette* pPal, BGRStruct& color, bool remap = true, Cell3DLocation location = {0});
     static Palette* GetTileSetBrowserViewPalette(Palette* pPal, BGRStruct& color, bool remap = true, Cell3DLocation location = {0});
     static Palette* GetObjectPalette(Palette* pPal, BGRStruct& color, bool remap, Cell3DLocation location, bool isopal = false, int extraLightType = -1);
+    static Palette* GetColoredPalette(Palette* pPal, BGRStruct& color);
     static Palette* GetOverlayPalette(Palette* pPal, Cell3DLocation location, int overlay);
 };
 

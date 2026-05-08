@@ -74,7 +74,7 @@ inline static bool IsCoordInWindow(int X, int Y)
 	return
 		X + Y > VisibleCoordTL.X + VisibleCoordTL.Y - EXTRA_BORDER &&
 		X + Y < VisibleCoordBR.X + VisibleCoordBR.Y + CIsoViewExt::EXTRA_BORDER_BOTTOM &&
-		X > Y + VisibleCoordBR.X - VisibleCoordBR.Y - EXTRA_BORDER &&
+		X > Y + VisibleCoordBR.X - VisibleCoordBR.Y - EXTRA_BORDER - 8 &&
 		X < Y + VisibleCoordTL.X - VisibleCoordTL.Y + EXTRA_BORDER;
 }
 
@@ -83,7 +83,7 @@ inline static bool IsCoordInWindowButOnBottom(int X, int Y)
 	return
 		X + Y > VisibleCoordTL.X + VisibleCoordTL.Y - EXTRA_BORDER &&
 		X + Y > VisibleCoordBR.X + VisibleCoordBR.Y + CIsoViewExt::EXTRA_BORDER_BOTTOM &&
-		X > Y + VisibleCoordBR.X - VisibleCoordBR.Y - EXTRA_BORDER &&
+		X > Y + VisibleCoordBR.X - VisibleCoordBR.Y - EXTRA_BORDER - 8 &&
 		X < Y + VisibleCoordTL.X - VisibleCoordTL.Y + EXTRA_BORDER;
 }
 
@@ -422,7 +422,7 @@ static void DrawTechnoAttachments
 								displayY - pBldData->FullHeight / 2 + mat.OutputY + info.DeltaY, pBldData.get(),
 								NULL, ExtConfigs::InGameDisplay_Cloakable
 								&& pBuilding->Cloakable ? 128 : 255,
-								color, -1, false, isoset.find(info.ID) != isoset.end()); 
+								color, false, isoset.find(info.ID) != isoset.end()); 
 						};
 
 						draw();
@@ -730,10 +730,6 @@ static void DrawMapDriectDraw()
 	auto pMap = CMapDataExt::GetExtension();
 	auto pFinalSunDlg = CFinalSunDlg::Instance();
 
-	if (pThis->g_pDX) {
-		pThis->g_pDX = nullptr;
-	}
-
 	// sanity checks
 	{
 		if (pMap->MapNotLoaded) return;
@@ -916,6 +912,12 @@ static void DrawMapDriectDraw()
 
 	int DrawOffsetX = pThis->ViewPosition.x;
 	int DrawOffsetY = pThis->ViewPosition.y;
+
+	if (ExtConfigs::DirectXRendering)
+	{
+		DrawOffsetX += window.left;
+		DrawOffsetY += window.top;
+	}
 
 	CIsoViewExt::drawOffsetX = DrawOffsetX;
 	CIsoViewExt::drawOffsetY = DrawOffsetY;
@@ -1159,11 +1161,18 @@ static void DrawMapDriectDraw()
 
 				if (subTile.HasValidImage)
 				{
-					Palette* pal = CMapDataExt::TileSetPalettes[tileSet];
-
-					CIsoViewExt::BlitTerrain(pThis, ddsd.lpSurface, window, boundary,
-						x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
-						isCellHidden(cell) ? 128 : 255, nullptr, nullptr, cell->Height, &cellHeightMask, tileSetOri);
+					if (ExtConfigs::DirectXRendering)
+					{
+						CIsoViewExt::DirectXTerrain(x + subTile.XMinusExX, y + subTile.YMinusExY,
+							&subTile, isCellHidden(cell) ? 0.5f : 1.0f);
+					}
+					else
+					{
+						Palette* pal = CMapDataExt::TileSetPalettes[tileSet];
+						CIsoViewExt::BlitTerrain(pThis, ddsd.lpSurface, window, boundary,
+							x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
+							isCellHidden(cell) ? 128 : 255, nullptr, nullptr, cell->Height, & cellHeightMask, tileSetOri);
+					}
 
 					auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
 					cellExt.HasAnim = false;
@@ -1453,13 +1462,16 @@ static void DrawMapDriectDraw()
 					&& (pType->LeaveRubble || ExtConfigs::HideNoRubbleBuilding);
 				auto isTerrain = pType->IsTerrainPalette;
 
-				if (LightingStruct::CurrentLighting == LightingStruct::NoLighting) {
-					pPal = PalettesManager::GetPalette(clips[0]->pPalette, color, !isTerrain && !isRubble);
-				}
-				else {
-					pPal = PalettesManager::GetObjectPalette(clips[0]->pPalette, color, !isTerrain && !isRubble,
-						{ objRender.X,objRender.Y,CMapDataExt::TryGetCellAt(objRender.X, objRender.Y)->Height },
-						false, isRubble || isTerrain ? 4 : 3);
+				if (!ExtConfigs::DirectXRendering)
+				{
+					if (LightingStruct::CurrentLighting == LightingStruct::NoLighting) {
+						pPal = PalettesManager::GetPalette(clips[0]->pPalette, color, !isTerrain && !isRubble);
+					}
+					else {
+						pPal = PalettesManager::GetObjectPalette(clips[0]->pPalette, color, !isTerrain && !isRubble,
+							{ objRender.X,objRender.Y,CMapDataExt::TryGetCellAt(objRender.X, objRender.Y)->Height },
+							false, isRubble || isTerrain ? 4 : 3);
+					}
 				}
 				int partCount = std::min(DataExt.BottomCoords.size(), clips.size());
 				for (int i = 0; i < partCount; ++i)
@@ -1675,7 +1687,7 @@ static void DrawMapDriectDraw()
 						auto& clips = *pType->GetImageData(0, 0);
 						Palette* pPal = nullptr;
 						BGRStruct color;
-						int houseColor = Miscs::GetColorRef(node.House);
+						auto houseColor = Miscs::GetColorRef(node.House);
 						auto pRGB = reinterpret_cast<ColorStruct*>(&houseColor);
 						color.R = pRGB->red;
 						color.G = pRGB->green;
@@ -1785,7 +1797,8 @@ static void DrawMapDriectDraw()
 									pData,
 									pPal,
 									&node,
-									pType
+									pType,
+									houseColor
 									});
 						}
 					}
@@ -1998,13 +2011,21 @@ static void DrawMapDriectDraw()
 						{
 							Palette* pal = CMapDataExt::TileSetPalettes[tileSet];
 
-							CIsoViewExt::BlitTerrain(pThis, ddsd.lpSurface, window, boundary,
-								x1 + subTile.XMinusExX, y1 + subTile.YMinusExY, &subTile, pal,
-								isCellHidden(cell) ? 128 : 255,
-								shadow ? &shadowMask : nullptr,
-								shadow ? &shadowHeightMask : nullptr,
-								cell->Height + (subTile.YMinusExY < 0 ? ((subTile.YMinusExY + 15) / -30) : 0),
-								nullptr, tileSetOri, &objectOverlapMask);
+							if (ExtConfigs::DirectXRendering)
+							{
+								CIsoViewExt::DirectXTerrain(x1 + subTile.XMinusExX, y1 + subTile.YMinusExY,
+									&subTile, isCellHidden(cell) ? 0.5f : 1.0f);
+							}
+							else
+							{
+								CIsoViewExt::BlitTerrain(pThis, ddsd.lpSurface, window, boundary,
+									x1 + subTile.XMinusExX, y1 + subTile.YMinusExY, &subTile, pal,
+									isCellHidden(cell) ? 128 : 255,
+									shadow ? &shadowMask : nullptr,
+									shadow ? &shadowHeightMask : nullptr,
+									cell->Height + (subTile.YMinusExY < 0 ? ((subTile.YMinusExY + 15) / -30) : 0),
+									nullptr, tileSetOri, &objectOverlapMask);
+							}
 
 							if (CMapDataExt::RedrawExtraTileSets.contains(tileSet))
 							{
@@ -2215,9 +2236,21 @@ static void DrawMapDriectDraw()
 			{
 				if (ImageDataClassSafe::IsValidImage(part.pData))
 				{
-					CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
-						part.DrawX, part.DrawY - part.pData->FullHeight / 2,
-						part.pData, part.pPal, isCloakable(pType) ? 128 : 255);
+					if (ExtConfigs::DirectXRendering)
+					{
+						auto isRubble = part.Status== CLoadingExt::GBIN_RUBBLE &&
+							!pType->IsDamagedAsRubble
+							&& (pType->LeaveRubble || ExtConfigs::HideNoRubbleBuilding);
+						auto isTerrain = pType->IsTerrainPalette;
+						CIsoViewExt::DirectXSHPTransparent_Building(part.DrawX, part.DrawY - part.pData->FullHeight / 2,
+							part.pData, part.pPal, isCloakable(pType) ? 0.5f : 1.0f, objRender.HouseColor, isRubble, isTerrain);
+					}
+					else
+					{
+						CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
+							part.DrawX, part.DrawY - part.pData->FullHeight / 2,
+							part.pData, part.pPal, isCloakable(pType) ? 128 : 255);
+					}
 
 					if (part.Part == DataExt.Width - 1)
 					{
@@ -2239,9 +2272,22 @@ static void DrawMapDriectDraw()
 								int y2 = y1;
 								x2 += upgXX;
 								y2 += upgYY;
-								CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
-									x2 - pUpgData->FullWidth / 2, y2 - pUpgData->FullHeight / 2, pUpgData.get(), NULL, isCloakable(pType) ? 128 : 255,
-									objRender.HouseColor, -1, false, pType->IsTerrainPalette);
+
+								if (ExtConfigs::DirectXRendering)
+								{
+									CIsoViewExt::DirectXSHPTransparent_Building(
+										x2 - pUpgData->FullWidth / 2, 
+										y2 - pUpgData->FullHeight / 2, 
+										pUpgData.get(), NULL, 
+										isCloakable(pType) ? 0.5f : 1.0f,
+										objRender.HouseColor, false, pType->IsTerrainPalette);
+								}
+								else
+								{
+									CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
+										x2 - pUpgData->FullWidth / 2, y2 - pUpgData->FullHeight / 2, pUpgData.get(), NULL, isCloakable(pType) ? 128 : 255,
+										objRender.HouseColor, false, pType->IsTerrainPalette);
+								}
 							}
 						}
 					}
@@ -2292,9 +2338,19 @@ static void DrawMapDriectDraw()
 							auto pData = CLoadingExt::BindClippedImages(clips);
 							if (ImageDataClassSafe::IsValidImage(pData.get()))
 							{
-								CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
-									x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData.get(), NULL, isCloakable(pType) ? 128 : 255,
-									objRender.HouseColor, -1, false, pType->IsTerrainPalette);
+								if (ExtConfigs::DirectXRendering)
+								{
+									CIsoViewExt::DirectXSHPTransparent_Building(
+										x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData.get(), 
+										NULL, isCloakable(pType) ? 0.5f : 1.0f,
+										objRender.HouseColor, false, pType->IsTerrainPalette);
+								}
+								else
+								{
+									CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
+										x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData.get(), NULL, isCloakable(pType) ? 128 : 255,
+										objRender.HouseColor, false, pType->IsTerrainPalette);
+								}
 							}
 						};
 
@@ -2328,7 +2384,6 @@ static void DrawMapDriectDraw()
 			CIsoView::MapCoord2ScreenCoord(x1, y1);
 			x1 -= DrawOffsetX;
 			y1 -= DrawOffsetY;
-			auto color = Miscs::GetColorRef(part.Data->House);
 
 			bool strOverlap = false;
 			if (!DataExt.IsCustomFoundation())
@@ -2378,13 +2433,13 @@ static void DrawMapDriectDraw()
 			{
 				if (DataExt.IsCustomFoundation())
 				{
-					pThis->DrawLockedLines(*DataExt.LinesToDraw, x1, y1, color, true, false, &ddsd);
-					pThis->DrawLockedLines(*DataExt.LinesToDraw, x1 + 1, y1, color, true, false, &ddsd);
+					pThis->DrawLockedLines(*DataExt.LinesToDraw, x1, y1, part.HouseColor, true, false, &ddsd);
+					pThis->DrawLockedLines(*DataExt.LinesToDraw, x1 + 1, y1, part.HouseColor, true, false, &ddsd);
 				}
 				else
 				{
-					pThis->DrawLockedCellOutline(x1, y1, DataExt.Width, DataExt.Height, color, true, false, &ddsd);
-					pThis->DrawLockedCellOutline(x1 + 1, y1, DataExt.Width, DataExt.Height, color, true, false, &ddsd);
+					pThis->DrawLockedCellOutline(x1, y1, DataExt.Width, DataExt.Height, part.HouseColor, true, false, &ddsd);
+					pThis->DrawLockedCellOutline(x1 + 1, y1, DataExt.Width, DataExt.Height, part.HouseColor, true, false, &ddsd);
 				}
 			}
 
@@ -2392,8 +2447,17 @@ static void DrawMapDriectDraw()
 			{
 				if (ImageDataClassSafe::IsValidImage(part.pData))
 				{
-					CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
-						part.DrawX, part.DrawY - part.pData->FullHeight / 2, part.pData, part.pPal, 128);
+					if (ExtConfigs::DirectXRendering)
+					{
+						CIsoViewExt::DirectXSHPTransparent_Building(
+							part.DrawX, part.DrawY - part.pData->FullHeight / 2,
+							part.pData, part.pPal, 0.5f, part.HouseColor);
+					}
+					else
+					{
+						CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
+							part.DrawX, part.DrawY - part.pData->FullHeight / 2, part.pData, part.pPal, 128);
+					}
 				}
 				if (firstDraw && CIsoViewExt::DrawVeterancy)
 				{
@@ -3237,6 +3301,12 @@ static void DrawMapDriectDraw()
 
 	pThis->ViewPosition = ViewPosition;
 
+	if (ExtConfigs::DirectXRendering)
+	{
+		pThis->g_pDX->Render();
+		return;
+	}
+
 	if (CIsoViewExt::RenderingMap) return;
 	CRect dr = CIsoViewExt::GetVisibleIsoViewRect();
 	if (CIsoViewExt::ScaledFactor == 1.0) {
@@ -3353,9 +3423,9 @@ DEFINE_HOOK(46DE00, CIsoView_Draw, 7)
 	auto start = std::chrono::high_resolution_clock::now();
 	static float smoothedFps = (float)CFinalSunAppExt::ScreenRefreshRate;
 
-	if (ExtConfigs::DirectXRendering)
-		DrawMapDriect3D11();
-	else
+	//if (ExtConfigs::DirectXRendering)
+	//	DrawMapDriect3D11();
+	//else
 		DrawMapDriectDraw();
 
 	auto end = std::chrono::high_resolution_clock::now();

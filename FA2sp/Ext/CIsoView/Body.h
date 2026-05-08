@@ -181,23 +181,24 @@ public:
         int x, int y, int width = -1, int height = -1, BYTE alpha = 255);
     static void BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURFACE7 surface, DDSURFACEDESC2* pDestDesc,
         DDSURFACEDESC2& srcDesc, DDCOLORKEY& srcColorKey, int x, int y, int width = -1, int height = -1, BYTE alpha = 255);
-    static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1);
     static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1);
     static bool SaveImageDataToBMP(ImageDataClassSafe* pd, const char* outputPath);
-    static void BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
-        const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, 
-        BYTE alpha = 255, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false);
     static void BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL, 
         BYTE alpha = 255, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false,
         std::vector<char>* objectOverlapMask = nullptr);
     static void BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
-        BYTE alpha = 255, COLORREF houseColor = -1, COLORREF addOnColor = -1, bool isRubble = false, bool isTerrain = false);
+        BYTE alpha = 255, COLORREF houseColor = -1, bool isRubble = false, bool isTerrain = false);
+    static void DirectXSHPTransparent_Building(int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
+        float alpha = 1.0f, COLORREF houseColor = -1, bool isRubble = false, bool isTerrain = false);
     static void BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd);
     static void BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha = 255,
+        std::vector<byte>* mask = nullptr, std::vector<byte>* heightMask = nullptr, byte height = 0,
+        std::vector<int>* cellHeightMask = nullptr, int tileSet = -1, std::vector<char>* objectOverlapMask = nullptr);
+    static void DirectXTerrain(int x, int y, CTileBlockClass* subTile, float alpha = 1.0f,
         std::vector<byte>* mask = nullptr, std::vector<byte>* heightMask = nullptr, byte height = 0,
         std::vector<int>* cellHeightMask = nullptr, int tileSet = -1, std::vector<char>* objectOverlapMask = nullptr);
     static void BlitCellHeightMask(std::vector<int>& cellHeightMask, const RECT* window,

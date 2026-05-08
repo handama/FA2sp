@@ -129,6 +129,9 @@ bool CMapDataExt::IsNewMap;
 bool CMapDataExt::SkipUpdateMinimap = false;
 bool CMapDataExt::IsImportingMap = false;
 bool CMapDataExt::Init_OpenMinimap = false;
+float CMapDataExt::ExtraUnitLight = 0.2f;
+float CMapDataExt::ExtraInfantryLight = 0.2f;
+float CMapDataExt::ExtraAircraftLight = 0.2f;
 std::vector<CUnitDataFS> CMapDataExt::UnitDatasExt;
 std::vector<CAircraftDataFS> CMapDataExt::AircraftDatasExt;
 std::vector<CBuildingDataFS> CMapDataExt::BuildingDatasExt;
@@ -4804,4 +4807,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	}
 
 	GridObjectViewer::Instance.UpdateControls();
+
+	ExtraUnitLight = Variables::RulesMap.GetSingle("AudioVisual", "ExtraUnitLight", 0.2f);
+	ExtraInfantryLight = Variables::RulesMap.GetSingle("AudioVisual", "ExtraInfantryLight", 0.2f);
+	ExtraAircraftLight = Variables::RulesMap.GetSingle("AudioVisual", "ExtraAircraftLight", 0.2f);
 }

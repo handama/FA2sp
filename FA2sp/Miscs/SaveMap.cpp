@@ -496,8 +496,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
 
                             auto colorL = tiledata[tileIndex].TileBlockDatas[tileSubIndex].RadarColorLeft;
                             auto colorR = tiledata[tileIndex].TileBlockDatas[tileSubIndex].RadarColorRight;
-                            RGBClass2 color;
-                            //RadarColorLeft is BGR
+                            RGBClass color;
                             color.R = colorL.B * (14 - cell.Height) / 14 + colorR.B * cell.Height / 14;
                             color.G = colorL.G * (14 - cell.Height) / 14 + colorR.G * cell.Height / 14;
                             color.B = colorL.R * (14 - cell.Height) / 14 + colorR.R * cell.Height / 14;

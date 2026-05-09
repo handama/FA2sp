@@ -11,6 +11,7 @@
 #include "../Ext/CMapData/Body.h"
 #include "../Ext/CLoading/Body.h"
 #include "MultiSelection.h"
+#include "../Ext/CIsoView/RendererTypes.h"
 
 const LightingStruct LightingStruct::NoLighting = { -1,-1,-1,-1,-1,-1 };
 LightingStruct LightingStruct::CurrentLighting;
@@ -696,6 +697,28 @@ ColorMults ColorMults::GetObjectColorMult(bool remap, Cell3DLocation location, b
             ret.BlueTint = std::min(amb * ambLevel, 1.0f);
         }
     }
+
+    ret.RedTint = std::clamp(ret.RedTint * AmbientMult, 0.0f, 2.0f);
+    ret.GreenTint = std::clamp(ret.GreenTint * AmbientMult, 0.0f, 2.0f);
+    ret.BlueTint = std::clamp(ret.BlueTint * AmbientMult, 0.0f, 2.0f);
+
+    return ret;
+}
+
+ColorMults ColorMults::GetOverlayColorMult(Cell3DLocation location, Renderer::OverlayType* pType)
+{
+    auto& lighting = LightingStruct::CurrentLighting;
+    if (LightingStruct::CurrentLighting == LightingStruct::NoLighting || CMapDataExt::IsOre(pType->OverlayIndex))
+        return { 1.0f,1.0f,1.0f };
+
+    ColorMults ret{ 1.0f,1.0f,1.0f };
+    float AmbientMult = 1.0f;
+    const auto lamp = LightingSourceTint::ApplyLamp(location.X, location.Y);
+
+    AmbientMult = lighting.Ambient + lamp.AmbientTint - lighting.Ground + lighting.Level * location.Height;
+    ret.RedTint = lighting.Red + lamp.RedTint;
+    ret.GreenTint = lighting.Green + lamp.GreenTint;
+    ret.BlueTint = lighting.Blue + lamp.BlueTint;
 
     ret.RedTint = std::clamp(ret.RedTint * AmbientMult, 0.0f, 2.0f);
     ret.GreenTint = std::clamp(ret.GreenTint * AmbientMult, 0.0f, 2.0f);

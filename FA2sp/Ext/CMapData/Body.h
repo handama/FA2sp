@@ -938,6 +938,7 @@ public:
     static std::map<int, BuildingRenderData> PlaceStructure_OldData;
     static FMap<std::pair<byte, byte>> SmudgeSizes;
 
+    static std::map<ExtraImageInfo, POINT> TileBlockExtraOffsets;
     static std::map<int, std::vector<CustomTile>> CustomTiles;
     static FMap<COLORREF> CustomWaypointColors;
     static FMap<COLORREF> CustomCelltagColors;

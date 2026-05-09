@@ -3,6 +3,7 @@
 #include <CMapData.h>
 #include "../CMapData/Body.h"
 #include "../CLoading/Body.h"
+#include "../CIsoView/DirectXCore.h"
 
 DEFINE_HOOK(45E880, CIsoView_MapCoord2ScreenCoord_Height, 5)
 {
@@ -25,34 +26,43 @@ DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 { \
 	if (CIsoViewExt::RenderingMap) return return_addr; \
 	auto pThis = CIsoViewExt::GetExtension();\
-	CRect dr = CIsoViewExt::GetVisibleIsoViewRect();\
-	if (special_draw >= 1 || CIsoViewExt::ScaledFactor == 1.0) {\
-		if (special_draw > -1){\
-			CIsoViewExt::SpecialDraw(CIsoViewExt::GetBackBuffer(), special_draw);\
-		}\
-		if (special_draw != 3)\
-			CIsoViewExt::ReduceBrightness(CIsoViewExt::GetBackBuffer(), dr);\
-		if (ExtConfigs::SecondScreenSupport) {\
-			CRect drFixed = dr; \
-			pThis->BltToWindow(pThis->m_hWnd,  CIsoViewExt::GetBackBuffer(), &dr, &drFixed);\
-		}\
-		else\
-			pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::GetBackBuffer(), &dr, DDBLT_WAIT, 0);\
+	if (ExtConfigs::DirectXRendering)\
+	{\
+		pThis->SpecialDrawDirectX(special_draw);\
+		pThis->g_pDX->RenderScreenSpaceOnly();\
 		return return_addr; \
 	}\
-	CRect backDr;\
-	backDr = dr;\
-	backDr.right += backDr.Width() * (CIsoViewExt::ScaledFactor - 1.0);\
-	backDr.bottom += backDr.Height() * (CIsoViewExt::ScaledFactor - 1.0);\
-	CIsoViewExt::StretchCopySurfaceBilinear(pThis->lpDDBackBufferSurface, backDr,\
-		CIsoViewExt::lpDDBackBufferZoomSurface, dr);\
-	CIsoViewExt::SpecialDraw(CIsoViewExt::lpDDBackBufferZoomSurface, special_draw);\
-	CIsoViewExt::ReduceBrightness(CIsoViewExt::lpDDBackBufferZoomSurface, dr);\
-	if (ExtConfigs::SecondScreenSupport)\
-		pThis->BltToWindow(pThis->m_hWnd,  CIsoViewExt::lpDDBackBufferZoomSurface, &dr, &dr);\
 	else\
-		pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::lpDDBackBufferZoomSurface, &dr, DDBLT_WAIT, 0);\
-	return return_addr; \
+	{\
+		CRect dr = CIsoViewExt::GetVisibleIsoViewRect();\
+		if (special_draw >= 1 || CIsoViewExt::ScaledFactor == 1.0) {\
+			if (special_draw > -1){\
+				CIsoViewExt::SpecialDraw(CIsoViewExt::GetBackBuffer(), special_draw);\
+			}\
+			if (special_draw != 3)\
+				CIsoViewExt::ReduceBrightness(CIsoViewExt::GetBackBuffer(), dr);\
+			if (ExtConfigs::SecondScreenSupport) {\
+				CRect drFixed = dr; \
+				pThis->BltToWindow(pThis->m_hWnd,  CIsoViewExt::GetBackBuffer(), &dr, &drFixed);\
+			}\
+			else\
+				pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::GetBackBuffer(), &dr, DDBLT_WAIT, 0);\
+			return return_addr; \
+		}\
+		CRect backDr;\
+		backDr = dr;\
+		backDr.right += backDr.Width() * (CIsoViewExt::ScaledFactor - 1.0);\
+		backDr.bottom += backDr.Height() * (CIsoViewExt::ScaledFactor - 1.0);\
+		CIsoViewExt::StretchCopySurfaceBilinear(pThis->lpDDBackBufferSurface, backDr,\
+			CIsoViewExt::lpDDBackBufferZoomSurface, dr);\
+		CIsoViewExt::SpecialDraw(CIsoViewExt::lpDDBackBufferZoomSurface, special_draw);\
+		CIsoViewExt::ReduceBrightness(CIsoViewExt::lpDDBackBufferZoomSurface, dr);\
+		if (ExtConfigs::SecondScreenSupport)\
+			pThis->BltToWindow(pThis->m_hWnd,  CIsoViewExt::lpDDBackBufferZoomSurface, &dr, &dr);\
+		else\
+			pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::lpDDBackBufferZoomSurface, &dr, DDBLT_WAIT, 0);\
+		return return_addr; \
+	}\
 }
 
 BACK_BUFFER_TO_PRIMARY(459DEB, CIsoView_OnMouseMove_BackBufferToPrimary_Copy, 5, 0x459FE7, 2);
@@ -306,16 +316,6 @@ DEFINE_HOOK(456DA0, CIsoView_OnMouseMove_FixPos, 8)
 		R->Stack(0xC, R->Stack<int>(0xC) - GetSystemMetrics(SM_YVIRTUALSCREEN));
 	}
 	CIsoViewExt::OnMouseMove_CalledFromOnLButtonDown = false;
-	return 0;
-}
-
-DEFINE_HOOK(4763B0, CIsoView_OnRButtonDown_FixPos, 8)
-{
-	if (ExtConfigs::SecondScreenSupport)
-	{
-		R->Stack(0x8, R->Stack<int>(0x8) - GetSystemMetrics(SM_XVIRTUALSCREEN));
-		R->Stack(0xC, R->Stack<int>(0xC) - GetSystemMetrics(SM_YVIRTUALSCREEN));
-	}
 	return 0;
 }
 

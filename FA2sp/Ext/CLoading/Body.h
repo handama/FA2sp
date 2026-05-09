@@ -139,7 +139,7 @@ public:
 	static bool LoadShpToBitmap(ImageDataClassSafe* pData, CBitmap& outBitmap);
 	static bool LoadShpToBitmap(ImageDataClass* pData, CBitmap& outBitmap);
 	static void LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** ppBuffer, const ShapeHeader& header);
-	static void LoadBitMap(FString ImageID, const CBitmap& cBitmap);
+	static void LoadBitMap(FString ImageID, CBitmap& cBitmap);
 	static bool ReplaceBitmapColor(CBitmap& bitmap,COLORREF oldColor,COLORREF newColor);
 	void SetImageDataSafe(unsigned char* pBuffer, FString NameInDict,
 		int FullWidth, int FullHeight, Palette* pPal, bool clip = true);
@@ -295,7 +295,7 @@ public:
 	static bool SaveCBitmapToFile(CBitmap* pBitmap, const FString& filePath, COLORREF bgColor);
 	static bool LoadBMPToCBitmap(const FString& filePath, CBitmap& outBitmap);
 	static std::unique_ptr<ImageDataClassSafe> BindClippedImages(const std::vector<std::unique_ptr<ImageDataClassSafe>>& imgs);
-	static std::map<WORD, BYTE> OverlayDataLimits;
+	static std::unordered_map<WORD, WORD> OverlayDataLimits;
 
 	static FHashMap<int> AvailableFacings;
 	static FHashMap<int> AlphaImageFacings;
@@ -338,8 +338,8 @@ public:
 	static FHashMap<std::unique_ptr<ImageDataClassSafe>> ImageDataMap;
 	static FHashMap<std::vector<std::unique_ptr<ImageDataClassSafe>>> BuildingClipsImageDataMap;
 	static FHashMap<std::unique_ptr<ImageDataClassSurface>> SurfaceImageDataMap;
-	static std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CustomFlagMap;
-	static std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CustomCelltagMap;
+	static std::unordered_map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CustomFlagMap;
+	static std::unordered_map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CustomCelltagMap;
 	static std::vector<std::unique_ptr<ImageDataClassSafe>> DamageFires;
 	static unsigned int RandomFireSeed;
 

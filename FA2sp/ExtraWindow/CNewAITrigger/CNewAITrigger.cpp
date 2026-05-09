@@ -632,7 +632,7 @@ void CNewAITrigger::OnDropdownTeam()
 
 void CNewAITrigger::OnSelchangeCountry(bool edited)
 {
-    if (SelectedAITriggerIndex < 0 || SendMessage(hCountry, LB_GETCURSEL, NULL, NULL) < 0 || !CurrentAITrigger)
+    if (SelectedAITriggerIndex < 0 || !CurrentAITrigger)
         return;
 
     FString text = vcbCountry.GetSelectedText(edited);
@@ -651,7 +651,7 @@ void CNewAITrigger::OnSelchangeCountry(bool edited)
 
 void CNewAITrigger::OnSelchangeSide(bool edited)
 {
-    if (SelectedAITriggerIndex < 0 || SendMessage(hSide, LB_GETCURSEL, NULL, NULL) < 0 || !CurrentAITrigger)
+    if (SelectedAITriggerIndex < 0 || !CurrentAITrigger)
         return;
     int curSel = SendMessage(hSide, CB_GETCURSEL, NULL, NULL);
 
@@ -675,7 +675,7 @@ void CNewAITrigger::OnSelchangeSide(bool edited)
         }
     }
 
-    if (!text)
+    if (text.empty())
         return;
 
     FString::TrimIndex(text);
@@ -690,7 +690,7 @@ void CNewAITrigger::OnSelchangeSide(bool edited)
 
 void CNewAITrigger::OnSelchangeConditionType()
 {
-    if (SelectedAITriggerIndex < 0 || SendMessage(hConditionType, LB_GETCURSEL, NULL, NULL) < 0 || !CurrentAITrigger)
+    if (SelectedAITriggerIndex < 0 || !CurrentAITrigger)
         return;
     int curSel = SendMessage(hConditionType, CB_GETCURSEL, NULL, NULL);
 
@@ -702,7 +702,7 @@ void CNewAITrigger::OnSelchangeConditionType()
         SendMessage(hConditionType, CB_GETLBTEXT, curSel, (LPARAM)buffer);
         text = buffer;
     }
-    if (!text)
+    if (text.empty())
         return;
 
     FString::TrimIndex(text);
@@ -717,7 +717,7 @@ void CNewAITrigger::OnSelchangeConditionType()
 
 void CNewAITrigger::OnSelchangeComparator()
 {
-    if (SelectedAITriggerIndex < 0 || SendMessage(hComparator, LB_GETCURSEL, NULL, NULL) < 0 || !CurrentAITrigger)
+    if (SelectedAITriggerIndex < 0 || !CurrentAITrigger)
         return;
     int curSel = SendMessage(hComparator, CB_GETCURSEL, NULL, NULL);
 
@@ -729,7 +729,7 @@ void CNewAITrigger::OnSelchangeComparator()
         SendMessage(hComparator, CB_GETLBTEXT, curSel, (LPARAM)buffer);
         text = buffer;
     }
-    if (!text)
+    if (text.empty())
         return;
 
     FString::TrimIndex(text);
@@ -744,7 +744,7 @@ void CNewAITrigger::OnSelchangeComparator()
 
 void CNewAITrigger::OnSelchangeComparisonObject(bool edited)
 {
-    if (SelectedAITriggerIndex < 0 || SendMessage(hComparisonObject, LB_GETCURSEL, NULL, NULL) < 0 || !CurrentAITrigger)
+    if (SelectedAITriggerIndex < 0 || !CurrentAITrigger)
         return;
 
     FString text = vcbComparisonObject.GetSelectedText(edited);
@@ -765,7 +765,7 @@ void CNewAITrigger::OnSelchangeTeam(int index, bool edited)
 {
     auto& hwnd = index == 1 ? hTeam2 : hTeam1;
     auto& vcb = index == 1 ? vcbTeam[1] : vcbTeam[0];
-    if (SelectedAITriggerIndex < 0 || SendMessage(hwnd, LB_GETCURSEL, NULL, NULL) < 0 || !CurrentAITrigger)
+    if (SelectedAITriggerIndex < 0 || !CurrentAITrigger)
         return;
     int curSel = SendMessage(hwnd, CB_GETCURSEL, NULL, NULL);
 

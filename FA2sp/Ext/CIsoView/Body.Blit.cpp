@@ -14,11 +14,14 @@
 #include "../../Miscs/Palettes.h"
 #include "../CLoading/Body.h"
 #include "DirectXCore.h"
+#include "RendererTypes.h"
 #include <immintrin.h>
 #include <mutex>
 #include "../../Miscs/TheaterInfo.h"
 #include <stack>
 #include <array>
+
+constexpr float MULTI_SEL_OPACITY = 0.333f;
 
 static byte oreOpacityTable[13] =
 {
@@ -719,7 +722,7 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
     }
 }
 
-void CIsoViewExt::DirectXSHPTransparent_Building(int x, int y, ImageDataClassSafe* pd, 
+void CIsoViewExt::DirectXBuilding(int x, int y, ImageDataClassSafe* pd, 
     Palette* newPal, float alpha, COLORREF houseColor, bool isRubble, bool isTerrain)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {
@@ -728,7 +731,6 @@ void CIsoViewExt::DirectXSHPTransparent_Building(int x, int y, ImageDataClassSaf
 
     constexpr int X_OFFSET = 31;
     constexpr int Y_OFFSET = -29;
-    constexpr int BPP = 4;
 
     x += X_OFFSET;
     y += Y_OFFSET;
@@ -745,6 +747,156 @@ void CIsoViewExt::DirectXSHPTransparent_Building(int x, int y, ImageDataClassSaf
     params.SetPosition(x, y)
         .SetOpacity(alpha)
         .SetColorMul(colorMult);
+    g_pDX->DrawTexture(pTexture, params);
+}
+
+void CIsoViewExt::DirectXNormal(int x, int y, ImageDataClassSafe* pd, 
+    Palette* newPal, float alpha, COLORREF houseColor, int extraLightType, bool remap)
+{
+    if (!ImageDataClassSafe::IsVisibleImage(pd)) {
+        return;
+    }
+
+    constexpr int X_OFFSET = 31;
+    constexpr int Y_OFFSET = -29;
+
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
+    if (!newPal) [[likely]] {
+        newPal = pd->pPalette;
+    }
+
+    BGRStruct color = houseColor;
+
+    if (extraLightType > -100 && remap) {
+        newPal = PalettesManager::GetColoredPalette(newPal, color);
+    }
+
+    auto colorMult = ColorMults::GetObjectColorMult(remap, CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
+    auto pTexture = pd->GetColoredTexture(newPal, color);
+
+    DrawParams params;
+    params.SetPosition(x, y)
+        .SetOpacity(alpha)
+        .SetColorMul(colorMult);
+    g_pDX->DrawTexture(pTexture, params);
+}
+
+void CIsoViewExt::DirectXBitmap(int x, int y, FString_view name, float alpha, bool isScreenSpace)
+{
+    constexpr int X_OFFSET = 1;
+    constexpr int Y_OFFSET = -29;
+    if (auto pTexture = g_pDX->GetBitmapTexture(name))
+    {
+        DrawParams params;
+        params.SetPosition(
+            x + X_OFFSET - pTexture->sourceView.FullWidth / 2,
+            y + Y_OFFSET - pTexture->sourceView.FullHeight / 2)
+            .SetOpacity(alpha);
+        if (isScreenSpace)
+            params.SetScreenSpace();
+        g_pDX->DrawTexture(pTexture, params);
+    }
+}
+
+void CIsoViewExt::DirectXAlphaImage(int x, int y, ImageDataClassSafe* pd)
+{
+    if (!ImageDataClassSafe::IsVisibleImage(pd)) {
+        return;
+    }
+
+    constexpr int X_OFFSET = 31;
+    constexpr int Y_OFFSET = -29;
+
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
+    auto pTexture = pd->GetTexture(nullptr, true);
+
+    g_pDX->DrawTexture(pTexture, x, y);
+}
+
+void CIsoViewExt::DirectXShadow(int x, int y, ImageDataClassSafe* pd)
+{
+    if (!ImageDataClassSafe::IsVisibleImage(pd)) {
+        return;
+    }
+
+    constexpr int X_OFFSET = 31;
+    constexpr int Y_OFFSET = -29;
+
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
+    auto pTexture = pd->GetTexture();
+
+    DrawParams params;
+    params.SetPosition(x, y)
+        .SetOpacity(0.5f);
+    g_pDX->DrawTexture(pTexture, params);
+}
+
+void CIsoViewExt::DirectXOverlay(int x, int y, ImageDataClassSafe* pd, Renderer::OverlayType* pType, byte nData)
+{
+    if (!ImageDataClassSafe::IsVisibleImage(pd)) {
+        return;
+    }
+
+    constexpr int X_OFFSET = 31;
+    constexpr int Y_OFFSET = -29;
+
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
+    RGBClass oreColor{};
+    byte oreOpacity = 0;
+
+    bool isEmphasizingOre = false;
+
+    if (RenderingMap && RenderEmphasizeOres) {
+        int overlay = pType->OverlayIndex;
+        if (CMapDataExt::IsOre(pType->OverlayIndex)) {
+            isEmphasizingOre = true;
+            oreColor = pType->TypeData.RadarColor;
+            oreOpacity = oreOpacityTable[std::min(nData, (byte)13)];
+        }
+    }
+
+    auto colorMult = ColorMults::GetOverlayColorMult(CIsoViewExt::CurrentDrawCellLocation, pType);
+
+    Palette* newPal = pd->pPalette;
+    BGRStruct color;
+    if (pType->TypeData.Wall && ExtConfigs::InGameDisplay_RemapableOverlay)
+    {
+        int pos = CMapData::Instance->GetCoordIndex(
+            CIsoViewExt::CurrentDrawCellLocation.X, 
+            CIsoViewExt::CurrentDrawCellLocation.Y);
+
+        if (pos < CMapData::Instance->CellDataCount)
+        {
+            auto& cellExt = CMapDataExt::CellDataExts[pos];
+            color = cellExt.RemapableColor;
+            newPal = PalettesManager::GetColoredPalette(newPal, color);
+        }    
+    }
+
+    const bool doMultiSel = (!RenderingMap || (RenderingMap && RenderCurrentLayers)) 
+        && MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
+
+    auto pTexture = newPal == pd->pPalette ? pd->GetTexture(): pd->GetColoredTexture(newPal, color);
+
+    DrawParams params;
+    params.SetPosition(x, y)
+        .SetColorMul(colorMult);
+
+    if (isEmphasizingOre)
+        params.SetColorMix(oreColor, oreOpacity / 255.0f);
+    if (doMultiSel) {
+        const RGBClass* selColor = doMultiSel ? reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor) : nullptr;
+        params.SetColorMix(*selColor, MULTI_SEL_OPACITY);
+    }
+
     g_pDX->DrawTexture(pTexture, params);
 }
 
@@ -1330,11 +1482,11 @@ void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile,
         .SetOpacity(alpha)
         .SetColorMul(colorMult);
     if (doMultiSel)
-        params.SetColorMix(selColor->R / 255.0f, selColor->G / 255.0f, selColor->B / 255.0f, 0.333f);
+        params.SetColorMix(*selColor, MULTI_SEL_OPACITY);
     if (doPlayer)
-        params.SetColorMix(playerColor->R / 255.0f, playerColor->G / 255.0f, playerColor->B / 255.0f, playerOpacity / 255.0f);
+        params.SetColorMix(*playerColor, playerOpacity / 255.0f);
     if (doOre)
-        params.SetColorMix(oreColor.R / 255.0f, oreColor.G / 255.0f, oreColor.B / 255.0f, oreOpacity / 255.0f);
+        params.SetColorMix(oreColor, oreOpacity / 255.0f);
     g_pDX->DrawTexture(dataExt.pTexture, params);
 
     //if (doCellHeight)

@@ -30,6 +30,7 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 		0x9c59509a, 0x39bd, 0x11d1,
 		{ 0x8c, 0x4a, 0x00, 0xc0, 0x4f, 0xd9, 0x30, 0xc5 }
 	};
+
 	static constexpr GUID _IID_IDirectDraw7 =
 	{
 		0x15e65ec0, 0x3b9c, 0x11d2,
@@ -49,15 +50,23 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 	);
 
 	HRESULT hr = S_OK;
-	HRESULT(WINAPI * *ppDirectDrawCreate)(GUID*, LPDIRECTDRAW*, IUnknown*) = decltype(ppDirectDrawCreate)(0x591030);
 
-	hr = (*ppDirectDrawCreate)(ExtConfigs::DDrawEmulation ? pIID_DirectDrawEmulation : nullptr, &pIsoView->lpDirectDraw, nullptr);
+	HRESULT(WINAPI * *ppDirectDrawCreate)(GUID*, LPDIRECTDRAW*, IUnknown*)
+		= decltype(ppDirectDrawCreate)(0x591030);
+
+	hr = (*ppDirectDrawCreate)(
+		ExtConfigs::DDrawEmulation ? pIID_DirectDrawEmulation : nullptr,
+		&pIsoView->lpDirectDraw,
+		nullptr
+		);
+
 	if (FAILED(hr))
 	{
 		pThis->ShowWindow(SW_HIDE);
 		pThis->MessageBox("DirectDraw could not be initialized! Quitting...");
 		exit(-1);
 	}
+
 	Logger::Raw("DirectDrawCreate() successful\n");
 
 	pThis->CPCProgress.SetPos(1);
@@ -65,11 +74,20 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 
 	Logger::Raw("Now querying the DirectX 7 or 6 interface\n");
 
-	hr = pIsoView->lpDirectDraw->QueryInterface(_IID_IDirectDraw7, reinterpret_cast<LPVOID*>(&pIsoView->lpDD7));
+	hr = pIsoView->lpDirectDraw->QueryInterface(
+		_IID_IDirectDraw7,
+		reinterpret_cast<LPVOID*>(&pIsoView->lpDD7)
+	);
+
 	if (FAILED(hr))
 	{
 		Logger::Raw("QueryInterface() failed -> Using DirectX 6.0\n");
-		hr = pIsoView->lpDirectDraw->QueryInterface(_IID_IDirectDraw4, reinterpret_cast<LPVOID*>(&pIsoView->lpDD7));
+
+		hr = pIsoView->lpDirectDraw->QueryInterface(
+			_IID_IDirectDraw4,
+			reinterpret_cast<LPVOID*>(&pIsoView->lpDD7)
+		);
+
 		if (FAILED(hr))
 		{
 			pThis->ShowWindow(SW_HIDE);
@@ -83,10 +101,15 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 		"Now setting cooperative level\n"
 	);
 
-	hr = pIsoView->lpDD7->SetCooperativeLevel(pIsoView->m_hWnd, DDSCL_NOWINDOWCHANGES | DDSCL_NORMAL);
+	hr = pIsoView->lpDD7->SetCooperativeLevel(
+		pIsoView->m_hWnd,
+		DDSCL_NOWINDOWCHANGES | DDSCL_NORMAL
+	);
+
 	if (FAILED(hr))
 	{
 		Logger::Raw("SetCooperativeLevel() failed\n");
+
 		pThis->ShowWindow(SW_HIDE);
 		pThis->MessageBox("Cooperative Level could not be set!Quitting...");
 		exit(-2);
@@ -102,16 +125,40 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 
 	DDSURFACEDESC2 dds = { 0 };
 	dds.dwSize = sizeof(dds);
-	// In system memory to speedup the lock & unlock operations
-	dds.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
-	if (!ExtConfigs::DDrawInVideoMem)
-		dds.ddsCaps.dwCaps |= DDSCAPS_SYSTEMMEMORY;
-	dds.dwFlags = DDSD_CAPS;
+
+	if (ExtConfigs::DirectXRendering)
+	{
+		dds.dwFlags =
+			DDSD_CAPS |
+			DDSD_WIDTH |
+			DDSD_HEIGHT;
+
+		dds.ddsCaps.dwCaps =
+			DDSCAPS_OFFSCREENPLAIN |
+			DDSCAPS_SYSTEMMEMORY;
+
+		dds.dwWidth = 10;
+		dds.dwHeight = 10;
+	}
+	else
+	{
+		dds.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
+
+		if (!ExtConfigs::DDrawInVideoMem)
+			dds.ddsCaps.dwCaps |= DDSCAPS_SYSTEMMEMORY;
+
+		dds.dwFlags = DDSD_CAPS;
+	}
 
 	// Try 50 times at max!
 	for (int i = 0; i <= 50; ++i)
 	{
-		hr = pIsoView->lpDD7->CreateSurface(&dds, &pIsoView->lpDDPrimarySurface, nullptr);
+		hr = pIsoView->lpDD7->CreateSurface(
+			&dds,
+			&pIsoView->lpDDPrimarySurface,
+			nullptr
+		);
+
 		Logger::Raw("Return code: 0x%x\n", (int)hr);
 
 		if (FAILED(hr))
@@ -119,32 +166,44 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 			if (i == 50)
 			{
 				Logger::Raw("CreateSurface() failed\n");
+
 				pThis->ShowWindow(SW_HIDE);
-				pThis->MessageBox("Primary surface could not be initialized! Quitting...");
+
+				pThis->MessageBox(
+					"Primary surface could not be initialized! Quitting..."
+				);
+
 				pIsoView->lpDD7->Release();
 				pIsoView->lpDD7 = nullptr;
+
 				exit(-3);
 			}
+
 			Sleep(50);
 		}
 		else
+		{
 			break;
+		}
 	}
 
 	DDPIXELFORMAT ddpf = { 0 };
 	ddpf.dwSize = sizeof(ddpf);
+
 	pIsoView->lpDDPrimarySurface->GetPixelFormat(&ddpf);
+
 	if (!ddpf.dwBBitMask || !ddpf.dwRBitMask || !ddpf.dwGBitMask)
 	{
 		pThis->ShowWindow(SW_HIDE);
+
 		pThis->MessageBox(
-			"You must not use a palette color mode like 8 bit in order to run FinalAlert 2(tm). Please check readme.txt"
+			"You must not use a palette color mode like 8 bit in order to run FinalAlert 2(tm). Please check readme.txt",
 			"Error"
 		);
 	}
 
-	// Set PixelSizeInBytes
-	*reinterpret_cast<DWORD*>(0x72A8C0) = (ddpf.dwRGBBitCount + 7) >> 3;
+	*reinterpret_cast<DWORD*>(0x72A8C0) =
+		(ddpf.dwRGBBitCount + 7) >> 3;
 
 	Logger::Raw(
 		"CreateSurface() successful\n"
@@ -152,32 +211,34 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 	);
 
 	ZeroMemory(&dds, sizeof(dds));
-	dds.dwSize = 0x7C;
-	dds.dwFlags = DDSD_HEIGHT | DDSD_WIDTH;
+	dds.dwSize = sizeof(dds);
+
 	pIsoView->lpDDPrimarySurface->GetSurfaceDesc(&dds);
-	// In system memory to speedup the lock & unlock operations
+
 	dds.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
-	// In system memory to support scaling
-	//if (!ExtConfigs::DDrawInVideoMem)
 	dds.ddsCaps.dwCaps |= DDSCAPS_SYSTEMMEMORY;
-	dds.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH;
+
+	dds.dwFlags =
+		DDSD_CAPS |
+		DDSD_HEIGHT |
+		DDSD_WIDTH;
 
 	if (ExtConfigs::SecondScreenSupport)
 	{
 		int vw = GetSystemMetrics(SM_CXVIRTUALSCREEN);
 		int vh = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+
 		dds.dwWidth = vw;
 		dds.dwHeight = vh;
 	}
 
-	// create a small surface for compatibility
 	if (ExtConfigs::DirectXRendering)
 	{
 		dds.dwWidth = 10;
 		dds.dwHeight = 10;
 	}
 
-	int witdh = dds.dwWidth;
+	int width = dds.dwWidth;
 	int height = dds.dwHeight;
 
 	if (!ExtConfigs::DirectXRendering)
@@ -186,51 +247,90 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 		dds.dwHeight *= CIsoViewExt::ScaledMax;
 	}
 
-	hr = pIsoView->lpDD7->CreateSurface(&dds, &pIsoView->lpDDBackBufferSurface, nullptr);
+	hr = pIsoView->lpDD7->CreateSurface(
+		&dds,
+		&pIsoView->lpDDBackBufferSurface,
+		nullptr
+	);
+
 	if (FAILED(hr))
 	{
 		Logger::Raw("CreateSurface() failed\n");
+
 		pThis->ShowWindow(SW_HIDE);
-		pThis->MessageBox("Backbuffer surface could not be initialized! Quitting...");
+
+		pThis->MessageBox(
+			"Backbuffer surface could not be initialized! Quitting..."
+		);
+
 		pIsoView->lpDDPrimarySurface->Release();
 		pIsoView->lpDDPrimarySurface = nullptr;
+
 		pIsoView->lpDD7->Release();
 		pIsoView->lpDD7 = nullptr;
+
 		exit(-4);
 	}
 
-	dds.dwWidth = witdh;
+	dds.dwWidth = width;
 	dds.dwHeight = height;
 
-	hr = pIsoView->lpDD7->CreateSurface(&dds, &CIsoViewExt::lpDDBackBufferZoomSurface, nullptr);
-	if(FAILED(hr))
-	{
-		Logger::Raw("CreateSurface() failed\n");
-		pThis->ShowWindow(SW_HIDE);
-		pThis->MessageBox("Backbuffer zoom surface could not be initialized! Quitting...");
-		pIsoView->lpDDPrimarySurface->Release();
-		pIsoView->lpDDPrimarySurface = nullptr;
-		pIsoView->lpDDBackBufferSurface->Release();
-		pIsoView->lpDDBackBufferSurface = nullptr;
-		pIsoView->lpDD7->Release();
-		pIsoView->lpDD7 = nullptr;
-		exit(-4);
-	}
+	hr = pIsoView->lpDD7->CreateSurface(
+		&dds,
+		&CIsoViewExt::lpDDBackBufferZoomSurface,
+		nullptr
+	);
 
-	hr = pIsoView->lpDD7->CreateSurface(&dds, &pIsoView->lpDDTempBufferSurface, nullptr);
 	if (FAILED(hr))
 	{
 		Logger::Raw("CreateSurface() failed\n");
+
 		pThis->ShowWindow(SW_HIDE);
-		pThis->MessageBox("Tempbuffer surface could not be initialized! Quitting...");
-		pIsoView->lpDDBackBufferSurface->Release();
-		pIsoView->lpDDBackBufferSurface = nullptr;
+
+		pThis->MessageBox(
+			"Backbuffer zoom surface could not be initialized! Quitting..."
+		);
+
 		pIsoView->lpDDPrimarySurface->Release();
 		pIsoView->lpDDPrimarySurface = nullptr;
-		CIsoViewExt::lpDDBackBufferZoomSurface->Release();
-		CIsoViewExt::lpDDBackBufferZoomSurface = nullptr;
+
+		pIsoView->lpDDBackBufferSurface->Release();
+		pIsoView->lpDDBackBufferSurface = nullptr;
+
 		pIsoView->lpDD7->Release();
 		pIsoView->lpDD7 = nullptr;
+
+		exit(-4);
+	}
+
+	hr = pIsoView->lpDD7->CreateSurface(
+		&dds,
+		&pIsoView->lpDDTempBufferSurface,
+		nullptr
+	);
+
+	if (FAILED(hr))
+	{
+		Logger::Raw("CreateSurface() failed\n");
+
+		pThis->ShowWindow(SW_HIDE);
+
+		pThis->MessageBox(
+			"Tempbuffer surface could not be initialized! Quitting..."
+		);
+
+		pIsoView->lpDDBackBufferSurface->Release();
+		pIsoView->lpDDBackBufferSurface = nullptr;
+
+		pIsoView->lpDDPrimarySurface->Release();
+		pIsoView->lpDDPrimarySurface = nullptr;
+
+		CIsoViewExt::lpDDBackBufferZoomSurface->Release();
+		CIsoViewExt::lpDDBackBufferZoomSurface = nullptr;
+
+		pIsoView->lpDD7->Release();
+		pIsoView->lpDD7 = nullptr;
+
 		exit(-4);
 	}
 
@@ -240,22 +340,39 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 	);
 
 	LPDIRECTDRAWCLIPPER lpClipper;
-	hr = pIsoView->lpDD7->CreateClipper(NULL, &lpClipper, nullptr);
+
+	hr = pIsoView->lpDD7->CreateClipper(
+		NULL,
+		&lpClipper,
+		nullptr
+	);
+
 	if (FAILED(hr))
 	{
 		Logger::Raw("CreateClipper() failed\n");
+
 		pThis->ShowWindow(SW_HIDE);
-		pThis->MessageBox("Clipper could not be created! Quitting...");
+
+		pThis->MessageBox(
+			"Clipper could not be created! Quitting..."
+		);
+
 		pIsoView->lpDDTempBufferSurface->Release();
 		pIsoView->lpDDTempBufferSurface = nullptr;
+
 		pIsoView->lpDDBackBufferSurface->Release();
 		pIsoView->lpDDBackBufferSurface = nullptr;
+
 		pIsoView->lpDDPrimarySurface->Release();
 		pIsoView->lpDDPrimarySurface = nullptr;
+
 		CIsoViewExt::lpDDBackBufferZoomSurface->Release();
 		CIsoViewExt::lpDDBackBufferZoomSurface = nullptr;
+
 		pIsoView->lpDD7->Release();
 		pIsoView->lpDD7 = nullptr;
+
+		exit(-5);
 	}
 
 	Logger::Raw(
@@ -263,8 +380,15 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 		"=====================================\n\n"
 	);
 
-	pIsoView->lpDDPrimarySurface->SetClipper(lpClipper);
-	lpClipper->SetHWnd(NULL, pIsoView->m_hWnd);
+	if (!ExtConfigs::DirectXRendering)
+	{
+		pIsoView->lpDDPrimarySurface->SetClipper(lpClipper);
+		lpClipper->SetHWnd(NULL, pIsoView->m_hWnd);
+	}
+	else
+	{
+		lpClipper->Release();
+	}
 
 	return 0x49192F;
 }

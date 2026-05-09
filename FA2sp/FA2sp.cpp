@@ -1364,7 +1364,7 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.DirectXRendering", "DirectXRendering"),
 		.IniKey = "DirectXRendering",
 		.Value = &ExtConfigs::DirectXRendering,
-		.Type = ExtConfigs::SpecialOptionType::None
+		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

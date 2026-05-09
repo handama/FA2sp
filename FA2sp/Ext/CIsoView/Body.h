@@ -21,6 +21,12 @@ struct CellData;
 class ImageDataClassSafe;
 class DirectXCore;
 
+namespace Renderer
+{
+    class OverlayType;
+    class ObjectType;
+}
+
 struct EditedMarks
 {
     short X;
@@ -187,11 +193,17 @@ public:
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL, 
         BYTE alpha = 255, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false,
         std::vector<char>* objectOverlapMask = nullptr);
+    static void DirectXOverlay(int x, int y, ImageDataClassSafe* pd, Renderer::OverlayType* pType, byte nData);
+    static void DirectXNormal(int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
+        float alpha = 1.0f, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false);
+    static void DirectXBitmap(int x, int y, FString_view name, float alpha = 1.0f, bool isScreenSpace = false);
+    static void DirectXAlphaImage(int x, int y, ImageDataClassSafe* pd);
     static void BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
         BYTE alpha = 255, COLORREF houseColor = -1, bool isRubble = false, bool isTerrain = false);
-    static void DirectXSHPTransparent_Building(int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
+    static void DirectXBuilding(int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
         float alpha = 1.0f, COLORREF houseColor = -1, bool isRubble = false, bool isTerrain = false);
+    static void DirectXShadow(int x, int y, ImageDataClassSafe* pd);
     static void BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd);
     static void BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
@@ -239,6 +251,7 @@ public:
     static void TextOutClipped(HDC hdc, int x, int y, const char* text, int len, const RECT& rect);
     static bool StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CRect srcRect, LPDIRECTDRAWSURFACE7 dstSurface, CRect dstRect);
     static void SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw);
+    static void SpecialDrawDirectX(int specialDraw);
     static CRect GetVisibleIsoViewRect();
     static void DrawCreditOnMap(HDC hDC);
     static void DrawDistanceRuler(HDC hDC, const RECT& rect);

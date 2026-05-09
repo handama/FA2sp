@@ -54,7 +54,7 @@ namespace Renderer
     {
     public:
         WORD OverlayIndex = 0;
-        //OverlayTypeData TypeData{};
+        OverlayTypeData TypeData{};
 
         OverlayType() = default;
         void Init(WORD nOverlay);
@@ -104,6 +104,7 @@ namespace Renderer
         std::vector<std::unique_ptr<ImageDataClassSafe>>* GetImageData(int rawFacing, int status, int forceFacing = -1) const;
         ImageDataClassSafe* GetShadowData(int nFacing, int status) const;
         ImageDataClassSafe* GetAlphaImageData(int rawFacing) const;
+        ImageDataClassSafe* GetBundledImageData(int forceFacing);
 
         static const char* IniSection;
 
@@ -117,6 +118,7 @@ namespace Renderer
         std::vector<std::unique_ptr<ImageDataClassSafe>>* pGarrisonDamagedImageData[FACING_MAX]{ nullptr };
         ImageDataClassSafe* pGarrisonDamagedShadowData[FACING_MAX]{ nullptr };
         ImageDataClassSafe* pAlphaImageData[FACING_MAX]{ nullptr };
+        std::unique_ptr<ImageDataClassSafe> pBundledImageData[FACING_MAX]{ nullptr };
     };
 
     class InfantryType : public TechnoType
@@ -208,7 +210,7 @@ namespace Renderer
         CBuildingDataFS* GetData();
         BuildingType* GetType();
         BuildingRenderData* GetRender();
-        
+
     private:
         BuildingRenderData* pRenderData = nullptr;
     };

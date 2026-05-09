@@ -296,7 +296,6 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
         SelectedTriggerIndex = count - 1;
     SendMessage(hSelectedTrigger, CB_SETCURSEL, SelectedTriggerIndex, NULL);
 
-    int idx = 0;
     FString text;
     ExtraWindow::ClearComboKeepText(hEventtype);
     if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("EventsRA2")))
@@ -309,13 +308,13 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
                 if (atoms[7] == "1")
                 {
                     text.Format("%s %s", pair.first, FString::ReplaceSpeicalString(atoms[0]));
-                    SendMessage(hEventtype, CB_INSERTSTRING, idx++, text);
+                    SendMessage(hEventtype, CB_ADDSTRING, 0, text);
                 }
             }
         }
     }
 
-    idx = 0;
+    ExtraWindow::ClearComboKeepText(hActiontype);
     if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("ActionsRA2")))
     {
         for (auto& pair : pSection->GetEntities())
@@ -326,19 +325,17 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
                 if (atoms[12] == "1")
                 {
                     text.Format("%s %s", pair.first, FString::ReplaceSpeicalString(atoms[0]));
-                    SendMessage(hActiontype, CB_INSERTSTRING, idx++, text);
+                    SendMessage(hActiontype, CB_ADDSTRING, 0, text);
                 }
             }
         }
     }
 
-    idx = 0;
     ExtraWindow::ClearComboKeepText(hType);
-    SendMessage(hType, CB_INSERTSTRING, idx++, (FString("0 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeOr", "One Time OR")));
-    SendMessage(hType, CB_INSERTSTRING, idx++, (FString("1 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeAnd", "One Time AND")));
-    SendMessage(hType, CB_INSERTSTRING, idx++, (FString("2 - ") + Translations::TranslateOrDefault("TriggerRepeatType.RepeatingOr", "Repeating OR")));
+    SendMessage(hType, CB_ADDSTRING, 0, (FString("0 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeOr", "One Time OR")));
+    SendMessage(hType, CB_ADDSTRING, 0, (FString("1 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeAnd", "One Time AND")));
+    SendMessage(hType, CB_ADDSTRING, 0, (FString("2 - ") + Translations::TranslateOrDefault("TriggerRepeatType.RepeatingOr", "Repeating OR")));
 
-    idx = 0;
     ExtraWindow::ClearComboKeepText(hHouse);
     if (CMapData::Instance->IsMultiOnly() && ExtConfigs::PlayerAtXForTriggers)
     {
@@ -1958,7 +1955,7 @@ void CNewTrigger::OnSelchangeActionListbox(bool changeCursel, int index)
 
 void CNewTrigger::OnSelchangeAttachedTrigger(bool edited)
 {
-    if (SelectedTriggerIndex < 0 || SendMessage(hAttachedtrigger, CB_GETCURSEL, NULL, NULL) < 0 || !CurrentTrigger)
+    if (SelectedTriggerIndex < 0 || !CurrentTrigger)
         return;
 
     FString text = vcbAttachedTrigger.GetSelectedText(edited);
@@ -2007,7 +2004,7 @@ void CNewTrigger::OnSelchangeAttachedTrigger(bool edited)
 
 void CNewTrigger::OnSelchangeHouse(bool edited)
 {
-    if (SelectedTriggerIndex < 0 || SendMessage(hHouse, CB_GETCURSEL, NULL, NULL) < 0 || !CurrentTrigger)
+    if (SelectedTriggerIndex < 0 || !CurrentTrigger)
         return;
 
     FString text = vcbHouse.GetSelectedText(edited);
@@ -2030,7 +2027,7 @@ void CNewTrigger::OnSelchangeHouse(bool edited)
 
 void CNewTrigger::OnSelchangeType(bool edited)
 {
-    if (SelectedTriggerIndex < 0 || SendMessage(hType, CB_GETCURSEL, NULL, NULL) < 0 || !CurrentTrigger)
+    if (SelectedTriggerIndex < 0 || !CurrentTrigger)
         return;
     int curSel = SendMessage(hType, CB_GETCURSEL, NULL, NULL);
 
@@ -2048,7 +2045,7 @@ void CNewTrigger::OnSelchangeType(bool edited)
         text = buffer;
     }
 
-    if (!text)
+    if (text.empty())
         return;
 
     FString::TrimIndex(text);
@@ -2065,7 +2062,7 @@ void CNewTrigger::OnSelchangeType(bool edited)
 
 void CNewTrigger::OnSelchangeEventType(bool edited)
 {
-    if (SelectedTriggerIndex < 0 || SendMessage(hEventtype, CB_GETCURSEL, NULL, NULL) < 0 || !CurrentTrigger)
+    if (SelectedTriggerIndex < 0 || !CurrentTrigger)
         return;
 
     FString text = vcbEventType.GetSelectedText(edited);
@@ -2086,7 +2083,7 @@ void CNewTrigger::OnSelchangeEventType(bool edited)
 
 void CNewTrigger::OnSelchangeActionType(bool edited)
 {
-    if (SelectedTriggerIndex < 0 || SendMessage(hActiontype, CB_GETCURSEL, NULL, NULL) < 0 || !CurrentTrigger)
+    if (SelectedTriggerIndex < 0 || !CurrentTrigger)
         return;
     int listSel = SendMessage(hActionList, LB_GETCARETINDEX, NULL, NULL);
 

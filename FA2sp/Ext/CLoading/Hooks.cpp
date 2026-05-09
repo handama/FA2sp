@@ -9,6 +9,7 @@
 #include "..\..\Miscs\Palettes.h"
 #include "..\CMapData\Body.h"
 #include "../CIsoView/Body.h"
+#include "../CIsoView/DirectXCore.h"
 #include <filesystem>
 #include "../CFinalSunApp/Body.h"
 namespace fs = std::filesystem;
@@ -142,35 +143,47 @@ DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 		}
 	}
 
-	return 0;
-}
-
-DEFINE_HOOK(47FA2D, CLoading_InitPics_End_LoadDLLBitmaps, 7)
-{
 	auto replace = [](const char* Ori, const char* New)
+	{
+		if (ExtConfigs::DirectXRendering)
 		{
-			auto image_ori = CLoadingExt::GetSurfaceImageDataFromMap(Ori);
-			if (image_ori->lpSurface)
+			CIsoViewExt::g_pDX->RemoveBitmapTexture(Ori);
+
+			std::string pics = CFinalSunAppExt::ExePathExt;
+			pics += "\\pics\\";
+			pics += New;
+
+			CBitmap bmp;
+			if (CLoadingExt::LoadBMPToCBitmap(pics, bmp))
+				CLoadingExt::LoadBitMap(Ori, bmp);
+
+			return;
+		}
+		auto image_ori = CLoadingExt::GetSurfaceImageDataFromMap(Ori);
+		if (image_ori->lpSurface)
+		{
+			if (CLoadingExt::IsSurfaceImageLoaded(New))
 			{
-				if (CLoadingExt::IsSurfaceImageLoaded(New))
-				{
-					auto image_new = CLoadingExt::GetSurfaceImageDataFromMap(New);
-					image_ori->lpSurface->Release();
-					image_ori->lpSurface = image_new->lpSurface;
-				}
-				DDSURFACEDESC2 ddsd;
-				memset(&ddsd, 0, sizeof(DDSURFACEDESC2));
-				ddsd.dwSize = sizeof(DDSURFACEDESC2);
-				ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT;
-				image_ori->lpSurface->GetSurfaceDesc(&ddsd);
-				image_ori->FullWidth = ddsd.dwWidth;
-				image_ori->FullHeight = ddsd.dwHeight;
+				auto image_new = CLoadingExt::GetSurfaceImageDataFromMap(New);
+				image_ori->lpSurface->Release();
+				image_ori->lpSurface = image_new->lpSurface;
 			}
-		};
+			DDSURFACEDESC2 ddsd;
+			memset(&ddsd, 0, sizeof(DDSURFACEDESC2));
+			ddsd.dwSize = sizeof(DDSURFACEDESC2);
+			ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT;
+			image_ori->lpSurface->GetSurfaceDesc(&ddsd);
+			image_ori->FullWidth = ddsd.dwWidth;
+			image_ori->FullHeight = ddsd.dwHeight;
+		}
+	};
 
 	replace("CELLTAG", "celltag.bmp");
 	replace("FLAG", "waypoint.bmp");
 	replace("PROPERTY_MARK", "property_mark.bmp");
+
+	if (ExtConfigs::DirectXRendering)
+		return 0x47FA45;
 
 	return 0;
 }
@@ -222,44 +235,18 @@ DEFINE_HOOK(52D098, CLoading_DrawTMP_5, 5)
 {
 	if (hasExtraImage)
 	{
-		if (!CMapDataExt::TileData || tileIndex >= CMapDataExt::TileDataCount)
-			return 0;
-
-		auto& tile = CMapDataExt::TileData[tileIndex];
-
-		if (tile.AltTypeCount < altCount[subTileIndex])
-			return 0;
-
-		if (altCount[subTileIndex] > 0)
-			tile = tile.AltTypes[altCount[subTileIndex] - 1];
-
-		if (tile.TileBlockCount <= subTileIndex)
-			return 0;
-
-		auto& tileBlock = tile.TileBlockDatas[subTileIndex];
-
 		int size = currentTMP->cx_extra * currentTMP->cy_extra;
 		byte* extra_image = GameCreateArray<byte>(size);
 		memcpy(extra_image, tmp_file_image, size);
 
+		CMapDataExt::TileBlockExtraOffsets[{tileIndex, subTileIndex, altCount[subTileIndex]}]
+			= { currentTMP->x_extra - currentTMP->x, currentTMP->y_extra - currentTMP->y };
+
 		auto loadingExt = (CLoadingExt*)CLoading::Instance();
 		FString ImageID;
 		ImageID.Format("EXTRAIMAGE\233%d\233%d\233%d", tileIndex, subTileIndex, altCount[subTileIndex]);
-
-		auto& dataExt = CMapDataExt::TileBlockDataExt[&tileBlock];
-
-		dataExt.ExtraOffset = { currentTMP->x_extra - currentTMP->x, currentTMP->y_extra - currentTMP->y };
-
-		Palette* pal = &CMapDataExt::Palette_ISO;
-		if (tile.TileSet < CMapDataExt::TileSetPalettes.size())
-		{
-			pal = CMapDataExt::TileSetPalettes[tile.TileSet];
-		}
-		loadingExt->SetImageDataSafe(extra_image, ImageID, currentTMP->cx_extra, currentTMP->cy_extra, pal, false);
+		loadingExt->SetImageDataSafe(extra_image, ImageID, currentTMP->cx_extra, currentTMP->cy_extra, &CMapDataExt::Palette_ISO, false);
 		CLoadingExt::LoadedObjects.insert(ImageID);
-		auto pData = CLoadingExt::GetImageDataFromMap(ImageID);
-		pData->GetTexture();
-		dataExt.pExtraImage = pData;
 		altCount[subTileIndex]++;
 	}
 	return 0;

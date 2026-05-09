@@ -114,6 +114,7 @@ std::vector<FString> CMapDataExt::MapIniSectionSorting;
 FMap<FSet> CMapDataExt::PowersUpBuildings;
 FSet CMapDataExt::PowersUpBuildingSet;
 std::map<int, std::vector<CustomTile>> CMapDataExt::CustomTiles;
+std::map<ExtraImageInfo, POINT> CMapDataExt::TileBlockExtraOffsets;
 bool CMapDataExt::PlaceStructure_Preview = false;
 std::map<int, BuildingRenderData> CMapDataExt::PlaceStructure_OldData;
 FMap<std::pair<byte, byte>> CMapDataExt::SmudgeSizes;
@@ -3296,14 +3297,29 @@ void CMapDataExt::UpdateFieldAircraftData_RedrawMinimap()
 
 void CMapDataExt::InitializeTileDataInfo()
 {
+	auto pLoading = CLoadingExt::GetExtension();
 	FString thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
 	thisTheater.MakeUpper();
+
+	if (thisTheater == "TEMPERATE")
+		pLoading->TheaterIdentifier = 'T';
+	else if (thisTheater == "SNOW")
+		pLoading->TheaterIdentifier = 'A';
+	else if (thisTheater == "URBAN")
+		pLoading->TheaterIdentifier = 'U';
+	else if (thisTheater == "NEWURBAN")
+		pLoading->TheaterIdentifier = 'N';
+	else if (thisTheater == "LUNAR")
+		pLoading->TheaterIdentifier = 'L';
+	else if (thisTheater == "DESERT")
+		pLoading->TheaterIdentifier = 'D';
+
 	if (thisTheater == "NEWURBAN")
 		thisTheater = "UBN";
 	FString theaterSuffix = thisTheater.Mid(0, 3);
 
 	FString isoPal;
-	isoPal.Format("iso%s.pal", theaterSuffix);
+	isoPal.Format("iso%s.pal", CLoadingExt::GetExtension()->GetTheaterSuffix());
 	isoPal.MakeUpper();
 	if (auto pal = PalettesManager::LoadPalette(isoPal))
 	{
@@ -3586,7 +3602,10 @@ void CMapDataExt::InitializeTileData()
 		for (int j = -1; j < (int)tileData.AltTypeCount; ++j)
 		{
 			if (j > -1)
+			{
 				currentTile = &tileData.AltTypes[j];
+				currentTile->TileSet = tileData.TileSet; // fix!!
+			}
 
 			for (int k = 0; k < currentTile->TileBlockCount; ++k)
 			{
@@ -3594,14 +3613,29 @@ void CMapDataExt::InitializeTileData()
 				if (tileBlock && tileBlock->ImageData)
 				{
 					BuildBaseHeightMask(tileBlock);
-					if (loadDX)
+
+					auto itr = CMapDataExt::TileSetPalettes.find(currentTile->TileSet);
+					if (itr != CMapDataExt::TileSetPalettes.end())
 					{
-						auto itr = CMapDataExt::TileSetPalettes.find(currentTile->TileSet);
-						if (itr != CMapDataExt::TileSetPalettes.end())
+						auto& dataExt = CMapDataExt::TileBlockDataExt[tileBlock];
+
+						dataExt.ExtraOffset = CMapDataExt::TileBlockExtraOffsets[{i, k, j + 1}];
+
+						Palette* pal = &CMapDataExt::Palette_ISO;
+						if (currentTile->TileSet < CMapDataExt::TileSetPalettes.size())
 						{
-							Palette* pal = itr->second;
-							auto& tileExt = TileBlockDataExt[tileBlock];
-							tileExt.pTexture = CIsoViewExt::g_pDX->LoadTileTexture(tileBlock, CIsoViewExt::MakeImageDataView(tileBlock, pal));
+							pal = CMapDataExt::TileSetPalettes[currentTile->TileSet];
+						}
+						FString ImageID;
+						ImageID.Format("EXTRAIMAGE\233%d\233%d\233%d", i, k, j + 1);
+						auto pData = CLoadingExt::GetImageDataFromMap(ImageID);
+						pData->pPalette = pal;
+						dataExt.pExtraImage = pData;
+
+						if (loadDX)
+						{
+							pData->GetTexture();
+							dataExt.pTexture = CIsoViewExt::g_pDX->LoadTileTexture(tileBlock, CIsoViewExt::MakeImageDataView(tileBlock, pal));
 						}
 					}
 				}
@@ -3609,6 +3643,7 @@ void CMapDataExt::InitializeTileData()
 		}
 	}
 
+	CMapDataExt::TileBlockExtraOffsets.clear();
 	if (!CMapDataExt::TileData)
 	{
 		Logger::Error("CMapDataExt::InitializeTileData() cannot initialize tile data!\n");
@@ -4275,16 +4310,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		}
 	}
 
-	auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
-	thisTheater.MakeUpper();
-
 	CFinalSunDlgExt::CurrentLighting = 31000;
 	CheckMenuRadioItem(*CFinalSunDlg::Instance->GetMenu(), 31000, 31003, 31000, MF_UNCHECKED);
-
-	FString theaterIg = thisTheater;
-	if (theaterIg == "NEWURBAN")
-		theaterIg = "UBN";
-	FString theaterSuffix = theaterIg.Mid(0, 3);
 
 	CViewObjectsExt::ConnectedTile_Initialize();
 

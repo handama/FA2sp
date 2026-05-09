@@ -15,8 +15,10 @@
 #include <chrono>
 #include <emmintrin.h>
 #include <immintrin.h>
+#include <filesystem>
 #include "../CIsoView/RendererTypes.h"
 #include "../CIsoView/DirectXCore.h"
+#include "../CFinalSunApp/Body.h"
 
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
@@ -36,7 +38,7 @@ unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
 bool CLoadingExt::DrawTurretShadow = false;
 FHashSet CLoadingExt::LoadedOverlays;
 FHashMap<InsigniaGrid> CLoadingExt::LoadedInsignias;
-std::map<WORD, BYTE> CLoadingExt::OverlayDataLimits;
+std::unordered_map<WORD, WORD> CLoadingExt::OverlayDataLimits;
 int CLoadingExt::TallestBuildingHeight = 0;
 FHashSet CLoadingExt::NotFoundFiles;
 std::unordered_map<std::string, std::vector<unsigned char>> CLoadingExt::g_cache[2];
@@ -47,10 +49,12 @@ FHashMap<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::CurrentFrameImageData
 FHashMap<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::ImageDataMap;
 FHashMap<std::vector<std::unique_ptr<ImageDataClassSafe>>> CLoadingExt::BuildingClipsImageDataMap;
 FHashMap<std::unique_ptr<ImageDataClassSurface>> CLoadingExt::SurfaceImageDataMap;
-std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomFlagMap;
-std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomCelltagMap;
+std::unordered_map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomFlagMap;
+std::unordered_map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomCelltagMap;
 std::vector<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::DamageFires;
 unsigned int CLoadingExt::RandomFireSeed = 0;
+
+namespace fs = std::filesystem;
 
 bool CLoadingExt::IsImageLoaded(const FString& name)
 {
@@ -4587,8 +4591,14 @@ void CLoadingExt::LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** 
 	CShpFile::LoadFrame(nFrame, nFrameCount, ppBuffer);
 }
 
-void CLoadingExt::LoadBitMap(FString ImageID, const CBitmap& cBitmap)
+void CLoadingExt::LoadBitMap(FString ImageID, CBitmap& cBitmap)
 {
+	if (ExtConfigs::DirectXRendering)
+	{
+		CIsoViewExt::g_pDX->LoadBitmapTexture(ImageID, cBitmap);
+		return;
+	}
+
 	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
 	auto pData = CLoadingExt::GetSurfaceImageDataFromMap(ImageID);
 	pData->lpSurface = CIsoViewExt::BitmapToSurface(pIsoView->lpDD7, cBitmap);
@@ -5645,10 +5655,28 @@ ImageDataClassSurface* CLoadingExt::GetOrLoadFlagOrCelltagFromMap(COLORREF newCo
 	{
 		auto ret = std::make_unique<ImageDataClassSurface>();
 
-		HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(IsFlag ? 1023 : 1024),
-			IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
 		CBitmap cBitmap;
-		cBitmap.Attach(hBmp);
+		std::string pics = CFinalSunAppExt::ExePathExt;
+		if(IsFlag)
+			pics += "\\pics\\waypoint.bmp";
+		else
+			pics += "\\pics\\celltag.bmp";
+		if (fs::exists(pics))
+		{
+			if (!CLoadingExt::LoadBMPToCBitmap(pics, cBitmap))
+			{
+				HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(IsFlag ? 1023 : 1024),
+					IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+				cBitmap.Attach(hBmp);
+			}
+		}
+		else
+		{
+			HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(IsFlag ? 1023 : 1024),
+				IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+			cBitmap.Attach(hBmp);
+		}
+
 		auto r = ReplaceBitmapColor(cBitmap, 
 			IsFlag ? (COLORREF)ExtConfigs::DisplayColor_Waypoint 
 			: (COLORREF)ExtConfigs::DisplayColor_Celltag,

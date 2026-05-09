@@ -25,6 +25,7 @@ struct ColorMults
 
     static ColorMults GetTerrainColorMult(Cell3DLocation location);
     static ColorMults GetObjectColorMult(bool remap, Cell3DLocation location, bool isopal = false, int extraLightType = -1);
+    static ColorMults GetOverlayColorMult(Cell3DLocation location, Renderer::OverlayType* pType);
 };
 
 struct LightingSourceTint
@@ -168,7 +169,6 @@ class PalettesManager
 {
     static FMap<Palette*> OriginPaletteFiles;
     static std::unordered_map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedPaletteFiles;
-    static std::unordered_map<Palette*, std::unordered_map<BGRStruct, LightingPalette>> CalculatedColoredPaletteFiles;
     static std::unordered_map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedDimmedPaletteFiles;
     static std::unordered_map<Palette*, std::map<LightingStruct, LightingPalette>> CalculatedPaletteFilesNoRemap;
     static Palette* CurrentIso;
@@ -178,6 +178,7 @@ public:
 
     static bool NeedReloadLighting;
     static std::list<LightingPalette> CalculatedObjectPaletteFiles;
+    static std::unordered_map<Palette*, std::unordered_map<BGRStruct, LightingPalette>> CalculatedColoredPaletteFiles;
     static std::vector<Palette*> CalculatedMixedPalettes;
 
     static Palette* GetCurrentIso();

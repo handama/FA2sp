@@ -3433,6 +3433,35 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
     }
 }
 
+void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
+{
+    auto pThis = CIsoView::GetInstance();
+    switch (specialDraw)
+    {
+    case 0:
+        break;
+    case 1:
+        break;
+    case 2:
+        break;
+    case 3:
+        break;
+    case 4:
+        break;
+    default:
+        break;
+    }
+
+    POINT pt;
+    GetCursorPos(&pt);
+    ::ScreenToClient(pThis->GetSafeHwnd(), &pt);
+
+    DirectXBitmap(
+        pt.x,
+        pt.y + 27,
+        "scrollcursor.bmp", 1.0f, true);
+}
+
 void CIsoViewExt::MoveToMapCoord(int X, int Y)
 {
     if (!CMapData::Instance->IsCoordInMap(X, Y))

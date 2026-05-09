@@ -48,6 +48,7 @@ public:
     float mixG = 0.0f;
     float mixB = 0.0f;
     float mixFactor = 0.0f;
+    bool bScreenSpace = false;
 
     DrawParams& SetPosition(float _x, float _y) { x = _x; y = _y; return *this; }
     DrawParams& SetScale(float sx, float sy) { scaleX = sx; scaleY = sy; return *this; }
@@ -74,6 +75,11 @@ public:
         mixFactor = newFactor;
         return *this;
     }
+    DrawParams& SetColorMix(RGBClass color, float factor)
+    {
+        return SetColorMix(color.R / 255.0f, color.G / 255.0f, color.B / 255.0f, factor);
+    }
+    DrawParams& SetScreenSpace() { bScreenSpace = true; return *this; }
 };
 
 struct TextureResource {
@@ -99,9 +105,13 @@ public:
     TextureResource* LoadTexture(const ImageDataView& view, BGRStruct color = { 0,0,0 });
     TextureResource* LoadTileTexture(CTileBlockClass* tileBlock, const ImageDataView& view);
     TextureResource* LoadIndexTexture(const ImageDataView& view);
+    TextureResource* LoadBitmapTexture(FString_view name, CBitmap& bitmap, 
+        bool setColorKey = true, COLORREF color = RGB(255, 255, 255));
+    void RemoveBitmapTexture(FString_view name);
 
     TextureResource* GetTexture(void* pData, BGRStruct color = {0,0,0}) const;
     TextureResource* GetTileTexture(CTileBlockClass* tileBlock) const;
+    TextureResource* GetBitmapTexture(FString_view name) const;
 
     void DrawTexture(TextureResource* tex, const DrawParams& params);
     void DrawTexture(TextureResource* tex, float x, float y) {
@@ -115,12 +125,14 @@ public:
     float GetZoomOut() const { return m_renderScale; }
 
     void Render();
+    void RenderScreenSpaceOnly();
 
 private:
     struct DrawCommand {
         TextureResource* texRes = nullptr;
         DrawParams params;
         bool bIsEffect = false;
+        bool bScreenSpace = false;
     };
 
     bool CreateDeviceAndSwapChain(HWND hwnd);
@@ -135,9 +147,14 @@ private:
     void DrawFullscreenQuad();
 
     bool CreateOffscreenResources(UINT width, UINT height);
+    void CreateBackgroundCacheTexture(UINT width, UINT height);
     bool CreateFinalShaders();
     void RenderOffscreenContent();
     void RenderFinalToBackBuffer();
+    void RenderScreenSpaceContent();
+
+    void UpdateBackgroundCache();     
+    void RestoreBackgroundFromCache();
 
     Microsoft::WRL::ComPtr<ID3D11Device>           m_pDevice;
     Microsoft::WRL::ComPtr<ID3D11DeviceContext>    m_pContext;
@@ -149,6 +166,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11InputLayout>      m_pInputLayout;
     Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSamplerLinear;
     Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSamplerPoint;
+    Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSamplerNearestNeighbor;
     Microsoft::WRL::ComPtr<ID3D11BlendState>       m_pBlendState;
     Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pQuadVB;
     Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pConstantBuffer;
@@ -173,7 +191,11 @@ private:
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_OffscreenRTV;
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_OffscreenSRV;
 
+    Microsoft::WRL::ComPtr<ID3D11Texture2D>          m_pBackgroundCacheTexture;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_pBackgroundCacheSRV;
+
     std::unordered_map<TextureIndex, std::unique_ptr<TextureResource>> m_textureMap;
+    FHashMap<std::unique_ptr<TextureResource>> m_bitmapTextureMap;
     std::unordered_map<CTileBlockClass*, std::unique_ptr<TextureResource>> m_tileTextureMap;
     std::vector<DrawCommand> m_drawCommands;
 
@@ -185,4 +207,5 @@ private:
     float m_globalOffsetY = 0.0f;
     float m_renderScale = 1.0f;
     bool m_bInitialized = false;
+    bool m_backgroundCacheValid = false;
 };

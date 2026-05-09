@@ -535,7 +535,9 @@ DEFINE_HOOK(4AC210, CMapData_AddInfantry, 7)
 				break;
 			}
 		}
-
+	}
+	if (realIndex < 0)
+	{
 		m_infantry.push_back(infantry);
 		realIndex = m_infantry.size() - 1;
 		if (dwPos < fielddata_size) fielddata[dwPos].Infantry[sp] = (short)realIndex;

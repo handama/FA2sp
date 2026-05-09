@@ -25,6 +25,7 @@ static CRect window;
 static MapCoord VisibleCoordTL;
 static MapCoord VisibleCoordBR;
 static ppmfc::CPoint ViewPosition;
+static POINT MouseCenterPosition{ -1919810, -1919810 };
 using DrawCall = std::function<void()>;
 
 std::unordered_set<short> CIsoViewExt::VisibleStructures;
@@ -275,12 +276,26 @@ static void DrawTechnoAttachments
 
 					auto draw = [&] {
 						if (ImageDataClassSafe::IsValidImage(pData))
-							CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
-							displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
-							displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
-							pData, NULL,
-							ExtConfigs::InGameDisplay_Cloakable
-							&& pInfantry->Cloakable ? 128 : 255, color, 0, true);
+						{
+							if (ExtConfigs::DirectXRendering)
+							{
+								CIsoViewExt::DirectXNormal(
+									displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
+									displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
+									pData, NULL,
+									ExtConfigs::InGameDisplay_Cloakable
+									&& pInfantry->Cloakable ? 0.5f : 1.0f, color, 1, true);
+							}
+							else
+							{
+								CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
+									displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
+									displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
+									pData, NULL,
+									ExtConfigs::InGameDisplay_Cloakable
+									&& pInfantry->Cloakable ? 128 : 255, color, 1, true);
+							}
+						}
 					};
 						
 					draw();
@@ -315,12 +330,26 @@ static void DrawTechnoAttachments
 					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
 					auto draw = [&] {
 						if (ImageDataClassSafe::IsValidImage(pData))
-							CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
-								displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
-								displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
-								pData, NULL,
-								ExtConfigs::InGameDisplay_Cloakable
-								&& pVehicle->Cloakable ? 128 : 255, color, 0, true);
+						{
+							if (ExtConfigs::DirectXRendering)
+							{
+								CIsoViewExt::DirectXNormal(
+									displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
+									displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
+									pData, NULL,
+									ExtConfigs::InGameDisplay_Cloakable
+									&& pVehicle->Cloakable ? 0.5f : 1.0f, color, 0, true);
+							}
+							else
+							{
+								CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
+									displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
+									displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
+									pData, NULL,
+									ExtConfigs::InGameDisplay_Cloakable
+									&& pVehicle->Cloakable ? 128 : 255, color, 0, true);
+							}
+						}
 					};
 
 					draw();
@@ -342,10 +371,19 @@ static void DrawTechnoAttachments
 				{
 					// shadow always on the ground
 					Matrix3D mat(info.F, info.L, 0, parentFacing, ParentFacings);
-					CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
-						displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
-						displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY, pData, NULL, 128);
-
+					if (ExtConfigs::DirectXRendering)
+					{
+						CIsoViewExt::DirectXShadow(
+							displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
+							displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
+							pData);
+					}
+					else
+					{
+						CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
+							displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
+							displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY, pData, NULL, 128);
+					}
 
 					DrawTechnoAttachments([] {}, recursionStack, pVehicle, oriFacing + info.RotationAdjust, cell, lpSurface, boundary,
 						displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
@@ -368,12 +406,26 @@ static void DrawTechnoAttachments
 					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
 					auto draw = [&] {
 						if (ImageDataClassSafe::IsValidImage(pData))
-							CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
-							displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
-							displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
-							pData, NULL,
-							ExtConfigs::InGameDisplay_Cloakable
-							&& pAircraft->Cloakable ? 128 : 255, color, 0, true);
+						{
+							if (ExtConfigs::DirectXRendering)
+							{
+								CIsoViewExt::DirectXNormal(
+									displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
+									displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
+									pData, NULL,
+									ExtConfigs::InGameDisplay_Cloakable
+									&& pAircraft->Cloakable ? 0.5f : 1.0f, color, 2, true);
+							}
+							else
+							{
+								CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
+									displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
+									displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
+									pData, NULL,
+									ExtConfigs::InGameDisplay_Cloakable
+									&& pAircraft->Cloakable ? 128 : 255, color, 2, true);
+							}
+						}
 					};
 
 					draw();
@@ -408,38 +460,55 @@ static void DrawTechnoAttachments
 
 				if (!isShadow)
 				{
-					auto& clips = *pBuilding->GetImageData(0, 0, newFacing);
-					auto pBldData = CLoadingExt::BindClippedImages(clips);
-					if (pBldData)
+					auto clips = pBuilding->GetImageData(0, 0, newFacing);
+					for (auto& pBldData : *clips)
 					{
-						auto ArtID = CLoadingExt::GetArtID(info.ID);			
-						auto& isoset = CMapDataExt::TerrainPaletteBuildings;
-						Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
-						auto draw = [&] {
-							if (pBldData->pImageBuffer)
-								CIsoViewExt::BlitSHPTransparent_Building(pThis, lpSurface, window, boundary,
-								displayX - pBldData->FullWidth / 2 + mat.OutputX + info.DeltaX,
-								displayY - pBldData->FullHeight / 2 + mat.OutputY + info.DeltaY, pBldData.get(),
-								NULL, ExtConfigs::InGameDisplay_Cloakable
-								&& pBuilding->Cloakable ? 128 : 255,
-								color, false, isoset.find(info.ID) != isoset.end()); 
-						};
-
-						draw();
-
-						if (CIsoViewExt::DrawVeterancy)
+						if (pBldData)
 						{
-							const auto& DataExt = *pBuilding->pDataExt;
-							auto& veter = DrawVeterancies.emplace_back();
-							veter.X = displayX + mat.OutputX + info.DeltaX + (DataExt.RealWidth - DataExt.RealHeight) * 30 / 2;
-							veter.Y = displayY + mat.OutputY + info.DeltaY + (DataExt.RealWidth + DataExt.RealHeight - 2) * 15 / 2;
-							veter.VP = 0;
-							veter.ID = info.ID;
-						}
+							auto ArtID = CLoadingExt::GetArtID(info.ID);
+							Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
+							auto draw = [&] {
+								if (pBldData->pImageBuffer)
+								{
+									if (ExtConfigs::DirectXRendering)
+									{
+										CIsoViewExt::DirectXBuilding(
+											displayX - pBldData->ClipOffsets.FullWidth / 2 +
+											pBldData->ClipOffsets.LeftOffset + mat.OutputX + info.DeltaX,
+											displayY - pBldData->FullHeight / 2 + mat.OutputY + info.DeltaY, pBldData.get(),
+											NULL, ExtConfigs::InGameDisplay_Cloakable
+											&& pBuilding->Cloakable ? 128 : 255,
+											color, false, pBuilding->IsTerrainPalette);
+									}
+									else
+									{
+										CIsoViewExt::BlitSHPTransparent_Building(pThis, lpSurface, window, boundary,
+											displayX - pBldData->ClipOffsets.FullWidth / 2 +
+											pBldData->ClipOffsets.LeftOffset + mat.OutputX + info.DeltaX,
+											displayY - pBldData->FullHeight / 2 + mat.OutputY + info.DeltaY, pBldData.get(),
+											NULL, ExtConfigs::InGameDisplay_Cloakable
+											&& pBuilding->Cloakable ? 128 : 255,
+											color, false, pBuilding->IsTerrainPalette);
+									}
+								}
+							};
 
-						DrawTechnoAttachments(draw, recursionStack, pBuilding, oriFacing + info.RotationAdjust, cell, lpSurface, boundary,
-							displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
-					}
+							draw();
+
+							if (CIsoViewExt::DrawVeterancy)
+							{
+								const auto& DataExt = *pBuilding->pDataExt;
+								auto& veter = DrawVeterancies.emplace_back();
+								veter.X = displayX + mat.OutputX + info.DeltaX + (DataExt.RealWidth - DataExt.RealHeight) * 30 / 2;
+								veter.Y = displayY + mat.OutputY + info.DeltaY + (DataExt.RealWidth + DataExt.RealHeight - 2) * 15 / 2;
+								veter.VP = 0;
+								veter.ID = info.ID;
+							}
+
+							DrawTechnoAttachments(draw, recursionStack, pBuilding, oriFacing + info.RotationAdjust, cell, lpSurface, boundary,
+								displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
+						}
+					}					
 				}
 			}
 			break;
@@ -1030,17 +1099,21 @@ static void DrawMapDriectDraw()
 	};
 
 	bool shadow = CIsoViewExt::DrawShadows && ExtConfigs::InGameDisplay_Shadow;
-	int shadowMask_width = window.right - window.left;
-	int shadowMask_height = window.bottom - window.top;
-	int shadowMask_size = shadowMask_width * shadowMask_height;
 
-	shadowMask_Building_Infantry.assign(shadowMask_size, 0);
-	shadowMask_Terrain.assign(shadowMask_size, 0);
-	shadowMask_Overlay.assign(shadowMask_size, 0);
-	shadowMask.assign(shadowMask_size, 0);
-	shadowHeightMask.assign(shadowMask_size, 0);
-	cellHeightMask.assign(shadowMask_size, 0);
-	objectOverlapMask.assign(shadowMask_size, CHAR_MIN);
+	if (!ExtConfigs::DirectXRendering)
+	{
+		int shadowMask_width = window.right - window.left;
+		int shadowMask_height = window.bottom - window.top;
+		int shadowMask_size = shadowMask_width * shadowMask_height;
+
+		shadowMask_Building_Infantry.assign(shadowMask_size, 0);
+		shadowMask_Terrain.assign(shadowMask_size, 0);
+		shadowMask_Overlay.assign(shadowMask_size, 0);
+		shadowMask.assign(shadowMask_size, 0);
+		shadowHeightMask.assign(shadowMask_size, 0);
+		cellHeightMask.assign(shadowMask_size, 0);
+		objectOverlapMask.assign(shadowMask_size, CHAR_MIN);
+	}
 
 	//loop1: tiles
 	for (auto& info : visibleCells)
@@ -1339,10 +1412,20 @@ static void DrawMapDriectDraw()
 				auto pData = dataExt.pExtraImage;
 				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
-					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-						x + 30 + dataExt.ExtraOffset.x,
-						y + 30 + dataExt.ExtraOffset.y,
-						pData, nullptr, isCellHidden(cell) ? 128 : 255, -2, -10);
+					if (ExtConfigs::DirectXRendering)
+					{
+						CIsoViewExt::DirectXNormal(
+							x + 30 + dataExt.ExtraOffset.x,
+							y + 30 + dataExt.ExtraOffset.y,
+							pData, NULL, isCellHidden(cell) ? 0.5f : 1.0f, -2, -10);
+					}
+					else
+					{
+						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+							x + 30 + dataExt.ExtraOffset.x,
+							y + 30 + dataExt.ExtraOffset.y,
+							pData, nullptr, isCellHidden(cell) ? 128 : 255, -2, -10);
+					}
 				}
 			}
 		}
@@ -1374,8 +1457,18 @@ static void DrawMapDriectDraw()
 				auto pData = pType->GetImageData();
 				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
-					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-						x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false);
+					if (ExtConfigs::DirectXRendering)
+					{
+						CIsoViewExt::DirectXNormal(
+							x - pData->FullWidth / 2,
+							y - pData->FullHeight / 2,
+							pData);
+					}
+					else
+					{
+						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+							x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false);
+					}
 				}
 				else
 				{
@@ -1594,10 +1687,17 @@ static void DrawMapDriectDraw()
 					auto pData = pType->GetShadowData(nFacing, status);
 					if (ImageDataClassSafe::IsValidImage(pData))
 					{
-						CIsoViewExt::MaskShadowPixels(window,
-							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData,
-							shadowMask_Building_Infantry,
-							shadowHeightMask, cell->Height);
+						if (ExtConfigs::DirectXRendering)
+						{
+							CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData);
+						}
+						else
+						{
+							CIsoViewExt::MaskShadowPixels(window,
+								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData,
+								shadowMask_Building_Infantry,
+								shadowHeightMask, cell->Height);
+						}
 					}
 
 					FSet drawn;
@@ -1622,10 +1722,20 @@ static void DrawMapDriectDraw()
 							x1 += upgXX;
 							y1 += upgYY;
 
-							CIsoViewExt::MaskShadowPixels(window,
-								x1 - pUpgData->FullWidth / 2, y1 - pUpgData->FullHeight / 2,
-								pUpgData, shadowMask_Building_Infantry,
-								shadowHeightMask, cell->Height);
+							if (ExtConfigs::DirectXRendering)
+							{
+								CIsoViewExt::DirectXShadow(
+									x1 - pUpgData->FullWidth / 2, 
+									y1 - pUpgData->FullHeight / 2,
+									pUpgData);
+							}
+							else
+							{
+								CIsoViewExt::MaskShadowPixels(window,
+									x1 - pUpgData->FullWidth / 2, y1 - pUpgData->FullHeight / 2,
+									pUpgData, shadowMask_Building_Infantry,
+									shadowHeightMask, cell->Height);
+							}
 						}
 					}
 				}
@@ -1684,7 +1794,7 @@ static void DrawMapDriectDraw()
 							buildingOrigin.Y = Y;
 						}
 
-						auto& clips = *pType->GetImageData(0, 0);
+						auto& clips = *pType->GetImageData(224, 0);
 						Palette* pPal = nullptr;
 						BGRStruct color;
 						auto houseColor = Miscs::GetColorRef(node.House);
@@ -1824,10 +1934,17 @@ static void DrawMapDriectDraw()
 
 					if (ImageDataClassSafe::IsValidImage(pData))
 					{
-						CIsoViewExt::MaskShadowPixels(window,
-							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData,
-							shadowMask_Building_Infantry,
-							shadowHeightMask, cell->Height);
+						if (ExtConfigs::DirectXRendering)
+						{
+							CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData);
+						}
+						else
+						{
+							CIsoViewExt::MaskShadowPixels(window,
+								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData,
+								shadowMask_Building_Infantry,
+								shadowHeightMask, cell->Height);
+						}
 					}
 					FSet drawn;
 					DrawTechnoAttachments([] {}, drawn, pType, atoi(obj.Facing),
@@ -1853,8 +1970,19 @@ static void DrawMapDriectDraw()
 				if (ImageDataClassSafe::IsValidImage(pData))
 				{
 					// units are special, they overlap with each other
-					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + 15, pData, NULL, 128);
+					if (ExtConfigs::DirectXRendering)
+					{
+						CIsoViewExt::DirectXShadow(
+							x1 - pData->FullWidth / 2,
+							y1 - pData->FullHeight / 2 + 15,
+							pData);
+					}
+					else
+					{
+						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + 15, pData, NULL, 128);
+
+					}
 				}
 
 				FSet drawn;
@@ -1889,10 +2017,20 @@ static void DrawMapDriectDraw()
 					int x1 = x;
 					int y1 = y;
 
-					CIsoViewExt::MaskShadowPixels(window,
-						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
-						pData, shadowMask_Terrain,
-						shadowHeightMask, cell->Height);
+					if (ExtConfigs::DirectXRendering)
+					{
+						CIsoViewExt::DirectXShadow(
+							x1 - pData->FullWidth / 2, 
+							y1 - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
+							pData);
+					}
+					else
+					{
+						CIsoViewExt::MaskShadowPixels(window,
+							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
+							pData, shadowMask_Terrain,
+							shadowHeightMask, cell->Height);
+					}
 				}
 			}
 		}
@@ -1909,16 +2047,23 @@ static void DrawMapDriectDraw()
 
 					y1 += CIsoViewExt::GetOverlayDrawOffset(cellExt->NewOverlay, cell->OverlayData);
 
-					CIsoViewExt::MaskShadowPixels(window,
-						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, shadowMask_Overlay,
-						shadowHeightMask, cell->Height);
+					if (ExtConfigs::DirectXRendering)
+					{
+						CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData);
+					}
+					else
+					{
+						CIsoViewExt::MaskShadowPixels(window,
+							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, shadowMask_Overlay,
+							shadowHeightMask, cell->Height);
+					}
 				}
 			}
 		}
 	}
-	if (shadow)
+	if (!ExtConfigs::DirectXRendering && shadow)
 	{
-		for (size_t i = 0; i < shadowMask_size; ++i) {
+		for (size_t i = 0; i < shadowMask.size(); ++i) {
 			shadowMask[i] += shadowMask_Building_Infantry[i];
 			shadowMask[i] += shadowMask_Terrain[i];
 			shadowMask[i] += shadowMask_Overlay[i];
@@ -1963,10 +2108,20 @@ static void DrawMapDriectDraw()
 
 							if (ImageDataClassSafe::IsVisibleImage(pData))
 							{
-								CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-									x - pData->FullWidth / 2 + tileAnim.XOffset,
-									y - pData->FullHeight / 2 + tileAnim.YOffset + 15,
-									pData, NULL, isCellHidden(cell) ? 128 : 255, -2, -10);
+								if (ExtConfigs::DirectXRendering)
+								{
+									CIsoViewExt::DirectXNormal(
+										x - pData->FullWidth / 2 + tileAnim.XOffset,
+										y - pData->FullHeight / 2 + tileAnim.YOffset + 15,
+										pData, NULL, isCellHidden(cell) ? 0.5f : 1.0f, -2, -10);
+								}
+								else
+								{
+									CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+										x - pData->FullWidth / 2 + tileAnim.XOffset,
+										y - pData->FullHeight / 2 + tileAnim.YOffset + 15,
+										pData, NULL, isCellHidden(cell) ? 128 : 255, -2, -10);
+								}
 							}
 						}
 					}
@@ -2033,10 +2188,20 @@ static void DrawMapDriectDraw()
 								auto pData = dataExt.pExtraImage;
 								if (ImageDataClassSafe::IsVisibleImage(pData))
 								{
-									CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-										x1 + 30 + dataExt.ExtraOffset.x,
-										y1 + 30 + dataExt.ExtraOffset.y,
-										pData, pal, isCellHidden(cell) ? 128 : 255, -2, -10);
+									if (ExtConfigs::DirectXRendering)
+									{
+										CIsoViewExt::DirectXNormal(
+											x1 + 30 + dataExt.ExtraOffset.x,
+											y1 + 30 + dataExt.ExtraOffset.y,
+											pData, NULL, isCellHidden(cell) ? 0.5f : 1.0f, -2, -10);
+									}
+									else
+									{
+										CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+											x1 + 30 + dataExt.ExtraOffset.x,
+											y1 + 30 + dataExt.ExtraOffset.y,
+											pData, pal, isCellHidden(cell) ? 128 : 255, -2, -10);
+									}
 								}
 							}
 							drawTerrainAnim(tileIndex, tileSubIndex, x1 + 60, y1 + 30);
@@ -2080,9 +2245,19 @@ static void DrawMapDriectDraw()
 				auto pData = pType->GetImageData();
 				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
-					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-						x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false,
-						info.aroundRedrawCell ? &objectOverlapMask : nullptr);
+					if (ExtConfigs::DirectXRendering)
+					{
+						CIsoViewExt::DirectXNormal(
+							x - pData->FullWidth / 2, 
+							y - pData->FullHeight / 2,
+							pData);
+					}
+					else
+					{
+						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+							x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false,
+							info.aroundRedrawCell ? &objectOverlapMask : nullptr);
+					}
 				}
 			}
 		}
@@ -2127,12 +2302,26 @@ static void DrawMapDriectDraw()
 						if (!CFinalSunApp::Instance->FlatToGround)
 							y1 -= (cellNext->Height - cell->Height) * 15;
 
-						auto tmp = CIsoViewExt::CurrentDrawCellLocation;
 						CIsoViewExt::CurrentDrawCellLocation.X++;
 						CIsoViewExt::CurrentDrawCellLocation.Y++;
-						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, 255, 0, 500 + cellNextExt.NewOverlay, false);
-						CIsoViewExt::CurrentDrawCellLocation = tmp;
+						CIsoViewExt::CurrentDrawCellLocation.Height = cellNext->Height;
+
+						if (ExtConfigs::DirectXRendering)
+						{
+							CIsoViewExt::DirectXOverlay(
+								x1 - pData->FullWidth / 2,
+								y1 - pData->FullHeight / 2,
+								pData, pNextType, cellNext->OverlayData);
+						}
+						else
+						{
+							CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, 255, 0, 500 + cellNextExt.NewOverlay, false);
+						}
+
+						CIsoViewExt::CurrentDrawCellLocation.X--;
+						CIsoViewExt::CurrentDrawCellLocation.Y--;
+						CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
 					}
 				}
 			}
@@ -2162,8 +2351,18 @@ static void DrawMapDriectDraw()
 
 						y1 += CIsoViewExt::GetOverlayDrawOffset(cellExt->NewOverlay, cell->OverlayData);
 
-						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, 255, 0, 500 + cellExt->NewOverlay, false);
+						if (ExtConfigs::DirectXRendering)
+						{
+							CIsoViewExt::DirectXOverlay(
+								x1 - pData->FullWidth / 2,
+								y1 - pData->FullHeight / 2,
+								pData, pType, cell->OverlayData);
+						}
+						else
+						{
+							CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, 255, 0, 500 + cellExt->NewOverlay, false);
+						}
 					}
 				}
 			}
@@ -2182,10 +2381,20 @@ static void DrawMapDriectDraw()
 
 				if (ImageDataClassSafe::IsVisibleImage(pData))
 				{
-					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-						x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
-						pData, NULL, 255, 0, pType->IsTiberiumTree ? 6 : (pType->HasCustomPalette ? 5 : -1), false,
-						info.aroundRedrawCell ? &objectOverlapMask : nullptr);
+					if (ExtConfigs::DirectXRendering)
+					{
+						CIsoViewExt::DirectXNormal(
+							x - pData->FullWidth / 2,
+							y - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
+							pData, NULL, 1.0f, 0, pType->IsTiberiumTree ? 6 : (pType->HasCustomPalette ? 5 : -1));
+					}
+					else
+					{
+						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+							x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
+							pData, NULL, 255, 0, pType->IsTiberiumTree ? 6 : (pType->HasCustomPalette ? 5 : -1), false,
+							info.aroundRedrawCell ? &objectOverlapMask : nullptr);
+					}
 				}
 				else
 				{
@@ -2242,7 +2451,7 @@ static void DrawMapDriectDraw()
 							!pType->IsDamagedAsRubble
 							&& (pType->LeaveRubble || ExtConfigs::HideNoRubbleBuilding);
 						auto isTerrain = pType->IsTerrainPalette;
-						CIsoViewExt::DirectXSHPTransparent_Building(part.DrawX, part.DrawY - part.pData->FullHeight / 2,
+						CIsoViewExt::DirectXBuilding(part.DrawX, part.DrawY - part.pData->FullHeight / 2,
 							part.pData, part.pPal, isCloakable(pType) ? 0.5f : 1.0f, objRender.HouseColor, isRubble, isTerrain);
 					}
 					else
@@ -2263,10 +2472,9 @@ static void DrawMapDriectDraw()
 							if (upg.GetLength() == 0)
 								continue;
 
-							auto pUpgType = Renderer::GetOrCreateBuilding(upg);
-							auto& clips = *pUpgType->GetImageData(0, 0);
-							auto pUpgData = CLoadingExt::BindClippedImages(clips);
-							if (ImageDataClassSafe::IsValidImage(pUpgData.get()))
+							auto pUpgType = Renderer::GetOrCreateBuilding(upg); 
+							auto pUpgData = pUpgType->GetBundledImageData(0);
+							if (ImageDataClassSafe::IsValidImage(pUpgData))
 							{
 								int x2 = x1;
 								int y2 = y1;
@@ -2275,17 +2483,17 @@ static void DrawMapDriectDraw()
 
 								if (ExtConfigs::DirectXRendering)
 								{
-									CIsoViewExt::DirectXSHPTransparent_Building(
+									CIsoViewExt::DirectXBuilding(
 										x2 - pUpgData->FullWidth / 2, 
 										y2 - pUpgData->FullHeight / 2, 
-										pUpgData.get(), NULL, 
+										pUpgData, NULL,
 										isCloakable(pType) ? 0.5f : 1.0f,
 										objRender.HouseColor, false, pType->IsTerrainPalette);
 								}
 								else
 								{
 									CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
-										x2 - pUpgData->FullWidth / 2, y2 - pUpgData->FullHeight / 2, pUpgData.get(), NULL, isCloakable(pType) ? 128 : 255,
+										x2 - pUpgData->FullWidth / 2, y2 - pUpgData->FullHeight / 2, pUpgData, NULL, isCloakable(pType) ? 128 : 255,
 										objRender.HouseColor, false, pType->IsTerrainPalette);
 								}
 							}
@@ -2335,21 +2543,25 @@ static void DrawMapDriectDraw()
 						auto draw = [&]
 						{
 							auto& clips = *pType->GetImageData(objRender.Facing, part.Status);
-							auto pData = CLoadingExt::BindClippedImages(clips);
-							if (ImageDataClassSafe::IsValidImage(pData.get()))
+							for (auto& pData : clips)
 							{
-								if (ExtConfigs::DirectXRendering)
+								if (ImageDataClassSafe::IsValidImage(pData.get()))
 								{
-									CIsoViewExt::DirectXSHPTransparent_Building(
-										x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData.get(), 
-										NULL, isCloakable(pType) ? 0.5f : 1.0f,
-										objRender.HouseColor, false, pType->IsTerrainPalette);
-								}
-								else
-								{
-									CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
-										x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData.get(), NULL, isCloakable(pType) ? 128 : 255,
-										objRender.HouseColor, false, pType->IsTerrainPalette);
+									if (ExtConfigs::DirectXRendering)
+									{
+										CIsoViewExt::DirectXBuilding(
+											x1 - pData->ClipOffsets.FullWidth / 2 + pData->ClipOffsets.LeftOffset,
+											y1 - pData->FullHeight / 2, pData.get(),
+											NULL, isCloakable(pType) ? 0.5f : 1.0f,
+											objRender.HouseColor, false, pType->IsTerrainPalette);
+									}
+									else
+									{
+										CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
+											x1 - pData->ClipOffsets.FullWidth / 2 + pData->ClipOffsets.LeftOffset,
+											y1 - pData->FullHeight / 2, pData.get(), NULL, isCloakable(pType) ? 128 : 255,
+											objRender.HouseColor, false, pType->IsTerrainPalette);
+									}
 								}
 							}
 						};
@@ -2449,7 +2661,7 @@ static void DrawMapDriectDraw()
 				{
 					if (ExtConfigs::DirectXRendering)
 					{
-						CIsoViewExt::DirectXSHPTransparent_Building(
+						CIsoViewExt::DirectXBuilding(
 							part.DrawX, part.DrawY - part.pData->FullHeight / 2,
 							part.pData, part.pPal, 0.5f, part.HouseColor);
 					}
@@ -2492,12 +2704,25 @@ static void DrawMapDriectDraw()
 						x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 30, ExtConfigs::CursorSelectionBound_HeightColor,
 						false, false, &ddsd, window, true);
 
-				auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-					x - pData->FullWidth / 2,
-					y - pData->FullHeight / 2 + 15 - (HoveringUnit ? 10 : 0) -
-					(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
-					pData, NULL, isCloakable(pType) ? 128 : 255, color, 0, true,
-					info.aroundRedrawCell ? &objectOverlapMask : nullptr); };
+				auto draw = [&] {
+					if (ExtConfigs::DirectXRendering)
+					{
+						CIsoViewExt::DirectXNormal(
+							x - pData->FullWidth / 2,
+							y - pData->FullHeight / 2 + 15 - (HoveringUnit ? 10 : 0) -
+							(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
+							pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 0, true);
+					}
+					else
+					{
+						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+							x - pData->FullWidth / 2,
+							y - pData->FullHeight / 2 + 15 - (HoveringUnit ? 10 : 0) -
+							(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
+							pData, NULL, isCloakable(pType) ? 128 : 255, color, 0, true,
+							info.aroundRedrawCell ? &objectOverlapMask : nullptr);
+					}		
+					};
 				draw();
 
 				if (CIsoViewExt::DrawVeterancy)
@@ -2538,10 +2763,21 @@ static void DrawMapDriectDraw()
 			auto color = Miscs::GetColorRef(obj.House);
 			if (ImageDataClassSafe::IsValidImage(pData))
 			{
-				auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-					x - pData->FullWidth / 2, y - pData->FullHeight / 2 + 15, pData, NULL,
-					isCloakable(pType) ? 128 : 255, color, 2, true,
-					info.aroundRedrawCell ? &objectOverlapMask : nullptr); };
+				auto draw = [&] {
+					if (ExtConfigs::DirectXRendering)
+					{
+						CIsoViewExt::DirectXNormal(
+							x - pData->FullWidth / 2, y - pData->FullHeight / 2 + 15,
+							pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 2, true);
+					}
+					else
+					{
+						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+							x - pData->FullWidth / 2, y - pData->FullHeight / 2 + 15, pData, NULL,
+							isCloakable(pType) ? 128 : 255, color, 2, true,
+							info.aroundRedrawCell ? &objectOverlapMask : nullptr);
+					}
+				};
 				draw();
 
 				if (CIsoViewExt::DrawVeterancy)
@@ -2595,10 +2831,21 @@ static void DrawMapDriectDraw()
 				auto color = Miscs::GetColorRef(obj.House);
 				if (ImageDataClassSafe::IsValidImage(pData))
 				{
-					auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL,
-						isCloakable(pType) ? 128 : 255, color, 1, true,
-						info.aroundRedrawCell ? &objectOverlapMask : nullptr); };
+					auto draw = [&] {
+						if (ExtConfigs::DirectXRendering)
+						{
+							CIsoViewExt::DirectXNormal(
+								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2,
+								pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 1, true);
+						}
+						else
+						{
+							CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL,
+								isCloakable(pType) ? 128 : 255, color, 1, true,
+								info.aroundRedrawCell ? &objectOverlapMask : nullptr);
+						}
+					};
 					draw();
 
 					if (CIsoViewExt::DrawVeterancy)
@@ -2631,15 +2878,31 @@ static void DrawMapDriectDraw()
 
 	for (const auto& fire : FiresToDraw)
 	{
-		CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-			fire.first.X, fire.first.Y,
-			fire.second, NULL, 255, 0, -100, false);
+		if (ExtConfigs::DirectXRendering)
+		{
+			CIsoViewExt::DirectXNormal(
+				fire.first.X, fire.first.Y,
+				fire.second, NULL, 1.0f, 0, -100, false);
+		}
+		else
+		{
+			CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+				fire.first.X, fire.first.Y,
+				fire.second, NULL, 255, 0, -100, false);
+		}
 	}
 
 	for (const auto& ai : AlphaImagesToDraw)
 	{
-		CIsoViewExt::BlitSHPTransparent_AlphaImage(pThis, ddsd.lpSurface, window, boundary,
-			ai.first.X, ai.first.Y, ai.second);
+		if (ExtConfigs::DirectXRendering)
+		{
+			CIsoViewExt::DirectXAlphaImage(ai.first.X, ai.first.Y, ai.second);
+		}
+		else
+		{
+			CIsoViewExt::BlitSHPTransparent_AlphaImage(pThis, ddsd.lpSurface, window, boundary,
+				ai.first.X, ai.first.Y, ai.second);
+		}
 	}
 
 	if (CIsoViewExt::DrawVeterancy)
@@ -2671,9 +2934,20 @@ static void DrawMapDriectDraw()
 					pImage = CLoadingExt::GetImageDataFromMap(insignia.Rookie);
 			}
 			if (pImage)
-				CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-					dv.X - pImage->FullWidth / 2 + 10, dv.Y + 21 - pImage->FullHeight / 2,
-					pImage, 0, dv.Transp ? 128 : 255, 0, -100, false);
+			{
+				if (ExtConfigs::DirectXRendering)
+				{
+					CIsoViewExt::DirectXNormal(
+						dv.X - pImage->FullWidth / 2 + 10, dv.Y + 21 - pImage->FullHeight / 2,
+						pImage, 0, dv.Transp ? 0.5f : 1.0f, 0, -100, false);
+				}
+				else
+				{
+					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+						dv.X - pImage->FullWidth / 2 + 10, dv.Y + 21 - pImage->FullHeight / 2,
+						pImage, 0, dv.Transp ? 128 : 255, 0, -100, false);
+				}
+			}
 		}
 	}
 
@@ -2681,31 +2955,35 @@ static void DrawMapDriectDraw()
 		CIsoView::CurrentCommand->Command == 0x25) &&
 		CIsoViewExt::DrawPropertyBrushMark)
 	{
-		if (auto image = CLoadingExt::GetSurfaceImageDataFromMap("PROPERTY_MARK"))
+		for (auto& dv : CIsoViewExt::DrawEditedMarks)
 		{
-			for (auto& dv : CIsoViewExt::DrawEditedMarks)
+			int x1 = dv.X, y1 = dv.Y;
+			CIsoView::MapCoord2ScreenCoord(x1, y1);
+			x1 -= DrawOffsetX;
+			y1 -= DrawOffsetY;
+			switch (dv.subPos)
 			{
-				int x1 = dv.X, y1 = dv.Y;
-				CIsoView::MapCoord2ScreenCoord(x1, y1);
-				x1 -= DrawOffsetX;
-				y1 -= DrawOffsetY;
-				switch (dv.subPos)
-				{
-				case 2:
-					x1 += 15;
-					y1 += 15;
-					break;
-				case 3:
-					x1 -= 15;
-					y1 += 15;
-					break;
-				case 4:
-					y1 += 22;
-					break;
-				default:
-					y1 += 15;
-					break;
-				}
+			case 2:
+				x1 += 15;
+				y1 += 15;
+				break;
+			case 3:
+				x1 -= 15;
+				y1 += 15;
+				break;
+			case 4:
+				y1 += 22;
+				break;
+			default:
+				y1 += 15;
+				break;
+			}
+			if (ExtConfigs::DirectXRendering)
+			{
+				pThis->DirectXBitmap(x1 + 30, y1 - 15, "PROPERTY_MARK");
+			}
+			else if (auto image = CLoadingExt::GetSurfaceImageDataFromMap("PROPERTY_MARK"))
+			{
 				pThis->BlitTransparentDesc(image->lpSurface,
 					lpSurface, &ddsd,
 					x1 - image->FullWidth / 2 + 30,
@@ -2843,138 +3121,203 @@ static void DrawMapDriectDraw()
 		}
 	}
 
-	// celltag, waypoint, annotation
-	DDSURFACEDESC2 CellTagDesc = { sizeof(DDSURFACEDESC2) };
-	DDCOLORKEY CellTagColorKey{ 0,0 };
-	auto CellTagImage = CLoadingExt::GetSurfaceImageDataFromMap("CELLTAG");
-	bool CellTagLocked = CellTagImage &&
-		CellTagImage->lpSurface->Lock(NULL, &CellTagDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) == DD_OK;
-	if (CellTagImage) CellTagImage->lpSurface->GetColorKey(DDCKEY_SRCBLT, &CellTagColorKey);
-
-	DDSURFACEDESC2 WaypointDesc = { sizeof(DDSURFACEDESC2) };
-	DDCOLORKEY WaypointColorKey{ 0,0 };
-	auto WaypointImage = CLoadingExt::GetSurfaceImageDataFromMap("FLAG");
-	bool WaypointLocked = WaypointImage &&
-		WaypointImage->lpSurface->Lock(NULL, &WaypointDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) == DD_OK;
-	if (WaypointImage) WaypointImage->lpSurface->GetColorKey(DDCKEY_SRCBLT, &WaypointColorKey);
-
-	DDSURFACEDESC2 AnnotationDesc = { sizeof(DDSURFACEDESC2) };
-	DDCOLORKEY AnnotationColorKey{ 0,0 };
-	auto AnnotationImage = CLoadingExt::GetSurfaceImageDataFromMap("annotation.bmp");
-	bool AnnotationLocked = AnnotationImage &&
-		AnnotationImage->lpSurface->Lock(NULL, &AnnotationDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) == DD_OK;
-	if (AnnotationImage) AnnotationImage->lpSurface->GetColorKey(DDCKEY_SRCBLT, &AnnotationColorKey);
-
-	for (const auto& info : visibleCells)
+	if (ExtConfigs::DirectXRendering)
 	{
-		if (!info.isInMap && !ExtConfigs::DisplayObjectsOutside) continue;
-		auto& X = info.X;
-		auto& Y = info.Y;
-		auto& pos = info.pos;
-		auto& cell = info.cell;
-		auto& cellExt = info.cellExt;
-		auto& x = info.screenX;
-		auto& y = info.screenY;
-
-		auto drawCellTagImage = [&](const ppmfc::CString& id)
+		for (const auto& info : visibleCells)
 		{
-			auto itr = CMapDataExt::CustomCelltagColors.find(id);
-			if (itr != CMapDataExt::CustomCelltagColors.end())
-			{
-				auto image = CLoadingExt::GetOrLoadFlagOrCelltagFromMap(itr->second, false);
-				pThis->BlitTransparentDesc(image->lpSurface,
-					lpSurface, &ddsd,
-					x + 29 - image->FullWidth / 2,
-					y + 13 - image->FullHeight / 2, -1, -1,
-					ExtConfigs::DrawCelltagTranslucent ? 128 : 255);
-			}
-			else
-			{
-				pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface,
-					lpSurface, &ddsd, CellTagDesc, CellTagColorKey,
-					x + 29 - CellTagImage->FullWidth / 2,
-					y + 13 - CellTagImage->FullHeight / 2, -1, -1,
-					ExtConfigs::DrawCelltagTranslucent ? 128 : 255);
-			}
-		};
+			if (!info.isInMap && !ExtConfigs::DisplayObjectsOutside) continue;
+			auto& X = info.X;
+			auto& Y = info.Y;
+			auto& pos = info.pos;
+			auto& cell = info.cell;
+			auto& cellExt = info.cellExt;
+			auto& x = info.screenX;
+			auto& y = info.screenY;
 
-		auto drawWaypointImage = [&](const ppmfc::CString& id)
-		{
-			auto itr = CMapDataExt::CustomWaypointColors.find(id);
-			if (itr != CMapDataExt::CustomWaypointColors.end())
+			if (cell->CellTag > -1 && cell->CellTag < Celltags.size())
 			{
-				auto image = CLoadingExt::GetOrLoadFlagOrCelltagFromMap(itr->second, true);
-				pThis->BlitTransparentDesc(image->lpSurface,
-					lpSurface, &ddsd,
-					x + 30 - WaypointImage->FullWidth / 2,
-					y + 12 - WaypointImage->FullHeight / 2);
-			}
-			else
-			{
-				pThis->BlitTransparentDescNoLock(WaypointImage->lpSurface,
-					lpSurface, &ddsd, WaypointDesc, WaypointColorKey,
-					x + 30 - WaypointImage->FullWidth / 2,
-					y + 12 - WaypointImage->FullHeight / 2, -1, -1);
-			}
-		};
-
-		if (CellTagLocked && cell->CellTag > -1 && cell->CellTag < Celltags.size())
-		{
-			auto id = Celltags[cell->CellTag];
-			if (id)
-			{
-				if (CIsoViewExt::DrawCellTagsFilter && !CViewObjectsExt::ObjectFilterCT.empty() && !id->IsEmpty())
+				auto id = Celltags[cell->CellTag];
+				if (id)
 				{
-					for (auto& name : CViewObjectsExt::ObjectFilterCT)
+					if (CIsoViewExt::DrawCellTagsFilter && !CViewObjectsExt::ObjectFilterCT.empty() && !id->IsEmpty())
 					{
-						if (name == *id)
+						for (auto& name : CViewObjectsExt::ObjectFilterCT)
 						{
-							drawCellTagImage(*id);
-							break;
-						}
-						if (STDHelpers::IsNumber(name))
-						{
-							int n = atoi(name);
-							if (n < 1000000)
+							if (name == *id)
 							{
-								FString buffer;
-								buffer.Format("%08d", n + 1000000);
-								if (buffer == *id)
+								CIsoViewExt::DirectXBitmap(x + 29, y + 13, "CELLTAG", 
+									ExtConfigs::DrawCelltagTranslucent ? 0.5f : 1.0f);
+								break;
+							}
+							if (STDHelpers::IsNumber(name))
+							{
+								int n = atoi(name);
+								if (n < 1000000)
 								{
-									drawCellTagImage(*id);
-									break;
+									FString buffer;
+									buffer.Format("%08d", n + 1000000);
+									if (buffer == *id)
+									{
+										CIsoViewExt::DirectXBitmap(x + 29, y + 13, "CELLTAG",
+											ExtConfigs::DrawCelltagTranslucent ? 0.5f : 1.0f);
+										break;
+									}
 								}
 							}
 						}
 					}
+					else								
+						CIsoViewExt::DirectXBitmap(x + 29, y + 13, "CELLTAG",
+							ExtConfigs::DrawCelltagTranslucent ? 0.5f : 1.0f);
+				}
+			}
+
+			if (cell->Waypoint > -1 && cell->Waypoint < Waypoints.size())
+			{
+				auto id = Waypoints[cell->Waypoint];
+				if (id)
+					CIsoViewExt::DirectXBitmap(x + 30, y + 12, "FLAG");
+			}
+
+			if (CIsoViewExt::DrawAnnotations && CMapDataExt::HasAnnotation(pos))
+				CIsoViewExt::DirectXBitmap(x + 30, y + 11, "annotation.bmp");
+		}
+	}
+	else
+	{
+		// celltag, waypoint, annotation
+		DDSURFACEDESC2 CellTagDesc = { sizeof(DDSURFACEDESC2) };
+		DDCOLORKEY CellTagColorKey{ 0,0 };
+		auto CellTagImage = CLoadingExt::GetSurfaceImageDataFromMap("CELLTAG");
+		bool CellTagLocked = CellTagImage &&
+			CellTagImage->lpSurface->Lock(NULL, &CellTagDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) == DD_OK;
+		if (CellTagImage) CellTagImage->lpSurface->GetColorKey(DDCKEY_SRCBLT, &CellTagColorKey);
+
+		DDSURFACEDESC2 WaypointDesc = { sizeof(DDSURFACEDESC2) };
+		DDCOLORKEY WaypointColorKey{ 0,0 };
+		auto WaypointImage = CLoadingExt::GetSurfaceImageDataFromMap("FLAG");
+		bool WaypointLocked = WaypointImage &&
+			WaypointImage->lpSurface->Lock(NULL, &WaypointDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) == DD_OK;
+		if (WaypointImage) WaypointImage->lpSurface->GetColorKey(DDCKEY_SRCBLT, &WaypointColorKey);
+
+		DDSURFACEDESC2 AnnotationDesc = { sizeof(DDSURFACEDESC2) };
+		DDCOLORKEY AnnotationColorKey{ 0,0 };
+		auto AnnotationImage = CLoadingExt::GetSurfaceImageDataFromMap("annotation.bmp");
+		bool AnnotationLocked = AnnotationImage &&
+			AnnotationImage->lpSurface->Lock(NULL, &AnnotationDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) == DD_OK;
+		if (AnnotationImage) AnnotationImage->lpSurface->GetColorKey(DDCKEY_SRCBLT, &AnnotationColorKey);
+
+		for (const auto& info : visibleCells)
+		{
+			if (!info.isInMap && !ExtConfigs::DisplayObjectsOutside) continue;
+			auto& X = info.X;
+			auto& Y = info.Y;
+			auto& pos = info.pos;
+			auto& cell = info.cell;
+			auto& cellExt = info.cellExt;
+			auto& x = info.screenX;
+			auto& y = info.screenY;
+
+			auto drawCellTagImage = [&](const ppmfc::CString& id)
+			{
+				auto itr = CMapDataExt::CustomCelltagColors.find(id);
+				if (itr != CMapDataExt::CustomCelltagColors.end())
+				{
+					auto image = CLoadingExt::GetOrLoadFlagOrCelltagFromMap(itr->second, false);
+					pThis->BlitTransparentDesc(image->lpSurface,
+						lpSurface, &ddsd,
+						x + 29 - image->FullWidth / 2,
+						y + 13 - image->FullHeight / 2, -1, -1,
+						ExtConfigs::DrawCelltagTranslucent ? 128 : 255);
 				}
 				else
-					drawCellTagImage(*id);
+				{
+					pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface,
+						lpSurface, &ddsd, CellTagDesc, CellTagColorKey,
+						x + 29 - CellTagImage->FullWidth / 2,
+						y + 13 - CellTagImage->FullHeight / 2, -1, -1,
+						ExtConfigs::DrawCelltagTranslucent ? 128 : 255);
+				}
+			};
+
+			auto drawWaypointImage = [&](const ppmfc::CString& id)
+			{
+				auto itr = CMapDataExt::CustomWaypointColors.find(id);
+				if (itr != CMapDataExt::CustomWaypointColors.end())
+				{
+					auto image = CLoadingExt::GetOrLoadFlagOrCelltagFromMap(itr->second, true);
+					pThis->BlitTransparentDesc(image->lpSurface,
+						lpSurface, &ddsd,
+						x + 30 - WaypointImage->FullWidth / 2,
+						y + 12 - WaypointImage->FullHeight / 2);
+				}
+				else
+				{
+					pThis->BlitTransparentDescNoLock(WaypointImage->lpSurface,
+						lpSurface, &ddsd, WaypointDesc, WaypointColorKey,
+						x + 30 - WaypointImage->FullWidth / 2,
+						y + 12 - WaypointImage->FullHeight / 2, -1, -1);
+				}
+			};
+
+			if (CellTagLocked && cell->CellTag > -1 && cell->CellTag < Celltags.size())
+			{
+				auto id = Celltags[cell->CellTag];
+				if (id)
+				{
+					if (CIsoViewExt::DrawCellTagsFilter && !CViewObjectsExt::ObjectFilterCT.empty() && !id->IsEmpty())
+					{
+						for (auto& name : CViewObjectsExt::ObjectFilterCT)
+						{
+							if (name == *id)
+							{
+								drawCellTagImage(*id);
+								break;
+							}
+							if (STDHelpers::IsNumber(name))
+							{
+								int n = atoi(name);
+								if (n < 1000000)
+								{
+									FString buffer;
+									buffer.Format("%08d", n + 1000000);
+									if (buffer == *id)
+									{
+										drawCellTagImage(*id);
+										break;
+									}
+								}
+							}
+						}
+					}
+					else
+						drawCellTagImage(*id);
+				}
 			}
+
+			if (WaypointLocked && cell->Waypoint > -1 && cell->Waypoint < Waypoints.size())
+			{
+				auto id = Waypoints[cell->Waypoint];
+				if (id)
+					drawWaypointImage(*id);
+			}
+
+			if (AnnotationLocked && CIsoViewExt::DrawAnnotations && CMapDataExt::HasAnnotation(pos))
+				pThis->BlitTransparentDescNoLock(AnnotationImage->lpSurface,
+					lpSurface, &ddsd, AnnotationDesc, AnnotationColorKey,
+					x + 5,
+					y - 2, -1, -1);
 		}
 
-		if (WaypointLocked && cell->Waypoint > -1 && cell->Waypoint < Waypoints.size())
-		{
-			auto id = Waypoints[cell->Waypoint];
-			if (id)
-				drawWaypointImage(*id);
-		}
+		if (CellTagImage && CellTagLocked)
+			CellTagImage->lpSurface->Unlock(NULL);
 
-		if (AnnotationLocked && CIsoViewExt::DrawAnnotations && CMapDataExt::HasAnnotation(pos))
-			pThis->BlitTransparentDescNoLock(AnnotationImage->lpSurface,
-				lpSurface, &ddsd, AnnotationDesc, AnnotationColorKey,
-				x + 5,
-				y - 2, -1, -1);
+		if (WaypointImage && WaypointLocked)
+			WaypointImage->lpSurface->Unlock(NULL);
+
+		if (AnnotationImage && AnnotationLocked)
+			AnnotationImage->lpSurface->Unlock(NULL);
 	}
-
-	if (CellTagImage && CellTagLocked)
-		CellTagImage->lpSurface->Unlock(NULL);
-
-	if (WaypointImage && WaypointLocked)
-		WaypointImage->lpSurface->Unlock(NULL);
-
-	if (AnnotationImage && AnnotationLocked)
-		AnnotationImage->lpSurface->Unlock(NULL);
 
 	auto& cellDataExt = CMapDataExt::CellDataExt_FindCell;
 	if (cellDataExt.drawCell)
@@ -3167,8 +3510,15 @@ static void DrawMapDriectDraw()
 					if (fontSize > 18)
 						fontSize = 18;
 				}
-				CIsoViewExt::BlitText(result, textColor, bgColor,
-					pThis, ddsd.lpSurface, window, boundary, x, y, fontSize, 128, folded ? false : bold);
+				if (ExtConfigs::DirectXRendering)
+				{
+
+				}
+				else
+				{
+					CIsoViewExt::BlitText(result, textColor, bgColor,
+						pThis, ddsd.lpSurface, window, boundary, x, y, fontSize, 128, folded ? false : bold);
+				}
 			}
 		}
 	}
@@ -3303,6 +3653,14 @@ static void DrawMapDriectDraw()
 
 	if (ExtConfigs::DirectXRendering)
 	{
+		if (pThis->IsScrolling)
+		{
+			pThis->DirectXBitmap(
+				pThis->MoveCenterPosition.x,
+				pThis->MoveCenterPosition.y + 27,
+				"scrollcursor.bmp", 1.0f, true);
+		}
+
 		pThis->g_pDX->Render();
 		return;
 	}
@@ -3350,9 +3708,9 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 	pt.y -= ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0;
 
 	const bool rightDown = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
-	const int dx = pt.x - pThis->MoveCenterPosition.x;
-	const int dy = pt.y - pThis->MoveCenterPosition.y;
-	const bool shouldScroll = rightDown && (abs(dx) > 2 || abs(dy) > 2);
+	const int dx = pt.x - MouseCenterPosition.x;
+	const int dy = pt.y - MouseCenterPosition.y;
+	const bool shouldScroll = rightDown && (abs(dx) > 2 || abs(dy) > 2) && MouseCenterPosition.x != -1919810;
 
 	if (shouldScroll)
 	{
@@ -3389,11 +3747,10 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 
 		return 0x456EC0;
 	}
-
 	if (!rightDown)
 	{
-		pThis->MoveCenterPosition.x = pt.x;
-		pThis->MoveCenterPosition.y = pt.y;
+		MouseCenterPosition.x = pt.x;
+		MouseCenterPosition.y = pt.y;
 	}
 
 	return 0x456EDB;
@@ -3404,15 +3761,46 @@ DEFINE_HOOK(45EB20, CIsoView_OnRButtonUp_CancelScroll, 8)
 	GET(CIsoViewExt*, pThis, ESI);
 
 	ShowCursor(TRUE);
+	pThis->MoveCenterPosition.x = -1919810;
+	pThis->MoveCenterPosition.y = -1919810;
 
 	return 0x45EB28;
 }
+
+DEFINE_HOOK(4763B0, CIsoView_OnRButtonDown_FixPos, 8)
+{
+	if (ExtConfigs::SecondScreenSupport)
+	{
+		R->Stack(0x8, R->Stack<int>(0x8) - GetSystemMetrics(SM_XVIRTUALSCREEN));
+		R->Stack(0xC, R->Stack<int>(0xC) - GetSystemMetrics(SM_YVIRTUALSCREEN));
+	}
+	auto pThis = CIsoViewExt::GetExtension();
+	if (!pThis->IsScrolling)
+	{
+		GetCursorPos(&MouseCenterPosition);
+		::ScreenToClient(pThis->GetSafeHwnd(), &MouseCenterPosition);
+		pThis->MoveCenterPosition.x = MouseCenterPosition.x;
+		pThis->MoveCenterPosition.y = MouseCenterPosition.y;
+	}
+
+	return 0;
+}
+
 
 DEFINE_HOOK(468690, CIsoView_OnSize, A)
 {
 	GET(CIsoViewExt*, pThis, ECX);
 	if (pThis->g_pDX)
 		pThis->g_pDX->OnResize(pThis->GetSafeHwnd());
+	return 0;
+}
+
+DEFINE_HOOK(4686A2, CIsoView_OnSize_Clipper, 6)
+{
+	GET(CIsoViewExt*, pThis, ECX);
+
+	if (ExtConfigs::DirectXRendering)
+		return 0x4686BD;
 	return 0;
 }
 

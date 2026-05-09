@@ -65,7 +65,7 @@ void OverlayType::Init(WORD nOverlay)
     ID = Variables::RulesMap.GetValueAt("OverlayTypes", nOverlay);
     Type = CLoadingExt::GameObjectType::Overlay;
     OverlayIndex = nOverlay;
-    //TypeData = CMapDataExt::GetOverlayTypeData(nOverlay);
+    TypeData = CMapDataExt::GetOverlayTypeData(nOverlay);
 
     IsImageLoaded = CLoadingExt::IsOverlayLoaded(ID);
     if (!IsImageLoaded)
@@ -74,11 +74,11 @@ void OverlayType::Init(WORD nOverlay)
         IsImageLoaded = true;
     }
 
-    int nMax = 256;
+    int nMax = ExtConfigs::OverlayDataLimit;
     auto itr = CLoadingExt::OverlayDataLimits.find(nOverlay);
     if (itr != CLoadingExt::OverlayDataLimits.end())
         nMax = itr->second;
-    nMax = std::min(256, nMax);
+    nMax = std::min(ExtConfigs::OverlayDataLimit, nMax);
 
     for (int i = 0; i < nMax; ++i)
     {
@@ -458,6 +458,16 @@ ImageDataClassSafe* BuildingType::GetShadowData(int nFacing, int status) const
 ImageDataClassSafe* Renderer::BuildingType::GetAlphaImageData(int rawFacing) const
 {
     return pAlphaImageData[rawFacing * FacingCount / 256];
+}
+
+ImageDataClassSafe* Renderer::BuildingType::GetBundledImageData(int forceFacing)
+{
+    if (!pBundledImageData[forceFacing])
+    {
+        auto clips = GetImageData(0, 0, forceFacing);
+        pBundledImageData[forceFacing] = std::move(CLoadingExt::BindClippedImages(*clips));
+    }
+    return pBundledImageData[forceFacing].get();
 }
 
 VehicleType* Renderer::VehicleType::GetAlteredType(const CUnitDataFS& obj, const LandType landType)

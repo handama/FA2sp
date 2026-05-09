@@ -44,6 +44,11 @@ int CNewINIEditor::minWndWidth;
 int CNewINIEditor::minWndHeight;
 bool CNewINIEditor::minSizeSet;
 bool CNewINIEditor::autoEdit = false;
+int CNewINIEditor::i_origWndWidth;
+int CNewINIEditor::i_origWndHeight;
+int CNewINIEditor::i_minWndWidth;
+int CNewINIEditor::i_minWndHeight;
+bool CNewINIEditor::i_minSizeSet;
 
 WNDPROC CNewINIEditor::OriginalListBoxProc;
 UINT_PTR CNewINIEditor::m_changeDebounceTimer = 0;
@@ -379,7 +384,42 @@ BOOL CALLBACK CNewINIEditor::DlgProcImporter(HWND hWnd, UINT Msg, WPARAM wParam,
     case WM_INITDIALOG:
     {
         CNewINIEditor::InitializeImporter(hWnd);
+        RECT rect;
+        GetClientRect(hWnd, &rect);
+        i_origWndWidth = rect.right - rect.left;
+        i_origWndHeight = rect.bottom - rect.top;
+        i_minSizeSet = false;
         return TRUE;
+    }
+    case WM_GETMINMAXINFO: {
+        if (!i_minSizeSet) {
+            int borderWidth = GetSystemMetrics(SM_CXBORDER);
+            int borderHeight = GetSystemMetrics(SM_CYBORDER);
+            int captionHeight = GetSystemMetrics(SM_CYCAPTION);
+            i_minWndWidth = i_origWndWidth + 2 * borderWidth;
+            i_minWndHeight = i_origWndHeight + captionHeight + 2 * borderHeight;
+            i_minSizeSet = true;
+        }
+        MINMAXINFO* pMinMax = (MINMAXINFO*)lParam;
+        pMinMax->ptMinTrackSize.x = i_minWndWidth;
+        pMinMax->ptMinTrackSize.y = i_minWndHeight;
+        return TRUE;
+    }
+    case WM_SIZE: {
+        int newWndWidth = LOWORD(lParam);
+        int newWndHeight = HIWORD(lParam);
+
+        RECT rect;
+        GetWindowRect(hImporterText, &rect);
+        POINT topLeft = { rect.left, rect.top };
+        ScreenToClient(hWnd, &topLeft);
+        int newWidth = rect.right - rect.left + newWndWidth - i_origWndWidth;
+        int newHeight = rect.bottom - rect.top + newWndHeight - i_origWndHeight;
+        MoveWindow(hImporterText, topLeft.x, topLeft.y, newWidth, newHeight, TRUE);
+
+        i_origWndWidth = newWndWidth;
+        i_origWndHeight = newWndHeight;
+        break;
     }
     case WM_COMMAND:
     {

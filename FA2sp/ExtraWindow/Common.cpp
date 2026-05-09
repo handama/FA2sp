@@ -2138,6 +2138,16 @@ int VirtualComboBoxEx::GetCount() const
     return (int)items.size();
 }
 
+void VirtualComboBoxEx::AdjustCurSel(int& selectedIndex)
+{
+    int count = GetCount();
+    if (selectedIndex < 0)
+        selectedIndex = 0;
+    if (selectedIndex > count - 1)
+        selectedIndex = count - 1;
+    SetCurSel(selectedIndex);
+}
+
 int VirtualComboBoxEx::GetFilteredCount() const
 {
     return (int)filtered.size();
@@ -2189,19 +2199,31 @@ const char* VirtualComboBoxEx::GetSelectedText(bool allowEdit) const
 
 int VirtualComboBoxEx::FindStringExact(const char* str) const
 {
-    if (!str) return -1;
+    if (!str) return CB_ERR;
 
     for (int i = 0; i < (int)items.size(); ++i)
     {
         if (strcmp(items[i].text, str) == 0)
             return i;
     }
-    return -1;
+    return CB_ERR;
+}
+
+int VirtualComboBoxEx::FindStringExactStart(const char* str) const
+{
+    if (!str) return CB_ERR;
+
+    for (int i = 0; i < (int)items.size(); ++i)
+    {
+        if (strncmp(items[i].text, str, strlen(str)) == 0)
+            return i;
+    }
+    return CB_ERR;
 }
 
 int VirtualComboBoxEx::FindString(const char* str) const
 {
-    if (!str) return -1;
+    if (!str) return CB_ERR;
 
     LabelMatcher matcher(str);
     for (int i = 0; i < (int)items.size(); ++i)
@@ -2209,7 +2231,7 @@ int VirtualComboBoxEx::FindString(const char* str) const
         if (matcher.Match(items[i].text))
             return i;
     }
-    return -1;
+    return CB_ERR;
 }
 
 int VirtualComboBoxEx::DeleteString(int index)

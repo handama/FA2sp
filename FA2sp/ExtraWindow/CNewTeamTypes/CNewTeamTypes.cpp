@@ -1571,8 +1571,8 @@ void CNewTeamTypes::OnClickTurnToTag()
 
 void CNewTeamTypes::OnClickNewTeam()
 {
-    FString key = CINI::GetAvailableKey("TeamTypes");
-    FString value = CMapDataExt::GetAvailableIndex(EIndexType::Team);
+    auto key = CINI::GetAvailableKey("TeamTypes");
+    auto value = CMapDataExt::GetAvailableIndex(EIndexType::Team);
     FString buffer;
 
     FString newName = "";
@@ -1691,8 +1691,8 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
         return;
     if (SendMessage(hSelectedTeam, CB_GETCOUNT, NULL, NULL) > 0 && SelectedTeamIndex >= 0)
     {
-        FString key = CINI::GetAvailableKey("TeamTypes");
-        FString value = CMapDataExt::GetAvailableIndex(EIndexType::Team);
+        auto key = CINI::GetAvailableKey("TeamTypes");
+        auto value = CMapDataExt::GetAvailableIndex(EIndexType::Team);
 
         CINI::CurrentDocument->WriteString("TeamTypes", key, value);
 

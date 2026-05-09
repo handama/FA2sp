@@ -35,11 +35,12 @@ public:
     {
         TriggerCaller = second;
     }
-    // 0 team, 1 trigger, 2 taskforce/script, 3 variable
+    // 0 team, 1 trigger, 2 taskforce/script, 3 variable, 4 tag
     static void SetSearchType(int idx) 
     {
         IsTeamType = false;
         IsTrigger = false;
+        IsTag = false;
         IsVariable = false;
         switch (idx)
         {
@@ -51,6 +52,9 @@ public:
             break;
         case 3:
             IsVariable = true;
+            break;
+        case 4:
+            IsTag = true;
             break;
         default:
             break;
@@ -88,6 +92,7 @@ public:
     static bool IsTeamType;
     static bool IsTrigger;
     static bool IsVariable;
+    static bool IsTag;
     // first = id, second = pos
     static std::map<int, ScriptParamPos> LocalVariableScripts;
     // first = id, second = pos (not include event num), 10+ = check param affected params

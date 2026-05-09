@@ -315,6 +315,7 @@ public:
     void SetCurSel(int idx);
     int GetCount() const;
     int GetFilteredCount() const;
+    void AdjustCurSel(int& selectedIndex);
 
     void SetEditText(const char* text) const;
     const char* GetEditText() const;
@@ -323,6 +324,7 @@ public:
     const char* GetSelectedText(bool allowEdit) const;
 
     int FindStringExact(const char* str) const;
+    int FindStringExactStart(const char* str) const;
     int FindString(const char* str) const;
 
     static void SetWindowHeight(HWND hwnd, LPARAM lParam);

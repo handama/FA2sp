@@ -667,7 +667,6 @@ void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
     CTriggerAnnotation::ID = CurrentTaskForceID;
     ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
 
-    ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
     while (SendMessage(hUnitsListBox, LB_DELETESTRING, 0, NULL) != CB_ERR);
     if (auto pTaskforce = map.GetSection(pID))
     {
@@ -724,8 +723,8 @@ void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
 void CNewTaskforce::OnClickNewTaskforce()
 {
     CNewTeamTypes::TaskforceListChanged = true;
-    FString key = CINI::GetAvailableKey("TaskForces");
-    FString value = CMapDataExt::GetAvailableIndex(EIndexType::TaskForce);
+    auto key = CINI::GetAvailableKey("TaskForces");
+    auto value = CMapDataExt::GetAvailableIndex(EIndexType::TaskForce);
     FString buffer2;
 
     FString newName = "";
@@ -782,8 +781,8 @@ void CNewTaskforce::OnClickCloTaskforce(HWND& hWnd)
         return;
     if (SendMessage(hSelectedTaskforce, CB_GETCOUNT, NULL, NULL) > 0 && SelectedTaskForceIndex >= 0)
     {
-        FString key = CINI::GetAvailableKey("TaskForces");
-        FString value = CMapDataExt::GetAvailableIndex(EIndexType::TaskForce);
+        auto key = CINI::GetAvailableKey("TaskForces");
+        auto value = CMapDataExt::GetAvailableIndex(EIndexType::TaskForce);
 
         CINI::CurrentDocument->WriteString("TaskForces", key, value);
 

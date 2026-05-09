@@ -1012,8 +1012,8 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
 void CNewScript::OnClickNewScript()
 {
     CNewTeamTypes::ScriptListChanged = true;
-    FString key = CINI::GetAvailableKey("ScriptTypes");
-    FString value = CMapDataExt::GetAvailableIndex(EIndexType::Script);
+    auto key = CINI::GetAvailableKey("ScriptTypes");
+    auto value = CMapDataExt::GetAvailableIndex(EIndexType::Script);
     FString buffer2;
 
     FString newName = "";
@@ -1070,8 +1070,8 @@ void CNewScript::OnClickCloScript(HWND& hWnd)
         return;
     if (SendMessage(hSelectedScript, CB_GETCOUNT, NULL, NULL) > 0 && SelectedScriptIndex >= 0)
     {
-        FString key = CINI::GetAvailableKey("ScriptTypes");
-        FString value = CMapDataExt::GetAvailableIndex(EIndexType::Script);
+        auto key = CINI::GetAvailableKey("ScriptTypes");
+        auto value = CMapDataExt::GetAvailableIndex(EIndexType::Script);
 
         CINI::CurrentDocument->WriteString("ScriptTypes", key, value);
 

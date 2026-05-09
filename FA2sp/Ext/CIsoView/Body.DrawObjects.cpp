@@ -19,6 +19,7 @@
 #include <functional>
 #include <thread>
 #include <atomic>
+#include <chrono>
 #include "RendererTypes.h"
 
 static CRect window;
@@ -798,6 +799,9 @@ static void DrawMapDriectDraw()
 	auto pThis = CIsoViewExt::GetExtension();
 	auto pMap = CMapDataExt::GetExtension();
 	auto pFinalSunDlg = CFinalSunDlg::Instance();
+
+	if (ExtConfigs::DirectXRendering)
+		pThis->g_pSP->BeginFrame();
 
 	// sanity checks
 	{
@@ -3444,6 +3448,12 @@ static void DrawMapDriectDraw()
 			SetBkMode(hDC, TRANSPARENT);
 		SetTextAlign(hDC, TA_CENTER);
 
+		TextParams param;
+		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().SetAlignCenter().
+			SetColor(ShapeColor::FromCOLORREF(ExtConfigs::Waypoint_Color))
+			.SetPadding(0, 0);
+		if (ExtConfigs::Waypoint_Background)
+			param.SetBgColor(ShapeColor::FromCOLORREF(ExtConfigs::Waypoint_Background_Color));
 
 		for (const auto& [coord, index] : WaypointsToDraw)
 		{
@@ -3453,7 +3463,15 @@ static void DrawMapDriectDraw()
 				CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
 				int drawX = mc.X - DrawOffsetX + 30 + ExtConfigs::Waypoint_Text_ExtraOffset.x;
 				int drawY = mc.Y - DrawOffsetY - 15 + ExtConfigs::Waypoint_Text_ExtraOffset.y;
-				TextOut(hDC, drawX, drawY, index, strlen(index));
+
+				if (ExtConfigs::DirectXRendering)
+				{
+					pThis->g_pTR->DrawTexts(drawX, drawY, index, param);
+				}
+				else
+				{
+					TextOut(hDC, drawX, drawY, index, strlen(index));
+				}
 			}
 		}
 	}
@@ -3492,30 +3510,67 @@ static void DrawMapDriectDraw()
 					text += atoms[i];
 				}
 				text.Replace("\\n", "\n");
-				auto result = STDHelpers::StringToWString(text);
-
-				if (folded)
-				{
-					int count = 3;
-					if (count < result.length() - 1)
-					{
-						if (IS_HIGH_SURROGATE(result[count - 1]) && IS_LOW_SURROGATE(result[count])) {
-							count--;
-						}
-						result = result.substr(0, count);
-						wchar_t toRemove = L'\n';
-						result.erase(std::remove(result.begin(), result.end(), toRemove), result.end());
-						result += L"...";
-					}
-					if (fontSize > 18)
-						fontSize = 18;
-				}
+				
 				if (ExtConfigs::DirectXRendering)
 				{
+					if (folded)
+					{
+						int maxChars = 3;
+						size_t bytePos = 0;
+						int charCount = 0;
 
+						while (bytePos < text.length() && charCount < maxChars)
+						{
+							unsigned char c = static_cast<unsigned char>(text[bytePos]);
+							if (IsDBCSLeadByte(c) && bytePos + 1 < text.length())
+								bytePos += 2;
+							else
+								bytePos += 1;
+							++charCount;
+						}
+						if (bytePos < text.length())
+						{
+							text = text.substr(0, bytePos);
+
+							char toRemove = '\n';
+							text.erase(std::remove(text.begin(), text.end(), toRemove), text.end());
+
+							text += "...";
+						}
+						if (fontSize > 18)
+							fontSize = 18;
+					}
+
+					TextParams param;
+					if (folded ? false : bold)
+						param.SetBold();
+					param.SetFontSize(fontSize).
+						SetColor(ShapeColor::FromCOLORREF(textColor)).
+						SetBgColor(ShapeColor::FromRGBA(GetRValue(bgColor), GetGValue(bgColor), GetBValue(bgColor), 128))
+						.SetBorder().SetPadding(3, 3);
+
+					pThis->g_pTR->DrawTexts(x, y, text, param);
 				}
 				else
 				{
+					auto result = STDHelpers::StringToWString(text);
+
+					if (folded)
+					{
+						int count = 3;
+						if (count < result.length() - 1)
+						{
+							if (IS_HIGH_SURROGATE(result[count - 1]) && IS_LOW_SURROGATE(result[count])) {
+								count--;
+							}
+							result = result.substr(0, count);
+							wchar_t toRemove = L'\n';
+							result.erase(std::remove(result.begin(), result.end(), toRemove), result.end());
+							result += L"...";
+						}
+						if (fontSize > 18)
+							fontSize = 18;
+					}
 					CIsoViewExt::BlitText(result, textColor, bgColor,
 						pThis, ddsd.lpSurface, window, boundary, x, y, fontSize, 128, folded ? false : bold);
 				}
@@ -3662,6 +3717,7 @@ static void DrawMapDriectDraw()
 		}
 
 		pThis->g_pDX->Render();
+		pThis->g_pSP->BeginFrame();
 		return;
 	}
 
@@ -3736,6 +3792,14 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 
 		pThis->Draw();
 
+		static auto lastTime = std::chrono::steady_clock::now();
+		auto now = std::chrono::steady_clock::now();
+		if (duration_cast<std::chrono::milliseconds>(now - lastTime).count() >= 50)
+		{
+			lastTime = now;
+			CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+		}
+
 		pThis->IsMouseMoving = false;
 
 		LPARAM lParam = MAKELPARAM(
@@ -3804,17 +3868,12 @@ DEFINE_HOOK(4686A2, CIsoView_OnSize_Clipper, 6)
 	return 0;
 }
 
-//FpsCounter counter("CIsoView_Draw");
 DEFINE_HOOK(46DE00, CIsoView_Draw, 7)
 {
-	//counter.update();
 	auto start = std::chrono::high_resolution_clock::now();
 	static float smoothedFps = (float)CFinalSunAppExt::ScreenRefreshRate;
 
-	//if (ExtConfigs::DirectXRendering)
-	//	DrawMapDriect3D11();
-	//else
-		DrawMapDriectDraw();
+	DrawMapDriectDraw();
 
 	auto end = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);

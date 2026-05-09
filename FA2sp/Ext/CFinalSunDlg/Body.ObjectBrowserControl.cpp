@@ -13,6 +13,7 @@
 #include <CLoading.h>
 #include "../CTileSetBrowserFrame/Body.h"
 #include "../CMapData/Body.h"
+#include "../CIsoView/DirectXCore.h"
 #include "../../Miscs/MultiSelection.h"
 #include "../../ExtraWindow/CTileManager/CTileManager.h"
 #include "../../ExtraWindow/CObjectSearch/CObjectSearch.h"

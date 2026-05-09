@@ -18,8 +18,11 @@
 using namespace Gdiplus;
 
 struct CellData;
+struct ImageDataView;
 class ImageDataClassSafe;
 class DirectXCore;
+class DrawShapes;
+class TextRenderer;
 
 namespace Renderer
 {
@@ -124,24 +127,6 @@ enum MeasurementTypes : int
     PlaceCircle,
     LineSegment,
 };
-
-struct ImageDataView
-{
-    int FullWidth;
-    int FullHeight;
-    const BYTE* pImageBuffer;
-    const BYTE* pOpacity;
-    const Palette* pPalette;
-    enum ImageDataViewType
-    {
-        Unknown = -1,
-        ImageDataSafe,
-        ImageData,
-        TileBlockData,
-    };
-    ImageDataViewType Type = ImageDataViewType::Unknown;
-    void* pOriginData;
-}; 
 
 struct TwoPointStruct
 {
@@ -252,6 +237,7 @@ public:
     static bool StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CRect srcRect, LPDIRECTDRAWSURFACE7 dstSurface, CRect dstRect);
     static void SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw);
     static void SpecialDrawDirectX(int specialDraw);
+    static void DirectXMouseCursor(int x, int y, int height);
     static CRect GetVisibleIsoViewRect();
     static void DrawCreditOnMap(HDC hDC);
     static void DrawDistanceRuler(HDC hDC, const RECT& rect);
@@ -364,6 +350,8 @@ public:
 
     static LPDIRECTDRAWSURFACE7 lpDDBackBufferZoomSurface;
     static std::unique_ptr<DirectXCore> g_pDX;
+    static std::unique_ptr<DrawShapes> g_pSP;
+    static std::unique_ptr<TextRenderer> g_pTR;
     static double ScaledFactor;
     static double ScaledMax;
     static double ScaledMin;

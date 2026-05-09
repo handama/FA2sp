@@ -3435,7 +3435,8 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
 
 void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
 {
-    auto pThis = CIsoView::GetInstance();
+    auto pThis = GetExtension();
+    pThis->g_pSP->BeginFrame();
     switch (specialDraw)
     {
     case 0:
@@ -3456,10 +3457,96 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
     GetCursorPos(&pt);
     ::ScreenToClient(pThis->GetSafeHwnd(), &pt);
 
-    DirectXBitmap(
-        pt.x,
-        pt.y + 27,
-        "scrollcursor.bmp", 1.0f, true);
+
+    auto point = pThis->GetCurrentMapCoord(pThis->MouseCurrentPosition);
+    int X = point.X, Y = point.Y;
+    auto pCell = CMapData::Instance->TryGetCellAt(X, Y);
+    CIsoViewExt::MapCoord2ScreenCoord(X, Y);
+    X -= drawOffsetX;
+    Y -= drawOffsetY;
+
+    DirectXMouseCursor(X, Y, pCell->Height);
+
+    pThis->g_pDX->RenderScreenSpaceOnly();
+    pThis->g_pSP->EndFrame();
+}
+
+void CIsoViewExt::DirectXMouseCursor(int X, int Y, int height)
+{
+    X += 1.0 / CIsoViewExt::ScaledFactor - 1.0 + 1;
+    Y += 0.5 / CIsoViewExt::ScaledFactor - 0.5 + 1;
+
+    double halfCellWidth = 30 / CIsoViewExt::ScaledFactor;
+    double quaterCellWidth = 15 / CIsoViewExt::ScaledFactor;
+    double fullCellHeight = 30 / CIsoViewExt::ScaledFactor;
+    double halfCellHeight = 15 / CIsoViewExt::ScaledFactor;
+
+    double y1 = Y - 30 / CIsoViewExt::ScaledFactor;
+    double x1 = X + 30 / CIsoViewExt::ScaledFactor;
+
+    double x2 = halfCellWidth + X + 30 / CIsoViewExt::ScaledFactor;
+    double y2 = quaterCellWidth + y1;
+
+    double x3 = halfCellWidth - fullCellHeight + X + 30 / CIsoViewExt::ScaledFactor;
+    double y3 = halfCellHeight + quaterCellWidth + y1;
+
+    double x4 = X - fullCellHeight + 30 / CIsoViewExt::ScaledFactor;
+    double y4 = halfCellHeight + y1;
+
+    auto DrawLine = [](int x1, int y1, int x2, int y2, COLORREF color, bool dashed = false)
+    {
+        LineParams param;
+        param.SetScreenSpace().SetThickness(1.0f).SetColor(ShapeColor::FromCOLORREF(color));
+        if (dashed)
+            param.SetDash(std::max(4 / CIsoViewExt::ScaledFactor, 1.0), std::max(2 / CIsoViewExt::ScaledFactor, 1.0));
+        g_pSP->DrawLine(x1, y1, x2, y2, param);
+    };
+
+    COLORREF color = ExtConfigs::CursorSelectionBound_Color;
+    COLORREF heightLineColor = ExtConfigs::CursorSelectionBound_HeightColor;
+    COLORREF heightColor = color;
+    if (ExtConfigs::CursorSelectionBound_AutoColor)
+    {
+        heightColor = CIsoViewExt::CellHilightColors[height];
+    }
+    auto drawCellOutline = [&](int inneroffset, COLORREF Color)
+    {
+        DrawLine(x1, y1 + inneroffset, x2 - 2 * inneroffset, y2, Color);
+        DrawLine(x2 - 2 * inneroffset, y2, x3, y3 - inneroffset, Color);
+        DrawLine(x3, y3 - inneroffset, x4 + 2 * inneroffset, y4, Color);
+        DrawLine(x4 + 2 * inneroffset, y4, x1, y1 + inneroffset, Color);
+    };
+    drawCellOutline(0, color);
+    drawCellOutline(1, heightColor);
+    if (CIsoViewExt::ScaledFactor < 0.76)
+        drawCellOutline(2, heightColor);
+    if (CIsoViewExt::ScaledFactor < 0.31)
+        drawCellOutline(3, heightColor);
+
+    if (ExtConfigs::CursorSelectionBound_AutoColor)
+    {
+        drawCellOutline(-1, color);
+        if (CIsoViewExt::ScaledFactor < 0.6)
+            drawCellOutline(-2, color);
+        if (CIsoViewExt::ScaledFactor < 0.31)
+            drawCellOutline(-3, color);
+    }
+
+    auto drawHeightLine = [&](int offset)
+    {
+        DrawLine(x2 + offset, y2, x2 + offset, y2 + height * 15 / CIsoViewExt::ScaledFactor, heightLineColor, true);
+        DrawLine(x4 - offset, y4, x4 - offset, y4 + height * 15 / CIsoViewExt::ScaledFactor, heightLineColor, true);
+        DrawLine(x3 + offset + 1, y3, x3 + offset + 1, y3 + height * 15 / CIsoViewExt::ScaledFactor, heightLineColor, true);
+    };
+
+    if (!CFinalSunApp::Instance->FlatToGround)
+    {
+        drawHeightLine(0);
+        if (CIsoViewExt::ScaledFactor < 0.76)
+            drawHeightLine(1);
+        if (CIsoViewExt::ScaledFactor < 0.31)
+            drawHeightLine(-1);
+    }
 }
 
 void CIsoViewExt::MoveToMapCoord(int X, int Y)

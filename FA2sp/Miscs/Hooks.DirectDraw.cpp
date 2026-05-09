@@ -17,11 +17,15 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 	if (ExtConfigs::DirectXRendering)
 	{
 		if (!pIsoView->g_pDX)
+		{
 			pIsoView->g_pDX = std::make_unique<DirectXCore>();
+			pIsoView->g_pSP = std::make_unique<DrawShapes>(pIsoView->g_pDX.get());
+			pIsoView->g_pTR = std::make_unique<TextRenderer>(pIsoView->g_pDX.get(), 2048);
+		}
 
 		if (!pIsoView->g_pDX->IsInitialized())
 		{
-			pIsoView->g_pDX->Initialize(pIsoView->GetSafeHwnd());
+			pIsoView->g_pDX->Initialize(pIsoView->GetSafeHwnd());		
 		}
 	}
 

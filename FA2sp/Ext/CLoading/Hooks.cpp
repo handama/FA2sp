@@ -147,12 +147,13 @@ DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 	{
 		if (ExtConfigs::DirectXRendering)
 		{
-			CIsoViewExt::g_pDX->RemoveBitmapTexture(Ori);
-
 			std::string pics = CFinalSunAppExt::ExePathExt;
 			pics += "\\pics\\";
 			pics += New;
+			if (!fs::exists(pics))
+				return;
 
+			CIsoViewExt::g_pDX->RemoveBitmapTexture(Ori);
 			CBitmap bmp;
 			if (CLoadingExt::LoadBMPToCBitmap(pics, bmp))
 				CLoadingExt::LoadBitMap(Ori, bmp);

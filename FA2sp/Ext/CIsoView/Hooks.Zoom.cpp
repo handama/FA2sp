@@ -29,7 +29,6 @@ DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 	if (ExtConfigs::DirectXRendering)\
 	{\
 		pThis->SpecialDrawDirectX(special_draw);\
-		pThis->g_pDX->RenderScreenSpaceOnly();\
 		return return_addr; \
 	}\
 	else\

@@ -2451,7 +2451,7 @@ static void DrawMapDriectDraw()
 				{
 					if (ExtConfigs::DirectXRendering)
 					{
-						auto isRubble = part.Status== CLoadingExt::GBIN_RUBBLE &&
+						auto isRubble = part.Status == CLoadingExt::GBIN_RUBBLE &&
 							!pType->IsDamagedAsRubble
 							&& (pType->LeaveRubble || ExtConfigs::HideNoRubbleBuilding);
 						auto isTerrain = pType->IsTerrainPalette;
@@ -2463,84 +2463,6 @@ static void DrawMapDriectDraw()
 						CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
 							part.DrawX, part.DrawY - part.pData->FullHeight / 2,
 							part.pData, part.pPal, isCloakable(pType) ? 128 : 255);
-					}
-
-					if (part.Part == DataExt.Width - 1)
-					{
-						for (int upgrade = 0; upgrade < objRender.PowerUpCount; ++upgrade)
-						{
-							const auto& upg = upgrade == 0 ? objRender.PowerUp1 : (upgrade == 1 ? objRender.PowerUp2 : objRender.PowerUp3);
-							const auto& upgXX = upgrade == 0 ? pType->PowerUp1LocXX : (upgrade == 1 ? pType->PowerUp2LocXX : pType->PowerUp3LocXX);
-							const auto& upgYY = upgrade == 0 ? pType->PowerUp1LocYY : (upgrade == 1 ? pType->PowerUp2LocYY : pType->PowerUp3LocYY);
-
-							if (upg.GetLength() == 0)
-								continue;
-
-							auto pUpgType = Renderer::GetOrCreateBuilding(upg); 
-							auto pUpgData = pUpgType->GetBundledImageData(0);
-							if (ImageDataClassSafe::IsValidImage(pUpgData))
-							{
-								int x2 = x1;
-								int y2 = y1;
-								x2 += upgXX;
-								y2 += upgYY;
-
-								if (ExtConfigs::DirectXRendering)
-								{
-									CIsoViewExt::DirectXBuilding(
-										x2 - pUpgData->FullWidth / 2, 
-										y2 - pUpgData->FullHeight / 2, 
-										pUpgData, NULL,
-										isCloakable(pType) ? 0.5f : 1.0f,
-										objRender.HouseColor, false, pType->IsTerrainPalette);
-								}
-								else
-								{
-									CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
-										x2 - pUpgData->FullWidth / 2, y2 - pUpgData->FullHeight / 2, pUpgData, NULL, isCloakable(pType) ? 128 : 255,
-										objRender.HouseColor, false, pType->IsTerrainPalette);
-								}
-							}
-						}
-					}
-
-					if (firstDraw && CIsoViewExt::DrawVeterancy)
-					{
-						auto& veter = DrawVeterancies.emplace_back();
-						veter.X = x1 + (DataExt.RealWidth - DataExt.RealHeight) * 30 / 2;
-						veter.Y = y1 + (DataExt.RealWidth + DataExt.RealHeight - 2) * 15 / 2;
-						veter.VP = 0;
-						veter.ID = objRender.ID;
-					}
-
-					if (firstDraw && ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages && objRender.poweredOn)
-					{
-						auto pAIData = pType->GetAlphaImageData(objRender.Facing);
-						if (ImageDataClassSafe::IsValidImage(pAIData))
-						{
-							AlphaImagesToDraw.push_back(
-								std::make_pair(
-									MapCoord{
-										x1 - pAIData->FullWidth / 2 + (DataExt.RealWidth - DataExt.RealHeight) * 30 / 2,
-										y1 - pAIData->FullHeight / 2 + (DataExt.RealWidth + DataExt.RealHeight) * 15 / 2
-									}, pAIData));
-						}
-					}
-					if (firstDraw && CIsoViewExt::DrawFires && part.hasFire && DataExt.DamageFireOffsets.size() > 0)
-					{
-						auto fires = CLoadingExt::GetRandomFire({ objRender.X,objRender.Y }, DataExt.DamageFireOffsets.size());
-						for (int i = 0; i < fires.size(); ++i)
-						{
-							const auto& fire = fires[i];
-							if (ImageDataClassSafe::IsValidImage(fire))
-							{
-								FiresToDraw.push_back(std::make_pair(
-									MapCoord{ x1 - fire->FullWidth / 2 + DataExt.DamageFireOffsets[i].x ,
-									y1 - fire->FullHeight / 2 + DataExt.DamageFireOffsets[i].y },
-									fire
-								));
-							}
-						}
 					}
 					if (part.IsBottom)
 					{
@@ -2585,6 +2507,85 @@ static void DrawMapDriectDraw()
 						x1, y1,
 						objRender.HouseColor, false);
 				}
+
+				if (part.IsBottom)
+				{
+					for (int upgrade = 0; upgrade < objRender.PowerUpCount; ++upgrade)
+					{
+						const auto& upg = upgrade == 0 ? objRender.PowerUp1 : (upgrade == 1 ? objRender.PowerUp2 : objRender.PowerUp3);
+						const auto& upgXX = upgrade == 0 ? pType->PowerUp1LocXX : (upgrade == 1 ? pType->PowerUp2LocXX : pType->PowerUp3LocXX);
+						const auto& upgYY = upgrade == 0 ? pType->PowerUp1LocYY : (upgrade == 1 ? pType->PowerUp2LocYY : pType->PowerUp3LocYY);
+
+						if (upg.GetLength() == 0)
+							continue;
+
+						auto pUpgType = Renderer::GetOrCreateBuilding(upg); 
+						auto pUpgData = pUpgType->GetBundledImageData(0);
+						if (ImageDataClassSafe::IsValidImage(pUpgData))
+						{
+							int x2 = x1;
+							int y2 = y1;
+							x2 += upgXX;
+							y2 += upgYY;
+
+							if (ExtConfigs::DirectXRendering)
+							{
+								CIsoViewExt::DirectXBuilding(
+									x2 - pUpgData->FullWidth / 2, 
+									y2 - pUpgData->FullHeight / 2, 
+									pUpgData, NULL,
+									isCloakable(pType) ? 0.5f : 1.0f,
+									objRender.HouseColor, false, pType->IsTerrainPalette);
+							}
+							else
+							{
+								CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
+									x2 - pUpgData->FullWidth / 2, y2 - pUpgData->FullHeight / 2, pUpgData, NULL, isCloakable(pType) ? 128 : 255,
+									objRender.HouseColor, false, pType->IsTerrainPalette);
+							}
+						}
+					}
+				}
+
+				if (firstDraw && CIsoViewExt::DrawVeterancy)
+				{
+					auto& veter = DrawVeterancies.emplace_back();
+					veter.X = x1 + (DataExt.RealWidth - DataExt.RealHeight) * 30 / 2;
+					veter.Y = y1 + (DataExt.RealWidth + DataExt.RealHeight - 2) * 15 / 2;
+					veter.VP = 0;
+					veter.ID = objRender.ID;
+				}
+
+				if (firstDraw && ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages && objRender.poweredOn)
+				{
+					auto pAIData = pType->GetAlphaImageData(objRender.Facing);
+					if (ImageDataClassSafe::IsValidImage(pAIData))
+					{
+						AlphaImagesToDraw.push_back(
+							std::make_pair(
+								MapCoord{
+									x1 - pAIData->FullWidth / 2 + (DataExt.RealWidth - DataExt.RealHeight) * 30 / 2,
+									y1 - pAIData->FullHeight / 2 + (DataExt.RealWidth + DataExt.RealHeight) * 15 / 2
+								}, pAIData));
+					}
+				}
+
+				if (firstDraw && CIsoViewExt::DrawFires && part.hasFire && DataExt.DamageFireOffsets.size() > 0)
+				{
+					auto fires = CLoadingExt::GetRandomFire({ objRender.X,objRender.Y }, DataExt.DamageFireOffsets.size());
+					for (int i = 0; i < fires.size(); ++i)
+					{
+						const auto& fire = fires[i];
+						if (ImageDataClassSafe::IsValidImage(fire))
+						{
+							FiresToDraw.push_back(std::make_pair(
+								MapCoord{ x1 - fire->FullWidth / 2 + DataExt.DamageFireOffsets[i].x ,
+								y1 - fire->FullHeight / 2 + DataExt.DamageFireOffsets[i].y },
+								fire
+							));
+						}
+					}
+				}			
 			}
 		}
 
@@ -3184,7 +3185,7 @@ static void DrawMapDriectDraw()
 			}
 
 			if (CIsoViewExt::DrawAnnotations && CMapDataExt::HasAnnotation(pos))
-				CIsoViewExt::DirectXBitmap(x + 30, y + 11, "annotation.bmp");
+				CIsoViewExt::DirectXBitmap(x + 30, y + 11, "ANNOTATION");
 		}
 	}
 	else
@@ -3206,7 +3207,7 @@ static void DrawMapDriectDraw()
 
 		DDSURFACEDESC2 AnnotationDesc = { sizeof(DDSURFACEDESC2) };
 		DDCOLORKEY AnnotationColorKey{ 0,0 };
-		auto AnnotationImage = CLoadingExt::GetSurfaceImageDataFromMap("annotation.bmp");
+		auto AnnotationImage = CLoadingExt::GetSurfaceImageDataFromMap("ANNOTATION");
 		bool AnnotationLocked = AnnotationImage &&
 			AnnotationImage->lpSurface->Lock(NULL, &AnnotationDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) == DD_OK;
 		if (AnnotationImage) AnnotationImage->lpSurface->GetColorKey(DDCKEY_SRCBLT, &AnnotationColorKey);

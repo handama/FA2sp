@@ -114,18 +114,30 @@ DEFINE_HOOK(48E970, CLoading_LoadTile_SkipTranspInsideCheck, 6)
 
 DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 {
-	auto loadInternalBitmap = [](const char* imageID, int resource)
+	auto loadInternalorExternalBitmap = [](const char* imageID, int resource, const char* newFile = nullptr)
 		{
-			HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(resource),
-				IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
-			CBitmap cBitmap;
-			cBitmap.Attach(hBmp);
-			CLoadingExt::LoadBitMap(imageID, cBitmap);
+			std::string pic = CFinalSunAppExt::ExePathExt;
+			pic += "\\pics\\";
+			pic += newFile;
+			if (fs::exists(pic))
+			{
+				CBitmap bmp;
+				if (CLoadingExt::LoadBMPToCBitmap(pic, bmp))
+					CLoadingExt::LoadBitMap(imageID, bmp);
+			}
+			else
+			{
+				HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(resource),
+					IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+				CBitmap cBitmap;
+				cBitmap.Attach(hBmp);
+				CLoadingExt::LoadBitMap(imageID, cBitmap);
+			}
 		};
-	loadInternalBitmap("annotation.bmp", 1001);
-	loadInternalBitmap("FLAG", 1023);
-	loadInternalBitmap("CELLTAG", 1024);
-	loadInternalBitmap("PROPERTY_MARK", 1036);
+	loadInternalorExternalBitmap("ANNOTATION", 1001, "annotation.bmp");
+	loadInternalorExternalBitmap("FLAG", 1023, "waypoint.bmp");
+	loadInternalorExternalBitmap("CELLTAG", 1024, "celltag.bmp");
+	loadInternalorExternalBitmap("PROPERTY_MARK", 1036, "property_mark.bmp");
 
 	std::string pics = CFinalSunAppExt::ExePathExt;
 	pics += "\\pics";
@@ -142,49 +154,6 @@ DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 			}
 		}
 	}
-
-	auto replace = [](const char* Ori, const char* New)
-	{
-		if (ExtConfigs::DirectXRendering)
-		{
-			std::string pics = CFinalSunAppExt::ExePathExt;
-			pics += "\\pics\\";
-			pics += New;
-			if (!fs::exists(pics))
-				return;
-
-			CIsoViewExt::g_pDX->RemoveBitmapTexture(Ori);
-			CBitmap bmp;
-			if (CLoadingExt::LoadBMPToCBitmap(pics, bmp))
-				CLoadingExt::LoadBitMap(Ori, bmp);
-
-			return;
-		}
-		auto image_ori = CLoadingExt::GetSurfaceImageDataFromMap(Ori);
-		if (image_ori->lpSurface)
-		{
-			if (CLoadingExt::IsSurfaceImageLoaded(New))
-			{
-				auto image_new = CLoadingExt::GetSurfaceImageDataFromMap(New);
-				image_ori->lpSurface->Release();
-				image_ori->lpSurface = image_new->lpSurface;
-			}
-			DDSURFACEDESC2 ddsd;
-			memset(&ddsd, 0, sizeof(DDSURFACEDESC2));
-			ddsd.dwSize = sizeof(DDSURFACEDESC2);
-			ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT;
-			image_ori->lpSurface->GetSurfaceDesc(&ddsd);
-			image_ori->FullWidth = ddsd.dwWidth;
-			image_ori->FullHeight = ddsd.dwHeight;
-		}
-	};
-
-	replace("CELLTAG", "celltag.bmp");
-	replace("FLAG", "waypoint.bmp");
-	replace("PROPERTY_MARK", "property_mark.bmp");
-
-	if (ExtConfigs::DirectXRendering)
-		return 0x47FA45;
 
 	return 0;
 }

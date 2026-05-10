@@ -92,6 +92,7 @@ bool CIsoViewExt::CliffBackAlt = false;
 bool CIsoViewExt::OnLButtonDown_CalledFromOnMouseMove = false;
 bool CIsoViewExt::OnMouseMove_CalledFromOnLButtonDown = false;
 bool CIsoViewExt::HistoryRecord_IsHoldingLButton = false;
+POINT CIsoViewExt::MouseCenterPosition{ -1919810, -1919810 };
 std::vector<MapCoord> CIsoViewExt::TubeNodes;
 std::vector<MapCoord> CIsoViewExt::LiveDistanceRuler;
 std::vector<MapCoord> CIsoViewExt::ScriptPath;
@@ -3229,12 +3230,12 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
     {
     case 0:
     {
-        auto pThis = CIsoView::GetInstance();
+        auto pThis = CIsoViewExt::GetExtension();
         CRect rect = CIsoViewExt::GetVisibleIsoViewRect();
         pThis->lpDDTempBufferSurface->Blt(&rect, surface, &rect, DDBLT_WAIT, 0);
         if (pThis->IsScrolling)
         {
-            auto point = pThis->MoveCenterPosition;
+            auto point = pThis->MouseCenterPosition;
             point.x += rect.left - 16 - 18 + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0);
             point.y += rect.top + 14 - 12 + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0);
             auto cursor = CLoadingExt::GetSurfaceImageDataFromMap("scrollcursor.bmp");

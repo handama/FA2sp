@@ -24,6 +24,9 @@
 #include "../../Miscs/StringtableLoader.h"
 #include "../CTileSetBrowserFrame/Body.h"
 #include "RendererTypes.h"
+#include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
+#include "../CFinalSunApp/Body.h"
+#include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
 
 namespace CIsoViewDrawTemp
 {
@@ -1912,4 +1915,216 @@ DEFINE_HOOK(469470, CIsoView_OnKeyDown, 5)
 	R->EAX(pThis->Default());
 
 	return 0x4694A9;
+}
+
+DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
+{
+	GET(CIsoViewExt*, pThis, EBP);
+	GET_STACK(UINT, nFlags, STACK_OFFS(0x3D528, -0x4));
+
+	POINT pt;
+	GetCursorPos(&pt);
+	::ScreenToClient(pThis->GetSafeHwnd(), &pt);
+
+	pt.x -= ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0;
+	pt.y -= ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0;
+
+	const bool rightDown = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
+	const int dx = pt.x - pThis->MouseCenterPosition.x;
+	const int dy = pt.y - pThis->MouseCenterPosition.y;
+	const bool shouldScroll = rightDown && (abs(dx) > 2 || abs(dy) > 2) && pThis->MouseCenterPosition.x != -1919810;
+
+	if (shouldScroll)
+	{
+		pThis->IsScrolling = true;
+
+		int adaptedDx = dx * 20 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate;
+		int adaptedDy = dy * 20 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate;
+
+		if (dx > 0)
+			adaptedDx = std::max(1, adaptedDx);
+		else if (dx < 0)
+			adaptedDx = std::min(-1, adaptedDx);
+
+		if (dy > 0)
+			adaptedDy = std::max(1, adaptedDy);
+		else if (dy < 0)
+			adaptedDy = std::min(-1, adaptedDy);
+
+		pThis->ViewPosition.x += adaptedDx;
+		pThis->ViewPosition.y += adaptedDy;
+
+		pThis->MoveTo(pThis->ViewPosition.x, pThis->ViewPosition.y);
+
+		pThis->Draw();
+
+		static auto lastTime = std::chrono::steady_clock::now();
+		auto now = std::chrono::steady_clock::now();
+		if (duration_cast<std::chrono::milliseconds>(now - lastTime).count() >= 50)
+		{
+			lastTime = now;
+			CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+		}
+
+		pThis->IsMouseMoving = false;
+
+		LPARAM lParam = MAKELPARAM(
+			pt.x + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0),
+			pt.y + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0)
+		);
+
+		PostMessage(pThis->GetSafeHwnd(), WM_MOUSEMOVE, MK_RBUTTON, lParam);
+
+		return 0x456EC0;
+	}
+	if (!rightDown)
+	{
+		pThis->MouseCenterPosition.x = pt.x;
+		pThis->MouseCenterPosition.y = pt.y;
+	}
+
+	return 0x456EDB;
+}
+
+DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp, 6)
+{
+	GET(CIsoViewExt*, pThis, ECX);
+	GET_STACK(UINT, nFlags, 0x4);
+	GET_STACK(ppmfc::CPoint, point, 0x8);
+
+	if (ExtConfigs::SecondScreenSupport)
+	{
+		point.x -= GetSystemMetrics(SM_XVIRTUALSCREEN);
+		point.y -= GetSystemMetrics(SM_YVIRTUALSCREEN);
+	}
+
+	if (!CIsoView::GetInstance()->IsScrolling)
+		CIsoViewExt::LiveDistanceRuler.clear();
+
+	if (pThis->IsScrolling)
+	{
+		if (pThis->IsInitializing)
+			return 0x45EBD1;
+
+		pThis->MoveCenterPosition.x = -1919810;
+		pThis->MoveCenterPosition.y = -1919810;
+		CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+	}
+
+	if (nFlags == 0 && point.x == 0 && point.y == 0)
+	{
+		pThis->Drag = FALSE;
+		return 0x45EBD1;
+	}
+
+	if (!pThis->IsScrolling)
+	{
+		pThis->Drag = FALSE;
+
+		if (CIsoView::CurrentCommand->Command != 0x0)
+		{
+			if (!CopyPaste::PastedCoords.empty())
+			{
+				CopyPaste::PastedCoords.clear();
+				::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+			}
+			CIsoViewExt::EnableAutoTrack = false;
+			if (CIsoView::CurrentCommand->Command == 0x1B)
+			{
+				CIsoView::CurrentCommand->Command = 0x0;
+				CIsoView::CurrentCommand->Type = 0;
+			}
+			if (CIsoView::CurrentCommand->Command == 0x25)
+			{
+				CIsoView::CurrentCommand->Command = 0x0;
+				CIsoView::CurrentCommand->Type = 0;
+			}
+			if (CIsoView::CurrentCommand->Command == 0x26)
+			{
+				CMeasurementToolbox::OnRightButtonDown();
+			}
+			if (CIsoView::CurrentCommand->Command == 0x1F) {
+				CTerrainGenerator::RangeFirstCell.X = -1;
+				CTerrainGenerator::RangeFirstCell.Y = -1;
+				CTerrainGenerator::RangeSecondCell.X = -1;
+				CTerrainGenerator::RangeSecondCell.Y = -1;
+				CIsoView::CurrentCommand->Command = 0x0;
+				CIsoView::CurrentCommand->Type = 0;
+			}
+			if (CViewObjectsExt::MoveBaseNode_SelectedObj.X > -1) {
+				CViewObjectsExt::MoveBaseNode_SelectedObj.House = "";
+				CViewObjectsExt::MoveBaseNode_SelectedObj.ID = "";
+				CViewObjectsExt::MoveBaseNode_SelectedObj.Key = "";
+				CViewObjectsExt::MoveBaseNode_SelectedObj.X = -1;
+				CViewObjectsExt::MoveBaseNode_SelectedObj.Y = -1;
+				CIsoView::CurrentCommand->Command = 0x0;
+				CIsoView::CurrentCommand->Type = 0;
+			}
+			if (CIsoViewExt::IsPressingTube)
+			{
+				CIsoViewExt::IsPressingTube = false;
+				CIsoViewExt::TubeNodes.clear();
+			}
+			if (CIsoView::CurrentCommand->Command == 0x23)
+			{
+				CLuaConsole::Lua.collect_garbage();
+				CLuaConsole::applyingScript = false;
+				CIsoView::CurrentCommand->Command = 0x0;
+				CIsoView::CurrentCommand->Type = 0;
+			}
+			if (!CIsoViewExt::DrawEditedMarks.empty())
+			{
+				CIsoView::CurrentCommand->Command = 0x0;
+				CIsoViewExt::DrawEditedMarks.clear();
+			}
+			CIsoViewExt::LastAltCommand.reset();
+
+			CIsoView::CurrentCommand->Command = 0x0;
+
+			if (CViewObjectsExt::NeedChangeTreeViewSelect)
+			{
+				auto hWnd = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->m_hWnd;
+				HTREEITEM hSelectedItem = TreeView_GetSelection(hWnd);
+				HTREEITEM hParent = TreeView_GetParent(hWnd, hSelectedItem);
+				HTREEITEM hPrevSibling = TreeView_GetPrevSibling(hWnd, hSelectedItem);
+				if (hParent != NULL)
+					TreeView_SelectItem(hWnd, hParent);
+				else if (hPrevSibling != NULL) {
+					TreeView_SelectItem(hWnd, hPrevSibling);
+				}
+				else {
+					HTREEITEM hRoot = TreeView_GetRoot(hWnd);
+					if (hRoot != NULL)
+						TreeView_SelectItem(hWnd, hRoot);
+				}
+			}
+			CViewObjectsExt::NeedChangeTreeViewSelect = false;
+		}
+	}
+	else
+	{
+		pThis->IsScrolling = FALSE;
+	}
+
+	pThis->Draw();
+	return 0x45EBD1;
+}
+
+DEFINE_HOOK(4763B0, CIsoView_OnRButtonDown_FixPos, 8)
+{
+	if (ExtConfigs::SecondScreenSupport)
+	{
+		R->Stack(0x8, R->Stack<int>(0x8) - GetSystemMetrics(SM_XVIRTUALSCREEN));
+		R->Stack(0xC, R->Stack<int>(0xC) - GetSystemMetrics(SM_YVIRTUALSCREEN));
+	}
+	auto pThis = CIsoViewExt::GetExtension();
+	if (!pThis->IsScrolling)
+	{
+		GetCursorPos(&pThis->MouseCenterPosition);
+		::ScreenToClient(pThis->GetSafeHwnd(), &pThis->MouseCenterPosition);
+		pThis->MoveCenterPosition.x = pThis->MouseCenterPosition.x;
+		pThis->MoveCenterPosition.y = pThis->MouseCenterPosition.y;
+	}
+
+	return 0;
 }

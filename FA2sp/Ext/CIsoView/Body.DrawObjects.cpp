@@ -26,7 +26,6 @@ static CRect window;
 static MapCoord VisibleCoordTL;
 static MapCoord VisibleCoordBR;
 static ppmfc::CPoint ViewPosition;
-static POINT MouseCenterPosition{ -1919810, -1919810 };
 using DrawCall = std::function<void()>;
 
 std::unordered_set<short> CIsoViewExt::VisibleStructures;
@@ -3712,8 +3711,8 @@ static void DrawMapDriectDraw()
 		if (pThis->IsScrolling)
 		{
 			pThis->DirectXBitmap(
-				pThis->MoveCenterPosition.x,
-				pThis->MoveCenterPosition.y + 27,
+				pThis->MouseCenterPosition.x,
+				pThis->MouseCenterPosition.y + 27,
 				"scrollcursor.bmp", 1.0f, true);
 		}
 
@@ -3751,106 +3750,6 @@ static void DrawMapDriectDraw()
 			pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::lpDDBackBufferZoomSurface, &dr, DDBLT_WAIT, 0);
 	}
 }
-
-DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
-{
-	GET(CIsoViewExt*, pThis, EBP);
-	GET_STACK(UINT, nFlags, STACK_OFFS(0x3D528, -0x4));
-
-	POINT pt;
-	GetCursorPos(&pt);
-	::ScreenToClient(pThis->GetSafeHwnd(), &pt);
-
-	pt.x -= ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0;
-	pt.y -= ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0;
-
-	const bool rightDown = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
-	const int dx = pt.x - MouseCenterPosition.x;
-	const int dy = pt.y - MouseCenterPosition.y;
-	const bool shouldScroll = rightDown && (abs(dx) > 2 || abs(dy) > 2) && MouseCenterPosition.x != -1919810;
-
-	if (shouldScroll)
-	{
-		pThis->IsScrolling = true;
-
-		int adaptedDx = dx * 20 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate;
-		int adaptedDy = dy * 20 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate;
-
-		if (dx > 0)
-			adaptedDx = std::max(1, adaptedDx);
-		else if (dx < 0)
-			adaptedDx = std::min(-1, adaptedDx);
-
-		if (dy > 0)
-			adaptedDy = std::max(1, adaptedDy);
-		else if (dy < 0)
-			adaptedDy = std::min(-1, adaptedDy);
-
-		pThis->ViewPosition.x += adaptedDx;
-		pThis->ViewPosition.y += adaptedDy;
-
-		pThis->MoveTo(pThis->ViewPosition.x, pThis->ViewPosition.y);
-
-		pThis->Draw();
-
-		static auto lastTime = std::chrono::steady_clock::now();
-		auto now = std::chrono::steady_clock::now();
-		if (duration_cast<std::chrono::milliseconds>(now - lastTime).count() >= 50)
-		{
-			lastTime = now;
-			CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
-		}
-
-		pThis->IsMouseMoving = false;
-
-		LPARAM lParam = MAKELPARAM(
-			pt.x + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0),
-			pt.y + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0)
-		);
-
-		PostMessage(pThis->GetSafeHwnd(), WM_MOUSEMOVE, MK_RBUTTON, lParam);
-
-		return 0x456EC0;
-	}
-	if (!rightDown)
-	{
-		MouseCenterPosition.x = pt.x;
-		MouseCenterPosition.y = pt.y;
-	}
-
-	return 0x456EDB;
-}
-
-DEFINE_HOOK(45EB20, CIsoView_OnRButtonUp_CancelScroll, 8)
-{
-	GET(CIsoViewExt*, pThis, ESI);
-
-	ShowCursor(TRUE);
-	pThis->MoveCenterPosition.x = -1919810;
-	pThis->MoveCenterPosition.y = -1919810;
-
-	return 0x45EB28;
-}
-
-DEFINE_HOOK(4763B0, CIsoView_OnRButtonDown_FixPos, 8)
-{
-	if (ExtConfigs::SecondScreenSupport)
-	{
-		R->Stack(0x8, R->Stack<int>(0x8) - GetSystemMetrics(SM_XVIRTUALSCREEN));
-		R->Stack(0xC, R->Stack<int>(0xC) - GetSystemMetrics(SM_YVIRTUALSCREEN));
-	}
-	auto pThis = CIsoViewExt::GetExtension();
-	if (!pThis->IsScrolling)
-	{
-		GetCursorPos(&MouseCenterPosition);
-		::ScreenToClient(pThis->GetSafeHwnd(), &MouseCenterPosition);
-		pThis->MoveCenterPosition.x = MouseCenterPosition.x;
-		pThis->MoveCenterPosition.y = MouseCenterPosition.y;
-	}
-
-	return 0;
-}
-
 
 DEFINE_HOOK(468690, CIsoView_OnSize, A)
 {

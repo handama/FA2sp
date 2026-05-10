@@ -377,6 +377,7 @@ public:
 
     static bool CliffBackAlt;
     static bool HistoryRecord_IsHoldingLButton;
+    static POINT MouseCenterPosition;
     static std::unordered_map<TextCacheKey, TextCacheEntry, TextCacheHasher> textCache;
 
     static __forceinline LPDIRECTDRAWSURFACE7 GetBackBuffer()

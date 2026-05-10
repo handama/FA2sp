@@ -3166,7 +3166,6 @@ void CViewObjectsExt::MoveBaseNode(int X, int Y)
     }
 }
 
-
 void CViewObjectsExt::ApplyInfantrySubCell(int X, int Y)
 {
     int nIndex = CMapData::Instance->GetCoordIndex(X, Y);
@@ -3989,7 +3988,6 @@ void CViewObjectsExt::InitializeOnUpdateEngine()
     CViewObjectsExt::PlacingRandomTile = -1;
     CViewObjectsExt::PlacingWall = -1;
     CViewObjectsExt::PlacingRandomRandomFacing = false;
-    CViewObjectsExt::NeedChangeTreeViewSelect = true;
     CIsoViewExt::EnableAutoTrack = false;
 
     CViewObjectsExt::CurrentConnectedTileType = -1;
@@ -4020,6 +4018,8 @@ void CViewObjectsExt::InitializeOnUpdateEngine()
 bool CViewObjectsExt::UpdateEngine(int nData)
 {
     InitializeOnUpdateEngine();
+    if (nData >= 0)
+        CViewObjectsExt::NeedChangeTreeViewSelect = true;
 
     do
     {

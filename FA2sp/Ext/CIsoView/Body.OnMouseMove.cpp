@@ -121,11 +121,13 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
     CIsoViewExt::MapCoord2ScreenCoord(X, Y);
     auto cell = CMapData::Instance->TryGetCellAt(point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
 
-    // property brush && delete objects && change owner && delete overlay
+    // property brush && delete objects && change owner && delete overlay && delete celltag
     if (CIsoView::CurrentCommand->Command == 0x17 
         || CIsoView::CurrentCommand->Command == 0x2 
         || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7)
-        || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 6 && CIsoView::CurrentCommand->Param == 1))
+        || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 6 && CIsoView::CurrentCommand->Param == 1)
+        || (CIsoView::CurrentCommand->Command == 4 && CIsoView::CurrentCommand->Type == 1)
+        )
     {
         std::vector<MapCoord> cells;
         for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)

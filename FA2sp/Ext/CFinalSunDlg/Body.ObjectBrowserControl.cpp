@@ -3073,6 +3073,45 @@ void CViewObjectsExt::DeleteTube(int X, int Y)
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 }
 
+void CViewObjectsExt::DeleteCelltag(int X, int Y)
+{
+    auto pIsoView = CIsoViewExt::GetExtension();
+    auto pSection = CINI::CurrentDocument->GetSection("CellTags");
+    if (!pSection)
+        return;
+
+    std::vector<ppmfc::CString> keys;
+    for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
+    {
+        for (int gy = Y - pIsoView->BrushSizeY / 2; gy <= Y + pIsoView->BrushSizeY / 2; gy++)
+        {
+            if (!CMapDataExt::IsCoordInFullMap(gx, gy))
+                continue;
+
+            int nIndex = CMapData::Instance->GetCoordIndex(gx, gy);
+            const auto& CellData = CMapData::Instance->CellDatas[nIndex];
+
+            if (CellData.CellTag != -1)
+            {
+                if (auto pKey = pSection->GetKeyAt(CellData.CellTag))
+                {
+                    keys.push_back(*pKey);
+                }
+            }
+        }
+    }
+
+    if (!keys.empty())
+    {
+        for (auto& key : keys)
+        {
+            CINI::CurrentDocument->DeleteKey(pSection, key);
+        }
+        CMapData::Instance->UpdateFieldCelltagData(FALSE);
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+    }
+}
+
 void CViewObjectsExt::MoveBaseNodeOrder(int X, int Y)
 {
     auto& ini = CMapData::Instance->INI;

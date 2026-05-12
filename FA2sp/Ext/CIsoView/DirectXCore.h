@@ -260,12 +260,14 @@ struct LineParams {
     float      gapLength = 0.f;     
     float      opacity = 1.f;       
     bool       bScreenSpace = false;
+    bool       antiAlias = true;
 
     LineParams& SetColor(ShapeColor c) { color = c; return *this; }
     LineParams& SetThickness(float t) { thickness = t; return *this; }
-    LineParams& SetDash(float dash, float gap) { dashLength = dash; gapLength = gap; return *this; }
     LineParams& SetOpacity(float o) { opacity = o; return *this; }
     LineParams& SetScreenSpace() { bScreenSpace = true; return *this; }
+    LineParams& SetDash(float dash, float gap) { dashLength = dash; gapLength = gap; return *this; }
+    LineParams& SetAntiAlias(bool b = true) { antiAlias = b; return *this; }
 };
 
 struct RectParams {
@@ -344,7 +346,7 @@ private:
 
     void RasterLine(Canvas& c, float x0, float y0, float x1, float y1,
         float thickness, ShapeColor color,
-        float dashLen, float gapLen);
+        float dashLen, float gapLen, bool antiAlias = false);
 
     void RasterThickPoint(Canvas& c, float px, float py,
         float radius, uint32_t rgba);

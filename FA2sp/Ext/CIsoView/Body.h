@@ -154,6 +154,9 @@ public:
         COLORREF color, bool bUseDot, bool bUsePrimary, 
         LPDDSURFACEDESC2 lpDesc, const RECT& rect, bool bDashed = false, int nThickness = 1);
     void DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord>>& lines, int X, int Y, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc);
+    void DirectXDrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord>>& lines, int X, int Y, COLORREF color, bool bUseDot); 
+    void DirectXDrawLockedCellOutline(int X, int Y, int W, int H, COLORREF color, bool bUseDot, bool s1 = true, bool s2 = true, bool s3 = true, bool s4 = true);
+    void DirectXDrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF color, COLORREF colorX, bool bUseDot, bool onlyX = false);
     void DrawCelltag(int X, int Y, LPDDSURFACEDESC2 lpDesc);
     void DrawBitmap(FString filename, int X, int Y, LPDDSURFACEDESC2 lpDesc);
     void DrawWaypointFlag(int X, int Y, LPDDSURFACEDESC2 lpDesc);

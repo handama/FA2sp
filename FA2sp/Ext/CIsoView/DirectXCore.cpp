@@ -2,8 +2,8 @@
 #include <vector>
 #include <cstring>
 #include <string>
-#include "../CLoading/Body.h" 
-#include "Body.h" 
+#include "../CLoading/Body.h"
+#include "Body.h"
 #include "DirectXCore.h"
 #include "../../Miscs/Palettes.h"
 
@@ -17,8 +17,13 @@ std::unique_ptr<DirectXCore> CIsoViewExt::g_pDX;
 std::unique_ptr<DrawShapes> CIsoViewExt::g_pSP;
 std::unique_ptr<TextRenderer> CIsoViewExt::g_pTR;
 
-struct QuadVertex { XMFLOAT3 pos; XMFLOAT2 uv; };
-struct CBPerObject {
+struct QuadVertex
+{
+    XMFLOAT3 pos;
+    XMFLOAT2 uv;
+};
+struct CBPerObject
+{
     XMMATRIX world;
     XMFLOAT4 colorMul;
     XMFLOAT4 mixColor;
@@ -26,18 +31,20 @@ struct CBPerObject {
     float padding[3];
 };
 
-bool TextureIndex::operator==(const TextureIndex& other) const
+bool TextureIndex::operator==(const TextureIndex &other) const
 {
     return pData == other.pData && color == other.color;
 }
 
-DrawParams& DrawParams::SetColorMul(ColorMults mults)
+DrawParams &DrawParams::SetColorMul(ColorMults mults)
 {
-    redMult = mults.RedTint; greenMult = mults.GreenTint; blueMult = mults.BlueTint;
+    redMult = mults.RedTint;
+    greenMult = mults.GreenTint;
+    blueMult = mults.BlueTint;
     return *this;
 }
 
-DrawParams& DrawParams::SetColorMix(RGBClass color, float factor)
+DrawParams &DrawParams::SetColorMix(RGBClass color, float factor)
 {
     return SetColorMix(color.R / 255.0f, color.G / 255.0f, color.B / 255.0f, factor);
 }
@@ -45,31 +52,38 @@ DrawParams& DrawParams::SetColorMix(RGBClass color, float factor)
 DirectXCore::DirectXCore() = default;
 DirectXCore::~DirectXCore() { Cleanup(); }
 
-bool DirectXCore::Initialize(HWND hwnd) {
+bool DirectXCore::Initialize(HWND hwnd)
+{
     Cleanup();
 
-    if (!IsWindow(hwnd)) {
+    if (!IsWindow(hwnd))
+    {
         Logger::Raw("[DirectXCore] Initialize: Invalid HWND\n");
         return false;
     }
 
-    if (!CreateDeviceAndSwapChain(hwnd)) {
+    if (!CreateDeviceAndSwapChain(hwnd))
+    {
         Logger::Raw("[DirectXCore] CreateDeviceAndSwapChain failed\n");
         return false;
     }
-    if (!CreateShadersAndInputLayout()) {
+    if (!CreateShadersAndInputLayout())
+    {
         Logger::Raw("[DirectXCore] CreateShadersAndInputLayout failed\n");
         return false;
     }
-    if (!CreateEffectShaders()) {
+    if (!CreateEffectShaders())
+    {
         Logger::Raw("[DirectXCore] CreateEffectShaders failed\n");
         return false;
     }
-    if (!CreateCompositeShaders()) {
+    if (!CreateCompositeShaders())
+    {
         Logger::Raw("[DirectXCore] CreateCompositeShaders failed\n");
         return false;
     }
-    if (!CreateQuadVertexBuffer()) {
+    if (!CreateQuadVertexBuffer())
+    {
         Logger::Raw("[DirectXCore] CreateQuadVertexBuffer failed\n");
         return false;
     }
@@ -82,14 +96,18 @@ bool DirectXCore::Initialize(HWND hwnd) {
 
     UINT vw = (UINT)(m_clientWidth * m_renderScale);
     UINT vh = (UINT)(m_clientHeight * m_renderScale);
-    if (vw == 0) vw = 1;
-    if (vh == 0) vh = 1;
+    if (vw == 0)
+        vw = 1;
+    if (vh == 0)
+        vh = 1;
 
-    if (!CreateOffscreenResources(vw, vh)) {
+    if (!CreateOffscreenResources(vw, vh))
+    {
         Logger::Raw("[DirectXCore] CreateOffscreenResources failed\n");
         return false;
     }
-    if (!CreateFinalShaders()) {
+    if (!CreateFinalShaders())
+    {
         Logger::Raw("[DirectXCore] CreateFinalShaders failed\n");
         return false;
     }
@@ -121,23 +139,27 @@ bool DirectXCore::IsInitialized()
     return m_bInitialized;
 }
 
-void DirectXCore::ClearTextures() {
+void DirectXCore::ClearTextures()
+{
     m_textureMap.clear();
     Logger::Raw("[DirectXCore] Clear textures\n");
 }
 
-void DirectXCore::ClearTileTextures() {
+void DirectXCore::ClearTileTextures()
+{
     m_tileTextureMap.clear();
     Logger::Raw("[DirectXCore] Clear tile textures\n");
 }
 
-void DirectXCore::Cleanup() {
+void DirectXCore::Cleanup()
+{
     m_drawCommands.clear();
     m_textureMap.clear();
     m_bitmapTextureMap.clear();
     m_tileTextureMap.clear();
 
-    if (m_pContext) {
+    if (m_pContext)
+    {
         m_pContext->ClearState();
         m_pContext->Flush();
     }
@@ -187,20 +209,28 @@ void DirectXCore::Cleanup() {
     Logger::Raw("[DirectXCore] Reset all\n");
 }
 
-void DirectXCore::OnResize(HWND hwnd) {
-    if (!m_pSwapChain) return;
+void DirectXCore::OnResize(HWND hwnd)
+{
+    if (!m_pSwapChain)
+        return;
 
     m_pRTV.Reset();
-    m_OffscreenRTV.Reset(); m_OffscreenSRV.Reset(); m_OffscreenTex.Reset();
-    m_pFactorTexture.Reset(); m_pFactorRTV.Reset(); m_pFactorSRV.Reset();
-    m_pScreenCopy.Reset(); m_pScreenCopySRV.Reset();
+    m_OffscreenRTV.Reset();
+    m_OffscreenSRV.Reset();
+    m_OffscreenTex.Reset();
+    m_pFactorTexture.Reset();
+    m_pFactorRTV.Reset();
+    m_pFactorSRV.Reset();
+    m_pScreenCopy.Reset();
+    m_pScreenCopySRV.Reset();
 
     RECT rc;
     GetClientRect(hwnd, &rc);
     UINT width = rc.right - rc.left;
     UINT height = rc.bottom - rc.top;
     HRESULT hr = m_pSwapChain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0);
-    if (SUCCEEDED(hr)) {
+    if (SUCCEEDED(hr))
+    {
         ComPtr<ID3D11Texture2D> pBackBuffer;
         m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), &pBackBuffer);
         m_pDevice->CreateRenderTargetView(pBackBuffer.Get(), nullptr, &m_pRTV);
@@ -211,50 +241,66 @@ void DirectXCore::OnResize(HWND hwnd) {
 
     UINT vw = (UINT)(width * m_renderScale);
     UINT vh = (UINT)(height * m_renderScale);
-    if (vw == 0) vw = 1;
-    if (vh == 0) vh = 1;
+    if (vw == 0)
+        vw = 1;
+    if (vh == 0)
+        vh = 1;
 
     CreateOffscreenResources(vw, vh);
     EnsureFactorTexture(vw, vh);
     EnsureScreenCopyTexture(vw, vh);
 
     CreateBackgroundCacheTexture(width, height);
-    m_backgroundCacheValid = false; // »º´æÄÚÈÝÒÑÊ§Ð§
+    m_backgroundCacheValid = false;
 }
 
-void DirectXCore::UpdateViewportAndRTV(HWND hwnd) {
-    if (!m_pContext) return;
-    D3D11_VIEWPORT vp = { 0, 0, (float)m_clientWidth, (float)m_clientHeight, 0.0f, 1.0f };
+void DirectXCore::UpdateViewportAndRTV(HWND hwnd)
+{
+    if (!m_pContext)
+        return;
+    D3D11_VIEWPORT vp = {0, 0, (float)m_clientWidth, (float)m_clientHeight, 0.0f, 1.0f};
     m_pContext->RSSetViewports(1, &vp);
 }
 
-void DirectXCore::SetGlobalTransform(float scaleX, float scaleY, float offsetX, float offsetY) {
+void DirectXCore::SetGlobalTransform(float scaleX, float scaleY, float offsetX, float offsetY)
+{
     m_globalScaleX = scaleX;
     m_globalScaleY = scaleY;
     m_globalOffsetX = offsetX;
     m_globalOffsetY = offsetY;
 }
 
-void DirectXCore::SetZoomOut(float scaleFactor) {
-    if (scaleFactor < 0.01f) scaleFactor = 0.01f;
-    if (m_renderScale == scaleFactor) return;
+void DirectXCore::SetZoomOut(float scaleFactor)
+{
+    if (scaleFactor < 0.01f)
+        scaleFactor = 0.01f;
+    if (m_renderScale == scaleFactor)
+        return;
     m_renderScale = scaleFactor;
 
     UINT vw = (UINT)(m_clientWidth * m_renderScale);
     UINT vh = (UINT)(m_clientHeight * m_renderScale);
-    if (vw == 0) vw = 1;
-    if (vh == 0) vh = 1;
+    if (vw == 0)
+        vw = 1;
+    if (vh == 0)
+        vh = 1;
 
-    m_OffscreenTex.Reset(); m_OffscreenRTV.Reset(); m_OffscreenSRV.Reset();
-    m_pFactorTexture.Reset(); m_pFactorRTV.Reset(); m_pFactorSRV.Reset();
-    m_pScreenCopy.Reset(); m_pScreenCopySRV.Reset();
+    m_OffscreenTex.Reset();
+    m_OffscreenRTV.Reset();
+    m_OffscreenSRV.Reset();
+    m_pFactorTexture.Reset();
+    m_pFactorRTV.Reset();
+    m_pFactorSRV.Reset();
+    m_pScreenCopy.Reset();
+    m_pScreenCopySRV.Reset();
 
     CreateOffscreenResources(vw, vh);
     EnsureFactorTexture(vw, vh);
     EnsureScreenCopyTexture(vw, vh);
 }
 
-bool DirectXCore::CreateDeviceAndSwapChain(HWND hwnd) {
+bool DirectXCore::CreateDeviceAndSwapChain(HWND hwnd)
+{
     DXGI_SWAP_CHAIN_DESC scd = {};
     scd.BufferCount = 2;
     scd.BufferDesc.Width = 0;
@@ -274,26 +320,30 @@ bool DirectXCore::CreateDeviceAndSwapChain(HWND hwnd) {
     createFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
-    D3D_FEATURE_LEVEL featureLevels[] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0 };
+    D3D_FEATURE_LEVEL featureLevels[] = {D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0};
     HRESULT hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-        createFlags, featureLevels, 2,
-        D3D11_SDK_VERSION, &scd,
-        &m_pSwapChain, &m_pDevice, nullptr, &m_pContext);
-    if (FAILED(hr)) {
+                                               createFlags, featureLevels, 2,
+                                               D3D11_SDK_VERSION, &scd,
+                                               &m_pSwapChain, &m_pDevice, nullptr, &m_pContext);
+    if (FAILED(hr))
+    {
         Logger::Raw("D3D11CreateDeviceAndSwapChain failed\n");
         return false;
     }
 
     ComPtr<ID3D11Texture2D> pBackBuffer;
     hr = m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), &pBackBuffer);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
     hr = m_pDevice->CreateRenderTargetView(pBackBuffer.Get(), nullptr, &m_pRTV);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
     return true;
 }
 
-bool DirectXCore::CreateShadersAndInputLayout() {
-    const char* vsCode = R"(
+bool DirectXCore::CreateShadersAndInputLayout()
+{
+    const char *vsCode = R"(
         cbuffer CBPerObject : register(b0) {
             float4x4 g_World;
             float4   g_ColorMul;
@@ -322,7 +372,7 @@ bool DirectXCore::CreateShadersAndInputLayout() {
         }
     )";
 
-    const char* psCode = R"(
+    const char *psCode = R"(
         Texture2D tex : register(t0);
         SamplerState samp : register(s0);
         float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0,
@@ -338,21 +388,33 @@ bool DirectXCore::CreateShadersAndInputLayout() {
 
     ComPtr<ID3DBlob> vsBlob, psBlob, error;
     HRESULT hr = D3DCompile(vsCode, strlen(vsCode), nullptr, nullptr, nullptr, "main", "vs_5_0", 0, 0, &vsBlob, &error);
-    if (FAILED(hr)) { if (error) OutputDebugStringA((char*)error->GetBufferPointer()); return false; }
+    if (FAILED(hr))
+    {
+        if (error)
+            OutputDebugStringA((char *)error->GetBufferPointer());
+        return false;
+    }
     hr = D3DCompile(psCode, strlen(psCode), nullptr, nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &error);
-    if (FAILED(hr)) { if (error) OutputDebugStringA((char*)error->GetBufferPointer()); return false; }
+    if (FAILED(hr))
+    {
+        if (error)
+            OutputDebugStringA((char *)error->GetBufferPointer());
+        return false;
+    }
 
     hr = m_pDevice->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &m_pVS);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
     hr = m_pDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &m_pPS);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
 
     D3D11_INPUT_ELEMENT_DESC layoutDesc[] = {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-    };
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}};
     hr = m_pDevice->CreateInputLayout(layoutDesc, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &m_pInputLayout);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
 
     D3D11_SAMPLER_DESC sampDesc = {};
     sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
@@ -389,8 +451,9 @@ bool DirectXCore::CreateShadersAndInputLayout() {
     return true;
 }
 
-bool DirectXCore::CreateEffectShaders() {
-    const char* vsCode = R"(
+bool DirectXCore::CreateEffectShaders()
+{
+    const char *vsCode = R"(
         cbuffer CBPerObject : register(b0) {
             float4x4 g_World;
         };
@@ -409,7 +472,7 @@ bool DirectXCore::CreateEffectShaders() {
             return output;
         }
     )";
-    const char* psCode = R"(
+    const char *psCode = R"(
         Texture2D indexTex : register(t0);
         SamplerState samp : register(s0);
         float4 main(float4 pos : SV_POSITION, float2 uv : TEXCOORD0) : SV_Target {
@@ -421,18 +484,31 @@ bool DirectXCore::CreateEffectShaders() {
     )";
     ComPtr<ID3DBlob> vsBlob, psBlob, error;
     HRESULT hr = D3DCompile(vsCode, strlen(vsCode), nullptr, nullptr, nullptr, "main", "vs_5_0", 0, 0, &vsBlob, &error);
-    if (FAILED(hr)) { if (error) OutputDebugStringA((char*)error->GetBufferPointer()); return false; }
+    if (FAILED(hr))
+    {
+        if (error)
+            OutputDebugStringA((char *)error->GetBufferPointer());
+        return false;
+    }
     hr = D3DCompile(psCode, strlen(psCode), nullptr, nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &error);
-    if (FAILED(hr)) { if (error) OutputDebugStringA((char*)error->GetBufferPointer()); return false; }
+    if (FAILED(hr))
+    {
+        if (error)
+            OutputDebugStringA((char *)error->GetBufferPointer());
+        return false;
+    }
     hr = m_pDevice->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &m_pEffectVS);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
     hr = m_pDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &m_pEffectPS);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
     return true;
 }
 
-bool DirectXCore::CreateCompositeShaders() {
-    const char* vsCode = R"(
+bool DirectXCore::CreateCompositeShaders()
+{
+    const char *vsCode = R"(
         struct VSInput {
             float3 pos : POSITION;
             float2 uv  : TEXCOORD0;
@@ -448,7 +524,7 @@ bool DirectXCore::CreateCompositeShaders() {
             return output;
         }
     )";
-    const char* psCode = R"(
+    const char *psCode = R"(
         Texture2D screenTex : register(t0);
         Texture2D factorTex  : register(t1);
         SamplerState samp : register(s0);
@@ -460,48 +536,64 @@ bool DirectXCore::CreateCompositeShaders() {
     )";
     ComPtr<ID3DBlob> vsBlob, psBlob, error;
     HRESULT hr = D3DCompile(vsCode, strlen(vsCode), nullptr, nullptr, nullptr, "main", "vs_5_0", 0, 0, &vsBlob, &error);
-    if (FAILED(hr)) { if (error) OutputDebugStringA((char*)error->GetBufferPointer()); return false; }
+    if (FAILED(hr))
+    {
+        if (error)
+            OutputDebugStringA((char *)error->GetBufferPointer());
+        return false;
+    }
     hr = D3DCompile(psCode, strlen(psCode), nullptr, nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &error);
-    if (FAILED(hr)) { if (error) OutputDebugStringA((char*)error->GetBufferPointer()); return false; }
+    if (FAILED(hr))
+    {
+        if (error)
+            OutputDebugStringA((char *)error->GetBufferPointer());
+        return false;
+    }
     hr = m_pDevice->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &m_pCompositeVS);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
     hr = m_pDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &m_pCompositePS);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
     return true;
 }
 
-bool DirectXCore::CreateQuadVertexBuffer() {
+bool DirectXCore::CreateQuadVertexBuffer()
+{
     QuadVertex vertices[] = {
-        { XMFLOAT3(-0.5f, -0.5f, 0.0f), XMFLOAT2(0.0f, 1.0f) },
-        { XMFLOAT3(-0.5f,  0.5f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
-        { XMFLOAT3(0.5f, -0.5f, 0.0f), XMFLOAT2(1.0f, 1.0f) },
-        { XMFLOAT3(0.5f,  0.5f, 0.0f), XMFLOAT2(1.0f, 0.0f) }
-    };
+        {XMFLOAT3(-0.5f, -0.5f, 0.0f), XMFLOAT2(0.0f, 1.0f)},
+        {XMFLOAT3(-0.5f, 0.5f, 0.0f), XMFLOAT2(0.0f, 0.0f)},
+        {XMFLOAT3(0.5f, -0.5f, 0.0f), XMFLOAT2(1.0f, 1.0f)},
+        {XMFLOAT3(0.5f, 0.5f, 0.0f), XMFLOAT2(1.0f, 0.0f)}};
     D3D11_BUFFER_DESC bd = {};
     bd.Usage = D3D11_USAGE_IMMUTABLE;
     bd.ByteWidth = sizeof(vertices);
     bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    D3D11_SUBRESOURCE_DATA initData = { vertices };
+    D3D11_SUBRESOURCE_DATA initData = {vertices};
     HRESULT hr = m_pDevice->CreateBuffer(&bd, &initData, &m_pQuadVB);
     QuadVertex fsVertices[] = {
-        { XMFLOAT3(-1.0f, -1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f) },
-        { XMFLOAT3(-1.0f,  1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
-        { XMFLOAT3(1.0f, -1.0f, 0.0f), XMFLOAT2(1.0f, 1.0f) },
-        { XMFLOAT3(1.0f,  1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
+        {XMFLOAT3(-1.0f, -1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f)},
+        {XMFLOAT3(-1.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f)},
+        {XMFLOAT3(1.0f, -1.0f, 0.0f), XMFLOAT2(1.0f, 1.0f)},
+        {XMFLOAT3(1.0f, 1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f)},
     };
     D3D11_BUFFER_DESC fsbd = {};
     fsbd.Usage = D3D11_USAGE_IMMUTABLE;
     fsbd.ByteWidth = sizeof(fsVertices);
     fsbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    D3D11_SUBRESOURCE_DATA fsInitData = { fsVertices };
+    D3D11_SUBRESOURCE_DATA fsInitData = {fsVertices};
     hr = m_pDevice->CreateBuffer(&fsbd, &fsInitData, &m_pFullscreenQuadVB);
 
     return SUCCEEDED(hr);
 }
 
-void DirectXCore::EnsureFactorTexture(UINT width, UINT height) {
-    if (m_pFactorTexture && width == m_clientWidth && height == m_clientHeight) return;
-    m_pFactorTexture.Reset(); m_pFactorRTV.Reset(); m_pFactorSRV.Reset();
+void DirectXCore::EnsureFactorTexture(UINT width, UINT height)
+{
+    if (m_pFactorTexture && width == m_clientWidth && height == m_clientHeight)
+        return;
+    m_pFactorTexture.Reset();
+    m_pFactorRTV.Reset();
+    m_pFactorSRV.Reset();
     D3D11_TEXTURE2D_DESC desc = {};
     desc.Width = width;
     desc.Height = height;
@@ -512,15 +604,20 @@ void DirectXCore::EnsureFactorTexture(UINT width, UINT height) {
     desc.Usage = D3D11_USAGE_DEFAULT;
     desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
     HRESULT hr = m_pDevice->CreateTexture2D(&desc, nullptr, &m_pFactorTexture);
-    if (FAILED(hr)) return;
+    if (FAILED(hr))
+        return;
     hr = m_pDevice->CreateRenderTargetView(m_pFactorTexture.Get(), nullptr, &m_pFactorRTV);
-    if (FAILED(hr)) return;
+    if (FAILED(hr))
+        return;
     hr = m_pDevice->CreateShaderResourceView(m_pFactorTexture.Get(), nullptr, &m_pFactorSRV);
 }
 
-void DirectXCore::EnsureScreenCopyTexture(UINT width, UINT height) {
-    if (m_pScreenCopy && width == m_clientWidth && height == m_clientHeight) return;
-    m_pScreenCopy.Reset(); m_pScreenCopySRV.Reset();
+void DirectXCore::EnsureScreenCopyTexture(UINT width, UINT height)
+{
+    if (m_pScreenCopy && width == m_clientWidth && height == m_clientHeight)
+        return;
+    m_pScreenCopy.Reset();
+    m_pScreenCopySRV.Reset();
     D3D11_TEXTURE2D_DESC desc = {};
     desc.Width = width;
     desc.Height = height;
@@ -531,16 +628,20 @@ void DirectXCore::EnsureScreenCopyTexture(UINT width, UINT height) {
     desc.Usage = D3D11_USAGE_DEFAULT;
     desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     HRESULT hr = m_pDevice->CreateTexture2D(&desc, nullptr, &m_pScreenCopy);
-    if (FAILED(hr)) return;
+    if (FAILED(hr))
+        return;
     hr = m_pDevice->CreateShaderResourceView(m_pScreenCopy.Get(), nullptr, &m_pScreenCopySRV);
 }
 
-void DirectXCore::CopyScreenToTexture() {
-    if (!m_pContext || !m_OffscreenRTV || !m_pScreenCopy) return;
+void DirectXCore::CopyScreenToTexture()
+{
+    if (!m_pContext || !m_OffscreenRTV || !m_pScreenCopy)
+        return;
     m_pContext->CopyResource(m_pScreenCopy.Get(), m_OffscreenTex.Get());
 }
 
-void DirectXCore::DrawFullscreenQuad() {
+void DirectXCore::DrawFullscreenQuad()
+{
     UINT stride = sizeof(QuadVertex);
     UINT offset = 0;
     m_pContext->IASetVertexBuffers(0, 1, m_pFullscreenQuadVB.GetAddressOf(), &stride, &offset);
@@ -548,8 +649,10 @@ void DirectXCore::DrawFullscreenQuad() {
     m_pContext->Draw(4, 0);
 }
 
-bool DirectXCore::CreateOffscreenResources(UINT width, UINT height) {
-    if (width == 0 || height == 0) return false;
+bool DirectXCore::CreateOffscreenResources(UINT width, UINT height)
+{
+    if (width == 0 || height == 0)
+        return false;
 
     m_OffscreenTex.Reset();
     m_OffscreenRTV.Reset();
@@ -566,34 +669,42 @@ bool DirectXCore::CreateOffscreenResources(UINT width, UINT height) {
     desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 
     HRESULT hr = m_pDevice->CreateTexture2D(&desc, nullptr, &m_OffscreenTex);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
     hr = m_pDevice->CreateRenderTargetView(m_OffscreenTex.Get(), nullptr, &m_OffscreenRTV);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
     hr = m_pDevice->CreateShaderResourceView(m_OffscreenTex.Get(), nullptr, &m_OffscreenSRV);
     return SUCCEEDED(hr);
 }
 
-void DirectXCore::CreateBackgroundCacheTexture(UINT width, UINT height) {
-    if (!m_pDevice) return;
-    if (width == 0 || height == 0) return;
+void DirectXCore::CreateBackgroundCacheTexture(UINT width, UINT height)
+{
+    if (!m_pDevice)
+        return;
+    if (width == 0 || height == 0)
+        return;
 
     m_pBackgroundCacheTexture.Reset();
     m_pBackgroundCacheSRV.Reset();
 
     ComPtr<ID3D11Texture2D> pBackBuffer;
-    if (m_pSwapChain) {
+    if (m_pSwapChain)
+    {
         m_pSwapChain->GetBuffer(0, IID_PPV_ARGS(&pBackBuffer));
     }
     D3D11_TEXTURE2D_DESC desc = {};
-    if (pBackBuffer) {
+    if (pBackBuffer)
+    {
         pBackBuffer->GetDesc(&desc);
     }
-    else {
+    else
+    {
         desc.Width = width;
         desc.Height = height;
         desc.MipLevels = 1;
         desc.ArraySize = 1;
-        desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM; 
+        desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
         desc.SampleDesc.Count = 1;
         desc.Usage = D3D11_USAGE_DEFAULT;
         desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
@@ -601,32 +712,40 @@ void DirectXCore::CreateBackgroundCacheTexture(UINT width, UINT height) {
     }
 
     HRESULT hr = m_pDevice->CreateTexture2D(&desc, nullptr, &m_pBackgroundCacheTexture);
-    if (SUCCEEDED(hr) && m_pBackgroundCacheTexture) {
+    if (SUCCEEDED(hr) && m_pBackgroundCacheTexture)
+    {
         m_pDevice->CreateShaderResourceView(m_pBackgroundCacheTexture.Get(), nullptr, &m_pBackgroundCacheSRV);
     }
 }
 
-void DirectXCore::UpdateBackgroundCache() {
-    if (!m_pRTV || !m_pBackgroundCacheTexture) return;
+void DirectXCore::UpdateBackgroundCache()
+{
+    if (!m_pRTV || !m_pBackgroundCacheTexture)
+        return;
     ComPtr<ID3D11Resource> pBackBufferResource;
     m_pRTV->GetResource(&pBackBufferResource);
-    if (pBackBufferResource) {
+    if (pBackBufferResource)
+    {
         m_pContext->CopyResource(m_pBackgroundCacheTexture.Get(), pBackBufferResource.Get());
         m_backgroundCacheValid = true;
     }
 }
 
-void DirectXCore::RestoreBackgroundFromCache() {
-    if (!m_backgroundCacheValid || !m_pBackgroundCacheTexture) return;
+void DirectXCore::RestoreBackgroundFromCache()
+{
+    if (!m_backgroundCacheValid || !m_pBackgroundCacheTexture)
+        return;
     ComPtr<ID3D11Resource> pBackBufferResource;
     m_pRTV->GetResource(&pBackBufferResource);
-    if (pBackBufferResource) {
+    if (pBackBufferResource)
+    {
         m_pContext->CopyResource(pBackBufferResource.Get(), m_pBackgroundCacheTexture.Get());
     }
 }
 
-bool DirectXCore::CreateFinalShaders() {
-    const char* vsCode = R"(
+bool DirectXCore::CreateFinalShaders()
+{
+    const char *vsCode = R"(
         struct VSInput {
             float3 pos : POSITION;
             float2 uv  : TEXCOORD0;
@@ -643,7 +762,7 @@ bool DirectXCore::CreateFinalShaders() {
         }
     )";
 
-    const char* psCode = R"(
+    const char *psCode = R"(
         Texture2D tex : register(t0);
         SamplerState sam : register(s0);
         cbuffer CBFinal : register(b0) {
@@ -662,14 +781,26 @@ bool DirectXCore::CreateFinalShaders() {
 
     ComPtr<ID3DBlob> vsBlob, psBlob, error;
     HRESULT hr = D3DCompile(vsCode, strlen(vsCode), nullptr, nullptr, nullptr, "main", "vs_5_0", 0, 0, &vsBlob, &error);
-    if (FAILED(hr)) { if (error) OutputDebugStringA((char*)error->GetBufferPointer()); return false; }
+    if (FAILED(hr))
+    {
+        if (error)
+            OutputDebugStringA((char *)error->GetBufferPointer());
+        return false;
+    }
     hr = D3DCompile(psCode, strlen(psCode), nullptr, nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &error);
-    if (FAILED(hr)) { if (error) OutputDebugStringA((char*)error->GetBufferPointer()); return false; }
+    if (FAILED(hr))
+    {
+        if (error)
+            OutputDebugStringA((char *)error->GetBufferPointer());
+        return false;
+    }
 
     hr = m_pDevice->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &m_pFinalVS);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
     hr = m_pDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &m_pFinalPS);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
 
     D3D11_BUFFER_DESC cbDesc = {};
     cbDesc.ByteWidth = sizeof(float) * 4;
@@ -680,26 +811,28 @@ bool DirectXCore::CreateFinalShaders() {
     return SUCCEEDED(hr);
 }
 
-void DirectXCore::RenderOffscreenContent() {
+void DirectXCore::RenderOffscreenContent()
+{
 
     m_pContext->OMSetRenderTargets(1, m_OffscreenRTV.GetAddressOf(), nullptr);
-    float clearColor[4] = { 
-        ExtConfigs::EnableDarkMode ? 0.125f : 1.0f, 
-        ExtConfigs::EnableDarkMode ? 0.125f : 1.0f, 
-        ExtConfigs::EnableDarkMode ? 0.125f : 1.0f, 
-        1.0f };
+    float clearColor[4] = {
+        ExtConfigs::EnableDarkMode ? 0.125f : 1.0f,
+        ExtConfigs::EnableDarkMode ? 0.125f : 1.0f,
+        ExtConfigs::EnableDarkMode ? 0.125f : 1.0f,
+        1.0f};
     m_pContext->ClearRenderTargetView(m_OffscreenRTV.Get(), clearColor);
 
     float vw = (float)(m_clientWidth * m_renderScale);
     float vh = (float)(m_clientHeight * m_renderScale);
-    D3D11_VIEWPORT offscreenVP = { 0, 0, vw, vh, 0.0f, 1.0f };
+    D3D11_VIEWPORT offscreenVP = {0, 0, vw, vh, 0.0f, 1.0f};
     m_pContext->RSSetViewports(1, &offscreenVP);
 
     m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
     m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
     m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
-    auto& offscreenSampler = (m_renderScale == 1.0f)
-        ? m_pSamplerPoint : m_pSamplerLinear;
+    auto &offscreenSampler = (m_renderScale == 1.0f)
+                                 ? m_pSamplerPoint
+                                 : m_pSamplerLinear;
     m_pContext->PSSetSamplers(0, 1, offscreenSampler.GetAddressOf());
     m_pContext->IASetInputLayout(m_pInputLayout.Get());
 
@@ -708,7 +841,8 @@ void DirectXCore::RenderOffscreenContent() {
     m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &stride, &offset);
     m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-    auto CalcWorldMatrixNoGlobal = [&](const DrawParams& p, int texW, int texH) -> XMMATRIX {
+    auto CalcWorldMatrixNoGlobal = [&](const DrawParams &p, int texW, int texH) -> XMMATRIX
+    {
         float w_px = texW * p.scaleX;
         float h_px = texH * p.scaleY;
         float snappedX = std::floor(p.x + 0.5f);
@@ -724,13 +858,17 @@ void DirectXCore::RenderOffscreenContent() {
         return S * T;
     };
 
-    for (const auto& cmd : m_drawCommands) {
-        if (cmd.bIsEffect) continue;
-        if (cmd.bScreenSpace) continue;
-        TextureResource* tex = cmd.texRes;
-        if (!tex || !tex->srv || tex->bIsIndexTexture) continue;
+    for (const auto &cmd : m_drawCommands)
+    {
+        if (cmd.bIsEffect)
+            continue;
+        if (cmd.bScreenSpace)
+            continue;
+        TextureResource *tex = cmd.texRes;
+        if (!tex || !tex->srv || tex->bIsIndexTexture)
+            continue;
 
-        const auto& p = cmd.params;
+        const auto &p = cmd.params;
         XMMATRIX world = CalcWorldMatrixNoGlobal(p, tex->sourceView.FullWidth, tex->sourceView.FullHeight);
         CBPerObject cb;
         cb.world = XMMatrixTranspose(world);
@@ -740,7 +878,8 @@ void DirectXCore::RenderOffscreenContent() {
 
         D3D11_MAPPED_SUBRESOURCE mapped;
         HRESULT hr = m_pContext->Map(m_pConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-        if (FAILED(hr)) continue;
+        if (FAILED(hr))
+            continue;
         memcpy(mapped.pData, &cb, sizeof(cb));
         m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
 
@@ -750,11 +889,17 @@ void DirectXCore::RenderOffscreenContent() {
     }
 
     bool hasEffect = false;
-    for (auto& cmd : m_drawCommands) if (cmd.bIsEffect) { hasEffect = true; break; }
-    if (hasEffect) {
+    for (auto &cmd : m_drawCommands)
+        if (cmd.bIsEffect)
+        {
+            hasEffect = true;
+            break;
+        }
+    if (hasEffect)
+    {
         CopyScreenToTexture();
 
-        float one[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+        float one[4] = {1.0f, 1.0f, 1.0f, 1.0f};
         m_pContext->ClearRenderTargetView(m_pFactorRTV.Get(), one);
 
         m_pContext->OMSetRenderTargets(1, m_pFactorRTV.GetAddressOf(), nullptr);
@@ -763,12 +908,15 @@ void DirectXCore::RenderOffscreenContent() {
         m_pContext->PSSetShader(m_pEffectPS.Get(), nullptr, 0);
         m_pContext->PSSetSamplers(0, 1, m_pSamplerPoint.GetAddressOf());
 
-        for (const auto& cmd : m_drawCommands) {
-            if (!cmd.bIsEffect) continue;
-            TextureResource* idxTex = cmd.texRes;
-            if (!idxTex || !idxTex->srv || !idxTex->bIsIndexTexture) continue;
+        for (const auto &cmd : m_drawCommands)
+        {
+            if (!cmd.bIsEffect)
+                continue;
+            TextureResource *idxTex = cmd.texRes;
+            if (!idxTex || !idxTex->srv || !idxTex->bIsIndexTexture)
+                continue;
 
-            const auto& p = cmd.params;
+            const auto &p = cmd.params;
             XMMATRIX world = CalcWorldMatrixNoGlobal(p, idxTex->sourceView.FullWidth, idxTex->sourceView.FullHeight);
             CBPerObject cb;
             cb.world = XMMatrixTranspose(world);
@@ -776,7 +924,8 @@ void DirectXCore::RenderOffscreenContent() {
 
             D3D11_MAPPED_SUBRESOURCE mapped;
             HRESULT hr = m_pContext->Map(m_pConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-            if (FAILED(hr)) continue;
+            if (FAILED(hr))
+                continue;
             memcpy(mapped.pData, &cb, sizeof(cb));
             m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
 
@@ -791,50 +940,56 @@ void DirectXCore::RenderOffscreenContent() {
         m_pContext->PSSetShader(m_pCompositePS.Get(), nullptr, 0);
         m_pContext->PSSetSamplers(0, 1, m_pSamplerLinear.GetAddressOf());
 
-        ID3D11ShaderResourceView* srvs[2] = { m_pScreenCopySRV.Get(), m_pFactorSRV.Get() };
+        ID3D11ShaderResourceView *srvs[2] = {m_pScreenCopySRV.Get(), m_pFactorSRV.Get()};
         m_pContext->PSSetShaderResources(0, 2, srvs);
         DrawFullscreenQuad();
 
-        ID3D11ShaderResourceView* nullSRV[2] = { nullptr, nullptr };
+        ID3D11ShaderResourceView *nullSRV[2] = {nullptr, nullptr};
         m_pContext->PSSetShaderResources(0, 2, nullSRV);
     }
 }
 
-void DirectXCore::RenderFinalToBackBuffer() {
-    D3D11_VIEWPORT windowVP = { 0, 0, (float)m_clientWidth, (float)m_clientHeight, 0.0f, 1.0f };
+void DirectXCore::RenderFinalToBackBuffer()
+{
+    D3D11_VIEWPORT windowVP = {0, 0, (float)m_clientWidth, (float)m_clientHeight, 0.0f, 1.0f};
     m_pContext->RSSetViewports(1, &windowVP);
 
     m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
 
-    if (m_renderScale == 1.0f) {
+    if (m_renderScale == 1.0f)
+    {
         ComPtr<ID3D11Resource> pBackBufferResource;
         m_pRTV->GetResource(&pBackBufferResource);
-        if (pBackBufferResource && m_OffscreenTex) {
+        if (pBackBufferResource && m_OffscreenTex)
+        {
             m_pContext->CopyResource(pBackBufferResource.Get(), m_OffscreenTex.Get());
         }
         return;
     }
 
-    float clearColor[4] = { 0,0,0,1 };
+    float clearColor[4] = {0, 0, 0, 1};
     m_pContext->ClearRenderTargetView(m_pRTV.Get(), clearColor);
     m_pContext->OMSetBlendState(nullptr, nullptr, 0xffffffff);
 
     m_pContext->VSSetShader(m_pFinalVS.Get(), nullptr, 0);
     m_pContext->PSSetShader(m_pFinalPS.Get(), nullptr, 0);
 
-    auto& sampler = (!ExtConfigs::DDrawScalingBilinear ||
-        (ExtConfigs::DDrawScalingBilinear_OnlyShrink && CIsoViewExt::ScaledFactor < 1.0f))
-        ? m_pSamplerNearestNeighbor : m_pSamplerLinear;
+    auto &sampler = (!ExtConfigs::DDrawScalingBilinear ||
+                     (ExtConfigs::DDrawScalingBilinear_OnlyShrink && CIsoViewExt::ScaledFactor < 1.0f))
+                        ? m_pSamplerNearestNeighbor
+                        : m_pSamplerLinear;
 
     m_pContext->PSSetSamplers(0, 1, sampler.GetAddressOf());
 
-    struct FinalCB {
+    struct FinalCB
+    {
         float scaleX, scaleY;
         float offsetX, offsetY;
-    } cbData = { 1.0f, 1.0f, 0.0f, 0.0f };
+    } cbData = {1.0f, 1.0f, 0.0f, 0.0f};
 
     D3D11_MAPPED_SUBRESOURCE mapped;
-    if (SUCCEEDED(m_pContext->Map(m_pFinalConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+    if (SUCCEEDED(m_pContext->Map(m_pFinalConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+    {
         memcpy(mapped.pData, &cbData, sizeof(cbData));
         m_pContext->Unmap(m_pFinalConstantBuffer.Get(), 0);
     }
@@ -848,15 +1003,16 @@ void DirectXCore::RenderFinalToBackBuffer() {
     m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     m_pContext->Draw(4, 0);
 
-    ID3D11ShaderResourceView* nullSRV = nullptr;
+    ID3D11ShaderResourceView *nullSRV = nullptr;
     m_pContext->PSSetShaderResources(0, 1, &nullSRV);
 }
 
 void DirectXCore::RenderScreenSpaceContent()
 {
-    if (m_drawCommands.empty()) return;
+    if (m_drawCommands.empty())
+        return;
 
-    D3D11_VIEWPORT screenVP = { 0, 0, (float)m_clientWidth, (float)m_clientHeight, 0.0f, 1.0f };
+    D3D11_VIEWPORT screenVP = {0, 0, (float)m_clientWidth, (float)m_clientHeight, 0.0f, 1.0f};
     m_pContext->RSSetViewports(1, &screenVP);
 
     m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
@@ -864,7 +1020,7 @@ void DirectXCore::RenderScreenSpaceContent()
     m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
 
     m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
-    m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0); 
+    m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
     m_pContext->PSSetSamplers(0, 1, m_pSamplerPoint.GetAddressOf());
     m_pContext->IASetInputLayout(m_pInputLayout.Get());
 
@@ -873,7 +1029,8 @@ void DirectXCore::RenderScreenSpaceContent()
     m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &stride, &offset);
     m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-    auto CalcWorldMatrixScreen = [&](const DrawParams& p, int texW, int texH) -> XMMATRIX {
+    auto CalcWorldMatrixScreen = [&](const DrawParams &p, int texW, int texH) -> XMMATRIX
+    {
         float screenW = (float)m_clientWidth;
         float screenH = (float)m_clientHeight;
         float w_px = texW * p.scaleX;
@@ -891,13 +1048,17 @@ void DirectXCore::RenderScreenSpaceContent()
         return S * T;
     };
 
-    for (const auto& cmd : m_drawCommands) {
-        if (!cmd.bScreenSpace) continue;
-        if (cmd.bIsEffect) continue; 
-        TextureResource* tex = cmd.texRes;
-        if (!tex || !tex->srv) continue;
+    for (const auto &cmd : m_drawCommands)
+    {
+        if (!cmd.bScreenSpace)
+            continue;
+        if (cmd.bIsEffect)
+            continue;
+        TextureResource *tex = cmd.texRes;
+        if (!tex || !tex->srv)
+            continue;
 
-        const auto& p = cmd.params;
+        const auto &p = cmd.params;
         XMMATRIX world = CalcWorldMatrixScreen(p, tex->sourceView.FullWidth, tex->sourceView.FullHeight);
         CBPerObject cb;
         cb.world = XMMatrixTranspose(world);
@@ -907,7 +1068,8 @@ void DirectXCore::RenderScreenSpaceContent()
 
         D3D11_MAPPED_SUBRESOURCE mapped;
         HRESULT hr = m_pContext->Map(m_pConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-        if (FAILED(hr)) continue;
+        if (FAILED(hr))
+            continue;
         memcpy(mapped.pData, &cb, sizeof(cb));
         m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
 
@@ -916,12 +1078,14 @@ void DirectXCore::RenderScreenSpaceContent()
         m_pContext->Draw(4, 0);
     }
 
-    ID3D11ShaderResourceView* nullSRV = nullptr;
+    ID3D11ShaderResourceView *nullSRV = nullptr;
     m_pContext->PSSetShaderResources(0, 1, &nullSRV);
 }
 
-void DirectXCore::Render() {
-    if (!m_bInitialized || !m_pContext || !m_pSwapChain || !m_pRTV || m_drawCommands.empty()) {
+void DirectXCore::Render()
+{
+    if (!m_bInitialized || !m_pContext || !m_pSwapChain || !m_pRTV || m_drawCommands.empty())
+    {
         return;
     }
 
@@ -934,28 +1098,36 @@ void DirectXCore::Render() {
     m_drawCommands.clear();
 }
 
-void DirectXCore::RenderScreenSpaceOnly() {
-    if (!m_bInitialized || !m_pContext || !m_pSwapChain || !m_pRTV || !m_backgroundCacheValid) return;
-    RestoreBackgroundFromCache(); 
-    RenderScreenSpaceContent(); 
+void DirectXCore::RenderScreenSpaceOnly()
+{
+    if (!m_bInitialized || !m_pContext || !m_pSwapChain || !m_pRTV || !m_backgroundCacheValid)
+        return;
+    RestoreBackgroundFromCache();
+    RenderScreenSpaceContent();
     m_pSwapChain->Present(1, 0);
     m_drawCommands.clear();
 }
 
-TextureResource* DirectXCore::LoadTexture(const ImageDataView& view, BGRStruct color) {
-    auto index = TextureIndex{ view.pOriginData ,color };
+TextureResource *DirectXCore::LoadTexture(const ImageDataView &view, BGRStruct color)
+{
+    auto index = TextureIndex{view.pOriginData, color};
     auto [itr, inserted] = m_textureMap.try_emplace(index);
-    if (!inserted) return itr->second.get();
-    if (!m_pDevice || !view.pOriginData) return nullptr;
-    if (view.FullWidth <= 0 || view.FullHeight <= 0 || !view.pImageBuffer) return nullptr;
+    if (!inserted)
+        return itr->second.get();
+    if (!m_pDevice || !view.pOriginData)
+        return nullptr;
+    if (view.FullWidth <= 0 || view.FullHeight <= 0 || !view.pImageBuffer)
+        return nullptr;
 
     auto texRes = std::make_unique<TextureResource>();
     texRes->sourceView = view;
     texRes->bIsIndexTexture = false;
     int w = view.FullWidth, h = view.FullHeight;
     std::vector<uint32_t> rgbaData(w * h);
-    for (int y = 0; y < h; ++y) {
-        for (int x = 0; x < w; ++x) {
+    for (int y = 0; y < h; ++y)
+    {
+        for (int x = 0; x < w; ++x)
+        {
             unsigned char idx = view.pImageBuffer[y * w + x];
             unsigned char opacity = idx == 0 ? 0 : (view.pOpacity ? view.pOpacity[y * w + x] : 255);
             BGRStruct color = view.pPalette->Data[idx];
@@ -964,30 +1136,42 @@ TextureResource* DirectXCore::LoadTexture(const ImageDataView& view, BGRStruct c
         }
     }
     D3D11_TEXTURE2D_DESC desc = {};
-    desc.Width = w; desc.Height = h; desc.MipLevels = 1; desc.ArraySize = 1;
-    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; desc.SampleDesc.Count = 1;
-    desc.Usage = D3D11_USAGE_DEFAULT; desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-    D3D11_SUBRESOURCE_DATA initData = { rgbaData.data(), (UINT)w * 4, 0 };
+    desc.Width = w;
+    desc.Height = h;
+    desc.MipLevels = 1;
+    desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    D3D11_SUBRESOURCE_DATA initData = {rgbaData.data(), (UINT)w * 4, 0};
     HRESULT hr = m_pDevice->CreateTexture2D(&desc, &initData, &texRes->texture);
-    if (FAILED(hr)) return nullptr;
+    if (FAILED(hr))
+        return nullptr;
     hr = m_pDevice->CreateShaderResourceView(texRes->texture.Get(), nullptr, &texRes->srv);
-    if (FAILED(hr)) return nullptr;
-    TextureResource* ret = texRes.get();
+    if (FAILED(hr))
+        return nullptr;
+    TextureResource *ret = texRes.get();
     itr->second = std::move(texRes);
     return ret;
 }
 
-TextureResource* DirectXCore::LoadTileTexture(CTileBlockClass* tileBlock, const ImageDataView& view) {
+TextureResource *DirectXCore::LoadTileTexture(CTileBlockClass *tileBlock, const ImageDataView &view)
+{
     auto [itr, inserted] = m_tileTextureMap.try_emplace(tileBlock);
-    if (!inserted) return itr->second.get();
-    if (!m_pDevice || !tileBlock) return nullptr;
+    if (!inserted)
+        return itr->second.get();
+    if (!m_pDevice || !tileBlock)
+        return nullptr;
     auto texRes = std::make_unique<TextureResource>();
     texRes->sourceView = view;
     texRes->bIsIndexTexture = false;
     int w = view.FullWidth, h = view.FullHeight;
     std::vector<uint32_t> rgbaData(w * h);
-    for (int y = 0; y < h; ++y) {
-        for (int x = 0; x < w; ++x) {
+    for (int y = 0; y < h; ++y)
+    {
+        for (int x = 0; x < w; ++x)
+        {
             unsigned char idx = view.pImageBuffer[y * w + x];
             unsigned char opacity = idx == 0 ? 0 : 255;
             BGRStruct color = view.pPalette->Data[idx];
@@ -996,54 +1180,75 @@ TextureResource* DirectXCore::LoadTileTexture(CTileBlockClass* tileBlock, const 
         }
     }
     D3D11_TEXTURE2D_DESC desc = {};
-    desc.Width = w; desc.Height = h; desc.MipLevels = 1; desc.ArraySize = 1;
-    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; desc.SampleDesc.Count = 1;
-    desc.Usage = D3D11_USAGE_DEFAULT; desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-    D3D11_SUBRESOURCE_DATA initData = { rgbaData.data(), (UINT)w * 4, 0 };
+    desc.Width = w;
+    desc.Height = h;
+    desc.MipLevels = 1;
+    desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    D3D11_SUBRESOURCE_DATA initData = {rgbaData.data(), (UINT)w * 4, 0};
     HRESULT hr = m_pDevice->CreateTexture2D(&desc, &initData, &texRes->texture);
-    if (FAILED(hr)) return nullptr;
+    if (FAILED(hr))
+        return nullptr;
     hr = m_pDevice->CreateShaderResourceView(texRes->texture.Get(), nullptr, &texRes->srv);
-    if (FAILED(hr)) return nullptr;
-    TextureResource* ret = texRes.get();
+    if (FAILED(hr))
+        return nullptr;
+    TextureResource *ret = texRes.get();
     itr->second = std::move(texRes);
     return ret;
 }
 
-TextureResource* DirectXCore::LoadIndexTexture(const ImageDataView& view) {
-    auto index = TextureIndex{ view.pOriginData };
+TextureResource *DirectXCore::LoadIndexTexture(const ImageDataView &view)
+{
+    auto index = TextureIndex{view.pOriginData};
     auto [itr, inserted] = m_textureMap.try_emplace(index);
-    if (!inserted) return itr->second.get();
-    if (!m_pDevice || !view.pOriginData) return nullptr;
-    if (view.FullWidth <= 0 || view.FullHeight <= 0 || !view.pImageBuffer) return nullptr;
+    if (!inserted)
+        return itr->second.get();
+    if (!m_pDevice || !view.pOriginData)
+        return nullptr;
+    if (view.FullWidth <= 0 || view.FullHeight <= 0 || !view.pImageBuffer)
+        return nullptr;
 
     auto texRes = std::make_unique<TextureResource>();
     texRes->sourceView = view;
     texRes->bIsIndexTexture = true;
     int w = view.FullWidth, h = view.FullHeight;
     D3D11_TEXTURE2D_DESC desc = {};
-    desc.Width = w; desc.Height = h; desc.MipLevels = 1; desc.ArraySize = 1;
-    desc.Format = DXGI_FORMAT_R8_UNORM; desc.SampleDesc.Count = 1;
-    desc.Usage = D3D11_USAGE_DEFAULT; desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-    D3D11_SUBRESOURCE_DATA initData = { view.pImageBuffer, (UINT)w * 1, 0 };
+    desc.Width = w;
+    desc.Height = h;
+    desc.MipLevels = 1;
+    desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    D3D11_SUBRESOURCE_DATA initData = {view.pImageBuffer, (UINT)w * 1, 0};
     HRESULT hr = m_pDevice->CreateTexture2D(&desc, &initData, &texRes->texture);
-    if (FAILED(hr)) return nullptr;
+    if (FAILED(hr))
+        return nullptr;
     hr = m_pDevice->CreateShaderResourceView(texRes->texture.Get(), nullptr, &texRes->srv);
-    if (FAILED(hr)) return nullptr;
-    TextureResource* ret = texRes.get();
+    if (FAILED(hr))
+        return nullptr;
+    TextureResource *ret = texRes.get();
     itr->second = std::move(texRes);
     return ret;
 }
 
-TextureResource* DirectXCore::LoadBitmapTexture(FString_view name, CBitmap& bitmap, bool setColorKey, COLORREF color)
+TextureResource *DirectXCore::LoadBitmapTexture(FString_view name, CBitmap &bitmap, bool setColorKey, COLORREF color)
 {
     auto [itr, inserted] = m_bitmapTextureMap.try_emplace(name);
-    if (!inserted) return itr->second.get();
-    if (!m_pDevice) return nullptr;
+    if (!inserted)
+        return itr->second.get();
+    if (!m_pDevice)
+        return nullptr;
 
     BITMAP bm = {};
     bitmap.GetBitmap(&bm);
 
-    if (bm.bmWidth <= 0 || bm.bmHeight <= 0) return nullptr;
+    if (bm.bmWidth <= 0 || bm.bmHeight <= 0)
+        return nullptr;
 
     const int w = bm.bmWidth;
     const int h = bm.bmHeight;
@@ -1065,8 +1270,7 @@ TextureResource* DirectXCore::LoadBitmapTexture(FString_view name, CBitmap& bitm
         h,
         rgbaData.data(),
         &bmi,
-        DIB_RGB_COLORS
-    );
+        DIB_RGB_COLORS);
     ::ReleaseDC(nullptr, hdc);
     if (result == 0)
         return nullptr;
@@ -1077,10 +1281,10 @@ TextureResource* DirectXCore::LoadBitmapTexture(FString_view name, CBitmap& bitm
         const uint8_t transparentG = GetGValue(color);
         const uint8_t transparentB = GetBValue(color);
 
-        for (auto& pixel : rgbaData)
+        for (auto &pixel : rgbaData)
         {
-            uint8_t* p =
-                reinterpret_cast<uint8_t*>(&pixel);
+            uint8_t *p =
+                reinterpret_cast<uint8_t *>(&pixel);
             uint8_t b = p[0];
             uint8_t g = p[1];
             uint8_t r = p[2];
@@ -1101,9 +1305,9 @@ TextureResource* DirectXCore::LoadBitmapTexture(FString_view name, CBitmap& bitm
     }
     else
     {
-        for (auto& pixel : rgbaData)
+        for (auto &pixel : rgbaData)
         {
-            uint8_t* p = reinterpret_cast<uint8_t*>(&pixel);
+            uint8_t *p = reinterpret_cast<uint8_t *>(&pixel);
             std::swap(p[0], p[2]);
             if (p[3] == 0)
                 p[3] = 255;
@@ -1131,18 +1335,16 @@ TextureResource* DirectXCore::LoadBitmapTexture(FString_view name, CBitmap& bitm
     HRESULT hr = m_pDevice->CreateTexture2D(
         &desc,
         &initData,
-        &texRes->texture
-    );
+        &texRes->texture);
     if (FAILED(hr))
         return nullptr;
     hr = m_pDevice->CreateShaderResourceView(
         texRes->texture.Get(),
         nullptr,
-        &texRes->srv
-    );
+        &texRes->srv);
     if (FAILED(hr))
         return nullptr;
-    TextureResource* ret = texRes.get();
+    TextureResource *ret = texRes.get();
     itr->second = std::move(texRes);
     return ret;
 }
@@ -1152,145 +1354,177 @@ void DirectXCore::RemoveBitmapTexture(FString_view name)
     m_bitmapTextureMap.erase(name);
 }
 
-TextureResource* DirectXCore::GetTexture(void* pData, BGRStruct color) const {
-    auto it = m_textureMap.find(TextureIndex{ pData ,color });
+TextureResource *DirectXCore::GetTexture(void *pData, BGRStruct color) const
+{
+    auto it = m_textureMap.find(TextureIndex{pData, color});
     return (it != m_textureMap.end()) ? it->second.get() : nullptr;
 }
 
-TextureResource* DirectXCore::GetTileTexture(CTileBlockClass* tileBlock) const {
+TextureResource *DirectXCore::GetTileTexture(CTileBlockClass *tileBlock) const
+{
     auto it = m_tileTextureMap.find(tileBlock);
     return (it != m_tileTextureMap.end()) ? it->second.get() : nullptr;
 }
 
-TextureResource* DirectXCore::GetBitmapTexture(FString_view name) const {
+TextureResource *DirectXCore::GetBitmapTexture(FString_view name) const
+{
     auto it = m_bitmapTextureMap.find(name);
     return (it != m_bitmapTextureMap.end()) ? it->second.get() : nullptr;
 }
 
-void DirectXCore::DrawTexture(TextureResource* tex, const DrawParams& params) {
-    if (!tex) return;
-    m_drawCommands.push_back({ tex, params, tex->bIsIndexTexture, params.bScreenSpace });
+void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
+{
+    if (!tex)
+        return;
+    m_drawCommands.push_back({tex, params, tex->bIsIndexTexture, params.bScreenSpace});
 }
 
 static constexpr float kPi = 3.14159265358979323846f;
 
-static inline uint32_t ColorToU32(const ShapeColor& c, float extraAlpha = 1.f) {
+static inline uint32_t ColorToU32(const ShapeColor &c, float extraAlpha = 1.f)
+{
     float a = c.a * extraAlpha;
-    auto sat = [](float v) -> uint8_t {
-        return (uint8_t)(v < 0 ? 0 : v > 1 ? 255 : v * 255.f + .5f);
+    auto sat = [](float v) -> uint8_t
+    {
+        return (uint8_t)(v < 0 ? 0 : v > 1 ? 255
+                                           : v * 255.f + .5f);
     };
-    return (uint32_t)sat(c.r) | ((uint32_t)sat(c.g) << 8)
-        | ((uint32_t)sat(c.b) << 16) | ((uint32_t)sat(a) << 24);
+    return (uint32_t)sat(c.r) | ((uint32_t)sat(c.g) << 8) | ((uint32_t)sat(c.b) << 16) | ((uint32_t)sat(a) << 24);
 }
 
-void DrawShapes::Canvas::Resize(int _w, int _h) {
-    w = _w; h = _h;
+void DrawShapes::Canvas::Resize(int _w, int _h)
+{
+    w = _w;
+    h = _h;
     buf.assign(w * h, 0u);
 }
 
-void DrawShapes::Canvas::Clear() {
+void DrawShapes::Canvas::Clear()
+{
     std::fill(buf.begin(), buf.end(), 0u);
 }
 
-void DrawShapes::Canvas::SetPixel(int x, int y, uint32_t rgba) {
-    if (x < 0 || y < 0 || x >= w || y >= h) return;
+void DrawShapes::Canvas::SetPixel(int x, int y, uint32_t rgba)
+{
+    if (x < 0 || y < 0 || x >= w || y >= h)
+        return;
     buf[y * w + x] = rgba;
 }
 
-uint32_t DrawShapes::Canvas::BlendOver(uint32_t dst, uint32_t src) const {
+uint32_t DrawShapes::Canvas::BlendOver(uint32_t dst, uint32_t src) const
+{
     uint8_t sa = (src >> 24) & 0xff;
-    if (sa == 0)   return dst;
-    if (sa == 255) return src;
+    if (sa == 0)
+        return dst;
+    if (sa == 255)
+        return src;
     float fa = sa / 255.f;
     float ia = 1.f - fa;
-    auto ch = [&](int shift) -> uint8_t {
+    auto ch = [&](int shift) -> uint8_t
+    {
         float s = ((src >> shift) & 0xff) / 255.f;
         float d = ((dst >> shift) & 0xff) / 255.f;
         return (uint8_t)((s * fa + d * ia) * 255.f + .5f);
     };
     uint8_t da = (dst >> 24) & 0xff;
     uint8_t ra = (uint8_t)(sa + (uint8_t)(da * ia + .5f));
-    return (uint32_t)ch(0) | ((uint32_t)ch(8) << 8)
-        | ((uint32_t)ch(16) << 16) | ((uint32_t)ra << 24);
+    return (uint32_t)ch(0) | ((uint32_t)ch(8) << 8) | ((uint32_t)ch(16) << 16) | ((uint32_t)ra << 24);
 }
 
-void DrawShapes::Canvas::SetPixelBlend(int x, int y, uint32_t src) {
-    if (x < 0 || y < 0 || x >= w || y >= h) return;
-    uint32_t& dst = buf[y * w + x];
+void DrawShapes::Canvas::SetPixelBlend(int x, int y, uint32_t src)
+{
+    if (x < 0 || y < 0 || x >= w || y >= h)
+        return;
+    uint32_t &dst = buf[y * w + x];
     dst = BlendOver(dst, src);
 }
 
-static bool UploadPixelsToExistingRes(ID3D11Device* dev,
-    ID3D11DeviceContext* ctx,
-    TextureResource* res,
-    int w, int h,
-    const std::vector<uint32_t>& pixels)
+static bool UploadPixelsToExistingRes(ID3D11Device *dev,
+                                      ID3D11DeviceContext *ctx,
+                                      TextureResource *res,
+                                      int w, int h,
+                                      const std::vector<uint32_t> &pixels)
 {
-    if (res->texture) {
+    if (res->texture)
+    {
         D3D11_TEXTURE2D_DESC d;
         res->texture->GetDesc(&d);
-        if ((int)d.Width != w || (int)d.Height != h) {
+        if ((int)d.Width != w || (int)d.Height != h)
+        {
             res->texture.Reset();
             res->srv.Reset();
         }
     }
-    if (!res->texture) {
+    if (!res->texture)
+    {
         D3D11_TEXTURE2D_DESC desc = {};
-        desc.Width = w; desc.Height = h;
-        desc.MipLevels = 1; desc.ArraySize = 1;
+        desc.Width = w;
+        desc.Height = h;
+        desc.MipLevels = 1;
+        desc.ArraySize = 1;
         desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         desc.SampleDesc.Count = 1;
         desc.Usage = D3D11_USAGE_DYNAMIC;
         desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
         desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         HRESULT hr = dev->CreateTexture2D(&desc, nullptr, &res->texture);
-        if (FAILED(hr)) return false;
+        if (FAILED(hr))
+            return false;
         hr = dev->CreateShaderResourceView(res->texture.Get(), nullptr, &res->srv);
-        if (FAILED(hr)) return false;
+        if (FAILED(hr))
+            return false;
     }
     D3D11_MAPPED_SUBRESOURCE mapped;
     HRESULT hr = ctx->Map(res->texture.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
     for (int row = 0; row < h; ++row)
-        memcpy((uint8_t*)mapped.pData + row * mapped.RowPitch,
-            pixels.data() + row * w, w * 4);
+        memcpy((uint8_t *)mapped.pData + row * mapped.RowPitch,
+               pixels.data() + row * w, w * 4);
     ctx->Unmap(res->texture.Get(), 0);
     return true;
 }
 
-DrawShapes::DrawShapes(DirectXCore* dx) : m_dx(dx) {}
+DrawShapes::DrawShapes(DirectXCore *dx) : m_dx(dx) {}
 
-void DrawShapes::BeginFrame() {
-    for (auto& t : m_retireList)
+void DrawShapes::BeginFrame()
+{
+    for (auto &t : m_retireList)
         m_freePool.push_back(std::move(t));
     m_retireList.clear();
 }
 
-void DrawShapes::EndFrame() {
-    for (auto& t : m_inUseList)
+void DrawShapes::EndFrame()
+{
+    for (auto &t : m_inUseList)
         m_retireList.push_back(std::move(t));
     m_inUseList.clear();
 }
 
-TextureResource* DrawShapes::AcquireTempTexture(int w, int h,
-    const std::vector<uint32_t>& pixels)
+TextureResource *DrawShapes::AcquireTempTexture(int w, int h,
+                                                const std::vector<uint32_t> &pixels)
 {
-    if (!m_dx || w <= 0 || h <= 0) return nullptr;
+    if (!m_dx || w <= 0 || h <= 0)
+        return nullptr;
 
-    ID3D11Device* dev = m_dx->GetDevice();
-    ID3D11DeviceContext* ctx = m_dx->GetContext();
-    if (!dev || !ctx) return nullptr;
+    ID3D11Device *dev = m_dx->GetDevice();
+    ID3D11DeviceContext *ctx = m_dx->GetContext();
+    if (!dev || !ctx)
+        return nullptr;
 
     TempTex slot;
-    for (int i = 0; i < (int)m_freePool.size(); ++i) {
-        if (m_freePool[i].w == w && m_freePool[i].h == h) {
+    for (int i = 0; i < (int)m_freePool.size(); ++i)
+    {
+        if (m_freePool[i].w == w && m_freePool[i].h == h)
+        {
             slot = std::move(m_freePool[i]);
             m_freePool.erase(m_freePool.begin() + i);
             break;
         }
     }
 
-    if (!slot.res) {
+    if (!slot.res)
+    {
         slot.res = std::make_unique<TextureResource>();
         slot.res->bIsIndexTexture = false;
         slot.w = w;
@@ -1305,16 +1539,17 @@ TextureResource* DrawShapes::AcquireTempTexture(int w, int h,
     slot.w = w;
     slot.h = h;
 
-    TextureResource* ret = slot.res.get();
+    TextureResource *ret = slot.res.get();
     m_inUseList.push_back(std::move(slot));
     return ret;
 }
 
-void DrawShapes::FlushCanvas(Canvas& c, float worldX, float worldY,
-    float opacity, bool bScreenSpace)
+void DrawShapes::FlushCanvas(Canvas &c, float worldX, float worldY,
+                             float opacity, bool bScreenSpace)
 {
-    TextureResource* tex = AcquireTempTexture(c.w, c.h, c.buf);
-    if (!tex) return;
+    TextureResource *tex = AcquireTempTexture(c.w, c.h, c.buf);
+    if (!tex)
+        return;
 
     tex->sourceView.FullWidth = c.w;
     tex->sourceView.FullHeight = c.h;
@@ -1323,13 +1558,14 @@ void DrawShapes::FlushCanvas(Canvas& c, float worldX, float worldY,
     p.x = worldX;
     p.y = worldY;
     p.opacity = opacity;
-    if (bScreenSpace) p.SetScreenSpace();
+    if (bScreenSpace)
+        p.SetScreenSpace();
 
     m_dx->DrawTexture(tex, p);
 }
 
-void DrawShapes::RasterThickPoint(Canvas& c, float px, float py,
-    float radius, uint32_t rgba)
+void DrawShapes::RasterThickPoint(Canvas &c, float px, float py,
+                                  float radius, uint32_t rgba)
 {
     int x0 = (int)std::floor(px - radius - 1.f);
     int x1 = (int)std::ceil(px + radius + 1.f);
@@ -1337,81 +1573,163 @@ void DrawShapes::RasterThickPoint(Canvas& c, float px, float py,
     int y1 = (int)std::ceil(py + radius + 1.f);
 
     uint8_t srcA = (rgba >> 24) & 0xff;
-    float   fR = (rgba >> 0) & 0xff;
-    float   fG = (rgba >> 8) & 0xff;
-    float   fB = (rgba >> 16) & 0xff;
+    float fR = (rgba >> 0) & 0xff;
+    float fG = (rgba >> 8) & 0xff;
+    float fB = (rgba >> 16) & 0xff;
 
-    for (int y = y0; y <= y1; ++y) {
-        for (int x = x0; x <= x1; ++x) {
+    for (int y = y0; y <= y1; ++y)
+    {
+        for (int x = x0; x <= x1; ++x)
+        {
             float dx = x - px, dy = y - py;
             float dist = std::sqrt(dx * dx + dy * dy);
             float cov = std::max(0.f, std::min(1.f, radius - dist + .5f));
-            if (cov < 1e-4f) continue;
+            if (cov < 1e-4f)
+                continue;
             uint8_t a = (uint8_t)(srcA * cov + .5f);
-            uint32_t col = (uint32_t)(fR) | ((uint32_t)(fG) << 8)
-                | ((uint32_t)(fB) << 16) | ((uint32_t)a << 24);
+            uint32_t col = (uint32_t)(fR) | ((uint32_t)(fG) << 8) | ((uint32_t)(fB) << 16) | ((uint32_t)a << 24);
             c.SetPixelBlend(x, y, col);
         }
     }
 }
 
-void DrawShapes::RasterEllipseFill(Canvas& c, float cx, float cy,
-    float rx, float ry, uint32_t rgba)
+void DrawShapes::RasterEllipseFill(Canvas &c, float cx, float cy,
+                                   float rx, float ry, uint32_t rgba)
 {
-    if (rx < .5f || ry < .5f) return;
+    if (rx < .5f || ry < .5f)
+        return;
     int y0 = (int)std::floor(cy - ry);
     int y1 = (int)std::ceil(cy + ry);
-    for (int y = y0; y <= y1; ++y) {
+    for (int y = y0; y <= y1; ++y)
+    {
         float dy = y - cy;
         float t = dy / ry;
-        if (std::abs(t) > 1.f) continue;
+        if (std::abs(t) > 1.f)
+            continue;
         float halfW = rx * std::sqrt(1.f - t * t);
-        int   xL = (int)std::ceil(cx - halfW);
-        int   xR = (int)std::floor(cx + halfW);
+        int xL = (int)std::ceil(cx - halfW);
+        int xR = (int)std::floor(cx + halfW);
         for (int x = xL; x <= xR; ++x)
             c.SetPixel(x, y, rgba);
     }
 }
 
-void DrawShapes::RasterLine(Canvas& c,
-    float x0, float y0, float x1, float y1,
-    float thickness,
-    ShapeColor color,
-    float dashLen, float gapLen)
+void DrawShapes::RasterLine(Canvas &c,
+                            float x0, float y0, float x1, float y1,
+                            float thickness,
+                            ShapeColor color,
+                            float dashLen, float gapLen,
+                            bool antiAlias)
 {
     float dx = x1 - x0, dy = y1 - y0;
     float len = std::sqrt(dx * dx + dy * dy);
-    if (len < 1e-4f) {
-        RasterThickPoint(c, x0, y0, thickness * .5f,
-            ColorToU32(color));
+    uint32_t rgba = ColorToU32(color);
+
+    if (len < 1e-4f)
+    {
+        if (antiAlias)
+        {
+            RasterThickPoint(c, x0, y0, thickness * .5f, rgba);
+        }
+        else
+        {
+            int r = (int)std::ceil(thickness * .5f);
+            int cx = (int)std::round(x0), cy = (int)std::round(y0);
+            for (int dy2 = -r; dy2 <= r; ++dy2)
+                for (int dx2 = -r; dx2 <= r; ++dx2)
+                    c.SetPixel(cx + dx2, cy + dy2, rgba);
+        }
         return;
     }
 
-    bool  useDash = (dashLen > 0.f && gapLen > 0.f);
+    // â”€â”€ Non-AA path: filled quad with hard square caps â”€â”€
+    if (!antiAlias)
+    {
+        float halfT = thickness * 0.5f;
+        float invLen = 1.0f / len;
+        float nx = -dy * invLen * halfT;
+        float ny = dx * invLen * halfT;
+
+        auto drawQuad = [&](float sx, float sy, float ex, float ey)
+        {
+            // CCW winding: (sx-nx,sy-ny) -> (ex-nx,ey-ny) -> (ex+nx,ey+ny) -> (sx+nx,sy+ny)
+            float qx[4] = {sx - nx, ex - nx, ex + nx, sx + nx};
+            float qy[4] = {sy - ny, ey - ny, ey + ny, sy + ny};
+            int minX = (int)std::floor(std::min({qx[0], qx[1], qx[2], qx[3]}));
+            int maxX = (int)std::ceil(std::max({qx[0], qx[1], qx[2], qx[3]}));
+            int minY = (int)std::floor(std::min({qy[0], qy[1], qy[2], qy[3]}));
+            int maxY = (int)std::ceil(std::max({qy[0], qy[1], qy[2], qy[3]}));
+            for (int y = minY; y <= maxY; ++y)
+            {
+                for (int x = minX; x <= maxX; ++x)
+                {
+                    float px = (float)x + 0.5f, py = (float)y + 0.5f;
+                    bool inside = true;
+                    for (int i = 0; i < 4; ++i)
+                    {
+                        int j = (i + 1) % 4;
+                        float ex2 = qx[j] - qx[i], ey2 = qy[j] - qy[i];
+                        float vx = px - qx[i], vy = py - qy[i];
+                        if (ex2 * vy - ey2 * vx < 0)
+                        {
+                            inside = false;
+                            break;
+                        }
+                    }
+                    if (inside)
+                        c.SetPixel(x, y, rgba);
+                }
+            }
+        };
+
+        bool useDash = (dashLen > 0.f && gapLen > 0.f);
+        if (!useDash)
+        {
+            drawQuad(x0, y0, x1, y1);
+        }
+        else
+        {
+            float cycleLen = dashLen + gapLen;
+            float pos = 0.f;
+            while (pos < len)
+            {
+                float dashEnd = std::min(pos + dashLen, len);
+                float t0 = pos / len, t1 = dashEnd / len;
+                drawQuad(x0 + dx * t0, y0 + dy * t0, x0 + dx * t1, y0 + dy * t1);
+                pos += cycleLen;
+            }
+        }
+        return;
+    }
+
+    // â”€â”€ AA path: overlapping anti-aliased circles â”€â”€
+    bool useDash = (dashLen > 0.f && gapLen > 0.f);
     float cycleLen = dashLen + gapLen;
     float radius = thickness * .5f;
-    uint32_t rgba = ColorToU32(color);
 
     float step = 0.5f;
-    int   steps = (int)std::ceil(len / step);
+    int steps = (int)std::ceil(len / step);
     float dashPos = 0.f;
 
-    for (int i = 0; i <= steps; ++i) {
+    for (int i = 0; i <= steps; ++i)
+    {
         float t = (float)i / (float)steps;
         float px = x0 + dx * t;
         float py = y0 + dy * t;
         float distFromStart = t * len;
 
-        if (useDash) {
+        if (useDash)
+        {
             dashPos = std::fmod(distFromStart, cycleLen);
-            if (dashPos > dashLen) continue;
+            if (dashPos > dashLen)
+                continue;
         }
         RasterThickPoint(c, px, py, radius, rgba);
     }
 }
 
 void DrawShapes::DrawLine(float x0, float y0, float x1, float y1,
-    const LineParams& params)
+                          const LineParams &params)
 {
     float minX = std::min(x0, x1);
     float minY = std::min(y0, y1);
@@ -1421,9 +1739,10 @@ void DrawShapes::DrawLine(float x0, float y0, float x1, float y1,
     float pad = params.thickness * .5f + 2.f;
     float originX = std::floor(minX - pad);
     float originY = std::floor(minY - pad);
-    int   w = (int)std::ceil(maxX - originX + pad) + 1;
-    int   h = (int)std::ceil(maxY - originY + pad) + 1;
-    if (w <= 0 || h <= 0) return;
+    int w = (int)std::ceil(maxX - originX + pad) + 1;
+    int h = (int)std::ceil(maxY - originY + pad) + 1;
+    if (w <= 0 || h <= 0)
+        return;
 
     Canvas canvas;
     canvas.Resize(w, h);
@@ -1432,24 +1751,26 @@ void DrawShapes::DrawLine(float x0, float y0, float x1, float y1,
     col.a *= params.opacity;
 
     RasterLine(canvas,
-        x0 - originX, y0 - originY,
-        x1 - originX, y1 - originY,
-        params.thickness, col,
-        params.dashLength, params.gapLength);
+               x0 - originX, y0 - originY,
+               x1 - originX, y1 - originY,
+               params.thickness, col,
+               params.dashLength, params.gapLength,
+               params.antiAlias);
 
     FlushCanvas(canvas, originX, originY, 1.f, params.bScreenSpace);
 }
 
 void DrawShapes::DrawRect(float x, float y, float w, float h,
-    const RectParams& params)
+                          const RectParams &params)
 {
-    if (w < 1.f || h < 1.f) return;
+    if (w < 1.f || h < 1.f)
+        return;
 
     float pad = params.borderWidth * .5f + 2.f;
     float originX = std::floor(x - pad);
     float originY = std::floor(y - pad);
-    int   cw = (int)std::ceil(w + pad * 2.f) + 2;
-    int   ch = (int)std::ceil(h + pad * 2.f) + 2;
+    int cw = (int)std::ceil(w + pad * 2.f) + 2;
+    int ch = (int)std::ceil(h + pad * 2.f) + 2;
 
     Canvas canvas;
     canvas.Resize(cw, ch);
@@ -1457,7 +1778,8 @@ void DrawShapes::DrawRect(float x, float y, float w, float h,
     float lx = x - originX, ly = y - originY;
     float rx = lx + w, ry = ly + h;
 
-    if (!params.fillColor.IsTransparent()) {
+    if (!params.fillColor.IsTransparent())
+    {
         ShapeColor fc = params.fillColor;
         fc.a *= params.opacity;
         uint32_t fillRGBA = ColorToU32(fc);
@@ -1466,33 +1788,41 @@ void DrawShapes::DrawRect(float x, float y, float w, float h,
                 canvas.SetPixel(px, py, fillRGBA);
     }
 
-    if (params.borderWidth > 0.f && !params.borderColor.IsTransparent()) {
+    if (params.borderWidth > 0.f && !params.borderColor.IsTransparent())
+    {
         ShapeColor bc = params.borderColor;
         bc.a *= params.opacity;
 
-        struct Seg { float ax, ay, bx, by; };
+        struct Seg
+        {
+            float ax, ay, bx, by;
+        };
         Seg segs[4] = {
-            { lx, ly, rx, ly }, // top
-            { rx, ly, rx, ry }, // right
-            { rx, ry, lx, ry }, // bottom
-            { lx, ry, lx, ly }, // left
+            {lx, ly, rx, ly}, // top
+            {rx, ly, rx, ry}, // right
+            {rx, ry, lx, ry}, // bottom
+            {lx, ry, lx, ly}, // left
         };
 
-        if (params.dashLength > 0.f && params.gapLength > 0.f) {
+        if (params.dashLength > 0.f && params.gapLength > 0.f)
+        {
             float dashOffset = 0.f;
             float cycleLen = params.dashLength + params.gapLength;
-            for (auto& s : segs) {
+            for (auto &s : segs)
+            {
                 float segDx = s.bx - s.ax, segDy = s.by - s.ay;
                 float segLen = std::sqrt(segDx * segDx + segDy * segDy);
                 float step = 0.5f;
                 int steps = (int)std::ceil(segLen / step);
                 float r = params.borderWidth * .5f;
                 uint32_t rgba = ColorToU32(bc);
-                for (int i = 0; i <= steps; ++i) {
+                for (int i = 0; i <= steps; ++i)
+                {
                     float t = (float)i / (float)(steps == 0 ? 1 : steps);
                     float dist = t * segLen + dashOffset;
                     float pos = std::fmod(dist, cycleLen);
-                    if (pos > params.dashLength) continue;
+                    if (pos > params.dashLength)
+                        continue;
                     float px = s.ax + segDx * t;
                     float py = s.ay + segDy * t;
                     RasterThickPoint(canvas, px, py, r, rgba);
@@ -1500,10 +1830,11 @@ void DrawShapes::DrawRect(float x, float y, float w, float h,
                 dashOffset = std::fmod(dashOffset + segLen, cycleLen);
             }
         }
-        else {
-            for (auto& s : segs)
+        else
+        {
+            for (auto &s : segs)
                 RasterLine(canvas, s.ax, s.ay, s.bx, s.by,
-                    params.borderWidth, bc, 0, 0);
+                           params.borderWidth, bc, 0, 0, false);
         }
     }
 
@@ -1511,15 +1842,16 @@ void DrawShapes::DrawRect(float x, float y, float w, float h,
 }
 
 void DrawShapes::DrawEllipse(float cx, float cy, float rx, float ry,
-    const EllipseParams& params)
+                             const EllipseParams &params)
 {
-    if (rx < .5f || ry < .5f) return;
+    if (rx < .5f || ry < .5f)
+        return;
 
     float pad = params.borderWidth * .5f + 2.f;
     float originX = std::floor(cx - rx - pad);
     float originY = std::floor(cy - ry - pad);
-    int   cw = (int)std::ceil((rx + pad) * 2.f) + 2;
-    int   ch = (int)std::ceil((ry + pad) * 2.f) + 2;
+    int cw = (int)std::ceil((rx + pad) * 2.f) + 2;
+    int ch = (int)std::ceil((ry + pad) * 2.f) + 2;
 
     Canvas canvas;
     canvas.Resize(cw, ch);
@@ -1527,41 +1859,51 @@ void DrawShapes::DrawEllipse(float cx, float cy, float rx, float ry,
     float lcx = cx - originX;
     float lcy = cy - originY;
 
-    if (!params.fillColor.IsTransparent()) {
+    if (!params.fillColor.IsTransparent())
+    {
         ShapeColor fc = params.fillColor;
         fc.a *= params.opacity;
         RasterEllipseFill(canvas, lcx, lcy, rx, ry, ColorToU32(fc));
     }
 
-    if (params.borderWidth > 0.f && !params.borderColor.IsTransparent()) {
+    if (params.borderWidth > 0.f && !params.borderColor.IsTransparent())
+    {
         ShapeColor bc = params.borderColor;
         bc.a *= params.opacity;
         uint32_t rgba = ColorToU32(bc);
 
         int segs = params.segments > 0
-            ? params.segments
-            : std::max(32, (int)(2.f * kPi * std::max(rx, ry) / 1.5f));
+                       ? params.segments
+                       : std::max(32, (int)(2.f * kPi * std::max(rx, ry) / 1.5f));
 
         float cycleLen = params.dashLength + params.gapLength;
-        bool  useDash = (params.dashLength > 0.f && params.gapLength > 0.f);
+        bool useDash = (params.dashLength > 0.f && params.gapLength > 0.f);
         float dashAccum = 0.f;
         float halfBorder = params.borderWidth * .5f;
 
         float prevPx = 0.f, prevPy = 0.f;
-        for (int i = 0; i <= segs; ++i) {
+        for (int i = 0; i <= segs; ++i)
+        {
             float angle = 2.f * kPi * i / segs;
             float px = lcx + rx * std::cos(angle);
             float py = lcy + ry * std::sin(angle);
 
-            if (i == 0) { prevPx = px; prevPy = py; continue; }
+            if (i == 0)
+            {
+                prevPx = px;
+                prevPy = py;
+                continue;
+            }
 
             float sdx = px - prevPx, sdy = py - prevPy;
             float segLen = std::sqrt(sdx * sdx + sdy * sdy);
 
-            if (useDash) {
+            if (useDash)
+            {
                 float step = 0.5f;
-                int   steps = std::max(1, (int)std::ceil(segLen / step));
-                for (int j = 0; j <= steps; ++j) {
+                int steps = std::max(1, (int)std::ceil(segLen / step));
+                for (int j = 0; j <= steps; ++j)
+                {
                     float t = (float)j / steps;
                     float qx = prevPx + sdx * t;
                     float qy = prevPy + sdy * t;
@@ -1571,64 +1913,84 @@ void DrawShapes::DrawEllipse(float cx, float cy, float rx, float ry,
                 }
                 dashAccum = std::fmod(dashAccum + segLen, cycleLen);
             }
-            else {
+            else
+            {
                 RasterLine(canvas, prevPx, prevPy, px, py,
-                    params.borderWidth, bc, 0, 0);
+                           params.borderWidth, bc, 0, 0, false);
             }
-            prevPx = px; prevPy = py;
+            prevPx = px;
+            prevPy = py;
         }
     }
 
     FlushCanvas(canvas, originX, originY, 1.f, params.bScreenSpace);
 }
 
-static std::wstring ToWide(const std::string& s) {
-    if (s.empty()) return {};
+static std::wstring ToWide(const std::string &s)
+{
+    if (s.empty())
+        return {};
     int len = MultiByteToWideChar(CP_ACP, 0, s.c_str(), (int)s.size(), nullptr, 0);
-    if (len <= 0) return {};
+    if (len <= 0)
+        return {};
     std::wstring w(len, L'\0');
     MultiByteToWideChar(CP_ACP, 0, s.c_str(), (int)s.size(), w.data(), len);
     return w;
 }
 
-static uint32_t PackColor(const ShapeColor& c) {
-    auto sat = [](float v) -> uint8_t {
-        return (uint8_t)(v < 0 ? 0 : v > 1 ? 255 : v * 255.f + .5f);
+static uint32_t PackColor(const ShapeColor &c)
+{
+    auto sat = [](float v) -> uint8_t
+    {
+        return (uint8_t)(v < 0 ? 0 : v > 1 ? 255
+                                           : v * 255.f + .5f);
     };
-    return (uint32_t)sat(c.r) | ((uint32_t)sat(c.g) << 8)
-        | ((uint32_t)sat(c.b) << 16) | ((uint32_t)sat(c.a) << 24);
+    return (uint32_t)sat(c.r) | ((uint32_t)sat(c.g) << 8) | ((uint32_t)sat(c.b) << 16) | ((uint32_t)sat(c.a) << 24);
 }
 
-static COLORREF ToColorRef(const ShapeColor& c) {
-    auto sat = [](float v) -> uint8_t {
-        return (uint8_t)(v < 0 ? 0 : v > 1 ? 255 : v * 255.f + .5f);
+static COLORREF ToColorRef(const ShapeColor &c)
+{
+    auto sat = [](float v) -> uint8_t
+    {
+        return (uint8_t)(v < 0 ? 0 : v > 1 ? 255
+                                           : v * 255.f + .5f);
     };
     return RGB(sat(c.r), sat(c.g), sat(c.b));
 }
 
-TextRenderer::TextRenderer(DirectXCore* dx, size_t cacheCapacity)
+TextRenderer::TextRenderer(DirectXCore *dx, size_t cacheCapacity)
     : m_dx(dx), m_capacity(cacheCapacity)
-{}
+{
+}
 
-TextRenderer::~TextRenderer() {
+TextRenderer::~TextRenderer()
+{
     ClearCache();
     CleanupFonts();
 
-    if (m_hBmp) { DeleteObject(m_hBmp); m_hBmp = nullptr; }
-    if (m_hDC) { DeleteDC(m_hDC);     m_hDC = nullptr; }
+    if (m_hBmp)
+    {
+        DeleteObject(m_hBmp);
+        m_hBmp = nullptr;
+    }
+    if (m_hDC)
+    {
+        DeleteDC(m_hDC);
+        m_hDC = nullptr;
+    }
 }
 
 void TextRenderer::DrawTexts(
     float x,
     float y,
     FString_view text,
-    const TextParams& params)
+    const TextParams &params)
 {
     if (text.empty())
         return;
 
     TextKey key = MakeKey(text, params);
-    TextureResource* tex = Lookup(key);
+    TextureResource *tex = Lookup(key);
 
     if (!tex)
     {
@@ -1693,22 +2055,28 @@ void TextRenderer::DrawTexts(
     m_dx->DrawTexture(tex, dp);
 }
 
-bool TextRenderer::MeasureText(const FString& text,
-    const TextParams& params,
-    int& outW, int& outH)
+bool TextRenderer::MeasureText(const FString &text,
+                               const TextParams &params,
+                               int &outW, int &outH)
 {
-    if (text.empty()) { outW = outH = 0; return true; }
+    if (text.empty())
+    {
+        outW = outH = 0;
+        return true;
+    }
 
     TextKey key = MakeKey(text, params);
     auto it = m_cache.find(key);
-    if (it != m_cache.end()) {
+    if (it != m_cache.end())
+    {
         outW = it->second.first.texW;
         outH = it->second.first.texH;
         return true;
     }
 
     HFONT hFont = GetOrCreateFont(params);
-    if (!hFont) return false;
+    if (!hFont)
+        return false;
 
     std::wstring wtext = ToWide(text);
     HDC hdc = CreateCompatibleDC(nullptr);
@@ -1735,27 +2103,30 @@ bool TextRenderer::MeasureText(const FString& text,
         break;
     }
 
-    RECT rc = { 0, 0, 4096, 4096 };
+    RECT rc = {0, 0, 4096, 4096};
     DrawTextW(hdc, wtext.c_str(), (int)wtext.size(), &rc,
-        dtFlags);
+              dtFlags);
 
     outW = (rc.right - rc.left) + params.paddingX * 2;
     outH = (rc.bottom - rc.top) + params.paddingY * 2;
-    if (outW < 1) outW = 1;
-    if (outH < 1) outH = 1;
+    if (outW < 1)
+        outW = 1;
+    if (outH < 1)
+        outH = 1;
 
     SelectObject(hdc, oldFont);
     DeleteDC(hdc);
     return true;
 }
 
-void TextRenderer::ClearCache() {
+void TextRenderer::ClearCache()
+{
     m_cache.clear();
     m_lruList.clear();
 }
 
-TextKey TextRenderer::MakeKey(const FString& text,
-    const TextParams& p) const
+TextKey TextRenderer::MakeKey(const FString &text,
+                              const TextParams &p) const
 {
     TextKey k;
     k.text = text;
@@ -1771,15 +2142,18 @@ TextKey TextRenderer::MakeKey(const FString& text,
     return k;
 }
 
-TextureResource* TextRenderer::Lookup(const TextKey& key) {
+TextureResource *TextRenderer::Lookup(const TextKey &key)
+{
     auto it = m_cache.find(key);
-    if (it == m_cache.end()) return nullptr;
+    if (it == m_cache.end())
+        return nullptr;
 
     m_lruList.splice(m_lruList.begin(), m_lruList, it->second.second);
     return it->second.first.texRes.get();
 }
 
-void TextRenderer::Insert(const TextKey& key, CacheEntry entry) {
+void TextRenderer::Insert(const TextKey &key, CacheEntry entry)
+{
     if (m_capacity > 0 && m_cache.size() >= m_capacity)
         Evict();
 
@@ -1787,14 +2161,17 @@ void TextRenderer::Insert(const TextKey& key, CacheEntry entry) {
     m_cache.emplace(key, std::make_pair(std::move(entry), m_lruList.begin()));
 }
 
-void TextRenderer::Evict() {
-    if (m_lruList.empty()) return;
-    const TextKey& oldest = m_lruList.back();
+void TextRenderer::Evict()
+{
+    if (m_lruList.empty())
+        return;
+    const TextKey &oldest = m_lruList.back();
     m_cache.erase(oldest);
     m_lruList.pop_back();
 }
 
-HFONT TextRenderer::GetOrCreateFont(const TextParams& p) {
+HFONT TextRenderer::GetOrCreateFont(const TextParams &p)
+{
     FontKey fk;
     fk.fontName = p.fontName;
     fk.fontSize = p.fontSize;
@@ -1803,7 +2180,8 @@ HFONT TextRenderer::GetOrCreateFont(const TextParams& p) {
     fk.underline = p.underline;
 
     auto it = m_fontPool.find(fk);
-    if (it != m_fontPool.end()) return it->second;
+    if (it != m_fontPool.end())
+        return it->second;
 
     std::wstring wFontName = ToWide(p.fontName);
 
@@ -1819,26 +2197,33 @@ HFONT TextRenderer::GetOrCreateFont(const TextParams& p) {
     wcsncpy_s(lf.lfFaceName, wFontName.c_str(), LF_FACESIZE - 1);
 
     HFONT hFont = CreateFontIndirectW(&lf);
-    if (hFont) m_fontPool[fk] = hFont;
+    if (hFont)
+        m_fontPool[fk] = hFont;
     return hFont;
 }
 
-void TextRenderer::CleanupFonts() {
-    for (auto& [k, hf] : m_fontPool)
-        if (hf) DeleteObject(hf);
+void TextRenderer::CleanupFonts()
+{
+    for (auto &[k, hf] : m_fontPool)
+        if (hf)
+            DeleteObject(hf);
     m_fontPool.clear();
 }
 
-void TextRenderer::EnsureDC(int w, int h) {
-    if (!m_hDC) {
+void TextRenderer::EnsureDC(int w, int h)
+{
+    if (!m_hDC)
+    {
         m_hDC = CreateCompatibleDC(nullptr);
         SetBkMode(m_hDC, TRANSPARENT);
     }
 
-    if (w <= m_bmpW && h <= m_bmpH) return; 
+    if (w <= m_bmpW && h <= m_bmpH)
+        return;
 
-    if (m_hBmp) {
-        SelectObject(m_hDC, GetStockObject(DEFAULT_GUI_FONT)); 
+    if (m_hBmp)
+    {
+        SelectObject(m_hDC, GetStockObject(DEFAULT_GUI_FONT));
         DeleteObject(m_hBmp);
         m_hBmp = nullptr;
         m_pBits = nullptr;
@@ -1850,7 +2235,7 @@ void TextRenderer::EnsureDC(int w, int h) {
     BITMAPINFO bmi = {};
     bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bmi.bmiHeader.biWidth = m_bmpW;
-    bmi.bmiHeader.biHeight = -m_bmpH; 
+    bmi.bmiHeader.biHeight = -m_bmpH;
     bmi.bmiHeader.biPlanes = 1;
     bmi.bmiHeader.biBitCount = 32;
     bmi.bmiHeader.biCompression = BI_RGB;
@@ -1860,11 +2245,11 @@ void TextRenderer::EnsureDC(int w, int h) {
 }
 
 bool TextRenderer::RasterizeGDI(
-    const FString& text,
-    const TextParams& p,
-    std::vector<uint32_t>& pixels,
-    int& outW,
-    int& outH)
+    const FString &text,
+    const TextParams &p,
+    std::vector<uint32_t> &pixels,
+    int &outW,
+    int &outH)
 {
     HFONT hFont = GetOrCreateFont(p);
     if (!hFont)
@@ -1877,7 +2262,7 @@ bool TextRenderer::RasterizeGDI(
     HDC hMeasureDC = CreateCompatibleDC(nullptr);
     HGDIOBJ oldMeasureFont = SelectObject(hMeasureDC, hFont);
 
-    RECT rcMeasure = { 0,0,4096,4096 };
+    RECT rcMeasure = {0, 0, 4096, 4096};
 
     UINT dtFlags =
         DT_CALCRECT |
@@ -1919,15 +2304,14 @@ bool TextRenderer::RasterizeGDI(
     EnsureDC(outW, outH);
 
     RECT drawRc =
-    {
-        p.paddingX,
-        p.paddingY,
-        p.paddingX + textW,
-        p.paddingY + textH
-    };
+        {
+            p.paddingX,
+            p.paddingY,
+            p.paddingX + textW,
+            p.paddingY + textH};
 
     {
-        uint32_t* dst = reinterpret_cast<uint32_t*>(m_pBits);
+        uint32_t *dst = reinterpret_cast<uint32_t *>(m_pBits);
 
         for (int y = 0; y < outH; ++y)
         {
@@ -1962,8 +2346,10 @@ bool TextRenderer::RasterizeGDI(
 
     auto Clamp255 = [](float v) -> uint8_t
     {
-        if (v <= 0.f) return 0;
-        if (v >= 1.f) return 255;
+        if (v <= 0.f)
+            return 0;
+        if (v >= 1.f)
+            return 255;
         return (uint8_t)(v * 255.f + 0.5f);
     };
 
@@ -1990,15 +2376,15 @@ bool TextRenderer::RasterizeGDI(
 
     pixels.resize(outW * outH);
 
-    const uint32_t* src =
-        reinterpret_cast<const uint32_t*>(m_pBits);
+    const uint32_t *src =
+        reinterpret_cast<const uint32_t *>(m_pBits);
 
     if (!hasBg)
     {
         for (int y = 0; y < outH; ++y)
         {
-            uint32_t* dst = pixels.data() + y * outW;
-            const uint32_t* row = src + y * m_bmpW;
+            uint32_t *dst = pixels.data() + y * outW;
+            const uint32_t *row = src + y * m_bmpW;
 
             for (int x = 0; x < outW; ++x)
             {
@@ -2016,12 +2402,10 @@ bool TextRenderer::RasterizeGDI(
 
                 bool isBorder =
                     p.bBorder &&
-                    (
-                        x < p.borderThickness ||
-                        y < p.borderThickness ||
-                        x >= outW - p.borderThickness ||
-                        y >= outH - p.borderThickness
-                        );
+                    (x < p.borderThickness ||
+                     y < p.borderThickness ||
+                     x >= outW - p.borderThickness ||
+                     y >= outH - p.borderThickness);
 
                 if (isBorder)
                 {
@@ -2047,8 +2431,8 @@ bool TextRenderer::RasterizeGDI(
 
     for (int y = 0; y < outH; ++y)
     {
-        uint32_t* dst = pixels.data() + y * outW;
-        const uint32_t* row = src + y * m_bmpW;
+        uint32_t *dst = pixels.data() + y * outW;
+        const uint32_t *row = src + y * m_bmpW;
 
         for (int x = 0; x < outW; ++x)
         {
@@ -2075,15 +2459,12 @@ bool TextRenderer::RasterizeGDI(
             uint8_t outA =
                 (uint8_t)(bgA * inv + 255.f * coverage + 0.5f);
 
-
             bool isBorder =
                 p.bBorder &&
-                (
-                    x < p.borderThickness ||
-                    y < p.borderThickness ||
-                    x >= outW - p.borderThickness ||
-                    y >= outH - p.borderThickness
-                    );
+                (x < p.borderThickness ||
+                 y < p.borderThickness ||
+                 x >= outW - p.borderThickness ||
+                 y >= outH - p.borderThickness);
             if (isBorder)
             {
                 dst[x] =
@@ -2106,25 +2487,30 @@ bool TextRenderer::RasterizeGDI(
     return true;
 }
 
-bool TextRenderer::UploadTexture(TextureResource* res,
-    int w, int h,
-    const std::vector<uint32_t>& pixels)
+bool TextRenderer::UploadTexture(TextureResource *res,
+                                 int w, int h,
+                                 const std::vector<uint32_t> &pixels)
 {
-    if (!m_dx) return false;
-    ID3D11Device* dev = m_dx->GetDevice();
-    ID3D11DeviceContext* ctx = m_dx->GetContext();
-    if (!dev || !ctx) return false;
+    if (!m_dx)
+        return false;
+    ID3D11Device *dev = m_dx->GetDevice();
+    ID3D11DeviceContext *ctx = m_dx->GetContext();
+    if (!dev || !ctx)
+        return false;
 
-    if (res->texture) {
+    if (res->texture)
+    {
         D3D11_TEXTURE2D_DESC d;
         res->texture->GetDesc(&d);
-        if ((int)d.Width != w || (int)d.Height != h) {
+        if ((int)d.Width != w || (int)d.Height != h)
+        {
             res->texture.Reset();
             res->srv.Reset();
         }
     }
 
-    if (!res->texture) {
+    if (!res->texture)
+    {
         D3D11_TEXTURE2D_DESC desc = {};
         desc.Width = w;
         desc.Height = h;
@@ -2137,20 +2523,24 @@ bool TextRenderer::UploadTexture(TextureResource* res,
         desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
         HRESULT hr = dev->CreateTexture2D(&desc, nullptr, &res->texture);
-        if (FAILED(hr)) return false;
+        if (FAILED(hr))
+            return false;
 
         hr = dev->CreateShaderResourceView(res->texture.Get(), nullptr, &res->srv);
-        if (FAILED(hr)) return false;
+        if (FAILED(hr))
+            return false;
     }
 
     D3D11_MAPPED_SUBRESOURCE mapped;
     HRESULT hr = ctx->Map(res->texture.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
 
-    for (int row = 0; row < h; ++row) {
-        memcpy(static_cast<uint8_t*>(mapped.pData) + row * mapped.RowPitch,
-            pixels.data() + row * w,
-            w * 4);
+    for (int row = 0; row < h; ++row)
+    {
+        memcpy(static_cast<uint8_t *>(mapped.pData) + row * mapped.RowPitch,
+               pixels.data() + row * w,
+               w * 4);
     }
     ctx->Unmap(res->texture.Get(), 0);
 

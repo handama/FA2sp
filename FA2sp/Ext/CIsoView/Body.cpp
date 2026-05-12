@@ -1512,6 +1512,64 @@ void CIsoViewExt::DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord
     }
 }
 
+void CIsoViewExt::DirectXDrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord>>& lines, int X, int Y, COLORREF color, bool bUseDot)
+{
+    Y -= 30;
+    X += 30;
+    for (const auto& line : lines)
+    {
+        int x1 = X + line.first.X;
+        int y1 = Y + line.first.Y;
+        int x2 = X + line.second.X;
+        int y2 = Y + line.second.Y;
+
+        LineParams param;
+        param.SetAntiAlias(false).SetColor(ShapeColor::FromCOLORREF(color)).SetThickness(bUseDot ? 1.0f : 3.0f);
+
+        g_pSP->DrawLine(x1, y1, x2, y2, param);
+    }
+}
+
+void CIsoViewExt::DirectXDrawLockedCellOutline(int X, int Y, int W, int H, COLORREF color, bool bUseDot, bool s1, bool s2, bool s3, bool s4)
+{
+    X += 2;
+    Y += 1;
+
+    int halfCellWidth = 30 * W;
+    int quaterCellWidth = 15 * W;
+    int fullCellHeight = 30 * H;
+    int halfCellHeight = 15 * H;
+
+    int y1 = Y - 30;
+    int x1 = X + 30;
+
+    int x2 = halfCellWidth + X + 30;
+    int y2 = quaterCellWidth + y1;
+
+    int x3 = halfCellWidth - fullCellHeight + X + 30;
+    int y3 = halfCellHeight + quaterCellWidth + y1;
+
+    int x4 = X - fullCellHeight + 30;
+    int y4 = halfCellHeight + y1;
+
+    LineParams param;
+    param.SetAntiAlias(false).SetColor(ShapeColor::FromCOLORREF(color)).SetThickness(bUseDot ? 1.0f : 3.0f);
+
+    if (s1)
+        g_pSP->DrawLine(x1, y1, x2, y2, param);
+    if (s2)
+        g_pSP->DrawLine(x2, y2, x3, y3, param);
+    if (s3)
+        g_pSP->DrawLine(x3, y3, x4, y4, param);
+    if (s4)
+        g_pSP->DrawLine(x4, y4, x1, y1, param);
+
+}
+
+void CIsoViewExt::DirectXDrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF color, COLORREF colorX, bool bUseDot, bool onlyX)
+{
+}
+
 int CIsoViewExt::GetSelectedSubcellInfantryIdx(int X, int Y, bool getSubcel)
 {
     if (CIsoViewExt::LastCommand::requestSubpos)
@@ -3006,7 +3064,7 @@ void CIsoViewExt::DrawDistanceRuler(HDC hDC, const RECT& rect)
                 oss << std::fixed << distance;
                 buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Distance", "Distance: %s"), oss.str().c_str());
                 TextOutClipped(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength(), rect);
-                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Coordinate", "XY: %d, %d, ¦¤XY: %d, %d"),
+                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Coordinate", "XY: %d, %d, ï¿½ï¿½XY: %d, %d"),
                     coord2.Y, coord2.X, coord2.Y - coord1.Y, coord2.X - coord1.X);
                 TextOutClipped(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength(), rect);
             }
@@ -3102,7 +3160,7 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC, const RECT& rect)
                 oss << std::fixed << distance;
                 buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Distance", "Distance: %s"), oss.str().c_str());
                 TextOutClipped(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength(), rect);
-                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Coordinate", "XY: %d, %d, ¦¤XY: %d, %d"),
+                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Coordinate", "XY: %d, %d, ï¿½ï¿½XY: %d, %d"),
                     coord2.Y, coord2.X,
                     coord2.Y - twoPoints.Point1.Y, coord2.X - twoPoints.Point1.X);
                 TextOutClipped(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength(), rect);
@@ -3497,7 +3555,7 @@ void CIsoViewExt::DirectXMouseCursor(int X, int Y, int height)
     auto DrawLine = [](int x1, int y1, int x2, int y2, COLORREF color, bool dashed = false)
     {
         LineParams param;
-        param.SetScreenSpace().SetThickness(1.0f).SetColor(ShapeColor::FromCOLORREF(color));
+        param.SetScreenSpace().SetThickness(1.0f).SetColor(ShapeColor::FromCOLORREF(color)).SetAntiAlias(false);
         if (dashed)
             param.SetDash(std::max(4 / CIsoViewExt::ScaledFactor, 1.0), std::max(2 / CIsoViewExt::ScaledFactor, 1.0));
         g_pSP->DrawLine(x1, y1, x2, y2, param);
@@ -3517,6 +3575,23 @@ void CIsoViewExt::DirectXMouseCursor(int X, int Y, int height)
         DrawLine(x3, y3 - inneroffset, x4 + 2 * inneroffset, y4, Color);
         DrawLine(x4 + 2 * inneroffset, y4, x1, y1 + inneroffset, Color);
     };
+
+    auto drawHeightLine = [&](int offset)
+    {
+        DrawLine(x2 + offset, y2, x2 + offset, y2 + height * 15 / CIsoViewExt::ScaledFactor, heightLineColor, true);
+        DrawLine(x4 - offset, y4, x4 - offset, y4 + height * 15 / CIsoViewExt::ScaledFactor, heightLineColor, true);
+        DrawLine(x3 + offset + 1, y3, x3 + offset + 1, y3 + height * 15 / CIsoViewExt::ScaledFactor, heightLineColor, true);
+    };
+
+    if (!CFinalSunApp::Instance->FlatToGround && height > 0)
+    {
+        drawHeightLine(0);
+        if (CIsoViewExt::ScaledFactor < 0.76)
+            drawHeightLine(1);
+        if (CIsoViewExt::ScaledFactor < 0.31)
+            drawHeightLine(-1);
+    }
+
     drawCellOutline(0, color);
     drawCellOutline(1, heightColor);
     if (CIsoViewExt::ScaledFactor < 0.76)
@@ -3531,22 +3606,6 @@ void CIsoViewExt::DirectXMouseCursor(int X, int Y, int height)
             drawCellOutline(-2, color);
         if (CIsoViewExt::ScaledFactor < 0.31)
             drawCellOutline(-3, color);
-    }
-
-    auto drawHeightLine = [&](int offset)
-    {
-        DrawLine(x2 + offset, y2, x2 + offset, y2 + height * 15 / CIsoViewExt::ScaledFactor, heightLineColor, true);
-        DrawLine(x4 - offset, y4, x4 - offset, y4 + height * 15 / CIsoViewExt::ScaledFactor, heightLineColor, true);
-        DrawLine(x3 + offset + 1, y3, x3 + offset + 1, y3 + height * 15 / CIsoViewExt::ScaledFactor, heightLineColor, true);
-    };
-
-    if (!CFinalSunApp::Instance->FlatToGround)
-    {
-        drawHeightLine(0);
-        if (CIsoViewExt::ScaledFactor < 0.76)
-            drawHeightLine(1);
-        if (CIsoViewExt::ScaledFactor < 0.31)
-            drawHeightLine(-1);
     }
 }
 

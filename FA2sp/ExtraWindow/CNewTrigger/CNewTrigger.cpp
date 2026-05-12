@@ -187,8 +187,8 @@ void CNewTrigger::Initialize(HWND& hWnd)
     hActionMoveUp = GetDlgItem(hWnd, Controls::ActionMoveUp);
     hActionMoveDown = GetDlgItem(hWnd, Controls::ActionMoveDown);
     hActionSplit = GetDlgItem(hWnd, Controls::ActionSplit);
-    SetWindowTextW(hActionMoveUp, L"¡ø");
-    SetWindowTextW(hActionMoveDown, L"¨‹");
+    SetWindowTextW(hActionMoveUp, L"\u25b2"); //¡ø
+    SetWindowTextW(hActionMoveDown, L"\u25bc"); //¨‹
     Translate(2005, "TriggerActionSplit");
      
     vcbSelectedTrigger.Attach(hSelectedTrigger, &ExtConfigs::SortByLabelName_Trigger, false);

@@ -997,5 +997,6 @@
     <None Include="FA2sp\FA2sp.manifest">
       <Filter>资源文件</Filter>
     </None>
+    <None Include=".github\agents\deepseek.agent.md" />
   </ItemGroup>
 </Project>

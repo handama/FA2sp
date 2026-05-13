@@ -82,6 +82,11 @@ bool DirectXCore::Initialize(HWND hwnd)
         Logger::Raw("[DirectXCore] CreateCompositeShaders failed\n");
         return false;
     }
+    if (!CreateLineShaders())
+    {
+        Logger::Raw("[DirectXCore] CreateLineShaders failed\n");
+        return false;
+    }
     if (!CreateQuadVertexBuffer())
     {
         Logger::Raw("[DirectXCore] CreateQuadVertexBuffer failed\n");
@@ -173,6 +178,19 @@ void DirectXCore::Cleanup()
     m_pEffectPS.Reset();
     m_pCompositeVS.Reset();
     m_pCompositePS.Reset();
+    m_pLineVS.Reset();
+    m_pLinePS.Reset();
+    m_pLineInputLayout.Reset();
+    m_pLineVB.Reset();
+    m_lineVBCapacity = 0;
+    m_lineEntries.clear();
+
+    m_pOffscreenDSBuffer.Reset();
+    m_pOffscreenDSV.Reset();
+    m_pDepthStateGE.Reset();
+    m_pDepthStateReadOnlyGE.Reset();
+    m_pDepthStateOff.Reset();
+
     m_pSamplerLinear.Reset();
     m_pSamplerNearestNeighbor.Reset();
     m_pSamplerPoint.Reset();
@@ -218,6 +236,8 @@ void DirectXCore::OnResize(HWND hwnd)
     m_OffscreenRTV.Reset();
     m_OffscreenSRV.Reset();
     m_OffscreenTex.Reset();
+    m_pOffscreenDSBuffer.Reset();
+    m_pOffscreenDSV.Reset();
     m_pFactorTexture.Reset();
     m_pFactorRTV.Reset();
     m_pFactorSRV.Reset();
@@ -288,6 +308,8 @@ void DirectXCore::SetZoomOut(float scaleFactor)
     m_OffscreenTex.Reset();
     m_OffscreenRTV.Reset();
     m_OffscreenSRV.Reset();
+    m_pOffscreenDSBuffer.Reset();
+    m_pOffscreenDSV.Reset();
     m_pFactorTexture.Reset();
     m_pFactorRTV.Reset();
     m_pFactorSRV.Reset();
@@ -382,6 +404,9 @@ bool DirectXCore::CreateShadersAndInputLayout()
             float3 multRGB = texColor * colorMul.rgb;
             float3 finalRGB = lerp(multRGB.rgb, mixColor.rgb, mixFactor);
             float finalAlpha = texColor.a * colorMul.a;
+            // Discard nearly transparent fragments so they don't
+            // write to the depth buffer and occlude things behind.
+            clip(finalAlpha - 1.0f / 255.0f);
             return float4(finalRGB, finalAlpha);
         }
     )";
@@ -447,6 +472,23 @@ bool DirectXCore::CreateShadersAndInputLayout()
     cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     m_pDevice->CreateBuffer(&cbDesc, nullptr, &m_pConstantBuffer);
+
+    // Depth/stencil states
+    D3D11_DEPTH_STENCIL_DESC dsDesc = {};
+    dsDesc.DepthEnable = TRUE;
+    dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+    dsDesc.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
+    dsDesc.StencilEnable = FALSE;
+    m_pDevice->CreateDepthStencilState(&dsDesc, &m_pDepthStateGE);
+
+    // Read-only depth state for semi-transparent textures:
+    // They still participate in depth testing (get occluded by foreground)
+    // but do NOT write depth, so they don't block things drawn later.
+    dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+    m_pDevice->CreateDepthStencilState(&dsDesc, &m_pDepthStateReadOnlyGE);
+
+    dsDesc.DepthEnable = FALSE;
+    m_pDevice->CreateDepthStencilState(&dsDesc, &m_pDepthStateOff);
 
     return true;
 }
@@ -657,6 +699,8 @@ bool DirectXCore::CreateOffscreenResources(UINT width, UINT height)
     m_OffscreenTex.Reset();
     m_OffscreenRTV.Reset();
     m_OffscreenSRV.Reset();
+    m_pOffscreenDSBuffer.Reset();
+    m_pOffscreenDSV.Reset();
 
     D3D11_TEXTURE2D_DESC desc = {};
     desc.Width = width;
@@ -675,6 +719,23 @@ bool DirectXCore::CreateOffscreenResources(UINT width, UINT height)
     if (FAILED(hr))
         return false;
     hr = m_pDevice->CreateShaderResourceView(m_OffscreenTex.Get(), nullptr, &m_OffscreenSRV);
+    if (FAILED(hr))
+        return false;
+
+    // Create depth/stencil buffer matching offscreen dimensions
+    D3D11_TEXTURE2D_DESC dsDesc = {};
+    dsDesc.Width = width;
+    dsDesc.Height = height;
+    dsDesc.MipLevels = 1;
+    dsDesc.ArraySize = 1;
+    dsDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    dsDesc.SampleDesc.Count = 1;
+    dsDesc.Usage = D3D11_USAGE_DEFAULT;
+    dsDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+    hr = m_pDevice->CreateTexture2D(&dsDesc, nullptr, &m_pOffscreenDSBuffer);
+    if (FAILED(hr))
+        return false;
+    hr = m_pDevice->CreateDepthStencilView(m_pOffscreenDSBuffer.Get(), nullptr, &m_pOffscreenDSV);
     return SUCCEEDED(hr);
 }
 
@@ -811,16 +872,89 @@ bool DirectXCore::CreateFinalShaders()
     return SUCCEEDED(hr);
 }
 
+bool DirectXCore::CreateLineShaders()
+{
+    // Vertex shader: receives LineVertex { x, y, depth, color } as float4.
+    // x,y are already in NDC; depth is the pre-assigned depth value.
+    // Just pass through directly — no matrix transform needed.
+    const char *vsCode = R"(
+        struct VSInput {
+            float4 pos_depth : POSITION;  // (ndcX, ndcY, depth, colorPacked)
+            uint  color     : TEXCOORD0;
+        };
+        struct VSOutput {
+            float4 pos : SV_POSITION;
+            float4 col : COLOR0;
+        };
+        VSOutput main(VSInput input) {
+            VSOutput output;
+            output.pos = float4(input.pos_depth.xy, input.pos_depth.z, 1.0f);
+            // Unpack RGBA8 to float4
+            uint c = input.color;
+            output.col = float4(
+                (c & 0xff) / 255.0f,
+                ((c >> 8) & 0xff) / 255.0f,
+                ((c >> 16) & 0xff) / 255.0f,
+                ((c >> 24) & 0xff) / 255.0f
+            );
+            return output;
+        }
+    )";
+    const char *psCode = R"(
+        struct PSInput {
+            float4 pos : SV_POSITION;
+            float4 col : COLOR0;
+        };
+        float4 main(PSInput input) : SV_Target {
+            return input.col;
+        }
+    )";
+
+    ComPtr<ID3DBlob> vsBlob, psBlob, error;
+    HRESULT hr = D3DCompile(vsCode, strlen(vsCode), nullptr, nullptr, nullptr, "main", "vs_5_0", 0, 0, &vsBlob, &error);
+    if (FAILED(hr))
+    {
+        if (error)
+            OutputDebugStringA((char *)error->GetBufferPointer());
+        return false;
+    }
+    hr = D3DCompile(psCode, strlen(psCode), nullptr, nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &error);
+    if (FAILED(hr))
+    {
+        if (error)
+            OutputDebugStringA((char *)error->GetBufferPointer());
+        return false;
+    }
+
+    hr = m_pDevice->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &m_pLineVS);
+    if (FAILED(hr))
+        return false;
+    hr = m_pDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &m_pLinePS);
+    if (FAILED(hr))
+        return false;
+
+    // Vertex layout: { float3 pos; uint color; } = 16 bytes / vertex
+    // POSITION reads x,y,depth (3 floats).  HLSL float4 .w defaults to 1.0.
+    // TEXCOORD reads the packed RGBA8 color at byte offset 12.
+    D3D11_INPUT_ELEMENT_DESC layoutDesc[] = {
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32_UINT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+    };
+    hr = m_pDevice->CreateInputLayout(layoutDesc, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &m_pLineInputLayout);
+    return SUCCEEDED(hr);
+}
+
 void DirectXCore::RenderOffscreenContent()
 {
 
-    m_pContext->OMSetRenderTargets(1, m_OffscreenRTV.GetAddressOf(), nullptr);
+    m_pContext->OMSetRenderTargets(1, m_OffscreenRTV.GetAddressOf(), m_pOffscreenDSV.Get());
     float clearColor[4] = {
         ExtConfigs::EnableDarkMode ? 0.125f : 1.0f,
         ExtConfigs::EnableDarkMode ? 0.125f : 1.0f,
         ExtConfigs::EnableDarkMode ? 0.125f : 1.0f,
         1.0f};
     m_pContext->ClearRenderTargetView(m_OffscreenRTV.Get(), clearColor);
+    m_pContext->ClearDepthStencilView(m_pOffscreenDSV.Get(), D3D11_CLEAR_DEPTH, 0.0f, 0);
 
     float vw = (float)(m_clientWidth * m_renderScale);
     float vh = (float)(m_clientHeight * m_renderScale);
@@ -828,6 +962,7 @@ void DirectXCore::RenderOffscreenContent()
     m_pContext->RSSetViewports(1, &offscreenVP);
 
     m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
+    m_pContext->OMSetDepthStencilState(m_pDepthStateGE.Get(), 0);
     m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
     m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
     auto &offscreenSampler = (m_renderScale == 1.0f)
@@ -841,7 +976,11 @@ void DirectXCore::RenderOffscreenContent()
     m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &stride, &offset);
     m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-    auto CalcWorldMatrixNoGlobal = [&](const DrawParams &p, int texW, int texH) -> XMMATRIX
+    // Map UINT depth [0..N] to clip-space Z [0..0.9999].
+    // D24_UNORM maps [0..1] linearly; we reserve the full range.
+    const float depthScale = 1.0f / 16777216.0f;
+
+    auto CalcWorldMatrixNoGlobal = [&](const DrawParams &p, int texW, int texH, float depthZ) -> XMMATRIX
     {
         float w_px = texW * p.scaleX;
         float h_px = texH * p.scaleY;
@@ -854,7 +993,7 @@ void DirectXCore::RenderOffscreenContent()
         float ndc_centerX = (centerX_px / vw) * 2.0f - 1.0f;
         float ndc_centerY = 1.0f - (centerY_px / vh) * 2.0f;
         XMMATRIX S = XMMatrixScaling(ndc_width, ndc_height, 1.0f);
-        XMMATRIX T = XMMatrixTranslation(ndc_centerX, ndc_centerY, 0.0f);
+        XMMATRIX T = XMMatrixTranslation(ndc_centerX, ndc_centerY, depthZ);
         return S * T;
     };
 
@@ -869,7 +1008,17 @@ void DirectXCore::RenderOffscreenContent()
             continue;
 
         const auto &p = cmd.params;
-        XMMATRIX world = CalcWorldMatrixNoGlobal(p, tex->sourceView.FullWidth, tex->sourceView.FullHeight);
+        float depthZ = cmd.depth * depthScale;
+
+        // Semi-transparent textures (opacity < 1) use read-only depth:
+        // they are correctly occluded by foreground but don't write depth,
+        // so they won't block subsequent lines / textures behind them.
+        if (p.opacity < 1.0f - 1e-6f)
+            m_pContext->OMSetDepthStencilState(m_pDepthStateReadOnlyGE.Get(), 0);
+        else
+            m_pContext->OMSetDepthStencilState(m_pDepthStateGE.Get(), 0);
+
+        XMMATRIX world = CalcWorldMatrixNoGlobal(p, tex->sourceView.FullWidth, tex->sourceView.FullHeight, depthZ);
         CBPerObject cb;
         cb.world = XMMatrixTranspose(world);
         cb.colorMul = XMFLOAT4(p.redMult, p.greenMult, p.blueMult, p.opacity);
@@ -888,6 +1037,19 @@ void DirectXCore::RenderOffscreenContent()
         m_pContext->Draw(4, 0);
     }
 
+    // Flush GPU-batched world-space lines (rendered with depth)
+    FlushLineBatch(false);
+
+    // Restore state after FlushLineBatch (it changes VB/IL/topology)
+    stride = sizeof(QuadVertex);
+    offset = 0;
+    m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &stride, &offset);
+    m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    m_pContext->IASetInputLayout(m_pInputLayout.Get());
+    m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
+    m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
+    m_pContext->PSSetSamplers(0, 1, (m_renderScale == 1.0f) ? m_pSamplerPoint.GetAddressOf() : m_pSamplerLinear.GetAddressOf());
+
     bool hasEffect = false;
     for (auto &cmd : m_drawCommands)
         if (cmd.bIsEffect)
@@ -904,7 +1066,8 @@ void DirectXCore::RenderOffscreenContent()
 
         m_pContext->OMSetRenderTargets(1, m_pFactorRTV.GetAddressOf(), nullptr);
         m_pContext->OMSetBlendState(m_pMulBlendState.Get(), nullptr, 0xffffffff);
-        m_pContext->VSSetShader(m_pEffectVS.Get(), nullptr, 0);
+m_pContext->OMSetDepthStencilState(m_pDepthStateGE.Get(), 0);
+    m_pContext->VSSetShader(m_pEffectVS.Get(), nullptr, 0);
         m_pContext->PSSetShader(m_pEffectPS.Get(), nullptr, 0);
         m_pContext->PSSetSamplers(0, 1, m_pSamplerPoint.GetAddressOf());
 
@@ -917,7 +1080,7 @@ void DirectXCore::RenderOffscreenContent()
                 continue;
 
             const auto &p = cmd.params;
-            XMMATRIX world = CalcWorldMatrixNoGlobal(p, idxTex->sourceView.FullWidth, idxTex->sourceView.FullHeight);
+            XMMATRIX world = CalcWorldMatrixNoGlobal(p, idxTex->sourceView.FullWidth, idxTex->sourceView.FullHeight, cmd.depth);
             CBPerObject cb;
             cb.world = XMMatrixTranspose(world);
             memset(&cb.colorMul, 0, sizeof(cb.colorMul) + sizeof(cb.mixColor) + sizeof(cb.mixFactor));
@@ -1009,85 +1172,95 @@ void DirectXCore::RenderFinalToBackBuffer()
 
 void DirectXCore::RenderScreenSpaceContent()
 {
-    if (m_drawCommands.empty())
-        return;
-
     D3D11_VIEWPORT screenVP = {0, 0, (float)m_clientWidth, (float)m_clientHeight, 0.0f, 1.0f};
     m_pContext->RSSetViewports(1, &screenVP);
 
     m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
+    m_pContext->OMSetDepthStencilState(m_pDepthStateOff.Get(), 0);
 
-    m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
-
-    m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
-    m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
-    m_pContext->PSSetSamplers(0, 1, m_pSamplerPoint.GetAddressOf());
-    m_pContext->IASetInputLayout(m_pInputLayout.Get());
-
-    UINT stride = sizeof(QuadVertex);
-    UINT offset = 0;
-    m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &stride, &offset);
-    m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-
-    auto CalcWorldMatrixScreen = [&](const DrawParams &p, int texW, int texH) -> XMMATRIX
+    if (!m_drawCommands.empty())
     {
-        float screenW = (float)m_clientWidth;
-        float screenH = (float)m_clientHeight;
-        float w_px = texW * p.scaleX;
-        float h_px = texH * p.scaleY;
-        float snappedX = std::floor(p.x + 0.5f);
-        float snappedY = std::floor(p.y + 0.5f);
-        float centerX_px = snappedX + w_px * 0.5f;
-        float centerY_px = snappedY + h_px * 0.5f;
-        float ndc_width = (w_px / screenW) * 2.0f;
-        float ndc_height = (h_px / screenH) * 2.0f;
-        float ndc_centerX = (centerX_px / screenW) * 2.0f - 1.0f;
-        float ndc_centerY = 1.0f - (centerY_px / screenH) * 2.0f;
-        XMMATRIX S = XMMatrixScaling(ndc_width, ndc_height, 1.0f);
-        XMMATRIX T = XMMatrixTranslation(ndc_centerX, ndc_centerY, 0.0f);
-        return S * T;
-    };
-
-    for (const auto &cmd : m_drawCommands)
-    {
-        if (!cmd.bScreenSpace)
-            continue;
-        if (cmd.bIsEffect)
-            continue;
-        TextureResource *tex = cmd.texRes;
-        if (!tex || !tex->srv)
-            continue;
-
-        const auto &p = cmd.params;
-        XMMATRIX world = CalcWorldMatrixScreen(p, tex->sourceView.FullWidth, tex->sourceView.FullHeight);
-        CBPerObject cb;
-        cb.world = XMMatrixTranspose(world);
-        cb.colorMul = XMFLOAT4(p.redMult, p.greenMult, p.blueMult, p.opacity);
-        cb.mixColor = XMFLOAT4(p.mixR, p.mixG, p.mixB, 1.0f);
-        cb.mixFactor = p.mixFactor;
-
-        D3D11_MAPPED_SUBRESOURCE mapped;
-        HRESULT hr = m_pContext->Map(m_pConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-        if (FAILED(hr))
-            continue;
-        memcpy(mapped.pData, &cb, sizeof(cb));
-        m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
-
-        m_pContext->VSSetConstantBuffers(0, 1, m_pConstantBuffer.GetAddressOf());
-        m_pContext->PSSetShaderResources(0, 1, tex->srv.GetAddressOf());
-        m_pContext->Draw(4, 0);
+        m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
+    
+        m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
+        m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
+        m_pContext->PSSetSamplers(0, 1, m_pSamplerPoint.GetAddressOf());
+        m_pContext->IASetInputLayout(m_pInputLayout.Get());
+    
+        UINT stride = sizeof(QuadVertex);
+        UINT offset = 0;
+        m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &stride, &offset);
+        m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    
+        auto CalcWorldMatrixScreen = [&](const DrawParams &p, int texW, int texH) -> XMMATRIX
+        {
+            float screenW = (float)m_clientWidth;
+            float screenH = (float)m_clientHeight;
+            float w_px = texW * p.scaleX;
+            float h_px = texH * p.scaleY;
+            float snappedX = std::floor(p.x + 0.5f);
+            float snappedY = std::floor(p.y + 0.5f);
+            float centerX_px = snappedX + w_px * 0.5f;
+            float centerY_px = snappedY + h_px * 0.5f;
+            float ndc_width = (w_px / screenW) * 2.0f;
+            float ndc_height = (h_px / screenH) * 2.0f;
+            float ndc_centerX = (centerX_px / screenW) * 2.0f - 1.0f;
+            float ndc_centerY = 1.0f - (centerY_px / screenH) * 2.0f;
+            XMMATRIX S = XMMatrixScaling(ndc_width, ndc_height, 1.0f);
+            XMMATRIX T = XMMatrixTranslation(ndc_centerX, ndc_centerY, 0.0f);
+            return S * T;
+        };
+    
+        for (const auto &cmd : m_drawCommands)
+        {
+            if (!cmd.bScreenSpace)
+                continue;
+            if (cmd.bIsEffect)
+                continue;
+            TextureResource *tex = cmd.texRes;
+            if (!tex || !tex->srv)
+                continue;
+    
+            const auto &p = cmd.params;
+            XMMATRIX world = CalcWorldMatrixScreen(p, tex->sourceView.FullWidth, tex->sourceView.FullHeight);
+            CBPerObject cb;
+            cb.world = XMMatrixTranspose(world);
+            cb.colorMul = XMFLOAT4(p.redMult, p.greenMult, p.blueMult, p.opacity);
+            cb.mixColor = XMFLOAT4(p.mixR, p.mixG, p.mixB, 1.0f);
+            cb.mixFactor = p.mixFactor;
+    
+            D3D11_MAPPED_SUBRESOURCE mapped;
+            HRESULT hr = m_pContext->Map(m_pConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+            if (FAILED(hr))
+                continue;
+            memcpy(mapped.pData, &cb, sizeof(cb));
+            m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
+    
+            m_pContext->VSSetConstantBuffers(0, 1, m_pConstantBuffer.GetAddressOf());
+            m_pContext->PSSetShaderResources(0, 1, tex->srv.GetAddressOf());
+            m_pContext->Draw(4, 0);
+        }
+    
+        ID3D11ShaderResourceView *nullSRV = nullptr;
+        m_pContext->PSSetShaderResources(0, 1, &nullSRV);
+    
     }
 
-    ID3D11ShaderResourceView *nullSRV = nullptr;
-    m_pContext->PSSetShaderResources(0, 1, &nullSRV);
+    // Flush GPU-batched screen-space lines
+    m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
+    FlushLineBatch(true);
 }
 
 void DirectXCore::Render()
 {
-    if (!m_bInitialized || !m_pContext || !m_pSwapChain || !m_pRTV || m_drawCommands.empty())
-    {
+    if (!m_bInitialized || !m_pContext || !m_pSwapChain || !m_pRTV)
         return;
-    }
+
+    // If nothing to render at all, skip entirely
+    if (m_drawCommands.empty() && m_lineEntries.empty())
+        return;
+
+    m_globalDepth = 0;
 
     RenderOffscreenContent();
     RenderFinalToBackBuffer();
@@ -1376,7 +1549,144 @@ void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
 {
     if (!tex)
         return;
-    m_drawCommands.push_back({tex, params, tex->bIsIndexTexture, params.bScreenSpace});
+    DrawCommand cmd;
+    cmd.texRes = tex;
+    cmd.params = params;
+    cmd.bIsEffect = tex->bIsIndexTexture;
+    cmd.bScreenSpace = params.bScreenSpace;
+    cmd.depth = params.bScreenSpace ? 0 : m_globalDepth++;
+    m_drawCommands.push_back(cmd);
+}
+
+void DirectXCore::AddLineEntry(float x0, float y0, float x1, float y1,
+                               uint32_t color, float thickness, UINT depth,
+                               bool bScreenSpace)
+{
+    m_lineEntries.push_back({x0, y0, x1, y1, color, thickness, depth, bScreenSpace});
+}
+
+void DirectXCore::FlushLineBatch(bool bScreenSpace)
+{
+    if (!m_pDevice || !m_pContext)
+        return;
+
+    // Count matching entries
+    int numLines = 0;
+    for (const auto &le : m_lineEntries)
+        if (le.bScreenSpace == bScreenSpace)
+            ++numLines;
+
+    if (numLines == 0)
+        return;
+
+    const int vertsPerLine = 6; // TRIANGLELIST: 2 triangles × 3 verts
+    const int totalVerts = numLines * vertsPerLine;
+
+    // Ensure vertex buffer is large enough
+    if (!m_pLineVB || m_lineVBCapacity < totalVerts)
+    {
+        m_pLineVB.Reset();
+        int newCapacity = (totalVerts + 1023) & ~1023;
+        D3D11_BUFFER_DESC bd = {};
+        bd.ByteWidth = newCapacity * 16;
+        bd.Usage = D3D11_USAGE_DYNAMIC;
+        bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+        bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        if (FAILED(m_pDevice->CreateBuffer(&bd, nullptr, &m_pLineVB)))
+        {
+            m_lineVBCapacity = 0;
+            return;
+        }
+        m_lineVBCapacity = newCapacity;
+    }
+
+    // Build vertex data on stack then map-and-copy
+    struct LineVertex { float x, y, depth; uint32_t color; }; // 16 bytes
+    std::vector<LineVertex> verts;
+    verts.reserve(totalVerts);
+
+    // World-space lines use offscreen viewport; screen-space lines use window
+    float vw, vh;
+    if (bScreenSpace) {
+        vw = (float)m_clientWidth;
+        vh = (float)m_clientHeight;
+    } else {
+        vw = (float)(m_clientWidth * m_renderScale);
+        vh = (float)(m_clientHeight * m_renderScale);
+    }
+    const float depthScale = 1.0f / 16777216.0f;
+
+    for (const auto &le : m_lineEntries)
+    {
+        if (le.bScreenSpace != bScreenSpace)
+            continue;
+        float dx = le.x1 - le.x0;
+        float dy = le.y1 - le.y0;
+        float len = std::sqrt(dx * dx + dy * dy);
+        float halfT = le.thickness * 0.5f;
+
+        float nx, ny;
+        if (len < 1e-6f)
+        {
+            // Degenerate line: draw a small cross
+            nx = halfT; ny = 0.0f;
+            dx = 0.0f; dy = 0.0f;
+        }
+        else
+        {
+            float invLen = 1.0f / len;
+            nx = -dy * invLen * halfT;
+            ny =  dx * invLen * halfT;
+        }
+
+        // Pixel → NDC conversion (same math as CalcWorldMatrixNoGlobal)
+        auto toNDC = [&](float px, float py) -> std::pair<float, float>
+        {
+            return {
+                (px / vw) * 2.0f - 1.0f,
+                1.0f - (py / vh) * 2.0f
+            };
+        };
+
+        float depthZ = le.depth * depthScale;
+
+        // Four corners of the thick line quad (triangle-strip order)
+        auto [x0a, y0a] = toNDC(le.x0 - nx, le.y0 - ny);
+        auto [x0b, y0b] = toNDC(le.x0 + nx, le.y0 + ny);
+        auto [x1a, y1a] = toNDC(le.x1 - nx, le.y1 - ny);
+        auto [x1b, y1b] = toNDC(le.x1 + nx, le.y1 + ny);
+
+        // TRIANGLELIST: two triangles forming the thick line quad
+        // V0 = start-left, V1 = start-right, V2 = end-left, V3 = end-right
+        // Triangles: (V0,V1,V2) and (V1,V3,V2) — no shared edges with next line
+        verts.push_back({x0b, y0b, depthZ, le.color});  // V0: left of start
+        verts.push_back({x0a, y0a, depthZ, le.color});  // V1: right of start
+        verts.push_back({x1b, y1b, depthZ, le.color});  // V2: left of end
+        verts.push_back({x0a, y0a, depthZ, le.color});  // V1 again
+        verts.push_back({x1a, y1a, depthZ, le.color});  // V3: right of end
+        verts.push_back({x1b, y1b, depthZ, le.color});  // V2 again
+    }
+
+    // Upload to GPU
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    if (FAILED(m_pContext->Map(m_pLineVB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+        return;
+    memcpy(mapped.pData, verts.data(), totalVerts * 16);
+    m_pContext->Unmap(m_pLineVB.Get(), 0);
+
+    // Set state
+    UINT stride = 16;
+    UINT offset = 0;
+    m_pContext->IASetVertexBuffers(0, 1, m_pLineVB.GetAddressOf(), &stride, &offset);
+    m_pContext->IASetInputLayout(m_pLineInputLayout.Get());
+    m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_pContext->VSSetShader(m_pLineVS.Get(), nullptr, 0);
+    m_pContext->PSSetShader(m_pLinePS.Get(), nullptr, 0);
+
+    // Draw all lines in one call
+    m_pContext->Draw(totalVerts, 0);
+
+    std::erase_if(m_lineEntries, [bScreenSpace](const auto &le) { return le.bScreenSpace == bScreenSpace; });
 }
 
 static constexpr float kPi = 3.14159265358979323846f;
@@ -1731,6 +2041,43 @@ void DrawShapes::RasterLine(Canvas &c,
 void DrawShapes::DrawLine(float x0, float y0, float x1, float y1,
                           const LineParams &params)
 {
+    // GPU batch path: used for non-AA lines (supports dashed).
+    if (!params.antiAlias && m_dx)
+    {
+        ShapeColor col = params.color;
+        col.a *= params.opacity;
+        uint32_t rgba = ColorToU32(col);
+        UINT depth = params.bScreenSpace ? 0 : m_dx->GetNextDepth();
+
+        bool useDash = (params.dashLength > 0.f && params.gapLength > 0.f);
+        if (useDash)
+        {
+            float dx = x1 - x0, dy = y1 - y0;
+            float len = std::sqrt(dx * dx + dy * dy);
+            if (len < 1e-4f) {
+                m_dx->AddLineEntry(x0, y0, x1, y1, rgba, params.thickness, depth, params.bScreenSpace);
+                return;
+            }
+            float cycleLen = params.dashLength + params.gapLength;
+            float pos = 0.f;
+            while (pos < len)
+            {
+                float dashEnd = std::min(pos + params.dashLength, len);
+                float t0 = pos / len, t1 = dashEnd / len;
+                float sx = x0 + dx * t0, sy = y0 + dy * t0;
+                float ex = x0 + dx * t1, ey = y0 + dy * t1;
+                m_dx->AddLineEntry(sx, sy, ex, ey, rgba, params.thickness, depth, params.bScreenSpace);
+                pos += cycleLen;
+            }
+        }
+        else
+        {
+            m_dx->AddLineEntry(x0, y0, x1, y1, rgba, params.thickness, depth, params.bScreenSpace);
+        }
+        return;
+    }
+
+    // Fallback CPU path (AA only)
     float minX = std::min(x0, x1);
     float minY = std::min(y0, y1);
     float maxX = std::max(x0, x1);
@@ -1766,79 +2113,82 @@ void DrawShapes::DrawRect(float x, float y, float w, float h,
     if (w < 1.f || h < 1.f)
         return;
 
-    float pad = params.borderWidth * .5f + 2.f;
-    float originX = std::floor(x - pad);
-    float originY = std::floor(y - pad);
-    int cw = (int)std::ceil(w + pad * 2.f) + 2;
-    int ch = (int)std::ceil(h + pad * 2.f) + 2;
+    bool hasFill = !params.fillColor.IsTransparent();
+    bool hasBorder = (params.borderWidth > 0.f && !params.borderColor.IsTransparent());
+    bool useDash = (params.dashLength > 0.f && params.gapLength > 0.f);
 
-    Canvas canvas;
-    canvas.Resize(cw, ch);
+    if (!hasFill && !hasBorder)
+        return;
 
-    float lx = x - originX, ly = y - originY;
-    float rx = lx + w, ry = ly + h;
-
-    if (!params.fillColor.IsTransparent())
+    // ── Fill via CPU canvas ──
+    if (hasFill)
     {
+        float pad = 2.f;
+        float originX = std::floor(x - pad);
+        float originY = std::floor(y - pad);
+        int cw = (int)std::ceil(w + pad * 2.f) + 2;
+        int ch = (int)std::ceil(h + pad * 2.f) + 2;
+
+        Canvas canvas;
+        canvas.Resize(cw, ch);
+
+        float lx = x - originX, ly = y - originY;
+        float rrx = lx + w, rry = ly + h;
+
         ShapeColor fc = params.fillColor;
         fc.a *= params.opacity;
         uint32_t fillRGBA = ColorToU32(fc);
-        for (int py = (int)std::ceil(ly); py <= (int)std::floor(ry); ++py)
-            for (int px = (int)std::ceil(lx); px <= (int)std::floor(rx); ++px)
+        for (int py = (int)std::ceil(ly); py <= (int)std::floor(rry); ++py)
+            for (int px = (int)std::ceil(lx); px <= (int)std::floor(rrx); ++px)
                 canvas.SetPixel(px, py, fillRGBA);
+
+        FlushCanvas(canvas, originX, originY, 1.f, params.bScreenSpace);
     }
 
-    if (params.borderWidth > 0.f && !params.borderColor.IsTransparent())
+    // ── Border via GPU line batching (supports dashed) ──
+    if (hasBorder && m_dx)
     {
         ShapeColor bc = params.borderColor;
         bc.a *= params.opacity;
+        uint32_t rgba = ColorToU32(bc);
+        UINT depth = params.bScreenSpace ? 0 : m_dx->GetNextDepth();
 
-        struct Seg
-        {
-            float ax, ay, bx, by;
-        };
+        struct Seg { float ax, ay, bx, by; };
         Seg segs[4] = {
-            {lx, ly, rx, ly}, // top
-            {rx, ly, rx, ry}, // right
-            {rx, ry, lx, ry}, // bottom
-            {lx, ry, lx, ly}, // left
+            {x, y, x + w, y},
+            {x + w, y, x + w, y + h},
+            {x + w, y + h, x, y + h},
+            {x, y + h, x, y},
         };
 
-        if (params.dashLength > 0.f && params.gapLength > 0.f)
+        if (useDash)
         {
-            float dashOffset = 0.f;
             float cycleLen = params.dashLength + params.gapLength;
             for (auto &s : segs)
             {
-                float segDx = s.bx - s.ax, segDy = s.by - s.ay;
-                float segLen = std::sqrt(segDx * segDx + segDy * segDy);
-                float step = 0.5f;
-                int steps = (int)std::ceil(segLen / step);
-                float r = params.borderWidth * .5f;
-                uint32_t rgba = ColorToU32(bc);
-                for (int i = 0; i <= steps; ++i)
+                float dx = s.bx - s.ax, dy = s.by - s.ay;
+                float segLen = std::sqrt(dx * dx + dy * dy);
+                if (segLen < 1e-4f) continue;
+                float pos = 0.f;
+                while (pos < segLen)
                 {
-                    float t = (float)i / (float)(steps == 0 ? 1 : steps);
-                    float dist = t * segLen + dashOffset;
-                    float pos = std::fmod(dist, cycleLen);
-                    if (pos > params.dashLength)
-                        continue;
-                    float px = s.ax + segDx * t;
-                    float py = s.ay + segDy * t;
-                    RasterThickPoint(canvas, px, py, r, rgba);
+                    float dashEnd = std::min(pos + params.dashLength, segLen);
+                    float t0 = pos / segLen, t1 = dashEnd / segLen;
+                    m_dx->AddLineEntry(
+                        s.ax + dx * t0, s.ay + dy * t0,
+                        s.ax + dx * t1, s.ay + dy * t1,
+                        rgba, params.borderWidth, depth, params.bScreenSpace);
+                    pos += cycleLen;
                 }
-                dashOffset = std::fmod(dashOffset + segLen, cycleLen);
             }
         }
         else
         {
             for (auto &s : segs)
-                RasterLine(canvas, s.ax, s.ay, s.bx, s.by,
-                           params.borderWidth, bc, 0, 0, false);
+                m_dx->AddLineEntry(s.ax, s.ay, s.bx, s.by,
+                                   rgba, params.borderWidth, depth, params.bScreenSpace);
         }
     }
-
-    FlushCanvas(canvas, originX, originY, 1.f, params.bScreenSpace);
 }
 
 void DrawShapes::DrawEllipse(float cx, float cy, float rx, float ry,
@@ -1847,83 +2197,83 @@ void DrawShapes::DrawEllipse(float cx, float cy, float rx, float ry,
     if (rx < .5f || ry < .5f)
         return;
 
-    float pad = params.borderWidth * .5f + 2.f;
-    float originX = std::floor(cx - rx - pad);
-    float originY = std::floor(cy - ry - pad);
-    int cw = (int)std::ceil((rx + pad) * 2.f) + 2;
-    int ch = (int)std::ceil((ry + pad) * 2.f) + 2;
+    bool hasFill = !params.fillColor.IsTransparent();
+    bool hasBorder = (params.borderWidth > 0.f && !params.borderColor.IsTransparent());
+    bool useDash = (params.dashLength > 0.f && params.gapLength > 0.f);
 
-    Canvas canvas;
-    canvas.Resize(cw, ch);
+    if (!hasFill && !hasBorder)
+        return;
 
-    float lcx = cx - originX;
-    float lcy = cy - originY;
-
-    if (!params.fillColor.IsTransparent())
+    // ── Fill via CPU canvas ──
+    if (hasFill)
     {
+        float pad = 2.f;
+        float originX = std::floor(cx - rx - pad);
+        float originY = std::floor(cy - ry - pad);
+        int cw = (int)std::ceil((rx + pad) * 2.f) + 2;
+        int ch = (int)std::ceil((ry + pad) * 2.f) + 2;
+
+        Canvas canvas;
+        canvas.Resize(cw, ch);
+
+        float lcx = cx - originX;
+        float lcy = cy - originY;
+
         ShapeColor fc = params.fillColor;
         fc.a *= params.opacity;
         RasterEllipseFill(canvas, lcx, lcy, rx, ry, ColorToU32(fc));
+
+        FlushCanvas(canvas, originX, originY, 1.f, params.bScreenSpace);
     }
 
-    if (params.borderWidth > 0.f && !params.borderColor.IsTransparent())
+    // ── Border via GPU line batching (supports dashed) ──
+    if (hasBorder && m_dx)
     {
         ShapeColor bc = params.borderColor;
         bc.a *= params.opacity;
         uint32_t rgba = ColorToU32(bc);
+        UINT depth = params.bScreenSpace ? 0 : m_dx->GetNextDepth();
 
         int segs = params.segments > 0
                        ? params.segments
                        : std::max(32, (int)(2.f * kPi * std::max(rx, ry) / 1.5f));
 
-        float cycleLen = params.dashLength + params.gapLength;
-        bool useDash = (params.dashLength > 0.f && params.gapLength > 0.f);
-        float dashAccum = 0.f;
-        float halfBorder = params.borderWidth * .5f;
-
         float prevPx = 0.f, prevPy = 0.f;
         for (int i = 0; i <= segs; ++i)
         {
             float angle = 2.f * kPi * i / segs;
-            float px = lcx + rx * std::cos(angle);
-            float py = lcy + ry * std::sin(angle);
+            float px = cx + rx * std::cos(angle);
+            float py = cy + ry * std::sin(angle);
 
-            if (i == 0)
+            if (i == 0) { prevPx = px; prevPy = py; continue; }
+
+            float dx = px - prevPx, dy = py - prevPy;
+            float segLen = std::sqrt(dx * dx + dy * dy);
+
+            if (useDash && segLen >= 1e-4f)
             {
-                prevPx = px;
-                prevPy = py;
-                continue;
-            }
-
-            float sdx = px - prevPx, sdy = py - prevPy;
-            float segLen = std::sqrt(sdx * sdx + sdy * sdy);
-
-            if (useDash)
-            {
-                float step = 0.5f;
-                int steps = std::max(1, (int)std::ceil(segLen / step));
-                for (int j = 0; j <= steps; ++j)
+                float cycleLen = params.dashLength + params.gapLength;
+                float pos = 0.f;
+                while (pos < segLen)
                 {
-                    float t = (float)j / steps;
-                    float qx = prevPx + sdx * t;
-                    float qy = prevPy + sdy * t;
-                    float pos = std::fmod(dashAccum + t * segLen, cycleLen);
-                    if (pos <= params.dashLength)
-                        RasterThickPoint(canvas, qx, qy, halfBorder, rgba);
+                    float dashEnd = std::min(pos + params.dashLength, segLen);
+                    float t0 = pos / segLen, t1 = dashEnd / segLen;
+                    m_dx->AddLineEntry(
+                        prevPx + dx * t0, prevPy + dy * t0,
+                        prevPx + dx * t1, prevPy + dy * t1,
+                        rgba, params.borderWidth, depth, params.bScreenSpace);
+                    pos += cycleLen;
                 }
-                dashAccum = std::fmod(dashAccum + segLen, cycleLen);
             }
             else
             {
-                RasterLine(canvas, prevPx, prevPy, px, py,
-                           params.borderWidth, bc, 0, 0, false);
+                m_dx->AddLineEntry(prevPx, prevPy, px, py,
+                                   rgba, params.borderWidth, depth, params.bScreenSpace);
             }
             prevPx = px;
             prevPy = py;
         }
     }
-
-    FlushCanvas(canvas, originX, originY, 1.f, params.bScreenSpace);
 }
 
 static std::wstring ToWide(const std::string &s)

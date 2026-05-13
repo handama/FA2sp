@@ -1556,11 +1556,11 @@ void CIsoViewExt::DirectXDrawLockedCellOutline(int X, int Y, int W, int H, COLOR
     param.SetAntiAlias(false).SetColor(ShapeColor::FromCOLORREF(color)).SetThickness(bUseDot ? 1.0f : 3.0f);
 
     if (s1)
-        g_pSP->DrawLine(x1, y1, x2, y2, param);
+        g_pSP->DrawLine(x1 - 2, y1, x2 - 2, y2, param);
     if (s2)
-        g_pSP->DrawLine(x2, y2, x3, y3, param);
+        g_pSP->DrawLine(x2 - 2, y2 - 1, x3 - 2, y3 - 1, param);
     if (s3)
-        g_pSP->DrawLine(x3, y3, x4, y4, param);
+        g_pSP->DrawLine(x3, y3 - 1, x4, y4 - 1, param);
     if (s4)
         g_pSP->DrawLine(x4, y4, x1, y1, param);
 
@@ -3571,8 +3571,8 @@ void CIsoViewExt::DirectXMouseCursor(int X, int Y, int height)
     auto drawCellOutline = [&](int inneroffset, COLORREF Color)
     {
         DrawLine(x1, y1 + inneroffset, x2 - 2 * inneroffset, y2, Color);
-        DrawLine(x2 - 2 * inneroffset, y2, x3, y3 - inneroffset, Color);
-        DrawLine(x3, y3 - inneroffset, x4 + 2 * inneroffset, y4, Color);
+        DrawLine(x2 - 2 * inneroffset, y2 - 1, x3, y3 - inneroffset - 1, Color);
+        DrawLine(x3, y3 - inneroffset - 1, x4 + 2 * inneroffset, y4 - 1, Color);
         DrawLine(x4 + 2 * inneroffset, y4, x1, y1 + inneroffset, Color);
     };
 

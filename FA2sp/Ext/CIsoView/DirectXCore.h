@@ -144,12 +144,28 @@ public:
     void Render();
     void RenderScreenSpaceOnly();
 
+    // Global depth counter: each non-screen-space draw call increments this.
+    // The value is written into the depth buffer so GPU GreaterEqual testing
+    // produces correct occlusion automatically.
+    UINT GetNextDepth() { return m_globalDepth++; }
+    void ResetDepth() { m_globalDepth = 0; }
+    int GetClientWidth() const { return m_clientWidth; }
+    int GetClientHeight() const { return m_clientHeight; }
+
+    // GPU line batching: DrawShapes pushes LineEntry records here instead of
+    // CPU-rasterising each line into a texture.  They are all flushed in a
+    // single Draw() call during RenderOffscreenContent().
+    void AddLineEntry(float x0, float y0, float x1, float y1,
+                      uint32_t color, float thickness, UINT depth,
+                      bool bScreenSpace = false);
+
 private:
     struct DrawCommand {
         TextureResource* texRes = nullptr;
         DrawParams params;
         bool bIsEffect = false;
         bool bScreenSpace = false;
+        UINT depth = 0;
     };
 
     bool CreateDeviceAndSwapChain(HWND hwnd);
@@ -166,9 +182,11 @@ private:
     bool CreateOffscreenResources(UINT width, UINT height);
     void CreateBackgroundCacheTexture(UINT width, UINT height);
     bool CreateFinalShaders();
+    bool CreateLineShaders();
     void RenderOffscreenContent();
     void RenderFinalToBackBuffer();
     void RenderScreenSpaceContent();
+    void FlushLineBatch(bool bScreenSpace);
 
     void UpdateBackgroundCache();     
     void RestoreBackgroundFromCache();
@@ -198,6 +216,12 @@ private:
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_pScreenCopySRV;
     Microsoft::WRL::ComPtr<ID3D11BlendState>       m_pMulBlendState;
 
+    Microsoft::WRL::ComPtr<ID3D11VertexShader>     m_pLineVS;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader>      m_pLinePS;
+    Microsoft::WRL::ComPtr<ID3D11InputLayout>      m_pLineInputLayout;
+    Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pLineVB;
+    int                                            m_lineVBCapacity = 0;
+
     Microsoft::WRL::ComPtr<ID3D11VertexShader>     m_pCompositeVS;
     Microsoft::WRL::ComPtr<ID3D11PixelShader>      m_pCompositePS;
 
@@ -210,6 +234,12 @@ private:
 
     Microsoft::WRL::ComPtr<ID3D11Texture2D>          m_pBackgroundCacheTexture;
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_pBackgroundCacheSRV;
+
+    Microsoft::WRL::ComPtr<ID3D11Texture2D>          m_pOffscreenDSBuffer;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilView>   m_pOffscreenDSV;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateGE;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateReadOnlyGE;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateOff;
 
     std::unordered_map<TextureIndex, std::unique_ptr<TextureResource>> m_textureMap;
     FHashMap<std::unique_ptr<TextureResource>> m_bitmapTextureMap;
@@ -225,6 +255,18 @@ private:
     float m_renderScale = 1.0f;
     bool m_bInitialized = false;
     bool m_backgroundCacheValid = false;
+
+    UINT m_globalDepth = 0;
+
+    // GPU line batching
+    struct LineEntry {
+        float x0, y0, x1, y1;
+        uint32_t color;
+        float thickness;
+        UINT depth;
+        bool bScreenSpace;
+    };
+    std::vector<LineEntry> m_lineEntries;
 
 public:
     ID3D11Device* GetDevice() { return m_pDevice.Get(); }
@@ -260,7 +302,7 @@ struct LineParams {
     float      gapLength = 0.f;     
     float      opacity = 1.f;       
     bool       bScreenSpace = false;
-    bool       antiAlias = true;
+    bool       antiAlias = false;
 
     LineParams& SetColor(ShapeColor c) { color = c; return *this; }
     LineParams& SetThickness(float t) { thickness = t; return *this; }

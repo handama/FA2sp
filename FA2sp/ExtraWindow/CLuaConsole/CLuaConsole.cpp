@@ -927,6 +927,11 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("open_file", OpenFileToString);
     Lua.set_function("save_file", SaveStringToFile);
 
+    Lua.set_function("end_script", []() {
+        lua_pushstring(Lua, "__SCRIPT_ABORT__");
+        return lua_error(Lua);
+    });
+
     Update(hWnd);
 }
 
@@ -1417,32 +1422,44 @@ void CLuaConsole::OnClickRun(bool fromFile)
             sol::error err = result;
             std::string errorMessage = "Lua Error: " + std::string(err.what());
 
-            sol::call_status status = result.status();
-            switch (status) {
-            case sol::call_status::syntax:
-                errorMessage += " (Syntax Error)";
-                break;
-            case sol::call_status::runtime:
-                errorMessage += " (Runtime Error)";
-                break;
-            case sol::call_status::memory:
-                errorMessage += " (Memory Allocation Error)";
-                break;
-            case sol::call_status::handler:
-                errorMessage += " (Message Handler Error)";
-                break;
-            case sol::call_status::gc:
-                errorMessage += " (Garbage Collector Error)";
-                break;
-            case sol::call_status::file:
-                errorMessage += " (File Error)";
-                break;
-            default:
-                errorMessage += " (Unknown Error)";
-                break;
+            std::string errStr = err.what();
+            if (errStr.find("__SCRIPT_ABORT__") != std::string::npos) {
+                oss.str("");
+                auto timeEnd = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+                oss << "Script aborted.\r\n   Elapsed Time: " << timeEnd - timeStart << " ms.";
+                text = oss.str();
+                write_lua_console(text);
             }
-
-            write_lua_console(errorMessage);
+            else
+            {
+                
+                sol::call_status status = result.status();
+                switch (status) {
+                case sol::call_status::syntax:
+                    errorMessage += " (Syntax Error)";
+                    break;
+                case sol::call_status::runtime:
+                    errorMessage += " (Runtime Error)";
+                    break;
+                case sol::call_status::memory:
+                    errorMessage += " (Memory Allocation Error)";
+                    break;
+                case sol::call_status::handler:
+                    errorMessage += " (Message Handler Error)";
+                    break;
+                case sol::call_status::gc:
+                    errorMessage += " (Garbage Collector Error)";
+                    break;
+                case sol::call_status::file:
+                    errorMessage += " (File Error)";
+                    break;
+                default:
+                    errorMessage += " (Unknown Error)";
+                    break;
+                }
+    
+                write_lua_console(errorMessage);
+            }
         }
         else {
             oss.str("");

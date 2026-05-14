@@ -1260,7 +1260,7 @@ void DirectXCore::Render()
     if (m_drawCommands.empty() && m_lineEntries.empty())
         return;
 
-    m_globalDepth = 0;
+    ResetDepth();
 
     RenderOffscreenContent();
     RenderFinalToBackBuffer();
@@ -1554,7 +1554,7 @@ void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
     cmd.params = params;
     cmd.bIsEffect = tex->bIsIndexTexture;
     cmd.bScreenSpace = params.bScreenSpace;
-    cmd.depth = params.bScreenSpace ? 0 : m_globalDepth++;
+    cmd.depth = params.bScreenSpace ? 0 : GetNextDepth();
     m_drawCommands.push_back(cmd);
 }
 

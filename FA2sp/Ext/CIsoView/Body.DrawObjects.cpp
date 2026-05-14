@@ -3018,7 +3018,14 @@ static void DrawMapDriectDraw()
 					x2 -= 1;
 					y2 -= 1;
 				}
-				pThis->DrawLine(x1 + 30, y1 - 15 - height, x2 + 30, y2 - 15 - height, color, false, false, &ddsd, window);
+				if(ExtConfigs::DirectXRendering)
+				{
+					pThis->DrawLineRawDirectX(x1 + 30, y1 - 15 - height, x2 + 30, y2 - 15 - height, color, true, false, 1, false);
+				}
+				else
+				{
+					pThis->DrawLine(x1 + 30, y1 - 15 - height, x2 + 30, y2 - 15 - height, color, false, false, &ddsd, window);
+				}
 			}
 			int x1, x2, y1, y2;
 			x1 = tube.StartCoord.X;
@@ -3045,8 +3052,16 @@ static void DrawMapDriectDraw()
 				x2 -= 1;
 				y2 -= 1;
 			}
-			pThis->DrawLockedCellOutline(x1, y1 - height, 1, 1, color, true, false, &ddsd);
-			pThis->DrawLockedCellOutlineX(x2, y2 - height, 1, 1, color, color, false, false, &ddsd, true);
+			if(ExtConfigs::DirectXRendering)
+			{			
+				pThis->DirectXDrawLockedCellOutline(x1, y1 - height, 1, 1, color, true);
+				pThis->DirectXDrawLockedCellOutlineX(x2, y2 - height, 1, 1, color, color, true, true);
+			}
+			else
+			{
+				pThis->DrawLockedCellOutline(x1, y1 - height, 1, 1, color, true, false, &ddsd);
+				pThis->DrawLockedCellOutlineX(x2, y2 - height, 1, 1, color, color, false, false, &ddsd, true);
+			}
 		}
 	}
 	if (CIsoViewExt::RockCells)
@@ -3072,7 +3087,14 @@ static void DrawMapDriectDraw()
 					CIsoView::MapCoord2ScreenCoord(x, y);
 					int drawX = x - DrawOffsetX;
 					int drawY = y - DrawOffsetY;
-					pThis->DrawLockedCellOutlineX(drawX, drawY, 1, 1, RGB(255, 0, 0), RGB(40, 0, 0), true, false, &ddsd);
+					if(ExtConfigs::DirectXRendering)
+					{		
+						pThis->DirectXDrawLockedCellOutlineX(drawX, drawY, 1, 1, RGB(255, 0, 0), RGB(40, 0, 0), false);
+					}
+					else
+					{
+						pThis->DrawLockedCellOutlineX(drawX, drawY, 1, 1, RGB(255, 0, 0), RGB(40, 0, 0), true, false, &ddsd);
+					}
 				}
 			}
 		}
@@ -3097,7 +3119,14 @@ static void DrawMapDriectDraw()
 					coords.push_back({i, j});
 				}
 			}
-			CIsoViewExt::DrawMultiMapCoordBorders(&ddsd, coords, ExtConfigs::TerrainGeneratorColor);
+			if(ExtConfigs::DirectXRendering)
+			{		
+				CIsoViewExt::DirectXDrawMultiMapCoordBorders(coords, ExtConfigs::TerrainGeneratorColor, 0, 0, false);
+			}
+			else
+			{
+				CIsoViewExt::DrawMultiMapCoordBorders(&ddsd, coords, ExtConfigs::TerrainGeneratorColor);
+			}
 		}
 		else
 		{
@@ -3330,6 +3359,11 @@ static void DrawMapDriectDraw()
 		SetBkMode(hDC, TRANSPARENT);
 		SetTextAlign(hDC, TA_CENTER);
 		SetTextColor(hDC, RGB(0, 0, 0));
+
+		TextParams param;
+		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold()
+		.SetAlignCenter().SetColor(ShapeColor::FromCOLORREF(RGB(0, 0, 0))).SetPadding(0, 0);
+
 		if (CIsoViewExt::DrawOverlays)
 		{
 			for (const auto &[coord, index] : OverlayTextsToDraw)
@@ -3340,7 +3374,14 @@ static void DrawMapDriectDraw()
 					CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
 					int drawX = mc.X - DrawOffsetX + 30;
 					int drawY = mc.Y - DrawOffsetY - 25;
-					TextOut(hDC, drawX, drawY, index, strlen(index));
+					if (ExtConfigs::DirectXRendering)
+					{
+						pThis->g_pTR->DrawTexts(drawX, drawY, index, param);
+					}
+					else
+					{
+						TextOut(hDC, drawX, drawY, index, strlen(index));
+					}
 				}
 			}
 		}
@@ -3354,7 +3395,14 @@ static void DrawMapDriectDraw()
 					CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
 					int drawX = mc.X - DrawOffsetX + 30;
 					int drawY = mc.Y - DrawOffsetY - 25;
-					TextOut(hDC, drawX, drawY, index, strlen(index));
+					if (ExtConfigs::DirectXRendering)
+					{
+						pThis->g_pTR->DrawTexts(drawX, drawY, index, param);
+					}
+					else
+					{
+						TextOut(hDC, drawX, drawY, index, strlen(index));
+					}
 				}
 			}
 		}
@@ -3368,19 +3416,31 @@ static void DrawMapDriectDraw()
 					CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
 					int drawX = mc.X - DrawOffsetX + 30;
 					int drawY = mc.Y - DrawOffsetY - 25;
-					TextOut(hDC, drawX, drawY, index, strlen(index));
+					if (ExtConfigs::DirectXRendering)
+					{
+						pThis->g_pTR->DrawTexts(drawX, drawY, index, param);
+					}
+					else
+					{
+						TextOut(hDC, drawX, drawY, index, strlen(index));
+					}
 				}
 			}
 		}
 	}
 
 	if (CIsoViewExt::DrawBaseNodeIndex)
-	{
+	{		
+		TextParams param;
+		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().
+		SetColor(ShapeColor::FromCOLORREF(ExtConfigs::BaseNodeIndex_Color)).
+		SetAlignCenter().SetPadding(0, 0);
 		SetTextColor(hDC, ExtConfigs::BaseNodeIndex_Color);
 		if (ExtConfigs::BaseNodeIndex_Background)
 		{
 			SetBkMode(hDC, OPAQUE);
 			SetBkColor(hDC, ExtConfigs::BaseNodeIndex_Background_Color);
+			param.SetBgColor(ShapeColor::FromCOLORREF(ExtConfigs::BaseNodeIndex_Background_Color));
 		}
 		else
 			SetBkMode(hDC, TRANSPARENT);
@@ -3415,7 +3475,14 @@ static void DrawMapDriectDraw()
 							int ndrawX = x - DrawOffsetX + 30;
 							int ndrawY = y - DrawOffsetY - 15;
 
-							TextOut(hDC, ndrawX, ndrawY, key, strlen(key));
+							if (ExtConfigs::DirectXRendering)
+							{
+								pThis->g_pTR->DrawTexts(ndrawX, ndrawY, key, param);
+							}
+							else
+							{
+								TextOut(hDC, ndrawX, ndrawY, key, strlen(key));
+							}
 						}
 					}
 				}
@@ -3425,20 +3492,20 @@ static void DrawMapDriectDraw()
 
 	if (CIsoViewExt::DrawWaypoints)
 	{
+		TextParams param;
 		SetTextColor(hDC, ExtConfigs::Waypoint_Color);
 		if (ExtConfigs::Waypoint_Background)
 		{
 			SetBkMode(hDC, OPAQUE);
 			SetBkColor(hDC, ExtConfigs::Waypoint_Background_Color);
+			param.SetBgColor(ShapeColor::FromCOLORREF(ExtConfigs::Waypoint_Background_Color));
 		}
 		else
 			SetBkMode(hDC, TRANSPARENT);
 		SetTextAlign(hDC, TA_CENTER);
 
-		TextParams param;
-		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().SetAlignCenter().SetColor(ShapeColor::FromCOLORREF(ExtConfigs::Waypoint_Color)).SetPadding(0, 0);
-		if (ExtConfigs::Waypoint_Background)
-			param.SetBgColor(ShapeColor::FromCOLORREF(ExtConfigs::Waypoint_Background_Color));
+		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().
+		SetAlignCenter().SetColor(ShapeColor::FromCOLORREF(ExtConfigs::Waypoint_Color)).SetPadding(0, 0);
 
 		for (const auto &[coord, index] : WaypointsToDraw)
 		{
@@ -3563,7 +3630,14 @@ static void DrawMapDriectDraw()
 
 	if (CIsoViewExt::PasteShowOutline && CIsoView::CurrentCommand->Command == 21 && !CopyPaste::PastedCoords.empty() && !CopyPaste::CopyWholeMap && (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers))
 	{
-		CIsoViewExt::DrawMultiMapCoordBorders(&ddsd, CopyPaste::PastedCoords, ExtConfigs::CopySelectionBound_Color);
+		if (ExtConfigs::DirectXRendering)
+		{
+			CIsoViewExt::DirectXDrawMultiMapCoordBorders(CopyPaste::PastedCoords, ExtConfigs::CopySelectionBound_Color, false);
+		}
+		else
+		{
+			CIsoViewExt::DrawMultiMapCoordBorders(&ddsd, CopyPaste::PastedCoords, ExtConfigs::CopySelectionBound_Color);
+		}
 	}
 	// line tool
 	auto &command = pThis->LastAltCommand;
@@ -3571,7 +3645,14 @@ static void DrawMapDriectDraw()
 	{
 		auto point = pThis->GetCurrentMapCoord(pThis->MouseCurrentPosition);
 		auto mapCoords = pThis->GetLinePoints({command.X, command.Y}, {point.X, point.Y});
-		CIsoViewExt::DrawMultiMapCoordBorders(&ddsd, mapCoords, ExtConfigs::CursorSelectionBound_Color);
+		if (ExtConfigs::DirectXRendering)
+		{
+			CIsoViewExt::DirectXDrawMultiMapCoordBorders(mapCoords, ExtConfigs::CursorSelectionBound_Color, 0, 0, false);
+		}
+		else
+		{
+			CIsoViewExt::DrawMultiMapCoordBorders(&ddsd, mapCoords, ExtConfigs::CursorSelectionBound_Color);
+		}
 	}
 
 	if (CIsoViewExt::RenderingMap)
@@ -3718,14 +3799,7 @@ static void DrawMapDriectDraw()
 
 	if (ExtConfigs::DirectXRendering)
 	{
-		if (pThis->IsScrolling)
-		{
-			pThis->DirectXBitmap(
-				pThis->MouseCenterPosition.x,
-				pThis->MouseCenterPosition.y + 27,
-				"scrollcursor.bmp", 1.0f, true);
-		}
-
+		CIsoViewExt::SpecialDrawDirectX(0);
 		pThis->g_pDX->Render();
 		pThis->g_pSP->BeginFrame();
 		return;

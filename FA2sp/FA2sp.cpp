@@ -199,6 +199,7 @@ bool ExtConfigs::LightingPreview_TintTileSetBrowserView;
 bool ExtConfigs::DDrawScalingBilinear;
 bool ExtConfigs::DDrawScalingBilinear_OnlyShrink;
 bool ExtConfigs::DirectXRendering;
+bool ExtConfigs::DirectXRendering_INI;
 bool ExtConfigs::DisableDirectoryCheck;
 bool ExtConfigs::ExtOverlays;
 bool ExtConfigs::SaveMap_PreserveINISorting;
@@ -346,7 +347,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DisplayObjectsOutside = CINI::FAData->GetBool("ExtConfigs", "DisplayObjectsOutside");
 	ExtConfigs::DDrawScalingBilinear = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear", true);
 	ExtConfigs::DDrawScalingBilinear_OnlyShrink = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear.OnlyShrink", true);
-	ExtConfigs::DirectXRendering = CINI::FAData->GetBool("ExtConfigs", "DirectXRendering");
+	ExtConfigs::DirectXRendering_INI = CINI::FAData->GetBool("ExtConfigs", "DirectXRendering");
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::LightingPreview_TintTileSetBrowserView = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.TintTileSetBrowserView");
@@ -563,6 +564,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::SecondScreenSupport =
 		ExtConfigs::SecondScreenSupport_INI
 		&& (GetSystemMetrics(SM_CMONITORS) > 1);
+
+	ExtConfigs::DirectXRendering = ExtConfigs::DirectXRendering_INI;
 }
 
 void ExtConfigs::UpdateOptionTranslations()
@@ -1361,9 +1364,9 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.DirectXRendering", "DirectXRendering"),
+		.DisplayName = Translations::TranslateOrDefault("Options.DirectXRendering", "Draw using DirectX 11"),
 		.IniKey = "DirectXRendering",
-		.Value = &ExtConfigs::DirectXRendering,
+		.Value = &ExtConfigs::DirectXRendering_INI,
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 

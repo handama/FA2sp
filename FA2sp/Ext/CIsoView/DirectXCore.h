@@ -410,7 +410,7 @@ private:
         const std::vector<uint32_t>& pixels);
 };
 
-enum class TextAlign
+enum class TextAlign : int
 {
     Left,
     Center,
@@ -529,7 +529,7 @@ public:
     explicit TextRenderer(DirectXCore* dx, size_t cacheCapacity = 512);
     ~TextRenderer();
 
-    void DrawTexts(float x, float y, FString_view text, const TextParams& params = {});
+    void DrawTexts(float x, float y, const FString& text, const TextParams& params = {});
     bool MeasureText(const FString& text, const TextParams& params, int& outW, int& outH);
     void ClearCache();
     void SetCacheCapacity(size_t cap) { m_capacity = cap; }

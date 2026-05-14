@@ -2333,7 +2333,7 @@ TextRenderer::~TextRenderer()
 void TextRenderer::DrawTexts(
     float x,
     float y,
-    FString_view text,
+    const FString& text,
     const TextParams &params)
 {
     if (text.empty())

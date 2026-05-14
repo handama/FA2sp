@@ -209,6 +209,7 @@ public:
     static bool DDrawScalingBilinear;
     static bool DDrawScalingBilinear_OnlyShrink;
     static bool DirectXRendering;
+    static bool DirectXRendering_INI;
     static int DisplayTextSize;
     static int DistanceRuler_Records;
     static bool DisplayObjectsOutside;

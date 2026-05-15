@@ -1134,7 +1134,7 @@ static void DrawMapDriectDraw()
 					if (ExtConfigs::DirectXRendering)
 					{
 						CIsoViewExt::DirectXTerrain(x, y,
-							&subTile, isCellHidden(cell) ? 0.5f : 1.0f, cell->Height, -1, true);
+							&subTile, isCellHidden(cell) ? 0.5f : 1.0f, cell->Height, true);
 					}
 					else
 					{
@@ -1903,7 +1903,7 @@ static void DrawMapDriectDraw()
 									if (ExtConfigs::DirectXRendering)
 									{
 										CIsoViewExt::DirectXTerrain(x1, y1,
-											&subTile, isCellHidden(cell) ? 0.5f : 1.0f, cell->Height, -1, true);
+											&subTile, isCellHidden(cell) ? 0.5f : 1.0f, cell->Height, true);
 									}
 									else
 									{

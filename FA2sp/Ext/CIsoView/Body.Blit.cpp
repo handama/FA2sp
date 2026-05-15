@@ -723,7 +723,7 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
 }
 
 void CIsoViewExt::DirectXBuilding(int x, int y, ImageDataClassSafe* pd, 
-    Palette* newPal, float alpha, COLORREF houseColor, bool isRubble, bool isTerrain, int depth)
+    Palette* newPal, float alpha, COLORREF houseColor, bool isRubble, bool isTerrain)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {
         return;
@@ -751,7 +751,7 @@ void CIsoViewExt::DirectXBuilding(int x, int y, ImageDataClassSafe* pd,
 }
 
 void CIsoViewExt::DirectXNormal(int x, int y, ImageDataClassSafe* pd, 
-    Palette* newPal, float alpha, COLORREF houseColor, int extraLightType, bool remap, int depth)
+    Palette* newPal, float alpha, COLORREF houseColor, int extraLightType, bool remap)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {
         return;
@@ -817,7 +817,7 @@ void CIsoViewExt::DirectXAlphaImage(int x, int y, ImageDataClassSafe* pd)
     g_pDX->DrawTexture(pTexture, x, y);
 }
 
-void CIsoViewExt::DirectXShadow(int x, int y, ImageDataClassSafe* pd, int depth)
+void CIsoViewExt::DirectXShadow(int x, int y, ImageDataClassSafe* pd)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {
         return;
@@ -837,7 +837,7 @@ void CIsoViewExt::DirectXShadow(int x, int y, ImageDataClassSafe* pd, int depth)
     g_pDX->DrawTexture(pTexture, params);
 }
 
-void CIsoViewExt::DirectXOverlay(int x, int y, ImageDataClassSafe* pd, Renderer::OverlayType* pType, byte nData, int depth)
+void CIsoViewExt::DirectXOverlay(int x, int y, ImageDataClassSafe* pd, Renderer::OverlayType* pType, byte nData)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {
         return;
@@ -1424,7 +1424,7 @@ bool CIsoViewExt::DirectXReady()
 }
 
 void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile, 
-    float alpha, byte height, int depth, bool onlyExtra)
+    float alpha, byte height, bool onlyExtra)
 {
     auto& dataExt = CMapDataExt::TileBlockDataExt[subTile];
     if (!subTile || !subTile->HasValidImage 

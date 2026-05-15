@@ -2738,7 +2738,7 @@ bool TextRenderer::MeasureText(const FString &text,
     DrawTextW(hdc, wtext.c_str(), (int)wtext.size(), &rc,
               dtFlags);
 
-    outW = (rc.right - rc.left) + params.paddingX * 2 + 2;
+    outW = (rc.right - rc.left) + params.paddingX * 2;
     outH = (rc.bottom - rc.top) + params.paddingY * 2;
     if (outW < 1)
         outW = 1;
@@ -2929,7 +2929,7 @@ bool TextRenderer::RasterizeGDI(
     int textW = rcMeasure.right - rcMeasure.left;
     int textH = rcMeasure.bottom - rcMeasure.top;
 
-    outW = std::max(1, textW + p.paddingX * 2 + 2);
+    outW = std::max(1, textW + p.paddingX * 2);
     outH = std::max(1, textH + p.paddingY * 2);
 
     EnsureDC(outW, outH);

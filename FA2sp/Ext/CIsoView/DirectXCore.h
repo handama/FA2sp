@@ -121,6 +121,7 @@ public:
         bool bIsEffect = false;
         bool bScreenSpace = false;
         bool bStencilDraw = false; // 使用独立 stencil 阶段（Phase1.5）绘制
+        bool bStencilOnly = false; // 仅更新stencil，不输出颜色
         UINT depth = 0;
         ID3D11DepthStencilState* pCustomDSState = nullptr; // 自定义深度模板状态，nullptr=使用阶段默认
     };
@@ -223,6 +224,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSamplerPoint;
     Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSamplerNearestNeighbor;
     Microsoft::WRL::ComPtr<ID3D11BlendState>       m_pBlendState;
+    Microsoft::WRL::ComPtr<ID3D11BlendState>       m_pBlendStateNoColor; // 不输出颜色（仅更新stencil）
     Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pQuadVB;
     Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pConstantBuffer;
     Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pFullscreenQuadVB;
@@ -270,7 +272,8 @@ private:
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateReadOnlyGE;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateOff;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateShadowWrite;    // 阴影stencil写入：depth read-only, stencil REPLACE
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateObjectStencilWrite; // 对象stencil写入：depth write ON, GREATER+REPLACE
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateObjectStencilWrite; // 对象stencil写入：depth正常, ALWAYS+REPLACE
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateStencilOnlyWrite; // 仅更新stencil：depth只读, GREATER+REPLACE
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateTerrainStencilTest; // 地表stencil测试：GREATER比较
 
     std::unordered_map<TextureIndex, std::unique_ptr<TextureResource>> m_textureMap;

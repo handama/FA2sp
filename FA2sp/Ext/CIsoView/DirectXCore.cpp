@@ -517,6 +517,12 @@ bool DirectXCore::CreateShadersAndInputLayout()
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
     m_pDevice->CreateBlendState(&blendDesc, &m_pBlendState);
 
+    // No-color-output blend state (用于仅更新stencil的pass)
+    D3D11_BLEND_DESC blendNoColor = {};
+    blendNoColor.RenderTarget[0].BlendEnable = FALSE;
+    blendNoColor.RenderTarget[0].RenderTargetWriteMask = 0;
+    m_pDevice->CreateBlendState(&blendNoColor, &m_pBlendStateNoColor);
+
     // Independent-blend state for MRT alpha accumulation:
     // RT0 = normal alpha blending, RT1 = overwrite (ONE, ZERO) with R-only mask.
     D3D11_BLEND_DESC accumBlendDesc = {};
@@ -591,9 +597,8 @@ bool DirectXCore::CreateShadersAndInputLayout()
     m_pDevice->CreateDepthStencilState(&swDesc, &m_pDepthStateShadowWrite);
 
     // ---- Object stencil write state (units/buildings) ----
-    // 单位/建筑绘制时：depth正常写入、stencil写入对象高度+3
-    // StencilFunc=ALWAYS: stencil总是通过，PassOp=REPLACE: 用StencilRef替换stencil值
-    // 地表重绘时会用GREATER比较该值，实现对象遮挡低地形的效果
+    // 单位/建筑绘制时的颜色输出pass：depth正常写入、stencil ALWAYS+REPLACE写入对象高度+3
+    // 实际对象需分两次绘制：(1)颜色输出用此state，(2)stencil条件更新用下面的StateOnlyWrite
     D3D11_DEPTH_STENCIL_DESC owDesc = {};
     owDesc.DepthEnable = TRUE;
     owDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
@@ -607,6 +612,24 @@ bool DirectXCore::CreateShadersAndInputLayout()
     owDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
     owDesc.BackFace = owDesc.FrontFace;
     m_pDevice->CreateDepthStencilState(&owDesc, &m_pDepthStateObjectStencilWrite);
+
+    // ---- Stencil-only write state (conditional update for objects) ----
+    // 对象stencil条件更新pass：depth只读（复用颜色输出的depth值），
+    // StencilFunc=GREATER: 仅当 objectHeight+3 > 当前stencil值时才写入
+    // 保证stencil始终保存 MAX(shadow_h+1, object_h+3)
+    D3D11_DEPTH_STENCIL_DESC soDesc = {};
+    soDesc.DepthEnable = TRUE;
+    soDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO; // depth只读，不修改
+    soDesc.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
+    soDesc.StencilEnable = TRUE;
+    soDesc.StencilReadMask = 0xFF;
+    soDesc.StencilWriteMask = 0xFF;
+    soDesc.FrontFace.StencilFunc = D3D11_COMPARISON_GREATER;
+    soDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
+    soDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+    soDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+    soDesc.BackFace = soDesc.FrontFace;
+    m_pDevice->CreateDepthStencilState(&soDesc, &m_pDepthStateStencilOnlyWrite);
 
     // ---- Terrain stencil test state ----
     // 地表重绘时：depth正常写入、stencil测试
@@ -1297,8 +1320,9 @@ void DirectXCore::RenderOffscreenContent()
 
     // ====================================================================
     // Phase 1.5: Stencil-aware draws
-    //   Pass A: shadows (bIsShadow=true)  → 写入 stencil
-    //   Pass B: terrain redraws (bIsShadow=false)  → 测试 stencil
+    //   Pass A:  shadows (bIsShadow=true)              → ALWAYS+REPLACE 写入 stencil
+    //   Pass A2: objects stencil-only (bStencilOnly)   → GREATER+REPLACE 条件更新 stencil (MAX语义)
+    //   Pass B:  terrain redraws (!bIsShadow,!bWrite)  → GREATER+KEEP 测试 stencil
     // ====================================================================
     {
         bool hasStencilDraws = false;
@@ -1321,13 +1345,18 @@ void DirectXCore::RenderOffscreenContent()
                 DrawOneTexture(cmd);
             }
 
-            // Pass A2: Objects write stencil (bWriteStencil=true && !bIsShadow -> ALWAYS+REPLACE)
+            // Pass A2: Objects conditional stencil update (bWriteStencil=true && bStencilOnly=true -> GREATER+REPLACE)
+            // 仅更新stencil不输出颜色，GREATER确保保留shadow或object中的较高值
             for (const auto &cmd : m_drawCommands) {
-                if (!cmd.bStencilDraw || cmd.params.bIsShadow || !cmd.params.bWriteStencil)
+                if (!cmd.bStencilDraw || cmd.params.bIsShadow || !cmd.params.bWriteStencil || !cmd.bStencilOnly)
                     continue;
                 if (!cmd.texRes || !cmd.texRes->srv)
                     continue;
+                // 切换到无颜色输出的blend state
+                m_pContext->OMSetBlendState(m_pBlendStateNoColor.Get(), nullptr, 0xffffffff);
                 DrawOneTexture(cmd);
+                // 恢复常规blend state
+                m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
             }
 
             // Pass B: Terrain redraws test stencil (bStencilDraw && !bIsShadow && !bWriteStencil -> GREATER+KEEP)
@@ -1980,20 +2009,38 @@ void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
 
     // Stencil 模式选择
     if (params.stencilRef >= 0) {
-        cmd.bStencilDraw = true;
         if (params.bIsShadow) {
-            cmd.pCustomDSState = m_pDepthStateShadowWrite.Get();        // 阴影写入stencil
+            // 阴影：在Phase1.5 PassA中写入stencil + 绘制颜色
+            cmd.bStencilDraw = true;
+            cmd.pCustomDSState = m_pDepthStateShadowWrite.Get();
+            m_drawCommands.push_back(cmd);
         } else if (params.bWriteStencil) {
-            cmd.pCustomDSState = m_pDepthStateObjectStencilWrite.Get(); // 对象（单位/建筑）写入stencil
+            // 对象（单位/建筑）：分两次绘制
+            // 1) 颜色绘制：通过Phase1(不透明)或Phase2(透明)正常渲染
+            cmd.bStencilDraw = false;
+            cmd.pCustomDSState = nullptr;
+            UINT renderDepth = cmd.depth;
+            m_drawCommands.push_back(cmd);
+
+            // 2) Stencil条件更新：在Phase1.5中GREATER比较后写入
+            //    使用相同的depth值，确保仅在对象可见像素处更新stencil
+            DrawCommand stencilCmd = cmd;
+            stencilCmd.bStencilDraw = true;
+            stencilCmd.bStencilOnly = true;
+            stencilCmd.pCustomDSState = m_pDepthStateStencilOnlyWrite.Get();
+            stencilCmd.depth = renderDepth; // 使用与渲染pass相同的depth
+            m_drawCommands.push_back(stencilCmd);
         } else {
-            cmd.pCustomDSState = m_pDepthStateTerrainStencilTest.Get(); // 地表重绘测试stencil
+            // 地表重绘：在Phase1.5 PassB中测试stencil
+            cmd.bStencilDraw = true;
+            cmd.pCustomDSState = m_pDepthStateTerrainStencilTest.Get();
+            m_drawCommands.push_back(cmd);
         }
     } else {
         cmd.bStencilDraw = false;
         cmd.pCustomDSState = nullptr;
+        m_drawCommands.push_back(cmd);
     }
-
-    m_drawCommands.push_back(cmd);
 }
 
 int DirectXCore::DrawTexture(TextureResource* tex, const DrawParams& params, std::vector<int>& drawCommandIndices)
@@ -2051,20 +2098,35 @@ int DirectXCore::DrawTexture(TextureResource* tex, const DrawParams& params, std
 
     // Stencil 模式选择
     if (params.stencilRef >= 0) {
-        cmd.bStencilDraw = true;
         if (params.bIsShadow) {
-            cmd.pCustomDSState = m_pDepthStateShadowWrite.Get();        // 阴影写入stencil
+            cmd.bStencilDraw = true;
+            cmd.pCustomDSState = m_pDepthStateShadowWrite.Get();
+            m_drawCommands.push_back(cmd);
         } else if (params.bWriteStencil) {
-            cmd.pCustomDSState = m_pDepthStateObjectStencilWrite.Get(); // 对象（单位/建筑）写入stencil
+            // 颜色绘制pass
+            cmd.bStencilDraw = false;
+            cmd.pCustomDSState = nullptr;
+            UINT renderDepth = cmd.depth;
+            m_drawCommands.push_back(cmd);
+
+            // Stencil条件更新pass（使用相同depth）
+            DrawCommand stencilCmd = cmd;
+            stencilCmd.bStencilDraw = true;
+            stencilCmd.bStencilOnly = true;
+            stencilCmd.pCustomDSState = m_pDepthStateStencilOnlyWrite.Get();
+            stencilCmd.depth = renderDepth;
+            m_drawCommands.push_back(stencilCmd);
         } else {
-            cmd.pCustomDSState = m_pDepthStateTerrainStencilTest.Get(); // 地表重绘测试stencil
+            cmd.bStencilDraw = true;
+            cmd.pCustomDSState = m_pDepthStateTerrainStencilTest.Get();
+            m_drawCommands.push_back(cmd);
         }
     } else {
         cmd.bStencilDraw = false;
         cmd.pCustomDSState = nullptr;
+        m_drawCommands.push_back(cmd);
     }
 
-    m_drawCommands.push_back(cmd);
     return (int)(m_drawCommands.size() - 1);
 }
 

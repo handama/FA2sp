@@ -749,11 +749,11 @@ void CIsoViewExt::DirectXBuilding(int x, int y, ImageDataClassSafe* pd,
         .SetOpacity(alpha)
         .SetColorMul(colorMult);
 
-    // Stencil: 写入对象高度+3（clamp到255，匹配original object+2 buffer）
+    // Stencil: 写入对象高度+2（clamp到255，匹配original object+2 buffer）
     // 地表重绘时通过GREATER比较 terrainHeight+1 > stencil 来实现遮挡
-    // 即 terrainHeight > objectHeight+2 时地表才会覆盖对象
+    // 即 terrainHeight > objectHeight+1 时地表才会覆盖对象
     if (stencilHeight != 0xFF) {
-        params.SetStencilRef(std::min(static_cast<int>(stencilHeight) + 3, 255));
+        params.SetStencilRef(std::min(static_cast<int>(stencilHeight) + 2, 255));
         params.bWriteStencil = true;
     }
 
@@ -792,11 +792,11 @@ void CIsoViewExt::DirectXNormal(int x, int y, ImageDataClassSafe* pd,
         .SetOpacity(alpha)
         .SetColorMul(colorMult);
 
-    // Stencil: 写入对象高度+3（clamp到255，匹配original object+2 buffer）
+    // Stencil: 写入对象高度+2（clamp到255，匹配original object+2 buffer）
     // 地表重绘时通过GREATER比较 terrainHeight+1 > stencil 来实现遮挡
-    // 即 terrainHeight > objectHeight+2 时地表才会覆盖对象
+    // 即 terrainHeight > objectHeight+1 时地表才会覆盖对象
     if (stencilHeight != 0xFF) {
-        params.SetStencilRef(std::min(static_cast<int>(stencilHeight) + 3, 255));
+        params.SetStencilRef(std::min(static_cast<int>(stencilHeight) + 2, 255));
         params.bWriteStencil = true;
     }
 
@@ -1510,9 +1510,10 @@ void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile,
     if (doOre)
         params.SetColorMix(oreColor,  1.0f - oreOpacity / 255.0f);
 
+    int realHeight = height;
     if (height>= 0)
     {
-        params.SetStencilRef(height + 1);
+        height += (subTile->YMinusExY < 0 ? ((subTile->YMinusExY) / -30) : 0);
     }
 
     if (onlyExtra)
@@ -1522,10 +1523,18 @@ void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile,
     }
     else 
     {
+        if (height>= 0)
+        {
+            params.SetStencilRef(realHeight + 1);
+        }
         g_pDX->DrawTexture(dataExt.pTexture, params);
 
         if (!doFlatToGround)
         {
+            if (height>= 0)
+            {
+                params.SetStencilRef(height + 1);
+            }
             params.SetPosition(x + dataExt.ExtraOffset.x, y + dataExt.ExtraOffset.y);
             g_pDX->DrawTexture(dataExt.pExtraTexture, params);
         }

@@ -904,11 +904,15 @@ static void DrawMapDriectDraw()
 			{
 				virtualHeight = cell->Height;
 			}
-			else if (11 > relativeIdx && relativeIdx >= 6)
+			else if (11 > relativeIdx && relativeIdx >= 6 
+				&& (!ExtConfigs::DirectXRendering 
+					|| ExtConfigs::DirectXRendering && tileSubIndex != 8 && tileSubIndex != 9))
 			{
 				virtualHeight = cell->Height;
 			}
-			else if (16 > relativeIdx && relativeIdx >= 11)
+			else if (16 > relativeIdx && relativeIdx >= 11 
+				&& (!ExtConfigs::DirectXRendering 
+					|| ExtConfigs::DirectXRendering && tileSubIndex != 4 && tileSubIndex != 9))
 			{
 				virtualHeight = cell->Height;
 			}
@@ -1885,11 +1889,7 @@ static void DrawMapDriectDraw()
 							{
 								CIsoViewExt::DirectXTerrain(x1, y1,
 															&subTile, isCellHidden(cell) ? 0.5f : 1.0f,
-															cell->Height + (subTile.YMinusExY < 0 ? ((subTile.YMinusExY) / -30) : 0));
-								
-								FString tmp;
-								tmp.Format("%d",cell->Height + (subTile.YMinusExY < 0 ? ((subTile.YMinusExY + 15) / -30) : 0));
-								CIsoViewExt::TextOutDirectX(x1, y1, tmp, 14);
+															cell->Height);							
 							}
 							else
 							{

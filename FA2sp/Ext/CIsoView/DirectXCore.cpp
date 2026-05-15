@@ -384,7 +384,7 @@ bool DirectXCore::CreateDeviceAndSwapChain(HWND hwnd)
     scd.OutputWindow = hwnd;
     scd.SampleDesc.Count = 1;
     scd.Windowed = TRUE;
-    scd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    scd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
     scd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
     UINT createFlags = 0;
@@ -1515,6 +1515,12 @@ void DirectXCore::Render()
     RenderOffscreenContent();
     if (!CIsoViewExt::RenderingMap)
     {
+        if (ExtConfigs::EnableDarkMode && ExtConfigs::EnableDarkMode_DimMap )
+        {
+            DarkenOffscreen(0.7f);
+        }
+
+
         RenderFinalToBackBuffer();
         UpdateBackgroundCache();
         RenderScreenSpaceContent();
@@ -1522,6 +1528,34 @@ void DirectXCore::Render()
 
     m_pSwapChain->Present(1, 0);
     m_drawCommands.clear();
+}
+
+void DirectXCore::DarkenOffscreen(float brightness)
+{
+    if (!m_pContext || !m_OffscreenRTV || !m_OffscreenTex || !m_pScreenCopy || !m_pFactorRTV)
+        return;
+
+    // Copy current offscreen content to screen-copy texture
+    CopyScreenToTexture();
+
+    // Clear factor texture to the constant darkening value (composite PS reads .r)
+    float factor[4] = {brightness, brightness, brightness, 1.0f};
+    m_pContext->ClearRenderTargetView(m_pFactorRTV.Get(), factor);
+
+    // Composite: offscreen = screenCopy * factor (reuses existing composite shaders)
+    m_pContext->OMSetRenderTargets(1, m_OffscreenRTV.GetAddressOf(), nullptr);
+    m_pContext->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    m_pContext->VSSetShader(m_pCompositeVS.Get(), nullptr, 0);
+    m_pContext->PSSetShader(m_pCompositePS.Get(), nullptr, 0);
+    m_pContext->PSSetSamplers(0, 1, m_pSamplerLinear.GetAddressOf());
+
+    ID3D11ShaderResourceView *srvs[2] = {m_pScreenCopySRV.Get(), m_pFactorSRV.Get()};
+    m_pContext->PSSetShaderResources(0, 2, srvs);
+    DrawFullscreenQuad();
+
+    // Unbind SRVs so they don't interfere with subsequent draws
+    ID3D11ShaderResourceView *nullSRV[2] = {nullptr, nullptr};
+    m_pContext->PSSetShaderResources(0, 2, nullSRV);
 }
 
 void DirectXCore::RenderScreenSpaceOnly()

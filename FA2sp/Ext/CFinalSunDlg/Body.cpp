@@ -1139,7 +1139,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			TempValueHolder<double> scaled(CIsoViewExt::ScaledFactor, 1.0);
 			std::vector<std::unique_ptr<TempValueHolder<bool>>> holders;
 			std::vector<std::unique_ptr<TempValueHolder<BOOL>>> holders2;
-
+			
 			if (!CIsoViewExt::RenderCurrentLayers)
 			{
 				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawStructures, true);

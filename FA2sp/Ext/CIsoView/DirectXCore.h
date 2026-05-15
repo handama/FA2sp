@@ -155,6 +155,11 @@ public:
     int GetClientWidth() const { return m_clientWidth; }
     int GetClientHeight() const { return m_clientHeight; }
 
+    // Darken the offscreen surface by a constant brightness factor.
+    // brightness=1.0f → no change, brightness=0.5f → 50%% brightness, etc.
+    // Must be called after RenderOffscreenContent().
+    void DarkenOffscreen(float brightness);
+
     // GPU line batching: DrawShapes pushes LineEntry records here instead of
     // CPU-rasterising each line into a texture.  They are all flushed in a
     // single Draw() call during RenderOffscreenContent().
@@ -262,6 +267,8 @@ private:
 
     int m_clientWidth = 0;
     int m_clientHeight = 0;
+    int m_backBufferWidth = 0;
+    int m_backBufferHeight = 0;
     float m_globalScaleX = 1.0f;
     float m_globalScaleY = 1.0f;
     float m_globalOffsetX = 0.0f;

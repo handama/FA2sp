@@ -1129,9 +1129,9 @@ void DirectXCore::EnsureAlphaAccumTexture(UINT width, UINT height)
 void DirectXCore::RenderOffscreenContent()
 {
     float clearColor[4] = {
-        ExtConfigs::EnableDarkMode ? 0.125f : 1.0f,
-        ExtConfigs::EnableDarkMode ? 0.125f : 1.0f,
-        ExtConfigs::EnableDarkMode ? 0.125f : 1.0f,
+        CIsoViewExt::RenderingMap ? 0.0f : (ExtConfigs::EnableDarkMode ? 0.125f : 1.0f),
+        CIsoViewExt::RenderingMap ? 0.0f : (ExtConfigs::EnableDarkMode ? 0.125f : 1.0f),
+        CIsoViewExt::RenderingMap ? 0.0f : (ExtConfigs::EnableDarkMode ? 0.125f : 1.0f),
         1.0f};
     m_pContext->ClearRenderTargetView(m_OffscreenRTV.Get(), clearColor);
     m_pContext->ClearDepthStencilView(m_pOffscreenDSV.Get(), D3D11_CLEAR_DEPTH, 0.0f, 0);
@@ -1513,9 +1513,12 @@ void DirectXCore::Render()
     ResetDepth();
 
     RenderOffscreenContent();
-    RenderFinalToBackBuffer();
-    UpdateBackgroundCache();
-    RenderScreenSpaceContent();
+    if (!CIsoViewExt::RenderingMap)
+    {
+        RenderFinalToBackBuffer();
+        UpdateBackgroundCache();
+        RenderScreenSpaceContent();
+    }
 
     m_pSwapChain->Present(1, 0);
     m_drawCommands.clear();

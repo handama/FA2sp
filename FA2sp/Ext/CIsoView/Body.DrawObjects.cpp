@@ -544,24 +544,27 @@ static void DrawMapDriectDraw()
 	DDSURFACEDESC2 ddsd{};
 	LPDIRECTDRAWSURFACE7 lpSurface = pThis->GetBackBuffer();
 
-	DDBLTFX fx;
-	memset(&fx, 0, sizeof(DDBLTFX));
-	fx.dwSize = sizeof(DDBLTFX);
-	fx.dwFillColor = CIsoViewExt::RenderingMap ? RGB(0, 0, 0) : (ExtConfigs::EnableDarkMode ? RGB(32, 32, 32) : RGB(255, 255, 255));
-
-	lpSurface->Blt(NULL, NULL, NULL, DDBLT_COLORFILL, &fx);
-	ddsd.dwSize = sizeof(DDSURFACEDESC2);
-	ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT;
-	lpSurface->GetSurfaceDesc(&ddsd);
-	lpSurface->Lock(NULL, &ddsd, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_NOSYSLOCK, NULL);
+	if (!ExtConfigs::DirectXRendering)
+	{
+		DDBLTFX fx;
+		memset(&fx, 0, sizeof(DDBLTFX));
+		fx.dwSize = sizeof(DDBLTFX);
+		fx.dwFillColor = CIsoViewExt::RenderingMap ? RGB(0, 0, 0) : (ExtConfigs::EnableDarkMode ? RGB(32, 32, 32) : RGB(255, 255, 255));
+	
+		lpSurface->Blt(NULL, NULL, NULL, DDBLT_COLORFILL, &fx);
+		ddsd.dwSize = sizeof(DDSURFACEDESC2);
+		ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT;
+		lpSurface->GetSurfaceDesc(&ddsd);
+		lpSurface->Lock(NULL, &ddsd, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_NOSYSLOCK, NULL);
+		
+		if (pThis->lpDDPrimarySurface->IsLost() != DD_OK || ddsd.lpSurface == NULL)
+		{
+			pThis->PrimarySurfaceLost();
+			return;
+		}
+	}
 
 	DDBoundary boundary{ddsd.dwWidth, ddsd.dwHeight, ddsd.lPitch};
-
-	if (pThis->lpDDPrimarySurface->IsLost() != DD_OK || ddsd.lpSurface == NULL)
-	{
-		pThis->PrimarySurfaceLost();
-		return;
-	}
 
 	// clear static containers, init some game logics
 	{
@@ -3536,6 +3539,127 @@ static void DrawMapDriectDraw()
 		CIsoViewExt::SpecialDrawDirectX(0);
 		pThis->g_pDX->Render();
 		pThis->g_pSP->BeginFrame();
+
+		if (CIsoViewExt::RenderingMap)
+		{
+			int &height = CMapData::Instance->Size.Height;
+			int &width = CMapData::Instance->Size.Width;
+			int startX, startY;
+			if (CIsoViewExt::RenderFullMap)
+			{
+				startX = width - 1;
+				startY = 0;
+			}
+			else
+			{
+				const int &mapwidth = CMapData::Instance->Size.Width;
+				const int &mapheight = CMapData::Instance->Size.Height;
+				const int &mpL = CMapData::Instance->LocalSize.Left;
+				const int &mpT = CMapData::Instance->LocalSize.Top;
+				const int &mpW = CMapData::Instance->LocalSize.Width;
+				const int &mpH = CMapData::Instance->LocalSize.Height;
+
+				startY = mpT + mpL - 2;
+				startX = mapwidth + mpT - mpL - 3;
+			}
+			pThis->MapCoord2ScreenCoord_Flat(startX, startY);
+
+			RECT r;
+			pThis->GetWindowRect(&r);
+			pThis->AdaptRectForSecondScreen(&r);
+
+			int pngPosX = r.left + pThis->ViewPosition.x - startX - 4;
+			int pngPosY = r.top + pThis->ViewPosition.y - startY - 3 + (CIsoViewExt::RenderFullMap ? 0 : 15);
+
+			// Read DirectX offscreen texture to the full map bitmap
+			auto pDX = pThis->g_pDX.get();
+			if (auto pOffscreenTex = pDX->GetOffscreenTexture())
+			{
+				auto pDevice = pDX->GetDevice();
+				auto pContext = pDX->GetContext();
+
+				D3D11_TEXTURE2D_DESC texDesc;
+				pOffscreenTex->GetDesc(&texDesc);
+
+				// Use client area rect as source — the offscreen texture starts at (0,0)
+				// in client coordinates, NOT at the window screen position.
+				int clientW = pDX->GetClientWidth();
+				int clientH = pDX->GetClientHeight();
+				int srcLeft = 0, srcTop = 0;
+				int srcW = clientW, srcH = clientH;
+
+				// Clip to offscreen texture bounds
+				if (srcLeft + srcW > (int)texDesc.Width) srcW = texDesc.Width - srcLeft;
+				if (srcTop + srcH > (int)texDesc.Height) srcH = texDesc.Height - srcTop;
+
+				// Handle negative destination (left/top edge of map):
+				// offset source rect and reduce copy size accordingly.
+				if (pngPosX < 0) { srcLeft += (-pngPosX); srcW += pngPosX; pngPosX = 0; }
+				if (pngPosY < 0) { srcTop += (-pngPosY); srcH += pngPosY; pngPosY = 0; }
+
+				if (srcW > 0 && srcH > 0)
+				{
+					int bmpW = CIsoViewExt::pFullBitmap->GetWidth();
+					int bmpH = CIsoViewExt::pFullBitmap->GetHeight();
+					if (pngPosX + srcW > bmpW) srcW = bmpW - pngPosX;
+					if (pngPosY + srcH > bmpH) srcH = bmpH - pngPosY;
+
+					if (srcW > 0 && srcH > 0)
+					{
+						D3D11_TEXTURE2D_DESC stagingDesc = {};
+						stagingDesc.Width = texDesc.Width;
+						stagingDesc.Height = texDesc.Height;
+						stagingDesc.MipLevels = 1;
+						stagingDesc.ArraySize = 1;
+						stagingDesc.Format = texDesc.Format;
+						stagingDesc.SampleDesc.Count = 1;
+						stagingDesc.Usage = D3D11_USAGE_STAGING;
+						stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+
+						Microsoft::WRL::ComPtr<ID3D11Texture2D> pStaging;
+						if (SUCCEEDED(pDevice->CreateTexture2D(&stagingDesc, nullptr, &pStaging)))
+						{
+							pContext->CopyResource(pStaging.Get(), pOffscreenTex);
+
+							D3D11_MAPPED_SUBRESOURCE mapped;
+							if (SUCCEEDED(pContext->Map(pStaging.Get(), 0, D3D11_MAP_READ, 0, &mapped)))
+							{
+								Gdiplus::BitmapData bitmapData;
+								Gdiplus::Rect bmpRect(pngPosX, pngPosY, srcW, srcH);
+								if (CIsoViewExt::pFullBitmap->LockBits(&bmpRect, Gdiplus::ImageLockModeWrite,
+																	   PixelFormat24bppRGB, &bitmapData) == Gdiplus::Ok)
+								{
+									const BYTE* srcRow = (const BYTE*)mapped.pData + srcTop * mapped.RowPitch + srcLeft * 4;
+									BYTE* dstRow = (BYTE*)bitmapData.Scan0;
+
+									for (LONG y = 0; y < srcH; ++y)
+									{
+										const BYTE* src = srcRow;
+										BYTE* dst = dstRow;
+										for (LONG x = 0; x < srcW; ++x)
+										{
+											// DXGI_FORMAT_R8G8B8A8_UNORM -> GDI+ 24bppRGB (BGR)
+											dst[0] = src[2]; // B
+											dst[1] = src[1]; // G
+											dst[2] = src[0]; // R
+											src += 4;
+											dst += 3;
+										}
+										srcRow += mapped.RowPitch;
+										dstRow += bitmapData.Stride;
+									}
+
+									CIsoViewExt::pFullBitmap->UnlockBits(&bitmapData);
+									CIsoViewExt::RenderTileSuccess = true;
+								}
+								pContext->Unmap(pStaging.Get(), 0);
+							}
+						}
+					}
+				}
+			}
+		}
+
 		return;
 	}
 

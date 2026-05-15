@@ -891,7 +891,7 @@ void CIsoViewExt::DirectXOverlay(int x, int y, ImageDataClassSafe* pd, Renderer:
         .SetColorMul(colorMult);
 
     if (isEmphasizingOre)
-        params.SetColorMix(oreColor, oreOpacity / 255.0f);
+        params.SetColorMix(oreColor,  1.0f - oreOpacity / 255.0f);
     if (doMultiSel) {
         const RGBClass* selColor = doMultiSel ? reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor) : nullptr;
         params.SetColorMix(*selColor, MULTI_SEL_OPACITY);
@@ -1479,9 +1479,9 @@ void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile,
     if (doMultiSel)
         params.SetColorMix(*selColor, MULTI_SEL_OPACITY);
     if (doPlayer)
-        params.SetColorMix(*playerColor, playerOpacity / 255.0f);
+        params.SetColorMix(*playerColor, 1.0f - playerOpacity / 255.0f);
     if (doOre)
-        params.SetColorMix(oreColor, oreOpacity / 255.0f);
+        params.SetColorMix(oreColor,  1.0f - oreOpacity / 255.0f);
 
     if (onlyExtra)
     {

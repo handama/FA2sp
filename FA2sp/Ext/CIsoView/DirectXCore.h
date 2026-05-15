@@ -285,6 +285,7 @@ private:
 public:
     ID3D11Device* GetDevice() { return m_pDevice.Get(); }
     ID3D11DeviceContext* GetContext() { return m_pContext.Get(); }
+    ID3D11Texture2D* GetOffscreenTexture() const { return m_OffscreenTex.Get(); }
 };
 
 struct ShapeColor {

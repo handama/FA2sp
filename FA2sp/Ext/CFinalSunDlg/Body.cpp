@@ -824,6 +824,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	}
 	else if (wmID == 40165)
 	{
+		bool endConfirmDialog = false;
 		auto setLighting = [](int id)
 		{
 			if (CFinalSunDlgExt::CurrentLighting != id)
@@ -982,6 +983,14 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				pIsoView->GetWindowRect(&r);
 				pIsoView->AdaptRectForSecondScreen(&r);
 
+				// Use client rect dimensions for tile advancement to avoid gaps
+				// caused by scrollbars (DX offscreen texture is client-area sized).
+				CRect cr;
+				pIsoView->GetClientRect(&cr);
+				int tileW = cr.Width();
+				int tileH = cr.Height();
+				if (tileW <= 0 || tileH <= 0) { tileW = r.Width(); tileH = r.Height(); }
+
 				CRect validRange;
 				validRange.left = 30 * (height + width + startY - startX) - (r.right - r.left) / 2 - r.left;
 				validRange.top = 15 * (startY + startX) - (r.bottom - r.top) / 2 - r.top;
@@ -990,8 +999,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 				pIsoView->ViewPosition.y = validRange.top;
 
-				int totalTileCount = ((validRange.right - validRange.left + r.Width()) / r.Width() + 1)
-					* ((validRange.bottom - validRange.top + r.Height()) / r.Height() + 1) - 1;
+				int totalTileCount = ((validRange.right - validRange.left + tileW) / tileW + 1)
+					* ((validRange.bottom - validRange.top + tileH) / tileH + 1) - 1;
 
 				CUpdateProgress progress(
 					Translations::TranslateOrDefault("MapRendererProgressText",
@@ -1006,10 +1015,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				int currentTile = 0;
 				static int renderFailedCount;
 				renderFailedCount = 0;
-				while (pIsoView->ViewPosition.y < validRange.bottom + r.Height())
+				while (pIsoView->ViewPosition.y < validRange.bottom + tileH)
 				{
 					pIsoView->ViewPosition.x = validRange.left;
-					while (pIsoView->ViewPosition.x < validRange.right + r.Width())
+					while (pIsoView->ViewPosition.x < validRange.right + tileW)
 					{
 						::SetScrollPos(pIsoView->GetSafeHwnd(), SB_VERT, pIsoView->ViewPosition.y / 30 - width / 2 + 4, TRUE);
 						::SetScrollPos(pIsoView->GetSafeHwnd(), SB_HORZ, pIsoView->ViewPosition.x / 60 - height / 2 + 1, TRUE);
@@ -1034,14 +1043,14 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 						Sleep(1);
 
 						if (CIsoViewExt::RenderTileSuccess || renderFailedCount >= 500) {
-							pIsoView->ViewPosition.x += r.Width();
+							pIsoView->ViewPosition.x += tileW;
 							currentTile++;
 						}
 						else {
 							renderFailedCount++;
 						}
 					}
-					pIsoView->ViewPosition.y += r.Height();
+					pIsoView->ViewPosition.y += tileH;
 				}
 
 				EnableScrollBar(pIsoView->GetSafeHwnd(), SB_BOTH, ESB_ENABLE_BOTH);
@@ -1102,6 +1111,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				FString message;
 				message.Format(templ, path);
 				::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, "FA2sp", MB_ICONINFORMATION);
+				endConfirmDialog = true;
 			}
 
 			CIsoViewExt::pFullBitmap = nullptr;
@@ -1186,6 +1196,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					MyViewFrame.Minimap.Update();
 				}
 			}
+		}
+		if(endConfirmDialog)
+		{
+			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 		}
 	}
 	else if (wmID == 40167)

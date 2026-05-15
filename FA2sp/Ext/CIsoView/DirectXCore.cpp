@@ -87,6 +87,11 @@ bool DirectXCore::Initialize(HWND hwnd)
         Logger::Raw("[DirectXCore] CreateLineShaders failed\n");
         return false;
     }
+    if (!CreateAlphaAccumShaders())
+    {
+        Logger::Raw("[DirectXCore] CreateAlphaAccumShaders failed\n");
+        return false;
+    }
     if (!CreateQuadVertexBuffer())
     {
         Logger::Raw("[DirectXCore] CreateQuadVertexBuffer failed\n");
@@ -119,6 +124,7 @@ bool DirectXCore::Initialize(HWND hwnd)
 
     EnsureFactorTexture(vw, vh);
     EnsureScreenCopyTexture(vw, vh);
+    EnsureAlphaAccumTexture(vw, vh);
 
     D3D11_BLEND_DESC blendMul = {};
     blendMul.RenderTarget[0].BlendEnable = TRUE;
@@ -184,6 +190,14 @@ void DirectXCore::Cleanup()
     m_pLineVB.Reset();
     m_lineVBCapacity = 0;
     m_lineEntries.clear();
+
+    m_pMRTPS.Reset();
+    m_pLineModPS.Reset();
+    m_pLineConstantBuffer.Reset();
+    m_pAlphaAccumBlendState.Reset();
+    m_pAlphaAccumTex.Reset();
+    m_pAlphaAccumRTV.Reset();
+    m_pAlphaAccumSRV.Reset();
 
     m_pOffscreenDSBuffer.Reset();
     m_pOffscreenDSV.Reset();
@@ -269,6 +283,7 @@ void DirectXCore::OnResize(HWND hwnd)
     CreateOffscreenResources(vw, vh);
     EnsureFactorTexture(vw, vh);
     EnsureScreenCopyTexture(vw, vh);
+    EnsureAlphaAccumTexture(vw, vh);
 
     CreateBackgroundCacheTexture(width, height);
     m_backgroundCacheValid = false;
@@ -319,6 +334,7 @@ void DirectXCore::SetZoomOut(float scaleFactor)
     CreateOffscreenResources(vw, vh);
     EnsureFactorTexture(vw, vh);
     EnsureScreenCopyTexture(vw, vh);
+    EnsureAlphaAccumTexture(vw, vh);
 }
 
 bool DirectXCore::CreateDeviceAndSwapChain(HWND hwnd)
@@ -466,12 +482,43 @@ bool DirectXCore::CreateShadersAndInputLayout()
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
     m_pDevice->CreateBlendState(&blendDesc, &m_pBlendState);
 
+    // Independent-blend state for MRT alpha accumulation:
+    // RT0 = normal alpha blending, RT1 = overwrite (ONE, ZERO) with R-only mask.
+    D3D11_BLEND_DESC accumBlendDesc = {};
+    accumBlendDesc.AlphaToCoverageEnable = FALSE;
+    accumBlendDesc.IndependentBlendEnable = TRUE;
+    accumBlendDesc.RenderTarget[0].BlendEnable = TRUE;
+    accumBlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+    accumBlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+    accumBlendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+    accumBlendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+    accumBlendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+    accumBlendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    accumBlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+    accumBlendDesc.RenderTarget[1].BlendEnable = TRUE;
+    accumBlendDesc.RenderTarget[1].SrcBlend = D3D11_BLEND_ONE;
+    accumBlendDesc.RenderTarget[1].DestBlend = D3D11_BLEND_ZERO;
+    accumBlendDesc.RenderTarget[1].BlendOp = D3D11_BLEND_OP_ADD;
+    accumBlendDesc.RenderTarget[1].SrcBlendAlpha = D3D11_BLEND_ONE;
+    accumBlendDesc.RenderTarget[1].DestBlendAlpha = D3D11_BLEND_ZERO;
+    accumBlendDesc.RenderTarget[1].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    accumBlendDesc.RenderTarget[1].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_RED;
+    m_pDevice->CreateBlendState(&accumBlendDesc, &m_pAlphaAccumBlendState);
+
     D3D11_BUFFER_DESC cbDesc = {};
     cbDesc.ByteWidth = sizeof(CBPerObject);
     cbDesc.Usage = D3D11_USAGE_DYNAMIC;
     cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     m_pDevice->CreateBuffer(&cbDesc, nullptr, &m_pConstantBuffer);
+
+    // Small constant buffer for line shader: stores viewport size for UV calc.
+    D3D11_BUFFER_DESC lineCbDesc = {};
+    lineCbDesc.ByteWidth = sizeof(float) * 4; // float2 viewportSize + float2 pad
+    lineCbDesc.Usage = D3D11_USAGE_DYNAMIC;
+    lineCbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    lineCbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    m_pDevice->CreateBuffer(&lineCbDesc, nullptr, &m_pLineConstantBuffer);
 
     // Depth/stencil states
     D3D11_DEPTH_STENCIL_DESC dsDesc = {};
@@ -944,10 +991,109 @@ bool DirectXCore::CreateLineShaders()
     return SUCCEEDED(hr);
 }
 
+bool DirectXCore::CreateAlphaAccumShaders()
+{
+    // MRT pixel shader: outputs main color to SV_Target0 AND alpha
+    // to SV_Target1 for the accumulation buffer.
+    const char *mrtPS = R"(
+        Texture2D tex : register(t0);
+        SamplerState samp : register(s0);
+        struct PSInput {
+            float4 pos : SV_POSITION;
+            float2 uv  : TEXCOORD0;
+            float4 colorMul : COLOR0;
+            float4 mixColor : COLOR1;
+            float  mixFactor : TEXCOORD1;
+        };
+        struct PSOutput {
+            float4 rt0 : SV_Target0;
+            float4 rt1 : SV_Target1;
+        };
+        PSOutput main(PSInput input) {
+            PSOutput o;
+            float4 texColor = tex.Sample(samp, input.uv);
+            float3 multRGB = texColor.rgb * input.colorMul.rgb;
+            float3 finalRGB = lerp(multRGB, input.mixColor.rgb, input.mixFactor);
+            float finalAlpha = texColor.a * input.colorMul.a;
+            clip(finalAlpha - 1.0f / 255.0f);
+            o.rt0 = float4(finalRGB, finalAlpha);
+            o.rt1 = float4(finalAlpha, 0.0f, 0.0f, finalAlpha);
+            return o;
+        }
+    )";
+
+    // Modified line pixel shader: samples the alpha accumulation buffer
+    // and attenuates line alpha by (1 - accumAlpha) so that lines behind
+    // semi-transparent textures are partially visible ("behind glass").
+    const char *lineModPS = R"(
+        cbuffer LineCB : register(b1) {
+            float2 viewportSize;
+            float2 pad;
+        };
+        Texture2D<float> alphaAccum : register(t1);
+        SamplerState samp : register(s0);
+        float4 main(float4 pos : SV_POSITION, float4 col : COLOR0) : SV_Target {
+            float2 uv = pos.xy / viewportSize;
+            float accumAlpha = alphaAccum.Sample(samp, uv);
+            float4 lineColor = col;
+            lineColor.a *= (1.0f - accumAlpha);
+            return lineColor;
+        }
+    )";
+
+    ComPtr<ID3DBlob> psBlob, error;
+    HRESULT hr;
+
+    // Compile MRT PS
+    hr = D3DCompile(mrtPS, strlen(mrtPS), nullptr, nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &error);
+    if (FAILED(hr))
+    {
+        if (error) OutputDebugStringA((char *)error->GetBufferPointer());
+        return false;
+    }
+    hr = m_pDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &m_pMRTPS);
+    if (FAILED(hr)) return false;
+
+    // Compile modified line PS
+    hr = D3DCompile(lineModPS, strlen(lineModPS), nullptr, nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &error);
+    if (FAILED(hr))
+    {
+        if (error) OutputDebugStringA((char *)error->GetBufferPointer());
+        return false;
+    }
+    hr = m_pDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &m_pLineModPS);
+    if (FAILED(hr)) return false;
+
+    return true;
+}
+
+void DirectXCore::EnsureAlphaAccumTexture(UINT width, UINT height)
+{
+    if (m_pAlphaAccumTex && width == m_clientWidth && height == m_clientHeight)
+        return;
+    m_pAlphaAccumTex.Reset();
+    m_pAlphaAccumRTV.Reset();
+    m_pAlphaAccumSRV.Reset();
+
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Width = width;
+    desc.Height = height;
+    desc.MipLevels = 1;
+    desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+
+    HRESULT hr = m_pDevice->CreateTexture2D(&desc, nullptr, &m_pAlphaAccumTex);
+    if (FAILED(hr)) return;
+    hr = m_pDevice->CreateRenderTargetView(m_pAlphaAccumTex.Get(), nullptr, &m_pAlphaAccumRTV);
+    if (FAILED(hr)) return;
+    hr = m_pDevice->CreateShaderResourceView(m_pAlphaAccumTex.Get(), nullptr, &m_pAlphaAccumSRV);
+}
+
 void DirectXCore::RenderOffscreenContent()
 {
-
-    m_pContext->OMSetRenderTargets(1, m_OffscreenRTV.GetAddressOf(), m_pOffscreenDSV.Get());
     float clearColor[4] = {
         ExtConfigs::EnableDarkMode ? 0.125f : 1.0f,
         ExtConfigs::EnableDarkMode ? 0.125f : 1.0f,
@@ -962,9 +1108,7 @@ void DirectXCore::RenderOffscreenContent()
     m_pContext->RSSetViewports(1, &offscreenVP);
 
     m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
-    m_pContext->OMSetDepthStencilState(m_pDepthStateGE.Get(), 0);
     m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
-    m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
     auto &offscreenSampler = (m_renderScale == 1.0f)
                                  ? m_pSamplerPoint
                                  : m_pSamplerLinear;
@@ -997,50 +1141,121 @@ void DirectXCore::RenderOffscreenContent()
         return S * T;
     };
 
-    for (const auto &cmd : m_drawCommands)
+    auto DrawOneTexture = [&](const DrawCommand &cmd)
     {
-        if (cmd.bIsEffect)
-            continue;
-        if (cmd.bScreenSpace)
-            continue;
         TextureResource *tex = cmd.texRes;
-        if (!tex || !tex->srv || tex->bIsIndexTexture)
-            continue;
-
+        if (!tex || !tex->srv)
+            return;
         const auto &p = cmd.params;
         float depthZ = cmd.depth * depthScale;
-
-        // Semi-transparent textures (opacity < 1) use read-only depth:
-        // they are correctly occluded by foreground but don't write depth,
-        // so they won't block subsequent lines / textures behind them.
-        if (p.opacity < 1.0f - 1e-6f)
-            m_pContext->OMSetDepthStencilState(m_pDepthStateReadOnlyGE.Get(), 0);
-        else
-            m_pContext->OMSetDepthStencilState(m_pDepthStateGE.Get(), 0);
-
         XMMATRIX world = CalcWorldMatrixNoGlobal(p, tex->sourceView.FullWidth, tex->sourceView.FullHeight, depthZ);
         CBPerObject cb;
         cb.world = XMMatrixTranspose(world);
         cb.colorMul = XMFLOAT4(p.redMult, p.greenMult, p.blueMult, p.opacity);
         cb.mixColor = XMFLOAT4(p.mixR, p.mixG, p.mixB, 1.0f);
         cb.mixFactor = p.mixFactor;
-
         D3D11_MAPPED_SUBRESOURCE mapped;
-        HRESULT hr = m_pContext->Map(m_pConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-        if (FAILED(hr))
-            continue;
+        if (FAILED(m_pContext->Map(m_pConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+            return;
         memcpy(mapped.pData, &cb, sizeof(cb));
         m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
-
         m_pContext->VSSetConstantBuffers(0, 1, m_pConstantBuffer.GetAddressOf());
         m_pContext->PSSetShaderResources(0, 1, tex->srv.GetAddressOf());
         m_pContext->Draw(4, 0);
+    };
+
+    // ====================================================================
+    // Phase 1: Draw ALL opaque textures (depth write ON, depth test ON)
+    // ====================================================================
+    m_pContext->OMSetRenderTargets(1, m_OffscreenRTV.GetAddressOf(), m_pOffscreenDSV.Get());
+    m_pContext->OMSetDepthStencilState(m_pDepthStateGE.Get(), 0);
+    m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
+
+    for (const auto &cmd : m_drawCommands)
+    {
+        if (cmd.bIsEffect || cmd.bScreenSpace)
+            continue;
+        if (!cmd.texRes || !cmd.texRes->srv || cmd.texRes->bIsIndexTexture)
+            continue;
+        if (cmd.params.opacity < 1.0f - 1e-6f)
+            continue;
+        DrawOneTexture(cmd);
     }
 
-    // Flush GPU-batched world-space lines (rendered with depth)
-    FlushLineBatch(false);
+    // ====================================================================
+    // Phase 2: Semi-transparent textures via MRT
+    //   RT0 = Offscreen (main color with alpha blending)
+    //   RT1 = AlphaAccum (raw alpha, overwrite, R-channel only)
+    // ====================================================================
+    bool hasTransparent = false;
+    for (const auto &cmd : m_drawCommands)
+    {
+        if (cmd.bIsEffect || cmd.bScreenSpace) continue;
+        if (cmd.params.opacity < 1.0f - 1e-6f)
+        {
+            hasTransparent = true;
+            break;
+        }
+    }
 
-    // Restore state after FlushLineBatch (it changes VB/IL/topology)
+    if (hasTransparent)
+    {
+        float zero[4] = {0, 0, 0, 0};
+        m_pContext->ClearRenderTargetView(m_pAlphaAccumRTV.Get(), zero);
+
+        ID3D11RenderTargetView *mrtRTs[2] = {m_OffscreenRTV.Get(), m_pAlphaAccumRTV.Get()};
+        m_pContext->OMSetRenderTargets(2, mrtRTs, m_pOffscreenDSV.Get());
+        m_pContext->OMSetBlendState(m_pAlphaAccumBlendState.Get(), nullptr, 0xffffffff);
+        m_pContext->OMSetDepthStencilState(m_pDepthStateReadOnlyGE.Get(), 0);
+        m_pContext->PSSetShader(m_pMRTPS.Get(), nullptr, 0);
+
+        for (const auto &cmd : m_drawCommands)
+        {
+            if (cmd.bIsEffect || cmd.bScreenSpace)
+                continue;
+            if (!cmd.texRes || !cmd.texRes->srv || cmd.texRes->bIsIndexTexture)
+                continue;
+            if (cmd.params.opacity >= 1.0f - 1e-6f)
+                continue;
+            DrawOneTexture(cmd);
+        }
+
+        // Restore single RT and normal blend state
+        m_pContext->OMSetRenderTargets(1, m_OffscreenRTV.GetAddressOf(), m_pOffscreenDSV.Get());
+        m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
+    }
+
+    // ====================================================================
+    // Phase 3: World-space lines with alpha modulation
+    //   Lines sample the alpha accum buffer and attenuate output alpha
+    //   by (1 - accumAlpha) so they appear "behind" semi-transparent texels.
+    // ====================================================================
+    {
+        m_pContext->OMSetDepthStencilState(m_pDepthStateReadOnlyGE.Get(), 0);
+        if (m_pAlphaAccumSRV)
+            m_pContext->PSSetShaderResources(1, 1, m_pAlphaAccumSRV.GetAddressOf());
+
+        // Update line constant buffer with viewport size
+        float lineCBData[4] = {vw, vh, 0, 0};
+        D3D11_MAPPED_SUBRESOURCE mapped;
+        if (SUCCEEDED(m_pContext->Map(m_pLineConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+        {
+            memcpy(mapped.pData, lineCBData, sizeof(lineCBData));
+            m_pContext->Unmap(m_pLineConstantBuffer.Get(), 0);
+        }
+        m_pContext->VSSetConstantBuffers(1, 1, m_pLineConstantBuffer.GetAddressOf());
+        m_pContext->PSSetConstantBuffers(1, 1, m_pLineConstantBuffer.GetAddressOf());
+
+        FlushLineBatch(false, m_pLineModPS.Get());
+
+        // Clean up extra SRV binding
+        ID3D11ShaderResourceView *nullSRV = nullptr;
+        m_pContext->PSSetShaderResources(1, 1, &nullSRV);
+    }
+
+    // ====================================================================
+    // Restore state for effects pass
+    // ====================================================================
     stride = sizeof(QuadVertex);
     offset = 0;
     m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &stride, &offset);
@@ -1573,7 +1788,7 @@ void DirectXCore::AddLineEntry(float x0, float y0, float x1, float y1,
     m_lineEntries.push_back({x0, y0, x1, y1, color, thickness, depth, bScreenSpace});
 }
 
-void DirectXCore::FlushLineBatch(bool bScreenSpace)
+void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS)
 {
     if (!m_pDevice || !m_pContext)
         return;
@@ -1689,7 +1904,7 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace)
     m_pContext->IASetInputLayout(m_pLineInputLayout.Get());
     m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_pContext->VSSetShader(m_pLineVS.Get(), nullptr, 0);
-    m_pContext->PSSetShader(m_pLinePS.Get(), nullptr, 0);
+    m_pContext->PSSetShader(pCustomPS ? pCustomPS : m_pLinePS.Get(), nullptr, 0);
 
     // Draw all lines in one call
     m_pContext->Draw(totalVerts, 0);

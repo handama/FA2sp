@@ -22,6 +22,7 @@ struct TileBlockExt
     ImageDataClassSafe* pExtraImage = nullptr;
     POINT ExtraOffset{};
     TextureResource* pTexture = nullptr;
+    TextureResource* pExtraTexture = nullptr;
 };
 
 class CBuildingDataFS

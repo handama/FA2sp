@@ -517,268 +517,6 @@ static void DrawTechnoAttachments(
 	}
 }
 
-static void DrawMapDriect3D11()
-{
-	auto pThis = CIsoViewExt::GetExtension();
-	auto pMap = CMapDataExt::GetExtension();
-	auto pFinalSunDlg = CFinalSunDlg::Instance();
-	PalettesManager::CalculatedObjectPaletteFiles.clear();
-
-	if (pMap->MapNotLoaded)
-		return;
-
-	if (pThis->CancelDraw)
-	{
-		pThis->CancelDraw = false;
-		return;
-	}
-
-	pFinalSunDlg->LastSucceededOperation = 100;
-
-	if (pThis->lpDDPrimarySurface == NULL || pThis->IsInitializing || pMap->TileData == NULL || pMap->TileDataCount == 0 || (*CTileTypeClass::Instance) == NULL || (*CTileTypeClass::InstanceCount) == 0 || pMap->MapWidthPlusHeight == 0)
-		return;
-
-	if (!pThis->g_pDX)
-		return;
-
-	pThis->GetWindowRect(&window);
-	CIsoViewExt::AdaptRectForSecondScreen(&window);
-
-	double scale = CIsoViewExt::ScaledFactor;
-	if (scale < 0.9)
-		scale += 0.1;
-	if (scale < 0.7)
-		scale += 0.1;
-	if (scale < 0.5)
-		scale += 0.1;
-	window.right += window.Width() * (scale - 1.0);
-	if (scale < 1.0)
-		scale = 1.0;
-	window.bottom += window.Height() * (scale - 1.0);
-
-	VisibleCoordTL.X = window.left + pThis->ViewPosition.x;
-	VisibleCoordTL.Y = window.top + pThis->ViewPosition.y;
-	VisibleCoordBR.X = window.right + pThis->ViewPosition.x;
-	VisibleCoordBR.Y = window.bottom + pThis->ViewPosition.y;
-	pThis->ScreenCoord2MapCoord_Flat(VisibleCoordTL.X, VisibleCoordTL.Y);
-	pThis->ScreenCoord2MapCoord_Flat(VisibleCoordBR.X, VisibleCoordBR.Y);
-	if (VisibleCoordBR.X < 0 || VisibleCoordBR.Y < 0)
-	{
-		VisibleCoordBR.X = CMapData::Instance->Size.Width;
-		VisibleCoordBR.Y = CMapData::Instance->MapWidthPlusHeight + 1;
-	}
-	if (VisibleCoordTL.X < 0 || VisibleCoordTL.Y < 0)
-	{
-		VisibleCoordTL.X = CMapData::Instance->Size.Width;
-		VisibleCoordTL.Y = 0;
-	}
-
-	int DrawOffsetX = pThis->ViewPosition.x;
-	int DrawOffsetY = pThis->ViewPosition.y;
-
-	CIsoViewExt::drawOffsetX = DrawOffsetX;
-	CIsoViewExt::drawOffsetY = DrawOffsetY;
-
-	auto isCoordInFullMap = [](int X, int Y)
-	{
-		if (!ExtConfigs::DisplayObjectsOutside)
-			return CMapData::Instance->IsCoordInMap(X, Y);
-
-		return X >= 0 && Y >= 0 &&
-			   X < CMapData::Instance->MapWidthPlusHeight &&
-			   Y < CMapData::Instance->MapWidthPlusHeight;
-	};
-
-	visibleCells.clear();
-	for (int XplusY = VisibleCoordTL.X + VisibleCoordTL.Y - EXTRA_BORDER;
-		 XplusY < VisibleCoordBR.X + VisibleCoordBR.Y + CIsoViewExt::EXTRA_BORDER_BOTTOM;
-		 XplusY++)
-	{
-		for (int X = 0; X < XplusY; X++)
-		{
-			int Y = XplusY - X;
-			if (!IsCoordInWindow(X, Y) || !isCoordInFullMap(X, Y))
-				continue;
-			int pos = CMapData::Instance->GetCoordIndex(X, Y);
-			int screenX = X, screenY = Y;
-			CIsoView::MapCoord2ScreenCoord(screenX, screenY);
-			screenX -= DrawOffsetX;
-			screenY -= DrawOffsetY;
-			screenX -= window.left;
-			screenY -= window.top;
-			screenX += 36;
-			screenY -= 11;
-			auto cell = CMapData::Instance->GetCellAt(pos);
-			auto &cellExt = CMapDataExt::CellDataExts[pos];
-			coordToIndex[X][Y] = (WORD)visibleCells.size();
-			visibleCells.push_back({X, Y, screenX, screenY, pos,
-									CMapData::Instance->IsCoordInMap(X, Y),
-									cell,
-									&cellExt,
-									false});
-
-			cell->Flag.RedrawTerrain = false;
-			cellExt.BuildingRenderParts.clear();
-			cellExt.BaseNodeRenderParts.clear();
-		}
-	}
-	auto lighting = LightingStruct::GetCurrentLighting();
-	float AmbientMult, RedMult, GreenMult, BlueMult;
-	if (lighting == LightingStruct::NoLighting)
-	{
-		AmbientMult = 1.0f;
-		RedMult = 1.0f;
-		GreenMult = 1.0f;
-		BlueMult = 1.0f;
-	}
-	else
-	{
-		AmbientMult = lighting.Ambient - lighting.Ground;
-		RedMult = lighting.Red * AmbientMult;
-		GreenMult = lighting.Green * AmbientMult;
-		BlueMult = lighting.Blue * AmbientMult;
-	}
-	for (auto &info : visibleCells)
-	{
-		if (!info.isInMap)
-			continue;
-		auto &X = info.X;
-		auto &Y = info.Y;
-		auto &cell = info.cell;
-		auto &cellExt = info.cellExt;
-		auto &screenX = info.screenX;
-		auto &screenY = info.screenY;
-
-		CIsoViewExt::CurrentDrawCellLocation.X = X;
-		CIsoViewExt::CurrentDrawCellLocation.Y = Y;
-		CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
-
-		int altImage = cell->Flag.AltIndex;
-		int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
-		int tileSetOri = CMapDataExt::TileData[tileIndex].TileSet;
-		int tileSubIndex = cell->TileSubIndex;
-
-		int virtualHeight = cell->Height;
-		if (CFinalSunApp::Instance->FrameMode)
-		{
-			if (CMapDataExt::TileData[tileIndex].FrameModeIndex < CMapDataExt::TileDataCount)
-			{
-				tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
-			}
-			else
-			{
-				tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + cell->Height;
-				tileSubIndex = 0;
-			}
-		}
-		tileIndex = CMapDataExt::GetSafeTileIndex(tileIndex);
-
-		CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
-		int tileSet = tile.TileSet;
-		if (tile.AltTypeCount)
-		{
-			if (altImage > 0)
-			{
-				altImage = altImage < tile.AltTypeCount ? altImage : tile.AltTypeCount;
-				tile = tile.AltTypes[altImage - 1];
-			}
-		}
-
-		if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
-		{
-			auto &subTile = tile.TileBlockDatas[tileSubIndex];
-			int x = screenX;
-			int y = screenY;
-
-			if (subTile.HasValidImage)
-			{
-				auto isCellHidden = [](CellData *pCell)
-				{
-					return pCell->IsHidden() && (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers);
-				};
-
-				auto &dataExt = CMapDataExt::TileBlockDataExt[&subTile];
-				if (dataExt.pTexture)
-				{
-					DrawParams params;
-					params.SetPosition(x + subTile.XMinusExX - 30, y + subTile.YMinusExY - 15)
-						.SetOpacity(isCellHidden(cell) ? 0.5f : 1.0f)
-						.SetColorMul(RedMult, GreenMult, BlueMult);
-
-					pThis->g_pDX->DrawTexture(dataExt.pTexture, params);
-				}
-			}
-		}
-	}
-
-	for (const auto &info : visibleCells)
-	{
-		auto &X = info.X;
-		auto &Y = info.Y;
-		auto &pos = info.pos;
-		auto &cell = info.cell;
-		auto &cellExt = info.cellExt;
-		auto &x = info.screenX;
-		auto &y = info.screenY;
-
-		CIsoViewExt::CurrentDrawCellLocation.X = X;
-		CIsoViewExt::CurrentDrawCellLocation.Y = Y;
-		CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
-
-		// units
-		if (cell->Unit != -1 && CIsoViewExt::DrawUnits && (info.isInMap || ExtConfigs::DisplayObjectsOutside) && cell->Unit < CMapDataExt::UnitDatasExt.size())
-		{
-			if (!CIsoViewExt::DrawUnitsFilter || CIsoViewExt::VisibleUnits.contains(cell->Unit))
-			{
-				auto &obj = CMapDataExt::UnitDatasExt[cell->Unit];
-				if (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::MapRendererIgnoreObjects.find(obj.TypeID) == CIsoViewExt::MapRendererIgnoreObjects.end())
-				{
-					auto pType = Renderer::GetOrCreateVehicle(obj.TypeID);
-					auto land = CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex);
-					auto pData = pType->GetImageData(obj, land);
-					auto pDataShadow = pType->GetShadowData(obj, land);
-
-					if (ImageDataClassSafe::IsValidImage(pDataShadow))
-					{
-						TextureResource *pTexture = pDataShadow->GetTexture();
-						if (pTexture)
-						{
-							DrawParams params;
-							params.SetPosition(x - pDataShadow->FullWidth / 2, y - pDataShadow->FullHeight / 2)
-								.SetOpacity(0.5f);
-
-							pThis->g_pDX->DrawTexture(pTexture, params);
-						}
-					}
-					if (ImageDataClassSafe::IsValidImage(pData))
-					{
-						auto color = Miscs::GetColorRef(obj.House);
-						auto pRGB = reinterpret_cast<ColorStruct *>(&color);
-
-						auto &colors = PaletteCache::GetRemapableColorArray({pRGB->blue, pRGB->green, pRGB->red});
-						auto col = BGRStruct{pRGB->blue, pRGB->green, pRGB->red};
-						auto pPal = PalettesManager::GetObjectPalette(pData->pPalette, col, true, CIsoViewExt::CurrentDrawCellLocation);
-
-						TextureResource *pTexture = pData->GetColoredTexture(pPal, col);
-						if (pTexture)
-						{
-							DrawParams params;
-							params.SetPosition(x - pData->FullWidth / 2, y - pData->FullHeight / 2)
-								.SetColorMul(RedMult, GreenMult, BlueMult);
-
-							pThis->g_pDX->DrawTexture(pTexture, params);
-						}
-					}
-				}
-			}
-		}
-	}
-
-	pThis->g_pDX->Render();
-
-	return;
-}
-
 static void DrawMapDriectDraw()
 {
 	auto pThis = CIsoViewExt::GetExtension();
@@ -1218,7 +956,7 @@ static void DrawMapDriectDraw()
 				{
 					if (ExtConfigs::DirectXRendering)
 					{
-						CIsoViewExt::DirectXTerrain(x + subTile.XMinusExX, y + subTile.YMinusExY,
+						CIsoViewExt::DirectXTerrain(x, y,
 													&subTile, isCellHidden(cell) ? 0.5f : 1.0f);
 					}
 					else
@@ -1392,10 +1130,8 @@ static void DrawMapDriectDraw()
 				{
 					if (ExtConfigs::DirectXRendering)
 					{
-						CIsoViewExt::DirectXNormal(
-							x + 30 + dataExt.ExtraOffset.x,
-							y + 30 + dataExt.ExtraOffset.y,
-							pData, NULL, isCellHidden(cell) ? 0.5f : 1.0f, -2, -10);
+						CIsoViewExt::DirectXTerrain(x, y,
+							&subTile, isCellHidden(cell) ? 0.5f : 1.0f, cell->Height, -1, true);
 					}
 					else
 					{
@@ -2141,7 +1877,7 @@ static void DrawMapDriectDraw()
 
 							if (ExtConfigs::DirectXRendering)
 							{
-								CIsoViewExt::DirectXTerrain(x1 + subTile.XMinusExX, y1 + subTile.YMinusExY,
+								CIsoViewExt::DirectXTerrain(x1, y1,
 															&subTile, isCellHidden(cell) ? 0.5f : 1.0f);
 							}
 							else
@@ -2163,10 +1899,8 @@ static void DrawMapDriectDraw()
 								{
 									if (ExtConfigs::DirectXRendering)
 									{
-										CIsoViewExt::DirectXNormal(
-											x1 + 30 + dataExt.ExtraOffset.x,
-											y1 + 30 + dataExt.ExtraOffset.y,
-											pData, NULL, isCellHidden(cell) ? 0.5f : 1.0f, -2, -10);
+										CIsoViewExt::DirectXTerrain(x1, y1,
+											&subTile, isCellHidden(cell) ? 0.5f : 1.0f, cell->Height, -1, true);
 									}
 									else
 									{

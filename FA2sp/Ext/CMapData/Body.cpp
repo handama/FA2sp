@@ -571,7 +571,7 @@ void CMapDataExt::ProcessBuildingType(const char* ID)
 
 	// https://modenc.renegadeprojects.com/Foundation
 	// This flag is read from art(md).ini twice: 
-	// from section you specified in rules as [object]¡úImage, 
+	// from section you specified in rules as [object]ï¿½ï¿½Image, 
 	// and from simply [object] , 
 	// and the second one overrules the first if present. 
 	// however, ares's custom foundation doesn't have this bug.
@@ -1804,14 +1804,14 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 	}
 
 	static std::vector<std::pair<int, int>> directions = {
-	{1, 0},   // 0¡ã
-	{1, 1},   // 45¡ã
-	{0, 1},   // 90¡ã
-	{-1, 1},  // 135¡ã
-	{-1, 0},  // 180¡ã
-	{-1, -1}, // 225¡ã
-	{0, -1},  // 270¡ã
-	{1, -1}   // 315¡ã
+	{1, 0},   // 0ï¿½ï¿½
+	{1, 1},   // 45ï¿½ï¿½
+	{0, 1},   // 90ï¿½ï¿½
+	{-1, 1},  // 135ï¿½ï¿½
+	{-1, 0},  // 180ï¿½ï¿½
+	{-1, -1}, // 225ï¿½ï¿½
+	{0, -1},  // 270ï¿½ï¿½
+	{1, -1}   // 315ï¿½ï¿½
 	};
 
 	int height = cell->Height;
@@ -3635,7 +3635,43 @@ void CMapDataExt::InitializeTileData()
 						if (loadDX)
 						{
 							pData->GetTexture();
-							dataExt.pTexture = CIsoViewExt::g_pDX->LoadTileTexture(tileBlock, CIsoViewExt::MakeImageDataView(tileBlock, pal));
+
+							ImageDataClassSafe tempData;
+							tempData.FullHeight = 30;
+							tempData.FullWidth = 60;
+							tempData.pImageBuffer = std::make_unique<uint8_t[]>(tempData.FullHeight * tempData.FullWidth);
+
+							auto tilePixels = tileBlock->ImageData;
+							
+							int swidth = tileBlock->BlockWidth;
+							int sheight = tileBlock->BlockHeight;
+							constexpr int TILE_WIDTH = 60;
+							constexpr int TILE_HEIGHT = 30;
+						
+							RECT srcRect = { 0, 0, swidth, sheight };
+							for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
+								LONG left = std::max((LONG)tileBlock->pPixelValidRanges[row].First, srcRect.left);
+								LONG right = std::min((LONG)tileBlock->pPixelValidRanges[row].Last, srcRect.right - 1);
+								if (left > right) continue;
+								for (LONG col = left; col <= right; ++col) {
+									int posInTile = col + tileBlock->XMinusExX + (row + tileBlock->YMinusExY) * TILE_WIDTH;
+									if (col + tileBlock->XMinusExX < 0 ||
+										col + tileBlock->XMinusExX >= TILE_WIDTH ||
+										row + tileBlock->YMinusExY < 0 ||
+										row + tileBlock->YMinusExY >= TILE_HEIGHT ||
+										!CIsoViewExt::TilePixels[posInTile]) {
+										continue;
+									}
+									tempData.pImageBuffer[posInTile] = tilePixels[row * TILE_WIDTH + col];
+								}
+							}
+
+							dataExt.pTexture = CIsoViewExt::g_pDX->LoadTileTexture(tileBlock, CIsoViewExt::MakeImageDataView(&tempData, pal));
+							
+							if (ImageDataClassSafe::IsVisibleImage(dataExt.pExtraImage))
+							{
+								dataExt.pExtraTexture = CIsoViewExt::g_pDX->LoadTexture(CIsoViewExt::MakeImageDataView(dataExt.pExtraImage, pal));
+							}
 						}
 					}
 				}

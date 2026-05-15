@@ -186,10 +186,12 @@ private:
     void CreateBackgroundCacheTexture(UINT width, UINT height);
     bool CreateFinalShaders();
     bool CreateLineShaders();
+    bool CreateAlphaAccumShaders();
+    void EnsureAlphaAccumTexture(UINT width, UINT height);
     void RenderOffscreenContent();
     void RenderFinalToBackBuffer();
     void RenderScreenSpaceContent();
-    void FlushLineBatch(bool bScreenSpace);
+    void FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS = nullptr);
 
     void UpdateBackgroundCache();     
     void RestoreBackgroundFromCache();
@@ -224,6 +226,15 @@ private:
     Microsoft::WRL::ComPtr<ID3D11InputLayout>      m_pLineInputLayout;
     Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pLineVB;
     int                                            m_lineVBCapacity = 0;
+
+    // Alpha accumulation for transparency-aware line rendering (MRT)
+    Microsoft::WRL::ComPtr<ID3D11PixelShader>      m_pMRTPS;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader>      m_pLineModPS;
+    Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pLineConstantBuffer;
+    Microsoft::WRL::ComPtr<ID3D11BlendState>       m_pAlphaAccumBlendState;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D>        m_pAlphaAccumTex;
+    Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_pAlphaAccumRTV;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_pAlphaAccumSRV;
 
     Microsoft::WRL::ComPtr<ID3D11VertexShader>     m_pCompositeVS;
     Microsoft::WRL::ComPtr<ID3D11PixelShader>      m_pCompositePS;

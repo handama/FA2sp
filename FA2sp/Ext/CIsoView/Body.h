@@ -183,26 +183,24 @@ public:
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL, 
         BYTE alpha = 255, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false,
         std::vector<char>* objectOverlapMask = nullptr);
-    static void DirectXOverlay(int x, int y, ImageDataClassSafe* pd, Renderer::OverlayType* pType, byte nData);
+    static void DirectXOverlay(int x, int y, ImageDataClassSafe* pd, Renderer::OverlayType* pType, byte nData, int depth = -1);
     static void DirectXNormal(int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
-        float alpha = 1.0f, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false);
+        float alpha = 1.0f, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false, int depth = -1);
     static void DirectXBitmap(int x, int y, FString_view name, float alpha = 1.0f, bool isScreenSpace = false);
     static void DirectXAlphaImage(int x, int y, ImageDataClassSafe* pd);
     static void BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
         BYTE alpha = 255, COLORREF houseColor = -1, bool isRubble = false, bool isTerrain = false);
     static void DirectXBuilding(int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
-        float alpha = 1.0f, COLORREF houseColor = -1, bool isRubble = false, bool isTerrain = false);
-    static void DirectXShadow(int x, int y, ImageDataClassSafe* pd);
+        float alpha = 1.0f, COLORREF houseColor = -1, bool isRubble = false, bool isTerrain = false, int depth = -1);
+    static void DirectXShadow(int x, int y, ImageDataClassSafe* pd, int depth = -1);
     static void BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd);
     static void BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha = 255,
         std::vector<byte>* mask = nullptr, std::vector<byte>* heightMask = nullptr, byte height = 0,
         std::vector<int>* cellHeightMask = nullptr, int tileSet = -1, std::vector<char>* objectOverlapMask = nullptr);
-    static void DirectXTerrain(int x, int y, CTileBlockClass* subTile, float alpha = 1.0f,
-        std::vector<byte>* mask = nullptr, std::vector<byte>* heightMask = nullptr, byte height = 0,
-        std::vector<int>* cellHeightMask = nullptr, int tileSet = -1, std::vector<char>* objectOverlapMask = nullptr);
+    static void DirectXTerrain(int x, int y, CTileBlockClass* subTile, float alpha = 1.0f, byte height = 0, int depth = -1, bool onlyExtra = false);
     static void BlitCellHeightMask(std::vector<int>& cellHeightMask, const RECT* window,
         int x, int y, CTileBlockClass* subTile, int height);
     static void BlitText(const std::wstring& text, COLORREF textColor, COLORREF bgColor,
@@ -484,5 +482,5 @@ public:
     };
 
     static LastCommand LastAltCommand;
-
+    static bool TilePixels[1800];
 };

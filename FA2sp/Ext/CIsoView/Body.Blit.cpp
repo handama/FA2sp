@@ -33,7 +33,7 @@ static byte playerLocationOpacityTable[8] =
     105, 90, 75, 60, 45, 30, 15, 0
 };
 
-static bool TilePixels[1800] =
+bool CIsoViewExt::TilePixels[1800] =
 {
     false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
         false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
@@ -723,7 +723,7 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
 }
 
 void CIsoViewExt::DirectXBuilding(int x, int y, ImageDataClassSafe* pd, 
-    Palette* newPal, float alpha, COLORREF houseColor, bool isRubble, bool isTerrain)
+    Palette* newPal, float alpha, COLORREF houseColor, bool isRubble, bool isTerrain, int depth)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {
         return;
@@ -751,7 +751,7 @@ void CIsoViewExt::DirectXBuilding(int x, int y, ImageDataClassSafe* pd,
 }
 
 void CIsoViewExt::DirectXNormal(int x, int y, ImageDataClassSafe* pd, 
-    Palette* newPal, float alpha, COLORREF houseColor, int extraLightType, bool remap)
+    Palette* newPal, float alpha, COLORREF houseColor, int extraLightType, bool remap, int depth)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {
         return;
@@ -817,7 +817,7 @@ void CIsoViewExt::DirectXAlphaImage(int x, int y, ImageDataClassSafe* pd)
     g_pDX->DrawTexture(pTexture, x, y);
 }
 
-void CIsoViewExt::DirectXShadow(int x, int y, ImageDataClassSafe* pd)
+void CIsoViewExt::DirectXShadow(int x, int y, ImageDataClassSafe* pd, int depth)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {
         return;
@@ -837,7 +837,7 @@ void CIsoViewExt::DirectXShadow(int x, int y, ImageDataClassSafe* pd)
     g_pDX->DrawTexture(pTexture, params);
 }
 
-void CIsoViewExt::DirectXOverlay(int x, int y, ImageDataClassSafe* pd, Renderer::OverlayType* pType, byte nData)
+void CIsoViewExt::DirectXOverlay(int x, int y, ImageDataClassSafe* pd, Renderer::OverlayType* pType, byte nData, int depth)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {
         return;
@@ -1033,7 +1033,7 @@ void BlitTerrainImpl(
                     col + subTile->XMinusExX >= TILE_WIDTH ||
                     row + subTile->YMinusExY < 0 ||
                     row + subTile->YMinusExY >= TILE_HEIGHT ||
-                    !TilePixels[posInTile]) {
+                    !CIsoViewExt::TilePixels[posInTile]) {
                     continue;
                 }
             }
@@ -1424,9 +1424,7 @@ bool CIsoViewExt::DirectXReady()
 }
 
 void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile, 
-    float alpha, std::vector<byte>* mask, std::vector<byte>* heightMask,
-    byte height, std::vector<int>* cellHeightMask, int tileSet, 
-    std::vector<char>* objectOverlapMask)
+    float alpha, byte height, int depth, bool onlyExtra)
 {
     auto& dataExt = CMapDataExt::TileBlockDataExt[subTile];
     if (!subTile || !subTile->HasValidImage 
@@ -1467,12 +1465,9 @@ void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile,
     }
 
     const bool doFlatToGround = ExtConfigs::FlatToGroundHideExtra && CFinalSunApp::Instance->FlatToGround;
-    const bool doMaskShadow = mask != nullptr;
-    const bool doCellHeight = cellHeightMask != nullptr;
     const bool doMultiSel = multiSelected && (!RenderingMap || (RenderingMap && RenderCurrentLayers));
     const bool doOre = isEmphasizingOre;
     const bool doPlayer = isEmphasizingPlayer;
-    const bool doObjectOverlap = objectOverlapMask != nullptr;
 
     const RGBClass* selColor = doMultiSel ? reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor) : nullptr;
     const RGBClass* playerColor = doPlayer ? reinterpret_cast<RGBClass*>(&ExtConfigs::PlayerLocation_Color) : nullptr;
@@ -1487,7 +1482,22 @@ void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile,
         params.SetColorMix(*playerColor, playerOpacity / 255.0f);
     if (doOre)
         params.SetColorMix(oreColor, oreOpacity / 255.0f);
-    g_pDX->DrawTexture(dataExt.pTexture, params);
+
+    if (onlyExtra)
+    {
+        params.SetPosition(x + dataExt.ExtraOffset.x, y + dataExt.ExtraOffset.y);
+        g_pDX->DrawTexture(dataExt.pExtraTexture, params);
+    }
+    else 
+    {
+        g_pDX->DrawTexture(dataExt.pTexture, params);
+
+        if (!doFlatToGround)
+        {
+            params.SetPosition(x + dataExt.ExtraOffset.x, y + dataExt.ExtraOffset.y);
+            g_pDX->DrawTexture(dataExt.pExtraTexture, params);
+        }
+    }
 
     //if (doCellHeight)
     //{

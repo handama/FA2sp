@@ -1066,8 +1066,8 @@ void DirectXCore::RenderOffscreenContent()
 
         m_pContext->OMSetRenderTargets(1, m_pFactorRTV.GetAddressOf(), nullptr);
         m_pContext->OMSetBlendState(m_pMulBlendState.Get(), nullptr, 0xffffffff);
-m_pContext->OMSetDepthStencilState(m_pDepthStateGE.Get(), 0);
-    m_pContext->VSSetShader(m_pEffectVS.Get(), nullptr, 0);
+        m_pContext->OMSetDepthStencilState(m_pDepthStateGE.Get(), 0);
+        m_pContext->VSSetShader(m_pEffectVS.Get(), nullptr, 0);
         m_pContext->PSSetShader(m_pEffectPS.Get(), nullptr, 0);
         m_pContext->PSSetSamplers(0, 1, m_pSamplerPoint.GetAddressOf());
 
@@ -1080,7 +1080,8 @@ m_pContext->OMSetDepthStencilState(m_pDepthStateGE.Get(), 0);
                 continue;
 
             const auto &p = cmd.params;
-            XMMATRIX world = CalcWorldMatrixNoGlobal(p, idxTex->sourceView.FullWidth, idxTex->sourceView.FullHeight, cmd.depth);
+            float depthZ = cmd.depth * depthScale;
+            XMMATRIX world = CalcWorldMatrixNoGlobal(p, idxTex->sourceView.FullWidth, idxTex->sourceView.FullHeight, depthZ);
             CBPerObject cb;
             cb.world = XMMatrixTranspose(world);
             memset(&cb.colorMul, 0, sizeof(cb.colorMul) + sizeof(cb.mixColor) + sizeof(cb.mixFactor));
@@ -1554,7 +1555,14 @@ void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
     cmd.params = params;
     cmd.bIsEffect = tex->bIsIndexTexture;
     cmd.bScreenSpace = params.bScreenSpace;
-    cmd.depth = params.bScreenSpace ? 0 : GetNextDepth();
+    if (params.drawDepth != -1)
+    {
+        cmd.depth = params.drawDepth;
+    }
+    else
+    {
+        cmd.depth = params.bScreenSpace ? 0 : GetNextDepth();
+    }
     m_drawCommands.push_back(cmd);
 }
 
@@ -2047,7 +2055,15 @@ void DrawShapes::DrawLine(float x0, float y0, float x1, float y1,
         ShapeColor col = params.color;
         col.a *= params.opacity;
         uint32_t rgba = ColorToU32(col);
-        UINT depth = params.bScreenSpace ? 0 : m_dx->GetNextDepth();
+        UINT depth = 0;
+        if (params.drawDepth != -1)
+        {
+            depth = params.drawDepth;
+        }
+        else
+        {
+            depth = params.bScreenSpace ? 0 :  m_dx->GetNextDepth();
+        }
 
         bool useDash = (params.dashLength > 0.f && params.gapLength > 0.f);
         if (useDash)
@@ -2151,7 +2167,15 @@ void DrawShapes::DrawRect(float x, float y, float w, float h,
         ShapeColor bc = params.borderColor;
         bc.a *= params.opacity;
         uint32_t rgba = ColorToU32(bc);
-        UINT depth = params.bScreenSpace ? 0 : m_dx->GetNextDepth();
+        UINT depth = 0;
+        if (params.drawDepth != -1)
+        {
+            depth = params.drawDepth;
+        }
+        else
+        {
+            depth = params.bScreenSpace ? 0 :  m_dx->GetNextDepth();
+        }
 
         struct Seg { float ax, ay, bx, by; };
         Seg segs[4] = {
@@ -2232,7 +2256,15 @@ void DrawShapes::DrawEllipse(float cx, float cy, float rx, float ry,
         ShapeColor bc = params.borderColor;
         bc.a *= params.opacity;
         uint32_t rgba = ColorToU32(bc);
-        UINT depth = params.bScreenSpace ? 0 : m_dx->GetNextDepth();
+        UINT depth = 0;
+        if (params.drawDepth != -1)
+        {
+            depth = params.drawDepth;
+        }
+        else
+        {
+            depth = params.bScreenSpace ? 0 :  m_dx->GetNextDepth();
+        }
 
         int segs = params.segments > 0
                        ? params.segments
@@ -2436,7 +2468,7 @@ bool TextRenderer::MeasureText(const FString &text,
         DT_CALCRECT |
         DT_TOP |
         DT_NOPREFIX |
-        DT_WORDBREAK;
+        DT_SINGLELINE;
 
     switch (params.align)
     {
@@ -2457,7 +2489,7 @@ bool TextRenderer::MeasureText(const FString &text,
     DrawTextW(hdc, wtext.c_str(), (int)wtext.size(), &rc,
               dtFlags);
 
-    outW = (rc.right - rc.left) + params.paddingX * 2;
+    outW = (rc.right - rc.left) + params.paddingX * 2 + 2;
     outH = (rc.bottom - rc.top) + params.paddingY * 2;
     if (outW < 1)
         outW = 1;
@@ -2618,7 +2650,7 @@ bool TextRenderer::RasterizeGDI(
         DT_CALCRECT |
         DT_TOP |
         DT_NOPREFIX |
-        DT_WORDBREAK;
+        DT_SINGLELINE;
 
     switch (p.align)
     {
@@ -2648,7 +2680,7 @@ bool TextRenderer::RasterizeGDI(
     int textW = rcMeasure.right - rcMeasure.left;
     int textH = rcMeasure.bottom - rcMeasure.top;
 
-    outW = std::max(1, textW + p.paddingX * 2);
+    outW = std::max(1, textW + p.paddingX * 2 + 2);
     outH = std::max(1, textH + p.paddingY * 2);
 
     EnsureDC(outW, outH);

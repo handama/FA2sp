@@ -68,6 +68,7 @@ public:
     float mixG = 0.0f;
     float mixB = 0.0f;
     float mixFactor = 0.0f;
+    int drawDepth = -1;
     bool bScreenSpace = false;
 
     DrawParams& SetPosition(float _x, float _y) { x = _x; y = _y; return *this; }
@@ -97,6 +98,7 @@ public:
     }
     DrawParams& SetColorMix(RGBClass color, float factor);
     DrawParams& SetScreenSpace() { bScreenSpace = true; return *this; }
+    DrawParams& SetDrawDepth(int depth) { drawDepth = depth; return *this; }
 };
 
 struct TextureResource {
@@ -148,6 +150,7 @@ public:
     // The value is written into the depth buffer so GPU GreaterEqual testing
     // produces correct occlusion automatically.
     UINT GetNextDepth() { return m_globalDepth++; }
+    void SetCurrentDepth(UINT depth) { m_globalDepth = depth; }
     void ResetDepth() { m_globalDepth = 0; }
     int GetClientWidth() const { return m_clientWidth; }
     int GetClientHeight() const { return m_clientHeight; }
@@ -301,6 +304,7 @@ struct LineParams {
     float      dashLength = 0.f;    
     float      gapLength = 0.f;     
     float      opacity = 1.f;       
+    int       drawDepth = -1;
     bool       bScreenSpace = false;
     bool       antiAlias = false;
 
@@ -310,6 +314,7 @@ struct LineParams {
     LineParams& SetScreenSpace() { bScreenSpace = true; return *this; }
     LineParams& SetDash(float dash, float gap) { dashLength = dash; gapLength = gap; return *this; }
     LineParams& SetAntiAlias(bool b = true) { antiAlias = b; return *this; }
+    LineParams& SetDrawDepth(int depth) { drawDepth = depth; return *this; }
 };
 
 struct RectParams {
@@ -319,6 +324,7 @@ struct RectParams {
     float      dashLength = 0.f;     
     float      gapLength = 0.f;      
     float      opacity = 1.f;        
+    int        drawDepth = -1;
     bool       bScreenSpace = false;
 
     RectParams& SetBorderColor(ShapeColor c) { borderColor = c; return *this; }
@@ -328,6 +334,7 @@ struct RectParams {
     RectParams& SetOpacity(float o) { opacity = o; return *this; }
     RectParams& SetScreenSpace() { bScreenSpace = true; return *this; }
     RectParams& NoBorder() { borderWidth = 0; return *this; }
+    RectParams& SetDrawDepth(int depth) { drawDepth = depth; return *this; }
 };
 
 struct EllipseParams {
@@ -337,7 +344,8 @@ struct EllipseParams {
     float      dashLength = 0.f;      
     float      gapLength = 0.f;
     float      opacity = 1.f;
-    int        segments = 0;          
+    int        segments = 0;         
+    int        drawDepth = -1; 
     bool       bScreenSpace = false;
 
     EllipseParams& SetBorderColor(ShapeColor c) { borderColor = c; return *this; }
@@ -348,6 +356,7 @@ struct EllipseParams {
     EllipseParams& SetSegments(int s) { segments = s; return *this; }
     EllipseParams& SetScreenSpace() { bScreenSpace = true; return *this; }
     EllipseParams& NoBorder() { borderWidth = 0; return *this; }
+    EllipseParams& SetDrawDepth(int depth) { drawDepth = depth; return *this; }
 };
 
 class DrawShapes {

@@ -703,7 +703,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
                             {
                                 leftLine = Translations::TranslateOrDefault("ViewDeathWeaponRangeInfo", "Death Weapon Range");
                                 CIsoViewExt::TextOutDirectX(rect.left + tab, rect.top + 10 + lineHeight * leftIndex, leftLine, 
-                                    fontSize, (COLORREF)ExtConfigs::DeathWeaponRangeBound_Color,  (COLORREF)ExtConfigs::DeathWeaponRangeBound_Color);
+                                    fontSize, RGB(0, 0, 0),  (COLORREF)ExtConfigs::DeathWeaponRangeBound_Color);
                                 leftIndex++;
                             }
                             else
@@ -722,14 +722,14 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
                         {
                             leftLine = Translations::TranslateOrDefault("ViewWeaponRangeInfo", "Primary Range");
                             CIsoViewExt::TextOutDirectX(rect.left + tab, rect.top + 10 + lineHeight * leftIndex, 
-                                leftLine, fontSize,  (COLORREF)ExtConfigs::WeaponRangeBound_Color, (COLORREF)ExtConfigs::WeaponRangeBound_Color);
+                                leftLine, fontSize,  RGB(0, 0, 0), (COLORREF)ExtConfigs::WeaponRangeBound_Color);
                             leftIndex++;
 
                             if (minimumRange > 0)
                             {
                                 leftLine = Translations::TranslateOrDefault("WeaponMinimumRangeInfo", "Minimum Range");
                                 CIsoViewExt::TextOutDirectX(rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex, 
-                                    leftLine, fontSize, (COLORREF)ExtConfigs::WeaponRangeMinimumBound_Color, (COLORREF)ExtConfigs::WeaponRangeMinimumBound_Color);
+                                    leftLine, fontSize, RGB(0, 0, 0), (COLORREF)ExtConfigs::WeaponRangeMinimumBound_Color);
                                 leftIndex++;
                             }
                         }
@@ -756,14 +756,14 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
                         {
                             leftLine = Translations::TranslateOrDefault("ViewSecondaryWeaponRangeInfo", "Secondary Range");
                             CIsoViewExt::TextOutDirectX(rect.left + tab, rect.top + 10 + lineHeight * leftIndex, 
-                                leftLine, fontSize, (COLORREF)ExtConfigs::SecondaryWeaponRangeBound_Color, (COLORREF)ExtConfigs::SecondaryWeaponRangeBound_Color);
+                                leftLine, fontSize, RGB(0, 0, 0), (COLORREF)ExtConfigs::SecondaryWeaponRangeBound_Color);
                             leftIndex++;
 
                             if (minimumRange > 0)
                             {
                                 leftLine = Translations::TranslateOrDefault("WeaponMinimumRangeInfo", "Minimum Range");
                                 CIsoViewExt::TextOutDirectX(rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex, 
-                                    leftLine, fontSize, (COLORREF)ExtConfigs::SecondaryWeaponRangeMinimumBound_Color, (COLORREF)ExtConfigs::SecondaryWeaponRangeMinimumBound_Color);
+                                    leftLine, fontSize, RGB(0, 0, 0), (COLORREF)ExtConfigs::SecondaryWeaponRangeMinimumBound_Color);
                                 leftIndex++;
                             }
                         }
@@ -862,7 +862,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
                     if (ExtConfigs::DirectXRendering)
                     {
                         CIsoViewExt::TextOutDirectX(rect.left + tab, rect.top + 10 + lineHeight * leftIndex, 
-                            leftLine, fontSize,  (COLORREF)color,  (COLORREF)color);
+                            leftLine, fontSize,  RGB(0, 0, 0),  (COLORREF)color);
                         leftIndex++;
                     }
                     else

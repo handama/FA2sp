@@ -83,6 +83,8 @@ public:
     static int SensorsRangeBound_Color;
     static int CloakRangeBound_Color;
     static int PsychicRangeBound_Color;
+    static int DesignatorRangeBound_Color;
+    static int InhibitorRangeBound_Color;
     static int GuardRangeBound_Color;
     static int SightRangeBound_Color;
     static bool WeaponRangeBound_SubjectToElevation;

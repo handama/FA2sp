@@ -2648,6 +2648,8 @@ void CViewObjectsExt::Redraw_ViewObjectInfo()
     this->InsertTranslatedString("ViewSensorsRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::SensorsRange, hRange);
     this->InsertTranslatedString("ViewCloakRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::CloakRange, hRange);
     this->InsertTranslatedString("ViewPsychicRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::PsychicRange, hRange);
+    this->InsertTranslatedString("ViewDesignatorRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::DesignatorRange, hRange);
+    this->InsertTranslatedString("ViewInhibitorRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::InhibitorRange, hRange);
 
 }
 
@@ -4663,7 +4665,6 @@ bool CViewObjectsExt::UpdateEngine(int nData)
             return true;
         }
     }
-
     if (nCode == 11) // BaseNode
     {
         if (nData == MoveUp)
@@ -4853,6 +4854,20 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         {
             CIsoView::CurrentCommand->Command = 0x1B; // view object
             CIsoView::CurrentCommand->Type = ObjectTerrainType::SightRange;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::DesignatorRange)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::DesignatorRange;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::InhibitorRange)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::InhibitorRange;
 
             return true;
         }

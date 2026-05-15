@@ -813,6 +813,16 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
                     color = ExtConfigs::PsychicRangeBound_Color;
                     leftLine = Translations::TranslateOrDefault("ViewPsychicRangeInfo", "Psychic Range");
                 }
+                else if (drawCase == CViewObjectsExt::ObjectTerrainType::DesignatorRange) {
+                    range = mmh.GetSingle(ID, "DesignatorRange");
+                    color = ExtConfigs::DesignatorRangeBound_Color;
+                    leftLine = Translations::TranslateOrDefault("ViewDesignatorRangeInfo", "Designator Range");
+                }
+                else if (drawCase == CViewObjectsExt::ObjectTerrainType::InhibitorRange) {
+                    range = mmh.GetSingle(ID, "InhibitorRange");
+                    color = ExtConfigs::InhibitorRangeBound_Color;
+                    leftLine = Translations::TranslateOrDefault("ViewInhibitorRangeInfo", "Inhibitor Range");
+                }
                 else if (drawCase == CViewObjectsExt::ObjectTerrainType::GuardRange)
                 {
                     range = mmh.GetSingle(ID, "GuardRange");
@@ -899,6 +909,12 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
                     }
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::SightRange || All) {
                         drawOtherRange(ID, objectX, objectY, CViewObjectsExt::ObjectTerrainType::SightRange, isBuilding);
+                    }
+                    if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::DesignatorRange || All) {
+                        drawOtherRange(ID, objectX, objectY, CViewObjectsExt::ObjectTerrainType::DesignatorRange, isBuilding);
+                    }
+                    if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::InhibitorRange || All) {
+                        drawOtherRange(ID, objectX, objectY, CViewObjectsExt::ObjectTerrainType::InhibitorRange, isBuilding);
                     }
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::SecondaryWeaponRange || All) {
 

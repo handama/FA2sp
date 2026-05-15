@@ -313,7 +313,10 @@ public:
         CloakRange,
         PsychicRange,
         GuardRange,
+        DesignatorRange,
+        InhibitorRange,
         SightRange,
+        
         AllRange,
     };
 

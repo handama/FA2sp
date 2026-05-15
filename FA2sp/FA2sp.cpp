@@ -74,6 +74,8 @@ int ExtConfigs::GapRangeBound_Color;
 int ExtConfigs::SensorsRangeBound_Color;
 int ExtConfigs::CloakRangeBound_Color;
 int ExtConfigs::PsychicRangeBound_Color;
+int ExtConfigs::DesignatorRangeBound_Color;
+int ExtConfigs::InhibitorRangeBound_Color;
 int ExtConfigs::GuardRangeBound_Color;
 int ExtConfigs::SightRangeBound_Color;
 int ExtConfigs::CursorSelectionBound_HeightColor;
@@ -310,6 +312,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::PsychicRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "PsychicRangeBound.Color", 0x00FFFF);
 	ExtConfigs::GuardRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "GuardRangeBound.Color", 0x00FF00);
 	ExtConfigs::SightRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "SightRangeBound.Color", 0xFFFFFF);
+	ExtConfigs::DesignatorRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "DesignatorRangeBound.Color", 0x4CB122);
+	ExtConfigs::InhibitorRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "InhibitorRangeBound.Color", 0x302ECC);
 
 	ExtConfigs::WeaponRangeBound_SubjectToElevation = CINI::FAData->GetBool("ExtConfigs", "WeaponRangeBound.SubjectToElevation");
 

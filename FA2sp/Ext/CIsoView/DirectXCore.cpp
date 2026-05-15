@@ -2,6 +2,7 @@
 #include <vector>
 #include <cstring>
 #include <string>
+#include <algorithm>
 #include "../CLoading/Body.h"
 #include "Body.h"
 #include "DirectXCore.h"
@@ -1850,6 +1851,62 @@ void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
         cmd.depth = params.bScreenSpace ? 0 : GetNextDepth();
     }
     m_drawCommands.push_back(cmd);
+}
+
+int DirectXCore::DrawTexture(TextureResource* tex, const DrawParams& params, std::vector<int>& drawCommandIndices)
+{
+    drawCommandIndices.clear();
+    if (!tex)
+        return -1;
+
+    // Calculate bounding rect of the new command
+    float newL = params.x;
+    float newT = params.y;
+    float newR = params.x + tex->sourceView.FullWidth * params.scaleX;
+    float newB = params.y + tex->sourceView.FullHeight * params.scaleY;
+
+    // Ensure proper ordering (left <= right, top <= bottom)
+    if (newL > newR) std::swap(newL, newR);
+    if (newT > newB) std::swap(newT, newB);
+
+    // Check overlap with each existing draw command
+    for (int i = 0; i < (int)m_drawCommands.size(); ++i)
+    {
+        const auto& cmd = m_drawCommands[i];
+        if (!cmd.texRes)
+            continue;
+        if (cmd.bScreenSpace != params.bScreenSpace)
+            continue;
+
+        float l = cmd.params.x;
+        float t = cmd.params.y;
+        float r = cmd.params.x + cmd.texRes->sourceView.FullWidth * cmd.params.scaleX;
+        float b = cmd.params.y + cmd.texRes->sourceView.FullHeight * cmd.params.scaleY;
+
+        if (l > r) std::swap(l, r);
+        if (t > b) std::swap(t, b);
+
+        // AABB overlap test
+        if (newL < r && newR > l && newT < b && newB > t)
+            drawCommandIndices.push_back(i);
+    }
+
+    // Queue the new command (same logic as the original DrawTexture)
+    DrawCommand cmd;
+    cmd.texRes = tex;
+    cmd.params = params;
+    cmd.bIsEffect = tex->bIsIndexTexture;
+    cmd.bScreenSpace = params.bScreenSpace;
+    if (params.drawDepth != -1)
+    {
+        cmd.depth = params.drawDepth;
+    }
+    else
+    {
+        cmd.depth = params.bScreenSpace ? 0 : GetNextDepth();
+    }
+    m_drawCommands.push_back(cmd);
+    return (int)(m_drawCommands.size() - 1);
 }
 
 void DirectXCore::AddLineEntry(float x0, float y0, float x1, float y1,

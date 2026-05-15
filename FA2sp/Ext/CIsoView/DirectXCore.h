@@ -70,6 +70,7 @@ public:
     float mixFactor = 0.0f;
     int drawDepth = -1;
     bool bScreenSpace = false;
+    bool bIsShadow = false;
 
     DrawParams& SetPosition(float _x, float _y) { x = _x; y = _y; return *this; }
     DrawParams& SetScale(float sx, float sy) { scaleX = sx; scaleY = sy; return *this; }
@@ -111,6 +112,14 @@ struct TextureResource {
 class DirectXCore
 {
 public:
+    struct DrawCommand {
+        TextureResource* texRes = nullptr;
+        DrawParams params;
+        bool bIsEffect = false;
+        bool bScreenSpace = false;
+        UINT depth = 0;
+    };
+
     DirectXCore();
     ~DirectXCore();
 
@@ -136,6 +145,7 @@ public:
     void DrawTexture(TextureResource* tex, float x, float y) {
         DrawParams p; p.x = x; p.y = y; DrawTexture(tex, p);
     }
+    int DrawTexture(TextureResource* tex, const DrawParams& params, std::vector<int>& drawCommandIndices);
 
     void SetGlobalTransform(float scaleX, float scaleY, float offsetX, float offsetY);
     void ResetGlobalTransform() { SetGlobalTransform(1.0f, 1.0f, 0.0f, 0.0f); }
@@ -167,14 +177,9 @@ public:
                       uint32_t color, float thickness, UINT depth,
                       bool bScreenSpace = false);
 
+    std::vector<DrawCommand>& GetDrawCommandList() { return m_drawCommands; }
+
 private:
-    struct DrawCommand {
-        TextureResource* texRes = nullptr;
-        DrawParams params;
-        bool bIsEffect = false;
-        bool bScreenSpace = false;
-        UINT depth = 0;
-    };
 
     bool CreateDeviceAndSwapChain(HWND hwnd);
     bool CreateShadersAndInputLayout();

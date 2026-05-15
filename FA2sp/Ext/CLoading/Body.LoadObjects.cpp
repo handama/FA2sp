@@ -1888,7 +1888,14 @@ void CLoadingExt::LoadTerrainOrSmudge(const FString& ID, bool terrain)
 	FString ImageID = GetTerrainOrSmudgeFileID(ID);
 	FString FileName = ImageID + this->GetFileExtension();
 	if (!CMixFile::LoadSHP(FileName))
-		return;
+	{
+		if (ExtConfigs::UseStrictNewTheater)
+			return;
+
+		FileName = ImageID + ".shp";
+		if (!CMixFile::LoadSHP(FileName))
+			return;
+	}
 	ShapeHeader header;
 	unsigned char* FramesBuffers[1];
 	CShpFile::GetSHPHeader(&header);

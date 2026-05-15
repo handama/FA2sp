@@ -2127,6 +2127,11 @@ DEFINE_HOOK(4763B0, CIsoView_OnRButtonDown_FixPos, 8)
 	{
 		GetCursorPos(&pThis->MouseCenterPosition);
 		::ScreenToClient(pThis->GetSafeHwnd(), &pThis->MouseCenterPosition);
+		if (ExtConfigs::SecondScreenSupport)
+		{
+			pThis->MouseCenterPosition.x -= GetSystemMetrics(SM_XVIRTUALSCREEN);
+			pThis->MouseCenterPosition.y -= GetSystemMetrics(SM_YVIRTUALSCREEN);
+		}
 		tempMouseCenterPosition = pThis->MouseCenterPosition;
 		pThis->MoveCenterPosition.x = pThis->MouseCenterPosition.x;
 		pThis->MoveCenterPosition.y = pThis->MouseCenterPosition.y;

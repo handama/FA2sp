@@ -723,7 +723,8 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
 }
 
 void CIsoViewExt::DirectXBuilding(int x, int y, ImageDataClassSafe* pd, 
-    Palette* newPal, float alpha, COLORREF houseColor, bool isRubble, bool isTerrain)
+    Palette* newPal, float alpha, COLORREF houseColor, bool isRubble, bool isTerrain,
+    byte stencilHeight)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {
         return;
@@ -747,11 +748,21 @@ void CIsoViewExt::DirectXBuilding(int x, int y, ImageDataClassSafe* pd,
     params.SetPosition(x, y)
         .SetOpacity(alpha)
         .SetColorMul(colorMult);
+
+    // Stencil: 写入对象高度+3（clamp到255，匹配original object+2 buffer）
+    // 地表重绘时通过GREATER比较 terrainHeight+1 > stencil 来实现遮挡
+    // 即 terrainHeight > objectHeight+2 时地表才会覆盖对象
+    if (stencilHeight != 0xFF) {
+        params.SetStencilRef(std::min(static_cast<int>(stencilHeight) + 3, 255));
+        params.bWriteStencil = true;
+    }
+
     g_pDX->DrawTexture(pTexture, params);
 }
 
 void CIsoViewExt::DirectXNormal(int x, int y, ImageDataClassSafe* pd, 
-    Palette* newPal, float alpha, COLORREF houseColor, int extraLightType, bool remap)
+    Palette* newPal, float alpha, COLORREF houseColor, int extraLightType, bool remap,
+    byte stencilHeight)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {
         return;
@@ -780,6 +791,15 @@ void CIsoViewExt::DirectXNormal(int x, int y, ImageDataClassSafe* pd,
     params.SetPosition(x, y)
         .SetOpacity(alpha)
         .SetColorMul(colorMult);
+
+    // Stencil: 写入对象高度+3（clamp到255，匹配original object+2 buffer）
+    // 地表重绘时通过GREATER比较 terrainHeight+1 > stencil 来实现遮挡
+    // 即 terrainHeight > objectHeight+2 时地表才会覆盖对象
+    if (stencilHeight != 0xFF) {
+        params.SetStencilRef(std::min(static_cast<int>(stencilHeight) + 3, 255));
+        params.bWriteStencil = true;
+    }
+
     g_pDX->DrawTexture(pTexture, params);
 }
 
@@ -1490,7 +1510,10 @@ void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile,
     if (doOre)
         params.SetColorMix(oreColor,  1.0f - oreOpacity / 255.0f);
 
-    params.SetStencilRef(height < 0 ? -1 : (height + 1));
+    if (height>= 0)
+    {
+        params.SetStencilRef(height + 1);
+    }
 
     if (onlyExtra)
     {

@@ -1884,7 +1884,12 @@ static void DrawMapDriectDraw()
 							if (ExtConfigs::DirectXRendering)
 							{
 								CIsoViewExt::DirectXTerrain(x1, y1,
-															&subTile, isCellHidden(cell) ? 0.5f : 1.0f, cell->Height);
+															&subTile, isCellHidden(cell) ? 0.5f : 1.0f,
+															cell->Height + (subTile.YMinusExY < 0 ? ((subTile.YMinusExY) / -30) : 0));
+								
+								FString tmp;
+								tmp.Format("%d",cell->Height + (subTile.YMinusExY < 0 ? ((subTile.YMinusExY + 15) / -30) : 0));
+								CIsoViewExt::TextOutDirectX(x1, y1, tmp, 14);
 							}
 							else
 							{
@@ -1959,7 +1964,7 @@ static void DrawMapDriectDraw()
 						CIsoViewExt::DirectXNormal(
 							x - pData->FullWidth / 2,
 							y - pData->FullHeight / 2,
-							pData);
+							pData, NULL, 255, -1, -1, false, info.aroundRedrawCell ? cell->Height : 0xFF);
 					}
 					else
 					{
@@ -2092,7 +2097,7 @@ static void DrawMapDriectDraw()
 						CIsoViewExt::DirectXNormal(
 							x - pData->FullWidth / 2,
 							y - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
-							pData, NULL, 1.0f, 0, pType->IsTiberiumTree ? 6 : (pType->HasCustomPalette ? 5 : -1));
+							pData, NULL, 1.0f, 0, pType->IsTiberiumTree ? 6 : (pType->HasCustomPalette ? 5 : -1), false, info.aroundRedrawCell ? cell->Height : 0xFF);
 					}
 					else
 					{
@@ -2167,7 +2172,7 @@ static void DrawMapDriectDraw()
 										!pType->IsDamagedAsRubble && (pType->LeaveRubble || ExtConfigs::HideNoRubbleBuilding);
 						auto isTerrain = pType->IsTerrainPalette;
 						CIsoViewExt::DirectXBuilding(part.DrawX, part.DrawY - part.pData->FullHeight / 2,
-													 part.pData, part.pPal, isCloakable(pType) ? 0.5f : 1.0f, objRender.HouseColor, isRubble, isTerrain);
+													 part.pData, part.pPal, isCloakable(pType) ? 0.5f : 1.0f, objRender.HouseColor, isRubble, isTerrain, info.aroundRedrawCell ? cell->Height : 0xFF);
 					}
 					else
 					{
@@ -2190,7 +2195,7 @@ static void DrawMapDriectDraw()
 											x1 - pData->ClipOffsets.FullWidth / 2 + pData->ClipOffsets.LeftOffset,
 											y1 - pData->FullHeight / 2, pData.get(),
 											NULL, isCloakable(pType) ? 0.5f : 1.0f,
-											objRender.HouseColor, false, pType->IsTerrainPalette);
+											objRender.HouseColor, false, pType->IsTerrainPalette, info.aroundRedrawCell ? cell->Height : 0xFF);
 									}
 									else
 									{
@@ -2246,7 +2251,7 @@ static void DrawMapDriectDraw()
 									y2 - pUpgData->FullHeight / 2,
 									pUpgData, NULL,
 									isCloakable(pType) ? 0.5f : 1.0f,
-									objRender.HouseColor, false, pType->IsTerrainPalette);
+									objRender.HouseColor, false, pType->IsTerrainPalette, info.aroundRedrawCell ? cell->Height : 0xFF);
 							}
 							else
 							{
@@ -2391,7 +2396,7 @@ static void DrawMapDriectDraw()
 					{
 						CIsoViewExt::DirectXBuilding(
 							part.DrawX, part.DrawY - part.pData->FullHeight / 2,
-							part.pData, part.pPal, 0.5f, part.HouseColor);
+							part.pData, part.pPal, 0.5f, part.HouseColor, false, false, info.aroundRedrawCell ? cell->Height : 0xFF);
 					}
 					else
 					{
@@ -2440,7 +2445,7 @@ static void DrawMapDriectDraw()
 							x - pData->FullWidth / 2,
 							y - pData->FullHeight / 2 + 15 - (HoveringUnit ? 10 : 0) -
 								(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
-							pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 0, true);
+							pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 0, true, info.aroundRedrawCell ? cell->Height : 0xFF);
 					}
 					else
 					{
@@ -2496,7 +2501,7 @@ static void DrawMapDriectDraw()
 					{
 						CIsoViewExt::DirectXNormal(
 							x - pData->FullWidth / 2, y - pData->FullHeight / 2 + 15,
-							pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 2, true);
+							pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 2, true, info.aroundRedrawCell ? cell->Height : 0xFF);
 					}
 					else
 					{
@@ -2564,7 +2569,7 @@ static void DrawMapDriectDraw()
 						{
 							CIsoViewExt::DirectXNormal(
 								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2,
-								pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 1, true);
+								pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 1, true, info.aroundRedrawCell ? cell->Height : 0xFF);
 						}
 						else
 						{

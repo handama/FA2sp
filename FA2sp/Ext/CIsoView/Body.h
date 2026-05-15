@@ -185,14 +185,16 @@ public:
         std::vector<char>* objectOverlapMask = nullptr);
     static void DirectXOverlay(int x, int y, ImageDataClassSafe* pd, Renderer::OverlayType* pType, byte nData);
     static void DirectXNormal(int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
-        float alpha = 1.0f, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false);
+        float alpha = 1.0f, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false,
+        byte stencilHeight = 0xFF);
     static void DirectXBitmap(int x, int y, FString_view name, float alpha = 1.0f, bool isScreenSpace = false);
     static void DirectXAlphaImage(int x, int y, ImageDataClassSafe* pd);
     static void BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
         BYTE alpha = 255, COLORREF houseColor = -1, bool isRubble = false, bool isTerrain = false);
     static void DirectXBuilding(int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
-        float alpha = 1.0f, COLORREF houseColor = -1, bool isRubble = false, bool isTerrain = false);
+        float alpha = 1.0f, COLORREF houseColor = -1, bool isRubble = false, bool isTerrain = false,
+        byte stencilHeight = 0xFF);
     static void DirectXShadow(int x, int y, ImageDataClassSafe* pd, byte stencilHeight = 0xFF);
     static void BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd);

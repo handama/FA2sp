@@ -2,6 +2,7 @@
 
 #include "../../FA2sp.h"
 #include "../CIsoView/Body.h"
+#include "../CIsoView/DirectXCore.h"
 #include "../CMapData/Body.h"
 #include "../CFinalSunApp/Body.h"
 #include <CMapData.h>
@@ -1136,7 +1137,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			if (!CMapData::Instance->MapWidthPlusHeight && !batchProcess)
 				return TRUE;
 
-			TempValueHolder<double> scaled(CIsoViewExt::ScaledFactor, 1.0);
+			auto tempScaledFactor = CIsoViewExt::ScaledFactor;
+			CIsoViewExt::ScaledFactor = 1.0;
+			if (ExtConfigs::DirectXRendering)
+			{
+				CIsoViewExt::g_pDX->SetZoomOut(CIsoViewExt::ScaledFactor);
+			}
 			std::vector<std::unique_ptr<TempValueHolder<bool>>> holders;
 			std::vector<std::unique_ptr<TempValueHolder<BOOL>>> holders2;
 			
@@ -1195,6 +1201,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					renderMap(p, true);
 					MyViewFrame.Minimap.Update();
 				}
+			}
+
+			CIsoViewExt::ScaledFactor = tempScaledFactor;
+			if (ExtConfigs::DirectXRendering)
+			{
+				CIsoViewExt::g_pDX->SetZoomOut(CIsoViewExt::ScaledFactor);
 			}
 		}
 		if(endConfirmDialog)

@@ -369,7 +369,7 @@ static void DrawTechnoAttachments(
 						CIsoViewExt::DirectXShadow(
 							displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
 							displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
-							pData);
+							pData, cell ? static_cast<byte>(cell->Height) : 0xFF);
 					}
 					else
 					{
@@ -945,7 +945,7 @@ static void DrawMapDriectDraw()
 			}
 		}
 
-		if (!cell->Flag.RedrawTerrain || CFinalSunApp::Instance->FlatToGround)
+		if (!cell->Flag.RedrawTerrain || CFinalSunApp::Instance->FlatToGround || ExtConfigs::DirectXRendering)
 		{
 			if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
 			{
@@ -966,8 +966,8 @@ static void DrawMapDriectDraw()
 					{
 						Palette *pal = CMapDataExt::TileSetPalettes[tileSet];
 						CIsoViewExt::BlitTerrain(pThis, ddsd.lpSurface, window, boundary,
-												 x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
-												 isCellHidden(cell) ? 128 : 255, nullptr, nullptr, cell->Height, &cellHeightMask, tileSetOri);
+													x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
+													isCellHidden(cell) ? 128 : 255, nullptr, nullptr, cell->Height, &cellHeightMask, tileSetOri);
 					}
 
 					auto &cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
@@ -980,12 +980,15 @@ static void DrawMapDriectDraw()
 							cellExt.HasAnim = true;
 						}
 					}
-					if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
+					if (!cell->Flag.RedrawTerrain || CFinalSunApp::Instance->FlatToGround)
+					{
+						if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
 						RedrawCoords.push_back(MapCoord{X, Y});
+					}
 				}
 			}
 		}
-		else if (cell->Flag.RedrawTerrain && !CFinalSunApp::Instance->FlatToGround)
+		if (cell->Flag.RedrawTerrain && !CFinalSunApp::Instance->FlatToGround)
 		{
 			for (int i = 1; i <= 2; i++)
 			{
@@ -1403,7 +1406,7 @@ static void DrawMapDriectDraw()
 					{
 						if (ExtConfigs::DirectXRendering)
 						{
-							CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData);
+							CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height);
 						}
 						else
 						{
@@ -1441,7 +1444,7 @@ static void DrawMapDriectDraw()
 								CIsoViewExt::DirectXShadow(
 									x1 - pUpgData->FullWidth / 2,
 									y1 - pUpgData->FullHeight / 2,
-									pUpgData);
+									pUpgData, cell->Height);
 							}
 							else
 							{
@@ -1650,7 +1653,7 @@ static void DrawMapDriectDraw()
 					{
 						if (ExtConfigs::DirectXRendering)
 						{
-							CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData);
+							CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height);
 						}
 						else
 						{
@@ -1689,7 +1692,7 @@ static void DrawMapDriectDraw()
 						CIsoViewExt::DirectXShadow(
 							x1 - pData->FullWidth / 2,
 							y1 - pData->FullHeight / 2 + 15,
-							pData);
+							pData, cell->Height);
 					}
 					else
 					{
@@ -1733,7 +1736,7 @@ static void DrawMapDriectDraw()
 						CIsoViewExt::DirectXShadow(
 							x1 - pData->FullWidth / 2,
 							y1 - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
-							pData);
+							pData, cell->Height);
 					}
 					else
 					{
@@ -1760,7 +1763,7 @@ static void DrawMapDriectDraw()
 
 					if (ExtConfigs::DirectXRendering)
 					{
-						CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData);
+						CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height);
 					}
 					else
 					{
@@ -1881,7 +1884,7 @@ static void DrawMapDriectDraw()
 							if (ExtConfigs::DirectXRendering)
 							{
 								CIsoViewExt::DirectXTerrain(x1, y1,
-															&subTile, isCellHidden(cell) ? 0.5f : 1.0f);
+															&subTile, isCellHidden(cell) ? 0.5f : 1.0f, cell->Height);
 							}
 							else
 							{

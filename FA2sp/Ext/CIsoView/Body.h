@@ -193,14 +193,14 @@ public:
         BYTE alpha = 255, COLORREF houseColor = -1, bool isRubble = false, bool isTerrain = false);
     static void DirectXBuilding(int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
         float alpha = 1.0f, COLORREF houseColor = -1, bool isRubble = false, bool isTerrain = false);
-    static void DirectXShadow(int x, int y, ImageDataClassSafe* pd);
+    static void DirectXShadow(int x, int y, ImageDataClassSafe* pd, byte stencilHeight = 0xFF);
     static void BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd);
     static void BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha = 255,
         std::vector<byte>* mask = nullptr, std::vector<byte>* heightMask = nullptr, byte height = 0,
         std::vector<int>* cellHeightMask = nullptr, int tileSet = -1, std::vector<char>* objectOverlapMask = nullptr);
-    static void DirectXTerrain(int x, int y, CTileBlockClass* subTile, float alpha = 1.0f, byte height = 0, bool onlyExtra = false);
+    static void DirectXTerrain(int x, int y, CTileBlockClass* subTile, float alpha = 1.0f, char height = -1, bool onlyExtra = false);
     static void BlitCellHeightMask(std::vector<int>& cellHeightMask, const RECT* window,
         int x, int y, CTileBlockClass* subTile, int height);
     static void BlitText(const std::wstring& text, COLORREF textColor, COLORREF bgColor,

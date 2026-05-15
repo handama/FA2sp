@@ -817,7 +817,7 @@ void CIsoViewExt::DirectXAlphaImage(int x, int y, ImageDataClassSafe* pd)
     g_pDX->DrawTexture(pTexture, x, y);
 }
 
-void CIsoViewExt::DirectXShadow(int x, int y, ImageDataClassSafe* pd)
+void CIsoViewExt::DirectXShadow(int x, int y, ImageDataClassSafe* pd, byte stencilHeight)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {
         return;
@@ -834,6 +834,13 @@ void CIsoViewExt::DirectXShadow(int x, int y, ImageDataClassSafe* pd)
     DrawParams params;
     params.SetPosition(x, y)
         .SetOpacity(0.5f);
+
+    // Stencil: 写入阴影高度+1（0xFF=不使用stencil）
+    if (stencilHeight != 0xFF) {
+        params.SetStencilRef(stencilHeight + 1);
+        params.bIsShadow = true;
+    }
+
     g_pDX->DrawTexture(pTexture, params);
 }
 
@@ -1424,7 +1431,7 @@ bool CIsoViewExt::DirectXReady()
 }
 
 void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile, 
-    float alpha, byte height, bool onlyExtra)
+    float alpha, char height, bool onlyExtra)
 {
     auto& dataExt = CMapDataExt::TileBlockDataExt[subTile];
     if (!subTile || !subTile->HasValidImage 
@@ -1483,6 +1490,8 @@ void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile,
     if (doOre)
         params.SetColorMix(oreColor,  1.0f - oreOpacity / 255.0f);
 
+    params.SetStencilRef(height < 0 ? -1 : (height + 1));
+
     if (onlyExtra)
     {
         params.SetPosition(x + dataExt.ExtraOffset.x, y + dataExt.ExtraOffset.y);
@@ -1498,10 +1507,5 @@ void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile,
             g_pDX->DrawTexture(dataExt.pExtraTexture, params);
         }
     }
-
-    //if (doCellHeight)
-    //{
-    //    BlitCellHeightMask(*cellHeightMask, &window, x, y, subTile, height);
-    //}
 }
 

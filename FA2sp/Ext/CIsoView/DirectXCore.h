@@ -140,7 +140,7 @@ public:
     void SetGlobalTransform(float scaleX, float scaleY, float offsetX, float offsetY);
     void ResetGlobalTransform() { SetGlobalTransform(1.0f, 1.0f, 0.0f, 0.0f); }
 
-    void SetZoomOut(float scaleFactor);
+    float SetZoomOut(float scaleFactor);
     float GetZoomOut() const { return m_renderScale; }
 
     void Render();

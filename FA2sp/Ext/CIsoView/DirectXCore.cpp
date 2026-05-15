@@ -280,6 +280,25 @@ void DirectXCore::OnResize(HWND hwnd)
     if (vh == 0)
         vh = 1;
 
+    // Clamp offscreen dimensions to D3D11 max texture size
+    const UINT maxTexDim = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+    if (vw > maxTexDim)
+    {
+        float clamp = (float)maxTexDim / vw;
+        vw = maxTexDim;
+        vh = (UINT)(vh * clamp);
+    }
+    if (vh > maxTexDim)
+    {
+        float clamp = (float)maxTexDim / vh;
+        vh = maxTexDim;
+        vw = (UINT)(vw * clamp);
+    }
+    if (vw == 0)
+        vw = 1;
+    if (vh == 0)
+        vh = 1;
+
     CreateOffscreenResources(vw, vh);
     EnsureFactorTexture(vw, vh);
     EnsureScreenCopyTexture(vw, vh);
@@ -305,16 +324,24 @@ void DirectXCore::SetGlobalTransform(float scaleX, float scaleY, float offsetX, 
     m_globalOffsetY = offsetY;
 }
 
-void DirectXCore::SetZoomOut(float scaleFactor)
+float DirectXCore::SetZoomOut(float scaleFactor)
 {
     if (scaleFactor < 0.01f)
         scaleFactor = 0.01f;
-    if (m_renderScale == scaleFactor)
-        return;
-    m_renderScale = scaleFactor;
 
-    UINT vw = (UINT)(m_clientWidth * m_renderScale);
-    UINT vh = (UINT)(m_clientHeight * m_renderScale);
+    // Clamp to D3D11 max texture dimension (16384 for feature level 11_0)
+    const UINT maxTexDim = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+    float maxSafeScaleX = (float)maxTexDim / std::max(1, m_clientWidth);
+    float maxSafeScaleY = (float)maxTexDim / std::max(1, m_clientHeight);
+    float maxSafeScale = std::min(maxSafeScaleX, maxSafeScaleY);
+    if (scaleFactor > maxSafeScale)
+        scaleFactor = maxSafeScale;
+
+    if (m_renderScale == scaleFactor)
+        return m_renderScale;
+
+    UINT vw = (UINT)(m_clientWidth * scaleFactor);
+    UINT vh = (UINT)(m_clientHeight * scaleFactor);
     if (vw == 0)
         vw = 1;
     if (vh == 0)
@@ -331,10 +358,17 @@ void DirectXCore::SetZoomOut(float scaleFactor)
     m_pScreenCopy.Reset();
     m_pScreenCopySRV.Reset();
 
-    CreateOffscreenResources(vw, vh);
+    if (!CreateOffscreenResources(vw, vh))
+    {
+        Logger::Raw("[DirectXCore] SetZoomOut: CreateOffscreenResources failed, keeping old scale\n");
+        return m_renderScale;
+    }
     EnsureFactorTexture(vw, vh);
     EnsureScreenCopyTexture(vw, vh);
     EnsureAlphaAccumTexture(vw, vh);
+
+    m_renderScale = scaleFactor;
+    return m_renderScale;
 }
 
 bool DirectXCore::CreateDeviceAndSwapChain(HWND hwnd)

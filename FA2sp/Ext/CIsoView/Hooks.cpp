@@ -1917,6 +1917,7 @@ DEFINE_HOOK(469470, CIsoView_OnKeyDown, 5)
 	return 0x4694A9;
 }
 
+static POINT tempMouseCenterPosition{};
 DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 {
 	GET(CIsoViewExt*, pThis, EBP);
@@ -2004,7 +2005,9 @@ DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp, 6)
 	if (pThis->IsScrolling)
 	{
 		if (pThis->IsInitializing)
+		{		
 			return 0x45EBD1;
+		}
 
 		pThis->MoveCenterPosition.x = -1919810;
 		pThis->MoveCenterPosition.y = -1919810;
@@ -2021,7 +2024,9 @@ DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp, 6)
 	{
 		pThis->Drag = FALSE;
 
-		if (CIsoView::CurrentCommand->Command != 0x0)
+		int dx = abs(tempMouseCenterPosition.x - point.x);
+		int dy = abs(tempMouseCenterPosition.y - point.y);
+		if (CIsoView::CurrentCommand->Command != 0x0 && dx <= 2 && dy <= 2)
 		{
 			if (!CopyPaste::PastedCoords.empty())
 			{
@@ -2122,6 +2127,7 @@ DEFINE_HOOK(4763B0, CIsoView_OnRButtonDown_FixPos, 8)
 	{
 		GetCursorPos(&pThis->MouseCenterPosition);
 		::ScreenToClient(pThis->GetSafeHwnd(), &pThis->MouseCenterPosition);
+		tempMouseCenterPosition = pThis->MouseCenterPosition;
 		pThis->MoveCenterPosition.x = pThis->MouseCenterPosition.x;
 		pThis->MoveCenterPosition.y = pThis->MouseCenterPosition.y;
 	}

@@ -5954,3 +5954,86 @@ TextureResource* ImageDataClassSafe::GetColoredTexture(Palette* coloredPal, BGRS
 	}
 	return nullptr;
 }
+
+std::vector<ImageDataClassSafe::BuildingTextureSlice> ImageDataClassSafe::GetBuildingColoredTextures(
+	Palette* coloredPal, BGRStruct color)
+{
+	if (!pImageBuffer || FullHeight <= 0 || FullWidth <= 0)
+		return {};
+
+	auto it = m_buildingSliceCache.find(color);
+	if (it != m_buildingSliceCache.end()) {
+		return it->second.slices;
+	}
+
+	constexpr int SLICE_HEIGHT = 30;
+	const int halfH = FullHeight / 2;
+
+	std::vector<int> cutLines;
+
+	for (int cut = halfH; cut >= 0; cut -= SLICE_HEIGHT) {
+		cutLines.push_back(cut);
+	}
+	std::reverse(cutLines.begin(), cutLines.end());
+
+	for (int cut = halfH + SLICE_HEIGHT; cut < FullHeight; cut += SLICE_HEIGHT) {
+		cutLines.push_back(cut);
+	}
+
+	if (cutLines.back() < FullHeight) {
+		cutLines.push_back(FullHeight);
+	}
+
+	if (cutLines.front() > 0) {
+		cutLines.insert(cutLines.begin(), 0);
+	}
+
+	int baselineCutIndex = -1;
+	for (size_t i = 0; i < cutLines.size(); i++) {
+		if (cutLines[i] == halfH) {
+			baselineCutIndex = static_cast<int>(i);
+			break;
+		}
+	}
+
+	BuildingSliceCacheEntry entry;
+
+	for (size_t i = 0; i + 1 < cutLines.size(); i++) {
+		int startRow = cutLines[i];
+		int endRow = cutLines[i + 1];
+		int sliceH = endRow - startRow;
+
+		if (sliceH <= 0)
+			continue;
+
+		if (startRow < 0 || startRow >= FullHeight)
+			continue;
+
+		if (endRow > FullHeight)
+			endRow = FullHeight;
+
+		sliceH = endRow - startRow;
+		if (sliceH <= 0)
+			continue;
+
+		auto pKey = std::make_unique<int>(static_cast<int>(i));
+		auto* pKeyPtr = pKey.get();
+		entry.sliceKeys.push_back(std::move(pKey));
+
+		ImageDataView view;
+		view.FullWidth = FullWidth;
+		view.FullHeight = sliceH;
+		view.pImageBuffer = pImageBuffer.get() + startRow * FullWidth;
+		view.pOpacity = pOpacity ? pOpacity.get() + startRow * FullWidth : nullptr;
+		view.pPalette = coloredPal;
+		view.Type = ImageDataView::ImageDataSafe;
+		view.pOriginData = pKeyPtr;
+
+		auto* pTexture = CIsoViewExt::g_pDX->LoadTexture(view, color);
+		int indexOffset = static_cast<int>(i) - (baselineCutIndex - 1);
+		entry.slices.push_back({ pTexture, startRow, indexOffset });
+	}
+
+	auto& ret = m_buildingSliceCache[color] = std::move(entry);
+	return ret.slices;
+}

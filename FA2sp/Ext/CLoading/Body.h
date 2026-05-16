@@ -63,6 +63,22 @@ public:
 	}
 	TextureResource* GetTexture(Palette* newPal = nullptr, bool isAlphaImage = false);
 	TextureResource* GetColoredTexture(Palette* newPal, BGRStruct color);
+
+	// Building horizontal slice texture (30px strips, aligned so FullHeight/2 is a cut line)
+	struct BuildingTextureSlice
+	{
+		TextureResource* pTexture;
+		int deltaY;		// Y offset from image top (add to y when rendering)
+		int indexOffset;	// 0 = slice with bottom at FullHeight/2, positive = below, negative = above
+	};
+	std::vector<BuildingTextureSlice> GetBuildingColoredTextures(Palette* coloredPal, BGRStruct color);
+
+private:
+	struct BuildingSliceCacheEntry {
+		std::vector<BuildingTextureSlice> slices;
+		std::vector<std::unique_ptr<int>> sliceKeys;
+	};
+	std::unordered_map<BGRStruct, BuildingSliceCacheEntry> m_buildingSliceCache;
 };
 
 class ImageDataClassSurface

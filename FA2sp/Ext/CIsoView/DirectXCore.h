@@ -71,8 +71,8 @@ public:
     int drawDepth = -1;
     bool bScreenSpace = false;
     bool bIsShadow = false;
-    bool bWriteStencil = false; // 非阴影对象写入stencil（GREATER+REPLACE）
-    int stencilRef = -1; // -1 = 不使用 stencil, >=0 = stencil ref value (cell height + 1)
+    bool bWriteStencil = false;
+    int stencilRef = -1; 
 
     DrawParams& SetPosition(float _x, float _y) { x = _x; y = _y; return *this; }
     DrawParams& SetScale(float sx, float sy) { scaleX = sx; scaleY = sy; return *this; }
@@ -120,10 +120,10 @@ public:
         DrawParams params;
         bool bIsEffect = false;
         bool bScreenSpace = false;
-        bool bStencilDraw = false; // 使用独立 stencil 阶段（Phase1.5）绘制
-        bool bStencilOnly = false; // 仅更新stencil，不输出颜色
+        bool bStencilDraw = false; 
+        bool bStencilOnly = false;
         UINT depth = 0;
-        ID3D11DepthStencilState* pCustomDSState = nullptr; // 自定义深度模板状态，nullptr=使用阶段默认
+        ID3D11DepthStencilState* pCustomDSState = nullptr; 
     };
 
     DirectXCore();
@@ -151,7 +151,6 @@ public:
     void DrawTexture(TextureResource* tex, float x, float y) {
         DrawParams p; p.x = x; p.y = y; DrawTexture(tex, p);
     }
-    int DrawTexture(TextureResource* tex, const DrawParams& params, std::vector<int>& drawCommandIndices);
 
     void SetGlobalTransform(float scaleX, float scaleY, float offsetX, float offsetY);
     void ResetGlobalTransform() { SetGlobalTransform(1.0f, 1.0f, 0.0f, 0.0f); }
@@ -166,6 +165,7 @@ public:
     // The value is written into the depth buffer so GPU GreaterEqual testing
     // produces correct occlusion automatically.
     UINT GetNextDepth() { return m_globalDepth++; }
+    UINT GetCurrentDepth() const { return m_globalDepth; }
     void SetCurrentDepth(UINT depth) { m_globalDepth = depth; }
     void ResetDepth() { m_globalDepth = 0; }
     int GetClientWidth() const { return m_clientWidth; }
@@ -224,7 +224,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSamplerPoint;
     Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSamplerNearestNeighbor;
     Microsoft::WRL::ComPtr<ID3D11BlendState>       m_pBlendState;
-    Microsoft::WRL::ComPtr<ID3D11BlendState>       m_pBlendStateNoColor; // 不输出颜色（仅更新stencil）
+    Microsoft::WRL::ComPtr<ID3D11BlendState>       m_pBlendStateNoColor;
     Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pQuadVB;
     Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pConstantBuffer;
     Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pFullscreenQuadVB;
@@ -271,10 +271,11 @@ private:
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateGE;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateReadOnlyGE;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateOff;
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateShadowWrite;    // 阴影stencil写入：depth read-only, stencil REPLACE
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateObjectStencilWrite; // 对象stencil写入：depth正常, ALWAYS+REPLACE
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateStencilOnlyWrite; // 仅更新stencil：depth只读, GREATER+REPLACE
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateTerrainStencilTest; // 地表stencil测试：GREATER比较
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateShadowWrite;    
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateObjectStencilWrite; 
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateStencilOnlyWrite; 
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateTerrainRedraw; 
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateShadowRedraw; 
 
     std::unordered_map<TextureIndex, std::unique_ptr<TextureResource>> m_textureMap;
     FHashMap<std::unique_ptr<TextureResource>> m_bitmapTextureMap;

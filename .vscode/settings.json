@@ -5,4 +5,5 @@
     "editor.formatOnSave": true,
     "C_Cpp.intelliSenseEngine": "enabled",
     "C_Cpp.default.compilerPath": "cl.exe",
+    "files.encoding": "gbk"
 }

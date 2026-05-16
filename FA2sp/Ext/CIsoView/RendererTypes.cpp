@@ -733,6 +733,7 @@ void Renderer::Building::Reload(short index)
     pObjectData = &data;
     pType = GetOrCreateBuilding(data.TypeID);
     pRenderData = &CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
+    pCellData = CMapData::Instance->TryGetCellAt(pRenderData->X, pRenderData->Y);
 
     if (!CIsoViewExt::DrawStructures)
         return;
@@ -1036,6 +1037,11 @@ BuildingType* Renderer::Building::GetType()
 BuildingRenderData* Renderer::Building::GetRender()
 {
     return pRenderData;
+}
+
+CellData * Renderer::Building::GetCellData()
+{
+    return pCellData;
 }
 
 bool Renderer::ObjectType::IsVisibleInMapRendererOrNormal() const

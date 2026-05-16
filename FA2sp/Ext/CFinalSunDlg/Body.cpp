@@ -1521,10 +1521,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	//delete objects
 	if (wmID == 40136)
 	{
-		ScopedTimer t("draw");
-		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-		return TRUE;
-
 		if (!isInIsoView())
 			return TRUE;
 		if (!CMapData::Instance->MapWidthPlusHeight)

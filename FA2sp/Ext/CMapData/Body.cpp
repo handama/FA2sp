@@ -3612,8 +3612,11 @@ void CMapDataExt::InitializeTileData()
 				auto tileBlock = &currentTile->TileBlockDatas[k];
 				if (tileBlock && tileBlock->ImageData)
 				{
-					BuildBaseHeightMask(tileBlock);
-
+					if (!loadDX)
+					{
+						BuildBaseHeightMask(tileBlock);
+					}
+					
 					auto itr = CMapDataExt::TileSetPalettes.find(currentTile->TileSet);
 					if (itr != CMapDataExt::TileSetPalettes.end())
 					{

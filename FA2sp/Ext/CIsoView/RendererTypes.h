@@ -210,9 +210,11 @@ namespace Renderer
         CBuildingDataFS* GetData();
         BuildingType* GetType();
         BuildingRenderData* GetRender();
+        CellData* GetCellData();
 
     private:
         BuildingRenderData* pRenderData = nullptr;
+        CellData* pCellData = nullptr;
     };
 
     class Vehicle : public Object

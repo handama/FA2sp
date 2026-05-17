@@ -572,6 +572,8 @@ void FA2sp::ExtConfigsInitialize()
 		&& (GetSystemMetrics(SM_CMONITORS) > 1);
 
 	ExtConfigs::DirectXRendering = ExtConfigs::DirectXRendering_INI;
+	if (ExtConfigs::DirectXRendering)
+		ExtConfigs::SecondScreenSupport = true;
 }
 
 void ExtConfigs::UpdateOptionTranslations()

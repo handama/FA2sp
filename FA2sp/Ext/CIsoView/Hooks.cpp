@@ -1934,6 +1934,7 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 	const int dx = pt.x - pThis->MouseCenterPosition.x;
 	const int dy = pt.y - pThis->MouseCenterPosition.y;
 	const bool shouldScroll = rightDown && (abs(dx) > 2 || abs(dy) > 2) && pThis->MouseCenterPosition.x != -1919810;
+	const bool highestBit = (nFlags >> 31) & 1u;
 
 	if (shouldScroll)
 	{
@@ -1974,7 +1975,9 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 			pt.y + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0)
 		);
 
-		PostMessage(pThis->GetSafeHwnd(), WM_MOUSEMOVE, MK_RBUTTON, lParam);
+		WPARAM wParam = MK_RBUTTON;
+		wParam |= (1u << 31);
+		PostMessage(pThis->GetSafeHwnd(), WM_MOUSEMOVE, wParam, lParam);
 
 		return 0x456EC0;
 	}
@@ -1982,7 +1985,8 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 	{
 		pThis->MouseCenterPosition.x = pt.x;
 		pThis->MouseCenterPosition.y = pt.y;
-		pThis->IsScrolling = FALSE;
+		if (!highestBit)
+			pThis->IsScrolling = FALSE;
 	}
 
 	return 0x456EDB;

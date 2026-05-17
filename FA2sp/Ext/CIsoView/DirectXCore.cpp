@@ -624,7 +624,7 @@ bool DirectXCore::CreateShadersAndInputLayout()
     trDesc.StencilEnable = TRUE;
     trDesc.StencilReadMask = 0x0F;
     trDesc.StencilWriteMask = 0x0F;
-    trDesc.FrontFace.StencilFunc = D3D11_COMPARISON_GREATER;
+    trDesc.FrontFace.StencilFunc = D3D11_COMPARISON_GREATER_EQUAL;
     trDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
     trDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
     trDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;

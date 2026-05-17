@@ -20,6 +20,7 @@ using namespace Gdiplus;
 struct CellData;
 struct CellDataExt;
 struct ImageDataView;
+struct TextureResource;
 class ImageDataClassSafe;
 class DirectXCore;
 class DrawShapes;
@@ -190,6 +191,7 @@ public:
         float alpha = 1.0f, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false,
         byte stencilHeight = 0xFF, bool useStencilLogic = true);
     static void DirectXBitmap(int x, int y, FString_view name, float alpha = 1.0f, bool isScreenSpace = false);
+    static void DirectXFlagOrCelltag(int x, int y, TextureResource* pTexture, float alpha = 1.0f);
     static void DirectXAlphaImage(int x, int y, ImageDataClassSafe* pd);
     static void BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,

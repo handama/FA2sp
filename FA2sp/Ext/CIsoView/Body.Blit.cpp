@@ -883,6 +883,25 @@ void CIsoViewExt::DirectXBitmap(int x, int y, FString_view name, float alpha, bo
     }
 }
 
+void CIsoViewExt::DirectXFlagOrCelltag(int x, int y, TextureResource* pTexture, float alpha)
+{
+    constexpr int X_OFFSET = 1;
+    constexpr int Y_OFFSET = -29;
+
+    DrawParams params;
+    params.SetPosition(
+        x + X_OFFSET - pTexture->sourceView.FullWidth / 2,
+        y + Y_OFFSET - pTexture->sourceView.FullHeight / 2)
+        .SetOpacity(alpha);
+
+    if (alpha >= 1.0f) {           
+        params.bWriteStencil = true;
+        params.SetStencilRef(15);
+    }
+    
+    g_pDX->DrawTexture(pTexture, params);
+}
+
 void CIsoViewExt::DirectXAlphaImage(int x, int y, ImageDataClassSafe* pd)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {

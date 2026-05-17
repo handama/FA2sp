@@ -51,6 +51,8 @@ FHashMap<std::vector<std::unique_ptr<ImageDataClassSafe>>> CLoadingExt::Building
 FHashMap<std::unique_ptr<ImageDataClassSurface>> CLoadingExt::SurfaceImageDataMap;
 std::unordered_map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomFlagMap;
 std::unordered_map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomCelltagMap;
+std::unordered_map<COLORREF, TextureResource*> CLoadingExt::DirectXCustomFlagMap;
+std::unordered_map<COLORREF, TextureResource*> CLoadingExt::DirectXCustomCelltagMap;
 std::vector<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::DamageFires;
 unsigned int CLoadingExt::RandomFireSeed = 0;
 
@@ -5668,19 +5670,15 @@ ImageDataClassSurface* CLoadingExt::GetOrLoadFlagOrCelltagFromMap(COLORREF newCo
 			pics += "\\pics\\waypoint.bmp";
 		else
 			pics += "\\pics\\celltag.bmp";
-		if (fs::exists(pics))
+		if (!fs::exists(pics) || !CLoadingExt::LoadBMPToCBitmap(pics, cBitmap))
 		{
-			if (!CLoadingExt::LoadBMPToCBitmap(pics, cBitmap))
-			{
-				HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(IsFlag ? 1023 : 1024),
-					IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
-				cBitmap.Attach(hBmp);
-			}
-		}
-		else
-		{
-			HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(IsFlag ? 1023 : 1024),
-				IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+			HBITMAP hBmp = (HBITMAP)LoadImage(
+				static_cast<HINSTANCE>(FA2sp::hInstance),
+				MAKEINTRESOURCE(IsFlag ? 1023 : 1024),
+				IMAGE_BITMAP,
+				0, 0,
+				LR_CREATEDIBSECTION);
+		
 			cBitmap.Attach(hBmp);
 		}
 
@@ -5706,6 +5704,45 @@ ImageDataClassSurface* CLoadingExt::GetOrLoadFlagOrCelltagFromMap(COLORREF newCo
 
 	}
 	return itr->second.get();
+}
+
+TextureResource* CLoadingExt::DirectXGetOrLoadFlagOrCelltagFromMap(COLORREF newColor, bool IsFlag)
+{
+	auto& map = IsFlag ? DirectXCustomFlagMap : DirectXCustomCelltagMap;
+	auto itr = map.find(newColor);
+	if (itr == map.end())
+	{
+		CBitmap cBitmap;
+		std::string pics = CFinalSunAppExt::ExePathExt;
+		if(IsFlag)
+			pics += "\\pics\\waypoint.bmp";
+		else
+			pics += "\\pics\\celltag.bmp";
+		if (!fs::exists(pics) || !CLoadingExt::LoadBMPToCBitmap(pics, cBitmap))
+		{
+			HBITMAP hBmp = (HBITMAP)LoadImage(
+				static_cast<HINSTANCE>(FA2sp::hInstance),
+				MAKEINTRESOURCE(IsFlag ? 1023 : 1024),
+				IMAGE_BITMAP,
+				0, 0,
+				LR_CREATEDIBSECTION);
+		
+			cBitmap.Attach(hBmp);
+		}
+	
+		auto r = ReplaceBitmapColor(cBitmap, 
+			IsFlag ? (COLORREF)ExtConfigs::DisplayColor_Waypoint 
+			: (COLORREF)ExtConfigs::DisplayColor_Celltag,
+			newColor);
+
+		FString name;
+		name.Format("%d\233%s", newColor, IsFlag ? "FLAG" : "CELLTAG");
+		auto pTexture = CIsoViewExt::g_pDX->LoadBitmapTexture(name, cBitmap);
+
+		auto [it, inserted] = map.emplace(newColor, pTexture);
+		return it->second;
+	}
+	return itr->second;
 }
 
 void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2path)

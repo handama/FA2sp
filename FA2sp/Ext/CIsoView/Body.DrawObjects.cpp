@@ -2450,9 +2450,21 @@ static void DrawMapDriectDraw()
 			if (ImageDataClassSafe::IsValidImage(pData))
 			{
 				if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
-					pThis->DrawLine(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
-									x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 30, ExtConfigs::CursorSelectionBound_HeightColor,
-									false, false, &ddsd, window, true);
+				{
+					if(ExtConfigs::DirectXRendering)
+					{
+						pThis->DrawLineRawDirectX(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
+						x + 30, y + 15 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+							false, true, 1, false);
+					}
+					else
+					{
+						pThis->DrawLine(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
+						x + 30, y + 15 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+						false, false, &ddsd, window, true);
+
+					}
+				}
 
 				auto draw = [&]
 				{
@@ -2573,9 +2585,20 @@ static void DrawMapDriectDraw()
 					y1 -= 60;
 
 				if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
-					pThis->DrawLine(x1 + 30, y1 - 30,
-									x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
-									false, false, &ddsd, window, true);
+				{
+					if(ExtConfigs::DirectXRendering)
+					{
+						pThis->DrawLineRawDirectX(x1 + 30, y1 - 30,
+							x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+							false, true, 1, false);
+					}
+					else
+					{
+						pThis->DrawLine(x1 + 30, y1 - 30,
+							x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+							false, false, &ddsd, window, true);
+					}
+				}
 
 				auto color = Miscs::GetColorRef(obj.House);
 				if (ImageDataClassSafe::IsValidImage(pData))
@@ -2913,6 +2936,36 @@ static void DrawMapDriectDraw()
 			auto &x = info.screenX;
 			auto &y = info.screenY;
 
+			auto drawCellTagImage = [&](const ppmfc::CString &id)
+			{
+				auto itr = CMapDataExt::CustomCelltagColors.find(id);
+				if (itr != CMapDataExt::CustomCelltagColors.end())
+				{
+					auto pTexture = CLoadingExt::DirectXGetOrLoadFlagOrCelltagFromMap(itr->second, false);
+					CIsoViewExt::DirectXFlagOrCelltag(x + 29, y + 13, pTexture,
+						 ExtConfigs::DrawCelltagTranslucent ? 0.5f : 1.0f);
+				}
+				else
+				{
+					CIsoViewExt::DirectXBitmap(x + 29, y + 13, "CELLTAG",
+						ExtConfigs::DrawCelltagTranslucent ? 0.5f : 1.0f);
+				}
+			};
+
+			auto drawWaypointImage = [&](const ppmfc::CString &id)
+			{
+				auto itr = CMapDataExt::CustomWaypointColors.find(id);
+				if (itr != CMapDataExt::CustomWaypointColors.end())
+				{
+					auto pTexture = CLoadingExt::DirectXGetOrLoadFlagOrCelltagFromMap(itr->second, true);
+					CIsoViewExt::DirectXFlagOrCelltag(x + 30, y + 12, pTexture);
+				}
+				else
+				{
+					CIsoViewExt::DirectXBitmap(x + 30, y + 12, "FLAG");
+				}
+			};
+
 			if (cell->CellTag > -1 && cell->CellTag < Celltags.size())
 			{
 				auto id = Celltags[cell->CellTag];
@@ -2924,8 +2977,7 @@ static void DrawMapDriectDraw()
 						{
 							if (name == *id)
 							{
-								CIsoViewExt::DirectXBitmap(x + 29, y + 13, "CELLTAG",
-														   ExtConfigs::DrawCelltagTranslucent ? 0.5f : 1.0f);
+								drawCellTagImage(*id);
 								break;
 							}
 							if (STDHelpers::IsNumber(name))
@@ -2937,17 +2989,15 @@ static void DrawMapDriectDraw()
 									buffer.Format("%08d", n + 1000000);
 									if (buffer == *id)
 									{
-										CIsoViewExt::DirectXBitmap(x + 29, y + 13, "CELLTAG",
-																   ExtConfigs::DrawCelltagTranslucent ? 0.5f : 1.0f);
+										drawCellTagImage(*id);
 										break;
 									}
 								}
 							}
 						}
 					}
-					else
-						CIsoViewExt::DirectXBitmap(x + 29, y + 13, "CELLTAG",
-												   ExtConfigs::DrawCelltagTranslucent ? 0.5f : 1.0f);
+					else					
+						drawCellTagImage(*id);
 				}
 			}
 
@@ -2955,7 +3005,7 @@ static void DrawMapDriectDraw()
 			{
 				auto id = Waypoints[cell->Waypoint];
 				if (id)
-					CIsoViewExt::DirectXBitmap(x + 30, y + 12, "FLAG");
+					drawWaypointImage(*id);
 			}
 
 			if (CIsoViewExt::DrawAnnotations && CMapDataExt::HasAnnotation(pos))

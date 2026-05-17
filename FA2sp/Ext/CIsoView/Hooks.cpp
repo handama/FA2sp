@@ -2023,88 +2023,90 @@ DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp, 6)
 
 	if (!pThis->IsScrolling)
 	{
-		pThis->Drag = FALSE;
-
 		int dx = abs(tempMouseCenterPosition.x - point.x);
 		int dy = abs(tempMouseCenterPosition.y - point.y);
-		if (CIsoView::CurrentCommand->Command != 0x0 && dx <= 2 && dy <= 2)
+		if (dx <= 2 && dy <= 2)
 		{
-			if (!CopyPaste::PastedCoords.empty())
+			pThis->Drag = FALSE;
+			if (CIsoView::CurrentCommand->Command != 0x0)
 			{
-				CopyPaste::PastedCoords.clear();
-				::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
-			}
-			CIsoViewExt::EnableAutoTrack = false;
-			if (CIsoView::CurrentCommand->Command == 0x1B)
-			{
-				CIsoView::CurrentCommand->Command = 0x0;
-				CIsoView::CurrentCommand->Type = 0;
-			}
-			if (CIsoView::CurrentCommand->Command == 0x25)
-			{
-				CIsoView::CurrentCommand->Command = 0x0;
-				CIsoView::CurrentCommand->Type = 0;
-			}
-			if (CIsoView::CurrentCommand->Command == 0x26)
-			{
-				CMeasurementToolbox::OnRightButtonDown();
-			}
-			if (CIsoView::CurrentCommand->Command == 0x1F) {
-				CTerrainGenerator::RangeFirstCell.X = -1;
-				CTerrainGenerator::RangeFirstCell.Y = -1;
-				CTerrainGenerator::RangeSecondCell.X = -1;
-				CTerrainGenerator::RangeSecondCell.Y = -1;
-				CIsoView::CurrentCommand->Command = 0x0;
-				CIsoView::CurrentCommand->Type = 0;
-			}
-			if (CViewObjectsExt::MoveBaseNode_SelectedObj.X > -1) {
-				CViewObjectsExt::MoveBaseNode_SelectedObj.House = "";
-				CViewObjectsExt::MoveBaseNode_SelectedObj.ID = "";
-				CViewObjectsExt::MoveBaseNode_SelectedObj.Key = "";
-				CViewObjectsExt::MoveBaseNode_SelectedObj.X = -1;
-				CViewObjectsExt::MoveBaseNode_SelectedObj.Y = -1;
-				CIsoView::CurrentCommand->Command = 0x0;
-				CIsoView::CurrentCommand->Type = 0;
-			}
-			if (CIsoViewExt::IsPressingTube)
-			{
-				CIsoViewExt::IsPressingTube = false;
-				CIsoViewExt::TubeNodes.clear();
-			}
-			if (CIsoView::CurrentCommand->Command == 0x23)
-			{
-				CLuaConsole::Lua.collect_garbage();
-				CLuaConsole::applyingScript = false;
-				CIsoView::CurrentCommand->Command = 0x0;
-				CIsoView::CurrentCommand->Type = 0;
-			}
-			if (!CIsoViewExt::DrawEditedMarks.empty())
-			{
-				CIsoView::CurrentCommand->Command = 0x0;
-				CIsoViewExt::DrawEditedMarks.clear();
-			}
-			CIsoViewExt::LastAltCommand.reset();
-
-			CIsoView::CurrentCommand->Command = 0x0;
-
-			if (CViewObjectsExt::NeedChangeTreeViewSelect)
-			{
-				auto hWnd = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->m_hWnd;
-				HTREEITEM hSelectedItem = TreeView_GetSelection(hWnd);
-				HTREEITEM hParent = TreeView_GetParent(hWnd, hSelectedItem);
-				HTREEITEM hPrevSibling = TreeView_GetPrevSibling(hWnd, hSelectedItem);
-				if (hParent != NULL)
-					TreeView_SelectItem(hWnd, hParent);
-				else if (hPrevSibling != NULL) {
-					TreeView_SelectItem(hWnd, hPrevSibling);
+				if (!CopyPaste::PastedCoords.empty())
+				{
+					CopyPaste::PastedCoords.clear();
+					::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 				}
-				else {
-					HTREEITEM hRoot = TreeView_GetRoot(hWnd);
-					if (hRoot != NULL)
-						TreeView_SelectItem(hWnd, hRoot);
+				CIsoViewExt::EnableAutoTrack = false;
+				if (CIsoView::CurrentCommand->Command == 0x1B)
+				{
+					CIsoView::CurrentCommand->Command = 0x0;
+					CIsoView::CurrentCommand->Type = 0;
 				}
+				if (CIsoView::CurrentCommand->Command == 0x25)
+				{
+					CIsoView::CurrentCommand->Command = 0x0;
+					CIsoView::CurrentCommand->Type = 0;
+				}
+				if (CIsoView::CurrentCommand->Command == 0x26)
+				{
+					CMeasurementToolbox::OnRightButtonDown();
+				}
+				if (CIsoView::CurrentCommand->Command == 0x1F) {
+					CTerrainGenerator::RangeFirstCell.X = -1;
+					CTerrainGenerator::RangeFirstCell.Y = -1;
+					CTerrainGenerator::RangeSecondCell.X = -1;
+					CTerrainGenerator::RangeSecondCell.Y = -1;
+					CIsoView::CurrentCommand->Command = 0x0;
+					CIsoView::CurrentCommand->Type = 0;
+				}
+				if (CViewObjectsExt::MoveBaseNode_SelectedObj.X > -1) {
+					CViewObjectsExt::MoveBaseNode_SelectedObj.House = "";
+					CViewObjectsExt::MoveBaseNode_SelectedObj.ID = "";
+					CViewObjectsExt::MoveBaseNode_SelectedObj.Key = "";
+					CViewObjectsExt::MoveBaseNode_SelectedObj.X = -1;
+					CViewObjectsExt::MoveBaseNode_SelectedObj.Y = -1;
+					CIsoView::CurrentCommand->Command = 0x0;
+					CIsoView::CurrentCommand->Type = 0;
+				}
+				if (CIsoViewExt::IsPressingTube)
+				{
+					CIsoViewExt::IsPressingTube = false;
+					CIsoViewExt::TubeNodes.clear();
+				}
+				if (CIsoView::CurrentCommand->Command == 0x23)
+				{
+					CLuaConsole::Lua.collect_garbage();
+					CLuaConsole::applyingScript = false;
+					CIsoView::CurrentCommand->Command = 0x0;
+					CIsoView::CurrentCommand->Type = 0;
+				}
+				if (!CIsoViewExt::DrawEditedMarks.empty())
+				{
+					CIsoView::CurrentCommand->Command = 0x0;
+					CIsoViewExt::DrawEditedMarks.clear();
+				}
+				CIsoViewExt::LastAltCommand.reset();
+	
+				CIsoView::CurrentCommand->Command = 0x0;
+	
+				if (CViewObjectsExt::NeedChangeTreeViewSelect)
+				{
+					auto hWnd = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->m_hWnd;
+					HTREEITEM hSelectedItem = TreeView_GetSelection(hWnd);
+					HTREEITEM hParent = TreeView_GetParent(hWnd, hSelectedItem);
+					HTREEITEM hPrevSibling = TreeView_GetPrevSibling(hWnd, hSelectedItem);
+					if (hParent != NULL)
+						TreeView_SelectItem(hWnd, hParent);
+					else if (hPrevSibling != NULL) {
+						TreeView_SelectItem(hWnd, hPrevSibling);
+					}
+					else {
+						HTREEITEM hRoot = TreeView_GetRoot(hWnd);
+						if (hRoot != NULL)
+							TreeView_SelectItem(hWnd, hRoot);
+					}
+				}
+				CViewObjectsExt::NeedChangeTreeViewSelect = false;
 			}
-			CViewObjectsExt::NeedChangeTreeViewSelect = false;
 		}
 	}
 	else

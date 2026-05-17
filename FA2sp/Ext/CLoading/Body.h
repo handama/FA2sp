@@ -359,6 +359,8 @@ public:
 	static FHashMap<std::unique_ptr<ImageDataClassSurface>> SurfaceImageDataMap;
 	static std::unordered_map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CustomFlagMap;
 	static std::unordered_map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CustomCelltagMap;
+	static std::unordered_map<COLORREF, TextureResource*> DirectXCustomFlagMap;
+	static std::unordered_map<COLORREF, TextureResource*> DirectXCustomCelltagMap;
 	static std::vector<std::unique_ptr<ImageDataClassSafe>> DamageFires;
 	static unsigned int RandomFireSeed;
 
@@ -368,6 +370,7 @@ public:
 	static bool IsSurfaceImageLoaded(const FString& name);
 	static ImageDataClassSurface* GetSurfaceImageDataFromMap(const FString& name);
 	static ImageDataClassSurface* GetOrLoadFlagOrCelltagFromMap(COLORREF newColor, bool IsFlag);
+	static TextureResource* DirectXGetOrLoadFlagOrCelltagFromMap(COLORREF newColor, bool IsFlag);
 	static int GetAvailableFacing(const FString& ID);
 	static int GetAlphaImageFacing(const FString& ID);
 	static void* ReadWholeFile(const char* filename, DWORD* pDwSize = nullptr, bool fa2path = false);

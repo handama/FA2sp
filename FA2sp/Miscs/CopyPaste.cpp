@@ -342,6 +342,9 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
                 auto nCellIndex = CMapData::Instance->GetCoordIndex(X + offset_x, Y + offset_y);
                 auto pCell = CMapData::Instance->GetCellAt(nCellIndex);
 
+                if (ExtConfigs::PlaceTileSkipHide && pCell->IsHidden())
+                    continue;
+
                 if (CIsoViewExt::PasteInfantries)
                     for (int subpos = 0; subpos < 3; subpos++)
                         if (pCell->Infantry[subpos] != -1)
@@ -378,6 +381,9 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
 
             auto nCellIndex = CMapData::Instance->GetCoordIndex(X + offset_x, Y + offset_y);
             auto pCell = CMapData::Instance->GetCellAt(nCellIndex);
+
+            if (ExtConfigs::PlaceTileSkipHide && pCell->IsHidden())
+                continue;
 
             if (CIsoViewExt::PasteInfantries)
                 for (int subpos = 0; subpos < 3; subpos++)
@@ -429,6 +435,10 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
 
         auto nCellIndex = CMapData::Instance->GetCoordIndex(X + offset_x, Y + offset_y);
         auto pCell = CMapData::Instance->GetCellAt(nCellIndex);
+        
+        if (ExtConfigs::PlaceTileSkipHide && pCell->IsHidden())
+            continue;
+
         auto& pCellExt = CMapDataExt::CellDataExts[nCellIndex];
 
         if (CIsoViewExt::PasteOverlays)
@@ -462,7 +472,7 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
 
             pCell->TileIndexHiPart = cell.TileIndexHiPart;
             pCell->IceGrowth = cell.IceGrowth;
-            pCell->Flag = cell.Flag;
+            //pCell->Flag = cell.Flag;
         }
 
         for (int i = 0; i < 3; ++i)

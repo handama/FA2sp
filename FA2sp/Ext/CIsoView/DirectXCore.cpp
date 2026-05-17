@@ -1031,7 +1031,7 @@ bool DirectXCore::CreateLineShaders()
 {
     // Vertex shader: receives LineVertex { x, y, depth, color } as float4.
     // x,y are already in NDC; depth is the pre-assigned depth value.
-    // Just pass through directly — no matrix transform needed.
+    // Just pass through directly �? no matrix transform needed.
     const char *vsCode = R"(
         struct VSInput {
             float4 pos_depth : POSITION;  // (ndcX, ndcY, depth, colorPacked)
@@ -1312,12 +1312,12 @@ void DirectXCore::RenderOffscreenContent()
 
     // ====================================================================
     // Phase 1.5: Stencil-aware draws 
-    //   Pass A:  shadow stencil-only (bIsShadow && bStencilOnly)  → ALWAYS+REPLACE
-    //   Pass A2: object stencil-only (bWriteStencil && bStencilOnly) → GREATER+REPLACE 
-    //   Pass B:  terrain redraw (!bIsShadow && !bWriteStencil)    → GREATER+REPLACE
-    //   Pass C:  shadow color redraw (bIsShadow && !bStencilOnly) → GREATER_EQUAL+KEEP
+    //   Pass A:  shadow stencil-only (bIsShadow && bStencilOnly) 
+    //   Pass A2: object stencil-only (bWriteStencil && bStencilOnly)
+    //   Pass B:  terrain redraw (!bIsShadow && !bWriteStencil)  
+    //   Pass C:  shadow color redraw (bIsShadow && !bStencilOnly) 
     // ====================================================================
-    {
+    if (ExtConfigs::PreciseDepthCalculation) {
         bool hasStencilDraws = false;
         for (const auto &cmd : m_drawCommands) {
             if (cmd.bStencilDraw) { hasStencilDraws = true; break; }
@@ -2000,6 +2000,12 @@ void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
     cmd.params = params;
     cmd.bIsEffect = tex->bIsIndexTexture;
     cmd.bScreenSpace = params.bScreenSpace;
+    if (!ExtConfigs::PreciseDepthCalculation)
+    {
+        cmd.params.bIsShadow = false;
+        cmd.params.bWriteStencil = false;
+        cmd.params.SetStencilRef(-1);
+    }
     if (cmd.params.bScreenSpace)
     {
         cmd.params.bWriteStencil = false;
@@ -2014,10 +2020,10 @@ void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
         cmd.depth = params.bScreenSpace ? 0 : GetNextDepth();
     }
 
-    if (params.stencilRef >= 0) {
-        if (params.bIsShadow) {
+    if (cmd.params.stencilRef >= 0) {
+        if (cmd.params.bIsShadow) {
             UINT renderDepth = cmd.depth;
-            int shadowVal = std::min(params.stencilRef, 15);
+            int shadowVal = std::min(cmd.params.stencilRef, 15);
 
             DrawCommand stencilCmd = cmd;
             stencilCmd.bStencilDraw = true;
@@ -2030,9 +2036,9 @@ void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
             cmd.bStencilDraw = true;
             cmd.bStencilOnly = false;
             cmd.pCustomDSState = m_pDepthStateShadowRedraw.Get();
-            cmd.params.stencilRef = shadowVal; // 与低nibble比较
+            cmd.params.stencilRef = shadowVal; 
             m_drawCommands.push_back(cmd);
-        } else if (params.bWriteStencil) {
+        } else if (cmd.params.bWriteStencil) {
             cmd.bStencilDraw = false;
             cmd.pCustomDSState = nullptr;
             UINT renderDepth = cmd.depth;
@@ -2137,7 +2143,7 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
             ny =  dx * invLen * halfT;
         }
 
-        // Pixel → NDC conversion (same math as CalcWorldMatrixNoGlobal)
+        // Pixel �? NDC conversion (same math as CalcWorldMatrixNoGlobal)
         auto toNDC = [&](float px, float py) -> std::pair<float, float>
         {
             return {
@@ -2156,7 +2162,7 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
 
         // TRIANGLELIST: two triangles forming the thick line quad
         // V0 = start-left, V1 = start-right, V2 = end-left, V3 = end-right
-        // Triangles: (V0,V1,V2) and (V1,V3,V2) — no shared edges with next line
+        // Triangles: (V0,V1,V2) and (V1,V3,V2) �? no shared edges with next line
         verts.push_back({x0b, y0b, depthZ, le.color});  // V0: left of start
         verts.push_back({x0a, y0a, depthZ, le.color});  // V1: right of start
         verts.push_back({x1b, y1b, depthZ, le.color});  // V2: left of end

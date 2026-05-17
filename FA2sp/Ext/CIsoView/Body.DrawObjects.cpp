@@ -834,9 +834,13 @@ static void DrawMapDriectDraw()
 		shadowMask_Terrain.assign(shadowMask_size, 0);
 		shadowMask_Overlay.assign(shadowMask_size, 0);
 		shadowMask.assign(shadowMask_size, 0);
-		shadowHeightMask.assign(shadowMask_size, 0);
-		cellHeightMask.assign(shadowMask_size, 0);
-		objectOverlapMask.assign(shadowMask_size, CHAR_MIN);
+
+		if (ExtConfigs::PreciseDepthCalculation)
+		{
+			shadowHeightMask.assign(shadowMask_size, 0);
+			cellHeightMask.assign(shadowMask_size, 0);
+			objectOverlapMask.assign(shadowMask_size, CHAR_MIN);
+		}
 	}
 
 	// loop1: tiles

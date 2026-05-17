@@ -458,6 +458,11 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
         return;
     }
 
+    if (!ExtConfigs::PreciseDepthCalculation)
+    {
+        objectOverlapMask = nullptr;
+    }
+
     constexpr int X_OFFSET = 31;
     constexpr int Y_OFFSET = -29;
     constexpr int BPP = 4;
@@ -749,21 +754,24 @@ void CIsoViewExt::DirectXBuilding(int x, int y, ImageDataClassSafe* pd,
     params.SetPosition(x, y)
         .SetOpacity(alpha)
         .SetColorMul(colorMult);
-    params.bWriteStencil = true;
 
     for (auto& slice : slices) {
         DrawParams sliceParams = params;
         sliceParams.SetPosition(x, y + slice.deltaY);
-
-        if (stencilHeight != 0xFF) {
-            int sliceHeight = static_cast<int>(stencilHeight) + 2;
-            if (slice.indexOffset <= 0)
-            {
-                sliceHeight += (1 - slice.indexOffset) * 2;
+        
+        if (alpha >= 1.0f)
+        {
+            sliceParams.bWriteStencil = true;
+            if (stencilHeight != 0xFF) {
+                int sliceHeight = static_cast<int>(stencilHeight) + 2;
+                if (slice.indexOffset <= 0)
+                {
+                    sliceHeight += (1 - slice.indexOffset) * 2;
+                }
+                sliceParams.SetStencilRef(std::min(sliceHeight, 15));
+            } else {
+                sliceParams.SetStencilRef(15);
             }
-            sliceParams.SetStencilRef(std::min(sliceHeight, 15));
-        } else {
-            sliceParams.SetStencilRef(15);
         }
 
         g_pDX->DrawTexture(slice.pTexture, sliceParams);
@@ -831,7 +839,7 @@ void CIsoViewExt::DirectXNormal(int x, int y, ImageDataClassSafe* pd,
         .SetOpacity(alpha)
         .SetColorMul(colorMult);
 
-    if(useStencilLogic)
+    if (useStencilLogic && alpha >= 1.0f)
     {
         params.bWriteStencil = true;
         if (stencilHeight != 0xFF) {
@@ -856,7 +864,7 @@ void CIsoViewExt::DirectXBitmap(int x, int y, FString_view name, float alpha, bo
             y + Y_OFFSET - pTexture->sourceView.FullHeight / 2)
             .SetOpacity(alpha);
 
-        if (alpha == 1.0f) {           
+        if (alpha >= 1.0f) {           
             params.bWriteStencil = true;
             params.SetStencilRef(15);
         }
@@ -1197,6 +1205,14 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
 {
     if (alpha == 0 || !subTile || !subTile->HasValidImage || !subTile->ImageData || !dst || !subTile->pPixelValidRanges) {
         return;
+    }
+
+    if (!ExtConfigs::PreciseDepthCalculation)
+    {
+        mask = nullptr;
+        heightMask = nullptr;
+        cellHeightMask = nullptr;
+        objectOverlapMask = nullptr;
     }
 
     constexpr int X_OFFSET = 61;

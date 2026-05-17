@@ -5966,6 +5966,21 @@ std::vector<ImageDataClassSafe::BuildingTextureSlice> ImageDataClassSafe::GetBui
 		return it->second.slices;
 	}
 
+	if (pOpacity)
+	{
+		const int totalPixels = static_cast<int>(FullWidth) * FullHeight;
+		m_opacityExtractBuffer = std::make_unique<unsigned char[]>(totalPixels);
+		memcpy(m_opacityExtractBuffer.get(), pImageBuffer.get(), totalPixels);
+
+		for (int i = 0; i < totalPixels; ++i)
+		{
+			if (pOpacity[i] == 255)
+			{
+				m_opacityExtractBuffer[i] = 0;
+			}
+		}
+	}
+
 	constexpr int SLICE_HEIGHT = 30;
 	const int halfH = FullHeight / 2;
 
@@ -6029,9 +6044,28 @@ std::vector<ImageDataClassSafe::BuildingTextureSlice> ImageDataClassSafe::GetBui
 		view.Type = ImageDataView::ImageDataSafe;
 		view.pOriginData = pKeyPtr;
 
-		auto* pTexture = CIsoViewExt::g_pDX->LoadTexture(view, color);
+		auto* pTexture = CIsoViewExt::g_pDX->LoadTexture(view, color, true);
 		int indexOffset = static_cast<int>(i) - (baselineCutIndex - 1);
 		entry.slices.push_back({ pTexture, startRow, indexOffset });
+	}
+
+	if (m_opacityExtractBuffer)
+	{
+		auto pKey = std::make_unique<int>(114514);
+		auto* pKeyPtr = pKey.get();
+		entry.sliceKeys.push_back(std::move(pKey));
+
+		ImageDataView view;
+		view.FullWidth = FullWidth;
+		view.FullHeight = FullHeight;
+		view.pImageBuffer = m_opacityExtractBuffer.get();
+		view.pOpacity = pOpacity.get();
+		view.pPalette = coloredPal;
+		view.Type = ImageDataView::ImageDataSafe;
+		view.pOriginData = pKeyPtr;
+
+		auto* pTexture = CIsoViewExt::g_pDX->LoadTexture(view, color);
+		entry.slices.push_back({ pTexture, 0, 114514 });
 	}
 
 	auto& ret = m_buildingSliceCache[color] = std::move(entry);

@@ -1565,22 +1565,25 @@ void CIsoViewExt::DirectXDrawLockedCellOutline(int X, int Y, int W, int H, COLOR
     X += 2 / scaled;
     Y += 1 / scaled;
 
-    int halfCellWidth = 30 * W / scaled;
-    int quaterCellWidth = 15 * W / scaled;
-    int fullCellHeight = 30 * H / scaled;
-    int halfCellHeight = 15 * H / scaled;
-
-    int y1 = Y - 30  / scaled;
-    int x1 = X + 30  / scaled;
-
-    int x2 = halfCellWidth + X + 30 / scaled;
-    int y2 = quaterCellWidth + y1;
-
-    int x3 = halfCellWidth - fullCellHeight + X + 30 / scaled;
-    int y3 = halfCellHeight + quaterCellWidth + y1;
-
-    int x4 = X - fullCellHeight + 30 / scaled;
-    int y4 = halfCellHeight + y1;
+    float offsetX = 30.f / scaled;
+    float offsetY = 30.f / scaled;
+    
+    float halfCellWidth = 30.f * W / scaled;
+    float quaterCellWidth = 15.f * W / scaled;
+    float fullCellHeight = 30.f * H / scaled;
+    float halfCellHeight = 15.f * H / scaled;
+    
+    float fx1 = X + offsetX;
+    float fy1 = Y - offsetY;
+    
+    float fx2 = halfCellWidth + X + offsetX;
+    float fy2 = quaterCellWidth + fy1;
+    
+    float fx3 = halfCellWidth - fullCellHeight + X + offsetX;
+    float fy3 = halfCellHeight + quaterCellWidth + fy1;
+    
+    float fx4 = X - fullCellHeight + offsetX;
+    float fy4 = halfCellHeight + fy1;
 
     LineParams param;
     param.SetAntiAlias(false).SetColor(ShapeColor::FromCOLORREF(color)).SetThickness(bUseDot ? 1.0f : 3.0f);
@@ -1588,13 +1591,13 @@ void CIsoViewExt::DirectXDrawLockedCellOutline(int X, int Y, int W, int H, COLOR
         param.SetScreenSpace();
 
     if (s1)
-        g_pSP->DrawLine(x1 - 2, y1, x2 - 2, y2, param);
+        g_pSP->DrawLine(fx1, fy1, fx2, fy2, param);
     if (s2)
-        g_pSP->DrawLine(x2 - 2, y2 - 1, x3 - 2, y3 - 1, param);
+        g_pSP->DrawLine(fx2, fy2, fx3, fy3, param);
     if (s3)
-        g_pSP->DrawLine(x3, y3 - 1, x4, y4 - 1, param);
+        g_pSP->DrawLine(fx3, fy3, fx4, fy4, param);
     if (s4)
-        g_pSP->DrawLine(x4, y4, x1, y1, param);
+        g_pSP->DrawLine(fx4, fy4, fx1, fy1, param);
 }
 
 void CIsoViewExt::DirectXDrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF color, COLORREF colorX, bool bUseDot, bool onlyX)
@@ -3680,8 +3683,8 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
         if (pThis->IsScrolling)
         {
             pThis->DirectXBitmap(
-                pThis->MouseCenterPosition.x,
-                pThis->MouseCenterPosition.y + 27,
+                pThis->MouseCenterPosition.x + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0),
+                pThis->MouseCenterPosition.y + 27 + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0),
                 "scrollcursor.bmp", 1.0f, true);
         }
         

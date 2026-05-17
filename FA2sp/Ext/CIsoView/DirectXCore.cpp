@@ -1324,32 +1324,27 @@ void DirectXCore::RenderOffscreenContent()
         }
 
         if (hasStencilDraws) {
-            m_pContext->OMSetRenderTargets(1, m_OffscreenRTV.GetAddressOf(), m_pOffscreenDSV.Get());
-            m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
-            m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
-            m_pContext->PSSetSamplers(0, 1, offscreenSampler.GetAddressOf());
-
             // Pass A: Shadow stencil-only
+            m_pContext->OMSetBlendState(m_pBlendStateNoColor.Get(), nullptr, 0xffffffff);
             for (const auto &cmd : m_drawCommands) {
                 if (!cmd.bStencilDraw || !cmd.params.bIsShadow || !cmd.bStencilOnly)
                     continue;
                 if (!cmd.texRes || !cmd.texRes->srv)
                     continue;
-                m_pContext->OMSetBlendState(m_pBlendStateNoColor.Get(), nullptr, 0xffffffff);
                 DrawOneTexture(cmd);
-                m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
             }
+            m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
 
             // Pass A2: Objects conditional stencil update 
+            m_pContext->OMSetBlendState(m_pBlendStateNoColor.Get(), nullptr, 0xffffffff);
             for (const auto &cmd : m_drawCommands) {
                 if (!cmd.bStencilDraw || cmd.params.bIsShadow || !cmd.params.bWriteStencil || !cmd.bStencilOnly)
                     continue;
                 if (!cmd.texRes || !cmd.texRes->srv)
                     continue;
-                m_pContext->OMSetBlendState(m_pBlendStateNoColor.Get(), nullptr, 0xffffffff);
                 DrawOneTexture(cmd);
-                m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
             }
+            m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
 
             // Pass B: Terrain redraw 
             for (const auto &cmd : m_drawCommands) {
@@ -1446,7 +1441,7 @@ void DirectXCore::RenderOffscreenContent()
     }
 
     // ====================================================================
-    // Restore state for effects pass
+    // Restore quad pipeline state (Phase 3 changed IA/VS/PS for lines)
     // ====================================================================
     stride = sizeof(QuadVertex);
     offset = 0;
@@ -1457,6 +1452,9 @@ void DirectXCore::RenderOffscreenContent()
     m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
     m_pContext->PSSetSamplers(0, 1, (m_renderScale == 1.0f) ? m_pSamplerPoint.GetAddressOf() : m_pSamplerLinear.GetAddressOf());
 
+    // ====================================================================
+    // Phase 4: Effects pass (index textures �� factor �� composite)
+    // ====================================================================
     bool hasEffect = false;
     for (auto &cmd : m_drawCommands)
         if (cmd.bIsEffect)
@@ -1726,7 +1724,7 @@ void DirectXCore::RenderScreenSpaceOnly()
     m_drawCommands.clear();
 }
 
-TextureResource *DirectXCore::LoadTexture(const ImageDataView &view, BGRStruct color)
+TextureResource *DirectXCore::LoadTexture(const ImageDataView &view, BGRStruct color, bool ignoreTransparent)
 {
     auto index = TextureIndex{view.pOriginData, color};
     auto [itr, inserted] = m_textureMap.try_emplace(index);
@@ -1748,6 +1746,8 @@ TextureResource *DirectXCore::LoadTexture(const ImageDataView &view, BGRStruct c
         {
             unsigned char idx = view.pImageBuffer[y * w + x];
             unsigned char opacity = idx == 0 ? 0 : (view.pOpacity ? view.pOpacity[y * w + x] : 255);
+            if (opacity < 255 && ignoreTransparent)
+                opacity = 0;
             BGRStruct color = view.pPalette->Data[idx];
             uint32_t rgba = (color.R << 0) | (color.G << 8) | (color.B << 16) | (opacity << 24);
             rgbaData[y * w + x] = rgba;
@@ -2657,7 +2657,6 @@ void DrawShapes::DrawRect(float x, float y, float w, float h,
         FlushCanvas(canvas, originX, originY, 1.f, params.bScreenSpace);
     }
 
-    // ── Border via GPU line batching (supports dashed) ──
     if (hasBorder && m_dx)
     {
         ShapeColor bc = params.borderColor;
@@ -2724,7 +2723,6 @@ void DrawShapes::DrawEllipse(float cx, float cy, float rx, float ry,
     if (!hasFill && !hasBorder)
         return;
 
-    // ── Fill via CPU canvas ──
     if (hasFill)
     {
         float pad = 2.f;
@@ -2746,7 +2744,6 @@ void DrawShapes::DrawEllipse(float cx, float cy, float rx, float ry,
         FlushCanvas(canvas, originX, originY, 1.f, params.bScreenSpace);
     }
 
-    // ── Border via GPU line batching (supports dashed) ──
     if (hasBorder && m_dx)
     {
         ShapeColor bc = params.borderColor;

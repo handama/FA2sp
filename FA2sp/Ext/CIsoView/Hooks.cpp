@@ -1982,6 +1982,7 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 	{
 		pThis->MouseCenterPosition.x = pt.x;
 		pThis->MouseCenterPosition.y = pt.y;
+		pThis->IsScrolling = FALSE;
 	}
 
 	return 0x456EDB;

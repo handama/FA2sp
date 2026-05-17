@@ -622,6 +622,9 @@ ColorMults ColorMults::GetTerrainColorMult(Cell3DLocation location)
 
 ColorMults ColorMults::GetObjectColorMult(bool remap, Cell3DLocation location, bool isopal, int extraLightType)
 {
+    if (extraLightType == -100)
+        return { 1.0f,1.0f,1.0f };
+
     auto& lighting = LightingStruct::CurrentLighting;
     if (LightingStruct::CurrentLighting == LightingStruct::NoLighting)
         return { 1.0f,1.0f,1.0f };

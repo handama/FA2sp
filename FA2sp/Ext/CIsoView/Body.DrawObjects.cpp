@@ -1977,7 +1977,8 @@ static void DrawMapDriectDraw()
 						CIsoViewExt::DirectXNormal(
 							x - pData->FullWidth / 2,
 							y - pData->FullHeight / 2,
-							pData, NULL, 255, -1, -1, false);
+							pData, NULL, 255, -1, -1, false, 
+							info.aroundRedrawCell ? cell->Height : 0xFF);
 					}
 					else
 					{

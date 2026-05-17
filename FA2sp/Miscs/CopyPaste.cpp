@@ -468,6 +468,11 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
                     pCell->TileIndex = 0;
                 pCell->TileSubIndex = cell.TileSubIndex;
                 pCell->Height = std::clamp(cell.Height + nBaseHeight, 0, 14);
+
+                if (cell.TileSet == CMapDataExt::BridgeSet || cell.TileSet == CMapDataExt::WoodBridgeSet)
+                {
+                    pCell->Flag.AltIndex = 0;
+                }
             }
 
             pCell->TileIndexHiPart = cell.TileIndexHiPart;
@@ -807,6 +812,12 @@ void CopyPaste::ConvertTile(CellData& cell)
 
         if (rule.hasSubIndexOverride)
             cell.TileSubIndex = rule.subIndexOverride;
+
+        auto tileData = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell.TileIndex)];
+        if (tileData.TileSet == CMapDataExt::BridgeSet || tileData.TileSet == CMapDataExt::WoodBridgeSet)
+        {
+            cell.Flag.AltIndex = 0;
+        }
 
         return;
     }

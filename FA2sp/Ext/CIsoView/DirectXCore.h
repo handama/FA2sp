@@ -136,7 +136,7 @@ public:
     void ClearTileTextures();
     void OnResize(HWND hwnd);
 
-    TextureResource* LoadTexture(const ImageDataView& view, BGRStruct color = { 0,0,0 });
+    TextureResource* LoadTexture(const ImageDataView& view, BGRStruct color = { 0,0,0 }, bool ignoreTransparent = false);
     TextureResource* LoadTileTexture(CTileBlockClass* tileBlock, const ImageDataView& view);
     TextureResource* LoadIndexTexture(const ImageDataView& view);
     TextureResource* LoadBitmapTexture(FString_view name, CBitmap& bitmap, 
@@ -171,9 +171,6 @@ public:
     int GetClientWidth() const { return m_clientWidth; }
     int GetClientHeight() const { return m_clientHeight; }
 
-    // Darken the offscreen surface by a constant brightness factor.
-    // brightness=1.0f → no change, brightness=0.5f → 50%% brightness, etc.
-    // Must be called after RenderOffscreenContent().
     void DarkenOffscreen(float brightness);
 
     // GPU line batching: DrawShapes pushes LineEntry records here instead of

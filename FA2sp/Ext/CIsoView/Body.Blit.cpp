@@ -758,6 +758,14 @@ void CIsoViewExt::DirectXBuilding(int x, int y, ImageDataClassSafe* pd,
     for (auto& slice : slices) {
         DrawParams sliceParams = params;
         sliceParams.SetPosition(x, y + slice.deltaY);
+
+        // transparent anims
+        if (slice.indexOffset == 114514)
+        {       
+            sliceParams.SetOpacity(0.999f);
+            g_pDX->DrawTexture(slice.pTexture, sliceParams);
+            continue;
+        }
         
         if (alpha >= 1.0f)
         {

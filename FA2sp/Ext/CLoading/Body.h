@@ -79,6 +79,9 @@ private:
 		std::vector<std::unique_ptr<int>> sliceKeys;
 	};
 	std::unordered_map<BGRStruct, BuildingSliceCacheEntry> m_buildingSliceCache;
+
+private:
+	std::unique_ptr<unsigned char[]> m_opacityExtractBuffer;
 };
 
 class ImageDataClassSurface

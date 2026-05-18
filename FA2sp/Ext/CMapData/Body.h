@@ -10,6 +10,82 @@
 
 #define CUSTOM_TILE_START 100000
 struct TwoPointStruct;
+struct TextureResource;
+namespace Renderer {
+    class BuildingType;
+    class Building;
+}
+
+struct TileBlockExt
+{
+    std::vector<char> HeightMask{};
+    ImageDataClassSafe* pExtraImage = nullptr;
+    POINT ExtraOffset{};
+    TextureResource* pTexture = nullptr;
+    TextureResource* pExtraTexture = nullptr;
+};
+
+class CBuildingDataFS
+{
+public:
+
+    FString House;
+    FString TypeID;
+    FString Health;
+    FString Y;
+    FString X;
+    FString Facing;
+    FString Tag;
+    FString AISellable;
+    FString AIRebuildable;
+    FString PoweredOn;
+    FString Upgrades;
+    FString SpotLight;
+    FString Upgrade1;
+    FString Upgrade2;
+    FString Upgrade3;
+    FString AIRepairable;
+    FString Nominal;
+    bool Deleted = false;
+};
+
+class CUnitDataFS
+{
+public:
+    FString House;
+    FString TypeID;
+    FString Health;
+    FString Y;
+    FString X;
+    FString Facing;
+    FString Status;
+    FString Tag;
+    FString VeterancyPercentage;
+    FString Group;
+    FString IsAboveGround;
+    FString FollowsIndex;
+    FString AutoNORecruitType;
+    FString AutoYESRecruitType;
+    bool Deleted = false;
+};
+
+class CAircraftDataFS
+{
+public:
+    FString House;
+    FString TypeID;
+    FString Health;
+    FString Y;
+    FString X;
+    FString Facing;
+    FString Status;
+    FString Tag;
+    FString VeterancyPercentage;
+    FString Group;
+    FString AutoNORecruitType;
+    FString AutoYESRecruitType;
+    bool Deleted = false;
+};
 
 struct LatInfo
 {
@@ -256,16 +332,15 @@ struct CellDataExt
 
     struct BuildingRenderPart
     {
-        short Index;
         short Part;
+        bool IsBottom;
+        bool hasFire;
         int DrawX;
         int DrawY;
-        int INIIndex;
         int Status;
         ImageDataClassSafe* pData;
         Palette* pPal;
-        bool IsBottom;
-        bool hasFire;
+        Renderer::Building* pBuilding;
     };
     struct BaseNodeRenderPart
     {
@@ -276,6 +351,8 @@ struct CellDataExt
         ImageDataClassSafe* pData;
         Palette* pPal;
         BaseNodeDataExt* Data;
+        Renderer::BuildingType* pType;
+        COLORREF HouseColor;
     };
     std::vector<BuildingRenderPart> BuildingRenderParts;
     std::vector<BaseNodeRenderPart> BaseNodeRenderParts;
@@ -632,6 +709,7 @@ public:
         bool reloadCellDataExt = true,
         bool reloadImages = true);
     static void InitializeTileData();
+    static void InitializeTileDataInfo();
     static void UpdateTriggers();
     static FString AddTrigger(std::shared_ptr<Trigger> trigger);
     static FString AddTrigger(FString id);
@@ -783,6 +861,14 @@ public:
     static void RemapableOverlay_AddBuilding(int buildingIndex, const MapCoord& center);
     static void RemapableOverlay_RemoveBuilding(int buildingIndex);
 
+    static void GetBuildingDataFS(const char* str, CBuildingDataFS& data);
+    static void GetUnitDataFS(const char* str, CUnitDataFS& data);
+    static void GetAircraftDataFS(const char* str, CAircraftDataFS& data);
+    static CBuildingDataFS& GetBuildingDataFsFromMap(size_t index);
+    static CUnitDataFS& GetUnitDadaFsFromMap(size_t index);
+    static CAircraftDataFS& GetAircraftDataFsFromMap(size_t index);
+    static CInfantryData& GetInfantryDataFromMap(size_t index);
+
     static int OreValue[4];
     static std::vector<LatInfo> Tile_to_lat;
     static std::set<int> Lat_releated_sets;
@@ -793,7 +879,7 @@ public:
     static std::vector<CellDataExt> CellDataExts;
     //static MapCoord CurrentMapCoord;
     static MapCoord CurrentMapCoordPaste;
-    static std::unordered_map<CTileBlockClass*, std::vector<char>> TileBaseHeightMask;
+    static std::unordered_map<CTileBlockClass*, TileBlockExt> TileBlockDataExt;
     static void BuildBaseHeightMask(CTileBlockClass* subTile);
 
     static CTileTypeClass* TileData;
@@ -853,6 +939,7 @@ public:
     static std::map<int, BuildingRenderData> PlaceStructure_OldData;
     static FMap<std::pair<byte, byte>> SmudgeSizes;
 
+    static std::map<ExtraImageInfo, POINT> TileBlockExtraOffsets;
     static std::map<int, std::vector<CustomTile>> CustomTiles;
     static FMap<COLORREF> CustomWaypointColors;
     static FMap<COLORREF> CustomCelltagColors;
@@ -866,4 +953,11 @@ public:
     static bool SkipUpdateMinimap;
     static bool IsImportingMap;
     static bool Init_OpenMinimap;
+    static float ExtraUnitLight;
+    static float ExtraInfantryLight;
+    static float ExtraAircraftLight;
+
+    static std::vector<CUnitDataFS> UnitDatasExt;
+    static std::vector<CAircraftDataFS> AircraftDatasExt;
+    static std::vector<CBuildingDataFS> BuildingDatasExt;
 };

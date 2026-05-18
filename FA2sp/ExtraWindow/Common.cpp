@@ -2215,7 +2215,7 @@ int VirtualComboBoxEx::FindStringExactStart(const char* str) const
 
     for (int i = 0; i < (int)items.size(); ++i)
     {
-        if (strncmp(items[i].text, str, strlen(str)) == 0)
+        if (items[i].text.starts_with(str))
             return i;
     }
     return CB_ERR;

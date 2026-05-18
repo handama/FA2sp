@@ -30,4 +30,6 @@ public:
     static FString NewVersion;
     static FString ExePathExt;
     static FString LauncherName;
+
+    static int ScreenRefreshRate;
 };

@@ -77,9 +77,6 @@ static bool setCurrentOverlay(ImageDataClassSafe* pData)
         CurrentOverlay.ValidHeight = pData->ValidHeight;
         CurrentOverlay.FullWidth = pData->FullWidth;
         CurrentOverlay.FullHeight = pData->FullHeight;
-        CurrentOverlay.Flag = pData->Flag;
-        CurrentOverlay.BuildingFlag = pData->BuildingFlag;
-        CurrentOverlay.IsOverlay = pData->IsOverlay;
         CurrentOverlayPtr = &CurrentOverlay;
         return true;
     }

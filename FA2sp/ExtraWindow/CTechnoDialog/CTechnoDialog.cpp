@@ -363,20 +363,20 @@ void CTechnoDialog::ApplyToAircraftData(CAircraftData* pAir)
         pAir->AutoYESRecruitType = m_strAutoYES_Recruit;
 }
 
-void CTechnoDialog::ApplyToCurrentTechno(void* pData, CLoadingExt::ObjectType type)
+void CTechnoDialog::ApplyToCurrentTechno(void* pData, CLoadingExt::GameObjectType type)
 {
     switch (type)
     {
-    case  CLoadingExt::ObjectType::Infantry:
+    case  CLoadingExt::GameObjectType::Infantry:
         ApplyToInfantryData(static_cast<CInfantryData*>(pData));
         break;
-    case  CLoadingExt::ObjectType::Vehicle:
+    case  CLoadingExt::GameObjectType::Vehicle:
         ApplyToUnitData(static_cast<CUnitData*>(pData));
         break;
-    case  CLoadingExt::ObjectType::Aircraft:
+    case  CLoadingExt::GameObjectType::Aircraft:
         ApplyToAircraftData(static_cast<CAircraftData*>(pData));
         break;
-    case  CLoadingExt::ObjectType::Building:
+    case  CLoadingExt::GameObjectType::Building:
         ApplyToBuildingData(static_cast<CBuildingData*>(pData));
         break;
     default:

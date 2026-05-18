@@ -1,0 +1,10 @@
+BasedOnStyle: Visual Studio
+ReferenceAlignment: Left
+PointerAlignment: Left
+IndentWidth: 4
+TabWidth: 4
+UseTab: Always
+BreakBeforeBraces: Allman
+AllowShortIfStatementsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+ColumnLimit: 0

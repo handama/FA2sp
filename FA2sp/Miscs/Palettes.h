@@ -17,6 +17,17 @@
 // Level = Lighting.Level * 1000.0 + 0.1
 // I just choose to take a reference from ccmaps-net code - secsome
 
+struct ColorMults
+{
+    float RedTint;
+    float GreenTint;
+    float BlueTint;
+
+    static ColorMults GetTerrainColorMult(Cell3DLocation location);
+    static ColorMults GetObjectColorMult(bool remap, Cell3DLocation location, bool isopal = false, int extraLightType = -1);
+    static ColorMults GetOverlayColorMult(Cell3DLocation location, Renderer::OverlayType* pType);
+};
+
 struct LightingSourceTint
 {
     float RedTint;
@@ -129,6 +140,7 @@ public:
         Palette* origin, Palette* remapped,
         float rMult, float gMult, float bMult, float ambient,
         bool isObject, uint8_t R, uint8_t G, uint8_t B);
+    static const std::array<BGRStruct, 16>& GetRemapableColorArray(BGRStruct color);
 };
 
 class LightingPalette
@@ -146,20 +158,20 @@ public:
     // objectType : -1 = others, 0 = unit, 1 = inf, 2 = air, 3 = building, 
     // 4 = building rubble & TerrainPalette building, 5 = custom-palette terrains
     // 6 = tiberium tree
+    // -100 not affected by lighting
     void AdjustLighting(LightingStruct& lighting, Cell3DLocation location = { 0 }, bool tint = true, int objectType = -1);
     void ResetColors();
     void RemapColors(BGRStruct color);
     void TintColors(bool isObject = false);
     Palette* GetPalette();
-    
 };
 
 class PalettesManager
 {
     static FMap<Palette*> OriginPaletteFiles;
-    static std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedPaletteFiles;
-    static std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedDimmedPaletteFiles;
-    static std::map<Palette*, std::map<LightingStruct, LightingPalette>> CalculatedPaletteFilesNoRemap;
+    static std::unordered_map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedPaletteFiles;
+    static std::unordered_map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedDimmedPaletteFiles;
+    static std::unordered_map<Palette*, std::map<LightingStruct, LightingPalette>> CalculatedPaletteFilesNoRemap;
     static Palette* CurrentIso;
 
 public:
@@ -167,6 +179,7 @@ public:
 
     static bool NeedReloadLighting;
     static std::list<LightingPalette> CalculatedObjectPaletteFiles;
+    static std::unordered_map<Palette*, std::unordered_map<BGRStruct, LightingPalette>> CalculatedColoredPaletteFiles;
     static std::vector<Palette*> CalculatedMixedPalettes;
 
     static Palette* GetCurrentIso();
@@ -175,6 +188,7 @@ public:
     static Palette* GetPalette(Palette* pPal, BGRStruct& color, bool remap = true, Cell3DLocation location = {0});
     static Palette* GetTileSetBrowserViewPalette(Palette* pPal, BGRStruct& color, bool remap = true, Cell3DLocation location = {0});
     static Palette* GetObjectPalette(Palette* pPal, BGRStruct& color, bool remap, Cell3DLocation location, bool isopal = false, int extraLightType = -1);
+    static Palette* GetColoredPalette(Palette* pPal, BGRStruct& color);
     static Palette* GetOverlayPalette(Palette* pPal, Cell3DLocation location, int overlay);
 };
 

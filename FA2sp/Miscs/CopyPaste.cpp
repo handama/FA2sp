@@ -342,6 +342,9 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
                 auto nCellIndex = CMapData::Instance->GetCoordIndex(X + offset_x, Y + offset_y);
                 auto pCell = CMapData::Instance->GetCellAt(nCellIndex);
 
+                if (ExtConfigs::PlaceTileSkipHide && pCell->IsHidden())
+                    continue;
+
                 if (CIsoViewExt::PasteInfantries)
                     for (int subpos = 0; subpos < 3; subpos++)
                         if (pCell->Infantry[subpos] != -1)
@@ -378,6 +381,9 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
 
             auto nCellIndex = CMapData::Instance->GetCoordIndex(X + offset_x, Y + offset_y);
             auto pCell = CMapData::Instance->GetCellAt(nCellIndex);
+
+            if (ExtConfigs::PlaceTileSkipHide && pCell->IsHidden())
+                continue;
 
             if (CIsoViewExt::PasteInfantries)
                 for (int subpos = 0; subpos < 3; subpos++)
@@ -429,6 +435,10 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
 
         auto nCellIndex = CMapData::Instance->GetCoordIndex(X + offset_x, Y + offset_y);
         auto pCell = CMapData::Instance->GetCellAt(nCellIndex);
+        
+        if (ExtConfigs::PlaceTileSkipHide && pCell->IsHidden())
+            continue;
+
         auto& pCellExt = CMapDataExt::CellDataExts[nCellIndex];
 
         if (CIsoViewExt::PasteOverlays)
@@ -458,11 +468,16 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
                     pCell->TileIndex = 0;
                 pCell->TileSubIndex = cell.TileSubIndex;
                 pCell->Height = std::clamp(cell.Height + nBaseHeight, 0, 14);
+
+                if (cell.TileSet == CMapDataExt::BridgeSet || cell.TileSet == CMapDataExt::WoodBridgeSet)
+                {
+                    pCell->Flag.AltIndex = 0;
+                }
             }
 
             pCell->TileIndexHiPart = cell.TileIndexHiPart;
             pCell->IceGrowth = cell.IceGrowth;
-            pCell->Flag = cell.Flag;
+            //pCell->Flag = cell.Flag;
         }
 
         for (int i = 0; i < 3; ++i)
@@ -797,6 +812,12 @@ void CopyPaste::ConvertTile(CellData& cell)
 
         if (rule.hasSubIndexOverride)
             cell.TileSubIndex = rule.subIndexOverride;
+
+        auto tileData = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell.TileIndex)];
+        if (tileData.TileSet == CMapDataExt::BridgeSet || tileData.TileSet == CMapDataExt::WoodBridgeSet)
+        {
+            cell.Flag.AltIndex = 0;
+        }
 
         return;
     }

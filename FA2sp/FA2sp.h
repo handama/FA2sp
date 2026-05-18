@@ -24,6 +24,7 @@ struct WindowsOSInfo;
 #define ABOREUS_END 166
 #define OVRL_TRACK_BEGIN 39
 #define OVRL_TRACK_END 54
+#pragma warning(disable:4819)
 
 class FA2sp
 {
@@ -83,6 +84,8 @@ public:
     static int SensorsRangeBound_Color;
     static int CloakRangeBound_Color;
     static int PsychicRangeBound_Color;
+    static int DesignatorRangeBound_Color;
+    static int InhibitorRangeBound_Color;
     static int GuardRangeBound_Color;
     static int SightRangeBound_Color;
     static bool WeaponRangeBound_SubjectToElevation;
@@ -208,6 +211,9 @@ public:
     static bool LightingPreview_TintTileSetBrowserView;
     static bool DDrawScalingBilinear;
     static bool DDrawScalingBilinear_OnlyShrink;
+    static bool DirectXRendering;
+    static bool DirectXRendering_INI;
+    static bool PreciseDepthCalculation;
     static int DisplayTextSize;
     static int DistanceRuler_Records;
     static bool DisplayObjectsOutside;

@@ -13,6 +13,7 @@
 #include <CLoading.h>
 #include "../CTileSetBrowserFrame/Body.h"
 #include "../CMapData/Body.h"
+#include "../CIsoView/DirectXCore.h"
 #include "../../Miscs/MultiSelection.h"
 #include "../../ExtraWindow/CTileManager/CTileManager.h"
 #include "../../ExtraWindow/CObjectSearch/CObjectSearch.h"
@@ -218,21 +219,21 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             auto eItemType = CLoadingExt::GetExtension()->GetItemType(InsertingObjectID);
             switch (eItemType)
             {
-            case CLoadingExt::ObjectType::Infantry:
+            case CLoadingExt::GameObjectType::Infantry:
                 imageName = CLoadingExt::GetImageName(InsertingObjectID, 5);
                 fileID = CLoadingExt::GetExtension()->GetInfantryFileID(InsertingObjectID);
                 break;
-            case CLoadingExt::ObjectType::Terrain:
-            case CLoadingExt::ObjectType::Smudge:
+            case CLoadingExt::GameObjectType::Terrain:
+            case CLoadingExt::GameObjectType::Smudge:
                 imageName = CLoadingExt::GetImageName(InsertingObjectID, 0);
                 fileID = FString(CINI::CurrentDocument->GetString("Map", "Theater")) + "-" +
                     CLoadingExt::GetExtension()->GetTerrainOrSmudgeFileID(InsertingObjectID);
                 break;
-            case CLoadingExt::ObjectType::Vehicle:
-            case CLoadingExt::ObjectType::Aircraft:
+            case CLoadingExt::GameObjectType::Vehicle:
+            case CLoadingExt::GameObjectType::Aircraft:
                 fileID = CLoadingExt::GetExtension()->GetVehicleOrAircraftFileID(InsertingObjectID);
                 break;
-            case CLoadingExt::ObjectType::Building:
+            case CLoadingExt::GameObjectType::Building:
             {
                 bool hasTur = Variables::RulesMap.GetBool(InsertingObjectID, "Turret")
                     || Variables::RulesMap.GetBool(InsertingObjectID, "TurretAnimIsVoxel");
@@ -252,7 +253,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 }
                 break;
             }
-            case CLoadingExt::ObjectType::Unknown:
+            case CLoadingExt::GameObjectType::Unknown:
             default:
 
                 if (InsertingOverlay < 0 && InsertingTileIndex < 0 && !InsertingSpecialBitmap)
@@ -334,12 +335,12 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 ExtConfigs::InGameDisplay_Water = temp3;
             }
             std::unique_ptr<ImageDataClassSafe> pBuildingData;
-            if (eItemType == CLoadingExt::ObjectType::Aircraft || eItemType == CLoadingExt::ObjectType::Vehicle)
+            if (eItemType == CLoadingExt::GameObjectType::Aircraft || eItemType == CLoadingExt::GameObjectType::Vehicle)
             {
                 int facings = CLoadingExt::GetAvailableFacing(InsertingObjectID);
                 imageName = CLoadingExt::GetImageName(InsertingObjectID, facings / 4);
             }
-            else if (eItemType == CLoadingExt::ObjectType::Building)
+            else if (eItemType == CLoadingExt::GameObjectType::Building)
             {
                 auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
                 pBuildingData = CLoadingExt::BindClippedImages(clips);
@@ -2647,6 +2648,8 @@ void CViewObjectsExt::Redraw_ViewObjectInfo()
     this->InsertTranslatedString("ViewSensorsRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::SensorsRange, hRange);
     this->InsertTranslatedString("ViewCloakRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::CloakRange, hRange);
     this->InsertTranslatedString("ViewPsychicRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::PsychicRange, hRange);
+    this->InsertTranslatedString("ViewDesignatorRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::DesignatorRange, hRange);
+    this->InsertTranslatedString("ViewInhibitorRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::InhibitorRange, hRange);
 
 }
 
@@ -3072,6 +3075,45 @@ void CViewObjectsExt::DeleteTube(int X, int Y)
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 }
 
+void CViewObjectsExt::DeleteCelltag(int X, int Y)
+{
+    auto pIsoView = CIsoViewExt::GetExtension();
+    auto pSection = CINI::CurrentDocument->GetSection("CellTags");
+    if (!pSection)
+        return;
+
+    std::vector<ppmfc::CString> keys;
+    for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
+    {
+        for (int gy = Y - pIsoView->BrushSizeY / 2; gy <= Y + pIsoView->BrushSizeY / 2; gy++)
+        {
+            if (!CMapDataExt::IsCoordInFullMap(gx, gy))
+                continue;
+
+            int nIndex = CMapData::Instance->GetCoordIndex(gx, gy);
+            const auto& CellData = CMapData::Instance->CellDatas[nIndex];
+
+            if (CellData.CellTag != -1)
+            {
+                if (auto pKey = pSection->GetKeyAt(CellData.CellTag))
+                {
+                    keys.push_back(*pKey);
+                }
+            }
+        }
+    }
+
+    if (!keys.empty())
+    {
+        for (auto& key : keys)
+        {
+            CINI::CurrentDocument->DeleteKey(pSection, key);
+        }
+        CMapData::Instance->UpdateFieldCelltagData(FALSE);
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+    }
+}
+
 void CViewObjectsExt::MoveBaseNodeOrder(int X, int Y)
 {
     auto& ini = CMapData::Instance->INI;
@@ -3164,7 +3206,6 @@ void CViewObjectsExt::MoveBaseNode(int X, int Y)
         return;
     }
 }
-
 
 void CViewObjectsExt::ApplyInfantrySubCell(int X, int Y)
 {
@@ -3417,40 +3458,30 @@ void CViewObjectsExt::ApplyDragFacing(int X, int Y)
     //order: inf unit air str
     if (m_type == 0)
     {
-        ppmfc::CString oldFacing;
-        CInfantryData infantry;
-        Map->GetInfantryData(m_id, infantry);
-        oldFacing = infantry.Facing;
-        auto oldMapCoord = MapCoord{ atoi(infantry.X), atoi(infantry.Y) };
-        infantry.Facing = CMapDataExt::GetFacing(oldMapCoord, point, infantry.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
-        Map->InfantryDatas[m_id] = infantry;
+        auto& data = CMapDataExt::GetInfantryDataFromMap(m_id);
+        ppmfc::CString oldFacing = data.Facing;
+        auto oldMapCoord = MapCoord{ atoi(data.X), atoi(data.Y) };
+        data.Facing = CMapDataExt::GetFacing(oldMapCoord, point, data.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-        infantry.Facing = oldFacing;
-        Map->InfantryDatas[m_id] = infantry;
+        data.Facing = oldFacing;
     }
     else if (m_type == 3)
     {
-        auto key = Map->INI.GetKeyAt("Units", m_id);
-        FString value = Map->INI.GetString("Units", key);
-        FString oldValue = value;
-        auto atoms = FString::SplitString(value, 13);
-        auto oldMapCoord = MapCoord{ atoi(atoms[4]), atoi(atoms[3]) };
-        value.SetParam(5, CMapDataExt::GetFacing(oldMapCoord, point, atoms[5], ExtConfigs::ExtFacings_Drag ? 32 : 8));
-        Map->INI.WriteString("Units", key, value);
+        auto& data = CMapDataExt::GetUnitDadaFsFromMap(m_id);
+        FString oldFacing = data.Facing;
+        auto oldMapCoord = MapCoord{ atoi(data.X), atoi(data.Y) };
+        data.Facing = CMapDataExt::GetFacing(oldMapCoord, point, data.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-        Map->INI.WriteString("Units", key, oldValue);
+        data.Facing = oldFacing;
     }
     else if (m_type == 2)
     {
-        auto key = Map->INI.GetKeyAt("Aircraft", m_id);
-        FString value = Map->INI.GetString("Aircraft", key);
-        FString oldValue = value;
-        auto atoms = FString::SplitString(value, 11);
-        auto oldMapCoord = MapCoord{ atoi(atoms[4]), atoi(atoms[3]) };
-        value.SetParam(5, CMapDataExt::GetFacing(oldMapCoord, point, atoms[5], ExtConfigs::ExtFacings_Drag ? 32 : 8));
-        Map->INI.WriteString("Aircraft", key, value);
+        auto& data = CMapDataExt::GetAircraftDataFsFromMap(m_id);
+        FString oldFacing = data.Facing;
+        auto oldMapCoord = MapCoord{ atoi(data.X), atoi(data.Y) };
+        data.Facing = CMapDataExt::GetFacing(oldMapCoord, point, data.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-        Map->INI.WriteString("Aircraft", key, oldValue);
+        data.Facing = oldFacing;
     }
     else if (m_type == 1)
     {
@@ -3998,7 +4029,6 @@ void CViewObjectsExt::InitializeOnUpdateEngine()
     CViewObjectsExt::PlacingRandomTile = -1;
     CViewObjectsExt::PlacingWall = -1;
     CViewObjectsExt::PlacingRandomRandomFacing = false;
-    CViewObjectsExt::NeedChangeTreeViewSelect = true;
     CIsoViewExt::EnableAutoTrack = false;
 
     CViewObjectsExt::CurrentConnectedTileType = -1;
@@ -4029,6 +4059,8 @@ void CViewObjectsExt::InitializeOnUpdateEngine()
 bool CViewObjectsExt::UpdateEngine(int nData)
 {
     InitializeOnUpdateEngine();
+    if (nData >= 0)
+        CViewObjectsExt::NeedChangeTreeViewSelect = true;
 
     do
     {
@@ -4633,7 +4665,6 @@ bool CViewObjectsExt::UpdateEngine(int nData)
             return true;
         }
     }
-
     if (nCode == 11) // BaseNode
     {
         if (nData == MoveUp)
@@ -4823,6 +4854,20 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         {
             CIsoView::CurrentCommand->Command = 0x1B; // view object
             CIsoView::CurrentCommand->Type = ObjectTerrainType::SightRange;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::DesignatorRange)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::DesignatorRange;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::InhibitorRange)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::InhibitorRange;
 
             return true;
         }

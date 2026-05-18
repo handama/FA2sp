@@ -313,7 +313,10 @@ public:
         CloakRange,
         PsychicRange,
         GuardRange,
+        DesignatorRange,
+        InhibitorRange,
         SightRange,
+        
         AllRange,
     };
 
@@ -440,6 +443,7 @@ public:
     static void AddAnnotation(int X, int Y);
     static void RemoveAnnotation(int X, int Y);
     static void DeleteTube(int X, int Y);
+    static void DeleteCelltag(int X, int Y);
     static void SetWpTagColor(int X, int Y, bool isWp);
     static void RemoveWpTagColor(int X, int Y, bool isWp);
     static void OpenWpTagColorDlg(bool isWp);

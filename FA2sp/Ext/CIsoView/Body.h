@@ -18,7 +18,19 @@
 using namespace Gdiplus;
 
 struct CellData;
+struct CellDataExt;
+struct ImageDataView;
+struct TextureResource;
 class ImageDataClassSafe;
+class DirectXCore;
+class DrawShapes;
+class TextRenderer;
+
+namespace Renderer
+{
+    class OverlayType;
+    class ObjectType;
+}
 
 struct EditedMarks
 {
@@ -118,14 +130,6 @@ enum MeasurementTypes : int
     LineSegment,
 };
 
-struct ImageDataView
-{
-    int FullWidth;
-    int FullHeight;
-    const BYTE* pImageBuffer;
-    const Palette* pPalette;
-}; 
-
 struct TwoPointStruct
 {
     MapCoord Point1;
@@ -151,16 +155,21 @@ public:
     void DrawLine(int x1, int y1, int x2, int y2, 
         COLORREF color, bool bUseDot, bool bUsePrimary, 
         LPDDSURFACEDESC2 lpDesc, const RECT& rect, bool bDashed = false, int nThickness = 1);
+    void DrawLineRawDirectX(int x1, int y1, int x2, int y2, COLORREF color, bool bUseDot, bool bDashed = false, int nThickness = 1, bool bScreenSpace = true);
     void DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord>>& lines, int X, int Y, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc);
+    void DirectXDrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord>>& lines, int X, int Y, COLORREF color, bool bUseDot, bool bScreenSpace = false); 
+    void DirectXDrawLockedCellOutline(int X, int Y, int W, int H, COLORREF color, bool bUseDot, bool s1 = true, bool s2 = true, bool s3 = true, bool s4 = true, bool bScreenSpace = false);
+    void DirectXDrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF color, COLORREF colorX, bool bUseDot, bool onlyX = false);
     void DrawCelltag(int X, int Y, LPDDSURFACEDESC2 lpDesc);
     void DrawBitmap(FString filename, int X, int Y, LPDDSURFACEDESC2 lpDesc);
     void DrawWaypointFlag(int X, int Y, LPDDSURFACEDESC2 lpDesc);
 
     void ConfirmTube(bool addReverse = true);
 
-    void DrawEllipsePaint(int X, int Y, int majorRadius, COLORREF color, HDC hdc, const RECT& rect, int width = 2);
-    void DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORREF color, bool bUseDot, HDC hdc, HWND hwnd, bool s1 = true, bool s2 = true, bool s3 = true, bool s4 = true);
-    void DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor);
+    static void DrawEllipsePaint(int X, int Y, int majorRadius, COLORREF color, HDC hdc, const RECT& rect, int width = 2);
+    static void DrawEllipseDirectX(int X, int Y, int majorRadius, COLORREF color, int width = 2, bool bScreenSpace = true);
+    static void DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORREF color, bool bUseDot, HDC hdc, HWND hwnd, bool s1 = true, bool s2 = true, bool s3 = true, bool s4 = true);
+    static void DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor);
     static int GetSelectedSubcellInfantryIdx(int X = -1, int Y = -1, bool getSubcell = false);
     static void FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY);
     static void GetSameConnectedCells(int X, int Y, int oriX, int oriY, std::set<MapCoord>* selectedCoords = nullptr);
@@ -170,25 +179,36 @@ public:
         int x, int y, int width = -1, int height = -1, BYTE alpha = 255);
     static void BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURFACE7 surface, DDSURFACEDESC2* pDestDesc,
         DDSURFACEDESC2& srcDesc, DDCOLORKEY& srcColorKey, int x, int y, int width = -1, int height = -1, BYTE alpha = 255);
-    static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1);
     static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1);
     static bool SaveImageDataToBMP(ImageDataClassSafe* pd, const char* outputPath);
-    static void BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
-        const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, 
-        BYTE alpha = 255, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false);
     static void BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL, 
         BYTE alpha = 255, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false,
         std::vector<char>* objectOverlapMask = nullptr);
+    static void DirectXOverlay(int x, int y, ImageDataClassSafe * pd, Renderer::OverlayType* pType,
+         CellData* cell, CellDataExt* cellExt, bool isAroundRedrawCell);
+    static void DirectXNormal(int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
+        float alpha = 1.0f, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false,
+        byte stencilHeight = 0xFF, bool useStencilLogic = true);
+    static void DirectXBitmap(int x, int y, FString_view name, float alpha = 1.0f, bool isScreenSpace = false);
+    static void DirectXFlagOrCelltag(int x, int y, TextureResource* pTexture, float alpha = 1.0f);
+    static void DirectXAlphaImage(int x, int y, ImageDataClassSafe* pd);
     static void BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
-        BYTE alpha = 255, COLORREF houseColor = -1, COLORREF addOnColor = -1, bool isRubble = false, bool isTerrain = false);
+        BYTE alpha = 255, COLORREF houseColor = -1, bool isRubble = false, bool isTerrain = false);
+    static void DirectXBuilding(int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
+        float alpha = 1.0f, COLORREF houseColor = -1, bool isRubble = false, bool isTerrain = false,
+        byte stencilHeight = 0xFF);       
+    static void DirectXBaseNode(int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
+        float alpha = 0.5f, COLORREF houseColor = -1, bool isTerrain = false);
+    static void DirectXShadow(int x, int y, ImageDataClassSafe* pd, byte stencilHeight = 0xFF);
     static void BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd);
     static void BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha = 255,
         std::vector<byte>* mask = nullptr, std::vector<byte>* heightMask = nullptr, byte height = 0,
         std::vector<int>* cellHeightMask = nullptr, int tileSet = -1, std::vector<char>* objectOverlapMask = nullptr);
+    static void DirectXTerrain(int x, int y, CTileBlockClass* subTile, float alpha = 1.0f, char height = -1, bool onlyExtra = false);
     static void BlitCellHeightMask(std::vector<int>& cellHeightMask, const RECT* window,
         int x, int y, CTileBlockClass* subTile, int height);
     static void BlitText(const std::wstring& text, COLORREF textColor, COLORREF bgColor,
@@ -221,17 +241,27 @@ public:
     static void DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, const RECT& rect, int size = 0);
     static void DrawArrowHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, const RECT& rect, int size = 0);
     static void DrawDashLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, const RECT& rect, int size = 0);
+    static void DrawLineDirectX(int x1, int y1, int x2, int y2, int color, int size = 1, bool bScreenSpace = true);
+    static void DrawArrowDirectX(int x1, int y1, int x2, int y2, int color, int size = 1, bool bScreenSpace = true);
+    static void DrawDashLineDirectX(int x1, int y1, int x2, int y2, int color, int size = 1, bool bScreenSpace = true);
     static void DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color, int offsetX = 0, int offsetY = 0);
     static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::vector<MapCoord>& coords, COLORREF color);
     static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::set<MapCoord>& coords, COLORREF color);
+    static void DirectXDrawMultiMapCoordBorders(const std::set<MapCoord>& coords, COLORREF color, bool bScreenSpace = true);
+    static void DirectXDrawMultiMapCoordBorders(const std::vector<MapCoord>& coords, COLORREF color, int offsetX = 0, int offsetY = 0, bool bScreenSpace = true);
     static void TextOutClipped(HDC hdc, int x, int y, const char* text, int len, const RECT& rect);
+    static void TextOutDirectX(int x, int y, const FString& text, int fontsize, bool bScreenSpace = true, int texAlign = 0);
+    static void TextOutDirectX(int x, int y, const FString& text, int fontsize, COLORREF colorText, COLORREF colorBg, bool bScreenSpace = true, int texAlign = 0);
+    static void TextOutDirectX(int x, int y, const FString& text, int fontsize, COLORREF colorText, bool bScreenSpace = true, int texAlign = 0);
     static bool StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CRect srcRect, LPDIRECTDRAWSURFACE7 dstSurface, CRect dstRect);
     static void SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw);
+    static void SpecialDrawDirectX(int specialDraw);
+    static void DirectXMouseCursor(int x, int y, int height);
     static CRect GetVisibleIsoViewRect();
-    static void DrawCreditOnMap(HDC hDC);
-    static void DrawDistanceRuler(HDC hDC, const RECT& rect);
-    static void DrawOtherMeasurementTools(HDC hDC, const RECT& rect);
-    static void DrawScriptPaths(HDC hDC, const RECT& rect);
+    static void DrawCreditOnMap(HDC hDC, bool bScreenSpace = true);
+    static void DrawDistanceRuler(HDC hDC, const RECT& rect, bool bScreenSpace = true);
+    static void DrawOtherMeasurementTools(HDC hDC, const RECT& rect, bool bScreenSpace = true);
+    static void DrawScriptPaths(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void MoveToMapCoord(int X, int Y);
     static void Zoom(double offset);
     static std::vector<MapCoord> GetLinePoints(MapCoord mc1, MapCoord mc2);
@@ -242,8 +272,10 @@ public:
     static int GetOverlayDrawOffset(WORD nOverlay, BYTE nOverlayData = 0);
     static void SetStatusBarText(const char* text);
     void PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory);
-    static ImageDataView MakeImageDataView(ImageDataClassSafe* p);
-    static ImageDataView MakeImageDataView(ImageDataClass* p);
+    static ImageDataView MakeImageDataView(ImageDataClassSafe* p, Palette* pPal = nullptr);
+    static ImageDataView MakeImageDataView(ImageDataClass* p, Palette* pPal = nullptr);
+    static ImageDataView MakeImageDataView(CTileBlockClass* p, Palette* pPal);
+    static void BltToWindow(HWND hwnd, LPDIRECTDRAWSURFACE7 src, const RECT* rcSrc, const RECT* rcDst);
     static void inline AdaptRectForSecondScreen(LPRECT lpRect)
     {
         if (ExtConfigs::SecondScreenSupport)
@@ -259,6 +291,7 @@ public:
         ScreenCoord2MapCoord(x, y);
         return MapCoord{ x,y };
     }
+    static bool DirectXReady();
 
     static bool SkipMapScreenConvert;
     static Bitmap* pFullBitmap;
@@ -316,8 +349,8 @@ public:
     static bool AutoPropertyBrush[4];
 
     static COLORREF CellHilightColors[16];
-    static float drawOffsetX;
-    static float drawOffsetY;
+    static int drawOffsetX;
+    static int drawOffsetY;
     static Cell3DLocation CurrentDrawCellLocation;
 
     static std::unordered_set<short> VisibleStructures;
@@ -325,7 +358,7 @@ public:
     static std::unordered_set<short> VisibleUnits;
     static std::unordered_set<short> VisibleAircrafts;
 
-    static std::unordered_set<ppmfc::CString> MapRendererIgnoreObjects;
+    static FHashSet MapRendererIgnoreObjects;
     static std::vector<EditedMarks> DrawEditedMarks;
     
     static bool IsPressingALT;
@@ -335,6 +368,9 @@ public:
     static int EXTRA_BORDER_BOTTOM;
 
     static LPDIRECTDRAWSURFACE7 lpDDBackBufferZoomSurface;
+    static std::unique_ptr<DirectXCore> g_pDX;
+    static std::unique_ptr<DrawShapes> g_pSP;
+    static std::unique_ptr<TextRenderer> g_pTR;
     static double ScaledFactor;
     static double ScaledMax;
     static double ScaledMin;
@@ -360,6 +396,7 @@ public:
 
     static bool CliffBackAlt;
     static bool HistoryRecord_IsHoldingLButton;
+    static POINT MouseCenterPosition;
     static std::unordered_map<TextCacheKey, TextCacheEntry, TextCacheHasher> textCache;
 
     static __forceinline LPDIRECTDRAWSURFACE7 GetBackBuffer()
@@ -453,5 +490,5 @@ public:
     };
 
     static LastCommand LastAltCommand;
-
+    static bool TilePixels[1800];
 };

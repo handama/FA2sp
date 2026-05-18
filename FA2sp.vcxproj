@@ -63,18 +63,18 @@
     <IncludePath>MFC42\include;FA2pp;lexilla\include;scintilla\include;$(IncludePath)</IncludePath>
     <LibraryPath>MFC42\lib;Release;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_Chinese|Win32'">
-    <LinkIncremental>false</LinkIncremental>
-    <IncludePath>MFC42\include;FA2pp;lexilla\include;scintilla\include;$(IncludePath)</IncludePath>
-    <LibraryPath>MFC42\lib;Release;$(LibraryPath)</LibraryPath>
-    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
+    <LuaType>dynamic</LuaType>
+    <LuaConfiguration>Release</LuaConfiguration>
+    <LuaRuntimePlatform>v143</LuaRuntimePlatform>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>MFC42\include;FA2pp;lexilla\include;scintilla\include;$(IncludePath)</IncludePath>
     <LibraryPath>MFC42\lib;Debug;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
+    <LuaType>dynamic</LuaType>
+    <LuaConfiguration>Release</LuaConfiguration>
+    <LuaRuntimePlatform>v143</LuaRuntimePlatform>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -264,12 +264,14 @@
     <ClCompile Include="FA2sp\Ext\CHouses\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.Blit.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.cpp" />
+    <ClCompile Include="FA2sp\Ext\CIsoView\DirectXCore.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.cpp" />
-    <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.DrawObjects.cpp" />
+    <ClCompile Include="FA2sp\Ext\CIsoView\Body.DrawObjects.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.InfantrySubcell.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.OnMouseMove.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.RaiseGround.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.Zoom.cpp" />
+    <ClCompile Include="FA2sp\Ext\CIsoView\RendererTypes.cpp" />
     <ClCompile Include="FA2sp\Ext\CLighting\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CLighting\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Body.cpp" />
@@ -405,6 +407,8 @@
     <ClInclude Include="FA2sp\Ext\CFinalSunDlg\Body.h" />
     <ClInclude Include="FA2sp\Ext\CHouses\Body.h" />
     <ClInclude Include="FA2sp\Ext\CIsoView\Body.h" />
+    <ClInclude Include="FA2sp\Ext\CIsoView\DirectXCore.h" />
+    <ClInclude Include="FA2sp\Ext\CIsoView\RendererTypes.h" />
     <ClInclude Include="FA2sp\Ext\CLighting\Body.h" />
     <ClInclude Include="FA2sp\Ext\CLoading\Body.h" />
     <ClInclude Include="FA2sp\Ext\CMapData\Body.h" />
@@ -530,6 +534,7 @@
     <ResourceCompile Include="FA2sp\UI\CUpdateProgress.rc" />
   </ItemGroup>
   <ItemGroup>
+    <None Include=".github\agents\deepseek.agent.md" />
     <None Include="FA2sp\FA2sp.manifest">
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</DeploymentContent>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release_Chinese|Win32'">true</DeploymentContent>
@@ -539,14 +544,14 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="packages\lua.5.4.7.2\build\native\Lua.targets" Condition="Exists('packages\lua.5.4.7.2\build\native\Lua.targets')" />
     <Import Project="packages\openssl-vc142.1.1.0\build\native\openssl-vc142.targets" Condition="Exists('packages\openssl-vc142.1.1.0\build\native\openssl-vc142.targets')" />
+    <Import Project="packages\lua.5.4.8\build\native\Lua.targets" Condition="Exists('packages\lua.5.4.8\build\native\Lua.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>这台计算机上缺少此项目引用的 NuGet 程序包。使用“NuGet 程序包还原”可下载这些程序包。有关更多信息，请参见 http://go.microsoft.com/fwlink/?LinkID=322105。缺少的文件是 {0}。</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('packages\lua.5.4.7.2\build\native\Lua.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\lua.5.4.7.2\build\native\Lua.targets'))" />
     <Error Condition="!Exists('packages\openssl-vc142.1.1.0\build\native\openssl-vc142.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\openssl-vc142.1.1.0\build\native\openssl-vc142.targets'))" />
+    <Error Condition="!Exists('packages\lua.5.4.8\build\native\Lua.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\lua.5.4.8\build\native\Lua.targets'))" />
   </Target>
 </Project>

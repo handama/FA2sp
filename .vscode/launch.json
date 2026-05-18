@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch FA2sp",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}\\Release\\FA2SPLaunch.exe",
+            "cwd": "${workspaceFolder}\\Release",
+            "environment": [],
+            "console": "newExternalWindow",
+            "symbolSearchPath": "${workspaceFolder}\\Release",
+            "logging": {
+                "moduleLoad": false,
+                "trace": false
+            },
+            "preLaunchTask": "Restore and Build (Release)"
+        },
+        {
+            "name": "Attach to FinalAlert",
+            "type": "cppvsdbg",
+            "request": "attach",
+            "processId": "${command:pickProcess}",
+            "symbolSearchPath": "${workspaceFolder}\\Release"
+        }
+    ]
+}

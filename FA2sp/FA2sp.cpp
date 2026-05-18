@@ -74,6 +74,8 @@ int ExtConfigs::GapRangeBound_Color;
 int ExtConfigs::SensorsRangeBound_Color;
 int ExtConfigs::CloakRangeBound_Color;
 int ExtConfigs::PsychicRangeBound_Color;
+int ExtConfigs::DesignatorRangeBound_Color;
+int ExtConfigs::InhibitorRangeBound_Color;
 int ExtConfigs::GuardRangeBound_Color;
 int ExtConfigs::SightRangeBound_Color;
 int ExtConfigs::CursorSelectionBound_HeightColor;
@@ -198,6 +200,9 @@ bool ExtConfigs::LightingPreview_MultUnitColor;
 bool ExtConfigs::LightingPreview_TintTileSetBrowserView;
 bool ExtConfigs::DDrawScalingBilinear;
 bool ExtConfigs::DDrawScalingBilinear_OnlyShrink;
+bool ExtConfigs::DirectXRendering;
+bool ExtConfigs::DirectXRendering_INI;
+bool ExtConfigs::PreciseDepthCalculation;
 bool ExtConfigs::DisableDirectoryCheck;
 bool ExtConfigs::ExtOverlays;
 bool ExtConfigs::SaveMap_PreserveINISorting;
@@ -308,6 +313,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::PsychicRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "PsychicRangeBound.Color", 0x00FFFF);
 	ExtConfigs::GuardRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "GuardRangeBound.Color", 0x00FF00);
 	ExtConfigs::SightRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "SightRangeBound.Color", 0xFFFFFF);
+	ExtConfigs::DesignatorRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "DesignatorRangeBound.Color", 0x4CB122);
+	ExtConfigs::InhibitorRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "InhibitorRangeBound.Color", 0x302ECC);
 
 	ExtConfigs::WeaponRangeBound_SubjectToElevation = CINI::FAData->GetBool("ExtConfigs", "WeaponRangeBound.SubjectToElevation");
 
@@ -345,6 +352,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DisplayObjectsOutside = CINI::FAData->GetBool("ExtConfigs", "DisplayObjectsOutside");
 	ExtConfigs::DDrawScalingBilinear = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear", true);
 	ExtConfigs::DDrawScalingBilinear_OnlyShrink = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear.OnlyShrink", true);
+	ExtConfigs::DirectXRendering_INI = CINI::FAData->GetBool("ExtConfigs", "DirectXRendering");
+	ExtConfigs::PreciseDepthCalculation = CINI::FAData->GetBool("ExtConfigs", "PreciseDepthCalculation", true);
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::LightingPreview_TintTileSetBrowserView = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.TintTileSetBrowserView");
@@ -561,11 +570,22 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::SecondScreenSupport =
 		ExtConfigs::SecondScreenSupport_INI
 		&& (GetSystemMetrics(SM_CMONITORS) > 1);
+
+	ExtConfigs::DirectXRendering = ExtConfigs::DirectXRendering_INI;
+	if (ExtConfigs::DirectXRendering)
+		ExtConfigs::SecondScreenSupport = true;
 }
 
 void ExtConfigs::UpdateOptionTranslations()
 {
 	ExtConfigs::Options.clear();
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.DirectXRendering", "Draw map using DirectX 11"),
+		.IniKey = "DirectXRendering",
+		.Value = &ExtConfigs::DirectXRendering_INI,
+		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
 
 	// Editor Interface and Behavior
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -1356,6 +1376,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "SecondScreenSupport",
 		.Value = &ExtConfigs::SecondScreenSupport_INI,
 		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.PreciseDepthCalculation", "Precisely calculate the depth relationship of game objects (slower)"),
+		.IniKey = "PreciseDepthCalculation",
+		.Value = &ExtConfigs::PreciseDepthCalculation,
+		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

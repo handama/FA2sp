@@ -11,7 +11,7 @@
 #include "../../Extra/GeneralLoad.h"
 
 bool CLoadingExt::HasFile_ReadyToReadFromFolder = false;
-Palette CLoadingExt::TempISOPalette = { 0 };
+Palette CLoadingExt::TempISOPalette = { };
 bool CLoadingExt::IsLoadingObjectView = false;
 FHashSet CLoadingExt::SwimableInfantries;
 

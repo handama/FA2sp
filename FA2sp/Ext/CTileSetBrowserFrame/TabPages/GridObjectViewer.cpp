@@ -982,7 +982,7 @@ void GridObjectViewer::UpdateImages()
 {
     Clear();
 
-    auto loadImageBuilding = [this](ImageDataClassSafe* pd, const ppmfc::CString id, const CLoadingExt::ObjectType type)
+    auto loadImageBuilding = [this](ImageDataClassSafe* pd, const ppmfc::CString id, const CLoadingExt::GameObjectType type)
     {
         if (!pd || !pd->pImageBuffer || pd->FullWidth <= 0 || pd->FullHeight <= 0)
             return;
@@ -996,7 +996,7 @@ void GridObjectViewer::UpdateImages()
     };
     auto loadImage = [this](const FString& DataName, 
         const ppmfc::CString id, 
-        const CLoadingExt::ObjectType type,
+        const CLoadingExt::GameObjectType type,
         int overlay = -1,
         int overlayData = -1
         )
@@ -1038,7 +1038,7 @@ void GridObjectViewer::UpdateImages()
                     if (!datas.empty() && !datas.contains(i))
                         continue;
                     auto imageName = CLoadingExt::GetOverlayName(index, i);
-                    loadImage(imageName, id.ID, CLoadingExt::ObjectType::Unknown, index, i);
+                    loadImage(imageName, id.ID, CLoadingExt::GameObjectType::Unknown, index, i);
                 }
             }
             else
@@ -1052,29 +1052,29 @@ void GridObjectViewer::UpdateImages()
                     CLoadingExt::GetExtension()->LoadObjects(id.ID);
                 switch (type)
                 {
-                case CLoadingExt::ObjectType::Infantry:
+                case CLoadingExt::GameObjectType::Infantry:
                 {
                     int facings = CLoadingExt::GetAvailableFacing(id.ID);
                     auto imageName = CLoadingExt::GetImageName(id.ID, 5);
                     loadImage(imageName, id.ID, type);
                     break;
                 }
-                case CLoadingExt::ObjectType::Vehicle:
-                case CLoadingExt::ObjectType::Aircraft:
+                case CLoadingExt::GameObjectType::Vehicle:
+                case CLoadingExt::GameObjectType::Aircraft:
                 {
                     int facings = CLoadingExt::GetAvailableFacing(id.ID);
                     auto imageName = CLoadingExt::GetImageName(id.ID, facings / 4);
                     loadImage(imageName, id.ID, type);
                     break;
                 }
-                case CLoadingExt::ObjectType::Terrain:
-                case CLoadingExt::ObjectType::Smudge:
+                case CLoadingExt::GameObjectType::Terrain:
+                case CLoadingExt::GameObjectType::Smudge:
                 {
                     auto imageName = CLoadingExt::GetImageName(id.ID, 0);
                     loadImage(imageName, id.ID, type);
                     break;
                 }
-                case CLoadingExt::ObjectType::Building:
+                case CLoadingExt::GameObjectType::Building:
                 {
                     bool hasTur = Variables::RulesMap.GetBool(id.ID, "Turret")
                         || Variables::RulesMap.GetBool(id.ID, "TurretAnimIsVoxel");
@@ -1089,7 +1089,7 @@ void GridObjectViewer::UpdateImages()
                     loadImageBuilding(g_buildingImages.back().get(), id.ID, type);
                     break;
                 }
-                case CLoadingExt::ObjectType::Unknown:
+                case CLoadingExt::GameObjectType::Unknown:
                 default:
                     break;
                 }
@@ -1575,25 +1575,25 @@ void GridObjectViewer::OnSelChanged(int index)
         auto type = CLoadingExt::GetExtension()->GetItemType(id);
         switch (type)
         {
-        case CLoadingExt::ObjectType::Infantry:
+        case CLoadingExt::GameObjectType::Infantry:
             CIsoView::CurrentCommand->Type = 1;
             break;
-        case CLoadingExt::ObjectType::Terrain:
+        case CLoadingExt::GameObjectType::Terrain:
             CIsoView::CurrentCommand->Type = 5;
             break;
-        case CLoadingExt::ObjectType::Smudge:
+        case CLoadingExt::GameObjectType::Smudge:
             CIsoView::CurrentCommand->Type = 8;
             break;
-        case CLoadingExt::ObjectType::Vehicle:
+        case CLoadingExt::GameObjectType::Vehicle:
             CIsoView::CurrentCommand->Type = 4;
             break;
-        case CLoadingExt::ObjectType::Aircraft:
+        case CLoadingExt::GameObjectType::Aircraft:
             CIsoView::CurrentCommand->Type = 3;
             break;
-        case CLoadingExt::ObjectType::Building:
+        case CLoadingExt::GameObjectType::Building:
             CIsoView::CurrentCommand->Type = 2;
             break;
-        case CLoadingExt::ObjectType::Unknown:
+        case CLoadingExt::GameObjectType::Unknown:
         default:
             break;
         }

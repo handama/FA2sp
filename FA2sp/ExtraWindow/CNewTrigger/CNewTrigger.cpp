@@ -357,7 +357,7 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
     }
 
     if (!CMapData::Instance->IsMultiOnly())
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName("Player", true).c_str());
+        SendMessage(hHouse, CB_INSERTSTRING, 0, (LPARAM)(LPCSTR)Translations::ParseHouseName("Player", true).c_str());
 
     if (CompactMode)
       ExtraWindow::AdjustDropdownWidth(hHouse);

@@ -8,7 +8,6 @@
 #include <filesystem>
 #include "../CFinalSunApp/Body.h"
 #include "../../Helpers/STDHelpers.h"
-#include "../../Extra/GeneralLoad.h"
 
 bool CLoadingExt::HasFile_ReadyToReadFromFolder = false;
 Palette CLoadingExt::TempISOPalette = { };
@@ -220,7 +219,13 @@ bool CLoadingExt::InitMixFilesFix()
 			}
 		}
 
-		GeneralLoad::LoadExtraMixFile(this, Dir);
+		FString format = "EXPAND" + CINI::FAData->GetString("Filenames", "MixExtension", "MD") + "%02d.MIX";
+		for (int i = 99; i >= 0; --i)
+		{
+			FString filename;
+			filename.Format(format, i);
+			LoadMixFile(filename);
+		}
 
 		if (!LoadMixFile("RA2MD.MIX", 0, true))		return false;
 		if (!LoadMixFile("RA2.MIX", 0, true))		return false;
@@ -443,7 +448,13 @@ bool CLoadingExt::InitMixFilesFix()
 			}
 		}
 
-		GeneralLoad::LoadExtraMixFile(this, Dir);
+		FString format = "EXPAND" + CINI::FAData->GetString("Filenames", "MixExtension", "MD") + "%02d.MIX";
+		for (int i = 99; i >= 0; --i)
+		{
+			FString filename;
+			filename.Format(format, i);
+			LoadMixFile(filename);
+		}
 
 		if (!LoadMixFile("RA2MD.MIX", 0, true))		return false;
 		if (!LoadMixFile("RA2.MIX", 0, true))		return false;

@@ -2493,9 +2493,8 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 
 		FString FileName = ImageID + ".shp";
 		FString FileNameTurret = GeneralLoad::LoadTurretOrBarrel(ID, ArtID, ImageID, false, false, true);
-		int nMix = this->SearchFile(FileName);
 
-		if (HasFileExt(FileName, nMix))
+		if (HasFileExt(FileName))
 		{
 			ShapeHeader header{};
 			ShapeHeader headerTurret{};

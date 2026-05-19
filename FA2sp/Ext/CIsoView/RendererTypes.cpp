@@ -23,6 +23,11 @@ void SmudgeType::Init(FString_view id)
 
     auto imageName = CLoadingExt::GetImageName(ID, 0);
     pImageData = CLoadingExt::GetImageDataFromMap(imageName);
+
+    if (CLoadingExt::ObjectsNeedReloaded && ExtConfigs::DirectXRendering)
+    {
+        pImageData->GetTexture();
+    }
 }
 
 void TerrainType::Init(FString_view id)
@@ -43,10 +48,19 @@ void TerrainType::Init(FString_view id)
     auto imageName = CLoadingExt::GetImageName(ID, 0);
     pImageData = CLoadingExt::GetImageDataFromMap(imageName);
 
+    if (CLoadingExt::ObjectsNeedReloaded && ExtConfigs::DirectXRendering)
+    {
+        pImageData->GetTexture();
+    }
+
     if (ExtConfigs::InGameDisplay_Shadow)
     {
         auto shadowImageName = CLoadingExt::GetImageName(ID, 0, true);
         pShadowData = CLoadingExt::GetImageDataFromMap(shadowImageName);
+        if (CLoadingExt::ObjectsNeedReloaded && ExtConfigs::DirectXRendering)
+        {
+            pShadowData->GetTexture();
+        }
     }
 
     if (ExtConfigs::InGameDisplay_AlphaImage)
@@ -56,6 +70,10 @@ void TerrainType::Init(FString_view id)
         {
             auto AIName = CLoadingExt::GetAlphaImageName(ID, 0, 0);
             pAlphaImageData = CLoadingExt::GetImageDataFromMap(AIName);
+            if (CLoadingExt::ObjectsNeedReloaded && ExtConfigs::DirectXRendering)
+            {
+                pAlphaImageData->GetTexture(nullptr, true);
+            }
         }
     }
 }
@@ -85,10 +103,22 @@ void OverlayType::Init(WORD nOverlay)
         auto imageName = CLoadingExt::GetOverlayName(nOverlay, i);
         pImageData[i] = CLoadingExt::GetImageDataFromMap(imageName);
 
+        if (CLoadingExt::ObjectsNeedReloaded && ExtConfigs::DirectXRendering
+             && (!TypeData.Wall || !ExtConfigs::InGameDisplay_RemapableOverlay))
+        {
+            pImageData[i]->GetTexture();
+        }
+
         if (ExtConfigs::InGameDisplay_Shadow)
         {
             auto shadowImageName = CLoadingExt::GetOverlayName(nOverlay, i, true);
             pShadowData[i] = CLoadingExt::GetImageDataFromMap(shadowImageName);
+
+            if (CLoadingExt::ObjectsNeedReloaded  && ExtConfigs::DirectXRendering
+                && (!TypeData.Wall || !ExtConfigs::InGameDisplay_RemapableOverlay))
+            {
+                pShadowData[i]->GetTexture();
+            }
         }
     }
 }
@@ -734,6 +764,62 @@ void Renderer::Building::Reload(short index)
     pType = GetOrCreateBuilding(data.TypeID);
     pRenderData = &CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
     pCellData = CMapData::Instance->TryGetCellAt(pRenderData->X, pRenderData->Y);
+    HouseColor = Miscs::GetColorRef(data.House);
+
+    if (CLoadingExt::ObjectsNeedReloaded)
+    {
+        auto pType = GetType();
+        BGRStruct color(HouseColor);
+        if (ExtConfigs::DirectXRendering)
+        {
+            bool bunker = pType->CanOccupyFire && pType->TechLevel < 0;
+            for (int i = 0; i < pType->FacingCount; ++i)
+            {
+                for (int j = 0; j < (bunker ? 4 : 3); ++j)
+                {
+                    auto clips = pType->GetImageData(i, j);
+                    for (auto &pData : *clips)
+                    {
+                        if (ImageDataClassSafe::IsValidImage(pData.get()))
+                        {                   
+                            auto newPal = PalettesManager::GetColoredPalette(pData->pPalette, color);
+                            pData->GetBuildingColoredTextures(newPal, color);
+                        }
+                    }
+    
+                    auto pData = pType->GetShadowData(i, j);
+                    if (ImageDataClassSafe::IsValidImage(pData))
+                    {                   
+                        pData->GetTexture();
+                    }
+                }
+            }
+        }
+
+        for (int upgrade = 0; upgrade < pRenderData->PowerUpCount; ++upgrade)
+        {
+            const auto &upg = upgrade == 0 ? pRenderData->PowerUp1 : (upgrade == 1 ? pRenderData->PowerUp2 : pRenderData->PowerUp3);
+            if (upg.GetLength() == 0)
+                continue;
+
+            auto pUpgType = Renderer::GetOrCreateBuilding(upg);
+            auto pUpgData = pUpgType->GetBundledImageData(0);
+            auto pUpgShadow = pUpgType->GetShadowData(0, 0);
+            if (ExtConfigs::DirectXRendering)
+            {
+                if (ImageDataClassSafe::IsValidImage(pUpgData))
+                {                   
+                    auto newPal = PalettesManager::GetColoredPalette(pUpgData->pPalette, color);
+                    pUpgData->GetBuildingColoredTextures(newPal, color);
+                }
+
+                if (ImageDataClassSafe::IsValidImage(pUpgShadow))
+                {                   
+                    pUpgShadow->GetTexture();
+                }
+            }
+        }
+    }
 
     if (!CIsoViewExt::DrawStructures)
         return;
@@ -796,6 +882,11 @@ bool Renderer::Object::IsVisible()
     return Visible;
 }
 
+COLORREF Renderer::Object::GetHouseColor()
+{
+    return HouseColor;
+}
+
 void Renderer::Vehicle::Reload(short index)
 {
     Visible = false;
@@ -809,6 +900,39 @@ void Renderer::Vehicle::Reload(short index)
     auto& data = CMapDataExt::GetUnitDadaFsFromMap(index);
     pObjectData = &data;
     pType = GetOrCreateVehicle(data.TypeID);
+    HouseColor = Miscs::GetColorRef(data.House);
+
+    if (CLoadingExt::ObjectsNeedReloaded && ExtConfigs::DirectXRendering)
+    {
+        auto pType = GetType();
+        BGRStruct color(HouseColor);
+        for (int i = 0; i < pType->FacingCount; ++i)
+        {
+            auto pData = pType->GetImageData(data, LandType::Water);
+            if (ImageDataClassSafe::IsValidImage(pData))
+            {  
+                auto newPal = PalettesManager::GetColoredPalette(pData->pPalette, color);
+                pData->GetColoredTexture(newPal, color);                 
+            }
+            pData = pType->GetImageData(data, LandType::Clear13);
+            if (ImageDataClassSafe::IsValidImage(pData))
+            {  
+                auto newPal = PalettesManager::GetColoredPalette(pData->pPalette, color);
+                pData->GetColoredTexture(newPal, color);                 
+            }
+
+            pData = pType->GetShadowData(data, LandType::Water);
+            if (ImageDataClassSafe::IsValidImage(pData))
+            {                   
+                pData->GetTexture();
+            }
+            pData = pType->GetShadowData(data, LandType::Clear13);
+            if (ImageDataClassSafe::IsValidImage(pData))
+            {                   
+                pData->GetTexture();
+            }
+        }
+    }
 
     if (!CIsoViewExt::DrawUnits)
         return;
@@ -876,6 +1000,39 @@ void Renderer::Infantry::Reload(short index)
     auto& data = CMapDataExt::GetInfantryDataFromMap(index);
     pObjectData = &data;
     pType = GetOrCreateInfantry(data.TypeID);
+    HouseColor = Miscs::GetColorRef(data.House);
+
+    if (CLoadingExt::ObjectsNeedReloaded && ExtConfigs::DirectXRendering)
+    {
+        auto pType = GetType();
+        BGRStruct color(HouseColor);
+        for (int i = 0; i < pType->FacingCount; ++i)
+        {
+            auto pData = pType->GetImageData(data, LandType::Water);
+            if (ImageDataClassSafe::IsValidImage(pData))
+            {  
+                auto newPal = PalettesManager::GetColoredPalette(pData->pPalette, color);
+                pData->GetColoredTexture(newPal, color);                 
+            }
+            pData = pType->GetImageData(data, LandType::Clear13);
+            if (ImageDataClassSafe::IsValidImage(pData))
+            {  
+                auto newPal = PalettesManager::GetColoredPalette(pData->pPalette, color);
+                pData->GetColoredTexture(newPal, color);                 
+            }
+
+            pData = pType->GetShadowData(data, LandType::Water);
+            if (ImageDataClassSafe::IsValidImage(pData))
+            {                   
+                pData->GetTexture();
+            }
+            pData = pType->GetShadowData(data, LandType::Clear13);
+            if (ImageDataClassSafe::IsValidImage(pData))
+            {                   
+                pData->GetTexture();
+            }
+        }
+    }
 
     if (!CIsoViewExt::DrawInfantries)
         return;
@@ -963,6 +1120,22 @@ void Renderer::Aircraft::Reload(short index)
     auto& data = CMapDataExt::GetAircraftDataFsFromMap(index);
     pObjectData = &data;
     pType = GetOrCreateAircraft(data.TypeID);
+    HouseColor = Miscs::GetColorRef(data.House);
+
+    if (CLoadingExt::ObjectsNeedReloaded && ExtConfigs::DirectXRendering)
+    {
+        auto pType = GetType();
+        BGRStruct color(HouseColor);
+        for (int i = 0; i < pType->FacingCount; ++i)
+        {
+            auto pData = pType->GetImageData(data);
+            if (ImageDataClassSafe::IsValidImage(pData))
+            {  
+                auto newPal = PalettesManager::GetColoredPalette(pData->pPalette, color);
+                pData->GetColoredTexture(newPal, color);                 
+            }
+        }
+    }
 
     if (!CIsoViewExt::DrawAircrafts)
         return;

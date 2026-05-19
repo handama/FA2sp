@@ -327,6 +327,7 @@ public:
 	static FHashMap<int> BioReactors;
 	static std::unordered_set<int> Ra2dotMixes;
 	static int TallestBuildingHeight;
+	static bool ObjectsNeedReloaded;
 private:
 
 	void DumpFrameToFile(unsigned char* pBuffer, Palette* pPal, int Width, int Height, FString name);

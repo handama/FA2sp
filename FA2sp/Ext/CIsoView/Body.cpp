@@ -747,8 +747,8 @@ void CIsoViewExt::DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF col
 
 void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor)
 {   
-    X += 6 / CIsoViewExt::ScaledFactor - 6 + 2;
-    Y += 3 / CIsoViewExt::ScaledFactor - 3 + 1;
+    X += 2 / CIsoViewExt::ScaledFactor - 2 + 2;
+    Y += 1 / CIsoViewExt::ScaledFactor - 1 + 1;
     if (!hdc)
         return;
     if (!hwnd)
@@ -3799,8 +3799,8 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
 
 void CIsoViewExt::DirectXMouseCursor(int X, int Y, int height)
 {
-    X += 1.0 / CIsoViewExt::ScaledFactor - 1.0 + 1;
-    Y += 0.5 / CIsoViewExt::ScaledFactor - 0.5 + 1;
+    X += 2.0 / CIsoViewExt::ScaledFactor - 1.0;
+    Y += 1.5 / CIsoViewExt::ScaledFactor - 0.5;
 
     double halfCellWidth = 30 / CIsoViewExt::ScaledFactor;
     double quaterCellWidth = 15 / CIsoViewExt::ScaledFactor;

@@ -216,6 +216,7 @@ public:
     static bool PreciseDepthCalculation;
     static int DisplayTextSize;
     static int DistanceRuler_Records;
+    static bool LoadObjectsOnInit;
     static bool DisplayObjectsOutside;
     static bool DisableDirectoryCheck;
     static bool ExtOverlays;

@@ -1940,8 +1940,8 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 	{
 		pThis->IsScrolling = true;
 
-		int adaptedDx = dx * 20 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate;
-		int adaptedDy = dy * 20 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate;
+		int adaptedDx = dx * 20 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate * (ExtConfigs::DirectXRendering ? 1.2f : 1.0f);
+		int adaptedDy = dy * 20 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate * (ExtConfigs::DirectXRendering ? 1.2f : 1.0f);
 
 		if (dx > 0)
 			adaptedDx = std::max(1, adaptedDx);

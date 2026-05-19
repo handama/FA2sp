@@ -21,6 +21,7 @@
 #include <codecvt>
 #include <functional>
 #include <thread>
+#include <CUpdateProgress.h>
 
 static CRect window;
 static MapCoord VisibleCoordTL;
@@ -246,11 +247,6 @@ static void DrawTechnoAttachments(
 			if (redrawIndex > 0 && i == redrawIndex)
 			{
 				originalDraw();
-			}
-
-			if (!CLoadingExt::IsObjectLoaded(info.ID))
-			{
-				CLoadingExt::GetExtension()->LoadObjects(info.ID);
 			}
 
 			auto eItemType = CLoadingExt::GetExtension()->GetItemType(info.ID);
@@ -517,7 +513,138 @@ static void DrawTechnoAttachments(
 	}
 }
 
-static void DrawMapDriectDraw()
+static void InitAllObjects()
+{
+	if (!ExtConfigs::LoadObjectsOnInit)
+		return;
+
+	auto keepAlive = []()
+	{
+		MSG msg;
+		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+		Sleep(1);
+	};
+
+	std::set<WORD> overlays;
+	std::vector<BaseNodeDataExt*> baseNodes;
+	for (auto& cellExt: CMapDataExt::CellDataExts)
+	{
+		if (cellExt.NewOverlay != 0xffff)
+		{
+			overlays.insert(cellExt.NewOverlay);
+		}
+		for (auto &node : cellExt.BaseNodes)
+		{
+			baseNodes.push_back(&node);
+		}
+	}
+	int count = CMapDataExt::BuildingDatasExt.size() 
+	+ CMapDataExt::UnitDatasExt.size()
+	+ CMapDataExt::AircraftDatasExt.size()
+	+ CMapData::Instance->InfantryDatas.size()
+	+ CMapData::Instance->TerrainDatas.size()
+	+ CMapData::Instance->SmudgeDatas.size()
+	+ overlays.size() + baseNodes.size();
+
+	int currentPos = 0;
+
+	CUpdateProgress progress(
+		Translations::TranslateOrDefault("InitAllObjectsProgressText",
+			"Loading objects, please wait..."), NULL);
+	progress.ShowWindow(SW_SHOW);
+	progress.UpdateWindow();
+	progress.ProgressBar.SetRange(0, count);
+	progress.ProgressBar.SetPos(0);
+
+	for (int i = 0; i < CMapDataExt::BuildingDatasExt.size(); ++i)
+	{
+		Renderer::Buildings[i].Reload(i);	
+		progress.ProgressBar.SetPos(++currentPos);
+		progress.ProgressBar.UpdateWindow();
+	}
+	keepAlive();
+	for (int i = 0; i < CMapDataExt::UnitDatasExt.size(); ++i)
+	{
+		Renderer::Vehicles[i].Reload(i);
+		progress.ProgressBar.SetPos(++currentPos);
+		progress.ProgressBar.UpdateWindow();
+	}
+	keepAlive();
+	for (int i = 0; i < CMapDataExt::AircraftDatasExt.size(); ++i)
+	{
+		Renderer::Aircrafts[i].Reload(i);
+		progress.ProgressBar.SetPos(++currentPos);
+		progress.ProgressBar.UpdateWindow();
+	}
+	keepAlive();
+	for (int i = 0; i < CMapData::Instance->InfantryDatas.size(); ++i)
+	{
+		Renderer::Infantries[i].Reload(i);
+		progress.ProgressBar.SetPos(++currentPos);
+		progress.ProgressBar.UpdateWindow();
+	}
+	keepAlive();
+	for (int i = 0; i < CMapData::Instance->TerrainDatas.size(); ++i)
+	{
+		auto &obj = CMapData::Instance->TerrainDatas[i].TypeID;
+		auto pType = Renderer::GetOrCreateTerrain(obj);
+		progress.ProgressBar.SetPos(++currentPos);
+		progress.ProgressBar.UpdateWindow();
+	}
+	keepAlive();
+	for (int i = 0; i < CMapData::Instance->SmudgeDatas.size(); ++i)
+	{
+		auto &obj = CMapData::Instance->SmudgeDatas[i].TypeID;
+		auto pType = Renderer::GetOrCreateSmudge(obj);
+		progress.ProgressBar.SetPos(++currentPos);
+		progress.ProgressBar.UpdateWindow();
+	}
+	keepAlive();
+	for (auto nOvr : overlays)
+	{
+		auto pType = Renderer::GetOrCreateOverlay(nOvr);
+		progress.ProgressBar.SetPos(++currentPos);
+		progress.ProgressBar.UpdateWindow();
+	}
+	keepAlive();
+	for (auto& node : baseNodes)
+	{
+		auto pType = Renderer::GetOrCreateBuilding(node->ID);
+		if (ExtConfigs::DirectXRendering)
+		{
+			auto HouseColor = Miscs::GetColorRef(node->House);
+			BGRStruct color(HouseColor);
+			bool bunker = pType->CanOccupyFire && pType->TechLevel < 0;
+			for (int i = 0; i < pType->FacingCount; ++i)
+			{
+				for (int j = 0; j < (bunker ? 4 : 3); ++j)
+				{
+					auto clips = pType->GetImageData(i, j);
+					for (auto &pData : *clips)
+					{
+						if (ImageDataClassSafe::IsValidImage(pData.get()))
+						{                   
+							auto newPal = PalettesManager::GetColoredPalette(pData->pPalette, color);
+							pData->GetBuildingColoredTextures(newPal, color);
+						}
+					}
+	
+					auto pData = pType->GetShadowData(i, j);
+					if (ImageDataClassSafe::IsValidImage(pData))
+					{                   
+						pData->GetTexture();
+					}
+				}
+			}
+		}
+	}
+}
+
+static void DrawMap()
 {
 	auto pThis = CIsoViewExt::GetExtension();
 	auto pMap = CMapDataExt::GetExtension();
@@ -568,6 +695,12 @@ static void DrawMapDriectDraw()
 
 	// clear static containers, init some game logics
 	{
+		if (CLoadingExt::ObjectsNeedReloaded)
+		{
+			InitAllObjects();
+			CLoadingExt::ObjectsNeedReloaded = false;
+		}
+
 		PalettesManager::CalculatedObjectPaletteFiles.clear();
 		CIsoViewExt::VisibleStructures.clear();
 		CIsoViewExt::VisibleInfantries.clear();
@@ -1977,7 +2110,7 @@ static void DrawMapDriectDraw()
 						CIsoViewExt::DirectXNormal(
 							x - pData->FullWidth / 2,
 							y - pData->FullHeight / 2,
-							pData, NULL, 255, -1, -1, false, 
+							pData, NULL, 1.0f, 0, -1, false, 
 							info.aroundRedrawCell ? cell->Height : 0xFF);
 					}
 					else
@@ -2445,7 +2578,7 @@ static void DrawMapDriectDraw()
 			auto pData = pType->GetImageData(obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
 
 			bool HoveringUnit = ExtConfigs::InGameDisplay_Hover && pType->IsHoveringUnit;
-			auto color = Miscs::GetColorRef(obj.House);
+			auto color = Renderer::Vehicles[cell->Unit].GetHouseColor();
 
 			if (ImageDataClassSafe::IsValidImage(pData))
 			{
@@ -2521,7 +2654,7 @@ static void DrawMapDriectDraw()
 			auto pType = Renderer::Aircrafts[cell->Aircraft].GetType();
 			auto pData = pType->GetImageData(obj);
 
-			auto color = Miscs::GetColorRef(obj.House);
+			auto color = Renderer::Aircrafts[cell->Unit].GetHouseColor();
 			if (ImageDataClassSafe::IsValidImage(pData))
 			{
 				auto draw = [&]
@@ -2600,7 +2733,7 @@ static void DrawMapDriectDraw()
 					}
 				}
 
-				auto color = Miscs::GetColorRef(obj.House);
+				auto color = Renderer::Infantries[cell->Infantry[i]].GetHouseColor();
 				if (ImageDataClassSafe::IsValidImage(pData))
 				{
 					auto draw = [&]
@@ -3408,7 +3541,10 @@ static void DrawMapDriectDraw()
 					TextParams param;
 					if (folded ? false : bold)
 						param.SetBold();
-					param.SetFontSize(fontSize).SetColor(ShapeColor::FromCOLORREF(textColor)).SetBgColor(ShapeColor::FromRGBA(GetRValue(bgColor), GetGValue(bgColor), GetBValue(bgColor), 128)).SetBorder().SetPadding(3, 3);
+					param.SetFontSize(fontSize).
+					SetColor(ShapeColor::FromCOLORREF(textColor)).
+					SetBgColor(ShapeColor::FromRGBA(GetRValue(bgColor), GetGValue(bgColor), GetBValue(bgColor), 128)).
+					SetBorder().SetPadding(3, 3);
 
 					pThis->g_pTR->DrawTexts(x, y, text, param);
 				}
@@ -3793,7 +3929,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw, 7)
 	auto start = std::chrono::high_resolution_clock::now();
 	static float smoothedFps = (float)CFinalSunAppExt::ScreenRefreshRate;
 
-	DrawMapDriectDraw();
+	DrawMap();
 
 	auto end = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);

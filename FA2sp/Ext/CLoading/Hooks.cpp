@@ -210,7 +210,9 @@ DEFINE_HOOK(52D098, CLoading_DrawTMP_5, 5)
 		memcpy(extra_image, tmp_file_image, size);
 
 		CMapDataExt::TileBlockExtraOffsets[{tileIndex, subTileIndex, altCount[subTileIndex]}]
-			= { currentTMP->x_extra - currentTMP->x, currentTMP->y_extra - currentTMP->y };
+			= std::make_pair( POINT{ currentTMP->x_extra - currentTMP->x, currentTMP->y_extra - currentTMP->y },
+				POINT{ currentTMP->cx_extra, currentTMP->cy_extra }
+		);
 
 		auto loadingExt = (CLoadingExt*)CLoading::Instance();
 		FString ImageID;

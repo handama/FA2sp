@@ -480,8 +480,8 @@ struct TextParams {
     TextParams& SetBold(bool b = true) { bold = b;      return *this; }
     TextParams& SetItalic(bool b = true) { italic = b;    return *this; }
     TextParams& SetUnderline(bool b = true) { underline = b; return *this; }
-    TextParams& SetColor(ShapeColor c) { color = c;     return *this; }
-    TextParams& SetBgColor(ShapeColor c) { bgColor = c;   return *this; }
+    TextParams& SetColor(ShapeColor c) { color = c; if (c.a != 255) opacity*=0.999f;     return *this; }
+    TextParams& SetBgColor(ShapeColor c) { bgColor = c; if (c.a != 255) opacity*=0.999f;  return *this; }
     TextParams& SetPadding(int x, int y) { paddingX = x; paddingY = y; return *this; }
     TextParams& SetOpacity(float o) { opacity = o;   return *this; }
     TextParams& SetScreenSpace() { bScreenSpace = true; return *this; }

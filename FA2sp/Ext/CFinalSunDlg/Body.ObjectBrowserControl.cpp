@@ -1346,7 +1346,7 @@ void CViewObjectsExt::Redraw_Infantry()
     {
         InsertingObjectID = info.ID;
         LoadMultiLayers(info.layers, subNodes, subNodeNames,
-            multiSubNodes, Const_Building + index, i, info.displayName);
+            multiSubNodes, info.index, i, info.displayName);
     }
     InsertingObjectID = "";
 
@@ -1523,7 +1523,7 @@ void CViewObjectsExt::Redraw_Vehicle()
                 info.displayName = display;
                 info.layers = layer;
                 info.sideLimit = i;
-                info.index = Const_Infantry + index;
+                info.index = Const_Vehicle + index;
             }
         }
 
@@ -1535,7 +1535,7 @@ void CViewObjectsExt::Redraw_Vehicle()
     {
         InsertingObjectID = info.ID;
         LoadMultiLayers(info.layers, subNodes, subNodeNames,
-            multiSubNodes, Const_Building + index, i, info.displayName);
+            multiSubNodes, info.index, i, info.displayName);
     }
     InsertingObjectID = "";
 
@@ -1713,7 +1713,7 @@ void CViewObjectsExt::Redraw_Aircraft()
                 info.displayName = display;
                 info.layers = layer;
                 info.sideLimit = i;
-                info.index = Const_Infantry + index;
+                info.index = Const_Aircraft + index;
             }
         }   
         InsertingObjectID = "";
@@ -1724,7 +1724,7 @@ void CViewObjectsExt::Redraw_Aircraft()
     {
         InsertingObjectID = info.ID;
         LoadMultiLayers(info.layers, subNodes, subNodeNames,
-            multiSubNodes, Const_Building + index, i, info.displayName);
+            multiSubNodes, info.index, i, info.displayName);
     }
     InsertingObjectID = "";
 
@@ -1903,7 +1903,7 @@ void CViewObjectsExt::Redraw_Building()
                 info.displayName = display;
                 info.layers = layer;
                 info.sideLimit = i;
-                info.index = Const_Infantry + index;
+                info.index = Const_Building + index;
             }
         }
  
@@ -1921,7 +1921,7 @@ void CViewObjectsExt::Redraw_Building()
     {
         InsertingObjectID = info.ID;
         LoadMultiLayers(info.layers, subNodes, subNodeNames,
-            multiSubNodes, Const_Building + index, i, info.displayName);
+            multiSubNodes, info.index, i, info.displayName);
     }
     InsertingObjectID = "";
 

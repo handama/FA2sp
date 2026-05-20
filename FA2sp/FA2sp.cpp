@@ -210,6 +210,7 @@ bool ExtConfigs::ExtMixLoader;
 int ExtConfigs::DisplayTextSize;
 int ExtConfigs::DistanceRuler_Records;
 bool ExtConfigs::DisplayObjectsOutside;
+bool ExtConfigs::LoadObjectsOnInit;
 bool ExtConfigs::AVX2_Support;
 bool ExtConfigs::AutoDarkMode;
 double ExtConfigs::AutoDarkMode_SwitchTimeA;
@@ -375,6 +376,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DisplayBridgeOverlay = CINI::FAData->GetBool("ExtConfigs", "DisplayBridgeOverlay");
 	ExtConfigs::FlatToGroundHideExtra = CINI::FAData->GetBool("ExtConfigs", "FlatToGroundHideExtra");
 	ExtConfigs::ExtOverlays = CINI::FAData->GetBool("ExtConfigs", "ExtOverlays");
+	ExtConfigs::LoadObjectsOnInit = CINI::FAData->GetBool("ExtConfigs", "LoadObjectsOnInit");
 
 	ExtConfigs::DistanceRuler_Records = CINI::FAData->GetInteger("ExtConfigs", "DistanceRuler.Records", 5);
 	ExtConfigs::DisplayTextSize = CINI::FAData->GetInteger("ExtConfigs", "DisplayTextSize", 18);
@@ -1213,6 +1215,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "ExtMixLoader",
 		.Value = &ExtConfigs::ExtMixLoader,
 		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.LoadObjectsOnInit", "Load all in-map objects during map initialization"),
+		.IniKey = "LoadObjectsOnInit",
+		.Value = &ExtConfigs::LoadObjectsOnInit,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

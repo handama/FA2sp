@@ -840,7 +840,7 @@ void CIsoViewExt::DirectXNormal(int x, int y, ImageDataClassSafe* pd,
     }
 
     auto colorMult = ColorMults::GetObjectColorMult(remap, CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
-    auto pTexture = pd->GetColoredTexture(newPal, color);
+    auto pTexture = remap ? pd->GetColoredTexture(newPal, color) : pd->GetTexture();
 
     DrawParams params;
     params.SetPosition(x, y)
@@ -1601,11 +1601,18 @@ void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile,
     int realHeight = height;
     if (height>= 0)
     {
-        height += (subTile->YMinusExY < 0 ? ((subTile->YMinusExY) / -30) : 0) + 1;
+        if (subTile->YMinusExY < 0 && subTile->YMinusExY + dataExt.ExtraSize.y <= 15)
+        {
+            height += (subTile->YMinusExY - 29) / -30;
+        }
     }
 
     if (onlyExtra)
-    {
+    {            
+        if (height>= 0)
+        {
+            params.SetStencilRef(std::min(height + 1, 14));
+        }
         params.SetPosition(x + dataExt.ExtraOffset.x, y + dataExt.ExtraOffset.y);
         g_pDX->DrawTexture(dataExt.pExtraTexture, params);
     }

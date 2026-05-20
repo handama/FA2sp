@@ -3612,6 +3612,10 @@ void CMapDataExt::InitializeTileData()
 				auto tileBlock = &currentTile->TileBlockDatas[k];
 				if (tileBlock && tileBlock->ImageData)
 				{
+					auto& dataExt = CMapDataExt::TileBlockDataExt[tileBlock];
+					auto& extra = CMapDataExt::TileBlockExtraOffsets[{i, k, j + 1}];
+					dataExt.ExtraOffset = extra.first;
+					dataExt.ExtraSize = extra.second;
 					if (!loadDX)
 					{
 						BuildBaseHeightMask(tileBlock);
@@ -3620,12 +3624,6 @@ void CMapDataExt::InitializeTileData()
 					auto itr = CMapDataExt::TileSetPalettes.find(currentTile->TileSet);
 					if (itr != CMapDataExt::TileSetPalettes.end())
 					{
-						auto& dataExt = CMapDataExt::TileBlockDataExt[tileBlock];
-						auto& extra = CMapDataExt::TileBlockExtraOffsets[{i, k, j + 1}];
-
-						dataExt.ExtraOffset = extra.first;
-						dataExt.ExtraSize = extra.second;
-
 						Palette* pal = &CMapDataExt::Palette_ISO;
 						if (currentTile->TileSet < CMapDataExt::TileSetPalettes.size())
 						{
@@ -3667,7 +3665,7 @@ void CMapDataExt::InitializeTileData()
 										!CIsoViewExt::TilePixels[posInTile]) {
 										continue;
 									}
-									tempData.pImageBuffer[posInTile] = tilePixels[row * TILE_WIDTH + col];
+									tempData.pImageBuffer[posInTile] = tilePixels[row * swidth + col];
 								}
 							}
 
@@ -3693,12 +3691,14 @@ void CMapDataExt::InitializeTileData()
 
 void CMapDataExt::BuildBaseHeightMask(CTileBlockClass* subTile)
 {
-	if (TileBlockDataExt.contains(subTile)) return;
-
-	auto& mask = TileBlockDataExt[subTile].HeightMask;
+	auto& extData = TileBlockDataExt[subTile];
+	auto& mask = extData.HeightMask;
 
 	int swidth = subTile->BlockWidth;
 	int sheight = subTile->BlockHeight;
+
+	bool shouldGetExtraDepth = subTile->YMinusExY < 0;
+	bool shouldGetExtraDepth2 = subTile->YMinusExY + extData.ExtraSize.y <= 15;
 
 	mask.resize(swidth * sheight);
 
@@ -3719,10 +3719,11 @@ void CMapDataExt::BuildBaseHeightMask(CTileBlockClass* subTile)
 
 			int base =
 				-yOffset +
-				(subTile->YMinusExY < 0 ? (offset + 30) : 0)
+				(shouldGetExtraDepth ? (offset + 30) : 0) +
+				(shouldGetExtraDepth2 ? 30 : 0) +
 				- 2;
 
-			mask[row * swidth + col] = base;
+			mask[row * swidth + col] = std::clamp(base, 0, 255);
 		}
 	}
 }

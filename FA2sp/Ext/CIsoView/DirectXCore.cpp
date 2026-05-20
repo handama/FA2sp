@@ -2928,7 +2928,7 @@ void TextRenderer::DrawTexts(
     {
         dp.SetScreenSpace();
     }
-    else
+    else if (params.opacity == 1.0f)
     {
         dp.bWriteStencil = true;
         dp.SetStencilRef(255);

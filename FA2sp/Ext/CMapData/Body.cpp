@@ -114,7 +114,7 @@ std::vector<FString> CMapDataExt::MapIniSectionSorting;
 FMap<FSet> CMapDataExt::PowersUpBuildings;
 FSet CMapDataExt::PowersUpBuildingSet;
 std::map<int, std::vector<CustomTile>> CMapDataExt::CustomTiles;
-std::map<ExtraImageInfo, POINT> CMapDataExt::TileBlockExtraOffsets;
+std::map<ExtraImageInfo, std::pair<POINT, POINT>> CMapDataExt::TileBlockExtraOffsets;
 bool CMapDataExt::PlaceStructure_Preview = false;
 std::map<int, BuildingRenderData> CMapDataExt::PlaceStructure_OldData;
 FMap<std::pair<byte, byte>> CMapDataExt::SmudgeSizes;
@@ -704,8 +704,8 @@ void CMapDataExt::ProcessBuildingType(const char* ID)
 					MapCoord start, end;
 					start.X = ((x - length) - y) * 30;
 					start.Y = ((x - length) + y) * 15;
-					end.X = (x - y) * 30 + 2;
-					end.Y = (x + y) * 15 + 1;
+					end.X = (x - y) * 30 + (ExtConfigs::DirectXRendering ? 0 : 2);
+					end.Y = (x + y) * 15 + (ExtConfigs::DirectXRendering ? 0 : 1);
 					DataExt.LinesToDraw->push_back(std::make_pair(start, end));
 					length = 0;
 				}
@@ -715,8 +715,8 @@ void CMapDataExt::ProcessBuildingType(const char* ID)
 				MapCoord start, end;
 				start.X = ((DataExt.Width - length) - y) * 30;
 				start.Y = ((DataExt.Width - length) + y) * 15;
-				end.X = (DataExt.Width - y) * 30 + 2;
-				end.Y = (DataExt.Width + y) * 15 + 1;
+				end.X = (DataExt.Width - y) * 30 + (ExtConfigs::DirectXRendering ? 0 : 2);
+				end.Y = (DataExt.Width + y) * 15 + (ExtConfigs::DirectXRendering ? 0 : 1);
 				DataExt.LinesToDraw->push_back(std::make_pair(start, end));
 			}
 		}
@@ -3621,8 +3621,10 @@ void CMapDataExt::InitializeTileData()
 					if (itr != CMapDataExt::TileSetPalettes.end())
 					{
 						auto& dataExt = CMapDataExt::TileBlockDataExt[tileBlock];
+						auto& extra = CMapDataExt::TileBlockExtraOffsets[{i, k, j + 1}];
 
-						dataExt.ExtraOffset = CMapDataExt::TileBlockExtraOffsets[{i, k, j + 1}];
+						dataExt.ExtraOffset = extra.first;
+						dataExt.ExtraSize = extra.second;
 
 						Palette* pal = &CMapDataExt::Palette_ISO;
 						if (currentTile->TileSet < CMapDataExt::TileSetPalettes.size())

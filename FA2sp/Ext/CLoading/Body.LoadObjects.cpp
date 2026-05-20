@@ -40,6 +40,7 @@ FHashSet CLoadingExt::LoadedOverlays;
 FHashMap<InsigniaGrid> CLoadingExt::LoadedInsignias;
 std::unordered_map<WORD, WORD> CLoadingExt::OverlayDataLimits;
 int CLoadingExt::TallestBuildingHeight = 0;
+bool CLoadingExt::ObjectsNeedReloaded = true;
 FHashSet CLoadingExt::NotFoundFiles;
 std::unordered_map<std::string, std::vector<unsigned char>> CLoadingExt::g_cache[2];
 std::unordered_map<std::string, uint64_t> CLoadingExt::g_cacheTime[2];
@@ -367,6 +368,7 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 			CIsoViewExt::GetExtension()->g_pDX->ClearTextures();
 		}
 
+		CLoadingExt::ObjectsNeedReloaded = true;
 		Logger::Debug("CLoadingExt: Clearing loaded objects.\n");
 	}							    
 	else {						    

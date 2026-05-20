@@ -199,8 +199,10 @@ namespace Renderer
         bool Visible = false;
         void* pObjectData = nullptr;
         ObjectType* pType = nullptr;
+        COLORREF HouseColor;
     public:
         bool IsVisible();
+        COLORREF GetHouseColor();
     };
 
     class Building : public Object

@@ -2730,7 +2730,10 @@ LRESULT CALLBACK VirtualComboBoxEx::EditProc(HWND hwnd, UINT msg, WPARAM wParam,
             int sel = (int)SendMessage(pThis->hList, LB_GETCURSEL, 0, 0);
 
             if (sel == LB_ERR)
-                sel = -1;
+            {
+                auto text = pThis->GetEditText();
+                sel = pThis->FindString(text);
+            }
 
             if (wParam == VK_DOWN)
                 sel = std::min(sel + 1, count - 1);

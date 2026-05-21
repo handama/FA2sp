@@ -68,6 +68,8 @@ struct VCBItemEntry
 {
     FString text;
     SortLabelKey key;
+    COLORREF textColor = CLR_INVALID;
+    COLORREF backgroundColor = CLR_INVALID;
 };
 
 class ExtraWindow
@@ -103,6 +105,7 @@ public:
 
     static void SortLabels(std::vector<FString>& labels);
     static void SortLabels(std::vector<std::pair<FString, FString>>& labels, bool first = true);
+    static void SortLabels(std::vector<std::pair<FString, bool>>& labels);
     static void SortRawStrings(std::vector<FString>& labels);
     static void SortRawStrings(std::vector<std::pair<FString, FString>>& labels, bool first = true);
     static void SortRawStrings(std::vector<std::pair<std::string, std::string>>& labels, bool first = true);
@@ -304,12 +307,15 @@ public:
         const std::vector<FString>* addToFront = nullptr,
         const std::vector<FString>* addToEnd = nullptr);
 
-    void AddString(const char* str);
+    void AddString(const char* str, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID);
     void AddStrings(const std::vector<FString>& ret, const char* oriText = nullptr);
-    int InsertString(int index, const char* str);
-    int ReplaceString(int index, const char* str);
+    int InsertString(int index, const char* str, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID);
+    int ReplaceString(int index, const char* str, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID);
     int DeleteString(int index);
     void Clear();
+
+    void SetItemColors(int index, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID);
+    void GetItemColors(int index, COLORREF& textColor, COLORREF& backgroundColor) const;
 
     int GetCurSel() const;
     void SetCurSel(int idx);
@@ -360,6 +366,7 @@ private:
 
     DropWidthMode m_dropWidthMode = DropWidth_AutoMax;
     int m_cachedMaxWidth = 0;
+    HBRUSH m_hCurBrush = nullptr;
 
 private:
     void Filter(const char* text);

@@ -766,6 +766,44 @@ void ExtraWindow::SortLabels(std::vector<std::pair<FString, FString>>& labels, b
     labels = std::move(temp);
 }
 
+void ExtraWindow::SortLabels(std::vector<std::pair<FString, bool>>& labels)
+{
+    if (!ExtConfigs::SortByLabelName)
+    {
+        std::sort(labels.begin(), labels.end(),
+            [](const auto& a, const auto& b)
+        {
+            return a.first < b.first;
+        });
+        return;
+    }
+
+    std::vector<SortKeyIndex> keys;
+    keys.reserve(labels.size());
+
+    for (size_t i = 0; i < labels.size(); ++i)
+    {
+        const FString& target = labels[i].first;
+        keys.push_back({ BuildKey(target), i });
+    }
+
+    std::sort(keys.begin(), keys.end(),
+        [](const SortKeyIndex& a, const SortKeyIndex& b)
+    {
+        return CompareKey(a.key, b.key);
+    });
+
+    std::vector<std::pair<FString, bool>> temp;
+    temp.reserve(labels.size());
+
+    for (auto& k : keys)
+    {
+        temp.push_back(std::move(labels[k.index]));
+    }
+
+    labels = std::move(temp);
+}
+
 static SortLabelKey BuildRawKey(const FString& input)
 {
     SortLabelKey key;
@@ -1848,6 +1886,12 @@ void VirtualComboBoxEx::SetWindowHeight(HWND hwnd, LPARAM lParam)
 
 void VirtualComboBoxEx::Detach()
 {
+    if (m_hCurBrush)
+    {
+        DeleteObject(m_hCurBrush);
+        m_hCurBrush = nullptr;
+    }
+
     if (hCombo && oldComboProc)
         SetWindowLongPtr(hCombo, GWLP_WNDPROC, (LONG_PTR)oldComboProc);
 
@@ -1866,6 +1910,12 @@ void VirtualComboBoxEx::CopyFrom(const VirtualComboBoxEx& other,
 {
     if (this == &other)
         return;
+
+    if (m_hCurBrush)
+    {
+        DeleteObject(m_hCurBrush);
+        m_hCurBrush = nullptr;
+    }
 
     items.clear();
 
@@ -1909,10 +1959,12 @@ void VirtualComboBoxEx::CopyFrom(const VirtualComboBoxEx& other,
     SyncListCount();
 }
 
-void VirtualComboBoxEx::AddString(const char* str)
+void VirtualComboBoxEx::AddString(const char* str, COLORREF textColor, COLORREF backgroundColor)
 {
     VCBItemEntry e;
     e.text = str;
+    e.textColor = textColor;
+    e.backgroundColor = backgroundColor;
     if (m_sortByLabelKey)
         e.key = BuildKey(e.text);
     items.push_back(std::move(e));
@@ -1980,7 +2032,7 @@ void VirtualComboBoxEx::AddStrings(const std::vector<FString>& ret, const char* 
         SendMessage(hCombo, CB_SETCURSEL, index, NULL);
 }
 
-int VirtualComboBoxEx::InsertString(int index, const char* str)
+int VirtualComboBoxEx::InsertString(int index, const char* str, COLORREF textColor, COLORREF backgroundColor)
 {
     if (!str)
         return -1;
@@ -1990,6 +2042,8 @@ int VirtualComboBoxEx::InsertString(int index, const char* str)
 
     VCBItemEntry e;
     e.text = str;
+    e.textColor = textColor;
+    e.backgroundColor = backgroundColor;
     if (m_sortByLabelKey)
         e.key = BuildKey(e.text);
 
@@ -2010,7 +2064,7 @@ int VirtualComboBoxEx::InsertString(int index, const char* str)
     return index;
 }
 
-int VirtualComboBoxEx::ReplaceString(int index, const char* str)
+int VirtualComboBoxEx::ReplaceString(int index, const char* str, COLORREF textColor, COLORREF backgroundColor)
 {
     if (!str)
         return -1;
@@ -2020,6 +2074,8 @@ int VirtualComboBoxEx::ReplaceString(int index, const char* str)
 
     VCBItemEntry e;
     e.text = str;
+    e.textColor = textColor;
+    e.backgroundColor = backgroundColor;
     if (m_sortByLabelKey)
         e.key = BuildKey(e.text);
 
@@ -2028,6 +2084,16 @@ int VirtualComboBoxEx::ReplaceString(int index, const char* str)
     if (curSel == index)
     {
         SetWindowTextA(hEdit, items[index].text);
+
+        if (m_hCurBrush)
+        {
+            DeleteObject(m_hCurBrush);
+            m_hCurBrush = nullptr;
+        }
+        if (items[index].backgroundColor != CLR_INVALID)
+            m_hCurBrush = CreateSolidBrush(items[index].backgroundColor);
+
+        InvalidateRect(hEdit, NULL, TRUE);
     }
 
     if (m_dropWidthMode == VirtualComboBoxEx::DropWidthMode::DropWidth_AutoMax)
@@ -2045,8 +2111,50 @@ int VirtualComboBoxEx::ReplaceString(int index, const char* str)
     return index;
 }
 
+void VirtualComboBoxEx::SetItemColors(int index, COLORREF textColor, COLORREF backgroundColor)
+{
+    if (index < 0 || index >= (int)items.size())
+        return;
+
+    items[index].textColor = textColor;
+    items[index].backgroundColor = backgroundColor;
+
+    if (index == curSel)
+    {
+        if (m_hCurBrush)
+        {
+            DeleteObject(m_hCurBrush);
+            m_hCurBrush = nullptr;
+        }
+        if (backgroundColor != CLR_INVALID)
+            m_hCurBrush = CreateSolidBrush(backgroundColor);
+
+        InvalidateRect(hEdit, NULL, TRUE);
+        InvalidateRect(hCombo, NULL, TRUE);
+    }
+}
+
+void VirtualComboBoxEx::GetItemColors(int index, COLORREF& textColor, COLORREF& backgroundColor) const
+{
+    if (index >= 0 && index < (int)items.size())
+    {
+        textColor = items[index].textColor;
+        backgroundColor = items[index].backgroundColor;
+    }
+    else
+    {
+        textColor = CLR_INVALID;
+        backgroundColor = CLR_INVALID;
+    }
+}
+
 void VirtualComboBoxEx::Clear()
 {
+    if (m_hCurBrush)
+    {
+        DeleteObject(m_hCurBrush);
+        m_hCurBrush = nullptr;
+    }
     items.clear();
     filtered.clear();
     curSel = -1;
@@ -2466,16 +2574,27 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
     {
         int idx = (int)wParam;
 
+        if (pThis->m_hCurBrush)
+        {
+            DeleteObject(pThis->m_hCurBrush);
+            pThis->m_hCurBrush = nullptr;
+        }
+
         if (idx >= 0 && idx < (int)pThis->items.size())
         {
             pThis->curSel = idx;
             SetWindowTextA(pThis->hEdit, pThis->items[idx].text);
+
+            if (pThis->items[idx].backgroundColor != CLR_INVALID)
+                pThis->m_hCurBrush = CreateSolidBrush(pThis->items[idx].backgroundColor);
         }
         else
         {
             pThis->curSel = -1;
             SetWindowTextA(pThis->hEdit, "");
         }
+
+        InvalidateRect(pThis->hEdit, NULL, TRUE);
 
         LRESULT ret = CallWindowProc(
             pThis->oldComboProc, hwnd, msg, wParam, lParam);
@@ -2495,6 +2614,33 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
     {
         return pThis->OnComboMessage(hwnd, msg, wParam, lParam);
     }
+    //case WM_CTLCOLOREDIT:
+    //{
+    //    HWND hEditCtrl = (HWND)lParam;
+    //    if (hEditCtrl != pThis->hEdit)
+    //        break;
+    //
+    //    if (pThis->curSel >= 0 && pThis->curSel < (int)pThis->items.size())
+    //    {
+    //        auto& item = pThis->items[pThis->curSel];
+    //        if (item.textColor != CLR_INVALID || item.backgroundColor != CLR_INVALID)
+    //        {
+    //            HDC hdc = (HDC)wParam;
+    //            SetBkMode(hdc, TRANSPARENT);
+    //            if (item.textColor != CLR_INVALID)
+    //                SetTextColor(hdc, item.textColor);
+    //            if (item.backgroundColor != CLR_INVALID)
+    //            {
+    //                SetBkColor(hdc, item.backgroundColor);
+    //                return (LRESULT)pThis->m_hCurBrush;
+    //            }
+    //            return (LRESULT)(ExtConfigs::EnableDarkMode ?
+    //                DarkTheme::MyGetSysColorBrush(COLOR_WINDOW) :
+    //                (HBRUSH)(COLOR_WINDOW + 1));
+    //        }
+    //    }
+    //    break;
+    //}
     }
     switch (msg)
     {
@@ -2573,15 +2719,21 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
         if (!pThis) break;
 
         FString* text = nullptr;
+        VCBItemEntry* item = nullptr;
 
         if (dis->itemID == (UINT)-1)
         {
             if (pThis->curSel >= 0 && pThis->curSel < (int)pThis->items.size())
+            {
                 text = &pThis->items[pThis->curSel].text;
+                item = &pThis->items[pThis->curSel];
+            }
         }
         else if (dis->itemID < pThis->filtered.size())
         {
-            text = &pThis->items[pThis->filtered[dis->itemID]].text;
+            int realIdx = pThis->filtered[dis->itemID];
+            text = &pThis->items[realIdx].text;
+            item = &pThis->items[realIdx];
         }
 
         if (!text) break;
@@ -2597,18 +2749,31 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
         if (dis->itemState & ODS_SELECTED)
         {
             FillRect(hdc, &rc, (HBRUSH)(COLOR_HIGHLIGHT + 1));
-            SetTextColor(hdc, ExtConfigs::EnableDarkMode ? 
+            SetTextColor(hdc, ExtConfigs::EnableDarkMode ?
                 DarkTheme::MyGetSysColor(COLOR_HIGHLIGHTTEXT) :
                 GetSysColor(COLOR_HIGHLIGHTTEXT));
         }
         else
         {
-            FillRect(hdc, &rc, ExtConfigs::EnableDarkMode ?
-                DarkTheme::MyGetSysColorBrush(COLOR_WINDOW) :
-                (HBRUSH)(COLOR_WINDOW + 1));
-            SetTextColor(hdc, ExtConfigs::EnableDarkMode ?
-                DarkTheme::MyGetSysColor(COLOR_WINDOWTEXT) :
-                GetSysColor(COLOR_WINDOWTEXT));
+            if (item && item->backgroundColor != CLR_INVALID)
+            {
+                HBRUSH brush = CreateSolidBrush(item->backgroundColor);
+                FillRect(hdc, &rc, brush);
+                DeleteObject(brush);
+            }
+            else
+            {
+                FillRect(hdc, &rc, ExtConfigs::EnableDarkMode ?
+                    DarkTheme::MyGetSysColorBrush(COLOR_WINDOW) :
+                    (HBRUSH)(COLOR_WINDOW + 1));
+            }
+
+            if (item && item->textColor != CLR_INVALID)
+                SetTextColor(hdc, item->textColor);
+            else
+                SetTextColor(hdc, ExtConfigs::EnableDarkMode ?
+                    DarkTheme::MyGetSysColor(COLOR_WINDOWTEXT) :
+                    GetSysColor(COLOR_WINDOWTEXT));
         }
 
         rc.left += 4;

@@ -37,6 +37,16 @@ bool CNewTrigger::AutoChangeName = false;
 static constexpr int DRAG_THRESHOLD = 4;
 static const std::vector<FString> noneLabel = { "<none>" };
 
+static COLORREF GetTriggerBackground(bool enabled)
+{
+    return enabled ? CLR_INVALID : (ExtConfigs::EnableDarkMode ? RGB(40, 40, 40) : RGB(240, 240, 240));
+}
+
+static COLORREF GetTriggerTextColor(bool enabled)
+{
+    return enabled ? CLR_INVALID : (ExtConfigs::EnableDarkMode ? RGB(160, 160, 160) : RGB(72, 72, 72));
+}
+
 void CNewTrigger::Create(CFinalSunDlg* pWnd)
 {
     m_parent = pWnd;
@@ -1614,6 +1624,26 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             if (CODE == BN_CLICKED && CurrentTrigger)
             {
                 CurrentTrigger->Disabled = SendMessage(hDisabled, BM_GETCHECK, 0, 0);
+
+                for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+                {
+                    auto pThis = &Instance[i];
+                    if (pThis->GetHandle())
+                    {
+                        pThis->vcbSelectedTrigger.SetItemColors(SelectedTriggerIndex, GetTriggerTextColor(!CurrentTrigger->Disabled), 
+                            CLR_INVALID);
+                            pThis->vcbAttachedTrigger.SetItemColors(SelectedTriggerIndex + 1, GetTriggerTextColor(!CurrentTrigger->Disabled), 
+                            CLR_INVALID);
+                        if (pThis->CurrentTriggerActionParam > -1)
+                        {
+                            pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].SetItemColors(
+                                SelectedTriggerIndex, GetTriggerTextColor(!CurrentTrigger->Disabled), 
+                                CLR_INVALID);
+                        }
+                    }
+                }
+
+
                 CurrentTrigger->Save();
                 RefreshOtherInstances();
             }
@@ -3466,10 +3496,10 @@ void CNewTrigger::SortTriggers(FString id, bool onlySelf)
         SortTriggersExecuted = true;
         TempValueHolder<bool> tmpLoop(AvoidInfiLoop, true);
 
-        std::vector<FString> labels;
+        std::vector<std::pair<FString, bool>> labels;
         for (auto& triggerPair : CMapDataExt::Triggers) {
             auto& trigger = triggerPair.second;
-            labels.push_back(ExtraWindow::GetTriggerDisplayName(trigger->ID));
+            labels.push_back({ExtraWindow::GetTriggerDisplayName(trigger->ID), !trigger->Disabled});
         }
 
         bool tmp = ExtConfigs::SortByLabelName;
@@ -3480,7 +3510,11 @@ void CNewTrigger::SortTriggers(FString id, bool onlySelf)
         auto sort = [&labels](CNewTrigger* pThis, FString id) {
 
             pThis->vcbSelectedTrigger.Clear();
-            pThis->vcbSelectedTrigger.AddStrings(labels);
+            for (auto& [name, enabled] : labels)
+            {
+                pThis->vcbSelectedTrigger.AddString(name, GetTriggerTextColor(enabled), 
+                CLR_INVALID);
+            }
             pThis->vcbAttachedTrigger.CopyFrom(pThis->vcbSelectedTrigger, &noneLabel);
             if (pThis->CurrentTriggerActionParam > -1)
             {

@@ -771,7 +771,7 @@ void CIsoViewExt::DirectXBuilding(int x, int y, ImageDataClassSafe* pd,
         {
             sliceParams.bWriteStencil = true;
             if (stencilHeight != 0xFF) {
-                int sliceHeight = static_cast<int>(stencilHeight) + 2;
+                int sliceHeight = static_cast<int>(stencilHeight) + 3;
                 if (slice.indexOffset <= 0)
                 {
                     sliceHeight += (1 - slice.indexOffset) * 2;
@@ -851,7 +851,7 @@ void CIsoViewExt::DirectXNormal(int x, int y, ImageDataClassSafe* pd,
     {
         params.bWriteStencil = true;
         if (stencilHeight != 0xFF) {
-            params.SetStencilRef(std::min(static_cast<int>(stencilHeight) + 2, 15));
+            params.SetStencilRef(std::min(static_cast<int>(stencilHeight) + 3, 15));
         } else {
             params.SetStencilRef(15);
         }
@@ -1676,16 +1676,16 @@ void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile,
         }
     }
 
-    if (onlyExtra)
+    if (onlyExtra && dataExt.pExtraTexture)
     {            
         if (height>= 0)
         {
-            params.SetStencilRef(std::min(height + 1, 14));
+            params.SetStencilRef(std::min(static_cast<int>(height + 1), 14));
         }
         params.SetPosition(x + dataExt.ExtraOffset.x, y + dataExt.ExtraOffset.y);
         g_pDX->DrawTexture(dataExt.pExtraTexture, params);
     }
-    else 
+    else if (!onlyExtra)
     {
         if (height>= 0)
         {
@@ -1693,11 +1693,11 @@ void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile,
         }
         g_pDX->DrawTexture(dataExt.pTexture, params);
 
-        if (!doFlatToGround)
+        if (!doFlatToGround && dataExt.pExtraTexture)
         {
             if (height>= 0)
             {
-                params.SetStencilRef(std::min(height + 1, 14));
+                params.SetStencilRef(std::min(static_cast<int>(height + 1), 14));
             }
             params.SetPosition(x + dataExt.ExtraOffset.x, y + dataExt.ExtraOffset.y);
             g_pDX->DrawTexture(dataExt.pExtraTexture, params);

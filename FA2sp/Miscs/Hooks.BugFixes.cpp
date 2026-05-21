@@ -44,6 +44,25 @@ DEFINE_HOOK(468760, Miscs_GetColor, 7)
 	if (pColor)
 		color = pColor;
 
+	if (CMapDataExt::Colors.empty())
+	{
+		if (auto pSection = CINI::Rules->GetSection("Colors"))
+		{
+			for (auto& [key, value] : pSection->GetEntities())
+			{
+				HSVClass hsv{ 0,0,0 };
+				sscanf_s(value, "%hhu,%hhu,%hhu", &hsv.H, &hsv.S, &hsv.V);
+				RGBClass rgb;
+				if (!ExtConfigs::UseRGBHouseColor)
+					rgb = hsv;
+				else
+					rgb = { hsv.H,hsv.S,hsv.V };
+	
+					CMapDataExt::Colors[key] = (COLORREF)rgb;
+			}
+		}
+	}
+
 	auto itr = CMapDataExt::Colors.find(color);
 	if (itr != CMapDataExt::Colors.end())
 		R->EAX(itr->second);

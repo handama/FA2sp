@@ -52,6 +52,8 @@ using enum SubtextGlyph;
 
 static std::vector<SubtextSegment> GetTriggerEnableText(Trigger* trigger)
 {
+    if (!ExtConfigs::DisplayTriggerEnableInfo)
+        return { };
     using G = SubtextGlyph;
     auto circle = [&](bool on) { return on ? G::FilledCircle : G::HollowCircle; };
     auto rect = trigger->Disabled ? G::HollowRect : G::FilledRect;

@@ -20,6 +20,7 @@
 #include "../../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
 #include "../../ExtraWindow/CNewAITrigger/CNewAITrigger.h"
+#include "../../ExtraWindow/CNewHouse/CNewHouse.h"
 #include "../../ExtraWindow/CObjectSearch/CObjectSearch.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 #include "../../ExtraWindow/CNewLocalVariables/CNewLocalVariables.h"
@@ -823,6 +824,16 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CTriggerAnnotation::GetHandle(), 114514, 0, 0);
 		}
 	}
+	else if (wmID == 40039)
+	{
+		if (CNewHouse::GetHandle() == NULL)
+			CNewHouse::Create((CFinalSunDlg*)this);
+		else
+		{
+			::SendMessage(CNewHouse::GetHandle(), 114514, 0, 0);
+		}
+		return TRUE;
+	}
 	else if (wmID == 40165)
 	{
 		bool endConfirmDialog = false;
@@ -1599,6 +1610,14 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 		else if (hWnd == CBatchTrigger::GetHandle()) {
 			::SendMessage(CBatchTrigger::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CNewTaskforce::GetHandle()) {
+			::SendMessage(CNewTaskforce::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CNewHouse::GetHandle()) {
+			::SendMessage(CNewHouse::GetHandle(), 114514, 0, 0);
 			return TRUE;
 		}
 		for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)

@@ -79,6 +79,7 @@ struct VCBItemEntry
     SortLabelKey key;
     COLORREF textColor = CLR_INVALID;
     COLORREF backgroundColor = CLR_INVALID;
+    bool leftSideBackground = false;
 };
 
 class ExtraWindow
@@ -316,16 +317,16 @@ public:
         const std::vector<FString>* addToFront = nullptr,
         const std::vector<FString>* addToEnd = nullptr);
 
-    void AddString(const char* str, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID);
+    void AddString(const char* str, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID, bool leftSideBackground = false);
     void AddSubtextString(const char* text, const std::vector<SubtextSegment>& segments, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID);
     void AddStrings(const std::vector<FString>& ret, const char* oriText = nullptr);
-    int InsertString(int index, const char* str, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID);
-    int ReplaceString(int index, const char* str, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID);
+    int InsertString(int index, const char* str, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID, bool leftSideBackground = false);
+    int ReplaceString(int index, const char* str, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID, bool leftSideBackground = false);
     int ReplaceSubtext(int index, const std::vector<SubtextSegment>& segments);
     int DeleteString(int index);
     void Clear();
 
-    void SetItemColors(int index, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID);
+    void SetItemColors(int index, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID, bool leftSideBackground = false);
     void GetItemColors(int index, COLORREF& textColor, COLORREF& backgroundColor) const;
 
     int GetCurSel() const;

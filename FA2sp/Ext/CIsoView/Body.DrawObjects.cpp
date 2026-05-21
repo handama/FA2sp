@@ -1,6 +1,8 @@
 #include "../CFinalSunDlg/Body.h"
 #include "../../Algorithms/Matrix3D.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
+#include "../../ExtraWindow/CNewINIEditor/CNewINIEditor.h"
+#include "../../ExtraWindow/CNewHouse/CNewHouse.h"
 #include "../../Helpers/Translations.h"
 #include "../../Miscs/Hooks.INI.h"
 #include "../../Miscs/MultiSelection.h"
@@ -697,6 +699,10 @@ static void DrawMap()
 	{
 		if (CLoadingExt::ObjectsNeedReloaded)
 		{
+			if (CNewINIEditor::GetHandle())
+				::SendMessage(CNewINIEditor::GetHandle(), 114514, 0, 0);
+			if (CNewHouse::GetHandle())
+				::SendMessage(CNewHouse::GetHandle(), 114514, 0, 0);
 			InitAllObjects();
 			CLoadingExt::ObjectsNeedReloaded = false;
 		}

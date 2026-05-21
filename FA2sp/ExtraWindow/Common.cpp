@@ -1959,12 +1959,13 @@ void VirtualComboBoxEx::CopyFrom(const VirtualComboBoxEx& other,
     SyncListCount();
 }
 
-void VirtualComboBoxEx::AddString(const char* str, COLORREF textColor, COLORREF backgroundColor)
+void VirtualComboBoxEx::AddString(const char* str, COLORREF textColor, COLORREF backgroundColor, bool leftSideBackground)
 {
     VCBItemEntry e;
     e.text = str;
     e.textColor = textColor;
     e.backgroundColor = backgroundColor;
+    e.leftSideBackground = leftSideBackground;
     if (m_sortByLabelKey)
         e.key = BuildKey(e.text);
     items.push_back(std::move(e));
@@ -2057,7 +2058,7 @@ void VirtualComboBoxEx::AddStrings(const std::vector<FString>& ret, const char* 
         SendMessage(hCombo, CB_SETCURSEL, index, NULL);
 }
 
-int VirtualComboBoxEx::InsertString(int index, const char* str, COLORREF textColor, COLORREF backgroundColor)
+int VirtualComboBoxEx::InsertString(int index, const char* str, COLORREF textColor, COLORREF backgroundColor, bool leftSideBackground)
 {
     if (!str)
         return -1;
@@ -2069,6 +2070,7 @@ int VirtualComboBoxEx::InsertString(int index, const char* str, COLORREF textCol
     e.text = str;
     e.textColor = textColor;
     e.backgroundColor = backgroundColor;
+    e.leftSideBackground = leftSideBackground;
     if (m_sortByLabelKey)
         e.key = BuildKey(e.text);
 
@@ -2089,7 +2091,7 @@ int VirtualComboBoxEx::InsertString(int index, const char* str, COLORREF textCol
     return index;
 }
 
-int VirtualComboBoxEx::ReplaceString(int index, const char* str, COLORREF textColor, COLORREF backgroundColor)
+int VirtualComboBoxEx::ReplaceString(int index, const char* str, COLORREF textColor, COLORREF backgroundColor, bool leftSideBackground)
 {
     if (!str)
         return -1;
@@ -2101,6 +2103,7 @@ int VirtualComboBoxEx::ReplaceString(int index, const char* str, COLORREF textCo
     e.text = str;
     e.textColor = textColor;
     e.backgroundColor = backgroundColor;
+    e.leftSideBackground = leftSideBackground;
     if (m_sortByLabelKey)
         e.key = BuildKey(e.text);
 
@@ -2156,13 +2159,14 @@ int VirtualComboBoxEx::ReplaceSubtext(int index, const std::vector<SubtextSegmen
     return index;
 }
 
-void VirtualComboBoxEx::SetItemColors(int index, COLORREF textColor, COLORREF backgroundColor)
+void VirtualComboBoxEx::SetItemColors(int index, COLORREF textColor, COLORREF backgroundColor, bool leftSideBackground)
 {
     if (index < 0 || index >= (int)items.size())
         return;
 
     items[index].textColor = textColor;
     items[index].backgroundColor = backgroundColor;
+    items[index].leftSideBackground = leftSideBackground;
 
     if (index == curSel)
     {
@@ -2816,7 +2820,7 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
         }
         else
         {
-            if (item && item->backgroundColor != CLR_INVALID)
+            if (item && item->backgroundColor != CLR_INVALID && !item->leftSideBackground)
             {
                 HBRUSH brush = CreateSolidBrush(item->backgroundColor);
                 FillRect(hdc, &rc, brush);
@@ -2857,9 +2861,31 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
 
             RECT rcText = rc;
             rcText.left += 4;
+            if (item->leftSideBackground)
+                rcText.left += ITEM_HEIGHT;
             rcText.right = rc.right - totalSubWidth - 10;
             DrawTextA(hdc, *text, -1, &rcText,
                 DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS);
+
+            if (item && item->backgroundColor != CLR_INVALID && item->leftSideBackground)
+            {                     
+                HPEN hollowPen = CreatePen(PS_SOLID, 1, item->backgroundColor);
+                HBRUSH solidBrush = CreateSolidBrush(item->backgroundColor);
+                HPEN oldPen = (HPEN)SelectObject(hdc, hollowPen);
+                HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, solidBrush);
+        
+                int padding = ITEM_HEIGHT / 7;
+                RECT rcRight = {};        
+                SelectObject(hdc, solidBrush);
+                SelectObject(hdc, hollowPen);
+                Rectangle(hdc, rc.left + padding - 4, rc.top + padding, 
+                    rc.left + ITEM_HEIGHT - padding - 4, rc.bottom - padding);
+                    
+                SelectObject(hdc, oldPen);
+                SelectObject(hdc, oldBrush);
+                DeleteObject(hollowPen);
+                DeleteObject(solidBrush);
+            }
 
             // Draw GDI glyphs
             int rcHeight = rc.bottom - rc.top;
@@ -2923,8 +2949,31 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
         else
         {
             rc.left += 4;
+            if (item->leftSideBackground)
+                rc.left += ITEM_HEIGHT;
+
             DrawTextA(hdc, *text, -1, &rc,
                 DT_SINGLELINE | DT_VCENTER | DT_LEFT);
+
+            if (item && item->backgroundColor != CLR_INVALID && item->leftSideBackground)
+            {                     
+                HPEN hollowPen = CreatePen(PS_SOLID, 1, item->backgroundColor);
+                HBRUSH solidBrush = CreateSolidBrush(item->backgroundColor);
+                HPEN oldPen = (HPEN)SelectObject(hdc, hollowPen);
+                HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, solidBrush);
+        
+                int padding = ITEM_HEIGHT / 7;
+                RECT rcRight = {};        
+                SelectObject(hdc, solidBrush);
+                SelectObject(hdc, hollowPen);
+                Rectangle(hdc, rc.left - ITEM_HEIGHT - 4 + padding, rc.top + padding, 
+                    rc.left + ITEM_HEIGHT - padding - ITEM_HEIGHT - 4, rc.bottom - padding);
+
+                SelectObject(hdc, oldPen);
+                SelectObject(hdc, oldBrush);
+                DeleteObject(hollowPen);
+                DeleteObject(solidBrush);
+            }
         }
 
         SelectObject(hdc, oldFont);

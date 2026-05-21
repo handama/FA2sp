@@ -26,7 +26,6 @@ CFinalSunDlg* CNewTaskforce::m_parent;
 CINI& CNewTaskforce::map = CINI::CurrentDocument;
 MultimapHelper& CNewTaskforce::rules = Variables::RulesMap;
 
-
 HWND CNewTaskforce::hSelectedTaskforce;
 HWND CNewTaskforce::hNewTaskforce;
 HWND CNewTaskforce::hDelTaskforce;

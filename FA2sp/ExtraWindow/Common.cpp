@@ -766,7 +766,7 @@ void ExtraWindow::SortLabels(std::vector<std::pair<FString, FString>>& labels, b
     labels = std::move(temp);
 }
 
-void ExtraWindow::SortLabels(std::vector<std::pair<FString, bool>>& labels)
+void ExtraWindow::SortTriggerLabels(std::vector<std::pair<FString, Trigger*>>& labels)
 {
     if (!ExtConfigs::SortByLabelName)
     {
@@ -793,7 +793,7 @@ void ExtraWindow::SortLabels(std::vector<std::pair<FString, bool>>& labels)
         return CompareKey(a.key, b.key);
     });
 
-    std::vector<std::pair<FString, bool>> temp;
+    std::vector<std::pair<FString, Trigger*>> temp;
     temp.reserve(labels.size());
 
     for (auto& k : keys)
@@ -1983,6 +1983,31 @@ void VirtualComboBoxEx::AddString(const char* str, COLORREF textColor, COLORREF 
     m_nextDropSort = true;
 }
 
+void VirtualComboBoxEx::AddSubtextString(const char* text, const std::vector<SubtextSegment>& segments, COLORREF textColor, COLORREF backgroundColor)
+{
+    VCBItemEntry e;
+    e.text = text;
+    e.subtextSegments = segments;
+    e.textColor = textColor;
+    e.backgroundColor = backgroundColor;
+    if (m_sortByLabelKey)
+        e.key = BuildKey(e.text);
+    items.push_back(std::move(e));
+    filtered.push_back((int)items.size() - 1);
+
+    if (m_dropWidthMode == VirtualComboBoxEx::DropWidthMode::DropWidth_AutoMax)
+    {
+        int thisWidth = CalcItemWidth(items.size() - 1);
+        if (m_cachedMaxWidth < thisWidth)
+        {
+            m_cachedMaxWidth = thisWidth;
+            UpdateDropWidth();
+        }
+    }
+
+    m_nextDropSort = true;
+}
+
 void VirtualComboBoxEx::AddStrings(const std::vector<FString>& ret, const char* oriText)
 {
     if (ret.empty())
@@ -2107,6 +2132,26 @@ int VirtualComboBoxEx::ReplaceString(int index, const char* str, COLORREF textCo
     }
 
     m_nextDropSort = true;
+
+    return index;
+}
+
+int VirtualComboBoxEx::ReplaceSubtext(int index, const std::vector<SubtextSegment>& segments)
+{
+    if (index < 0 || index >= (int)items.size())
+        return -1;
+
+    items[index].subtextSegments = segments;
+    
+    if (m_dropWidthMode == VirtualComboBoxEx::DropWidthMode::DropWidth_AutoMax)
+    {
+        int thisWidth = CalcItemWidth(index);
+        if (m_cachedMaxWidth < thisWidth)
+        {
+            m_cachedMaxWidth = thisWidth;
+            UpdateDropWidth();
+        }
+    }
 
     return index;
 }
@@ -2398,6 +2443,25 @@ int VirtualComboBoxEx::CalcItemWidth(int index)
     GetTextExtentPoint32A(hdc, items[index].text, (int)items[index].text.length(), &sz);
     int maxW = sz.cx;
 
+    const auto& segments = items[index].subtextSegments;
+    if (!segments.empty())
+    {
+        TEXTMETRIC tm;
+        GetTextMetrics(hdc, &tm);
+        int glyphSize = std::max(6, (int)(tm.tmHeight * 3) / 5);
+        int glyphGap =  std::max(1, (int)glyphSize / 4);
+
+        int subWidth = 0;
+        for (size_t i = 0; i < segments.size(); ++i)
+        {
+            int w = (segments[i].type == SubtextGlyph::Space) ? (glyphSize / 2) : glyphSize;
+            if (i + 1 < segments.size())
+                w += glyphGap;
+            subWidth += w;
+        }
+        maxW += subWidth + 10;
+    }
+
     SelectObject(hdc, oldFont);
     ReleaseDC(hCombo, hdc);
 
@@ -2565,6 +2629,29 @@ LRESULT VirtualComboBoxEx::OnComboMessage(HWND hwnd, UINT msg, WPARAM wParam, LP
     return 0;
 }
 
+static bool NeedVScrollBar(HWND window, HWND hList)
+{
+    int total = (int)SendMessage(hList, LB_GETCOUNT, 0, 0);
+    if (total <= 0)
+        return false;
+
+    RECT rc;
+    GetClientRect(hList, &rc);
+
+    int listHeight = rc.bottom - rc.top;
+    if (listHeight <= 0)
+        return false;
+
+    HDC hdc = GetDC(window);
+    int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
+    ReleaseDC(window, hdc);
+    int itemHeight = ITEM_HEIGHT * dpi / 96.0f;
+
+    int visible = listHeight / itemHeight;
+
+    return total > visible;
+};
+
 LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     auto* pThis = (VirtualComboBoxEx*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
@@ -2614,33 +2701,7 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
     {
         return pThis->OnComboMessage(hwnd, msg, wParam, lParam);
     }
-    //case WM_CTLCOLOREDIT:
-    //{
-    //    HWND hEditCtrl = (HWND)lParam;
-    //    if (hEditCtrl != pThis->hEdit)
-    //        break;
-    //
-    //    if (pThis->curSel >= 0 && pThis->curSel < (int)pThis->items.size())
-    //    {
-    //        auto& item = pThis->items[pThis->curSel];
-    //        if (item.textColor != CLR_INVALID || item.backgroundColor != CLR_INVALID)
-    //        {
-    //            HDC hdc = (HDC)wParam;
-    //            SetBkMode(hdc, TRANSPARENT);
-    //            if (item.textColor != CLR_INVALID)
-    //                SetTextColor(hdc, item.textColor);
-    //            if (item.backgroundColor != CLR_INVALID)
-    //            {
-    //                SetBkColor(hdc, item.backgroundColor);
-    //                return (LRESULT)pThis->m_hCurBrush;
-    //            }
-    //            return (LRESULT)(ExtConfigs::EnableDarkMode ?
-    //                DarkTheme::MyGetSysColorBrush(COLOR_WINDOW) :
-    //                (HBRUSH)(COLOR_WINDOW + 1));
-    //        }
-    //    }
-    //    break;
-    //}
+
     }
     switch (msg)
     {
@@ -2776,10 +2837,95 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
                     GetSysColor(COLOR_WINDOWTEXT));
         }
 
-        rc.left += 4;
+        const auto& segments = item ? item->subtextSegments : decltype(item->subtextSegments)();
+        if (dis->itemID != (UINT)-1 && !segments.empty())
+        {
+            TEXTMETRIC tm;
+            GetTextMetrics(hdc, &tm);
+            int glyphSize = std::max(6, int(tm.tmHeight * 3) / 5);
+            int glyphGap = std::max(1, (int)glyphSize / 4);
 
-        DrawTextA(hdc, *text, -1, &rc,
-            DT_SINGLELINE | DT_VCENTER | DT_LEFT);
+            // Calculate total subtext width
+            int totalSubWidth = 0;
+            for (size_t i = 0; i < segments.size(); ++i)
+            {
+                int w = (segments[i].type == SubtextGlyph::Space) ? (glyphSize / 2) : glyphSize;
+                if (i + 1 < segments.size())
+                    w += glyphGap;
+                totalSubWidth += w;
+            }
+
+            RECT rcText = rc;
+            rcText.left += 4;
+            rcText.right = rc.right - totalSubWidth - 10;
+            DrawTextA(hdc, *text, -1, &rcText,
+                DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS);
+
+            // Draw GDI glyphs
+            int rcHeight = rc.bottom - rc.top;
+            int top = rc.top + (rcHeight - glyphSize) / 2;
+            int x = rc.right - 4 - totalSubWidth;
+
+            COLORREF curColor = GetTextColor(hdc);
+            HPEN hollowPen = CreatePen(PS_SOLID, 1, curColor);
+            HBRUSH solidBrush = CreateSolidBrush(curColor);
+            HPEN oldPen = (HPEN)SelectObject(hdc, hollowPen);
+            HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, solidBrush);
+
+            for (size_t i = 0; i < segments.size(); ++i)
+            {
+                int w = (segments[i].type == SubtextGlyph::Space) ? (glyphSize / 2) : glyphSize;
+                int circlePadding = glyphSize / 4;
+
+                switch (segments[i].type)
+                {
+                case SubtextGlyph::Space:
+                    // draw nothing, just advance
+                    break;
+
+                case SubtextGlyph::FilledCircle:
+                    SelectObject(hdc, solidBrush);
+                    SelectObject(hdc, hollowPen);
+                    Ellipse(hdc, x + circlePadding, top + circlePadding, 
+                        x + glyphSize - circlePadding, top + glyphSize - circlePadding);
+                    break;
+
+                case SubtextGlyph::HollowCircle:
+                    SelectObject(hdc, GetStockObject(HOLLOW_BRUSH));
+                    SelectObject(hdc, hollowPen);
+                    Ellipse(hdc, x + circlePadding, top + circlePadding, 
+                        x + glyphSize - circlePadding, top + glyphSize - circlePadding);
+                    break;
+
+                case SubtextGlyph::FilledRect:
+                    SelectObject(hdc, solidBrush);
+                    SelectObject(hdc, hollowPen);
+                    Rectangle(hdc, x, top, x + glyphSize, top + glyphSize);
+                    break;
+
+                case SubtextGlyph::HollowRect:
+                    SelectObject(hdc, GetStockObject(HOLLOW_BRUSH));
+                    SelectObject(hdc, hollowPen);
+                    Rectangle(hdc, x, top, x + glyphSize, top + glyphSize);
+                    break;
+                }
+
+                x += w;
+                if (i + 1 < segments.size())
+                    x += glyphGap;
+            }
+
+            SelectObject(hdc, oldPen);
+            SelectObject(hdc, oldBrush);
+            DeleteObject(hollowPen);
+            DeleteObject(solidBrush);
+        }
+        else
+        {
+            rc.left += 4;
+            DrawTextA(hdc, *text, -1, &rc,
+                DT_SINGLELINE | DT_VCENTER | DT_LEFT);
+        }
 
         SelectObject(hdc, oldFont);
         return TRUE;
@@ -2820,29 +2966,7 @@ LRESULT CALLBACK VirtualComboBoxEx::EditProc(HWND hwnd, UINT msg, WPARAM wParam,
 
         if (wParam == VK_BACK)
         {
-            auto NeedVScrollBar = [&](HWND hList)
-            {
-                int total = (int)SendMessage(hList, LB_GETCOUNT, 0, 0);
-                if (total <= 0)
-                    return false;
-
-                RECT rc;
-                GetClientRect(hList, &rc);
-
-                int listHeight = rc.bottom - rc.top;
-                if (listHeight <= 0)
-                    return false;
-
-                HDC hdc = GetDC(hwnd);
-                int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
-                ReleaseDC(hwnd, hdc);
-                int itemHeight = ITEM_HEIGHT * dpi / 96.0f;
-
-                int visible = listHeight / itemHeight;
-
-                return total > visible;
-            };
-            if (!NeedVScrollBar(pThis->hList))
+            if (!NeedVScrollBar(hwnd, pThis->hList))
             {
                 ShowScrollBar(pThis->hList, SB_VERT, FALSE);
             }
@@ -3024,6 +3148,12 @@ LRESULT CALLBACK VirtualComboBoxEx::ListProc(HWND hwnd, UINT msg, WPARAM wParam,
 
                         SetTimer(hwnd, VCB_TIMER_SELECT, 0, NULL);
                     }
+                }
+
+                if (!NeedVScrollBar(hwnd, pThis->hList))
+                {
+                    ShowScrollBar(pThis->hList, SB_VERT, FALSE);
+                    InvalidateRect(pThis->hList, NULL, TRUE);
                 }
             }
         }

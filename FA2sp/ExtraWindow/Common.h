@@ -4,6 +4,7 @@
 
 class FString;
 class CNewTrigger;
+class Trigger;
 class VirtualComboBoxEx;
 
 enum class DropType : int
@@ -64,9 +65,17 @@ struct SortKeyIndex
     size_t index;
 };
 
+enum class SubtextGlyph : uint8_t { FilledCircle, HollowCircle, FilledRect, HollowRect, Space };
+
+struct SubtextSegment
+{
+    SubtextGlyph type;
+};
+
 struct VCBItemEntry
 {
     FString text;
+    std::vector<SubtextSegment> subtextSegments;
     SortLabelKey key;
     COLORREF textColor = CLR_INVALID;
     COLORREF backgroundColor = CLR_INVALID;
@@ -105,7 +114,7 @@ public:
 
     static void SortLabels(std::vector<FString>& labels);
     static void SortLabels(std::vector<std::pair<FString, FString>>& labels, bool first = true);
-    static void SortLabels(std::vector<std::pair<FString, bool>>& labels);
+    static void SortTriggerLabels(std::vector<std::pair<FString, Trigger*>>& labels);
     static void SortRawStrings(std::vector<FString>& labels);
     static void SortRawStrings(std::vector<std::pair<FString, FString>>& labels, bool first = true);
     static void SortRawStrings(std::vector<std::pair<std::string, std::string>>& labels, bool first = true);
@@ -308,9 +317,11 @@ public:
         const std::vector<FString>* addToEnd = nullptr);
 
     void AddString(const char* str, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID);
+    void AddSubtextString(const char* text, const std::vector<SubtextSegment>& segments, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID);
     void AddStrings(const std::vector<FString>& ret, const char* oriText = nullptr);
     int InsertString(int index, const char* str, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID);
     int ReplaceString(int index, const char* str, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID);
+    int ReplaceSubtext(int index, const std::vector<SubtextSegment>& segments);
     int DeleteString(int index);
     void Clear();
 

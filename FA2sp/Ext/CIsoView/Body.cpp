@@ -964,8 +964,8 @@ void CIsoViewExt::DrawEllipsePaint(int X, int Y, int majorRadius, COLORREF color
 
     X += 30 / CIsoViewExt::ScaledFactor;
     Y -= 15 / CIsoViewExt::ScaledFactor;
-    X += 6 / CIsoViewExt::ScaledFactor - 6 + 2;
-    Y += 3 / CIsoViewExt::ScaledFactor - 3;
+    X += 1 / CIsoViewExt::ScaledFactor - 1 + 2;
+    Y += 1 / CIsoViewExt::ScaledFactor - 1;
 
     majorRadius /= CIsoViewExt::ScaledFactor;
 
@@ -4321,8 +4321,8 @@ bool CIsoViewExt::ClipLineToRect(int& x1, int& y1, int& x2, int& y2, const RECT&
 
 void CIsoViewExt::DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, const RECT& rect, int size)
 {
-    x1 += 36 / CIsoViewExt::ScaledFactor - 6;
-    x2 += 36 / CIsoViewExt::ScaledFactor - 6;
+    x1 += 32 / CIsoViewExt::ScaledFactor - 2;
+    x2 += 32 / CIsoViewExt::ScaledFactor - 2;
     y1 -= 12.5 / CIsoViewExt::ScaledFactor + 2.5;
     y2 -= 12.5 / CIsoViewExt::ScaledFactor + 2.5;
 
@@ -4351,8 +4351,8 @@ void CIsoViewExt::DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color
 
 void CIsoViewExt::DrawArrowHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, const RECT& rect, int size)
 {
-    x1 += 36 / CIsoViewExt::ScaledFactor - 6;
-    x2 += 36 / CIsoViewExt::ScaledFactor - 6;
+    x1 += 32 / CIsoViewExt::ScaledFactor - 2;
+    x2 += 32 / CIsoViewExt::ScaledFactor - 2;
     y1 -= 12.5 / CIsoViewExt::ScaledFactor + 2.5;
     y2 -= 12.5 / CIsoViewExt::ScaledFactor + 2.5;
 
@@ -4421,8 +4421,8 @@ void CIsoViewExt::DrawArrowHDC(HDC hDC, int x1, int y1, int x2, int y2, int colo
 
 void CIsoViewExt::DrawDashLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, const RECT& rect, int size)
 {
-    x1 += 36 / CIsoViewExt::ScaledFactor - 6;
-    x2 += 36 / CIsoViewExt::ScaledFactor - 6;
+    x1 += 32 / CIsoViewExt::ScaledFactor - 2;
+    x2 += 32 / CIsoViewExt::ScaledFactor - 2;
     y1 -= 12.5 / CIsoViewExt::ScaledFactor + 2.5;
     y2 -= 12.5 / CIsoViewExt::ScaledFactor + 2.5;
 

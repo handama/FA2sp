@@ -212,7 +212,6 @@
     <ClCompile Include="FA2sp\Algorithms\lzo1x_d.cpp" />
     <ClCompile Include="FA2sp\Algorithms\sha1.cpp" />
     <ClCompile Include="FA2sp\Algorithms\sha1impl.cpp" />
-    <ClCompile Include="FA2sp\ExtraWindow\CAllieEditor\CAllieEditor.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CAnnotationDlg\CAnnotationDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CBatchTrigger\CBatchTrigger.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.cpp" />
@@ -225,6 +224,7 @@
     <ClCompile Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewEasterEgg\CNewEasterEgg.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewHouse\CNewHouse.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewLocalVariables\CNewLocalVariables.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewMMXSavingOptionsDlg\CNewMMXSavingOptionsDlg.cpp" />
@@ -369,7 +369,6 @@
     <ClInclude Include="FA2sp\Algorithms\Matrix3D.h" />
     <ClInclude Include="FA2sp\Algorithms\sha1.h" />
     <ClInclude Include="FA2sp\Algorithms\sha1impl.h" />
-    <ClInclude Include="FA2sp\ExtraWindow\CAllieEditor\CAllieEditor.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CAnnotationDlg\CAnnotationDlg.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CBatchTrigger\CBatchTrigger.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CCheckBox.h" />
@@ -382,6 +381,7 @@
     <ClInclude Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewEasterEgg\CNewEasterEgg.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewHouse\CNewHouse.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewLocalVariables\CNewLocalVariables.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewMMXSavingOptionsDlg\CNewMMXSavingOptionsDlg.h" />
@@ -464,7 +464,6 @@
     <ClInclude Include="FA2sp\UI\resource.h" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="FA2sp\ExtraWindow\CAllieEditor\CAllieEditor.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CAnnotationDlg\CAnnotationDlg.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CBatchTrigger\CBatchTrigger.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.rc" />
@@ -476,6 +475,7 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewEasterEgg\CNewEasterEgg.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewHouse\CNewHouse.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditorText.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewLocalVariables\CNewLocalVariables.rc" />

@@ -539,6 +539,7 @@ public:
     int SelectedTriggerIndex;
     int SelectedEventIndex;
     int SelectedActionIndex;
+    static bool IsMultiPlay;
 
 private:
     int ActionParamsCount;

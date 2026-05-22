@@ -56,6 +56,7 @@ bool ExtConfigs::SortByLabelName_Team;
 bool ExtConfigs::SortByLabelName_Taskforce;
 bool ExtConfigs::SortByLabelName_Script;
 bool ExtConfigs::NewTriggerPlusID;
+bool ExtConfigs::DisplayTriggerEnableInfo;
 bool ExtConfigs::UseSequentialIndexing;
 bool ExtConfigs::UseSeparateIndexing;
 bool ExtConfigs::AdjustDropdownWidth;
@@ -278,6 +279,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::SortByLabelName_Script = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.Script");
 
 	ExtConfigs::NewTriggerPlusID = CINI::FAData->GetBool("ExtConfigs", "NewTriggerPlusID");
+	ExtConfigs::DisplayTriggerEnableInfo = CINI::FAData->GetBool("ExtConfigs", "DisplayTriggerEnableInfo", true);
 	ExtConfigs::UseSequentialIndexing = CINI::FAData->GetBool("ExtConfigs", "UseSequentialIndexing");
 	ExtConfigs::UseSeparateIndexing = CINI::FAData->GetBool("ExtConfigs", "UseSeparateIndexing");
 
@@ -622,6 +624,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.AdjustDropdownWidth", "Auto-adjust label width for editors"),
 		.IniKey = "AdjustDropdownWidth",
 		.Value = &ExtConfigs::AdjustDropdownWidth,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.DisplayTriggerEnableInfo", "Display whether triggers are disabled in the dropdown menu"),
+		.IniKey = "DisplayTriggerEnableInfo",
+		.Value = &ExtConfigs::DisplayTriggerEnableInfo,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 

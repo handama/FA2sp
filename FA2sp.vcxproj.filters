@@ -78,9 +78,6 @@
     <ClInclude Include="FA2sp\Miscs\VoxelDrawer.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="FA2sp\ExtraWindow\CAllieEditor\CAllieEditor.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="FA2sp\Ext\CHouses\Body.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -321,6 +318,9 @@
     <ClInclude Include="FA2sp\Ext\CIsoView\RendererTypes.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CNewHouse\CNewHouse.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FA2sp\FA2sp.cpp">
@@ -414,9 +414,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Hooks.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FA2sp\ExtraWindow\CAllieEditor\CAllieEditor.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Ext\CHouses\Body.cpp">
@@ -791,6 +788,9 @@
     <ClCompile Include="FA2sp\Ext\CIsoView\RendererTypes.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CNewHouse\CNewHouse.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FA2sp\FA2sp.rc">
@@ -839,9 +839,6 @@
       <Filter>资源文件</Filter>
     </ResourceCompile>
     <ResourceCompile Include="FA2sp\UI\CUnitDialog.rc">
-      <Filter>资源文件</Filter>
-    </ResourceCompile>
-    <ResourceCompile Include="FA2sp\ExtraWindow\CAllieEditor\CAllieEditor.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
     <ResourceCompile Include="FA2sp\UI\CAITriggerTypes.rc">
@@ -989,6 +986,9 @@
       <Filter>资源文件</Filter>
     </ResourceCompile>
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewTag\CNewTag.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewHouse\CNewHouse.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
   </ItemGroup>

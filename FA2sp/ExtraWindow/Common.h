@@ -4,6 +4,7 @@
 
 class FString;
 class CNewTrigger;
+class Trigger;
 class VirtualComboBoxEx;
 
 enum class DropType : int
@@ -64,10 +65,21 @@ struct SortKeyIndex
     size_t index;
 };
 
+enum class SubtextGlyph : uint8_t { FilledCircle, HollowCircle, FilledRect, HollowRect, Space };
+
+struct SubtextSegment
+{
+    SubtextGlyph type;
+};
+
 struct VCBItemEntry
 {
     FString text;
+    std::vector<SubtextSegment> subtextSegments;
     SortLabelKey key;
+    COLORREF textColor = CLR_INVALID;
+    COLORREF backgroundColor = CLR_INVALID;
+    bool leftSideBackground = false;
 };
 
 class ExtraWindow
@@ -103,6 +115,7 @@ public:
 
     static void SortLabels(std::vector<FString>& labels);
     static void SortLabels(std::vector<std::pair<FString, FString>>& labels, bool first = true);
+    static void SortTriggerLabels(std::vector<std::pair<FString, Trigger*>>& labels);
     static void SortRawStrings(std::vector<FString>& labels);
     static void SortRawStrings(std::vector<std::pair<FString, FString>>& labels, bool first = true);
     static void SortRawStrings(std::vector<std::pair<std::string, std::string>>& labels, bool first = true);
@@ -304,12 +317,17 @@ public:
         const std::vector<FString>* addToFront = nullptr,
         const std::vector<FString>* addToEnd = nullptr);
 
-    void AddString(const char* str);
+    void AddString(const char* str, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID, bool leftSideBackground = false);
+    void AddSubtextString(const char* text, const std::vector<SubtextSegment>& segments, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID);
     void AddStrings(const std::vector<FString>& ret, const char* oriText = nullptr);
-    int InsertString(int index, const char* str);
-    int ReplaceString(int index, const char* str);
+    int InsertString(int index, const char* str, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID, bool leftSideBackground = false);
+    int ReplaceString(int index, const char* str, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID, bool leftSideBackground = false);
+    int ReplaceSubtext(int index, const std::vector<SubtextSegment>& segments);
     int DeleteString(int index);
     void Clear();
+
+    void SetItemColors(int index, COLORREF textColor = CLR_INVALID, COLORREF backgroundColor = CLR_INVALID, bool leftSideBackground = false);
+    void GetItemColors(int index, COLORREF& textColor, COLORREF& backgroundColor) const;
 
     int GetCurSel() const;
     void SetCurSel(int idx);
@@ -360,6 +378,7 @@ private:
 
     DropWidthMode m_dropWidthMode = DropWidth_AutoMax;
     int m_cachedMaxWidth = 0;
+    HBRUSH m_hCurBrush = nullptr;
 
 private:
     void Filter(const char* text);

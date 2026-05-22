@@ -34,8 +34,43 @@ std::vector<ParamAffectedParams> CNewTrigger::EventParamAffectedParams;
 bool CNewTrigger::AvoidInfiLoop = false;
 bool CNewTrigger::SortTriggersExecuted = false;
 bool CNewTrigger::AutoChangeName = false;
+bool CNewTrigger::IsMultiPlay = false;
 static constexpr int DRAG_THRESHOLD = 4;
 static const std::vector<FString> noneLabel = { "<none>" };
+
+static COLORREF GetTriggerBackground(bool enabled)
+{
+    return enabled ? CLR_INVALID : (ExtConfigs::EnableDarkMode ? RGB(40, 40, 40) : RGB(240, 240, 240));
+}
+
+static COLORREF GetTriggerTextColor(bool enabled)
+{
+    return enabled ? CLR_INVALID : (ExtConfigs::EnableDarkMode ? RGB(160, 160, 160) : RGB(72, 72, 72));
+}
+
+using enum SubtextGlyph;
+
+static std::vector<SubtextSegment> GetTriggerEnableText(Trigger* trigger)
+{
+    if (!ExtConfigs::DisplayTriggerEnableInfo)
+        return { };
+    using G = SubtextGlyph;
+    auto circle = [&](bool on) { return on ? G::FilledCircle : G::HollowCircle; };
+    auto rect = trigger->Disabled ? G::HollowRect : G::FilledRect;
+
+    if (CNewTrigger::IsMultiPlay)
+    {
+        return {{ rect }};
+    }
+
+    return {
+        { circle(trigger->EasyEnabled) },
+        { circle(trigger->MediumEnabled) },
+        { circle(trigger->HardEnabled) },
+        { G::Space },
+        { rect }
+    };
+}
 
 void CNewTrigger::Create(CFinalSunDlg* pWnd)
 {
@@ -363,6 +398,8 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
       ExtraWindow::AdjustDropdownWidth(hHouse);
       
     SendMessage(hCompact, BM_SETCHECK, CompactMode ? BST_CHECKED : BST_UNCHECKED, 0);
+
+    IsMultiPlay = CMapData::Instance->IsMultiOnly();
 
     OnSelchangeTrigger();
 }
@@ -1620,6 +1657,27 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             if (CODE == BN_CLICKED && CurrentTrigger)
             {
                 CurrentTrigger->Disabled = SendMessage(hDisabled, BM_GETCHECK, 0, 0);
+
+                for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+                {
+                    auto pThis = &Instance[i];
+                    if (pThis->GetHandle())
+                    {
+                        pThis->vcbSelectedTrigger.ReplaceSubtext(
+                            SelectedTriggerIndex,
+                            GetTriggerEnableText(CurrentTrigger.get()));
+                            pThis->vcbAttachedTrigger.ReplaceSubtext(
+                                SelectedTriggerIndex + 1,
+                                GetTriggerEnableText(CurrentTrigger.get()));
+                        if (pThis->CurrentTriggerActionParam > -1)
+                        {
+                            pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
+                                SelectedTriggerIndex,
+                                GetTriggerEnableText(CurrentTrigger.get()));
+                        }
+                    }
+                }
+
                 CurrentTrigger->Save();
                 RefreshOtherInstances();
             }
@@ -1628,6 +1686,27 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             if (CODE == BN_CLICKED && CurrentTrigger)
             {
                 CurrentTrigger->EasyEnabled = SendMessage(hEasy, BM_GETCHECK, 0, 0);
+
+                for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+                {
+                    auto pThis = &Instance[i];
+                    if (pThis->GetHandle())
+                    {
+                        pThis->vcbSelectedTrigger.ReplaceSubtext(
+                            SelectedTriggerIndex,
+                            GetTriggerEnableText(CurrentTrigger.get()));
+                            pThis->vcbAttachedTrigger.ReplaceSubtext(
+                                SelectedTriggerIndex + 1,
+                                GetTriggerEnableText(CurrentTrigger.get()));
+                        if (pThis->CurrentTriggerActionParam > -1)
+                        {
+                            pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
+                                SelectedTriggerIndex,
+                                GetTriggerEnableText(CurrentTrigger.get()));
+                        }
+                    }
+                }
+
                 CurrentTrigger->Save();
                 RefreshOtherInstances();
             }
@@ -1636,6 +1715,27 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             if (CODE == BN_CLICKED && CurrentTrigger)
             {
                 CurrentTrigger->MediumEnabled = SendMessage(hMedium, BM_GETCHECK, 0, 0);
+
+                for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+                {
+                    auto pThis = &Instance[i];
+                    if (pThis->GetHandle())
+                    {
+                        pThis->vcbSelectedTrigger.ReplaceSubtext(
+                            SelectedTriggerIndex,
+                            GetTriggerEnableText(CurrentTrigger.get()));
+                            pThis->vcbAttachedTrigger.ReplaceSubtext(
+                                SelectedTriggerIndex + 1,
+                                GetTriggerEnableText(CurrentTrigger.get()));
+                        if (pThis->CurrentTriggerActionParam > -1)
+                        {
+                            pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
+                                SelectedTriggerIndex,
+                                GetTriggerEnableText(CurrentTrigger.get()));
+                        }
+                    }
+                }
+
                 CurrentTrigger->Save();
                 RefreshOtherInstances();
             }
@@ -1644,6 +1744,27 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             if (CODE == BN_CLICKED && CurrentTrigger)
             {
                 CurrentTrigger->HardEnabled = SendMessage(hHard, BM_GETCHECK, 0, 0);
+
+                for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+                {
+                    auto pThis = &Instance[i];
+                    if (pThis->GetHandle())
+                    {
+                        pThis->vcbSelectedTrigger.ReplaceSubtext(
+                            SelectedTriggerIndex,
+                            GetTriggerEnableText(CurrentTrigger.get()));
+                            pThis->vcbAttachedTrigger.ReplaceSubtext(
+                                SelectedTriggerIndex + 1,
+                                GetTriggerEnableText(CurrentTrigger.get()));
+                        if (pThis->CurrentTriggerActionParam > -1)
+                        {
+                            pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
+                                SelectedTriggerIndex,
+                                GetTriggerEnableText(CurrentTrigger.get()));
+                        }
+                    }
+                }
+                
                 CurrentTrigger->Save();
                 RefreshOtherInstances();
             }
@@ -3472,21 +3593,24 @@ void CNewTrigger::SortTriggers(FString id, bool onlySelf)
         SortTriggersExecuted = true;
         TempValueHolder<bool> tmpLoop(AvoidInfiLoop, true);
 
-        std::vector<FString> labels;
+        std::vector<std::pair<FString, Trigger*>> labels;
         for (auto& triggerPair : CMapDataExt::Triggers) {
             auto& trigger = triggerPair.second;
-            labels.push_back(ExtraWindow::GetTriggerDisplayName(trigger->ID));
+            labels.push_back({ExtraWindow::GetTriggerDisplayName(trigger->ID), trigger.get()});
         }
 
         bool tmp = ExtConfigs::SortByLabelName;
         ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Trigger;
-        ExtraWindow::SortLabels(labels);
+        ExtraWindow::SortTriggerLabels(labels);
         ExtConfigs::SortByLabelName = tmp;
 
         auto sort = [&labels](CNewTrigger* pThis, FString id) {
 
             pThis->vcbSelectedTrigger.Clear();
-            pThis->vcbSelectedTrigger.AddStrings(labels);
+            for (auto& [name, trigger] : labels)
+            {
+                pThis->vcbSelectedTrigger.AddSubtextString(name, GetTriggerEnableText(trigger));
+            }
             pThis->vcbAttachedTrigger.CopyFrom(pThis->vcbSelectedTrigger, &noneLabel);
             if (pThis->CurrentTriggerActionParam > -1)
             {

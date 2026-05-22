@@ -67,6 +67,7 @@ public:
     static bool SortByLabelName_Taskforce;
     static bool SortByLabelName_Script;
     static bool NewTriggerPlusID;
+    static bool DisplayTriggerEnableInfo;
     static bool UseSequentialIndexing;
     static bool UseSeparateIndexing;
     static bool AdjustDropdownWidth;

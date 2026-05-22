@@ -294,10 +294,12 @@ void CLoadingExt::LoadObjects(const FString& ID, GameObjectType eItemType)
 		LoadInfantry(ID);
 		break;
 	case CLoadingExt::GameObjectType::Terrain:
-		GeneralLoad::LoadTerrain(this, ID);
+		GeneralLoad::LoadTerrainOrSmudge(this, ID, true);
+		//LoadTerrainOrSmudge(ID, true);
 		break;
 	case CLoadingExt::GameObjectType::Smudge:
-		LoadTerrainOrSmudge(ID, false);
+		GeneralLoad::LoadTerrainOrSmudge(this, ID, false);
+		//LoadTerrainOrSmudge(ID, false);
 		break;
 	case CLoadingExt::GameObjectType::Vehicle:
 	{
@@ -1928,17 +1930,17 @@ void CLoadingExt::LoadTerrainOrSmudge(const FString& ID, bool terrain)
 	GetFullPaletteName(PaletteName);
 	SetImageDataSafe(FramesBuffers[0], DictName, header.Width, header.Height, PalettesManager::LoadPalette(PaletteName));
 
-	if (ExtConfigs::InGameDisplay_Shadow && terrain)
-	{
-		FString DictNameShadow;
-		unsigned char* pBufferShadow[1];
-		DictNameShadow.Format("%s\233%d\233SHADOW", ID, 0);
-		CLoadingExt::LoadSHPFrameSafe(0 + header.FrameCount / 2, 1, &pBufferShadow[0], header);
-		SetImageDataSafe(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
-	}
-
 	if (terrain)
 	{
+		if (ExtConfigs::InGameDisplay_Shadow)
+		{
+			FString DictNameShadow;
+			unsigned char* pBufferShadow[1];
+			DictNameShadow.Format("%s\233%d\233SHADOW", ID, 0);
+			CLoadingExt::LoadSHPFrameSafe(0 + header.FrameCount / 2, 1, &pBufferShadow[0], header);
+			SetImageDataSafe(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
+		}
+
 		LoadAlphaImage(ID, CLoadingExt::GameObjectType::Terrain);
 	}
 }

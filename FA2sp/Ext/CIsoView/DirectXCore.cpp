@@ -2230,7 +2230,6 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
             ny =  dx * invLen * halfT;
         }
 
-        // Pixel �? NDC conversion (same math as CalcWorldMatrixNoGlobal)
         auto toNDC = [&](float px, float py) -> std::pair<float, float>
         {
             return {
@@ -2543,7 +2542,6 @@ void DrawShapes::RasterLine(Canvas &c,
         return;
     }
 
-    // ── Non-AA path: filled quad with hard square caps ──
     if (!antiAlias)
     {
         float halfT = thickness * 0.5f;
@@ -2603,7 +2601,6 @@ void DrawShapes::RasterLine(Canvas &c,
         return;
     }
 
-    // ── AA path: overlapping anti-aliased circles ──
     bool useDash = (dashLen > 0.f && gapLen > 0.f);
     float cycleLen = dashLen + gapLen;
     float radius = thickness * .5f;
@@ -2719,7 +2716,6 @@ void DrawShapes::DrawRect(float x, float y, float w, float h,
     if (!hasFill && !hasBorder)
         return;
 
-    // ── Fill via CPU canvas ──
     if (hasFill)
     {
         float pad = 2.f;
@@ -3296,8 +3292,6 @@ bool TextRenderer::RasterizeGDI(
 
         SetBkMode(m_hDC, TRANSPARENT);
 
-        // VERY IMPORTANT:
-        // use white text only
         SetTextColor(m_hDC, RGB(255, 255, 255));
 
         dtFlags ^= DT_CALCRECT;

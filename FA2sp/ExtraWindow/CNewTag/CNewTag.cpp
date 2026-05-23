@@ -737,9 +737,14 @@ void CNewTag::OnSelchangeTag(bool edited, int specificIdx)
         m_programmaticEdit = false;
     };
     if (specificIdx != -1)
+    {
         SelectedTagIndex = specificIdx;
+        vcbSelectedTag.SetCurSel(SelectedTagIndex);
+    }
     else
+    {
         SelectedTagIndex = vcbSelectedTag.GetCurSel();
+    }
     if (SelectedTagIndex < 0 || SelectedTagIndex >= vcbSelectedTag.GetCount())
     {
         clear();

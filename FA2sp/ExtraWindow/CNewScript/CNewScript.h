@@ -52,6 +52,10 @@ public:
     static void OnSelchangeActionExtraParam(bool edited = false);
     static void OnSelchangeActionListbox();
     static void OnClickNewScript();
+    static void SetListBoxSel(int index);
+    static void SetListBoxSels(std::vector<int>& indices);
+    static void GetListBoxSels(std::vector<int>& indices);
+
 
 protected:
     static void Initialize(HWND& hWnd);
@@ -76,11 +80,6 @@ protected:
     static LRESULT CALLBACK DragingDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
     static FString GetOneBasedIndex(const FString& key);
-
-    static void SetListBoxSel(int index);
-    static void SetListBoxSels(std::vector<int>& indices);
-    static void GetListBoxSels(std::vector<int>& indices);
-
 private:
     static HWND m_hwnd;
     static CFinalSunDlg* m_parent;

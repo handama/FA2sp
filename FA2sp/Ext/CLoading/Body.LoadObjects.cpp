@@ -1893,9 +1893,6 @@ void CLoadingExt::LoadTerrainOrSmudge(const FString& ID, bool terrain)
 	FString FileName = ImageID + this->GetFileExtension();
 	if (!CMixFile::LoadSHP(FileName))
 	{
-		if (ExtConfigs::UseStrictNewTheater)
-			return;
-
 		FileName = ImageID + ".shp";
 		if (!CMixFile::LoadSHP(FileName))
 			return;

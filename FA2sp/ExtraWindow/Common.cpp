@@ -2453,7 +2453,7 @@ int VirtualComboBoxEx::CalcItemWidth(int index)
         TEXTMETRIC tm;
         GetTextMetrics(hdc, &tm);
         int glyphSize = std::max(6, (int)(tm.tmHeight * 3) / 5);
-        int glyphGap =  std::max(1, (int)glyphSize / 4);
+        int glyphGap =  std::max(1, (int)glyphSize / 8);
 
         int subWidth = 0;
         for (size_t i = 0; i < segments.size(); ++i)
@@ -2847,7 +2847,7 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
             TEXTMETRIC tm;
             GetTextMetrics(hdc, &tm);
             int glyphSize = std::max(6, int(tm.tmHeight * 3) / 5);
-            int glyphGap = std::max(1, (int)glyphSize / 4);
+            int glyphGap = std::max(1, (int)glyphSize / 8);
 
             // Calculate total subtext width
             int totalSubWidth = 0;
@@ -2902,6 +2902,7 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
             {
                 int w = (segments[i].type == SubtextGlyph::Space) ? (glyphSize / 2) : glyphSize;
                 int circlePadding = glyphSize / 4;
+                int circlePaddingSmall = glyphSize / 8;
 
                 switch (segments[i].type)
                 {
@@ -2934,6 +2935,61 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
                     SelectObject(hdc, hollowPen);
                     Rectangle(hdc, x, top, x + glyphSize, top + glyphSize);
                     break;
+
+                case SubtextGlyph::BandedCircle:
+                {
+                    HPEN redPen1 = CreatePen(PS_SOLID, 1, RGB(220, 40, 40));
+                    HPEN redPen2 = CreatePen(PS_SOLID, 2, RGB(220, 40, 40));
+                
+                    HBRUSH oldLocalBrush =
+                        (HBRUSH)SelectObject(hdc, GetStockObject(HOLLOW_BRUSH));
+                
+                    HPEN oldLocalPen = (HPEN)SelectObject(hdc, redPen1);
+                
+                    Rectangle(hdc,
+                        x + circlePaddingSmall,
+                        top + circlePaddingSmall,
+                        x + glyphSize - circlePaddingSmall,
+                        top + glyphSize - circlePaddingSmall);
+                
+                    SelectObject(hdc, redPen2);
+                
+                    MoveToEx(hdc,
+                        x + circlePaddingSmall,
+                        top + circlePaddingSmall,
+                        nullptr);
+                
+                    LineTo(hdc,
+                        x + glyphSize - circlePaddingSmall - 1,
+                        top + glyphSize - circlePaddingSmall - 1);
+                
+                    SelectObject(hdc, oldLocalPen);
+                    SelectObject(hdc, oldLocalBrush);
+                
+                    DeleteObject(redPen1);
+                    DeleteObject(redPen2);
+                }
+                break;
+                
+                case SubtextGlyph::AllowCircle:
+                {
+                    HPEN greenPen = CreatePen(PS_SOLID, 1, RGB(40, 200, 40));
+                
+                    HPEN oldLocalPen = (HPEN)SelectObject(hdc, greenPen);
+                    HBRUSH oldLocalBrush = (HBRUSH)SelectObject(hdc, GetStockObject(HOLLOW_BRUSH));
+                
+                    Rectangle(hdc,
+                        x + circlePaddingSmall,
+                        top + circlePaddingSmall,
+                        x + glyphSize - circlePaddingSmall,
+                        top + glyphSize - circlePaddingSmall);
+                
+                    SelectObject(hdc, oldLocalPen);
+                    SelectObject(hdc, oldLocalBrush);
+                
+                    DeleteObject(greenPen);
+                }
+                break;
                 }
 
                 x += w;

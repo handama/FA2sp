@@ -4209,6 +4209,105 @@ void CMapDataExt::CheckCellRise(bool steep, int loopCount, bool IgnoreMorphable,
 		CheckCellRise(steep, loopCount, IgnoreMorphable, ignoreList);
 }
 
+void CMapDataExt::RefreshAllWindows()
+{
+	CMeasurementToolbox::ClearStatus();
+	if (TagSort::Instance.IsVisible())
+	{
+		TagSort::Instance.LoadAllTriggers();
+	}
+	if (TeamSort::Instance.IsVisible())
+	{
+		TeamSort::Instance.LoadAllTriggers();
+	}
+	if (WaypointSort::Instance.IsVisible())
+	{
+		WaypointSort::Instance.LoadAllTriggers();
+	}
+	if (TaskforceSort::Instance.IsVisible())
+	{
+		TaskforceSort::Instance.LoadAllTriggers();
+	}
+	if (ScriptSort::Instance.IsVisible())
+	{
+		ScriptSort::Instance.LoadAllTriggers();
+	}
+	if (WaypointSort::Instance.IsVisible())
+	{
+		WaypointSort::Instance.LoadAllTriggers();
+	}
+	if (CNewINIEditor::GetHandle())
+	{
+		::SendMessage(CNewINIEditor::GetHandle(), 114514, 0, 0);
+	}
+	if (CNewHouse::GetHandle())
+	{
+		::SendMessage(CNewHouse::GetHandle(), 114514, 0, 0);
+	}
+	if (CNewTeamTypes::GetHandle())
+	{
+		::SendMessage(CNewTeamTypes::GetHandle(), 114514, 0, 0);
+	}
+
+	if (CNewTaskforce::GetHandle())
+	{
+		::SendMessage(CNewTaskforce::GetHandle(), 114514, 0, 0);
+	}
+
+	if (CNewScript::GetHandle())
+	{
+		::SendMessage(CNewScript::GetHandle(), 114514, 0, 0);
+	}
+
+	bool noEditor = true;
+	for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+	{
+		if (CNewTrigger::Instance[i].GetHandle())
+		{
+			noEditor = false;
+			::SendMessage(CNewTrigger::Instance[i].GetHandle(), 114514, 0, 0);
+		}
+	}
+	if (CNewTag::GetHandle())
+	{
+		noEditor = false;
+		::SendMessage(CNewTag::GetHandle(), 114514, 0, 0);
+	}
+
+	if (noEditor)
+		CMapDataExt::UpdateTriggers();
+
+	CBatchTrigger::NeedClear = true;
+	if (CBatchTrigger::GetHandle())
+	{
+		::SendMessage(CBatchTrigger::GetHandle(), 114514, 0, 0);
+	}
+
+	if (CNewAITrigger::GetHandle())
+		::SendMessage(CNewAITrigger::GetHandle(), 114514, 0, 0);
+
+	if (CLuaConsole::GetHandle())
+		::SendMessage(CLuaConsole::GetHandle(), 114514, 0, 0);
+
+	if (CNewLocalVariables::GetHandle())
+		::SendMessage(CNewLocalVariables::GetHandle(), 114514, 0, 0);
+
+	if (IsWindowVisible(CCsfEditor::GetHandle()))
+	{
+		::SendMessage(CCsfEditor::GetHandle(), 114514, 0, 0);
+	}
+	if (CSearhReference::GetHandle())
+	{
+		CSearhReference::SetSearchID("");
+		::SendMessage(CSearhReference::GetHandle(), WM_CLOSE, 0, 0);
+	}
+	if (CTriggerAnnotation::GetHandle())
+	{
+		CTriggerAnnotation::ID = "";
+		::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
+	}
+}
+
 void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDataExt, bool reloadImages)
 {
 	Logger::Debug("CMapDataExt::InitializeAllHdmEdition() Called with parameter %d %d %d.\n", updateMinimap, reloadCellDataExt, reloadImages);
@@ -4288,66 +4387,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		item.RadarColor.G = atoi(colors[1]);
 		item.RadarColor.B = atoi(colors[2]);
 		ovrIdx++;
-	}
-
-	if (reloadImages)
-	{
-		if (CNewTeamTypes::GetHandle())
-			::SendMessage(CNewTeamTypes::GetHandle(), 114514, 0, 0);
-
-		if (CNewTaskforce::GetHandle())
-			::SendMessage(CNewTaskforce::GetHandle(), 114514, 0, 0);
-
-		if (CNewScript::GetHandle())
-			::SendMessage(CNewScript::GetHandle(), 114514, 0, 0);
-
-		bool noEditor = true;
-		for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
-		{
-			if (CNewTrigger::Instance[i].GetHandle())
-			{
-				noEditor = false;
-				::SendMessage(CNewTrigger::Instance[i].GetHandle(), 114514, 0, 0);
-			}
-		}
-		if (CNewTag::GetHandle())
-		{
-			noEditor = false;
-			::SendMessage(CNewTag::GetHandle(), 114514, 0, 0);
-		}
-
-		if (noEditor)
-			CMapDataExt::UpdateTriggers();
-
-		CBatchTrigger::NeedClear = true;
-		if (CBatchTrigger::GetHandle())
-		{
-			::SendMessage(CBatchTrigger::GetHandle(), 114514, 0, 0);
-		}
-
-		if (CNewAITrigger::GetHandle())
-			::SendMessage(CNewAITrigger::GetHandle(), 114514, 0, 0);
-
-		if (CLuaConsole::GetHandle())
-			::SendMessage(CLuaConsole::GetHandle(), 114514, 0, 0);
-
-		if (CNewLocalVariables::GetHandle())
-			::SendMessage(CNewLocalVariables::GetHandle(), 114514, 0, 0);
-
-		if (IsWindowVisible(CCsfEditor::GetHandle()))
-		{
-			::SendMessage(CCsfEditor::GetHandle(), 114514, 0, 0);
-		}
-		if (CSearhReference::GetHandle())
-		{
-			CSearhReference::SetSearchID("");
-			::SendMessage(CSearhReference::GetHandle(), WM_CLOSE, 0, 0);
-		}
-		if (CTriggerAnnotation::GetHandle())
-		{
-			CTriggerAnnotation::ID = "";
-			::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
-		}
 	}
 
 	CFinalSunDlgExt::CurrentLighting = 31000;
@@ -4495,32 +4534,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 
 	if (reloadImages)
 	{
-		CMeasurementToolbox::ClearStatus();
-		if (TagSort::Instance.IsVisible())
-		{
-			TagSort::Instance.LoadAllTriggers();
-		}
-		if (TeamSort::Instance.IsVisible())
-		{
-			TeamSort::Instance.LoadAllTriggers();
-		}
-		if (WaypointSort::Instance.IsVisible())
-		{
-			WaypointSort::Instance.LoadAllTriggers();
-		}
-		if (TaskforceSort::Instance.IsVisible())
-		{
-			TaskforceSort::Instance.LoadAllTriggers();
-		}
-		if (ScriptSort::Instance.IsVisible())
-		{
-			ScriptSort::Instance.LoadAllTriggers();
-		}
-		if (WaypointSort::Instance.IsVisible())
-		{
-			WaypointSort::Instance.LoadAllTriggers();
-		}
-
 		BuildingDataExts.clear();
 
 		BuildingDataExt tempBuildingData;

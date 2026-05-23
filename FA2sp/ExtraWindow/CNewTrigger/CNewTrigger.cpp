@@ -56,7 +56,7 @@ static std::vector<SubtextSegment> GetTriggerEnableText(Trigger* trigger)
         return { };
     using G = SubtextGlyph;
     auto circle = [&](bool on) { return on ? G::FilledCircle : G::HollowCircle; };
-    auto rect = trigger->Disabled ? G::HollowRect : G::FilledRect;
+    auto rect = trigger->Disabled ? G::BandedCircle : G::AllowCircle;
 
     if (CNewTrigger::IsMultiPlay)
     {
@@ -308,7 +308,9 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
         ShowWindow(m_hwnd, SW_SHOW);
         SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
     }
-
+    
+    IsMultiPlay = CMapData::Instance->IsMultiOnly();
+    
     if (UpdateTrigger)
         CMapDataExt::UpdateTriggers();
 
@@ -392,8 +394,6 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
     }
 
     SendMessage(hCompact, BM_SETCHECK, CompactMode ? BST_CHECKED : BST_UNCHECKED, 0);
-
-    IsMultiPlay = CMapData::Instance->IsMultiOnly();
 
     OnSelchangeTrigger();
 }

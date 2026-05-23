@@ -807,6 +807,7 @@ public:
 
     static void CheckCellLow(bool steep, int loopCount = 0, bool IgnoreMorphable = false, std::vector<int>* ignoreList = nullptr);
     static void CheckCellRise(bool steep, int loopCount = 0, bool IgnoreMorphable = false, std::vector<int>* ignoreList = nullptr);
+    static void RefreshAllWindows();
     static void GenerateNoiseSlopeTerrain(
         const std::set<MapCoord>& region,
         int minHeight,

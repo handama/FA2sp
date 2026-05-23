@@ -268,7 +268,6 @@ private:
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateGE;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateReadOnlyGE;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateOff;
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateShadowWrite;    
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateObjectStencilWrite; 
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateStencilOnlyWrite; 
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateTerrainRedraw; 

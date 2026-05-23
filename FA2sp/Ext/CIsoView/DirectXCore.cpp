@@ -575,20 +575,6 @@ bool DirectXCore::CreateShadersAndInputLayout()
     dsDesc.DepthEnable = FALSE;
     m_pDevice->CreateDepthStencilState(&dsDesc, &m_pDepthStateOff);
 
-    D3D11_DEPTH_STENCIL_DESC swDesc = {};
-    swDesc.DepthEnable = TRUE;
-    swDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
-    swDesc.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
-    swDesc.StencilEnable = TRUE;
-    swDesc.StencilReadMask = 0xFF;
-    swDesc.StencilWriteMask = 0xF0;
-    swDesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
-    swDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
-    swDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
-    swDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
-    swDesc.BackFace = swDesc.FrontFace;
-    m_pDevice->CreateDepthStencilState(&swDesc, &m_pDepthStateShadowWrite);
-
     D3D11_DEPTH_STENCIL_DESC owDesc = {};
     owDesc.DepthEnable = TRUE;
     owDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
@@ -2024,14 +2010,6 @@ void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
         if (cmd.params.bIsShadow) {
             UINT renderDepth = cmd.depth;
             int shadowVal = std::min(cmd.params.stencilRef, 15);
-
-            DrawCommand stencilCmd = cmd;
-            stencilCmd.bStencilDraw = true;
-            stencilCmd.bStencilOnly = true;
-            stencilCmd.pCustomDSState = m_pDepthStateShadowWrite.Get();
-            stencilCmd.depth = renderDepth;
-            stencilCmd.params.stencilRef = shadowVal << 4; 
-            m_drawCommands.push_back(stencilCmd);
 
             cmd.bStencilDraw = true;
             cmd.bStencilOnly = false;

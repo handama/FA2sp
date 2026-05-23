@@ -85,7 +85,9 @@ public:
 private:
     static WNDPROC OrigDragDotProc;
     static WNDPROC OrigDragingDotProc;
+    static bool m_pressed;
     static bool m_dragging;
+    static POINT m_pressPtScreen;
     static POINT m_dragOffset;
     static HWND m_hDragGhost;
     static TargetHighlighter hl;

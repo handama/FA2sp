@@ -16,6 +16,7 @@
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 #include "../../Helpers/Helper.h"
 #include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
+#include "../../ExtraWindow/CNewTag/CNewTag.h"
 
 DEFINE_HOOK(51CD20, CViewObjects_Redraw, 7)
 {
@@ -1328,6 +1329,11 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
             CViewObjectsExt::ApplyTag(X, Y, CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger->Tag);
             return 0x466860;
         }
+        else if (CIsoView::CurrentCommand->Type == 10 && !CNewTag::CurrentTagID.IsEmpty())
+        {
+            CViewObjectsExt::ApplyTag(X, Y, CNewTag::CurrentTagID);
+            return 0x466860;
+        }
     }
     else if (CIsoView::CurrentCommand->Command == 0x26)
     {        
@@ -1450,6 +1456,11 @@ DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
             && CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger)
         {
             CViewObjectsExt::ApplyTag(X, Y, CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger->Tag);
+            return 0x45CD6D;
+        }
+        else if (CIsoView::CurrentCommand->Type == 10 && !CNewTag::CurrentTagID.IsEmpty())
+        {
+            CViewObjectsExt::ApplyTag(X, Y, CNewTag::CurrentTagID);
             return 0x45CD6D;
         }
     }

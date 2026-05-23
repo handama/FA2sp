@@ -527,6 +527,9 @@ public:
     int CurrentCSFActionParam = -1;
     int CurrentTriggerActionParam = -1;
     int CurrentTeamActionParam = -1;
+    int CurrentCSFEventParam = -1;
+    int CurrentTeamEventParam = -1;
+    int CurrentTriggerEventParam = -1;
     static std::vector<ParamAffectedParams> ActionParamAffectedParams;
     static std::vector<ParamAffectedParams> EventParamAffectedParams;
     bool ActionParamUsesFloat;

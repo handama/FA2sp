@@ -71,6 +71,7 @@ public:
     int drawDepth = -1;
     bool bScreenSpace = false;
     bool bIsShadow = false;
+    bool bIsOverlapShadow = false;
     bool bWriteStencil = false;
     int stencilRef = -1; 
 
@@ -122,6 +123,8 @@ public:
         bool bScreenSpace = false;
         bool bStencilDraw = false; 
         bool bStencilOnly = false;
+        bool bIsShadowMark = false;
+        bool bIsOverlapShadow = false;
         UINT depth = 0;
         ID3D11DepthStencilState* pCustomDSState = nullptr; 
     };
@@ -200,6 +203,7 @@ private:
     bool CreateFinalShaders();
     bool CreateLineShaders();
     bool CreateAlphaAccumShaders();
+    bool CreateShadowDarkenShaders();
     void EnsureAlphaAccumTexture(UINT width, UINT height);
     void RenderOffscreenContent();
     void RenderFinalToBackBuffer();
@@ -271,7 +275,11 @@ private:
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateObjectStencilWrite; 
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateStencilOnlyWrite; 
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateTerrainRedraw; 
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateShadowRedraw; 
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateShadowMark;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateShadowRedraw;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateShadowDarken;
+    Microsoft::WRL::ComPtr<ID3D11BlendState>         m_pBlendStateDarken;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader>        m_pShadowDarkenPS; 
 
     std::unordered_map<TextureIndex, std::unique_ptr<TextureResource>> m_textureMap;
     FHashMap<std::unique_ptr<TextureResource>> m_bitmapTextureMap;

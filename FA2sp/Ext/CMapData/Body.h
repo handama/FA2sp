@@ -330,6 +330,7 @@ struct CellDataExt
     bool HasAnnotation = false;
 
     int RecordMinimapUpdateIndex[3] = { -1 } ;
+    char DamagedFires[8] = { -1 };
 
     struct BuildingRenderPart
     {
@@ -481,6 +482,8 @@ struct CellDataExt
             }
         }
     }
+
+    CellDataExt();
 };
 
 enum class EIndexType : int {

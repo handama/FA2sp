@@ -51,6 +51,7 @@ static std::vector<std::pair<MapCoord, FString>> WaypointsToDraw;
 static std::vector<std::pair<MapCoord, FString>> OverlayTextsToDraw;
 static std::vector<std::pair<MapCoord, FString>> TerrainTextsToDraw;
 static std::vector<std::pair<MapCoord, FString>> SmudgeTextsToDraw;
+static std::vector<std::pair<MapCoord, FString>> BaseNodeTextsToDraw;
 static std::vector<std::pair<MapCoord, DrawBuildings>> BuildingsToDraw;
 static std::vector<std::pair<MapCoord, ImageDataClassSafe *>> AlphaImagesToDraw;
 static std::vector<std::pair<MapCoord, ImageDataClassSafe *>> FiresToDraw;
@@ -716,6 +717,7 @@ static void DrawMap()
 		BuildingsToDraw.clear();
 		AlphaImagesToDraw.clear();
 		FiresToDraw.clear();
+		BaseNodeTextsToDraw.clear();
 		DrawVeterancies.clear();
 		visibleCells.clear();
 		memset(coordToIndex, 0, sizeof(coordToIndex));
@@ -1358,7 +1360,7 @@ static void DrawMap()
 
 		if (cell->Waypoint != -1 && CIsoViewExt::DrawWaypoints)
 		{
-			WaypointsToDraw.push_back(std::make_pair(MapCoord{X, Y},
+			WaypointsToDraw.push_back(std::make_pair(MapCoord{x, y},
 													 cell->Waypoint < Waypoints.size() ? Waypoints[cell->Waypoint]->GetString() : ""));
 		}
 		if (cell->Structure > -1)
@@ -1646,6 +1648,10 @@ static void DrawMap()
 						x1 -= DrawOffsetX;
 						y1 -= DrawOffsetY;
 
+						FString text;
+						text.Format("%03d", node.BasenodeID);
+						BaseNodeTextsToDraw.push_back(std::make_pair( MapCoord{x1 + 30, y1 - 15}, text));
+
 						MapCoord buildingOrigin{node.X, node.Y};
 						if (!IsCoordInWindow(node.X, node.Y))
 						{
@@ -1842,7 +1848,7 @@ static void DrawMap()
 						CIsoViewExt::DirectXShadow(
 							x1 - pData->FullWidth / 2,
 							y1 - pData->FullHeight / 2 + 15,
-							pData, cell->Height);
+							pData, cell->Height, true);
 					}
 					else
 					{
@@ -2440,10 +2446,10 @@ static void DrawMap()
 
 				if (firstDraw && CIsoViewExt::DrawFires && part.hasFire && DataExt.DamageFireOffsets.size() > 0)
 				{
-					auto fires = CLoadingExt::GetRandomFire({objRender.X, objRender.Y}, DataExt.DamageFireOffsets.size());
-					for (int i = 0; i < fires.size(); ++i)
+					for (int i = 0; i < DataExt.DamageFireOffsets.size(); ++i)
 					{
-						const auto &fire = fires[i];
+						if (cellExt->DamagedFires[i] < 0) break;
+						const auto &fire = CLoadingExt::DamageFires[cellExt->DamagedFires[i]].get();
 						if (ImageDataClassSafe::IsValidImage(fire))
 						{
 							FiresToDraw.push_back(std::make_pair(
@@ -3393,46 +3399,15 @@ static void DrawMap()
 			SetBkMode(hDC, TRANSPARENT);
 		SetTextAlign(hDC, TA_CENTER);
 
-		auto &ini = CMapData::Instance->INI;
-		if (auto pSection = ini.GetSection("Houses"))
+		for (const auto &[coord, index] : BaseNodeTextsToDraw)
 		{
-			for (auto &pair : pSection->GetEntities())
+			if (ExtConfigs::DirectXRendering)
 			{
-				int nodeCount = ini.GetInteger(pair.second, "NodeCount", 0);
-				if (nodeCount > 0)
-				{
-					for (int i = 0; i < nodeCount; i++)
-					{
-						char key[10];
-						sprintf(key, "%03d", i);
-						auto value = ini.GetString(pair.second, key, "");
-						if (value == "")
-							continue;
-						auto atoms = STDHelpers::SplitString(value);
-						if (atoms.size() < 3)
-							continue;
-
-						int x = atoi(atoms[2]);
-						int y = atoi(atoms[1]);
-
-						if (IsCoordInWindow(x, y))
-						{
-							CIsoView::MapCoord2ScreenCoord(x, y);
-
-							int ndrawX = x - DrawOffsetX + 30;
-							int ndrawY = y - DrawOffsetY - 15;
-
-							if (ExtConfigs::DirectXRendering)
-							{
-								pThis->g_pTR->DrawTexts(ndrawX, ndrawY, key, param);
-							}
-							else
-							{
-								TextOut(hDC, ndrawX, ndrawY, key, strlen(key));
-							}
-						}
-					}
-				}
+				pThis->g_pTR->DrawTexts(coord.X, coord.Y, index, param);
+			}
+			else
+			{
+				TextOut(hDC, coord.X, coord.Y, index, strlen(index));
 			}
 		}
 	}
@@ -3456,21 +3431,16 @@ static void DrawMap()
 
 		for (const auto &[coord, index] : WaypointsToDraw)
 		{
-			if (IsCoordInWindow(coord.X, coord.Y))
-			{
-				MapCoord mc = coord;
-				CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
-				int drawX = mc.X - DrawOffsetX + 30 + ExtConfigs::Waypoint_Text_ExtraOffset.x;
-				int drawY = mc.Y - DrawOffsetY - 15 + ExtConfigs::Waypoint_Text_ExtraOffset.y;
+			int drawX = coord.X + 30 + ExtConfigs::Waypoint_Text_ExtraOffset.x;
+			int drawY = coord.Y - 15 + ExtConfigs::Waypoint_Text_ExtraOffset.y;
 
-				if (ExtConfigs::DirectXRendering)
-				{
-					pThis->g_pTR->DrawTexts(drawX, drawY, index, param);
-				}
-				else
-				{
-					TextOut(hDC, drawX, drawY, index, strlen(index));
-				}
+			if (ExtConfigs::DirectXRendering)
+			{
+				pThis->g_pTR->DrawTexts(drawX, drawY, index, param);
+			}
+			else
+			{
+				TextOut(hDC, drawX, drawY, index, strlen(index));
 			}
 		}
 	}
@@ -3646,10 +3616,6 @@ static void DrawMap()
 
 	if (CIsoViewExt::DrawBounds)
 	{
-		auto &map = CINI::CurrentDocument();
-		auto size = STDHelpers::SplitString(map.GetString("Map", "Size", "0,0,0,0"));
-		auto lSize = STDHelpers::SplitString(map.GetString("Map", "LocalSize", "0,0,0,0"));
-
 		const int &mapwidth = CMapData::Instance->Size.Width;
 		const int &mapheight = CMapData::Instance->Size.Height;
 

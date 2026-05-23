@@ -4308,6 +4308,19 @@ void CMapDataExt::RefreshAllWindows()
 	}
 }
 
+
+CellDataExt::CellDataExt()
+{
+	if (CLoadingExt::DamageFires.empty()) return;
+	std::random_device rd;
+	std::mt19937 gen(rd()); 
+	std::uniform_int_distribution<int> dis(0, CLoadingExt::DamageFires.size() - 1); 
+	for (int i = 0; i < 8; ++i)
+	{
+		DamagedFires[i] = dis(gen); 
+	}
+}
+
 void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDataExt, bool reloadImages)
 {
 	Logger::Debug("CMapDataExt::InitializeAllHdmEdition() Called with parameter %d %d %d.\n", updateMinimap, reloadCellDataExt, reloadImages);
@@ -4334,14 +4347,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	Variables::RulesMap.ClearMap();
 	Variables::Rules.ClearMap();
 	Variables::Rules_FAData.ClearMap();
-
-	if (reloadCellDataExt)
-	{
-		CMapDataExt::CellDataExts.clear();
-		CMapDataExt::CellDataExts.resize(CMapData::Instance->CellDataCount);
-		UndoRedoDatas.clear();
-		UndoRedoDataIndex = -1;
-	}
 
 	int ovrIdx = 0;
 	CMapDataExt::OverlayTypeDatas.clear();
@@ -4517,18 +4522,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CTerrainGenerator::RangeSecondCell.Y = -1;
 	CTerrainGenerator::UseMultiSelection = false;
 
-	if (updateMinimap)
-	{
-		// just update coords with overlays to show correct color
-		for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
-			for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
-				CMapDataExt::CellDataExts[i + j * CMapData::Instance->MapWidthPlusHeight].NewOverlay = CMapDataExt::NewOverlay[j + i * 512];
-				if (CMapDataExt::GetExtension()->GetOverlayAt(CMapData::Instance->GetCoordIndex(i, j)) != 0xFFFF) {
-					CMapData::Instance->UpdateMapPreviewAt(i, j);
-				}
-			}
-		}
-	}
 	CIsoViewExt::IsPressingTube = false;
 	CIsoViewExt::TubeNodes.clear();
 
@@ -4589,8 +4582,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		CLoadingExt::LoadShp(InsigniaVeteran, "pips.shp", PaletteName, 14);
 		CLoadingExt::LoadShp(InsigniaElite, "pips.shp", PaletteName, 15);
 		CLoadingExt::DamageFires.clear();
-		std::random_device rd;
-		CLoadingExt::RandomFireSeed = rd();
 		auto fires = STDHelpers::SplitString(Variables::RulesMap.GetString("General", "DamageFireTypes"));
 		for (const auto& fire : fires)
 		{
@@ -4779,6 +4770,27 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			GetTechnoAttachments(ID);
 		for (auto& [_, ID] : Variables::RulesMap.GetSection("AircraftTypes"))
 			GetTechnoAttachments(ID);
+	}
+
+	if (reloadCellDataExt)
+	{
+		CMapDataExt::CellDataExts.clear();
+		CMapDataExt::CellDataExts.resize(CMapData::Instance->CellDataCount);
+		UndoRedoDatas.clear();
+		UndoRedoDataIndex = -1;
+	}
+
+	if (updateMinimap)
+	{
+		// just update coords with overlays to show correct color
+		for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
+			for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
+				CMapDataExt::CellDataExts[i + j * CMapData::Instance->MapWidthPlusHeight].NewOverlay = CMapDataExt::NewOverlay[j + i * 512];
+				if (CMapDataExt::GetExtension()->GetOverlayAt(CMapData::Instance->GetCoordIndex(i, j)) != 0xFFFF) {
+					CMapData::Instance->UpdateMapPreviewAt(i, j);
+				}
+			}
+		}
 	}
 
 	for (auto& [_, ID] : Variables::RulesMap.GetSection("InfantryTypes"))

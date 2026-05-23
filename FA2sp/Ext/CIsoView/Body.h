@@ -201,7 +201,7 @@ public:
         byte stencilHeight = 0xFF);       
     static void DirectXBaseNode(int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
         float alpha = 0.5f, COLORREF houseColor = -1, bool isTerrain = false);
-    static void DirectXShadow(int x, int y, ImageDataClassSafe* pd, byte stencilHeight = 0xFF);
+    static void DirectXShadow(int x, int y, ImageDataClassSafe* pd, byte stencilHeight = 0xFF, bool overlap = false);
     static void BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd);
     static void BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,

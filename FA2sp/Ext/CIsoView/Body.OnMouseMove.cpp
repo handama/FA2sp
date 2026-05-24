@@ -217,7 +217,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
 
         if (ExtConfigs::DirectXRendering)
         {
-            CIsoViewExt::DrawLineDirectX(x1, y1 + 1, x2, y2 + 1, RGB(128, 128, 128));
+            CIsoViewExt::DrawLineDirectX(x1, y1 + 1, x2, y2 + 1, RGB(128, 128, 128), 2);
         }
         else
         {

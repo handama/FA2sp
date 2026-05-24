@@ -2554,7 +2554,7 @@ static void DrawMap()
 					{
 						CIsoViewExt::DirectXBaseNode(
 							part.DrawX, part.DrawY - part.pData->FullHeight / 2,
-							part.pData, nullptr, 0.5f, part.HouseColor);
+							part.pData, nullptr, 0.5f, part.HouseColor, part.pType->IsTerrainPalette);
 					}
 					else
 					{
@@ -3645,11 +3645,11 @@ static void DrawMap()
 				if (ExtConfigs::DirectXRendering)
 				{
 					LineParams param;
-					param.SetThickness(5.0f).SetColor(ShapeColor::FromRGBA(0, 0, 255)).SetAntiAlias(false);
+					param.SetThickness(5.0f).SetColor(ShapeColor::FromRGBA(0, 0, 255)).SetAntiAlias(false).SetAlwaysOnTop();
 
-					pThis->g_pSP->DrawLine(x1 - 3, y1, x4 + 3, y1, param);
+					pThis->g_pSP->DrawLine(x1 - 3, y1, x4 + 2, y1, param);
 					pThis->g_pSP->DrawLine(x4, y1, x4, y4, param);
-					pThis->g_pSP->DrawLine(x1 - 3, y4, x4 + 3, y4, param);
+					pThis->g_pSP->DrawLine(x1 - 3, y4, x4 + 2, y4, param);
 					pThis->g_pSP->DrawLine(x1, y4, x1, y1, param);
 
 					// thin blue bound on top
@@ -3691,11 +3691,11 @@ static void DrawMap()
 			if (ExtConfigs::DirectXRendering)
 			{
 				LineParams param;
-				param.SetThickness(5.0f).SetColor(ShapeColor::FromRGBA(255, 0, 0)).SetAntiAlias(false);
+				param.SetThickness(5.0f).SetColor(ShapeColor::FromRGBA(255, 0, 0)).SetAntiAlias(false).SetAlwaysOnTop();
 
-				pThis->g_pSP->DrawLine(x1 - 3, y1, x4 + 3, y1, param);
+				pThis->g_pSP->DrawLine(x1 - 3, y1, x4 + 2, y1, param);
 				pThis->g_pSP->DrawLine(x4, y1, x4, y4, param);
-				pThis->g_pSP->DrawLine(x1 - 3, y4, x4 + 3, y4, param);
+				pThis->g_pSP->DrawLine(x1 - 3, y4, x4 + 2, y4, param);
 				pThis->g_pSP->DrawLine(x1, y4, x1, y1, param);
 			}
 			else

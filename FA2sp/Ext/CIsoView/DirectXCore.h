@@ -194,7 +194,7 @@ public:
     // single Draw() call during RenderOffscreenContent().
     void AddLineEntry(float x0, float y0, float x1, float y1,
                       uint32_t color, float thickness, UINT depth,
-                      bool bScreenSpace = false);
+                      bool bScreenSpace = false, bool bAlwaysOnTop = false);
 
     std::vector<DrawCommand>& GetDrawCommandList() { return m_drawCommands; }
 
@@ -221,7 +221,7 @@ private:
     void RenderOffscreenContent();
     void RenderFinalToBackBuffer();
     void RenderScreenSpaceContent();
-    void FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS = nullptr);
+    void FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS = nullptr, bool bOverlay = false);
 
     void UpdateBackgroundCache();     
     void RestoreBackgroundFromCache();
@@ -325,6 +325,7 @@ private:
         float thickness;
         UINT depth;
         bool bScreenSpace;
+        bool bAlwaysOnTop;
     };
     std::vector<LineEntry> m_lineEntries;
 
@@ -376,12 +377,14 @@ struct LineParams {
     float      opacity = 1.f;       
     int       drawDepth = -1;
     bool       bScreenSpace = false;
+    bool       bAlwaysOnTop = false;
     bool       antiAlias = false;
 
     LineParams& SetColor(ShapeColor c) { color = c; return *this; }
     LineParams& SetThickness(float t) { thickness = t; return *this; }
     LineParams& SetOpacity(float o) { opacity = o; return *this; }
     LineParams& SetScreenSpace() { bScreenSpace = true; return *this; }
+    LineParams& SetAlwaysOnTop() { bAlwaysOnTop = true; return *this; }
     LineParams& SetDash(float dash, float gap) { dashLength = dash; gapLength = gap; return *this; }
     LineParams& SetAntiAlias(bool b = true) { antiAlias = b; return *this; }
     LineParams& SetDrawDepth(int depth) { drawDepth = depth; return *this; }
@@ -396,6 +399,7 @@ struct RectParams {
     float      opacity = 1.f;        
     int        drawDepth = -1;
     bool       bScreenSpace = false;
+    bool       bAlwaysOnTop = false;
 
     RectParams& SetBorderColor(ShapeColor c) { borderColor = c; return *this; }
     RectParams& SetFillColor(ShapeColor c) { fillColor = c; return *this; }
@@ -405,6 +409,7 @@ struct RectParams {
     RectParams& SetScreenSpace() { bScreenSpace = true; return *this; }
     RectParams& NoBorder() { borderWidth = 0; return *this; }
     RectParams& SetDrawDepth(int depth) { drawDepth = depth; return *this; }
+    RectParams& SetAlwaysOnTop() { bAlwaysOnTop = true; return *this; }
 };
 
 struct EllipseParams {
@@ -417,6 +422,7 @@ struct EllipseParams {
     int        segments = 0;         
     int        drawDepth = -1; 
     bool       bScreenSpace = false;
+    bool       bAlwaysOnTop = false;
 
     EllipseParams& SetBorderColor(ShapeColor c) { borderColor = c; return *this; }
     EllipseParams& SetFillColor(ShapeColor c) { fillColor = c; return *this; }
@@ -427,6 +433,7 @@ struct EllipseParams {
     EllipseParams& SetScreenSpace() { bScreenSpace = true; return *this; }
     EllipseParams& NoBorder() { borderWidth = 0; return *this; }
     EllipseParams& SetDrawDepth(int depth) { drawDepth = depth; return *this; }
+    EllipseParams& SetAlwaysOnTop() { bAlwaysOnTop = true; return *this; }
 };
 
 class DrawShapes {

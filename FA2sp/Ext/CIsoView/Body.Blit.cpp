@@ -745,10 +745,19 @@ void CIsoViewExt::DirectXBuilding(int x, int y, ImageDataClassSafe* pd,
         newPal = pd->pPalette;
     }
     BGRStruct color(houseColor);
-    newPal = PalettesManager::GetColoredPalette(newPal, color);
-    auto colorMult = ColorMults::GetObjectColorMult(!isTerrain && !isRubble, CIsoViewExt::CurrentDrawCellLocation, false, isRubble || isTerrain ? 4 : 3);
-
-    auto slices = pd->GetBuildingColoredTextures(newPal, color);
+    bool remap = !isTerrain && !isRubble;
+    ColorMults colorMult{};
+    std::vector<ImageDataClassSafe::BuildingTextureSlice> slices;
+    if (remap)
+    {
+        newPal = PalettesManager::GetColoredPalette(newPal, color);
+        colorMult = ColorMults::GetObjectColorMult(remap, CIsoViewExt::CurrentDrawCellLocation, false, remap ? 3 : 4);  
+    }
+    else
+    {
+        colorMult = ColorMults::GetObjectColorMult(remap, CIsoViewExt::CurrentDrawCellLocation, false, remap ? 3 : 4);  
+    }
+    slices = pd->GetBuildingColoredTextures(newPal, color);
 
     DrawParams params;
     params.SetPosition(x, y)
@@ -803,8 +812,16 @@ void CIsoViewExt::DirectXBaseNode(int x, int y, ImageDataClassSafe* pd,
         newPal = pd->pPalette;
     }
     BGRStruct color(houseColor);
-    newPal = PalettesManager::GetColoredPalette(newPal, color);
-    auto colorMult = ColorMults::GetObjectColorMult(true, CIsoViewExt::CurrentDrawCellLocation, false, isTerrain ? 4 : 3);
+    ColorMults colorMult{};
+    if (!isTerrain)
+    {
+        newPal = PalettesManager::GetColoredPalette(newPal, color);
+        colorMult = ColorMults::GetObjectColorMult(!isTerrain, CIsoViewExt::CurrentDrawCellLocation, false, !isTerrain ? 3 : 4);  
+    }
+    else
+    {
+        colorMult = ColorMults::GetObjectColorMult(!isTerrain, CIsoViewExt::CurrentDrawCellLocation, false, !isTerrain ? 3 : 4);  
+    }
     auto pTexture = pd->GetColoredTexture(newPal, color);
 
     DrawParams params;

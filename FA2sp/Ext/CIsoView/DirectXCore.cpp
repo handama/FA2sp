@@ -59,48 +59,48 @@ bool DirectXCore::Initialize(HWND hwnd)
 
     if (!IsWindow(hwnd))
     {
-        Logger::Raw("[DirectXCore] Initialize: Invalid HWND\n");
+        Logger::Raw("[DirectXCore] Initialize: Invalid HWND.\n");
         return false;
     }
 
     if (!CreateDeviceAndSwapChain(hwnd))
     {
-        Logger::Raw("[DirectXCore] CreateDeviceAndSwapChain failed\n");
+        Logger::Raw("[DirectXCore] CreateDeviceAndSwapChain failed.\n");
         return false;
     }
     if (!CreateShadersAndInputLayout())
     {
-        Logger::Raw("[DirectXCore] CreateShadersAndInputLayout failed\n");
+        Logger::Raw("[DirectXCore] CreateShadersAndInputLayout failed.\n");
         return false;
     }
     if (!CreateEffectShaders())
     {
-        Logger::Raw("[DirectXCore] CreateEffectShaders failed\n");
+        Logger::Raw("[DirectXCore] CreateEffectShaders failed.\n");
         return false;
     }
     if (!CreateCompositeShaders())
     {
-        Logger::Raw("[DirectXCore] CreateCompositeShaders failed\n");
+        Logger::Raw("[DirectXCore] CreateCompositeShaders failed.\n");
         return false;
     }
     if (!CreateLineShaders())
     {
-        Logger::Raw("[DirectXCore] CreateLineShaders failed\n");
+        Logger::Raw("[DirectXCore] CreateLineShaders failed.\n");
         return false;
     }
     if (!CreateAlphaAccumShaders())
     {
-        Logger::Raw("[DirectXCore] CreateAlphaAccumShaders failed\n");
+        Logger::Raw("[DirectXCore] CreateAlphaAccumShaders failed.\n");
         return false;
     }
     if (!CreateShadowDarkenShaders())
     {
-        Logger::Raw("[DirectXCore] CreateShadowDarkenShaders failed\n");
+        Logger::Raw("[DirectXCore] CreateShadowDarkenShaders failed.\n");
         return false;
     }
     if (!CreateQuadVertexBuffer())
     {
-        Logger::Raw("[DirectXCore] CreateQuadVertexBuffer failed\n");
+        Logger::Raw("[DirectXCore] CreateQuadVertexBuffer failed.\n");
         return false;
     }
 
@@ -119,12 +119,12 @@ bool DirectXCore::Initialize(HWND hwnd)
 
     if (!CreateOffscreenResources(vw, vh))
     {
-        Logger::Raw("[DirectXCore] CreateOffscreenResources failed\n");
+        Logger::Raw("[DirectXCore] CreateOffscreenResources failed.\n");
         return false;
     }
     if (!CreateFinalShaders())
     {
-        Logger::Raw("[DirectXCore] CreateFinalShaders failed\n");
+        Logger::Raw("[DirectXCore] CreateFinalShaders failed.\n");
         return false;
     }
 
@@ -147,7 +147,7 @@ bool DirectXCore::Initialize(HWND hwnd)
     m_backgroundCacheValid = false;
 
     m_bInitialized = true;
-    Logger::Raw("[DirectXCore] Initialize succeeded\n");
+    Logger::Raw("[DirectXCore] Initialize succeeded.\n");
     return true;
 }
 
@@ -159,13 +159,13 @@ bool DirectXCore::IsInitialized()
 void DirectXCore::ClearTextures()
 {
     m_textureMap.clear();
-    Logger::Raw("[DirectXCore] Clear textures\n");
+    Logger::Raw("[DirectXCore] Clear textures.\n");
 }
 
 void DirectXCore::ClearTileTextures()
 {
     m_tileTextureMap.clear();
-    Logger::Raw("[DirectXCore] Clear tile textures\n");
+    Logger::Raw("[DirectXCore] Clear tile textures.\n");
 }
 
 void DirectXCore::Cleanup()
@@ -259,7 +259,7 @@ void DirectXCore::Cleanup()
     m_renderScale = 1.0f;
     m_bInitialized = false;
 
-    Logger::Raw("[DirectXCore] Reset all\n");
+    Logger::Raw("[DirectXCore] Reset all.\n");
 }
 
 void DirectXCore::OnResize(HWND hwnd)
@@ -381,7 +381,7 @@ float DirectXCore::SetZoomOut(float scaleFactor)
 
     if (!CreateOffscreenResources(vw, vh))
     {
-        Logger::Raw("[DirectXCore] SetZoomOut: CreateOffscreenResources failed, keeping old scale\n");
+        Logger::Raw("[DirectXCore] SetZoomOut: CreateOffscreenResources failed, keeping old scale.\n");
         return m_renderScale;
     }
     EnsureFactorTexture(vw, vh);
@@ -420,7 +420,7 @@ bool DirectXCore::CreateDeviceAndSwapChain(HWND hwnd)
                                                &m_pSwapChain, &m_pDevice, nullptr, &m_pContext);
     if (FAILED(hr))
     {
-        Logger::Raw("D3D11CreateDeviceAndSwapChain failed\n");
+        Logger::Raw("D3D11CreateDeviceAndSwapChain failed.\n");
         return false;
     }
 
@@ -668,7 +668,7 @@ bool DirectXCore::CreateShadersAndInputLayout()
     srDesc.BackFace = srDesc.FrontFace;
     m_pDevice->CreateDepthStencilState(&srDesc, &m_pDepthStateShadowRedraw);
 
-    // Shadow darken: stencil test only ！ EQUAL 0x80 means only pixels
+    // Shadow darken: stencil test only - EQUAL 0x80 means only pixels
     // where the shadow bit is set pass.  Used by the fullscreen darken pass.
     D3D11_DEPTH_STENCIL_DESC sdDesc = {};
     sdDesc.DepthEnable = FALSE;
@@ -758,7 +758,7 @@ bool DirectXCore::CreateShadersAndInputLayout()
              D3D11_INPUT_PER_VERTEX_DATA, 0},
             {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12,
              D3D11_INPUT_PER_VERTEX_DATA, 0},
-            // Per-instance (slot 1) ！ 4 x float4 = 64 bytes
+            // Per-instance (slot 1) - 4 x float4 = 64 bytes
             {"TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0,
              D3D11_INPUT_PER_INSTANCE_DATA, 1},
             {"TEXCOORD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16,
@@ -1483,7 +1483,7 @@ void DirectXCore::RenderOffscreenContent()
     const float depthScale = 1.0f / 16777216.0f;
 
     // -- Simplified single-quad draw (for stencil & effect phases) --
-    // Uses CPU-tracked DS state ！ NO OMGetDepthStencilState query.
+    // Uses CPU-tracked DS state - NO OMGetDepthStencilState query.
     auto DrawOneTracked = [&](const DrawCommand &cmd)
     {
         TextureResource *tex = cmd.texRes;
@@ -1717,7 +1717,7 @@ void DirectXCore::RenderOffscreenContent()
     }
 
     // ====================================================================
-    // Phase 2: Semi-transparent textures via MRT ！ INSTANCED
+    // Phase 2: Semi-transparent textures via MRT - INSTANCED
     // ====================================================================
     if (!transparentCmds.empty())
     {
@@ -1882,13 +1882,24 @@ void DirectXCore::RenderOffscreenContent()
     // Phase 5: Always-on-top world-space overlays (depth OFF)
     //   Text annotations, base node indices, etc.
     // ====================================================================
-    if (!overlayCmds.empty())
+    bool hasOverlay = !overlayCmds.empty();
+    // Quick scan for overlay lines (no need to pre-collect - FlushLineBatch counts)
+    bool hasOverlayLines = false;
+    for (const auto &le : m_lineEntries) {
+        if (!le.bScreenSpace && le.bAlwaysOnTop) { hasOverlayLines = true; break; }
+    }
+
+    if (hasOverlay || hasOverlayLines)
     {
         m_pContext->OMSetRenderTargets(1, m_OffscreenRTV.GetAddressOf(), m_pOffscreenDSV.Get());
         m_pContext->OMSetDepthStencilState(m_pDepthStateOff.Get(), 0);
         m_pTrackedDSState = m_pDepthStateOff.Get();
         m_trackedStencilRef = 0;
+        m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
+    }
 
+    if (!overlayCmds.empty())
+    {
         // Sort by texture for batching
         std::stable_sort(overlayCmds.begin(), overlayCmds.end(),
             [](const DrawCommand *a, const DrawCommand *b) {
@@ -1923,6 +1934,21 @@ void DirectXCore::RenderOffscreenContent()
         m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &singleStride, &singleOffset);
         m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
         m_pTrackedSRV = nullptr;
+    }
+
+    // Phase 5b: Always-on-top lines (depth OFF, no alpha modulation, regular line PS)
+    if (hasOverlayLines) {
+        FlushLineBatch(false, m_pLinePS.Get(), true);
+
+        // Restore quad pipeline state (Phase 5b changed IA/VS/PS for lines)
+        stride = sizeof(QuadVertex);
+        offset = 0;
+        m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &stride, &offset);
+        m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+        m_pContext->IASetInputLayout(m_pInputLayout.Get());
+        m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
+        m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
+        m_pContext->PSSetSamplers(0, 1, (m_renderScale == 1.0f) ? m_pSamplerPoint.GetAddressOf() : m_pSamplerLinear.GetAddressOf());
     }
 }
 
@@ -2467,12 +2493,12 @@ void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
 
 void DirectXCore::AddLineEntry(float x0, float y0, float x1, float y1,
                                uint32_t color, float thickness, UINT depth,
-                               bool bScreenSpace)
+                               bool bScreenSpace, bool bAlwaysOnTop)
 {
-    m_lineEntries.push_back({x0, y0, x1, y1, color, thickness, depth, bScreenSpace});
+    m_lineEntries.push_back({x0, y0, x1, y1, color, thickness, depth, bScreenSpace, bAlwaysOnTop});
 }
 
-void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS)
+void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS, bool bOverlay)
 {
     if (!m_pDevice || !m_pContext)
         return;
@@ -2480,7 +2506,7 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
     // Count matching entries
     int numLines = 0;
     for (const auto &le : m_lineEntries)
-        if (le.bScreenSpace == bScreenSpace)
+        if (le.bScreenSpace == bScreenSpace && le.bAlwaysOnTop == bOverlay)
             ++numLines;
 
     if (numLines == 0)
@@ -2525,7 +2551,7 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
 
     for (const auto &le : m_lineEntries)
     {
-        if (le.bScreenSpace != bScreenSpace)
+        if (le.bScreenSpace != bScreenSpace || le.bAlwaysOnTop != bOverlay)
             continue;
         float dx = le.x1 - le.x0;
         float dy = le.y1 - le.y0;
@@ -2592,7 +2618,7 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
     // Draw all lines in one call
     m_pContext->Draw(totalVerts, 0);
 
-    std::erase_if(m_lineEntries, [bScreenSpace](const auto &le) { return le.bScreenSpace == bScreenSpace; });
+    std::erase_if(m_lineEntries, [bScreenSpace, bOverlay](const auto &le) { return le.bScreenSpace == bScreenSpace && le.bAlwaysOnTop == bOverlay; });
 }
 
 static constexpr float kPi = 3.14159265358979323846f;
@@ -2967,7 +2993,7 @@ void DrawShapes::DrawLine(float x0, float y0, float x1, float y1,
             float dx = x1 - x0, dy = y1 - y0;
             float len = std::sqrt(dx * dx + dy * dy);
             if (len < 1e-4f) {
-                m_dx->AddLineEntry(x0, y0, x1, y1, rgba, params.thickness, depth, params.bScreenSpace);
+                m_dx->AddLineEntry(x0, y0, x1, y1, rgba, params.thickness, depth, params.bScreenSpace, params.bAlwaysOnTop);
                 return;
             }
             float cycleLen = params.dashLength + params.gapLength;
@@ -2978,13 +3004,13 @@ void DrawShapes::DrawLine(float x0, float y0, float x1, float y1,
                 float t0 = pos / len, t1 = dashEnd / len;
                 float sx = x0 + dx * t0, sy = y0 + dy * t0;
                 float ex = x0 + dx * t1, ey = y0 + dy * t1;
-                m_dx->AddLineEntry(sx, sy, ex, ey, rgba, params.thickness, depth, params.bScreenSpace);
+                m_dx->AddLineEntry(sx, sy, ex, ey, rgba, params.thickness, depth, params.bScreenSpace, params.bAlwaysOnTop);
                 pos += cycleLen;
             }
         }
         else
         {
-            m_dx->AddLineEntry(x0, y0, x1, y1, rgba, params.thickness, depth, params.bScreenSpace);
+            m_dx->AddLineEntry(x0, y0, x1, y1, rgba, params.thickness, depth, params.bScreenSpace, params.bAlwaysOnTop);
         }
         return;
     }
@@ -3095,7 +3121,7 @@ void DrawShapes::DrawRect(float x, float y, float w, float h,
                     m_dx->AddLineEntry(
                         s.ax + dx * t0, s.ay + dy * t0,
                         s.ax + dx * t1, s.ay + dy * t1,
-                        rgba, params.borderWidth, depth, params.bScreenSpace);
+                        rgba, params.borderWidth, depth, params.bScreenSpace, params.bAlwaysOnTop);
                     pos += cycleLen;
                 }
             }
@@ -3104,7 +3130,7 @@ void DrawShapes::DrawRect(float x, float y, float w, float h,
         {
             for (auto &s : segs)
                 m_dx->AddLineEntry(s.ax, s.ay, s.bx, s.by,
-                                   rgba, params.borderWidth, depth, params.bScreenSpace);
+                                   rgba, params.borderWidth, depth, params.bScreenSpace, params.bAlwaysOnTop);
         }
     }
 }
@@ -3185,14 +3211,14 @@ void DrawShapes::DrawEllipse(float cx, float cy, float rx, float ry,
                     m_dx->AddLineEntry(
                         prevPx + dx * t0, prevPy + dy * t0,
                         prevPx + dx * t1, prevPy + dy * t1,
-                        rgba, params.borderWidth, depth, params.bScreenSpace);
+                        rgba, params.borderWidth, depth, params.bScreenSpace, params.bAlwaysOnTop);
                     pos += cycleLen;
                 }
             }
             else
             {
                 m_dx->AddLineEntry(prevPx, prevPy, px, py,
-                                   rgba, params.borderWidth, depth, params.bScreenSpace);
+                                   rgba, params.borderWidth, depth, params.bScreenSpace, params.bAlwaysOnTop);
             }
             prevPx = px;
             prevPy = py;

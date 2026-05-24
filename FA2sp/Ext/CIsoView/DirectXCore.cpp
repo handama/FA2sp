@@ -3391,8 +3391,7 @@ bool TextRenderer::MeasureText(const FString &text,
     UINT dtFlags =
         DT_CALCRECT |
         DT_TOP |
-        DT_NOPREFIX |
-        DT_SINGLELINE;
+        DT_NOPREFIX;
 
     switch (params.align)
     {
@@ -3498,7 +3497,7 @@ HFONT TextRenderer::GetOrCreateFont(const TextParams &p)
     lf.lfUnderline = p.underline ? TRUE : FALSE;
     lf.lfCharSet = DEFAULT_CHARSET;
     lf.lfOutPrecision = OUT_TT_PRECIS;
-    lf.lfQuality = p.fontSize >= 20 ? CLEARTYPE_NATURAL_QUALITY : NONANTIALIASED_QUALITY;
+    lf.lfQuality = p.fontSize >= 24 ? CLEARTYPE_NATURAL_QUALITY : NONANTIALIASED_QUALITY;
     lf.lfPitchAndFamily = DEFAULT_PITCH | FF_DONTCARE;
     wcsncpy_s(lf.lfFaceName, wFontName.c_str(), LF_FACESIZE - 1);
 
@@ -3573,8 +3572,7 @@ bool TextRenderer::RasterizeGDI(
     UINT dtFlags =
         DT_CALCRECT |
         DT_TOP |
-        DT_NOPREFIX |
-        DT_SINGLELINE;
+        DT_NOPREFIX;
 
     switch (p.align)
     {

@@ -3304,7 +3304,14 @@ static void DrawMap()
 		int drawX = x - DrawOffsetX;
 		int drawY = y - DrawOffsetY;
 
-		pThis->DrawBitmap("target", drawX - 20, drawY - 11, &ddsd);
+		if (ExtConfigs::DirectXRendering)
+		{
+			pThis->DirectXBitmap(drawX + 27, drawY + 16, "target.bmp");
+		}
+		else
+		{
+			pThis->DrawBitmap("target", drawX - 20, drawY - 11, &ddsd);
+		}
 	}
 
 	if (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderInvisibleInGame)

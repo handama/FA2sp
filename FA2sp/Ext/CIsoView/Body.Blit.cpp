@@ -856,6 +856,11 @@ void CIsoViewExt::DirectXNormal(int x, int y, ImageDataClassSafe* pd,
             params.SetStencilRef(127);
         }
     }
+    else if (!useStencilLogic)
+    {
+        params.bWriteStencil = true;
+        params.SetStencilRef(0);
+    }
 
     g_pDX->DrawTexture(pTexture, params);
 }

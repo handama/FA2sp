@@ -71,6 +71,7 @@ public:
     int drawDepth = -1;
     bool bScreenSpace = false;
     bool bIsShadow = false;
+    bool bAlwaysOnTop = false;  
     bool bIsOverlapShadow = false;
     bool bWriteStencil = false;
     int stencilRef = -1; 
@@ -104,6 +105,7 @@ public:
     DrawParams& SetScreenSpace() { bScreenSpace = true; return *this; }
     DrawParams& SetDrawDepth(int depth) { drawDepth = depth; return *this; }
     DrawParams& SetStencilRef(int ref) { stencilRef = ref; return *this; }
+    DrawParams& SetAlwaysOnTop() { bAlwaysOnTop = true; return *this; }
 };
 
 struct TextureResource {
@@ -111,6 +113,16 @@ struct TextureResource {
     Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
     bool bIsIndexTexture = false;
+};
+
+// Per-instance data for DrawInstanced batching (no DirectXMath dependency).
+// 16 floats = 64 bytes per instance.
+struct InstanceData {
+    float scaleX, scaleY, transX, transY;   // world matrix encode
+    float depthZ, colorMulR, colorMulG, colorMulB;
+    float colorMulA, mixR, mixG, mixB;
+    float mixFactor;
+    float padding[3];                        // 16-byte alignment
 };
 
 class DirectXCore
@@ -125,6 +137,7 @@ public:
         bool bStencilOnly = false;
         bool bIsShadowMark = false;
         bool bIsOverlapShadow = false;
+        bool bAlwaysOnTop = false;
         UINT depth = 0;
         ID3D11DepthStencilState* pCustomDSState = nullptr; 
     };
@@ -221,6 +234,11 @@ private:
     Microsoft::WRL::ComPtr<ID3D11VertexShader>     m_pVS;
     Microsoft::WRL::ComPtr<ID3D11PixelShader>      m_pPS;
     Microsoft::WRL::ComPtr<ID3D11InputLayout>      m_pInputLayout;
+
+    // Instanced rendering: same quad VB, separate per-instance VB + shader + layout
+    Microsoft::WRL::ComPtr<ID3D11VertexShader>     m_pInstancedVS;       // VS that reads InstanceData
+    Microsoft::WRL::ComPtr<ID3D11InputLayout>      m_pInstancedInputLayout;
+    Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pInstanceVB;         // dynamic, holds InstanceData[]
     Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSamplerLinear;
     Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSamplerPoint;
     Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSamplerNearestNeighbor;
@@ -309,6 +327,18 @@ private:
         bool bScreenSpace;
     };
     std::vector<LineEntry> m_lineEntries;
+
+    // CPU-side state tracking to avoid expensive OMGet* queries
+    ID3D11DepthStencilState* m_pTrackedDSState = nullptr;
+    UINT                     m_trackedStencilRef = 0;
+    ID3D11ShaderResourceView* m_pTrackedSRV = nullptr;
+
+    // Instance batching support
+    int                      m_instanceVBCapacity = 0;
+    float                    m_vwCached = 0.0f;
+    float                    m_vhCached = 0.0f;
+    void SetDSStateTracked(ID3D11DepthStencilState *pDS, UINT stencilRef);
+    void FlushInstanceBatch(const std::vector<const DrawCommand*>& batch);
 
 public:
     ID3D11Device* GetDevice() { return m_pDevice.Get(); }
@@ -479,7 +509,8 @@ struct TextParams {
     int             borderThickness = 1;   
     float           opacity = 1.f;         
     bool            bScreenSpace = false;  
-    bool            bBorder = false;       
+    bool            bBorder = false;         
+    bool            bAlwaysOnTop = false;  
     TextAlign align = TextAlign::Left;
 
     TextParams& SetFont(const char* name) { fontName = name; return *this; }
@@ -498,6 +529,7 @@ struct TextParams {
     TextParams& SetAlignCenter() { align = TextAlign::Center; return *this; }
     TextParams& SetAlignRight() { align = TextAlign::Right; return *this; }
     TextParams& SetAlignLeft() { align = TextAlign::Left; return *this; }
+    TextParams& SetAlwaysOnTop() { bAlwaysOnTop = true; return *this; }
 };
 
 struct TextKey {

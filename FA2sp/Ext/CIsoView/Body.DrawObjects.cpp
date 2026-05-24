@@ -3314,7 +3314,7 @@ static void DrawMap()
 		SetTextColor(hDC, RGB(0, 0, 0));
 
 		TextParams param;
-		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold()
+		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().SetAlwaysOnTop()
 		.SetAlignCenter().SetColor(ShapeColor::FromCOLORREF(RGB(0, 0, 0))).SetPadding(0, 0);
 
 		if (CIsoViewExt::DrawOverlays)
@@ -3385,7 +3385,7 @@ static void DrawMap()
 	if (CIsoViewExt::DrawBaseNodeIndex)
 	{		
 		TextParams param;
-		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().
+		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().SetAlwaysOnTop().
 		SetColor(ShapeColor::FromCOLORREF(ExtConfigs::BaseNodeIndex_Color)).
 		SetAlignCenter().SetPadding(0, 0);
 		SetTextColor(hDC, ExtConfigs::BaseNodeIndex_Color);
@@ -3426,7 +3426,7 @@ static void DrawMap()
 			SetBkMode(hDC, TRANSPARENT);
 		SetTextAlign(hDC, TA_CENTER);
 
-		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().
+		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().SetAlwaysOnTop().
 		SetAlignCenter().SetColor(ShapeColor::FromCOLORREF(ExtConfigs::Waypoint_Color)).SetPadding(0, 0);
 
 		for (const auto &[coord, index] : WaypointsToDraw)
@@ -3513,7 +3513,7 @@ static void DrawMap()
 					TextParams param;
 					if (folded ? false : bold)
 						param.SetBold();
-					param.SetFontSize(fontSize).
+					param.SetFontSize(fontSize).SetAlwaysOnTop().
 					SetColor(ShapeColor::FromCOLORREF(textColor)).
 					SetBgColor(ShapeColor::FromRGBA(GetRValue(bgColor), GetGValue(bgColor), GetBValue(bgColor), 128)).
 					SetBorder().SetPadding(3, 3);

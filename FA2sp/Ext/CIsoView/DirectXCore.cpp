@@ -186,6 +186,13 @@ void DirectXCore::Cleanup()
     m_pInputLayout.Reset();
     m_pVS.Reset();
     m_pPS.Reset();
+    m_pInstancedVS.Reset();
+    m_pInstancedInputLayout.Reset();
+    m_pInstanceVB.Reset();
+    m_instanceVBCapacity = 0;
+    m_pTrackedDSState = nullptr;
+    m_trackedStencilRef = 0;
+    m_pTrackedSRV = nullptr;
     m_pEffectVS.Reset();
     m_pEffectPS.Reset();
     m_pCompositeVS.Reset();
@@ -687,6 +694,85 @@ bool DirectXCore::CreateShadersAndInputLayout()
     darkenBlend.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
     darkenBlend.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
     m_pDevice->CreateBlendState(&darkenBlend, &m_pBlendStateDarken);
+
+    // -- Instanced vertex shader --
+    // Same quad VB (slot 0) + per-instance VB (slot 1).
+    // InstanceData layout (packed into float4 slots):
+    //   slot:1  float4(scaleX, scaleY, transX, transY)
+    //   slot:2  float4(depthZ, colorMulR, colorMulG, colorMulB)
+    //   slot:3  float4(colorMulA, mixR, mixG, mixB)
+    //   slot:4  float4(mixFactor, 0, 0, 0)
+    {
+        const char *instVS = R"(
+            struct VSInput {
+                float3 pos : POSITION0;
+                float2 tex : TEXCOORD0;
+            };
+            struct VSInstance {
+                float4 d0 : TEXCOORD1;   // scaleX, scaleY, transX, transY
+                float4 d1 : TEXCOORD2;   // depthZ, colorMul.rgb
+                float4 d2 : TEXCOORD3;   // colorMul.a, mixColor.rgb
+                float4 d3 : TEXCOORD4;   // mixFactor, _, _, _
+            };
+            struct VSOutput {
+                float4 pos      : SV_POSITION;
+                float2 uv       : TEXCOORD0;
+                float4 colorMul : COLOR0;
+                float4 mixColor : COLOR1;
+                float  mixFactor: TEXCOORD1;
+            };
+            VSOutput main(VSInput v, VSInstance i) {
+                // Reconstruct world matrix: S * T
+                // | scaleX 0       0   transX |
+                // | 0      scaleY  0   transY |
+                // | 0      0       1   depthZ |
+                // | 0      0       0   1       |
+                VSOutput o;
+                float4 pos4 = float4(v.pos.x * i.d0.x + i.d0.z,
+                                     v.pos.y * i.d0.y + i.d0.w,
+                                     i.d1.x,  1.0f);
+                o.pos = pos4;
+                o.uv = v.tex;
+                o.colorMul  = float4(i.d1.yzw, i.d2.x);
+                o.mixColor  = i.d2.yzwx;       // mixR,mixG,mixB,1
+                o.mixFactor = i.d3.x;
+                return o;
+            }
+        )";
+        ComPtr<ID3DBlob> blob, err;
+        HRESULT hr = D3DCompile(instVS, strlen(instVS), nullptr, nullptr, nullptr,
+                                "main", "vs_5_0", 0, 0, &blob, &err);
+        if (FAILED(hr)) {
+            if (err) OutputDebugStringA((char*)err->GetBufferPointer());
+            return false;
+        }
+        hr = m_pDevice->CreateVertexShader(blob->GetBufferPointer(),
+                                           blob->GetBufferSize(),
+                                           nullptr, &m_pInstancedVS);
+        if (FAILED(hr)) return false;
+
+        // Input layout: slot 0 = QuadVertex (per-vertex), slot 1 = InstanceData (per-instance)
+        D3D11_INPUT_ELEMENT_DESC instLayout[] = {
+            // Per-vertex (slot 0)
+            {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
+             D3D11_INPUT_PER_VERTEX_DATA, 0},
+            {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12,
+             D3D11_INPUT_PER_VERTEX_DATA, 0},
+            // Per-instance (slot 1) ¡ª 4 x float4 = 64 bytes
+            {"TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0,
+             D3D11_INPUT_PER_INSTANCE_DATA, 1},
+            {"TEXCOORD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16,
+             D3D11_INPUT_PER_INSTANCE_DATA, 1},
+            {"TEXCOORD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32,
+             D3D11_INPUT_PER_INSTANCE_DATA, 1},
+            {"TEXCOORD", 4, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48,
+             D3D11_INPUT_PER_INSTANCE_DATA, 1},
+        };
+        hr = m_pDevice->CreateInputLayout(instLayout, 6, blob->GetBufferPointer(),
+                                          blob->GetBufferSize(),
+                                          &m_pInstancedInputLayout);
+        if (FAILED(hr)) return false;
+    }
 
     return true;
 }
@@ -1267,6 +1353,100 @@ void DirectXCore::EnsureAlphaAccumTexture(UINT width, UINT height)
     hr = m_pDevice->CreateShaderResourceView(m_pAlphaAccumTex.Get(), nullptr, &m_pAlphaAccumSRV);
 }
 
+// -- CPU-side DS-state tracking --
+// Avoids expensive OMGetDepthStencilState pipeline queries.
+void DirectXCore::SetDSStateTracked(ID3D11DepthStencilState *pDS, UINT stencilRef)
+{
+    if (m_pTrackedDSState != pDS || m_trackedStencilRef != stencilRef) {
+        m_pContext->OMSetDepthStencilState(pDS, stencilRef);
+        m_pTrackedDSState = pDS;
+        m_trackedStencilRef = stencilRef;
+    }
+}
+
+// -- Instance batching --
+// Draws all DrawCommands in `batch` with a single DrawInstanced call.
+// All commands MUST share the same texture, VS, PS, blend state, DS state.
+// Pixel-perfect output identical to per-quad Draw(4,0).
+void DirectXCore::FlushInstanceBatch(const std::vector<const DrawCommand*>& batch)
+{
+    if (batch.empty()) return;
+    const UINT count = (UINT)batch.size();
+
+    // Ensure instance VB capacity
+    if (!m_pInstanceVB || m_instanceVBCapacity < (int)count) {
+        m_pInstanceVB.Reset();
+        int cap = (count + 255) & ~255;  // round up
+        D3D11_BUFFER_DESC desc = {};
+        desc.ByteWidth = cap * sizeof(InstanceData);
+        desc.Usage = D3D11_USAGE_DYNAMIC;
+        desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        if (FAILED(m_pDevice->CreateBuffer(&desc, nullptr, &m_pInstanceVB))) {
+            m_instanceVBCapacity = 0;
+            return;
+        }
+        m_instanceVBCapacity = cap;
+    }
+
+    // Fill instance data
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    if (FAILED(m_pContext->Map(m_pInstanceVB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+        return;
+    auto *dst = (InstanceData*)mapped.pData;
+    for (const DrawCommand *cmd : batch) {
+        const auto &p = cmd->params;
+        TextureResource *tex = cmd->texRes;
+        float w_px = tex->sourceView.FullWidth * p.scaleX;
+        float h_px = tex->sourceView.FullHeight * p.scaleY;
+        float snappedX = std::floor(p.x + 0.5f);
+        float snappedY = std::floor(p.y + 0.5f);
+        float ndcW = (w_px / m_vwCached) * 2.0f;
+        float ndcH = (h_px / m_vhCached) * 2.0f;
+        float ndcCenterX = ((snappedX + w_px * 0.5f) / m_vwCached) * 2.0f - 1.0f;
+        float ndcCenterY = 1.0f - ((snappedY + h_px * 0.5f) / m_vhCached) * 2.0f;
+        float depthZ = cmd->depth * (1.0f / 16777216.0f);
+        dst->scaleX  = ndcW;
+        dst->scaleY  = ndcH;
+        dst->transX  = ndcCenterX;
+        dst->transY  = ndcCenterY;
+        dst->depthZ  = depthZ;
+        dst->colorMulR = p.redMult;
+        dst->colorMulG = p.greenMult;
+        dst->colorMulB = p.blueMult;
+        dst->colorMulA = p.opacity;
+        dst->mixR   = p.mixR;
+        dst->mixG   = p.mixG;
+        dst->mixB   = p.mixB;
+        dst->mixFactor = p.mixFactor;
+        dst->padding[0] = dst->padding[1] = dst->padding[2] = 0;
+        ++dst;
+    }
+    m_pContext->Unmap(m_pInstanceVB.Get(), 0);
+
+    // Bind quad VB (slot 0) + instance VB (slot 1)
+    UINT strides[2] = {sizeof(QuadVertex), sizeof(InstanceData)};
+    UINT offsets[2] = {0, 0};
+    ID3D11Buffer *vbs[2] = {m_pQuadVB.Get(), m_pInstanceVB.Get()};
+    m_pContext->IASetVertexBuffers(0, 2, vbs, strides, offsets);
+
+    // Bind the SRV for the batch (all commands share the same texture)
+    TextureResource *tex = batch[0]->texRes;
+    if (tex && tex->srv) {
+        if (m_pTrackedSRV != tex->srv.Get()) {
+            m_pContext->PSSetShaderResources(0, 1, tex->srv.GetAddressOf());
+            m_pTrackedSRV = tex->srv.Get();
+        }
+    }
+
+    m_pContext->DrawInstanced(4, count, 0, 0);
+
+    // Restore single VB binding for subsequent code that assumes slot 0 only
+    UINT singleStride = sizeof(QuadVertex);
+    UINT singleOffset = 0;
+    m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &singleStride, &singleOffset);
+}
+
 void DirectXCore::RenderOffscreenContent()
 {
     float clearColor[4] = {
@@ -1295,14 +1475,23 @@ void DirectXCore::RenderOffscreenContent()
     m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &stride, &offset);
     m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
+    // Cache viewport size for instanced batching
+    m_vwCached = vw;
+    m_vhCached = vh;
+
     // Map UINT depth [0..N] to clip-space Z [0..0.9999].
-    // D24_UNORM maps [0..1] linearly; we reserve the full range.
     const float depthScale = 1.0f / 16777216.0f;
 
-    auto CalcWorldMatrixNoGlobal = [&](const DrawParams &p, int texW, int texH, float depthZ) -> XMMATRIX
+    // -- Simplified single-quad draw (for stencil & effect phases) --
+    // Uses CPU-tracked DS state ¡ª NO OMGetDepthStencilState query.
+    auto DrawOneTracked = [&](const DrawCommand &cmd)
     {
-        float w_px = texW * p.scaleX;
-        float h_px = texH * p.scaleY;
+        TextureResource *tex = cmd.texRes;
+        if (!tex || !tex->srv) return;
+        const auto &p = cmd.params;
+        float depthZ = cmd.depth * depthScale;
+        float w_px = tex->sourceView.FullWidth * p.scaleX;
+        float h_px = tex->sourceView.FullHeight * p.scaleY;
         float snappedX = std::floor(p.x + 0.5f);
         float snappedY = std::floor(p.y + 0.5f);
         float centerX_px = snappedX + w_px * 0.5f;
@@ -1311,65 +1500,49 @@ void DirectXCore::RenderOffscreenContent()
         float ndc_height = (h_px / vh) * 2.0f;
         float ndc_centerX = (centerX_px / vw) * 2.0f - 1.0f;
         float ndc_centerY = 1.0f - (centerY_px / vh) * 2.0f;
-        XMMATRIX S = XMMatrixScaling(ndc_width, ndc_height, 1.0f);
-        XMMATRIX T = XMMatrixTranslation(ndc_centerX, ndc_centerY, depthZ);
-        return S * T;
-    };
-
-    auto DrawOneTexture = [&](const DrawCommand &cmd)
-    {
-        TextureResource *tex = cmd.texRes;
-        if (!tex || !tex->srv)
-            return;
-        const auto &p = cmd.params;
-        float depthZ = cmd.depth * depthScale;
-        XMMATRIX world = CalcWorldMatrixNoGlobal(p, tex->sourceView.FullWidth, tex->sourceView.FullHeight, depthZ);
+        XMMATRIX world = XMMatrixScaling(ndc_width, ndc_height, 1.0f) *
+                         XMMatrixTranslation(ndc_centerX, ndc_centerY, depthZ);
         CBPerObject cb;
         cb.world = XMMatrixTranspose(world);
         cb.colorMul = XMFLOAT4(p.redMult, p.greenMult, p.blueMult, p.opacity);
         cb.mixColor = XMFLOAT4(p.mixR, p.mixG, p.mixB, 1.0f);
         cb.mixFactor = p.mixFactor;
 
-        ID3D11DepthStencilState* prevDSState = nullptr;
-        UINT prevStencilRef = 0;
         if (cmd.pCustomDSState) {
-            m_pContext->OMGetDepthStencilState(&prevDSState, &prevStencilRef);
-            UINT stencilRef = (p.stencilRef >= 0) ? static_cast<UINT>(p.stencilRef) : 0;
-            m_pContext->OMSetDepthStencilState(cmd.pCustomDSState, stencilRef);
+            UINT ref = (p.stencilRef >= 0) ? (UINT)p.stencilRef : 0;
+            SetDSStateTracked(cmd.pCustomDSState, ref);
         }
 
         D3D11_MAPPED_SUBRESOURCE mapped;
         if (FAILED(m_pContext->Map(m_pConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
-        {
-            if (cmd.pCustomDSState && prevDSState) {
-                m_pContext->OMSetDepthStencilState(prevDSState, prevStencilRef);
-                prevDSState->Release();
-            }
             return;
-        }
         memcpy(mapped.pData, &cb, sizeof(cb));
         m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
         m_pContext->VSSetConstantBuffers(0, 1, m_pConstantBuffer.GetAddressOf());
-        m_pContext->PSSetShaderResources(0, 1, tex->srv.GetAddressOf());
-        m_pContext->Draw(4, 0);
 
-        if (cmd.pCustomDSState && prevDSState) {
-            m_pContext->OMSetDepthStencilState(prevDSState, prevStencilRef);
-            prevDSState->Release();
+        if (m_pTrackedSRV != tex->srv.Get()) {
+            m_pContext->PSSetShaderResources(0, 1, tex->srv.GetAddressOf());
+            m_pTrackedSRV = tex->srv.Get();
         }
+        m_pContext->Draw(4, 0);
     };
 
     // ====================================================================
-    // Optimization: classify all commands once into separate lists.
-    // Each command may appear in more than one list (e.g., stencil + effect).
+    // Classification (unchanged)
     // ====================================================================
     std::vector<const DrawCommand*> opaqueCmds;
     std::vector<const DrawCommand*> stencilCmds;
     std::vector<const DrawCommand*> transparentCmds;
     std::vector<const DrawCommand*> effectCmds;
+    std::vector<const DrawCommand*> overlayCmds;
 
     for (const auto &cmd : m_drawCommands)
     {
+        if (cmd.bAlwaysOnTop)
+        {
+            overlayCmds.push_back(&cmd);
+            continue;
+        }
         if (cmd.bStencilDraw)
             stencilCmds.push_back(&cmd);
         if (cmd.bIsEffect)
@@ -1389,19 +1562,71 @@ void DirectXCore::RenderOffscreenContent()
     }
 
     // ====================================================================
-    // Phase 1: Draw ALL opaque textures (depth write ON, depth test ON)
+    // Phase 1: Instanced opaque (depth write ON, depth test ON)
+    //   Split: commands with custom DS state (stencil writes) are drawn
+    //   per-quad; plain commands use instanced batching.
     // ====================================================================
     m_pContext->OMSetRenderTargets(1, m_OffscreenRTV.GetAddressOf(), m_pOffscreenDSV.Get());
     m_pContext->OMSetDepthStencilState(m_pDepthStateGE.Get(), 0);
+    m_pTrackedDSState = m_pDepthStateGE.Get();
+    m_trackedStencilRef = 0;
     m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
 
-    for (const DrawCommand *cmd : opaqueCmds)
+    if (!opaqueCmds.empty())
     {
-        DrawOneTexture(*cmd);
+        // Separate: plain vs. stencil-writing commands
+        std::vector<const DrawCommand*> opaquePlain;
+        std::vector<const DrawCommand*> opaqueStencil;
+        for (const DrawCommand *cmd : opaqueCmds)
+        {
+            if (cmd->pCustomDSState)
+                opaqueStencil.push_back(cmd);
+            else
+                opaquePlain.push_back(cmd);
+        }
+
+        // -- Draw per-quad for stencil-aware opaque commands first --
+        // These write building/object height into stencil for Phase 1.5.
+        for (const DrawCommand *cmd : opaqueStencil)
+            DrawOneTracked(*cmd);
+
+        // -- Instanced batch for plain opaque commands --
+        if (!opaquePlain.empty())
+        {
+            std::stable_sort(opaquePlain.begin(), opaquePlain.end(),
+                [](const DrawCommand *a, const DrawCommand *b) {
+                    return a->texRes < b->texRes;
+                });
+
+            m_pContext->VSSetShader(m_pInstancedVS.Get(), nullptr, 0);
+            m_pContext->IASetInputLayout(m_pInstancedInputLayout.Get());
+
+            std::vector<const DrawCommand*> batch;
+            TextureResource *curTex = nullptr;
+            for (const DrawCommand *cmd : opaquePlain)
+            {
+                if (cmd->texRes != curTex) {
+                    FlushInstanceBatch(batch);
+                    batch.clear();
+                    curTex = cmd->texRes;
+                }
+                batch.push_back(cmd);
+            }
+            FlushInstanceBatch(batch);
+
+            // Restore non-instanced pipeline
+            m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
+            m_pContext->IASetInputLayout(m_pInputLayout.Get());
+            UINT singleStride = sizeof(QuadVertex);
+            UINT singleOffset = 0;
+            m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &singleStride, &singleOffset);
+            m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+            m_pTrackedSRV = nullptr;
+        }
     }
 
     // ====================================================================
-    // Phase 1.5: Stencil-aware draws
+    // Phase 1.5: Stencil-aware draws (per-quad, state-tracked)
     // ====================================================================
     if (ExtConfigs::PreciseDepthCalculation && !stencilCmds.empty())
     {
@@ -1414,7 +1639,7 @@ void DirectXCore::RenderOffscreenContent()
                 continue;
             if (!cmd->texRes || !cmd->texRes->srv)
                 continue;
-            DrawOneTexture(*cmd);
+            DrawOneTracked(*cmd);
         }
         m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
 
@@ -1426,7 +1651,7 @@ void DirectXCore::RenderOffscreenContent()
                 continue;
             if (!cmd->texRes || !cmd->texRes->srv)
                 continue;
-            DrawOneTexture(*cmd);
+            DrawOneTracked(*cmd);
         }
 
         // -- Sub-phase c: Shadow objects (write stencil, no color) --
@@ -1437,7 +1662,7 @@ void DirectXCore::RenderOffscreenContent()
                 continue;
             if (!cmd->texRes || !cmd->texRes->srv)
                 continue;
-            DrawOneTexture(*cmd);
+            DrawOneTracked(*cmd);
         }
         m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
 
@@ -1448,11 +1673,13 @@ void DirectXCore::RenderOffscreenContent()
                 continue;
             if (!cmd->texRes || !cmd->texRes->srv)
                 continue;
-            DrawOneTexture(*cmd);
+            DrawOneTracked(*cmd);
         }
 
         // -- Restore depth-stencil state --
         m_pContext->OMSetDepthStencilState(m_pDepthStateGE.Get(), 0);
+        m_pTrackedDSState = m_pDepthStateGE.Get();
+        m_trackedStencilRef = 0;
 
         // -- Shadow darkening pass (fullscreen) --
         if (CIsoViewExt::DrawShadows && m_pShadowDarkenPS && m_pBlendStateDarken &&
@@ -1468,7 +1695,7 @@ void DirectXCore::RenderOffscreenContent()
             m_pContext->OMSetRenderTargets(1, m_OffscreenRTV.GetAddressOf(),
                                            m_pOffscreenDSV.Get());
             // Only pixels with stencil == 0x80 (bit 7 set) pass
-            m_pContext->OMSetDepthStencilState(m_pDepthStateShadowDarken.Get(), 0x80);
+            SetDSStateTracked(m_pDepthStateShadowDarken.Get(), 0x80);
             // Multiplicative blend: Result = Dest * Src (= Dest * 0.5)
             m_pContext->OMSetBlendState(m_pBlendStateDarken.Get(), nullptr, 0xffffffff);
 
@@ -1483,13 +1710,14 @@ void DirectXCore::RenderOffscreenContent()
             m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &stride, &offset);
             m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
             m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
+            m_pTrackedSRV = nullptr;
+            m_pTrackedDSState = m_pDepthStateGE.Get();
+            m_trackedStencilRef = 0;
         }
     }
 
     // ====================================================================
-    // Phase 2: Semi-transparent textures via MRT
-    //   RT0 = Offscreen (main color with alpha blending)
-    //   RT1 = AlphaAccum (raw alpha, overwrite, R-channel only)
+    // Phase 2: Semi-transparent textures via MRT ¡ª INSTANCED
     // ====================================================================
     if (!transparentCmds.empty())
     {
@@ -1500,16 +1728,42 @@ void DirectXCore::RenderOffscreenContent()
         m_pContext->OMSetRenderTargets(2, mrtRTs, m_pOffscreenDSV.Get());
         m_pContext->OMSetBlendState(m_pAlphaAccumBlendState.Get(), nullptr, 0xffffffff);
         m_pContext->OMSetDepthStencilState(m_pDepthStateReadOnlyGE.Get(), 0);
+        m_pTrackedDSState = m_pDepthStateReadOnlyGE.Get();
+        m_trackedStencilRef = 0;
         m_pContext->PSSetShader(m_pMRTPS.Get(), nullptr, 0);
 
+        // Sort by texture for batching
+        std::stable_sort(transparentCmds.begin(), transparentCmds.end(),
+            [](const DrawCommand *a, const DrawCommand *b) {
+                return a->texRes < b->texRes;
+            });
+
+        m_pContext->VSSetShader(m_pInstancedVS.Get(), nullptr, 0);
+        m_pContext->IASetInputLayout(m_pInstancedInputLayout.Get());
+
+        std::vector<const DrawCommand*> batch;
+        TextureResource *curTex = nullptr;
         for (const DrawCommand *cmd : transparentCmds)
         {
-            DrawOneTexture(*cmd);
+            if (cmd->texRes != curTex) {
+                FlushInstanceBatch(batch);
+                batch.clear();
+                curTex = cmd->texRes;
+            }
+            batch.push_back(cmd);
         }
+        FlushInstanceBatch(batch);
 
-        // Restore single RT and normal blend state
+        // Restore single RT, normal blend, non-instanced pipeline
         m_pContext->OMSetRenderTargets(1, m_OffscreenRTV.GetAddressOf(), m_pOffscreenDSV.Get());
         m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
+        m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
+        m_pContext->IASetInputLayout(m_pInputLayout.Get());
+        UINT singleStride = sizeof(QuadVertex);
+        UINT singleOffset = 0;
+        m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &singleStride, &singleOffset);
+        m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+        m_pTrackedSRV = nullptr;
     }
 
     // ====================================================================
@@ -1518,7 +1772,7 @@ void DirectXCore::RenderOffscreenContent()
     //   by (1 - accumAlpha) so they appear "behind" semi-transparent texels.
     // ====================================================================
     {
-        m_pContext->OMSetDepthStencilState(m_pDepthStateReadOnlyGE.Get(), 0);
+        SetDSStateTracked(m_pDepthStateReadOnlyGE.Get(), 0);
         if (m_pAlphaAccumSRV)
             m_pContext->PSSetShaderResources(1, 1, m_pAlphaAccumSRV.GetAddressOf());
 
@@ -1564,12 +1818,13 @@ void DirectXCore::RenderOffscreenContent()
 
         m_pContext->OMSetRenderTargets(1, m_pFactorRTV.GetAddressOf(), nullptr);
         m_pContext->OMSetBlendState(m_pMulBlendState.Get(), nullptr, 0xffffffff);
+        m_pTrackedDSState = m_pDepthStateGE.Get();
+        m_trackedStencilRef = 0;
         m_pContext->OMSetDepthStencilState(m_pDepthStateGE.Get(), 0);
         m_pContext->VSSetShader(m_pEffectVS.Get(), nullptr, 0);
         m_pContext->PSSetShader(m_pEffectPS.Get(), nullptr, 0);
         m_pContext->PSSetSamplers(0, 1, m_pSamplerPoint.GetAddressOf());
 
-        const float depthScale = 1.0f / 16777216.0f;
         for (const DrawCommand *cmd : effectCmds)
         {
             TextureResource *idxTex = cmd->texRes;
@@ -1578,7 +1833,18 @@ void DirectXCore::RenderOffscreenContent()
 
             const auto &p = cmd->params;
             float depthZ = cmd->depth * depthScale;
-            XMMATRIX world = CalcWorldMatrixNoGlobal(p, idxTex->sourceView.FullWidth, idxTex->sourceView.FullHeight, depthZ);
+            float w_px = idxTex->sourceView.FullWidth * p.scaleX;
+            float h_px = idxTex->sourceView.FullHeight * p.scaleY;
+            float snappedX = std::floor(p.x + 0.5f);
+            float snappedY = std::floor(p.y + 0.5f);
+            float centerX_px = snappedX + w_px * 0.5f;
+            float centerY_px = snappedY + h_px * 0.5f;
+            float ndc_width = (w_px / vw) * 2.0f;
+            float ndc_height = (h_px / vh) * 2.0f;
+            float ndc_centerX = (centerX_px / vw) * 2.0f - 1.0f;
+            float ndc_centerY = 1.0f - (centerY_px / vh) * 2.0f;
+            XMMATRIX world = XMMatrixScaling(ndc_width, ndc_height, 1.0f) *
+                             XMMatrixTranslation(ndc_centerX, ndc_centerY, depthZ);
             CBPerObject cb;
             cb.world = XMMatrixTranspose(world);
             memset(&cb.colorMul, 0, sizeof(cb.colorMul) + sizeof(cb.mixColor) + sizeof(cb.mixFactor));
@@ -1591,7 +1857,10 @@ void DirectXCore::RenderOffscreenContent()
             m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
 
             m_pContext->VSSetConstantBuffers(0, 1, m_pConstantBuffer.GetAddressOf());
-            m_pContext->PSSetShaderResources(0, 1, idxTex->srv.GetAddressOf());
+            if (m_pTrackedSRV != idxTex->srv.Get()) {
+                m_pContext->PSSetShaderResources(0, 1, idxTex->srv.GetAddressOf());
+                m_pTrackedSRV = idxTex->srv.Get();
+            }
             m_pContext->Draw(4, 0);
         }
 
@@ -1607,6 +1876,53 @@ void DirectXCore::RenderOffscreenContent()
 
         ID3D11ShaderResourceView *nullSRV[2] = {nullptr, nullptr};
         m_pContext->PSSetShaderResources(0, 2, nullSRV);
+    }
+
+    // ====================================================================
+    // Phase 5: Always-on-top world-space overlays (depth OFF)
+    //   Text annotations, base node indices, etc.
+    // ====================================================================
+    if (!overlayCmds.empty())
+    {
+        m_pContext->OMSetRenderTargets(1, m_OffscreenRTV.GetAddressOf(), m_pOffscreenDSV.Get());
+        m_pContext->OMSetDepthStencilState(m_pDepthStateOff.Get(), 0);
+        m_pTrackedDSState = m_pDepthStateOff.Get();
+        m_trackedStencilRef = 0;
+
+        // Sort by texture for batching
+        std::stable_sort(overlayCmds.begin(), overlayCmds.end(),
+            [](const DrawCommand *a, const DrawCommand *b) {
+                return a->texRes < b->texRes;
+            });
+
+        m_pContext->VSSetShader(m_pInstancedVS.Get(), nullptr, 0);
+        m_pContext->IASetInputLayout(m_pInstancedInputLayout.Get());
+        m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
+        m_pContext->PSSetSamplers(0, 1,
+            (m_renderScale == 1.0f) ? m_pSamplerPoint.GetAddressOf()
+                                    : m_pSamplerLinear.GetAddressOf());
+
+        std::vector<const DrawCommand*> batch;
+        TextureResource *curTex = nullptr;
+        for (const DrawCommand *cmd : overlayCmds)
+        {
+            if (cmd->texRes != curTex) {
+                FlushInstanceBatch(batch);
+                batch.clear();
+                curTex = cmd->texRes;
+            }
+            batch.push_back(cmd);
+        }
+        FlushInstanceBatch(batch);
+
+        // Restore non-instanced pipeline
+        m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
+        m_pContext->IASetInputLayout(m_pInputLayout.Get());
+        UINT singleStride = sizeof(QuadVertex);
+        UINT singleOffset = 0;
+        m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &singleStride, &singleOffset);
+        m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+        m_pTrackedSRV = nullptr;
     }
 }
 
@@ -1763,11 +2079,10 @@ void DirectXCore::Render()
     RenderOffscreenContent();
     if (!CIsoViewExt::RenderingMap)
     {
-        if (ExtConfigs::EnableDarkMode && ExtConfigs::EnableDarkMode_DimMap )
+        if (ExtConfigs::EnableDarkMode && ExtConfigs::EnableDarkMode_DimMap)
         {
             DarkenOffscreen(0.7f);
         }
-
 
         RenderFinalToBackBuffer();
         UpdateBackgroundCache();
@@ -2092,6 +2407,7 @@ void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
     cmd.params = params;
     cmd.bIsEffect = tex->bIsIndexTexture;
     cmd.bScreenSpace = params.bScreenSpace;
+    cmd.bAlwaysOnTop = params.bAlwaysOnTop;
     if (!ExtConfigs::PreciseDepthCalculation)
     {
         cmd.params.bIsShadow = false;
@@ -3011,10 +3327,9 @@ void TextRenderer::DrawTexts(
     {
         dp.SetScreenSpace();
     }
-    else if (params.opacity == 1.0f)
-    {
-        dp.bWriteStencil = true;
-        dp.SetStencilRef(255);
+    else
+    {   
+        dp.bAlwaysOnTop = params.bAlwaysOnTop;
     }
 
     m_dx->DrawTexture(tex, dp);

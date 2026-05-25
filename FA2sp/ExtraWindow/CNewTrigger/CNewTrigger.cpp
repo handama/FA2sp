@@ -56,7 +56,7 @@ static std::vector<SubtextSegment> GetTriggerEnableText(Trigger* trigger)
         return { };
     using G = SubtextGlyph;
     auto circle = [&](bool on) { return on ? G::FilledCircle : G::HollowCircle; };
-    auto rect = trigger->Disabled ? G::HollowRect : G::FilledRect;
+    auto rect = trigger->Disabled ? G::BandedCircle : G::AllowCircle;
 
     if (CNewTrigger::IsMultiPlay)
     {
@@ -308,7 +308,9 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
         ShowWindow(m_hwnd, SW_SHOW);
         SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
     }
-
+    
+    IsMultiPlay = CMapData::Instance->IsMultiOnly();
+    
     if (UpdateTrigger)
         CMapDataExt::UpdateTriggers();
 
@@ -398,8 +400,6 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
       ExtraWindow::AdjustDropdownWidth(hHouse);
       
     SendMessage(hCompact, BM_SETCHECK, CompactMode ? BST_CHECKED : BST_UNCHECKED, 0);
-
-    IsMultiPlay = CMapData::Instance->IsMultiOnly();
 
     OnSelchangeTrigger();
 }
@@ -2239,8 +2239,10 @@ void CNewTrigger::OnSelchangeEventParam(int index, bool edited)
     if (text.empty())
         return;
 
-
-    ExtraWindow::TrimStringIndex(text);
+    if (CurrentTriggerEventParam == index || CurrentTeamEventParam == index)
+        FString::TrimIndex(text);
+    else
+        ExtraWindow::TrimStringIndex(text);
     if (text == "")
         text = "0";
 
@@ -2353,6 +2355,23 @@ void CNewTrigger::UpdateParamAffectedParam_Event(int index)
             {
                 auto paramType = FString::GetParam(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), target.ParamMap[text]), 1);
                 ExtraWindow::LoadParams(vcbEventParameter[target.AffectedParam], paramType, this);
+
+                if (paramType == "10") // stringtables
+                {
+                    CurrentCSFEventParam = target.AffectedParam;
+                }
+                else if (paramType == "9") // triggers
+                {
+                    CurrentTriggerEventParam = target.AffectedParam;
+                }
+                else if (paramType == "15" || FString::GetParam(
+                    fadata.GetString(
+                        "NewParamTypes",
+                        paramType), 0)
+                    == "TeamTypes")
+                {
+                    CurrentTeamEventParam = target.AffectedParam;
+                }
 
                 auto& targetText = CurrentTrigger->Events[SelectedEventIndex].Params[EventParamsUsage[target.AffectedParam].second];
                 int paramIdx = ExtraWindow::FindCBStringExactStart(hEventParameter[target.AffectedParam], targetText + " ");
@@ -3073,6 +3092,23 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
                 {
                     CNewTrigger::EventParameterAutoDrop[i] = false;
                 }
+                else if (pParamTypes[EventParamsUsage[i].second - 1][1] == "10") // stringtables
+                {
+                    CurrentCSFEventParam = i;
+                }
+                else if (pParamTypes[EventParamsUsage[i].second - 1][1] == "9") // triggers
+                {
+                    CurrentTriggerEventParam = i;
+                }
+                else if (pParamTypes[EventParamsUsage[i].second - 1][1] == "15" || FString::GetParam(
+                    fadata.GetString(
+                        "NewParamTypes",
+                        pParamTypes[EventParamsUsage[i].second - 1][1]), 0)
+                    == "TeamTypes")
+                {
+                    CurrentTeamEventParam = i;
+                }
+
                 SendMessage(hEventParameterDesc[i], WM_SETTEXT, 0, (LPARAM)pParamTypes[EventParamsUsage[i].second - 1][0].c_str());
             }
             else
@@ -3095,6 +3131,22 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
                 if (pParamTypes[EventParamsUsage[i].second][1] == "1" && !ExtConfigs::SearchCombobox_Waypoint) // waypoints
                 {
                     CNewTrigger::EventParameterAutoDrop[i] = false;
+                }
+                else if (pParamTypes[EventParamsUsage[i].second][1] == "10") // stringtables
+                {
+                    CurrentCSFEventParam = i;
+                }
+                else if (pParamTypes[EventParamsUsage[i].second][1] == "9") // triggers
+                {
+                    CurrentTriggerEventParam = i;
+                }
+                else if (pParamTypes[EventParamsUsage[i].second][1] == "15" || FString::GetParam(
+                    fadata.GetString(
+                        "NewParamTypes",
+                        pParamTypes[EventParamsUsage[i].second][1]), 0)
+                    == "TeamTypes")
+                {
+                    CurrentTeamEventParam = i;
                 }
                 SendMessage(hEventParameterDesc[i], WM_SETTEXT, 0, (LPARAM)pParamTypes[EventParamsUsage[i].second][0].c_str());
             }
@@ -3215,6 +3267,9 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
     CurrentCSFActionParam = -1;
     CurrentTriggerActionParam = -1;
     CurrentTeamActionParam = -1;
+    CurrentCSFEventParam = -1;
+    CurrentTriggerEventParam = -1;
+    CurrentTeamEventParam = -1;
     for (int i = 0; i < ACTION_PARAM_COUNT; i++)
     {
         ExtraWindow::ClearComboKeepText(hActionParameter[i]);

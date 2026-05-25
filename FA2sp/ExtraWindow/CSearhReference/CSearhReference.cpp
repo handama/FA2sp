@@ -1,5 +1,6 @@
 #include "CSearhReference.h"
 #include "../CNewTeamTypes/CNewTeamTypes.h"
+#include "../CNewTag/CNewTag.h"
 #include "../CNewTrigger/CNewTrigger.h"
 #include "../CNewAITrigger/CNewAITrigger.h"
 #include "../Common.h"
@@ -217,7 +218,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
     if (IsTeamType || IsTrigger || IsVariable || IsTag)
     {
         int data = SendMessage(hListbox, LB_GETITEMDATA, idx, 0);
-        if (data >= 100 && data < 300)
+        if (data >= 1000 && data < 3000)
         {
             if (CNewTrigger::Instance[TriggerCaller].GetHandle() == NULL)
                 CNewTrigger::Instance[TriggerCaller].Create(m_parent);
@@ -227,7 +228,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
             if (idx == CB_ERR)
                 return;
             SendMessage(dlg, CB_SETCURSEL, idx, NULL);
-            CNewTrigger::Instance[TriggerCaller].OnSelchangeTrigger(false, data < 200 ? (data - 100) : 0, data >= 200 ? (data - 200) : 0);
+            CNewTrigger::Instance[TriggerCaller].OnSelchangeTrigger(false, data < 2000 ? (data - 1000) : 0, data >= 2000 ? (data - 2000) : 0);
             SetWindowPos(CNewTrigger::Instance[TriggerCaller].GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
         }
         else if (data == 2)
@@ -256,7 +257,32 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
             CNewTeamTypes::OnSelchangeTeamtypes();
             SetWindowPos(CNewTeamTypes::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
         }
-        else if (data >= 500 && data < 550)
+        else if (data == 4)
+        {
+            if (CNewTag::GetHandle() == NULL)
+                CNewTag::Create(m_parent);
+
+            auto dlg = GetDlgItem(CNewTag::GetHandle(), CNewTag::Controls::SelectedTag);
+            auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, fullName);
+            if (idx == CB_ERR)
+                return;
+            CNewTag::OnSelchangeTag(false, idx);
+            SetWindowPos(CNewTag::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+        }
+        else if (data == 5)
+        {
+            if (CNewTeamTypes::GetHandle() == NULL)
+                CNewTeamTypes::Create(m_parent);
+
+            auto dlg = GetDlgItem(CNewTeamTypes::GetHandle(), CNewTeamTypes::Controls::SelectedTeam);
+            auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, fullName);
+            if (idx == CB_ERR)
+                return;
+            SendMessage(dlg, CB_SETCURSEL, idx, NULL);
+            CNewTeamTypes::OnSelchangeTeamtypes();
+            SetWindowPos(CNewTeamTypes::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+        }
+        else if (data >= 5000 && data < 5050)
         {
             if (CNewScript::GetHandle() == NULL)
                 CNewScript::Create(m_parent);
@@ -267,8 +293,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
                 return;
             SendMessage(dlg, CB_SETCURSEL, idx, NULL);
             CNewScript::OnSelchangeScript();
-            auto dlg2 = GetDlgItem(CNewScript::GetHandle(), CNewScript::Controls::ActionsListBox);
-            SendMessage(dlg2, LB_SETCURSEL, data - 500, NULL);
+            CNewScript::SetListBoxSel(data - 5000);
             CNewScript::OnSelchangeActionListbox();
             SetWindowPos(CNewScript::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
         }
@@ -304,6 +329,11 @@ void CSearhReference::Update()
             SendMessage(hObjectText, WM_SETTEXT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(SearchID));
         else if (IsTag)
             SendMessage(hObjectText, WM_SETTEXT, 0, (LPARAM)ExtraWindow::GetTagDisplayName(SearchID));
+
+        if (CMapDataExt::Triggers.empty())
+        {
+            CMapDataExt::UpdateTriggers();
+        }
         for (auto& triggerPair : CMapDataExt::Triggers)
         {
             auto& trigger = triggerPair.second;
@@ -321,7 +351,7 @@ void CSearhReference::Update()
                             hListbox,
                             LB_SETITEMDATA,
                             SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
-                            100 + index
+                            1000 + index
                         );
                     }
                 }
@@ -341,7 +371,7 @@ void CSearhReference::Update()
                             hListbox,
                             LB_SETITEMDATA,
                             SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
-                            200 + index
+                            2000 + index
                         );
                     }
                 }
@@ -356,10 +386,10 @@ void CSearhReference::Update()
                     hListbox,
                     LB_SETITEMDATA,
                     SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
-                    100 
+                    1000 
                 );
             }      
-            // 100+ means events, 200+ means actions
+            // 1000+ means events, 2000+ means actions
         }
         if (IsTeamType)
             if (auto pSection = map.GetSection("AITriggerTypes"))
@@ -641,9 +671,9 @@ void CSearhReference::Update()
                                         hListbox,
                                         LB_SETITEMDATA,
                                         SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
-                                        500 + i
+                                        5000 + i
                                     );
-                                    // 500+ means script and line
+                                    // 5000+ means script and line
                                 }
                             }
 
@@ -692,7 +722,7 @@ void CSearhReference::Update()
                             hListbox,
                             LB_SETITEMDATA,
                             SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
-                            100 + i
+                            1000 + i
                         );
                     }
                 }
@@ -731,7 +761,7 @@ void CSearhReference::Update()
                             hListbox,
                             LB_SETITEMDATA,
                             SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
-                            200 + i
+                            2000 + i
                         );
                     }
                 }
@@ -758,6 +788,104 @@ void CSearhReference::Update()
         }
     }
 
+    if (IsTrigger)
+    {
+        if (auto trigger = CMapDataExt::GetTrigger(SearchID))
+        {    
+            FHashSet AllTags;
+            FHashSet AllTeamtypes;
+            FSet Triggers;
+            FSet Tags;
+            FSet Teamtypes;
+            if (auto pSection = map.GetSection("Tags"))
+            {
+                for (auto& [id, _] : pSection->GetEntities())
+                {
+                    AllTags.insert(id);
+                }
+            }
+            if (auto pSection = map.GetSection("TeamTypes"))
+            {
+                for (auto& [_, id] : pSection->GetEntities())
+                {
+                    AllTeamtypes.insert(id);
+                }
+            }
+
+            for (auto& eve : trigger->Events)
+            {
+                for (auto& p : eve.Params)
+                {
+                    if (p == "0") continue;
+                    if (AllTags.contains(p))
+                    {
+                        Tags.insert(p);
+                    }
+                    if (CMapDataExt::Triggers.contains(p))
+                    {
+                        Triggers.insert(p);
+                    }
+                    if (AllTeamtypes.contains(p))
+                    {
+                        Teamtypes.insert(p);
+                    }
+                }
+            }
+            for (auto& act : trigger->Actions)
+            {
+                for (auto& p : act.Params)
+                {
+                    if (p == "0") continue;
+                    if (AllTags.contains(p))
+                    {
+                        Tags.insert(p);
+                    }
+                    if (CMapDataExt::Triggers.contains(p))
+                    {
+                        Triggers.insert(p);
+                    }
+                    if (AllTeamtypes.contains(p))
+                    {
+                        Teamtypes.insert(p);
+                    }
+                }
+            }
+
+            for (auto& id : Triggers)
+            {
+                auto text = GetPrefix(7) + ExtraWindow::GetTriggerDisplayName(id);
+                SendMessage(
+                    hListbox,
+                    LB_SETITEMDATA,
+                    SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
+                    1000
+                );
+            }
+            for (auto& id : Tags)
+            {
+                auto text = GetPrefix(5) + ExtraWindow::GetTagDisplayName(id);
+                SendMessage(
+                    hListbox,
+                    LB_SETITEMDATA,
+                    SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
+                    4
+                );
+                // 4 means tags
+            }
+            for (auto& id : Teamtypes)
+            {
+                auto text = GetPrefix(6) + ExtraWindow::GetTeamDisplayName(id);
+                SendMessage(
+                    hListbox,
+                    LB_SETITEMDATA,
+                    SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
+                    5
+                );
+                // 5 means teams
+            }
+        }
+    }
+
     return;
 }
 
@@ -773,6 +901,12 @@ FString CSearhReference::GetPrefix(int type)
         return FString(Translations::TranslateOrDefault("SearhReference.Script", "Script"))+ ": ";
     case 4:
         return FString(Translations::TranslateOrDefault("SearhReference.AITrigger", "AI Trigger"))+ ": ";
+    case 5:
+        return FString(Translations::TranslateOrDefault("SearhReference.TriggerParam.Tag", "Param - Tag"))+ ": ";
+    case 6:
+        return FString(Translations::TranslateOrDefault("SearhReference.TriggerParam.Team", "Param - Team"))+ ": ";
+    case 7:
+        return FString(Translations::TranslateOrDefault("SearhReference.TriggerParam.Trigger", "Param - Trigger"))+ ": ";
     default:
         break;
     }

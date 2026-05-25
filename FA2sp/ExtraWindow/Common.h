@@ -65,7 +65,16 @@ struct SortKeyIndex
     size_t index;
 };
 
-enum class SubtextGlyph : uint8_t { FilledCircle, HollowCircle, FilledRect, HollowRect, Space };
+enum class SubtextGlyph : uint8_t 
+{ 
+    FilledCircle, 
+    HollowCircle, 
+    FilledRect, 
+    HollowRect, 
+    BandedCircle, 
+    AllowCircle, 
+    Space
+ };
 
 struct SubtextSegment
 {

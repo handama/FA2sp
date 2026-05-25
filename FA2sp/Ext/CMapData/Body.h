@@ -330,6 +330,7 @@ struct CellDataExt
     bool HasAnnotation = false;
 
     int RecordMinimapUpdateIndex[3] = { -1 } ;
+    char DamagedFires[8] = { -1 };
 
     struct BuildingRenderPart
     {
@@ -481,6 +482,8 @@ struct CellDataExt
             }
         }
     }
+
+    CellDataExt();
 };
 
 enum class EIndexType : int {
@@ -807,6 +810,7 @@ public:
 
     static void CheckCellLow(bool steep, int loopCount = 0, bool IgnoreMorphable = false, std::vector<int>* ignoreList = nullptr);
     static void CheckCellRise(bool steep, int loopCount = 0, bool IgnoreMorphable = false, std::vector<int>* ignoreList = nullptr);
+    static void RefreshAllWindows();
     static void GenerateNoiseSlopeTerrain(
         const std::set<MapCoord>& region,
         int minHeight,

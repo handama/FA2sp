@@ -139,28 +139,36 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
     auto cell = CMapData::Instance->TryGetCellAt(point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
 
     // property brush && delete objects && change owner && delete overlay && delete celltag
-    if (CIsoView::CurrentCommand->Command == 0x17 
-        || CIsoView::CurrentCommand->Command == 0x2 
-        || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7)
-        || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 6 && CIsoView::CurrentCommand->Param == 1)
-        || (CIsoView::CurrentCommand->Command == 4 && CIsoView::CurrentCommand->Type == 1)
-        )
+    if (pIsoView->BrushSizeX != 1 || pIsoView->BrushSizeY != 1)
     {
-        std::vector<MapCoord> cells;
-        for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)
+        if (CIsoView::CurrentCommand->Command == 0x17 
+            || CIsoView::CurrentCommand->Command == 0x2 
+            || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7)
+            || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 6 && CIsoView::CurrentCommand->Param == 1)
+            || (CIsoView::CurrentCommand->Command == 4 && CIsoView::CurrentCommand->Type == 1)
+            || CIsoView::CurrentCommand->Command == 11 
+            || CIsoView::CurrentCommand->Command == 12 
+            || CIsoView::CurrentCommand->Command == 13
+            || CIsoView::CurrentCommand->Command == 14
+            || CIsoView::CurrentCommand->Command == 15
+            )
         {
-            for (int gy = point.Y - pIsoView->BrushSizeY / 2; gy <= point.Y + pIsoView->BrushSizeY / 2; gy++)
+            std::vector<MapCoord> cells;
+            for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)
             {
-                cells.push_back({ gx, gy });
+                for (int gy = point.Y - pIsoView->BrushSizeY / 2; gy <= point.Y + pIsoView->BrushSizeY / 2; gy++)
+                {
+                    cells.push_back({ gx, gy });
+                }
             }
-        }
-        if (ExtConfigs::DirectXRendering)
-        {
-            DirectXDrawMultiMapCoordBorders(cells, ExtConfigs::CursorSelectionBound_Color);
-        }
-        else
-        {
-            CIsoViewExt::DrawMultiMapCoordBorders(hDC, cells, ExtConfigs::CursorSelectionBound_Color);
+            if (ExtConfigs::DirectXRendering)
+            {
+                DirectXDrawMultiMapCoordBorders(cells, ExtConfigs::CursorSelectionBound_Color);
+            }
+            else
+            {
+                CIsoViewExt::DrawMultiMapCoordBorders(hDC, cells, ExtConfigs::CursorSelectionBound_Color);
+            }
         }
     }
 

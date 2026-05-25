@@ -1262,6 +1262,7 @@ void ExtraWindow::UnregisterDropTargetsOfWindow(HWND hMainWnd)
 
 bool ExtraWindow::IsPointOnIsoViewAndNotCovered(POINT ptScreen)
 {
+    if (!CFinalSunDlg::Instance) return false;
     auto hIsoView = CIsoView::GetInstance()->GetSafeHwnd();
     RECT rc;
     GetWindowRect(hIsoView, &rc);

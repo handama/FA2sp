@@ -374,7 +374,12 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
     SendMessage(hType, CB_ADDSTRING, 0, (FString("2 - ") + Translations::TranslateOrDefault("TriggerRepeatType.RepeatingOr", "Repeating OR")));
 
     ExtraWindow::ClearComboKeepText(hHouse);
-    if (CMapData::Instance->IsMultiOnly() && ExtConfigs::PlayerAtXForTriggers)
+
+    if (!CMapData::Instance->IsMultiOnly())
+    {
+        vcbHouse.AddString("Player");
+    }
+    else if (ExtConfigs::PlayerAtXForTriggers)
     {
         vcbHouse.AddString("<Player @ A>");
         vcbHouse.AddString("<Player @ B>");
@@ -392,9 +397,6 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
             continue;
         vcbHouse.AddString(Translations::ParseHouseName(value, true));
     }
-
-    if (!CMapData::Instance->IsMultiOnly())
-        SendMessage(hHouse, CB_INSERTSTRING, 0, (LPARAM)(LPCSTR)Translations::ParseHouseName("Player", true).c_str());
 
     if (CompactMode)
       ExtraWindow::AdjustDropdownWidth(hHouse);

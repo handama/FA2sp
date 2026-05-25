@@ -568,12 +568,6 @@ HTREEITEM TagSort::FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const
         {
             if (strcmp(tvi.pszText, pszLabel) == 0)
                 return tvi.hItem;
-            if (tvi.cChildren)
-            {
-                HTREEITEM hChildSearch = this->FindLabel(tvi.hItem, pszLabel);
-                if (hChildSearch) 
-                    return hChildSearch;
-            }
         }
     }
     return NULL;

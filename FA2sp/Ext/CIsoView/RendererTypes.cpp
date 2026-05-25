@@ -764,7 +764,7 @@ void Renderer::Building::Reload(short index)
     pType = GetOrCreateBuilding(data.TypeID);
     pRenderData = &CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
     pCellData = CMapData::Instance->TryGetCellAt(pRenderData->X, pRenderData->Y);
-    HouseColor = Miscs::GetColorRef(data.House);
+    HouseColor = pRenderData->HouseColor;
 
     if (CLoadingExt::ObjectsNeedReloaded)
     {

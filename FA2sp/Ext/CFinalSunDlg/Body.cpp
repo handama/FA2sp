@@ -69,6 +69,24 @@ public:
 	HMENU hMenu;
 };
 
+static void ChangeBrushSize(int index)
+{
+	auto pSection = CINI::FAData().GetSection("BrushSizes");
+	if (pSection && pSection->GetEntities().size() > index && index >= 0)
+	{
+		auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+		auto value = pSection->GetValueAt(index);
+		auto bs = STDHelpers::SplitString(*value, 1, "x");
+		pIsoView->BrushSizeX = atoi(bs[1]);
+		pIsoView->BrushSizeY = atoi(bs[0]);
+
+		POINT pt;
+        GetCursorPos(&pt);
+		ScreenToClient(pIsoView->GetSafeHwnd(), &pt);
+		pIsoView->OnMouseMove(0, pt);
+	}
+};
+
 void CFinalSunDlgExt::CheckToolBarButton(UINT dwID, bool check)
 {
 	auto it = CheckButtonMap.find(dwID);
@@ -300,19 +318,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 	};
 
-	auto changeBrushSize = [](int index)
-	{
-		auto pSection = CINI::FAData().GetSection("BrushSizes");
-		if (pSection && pSection->GetEntities().size() > index && index >= 0)
-		{
-			auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
-			auto value = pSection->GetValueAt(index);
-			auto bs = STDHelpers::SplitString(*value, 1, "x");
-			pIsoView->BrushSizeX = atoi(bs[1]);
-			pIsoView->BrushSizeY = atoi(bs[0]);
-		}
-	};
-
 	auto isInIsoView = []()
 	{
 		POINT pt;
@@ -445,7 +450,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		auto pBrushSize = (ppmfc::CComboBox*)CFinalSunDlg::Instance->BrushSize.GetDlgItem(1377);
 		int index = std::max(pBrushSize->GetCurSel() - 1, 0);
 		pBrushSize->SetCurSel(index);
-		changeBrushSize(index);
+		ChangeBrushSize(index);		
 		return TRUE;
 	}
 	case 30055:
@@ -453,7 +458,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		auto pBrushSize = (ppmfc::CComboBox*)CFinalSunDlg::Instance->BrushSize.GetDlgItem(1377);
 		int index = std::min(pBrushSize->GetCurSel() + 1, pBrushSize->GetCount() - 1);
 		pBrushSize->SetCurSel(index);
-		changeBrushSize(index);
+		ChangeBrushSize(index);
 		return TRUE;
 	}
 	case 30056:
@@ -1948,18 +1953,12 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 
 		break;
 	case WM_MOUSEWHEEL:
-	{
+	{		        
 		if (GetKeyState(VK_CONTROL) & 0x8000)
 		{
-			HWND hWnd = GetFocus();					// EDIT		COMBOBOX_DROPDOWN
-			HWND hParent1 = ::GetParent(hWnd);		// WINDOW	COMBOBOX
-			if (hParent1 != CNewINIEditor::GetHandle()
-				&& hParent1 != CCsfEditor::GetHandle()
-				&& hParent1 != CNewINIEditor::GetImporter()
-				&& hParent1 != CLuaConsole::GetHandle()
-				&& hParent1 != CTriggerAnnotation::GetHandle()
-				&& !CViewObjectsExt::IsOpeningAnnotationDlg
-				)
+			POINT pt;
+			GetCursorPos(&pt);
+			if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt))
 			{
 				int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
 				if (zDelta < 0) {
@@ -1970,19 +1969,26 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 				}
 			}
 		}
+		else if (GetKeyState(VK_MENU) & 0x8000)
+		{
+			POINT pt;
+			GetCursorPos(&pt);
+			if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt))
+			{
+				int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
+				auto pBrushSize = (ppmfc::CComboBox*)CFinalSunDlg::Instance->BrushSize.GetDlgItem(1377);
+				int index = std::clamp(pBrushSize->GetCurSel() + (zDelta < 0 ? -1 : 1), 0, pBrushSize->GetCount() - 1);
+				pBrushSize->SetCurSel(index);
+				ChangeBrushSize(index);
+			}
+		}
 		break;
 	}
 	case WM_MBUTTONUP:
 	{
-		HWND hWnd = GetFocus();					// EDIT		COMBOBOX_DROPDOWN
-		HWND hParent1 = ::GetParent(hWnd);		// WINDOW	COMBOBOX
-		if (hParent1 != CNewINIEditor::GetHandle()
-			&& hParent1 != CCsfEditor::GetHandle()
-			&& hParent1 != CNewINIEditor::GetImporter()
-			&& hParent1 != CLuaConsole::GetHandle()
-			&& hParent1 != CTriggerAnnotation::GetHandle()
-			&& !CViewObjectsExt::IsOpeningAnnotationDlg
-			)
+		POINT pt;
+		GetCursorPos(&pt);
+		if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt))
 		{
 			CIsoViewExt::Zoom(0.0);
 		}

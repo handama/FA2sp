@@ -11,6 +11,7 @@
 #include "Miscs/Exception.h"
 
 #include "Ext/CFinalSunApp/Body.h"
+#include "Ext/CIsoView/DirectXCore.h"
 
 #include <CINI.h>
 
@@ -1637,6 +1638,13 @@ DEFINE_HOOK(537208, ExeTerminate, 9)
 
 	// Destruct static ppmfc stuffs here
 	CViewObjectsExt::OnExeTerminate();
+
+	if (CIsoViewExt::g_pDX)
+	{
+		CIsoViewExt::g_pSP.reset();
+		CIsoViewExt::g_pTR.reset();
+		CIsoViewExt::g_pDX.reset();
+	}
 
 #ifdef ENABLE_VISUAL_STYLE
 	::DeactivateActCtx(NULL, ulCookie);

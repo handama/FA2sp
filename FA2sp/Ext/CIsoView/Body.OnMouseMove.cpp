@@ -17,6 +17,7 @@
 #include "../CFinalSunDlg/Body.h"
 #include <Miscs/Miscs.h>
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
+#include "../../ExtraWindow/CNewTag/CNewTag.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../Miscs/StringtableLoader.h"
 #include "../../Helpers/Helper.h"
@@ -138,28 +139,36 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
     auto cell = CMapData::Instance->TryGetCellAt(point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
 
     // property brush && delete objects && change owner && delete overlay && delete celltag
-    if (CIsoView::CurrentCommand->Command == 0x17 
-        || CIsoView::CurrentCommand->Command == 0x2 
-        || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7)
-        || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 6 && CIsoView::CurrentCommand->Param == 1)
-        || (CIsoView::CurrentCommand->Command == 4 && CIsoView::CurrentCommand->Type == 1)
-        )
+    if (pIsoView->BrushSizeX != 1 || pIsoView->BrushSizeY != 1)
     {
-        std::vector<MapCoord> cells;
-        for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)
+        if (CIsoView::CurrentCommand->Command == 0x17 
+            || CIsoView::CurrentCommand->Command == 0x2 
+            || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7)
+            || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 6 && CIsoView::CurrentCommand->Param == 1)
+            || (CIsoView::CurrentCommand->Command == 4 && CIsoView::CurrentCommand->Type == 1)
+            || CIsoView::CurrentCommand->Command == 11 
+            || CIsoView::CurrentCommand->Command == 12 
+            || CIsoView::CurrentCommand->Command == 13
+            || CIsoView::CurrentCommand->Command == 14
+            || CIsoView::CurrentCommand->Command == 15
+            )
         {
-            for (int gy = point.Y - pIsoView->BrushSizeY / 2; gy <= point.Y + pIsoView->BrushSizeY / 2; gy++)
+            std::vector<MapCoord> cells;
+            for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)
             {
-                cells.push_back({ gx, gy });
+                for (int gy = point.Y - pIsoView->BrushSizeY / 2; gy <= point.Y + pIsoView->BrushSizeY / 2; gy++)
+                {
+                    cells.push_back({ gx, gy });
+                }
             }
-        }
-        if (ExtConfigs::DirectXRendering)
-        {
-            DirectXDrawMultiMapCoordBorders(cells, ExtConfigs::CursorSelectionBound_Color);
-        }
-        else
-        {
-            CIsoViewExt::DrawMultiMapCoordBorders(hDC, cells, ExtConfigs::CursorSelectionBound_Color);
+            if (ExtConfigs::DirectXRendering)
+            {
+                DirectXDrawMultiMapCoordBorders(cells, ExtConfigs::CursorSelectionBound_Color);
+            }
+            else
+            {
+                CIsoViewExt::DrawMultiMapCoordBorders(hDC, cells, ExtConfigs::CursorSelectionBound_Color);
+            }
         }
     }
 
@@ -216,7 +225,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
 
         if (ExtConfigs::DirectXRendering)
         {
-            CIsoViewExt::DrawLineDirectX(x1, y1 + 1, x2, y2 + 1, RGB(128, 128, 128));
+            CIsoViewExt::DrawLineDirectX(x1, y1 + 1, x2, y2 + 1, RGB(128, 128, 128), 2);
         }
         else
         {
@@ -2419,10 +2428,12 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
         // 0-9: trigger editors
         if (CIsoView::CurrentCommand->Type >= 0
             && CIsoView::CurrentCommand->Type <= 9
-            && CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger)
+            && CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger
+            || CIsoView::CurrentCommand->Type == 10 && !CNewTag::CurrentTagID.IsEmpty())
         {
             FString line1;
-            FString newTag = CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger->Tag;
+            FString newTag = CIsoView::CurrentCommand->Type == 10 ? CNewTag::CurrentTagID :
+            CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger->Tag;
             FString currentTag;
             bool hasObject = false;
             if (newTag != "" && newTag != "<none>")

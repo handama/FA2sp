@@ -2094,19 +2094,27 @@ DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp, 6)
 	
 				if (CViewObjectsExt::NeedChangeTreeViewSelect)
 				{
-					auto hWnd = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->m_hWnd;
-					HTREEITEM hSelectedItem = TreeView_GetSelection(hWnd);
-					HTREEITEM hParent = TreeView_GetParent(hWnd, hSelectedItem);
-					HTREEITEM hPrevSibling = TreeView_GetPrevSibling(hWnd, hSelectedItem);
-					if (hParent != NULL)
-						TreeView_SelectItem(hWnd, hParent);
-					else if (hPrevSibling != NULL) {
-						TreeView_SelectItem(hWnd, hPrevSibling);
-					}
-					else {
-						HTREEITEM hRoot = TreeView_GetRoot(hWnd);
-						if (hRoot != NULL)
-							TreeView_SelectItem(hWnd, hRoot);
+					// fix wall & view property case
+					for (int i = 0; i < 3; ++i)
+					{
+						auto hWnd = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->m_hWnd;
+						HTREEITEM hSelectedItem = TreeView_GetSelection(hWnd);
+						HTREEITEM hParent = TreeView_GetParent(hWnd, hSelectedItem);
+						HTREEITEM hPrevSibling = TreeView_GetPrevSibling(hWnd, hSelectedItem);
+						if (hParent != NULL)
+							TreeView_SelectItem(hWnd, hParent);
+						else if (hPrevSibling != NULL) {
+							TreeView_SelectItem(hWnd, hPrevSibling);
+						}
+						else {
+							HTREEITEM hRoot = TreeView_GetRoot(hWnd);
+							if (hRoot != NULL)
+								TreeView_SelectItem(hWnd, hRoot);
+						}
+						if (CIsoView::CurrentCommand->Command == 0x0)
+						{
+							break;
+						}
 					}
 				}
 				CViewObjectsExt::NeedChangeTreeViewSelect = false;

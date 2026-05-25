@@ -126,8 +126,13 @@ enum MeasurementTypes : int
     PlaceSymmetricPoint,
     SetCentralSymmetryCenter,
     PlaceCentralSymmetricPoint,
+    PlaceCircleCenter,
     PlaceCircle,
     LineSegment,
+    //ArrowSegment,
+    PlaceCircle_Annotation,
+    LineSegment_Annotation,
+    ArrowSegment_Annotation,
 };
 
 struct TwoPointStruct
@@ -135,6 +140,7 @@ struct TwoPointStruct
     MapCoord Point1;
     MapCoord Point2;
     bool drawText;
+    bool hasArrow;
 };
 
 class NOVTABLE CIsoViewExt : public CIsoView
@@ -261,6 +267,7 @@ public:
     static void DrawCreditOnMap(HDC hDC, bool bScreenSpace = true);
     static void DrawDistanceRuler(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void DrawOtherMeasurementTools(HDC hDC, const RECT& rect, bool bScreenSpace = true);
+    static void DrawGeometricAnnotations(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void DrawScriptPaths(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void MoveToMapCoord(int X, int Y);
     static void Zoom(double offset);
@@ -381,11 +388,15 @@ public:
     static bool EnableLiveDistanceRuler;
     static bool EnableOtherMeasurementTools;
     static std::vector<TwoPointStruct> TwoPointDistance;
+    static std::vector<TwoPointStruct> TwoPointDistance_Annotation;
     static MapCoord AxialSymmetryLine[2];
+    static MapCoord TempCircle[2];
+    static MapCoord TempCircle_Annotation[2];
     static MapCoord CentralSymmetryCenter;
     static std::vector<std::pair<MapCoord, MapCoord>> AxialSymmetricPoints;
     static std::vector<std::pair<MapCoord, MapCoord>> CentralSymmetricPoints;
     static std::vector<std::pair<MapCoord, float>> Circles;
+    static std::vector<std::pair<MapCoord, float>> Circles_Annotation;
     static float CircleRadius;
     static bool DrawScriptPath;
     static std::vector<MapCoord> ScriptPath;

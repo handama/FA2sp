@@ -80,11 +80,15 @@ bool CIsoViewExt::IsPressingTube = false;
 bool CIsoViewExt::EnableLiveDistanceRuler = false;
 bool CIsoViewExt::EnableOtherMeasurementTools = false;
 std::vector<TwoPointStruct> CIsoViewExt::TwoPointDistance{};
+std::vector<TwoPointStruct> CIsoViewExt::TwoPointDistance_Annotation{};
 MapCoord CIsoViewExt::AxialSymmetryLine[2]{};
+MapCoord CIsoViewExt::TempCircle[2]{};
+MapCoord CIsoViewExt::TempCircle_Annotation[2]{};
 MapCoord CIsoViewExt::CentralSymmetryCenter{};
 std::vector<std::pair<MapCoord, MapCoord>> CIsoViewExt::AxialSymmetricPoints;
 std::vector<std::pair<MapCoord, MapCoord>> CIsoViewExt::CentralSymmetricPoints;
 std::vector<std::pair<MapCoord, float>> CIsoViewExt::Circles;
+std::vector<std::pair<MapCoord, float>> CIsoViewExt::Circles_Annotation;
 float CIsoViewExt::CircleRadius;
 bool CIsoViewExt::DrawScriptPath = false;
 bool CIsoViewExt::ReInitializingDDraw = false;
@@ -3327,6 +3331,33 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC, const RECT& rect, bool bScr
             pIsoView->DrawEllipsePaint(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, hDC, rect, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
         }
     }
+    if (CIsoView::CurrentCommand->Type == MeasurementTypes::PlaceCircle
+    && CIsoViewExt::TempCircle[0] != MapCoord{ 0, 0 } && CIsoViewExt::TempCircle[1] == MapCoord{ 0, 0 })
+	{
+         
+        auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+        double circleRadius = sqrt((
+            CIsoViewExt::TempCircle[0].X - point.X)
+            * (CIsoViewExt::TempCircle[0].X - point.X)
+            + (CIsoViewExt::TempCircle[0].Y - point.Y)
+            * (CIsoViewExt::TempCircle[0].Y - point.Y));
+
+        int drawX = CIsoViewExt::TempCircle[0].X;
+        int drawY = CIsoViewExt::TempCircle[0].Y;
+        CIsoViewExt::MapCoord2ScreenCoord(drawX, drawY);
+        float rad = circleRadius * cellLength;
+        if (ExtConfigs::DirectXRendering)
+        {
+            pIsoView->DrawDashLineDirectX(drawX, drawY, drawX + rad / CIsoViewExt::ScaledFactor, drawY, reversedColor, 1);
+            pIsoView->DrawEllipseDirectX(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
+        }
+        else
+        {
+            CIsoViewExt::DrawDashLineHDC(hDC, drawX, drawY, drawX + rad / CIsoViewExt::ScaledFactor, drawY, reversedColor, rect, 1);
+            pIsoView->DrawEllipsePaint(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, hDC, rect, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
+        }
+	}
+
     if (AxialSymmetryLine[0] != MapCoord{ 0,0 })
     {
         int j = 0;
@@ -3438,6 +3469,116 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC, const RECT& rect, bool bScr
     }
 }
 
+void CIsoViewExt::DrawGeometricAnnotations(HDC hDC, const RECT& rect, bool bScreenSpace)
+{
+    auto pIsoView = CIsoViewExt::GetExtension();
+    auto reversedColor = RGB(
+        255 - GetRValue(ExtConfigs::DistanceRuler_Color),
+        255 - GetGValue(ExtConfigs::DistanceRuler_Color),
+        255 - GetBValue(ExtConfigs::DistanceRuler_Color)
+    );
+    for (auto& twoPoints : TwoPointDistance_Annotation)
+    {
+        if (twoPoints.Point1 != MapCoord{ 0,0 })
+        {
+            int j = 0;
+            int x1 = twoPoints.Point1.X;
+            int y1 = twoPoints.Point1.Y;
+            FString buffer;
+            CIsoViewExt::MapCoord2ScreenCoord(x1, y1);
+            int drawX = x1 - CIsoViewExt::drawOffsetX + 30;
+            int drawY = y1 - CIsoViewExt::drawOffsetY - 15;
+
+            auto coord2 = twoPoints.Point2;
+            if (twoPoints.Point2 == MapCoord{ 0,0 })
+            {
+                auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+                coord2 = point;
+
+                if (!CMapData::Instance->IsCoordInMap(coord2.X, coord2.Y))
+                    continue;
+            }
+
+            j = 0;
+            int x2 = coord2.X;
+            int y2 = coord2.Y;
+            CIsoViewExt::MapCoord2ScreenCoord(x2, y2);
+            drawX = x2 - CIsoViewExt::drawOffsetX + 30;
+            drawY = y2 - CIsoViewExt::drawOffsetY - 15;
+            double distance = sqrt((
+                twoPoints.Point1.X - coord2.X)
+                * (twoPoints.Point1.X - coord2.X)
+                + (twoPoints.Point1.Y - coord2.Y)
+                * (twoPoints.Point1.Y - coord2.Y));
+            if (ExtConfigs::DirectXRendering)
+            {
+                if (twoPoints.hasArrow)
+                {
+                    CIsoViewExt::DrawArrowDirectX(x1, y1, x2, y2, ExtConfigs::DistanceRuler_Color, 2);
+                }
+                else
+                {
+                    CIsoViewExt::DrawLineDirectX(x1, y1, x2, y2, ExtConfigs::DistanceRuler_Color, 2);
+                }
+            }
+            else 
+            {                 
+                if (twoPoints.hasArrow)
+                {
+                    CIsoViewExt::DrawArrowHDC(hDC, x1, y1, x2, y2, ExtConfigs::DistanceRuler_Color, rect, 2);
+                }
+                else
+                {
+                    CIsoViewExt::DrawLineHDC(hDC, x1, y1, x2, y2, ExtConfigs::DistanceRuler_Color, rect, 2);
+                }
+            }
+        }
+    }
+    for (auto& [mc, radius] : CIsoViewExt::Circles_Annotation)
+    {
+        int drawX = mc.X;
+        int drawY = mc.Y;
+        CIsoViewExt::MapCoord2ScreenCoord(drawX, drawY);
+        float rad = radius * cellLength;
+        if (ExtConfigs::DirectXRendering)
+        {
+            pIsoView->DrawDashLineDirectX(drawX, drawY, drawX + rad / CIsoViewExt::ScaledFactor, drawY, reversedColor, 1);
+            pIsoView->DrawEllipseDirectX(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
+        }
+        else
+        {
+            CIsoViewExt::DrawDashLineHDC(hDC, drawX, drawY, drawX + rad / CIsoViewExt::ScaledFactor, drawY, reversedColor, rect, 1);
+            pIsoView->DrawEllipsePaint(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, hDC, rect, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
+        }
+    }
+    if (CIsoView::CurrentCommand->Type == MeasurementTypes::PlaceCircle_Annotation
+    && CIsoViewExt::TempCircle_Annotation[0] != MapCoord{ 0, 0 } && CIsoViewExt::TempCircle_Annotation[1] == MapCoord{ 0, 0 })
+	{
+         
+        auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+        double circleRadius = sqrt((
+            CIsoViewExt::TempCircle_Annotation[0].X - point.X)
+            * (CIsoViewExt::TempCircle_Annotation[0].X - point.X)
+            + (CIsoViewExt::TempCircle_Annotation[0].Y - point.Y)
+            * (CIsoViewExt::TempCircle_Annotation[0].Y - point.Y));
+
+        int drawX = CIsoViewExt::TempCircle_Annotation[0].X;
+        int drawY = CIsoViewExt::TempCircle_Annotation[0].Y;
+        CIsoViewExt::MapCoord2ScreenCoord(drawX, drawY);
+        float rad = circleRadius * cellLength;
+        if (ExtConfigs::DirectXRendering)
+        {
+            pIsoView->DrawDashLineDirectX(drawX, drawY, drawX + rad / CIsoViewExt::ScaledFactor, drawY, reversedColor, 1);
+            pIsoView->DrawEllipseDirectX(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
+        }
+        else
+        {
+            CIsoViewExt::DrawDashLineHDC(hDC, drawX, drawY, drawX + rad / CIsoViewExt::ScaledFactor, drawY, reversedColor, rect, 1);
+            pIsoView->DrawEllipsePaint(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, hDC, rect, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
+        }
+	}
+}
+
 CRect CIsoViewExt::GetVisibleIsoViewRect()
 {
     auto pThis = CIsoView::GetInstance(); 
@@ -3505,6 +3646,10 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         {
             DrawOtherMeasurementTools(hDC, rect, false);
         }
+        if (DrawAnnotations)
+        {
+            DrawGeometricAnnotations(hDC, rect, false);
+        }
         if (DrawScriptPath)
         {
             DrawScriptPaths(hDC, rect, false);
@@ -3543,6 +3688,10 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         if (EnableOtherMeasurementTools)
         {
             DrawOtherMeasurementTools(hDC, rect, true);
+        }
+        if (DrawAnnotations)
+        {
+            DrawGeometricAnnotations(hDC, rect, true);
         }
         if (DrawScriptPath)
         {
@@ -3584,6 +3733,10 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         {
             DrawOtherMeasurementTools(hDC, rect, true);
         }
+        if (DrawAnnotations)
+        {
+            DrawGeometricAnnotations(hDC, rect, true);
+        }
         if (DrawScriptPath)
         {
             DrawScriptPaths(hDC, rect, true);
@@ -3622,6 +3775,8 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
                 DrawDistanceRuler(hDC, rect, true);
             if (EnableOtherMeasurementTools)
                 DrawOtherMeasurementTools(hDC, rect, true);
+            if (DrawAnnotations)
+                DrawGeometricAnnotations(hDC, rect, true);
             if (DrawScriptPath)
                 DrawScriptPaths(hDC, rect, true);
 
@@ -3657,6 +3812,8 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
                 DrawDistanceRuler(hDC, rect, true);
             if (EnableOtherMeasurementTools)
                 DrawOtherMeasurementTools(hDC, rect, true);
+            if (DrawAnnotations)
+                DrawGeometricAnnotations(hDC, rect, true);
             if (DrawScriptPath)
                 DrawScriptPaths(hDC, rect, true);
 
@@ -3696,6 +3853,10 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
         {
             DrawOtherMeasurementTools(hDC, rect, true);
         }
+        if (DrawAnnotations)
+        {
+            DrawGeometricAnnotations(hDC, rect, true);
+        }
         if (DrawScriptPath)
         {
             DrawScriptPaths(hDC, rect, true);
@@ -3715,6 +3876,10 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
         if (EnableOtherMeasurementTools)
         {
             DrawOtherMeasurementTools(hDC, rect, true);
+        }
+        if (DrawAnnotations)
+        {
+            DrawGeometricAnnotations(hDC, rect, true);
         }
         if (DrawScriptPath)
         {
@@ -3740,6 +3905,10 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
         {
             DrawOtherMeasurementTools(hDC, rect, true);
         }
+        if (DrawAnnotations)
+        {
+            DrawGeometricAnnotations(hDC, rect, true);
+        }
         if (DrawScriptPath)
         {
             DrawScriptPaths(hDC, rect, true);
@@ -3762,6 +3931,8 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
                 DrawDistanceRuler(hDC, rect, true);
             if (EnableOtherMeasurementTools)
                 DrawOtherMeasurementTools(hDC, rect, true);
+            if (DrawAnnotations)
+                DrawGeometricAnnotations(hDC, rect, true);
             if (DrawScriptPath)
                 DrawScriptPaths(hDC, rect, true);
         }
@@ -3783,6 +3954,8 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
                 DrawDistanceRuler(hDC, rect, true);
             if (EnableOtherMeasurementTools)
                 DrawOtherMeasurementTools(hDC, rect, true);
+            if (DrawAnnotations)
+                DrawGeometricAnnotations(hDC, rect, true);
             if (DrawScriptPath)
                 DrawScriptPaths(hDC, rect, true);
 
@@ -4506,7 +4679,7 @@ void CIsoViewExt::DrawArrowDirectX(int x1, int y1, int x2, int y2, int color, in
         double ux = dx / len;
         double uy = dy / len;
 
-        double arrowLen = 10.0 / CIsoViewExt::ScaledFactor;
+        double arrowLen = 14.0 / CIsoViewExt::ScaledFactor;
         double arrowWidth = 5.0 / CIsoViewExt::ScaledFactor;
 
         double px = -uy;

@@ -2610,6 +2610,9 @@ void CViewObjectsExt::Redraw_Annotation()
     HTREEITEM& hAnnotation = ExtNodes[Root_Annotation];
     if (hAnnotation == NULL)    return;
     this->InsertTranslatedString("AnnotationObListAddChange", Const_Annotation + AnnotationsAdd, hAnnotation);
+    this->InsertTranslatedString("AnnotationObListAddLineSegment", Const_Annotation +  MeasurementTypes::LineSegment_Annotation, hAnnotation);
+    this->InsertTranslatedString("AnnotationObListAddArrow", Const_Annotation +  MeasurementTypes::ArrowSegment_Annotation, hAnnotation);
+    this->InsertTranslatedString("AnnotationObListAddCircle", Const_Annotation +  MeasurementTypes::PlaceCircle_Annotation, hAnnotation);
     this->InsertTranslatedString("AnnotationObListDelete", Const_Annotation + AnnotationsRemove, hAnnotation);
 }
 
@@ -2943,6 +2946,7 @@ void CViewObjectsExt::AddAnnotation(int X, int Y)
 
 void CViewObjectsExt::RemoveAnnotation(int X, int Y)
 {
+    bool shouldRedraw = false;
     FString key;
     key.Format("%d", X * 1000 + Y);
 
@@ -2952,6 +2956,71 @@ void CViewObjectsExt::RemoveAnnotation(int X, int Y)
     {
         CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Annotation);
         CINI::CurrentDocument->DeleteKey("Annotations", key);
+        shouldRedraw = true;
+    }
+    bool madeGeometricBackup = false;
+    for (size_t i = CIsoViewExt::TwoPointDistance_Annotation.size(); i > 0; --i)
+    {
+        auto& lines = CIsoViewExt::TwoPointDistance_Annotation[i - 1];
+    
+        if ((lines.Point1.X == X && lines.Point1.Y == Y) ||
+            (lines.Point2.X == X && lines.Point2.Y == Y))
+        {
+            if (!madeGeometricBackup)
+            {
+                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::GeometricAnnotation);
+                madeGeometricBackup = true;
+                shouldRedraw = true;
+            }
+    
+            CIsoViewExt::TwoPointDistance_Annotation.erase(
+                CIsoViewExt::TwoPointDistance_Annotation.begin() + (i - 1)
+            );
+        }
+    }
+    
+    for (size_t i = CIsoViewExt::Circles_Annotation.size(); i > 0; --i)
+    {
+        auto& [center, radius] = CIsoViewExt::Circles_Annotation[i - 1];
+    
+        if (center.X == X && center.Y == Y)
+        {
+            if (!madeGeometricBackup)
+            {
+                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::GeometricAnnotation);
+                madeGeometricBackup = true;
+                shouldRedraw = true;
+            }
+    
+            CIsoViewExt::Circles_Annotation.erase(
+                CIsoViewExt::Circles_Annotation.begin() + (i - 1)
+            );
+        }
+    }
+
+    if (auto pSection = CINI::CurrentDocument->GetSection("GeometricAnnotations"))
+    {
+        std::vector<FString> keysToDelete;
+        for (auto& [key, value] : pSection->GetEntities())
+        {
+            auto atoms = STDHelpers::SplitString(value, 4);
+            int x = atoi(atoms[1]);
+            int y = atoi(atoms[2]);
+            int x2 = atoi(atoms[3]);
+            int y2 = atoi(atoms[4]);
+            if ((x == X && y == Y || x2 == X && y2 == Y) && atoms[0][0] != 'C')
+            {
+                keysToDelete.push_back(key);
+            }
+        }
+
+        for (const auto& key : keysToDelete)
+        {
+            CINI::CurrentDocument->DeleteKey("GeometricAnnotations", key);
+        }
+    }
+    if (shouldRedraw)
+    {
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
     }
 
@@ -4933,8 +5002,17 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     }
     if (nCode == 15) // Annotation
     {
-        CIsoView::CurrentCommand->Command = 0x21; // Annotation
-        CIsoView::CurrentCommand->Type = nData;
+        if (nData <= AnnotationsRemove)
+        {
+            CIsoView::CurrentCommand->Command = 0x21; // Annotation
+            CIsoView::CurrentCommand->Type = nData;
+        }
+        else
+        {
+            CIsoView::CurrentCommand->Command = 0x26; // Measurement Toolbox
+            CIsoView::CurrentCommand->Type = nData;
+        }
+
         return true;
     }
  

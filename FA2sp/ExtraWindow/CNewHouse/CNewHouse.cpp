@@ -818,9 +818,10 @@ BOOL CALLBACK CNewHouse::AllieEditorDlgProc(HWND hwnd, UINT Msg, WPARAM wParam, 
 		for (int i = 0; i < vcbSelectedHouse.GetCount(); ++i)
 		{
             auto house = vcbSelectedHouse.GetItemText(i);
+            auto rawHose = Translations::ParseHouseName(house, false);
 			if (SelectedHouseName == house)
 				continue;
-			if (allies.find(house) != allies.end())
+			if (allies.find(rawHose) != allies.end())
 				SendMessage(hLBAllies, LB_ADDSTRING, NULL, (LPARAM)house);
 			else
 				SendMessage(hLBEnemies, LB_ADDSTRING, NULL, (LPARAM)house);
@@ -865,15 +866,15 @@ BOOL CALLBACK CNewHouse::AllieEditorDlgProc(HWND hwnd, UINT Msg, WPARAM wParam, 
 					if (TextLen == LB_ERR)	break;
 					TCHAR* str = new TCHAR[TextLen + 1];
 					SendMessage(LBA, LB_GETTEXT, i, (LPARAM)str);
-					buffer.Format("%s,", str);
+					buffer = Translations::ParseHouseName(str, false);
 					delete[] str;
-					allies += buffer;
+					allies += buffer + ",";
 				}
 				int TextLen = SendMessage(LBA, LB_GETTEXTLEN, cnt - 1, NULL);
 				if (TextLen == LB_ERR)	break;
 				TCHAR* str = new TCHAR[TextLen + 1];
 				SendMessage(LBA, LB_GETTEXT, cnt - 1, (LPARAM)str);
-				buffer.Format("%s", str);
+				buffer = Translations::ParseHouseName(str, false);
 				delete[] str;
 				allies += buffer;
 

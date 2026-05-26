@@ -227,7 +227,8 @@ void CNewTrigger::Initialize(HWND& hWnd)
     Translate(2005, "TriggerActionSplit");
      
     vcbSelectedTrigger.Attach(hSelectedTrigger, &ExtConfigs::SortByLabelName_Trigger, false);
-    vcbAttachedTrigger.Attach(hAttachedtrigger);
+    vcbAttachedTrigger.Attach(hAttachedtrigger, &ExtConfigs::SortByLabelName_Trigger);
+    vcbAttachedTrigger.SetSpecialKeysFirst();
 
     vcbHouse.Attach(hHouse);
     vcbActionType.Attach(hActiontype);
@@ -1605,12 +1606,14 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 CurrentTrigger->Save();
 
                 auto newName = ExtraWindow::FormatTriggerDisplayName(CurrentTrigger->ID, CurrentTrigger->Name);
-
+                auto IDStart = CurrentTrigger->ID + " ";
                 if (CurrentTriggerActionParam > -1)
                 {
                     auto& actionParam = vcbActionParameter[CurrentTriggerActionParam];
                     FString actionID = actionParam.GetEditText();
                     FString::TrimIndex(actionID);
+                    int index = actionParam.FindStringExactStart(IDStart);
+                    actionParam.ReplaceString(index, newName);
                     if (actionID == CurrentTrigger->ID)
                     {
                         actionParam.SetEditText(newName);
@@ -1629,11 +1632,13 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                         if (!pThis->CurrentTrigger)
                             continue;
 
-                        pThis->vcbSelectedTrigger.ReplaceString(SelectedTriggerIndex, newName);
+                        int index = pThis->vcbSelectedTrigger.FindStringExactStart(IDStart);
+                        pThis->vcbSelectedTrigger.ReplaceString(index, newName);
                         if (pThis->CurrentTrigger->ID == CurrentTrigger->ID)
                             pThis->vcbSelectedTrigger.SetEditText(newName);
-
-                        pThis->vcbAttachedTrigger.ReplaceString(SelectedTriggerIndex + 1, newName);
+                            
+                        index = pThis->vcbAttachedTrigger.FindStringExactStart(IDStart);
+                        pThis->vcbAttachedTrigger.ReplaceString(index, newName);
                         FString attachedID = pThis->vcbAttachedTrigger.GetEditText();
                         FString::TrimIndex(attachedID);
                         if (attachedID == CurrentTrigger->ID)
@@ -2434,6 +2439,12 @@ void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionLi
 
     FString pID = vcbSelectedTrigger.GetItemText(SelectedTriggerIndex);  
     FString::TrimIndex(pID);
+
+    if (CurrentTriggerID == pID)
+    {
+        eventListCur = SelectedEventIndex;
+        actionListCur = SelectedActionIndex;
+    }
 
     CurrentTriggerID = pID;
 

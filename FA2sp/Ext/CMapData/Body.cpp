@@ -2375,6 +2375,43 @@ void CMapDataExt::UpdateAnnotation()
 	}
 }
 
+void CMapDataExt::UpdateGeometricAnnotation()
+{
+	CIsoViewExt::TwoPointDistance_Annotation.clear();
+	CIsoViewExt::Circles_Annotation.clear();
+	CIsoViewExt::TempCircle_Annotation[0] = { 0, 0 };
+	CIsoViewExt::TempCircle_Annotation[1] = { 0, 0 };
+	if (auto pSection = CINI::CurrentDocument->GetSection("GeometricAnnotations"))
+	{
+		for (const auto& [key, value] : pSection->GetEntities())
+		{
+			auto atoms = STDHelpers::SplitString(value, 4);
+			auto& type = atoms[0];
+			MapCoord point1{ atoi(atoms[1]), atoi(atoms[2]) };
+			MapCoord point2{ atoi(atoms[3]), atoi(atoms[4]) };
+
+			if (type == "LineSegment")
+			{
+				CIsoViewExt::TwoPointDistance_Annotation.push_back(TwoPointStruct(point1, point2, false, false));
+			}
+			if (type == "ArrowSegment")
+			{
+				CIsoViewExt::TwoPointDistance_Annotation.push_back(TwoPointStruct(point1, point2, false, true));
+			}
+			else if (type == "Circle")
+			{
+				double circleRadius = sqrt((
+					point1.X - point2.X)
+					* (point1.X - point2.X)
+					+ (point1.Y - point2.Y)
+					* (point1.Y - point2.Y));
+
+				CIsoViewExt::Circles_Annotation.push_back(std::make_pair(point1, circleRadius));
+			}
+		}
+	}
+}
+
 void CMapDataExt::SetNewOverlayAt(int x, int y, WORD ovr, bool smoothOre)
 {
 	if (ovr >= 0xFF && !ExtConfigs::ExtOverlays && NewINIFormat < 5)
@@ -2768,6 +2805,11 @@ void ObjectRecord::record(int recordType)
 		recordedFlages |= RecordType::Annotation;
 		recordIniMap("Annotations", AnnotationList);
 	}
+	if (recordType & RecordType::GeometricAnnotation)
+	{
+		recordedFlages |= RecordType::GeometricAnnotation;
+		recordIniMap("GeometricAnnotations", GeometricAnnotationList);
+	}
 	if (recordType & RecordType::Measurements)
 	{
 		recordedFlages |= RecordType::Measurements;
@@ -2897,6 +2939,11 @@ void ObjectRecord::appendRecord(int recordType)
 	{
 		recordedFlages |= RecordType::Annotation;
 		recordIniMap("Annotations", AnnotationList);
+	}
+	if (recordType & RecordType::GeometricAnnotation && !(recordedFlages & RecordType::GeometricAnnotation))
+	{
+		recordedFlages |= RecordType::GeometricAnnotation;
+		recordIniMap("GeometricAnnotations", GeometricAnnotationList);
 	}
 	if (recordType & RecordType::Measurements && !(recordedFlages & RecordType::Measurements))
 	{
@@ -3064,6 +3111,11 @@ void ObjectRecord::recover()
 	{
 		recoverIniMap("Annotations", AnnotationList);
 		CMapDataExt::UpdateAnnotation();
+	}
+	if (recordFlags & RecordType::GeometricAnnotation)
+	{
+		recoverIniMap("GeometricAnnotations", GeometricAnnotationList);
+		CMapDataExt::UpdateGeometricAnnotation();
 	}
 	if ((recordFlags & RecordType::Measurements) && MeasurementRecords)
 	{
@@ -4826,6 +4878,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		}
 	}
 	UpdateAnnotation();
+	UpdateGeometricAnnotation();
 	CIsoViewExt::LiveDistanceRuler.clear();
 
 	CustomWaypointColors.clear();

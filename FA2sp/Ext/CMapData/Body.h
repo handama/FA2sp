@@ -548,6 +548,7 @@ public:
         Celltag = 0x00000200,
         Annotation = 0x00000400,
         Measurements = 0x00000800,
+        GeometricAnnotation = 0x00001000,
     };
     int recordFlags = 0;
     int recordedFlages = 0;
@@ -562,6 +563,7 @@ public:
     FMap<FString> WaypointList;
     FMap<FString> CelltagList;
     FMap<FString> AnnotationList;
+    FMap<FString> GeometricAnnotationList;
     std::vector<EditedMarks> DrawEditedMarkList;
     std::unique_ptr<MeasurementRecord> MeasurementRecords;
 
@@ -765,6 +767,7 @@ public:
         return CMapDataExt::CellDataExts[pos].HasAnnotation;
     }
     static void UpdateAnnotation();
+    static void UpdateGeometricAnnotation();
     inline static bool IsCoordInFullMap(int X, int Y)
         {
             return X >= 0 && Y >= 0 &&

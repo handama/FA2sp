@@ -857,26 +857,35 @@ BOOL CALLBACK CNewHouse::AllieEditorDlgProc(HWND hwnd, UINT Msg, WPARAM wParam, 
 			{
 			case IDOK: {
 				FString allies = "";
-				FString buffer = "";
 				HWND LBA = GetDlgItem(hwnd, 6302);//Allies ListBox
 				int cnt = SendMessage(LBA, LB_GETCOUNT, NULL, NULL);
-				for (int i = 0; i < cnt - 1; ++i)
+				if (cnt > 0)
 				{
-					int TextLen = SendMessage(LBA, LB_GETTEXTLEN, i, NULL);
-					if (TextLen == LB_ERR)	break;
-					TCHAR* str = new TCHAR[TextLen + 1];
-					SendMessage(LBA, LB_GETTEXT, i, (LPARAM)str);
-					buffer = Translations::ParseHouseName(str, false);
-					delete[] str;
-					allies += buffer + ",";
+					FString buffer = "";
+					for (int i = 0; i < cnt - 1; ++i)
+					{
+						int TextLen = SendMessage(LBA, LB_GETTEXTLEN, i, NULL);
+						if (TextLen == LB_ERR)	break;
+						TCHAR* str = new TCHAR[TextLen + 1];
+						SendMessage(LBA, LB_GETTEXT, i, (LPARAM)str);
+						buffer = Translations::ParseHouseName(str, false);
+						delete[] str;
+						allies += buffer + ",";
+					}
+					int TextLen = SendMessage(LBA, LB_GETTEXTLEN, cnt - 1, NULL);
+					if (TextLen != LB_ERR)
+					{
+						TCHAR* str = new TCHAR[TextLen + 1];
+						SendMessage(LBA, LB_GETTEXT, cnt - 1, (LPARAM)str);
+						buffer = Translations::ParseHouseName(str, false);
+						delete[] str;
+						allies += buffer;
+					}
 				}
-				int TextLen = SendMessage(LBA, LB_GETTEXTLEN, cnt - 1, NULL);
-				if (TextLen == LB_ERR)	break;
-				TCHAR* str = new TCHAR[TextLen + 1];
-				SendMessage(LBA, LB_GETTEXT, cnt - 1, (LPARAM)str);
-				buffer = Translations::ParseHouseName(str, false);
-				delete[] str;
-				allies += buffer;
+                else
+                {
+                    allies = SelectedHouseName;
+                }
 
 				SetWindowText(hAllies, allies);
 				OnEditchangeAllies();
@@ -887,36 +896,60 @@ BOOL CALLBACK CNewHouse::AllieEditorDlgProc(HWND hwnd, UINT Msg, WPARAM wParam, 
 				EndDialog(hwnd, NULL);
 				return TRUE;
 			}
-			case 6300: {//Go Allies
+			case 6300: {//Go Allies: move all selected from Enemies to Allies
 				HWND LBA = GetDlgItem(hwnd, 6302);//Allies ListBox
 				HWND LBB = GetDlgItem(hwnd, 6303);//Enemy ListBox
 				int EnemyCount = SendMessage(LBB, LB_GETCOUNT, NULL, NULL);
 				if (EnemyCount <= 0)	break;
-				int EnemyCurSelIndex = SendMessage(LBB, LB_GETCURSEL, NULL, NULL);
-				if (EnemyCurSelIndex < 0 || EnemyCurSelIndex >= EnemyCount)	break;
-				int TextLen = SendMessage(LBB, LB_GETTEXTLEN, EnemyCurSelIndex, NULL);
-				if (TextLen == LB_ERR)	break;
-				TCHAR* str = new TCHAR[TextLen + 1];
-				SendMessage(LBB, LB_GETTEXT, EnemyCurSelIndex, (LPARAM)str);
-				SendMessage(LBB, LB_DELETESTRING, EnemyCurSelIndex, NULL);
-				SendMessage(LBA, LB_ADDSTRING, NULL, (LPARAM)str);
-				delete[] str;
+				int nSel = SendMessage(LBB, LB_GETSELCOUNT, NULL, NULL);
+				if (nSel <= 0)	break;
+				std::vector<int> selItems(nSel);
+				SendMessage(LBB, LB_GETSELITEMS, nSel, (LPARAM)selItems.data());
+                std::sort(selItems.begin(), selItems.end());
+                std::vector<FString> strings;
+				for (int j = nSel - 1; j >= 0; --j)
+				{
+					int idx = selItems[j];
+					int TextLen = SendMessage(LBB, LB_GETTEXTLEN, idx, NULL);
+					if (TextLen == LB_ERR) continue;
+					TCHAR* str = new TCHAR[TextLen + 1];
+					SendMessage(LBB, LB_GETTEXT, idx, (LPARAM)str);
+					SendMessage(LBB, LB_DELETESTRING, idx, NULL);
+                    strings.push_back(str);
+					delete[] str;
+				}
+                for (int j = strings.size() - 1; j >= 0; --j)
+                {
+					SendMessage(LBA, LB_ADDSTRING, NULL, strings[j]);
+                }
 				break;
 			}
-			case 6301: {//Go Enemies
+			case 6301: {//Go Enemies: move all selected from Allies to Enemies
 				HWND LBA = GetDlgItem(hwnd, 6302);//Allies ListBox
 				HWND LBB = GetDlgItem(hwnd, 6303);//Enemy ListBox
 				int AllieCount = SendMessage(LBA, LB_GETCOUNT, NULL, NULL);
 				if (AllieCount <= 0)	break;
-				int AllieCurSelIndex = SendMessage(LBA, LB_GETCURSEL, NULL, NULL);
-				if (AllieCurSelIndex < 0 || AllieCurSelIndex >= AllieCount)	break;
-				int TextLen = SendMessage(LBA, LB_GETTEXTLEN, AllieCurSelIndex, NULL);
-				if (TextLen == LB_ERR)	break;
-				TCHAR* str = new TCHAR[TextLen + 1];
-				SendMessage(LBA, LB_GETTEXT, AllieCurSelIndex, (LPARAM)str);
-				SendMessage(LBA, LB_DELETESTRING, AllieCurSelIndex, NULL);
-				SendMessage(LBB, LB_ADDSTRING, NULL, (LPARAM)str);
-				delete[] str;
+				int nSel = SendMessage(LBA, LB_GETSELCOUNT, NULL, NULL);
+				if (nSel <= 0)	break;
+				std::vector<int> selItems(nSel);
+				SendMessage(LBA, LB_GETSELITEMS, nSel, (LPARAM)selItems.data());
+                std::sort(selItems.begin(), selItems.end());
+                std::vector<FString> strings;
+				for (int j = nSel - 1; j >= 0; --j)
+				{
+					int idx = selItems[j];
+					int TextLen = SendMessage(LBA, LB_GETTEXTLEN, idx, NULL);
+					if (TextLen == LB_ERR) continue;
+					TCHAR* str = new TCHAR[TextLen + 1];
+					SendMessage(LBA, LB_GETTEXT, idx, (LPARAM)str);
+					SendMessage(LBA, LB_DELETESTRING, idx, NULL);
+                    strings.push_back(str);
+					delete[] str;
+				}
+                for (int j = strings.size() - 1; j >= 0; --j)
+                {
+					SendMessage(LBB, LB_ADDSTRING, NULL, strings[j]);
+                }
 				break;
 			}
 			default:

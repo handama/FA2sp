@@ -694,10 +694,6 @@ static void DrawMap()
 		}
 	}
 
-	
-	static int frame = 0;
-	Logger::Raw("Frame %d started\n", frame);
-
 	DDBoundary boundary{ddsd.dwWidth, ddsd.dwHeight, ddsd.lPitch};
 
 	// clear static containers, init some game logics
@@ -3848,9 +3844,7 @@ static void DrawMap()
 					}
 				}
 			}
-		}
-		
-		Logger::Raw("Frame %d end!\n", frame++);
+		}		
 		return;
 	}
 

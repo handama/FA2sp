@@ -15,7 +15,6 @@ public:
 	static void ClearStatus();
 	static void OnRightButtonDown();
 	static CMeasurementToolbox* m_pMeasurementToolbox;
-
 protected:
 	enum Controls
 	{
@@ -31,6 +30,7 @@ protected:
 		ClearCentralSymmetricPoints = 1203,
 		SetRadius = 1301,
 		PlaceCircleCenter = 1302,
+		PlaceCircle= 1304,
 		ClearCircles = 1303,
 	};
 
@@ -52,6 +52,7 @@ protected:
 	void OnClickPlaceCentralSymmetricPoint();
 	void OnClickClearCentralSymmetricPoints();
 	void OnEditSetRadius();
+	void OnClickPlaceCircleCenter();
 	void OnClickPlaceCircle();
 	void OnClickClearCircles();
 	static MapCoord GetAxialSymmetricPoint(const MapCoord& p);

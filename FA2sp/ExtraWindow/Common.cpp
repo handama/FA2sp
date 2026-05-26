@@ -1876,6 +1876,11 @@ void VirtualComboBoxEx::SetAutoSearchRestriction(bool* restrict)
     m_allowFilter = restrict;
 }
 
+void VirtualComboBoxEx::SetSpecialKeysFirst()
+{
+    m_SpecialKeysFirst = true;
+}
+
 void VirtualComboBoxEx::SetWindowHeight(HWND hwnd, LPARAM lParam)
 {
     LPMEASUREITEMSTRUCT mis = (LPMEASUREITEMSTRUCT)lParam;
@@ -2100,15 +2105,17 @@ int VirtualComboBoxEx::ReplaceString(int index, const char* str, COLORREF textCo
     if (index < 0 || index >= (int)items.size())
         return -1;
 
+    auto& oldItem = items[index];
     VCBItemEntry e;
     e.text = str;
     e.textColor = textColor;
     e.backgroundColor = backgroundColor;
     e.leftSideBackground = leftSideBackground;
+    e.subtextSegments = oldItem.subtextSegments;
     if (m_sortByLabelKey)
         e.key = BuildKey(e.text);
 
-    items[index] = e;
+    oldItem = e;
 
     if (curSel == index)
     {
@@ -2521,16 +2528,38 @@ void VirtualComboBoxEx::SortItems(int* pSelIndex)
     if (m_sortType && *m_sortType)
     {
         std::sort(items.begin(), items.end(),
-            [](const VCBItemEntry& a, const VCBItemEntry& b)
+            [&](const VCBItemEntry& a, const VCBItemEntry& b)
         {
+            if (m_SpecialKeysFirst)
+            {
+                const bool aSpecial = !a.text.empty() && a.text[0] == '<';
+                const bool bSpecial = !b.text.empty() && b.text[0] == '<';
+        
+                if (aSpecial != bSpecial) [[unlikely]] 
+                {
+                    return aSpecial;
+                }
+            }
+            
             return CompareKey(a.key, b.key);
         });
     }
     else
     {
         std::sort(items.begin(), items.end(),
-            [](const VCBItemEntry& a, const VCBItemEntry& b)
+            [&](const VCBItemEntry& a, const VCBItemEntry& b)
         {
+            if (m_SpecialKeysFirst)
+            {
+                const bool aSpecial = !a.text.empty() && a.text[0] == '<';
+                const bool bSpecial = !b.text.empty() && b.text[0] == '<';
+        
+                if (aSpecial != bSpecial) [[unlikely]] 
+                {
+                    return aSpecial;
+                }
+            }
+
             return a.text < b.text;
         });
     }

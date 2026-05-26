@@ -64,6 +64,7 @@ BOOL CMeasurementToolbox::OnInitDialog()
 	translate(ClearCentralSymmetricPoints, "MeasurementToolbox.ClearCentralSymmetricPoints");
 	translate(SetRadius, "MeasurementToolbox.SetRadius");
 	translate(PlaceCircleCenter, "MeasurementToolbox.PlaceCircleCenter");
+	translate(PlaceCircle, "MeasurementToolbox.PlaceCircle");
 	translate(ClearCircles, "MeasurementToolbox.ClearCircles");
 
 	if (Translations::GetTranslationItem("MeasurementToolboxCaption", buffer))
@@ -112,6 +113,9 @@ BOOL CMeasurementToolbox::OnCommand(WPARAM wParam, LPARAM lParam)
 			OnClickClearCentralSymmetricPoints();
 			break;
 		case CMeasurementToolbox::PlaceCircleCenter:
+			OnClickPlaceCircleCenter();
+			break;
+		case CMeasurementToolbox::PlaceCircle:
 			OnClickPlaceCircle();
 			break;
 		case CMeasurementToolbox::ClearCircles:
@@ -228,6 +232,35 @@ void CMeasurementToolbox::SetMeasurementToolbox(int X, int Y)
 			CIsoViewExt::TwoPointDistance.back().Point2 = { X,Y };
 		}
 	}
+	else if (CIsoView::CurrentCommand->Type == MeasurementTypes::LineSegment_Annotation
+		|| CIsoView::CurrentCommand->Type == MeasurementTypes::ArrowSegment_Annotation)
+	{
+		if (CIsoViewExt::TwoPointDistance_Annotation.empty() || CIsoViewExt::TwoPointDistance_Annotation.back().Point2 != MapCoord{ 0, 0 })
+		{
+			CIsoViewExt::TwoPointDistance_Annotation.push_back({ MapCoord{ 0, 0 }, MapCoord{ 0, 0 }, false });
+		}
+		CIsoViewExt::TwoPointDistance_Annotation.back().hasArrow =
+		CIsoView::CurrentCommand->Type == MeasurementTypes::ArrowSegment_Annotation;
+		if (CIsoViewExt::TwoPointDistance_Annotation.back().Point1 == MapCoord{ 0, 0 })
+		{
+			CIsoViewExt::TwoPointDistance_Annotation.back().Point1 = { X,Y };
+		}
+		else if (CIsoViewExt::TwoPointDistance_Annotation.back().Point1 != MapCoord{ X,Y })
+		{
+			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
+			CIsoViewExt::TwoPointDistance_Annotation.back().Point2 = { X,Y };
+
+			FString value;
+			value.Format("%s,%d,%d,%d,%d",
+				 CIsoView::CurrentCommand->Type == MeasurementTypes::LineSegment_Annotation ? "LineSegment" : "ArrowSegment",
+				 CIsoViewExt::TwoPointDistance_Annotation.back().Point1.X, CIsoViewExt::TwoPointDistance_Annotation.back().Point1.Y,
+				  CIsoViewExt::TwoPointDistance_Annotation.back().Point2.X, CIsoViewExt::TwoPointDistance_Annotation.back().Point2.Y);
+			CINI::CurrentDocument->WriteString("GeometricAnnotations", 
+				CINI::GetAvailableKey("GeometricAnnotations"),
+				value
+			);
+		}
+	}
 	else if (CIsoView::CurrentCommand->Type == MeasurementTypes::SetSymmetryAxis)
 	{
 		if (CIsoViewExt::AxialSymmetryLine[1] != MapCoord{ 0, 0 })
@@ -278,12 +311,70 @@ void CMeasurementToolbox::SetMeasurementToolbox(int X, int Y)
 		}
 
 	}
-	else if (CIsoView::CurrentCommand->Type == MeasurementTypes::PlaceCircle)
+	else if (CIsoView::CurrentCommand->Type == MeasurementTypes::PlaceCircleCenter)
 	{
 		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
 		MapCoord mc1 = { X,Y };
 		CIsoViewExt::Circles.push_back(std::make_pair(mc1, CIsoViewExt::CircleRadius));
 		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+	}
+	else if (CIsoView::CurrentCommand->Type == MeasurementTypes::PlaceCircle)
+	{
+		if (CIsoViewExt::TempCircle[1] != MapCoord{ 0, 0 })
+		{
+			CIsoViewExt::TempCircle[0] = MapCoord{ 0, 0 };
+			CIsoViewExt::TempCircle[1] = MapCoord{ 0, 0 };
+		}
+		if (CIsoViewExt::TempCircle[0] == MapCoord{ 0, 0 })
+		{
+			CIsoViewExt::TempCircle[0] = { X,Y };
+		}
+		else if (CIsoViewExt::TempCircle[0] != MapCoord{ X,Y })
+		{
+			CIsoViewExt::TempCircle[1] = { X,Y };
+			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
+			double circleRadius = sqrt((
+                CIsoViewExt::TempCircle[0].X - CIsoViewExt::TempCircle[1].X)
+                * (CIsoViewExt::TempCircle[0].X - CIsoViewExt::TempCircle[1].X)
+                + (CIsoViewExt::TempCircle[0].Y - CIsoViewExt::TempCircle[1].Y)
+                * (CIsoViewExt::TempCircle[0].Y - CIsoViewExt::TempCircle[1].Y));
+
+			CIsoViewExt::Circles.push_back(std::make_pair(CIsoViewExt::TempCircle[0], circleRadius));
+		}
+	}
+	else if (CIsoView::CurrentCommand->Type == MeasurementTypes::PlaceCircle_Annotation)
+	{
+		if (CIsoViewExt::TempCircle_Annotation[1] != MapCoord{ 0, 0 })
+		{
+			CIsoViewExt::TempCircle_Annotation[0] = MapCoord{ 0, 0 };
+			CIsoViewExt::TempCircle_Annotation[1] = MapCoord{ 0, 0 };
+		}
+		if (CIsoViewExt::TempCircle_Annotation[0] == MapCoord{ 0, 0 })
+		{
+			CIsoViewExt::TempCircle_Annotation[0] = { X,Y };
+		}
+		else if (CIsoViewExt::TempCircle_Annotation[0] != MapCoord{ X,Y })
+		{
+			CIsoViewExt::TempCircle_Annotation[1] = { X,Y };
+			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
+			double circleRadius = sqrt((
+                CIsoViewExt::TempCircle_Annotation[0].X - CIsoViewExt::TempCircle_Annotation[1].X)
+                * (CIsoViewExt::TempCircle_Annotation[0].X - CIsoViewExt::TempCircle_Annotation[1].X)
+                + (CIsoViewExt::TempCircle_Annotation[0].Y - CIsoViewExt::TempCircle_Annotation[1].Y)
+                * (CIsoViewExt::TempCircle_Annotation[0].Y - CIsoViewExt::TempCircle_Annotation[1].Y));
+
+			CIsoViewExt::Circles_Annotation.push_back(std::make_pair(CIsoViewExt::TempCircle_Annotation[0], circleRadius));
+
+			FString value;
+			value.Format("%s,%d,%d,%d,%d",
+				 "Circle",
+				 CIsoViewExt::TempCircle_Annotation[0].X, CIsoViewExt::TempCircle_Annotation[0].Y,
+				  CIsoViewExt::TempCircle_Annotation[1].X, CIsoViewExt::TempCircle_Annotation[1].Y);
+			CINI::CurrentDocument->WriteString("GeometricAnnotations", 
+				CINI::GetAvailableKey("GeometricAnnotations"),
+				value
+			);
+		}
 	}
 }
 
@@ -367,6 +458,12 @@ void CMeasurementToolbox::OnEditSetRadius()
 	}
 }
 
+void CMeasurementToolbox::OnClickPlaceCircleCenter()
+{
+	CIsoView::CurrentCommand->Command = 0x26;
+	CIsoView::CurrentCommand->Type = MeasurementTypes::PlaceCircleCenter;
+}
+
 void CMeasurementToolbox::OnClickPlaceCircle()
 {
 	CIsoView::CurrentCommand->Command = 0x26;
@@ -409,6 +506,8 @@ void CMeasurementToolbox::ClearStatus()
 	CIsoViewExt::TwoPointDistance.clear();
 	CIsoViewExt::AxialSymmetryLine[0] = MapCoord{ 0,0 };
 	CIsoViewExt::AxialSymmetryLine[1] = MapCoord{ 0,0 };
+	CIsoViewExt::TempCircle[0] = MapCoord{ 0,0 };
+	CIsoViewExt::TempCircle[1] = MapCoord{ 0,0 };
 	CIsoViewExt::CentralSymmetryCenter = MapCoord{ 0,0 };
 	CIsoViewExt::AxialSymmetricPoints.clear();
 	CIsoViewExt::CentralSymmetricPoints.clear();
@@ -417,7 +516,8 @@ void CMeasurementToolbox::ClearStatus()
 
 void CMeasurementToolbox::OnRightButtonDown()
 {
-	if (CIsoView::CurrentCommand->Type == MeasurementTypes::TwoPointDistance)
+	if (CIsoView::CurrentCommand->Type == MeasurementTypes::TwoPointDistance
+		|| CIsoView::CurrentCommand->Type == MeasurementTypes::LineSegment)
 	{
 		if (!CIsoViewExt::TwoPointDistance.empty())
 		{
@@ -429,6 +529,19 @@ void CMeasurementToolbox::OnRightButtonDown()
 			}
 		}
 	}
+	if (CIsoView::CurrentCommand->Type == MeasurementTypes::LineSegment_Annotation
+		|| CIsoView::CurrentCommand->Type == MeasurementTypes::ArrowSegment_Annotation)
+	{
+		if (!CIsoViewExt::TwoPointDistance_Annotation.empty())
+		{
+			if (CIsoViewExt::TwoPointDistance_Annotation.back().Point1 != MapCoord{ 0,0 }
+				&& CIsoViewExt::TwoPointDistance_Annotation.back().Point2 == MapCoord{ 0,0 })
+			{
+				CIsoViewExt::TwoPointDistance_Annotation.back().Point1 = MapCoord{ 0,0 };
+				CIsoViewExt::TwoPointDistance_Annotation.back().Point2 = MapCoord{ 0,0 };
+			}
+		}
+	}
 	if (CIsoView::CurrentCommand->Type == MeasurementTypes::SetSymmetryAxis)
 	{
 		if (CIsoViewExt::AxialSymmetryLine[0] != MapCoord{ 0,0 }
@@ -436,6 +549,24 @@ void CMeasurementToolbox::OnRightButtonDown()
 		{
 			CIsoViewExt::AxialSymmetryLine[0] = MapCoord{ 0,0 };
 			CIsoViewExt::AxialSymmetryLine[1] = MapCoord{ 0,0 };
+		}
+	}
+	if (CIsoView::CurrentCommand->Type == MeasurementTypes::PlaceCircle)
+	{
+		if (CIsoViewExt::TempCircle[0] != MapCoord{ 0,0 }
+			&& CIsoViewExt::TempCircle[1] == MapCoord{ 0,0 })
+		{
+			CIsoViewExt::TempCircle[0] = MapCoord{ 0,0 };
+			CIsoViewExt::TempCircle[1] = MapCoord{ 0,0 };
+		}
+	}
+	if (CIsoView::CurrentCommand->Type == MeasurementTypes::PlaceCircle_Annotation)
+	{
+		if (CIsoViewExt::TempCircle_Annotation[0] != MapCoord{ 0,0 }
+			&& CIsoViewExt::TempCircle_Annotation[1] == MapCoord{ 0,0 })
+		{
+			CIsoViewExt::TempCircle_Annotation[0] = MapCoord{ 0,0 };
+			CIsoViewExt::TempCircle_Annotation[1] = MapCoord{ 0,0 };
 		}
 	}
 

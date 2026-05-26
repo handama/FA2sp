@@ -334,6 +334,34 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 	}
 	CMapDataExt::UpdateAnnotation();
 
+	if (auto pSection = CINI::CurrentDocument->GetSection("GeometricAnnotations"))
+	{
+		std::vector<FString> keysToDelete;
+		for (auto& [key, value] : pSection->GetEntities())
+		{			
+			auto atoms = STDHelpers::SplitString(value, 4);
+			auto& type = atoms[0];
+			MapCoord point1{ atoi(atoms[1]), atoi(atoms[2]) };
+			MapCoord point2{ atoi(atoms[3]), atoi(atoms[4]) };
+
+			point1.X += x_move;
+			point1.Y += y_move;
+			point2.X += x_move;
+			point2.Y += y_move;
+			if (!IsCoordInMap(point1.X, point1.Y) || !IsCoordInMap(point2.X, point2.Y))
+			{
+				keysToDelete.push_back(key);
+				continue;
+			}
+			value.Format("%s,%d,%d,%d,%d", type, point1.X, point1.Y, point2.X, point2.Y);
+		}
+		for (auto& key : keysToDelete)
+		{
+			CINI::CurrentDocument->DeleteKey(pSection, key);
+		}
+	}
+	CMapDataExt::UpdateGeometricAnnotation();
+
 	for (auto& twoPoints : CIsoViewExt::TwoPointDistance)
 	{
 		twoPoints.Point1.X += x_move;

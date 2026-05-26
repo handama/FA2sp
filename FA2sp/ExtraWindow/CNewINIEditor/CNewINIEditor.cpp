@@ -1041,6 +1041,9 @@ void CNewINIEditor::UpdateGameObject(const char* lpSectionName)
     else if (strcmp(lpSectionName, "Annotations") == 0) {
         CMapDataExt::UpdateAnnotation();
     }
+    else if (strcmp(lpSectionName, "GeometricAnnotations") == 0) {
+        CMapDataExt::UpdateGeometricAnnotation();
+    }
     else if (strcmp(lpSectionName, "Countries") == 0) {
         CMapDataExt::UpdateMapSectionIndicies("Countries");
     }
@@ -1063,6 +1066,7 @@ void CNewINIEditor::UpdateAllGameObject()
     CMapData::Instance->UpdateFieldCelltagData(false);
     CMapData::Instance->UpdateFieldBasenodeData(false);
     CMapDataExt::UpdateAnnotation();
+    CMapDataExt::UpdateGeometricAnnotation();
     CMapDataExt::UpdateMapSectionIndicies("Countries");
 
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
@@ -1076,7 +1080,7 @@ bool CNewINIEditor::IsGameObject(const char* lpSectionName)
     if (str == "Terrain" || str == "Waypoints" || str == "Smudge" ||
         str == "Structures" || str == "Units" || str == "CellTags" ||
         str == "Aircraft" || str == "Infantry" || str == "Annotations"
-        || str == "Countries")
+        || str == "Countries" || str == "GeometricAnnotations")
         return true;
 
     return false;

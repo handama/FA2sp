@@ -7,8 +7,10 @@
 
 #include "../Logger.h"
 #include "../FA2sp.h"
+#include "../Ext/CFinalSunApp/Body.h"
 #include "../Ext/CIsoView/Body.h"
 #include "../Ext/CIsoView/DirectXCore.h"
+#include "../Helpers/Translations.h"
 
 DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 {
@@ -26,6 +28,28 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 		if (!pIsoView->g_pDX->IsInitialized())
 		{
 			pIsoView->g_pDX->Initialize(pIsoView->GetSafeHwnd());		
+		}
+
+		if (!pIsoView->g_pDX->IsInitialized())
+		{
+			const FString title = Translations::TranslateOrDefault(
+				"Error", "Error"
+			);
+			const FString message = Translations::TranslateOrDefault(
+				"DirectXInitializationFailed", "Failed to initialize DirectX. Switching to DirectDraw rendering."
+			);
+			::MessageBox(CFinalSunDlg::Instance->GetSafeHwnd(), message, title, MB_ICONWARNING);
+
+			ExtConfigs::DirectXRendering = false;
+
+			CINI fa2;
+			FString path = CFinalSunAppExt::ExePathExt;
+			path += "\\FinalAlert.ini";
+			fa2.ClearAndLoad(path);
+			fa2.WriteString("Options", "DirectXRendering", "no");
+			fa2.WriteToFile(path);
+
+			pIsoView->g_pDX.reset();
 		}
 	}
 

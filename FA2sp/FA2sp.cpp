@@ -356,7 +356,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DisplayObjectsOutside = CINI::FAData->GetBool("ExtConfigs", "DisplayObjectsOutside");
 	ExtConfigs::DDrawScalingBilinear = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear", true);
 	ExtConfigs::DDrawScalingBilinear_OnlyShrink = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear.OnlyShrink", true);
-	ExtConfigs::DirectXRendering_INI = CINI::FAData->GetBool("ExtConfigs", "DirectXRendering");
+	ExtConfigs::DirectXRendering_INI = CINI::FAData->GetBool("ExtConfigs", "DirectXRendering", true);
 	ExtConfigs::PreciseDepthCalculation = CINI::FAData->GetBool("ExtConfigs", "PreciseDepthCalculation", true);
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");

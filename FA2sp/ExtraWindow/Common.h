@@ -321,6 +321,7 @@ public:
 
     void Attach(HWND hCombo, bool* sortType = nullptr, bool allowFreeText = true);
     void SetAutoSearchRestriction(bool* restrict);
+    void SetSpecialKeysFirst();
     void Detach();
     void CopyFrom(const VirtualComboBoxEx& other, 
         const std::vector<FString>* addToFront = nullptr,
@@ -384,6 +385,7 @@ private:
     bool m_needFixSelection = false;
     bool m_inFixSelection = false;
     bool m_EnterKeyPressed = false;
+    bool m_SpecialKeysFirst = false;
 
     DropWidthMode m_dropWidthMode = DropWidth_AutoMax;
     int m_cachedMaxWidth = 0;

@@ -4129,7 +4129,7 @@ void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>&
 
     for (const auto& mc : coords)
     {
-        if (CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+        if (CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
         {
             coordSet.insert(MakeCoordKey(mc.X, mc.Y));
         }
@@ -4137,7 +4137,7 @@ void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>&
 
     for (const auto& mc : coords)
     {
-        if (!CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+        if (!CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
             continue;
 
         int x = mc.X;
@@ -4175,7 +4175,7 @@ void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::v
 
     for (const auto& mc : coords)
     {
-        if (CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+        if (CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
         {
             coordSet.insert(MakeCoordKey(mc.X, mc.Y));
         }
@@ -4183,7 +4183,7 @@ void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::v
 
     for (const auto& mc : coords)
     {
-        if (!CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+        if (!CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
             continue;
 
         int x = mc.X;
@@ -4228,7 +4228,7 @@ void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::s
 
     for (const auto& mc : coords)
     {
-        if (CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+        if (CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
         {
             coordSet.insert(MakeCoordKey(mc.X, mc.Y));
         }
@@ -4236,7 +4236,7 @@ void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::s
 
     for (const auto& mc : coords)
     {
-        if (!CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+        if (!CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
             continue;
 
         int x = mc.X;
@@ -4274,7 +4274,7 @@ void CIsoViewExt::DirectXDrawMultiMapCoordBorders(const std::set<MapCoord>& coor
 
     for (const auto& mc : coords)
     {
-        if (CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+        if (CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
         {
             coordSet.insert(MakeCoordKey(mc.X, mc.Y));
         }
@@ -4282,7 +4282,7 @@ void CIsoViewExt::DirectXDrawMultiMapCoordBorders(const std::set<MapCoord>& coor
 
     for (const auto& mc : coords)
     {
-        if (!CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+        if (!CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
             continue;
 
         int x = mc.X;
@@ -4333,7 +4333,7 @@ void CIsoViewExt::DirectXDrawMultiMapCoordBorders(const std::vector<MapCoord>& c
 
     for (const auto& mc : coords)
     {
-        if (CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+        if (CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
         {
             coordSet.insert(MakeCoordKey(mc.X, mc.Y));
         }
@@ -4341,7 +4341,7 @@ void CIsoViewExt::DirectXDrawMultiMapCoordBorders(const std::vector<MapCoord>& c
 
     for (const auto& mc : coords)
     {
-        if (!CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+        if (!CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
             continue;
 
         int x = mc.X;

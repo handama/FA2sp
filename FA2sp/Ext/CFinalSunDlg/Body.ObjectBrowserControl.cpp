@@ -2946,7 +2946,8 @@ void CViewObjectsExt::AddAnnotation(int X, int Y)
 
 void CViewObjectsExt::RemoveAnnotation(int X, int Y)
 {
-    bool shouldRedraw = false;
+    bool deleteAnnotation = false;
+    bool deleteGeometricAnnotation = false;
     FString key;
     key.Format("%d", X * 1000 + Y);
 
@@ -2954,11 +2955,8 @@ void CViewObjectsExt::RemoveAnnotation(int X, int Y)
     cellExt.HasAnnotation = false;
     if (CINI::CurrentDocument->KeyExists("Annotations", key))
     {
-        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Annotation);
-        CINI::CurrentDocument->DeleteKey("Annotations", key);
-        shouldRedraw = true;
+        deleteAnnotation = true;
     }
-    bool madeGeometricBackup = false;
     for (size_t i = CIsoViewExt::TwoPointDistance_Annotation.size(); i > 0; --i)
     {
         auto& lines = CIsoViewExt::TwoPointDistance_Annotation[i - 1];
@@ -2966,31 +2964,20 @@ void CViewObjectsExt::RemoveAnnotation(int X, int Y)
         if ((lines.Point1.X == X && lines.Point1.Y == Y) ||
             (lines.Point2.X == X && lines.Point2.Y == Y))
         {
-            if (!madeGeometricBackup)
-            {
-                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::GeometricAnnotation);
-                madeGeometricBackup = true;
-                shouldRedraw = true;
-            }
-    
+            deleteGeometricAnnotation = true;
+
             CIsoViewExt::TwoPointDistance_Annotation.erase(
                 CIsoViewExt::TwoPointDistance_Annotation.begin() + (i - 1)
             );
         }
-    }
-    
+    }   
     for (size_t i = CIsoViewExt::Circles_Annotation.size(); i > 0; --i)
     {
         auto& [center, radius] = CIsoViewExt::Circles_Annotation[i - 1];
     
         if (center.X == X && center.Y == Y)
         {
-            if (!madeGeometricBackup)
-            {
-                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::GeometricAnnotation);
-                madeGeometricBackup = true;
-                shouldRedraw = true;
-            }
+            deleteGeometricAnnotation = true;
     
             CIsoViewExt::Circles_Annotation.erase(
                 CIsoViewExt::Circles_Annotation.begin() + (i - 1)
@@ -2998,29 +2985,46 @@ void CViewObjectsExt::RemoveAnnotation(int X, int Y)
         }
     }
 
-    if (auto pSection = CINI::CurrentDocument->GetSection("GeometricAnnotations"))
+    if (deleteAnnotation || deleteGeometricAnnotation)
     {
-        std::vector<FString> keysToDelete;
-        for (auto& [key, value] : pSection->GetEntities())
+        int type = 0;
+        if (deleteAnnotation) type |= ObjectRecord::RecordType::Annotation;
+        if (deleteGeometricAnnotation) type |= ObjectRecord::RecordType::GeometricAnnotation;
+        CMapDataExt::MakeObjectRecord(type);
+
+        if (deleteAnnotation)
         {
-            auto atoms = STDHelpers::SplitString(value, 4);
-            int x = atoi(atoms[1]);
-            int y = atoi(atoms[2]);
-            int x2 = atoi(atoms[3]);
-            int y2 = atoi(atoms[4]);
-            if ((x == X && y == Y || x2 == X && y2 == Y) && atoms[0][0] != 'C')
+            CINI::CurrentDocument->DeleteKey("Annotations", key);
+        }
+        if (deleteGeometricAnnotation)
+        {
+            if (auto pSection = CINI::CurrentDocument->GetSection("GeometricAnnotations"))
             {
-                keysToDelete.push_back(key);
+                std::vector<FString> keysToDelete;
+                for (auto& [key, value] : pSection->GetEntities())
+                {
+                    auto atoms = STDHelpers::SplitString(value, 4);
+                    int x = atoi(atoms[1]);
+                    int y = atoi(atoms[2]);
+                    int x2 = atoi(atoms[3]);
+                    int y2 = atoi(atoms[4]);
+                    if ((x == X && y == Y))
+                    {
+                        keysToDelete.push_back(key);
+                    }
+                    else if (x2 == X && y2 == Y && atoms[0][0] != 'C')
+                    {
+                        keysToDelete.push_back(key);
+                    }
+                }
+        
+                for (const auto& key : keysToDelete)
+                {
+                    CINI::CurrentDocument->DeleteKey("GeometricAnnotations", key);
+                }
             }
         }
 
-        for (const auto& key : keysToDelete)
-        {
-            CINI::CurrentDocument->DeleteKey("GeometricAnnotations", key);
-        }
-    }
-    if (shouldRedraw)
-    {
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
     }
 

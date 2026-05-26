@@ -12,6 +12,7 @@
 #include "CCreateMap4/Body.h"
 #include "CCredits/Body.h"
 #include "CScriptsSelectionDialog/Body.h"
+#include "CMapValidator/Body.h"
 #include "CEasterEgg/Body.h"
 #include "CHouses/Body.h"
 #include "CINIEditorImport/Body.h"
@@ -47,6 +48,7 @@ void __stdcall FA2Expand::ExeRun()
     CHousesExt::ProgramStartupInit();
     CLightingExt::ProgramStartupInit();
     CCreateMap3BExt::ProgramStartupInit();
+    CMapValidatorExt::ProgramStartupInit();
     //CIsoViewExt::ProgramStartupInit();
     CPropertyAircraftExt::ProgramStartupInit();
     CPropertyBuildingExt::ProgramStartupInit();

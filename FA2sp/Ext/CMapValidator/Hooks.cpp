@@ -4,11 +4,15 @@
 
 #include <CMapData.h>
 #include "../CMapData/Body.h"
+#include "../CFinalSunDlg/Body.h"
 
 DEFINE_HOOK(4D19A0, CMapValidator_DoValidator_Extra, 5)
 {
 	GET(CMapValidatorExt*, pThis, EDI);
 	REF_STACK(BOOL, result, STACK_OFFS(0x200, 0x168));
+
+	EnableWindow(CFinalSunDlg::Instance->GetSafeHwnd(), TRUE);
+	CFinalSunDlgExt::MapValidatorAlive = true;
 	
 	pThis->ValidateOverlayLimit(result);
 	pThis->ValidateStructureOverlapping(result);

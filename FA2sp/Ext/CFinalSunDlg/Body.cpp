@@ -46,6 +46,7 @@
 namespace fs = std::filesystem;
 
 bool CFinalSunDlgExt::HasMinimap = false;
+bool CFinalSunDlgExt::MapValidatorAlive = false;
 int CFinalSunDlgExt::CurrentLighting = 31000;
 std::pair<FString, int> CFinalSunDlgExt::SearchObjectIndex("", -1);
 std::map<UINT, CheckButtonInfo> CFinalSunDlgExt::CheckButtonMap;
@@ -621,18 +622,37 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 	if (wmID >= 40140 && wmID < 40149)
 	{
+		if (MapValidatorAlive)
+		{
+			this->PlaySound(FASoundType::Error);
+			return TRUE;
+		}
+
 		auto& file = CFinalSunAppExt::RecentFilesExt[wmID - 40140];
 		if (CLoading::IsFileExists(file.c_str()))
 			this->LoadMap(file.c_str());
 	}
 	else if (wmID == 40018 && CMapData::Instance->MapWidthPlusHeight)
 	{
+		if (MapValidatorAlive)
+		{
+			this->PlaySound(FASoundType::Error);
+			return TRUE;
+		}
+
 		ppmfc::CString buffer;
 		buffer = CFinalSunApp::MapPath;
 		if (CLoading::IsFileExists(buffer))
 			this->LoadMap(CFinalSunApp::MapPath);
 	}
-
+	else if (wmID == 40001 || wmID == 57600 || wmID == 57603 || wmID == 40002 || wmID == 40025) // open map related buttons
+	{
+		if (MapValidatorAlive)
+		{
+			this->PlaySound(FASoundType::Error);
+			return TRUE;
+		}
+	}
 	// object search
 	else if (wmID == 40134 || wmID == 40161)
 	{
@@ -841,6 +861,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	}
 	else if (wmID == 40165)
 	{
+		if (MapValidatorAlive)
+		{
+			this->PlaySound(FASoundType::Error);
+			return TRUE;
+		}
+
 		bool endConfirmDialog = false;
 		auto setLighting = [](int id)
 		{
@@ -1232,7 +1258,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	}
 	else if (wmID == 40167)
 	{
-		if (!CMapData::Instance->MapWidthPlusHeight)
+		if (!CMapData::Instance->MapWidthPlusHeight || MapValidatorAlive)
 		{
 			this->PlaySound(FASoundType::Error);
 		}

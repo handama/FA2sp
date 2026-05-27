@@ -37,6 +37,7 @@ public:
     static void ProgramStartupInit();
 
     static bool HasMinimap;
+    static bool MapValidatorAlive;
     static int CurrentLighting;
     static int SearchObjectType;
     static std::pair<FString, int> SearchObjectIndex;

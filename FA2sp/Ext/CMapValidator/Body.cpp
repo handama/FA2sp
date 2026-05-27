@@ -7,10 +7,19 @@
 
 #include <CMapData.h>
 #include "../../ExtraWindow/Common.h"
+#include "../../Miscs/DialogStyle.h"
 
 std::unordered_set<std::string> CMapValidatorExt::StructureOverlappingIgnores;
 std::vector<FString> CMapValidatorExt::AttachedTriggers;
 std::vector<FString> CMapValidatorExt::LoopedTriggers;
+std::list<MapCoord> CMapValidatorExt::TargetCoords;
+
+void CMapValidatorExt::ProgramStartupInit()
+{
+    RunTime::ResetMemoryContentAt(0x594D60, &CMapValidatorExt::PreTranslateMessageExt);
+    RunTime::ResetMemoryContentAt(0x594D94, &CMapValidatorExt::OnOKExt);
+    RunTime::ResetMemoryContentAt(0x594D98, &CMapValidatorExt::OnCancelExt);
+}
 
 void CMapValidatorExt::ValidateOverlayLimit(BOOL& result)
 {
@@ -83,19 +92,21 @@ void CMapValidatorExt::ValidateStructureOverlapping(BOOL& result)
 	{
 		if (Occupied[i].size() > 1)
 		{
-//			if (!ExtConfigs::ExtendedValidationNoError)
-//				result = FALSE;
+			int x = CMapData::Instance->GetXFromCoordIndex(i);
+			int y = CMapData::Instance->GetYFromCoordIndex(i);
 			auto buffer = Format;
 			buffer.ReplaceNumString(1, Occupied[i].size());
-			buffer.ReplaceNumString(2, CMapData::Instance->GetYFromCoordIndex(i));
-			buffer.ReplaceNumString(3, CMapData::Instance->GetXFromCoordIndex(i));
+			buffer.ReplaceNumString(2, y);
+			buffer.ReplaceNumString(3, x);
 			for (size_t k = 0; k < Occupied[i].size() - 1; ++k)
 			{
 				buffer += Occupied[i][k].c_str();
 				buffer += ", ";
 			}
 			buffer += Occupied[i].back().c_str();
-			this->InsertString(buffer, true);
+
+			TargetCoords.push_back({x, y});
+			this->InsertString(buffer, true, LPARAM(&TargetCoords.back()));
 		}
 	}
 }
@@ -584,7 +595,9 @@ void CMapValidatorExt::ValidateTubes(BOOL& result)
 					{
 						ppmfc::CString tmp = Format2;
 						tmp.ReplaceNumString(1, getTubeName(tube));
-						InsertStringAsError(tmp);
+
+						TargetCoords.push_back(tube.StartCoord);
+						InsertStringAsError(tmp, LPARAM(&TargetCoords.back()));
 						warnedTubes.insert(tube.key);
 						break;
 					}
@@ -596,8 +609,10 @@ void CMapValidatorExt::ValidateTubes(BOOL& result)
 			ppmfc::CString tmp = Format3;
 			ppmfc::CString tmp2;
 			tmp2.Format("(%d, %d)", coord.Y, coord.X);
+
+			TargetCoords.push_back(coord);
 			tmp.ReplaceNumString(1, tmp2);
-			InsertStringAsError(tmp);
+			InsertStringAsError(tmp, LPARAM(&TargetCoords.back()));
 		}
 	}
 }
@@ -612,12 +627,70 @@ ppmfc::CString CMapValidatorExt::FetchLanguageString(const char* Key, const char
 	return buffer;
 }
 
-void CMapValidatorExt::InsertStringAsError(const char* String)
+void CMapValidatorExt::InsertStringAsError(const char* String, LPARAM lParam)
 {
-	CLCResults.InsertItem(LVIF_TEXT | LVIF_IMAGE, CLCResults.GetItemCount(), String, NULL, NULL, ExtConfigs::ExtendedValidationNoError, NULL);
+	CLCResults.InsertItem(LVIF_TEXT | LVIF_IMAGE | LVIF_PARAM, CLCResults.GetItemCount(), String, NULL, NULL, ExtConfigs::ExtendedValidationNoError, lParam);
 }
 
-void CMapValidatorExt::InsertString(const char* String, bool IsWarning)
+void CMapValidatorExt::InsertString(const char* String, bool IsWarning, LPARAM lParam)
 {
-	CLCResults.InsertItem(LVIF_TEXT | LVIF_IMAGE, CLCResults.GetItemCount(), String, NULL, NULL, IsWarning, NULL);
+	CLCResults.InsertItem(LVIF_TEXT | LVIF_IMAGE | LVIF_PARAM, CLCResults.GetItemCount(), String, NULL, NULL, IsWarning, lParam);
+}
+
+BOOL CMapValidatorExt::PreTranslateMessageExt(MSG* pMsg)
+{
+    HWND hList = this->GetDlgItem(1357)->GetSafeHwnd();
+
+    if (pMsg->hwnd == hList)
+    {
+        if (pMsg->message == WM_LBUTTONDBLCLK)
+        {
+            POINT pt;
+            pt.x = ((int)(short)LOWORD(pMsg->lParam));
+            pt.y = ((int)(short)HIWORD(pMsg->lParam));
+			
+            LVHITTESTINFO hit{};
+            hit.pt = pt;
+
+            int index = ListView_HitTest(hList, &hit);
+
+            if (index != -1)
+            {
+                LVITEM item{};
+                item.mask = LVIF_PARAM;
+                item.iItem = index;
+				
+                if (ListView_GetItem(hList, &item))
+                {
+                    if (LPARAM lp = item.lParam)
+					{			
+						auto coord = *(MapCoord*)lp;
+						CMapDataExt::CellDataExt_FindCell.X = coord.X;
+						CMapDataExt::CellDataExt_FindCell.Y = coord.Y;	
+						CMapDataExt::CellDataExt_FindCell.drawCell = true;
+					
+						CIsoViewExt::MoveToMapCoord(coord.X, coord.Y);
+					
+						CMapDataExt::CellDataExt_FindCell.drawCell = false;
+					}
+                }
+            }
+        }
+    }
+
+	return this->ppmfc::CDialog::PreTranslateMessage(pMsg);
+}
+
+void CMapValidatorExt::OnOKExt()
+{		
+	CFinalSunDlgExt::MapValidatorAlive = false;
+	CMapValidatorExt::TargetCoords.clear();
+	this->ppmfc::CDialog::OnOK();
+}
+
+void CMapValidatorExt::OnCancelExt()
+{		
+	CFinalSunDlgExt::MapValidatorAlive = false;
+	CMapValidatorExt::TargetCoords.clear();
+	this->ppmfc::CDialog::OnCancel();
 }

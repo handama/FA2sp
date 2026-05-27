@@ -1,8 +1,8 @@
 #pragma once
 
 #include <CMapValidator.h>
-
 #include <unordered_set>
+#include "../FA2sp/Ext/CMapData/Body.h"
 
 class CMapValidatorExt : public CMapValidator
 {
@@ -19,10 +19,16 @@ public:
 	void ValidateTubes(BOOL& result);
 
 	ppmfc::CString FetchLanguageString(const char* Key, const char* def);
-	void InsertStringAsError(const char* String);
-	void InsertString(const char* String, bool IsWarning);
+	void InsertStringAsError(const char* String, LPARAM lParam = NULL);
+	void InsertString(const char* String, bool IsWarning, LPARAM lParam = NULL);
 
 	static std::unordered_set<std::string> StructureOverlappingIgnores;
 	static std::vector<FString> AttachedTriggers;
 	static std::vector<FString> LoopedTriggers;
+	static std::list<MapCoord> TargetCoords;
+
+	static void ProgramStartupInit();
+	BOOL PreTranslateMessageExt(MSG* pMsg);
+	void OnOKExt();
+	void OnCancelExt();
 };

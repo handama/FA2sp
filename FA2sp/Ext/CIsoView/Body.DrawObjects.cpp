@@ -3886,6 +3886,7 @@ DEFINE_HOOK(468690, CIsoView_OnSize, A)
 	GET(CIsoViewExt *, pThis, ECX);
 	if (pThis->g_pDX)
 		pThis->g_pDX->OnResize(pThis->GetSafeHwnd());
+
 	return 0;
 }
 

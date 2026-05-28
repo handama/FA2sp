@@ -243,6 +243,8 @@ public:
     static CBuildingData DefaultBuildingProperty;
     static FMap<bool> SupportedFormats;
     static int OverlayDataLimit;
+    static float IsoViewWidthPercentage;
+    static float IsoViewHeightPercentage;
 
     enum SpecialOptionType : char
     {

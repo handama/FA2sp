@@ -234,6 +234,8 @@ CAircraftData ExtConfigs::DefaultAircraftProperty;
 CBuildingData ExtConfigs::DefaultBuildingProperty;
 FMap<bool> ExtConfigs::SupportedFormats;
 int ExtConfigs::OverlayDataLimit;
+float ExtConfigs::IsoViewWidthPercentage = 0.625f;
+float ExtConfigs::IsoViewHeightPercentage = 0.5f;
 
 std::vector<ExtConfigs::DynamicOptions> ExtConfigs::Options;
 
@@ -579,6 +581,9 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DirectXRendering = ExtConfigs::DirectXRendering_INI;
 	if (ExtConfigs::DirectXRendering)
 		ExtConfigs::SecondScreenSupport = true;
+		
+	ExtConfigs::IsoViewWidthPercentage = fa2.GetDouble("UserInterface", "IsoViewWidthPercentage", 0.625f);
+	ExtConfigs::IsoViewHeightPercentage = fa2.GetDouble("UserInterface", "IsoViewHeightPercentage", 0.5f);
 }
 
 void ExtConfigs::UpdateOptionTranslations()

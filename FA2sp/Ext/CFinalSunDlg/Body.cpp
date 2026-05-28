@@ -50,6 +50,7 @@ bool CFinalSunDlgExt::MapValidatorAlive = false;
 int CFinalSunDlgExt::CurrentLighting = 31000;
 std::pair<FString, int> CFinalSunDlgExt::SearchObjectIndex("", -1);
 std::map<UINT, CheckButtonInfo> CFinalSunDlgExt::CheckButtonMap;
+int CFinalSunDlgExt::CurrentToolbarIconSize = 16;
 std::unique_ptr<CTechnoDialog> CFinalSunDlgExt::TechnoDialog = nullptr;
 int CFinalSunDlgExt::SearchObjectType = -1;
 enum FindType { Aircraft = 0, Infantry, Structure, Unit };

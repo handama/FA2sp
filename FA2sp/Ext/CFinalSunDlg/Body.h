@@ -42,6 +42,7 @@ public:
     static int SearchObjectType;
     static std::pair<FString, int> SearchObjectIndex;
     static std::map<UINT, CheckButtonInfo> CheckButtonMap;
+    static int CurrentToolbarIconSize;
     static std::unique_ptr<CTechnoDialog> TechnoDialog;
 
     static bool CheckProperty_Vehicle(CUnitData data);

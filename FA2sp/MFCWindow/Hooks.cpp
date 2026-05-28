@@ -8,7 +8,10 @@
 #include "../FA2sp.h"
 #include "../Miscs/DialogStyle.h"
 #include "../Ext/CMinimap/Body.h"
+#include "../Ext/CIsoView/Body.h"
+#include "../Ext/CFinalSunApp/Body.h"
 
+static bool CMyViewFrameInitialized = false;
 DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
 {
     GET(CMyViewFrame*, pThis, ECX);
@@ -63,38 +66,135 @@ DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
         }
     }
     R->EAX(bRes);
+    CMyViewFrameInitialized = true;
 
     return 0x4D26BF;
 }
 
 DEFINE_HOOK(4D3E50, CRightFrame_OnClientCreate, 5)
 {
-    if (!ExtConfigs::VerticalLayout)
-        return 0;
-
     GET(CRightFrame*, pThis, ECX);
     GET_STACK(LPCREATESTRUCT, lpcs, 0x4);
     GET_STACK(ppmfc::CCreateContext*, pContent, 0x8);
 
-    SIZE size{ 700,200 };
-
     BOOL bRes = FALSE;
-    if (bRes = pThis->CSplitter.CreateStatic(pThis, 1, 2, WS_CHILD | WS_VISIBLE))
+
+    if (ExtConfigs::VerticalLayout)
     {
-        if (bRes = pThis->CSplitter.CreateView(0, 0, &CIsoView::RuntimeClass, size, pContent))
+        SIZE size{ 700, 200 };
+
+        if (bRes = pThis->CSplitter.CreateStatic(pThis, 1, 2, WS_CHILD | WS_VISIBLE))
         {
-            size = { 200,200 };
-            if (bRes = pThis->CSplitter.CreateView(0, 1, &CTileSetBrowserFrame::RuntimeClass, size, pContent))
+            if (bRes = pThis->CSplitter.CreateView(0, 0, &CIsoView::RuntimeClass, size, pContent))
             {
-                auto const oct = GetSystemMetrics(SM_CXFULLSCREEN) / 8;
-                pThis->CSplitter.SetColumnInfo(0, 5 * oct, 20);
-                pThis->CSplitter.SetColumnInfo(1, 3 * oct, 10);
-                pThis->ppmfc::CFrameWnd::OnCreateClient(lpcs, pContent);
+                size = { 200, 200 };
+                if (bRes = pThis->CSplitter.CreateView(0, 1, &CTileSetBrowserFrame::RuntimeClass, size, pContent))
+                {
+                    CRect rcMain;
+                    ::GetClientRect(CFinalSunDlg::Instance->GetSafeHwnd(), &rcMain);
+                    int isoWidth = static_cast<int>(rcMain.Width() * ExtConfigs::IsoViewWidthPercentage);
+                    int tileWidth = rcMain.Width() - isoWidth;
+                    pThis->CSplitter.SetColumnInfo(0, isoWidth, 20);
+                    pThis->CSplitter.SetColumnInfo(1, tileWidth, 10);
+                    pThis->ppmfc::CFrameWnd::OnCreateClient(lpcs, pContent);
+                }
             }
         }
     }
+    else
+    {
+        SIZE size{ 200, 700 };
 
+        if (bRes = pThis->CSplitter.CreateStatic(pThis, 2, 1, WS_CHILD | WS_VISIBLE))
+        {
+            if (bRes = pThis->CSplitter.CreateView(0, 0, &CIsoView::RuntimeClass, size, pContent))
+            {
+                size = { 200, 100 };
+                if (bRes = pThis->CSplitter.CreateView(1, 0, &CTileSetBrowserFrame::RuntimeClass, size, pContent))
+                {
+                    int screenHeight = GetSystemMetrics(SM_CYFULLSCREEN);
+                    int isoHeight = static_cast<int>(screenHeight * ExtConfigs::IsoViewHeightPercentage);
+                    int tileHeight = screenHeight - isoHeight;
+                    pThis->CSplitter.SetRowInfo(0, isoHeight, 20);
+                    pThis->CSplitter.SetRowInfo(1, tileHeight, 10);
+                    pThis->ppmfc::CFrameWnd::OnCreateClient(lpcs, pContent);
+                }
+            }
+        }
+    }
+    
     R->EAX(bRes);
 
     return 0x4D3E8D;
+}
+
+DEFINE_HOOK(468690, CIsoView_OnSize_Size, A)
+{
+    if (!CMyViewFrameInitialized) return 0;
+	GET(CIsoViewExt*, pThis, ECX);
+
+	CRect rcMain;
+	::GetClientRect(CFinalSunDlg::Instance->GetSafeHwnd(), &rcMain);
+
+	if (rcMain.Width() > 0 && rcMain.Height() > 0)
+	{
+        bool shouldWrite = false;
+
+		if (ExtConfigs::VerticalLayout)
+        {
+			int cxCur, cxMin;
+			CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.GetColumnInfo(0, cxCur, cxMin);
+
+            float newWidthPercentage = (float)cxCur / rcMain.Width();
+
+            if (fabs(newWidthPercentage - ExtConfigs::IsoViewWidthPercentage) > 0.03f)
+            {
+			    ExtConfigs::IsoViewWidthPercentage = newWidthPercentage;
+                shouldWrite = true;
+            }
+        }
+		else
+        {
+			int cyCur, cyMin;
+			CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.GetRowInfo(0, cyCur, cyMin);
+
+            float newHeightPercentage = (float)cyCur / GetSystemMetrics(SM_CYFULLSCREEN);
+
+            if (fabs(newHeightPercentage - ExtConfigs::IsoViewHeightPercentage) > 0.03f)
+            {
+			    ExtConfigs::IsoViewHeightPercentage = newHeightPercentage;
+                shouldWrite = true;
+            }
+        }
+
+        if (!shouldWrite)
+            return 0;
+
+        CINI fa2;
+        FString path = CFinalSunAppExt::ExePathExt;
+        path += "\\FinalAlert.ini";
+
+        fa2.ClearAndLoad(path);
+
+		if (ExtConfigs::VerticalLayout)
+        {
+            std::ostringstream oss;
+            oss.precision(3);
+            oss << std::fixed << ExtConfigs::IsoViewWidthPercentage;
+
+            fa2.WriteString("UserInterface", "IsoViewWidthPercentage", oss.str().c_str());
+        }
+		else
+        {
+            std::ostringstream oss;
+            oss.precision(3);
+            oss << std::fixed << ExtConfigs::IsoViewHeightPercentage;
+
+            fa2.WriteString("UserInterface", "IsoViewHeightPercentage", oss.str().c_str());
+        }
+
+        fa2.WriteToFile(path);
+	}
+
+	return 0;
 }

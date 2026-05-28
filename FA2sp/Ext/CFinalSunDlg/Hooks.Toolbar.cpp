@@ -18,6 +18,34 @@ struct ToolbarSet {
 };
 static ToolbarSet g_Toolbars;
 
+static int g_CurrentToolbarIconSize = 16;
+
+static int GetTargetIconSize(HWND hWnd)
+{
+    HDC hdc = GetDC(hWnd);
+    int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
+    ReleaseDC(hWnd, hdc);
+    int targetSize = (int)(16.0f * dpi / 96.0f);
+    const int available[] = { 16, 24, 32, 48 };
+    for (int s : available)
+        if (s >= targetSize)
+            return s;
+    return 48;
+}
+
+static int GetBitmapResourceForSize(int baseResID, int targetSize)
+{
+    int sizeIndex;
+    switch (targetSize)
+    {
+        case 24: sizeIndex = 1; break;
+        case 32: sizeIndex = 2; break;
+        case 48: sizeIndex = 3; break;
+        default: sizeIndex = 0; break;
+    }
+    return baseResID + sizeIndex * 6;
+}
+
 void SaveConfigIni(const char* lpSection, const char* lpKey, const char* lpValue)
 {
     CINI ini;
@@ -189,7 +217,7 @@ LRESULT CALLBACK SubclassedToolbarProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
-HWND CreateToolbarFromResource(HWND hWndParent, int resource, int bmpResource, std::map<UINT, void*> checkButtons = {})
+HWND CreateToolbarFromResource(HWND hWndParent, int resource, int bmpResource, std::map<UINT, void*> checkButtons = {}, int targetIconSize = 16, int* pOutButtonSize = nullptr, int* pOutIdealWidth = nullptr)
 {
     HINSTANCE hInst = static_cast<HINSTANCE>(FA2sp::hInstance);
 
@@ -225,11 +253,11 @@ HWND CreateToolbarFromResource(HWND hWndParent, int resource, int bmpResource, s
     if (!hTb) return NULL;
 
     SendMessage(hTb, TB_BUTTONSTRUCTSIZE, sizeof(TBBUTTON), 0);
-    SendMessage(hTb, TB_SETBITMAPSIZE, 0, MAKELPARAM(pTbData->wWidth, pTbData->wHeight));
+    SendMessage(hTb, TB_SETBITMAPSIZE, 0, MAKELPARAM(targetIconSize, targetIconSize));
 
     HIMAGELIST hImgList = ImageList_Create(
-        pTbData->wWidth,
-        pTbData->wHeight, 
+        targetIconSize,
+        targetIconSize, 
         ILC_COLOR24 | ILC_MASK,
         pTbData->wItemCount,
         4
@@ -242,7 +270,7 @@ HWND CreateToolbarFromResource(HWND hWndParent, int resource, int bmpResource, s
 
     HBITMAP hBmp = (HBITMAP)LoadImage(
         hInst,
-        MAKEINTRESOURCE(bmpResource),
+        MAKEINTRESOURCE(GetBitmapResourceForSize(bmpResource, targetIconSize)),
         IMAGE_BITMAP,
         0, 0,
         LR_DEFAULTCOLOR | LR_CREATEDIBSECTION
@@ -269,6 +297,7 @@ HWND CreateToolbarFromResource(HWND hWndParent, int resource, int bmpResource, s
     TBBUTTON tbb = { 0 };
     tbb.fsState = TBSTATE_ENABLED;
     int actualButtonIndex = 0;
+    int separatorCount = 0;
 
     for (int i = 0; i < pTbData->wItemCount; i++)
     {
@@ -282,6 +311,7 @@ HWND CreateToolbarFromResource(HWND hWndParent, int resource, int bmpResource, s
             tbb.idCommand = 0;
             tbb.dwData = 0;
             tbb.iString = 0;
+            separatorCount++;
         }
         else
         {
@@ -310,11 +340,23 @@ HWND CreateToolbarFromResource(HWND hWndParent, int resource, int bmpResource, s
         SendMessage(hTb, TB_CHECKBUTTON, cmdID, MAKELPARAM(initialChecked ? TRUE : FALSE, 0));
     }
 
-    int btnWidth = pTbData->wWidth + 8;
-    int btnHeight = pTbData->wHeight + 8;
-    SendMessage(hTb, TB_SETBUTTONSIZE, 0, MAKELPARAM(btnWidth, btnHeight));
+    int padding = (int)(8.0f * targetIconSize / 16.0f);
+    int btnWidth = targetIconSize + padding;
+    int btnHeight = targetIconSize + padding;
+    //SendMessage(hTb, TB_SETBUTTONSIZE, 0, MAKELPARAM(btnWidth, btnHeight));
     SendMessage(hTb, TB_AUTOSIZE, 0, 0);
     InvalidateRect(hTb, NULL, TRUE);
+
+    if (pOutButtonSize)
+        *pOutButtonSize = btnHeight;
+
+    if (pOutIdealWidth)
+    {
+        RECT rc;
+        int lastIndex = pTbData->wItemCount - 1;
+        SendMessage(hTb, TB_GETITEMRECT, (WPARAM)lastIndex, (LPARAM)&rc);
+        *pOutIdealWidth = rc.right;
+    }
 
     g_OriginalProcs[hTb] = (WNDPROC)SetWindowLongPtr(
         hTb,
@@ -367,6 +409,12 @@ void CFinalSunDlgExt::InitToolbar()
 {
     HWND hReBar = CFinalSunDlg::Instance->ReBarCtrl.GetSafeHwnd();
 
+    int targetIconSize = GetTargetIconSize(hReBar);
+    float scale = targetIconSize / 16.0f;
+    g_CurrentToolbarIconSize = targetIconSize;
+    static int btnSizeA, btnSizeC, btnSizeD;
+    static int idealWidthA, idealWidthC, idealWidthD;
+
     RemoveToolbarFromReBar(hReBar, g_Toolbars.hTbA);
     RemoveToolbarFromReBar(hReBar, g_Toolbars.hTbC);
     RemoveToolbarFromReBar(hReBar, g_Toolbars.hTbD);
@@ -409,10 +457,10 @@ void CFinalSunDlgExt::InitToolbar()
             {40105, (void*)(&CFinalSunApp::Instance->DisableAutoLat)},
         };
 
-        g_Toolbars.hTbA = CreateToolbarFromResource(hParent, 1100, ExtConfigs::EnableDarkMode ? 1113 : 1110, checkButtons);
+        g_Toolbars.hTbA = CreateToolbarFromResource(hParent, 1100, ExtConfigs::EnableDarkMode ? 1113 : 1110, checkButtons, targetIconSize, &btnSizeA, &idealWidthA);
         g_Toolbars.hTbB = CFinalSunDlg::Instance->BrushSize.GetSafeHwnd();
-        g_Toolbars.hTbC = CreateToolbarFromResource(hParent, 1101, ExtConfigs::EnableDarkMode ? 1114 : 1111, checkButtons);
-        g_Toolbars.hTbD = CreateToolbarFromResource(hParent, 1102, ExtConfigs::EnableDarkMode ? 1115 : 1112, checkButtons);
+        g_Toolbars.hTbC = CreateToolbarFromResource(hParent, 1101, ExtConfigs::EnableDarkMode ? 1114 : 1111, checkButtons, targetIconSize, &btnSizeC, &idealWidthC);
+        g_Toolbars.hTbD = CreateToolbarFromResource(hParent, 1102, ExtConfigs::EnableDarkMode ? 1115 : 1112, checkButtons, targetIconSize, &btnSizeD, &idealWidthD);
         g_OriginalProcs[g_Toolbars.hTbB] = (WNDPROC)SetWindowLongPtr(
             g_Toolbars.hTbB,
             GWLP_WNDPROC,
@@ -421,12 +469,13 @@ void CFinalSunDlgExt::InitToolbar()
 
         g_bToolbarsInitialized = true;
     }
-    vaildToolbars = 4;
+    vaildToolbars = 0;
 
     RECT rc;
     ::GetClientRect(hReBar, &rc);
     int availableWidth = rc.right - rc.left;
-    const int EXTRA = 15;
+    const int EXTRA = (int)(15.0f * scale + 0.5f);
+    static const int toolbarHeight = btnSizeA;
 
     struct TbItem {
         HWND hTb;
@@ -438,13 +487,25 @@ void CFinalSunDlgExt::InitToolbar()
     TbItem tbB = {};
     std::vector<TbItem> others;
     if (!STDHelpers::IsTrue(GetConfigIni("UserInterface", "HideToolBarA")))
-        others.push_back({ g_Toolbars.hTbA, 500 });
+    {
+        others.push_back({ g_Toolbars.hTbA, idealWidthA });
+        vaildToolbars++;
+    }
     if (!STDHelpers::IsTrue(GetConfigIni("UserInterface", "HideToolBarB")))
-        tbB = { g_Toolbars.hTbB, 200 };
+    {
+        tbB = { g_Toolbars.hTbB, (int)(200.0f * scale + 0.5f) };
+        vaildToolbars++;
+    }
     if (!STDHelpers::IsTrue(GetConfigIni("UserInterface", "HideToolBarC")))
-        others.push_back({ g_Toolbars.hTbC, 556 });
+    {
+        others.push_back({ g_Toolbars.hTbC, idealWidthC });
+        vaildToolbars++;
+    }
     if (!STDHelpers::IsTrue(GetConfigIni("UserInterface", "HideToolBarD")))
-        others.push_back({ g_Toolbars.hTbD, 540});
+    {
+        others.push_back({ g_Toolbars.hTbD, idealWidthD });
+        vaildToolbars++;
+    }
 
     bool hasB = (tbB.hTb != NULL && IsWindow(tbB.hTb));
 
@@ -460,7 +521,7 @@ void CFinalSunDlgExt::InitToolbar()
         int withB = hasB ? currentRowWidth + added + (tbB.idealWidth + EXTRA) : currentRowWidth + added;
         if (withB <= availableWidth)
         {
-            AddToolbarToReBar(hReBar, item.hTb, item.idealWidth, false, item.text);
+            AddToolbarToReBar(hReBar, item.hTb, item.idealWidth, false, item.text, toolbarHeight);
             currentRowHWNDs.push_back(item.hTb);
             currentRowWidth += added;
             rowIndex++;
@@ -473,7 +534,7 @@ void CFinalSunDlgExt::InitToolbar()
 
     if (hasB)
     {
-        AddToolbarToReBar(hReBar, tbB.hTb, tbB.idealWidth, false, tbB.text);
+        AddToolbarToReBar(hReBar, tbB.hTb, tbB.idealWidth, false, tbB.text, toolbarHeight);
         currentRowHWNDs.push_back(tbB.hTb);
         rowIndex++;
     }
@@ -510,7 +571,7 @@ void CFinalSunDlgExt::InitToolbar()
 
         if (!first && currentRowWidth + added <= availableWidth)
         {
-            AddToolbarToReBar(hReBar, item.hTb, item.idealWidth, !currentRowHWNDs.empty(), item.text);
+            AddToolbarToReBar(hReBar, item.hTb, item.idealWidth, !currentRowHWNDs.empty(), item.text, toolbarHeight);
             currentRowHWNDs.push_back(item.hTb);
             currentRowWidth += added;
         }
@@ -524,7 +585,7 @@ void CFinalSunDlgExt::InitToolbar()
             currentRowHWNDs.clear();
             currentRowWidth = 0;
 
-            AddToolbarToReBar(hReBar, item.hTb, item.idealWidth, true, item.text);
+            AddToolbarToReBar(hReBar, item.hTb, item.idealWidth, true, item.text, toolbarHeight);
             currentRowHWNDs.push_back(item.hTb);
             currentRowWidth += added;
             rowIndex++;

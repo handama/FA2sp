@@ -255,7 +255,7 @@ private:
     static std::set<int> InsertedTileIndices;
 
     HTREEITEM InsertString(const char* pString, DWORD dwItemData = 0, 
-        HTREEITEM hParent = TVI_ROOT, HTREEITEM hInsertAfter = TVI_LAST);
+        HTREEITEM hParent = TVI_ROOT, HTREEITEM hInsertAfter = TVI_LAST, const char* pOriString = nullptr);
     HTREEITEM InsertTranslatedString(const char* pOriginString, DWORD dwItemData = 0,
         HTREEITEM hParent = TVI_ROOT, HTREEITEM hInsertAfter = TVI_LAST);
     void LoadMultiLayers(

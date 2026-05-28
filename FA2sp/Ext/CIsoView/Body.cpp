@@ -2330,8 +2330,8 @@ void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, b
     {
         left = 0;
         top = 0;
-        right = srcW;
-        bottom = srcH;
+        right = srcW - 1;
+        bottom = srcH - 1;
     }
 
     bool empty = false;
@@ -2340,8 +2340,8 @@ void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, b
         empty = true;
         left = 0;
         top = 0;
-        right = srcW;
-        bottom = srcH;
+        right = srcW - 1;
+        bottom = srcH - 1;
     }
 
     int cropW = right - left + 1;
@@ -2382,13 +2382,13 @@ void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, b
 
             int x0 = (int)fx;
             int y0 = (int)fy;
-            int x1 = std::min(x0 + 1, srcW - 1);
-            int y1 = std::min(y0 + 1, srcH - 1);
+            int x1 = std::min(x0 + 1, right);
+            int y1 = std::min(y0 + 1, bottom);
 
-            x0 = std::clamp(x0, 0, srcW - 1);
-            x1 = std::clamp(x1, 0, srcW - 1);
-            y0 = std::clamp(y0, 0, srcH - 1);
-            y1 = std::clamp(y1, 0, srcH - 1);
+            x0 = std::clamp(x0, left, right);
+            x1 = std::clamp(x1, left, right);
+            y0 = std::clamp(y0, top, bottom);
+            y1 = std::clamp(y1, top, bottom);
 
             float dx = fx - x0;
             float dy = fy - y0;

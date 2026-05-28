@@ -135,31 +135,35 @@ struct TempOtherInfo
 };
 
 HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
-    HTREEITEM hParent, HTREEITEM hInsertAfter)
+    HTREEITEM hParent, HTREEITEM hInsertAfter, const char* pOriString)
 {
     AddedItemCount++;
     auto item =  this->GetTreeCtrl().InsertItem(TVIF_TEXT | TVIF_PARAM, pString, 0, 0, 0, 0, dwItemData, hParent, hInsertAfter);
     
     if (ExtConfigs::TreeViewCameo_Display)
     {
-        std::string pics = CFinalSunAppExt::ExePathExt;
-        pics += "\\pics";
-        if (fs::exists(pics) && fs::is_directory(pics))
+        if (pOriString)
         {
-            pics += "\\";
-            pics += pString;
-            pics += ".bmp";
-            if (fs::exists(pics))
+            std::string pics = CFinalSunAppExt::ExePathExt;
+            pics += "\\pics";
+            if (fs::exists(pics) && fs::is_directory(pics))
             {
-                CBitmap cBitmap;
-                if (CLoadingExt::LoadBMPToCBitmap(pics.c_str(), cBitmap))
+                pics += "\\";
+                pics += pOriString;
+                pics += ".bmp";
+                if (fs::exists(pics))
                 {
-                    int index = m_ImageList.Add(&cBitmap, RGB(255, 255, 255));
-                    this->GetTreeCtrl().SetItemImage(item, index, index);
-                    return item;
+                    CBitmap cBitmap;
+                    if (CLoadingExt::LoadBMPToCBitmap(pics.c_str(), cBitmap))
+                    {
+                        int index = m_ImageList.Add(&cBitmap, RGB(255, 255, 255));
+                        this->GetTreeCtrl().SetItemImage(item, index, index);
+                        return item;
+                    }
                 }
-            }
-        }       
+            }   
+        }
+    
         if (InsertingSpecialBitmap)
         {
             CIsoViewExt::ScaleBitmap(&SpecialBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255), true, false);
@@ -309,11 +313,10 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 if (ImageDataClassSafe::IsVisibleImage(pData))
                 {
                     CBitmap cBitmap;
-                    CLoadingExt::LoadShpToBitmap(pData, cBitmap);
-                    CIsoViewExt::ScaleBitmap(&cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
+                    auto view = CIsoViewExt::MakeImageDataView(pData);
+                    CIsoViewExt::LoadAndScaleToBitmap(&view, cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
                     int index = m_ImageList.Add(&cBitmap, RGB(255, 0, 255));
                     this->GetTreeCtrl().SetItemImage(item, index, index);
-
                     CLoadingExt::SaveCBitmapToFile(&cBitmap, path.c_str(), RGB(255, 0, 255));
 
                     return item;
@@ -379,7 +382,7 @@ HTREEITEM CViewObjectsExt::InsertTranslatedString(const char* pOriginString, DWO
 {
     FString buffer;
     bool result = Translations::GetTranslationItem(pOriginString, buffer);
-    return InsertString(result ? buffer.c_str() : pOriginString, dwItemData, hParent, hInsertAfter);
+    return InsertString(result ? buffer.c_str() : pOriginString, dwItemData, hParent, hInsertAfter, pOriginString);
 }
 
 FString CViewObjectsExt::QueryUIName(const char* pRegName, bool bOnlyOneLine)

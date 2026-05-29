@@ -15,44 +15,91 @@ ImageDataClass CurrentOverlay;
 ImageDataClass* CurrentOverlayPtr = nullptr;
 void* NULLPTR = nullptr;
 
-static HRESULT HalveSurface(LPDIRECTDRAWSURFACE7* lpSurface)
+static HRESULT ScaleSurface(
+    LPDIRECTDRAWSURFACE7* lpSurface,
+    float scaleFactor)
 {
-    if (!lpSurface || !*lpSurface) return E_INVALIDARG;
+    if (!lpSurface || !*lpSurface)
+        return E_INVALIDARG;
+
+    if (scaleFactor <= 0.0f)
+        return E_INVALIDARG;
+
     LPDIRECTDRAWSURFACE7 lpSrc = *lpSurface;
 
-    DDSURFACEDESC2 ddsd;
-    ZeroMemory(&ddsd, sizeof(ddsd));
+    DDSURFACEDESC2 ddsd = {};
     ddsd.dwSize = sizeof(ddsd);
 
     HRESULT hr = lpSrc->GetSurfaceDesc(&ddsd);
-    if (FAILED(hr)) return hr;
+    if (FAILED(hr))
+        return hr;
 
-    DWORD newWidth = ddsd.dwWidth / 2;
-    DWORD newHeight = ddsd.dwHeight / 2;
+    DWORD newWidth = std::max<DWORD>(
+        1,
+        (DWORD)std::lround(ddsd.dwWidth * scaleFactor));
+
+    DWORD newHeight = std::max<DWORD>(
+        1,
+        (DWORD)std::lround(ddsd.dwHeight * scaleFactor));
+
+    if (newWidth == ddsd.dwWidth &&
+        newHeight == ddsd.dwHeight)
+    {
+        return DD_OK;
+    }
 
     LPDIRECTDRAW7 lpDD = nullptr;
     hr = lpSrc->GetDDInterface((LPVOID*)&lpDD);
-    if (FAILED(hr)) return hr;
+    if (FAILED(hr))
+        return hr;
 
-    DDSURFACEDESC2 ddsdNew;
-    ZeroMemory(&ddsdNew, sizeof(ddsdNew));
+    DDSURFACEDESC2 ddsdNew = {};
     ddsdNew.dwSize = sizeof(ddsdNew);
-    ddsdNew.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT | DDSD_PIXELFORMAT;
+    ddsdNew.dwFlags =
+        DDSD_CAPS |
+        DDSD_WIDTH |
+        DDSD_HEIGHT |
+        DDSD_PIXELFORMAT;
+
     ddsdNew.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
     ddsdNew.dwWidth = newWidth;
     ddsdNew.dwHeight = newHeight;
     ddsdNew.ddpfPixelFormat = ddsd.ddpfPixelFormat;
 
     LPDIRECTDRAWSURFACE7 lpDest = nullptr;
+
     hr = lpDD->CreateSurface(&ddsdNew, &lpDest, NULL);
+
     lpDD->Release();
-    if (FAILED(hr)) return hr;
 
-    RECT srcRect = { 0, 0, (LONG)ddsd.dwWidth, (LONG)ddsd.dwHeight };
-    RECT dstRect = { 0, 0, (LONG)newWidth, (LONG)newHeight };
+    if (FAILED(hr))
+        return hr;
 
-    hr = lpDest->Blt(&dstRect, lpSrc, &srcRect, DDBLT_WAIT, NULL);
-    if (FAILED(hr)) {
+    RECT srcRect =
+    {
+        0,
+        0,
+        (LONG)ddsd.dwWidth,
+        (LONG)ddsd.dwHeight
+    };
+
+    RECT dstRect =
+    {
+        0,
+        0,
+        (LONG)newWidth,
+        (LONG)newHeight
+    };
+
+    hr = lpDest->Blt(
+        &dstRect,
+        lpSrc,
+        &srcRect,
+        DDBLT_WAIT,
+        NULL);
+
+    if (FAILED(hr))
+    {
         lpDest->Release();
         return hr;
     }
@@ -63,24 +110,126 @@ static HRESULT HalveSurface(LPDIRECTDRAWSURFACE7* lpSurface)
     return DD_OK;
 }
 
-static bool setCurrentOverlay(ImageDataClassSafe* pData)
+static bool setCurrentOverlay(
+    ImageDataClassSafe* pData)
 {
-    if (pData && pData->pImageBuffer)
+    if (!pData || !pData->pImageBuffer)
+        return false;
+
+    float scaleFactor = CTileSetBrowserFrameExt::OverlayBrowserViewScaledFactor;
+    if (scaleFactor <= 0.0f)
+        return false;
+
+    BGRStruct empty;
+
+    const int srcWidth = pData->FullWidth;
+    const int srcHeight = pData->FullHeight;
+
+    const int dstWidth = std::max(
+        1,
+        (int)std::lround(srcWidth * scaleFactor));
+
+    const int dstHeight = std::max(
+        1,
+        (int)std::lround(srcHeight * scaleFactor));
+
+    auto* srcBuffer = pData->pImageBuffer.get();
+
+
+    if (CurrentOverlay.pImageBuffer)
+        delete[] CurrentOverlay.pImageBuffer;
+    CurrentOverlay.pImageBuffer = nullptr;
+
+    if (CurrentOverlay.pPixelValidRanges)
+        delete[] CurrentOverlay.pPixelValidRanges;
+    CurrentOverlay.pPixelValidRanges = nullptr;
+
+
+    CurrentOverlay.pImageBuffer =
+        new unsigned char[dstWidth * dstHeight];
+
+    CurrentOverlay.pPixelValidRanges =
+        new ImageDataClass::ValidRangeData[dstHeight];
+
+    for (int y = 0; y < dstHeight; ++y)
     {
-        BGRStruct empty;
-        CurrentOverlay.pImageBuffer = pData->pImageBuffer.get();
-        CurrentOverlay.pPixelValidRanges = (ImageDataClass::ValidRangeData*)pData->pPixelValidRanges.get();
-        CurrentOverlay.pPalette = PalettesManager::GetTileSetBrowserViewPalette(pData->pPalette, empty, false);
-        CurrentOverlay.ValidX = pData->ValidX;
-        CurrentOverlay.ValidY = pData->ValidY;
-        CurrentOverlay.ValidWidth = pData->ValidWidth;
-        CurrentOverlay.ValidHeight = pData->ValidHeight;
-        CurrentOverlay.FullWidth = pData->FullWidth;
-        CurrentOverlay.FullHeight = pData->FullHeight;
-        CurrentOverlayPtr = &CurrentOverlay;
-        return true;
+        int srcY = std::clamp(
+            (int)(y / scaleFactor),
+            0,
+            srcHeight - 1);
+
+        for (int x = 0; x < dstWidth; ++x)
+        {
+            int srcX = std::clamp(
+                (int)(x / scaleFactor),
+                0,
+                srcWidth - 1);
+
+            CurrentOverlay.pImageBuffer[y * dstWidth + x] =
+                srcBuffer[srcY * srcWidth + srcX];
+        }
     }
-    return false;
+
+    for (int y = 0; y < dstHeight; ++y)
+    {
+        auto& range =
+            CurrentOverlay.pPixelValidRanges[y];
+
+        range.First = (short)(dstWidth - 1);
+        range.Last = 0;
+
+        unsigned char* row =
+            &CurrentOverlay.pImageBuffer[y * dstWidth];
+
+        for (int x = 0; x < dstWidth; ++x)
+        {
+            if (row[x] != 0)
+            {
+                range.First = (short)x;
+                break;
+            }
+        }
+
+        if (range.First != dstWidth - 1)
+        {
+            for (int x = dstWidth - 1; x >= 0; --x)
+            {
+                if (row[x] != 0)
+                {
+                    range.Last = (short)x;
+                    break;
+                }
+            }
+        }
+    }
+
+    CurrentOverlay.pPalette =
+        PalettesManager::GetTileSetBrowserViewPalette(
+            pData->pPalette,
+            empty,
+            false);
+
+    CurrentOverlay.ValidX =
+        (short)std::lround(pData->ValidX * scaleFactor);
+
+    CurrentOverlay.ValidY =
+        (short)std::lround(pData->ValidY * scaleFactor);
+
+    CurrentOverlay.ValidWidth =
+        (short)std::lround(pData->ValidWidth * scaleFactor);
+
+    CurrentOverlay.ValidHeight =
+        (short)std::lround(pData->ValidHeight * scaleFactor);
+
+    CurrentOverlay.FullWidth =
+        (short)dstWidth;
+
+    CurrentOverlay.FullHeight =
+        (short)dstHeight;
+
+    CurrentOverlayPtr = &CurrentOverlay;
+
+    return true;
 }
 
 static int GetAddedHeight(int tileIndex)
@@ -666,8 +815,7 @@ DEFINE_HOOK(4F2B10, CTileSetBrowserView_SetTileSet, 7)
         for (int i = 0; i < tileCount; i++)
         {
             pThis->TileSurfaces[i] = RenderTile(tileStart + i);
-            if (ExtConfigs::ShrinkTilesInTileSetBrowser)
-                HalveSurface(&pThis->TileSurfaces[i]);
+            ScaleSurface(&pThis->TileSurfaces[i], CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor);
         }
     }
     else
@@ -724,16 +872,12 @@ DEFINE_HOOK(4F2B10, CTileSetBrowserView_SetTileSet, 7)
         for (int i = 0; i < tileCount; i++)
         {
             pThis->TileSurfaces[i] = RenderTile(CMapDataExt::GetCustomTileIndex(dwTileSet, i));
-            if (ExtConfigs::ShrinkTilesInTileSetBrowser)
-                HalveSurface(&pThis->TileSurfaces[i]);
+            ScaleSurface(&pThis->TileSurfaces[i], CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor);
         }
     }
    
-    if (ExtConfigs::ShrinkTilesInTileSetBrowser)
-    {
-        pThis->CurrentImageWidth /= 2;
-        pThis->CurrentImageHeight /= 2;
-    }
+    pThis->CurrentImageWidth *= CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor;
+    pThis->CurrentImageHeight *= CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor;
 
     RECT r;
     pThis->GetClientRect(&r);
@@ -804,11 +948,9 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
                 GetCustomTileSize(tileData, curwidth, curheight);
             }
 
-            if (ExtConfigs::ShrinkTilesInTileSetBrowser)
-            {
-                curwidth /= 2;
-                curheight /= 2;
-            }
+            curwidth *= CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor;
+            curheight *= CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor;
+            
             if (cur_y + curheight + (pThis->CurrentImageHeight - curheight) / 2 
                 >= pThis->GetScrollPos(SB_VERT) && cur_y <= pThis->GetScrollPos(SB_VERT) + r.bottom)
             {
@@ -1100,8 +1242,8 @@ DEFINE_HOOK(4F4774, CTileSetBrowserView_SetOverlay_LoadOverlayImage, 5)
             if (pData && pData->pImageBuffer)
             {
                 need_pos = i;
-                need_width = pData->FullWidth;
-                need_height = pData->FullHeight;
+                need_width = pData->FullWidth * CTileSetBrowserFrameExt::OverlayBrowserViewScaledFactor;
+                need_height = pData->FullHeight * CTileSetBrowserFrameExt::OverlayBrowserViewScaledFactor;
                 break;
             }
         }

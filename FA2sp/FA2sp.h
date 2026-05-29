@@ -231,7 +231,6 @@ public:
     static bool EnableDarkMode_Init;
     static bool EnableDarkMode_DimMap;
     static bool DisableAutoConnectWall;
-    static bool ShrinkTilesInTileSetBrowser;
     static bool UTF8Support_InferEncoding;
     static bool UTF8Support_AlwaysSaveAsUTF8;
     static bool GridObjectViewer_LoadEditorCategory;

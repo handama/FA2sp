@@ -199,14 +199,20 @@ void GridObjectViewer::FastBlitImage(HDC hdcDest, int displayX, int displayY, co
     if (!pd && !info.DataName.IsEmpty()) pd = CLoadingExt::GetImageDataFromMap(info.DataName);
     if (!pd) return;
 
+    float factor = CTileSetBrowserFrameExt::GridObjectViewerScaledFactor;
     int cropW = info.CropWidth;
     int cropH = info.CropHeight;
     if (cropW <= 0 || cropH <= 0) return;
 
-    int displayW = std::max(cropW, MIN_DISPLAY_WIDTH);
-    int displayH = std::max(cropH, MIN_DISPLAY_HEIGHT);
+    int scaledCropW = (int)(cropW * factor);
+    int scaledCropH = (int)(cropH * factor);
+    int scaledMinW = (int)(MIN_DISPLAY_WIDTH * factor);
+    int scaledMinH = (int)(MIN_DISPLAY_HEIGHT * factor);
 
-    if (cropW < MIN_DISPLAY_WIDTH || cropH < MIN_DISPLAY_HEIGHT)
+    int displayW = std::max(scaledCropW, scaledMinW);
+    int displayH = std::max(scaledCropH, scaledMinH);
+
+    if (scaledCropW < scaledMinW || scaledCropH < scaledMinH)
     {
         BITMAPINFO bmi{};
         bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -225,8 +231,8 @@ void GridObjectViewer::FastBlitImage(HDC hdcDest, int displayX, int displayY, co
         HDC hMemDC = CreateCompatibleDC(hdcDest);
         HBITMAP hOld = (HBITMAP)SelectObject(hMemDC, hDib);
 
-        int offsetX = (displayW - cropW) / 2;
-        int offsetY = (displayH - cropH) / 2;
+        int offsetX = (displayW - scaledCropW) / 2;
+        int offsetY = (displayH - scaledCropH) / 2;
 
         DrawImageDataCore(hMemDC, offsetX, offsetY, info);
 
@@ -247,14 +253,20 @@ void GridObjectViewer::DrawImageDataCore(HDC hdcDest, int destX, int destY, cons
     if (!pd && !info.DataName.IsEmpty()) pd = CLoadingExt::GetImageDataFromMap(info.DataName);
     if (!pd) return;
 
+    float factor = CTileSetBrowserFrameExt::GridObjectViewerScaledFactor;
+    int scaledW = (int)(info.CropWidth * factor);
+    int scaledH = (int)(info.CropHeight * factor);
+    if (scaledW <= 0 || scaledH <= 0) return;
+
     int w = pd->FullWidth;
+    int h = pd->FullHeight;
     BYTE* src = static_cast<BYTE*>(pd->pImageBuffer.get());
     Palette* pal = pd->pPalette;
 
     BITMAPINFO bmi = {};
     bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bmi.bmiHeader.biWidth = info.CropWidth;
-    bmi.bmiHeader.biHeight = -info.CropHeight;
+    bmi.bmiHeader.biWidth = scaledW;
+    bmi.bmiHeader.biHeight = -scaledH;
     bmi.bmiHeader.biPlanes = 1;
     bmi.bmiHeader.biBitCount = 32;
     bmi.bmiHeader.biCompression = BI_RGB;
@@ -264,45 +276,53 @@ void GridObjectViewer::DrawImageDataCore(HDC hdcDest, int destX, int destY, cons
     if (!hDib || !pBits) return;
 
     BYTE* dest = static_cast<BYTE*>(pBits);
-    int destPitch = ((info.CropWidth * 4 + 3) & ~3);
+    int destPitch = ((scaledW * 4 + 3) & ~3);
 
     auto bgc = GetBackgroundColor();
-    for (int row = 0; row < info.CropHeight; ++row)
+    int cropLeft = info.CropLeft;
+    int cropTop = info.CropTop;
+    int cropRight = info.CropLeft + info.CropWidth - 1;
+    int cropBottom = info.CropTop + info.CropHeight - 1;
+
+    for (int dy = 0; dy < scaledH; ++dy)
     {
-        int srcRow = info.CropTop + row;
-        LONG left = pd->pPixelValidRanges[srcRow].First;
-        LONG right = pd->pPixelValidRanges[srcRow].Last;
+        int sy = cropTop + (int)(dy / factor);
+        if (sy < 0) sy = 0;
+        if (sy >= h) sy = h - 1;
 
-        left = std::max(left, (LONG)info.CropLeft);
-        right = std::min(right, (LONG)(info.CropLeft + info.CropWidth - 1));
+        LONG validLeft = pd->pPixelValidRanges[sy].First;
+        LONG validRight = pd->pPixelValidRanges[sy].Last;
 
-        if (left > right) {
-            memset(dest + row * destPitch, bgc, destPitch);
-            continue;
-        }
+        validLeft = std::max(validLeft, (LONG)cropLeft);
+        validRight = std::min(validRight, (LONG)cropRight);
 
-        BYTE* destRow = dest + row * destPitch;
+        BYTE* destRow = dest + dy * destPitch;
         memset(destRow, bgc, destPitch);
 
-        BYTE* srcPtr = src + srcRow * w + left;
-        BYTE* destPtr = destRow + (left - info.CropLeft) * 4;
+        if (validLeft > validRight) continue;
 
-        for (LONG col = left; col <= right; ++col, ++srcPtr, destPtr += 4)
+        BYTE* srcRow = src + sy * w;
+
+        for (int dx = 0; dx < scaledW; ++dx)
         {
-            BYTE idx = *srcPtr;
+            int sx = cropLeft + (int)(dx / factor);
+            if (sx < validLeft || sx > validRight) continue;
+
+            BYTE idx = srcRow[sx];
             if (idx == 0) continue;
 
             BGRStruct c = pal->Data[idx];
-            destPtr[0] = c.B;
-            destPtr[1] = c.G;
-            destPtr[2] = c.R;
-            destPtr[3] = 255;
+            BYTE* dp = destRow + dx * 4;
+            dp[0] = c.B;
+            dp[1] = c.G;
+            dp[2] = c.R;
+            dp[3] = 255;
         }
     }
 
     HDC hMem = CreateCompatibleDC(hdcDest);
     HBITMAP hOld = (HBITMAP)SelectObject(hMem, hDib);
-    BitBlt(hdcDest, destX, destY, info.CropWidth, info.CropHeight, hMem, 0, 0, SRCCOPY);
+    BitBlt(hdcDest, destX, destY, scaledW, scaledH, hMem, 0, 0, SRCCOPY);
 
     SelectObject(hMem, hOld);
     DeleteDC(hMem);
@@ -355,13 +375,15 @@ void GridObjectViewer::LayoutImages()
     int y = padding;
     int rowMaxDisplayH = 0;
 
+    float factor = CTileSetBrowserFrameExt::GridObjectViewerScaledFactor;
+
     for (auto& info : g_filteredImages)
     {
-        int origW = info.CropWidth; 
-        int origH = info.CropHeight;
+        int origW = (int)(info.CropWidth * factor);
+        int origH = (int)(info.CropHeight * factor);
 
-        int displayW = std::max(origW, MIN_DISPLAY_WIDTH);
-        int displayH = std::max(origH, MIN_DISPLAY_HEIGHT);
+        int displayW = std::max(origW, (int)(MIN_DISPLAY_WIDTH * factor));
+        int displayH = std::max(origH, (int)(MIN_DISPLAY_HEIGHT * factor));
 
         if (x + displayW > clientWidth - padding && x > padding)
         {
@@ -369,9 +391,6 @@ void GridObjectViewer::LayoutImages()
             x = padding;
             rowMaxDisplayH = 0;
         }
-
-        int offsetX = (displayW - origW) / 2;
-        int offsetY = (displayH - origH) / 2;
 
         RECT displayRect = { x, y, x + displayW, y + displayH };
         g_imageRects.push_back(displayRect);

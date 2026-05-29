@@ -12,6 +12,7 @@
 
 #include "Ext/CFinalSunApp/Body.h"
 #include "Ext/CIsoView/DirectXCore.h"
+#include "Ext/CTileSetBrowserFrame/Body.h"
 
 #include <CINI.h>
 
@@ -220,7 +221,6 @@ double ExtConfigs::AutoDarkMode_SwitchTimeB;
 bool ExtConfigs::EnableDarkMode;
 bool ExtConfigs::EnableDarkMode_Init;
 bool ExtConfigs::EnableDarkMode_DimMap;
-bool ExtConfigs::ShrinkTilesInTileSetBrowser;
 bool ExtConfigs::DisableAutoConnectWall;
 bool ExtConfigs::UTF8Support_InferEncoding = true;
 bool ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
@@ -355,7 +355,6 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::UTF8Support_InferEncoding = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.InferEncoding", true);
 	ExtConfigs::UTF8Support_AlwaysSaveAsUTF8 = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.AlwaysSaveAsUTF8");
 
-	ExtConfigs::ShrinkTilesInTileSetBrowser = CINI::FAData->GetBool("ExtConfigs", "ShrinkTilesInTileSetBrowser");
 	ExtConfigs::EnableDarkMode_DimMap = CINI::FAData->GetBool("ExtConfigs", "EnableDarkMode.DimMap");
 	ExtConfigs::DisplayObjectsOutside = CINI::FAData->GetBool("ExtConfigs", "DisplayObjectsOutside");
 	ExtConfigs::DDrawScalingBilinear = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear", true);
@@ -573,6 +572,10 @@ void FA2sp::ExtConfigsInitialize()
 	{
 		*opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
 	}
+
+	CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor = fa2.GetDouble("UserInterface", "TileSetBrowserViewScaledFactor", 1.0);
+	CTileSetBrowserFrameExt::OverlayBrowserViewScaledFactor = fa2.GetDouble("UserInterface", "OverlayBrowserViewScaledFactor", 1.0);
+	CTileSetBrowserFrameExt::GridObjectViewerScaledFactor = fa2.GetDouble("UserInterface", "GridObjectViewerScaledFactor", 1.0);
 
 	CIsoViewExt::PasteShowOutline = ExtConfigs::PasteShowOutlineDefault;
 
@@ -968,13 +971,6 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.LightingPreview.TintTileSetBrowserView", "Mult tile set browser images when changing lighting"),
 		.IniKey = "LightingPreview.TintTileSetBrowserView",
 		.Value = &ExtConfigs::LightingPreview_TintTileSetBrowserView,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.ShrinkTilesInTileSetBrowser", "Shink tile images in tile set browser"),
-		.IniKey = "ShrinkTilesInTileSetBrowser",
-		.Value = &ExtConfigs::ShrinkTilesInTileSetBrowser,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 

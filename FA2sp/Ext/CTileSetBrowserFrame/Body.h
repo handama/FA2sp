@@ -50,6 +50,9 @@ public:
 	static HWND hTabCtrl;
     static bool TerrainDlgLoaded;
     static CTileSetBrowserView* TileSetBrowserView_Instance;
+    static float TileSetBrowserViewScaledFactor;
+    static float OverlayBrowserViewScaledFactor;
+    static float GridObjectViewerScaledFactor;
 };
 
 class TreeViewHelper {

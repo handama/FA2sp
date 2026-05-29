@@ -717,9 +717,22 @@ void CViewObjectsExt::Redraw_Initialize()
 void CViewObjectsExt::Redraw_MainList()
 {
     auto LoadNodeWithCameo = [this](int node, int index, const char* name, int bmp)
-        {    
-            HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(bmp),
-            IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+        {
+            // Select the closest matching icon size based on TreeViewCameo_Size
+            int cameoSize = ExtConfigs::TreeViewCameo_Size;
+            int selectedBmp = bmp;
+            if (cameoSize > 56)
+                selectedBmp = bmp + 2000;  // 64px
+            else if (cameoSize > 40)
+                selectedBmp = bmp + 1000;  // 48px
+
+            HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(selectedBmp),
+                IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+
+            if (!hBmp && selectedBmp != bmp)
+                hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(bmp),
+                    IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+
             SpecialBitmap.Attach(hBmp);
             InsertingSpecialBitmap = true;
             ExtNodes[node] = this->InsertTranslatedString(name, index);

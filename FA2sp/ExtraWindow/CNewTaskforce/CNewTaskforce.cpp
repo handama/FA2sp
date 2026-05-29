@@ -205,8 +205,8 @@ LRESULT CALLBACK CNewTaskforce::DragDotProc(HWND hWnd, UINT message, WPARAM wPar
                 "STATIC",
                 nullptr,
                 WS_POPUP,
-                pt.x - 6, pt.y - 6,
-                12, 12,
+                pt.x - 6 * CFinalSunAppExt::ProgramScaleFactor, pt.y - 6 * CFinalSunAppExt::ProgramScaleFactor,
+                12 * CFinalSunAppExt::ProgramScaleFactor, 12 * CFinalSunAppExt::ProgramScaleFactor,
                 nullptr, nullptr,
                 static_cast<HINSTANCE>(FA2sp::hInstance),
                 nullptr

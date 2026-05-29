@@ -524,7 +524,13 @@ void CNewHouse::OnSelchangeColor(bool edited)
     FString text = vcbColor.GetSelectedText(edited);
     if (text.empty()) return;
     FString::TrimIndex(text);
-    map.WriteString(SelectedHouseName, "Color", text);
+    auto oldColor = map.GetString(SelectedHouseName, "Color");
+    if (oldColor != text)
+    {
+        map.WriteString(SelectedHouseName, "Color", text);
+        CMapDataExt::UpdateFieldStructureData_Optimized();
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+    }
 }
 
 void CNewHouse::OnEditchangeAllies()

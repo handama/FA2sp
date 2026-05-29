@@ -14,6 +14,7 @@
 #include "../Miscs/StringtableLoader.h"
 #include "../Miscs/DialogStyle.h"
 #include "../Ext/CMapData/Body.h"
+#include "../Ext/CFinalSunApp/Body.h"
 #include "ILexer.h"
 #include "Scintilla.h"
 #include "SciLexer.h"
@@ -1884,10 +1885,7 @@ void VirtualComboBoxEx::SetSpecialKeysFirst()
 void VirtualComboBoxEx::SetWindowHeight(HWND hwnd, LPARAM lParam)
 {
     LPMEASUREITEMSTRUCT mis = (LPMEASUREITEMSTRUCT)lParam;
-    HDC hdc = GetDC(hwnd);
-    int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
-    ReleaseDC(hwnd, hdc);
-    mis->itemHeight = ITEM_HEIGHT * dpi / 96.0f;
+    mis->itemHeight = ITEM_HEIGHT * CFinalSunAppExt::ProgramScaleFactor;
 }
 
 void VirtualComboBoxEx::Detach()

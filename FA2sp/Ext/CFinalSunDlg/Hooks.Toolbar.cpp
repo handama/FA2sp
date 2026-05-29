@@ -22,10 +22,7 @@ static int g_CurrentToolbarIconSize = 16;
 
 static int GetTargetIconSize(HWND hWnd)
 {
-    HDC hdc = GetDC(hWnd);
-    int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
-    ReleaseDC(hWnd, hdc);
-    int targetSize = (int)(16.0f * dpi / 96.0f);
+    int targetSize = (int)(16.0f * CFinalSunAppExt::ProgramScaleFactor);
     const int available[] = { 16, 24, 32, 48 };
     for (int s : available)
         if (s >= targetSize)

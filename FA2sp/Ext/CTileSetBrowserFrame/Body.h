@@ -4,6 +4,7 @@
 #include "../FA2Expand.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../FA2sp/Helpers/FString.h"
+#include "../../FA2sp/Ext/CFinalSunApp/Body.h"
 
 class NOVTABLE CTileSetBrowserFrameExt : public CTileSetBrowserFrame
 {

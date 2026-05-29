@@ -1,5 +1,6 @@
 #include "Body.h"
 #include "../CFinalSunDlg/Body.h"
+#include "../CFinalSunApp/Body.h"
 
 WNDPROC CMinimapExt::g_pfnOriginalMinimapProc = NULL;
 double CMinimapExt::ASPECT_RATIO = 1.0;
@@ -14,8 +15,8 @@ LRESULT CALLBACK CMinimapExt::MinimapWndProc(
 {
     auto initSize = []()
     {
-        int desiredWidth = CMapData::Instance->Size.Width * 2;
-        int desiredHeight = CMapData::Instance->Size.Height;
+        int desiredWidth = CMapData::Instance->Size.Width * 2 * CFinalSunAppExt::ProgramScaleFactor;
+        int desiredHeight = CMapData::Instance->Size.Height * CFinalSunAppExt::ProgramScaleFactor;
 
         CRect clientRect;
         CFinalSunDlg::Instance->MyViewFrame.Minimap.GetClientRect(&clientRect);
@@ -31,7 +32,7 @@ LRESULT CALLBACK CMinimapExt::MinimapWndProc(
 
         CFinalSunDlg::Instance->MyViewFrame.Minimap.MoveWindow(
             windowRect.left,
-            windowRect.top,
+            windowRect.top - (desiredHeight - desiredHeight / CFinalSunAppExt::ProgramScaleFactor),
             newWindowWidth,
             newWindowHeight,
             TRUE
@@ -39,7 +40,7 @@ LRESULT CALLBACK CMinimapExt::MinimapWndProc(
 
         CMinimapExt::ASPECT_RATIO = (double)desiredWidth / desiredHeight;
         CMinimapExt::InitWidth = desiredWidth;
-        CMinimapExt::CurrentScale = 1.0;
+        CMinimapExt::CurrentScale = CFinalSunAppExt::ProgramScaleFactor;
     };
 
     switch (uMsg)

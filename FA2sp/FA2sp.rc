@@ -207,6 +207,28 @@ END
 1030 BITMAP "Resources/radiounchecked.bmp"
 1031 BITMAP "Resources/radiocheckedhover.bmp"
 1032 BITMAP "Resources/radiouncheckedhover.bmp"
+
+// Dark mode checkbox/radio -- 24px
+1038 BITMAP "Resources/checkbox_24.bmp"
+1039 BITMAP "Resources/radiochecked_24.bmp"
+1040 BITMAP "Resources/radiounchecked_24.bmp"
+1041 BITMAP "Resources/radiocheckedhover_24.bmp"
+1042 BITMAP "Resources/radiouncheckedhover_24.bmp"
+
+// Dark mode checkbox/radio -- 32px
+1048 BITMAP "Resources/checkbox_32.bmp"
+1049 BITMAP "Resources/radiochecked_32.bmp"
+1050 BITMAP "Resources/radiounchecked_32.bmp"
+1051 BITMAP "Resources/radiocheckedhover_32.bmp"
+1052 BITMAP "Resources/radiouncheckedhover_32.bmp"
+
+// Dark mode checkbox/radio -- 48px
+1058 BITMAP "Resources/checkbox_48.bmp"
+1059 BITMAP "Resources/radiochecked_48.bmp"
+1060 BITMAP "Resources/radiounchecked_48.bmp"
+1061 BITMAP "Resources/radiocheckedhover_48.bmp"
+1062 BITMAP "Resources/radiouncheckedhover_48.bmp"
+
 1033 BITMAP "Resources/toolbar_D.bmp"
 1034 BITMAP "Resources/toolbar_D_2.bmp"
 1035 BITMAP "Resources/toolbar_D_3.bmp"

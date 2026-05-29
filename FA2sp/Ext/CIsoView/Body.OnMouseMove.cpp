@@ -11,6 +11,7 @@
 
 #include "../CLoading/Body.h"
 #include "../CMapData/Body.h"
+#include "../CFinalSunApp/Body.h"
 
 #include "../../Source/CIsoView.h"
 #include "../../Helpers/Translations.h"
@@ -454,7 +455,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
                     leftIndex++;
             if (CFinalSunApp::Instance().FlatToGround)
                 leftIndex++;
-            if (CIsoViewExt::ScaledFactor != 1.0)
+            double defaultScaledFactor = ExtConfigs::HiDPIAwareness_ScaleIsoView ? (1.0 / CFinalSunAppExt::ProgramScaleFactor) : 1.0;
+            if (fabs(CIsoViewExt::ScaledFactor - defaultScaledFactor) <= 0.01)
                 leftIndex++;
         }
 

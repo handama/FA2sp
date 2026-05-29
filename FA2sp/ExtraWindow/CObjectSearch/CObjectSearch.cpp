@@ -12,6 +12,7 @@
 #include <CIsoView.h>
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../Ext/CMapData/Body.h"
+#include "../../Ext/CFinalSunApp/Body.h"
 #include "../CNewTeamTypes/CNewTeamTypes.h"
 #include "../CNewTaskforce/CNewTaskforce.h"
 #include "../CNewScript/CNewScript.h"
@@ -1806,7 +1807,7 @@ void CObjectSearch::ToggleWindowSize(HWND hWnd)
     HWND hButton = GetDlgItem(hWnd, Controls::Search);
     HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
 
-    int TriggerMove = 110;
+    int TriggerMove = 110 * CFinalSunAppExt::ProgramScaleFactor;
     RECT r;
     POINT p;
 

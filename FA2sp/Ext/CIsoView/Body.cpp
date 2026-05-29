@@ -3102,7 +3102,8 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC, bool bScreenSpace)
             else
             { ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength()); }
         }
-        if (CIsoViewExt::ScaledFactor != 1.0)
+        double defaultScaledFactor = ExtConfigs::HiDPIAwareness_ScaleIsoView ? (1.0 / CFinalSunAppExt::ProgramScaleFactor) : 1.0;
+        if (fabs(CIsoViewExt::ScaledFactor - defaultScaledFactor) > 0.01)
         {
             FString buffer;
             buffer.Format(Translations::TranslateOrDefault("ScaledFactorText", "Zoom: %.02fx, Middle-click to reset"), 1.0 / CIsoViewExt::ScaledFactor);
@@ -4067,12 +4068,13 @@ void CIsoViewExt::Zoom(double offset)
 {
     if (CMapData::Instance->MapWidthPlusHeight)
     {
+        double defaultScaledFactor = ExtConfigs::HiDPIAwareness_ScaleIsoView ? (1.0 / CFinalSunAppExt::ProgramScaleFactor) : 1.0;
         auto pThis = CIsoViewExt::GetExtension();
         double scaledOld = CIsoViewExt::ScaledFactor;
         CRect oldRect = GetScaledWindowRect();
         if (offset == 0.0)
         {
-            CIsoViewExt::ScaledFactor = 1.0;
+            CIsoViewExt::ScaledFactor = defaultScaledFactor;
         }
         else
         {
@@ -4081,7 +4083,9 @@ void CIsoViewExt::Zoom(double offset)
                 CIsoViewExt::ScaledFactor = std::min(CIsoViewExt::ScaledMax, CIsoViewExt::ScaledFactor);
             CIsoViewExt::ScaledFactor = std::max(CIsoViewExt::ScaledMin, CIsoViewExt::ScaledFactor);
         }
-        if (abs(CIsoViewExt::ScaledFactor - 1.0) <= 0.06)
+        if (abs(CIsoViewExt::ScaledFactor - defaultScaledFactor) <= 0.06)
+            CIsoViewExt::ScaledFactor = defaultScaledFactor;
+        else if (abs(CIsoViewExt::ScaledFactor - 1.0) <= 0.06)
             CIsoViewExt::ScaledFactor = 1.0;
         if (scaledOld != CIsoViewExt::ScaledFactor)
         {

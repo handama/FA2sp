@@ -95,7 +95,7 @@ DEFINE_HOOK(4D3E50, CRightFrame_OnClientCreate, 5)
                     int isoWidth = static_cast<int>(rcMain.Width() * ExtConfigs::IsoViewWidthPercentage);
                     int tileWidth = rcMain.Width() - isoWidth;
                     pThis->CSplitter.SetColumnInfo(0, isoWidth, 20);
-                    pThis->CSplitter.SetColumnInfo(1, tileWidth, 10);
+                    pThis->CSplitter.SetColumnInfo(1, tileWidth, 0);
                     pThis->ppmfc::CFrameWnd::OnCreateClient(lpcs, pContent);
                 }
             }
@@ -116,7 +116,7 @@ DEFINE_HOOK(4D3E50, CRightFrame_OnClientCreate, 5)
                     int isoHeight = static_cast<int>(screenHeight * ExtConfigs::IsoViewHeightPercentage);
                     int tileHeight = screenHeight - isoHeight;
                     pThis->CSplitter.SetRowInfo(0, isoHeight, 20);
-                    pThis->CSplitter.SetRowInfo(1, tileHeight, 10);
+                    pThis->CSplitter.SetRowInfo(1, tileHeight, 0);
                     pThis->ppmfc::CFrameWnd::OnCreateClient(lpcs, pContent);
                 }
             }
@@ -132,7 +132,7 @@ DEFINE_HOOK(468690, CIsoView_OnSize_Size, A)
 {
     if (!CMyViewFrameInitialized) return 0;
 	GET(CIsoViewExt*, pThis, ECX);
-
+    
 	CRect rcMain;
 	::GetClientRect(CFinalSunDlg::Instance->GetSafeHwnd(), &rcMain);
 
@@ -142,10 +142,13 @@ DEFINE_HOOK(468690, CIsoView_OnSize_Size, A)
 
 		if (ExtConfigs::VerticalLayout)
         {
-			int cxCur, cxMin;
+			int cxCur, cxMin, cxTilesetBroser;
 			CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.GetColumnInfo(0, cxCur, cxMin);
+			CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.GetColumnInfo(1, cxTilesetBroser, cxMin);
 
             float newWidthPercentage = (float)cxCur / rcMain.Width();
+            if (cxTilesetBroser <= 1)
+            newWidthPercentage = 1.0f;
 
             if (fabs(newWidthPercentage - ExtConfigs::IsoViewWidthPercentage) > 0.03f)
             {
@@ -155,10 +158,14 @@ DEFINE_HOOK(468690, CIsoView_OnSize_Size, A)
         }
 		else
         {
-			int cyCur, cyMin;
+			int cyCur, cyMin, cyTilesetBroser;
 			CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.GetRowInfo(0, cyCur, cyMin);
+			CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.GetColumnInfo(1, cyTilesetBroser, cyMin);
 
             float newHeightPercentage = (float)cyCur / GetSystemMetrics(SM_CYFULLSCREEN);
+
+            if (cyTilesetBroser <= 1)
+                newHeightPercentage = 1.0f;
 
             if (fabs(newHeightPercentage - ExtConfigs::IsoViewHeightPercentage) > 0.03f)
             {

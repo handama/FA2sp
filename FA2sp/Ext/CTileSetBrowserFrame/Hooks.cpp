@@ -1,6 +1,7 @@
 #include "Body.h"
 
 #include "../../FA2sp.h"
+#include "../FA2sp/Ext/CFinalSunApp/Body.h"
 
 #include "TabPages/TriggerSort.h"
 #include "TabPages/TeamSort.h"
@@ -67,15 +68,16 @@ DEFINE_HOOK(4F1B00, CTileSetBrowserFrame_RecalcLayout, 7)
         DestroyWindow(hTemp);
     }
 
+    int tabPageheight = 20 * CFinalSunAppExt::ProgramScaleFactor;
     if (ExtConfigs::VerticalLayout)
     {
-        pThis->DialogBar.MoveWindow(2, 29, tabRect.right - tabRect.left - 6, cachedHeight, FALSE);
-        pThis->View.MoveWindow(2, 29 + cachedHeight, tabRect.right - tabRect.left - 6, tabRect.bottom - cachedHeight - 29, FALSE);
+        pThis->DialogBar.MoveWindow(2, tabPageheight, tabRect.right - tabRect.left - 6, cachedHeight, FALSE);
+        pThis->View.MoveWindow(2, tabPageheight + cachedHeight, tabRect.right - tabRect.left - 6, tabRect.bottom - cachedHeight - tabPageheight, FALSE);
     }
     else
     {
-        pThis->DialogBar.MoveWindow(2, 29, tabRect.right - tabRect.left - 6, cachedHeight, FALSE);
-        pThis->View.MoveWindow(2, 29 + cachedHeight, tabRect.right - tabRect.left - 6, tabRect.bottom - cachedHeight - 29, FALSE);
+        pThis->DialogBar.MoveWindow(2, tabPageheight, tabRect.right - tabRect.left - 6, cachedHeight, FALSE);
+        pThis->View.MoveWindow(2, tabPageheight + cachedHeight, tabRect.right - tabRect.left - 6, tabRect.bottom - cachedHeight - tabPageheight, FALSE);
     }
 
     SIZE sz{ tabRect.right,pThis->View.ScrollWidth };

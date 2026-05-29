@@ -166,7 +166,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
     
         if (InsertingSpecialBitmap)
         {
-            CIsoViewExt::ScaleBitmap(&SpecialBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255), true, false);
+            CIsoViewExt::ScaleBitmap(&SpecialBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 255, 255), true, false);
             int index = m_ImageList.Add(&SpecialBitmap, RGB(255, 255, 255));
             this->GetTreeCtrl().SetItemImage(item, index, index);
             return item;
@@ -487,14 +487,14 @@ void CViewObjectsExt::Redraw()
         m_ImageList.Add(&cBitmap, RGB(255, 255, 255));
         this->GetTreeCtrl().SetImageList(&m_ImageList, TVSIL_NORMAL);
    
-        CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 300, 10);
+        CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 300 * CFinalSunAppExt::ProgramScaleFactor, 10);
         CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.RecalcLayout();
         CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }
     else
     {
         this->GetTreeCtrl().SetImageList(NULL, TVSIL_NORMAL);
-        CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 200, 10);
+        CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 200 * CFinalSunAppExt::ProgramScaleFactor, 10);
         CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.RecalcLayout();
         CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }

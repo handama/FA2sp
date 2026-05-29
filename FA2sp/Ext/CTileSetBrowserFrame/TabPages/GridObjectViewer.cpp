@@ -5,6 +5,7 @@
 #include "../../../Helpers/Translations.h"
 #include "../../../Miscs/DialogStyle.h"
 #include "../../../Helpers/Helper.h"
+#include "../../../Ext/CFinalSunApp/Body.h"
 
 GridObjectViewer GridObjectViewer::Instance;
 const int MIN_DISPLAY_WIDTH = 80; 
@@ -1312,17 +1313,17 @@ void GridObjectViewer::OnSize() const
     ::GetClientRect(::GetParent(this->GetView()), &rect);
     CRect controlRect;
     GetWindowRect(this->GetControl(), &controlRect);
-
+    int tabPageheight = 20 * CFinalSunAppExt::ProgramScaleFactor;
     if (ExtConfigs::VerticalLayout)
     {
-        ::MoveWindow(m_hControl, 2, 29,
+        ::MoveWindow(m_hControl, 2, tabPageheight,
             rect.right - rect.left - 6, controlRect.Height(), FALSE);
         ::MoveWindow(this->GetView(), 2, controlRect.Height(),
             rect.right - rect.left - 6, rect.bottom - rect.top - 6 - controlRect.Height(), FALSE);
     }
     else
     {
-        ::MoveWindow(m_hControl, 2, 29,
+        ::MoveWindow(m_hControl, 2, tabPageheight,
             rect.right - rect.left - 6, controlRect.Height(), FALSE);
         ::MoveWindow(this->GetView(), 2, controlRect.Height(),
             rect.right - rect.left - 6, rect.bottom - rect.top - 6 - controlRect.Height(), FALSE);

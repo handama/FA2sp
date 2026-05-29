@@ -237,6 +237,8 @@ public:
     static bool GridObjectViewer_LoadEditorCategory;
     static bool GridObjectViewer_LoadForceSides;
     static bool GridObjectViewer_LoadObjectBrowserCategory;
+    static bool HiDPIAwareness;
+    static bool HiDPIAwareness_ScaleIsoView;
     static CInfantryData DefaultInfantryProperty;
     static CUnitData DefaultUnitProperty;
     static CAircraftData DefaultAircraftProperty;

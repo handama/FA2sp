@@ -227,6 +227,8 @@ bool ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
 bool ExtConfigs::GridObjectViewer_LoadEditorCategory;
 bool ExtConfigs::GridObjectViewer_LoadForceSides;
 bool ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory;
+bool ExtConfigs::HiDPIAwareness;
+bool ExtConfigs::HiDPIAwareness_ScaleIsoView;
 
 CInfantryData ExtConfigs::DefaultInfantryProperty;
 CUnitData ExtConfigs::DefaultUnitProperty;
@@ -360,6 +362,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DDrawScalingBilinear_OnlyShrink = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear.OnlyShrink", true);
 	ExtConfigs::DirectXRendering_INI = CINI::FAData->GetBool("ExtConfigs", "DirectXRendering", true);
 	ExtConfigs::PreciseDepthCalculation = CINI::FAData->GetBool("ExtConfigs", "PreciseDepthCalculation", true);
+	ExtConfigs::HiDPIAwareness_ScaleIsoView = CINI::FAData->GetBool("ExtConfigs", "HiDPIAwareness.ScaleIsoView", true);
+	ExtConfigs::HiDPIAwareness = CINI::FAData->GetBool("ExtConfigs", "HiDPIAwareness", false);
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::LightingPreview_TintTileSetBrowserView = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.TintTileSetBrowserView");
@@ -580,7 +584,10 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::DirectXRendering = ExtConfigs::DirectXRendering_INI;
 	if (ExtConfigs::DirectXRendering)
+	{
 		ExtConfigs::SecondScreenSupport = true;
+		ExtConfigs::DisplayTextSize -= 2;
+	}
 		
 	ExtConfigs::IsoViewWidthPercentage = fa2.GetDouble("UserInterface", "IsoViewWidthPercentage", 0.625f);
 	ExtConfigs::IsoViewHeightPercentage = fa2.GetDouble("UserInterface", "IsoViewHeightPercentage", 0.5f);
@@ -718,7 +725,7 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode", "Enable dark mode"),
+		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode", "Enable dark mode (requires Auto-switch dark mode to be disabled)"),
 		.IniKey = "EnableDarkMode",
 		.Value = &ExtConfigs::EnableDarkMode_Init,
 		.Type = ExtConfigs::SpecialOptionType::Restart
@@ -735,6 +742,20 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode.DimMap", "make map view dim in drak mode"),
 		.IniKey = "EnableDarkMode.DimMap",
 		.Value = &ExtConfigs::EnableDarkMode_DimMap,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+		
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.HiDPIAwareness", "Enable high-DPI awareness"),
+		.IniKey = "HiDPIAwareness",
+		.Value = &ExtConfigs::HiDPIAwareness,
+		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.HiDPIAwareness.ScaleIsoView", "Match IsoView default zoom to system scaling when high-DPI awareness is enabled"),
+		.IniKey = "HiDPIAwareness.ScaleIsoView",
+		.Value = &ExtConfigs::HiDPIAwareness_ScaleIsoView,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 

@@ -516,8 +516,6 @@ static void DrawTechnoAttachments(
 
 static void InitAllObjects()
 {
-	CMapDataExt::RefreshAllWindows();
-
 	if (!ExtConfigs::LoadObjectsOnInit)
 		return;
 
@@ -699,9 +697,11 @@ static void DrawMap()
 	// clear static containers, init some game logics
 	{
 		if (CLoadingExt::ObjectsNeedReloaded)
-		{
+		{	
 			InitAllObjects();
 			CLoadingExt::ObjectsNeedReloaded = false;
+			if (ExtConfigs::HiDPIAwareness_ScaleIsoView)
+				CIsoViewExt::GetExtension()->Zoom(0.0);
 		}
 
 		PalettesManager::CalculatedObjectPaletteFiles.clear();

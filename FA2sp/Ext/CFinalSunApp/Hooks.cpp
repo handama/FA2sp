@@ -7,6 +7,7 @@
 #include "../../FA2sp.Constants.h"
 #include "../../Helpers/Translations.h"
 #include "../../FA2sp.h"
+#include "../FA2sp/Miscs/DialogStyle.h"
 #include "../CIsoView/Body.h"
 
 #include <shlobj.h>
@@ -111,9 +112,14 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
     return 0;
 }
 
-//DEFINE_HOOK(41F720, CFinalSunApp_Initialize, 7)
-//{
-//    SetProcessDPIAware();
-//    return 0;
-//}
+DEFINE_HOOK(41F720, CFinalSunApp_Initialize, 7)
+{
+    bool awareness = STDHelpers::IsTrue(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "HiDPIAwareness", "false").c_str());
+    awareness = STDHelpers::IsTrue(DarkTheme::ReadIniString("FinalAlert.ini", "Options",
+        "HiDPIAwareness", awareness ? "true" : "false").c_str());
+        
+    if (awareness)
+        SetProcessDPIAware();
+    return 0;
+}
 

@@ -13,6 +13,7 @@
 #include <filesystem>
 #include "../../Helpers/Translations.h"
 #include "../../Miscs/VoxelDrawer.h"
+#include "../../Ext/CIsoView/Body.h"
 #include "../CLoading/Body.h"
 #include "../../Miscs/DialogStyle.h"
 #include "../../Helpers/STDHelpers.h"
@@ -225,6 +226,9 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	ScreenRefreshRate = GetDeviceCaps(hdc, VREFRESH);
     ReleaseDC(Loading->GetSafeHwnd(), hdc);
 	ProgramScaleFactor = ProgramDPI / 96.0f;
+
+	ExtConfigs::DisplayTextSize *= CFinalSunAppExt::ProgramScaleFactor;
+	ExtConfigs::TreeViewCameo_Size *= CFinalSunAppExt::ProgramScaleFactor;
 
 	bool is_watcher_running = true;
 	std::thread watcher([&is_watcher_running]()

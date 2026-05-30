@@ -1841,6 +1841,7 @@ bool LabelMatcher::MatchPattern(const FString& target, const Pattern& pattern) c
 #define VCB_TIMER_RESTORE  2
 #define ITEM_HEIGHT  15
 
+int VirtualComboBoxEx::m_itemHeight = ITEM_HEIGHT;
 VirtualComboBoxEx::VirtualComboBoxEx() {}
 VirtualComboBoxEx::~VirtualComboBoxEx() { Detach(); }
 
@@ -1886,6 +1887,7 @@ void VirtualComboBoxEx::SetWindowHeight(HWND hwnd, LPARAM lParam)
 {
     LPMEASUREITEMSTRUCT mis = (LPMEASUREITEMSTRUCT)lParam;
     mis->itemHeight = ITEM_HEIGHT * CFinalSunAppExt::ProgramScaleFactor;
+    m_itemHeight = mis->itemHeight;
 }
 
 void VirtualComboBoxEx::Detach()
@@ -2674,12 +2676,7 @@ static bool NeedVScrollBar(HWND window, HWND hList)
     if (listHeight <= 0)
         return false;
 
-    HDC hdc = GetDC(window);
-    int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
-    ReleaseDC(window, hdc);
-    int itemHeight = ITEM_HEIGHT * dpi / 96.0f;
-
-    int visible = listHeight / itemHeight;
+    int visible = listHeight / VirtualComboBoxEx::m_itemHeight;
 
     return total > visible;
 };
@@ -2890,7 +2887,7 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
             RECT rcText = rc;
             rcText.left += 4;
             if (item->leftSideBackground)
-                rcText.left += ITEM_HEIGHT;
+                rcText.left += m_itemHeight;
             rcText.right = rc.right - totalSubWidth - 10;
             DrawTextA(hdc, *text, -1, &rcText,
                 DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS);
@@ -2902,12 +2899,12 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
                 HPEN oldPen = (HPEN)SelectObject(hdc, hollowPen);
                 HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, solidBrush);
         
-                int padding = ITEM_HEIGHT / 7;
+                int padding = m_itemHeight / 7;
                 RECT rcRight = {};        
                 SelectObject(hdc, solidBrush);
                 SelectObject(hdc, hollowPen);
                 Rectangle(hdc, rc.left + padding - 4, rc.top + padding, 
-                    rc.left + ITEM_HEIGHT - padding - 4, rc.bottom - padding);
+                    rc.left + m_itemHeight - padding - 4, rc.bottom - padding);
                     
                 SelectObject(hdc, oldPen);
                 SelectObject(hdc, oldBrush);
@@ -3034,7 +3031,7 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
         {
             rc.left += 4;
             if (item->leftSideBackground)
-                rc.left += ITEM_HEIGHT;
+                rc.left += m_itemHeight;
 
             DrawTextA(hdc, *text, -1, &rc,
                 DT_SINGLELINE | DT_VCENTER | DT_LEFT);
@@ -3046,12 +3043,12 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
                 HPEN oldPen = (HPEN)SelectObject(hdc, hollowPen);
                 HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, solidBrush);
         
-                int padding = ITEM_HEIGHT / 7;
+                int padding = m_itemHeight / 7;
                 RECT rcRight = {};        
                 SelectObject(hdc, solidBrush);
                 SelectObject(hdc, hollowPen);
-                Rectangle(hdc, rc.left - ITEM_HEIGHT - 4 + padding, rc.top + padding, 
-                    rc.left + ITEM_HEIGHT - padding - ITEM_HEIGHT - 4, rc.bottom - padding);
+                Rectangle(hdc, rc.left - m_itemHeight - 4 + padding, rc.top + padding, 
+                    rc.left + m_itemHeight - padding - m_itemHeight - 4, rc.bottom - padding);
 
                 SelectObject(hdc, oldPen);
                 SelectObject(hdc, oldBrush);
@@ -3066,10 +3063,7 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
     case WM_MEASUREITEM:
     {
         LPMEASUREITEMSTRUCT mis = (LPMEASUREITEMSTRUCT)lParam;
-        HDC hdc = GetDC(hwnd);
-        int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
-        ReleaseDC(hwnd, hdc);
-        mis->itemHeight = ITEM_HEIGHT * dpi / 96.0f;
+        mis->itemHeight = m_itemHeight;
         return TRUE;
     }
     }

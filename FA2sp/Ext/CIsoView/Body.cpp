@@ -151,6 +151,26 @@ constexpr auto MakeBrightnessLUT() {
 }
 constexpr std::array<BYTE, 256> BrightnessLUT = MakeBrightnessLUT();
 
+static int GetXOffset(double s)
+{
+    if (s <= 0.25)
+        return -4;
+
+    if (s <= 0.5)
+        return static_cast<int>(std::round(
+            -4 + (s - 0.25) * (3.0 / 0.25)));
+
+    if (s <= 1.0)
+        return static_cast<int>(std::round(
+            -1 + (s - 0.5) * (2.0 / 0.5)));
+
+    if (s <= 1.25)
+        return static_cast<int>(std::round(
+            1 + (s - 1.0) * (1.0 / 0.25)));
+
+    return 2;
+}
+
 void CIsoViewExt::InitGdiplus()
 {
     static bool initialized = false;
@@ -1547,6 +1567,18 @@ void CIsoViewExt::DirectXDrawLockedLines(const std::vector<std::pair<MapCoord, M
 {
     Y -= 30;
     X += 30;
+
+    float lineWidth = bUseDot ? 1.0f : 3.0f;
+    if (bScreenSpace)
+    {
+        if (CIsoViewExt::ScaledFactor < 0.3)
+            lineWidth = bUseDot ? 3.0f : 8.0f;
+        else if (CIsoViewExt::ScaledFactor < 0.5)
+            lineWidth = bUseDot ? 2.3f : 6.5f;
+        else if (CIsoViewExt::ScaledFactor < 0.75)
+            lineWidth = bUseDot ? 1.5f : 4.5f;
+    }
+
     for (const auto& line : lines)
     {
         int x1 = X + line.first.X;
@@ -1555,7 +1587,7 @@ void CIsoViewExt::DirectXDrawLockedLines(const std::vector<std::pair<MapCoord, M
         int y2 = Y + line.second.Y;
 
         LineParams param;
-        param.SetAntiAlias(false).SetColor(ShapeColor::FromCOLORREF(color)).SetThickness(bUseDot ? 1.0f : 3.0f);
+        param.SetAntiAlias(false).SetColor(ShapeColor::FromCOLORREF(color)).SetThickness(lineWidth);
         if (bScreenSpace)
             param.SetScreenSpace();
 
@@ -1566,8 +1598,8 @@ void CIsoViewExt::DirectXDrawLockedLines(const std::vector<std::pair<MapCoord, M
 void CIsoViewExt::DirectXDrawLockedCellOutline(int X, int Y, int W, int H, COLORREF color, bool bUseDot, bool s1, bool s2, bool s3, bool s4, bool bScreenSpace)
 {
     float scaled = bScreenSpace ? CIsoViewExt::ScaledFactor : 1.f;
-    X += 2 / scaled;
-    Y += 1 / scaled;
+    X += -1.0 / scaled + 2.0;
+    Y += 0.5 / scaled + 0.5;
 
     float offsetX = 30.f / scaled;
     float offsetY = 30.f / scaled;
@@ -1589,8 +1621,19 @@ void CIsoViewExt::DirectXDrawLockedCellOutline(int X, int Y, int W, int H, COLOR
     float fx4 = X - fullCellHeight + offsetX;
     float fy4 = halfCellHeight + fy1;
 
+    float lineWidth = bUseDot ? 1.0f : 3.0f;
+    if (bScreenSpace)
+    {
+        if (CIsoViewExt::ScaledFactor < 0.3)
+            lineWidth = bUseDot ? 3.0f : 8.0f;
+        else if (CIsoViewExt::ScaledFactor < 0.5)
+            lineWidth = bUseDot ? 2.3f : 6.5f;
+        else if (CIsoViewExt::ScaledFactor < 0.75)
+            lineWidth = bUseDot ? 1.5f : 4.5f;
+    }
+
     LineParams param;
-    param.SetAntiAlias(false).SetColor(ShapeColor::FromCOLORREF(color)).SetThickness(bUseDot ? 1.0f : 3.0f);
+    param.SetAntiAlias(false).SetColor(ShapeColor::FromCOLORREF(color)).SetThickness(lineWidth);
     if (bScreenSpace)
         param.SetScreenSpace();
 
@@ -1606,8 +1649,8 @@ void CIsoViewExt::DirectXDrawLockedCellOutline(int X, int Y, int W, int H, COLOR
 
 void CIsoViewExt::DirectXDrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF color, COLORREF colorX, bool bUseDot, bool onlyX)
 {   
-    X += 2;
     Y += 1;
+    X += GetXOffset(ScaledFactor);
 
     int halfCellWidth = 30 * W;
     int quaterCellWidth = 15 * W;
@@ -3973,9 +4016,8 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
 
 void CIsoViewExt::DirectXMouseCursor(int X, int Y, int height)
 {
-    X += 2.0 / CIsoViewExt::ScaledFactor - 1.0;
-    Y += 1.5 / CIsoViewExt::ScaledFactor - 0.5;
-
+    Y += 1;
+    X += GetXOffset(ScaledFactor);
     double halfCellWidth = 30 / CIsoViewExt::ScaledFactor;
     double quaterCellWidth = 15 / CIsoViewExt::ScaledFactor;
     double fullCellHeight = 30 / CIsoViewExt::ScaledFactor;

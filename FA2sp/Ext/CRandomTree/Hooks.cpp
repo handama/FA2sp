@@ -5,6 +5,7 @@
 
 #include "../../FA2sp.h"
 #include "../CFinalSunDlg/Body.h"
+#include "../CFinalSunApp/Body.h"
 #include "../CLoading/Body.h"
 #pragma comment(lib, "Msimg32.lib")
 
@@ -61,21 +62,39 @@ DEFINE_HOOK(4D4FF7, CRandomTreeDlg_Draw, 7)
     {
         CBitmap bmp;
         CLoadingExt::LoadShpToBitmap(pData, bmp);
+    
         CDC memDC;
         memDC.CreateCompatibleDC(pDC);
+    
         CBitmap* pOldBmp = memDC.SelectObject(&bmp);
+    
         BITMAP bitmap;
         bmp.GetBitmap(&bitmap);
-     
-        pDC->FillSolidRect(&pr, ExtConfigs::EnableDarkMode ? RGB(32, 32, 32) : RGB(255, 255, 255));
+    
+        const int dstWidth = static_cast<int>(bitmap.bmWidth * CFinalSunAppExt::ProgramScaleFactor);
+        const int dstHeight = static_cast<int>(bitmap.bmHeight * CFinalSunAppExt::ProgramScaleFactor);
+    
+        pDC->FillSolidRect(
+            &pr,
+            ExtConfigs::EnableDarkMode
+                ? RGB(32, 32, 32)
+                : RGB(255, 255, 255));
+    
         COLORREF transparentColor = RGB(255, 0, 255);
+    
         TransparentBlt(
             pDC->GetSafeHdc(),
-            pr.left, pr.top, bitmap.bmWidth, bitmap.bmHeight,
+            pr.left + 3,
+            pr.top + 6,
+            dstWidth,
+            dstHeight,
             memDC.GetSafeHdc(),
-            0, 0, bitmap.bmWidth, bitmap.bmHeight,
-            transparentColor
-        );
+            0,
+            0,
+            bitmap.bmWidth,
+            bitmap.bmHeight,
+            transparentColor);
+    
         memDC.SelectObject(pOldBmp);
     }
     else

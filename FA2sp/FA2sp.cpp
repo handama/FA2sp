@@ -1655,7 +1655,6 @@ DEFINE_HOOK(537208, ExeTerminate, 9)
 {
 	MutexHelper::Detach();
 	Logger::Info("FA2sp Terminating...\n");
-	Logger::Close();
 	VoxelDrawer::Finalize();
 
 	// Destruct static ppmfc stuffs here
@@ -1672,6 +1671,7 @@ DEFINE_HOOK(537208, ExeTerminate, 9)
 	::DeactivateActCtx(NULL, ulCookie);
 #endif
 
+	Logger::Close();
 	GET(UINT, result, EAX);
 	ExitProcess(result);
 }

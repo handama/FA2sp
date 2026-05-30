@@ -618,6 +618,10 @@ void CNewHouse::OnClickAddHouse()
         "Please set the ID of the house (like GDI or Nod):");
 
     auto newCountry = CInputMessageBox::GetString(dlgMessage, dlgCap);
+    newCountry.Trim();
+    if (newCountry.IsEmpty())
+        return;
+        
     newCountry.Replace("House", "");
     newCountry.Trim();
     auto newHouse = newCountry + " House";

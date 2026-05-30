@@ -259,7 +259,7 @@ void DirectXCore::Cleanup()
     m_renderScale = 1.0f;
     m_bInitialized = false;
 
-    Logger::Raw("[DirectXCore] Reset all.\n");
+    Logger::Raw("[DirectXCore] Cleaning up.\n");
 }
 
 void DirectXCore::OnResize(HWND hwnd)

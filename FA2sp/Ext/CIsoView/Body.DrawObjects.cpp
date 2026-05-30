@@ -26,7 +26,6 @@
 static CRect window;
 static MapCoord VisibleCoordTL;
 static MapCoord VisibleCoordBR;
-static ppmfc::CPoint ViewPosition;
 using DrawCall = std::function<void()>;
 
 std::unordered_set<short> CIsoViewExt::VisibleStructures;
@@ -792,16 +791,6 @@ static void DrawMap()
 
 	// init window positions
 	{
-		RECT rect;
-		::GetClientRect(pThis->GetSafeHwnd(), &rect);
-		POINT topLeft = {rect.left, rect.top};
-		::ClientToScreen(pThis->GetSafeHwnd(), &topLeft);
-		double offsetX = 0.016795436849483363 * topLeft.x - 4.664099013466316;
-		double offsetY = 0.03362306232114938 * topLeft.y - 2.4360168849787662;
-		ViewPosition = pThis->ViewPosition;
-		pThis->ViewPosition.x += offsetX;
-		pThis->ViewPosition.y += offsetY;
-
 		pThis->GetWindowRect(&window);
 		CIsoViewExt::AdaptRectForSecondScreen(&window);
 
@@ -3718,8 +3707,6 @@ static void DrawMap()
 	lpSurface->ReleaseDC(hDC);
 	lpSurface->Unlock(NULL);
 
-	pThis->ViewPosition = ViewPosition;
-
 	if (ExtConfigs::DirectXRendering)
 	{
 		CIsoViewExt::SpecialDrawDirectX(0);
@@ -3845,6 +3832,7 @@ static void DrawMap()
 				}
 			}
 		}		
+		
 		return;
 	}
 

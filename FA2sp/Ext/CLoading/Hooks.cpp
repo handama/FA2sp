@@ -149,7 +149,16 @@ DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 				{
 					CBitmap bmp;
 					if (CLoadingExt::LoadBMPToCBitmap(entry.path().string(), bmp))
+					{
+						if (!ExtConfigs::DirectXRendering && entry.path().filename().string() == "scrollcursor.bmp")
+						{
+							BITMAP bm = {};
+							bmp.GetBitmap(&bm);
+							int maxSize = std::max(bm.bmWidth, bm.bmHeight);
+							CIsoViewExt::ScaleBitmap(&bmp, maxSize * CFinalSunAppExt::ProgramScaleFactor, RGB(255, 255, 255), true, false);
+						}
 						CLoadingExt::LoadBitMap(entry.path().filename().string(), bmp);
+					}
 				}
 			}
 		}

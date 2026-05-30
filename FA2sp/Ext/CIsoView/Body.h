@@ -225,6 +225,7 @@ public:
     static void DrawShadowMask(void* dst, const DDBoundary& boundary, const RECT& window, 
         const std::vector<byte>& mask, const std::vector<byte>& shadowHeightMask, const std::vector<int>& cellHeightMask);
     static void ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, bool removeHalo = true, bool trim = true);
+    static HRESULT ScaleSurface(LPDIRECTDRAWSURFACE7* lpSurface, float scaleFactor);
     static bool LoadAndScaleToBitmap(const ImageDataView* pData,
         CBitmap& outBitmap,
         int maxSize,

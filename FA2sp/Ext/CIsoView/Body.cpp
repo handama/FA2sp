@@ -151,26 +151,6 @@ constexpr auto MakeBrightnessLUT() {
 }
 constexpr std::array<BYTE, 256> BrightnessLUT = MakeBrightnessLUT();
 
-static int GetXOffset(double s)
-{
-    if (s <= 0.25)
-        return -4;
-
-    if (s <= 0.5)
-        return static_cast<int>(std::round(
-            -4 + (s - 0.25) * (3.0 / 0.25)));
-
-    if (s <= 1.0)
-        return static_cast<int>(std::round(
-            -1 + (s - 0.5) * (2.0 / 0.5)));
-
-    if (s <= 1.25)
-        return static_cast<int>(std::round(
-            1 + (s - 1.0) * (1.0 / 0.25)));
-
-    return 2;
-}
-
 void CIsoViewExt::InitGdiplus()
 {
     static bool initialized = false;
@@ -1649,8 +1629,8 @@ void CIsoViewExt::DirectXDrawLockedCellOutline(int X, int Y, int W, int H, COLOR
 
 void CIsoViewExt::DirectXDrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF color, COLORREF colorX, bool bUseDot, bool onlyX)
 {   
-    Y += 1;
-    X += GetXOffset(ScaledFactor);
+    Y += 1 / CIsoViewExt::ScaledFactor;
+    X += 1 / CIsoViewExt::ScaledFactor;
 
     int halfCellWidth = 30 * W;
     int quaterCellWidth = 15 * W;
@@ -3662,9 +3642,11 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         if (pThis->IsScrolling)
         {
             auto point = pThis->MouseCenterPosition;
-            point.x += rect.left - 16 - 18 + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0);
-            point.y += rect.top + 14 - 12 + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0);
             auto cursor = CLoadingExt::GetSurfaceImageDataFromMap("scrollcursor.bmp");
+            point.x += rect.left + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0) - 1
+            - cursor->FullWidth / 2;
+            point.y += rect.top + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0) + 29
+            - cursor->FullHeight / 2;
             CIsoViewExt::BlitTransparent(cursor->lpSurface, point.x, point.y, -1, -1, 255, surface);
         }
 
@@ -3876,17 +3858,39 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
 {
     auto pThis = CIsoViewExt::GetExtension();
     HDC hDC = nullptr;
-    RECT rect = {};
+    static CRect rect = {};
+    if (specialDraw != 0)
+    {
+        auto oldRect = rect;
+        pThis->GetWindowRect(&rect);
+    
+        if (ExtConfigs::DirectXRendering && rect != oldRect)
+        {
+            pThis->Draw();
+        }    
+    }
+
     switch (specialDraw)
     {
     case 0:
     {
         if (pThis->IsScrolling)
         {
-            pThis->DirectXBitmap(
-                pThis->MouseCenterPosition.x + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0),
-                pThis->MouseCenterPosition.y + 27 + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0),
-                "scrollcursor.bmp", 1.0f, true);
+            if (auto pTexture = g_pDX->GetBitmapTexture("scrollcursor.bmp"))
+            {
+                DrawParams params;
+                params.SetPosition(
+                    pThis->MouseCenterPosition.x + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0) +
+                    (1 - pTexture->sourceView.FullWidth / 2) * CFinalSunAppExt::ProgramScaleFactor,
+                    pThis->MouseCenterPosition.y + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0) +
+                    (-2 - pTexture->sourceView.FullHeight / 2) * CFinalSunAppExt::ProgramScaleFactor)
+                    .SetOpacity(1.0f).SetStencilRef(127).SetScreenSpace()
+                    .SetScale(1.0 * CFinalSunAppExt::ProgramScaleFactor,
+                         1.0 * CFinalSunAppExt::ProgramScaleFactor);
+        
+                params.bWriteStencil = true;              
+                g_pDX->DrawTexture(pTexture, params);
+            }
         }
         
         if (EnableLiveDistanceRuler)
@@ -4016,8 +4020,8 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
 
 void CIsoViewExt::DirectXMouseCursor(int X, int Y, int height)
 {
-    Y += 1;
-    X += GetXOffset(ScaledFactor);
+    Y += 1 / CIsoViewExt::ScaledFactor;
+    X += 1 / CIsoViewExt::ScaledFactor;
     double halfCellWidth = 30 / CIsoViewExt::ScaledFactor;
     double quaterCellWidth = 15 / CIsoViewExt::ScaledFactor;
     double fullCellHeight = 30 / CIsoViewExt::ScaledFactor;
@@ -5194,6 +5198,163 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
         }
     }
 }
+
+HRESULT CIsoViewExt::ScaleSurface(
+    LPDIRECTDRAWSURFACE7* lpSurface,
+    float scaleFactor)
+{
+    if (fabs(1.0f - scaleFactor) < 0.001f)
+        return DD_OK;
+    if (!lpSurface || !*lpSurface || scaleFactor <= 0.0f)
+        return E_INVALIDARG;
+
+    LPDIRECTDRAWSURFACE7 lpSrc = *lpSurface;
+    DDSURFACEDESC2 ddsd = {};
+    ddsd.dwSize = sizeof(ddsd);
+    HRESULT hr = lpSrc->GetSurfaceDesc(&ddsd);
+    if (FAILED(hr)) return hr;
+
+    DWORD srcW = ddsd.dwWidth, srcH = ddsd.dwHeight;
+    DWORD dstW = std::max(1UL, (DWORD)std::lround(srcW * scaleFactor));
+    DWORD dstH = std::max(1UL, (DWORD)std::lround(srcH * scaleFactor));
+
+    if (dstW == srcW && dstH == srcH)
+        return DD_OK;
+
+    DDSURFACEDESC2 srcLock = {};
+    srcLock.dwSize = sizeof(srcLock);
+    hr = lpSrc->Lock(NULL, &srcLock, DDLOCK_READONLY | DDLOCK_WAIT, NULL);
+    if (FAILED(hr)) return hr;
+    const BYTE* srcBits = (const BYTE*)srcLock.lpSurface;
+    LONG srcPitch = srcLock.lPitch;
+
+    LPDIRECTDRAW7 lpDD = nullptr;
+    hr = lpSrc->GetDDInterface((LPVOID*)&lpDD);
+    if (FAILED(hr)) { lpSrc->Unlock(NULL); return hr; }
+
+    DDSURFACEDESC2 ddsdNew = {};
+    ddsdNew.dwSize = sizeof(ddsdNew);
+    ddsdNew.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT | DDSD_PIXELFORMAT;
+    ddsdNew.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
+    ddsdNew.dwWidth = dstW;
+    ddsdNew.dwHeight = dstH;
+    ddsdNew.ddpfPixelFormat = ddsd.ddpfPixelFormat;
+
+    LPDIRECTDRAWSURFACE7 lpDest = nullptr;
+    hr = lpDD->CreateSurface(&ddsdNew, &lpDest, NULL);
+    lpDD->Release();
+    if (FAILED(hr)) { lpSrc->Unlock(NULL); return hr; }
+
+    DDSURFACEDESC2 dstLock = {};
+    dstLock.dwSize = sizeof(dstLock);
+    hr = lpDest->Lock(NULL, &dstLock, DDLOCK_WAIT, NULL);
+    if (FAILED(hr)) { lpDest->Release(); lpSrc->Unlock(NULL); return hr; }
+    BYTE* dstBits = (BYTE*)dstLock.lpSurface;
+    LONG dstPitch = dstLock.lPitch;
+
+    DWORD rMask = ddsd.ddpfPixelFormat.dwRBitMask;
+    DWORD gMask = ddsd.ddpfPixelFormat.dwGBitMask;
+    DWORD bMask = ddsd.ddpfPixelFormat.dwBBitMask;
+    DWORD aMask = ddsd.ddpfPixelFormat.dwRGBAlphaBitMask;
+
+    auto GetShift = [](DWORD mask) -> int {
+        if (!mask) return 0;
+        int shift = 0;
+        while ((mask & 1) == 0) { mask >>= 1; shift++; }
+        return shift;
+    };
+    auto CountBits = [](DWORD mask) -> int {
+        int cnt = 0;
+        while (mask) { cnt += mask & 1; mask >>= 1; }
+        return cnt;
+    };
+    int rShift = GetShift(rMask), gShift = GetShift(gMask);
+    int bShift = GetShift(bMask), aShift = GetShift(aMask);
+    int rBits = CountBits(rMask), gBits = CountBits(gMask);
+    int bBits = CountBits(bMask), aBits = CountBits(aMask);
+
+    float xScale = (float)srcW / dstW;
+    float yScale = (float)srcH / dstH;
+
+    for (DWORD dy = 0; dy < dstH; ++dy) {
+        float sy = (dy + 0.5f) * yScale - 0.5f;
+        if (sy < 0) sy = 0;
+        if (sy >= srcH - 1) sy = srcH - 1.001f;
+        int y0 = (int)sy;
+        int y1 = std::min(y0 + 1, (int)srcH - 1);
+        float wy = sy - y0;
+
+        const BYTE* srcRow0 = srcBits + y0 * srcPitch;
+        const BYTE* srcRow1 = srcBits + y1 * srcPitch;
+        BYTE* dstRow = dstBits + dy * dstPitch;
+
+        for (DWORD dx = 0; dx < dstW; ++dx) {
+            float sx = (dx + 0.5f) * xScale - 0.5f;
+            if (sx < 0) sx = 0;
+            if (sx >= srcW - 1) sx = srcW - 1.001f;
+            int x0 = (int)sx;
+            int x1 = std::min(x0 + 1, (int)srcW - 1);
+            float wx = sx - x0;
+
+            DWORD c00 = *(const DWORD*)(srcRow0 + x0 * 4);
+            DWORD c10 = *(const DWORD*)(srcRow0 + x1 * 4);
+            DWORD c01 = *(const DWORD*)(srcRow1 + x0 * 4);
+            DWORD c11 = *(const DWORD*)(srcRow1 + x1 * 4);
+
+            auto Extract = [&](DWORD col, DWORD mask, int shift, int bits) -> float {
+                return (float)((col & mask) >> shift) / ((1 << bits) - 1);
+            };
+            float r00 = Extract(c00, rMask, rShift, rBits);
+            float g00 = Extract(c00, gMask, gShift, gBits);
+            float b00 = Extract(c00, bMask, bShift, bBits);
+            float a00 = Extract(c00, aMask, aShift, aBits);
+            float r10 = Extract(c10, rMask, rShift, rBits);
+            float g10 = Extract(c10, gMask, gShift, gBits);
+            float b10 = Extract(c10, bMask, bShift, bBits);
+            float a10 = Extract(c10, aMask, aShift, aBits);
+            float r01 = Extract(c01, rMask, rShift, rBits);
+            float g01 = Extract(c01, gMask, gShift, gBits);
+            float b01 = Extract(c01, bMask, bShift, bBits);
+            float a01 = Extract(c01, aMask, aShift, aBits);
+            float r11 = Extract(c11, rMask, rShift, rBits);
+            float g11 = Extract(c11, gMask, gShift, gBits);
+            float b11 = Extract(c11, bMask, bShift, bBits);
+            float a11 = Extract(c11, aMask, aShift, aBits);
+
+            auto Lerp = [](float v0, float v1, float t) { return v0 * (1 - t) + v1 * t; };
+            float rTop = Lerp(r00, r10, wx);
+            float rBottom = Lerp(r01, r11, wx);
+            float r = Lerp(rTop, rBottom, wy);
+            float gTop = Lerp(g00, g10, wx);
+            float gBottom = Lerp(g01, g11, wx);
+            float g = Lerp(gTop, gBottom, wy);
+            float bTop = Lerp(b00, b10, wx);
+            float bBottom = Lerp(b01, b11, wx);
+            float b = Lerp(bTop, bBottom, wy);
+            float aTop = Lerp(a00, a10, wx);
+            float aBottom = Lerp(a01, a11, wx);
+            float a = Lerp(aTop, aBottom, wy);
+
+            auto Convert = [](float val, int bits) -> DWORD {
+                return (DWORD)(val * ((1 << bits) - 1) + 0.5f);
+            };
+            DWORD rVal = Convert(r, rBits);
+            DWORD gVal = Convert(g, gBits);
+            DWORD bVal = Convert(b, bBits);
+            DWORD aVal = Convert(a, aBits);
+            DWORD color = (rVal << rShift) | (gVal << gShift) |
+                          (bVal << bShift) | (aVal << aShift);
+            *(DWORD*)(dstRow + dx * 4) = color;
+        }
+    }
+
+    lpDest->Unlock(NULL);
+    lpSrc->Unlock(NULL);
+    lpSrc->Release();
+    *lpSurface = lpDest;
+    return DD_OK;
+}
+
 
 ImageDataView CIsoViewExt::MakeImageDataView(ImageDataClassSafe* p, Palette* pPal)
 {

@@ -148,11 +148,11 @@ Palette* PalettesManager::GetPalette(Palette* pPal, BGRStruct& color, bool remap
 
 }
 
-Palette* PalettesManager::GetTileSetBrowserViewPalette(Palette* pPal, BGRStruct& color, bool remap, Cell3DLocation location)
+Palette* PalettesManager::GetTileSetBrowserViewPalette(Palette* pPal, BGRStruct& color, bool remap, Cell3DLocation location, bool isOre)
 {
     if (ExtConfigs::EnableDarkMode && ExtConfigs::EnableDarkMode_DimMap)
     {
-        auto pal = ExtConfigs::LightingPreview_TintTileSetBrowserView ? GetPalette(pPal, color, remap, location) : pPal;
+        auto pal = (ExtConfigs::LightingPreview_TintTileSetBrowserView && !isOre) ? GetPalette(pPal, color, remap, location) : pPal;
         auto itr = PalettesManager::CalculatedDimmedPaletteFiles[pal].find(std::make_pair(color, LightingStruct::CurrentLighting));
         if (itr != PalettesManager::CalculatedDimmedPaletteFiles[pal].end())
             return itr->second.GetPalette();
@@ -169,7 +169,7 @@ Palette* PalettesManager::GetTileSetBrowserViewPalette(Palette* pPal, BGRStruct&
         return p.GetPalette();
     }
 
-    return ExtConfigs::LightingPreview_TintTileSetBrowserView ? GetPalette(pPal, color, remap, location) : pPal; 
+    return (ExtConfigs::LightingPreview_TintTileSetBrowserView && !isOre) ? GetPalette(pPal, color, remap, location) : pPal; 
 }
 
 Palette* PalettesManager::GetObjectPalette(Palette* pPal, BGRStruct& color, bool remap, Cell3DLocation location, bool isopal, int extraLightType)

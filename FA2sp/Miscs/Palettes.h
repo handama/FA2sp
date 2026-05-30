@@ -186,7 +186,7 @@ public:
     static Palette* LoadPalette(FString palname);
     static Palette* LoadTiberiumCellAnimPalette(BGRStruct& color, FString palname);
     static Palette* GetPalette(Palette* pPal, BGRStruct& color, bool remap = true, Cell3DLocation location = {0});
-    static Palette* GetTileSetBrowserViewPalette(Palette* pPal, BGRStruct& color, bool remap = true, Cell3DLocation location = {0});
+    static Palette* GetTileSetBrowserViewPalette(Palette* pPal, BGRStruct& color, bool remap = true, Cell3DLocation location = {0}, bool isOre = false);
     static Palette* GetObjectPalette(Palette* pPal, BGRStruct& color, bool remap, Cell3DLocation location, bool isopal = false, int extraLightType = -1);
     static Palette* GetColoredPalette(Palette* pPal, BGRStruct& color);
     static Palette* GetOverlayPalette(Palette* pPal, Cell3DLocation location, int overlay);

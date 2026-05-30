@@ -5162,7 +5162,7 @@ unsigned char* CLoadingExt::ClipImageHorizontal(
 	return clipped;
 }
 
-std::unique_ptr<ImageDataClassSafe> CLoadingExt::BindClippedImages(const std::vector<std::unique_ptr<ImageDataClassSafe>>& imgs)
+std::unique_ptr<ImageDataClassSafe> CLoadingExt::BindClippedImages(const std::vector<std::unique_ptr<ImageDataClassSafe>>& imgs, bool keepOpacity)
 {
 	if (imgs.empty())
 		return nullptr;
@@ -5175,16 +5175,20 @@ std::unique_ptr<ImageDataClassSafe> CLoadingExt::BindClippedImages(const std::ve
 		if (!img) continue;
 		totalWidth += img->FullWidth;
 		maxHeight = std::max<int>(maxHeight, img->FullHeight);
+		if (keepOpacity && !img->pOpacity)
+			keepOpacity = false;
 	}
 
 	auto result = std::make_unique<ImageDataClassSafe>();
 	result->FullWidth = totalWidth;
 	result->FullHeight = maxHeight;
 	result->pImageBuffer = std::unique_ptr<unsigned char[]>(
-		new unsigned char[totalWidth * maxHeight]
+		new unsigned char[totalWidth * maxHeight]()
 	);
-
-	std::memset(result->pImageBuffer.get(), 0, totalWidth * maxHeight);
+	if (keepOpacity)
+		result->pOpacity = std::unique_ptr<unsigned char[]>(
+			new unsigned char[totalWidth * maxHeight]()
+		);
 
 	int offsetX = 0;
 
@@ -5200,6 +5204,13 @@ std::unique_ptr<ImageDataClassSafe> CLoadingExt::BindClippedImages(const std::ve
 			int dstIndex = y * totalWidth + offsetX;
 			int srcIndex = y * img->FullWidth;
 			std::memcpy(dst + dstIndex, src + srcIndex, img->FullWidth);
+
+			if (keepOpacity)
+			{
+				unsigned char* src = img->pOpacity.get();
+				unsigned char* dst = result->pOpacity.get();
+				std::memcpy(dst + dstIndex, src + srcIndex, img->FullWidth);
+			}
 		}
 
 		offsetX += img->FullWidth;
@@ -5572,7 +5583,7 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 
 					int widthAll, heightAll;
 					UnionSHP_GetAndClear(pOutBuffers[0], &widthAll, &heightAll, false, false);
-					SetImageDataSafe(pOutBuffers[0], DictName, widthAll, heightAll, cellAnimPal ? cellAnimPal : palette, false);
+					SetImageDataSafe(pOutBuffers[0], DictName, widthAll, heightAll, cellAnimPal ? cellAnimPal : palette);
 
 					if (cellAnimShadow)
 					{
@@ -5599,7 +5610,7 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 				}
 				else
 				{
-					SetImageDataSafe(FramesBuffers[0], DictName, header.Width, header.Height, palette, false);
+					SetImageDataSafe(FramesBuffers[0], DictName, header.Width, header.Height, palette);
 					if (ExtConfigs::InGameDisplay_Shadow && (i < header.FrameCount / 2))
 					{
 						FString DictNameShadow = GetOverlayName(nIndex, i, true);

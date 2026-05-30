@@ -204,7 +204,9 @@ DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_LButtonDown_PlaceObject, 9)
                 return 0x45CD2B;
         }
 
-        newTechno.Facing = CViewObjectsExt::PlacingRandomRandomFacing ? STDHelpers::GetRandomFacing() : ExtConfigs::DefaultBuildingProperty.Facing;
+        auto defaultFacing = Variables::RulesMap.TryGetString(CIsoView::CurrentCommand->ObjectID, "FA2DefaultFacing");
+        newTechno.Facing = CViewObjectsExt::PlacingRandomRandomFacing ? 
+            STDHelpers::GetRandomFacing() : (defaultFacing ? *defaultFacing : ExtConfigs::DefaultBuildingProperty.Facing);
         newTechno.Health = ExtConfigs::DefaultBuildingProperty.Health;
         newTechno.Tag = ExtConfigs::DefaultBuildingProperty.Tag;
         newTechno.AISellable = ExtConfigs::DefaultBuildingProperty.AISellable;
@@ -1035,7 +1037,10 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                             if (cell->Structure < 0)
                             {
                                 CBuildingData newTechno;
-                                newTechno.Facing = CViewObjectsExt::PlacingRandomRandomFacing ? STDHelpers::GetRandomFacing() : ExtConfigs::DefaultBuildingProperty.Facing;
+                                newTechno.TypeID = STDHelpers::RandomSelect(randomList);
+                                auto defaultFacing = Variables::RulesMap.TryGetString(newTechno.TypeID, "FA2DefaultFacing");
+                                newTechno.Facing = CViewObjectsExt::PlacingRandomRandomFacing ? 
+                                    STDHelpers::GetRandomFacing() : (defaultFacing ? *defaultFacing : ExtConfigs::DefaultBuildingProperty.Facing);
                                 newTechno.Health = ExtConfigs::DefaultBuildingProperty.Health;
                                 newTechno.Tag = ExtConfigs::DefaultBuildingProperty.Tag;
                                 newTechno.AISellable = ExtConfigs::DefaultBuildingProperty.AISellable;
@@ -1050,7 +1055,6 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                                 newTechno.Nominal = ExtConfigs::DefaultBuildingProperty.Nominal;
 
                                 newTechno.House = CIsoView::CurrentHouse();
-                                newTechno.TypeID = STDHelpers::RandomSelect(randomList);
                                 newTechno.X.Format("%d", mc.X);
                                 newTechno.Y.Format("%d", mc.Y);
 

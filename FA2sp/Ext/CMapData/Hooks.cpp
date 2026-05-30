@@ -603,8 +603,9 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 		_itoa(X, cx, 10);
 		_itoa(Y, cy, 10);
 
+		auto defaultFacing = Variables::RulesMap.TryGetString(lpType, "FA2DefaultFacing");
 		structure.Health = ExtConfigs::DefaultBuildingProperty.Health;
-		structure.Facing = ExtConfigs::DefaultBuildingProperty.Facing;
+		structure.Facing = defaultFacing ? *defaultFacing : ExtConfigs::DefaultBuildingProperty.Facing;
 		structure.Tag = ExtConfigs::DefaultBuildingProperty.Tag;
 		structure.AISellable = ExtConfigs::DefaultBuildingProperty.AISellable;
 		structure.AIRebuildable = ExtConfigs::DefaultBuildingProperty.AIRebuildable;

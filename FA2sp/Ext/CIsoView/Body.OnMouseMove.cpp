@@ -456,10 +456,9 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
             if (CFinalSunApp::Instance().FlatToGround)
                 leftIndex++;
             double defaultScaledFactor = ExtConfigs::HiDPIAwareness_ScaleIsoView ? (1.0 / CFinalSunAppExt::ProgramScaleFactor) : 1.0;
-            if (fabs(CIsoViewExt::ScaledFactor - defaultScaledFactor) <= 0.01)
+            if (fabs(CIsoViewExt::ScaledFactor - defaultScaledFactor) > 0.01)
                 leftIndex++;
         }
-
 
         SetTextAlign(hDC, TA_LEFT);
 

@@ -349,32 +349,23 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				TaskforceSort::Instance.HideWindow();
 				ScriptSort::Instance.HideWindow();
 				TriggerSort::Instance.ShowWindow();
+				TriggerSort::Instance.LoadAllTriggers();
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.HideWindow();
 				GridObjectViewer::Instance.HideWindow();
-
-				if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
-				{
-					if (!TreeView_GetCount(TriggerSort::Instance.GetHwnd()))
-						TriggerSort::Instance.LoadAllTriggers();
-				}
 				break;
 			case TabPage::TeamSort:
 				this->DialogBar.ShowWindow(SW_HIDE);
 				this->View.ShowWindow(SW_HIDE);
 
 				TeamSort::Instance.ShowWindow();
+				TeamSort::Instance.LoadAllTriggers();
 				TriggerSort::Instance.HideWindow();
 				TaskforceSort::Instance.HideWindow();
 				ScriptSort::Instance.HideWindow();
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.HideWindow();
 				GridObjectViewer::Instance.HideWindow();
-				if (IsWindowVisible(CNewTeamTypes::GetHandle()))
-				{
-					if (!TreeView_GetCount(TeamSort::Instance.GetHwnd()))
-						TeamSort::Instance.LoadAllTriggers();
-				}
 				break;
 			case TabPage::TaskforceSort:
 				this->DialogBar.ShowWindow(SW_HIDE);
@@ -383,15 +374,11 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				TeamSort::Instance.HideWindow();
 				TriggerSort::Instance.HideWindow();
 				TaskforceSort::Instance.ShowWindow();
+				TaskforceSort::Instance.LoadAllTriggers();
 				ScriptSort::Instance.HideWindow();
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.HideWindow();
 				GridObjectViewer::Instance.HideWindow();
-				if (IsWindowVisible(CNewTaskforce::GetHandle()) || IsWindowVisible(CNewTeamTypes::GetHandle()))
-				{
-					if (!TreeView_GetCount(TaskforceSort::Instance.GetHwnd()))
-						TaskforceSort::Instance.LoadAllTriggers();
-				}
 				break;
 			case TabPage::ScriptSort:
 				this->DialogBar.ShowWindow(SW_HIDE);
@@ -401,14 +388,10 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				TriggerSort::Instance.HideWindow();
 				TaskforceSort::Instance.HideWindow();
 				ScriptSort::Instance.ShowWindow();
+				ScriptSort::Instance.LoadAllTriggers();
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.HideWindow();
 				GridObjectViewer::Instance.HideWindow();
-				if (IsWindowVisible(CNewScript::GetHandle()) || IsWindowVisible(CNewTeamTypes::GetHandle()))
-				{
-					if (!TreeView_GetCount(ScriptSort::Instance.GetHwnd()))
-						ScriptSort::Instance.LoadAllTriggers();
-				}
 				break;
 			case TabPage::WaypointSort:
 				this->DialogBar.ShowWindow(SW_HIDE);
@@ -420,12 +403,8 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				ScriptSort::Instance.HideWindow();
 				TagSort::Instance.HideWindow();
 				WaypointSort::Instance.ShowWindow();
+				WaypointSort::Instance.LoadAllTriggers();
 				GridObjectViewer::Instance.HideWindow();
-				if (IsWindowVisible(CNewTeamTypes::GetHandle()) || CFinalSunDlg::Instance->TriggerFrame.m_hWnd || IsWindowVisible(CNewScript::GetHandle()))
-				{
-					if (!TreeView_GetCount(WaypointSort::Instance.GetHwnd()))
-						WaypointSort::Instance.LoadAllTriggers();
-				}
 				break;
 			case TabPage::TagSort:
 				this->DialogBar.ShowWindow(SW_HIDE);
@@ -437,12 +416,8 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				ScriptSort::Instance.HideWindow();
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.ShowWindow();
+				TagSort::Instance.LoadAllTriggers();
 				GridObjectViewer::Instance.HideWindow();
-				if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()) || CFinalSunDlg::Instance->Tags.m_hWnd)
-				{
-					if (!TreeView_GetCount(TagSort::Instance.GetHwnd()))
-						TagSort::Instance.LoadAllTriggers();
-				}
 				break;
 			case TabPage::GridObjectViewer:
 				this->DialogBar.ShowWindow(SW_HIDE);

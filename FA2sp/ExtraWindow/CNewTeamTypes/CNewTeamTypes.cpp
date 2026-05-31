@@ -1646,6 +1646,8 @@ void CNewTeamTypes::OnClickNewTeam()
     CNewAITrigger::TeamListChanged = true;
     CNewTrigger::Instance[0].TeamListChanged = true;
     CNewTrigger::Instance[1].TeamListChanged = true;
+
+    TeamSort::Instance.AddTrigger(value);
 }
 
 void CNewTeamTypes::OnClickDelTeam(HWND& hWnd)
@@ -1683,6 +1685,9 @@ void CNewTeamTypes::OnClickDelTeam(HWND& hWnd)
     CNewAITrigger::TeamListChanged = true;
     CNewTrigger::Instance[0].TeamListChanged = true;
     CNewTrigger::Instance[1].TeamListChanged = true;
+
+    if (TeamSort::Instance.IsVisible())
+        TeamSort::Instance.LoadAllTriggers();
 }
 
 void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
@@ -1750,6 +1755,7 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
         CNewAITrigger::TeamListChanged = true;
         CNewTrigger::Instance[0].TeamListChanged = true;
         CNewTrigger::Instance[1].TeamListChanged = true;
+        TeamSort::Instance.AddTrigger(value);
     }
 }
 

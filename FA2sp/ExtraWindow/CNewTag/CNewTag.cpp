@@ -879,6 +879,9 @@ void CNewTag::OnClickNewTag()
 
     SortTags(vcbSelectedTag, SelectedTagIndex, key);
     OnSelchangeTag();
+
+    if (TagSort::Instance.IsVisible())
+        TagSort::Instance.LoadAllTriggers();
 }
 
 void CNewTag::OnClickDelTag(HWND& hWnd)
@@ -903,6 +906,8 @@ void CNewTag::OnClickDelTag(HWND& hWnd)
         idx = 0;
     vcbSelectedTag.SetCurSel(idx);
     OnSelchangeTag();
+    if (TagSort::Instance.IsVisible())
+        TagSort::Instance.LoadAllTriggers();
 }
 
 void CNewTag::OnClickCloTag(HWND& hWnd)
@@ -920,6 +925,8 @@ void CNewTag::OnClickCloTag(HWND& hWnd)
 
     SortTags(vcbSelectedTag, SelectedTagIndex, key);
     OnSelchangeTag();
+    if (TagSort::Instance.IsVisible())
+        TagSort::Instance.LoadAllTriggers();
 }
 
 void CNewTag::OnClickTurnToTrigger(HWND& hWnd)

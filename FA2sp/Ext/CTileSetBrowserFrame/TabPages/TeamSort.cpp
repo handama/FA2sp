@@ -20,6 +20,7 @@ void TeamSort::LoadAllTriggers()
     this->Clear();
     // TODO : 
     // Optimisze the efficiency
+    SendMessage(this->GetHwnd(), WM_SETREDRAW, FALSE, 0);
     if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
     {
         for (auto& pair : pSection->GetEntities())
@@ -27,6 +28,8 @@ void TeamSort::LoadAllTriggers()
             this->AddTrigger(pair.second);
         }
     }
+    SendMessage(this->GetHwnd(), WM_SETREDRAW, TRUE, 0);
+    InvalidateRect(this->GetHwnd(), NULL, TRUE);
     ExtConfigs::InitializeMap = true;
 }
 

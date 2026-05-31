@@ -2304,6 +2304,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
                                 if (ExtConfigs::DirectXRendering)
                                 {
                                     TextOutDirectX(drawX, drawY + lineHeight * i, pSrc, fontSize, true, 2);
+                                    i++;
                                 }
                                 else
                                 {

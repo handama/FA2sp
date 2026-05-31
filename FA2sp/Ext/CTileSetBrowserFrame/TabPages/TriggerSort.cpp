@@ -25,6 +25,8 @@ void TriggerSort::LoadAllTriggers()
 
     TriggerTags.clear();
     TriggerTagsParent.clear();
+    if (CMapDataExt::Triggers.empty())
+        CMapDataExt::UpdateTriggers();
     for (auto& triggerPair : CMapDataExt::Triggers)
     {
         auto& trigger = triggerPair.second;
@@ -38,11 +40,14 @@ void TriggerSort::LoadAllTriggers()
             TriggerTagsParent[trigger->AttachedTrigger].push_back(trigger->ID);
         }
     }
+    SendMessage(this->GetHwnd(), WM_SETREDRAW, FALSE, 0);
     for (auto& triggerPair : CMapDataExt::Triggers)
     {
         auto& trigger = triggerPair.second;
         this->AddTrigger(trigger->ID);
     }
+    SendMessage(this->GetHwnd(), WM_SETREDRAW, TRUE, 0);
+    InvalidateRect(this->GetHwnd(), NULL, TRUE);
     ExtConfigs::InitializeMap = true;
 }
 

@@ -13,6 +13,7 @@
 #include <Miscs/Miscs.h>
 #include "../CObjectSearch/CObjectSearch.h"
 #include "../../Ext/CTileSetBrowserFrame/TabPages/TriggerSort.h"
+#include "../../Ext/CTileSetBrowserFrame/TabPages/TagSort.h"
 #include "../CNewScript/CNewScript.h"
 #include <numeric>
 #include "../CSearhReference/CSearhReference.h"
@@ -2563,6 +2564,9 @@ void CNewTrigger::OnClickNewTrigger()
         CNewTag::vcbSelectedTag.AddString(text);
         CNewTag::TriggerListChanged = true;
     }
+    
+    TriggerSort::Instance.AddTrigger(id);
+    TagSort::Instance.AddTrigger(tagId);
 }
 
 void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
@@ -2608,6 +2612,9 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
         CNewTag::vcbSelectedTag.AddString(text);
         CNewTag::TriggerListChanged = true;
     }
+    TriggerSort::Instance.AddTrigger(id);
+    if (!tagId.IsEmpty())
+        TagSort::Instance.AddTrigger(tagId);
 }
 
 void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
@@ -2668,6 +2675,8 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
                     CIsoView::CurrentCommand->Type = 0;
                     CIsoView::CurrentCommand->ObjectID = "";
                 }
+                if (TagSort::Instance.IsVisible())
+                    TagSort::Instance.LoadAllTriggers();
             }
         }
 
@@ -2731,6 +2740,9 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
                 }
             }
         }
+
+        if (TriggerSort::Instance.IsVisible())
+            TriggerSort::Instance.LoadAllTriggers();
     }
 }
 

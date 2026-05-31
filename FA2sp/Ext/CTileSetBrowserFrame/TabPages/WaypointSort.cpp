@@ -18,23 +18,309 @@
 
 WaypointSort WaypointSort::Instance;
 
+FString WaypointSort::sm_cachedEventsSection;
+FString WaypointSort::sm_cachedActionsSection;
+FString WaypointSort::sm_cachedParamTypesSection;
+FString WaypointSort::sm_cachedScriptsSection;
+FString WaypointSort::sm_cachedScriptParamsSection;
+FHashMap<CachedEventType> WaypointSort::sm_cachedEvents;
+FHashMap<CachedActionType> WaypointSort::sm_cachedActions;
+FHashSet WaypointSort::sm_cachedScriptActions;
+std::unordered_set<int> WaypointSort::sm_dontSaveAsWP;
+bool WaypointSort::sm_cacheInitialized = false;
+
+
+void WaypointSort::InitCache()
+{
+    if (sm_cacheInitialized)
+        return;
+
+    sm_cachedEventsSection = ExtraWindow::GetTranslatedSectionName("EventsRA2");
+    sm_cachedActionsSection = ExtraWindow::GetTranslatedSectionName("ActionsRA2");
+    sm_cachedParamTypesSection = ExtraWindow::GetTranslatedSectionName("ParamTypes");
+    sm_cachedScriptsSection = ExtraWindow::GetTranslatedSectionName("ScriptsRA2");
+    sm_cachedScriptParamsSection = ExtraWindow::GetTranslatedSectionName("ScriptParams");
+
+    if (auto pEventsSection = CINI::FAData->GetSection(sm_cachedEventsSection))
+    {
+        for (auto& pair : pEventsSection->GetEntities())
+        {
+            auto eventInfos = FString::SplitString(pair.second, 8);
+            if (eventInfos.size() < 3)
+                continue;
+
+            CachedEventType cached;
+            auto paramTypes0 = FString::SplitString(
+                CINI::FAData->GetString(sm_cachedParamTypesSection, eventInfos[1], "MISSING,0"), 1);
+            auto paramTypes1 = FString::SplitString(
+                CINI::FAData->GetString(sm_cachedParamTypesSection, eventInfos[2], "MISSING,0"), 1);
+
+            cached.param0IsWP = (paramTypes0.size() > 1 && paramTypes0[1] == "1");
+            cached.param1IsWP = (paramTypes1.size() > 1 && paramTypes1[1] == "1");
+
+            sm_cachedEvents[pair.first] = cached;
+        }
+    }
+
+    if (auto pActionsSection = CINI::FAData->GetSection(sm_cachedActionsSection))
+    {
+        for (auto& pair : pActionsSection->GetEntities())
+        {
+            auto actionInfos = FString::SplitString(pair.second, 13);
+            if (actionInfos.size() < 8)
+                continue;
+
+            CachedActionType cached;
+            for (int i = 0; i < 6; i++)
+            {
+                auto paramTypes = FString::SplitString(
+                    CINI::FAData->GetString(sm_cachedParamTypesSection, actionInfos[i + 1], "MISSING,0"), 1);
+                cached.paramsWP[i] = (paramTypes.size() > 1 && paramTypes[1] == "1");
+            }
+
+            cached.param7IsWP = (atoi(actionInfos[7]) > 0);
+            if (cached.param7IsWP && actionInfos.size() > 1)
+            {
+                if (auto pDontSection = CINI::FAData->GetSection("DontSaveAsWP"))
+                {
+                    for (auto& dontPair : pDontSection->GetEntities())
+                    {
+                        if (atoi(dontPair.second) == -atoi(actionInfos[1]))
+                        {
+                            cached.param7IsWP = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            sm_cachedActions[pair.first] = cached;
+        }
+    }
+
+    if (auto pDontSection = CINI::FAData->GetSection("DontSaveAsWP"))
+    {
+        for (auto& pair : pDontSection->GetEntities())
+            sm_dontSaveAsWP.insert(atoi(pair.second));
+    }
+
+    if (auto pScriptsSection = CINI::FAData->GetSection(sm_cachedScriptsSection))
+    {
+        for (auto& pair : pScriptsSection->GetEntities())
+        {
+            auto paramType = FString::SplitString(pair.second, 1);
+            if (paramType.size() < 2)
+                continue;
+            auto scriptParamType = CINI::FAData->GetString(sm_cachedScriptParamsSection, paramType[1], "MISSING,0");
+            auto types = FString::SplitString(scriptParamType, 1);
+            bool hasExtra = types.size() >= 4;
+            bool meetAtA = types.size() > 1 && types[1] == "1";
+            bool meetAtB = hasExtra && types[3] == "1";
+            if (meetAtA || meetAtB)
+                sm_cachedScriptActions.insert(pair.first);
+        }
+    }
+
+    sm_cacheInitialized = true;
+}
+
+int WaypointSort::ProcessWaypointLetter(const char* s)
+{
+    if (!s || !*s)
+        return -1;
+
+    int n = 0;
+    int len = (int)strlen(s);
+    for (int i = len - 1, j = 1; i >= 0; i--, j *= 26)
+    {
+        int c = toupper((unsigned char)s[i]);
+        if (c < 'A' || c > 'Z')
+            return 0; 
+        n += (c - 64) * j;
+    }
+    if (n <= 0)
+        return -1;
+    return n - 1;
+}
+
 void WaypointSort::LoadAllTriggers()
 {
     ExtConfigs::InitializeMap = false;
     this->Clear();
-    // TODO : 
-    // Optimisze the efficiency
-    if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+
+    InitCache();
+
+    auto pSection = CINI::CurrentDocument->GetSection("Waypoints");
+    if (!pSection)
     {
-        for (auto& pair : pSection->GetEntities())
+        ExtConfigs::InitializeMap = true;
+        return;
+    }
+
+    HWND hWnd = this->GetHwnd();
+
+    std::unordered_map<std::string, std::vector<std::pair<std::string, std::string>>> waypointRefs;
+
+    for (auto& triggerPair : CMapDataExt::Triggers)
+    {
+        auto& trigger = triggerPair.second;
+
+        std::unordered_set<std::string> eventWPs;
+        std::unordered_set<std::string> actionWPs;
+
+        for (auto& thisEvent : trigger->Events)
         {
-            auto second = atoi(pair.second);
-            if (second >= 0)
+            auto it = sm_cachedEvents.find(thisEvent.EventNum);
+            if (it == sm_cachedEvents.end())
+                continue;
+            auto& cached = it->second;
+
+            if (thisEvent.Params[0] == "2")  
             {
-                this->AddTrigger(pair.first, second % 1000, second / 1000);
+                if (cached.param0IsWP)
+                    eventWPs.insert(std::string(thisEvent.Params[1]));
+                if (cached.param1IsWP)
+                    eventWPs.insert(std::string(thisEvent.Params[2]));
+            }
+            else 
+            {
+                if (cached.param1IsWP)
+                    eventWPs.insert(std::string(thisEvent.Params[1]));
+            }
+        }
+
+        for (auto& thisAction : trigger->Actions)
+        {
+            auto it = sm_cachedActions.find(thisAction.ActionNum);
+            if (it == sm_cachedActions.end())
+                continue;
+            auto& cached = it->second;
+
+            for (int i = 0; i < 6; i++)
+            {
+                if (cached.paramsWP[i])
+                    actionWPs.insert(std::string(thisAction.Params[i]));
+            }
+            if (cached.param7IsWP)
+            {
+                int wpNum = ProcessWaypointLetter(thisAction.Params[6]);
+                if (wpNum >= 0)
+                {
+                    char buf[32];
+                    snprintf(buf, sizeof(buf), "%d", wpNum);
+                    actionWPs.insert(buf);
+                }
+            }
+        }
+
+        if (!eventWPs.empty())
+        {
+            FString eventText;
+            eventText.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Event",
+                "Event: %s (%s)"), trigger->Name, trigger->ID);
+            std::string textStr = eventText;
+            std::string idStr = trigger->ID;
+            for (auto& wp : eventWPs)
+                waypointRefs[wp].emplace_back(textStr, idStr);
+        }
+        if (!actionWPs.empty())
+        {
+            FString actionText;
+            actionText.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Action",
+                "Action: %s (%s)"), trigger->Name, trigger->ID);
+            std::string textStr = actionText;
+            std::string idStr = trigger->ID;
+            for (auto& wp : actionWPs)
+                waypointRefs[wp].emplace_back(textStr, idStr);
+        }
+    }
+
+    if (auto pScriptSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
+    {
+        for (auto& pair : pScriptSection->GetEntities())
+        {
+            std::unordered_set<std::string> scriptWPs;
+
+            for (int i = 0; i < 50; i++)
+            {
+                char id[10];
+                _itoa(i, id, 10);
+                auto line = CINI::CurrentDocument->GetString(pair.second, id);
+                if (line == "")
+                    continue;
+
+                auto app = FString::SplitString(line);
+                if (app.size() != 2)
+                    continue;
+
+                if (sm_cachedScriptActions.find(app[0]) != sm_cachedScriptActions.end())
+                    scriptWPs.insert(std::string(app[1]));
+            }
+
+            if (!scriptWPs.empty())
+            {
+                FString text;
+                text.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Script",
+                    "Script: %s (%s)"), CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
+                std::string textStr = text;
+                std::string idStr = FString(pair.second);
+                for (auto& wp : scriptWPs)
+                    waypointRefs[wp].emplace_back(textStr, idStr);
             }
         }
     }
+
+    if (auto pTeamSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+    {
+        for (auto& pair : pTeamSection->GetEntities())
+        {
+            auto wp = CINI::CurrentDocument->GetString(pair.second, "Waypoint");
+            int wpNum = ProcessWaypointLetter(wp);
+            if (wpNum >= 0)
+            {
+                FString text;
+                text.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
+                    "Team: %s (%s)"), CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
+                std::string textStr = text;
+                std::string idStr = FString(pair.second);
+
+                char buf[32];
+                snprintf(buf, sizeof(buf), "%d", wpNum);
+                waypointRefs[buf].emplace_back(textStr, idStr);
+            }
+        }
+    }
+
+    SendMessage(hWnd, WM_SETREDRAW, FALSE, 0);
+
+    for (auto& pair : pSection->GetEntities())
+    {
+        auto second = atoi(pair.second);
+        if (second < 0)
+            continue;
+
+        int x = second % 1000;
+        int y = second / 1000;
+        auto name2 = atoi(pair.first);
+
+        FString pSrc;
+        pSrc.Format("%03d (%d, %d)", name2, x, y);
+
+        HTREEITEM hItem = TreeViewHelper::InsertTreeItem(hWnd, pSrc, pair.first, TVI_ROOT);
+
+        auto it = waypointRefs.find(std::string(FString(pair.first)));
+        if (it != waypointRefs.end())
+        {
+            for (auto& ref : it->second)
+            {
+                TreeViewHelper::InsertTreeItem(hWnd, ref.first.c_str(), ref.second.c_str(), hItem);
+            }
+        }
+    }
+
+    SendMessage(hWnd, WM_SETREDRAW, TRUE, 0);
+    InvalidateRect(hWnd, NULL, TRUE);
+
     ExtConfigs::InitializeMap = true;
 }
 
@@ -394,16 +680,9 @@ void WaypointSort::AddTrigger(FString triggerId, int x, int y) const
                         if (app.size() != 2)
                             continue;
 
+                        if (sm_cachedScriptActions.find(app[0]) != sm_cachedScriptActions.end())
+                            add = true;
                         int actionType = atoi(app[0]);
-                        switch (actionType)
-                        {
-                        case 1: if (app[1] == triggerId) add = true; break;
-                        case 3: if (app[1] == triggerId) add = true; break;
-                        case 15: if (app[1] == triggerId) add = true; break;
-                        case 16: if (app[1] == triggerId) add = true; break;
-                        case 59: if (app[1] == triggerId) add = true; break;
-                        default: break;
-                        }
                     }
                     if (add)
                     {
@@ -446,5 +725,3 @@ void WaypointSort::AddTrigger(FString triggerId, int x, int y) const
         }
     }
 }
-
-

@@ -479,6 +479,7 @@ DEFINE_HOOK(4F3C00, CTileSetBrowserView_OnLButtonDown, 7)
     pThis->GetScrollInfo(SB_VERT, &scrinfo);
     point.y += scrinfo.nPos;
 
+    if (pThis->CurrentImageWidth <= 0) pThis->CurrentImageWidth = 1;
     int max_r = r.right / pThis->CurrentImageWidth;
     if (max_r == 0) max_r = 1;
 
@@ -719,6 +720,7 @@ DEFINE_HOOK(4F2B10, CTileSetBrowserView_SetTileSet, 7)
    
     pThis->CurrentImageWidth *= CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor;
     pThis->CurrentImageHeight *= CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor;
+    if (pThis->CurrentImageWidth <= 0) pThis->CurrentImageWidth = 1;
 
     RECT r;
     pThis->GetClientRect(&r);
@@ -737,6 +739,8 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
 {
     GET(CTileSetBrowserView*, pThis, ECX);
     GET_STACK(CDC*, pDC, 0x4);
+
+    if (pThis->CurrentImageWidth <= 0) return 0x4F25B0;
 
     CTileSetBrowserFrameExt::TileSetBrowserView_Instance = pThis;
     RECT r;

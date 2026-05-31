@@ -1585,7 +1585,7 @@ void CIsoViewExt::DirectXDrawLockedCellOutline(int X, int Y, int W, int H, COLOR
         X += 2;
         Y += 1;
     }
-    else if (scaled < 1.0f)
+    else if (scaled > 1.0f)
     {
         X += 1;
         Y += 1;
@@ -4034,7 +4034,7 @@ void CIsoViewExt::DirectXMouseCursor(int X, int Y, int height)
         X += 2;
         Y += 1;
     }
-    else if (CIsoViewExt::ScaledFactor < 1.0)
+    else if (CIsoViewExt::ScaledFactor > 1.0)
     {
         X += 1;
         Y += 1;

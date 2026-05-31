@@ -75,6 +75,11 @@ void CTileSetBrowserFrameExt::OnBNTerrainGeneratorClicked()
 	}
 }
 
+void CTileSetBrowserFrameExt::RefreshWindows()
+{
+	PostMessage(CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->GetSafeHwnd(), 114514, 0, 0);
+}
+
 BOOL CTileSetBrowserFrameExt::PreTranslateMessageExt(MSG* pMsg)
 {
 	if (pMsg->message == WM_COMMAND)
@@ -259,6 +264,19 @@ BOOL CTileSetBrowserFrameExt::PreTranslateMessageExt(MSG* pMsg)
 				GridObjectViewer::Instance.UpdateImages();
 			}
 			fa2.WriteToFile(path);
+		}
+	}
+	else if (pMsg->message == 114514)
+	{
+		if (GridObjectViewer::Instance.IsVisible())
+		{	
+			InvalidateRect(GridObjectViewer::Instance.GetControl(), NULL, TRUE);
+			InvalidateRect(GridObjectViewer::Instance.GetView(), NULL, TRUE);
+		}
+		else if (::IsWindowVisible(this->DialogBar))
+		{	
+			InvalidateRect(this->DialogBar, NULL, TRUE);
+			InvalidateRect(this->View, NULL, TRUE);
 		}
 	}
 	else if (pMsg->hwnd == TriggerSort::Instance)

@@ -10,6 +10,7 @@
 #include "../Ext/CMinimap/Body.h"
 #include "../Ext/CIsoView/Body.h"
 #include "../Ext/CFinalSunApp/Body.h"
+#include "../Ext/CTileSetBrowserFrame/Body.h"
 
 static bool CMyViewFrameInitialized = false;
 DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
@@ -176,6 +177,8 @@ DEFINE_HOOK(468690, CIsoView_OnSize_Size, A)
 
         if (!shouldWrite)
             return 0;
+
+        CTileSetBrowserFrameExt::RefreshWindows();
 
         CINI fa2;
         FString path = CFinalSunAppExt::ExePathExt;

@@ -40,6 +40,7 @@ public:
 	void OnBNTileManagerClicked();
 	void OnBNSearchClicked();
 	void OnBNTerrainGeneratorClicked();
+    static void RefreshWindows();
 
 	void InitTabControl();
 

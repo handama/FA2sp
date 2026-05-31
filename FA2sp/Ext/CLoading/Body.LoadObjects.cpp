@@ -4677,7 +4677,7 @@ bool CLoadingExt::ReplaceBitmapColor(
 	BYTE oldB = GetBValue(oldColor);
 
 	if (newColor == RGB(255, 255, 255))
-		newColor =RGB(254, 254, 254);
+		newColor = RGB(254, 254, 254);
 	BYTE newR = GetRValue(newColor);
 	BYTE newG = GetGValue(newColor);
 	BYTE newB = GetBValue(newColor);

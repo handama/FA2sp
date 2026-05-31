@@ -2021,7 +2021,7 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 		}
 		break;
 	}
-	case 114514:
+	case 1145141:
 	{
 		ppmfc::CString caption;
 		CFinalSunDlg::Instance->GetWindowTextA(caption);

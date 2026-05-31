@@ -385,7 +385,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
 
                 if (ExtConfigs::DirectXRendering)
                 {
-                    CIsoViewExt::DrawLineDirectX(x1, y1 - height, x2, y2 - height, color);
+                    CIsoViewExt::DrawLineDirectX(x1, y1 - height, x2, y2 - height, color, 2);
                 }
                 else
                 {
@@ -410,7 +410,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
                     CIsoViewExt::TextOutDirectX(
                         x1 + 30 / CIsoViewExt::ScaledFactor - CIsoViewExt::drawOffsetX,
                         y1 - 15 / CIsoViewExt::ScaledFactor - CIsoViewExt::drawOffsetY - height,
-                        count, 14, RGB(0,0,0), true);
+                        count, fontSize, RGB(0,0,0), true);
                     pathCount++;
                 }
             }

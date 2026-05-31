@@ -2933,7 +2933,7 @@ static void DrawMap()
 					x2 -= 1;
 					y2 -= 1;
 				}
-				if(ExtConfigs::DirectXRendering)
+				if (ExtConfigs::DirectXRendering)
 				{
 					pThis->DrawLineRawDirectX(x1 + 30, y1 - 15 - height, x2 + 30, y2 - 15 - height, color, true, false, 1, false);
 				}
@@ -2967,10 +2967,10 @@ static void DrawMap()
 				x2 -= 1;
 				y2 -= 1;
 			}
-			if(ExtConfigs::DirectXRendering)
+			if (ExtConfigs::DirectXRendering)
 			{			
 				pThis->DirectXDrawLockedCellOutline(x1, y1 - height, 1, 1, color, true);
-				pThis->DirectXDrawLockedCellOutlineX(x2, y2 - height, 1, 1, color, color, true, true);
+				pThis->DirectXDrawLockedCellOutlineX(x2 + 2, y2 - height + 1, 1, 1, color, color, true, true);
 			}
 			else
 			{

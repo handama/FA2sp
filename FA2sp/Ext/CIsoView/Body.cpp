@@ -1578,8 +1578,18 @@ void CIsoViewExt::DirectXDrawLockedLines(const std::vector<std::pair<MapCoord, M
 void CIsoViewExt::DirectXDrawLockedCellOutline(int X, int Y, int W, int H, COLORREF color, bool bUseDot, bool s1, bool s2, bool s3, bool s4, bool bScreenSpace)
 {
     float scaled = bScreenSpace ? CIsoViewExt::ScaledFactor : 1.f;
-    X += -1.0 / scaled + 2.0;
-    Y += 0.5 / scaled + 0.5;
+    Y += 1 / scaled;
+    X += 1 / scaled;
+    if (scaled < 1.0f)
+    {
+        X += 2;
+        Y += 1;
+    }
+    else if (scaled < 1.0f)
+    {
+        X += 1;
+        Y += 1;
+    }
 
     float offsetX = 30.f / scaled;
     float offsetY = 30.f / scaled;
@@ -1629,9 +1639,6 @@ void CIsoViewExt::DirectXDrawLockedCellOutline(int X, int Y, int W, int H, COLOR
 
 void CIsoViewExt::DirectXDrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF color, COLORREF colorX, bool bUseDot, bool onlyX)
 {   
-    Y += 1 / CIsoViewExt::ScaledFactor;
-    X += 1 / CIsoViewExt::ScaledFactor;
-
     int halfCellWidth = 30 * W;
     int quaterCellWidth = 15 * W;
     int fullCellHeight = 30 * H;
@@ -4022,6 +4029,16 @@ void CIsoViewExt::DirectXMouseCursor(int X, int Y, int height)
 {
     Y += 1 / CIsoViewExt::ScaledFactor;
     X += 1 / CIsoViewExt::ScaledFactor;
+    if (CIsoViewExt::ScaledFactor < 1.0)
+    {
+        X += 2;
+        Y += 1;
+    }
+    else if (CIsoViewExt::ScaledFactor < 1.0)
+    {
+        X += 1;
+        Y += 1;
+    }
     double halfCellWidth = 30 / CIsoViewExt::ScaledFactor;
     double quaterCellWidth = 15 / CIsoViewExt::ScaledFactor;
     double fullCellHeight = 30 / CIsoViewExt::ScaledFactor;

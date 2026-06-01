@@ -266,7 +266,6 @@ private:
         int index, int sideLimit, const FString& display);
     void Redraw_MainList();
     void Redraw_Ground();
-    void Redraw_Owner();
     void Redraw_Infantry();
     void Redraw_Vehicle();
     void Redraw_Aircraft();
@@ -419,6 +418,7 @@ public:
     static std::map<int, FString> TreeViewIndex_Smudge;
 
     void Redraw();
+    void Redraw_Owner();
     bool UpdateEngine(int nData);
     static void Redraw_Initialize();
     static void OnExeTerminate();

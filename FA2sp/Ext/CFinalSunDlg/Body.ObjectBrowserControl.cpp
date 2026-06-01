@@ -911,6 +911,12 @@ void CViewObjectsExt::Redraw_Owner()
     HTREEITEM& hOwner = ExtNodes[Root_Owner];
     if (hOwner == NULL)    return;
 
+    HTREEITEM hChild;
+    while ((hChild = this->GetTreeCtrl().GetChildItem(hOwner)) != nullptr)
+    {
+        this->GetTreeCtrl().DeleteItem(hChild);
+    }
+
     auto&& countries = Variables::Rules.GetSection("Countries");
     FString translated;
 

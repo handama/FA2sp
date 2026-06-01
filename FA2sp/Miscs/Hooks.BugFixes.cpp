@@ -30,7 +30,7 @@ DEFINE_HOOK(421B70, CFinalSunApp_InitInstance_NoEasyViewExplain, 5)
 }
 
 // Fix bug for incorrect color while drawing
-DEFINE_HOOK(468760, Miscs_GetColor, 7)
+DEFINE_HOOK(468760, Miscs_GetColorRef, 7)
 {
 	GET_STACK(const char*, pHouse, 0x4);
 	GET_STACK(const char*, pColor, 0x8);
@@ -47,6 +47,21 @@ DEFINE_HOOK(468760, Miscs_GetColor, 7)
 	if (CMapDataExt::Colors.empty())
 	{
 		if (auto pSection = CINI::Rules->GetSection("Colors"))
+		{
+			for (auto& [key, value] : pSection->GetEntities())
+			{
+				HSVClass hsv{ 0,0,0 };
+				sscanf_s(value, "%hhu,%hhu,%hhu", &hsv.H, &hsv.S, &hsv.V);
+				RGBClass rgb;
+				if (!ExtConfigs::UseRGBHouseColor)
+					rgb = hsv;
+				else
+					rgb = { hsv.H,hsv.S,hsv.V };
+	
+					CMapDataExt::Colors[key] = (COLORREF)rgb;
+			}
+		}
+		if (auto pSection = CINI::FAData->GetSection("Colors"))
 		{
 			for (auto& [key, value] : pSection->GetEntities())
 			{

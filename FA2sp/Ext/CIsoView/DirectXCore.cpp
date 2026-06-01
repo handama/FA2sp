@@ -225,6 +225,7 @@ void DirectXCore::Cleanup()
     m_pDepthStateShadowRedraw.Reset();
     m_pBlendStateDarken.Reset();
     m_pShadowDarkenPS.Reset();
+    m_pBlendStateNoColor.Reset();
 
     m_pSamplerLinear.Reset();
     m_pSamplerNearestNeighbor.Reset();
@@ -537,7 +538,6 @@ bool DirectXCore::CreateShadersAndInputLayout()
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
     m_pDevice->CreateBlendState(&blendDesc, &m_pBlendState);
 
-    // No-color-output blend state (用于仅更新stencil的pass)
     D3D11_BLEND_DESC blendNoColor = {};
     blendNoColor.RenderTarget[0].BlendEnable = FALSE;
     blendNoColor.RenderTarget[0].RenderTargetWriteMask = 0;
@@ -1042,6 +1042,7 @@ void DirectXCore::CreateBackgroundCacheTexture(UINT width, UINT height)
     if (pBackBuffer)
     {
         pBackBuffer->GetDesc(&desc);
+        desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
     }
     else
     {

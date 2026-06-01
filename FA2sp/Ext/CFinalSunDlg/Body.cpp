@@ -2004,7 +2004,7 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			{
 				int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
 				auto pBrushSize = (ppmfc::CComboBox*)CFinalSunDlg::Instance->BrushSize.GetDlgItem(1377);
-				int index = std::clamp(pBrushSize->GetCurSel() + (zDelta < 0 ? -1 : 1), 0, pBrushSize->GetCount() - 1);
+				int index = std::clamp(pBrushSize->GetCurSel() + (zDelta > 0 ? -1 : 1), 0, pBrushSize->GetCount() - 1);
 				pBrushSize->SetCurSel(index);
 				ChangeBrushSize(index);
 			}

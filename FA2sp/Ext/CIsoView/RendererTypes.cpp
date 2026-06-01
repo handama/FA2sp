@@ -317,7 +317,8 @@ void InfantryType::Init(FString_view id)
     IsDeployer = Variables::RulesMap.GetBool(ID, "Deployer");
     Swimable = CLoadingExt::SwimableInfantries.contains(ID);
     Cloakable = Variables::RulesMap.GetBool(ID, "Cloakable");
-
+    
+    ShouldUseDefaultImage = true;
     for (int i = 0; i < FacingCount; ++i)
     {
         FString imageName = CLoadingExt::GetImageName(ID, i);

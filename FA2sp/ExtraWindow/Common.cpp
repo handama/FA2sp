@@ -2296,6 +2296,8 @@ void VirtualComboBoxEx::Filter(const char* text)
         HCURSOR hCursor = LoadCursor(NULL, IDC_ARROW);
         SetCursor(hCursor);
     }
+    else if (!IsWindowVisible(hList))
+        m_filterActive = false;
 }
 
 int VirtualComboBoxEx::GetCount() const

@@ -1450,6 +1450,9 @@ void DirectXCore::FlushInstanceBatch(const std::vector<const DrawCommand*>& batc
 
 void DirectXCore::RenderOffscreenContent()
 {
+    Logger::Raw("[DX Offscreen] Enter. totalCmds=%d, preciseDepth=%d\n",
+                m_drawCommands.size(), ExtConfigs::PreciseDepthCalculation ? 1 : 0);
+
     float clearColor[4] = {
         CIsoViewExt::RenderingMap ? 0.0f : (ExtConfigs::EnableDarkMode ? 0.125f : 1.0f),
         CIsoViewExt::RenderingMap ? 0.0f : (ExtConfigs::EnableDarkMode ? 0.125f : 1.0f),
@@ -1457,6 +1460,7 @@ void DirectXCore::RenderOffscreenContent()
         1.0f};
     m_pContext->ClearRenderTargetView(m_OffscreenRTV.Get(), clearColor);
     m_pContext->ClearDepthStencilView(m_pOffscreenDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 0.0f, 0);
+    Logger::Raw("[DX Offscreen] Cleared RT+DS.\n");
 
     float vw = (float)(m_clientWidth * m_renderScale);
     float vh = (float)(m_clientHeight * m_renderScale);
@@ -1531,6 +1535,7 @@ void DirectXCore::RenderOffscreenContent()
     // ====================================================================
     // Classification (unchanged)
     // ====================================================================
+    Logger::Raw("[DX Offscreen] Classifying commands...\n");
     std::vector<const DrawCommand*> opaqueCmds;
     std::vector<const DrawCommand*> stencilCmds;
     std::vector<const DrawCommand*> transparentCmds;
@@ -1561,12 +1566,15 @@ void DirectXCore::RenderOffscreenContent()
             }
         }
     }
+    Logger::Raw("[DX Offscreen] Classified: opaque=%d, stencil=%d, transparent=%d, effect=%d, overlay=%d\n",
+                opaqueCmds.size(), stencilCmds.size(), transparentCmds.size(), effectCmds.size(), overlayCmds.size());
 
     // ====================================================================
     // Phase 1: Instanced opaque (depth write ON, depth test ON)
     //   Split: commands with custom DS state (stencil writes) are drawn
     //   per-quad; plain commands use instanced batching.
     // ====================================================================
+    Logger::Raw("[DX Offscreen] Phase 1: Opaque pass (%d commands)\n", opaqueCmds.size());
     m_pContext->OMSetRenderTargets(1, m_OffscreenRTV.GetAddressOf(), m_pOffscreenDSV.Get());
     m_pContext->OMSetDepthStencilState(m_pDepthStateGE.Get(), 0);
     m_pTrackedDSState = m_pDepthStateGE.Get();
@@ -1588,12 +1596,15 @@ void DirectXCore::RenderOffscreenContent()
 
         // -- Draw per-quad for stencil-aware opaque commands first --
         // These write building/object height into stencil for Phase 1.5.
+        Logger::Raw("[DX Offscreen] Phase 1a: Stencil-aware opaque per-quad (%d)\n", opaqueStencil.size());
         for (const DrawCommand *cmd : opaqueStencil)
             DrawOneTracked(*cmd);
+        Logger::Raw("[DX Offscreen] Phase 1a: done.\n");
 
         // -- Instanced batch for plain opaque commands --
         if (!opaquePlain.empty())
         {
+            Logger::Raw("[DX Offscreen] Phase 1b: Instanced opaque (%d)\n", opaquePlain.size());
             std::stable_sort(opaquePlain.begin(), opaquePlain.end(),
                 [](const DrawCommand *a, const DrawCommand *b) {
                     return a->texRes < b->texRes;
@@ -1623,14 +1634,17 @@ void DirectXCore::RenderOffscreenContent()
             m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &singleStride, &singleOffset);
             m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
             m_pTrackedSRV = nullptr;
+            Logger::Raw("[DX Offscreen] Phase 1b: done.\n");
         }
     }
+    Logger::Raw("[DX Offscreen] Phase 1: complete.\n");
 
     // ====================================================================
     // Phase 1.5: Stencil-aware draws (per-quad, state-tracked)
     // ====================================================================
     if (ExtConfigs::PreciseDepthCalculation && !stencilCmds.empty())
     {
+        Logger::Raw("[DX Offscreen] Phase 1.5: Stencil passes (%d commands)\n", stencilCmds.size());
         // -- Sub-phase a: Write stencil (no color) --
         m_pContext->OMSetBlendState(m_pBlendStateNoColor.Get(), nullptr, 0xffffffff);
         for (const DrawCommand *cmd : stencilCmds)
@@ -1644,7 +1658,10 @@ void DirectXCore::RenderOffscreenContent()
         }
         m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
 
+        Logger::Raw("[DX Offscreen] Phase 1.5a: Write stencil done.\n");
+
         // -- Sub-phase b: Read stencil (normal draw) --
+        Logger::Raw("[DX Offscreen] Phase 1.5b: Read stencil draw\n");
         for (const DrawCommand *cmd : stencilCmds)
         {
             if (cmd->params.bIsShadow || cmd->params.bIsOverlapShadow ||
@@ -1655,7 +1672,10 @@ void DirectXCore::RenderOffscreenContent()
             DrawOneTracked(*cmd);
         }
 
+        Logger::Raw("[DX Offscreen] Phase 1.5b: done.\n");
+
         // -- Sub-phase c: Shadow objects (write stencil, no color) --
+        Logger::Raw("[DX Offscreen] Phase 1.5c: Shadow mark\n");
         m_pContext->OMSetBlendState(m_pBlendStateNoColor.Get(), nullptr, 0xffffffff);
         for (const DrawCommand *cmd : stencilCmds)
         {
@@ -1666,8 +1686,10 @@ void DirectXCore::RenderOffscreenContent()
             DrawOneTracked(*cmd);
         }
         m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
+        Logger::Raw("[DX Offscreen] Phase 1.5c: done.\n");
 
         // -- Sub-phase d: Overlap shadow draw --
+        Logger::Raw("[DX Offscreen] Phase 1.5d: Overlap shadow\n");
         for (const DrawCommand *cmd : stencilCmds)
         {
             if (!cmd->params.bIsOverlapShadow || cmd->bStencilOnly)
@@ -1676,6 +1698,8 @@ void DirectXCore::RenderOffscreenContent()
                 continue;
             DrawOneTracked(*cmd);
         }
+
+        Logger::Raw("[DX Offscreen] Phase 1.5d: done.\n");
 
         // -- Restore depth-stencil state --
         m_pContext->OMSetDepthStencilState(m_pDepthStateGE.Get(), 0);
@@ -1686,6 +1710,7 @@ void DirectXCore::RenderOffscreenContent()
         if (CIsoViewExt::DrawShadows && m_pShadowDarkenPS && m_pBlendStateDarken &&
             m_pDepthStateShadowDarken && m_pOffscreenDSV)
         {
+            Logger::Raw("[DX Offscreen] Phase 1.5e: Shadow darken fullscreen pass\n");
             stride = sizeof(QuadVertex);
             offset = 0;
             m_pContext->IASetVertexBuffers(0, 1, m_pFullscreenQuadVB.GetAddressOf(), &stride, &offset);
@@ -1714,7 +1739,9 @@ void DirectXCore::RenderOffscreenContent()
             m_pTrackedSRV = nullptr;
             m_pTrackedDSState = m_pDepthStateGE.Get();
             m_trackedStencilRef = 0;
+            Logger::Raw("[DX Offscreen] Phase 1.5e: done.\n");
         }
+        Logger::Raw("[DX Offscreen] Phase 1.5: complete.\n");
     }
 
     // ====================================================================
@@ -1722,6 +1749,7 @@ void DirectXCore::RenderOffscreenContent()
     // ====================================================================
     if (!transparentCmds.empty())
     {
+        Logger::Raw("[DX Offscreen] Phase 2: Transparent MRT pass (%d commands)\n", transparentCmds.size());
         float zero[4] = {0, 0, 0, 0};
         m_pContext->ClearRenderTargetView(m_pAlphaAccumRTV.Get(), zero);
 
@@ -1765,6 +1793,7 @@ void DirectXCore::RenderOffscreenContent()
         m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &singleStride, &singleOffset);
         m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
         m_pTrackedSRV = nullptr;
+        Logger::Raw("[DX Offscreen] Phase 2: complete.\n");
     }
 
     // ====================================================================
@@ -1773,6 +1802,7 @@ void DirectXCore::RenderOffscreenContent()
     //   by (1 - accumAlpha) so they appear "behind" semi-transparent texels.
     // ====================================================================
     {
+        Logger::Raw("[DX Offscreen] Phase 3: World-space lines (%d entries)\n", m_lineEntries.size());
         SetDSStateTracked(m_pDepthStateReadOnlyGE.Get(), 0);
         if (m_pAlphaAccumSRV)
             m_pContext->PSSetShaderResources(1, 1, m_pAlphaAccumSRV.GetAddressOf());
@@ -1793,6 +1823,7 @@ void DirectXCore::RenderOffscreenContent()
         // Clean up extra SRV binding
         ID3D11ShaderResourceView *nullSRV = nullptr;
         m_pContext->PSSetShaderResources(1, 1, &nullSRV);
+        Logger::Raw("[DX Offscreen] Phase 3: complete.\n");
     }
 
     // ====================================================================
@@ -1812,6 +1843,7 @@ void DirectXCore::RenderOffscreenContent()
     // ====================================================================
     if (!effectCmds.empty())
     {
+        Logger::Raw("[DX Offscreen] Phase 4: Effects pass (%d commands)\n", effectCmds.size());
         CopyScreenToTexture();
 
         float one[4] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -1877,12 +1909,14 @@ void DirectXCore::RenderOffscreenContent()
 
         ID3D11ShaderResourceView *nullSRV[2] = {nullptr, nullptr};
         m_pContext->PSSetShaderResources(0, 2, nullSRV);
+        Logger::Raw("[DX Offscreen] Phase 4: complete.\n");
     }
 
     // ====================================================================
     // Phase 5: Always-on-top world-space overlays (depth OFF)
     //   Text annotations, base node indices, etc.
     // ====================================================================
+    Logger::Raw("[DX Offscreen] Phase 5: Overlay pass (cmds=%d)\n", overlayCmds.size());
     bool hasOverlay = !overlayCmds.empty();
     // Quick scan for overlay lines (no need to pre-collect - FlushLineBatch counts)
     bool hasOverlayLines = false;
@@ -1939,6 +1973,7 @@ void DirectXCore::RenderOffscreenContent()
 
     // Phase 5b: Always-on-top lines (depth OFF, no alpha modulation, regular line PS)
     if (hasOverlayLines) {
+        Logger::Raw("[DX Offscreen] Phase 5b: Overlay lines\n");
         FlushLineBatch(false, m_pLinePS.Get(), true);
 
         // Restore quad pipeline state (Phase 5b changed IA/VS/PS for lines)
@@ -1950,11 +1985,15 @@ void DirectXCore::RenderOffscreenContent()
         m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
         m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
         m_pContext->PSSetSamplers(0, 1, (m_renderScale == 1.0f) ? m_pSamplerPoint.GetAddressOf() : m_pSamplerLinear.GetAddressOf());
+        Logger::Raw("[DX Offscreen] Phase 5b: done.\n");
     }
+    Logger::Raw("[DX Offscreen] Exit.\n");
 }
 
 void DirectXCore::RenderFinalToBackBuffer()
 {
+    Logger::Raw("[DX Final] Enter. clientW=%d, clientH=%d, renderScale=%.2f\n",
+                m_clientWidth, m_clientHeight, m_renderScale);
     D3D11_VIEWPORT windowVP = {0, 0, (float)m_clientWidth, (float)m_clientHeight, 0.0f, 1.0f};
     m_pContext->RSSetViewports(1, &windowVP);
 
@@ -1962,12 +2001,14 @@ void DirectXCore::RenderFinalToBackBuffer()
 
     if (m_renderScale == 1.0f)
     {
+        Logger::Raw("[DX Final] Scale=1.0, using CopyResource fast path.\n");
         ComPtr<ID3D11Resource> pBackBufferResource;
         m_pRTV->GetResource(&pBackBufferResource);
         if (pBackBufferResource && m_OffscreenTex)
         {
             m_pContext->CopyResource(pBackBufferResource.Get(), m_OffscreenTex.Get());
         }
+        Logger::Raw("[DX Final] Exit (CopyResource).\n");
         return;
     }
 
@@ -2009,16 +2050,20 @@ void DirectXCore::RenderFinalToBackBuffer()
 
     ID3D11ShaderResourceView *nullSRV = nullptr;
     m_pContext->PSSetShaderResources(0, 1, &nullSRV);
+    Logger::Raw("[DX Final] Exit (scaled draw).\n");
 }
 
 void DirectXCore::RenderScreenSpaceContent()
 {
+    Logger::Raw("[DX Screen] Enter. drawCommands=%d, lineEntries=%d\n",
+                m_drawCommands.size(), m_lineEntries.size());
     D3D11_VIEWPORT screenVP = {0, 0, (float)m_clientWidth, (float)m_clientHeight, 0.0f, 1.0f};
     m_pContext->RSSetViewports(1, &screenVP);
 
     m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
     m_pContext->OMSetDepthStencilState(m_pDepthStateOff.Get(), 0);
 
+    int screenCmdCount = 0;
     if (!m_drawCommands.empty())
     {
         m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
@@ -2061,6 +2106,7 @@ void DirectXCore::RenderScreenSpaceContent()
             TextureResource *tex = cmd.texRes;
             if (!tex || !tex->srv)
                 continue;
+            ++screenCmdCount;
     
             const auto &p = cmd.params;
             XMMATRIX world = CalcWorldMatrixScreen(p, tex->sourceView.FullWidth, tex->sourceView.FullHeight);
@@ -2084,40 +2130,70 @@ void DirectXCore::RenderScreenSpaceContent()
     
         ID3D11ShaderResourceView *nullSRV = nullptr;
         m_pContext->PSSetShaderResources(0, 1, &nullSRV);
-    
+        Logger::Raw("[DX Screen] Drew %d screen-space quads.\n", screenCmdCount);
     }
 
     // Flush GPU-batched screen-space lines
     m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
+    Logger::Raw("[DX Screen] Flushing screen-space lines.\n");
     FlushLineBatch(true);
+    Logger::Raw("[DX Screen] Exit.\n");
 }
 
 void DirectXCore::Render()
 {
+    Logger::Raw("[DX Render] ===== Frame Start =====\n");
+
     if (!m_bInitialized || !m_pContext || !m_pSwapChain || !m_pRTV)
+    {
+        Logger::Raw("[DX Render] Abort: not initialized or missing device/context/swapchain/RTV.\n");
         return;
+    }
 
     // If nothing to render at all, skip entirely
     if (m_drawCommands.empty() && m_lineEntries.empty())
+    {
+        Logger::Raw("[DX Render] Skip: empty drawCommands and lineEntries.\n");
         return;
+    }
 
+    Logger::Raw("[DX Render] drawCommands=%d, lineEntries=%d, renderScale=%.2f\n",
+                m_drawCommands.size(), m_lineEntries.size(), m_renderScale);
+
+    Logger::Raw("[DX Render] >> ResetDepth\n");
     ResetDepth();
 
+    Logger::Raw("[DX Render] >> RenderOffscreenContent (enter)\n");
     RenderOffscreenContent();
+    Logger::Raw("[DX Render] << RenderOffscreenContent (exit)\n");
+
     if (!CIsoViewExt::RenderingMap)
     {
         if (ExtConfigs::EnableDarkMode && ExtConfigs::EnableDarkMode_DimMap)
         {
+            Logger::Raw("[DX Render] >> DarkenOffscreen(0.7)\n");
             DarkenOffscreen(0.7f);
+            Logger::Raw("[DX Render] << DarkenOffscreen\n");
         }
 
+        Logger::Raw("[DX Render] >> RenderFinalToBackBuffer\n");
         RenderFinalToBackBuffer();
+        Logger::Raw("[DX Render] << RenderFinalToBackBuffer\n");
+
+        Logger::Raw("[DX Render] >> UpdateBackgroundCache\n");
         UpdateBackgroundCache();
+
+        Logger::Raw("[DX Render] >> RenderScreenSpaceContent\n");
         RenderScreenSpaceContent();
+        Logger::Raw("[DX Render] << RenderScreenSpaceContent\n");
     }
 
+    Logger::Raw("[DX Render] >> Present\n");
     m_pSwapChain->Present(1, 0);
+    Logger::Raw("[DX Render] << Present done\n");
+
     m_drawCommands.clear();
+    Logger::Raw("[DX Render] ===== Frame End =====\n");
 }
 
 void DirectXCore::DarkenOffscreen(float brightness)
@@ -2152,10 +2228,13 @@ void DirectXCore::RenderScreenSpaceOnly()
 {
     if (!m_bInitialized || !m_pContext || !m_pSwapChain || !m_pRTV || !m_backgroundCacheValid)
         return;
+        
+    Logger::Raw("[DX Render] ===== ScreenSpace Frame Start =====\n");
     RestoreBackgroundFromCache();
     RenderScreenSpaceContent();
     m_pSwapChain->Present(1, 0);
     m_drawCommands.clear();
+    Logger::Raw("[DX Render] ===== ScreenSpace Frame End =====\n");
 }
 
 TextureResource *DirectXCore::LoadTexture(const ImageDataView &view, BGRStruct color, bool ignoreTransparent)
@@ -2513,7 +2592,9 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
     if (numLines == 0)
         return;
 
-    const int vertsPerLine = 6; // TRIANGLELIST: 2 triangles × 3 verts
+    Logger::Raw("[DX LineBatch] Flushing %d lines (screen=%d, overlay=%d)\n", numLines, bScreenSpace ? 1 : 0, bOverlay ? 1 : 0);
+
+    const int vertsPerLine = 6;
     const int totalVerts = numLines * vertsPerLine;
 
     // Ensure vertex buffer is large enough
@@ -2618,6 +2699,7 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
 
     // Draw all lines in one call
     m_pContext->Draw(totalVerts, 0);
+    Logger::Raw("[DX LineBatch] Draw(%d) done.\n", totalVerts);
 
     std::erase_if(m_lineEntries, [bScreenSpace, bOverlay](const auto &le) { return le.bScreenSpace == bScreenSpace && le.bAlwaysOnTop == bOverlay; });
 }

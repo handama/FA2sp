@@ -53,6 +53,53 @@ DrawParams &DrawParams::SetColorMix(RGBClass color, float factor)
 DirectXCore::DirectXCore() = default;
 DirectXCore::~DirectXCore() { Cleanup(); }
 
+void GetDriverVersionFromRegistry()
+{
+    HKEY hKey;
+    if (RegOpenKeyExW(
+        HKEY_LOCAL_MACHINE,
+        L"SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}",
+        0,
+        KEY_READ,
+        &hKey) != ERROR_SUCCESS)
+    {
+        return;
+    }
+
+    WCHAR subKeyName[256];
+    DWORD index = 0;
+    DWORD size = 256;
+
+    while (RegEnumKeyExW(hKey, index, subKeyName, &size,
+        nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS)
+    {
+        WCHAR path[512];
+        swprintf_s(path,
+            L"SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\%s",
+            subKeyName);
+
+        HKEY subKey;
+        if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, path, 0, KEY_READ, &subKey) == ERROR_SUCCESS)
+        {
+            CHAR driverVer[128];
+            DWORD sz = sizeof(driverVer);
+
+            if (RegQueryValueEx(subKey, "DriverVersion", nullptr, nullptr,
+                (LPBYTE)driverVer, &sz) == ERROR_SUCCESS)
+            {
+                Logger::Raw("[DX] DriverVersion: %s\n", driverVer);
+            }
+
+            RegCloseKey(subKey);
+        }
+
+        size = 256;
+        index++;
+    }
+
+    RegCloseKey(hKey);
+}
+
 bool DirectXCore::Initialize(HWND hwnd)
 {
     Cleanup();
@@ -68,6 +115,48 @@ bool DirectXCore::Initialize(HWND hwnd)
         Logger::Raw("[DirectXCore] CreateDeviceAndSwapChain failed.\n");
         return false;
     }
+
+    // --- Log GPU / adapter info ---
+    {
+        ComPtr<IDXGIDevice> pDXGIDevice;
+        if (SUCCEEDED(m_pDevice.As(&pDXGIDevice)) && pDXGIDevice)
+        {
+            ComPtr<IDXGIAdapter> pAdapter;
+            if (SUCCEEDED(pDXGIDevice->GetAdapter(&pAdapter)) && pAdapter)
+            {
+                DXGI_ADAPTER_DESC desc = {};
+                if (SUCCEEDED(pAdapter->GetDesc(&desc)))
+                {
+                    // Convert wide-char description to UTF-8
+                    char gpuName[256] = {};
+                    WideCharToMultiByte(CP_UTF8, 0, desc.Description, -1, gpuName, sizeof(gpuName), nullptr, nullptr);
+
+                    D3D_FEATURE_LEVEL fl = m_pDevice->GetFeatureLevel();
+                    const char* flStr = "?";
+                    switch (fl) {
+                    case D3D_FEATURE_LEVEL_11_0: flStr = "11_0"; break;
+                    case D3D_FEATURE_LEVEL_10_1: flStr = "10_1"; break;
+                    case D3D_FEATURE_LEVEL_10_0: flStr = "10_0"; break;
+                    case D3D_FEATURE_LEVEL_9_3:  flStr = "9_3";  break;
+                    default: break;
+                    }
+
+                    Logger::Raw("========== DirectX Device Info ==========\n");
+                    Logger::Raw("[DX] GPU: %s\n", gpuName);
+                    Logger::Raw("[DX] VendorId: 0x%04X  DeviceId: 0x%04X\n",
+                                desc.VendorId, desc.DeviceId);
+                    Logger::Raw("[DX] VRAM: %d MB\n", desc.DedicatedVideoMemory / (1024 * 1024));
+                    Logger::Raw("[DX] System RAM Shared: %d MB\n",
+                                desc.SharedSystemMemory / (1024 * 1024));
+                    Logger::Raw("[DX] FeatureLevel: %s\n", flStr);
+
+                    GetDriverVersionFromRegistry();
+                    Logger::Raw("========================================\n");
+                }
+            }
+        }
+    }
+
     if (!CreateShadersAndInputLayout())
     {
         Logger::Raw("[DirectXCore] CreateShadersAndInputLayout failed.\n");
@@ -406,11 +495,11 @@ bool DirectXCore::CreateDeviceAndSwapChain(HWND hwnd)
     scd.OutputWindow = hwnd;
     scd.SampleDesc.Count = 1;
     scd.Windowed = TRUE;
-    scd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+    scd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     scd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
     UINT createFlags = 0;
-#ifdef _DEBUG
+#ifndef NDEBUG
     createFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
@@ -424,6 +513,36 @@ bool DirectXCore::CreateDeviceAndSwapChain(HWND hwnd)
         Logger::Raw("D3D11CreateDeviceAndSwapChain failed.\n");
         return false;
     }
+
+#ifndef NDEBUG
+    // --- D3D11 Debug Layer InfoQueue: forward messages to Logger ---
+    {
+        Logger::Raw("[DirectXCore] Debug Layer: setting up ID3D11InfoQueue...\n");
+        hr = m_pDevice.As(&m_pInfoQueue);
+        if (SUCCEEDED(hr) && m_pInfoQueue)
+        {
+            // Suppress noisy INFO messages; keep WARNING / ERROR / CORRUPTION
+            D3D11_INFO_QUEUE_FILTER filter = {};
+            D3D11_MESSAGE_CATEGORY denyCats[] = { D3D11_MESSAGE_CATEGORY_STATE_CREATION };
+            filter.DenyList.NumCategories = 1;
+            filter.DenyList.pCategoryList = denyCats;
+            D3D11_MESSAGE_SEVERITY denySevs[] = { D3D11_MESSAGE_SEVERITY_INFO };
+            filter.DenyList.NumSeverities = 1;
+            filter.DenyList.pSeverityList = denySevs;
+            m_pInfoQueue->PushStorageFilter(&filter);
+
+            // Break on CORRUPTION / ERROR when debugger is attached
+            m_pInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+            m_pInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, TRUE);
+            Logger::Raw("[DirectXCore] Debug Layer: InfoQueue ready.\n");
+        }
+        else
+        {
+            Logger::Raw("[DirectXCore] Debug Layer: FAILED to acquire InfoQueue. "
+                        "Install 'Graphics Tools' in Windows Optional Features.\n");
+        }
+    }
+#endif
 
     ComPtr<ID3D11Texture2D> pBackBuffer;
     hr = m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), &pBackBuffer);
@@ -1452,6 +1571,11 @@ void DirectXCore::FlushInstanceBatch(const std::vector<const DrawCommand*>& batc
         }
     }
 
+    // Ensure sampler is set (callers may not have set it)
+    m_pContext->PSSetSamplers(0, 1,
+        (m_renderScale == 1.0f) ? m_pSamplerPoint.GetAddressOf()
+                                : m_pSamplerLinear.GetAddressOf());
+
     m_pContext->DrawInstanced(4, count, 0, 0);
 
     // Restore single VB binding for subsequent code that assumes slot 0 only
@@ -1649,7 +1773,9 @@ void DirectXCore::RenderOffscreenContent()
             Logger::Raw("[DX Offscreen] Phase 1b: done.\n");
         }
     }
-    Logger::Raw("[DX Offscreen] Phase 1: complete.\n");
+    Logger::Raw("[DX Offscreen] Phase 1: complete. Flushing GPU...\n");
+    m_pContext->Flush();
+    Logger::Raw("[DX Offscreen] Phase 1: GPU flush done.\n");
 
     // ====================================================================
     // Phase 1.5: Stencil-aware draws (per-quad, state-tracked)
@@ -1753,7 +1879,9 @@ void DirectXCore::RenderOffscreenContent()
             m_trackedStencilRef = 0;
             Logger::Raw("[DX Offscreen] Phase 1.5e: done.\n");
         }
-        Logger::Raw("[DX Offscreen] Phase 1.5: complete.\n");
+        Logger::Raw("[DX Offscreen] Phase 1.5: complete. Flushing GPU...\n");
+        m_pContext->Flush();
+        Logger::Raw("[DX Offscreen] Phase 1.5: GPU flush done.\n");
     }
 
     // ====================================================================
@@ -1805,7 +1933,9 @@ void DirectXCore::RenderOffscreenContent()
         m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &singleStride, &singleOffset);
         m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
         m_pTrackedSRV = nullptr;
-        Logger::Raw("[DX Offscreen] Phase 2: complete.\n");
+        Logger::Raw("[DX Offscreen] Phase 2: complete. Flushing GPU...\n");
+        m_pContext->Flush();
+        Logger::Raw("[DX Offscreen] Phase 2: GPU flush done.\n");
     }
 
     // ====================================================================
@@ -1835,7 +1965,9 @@ void DirectXCore::RenderOffscreenContent()
         // Clean up extra SRV binding
         ID3D11ShaderResourceView *nullSRV = nullptr;
         m_pContext->PSSetShaderResources(1, 1, &nullSRV);
-        Logger::Raw("[DX Offscreen] Phase 3: complete.\n");
+        Logger::Raw("[DX Offscreen] Phase 3: complete. Flushing GPU...\n");
+        m_pContext->Flush();
+        Logger::Raw("[DX Offscreen] Phase 3: GPU flush done.\n");
     }
 
     // ====================================================================
@@ -1999,7 +2131,9 @@ void DirectXCore::RenderOffscreenContent()
         m_pContext->PSSetSamplers(0, 1, (m_renderScale == 1.0f) ? m_pSamplerPoint.GetAddressOf() : m_pSamplerLinear.GetAddressOf());
         Logger::Raw("[DX Offscreen] Phase 5b: done.\n");
     }
-    Logger::Raw("[DX Offscreen] Exit.\n");
+    Logger::Raw("[DX Offscreen] Exit. Flushing GPU...\n");
+    m_pContext->Flush();
+    Logger::Raw("[DX Offscreen] Exit. GPU flush done.\n");
 }
 
 void DirectXCore::RenderFinalToBackBuffer()
@@ -2066,7 +2200,9 @@ void DirectXCore::RenderFinalToBackBuffer()
 
     ID3D11ShaderResourceView *nullSRV = nullptr;
     m_pContext->PSSetShaderResources(0, 1, &nullSRV);
-    Logger::Raw("[DX Final] Exit (scaled draw).\n");
+    Logger::Raw("[DX Final] Exit (scaled draw). Flushing GPU...\n");
+    m_pContext->Flush();
+    Logger::Raw("[DX Final] Exit. GPU flush done.\n");
 }
 
 void DirectXCore::RenderScreenSpaceContent()
@@ -2153,7 +2289,9 @@ void DirectXCore::RenderScreenSpaceContent()
     m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
     Logger::Raw("[DX Screen] Flushing screen-space lines.\n");
     FlushLineBatch(true);
-    Logger::Raw("[DX Screen] Exit.\n");
+    Logger::Raw("[DX Screen] Exit. Flushing GPU...\n");
+    m_pContext->Flush();
+    Logger::Raw("[DX Screen] Exit. GPU flush done.\n");
 }
 
 void DirectXCore::Render()
@@ -2204,12 +2342,66 @@ void DirectXCore::Render()
         Logger::Raw("[DX Render] << RenderScreenSpaceContent\n");
     }
 
-    Logger::Raw("[DX Render] >> Present (SyncInterval=0, no vsync wait)\n");
-    m_pSwapChain->Present(0, 0);
+    Logger::Raw("[DX Render] >> Present\n");
+    m_pSwapChain->Present(1, 0);
     Logger::Raw("[DX Render] << Present done\n");
+
+    FlushDebugMessages();
 
     m_drawCommands.clear();
     Logger::Raw("[DX Render] ===== Frame End =====\n");
+}
+
+// D3D11 Debug Layer: retrieve and log any queued messages from the InfoQueue
+void DirectXCore::FlushDebugMessages()
+{
+    if (!m_pInfoQueue)
+        return;
+
+    UINT64 msgCount = m_pInfoQueue->GetNumStoredMessages();
+    if (msgCount == 0)
+        return;
+
+    Logger::Raw("[DX Debug] === %d D3D11 message(s) ===\n", (int)msgCount);
+
+    for (UINT64 i = 0; i < msgCount; ++i)
+    {
+        SIZE_T msgLen = 0;
+        m_pInfoQueue->GetMessage(i, nullptr, &msgLen);
+        if (msgLen == 0) continue;
+
+        std::vector<BYTE> buf(msgLen);
+        auto pMsg = reinterpret_cast<D3D11_MESSAGE*>(buf.data());
+        HRESULT hr = m_pInfoQueue->GetMessage(i, pMsg, &msgLen);
+        if (FAILED(hr)) continue;
+
+        const char* severity = "?";
+        switch (pMsg->Severity)
+        {
+        case D3D11_MESSAGE_SEVERITY_CORRUPTION: severity = "CORRUPTION"; break;
+        case D3D11_MESSAGE_SEVERITY_ERROR:      severity = "ERROR";      break;
+        case D3D11_MESSAGE_SEVERITY_WARNING:    severity = "WARNING";    continue;
+        case D3D11_MESSAGE_SEVERITY_INFO:       severity = "INFO";       continue;
+        case D3D11_MESSAGE_SEVERITY_MESSAGE:    severity = "MESSAGE";    continue;
+        }      
+
+        const char* category = "?";
+        switch (pMsg->Category)
+        {
+        case D3D11_MESSAGE_CATEGORY_EXECUTION:         category = "EXECUTION";         break;
+        case D3D11_MESSAGE_CATEGORY_STATE_CREATION:    category = "STATE_CREATION";    break;
+        case D3D11_MESSAGE_CATEGORY_STATE_SETTING:     category = "STATE_SETTING";     break;
+        case D3D11_MESSAGE_CATEGORY_STATE_GETTING:     category = "STATE_GETTING";     break;
+        case D3D11_MESSAGE_CATEGORY_RESOURCE_MANIPULATION: category = "RESOURCE_MANIP"; break;
+        default: break;
+        }
+
+        Logger::Raw("[DX Debug] [%s][%s] ID=%d: %s\n",
+                    severity, category, (int)pMsg->ID, pMsg->pDescription);
+    }
+
+    m_pInfoQueue->ClearStoredMessages();
+    Logger::Raw("[DX Debug] === end ===\n");
 }
 
 void DirectXCore::DarkenOffscreen(float brightness)
@@ -2249,6 +2441,7 @@ void DirectXCore::RenderScreenSpaceOnly()
     RestoreBackgroundFromCache();
     RenderScreenSpaceContent();
     m_pSwapChain->Present(0, 0);
+    FlushDebugMessages();
     m_drawCommands.clear();
     Logger::Raw("[DX Render] ===== ScreenSpace Frame End =====\n");
 }
@@ -2712,6 +2905,9 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
     m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_pContext->VSSetShader(m_pLineVS.Get(), nullptr, 0);
     m_pContext->PSSetShader(pCustomPS ? pCustomPS : m_pLinePS.Get(), nullptr, 0);
+
+    // Set sampler (needed by line PS variants that sample textures, e.g. m_pLineModPS)
+    m_pContext->PSSetSamplers(0, 1, m_pSamplerPoint.GetAddressOf());
 
     // Draw all lines in one call
     m_pContext->Draw(totalVerts, 0);

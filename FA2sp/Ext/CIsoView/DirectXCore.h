@@ -2,6 +2,7 @@
 #include <windef.h>
 #include <wrl/client.h> 
 #include <d3d11.h>
+#include <d3d11sdklayers.h>
 #include <dxgi.h>
 #include <d3dcompiler.h>
 #include <functional>
@@ -341,7 +342,12 @@ private:
     void SetDSStateTracked(ID3D11DepthStencilState *pDS, UINT stencilRef);
     void FlushInstanceBatch(const std::vector<const DrawCommand*>& batch);
 
+    // D3D11 Debug Layer (active in _DEBUG builds only)
+    Microsoft::WRL::ComPtr<ID3D11InfoQueue> m_pInfoQueue;
+
 public:
+    void FlushDebugMessages();
+
     ID3D11Device* GetDevice() { return m_pDevice.Get(); }
     ID3D11DeviceContext* GetContext() { return m_pContext.Get(); }
     ID3D11Texture2D* GetOffscreenTexture() const { return m_OffscreenTex.Get(); }

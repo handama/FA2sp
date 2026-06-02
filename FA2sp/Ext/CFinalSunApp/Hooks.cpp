@@ -114,7 +114,7 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
 
 DEFINE_HOOK(41F720, CFinalSunApp_Initialize, 7)
 {
-    bool awareness = STDHelpers::IsTrue(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "HiDPIAwareness", "false").c_str());
+    bool awareness = STDHelpers::IsTrue(DarkTheme::ReadIniString("FAData.ini", "ExtConfigs", "HiDPIAwareness", "true").c_str());
     awareness = STDHelpers::IsTrue(DarkTheme::ReadIniString("FinalAlert.ini", "Options",
         "HiDPIAwareness", awareness ? "true" : "false").c_str());
         

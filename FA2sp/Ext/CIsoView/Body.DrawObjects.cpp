@@ -646,15 +646,21 @@ static void InitAllObjects()
 
 static void DrawMap()
 {
+	Logger::Raw("[DrawMap] >>> ENTER <<<\n");
 	auto pThis = CIsoViewExt::GetExtension();
 	auto pMap = CMapDataExt::GetExtension();
 	auto pFinalSunDlg = CFinalSunDlg::Instance();
 
 	if (ExtConfigs::DirectXRendering)
+	{
+		Logger::Raw("[DrawMap] >> g_pSP->BeginFrame() (start of frame)\n");
 		pThis->g_pSP->BeginFrame();
+		Logger::Raw("[DrawMap] << g_pSP->BeginFrame() done\n");
+	}
 
 	// sanity checks
 	{
+		Logger::Raw("[DrawMap] Sanity checks...\n");
 		if (pMap->MapNotLoaded)
 			return;
 
@@ -789,8 +795,11 @@ static void DrawMap()
 		}
 	}
 
+	Logger::Raw("[DrawMap] Sanity checks passed.\n");
+
 	// init window positions
 	{
+		Logger::Raw("[DrawMap] Init window positions...\n");
 		pThis->GetWindowRect(&window);
 		CIsoViewExt::AdaptRectForSecondScreen(&window);
 
@@ -823,6 +832,9 @@ static void DrawMap()
 			VisibleCoordTL.Y = 0;
 		}
 	}
+
+	Logger::Raw("[DrawMap] Window positions done. VisibleCoords: TL(%d,%d) BR(%d,%d)\n",
+				VisibleCoordTL.X, VisibleCoordTL.Y, VisibleCoordBR.X, VisibleCoordBR.Y);
 
 	pFinalSunDlg->LastSucceededOperation = 100;
 
@@ -969,7 +981,10 @@ static void DrawMap()
 		}
 	}
 
+	Logger::Raw("[DrawMap] Visible cells count: %d\n", visibleCells.size());
+
 	// loop1: tiles
+	Logger::Raw("[DrawMap] Loop1: Tiles (start)\n");
 	for (auto &info : visibleCells)
 	{
 		if (!info.isInMap)
@@ -1212,6 +1227,8 @@ static void DrawMap()
 			}
 		}
 	}
+	Logger::Raw("[DrawMap] Loop1: Tiles (end), RedrawCoords=%d\n", RedrawCoords.size());
+
 	for (const auto &coord : RedrawCoords)
 	{
 		const int &X = coord.X;
@@ -1284,7 +1301,10 @@ static void DrawMap()
 		}
 	}
 
+	Logger::Raw("[DrawMap] RedrawCoords done.\n");
+
 	// loop2: smudges
+	Logger::Raw("[DrawMap] Loop2: Smudges (start)\n");
 	for (const auto &info : visibleCells)
 	{
 		auto &X = info.X;
@@ -1330,7 +1350,10 @@ static void DrawMap()
 		}
 	}
 
+	Logger::Raw("[DrawMap] Loop2: Smudges (end)\n");
+
 	// loop3: shadows
+	Logger::Raw("[DrawMap] Loop3: Shadows (start)\n");
 	for (const auto &info : visibleCells)
 	{
 		if (!info.isInMap && !ExtConfigs::DisplayObjectsOutside)
@@ -1931,7 +1954,10 @@ static void DrawMap()
 		CIsoViewExt::DrawShadowMask(ddsd.lpSurface, boundary, window, shadowMask, shadowHeightMask, cellHeightMask);
 	}
 
+	Logger::Raw("[DrawMap] Loop3: Shadows (end)\n");
+
 	// loop4: objects
+	Logger::Raw("[DrawMap] Loop4: Objects (start)\n");
 	memset(DrawnBuildings, 0, sizeof(DrawnBuildings));
 	DrawnBaseNodes.clear();
 
@@ -2779,6 +2805,9 @@ static void DrawMap()
 		}
 	}
 
+	Logger::Raw("[DrawMap] Loop4: Objects (end). Fires=%d, AlphaImages=%d\n",
+				FiresToDraw.size(), AlphaImagesToDraw.size());
+
 	for (const auto &fire : FiresToDraw)
 	{
 		if (ExtConfigs::DirectXRendering)
@@ -2807,6 +2836,8 @@ static void DrawMap()
 													   ai.first.X, ai.first.Y, ai.second);
 		}
 	}
+
+	Logger::Raw("[DrawMap] Fires+AlphaImages done. VetCount=%d\n", DrawVeterancies.size());
 
 	if (CIsoViewExt::DrawVeterancy)
 	{
@@ -3052,8 +3083,11 @@ static void DrawMap()
 		}
 	}
 
+	Logger::Raw("[DrawMap] Veterancy+PropertyMarks done.\n");
+
 	if (ExtConfigs::DirectXRendering)
 	{
+		Logger::Raw("[DrawMap] DirectX CellTags/Waypoints/Annotations pass (start)\n");
 		for (const auto &info : visibleCells)
 		{
 			if (!info.isInMap && !ExtConfigs::DisplayObjectsOutside)
@@ -3295,13 +3329,17 @@ static void DrawMap()
 
 		if (ExtConfigs::DirectXRendering)
 		{
-			pThis->DirectXBitmap(drawX + 27, drawY + 16, "target.bmp");
+		Logger::Raw("[DrawMap] CellTags/Waypoints/Annotations done.\n");
+
+		pThis->DirectXBitmap(drawX + 27, drawY + 16, "target.bmp");
 		}
 		else
 		{
 			pThis->DrawBitmap("target", drawX - 20, drawY - 11, &ddsd);
 		}
 	}
+
+	Logger::Raw("[DrawMap] target.bmp done.\n");
 
 	if (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderInvisibleInGame)
 	{
@@ -3441,6 +3479,8 @@ static void DrawMap()
 		}
 	}
 
+	Logger::Raw("[DrawMap] BaseNodeIndex+Waypoint texts done.\n");
+
 	SetTextAlign(hDC, TA_LEFT);
 	SetTextColor(hDC, RGB(0, 0, 0));
 
@@ -3543,6 +3583,8 @@ static void DrawMap()
 			}
 		}
 	}
+
+	Logger::Raw("[DrawMap] Annotations done.\n");
 
 	if (CIsoViewExt::PasteShowOutline && CIsoView::CurrentCommand->Command == 21 && !CopyPaste::PastedCoords.empty() && !CopyPaste::CopyWholeMap && (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers))
 	{
@@ -3704,17 +3746,28 @@ static void DrawMap()
 		}
 	}
 
+	Logger::Raw("[DrawMap] PasteOutline+LineTool+Bounds done.\n");
+
 	lpSurface->ReleaseDC(hDC);
 	lpSurface->Unlock(NULL);
 
+	Logger::Raw("[DrawMap] ReleaseDC+Unlock done.\n");
+
 	if (ExtConfigs::DirectXRendering)
 	{
+		Logger::Raw("[DrawMap] Final DX render section >>\n");
+		Logger::Raw("[DrawObjects] >> SpecialDrawDirectX\n");
 		CIsoViewExt::SpecialDrawDirectX(0);
+		Logger::Raw("[DrawObjects] >> g_pDX->Render()\n");
 		pThis->g_pDX->Render();
+		Logger::Raw("[DrawObjects] << g_pDX->Render() returned\n");
+		Logger::Raw("[DrawObjects] >> g_pSP->BeginFrame()\n");
 		pThis->g_pSP->BeginFrame();
+		Logger::Raw("[DrawObjects] << g_pSP->BeginFrame() done\n");
 
 		if (CIsoViewExt::RenderingMap)
 		{
+			Logger::Raw("[DrawObjects] RenderingMap=true, reading back offscreen...\n");
 			int &height = CMapData::Instance->Size.Height;
 			int &width = CMapData::Instance->Size.Width;
 			int startX, startY;
@@ -3867,6 +3920,8 @@ static void DrawMap()
 		else
 			pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::lpDDBackBufferZoomSurface, &dr, DDBLT_WAIT, 0);
 	}
+
+	Logger::Raw("[DrawMap] Exit.\n");
 }
 
 DEFINE_HOOK(468690, CIsoView_OnSize, A)
@@ -3889,10 +3944,13 @@ DEFINE_HOOK(4686A2, CIsoView_OnSize_Clipper, 6)
 
 DEFINE_HOOK(46DE00, CIsoView_Draw, 7)
 {
+	Logger::Raw("[CIsoView_Draw Hook] >>> ENTER <<<\n");
 	auto start = std::chrono::high_resolution_clock::now();
 	static float smoothedFps = (float)CFinalSunAppExt::ScreenRefreshRate;
 
+	Logger::Raw("[CIsoView_Draw Hook] >> DrawMap()\n");
 	DrawMap();
+	Logger::Raw("[CIsoView_Draw Hook] << DrawMap() returned\n");
 
 	auto end = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -3913,5 +3971,6 @@ DEFINE_HOOK(46DE00, CIsoView_Draw, 7)
 
 	CFinalSunAppExt::ScreenRefreshRate = (int)smoothedFps;
 
+	Logger::Raw("[CIsoView_Draw Hook] >>> EXIT (fps=%.1f, ms=%d) <<<\n", currentFps, (int)count);
 	return 0x47519D;
 }

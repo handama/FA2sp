@@ -963,7 +963,11 @@ void DirectXCore::CopyScreenToTexture()
 {
     if (!m_pContext || !m_OffscreenRTV || !m_pScreenCopy)
         return;
+    // Unbind the offscreen RT before copying from it (D3D11 forbids CopyResource on a bound RT)
+    m_pContext->OMSetRenderTargets(0, nullptr, nullptr);
     m_pContext->CopyResource(m_pScreenCopy.Get(), m_OffscreenTex.Get());
+    // Re-bind the offscreen RT (caller expects it to be active)
+    // Note: caller (Phase 4) will set its own RT immediately after
 }
 
 void DirectXCore::DrawFullscreenQuad()
@@ -1072,7 +1076,11 @@ void DirectXCore::UpdateBackgroundCache()
     m_pRTV->GetResource(&pBackBufferResource);
     if (pBackBufferResource)
     {
+        // Unbind back buffer RTV before copying from it
+        m_pContext->OMSetRenderTargets(0, nullptr, nullptr);
         m_pContext->CopyResource(m_pBackgroundCacheTexture.Get(), pBackBufferResource.Get());
+        // Re-bind back buffer RTV (caller will set RTV again before next draw)
+        m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
         m_backgroundCacheValid = true;
     }
 }
@@ -1085,7 +1093,11 @@ void DirectXCore::RestoreBackgroundFromCache()
     m_pRTV->GetResource(&pBackBufferResource);
     if (pBackBufferResource)
     {
+        // Unbind back buffer RTV before copying to it
+        m_pContext->OMSetRenderTargets(0, nullptr, nullptr);
         m_pContext->CopyResource(pBackBufferResource.Get(), m_pBackgroundCacheTexture.Get());
+        // Re-bind back buffer RTV (caller will set RTV again before next draw)
+        m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
     }
 }
 
@@ -2006,7 +2018,11 @@ void DirectXCore::RenderFinalToBackBuffer()
         m_pRTV->GetResource(&pBackBufferResource);
         if (pBackBufferResource && m_OffscreenTex)
         {
+            // Unbind back buffer RTV before copying to it (D3D11 forbids CopyResource on bound RT)
+            m_pContext->OMSetRenderTargets(0, nullptr, nullptr);
             m_pContext->CopyResource(pBackBufferResource.Get(), m_OffscreenTex.Get());
+            // Re-bind back buffer RTV
+            m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
         }
         Logger::Raw("[DX Final] Exit (CopyResource).\n");
         return;
@@ -2188,8 +2204,8 @@ void DirectXCore::Render()
         Logger::Raw("[DX Render] << RenderScreenSpaceContent\n");
     }
 
-    Logger::Raw("[DX Render] >> Present\n");
-    m_pSwapChain->Present(1, 0);
+    Logger::Raw("[DX Render] >> Present (SyncInterval=0, no vsync wait)\n");
+    m_pSwapChain->Present(0, 0);
     Logger::Raw("[DX Render] << Present done\n");
 
     m_drawCommands.clear();
@@ -2232,7 +2248,7 @@ void DirectXCore::RenderScreenSpaceOnly()
     Logger::Raw("[DX Render] ===== ScreenSpace Frame Start =====\n");
     RestoreBackgroundFromCache();
     RenderScreenSpaceContent();
-    m_pSwapChain->Present(1, 0);
+    m_pSwapChain->Present(0, 0);
     m_drawCommands.clear();
     Logger::Raw("[DX Render] ===== ScreenSpace Frame End =====\n");
 }

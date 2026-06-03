@@ -162,6 +162,7 @@ void TagSort::LoadAllTriggers()
 
     // TODO : 
     // Optimisze the efficiency
+    SendMessage(this->GetHwnd(), WM_SETREDRAW, FALSE, 0);
     if (auto pSection = CINI::CurrentDocument->GetSection("Tags"))
     {
         for (auto& pair : pSection->GetEntities())
@@ -169,6 +170,8 @@ void TagSort::LoadAllTriggers()
             this->AddTrigger(pair.first);
         }
     }
+    SendMessage(this->GetHwnd(), WM_SETREDRAW, TRUE, 0);
+    InvalidateRect(this->GetHwnd(), NULL, TRUE);
     ExtConfigs::InitializeMap = true;
 }
 
@@ -444,7 +447,8 @@ void TagSort::OnSize() const
 {
     RECT rect;
     ::GetClientRect(::GetParent(this->GetHwnd()), &rect);
-    ::MoveWindow(this->GetHwnd(), 2, 29, rect.right - rect.left - 6, rect.bottom - rect.top - 35, FALSE);
+    int tabPageheight = 20 * CFinalSunAppExt::ProgramScaleFactor;
+    ::MoveWindow(this->GetHwnd(), 2, tabPageheight, rect.right - rect.left - 6, rect.bottom - rect.top - 6 - tabPageheight, FALSE);
 }
 
 void TagSort::ShowWindow(bool bShow) const
@@ -919,6 +923,5 @@ void TagSort::AddTrigger(FString triggerId) const
         auto group = this->GetGroup(triggerId, name);
         
         this->AddTrigger(group, name, triggerId);
-
     }
 }

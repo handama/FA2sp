@@ -4,14 +4,16 @@
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../Common.h"
 #include "../../Ext/CLoading/Body.h"
+#include "../../Ext/CFinalSunApp/Body.h"
 #include <CFinalSunApp.h>
 
 CNewTipsOfTheDay* CNewTipsOfTheDay::m_pNewTipsOfTheDayDlg = nullptr;
 
 static bool ReplaceBitmapColor(
-    HBITMAP hBmp,
+    HBITMAP& hBmp,
     COLORREF fromColor,
-    COLORREF toColor)
+    COLORREF toColor,
+    float scaleFactor)
 {
     if (!hBmp)
         return false;
@@ -88,6 +90,48 @@ static bool ReplaceBitmapColor(
         return false;
     }
 
+    if (scaleFactor == 1.0f)
+        return true;
+
+    int newWidth = std::max(1, (int)std::lround(width * scaleFactor));
+    int newHeight = std::max(1, (int)std::lround(height * scaleFactor));
+
+    HDC hdcScreen = GetDC(nullptr);
+    HDC hdcSrc = CreateCompatibleDC(hdcScreen);
+    HDC hdcDst = CreateCompatibleDC(hdcScreen);
+
+    HBITMAP hScaledBmp = CreateCompatibleBitmap(hdcScreen, newWidth, newHeight);
+    if (!hScaledBmp)
+    {
+        DeleteDC(hdcSrc);
+        DeleteDC(hdcDst);
+        ReleaseDC(nullptr, hdcScreen);
+        return false;
+    }
+
+    HGDIOBJ oldSrc = SelectObject(hdcSrc, hBmp);
+    HGDIOBJ oldDst = SelectObject(hdcDst, hScaledBmp);
+
+    SetStretchBltMode(hdcDst, HALFTONE);
+    SetBrushOrgEx(hdcDst, 0, 0, nullptr);
+
+    StretchBlt(
+        hdcDst,
+        0, 0, newWidth, newHeight,
+        hdcSrc,
+        0, 0, width, height,
+        SRCCOPY);
+
+    SelectObject(hdcSrc, oldSrc);
+    SelectObject(hdcDst, oldDst);
+
+    DeleteDC(hdcSrc);
+    DeleteDC(hdcDst);
+    ReleaseDC(nullptr, hdcScreen);
+
+    DeleteObject(hBmp);
+    hBmp = hScaledBmp;
+
     return true;
 }
 
@@ -131,7 +175,8 @@ BOOL CNewTipsOfTheDay::OnInitDialog()
 	HBITMAP hBmp = (HBITMAP)LoadImage(
 		static_cast<HINSTANCE>(FA2sp::hInstance), 
 		MAKEINTRESOURCE(1037), IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
-    ReplaceBitmapColor(hBmp, RGB(255, 255, 255), ::GetSysColor(COLOR_3DFACE));
+ 
+    ReplaceBitmapColor(hBmp, RGB(255, 255, 255), ::GetSysColor(COLOR_3DFACE), CFinalSunAppExt::ProgramScaleFactor);
 
 	m_staticPic.SendMessage(STM_SETIMAGE, IMAGE_BITMAP, (LPARAM)hBmp);
 	ExtraWindow::SetEditControlFontSize(m_staticText.GetSafeHwnd(), 1.4f);

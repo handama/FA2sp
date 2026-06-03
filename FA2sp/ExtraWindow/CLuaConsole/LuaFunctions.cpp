@@ -659,7 +659,8 @@ namespace LuaFunctions
 		building(std::string house, std::string type, int y, int x)
 			: House(house), TypeID(type), X(x), Y(y) 
 		{
-			Facing = ExtConfigs::DefaultBuildingProperty.Facing;
+			auto defaultFacing = Variables::RulesMap.TryGetString(type.c_str(), "FA2DefaultFacing");
+			Facing = defaultFacing ? *defaultFacing : ExtConfigs::DefaultBuildingProperty.Facing;
 			Health = ExtConfigs::DefaultBuildingProperty.Health;
 			Tag = ExtConfigs::DefaultBuildingProperty.Tag;
 			AISellable = ExtConfigs::DefaultBuildingProperty.AISellable;

@@ -16,6 +16,7 @@ void TaskforceSort::LoadAllTriggers()
     this->Clear();
     // TODO : 
     // Optimisze the efficiency
+    SendMessage(this->GetHwnd(), WM_SETREDRAW, FALSE, 0);
     if (auto pSection = CINI::CurrentDocument->GetSection("TaskForces"))
     {
         for (auto& pair : pSection->GetEntities())
@@ -23,6 +24,8 @@ void TaskforceSort::LoadAllTriggers()
             this->AddTrigger(pair.second);
         }
     }
+    SendMessage(this->GetHwnd(), WM_SETREDRAW, TRUE, 0);
+    InvalidateRect(this->GetHwnd(), NULL, TRUE);
     ExtConfigs::InitializeMap = true;
 }
 
@@ -119,7 +122,8 @@ void TaskforceSort::OnSize() const
 {
     RECT rect;
     ::GetClientRect(::GetParent(this->GetHwnd()), &rect);
-    ::MoveWindow(this->GetHwnd(), 2, 29, rect.right - rect.left - 6, rect.bottom - rect.top - 35, FALSE);
+    int tabPageheight = 20 * CFinalSunAppExt::ProgramScaleFactor;
+    ::MoveWindow(this->GetHwnd(), 2, tabPageheight, rect.right - rect.left - 6, rect.bottom - rect.top - 6 - tabPageheight, FALSE);
 }
 
 void TaskforceSort::ShowWindow(bool bShow) const

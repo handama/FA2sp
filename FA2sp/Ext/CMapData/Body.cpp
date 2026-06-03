@@ -4942,6 +4942,21 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			Colors[key] = (COLORREF)rgb;
 		}
 	}
+	if (auto pSection = CINI::FAData->GetSection("Colors"))
+	{
+		for (auto& [key, value] : pSection->GetEntities())
+		{
+			HSVClass hsv{ 0,0,0 };
+			sscanf_s(value, "%hhu,%hhu,%hhu", &hsv.H, &hsv.S, &hsv.V);
+			RGBClass rgb;
+			if (!ExtConfigs::UseRGBHouseColor)
+				rgb = hsv;
+			else
+				rgb = { hsv.H,hsv.S,hsv.V };
+
+			Colors[key] = (COLORREF)rgb;
+		}
+	}
 
 	SmudgeSizes.clear();
 	for (auto& [_, value] : Variables::RulesMap.GetSection("SmudgeTypes"))

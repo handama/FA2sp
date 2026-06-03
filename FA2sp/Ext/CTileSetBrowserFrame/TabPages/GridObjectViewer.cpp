@@ -5,6 +5,7 @@
 #include "../../../Helpers/Translations.h"
 #include "../../../Miscs/DialogStyle.h"
 #include "../../../Helpers/Helper.h"
+#include "../../../Ext/CFinalSunApp/Body.h"
 
 GridObjectViewer GridObjectViewer::Instance;
 const int MIN_DISPLAY_WIDTH = 80; 
@@ -198,14 +199,20 @@ void GridObjectViewer::FastBlitImage(HDC hdcDest, int displayX, int displayY, co
     if (!pd && !info.DataName.IsEmpty()) pd = CLoadingExt::GetImageDataFromMap(info.DataName);
     if (!pd) return;
 
+    float factor = CTileSetBrowserFrameExt::GridObjectViewerScaledFactor;
     int cropW = info.CropWidth;
     int cropH = info.CropHeight;
     if (cropW <= 0 || cropH <= 0) return;
 
-    int displayW = std::max(cropW, MIN_DISPLAY_WIDTH);
-    int displayH = std::max(cropH, MIN_DISPLAY_HEIGHT);
+    int scaledCropW = (int)(cropW * factor);
+    int scaledCropH = (int)(cropH * factor);
+    int scaledMinW = (int)(MIN_DISPLAY_WIDTH * factor);
+    int scaledMinH = (int)(MIN_DISPLAY_HEIGHT * factor);
 
-    if (cropW < MIN_DISPLAY_WIDTH || cropH < MIN_DISPLAY_HEIGHT)
+    int displayW = std::max(scaledCropW, scaledMinW);
+    int displayH = std::max(scaledCropH, scaledMinH);
+
+    if (scaledCropW < scaledMinW || scaledCropH < scaledMinH)
     {
         BITMAPINFO bmi{};
         bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -224,8 +231,8 @@ void GridObjectViewer::FastBlitImage(HDC hdcDest, int displayX, int displayY, co
         HDC hMemDC = CreateCompatibleDC(hdcDest);
         HBITMAP hOld = (HBITMAP)SelectObject(hMemDC, hDib);
 
-        int offsetX = (displayW - cropW) / 2;
-        int offsetY = (displayH - cropH) / 2;
+        int offsetX = (displayW - scaledCropW) / 2;
+        int offsetY = (displayH - scaledCropH) / 2;
 
         DrawImageDataCore(hMemDC, offsetX, offsetY, info);
 
@@ -243,17 +250,128 @@ void GridObjectViewer::FastBlitImage(HDC hdcDest, int displayX, int displayY, co
 void GridObjectViewer::DrawImageDataCore(HDC hdcDest, int destX, int destY, const ImageInfo& info)
 {
     auto* pd = info.pData;
-    if (!pd && !info.DataName.IsEmpty()) pd = CLoadingExt::GetImageDataFromMap(info.DataName);
+    if (!pd && !info.DataName.IsEmpty()) 
+        pd = CLoadingExt::GetImageDataFromMap(info.DataName);
     if (!pd) return;
 
-    int w = pd->FullWidth;
-    BYTE* src = static_cast<BYTE*>(pd->pImageBuffer.get());
+    float factor = CTileSetBrowserFrameExt::GridObjectViewerScaledFactor;
+    int scaledW = (int)(info.CropWidth * factor);
+    int scaledH = (int)(info.CropHeight * factor);
+    if (scaledW <= 0 || scaledH <= 0) return;
+
+    int srcFullW = pd->FullWidth;
+    int srcFullH = pd->FullHeight;
+    BYTE* srcIdx = static_cast<BYTE*>(pd->pImageBuffer.get());
     Palette* pal = pd->pPalette;
+    unsigned char* pOpacity = pd->pOpacity.get(); 
+
+    int srcW = info.CropWidth;
+    int srcH = info.CropHeight;
+    std::vector<BYTE> srcRGBA(srcW * srcH * 4, 0);
+
+    for (int cy = 0; cy < srcH; ++cy) {
+        int sy = info.CropTop + cy;
+        if (sy < 0 || sy >= srcFullH) continue;
+
+        LONG validLeft = pd->pPixelValidRanges[sy].First;
+        LONG validRight = pd->pPixelValidRanges[sy].Last;
+        BYTE* srcRow = srcIdx + sy * srcFullW;
+        BYTE* dstRow = srcRGBA.data() + cy * srcW * 4;
+
+        unsigned char* opRow = pOpacity ? (pOpacity + sy * srcFullW) : nullptr;
+
+        for (int cx = 0; cx < srcW; ++cx) {
+            int sx = info.CropLeft + cx;
+            if (sx < 0 || sx >= srcFullW) continue;
+
+            BYTE idx = srcRow[sx];
+            bool inValid = (sx >= validLeft && sx <= validRight);
+            if (!inValid) continue; 
+
+            BYTE alpha = 255; 
+            if (idx == 0) {
+                continue;  
+            }
+            else if (pOpacity) {
+                alpha = opRow[sx];   
+                if (alpha == 0) continue;
+            } else {          
+                alpha = 255;
+            }
+
+            BGRStruct c = pal->Data[idx];
+            BYTE* pixel = dstRow + cx * 4;
+            pixel[0] = c.R;
+            pixel[1] = c.G;
+            pixel[2] = c.B;
+            pixel[3] = alpha; 
+        }
+    }
+
+    auto BilinearScale = [](const BYTE* src, int srcW, int srcH,
+                            BYTE* dst, int dstW, int dstH) {
+        const float xScale = (float)srcW / dstW;
+        const float yScale = (float)srcH / dstH;
+        for (int dy = 0; dy < dstH; ++dy) {
+            float sy = (dy + 0.5f) * yScale - 0.5f;
+            if (sy < 0) sy = 0;
+            if (sy >= srcH - 1) sy = srcH - 1.001f;
+            int y0 = (int)sy;
+            int y1 = y0 + 1;
+            if (y1 >= srcH) y1 = srcH - 1;
+            float wy = sy - y0;
+
+            BYTE* dstRow = dst + dy * dstW * 4;
+            for (int dx = 0; dx < dstW; ++dx) {
+                float sx = (dx + 0.5f) * xScale - 0.5f;
+                if (sx < 0) sx = 0;
+                if (sx >= srcW - 1) sx = srcW - 1.001f;
+                int x0 = (int)sx;
+                int x1 = x0 + 1;
+                if (x1 >= srcW) x1 = srcW - 1;
+                float wx = sx - x0;
+
+                const BYTE* p00 = src + (y0 * srcW + x0) * 4;
+                const BYTE* p10 = src + (y0 * srcW + x1) * 4;
+                const BYTE* p01 = src + (y1 * srcW + x0) * 4;
+                const BYTE* p11 = src + (y1 * srcW + x1) * 4;
+
+                for (int ch = 0; ch < 4; ++ch) {
+                    float v00 = p00[ch];
+                    float v10 = p10[ch];
+                    float v01 = p01[ch];
+                    float v11 = p11[ch];
+                    float top = v00 * (1 - wx) + v10 * wx;
+                    float bottom = v01 * (1 - wx) + v11 * wx;
+                    float val = top * (1 - wy) + bottom * wy;
+                    dstRow[dx * 4 + ch] = (BYTE)(val + 0.5f);
+                }
+            }
+        }
+    };
+    
+    std::vector<BYTE> destRGBA;
+    if (fabs(factor - 1.0f) < 0.001f)
+    {
+        destRGBA.swap(srcRGBA);
+    }
+    else
+    {
+        destRGBA.resize(scaledW * scaledH * 4);
+
+        BilinearScale(
+            srcRGBA.data(), srcW, srcH,
+            destRGBA.data(), scaledW, scaledH
+        );
+    }
+
+    COLORREF bg = GetBackgroundColor();
+    int bgR = GetRValue(bg), bgG = GetGValue(bg), bgB = GetBValue(bg);
 
     BITMAPINFO bmi = {};
     bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bmi.bmiHeader.biWidth = info.CropWidth;
-    bmi.bmiHeader.biHeight = -info.CropHeight;
+    bmi.bmiHeader.biWidth = scaledW;
+    bmi.bmiHeader.biHeight = -scaledH; 
     bmi.bmiHeader.biPlanes = 1;
     bmi.bmiHeader.biBitCount = 32;
     bmi.bmiHeader.biCompression = BI_RGB;
@@ -263,46 +381,31 @@ void GridObjectViewer::DrawImageDataCore(HDC hdcDest, int destX, int destY, cons
     if (!hDib || !pBits) return;
 
     BYTE* dest = static_cast<BYTE*>(pBits);
-    int destPitch = ((info.CropWidth * 4 + 3) & ~3);
+    int destPitch = ((scaledW * 4 + 3) & ~3); 
 
-    auto bgc = GetBackgroundColor();
-    for (int row = 0; row < info.CropHeight; ++row)
-    {
-        int srcRow = info.CropTop + row;
-        LONG left = pd->pPixelValidRanges[srcRow].First;
-        LONG right = pd->pPixelValidRanges[srcRow].Last;
-
-        left = std::max(left, (LONG)info.CropLeft);
-        right = std::min(right, (LONG)(info.CropLeft + info.CropWidth - 1));
-
-        if (left > right) {
-            memset(dest + row * destPitch, bgc, destPitch);
-            continue;
-        }
-
-        BYTE* destRow = dest + row * destPitch;
-        memset(destRow, bgc, destPitch);
-
-        BYTE* srcPtr = src + srcRow * w + left;
-        BYTE* destPtr = destRow + (left - info.CropLeft) * 4;
-
-        for (LONG col = left; col <= right; ++col, ++srcPtr, destPtr += 4)
-        {
-            BYTE idx = *srcPtr;
-            if (idx == 0) continue;
-
-            BGRStruct c = pal->Data[idx];
-            destPtr[0] = c.B;
-            destPtr[1] = c.G;
-            destPtr[2] = c.R;
-            destPtr[3] = 255;
+    for (int dy = 0; dy < scaledH; ++dy) {
+        BYTE* destRow = dest + dy * destPitch;
+        BYTE* srcRow = destRGBA.data() + dy * scaledW * 4;
+        for (int dx = 0; dx < scaledW; ++dx) {
+            BYTE* srcPixel = srcRow + dx * 4;
+            int r = srcPixel[0];
+            int g = srcPixel[1];
+            int b = srcPixel[2];
+            int a = srcPixel[3];
+            int outR = (r * a + bgR * (255 - a)) / 255;
+            int outG = (g * a + bgG * (255 - a)) / 255;
+            int outB = (b * a + bgB * (255 - a)) / 255;
+            BYTE* dp = destRow + dx * 4;
+            dp[0] = (BYTE)outB;
+            dp[1] = (BYTE)outG;
+            dp[2] = (BYTE)outR;
+            dp[3] = 255; 
         }
     }
 
     HDC hMem = CreateCompatibleDC(hdcDest);
     HBITMAP hOld = (HBITMAP)SelectObject(hMem, hDib);
-    BitBlt(hdcDest, destX, destY, info.CropWidth, info.CropHeight, hMem, 0, 0, SRCCOPY);
-
+    BitBlt(hdcDest, destX, destY, scaledW, scaledH, hMem, 0, 0, SRCCOPY);
     SelectObject(hMem, hOld);
     DeleteDC(hMem);
     DeleteObject(hDib);
@@ -354,13 +457,15 @@ void GridObjectViewer::LayoutImages()
     int y = padding;
     int rowMaxDisplayH = 0;
 
+    float factor = CTileSetBrowserFrameExt::GridObjectViewerScaledFactor;
+
     for (auto& info : g_filteredImages)
     {
-        int origW = info.CropWidth; 
-        int origH = info.CropHeight;
+        int origW = (int)(info.CropWidth * factor);
+        int origH = (int)(info.CropHeight * factor);
 
-        int displayW = std::max(origW, MIN_DISPLAY_WIDTH);
-        int displayH = std::max(origH, MIN_DISPLAY_HEIGHT);
+        int displayW = std::max(origW, (int)(MIN_DISPLAY_WIDTH * factor));
+        int displayH = std::max(origH, (int)(MIN_DISPLAY_HEIGHT * factor));
 
         if (x + displayW > clientWidth - padding && x > padding)
         {
@@ -368,9 +473,6 @@ void GridObjectViewer::LayoutImages()
             x = padding;
             rowMaxDisplayH = 0;
         }
-
-        int offsetX = (displayW - origW) / 2;
-        int offsetY = (displayH - origH) / 2;
 
         RECT displayRect = { x, y, x + displayW, y + displayH };
         g_imageRects.push_back(displayRect);
@@ -1084,7 +1186,7 @@ void GridObjectViewer::UpdateImages()
                         facings = itr->second;
                     auto imageName = CLoadingExt::GetBuildingImageName(id.ID, facings / 8 * 5, 0);
                     auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
-                    auto pd = CLoadingExt::BindClippedImages(clips);
+                    auto pd = CLoadingExt::BindClippedImages(clips, true);
                     g_buildingImages.push_back(std::move(pd));
                     loadImageBuilding(g_buildingImages.back().get(), id.ID, type);
                     break;
@@ -1312,17 +1414,17 @@ void GridObjectViewer::OnSize() const
     ::GetClientRect(::GetParent(this->GetView()), &rect);
     CRect controlRect;
     GetWindowRect(this->GetControl(), &controlRect);
-
+    int tabPageheight = 20 * CFinalSunAppExt::ProgramScaleFactor;
     if (ExtConfigs::VerticalLayout)
     {
-        ::MoveWindow(m_hControl, 2, 29,
+        ::MoveWindow(m_hControl, 2, tabPageheight,
             rect.right - rect.left - 6, controlRect.Height(), FALSE);
         ::MoveWindow(this->GetView(), 2, controlRect.Height(),
             rect.right - rect.left - 6, rect.bottom - rect.top - 6 - controlRect.Height(), FALSE);
     }
     else
     {
-        ::MoveWindow(m_hControl, 2, 29,
+        ::MoveWindow(m_hControl, 2, tabPageheight,
             rect.right - rect.left - 6, controlRect.Height(), FALSE);
         ::MoveWindow(this->GetView(), 2, controlRect.Height(),
             rect.right - rect.left - 6, rect.bottom - rect.top - 6 - controlRect.Height(), FALSE);

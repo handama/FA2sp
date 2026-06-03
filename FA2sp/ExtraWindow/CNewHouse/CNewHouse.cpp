@@ -197,8 +197,10 @@ void CNewHouse::Update(FString targetHouse)
 
     // Color dropdown
     vcbColor.Clear();
-    auto&& colors = Variables::RulesMap.GetUnorderedSection("Colors");
-    for (auto& [key, _] : colors) {
+    auto&& colors = CINI::Rules->ParseIndiciesData("Colors");
+    if (CINI::FAData->SectionExists("Colors"))
+        colors = CINI::FAData->ParseIndiciesData("Colors");
+    for (auto& [_, key] : colors) {
         auto color = Miscs::GetColorRef(nullptr, key.GetString());
         vcbColor.AddString(key, CLR_INVALID, color, true);
     }
@@ -524,7 +526,15 @@ void CNewHouse::OnSelchangeColor(bool edited)
     FString text = vcbColor.GetSelectedText(edited);
     if (text.empty()) return;
     FString::TrimIndex(text);
-    map.WriteString(SelectedHouseName, "Color", text);
+    auto oldColor = map.GetString(SelectedHouseName, "Color");
+    if (oldColor != text)
+    {
+        map.WriteString(SelectedHouseName, "Color", text);
+        CMapDataExt::UpdateFieldStructureData_Optimized();
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+        if (ExtConfigs::TreeViewCameo_Display)
+            ((CViewObjectsExt*)CFinalSunDlg::Instance->MyViewFrame.pViewObjects)->Redraw_Owner();
+    }
 }
 
 void CNewHouse::OnEditchangeAllies()
@@ -612,6 +622,10 @@ void CNewHouse::OnClickAddHouse()
         "Please set the ID of the house (like GDI or Nod):");
 
     auto newCountry = CInputMessageBox::GetString(dlgMessage, dlgCap);
+    newCountry.Trim();
+    if (newCountry.IsEmpty())
+        return;
+        
     newCountry.Replace("House", "");
     newCountry.Trim();
     auto newHouse = newCountry + " House";
@@ -684,7 +698,7 @@ void CNewHouse::OnClickAddHouse()
     
     CMapDataExt::UpdateMapSectionIndicies("Houses");
     CMapDataExt::UpdateMapSectionIndicies("Countries");
-    ((CViewObjectsExt*)CFinalSunDlg::Instance->MyViewFrame.pViewObjects)->Redraw();
+    ((CViewObjectsExt*)CFinalSunDlg::Instance->MyViewFrame.pViewObjects)->Redraw_Owner();
 }
 
 void CNewHouse::OnClickDeleteHouse(HWND& hWnd)
@@ -722,7 +736,7 @@ void CNewHouse::OnClickDeleteHouse(HWND& hWnd)
 
         CMapDataExt::UpdateMapSectionIndicies("Houses");
         CMapDataExt::UpdateMapSectionIndicies("Countries");
-        ((CViewObjectsExt*)CFinalSunDlg::Instance->MyViewFrame.pViewObjects)->Redraw();
+        ((CViewObjectsExt*)CFinalSunDlg::Instance->MyViewFrame.pViewObjects)->Redraw_Owner();
     }
 }
 
@@ -786,7 +800,7 @@ void CNewHouse::OnClickStandardHouses()
 
     CMapDataExt::UpdateMapSectionIndicies("Houses");
     CMapDataExt::UpdateMapSectionIndicies("Countries");
-    ((CViewObjectsExt*)CFinalSunDlg::Instance->MyViewFrame.pViewObjects)->Redraw();
+    ((CViewObjectsExt*)CFinalSunDlg::Instance->MyViewFrame.pViewObjects)->Redraw_Owner();
 }
 
 void CNewHouse::OnClickAlliesEditor()

@@ -133,6 +133,12 @@ public:
 
     static void DrawComboBoxArrow(HDC hdc, RECT rc, bool enabled);
     static void DrawCheckMark(HDC hdc, RECT rc);
+
+    // DPI scaling helpers
+    static int ScalePixels(int basePixels);
+    static int GetScaledGlyphSize();
+    static int GetBitmapResourceForSize(int baseResID, int glyphSize);
+
     static void SubclassDarkButton(HWND hwndButton);
     static void SubclassDarkGroupBox(HWND hwndButton);
     static void UnsubclassDarkButton(HWND hwndButton);

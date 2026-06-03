@@ -32,4 +32,6 @@ public:
     static FString LauncherName;
 
     static int ScreenRefreshRate;
+    static int ProgramDPI;
+    static float ProgramScaleFactor;
 };

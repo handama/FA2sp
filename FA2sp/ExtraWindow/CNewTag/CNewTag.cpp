@@ -233,8 +233,8 @@ LRESULT CALLBACK CNewTag::DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LP
                     "STATIC",
                     nullptr,
                     WS_POPUP,
-                    m_pressPtScreen.x - 6, m_pressPtScreen.y - 6,
-                    12, 12,
+                    m_pressPtScreen.x - 6 * CFinalSunAppExt::ProgramScaleFactor, m_pressPtScreen.y - 6 * CFinalSunAppExt::ProgramScaleFactor,
+                    12 * CFinalSunAppExt::ProgramScaleFactor, 12 * CFinalSunAppExt::ProgramScaleFactor,
                     nullptr, nullptr,
                     static_cast<HINSTANCE>(FA2sp::hInstance),
                     nullptr
@@ -879,6 +879,9 @@ void CNewTag::OnClickNewTag()
 
     SortTags(vcbSelectedTag, SelectedTagIndex, key);
     OnSelchangeTag();
+
+    if (TagSort::Instance.IsVisible())
+        TagSort::Instance.LoadAllTriggers();
 }
 
 void CNewTag::OnClickDelTag(HWND& hWnd)
@@ -903,6 +906,8 @@ void CNewTag::OnClickDelTag(HWND& hWnd)
         idx = 0;
     vcbSelectedTag.SetCurSel(idx);
     OnSelchangeTag();
+    if (TagSort::Instance.IsVisible())
+        TagSort::Instance.LoadAllTriggers();
 }
 
 void CNewTag::OnClickCloTag(HWND& hWnd)
@@ -920,6 +925,8 @@ void CNewTag::OnClickCloTag(HWND& hWnd)
 
     SortTags(vcbSelectedTag, SelectedTagIndex, key);
     OnSelchangeTag();
+    if (TagSort::Instance.IsVisible())
+        TagSort::Instance.LoadAllTriggers();
 }
 
 void CNewTag::OnClickTurnToTrigger(HWND& hWnd)

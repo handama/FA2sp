@@ -12,6 +12,7 @@
 
 #include "Ext/CFinalSunApp/Body.h"
 #include "Ext/CIsoView/DirectXCore.h"
+#include "Ext/CTileSetBrowserFrame/Body.h"
 
 #include <CINI.h>
 
@@ -220,13 +221,14 @@ double ExtConfigs::AutoDarkMode_SwitchTimeB;
 bool ExtConfigs::EnableDarkMode;
 bool ExtConfigs::EnableDarkMode_Init;
 bool ExtConfigs::EnableDarkMode_DimMap;
-bool ExtConfigs::ShrinkTilesInTileSetBrowser;
 bool ExtConfigs::DisableAutoConnectWall;
 bool ExtConfigs::UTF8Support_InferEncoding = true;
 bool ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
 bool ExtConfigs::GridObjectViewer_LoadEditorCategory;
 bool ExtConfigs::GridObjectViewer_LoadForceSides;
 bool ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory;
+bool ExtConfigs::HiDPIAwareness;
+bool ExtConfigs::HiDPIAwareness_ScaleIsoView;
 
 CInfantryData ExtConfigs::DefaultInfantryProperty;
 CUnitData ExtConfigs::DefaultUnitProperty;
@@ -234,6 +236,8 @@ CAircraftData ExtConfigs::DefaultAircraftProperty;
 CBuildingData ExtConfigs::DefaultBuildingProperty;
 FMap<bool> ExtConfigs::SupportedFormats;
 int ExtConfigs::OverlayDataLimit;
+float ExtConfigs::IsoViewWidthPercentage = 0.625f;
+float ExtConfigs::IsoViewHeightPercentage = 0.5f;
 
 std::vector<ExtConfigs::DynamicOptions> ExtConfigs::Options;
 
@@ -351,13 +355,14 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::UTF8Support_InferEncoding = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.InferEncoding", true);
 	ExtConfigs::UTF8Support_AlwaysSaveAsUTF8 = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.AlwaysSaveAsUTF8");
 
-	ExtConfigs::ShrinkTilesInTileSetBrowser = CINI::FAData->GetBool("ExtConfigs", "ShrinkTilesInTileSetBrowser");
 	ExtConfigs::EnableDarkMode_DimMap = CINI::FAData->GetBool("ExtConfigs", "EnableDarkMode.DimMap");
 	ExtConfigs::DisplayObjectsOutside = CINI::FAData->GetBool("ExtConfigs", "DisplayObjectsOutside");
 	ExtConfigs::DDrawScalingBilinear = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear", true);
-	ExtConfigs::DDrawScalingBilinear_OnlyShrink = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear.OnlyShrink", true);
+	ExtConfigs::DDrawScalingBilinear_OnlyShrink = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear.OnlyShrink");
 	ExtConfigs::DirectXRendering_INI = CINI::FAData->GetBool("ExtConfigs", "DirectXRendering", true);
 	ExtConfigs::PreciseDepthCalculation = CINI::FAData->GetBool("ExtConfigs", "PreciseDepthCalculation", true);
+	ExtConfigs::HiDPIAwareness_ScaleIsoView = CINI::FAData->GetBool("ExtConfigs", "HiDPIAwareness.ScaleIsoView", true);
+	ExtConfigs::HiDPIAwareness = CINI::FAData->GetBool("ExtConfigs", "HiDPIAwareness", true);
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::LightingPreview_TintTileSetBrowserView = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.TintTileSetBrowserView");
@@ -568,6 +573,10 @@ void FA2sp::ExtConfigsInitialize()
 		*opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
 	}
 
+	CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor = fa2.GetDouble("UserInterface", "TileSetBrowserViewScaledFactor", 1.0);
+	CTileSetBrowserFrameExt::OverlayBrowserViewScaledFactor = fa2.GetDouble("UserInterface", "OverlayBrowserViewScaledFactor", 1.0);
+	CTileSetBrowserFrameExt::GridObjectViewerScaledFactor = fa2.GetDouble("UserInterface", "GridObjectViewerScaledFactor", 1.0);
+
 	CIsoViewExt::PasteShowOutline = ExtConfigs::PasteShowOutlineDefault;
 
 	TheaterHelpers::InitTheaterSuffix();
@@ -578,7 +587,13 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::DirectXRendering = ExtConfigs::DirectXRendering_INI;
 	if (ExtConfigs::DirectXRendering)
+	{
 		ExtConfigs::SecondScreenSupport = true;
+		ExtConfigs::DisplayTextSize -= 2;
+	}
+		
+	ExtConfigs::IsoViewWidthPercentage = fa2.GetDouble("UserInterface", "IsoViewWidthPercentage", 0.625f);
+	ExtConfigs::IsoViewHeightPercentage = fa2.GetDouble("UserInterface", "IsoViewHeightPercentage", 0.5f);
 }
 
 void ExtConfigs::UpdateOptionTranslations()
@@ -713,7 +728,7 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode", "Enable dark mode"),
+		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode", "Enable dark mode (requires Auto-switch dark mode to be disabled)"),
 		.IniKey = "EnableDarkMode",
 		.Value = &ExtConfigs::EnableDarkMode_Init,
 		.Type = ExtConfigs::SpecialOptionType::Restart
@@ -730,6 +745,20 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode.DimMap", "make map view dim in drak mode"),
 		.IniKey = "EnableDarkMode.DimMap",
 		.Value = &ExtConfigs::EnableDarkMode_DimMap,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+		
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.HiDPIAwareness", "Enable high-DPI awareness"),
+		.IniKey = "HiDPIAwareness",
+		.Value = &ExtConfigs::HiDPIAwareness,
+		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.HiDPIAwareness.ScaleIsoView", "Match IsoView default zoom to system scaling when high-DPI awareness is enabled"),
+		.IniKey = "HiDPIAwareness.ScaleIsoView",
+		.Value = &ExtConfigs::HiDPIAwareness_ScaleIsoView,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
@@ -942,13 +971,6 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.LightingPreview.TintTileSetBrowserView", "Mult tile set browser images when changing lighting"),
 		.IniKey = "LightingPreview.TintTileSetBrowserView",
 		.Value = &ExtConfigs::LightingPreview_TintTileSetBrowserView,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.ShrinkTilesInTileSetBrowser", "Shink tile images in tile set browser"),
-		.IniKey = "ShrinkTilesInTileSetBrowser",
-		.Value = &ExtConfigs::ShrinkTilesInTileSetBrowser,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
@@ -1633,7 +1655,6 @@ DEFINE_HOOK(537208, ExeTerminate, 9)
 {
 	MutexHelper::Detach();
 	Logger::Info("FA2sp Terminating...\n");
-	Logger::Close();
 	VoxelDrawer::Finalize();
 
 	// Destruct static ppmfc stuffs here
@@ -1650,6 +1671,7 @@ DEFINE_HOOK(537208, ExeTerminate, 9)
 	::DeactivateActCtx(NULL, ulCookie);
 #endif
 
+	Logger::Close();
 	GET(UINT, result, EAX);
 	ExitProcess(result);
 }

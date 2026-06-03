@@ -115,13 +115,13 @@ void CCsfEditor::Initialize(HWND& hWnd)
     lvColumn.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
     auto textA = Translations::TranslateOrDefault("CsfEditorColumnLabel", "Label");
     lvColumn.pszText = const_cast<LPSTR>(textA.c_str());
-    lvColumn.cx = 100;
+    lvColumn.cx = 100 * CFinalSunAppExt::ProgramScaleFactor;
     SendMessage(hCSFViewer, LVM_INSERTCOLUMN, 0, (LPARAM)&lvColumn);
 
     lvColumn.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
     auto textB = Translations::TranslateOrDefault("CsfEditorColumnText", "Text");
     lvColumn.pszText = const_cast<LPSTR>(textB.c_str());
-    lvColumn.cx = 400;
+    lvColumn.cx = 400 * CFinalSunAppExt::ProgramScaleFactor;
     SendMessage(hCSFViewer, LVM_INSERTCOLUMN, 1, (LPARAM)&lvColumn);
 
     SendMessage(hCSFEditor, EM_SETREADONLY, (WPARAM)TRUE, 0);

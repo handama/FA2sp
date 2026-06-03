@@ -231,18 +231,21 @@ public:
     static bool EnableDarkMode_Init;
     static bool EnableDarkMode_DimMap;
     static bool DisableAutoConnectWall;
-    static bool ShrinkTilesInTileSetBrowser;
     static bool UTF8Support_InferEncoding;
     static bool UTF8Support_AlwaysSaveAsUTF8;
     static bool GridObjectViewer_LoadEditorCategory;
     static bool GridObjectViewer_LoadForceSides;
     static bool GridObjectViewer_LoadObjectBrowserCategory;
+    static bool HiDPIAwareness;
+    static bool HiDPIAwareness_ScaleIsoView;
     static CInfantryData DefaultInfantryProperty;
     static CUnitData DefaultUnitProperty;
     static CAircraftData DefaultAircraftProperty;
     static CBuildingData DefaultBuildingProperty;
     static FMap<bool> SupportedFormats;
     static int OverlayDataLimit;
+    static float IsoViewWidthPercentage;
+    static float IsoViewHeightPercentage;
 
     enum SpecialOptionType : char
     {

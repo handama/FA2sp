@@ -396,8 +396,8 @@ LRESULT CALLBACK CNewTeamTypes::DragDotProc(HWND hWnd, UINT message, WPARAM wPar
                 "STATIC",
                 nullptr,
                 WS_POPUP,
-                pt.x - 6, pt.y - 6,
-                12, 12,
+                pt.x - 6 * CFinalSunAppExt::ProgramScaleFactor, pt.y - 6 * CFinalSunAppExt::ProgramScaleFactor,
+                12 * CFinalSunAppExt::ProgramScaleFactor, 12 * CFinalSunAppExt::ProgramScaleFactor,
                 nullptr, nullptr,
                 static_cast<HINSTANCE>(FA2sp::hInstance),
                 nullptr
@@ -1646,6 +1646,8 @@ void CNewTeamTypes::OnClickNewTeam()
     CNewAITrigger::TeamListChanged = true;
     CNewTrigger::Instance[0].TeamListChanged = true;
     CNewTrigger::Instance[1].TeamListChanged = true;
+
+    TeamSort::Instance.AddTrigger(value);
 }
 
 void CNewTeamTypes::OnClickDelTeam(HWND& hWnd)
@@ -1683,6 +1685,9 @@ void CNewTeamTypes::OnClickDelTeam(HWND& hWnd)
     CNewAITrigger::TeamListChanged = true;
     CNewTrigger::Instance[0].TeamListChanged = true;
     CNewTrigger::Instance[1].TeamListChanged = true;
+
+    if (TeamSort::Instance.IsVisible())
+        TeamSort::Instance.LoadAllTriggers();
 }
 
 void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
@@ -1750,6 +1755,7 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
         CNewAITrigger::TeamListChanged = true;
         CNewTrigger::Instance[0].TeamListChanged = true;
         CNewTrigger::Instance[1].TeamListChanged = true;
+        TeamSort::Instance.AddTrigger(value);
     }
 }
 

@@ -53,6 +53,53 @@ DrawParams &DrawParams::SetColorMix(RGBClass color, float factor)
 DirectXCore::DirectXCore() = default;
 DirectXCore::~DirectXCore() { Cleanup(); }
 
+void GetDriverVersionFromRegistry()
+{
+    HKEY hKey;
+    if (RegOpenKeyExW(
+            HKEY_LOCAL_MACHINE,
+            L"SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}",
+            0,
+            KEY_READ,
+            &hKey) != ERROR_SUCCESS)
+    {
+        return;
+    }
+
+    WCHAR subKeyName[256];
+    DWORD index = 0;
+    DWORD size = 256;
+
+    while (RegEnumKeyExW(hKey, index, subKeyName, &size,
+                         nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS)
+    {
+        WCHAR path[512];
+        swprintf_s(path,
+                   L"SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\%s",
+                   subKeyName);
+
+        HKEY subKey;
+        if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, path, 0, KEY_READ, &subKey) == ERROR_SUCCESS)
+        {
+            CHAR driverVer[128];
+            DWORD sz = sizeof(driverVer);
+
+            if (RegQueryValueEx(subKey, "DriverVersion", nullptr, nullptr,
+                                (LPBYTE)driverVer, &sz) == ERROR_SUCCESS)
+            {
+                Logger::Raw("[DX] DriverVersion: %s\n", driverVer);
+            }
+
+            RegCloseKey(subKey);
+        }
+
+        size = 256;
+        index++;
+    }
+
+    RegCloseKey(hKey);
+}
+
 bool DirectXCore::Initialize(HWND hwnd)
 {
     Cleanup();
@@ -68,6 +115,60 @@ bool DirectXCore::Initialize(HWND hwnd)
         Logger::Raw("[DirectXCore] CreateDeviceAndSwapChain failed.\n");
         return false;
     }
+
+    // --- Log GPU / adapter info ---
+    {
+        ComPtr<IDXGIDevice> pDXGIDevice;
+        if (SUCCEEDED(m_pDevice.As(&pDXGIDevice)) && pDXGIDevice)
+        {
+            ComPtr<IDXGIAdapter> pAdapter;
+            if (SUCCEEDED(pDXGIDevice->GetAdapter(&pAdapter)) && pAdapter)
+            {
+                DXGI_ADAPTER_DESC desc = {};
+                if (SUCCEEDED(pAdapter->GetDesc(&desc)))
+                {
+                    // Convert wide-char description to UTF-8
+                    char gpuName[256] = {};
+                    WideCharToMultiByte(CP_UTF8, 0, desc.Description, -1, gpuName, sizeof(gpuName), nullptr, nullptr);
+
+                    D3D_FEATURE_LEVEL fl = m_pDevice->GetFeatureLevel();
+                    const char *flStr = "?";
+                    switch (fl)
+                    {
+                    case D3D_FEATURE_LEVEL_11_0:
+                        flStr = "11_0";
+                        break;
+                    case D3D_FEATURE_LEVEL_10_1:
+                        flStr = "10_1";
+                        break;
+                    case D3D_FEATURE_LEVEL_10_0:
+                        flStr = "10_0";
+                        break;
+                    case D3D_FEATURE_LEVEL_9_3:
+                        flStr = "9_3";
+                        break;
+                    default:
+                        break;
+                    }
+
+                    Logger::Raw("\n");
+                    Logger::Raw("========== DirectX Device Info ==========\n");
+                    Logger::Raw("[DX] GPU: %s\n", gpuName);
+                    Logger::Raw("[DX] VendorId: 0x%04X  DeviceId: 0x%04X\n",
+                                desc.VendorId, desc.DeviceId);
+                    Logger::Raw("[DX] VRAM: %d MB\n", desc.DedicatedVideoMemory / (1024 * 1024));
+                    Logger::Raw("[DX] System RAM Shared: %d MB\n",
+                                desc.SharedSystemMemory / (1024 * 1024));
+                    Logger::Raw("[DX] FeatureLevel: %s\n", flStr);
+
+                    GetDriverVersionFromRegistry();
+                    Logger::Raw("========================================\n");
+                    Logger::Raw("\n");
+                }
+            }
+        }
+    }
+
     if (!CreateShadersAndInputLayout())
     {
         Logger::Raw("[DirectXCore] CreateShadersAndInputLayout failed.\n");
@@ -225,6 +326,7 @@ void DirectXCore::Cleanup()
     m_pDepthStateShadowRedraw.Reset();
     m_pBlendStateDarken.Reset();
     m_pShadowDarkenPS.Reset();
+    m_pBlendStateNoColor.Reset();
 
     m_pSamplerLinear.Reset();
     m_pSamplerNearestNeighbor.Reset();
@@ -259,7 +361,7 @@ void DirectXCore::Cleanup()
     m_renderScale = 1.0f;
     m_bInitialized = false;
 
-    Logger::Raw("[DirectXCore] Reset all.\n");
+    Logger::Raw("[DirectXCore] Cleaning up.\n");
 }
 
 void DirectXCore::OnResize(HWND hwnd)
@@ -405,11 +507,11 @@ bool DirectXCore::CreateDeviceAndSwapChain(HWND hwnd)
     scd.OutputWindow = hwnd;
     scd.SampleDesc.Count = 1;
     scd.Windowed = TRUE;
-    scd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+    scd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     scd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
     UINT createFlags = 0;
-#ifdef _DEBUG
+#ifndef NDEBUG
     createFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
@@ -537,7 +639,6 @@ bool DirectXCore::CreateShadersAndInputLayout()
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
     m_pDevice->CreateBlendState(&blendDesc, &m_pBlendState);
 
-    // No-color-output blend state (用于仅更新stencil的pass)
     D3D11_BLEND_DESC blendNoColor = {};
     blendNoColor.RenderTarget[0].BlendEnable = FALSE;
     blendNoColor.RenderTarget[0].RenderTargetWriteMask = 0;
@@ -742,14 +843,17 @@ bool DirectXCore::CreateShadersAndInputLayout()
         ComPtr<ID3DBlob> blob, err;
         HRESULT hr = D3DCompile(instVS, strlen(instVS), nullptr, nullptr, nullptr,
                                 "main", "vs_5_0", 0, 0, &blob, &err);
-        if (FAILED(hr)) {
-            if (err) OutputDebugStringA((char*)err->GetBufferPointer());
+        if (FAILED(hr))
+        {
+            if (err)
+                OutputDebugStringA((char *)err->GetBufferPointer());
             return false;
         }
         hr = m_pDevice->CreateVertexShader(blob->GetBufferPointer(),
                                            blob->GetBufferSize(),
                                            nullptr, &m_pInstancedVS);
-        if (FAILED(hr)) return false;
+        if (FAILED(hr))
+            return false;
 
         // Input layout: slot 0 = QuadVertex (per-vertex), slot 1 = InstanceData (per-instance)
         D3D11_INPUT_ELEMENT_DESC instLayout[] = {
@@ -771,7 +875,8 @@ bool DirectXCore::CreateShadersAndInputLayout()
         hr = m_pDevice->CreateInputLayout(instLayout, 6, blob->GetBufferPointer(),
                                           blob->GetBufferSize(),
                                           &m_pInstancedInputLayout);
-        if (FAILED(hr)) return false;
+        if (FAILED(hr))
+            return false;
     }
 
     return true;
@@ -963,7 +1068,11 @@ void DirectXCore::CopyScreenToTexture()
 {
     if (!m_pContext || !m_OffscreenRTV || !m_pScreenCopy)
         return;
+    // Unbind the offscreen RT before copying from it (D3D11 forbids CopyResource on a bound RT)
+    m_pContext->OMSetRenderTargets(0, nullptr, nullptr);
     m_pContext->CopyResource(m_pScreenCopy.Get(), m_OffscreenTex.Get());
+    // Re-bind the offscreen RT (caller expects it to be active)
+    // Note: caller (Phase 4) will set its own RT immediately after
 }
 
 void DirectXCore::DrawFullscreenQuad()
@@ -1042,6 +1151,7 @@ void DirectXCore::CreateBackgroundCacheTexture(UINT width, UINT height)
     if (pBackBuffer)
     {
         pBackBuffer->GetDesc(&desc);
+        desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
     }
     else
     {
@@ -1071,7 +1181,11 @@ void DirectXCore::UpdateBackgroundCache()
     m_pRTV->GetResource(&pBackBufferResource);
     if (pBackBufferResource)
     {
+        // Unbind back buffer RTV before copying from it
+        m_pContext->OMSetRenderTargets(0, nullptr, nullptr);
         m_pContext->CopyResource(m_pBackgroundCacheTexture.Get(), pBackBufferResource.Get());
+        // Re-bind back buffer RTV (caller will set RTV again before next draw)
+        m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
         m_backgroundCacheValid = true;
     }
 }
@@ -1084,7 +1198,11 @@ void DirectXCore::RestoreBackgroundFromCache()
     m_pRTV->GetResource(&pBackBufferResource);
     if (pBackBufferResource)
     {
+        // Unbind back buffer RTV before copying to it
+        m_pContext->OMSetRenderTargets(0, nullptr, nullptr);
         m_pContext->CopyResource(pBackBufferResource.Get(), m_pBackgroundCacheTexture.Get());
+        // Re-bind back buffer RTV (caller will set RTV again before next draw)
+        m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
     }
 }
 
@@ -1285,21 +1403,25 @@ bool DirectXCore::CreateAlphaAccumShaders()
     hr = D3DCompile(mrtPS, strlen(mrtPS), nullptr, nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &error);
     if (FAILED(hr))
     {
-        if (error) OutputDebugStringA((char *)error->GetBufferPointer());
+        if (error)
+            OutputDebugStringA((char *)error->GetBufferPointer());
         return false;
     }
     hr = m_pDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &m_pMRTPS);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
 
     // Compile modified line PS
     hr = D3DCompile(lineModPS, strlen(lineModPS), nullptr, nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &error);
     if (FAILED(hr))
     {
-        if (error) OutputDebugStringA((char *)error->GetBufferPointer());
+        if (error)
+            OutputDebugStringA((char *)error->GetBufferPointer());
         return false;
     }
     hr = m_pDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &m_pLineModPS);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
 
     return true;
 }
@@ -1319,7 +1441,8 @@ bool DirectXCore::CreateShadowDarkenShaders()
                             "main", "ps_5_0", 0, 0, &psBlob, &error);
     if (FAILED(hr))
     {
-        if (error) OutputDebugStringA((char *)error->GetBufferPointer());
+        if (error)
+            OutputDebugStringA((char *)error->GetBufferPointer());
         return false;
     }
     hr = m_pDevice->CreatePixelShader(psBlob->GetBufferPointer(),
@@ -1347,9 +1470,11 @@ void DirectXCore::EnsureAlphaAccumTexture(UINT width, UINT height)
     desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 
     HRESULT hr = m_pDevice->CreateTexture2D(&desc, nullptr, &m_pAlphaAccumTex);
-    if (FAILED(hr)) return;
+    if (FAILED(hr))
+        return;
     hr = m_pDevice->CreateRenderTargetView(m_pAlphaAccumTex.Get(), nullptr, &m_pAlphaAccumRTV);
-    if (FAILED(hr)) return;
+    if (FAILED(hr))
+        return;
     hr = m_pDevice->CreateShaderResourceView(m_pAlphaAccumTex.Get(), nullptr, &m_pAlphaAccumSRV);
 }
 
@@ -1357,7 +1482,8 @@ void DirectXCore::EnsureAlphaAccumTexture(UINT width, UINT height)
 // Avoids expensive OMGetDepthStencilState pipeline queries.
 void DirectXCore::SetDSStateTracked(ID3D11DepthStencilState *pDS, UINT stencilRef)
 {
-    if (m_pTrackedDSState != pDS || m_trackedStencilRef != stencilRef) {
+    if (m_pTrackedDSState != pDS || m_trackedStencilRef != stencilRef)
+    {
         m_pContext->OMSetDepthStencilState(pDS, stencilRef);
         m_pTrackedDSState = pDS;
         m_trackedStencilRef = stencilRef;
@@ -1368,21 +1494,24 @@ void DirectXCore::SetDSStateTracked(ID3D11DepthStencilState *pDS, UINT stencilRe
 // Draws all DrawCommands in `batch` with a single DrawInstanced call.
 // All commands MUST share the same texture, VS, PS, blend state, DS state.
 // Pixel-perfect output identical to per-quad Draw(4,0).
-void DirectXCore::FlushInstanceBatch(const std::vector<const DrawCommand*>& batch)
+void DirectXCore::FlushInstanceBatch(const std::vector<const DrawCommand *> &batch)
 {
-    if (batch.empty()) return;
+    if (batch.empty())
+        return;
     const UINT count = (UINT)batch.size();
 
     // Ensure instance VB capacity
-    if (!m_pInstanceVB || m_instanceVBCapacity < (int)count) {
+    if (!m_pInstanceVB || m_instanceVBCapacity < (int)count)
+    {
         m_pInstanceVB.Reset();
-        int cap = (count + 255) & ~255;  // round up
+        int cap = (count + 255) & ~255; // round up
         D3D11_BUFFER_DESC desc = {};
         desc.ByteWidth = cap * sizeof(InstanceData);
         desc.Usage = D3D11_USAGE_DYNAMIC;
         desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
         desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        if (FAILED(m_pDevice->CreateBuffer(&desc, nullptr, &m_pInstanceVB))) {
+        if (FAILED(m_pDevice->CreateBuffer(&desc, nullptr, &m_pInstanceVB)))
+        {
             m_instanceVBCapacity = 0;
             return;
         }
@@ -1393,8 +1522,9 @@ void DirectXCore::FlushInstanceBatch(const std::vector<const DrawCommand*>& batc
     D3D11_MAPPED_SUBRESOURCE mapped;
     if (FAILED(m_pContext->Map(m_pInstanceVB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
         return;
-    auto *dst = (InstanceData*)mapped.pData;
-    for (const DrawCommand *cmd : batch) {
+    auto *dst = (InstanceData *)mapped.pData;
+    for (const DrawCommand *cmd : batch)
+    {
         const auto &p = cmd->params;
         TextureResource *tex = cmd->texRes;
         float w_px = tex->sourceView.FullWidth * p.scaleX;
@@ -1406,18 +1536,18 @@ void DirectXCore::FlushInstanceBatch(const std::vector<const DrawCommand*>& batc
         float ndcCenterX = ((snappedX + w_px * 0.5f) / m_vwCached) * 2.0f - 1.0f;
         float ndcCenterY = 1.0f - ((snappedY + h_px * 0.5f) / m_vhCached) * 2.0f;
         float depthZ = cmd->depth * (1.0f / 16777216.0f);
-        dst->scaleX  = ndcW;
-        dst->scaleY  = ndcH;
-        dst->transX  = ndcCenterX;
-        dst->transY  = ndcCenterY;
-        dst->depthZ  = depthZ;
+        dst->scaleX = ndcW;
+        dst->scaleY = ndcH;
+        dst->transX = ndcCenterX;
+        dst->transY = ndcCenterY;
+        dst->depthZ = depthZ;
         dst->colorMulR = p.redMult;
         dst->colorMulG = p.greenMult;
         dst->colorMulB = p.blueMult;
         dst->colorMulA = p.opacity;
-        dst->mixR   = p.mixR;
-        dst->mixG   = p.mixG;
-        dst->mixB   = p.mixB;
+        dst->mixR = p.mixR;
+        dst->mixG = p.mixG;
+        dst->mixB = p.mixB;
         dst->mixFactor = p.mixFactor;
         dst->padding[0] = dst->padding[1] = dst->padding[2] = 0;
         ++dst;
@@ -1432,12 +1562,19 @@ void DirectXCore::FlushInstanceBatch(const std::vector<const DrawCommand*>& batc
 
     // Bind the SRV for the batch (all commands share the same texture)
     TextureResource *tex = batch[0]->texRes;
-    if (tex && tex->srv) {
-        if (m_pTrackedSRV != tex->srv.Get()) {
+    if (tex && tex->srv)
+    {
+        if (m_pTrackedSRV != tex->srv.Get())
+        {
             m_pContext->PSSetShaderResources(0, 1, tex->srv.GetAddressOf());
             m_pTrackedSRV = tex->srv.Get();
         }
     }
+
+    // Ensure sampler is set (callers may not have set it)
+    m_pContext->PSSetSamplers(0, 1,
+                              (m_renderScale == 1.0f) ? m_pSamplerPoint.GetAddressOf()
+                                                      : m_pSamplerLinear.GetAddressOf());
 
     m_pContext->DrawInstanced(4, count, 0, 0);
 
@@ -1487,7 +1624,8 @@ void DirectXCore::RenderOffscreenContent()
     auto DrawOneTracked = [&](const DrawCommand &cmd)
     {
         TextureResource *tex = cmd.texRes;
-        if (!tex || !tex->srv) return;
+        if (!tex || !tex->srv)
+            return;
         const auto &p = cmd.params;
         float depthZ = cmd.depth * depthScale;
         float w_px = tex->sourceView.FullWidth * p.scaleX;
@@ -1508,7 +1646,8 @@ void DirectXCore::RenderOffscreenContent()
         cb.mixColor = XMFLOAT4(p.mixR, p.mixG, p.mixB, 1.0f);
         cb.mixFactor = p.mixFactor;
 
-        if (cmd.pCustomDSState) {
+        if (cmd.pCustomDSState)
+        {
             UINT ref = (p.stencilRef >= 0) ? (UINT)p.stencilRef : 0;
             SetDSStateTracked(cmd.pCustomDSState, ref);
         }
@@ -1520,21 +1659,24 @@ void DirectXCore::RenderOffscreenContent()
         m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
         m_pContext->VSSetConstantBuffers(0, 1, m_pConstantBuffer.GetAddressOf());
 
-        if (m_pTrackedSRV != tex->srv.Get()) {
+        if (m_pTrackedSRV != tex->srv.Get())
+        {
             m_pContext->PSSetShaderResources(0, 1, tex->srv.GetAddressOf());
             m_pTrackedSRV = tex->srv.Get();
         }
         m_pContext->Draw(4, 0);
+
+        // m_pContext->Flush();
     };
 
     // ====================================================================
     // Classification (unchanged)
     // ====================================================================
-    std::vector<const DrawCommand*> opaqueCmds;
-    std::vector<const DrawCommand*> stencilCmds;
-    std::vector<const DrawCommand*> transparentCmds;
-    std::vector<const DrawCommand*> effectCmds;
-    std::vector<const DrawCommand*> overlayCmds;
+    std::vector<const DrawCommand *> opaqueCmds;
+    std::vector<const DrawCommand *> stencilCmds;
+    std::vector<const DrawCommand *> transparentCmds;
+    std::vector<const DrawCommand *> effectCmds;
+    std::vector<const DrawCommand *> overlayCmds;
 
     for (const auto &cmd : m_drawCommands)
     {
@@ -1560,7 +1702,6 @@ void DirectXCore::RenderOffscreenContent()
             }
         }
     }
-
     // ====================================================================
     // Phase 1: Instanced opaque (depth write ON, depth test ON)
     //   Split: commands with custom DS state (stencil writes) are drawn
@@ -1575,10 +1716,12 @@ void DirectXCore::RenderOffscreenContent()
     if (!opaqueCmds.empty())
     {
         // Separate: plain vs. stencil-writing commands
-        std::vector<const DrawCommand*> opaquePlain;
-        std::vector<const DrawCommand*> opaqueStencil;
+        std::vector<const DrawCommand *> opaquePlain;
+        std::vector<const DrawCommand *> opaqueStencil;
         for (const DrawCommand *cmd : opaqueCmds)
         {
+            if (!cmd->texRes || !cmd->texRes->sourceView.pImageBuffer)
+                continue;
             if (cmd->pCustomDSState)
                 opaqueStencil.push_back(cmd);
             else
@@ -1588,24 +1731,28 @@ void DirectXCore::RenderOffscreenContent()
         // -- Draw per-quad for stencil-aware opaque commands first --
         // These write building/object height into stencil for Phase 1.5.
         for (const DrawCommand *cmd : opaqueStencil)
+        {
             DrawOneTracked(*cmd);
+        }
 
         // -- Instanced batch for plain opaque commands --
         if (!opaquePlain.empty())
         {
             std::stable_sort(opaquePlain.begin(), opaquePlain.end(),
-                [](const DrawCommand *a, const DrawCommand *b) {
-                    return a->texRes < b->texRes;
-                });
+                             [](const DrawCommand *a, const DrawCommand *b)
+                             {
+                                 return a->texRes < b->texRes;
+                             });
 
             m_pContext->VSSetShader(m_pInstancedVS.Get(), nullptr, 0);
             m_pContext->IASetInputLayout(m_pInstancedInputLayout.Get());
 
-            std::vector<const DrawCommand*> batch;
+            std::vector<const DrawCommand *> batch;
             TextureResource *curTex = nullptr;
             for (const DrawCommand *cmd : opaquePlain)
             {
-                if (cmd->texRes != curTex) {
+                if (cmd->texRes != curTex)
+                {
                     FlushInstanceBatch(batch);
                     batch.clear();
                     curTex = cmd->texRes;
@@ -1624,6 +1771,7 @@ void DirectXCore::RenderOffscreenContent()
             m_pTrackedSRV = nullptr;
         }
     }
+    m_pContext->Flush();
 
     // ====================================================================
     // Phase 1.5: Stencil-aware draws (per-quad, state-tracked)
@@ -1714,6 +1862,7 @@ void DirectXCore::RenderOffscreenContent()
             m_pTrackedDSState = m_pDepthStateGE.Get();
             m_trackedStencilRef = 0;
         }
+        m_pContext->Flush();
     }
 
     // ====================================================================
@@ -1734,18 +1883,20 @@ void DirectXCore::RenderOffscreenContent()
 
         // Sort by texture for batching
         std::stable_sort(transparentCmds.begin(), transparentCmds.end(),
-            [](const DrawCommand *a, const DrawCommand *b) {
-                return a->texRes < b->texRes;
-            });
+                         [](const DrawCommand *a, const DrawCommand *b)
+                         {
+                             return a->texRes < b->texRes;
+                         });
 
         m_pContext->VSSetShader(m_pInstancedVS.Get(), nullptr, 0);
         m_pContext->IASetInputLayout(m_pInstancedInputLayout.Get());
 
-        std::vector<const DrawCommand*> batch;
+        std::vector<const DrawCommand *> batch;
         TextureResource *curTex = nullptr;
         for (const DrawCommand *cmd : transparentCmds)
         {
-            if (cmd->texRes != curTex) {
+            if (cmd->texRes != curTex)
+            {
                 FlushInstanceBatch(batch);
                 batch.clear();
                 curTex = cmd->texRes;
@@ -1764,6 +1915,7 @@ void DirectXCore::RenderOffscreenContent()
         m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &singleStride, &singleOffset);
         m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
         m_pTrackedSRV = nullptr;
+        m_pContext->Flush();
     }
 
     // ====================================================================
@@ -1792,6 +1944,7 @@ void DirectXCore::RenderOffscreenContent()
         // Clean up extra SRV binding
         ID3D11ShaderResourceView *nullSRV = nullptr;
         m_pContext->PSSetShaderResources(1, 1, &nullSRV);
+        m_pContext->Flush();
     }
 
     // ====================================================================
@@ -1857,7 +2010,8 @@ void DirectXCore::RenderOffscreenContent()
             m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
 
             m_pContext->VSSetConstantBuffers(0, 1, m_pConstantBuffer.GetAddressOf());
-            if (m_pTrackedSRV != idxTex->srv.Get()) {
+            if (m_pTrackedSRV != idxTex->srv.Get())
+            {
                 m_pContext->PSSetShaderResources(0, 1, idxTex->srv.GetAddressOf());
                 m_pTrackedSRV = idxTex->srv.Get();
             }
@@ -1885,8 +2039,13 @@ void DirectXCore::RenderOffscreenContent()
     bool hasOverlay = !overlayCmds.empty();
     // Quick scan for overlay lines (no need to pre-collect - FlushLineBatch counts)
     bool hasOverlayLines = false;
-    for (const auto &le : m_lineEntries) {
-        if (!le.bScreenSpace && le.bAlwaysOnTop) { hasOverlayLines = true; break; }
+    for (const auto &le : m_lineEntries)
+    {
+        if (!le.bScreenSpace && le.bAlwaysOnTop)
+        {
+            hasOverlayLines = true;
+            break;
+        }
     }
 
     if (hasOverlay || hasOverlayLines)
@@ -1902,22 +2061,24 @@ void DirectXCore::RenderOffscreenContent()
     {
         // Sort by texture for batching
         std::stable_sort(overlayCmds.begin(), overlayCmds.end(),
-            [](const DrawCommand *a, const DrawCommand *b) {
-                return a->texRes < b->texRes;
-            });
+                         [](const DrawCommand *a, const DrawCommand *b)
+                         {
+                             return a->texRes < b->texRes;
+                         });
 
         m_pContext->VSSetShader(m_pInstancedVS.Get(), nullptr, 0);
         m_pContext->IASetInputLayout(m_pInstancedInputLayout.Get());
         m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
         m_pContext->PSSetSamplers(0, 1,
-            (m_renderScale == 1.0f) ? m_pSamplerPoint.GetAddressOf()
-                                    : m_pSamplerLinear.GetAddressOf());
+                                  (m_renderScale == 1.0f) ? m_pSamplerPoint.GetAddressOf()
+                                                          : m_pSamplerLinear.GetAddressOf());
 
-        std::vector<const DrawCommand*> batch;
+        std::vector<const DrawCommand *> batch;
         TextureResource *curTex = nullptr;
         for (const DrawCommand *cmd : overlayCmds)
         {
-            if (cmd->texRes != curTex) {
+            if (cmd->texRes != curTex)
+            {
                 FlushInstanceBatch(batch);
                 batch.clear();
                 curTex = cmd->texRes;
@@ -1937,7 +2098,8 @@ void DirectXCore::RenderOffscreenContent()
     }
 
     // Phase 5b: Always-on-top lines (depth OFF, no alpha modulation, regular line PS)
-    if (hasOverlayLines) {
+    if (hasOverlayLines)
+    {
         FlushLineBatch(false, m_pLinePS.Get(), true);
 
         // Restore quad pipeline state (Phase 5b changed IA/VS/PS for lines)
@@ -1950,6 +2112,7 @@ void DirectXCore::RenderOffscreenContent()
         m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
         m_pContext->PSSetSamplers(0, 1, (m_renderScale == 1.0f) ? m_pSamplerPoint.GetAddressOf() : m_pSamplerLinear.GetAddressOf());
     }
+    m_pContext->Flush();
 }
 
 void DirectXCore::RenderFinalToBackBuffer()
@@ -1965,7 +2128,11 @@ void DirectXCore::RenderFinalToBackBuffer()
         m_pRTV->GetResource(&pBackBufferResource);
         if (pBackBufferResource && m_OffscreenTex)
         {
+            // Unbind back buffer RTV before copying to it (D3D11 forbids CopyResource on bound RT)
+            m_pContext->OMSetRenderTargets(0, nullptr, nullptr);
             m_pContext->CopyResource(pBackBufferResource.Get(), m_OffscreenTex.Get());
+            // Re-bind back buffer RTV
+            m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
         }
         return;
     }
@@ -2008,6 +2175,7 @@ void DirectXCore::RenderFinalToBackBuffer()
 
     ID3D11ShaderResourceView *nullSRV = nullptr;
     m_pContext->PSSetShaderResources(0, 1, &nullSRV);
+    m_pContext->Flush();
 }
 
 void DirectXCore::RenderScreenSpaceContent()
@@ -2018,20 +2186,21 @@ void DirectXCore::RenderScreenSpaceContent()
     m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
     m_pContext->OMSetDepthStencilState(m_pDepthStateOff.Get(), 0);
 
+    int screenCmdCount = 0;
     if (!m_drawCommands.empty())
     {
         m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
-    
+
         m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
         m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
         m_pContext->PSSetSamplers(0, 1, m_pSamplerPoint.GetAddressOf());
         m_pContext->IASetInputLayout(m_pInputLayout.Get());
-    
+
         UINT stride = sizeof(QuadVertex);
         UINT offset = 0;
         m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &stride, &offset);
         m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    
+
         auto CalcWorldMatrixScreen = [&](const DrawParams &p, int texW, int texH) -> XMMATRIX
         {
             float screenW = (float)m_clientWidth;
@@ -2050,7 +2219,7 @@ void DirectXCore::RenderScreenSpaceContent()
             XMMATRIX T = XMMatrixTranslation(ndc_centerX, ndc_centerY, 0.0f);
             return S * T;
         };
-    
+
         for (const auto &cmd : m_drawCommands)
         {
             if (!cmd.bScreenSpace)
@@ -2060,7 +2229,8 @@ void DirectXCore::RenderScreenSpaceContent()
             TextureResource *tex = cmd.texRes;
             if (!tex || !tex->srv)
                 continue;
-    
+            ++screenCmdCount;
+
             const auto &p = cmd.params;
             XMMATRIX world = CalcWorldMatrixScreen(p, tex->sourceView.FullWidth, tex->sourceView.FullHeight);
             CBPerObject cb;
@@ -2068,27 +2238,27 @@ void DirectXCore::RenderScreenSpaceContent()
             cb.colorMul = XMFLOAT4(p.redMult, p.greenMult, p.blueMult, p.opacity);
             cb.mixColor = XMFLOAT4(p.mixR, p.mixG, p.mixB, 1.0f);
             cb.mixFactor = p.mixFactor;
-    
+
             D3D11_MAPPED_SUBRESOURCE mapped;
             HRESULT hr = m_pContext->Map(m_pConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
             if (FAILED(hr))
                 continue;
             memcpy(mapped.pData, &cb, sizeof(cb));
             m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
-    
+
             m_pContext->VSSetConstantBuffers(0, 1, m_pConstantBuffer.GetAddressOf());
             m_pContext->PSSetShaderResources(0, 1, tex->srv.GetAddressOf());
             m_pContext->Draw(4, 0);
         }
-    
+
         ID3D11ShaderResourceView *nullSRV = nullptr;
         m_pContext->PSSetShaderResources(0, 1, &nullSRV);
-    
     }
 
     // Flush GPU-batched screen-space lines
     m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
     FlushLineBatch(true);
+    m_pContext->Flush();
 }
 
 void DirectXCore::Render()
@@ -2101,8 +2271,8 @@ void DirectXCore::Render()
         return;
 
     ResetDepth();
-
     RenderOffscreenContent();
+
     if (!CIsoViewExt::RenderingMap)
     {
         if (ExtConfigs::EnableDarkMode && ExtConfigs::EnableDarkMode_DimMap)
@@ -2151,6 +2321,7 @@ void DirectXCore::RenderScreenSpaceOnly()
 {
     if (!m_bInitialized || !m_pContext || !m_pSwapChain || !m_pRTV || !m_backgroundCacheValid)
         return;
+
     RestoreBackgroundFromCache();
     RenderScreenSpaceContent();
     m_pSwapChain->Present(1, 0);
@@ -2454,18 +2625,21 @@ void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
         cmd.depth = params.bScreenSpace ? 0 : GetNextDepth();
     }
 
-    if (cmd.params.stencilRef >= 0) {
-        if (cmd.params.bIsOverlapShadow) {
+    if (cmd.params.stencilRef >= 0)
+    {
+        if (cmd.params.bIsOverlapShadow)
+        {
             int shadowVal = cmd.params.stencilRef;
             cmd.bStencilDraw = true;
             cmd.bStencilOnly = false;
             cmd.bIsOverlapShadow = true;
             cmd.pCustomDSState = m_pDepthStateShadowRedraw.Get();
-            cmd.params.stencilRef = shadowVal; 
+            cmd.params.stencilRef = shadowVal;
             cmd.params.drawDepth = cmd.depth;
             m_drawCommands.push_back(cmd);
-        } 
-        else if (cmd.params.bIsShadow) {
+        }
+        else if (cmd.params.bIsShadow)
+        {
             int shadowVal = cmd.params.stencilRef | 0x80;
             cmd.bStencilDraw = true;
             cmd.bStencilOnly = false;
@@ -2473,18 +2647,23 @@ void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
             cmd.pCustomDSState = m_pDepthStateShadowMark.Get();
             cmd.params.stencilRef = shadowVal;
             m_drawCommands.push_back(cmd);
-        } 
-        else if (cmd.params.bWriteStencil) {
+        }
+        else if (cmd.params.bWriteStencil)
+        {
             cmd.bStencilDraw = false;
             cmd.pCustomDSState = m_pDepthStateObjectStencilWrite.Get();
             UINT renderDepth = cmd.depth;
             m_drawCommands.push_back(cmd);
-        } else {
+        }
+        else
+        {
             cmd.bStencilDraw = true;
             cmd.pCustomDSState = m_pDepthStateTerrainRedraw.Get();
             m_drawCommands.push_back(cmd);
         }
-    } else {
+    }
+    else
+    {
         cmd.bStencilDraw = false;
         cmd.pCustomDSState = nullptr;
         m_drawCommands.push_back(cmd);
@@ -2512,7 +2691,7 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
     if (numLines == 0)
         return;
 
-    const int vertsPerLine = 6; // TRIANGLELIST: 2 triangles × 3 verts
+    const int vertsPerLine = 6;
     const int totalVerts = numLines * vertsPerLine;
 
     // Ensure vertex buffer is large enough
@@ -2534,16 +2713,23 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
     }
 
     // Build vertex data on stack then map-and-copy
-    struct LineVertex { float x, y, depth; uint32_t color; }; // 16 bytes
+    struct LineVertex
+    {
+        float x, y, depth;
+        uint32_t color;
+    }; // 16 bytes
     std::vector<LineVertex> verts;
     verts.reserve(totalVerts);
 
     // World-space lines use offscreen viewport; screen-space lines use window
     float vw, vh;
-    if (bScreenSpace) {
+    if (bScreenSpace)
+    {
         vw = (float)m_clientWidth;
         vh = (float)m_clientHeight;
-    } else {
+    }
+    else
+    {
         vw = (float)(m_clientWidth * m_renderScale);
         vh = (float)(m_clientHeight * m_renderScale);
     }
@@ -2562,22 +2748,23 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
         if (len < 1e-6f)
         {
             // Degenerate line: draw a small cross
-            nx = halfT; ny = 0.0f;
-            dx = 0.0f; dy = 0.0f;
+            nx = halfT;
+            ny = 0.0f;
+            dx = 0.0f;
+            dy = 0.0f;
         }
         else
         {
             float invLen = 1.0f / len;
             nx = -dy * invLen * halfT;
-            ny =  dx * invLen * halfT;
+            ny = dx * invLen * halfT;
         }
 
         auto toNDC = [&](float px, float py) -> std::pair<float, float>
         {
             return {
                 (px / vw) * 2.0f - 1.0f,
-                1.0f - (py / vh) * 2.0f
-            };
+                1.0f - (py / vh) * 2.0f};
         };
 
         float depthZ = le.depth * depthScale;
@@ -2591,12 +2778,12 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
         // TRIANGLELIST: two triangles forming the thick line quad
         // V0 = start-left, V1 = start-right, V2 = end-left, V3 = end-right
         // Triangles: (V0,V1,V2) and (V1,V3,V2) �? no shared edges with next line
-        verts.push_back({x0b, y0b, depthZ, le.color});  // V0: left of start
-        verts.push_back({x0a, y0a, depthZ, le.color});  // V1: right of start
-        verts.push_back({x1b, y1b, depthZ, le.color});  // V2: left of end
-        verts.push_back({x0a, y0a, depthZ, le.color});  // V1 again
-        verts.push_back({x1a, y1a, depthZ, le.color});  // V3: right of end
-        verts.push_back({x1b, y1b, depthZ, le.color});  // V2 again
+        verts.push_back({x0b, y0b, depthZ, le.color}); // V0: left of start
+        verts.push_back({x0a, y0a, depthZ, le.color}); // V1: right of start
+        verts.push_back({x1b, y1b, depthZ, le.color}); // V2: left of end
+        verts.push_back({x0a, y0a, depthZ, le.color}); // V1 again
+        verts.push_back({x1a, y1a, depthZ, le.color}); // V3: right of end
+        verts.push_back({x1b, y1b, depthZ, le.color}); // V2 again
     }
 
     // Upload to GPU
@@ -2615,10 +2802,14 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
     m_pContext->VSSetShader(m_pLineVS.Get(), nullptr, 0);
     m_pContext->PSSetShader(pCustomPS ? pCustomPS : m_pLinePS.Get(), nullptr, 0);
 
+    // Set sampler (needed by line PS variants that sample textures, e.g. m_pLineModPS)
+    m_pContext->PSSetSamplers(0, 1, m_pSamplerPoint.GetAddressOf());
+
     // Draw all lines in one call
     m_pContext->Draw(totalVerts, 0);
 
-    std::erase_if(m_lineEntries, [bScreenSpace, bOverlay](const auto &le) { return le.bScreenSpace == bScreenSpace && le.bAlwaysOnTop == bOverlay; });
+    std::erase_if(m_lineEntries, [bScreenSpace, bOverlay](const auto &le)
+                  { return le.bScreenSpace == bScreenSpace && le.bAlwaysOnTop == bOverlay; });
 }
 
 static constexpr float kPi = 3.14159265358979323846f;
@@ -2984,7 +3175,7 @@ void DrawShapes::DrawLine(float x0, float y0, float x1, float y1,
         }
         else
         {
-            depth = params.bScreenSpace ? 0 :  m_dx->GetNextDepth();
+            depth = params.bScreenSpace ? 0 : m_dx->GetNextDepth();
         }
 
         bool useDash = (params.dashLength > 0.f && params.gapLength > 0.f);
@@ -2992,7 +3183,8 @@ void DrawShapes::DrawLine(float x0, float y0, float x1, float y1,
         {
             float dx = x1 - x0, dy = y1 - y0;
             float len = std::sqrt(dx * dx + dy * dy);
-            if (len < 1e-4f) {
+            if (len < 1e-4f)
+            {
                 m_dx->AddLineEntry(x0, y0, x1, y1, rgba, params.thickness, depth, params.bScreenSpace, params.bAlwaysOnTop);
                 return;
             }
@@ -3094,10 +3286,13 @@ void DrawShapes::DrawRect(float x, float y, float w, float h,
         }
         else
         {
-            depth = params.bScreenSpace ? 0 :  m_dx->GetNextDepth();
+            depth = params.bScreenSpace ? 0 : m_dx->GetNextDepth();
         }
 
-        struct Seg { float ax, ay, bx, by; };
+        struct Seg
+        {
+            float ax, ay, bx, by;
+        };
         Seg segs[4] = {
             {x, y, x + w, y},
             {x + w, y, x + w, y + h},
@@ -3112,7 +3307,8 @@ void DrawShapes::DrawRect(float x, float y, float w, float h,
             {
                 float dx = s.bx - s.ax, dy = s.by - s.ay;
                 float segLen = std::sqrt(dx * dx + dy * dy);
-                if (segLen < 1e-4f) continue;
+                if (segLen < 1e-4f)
+                    continue;
                 float pos = 0.f;
                 while (pos < segLen)
                 {
@@ -3181,7 +3377,7 @@ void DrawShapes::DrawEllipse(float cx, float cy, float rx, float ry,
         }
         else
         {
-            depth = params.bScreenSpace ? 0 :  m_dx->GetNextDepth();
+            depth = params.bScreenSpace ? 0 : m_dx->GetNextDepth();
         }
 
         int segs = params.segments > 0
@@ -3195,7 +3391,12 @@ void DrawShapes::DrawEllipse(float cx, float cy, float rx, float ry,
             float px = cx + rx * std::cos(angle);
             float py = cy + ry * std::sin(angle);
 
-            if (i == 0) { prevPx = px; prevPy = py; continue; }
+            if (i == 0)
+            {
+                prevPx = px;
+                prevPy = py;
+                continue;
+            }
 
             float dx = px - prevPx, dy = py - prevPy;
             float segLen = std::sqrt(dx * dx + dy * dy);
@@ -3283,7 +3484,7 @@ TextRenderer::~TextRenderer()
 void TextRenderer::DrawTexts(
     float x,
     float y,
-    const FString& text,
+    const FString &text,
     const TextParams &params)
 {
     if (text.empty())
@@ -3354,7 +3555,7 @@ void TextRenderer::DrawTexts(
         dp.SetScreenSpace();
     }
     else
-    {   
+    {
         dp.bAlwaysOnTop = params.bAlwaysOnTop;
     }
 
@@ -3820,31 +4021,28 @@ bool TextRenderer::UploadTexture(TextureResource *res,
         desc.ArraySize = 1;
         desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         desc.SampleDesc.Count = 1;
-        desc.Usage = D3D11_USAGE_DYNAMIC;
+        desc.Usage = D3D11_USAGE_DEFAULT;
         desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-        desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-        HRESULT hr = dev->CreateTexture2D(&desc, nullptr, &res->texture);
+        D3D11_SUBRESOURCE_DATA initData = {};
+        initData.pSysMem = pixels.data();
+        initData.SysMemPitch = w * 4;
+
+        HRESULT hr = dev->CreateTexture2D(&desc, &initData, &res->texture);
         if (FAILED(hr))
             return false;
 
         hr = dev->CreateShaderResourceView(res->texture.Get(), nullptr, &res->srv);
         if (FAILED(hr))
             return false;
+
+        res->sourceView.FullWidth = w;
+        res->sourceView.FullHeight = h;
+        return true;
     }
 
-    D3D11_MAPPED_SUBRESOURCE mapped;
-    HRESULT hr = ctx->Map(res->texture.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-    if (FAILED(hr))
-        return false;
-
-    for (int row = 0; row < h; ++row)
-    {
-        memcpy(static_cast<uint8_t *>(mapped.pData) + row * mapped.RowPitch,
-               pixels.data() + row * w,
-               w * 4);
-    }
-    ctx->Unmap(res->texture.Get(), 0);
+    ctx->UpdateSubresource(res->texture.Get(), 0, nullptr,
+                           pixels.data(), w * 4, 0);
 
     res->sourceView.FullWidth = w;
     res->sourceView.FullHeight = h;

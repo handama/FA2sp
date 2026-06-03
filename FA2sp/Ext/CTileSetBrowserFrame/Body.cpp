@@ -30,6 +30,9 @@
 HWND CTileSetBrowserFrameExt::hTabCtrl = NULL;
 bool CTileSetBrowserFrameExt::TerrainDlgLoaded = true;
 CTileSetBrowserView* CTileSetBrowserFrameExt::TileSetBrowserView_Instance = nullptr;
+float CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor = 1.0f;
+float CTileSetBrowserFrameExt::OverlayBrowserViewScaledFactor = 1.0f;
+float CTileSetBrowserFrameExt::GridObjectViewerScaledFactor = 1.0f;
 
 void CTileSetBrowserFrameExt::ProgramStartupInit()
 {
@@ -70,6 +73,11 @@ void CTileSetBrowserFrameExt::OnBNTerrainGeneratorClicked()
 		::ShowWindow(CTerrainGenerator::GetHandle(), SW_SHOW);
 		::SendMessage(CTerrainGenerator::GetHandle(), 114514, 0, 0);
 	}
+}
+
+void CTileSetBrowserFrameExt::RefreshWindows()
+{
+	PostMessage(CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->GetSafeHwnd(), 114514, 0, 0);
 }
 
 BOOL CTileSetBrowserFrameExt::PreTranslateMessageExt(MSG* pMsg)
@@ -167,7 +175,7 @@ BOOL CTileSetBrowserFrameExt::PreTranslateMessageExt(MSG* pMsg)
 		}
 
 	}
-	if (pMsg->message == WM_KEYUP)
+	else if (pMsg->message == WM_KEYUP)
 	{
 		if (pMsg->wParam == VK_F5)
 		{
@@ -188,57 +196,124 @@ BOOL CTileSetBrowserFrameExt::PreTranslateMessageExt(MSG* pMsg)
 		}
 
 	}	
-	if (pMsg->message == WM_LBUTTONUP)
+	else if (pMsg->message == WM_LBUTTONUP)
 	{
 		if (pMsg->hwnd == this->DialogBar.GetDlgItem(6102)->GetSafeHwnd())
 			this->OnBNTileManagerClicked();
-	}	
-	if (pMsg->message == WM_LBUTTONUP)
-	{
-		if (pMsg->hwnd == this->DialogBar.GetDlgItem(6250)->GetSafeHwnd())
+		else if (pMsg->hwnd == this->DialogBar.GetDlgItem(6250)->GetSafeHwnd())
 			this->OnBNSearchClicked();
-	}
-	if (pMsg->message == WM_LBUTTONUP)
-	{
-		if (pMsg->hwnd == this->DialogBar.GetDlgItem(6251)->GetSafeHwnd())
+		else if (pMsg->hwnd == this->DialogBar.GetDlgItem(6251)->GetSafeHwnd())
 			this->OnBNTerrainGeneratorClicked();
 	}
-	if (pMsg->hwnd == TriggerSort::Instance)
+	else if (GetKeyState(VK_CONTROL) & 0x8000 && pMsg->message == WM_MOUSEWHEEL || pMsg->message ==  WM_MBUTTONUP)
+	{		 
+		float* target = nullptr;
+		if (::IsWindowVisible(View) && View.CurrentMode == 1)
+			target = &TileSetBrowserViewScaledFactor; 
+		else if (::IsWindowVisible(View) && View.CurrentMode == 2)
+			target = &OverlayBrowserViewScaledFactor; 
+		else if (::IsWindowVisible(GridObjectViewer::Instance))
+			target = &GridObjectViewerScaledFactor; 
+
+		if (target)
+		{
+			CINI fa2;
+			FString path = CFinalSunAppExt::ExePathExt;
+			path += "\\FinalAlert.ini";
+			fa2.ClearAndLoad(path);				
+			if (pMsg->message ==  WM_MBUTTONUP)
+			{
+				*target = 1.0f;
+			}
+			else
+			{
+				int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
+				if (zDelta < 0) {
+					*target -= 0.1f;
+					*target = std::clamp(*target, 0.25f, 4.0f);
+				}
+				else {
+					*target += 0.1f;
+					*target = std::clamp(*target, 0.25f, 4.0f);
+				}
+			}
+			std::ostringstream oss;
+            oss.precision(3);
+            oss << std::fixed << *target;
+			if (target == &TileSetBrowserViewScaledFactor)
+			{
+				fa2.WriteString("UserInterface", "TileSetBrowserViewScaledFactor", oss.str().c_str());
+				auto tmp = CIsoView::CurrentCommand->Command;
+				HWND hParent = DialogBar.GetSafeHwnd();
+				HWND hTileComboBox = ::GetDlgItem(hParent, 1366);
+				::SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1366, CBN_SELCHANGE), (LPARAM)hTileComboBox);
+				CIsoView::CurrentCommand->Command = tmp;
+			}
+			else if (target == &OverlayBrowserViewScaledFactor)
+			{
+				fa2.WriteString("UserInterface", "OverlayBrowserViewScaledFactor", oss.str().c_str());
+				auto tmp = CIsoView::CurrentCommand->Command;
+				HWND hParent = DialogBar.GetSafeHwnd();
+				HWND hOverlayComboBox = ::GetDlgItem(hParent, 1367);
+				::SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1367, CBN_SELCHANGE), (LPARAM)hOverlayComboBox);
+				CIsoView::CurrentCommand->Command = tmp;
+			}
+			else if (target == &GridObjectViewerScaledFactor)
+			{
+				fa2.WriteString("UserInterface", "GridObjectViewerScaledFactor", oss.str().c_str());
+				GridObjectViewer::Instance.UpdateImages();
+			}
+			fa2.WriteToFile(path);
+		}
+	}
+	else if (pMsg->message == 114514)
+	{
+		if (GridObjectViewer::Instance.IsVisible())
+		{	
+			InvalidateRect(GridObjectViewer::Instance.GetControl(), NULL, TRUE);
+			InvalidateRect(GridObjectViewer::Instance.GetView(), NULL, TRUE);
+		}
+		else if (::IsWindowVisible(this->DialogBar))
+		{	
+			InvalidateRect(this->DialogBar, NULL, TRUE);
+			InvalidateRect(this->View, NULL, TRUE);
+		}
+	}
+	else if (pMsg->hwnd == TriggerSort::Instance)
 	{
 		if (TriggerSort::Instance.OnMessage(pMsg))
 			return TRUE;
 	}
-	if (pMsg->hwnd == TeamSort::Instance)
+	else if (pMsg->hwnd == TeamSort::Instance)
 	{
 		if (TeamSort::Instance.OnMessage(pMsg))
 			return TRUE;
 	}
-	if (pMsg->hwnd == TaskforceSort::Instance)
+	else if (pMsg->hwnd == TaskforceSort::Instance)
 	{
 		if (TaskforceSort::Instance.OnMessage(pMsg))
 			return TRUE;
 	}
-	if (pMsg->hwnd == ScriptSort::Instance)
+	else if (pMsg->hwnd == ScriptSort::Instance)
 	{
 		if (ScriptSort::Instance.OnMessage(pMsg))
 			return TRUE;
 	}
-	if (pMsg->hwnd == WaypointSort::Instance)
+	else if (pMsg->hwnd == WaypointSort::Instance)
 	{
 		if (WaypointSort::Instance.OnMessage(pMsg))
 			return TRUE;
 	}
-	if (pMsg->hwnd == TagSort::Instance)
+	else if (pMsg->hwnd == TagSort::Instance)
 	{
 		if (TagSort::Instance.OnMessage(pMsg))
 			return TRUE;
 	}
-	if (pMsg->hwnd == GridObjectViewer::Instance)
+	else if (pMsg->hwnd == GridObjectViewer::Instance)
 	{
 		if (GridObjectViewer::Instance.OnMessage(pMsg))
 			return TRUE;
-	}
-	
+	}	
 
 	return this->ppmfc::CFrameWnd::PreTranslateMessage(pMsg);
 }
@@ -274,32 +349,23 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				TaskforceSort::Instance.HideWindow();
 				ScriptSort::Instance.HideWindow();
 				TriggerSort::Instance.ShowWindow();
+				TriggerSort::Instance.LoadAllTriggers();
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.HideWindow();
 				GridObjectViewer::Instance.HideWindow();
-
-				if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
-				{
-					if (!TreeView_GetCount(TriggerSort::Instance.GetHwnd()))
-						TriggerSort::Instance.LoadAllTriggers();
-				}
 				break;
 			case TabPage::TeamSort:
 				this->DialogBar.ShowWindow(SW_HIDE);
 				this->View.ShowWindow(SW_HIDE);
 
 				TeamSort::Instance.ShowWindow();
+				TeamSort::Instance.LoadAllTriggers();
 				TriggerSort::Instance.HideWindow();
 				TaskforceSort::Instance.HideWindow();
 				ScriptSort::Instance.HideWindow();
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.HideWindow();
 				GridObjectViewer::Instance.HideWindow();
-				if (IsWindowVisible(CNewTeamTypes::GetHandle()))
-				{
-					if (!TreeView_GetCount(TeamSort::Instance.GetHwnd()))
-						TeamSort::Instance.LoadAllTriggers();
-				}
 				break;
 			case TabPage::TaskforceSort:
 				this->DialogBar.ShowWindow(SW_HIDE);
@@ -308,15 +374,11 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				TeamSort::Instance.HideWindow();
 				TriggerSort::Instance.HideWindow();
 				TaskforceSort::Instance.ShowWindow();
+				TaskforceSort::Instance.LoadAllTriggers();
 				ScriptSort::Instance.HideWindow();
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.HideWindow();
 				GridObjectViewer::Instance.HideWindow();
-				if (IsWindowVisible(CNewTaskforce::GetHandle()) || IsWindowVisible(CNewTeamTypes::GetHandle()))
-				{
-					if (!TreeView_GetCount(TaskforceSort::Instance.GetHwnd()))
-						TaskforceSort::Instance.LoadAllTriggers();
-				}
 				break;
 			case TabPage::ScriptSort:
 				this->DialogBar.ShowWindow(SW_HIDE);
@@ -326,14 +388,10 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				TriggerSort::Instance.HideWindow();
 				TaskforceSort::Instance.HideWindow();
 				ScriptSort::Instance.ShowWindow();
+				ScriptSort::Instance.LoadAllTriggers();
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.HideWindow();
 				GridObjectViewer::Instance.HideWindow();
-				if (IsWindowVisible(CNewScript::GetHandle()) || IsWindowVisible(CNewTeamTypes::GetHandle()))
-				{
-					if (!TreeView_GetCount(ScriptSort::Instance.GetHwnd()))
-						ScriptSort::Instance.LoadAllTriggers();
-				}
 				break;
 			case TabPage::WaypointSort:
 				this->DialogBar.ShowWindow(SW_HIDE);
@@ -345,12 +403,8 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				ScriptSort::Instance.HideWindow();
 				TagSort::Instance.HideWindow();
 				WaypointSort::Instance.ShowWindow();
+				WaypointSort::Instance.LoadAllTriggers();
 				GridObjectViewer::Instance.HideWindow();
-				if (IsWindowVisible(CNewTeamTypes::GetHandle()) || CFinalSunDlg::Instance->TriggerFrame.m_hWnd || IsWindowVisible(CNewScript::GetHandle()))
-				{
-					if (!TreeView_GetCount(WaypointSort::Instance.GetHwnd()))
-						WaypointSort::Instance.LoadAllTriggers();
-				}
 				break;
 			case TabPage::TagSort:
 				this->DialogBar.ShowWindow(SW_HIDE);
@@ -362,12 +416,8 @@ BOOL CTileSetBrowserFrameExt::OnNotifyExt(WPARAM wParam, LPARAM lParam, LRESULT*
 				ScriptSort::Instance.HideWindow();
 				WaypointSort::Instance.HideWindow();
 				TagSort::Instance.ShowWindow();
+				TagSort::Instance.LoadAllTriggers();
 				GridObjectViewer::Instance.HideWindow();
-				if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()) || CFinalSunDlg::Instance->Tags.m_hWnd)
-				{
-					if (!TreeView_GetCount(TagSort::Instance.GetHwnd()))
-						TagSort::Instance.LoadAllTriggers();
-				}
 				break;
 			case TabPage::GridObjectViewer:
 				this->DialogBar.ShowWindow(SW_HIDE);

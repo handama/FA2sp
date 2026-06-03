@@ -50,6 +50,7 @@ bool CFinalSunDlgExt::MapValidatorAlive = false;
 int CFinalSunDlgExt::CurrentLighting = 31000;
 std::pair<FString, int> CFinalSunDlgExt::SearchObjectIndex("", -1);
 std::map<UINT, CheckButtonInfo> CFinalSunDlgExt::CheckButtonMap;
+int CFinalSunDlgExt::CurrentToolbarIconSize = 16;
 std::unique_ptr<CTechnoDialog> CFinalSunDlgExt::TechnoDialog = nullptr;
 int CFinalSunDlgExt::SearchObjectType = -1;
 enum FindType { Aircraft = 0, Infantry, Structure, Unit };
@@ -1242,6 +1243,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				{
 					renderMap(p, true);
 					MyViewFrame.Minimap.Update();
+					endConfirmDialog = true;
 				}
 			}
 
@@ -1251,7 +1253,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				CIsoViewExt::g_pDX->SetZoomOut(CIsoViewExt::ScaledFactor);
 			}
 		}
-		if(endConfirmDialog)
+		if (endConfirmDialog)
 		{
 			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 		}
@@ -2003,7 +2005,7 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			{
 				int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
 				auto pBrushSize = (ppmfc::CComboBox*)CFinalSunDlg::Instance->BrushSize.GetDlgItem(1377);
-				int index = std::clamp(pBrushSize->GetCurSel() + (zDelta < 0 ? -1 : 1), 0, pBrushSize->GetCount() - 1);
+				int index = std::clamp(pBrushSize->GetCurSel() + (zDelta > 0 ? -1 : 1), 0, pBrushSize->GetCount() - 1);
 				pBrushSize->SetCurSel(index);
 				ChangeBrushSize(index);
 			}
@@ -2020,7 +2022,7 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 		}
 		break;
 	}
-	case 114514:
+	case 1145141:
 	{
 		ppmfc::CString caption;
 		CFinalSunDlg::Instance->GetWindowTextA(caption);

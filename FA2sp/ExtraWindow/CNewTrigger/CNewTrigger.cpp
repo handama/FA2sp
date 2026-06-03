@@ -13,6 +13,7 @@
 #include <Miscs/Miscs.h>
 #include "../CObjectSearch/CObjectSearch.h"
 #include "../../Ext/CTileSetBrowserFrame/TabPages/TriggerSort.h"
+#include "../../Ext/CTileSetBrowserFrame/TabPages/TagSort.h"
 #include "../CNewScript/CNewScript.h"
 #include <numeric>
 #include "../CSearhReference/CSearhReference.h"
@@ -532,8 +533,8 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
                     "STATIC",
                     nullptr,
                     WS_POPUP,
-                    m_pressPtScreen.x - 6, m_pressPtScreen.y - 6,
-                    12, 12,
+                    m_pressPtScreen.x - 6 * CFinalSunAppExt::ProgramScaleFactor, m_pressPtScreen.y - 6 * CFinalSunAppExt::ProgramScaleFactor,
+                    12 * CFinalSunAppExt::ProgramScaleFactor, 12 * CFinalSunAppExt::ProgramScaleFactor,
                     nullptr, nullptr,
                     static_cast<HINSTANCE>(FA2sp::hInstance),
                     nullptr
@@ -2571,6 +2572,9 @@ void CNewTrigger::OnClickNewTrigger()
         CNewTag::vcbSelectedTag.AddString(text);
         CNewTag::TriggerListChanged = true;
     }
+    
+    TriggerSort::Instance.AddTrigger(id);
+    TagSort::Instance.AddTrigger(tagId);
 }
 
 void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
@@ -2616,6 +2620,9 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
         CNewTag::vcbSelectedTag.AddString(text);
         CNewTag::TriggerListChanged = true;
     }
+    TriggerSort::Instance.AddTrigger(id);
+    if (!tagId.IsEmpty())
+        TagSort::Instance.AddTrigger(tagId);
 }
 
 void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
@@ -2676,6 +2683,8 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
                     CIsoView::CurrentCommand->Type = 0;
                     CIsoView::CurrentCommand->ObjectID = "";
                 }
+                if (TagSort::Instance.IsVisible())
+                    TagSort::Instance.LoadAllTriggers();
             }
         }
 
@@ -2739,6 +2748,9 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
                 }
             }
         }
+
+        if (TriggerSort::Instance.IsVisible())
+            TriggerSort::Instance.LoadAllTriggers();
     }
 }
 

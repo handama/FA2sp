@@ -5,7 +5,10 @@
 
 #include "../../FA2sp.h"
 #include "../CFinalSunDlg/Body.h"
+#include "../CFinalSunApp/Body.h"
 #include "../CLoading/Body.h"
+#include "../CIsoView/Body.h"
+#include "../CIsoView/DirectXCore.h"
 #pragma comment(lib, "Msimg32.lib")
 
 DEFINE_HOOK(4D4150, CRandomTree_OnInitDialog, 7)
@@ -60,7 +63,10 @@ DEFINE_HOOK(4D4FF7, CRandomTreeDlg_Draw, 7)
     if (pData->pImageBuffer)
     {
         CBitmap bmp;
-        CLoadingExt::LoadShpToBitmap(pData, bmp);
+        int maxSize = std::max(pData->FullHeight, pData->FullWidth) * CFinalSunAppExt::ProgramScaleFactor;
+        auto view = CIsoViewExt::MakeImageDataView(pData);
+        CIsoViewExt::LoadAndScaleToBitmap(&view, bmp, maxSize, RGB(255, 0, 255), false);
+    
         CDC memDC;
         memDC.CreateCompatibleDC(pDC);
         CBitmap* pOldBmp = memDC.SelectObject(&bmp);
@@ -71,7 +77,7 @@ DEFINE_HOOK(4D4FF7, CRandomTreeDlg_Draw, 7)
         COLORREF transparentColor = RGB(255, 0, 255);
         TransparentBlt(
             pDC->GetSafeHdc(),
-            pr.left, pr.top, bitmap.bmWidth, bitmap.bmHeight,
+            pr.left + 3, pr.top + 6, bitmap.bmWidth, bitmap.bmHeight,
             memDC.GetSafeHdc(),
             0, 0, bitmap.bmWidth, bitmap.bmHeight,
             transparentColor

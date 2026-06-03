@@ -247,7 +247,7 @@ void CMeasurementToolbox::SetMeasurementToolbox(int X, int Y)
 		}
 		else if (CIsoViewExt::TwoPointDistance_Annotation.back().Point1 != MapCoord{ X,Y })
 		{
-			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
+			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::GeometricAnnotation);
 			CIsoViewExt::TwoPointDistance_Annotation.back().Point2 = { X,Y };
 
 			FString value;
@@ -356,7 +356,7 @@ void CMeasurementToolbox::SetMeasurementToolbox(int X, int Y)
 		else if (CIsoViewExt::TempCircle_Annotation[0] != MapCoord{ X,Y })
 		{
 			CIsoViewExt::TempCircle_Annotation[1] = { X,Y };
-			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
+			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::GeometricAnnotation);
 			double circleRadius = sqrt((
                 CIsoViewExt::TempCircle_Annotation[0].X - CIsoViewExt::TempCircle_Annotation[1].X)
                 * (CIsoViewExt::TempCircle_Annotation[0].X - CIsoViewExt::TempCircle_Annotation[1].X)

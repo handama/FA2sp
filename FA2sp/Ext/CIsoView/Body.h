@@ -225,6 +225,7 @@ public:
     static void DrawShadowMask(void* dst, const DDBoundary& boundary, const RECT& window, 
         const std::vector<byte>& mask, const std::vector<byte>& shadowHeightMask, const std::vector<int>& cellHeightMask);
     static void ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, bool removeHalo = true, bool trim = true);
+    static HRESULT ScaleSurface(LPDIRECTDRAWSURFACE7* lpSurface, float scaleFactor);
     static bool LoadAndScaleToBitmap(const ImageDataView* pData,
         CBitmap& outBitmap,
         int maxSize,
@@ -270,7 +271,7 @@ public:
     static void DrawGeometricAnnotations(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void DrawScriptPaths(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void MoveToMapCoord(int X, int Y);
-    static void Zoom(double offset);
+    static void Zoom(double offset, bool bForce = false);
     static std::vector<MapCoord> GetLinePoints(MapCoord mc1, MapCoord mc2);
     static std::vector<MapCoord> GetLineRectangles(MapCoord start, MapCoord end, int width, int height);
     static void InitAlphaTable();

@@ -135,34 +135,38 @@ struct TempOtherInfo
 };
 
 HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
-    HTREEITEM hParent, HTREEITEM hInsertAfter)
+    HTREEITEM hParent, HTREEITEM hInsertAfter, const char* pOriString)
 {
     AddedItemCount++;
     auto item =  this->GetTreeCtrl().InsertItem(TVIF_TEXT | TVIF_PARAM, pString, 0, 0, 0, 0, dwItemData, hParent, hInsertAfter);
     
     if (ExtConfigs::TreeViewCameo_Display)
     {
-        std::string pics = CFinalSunAppExt::ExePathExt;
-        pics += "\\pics";
-        if (fs::exists(pics) && fs::is_directory(pics))
+        if (pOriString)
         {
-            pics += "\\";
-            pics += pString;
-            pics += ".bmp";
-            if (fs::exists(pics))
+            std::string pics = CFinalSunAppExt::ExePathExt;
+            pics += "\\pics";
+            if (fs::exists(pics) && fs::is_directory(pics))
             {
-                CBitmap cBitmap;
-                if (CLoadingExt::LoadBMPToCBitmap(pics.c_str(), cBitmap))
+                pics += "\\";
+                pics += pOriString;
+                pics += ".bmp";
+                if (fs::exists(pics))
                 {
-                    int index = m_ImageList.Add(&cBitmap, RGB(255, 255, 255));
-                    this->GetTreeCtrl().SetItemImage(item, index, index);
-                    return item;
+                    CBitmap cBitmap;
+                    if (CLoadingExt::LoadBMPToCBitmap(pics.c_str(), cBitmap))
+                    {
+                        int index = m_ImageList.Add(&cBitmap, RGB(255, 255, 255));
+                        this->GetTreeCtrl().SetItemImage(item, index, index);
+                        return item;
+                    }
                 }
-            }
-        }       
+            }   
+        }
+    
         if (InsertingSpecialBitmap)
         {
-            CIsoViewExt::ScaleBitmap(&SpecialBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255), true, false);
+            CIsoViewExt::ScaleBitmap(&SpecialBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 255, 255), true, false);
             int index = m_ImageList.Add(&SpecialBitmap, RGB(255, 255, 255));
             this->GetTreeCtrl().SetItemImage(item, index, index);
             return item;
@@ -309,11 +313,10 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 if (ImageDataClassSafe::IsVisibleImage(pData))
                 {
                     CBitmap cBitmap;
-                    CLoadingExt::LoadShpToBitmap(pData, cBitmap);
-                    CIsoViewExt::ScaleBitmap(&cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
+                    auto view = CIsoViewExt::MakeImageDataView(pData);
+                    CIsoViewExt::LoadAndScaleToBitmap(&view, cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
                     int index = m_ImageList.Add(&cBitmap, RGB(255, 0, 255));
                     this->GetTreeCtrl().SetItemImage(item, index, index);
-
                     CLoadingExt::SaveCBitmapToFile(&cBitmap, path.c_str(), RGB(255, 0, 255));
 
                     return item;
@@ -379,7 +382,7 @@ HTREEITEM CViewObjectsExt::InsertTranslatedString(const char* pOriginString, DWO
 {
     FString buffer;
     bool result = Translations::GetTranslationItem(pOriginString, buffer);
-    return InsertString(result ? buffer.c_str() : pOriginString, dwItemData, hParent, hInsertAfter);
+    return InsertString(result ? buffer.c_str() : pOriginString, dwItemData, hParent, hInsertAfter, pOriginString);
 }
 
 FString CViewObjectsExt::QueryUIName(const char* pRegName, bool bOnlyOneLine)
@@ -484,14 +487,14 @@ void CViewObjectsExt::Redraw()
         m_ImageList.Add(&cBitmap, RGB(255, 255, 255));
         this->GetTreeCtrl().SetImageList(&m_ImageList, TVSIL_NORMAL);
    
-        CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 300, 10);
+        CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 300 * CFinalSunAppExt::ProgramScaleFactor, 10);
         CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.RecalcLayout();
         CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }
     else
     {
         this->GetTreeCtrl().SetImageList(NULL, TVSIL_NORMAL);
-        CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 200, 10);
+        CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 200 * CFinalSunAppExt::ProgramScaleFactor, 10);
         CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.RecalcLayout();
         CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }
@@ -714,9 +717,22 @@ void CViewObjectsExt::Redraw_Initialize()
 void CViewObjectsExt::Redraw_MainList()
 {
     auto LoadNodeWithCameo = [this](int node, int index, const char* name, int bmp)
-        {    
-            HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(bmp),
-            IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+        {
+            // Select the closest matching icon size based on TreeViewCameo_Size
+            int cameoSize = ExtConfigs::TreeViewCameo_Size;
+            int selectedBmp = bmp;
+            if (cameoSize > 56)
+                selectedBmp = bmp + 2000;  // 64px
+            else if (cameoSize > 40)
+                selectedBmp = bmp + 1000;  // 48px
+
+            HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(selectedBmp),
+                IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+
+            if (!hBmp && selectedBmp != bmp)
+                hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(bmp),
+                    IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+
             SpecialBitmap.Attach(hBmp);
             InsertingSpecialBitmap = true;
             ExtNodes[node] = this->InsertTranslatedString(name, index);
@@ -894,6 +910,12 @@ void CViewObjectsExt::Redraw_Owner()
 {
     HTREEITEM& hOwner = ExtNodes[Root_Owner];
     if (hOwner == NULL)    return;
+
+    HTREEITEM hChild;
+    while ((hChild = this->GetTreeCtrl().GetChildItem(hOwner)) != nullptr)
+    {
+        this->GetTreeCtrl().DeleteItem(hChild);
+    }
 
     auto&& countries = Variables::Rules.GetSection("Countries");
     FString translated;

@@ -205,8 +205,8 @@ LRESULT CALLBACK CNewTaskforce::DragDotProc(HWND hWnd, UINT message, WPARAM wPar
                 "STATIC",
                 nullptr,
                 WS_POPUP,
-                pt.x - 6, pt.y - 6,
-                12, 12,
+                pt.x - 6 * CFinalSunAppExt::ProgramScaleFactor, pt.y - 6 * CFinalSunAppExt::ProgramScaleFactor,
+                12 * CFinalSunAppExt::ProgramScaleFactor, 12 * CFinalSunAppExt::ProgramScaleFactor,
                 nullptr, nullptr,
                 static_cast<HINSTANCE>(FA2sp::hInstance),
                 nullptr
@@ -737,6 +737,7 @@ void CNewTaskforce::OnClickNewTaskforce()
     ExtraWindow::SortTeams(vcbSelectedTaskforce, "TaskForces", SelectedTaskForceIndex, value);
 
     OnSelchangeTaskforce();
+    TaskforceSort::Instance.AddTrigger(value);
 }
 
 void CNewTaskforce::OnClickDelTaskforce(HWND& hWnd)
@@ -772,6 +773,9 @@ void CNewTaskforce::OnClickDelTaskforce(HWND& hWnd)
         idx = 0;
     SendMessage(hSelectedTaskforce, CB_SETCURSEL, idx, NULL);
     OnSelchangeTaskforce();
+
+    if (TaskforceSort::Instance.IsVisible())
+        TaskforceSort::Instance.LoadAllTriggers();
 }
 
 void CNewTaskforce::OnClickCloTaskforce(HWND& hWnd)
@@ -811,6 +815,7 @@ void CNewTaskforce::OnClickCloTaskforce(HWND& hWnd)
         ExtraWindow::SortTeams(vcbSelectedTaskforce, "TaskForces", SelectedTaskForceIndex, value);
 
         OnSelchangeTaskforce();
+        TaskforceSort::Instance.AddTrigger(value);
     }
 }
 

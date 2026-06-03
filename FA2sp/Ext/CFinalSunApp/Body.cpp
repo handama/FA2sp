@@ -13,6 +13,7 @@
 #include <filesystem>
 #include "../../Helpers/Translations.h"
 #include "../../Miscs/VoxelDrawer.h"
+#include "../../Ext/CIsoView/Body.h"
 #include "../CLoading/Body.h"
 #include "../../Miscs/DialogStyle.h"
 #include "../../Helpers/STDHelpers.h"
@@ -32,6 +33,8 @@ FString CFinalSunAppExt::NewVersion;
 FString CFinalSunAppExt::ExePathExt;
 FString CFinalSunAppExt::LauncherName;
 int CFinalSunAppExt::ScreenRefreshRate = 60;
+int CFinalSunAppExt::ProgramDPI = 96;
+float CFinalSunAppExt::ProgramScaleFactor = 1.0f;
 
 std::array<std::pair<std::string, std::string>, 7> CFinalSunAppExt::ExternalLinks
 {
@@ -57,7 +60,6 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	HDC hDC = ::GetDC(hDesktop);
 	if (::GetDeviceCaps(hDC, BITSPIXEL) <= 8)
 	{
-
 		ppmfc::CString pMessage = Translations::TranslateOrDefault("EightBitStart",
 			"You currently only have 8 bit color mode enabled. "
 			"FinalAlert 2(tm)will not work in 8 bit color mode. "
@@ -71,7 +73,7 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 		);
 		exit(0);
 	}
-	
+
 	CFinalSunDlg::SE2KMODE = FALSE; // We don't need SE2K stuff
 	CFinalSunApp::MapPath[0] = '\0';
 	// Now let's parse the command line
@@ -219,6 +221,17 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	CLoading loading(nullptr);
 	this->Loading = &loading;
 
+	HDC hdc = GetDC(Loading->GetSafeHwnd());
+    ProgramDPI = GetDeviceCaps(hdc, LOGPIXELSX);
+	ScreenRefreshRate = GetDeviceCaps(hdc, VREFRESH);
+    ReleaseDC(Loading->GetSafeHwnd(), hdc);
+	ProgramScaleFactor = ProgramDPI / 96.0f;
+	if (ExtConfigs::HiDPIAwareness_ScaleIsoView)
+		CIsoViewExt::ScaledFactor = 1.0 / ProgramScaleFactor;
+
+	ExtConfigs::DisplayTextSize *= CFinalSunAppExt::ProgramScaleFactor;
+	ExtConfigs::TreeViewCameo_Size *= CFinalSunAppExt::ProgramScaleFactor;
+
 	bool is_watcher_running = true;
 	std::thread watcher([&is_watcher_running]()
 		{
@@ -236,10 +249,6 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 		CheckUpdate();
 	}).detach();
 #endif
-
-	HDC hdc = GetDC(NULL);
-	ScreenRefreshRate = GetDeviceCaps(hdc, VREFRESH);
-	ReleaseDC(NULL, hdc);
 
 	CFinalSunDlg dlg(nullptr);
 	this->m_pMainWnd = &dlg;
@@ -414,6 +423,6 @@ void CFinalSunAppExt::CheckUpdate()
 		NewVersion.Format("%d.%d.%d", remote.major, remote.minor, remote.revision);
 
 		if (CFinalSunDlg::Instance)
-			::PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), 114514, 0, 0);
+			::PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), 1145141, 0, 0);
 	}
 }

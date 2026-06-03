@@ -15,6 +15,7 @@
 #include <CIsoView.h>
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../Ext/CMapData/Body.h"
+#include "../../Ext/CFinalSunApp/Body.h"
 #include "../../Miscs/DialogStyle.h"
 #include "../../Helpers/Helper.h"
 
@@ -163,7 +164,7 @@ void CBatchTrigger::Initialize(HWND& hWnd)
         LVCOLUMN lvColumn = { 0 };
         lvColumn.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
         lvColumn.pszText = const_cast<LPSTR>(Label);
-        lvColumn.cx = width;
+        lvColumn.cx = width * CFinalSunAppExt::ProgramScaleFactor;
         SendMessage(hListView, LVM_INSERTCOLUMN, index, (LPARAM)&lvColumn);
     };
 

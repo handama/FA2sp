@@ -4,6 +4,7 @@
 #include "../FA2Expand.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../FA2sp/Helpers/FString.h"
+#include "../../FA2sp/Ext/CFinalSunApp/Body.h"
 
 class NOVTABLE CTileSetBrowserFrameExt : public CTileSetBrowserFrame
 {
@@ -39,6 +40,7 @@ public:
 	void OnBNTileManagerClicked();
 	void OnBNSearchClicked();
 	void OnBNTerrainGeneratorClicked();
+    static void RefreshWindows();
 
 	void InitTabControl();
 
@@ -49,6 +51,9 @@ public:
 	static HWND hTabCtrl;
     static bool TerrainDlgLoaded;
     static CTileSetBrowserView* TileSetBrowserView_Instance;
+    static float TileSetBrowserViewScaledFactor;
+    static float OverlayBrowserViewScaledFactor;
+    static float GridObjectViewerScaledFactor;
 };
 
 class TreeViewHelper {

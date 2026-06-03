@@ -11,6 +11,7 @@
 
 #include "../CLoading/Body.h"
 #include "../CMapData/Body.h"
+#include "../CFinalSunApp/Body.h"
 
 #include "../../Source/CIsoView.h"
 #include "../../Helpers/Translations.h"
@@ -384,7 +385,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
 
                 if (ExtConfigs::DirectXRendering)
                 {
-                    CIsoViewExt::DrawLineDirectX(x1, y1 - height, x2, y2 - height, color);
+                    CIsoViewExt::DrawLineDirectX(x1, y1 - height, x2, y2 - height, color, 2);
                 }
                 else
                 {
@@ -409,7 +410,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
                     CIsoViewExt::TextOutDirectX(
                         x1 + 30 / CIsoViewExt::ScaledFactor - CIsoViewExt::drawOffsetX,
                         y1 - 15 / CIsoViewExt::ScaledFactor - CIsoViewExt::drawOffsetY - height,
-                        count, 14, RGB(0,0,0), true);
+                        count, fontSize, RGB(0,0,0), true);
                     pathCount++;
                 }
             }
@@ -454,10 +455,10 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
                     leftIndex++;
             if (CFinalSunApp::Instance().FlatToGround)
                 leftIndex++;
-            if (CIsoViewExt::ScaledFactor != 1.0)
+            double defaultScaledFactor = ExtConfigs::HiDPIAwareness_ScaleIsoView ? (1.0 / CFinalSunAppExt::ProgramScaleFactor) : 1.0;
+            if (fabs(CIsoViewExt::ScaledFactor - defaultScaledFactor) > 0.01)
                 leftIndex++;
         }
-
 
         SetTextAlign(hDC, TA_LEFT);
 
@@ -2303,6 +2304,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
                                 if (ExtConfigs::DirectXRendering)
                                 {
                                     TextOutDirectX(drawX, drawY + lineHeight * i, pSrc, fontSize, true, 2);
+                                    i++;
                                 }
                                 else
                                 {

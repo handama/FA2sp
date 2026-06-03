@@ -11,76 +11,66 @@
 #include "../CFinalSunApp/Body.h"
 #include "../CTileSetBrowserFrame/Body.h"
 
-ImageDataClass CurrentOverlay;
-ImageDataClass* CurrentOverlayPtr = nullptr;
-void* NULLPTR = nullptr;
-
-static HRESULT HalveSurface(LPDIRECTDRAWSURFACE7* lpSurface)
+static BYTE* ScaleBGRBuffer(
+    const BYTE* src, int srcW, int srcH, LONG srcPitch,
+    float scaleFactor, int& outW, int& outH, LONG& outPitch)
 {
-    if (!lpSurface || !*lpSurface) return E_INVALIDARG;
-    LPDIRECTDRAWSURFACE7 lpSrc = *lpSurface;
-
-    DDSURFACEDESC2 ddsd;
-    ZeroMemory(&ddsd, sizeof(ddsd));
-    ddsd.dwSize = sizeof(ddsd);
-
-    HRESULT hr = lpSrc->GetSurfaceDesc(&ddsd);
-    if (FAILED(hr)) return hr;
-
-    DWORD newWidth = ddsd.dwWidth / 2;
-    DWORD newHeight = ddsd.dwHeight / 2;
-
-    LPDIRECTDRAW7 lpDD = nullptr;
-    hr = lpSrc->GetDDInterface((LPVOID*)&lpDD);
-    if (FAILED(hr)) return hr;
-
-    DDSURFACEDESC2 ddsdNew;
-    ZeroMemory(&ddsdNew, sizeof(ddsdNew));
-    ddsdNew.dwSize = sizeof(ddsdNew);
-    ddsdNew.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT | DDSD_PIXELFORMAT;
-    ddsdNew.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
-    ddsdNew.dwWidth = newWidth;
-    ddsdNew.dwHeight = newHeight;
-    ddsdNew.ddpfPixelFormat = ddsd.ddpfPixelFormat;
-
-    LPDIRECTDRAWSURFACE7 lpDest = nullptr;
-    hr = lpDD->CreateSurface(&ddsdNew, &lpDest, NULL);
-    lpDD->Release();
-    if (FAILED(hr)) return hr;
-
-    RECT srcRect = { 0, 0, (LONG)ddsd.dwWidth, (LONG)ddsd.dwHeight };
-    RECT dstRect = { 0, 0, (LONG)newWidth, (LONG)newHeight };
-
-    hr = lpDest->Blt(&dstRect, lpSrc, &srcRect, DDBLT_WAIT, NULL);
-    if (FAILED(hr)) {
-        lpDest->Release();
-        return hr;
-    }
-
-    lpSrc->Release();
-    *lpSurface = lpDest;
-
-    return DD_OK;
-}
-
-static bool setCurrentOverlay(ImageDataClassSafe* pData)
-{
-    if (pData && pData->pImageBuffer)
+    if (fabs(1.0f - scaleFactor) < 0.001f)
     {
-        BGRStruct empty;
-        CurrentOverlay.pImageBuffer = pData->pImageBuffer.get();
-        CurrentOverlay.pPixelValidRanges = (ImageDataClass::ValidRangeData*)pData->pPixelValidRanges.get();
-        CurrentOverlay.pPalette = PalettesManager::GetTileSetBrowserViewPalette(pData->pPalette, empty, false);
-        CurrentOverlay.ValidX = pData->ValidX;
-        CurrentOverlay.ValidY = pData->ValidY;
-        CurrentOverlay.ValidWidth = pData->ValidWidth;
-        CurrentOverlay.ValidHeight = pData->ValidHeight;
-        CurrentOverlay.FullWidth = pData->FullWidth;
-        CurrentOverlay.FullHeight = pData->FullHeight;
-        CurrentOverlayPtr = &CurrentOverlay;
-        return true;
+        outW = srcW; outH = srcH; outPitch = srcPitch;
+        return nullptr;
     }
-    return false;
+
+    outW = std::max(1, (int)std::lround(srcW * scaleFactor));
+    outH = std::max(1, (int)std::lround(srcH * scaleFactor));
+
+    outPitch = outW * 3;
+    if (outPitch % sizeof(DWORD))
+        outPitch += sizeof(DWORD) - (outW * 3) % sizeof(DWORD);
+
+    BYTE* dst = new BYTE[outPitch * outH];
+
+    float xScale = (float)srcW / outW;
+    float yScale = (float)srcH / outH;
+
+    for (int dy = 0; dy < outH; ++dy)
+    {
+        float sy = (dy + 0.5f) * yScale - 0.5f;
+        if (sy < 0) sy = 0;
+        if (sy >= srcH - 1) sy = srcH - 1.001f;
+        int y0 = (int)sy;
+        int y1 = std::min(y0 + 1, srcH - 1);
+        float wy = sy - y0;
+
+        const BYTE* srcRow0 = src + y0 * srcPitch;
+        const BYTE* srcRow1 = src + y1 * srcPitch;
+        BYTE* dstRow = dst + dy * outPitch;
+
+        for (int dx = 0; dx < outW; ++dx)
+        {
+            float sx = (dx + 0.5f) * xScale - 0.5f;
+            if (sx < 0) sx = 0;
+            if (sx >= srcW - 1) sx = srcW - 1.001f;
+            int x0 = (int)sx;
+            int x1 = std::min(x0 + 1, srcW - 1);
+            float wx = sx - x0;
+
+            const BYTE* p00 = srcRow0 + x0 * 3;
+            const BYTE* p10 = srcRow0 + x1 * 3;
+            const BYTE* p01 = srcRow1 + x0 * 3;
+            const BYTE* p11 = srcRow1 + x1 * 3;
+
+            for (int c = 0; c < 3; ++c)
+            {
+                float v00 = p00[c], v10 = p10[c], v01 = p01[c], v11 = p11[c];
+                float vTop = v00 * (1.0f - wx) + v10 * wx;
+                float vBottom = v01 * (1.0f - wx) + v11 * wx;
+                dstRow[dx * 3 + c] = (BYTE)(vTop * (1.0f - wy) + vBottom * wy + 0.5f);
+            }
+        }
+    }
+
+    return dst;
 }
 
 static int GetAddedHeight(int tileIndex)
@@ -489,6 +479,7 @@ DEFINE_HOOK(4F3C00, CTileSetBrowserView_OnLButtonDown, 7)
     pThis->GetScrollInfo(SB_VERT, &scrinfo);
     point.y += scrinfo.nPos;
 
+    if (pThis->CurrentImageWidth <= 0) pThis->CurrentImageWidth = 1;
     int max_r = r.right / pThis->CurrentImageWidth;
     if (max_r == 0) max_r = 1;
 
@@ -666,8 +657,7 @@ DEFINE_HOOK(4F2B10, CTileSetBrowserView_SetTileSet, 7)
         for (int i = 0; i < tileCount; i++)
         {
             pThis->TileSurfaces[i] = RenderTile(tileStart + i);
-            if (ExtConfigs::ShrinkTilesInTileSetBrowser)
-                HalveSurface(&pThis->TileSurfaces[i]);
+            CIsoViewExt::ScaleSurface(&pThis->TileSurfaces[i], CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor);
         }
     }
     else
@@ -724,16 +714,13 @@ DEFINE_HOOK(4F2B10, CTileSetBrowserView_SetTileSet, 7)
         for (int i = 0; i < tileCount; i++)
         {
             pThis->TileSurfaces[i] = RenderTile(CMapDataExt::GetCustomTileIndex(dwTileSet, i));
-            if (ExtConfigs::ShrinkTilesInTileSetBrowser)
-                HalveSurface(&pThis->TileSurfaces[i]);
+            CIsoViewExt::ScaleSurface(&pThis->TileSurfaces[i], CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor);
         }
     }
    
-    if (ExtConfigs::ShrinkTilesInTileSetBrowser)
-    {
-        pThis->CurrentImageWidth /= 2;
-        pThis->CurrentImageHeight /= 2;
-    }
+    pThis->CurrentImageWidth *= CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor;
+    pThis->CurrentImageHeight *= CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor;
+    if (pThis->CurrentImageWidth <= 0) pThis->CurrentImageWidth = 1;
 
     RECT r;
     pThis->GetClientRect(&r);
@@ -751,9 +738,17 @@ DEFINE_HOOK(4F2B10, CTileSetBrowserView_SetTileSet, 7)
 DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
 {
     GET(CTileSetBrowserView*, pThis, ECX);
-    GET_STACK(CDC* , pDC, 0x4);
+    GET_STACK(CDC*, pDC, 0x4);
+
+    if (pThis->CurrentImageWidth <= 0) return 0x4F25B0;
 
     CTileSetBrowserFrameExt::TileSetBrowserView_Instance = pThis;
+    RECT r;
+    pThis->GetClientRect(&r);
+    int max_r = r.right / pThis->CurrentImageWidth;
+    int cur_y = 0;
+    int cur_x = 0;
+
     if (pThis->CurrentMode == 1)
     {
         auto pIsoView = CIsoView::GetInstance();
@@ -765,14 +760,6 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
             || CMapDataExt::TileDataCount == 0
             || pThis->CurrentImageWidth == 0)
             return 0x4F25B0;
-
-        RECT r;
-        pThis->GetClientRect(&r);
-
-        int max_r = r.right / pThis->CurrentImageWidth;
-
-        int cur_y = 0;
-        int cur_x = 0;
 
         int tileIndex;
         if (pThis->CurrentTileset < 10000)
@@ -804,11 +791,9 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
                 GetCustomTileSize(tileData, curwidth, curheight);
             }
 
-            if (ExtConfigs::ShrinkTilesInTileSetBrowser)
-            {
-                curwidth /= 2;
-                curheight /= 2;
-            }
+            curwidth *= CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor;
+            curheight *= CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor;
+            
             if (cur_y + curheight + (pThis->CurrentImageHeight - curheight) / 2 
                 >= pThis->GetScrollPos(SB_VERT) && cur_y <= pThis->GetScrollPos(SB_VERT) + r.bottom)
             {
@@ -828,7 +813,6 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
                     cur_x + (pThis->CurrentImageWidth - curwidth) / 2,
                     cur_y + (pThis->CurrentImageHeight - curheight) / 2,
                     curwidth, curheight, hTmpDC, 0, 0, SRCCOPY);
-
 
                 DeleteDC(hTmpDC);
                 DeleteObject(hBitmap);
@@ -863,8 +847,163 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
         }
         return 0x4F25B0;
     }
-    else
-        return 0;
+    else if (pThis->CurrentMode == 2)
+    {       
+        FString ovlIdx;
+        ovlIdx.Format("%d", pThis->SelectedOverlayIndex);
+        int nDisplayLimit = Variables::RulesMap.GetInteger(
+            Variables::RulesMap.GetValueAt("OverlayTypes", pThis->SelectedOverlayIndex),
+            "OverlayDisplayLimit", ExtConfigs::OverlayDataLimit);
+        nDisplayLimit = CINI::FAData->GetInteger("OverlayDisplayLimit", ovlIdx, nDisplayLimit);
+        if (nDisplayLimit > ExtConfigs::OverlayDataLimit)
+            nDisplayLimit = ExtConfigs::OverlayDataLimit;
+
+        float scaleFactor = CTileSetBrowserFrameExt::OverlayBrowserViewScaledFactor;
+		for (int i = 0;i < nDisplayLimit; ++i)
+		{
+            auto imageName = CLoadingExt::GetOverlayName(pThis->SelectedOverlayIndex, i);
+            auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+			if (ImageDataClassSafe::IsValidImage(pData))
+			{
+				int curwidth = pData->FullWidth;
+				int curheight = pData->FullHeight;
+
+                // Compute scaled size for visibility culling (before heavy work)
+                int testW = std::max(1, (int)std::lround(curwidth * scaleFactor));
+                int testH = std::max(1, (int)std::lround(curheight * scaleFactor));
+            
+                if (cur_y + testH + (pThis->CurrentImageHeight - testH) / 2
+                    >= pThis->GetScrollPos(SB_VERT) && cur_y <= pThis->GetScrollPos(SB_VERT) + r.bottom)
+                {
+                    BITMAPINFO biinfo;
+                    memset(&biinfo, 0, sizeof(BITMAPINFO));
+                    biinfo.bmiHeader.biBitCount = 24;
+                    biinfo.bmiHeader.biWidth = curwidth;
+                    biinfo.bmiHeader.biHeight = curheight;
+                    biinfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+                    biinfo.bmiHeader.biClrUsed = 0;
+                    biinfo.bmiHeader.biPlanes = 1;
+                    biinfo.bmiHeader.biCompression = BI_RGB;
+                    biinfo.bmiHeader.biClrImportant = 0;
+
+                    int pitch = curwidth * 3;
+                    if (pitch == 0)
+                        goto advance_cursor;
+
+                    if (pitch % sizeof(DWORD))
+                    {
+                        pitch += sizeof(DWORD) - (curwidth * 3) % sizeof(DWORD);
+                    }
+
+                    BYTE* colors = new(BYTE[pitch * curheight]);
+                    memset(colors, ExtConfigs::EnableDarkMode ? 32 : 255, pitch * (curheight));
+
+                    BGRStruct empty;
+                    auto pPalette = PalettesManager::GetTileSetBrowserViewPalette(
+                        pData->pPalette, empty, false, {}, CMapDataExt::IsOre(pThis->SelectedOverlayIndex));
+
+                    if (pData->pPixelValidRanges)
+                    {
+                        int k;
+                        for (k = 0; k < curheight; k++)
+                        {
+                            short first = pData->pPixelValidRanges[k].First;
+                            short last = pData->pPixelValidRanges[k].Last;
+                            if (first >= last)
+                                continue; 
+
+                            BYTE* rowDst = colors + (curheight - k - 1) * pitch;
+                            const unsigned char* rowSrc = pData->pImageBuffer.get() + k * curwidth;
+
+                            for (int l = first; l < last; l++)
+                            {
+                                auto src = rowSrc[l];
+                                if (src)
+                                {
+                                    memcpy(&rowDst[l * 3], &(*pPalette)[src], 3);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        int k, l;
+                        for (k = 0; k < curheight; k++)
+                        {
+                            for (l = 0; l < curwidth; l++)
+                            {
+                                auto src = pData->pImageBuffer[l + k * curwidth];
+                                if (src)
+                                {
+                                    memcpy(&colors[l * 3 + (curheight - k - 1) * pitch], &(*pPalette)[src], 3);
+                                }
+                            }
+                        }
+                    }
+
+                    int scaledW, scaledH;
+                    LONG scaledPitch;
+                    BYTE* scaledColors = ScaleBGRBuffer(colors, curwidth, curheight, pitch,
+                        scaleFactor, scaledW, scaledH, scaledPitch);
+
+                    if (scaledColors)
+                    {
+                        delete[] colors;
+                        colors = scaledColors;
+                        curwidth = scaledW;
+                        curheight = scaledH;
+                        pitch = scaledPitch;
+
+                        biinfo.bmiHeader.biWidth = curwidth;
+                        biinfo.bmiHeader.biHeight = curheight;
+                    }
+
+                    StretchDIBits(pDC->GetSafeHdc(), 
+                        cur_x + (pThis->CurrentImageWidth - curwidth) / 2,
+                        cur_y + (pThis->CurrentImageHeight - curheight) / 2, 
+                        curwidth, curheight,
+                        0, 0, curwidth, curheight, colors, &biinfo, DIB_RGB_COLORS, SRCCOPY);
+
+                    delete[] colors;
+
+                    if (CIsoView::CurrentCommand->Command == 1 
+                        && CIsoView::CurrentCommand->Overlay == pThis->SelectedOverlayIndex
+                        && CIsoView::CurrentCommand->OverlayData == i 
+                        && CIsoView::CurrentCommand->Param == 33 
+                        && CIsoView::CurrentCommand->Type == 6)
+                    {
+                        CPen p;
+                        CBrush b;
+                        p.CreatePen(PS_SOLID, 1, RGB(255, 0, 0));
+                        b.CreateStockObject(NULL_BRUSH);
+
+                        CPen* old = pDC->SelectObject(&p);
+
+                        pDC->SetBkMode(TRANSPARENT);
+                        pDC->SelectObject(&b);
+                        pDC->Rectangle(cur_x + 2, cur_y + 2, 
+                            cur_x + pThis->CurrentImageWidth - 2,
+                             cur_y + pThis->CurrentImageHeight - 2);
+
+                        pDC->SelectObject(old);
+                    }
+                }
+
+                advance_cursor:
+				cur_x += pThis->CurrentImageWidth;
+				if (max_r == 0)
+					max_r = 1;
+				if (i % max_r == max_r - 1)
+				{
+					cur_y += pThis->CurrentImageHeight;
+					cur_x = 0;
+				}
+			}
+		}
+
+        return 0x4F25B0;
+    }
+    return 0x4F25B0;
 }
 
 DEFINE_HOOK(4F4650, CTileSetBrowserView_GetAddedHeight, 9)
@@ -1051,26 +1190,19 @@ DEFINE_HOOK(4F128A, CTileSetBrowserView_Update_AddCustomTiles, 5)
     return 0;
 }
 
-DEFINE_HOOK(4F2230, CTileSetBrowserView_OnDraw_LoadOverlayImage, 6)
-{
-    GET(CTileSetBrowserView*, pThis, ESI);
-    GET(const int, i, ECX);
-
-    auto imageName = CLoadingExt::GetOverlayName(pThis->SelectedOverlayIndex, i);
-    auto pData = CLoadingExt::GetImageDataFromMap(imageName);
-    if (setCurrentOverlay(pData))
-        R->EAX(&CurrentOverlay);
-    else
-        R->EAX(0);
-
-    return 0x4F2243;
-}
-
 DEFINE_HOOK(4F4774, CTileSetBrowserView_SetOverlay_LoadOverlayImage, 5)
 {
     GET(CTileSetBrowserView*, pThis, ESI);
     GET(int, Overlay, EBX);
-    const int max_ovrl_img = ExtConfigs::OverlayDataLimit;
+
+    FString ovlIdx;
+    ovlIdx.Format("%d", pThis->SelectedOverlayIndex);
+    int max_ovrl_img = Variables::RulesMap.GetInteger(
+        Variables::RulesMap.GetValueAt("OverlayTypes", pThis->SelectedOverlayIndex),
+        "OverlayDisplayLimit", ExtConfigs::OverlayDataLimit);
+    max_ovrl_img = CINI::FAData->GetInteger("OverlayDisplayLimit", ovlIdx, max_ovrl_img);
+    if (max_ovrl_img > ExtConfigs::OverlayDataLimit)
+        max_ovrl_img = ExtConfigs::OverlayDataLimit;
 
     int need_pos = -1;
     int need_width = 0;
@@ -1088,74 +1220,24 @@ DEFINE_HOOK(4F4774, CTileSetBrowserView_SetOverlay_LoadOverlayImage, 5)
         {
             auto imageName = CLoadingExt::GetOverlayName(Overlay, i);
             auto pData = CLoadingExt::GetImageDataFromMap(imageName);
-            if (pData && pData->pImageBuffer)
-            {
-                iovrlcount++;
-            }
-        }
-        for (int i = 0; i < max_ovrl_img; i++)
-        {
-            auto imageName = CLoadingExt::GetOverlayName(Overlay, i);
-            auto pData = CLoadingExt::GetImageDataFromMap(imageName);
-            if (pData && pData->pImageBuffer)
+            if (ImageDataClassSafe::IsValidImage(pData))
             {
                 need_pos = i;
-                need_width = pData->FullWidth;
-                need_height = pData->FullHeight;
-                break;
+                iovrlcount++;
+                need_width = std::max(need_width, (int)(pData->FullWidth * CTileSetBrowserFrameExt::OverlayBrowserViewScaledFactor));
+                need_height = std::max(need_height, (int)(pData->FullHeight * CTileSetBrowserFrameExt::OverlayBrowserViewScaledFactor));
             }
         }
     }
-    
+    need_width += 6;
+    need_height += 6;
+
     R->ECX(need_pos);
     R->EDI(need_width);
     R->EBP(need_height);
     R->Stack(STACK_OFFS(0x90, 0x80), iovrlcount);
 
     return 0x4F48D0;
-}
-
-DEFINE_HOOK(4F258B, CTileSetBrowserView_OnDraw_SetOverlayFrameToDisplay, 7)
-{
-    GET(CTileSetBrowserView*, pThis, ESI);
-    GET(const int, i, ECX);
-
-    FString ovlIdx;
-    ovlIdx.Format("%d", pThis->SelectedOverlayIndex);
-    int nDisplayLimit = Variables::RulesMap.GetInteger(
-        Variables::RulesMap.GetValueAt("OverlayTypes", pThis->SelectedOverlayIndex),
-        "OverlayDisplayLimit", ExtConfigs::OverlayDataLimit);
-    nDisplayLimit = CINI::FAData->GetInteger("OverlayDisplayLimit", ovlIdx, nDisplayLimit);
-    if (nDisplayLimit > ExtConfigs::OverlayDataLimit)
-        nDisplayLimit = ExtConfigs::OverlayDataLimit;
-
-    R->Stack(STACK_OFFS(0xDC, 0xB8), i);
-    return i < nDisplayLimit ? 0x4F2230 : 0x4F2598;
-}
-
-DEFINE_HOOK(4F22F7, CTileSetBrowserView_OnDraw_OverlayPalette, 5)
-{
-    GET(Palette*, pPalette, EAX);
-    GET_STACK(RGBTRIPLE*, pBytePalette, STACK_OFFS(0xDC, 0xBC));
-
-    for (int i = 0; i < 256; i++)
-    {
-        RGBTRIPLE ret;
-        ret.rgbtBlue = pPalette->Data[i].B;
-        ret.rgbtGreen = pPalette->Data[i].G;
-        ret.rgbtRed = pPalette->Data[i].R;
-        pBytePalette[i] = ret;
-    }
-
-    return 0x4F2315;
-}
-
-DEFINE_HOOK(4F22D6, CTileSetBrowserView_OnDraw_OverlayBackground, 6)
-{
-    //  32 : 255
-    R->EAX(ExtConfigs::EnableDarkMode ? 0x20202020 : 0xFFFFFFFF);
-    R->ECX(R->ECX() >> 2);
-    return 0x4F22DC;
 }
 
 DEFINE_HOOK(4F12C0, CTileSetBrowserView_Update_LoadOverlay, 5)

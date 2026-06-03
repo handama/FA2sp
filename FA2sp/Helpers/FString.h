@@ -175,6 +175,27 @@ public:
         return pos == npos ? -1 : static_cast<int>(pos);
     }
 
+    int ReverseFind(const FString& str, size_t nStart = npos) const {
+        if (str.empty() || length() == 0) return -1;
+    
+        size_t pos = std::string::rfind(str, nStart);
+        return pos == npos ? -1 : static_cast<int>(pos);
+    }
+    
+    int ReverseFind(const char* s, size_t nStart = npos) const {
+        if (!s || length() == 0) return -1;
+    
+        size_t pos = std::string::rfind(s, nStart);
+        return pos == npos ? -1 : static_cast<int>(pos);
+    }
+    
+    int ReverseFind(char ch, size_t nStart = npos) const {
+        if (length() == 0) return -1;
+    
+        size_t pos = std::string::rfind(ch, nStart);
+        return pos == npos ? -1 : static_cast<int>(pos);
+    }
+
     FString& MakeUpper() { std::transform(begin(), end(), begin(), [](unsigned char c) { return std::toupper(c); }); return *this; }
     FString& MakeLower() { std::transform(begin(), end(), begin(), [](unsigned char c) { return std::tolower(c); }); return *this; }
 

@@ -330,6 +330,10 @@ DEFINE_HOOK(460DA0, CIsoView_OnLButtonDblClk_FixPos, 8)
 
 DEFINE_HOOK(456CED, CIsoView_UpdateDialog, 9)
 {
+	if (CLoadingExt::ObjectsNeedReloaded)
+	{	
+		CMapDataExt::RefreshAllWindows();
+	}
 	CIsoViewExt::MoveToMapCoord(CMapData::Instance->MapWidthPlusHeight / 2, CMapData::Instance->MapWidthPlusHeight / 2);
 	return 0x456D53;
 }

@@ -6,6 +6,7 @@
 #include <CFinalSunDlg.h>
 #include <CIsoView.h>
 #include "../CIsoView/Body.h"
+#include "../CFinalSunApp/Body.h"
 #include "../../Helpers/STDHelpers.h"
 constexpr float kFactor = 0.7f;
 constexpr BYTE MakeValue(int i) {

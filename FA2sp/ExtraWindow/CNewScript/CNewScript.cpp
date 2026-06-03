@@ -300,8 +300,8 @@ LRESULT CALLBACK CNewScript::DragDotProc(HWND hWnd, UINT message, WPARAM wParam,
                 "STATIC",
                 nullptr,
                 WS_POPUP,
-                pt.x - 6, pt.y - 6,
-                12, 12,
+                pt.x - 6 * CFinalSunAppExt::ProgramScaleFactor, pt.y - 6 * CFinalSunAppExt::ProgramScaleFactor,
+                12 * CFinalSunAppExt::ProgramScaleFactor, 12 * CFinalSunAppExt::ProgramScaleFactor,
                 nullptr, nullptr,
                 static_cast<HINSTANCE>(FA2sp::hInstance),
                 nullptr
@@ -1026,6 +1026,8 @@ void CNewScript::OnClickNewScript()
     ExtraWindow::SortTeams(vcbSelectedScript, "ScriptTypes", SelectedScriptIndex, value);
 
     OnSelchangeScript();
+    
+    ScriptSort::Instance.AddTrigger(value);
 }
 
 void CNewScript::OnClickDelScript(HWND& hWnd)
@@ -1062,6 +1064,8 @@ void CNewScript::OnClickDelScript(HWND& hWnd)
         idx = 0;
     SendMessage(hSelectedScript, CB_SETCURSEL, idx, NULL);
     OnSelchangeScript();
+    if (ScriptSort::Instance.IsVisible())
+        ScriptSort::Instance.LoadAllTriggers();
 }
 
 void CNewScript::OnClickCloScript(HWND& hWnd)
@@ -1099,6 +1103,7 @@ void CNewScript::OnClickCloScript(HWND& hWnd)
         ExtraWindow::SortTeams(vcbSelectedScript, "ScriptTypes", SelectedScriptIndex, value);
 
         OnSelchangeScript();
+        ScriptSort::Instance.AddTrigger(value);
     }
 }
 

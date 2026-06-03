@@ -359,6 +359,8 @@ public:
     void SetDropWidthMode(DropWidthMode mode);
 
     void SortItems(int* pSelIndex = nullptr);
+    
+    static int m_itemHeight;
 
 private:
     HWND hCombo = nullptr;

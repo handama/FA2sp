@@ -5,6 +5,7 @@
 #include <psapi.h>
 #include "../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
 #include "../Helpers/Translations.h"
+#include "../Ext/CFinalSunApp/Body.h"
 
 HBRUSH DarkTheme::g_hDarkBackgroundBrush = NULL;
 HBRUSH DarkTheme::g_hDarkControlBrush = NULL;
@@ -41,6 +42,36 @@ DEFINE_HOOK(50E220, CFinalSunDlg_SelectMainExecutive, 7)
 {
     DarkTheme::b_isSelectingGameFolder = true;
     return 0;
+}
+
+
+int DarkTheme::ScalePixels(int basePixels)
+{
+    int scaled = (int)(basePixels * CFinalSunAppExt::ProgramScaleFactor + 0.5f);
+    return (scaled < 1) ? 1 : scaled;
+}
+
+int DarkTheme::GetScaledGlyphSize()
+{
+    int targetSize = ScalePixels(16);
+    const int available[] = { 16, 24, 32, 48 };
+    for (int s : available)
+        if (s >= targetSize)
+            return s;
+    return 48;
+}
+
+int DarkTheme::GetBitmapResourceForSize(int baseResID, int glyphSize)
+{
+    int sizeIndex;
+    switch (glyphSize)
+    {
+        case 24: sizeIndex = 1; break;
+        case 32: sizeIndex = 2; break;
+        case 48: sizeIndex = 3; break;
+        default: sizeIndex = 0; break;
+    }
+    return baseResID + sizeIndex * 10;
 }
 
 void DarkTheme::InitDarkThemeBrushes()
@@ -435,16 +466,16 @@ LRESULT CALLBACK DarkTheme::HeaderSubclassProc(
                 FillRect(hdc, &colRect, g_hHighlightBrush);
 
                 HPEN hOldPen = (HPEN)SelectObject(hdc, g_hBorderPen);
-                MoveToEx(hdc, colRect.right - 1, colRect.top, NULL);
-                LineTo(hdc, colRect.right - 1, colRect.bottom);
+                MoveToEx(hdc, colRect.right - ScalePixels(1), colRect.top, NULL);
+                LineTo(hdc, colRect.right - ScalePixels(1), colRect.bottom);
                 SelectObject(hdc, hOldPen);
 
                 SetTextColor(hdc, DarkColors::LightText);
                 SetBkMode(hdc, TRANSPARENT);
 
                 RECT textRect = colRect;
-                textRect.left += 5;
-                textRect.right -= 5;
+                textRect.left += ScalePixels(5);
+                textRect.right -= ScalePixels(5);
 
                 UINT format = DT_VCENTER | DT_SINGLELINE;
                 if (hdi.fmt & HDF_CENTER)
@@ -682,14 +713,18 @@ LRESULT DarkTheme::HandleMenuMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
             SetTextColor(hdc, textColor);
             SetBkMode(hdc, TRANSPARENT);
 
+            int menuGlyphSize = GetScaledGlyphSize();
+
             if (pInfo->bChecked)
             {
                 RECT checkRc = rc;
-                checkRc.right = checkRc.left + 20;
-                checkRc.top += (rc.bottom - rc.top - 16) / 2;
-                checkRc.bottom = checkRc.top + 16;
+                checkRc.right = checkRc.left + menuGlyphSize + ScalePixels(4);
+                checkRc.top += (rc.bottom - rc.top - menuGlyphSize) / 2;
+                checkRc.bottom = checkRc.top + menuGlyphSize;
+                int menuBaseID = pInfo->bRadioCheck ? 1029 : 1028;
+                int menuResID = GetBitmapResourceForSize(menuBaseID, menuGlyphSize);
                 HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), 
-                    MAKEINTRESOURCE(pInfo->bRadioCheck ? 1029 : 1028),
+                    MAKEINTRESOURCE(menuResID),
                     IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
                 if (hBmp)
                 {
@@ -699,7 +734,7 @@ LRESULT DarkTheme::HandleMenuMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
                     BITMAP bm;
                     GetObject(hBmp, sizeof(bm), &bm);
 
-                    int x = rc.left + 3;
+                    int x = rc.left + ScalePixels(3);
                     int y = rc.top + (rc.bottom - rc.top - bm.bmHeight) / 2;
 
                     TransparentBlt(hdc, x, y, bm.bmWidth, bm.bmHeight,
@@ -720,7 +755,7 @@ LRESULT DarkTheme::HandleMenuMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
             }
 
             RECT textRc = rc;
-            textRc.left += 24;
+            textRc.left += menuGlyphSize + ScalePixels(8);
 
             DrawTextW(hdc, leftText.c_str(), -1, &textRc,
                 DT_LEFT | DT_VCENTER | DT_SINGLELINE);
@@ -728,7 +763,7 @@ LRESULT DarkTheme::HandleMenuMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
             if (!rightText.empty())
             {
                 RECT accelRc = rc;
-                accelRc.right -= 10;
+                accelRc.right -= ScalePixels(10);
                 DrawTextW(hdc, rightText.c_str(), -1, &accelRc,
                     DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
             }
@@ -841,7 +876,7 @@ LRESULT CALLBACK DarkTheme::MenuOverlayProc(HWND hWnd, UINT uMsg, WPARAM wParam,
 
         FillRect(hdcMem, &rc, g_hDarkBackgroundBrush);
         RECT rcBottom = rc;
-        rcBottom.top = rcBottom.bottom - 2;
+        rcBottom.top = rcBottom.bottom - ScalePixels(2);
         FillRect(hdcMem, &rcBottom, g_hDarkInfoBkBrush);
 
         DrawMenuItems(hdcMem, rc);
@@ -961,13 +996,13 @@ void DarkTheme::DrawComboBoxArrow(HDC hdc, RECT rc, bool enabled)
 
     FillRect(hdc, &arrowRc, enabled ? g_hHighlightBrush : g_hDarkMenuBrush);
 
-    HPEN hPen = CreatePen(PS_SOLID, 1, enabled ? DarkColors::RadioFill : DarkColors::DisabledText);
+    HPEN hPen = CreatePen(PS_SOLID, ScalePixels(1), enabled ? DarkColors::RadioFill : DarkColors::DisabledText);
     HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
 
     int centerX = arrowRc.left + (arrowRc.right - arrowRc.left) / 2;
     int centerY = arrowRc.top + (arrowRc.bottom - arrowRc.top) / 2;
 
-    int arrowSize = 4;
+    int arrowSize = ScalePixels(4);
     for (int i = 0; i < arrowSize; i++)
     {
         MoveToEx(hdc, centerX - i, centerY + arrowSize / 2 - i, NULL);
@@ -1007,7 +1042,7 @@ LRESULT CALLBACK DarkTheme::ComboBoxSubclassProcA(HWND hWnd, UINT uMsg, WPARAM w
 
                 RECT rcText = rc;
                 rcText.right -= GetSystemMetrics(SM_CXVSCROLL);
-                rcText.left += 5;
+                rcText.left += ScalePixels(5);
 
                 SetBkMode(hdc, TRANSPARENT);
                 SetTextColor(hdc, IsWindowEnabled(hWnd) ? DarkColors::LightText : DarkColors::DisabledText);
@@ -1119,7 +1154,7 @@ LRESULT CALLBACK DarkTheme::EditSubclassProc(
         GetWindowRect(hWnd, &rcWindow);
         OffsetRect(&rcWindow, -rcWindow.left, -rcWindow.top);
 
-        int nCover = 3;
+        int nCover = ScalePixels(3);
 
         HPEN hOldPen = (HPEN)SelectObject(hdc, g_hBackGroundPen);
 
@@ -1217,7 +1252,7 @@ LRESULT CALLBACK DarkTheme::StaticSubclassProc(
         GetWindowRect(hWnd, &rcWindow);
         OffsetRect(&rcWindow, -rcWindow.left, -rcWindow.top);
 
-        int nCover = 3;
+        int nCover = ScalePixels(3);
 
         HPEN hOldPen = (HPEN)SelectObject(hdc, g_hBackGroundPen);
 
@@ -1282,7 +1317,7 @@ void DarkTheme::DrawCheckMark(HDC hdc, RECT rc)
     HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, g_hCheckFillBrush);
     HPEN hOldPen = (HPEN)SelectObject(hdc, GetStockObject(NULL_PEN));
 
-    RoundRect(hdc, fillRc.left, fillRc.top, fillRc.right + 1, fillRc.bottom + 1, 4, 4);
+    RoundRect(hdc, fillRc.left, fillRc.top, fillRc.right + 1, fillRc.bottom + 1, ScalePixels(4), ScalePixels(4));
 
     SelectObject(hdc, hOldBrush);
     SelectObject(hdc, hOldPen);
@@ -1469,27 +1504,36 @@ LRESULT CALLBACK DarkTheme::DarkButtonSubclassProc(HWND hwnd, UINT uMsg, WPARAM 
 
         int checked = (int)SendMessage(hwnd, BM_GETCHECK, 0, 0);
 
-        const int kGlyphSize = 12;
-        RECT glyphRc = { 2, (h - kGlyphSize) / 2, 2 + kGlyphSize, (h - kGlyphSize) / 2 + kGlyphSize };
+        // Checkbox uses vector drawing (12px base), radio uses bitmap (16px base ¡ú staircase)
+        int glyphSize = ScalePixels(12);
+        RECT glyphRc = { 0, 0, 0, 0 };
 
         if (isCheckbox)
         {
+            glyphSize = ScalePixels(12);
+            glyphRc = { ScalePixels(2), (h - glyphSize) / 2, ScalePixels(2) + glyphSize, (h - glyphSize) / 2 + glyphSize };
+
             HPEN hOldPen = (HPEN)SelectObject(hdcMem, (state && state->hover) ? g_hHoverBorderPen : g_hCheckBorderPen);
             HBRUSH hOldBrush = (HBRUSH)SelectObject(hdcMem, GetStockObject(NULL_BRUSH));
 
             if (checked == BST_CHECKED)
                 DrawCheckMark(hdcMem, glyphRc);
 
-            RoundRect(hdcMem, glyphRc.left, glyphRc.top, glyphRc.right, glyphRc.bottom, 4, 4);
+            RoundRect(hdcMem, glyphRc.left, glyphRc.top, glyphRc.right, glyphRc.bottom, ScalePixels(4), ScalePixels(4));
 
             SelectObject(hdcMem, hOldBrush);
             SelectObject(hdcMem, hOldPen);
         }
         else if (isRadio)
         {
+            glyphSize = GetScaledGlyphSize();
+            glyphRc = { ScalePixels(2), (h - glyphSize) / 2, ScalePixels(2) + glyphSize, (h - glyphSize) / 2 + glyphSize };
+
+            int radioBaseID = checked == BST_CHECKED ? 
+                ((state && state->hover) ? 1031 : 1029) : ((state && state->hover) ? 1032 : 1030);
+            int radioResID = GetBitmapResourceForSize(radioBaseID, glyphSize);
             HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance),
-                MAKEINTRESOURCE(checked == BST_CHECKED ? 
-                    ((state && state->hover) ? 1031 : 1029): ((state && state->hover) ? 1032 : 1030)),
+                MAKEINTRESOURCE(radioResID),
                 IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
             if (hBmp)
             {
@@ -1501,7 +1545,7 @@ LRESULT CALLBACK DarkTheme::DarkButtonSubclassProc(HWND hwnd, UINT uMsg, WPARAM 
 
                 TransparentBlt(
                     hdcMem,  
-                    glyphRc.left - 2, glyphRc.top - 2,
+                    glyphRc.left, glyphRc.top,
                     bm.bmWidth, bm.bmHeight,
                     hBmpDC, 0, 0, bm.bmWidth, bm.bmHeight,
                     DarkColors::Background);
@@ -1512,7 +1556,7 @@ LRESULT CALLBACK DarkTheme::DarkButtonSubclassProc(HWND hwnd, UINT uMsg, WPARAM 
             }
         }
 
-        RECT textRc = { glyphRc.right + 3, 0, w - 3, h };
+        RECT textRc = { glyphRc.right + ScalePixels(3), 0, w - ScalePixels(3), h };
         SetBkMode(hdcMem, TRANSPARENT);
         SetTextColor(hdcMem, enabled ? DarkColors::TextColor : DarkColors::DisabledTextColor);
         HFONT hFont = (HFONT)GetModernDefaultGUIFont();
@@ -1581,16 +1625,16 @@ LRESULT CALLBACK DarkTheme::DarkGroupBoxclassProc(HWND hwnd, UINT uMsg, WPARAM w
 
         DrawTextW(hdc, textBuf, -1, &textRc, DT_CALCRECT | DT_SINGLELINE);
         int textHeight = textRc.bottom - textRc.top;
-        textRc.left += 8;
-        textRc.right += 8;
+        textRc.left += ScalePixels(8);
+        textRc.right += ScalePixels(8);
 
         HPEN hOldPen = (HPEN)SelectObject(hdc, g_hGroupBoxBorderPen);
         HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
 
         int y = textHeight / 2;
         MoveToEx(hdc, 0, y, NULL);
-        LineTo(hdc, textRc.left - 2, y);
-        MoveToEx(hdc, textRc.right + 2, y, NULL);
+        LineTo(hdc, textRc.left - ScalePixels(2), y);
+        MoveToEx(hdc, textRc.right + ScalePixels(2), y, NULL);
         LineTo(hdc, rcClient.right, y);
         LineTo(hdc, rcClient.right, rcClient.bottom);
         LineTo(hdc, 0, rcClient.bottom);
@@ -1643,8 +1687,8 @@ LRESULT CALLBACK DarkTheme::DarkStatusBarProc(HWND hwnd, UINT uMsg, WPARAM wPara
             if (i < partCount - 1)
             {
                 HPEN hOldPen = (HPEN)SelectObject(hdc, g_hBorderPen);
-                MoveToEx(hdc, rcPart.right - 1, rcPart.top + 2, NULL);
-                LineTo(hdc, rcPart.right - 1, rcPart.bottom - 2);
+                MoveToEx(hdc, rcPart.right - ScalePixels(1), rcPart.top + ScalePixels(2), NULL);
+                LineTo(hdc, rcPart.right - ScalePixels(1), rcPart.bottom - ScalePixels(2));
                 SelectObject(hdc, hOldPen);
             }
 

@@ -11,6 +11,7 @@
 #include <map>
 #include "Body.h"
 #include "..\FA2sp\Helpers\FString.h"
+#include <glad/glad.h>
 
 struct ColorMults;
 class CTileBlockClass;
@@ -151,6 +152,7 @@ struct TextureResource
     ImageDataView sourceView;
     Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
+    GLuint glTexture = 0; // OpenGL texture handle
     bool bIsIndexTexture = false;
 };
 
@@ -242,6 +244,9 @@ public:
                       bool bScreenSpace = false, bool bAlwaysOnTop = false);
 
     std::vector<DrawCommand> &GetDrawCommandList() { return m_drawCommands; }
+
+    // OpenGL backend query
+    bool IsUsingOpenGL() const { return m_bUseOpenGL; }
 
 private:
     bool CreateDeviceAndSwapChain(HWND hwnd);
@@ -386,10 +391,92 @@ private:
     void SetDSStateTracked(ID3D11DepthStencilState *pDS, UINT stencilRef);
     void FlushInstanceBatch(const std::vector<const DrawCommand *> &batch);
 
+    // ====================================================================
+    // OpenGL 3.3 backend members
+    // ====================================================================
+    bool m_bUseOpenGL = false;
+    HGLRC m_hGLRC = nullptr;
+    HDC m_hGLDC = nullptr;
+
+    // --- GL Shader Programs ---
+    GLuint m_glProgMain = 0;         // Main VS+PS (texture drawing)
+    GLuint m_glProgInstanced = 0;    // Instanced VS + Main PS
+    GLuint m_glProgEffect = 0;       // Index texture ¡ú factor
+    GLuint m_glProgComposite = 0;    // screen ¡Á factor composite
+    GLuint m_glProgFinal = 0;        // Offscreen ¡ú backbuffer blit
+    GLuint m_glProgLine = 0;         // GPU line rendering
+    GLuint m_glProgAlphaAccum = 0;   // MRT alpha accumulation (instanced VS)
+    GLuint m_glProgAlphaAccumNI = 0; // MRT alpha accumulation (non-instanced MainVS)
+    GLuint m_glProgLineMod = 0;      // Line + alpha attenuation
+    GLuint m_glProgShadowDarken = 0; // Fullscreen shadow darkening
+
+    // --- GL VAOs ---
+    GLuint m_glVAOQuad = 0;       // Unit quad (for texture draw)
+    GLuint m_glVAOFullscreen = 0; // Fullscreen quad (NDC [-1,1])
+    GLuint m_glVAOLine = 0;       // Line vertex array
+
+    // --- GL VBOs ---
+    GLuint m_glVBOQuad = 0;
+    GLuint m_glVBOFullscreen = 0;
+    GLuint m_glVBOInstance = 0; // Per-instance data
+    GLuint m_glVBOLine = 0;
+    int m_glInstanceVBCapacity = 0;
+    int m_glLineVBCapacity = 0;
+
+    // --- GL Framebuffers ---
+    GLuint m_glFBOOffscreen = 0;    // Main offscreen FBO
+    GLuint m_glTexOffscreen = 0;    // Color attachment
+    GLuint m_glRBODepthStencil = 0; // Depth24+Stencil8
+    GLuint m_glFBOFactor = 0;       // Factor accumulation FBO
+    GLuint m_glTexFactor = 0;
+    GLuint m_glTexScreenCopy = 0; // Screen copy texture
+    GLuint m_glFBOAlphaAccum = 0; // MRT alpha FBO (shares offscreen color)
+    GLuint m_glTexAlphaAccum = 0;
+
+    // --- GL Samplers (texture parameter objects not needed; we set params per-texture) ---
+
+    // --- GL State Tracking ---
+    GLuint m_glTrackedProgram = 0;
+    GLuint m_glTrackedTexture = 0;  // active texture unit 0
+    GLuint m_glTrackedTexture1 = 0; // active texture unit 1
+    GLuint m_glTrackedVAO = 0;
+    GLuint m_glTrackedFBO = 0;
+    GLboolean m_glTrackedDepthTest = GL_FALSE;
+    GLboolean m_glTrackedStencilTest = GL_FALSE;
+    GLboolean m_glTrackedBlend = GL_FALSE;
+
+    // --- GL-specific private methods ---
+    bool GL_Init(HWND hwnd);
+    void GL_Cleanup();
+    void GL_OnResize();
+    bool GL_CreateShaders();
+    bool GL_CompileAndLinkProgram(const char *vsSrc, const char *psSrc, GLuint *outProgram);
+    bool GL_CreateQuadGeometry();
+    bool GL_CreateOffscreenResources();
+    void GL_EnsureFactorTexture();
+    void GL_EnsureScreenCopyTexture();
+    void GL_EnsureAlphaAccumTexture();
+    void GL_CopyScreenToTexture();
+    void GL_DrawFullscreenQuad();
+    void GL_RenderOffscreenContent();
+    void GL_RenderFinalToBackBuffer();
+    void GL_RenderScreenSpaceContent();
+    void GL_DarkenOffscreen(float brightness);
+    void GL_FlushLineBatch(bool bScreenSpace, GLuint overrideProgram = 0, bool bOverlay = false);
+
 public:
+    // GL upload helpers (used by DrawShapes / TextRenderer)
+    void GL_UploadTextureRGBA8(TextureResource *res, int w, int h, const uint32_t *pixels, bool flipY);
+    void GL_UploadTextureR8(TextureResource *res, int w, int h, const uint8_t *pixels, bool flipY);
+    void GL_UploadTextureDynamic(TextureResource *res, int w, int h, const uint32_t *pixels);
+
     ID3D11Device *GetDevice() { return m_pDevice.Get(); }
     ID3D11DeviceContext *GetContext() { return m_pContext.Get(); }
     ID3D11Texture2D *GetOffscreenTexture() const { return m_OffscreenTex.Get(); }
+    // GL resource accessors (for DrawShapes/TextRenderer texture upload)
+    GLuint GetGLOffscreenTex() const { return m_glTexOffscreen; }
+    GLuint GetGLOffscreenFBO() const { return m_glFBOOffscreen; }
+    GLuint GetGLScreenCopyTex() const { return m_glTexScreenCopy; }
 };
 
 struct ShapeColor

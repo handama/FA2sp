@@ -29,14 +29,14 @@ static ULONG_PTR ulCookie;
 HANDLE FA2sp::hInstance;
 std::string FA2sp::STDBuffer;
 ppmfc::CString FA2sp::Buffer;
-void* FA2sp::pExceptionHandler = nullptr;
+void *FA2sp::pExceptionHandler = nullptr;
 bool FA2sp::g_VEH_Enabled = true;
 WindowsOSInfo FA2sp::WinInfo = {};
 
 bool ExtConfigs::IsQuitingProgram = false;
 bool ExtConfigs::BrowserRedraw;
-int	 ExtConfigs::ObjectBrowser_GuessMode;
-int	 ExtConfigs::ObjectBrowser_GuessMax;
+int ExtConfigs::ObjectBrowser_GuessMode;
+int ExtConfigs::ObjectBrowser_GuessMax;
 bool ExtConfigs::ObjectBrowser_CleanUp;
 bool ExtConfigs::ObjectBrowser_SafeHouses;
 bool ExtConfigs::ObjectBrowser_Foundation;
@@ -109,8 +109,8 @@ int ExtConfigs::SaveMap_AutoSave_Interval_Real;
 int ExtConfigs::SaveMap_AutoSave_MaxCount;
 bool ExtConfigs::SaveMap_OnlySaveMAP;
 bool ExtConfigs::SaveMap_KeepComments;
-//bool ExtConfigs::SaveMap_MultiPlayOnlySaveYRM;
-//bool ExtConfigs::SaveMap_SinglePlayOnlySaveMAP;
+// bool ExtConfigs::SaveMap_MultiPlayOnlySaveYRM;
+// bool ExtConfigs::SaveMap_SinglePlayOnlySaveMAP;
 int ExtConfigs::SaveMap_DefaultPreviewOptionMP;
 int ExtConfigs::SaveMap_DefaultPreviewOptionSP;
 bool ExtConfigs::SaveMap_FileEncodingComment;
@@ -205,6 +205,8 @@ bool ExtConfigs::DDrawScalingBilinear;
 bool ExtConfigs::DDrawScalingBilinear_OnlyShrink;
 bool ExtConfigs::DirectXRendering;
 bool ExtConfigs::DirectXRendering_INI;
+bool ExtConfigs::OpenGLRendering;
+bool ExtConfigs::OpenGLRendering_INI;
 bool ExtConfigs::PreciseDepthCalculation;
 bool ExtConfigs::DisableDirectoryCheck;
 bool ExtConfigs::ExtOverlays;
@@ -241,13 +243,13 @@ float ExtConfigs::IsoViewHeightPercentage = 0.5f;
 
 std::vector<ExtConfigs::DynamicOptions> ExtConfigs::Options;
 
-MultimapHelper Variables::RulesMap = { &CINI::Rules(), &CINI::CurrentDocument() };
-MultimapHelper Variables::Rules = { &CINI::Rules() };
-MultimapHelper Variables::FAData = { &CINI::FAData() };
-MultimapHelper Variables::Rules_FAData = { &CINI::Rules(), &CINI::CurrentDocument(), &CINI::FAData() };
+MultimapHelper Variables::RulesMap = {&CINI::Rules(), &CINI::CurrentDocument()};
+MultimapHelper Variables::Rules = {&CINI::Rules()};
+MultimapHelper Variables::FAData = {&CINI::FAData()};
+MultimapHelper Variables::Rules_FAData = {&CINI::Rules(), &CINI::CurrentDocument(), &CINI::FAData()};
 
 void FA2sp::ExtConfigsInitialize()
-{	
+{
 	ExtConfigs::BrowserRedraw = CINI::FAData->GetBool("ExtConfigs", "BrowserRedraw");
 	ExtConfigs::ModernObjectBrowser = CINI::FAData->GetBool("ExtConfigs", "ModernObjectBrowser");
 	ExtConfigs::ObjectBrowser_GuessMode = CINI::FAData->GetInteger("ExtConfigs", "ObjectBrowser.GuessMode", 0);
@@ -262,7 +264,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory = CINI::FAData->GetBool("ExtConfigs", "GridObjectViewer.LoadObjectBrowserCategory", true);
 	ExtConfigs::LoadCivilianStringtable = CINI::FAData->GetBool("ExtConfigs", "LoadCivilianStringtable");
 	ExtConfigs::PasteShowOutlineDefault = CINI::FAData->GetBool("ExtConfigs", "PasteShowOutline");
-	
+
 	ExtConfigs::AllowIncludes = CINI::FAData->GetBool("ExtConfigs", "AllowIncludes");
 	ExtConfigs::AllowInherits = CINI::FAData->GetBool("ExtConfigs", "AllowInherits");
 	ExtConfigs::AllowPlusEqual = CINI::FAData->GetBool("ExtConfigs", "AllowPlusEqual");
@@ -273,7 +275,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::CloneWithOrderedID = CINI::FAData->GetBool("ExtConfigs", "CloneWithOrderedID", true);
 
 	ExtConfigs::SkipTipsOfTheDay = CINI::FAData->GetBool("ExtConfigs", "SkipTipsOfTheDay", false);
-	
+
 	ExtConfigs::SortByTriggerName = CINI::FAData->GetBool("ExtConfigs", "SortByTriggerName");
 	ExtConfigs::SortByLabelName = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName");
 	ExtConfigs::SortByLabelName_AITrigger = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.AITrigger");
@@ -292,11 +294,11 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::AdjustDropdownWidth_Factor = CINI::FAData->GetInteger("ExtConfigs", "AdjustDropdownWidth.Factor", 8);
 	ExtConfigs::AdjustDropdownWidth_Max = CINI::FAData->GetInteger("ExtConfigs", "AdjustDropdownWidth.Max", 360);
 
-	ExtConfigs::CopySelectionBound_Color = 
+	ExtConfigs::CopySelectionBound_Color =
 		CINI::FAData->GetColor("ExtConfigs", "CopySelectionBound.Color", 0x0000FF);
 	ExtConfigs::CursorSelectionBound_Color =
 		CINI::FAData->GetColor("ExtConfigs", "CursorSelectionBound.Color", 0x3CA03C);
-	ExtConfigs::CursorSelectionBound_HeightColor = 
+	ExtConfigs::CursorSelectionBound_HeightColor =
 		CINI::FAData->GetColor("ExtConfigs", "CursorSelectionBound.HeightIndicatorColor", 0x3C3C3C);
 	ExtConfigs::CursorSelectionBound_AutoColor = CINI::FAData->GetBool("ExtConfigs", "CursorSelectionBound.AutoHeightColor");
 	ExtConfigs::MultiSelect_ConsiderLAT = CINI::FAData->GetBool("ExtConfigs", "MultiSelect.ConsiderLAT", true);
@@ -360,6 +362,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DDrawScalingBilinear = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear", true);
 	ExtConfigs::DDrawScalingBilinear_OnlyShrink = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear.OnlyShrink");
 	ExtConfigs::DirectXRendering_INI = CINI::FAData->GetBool("ExtConfigs", "DirectXRendering", true);
+	ExtConfigs::OpenGLRendering_INI = CINI::FAData->GetBool("ExtConfigs", "OpenGLRendering");
 	ExtConfigs::PreciseDepthCalculation = CINI::FAData->GetBool("ExtConfigs", "PreciseDepthCalculation", true);
 	ExtConfigs::HiDPIAwareness_ScaleIsoView = CINI::FAData->GetBool("ExtConfigs", "HiDPIAwareness.ScaleIsoView", true);
 	ExtConfigs::HiDPIAwareness = CINI::FAData->GetBool("ExtConfigs", "HiDPIAwareness", true);
@@ -410,7 +413,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::UseRGBHouseColor = CINI::FAData->GetBool("ExtConfigs", "UseRGBHouseColor");
 	ExtConfigs::INIEditor_IgnoreTeams = CINI::FAData->GetBool("ExtConfigs", "INIEditor.IgnoreTeams");
-	//ExtConfigs::StringBufferStackAllocation = CINI::FAData->GetBool("ExtConfigs", "StringBufferStackAllocation", true);
+	// ExtConfigs::StringBufferStackAllocation = CINI::FAData->GetBool("ExtConfigs", "StringBufferStackAllocation", true);
 
 	ExtConfigs::SaveMap_AutoSave = CINI::FAData->GetBool("ExtConfigs", "SaveMap.AutoSave");
 	ExtConfigs::SaveMap_AutoSave_Interval = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.AutoSave.Interval", 300);
@@ -426,8 +429,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::SaveMap_OnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP");
 	ExtConfigs::SaveMap_KeepComments = CINI::FAData->GetBool("ExtConfigs", "SaveMap.KeepComments");
 	ExtConfigs::SaveMap_PreserveINISorting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.PreserveINISorting");
-	//ExtConfigs::SaveMap_MultiPlayOnlySaveYRM = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveYRM.MultiPlay");
-	//ExtConfigs::SaveMap_SinglePlayOnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP.SinglePlay");
+	// ExtConfigs::SaveMap_MultiPlayOnlySaveYRM = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveYRM.MultiPlay");
+	// ExtConfigs::SaveMap_SinglePlayOnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP.SinglePlay");
 	ExtConfigs::SaveMap_DefaultPreviewOptionMP = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.DefaultPreviewOptionMP", 0);
 	ExtConfigs::SaveMap_DefaultPreviewOptionSP = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.DefaultPreviewOptionSP", 1);
 
@@ -445,8 +448,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::MaxVoxelFacing = CINI::FAData->GetInteger("ExtConfigs", "MaxVoxelFacing", 8);
 	ExtConfigs::MaxVoxelFacing = std::clamp(
-		1 << (std::bit_width(ExtConfigs::MaxVoxelFacing) - 1), 8, 256
-	);
+		1 << (std::bit_width(ExtConfigs::MaxVoxelFacing) - 1), 8, 256);
 	// Disable it for now
 	ExtConfigs::MaxVoxelFacing = 8;
 
@@ -482,7 +484,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::EnableVeinholeLogic = CINI::FAData->GetBool("ExtConfigs", "EnableVeinholeLogic");
 	ExtConfigs::ReloadGameFromMapFolder = CINI::FAData->GetBool("ExtConfigs", "ReloadGameFromMapFolder");
 	ExtConfigs::LoadGameFromMapFolder_OnInit = CINI::FAData->GetBool("ExtConfigs", "LoadGameFromMapFolder.OnInit");
-	//ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
+	// ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
 	ExtConfigs::ExtraRaiseGroundTerrainSupport = CINI::FAData->GetBool("ExtConfigs", "ExtraRaiseGroundTerrainSupport");
 	ExtConfigs::ExtendedValidationAres = CINI::FAData->GetBool("ExtConfigs", "ExtendedValidationAres");
 	ExtConfigs::SaveMaps_BetterMapPreview = CINI::FAData->GetBool("ExtConfigs", "SaveMap.BetterMapPreview");
@@ -499,7 +501,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::LightingSource[2] = atof(ls[2]);
 
 	auto infantry = STDHelpers::SplitString(CINI::FAData->GetString("ExtConfigs", "DefaultInfantryProperty",
-		"House,ID,256,X,Y,Subcell,Guard,64,None,0,-1,0,0,0"), 13);
+																	"House,ID,256,X,Y,Subcell,Guard,64,None,0,-1,0,0,0"),
+											13);
 	ExtConfigs::DefaultInfantryProperty.Health = infantry[2];
 	ExtConfigs::DefaultInfantryProperty.Status = infantry[6];
 	ExtConfigs::DefaultInfantryProperty.Facing = infantry[7];
@@ -511,7 +514,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DefaultInfantryProperty.AutoYESRecruitType = infantry[13];
 
 	auto unit = STDHelpers::SplitString(CINI::FAData->GetString("ExtConfigs", "DefaultUnitProperty",
-		"House,ID,256,X,Y,64,Guard,None,0,-1,0,-1,0,0"), 13);
+																"House,ID,256,X,Y,64,Guard,None,0,-1,0,-1,0,0"),
+										13);
 	ExtConfigs::DefaultUnitProperty.Health = unit[2];
 	ExtConfigs::DefaultUnitProperty.Facing = unit[5];
 	ExtConfigs::DefaultUnitProperty.Status = unit[6];
@@ -524,7 +528,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DefaultUnitProperty.AutoYESRecruitType = unit[13];
 
 	auto aircraft = STDHelpers::SplitString(CINI::FAData->GetString("ExtConfigs", "DefaultAircraftProperty",
-		"House,ID,256,X,Y,64,Guard,None,0,-1,0,0"), 11);
+																	"House,ID,256,X,Y,64,Guard,None,0,-1,0,0"),
+											11);
 	ExtConfigs::DefaultAircraftProperty.Health = aircraft[2];
 	ExtConfigs::DefaultAircraftProperty.Facing = aircraft[5];
 	ExtConfigs::DefaultAircraftProperty.Status = aircraft[6];
@@ -535,7 +540,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DefaultAircraftProperty.AutoYESRecruitType = aircraft[11];
 
 	auto building = STDHelpers::SplitString(CINI::FAData->GetString("ExtConfigs", "DefaultBuildingProperty",
-		"House,ID,256,X,Y,0,None,0,0,1,0,0,None,None,None,1,0"), 16);
+																	"House,ID,256,X,Y,0,None,0,0,1,0,0,None,None,None,1,0"),
+											16);
 	ExtConfigs::DefaultBuildingProperty.Health = building[2];
 	ExtConfigs::DefaultBuildingProperty.Facing = building[5];
 	ExtConfigs::DefaultBuildingProperty.Tag = building[6];
@@ -551,7 +557,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DefaultBuildingProperty.Nominal = building[16];
 
 	auto formats = STDHelpers::SplitString(CINI::FAData->GetString("ExtConfigs", "SupportedFormats", "map,mpr,yrm,mmx,yro"));
-	for (auto& f : formats)
+	for (auto &f : formats)
 	{
 		f.MakeLower();
 		ExtConfigs::SupportedFormats[f] = false;
@@ -568,7 +574,7 @@ void FA2sp::ExtConfigsInitialize()
 	path += "\\FinalAlert.ini";
 	fa2.ClearAndLoad(path.c_str());
 
-	for (const auto& opt : ExtConfigs::Options)
+	for (const auto &opt : ExtConfigs::Options)
 	{
 		*opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
 	}
@@ -582,16 +588,16 @@ void FA2sp::ExtConfigsInitialize()
 	TheaterHelpers::InitTheaterSuffix();
 
 	ExtConfigs::SecondScreenSupport =
-		ExtConfigs::SecondScreenSupport_INI
-		&& (GetSystemMetrics(SM_CMONITORS) > 1);
+		ExtConfigs::SecondScreenSupport_INI && (GetSystemMetrics(SM_CMONITORS) > 1);
 
-	ExtConfigs::DirectXRendering = ExtConfigs::DirectXRendering_INI;
+	ExtConfigs::OpenGLRendering = ExtConfigs::OpenGLRendering_INI;
+	ExtConfigs::DirectXRendering = ExtConfigs::DirectXRendering_INI || ExtConfigs::OpenGLRendering_INI;
 	if (ExtConfigs::DirectXRendering)
 	{
 		ExtConfigs::SecondScreenSupport = true;
 		ExtConfigs::DisplayTextSize -= 2;
 	}
-		
+
 	ExtConfigs::IsoViewWidthPercentage = fa2.GetDouble("UserInterface", "IsoViewWidthPercentage", 0.625f);
 	ExtConfigs::IsoViewHeightPercentage = fa2.GetDouble("UserInterface", "IsoViewHeightPercentage", 0.5f);
 }
@@ -601,564 +607,491 @@ void ExtConfigs::UpdateOptionTranslations()
 	ExtConfigs::Options.clear();
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.DirectXRendering", "Draw map using DirectX 11"),
+		.DisplayName = Translations::TranslateOrDefault("Options.DirectXRendering", "Enable GPU-Accelerated Rendering (Recommended)"),
 		.IniKey = "DirectXRendering",
 		.Value = &ExtConfigs::DirectXRendering_INI,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
+		.Type = ExtConfigs::SpecialOptionType::Restart});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.OpenGLRendering", "Set graphics API (Y = OpenGL 3.3, N = Direct3D 11)"),
+		.IniKey = "OpenGLRendering",
+		.Value = &ExtConfigs::OpenGLRendering_INI,
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	// Editor Interface and Behavior
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.TutorialTexts.Viewer", "Open CSF Viewer when editing CSF params in Trigger editor"),
 		.IniKey = "TutorialTexts.Viewer",
 		.Value = &ExtConfigs::TutorialTexts_Viewer,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.CloneWithOrderedID", "Clone triggers (teams) with increasing number instead of 'Clone'"),
 		.IniKey = "CloneWithOrderedID",
 		.Value = &ExtConfigs::CloneWithOrderedID,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.UseSequentialIndexing", "Always assign the next incremental index when creating triggers and teams"),
 		.IniKey = "UseSequentialIndexing",
 		.Value = &ExtConfigs::UseSequentialIndexing,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.UseSeparateIndexing", "Assign independent suffixes to different types (triggers, teams...)"),
 		.IniKey = "UseSeparateIndexing",
 		.Value = &ExtConfigs::UseSeparateIndexing,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.AdjustDropdownWidth", "Auto-adjust label width for editors"),
 		.IniKey = "AdjustDropdownWidth",
 		.Value = &ExtConfigs::AdjustDropdownWidth,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.DisplayTriggerEnableInfo", "Display whether triggers are disabled in the dropdown menu"),
 		.IniKey = "DisplayTriggerEnableInfo",
 		.Value = &ExtConfigs::DisplayTriggerEnableInfo,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName", "Sort selected labels in editors by name"),
 		.IniKey = "SortByLabelName",
 		.Value = &ExtConfigs::SortByLabelName,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName.AITrigger", "Sort AI triggers by label name, override global setting"),
 		.IniKey = "SortByLabelName.AITrigger",
 		.Value = &ExtConfigs::SortByLabelName_AITrigger,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName.Tag", "Sort Tags by label name, override global setting"),
 		.IniKey = "SortByLabelName.Tag",
 		.Value = &ExtConfigs::SortByLabelName_Tag,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName.Trigger", "Sort triggers by label name, override global setting"),
 		.IniKey = "SortByLabelName.Trigger",
 		.Value = &ExtConfigs::SortByLabelName_Trigger,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName.Team", "Sort teams by label name, override global setting"),
 		.IniKey = "SortByLabelName.Team",
 		.Value = &ExtConfigs::SortByLabelName_Team,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName.Taskforce", "Sort taskforces by label name, override global setting"),
 		.IniKey = "SortByLabelName.Taskforce",
 		.Value = &ExtConfigs::SortByLabelName_Taskforce,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName.Script", "Sort scripts by label name, override global setting"),
 		.IniKey = "SortByLabelName.Script",
 		.Value = &ExtConfigs::SortByLabelName_Script,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SearchCombobox.Disabled", "Disable automatic search for dropdown menus; search only when pressing Enter"),
 		.IniKey = "SearchCombobox.Disabled",
 		.Value = &ExtConfigs::SearchCombobox_Disabled,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-	.DisplayName = Translations::TranslateOrDefault("Options.SearchCombobox.Waypoint", "Automatically perform search when editing waypoint params"),
-	.IniKey = "SearchCombobox.Waypoint",
-	.Value = &ExtConfigs::SearchCombobox_Waypoint,
-	.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.DisplayName = Translations::TranslateOrDefault("Options.SearchCombobox.Waypoint", "Automatically perform search when editing waypoint params"),
+		.IniKey = "SearchCombobox.Waypoint",
+		.Value = &ExtConfigs::SearchCombobox_Waypoint,
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SearchCombobox.AllowNonParams", "Allow automatic search for non-parameter dropdown menus"),
 		.IniKey = "SearchCombobox.AllowNonParams",
 		.Value = &ExtConfigs::SearchCombobox_AllowNonParams,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.VerticalLayout", "Move tile browser to right"),
 		.IniKey = "VerticalLayout",
 		.Value = &ExtConfigs::VerticalLayout,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode", "Enable dark mode (requires Auto-switch dark mode to be disabled)"),
 		.IniKey = "EnableDarkMode",
 		.Value = &ExtConfigs::EnableDarkMode_Init,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.AutoDarkMode", "Auto-switch dark mode by system setting or time"),
 		.IniKey = "AutoDarkMode",
 		.Value = &ExtConfigs::AutoDarkMode,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode.DimMap", "make map view dim in drak mode"),
 		.IniKey = "EnableDarkMode.DimMap",
 		.Value = &ExtConfigs::EnableDarkMode_DimMap,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
-		
+		.Type = ExtConfigs::SpecialOptionType::None});
+
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.HiDPIAwareness", "Enable high-DPI awareness"),
 		.IniKey = "HiDPIAwareness",
 		.Value = &ExtConfigs::HiDPIAwareness,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.HiDPIAwareness.ScaleIsoView", "Match IsoView default zoom to system scaling when high-DPI awareness is enabled"),
 		.IniKey = "HiDPIAwareness.ScaleIsoView",
 		.Value = &ExtConfigs::HiDPIAwareness_ScaleIsoView,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	// Object Browser Settings
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.SafeHouses", "Block invalid houses"),
 		.IniKey = "ObjectBrowser.SafeHouses",
 		.Value = &ExtConfigs::ObjectBrowser_SafeHouses,
-		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.Foundation", "Group buildings by foundation"),
 		.IniKey = "ObjectBrowser.Foundation",
 		.Value = &ExtConfigs::ObjectBrowser_Foundation,
-		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.Ore.RandomPlacement", "Random choose ores when placing"),
 		.IniKey = "ObjectBrowser.Ore.RandomPlacement",
 		.Value = &ExtConfigs::ObjectBrowser_Ore_RandomPlacement,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.Ore.ExtraSupport", "Support vinifera and aboreus ores"),
 		.IniKey = "ObjectBrowser.Ore.ExtraSupport",
 		.Value = &ExtConfigs::ObjectBrowser_Ore_ExtraSupport,
-		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.GridObjectViewer.LoadEditorCategory", "Classify objects in the object viewer based on their EditCategory"),
 		.IniKey = "GridObjectViewer.LoadEditorCategory",
 		.Value = &ExtConfigs::GridObjectViewer_LoadEditorCategory,
-		.Type = ExtConfigs::SpecialOptionType::ReloadObjectViewer
-		});
-	
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectViewer});
+
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.GridObjectViewer.LoadForceSides", "Classify objects in the object viewer based on their ForceSides"),
 		.IniKey = "GridObjectViewer.LoadForceSides",
 		.Value = &ExtConfigs::GridObjectViewer_LoadForceSides,
-		.Type = ExtConfigs::SpecialOptionType::ReloadObjectViewer
-		});
-	
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectViewer});
+
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.GridObjectViewer.LoadObjectBrowserCategory", "Classify smudges/terrains/overlays in the object viewer based on their ObjectBrowser group"),
 		.IniKey = "GridObjectViewer.LoadObjectBrowserCategory",
 		.Value = &ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory,
-		.Type = ExtConfigs::SpecialOptionType::ReloadObjectViewer
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectViewer});
 
 	// Map Display and Rendering
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Shadow", "Load and show shadows"),
 		.IniKey = "InGameDisplay.Shadow",
 		.Value = &ExtConfigs::InGameDisplay_Shadow,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Shadow.OnGround", "Display voxel shadow on the ground instead of bottom"),
 		.IniKey = "InGameDisplay.Shadow.OnGround",
 		.Value = &ExtConfigs::InGameDisplay_Shadow_OnGround,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Deploy", "Load and show deploy-swap images"),
 		.IniKey = "InGameDisplay.Deploy",
 		.Value = &ExtConfigs::InGameDisplay_Deploy,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Water", "Load and show water-swap images"),
 		.IniKey = "InGameDisplay.Water",
 		.Value = &ExtConfigs::InGameDisplay_Water,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Damage", "Load and show damage-swap images (Phobos B47+)"),
 		.IniKey = "InGameDisplay.Damage",
 		.Value = &ExtConfigs::InGameDisplay_Damage,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.AlphaImage", "Load and show AlphaImage"),
 		.IniKey = "InGameDisplay.AlphaImage",
 		.Value = &ExtConfigs::InGameDisplay_AlphaImage,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Hover", "Display hovering units higher"),
 		.IniKey = "InGameDisplay.Hover",
 		.Value = &ExtConfigs::InGameDisplay_Hover,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Bridge", "Display on-bridge units higher"),
 		.IniKey = "InGameDisplay.Bridge",
 		.Value = &ExtConfigs::InGameDisplay_Bridge,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.AnimAdjust", "Adjust building animation layer, may not be consistent with in-game"),
 		.IniKey = "InGameDisplay.AnimAdjust",
 		.Value = &ExtConfigs::InGameDisplay_AnimAdjust,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.Cloakable", "Display cloakable units translucently"),
 		.IniKey = "InGameDisplay.Cloakable",
 		.Value = &ExtConfigs::InGameDisplay_Cloakable,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.RemapableOverlay", "Display remapble colors of overlays"),
 		.IniKey = "InGameDisplay.RemapableOverlay",
 		.Value = &ExtConfigs::InGameDisplay_RemapableOverlay,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.DisplayBridgeOverlay", "Display invisible bridge overlays in numbers"),
 		.IniKey = "DisplayBridgeOverlay",
 		.Value = &ExtConfigs::DisplayBridgeOverlay,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.UseDefaultUnitImage", "Display default images for vehicles, infantry, aircraft without images"),
 		.IniKey = "UseDefaultUnitImage",
 		.Value = &ExtConfigs::UseDefaultUnitImage,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.UseDefaultUnitImage.TechnoAttachment", "Display default images for techno attachments without images"),
 		.IniKey = "UseDefaultUnitImage.TechnoAttachment",
 		.Value = &ExtConfigs::UseDefaultUnitImage_TechnoAttachment,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.FlatToGroundHideExtra", "Hide extra image when flat-to-ground is enabled"),
 		.IniKey = "FlatToGroundHideExtra",
 		.Value = &ExtConfigs::FlatToGroundHideExtra,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.DisplayObjectsOutside", "Display objects outside map"),
 		.IniKey = "DisplayObjectsOutside",
 		.Value = &ExtConfigs::DisplayObjectsOutside,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ShowMapBoundInMiniMap", "Show map bound in mini-map"),
 		.IniKey = "ShowMapBoundInMiniMap",
 		.Value = &ExtConfigs::ShowMapBoundInMiniMap,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.Waypoint.Background", "Draw background for waypoint texts"),
 		.IniKey = "Waypoint.Background",
 		.Value = &ExtConfigs::Waypoint_Background,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.BaseNodeIndex.Background", "Draw background for base node texts"),
 		.IniKey = "BaseNodeIndex.Background",
 		.Value = &ExtConfigs::BaseNodeIndex_Background,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.DrawCelltagTranslucent", "Draw Celltags translucently"),
 		.IniKey = "DrawCelltagTranslucent",
 		.Value = &ExtConfigs::DrawCelltagTranslucent,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.RandomTerrainObjects", "Show all terrain objects in random tree dialog"),
 		.IniKey = "RandomTerrainObjects",
 		.Value = &ExtConfigs::RandomTerrainObjects,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.LightingPreview.MultUnitColor", "Mult unit color when using 'Normal' lighting"),
 		.IniKey = "LightingPreview.MultUnitColor",
 		.Value = &ExtConfigs::LightingPreview_MultUnitColor,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.LightingPreview.TintTileSetBrowserView", "Mult tile set browser images when changing lighting"),
 		.IniKey = "LightingPreview.TintTileSetBrowserView",
 		.Value = &ExtConfigs::LightingPreview_TintTileSetBrowserView,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.CursorSelectionBound.AutoHeightColor", "Adjust cursor color by height"),
 		.IniKey = "CursorSelectionBound.AutoHeightColor",
 		.Value = &ExtConfigs::CursorSelectionBound_AutoColor,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	// Map Saving and File Management
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.UTF8Support.InferEncoding", "Auto-infer encoding when loading ini and map files"),
 		.IniKey = "UTF8Support.InferEncoding",
 		.Value = &ExtConfigs::UTF8Support_InferEncoding,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.UTF8Support.AlwaysSaveAsUTF8", "Always save maps in UTF8 encoding"),
 		.IniKey = "UTF8Support.AlwaysSaveAsUTF8",
 		.Value = &ExtConfigs::UTF8Support_AlwaysSaveAsUTF8,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SaveMap.AutoSave", "Auto-save map"),
 		.IniKey = "SaveMap.AutoSave",
 		.Value = &ExtConfigs::SaveMap_AutoSave,
-		.Type = ExtConfigs::SpecialOptionType::SaveMap_Timer
-		});
+		.Type = ExtConfigs::SpecialOptionType::SaveMap_Timer});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SaveMap.OnlySaveMAP", "Only save map in .map format"),
 		.IniKey = "SaveMap.OnlySaveMAP",
 		.Value = &ExtConfigs::SaveMap_OnlySaveMAP,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SaveMap.BetterMapPreview", "Generate better map preview for MP maps"),
 		.IniKey = "SaveMap.BetterMapPreview",
 		.Value = &ExtConfigs::SaveMaps_BetterMapPreview,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SaveMap.FileEncodingComment", "Add file encoding comment in the beginning of map"),
 		.IniKey = "SaveMap.FileEncodingComment",
 		.Value = &ExtConfigs::SaveMap_FileEncodingComment,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SaveMap.KeepComments", "Keep existing map comments"),
 		.IniKey = "SaveMap.KeepComments",
 		.Value = &ExtConfigs::SaveMap_KeepComments,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SaveMap.PreserveINISorting", "Preserve existing INI section sorting when saving"),
 		.IniKey = "SaveMap.PreserveINISorting",
 		.Value = &ExtConfigs::SaveMap_PreserveINISorting,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.FileWatcher", "Enable file watcher"),
 		.IniKey = "FileWatcher",
 		.Value = &ExtConfigs::FileWatcher,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ReloadGameFromMapFolder", "Reload game resources from map folder"),
 		.IniKey = "ReloadGameFromMapFolder",
 		.Value = &ExtConfigs::ReloadGameFromMapFolder,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.LoadGameFromMapFolder.OnInit", "Load game resources from map folder when directly open map"),
 		.IniKey = "LoadGameFromMapFolder.OnInit",
 		.Value = &ExtConfigs::LoadGameFromMapFolder_OnInit,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SkipTipsOfTheDay", "Skip tips of the day"),
 		.IniKey = "SkipTipsOfTheDay",
 		.Value = &ExtConfigs::SkipTipsOfTheDay,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SkipBrushSizeChangeOnTools", "Skip brush size change when changing tools"),
 		.IniKey = "SkipBrushSizeChangeOnTools",
 		.Value = &ExtConfigs::SkipBrushSizeChangeOnTools,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.PasteShowOutline", "The default value of showing outline when pasting"),
 		.IniKey = "PasteShowOutline",
 		.Value = &ExtConfigs::PasteShowOutlineDefault,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.PlaceTileSkipHide", "Skip hidden tiles when placing tiles"),
 		.IniKey = "PlaceTileSkipHide",
 		.Value = &ExtConfigs::PlaceTileSkipHide,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.EnableVeinholeLogic", "Enable veinhole logic"),
 		.IniKey = "EnableVeinholeLogic",
 		.Value = &ExtConfigs::EnableVeinholeLogic,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.INIEditor.IgnoreTeams", "Ignore team sections in INI editor"),
 		.IniKey = "INIEditor.IgnoreTeams",
 		.Value = &ExtConfigs::INIEditor_IgnoreTeams,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.FillArea.ConsiderLAT", "Also fill LAT tiles when ctrl-filling areas"),
 		.IniKey = "FillArea.ConsiderLAT",
 		.Value = &ExtConfigs::FillArea_ConsiderLAT,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.FillArea.ConsiderWater", "Consider all water tiles the same when ctrl-filling areas"),
 		.IniKey = "FillArea.ConsiderWater",
 		.Value = &ExtConfigs::FillArea_ConsiderWater,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.UndoRedo.ShiftPlaceTile", "Only record one history when shift placing tiles"),
 		.IniKey = "UndoRedo.ShiftPlaceTile",
 		.Value = &ExtConfigs::UndoRedo_ShiftPlaceTile,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.UndoRedo.HoldPlaceOverlay", "Only record one history when shift placing overlays"),
 		.IniKey = "UndoRedo.HoldPlaceOverlay",
 		.Value = &ExtConfigs::UndoRedo_HoldPlaceOverlay,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.UndoRedo.RecordObjects", "Record editing history of objects"),
 		.IniKey = "UndoRedo.RecordObjects",
 		.Value = &ExtConfigs::UndoRedo_RecordObjects,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	// Game Logic and Validation
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.LoadCivilianStringtable", "Load extra civilian stringtable"),
 		.IniKey = "LoadCivilianStringtable",
 		.Value = &ExtConfigs::LoadCivilianStringtable,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.NoHouseNameTranslation", "Not to translate house names"),
 		.IniKey = "NoHouseNameTranslation",
 		.Value = &ExtConfigs::NoHouseNameTranslation,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.BetterHouseNameTranslation", "Translate house names in a better way"),
 		.IniKey = "BetterHouseNameTranslation",
 		.Value = &ExtConfigs::BetterHouseNameTranslation,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
-	//ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+	// ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 	//	.DisplayName = Translations::TranslateOrDefault("Options.ArtImageSwap", "Use Image= in art(md).ini (Phobos B25+)"),
 	//	.IniKey = "ArtImageSwap",
 	//	.Value = &ExtConfigs::ArtImageSwap,
@@ -1169,278 +1102,239 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.AllowIncludes", "Load include INIs (Ares/Phobos B34+)"),
 		.IniKey = "AllowIncludes",
 		.Value = &ExtConfigs::AllowIncludes,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.AllowInherits", "Load inherited INI sections (Ares/Phobos B34+)"),
 		.IniKey = "AllowInherits",
 		.Value = &ExtConfigs::AllowInherits,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.AllowPlusEqual", "Load += registries (Ares)"),
 		.IniKey = "AllowPlusEqual",
 		.Value = &ExtConfigs::AllowPlusEqual,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.IncludeType", "Set include type (Y = Phobos, N = Ares)"),
 		.IniKey = "IncludeType",
 		.Value = &ExtConfigs::IncludeType,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InheritType", "Set inherit type (Y = Phobos, N = Ares)"),
 		.IniKey = "InheritType",
 		.Value = &ExtConfigs::InheritType,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ExtWaypoints", "Enable infinite waypoints (Phobos B16+)"),
 		.IniKey = "ExtWaypoints",
 		.Value = &ExtConfigs::ExtWaypoints,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ExtVariables", "Enable infinite local variables (Phobos B22+)"),
 		.IniKey = "ExtVariables",
 		.Value = &ExtConfigs::ExtVariables,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ExtOverlays", "Enable infinite overlay support (Phobos B48+)"),
 		.IniKey = "ExtOverlays",
 		.Value = &ExtConfigs::ExtOverlays,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ExtFacings", "Enable 32 facings support"),
 		.IniKey = "ExtFacings",
 		.Value = &ExtConfigs::ExtFacings,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ExtFacings.Drag", "Allow drag units into 32 facings"),
 		.IniKey = "ExtFacings.Drag",
 		.Value = &ExtConfigs::ExtFacings_Drag,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ExtFacings.DragPreview", "Preview facing while draging"),
 		.IniKey = "ExtFacings.DragPreview",
 		.Value = &ExtConfigs::ExtFacings_DragPreview,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ExtMixLoader", "Enable new mix loader"),
 		.IniKey = "ExtMixLoader",
 		.Value = &ExtConfigs::ExtMixLoader,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.LoadObjectsOnInit", "Load all in-map objects during map initialization"),
 		.IniKey = "LoadObjectsOnInit",
 		.Value = &ExtConfigs::LoadObjectsOnInit,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ExtendedValidationNoError", "Extended map validators only show warning instead of error"),
 		.IniKey = "ExtendedValidationNoError",
 		.Value = &ExtConfigs::ExtendedValidationNoError,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ExtendedValidationAres", "When checking INI length, use 512 instead of 128 (Ares)"),
 		.IniKey = "ExtendedValidationAres",
 		.Value = &ExtConfigs::ExtendedValidationAres,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.UseStrictNewTheater", "Use strict NewTheater rule when loading images"),
 		.IniKey = "UseStrictNewTheater",
 		.Value = &ExtConfigs::UseStrictNewTheater,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.NewTheaterType", "Set NewTheater type (Y = Ares, N = YR)"),
 		.IniKey = "NewTheaterType",
 		.Value = &ExtConfigs::NewTheaterType,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.PlayerAtXForTechnos", "Show <Player @ X> options in unit property dialog (Phobos B37+)"),
 		.IniKey = "PlayerAtXForTechnos",
 		.Value = &ExtConfigs::PlayerAtXForTechnos,
-		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser
-		});
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.PlayerAtXForTriggers", "Show <Player @ X> options in trigger editor (Phobos B49+)"),
 		.IniKey = "PlayerAtXForTriggers",
 		.Value = &ExtConfigs::PlayerAtXForTriggers,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.PlaceStructure.OverlappingCheck", "Cannot place overlapped buildings"),
 		.IniKey = "PlaceStructure.OverlappingCheck",
 		.Value = &ExtConfigs::PlaceStructureOverlappingCheck,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.PlaceStructure.AutoUpgrade", "Auto calculate upgrade count"),
 		.IniKey = "PlaceStructure.AutoUpgrade",
 		.Value = &ExtConfigs::PlaceStructureUpgrades,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.PlaceStructure.UpgradeStrength", "Set buildings with upgrades to full health (for its appearance in game)"),
 		.IniKey = "PlaceStructure.UpgradeStrength",
 		.Value = &ExtConfigs::PlaceStructureUpgradeStrength,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.PlaceStructure.PlaceUpgrade", "Upgrades can be directly placed onto buildings"),
 		.IniKey = "PlaceStructure.PlaceUpgrade",
 		.Value = &ExtConfigs::PlaceStructurePlaceUpgrade,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.WeaponRangeBound.SubjectToElevation", "Consider effect of cliff when showing weapon range"),
 		.IniKey = "WeaponRangeBound.SubjectToElevation",
 		.Value = &ExtConfigs::WeaponRangeBound_SubjectToElevation,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.RangeBound.DrawEllipse", "Draw all ranges except for weapons subject to elevation using ellipses"),
 		.IniKey = "RangeBound.DrawEllipse",
 		.Value = &ExtConfigs::RangeBound_DrawEllipse,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.HideNoRubbleBuilding", "Hide buildings with zero health and LeaveRubble=no"),
 		.IniKey = "HideNoRubbleBuilding",
 		.Value = &ExtConfigs::HideNoRubbleBuilding,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	// Infantry Placement
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InfantrySubCell.GameDefault", "Always place the middle infantry in bottom like in-game"),
 		.IniKey = "InfantrySubCell.GameDefault",
 		.Value = &ExtConfigs::InfantrySubCell_GameDefault,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InfantrySubCell.Edit", "Edit infantry based on sub-position of mouse"),
 		.IniKey = "InfantrySubCell.Edit",
 		.Value = &ExtConfigs::InfantrySubCell_Edit,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InfantrySubCell.Edit.Single", "Edit infantry based on sub-position of mouse in one-infantry-cells"),
 		.IniKey = "InfantrySubCell.Edit.Single",
 		.Value = &ExtConfigs::InfantrySubCell_Edit_Single,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InfantrySubCell.Edit.Drag", "Drag infantry based on sub-position of mouse"),
 		.IniKey = "InfantrySubCell.Edit.Drag",
 		.Value = &ExtConfigs::InfantrySubCell_Edit_Drag,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InfantrySubCell.Edit.Place", "Place infantry based on sub-position of mouse"),
 		.IniKey = "InfantrySubCell.Edit.Place",
 		.Value = &ExtConfigs::InfantrySubCell_Edit_Place,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InfantrySubCell.Edit.FixCenter", "Fix middle infantry with InfantrySubCell.GameDefault"),
 		.IniKey = "InfantrySubCell.Edit.FixCenter",
 		.Value = &ExtConfigs::InfantrySubCell_Edit_FixCenter,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.InfantrySubCell.OccupationBits", "Consider terrain objects when placing infantry"),
 		.IniKey = "InfantrySubCell.OccupationBits",
 		.Value = &ExtConfigs::InfantrySubCell_OccupationBits,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	// Performance and System Settings
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.DDrawInVideoMem", "Arrange DirectDraw surface in video memory"),
 		.IniKey = "DDrawInVideoMem",
 		.Value = &ExtConfigs::DDrawInVideoMem,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.DDrawEmulation", "Use emulation mode in DirectDrawCreate"),
 		.IniKey = "DDrawEmulation",
 		.Value = &ExtConfigs::DDrawEmulation,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SecondScreenSupport", "Support displaying IsoView on non-primary screens (slower)"),
 		.IniKey = "SecondScreenSupport",
 		.Value = &ExtConfigs::SecondScreenSupport_INI,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.PreciseDepthCalculation", "Precisely calculate the depth relationship of game objects (slower)"),
 		.IniKey = "PreciseDepthCalculation",
 		.Value = &ExtConfigs::PreciseDepthCalculation,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.DDrawScalingBilinear", "Use bilinear scaling (smoother, but slower)"),
 		.IniKey = "DDrawScalingBilinear",
 		.Value = &ExtConfigs::DDrawScalingBilinear,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.DDrawScalingBilinear.OnlyShrink", "Use bilinear scaling only in shrinking"),
 		.IniKey = "DDrawScalingBilinear.OnlyShrink",
 		.Value = &ExtConfigs::DDrawScalingBilinear_OnlyShrink,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+		.Type = ExtConfigs::SpecialOptionType::None});
 
-	//ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+	// ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 	//	.DisplayName = Translations::TranslateOrDefault("Options.StringBufferStackAllocation", "Always allocate CString memory in stack"),
 	//	.IniKey = "StringBufferStackAllocation",
 	//	.Value = &ExtConfigs::StringBufferStackAllocation,
@@ -1451,10 +1345,9 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.StrictExceptionFilter", "Use strict exception filter (catch C++ EH exceptions)"),
 		.IniKey = "StrictExceptionFilter",
 		.Value = &ExtConfigs::StrictExceptionFilter,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
-	for (auto& f : ExtConfigs::SupportedFormats)
+	for (auto &f : ExtConfigs::SupportedFormats)
 	{
 		FString foramt = Translations::TranslateOrDefault("Options.BindFormat", "Set FA2 as the default program for %s files");
 		FString text;
@@ -1463,8 +1356,7 @@ void ExtConfigs::UpdateOptionTranslations()
 			.DisplayName = text,
 			.IniKey = "",
 			.Value = &f.second,
-			.Type = ExtConfigs::SpecialOptionType::BindFormat
-			});
+			.Type = ExtConfigs::SpecialOptionType::BindFormat});
 	}
 }
 
@@ -1475,22 +1367,22 @@ bool FA2sp::IsDarkMode()
 
 	if (tA < 0 || tB < 0)
 	{
-		DWORD value = 1; 
+		DWORD value = 1;
 		DWORD size = sizeof(value);
 		HKEY hKey;
 
 		if (RegOpenKeyExW(
-			HKEY_CURRENT_USER,
-			L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
-			0,
-			KEY_READ,
-			&hKey) == ERROR_SUCCESS)
+				HKEY_CURRENT_USER,
+				L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+				0,
+				KEY_READ,
+				&hKey) == ERROR_SUCCESS)
 		{
 			RegQueryValueExW(hKey, L"AppsUseLightTheme", nullptr, nullptr, (LPBYTE)&value, &size);
 			RegCloseKey(hKey);
 		}
 
-		return value == 0; 
+		return value == 0;
 	}
 
 	tA = fmod(tA, 24.0);
@@ -1515,11 +1407,11 @@ bool FA2sp::IsDarkMode()
 		HKEY hKey;
 
 		if (RegOpenKeyExW(
-			HKEY_CURRENT_USER,
-			L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
-			0,
-			KEY_READ,
-			&hKey) == ERROR_SUCCESS)
+				HKEY_CURRENT_USER,
+				L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+				0,
+				KEY_READ,
+				&hKey) == ERROR_SUCCESS)
 		{
 			RegQueryValueExW(hKey, L"AppsUseLightTheme", nullptr, nullptr, (LPBYTE)&value, &size);
 			RegCloseKey(hKey);
@@ -1532,7 +1424,8 @@ bool FA2sp::IsDarkMode()
 // DllMain
 BOOL APIENTRY DllMain(HANDLE hInstance, DWORD dwReason, LPVOID v)
 {
-	switch (dwReason) {
+	switch (dwReason)
+	{
 	case DLL_PROCESS_ATTACH:
 		FA2sp::hInstance = hInstance;
 		break;
@@ -1566,8 +1459,8 @@ DEFINE_HOOK(537129, ExeRun, 9)
 	}
 	Logger::Raw("[Info] Windows version: %s\n", output.c_str());
 
-	Logger::Raw("==============================\nCPU Report:\n%s==============================\n", 
-		InstructionSet::Report().c_str());
+	Logger::Raw("==============================\nCPU Report:\n%s==============================\n",
+				InstructionSet::Report().c_str());
 
 	ExtConfigs::AVX2_Support = InstructionSet::AVX2() && InstructionSet::OSXSAVE();
 
@@ -1578,7 +1471,7 @@ DEFINE_HOOK(537129, ExeRun, 9)
 
 #ifndef NDEBUG
 	MessageBox(NULL, APPLY_INFO, PRODUCT_NAME, MB_OK);
-	
+
 #endif
 	bool bMutexResult = MutexHelper::Attach(MUTEX_HASH_VAL);
 	if (!bMutexResult)
@@ -1586,17 +1479,17 @@ DEFINE_HOOK(537129, ExeRun, 9)
 		if (MessageBoxW(nullptr, MUTEX_INIT_ERROR_MSG, MUTEX_INIT_ERROR_TIT, MB_YESNO | MB_ICONQUESTION) != IDYES)
 			ExitProcess(114514);
 	}
-	
+
 	FA2Expand::ExeRun();
 
 #ifdef ENABLE_VISUAL_STYLE
 
 #if defined _M_IX86
-#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='x86' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='x86' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #elif defined _M_X64
-#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='amd64' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='amd64' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #else
-#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #endif
 	// GetModuleName
 	char ModuleNameBuffer[MAX_PATH];
@@ -1613,7 +1506,7 @@ DEFINE_HOOK(537129, ExeRun, 9)
 	memcpy(ModuleNameBuffer, ModuleNameBuffer + i, nModuleNameLen);
 	ModuleNameBuffer[nModuleNameLen] = '\0';
 
-	// Codes from 
+	// Codes from
 	// https://referencesource.microsoft.com/#System.Windows.Forms/winforms/Managed/System/WinForms/UnsafeNativeMethods.cs,8197
 	ACTCTX enableThemingActivationContext;
 	enableThemingActivationContext.cbSize = sizeof ACTCTX;
@@ -1630,7 +1523,7 @@ DEFINE_HOOK(537129, ExeRun, 9)
 
 	DarkTheme::ExeStart_DrakThemeHooks();
 
-	const char* MapImporterFilter = "All files|*.yrm;*.mpr;*.map;*.bmp|Multi maps|*.yrm;*.mpr|Single maps|*.map|Windows bitmaps|*.bmp|";
+	const char *MapImporterFilter = "All files|*.yrm;*.mpr;*.map;*.bmp|Multi maps|*.yrm;*.mpr|Single maps|*.map|Windows bitmaps|*.bmp|";
 	RunTime::ResetStaticCharAt(0x5D026C, MapImporterFilter);
 
 	return 0;
@@ -1640,7 +1533,7 @@ DEFINE_HOOK(537129, ExeRun, 9)
 
 DEFINE_HOOK(47FACE, CLoading_OnInitDialog_ProgramInfo, 7)
 {
-	GET(CLoading*, pThis, ESI);
+	GET(CLoading *, pThis, ESI);
 
 	pThis->CSCVersion.SetWindowText(LOADING_VERSION);
 	pThis->CSCBuiltby.SetWindowText(LOADING_AUTHOR);
@@ -1678,7 +1571,7 @@ DEFINE_HOOK(537208, ExeTerminate, 9)
 
 #ifdef _DEBUG
 // Just for test, lol
-//DEFINE_HOOK(43273B, ExitMessageBox, 8)
+// DEFINE_HOOK(43273B, ExitMessageBox, 8)
 //{
 //	R->EAX(MB_OK);
 //	return 0x432743;
@@ -1714,13 +1607,13 @@ bool DetachFromDebugger()
 	if (hModule != NULL)
 	{
 		auto const NtRemoveProcessDebug =
-			(NTSTATUS(__stdcall*)(HANDLE, HANDLE))GetProcAddress(hModule, "NtRemoveProcessDebug");
+			(NTSTATUS(__stdcall *)(HANDLE, HANDLE))GetProcAddress(hModule, "NtRemoveProcessDebug");
 		auto const NtSetInformationDebugObject =
-			(NTSTATUS(__stdcall*)(HANDLE, ULONG, PVOID, ULONG, PULONG))GetProcAddress(hModule, "NtSetInformationDebugObject");
+			(NTSTATUS(__stdcall *)(HANDLE, ULONG, PVOID, ULONG, PULONG))GetProcAddress(hModule, "NtSetInformationDebugObject");
 		auto const NtQueryInformationProcess =
-			(NTSTATUS(__stdcall*)(HANDLE, ULONG, PVOID, ULONG, PULONG))GetProcAddress(hModule, "NtQueryInformationProcess");
+			(NTSTATUS(__stdcall *)(HANDLE, ULONG, PVOID, ULONG, PULONG))GetProcAddress(hModule, "NtQueryInformationProcess");
 		auto const NtClose =
-			(NTSTATUS(__stdcall*)(HANDLE))GetProcAddress(hModule, "NtClose");
+			(NTSTATUS(__stdcall *)(HANDLE))GetProcAddress(hModule, "NtClose");
 
 		HANDLE hDebug;
 		HANDLE hCurrentProcess = GetCurrentProcess();
@@ -1733,8 +1626,7 @@ bool DetachFromDebugger()
 				1,
 				&killProcessOnExit,
 				sizeof(ULONG),
-				NULL
-			);
+				NULL);
 			if (0 <= status)
 			{
 				const auto pid = GetDebuggerProcessId(GetProcessId(hCurrentProcess));

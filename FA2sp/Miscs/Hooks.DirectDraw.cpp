@@ -27,26 +27,26 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 
 		if (!pIsoView->g_pDX->IsInitialized())
 		{
-			pIsoView->g_pDX->Initialize(pIsoView->GetSafeHwnd());		
+			pIsoView->g_pDX->Initialize(pIsoView->GetSafeHwnd());
 		}
 
 		if (!pIsoView->g_pDX->IsInitialized())
 		{
 			const FString title = Translations::TranslateOrDefault(
-				"Error", "Error"
-			);
+				"Error", "Error");
 			const FString message = Translations::TranslateOrDefault(
-				"DirectXInitializationFailed", "Failed to initialize DirectX. Switching to DirectDraw rendering."
-			);
+				"DirectXInitializationFailed", "Failed to initialize rendering engine. Switching to DirectDraw (CPU) rendering.");
 			::MessageBox(CFinalSunDlg::Instance->GetSafeHwnd(), message, title, MB_ICONWARNING);
 
 			ExtConfigs::DirectXRendering = false;
+			ExtConfigs::OpenGLRendering = false;
 
 			CINI fa2;
 			FString path = CFinalSunAppExt::ExePathExt;
 			path += "\\FinalAlert.ini";
 			fa2.ClearAndLoad(path);
 			fa2.WriteString("Options", "DirectXRendering", "no");
+			fa2.WriteString("Options", "OpenGLRendering", "no");
 			fa2.WriteToFile(path);
 
 			pIsoView->g_pDX.reset();
@@ -54,39 +54,32 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 	}
 
 	static constexpr GUID _IID_IDirectDraw4 =
-	{
-		0x9c59509a, 0x39bd, 0x11d1,
-		{ 0x8c, 0x4a, 0x00, 0xc0, 0x4f, 0xd9, 0x30, 0xc5 }
-	};
+		{
+			0x9c59509a, 0x39bd, 0x11d1, {0x8c, 0x4a, 0x00, 0xc0, 0x4f, 0xd9, 0x30, 0xc5}};
 
 	static constexpr GUID _IID_IDirectDraw7 =
-	{
-		0x15e65ec0, 0x3b9c, 0x11d2,
-		{ 0xb9, 0x2f, 0x00, 0x60, 0x97, 0x97, 0xea, 0x5b }
-	};
+		{
+			0x15e65ec0, 0x3b9c, 0x11d2, {0xb9, 0x2f, 0x00, 0x60, 0x97, 0x97, 0xea, 0x5b}};
 
-	static GUID* pIID_DirectDrawEmulation = (GUID*)2;
+	static GUID *pIID_DirectDrawEmulation = (GUID *)2;
 
-	GET(CLoading*, pThis, ECX);
+	GET(CLoading *, pThis, ECX);
 
 	CFinalSunDlg::Instance->LastSucceededOperation = 7;
 
 	Logger::Raw(
 		"\n"
 		"=====================================\n"
-		"DirectDrawCreate() will be called now\n"
-	);
+		"DirectDrawCreate() will be called now\n");
 
 	HRESULT hr = S_OK;
 
-	HRESULT(WINAPI * *ppDirectDrawCreate)(GUID*, LPDIRECTDRAW*, IUnknown*)
-		= decltype(ppDirectDrawCreate)(0x591030);
+	HRESULT(WINAPI * *ppDirectDrawCreate)(GUID *, LPDIRECTDRAW *, IUnknown *) = decltype(ppDirectDrawCreate)(0x591030);
 
 	hr = (*ppDirectDrawCreate)(
 		ExtConfigs::DDrawEmulation ? pIID_DirectDrawEmulation : nullptr,
 		&pIsoView->lpDirectDraw,
-		nullptr
-		);
+		nullptr);
 
 	if (FAILED(hr))
 	{
@@ -104,8 +97,7 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 
 	hr = pIsoView->lpDirectDraw->QueryInterface(
 		_IID_IDirectDraw7,
-		reinterpret_cast<LPVOID*>(&pIsoView->lpDD7)
-	);
+		reinterpret_cast<LPVOID *>(&pIsoView->lpDD7));
 
 	if (FAILED(hr))
 	{
@@ -113,8 +105,7 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 
 		hr = pIsoView->lpDirectDraw->QueryInterface(
 			_IID_IDirectDraw4,
-			reinterpret_cast<LPVOID*>(&pIsoView->lpDD7)
-		);
+			reinterpret_cast<LPVOID *>(&pIsoView->lpDD7));
 
 		if (FAILED(hr))
 		{
@@ -126,13 +117,11 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 
 	Logger::Raw(
 		"QueryInterface() successful\n"
-		"Now setting cooperative level\n"
-	);
+		"Now setting cooperative level\n");
 
 	hr = pIsoView->lpDD7->SetCooperativeLevel(
 		pIsoView->m_hWnd,
-		DDSCL_NOWINDOWCHANGES | DDSCL_NORMAL
-	);
+		DDSCL_NOWINDOWCHANGES | DDSCL_NORMAL);
 
 	if (FAILED(hr))
 	{
@@ -145,13 +134,12 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 
 	Logger::Raw(
 		"SetCooperativeLevel() successful\n"
-		"Creating primary surface\n"
-	);
+		"Creating primary surface\n");
 
 	pThis->CPCProgress.SetPos(2);
 	pThis->UpdateWindow();
 
-	DDSURFACEDESC2 dds = { 0 };
+	DDSURFACEDESC2 dds = {0};
 	dds.dwSize = sizeof(dds);
 
 	if (ExtConfigs::DirectXRendering)
@@ -184,8 +172,7 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 		hr = pIsoView->lpDD7->CreateSurface(
 			&dds,
 			&pIsoView->lpDDPrimarySurface,
-			nullptr
-		);
+			nullptr);
 
 		Logger::Raw("Return code: 0x%x\n", (int)hr);
 
@@ -198,8 +185,7 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 				pThis->ShowWindow(SW_HIDE);
 
 				pThis->MessageBox(
-					"Primary surface could not be initialized! Quitting..."
-				);
+					"Primary surface could not be initialized! Quitting...");
 
 				pIsoView->lpDD7->Release();
 				pIsoView->lpDD7 = nullptr;
@@ -215,7 +201,7 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 		}
 	}
 
-	DDPIXELFORMAT ddpf = { 0 };
+	DDPIXELFORMAT ddpf = {0};
 	ddpf.dwSize = sizeof(ddpf);
 
 	pIsoView->lpDDPrimarySurface->GetPixelFormat(&ddpf);
@@ -226,17 +212,15 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 
 		pThis->MessageBox(
 			"You must not use a palette color mode like 8 bit in order to run FinalAlert 2(tm). Please check readme.txt",
-			"Error"
-		);
+			"Error");
 	}
 
-	*reinterpret_cast<DWORD*>(0x72A8C0) =
+	*reinterpret_cast<DWORD *>(0x72A8C0) =
 		(ddpf.dwRGBBitCount + 7) >> 3;
 
 	Logger::Raw(
 		"CreateSurface() successful\n"
-		"Creating backbuffer surface\n"
-	);
+		"Creating backbuffer surface\n");
 
 	ZeroMemory(&dds, sizeof(dds));
 	dds.dwSize = sizeof(dds);
@@ -278,8 +262,7 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 	hr = pIsoView->lpDD7->CreateSurface(
 		&dds,
 		&pIsoView->lpDDBackBufferSurface,
-		nullptr
-	);
+		nullptr);
 
 	if (FAILED(hr))
 	{
@@ -288,8 +271,7 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 		pThis->ShowWindow(SW_HIDE);
 
 		pThis->MessageBox(
-			"Backbuffer surface could not be initialized! Quitting..."
-		);
+			"Backbuffer surface could not be initialized! Quitting...");
 
 		pIsoView->lpDDPrimarySurface->Release();
 		pIsoView->lpDDPrimarySurface = nullptr;
@@ -306,8 +288,7 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 	hr = pIsoView->lpDD7->CreateSurface(
 		&dds,
 		&CIsoViewExt::lpDDBackBufferZoomSurface,
-		nullptr
-	);
+		nullptr);
 
 	if (FAILED(hr))
 	{
@@ -316,8 +297,7 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 		pThis->ShowWindow(SW_HIDE);
 
 		pThis->MessageBox(
-			"Backbuffer zoom surface could not be initialized! Quitting..."
-		);
+			"Backbuffer zoom surface could not be initialized! Quitting...");
 
 		pIsoView->lpDDPrimarySurface->Release();
 		pIsoView->lpDDPrimarySurface = nullptr;
@@ -334,8 +314,7 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 	hr = pIsoView->lpDD7->CreateSurface(
 		&dds,
 		&pIsoView->lpDDTempBufferSurface,
-		nullptr
-	);
+		nullptr);
 
 	if (FAILED(hr))
 	{
@@ -344,8 +323,7 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 		pThis->ShowWindow(SW_HIDE);
 
 		pThis->MessageBox(
-			"Tempbuffer surface could not be initialized! Quitting..."
-		);
+			"Tempbuffer surface could not be initialized! Quitting...");
 
 		pIsoView->lpDDBackBufferSurface->Release();
 		pIsoView->lpDDBackBufferSurface = nullptr;
@@ -364,16 +342,14 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 
 	Logger::Raw(
 		"CreateSurface() successful\n"
-		"Now creating clipper\n"
-	);
+		"Now creating clipper\n");
 
 	LPDIRECTDRAWCLIPPER lpClipper;
 
 	hr = pIsoView->lpDD7->CreateClipper(
 		NULL,
 		&lpClipper,
-		nullptr
-	);
+		nullptr);
 
 	if (FAILED(hr))
 	{
@@ -382,8 +358,7 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 		pThis->ShowWindow(SW_HIDE);
 
 		pThis->MessageBox(
-			"Clipper could not be created! Quitting..."
-		);
+			"Clipper could not be created! Quitting...");
 
 		pIsoView->lpDDTempBufferSurface->Release();
 		pIsoView->lpDDTempBufferSurface = nullptr;
@@ -405,8 +380,7 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 
 	Logger::Raw(
 		"CreateClipper() successful\n"
-		"=====================================\n\n"
-	);
+		"=====================================\n\n");
 
 	if (!ExtConfigs::DirectXRendering)
 	{

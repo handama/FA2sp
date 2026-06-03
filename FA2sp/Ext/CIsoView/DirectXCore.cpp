@@ -4620,6 +4620,12 @@ bool DirectXCore::GL_Init(HWND hwnd)
     if (!glad_glBlendFunci)
         Logger::Raw("[GL] Warning: glBlendFunci not available - MRT blending may be incorrect.\n");
 
+    // Enable V-Sync
+    auto wglSwapIntervalEXT = (BOOL(WINAPI *)(int))wglGetProcAddress("wglSwapIntervalEXT");
+    if (wglSwapIntervalEXT)
+    {
+        wglSwapIntervalEXT(1);
+    }
     // --- Step 5: Log GPU info ---
     Logger::Raw("\n");
     Logger::Raw("========== OpenGL Device Info ==========\n");

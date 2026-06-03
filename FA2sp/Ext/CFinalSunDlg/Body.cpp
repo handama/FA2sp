@@ -1243,6 +1243,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				{
 					renderMap(p, true);
 					MyViewFrame.Minimap.Update();
+					endConfirmDialog = true;
 				}
 			}
 
@@ -1252,7 +1253,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				CIsoViewExt::g_pDX->SetZoomOut(CIsoViewExt::ScaledFactor);
 			}
 		}
-		if(endConfirmDialog)
+		if (endConfirmDialog)
 		{
 			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 		}

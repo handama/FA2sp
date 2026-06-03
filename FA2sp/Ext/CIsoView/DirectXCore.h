@@ -1,8 +1,7 @@
 #pragma once
 #include <windef.h>
-#include <wrl/client.h> 
+#include <wrl/client.h>
 #include <d3d11.h>
-#include <d3d11sdklayers.h>
 #include <dxgi.h>
 #include <d3dcompiler.h>
 #include <functional>
@@ -21,9 +20,9 @@ struct ImageDataView
 {
     int FullWidth;
     int FullHeight;
-    const BYTE* pImageBuffer;
-    const BYTE* pOpacity;
-    const Palette* pPalette;
+    const BYTE *pImageBuffer;
+    const BYTE *pOpacity;
+    const Palette *pPalette;
     enum ImageDataViewType
     {
         Unknown = -1,
@@ -32,23 +31,27 @@ struct ImageDataView
         TileBlockData,
     };
     ImageDataViewType Type = ImageDataViewType::Unknown;
-    void* pOriginData;
+    void *pOriginData;
 };
 
-struct TextureIndex {
-    const void* pData;
+struct TextureIndex
+{
+    const void *pData;
     const BGRStruct color;
 
-    bool operator==(const TextureIndex& other) const;
+    bool operator==(const TextureIndex &other) const;
 };
 
-namespace std {
-    template<>
-    struct hash<TextureIndex> {
-        size_t operator()(const TextureIndex& k) const noexcept {
+namespace std
+{
+    template <>
+    struct hash<TextureIndex>
+    {
+        size_t operator()(const TextureIndex &k) const noexcept
+        {
             size_t seed = 0;
-            seed ^= hash<const void*>{}(k.pData) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-            seed ^= hash<int>{}(*reinterpret_cast<const int*>(&k.color)) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            seed ^= hash<const void *>{}(k.pData) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            seed ^= hash<int>{}(*reinterpret_cast<const int *>(&k.color)) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
             return seed;
         }
     };
@@ -72,17 +75,38 @@ public:
     int drawDepth = -1;
     bool bScreenSpace = false;
     bool bIsShadow = false;
-    bool bAlwaysOnTop = false;  
+    bool bAlwaysOnTop = false;
     bool bIsOverlapShadow = false;
     bool bWriteStencil = false;
-    int stencilRef = -1; 
+    int stencilRef = -1;
 
-    DrawParams& SetPosition(float _x, float _y) { x = _x; y = _y; return *this; }
-    DrawParams& SetScale(float sx, float sy) { scaleX = sx; scaleY = sy; return *this; }
-    DrawParams& SetOpacity(float o) { opacity = o; return *this; }
-    DrawParams& SetColorMul(float r, float g, float b) { redMult = r; greenMult = g; blueMult = b; return *this; }
-    DrawParams& SetColorMul(ColorMults mults);
-    DrawParams& SetColorMix(float r, float g, float b, float factor) {
+    DrawParams &SetPosition(float _x, float _y)
+    {
+        x = _x;
+        y = _y;
+        return *this;
+    }
+    DrawParams &SetScale(float sx, float sy)
+    {
+        scaleX = sx;
+        scaleY = sy;
+        return *this;
+    }
+    DrawParams &SetOpacity(float o)
+    {
+        opacity = o;
+        return *this;
+    }
+    DrawParams &SetColorMul(float r, float g, float b)
+    {
+        redMult = r;
+        greenMult = g;
+        blueMult = b;
+        return *this;
+    }
+    DrawParams &SetColorMul(ColorMults mults);
+    DrawParams &SetColorMix(float r, float g, float b, float factor)
+    {
         float newFactor =
             mixFactor + factor * (1.0f - mixFactor);
         if (newFactor > 0.0001f)
@@ -90,26 +114,40 @@ public:
             float oldWeight = mixFactor * (1.0f - factor);
             float newWeight = factor;
             mixR =
-                (mixR * oldWeight + r * newWeight)
-                / newFactor;
+                (mixR * oldWeight + r * newWeight) / newFactor;
             mixG =
-                (mixG * oldWeight + g * newWeight)
-                / newFactor;
+                (mixG * oldWeight + g * newWeight) / newFactor;
             mixB =
-                (mixB * oldWeight + b * newWeight)
-                / newFactor;
+                (mixB * oldWeight + b * newWeight) / newFactor;
         }
         mixFactor = newFactor;
         return *this;
     }
-    DrawParams& SetColorMix(RGBClass color, float factor);
-    DrawParams& SetScreenSpace() { bScreenSpace = true; return *this; }
-    DrawParams& SetDrawDepth(int depth) { drawDepth = depth; return *this; }
-    DrawParams& SetStencilRef(int ref) { stencilRef = ref; return *this; }
-    DrawParams& SetAlwaysOnTop() { bAlwaysOnTop = true; return *this; }
+    DrawParams &SetColorMix(RGBClass color, float factor);
+    DrawParams &SetScreenSpace()
+    {
+        bScreenSpace = true;
+        return *this;
+    }
+    DrawParams &SetDrawDepth(int depth)
+    {
+        drawDepth = depth;
+        return *this;
+    }
+    DrawParams &SetStencilRef(int ref)
+    {
+        stencilRef = ref;
+        return *this;
+    }
+    DrawParams &SetAlwaysOnTop()
+    {
+        bAlwaysOnTop = true;
+        return *this;
+    }
 };
 
-struct TextureResource {
+struct TextureResource
+{
     ImageDataView sourceView;
     Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
@@ -118,29 +156,31 @@ struct TextureResource {
 
 // Per-instance data for DrawInstanced batching (no DirectXMath dependency).
 // 16 floats = 64 bytes per instance.
-struct InstanceData {
-    float scaleX, scaleY, transX, transY;   // world matrix encode
+struct InstanceData
+{
+    float scaleX, scaleY, transX, transY; // world matrix encode
     float depthZ, colorMulR, colorMulG, colorMulB;
     float colorMulA, mixR, mixG, mixB;
     float mixFactor;
-    float padding[3];                        // 16-byte alignment
+    float padding[3]; // 16-byte alignment
 };
 
 class DirectXCore
 {
 public:
-    struct DrawCommand {
-        TextureResource* texRes = nullptr;
+    struct DrawCommand
+    {
+        TextureResource *texRes = nullptr;
         DrawParams params;
         bool bIsEffect = false;
         bool bScreenSpace = false;
-        bool bStencilDraw = false; 
+        bool bStencilDraw = false;
         bool bStencilOnly = false;
         bool bIsShadowMark = false;
         bool bIsOverlapShadow = false;
         bool bAlwaysOnTop = false;
         UINT depth = 0;
-        ID3D11DepthStencilState* pCustomDSState = nullptr; 
+        ID3D11DepthStencilState *pCustomDSState = nullptr;
     };
 
     DirectXCore();
@@ -153,20 +193,24 @@ public:
     void ClearTileTextures();
     void OnResize(HWND hwnd);
 
-    TextureResource* LoadTexture(const ImageDataView& view, BGRStruct color = { 0,0,0 }, bool ignoreTransparent = false);
-    TextureResource* LoadTileTexture(CTileBlockClass* tileBlock, const ImageDataView& view);
-    TextureResource* LoadIndexTexture(const ImageDataView& view);
-    TextureResource* LoadBitmapTexture(FString_view name, CBitmap& bitmap, 
-        bool setColorKey = true, COLORREF color = RGB(255, 255, 255));
+    TextureResource *LoadTexture(const ImageDataView &view, BGRStruct color = {0, 0, 0}, bool ignoreTransparent = false);
+    TextureResource *LoadTileTexture(CTileBlockClass *tileBlock, const ImageDataView &view);
+    TextureResource *LoadIndexTexture(const ImageDataView &view);
+    TextureResource *LoadBitmapTexture(FString_view name, CBitmap &bitmap,
+                                       bool setColorKey = true, COLORREF color = RGB(255, 255, 255));
     void RemoveBitmapTexture(FString_view name);
 
-    TextureResource* GetTexture(void* pData, BGRStruct color = {0,0,0}) const;
-    TextureResource* GetTileTexture(CTileBlockClass* tileBlock) const;
-    TextureResource* GetBitmapTexture(FString_view name) const;
+    TextureResource *GetTexture(void *pData, BGRStruct color = {0, 0, 0}) const;
+    TextureResource *GetTileTexture(CTileBlockClass *tileBlock) const;
+    TextureResource *GetBitmapTexture(FString_view name) const;
 
-    void DrawTexture(TextureResource* tex, const DrawParams& params);
-    void DrawTexture(TextureResource* tex, float x, float y) {
-        DrawParams p; p.x = x; p.y = y; DrawTexture(tex, p);
+    void DrawTexture(TextureResource *tex, const DrawParams &params);
+    void DrawTexture(TextureResource *tex, float x, float y)
+    {
+        DrawParams p;
+        p.x = x;
+        p.y = y;
+        DrawTexture(tex, p);
     }
 
     void SetGlobalTransform(float scaleX, float scaleY, float offsetX, float offsetY);
@@ -197,10 +241,9 @@ public:
                       uint32_t color, float thickness, UINT depth,
                       bool bScreenSpace = false, bool bAlwaysOnTop = false);
 
-    std::vector<DrawCommand>& GetDrawCommandList() { return m_drawCommands; }
+    std::vector<DrawCommand> &GetDrawCommandList() { return m_drawCommands; }
 
 private:
-
     bool CreateDeviceAndSwapChain(HWND hwnd);
     bool CreateShadersAndInputLayout();
     bool CreateEffectShaders();
@@ -224,85 +267,85 @@ private:
     void RenderScreenSpaceContent();
     void FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS = nullptr, bool bOverlay = false);
 
-    void UpdateBackgroundCache();     
+    void UpdateBackgroundCache();
     void RestoreBackgroundFromCache();
 
-    Microsoft::WRL::ComPtr<ID3D11Device>           m_pDevice;
-    Microsoft::WRL::ComPtr<ID3D11DeviceContext>    m_pContext;
-    Microsoft::WRL::ComPtr<IDXGISwapChain>         m_pSwapChain;
+    Microsoft::WRL::ComPtr<ID3D11Device> m_pDevice;
+    Microsoft::WRL::ComPtr<ID3D11DeviceContext> m_pContext;
+    Microsoft::WRL::ComPtr<IDXGISwapChain> m_pSwapChain;
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_pRTV;
 
-    Microsoft::WRL::ComPtr<ID3D11VertexShader>     m_pVS;
-    Microsoft::WRL::ComPtr<ID3D11PixelShader>      m_pPS;
-    Microsoft::WRL::ComPtr<ID3D11InputLayout>      m_pInputLayout;
+    Microsoft::WRL::ComPtr<ID3D11VertexShader> m_pVS;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> m_pPS;
+    Microsoft::WRL::ComPtr<ID3D11InputLayout> m_pInputLayout;
 
     // Instanced rendering: same quad VB, separate per-instance VB + shader + layout
-    Microsoft::WRL::ComPtr<ID3D11VertexShader>     m_pInstancedVS;       // VS that reads InstanceData
-    Microsoft::WRL::ComPtr<ID3D11InputLayout>      m_pInstancedInputLayout;
-    Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pInstanceVB;         // dynamic, holds InstanceData[]
-    Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSamplerLinear;
-    Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSamplerPoint;
-    Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSamplerNearestNeighbor;
-    Microsoft::WRL::ComPtr<ID3D11BlendState>       m_pBlendState;
-    Microsoft::WRL::ComPtr<ID3D11BlendState>       m_pBlendStateNoColor;
-    Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pQuadVB;
-    Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pConstantBuffer;
-    Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pFullscreenQuadVB;
+    Microsoft::WRL::ComPtr<ID3D11VertexShader> m_pInstancedVS; // VS that reads InstanceData
+    Microsoft::WRL::ComPtr<ID3D11InputLayout> m_pInstancedInputLayout;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_pInstanceVB; // dynamic, holds InstanceData[]
+    Microsoft::WRL::ComPtr<ID3D11SamplerState> m_pSamplerLinear;
+    Microsoft::WRL::ComPtr<ID3D11SamplerState> m_pSamplerPoint;
+    Microsoft::WRL::ComPtr<ID3D11SamplerState> m_pSamplerNearestNeighbor;
+    Microsoft::WRL::ComPtr<ID3D11BlendState> m_pBlendState;
+    Microsoft::WRL::ComPtr<ID3D11BlendState> m_pBlendStateNoColor;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_pQuadVB;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_pConstantBuffer;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_pFullscreenQuadVB;
 
-    Microsoft::WRL::ComPtr<ID3D11VertexShader>     m_pEffectVS;
-    Microsoft::WRL::ComPtr<ID3D11PixelShader>      m_pEffectPS;
-    Microsoft::WRL::ComPtr<ID3D11Texture2D>        m_pFactorTexture;
+    Microsoft::WRL::ComPtr<ID3D11VertexShader> m_pEffectVS;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> m_pEffectPS;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> m_pFactorTexture;
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_pFactorRTV;
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_pFactorSRV;
-    Microsoft::WRL::ComPtr<ID3D11Texture2D>        m_pScreenCopy;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> m_pScreenCopy;
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_pScreenCopySRV;
-    Microsoft::WRL::ComPtr<ID3D11BlendState>       m_pMulBlendState;
+    Microsoft::WRL::ComPtr<ID3D11BlendState> m_pMulBlendState;
 
-    Microsoft::WRL::ComPtr<ID3D11VertexShader>     m_pLineVS;
-    Microsoft::WRL::ComPtr<ID3D11PixelShader>      m_pLinePS;
-    Microsoft::WRL::ComPtr<ID3D11InputLayout>      m_pLineInputLayout;
-    Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pLineVB;
-    int                                            m_lineVBCapacity = 0;
+    Microsoft::WRL::ComPtr<ID3D11VertexShader> m_pLineVS;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> m_pLinePS;
+    Microsoft::WRL::ComPtr<ID3D11InputLayout> m_pLineInputLayout;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_pLineVB;
+    int m_lineVBCapacity = 0;
 
     // Alpha accumulation for transparency-aware line rendering (MRT)
-    Microsoft::WRL::ComPtr<ID3D11PixelShader>      m_pMRTPS;
-    Microsoft::WRL::ComPtr<ID3D11PixelShader>      m_pLineModPS;
-    Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pLineConstantBuffer;
-    Microsoft::WRL::ComPtr<ID3D11BlendState>       m_pAlphaAccumBlendState;
-    Microsoft::WRL::ComPtr<ID3D11Texture2D>        m_pAlphaAccumTex;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> m_pMRTPS;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> m_pLineModPS;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_pLineConstantBuffer;
+    Microsoft::WRL::ComPtr<ID3D11BlendState> m_pAlphaAccumBlendState;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> m_pAlphaAccumTex;
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_pAlphaAccumRTV;
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_pAlphaAccumSRV;
 
-    Microsoft::WRL::ComPtr<ID3D11VertexShader>     m_pCompositeVS;
-    Microsoft::WRL::ComPtr<ID3D11PixelShader>      m_pCompositePS;
+    Microsoft::WRL::ComPtr<ID3D11VertexShader> m_pCompositeVS;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> m_pCompositePS;
 
-    Microsoft::WRL::ComPtr<ID3D11VertexShader>     m_pFinalVS;
-    Microsoft::WRL::ComPtr<ID3D11PixelShader>      m_pFinalPS;
-    Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pFinalConstantBuffer;
-    Microsoft::WRL::ComPtr<ID3D11Texture2D>        m_OffscreenTex;
+    Microsoft::WRL::ComPtr<ID3D11VertexShader> m_pFinalVS;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> m_pFinalPS;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_pFinalConstantBuffer;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> m_OffscreenTex;
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_OffscreenRTV;
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_OffscreenSRV;
 
-    Microsoft::WRL::ComPtr<ID3D11Texture2D>          m_pBackgroundCacheTexture;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> m_pBackgroundCacheTexture;
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_pBackgroundCacheSRV;
 
-    Microsoft::WRL::ComPtr<ID3D11Texture2D>          m_pOffscreenDSBuffer;
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilView>   m_pOffscreenDSV;
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateGE;
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateReadOnlyGE;
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateOff;
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateObjectStencilWrite; 
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateStencilOnlyWrite; 
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateTerrainRedraw; 
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateShadowMark;
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateShadowRedraw;
-    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateShadowDarken;
-    Microsoft::WRL::ComPtr<ID3D11BlendState>         m_pBlendStateDarken;
-    Microsoft::WRL::ComPtr<ID3D11PixelShader>        m_pShadowDarkenPS; 
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> m_pOffscreenDSBuffer;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilView> m_pOffscreenDSV;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_pDepthStateGE;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_pDepthStateReadOnlyGE;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_pDepthStateOff;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_pDepthStateObjectStencilWrite;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_pDepthStateStencilOnlyWrite;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_pDepthStateTerrainRedraw;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_pDepthStateShadowMark;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_pDepthStateShadowRedraw;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_pDepthStateShadowDarken;
+    Microsoft::WRL::ComPtr<ID3D11BlendState> m_pBlendStateDarken;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> m_pShadowDarkenPS;
 
     std::unordered_map<TextureIndex, std::unique_ptr<TextureResource>> m_textureMap;
     FHashMap<std::unique_ptr<TextureResource>> m_bitmapTextureMap;
-    std::unordered_map<CTileBlockClass*, std::unique_ptr<TextureResource>> m_tileTextureMap;
+    std::unordered_map<CTileBlockClass *, std::unique_ptr<TextureResource>> m_tileTextureMap;
     std::vector<DrawCommand> m_drawCommands;
 
     int m_clientWidth = 0;
@@ -320,7 +363,8 @@ private:
     UINT m_globalDepth = 0;
 
     // GPU line batching
-    struct LineEntry {
+    struct LineEntry
+    {
         float x0, y0, x1, y1;
         uint32_t color;
         float thickness;
@@ -331,141 +375,259 @@ private:
     std::vector<LineEntry> m_lineEntries;
 
     // CPU-side state tracking to avoid expensive OMGet* queries
-    ID3D11DepthStencilState* m_pTrackedDSState = nullptr;
-    UINT                     m_trackedStencilRef = 0;
-    ID3D11ShaderResourceView* m_pTrackedSRV = nullptr;
+    ID3D11DepthStencilState *m_pTrackedDSState = nullptr;
+    UINT m_trackedStencilRef = 0;
+    ID3D11ShaderResourceView *m_pTrackedSRV = nullptr;
 
     // Instance batching support
-    int                      m_instanceVBCapacity = 0;
-    float                    m_vwCached = 0.0f;
-    float                    m_vhCached = 0.0f;
+    int m_instanceVBCapacity = 0;
+    float m_vwCached = 0.0f;
+    float m_vhCached = 0.0f;
     void SetDSStateTracked(ID3D11DepthStencilState *pDS, UINT stencilRef);
-    void FlushInstanceBatch(const std::vector<const DrawCommand*>& batch);
-
-    // D3D11 Debug Layer (active in _DEBUG builds only)
-    Microsoft::WRL::ComPtr<ID3D11InfoQueue> m_pInfoQueue;
+    void FlushInstanceBatch(const std::vector<const DrawCommand *> &batch);
 
 public:
-    void FlushDebugMessages();
-
-    ID3D11Device* GetDevice() { return m_pDevice.Get(); }
-    ID3D11DeviceContext* GetContext() { return m_pContext.Get(); }
-    ID3D11Texture2D* GetOffscreenTexture() const { return m_OffscreenTex.Get(); }
+    ID3D11Device *GetDevice() { return m_pDevice.Get(); }
+    ID3D11DeviceContext *GetContext() { return m_pContext.Get(); }
+    ID3D11Texture2D *GetOffscreenTexture() const { return m_OffscreenTex.Get(); }
 };
 
-struct ShapeColor {
+struct ShapeColor
+{
     float r = 0.f, g = 0.f, b = 0.f, a = 1.f;
 
     ShapeColor() = default;
     ShapeColor(float r, float g, float b, float a = 1.f) : r(r), g(g), b(b), a(a) {}
 
-    static ShapeColor FromRGBA(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255) {
-        return { r / 255.f, g / 255.f, b / 255.f, a / 255.f };
+    static ShapeColor FromRGBA(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255)
+    {
+        return {r / 255.f, g / 255.f, b / 255.f, a / 255.f};
     }
-    static ShapeColor FromCOLORREF(COLORREF color) {
-        return { GetRValue(color) / 255.f, GetGValue(color) / 255.f, GetBValue(color) / 255.f, 1.0f };
+    static ShapeColor FromCOLORREF(COLORREF color)
+    {
+        return {GetRValue(color) / 255.f, GetGValue(color) / 255.f, GetBValue(color) / 255.f, 1.0f};
     }
-    static ShapeColor Transparent() { return { 0, 0, 0, 0 }; }
+    static ShapeColor Transparent() { return {0, 0, 0, 0}; }
 
     bool IsTransparent() const { return a < 1e-4f; }
 
-    uint32_t ToRGBA8() const {
-        auto c = [](float v) -> uint8_t { return (uint8_t)(v < 0 ? 0 : v > 1 ? 255 : v * 255.f + .5f); };
+    uint32_t ToRGBA8() const
+    {
+        auto c = [](float v) -> uint8_t
+        { return (uint8_t)(v < 0 ? 0 : v > 1 ? 255
+                                             : v * 255.f + .5f); };
         return (uint32_t)c(r) | ((uint32_t)c(g) << 8) | ((uint32_t)c(b) << 16) | ((uint32_t)c(a) << 24);
     }
 };
 
-struct LineParams {
-    ShapeColor color = { 1,1,1,1 }; 
-    float      thickness = 1.f;     
-    float      dashLength = 0.f;    
-    float      gapLength = 0.f;     
-    float      opacity = 1.f;       
-    int       drawDepth = -1;
-    bool       bScreenSpace = false;
-    bool       bAlwaysOnTop = false;
-    bool       antiAlias = false;
+struct LineParams
+{
+    ShapeColor color = {1, 1, 1, 1};
+    float thickness = 1.f;
+    float dashLength = 0.f;
+    float gapLength = 0.f;
+    float opacity = 1.f;
+    int drawDepth = -1;
+    bool bScreenSpace = false;
+    bool bAlwaysOnTop = false;
+    bool antiAlias = false;
 
-    LineParams& SetColor(ShapeColor c) { color = c; return *this; }
-    LineParams& SetThickness(float t) { thickness = t; return *this; }
-    LineParams& SetOpacity(float o) { opacity = o; return *this; }
-    LineParams& SetScreenSpace() { bScreenSpace = true; return *this; }
-    LineParams& SetAlwaysOnTop() { bAlwaysOnTop = true; return *this; }
-    LineParams& SetDash(float dash, float gap) { dashLength = dash; gapLength = gap; return *this; }
-    LineParams& SetAntiAlias(bool b = true) { antiAlias = b; return *this; }
-    LineParams& SetDrawDepth(int depth) { drawDepth = depth; return *this; }
+    LineParams &SetColor(ShapeColor c)
+    {
+        color = c;
+        return *this;
+    }
+    LineParams &SetThickness(float t)
+    {
+        thickness = t;
+        return *this;
+    }
+    LineParams &SetOpacity(float o)
+    {
+        opacity = o;
+        return *this;
+    }
+    LineParams &SetScreenSpace()
+    {
+        bScreenSpace = true;
+        return *this;
+    }
+    LineParams &SetAlwaysOnTop()
+    {
+        bAlwaysOnTop = true;
+        return *this;
+    }
+    LineParams &SetDash(float dash, float gap)
+    {
+        dashLength = dash;
+        gapLength = gap;
+        return *this;
+    }
+    LineParams &SetAntiAlias(bool b = true)
+    {
+        antiAlias = b;
+        return *this;
+    }
+    LineParams &SetDrawDepth(int depth)
+    {
+        drawDepth = depth;
+        return *this;
+    }
 };
 
-struct RectParams {
-    ShapeColor borderColor = { 1,1,1,1 }; 
-    ShapeColor fillColor = ShapeColor::Transparent(); 
-    float      borderWidth = 1.f;    
-    float      dashLength = 0.f;     
-    float      gapLength = 0.f;      
-    float      opacity = 1.f;        
-    int        drawDepth = -1;
-    bool       bScreenSpace = false;
-    bool       bAlwaysOnTop = false;
-
-    RectParams& SetBorderColor(ShapeColor c) { borderColor = c; return *this; }
-    RectParams& SetFillColor(ShapeColor c) { fillColor = c; return *this; }
-    RectParams& SetBorderWidth(float w) { borderWidth = w; return *this; }
-    RectParams& SetDash(float dash, float gap) { dashLength = dash; gapLength = gap; return *this; }
-    RectParams& SetOpacity(float o) { opacity = o; return *this; }
-    RectParams& SetScreenSpace() { bScreenSpace = true; return *this; }
-    RectParams& NoBorder() { borderWidth = 0; return *this; }
-    RectParams& SetDrawDepth(int depth) { drawDepth = depth; return *this; }
-    RectParams& SetAlwaysOnTop() { bAlwaysOnTop = true; return *this; }
-};
-
-struct EllipseParams {
-    ShapeColor borderColor = { 1,1,1,1 };
+struct RectParams
+{
+    ShapeColor borderColor = {1, 1, 1, 1};
     ShapeColor fillColor = ShapeColor::Transparent();
-    float      borderWidth = 1.f;
-    float      dashLength = 0.f;      
-    float      gapLength = 0.f;
-    float      opacity = 1.f;
-    int        segments = 0;         
-    int        drawDepth = -1; 
-    bool       bScreenSpace = false;
-    bool       bAlwaysOnTop = false;
+    float borderWidth = 1.f;
+    float dashLength = 0.f;
+    float gapLength = 0.f;
+    float opacity = 1.f;
+    int drawDepth = -1;
+    bool bScreenSpace = false;
+    bool bAlwaysOnTop = false;
 
-    EllipseParams& SetBorderColor(ShapeColor c) { borderColor = c; return *this; }
-    EllipseParams& SetFillColor(ShapeColor c) { fillColor = c; return *this; }
-    EllipseParams& SetBorderWidth(float w) { borderWidth = w; return *this; }
-    EllipseParams& SetDash(float dash, float gap) { dashLength = dash; gapLength = gap; return *this; }
-    EllipseParams& SetOpacity(float o) { opacity = o; return *this; }
-    EllipseParams& SetSegments(int s) { segments = s; return *this; }
-    EllipseParams& SetScreenSpace() { bScreenSpace = true; return *this; }
-    EllipseParams& NoBorder() { borderWidth = 0; return *this; }
-    EllipseParams& SetDrawDepth(int depth) { drawDepth = depth; return *this; }
-    EllipseParams& SetAlwaysOnTop() { bAlwaysOnTop = true; return *this; }
+    RectParams &SetBorderColor(ShapeColor c)
+    {
+        borderColor = c;
+        return *this;
+    }
+    RectParams &SetFillColor(ShapeColor c)
+    {
+        fillColor = c;
+        return *this;
+    }
+    RectParams &SetBorderWidth(float w)
+    {
+        borderWidth = w;
+        return *this;
+    }
+    RectParams &SetDash(float dash, float gap)
+    {
+        dashLength = dash;
+        gapLength = gap;
+        return *this;
+    }
+    RectParams &SetOpacity(float o)
+    {
+        opacity = o;
+        return *this;
+    }
+    RectParams &SetScreenSpace()
+    {
+        bScreenSpace = true;
+        return *this;
+    }
+    RectParams &NoBorder()
+    {
+        borderWidth = 0;
+        return *this;
+    }
+    RectParams &SetDrawDepth(int depth)
+    {
+        drawDepth = depth;
+        return *this;
+    }
+    RectParams &SetAlwaysOnTop()
+    {
+        bAlwaysOnTop = true;
+        return *this;
+    }
 };
 
-class DrawShapes {
+struct EllipseParams
+{
+    ShapeColor borderColor = {1, 1, 1, 1};
+    ShapeColor fillColor = ShapeColor::Transparent();
+    float borderWidth = 1.f;
+    float dashLength = 0.f;
+    float gapLength = 0.f;
+    float opacity = 1.f;
+    int segments = 0;
+    int drawDepth = -1;
+    bool bScreenSpace = false;
+    bool bAlwaysOnTop = false;
+
+    EllipseParams &SetBorderColor(ShapeColor c)
+    {
+        borderColor = c;
+        return *this;
+    }
+    EllipseParams &SetFillColor(ShapeColor c)
+    {
+        fillColor = c;
+        return *this;
+    }
+    EllipseParams &SetBorderWidth(float w)
+    {
+        borderWidth = w;
+        return *this;
+    }
+    EllipseParams &SetDash(float dash, float gap)
+    {
+        dashLength = dash;
+        gapLength = gap;
+        return *this;
+    }
+    EllipseParams &SetOpacity(float o)
+    {
+        opacity = o;
+        return *this;
+    }
+    EllipseParams &SetSegments(int s)
+    {
+        segments = s;
+        return *this;
+    }
+    EllipseParams &SetScreenSpace()
+    {
+        bScreenSpace = true;
+        return *this;
+    }
+    EllipseParams &NoBorder()
+    {
+        borderWidth = 0;
+        return *this;
+    }
+    EllipseParams &SetDrawDepth(int depth)
+    {
+        drawDepth = depth;
+        return *this;
+    }
+    EllipseParams &SetAlwaysOnTop()
+    {
+        bAlwaysOnTop = true;
+        return *this;
+    }
+};
+
+class DrawShapes
+{
 public:
-    explicit DrawShapes(DirectXCore* dx);
+    explicit DrawShapes(DirectXCore *dx);
     ~DrawShapes() = default;
 
     void BeginFrame();
     void EndFrame();
 
     void DrawLine(float x0, float y0, float x1, float y1,
-        const LineParams& params = {});
+                  const LineParams &params = {});
 
     void DrawRect(float x, float y, float w, float h,
-        const RectParams& params = {});
+                  const RectParams &params = {});
 
     void DrawEllipse(float cx, float cy, float rx, float ry,
-        const EllipseParams& params = {});
+                     const EllipseParams &params = {});
 
     void DrawCircle(float cx, float cy, float radius,
-        const EllipseParams& params = {}) {
+                    const EllipseParams &params = {})
+    {
         DrawEllipse(cx, cy, radius, radius, params);
     }
 
 private:
-    struct Canvas {
+    struct Canvas
+    {
         std::vector<uint32_t> buf;
         int w = 0, h = 0;
         void Resize(int _w, int _h);
@@ -475,31 +637,32 @@ private:
         void SetPixelBlend(int x, int y, uint32_t src);
     };
 
-    void FlushCanvas(Canvas& c, float worldX, float worldY,
-        float opacity, bool bScreenSpace);
+    void FlushCanvas(Canvas &c, float worldX, float worldY,
+                     float opacity, bool bScreenSpace);
 
-    void RasterLine(Canvas& c, float x0, float y0, float x1, float y1,
-        float thickness, ShapeColor color,
-        float dashLen, float gapLen, bool antiAlias = false);
+    void RasterLine(Canvas &c, float x0, float y0, float x1, float y1,
+                    float thickness, ShapeColor color,
+                    float dashLen, float gapLen, bool antiAlias = false);
 
-    void RasterThickPoint(Canvas& c, float px, float py,
-        float radius, uint32_t rgba);
+    void RasterThickPoint(Canvas &c, float px, float py,
+                          float radius, uint32_t rgba);
 
-    void RasterEllipseFill(Canvas& c, float cx, float cy,
-        float rx, float ry, uint32_t rgba);
+    void RasterEllipseFill(Canvas &c, float cx, float cy,
+                           float rx, float ry, uint32_t rgba);
 
-    DirectXCore* m_dx;
+    DirectXCore *m_dx;
 
-    struct TempTex {
+    struct TempTex
+    {
         int w = 0, h = 0;
         std::unique_ptr<TextureResource> res;
     };
-    std::vector<TempTex> m_freePool;   
-    std::vector<TempTex> m_inUseList;  
-    std::vector<TempTex> m_retireList; 
+    std::vector<TempTex> m_freePool;
+    std::vector<TempTex> m_inUseList;
+    std::vector<TempTex> m_retireList;
 
-    TextureResource* AcquireTempTexture(int w, int h,
-        const std::vector<uint32_t>& pixels);
+    TextureResource *AcquireTempTexture(int w, int h,
+                                        const std::vector<uint32_t> &pixels);
 };
 
 enum class TextAlign : int
@@ -509,69 +672,145 @@ enum class TextAlign : int
     Right
 };
 
-struct TextParams {
-    FString     fontName = "Cambria";
-    int             fontSize = 14;    
-    bool            bold = false;
-    bool            italic = false;
-    bool            underline = false;
-    ShapeColor      color = { 1,1,1,1 };
-    ShapeColor      bgColor = ShapeColor::Transparent();
-    int             paddingX = 2;        
-    int             paddingY = 1;          
-    int             borderThickness = 1;   
-    float           opacity = 1.f;         
-    bool            bScreenSpace = false;  
-    bool            bBorder = false;         
-    bool            bAlwaysOnTop = false;  
+struct TextParams
+{
+    FString fontName = "Cambria";
+    int fontSize = 14;
+    bool bold = false;
+    bool italic = false;
+    bool underline = false;
+    ShapeColor color = {1, 1, 1, 1};
+    ShapeColor bgColor = ShapeColor::Transparent();
+    int paddingX = 2;
+    int paddingY = 1;
+    int borderThickness = 1;
+    float opacity = 1.f;
+    bool bScreenSpace = false;
+    bool bBorder = false;
+    bool bAlwaysOnTop = false;
     TextAlign align = TextAlign::Left;
 
-    TextParams& SetFont(const char* name) { fontName = name; return *this; }
-    TextParams& SetFontSize(int size) { fontSize = size; return *this; }
-    TextParams& SetBold(bool b = true) { bold = b;      return *this; }
-    TextParams& SetItalic(bool b = true) { italic = b;    return *this; }
-    TextParams& SetUnderline(bool b = true) { underline = b; return *this; }
-    TextParams& SetColor(ShapeColor c) { color = c; if (c.a != 255) opacity*=0.999f;     return *this; }
-    TextParams& SetBgColor(ShapeColor c) { bgColor = c; if (c.a != 255) opacity*=0.999f;  return *this; }
-    TextParams& SetPadding(int x, int y) { paddingX = x; paddingY = y; return *this; }
-    TextParams& SetOpacity(float o) { opacity = o;   return *this; }
-    TextParams& SetScreenSpace() { bScreenSpace = true; return *this; }
-    TextParams& SetBorder() { bBorder = true; return *this; }
-    TextParams& SetBorderThickness(int t) { borderThickness = t; return *this; }
-    TextParams& SetAlign(TextAlign a) { align = a; return *this; }
-    TextParams& SetAlignCenter() { align = TextAlign::Center; return *this; }
-    TextParams& SetAlignRight() { align = TextAlign::Right; return *this; }
-    TextParams& SetAlignLeft() { align = TextAlign::Left; return *this; }
-    TextParams& SetAlwaysOnTop() { bAlwaysOnTop = true; return *this; }
-};
-
-struct TextKey {
-    FString  text;
-    FString  fontName;
-    int          fontSize = 0;
-    bool         bold = false;
-    bool         italic = false;
-    bool         underline = false;
-    uint32_t     colorRGBA = 0;
-    uint32_t     bgColorRGBA = 0;
-    int          paddingX = 0;
-    int          paddingY = 0;
-
-    bool operator==(const TextKey& o) const noexcept {
-        return text == o.text && fontName == o.fontName
-            && fontSize == o.fontSize && bold == o.bold
-            && italic == o.italic && underline == o.underline
-            && colorRGBA == o.colorRGBA && bgColorRGBA == o.bgColorRGBA
-            && paddingX == o.paddingX && paddingY == o.paddingY;
+    TextParams &SetFont(const char *name)
+    {
+        fontName = name;
+        return *this;
+    }
+    TextParams &SetFontSize(int size)
+    {
+        fontSize = size;
+        return *this;
+    }
+    TextParams &SetBold(bool b = true)
+    {
+        bold = b;
+        return *this;
+    }
+    TextParams &SetItalic(bool b = true)
+    {
+        italic = b;
+        return *this;
+    }
+    TextParams &SetUnderline(bool b = true)
+    {
+        underline = b;
+        return *this;
+    }
+    TextParams &SetColor(ShapeColor c)
+    {
+        color = c;
+        if (c.a != 255)
+            opacity *= 0.999f;
+        return *this;
+    }
+    TextParams &SetBgColor(ShapeColor c)
+    {
+        bgColor = c;
+        if (c.a != 255)
+            opacity *= 0.999f;
+        return *this;
+    }
+    TextParams &SetPadding(int x, int y)
+    {
+        paddingX = x;
+        paddingY = y;
+        return *this;
+    }
+    TextParams &SetOpacity(float o)
+    {
+        opacity = o;
+        return *this;
+    }
+    TextParams &SetScreenSpace()
+    {
+        bScreenSpace = true;
+        return *this;
+    }
+    TextParams &SetBorder()
+    {
+        bBorder = true;
+        return *this;
+    }
+    TextParams &SetBorderThickness(int t)
+    {
+        borderThickness = t;
+        return *this;
+    }
+    TextParams &SetAlign(TextAlign a)
+    {
+        align = a;
+        return *this;
+    }
+    TextParams &SetAlignCenter()
+    {
+        align = TextAlign::Center;
+        return *this;
+    }
+    TextParams &SetAlignRight()
+    {
+        align = TextAlign::Right;
+        return *this;
+    }
+    TextParams &SetAlignLeft()
+    {
+        align = TextAlign::Left;
+        return *this;
+    }
+    TextParams &SetAlwaysOnTop()
+    {
+        bAlwaysOnTop = true;
+        return *this;
     }
 };
 
-namespace std {
-    template<>
-    struct hash<TextKey> {
-        size_t operator()(const TextKey& k) const noexcept {
+struct TextKey
+{
+    FString text;
+    FString fontName;
+    int fontSize = 0;
+    bool bold = false;
+    bool italic = false;
+    bool underline = false;
+    uint32_t colorRGBA = 0;
+    uint32_t bgColorRGBA = 0;
+    int paddingX = 0;
+    int paddingY = 0;
+
+    bool operator==(const TextKey &o) const noexcept
+    {
+        return text == o.text && fontName == o.fontName && fontSize == o.fontSize && bold == o.bold && italic == o.italic && underline == o.underline && colorRGBA == o.colorRGBA && bgColorRGBA == o.bgColorRGBA && paddingX == o.paddingX && paddingY == o.paddingY;
+    }
+};
+
+namespace std
+{
+    template <>
+    struct hash<TextKey>
+    {
+        size_t operator()(const TextKey &k) const noexcept
+        {
             size_t seed = hash<string>{}(k.text);
-            auto mix = [&](size_t v) {
+            auto mix = [&](size_t v)
+            {
                 seed ^= v + 0x9e3779b9 + (seed << 6) + (seed >> 2);
             };
             mix(hash<string>{}(k.fontName));
@@ -588,25 +827,30 @@ namespace std {
     };
 }
 
-struct FontKey {
-    FString  fontName;
-    int          fontSize = 0;
-    bool         bold = false;
-    bool         italic = false;
-    bool         underline = false;
+struct FontKey
+{
+    FString fontName;
+    int fontSize = 0;
+    bool bold = false;
+    bool italic = false;
+    bool underline = false;
 
-    bool operator==(const FontKey& o) const noexcept {
-        return fontName == o.fontName && fontSize == o.fontSize
-            && bold == o.bold && italic == o.italic && underline == o.underline;
+    bool operator==(const FontKey &o) const noexcept
+    {
+        return fontName == o.fontName && fontSize == o.fontSize && bold == o.bold && italic == o.italic && underline == o.underline;
     }
 };
 
-namespace std {
-    template<>
-    struct hash<FontKey> {
-        size_t operator()(const FontKey& k) const noexcept {
+namespace std
+{
+    template <>
+    struct hash<FontKey>
+    {
+        size_t operator()(const FontKey &k) const noexcept
+        {
             size_t seed = hash<FString>{}(k.fontName);
-            auto mix = [&](size_t v) {
+            auto mix = [&](size_t v)
+            {
                 seed ^= v + 0x9e3779b9 + (seed << 6) + (seed >> 2);
             };
             mix(hash<int>{}(k.fontSize));
@@ -618,54 +862,56 @@ namespace std {
     };
 }
 
-class TextRenderer {
+class TextRenderer
+{
 public:
-    explicit TextRenderer(DirectXCore* dx, size_t cacheCapacity = 512);
+    explicit TextRenderer(DirectXCore *dx, size_t cacheCapacity = 512);
     ~TextRenderer();
 
-    void DrawTexts(float x, float y, const FString& text, const TextParams& params = {});
-    bool MeasureText(const FString& text, const TextParams& params, int& outW, int& outH);
+    void DrawTexts(float x, float y, const FString &text, const TextParams &params = {});
+    bool MeasureText(const FString &text, const TextParams &params, int &outW, int &outH);
     void ClearCache();
     void SetCacheCapacity(size_t cap) { m_capacity = cap; }
     size_t GetCacheSize() const { return m_cache.size(); }
 
 private:
-    struct CacheEntry {
+    struct CacheEntry
+    {
         std::unique_ptr<TextureResource> texRes;
         int texW = 0, texH = 0;
     };
 
     using LruList = std::list<TextKey>;
     using CacheMap = std::unordered_map<TextKey,
-        std::pair<CacheEntry, LruList::iterator>>;
+                                        std::pair<CacheEntry, LruList::iterator>>;
 
-    TextKey     MakeKey(const FString& text, const TextParams& p) const;
-    TextureResource* Lookup(const TextKey& key);
-    void        Insert(const TextKey& key, CacheEntry entry);
-    void        Evict();
+    TextKey MakeKey(const FString &text, const TextParams &p) const;
+    TextureResource *Lookup(const TextKey &key);
+    void Insert(const TextKey &key, CacheEntry entry);
+    void Evict();
 
-    bool RasterizeGDI(const FString& text, const TextParams& p,
-        std::vector<uint32_t>& pixels, int& outW, int& outH);
+    bool RasterizeGDI(const FString &text, const TextParams &p,
+                      std::vector<uint32_t> &pixels, int &outW, int &outH);
 
-    HFONT GetOrCreateFont(const TextParams& p);
-    void  CleanupFonts();
+    HFONT GetOrCreateFont(const TextParams &p);
+    void CleanupFonts();
 
-    bool UploadTexture(TextureResource* res,
-        int w, int h,
-        const std::vector<uint32_t>& pixels);
+    bool UploadTexture(TextureResource *res,
+                       int w, int h,
+                       const std::vector<uint32_t> &pixels);
 
-    DirectXCore* m_dx;
-    size_t       m_capacity;
+    DirectXCore *m_dx;
+    size_t m_capacity;
 
-    LruList  m_lruList;
+    LruList m_lruList;
     CacheMap m_cache;
 
     std::unordered_map<FontKey, HFONT> m_fontPool;
 
-    HDC  m_hDC = nullptr;
-    HBITMAP m_hBmp = nullptr;  
-    int  m_bmpW = 0;
-    int  m_bmpH = 0;
-    void* m_pBits = nullptr; 
+    HDC m_hDC = nullptr;
+    HBITMAP m_hBmp = nullptr;
+    int m_bmpW = 0;
+    int m_bmpH = 0;
+    void *m_pBits = nullptr;
     void EnsureDC(int w, int h);
 };

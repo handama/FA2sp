@@ -226,6 +226,8 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	ScreenRefreshRate = GetDeviceCaps(hdc, VREFRESH);
     ReleaseDC(Loading->GetSafeHwnd(), hdc);
 	ProgramScaleFactor = ProgramDPI / 96.0f;
+	if (ExtConfigs::HiDPIAwareness_ScaleIsoView)
+		CIsoViewExt::ScaledFactor = 1.0 / ProgramScaleFactor;
 
 	ExtConfigs::DisplayTextSize *= CFinalSunAppExt::ProgramScaleFactor;
 	ExtConfigs::TreeViewCameo_Size *= CFinalSunAppExt::ProgramScaleFactor;

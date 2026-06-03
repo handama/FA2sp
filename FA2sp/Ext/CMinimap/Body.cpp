@@ -6,6 +6,7 @@ WNDPROC CMinimapExt::g_pfnOriginalMinimapProc = NULL;
 double CMinimapExt::ASPECT_RATIO = 1.0;
 int CMinimapExt::InitWidth = 100;
 double CMinimapExt::CurrentScale = 1.0;
+static bool first = true;
 
 LRESULT CALLBACK CMinimapExt::MinimapWndProc(
     HWND hWnd,
@@ -32,11 +33,12 @@ LRESULT CALLBACK CMinimapExt::MinimapWndProc(
 
         CFinalSunDlg::Instance->MyViewFrame.Minimap.MoveWindow(
             windowRect.left,
-            windowRect.top - (desiredHeight - desiredHeight / CFinalSunAppExt::ProgramScaleFactor),
+            windowRect.top - (first ? (desiredHeight - desiredHeight / CFinalSunAppExt::ProgramScaleFactor) : 0),
             newWindowWidth,
             newWindowHeight,
             TRUE
         );
+        first = false;
 
         CMinimapExt::ASPECT_RATIO = (double)desiredWidth / desiredHeight;
         CMinimapExt::InitWidth = desiredWidth;

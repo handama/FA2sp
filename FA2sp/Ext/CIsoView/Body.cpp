@@ -4127,7 +4127,7 @@ void CIsoViewExt::MoveToMapCoord(int X, int Y)
     CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 }
 
-void CIsoViewExt::Zoom(double offset)
+void CIsoViewExt::Zoom(double offset, bool bForce)
 {
     if (CMapData::Instance->MapWidthPlusHeight)
     {
@@ -4150,7 +4150,7 @@ void CIsoViewExt::Zoom(double offset)
             CIsoViewExt::ScaledFactor = defaultScaledFactor;
         else if (abs(CIsoViewExt::ScaledFactor - 1.0) <= 0.06)
             CIsoViewExt::ScaledFactor = 1.0;
-        if (scaledOld != CIsoViewExt::ScaledFactor)
+        if (bForce || scaledOld != CIsoViewExt::ScaledFactor)
         {
             CRect newRect = GetScaledWindowRect();
             CRect oriRect;

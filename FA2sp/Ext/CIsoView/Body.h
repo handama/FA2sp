@@ -271,7 +271,7 @@ public:
     static void DrawGeometricAnnotations(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void DrawScriptPaths(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void MoveToMapCoord(int X, int Y);
-    static void Zoom(double offset);
+    static void Zoom(double offset, bool bForce = false);
     static std::vector<MapCoord> GetLinePoints(MapCoord mc1, MapCoord mc2);
     static std::vector<MapCoord> GetLineRectangles(MapCoord start, MapCoord end, int width, int height);
     static void InitAlphaTable();

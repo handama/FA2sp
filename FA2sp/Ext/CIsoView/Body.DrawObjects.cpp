@@ -530,8 +530,8 @@ static void InitAllObjects()
 	};
 
 	std::set<WORD> overlays;
-	std::vector<BaseNodeDataExt*> baseNodes;
-	for (auto& cellExt: CMapDataExt::CellDataExts)
+	std::vector<BaseNodeDataExt *> baseNodes;
+	for (auto &cellExt : CMapDataExt::CellDataExts)
 	{
 		if (cellExt.NewOverlay != 0xffff)
 		{
@@ -542,19 +542,14 @@ static void InitAllObjects()
 			baseNodes.push_back(&node);
 		}
 	}
-	int count = CMapDataExt::BuildingDatasExt.size() 
-	+ CMapDataExt::UnitDatasExt.size()
-	+ CMapDataExt::AircraftDatasExt.size()
-	+ CMapData::Instance->InfantryDatas.size()
-	+ CMapData::Instance->TerrainDatas.size()
-	+ CMapData::Instance->SmudgeDatas.size()
-	+ overlays.size() + baseNodes.size();
+	int count = CMapDataExt::BuildingDatasExt.size() + CMapDataExt::UnitDatasExt.size() + CMapDataExt::AircraftDatasExt.size() + CMapData::Instance->InfantryDatas.size() + CMapData::Instance->TerrainDatas.size() + CMapData::Instance->SmudgeDatas.size() + overlays.size() + baseNodes.size();
 
 	int currentPos = 0;
 
 	CUpdateProgress progress(
 		Translations::TranslateOrDefault("InitAllObjectsProgressText",
-			"Loading objects, please wait..."), NULL);
+										 "Loading objects, please wait..."),
+		NULL);
 	progress.ShowWindow(SW_SHOW);
 	progress.UpdateWindow();
 	progress.ProgressBar.SetRange(0, count);
@@ -562,7 +557,7 @@ static void InitAllObjects()
 
 	for (int i = 0; i < CMapDataExt::BuildingDatasExt.size(); ++i)
 	{
-		Renderer::Buildings[i].Reload(i);	
+		Renderer::Buildings[i].Reload(i);
 		progress.ProgressBar.SetPos(++currentPos);
 		progress.ProgressBar.UpdateWindow();
 	}
@@ -611,7 +606,7 @@ static void InitAllObjects()
 		progress.ProgressBar.UpdateWindow();
 	}
 	keepAlive();
-	for (auto& node : baseNodes)
+	for (auto &node : baseNodes)
 	{
 		auto pType = Renderer::GetOrCreateBuilding(node->ID);
 		if (ExtConfigs::DirectXRendering)
@@ -627,15 +622,15 @@ static void InitAllObjects()
 					for (auto &pData : *clips)
 					{
 						if (ImageDataClassSafe::IsValidImage(pData.get()))
-						{                   
+						{
 							auto newPal = PalettesManager::GetColoredPalette(pData->pPalette, color);
 							pData->GetBuildingColoredTextures(newPal, color);
 						}
 					}
-	
+
 					auto pData = pType->GetShadowData(i, j);
 					if (ImageDataClassSafe::IsValidImage(pData))
-					{                   
+					{
 						pData->GetTexture();
 					}
 				}
@@ -644,23 +639,28 @@ static void InitAllObjects()
 	}
 }
 
+static bool s_bInDrawMap = false;
+struct DrawMapGuard
+{
+	~DrawMapGuard() { s_bInDrawMap = false; }
+};
+
 static void DrawMap()
 {
-	Logger::Raw("[DrawMap] >>> ENTER <<<\n");
+	s_bInDrawMap = true;
+	DrawMapGuard guard;
+
 	auto pThis = CIsoViewExt::GetExtension();
 	auto pMap = CMapDataExt::GetExtension();
 	auto pFinalSunDlg = CFinalSunDlg::Instance();
 
 	if (ExtConfigs::DirectXRendering)
 	{
-		Logger::Raw("[DrawMap] >> g_pSP->BeginFrame() (start of frame)\n");
 		pThis->g_pSP->BeginFrame();
-		Logger::Raw("[DrawMap] << g_pSP->BeginFrame() done\n");
 	}
 
 	// sanity checks
 	{
-		Logger::Raw("[DrawMap] Sanity checks...\n");
 		if (pMap->MapNotLoaded)
 			return;
 
@@ -683,13 +683,13 @@ static void DrawMap()
 		memset(&fx, 0, sizeof(DDBLTFX));
 		fx.dwSize = sizeof(DDBLTFX);
 		fx.dwFillColor = CIsoViewExt::RenderingMap ? RGB(0, 0, 0) : (ExtConfigs::EnableDarkMode ? RGB(32, 32, 32) : RGB(255, 255, 255));
-	
+
 		lpSurface->Blt(NULL, NULL, NULL, DDBLT_COLORFILL, &fx);
 		ddsd.dwSize = sizeof(DDSURFACEDESC2);
 		ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT;
 		lpSurface->GetSurfaceDesc(&ddsd);
 		lpSurface->Lock(NULL, &ddsd, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT | DDLOCK_NOSYSLOCK, NULL);
-		
+
 		if (pThis->lpDDPrimarySurface->IsLost() != DD_OK || ddsd.lpSurface == NULL)
 		{
 			pThis->PrimarySurfaceLost();
@@ -702,11 +702,11 @@ static void DrawMap()
 	// clear static containers, init some game logics
 	{
 		if (CLoadingExt::ObjectsNeedReloaded)
-		{	
+		{
 			InitAllObjects();
 			CLoadingExt::ObjectsNeedReloaded = false;
-			if (ExtConfigs::HiDPIAwareness_ScaleIsoView)
-				CIsoViewExt::GetExtension()->Zoom(0.0);
+			if (ExtConfigs::HiDPIAwareness_ScaleIsoView && !CIsoViewExt::RenderingMap)
+				CIsoViewExt::GetExtension()->Zoom(0.0, true);
 		}
 
 		PalettesManager::CalculatedObjectPaletteFiles.clear();
@@ -795,11 +795,8 @@ static void DrawMap()
 		}
 	}
 
-	Logger::Raw("[DrawMap] Sanity checks passed.\n");
-
 	// init window positions
 	{
-		Logger::Raw("[DrawMap] Init window positions...\n");
 		pThis->GetWindowRect(&window);
 		CIsoViewExt::AdaptRectForSecondScreen(&window);
 
@@ -832,9 +829,6 @@ static void DrawMap()
 			VisibleCoordTL.Y = 0;
 		}
 	}
-
-	Logger::Raw("[DrawMap] Window positions done. VisibleCoords: TL(%d,%d) BR(%d,%d)\n",
-				VisibleCoordTL.X, VisibleCoordTL.Y, VisibleCoordBR.X, VisibleCoordBR.Y);
 
 	pFinalSunDlg->LastSucceededOperation = 100;
 
@@ -981,10 +975,7 @@ static void DrawMap()
 		}
 	}
 
-	Logger::Raw("[DrawMap] Visible cells count: %d\n", visibleCells.size());
-
 	// loop1: tiles
-	Logger::Raw("[DrawMap] Loop1: Tiles (start)\n");
 	for (auto &info : visibleCells)
 	{
 		if (!info.isInMap)
@@ -1111,8 +1102,8 @@ static void DrawMap()
 					{
 						Palette *pal = CMapDataExt::TileSetPalettes[tileSet];
 						CIsoViewExt::BlitTerrain(pThis, ddsd.lpSurface, window, boundary,
-													x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
-													isCellHidden(cell) ? 128 : 255, nullptr, nullptr, cell->Height, &cellHeightMask, tileSetOri);
+												 x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
+												 isCellHidden(cell) ? 128 : 255, nullptr, nullptr, cell->Height, &cellHeightMask, tileSetOri);
 					}
 
 					auto &cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
@@ -1213,11 +1204,11 @@ static void DrawMap()
 			{
 				for (int dy = -3; dy <= 3; ++dy)
 				{
-					if (dx + dy > 0) 
+					if (dx + dy > 0)
 						continue;
 					if (!isCoordInFullMap(X + dx, Y + dy))
 						continue;
-				
+
 					int nx = X + dx;
 					int ny = Y + dy;
 					int neighborIndex = coordToIndex[nx][ny];
@@ -1227,7 +1218,6 @@ static void DrawMap()
 			}
 		}
 	}
-	Logger::Raw("[DrawMap] Loop1: Tiles (end), RedrawCoords=%d\n", RedrawCoords.size());
 
 	for (const auto &coord : RedrawCoords)
 	{
@@ -1287,7 +1277,7 @@ static void DrawMap()
 					if (ExtConfigs::DirectXRendering)
 					{
 						CIsoViewExt::DirectXTerrain(x, y,
-							&subTile, isCellHidden(cell) ? 0.5f : 1.0f, cell->Height, true);
+													&subTile, isCellHidden(cell) ? 0.5f : 1.0f, cell->Height, true);
 					}
 					else
 					{
@@ -1301,10 +1291,7 @@ static void DrawMap()
 		}
 	}
 
-	Logger::Raw("[DrawMap] RedrawCoords done.\n");
-
 	// loop2: smudges
-	Logger::Raw("[DrawMap] Loop2: Smudges (start)\n");
 	for (const auto &info : visibleCells)
 	{
 		auto &X = info.X;
@@ -1350,10 +1337,7 @@ static void DrawMap()
 		}
 	}
 
-	Logger::Raw("[DrawMap] Loop2: Smudges (end)\n");
-
 	// loop3: shadows
-	Logger::Raw("[DrawMap] Loop3: Shadows (start)\n");
 	for (const auto &info : visibleCells)
 	{
 		if (!info.isInMap && !ExtConfigs::DisplayObjectsOutside)
@@ -1662,7 +1646,7 @@ static void DrawMap()
 
 						FString text;
 						text.Format("%03d", node.BasenodeID);
-						BaseNodeTextsToDraw.push_back(std::make_pair( MapCoord{x1 + 30, y1 - 15}, text));
+						BaseNodeTextsToDraw.push_back(std::make_pair(MapCoord{x1 + 30, y1 - 15}, text));
 
 						MapCoord buildingOrigin{node.X, node.Y};
 						if (!IsCoordInWindow(node.X, node.Y))
@@ -1954,10 +1938,7 @@ static void DrawMap()
 		CIsoViewExt::DrawShadowMask(ddsd.lpSurface, boundary, window, shadowMask, shadowHeightMask, cellHeightMask);
 	}
 
-	Logger::Raw("[DrawMap] Loop3: Shadows (end)\n");
-
 	// loop4: objects
-	Logger::Raw("[DrawMap] Loop4: Objects (start)\n");
 	memset(DrawnBuildings, 0, sizeof(DrawnBuildings));
 	DrawnBaseNodes.clear();
 
@@ -2048,7 +2029,6 @@ static void DrawMap()
 						x1 -= 60;
 						y1 -= 30;
 
-
 						if (subTile.HasValidImage)
 						{
 							Palette *pal = CMapDataExt::TileSetPalettes[tileSet];
@@ -2057,8 +2037,7 @@ static void DrawMap()
 							{
 								CIsoViewExt::DirectXTerrain(x1, y1,
 															&subTile, isCellHidden(cell) ? 0.5f : 1.0f,
-															cell->Height);										
-													
+															cell->Height);
 							}
 							else
 							{
@@ -2080,7 +2059,7 @@ static void DrawMap()
 									if (ExtConfigs::DirectXRendering)
 									{
 										CIsoViewExt::DirectXTerrain(x1, y1,
-											&subTile, isCellHidden(cell) ? 0.5f : 1.0f, cell->Height, true);
+																	&subTile, isCellHidden(cell) ? 0.5f : 1.0f, cell->Height, true);
 									}
 									else
 									{
@@ -2133,7 +2112,7 @@ static void DrawMap()
 						CIsoViewExt::DirectXNormal(
 							x - pData->FullWidth / 2,
 							y - pData->FullHeight / 2,
-							pData, NULL, 1.0f, 0, -1, false, 
+							pData, NULL, 1.0f, 0, -1, false,
 							info.aroundRedrawCell ? cell->Height : 0xFF);
 					}
 					else
@@ -2343,7 +2322,7 @@ static void DrawMap()
 						auto isTerrain = pType->IsTerrainPalette;
 						CIsoViewExt::DirectXBuilding(part.DrawX, part.DrawY - part.pData->FullHeight / 2,
 													 part.pData, part.pPal, isCloakable(pType) ? 0.5f : 1.0f,
-													 objRender.HouseColor, isRubble, isTerrain, 
+													 objRender.HouseColor, isRubble, isTerrain,
 													 info.aroundRedrawCell ? pBuilding->GetCellData()->Height : 0xFF);
 					}
 					else
@@ -2367,7 +2346,7 @@ static void DrawMap()
 											x1 - pData->ClipOffsets.FullWidth / 2 + pData->ClipOffsets.LeftOffset,
 											y1 - pData->FullHeight / 2, pData.get(),
 											NULL, isCloakable(pType) ? 0.5f : 1.0f,
-											objRender.HouseColor, false, pType->IsTerrainPalette, 
+											objRender.HouseColor, false, pType->IsTerrainPalette,
 											info.aroundRedrawCell ? pBuilding->GetCellData()->Height : 0xFF);
 									}
 									else
@@ -2463,7 +2442,8 @@ static void DrawMap()
 				{
 					for (int i = 0; i < DataExt.DamageFireOffsets.size(); ++i)
 					{
-						if (cellExt->DamagedFires[i] < 0) break;
+						if (cellExt->DamagedFires[i] < 0)
+							break;
 						const auto &fire = CLoadingExt::DamageFires[cellExt->DamagedFires[i]].get();
 						if (ImageDataClassSafe::IsValidImage(fire))
 						{
@@ -2607,18 +2587,17 @@ static void DrawMap()
 			{
 				if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
 				{
-					if(ExtConfigs::DirectXRendering)
+					if (ExtConfigs::DirectXRendering)
 					{
 						pThis->DrawLineRawDirectX(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
-						x + 30, y + 15 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
-							false, true, 1, false);
+												  x + 30, y + 15 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+												  false, true, 1, false);
 					}
 					else
 					{
 						pThis->DrawLine(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
-						x + 30, y + 15 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
-						false, false, &ddsd, window, true);
-
+										x + 30, y + 15 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+										false, false, &ddsd, window, true);
 					}
 				}
 
@@ -2742,17 +2721,17 @@ static void DrawMap()
 
 				if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
 				{
-					if(ExtConfigs::DirectXRendering)
+					if (ExtConfigs::DirectXRendering)
 					{
 						pThis->DrawLineRawDirectX(x1 + 30, y1 - 30,
-							x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
-							false, true, 1, false);
+												  x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+												  false, true, 1, false);
 					}
 					else
 					{
 						pThis->DrawLine(x1 + 30, y1 - 30,
-							x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
-							false, false, &ddsd, window, true);
+										x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+										false, false, &ddsd, window, true);
 					}
 				}
 
@@ -2805,9 +2784,6 @@ static void DrawMap()
 		}
 	}
 
-	Logger::Raw("[DrawMap] Loop4: Objects (end). Fires=%d, AlphaImages=%d\n",
-				FiresToDraw.size(), AlphaImagesToDraw.size());
-
 	for (const auto &fire : FiresToDraw)
 	{
 		if (ExtConfigs::DirectXRendering)
@@ -2836,8 +2812,6 @@ static void DrawMap()
 													   ai.first.X, ai.first.Y, ai.second);
 		}
 	}
-
-	Logger::Raw("[DrawMap] Fires+AlphaImages done. VetCount=%d\n", DrawVeterancies.size());
 
 	if (CIsoViewExt::DrawVeterancy)
 	{
@@ -2999,7 +2973,7 @@ static void DrawMap()
 				y2 -= 1;
 			}
 			if (ExtConfigs::DirectXRendering)
-			{			
+			{
 				pThis->DirectXDrawLockedCellOutline(x1, y1 - height, 1, 1, color, true);
 				pThis->DirectXDrawLockedCellOutlineX(x2 + 2, y2 - height + 1, 1, 1, color, color, true, true);
 			}
@@ -3033,8 +3007,8 @@ static void DrawMap()
 					CIsoView::MapCoord2ScreenCoord(x, y);
 					int drawX = x - DrawOffsetX;
 					int drawY = y - DrawOffsetY;
-					if(ExtConfigs::DirectXRendering)
-					{		
+					if (ExtConfigs::DirectXRendering)
+					{
 						pThis->DirectXDrawLockedCellOutlineX(drawX, drawY, 1, 1, RGB(255, 0, 0), RGB(40, 0, 0), false);
 					}
 					else
@@ -3065,8 +3039,8 @@ static void DrawMap()
 					coords.push_back({i, j});
 				}
 			}
-			if(ExtConfigs::DirectXRendering)
-			{		
+			if (ExtConfigs::DirectXRendering)
+			{
 				CIsoViewExt::DirectXDrawMultiMapCoordBorders(coords, ExtConfigs::TerrainGeneratorColor, 0, 0, false);
 			}
 			else
@@ -3083,11 +3057,8 @@ static void DrawMap()
 		}
 	}
 
-	Logger::Raw("[DrawMap] Veterancy+PropertyMarks done.\n");
-
 	if (ExtConfigs::DirectXRendering)
 	{
-		Logger::Raw("[DrawMap] DirectX CellTags/Waypoints/Annotations pass (start)\n");
 		for (const auto &info : visibleCells)
 		{
 			if (!info.isInMap && !ExtConfigs::DisplayObjectsOutside)
@@ -3107,12 +3078,12 @@ static void DrawMap()
 				{
 					auto pTexture = CLoadingExt::DirectXGetOrLoadFlagOrCelltagFromMap(itr->second, false);
 					CIsoViewExt::DirectXFlagOrCelltag(x + 29, y + 13, pTexture,
-						 ExtConfigs::DrawCelltagTranslucent ? 0.5f : 1.0f);
+													  ExtConfigs::DrawCelltagTranslucent ? 0.5f : 1.0f);
 				}
 				else
 				{
 					CIsoViewExt::DirectXBitmap(x + 29, y + 13, "CELLTAG",
-						ExtConfigs::DrawCelltagTranslucent ? 0.5f : 1.0f);
+											   ExtConfigs::DrawCelltagTranslucent ? 0.5f : 1.0f);
 				}
 			};
 
@@ -3160,7 +3131,7 @@ static void DrawMap()
 							}
 						}
 					}
-					else					
+					else
 						drawCellTagImage(*id);
 				}
 			}
@@ -3329,17 +3300,13 @@ static void DrawMap()
 
 		if (ExtConfigs::DirectXRendering)
 		{
-		Logger::Raw("[DrawMap] CellTags/Waypoints/Annotations done.\n");
-
-		pThis->DirectXBitmap(drawX + 27, drawY + 16, "target.bmp");
+			pThis->DirectXBitmap(drawX + 27, drawY + 16, "target.bmp");
 		}
 		else
 		{
 			pThis->DrawBitmap("target", drawX - 20, drawY - 11, &ddsd);
 		}
 	}
-
-	Logger::Raw("[DrawMap] target.bmp done.\n");
 
 	if (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderInvisibleInGame)
 	{
@@ -3348,8 +3315,7 @@ static void DrawMap()
 		SetTextColor(hDC, RGB(0, 0, 0));
 
 		TextParams param;
-		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().SetAlwaysOnTop()
-		.SetAlignCenter().SetColor(ShapeColor::FromCOLORREF(RGB(0, 0, 0))).SetPadding(0, 0);
+		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().SetAlwaysOnTop().SetAlignCenter().SetColor(ShapeColor::FromCOLORREF(RGB(0, 0, 0))).SetPadding(0, 0);
 
 		if (CIsoViewExt::DrawOverlays)
 		{
@@ -3417,11 +3383,9 @@ static void DrawMap()
 	}
 
 	if (CIsoViewExt::DrawBaseNodeIndex)
-	{		
+	{
 		TextParams param;
-		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().SetAlwaysOnTop().
-		SetColor(ShapeColor::FromCOLORREF(ExtConfigs::BaseNodeIndex_Color)).
-		SetAlignCenter().SetPadding(0, 0);
+		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().SetAlwaysOnTop().SetColor(ShapeColor::FromCOLORREF(ExtConfigs::BaseNodeIndex_Color)).SetAlignCenter().SetPadding(0, 0);
 		SetTextColor(hDC, ExtConfigs::BaseNodeIndex_Color);
 		if (ExtConfigs::BaseNodeIndex_Background)
 		{
@@ -3460,8 +3424,7 @@ static void DrawMap()
 			SetBkMode(hDC, TRANSPARENT);
 		SetTextAlign(hDC, TA_CENTER);
 
-		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().SetAlwaysOnTop().
-		SetAlignCenter().SetColor(ShapeColor::FromCOLORREF(ExtConfigs::Waypoint_Color)).SetPadding(0, 0);
+		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().SetAlwaysOnTop().SetAlignCenter().SetColor(ShapeColor::FromCOLORREF(ExtConfigs::Waypoint_Color)).SetPadding(0, 0);
 
 		for (const auto &[coord, index] : WaypointsToDraw)
 		{
@@ -3478,8 +3441,6 @@ static void DrawMap()
 			}
 		}
 	}
-
-	Logger::Raw("[DrawMap] BaseNodeIndex+Waypoint texts done.\n");
 
 	SetTextAlign(hDC, TA_LEFT);
 	SetTextColor(hDC, RGB(0, 0, 0));
@@ -3549,10 +3510,7 @@ static void DrawMap()
 					TextParams param;
 					if (folded ? false : bold)
 						param.SetBold();
-					param.SetFontSize(fontSize).SetAlwaysOnTop().
-					SetColor(ShapeColor::FromCOLORREF(textColor)).
-					SetBgColor(ShapeColor::FromRGBA(GetRValue(bgColor), GetGValue(bgColor), GetBValue(bgColor), 128)).
-					SetBorder().SetPadding(3, 3);
+					param.SetFontSize(fontSize).SetAlwaysOnTop().SetColor(ShapeColor::FromCOLORREF(textColor)).SetBgColor(ShapeColor::FromRGBA(GetRValue(bgColor), GetGValue(bgColor), GetBValue(bgColor), 128)).SetBorder().SetPadding(3, 3);
 
 					pThis->g_pTR->DrawTexts(x, y, text, param);
 				}
@@ -3583,8 +3541,6 @@ static void DrawMap()
 			}
 		}
 	}
-
-	Logger::Raw("[DrawMap] Annotations done.\n");
 
 	if (CIsoViewExt::PasteShowOutline && CIsoView::CurrentCommand->Command == 21 && !CopyPaste::PastedCoords.empty() && !CopyPaste::CopyWholeMap && (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers))
 	{
@@ -3746,28 +3702,17 @@ static void DrawMap()
 		}
 	}
 
-	Logger::Raw("[DrawMap] PasteOutline+LineTool+Bounds done.\n");
-
 	lpSurface->ReleaseDC(hDC);
 	lpSurface->Unlock(NULL);
 
-	Logger::Raw("[DrawMap] ReleaseDC+Unlock done.\n");
-
 	if (ExtConfigs::DirectXRendering)
 	{
-		Logger::Raw("[DrawMap] Final DX render section >>\n");
-		Logger::Raw("[DrawObjects] >> SpecialDrawDirectX\n");
 		CIsoViewExt::SpecialDrawDirectX(0);
-		Logger::Raw("[DrawObjects] >> g_pDX->Render()\n");
 		pThis->g_pDX->Render();
-		Logger::Raw("[DrawObjects] << g_pDX->Render() returned\n");
-		Logger::Raw("[DrawObjects] >> g_pSP->BeginFrame()\n");
 		pThis->g_pSP->BeginFrame();
-		Logger::Raw("[DrawObjects] << g_pSP->BeginFrame() done\n");
 
 		if (CIsoViewExt::RenderingMap)
 		{
-			Logger::Raw("[DrawObjects] RenderingMap=true, reading back offscreen...\n");
 			int &height = CMapData::Instance->Size.Height;
 			int &width = CMapData::Instance->Size.Width;
 			int startX, startY;
@@ -3815,20 +3760,34 @@ static void DrawMap()
 				int srcW = clientW, srcH = clientH;
 
 				// Clip to offscreen texture bounds
-				if (srcLeft + srcW > (int)texDesc.Width) srcW = texDesc.Width - srcLeft;
-				if (srcTop + srcH > (int)texDesc.Height) srcH = texDesc.Height - srcTop;
+				if (srcLeft + srcW > (int)texDesc.Width)
+					srcW = texDesc.Width - srcLeft;
+				if (srcTop + srcH > (int)texDesc.Height)
+					srcH = texDesc.Height - srcTop;
 
 				// Handle negative destination (left/top edge of map):
 				// offset source rect and reduce copy size accordingly.
-				if (pngPosX < 0) { srcLeft += (-pngPosX); srcW += pngPosX; pngPosX = 0; }
-				if (pngPosY < 0) { srcTop += (-pngPosY); srcH += pngPosY; pngPosY = 0; }
+				if (pngPosX < 0)
+				{
+					srcLeft += (-pngPosX);
+					srcW += pngPosX;
+					pngPosX = 0;
+				}
+				if (pngPosY < 0)
+				{
+					srcTop += (-pngPosY);
+					srcH += pngPosY;
+					pngPosY = 0;
+				}
 
 				if (srcW > 0 && srcH > 0)
 				{
 					int bmpW = CIsoViewExt::pFullBitmap->GetWidth();
 					int bmpH = CIsoViewExt::pFullBitmap->GetHeight();
-					if (pngPosX + srcW > bmpW) srcW = bmpW - pngPosX;
-					if (pngPosY + srcH > bmpH) srcH = bmpH - pngPosY;
+					if (pngPosX + srcW > bmpW)
+						srcW = bmpW - pngPosX;
+					if (pngPosY + srcH > bmpH)
+						srcH = bmpH - pngPosY;
 
 					if (srcW > 0 && srcH > 0)
 					{
@@ -3855,13 +3814,13 @@ static void DrawMap()
 								if (CIsoViewExt::pFullBitmap->LockBits(&bmpRect, Gdiplus::ImageLockModeWrite,
 																	   PixelFormat24bppRGB, &bitmapData) == Gdiplus::Ok)
 								{
-									const BYTE* srcRow = (const BYTE*)mapped.pData + srcTop * mapped.RowPitch + srcLeft * 4;
-									BYTE* dstRow = (BYTE*)bitmapData.Scan0;
+									const BYTE *srcRow = (const BYTE *)mapped.pData + srcTop * mapped.RowPitch + srcLeft * 4;
+									BYTE *dstRow = (BYTE *)bitmapData.Scan0;
 
 									for (LONG y = 0; y < srcH; ++y)
 									{
-										const BYTE* src = srcRow;
-										BYTE* dst = dstRow;
+										const BYTE *src = srcRow;
+										BYTE *dst = dstRow;
 										for (LONG x = 0; x < srcW; ++x)
 										{
 											// DXGI_FORMAT_R8G8B8A8_UNORM -> GDI+ 24bppRGB (BGR)
@@ -3884,8 +3843,8 @@ static void DrawMap()
 					}
 				}
 			}
-		}		
-		
+		}
+
 		return;
 	}
 
@@ -3920,8 +3879,6 @@ static void DrawMap()
 		else
 			pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::lpDDBackBufferZoomSurface, &dr, DDBLT_WAIT, 0);
 	}
-
-	Logger::Raw("[DrawMap] Exit.\n");
 }
 
 DEFINE_HOOK(468690, CIsoView_OnSize, A)
@@ -3944,13 +3901,10 @@ DEFINE_HOOK(4686A2, CIsoView_OnSize_Clipper, 6)
 
 DEFINE_HOOK(46DE00, CIsoView_Draw, 7)
 {
-	Logger::Raw("[CIsoView_Draw Hook] >>> ENTER <<<\n");
 	auto start = std::chrono::high_resolution_clock::now();
 	static float smoothedFps = (float)CFinalSunAppExt::ScreenRefreshRate;
 
-	Logger::Raw("[CIsoView_Draw Hook] >> DrawMap()\n");
 	DrawMap();
-	Logger::Raw("[CIsoView_Draw Hook] << DrawMap() returned\n");
 
 	auto end = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -3971,6 +3925,5 @@ DEFINE_HOOK(46DE00, CIsoView_Draw, 7)
 
 	CFinalSunAppExt::ScreenRefreshRate = (int)smoothedFps;
 
-	Logger::Raw("[CIsoView_Draw Hook] >>> EXIT (fps=%.1f, ms=%d) <<<\n", currentFps, (int)count);
 	return 0x47519D;
 }

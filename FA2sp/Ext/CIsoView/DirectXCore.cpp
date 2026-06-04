@@ -5002,8 +5002,17 @@ bool DirectXCore::GL_CreateQuadGeometry()
     //   location 0,1: from quad VBO (divisor 0)
     //   location 2,3,4,5: from instance VBO (divisor 1), 4¡Ávec4=64 bytes per instance
     {
-        glGenVertexArrays(1, &m_glVAOInstance);
-        glBindVertexArray(m_glVAOInstance);
+		// Create instance VBO first so VAO references a valid buffer (not 0)
+		if (m_glVBOInstance == 0)
+		{
+			glGenBuffers(1, &m_glVBOInstance);
+			glBindBuffer(GL_ARRAY_BUFFER, m_glVBOInstance);
+			glBufferData(GL_ARRAY_BUFFER, 256 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+			m_glInstanceVBCapacity = 256;
+		}
+
+		glGenVertexArrays(1, &m_glVAOInstance);
+		glBindVertexArray(m_glVAOInstance);
 
         // Bind quad VBO for per-vertex data
         glBindBuffer(GL_ARRAY_BUFFER, m_glVBOQuad);
@@ -5875,8 +5884,42 @@ void DirectXCore::GL_FlushInstanceBatch(const std::vector<const DrawCommand *> &
             return;
         }
 
+        // Fast path: single instance ¡ú use regular non-instanced program
+        // (avoids std::vector alloc + glBufferSubData overhead for the common
+        //  case of unique-texture terrain tiles)
+        if (count == 1)
+        {
+            const DrawCommand *cmd = group[0];
+            const auto &p = cmd->params;
+            float depthScale = 1.0f / 16777216.0f;
+            float w_px = tex->sourceView.FullWidth * p.scaleX;
+            float h_px = tex->sourceView.FullHeight * p.scaleY;
+            float snappedX = std::floor(p.x + 0.5f);
+            float snappedY = std::floor(p.y + 0.5f);
+            float ndcW = (w_px / m_vwCached) * 2.0f;
+            float ndcH = (h_px / m_vhCached) * 2.0f;
+            float ndcX = ((snappedX + w_px * 0.5f) / m_vwCached) * 2.0f - 1.0f;
+            float ndcY = 1.0f - ((snappedY + h_px * 0.5f) / m_vhCached) * 2.0f;
+            float mat[16] = {};
+            mat[0] = ndcW; mat[5] = ndcH; mat[10] = 1.0f; mat[15] = 1.0f;
+            mat[12] = ndcX; mat[13] = ndcY; mat[14] = cmd->depth * depthScale;
+
+            GL_UseProgramTracked(m_glProgMain);
+            GL_BindVAOTracked(m_glVAOQuad);
+            GL_BindTexture0(tex->glTexture);
+            if (m_glUL_Main_World >= 0)     glUniformMatrix4fv(m_glUL_Main_World, 1, GL_FALSE, mat);
+            if (m_glUL_Main_ColorMul >= 0)  glUniform4f(m_glUL_Main_ColorMul, p.redMult, p.greenMult, p.blueMult, p.opacity);
+            if (m_glUL_Main_MixColor >= 0)  glUniform4f(m_glUL_Main_MixColor, p.mixR, p.mixG, p.mixB, 1.0f);
+            if (m_glUL_Main_MixFactor >= 0) glUniform1f(m_glUL_Main_MixFactor, p.mixFactor);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            group.clear();
+            return;
+        }
+
+        // Multi-instance path: use instanced rendering
         // Ensure instance VBO capacity (orphan old if insufficient)
-        int needed = count * 4; // 4 vec4 per instance
+        // 16 floats per instance (4 vec4 ¡Á 4 floats)
+        int needed = (int)count * 16;
         if (m_glInstanceVBCapacity < needed)
         {
             int cap = (needed + 255) & ~255;
@@ -5885,8 +5928,9 @@ void DirectXCore::GL_FlushInstanceBatch(const std::vector<const DrawCommand *> &
             m_glInstanceVBCapacity = cap;
         }
 
-        // Build instance data on stack
-        std::vector<float> instData;
+        // Build instance data (reuse vector across groups)
+        static std::vector<float> instData;
+        instData.clear();
         instData.reserve(count * 16);
         const float depthScale = 1.0f / 16777216.0f;
         const float vw = m_vwCached, vh = m_vhCached;

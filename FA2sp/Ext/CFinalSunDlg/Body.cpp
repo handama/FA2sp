@@ -301,7 +301,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				}
 			}
 			LightingSourceTint::CalculateMapLamps();
-
+			
+			CIsoViewExt::MouseCenterPosition = {-1919810, -1919810};
 			this->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 			auto tmp = CIsoView::CurrentCommand->Command;

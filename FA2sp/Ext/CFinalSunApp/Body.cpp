@@ -231,6 +231,7 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 
 	ExtConfigs::DisplayTextSize *= CFinalSunAppExt::ProgramScaleFactor;
 	ExtConfigs::TreeViewCameo_Size *= CFinalSunAppExt::ProgramScaleFactor;
+	ExtConfigs::AdjustDropdownWidth_Max *= CFinalSunAppExt::ProgramScaleFactor;
 
 	bool is_watcher_running = true;
 	std::thread watcher([&is_watcher_running]()

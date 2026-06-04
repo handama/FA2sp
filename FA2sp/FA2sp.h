@@ -101,7 +101,8 @@ public:
     static int BaseNodeIndex_Background_Color;
     static int DisplayColor_Waypoint;
     static int DisplayColor_Celltag;
-    static bool DrawCelltagTranslucent;
+	static bool ForceNeutralSpecialColor;
+	static bool DrawCelltagTranslucent;
     static CPoint Waypoint_Text_ExtraOffset;
     static bool ExtWaypoints;
     static bool ExtFacings;

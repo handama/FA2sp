@@ -93,6 +93,7 @@ bool ExtConfigs::BaseNodeIndex;
 int ExtConfigs::BaseNodeIndex_Background_Color;
 int ExtConfigs::DisplayColor_Waypoint;
 int ExtConfigs::DisplayColor_Celltag;
+bool ExtConfigs::ForceNeutralSpecialColor;
 bool ExtConfigs::DrawCelltagTranslucent;
 bool ExtConfigs::ExtWaypoints;
 bool ExtConfigs::ExtFacings;
@@ -304,6 +305,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::MultiSelect_ConsiderLAT = CINI::FAData->GetBool("ExtConfigs", "MultiSelect.ConsiderLAT", true);
 	ExtConfigs::FillArea_ConsiderLAT = CINI::FAData->GetBool("ExtConfigs", "FillArea.ConsiderLAT", true);
 	ExtConfigs::FillArea_ConsiderWater = CINI::FAData->GetBool("ExtConfigs", "FillArea.ConsiderWater", true);
+	ExtConfigs::ForceNeutralSpecialColor = CINI::FAData->GetBool("ExtConfigs", "ForceNeutralSpecialColor", true);
 
 	ExtConfigs::DPIAware = CINI::FAData->GetBool("ExtConfigs", "DPIAware");
 
@@ -914,6 +916,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "DrawCelltagTranslucent",
 		.Value = &ExtConfigs::DrawCelltagTranslucent,
 		.Type = ExtConfigs::SpecialOptionType::None});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ForceNeutralSpecialColor", "Force Neutral and Special houses to use the light gray color in skirmish"),
+		.IniKey = "ForceNeutralSpecialColor",
+		.Value = &ExtConfigs::ForceNeutralSpecialColor,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.RandomTerrainObjects", "Show all terrain objects in random tree dialog"),

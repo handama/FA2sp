@@ -37,9 +37,19 @@ DEFINE_HOOK(468760, Miscs_GetColorRef, 7)
 
 	FString color = "";
 	if (pHouse)
-		if (auto pStr = Variables::RulesMap.TryGetString(pHouse, "Color")) {
+	{
+		if (ExtConfigs::ForceNeutralSpecialColor 
+			&& CMapData::Instance->IsMultiOnly() 
+			&& (strcmp(pHouse, "Neutral") == 0 || strcmp(pHouse, "Special") == 0))
+		{
+			color = "LightGrey";
+		}
+		else if (auto pStr = Variables::RulesMap.TryGetString(pHouse, "Color"))
+		{
 			color = *pStr;
 		}
+	}
+
 
 	if (pColor)
 		color = pColor;

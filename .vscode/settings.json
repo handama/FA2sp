@@ -2,7 +2,7 @@
     "editor.autoIndent": "full",
     "editor.formatOnType": true,
     "editor.formatOnPaste": true,
-    "editor.formatOnSave": true,
+    "editor.formatOnSave": false,
     "C_Cpp.intelliSenseEngine": "enabled",
     "C_Cpp.default.compilerPath": "cl.exe",
     "files.encoding": "gbk"

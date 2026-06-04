@@ -3538,11 +3538,11 @@ static void DrawMap()
 	{
 		if (ExtConfigs::DirectXRendering)
 		{
-			CIsoViewExt::DirectXDrawMultiMapCoordBorders(CopyPaste::PastedCoords, ExtConfigs::CopySelectionBound_Color, false);
+			CIsoViewExt::DirectXDrawMultiMapCoordBorders(CopyPaste::PastedCoords, ExtConfigs::CopySelectionBound_Color, false, true);
 		}
 		else
 		{
-			CIsoViewExt::DrawMultiMapCoordBorders(&ddsd, CopyPaste::PastedCoords, ExtConfigs::CopySelectionBound_Color);
+			CIsoViewExt::DrawMultiMapCoordBorders(&ddsd, CopyPaste::PastedCoords, ExtConfigs::CopySelectionBound_Color, true);
 		}
 	}
 	// line tool

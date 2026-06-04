@@ -115,12 +115,12 @@ void CIsoViewExt::DrawCopyBound(HDC hDC)
     }
     if (ExtConfigs::DirectXRendering)
     {
-        DirectXDrawMultiMapCoordBorders(coords, ExtConfigs::CopySelectionBound_Color);
-    }
-    else
-    {
-        CIsoViewExt::DrawMultiMapCoordBorders(hDC, coords, ExtConfigs::CopySelectionBound_Color);
-    }
+		DirectXDrawMultiMapCoordBorders(coords, ExtConfigs::CopySelectionBound_Color, 0, 0, true, true);
+	}
+	else
+	{
+		CIsoViewExt::DrawMultiMapCoordBorders(hDC, coords, ExtConfigs::CopySelectionBound_Color, 0, 0, true);
+	}
 }
 
 void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
@@ -154,17 +154,17 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
             }
             if (ExtConfigs::DirectXRendering)
             {
-                DirectXDrawMultiMapCoordBorders(cells, ExtConfigs::CursorSelectionBound_Color);
-            }
-            else
-            {
-                CIsoViewExt::DrawMultiMapCoordBorders(hDC, cells, ExtConfigs::CursorSelectionBound_Color);
-            }
-        }
-    }
+				DirectXDrawMultiMapCoordBorders(cells, ExtConfigs::CursorSelectionBound_Color, 0, 0, true, true);
+			}
+			else
+			{
+				CIsoViewExt::DrawMultiMapCoordBorders(hDC, cells, ExtConfigs::CursorSelectionBound_Color, 0, 0, true);
+			}
+		}
+	}
 
-    if (CIsoView::CurrentCommand->Command == 0 && pIsoView->Drag && pIsoView->CurrentCellObjectType >= 0)
-    {
+	if (CIsoView::CurrentCommand->Command == 0 && pIsoView->Drag && pIsoView->CurrentCellObjectType >= 0)
+	{
         int x1, x2, y1, y2;
         x1 = pIsoView->StartCell.X;
         y1 = pIsoView->StartCell.Y;
@@ -271,43 +271,43 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
             }
             if (ExtConfigs::DirectXRendering)
             {
-                DirectXDrawMultiMapCoordBorders(coords, ExtConfigs::MultiSelectionColor);
-            }
-            else
-            {
-                CIsoViewExt::DrawMultiMapCoordBorders(hDC, coords, ExtConfigs::MultiSelectionColor);
-            }
-        }
-        else
-        {
-            int X = MultiSelection::LastAddedCoord.X, Y = MultiSelection::LastAddedCoord.Y;
-            int XW = abs(point.X - MultiSelection::LastAddedCoord.X);
-            int YW = abs(point.Y - MultiSelection::LastAddedCoord.Y);
-            if (X > point.X)
-                X = point.X;
-            if (Y > point.Y)
-                Y = point.Y;
+				DirectXDrawMultiMapCoordBorders(coords, ExtConfigs::MultiSelectionColor, 0, 0, true, true);
+			}
+			else
+			{
+				CIsoViewExt::DrawMultiMapCoordBorders(hDC, coords, ExtConfigs::MultiSelectionColor, 0, 0, true);
+			}
+		}
+		else
+		{
+			int X = MultiSelection::LastAddedCoord.X, Y = MultiSelection::LastAddedCoord.Y;
+			int XW = abs(point.X - MultiSelection::LastAddedCoord.X);
+			int YW = abs(point.Y - MultiSelection::LastAddedCoord.Y);
+			if (X > point.X)
+				X = point.X;
+			if (Y > point.Y)
+				Y = point.Y;
 
-            std::vector<MapCoord> coords;
-            for (int i = X; i <= X + XW; i++)
-            {
-                for (int j = Y; j <= Y + YW; j++)
-                {
-                    coords.push_back({i, j});
-                }
-            }
+			std::vector<MapCoord> coords;
+			for (int i = X; i <= X + XW; i++)
+			{
+				for (int j = Y; j <= Y + YW; j++)
+				{
+					coords.push_back({i, j});
+				}
+			}
 
-            if (ExtConfigs::DirectXRendering)
-            {
-                DirectXDrawMultiMapCoordBorders(coords, ExtConfigs::MultiSelectionColor);
-            }
-            else
-            {
-                CIsoViewExt::DrawMultiMapCoordBorders(hDC, coords, ExtConfigs::MultiSelectionColor);
-            }
-        }
-    }
-    if (CIsoView::CurrentCommand->Command == 0x1F && CTerrainGenerator::RangeFirstCell.X > -1)
+			if (ExtConfigs::DirectXRendering)
+			{
+				DirectXDrawMultiMapCoordBorders(coords, ExtConfigs::MultiSelectionColor, 0, 0, true, true);
+			}
+			else
+			{
+				CIsoViewExt::DrawMultiMapCoordBorders(hDC, coords, ExtConfigs::MultiSelectionColor, 0, 0, true);
+			}
+		}
+	}
+	if (CIsoView::CurrentCommand->Command == 0x1F && CTerrainGenerator::RangeFirstCell.X > -1)
     {
         int X = CTerrainGenerator::RangeFirstCell.X, Y = CTerrainGenerator::RangeFirstCell.Y;
         int XW = abs(point.X - CTerrainGenerator::RangeFirstCell.X);
@@ -578,13 +578,13 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                 }
                 if (ExtConfigs::DirectXRendering)
                 {
-                    DirectXDrawMultiMapCoordBorders(mapCoordsInRange, color, offsetX, offsetY);
-                }
-                else
+					DirectXDrawMultiMapCoordBorders(mapCoordsInRange, color, offsetX, offsetY, true, true);
+				}
+				else
                 {
-                    CIsoViewExt::DrawMultiMapCoordBorders(hDC, mapCoordsInRange, color, offsetX, offsetY);
-                }
-            }
+					CIsoViewExt::DrawMultiMapCoordBorders(hDC, mapCoordsInRange, color, offsetX, offsetY, true);
+				}
+			}
             else
             {
                 switch (subcell)

@@ -4366,32 +4366,38 @@ void CIsoViewExt::Zoom(double offset, bool bForce)
     }
 }
 
-void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord> &coords, COLORREF color, int offsetX, int offsetY)
+void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color, int offsetX, int offsetY, bool allowFullMap)
 {
     auto pThis = static_cast<CIsoViewExt *>(CIsoView::GetInstance());
 
-    auto MakeCoordKey = [](int x, int y)
-    {
-        return (static_cast<uint32_t>(x) << 16) | static_cast<uint16_t>(y);
-    };
+	auto MakeCoordKey = [](int x, int y)
+	{
+		return (static_cast<uint32_t>(x) << 16) | static_cast<uint16_t>(y);
+	};
+	auto isCoordInMap = [&](int x, int y)
+	{
+		if (allowFullMap && ExtConfigs::DisplayObjectsOutside)
+			return CMapDataExt::IsCoordInFullMap(x, y);
+		return CMapData::Instance->IsCoordInMap(x, y);
+	};
 
-    std::unordered_set<uint32_t> coordSet;
-    coordSet.reserve(coords.size());
-
-    for (const auto &mc : coords)
-    {
-        if (CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
-        {
-            coordSet.insert(MakeCoordKey(mc.X, mc.Y));
-        }
-    }
+	std::unordered_set<uint32_t> coordSet;
+	coordSet.reserve(coords.size());
 
     for (const auto &mc : coords)
     {
-        if (!CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
-            continue;
+		if (isCoordInMap(mc.X, mc.Y))
+		{
+			coordSet.insert(MakeCoordKey(mc.X, mc.Y));
+		}
+	}
 
-        int x = mc.X;
+    for (const auto &mc : coords)
+    {
+		if (!isCoordInMap(mc.X, mc.Y))
+			continue;
+
+		int x = mc.X;
         int y = mc.Y;
         CIsoViewExt::MapCoord2ScreenCoord(x, y);
 
@@ -4416,30 +4422,36 @@ void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord> 
     }
 }
 
-void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::vector<MapCoord> &coords, COLORREF color)
+void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::vector<MapCoord>& coords, COLORREF color, bool allowFullMap)
 {
     auto pThis = static_cast<CIsoViewExt *>(CIsoView::GetInstance());
 
-    auto MakeCoordKey = [](int x, int y)
-    {
-        return (static_cast<uint32_t>(x) << 16) | static_cast<uint16_t>(y);
-    };
+	auto MakeCoordKey = [](int x, int y)
+	{
+		return (static_cast<uint32_t>(x) << 16) | static_cast<uint16_t>(y);
+	};
+	auto isCoordInMap = [&](int x, int y)
+	{
+		if (allowFullMap && ExtConfigs::DisplayObjectsOutside)
+			return CMapDataExt::IsCoordInFullMap(x, y);
+		return CMapData::Instance->IsCoordInMap(x, y);
+	};
 
-    std::unordered_set<uint32_t> coordSet;
-    coordSet.reserve(coords.size());
-
-    for (const auto &mc : coords)
-    {
-        if (CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
-        {
-            coordSet.insert(MakeCoordKey(mc.X, mc.Y));
-        }
-    }
+	std::unordered_set<uint32_t> coordSet;
+	coordSet.reserve(coords.size());
 
     for (const auto &mc : coords)
     {
-        if (!CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
-            continue;
+		if (isCoordInMap(mc.X, mc.Y))
+		{
+			coordSet.insert(MakeCoordKey(mc.X, mc.Y));
+		}
+	}
+
+    for (const auto &mc : coords)
+    {
+		if (!isCoordInMap(mc.X, mc.Y))
+			continue;
 
         int x = mc.X;
         int y = mc.Y;
@@ -4472,30 +4484,36 @@ void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::v
     }
 }
 
-void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::set<MapCoord> &coords, COLORREF color)
+void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::set<MapCoord>& coords, COLORREF color, bool allowFullMap)
 {
     auto pThis = static_cast<CIsoViewExt *>(CIsoView::GetInstance());
 
-    auto MakeCoordKey = [](int x, int y)
-    {
-        return (static_cast<uint32_t>(x) << 16) | static_cast<uint16_t>(y);
-    };
+	auto MakeCoordKey = [](int x, int y)
+	{
+		return (static_cast<uint32_t>(x) << 16) | static_cast<uint16_t>(y);
+	};
+	auto isCoordInMap = [&](int x, int y)
+	{
+		if (allowFullMap && ExtConfigs::DisplayObjectsOutside)
+			return CMapDataExt::IsCoordInFullMap(x, y);
+		return CMapData::Instance->IsCoordInMap(x, y);
+	};
 
-    std::unordered_set<uint32_t> coordSet;
-    coordSet.reserve(coords.size());
+	std::unordered_set<uint32_t> coordSet;
+	coordSet.reserve(coords.size());
 
     for (const auto &mc : coords)
     {
-        if (CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
-        {
+		if (isCoordInMap(mc.X, mc.Y))
+		{
             coordSet.insert(MakeCoordKey(mc.X, mc.Y));
         }
     }
 
     for (const auto &mc : coords)
     {
-        if (!CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
-            continue;
+		if (!isCoordInMap(mc.X, mc.Y))
+			continue;
 
         int x = mc.X;
         int y = mc.Y;
@@ -4522,30 +4540,36 @@ void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::s
     }
 }
 
-void CIsoViewExt::DirectXDrawMultiMapCoordBorders(const std::set<MapCoord> &coords, COLORREF color, bool bScreenSpace)
+void CIsoViewExt::DirectXDrawMultiMapCoordBorders(const std::set<MapCoord>& coords, COLORREF color, bool bScreenSpace, bool allowFullMap)
 {
     auto pThis = static_cast<CIsoViewExt *>(CIsoView::GetInstance());
 
-    auto MakeCoordKey = [](int x, int y)
-    {
-        return (static_cast<uint32_t>(x) << 16) | static_cast<uint16_t>(y);
-    };
+	auto MakeCoordKey = [](int x, int y)
+	{
+		return (static_cast<uint32_t>(x) << 16) | static_cast<uint16_t>(y);
+	};
+	auto isCoordInMap = [&](int x, int y)
+	{
+		if (allowFullMap && ExtConfigs::DisplayObjectsOutside)
+			return CMapDataExt::IsCoordInFullMap(x, y);
+		return CMapData::Instance->IsCoordInMap(x, y);
+	};
 
-    std::unordered_set<uint32_t> coordSet;
-    coordSet.reserve(coords.size());
+	std::unordered_set<uint32_t> coordSet;
+	coordSet.reserve(coords.size());
 
     for (const auto &mc : coords)
     {
-        if (CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
-        {
+		if (isCoordInMap(mc.X, mc.Y))
+		{
             coordSet.insert(MakeCoordKey(mc.X, mc.Y));
         }
     }
 
     for (const auto &mc : coords)
     {
-        if (!CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
-            continue;
+		if (!isCoordInMap(mc.X, mc.Y))
+			continue;
 
         int x = mc.X;
         int y = mc.Y;
@@ -4585,7 +4609,7 @@ void CIsoViewExt::DirectXDrawMultiMapCoordBorders(const std::set<MapCoord> &coor
     }
 }
 
-void CIsoViewExt::DirectXDrawMultiMapCoordBorders(const std::vector<MapCoord> &coords, COLORREF color, int offsetX, int offsetY, bool bScreenSpace)
+void CIsoViewExt::DirectXDrawMultiMapCoordBorders(const std::vector<MapCoord>& coords, COLORREF color, int offsetX, int offsetY, bool bScreenSpace, bool allowFullMap)
 {
     auto pThis = static_cast<CIsoViewExt *>(CIsoView::GetInstance());
 
@@ -4593,24 +4617,30 @@ void CIsoViewExt::DirectXDrawMultiMapCoordBorders(const std::vector<MapCoord> &c
     {
         return (static_cast<uint32_t>(x) << 16) | static_cast<uint16_t>(y);
     };
+	auto isCoordInMap = [&](int x, int y)
+	{
+		if (allowFullMap && ExtConfigs::DisplayObjectsOutside)
+			return CMapDataExt::IsCoordInFullMap(x, y);
+		return CMapData::Instance->IsCoordInMap(x, y);
+	};
 
-    std::unordered_set<uint32_t> coordSet;
-    coordSet.reserve(coords.size());
-
-    for (const auto &mc : coords)
-    {
-        if (CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
-        {
-            coordSet.insert(MakeCoordKey(mc.X, mc.Y));
-        }
-    }
+	std::unordered_set<uint32_t> coordSet;
+	coordSet.reserve(coords.size());
 
     for (const auto &mc : coords)
     {
-        if (!CMapDataExt::Instance->IsCoordInMap(mc.X, mc.Y))
-            continue;
+		if (isCoordInMap(mc.X, mc.Y))
+		{
+			coordSet.insert(MakeCoordKey(mc.X, mc.Y));
+		}
+	}
 
-        int x = mc.X;
+    for (const auto &mc : coords)
+    {
+		if (!isCoordInMap(mc.X, mc.Y))
+			continue;
+
+		int x = mc.X;
         int y = mc.Y;
         if (bScreenSpace)
         {

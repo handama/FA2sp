@@ -639,17 +639,8 @@ static void InitAllObjects()
 	}
 }
 
-static bool s_bInDrawMap = false;
-struct DrawMapGuard
-{
-	~DrawMapGuard() { s_bInDrawMap = false; }
-};
-
 static void DrawMap()
 {
-	s_bInDrawMap = true;
-	DrawMapGuard guard;
-
 	auto pThis = CIsoViewExt::GetExtension();
 	auto pMap = CMapDataExt::GetExtension();
 	auto pFinalSunDlg = CFinalSunDlg::Instance();
@@ -703,6 +694,7 @@ static void DrawMap()
 	{
 		if (CLoadingExt::ObjectsNeedReloaded)
 		{
+			CIsoViewExt::MouseCenterPosition = {-1919810, -1919810};
 			InitAllObjects();
 			CLoadingExt::ObjectsNeedReloaded = false;
 			if (ExtConfigs::HiDPIAwareness_ScaleIsoView && !CIsoViewExt::RenderingMap)
@@ -3742,7 +3734,6 @@ static void DrawMap()
 			int pngPosX = r.left + pThis->ViewPosition.x - startX - 4;
 			int pngPosY = r.top + pThis->ViewPosition.y - startY - 3 + (CIsoViewExt::RenderFullMap ? 0 : 15);
 
-			// Read offscreen texture to the full map bitmap
 			auto pDX = pThis->g_pDX.get();
 			if (pDX->IsUsingOpenGL())
 			{
@@ -3796,7 +3787,6 @@ static void DrawMap()
 
 						if (srcW > 0 && srcH > 0)
 						{
-							// GL FBO origin is bottom-left; rendered content is at the top
 							glPixelStorei(GL_PACK_ALIGNMENT, 4);
 							std::vector<uint8_t> rowBuf(srcW * 4);
 
@@ -3808,7 +3798,6 @@ static void DrawMap()
 								BYTE *dstRow = (BYTE *)bitmapData.Scan0;
 								for (LONG y = 0; y < srcH; ++y)
 								{
-									// Flip Y: GL bottom-left ¡ú bitmap top-left
 									int glY = texH - 1 - (srcTop + y);
 									glReadPixels(srcLeft, glY, srcW, 1, GL_RGBA, GL_UNSIGNED_BYTE, rowBuf.data());
 
@@ -3816,7 +3805,7 @@ static void DrawMap()
 									BYTE *dst = dstRow;
 									for (LONG x = 0; x < srcW; ++x)
 									{
-										// GL_RGBA ¡ú GDI+ 24bppRGB (BGR)
+										// GL_RGBA -> GDI+ 24bppRGB (BGR)
 										dst[0] = src[2]; // B
 										dst[1] = src[1]; // G
 										dst[2] = src[0]; // R
@@ -3842,21 +3831,16 @@ static void DrawMap()
 				D3D11_TEXTURE2D_DESC texDesc;
 				pOffscreenTex->GetDesc(&texDesc);
 
-				// Use client area rect as source â€? the offscreen texture starts at (0,0)
-				// in client coordinates, NOT at the window screen position.
 				int clientW = pDX->GetClientWidth();
 				int clientH = pDX->GetClientHeight();
 				int srcLeft = 0, srcTop = 0;
 				int srcW = clientW, srcH = clientH;
 
-				// Clip to offscreen texture bounds
 				if (srcLeft + srcW > (int)texDesc.Width)
 					srcW = texDesc.Width - srcLeft;
 				if (srcTop + srcH > (int)texDesc.Height)
 					srcH = texDesc.Height - srcTop;
 
-				// Handle negative destination (left/top edge of map):
-				// offset source rect and reduce copy size accordingly.
 				if (pngPosX < 0)
 				{
 					srcLeft += (-pngPosX);

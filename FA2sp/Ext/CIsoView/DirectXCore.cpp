@@ -1370,7 +1370,7 @@ bool DirectXCore::CreateLineShaders()
 {
     // Vertex shader: receives LineVertex { x, y, depth, color } as float4.
     // x,y are already in NDC; depth is the pre-assigned depth value.
-    // Just pass through directly â€? no matrix transform needed.
+    // Just pass through directly no matrix transform needed.
     const char *vsCode = R"(
         struct VSInput {
             float4 pos_depth : POSITION;  // (ndcX, ndcY, depth, colorPacked)
@@ -1663,11 +1663,6 @@ void DirectXCore::FlushInstanceBatch(const std::vector<const DrawCommand *> &bat
         }
     }
 
-    // Ensure sampler is set (callers may not have set it)
-    m_pContext->PSSetSamplers(0, 1,
-                              (m_renderScale == 1.0f) ? m_pSamplerPoint.GetAddressOf()
-                                                      : m_pSamplerLinear.GetAddressOf());
-
     m_pContext->DrawInstanced(4, count, 0, 0);
 
     // Restore single VB binding for subsequent code that assumes slot 0 only
@@ -1812,8 +1807,6 @@ void DirectXCore::RenderOffscreenContent()
         std::vector<const DrawCommand *> opaqueStencil;
         for (const DrawCommand *cmd : opaqueCmds)
         {
-            if (!cmd->texRes || !cmd->texRes->sourceView.pImageBuffer)
-                continue;
             if (cmd->pCustomDSState)
                 opaqueStencil.push_back(cmd);
             else
@@ -2962,7 +2955,7 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
 
         // TRIANGLELIST: two triangles forming the thick line quad
         // V0 = start-left, V1 = start-right, V2 = end-left, V3 = end-right
-        // Triangles: (V0,V1,V2) and (V1,V3,V2) â€? no shared edges with next line
+        // Triangles: (V0,V1,V2) and (V1,V3,V2) no shared edges with next line
         verts.push_back({x0b, y0b, depthZ, le.color}); // V0: left of start
         verts.push_back({x0a, y0a, depthZ, le.color}); // V1: right of start
         verts.push_back({x1b, y1b, depthZ, le.color}); // V2: left of end
@@ -2986,9 +2979,6 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
     m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_pContext->VSSetShader(m_pLineVS.Get(), nullptr, 0);
     m_pContext->PSSetShader(pCustomPS ? pCustomPS : m_pLinePS.Get(), nullptr, 0);
-
-    // Set sampler (needed by line PS variants that sample textures, e.g. m_pLineModPS)
-    m_pContext->PSSetSamplers(0, 1, m_pSamplerPoint.GetAddressOf());
 
     // Draw all lines in one call
     m_pContext->Draw(totalVerts, 0);
@@ -5833,8 +5823,8 @@ void DirectXCore::GL_FlushLineBatch(bool bScreenSpace, GLuint overrideProgram, b
     }
     else
     {
-        vw = (float)(m_clientWidth * m_renderScale);
-        vh = (float)(m_clientHeight * m_renderScale);
+        vw = (float)(int)(m_clientWidth * m_renderScale);
+        vh = (float)(int)(m_clientHeight * m_renderScale);
     }
     const float depthScale = 1.0f / 16777216.0f;
 

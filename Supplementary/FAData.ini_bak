@@ -384,9 +384,9 @@ DDrawScalingBilinear.OnlyShrink=false
 ; BOOLEAN ; 使用显卡加速绘图, 可以大幅提升性能, 默认为 true
 DirectXRendering=true
 
-; BOOLEAN ; Select graphics rendering API, true is OpenGL 3.3, false is Direct3D 11, default true
-; BOOLEAN ; 选择显卡渲染API, true 为 OpenGL 3.3, false 为 Direct3D 11, 默认为 true
-OpenGLRendering=true
+; BOOLEAN ; Select graphics rendering API, true is OpenGL 3.3, false is DirectX 11, default false
+; BOOLEAN ; 选择显卡渲染API, true 为 OpenGL 3.3, false 为 DirectX 11, 默认为 false
+OpenGLRendering=false
 
 ; BOOLEAN ; Precisely calculate the depth relationship of game objects (slower). Default true
 ; BOOLEAN ; 精确计算游戏对象间的深度关系 (轻微影响性能), 默认为 true

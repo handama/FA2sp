@@ -362,7 +362,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DDrawScalingBilinear = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear", true);
 	ExtConfigs::DDrawScalingBilinear_OnlyShrink = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear.OnlyShrink");
 	ExtConfigs::DirectXRendering_INI = CINI::FAData->GetBool("ExtConfigs", "DirectXRendering", true);
-	ExtConfigs::OpenGLRendering_INI = CINI::FAData->GetBool("ExtConfigs", "OpenGLRendering");
+	ExtConfigs::OpenGLRendering_INI = CINI::FAData->GetBool("ExtConfigs", "OpenGLRendering", true);
 	ExtConfigs::PreciseDepthCalculation = CINI::FAData->GetBool("ExtConfigs", "PreciseDepthCalculation", true);
 	ExtConfigs::HiDPIAwareness_ScaleIsoView = CINI::FAData->GetBool("ExtConfigs", "HiDPIAwareness.ScaleIsoView", true);
 	ExtConfigs::HiDPIAwareness = CINI::FAData->GetBool("ExtConfigs", "HiDPIAwareness", true);
@@ -591,7 +591,7 @@ void FA2sp::ExtConfigsInitialize()
 		ExtConfigs::SecondScreenSupport_INI && (GetSystemMetrics(SM_CMONITORS) > 1);
 
 	ExtConfigs::OpenGLRendering = ExtConfigs::OpenGLRendering_INI;
-	ExtConfigs::DirectXRendering = ExtConfigs::DirectXRendering_INI || ExtConfigs::OpenGLRendering_INI;
+	ExtConfigs::DirectXRendering = ExtConfigs::DirectXRendering_INI;
 	if (ExtConfigs::DirectXRendering)
 	{
 		ExtConfigs::SecondScreenSupport = true;

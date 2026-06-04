@@ -2588,7 +2588,7 @@ TextureResource *DirectXCore::LoadIndexTexture(const ImageDataView &view)
     // === OpenGL path ===
     if (m_bUseOpenGL)
     {
-        GL_UploadTextureR8(texRes.get(), w, h, view.pImageBuffer, true);
+        GL_UploadTextureR8(texRes.get(), w, h, view.pImageBuffer, false);
         TextureResource *ret = texRes.get();
         itr->second = std::move(texRes);
         return ret;
@@ -4516,6 +4516,60 @@ bool DirectXCore::GL_CompileAndLinkProgram(const char *vsSrc, const char *psSrc,
 }
 
 // ==========================================================================
+// GL State-Tracking Helpers (Phase 2 optimization)
+// ==========================================================================
+void DirectXCore::GL_BindTexture0(GLuint tex)
+{
+    if (m_glTrackedTexture != tex)
+    {
+        if (m_glTrackedActiveTexUnit != 0)
+        {
+            glActiveTexture(GL_TEXTURE0);
+            m_glTrackedActiveTexUnit = 0;
+        }
+        glBindTexture(GL_TEXTURE_2D, tex);
+        m_glTrackedTexture = tex;
+    }
+}
+void DirectXCore::GL_BindTexture1(GLuint tex)
+{
+    if (m_glTrackedTexture1 != tex)
+    {
+        if (m_glTrackedActiveTexUnit != 1)
+        {
+            glActiveTexture(GL_TEXTURE1);
+            m_glTrackedActiveTexUnit = 1;
+        }
+        glBindTexture(GL_TEXTURE_2D, tex);
+        m_glTrackedTexture1 = tex;
+    }
+}
+void DirectXCore::GL_UseProgramTracked(GLuint prog)
+{
+    if (m_glTrackedProgram != prog)
+    {
+        glUseProgram(prog);
+        m_glTrackedProgram = prog;
+    }
+}
+void DirectXCore::GL_BindVAOTracked(GLuint vao)
+{
+    if (m_glTrackedVAO != vao)
+    {
+        glBindVertexArray(vao);
+        m_glTrackedVAO = vao;
+    }
+}
+void DirectXCore::GL_BindFBOTracked(GLuint fbo)
+{
+    if (m_glTrackedFBO != fbo)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        m_glTrackedFBO = fbo;
+    }
+}
+
+// ==========================================================================
 // GL_Init - create WGL context, load GL functions, compile shaders, set up FBOs
 // ==========================================================================
 bool DirectXCore::GL_Init(HWND hwnd)
@@ -4694,7 +4748,7 @@ void DirectXCore::GL_Cleanup()
                 glDeleteProgram(p);
 
         // Delete VAOs
-        GLuint vaos[] = {m_glVAOQuad, m_glVAOFullscreen, m_glVAOLine};
+        GLuint vaos[] = {m_glVAOQuad, m_glVAOFullscreen, m_glVAOLine, m_glVAOInstance};
         for (GLuint v : vaos)
             if (v)
                 glDeleteVertexArrays(1, &v);
@@ -4748,7 +4802,7 @@ void DirectXCore::GL_Cleanup()
     m_glProgMain = m_glProgInstanced = m_glProgEffect = 0;
     m_glProgComposite = m_glProgFinal = m_glProgLine = 0;
     m_glProgAlphaAccum = m_glProgAlphaAccumNI = m_glProgLineMod = m_glProgShadowDarken = 0;
-    m_glVAOQuad = m_glVAOFullscreen = m_glVAOLine = 0;
+    m_glVAOQuad = m_glVAOFullscreen = m_glVAOLine = m_glVAOInstance = 0;
     m_glVBOQuad = m_glVBOFullscreen = m_glVBOInstance = m_glVBOLine = 0;
     m_glInstanceVBCapacity = m_glLineVBCapacity = 0;
     m_glFBOOffscreen = m_glTexOffscreen = m_glRBODepthStencil = 0;
@@ -4815,6 +4869,33 @@ bool DirectXCore::GL_CreateShaders()
         Logger::Raw("[GL] ShadowDarken program failed.\n");
         return false;
     }
+
+// --- Cache all uniform locations (Phase 1 optimization) ---
+#define CACHE_ULOC(prog, field, name) \
+    m_glUL_##field = glGetUniformLocation(prog, name)
+
+    CACHE_ULOC(m_glProgMain, Main_World, "g_World");
+    CACHE_ULOC(m_glProgMain, Main_ColorMul, "g_ColorMul");
+    CACHE_ULOC(m_glProgMain, Main_MixColor, "g_MixColor");
+    CACHE_ULOC(m_glProgMain, Main_MixFactor, "g_MixFactor");
+
+    CACHE_ULOC(m_glProgAlphaAccumNI, AlphaNI_World, "g_World");
+    CACHE_ULOC(m_glProgAlphaAccumNI, AlphaNI_ColorMul, "g_ColorMul");
+    CACHE_ULOC(m_glProgAlphaAccumNI, AlphaNI_MixColor, "g_MixColor");
+    CACHE_ULOC(m_glProgAlphaAccumNI, AlphaNI_MixFactor, "g_MixFactor");
+
+    CACHE_ULOC(m_glProgEffect, Effect_World, "g_World");
+
+    CACHE_ULOC(m_glProgComposite, Composite_ScreenTex, "screenTex");
+    CACHE_ULOC(m_glProgComposite, Composite_FactorTex, "factorTex");
+
+    CACHE_ULOC(m_glProgFinal, Final_Scale, "uScale");
+    CACHE_ULOC(m_glProgFinal, Final_Offset, "uOffset");
+
+    CACHE_ULOC(m_glProgLineMod, LineMod_ViewportSize, "uViewportSize");
+    CACHE_ULOC(m_glProgLineMod, LineMod_AlphaAccum, "alphaAccum");
+
+#undef CACHE_ULOC
 
     Logger::Raw("[GL] All shader programs compiled successfully.\n");
     return true;
@@ -4896,8 +4977,53 @@ bool DirectXCore::GL_CreateQuadGeometry()
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
     glBindVertexArray(0);
 
-    // Line VAO (dynamic VBO created on demand in GL_FlushLineBatch)
-    glGenVertexArrays(1, &m_glVAOLine);
+    // Line VAO: configure vertex attributes once (not per-frame)
+    //   location 0: vec4 (x, y, depth, _) - uses sizeof(LineVertex)=16
+    //   location 1: uint color (packed RGBA8 at byte offset 12)
+    {
+        glGenVertexArrays(1, &m_glVAOLine);
+        glBindVertexArray(m_glVAOLine);
+
+        // Dummy VBO bind for attribute setup (actual VBO bound later in GL_FlushLineBatch)
+        glGenBuffers(1, &m_glVBOLine);
+        glBindBuffer(GL_ARRAY_BUFFER, m_glVBOLine);
+        glBufferData(GL_ARRAY_BUFFER, 1024 * 16, nullptr, GL_DYNAMIC_DRAW);
+        m_glLineVBCapacity = 1024;
+
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 16, (void *)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, 16, (void *)12);
+
+        glBindVertexArray(0);
+    }
+
+    // Instance VAO: quad VBO (slot 0, per-vertex) + instance VBO (slot 1, per-instance)
+    //   location 0,1: from quad VBO (divisor 0)
+    //   location 2,3,4,5: from instance VBO (divisor 1), 4¡Ávec4=64 bytes per instance
+    {
+        glGenVertexArrays(1, &m_glVAOInstance);
+        glBindVertexArray(m_glVAOInstance);
+
+        // Bind quad VBO for per-vertex data
+        glBindBuffer(GL_ARRAY_BUFFER, m_glVBOQuad);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+
+        // Bind instance VBO for per-instance data (layout matches kGLSL_InstancedVS)
+        glBindBuffer(GL_ARRAY_BUFFER, m_glVBOInstance);
+        for (int i = 0; i < 4; ++i)
+        {
+            GLuint loc = 2 + i;
+            glEnableVertexAttribArray(loc);
+            glVertexAttribPointer(loc, 4, GL_FLOAT, GL_FALSE, 64, (void *)(i * 16));
+            glVertexAttribDivisor(loc, 1);
+        }
+
+        glBindVertexArray(0);
+    }
 
     return true;
 }
@@ -5056,10 +5182,11 @@ void DirectXCore::GL_UploadTextureRGBA8(TextureResource *res, int w, int h, cons
 
     if (flipY)
     {
-        std::vector<uint32_t> flipped(w * h);
+        if ((int)m_glTexFlipBufRGBA.size() < w * h)
+            m_glTexFlipBufRGBA.resize(w * h);
         for (int y = 0; y < h; ++y)
-            memcpy(&flipped[(h - 1 - y) * w], &pixels[y * w], w * 4);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, flipped.data());
+            memcpy(&m_glTexFlipBufRGBA[(h - 1 - y) * w], &pixels[y * w], w * 4);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, m_glTexFlipBufRGBA.data());
     }
     else
     {
@@ -5081,10 +5208,11 @@ void DirectXCore::GL_UploadTextureR8(TextureResource *res, int w, int h, const u
 
     if (flipY)
     {
-        std::vector<uint8_t> flipped(w * h);
+        if ((int)m_glTexFlipBufR8.size() < w * h)
+            m_glTexFlipBufR8.resize(w * h);
         for (int y = 0; y < h; ++y)
-            memcpy(&flipped[(h - 1 - y) * w], &pixels[y * w], w);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, flipped.data());
+            memcpy(&m_glTexFlipBufR8[(h - 1 - y) * w], &pixels[y * w], w);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, m_glTexFlipBufR8.data());
     }
     else
     {
@@ -5115,6 +5243,8 @@ void DirectXCore::GL_UploadTextureDynamic(TextureResource *res, int w, int h, co
 
 // ==========================================================================
 // GL_RenderOffscreenContent - the main 5-phase render (OpenGL path)
+//   Optimized: uniform location caching, state tracking, instanced Phase 1,
+//   reusable flip buffers, removed redundant glFlush calls.
 // ==========================================================================
 void DirectXCore::GL_RenderOffscreenContent()
 {
@@ -5127,8 +5257,7 @@ void DirectXCore::GL_RenderOffscreenContent()
     m_vwCached = (float)vw;
     m_vhCached = (float)vh;
 
-    glBindFramebuffer(GL_FRAMEBUFFER, m_glFBOOffscreen);
-    m_glTrackedFBO = m_glFBOOffscreen;
+    GL_BindFBOTracked(m_glFBOOffscreen);
 
     float clearColor[4] = {
         CIsoViewExt::RenderingMap ? 0.0f : (ExtConfigs::EnableDarkMode ? 0.125f : 1.0f),
@@ -5138,8 +5267,6 @@ void DirectXCore::GL_RenderOffscreenContent()
     glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
     glClearDepth(1.0);
     glClearStencil(0);
-    // Ensure writemasks don't block the clear (OpenGL clear is affected by
-    // glDepthMask / glStencilMask, unlike D3D11 ClearDepthStencilView).
     glDepthMask(GL_TRUE);
     glStencilMask(0xFF);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -5154,32 +5281,38 @@ void DirectXCore::GL_RenderOffscreenContent()
 
     const float depthScale = 1.0f / 16777216.0f;
 
-    // Lambda: set common uniforms for the Main PS program
-    auto SetMainUniforms = [&](const DrawCommand &cmd)
+    // --- Cached uniform locations (aliases for readability) ---
+    const GLint &UL_M_World = m_glUL_Main_World;
+    const GLint &UL_M_CMul = m_glUL_Main_ColorMul;
+    const GLint &UL_M_MixC = m_glUL_Main_MixColor;
+    const GLint &UL_M_MixF = m_glUL_Main_MixFactor;
+    const GLint &UL_AN_World = m_glUL_AlphaNI_World;
+    const GLint &UL_AN_CMul = m_glUL_AlphaNI_ColorMul;
+    const GLint &UL_AN_MixC = m_glUL_AlphaNI_MixColor;
+    const GLint &UL_AN_MixF = m_glUL_AlphaNI_MixFactor;
+    const GLint &UL_Eff_World = m_glUL_Effect_World;
+
+    // Lambda: set common uniforms using cached locations (Phase 1 optimization)
+    auto SetMainUniformsCached = [&](const DrawCommand &cmd)
     {
         const auto &p = cmd.params;
-        GLint loc;
-        loc = glGetUniformLocation(m_glProgMain, "g_ColorMul");
-        if (loc >= 0)
-            glUniform4f(loc, p.redMult, p.greenMult, p.blueMult, p.opacity);
-        loc = glGetUniformLocation(m_glProgMain, "g_MixColor");
-        if (loc >= 0)
-            glUniform4f(loc, p.mixR, p.mixG, p.mixB, 1.0f);
-        loc = glGetUniformLocation(m_glProgMain, "g_MixFactor");
-        if (loc >= 0)
-            glUniform1f(loc, p.mixFactor);
+        if (UL_M_CMul >= 0)
+            glUniform4f(UL_M_CMul, p.redMult, p.greenMult, p.blueMult, p.opacity);
+        if (UL_M_MixC >= 0)
+            glUniform4f(UL_M_MixC, p.mixR, p.mixG, p.mixB, 1.0f);
+        if (UL_M_MixF >= 0)
+            glUniform1f(UL_M_MixF, p.mixFactor);
     };
 
-    // Compute world matrix (same as D3D: scale * translate, transposed)
-    auto ComputeWorldMatrix = [&](const DrawCommand &cmd) -> float *
+    // Lambda: compute world matrix into caller-provided buffer (no static, thread-safe)
+    auto ComputeWorldMatrix = [&](const DrawCommand &cmd, float (&mat)[16])
     {
-        static float mat[16];
         TextureResource *tex = cmd.texRes;
         if (!tex)
         {
             memset(mat, 0, sizeof(mat));
             mat[0] = mat[5] = mat[10] = mat[15] = 1.0f;
-            return mat;
+            return;
         }
         const auto &p = cmd.params;
         float depthZ = cmd.depth * depthScale;
@@ -5187,14 +5320,11 @@ void DirectXCore::GL_RenderOffscreenContent()
         float h_px = tex->sourceView.FullHeight * p.scaleY;
         float snappedX = std::floor(p.x + 0.5f);
         float snappedY = std::floor(p.y + 0.5f);
-        float centerX = snappedX + w_px * 0.5f;
-        float centerY = snappedY + h_px * 0.5f;
         float ndcW = (w_px / vw) * 2.0f;
         float ndcH = (h_px / vh) * 2.0f;
-        float ndcX = (centerX / vw) * 2.0f - 1.0f;
-        float ndcY = 1.0f - (centerY / vh) * 2.0f;
+        float ndcX = ((snappedX + w_px * 0.5f) / vw) * 2.0f - 1.0f;
+        float ndcY = 1.0f - ((snappedY + h_px * 0.5f) / vh) * 2.0f;
 
-        // Build column-major: S * T = [sx 0 0 tx; 0 sy 0 ty; 0 0 1 tz; 0 0 0 1]
         memset(mat, 0, sizeof(mat));
         mat[0] = ndcW;
         mat[5] = ndcH;
@@ -5203,7 +5333,6 @@ void DirectXCore::GL_RenderOffscreenContent()
         mat[12] = ndcX;
         mat[13] = ndcY;
         mat[14] = depthZ;
-        return mat;
     };
 
     // Classify commands (same as D3D)
@@ -5234,33 +5363,27 @@ void DirectXCore::GL_RenderOffscreenContent()
         }
     }
 
-    // ---- Phase 1: Opaque (depth write ON, depth test ON) ----
-    //   Split: stencil-writing commands (pCustomDSState != null) are drawn
-    //   per-quad with stencil enabled; plain commands skip stencil.
-    glUseProgram(m_glProgMain);
-    m_glTrackedProgram = m_glProgMain;
-    glBindVertexArray(m_glVAOQuad);
-    m_glTrackedVAO = m_glVAOQuad;
+    // ====================================================================
+    // Phase 1: Opaque (depth write ON, depth test ON)
+    // ====================================================================
+    GL_UseProgramTracked(m_glProgMain);
+    GL_BindVAOTracked(m_glVAOQuad);
 
     if (!opaqueCmds.empty())
     {
-        // Separate plain vs. stencil-writing commands (matching D3D Phase 1 split)
         std::vector<const DrawCommand *> opaquePlain;
         std::vector<const DrawCommand *> opaqueStencil;
         for (const DrawCommand *cmd : opaqueCmds)
         {
             if (!cmd->texRes || cmd->texRes->glTexture == 0)
                 continue;
-            // GL path: D3D11 state objects are never created - use
-            // bWriteStencil instead of pCustomDSState to detect stencil writes.
             if (cmd->params.bWriteStencil)
                 opaqueStencil.push_back(cmd);
             else
                 opaquePlain.push_back(cmd);
         }
 
-        // -- Draw stencil-writing opaque first (D3D: m_pDepthStateObjectStencilWrite) --
-        //   Depth: GREATER_EQUAL+write, Stencil: ALWAYS/REPLACE, ReadMask=0x7F, WriteMask=0xFF
+        // -- Stencil-writing opaque (per-quad) --
         if (!opaqueStencil.empty())
         {
             glEnable(GL_STENCIL_TEST);
@@ -5270,45 +5393,40 @@ void DirectXCore::GL_RenderOffscreenContent()
             {
                 int ref = (cmd->params.stencilRef >= 0) ? cmd->params.stencilRef : 0;
                 glStencilFunc(GL_ALWAYS, ref, 0x7F);
-                float *mat = ComputeWorldMatrix(*cmd);
-                GLint loc = glGetUniformLocation(m_glProgMain, "g_World");
-                if (loc >= 0)
-                    glUniformMatrix4fv(loc, 1, GL_FALSE, mat);
-                SetMainUniforms(*cmd);
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, cmd->texRes->glTexture);
+                float mat[16];
+                ComputeWorldMatrix(*cmd, mat);
+                if (UL_M_World >= 0)
+                    glUniformMatrix4fv(UL_M_World, 1, GL_FALSE, mat);
+                SetMainUniformsCached(*cmd);
+                GL_BindTexture0(cmd->texRes->glTexture);
                 glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
             }
             glDisable(GL_STENCIL_TEST);
         }
 
-        // -- Plain opaque --
-        for (const DrawCommand *cmd : opaquePlain)
+        // -- Plain opaque: use instanced rendering (Phase 4 optimization) --
+        if (!opaquePlain.empty())
         {
-            float *mat = ComputeWorldMatrix(*cmd);
-            GLint loc = glGetUniformLocation(m_glProgMain, "g_World");
-            if (loc >= 0)
-                glUniformMatrix4fv(loc, 1, GL_FALSE, mat);
-            SetMainUniforms(*cmd);
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, cmd->texRes->glTexture);
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            std::stable_sort(opaquePlain.begin(), opaquePlain.end(),
+                             [](const DrawCommand *a, const DrawCommand *b)
+                             { return a->texRes < b->texRes; });
+            GL_FlushInstanceBatch(opaquePlain);
+            // Restore state that GL_FlushInstanceBatch changed
+            GL_UseProgramTracked(m_glProgMain);
+            GL_BindVAOTracked(m_glVAOQuad);
         }
     }
 
-    glFlush();
-
-    // ---- Phase 1.5: Stencil-aware draws (only if PreciseDepthCalculation) ----
-    //   Must match D3D11's 4 sub-phases exactly: depth func/write, stencil func/op/mask.
+    // ====================================================================
+    // Phase 1.5: Stencil-aware draws
+    // ====================================================================
     if (ExtConfigs::PreciseDepthCalculation && !stencilCmds.empty())
     {
         glEnable(GL_STENCIL_TEST);
 
         // -- Sub-phase a: Write stencil (no color) --
-        //   D3D: m_pDepthStateStencilOnlyWrite
-        //   Depth=GREATER_EQUAL(read-only), Stencil=GREATER/REPLACE, ReadMask=0x7F, WriteMask=0xFF
         glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-        glDepthMask(GL_FALSE); // D3D: DepthWriteMask = ZERO
+        glDepthMask(GL_FALSE);
         glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
         glStencilMask(0xFF);
         for (const DrawCommand *cmd : stencilCmds)
@@ -5319,21 +5437,18 @@ void DirectXCore::GL_RenderOffscreenContent()
             if (!cmd->texRes || cmd->texRes->glTexture == 0)
                 continue;
             int ref = (cmd->params.stencilRef >= 0) ? cmd->params.stencilRef : 0;
-            glStencilFunc(GL_GREATER, ref, 0x7F); // D3D_COMPARISON_GREATER
-            float *mat = ComputeWorldMatrix(*cmd);
-            GLint loc = glGetUniformLocation(m_glProgMain, "g_World");
-            if (loc >= 0)
-                glUniformMatrix4fv(loc, 1, GL_FALSE, mat);
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, cmd->texRes->glTexture);
+            glStencilFunc(GL_GREATER, ref, 0x7F);
+            float mat[16];
+            ComputeWorldMatrix(*cmd, mat);
+            if (UL_M_World >= 0)
+                glUniformMatrix4fv(UL_M_World, 1, GL_FALSE, mat);
+            GL_BindTexture0(cmd->texRes->glTexture);
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         }
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
         // -- Sub-phase b: Read stencil (normal draw) --
-        //   D3D: m_pDepthStateTerrainRedraw
-        //   Depth=GREATER_EQUAL(write), Stencil=GREATER_EQUAL/REPLACE, ReadMask=0x7F, WriteMask=0xFF
-        glDepthMask(GL_TRUE); // D3D: DepthWriteMask = ALL
+        glDepthMask(GL_TRUE);
         glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
         glStencilMask(0xFF);
         for (const DrawCommand *cmd : stencilCmds)
@@ -5344,23 +5459,20 @@ void DirectXCore::GL_RenderOffscreenContent()
             if (!cmd->texRes || cmd->texRes->glTexture == 0)
                 continue;
             int ref = (cmd->params.stencilRef >= 0) ? cmd->params.stencilRef : 0;
-            glStencilFunc(GL_GEQUAL, ref, 0x7F); // D3D_COMPARISON_GREATER_EQUAL
-            float *mat = ComputeWorldMatrix(*cmd);
-            GLint loc = glGetUniformLocation(m_glProgMain, "g_World");
-            if (loc >= 0)
-                glUniformMatrix4fv(loc, 1, GL_FALSE, mat);
-            SetMainUniforms(*cmd);
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, cmd->texRes->glTexture);
+            glStencilFunc(GL_GEQUAL, ref, 0x7F);
+            float mat[16];
+            ComputeWorldMatrix(*cmd, mat);
+            if (UL_M_World >= 0)
+                glUniformMatrix4fv(UL_M_World, 1, GL_FALSE, mat);
+            SetMainUniformsCached(*cmd);
+            GL_BindTexture0(cmd->texRes->glTexture);
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         }
 
         // -- Sub-phase c: Shadow objects (write stencil bit 7, no color) --
-        //   D3D: m_pDepthStateShadowMark + m_pBlendStateNoColor
-        //   Depth=ALWAYS(read-only), Stencil=GREATER_EQUAL/REPLACE, ReadMask=0x7F, WriteMask=0x80
         glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-        glDepthMask(GL_FALSE);  // D3D: DepthWriteMask = ZERO
-        glDepthFunc(GL_ALWAYS); // D3D: DepthFunc = ALWAYS (pass regardless of depth)
+        glDepthMask(GL_FALSE);
+        glDepthFunc(GL_ALWAYS);
         glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
         glStencilMask(0x80);
         for (const DrawCommand *cmd : stencilCmds)
@@ -5369,25 +5481,18 @@ void DirectXCore::GL_RenderOffscreenContent()
                 continue;
             if (!cmd->texRes || cmd->texRes->glTexture == 0)
                 continue;
-            // D3D stencilRef = (shadowHeight+1) | 0x80; GL REPLACE writes full ref,
-            // mask limits to bit 7.  The 0x7F mask in glStencilFunc already handles
-            // the comparison masking - do NOT &0x7F the ref, or REPLACE loses bit 7.
             int ref = cmd->params.stencilRef >= 0 ? cmd->params.stencilRef : 0;
-            glStencilFunc(GL_GEQUAL, ref, 0x7F); // compare only height bits
-            float *mat = ComputeWorldMatrix(*cmd);
-            GLint loc = glGetUniformLocation(m_glProgMain, "g_World");
-            if (loc >= 0)
-                glUniformMatrix4fv(loc, 1, GL_FALSE, mat);
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, cmd->texRes->glTexture);
+            glStencilFunc(GL_GEQUAL, ref, 0x7F);
+            float mat[16];
+            ComputeWorldMatrix(*cmd, mat);
+            if (UL_M_World >= 0)
+                glUniformMatrix4fv(UL_M_World, 1, GL_FALSE, mat);
+            GL_BindTexture0(cmd->texRes->glTexture);
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         }
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
         // -- Sub-phase d: Overlap shadow draw --
-        //   D3D: m_pDepthStateShadowRedraw
-        //   Depth=ALWAYS(read-only), Stencil=GREATER_EQUAL/KEEP, ReadMask=0x7F, WriteMask=0x00
-        //   (depth func/read-only already set from sub-phase c)
         glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
         glStencilMask(0x00);
         for (const DrawCommand *cmd : stencilCmds)
@@ -5398,70 +5503,60 @@ void DirectXCore::GL_RenderOffscreenContent()
                 continue;
             int ref = (cmd->params.stencilRef >= 0) ? cmd->params.stencilRef : 0;
             glStencilFunc(GL_GEQUAL, ref, 0x7F);
-            SetMainUniforms(*cmd);
-            float *mat = ComputeWorldMatrix(*cmd);
-            GLint loc = glGetUniformLocation(m_glProgMain, "g_World");
-            if (loc >= 0)
-                glUniformMatrix4fv(loc, 1, GL_FALSE, mat);
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, cmd->texRes->glTexture);
+            SetMainUniformsCached(*cmd);
+            float mat[16];
+            ComputeWorldMatrix(*cmd, mat);
+            if (UL_M_World >= 0)
+                glUniformMatrix4fv(UL_M_World, 1, GL_FALSE, mat);
+            GL_BindTexture0(cmd->texRes->glTexture);
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         }
 
         // -- Shadow darkening pass (fullscreen) --
-        //   D3D: m_pDepthStateShadowDarken + m_pBlendStateDarken + m_pShadowDarkenPS
-        //   Stencil=EQUAL 0x80 / ReadMask=0x80, Blend=ZERO:SRC_COLOR, Depth=OFF
         if (CIsoViewExt::DrawShadows && m_glProgShadowDarken)
         {
-            glUseProgram(m_glProgShadowDarken);
+            GL_UseProgramTracked(m_glProgShadowDarken);
             glDisable(GL_DEPTH_TEST);
             glStencilFunc(GL_EQUAL, 0x80, 0x80);
             glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
             glStencilMask(0x00);
             glBlendFunc(GL_ZERO, GL_SRC_COLOR);
-            glBindVertexArray(m_glVAOFullscreen);
+            GL_BindVAOTracked(m_glVAOFullscreen);
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
             // Restore
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             glEnable(GL_DEPTH_TEST);
-            glDepthFunc(GL_LEQUAL); // reset from sub-phase c GL_ALWAYS
-            glStencilMask(0xFF);    // reset from sub-phase d / darken 0x00
-            glBindVertexArray(m_glVAOQuad);
-            glUseProgram(m_glProgMain);
+            glDepthFunc(GL_LEQUAL);
+            glStencilMask(0xFF);
+            GL_BindVAOTracked(m_glVAOQuad);
+            GL_UseProgramTracked(m_glProgMain);
         }
 
-        // Restore depth/stencil to default for subsequent phases
         glDisable(GL_STENCIL_TEST);
         glStencilMask(0xFF);
         glDepthFunc(GL_LEQUAL);
         glDepthMask(GL_TRUE);
-        glFlush();
     }
 
-    // ---- Phase 2: Semi-transparent (MRT alpha accumulation) ----
+    // ====================================================================
+    // Phase 2: Semi-transparent (MRT alpha accumulation)
+    // ====================================================================
     if (!transparentCmds.empty())
     {
-        // Attach alpha accum texture to offscreen FBO as second color attachment
-        glBindFramebuffer(GL_FRAMEBUFFER, m_glFBOOffscreen);
+        GL_BindFBOTracked(m_glFBOOffscreen);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, m_glTexAlphaAccum, 0);
         GLenum drawBufs[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
         glDrawBuffers(2, drawBufs);
 
-        // Clear alpha accum
         float alphaClear[4] = {0, 0, 0, 0};
         glClearBufferfv(GL_COLOR, 1, alphaClear);
 
         glDepthMask(GL_FALSE);
-        glUseProgram(m_glProgAlphaAccumNI);
-        m_glTrackedProgram = m_glProgAlphaAccumNI;
+        GL_UseProgramTracked(m_glProgAlphaAccumNI);
 
-        // Setup blend for MRT
-        glEnable(GL_BLEND);
         if (glBlendFunci)
         {
-            // RT0: standard alpha
             glBlendFunci(0, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            // RT1: overwrite (ONE, ZERO) red channel only
             glBlendFunci(1, GL_ONE, GL_ZERO);
         }
         glColorMaski(0, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -5471,66 +5566,60 @@ void DirectXCore::GL_RenderOffscreenContent()
         {
             if (!cmd->texRes || cmd->texRes->glTexture == 0)
                 continue;
-            float *mat = ComputeWorldMatrix(*cmd);
-            GLint loc = glGetUniformLocation(m_glProgAlphaAccumNI, "g_World");
-            if (loc >= 0)
-                glUniformMatrix4fv(loc, 1, GL_FALSE, mat);
-            loc = glGetUniformLocation(m_glProgAlphaAccumNI, "g_ColorMul");
-            if (loc >= 0)
-                glUniform4f(loc, cmd->params.redMult, cmd->params.greenMult,
+            float mat[16];
+            ComputeWorldMatrix(*cmd, mat);
+            if (UL_AN_World >= 0)
+                glUniformMatrix4fv(UL_AN_World, 1, GL_FALSE, mat);
+            if (UL_AN_CMul >= 0)
+                glUniform4f(UL_AN_CMul, cmd->params.redMult, cmd->params.greenMult,
                             cmd->params.blueMult, cmd->params.opacity);
-            loc = glGetUniformLocation(m_glProgAlphaAccumNI, "g_MixColor");
-            if (loc >= 0)
-                glUniform4f(loc, cmd->params.mixR, cmd->params.mixG, cmd->params.mixB, 1.0f);
-            loc = glGetUniformLocation(m_glProgAlphaAccumNI, "g_MixFactor");
-            if (loc >= 0)
-                glUniform1f(loc, cmd->params.mixFactor);
+            if (UL_AN_MixC >= 0)
+                glUniform4f(UL_AN_MixC, cmd->params.mixR, cmd->params.mixG, cmd->params.mixB, 1.0f);
+            if (UL_AN_MixF >= 0)
+                glUniform1f(UL_AN_MixF, cmd->params.mixFactor);
 
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, cmd->texRes->glTexture);
+            GL_BindTexture0(cmd->texRes->glTexture);
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         }
 
-        // Restore single RT + normal blend
-        glDrawBuffers(1, drawBufs); // RT0 only
+        glDrawBuffers(1, drawBufs);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, 0, 0);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glColorMaski(0, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         glColorMaski(1, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         glDepthMask(GL_TRUE);
-        glUseProgram(m_glProgMain);
-        glFlush();
+        GL_UseProgramTracked(m_glProgMain);
     }
 
-    // ---- Phase 3: World-space lines with alpha modulation ----
+    // ====================================================================
+    // Phase 3: World-space lines with alpha modulation
+    // ====================================================================
     {
         glDepthMask(GL_FALSE);
         GL_FlushLineBatch(false, m_glProgLineMod);
-        // Unbind alpha accum texture from unit 1 (matches D3D11
-        // PSSetShaderResources(1, 1, &nullSRV) after Phase 3).
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glFlush();
+        // Unbind alpha accum texture from unit 1
+        GL_BindTexture1(0);
     }
 
     // Restore
-    glUseProgram(m_glProgMain);
-    glBindVertexArray(m_glVAOQuad);
+    GL_UseProgramTracked(m_glProgMain);
+    GL_BindVAOTracked(m_glVAOQuad);
     glDepthMask(GL_TRUE);
 
-    // ---- Phase 4: Effects (index textures -> factor -> composite) ----
+    // ====================================================================
+    // Phase 4: Effects (index textures -> factor -> composite)
+    // ====================================================================
     if (!effectCmds.empty())
     {
         GL_CopyScreenToTexture();
 
-        // Clear factor texture
-        glBindFramebuffer(GL_FRAMEBUFFER, m_glFBOFactor);
+        GL_BindFBOTracked(m_glFBOFactor);
         float one[4] = {1.0f, 1.0f, 1.0f, 1.0f};
         glClearBufferfv(GL_COLOR, 0, one);
 
-        glUseProgram(m_glProgEffect);
+        GL_UseProgramTracked(m_glProgEffect);
         glBlendFunc(GL_ZERO, GL_SRC_COLOR);
-        glBindVertexArray(m_glVAOQuad);
+        GL_BindVAOTracked(m_glVAOQuad);
 
         for (const DrawCommand *cmd : effectCmds)
         {
@@ -5553,44 +5642,38 @@ void DirectXCore::GL_RenderOffscreenContent()
             mat[12] = ndcX;
             mat[13] = ndcY;
             mat[14] = depthZ;
-            GLint loc = glGetUniformLocation(m_glProgEffect, "g_World");
-            if (loc >= 0)
-                glUniformMatrix4fv(loc, 1, GL_FALSE, mat);
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, cmd->texRes->glTexture);
+            if (UL_Eff_World >= 0)
+                glUniformMatrix4fv(UL_Eff_World, 1, GL_FALSE, mat);
+            GL_BindTexture0(cmd->texRes->glTexture);
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         }
 
         // Composite: offscreen = screenCopy * factor
-        // D3D11 sets DSV=NULL here -> no depth test and no depth write.
-        glBindFramebuffer(GL_FRAMEBUFFER, m_glFBOOffscreen);
+        GL_BindFBOTracked(m_glFBOOffscreen);
         glDisable(GL_DEPTH_TEST);
         glDepthMask(GL_FALSE);
-        glBlendFunc(GL_ONE, GL_ZERO); // disable blend (replace)
         glDisable(GL_BLEND);
-        glUseProgram(m_glProgComposite);
-        glBindVertexArray(m_glVAOFullscreen);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, m_glTexScreenCopy);
-        GLint loc = glGetUniformLocation(m_glProgComposite, "screenTex");
-        if (loc >= 0)
-            glUniform1i(loc, 0);
-        loc = glGetUniformLocation(m_glProgComposite, "factorTex");
-        if (loc >= 0)
-            glUniform1i(loc, 1);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, m_glTexFactor);
+        GL_UseProgramTracked(m_glProgComposite);
+        GL_BindVAOTracked(m_glVAOFullscreen);
+        GL_BindTexture0(m_glTexScreenCopy);
+        if (m_glUL_Composite_ScreenTex >= 0)
+            glUniform1i(m_glUL_Composite_ScreenTex, 0);
+        if (m_glUL_Composite_FactorTex >= 0)
+            glUniform1i(m_glUL_Composite_FactorTex, 1);
+        GL_BindTexture1(m_glTexFactor);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glDepthMask(GL_TRUE);
         glEnable(GL_DEPTH_TEST);
-        glBindVertexArray(m_glVAOQuad);
-        glUseProgram(m_glProgMain);
+        GL_BindVAOTracked(m_glVAOQuad);
+        GL_UseProgramTracked(m_glProgMain);
     }
 
-    // ---- Phase 5: Always-on-top overlays ----
+    // ====================================================================
+    // Phase 5: Always-on-top overlays
+    // ====================================================================
     bool hasOverlayLines = false;
     for (const auto &le : m_lineEntries)
         if (!le.bScreenSpace && le.bAlwaysOnTop)
@@ -5608,23 +5691,20 @@ void DirectXCore::GL_RenderOffscreenContent()
         {
             if (!cmd->texRes || cmd->texRes->glTexture == 0)
                 continue;
-            float *mat = ComputeWorldMatrix(*cmd);
-            GLint loc = glGetUniformLocation(m_glProgMain, "g_World");
-            if (loc >= 0)
-                glUniformMatrix4fv(loc, 1, GL_FALSE, mat);
-            SetMainUniforms(*cmd);
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, cmd->texRes->glTexture);
+            float mat[16];
+            ComputeWorldMatrix(*cmd, mat);
+            if (UL_M_World >= 0)
+                glUniformMatrix4fv(UL_M_World, 1, GL_FALSE, mat);
+            SetMainUniformsCached(*cmd);
+            GL_BindTexture0(cmd->texRes->glTexture);
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         }
 
         if (hasOverlayLines)
         {
             GL_FlushLineBatch(false, 0, true);
-            // Restore quad pipeline state (GL_FlushLineBatch changed
-            // VAO->m_glVAOLine, program->m_glProgLine - match D3D11 Phase 5b restore).
-            glUseProgram(m_glProgMain);
-            glBindVertexArray(m_glVAOQuad);
+            GL_UseProgramTracked(m_glProgMain);
+            GL_BindVAOTracked(m_glVAOQuad);
         }
 
         glEnable(GL_DEPTH_TEST);
@@ -5639,37 +5719,41 @@ void DirectXCore::GL_RenderOffscreenContent()
 // ==========================================================================
 void DirectXCore::GL_RenderFinalToBackBuffer()
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    GL_BindFBOTracked(0);
     glViewport(0, 0, m_clientWidth, m_clientHeight);
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
 
-    glUseProgram(m_glProgFinal);
-    glBindVertexArray(m_glVAOFullscreen);
+    GL_UseProgramTracked(m_glProgFinal);
+    GL_BindVAOTracked(m_glVAOFullscreen);
 
-    float cbData[4] = {1.0f, 1.0f, 0.0f, 0.0f};
-    GLint loc = glGetUniformLocation(m_glProgFinal, "uScale");
-    if (loc >= 0)
-        glUniform2f(loc, cbData[0], cbData[1]);
-    loc = glGetUniformLocation(m_glProgFinal, "uOffset");
-    if (loc >= 0)
-        glUniform2f(loc, cbData[2], cbData[3]);
+    if (m_glUL_Final_Scale >= 0)
+        glUniform2f(m_glUL_Final_Scale, 1.0f, 1.0f);
+    if (m_glUL_Final_Offset >= 0)
+        glUniform2f(m_glUL_Final_Offset, 0.0f, 0.0f);
 
+    // Only change filter when needed (skip when renderScale==1 and already NEAREST)
     GLint filter = GL_NEAREST;
-    if (m_renderScale != 1.0f && ExtConfigs::DDrawScalingBilinear &&
-        !(ExtConfigs::DDrawScalingBilinear_OnlyShrink && CIsoViewExt::ScaledFactor < 1.0f))
+    bool needBilinear = (m_renderScale != 1.0f && ExtConfigs::DDrawScalingBilinear &&
+                         !(ExtConfigs::DDrawScalingBilinear_OnlyShrink && CIsoViewExt::ScaledFactor < 1.0f));
+    if (needBilinear)
         filter = GL_LINEAR;
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, m_glTexOffscreen);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+    GL_BindTexture0(m_glTexOffscreen);
+    if (needBilinear || m_renderScale != 1.0f)
+    {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+    }
 
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-    // Restore NEAREST for offscreen texture
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    // Restore NEAREST only if we changed it
+    if (needBilinear || m_renderScale != 1.0f)
+    {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    }
 
     glEnable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
@@ -5680,14 +5764,14 @@ void DirectXCore::GL_RenderFinalToBackBuffer()
 // ==========================================================================
 void DirectXCore::GL_RenderScreenSpaceContent()
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    GL_BindFBOTracked(0);
     glViewport(0, 0, m_clientWidth, m_clientHeight);
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    glUseProgram(m_glProgMain);
-    glBindVertexArray(m_glVAOQuad);
+    GL_UseProgramTracked(m_glProgMain);
+    GL_BindVAOTracked(m_glVAOQuad);
 
     for (const auto &cmd : m_drawCommands)
     {
@@ -5713,29 +5797,20 @@ void DirectXCore::GL_RenderScreenSpaceContent()
         mat[15] = 1.0f;
         mat[12] = ndcX;
         mat[13] = ndcY;
-        mat[14] = 0.0f;
-        GLint loc = glGetUniformLocation(m_glProgMain, "g_World");
-        if (loc >= 0)
-            glUniformMatrix4fv(loc, 1, GL_FALSE, mat);
+        if (m_glUL_Main_World >= 0)
+            glUniformMatrix4fv(m_glUL_Main_World, 1, GL_FALSE, mat);
+        if (m_glUL_Main_ColorMul >= 0)
+            glUniform4f(m_glUL_Main_ColorMul, p.redMult, p.greenMult, p.blueMult, p.opacity);
+        if (m_glUL_Main_MixColor >= 0)
+            glUniform4f(m_glUL_Main_MixColor, p.mixR, p.mixG, p.mixB, 1.0f);
+        if (m_glUL_Main_MixFactor >= 0)
+            glUniform1f(m_glUL_Main_MixFactor, p.mixFactor);
 
-        loc = glGetUniformLocation(m_glProgMain, "g_ColorMul");
-        if (loc >= 0)
-            glUniform4f(loc, p.redMult, p.greenMult, p.blueMult, p.opacity);
-        loc = glGetUniformLocation(m_glProgMain, "g_MixColor");
-        if (loc >= 0)
-            glUniform4f(loc, p.mixR, p.mixG, p.mixB, 1.0f);
-        loc = glGetUniformLocation(m_glProgMain, "g_MixFactor");
-        if (loc >= 0)
-            glUniform1f(loc, p.mixFactor);
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, tex->glTexture);
+        GL_BindTexture0(tex->glTexture);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
 
-    // Screen-space lines
     GL_FlushLineBatch(true);
-
     glFlush();
 }
 
@@ -5746,38 +5821,135 @@ void DirectXCore::GL_DarkenOffscreen(float brightness)
 {
     GL_CopyScreenToTexture();
 
-    // Fill factor texture with brightness
-    glBindFramebuffer(GL_FRAMEBUFFER, m_glFBOFactor);
+    GL_BindFBOTracked(m_glFBOFactor);
     float factor[4] = {brightness, brightness, brightness, 1.0f};
     glClearBufferfv(GL_COLOR, 0, factor);
 
-    // Composite back to offscreen
-    // D3D11 DarkenOffscreen sets DSV=NULL -> no depth test and no depth write.
-    glBindFramebuffer(GL_FRAMEBUFFER, m_glFBOOffscreen);
+    GL_BindFBOTracked(m_glFBOOffscreen);
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
     glDisable(GL_BLEND);
-    glUseProgram(m_glProgComposite);
-    glBindVertexArray(m_glVAOFullscreen);
+    GL_UseProgramTracked(m_glProgComposite);
+    GL_BindVAOTracked(m_glVAOFullscreen);
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, m_glTexScreenCopy);
-    GLint loc = glGetUniformLocation(m_glProgComposite, "screenTex");
-    if (loc >= 0)
-        glUniform1i(loc, 0);
-    loc = glGetUniformLocation(m_glProgComposite, "factorTex");
-    if (loc >= 0)
-        glUniform1i(loc, 1);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, m_glTexFactor);
+    GL_BindTexture0(m_glTexScreenCopy);
+    if (m_glUL_Composite_ScreenTex >= 0)
+        glUniform1i(m_glUL_Composite_ScreenTex, 0);
+    if (m_glUL_Composite_FactorTex >= 0)
+        glUniform1i(m_glUL_Composite_FactorTex, 1);
+    GL_BindTexture1(m_glTexFactor);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_TRUE);
     glEnable(GL_DEPTH_TEST);
-    glBindVertexArray(m_glVAOQuad);
-    glUseProgram(m_glProgMain);
+    GL_BindVAOTracked(m_glVAOQuad);
+    GL_UseProgramTracked(m_glProgMain);
+}
+
+// ==========================================================================
+// GL_FlushInstanceBatch - instanced rendering for Phase 1 opaque + Phase 5 overlays
+//   Uses m_glProgInstanced (kGLSL_InstancedVS + kGLSL_MainPS).
+//   All commands in batch share the same texture, blend state, and depth state.
+//   Instance data layout: 4 ¡Á vec4 = 64 bytes per instance, matching kGLSL_InstancedVS.
+// ==========================================================================
+void DirectXCore::GL_FlushInstanceBatch(const std::vector<const DrawCommand *> &batch)
+{
+    if (batch.empty())
+        return;
+
+    // Group by texture pointer, flush each group
+    std::vector<const DrawCommand *> group;
+    TextureResource *curTex = nullptr;
+
+    auto FlushGroup = [&]()
+    {
+        if (group.empty())
+            return;
+        const UINT count = (UINT)group.size();
+        TextureResource *tex = group[0]->texRes;
+        if (!tex || tex->glTexture == 0)
+        {
+            group.clear();
+            return;
+        }
+
+        // Ensure instance VBO capacity (orphan old if insufficient)
+        int needed = count * 4; // 4 vec4 per instance
+        if (m_glInstanceVBCapacity < needed)
+        {
+            int cap = (needed + 255) & ~255;
+            glBindBuffer(GL_ARRAY_BUFFER, m_glVBOInstance);
+            glBufferData(GL_ARRAY_BUFFER, cap * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+            m_glInstanceVBCapacity = cap;
+        }
+
+        // Build instance data on stack
+        std::vector<float> instData;
+        instData.reserve(count * 16);
+        const float depthScale = 1.0f / 16777216.0f;
+        const float vw = m_vwCached, vh = m_vhCached;
+
+        for (const DrawCommand *cmd : group)
+        {
+            const auto &p = cmd->params;
+            float w_px = tex->sourceView.FullWidth * p.scaleX;
+            float h_px = tex->sourceView.FullHeight * p.scaleY;
+            float snappedX = std::floor(p.x + 0.5f);
+            float snappedY = std::floor(p.y + 0.5f);
+            float ndcW = (w_px / vw) * 2.0f;
+            float ndcH = (h_px / vh) * 2.0f;
+            float ndcCX = ((snappedX + w_px * 0.5f) / vw) * 2.0f - 1.0f;
+            float ndcCY = 1.0f - ((snappedY + h_px * 0.5f) / vh) * 2.0f;
+
+            // iD0: scaleX, scaleY, transX, transY
+            instData.push_back(ndcW);
+            instData.push_back(ndcH);
+            instData.push_back(ndcCX);
+            instData.push_back(ndcCY);
+            // iD1: depthZ, colorMul.rgb
+            instData.push_back(cmd->depth * depthScale);
+            instData.push_back(p.redMult);
+            instData.push_back(p.greenMult);
+            instData.push_back(p.blueMult);
+            // iD2: colorMul.a, mixColor.rgb
+            instData.push_back(p.opacity);
+            instData.push_back(p.mixR);
+            instData.push_back(p.mixG);
+            instData.push_back(p.mixB);
+            // iD3: mixFactor, 0, 0, 0
+            instData.push_back(p.mixFactor);
+            instData.push_back(0);
+            instData.push_back(0);
+            instData.push_back(0);
+        }
+
+        // Upload instance data
+        glBindBuffer(GL_ARRAY_BUFFER, m_glVBOInstance);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, count * 16 * sizeof(float), instData.data());
+
+        // Bind texture
+        GL_BindTexture0(tex->glTexture);
+
+        // Draw instanced
+        GL_UseProgramTracked(m_glProgInstanced);
+        GL_BindVAOTracked(m_glVAOInstance);
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, count);
+
+        group.clear();
+    };
+
+    for (const DrawCommand *cmd : batch)
+    {
+        if (cmd->texRes != curTex)
+        {
+            FlushGroup();
+            curTex = cmd->texRes;
+        }
+        group.push_back(cmd);
+    }
+    FlushGroup();
 }
 
 // ==========================================================================
@@ -5795,13 +5967,10 @@ void DirectXCore::GL_FlushLineBatch(bool bScreenSpace, GLuint overrideProgram, b
     const int vertsPerLine = 6;
     const int totalVerts = numLines * vertsPerLine;
 
-    // Ensure line VBO capacity
-    if (m_glVBOLine == 0 || m_glLineVBCapacity < totalVerts)
+    // Ensure line VBO capacity (use orphan via glBufferData instead of delete+gen)
+    if (m_glLineVBCapacity < totalVerts)
     {
-        if (m_glVBOLine)
-            glDeleteBuffers(1, &m_glVBOLine);
         int cap = (totalVerts + 1023) & ~1023;
-        glGenBuffers(1, &m_glVBOLine);
         glBindBuffer(GL_ARRAY_BUFFER, m_glVBOLine);
         glBufferData(GL_ARRAY_BUFFER, cap * 16, nullptr, GL_DYNAMIC_DRAW);
         m_glLineVBCapacity = cap;
@@ -5870,27 +6039,21 @@ void DirectXCore::GL_FlushLineBatch(bool bScreenSpace, GLuint overrideProgram, b
     glBindBuffer(GL_ARRAY_BUFFER, m_glVBOLine);
     glBufferSubData(GL_ARRAY_BUFFER, 0, totalVerts * 16, verts.data());
 
-    glBindVertexArray(m_glVAOLine);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 16, (void *)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, 16, (void *)12);
+    // VAO attributes configured once in GL_CreateQuadGeometry - no per-call reconfig
+    GL_BindVAOTracked(m_glVAOLine);
 
     GLuint prog = overrideProgram ? overrideProgram : m_glProgLine;
-    glUseProgram(prog);
+    GL_UseProgramTracked(prog);
 
-    // Set viewport size uniform for LineMod PS
+    // Set viewport size uniform for LineMod PS (use cached locations)
     if (prog == m_glProgLineMod)
     {
-        GLint loc = glGetUniformLocation(prog, "uViewportSize");
-        if (loc >= 0)
-            glUniform2f(loc, vw, vh);
+        if (m_glUL_LineMod_ViewportSize >= 0)
+            glUniform2f(m_glUL_LineMod_ViewportSize, vw, vh);
         // Bind alpha accum texture to unit 1
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, m_glTexAlphaAccum);
-        loc = glGetUniformLocation(prog, "alphaAccum");
-        if (loc >= 0)
-            glUniform1i(loc, 1);
+        GL_BindTexture1(m_glTexAlphaAccum);
+        if (m_glUL_LineMod_AlphaAccum >= 0)
+            glUniform1i(m_glUL_LineMod_AlphaAccum, 1);
     }
 
     glDrawArrays(GL_TRIANGLES, 0, totalVerts);

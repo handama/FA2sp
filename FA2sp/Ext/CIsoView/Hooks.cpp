@@ -34,11 +34,11 @@ namespace CIsoViewDrawTemp
 }
 
 /*
-* FinalAlert 2 coordinate system just reversed the game's one
-* Which means game's (X, Y) is (Y, X) in FinalAlert 2.
-* Therefore we just replace the display function here but
-* keep use FinalAlert's coordinate system in our codes.
-*/
+ * FinalAlert 2 coordinate system just reversed the game's one
+ * Which means game's (X, Y) is (Y, X) in FinalAlert 2.
+ * Therefore we just replace the display function here but
+ * keep use FinalAlert's coordinate system in our codes.
+ */
 DEFINE_HOOK(45AEFF, CIsoView_OnMouseMove_UpdateCoordinateYXToXY, B)
 {
 	GET_STACK(int, nPointX, 0x30);
@@ -60,7 +60,7 @@ DEFINE_HOOK(45AEFF, CIsoView_OnMouseMove_UpdateCoordinateYXToXY, B)
 
 DEFINE_HOOK(46CB96, CIsoView_DrawMouseAttachedStuff_OverlayAutoConnectionFix, 5)
 {
-	GET_STACK(CIsoView*, pThis, STACK_OFFS(0x94, 0x84));
+	GET_STACK(CIsoView *, pThis, STACK_OFFS(0x94, 0x84));
 
 	pThis->AutoConnectOverlayAt(R->EBP(), R->EBX());
 
@@ -72,7 +72,11 @@ DEFINE_HOOK(469A69, CIsoView_CalculateOverlayConnection_OverlayAutoConnectionFix
 	GET(unsigned char, nOverlayIndex, ESI);
 	GET(bool, bConnectAsWall, ECX);
 
-	enum { CanConnect = 0x469A71, NotAWall = 0x469B07 };
+	enum
+	{
+		CanConnect = 0x469A71,
+		NotAWall = 0x469B07
+	};
 
 	if (bConnectAsWall)
 		return CanConnect;
@@ -94,13 +98,12 @@ DEFINE_HOOK(46BDFA, CIsoView_DrawMouseAttachedStuff_Structure, 5)
 {
 	GET_STACK(const int, X, STACK_OFFS(0x94, -0x4));
 	GET_STACK(const int, Y, STACK_OFFS(0x94, -0x8));
-	
+
 	const int nMapCoord = CMapData::Instance->GetCoordIndex(X, Y);
-	const auto& cell = CMapData::Instance->CellDatas[nMapCoord];
+	const auto &cell = CMapData::Instance->CellDatas[nMapCoord];
 	if (ExtConfigs::PlaceStructurePlaceUpgrade)
 	{
-		bool isPowerUp = CMapDataExt::PowersUpBuildingSet.find(CIsoView::CurrentCommand->ObjectID)
-			!= CMapDataExt::PowersUpBuildingSet.end();
+		bool isPowerUp = CMapDataExt::PowersUpBuildingSet.find(CIsoView::CurrentCommand->ObjectID) != CMapDataExt::PowersUpBuildingSet.end();
 		if (cell.Structure < 0 || isPowerUp)
 			CMapData::Instance->SetBuildingData(nullptr, CIsoView::CurrentCommand->ObjectID, CIsoView::CurrentHouse(), nMapCoord, "");
 	}
@@ -115,14 +118,14 @@ DEFINE_HOOK(46BDFA, CIsoView_DrawMouseAttachedStuff_Structure, 5)
 
 DEFINE_HOOK(457E9D, CIsoView_OnMouseMove_AutoLAT, 6)
 {
-    CMapDataExt::SmoothAll();
-    return 0x459AA8;
+	CMapDataExt::SmoothAll();
+	return 0x459AA8;
 }
 
 DEFINE_HOOK(46242B, CIsoView_OnLBButtonDown_AutoLAT, 6)
 {
-    CMapDataExt::SmoothAll();
-    return 0x463F19;
+	CMapDataExt::SmoothAll();
+	return 0x463F19;
 }
 
 DEFINE_HOOK(45EC07, CIsoView_OnCommand_Skip_wParamCheck, 9)
@@ -214,7 +217,8 @@ DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 
 		CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 		auto tmp = CIsoView::CurrentCommand->Command;
-		if (CTileSetBrowserFrameExt::TileSetBrowserView_Instance->CurrentMode == 1) {
+		if (CTileSetBrowserFrameExt::TileSetBrowserView_Instance->CurrentMode == 1)
+		{
 			HWND hParent = CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
 			HWND hTileComboBox = ::GetDlgItem(hParent, 1366);
 			::SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1366, CBN_SELCHANGE), (LPARAM)hTileComboBox);
@@ -248,8 +252,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 		{
 			pThis->CurrentCellObjectIndex = CIsoViewExt::GetSelectedSubcellInfantryIdx(pThis->StartCell.X, pThis->StartCell.Y);
 		}
-		if (pThis->CurrentCellObjectIndex != -1 
-			&& !Renderer::Infantries[pThis->CurrentCellObjectIndex].IsVisible())
+		if (pThis->CurrentCellObjectIndex != -1 && !Renderer::Infantries[pThis->CurrentCellObjectIndex].IsVisible())
 			pThis->CurrentCellObjectIndex = -1;
 		pThis->CurrentCellObjectType = 0;
 	}
@@ -280,7 +283,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 					pThis->CurrentCellObjectIndex = -1;
 				else
 				{
-					const auto& objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
+					const auto &objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
 					pThis->StartCell.X = objRender.X;
 					pThis->StartCell.Y = objRender.Y;
 				}
@@ -314,8 +317,8 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 	{
 		if (cell->BaseNode.BasenodeID > -1)
 		{
-			auto& cellExt = CMapDataExt::CellDataExts[pos];
-			const auto& node = cellExt.BaseNodes[0];
+			auto &cellExt = CMapDataExt::CellDataExts[pos];
+			const auto &node = cellExt.BaseNodes[0];
 			pThis->CurrentCellObjectIndex = cell->BaseNode.BasenodeID;
 			CIsoViewExt::CurrentCellObjectHouse = cell->BaseNode.House;
 			pThis->StartCell.X = node.X;
@@ -327,13 +330,13 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 	{
 		if (pos < CMapData::Instance->CellDataCount)
 		{
-			auto& cellExt = CMapDataExt::CellDataExts[pos];
+			auto &cellExt = CMapDataExt::CellDataExts[pos];
 			pThis->CurrentCellObjectIndex = cellExt.SmudgeParts.empty() ? cell->Smudge : cellExt.SmudgeParts.back();
 			pThis->CurrentCellObjectType = 9;
 
 			if (pThis->CurrentCellObjectIndex > -1)
 			{
-				auto& data = CMapData::Instance->SmudgeDatas[pThis->CurrentCellObjectIndex];
+				auto &data = CMapData::Instance->SmudgeDatas[pThis->CurrentCellObjectIndex];
 				pThis->StartCell.X = data.Y;
 				pThis->StartCell.Y = data.X;
 			}
@@ -366,15 +369,15 @@ DEFINE_HOOK(466970, CIsoView_OnLButtonUp_GetnFlags, 6)
 DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 {
 	auto isoView = CIsoView::GetInstance();
-	auto& m_id = isoView->CurrentCellObjectIndex;
-	auto& m_type = isoView->CurrentCellObjectType;
+	auto &m_id = isoView->CurrentCellObjectIndex;
+	auto &m_type = isoView->CurrentCellObjectType;
 
-	//annotation
+	// annotation
 	if (m_type == 7)
 	{
 		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Annotation);
 		int X = R->EBX();
-		int	Y = R->EDI();
+		int Y = R->EDI();
 
 		int oldX = CMapData::Instance->GetXFromCoordIndex(m_id);
 		int oldY = CMapData::Instance->GetYFromCoordIndex(m_id);
@@ -385,24 +388,24 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 			auto value = CINI::CurrentDocument->GetString("Annotations", key);
 			if (nLButtonUpFlags != MK_SHIFT)
 			{
-				auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(oldX, oldY)];
+				auto &cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(oldX, oldY)];
 				cellExt.HasAnnotation = false;
 				CINI::CurrentDocument->DeleteKey("Annotations", key);
 			}
 			key.Format("%d", X * 1000 + Y);
 			CINI::CurrentDocument->WriteString("Annotations", key, value);
-			auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
+			auto &cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
 			cellExt.HasAnnotation = true;
 		}
 		m_id = -1;
 		m_type = -1;
 	}
-	//base nodes
+	// base nodes
 	if (m_type == 8)
 	{
 		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Basenode);
 		int X = R->EBX();
-		int	Y = R->EDI();
+		int Y = R->EDI();
 		char key[10];
 		sprintf(key, "%03d", m_id);
 		if (CINI::CurrentDocument->KeyExists(CIsoViewExt::CurrentCellObjectHouse, key))
@@ -434,12 +437,12 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 		m_id = -1;
 		m_type = -1;
 	}
-	//smudges
+	// smudges
 	if (m_type == 9)
 	{
 		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Smudge);
 		int X = R->EBX();
-		int	Y = R->EDI();
+		int Y = R->EDI();
 		auto smudge = CMapData::Instance->SmudgeDatas[m_id];
 		smudge.X = Y;
 		smudge.Y = X;
@@ -462,16 +465,16 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 		auto m_type = isoView->CurrentCellObjectType;
 
 		int X = R->EBX();
-		int	Y = R->EDI();
-		MapCoord newMapCoord = { X,Y };
+		int Y = R->EDI();
+		MapCoord newMapCoord = {X, Y};
 
-		//order: inf unit air str
+		// order: inf unit air str
 		if (m_type == 0)
 		{
 			CInfantryData infantry;
 			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
 			Map->GetInfantryData(m_id, infantry);
-			auto oldMapCoord = MapCoord{ atoi(infantry.X), atoi(infantry.Y) };
+			auto oldMapCoord = MapCoord{atoi(infantry.X), atoi(infantry.Y)};
 			infantry.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, infantry.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
 			Map->DeleteInfantryData(m_id);
 			Map->SetInfantryData(&infantry, NULL, NULL, 0, -1);
@@ -481,7 +484,7 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 			CUnitData unit;
 			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit);
 			Map->GetUnitData(m_id, unit);
-			auto oldMapCoord = MapCoord{ atoi(unit.X), atoi(unit.Y) };
+			auto oldMapCoord = MapCoord{atoi(unit.X), atoi(unit.Y)};
 			unit.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, unit.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
 			Map->DeleteUnitData(m_id);
 			Map->SetUnitData(&unit, NULL, NULL, 0, "");
@@ -491,7 +494,7 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 			CAircraftData aircraft;
 			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft);
 			Map->GetAircraftData(m_id, aircraft);
-			auto oldMapCoord = MapCoord{ atoi(aircraft.X), atoi(aircraft.Y) };
+			auto oldMapCoord = MapCoord{atoi(aircraft.X), atoi(aircraft.Y)};
 			aircraft.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, aircraft.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
 			Map->DeleteAircraftData(m_id);
 			Map->SetAircraftData(&aircraft, NULL, NULL, 0, "");
@@ -502,7 +505,7 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 			CBuildingData structure;
 			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
 			Map->GetBuildingData(m_id, structure);
-			auto oldMapCoord = MapCoord{ atoi(structure.X), atoi(structure.Y) };
+			auto oldMapCoord = MapCoord{atoi(structure.X), atoi(structure.Y)};
 			structure.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, structure.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
 			Map->DeleteBuildingData(m_id);
 			Map->SetBuildingData(&structure, NULL, NULL, 0, "");
@@ -521,7 +524,7 @@ DEFINE_HOOK(45EBE0, CIsoView_OnCommand_ConfirmTube, 7)
 		if (CIsoViewExt::TubeNodes.front() == CIsoViewExt::TubeNodes.back())
 			return 0;
 
-		((CIsoViewExt*)CIsoView::GetInstance())->ConfirmTube(CIsoView::CurrentCommand->Type == 0);
+		((CIsoViewExt *)CIsoView::GetInstance())->ConfirmTube(CIsoView::CurrentCommand->Type == 0);
 
 		CIsoViewExt::IsPressingTube = false;
 		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
@@ -532,16 +535,16 @@ DEFINE_HOOK(45EBE0, CIsoView_OnCommand_ConfirmTube, 7)
 
 DEFINE_HOOK(45C850, CIsoView_OnMouseMove_Delete, 5)
 {
-	auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+	auto pIsoView = (CIsoViewExt *)CIsoView::GetInstance();
 	auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
 
 	auto makeOrAppendRecord = [](int recordType)
-		{
-			if (!ObjectRecord::ObjectRecord_HoldingPtr)
-				ObjectRecord::ObjectRecord_HoldingPtr = CMapDataExt::MakeObjectRecord(recordType, true);
-			else
-				ObjectRecord::ObjectRecord_HoldingPtr->appendRecord(recordType);
-		};
+	{
+		if (!ObjectRecord::ObjectRecord_HoldingPtr)
+			ObjectRecord::ObjectRecord_HoldingPtr = CMapDataExt::MakeObjectRecord(recordType, true);
+		else
+			ObjectRecord::ObjectRecord_HoldingPtr->appendRecord(recordType);
+	};
 
 	for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)
 	{
@@ -551,7 +554,7 @@ DEFINE_HOOK(45C850, CIsoView_OnMouseMove_Delete, 5)
 				continue;
 
 			int nIndex = CMapData::Instance->GetCoordIndex(gx, gy);
-			const auto& CellData = CMapData::Instance->CellDatas[nIndex];
+			const auto &CellData = CMapData::Instance->CellDatas[nIndex];
 
 			if (CellData.Structure != -1)
 			{
@@ -598,13 +601,13 @@ DEFINE_HOOK(45C850, CIsoView_OnMouseMove_Delete, 5)
 				makeOrAppendRecord(ObjectRecord::RecordType::Aircraft);
 				CMapData::Instance->DeleteAircraftData(CellData.Aircraft);
 			}
-			
+
 			if (CellData.Terrain != -1)
 			{
 				makeOrAppendRecord(ObjectRecord::RecordType::Terrain);
 				CMapData::Instance->DeleteTerrainData(CellData.Terrain);
 			}
-			
+
 			if (CellData.Smudge != -1)
 			{
 				makeOrAppendRecord(ObjectRecord::RecordType::Smudge);
@@ -620,7 +623,7 @@ DEFINE_HOOK(45C850, CIsoView_OnMouseMove_Delete, 5)
 DEFINE_HOOK(45EC1A, CIsoView_OnCommand_HandleProperty, A)
 {
 	auto pIsoView = CIsoView::GetInstance();
-	auto& coord = pIsoView->StartCell;
+	auto &coord = pIsoView->StartCell;
 	auto cell = CMapData::Instance->TryGetCellAt(coord.X, coord.Y);
 	int pos = CMapData::Instance->GetCoordIndex(coord.X, coord.Y);
 
@@ -628,7 +631,7 @@ DEFINE_HOOK(45EC1A, CIsoView_OnCommand_HandleProperty, A)
 	int type = -1;
 	if (CIsoViewExt::DrawInfantries)
 	{
-		const auto& filter = CIsoViewExt::VisibleInfantries;
+		const auto &filter = CIsoViewExt::VisibleInfantries;
 		if (!ExtConfigs::InfantrySubCell_Edit)
 		{
 			index = CMapDataExt::GetInfantryAt(pos);
@@ -644,7 +647,7 @@ DEFINE_HOOK(45EC1A, CIsoView_OnCommand_HandleProperty, A)
 	if (CIsoViewExt::DrawAircrafts && index < 0)
 	{
 		index = cell->Aircraft;
-		const auto& filter = CIsoViewExt::VisibleAircrafts;
+		const auto &filter = CIsoViewExt::VisibleAircrafts;
 		if (CIsoViewExt::DrawAircraftsFilter && filter.find(index) == filter.end())
 			index = -1;
 		type = 2;
@@ -652,7 +655,7 @@ DEFINE_HOOK(45EC1A, CIsoView_OnCommand_HandleProperty, A)
 	if (CIsoViewExt::DrawUnits && index < 0)
 	{
 		index = cell->Unit;
-		const auto& filter = CIsoViewExt::VisibleUnits;
+		const auto &filter = CIsoViewExt::VisibleUnits;
 		if (CIsoViewExt::DrawUnitsFilter && filter.find(index) == filter.end())
 			index = -1;
 		type = 3;
@@ -666,12 +669,12 @@ DEFINE_HOOK(45EC1A, CIsoView_OnCommand_HandleProperty, A)
 			auto StrINIIndex = CMapDataExt::StructureIndexMap[cell->Structure];
 			if (StrINIIndex != -1)
 			{
-				const auto& filter = CIsoViewExt::VisibleStructures;
+				const auto &filter = CIsoViewExt::VisibleStructures;
 				if (CIsoViewExt::DrawStructuresFilter && filter.find(StrINIIndex) == filter.end())
 					index = -1;
 				else
 				{
-					const auto& objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
+					const auto &objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
 					pIsoView->StartCell.X = objRender.X;
 					pIsoView->StartCell.Y = objRender.Y;
 				}
@@ -742,7 +745,7 @@ DEFINE_HOOK(46CB77, CIsoView_DrawMouseAttachedStuff_Overlay_1, 6)
 {
 	GET(int, dwPos, ESI);
 
-	auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+	auto pIsoView = (CIsoViewExt *)CIsoView::GetInstance();
 	auto pMapData = CMapDataExt::GetExtension();
 	int X = CMapData::Instance->GetXFromCoordIndex(dwPos);
 	int Y = CMapData::Instance->GetYFromCoordIndex(dwPos);
@@ -785,7 +788,7 @@ DEFINE_HOOK(46C290, CIsoView_DrawMouseAttachedStuff_EraseOverlay, 5)
 {
 	GET_STACK(const int, X, STACK_OFFS(0x94, -0x4));
 	GET_STACK(const int, Y, STACK_OFFS(0x94, -0x8));
-	auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+	auto pIsoView = (CIsoViewExt *)CIsoView::GetInstance();
 	for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
 	{
 		for (int gy = Y - pIsoView->BrushSizeY / 2; gy <= Y + pIsoView->BrushSizeY / 2; gy++)
@@ -816,32 +819,36 @@ DEFINE_HOOK(46C38B, CIsoView_DrawMouseAttachedStuff_Ore, 9)
 	constexpr int ORE_DEAFULT = 112;
 	constexpr int ORE2_DEAFULT = VINIFERA_BEGIN;
 	constexpr int ORE3_DEAFULT = ABOREUS_BEGIN;
-	constexpr std::array<int, RIPARIUS_END - RIPARIUS_BEGIN> ORES = [] {
+	constexpr std::array<int, RIPARIUS_END - RIPARIUS_BEGIN> ORES = []
+	{
 		std::array<int, RIPARIUS_END - RIPARIUS_BEGIN> v{};
 		for (int i = 0; i < RIPARIUS_END - RIPARIUS_BEGIN; ++i)
 			v[i] = RIPARIUS_BEGIN + i;
 		return v;
 	}();
-	constexpr std::array<int, CRUENTUS_END - CRUENTUS_BEGIN> GEMS = [] {
+	constexpr std::array<int, CRUENTUS_END - CRUENTUS_BEGIN> GEMS = []
+	{
 		std::array<int, CRUENTUS_END - CRUENTUS_BEGIN> v{};
 		for (int i = 0; i < CRUENTUS_END - CRUENTUS_BEGIN; ++i)
 			v[i] = CRUENTUS_BEGIN + i;
 		return v;
 	}();
-	constexpr std::array<int, VINIFERA_END - VINIFERA_BEGIN> ORE2S = [] {
+	constexpr std::array<int, VINIFERA_END - VINIFERA_BEGIN> ORE2S = []
+	{
 		std::array<int, VINIFERA_END - VINIFERA_BEGIN> v{};
 		for (int i = 0; i < VINIFERA_END - VINIFERA_BEGIN; ++i)
 			v[i] = VINIFERA_BEGIN + i;
 		return v;
 	}();
-	constexpr std::array<int, ABOREUS_END - ABOREUS_BEGIN> ORE3S = [] {
+	constexpr std::array<int, ABOREUS_END - ABOREUS_BEGIN> ORE3S = []
+	{
 		std::array<int, ABOREUS_END - ABOREUS_BEGIN> v{};
 		for (int i = 0; i < ABOREUS_END - ABOREUS_BEGIN; ++i)
 			v[i] = ABOREUS_BEGIN + i;
 		return v;
 	}();
 
-	auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+	auto pIsoView = (CIsoViewExt *)CIsoView::GetInstance();
 	auto pMapData = CMapDataExt::GetExtension();
 	int X = CMapData::Instance->GetXFromCoordIndex(dwPos);
 	int Y = CMapData::Instance->GetYFromCoordIndex(dwPos);
@@ -859,32 +866,28 @@ DEFINE_HOOK(46C38B, CIsoView_DrawMouseAttachedStuff_Ore, 9)
 				int curPos = dwPos + i + e * pMapData->MapWidthPlusHeight;
 				auto cell = pMapData->GetCellAt(curPos);
 				int curground = pMapData->GetSafeTileIndex(cell->TileIndex);
-				auto& tileData = pMapData->TileData[curground];
+				auto &tileData = pMapData->TileData[curground];
 
 				if (tileData.AllowTiberium && tileData.TileBlockDatas[cell->TileSubIndex].RampType == 0)
 				{
 					int targetOre;
 					if (param == 2)
 					{
-						targetOre = ExtConfigs::ObjectBrowser_Ore_RandomPlacement ?
-							STDHelpers::RandomSelectArray(ORES) : ORE_DEAFULT;
+						targetOre = ExtConfigs::ObjectBrowser_Ore_RandomPlacement ? STDHelpers::RandomSelectArray(ORES) : ORE_DEAFULT;
 					}
 					else if (param == 3)
 					{
-						targetOre = ExtConfigs::ObjectBrowser_Ore_RandomPlacement ?
-							STDHelpers::RandomSelectArray(GEMS) : GEM_DEAFULT;
+						targetOre = ExtConfigs::ObjectBrowser_Ore_RandomPlacement ? STDHelpers::RandomSelectArray(GEMS) : GEM_DEAFULT;
 					}
 					else if (param == 6)
 					{
-						targetOre = ExtConfigs::ObjectBrowser_Ore_RandomPlacement ?
-							STDHelpers::RandomSelectArray(ORE2S) : ORE2_DEAFULT;
+						targetOre = ExtConfigs::ObjectBrowser_Ore_RandomPlacement ? STDHelpers::RandomSelectArray(ORE2S) : ORE2_DEAFULT;
 					}
 					else if (param == 7)
 					{
-						targetOre = ExtConfigs::ObjectBrowser_Ore_RandomPlacement ?
-							STDHelpers::RandomSelectArray(ORE3S) : ORE3_DEAFULT;
+						targetOre = ExtConfigs::ObjectBrowser_Ore_RandomPlacement ? STDHelpers::RandomSelectArray(ORE3S) : ORE3_DEAFULT;
 					}
-					
+
 					pMapData->SetNewOverlayAt(curPos, targetOre);
 					pMapData->SetOverlayDataAt(curPos, 5);
 				}
@@ -951,7 +954,7 @@ DEFINE_HOOK(46CBDC, CIsoView_DrawMouseAttachedStuff_Overlay_TerrainBrowser, 5)
 	GET(int, dwPos, ESI);
 	if (param == 33)
 	{
-		auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+		auto pIsoView = (CIsoViewExt *)CIsoView::GetInstance();
 		auto pMapData = CMapDataExt::GetExtension();
 		int X = pMapData->GetXFromCoordIndex(dwPos);
 		int Y = pMapData->GetYFromCoordIndex(dwPos);
@@ -977,8 +980,8 @@ DEFINE_HOOK(461A01, CIsoView_OnLButtonDown_PlaceTile, 6)
 	GET_BASE(UINT, nFlags, 0x8);
 	GET(int, x, EDI);
 	GET(int, y, ESI);
-	
-	((CIsoViewExt*)CIsoView::GetInstance())->PlaceTileOnMouse(x, y, nFlags, !(IsPlacingTiles && ExtConfigs::UndoRedo_ShiftPlaceTile));
+
+	((CIsoViewExt *)CIsoView::GetInstance())->PlaceTileOnMouse(x, y, nFlags, !(IsPlacingTiles && ExtConfigs::UndoRedo_ShiftPlaceTile));
 
 	return 0x4616D8;
 }
@@ -986,17 +989,17 @@ DEFINE_HOOK(461A01, CIsoView_OnLButtonDown_PlaceTile, 6)
 DEFINE_HOOK(457336, CIsoView_OnMouseMove_PlaceTile, 6)
 {
 	GET_STACK(UINT, nFlags, STACK_OFFS(0x3D528, -0x4));
-	GET(CIsoViewExt*, pIsoView, EBP);
+	GET(CIsoViewExt *, pIsoView, EBP);
 
 	auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
-	const int& x = point.X;
-	const int& y = point.Y;
+	const int &x = point.X;
+	const int &y = point.Y;
 	CIsoView::CancelDraw = true;
 
 	CMapDataExt::RecordingPreviewHistory = true;
 	pIsoView->PlaceTileOnMouse(x, y, nFlags, true);
 
-	CIsoView::CancelDraw = false;		
+	CIsoView::CancelDraw = false;
 	pIsoView->Draw();
 	CMapDataExt::RecordingPreviewHistory = true;
 	CMapData::Instance->DoUndo();
@@ -1024,10 +1027,10 @@ DEFINE_HOOK(45A081, CIsoView_OnMouseMove_Place_Enter_Overlay, 9)
 DEFINE_HOOK(45A08A, CIsoView_OnMouseMove_Place, 5)
 {
 	auto Map = CMapDataExt::GetExtension();
-	auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+	auto pIsoView = (CIsoViewExt *)CIsoView::GetInstance();
 	auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
-	const int& x = point.X;
-	const int& y = point.Y;
+	const int &x = point.X;
+	const int &y = point.Y;
 	TempValueHolder tmp(CMapDataExt::PlaceStructure_Preview, true);
 	TempValueHolder skipUpdate(CMapDataExt::SkipUpdateMinimap, true);
 	CMapDataExt::PlaceStructure_OldData.clear();
@@ -1051,7 +1054,7 @@ DEFINE_HOOK(45A08A, CIsoView_OnMouseMove_Place, 5)
 			if (dwPos >= Map->CellDataCount || dwPos < 0)
 				continue;
 
-			auto& cur_fieldExt = Map->CellDataExts[dwPos];
+			auto &cur_fieldExt = Map->CellDataExts[dwPos];
 			oldData[ix * TotalSize + ex] = *Map->GetCellAt(dwPos);
 			oldNewOverlay[ix][ex] = cur_fieldExt.NewOverlay;
 		}
@@ -1087,7 +1090,7 @@ DEFINE_HOOK(45A08A, CIsoView_OnMouseMove_Place, 5)
 			return;
 
 		auto cur_field = Map->GetCellAt(dwPos);
-		auto& cur_fieldExt = Map->CellDataExts[dwPos];
+		auto &cur_fieldExt = Map->CellDataExts[dwPos];
 
 		if (cur_field->Aircraft != oldData[ix * TotalSize + ex].Aircraft)
 			Map->DeleteAircraftData(cur_field->Aircraft);
@@ -1159,12 +1162,12 @@ DEFINE_HOOK(4C4480, CIsoView_SmoothTiberium, 5)
 {
 	GET_STACK(int, dwPos, 0x4);
 
-	static int _adj[9] = { 0,1,3,4,6,7,8,10,11 };
+	static int _adj[9] = {0, 1, 3, 4, 6, 7, 8, 10, 11};
 	auto Map = CMapDataExt::GetExtension();
-	auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+	auto pIsoView = (CIsoViewExt *)CIsoView::GetInstance();
 
-	auto& ovrl = Map->CellDataExts[dwPos].NewOverlay;
-	auto& ovrld = Map->CellDatas[dwPos].OverlayData;
+	auto &ovrl = Map->CellDataExts[dwPos].NewOverlay;
+	auto &ovrld = Map->CellDatas[dwPos].OverlayData;
 
 	if (!(ovrl >= RIPARIUS_BEGIN && ovrl <= RIPARIUS_END) &&
 		!(ovrl >= CRUENTUS_BEGIN && ovrl <= CRUENTUS_END) &&
@@ -1187,10 +1190,11 @@ DEFINE_HOOK(4C4480, CIsoView_SmoothTiberium, 5)
 			int xx = x + i;
 			int yy = y + e;
 
-			if (xx < 0 || xx >= Map->MapWidthPlusHeight || yy < 0 || yy >= Map->MapWidthPlusHeight) continue;
+			if (xx < 0 || xx >= Map->MapWidthPlusHeight || yy < 0 || yy >= Map->MapWidthPlusHeight)
+				continue;
 
 			int pos = Map->GetCoordIndex(xx, yy);
-			auto& ovrl = Map->CellDataExts[pos].NewOverlay;
+			auto &ovrl = Map->CellDataExts[pos].NewOverlay;
 
 			if (ovrl >= RIPARIUS_BEGIN && ovrl <= RIPARIUS_END)
 			{
@@ -1266,9 +1270,8 @@ static inline bool commandHasBorderRange(int command, int x = 1919, int y = 810)
 		break;
 	case 0x1D:
 		// add/delete multi-selection
-		if (ExtConfigs::DisplayObjectsOutside && 
-			(CIsoView::CurrentCommand->Type == 3 || CIsoView::CurrentCommand->Type == 4 
-				|| CIsoView::CurrentCommand->Type == 10 || CIsoView::CurrentCommand->Type == 11))
+		if (ExtConfigs::DisplayObjectsOutside &&
+			(CIsoView::CurrentCommand->Type == 3 || CIsoView::CurrentCommand->Type == 4 || CIsoView::CurrentCommand->Type == 10 || CIsoView::CurrentCommand->Type == 11))
 			return (x == 1919 && y == 810) ? true : CMapDataExt::IsCoordInFullMap(x, y);
 		break;
 	case 0x21:
@@ -1282,10 +1285,10 @@ static inline bool commandHasBorderRange(int command, int x = 1919, int y = 810)
 	return false;
 }
 
-#pragma comment(lib, "imm32.lib") 
+#pragma comment(lib, "imm32.lib")
 DEFINE_HOOK(457223, CIsoView_OnMouseMove_MouseRange_1_DisableIME, 9)
 {
-	auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+	auto pIsoView = (CIsoViewExt *)CIsoView::GetInstance();
 	HIMC hIMC = ::ImmGetContext(pIsoView->GetSafeHwnd());
 	if (hIMC)
 	{
@@ -1297,18 +1300,16 @@ DEFINE_HOOK(457223, CIsoView_OnMouseMove_MouseRange_1_DisableIME, 9)
 	{
 		if (!CIsoViewExt::TwoPointDistance.empty())
 		{
-			if (CIsoViewExt::TwoPointDistance.back().Point1 != MapCoord{ 0,0 }
-				&& CIsoViewExt::TwoPointDistance.back().Point2 == MapCoord{ 0,0 })
+			if (CIsoViewExt::TwoPointDistance.back().Point1 != MapCoord{0, 0} && CIsoViewExt::TwoPointDistance.back().Point2 == MapCoord{0, 0})
 			{
-				CIsoViewExt::TwoPointDistance.back().Point1 = MapCoord{ 0,0 };
-				CIsoViewExt::TwoPointDistance.back().Point2 = MapCoord{ 0,0 };
+				CIsoViewExt::TwoPointDistance.back().Point1 = MapCoord{0, 0};
+				CIsoViewExt::TwoPointDistance.back().Point2 = MapCoord{0, 0};
 			}
 		}
-		if (CIsoViewExt::AxialSymmetryLine[0] != MapCoord{ 0,0 }
-			&& CIsoViewExt::AxialSymmetryLine[1] == MapCoord{ 0,0 })
+		if (CIsoViewExt::AxialSymmetryLine[0] != MapCoord{0, 0} && CIsoViewExt::AxialSymmetryLine[1] == MapCoord{0, 0})
 		{
-			CIsoViewExt::AxialSymmetryLine[0] = MapCoord{ 0,0 };
-			CIsoViewExt::AxialSymmetryLine[1] = MapCoord{ 0,0 };
+			CIsoViewExt::AxialSymmetryLine[0] = MapCoord{0, 0};
+			CIsoViewExt::AxialSymmetryLine[1] = MapCoord{0, 0};
 		}
 	}
 
@@ -1338,13 +1339,13 @@ DEFINE_HOOK(4615F0, CIsoView_OnLButtonDown_MouseRange, 5)
 	return 0x4615FA;
 }
 
-//DEFINE_HOOK(466C8E, CIsoView_OnLButtonUp_MouseRange, 5)
+// DEFINE_HOOK(466C8E, CIsoView_OnLButtonUp_MouseRange, 5)
 //{
 //	GET(int, command, EDX);
 //	if (commandHasBorderRange(command))
 //		return 0x466CEC;
 //	return 0x466C98;
-//}
+// }
 
 DEFINE_HOOK(459D50, CIsoView_OnMouseMove_CliffBack_Alt_1, 6)
 {
@@ -1417,7 +1418,7 @@ DEFINE_HOOK(466E50, CIsoView_OnLButtonUp_Drag_Infantry, 5)
 }
 
 // building in CMapData/Hooks.cpp
-//DEFINE_HOOK(467035, CIsoView_OnLButtonUp_Drag_Building, 5)
+// DEFINE_HOOK(467035, CIsoView_OnLButtonUp_Drag_Building, 5)
 //{
 //	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
 //	return 0;
@@ -1499,28 +1500,27 @@ DEFINE_HOOK(45C0CF, CIsoView_OnMouseMove_Waypoint_AddPlayerLocation, 6)
 {
 	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Waypoint, true);
 	auto deleteWaypoint = [](ppmfc::CString key)
+	{
+		if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
 		{
-			if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+			if (CINI::CurrentDocument->KeyExists("Waypoints", key))
 			{
-				if (CINI::CurrentDocument->KeyExists("Waypoints", key))
-				{
-					auto&& value = pSection->GetString(key);
-					int x = atoi(value) / 1000;
-					int y = atoi(value) % 1000;
-					CINI::CurrentDocument->DeleteKey(pSection, key);
-					CMapData::Instance->UpdateFieldWaypointData(false);
+				auto &&value = pSection->GetString(key);
+				int x = atoi(value) / 1000;
+				int y = atoi(value) % 1000;
+				CINI::CurrentDocument->DeleteKey(pSection, key);
+				CMapData::Instance->UpdateFieldWaypointData(false);
 
-					if (CMapData::Instance->IsMultiOnly())
-					{
-						int k, l;
-						for (k = -1; k < 2; k++)
-							for (l = -1; l < 2; l++)
-								CMapData::Instance->UpdateMapPreviewAt(x + k, y + l);
-					}
+				if (CMapData::Instance->IsMultiOnly())
+				{
+					int k, l;
+					for (k = -1; k < 2; k++)
+						for (l = -1; l < 2; l++)
+							CMapData::Instance->UpdateMapPreviewAt(x + k, y + l);
 				}
 			}
-		};
-
+		}
+	};
 
 	if (CMapData::Instance->IsMultiOnly())
 	{
@@ -1600,7 +1600,7 @@ DEFINE_HOOK(469520, CIsoView_GetOverlayDirection, 6)
 	GET_STACK(int, y, 0x8);
 
 	auto Map = CMapDataExt::GetExtension();
-	const auto& dwIsoSize = Map->MapWidthPlusHeight;
+	const auto &dwIsoSize = Map->MapWidthPlusHeight;
 	int p = -1;
 	auto overlay = Map->GetOverlayAt(x + y * dwIsoSize);
 
@@ -1608,7 +1608,7 @@ DEFINE_HOOK(469520, CIsoView_GetOverlayDirection, 6)
 
 	auto isTrack = [](int type)
 	{
-		return(type >= OVRL_TRACK_BEGIN && type <= OVRL_TRACK_END);
+		return (type >= OVRL_TRACK_BEGIN && type <= OVRL_TRACK_END);
 	};
 
 	if (isTrack(overlay))
@@ -1668,11 +1668,16 @@ DEFINE_HOOK(469520, CIsoView_GetOverlayDirection, 6)
 		bool dir3 = Map->GetOverlayAt(x + 1 + y * dwIsoSize) == overlay;
 		bool dir4 = Map->GetOverlayAt(x + (y - 1) * dwIsoSize) == overlay;
 
-		if (dir1) p |= 1 + damageStage * 16;
-		if (dir2) p |= 2 + damageStage * 16;
-		if (dir3) p |= 4 + damageStage * 16;
-		if (dir4) p |= 8 + damageStage * 16;
-		if (!dir1 && !dir2 && !dir3 && !dir4) p = damageStage * 16;
+		if (dir1)
+			p |= 1 + damageStage * 16;
+		if (dir2)
+			p |= 2 + damageStage * 16;
+		if (dir3)
+			p |= 4 + damageStage * 16;
+		if (dir4)
+			p |= 8 + damageStage * 16;
+		if (!dir1 && !dir2 && !dir3 && !dir4)
+			p = damageStage * 16;
 	}
 
 	R->EAX(p);
@@ -1709,52 +1714,56 @@ DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 	if (CIsoView::CurrentCommand->Command == 10)
 	{
 		CIsoViewExt::SetStatusBarText(Translations::TranslateOrDefault("TilePlaceStatus",
-			"Ctrl: Fill mode, Shift: continuous drawing, Ctrl+Shift: no auto smoothing of LAT or coast/shore, Alt: line tool, PageUp/Down: adjust painting height"));
+																	   "Ctrl: Fill mode, Shift: continuous drawing, Ctrl+Shift: no auto smoothing of LAT or coast/shore, Alt: line tool, PageUp/Down: adjust painting height"));
 		return 0x46AAA1;
 	}
 	else if (CIsoView::CurrentCommand->Command == 20)
 	{
 		CIsoViewExt::SetStatusBarText(Translations::TranslateOrDefault("CopyHelp",
-			"Please specify the area that you want to be copied by clicking on the start and end position"));
+																	   "Please specify the area that you want to be copied by clicking on the start and end position"));
 		return 0x46AAA1;
 	}
-	else if (CIsoView::CurrentCommand->Command == 15) {
+	else if (CIsoView::CurrentCommand->Command == 15)
+	{
 		CIsoViewExt::SetStatusBarText(Translations::TranslateOrDefault("FlattenGroundMessage",
-			"Shift: Steep slope, Ctrl+Shift:  Ignore non-morphable tiles"));
+																	   "Shift: Steep slope, Ctrl+Shift:  Ignore non-morphable tiles"));
 		return 0x46AAA1;
 	}
-	else if (CIsoView::CurrentCommand->Command == 13 || CIsoView::CurrentCommand->Command == 14) {
+	else if (CIsoView::CurrentCommand->Command == 13 || CIsoView::CurrentCommand->Command == 14)
+	{
 		CIsoViewExt::SetStatusBarText(Translations::TranslateOrDefault("HeightenAndLowerTileMessage",
-			"Ctrl: Create slope on the edges"));
+																	   "Ctrl: Create slope on the edges"));
 		return 0x46AAA1;
 	}
-	else if (TheaterInfo::CurrentInfoHasCliff2 && (CIsoView::CurrentCommand->Command == 18 || CIsoView::CurrentCommand->Command == 19)) {
+	else if (TheaterInfo::CurrentInfoHasCliff2 && (CIsoView::CurrentCommand->Command == 18 || CIsoView::CurrentCommand->Command == 19))
+	{
 		CIsoViewExt::SetStatusBarText(Translations::TranslateOrDefault("PressAToSwitchCliff",
-			"Press key 'A' to switch cliff type"));
+																	   "Press key 'A' to switch cliff type"));
 		return 0x46AAA1;
 	}
-	else if (CIsoView::CurrentCommand->Command == 0x22) {
+	else if (CIsoView::CurrentCommand->Command == 0x22)
+	{
 		CIsoViewExt::SetStatusBarText(Translations::TranslateOrDefault("DrawTunnelMessage",
-			"Click to draw the tunnel, double-click to set the endpoint and finish editing. The length of the tunnel cannot exceed 100."));
+																	   "Click to draw the tunnel, double-click to set the endpoint and finish editing. The length of the tunnel cannot exceed 100."));
 		return 0x46AAA1;
 	}
-	else if (CIsoView::CurrentCommand->Command == 0x1E) {
+	else if (CIsoView::CurrentCommand->Command == 0x1E)
+	{
 		ppmfc::CString text = "";
 		ppmfc::CString buffer;
 		for (int i = 0; i < 10; ++i)
 		{
 			int ctIndex = CIsoView::CurrentCommand->Type;
-			auto& info = CViewObjectsExt::TreeView_ConnectedTileMap[ctIndex];
-			auto& tileSet = CViewObjectsExt::ConnectedTileSets[info.Index];
+			auto &info = CViewObjectsExt::TreeView_ConnectedTileMap[ctIndex];
+			auto &tileSet = CViewObjectsExt::ConnectedTileSets[info.Index];
 			if (tileSet.ToSetPress[i] > -1)
 			{
-				for (auto& [ctIndex2, info2] : CViewObjectsExt::TreeView_ConnectedTileMap)
+				for (auto &[ctIndex2, info2] : CViewObjectsExt::TreeView_ConnectedTileMap)
 				{
 					if (info2.Index == tileSet.ToSetPress[i] && info2.Front == info.Front)
 					{
-						auto& tileSet2 = CViewObjectsExt::ConnectedTileSets[info2.Index];
-						buffer.Format(Translations::TranslateOrDefault("PressNumberToSwitchConnectedType", "Press number key %d to switch to %s")
-							, i, tileSet2.Name);
+						auto &tileSet2 = CViewObjectsExt::ConnectedTileSets[info2.Index];
+						buffer.Format(Translations::TranslateOrDefault("PressNumberToSwitchConnectedType", "Press number key %d to switch to %s"), i, tileSet2.Name);
 						if (tileSet2.WaterCliff)
 						{
 							buffer += " ";
@@ -1778,13 +1787,13 @@ DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 
 	int pos = CMapData::Instance->GetCoordIndex(X, Y);
 	auto cell = CMapData::Instance->GetCellAt(pos);
-	auto& cellExt = CMapDataExt::CellDataExts[pos];
+	auto &cellExt = CMapDataExt::CellDataExts[pos];
 	int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
 
 	if (tileIndex < CMapDataExt::TileDataCount && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
 	{
 		statusbar.Format(Translations::TranslateOrDefault("StatusBarText1", "Terrain type: %#x, height %d /"),
-			(int)CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex].TerrainType, cell->Height);
+						 (int)CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex].TerrainType, cell->Height);
 	}
 
 	if (cellExt.NewOverlay != 0xFFFF)
@@ -1792,7 +1801,7 @@ DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 		statusbar += " ";
 		FString plus;
 		plus.Format(Translations::TranslateOrDefault("StatusBarText2", "Overlay: %#x, OverlayData %#x /"),
-			cellExt.NewOverlay, cell->OverlayData);
+					cellExt.NewOverlay, cell->OverlayData);
 		statusbar += plus;
 	}
 
@@ -1806,7 +1815,7 @@ DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 			statusbar += " ";
 			FString plus;
 			plus.Format(Translations::TranslateOrDefault("StatusBarText3", "Structure: ID %d, %s (%s, %s) /"),
-				StrINIIndex, CViewObjectsExt::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
+						StrINIIndex, CViewObjectsExt::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
 			statusbar += plus;
 		}
 	}
@@ -1818,7 +1827,7 @@ DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 		statusbar += " ";
 		FString plus;
 		plus.Format(Translations::TranslateOrDefault("StatusBarText4", "Vehicle: ID %d, %s (%s, %s) /"),
-			cell->Unit, CViewObjectsExt::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
+					cell->Unit, CViewObjectsExt::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
 		statusbar += plus;
 	}
 
@@ -1829,7 +1838,7 @@ DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 		statusbar += " ";
 		FString plus;
 		plus.Format(Translations::TranslateOrDefault("StatusBarText5", "Aircraft: ID %d, %s (%s, %s) /"),
-			cell->Aircraft, CViewObjectsExt::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
+					cell->Aircraft, CViewObjectsExt::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
 		statusbar += plus;
 	}
 
@@ -1839,7 +1848,6 @@ DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 		if (ExtConfigs::InfantrySubCell_Edit)
 		{
 			infantry = CIsoViewExt::GetSelectedSubcellInfantryIdx(X, Y);
-
 		}
 		if (infantry > -1)
 		{
@@ -1848,7 +1856,7 @@ DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 			statusbar += " ";
 			FString plus;
 			plus.Format(Translations::TranslateOrDefault("StatusBarText6", "Infantry: ID %d, %s (%s, %s) /"),
-				infantry, CViewObjectsExt::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
+						infantry, CViewObjectsExt::QueryUIName(obj.TypeID, true), Miscs::ParseHouseName(obj.House, true), obj.TypeID);
 			statusbar += plus;
 		}
 	}
@@ -1874,7 +1882,7 @@ DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 			statusbar += " ";
 			FString plus;
 			plus.Format(Translations::TranslateOrDefault("StatusBarText7", "CellTag: %s (%s) /"),
-				name, id);
+						name, id);
 			statusbar += plus;
 		}
 	}
@@ -1889,7 +1897,7 @@ DEFINE_HOOK(469470, CIsoView_OnKeyDown, 5)
 	if (!ExtConfigs::EnableMultiSelection)
 		return 0;
 
-	GET(CIsoView*, pThis, ECX);
+	GET(CIsoView *, pThis, ECX);
 	GET_STACK(UINT, nChar, 0x4);
 
 	switch (nChar)
@@ -1920,7 +1928,7 @@ DEFINE_HOOK(469470, CIsoView_OnKeyDown, 5)
 static POINT tempMouseCenterPosition{};
 DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 {
-	GET(CIsoViewExt*, pThis, EBP);
+	GET(CIsoViewExt *, pThis, EBP);
 	GET_STACK(UINT, nFlags, STACK_OFFS(0x3D528, -0x4));
 
 	POINT pt;
@@ -1972,8 +1980,7 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 
 		LPARAM lParam = MAKELPARAM(
 			pt.x + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0),
-			pt.y + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0)
-		);
+			pt.y + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0));
 
 		WPARAM wParam = MK_RBUTTON;
 		wParam |= (1u << 31);
@@ -1994,7 +2001,7 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 
 DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp, 6)
 {
-	GET(CIsoViewExt*, pThis, ECX);
+	GET(CIsoViewExt *, pThis, ECX);
 	GET_STACK(UINT, nFlags, 0x4);
 	GET_STACK(ppmfc::CPoint, point, 0x8);
 
@@ -2010,7 +2017,7 @@ DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp, 6)
 	if (pThis->IsScrolling)
 	{
 		if (pThis->IsInitializing)
-		{		
+		{
 			return 0x45EBD1;
 		}
 
@@ -2054,7 +2061,8 @@ DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp, 6)
 				{
 					CMeasurementToolbox::OnRightButtonDown();
 				}
-				if (CIsoView::CurrentCommand->Command == 0x1F) {
+				if (CIsoView::CurrentCommand->Command == 0x1F)
+				{
 					CTerrainGenerator::RangeFirstCell.X = -1;
 					CTerrainGenerator::RangeFirstCell.Y = -1;
 					CTerrainGenerator::RangeSecondCell.X = -1;
@@ -2062,7 +2070,8 @@ DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp, 6)
 					CIsoView::CurrentCommand->Command = 0x0;
 					CIsoView::CurrentCommand->Type = 0;
 				}
-				if (CViewObjectsExt::MoveBaseNode_SelectedObj.X > -1) {
+				if (CViewObjectsExt::MoveBaseNode_SelectedObj.X > -1)
+				{
 					CViewObjectsExt::MoveBaseNode_SelectedObj.House = "";
 					CViewObjectsExt::MoveBaseNode_SelectedObj.ID = "";
 					CViewObjectsExt::MoveBaseNode_SelectedObj.Key = "";
@@ -2089,9 +2098,9 @@ DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp, 6)
 					CIsoViewExt::DrawEditedMarks.clear();
 				}
 				CIsoViewExt::LastAltCommand.reset();
-	
+
 				CIsoView::CurrentCommand->Command = 0x0;
-	
+
 				if (CViewObjectsExt::NeedChangeTreeViewSelect)
 				{
 					// fix wall & view property case
@@ -2103,10 +2112,12 @@ DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp, 6)
 						HTREEITEM hPrevSibling = TreeView_GetPrevSibling(hWnd, hSelectedItem);
 						if (hParent != NULL)
 							TreeView_SelectItem(hWnd, hParent);
-						else if (hPrevSibling != NULL) {
+						else if (hPrevSibling != NULL)
+						{
 							TreeView_SelectItem(hWnd, hPrevSibling);
 						}
-						else {
+						else
+						{
 							HTREEITEM hRoot = TreeView_GetRoot(hWnd);
 							if (hRoot != NULL)
 								TreeView_SelectItem(hWnd, hRoot);

@@ -697,7 +697,7 @@ static void DrawMap()
 			CIsoViewExt::MouseCenterPosition = {-1919810, -1919810};
 			InitAllObjects();
 			CLoadingExt::ObjectsNeedReloaded = false;
-			if (ExtConfigs::HiDPIAwareness_ScaleIsoView && !CIsoViewExt::RenderingMap)
+			if (ExtConfigs::HiDPIAwareness_ScaleIsoView && !CIsoViewExt::RenderingMap && ExtConfigs::DirectXRendering)
 				CIsoViewExt::GetExtension()->Zoom(0.0, true);
 		}
 

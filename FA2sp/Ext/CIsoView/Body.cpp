@@ -1006,7 +1006,7 @@ void CIsoViewExt::DrawEllipsePaint(int X, int Y, int majorRadius, COLORREF color
         return;
     }
 
-    HPEN hPen = CreatePen(PS_SOLID, width, color);
+    HPEN hPen = CreatePen(PS_SOLID, std::max(1.0, width / CIsoViewExt::ScaledFactor), color);
     HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
 
     HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
@@ -1039,7 +1039,7 @@ void CIsoViewExt::DrawEllipseDirectX(int X, int Y, int majorRadius, COLORREF col
     int cy = Y - CIsoViewExt::drawOffsetY;
 
     EllipseParams param;
-    param.SetBorderWidth(width).SetBorderColor(ShapeColor::FromCOLORREF(color));
+    param.SetBorderWidth(std::max(1.0, width / CIsoViewExt::ScaledFactor)).SetBorderColor(ShapeColor::FromCOLORREF(color));
     if (bScreenSpace)
         param.SetScreenSpace();
     g_pSP->DrawEllipse(cx, cy, majorRadius, majorRadius * 0.5f, param);
@@ -3338,7 +3338,7 @@ void CIsoViewExt::DrawDistanceRuler(HDC hDC, const RECT &rect, bool bScreenSpace
                     sy2 -= CIsoViewExt::drawOffsetY;
                     LineParams lp;
                     lp.SetColor(ShapeColor::FromCOLORREF(ExtConfigs::DistanceRuler_Color))
-                        .SetThickness(CIsoViewExt::ScaledFactor < 0.61f ? 3.0f : 2.0f)
+                        .SetThickness(std::max(1.0, 2.0 / CIsoViewExt::ScaledFactor))
                         .SetAntiAlias(false);
                     if (bScreenSpace)
                         lp.SetScreenSpace();
@@ -3520,12 +3520,12 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC, const RECT &rect, bool bScr
         if (ExtConfigs::DirectXRendering)
         {
             pIsoView->DrawDashLineDirectX(drawX, drawY, drawX + rad / CIsoViewExt::ScaledFactor, drawY, reversedColor, 1);
-            pIsoView->DrawEllipseDirectX(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
+            pIsoView->DrawEllipseDirectX(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, 2);
         }
         else
         {
             CIsoViewExt::DrawDashLineHDC(hDC, drawX, drawY, drawX + rad / CIsoViewExt::ScaledFactor, drawY, reversedColor, rect, 1);
-            pIsoView->DrawEllipsePaint(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, hDC, rect, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
+            pIsoView->DrawEllipsePaint(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, hDC, rect, 2);
         }
     }
     if (CIsoView::CurrentCommand->Type == MeasurementTypes::PlaceCircle && CIsoViewExt::TempCircle[0] != MapCoord{0, 0} && CIsoViewExt::TempCircle[1] == MapCoord{0, 0})
@@ -3544,12 +3544,12 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC, const RECT &rect, bool bScr
         if (ExtConfigs::DirectXRendering)
         {
             pIsoView->DrawDashLineDirectX(drawX, drawY, drawX + rad / CIsoViewExt::ScaledFactor, drawY, reversedColor, 1);
-            pIsoView->DrawEllipseDirectX(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
+            pIsoView->DrawEllipseDirectX(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, 2);
         }
         else
         {
             CIsoViewExt::DrawDashLineHDC(hDC, drawX, drawY, drawX + rad / CIsoViewExt::ScaledFactor, drawY, reversedColor, rect, 1);
-            pIsoView->DrawEllipsePaint(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, hDC, rect, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
+            pIsoView->DrawEllipsePaint(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, hDC, rect, 2);
         }
     }
 
@@ -3760,12 +3760,12 @@ void CIsoViewExt::DrawGeometricAnnotations(HDC hDC, const RECT &rect, bool bScre
         if (ExtConfigs::DirectXRendering)
         {
             pIsoView->DrawDashLineDirectX(drawX, drawY, drawX + rad / CIsoViewExt::ScaledFactor, drawY, reversedColor, 1);
-            pIsoView->DrawEllipseDirectX(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
+            pIsoView->DrawEllipseDirectX(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, 2);
         }
         else
         {
             CIsoViewExt::DrawDashLineHDC(hDC, drawX, drawY, drawX + rad / CIsoViewExt::ScaledFactor, drawY, reversedColor, rect, 1);
-            pIsoView->DrawEllipsePaint(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, hDC, rect, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
+            pIsoView->DrawEllipsePaint(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, hDC, rect, 2);
         }
     }
     if (CIsoView::CurrentCommand->Type == MeasurementTypes::PlaceCircle_Annotation && CIsoViewExt::TempCircle_Annotation[0] != MapCoord{0, 0} && CIsoViewExt::TempCircle_Annotation[1] == MapCoord{0, 0})
@@ -3784,12 +3784,12 @@ void CIsoViewExt::DrawGeometricAnnotations(HDC hDC, const RECT &rect, bool bScre
         if (ExtConfigs::DirectXRendering)
         {
             pIsoView->DrawDashLineDirectX(drawX, drawY, drawX + rad / CIsoViewExt::ScaledFactor, drawY, reversedColor, 1);
-            pIsoView->DrawEllipseDirectX(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
+            pIsoView->DrawEllipseDirectX(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, 2);
         }
         else
         {
             CIsoViewExt::DrawDashLineHDC(hDC, drawX, drawY, drawX + rad / CIsoViewExt::ScaledFactor, drawY, reversedColor, rect, 1);
-            pIsoView->DrawEllipsePaint(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, hDC, rect, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
+            pIsoView->DrawEllipsePaint(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, hDC, rect, 2);
         }
     }
 }
@@ -4880,7 +4880,7 @@ void CIsoViewExt::DrawDashLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int c
     lb.lbStyle = BS_SOLID;
     lb.lbColor = color;
 
-    DWORD style[] = {6, 4};
+    DWORD style[] = {std::max(1, int(6 / CIsoViewExt::ScaledFactor)), std::max(1, int(4 / CIsoViewExt::ScaledFactor))};
 
     HPEN hPen = ExtCreatePen(
         PS_GEOMETRIC | PS_USERSTYLE | PS_ENDCAP_FLAT,
@@ -4912,7 +4912,7 @@ void CIsoViewExt::DrawLineDirectX(int x1, int y1, int x2, int y2, int color, int
 
     LineParams lp;
     lp.SetColor(ShapeColor::FromCOLORREF(color))
-        .SetThickness(CIsoViewExt::ScaledFactor < 0.61f ? (float)(2 + size) : (float)size)
+        .SetThickness(std::max(1.0, size / CIsoViewExt::ScaledFactor))
         .SetAntiAlias(false);
     if (bScreenSpace)
         lp.SetScreenSpace();
@@ -4931,7 +4931,7 @@ void CIsoViewExt::DrawArrowDirectX(int x1, int y1, int x2, int y2, int color, in
     int sx2 = x2 - CIsoViewExt::drawOffsetX;
     int sy2 = y2 - CIsoViewExt::drawOffsetY;
 
-    float thickness = CIsoViewExt::ScaledFactor < 0.61f ? (float)(2 + size) : (float)size;
+    float thickness = std::max(1.0, size / CIsoViewExt::ScaledFactor);
     LineParams lp;
     lp.SetColor(ShapeColor::FromCOLORREF(color))
         .SetThickness(thickness)
@@ -4986,8 +4986,8 @@ void CIsoViewExt::DrawDashLineDirectX(int x1, int y1, int x2, int y2, int color,
 
     LineParams lp;
     lp.SetColor(ShapeColor::FromCOLORREF(color))
-        .SetThickness(CIsoViewExt::ScaledFactor < 0.61f ? (float)(2 + size) : (float)size)
-        .SetDash(6.0f, 4.0f)
+        .SetThickness(std::max(1.0, size / CIsoViewExt::ScaledFactor))
+        .SetDash(std::max(1.0, 6.0 / CIsoViewExt::ScaledFactor), std::max(1.0, 4.0 / CIsoViewExt::ScaledFactor))
         .SetAntiAlias(false);
     if (bScreenSpace)
         lp.SetScreenSpace();

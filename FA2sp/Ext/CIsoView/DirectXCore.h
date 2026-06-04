@@ -441,9 +441,25 @@ private:
     GLuint m_glTrackedTexture1 = 0; // active texture unit 1
     GLuint m_glTrackedVAO = 0;
     GLuint m_glTrackedFBO = 0;
+    GLuint m_glTrackedActiveTexUnit = 0;
     GLboolean m_glTrackedDepthTest = GL_FALSE;
     GLboolean m_glTrackedStencilTest = GL_FALSE;
     GLboolean m_glTrackedBlend = GL_FALSE;
+
+    // --- GL Uniform Location Cache (populated once after shader compilation) ---
+    GLint m_glUL_Main_World = -1, m_glUL_Main_ColorMul = -1, m_glUL_Main_MixColor = -1, m_glUL_Main_MixFactor = -1;
+    GLint m_glUL_AlphaNI_World = -1, m_glUL_AlphaNI_ColorMul = -1, m_glUL_AlphaNI_MixColor = -1, m_glUL_AlphaNI_MixFactor = -1;
+    GLint m_glUL_Effect_World = -1;
+    GLint m_glUL_Composite_ScreenTex = -1, m_glUL_Composite_FactorTex = -1;
+    GLint m_glUL_Final_Scale = -1, m_glUL_Final_Offset = -1;
+    GLint m_glUL_LineMod_ViewportSize = -1, m_glUL_LineMod_AlphaAccum = -1;
+
+    // --- GL Instance VAO ---
+    GLuint m_glVAOInstance = 0;
+
+    // --- GL reusable texture flip buffers ---
+    std::vector<uint32_t> m_glTexFlipBufRGBA;
+    std::vector<uint8_t> m_glTexFlipBufR8;
 
     // --- GL-specific private methods ---
     bool GL_Init(HWND hwnd);
@@ -463,6 +479,14 @@ private:
     void GL_RenderScreenSpaceContent();
     void GL_DarkenOffscreen(float brightness);
     void GL_FlushLineBatch(bool bScreenSpace, GLuint overrideProgram = 0, bool bOverlay = false);
+    void GL_FlushInstanceBatch(const std::vector<const DrawCommand *> &batch);
+
+    // GL state-tracking helpers (avoid redundant GL calls)
+    void GL_BindTexture0(GLuint tex);
+    void GL_BindTexture1(GLuint tex);
+    void GL_UseProgramTracked(GLuint prog);
+    void GL_BindVAOTracked(GLuint vao);
+    void GL_BindFBOTracked(GLuint fbo);
 
 public:
     // GL upload helpers (used by DrawShapes / TextRenderer)

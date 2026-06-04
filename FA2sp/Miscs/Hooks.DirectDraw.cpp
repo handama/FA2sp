@@ -39,14 +39,12 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 			::MessageBox(CFinalSunDlg::Instance->GetSafeHwnd(), message, title, MB_ICONWARNING);
 
 			ExtConfigs::DirectXRendering = false;
-			ExtConfigs::OpenGLRendering = false;
 
 			CINI fa2;
 			FString path = CFinalSunAppExt::ExePathExt;
 			path += "\\FinalAlert.ini";
 			fa2.ClearAndLoad(path);
 			fa2.WriteString("Options", "DirectXRendering", "no");
-			fa2.WriteString("Options", "OpenGLRendering", "no");
 			fa2.WriteToFile(path);
 
 			pIsoView->g_pDX.reset();

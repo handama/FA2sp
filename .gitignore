@@ -15,6 +15,8 @@ MFC42
 
 /FA2sp/Debug/*
 /FA2sp/Release/*
+.vscode/
+.clang-format
 
 !Release/libssl.lib
 !Release/lua.lib

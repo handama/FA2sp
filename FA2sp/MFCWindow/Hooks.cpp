@@ -161,9 +161,9 @@ DEFINE_HOOK(468690, CIsoView_OnSize_Size, A)
         {
 			int cyCur, cyMin, cyTilesetBroser;
 			CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.GetRowInfo(0, cyCur, cyMin);
-			CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.GetColumnInfo(1, cyTilesetBroser, cyMin);
+			CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.GetRowInfo(1, cyTilesetBroser, cyMin);
 
-            float newHeightPercentage = (float)cyCur / GetSystemMetrics(SM_CYFULLSCREEN);
+			float newHeightPercentage = (float)cyCur / GetSystemMetrics(SM_CYFULLSCREEN);
 
             if (cyTilesetBroser <= 1)
                 newHeightPercentage = 1.0f;

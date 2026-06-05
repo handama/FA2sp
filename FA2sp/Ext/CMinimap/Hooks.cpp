@@ -171,6 +171,11 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 		borderRect.bottom *= CMinimapExt::CurrentScale;
 
 		pDC->Draw3dRect(&borderRect, RGB(0, 0, 255), RGB(0, 0, 200));
+		if (CMinimapExt::CurrentScale >= 1.8)
+		{
+			borderRect.OffsetRect(1, 1);
+			pDC->Draw3dRect(&borderRect, RGB(0, 0, 255), RGB(0, 0, 200));
+		}
 	}	
 
 	RECT cr;
@@ -198,8 +203,13 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 	selRect.bottom *= CMinimapExt::CurrentScale;
 
 	pDC->Draw3dRect(&selRect, RGB(200, 0, 0), RGB(120, 0, 0));
+	if (CMinimapExt::CurrentScale >= 1.8)
+	{
+		selRect.OffsetRect(1, 1);
+		pDC->Draw3dRect(&selRect, RGB(200, 0, 0), RGB(120, 0, 0));
+	}
 
-    return 0x4D1CE0;
+	return 0x4D1CE0;
 }
 
 DEFINE_HOOK(4D1E70, CMinimap_OnMouseMove, 7)

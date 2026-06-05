@@ -24,7 +24,7 @@ struct WindowsOSInfo;
 #define ABOREUS_END 166
 #define OVRL_TRACK_BEGIN 39
 #define OVRL_TRACK_END 54
-#pragma warning(disable:4819)
+#pragma warning(disable : 4819)
 
 class FA2sp
 {
@@ -32,7 +32,7 @@ public:
     static HANDLE hInstance;
     static std::string STDBuffer;
     static ppmfc::CString Buffer;
-    static void* pExceptionHandler;
+    static void *pExceptionHandler;
     static bool g_VEH_Enabled;
     static void ExtConfigsInitialize();
     static bool IsDarkMode();
@@ -101,7 +101,8 @@ public:
     static int BaseNodeIndex_Background_Color;
     static int DisplayColor_Waypoint;
     static int DisplayColor_Celltag;
-    static bool DrawCelltagTranslucent;
+	static bool ForceNeutralSpecialColor;
+	static bool DrawCelltagTranslucent;
     static CPoint Waypoint_Text_ExtraOffset;
     static bool ExtWaypoints;
     static bool ExtFacings;
@@ -118,8 +119,8 @@ public:
     static int SaveMap_AutoSave_MaxCount;
     static bool SaveMap_OnlySaveMAP;
     static bool SaveMap_KeepComments;
-    //static bool SaveMap_MultiPlayOnlySaveYRM;
-    //static bool SaveMap_SinglePlayOnlySaveMAP;
+    // static bool SaveMap_MultiPlayOnlySaveYRM;
+    // static bool SaveMap_SinglePlayOnlySaveMAP;
     static int SaveMap_DefaultPreviewOptionMP;
     static int SaveMap_DefaultPreviewOptionSP;
     static bool SaveMap_FileEncodingComment;
@@ -213,7 +214,9 @@ public:
     static bool DDrawScalingBilinear;
     static bool DDrawScalingBilinear_OnlyShrink;
     static bool DirectXRendering;
+    static bool OpenGLRendering;
     static bool DirectXRendering_INI;
+    static bool OpenGLRendering_INI;
     static bool PreciseDepthCalculation;
     static int DisplayTextSize;
     static int DistanceRuler_Records;
@@ -262,23 +265,28 @@ public:
     {
         FString DisplayName;
         FString IniKey;
-        bool* Value;
+        bool *Value;
         SpecialOptionType Type = SpecialOptionType::None;
     };
     static std::vector<DynamicOptions> Options;
     static void UpdateOptionTranslations();
 };
 
-namespace std {
-    template<>
-    struct hash<ppmfc::CString> {
-        size_t operator()(const ppmfc::CString& str) const {
+namespace std
+{
+    template <>
+    struct hash<ppmfc::CString>
+    {
+        size_t operator()(const ppmfc::CString &str) const
+        {
             return hash<string_view>()(string_view(str, str.GetLength()));
         }
     };
-    template<>
-    struct hash<CString> {
-        size_t operator()(const CString& str) const {
+    template <>
+    struct hash<CString>
+    {
+        size_t operator()(const CString &str) const
+        {
             return hash<string_view>()(string_view(str, str.GetLength()));
         }
     };
@@ -293,14 +301,18 @@ public:
     static MultimapHelper Rules_FAData;
 };
 
-class VEHGuard {
+class VEHGuard
+{
     bool oldState;
+
 public:
-    VEHGuard(bool enable) {
+    VEHGuard(bool enable)
+    {
         oldState = FA2sp::g_VEH_Enabled;
         FA2sp::g_VEH_Enabled = enable;
     }
-    ~VEHGuard() {
+    ~VEHGuard()
+    {
         FA2sp::g_VEH_Enabled = oldState;
     }
 };

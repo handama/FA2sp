@@ -639,17 +639,8 @@ static void InitAllObjects()
 	}
 }
 
-static bool s_bInDrawMap = false;
-struct DrawMapGuard
-{
-	~DrawMapGuard() { s_bInDrawMap = false; }
-};
-
 static void DrawMap()
 {
-	s_bInDrawMap = true;
-	DrawMapGuard guard;
-
 	auto pThis = CIsoViewExt::GetExtension();
 	auto pMap = CMapDataExt::GetExtension();
 	auto pFinalSunDlg = CFinalSunDlg::Instance();
@@ -703,9 +694,10 @@ static void DrawMap()
 	{
 		if (CLoadingExt::ObjectsNeedReloaded)
 		{
+			CIsoViewExt::MouseCenterPosition = {-1919810, -1919810};
 			InitAllObjects();
 			CLoadingExt::ObjectsNeedReloaded = false;
-			if (ExtConfigs::HiDPIAwareness_ScaleIsoView && !CIsoViewExt::RenderingMap)
+			if (ExtConfigs::HiDPIAwareness_ScaleIsoView && !CIsoViewExt::RenderingMap && ExtConfigs::DirectXRendering)
 				CIsoViewExt::GetExtension()->Zoom(0.0, true);
 		}
 
@@ -3546,11 +3538,11 @@ static void DrawMap()
 	{
 		if (ExtConfigs::DirectXRendering)
 		{
-			CIsoViewExt::DirectXDrawMultiMapCoordBorders(CopyPaste::PastedCoords, ExtConfigs::CopySelectionBound_Color, false);
+			CIsoViewExt::DirectXDrawMultiMapCoordBorders(CopyPaste::PastedCoords, ExtConfigs::CopySelectionBound_Color, false, true);
 		}
 		else
 		{
-			CIsoViewExt::DrawMultiMapCoordBorders(&ddsd, CopyPaste::PastedCoords, ExtConfigs::CopySelectionBound_Color);
+			CIsoViewExt::DrawMultiMapCoordBorders(&ddsd, CopyPaste::PastedCoords, ExtConfigs::CopySelectionBound_Color, true);
 		}
 	}
 	// line tool
@@ -3742,9 +3734,96 @@ static void DrawMap()
 			int pngPosX = r.left + pThis->ViewPosition.x - startX - 4;
 			int pngPosY = r.top + pThis->ViewPosition.y - startY - 3 + (CIsoViewExt::RenderFullMap ? 0 : 15);
 
-			// Read DirectX offscreen texture to the full map bitmap
 			auto pDX = pThis->g_pDX.get();
-			if (auto pOffscreenTex = pDX->GetOffscreenTexture())
+			if (pDX->IsUsingOpenGL())
+			{
+				// === OpenGL path ===
+				GLuint fbo = pDX->GetGLOffscreenFBO();
+				if (fbo)
+				{
+					GLint prevReadFBO = 0;
+					glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prevReadFBO);
+					glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+
+					int clientW = pDX->GetClientWidth();
+					int clientH = pDX->GetClientHeight();
+					float scale = pDX->GetZoomOut();
+					int texW = (int)(clientW * scale);
+					int texH = (int)(clientH * scale);
+					if (texW == 0)
+						texW = 1;
+					if (texH == 0)
+						texH = 1;
+
+					int srcLeft = 0, srcTop = 0;
+					int srcW = clientW, srcH = clientH;
+
+					if (srcLeft + srcW > texW)
+						srcW = texW - srcLeft;
+					if (srcTop + srcH > texH)
+						srcH = texH - srcTop;
+
+					if (pngPosX < 0)
+					{
+						srcLeft += (-pngPosX);
+						srcW += pngPosX;
+						pngPosX = 0;
+					}
+					if (pngPosY < 0)
+					{
+						srcTop += (-pngPosY);
+						srcH += pngPosY;
+						pngPosY = 0;
+					}
+
+					if (srcW > 0 && srcH > 0)
+					{
+						int bmpW = CIsoViewExt::pFullBitmap->GetWidth();
+						int bmpH = CIsoViewExt::pFullBitmap->GetHeight();
+						if (pngPosX + srcW > bmpW)
+							srcW = bmpW - pngPosX;
+						if (pngPosY + srcH > bmpH)
+							srcH = bmpH - pngPosY;
+
+						if (srcW > 0 && srcH > 0)
+						{
+							glPixelStorei(GL_PACK_ALIGNMENT, 4);
+							std::vector<uint8_t> rowBuf(srcW * 4);
+
+							Gdiplus::BitmapData bitmapData;
+							Gdiplus::Rect bmpRect(pngPosX, pngPosY, srcW, srcH);
+							if (CIsoViewExt::pFullBitmap->LockBits(&bmpRect, Gdiplus::ImageLockModeWrite,
+																   PixelFormat24bppRGB, &bitmapData) == Gdiplus::Ok)
+							{
+								BYTE *dstRow = (BYTE *)bitmapData.Scan0;
+								for (LONG y = 0; y < srcH; ++y)
+								{
+									int glY = texH - 1 - (srcTop + y);
+									glReadPixels(srcLeft, glY, srcW, 1, GL_RGBA, GL_UNSIGNED_BYTE, rowBuf.data());
+
+									const BYTE *src = rowBuf.data();
+									BYTE *dst = dstRow;
+									for (LONG x = 0; x < srcW; ++x)
+									{
+										// GL_RGBA -> GDI+ 24bppRGB (BGR)
+										dst[0] = src[2]; // B
+										dst[1] = src[1]; // G
+										dst[2] = src[0]; // R
+										src += 4;
+										dst += 3;
+									}
+									dstRow += bitmapData.Stride;
+								}
+								CIsoViewExt::pFullBitmap->UnlockBits(&bitmapData);
+								CIsoViewExt::RenderTileSuccess = true;
+							}
+						}
+					}
+
+					glBindFramebuffer(GL_READ_FRAMEBUFFER, prevReadFBO);
+				}
+			}
+			else if (auto pOffscreenTex = pDX->GetOffscreenTexture())
 			{
 				auto pDevice = pDX->GetDevice();
 				auto pContext = pDX->GetContext();
@@ -3752,21 +3831,16 @@ static void DrawMap()
 				D3D11_TEXTURE2D_DESC texDesc;
 				pOffscreenTex->GetDesc(&texDesc);
 
-				// Use client area rect as source â€? the offscreen texture starts at (0,0)
-				// in client coordinates, NOT at the window screen position.
 				int clientW = pDX->GetClientWidth();
 				int clientH = pDX->GetClientHeight();
 				int srcLeft = 0, srcTop = 0;
 				int srcW = clientW, srcH = clientH;
 
-				// Clip to offscreen texture bounds
 				if (srcLeft + srcW > (int)texDesc.Width)
 					srcW = texDesc.Width - srcLeft;
 				if (srcTop + srcH > (int)texDesc.Height)
 					srcH = texDesc.Height - srcTop;
 
-				// Handle negative destination (left/top edge of map):
-				// offset source rect and reduce copy size accordingly.
 				if (pngPosX < 0)
 				{
 					srcLeft += (-pngPosX);

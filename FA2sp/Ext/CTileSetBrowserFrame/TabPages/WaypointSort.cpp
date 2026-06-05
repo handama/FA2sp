@@ -327,6 +327,7 @@ void WaypointSort::LoadAllTriggers()
 void WaypointSort::Clear()
 {
     TreeViewHelper::ClearTreeView(this->GetHwnd());
+    this->IndexClear();
 }
 
 BOOL WaypointSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
@@ -499,23 +500,35 @@ WaypointSort::operator HWND() const
     return this->GetHwnd();
 }
 
+std::string WaypointSort::MakeLabelKey(HTREEITEM hParent, LPCSTR pszLabel)
+{
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%p:", hParent);
+    return std::string(buf) + pszLabel;
+}
+
+void WaypointSort::IndexAdd(HTREEITEM hParent, LPCSTR pszLabel, HTREEITEM hItem) const
+{
+    if (hParent && pszLabel && pszLabel[0])
+        m_labelIndex[MakeLabelKey(hParent, pszLabel)] = hItem;
+}
+
+void WaypointSort::IndexRemove(HTREEITEM hParent, LPCSTR pszLabel) const
+{
+    if (hParent && pszLabel && pszLabel[0])
+        m_labelIndex.erase(MakeLabelKey(hParent, pszLabel));
+}
+
+void WaypointSort::IndexClear() const
+{
+    m_labelIndex.clear();
+}
+
 HTREEITEM WaypointSort::FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const
 {
-    TVITEM tvi;
-    char chLabel[0x200];
-
-    for (tvi.hItem = TreeView_GetChild(this->GetHwnd(), hItemParent); tvi.hItem;
-        tvi.hItem = TreeView_GetNextSibling(this->GetHwnd(), tvi.hItem))
-    {
-        tvi.mask = TVIF_TEXT | TVIF_CHILDREN;
-        tvi.pszText = chLabel;
-        tvi.cchTextMax = _countof(chLabel);
-        if (TreeView_GetItem(this->GetHwnd(), &tvi))
-        {
-            if (strcmp(tvi.pszText, pszLabel) == 0)
-                return tvi.hItem;
-        }
-    }
+    auto it = m_labelIndex.find(MakeLabelKey(hItemParent, pszLabel));
+    if (it != m_labelIndex.end())
+        return it->second;
     return NULL;
 }
 
@@ -550,7 +563,8 @@ void WaypointSort::AddTrigger(FString triggerId, int x, int y) const
         
 
         auto hParent = TVI_ROOT;
-        TreeViewHelper::InsertTreeItem(this->GetHwnd(), pSrc, triggerId, hParent);
+        auto hWpItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), pSrc, triggerId, hParent);
+        this->IndexAdd(hParent, pSrc, hWpItem);
 
         if (HTREEITEM hNode = this->FindLabel(hParent, pSrc))
         {

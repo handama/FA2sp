@@ -10,6 +10,7 @@
 #include "../CIsoView/DirectXCore.h"
 #include "../CLoading/Body.h"
 #include "../CMapData/Body.h"
+#include "../CTileSetBrowserFrame/Body.h"
 #include "RendererTypes.h"
 #include <CLoading.h>
 #include <CPalette.h>
@@ -697,6 +698,7 @@ static void DrawMap()
 			CIsoViewExt::MouseCenterPosition = {-1919810, -1919810};
 			InitAllObjects();
 			CLoadingExt::ObjectsNeedReloaded = false;
+			CTileSetBrowserFrameExt::RefreshWindows();
 			if (ExtConfigs::HiDPIAwareness_ScaleIsoView && !CIsoViewExt::RenderingMap && ExtConfigs::DirectXRendering)
 				CIsoViewExt::GetExtension()->Zoom(0.0, true);
 		}

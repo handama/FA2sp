@@ -57,7 +57,14 @@ private:
     void AddAttachedTrigger(HTREEITEM hParent, FString triggerID, FString parentName) const;
     void AddAttachedTriggerReverse(HTREEITEM hParent, FString triggerID, FString parentName) const;
 
+    // 标签索引缓存：将 FindLabel 的 O(n) 树遍历转为 O(1) 哈希查找
+    static std::string MakeLabelKey(HTREEITEM hParent, LPCSTR pszLabel);
+    void IndexAdd(HTREEITEM hParent, LPCSTR pszLabel, HTREEITEM hItem) const;
+    void IndexRemove(HTREEITEM hParent, LPCSTR pszLabel) const;
+    void IndexClear() const;
+
 private:
     HWND m_hWnd;
     FString m_strPrefix;
+    mutable std::unordered_map<std::string, HTREEITEM> m_labelIndex;
 };

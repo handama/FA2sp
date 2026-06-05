@@ -3,6 +3,7 @@
 #include "../Body.h"
 
 #include <map>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -52,7 +53,13 @@ private:
     void AddAttachedTrigger(HTREEITEM hParent, FString triggerID, FString parentName) const;
     void AddAttachedTriggerReverse(HTREEITEM hParent, FString triggerID, FString parentName) const;
 
+    static std::string MakeLabelKey(HTREEITEM hParent, LPCSTR pszLabel);
+    void IndexAdd(HTREEITEM hParent, LPCSTR pszLabel, HTREEITEM hItem) const;
+    void IndexRemove(HTREEITEM hParent, LPCSTR pszLabel) const;
+    void IndexClear() const;
+
 private:
     HWND m_hWnd;
     FString m_strPrefix;
+    mutable std::unordered_map<std::string, HTREEITEM> m_labelIndex;
 };

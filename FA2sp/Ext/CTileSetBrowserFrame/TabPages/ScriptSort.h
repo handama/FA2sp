@@ -3,6 +3,8 @@
 #include "../Body.h"
 
 #include <map>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 class ScriptSort
@@ -43,7 +45,13 @@ private:
     std::vector<FString> GetGroup(FString triggerId, FString& name) const;
     void AddTrigger(std::vector<FString> group, FString name, FString id) const;
 
+    static std::string MakeLabelKey(HTREEITEM hParent, LPCSTR pszLabel);
+    void IndexAdd(HTREEITEM hParent, LPCSTR pszLabel, HTREEITEM hItem) const;
+    void IndexRemove(HTREEITEM hParent, LPCSTR pszLabel) const;
+    void IndexClear() const;
+
 private:
     HWND m_hWnd;
     FString m_strPrefix;
+    mutable std::unordered_map<std::string, HTREEITEM> m_labelIndex;
 };

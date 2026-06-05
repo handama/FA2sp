@@ -9,6 +9,7 @@
 #include "../../CMapData/Body.h"
 #include "../../../Helpers/Translations.h"
 #include "../../../ExtraWindow/CNewTeamTypes/CNewTeamTypes.h"
+#include "../../../ExtraWindow/CNewTag/CNewTag.h"
 #include "../../../Miscs/StringtableLoader.h"
 #include "../../../Miscs/DialogStyle.h"
 
@@ -160,8 +161,6 @@ void TagSort::LoadAllTriggers()
         }
     }
 
-    // TODO : 
-    // Optimisze the efficiency
     SendMessage(this->GetHwnd(), WM_SETREDRAW, FALSE, 0);
     if (auto pSection = CINI::CurrentDocument->GetSection("Tags"))
     {
@@ -178,6 +177,7 @@ void TagSort::LoadAllTriggers()
 void TagSort::Clear()
 {
     TreeViewHelper::ClearTreeView(this->GetHwnd());
+    this->IndexClear();
 }
 
 BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
@@ -192,84 +192,20 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
             bool finished = false;
             if (strlen(pID) && ExtConfigs::InitializeMap)
             {
-                //::MessageBox(NULL, pID, "test", MB_OK);
-                if (IsWindowVisible(CFinalSunDlg::Instance->Tags.m_hWnd))
-                {
-                    
-                    FString pStr = CINI::CurrentDocument->GetString("Tags", pID);
+				if (IsWindowVisible(CNewTag::GetHandle()))
+				{
+					auto text = ExtraWindow::GetTagDisplayName(pID);
+					auto idx = CNewTag::vcbSelectedTag.FindStringExact(text);
+					if (idx == CB_ERR)
+						return FALSE;
 
-                    auto results = FString::SplitString(pStr);
-                    if (results.size() >= 3)
-                    {
-                        FString pIDs = pID;
-                        pStr = pIDs + " (" + results[1] + ")";
-                        auto idx = CFinalSunDlg::Instance->Tags.CCBTagList.FindStringExact(0, pStr);
-                        if (idx != CB_ERR)
-                        {
-
-                            CFinalSunDlg::Instance->Tags.CCBTagList.SetCurSel(idx);
-                            CFinalSunDlg::Instance->Tags.OnCBCurrentTagSelectedChanged();
-
-                            finished = true;
-                        }
-                        else
-                            finished = false;
-
-                    }
-                    else
-                        finished = false;
-
-                }
-                //else if (IsWindowVisible(CNewTeamTypes::GetHandle()))
-                //{
-                //    FString pStr = CINI::CurrentDocument->GetString("Tags", pID);
-                //    auto results = FString::SplitString(pStr);
-                //    if (results.size() >= 3)
-                //    {
-                //        FString space1 = " (";
-                //        FString space2 = ")";
-                //
-                //        int idx = SendMessage(CNewTeamTypes::hTag, CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space1 + results[1] + space2).GetString());
-                //        if (idx != CB_ERR)
-                //        {
-                //            SendMessage(CNewTeamTypes::hTag, CB_SETCURSEL, idx, NULL);
-                //            CNewTeamTypes::OnSelchangeTag();
-                //            finished = true;
-                //        }
-                //    }
-                //}
-                //else if (IsWindowVisible(CNewTrigger::GetHandle()))
-                //{
-                //    FString pStr = CINI::CurrentDocument->GetString("Tags", pID);
-                //
-                //    auto results = FString::SplitString(pStr);
-                //    if (results.size() >= 3)
-                //    {
-                //        FString pIDs = pID;
-                //        pStr = pIDs + " - " + results[1];
-                //        for (int i = 0; i < EVENT_PARAM_COUNT; i++)
-                //        {
-                //            int idx = SendMessage(CNewTrigger::hEventParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)pStr.GetString());
-                //            if (idx != CB_ERR)
-                //            {
-                //                SendMessage(CNewTrigger::CNewTrigger::hEventParameter[i], CB_SETCURSEL, idx, NULL);
-                //                CNewTrigger::OnSelchangeEventParam(i);
-                //                finished = true;
-                //            }
-                //        }
-                //        for (int i = 0; i < ACTION_PARAM_COUNT; i++)
-                //        {
-                //            int idx = SendMessage(CNewTrigger::hActionParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)pStr.GetString());
-                //            if (idx != CB_ERR)
-                //            {
-                //                SendMessage(CNewTrigger::CNewTrigger::hActionParameter[i], CB_SETCURSEL, idx, NULL);
-                //                CNewTrigger::OnSelchangeActionParam(i);
-                //                finished = true;
-                //            }
-                //        }
-                //    }
-                //}
-                if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
+					CNewTag::vcbSelectedTag.SetCurSel(idx);
+					CNewTag::OnSelchangeTag();
+					return TRUE;
+				}
+				else
+					return FALSE;
+				if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
                 {
                     FString pStr = CINI::CurrentDocument->GetString("Triggers", pID);
                     auto results = FString::SplitString(pStr);
@@ -557,24 +493,41 @@ TagSort::operator HWND() const
     return this->GetHwnd();
 }
 
+std::string TagSort::MakeLabelKey(HTREEITEM hParent, LPCSTR pszLabel)
+{
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%p:", hParent);
+    return std::string(buf) + pszLabel;
+}
+
+void TagSort::IndexAdd(HTREEITEM hParent, LPCSTR pszLabel, HTREEITEM hItem) const
+{
+    if (hParent && pszLabel && pszLabel[0])
+    {    
+        m_labelIndex[MakeLabelKey(hParent, pszLabel)] = hItem;
+		Logger::Raw("%d %d %s\n", (int)hParent, (int)hItem, pszLabel);
+	}
+}
+
+void TagSort::IndexRemove(HTREEITEM hParent, LPCSTR pszLabel) const
+{
+    if (hParent && pszLabel && pszLabel[0])
+        m_labelIndex.erase(MakeLabelKey(hParent, pszLabel));
+}
+
+void TagSort::IndexClear() const
+{
+    m_labelIndex.clear();
+}
+
 HTREEITEM TagSort::FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const
 {
-    TVITEM tvi;
-    char chLabel[0x200] = {0};
+    auto key = MakeLabelKey(hItemParent, pszLabel);
+    auto it = m_labelIndex.find(key);
+    if (it != m_labelIndex.end())
+        return it->second;
 
-    for (tvi.hItem = TreeView_GetChild(this->GetHwnd(), hItemParent); tvi.hItem;
-        tvi.hItem = TreeView_GetNextSibling(this->GetHwnd(), tvi.hItem))
-    {
-        tvi.mask = TVIF_TEXT | TVIF_CHILDREN;
-        tvi.pszText = chLabel;
-        tvi.cchTextMax = _countof(chLabel);
-        if (TreeView_GetItem(this->GetHwnd(), &tvi))
-        {
-            if (strcmp(tvi.pszText, pszLabel) == 0)
-                return tvi.hItem;
-        }
-    }
-    return NULL;
+	return NULL;
 }
 
 std::vector<FString> TagSort::GetGroup(FString triggerId, FString& name) const
@@ -608,7 +561,8 @@ void TagSort::AddAttachedTrigger(HTREEITEM hParent, FString triggerID, FString p
         {
             FString pTrigger2 = Translations::TranslateOrDefault("Sort.DetectedLoopedTrigger", "Detected Looped Trigger!");
             hParent = hNode;
-            TreeViewHelper::InsertTreeItem(this->GetHwnd(), pTrigger2, pTrigger2, hParent);
+            auto hItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), pTrigger2, pTrigger2, hParent);
+            this->IndexAdd(hParent, pTrigger2, hItem);
             return;
         }  
     }
@@ -622,7 +576,8 @@ void TagSort::AddAttachedTrigger(HTREEITEM hParent, FString triggerID, FString p
             pTrigger2 = FString(Translations::TranslateOrDefault("Sort.AttachedTrigger", "Attached Trigger:")) + " " + pTrigger2;
             hParent = hNode;
             pTrigger2 += " (" + TriggerTags[triggerID] + ")";
-            TreeViewHelper::InsertTreeItem(this->GetHwnd(), pTrigger2, TriggerTags[triggerID], hParent);
+            auto hItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), pTrigger2, TriggerTags[triggerID], hParent);
+            this->IndexAdd(hParent, pTrigger2, hItem);
             attachedTriggers.insert(TriggerTags[triggerID]);
             AddAttachedTrigger(hParent, TriggerTags[triggerID], pTrigger2);
         }
@@ -644,7 +599,8 @@ void TagSort::AddAttachedTriggerReverse(HTREEITEM hParent, FString triggerID, FS
                     {
                         FString pTrigger2 = Translations::TranslateOrDefault("Sort.DetectedLoopedTrigger", "Detected Looped Trigger!");
                         hParent = hNode;
-                        TreeViewHelper::InsertTreeItem(this->GetHwnd(), pTrigger2, pTrigger2, hParent);
+                        auto hItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), pTrigger2, pTrigger2, hParent);
+                        this->IndexAdd(hParent, pTrigger2, hItem);
                         return;
                     }
                 }
@@ -656,7 +612,8 @@ void TagSort::AddAttachedTriggerReverse(HTREEITEM hParent, FString triggerID, FS
                 pTrigger2 = FString(Translations::TranslateOrDefault("Sort.TriggerAttachedTo", "Trigger Attached To:")) + " " + pTrigger2;
                 hParent = hNode;
                 pTrigger2 += " (" + parentTrigger + ")";
-                TreeViewHelper::InsertTreeItem(this->GetHwnd(), pTrigger2, parentTrigger, hParent);
+                auto hItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), pTrigger2, parentTrigger, hParent);
+                this->IndexAdd(hParent, pTrigger2, hItem);
                 attachedTriggers.insert(parentTrigger);
                 AddAttachedTriggerReverse(hParent, parentTrigger, pTrigger2);
             }
@@ -687,7 +644,9 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
         else
         {
             FString nodeCombo = FString::Join(currentNodes, ".");
-            hParent = TreeViewHelper::InsertTreeItem(this->GetHwnd(), node, nodeCombo, hParent, true);
+            auto hOldParent = hParent;
+            hParent = TreeViewHelper::InsertTreeItem(this->GetHwnd(), node, nodeCombo, hOldParent, true);
+            this->IndexAdd(hOldParent, node, hParent);
         }
     }
 
@@ -697,14 +656,18 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
         item.hItem = hNode;
         if (TreeView_GetItem(this->GetHwnd(), &item))
         {
+            auto* pOldData = TreeViewHelper::GetTreeItemData(this->GetHwnd(), item.hItem);
+            if (pOldData)
+                this->IndexRemove(hParent, pOldData->label);
             FString text = item.pszText;
             text += " (" + id + ")";
             if (attached)
             {
                 text += " ";
-                text += Translations::TranslateOrDefault("Sort.HasAttachedObject", "¡ùHas Attached Object¡ù");
+                text += Translations::TranslateOrDefault("Sort.HasAttachedObject", "**Has Attached Object**");
             }
             TreeViewHelper::UpdateTreeItem(this->GetHwnd(), item.hItem, text, id);
+            this->IndexAdd(hParent, text, item.hItem);
         }
     }
     else
@@ -714,9 +677,10 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
         if (attached)
         {
             text += " ";
-            text += Translations::TranslateOrDefault("Sort.HasAttachedObject", "¡ùHas Attached Object¡ù");
+            text += Translations::TranslateOrDefault("Sort.HasAttachedObject", "**Has Attached Object**");
         }
-        TreeViewHelper::InsertTreeItem(this->GetHwnd(), text, id, hParent);
+        auto hTagItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), text, id, hParent);
+        this->IndexAdd(hParent, text, hTagItem);
 
         auto tag = CINI::CurrentDocument->GetString("Tags", id);
         auto atoms = FString::SplitString(tag);
@@ -742,7 +706,8 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                 if (TagTriggers[id] != "")
                 {
                     pSrc += " (" + TagTriggers[id] + ")";
-                    TreeViewHelper::InsertTreeItem(this->GetHwnd(), pSrc, TagTriggers[id], hParent);
+                    auto hTriggerItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), pSrc, TagTriggers[id], hParent);
+                    this->IndexAdd(hParent, pSrc, hTriggerItem);
                     attachedTriggers.insert(triggerID);
                     AddAttachedTrigger(hParent, triggerID, pSrc);
                 }
@@ -766,7 +731,8 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                         {
                             hParentObj = hNode;
                             hParent = hNode;
-                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
+                            auto hCatItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
+                            this->IndexAdd(hParent, objList, hCatItem);
                             first = false;
                         }
 
@@ -774,7 +740,8 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                         {
                             FString uiname = CViewObjectsExt::QueryUIName(atomsObj[1]) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
                             hParent = hNode;
-                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, pairObj, hParent);
+                            auto hObjItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, pairObj, hParent);
+                            this->IndexAdd(hParent, uiname, hObjItem);
                         }
                     }
                 }
@@ -791,7 +758,8 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                         {
                             hParentObj = hNode;
                             hParent = hNode;
-                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
+                            auto hCatItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
+                            this->IndexAdd(hParent, objList, hCatItem);
                             first = false;
                         }
 
@@ -799,7 +767,8 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                         {
                             FString uiname = CViewObjectsExt::QueryUIName(atomsObj[1]) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
                             hParent = hNode;
-                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, pairObj, hParent);
+                            auto hObjItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, pairObj, hParent);
+                            this->IndexAdd(hParent, uiname, hObjItem);
                         }
                     }
                 }
@@ -817,7 +786,8 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                         {
                             hParentObj = hNode;
                             hParent = hNode;
-                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
+                            auto hCatItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
+                            this->IndexAdd(hParent, objList, hCatItem);
                             first = false;
                         }
 
@@ -825,7 +795,8 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                         {
                             FString uiname = CViewObjectsExt::QueryUIName(atomsObj[1]) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
                             hParent = hNode;
-                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, pairObj, hParent);
+                            auto hObjItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, pairObj, hParent);
+                            this->IndexAdd(hParent, uiname, hObjItem);
                         }
                     }
                 }
@@ -843,7 +814,8 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                         {
                             hParentObj = hNode;
                             hParent = hNode;
-                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
+                            auto hCatItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
+                            this->IndexAdd(hParent, objList, hCatItem);
 
                             first = false;
                         }
@@ -852,7 +824,8 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                         {
                             FString uiname = CViewObjectsExt::QueryUIName(atomsObj[1]) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
                             hParent = hNode;
-                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, pairObj, hParent);
+                            auto hObjItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, pairObj, hParent);
+                            this->IndexAdd(hParent, uiname, hObjItem);
                         }
                     }
                 }
@@ -869,7 +842,8 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                         {
                             hParentTeam = hNode;
                             hParent = hNode;
-                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
+                            auto hCatItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
+                            this->IndexAdd(hParent, objList, hCatItem);
                             first = false;
                         }
 
@@ -878,7 +852,8 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                             FString uiname = FString(CINI::CurrentDocument->GetString(teamID, "Name")) + " (" + teamID + ")";
 
                             hParent = hNode;
-                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, teamID, hParent);
+                            auto hObjItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, teamID, hParent);
+                            this->IndexAdd(hParent, uiname, hObjItem);
                         }
                     }
 
@@ -894,7 +869,8 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                         {
                             hParentObj = hNode;
                             hParent = hNode;
-                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
+                            auto hCatItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
+                            this->IndexAdd(hParent, objList, hCatItem);
                             first = false;
                         }
 
@@ -907,7 +883,8 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                             FString uiname;
                             uiname.Format(Translations::TranslateOrDefault("Sort.CellTagCoord", "Coordinate: %d, %d"), X, Y);
                             hParent = hNode;
-                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, celltag, hParent);
+                            auto hObjItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, celltag, hParent);
+                            this->IndexAdd(hParent, uiname, hObjItem);
                         }
                     }
             }

@@ -54,6 +54,7 @@ void TriggerSort::LoadAllTriggers()
 void TriggerSort::Clear()
 {
     TreeViewHelper::ClearTreeView(this->GetHwnd());
+    this->IndexClear();
 }
 
 BOOL TriggerSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
@@ -236,23 +237,35 @@ TriggerSort::operator HWND() const
     return this->GetHwnd();
 }
 
+std::string TriggerSort::MakeLabelKey(HTREEITEM hParent, LPCSTR pszLabel)
+{
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%p:", hParent);
+    return std::string(buf) + pszLabel;
+}
+
+void TriggerSort::IndexAdd(HTREEITEM hParent, LPCSTR pszLabel, HTREEITEM hItem) const
+{
+    if (hParent && pszLabel && pszLabel[0])
+        m_labelIndex[MakeLabelKey(hParent, pszLabel)] = hItem;
+}
+
+void TriggerSort::IndexRemove(HTREEITEM hParent, LPCSTR pszLabel) const
+{
+    if (hParent && pszLabel && pszLabel[0])
+        m_labelIndex.erase(MakeLabelKey(hParent, pszLabel));
+}
+
+void TriggerSort::IndexClear() const
+{
+    m_labelIndex.clear();
+}
+
 HTREEITEM TriggerSort::FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const
 {
-    TVITEM tvi;
-    char chLabel[0x200] = { 0 };
-
-    for (tvi.hItem = TreeView_GetChild(this->GetHwnd(), hItemParent); tvi.hItem;
-        tvi.hItem = TreeView_GetNextSibling(this->GetHwnd(), tvi.hItem))
-    {
-        tvi.mask = TVIF_TEXT | TVIF_CHILDREN;
-        tvi.pszText = chLabel;
-        tvi.cchTextMax = _countof(chLabel);
-        if (TreeView_GetItem(this->GetHwnd(), &tvi))
-        {
-            if (strcmp(tvi.pszText, pszLabel) == 0)
-                return tvi.hItem;
-        }
-    }
+    auto it = m_labelIndex.find(MakeLabelKey(hItemParent, pszLabel));
+    if (it != m_labelIndex.end())
+        return it->second;
     return NULL;
 }
 void TriggerSort::AddAttachedTrigger(HTREEITEM hParent, FString triggerID, FString parentName) const
@@ -263,7 +276,8 @@ void TriggerSort::AddAttachedTrigger(HTREEITEM hParent, FString triggerID, FStri
         {
             FString pTrigger2 = Translations::TranslateOrDefault("Sort.DetectedLoopedTrigger", "Detected Looped Trigger!");
             hParent = hNode;
-            TreeViewHelper::InsertTreeItem(this->GetHwnd(), pTrigger2, pTrigger2, hParent);
+            auto hLoopItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), pTrigger2, pTrigger2, hParent);
+            this->IndexAdd(hParent, pTrigger2, hLoopItem);
             return;
         }
     }
@@ -278,7 +292,8 @@ void TriggerSort::AddAttachedTrigger(HTREEITEM hParent, FString triggerID, FStri
                 pTrigger2 = RET2[2];
                 FString pszText = FString(Translations::TranslateOrDefault("Sort.AttachedTrigger", "Attached Trigger:")) + " " + pTrigger2 + " (" + TriggerTags[triggerID] + ")";
                 hParent = hNode;
-                TreeViewHelper::InsertTreeItem(this->GetHwnd(), pszText, TriggerTags[triggerID], hParent);             
+                auto hItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), pszText, TriggerTags[triggerID], hParent);
+                this->IndexAdd(hParent, pszText, hItem);             
                 attachedTriggers.insert(TriggerTags[triggerID]);
                 AddAttachedTrigger(hParent, TriggerTags[triggerID], pszText);
             }
@@ -299,7 +314,8 @@ void TriggerSort::AddAttachedTriggerReverse(HTREEITEM hParent, FString triggerID
                     {
                         FString pTrigger2 = Translations::TranslateOrDefault("Sort.DetectedLoopedTrigger", "Detected Looped Trigger!");
                         hParent = hNode;
-                        TreeViewHelper::InsertTreeItem(this->GetHwnd(), pTrigger2, pTrigger2, hParent);
+                        auto hLoopItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), pTrigger2, pTrigger2, hParent);
+                        this->IndexAdd(hParent, pTrigger2, hLoopItem);
                         return;
                     }
                 }
@@ -311,7 +327,8 @@ void TriggerSort::AddAttachedTriggerReverse(HTREEITEM hParent, FString triggerID
                     pTrigger2 = RET2[2];
                     FString pszText = FString(Translations::TranslateOrDefault("Sort.TriggerAttachedTo", "Trigger Attached To:")) + " " + pTrigger2 + " (" + parentTrigger + ")";
                     hParent = hNode;
-                    TreeViewHelper::InsertTreeItem(this->GetHwnd(), pszText, parentTrigger, hParent);
+                    auto hItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), pszText, parentTrigger, hParent);
+                    this->IndexAdd(hParent, pszText, hItem);
                     attachedTriggers.insert(parentTrigger);
                     AddAttachedTriggerReverse(hParent, parentTrigger, pszText);
                 }
@@ -357,7 +374,9 @@ void TriggerSort::AddTrigger(std::vector<FString> group, FString name, FString i
         else
         {
             FString nodeCombo = FString::Join(currentNodes, ".");
-            hParent = TreeViewHelper::InsertTreeItem(this->GetHwnd(), node, nodeCombo, hParent, true);
+            auto hOldParent = hParent;
+            hParent = TreeViewHelper::InsertTreeItem(this->GetHwnd(), node, nodeCombo, hOldParent, true);
+            this->IndexAdd(hOldParent, node, hParent);
         }
     }
 
@@ -367,16 +386,21 @@ void TriggerSort::AddTrigger(std::vector<FString> group, FString name, FString i
         item.hItem = hNode;
         if (TreeView_GetItem(this->GetHwnd(), &item))
         {
+            auto* pOldData = TreeViewHelper::GetTreeItemData(this->GetHwnd(), item.hItem);
+            if (pOldData)
+                this->IndexRemove(hParent, pOldData->label);
             FString text = item.pszText;
             text += " (" + id + ")";
             TreeViewHelper::UpdateTreeItem(this->GetHwnd(), hNode, text, id);
+            this->IndexAdd(hParent, text, item.hItem);
         }
     }
     else
     {
         FString text = name;
         text += " (" + id + ")";
-        TreeViewHelper::InsertTreeItem(this->GetHwnd(), text, id, hParent);
+        auto hItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), text, id, hParent);
+        this->IndexAdd(hParent, text, hItem);
         if (HTREEITEM hNode = this->FindLabel(hParent, text))
         {
             auto hParent2 = hParent;

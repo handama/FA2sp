@@ -41,8 +41,8 @@ LRESULT CALLBACK CMinimapExt::MinimapWndProc(
         first = false;
 
         CMinimapExt::ASPECT_RATIO = (double)desiredWidth / desiredHeight;
-        CMinimapExt::InitWidth = desiredWidth;
-        CMinimapExt::CurrentScale = CFinalSunAppExt::ProgramScaleFactor;
+		CMinimapExt::InitWidth = CMapData::Instance->Size.Width * 2;
+		CMinimapExt::CurrentScale = CFinalSunAppExt::ProgramScaleFactor;
     };
 
     switch (uMsg)

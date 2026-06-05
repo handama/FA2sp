@@ -58,19 +58,41 @@ static std::vector<SubtextSegment> GetTriggerEnableText(Trigger* trigger)
     using G = SubtextGlyph;
     auto circle = [&](bool on) { return on ? G::FilledCircle : G::HollowCircle; };
     auto rect = trigger->Disabled ? G::BandedCircle : G::AllowCircle;
+	char repeat = '\0';
+	if (trigger->RepeatType == "0")
+		repeat = '0';
+	else if (trigger->RepeatType == "1")
+		repeat = '1';
+	else if (trigger->RepeatType == "2")
+		repeat = '2';
 
-    if (CNewTrigger::IsMultiPlay)
-    {
-        return {{ rect }};
+	SubtextSegment repeatSegment;
+	repeatSegment.type = G::Character;
+	repeatSegment.character = repeat;
+
+	if (CNewTrigger::IsMultiPlay)
+	{
+		if (repeat != '\0')
+			return {repeatSegment, {G::Space}, {rect}};
+		else
+            return {{rect}};
     }
 
-    return {
-        { circle(trigger->EasyEnabled) },
-        { circle(trigger->MediumEnabled) },
-        { circle(trigger->HardEnabled) },
-        { G::Space },
-        { rect }
-    };
+	if (repeat != '\0')
+		return {
+			repeatSegment,
+			{circle(trigger->EasyEnabled)},
+			{circle(trigger->MediumEnabled)},
+			{circle(trigger->HardEnabled)},
+			{G::Space},
+			{rect}};
+	else
+		return {
+			{circle(trigger->EasyEnabled)},
+			{circle(trigger->MediumEnabled)},
+			{circle(trigger->HardEnabled)},
+			{G::Space},
+			{rect}};
 }
 
 void CNewTrigger::Create(CFinalSunDlg* pWnd)
@@ -1656,9 +1678,10 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         case Controls::Disabled:
             if (CODE == BN_CLICKED && CurrentTrigger)
             {
-                CurrentTrigger->Disabled = SendMessage(hDisabled, BM_GETCHECK, 0, 0);
+				CurrentTrigger->Disabled = SendMessage(hDisabled, BM_GETCHECK, 0, 0);
+				CurrentTrigger->Save();
 
-                for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+				for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
                 {
                     auto pThis = &Instance[i];
                     if (pThis->GetHandle())
@@ -1678,16 +1701,16 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                     }
                 }
 
-                CurrentTrigger->Save();
                 RefreshOtherInstances();
             }
             break;
         case Controls::Easy:
             if (CODE == BN_CLICKED && CurrentTrigger)
             {
-                CurrentTrigger->EasyEnabled = SendMessage(hEasy, BM_GETCHECK, 0, 0);
+				CurrentTrigger->EasyEnabled = SendMessage(hEasy, BM_GETCHECK, 0, 0);
+				CurrentTrigger->Save();
 
-                for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+				for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
                 {
                     auto pThis = &Instance[i];
                     if (pThis->GetHandle())
@@ -1707,16 +1730,16 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                     }
                 }
 
-                CurrentTrigger->Save();
                 RefreshOtherInstances();
             }
             break;
         case Controls::Medium:
             if (CODE == BN_CLICKED && CurrentTrigger)
             {
-                CurrentTrigger->MediumEnabled = SendMessage(hMedium, BM_GETCHECK, 0, 0);
+				CurrentTrigger->MediumEnabled = SendMessage(hMedium, BM_GETCHECK, 0, 0);
+				CurrentTrigger->Save();
 
-                for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+				for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
                 {
                     auto pThis = &Instance[i];
                     if (pThis->GetHandle())
@@ -1736,16 +1759,16 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                     }
                 }
 
-                CurrentTrigger->Save();
                 RefreshOtherInstances();
             }
             break;
         case Controls::Hard:
             if (CODE == BN_CLICKED && CurrentTrigger)
             {
-                CurrentTrigger->HardEnabled = SendMessage(hHard, BM_GETCHECK, 0, 0);
+				CurrentTrigger->HardEnabled = SendMessage(hHard, BM_GETCHECK, 0, 0);
+				CurrentTrigger->Save();
 
-                for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+				for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
                 {
                     auto pThis = &Instance[i];
                     if (pThis->GetHandle())
@@ -1765,7 +1788,6 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                     }
                 }
                 
-                CurrentTrigger->Save();
                 RefreshOtherInstances();
             }
             break;
@@ -2184,7 +2206,27 @@ void CNewTrigger::OnSelchangeType(bool edited)
     CurrentTrigger->RepeatType = text;
     CurrentTrigger->Save();
 
-    RefreshOtherInstances();
+	for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+	{
+		auto pThis = &Instance[i];
+		if (pThis->GetHandle())
+		{
+			pThis->vcbSelectedTrigger.ReplaceSubtext(
+				SelectedTriggerIndex,
+				GetTriggerEnableText(CurrentTrigger.get()));
+			pThis->vcbAttachedTrigger.ReplaceSubtext(
+				SelectedTriggerIndex + 1,
+				GetTriggerEnableText(CurrentTrigger.get()));
+			if (pThis->CurrentTriggerActionParam > -1)
+			{
+				pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
+					SelectedTriggerIndex,
+					GetTriggerEnableText(CurrentTrigger.get()));
+			}
+		}
+	}
+
+	RefreshOtherInstances();
 }
 
 void CNewTrigger::OnSelchangeEventType(bool edited)

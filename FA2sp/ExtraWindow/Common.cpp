@@ -167,8 +167,14 @@ FString ExtraWindow::GetTranslatedSectionName(const char* section)
 
 int ExtraWindow::FindCBStringExactStart(HWND hComboBox, const char* searchText)
 {
-    int itemCount = SendMessage(hComboBox, CB_GETCOUNT, 0, 0);
-    for (int i = 0; i < itemCount; ++i) {
+	auto itr = VirtualComboBoxEx::VirtualComboBoxExMap.find(hComboBox);
+	if (itr != VirtualComboBoxEx::VirtualComboBoxExMap.end())
+    {
+		return itr->second->FindStringExactStart(searchText);
+	}
+
+	int itemCount = SendMessage(hComboBox, CB_GETCOUNT, 0, 0);
+	for (int i = 0; i < itemCount; ++i) {
         char buffer[256]{ 0 };
         SendMessage(hComboBox, CB_GETLBTEXT, i, reinterpret_cast<LPARAM>(buffer));
 
@@ -1842,6 +1848,7 @@ bool LabelMatcher::MatchPattern(const FString& target, const Pattern& pattern) c
 #define ITEM_HEIGHT  15
 
 int VirtualComboBoxEx::m_itemHeight = ITEM_HEIGHT;
+std::map<HWND, VirtualComboBoxEx*> VirtualComboBoxEx::VirtualComboBoxExMap;
 VirtualComboBoxEx::VirtualComboBoxEx() {}
 VirtualComboBoxEx::~VirtualComboBoxEx() { Detach(); }
 
@@ -1871,6 +1878,8 @@ void VirtualComboBoxEx::Attach(HWND hwnd, bool* sortType, bool allowFreeText)
     m_sortType = sortType;
     m_programmaticDropdown = false;
     m_allowFreeText = allowFreeText;
+
+	VirtualComboBoxExMap[hCombo] = this;
 }
 
 void VirtualComboBoxEx::SetAutoSearchRestriction(bool* restrict)
@@ -1898,6 +1907,12 @@ void VirtualComboBoxEx::Detach()
         m_hCurBrush = nullptr;
     }
 
+    if (m_hGlyphFont)
+    {
+        DeleteObject(m_hGlyphFont);
+        m_hGlyphFont = nullptr;
+    }
+
     if (hCombo && oldComboProc)
         SetWindowLongPtr(hCombo, GWLP_WNDPROC, (LONG_PTR)oldComboProc);
 
@@ -1907,7 +1922,9 @@ void VirtualComboBoxEx::Detach()
     if (hList && oldListProc)
         SetWindowLongPtr(hList, GWLP_WNDPROC, (LONG_PTR)oldListProc);
 
-    hCombo = hEdit = hList = nullptr;
+	VirtualComboBoxExMap.erase(hCombo);
+
+	hCombo = hEdit = hList = nullptr;
 }
 
 void VirtualComboBoxEx::CopyFrom(const VirtualComboBoxEx& other,
@@ -2422,20 +2439,42 @@ int VirtualComboBoxEx::CalcMaxItemWidth()
     HFONT hFont = (HFONT)SendMessage(hCombo, WM_GETFONT, 0, 0);
     HFONT oldFont = (HFONT)SelectObject(hdc, hFont);
 
-    SIZE sz = {};
-    int maxW = 0;
+    float scale = CFinalSunAppExt::ProgramScaleFactor;
+
+    TEXTMETRIC tm;
+    GetTextMetrics(hdc, &tm);
+	int glyphSize = std::max(6, int(tm.tmHeight * 3) / 5);
+	int glyphGap = 1;
+
+	SIZE sz = {};
+	int maxW = 0;
 
     for (const auto& s : items)
     {
         GetTextExtentPoint32A(hdc, s.text, (int)s.text.length(), &sz);
-        if (sz.cx > maxW)
-            maxW = sz.cx;
+        int itemW = sz.cx;
+
+        if (!s.subtextSegments.empty())
+        {
+            int subWidth = 0;
+            for (size_t i = 0; i < s.subtextSegments.size(); ++i)
+            {
+                int w = (s.subtextSegments[i].type == SubtextGlyph::Space) ? (glyphSize / 2) : glyphSize;
+                if (i + 1 < s.subtextSegments.size())
+                    w += glyphGap;
+                subWidth += w;
+            }
+            itemW += subWidth + (int)(10 * scale);
+        }
+
+        if (itemW > maxW)
+            maxW = itemW;
     }
 
     SelectObject(hdc, oldFont);
     ReleaseDC(hCombo, hdc);
 
-    maxW += 12;
+    maxW += (int)(12 * scale);
     maxW += GetSystemMetrics(SM_CXVSCROLL);
 
     maxW = std::min(maxW, ExtConfigs::AdjustDropdownWidth_Max);
@@ -2453,6 +2492,8 @@ int VirtualComboBoxEx::CalcItemWidth(int index)
     HFONT hFont = (HFONT)SendMessage(hCombo, WM_GETFONT, 0, 0);
     HFONT oldFont = (HFONT)SelectObject(hdc, hFont);
 
+    float scale = CFinalSunAppExt::ProgramScaleFactor;
+
     SIZE sz = {};
     GetTextExtentPoint32A(hdc, items[index].text, (int)items[index].text.length(), &sz);
     int maxW = sz.cx;
@@ -2462,24 +2503,25 @@ int VirtualComboBoxEx::CalcItemWidth(int index)
     {
         TEXTMETRIC tm;
         GetTextMetrics(hdc, &tm);
-        int glyphSize = std::max(6, (int)(tm.tmHeight * 3) / 5);
-        int glyphGap =  std::max(1, (int)glyphSize / 8);
+		int glyphSize = std::max(6, int(tm.tmHeight * 3) / 5);
+		float scale = CFinalSunAppExt::ProgramScaleFactor;
+		int glyphGap = 1;
 
-        int subWidth = 0;
-        for (size_t i = 0; i < segments.size(); ++i)
+		int subWidth = 0;
+		for (size_t i = 0; i < segments.size(); ++i)
         {
             int w = (segments[i].type == SubtextGlyph::Space) ? (glyphSize / 2) : glyphSize;
             if (i + 1 < segments.size())
                 w += glyphGap;
             subWidth += w;
         }
-        maxW += subWidth + 10;
+        maxW += subWidth + (int)(10 * scale);
     }
 
     SelectObject(hdc, oldFont);
     ReleaseDC(hCombo, hdc);
 
-    maxW += 12;
+    maxW += (int)(12 * scale);
     maxW += GetSystemMetrics(SM_CXVSCROLL);
 
     maxW = std::min(maxW, ExtConfigs::AdjustDropdownWidth_Max);
@@ -2874,7 +2916,8 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
             TEXTMETRIC tm;
             GetTextMetrics(hdc, &tm);
             int glyphSize = std::max(6, int(tm.tmHeight * 3) / 5);
-            int glyphGap = std::max(1, (int)glyphSize / 8);
+            float scale = CFinalSunAppExt::ProgramScaleFactor;
+            int glyphGap = 1;
 
             // Calculate total subtext width
             int totalSubWidth = 0;
@@ -2887,10 +2930,10 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
             }
 
             RECT rcText = rc;
-            rcText.left += 4;
+            rcText.left += (int)(4 * scale);
             if (item->leftSideBackground)
                 rcText.left += m_itemHeight;
-            rcText.right = rc.right - totalSubWidth - 10;
+            rcText.right = rc.right - totalSubWidth - (int)(10 * scale);
             DrawTextA(hdc, *text, -1, &rcText,
                 DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS);
 
@@ -2917,7 +2960,7 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
             // Draw GDI glyphs
             int rcHeight = rc.bottom - rc.top;
             int top = rc.top + (rcHeight - glyphSize) / 2;
-            int x = rc.right - 4 - totalSubWidth;
+            int x = rc.right - (int)(4 * scale) - totalSubWidth;
 
             COLORREF curColor = GetTextColor(hdc);
             HPEN hollowPen = CreatePen(PS_SOLID, 1, curColor);
@@ -2936,6 +2979,48 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
                 case SubtextGlyph::Space:
                     // draw nothing, just advance
                     break;
+				case SubtextGlyph::Character:
+				{
+					if (!pThis->m_hGlyphFont)
+					{
+						HFONT hMainFont = (HFONT)SendMessage(pThis->hCombo, WM_GETFONT, 0, 0);
+						if (hMainFont)
+						{
+							LOGFONTA lf = {};
+							GetObjectA(hMainFont, sizeof(lf), &lf);
+                            if (CFinalSunAppExt::ProgramScaleFactor > 1.25f)
+							    lf.lfHeight *= 0.8f;
+							else
+                                lf.lfHeight *= 0.9f;
+							pThis->m_hGlyphFont = CreateFontIndirectA(&lf);
+						}
+					}
+
+					HFONT oldGlyphFont = pThis->m_hGlyphFont
+											 ? (HFONT)SelectObject(hdc, pThis->m_hGlyphFont)
+											 : nullptr;
+
+					char ch[2] = {segments[i].character, '\0'};
+
+					SIZE sz{};
+					GetTextExtentPoint32A(hdc, ch, 1, &sz);
+
+					RECT rcChar = {
+						x + (glyphSize - sz.cx) / 2,
+						top + (glyphSize - sz.cy) / 2 - (CFinalSunAppExt::ProgramScaleFactor > 1.25f ? 1 : 0),
+						x + (glyphSize - sz.cx) / 2 + sz.cx,
+						top + (glyphSize - sz.cy) / 2 + sz.cy};
+
+					SetTextColor(hdc, curColor);
+					SetBkMode(hdc, TRANSPARENT);
+
+					DrawTextA(hdc, ch, 1, &rcChar,
+							  DT_SINGLELINE | DT_LEFT | DT_TOP);
+
+					if (oldGlyphFont)
+						SelectObject(hdc, oldGlyphFont);
+				}
+				break;
 
                 case SubtextGlyph::FilledCircle:
                     SelectObject(hdc, solidBrush);
@@ -3031,7 +3116,8 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
         }
         else
         {
-            rc.left += 4;
+            float scale = CFinalSunAppExt::ProgramScaleFactor;
+            rc.left += (int)(4 * scale);
             if (item->leftSideBackground)
                 rc.left += m_itemHeight;
 

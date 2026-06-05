@@ -21,48 +21,52 @@ DEFINE_HOOK(476240, CIsoView_MapCoord2ScreenCoord_Flat, 5)
 	return 0;
 }
 
-#define BACK_BUFFER_TO_PRIMARY(hook_addr, hook_name, hook_size, return_addr, special_draw) \
-DEFINE_HOOK(hook_addr,hook_name,hook_size) \
-{ \
-	if (CIsoViewExt::RenderingMap) return return_addr; \
-	auto pThis = CIsoViewExt::GetExtension();\
-	if (ExtConfigs::DirectXRendering)\
-	{\
-		pThis->SpecialDrawDirectX(special_draw);\
-		return return_addr; \
-	}\
-	else\
-	{\
-		CRect dr = CIsoViewExt::GetVisibleIsoViewRect();\
-		if (special_draw >= 1 || CIsoViewExt::ScaledFactor == 1.0) {\
-			if (special_draw > -1){\
-				CIsoViewExt::SpecialDraw(CIsoViewExt::GetBackBuffer(), special_draw);\
-			}\
-			if (special_draw != 3)\
-				CIsoViewExt::ReduceBrightness(CIsoViewExt::GetBackBuffer(), dr);\
-			if (ExtConfigs::SecondScreenSupport) {\
-				CRect drFixed = dr; \
-				pThis->BltToWindow(pThis->m_hWnd,  CIsoViewExt::GetBackBuffer(), &dr, &drFixed);\
-			}\
-			else\
-				pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::GetBackBuffer(), &dr, DDBLT_WAIT, 0);\
-			return return_addr; \
-		}\
-		CRect backDr;\
-		backDr = dr;\
-		backDr.right += backDr.Width() * (CIsoViewExt::ScaledFactor - 1.0);\
-		backDr.bottom += backDr.Height() * (CIsoViewExt::ScaledFactor - 1.0);\
-		CIsoViewExt::StretchCopySurfaceBilinear(pThis->lpDDBackBufferSurface, backDr,\
-			CIsoViewExt::lpDDBackBufferZoomSurface, dr);\
-		CIsoViewExt::SpecialDraw(CIsoViewExt::lpDDBackBufferZoomSurface, special_draw);\
-		CIsoViewExt::ReduceBrightness(CIsoViewExt::lpDDBackBufferZoomSurface, dr);\
-		if (ExtConfigs::SecondScreenSupport)\
-			pThis->BltToWindow(pThis->m_hWnd,  CIsoViewExt::lpDDBackBufferZoomSurface, &dr, &dr);\
-		else\
-			pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::lpDDBackBufferZoomSurface, &dr, DDBLT_WAIT, 0);\
-		return return_addr; \
-	}\
-}
+#define BACK_BUFFER_TO_PRIMARY(hook_addr, hook_name, hook_size, return_addr, special_draw)                       \
+	DEFINE_HOOK(hook_addr, hook_name, hook_size)                                                                 \
+	{                                                                                                            \
+		if (CIsoViewExt::RenderingMap)                                                                           \
+			return return_addr;                                                                                  \
+		auto pThis = CIsoViewExt::GetExtension();                                                                \
+		if (ExtConfigs::DirectXRendering)                                                                        \
+		{                                                                                                        \
+			pThis->SpecialDrawDirectX(special_draw);                                                             \
+			return return_addr;                                                                                  \
+		}                                                                                                        \
+		else                                                                                                     \
+		{                                                                                                        \
+			CRect dr = CIsoViewExt::GetVisibleIsoViewRect();                                                     \
+			if (special_draw >= 1 || CIsoViewExt::ScaledFactor == 1.0)                                           \
+			{                                                                                                    \
+				if (special_draw > -1)                                                                           \
+				{                                                                                                \
+					CIsoViewExt::SpecialDraw(CIsoViewExt::GetBackBuffer(), special_draw);                        \
+				}                                                                                                \
+				if (special_draw != 3)                                                                           \
+					CIsoViewExt::ReduceBrightness(CIsoViewExt::GetBackBuffer(), dr);                             \
+				if (ExtConfigs::SecondScreenSupport)                                                             \
+				{                                                                                                \
+					CRect drFixed = dr;                                                                          \
+					pThis->BltToWindow(pThis->m_hWnd, CIsoViewExt::GetBackBuffer(), &dr, &drFixed);              \
+				}                                                                                                \
+				else                                                                                             \
+					pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::GetBackBuffer(), &dr, DDBLT_WAIT, 0);       \
+				return return_addr;                                                                              \
+			}                                                                                                    \
+			CRect backDr;                                                                                        \
+			backDr = dr;                                                                                         \
+			backDr.right += backDr.Width() * (CIsoViewExt::ScaledFactor - 1.0);                                  \
+			backDr.bottom += backDr.Height() * (CIsoViewExt::ScaledFactor - 1.0);                                \
+			CIsoViewExt::StretchCopySurfaceBilinear(pThis->lpDDBackBufferSurface, backDr,                        \
+													CIsoViewExt::lpDDBackBufferZoomSurface, dr);                 \
+			CIsoViewExt::SpecialDraw(CIsoViewExt::lpDDBackBufferZoomSurface, special_draw);                      \
+			CIsoViewExt::ReduceBrightness(CIsoViewExt::lpDDBackBufferZoomSurface, dr);                           \
+			if (ExtConfigs::SecondScreenSupport)                                                                 \
+				pThis->BltToWindow(pThis->m_hWnd, CIsoViewExt::lpDDBackBufferZoomSurface, &dr, &dr);             \
+			else                                                                                                 \
+				pThis->lpDDPrimarySurface->Blt(&dr, CIsoViewExt::lpDDBackBufferZoomSurface, &dr, DDBLT_WAIT, 0); \
+			return return_addr;                                                                                  \
+		}                                                                                                        \
+	}
 
 BACK_BUFFER_TO_PRIMARY(459DEB, CIsoView_OnMouseMove_BackBufferToPrimary_Copy, 5, 0x459FE7, 2);
 BACK_BUFFER_TO_PRIMARY(45CDF2, CIsoView_OnMouseMove_BackBufferToPrimary_Bridge, 6, 0x45D079, 3);
@@ -71,7 +75,7 @@ BACK_BUFFER_TO_PRIMARY(45AD6A, CIsoView_OnMouseMove_BackBufferToPrimary_Cursor, 
 
 DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_BltTempBuffer, 6)
 {
-	auto pThis = CIsoView::GetInstance(); 
+	auto pThis = CIsoView::GetInstance();
 	CRect rect = CIsoViewExt::GetVisibleIsoViewRect();
 	CIsoViewExt::GetBackBuffer()->Blt(&rect, pThis->lpDDTempBufferSurface, &rect, DDBLT_WAIT, 0);
 	return 0x4572FC;
@@ -79,12 +83,10 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_BltTempBuffer, 6)
 
 DEFINE_HOOK(460F00, CIsoView_ScreenCoord2MapCoord_Height, 7)
 {
-	GET_STACK(int*, X, 0x4);
-	GET_STACK(int*, Y, 0x8);
+	GET_STACK(int *, X, 0x4);
+	GET_STACK(int *, Y, 0x8);
 
-	if (!CMapData::Instance->MapWidthPlusHeight
-		|| !CTileTypeClass::Instance
-		|| CIsoViewExt::SkipMapScreenConvert)
+	if (!CMapData::Instance->MapWidthPlusHeight || !CTileTypeClass::Instance || CIsoViewExt::SkipMapScreenConvert)
 	{
 		*X = 0;
 		*Y = 0;
@@ -105,7 +107,7 @@ DEFINE_HOOK(460FF1, CIsoView_ScreenCoord2MapCoord_Height_IgnoreOutside, 8)
 	GET(int, Y, EDI);
 	GET(int, X, EBP);
 
-	if (CMapData::Instance->IsCoordInMap(X, Y))
+	if (CMapDataExt::IsCoordInFullMap(X, Y))
 		return 0x461001;
 
 	return 0x46126E;
@@ -123,8 +125,8 @@ DEFINE_HOOK(461167, CIsoView_ScreenCoord2MapCoord_Height_TileData, 6)
 
 DEFINE_HOOK(466890, CIsoView_ScreenCoord2MapCoord_Flat, 8)
 {
-	GET_STACK(int*, X, 0x4);
-	GET_STACK(int*, Y, 0x8);
+	GET_STACK(int *, X, 0x4);
+	GET_STACK(int *, Y, 0x8);
 
 	auto pThis = CIsoView::GetInstance();
 	CRect dr;
@@ -191,27 +193,27 @@ DEFINE_HOOK(4616F0, CIsoView_OnLButtonDown_Scaled_2, 6)
 }
 
 #define CIsoView_OnMouseMove_CallOnLButtonDown(hook_addr, hook_name, hook_size) \
-DEFINE_HOOK(hook_addr,hook_name,hook_size) \
-{ \
-	CIsoViewExt::OnLButtonDown_CalledFromOnMouseMove = true;\
-	return 0;\
-}
+	DEFINE_HOOK(hook_addr, hook_name, hook_size)                                \
+	{                                                                           \
+		CIsoViewExt::OnLButtonDown_CalledFromOnMouseMove = true;                \
+		return 0;                                                               \
+	}
 CIsoView_OnMouseMove_CallOnLButtonDown(45B583, CallOnLButtonDown2, 7)
-CIsoView_OnMouseMove_CallOnLButtonDown(45B5A3, CallOnLButtonDown3, 7)
-CIsoView_OnMouseMove_CallOnLButtonDown(45BF40, CallOnLButtonDown4, 7)
+	CIsoView_OnMouseMove_CallOnLButtonDown(45B5A3, CallOnLButtonDown3, 7)
+		CIsoView_OnMouseMove_CallOnLButtonDown(45BF40, CallOnLButtonDown4, 7)
 #undef CIsoView_OnMouseMove_CallOnLButtonDown
 
 #define CIsoView_OnLButtonDown_CallOnMouseMove(hook_addr, hook_name, hook_size) \
-DEFINE_HOOK(hook_addr,hook_name,hook_size) \
-{ \
-	CIsoViewExt::OnMouseMove_CalledFromOnLButtonDown = true;\
-	return 0;\
-}
-CIsoView_OnLButtonDown_CallOnMouseMove(4665D0, CallOnMouseMove1, 6)
-CIsoView_OnLButtonDown_CallOnMouseMove(46684D, CallOnMouseMove2, 6)
+	DEFINE_HOOK(hook_addr, hook_name, hook_size)                                \
+	{                                                                           \
+		CIsoViewExt::OnMouseMove_CalledFromOnLButtonDown = true;                \
+		return 0;                                                               \
+	}
+			CIsoView_OnLButtonDown_CallOnMouseMove(4665D0, CallOnMouseMove1, 6)
+				CIsoView_OnLButtonDown_CallOnMouseMove(46684D, CallOnMouseMove2, 6)
 #undef CIsoView_OnLButtonDown_CallOnMouseMove
 
-static CPoint OnLButtonUp_pos;
+					static CPoint OnLButtonUp_pos;
 DEFINE_HOOK(466970, CIsoView_OnLButtonUp_Update_Pos, 6)
 {
 	if (ExtConfigs::SecondScreenSupport)
@@ -240,11 +242,7 @@ DEFINE_HOOK(45AFFC, CIsoView_OnMouseMove_Drag_skip_dragFacing, 7)
 	{
 		auto pIsoView = CIsoViewExt::GetExtension();
 		auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
-		if (CIsoView::CurrentCommand->Command == 0
-			&& (GetKeyState(VK_CONTROL) & 0x8000)
-			&& CIsoView::GetInstance()->CurrentCellObjectIndex >= 0
-			&& CIsoView::GetInstance()->CurrentCellObjectType >= 0
-			&& CIsoView::GetInstance()->CurrentCellObjectType <= 3)
+		if (CIsoView::CurrentCommand->Command == 0 && (GetKeyState(VK_CONTROL) & 0x8000) && CIsoView::GetInstance()->CurrentCellObjectIndex >= 0 && CIsoView::GetInstance()->CurrentCellObjectType >= 0 && CIsoView::GetInstance()->CurrentCellObjectType <= 3)
 		{
 			CViewObjectsExt::ApplyDragFacing(point.X, point.Y);
 		}
@@ -282,8 +280,8 @@ DEFINE_HOOK(476419, CIsoView_MoveTo, 7)
 	int widthPx = r.right - r.left;
 	int heightPx = r.bottom - r.top;
 
-	int& height = CMapData::Instance->Size.Height;
-	int& width = CMapData::Instance->Size.Width;
+	int &height = CMapData::Instance->Size.Height;
+	int &width = CMapData::Instance->Size.Width;
 
 	if (pThis->ViewPosition.x < (height / 2 - 4 - left / 60) * 60)
 		pThis->ViewPosition.x = (height / 2 - 4 - left / 60) * 60;
@@ -331,7 +329,7 @@ DEFINE_HOOK(460DA0, CIsoView_OnLButtonDblClk_FixPos, 8)
 DEFINE_HOOK(456CED, CIsoView_UpdateDialog, 9)
 {
 	if (CLoadingExt::ObjectsNeedReloaded)
-	{	
+	{
 		CMapDataExt::RefreshAllWindows();
 	}
 	CIsoViewExt::MoveToMapCoord(CMapData::Instance->MapWidthPlusHeight / 2, CMapData::Instance->MapWidthPlusHeight / 2);

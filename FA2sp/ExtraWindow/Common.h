@@ -73,12 +73,14 @@ enum class SubtextGlyph : uint8_t
     HollowRect, 
     BandedCircle, 
     AllowCircle, 
-    Space
+    Space,
+    Character
  };
 
 struct SubtextSegment
 {
     SubtextGlyph type;
+    char character = '\0';
 };
 
 struct VCBItemEntry
@@ -361,10 +363,11 @@ public:
     void SortItems(int* pSelIndex = nullptr);
     
     static int m_itemHeight;
+	static std::map<HWND, VirtualComboBoxEx*> VirtualComboBoxExMap;
 
 private:
-    HWND hCombo = nullptr;
-    HWND hEdit = nullptr;
+	HWND hCombo = nullptr;
+	HWND hEdit = nullptr;
     HWND hList = nullptr;
 
     WNDPROC oldComboProc = nullptr;
@@ -392,6 +395,7 @@ private:
     DropWidthMode m_dropWidthMode = DropWidth_AutoMax;
     int m_cachedMaxWidth = 0;
     HBRUSH m_hCurBrush = nullptr;
+    HFONT m_hGlyphFont = nullptr;
 
 private:
     void Filter(const char* text);

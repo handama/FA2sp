@@ -60,7 +60,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>MFC42\include;FA2pp;lexilla\include;scintilla\include;$(IncludePath)</IncludePath>
+    <IncludePath>glad\include;MFC42\include;FA2pp;lexilla\include;scintilla\include;$(IncludePath)</IncludePath>
     <LibraryPath>MFC42\lib;Release;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
     <LuaType>dynamic</LuaType>
@@ -69,7 +69,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>MFC42\include;FA2pp;lexilla\include;scintilla\include;$(IncludePath)</IncludePath>
+    <IncludePath>glad\include;MFC42\include;FA2pp;lexilla\include;scintilla\include;$(IncludePath)</IncludePath>
     <LibraryPath>MFC42\lib;Debug;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
     <LuaType>dynamic</LuaType>
@@ -263,6 +263,7 @@
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.Blit.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\DirectXCore.cpp" />
+    <ClCompile Include="glad\src\glad.c" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.DrawObjects.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.InfantrySubcell.cpp" />
@@ -406,6 +407,7 @@
     <ClInclude Include="FA2sp\Ext\CHouses\Body.h" />
     <ClInclude Include="FA2sp\Ext\CIsoView\Body.h" />
     <ClInclude Include="FA2sp\Ext\CIsoView\DirectXCore.h" />
+    <ClInclude Include="glad\include\glad\glad.h" />
     <ClInclude Include="FA2sp\Ext\CIsoView\RendererTypes.h" />
     <ClInclude Include="FA2sp\Ext\CLighting\Body.h" />
     <ClInclude Include="FA2sp\Ext\CLoading\Body.h" />

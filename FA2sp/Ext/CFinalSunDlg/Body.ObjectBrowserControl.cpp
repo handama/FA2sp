@@ -2432,7 +2432,7 @@ void CViewObjectsExt::Redraw_Overlay()
                     if (value.Find(match.c_str()) >= 0)
                     {
                         InsertingOverlay = i;
-                        if (CMapDataExt::IsOre((byte)i))
+                        if (CMapDataExt::IsOre(i))
                             InsertingOverlayData = 11;
                         else
                             InsertingOverlayData = 0;
@@ -2452,7 +2452,7 @@ void CViewObjectsExt::Redraw_Overlay()
                 if (!node.insertedObjects.contains(value))
                 {
                     InsertingOverlay = i;
-                    if (CMapDataExt::IsOre((byte)i))
+                    if (CMapDataExt::IsOre(i))
                         InsertingOverlayData = 11;
                     else
                         InsertingOverlayData = 0;
@@ -2488,7 +2488,7 @@ void CViewObjectsExt::Redraw_Overlay()
         FString id;
         id.Format("%03d %s", i, buffer);
         InsertingOverlay = i;
-        if (CMapDataExt::IsOre((byte)i))
+        if (CMapDataExt::IsOre(i))
             InsertingOverlayData = 11;
         else
             InsertingOverlayData = 0;

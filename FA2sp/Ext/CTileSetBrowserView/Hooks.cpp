@@ -114,7 +114,7 @@ static int GetAddedWidth(int tileIndex)
     if (tileIndex < CUSTOM_TILE_START)
     {
         const auto& tile = CMapDataExt::TileData[tileIndex];
-        int i, e, p = 0;;
+        int i, e, p = 0;
         for (i = 0; i < tile.Height; i++)
         {
             for (e = 0; e < tile.Width; e++)
@@ -262,8 +262,8 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
         ddsd.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
         int added_height = GetAddedHeight(iTileIndex);
         int added_width = GetAddedWidth(iTileIndex);
-        ddsd.dwHeight = tile.Bounds.bottom - tile.Bounds.top + added_height;
-        ddsd.dwWidth = tile.Bounds.right - tile.Bounds.left + added_width;
+        ddsd.dwHeight = std::max(tile.Bounds.bottom - tile.Bounds.top, 30l) + added_height;
+        ddsd.dwWidth = std::max(tile.Bounds.right - tile.Bounds.left, 60l) + added_width;
         if (lpdd->CreateSurface(&ddsd, &lpdds, NULL) != DD_OK)
         {
             return nullptr;
@@ -320,7 +320,7 @@ static LPDIRECTDRAWSURFACE7 RenderTile(int iTileIndex)
 
         CIsoView::SetColorKey(lpdds, -1);
         return lpdds;
-    }
+	}
     else
     {
         auto pIsoView = CIsoView::GetInstance();
@@ -604,8 +604,8 @@ DEFINE_HOOK(4F2B10, CTileSetBrowserView_SetTileSet, 7)
         const auto& tileData = CMapDataExt::TileData[tileStart];
         tileCount = CMapDataExt::TileSet_starts[dwTileSet + 1] - CMapDataExt::TileSet_starts[dwTileSet];
 
-        if (tileData.TileBlockCount && tileData.TileBlockDatas[0].ImageData)
-        {
+		if (tileData.TileBlockCount && tileData.TileBlockDatas[0].ImageData)
+		{
             if (!bOnlyRedraw)
             {
                 CIsoView::CurrentCommand->Command = 10;
@@ -627,16 +627,16 @@ DEFINE_HOOK(4F2B10, CTileSetBrowserView_SetTileSet, 7)
             int tileIndex = tileStart + i;
             if (tileIndex < CMapDataExt::TileDataCount)
             {
-                int width = GetAddedWidth(tileIndex)
-                    + CMapDataExt::TileData[tileIndex].Bounds.right
-                    - CMapDataExt::TileData[tileIndex].Bounds.left;
+                int width = GetAddedWidth(tileIndex) 
+                    + std::max(CMapDataExt::TileData[tileIndex].Bounds.right
+                    - CMapDataExt::TileData[tileIndex].Bounds.left, 60l);
                 int height = GetAddedHeight(tileIndex)
-                    + CMapDataExt::TileData[tileIndex].Bounds.bottom
-                    - CMapDataExt::TileData[tileIndex].Bounds.top;
+                    + std::max(CMapDataExt::TileData[tileIndex].Bounds.bottom
+                    - CMapDataExt::TileData[tileIndex].Bounds.top, 30l);
 
                 pThis->CurrentImageWidth = std::max(width, pThis->CurrentImageWidth);
                 pThis->CurrentImageHeight = std::max(height, pThis->CurrentImageHeight);
-            }
+			}
         }
 
         pThis->CurrentImageWidth += 6;
@@ -778,13 +778,14 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
             int curwidth, curheight;
             if (pThis->CurrentTileset < 10000)
             {
-                curwidth = GetAddedWidth(tileIndex)
-                    + CMapDataExt::TileData[tileIndex].Bounds.right
-                    - CMapDataExt::TileData[tileIndex].Bounds.left;
-                curheight = GetAddedHeight(tileIndex)
-                    + CMapDataExt::TileData[tileIndex].Bounds.bottom
-                    - CMapDataExt::TileData[tileIndex].Bounds.top;
-            }
+				curwidth = GetAddedWidth(tileIndex) +
+						    std::max(CMapDataExt::TileData[tileIndex].Bounds.right 
+                            - CMapDataExt::TileData[tileIndex].Bounds.left, 60l);
+				curheight = GetAddedHeight(tileIndex) + 
+                            std::max(CMapDataExt::TileData[tileIndex].Bounds.bottom 
+                            - CMapDataExt::TileData[tileIndex].Bounds.top, 30l);
+
+			}
             else
             {
                 auto tileData = CMapDataExt::GetCustomTile(tileIndex);
@@ -817,8 +818,17 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
                 DeleteDC(hTmpDC);
                 DeleteObject(hBitmap);
 
-                if (CIsoView::CurrentCommand->Command == 10 && CIsoView::CurrentCommand->Type == tileIndex)
+                if (CIsoView::CurrentCommand->Command == 10 
+                    && CIsoView::CurrentCommand->Type == tileIndex)
                 {
+
+					if (pThis->CurrentTileset < 10000)
+					{
+						auto& tile = CMapDataExt::TileData[tileIndex];
+						if (!tile.TileBlockCount || !tile.TileBlockDatas[0].ImageData)
+							goto skipDrawRect;
+					}                  
+
                     CPen p;
                     CBrush b;
                     p.CreatePen(PS_SOLID, 1, RGB(255, 0, 0));
@@ -828,13 +838,17 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
 
                     pDC->SetBkMode(TRANSPARENT);
                     pDC->SelectObject(&b);
-                    pDC->Rectangle(cur_x + 2, cur_y + 2, 
-                        cur_x + pThis->CurrentImageWidth - 2,
-                        cur_y + pThis->CurrentImageHeight - 2);
+                    pDC->Rectangle(cur_x + 2, cur_y + 2,
+                                    cur_x + pThis->CurrentImageWidth - 2,
+                                    cur_y + pThis->CurrentImageHeight - 2);
 
                     pDC->SelectObject(old);
+				}
+                skipDrawRect:
+                {
+                    
                 }
-            }
+			}
 
             cur_x += pThis->CurrentImageWidth;
             if (max_r == 0) max_r = 1;

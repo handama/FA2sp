@@ -4910,9 +4910,9 @@ void CIsoViewExt::DrawDashLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int c
     lb.lbStyle = BS_SOLID;
     lb.lbColor = color;
 
-    DWORD style[] = {std::max(1, int(6 / CIsoViewExt::ScaledFactor)), std::max(1, int(4 / CIsoViewExt::ScaledFactor))};
+    DWORD style[] = {(DWORD)std::max(1, int(6 / CIsoViewExt::ScaledFactor)), (DWORD)std::max(1, int(4 / CIsoViewExt::ScaledFactor))};
 
-    HPEN hPen = ExtCreatePen(
+	HPEN hPen = ExtCreatePen(
         PS_GEOMETRIC | PS_USERSTYLE | PS_ENDCAP_FLAT,
         size,
         &lb,

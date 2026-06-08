@@ -106,6 +106,7 @@ int CViewObjectsExt::PlacingRandomTile = -1;
 bool CViewObjectsExt::PlacingRandomRandomFacing;
 bool CViewObjectsExt::PlacingRandomStructureAIRepairs;
 bool CViewObjectsExt::NeedChangeTreeViewSelect = true;
+bool CViewObjectsExt::Initialized = false;
 MoveBaseNode CViewObjectsExt::MoveBaseNode_SelectedObj = { "","","",-1,-1 };
 
 const char* playersAtX[8]
@@ -474,7 +475,8 @@ void CViewObjectsExt::Redraw()
         firstRun = false;
         return;
     }
-    if (ExtConfigs::TreeViewCameo_Display)
+
+	if (ExtConfigs::TreeViewCameo_Display)
     {
         if (m_ImageList.GetSafeHandle())
             m_ImageList.DeleteImageList();
@@ -553,6 +555,72 @@ void CViewObjectsExt::Redraw()
         ::SendMessage(CObjectSearch::GetHandle(), 114515, 0, 0);
         ::SendMessage(CObjectSearch::GetHandle(), 114514, 0, 0);
     }
+
+    if (!Initialized)
+    {
+		CRect rcFrame;
+		CFinalSunDlg::Instance->MyViewFrame.pRightFrame->GetClientRect(&rcFrame);
+
+        auto clampPercent = [](float val) -> float
+        {
+            if (val < 0.0f)
+                return 0.0f;
+            if (val > 1.0f)
+                return 1.0f;
+            return val;
+        };
+
+        if (ExtConfigs::VerticalLayout)
+        {
+			int totalWidth = rcFrame.Width() - GetSystemMetrics(SM_CXVSCROLL);
+			float percent = clampPercent(ExtConfigs::IsoViewWidthPercentage);
+            int isoWidth = static_cast<int>(totalWidth * percent);
+            int tileWidth = totalWidth - isoWidth;
+
+            const int minIso = 20;
+            const int minTile = 20;
+            if (isoWidth < minIso)
+                isoWidth = minIso;
+            if (tileWidth < minTile)
+                tileWidth = minTile;
+            if (isoWidth + tileWidth > totalWidth)
+            {
+                tileWidth = std::max(minTile, totalWidth - isoWidth);
+                if (isoWidth + tileWidth > totalWidth)
+                    isoWidth = totalWidth - tileWidth;
+            }
+
+			CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(0, isoWidth, minIso);
+			CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(1, tileWidth, minTile);
+            CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.RecalcLayout();
+        }
+        else
+        {
+			int totalHeight = rcFrame.Height() - GetSystemMetrics(SM_CYHSCROLL);
+			float percent = clampPercent(ExtConfigs::IsoViewHeightPercentage);
+            int isoHeight = static_cast<int>(totalHeight * percent);
+            int tileHeight = totalHeight - isoHeight;
+
+            const int minIsoH = 20;
+            const int minTileH = 20;
+            if (isoHeight < minIsoH)
+                isoHeight = minIsoH;
+            if (tileHeight < minTileH)
+                tileHeight = minTileH;
+            if (isoHeight + tileHeight > totalHeight)
+            {
+                tileHeight = std::max(minTileH, totalHeight - isoHeight);
+                if (isoHeight + tileHeight > totalHeight)
+                    isoHeight = totalHeight - tileHeight;
+            }
+
+            CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.SetRowInfo(0, isoHeight, minIsoH);
+            CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.SetRowInfo(1, tileHeight, minTileH);
+            CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.RecalcLayout();
+        }
+
+		Initialized = true;
+	}
 }
 
 void CViewObjectsExt::Redraw_Initialize()

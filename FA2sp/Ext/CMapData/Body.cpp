@@ -3857,13 +3857,21 @@ int CMapDataExt::IsBlueMapBound()
 
 	if (y4 > y1 && x4 > x1)
 	{
-		if (mouse.x >= x1 && mouse.x <= x4 && abs(mouse.y - y1) <= 15 / CIsoViewExt::ScaledFactor)
+		if (abs(mouse.x - x1) <= 30 / CIsoViewExt::ScaledFactor && abs(mouse.y - y1) <= 15 / CIsoViewExt::ScaledFactor)
+			return 5;
+		else if (abs(mouse.x - x4) <= 30 / CIsoViewExt::ScaledFactor && abs(mouse.y - y1) <= 15 / CIsoViewExt::ScaledFactor)
+			return 6;
+		else if (abs(mouse.x - x1) <= 30 / CIsoViewExt::ScaledFactor && abs(mouse.y - y4) <= 15 / CIsoViewExt::ScaledFactor)
+			return 7;
+		else if (abs(mouse.x - x4) <= 30 / CIsoViewExt::ScaledFactor && abs(mouse.y - y4) <= 15 / CIsoViewExt::ScaledFactor)
+			return 8;
+		else if (mouse.x >= x1 && mouse.x <= x4 && abs(mouse.y - y1) <= 15 / CIsoViewExt::ScaledFactor)
 			return 2;
-		if (mouse.x >= x1 && mouse.x <= x4 && abs(mouse.y - y4) <= 15 / CIsoViewExt::ScaledFactor)
+		else if (mouse.x >= x1 && mouse.x <= x4 && abs(mouse.y - y4) <= 15 / CIsoViewExt::ScaledFactor)
 			return 4;
-		if (mouse.y >= y1 && mouse.y <= y4 && abs(mouse.x - x1) <= 30 / CIsoViewExt::ScaledFactor)
+		else if (mouse.y >= y1 && mouse.y <= y4 && abs(mouse.x - x1) <= 30 / CIsoViewExt::ScaledFactor)
 			return 1;
-		if (mouse.y >= y1 && mouse.y <= y4 && abs(mouse.x - x4) <= 30 / CIsoViewExt::ScaledFactor)
+		else if (mouse.y >= y1 && mouse.y <= y4 && abs(mouse.x - x4) <= 30 / CIsoViewExt::ScaledFactor)
 			return 3;
 	}
 	return 0;

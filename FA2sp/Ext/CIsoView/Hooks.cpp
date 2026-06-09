@@ -504,7 +504,6 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 				}
 			};
 
-			// left
 			if (m_type == 11)
 			{
 				if (X - Y > x2 - y2 + 1 && X - Y < xr1 - yr1)
@@ -515,7 +514,6 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 					updateINI();
 				}
 			}
-			// right
 			else if (m_type == 13)
 			{
 				if (X - Y < x1 - y1 && X - Y > xr4 - yr4)
@@ -525,7 +523,6 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 					updateINI();
 				}
 			}
-			// top
 			else if (m_type == 12)
 			{
 				if (X + Y < x4 + y4 - 1 && X + Y > xr1 + yr1)
@@ -536,11 +533,58 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 					updateINI();
 				}
 			}
-			// bottom
 			else if (m_type == 14)
 			{
 				if (X + Y < xr4 + yr4 - 1 && X + Y > x1 + y1)
 				{
+					int dt = (x4 + y4 - X - Y) / 2;
+					mpH -= dt;
+					updateINI();
+				}
+			}
+			else if (m_type == 15)
+			{
+				if (X - Y > x2 - y2 + 1 && X - Y < xr1 - yr1 && X + Y < x4 + y4 - 1 && X + Y > xr1 + yr1)
+				{
+					int dl = (x1 - y1 - X + Y + 1) / 2;
+					mpL += dl;
+					mpW -= dl;
+					int dt = (x1 + y1 - X - Y) / 2;
+					mpT -= dt;
+					mpH += dt;
+					updateINI();
+				}
+			}
+			else if (m_type == 16)
+			{
+				if (X + Y < x4 + y4 - 1 && X + Y > xr1 + yr1 && X - Y < x1 - y1 && X - Y > xr4 - yr4)
+				{
+					int dl = (x2 - y2 - X + Y + 1) / 2;
+					mpW += dl;
+					int dt = (x1 + y1 - X - Y) / 2;
+					mpT -= dt;
+					mpH += dt;
+					updateINI();
+				}
+			}
+			else if (m_type == 17)
+			{
+				if (X - Y > x2 - y2 + 1 && X - Y < xr1 - yr1 && X + Y < xr4 + yr4 - 1 && X + Y > x1 + y1)
+				{
+					int dl = (x1 - y1 - X + Y + 1) / 2;
+					mpL += dl;
+					mpW -= dl;
+					int dt = (x4 + y4 - X - Y) / 2;
+					mpH -= dt;
+					updateINI();
+				}
+			}
+			else if (m_type == 18)
+			{
+				if (X + Y < xr4 + yr4 - 1 && X + Y > x1 + y1 && X - Y < x1 - y1 && X - Y > xr4 - yr4)
+				{
+					int dl = (x2 - y2 - X + Y + 1) / 2;
+					mpW += dl;
 					int dt = (x4 + y4 - X - Y) / 2;
 					mpH -= dt;
 					updateINI();

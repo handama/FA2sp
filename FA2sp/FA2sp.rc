@@ -198,6 +198,8 @@ END
 1151 BITMAP "Resources/scrollcursor.bmp"
 1152 BITMAP "Resources/sizens.bmp"
 1153 BITMAP "Resources/sizewe.bmp"
+1154 BITMAP "Resources/sizenwse.bmp"
+1155 BITMAP "Resources/sizeswne.bmp"
 
 // Object Browser cameo icons -- 48px
 2002 BITMAP "Resources/default_cameo_48.bmp"

@@ -158,6 +158,8 @@ DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 	loadInternalorExternalBitmap("scrollcursor.bmp", 1151, "scrollcursor.bmp", !ExtConfigs::DirectXRendering);
 	loadInternalorExternalBitmap("sizens.bmp", 1152, "sizens.bmp", !ExtConfigs::DirectXRendering);
 	loadInternalorExternalBitmap("sizewe.bmp", 1153, "sizewe.bmp", !ExtConfigs::DirectXRendering);
+	loadInternalorExternalBitmap("sizenwse.bmp", 1154, "sizenwse.bmp", !ExtConfigs::DirectXRendering);
+	loadInternalorExternalBitmap("sizeswne.bmp", 1155, "sizeswne.bmp", !ExtConfigs::DirectXRendering);
 
 	std::string pics = CFinalSunAppExt::ExePathExt;
 	pics += "\\pics";
@@ -174,7 +176,9 @@ DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 						{
 							if (entry.path().filename().string() == "scrollcursor.bmp" 
 								|| entry.path().filename().string() == "sizens.bmp" 
-								|| entry.path().filename().string() == "sizewe.bmp")
+								|| entry.path().filename().string() == "sizewe.bmp"
+								|| entry.path().filename().string() == "sizenwse.bmp"
+								|| entry.path().filename().string() == "sizeswne.bmp")
 							{
 								BITMAP bm = {};
 								bmp.GetBitmap(&bm);

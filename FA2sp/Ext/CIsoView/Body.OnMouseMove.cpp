@@ -253,6 +253,26 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
             {
 				y1 = yb4;
 			}
+			else if (pIsoView->CurrentCellObjectType == 15)
+            {
+                x1 = xb1;
+				y1 = yb1;
+			}
+			else if (pIsoView->CurrentCellObjectType == 16)
+            {
+                x1 = xb4;
+				y1 = yb1;
+			}
+			else if (pIsoView->CurrentCellObjectType == 17)
+            {
+                x1 = xb1;
+				y1 = yb4;
+			}
+			else if (pIsoView->CurrentCellObjectType == 18)
+            {
+                x1 = xb4;
+				y1 = yb4;
+			}
 		}
 
     if (ExtConfigs::DirectXRendering)
@@ -3139,6 +3159,18 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
 		auto bound = CMapDataExt::IsBlueMapBound();
 		if (bound && CMapDataExt::CellCannotDrag(point.X, point.Y))
 		{
+			const char* cursors[] =
+				{
+					"sizewe.bmp",
+					"sizens.bmp",
+					"sizewe.bmp",
+					"sizens.bmp",
+					"sizenwse.bmp",
+					"sizeswne.bmp",
+					"sizeswne.bmp",
+					"sizenwse.bmp"
+                };
+
 			if (ExtConfigs::DirectXRendering)
 			{
 				DrawParams params;
@@ -3150,7 +3182,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
 
 				params.bWriteStencil = true;
 
-				if (auto pTexture = bound % 2 == 0 ? g_pDX->GetBitmapTexture("sizens.bmp") : g_pDX->GetBitmapTexture("sizewe.bmp"))
+				if (auto pTexture = g_pDX->GetBitmapTexture(cursors[bound - 1]))
 				{
                     params.SetPosition(
                         pIsoView->MouseCenterPosition.x + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0) +
@@ -3162,8 +3194,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
 			}
             else
 			{
-				if (auto cursor = bound % 2 == 0 ? 
-                    CLoadingExt::GetSurfaceImageDataFromMap("sizens.bmp") : CLoadingExt::GetSurfaceImageDataFromMap("sizewe.bmp"))
+				if (auto cursor = CLoadingExt::GetSurfaceImageDataFromMap(cursors[bound - 1]))
 				{
 					auto point = pIsoView->MouseCenterPosition;
 					point.x += rect.left + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0) - cursor->FullWidth / 2;

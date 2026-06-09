@@ -890,6 +890,7 @@ public:
     static std::unordered_map<CTileBlockClass*, TileBlockExt> TileBlockDataExt;
     static void BuildBaseHeightMask(CTileBlockClass* subTile);
     // 0 = not bound, 1 = left, 2 = top, 3 = right, 4 = bottom
+    // 5 = top-left, 6 = top-right, 7 = bottom-left, 8 = bottom-right
 	static int IsBlueMapBound(int x, int y);
 	static int IsBlueMapBound();
 	static bool CellCannotDrag(int x, int y);

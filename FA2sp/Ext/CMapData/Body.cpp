@@ -3568,6 +3568,8 @@ void CMapDataExt::InitializeTileDataInfo()
 				anim.AnimName = CINI::CurrentTheater->GetString(setName, Anim);
 				anim.XOffset = CINI::CurrentTheater->GetInteger(setName, XOffset);
 				anim.YOffset = CINI::CurrentTheater->GetInteger(setName, YOffset);
+				anim.XOffset += CINI::Art->GetInteger(anim.AnimName, "XDrawOffset");
+				anim.YOffset += CINI::Art->GetInteger(anim.AnimName, "YDrawOffset");
 				anim.AttachedSubTile = CINI::CurrentTheater->GetInteger(setName, AttachesTo);
 				anim.ZAdjust = CINI::CurrentTheater->GetInteger(setName, ZAdjust);
 				FString imageName;

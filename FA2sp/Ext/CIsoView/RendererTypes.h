@@ -209,15 +209,18 @@ namespace Renderer
     {
     public:
         void Reload(short index);
+        void InitOnPaste(CBuildingDataFS& data, BuildingRenderData& render);
         CBuildingDataFS* GetData();
         BuildingType* GetType();
         BuildingRenderData* GetRender();
         CellData* GetCellData();
+		bool firstDrawA = true;
+		bool firstDrawB = true;
 
     private:
         BuildingRenderData* pRenderData = nullptr;
         CellData* pCellData = nullptr;
-    };
+	};
 
     class Vehicle : public Object
     {
@@ -233,6 +236,7 @@ namespace Renderer
         void Reload(short index);
         CInfantryData* GetData();
         void OffsetInfantrySubcell(int& x, int& y);
+        static void OffsetInfantrySubcell(int& x, int& y, int subcell);
         InfantryType* GetType();
     };
 

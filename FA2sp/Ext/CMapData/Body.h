@@ -14,6 +14,9 @@ struct TextureResource;
 namespace Renderer {
     class BuildingType;
     class Building;
+    class Infantry;
+    class Unit;
+    class Aircraft;
 }
 
 struct TileBlockExt
@@ -313,7 +316,10 @@ struct CellDataExt
     // for line tool
     bool LineToolProcessed = false;
 
-    // for lighting preview
+    // for paste
+	bool IsPasteCell = false;
+
+	// for lighting preview
     LightingSourceTint Lighting = { 0.0f , 0.0f , 0.0f , 0.0f };
 
     std::vector<BaseNodeDataExt> BaseNodes;
@@ -362,9 +368,16 @@ struct CellDataExt
     // remapable overlay
     COLORREF RemapableColor = 0x000000ff;
     int CenterBuildingIndex = -1; 
-    int NearestCenterCellIndex = -1; 
+    int NearestCenterCellIndex = -1;
 
-    void Structures_insert(short key, short value)
+	const char* PasteInfantry[3];
+    const char* PasteBuilding;
+    const char* PasteUnit;
+    const char* PasteAircraft;
+    const char* PasteSmudge;
+    const char* PasteTerrain;
+
+	void Structures_insert(short key, short value)
     {
         for (auto& p : Structures) {
             if (p.first == key) {
@@ -872,7 +885,8 @@ public:
     static void GetBuildingDataFS(const char* str, CBuildingDataFS& data);
     static void GetUnitDataFS(const char* str, CUnitDataFS& data);
     static void GetAircraftDataFS(const char* str, CAircraftDataFS& data);
-    static CBuildingDataFS& GetBuildingDataFsFromMap(size_t index);
+	static void GetInfantryData(const char* str, CInfantryData& data);
+	static CBuildingDataFS& GetBuildingDataFsFromMap(size_t index);
     static CUnitDataFS& GetUnitDadaFsFromMap(size_t index);
     static CAircraftDataFS& GetAircraftDataFsFromMap(size_t index);
     static CInfantryData& GetInfantryDataFromMap(size_t index);

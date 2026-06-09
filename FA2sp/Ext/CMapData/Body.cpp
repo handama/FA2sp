@@ -417,6 +417,26 @@ void CMapDataExt::GetAircraftDataFS(const char* str, CAircraftDataFS& data)
 	}
 }
 
+void CMapDataExt::GetInfantryData(const char* str, CInfantryData& data)
+{
+	auto splits = STDHelpers::SplitString(str, 13);
+
+	data.House = splits[0];
+	data.TypeID = splits[1];
+	data.Health = splits[2];
+	data.Y = splits[3];
+	data.X = splits[4];
+	data.SubCell = splits[5];
+	data.Status = splits[6];
+	data.Facing = splits[7];
+	data.Tag = splits[8];
+	data.VeterancyPercentage = splits[9];
+	data.Group = splits[10];
+	data.IsAboveGround = splits[11];
+	data.AutoNORecruitType = splits[12];
+	data.AutoYESRecruitType = splits[13];
+}
+
 CBuildingDataFS& CMapDataExt::GetBuildingDataFsFromMap(size_t index)
 {
 	static CBuildingDataFS empty = [] {

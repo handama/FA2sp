@@ -57,7 +57,6 @@ static std::vector<std::pair<MapCoord, ImageDataClassSafe *>> AlphaImagesToDraw;
 static std::vector<std::pair<MapCoord, ImageDataClassSafe *>> FiresToDraw;
 static std::vector<Veterancy> DrawVeterancies;
 static std::vector<CellInfo> visibleCells;
-static bool DrawnBuildings[SHRT_MAX + 1];
 static std::vector<BaseNodeDataExt> DrawnBaseNodes;
 static WORD coordToIndex[512][512];
 static std::vector<char> shadowMask_Building_Infantry;
@@ -70,6 +69,9 @@ static std::vector<char> objectOverlapMask;
 static std::vector<MapCoord> RedrawCoords;
 static std::vector<ppmfc::CString *> Celltags;
 static std::vector<const ppmfc::CString *> Waypoints;
+static std::list<BuildingRenderData> pasteObjRenders;
+static std::list<Renderer::Building> pasteBuildings;
+static std::list<CBuildingDataFS> pasteBuildingFSs;
 
 #define EXTRA_BORDER 15
 
@@ -543,7 +545,13 @@ static void InitAllObjects()
 			baseNodes.push_back(&node);
 		}
 	}
-	int count = CMapDataExt::BuildingDatasExt.size() + CMapDataExt::UnitDatasExt.size() + CMapDataExt::AircraftDatasExt.size() + CMapData::Instance->InfantryDatas.size() + CMapData::Instance->TerrainDatas.size() + CMapData::Instance->SmudgeDatas.size() + overlays.size() + baseNodes.size();
+	int count = CMapDataExt::BuildingDatasExt.size() 
+	+ CMapDataExt::UnitDatasExt.size() 
+	+ CMapDataExt::AircraftDatasExt.size() 
+	+ CMapData::Instance->InfantryDatas.size() 
+	+ CMapData::Instance->TerrainDatas.size() 
+	+ CMapData::Instance->SmudgeDatas.size() 
+	+ overlays.size() + baseNodes.size();
 
 	int currentPos = 0;
 
@@ -640,6 +648,722 @@ static void InitAllObjects()
 	}
 }
 
+bool isCloakable(Renderer::TechnoType *pType)
+{
+	return ExtConfigs::InGameDisplay_Cloakable && pType->Cloakable;
+};
+
+bool isCoordInFullMap(int X, int Y)
+{
+	if (!ExtConfigs::DisplayObjectsOutside)
+		return CMapData::Instance->IsCoordInMap(X, Y);
+
+	return X >= 0 && Y >= 0 &&
+			X < CMapData::Instance->MapWidthPlusHeight &&
+			Y < CMapData::Instance->MapWidthPlusHeight;
+};
+
+static void DrawUnit(Renderer::VehicleType* pType, 
+	CUnitDataFS& obj, 
+	CellData* cell,
+	CIsoViewExt* pThis,
+	DDSURFACEDESC2& ddsd,
+	DDBoundary& boundary,
+	int x, int y,
+	const CellInfo& info,
+	bool shadow,
+	COLORREF forceColor = CLR_INVALID
+)
+{
+	if (shadow)
+	{
+		if (!isCloakable(pType))
+		{
+			auto pData = pType->GetShadowData(obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
+
+			int x1 = x;
+			int y1 = y;
+
+			if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
+				y1 -= 60;
+
+			if (ImageDataClassSafe::IsValidImage(pData))
+			{
+				// units are special, they overlap with each other
+				if (ExtConfigs::DirectXRendering)
+				{
+					CIsoViewExt::DirectXShadow(
+						x1 - pData->FullWidth / 2,
+						y1 - pData->FullHeight / 2 + 15,
+						pData, cell->Height, true);
+				}
+				else
+				{
+					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+													x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + 15, pData, NULL, 128);
+				}
+			}
+
+			FSet drawn;
+			DrawTechnoAttachments([] {}, drawn, pType, atoi(obj.Facing),
+									cell, ddsd.lpSurface, boundary,
+									x1, y1 + 15, 0xffffff, true);
+		}
+	}
+	else
+	{
+		auto pData = pType->GetImageData(obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
+		bool HoveringUnit = ExtConfigs::InGameDisplay_Hover && pType->IsHoveringUnit;
+		auto color = forceColor != CLR_INVALID ? forceColor : Renderer::Vehicles[cell->Unit].GetHouseColor();
+
+		if (ImageDataClassSafe::IsValidImage(pData))
+		{
+			if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
+			{
+				if (ExtConfigs::DirectXRendering)
+				{
+					pThis->DrawLineRawDirectX(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
+												x + 30, y + 15 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+												false, true, 1, false);
+				}
+				else
+				{
+					pThis->DrawLine(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
+									x + 30, y + 15 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+									false, false, &ddsd, window, true);
+				}
+			}
+
+			auto draw = [&]
+			{
+				if (ExtConfigs::DirectXRendering)
+				{
+					CIsoViewExt::DirectXNormal(
+						x - pData->FullWidth / 2,
+						y - pData->FullHeight / 2 + 15 - (HoveringUnit ? 10 : 0) -
+							(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
+						pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 0, true, info.aroundRedrawCell ? cell->Height : 0xFF);
+				}
+				else
+				{
+					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+													x - pData->FullWidth / 2,
+													y - pData->FullHeight / 2 + 15 - (HoveringUnit ? 10 : 0) -
+														(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
+													pData, NULL, isCloakable(pType) ? 128 : 255, color, 0, true,
+													info.aroundRedrawCell ? &objectOverlapMask : nullptr);
+				}
+			};
+			draw();
+
+			if (CIsoViewExt::DrawVeterancy)
+			{
+				auto &veter = DrawVeterancies.emplace_back();
+				int VP = atoi(obj.VeterancyPercentage);
+				veter.X = x;
+				veter.Y = y - (HoveringUnit ? 10 : 0) - (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0);
+				veter.VP = VP;
+				veter.ID = obj.TypeID;
+			}
+
+			FSet drawn;
+			DrawTechnoAttachments(draw, drawn, pType, atoi(obj.Facing),
+									cell, ddsd.lpSurface, boundary,
+									x, y + 15 - (HoveringUnit ? 10 : 0) - (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
+									color, false);
+		}
+		else
+		{
+			FSet drawn;
+			DrawTechnoAttachments([] {}, drawn, pType, atoi(obj.Facing),
+									cell, ddsd.lpSurface, boundary,
+									x, y + 15 - (HoveringUnit ? 10 : 0) - (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
+									color, false);
+		}
+	}
+}
+
+static void DrawInfantry(Renderer::InfantryType* pType, 
+	CInfantryData& obj, 
+	CellData* cell,
+	CIsoViewExt* pThis,
+	DDSURFACEDESC2& ddsd,
+	DDBoundary& boundary,
+	int x, int y, int i, int subcell,
+	const CellInfo& info,
+	bool shadow,
+	COLORREF forceColor = CLR_INVALID
+)
+{
+	if (shadow)
+	{
+		if (!isCloakable(pType))
+		{
+			auto pData = pType->GetShadowData(obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
+
+			int x1 = x;
+			int y1 = y;
+			Renderer::Infantry::OffsetInfantrySubcell(x1, y1, subcell);
+
+			if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
+				y1 -= 60;
+
+			if (ImageDataClassSafe::IsValidImage(pData))
+			{
+				if (ExtConfigs::DirectXRendering)
+				{
+					CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height);
+				}
+				else
+				{
+					CIsoViewExt::MaskShadowPixels(window,
+												  x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData,
+												  shadowMask_Building_Infantry,
+												  shadowHeightMask, cell->Height);
+				}
+			}
+			FSet drawn;
+			DrawTechnoAttachments([] {}, drawn, pType, atoi(obj.Facing),
+								  cell, ddsd.lpSurface, boundary,
+								  x1, y1, 0xffffff, true);
+		}
+	}
+	else
+	{
+		auto pData = pType->GetImageData(obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
+
+		int x1 = x;
+		int y1 = y;
+		Renderer::Infantry::OffsetInfantrySubcell(x1, y1, subcell);
+
+		if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
+			y1 -= 60;
+
+		if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
+		{
+			if (ExtConfigs::DirectXRendering)
+			{
+				pThis->DrawLineRawDirectX(x1 + 30, y1 - 30,
+										  x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+										  false, true, 1, false);
+			}
+			else
+			{
+				pThis->DrawLine(x1 + 30, y1 - 30,
+								x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+								false, false, &ddsd, window, true);
+			}
+		}
+
+		auto color = forceColor != CLR_INVALID ? forceColor : Renderer::Infantries[cell->Infantry[i]].GetHouseColor();
+		if (ImageDataClassSafe::IsValidImage(pData))
+		{
+			auto draw = [&]
+			{
+				if (ExtConfigs::DirectXRendering)
+				{
+					CIsoViewExt::DirectXNormal(
+						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2,
+						pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 1, true, info.aroundRedrawCell ? cell->Height : 0xFF);
+				}
+				else
+				{
+					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+													x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL,
+													isCloakable(pType) ? 128 : 255, color, 1, true,
+													info.aroundRedrawCell ? &objectOverlapMask : nullptr);
+				}
+			};
+			draw();
+
+			if (CIsoViewExt::DrawVeterancy)
+			{
+				auto &veter = DrawVeterancies.emplace_back();
+				int VP = atoi(obj.VeterancyPercentage);
+				veter.X = x1 - 5;
+				veter.Y = y1 - 4 - 15;
+				veter.VP = VP;
+				veter.ID = obj.TypeID;
+			}
+
+			FSet drawn;
+			DrawTechnoAttachments(draw, drawn, pType, atoi(obj.Facing),
+								  cell, ddsd.lpSurface, boundary,
+								  x1, y1,
+								  color, false);
+		}
+		else
+		{
+			FSet drawn;
+			DrawTechnoAttachments([] {}, drawn, pType, atoi(obj.Facing),
+								  cell, ddsd.lpSurface, boundary,
+								  x1, y1,
+								  color, false);
+		}
+	}
+}
+
+static void DrawAircraft(Renderer::AircraftType* pType, 
+	CAircraftDataFS& obj, 
+	CellData* cell,
+	CIsoViewExt* pThis,
+	DDSURFACEDESC2& ddsd,
+	DDBoundary& boundary,
+	int x, int y,
+	const CellInfo& info,
+	bool shadow,
+	COLORREF forceColor = CLR_INVALID
+)
+{
+	if (shadow)
+	{
+		if (!isCloakable(pType) && pType->TechnoAttachmentInfo)
+		{
+			FSet drawn;
+			DrawTechnoAttachments([] {}, drawn, pType, atoi(obj.Facing),
+								  cell, ddsd.lpSurface, boundary,
+								  x, y + 15, 0xffffff, true);
+		}
+	}
+	else
+	{
+		auto pData = pType->GetImageData(obj);
+		auto color = forceColor != CLR_INVALID ? forceColor : Renderer::Aircrafts[cell->Aircraft].GetHouseColor();
+		if (ImageDataClassSafe::IsValidImage(pData))
+		{
+			auto draw = [&]
+			{
+				if (ExtConfigs::DirectXRendering)
+				{
+					CIsoViewExt::DirectXNormal(
+						x - pData->FullWidth / 2, y - pData->FullHeight / 2 + 15,
+						pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 2, true, info.aroundRedrawCell ? cell->Height : 0xFF);
+				}
+				else
+				{
+					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+													x - pData->FullWidth / 2, y - pData->FullHeight / 2 + 15, pData, NULL,
+													isCloakable(pType) ? 128 : 255, color, 2, true,
+													info.aroundRedrawCell ? &objectOverlapMask : nullptr);
+				}
+			};
+			draw();
+	
+			if (CIsoViewExt::DrawVeterancy)
+			{
+				auto &veter = DrawVeterancies.emplace_back();
+				int VP = atoi(obj.VeterancyPercentage);
+				veter.X = x;
+				veter.Y = y;
+				veter.VP = VP;
+				veter.ID = obj.TypeID;
+			}
+	
+			FSet drawn;
+			DrawTechnoAttachments(draw, drawn, pType, atoi(obj.Facing),
+									cell, ddsd.lpSurface, boundary,
+									x, y + 15,
+									color, false);
+		}
+		else
+		{
+			FSet drawn;
+			DrawTechnoAttachments([] {}, drawn, pType, atoi(obj.Facing),
+									cell, ddsd.lpSurface, boundary,
+									x, y + 15,
+									color, false);
+		}
+	}
+}
+
+static void DrawBuilding(Renderer::BuildingType* pType, 
+	BuildingRenderData& objRender, 
+	CellData* cell,
+	CIsoViewExt* pThis,
+	DDSURFACEDESC2& ddsd,
+	DDBoundary& boundary,
+	int x, int y, int X, int Y,
+	int DrawOffsetX, int DrawOffsetY,
+	const CellInfo& info,
+	bool shadow,
+	Renderer::Building* pForceBuilding = nullptr
+)
+{
+	const auto &DataExt = *pType->pDataExt;
+
+	const int HP = objRender.Strength;
+	int status = CLoadingExt::GBIN_NORMAL;
+	if (pType->CanOccupyFire && pType->TechLevel < 0)
+	{
+		if (HP == 0)
+			status = CLoadingExt::GBIN_RUBBLE;
+		else if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
+			status = CLoadingExt::GBIN_DAMAGED;
+		else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
+			status = CLoadingExt::GBIN_GARRISONDAMAGED;
+	}
+	else
+	{
+		if (HP == 0)
+			status = CLoadingExt::GBIN_RUBBLE;
+		else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
+			status = CLoadingExt::GBIN_DAMAGED;
+	}
+
+	int x1 = objRender.X;
+	int y1 = objRender.Y;
+	CIsoView::MapCoord2ScreenCoord(x1, y1);
+	x1 -= DrawOffsetX;
+	y1 -= DrawOffsetY;
+
+	MapCoord buildingOrigin{objRender.X, objRender.Y};
+	if (!IsCoordInWindow(objRender.X, objRender.Y))
+	{
+		buildingOrigin.X = X;
+		buildingOrigin.Y = Y;
+	}
+
+	auto &clips = *pType->GetImageData(objRender.Facing, status);
+
+	Palette *pPal = nullptr;
+	BGRStruct color;
+	auto pRGB = reinterpret_cast<ColorStruct *>(&objRender.HouseColor);
+	color.R = pRGB->red;
+	color.G = pRGB->green;
+	color.B = pRGB->blue;
+
+	auto isRubble = status == CLoadingExt::GBIN_RUBBLE &&
+					!pType->IsDamagedAsRubble && (pType->LeaveRubble || ExtConfigs::HideNoRubbleBuilding);
+	auto isTerrain = pType->IsTerrainPalette;
+
+	if (!ExtConfigs::DirectXRendering)
+	{
+		if (LightingStruct::CurrentLighting == LightingStruct::NoLighting)
+		{
+			pPal = PalettesManager::GetPalette(clips[0]->pPalette, color, !isTerrain && !isRubble);
+		}
+		else
+		{
+			pPal = PalettesManager::GetObjectPalette(clips[0]->pPalette, color, !isTerrain && !isRubble,
+														{objRender.X, objRender.Y, CMapDataExt::TryGetCellAt(objRender.X, objRender.Y)->Height},
+														false, isRubble || isTerrain ? 4 : 3);
+		}
+	}
+	int partCount = std::min(DataExt.BottomCoords.size(), clips.size());
+	for (int i = 0; i < partCount; ++i)
+	{
+		auto pData = clips[i].get();
+
+		auto &coord = DataExt.BottomCoords[i];
+		MapCoord coordInMap = {objRender.X + coord.X, objRender.Y + coord.Y};
+
+		while (IsCoordInWindowButOnBottom(coordInMap.X, coordInMap.Y))
+		{
+			coordInMap.X--;
+			coordInMap.Y--;
+			if (IsCoordInWindow(coordInMap.X, coordInMap.Y))
+			{
+				break;
+			}
+		}
+		if (!IsCoordInWindow(coordInMap.X, coordInMap.Y))
+		{
+			coordInMap.X = X;
+			coordInMap.Y = Y;
+		}
+		CellDataExt *cellExt = nullptr;
+		bool objectsOnBuilding = false;
+		if (!DataExt.IsCustomFoundation())
+		{
+			for (int dy = 0; dy < DataExt.Width; ++dy)
+			{
+				for (int dx = 0; dx < DataExt.Height; ++dx)
+				{
+					const int x = objRender.X + dx;
+					const int y = objRender.Y + dy;
+					auto cell = CMapData::Instance->TryGetCellAt(x, y);
+					if (cell->Aircraft > -1 || cell->Unit > -1 || cell->Infantry[0] > -1 || cell->Infantry[1] > -1 || cell->Infantry[2] > -1)
+					{
+						objectsOnBuilding = true;
+						break;
+					}
+				}
+			}
+		}
+		else
+		{
+			for (const auto &block : *DataExt.Foundations)
+			{
+				const int x = objRender.X + block.Y;
+				const int y = objRender.Y + block.X;
+				auto cell = CMapData::Instance->TryGetCellAt(x, y);
+				if (cell->Aircraft > -1 || cell->Unit > -1 || cell->Infantry[0] > -1 || cell->Infantry[1] > -1 || cell->Infantry[2] > -1)
+				{
+					objectsOnBuilding = true;
+					break;
+				}
+			}
+		}
+
+		if (objectsOnBuilding)
+		{
+			cellExt = &CMapDataExt::CellDataExts
+							[CMapData::Instance->GetCoordIndex(buildingOrigin.X, buildingOrigin.Y)];
+		}
+		else if (isCoordInFullMap(coordInMap.X, coordInMap.Y))
+		{
+			cellExt = &CMapDataExt::CellDataExts
+							[CMapData::Instance->GetCoordIndex(coordInMap.X, coordInMap.Y)];
+		}
+		else
+		{
+			bool found = false;
+			for (int dy = 0; dy < DataExt.Width; ++dy)
+			{
+				for (int dx = 0; dx < DataExt.Height; ++dx)
+				{
+					const int x = objRender.X + dx;
+					const int y = objRender.Y + dy;
+					if (isCoordInFullMap(x, y))
+					{
+						found = true;
+						cellExt = &CMapDataExt::CellDataExts
+										[CMapData::Instance->GetCoordIndex(x, y)];
+					}
+					if (found)
+						break;
+				}
+				if (found)
+					break;
+			}
+		}
+
+		if (cellExt)
+		{
+			bool hasFire = status == CLoadingExt::GBIN_DAMAGED;
+			if (pType->CanOccupyFire && pType->TechLevel > -1 && static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) <= HP)
+				hasFire = false;
+
+			cellExt->BuildingRenderParts.push_back({(short)i,
+													i == DataExt.Width - 1,
+													hasFire,
+													x1 - pData->ClipOffsets.FullWidth / 2 + pData->ClipOffsets.LeftOffset,
+													y1,
+													status,
+													pData,
+													pPal,
+													pForceBuilding ? pForceBuilding : &Renderer::Buildings[cell->Structure]});
+		}
+	}
+
+	if (shadow && CIsoViewExt::DrawStructures && !isCloakable(pType))
+	{
+		int nFacing = 0;
+		int FacingCount = pType->FacingCount;
+		if (pType->HasTurret && !pType->TurretAnimIsVoxel)
+		{
+			nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
+		}
+		auto pData = pType->GetShadowData(nFacing, status);
+		if (ImageDataClassSafe::IsValidImage(pData))
+		{
+			if (ExtConfigs::DirectXRendering)
+			{
+				CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height);
+			}
+			else
+			{
+				CIsoViewExt::MaskShadowPixels(window,
+												x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData,
+												shadowMask_Building_Infantry,
+												shadowHeightMask, cell->Height);
+			}
+		}
+
+		FSet drawn;
+		DrawTechnoAttachments([] {}, drawn, pType, FacingCount == 1 ? 0 : objRender.Facing,
+								cell, ddsd.lpSurface, boundary,
+								x1, y1, 0xffffff, true);
+
+		for (int upgrade = 0; upgrade < objRender.PowerUpCount; ++upgrade)
+		{
+			const auto &upg = upgrade == 0 ? objRender.PowerUp1 : (upgrade == 1 ? objRender.PowerUp2 : objRender.PowerUp3);
+			const auto &upgXX = upgrade == 0 ? pType->PowerUp1LocXX : (upgrade == 1 ? pType->PowerUp2LocXX : pType->PowerUp3LocXX);
+			const auto &upgYY = upgrade == 0 ? pType->PowerUp1LocYY : (upgrade == 1 ? pType->PowerUp2LocYY : pType->PowerUp3LocYY);
+			if (upg.GetLength() == 0)
+				continue;
+
+			auto pUpgType = Renderer::GetOrCreateBuilding(upg);
+			auto pUpgData = pUpgType->GetShadowData(0, 0);
+			if (ImageDataClassSafe::IsValidImage(pUpgData))
+			{
+				int x1 = x;
+				int y1 = y;
+				x1 += upgXX;
+				y1 += upgYY;
+
+				if (ExtConfigs::DirectXRendering)
+				{
+					CIsoViewExt::DirectXShadow(
+						x1 - pUpgData->FullWidth / 2,
+						y1 - pUpgData->FullHeight / 2,
+						pUpgData, cell->Height);
+				}
+				else
+				{
+					CIsoViewExt::MaskShadowPixels(window,
+													x1 - pUpgData->FullWidth / 2, y1 - pUpgData->FullHeight / 2,
+													pUpgData, shadowMask_Building_Infantry,
+													shadowHeightMask, cell->Height);
+				}
+			}
+		}
+	}
+}
+
+static void DrawSmudge(FString_view obj, 
+	CIsoViewExt* pThis,
+	DDSURFACEDESC2& ddsd,
+	DDBoundary& boundary,
+	int x, int y, int X, int Y,
+	bool shadow,
+	const CellInfo& info
+)
+{
+	if (shadow)
+	{
+		auto pType = Renderer::GetOrCreateSmudge(obj);
+		if (pType->IsVisibleInMapRendererOrNormal())
+		{
+			auto pData = pType->GetImageData();
+			if (ImageDataClassSafe::IsVisibleImage(pData))
+			{
+				if (ExtConfigs::DirectXRendering)
+				{
+					CIsoViewExt::DirectXNormal(
+						x - pData->FullWidth / 2,
+						y - pData->FullHeight / 2,
+						pData, nullptr, 1.0f, 0, -1, false, 0xff, false);
+				}
+				else
+				{
+					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+													x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false);
+				}
+			}
+			else
+			{
+				SmudgeTextsToDraw.push_back(std::make_pair(MapCoord{X, Y}, obj));
+			}
+		}
+	}
+	else
+	{
+		auto pType = Renderer::GetOrCreateSmudge(obj);
+		if (pType->IsVisibleInMapRendererOrNormal())
+		{
+			auto pData = pType->GetImageData();
+			if (ImageDataClassSafe::IsVisibleImage(pData))
+			{
+				if (ExtConfigs::DirectXRendering)
+				{
+					CIsoViewExt::DirectXNormal(
+						x - pData->FullWidth / 2,
+						y - pData->FullHeight / 2,
+						pData, NULL, 1.0f, 0, -1, false,
+						info.aroundRedrawCell ? info.cell->Height : 0xFF);
+				}
+				else
+				{
+					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+													x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false,
+													info.aroundRedrawCell ? &objectOverlapMask : nullptr);
+				}
+			}
+		}
+	}
+}
+
+static void DrawTerrain(FString_view obj, 
+	CIsoViewExt* pThis,
+	DDSURFACEDESC2& ddsd,
+	DDBoundary& boundary,
+	int x, int y, int X, int Y,
+	bool shadow,
+	const CellInfo& info
+)
+{
+	if (shadow)
+	{
+		auto pType = Renderer::GetOrCreateTerrain(obj);
+		if (pType->IsVisibleInMapRendererOrNormal())
+		{
+			auto pData = pType->GetShadowData();
+			if (ImageDataClassSafe::IsVisibleImage(pData))
+			{
+				int x1 = x;
+				int y1 = y;
+
+				if (ExtConfigs::DirectXRendering)
+				{
+					CIsoViewExt::DirectXShadow(
+						x1 - pData->FullWidth / 2,
+						y1 - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
+						pData, info.cell->Height);
+				}
+				else
+				{
+					CIsoViewExt::MaskShadowPixels(window,
+												  x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
+												  pData, shadowMask_Terrain,
+												  shadowHeightMask, info.cell->Height);
+				}
+			}
+		}
+	}
+	else
+	{
+		auto pType = Renderer::GetOrCreateTerrain(obj);
+		if (pType->IsVisibleInMapRendererOrNormal())
+		{
+			auto pData = pType->GetImageData();
+
+			if (ImageDataClassSafe::IsVisibleImage(pData))
+			{
+				if (ExtConfigs::DirectXRendering)
+				{
+					CIsoViewExt::DirectXNormal(
+						x - pData->FullWidth / 2,
+						y - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
+						pData, NULL, 1.0f, 0, pType->IsTiberiumTree ? 6 : (pType->HasCustomPalette ? 5 : -1), false, info.aroundRedrawCell ? info.cell->Height : 0xFF);
+				}
+				else
+				{
+					CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+													x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
+													pData, NULL, 255, 0, pType->IsTiberiumTree ? 6 : (pType->HasCustomPalette ? 5 : -1), false,
+													info.aroundRedrawCell ? &objectOverlapMask : nullptr);
+				}
+			}
+			else
+			{
+				TerrainTextsToDraw.push_back(std::make_pair(MapCoord{X, Y}, obj));
+			}
+			if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages)
+			{
+				auto pAIData = pType->GetAlphaImageData();
+				if (ImageDataClassSafe::IsVisibleImage(pAIData))
+				{
+					AlphaImagesToDraw.push_back(
+						std::make_pair(MapCoord{x - pAIData->FullWidth / 2,
+												y - pAIData->FullHeight / 2 + (pType->IsTiberiumTree ? 0 : 12)},
+										pAIData));
+				}
+			}
+		}
+	}
+}
+
 static void DrawMap()
 {
 	auto pThis = CIsoViewExt::GetExtension();
@@ -720,11 +1444,13 @@ static void DrawMap()
 		DrawVeterancies.clear();
 		visibleCells.clear();
 		memset(coordToIndex, 0, sizeof(coordToIndex));
-		memset(DrawnBuildings, 0, sizeof(DrawnBuildings));
 		DrawnBaseNodes.clear();
 		RedrawCoords.clear();
 		Celltags.clear();
 		Waypoints.clear();
+		pasteObjRenders.clear();
+		pasteBuildings.clear();
+		pasteBuildingFSs.clear();
 		if (CIsoViewExt::DrawCelltags)
 			if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
 			{
@@ -841,16 +1567,6 @@ static void DrawMap()
 	HDC hDC;
 	lpSurface->GetDC(&hDC);
 
-	auto isCoordInFullMap = [](int X, int Y)
-	{
-		if (!ExtConfigs::DisplayObjectsOutside)
-			return CMapData::Instance->IsCoordInMap(X, Y);
-
-		return X >= 0 && Y >= 0 &&
-			   X < CMapData::Instance->MapWidthPlusHeight &&
-			   Y < CMapData::Instance->MapWidthPlusHeight;
-	};
-
 	for (int XplusY = VisibleCoordTL.X + VisibleCoordTL.Y - EXTRA_BORDER;
 		 XplusY < VisibleCoordBR.X + VisibleCoordBR.Y + CIsoViewExt::EXTRA_BORDER_BOTTOM;
 		 XplusY++)
@@ -904,11 +1620,6 @@ static void DrawMap()
 	auto isCellHidden = [](CellData *pCell)
 	{
 		return pCell->IsHidden() && (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers);
-	};
-
-	auto isCloakable = [](Renderer::TechnoType *pType)
-	{
-		return ExtConfigs::InGameDisplay_Cloakable && pType->Cloakable;
 	};
 
 	auto getTileVirtualHeight = [](CellData *cell) -> int
@@ -1301,33 +2012,29 @@ static void DrawMap()
 		CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
 
 		// smudges
-		if (cell->Smudge != -1 && cell->Smudge < CMapData::Instance->SmudgeDatas.size() && CIsoViewExt::DrawSmudges && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
+		if (cellExt->PasteSmudge)
 		{
-			auto &obj = CMapData::Instance->SmudgeDatas[cell->Smudge].TypeID;
-			auto pType = Renderer::GetOrCreateSmudge(obj);
-			if (pType->IsVisibleInMapRendererOrNormal())
-			{
-				auto pData = pType->GetImageData();
-				if (ImageDataClassSafe::IsVisibleImage(pData))
-				{
-					if (ExtConfigs::DirectXRendering)
-					{
-						CIsoViewExt::DirectXNormal(
-							x - pData->FullWidth / 2,
-							y - pData->FullHeight / 2,
-							pData, nullptr, 1.0f, 0, -1, false, 0xff, false);
-					}
-					else
-					{
-						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-														x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false);
-					}
-				}
-				else
-				{
-					SmudgeTextsToDraw.push_back(std::make_pair(MapCoord{X, Y}, obj));
-				}
-			}
+			DrawSmudge(cellExt->PasteSmudge,
+				pThis,
+				ddsd,
+				boundary,
+				x, y, X, Y,
+				true,
+				info);	
+		}
+		if (cell->Smudge != -1 
+			&& cell->Smudge < CMapData::Instance->SmudgeDatas.size() 
+			&& CIsoViewExt::DrawSmudges 
+			&& (info.isInMap || ExtConfigs::DisplayObjectsOutside)
+			&& (!cellExt->IsPasteCell || !CIsoViewExt::PasteSmudges || !CIsoViewExt::PasteOverriding))
+		{
+			DrawSmudge(CMapData::Instance->SmudgeDatas[cell->Smudge].TypeID,
+					   pThis,
+					   ddsd,
+					   boundary,
+					   x, y, X, Y,
+					   true,
+					   info);			
 		}
 	}
 
@@ -1353,243 +2060,54 @@ static void DrawMap()
 			WaypointsToDraw.push_back(std::make_pair(MapCoord{x, y},
 													 cell->Waypoint < Waypoints.size() ? Waypoints[cell->Waypoint]->GetString() : ""));
 		}
-		if (cell->Structure > -1)
+		if (cellExt->PasteBuilding)
 		{
-			if (!DrawnBuildings[cell->Structure])
+			auto& obj = pasteBuildingFSs.emplace_back();
+			CMapDataExt::GetBuildingDataFS(cellExt->PasteBuilding, obj);
+			auto& pasteObjRender = pasteObjRenders.emplace_back();
+			pasteObjRender.HouseColor = Miscs::GetColorRef(obj.House);
+			pasteObjRender.ID = obj.TypeID;
+			pasteObjRender.Strength = std::clamp(atoi(obj.Health), 0, 256);
+			pasteObjRender.Y = Y;
+			pasteObjRender.X = X;
+			pasteObjRender.Facing = atoi(obj.Facing);
+			pasteObjRender.PowerUpCount = atoi(obj.Upgrades);
+			pasteObjRender.PowerUp1 = obj.Upgrade1;
+			pasteObjRender.PowerUp2 = obj.Upgrade2;
+			pasteObjRender.PowerUp3 = obj.Upgrade3;
+			pasteObjRender.poweredOn = obj.PoweredOn != "0";
+			auto& pasteBuilding = pasteBuildings.emplace_back();
+			pasteBuilding.InitOnPaste(obj, pasteObjRender);
+			DrawBuilding(pasteBuilding.GetType(),
+						 pasteObjRender,
+						 cell,
+						 pThis,
+						 ddsd,
+						 boundary,
+						 x, y, X, Y,
+						 DrawOffsetX, DrawOffsetY,
+						 info,
+						 shadow, 
+						 &pasteBuilding);
+		}
+		if (cell->Structure > -1
+			&& (!cellExt->IsPasteCell || !CIsoViewExt::PasteStructures || !CIsoViewExt::PasteOverriding))
+		{
+			if (Renderer::Buildings[cell->Structure].firstDrawA)
 			{
-				DrawnBuildings[cell->Structure] = true;
+				Renderer::Buildings[cell->Structure].firstDrawA = false;
 				auto pType = Renderer::Buildings[cell->Structure].GetType();
 				auto &objRender = *Renderer::Buildings[cell->Structure].GetRender();
-				const auto &DataExt = *pType->pDataExt;
-
-				const int HP = objRender.Strength;
-				int status = CLoadingExt::GBIN_NORMAL;
-				if (pType->CanOccupyFire && pType->TechLevel < 0)
-				{
-					if (HP == 0)
-						status = CLoadingExt::GBIN_RUBBLE;
-					else if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
-						status = CLoadingExt::GBIN_DAMAGED;
-					else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
-						status = CLoadingExt::GBIN_GARRISONDAMAGED;
-				}
-				else
-				{
-					if (HP == 0)
-						status = CLoadingExt::GBIN_RUBBLE;
-					else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
-						status = CLoadingExt::GBIN_DAMAGED;
-				}
-
-				int x1 = objRender.X;
-				int y1 = objRender.Y;
-				CIsoView::MapCoord2ScreenCoord(x1, y1);
-				x1 -= DrawOffsetX;
-				y1 -= DrawOffsetY;
-
-				MapCoord buildingOrigin{objRender.X, objRender.Y};
-				if (!IsCoordInWindow(objRender.X, objRender.Y))
-				{
-					buildingOrigin.X = X;
-					buildingOrigin.Y = Y;
-				}
-
-				auto &clips = *pType->GetImageData(objRender.Facing, status);
-
-				Palette *pPal = nullptr;
-				BGRStruct color;
-				auto pRGB = reinterpret_cast<ColorStruct *>(&objRender.HouseColor);
-				color.R = pRGB->red;
-				color.G = pRGB->green;
-				color.B = pRGB->blue;
-
-				auto isRubble = status == CLoadingExt::GBIN_RUBBLE &&
-								!pType->IsDamagedAsRubble && (pType->LeaveRubble || ExtConfigs::HideNoRubbleBuilding);
-				auto isTerrain = pType->IsTerrainPalette;
-
-				if (!ExtConfigs::DirectXRendering)
-				{
-					if (LightingStruct::CurrentLighting == LightingStruct::NoLighting)
-					{
-						pPal = PalettesManager::GetPalette(clips[0]->pPalette, color, !isTerrain && !isRubble);
-					}
-					else
-					{
-						pPal = PalettesManager::GetObjectPalette(clips[0]->pPalette, color, !isTerrain && !isRubble,
-																 {objRender.X, objRender.Y, CMapDataExt::TryGetCellAt(objRender.X, objRender.Y)->Height},
-																 false, isRubble || isTerrain ? 4 : 3);
-					}
-				}
-				int partCount = std::min(DataExt.BottomCoords.size(), clips.size());
-				for (int i = 0; i < partCount; ++i)
-				{
-					auto pData = clips[i].get();
-
-					auto &coord = DataExt.BottomCoords[i];
-					MapCoord coordInMap = {objRender.X + coord.X, objRender.Y + coord.Y};
-
-					while (IsCoordInWindowButOnBottom(coordInMap.X, coordInMap.Y))
-					{
-						coordInMap.X--;
-						coordInMap.Y--;
-						if (IsCoordInWindow(coordInMap.X, coordInMap.Y))
-						{
-							break;
-						}
-					}
-					if (!IsCoordInWindow(coordInMap.X, coordInMap.Y))
-					{
-						coordInMap.X = X;
-						coordInMap.Y = Y;
-					}
-					CellDataExt *cellExt = nullptr;
-					bool objectsOnBuilding = false;
-					if (!DataExt.IsCustomFoundation())
-					{
-						for (int dy = 0; dy < DataExt.Width; ++dy)
-						{
-							for (int dx = 0; dx < DataExt.Height; ++dx)
-							{
-								const int x = objRender.X + dx;
-								const int y = objRender.Y + dy;
-								auto cell = CMapData::Instance->TryGetCellAt(x, y);
-								if (cell->Aircraft > -1 || cell->Unit > -1 || cell->Infantry[0] > -1 || cell->Infantry[1] > -1 || cell->Infantry[2] > -1)
-								{
-									objectsOnBuilding = true;
-									break;
-								}
-							}
-						}
-					}
-					else
-					{
-						for (const auto &block : *DataExt.Foundations)
-						{
-							const int x = objRender.X + block.Y;
-							const int y = objRender.Y + block.X;
-							auto cell = CMapData::Instance->TryGetCellAt(x, y);
-							if (cell->Aircraft > -1 || cell->Unit > -1 || cell->Infantry[0] > -1 || cell->Infantry[1] > -1 || cell->Infantry[2] > -1)
-							{
-								objectsOnBuilding = true;
-								break;
-							}
-						}
-					}
-
-					if (objectsOnBuilding)
-					{
-						cellExt = &CMapDataExt::CellDataExts
-									  [CMapData::Instance->GetCoordIndex(buildingOrigin.X, buildingOrigin.Y)];
-					}
-					else if (isCoordInFullMap(coordInMap.X, coordInMap.Y))
-					{
-						cellExt = &CMapDataExt::CellDataExts
-									  [CMapData::Instance->GetCoordIndex(coordInMap.X, coordInMap.Y)];
-					}
-					else
-					{
-						bool found = false;
-						for (int dy = 0; dy < DataExt.Width; ++dy)
-						{
-							for (int dx = 0; dx < DataExt.Height; ++dx)
-							{
-								const int x = objRender.X + dx;
-								const int y = objRender.Y + dy;
-								if (isCoordInFullMap(x, y))
-								{
-									found = true;
-									cellExt = &CMapDataExt::CellDataExts
-												  [CMapData::Instance->GetCoordIndex(x, y)];
-								}
-								if (found)
-									break;
-							}
-							if (found)
-								break;
-						}
-					}
-
-					if (cellExt)
-					{
-						bool hasFire = status == CLoadingExt::GBIN_DAMAGED;
-						if (pType->CanOccupyFire && pType->TechLevel > -1 && static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) <= HP)
-							hasFire = false;
-
-						cellExt->BuildingRenderParts.push_back({(short)i,
-																i == DataExt.Width - 1,
-																hasFire,
-																x1 - pData->ClipOffsets.FullWidth / 2 + pData->ClipOffsets.LeftOffset,
-																y1,
-																status,
-																pData,
-																pPal,
-																&Renderer::Buildings[cell->Structure]});
-					}
-				}
-
-				if (shadow && CIsoViewExt::DrawStructures && !isCloakable(pType))
-				{
-					int nFacing = 0;
-					int FacingCount = pType->FacingCount;
-					if (pType->HasTurret && !pType->TurretAnimIsVoxel)
-					{
-						nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
-					}
-					auto pData = pType->GetShadowData(nFacing, status);
-					if (ImageDataClassSafe::IsValidImage(pData))
-					{
-						if (ExtConfigs::DirectXRendering)
-						{
-							CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height);
-						}
-						else
-						{
-							CIsoViewExt::MaskShadowPixels(window,
-														  x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData,
-														  shadowMask_Building_Infantry,
-														  shadowHeightMask, cell->Height);
-						}
-					}
-
-					FSet drawn;
-					DrawTechnoAttachments([] {}, drawn, pType, FacingCount == 1 ? 0 : objRender.Facing,
-										  cell, ddsd.lpSurface, boundary,
-										  x1, y1, 0xffffff, true);
-
-					for (int upgrade = 0; upgrade < objRender.PowerUpCount; ++upgrade)
-					{
-						const auto &upg = upgrade == 0 ? objRender.PowerUp1 : (upgrade == 1 ? objRender.PowerUp2 : objRender.PowerUp3);
-						const auto &upgXX = upgrade == 0 ? pType->PowerUp1LocXX : (upgrade == 1 ? pType->PowerUp2LocXX : pType->PowerUp3LocXX);
-						const auto &upgYY = upgrade == 0 ? pType->PowerUp1LocYY : (upgrade == 1 ? pType->PowerUp2LocYY : pType->PowerUp3LocYY);
-						if (upg.GetLength() == 0)
-							continue;
-
-						auto pUpgType = Renderer::GetOrCreateBuilding(upg);
-						auto pUpgData = pUpgType->GetShadowData(0, 0);
-						if (ImageDataClassSafe::IsValidImage(pUpgData))
-						{
-							int x1 = x;
-							int y1 = y;
-							x1 += upgXX;
-							y1 += upgYY;
-
-							if (ExtConfigs::DirectXRendering)
-							{
-								CIsoViewExt::DirectXShadow(
-									x1 - pUpgData->FullWidth / 2,
-									y1 - pUpgData->FullHeight / 2,
-									pUpgData, cell->Height);
-							}
-							else
-							{
-								CIsoViewExt::MaskShadowPixels(window,
-															  x1 - pUpgData->FullWidth / 2, y1 - pUpgData->FullHeight / 2,
-															  pUpgData, shadowMask_Building_Infantry,
-															  shadowHeightMask, cell->Height);
-							}
-						}
-					}
-				}
+				DrawBuilding(pType,
+							 objRender,
+							 cell,
+							 pThis,
+							 ddsd,
+							 boundary,
+							 x, y, X, Y,
+							 DrawOffsetX, DrawOffsetY,
+							 info,
+							 shadow);
 			}
 		}
 		if (info.isInMap || ExtConfigs::DisplayObjectsOutside)
@@ -1780,119 +2298,120 @@ static void DrawMap()
 		}
 		for (int i = 0; i < 3 && shadow; i++)
 		{
-			if (cell->Infantry[i] > -1 && Renderer::Infantries[cell->Infantry[i]].IsVisible())
+			if (shadow && cellExt->PasteInfantry[i])
+			{
+				CInfantryData obj;
+				CMapDataExt::GetInfantryData(cellExt->PasteInfantry[i], obj);
+				auto pType = Renderer::GetOrCreateInfantry(obj.TypeID);
+				DrawInfantry(pType,
+						 obj,
+						 cell,
+						 pThis,
+						 ddsd,
+						 boundary,
+						 x, y, i, atoi(obj.SubCell),
+						 info,
+						 true);
+			}
+			if (cell->Infantry[i] > -1 && Renderer::Infantries[cell->Infantry[i]].IsVisible()
+			&& (!cellExt->IsPasteCell || !CIsoViewExt::PasteInfantries || !CIsoViewExt::PasteOverriding))
 			{
 				auto &obj = *Renderer::Infantries[cell->Infantry[i]].GetData();
 				auto pType = Renderer::Infantries[cell->Infantry[i]].GetType();
-				if (!isCloakable(pType))
-				{
-					auto pData = pType->GetShadowData(obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
-
-					int x1 = x;
-					int y1 = y;
-					Renderer::Infantries[cell->Infantry[i]].OffsetInfantrySubcell(x1, y1);
-
-					if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
-						y1 -= 60;
-
-					if (ImageDataClassSafe::IsValidImage(pData))
-					{
-						if (ExtConfigs::DirectXRendering)
-						{
-							CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height);
-						}
-						else
-						{
-							CIsoViewExt::MaskShadowPixels(window,
-														  x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData,
-														  shadowMask_Building_Infantry,
-														  shadowHeightMask, cell->Height);
-						}
-					}
-					FSet drawn;
-					DrawTechnoAttachments([] {}, drawn, pType, atoi(obj.Facing),
-										  cell, ddsd.lpSurface, boundary,
-										  x1, y1, 0xffffff, true);
-				}
+				DrawInfantry(pType,
+					obj,
+					cell,
+					pThis,
+					ddsd,
+					boundary,
+					x, y, i, atoi(obj.SubCell),
+					info,
+					true);
 			}
 		}
-		if (shadow && cell->Unit > -1 && Renderer::Vehicles[cell->Unit].IsVisible())
+		
+		if (shadow && cellExt->PasteUnit)
+		{
+			CUnitDataFS obj;
+			CMapDataExt::GetUnitDataFS(cellExt->PasteUnit, obj);
+			auto pType = Renderer::GetOrCreateVehicle(obj.TypeID);
+			DrawUnit(pType,
+					 obj,
+					 cell,
+					 pThis,
+					 ddsd,
+					 boundary,
+					 x, y,
+					 info,
+					 true);
+		}
+		if (shadow && cell->Unit > -1 && Renderer::Vehicles[cell->Unit].IsVisible()
+		&& (!cellExt->IsPasteCell || !CIsoViewExt::PasteUnits || !CIsoViewExt::PasteOverriding))
 		{
 			auto &obj = *Renderer::Vehicles[cell->Unit].GetData();
 			auto pType = Renderer::Vehicles[cell->Unit].GetType();
-			if (!isCloakable(pType))
-			{
-				auto pData = pType->GetShadowData(obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
-
-				int x1 = x;
-				int y1 = y;
-
-				if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
-					y1 -= 60;
-
-				if (ImageDataClassSafe::IsValidImage(pData))
-				{
-					// units are special, they overlap with each other
-					if (ExtConfigs::DirectXRendering)
-					{
-						CIsoViewExt::DirectXShadow(
-							x1 - pData->FullWidth / 2,
-							y1 - pData->FullHeight / 2 + 15,
-							pData, cell->Height, true);
-					}
-					else
-					{
-						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-														x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + 15, pData, NULL, 128);
-					}
-				}
-
-				FSet drawn;
-				DrawTechnoAttachments([] {}, drawn, pType, atoi(obj.Facing),
-									  cell, ddsd.lpSurface, boundary,
-									  x1, y1 + 15, 0xffffff, true);
-			}
+			DrawUnit(pType,
+					 obj,
+					 cell,
+					 pThis,
+					 ddsd,
+					 boundary,
+					 x, y,
+					 info,
+					 true);
 		}
-		if (shadow && cell->Aircraft > -1 && Renderer::Aircrafts[cell->Aircraft].IsVisible())
+		if (shadow && cellExt->PasteAircraft)
+		{
+			CAircraftDataFS obj;
+			CMapDataExt::GetAircraftDataFS(cellExt->PasteAircraft, obj);
+			auto pType = Renderer::GetOrCreateAircraft(obj.TypeID);
+			DrawAircraft(pType,
+					 obj,
+					 cell,
+					 pThis,
+					 ddsd,
+					 boundary,
+					 x, y,
+					 info,
+					 true);
+		}
+		if (shadow && cell->Aircraft > -1 && Renderer::Aircrafts[cell->Aircraft].IsVisible()
+		&& (!cellExt->IsPasteCell || !CIsoViewExt::PasteAircrafts || !CIsoViewExt::PasteOverriding))
 		{
 			auto &obj = *Renderer::Aircrafts[cell->Aircraft].GetData();
 			auto pType = Renderer::Aircrafts[cell->Aircraft].GetType();
-			if (!isCloakable(pType) && pType->TechnoAttachmentInfo)
-			{
-				FSet drawn;
-				DrawTechnoAttachments([] {}, drawn, pType, atoi(obj.Facing),
-									  cell, ddsd.lpSurface, boundary,
-									  x, y + 15, 0xffffff, true);
-			}
+			DrawAircraft(pType,
+				obj,
+				cell,
+				pThis,
+				ddsd,
+				boundary,
+				x, y,
+				info,
+				true);
 		}
-		if (shadow && cell->Terrain != -1 && cell->Terrain < CMapData::Instance->TerrainDatas.size() && CIsoViewExt::DrawTerrains)
+		if (shadow && cellExt->PasteTerrain)
 		{
-			auto &obj = CMapData::Instance->TerrainDatas[cell->Terrain].TypeID;
-			auto pType = Renderer::GetOrCreateTerrain(obj);
-			if (pType->IsVisibleInMapRendererOrNormal())
-			{
-				auto pData = pType->GetShadowData();
-				if (ImageDataClassSafe::IsVisibleImage(pData))
-				{
-					int x1 = x;
-					int y1 = y;
-
-					if (ExtConfigs::DirectXRendering)
-					{
-						CIsoViewExt::DirectXShadow(
-							x1 - pData->FullWidth / 2,
-							y1 - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
-							pData, cell->Height);
-					}
-					else
-					{
-						CIsoViewExt::MaskShadowPixels(window,
-													  x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
-													  pData, shadowMask_Terrain,
-													  shadowHeightMask, cell->Height);
-					}
-				}
-			}
+			DrawTerrain(cellExt->PasteTerrain,
+				pThis,
+				ddsd,
+				boundary,
+				x, y, X, Y,
+				true,
+				info);
+		}
+		if (shadow && cell->Terrain != -1 
+			&& cell->Terrain < CMapData::Instance->TerrainDatas.size() 
+			&& CIsoViewExt::DrawTerrains
+			&& (!cellExt->IsPasteCell || !CIsoViewExt::PasteTerrains || !CIsoViewExt::PasteOverriding))
+		{
+			DrawTerrain(CMapData::Instance->TerrainDatas[cell->Terrain].TypeID,
+						pThis,
+						ddsd,
+						boundary,
+						x, y, X, Y,
+						true,
+						info);
 		}
 		if (shadow && cellExt->NewOverlay != 0xFFFF && CIsoViewExt::DrawOverlays)
 		{
@@ -1933,7 +2452,6 @@ static void DrawMap()
 	}
 
 	// loop4: objects
-	memset(DrawnBuildings, 0, sizeof(DrawnBuildings));
 	DrawnBaseNodes.clear();
 
 	for (const auto &info : visibleCells)
@@ -2092,31 +2610,31 @@ static void DrawMap()
 		}
 
 		// smudges in redrawn tiles
-		if (cell->Smudge != -1 && cell->Smudge < CMapData::Instance->SmudgeDatas.size() && CIsoViewExt::DrawSmudges && cell->Flag.RedrawTerrain && !CFinalSunApp::Instance->FlatToGround && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
+		if (cellExt->PasteSmudge)
 		{
-			auto &obj = CMapData::Instance->SmudgeDatas[cell->Smudge].TypeID;
-			auto pType = Renderer::GetOrCreateSmudge(obj);
-			if (pType->IsVisibleInMapRendererOrNormal())
-			{
-				auto pData = pType->GetImageData();
-				if (ImageDataClassSafe::IsVisibleImage(pData))
-				{
-					if (ExtConfigs::DirectXRendering)
-					{
-						CIsoViewExt::DirectXNormal(
-							x - pData->FullWidth / 2,
-							y - pData->FullHeight / 2,
-							pData, NULL, 1.0f, 0, -1, false,
-							info.aroundRedrawCell ? cell->Height : 0xFF);
-					}
-					else
-					{
-						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-														x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false,
-														info.aroundRedrawCell ? &objectOverlapMask : nullptr);
-					}
-				}
-			}
+			DrawSmudge(cellExt->PasteSmudge,
+				pThis,
+				ddsd,
+				boundary,
+				x, y, X, Y,
+				false,
+				info);	
+		}
+		if (cell->Smudge != -1 
+			&& cell->Smudge < CMapData::Instance->SmudgeDatas.size() 
+			&& CIsoViewExt::DrawSmudges 
+			&& cell->Flag.RedrawTerrain 
+			&& !CFinalSunApp::Instance->FlatToGround 
+			&& (info.isInMap || ExtConfigs::DisplayObjectsOutside)
+			&& (!cellExt->IsPasteCell || !CIsoViewExt::PasteSmudges || !CIsoViewExt::PasteOverriding))
+		{
+			DrawSmudge(CMapData::Instance->SmudgeDatas[cell->Smudge].TypeID,
+				pThis,
+				ddsd,
+				boundary,
+				x, y, X, Y,
+				false,
+				info);	
 		}
 
 		// overlays
@@ -2225,47 +2743,29 @@ static void DrawMap()
 		}
 
 		// terrains
-		if (cell->Terrain != -1 && cell->Terrain < CMapData::Instance->TerrainDatas.size() && CIsoViewExt::DrawTerrains && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
+		if (cellExt->PasteTerrain)
 		{
-			auto &obj = CMapData::Instance->TerrainDatas[cell->Terrain].TypeID;
-			auto pType = Renderer::GetOrCreateTerrain(obj);
-			if (pType->IsVisibleInMapRendererOrNormal())
-			{
-				auto pData = pType->GetImageData();
-
-				if (ImageDataClassSafe::IsVisibleImage(pData))
-				{
-					if (ExtConfigs::DirectXRendering)
-					{
-						CIsoViewExt::DirectXNormal(
-							x - pData->FullWidth / 2,
-							y - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
-							pData, NULL, 1.0f, 0, pType->IsTiberiumTree ? 6 : (pType->HasCustomPalette ? 5 : -1), false, info.aroundRedrawCell ? cell->Height : 0xFF);
-					}
-					else
-					{
-						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-														x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
-														pData, NULL, 255, 0, pType->IsTiberiumTree ? 6 : (pType->HasCustomPalette ? 5 : -1), false,
-														info.aroundRedrawCell ? &objectOverlapMask : nullptr);
-					}
-				}
-				else
-				{
-					TerrainTextsToDraw.push_back(std::make_pair(MapCoord{X, Y}, obj));
-				}
-				if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages)
-				{
-					auto pAIData = pType->GetAlphaImageData();
-					if (ImageDataClassSafe::IsVisibleImage(pAIData))
-					{
-						AlphaImagesToDraw.push_back(
-							std::make_pair(MapCoord{x - pAIData->FullWidth / 2,
-													y - pAIData->FullHeight / 2 + (pType->IsTiberiumTree ? 0 : 12)},
-										   pAIData));
-					}
-				}
-			}
+			DrawTerrain(cellExt->PasteTerrain,
+				pThis,
+				ddsd,
+				boundary,
+				x, y, X, Y,
+				false,
+				info);
+		}
+		if (cell->Terrain != -1 
+			&& cell->Terrain < CMapData::Instance->TerrainDatas.size() 
+			&& CIsoViewExt::DrawTerrains
+			&& (info.isInMap || ExtConfigs::DisplayObjectsOutside)
+			&& (!cellExt->IsPasteCell || !CIsoViewExt::PasteTerrains || !CIsoViewExt::PasteOverriding))
+		{
+			DrawTerrain(CMapData::Instance->TerrainDatas[cell->Terrain].TypeID,
+				pThis,
+				ddsd,
+				boundary,
+				x, y, X, Y,
+				false,
+				info);		
 		}
 
 		// buildings
@@ -2275,9 +2775,8 @@ static void DrawMap()
 			auto pType = pBuilding->GetType();
 			const auto &objRender = *pBuilding->GetRender();
 			const auto &DataExt = *pType->pDataExt;
-			short index = pBuilding - Renderer::Buildings;
-			bool firstDraw = !DrawnBuildings[index];
-			DrawnBuildings[index] = true;
+			bool firstDraw = pBuilding->firstDrawB;
+			pBuilding->firstDrawB = false;
 			CIsoViewExt::CurrentDrawCellLocation.X = objRender.X;
 			CIsoViewExt::CurrentDrawCellLocation.Y = objRender.Y;
 			CIsoViewExt::CurrentDrawCellLocation.Height = CMapDataExt::TryGetCellAt(objRender.X, objRender.Y)->Height;
@@ -2288,7 +2787,7 @@ static void DrawMap()
 			x1 -= DrawOffsetX;
 			y1 -= DrawOffsetY;
 			if (firstDraw && CFinalSunApp::Instance->ShowBuildingCells)
-			{
+			{			
 				if (ExtConfigs::DirectXRendering)
 				{
 					if (DataExt.IsCustomFoundation())
@@ -2568,212 +3067,108 @@ static void DrawMap()
 		CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
 
 		// units
-		if (cell->Unit > -1 && Renderer::Vehicles[cell->Unit].IsVisible() && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
+		if (cellExt->PasteUnit)
+		{
+			CUnitDataFS obj;
+			CMapDataExt::GetUnitDataFS(cellExt->PasteUnit, obj);
+			auto pType = Renderer::GetOrCreateVehicle(obj.TypeID);
+			DrawUnit(pType,
+					 obj,
+					 cell,
+					 pThis,
+					 ddsd,
+					 boundary,
+					 x, y,
+					 info,
+					 false,
+					 Miscs::GetColorRef(obj.House));
+		}
+		if (cell->Unit > -1 && Renderer::Vehicles[cell->Unit].IsVisible() 
+		&& (info.isInMap || ExtConfigs::DisplayObjectsOutside) 
+		&& (!cellExt->IsPasteCell || !CIsoViewExt::PasteUnits || !CIsoViewExt::PasteOverriding))
 		{
 			auto &obj = *Renderer::Vehicles[cell->Unit].GetData();
 			auto pType = Renderer::Vehicles[cell->Unit].GetType();
-			auto pData = pType->GetImageData(obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
-
-			bool HoveringUnit = ExtConfigs::InGameDisplay_Hover && pType->IsHoveringUnit;
-			auto color = Renderer::Vehicles[cell->Unit].GetHouseColor();
-
-			if (ImageDataClassSafe::IsValidImage(pData))
-			{
-				if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
-				{
-					if (ExtConfigs::DirectXRendering)
-					{
-						pThis->DrawLineRawDirectX(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
-												  x + 30, y + 15 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
-												  false, true, 1, false);
-					}
-					else
-					{
-						pThis->DrawLine(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
-										x + 30, y + 15 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
-										false, false, &ddsd, window, true);
-					}
-				}
-
-				auto draw = [&]
-				{
-					if (ExtConfigs::DirectXRendering)
-					{
-						CIsoViewExt::DirectXNormal(
-							x - pData->FullWidth / 2,
-							y - pData->FullHeight / 2 + 15 - (HoveringUnit ? 10 : 0) -
-								(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
-							pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 0, true, info.aroundRedrawCell ? cell->Height : 0xFF);
-					}
-					else
-					{
-						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-														x - pData->FullWidth / 2,
-														y - pData->FullHeight / 2 + 15 - (HoveringUnit ? 10 : 0) -
-															(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
-														pData, NULL, isCloakable(pType) ? 128 : 255, color, 0, true,
-														info.aroundRedrawCell ? &objectOverlapMask : nullptr);
-					}
-				};
-				draw();
-
-				if (CIsoViewExt::DrawVeterancy)
-				{
-					auto &veter = DrawVeterancies.emplace_back();
-					int VP = atoi(obj.VeterancyPercentage);
-					veter.X = x;
-					veter.Y = y - (HoveringUnit ? 10 : 0) - (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0);
-					veter.VP = VP;
-					veter.ID = obj.TypeID;
-				}
-
-				FSet drawn;
-				DrawTechnoAttachments(draw, drawn, pType, atoi(obj.Facing),
-									  cell, ddsd.lpSurface, boundary,
-									  x, y + 15 - (HoveringUnit ? 10 : 0) - (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
-									  color, false);
-			}
-			else
-			{
-				FSet drawn;
-				DrawTechnoAttachments([] {}, drawn, pType, atoi(obj.Facing),
-									  cell, ddsd.lpSurface, boundary,
-									  x, y + 15 - (HoveringUnit ? 10 : 0) - (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
-									  color, false);
-			}
+			DrawUnit(pType,
+					obj,
+					cell,
+					pThis,
+					ddsd,
+					boundary,
+					x, y,
+					info,
+					false);
 		}
 
 		// aircrafts
-		if (cell->Aircraft > -1 && Renderer::Aircrafts[cell->Aircraft].IsVisible() && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
+		if (cellExt->PasteAircraft)
+		{
+			CAircraftDataFS obj;
+			CMapDataExt::GetAircraftDataFS(cellExt->PasteAircraft, obj);
+			auto pType = Renderer::GetOrCreateAircraft(obj.TypeID);
+			DrawAircraft(pType,
+					 obj,
+					 cell,
+					 pThis,
+					 ddsd,
+					 boundary,
+					 x, y,
+					 info,
+					 false,
+					 Miscs::GetColorRef(obj.House));
+		}
+		if (cell->Aircraft > -1 && Renderer::Aircrafts[cell->Aircraft].IsVisible()
+			&& (info.isInMap || ExtConfigs::DisplayObjectsOutside)
+			&& (!cellExt->IsPasteCell || !CIsoViewExt::PasteAircrafts || !CIsoViewExt::PasteOverriding))
 		{
 			auto &obj = *Renderer::Aircrafts[cell->Aircraft].GetData();
 			auto pType = Renderer::Aircrafts[cell->Aircraft].GetType();
-			auto pData = pType->GetImageData(obj);
-
-			auto color = Renderer::Aircrafts[cell->Aircraft].GetHouseColor();
-			if (ImageDataClassSafe::IsValidImage(pData))
-			{
-				auto draw = [&]
-				{
-					if (ExtConfigs::DirectXRendering)
-					{
-						CIsoViewExt::DirectXNormal(
-							x - pData->FullWidth / 2, y - pData->FullHeight / 2 + 15,
-							pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 2, true, info.aroundRedrawCell ? cell->Height : 0xFF);
-					}
-					else
-					{
-						CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-														x - pData->FullWidth / 2, y - pData->FullHeight / 2 + 15, pData, NULL,
-														isCloakable(pType) ? 128 : 255, color, 2, true,
-														info.aroundRedrawCell ? &objectOverlapMask : nullptr);
-					}
-				};
-				draw();
-
-				if (CIsoViewExt::DrawVeterancy)
-				{
-					auto &veter = DrawVeterancies.emplace_back();
-					int VP = atoi(obj.VeterancyPercentage);
-					veter.X = x;
-					veter.Y = y;
-					veter.VP = VP;
-					veter.ID = obj.TypeID;
-				}
-
-				FSet drawn;
-				DrawTechnoAttachments(draw, drawn, pType, atoi(obj.Facing),
-									  cell, ddsd.lpSurface, boundary,
-									  x, y + 15,
-									  color, false);
-			}
-			else
-			{
-				FSet drawn;
-				DrawTechnoAttachments([] {}, drawn, pType, atoi(obj.Facing),
-									  cell, ddsd.lpSurface, boundary,
-									  x, y + 15,
-									  color, false);
-			}
+			DrawAircraft(pType,
+				obj,
+				cell,
+				pThis,
+				ddsd,
+				boundary,
+				x, y,
+				info,
+				false);
 		}
 
 		// infantries
 		for (int i = 2; i >= 0; --i)
 		{
-			if (cell->Infantry[i] > -1 && Renderer::Infantries[cell->Infantry[i]].IsVisible() && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
+			if (cellExt->PasteInfantry[i])
+			{
+				CInfantryData obj;
+				CMapDataExt::GetInfantryData(cellExt->PasteInfantry[i], obj);
+				auto pType = Renderer::GetOrCreateInfantry(obj.TypeID);
+				DrawInfantry(pType,
+						 obj,
+						 cell,
+						 pThis,
+						 ddsd,
+						 boundary,
+						 x, y, i, atoi(obj.SubCell),
+						 info,
+						 false,
+						 Miscs::GetColorRef(obj.House));
+			}
+			if (cell->Infantry[i] > -1 && Renderer::Infantries[cell->Infantry[i]].IsVisible() 
+				&& (info.isInMap || ExtConfigs::DisplayObjectsOutside
+				&& (!cellExt->IsPasteCell || !CIsoViewExt::PasteInfantries || !CIsoViewExt::PasteOverriding))
+				)
 			{
 				auto &obj = *Renderer::Infantries[cell->Infantry[i]].GetData();
 				auto pType = Renderer::Infantries[cell->Infantry[i]].GetType();
-				auto pData = pType->GetImageData(obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
-
-				int x1 = x;
-				int y1 = y;
-				Renderer::Infantries[cell->Infantry[i]].OffsetInfantrySubcell(x1, y1);
-
-				if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
-					y1 -= 60;
-
-				if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
-				{
-					if (ExtConfigs::DirectXRendering)
-					{
-						pThis->DrawLineRawDirectX(x1 + 30, y1 - 30,
-												  x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
-												  false, true, 1, false);
-					}
-					else
-					{
-						pThis->DrawLine(x1 + 30, y1 - 30,
-										x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
-										false, false, &ddsd, window, true);
-					}
-				}
-
-				auto color = Renderer::Infantries[cell->Infantry[i]].GetHouseColor();
-				if (ImageDataClassSafe::IsValidImage(pData))
-				{
-					auto draw = [&]
-					{
-						if (ExtConfigs::DirectXRendering)
-						{
-							CIsoViewExt::DirectXNormal(
-								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2,
-								pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 1, true, info.aroundRedrawCell ? cell->Height : 0xFF);
-						}
-						else
-						{
-							CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-															x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL,
-															isCloakable(pType) ? 128 : 255, color, 1, true,
-															info.aroundRedrawCell ? &objectOverlapMask : nullptr);
-						}
-					};
-					draw();
-
-					if (CIsoViewExt::DrawVeterancy)
-					{
-						auto &veter = DrawVeterancies.emplace_back();
-						int VP = atoi(obj.VeterancyPercentage);
-						veter.X = x1 - 5;
-						veter.Y = y1 - 4 - 15;
-						veter.VP = VP;
-						veter.ID = obj.TypeID;
-					}
-
-					FSet drawn;
-					DrawTechnoAttachments(draw, drawn, pType, atoi(obj.Facing),
-										  cell, ddsd.lpSurface, boundary,
-										  x1, y1,
-										  color, false);
-				}
-				else
-				{
-					FSet drawn;
-					DrawTechnoAttachments([] {}, drawn, pType, atoi(obj.Facing),
-										  cell, ddsd.lpSurface, boundary,
-										  x1, y1,
-										  color, false);
-				}
+				DrawInfantry(pType,
+					obj,
+					cell,
+					pThis,
+					ddsd,
+					boundary,
+					x, y, i, atoi(obj.SubCell),
+					info,
+					false);
 			}
 		}
 	}
@@ -3534,6 +3929,21 @@ static void DrawMap()
 				}
 			}
 		}
+	}
+
+	for (const auto& coord : CopyPaste::PastedCoords)
+	{
+		int pos = pMap->GetCoordIndex(coord.X, coord.Y);
+		auto& cellExt = pMap->CellDataExts[pos];
+		cellExt.PasteInfantry[0] = nullptr;
+		cellExt.PasteInfantry[1] = nullptr;
+		cellExt.PasteInfantry[2] = nullptr;
+		cellExt.PasteBuilding = nullptr;
+		cellExt.PasteUnit = nullptr;
+		cellExt.PasteAircraft = nullptr;
+		cellExt.PasteSmudge = nullptr;
+		cellExt.PasteTerrain = nullptr;
+		cellExt.IsPasteCell = false;
 	}
 
 	if (CIsoViewExt::PasteShowOutline && CIsoView::CurrentCommand->Command == 21 && !CopyPaste::PastedCoords.empty() && !CopyPaste::CopyWholeMap && (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers))

@@ -485,90 +485,125 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
             const char* buildingStr = (i == 0) ? GetString(cell, cell.BuildingData, data) :
                 (i == 1) ? GetString(cell, cell.BuildingData_2, data) :
                 GetString(cell, cell.BuildingData_3, data);
-            if (OnLButtonDownPasted && CIsoViewExt::PasteStructures && *buildingStr)
+            if (CIsoViewExt::PasteStructures && *buildingStr)
             {
-                FString value(buildingStr);
-                auto atoms = FString::SplitString(value, 16);
-                CBuildingData data;
+                if (OnLButtonDownPasted)
+                {
+                    FString_view value(buildingStr);
+                    auto atoms = FString::SplitString(value, 16);
+                    CBuildingData data;
+                    data.House = atoms[0];
+                    data.TypeID = atoms[1];
+                    data.Health = atoms[2];
+                    data.Y.Format("%d", Y + offset_y);
+                    data.X.Format("%d", X + offset_x);
+                    data.Facing = atoms[5];
+                    data.Tag = atoms[6];
+                    data.AISellable = atoms[7];
+                    data.AIRebuildable = atoms[8];
+                    data.PoweredOn = atoms[9];
+                    data.Upgrades = atoms[10];
+                    data.SpotLight = atoms[11];
+                    data.Upgrade1 = atoms[12];
+                    data.Upgrade2 = atoms[13];
+                    data.Upgrade3 = atoms[14];
+                    data.AIRepairable = atoms[15];
+                    data.Nominal = atoms[16];
+                    CMapData::Instance->SetBuildingData(&data, NULL, NULL, 0, "");
+                }
+                else if (buildingStr)
+                {
+					pCellExt.PasteBuilding = buildingStr;
+				}
+            }
+        }
+
+        const char* smudgeStr = GetString(cell, cell.SmudgeData, data);
+        if (CIsoViewExt::PasteSmudges && *smudgeStr)
+        {
+            if (OnLButtonDownPasted)
+            {
+                CSmudgeData data;
+                data.TypeID = smudgeStr;
+                data.X = Y + offset_y;
+                data.Y = X + offset_x;
+                CMapData::Instance->SetSmudgeData(&data);
+            }
+            else
+            {
+                pCellExt.PasteSmudge = smudgeStr;
+            }
+        }
+
+        const char* terrainStr = GetString(cell, cell.TerrainData, data);
+        if (CIsoViewExt::PasteTerrains && *terrainStr)
+        {
+            if(OnLButtonDownPasted)
+            {
+                CMapData::Instance->SetTerrainData(terrainStr, CMapData::Instance->GetCoordIndex(X + offset_x, Y + offset_y));
+            }
+            else
+            {
+                pCellExt.PasteTerrain = terrainStr;
+            }
+        }
+
+        const char* unitStr = GetString(cell, cell.UnitData, data);
+        if (CIsoViewExt::PasteUnits && *unitStr)
+        {
+            if (OnLButtonDownPasted)
+            {
+                FString_view value(unitStr);
+                auto atoms = FString::SplitString(value, 13);
+                CUnitData data;
                 data.House = atoms[0];
                 data.TypeID = atoms[1];
                 data.Health = atoms[2];
                 data.Y.Format("%d", Y + offset_y);
                 data.X.Format("%d", X + offset_x);
                 data.Facing = atoms[5];
-                data.Tag = atoms[6];
-                data.AISellable = atoms[7];
-                data.AIRebuildable = atoms[8];
-                data.PoweredOn = atoms[9];
-                data.Upgrades = atoms[10];
-                data.SpotLight = atoms[11];
-                data.Upgrade1 = atoms[12];
-                data.Upgrade2 = atoms[13];
-                data.Upgrade3 = atoms[14];
-                data.AIRepairable = atoms[15];
-                data.Nominal = atoms[16];
-                CMapData::Instance->SetBuildingData(&data, NULL, NULL, 0, "");
+                data.Status = atoms[6];
+                data.Tag = atoms[7];
+                data.VeterancyPercentage = atoms[8];
+                data.Group = atoms[9];
+                data.IsAboveGround = atoms[10];
+                data.FollowsIndex = atoms[11];
+                data.AutoNORecruitType = atoms[12];
+                data.AutoYESRecruitType = atoms[13];
+                CMapData::Instance->SetUnitData(&data, NULL, NULL, 0, "");
+            }
+            else
+            {
+                pCellExt.PasteUnit = unitStr;
             }
         }
 
-        const char* smudgeStr = GetString(cell, cell.SmudgeData, data);
-        if (OnLButtonDownPasted && CIsoViewExt::PasteSmudges && *smudgeStr)
-        {
-            CSmudgeData data;
-            data.TypeID = smudgeStr;
-            data.X = Y + offset_y;
-            data.Y = X + offset_x;
-            CMapData::Instance->SetSmudgeData(&data);
-        }
-
-        const char* terrainStr = GetString(cell, cell.TerrainData, data);
-        if (OnLButtonDownPasted && CIsoViewExt::PasteTerrains && *terrainStr)
-        {
-            CMapData::Instance->SetTerrainData(terrainStr, CMapData::Instance->GetCoordIndex(X + offset_x, Y + offset_y));
-        }
-
-        const char* unitStr = GetString(cell, cell.UnitData, data);
-        if (OnLButtonDownPasted && CIsoViewExt::PasteUnits && *unitStr)
-        {
-            FString value(unitStr);
-            auto atoms = FString::SplitString(value, 13);
-            CUnitData data;
-            data.House = atoms[0];
-            data.TypeID = atoms[1];
-            data.Health = atoms[2];
-            data.Y.Format("%d", Y + offset_y);
-            data.X.Format("%d", X + offset_x);
-            data.Facing = atoms[5];
-            data.Status = atoms[6];
-            data.Tag = atoms[7];
-            data.VeterancyPercentage = atoms[8];
-            data.Group = atoms[9];
-            data.IsAboveGround = atoms[10];
-            data.FollowsIndex = atoms[11];
-            data.AutoNORecruitType = atoms[12];
-            data.AutoYESRecruitType = atoms[13];
-            CMapData::Instance->SetUnitData(&data, NULL, NULL, 0, "");
-        }
-
         const char* aircraftStr = GetString(cell, cell.AircraftData, data);
-        if (OnLButtonDownPasted && CIsoViewExt::PasteAircrafts && *aircraftStr)
+        if (CIsoViewExt::PasteAircrafts && *aircraftStr)
         {
-            FString value(aircraftStr);
-            auto atoms = FString::SplitString(value, 11);
-            CAircraftData data;
-            data.House = atoms[0];
-            data.TypeID = atoms[1];
-            data.Health = atoms[2];
-            data.Y.Format("%d", Y + offset_y);
-            data.X.Format("%d", X + offset_x);
-            data.Facing = atoms[5];
-            data.Status = atoms[6];
-            data.Tag = atoms[7];
-            data.VeterancyPercentage = atoms[8];
-            data.Group = atoms[9];
-            data.AutoNORecruitType = atoms[10];
-            data.AutoYESRecruitType = atoms[11];
-            CMapData::Instance->SetAircraftData(&data, NULL, NULL, 0, "");
+            if (OnLButtonDownPasted)
+            {
+                FString_view value(aircraftStr);
+                auto atoms = FString::SplitString(value, 11);
+                CAircraftData data;
+                data.House = atoms[0];
+                data.TypeID = atoms[1];
+                data.Health = atoms[2];
+                data.Y.Format("%d", Y + offset_y);
+                data.X.Format("%d", X + offset_x);
+                data.Facing = atoms[5];
+                data.Status = atoms[6];
+                data.Tag = atoms[7];
+                data.VeterancyPercentage = atoms[8];
+                data.Group = atoms[9];
+                data.AutoNORecruitType = atoms[10];
+                data.AutoYESRecruitType = atoms[11];
+                CMapData::Instance->SetAircraftData(&data, NULL, NULL, 0, "");
+            }
+            else
+            {
+                pCellExt.PasteAircraft = aircraftStr;
+            }
         }
 
         for (int i = 0; i < 3; ++i)
@@ -576,32 +611,40 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
             const char* inf = (i == 0) ? GetString(cell, cell.InfantryData_1, data) :
                 (i == 1) ? GetString(cell, cell.InfantryData_2, data) :
                 GetString(cell, cell.InfantryData_3, data);
-            if (OnLButtonDownPasted && CIsoViewExt::PasteInfantries && *inf)
-            {
-                FString value(inf);
-                auto atoms = FString::SplitString(value, 13);
-                CInfantryData data;
-                data.House = atoms[0];
-                data.TypeID = atoms[1];
-                data.Health = atoms[2];
-                data.Y.Format("%d", Y + offset_y);
-                data.X.Format("%d", X + offset_x);
-                data.SubCell = atoms[5];
-                data.Status = atoms[6];
-                data.Facing = atoms[7];
-                data.Tag = atoms[8];
-                data.VeterancyPercentage = atoms[9];
-                data.Group = atoms[10];
-                data.IsAboveGround = atoms[11];
-                data.AutoNORecruitType = atoms[12];
-                data.AutoYESRecruitType = atoms[13];
-                CMapData::Instance->SetInfantryData(&data, NULL, NULL, 0, -1);
+            if (CIsoViewExt::PasteInfantries && *inf)
+            {            
+                if (OnLButtonDownPasted)
+                {
+                    FString_view value(inf);
+                    auto atoms = FString::SplitString(value, 13);
+                    CInfantryData data;
+                    data.House = atoms[0];
+                    data.TypeID = atoms[1];
+                    data.Health = atoms[2];
+                    data.Y.Format("%d", Y + offset_y);
+                    data.X.Format("%d", X + offset_x);
+                    data.SubCell = atoms[5];
+                    data.Status = atoms[6];
+                    data.Facing = atoms[7];
+                    data.Tag = atoms[8];
+                    data.VeterancyPercentage = atoms[9];
+                    data.Group = atoms[10];
+                    data.IsAboveGround = atoms[11];
+                    data.AutoNORecruitType = atoms[12];
+                    data.AutoYESRecruitType = atoms[13];
+                    CMapData::Instance->SetInfantryData(&data, NULL, NULL, 0, -1);
+                }
+                else
+                {
+                    pCellExt.PasteInfantry[i] = inf;
+                }
             }
         }
 
         CMapData::Instance->UpdateMapPreviewAt(X + offset_x, Y + offset_y);
         CopyPaste::PastedCoords.insert(MapCoord{ X + offset_x, Y + offset_y });
-    }
+		pCellExt.IsPasteCell = true;
+	}
 }
 
 void CopyPaste::PasteArea(int X, int Y, int nBaseHeight, MyClipboardData* data, size_t length, int recordType)

@@ -394,6 +394,7 @@ public:
     static MapCoord TempCircle[2];
     static MapCoord TempCircle_Annotation[2];
     static MapCoord CentralSymmetryCenter;
+    static MapCoord DragCell;
     static std::vector<std::pair<MapCoord, MapCoord>> AxialSymmetricPoints;
     static std::vector<std::pair<MapCoord, MapCoord>> CentralSymmetricPoints;
     static std::vector<std::pair<MapCoord, float>> Circles;

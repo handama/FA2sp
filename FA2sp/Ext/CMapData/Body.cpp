@@ -3837,10 +3837,21 @@ int CMapDataExt::IsBlueMapBound()
 	CIsoViewExt::MapCoord2ScreenCoord(x1, y1, 1);
 	CIsoViewExt::MapCoord2ScreenCoord(x4, y4, 1);
 
+	CRect rect;
+	CIsoView::GetInstance()->GetWindowRect(&rect);
+
 	x1 -= CIsoViewExt::drawOffsetX;
 	x4 -= CIsoViewExt::drawOffsetX;
 	y1 -= CIsoViewExt::drawOffsetY + 15 / CIsoViewExt::ScaledFactor;
 	y4 -= CIsoViewExt::drawOffsetY + 15 / CIsoViewExt::ScaledFactor;
+
+	if (!ExtConfigs::DirectXRendering)
+	{
+		x1 -= rect.left;
+		x4 -= rect.left;
+		y1 -= rect.top;
+		y4 -= rect.top;
+	}
 
 	auto mouse = CIsoView::GetInstance()->MouseCurrentPosition;
 

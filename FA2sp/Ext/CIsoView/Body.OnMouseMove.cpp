@@ -168,9 +168,9 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
 	if (CIsoView::CurrentCommand->Command == 0 && pIsoView->Drag && pIsoView->CurrentCellObjectType >= 0)
 	{
         int x1, x2, y1, y2;
-        x1 = pIsoView->StartCell.X;
-        y1 = pIsoView->StartCell.Y;
-        x2 = point.X;
+		x1 = pIsoView->DragCell.X;
+		y1 = pIsoView->DragCell.Y;
+		x2 = point.X;
         y2 = point.Y;
         CIsoViewExt::MapCoord2ScreenCoord(x1, y1);
         CIsoViewExt::MapCoord2ScreenCoord(x2, y2);
@@ -215,17 +215,56 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                 }
             }
         }
+		else if (pIsoView->CurrentCellObjectType > 10)
+        {
+			const int& mapwidth = CMapData::Instance->Size.Width;
+			const int& mapheight = CMapData::Instance->Size.Height;
 
-        if (ExtConfigs::DirectXRendering)
-        {
-            CIsoViewExt::DrawLineDirectX(x1, y1 + 1, x2, y2 + 1, RGB(128, 128, 128), 2);
-        }
-        else
-        {
-            SetROP2(hDC, R2_NOT);
-            CIsoViewExt::DrawLineHDC(hDC, x1, y1, x2, y2, RGB(255, 0, 0), rect);
-            SetROP2(hDC, R2_COPYPEN);
-        }
+			const int& mpL = CMapData::Instance->LocalSize.Left;
+			const int& mpT = CMapData::Instance->LocalSize.Top;
+			const int& mpW = CMapData::Instance->LocalSize.Width;
+			const int& mpH = CMapData::Instance->LocalSize.Height;
+
+			int yb1 = mpT + mpL - 2;
+			int xb1 = mapwidth + mpT - mpL - 3;
+
+			int yb4 = mpT + mpL + mpW - 2 + mpH + 4;
+			int xb4 = mapwidth - mpL - mpW + mpT - 3 + mpH + 4;
+
+			CIsoViewExt::MapCoord2ScreenCoord(xb1, yb1, 1);
+			CIsoViewExt::MapCoord2ScreenCoord(xb4, yb4, 1);
+
+			xb1 -= 30 / CIsoViewExt::ScaledFactor;
+			xb4 -= 30 / CIsoViewExt::ScaledFactor;
+
+			if (pIsoView->CurrentCellObjectType == 11)
+			{
+				x1 = xb1;
+			}
+			else if (pIsoView->CurrentCellObjectType == 12)
+            {
+				y1 = yb1;
+			}
+			else if (pIsoView->CurrentCellObjectType == 13)
+            {
+				x1 = xb4;
+			}
+			else if (pIsoView->CurrentCellObjectType == 14)
+            {
+				y1 = yb4;
+			}
+		}
+
+    if (ExtConfigs::DirectXRendering)
+    {
+        CIsoViewExt::DrawLineDirectX(x1, y1 + 1, x2, y2 + 1, RGB(128, 128, 128), 2);
+    }
+    else
+    {
+        SetROP2(hDC, R2_NOT);
+        CIsoViewExt::DrawLineHDC(hDC, x1, y1, x2, y2, RGB(255, 0, 0), rect);
+        SetROP2(hDC, R2_COPYPEN);
+    }
     }
     if (CIsoView::CurrentCommand->Command == 0x1D && MultiSelection::LastAddedCoord.X > -1)
     {

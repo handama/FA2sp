@@ -233,12 +233,16 @@ DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 
 DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 {
-	auto pThis = CIsoView::GetInstance();
+	auto pThis = CIsoViewExt::GetExtension();
 	if (CIsoView::CurrentCommand->Command != 0 || pThis->LeftButtonDoubleClick_8C != FALSE || pThis->Drag == TRUE)
 	{
 		return 0x461964;
 	}
-	int pos = CMapData::Instance->GetCoordIndex(pThis->StartCell.X, pThis->StartCell.Y);
+	if (!pThis->Drag)
+	{
+		pThis->DragCell = pThis->StartCell;
+	}
+	int pos = CMapData::Instance->GetCoordIndex(pThis->DragCell.X, pThis->DragCell.Y);
 	auto cell = CMapData::Instance->TryGetCellAt(pos);
 	pThis->CurrentCellObjectIndex = -1;
 	pThis->CurrentCellObjectType = -1;
@@ -250,7 +254,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 		}
 		else
 		{
-			pThis->CurrentCellObjectIndex = CIsoViewExt::GetSelectedSubcellInfantryIdx(pThis->StartCell.X, pThis->StartCell.Y);
+			pThis->CurrentCellObjectIndex = CIsoViewExt::GetSelectedSubcellInfantryIdx(pThis->DragCell.X, pThis->DragCell.Y);
 		}
 		if (pThis->CurrentCellObjectIndex != -1 && !Renderer::Infantries[pThis->CurrentCellObjectIndex].IsVisible())
 			pThis->CurrentCellObjectIndex = -1;
@@ -284,8 +288,8 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 				else
 				{
 					const auto &objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
-					pThis->StartCell.X = objRender.X;
-					pThis->StartCell.Y = objRender.Y;
+					pThis->DragCell.X = objRender.X;
+					pThis->DragCell.Y = objRender.Y;
 				}
 			}
 			else
@@ -321,8 +325,8 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 			const auto &node = cellExt.BaseNodes[0];
 			pThis->CurrentCellObjectIndex = cell->BaseNode.BasenodeID;
 			CIsoViewExt::CurrentCellObjectHouse = cell->BaseNode.House;
-			pThis->StartCell.X = node.X;
-			pThis->StartCell.Y = node.Y;
+			pThis->DragCell.X = node.X;
+			pThis->DragCell.Y = node.Y;
 			pThis->CurrentCellObjectType = 8;
 		}
 	}
@@ -337,8 +341,8 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 			if (pThis->CurrentCellObjectIndex > -1)
 			{
 				auto &data = CMapData::Instance->SmudgeDatas[pThis->CurrentCellObjectIndex];
-				pThis->StartCell.X = data.Y;
-				pThis->StartCell.Y = data.X;
+				pThis->DragCell.X = data.Y;
+				pThis->DragCell.Y = data.X;
 			}
 		}
 	}
@@ -352,57 +356,10 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 	}
 
 	auto bound = CMapDataExt::IsBlueMapBound();
-	if (bound && CMapDataExt::CellCannotDrag(pThis->StartCell.X, pThis->StartCell.Y))
+	if (bound && CMapDataExt::CellCannotDrag(pThis->DragCell.X, pThis->DragCell.Y))
 	{
 		pThis->CurrentCellObjectIndex = 0;
 		pThis->CurrentCellObjectType = 10 + bound;
-
-		const int& mapwidth = CMapData::Instance->Size.Width;
-		const int& mapheight = CMapData::Instance->Size.Height;
-
-		const int& mpL = CMapData::Instance->LocalSize.Left;
-		const int& mpT = CMapData::Instance->LocalSize.Top;
-		const int& mpW = CMapData::Instance->LocalSize.Width;
-		const int& mpH = CMapData::Instance->LocalSize.Height;
-
-		int y1 = mpT + mpL - 2;
-		int x1 = mapwidth + mpT - mpL - 3;
-
-		int y4 = mpT + mpL + mpW - 2 + mpH + 4;
-		int x4 = mapwidth - mpL - mpW + mpT - 3 + mpH + 4;
-
-		while (bound == 1 && pThis->StartCell.X - pThis->StartCell.Y > x1 - y1 + 1)
-		{
-			pThis->StartCell.X--;
-		}
-		while (bound == 1 && pThis->StartCell.X - pThis->StartCell.Y < x1 - y1 + 1)
-		{
-			pThis->StartCell.X++;
-		}
-		while (bound == 3 && pThis->StartCell.X - pThis->StartCell.Y > x4 - y4 + 1)
-		{
-			pThis->StartCell.X--;
-		}
-		while (bound == 3 && pThis->StartCell.X - pThis->StartCell.Y < x4 - y4 + 1)
-		{
-			pThis->StartCell.X++;
-		}
-		while (bound == 2 && pThis->StartCell.X + pThis->StartCell.Y > x1 + y1)
-		{
-			pThis->StartCell.Y--;
-		}
-		while (bound == 2 && pThis->StartCell.X + pThis->StartCell.Y < x1 + y1)
-		{
-			pThis->StartCell.Y++;
-		}
-		while (bound == 4 && pThis->StartCell.X + pThis->StartCell.Y > x4 + y4)
-		{
-			pThis->StartCell.Y--;
-		}
-		while (bound == 4 && pThis->StartCell.X + pThis->StartCell.Y < x4 + y4)
-		{
-			pThis->StartCell.Y++;
-		}
 	}
 
 	if (pThis->CurrentCellObjectIndex < 0)

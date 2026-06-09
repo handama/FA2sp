@@ -85,6 +85,7 @@ MapCoord CIsoViewExt::AxialSymmetryLine[2]{};
 MapCoord CIsoViewExt::TempCircle[2]{};
 MapCoord CIsoViewExt::TempCircle_Annotation[2]{};
 MapCoord CIsoViewExt::CentralSymmetryCenter{};
+MapCoord CIsoViewExt::DragCell{};
 std::vector<std::pair<MapCoord, MapCoord>> CIsoViewExt::AxialSymmetricPoints;
 std::vector<std::pair<MapCoord, MapCoord>> CIsoViewExt::CentralSymmetricPoints;
 std::vector<std::pair<MapCoord, float>> CIsoViewExt::Circles;

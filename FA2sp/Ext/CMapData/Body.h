@@ -889,8 +889,12 @@ public:
     static MapCoord CurrentMapCoordPaste;
     static std::unordered_map<CTileBlockClass*, TileBlockExt> TileBlockDataExt;
     static void BuildBaseHeightMask(CTileBlockClass* subTile);
+    // 0 = not bound, 1 = left, 2 = top, 3 = right, 4 = bottom
+	static int IsBlueMapBound(int x, int y);
+	static int IsBlueMapBound();
+	static bool CellCannotDrag(int x, int y);
 
-    static CTileTypeClass* TileData;
+	static CTileTypeClass* TileData;
     static int TileDataCount;
     static int CurrentTheaterIndex;
 

@@ -114,7 +114,7 @@ DEFINE_HOOK(48E970, CLoading_LoadTile_SkipTranspInsideCheck, 6)
 
 DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 {
-	auto loadInternalorExternalBitmap = [](const char* imageID, int resource, const char* newFile = nullptr)
+	auto loadInternalorExternalBitmap = [](const char* imageID, int resource, const char* newFile = nullptr, bool scale = false)
 		{
 			std::string pic = CFinalSunAppExt::ExePathExt;
 			pic += "\\pics\\";
@@ -123,7 +123,16 @@ DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 			{
 				CBitmap bmp;
 				if (CLoadingExt::LoadBMPToCBitmap(pic, bmp))
+				{
+					if (scale)
+					{
+						BITMAP bm = {};
+						bmp.GetBitmap(&bm);
+						int maxSize = std::max(bm.bmWidth, bm.bmHeight);
+						CIsoViewExt::ScaleBitmap(&bmp, maxSize * CFinalSunAppExt::ProgramScaleFactor, RGB(255, 255, 255), true, false);
+					}
 					CLoadingExt::LoadBitMap(imageID, bmp);
+				}
 			}
 			else
 			{
@@ -131,6 +140,13 @@ DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 					IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
 				CBitmap cBitmap;
 				cBitmap.Attach(hBmp);
+				if (scale)
+				{
+					BITMAP bm = {};
+					cBitmap.GetBitmap(&bm);
+					int maxSize = std::max(bm.bmWidth, bm.bmHeight);
+					CIsoViewExt::ScaleBitmap(&cBitmap, maxSize * CFinalSunAppExt::ProgramScaleFactor, RGB(255, 255, 255), true, false);
+				}
 				CLoadingExt::LoadBitMap(imageID, cBitmap);
 			}
 		};
@@ -138,6 +154,10 @@ DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 	loadInternalorExternalBitmap("FLAG", 1023, "waypoint.bmp");
 	loadInternalorExternalBitmap("CELLTAG", 1024, "celltag.bmp");
 	loadInternalorExternalBitmap("PROPERTY_MARK", 1036, "property_mark.bmp");
+	loadInternalorExternalBitmap("target.bmp", 1150, "target.bmp");
+	loadInternalorExternalBitmap("scrollcursor.bmp", 1151, "scrollcursor.bmp", !ExtConfigs::DirectXRendering);
+	loadInternalorExternalBitmap("sizens.bmp", 1152, "sizens.bmp", !ExtConfigs::DirectXRendering);
+	loadInternalorExternalBitmap("sizewe.bmp", 1153, "sizewe.bmp", !ExtConfigs::DirectXRendering);
 
 	std::string pics = CFinalSunAppExt::ExePathExt;
 	pics += "\\pics";
@@ -150,12 +170,17 @@ DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 					CBitmap bmp;
 					if (CLoadingExt::LoadBMPToCBitmap(entry.path().string(), bmp))
 					{
-						if (!ExtConfigs::DirectXRendering && entry.path().filename().string() == "scrollcursor.bmp")
+						if (!ExtConfigs::DirectXRendering)
 						{
-							BITMAP bm = {};
-							bmp.GetBitmap(&bm);
-							int maxSize = std::max(bm.bmWidth, bm.bmHeight);
-							CIsoViewExt::ScaleBitmap(&bmp, maxSize * CFinalSunAppExt::ProgramScaleFactor, RGB(255, 255, 255), true, false);
+							if (entry.path().filename().string() == "scrollcursor.bmp" 
+								|| entry.path().filename().string() == "sizens.bmp" 
+								|| entry.path().filename().string() == "sizewe.bmp")
+							{
+								BITMAP bm = {};
+								bmp.GetBitmap(&bm);
+								int maxSize = std::max(bm.bmWidth, bm.bmHeight);
+								CIsoViewExt::ScaleBitmap(&bmp, maxSize * CFinalSunAppExt::ProgramScaleFactor, RGB(255, 255, 255), true, false);
+							}
 						}
 						CLoadingExt::LoadBitMap(entry.path().filename().string(), bmp);
 					}

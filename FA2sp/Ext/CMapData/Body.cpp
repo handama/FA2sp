@@ -3783,6 +3783,94 @@ void CMapDataExt::BuildBaseHeightMask(CTileBlockClass* subTile)
 	}
 }
 
+int CMapDataExt::IsBlueMapBound(int x, int y)
+{
+	const int& mapwidth = CMapData::Instance->Size.Width;
+	const int& mapheight = CMapData::Instance->Size.Height;
+
+	const int& mpL = CMapData::Instance->LocalSize.Left;
+	const int& mpT = CMapData::Instance->LocalSize.Top;
+	const int& mpW = CMapData::Instance->LocalSize.Width;
+	const int& mpH = CMapData::Instance->LocalSize.Height;
+
+	int y1 = mpT + mpL - 2;
+	int x1 = mapwidth + mpT - mpL - 3;
+
+	int y4 = mpT + mpL + mpW - 2 + mpH + 4;
+	int x4 = mapwidth - mpL - mpW + mpT - 3 + mpH + 4;
+
+	if (x1 - y1 > x4 - y4 && x1 + y1 < x4 + y4)
+	{
+		int x2 = (x1 + y1 + x4 - y4) / 2;
+		int y2 = (x1 + y1 - x4 + y4) / 2;
+		int x3 = (x4 + y4 + x1 - y1) / 2;
+		int y3 = (x4 + y4 - x1 + y1) / 2;
+
+		if (x + y == x1 + y1 && x - y <= x1 - y1 && x - y > x2 - y2)
+			return 2;
+		else if (x + y == x3 + y3 && x - y <= x3 - y3 && x - y > x4 - y4)
+			return 4;
+		else if (x - y == x1 + 1 - y1 && x + y >= x1 + 1 + y1 && x + y <= x3 + y3 - 1)
+			return 1;
+		else if (x - y == x2 + 1 - y2 && x + y >= x2 + 1 + y2 && x + y <= x4 + y4 - 1)
+			return 3;
+	}
+	return 0;
+}
+
+int CMapDataExt::IsBlueMapBound()
+{
+	const int& mapwidth = CMapData::Instance->Size.Width;
+	const int& mapheight = CMapData::Instance->Size.Height;
+
+	const int& mpL = CMapData::Instance->LocalSize.Left;
+	const int& mpT = CMapData::Instance->LocalSize.Top;
+	const int& mpW = CMapData::Instance->LocalSize.Width;
+	const int& mpH = CMapData::Instance->LocalSize.Height;
+
+	int y1 = mpT + mpL - 2;
+	int x1 = mapwidth + mpT - mpL - 3;
+
+	int y4 = mpT + mpL + mpW - 2 + mpH + 4;
+	int x4 = mapwidth - mpL - mpW + mpT - 3 + mpH + 4;
+
+	CIsoViewExt::MapCoord2ScreenCoord(x1, y1, 1);
+	CIsoViewExt::MapCoord2ScreenCoord(x4, y4, 1);
+
+	x1 -= CIsoViewExt::drawOffsetX;
+	x4 -= CIsoViewExt::drawOffsetX;
+	y1 -= CIsoViewExt::drawOffsetY + 15 / CIsoViewExt::ScaledFactor;
+	y4 -= CIsoViewExt::drawOffsetY + 15 / CIsoViewExt::ScaledFactor;
+
+	auto mouse = CIsoView::GetInstance()->MouseCurrentPosition;
+
+	if (y4 > y1 && x4 > x1)
+	{
+		if (mouse.x >= x1 && mouse.x <= x4 && abs(mouse.y - y1) <= 15 / CIsoViewExt::ScaledFactor)
+			return 2;
+		if (mouse.x >= x1 && mouse.x <= x4 && abs(mouse.y - y4) <= 15 / CIsoViewExt::ScaledFactor)
+			return 4;
+		if (mouse.y >= y1 && mouse.y <= y4 && abs(mouse.x - x1) <= 30 / CIsoViewExt::ScaledFactor)
+			return 1;
+		if (mouse.y >= y1 && mouse.y <= y4 && abs(mouse.x - x4) <= 30 / CIsoViewExt::ScaledFactor)
+			return 3;
+	}
+	return 0;
+}
+
+bool CMapDataExt::CellCannotDrag(int x, int y)
+{
+	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
+	auto cellpos = Instance->GetCoordIndex(x, y);
+	if (cellpos >= Instance->CellDataCount)
+		cellpos = 0;
+
+	auto cell = Instance->GetCellAt(cellpos);
+	auto& cellExt = CellDataExts[cellpos];
+
+	return !pIsoView->Drag && CIsoView::CurrentCommand->Command == 0 && cell->Aircraft == -1 && cell->Unit == -1 && cell->Structure == -1 && cell->Terrain == -1 && cell->Smudge == -1 && cell->Waypoint == -1 && cell->CellTag == -1 && cell->Infantry[0] == -1 && cell->Infantry[1] == -1 && cell->Infantry[2] == -1 && cell->Infantry[2] == -1 && cellExt.BaseNodes.empty() && cellExt.SmudgeParts.empty() && !CMapDataExt::HasAnnotation(cellpos);
+}
+
 void CustomTileBlock::SetTileBlock(int tile, int subtile, int height)
 {
 	Height = height;

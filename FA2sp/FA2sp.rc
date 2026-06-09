@@ -194,6 +194,10 @@ END
 1020 BITMAP "Resources/smudge.bmp"
 1021 BITMAP "Resources/overlay.bmp"
 1022 BITMAP "Resources/player.bmp"
+1150 BITMAP "Resources/target.bmp"
+1151 BITMAP "Resources/scrollcursor.bmp"
+1152 BITMAP "Resources/sizens.bmp"
+1153 BITMAP "Resources/sizewe.bmp"
 
 // Object Browser cameo icons -- 48px
 2002 BITMAP "Resources/default_cameo_48.bmp"

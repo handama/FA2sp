@@ -138,9 +138,11 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
     int X = point.X, Y = point.Y;
     CIsoViewExt::MapCoord2ScreenCoord(X, Y);
     auto cell = CMapData::Instance->TryGetCellAt(point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
+	int cellpos = std::min(CMapDataExt::CellDataExts.size() - 1, (UINT)point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
+	auto& cellExt = CMapDataExt::CellDataExts[cellpos];
 
-    // property brush && delete objects && change owner && delete overlay && delete celltag
-    if (pIsoView->BrushSizeX != 1 || pIsoView->BrushSizeY != 1)
+	// property brush && delete objects && change owner && delete overlay && delete celltag
+	if (pIsoView->BrushSizeX != 1 || pIsoView->BrushSizeY != 1)
     {
         if (CIsoView::CurrentCommand->Command == 0x17 || CIsoView::CurrentCommand->Command == 0x2 || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7) || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 6 && CIsoView::CurrentCommand->Param == 1) || (CIsoView::CurrentCommand->Command == 4 && CIsoView::CurrentCommand->Type == 1) || CIsoView::CurrentCommand->Command == 11 || CIsoView::CurrentCommand->Command == 12 || CIsoView::CurrentCommand->Command == 13 || CIsoView::CurrentCommand->Command == 14 || CIsoView::CurrentCommand->Command == 15)
         {
@@ -2126,9 +2128,6 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
             FString line1;
             FString line2;
 
-            int pos = std::min(CMapDataExt::CellDataExts.size() - 1, (UINT)point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
-            auto &cellExt = CMapDataExt::CellDataExts[pos];
-
             auto overlay = cellExt.NewOverlay;
             auto overlayD = cell->OverlayData;
 
@@ -3098,14 +3097,63 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
 
     if (!ExtConfigs::DisplayObjectsOutside && CMapData::Instance().IsCoordInMap(point.X, point.Y) || ExtConfigs::DisplayObjectsOutside && CMapDataExt::IsCoordInFullMap(point.X, point.Y))
     {
-        if (ExtConfigs::DirectXRendering)
+		auto bound = CMapDataExt::IsBlueMapBound();
+		if (bound && CMapDataExt::CellCannotDrag(point.X, point.Y))
+		{
+			if (ExtConfigs::DirectXRendering)
+			{
+				DrawParams params;
+				params.SetOpacity(1.0f)
+					.SetStencilRef(127)
+					.SetScreenSpace()
+					.SetScale(1.0 * CFinalSunAppExt::ProgramScaleFactor,
+							  1.0 * CFinalSunAppExt::ProgramScaleFactor);
+
+				params.bWriteStencil = true;
+
+				if (auto pTexture = bound % 2 == 0 ? g_pDX->GetBitmapTexture("sizens.bmp") : g_pDX->GetBitmapTexture("sizewe.bmp"))
+				{
+                    params.SetPosition(
+                        pIsoView->MouseCenterPosition.x + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0) +
+                            (1 - pTexture->sourceView.FullWidth / 2) * CFinalSunAppExt::ProgramScaleFactor,
+                        pIsoView->MouseCenterPosition.y + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0) +
+                            (-2 - pTexture->sourceView.FullHeight / 2) * CFinalSunAppExt::ProgramScaleFactor);
+                    g_pDX->DrawTexture(pTexture, params);
+                }
+			}
+            else
+			{
+				if (auto cursor = bound % 2 == 0 ? 
+                    CLoadingExt::GetSurfaceImageDataFromMap("sizens.bmp") : CLoadingExt::GetSurfaceImageDataFromMap("sizewe.bmp"))
+				{
+					auto point = pIsoView->MouseCenterPosition;
+					point.x += rect.left + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0) - cursor->FullWidth / 2;
+					point.y += rect.top + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0) - cursor->FullHeight / 2;
+
+					HDC hSurfDC = nullptr;
+					if (SUCCEEDED(cursor->lpSurface->GetDC(&hSurfDC)))
+					{
+						TransparentBlt(
+							hDC,
+							point.x, point.y,
+							cursor->FullWidth, cursor->FullHeight,
+							hSurfDC,
+							0, 0,
+							cursor->FullWidth, cursor->FullHeight,
+							RGB(255, 255, 255));
+
+						cursor->lpSurface->ReleaseDC(hSurfDC);
+					}
+				}
+			}
+		}
+		else
         {
-            pIsoView->DirectXMouseCursor(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, cell->Height);
-        }
-        else
-        {
-            pIsoView->DrawLockedCellOutlinePaintCursor(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY,
-                                                       cell->Height, ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, ExtConfigs::CursorSelectionBound_AutoColor);
-        }
+			if (ExtConfigs::DirectXRendering)
+				pIsoView->DirectXMouseCursor(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, cell->Height);
+            else
+                pIsoView->DrawLockedCellOutlinePaintCursor(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY,
+                    cell->Height, ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, ExtConfigs::CursorSelectionBound_AutoColor);
+		}
     }
 }

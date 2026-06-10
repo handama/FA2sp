@@ -2090,9 +2090,12 @@ static void DrawMap()
 						 shadow, 
 						 &pasteBuilding);
 		}
-		if (cell->Structure > -1
-			&& (!cellExt->IsPasteCell || !CIsoViewExt::PasteStructures || !CIsoViewExt::PasteOverriding))
+		if (cell->Structure > -1)
 		{
+			if (cellExt->IsPasteCell && CIsoViewExt::PasteStructures && CIsoViewExt::PasteOverriding)
+			{
+				Renderer::Buildings[cell->Structure].firstDrawA = false;
+			}
 			if (Renderer::Buildings[cell->Structure].firstDrawA)
 			{
 				Renderer::Buildings[cell->Structure].firstDrawA = false;

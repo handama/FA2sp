@@ -562,6 +562,7 @@ public:
         Annotation = 0x00000400,
         Measurements = 0x00000800,
         GeometricAnnotation = 0x00001000,
+        LocalSize = 0x00002000,
     };
     int recordFlags = 0;
     int recordedFlages = 0;
@@ -579,8 +580,15 @@ public:
     FMap<FString> GeometricAnnotationList;
     std::vector<EditedMarks> DrawEditedMarkList;
     std::unique_ptr<MeasurementRecord> MeasurementRecords;
+    struct bounds
+    {
+		short left;
+		short top;
+		short width;
+		short height;
+	} bound;
 
-    void record(int recordType);
+	void record(int recordType);
     void appendRecord(int recordType);
     void recover();
 

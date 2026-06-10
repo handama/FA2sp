@@ -508,6 +508,7 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 			{
 				if (X - Y > x2 - y2 + 1 && X - Y < xr1 - yr1)
 				{
+					CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::LocalSize);
 					int dl = (x1 - y1 - X + Y + 1) / 2;
 					mpL += dl;
 					mpW -= dl;
@@ -518,6 +519,7 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 			{
 				if (X - Y < x1 - y1 && X - Y > xr4 - yr4)
 				{
+					CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::LocalSize);
 					int dl = (x2 - y2 - X + Y + 1) / 2;
 					mpW += dl;
 					updateINI();
@@ -527,6 +529,7 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 			{
 				if (X + Y < x4 + y4 - 1 && X + Y > xr1 + yr1)
 				{
+					CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::LocalSize);
 					int dt = (x1 + y1 - X - Y) / 2;
 					mpT -= dt;
 					mpH += dt;
@@ -537,6 +540,7 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 			{
 				if (X + Y < xr4 + yr4 - 1 && X + Y > x1 + y1)
 				{
+					CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::LocalSize);
 					int dt = (x4 + y4 - X - Y) / 2;
 					mpH -= dt;
 					updateINI();
@@ -546,6 +550,7 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 			{
 				if (X - Y > x2 - y2 + 1 && X - Y < xr1 - yr1 && X + Y < x4 + y4 - 1 && X + Y > xr1 + yr1)
 				{
+					CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::LocalSize);
 					int dl = (x1 - y1 - X + Y + 1) / 2;
 					mpL += dl;
 					mpW -= dl;
@@ -559,6 +564,7 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 			{
 				if (X + Y < x4 + y4 - 1 && X + Y > xr1 + yr1 && X - Y < x1 - y1 && X - Y > xr4 - yr4)
 				{
+					CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::LocalSize);
 					int dl = (x2 - y2 - X + Y + 1) / 2;
 					mpW += dl;
 					int dt = (x1 + y1 - X - Y) / 2;
@@ -571,6 +577,7 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 			{
 				if (X - Y > x2 - y2 + 1 && X - Y < xr1 - yr1 && X + Y < xr4 + yr4 - 1 && X + Y > x1 + y1)
 				{
+					CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::LocalSize);
 					int dl = (x1 - y1 - X + Y + 1) / 2;
 					mpL += dl;
 					mpW -= dl;
@@ -583,6 +590,7 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 			{
 				if (X + Y < xr4 + yr4 - 1 && X + Y > x1 + y1 && X - Y < x1 - y1 && X - Y > xr4 - yr4)
 				{
+					CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::LocalSize);
 					int dl = (x2 - y2 - X + Y + 1) / 2;
 					mpW += dl;
 					int dt = (x4 + y4 - X - Y) / 2;

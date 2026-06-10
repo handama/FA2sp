@@ -2830,6 +2830,14 @@ void ObjectRecord::record(int recordType)
 		recordedFlages |= RecordType::GeometricAnnotation;
 		recordIniMap("GeometricAnnotations", GeometricAnnotationList);
 	}
+	if (recordType & RecordType::LocalSize)
+	{
+		recordedFlages |= RecordType::LocalSize;		
+		bound.left = CMapData::Instance->LocalSize.Left;
+		bound.top = CMapData::Instance->LocalSize.Top;
+		bound.width = CMapData::Instance->LocalSize.Width;
+		bound.height = CMapData::Instance->LocalSize.Height;
+	}
 	if (recordType & RecordType::Measurements)
 	{
 		recordedFlages |= RecordType::Measurements;
@@ -2964,6 +2972,14 @@ void ObjectRecord::appendRecord(int recordType)
 	{
 		recordedFlages |= RecordType::GeometricAnnotation;
 		recordIniMap("GeometricAnnotations", GeometricAnnotationList);
+	}
+	if (recordType & RecordType::LocalSize && !(recordedFlages & RecordType::LocalSize))
+	{
+		recordedFlages |= RecordType::LocalSize;		
+		bound.left = CMapData::Instance->LocalSize.Left;
+		bound.top = CMapData::Instance->LocalSize.Top;
+		bound.width = CMapData::Instance->LocalSize.Width;
+		bound.height = CMapData::Instance->LocalSize.Height;
 	}
 	if (recordType & RecordType::Measurements && !(recordedFlages & RecordType::Measurements))
 	{
@@ -3136,6 +3152,22 @@ void ObjectRecord::recover()
 	{
 		recoverIniMap("GeometricAnnotations", GeometricAnnotationList);
 		CMapDataExt::UpdateGeometricAnnotation();
+	}
+	if (recordFlags & RecordType::LocalSize)
+	{
+		CMapData::Instance->LocalSize.Left = bound.left;
+		CMapData::Instance->LocalSize.Top = bound.top;
+		CMapData::Instance->LocalSize.Width = bound.width;
+		CMapData::Instance->LocalSize.Height = bound.height;
+
+		FString size;
+		size.Format("%d,%d,%d,%d", bound.left, bound.top, bound.width, bound.height);
+		CINI::CurrentDocument->WriteString("Map", "LocalSize", size);
+		if (IsWindowVisible(CFinalSunDlg::Instance->MapD))
+		{
+			auto dlg = GetDlgItem(CFinalSunDlg::Instance->MapD, 1045);
+			SetWindowText(dlg, size);
+		}
 	}
 	if ((recordFlags & RecordType::Measurements) && MeasurementRecords)
 	{

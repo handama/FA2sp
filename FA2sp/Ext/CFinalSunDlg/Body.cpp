@@ -26,6 +26,7 @@
 #include "../../ExtraWindow/CNewLocalVariables/CNewLocalVariables.h"
 #include "../../ExtraWindow/CFA2spOptions/CFA2spOptions.h"
 #include "../../ExtraWindow/CNewTag/CNewTag.h"
+#include "../../ExtraWindow/CMiscSettings/CMiscSettings.h"
 #include "../../Helpers/STDHelpers.h"
 
 #include "../../Helpers/Translations.h"
@@ -1402,6 +1403,21 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CIsoView::CurrentCommand->Type = CViewObjectsExt::ObjectTerrainType::All;
 		}
 	}
+	else if (wmID == 40038)
+	{
+		CMiscSettings::InitNewSpecialFlags();
+		return TRUE;
+	}
+	else if (wmID == 40037)
+	{
+		CMiscSettings::InitNewSinglePlayer();
+		return TRUE;
+	}
+	else if (wmID == 40036)
+	{
+		CMiscSettings::InitNewBasic();
+		return TRUE;
+	}
 	for (auto& [id, info] : CheckButtonMap)
 	{
 		if (wmID == id)
@@ -1503,11 +1519,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 	closeFA2Window(40040, this->MapD);
 	closeFA2Window(40039, this->Houses);
-	closeFA2Window(40036, this->Basic);
-	closeFA2Window(40038, this->SpecialFlags);
 	closeFA2Window(40043, this->Lighting);
 	closeFA2Window(40048, this->AITriggerTypesEnable);
-	closeFA2Window(40037, this->SingleplayerSettings);
 
 	if (wmID == 40152)
 	{
@@ -1654,6 +1667,18 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CNewHouse::GetHandle(), 114514, 0, 0);
 			return TRUE;
 		}
+		else if (hWnd == CMiscSettings::NewSpecialFlags.m_hWnd) {
+			CMiscSettings::InitNewSpecialFlags();
+			return TRUE;
+		}
+		else if (hWnd == CMiscSettings::NewBasic.m_hWnd) {
+			CMiscSettings::InitNewBasic();
+			return TRUE;
+		}
+		else if (hWnd == CMiscSettings::NewSinglePlayer.m_hWnd) {
+			CMiscSettings::InitNewSinglePlayer();
+			return TRUE;
+		}
 		for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
 		{
 			if (hWnd == CNewTrigger::Instance[i].GetHandle()) {
@@ -1675,11 +1700,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 		refreshFA2Window(40040, this->MapD);
 		refreshFA2Window(40039, this->Houses);
-		refreshFA2Window(40036, this->Basic);
-		refreshFA2Window(40038, this->SpecialFlags);
 		refreshFA2Window(40043, this->Lighting);
 		refreshFA2Window(40048, this->AITriggerTypesEnable);
-		refreshFA2Window(40037, this->SingleplayerSettings);
 
 		if (newParam != 0)
 			return this->ppmfc::CDialog::OnCommand(newParam, lParam);

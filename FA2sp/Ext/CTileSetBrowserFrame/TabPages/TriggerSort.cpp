@@ -26,7 +26,36 @@ void TriggerSort::LoadAllTriggers()
     TriggerTags.clear();
     TriggerTagsParent.clear();
     if (CMapDataExt::Triggers.empty())
-        CMapDataExt::UpdateTriggers();
+    {
+		CMapDataExt::Triggers.clear();
+		FMap<FString> TagMap;
+		if (auto pSection = CINI::CurrentDocument().GetSection("Tags"))
+		{
+			for (auto& kvp : pSection->GetEntities())
+			{
+				auto tagAtoms = FString::SplitString(kvp.second);
+				if (tagAtoms.size() < 3)
+					continue;
+				if (TagMap.find(tagAtoms[2]) == TagMap.end())
+					TagMap[tagAtoms[2]] = kvp.first;
+			}
+		}
+		if (auto pSection = CINI::CurrentDocument->GetSection("Triggers"))
+		{
+			for (const auto& pair : pSection->GetEntities())
+			{
+				std::shared_ptr<Trigger> trigger(Trigger::create(pair.first, &TagMap));
+				if (!trigger)
+				{
+					continue;
+				}
+				if (CMapDataExt::Triggers.find(pair.first) == CMapDataExt::Triggers.end())
+				{
+					CMapDataExt::Triggers[pair.first] = std::move(trigger);
+				}
+			}
+		}  
+    }
     for (auto& triggerPair : CMapDataExt::Triggers)
     {
         auto& trigger = triggerPair.second;

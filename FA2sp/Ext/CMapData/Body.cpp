@@ -19,6 +19,7 @@
 #include "../../ExtraWindow/CNewTag/CNewTag.h"
 #include "../../ExtraWindow/CNewHouse/CNewHouse.h"
 #include "../../ExtraWindow/CNewINIEditor/CNewINIEditor.h"
+#include "../../ExtraWindow/CMiscSettings/CMiscSettings.h"
 #include "../../ExtraWindow/CSearhReference/CSearhReference.h"
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
 #include "../../ExtraWindow/CBatchTrigger/CBatchTrigger.h"
@@ -4470,6 +4471,15 @@ void CMapDataExt::RefreshAllWindows()
 	if (CNewScript::GetHandle())
 	{
 		::SendMessage(CNewScript::GetHandle(), 114514, 0, 0);
+	}
+	if (CMiscSettings::NewSpecialFlags.m_hWnd) {
+		CMiscSettings::InitNewSpecialFlags();
+	}
+	if (CMiscSettings::NewBasic.m_hWnd) {
+		CMiscSettings::InitNewBasic();
+	}
+	if (CMiscSettings::NewSinglePlayer.m_hWnd) {
+		CMiscSettings::InitNewSinglePlayer();
 	}
 
 	bool noEditor = true;

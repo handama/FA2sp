@@ -3697,6 +3697,7 @@ void CNewTrigger::OnClickActionSplit(HWND& hWnd)
     }
 
     SortTriggers(id);
+    TriggerSort::Instance.AddTrigger(id);
     OnSelchangeTrigger();
 }
 

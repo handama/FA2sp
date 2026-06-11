@@ -3462,3 +3462,168 @@ LRESULT CALLBACK VirtualComboBoxEx::ListProc(HWND hwnd, UINT msg, WPARAM wParam,
 
     return CallWindowProc(pThis->oldListProc, hwnd, msg, wParam, lParam);
 }
+
+void CINIDialog::ShowDialog()
+{
+    if (::IsWindow(GetSafeHwnd()))
+    {
+        DestroyWindow();
+    }
+    if (!Create(m_dialogResource, CFinalSunDlg::Instance)) 
+    {
+        Logger::Error("Failed to create CINIDialog.\n");
+        return;
+    }
+	ShowWindow(SW_SHOW);    
+	::SetWindowPos(GetSafeHwnd(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+}
+
+void CINIDialog::SetControlInfo(int id, const ControlInfo& info)
+{
+	m_controlInfos[id] = info;
+}
+
+void CINIDialog::DisableControl(int id)
+{
+	m_disabledControls.push_back(id);
+}
+
+void CINIDialog::Translate(int id, const FString& text)
+{
+	m_controlTranslations[id] = text;
+}
+
+void CINIDialog::TranslateTitle(const FString& text)
+{
+	m_title = text;
+}
+
+CINIDialog::CINIDialog(int resource)
+{
+	m_dialogResource = resource;
+}
+
+BOOL CINIDialog::OnInitDialog()
+{
+	CDialog::OnInitDialog();
+	FString buffer;
+
+	auto translate = [&buffer, this](int nItem, const char* lpLabel)
+	{
+		if (Translations::GetTranslationItem(lpLabel, buffer))
+			GetDlgItem(nItem)->SetWindowTextA(buffer);
+	};
+
+    for (auto& [id, text] : m_controlTranslations)   
+        translate(id, text);
+
+	if (Translations::GetTranslationItem(m_title, buffer))
+		SetWindowTextA(buffer);
+
+    for (const auto& [id, info] : m_controlInfos)
+    {
+        if (info.Type == ControlType::CheckBox)
+        {
+            CheckDlgButton(GetSafeHwnd(), id, CINI::CurrentDocument->GetBool(info.IniSection, info.IniKey) ? BST_CHECKED : BST_UNCHECKED); 
+        }
+        else if (info.Type == ControlType::Edit)
+        {
+            GetDlgItem(id)->SetWindowText(CINI::CurrentDocument->GetString(info.IniSection, info.IniKey));
+        }
+        else if (info.Type == ControlType::Combobox)
+        {
+            ppmfc::CComboBox* box = (ppmfc::CComboBox*)GetDlgItem(id);
+            for (const auto& label : info.Labels)
+            {
+				box->AddString(label);
+			}
+			auto text = CINI::CurrentDocument->GetString(info.IniSection, info.IniKey);
+			int idx = box->FindStringExact(0, text);
+            if (idx != CB_ERR)
+            {
+				box->SetCurSel(idx);
+			}
+            else
+            {               
+                box->SetWindowText(text);
+            }
+        }
+    }
+
+    for (const auto& id : m_disabledControls)
+    {
+		GetDlgItem(id)->EnableWindow(FALSE);
+	}
+
+	return TRUE;
+}
+
+BOOL CINIDialog::OnCommand(WPARAM wParam, LPARAM lParam)
+{
+    WORD nID = LOWORD(wParam);
+    WORD nNotify = HIWORD(wParam);
+
+	auto itr = m_controlInfos.find(nID);
+	if (itr != m_controlInfos.end())
+	{
+		const auto& info = itr->second;
+		if (info.Type == ControlType::CheckBox && nNotify == BN_CLICKED)
+        {
+            bool checked = (IsDlgButtonChecked(GetSafeHwnd(), nID) == BST_CHECKED);
+            CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, checked ? "yes" : "no");
+			info.CallBack();
+		}
+		else if (info.Type == ControlType::Edit && nNotify == EN_CHANGE)
+        {
+			ppmfc::CString buffer;
+			GetDlgItem(nID)->GetWindowText(buffer);
+            CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
+			info.CallBack();
+        }
+		else if (info.Type == ControlType::Combobox && nNotify == CBN_SELCHANGE)
+        {
+            ppmfc::CComboBox* box = (ppmfc::CComboBox*)GetDlgItem(nID);
+			ppmfc::CString buffer;
+			int idx = box->GetCurSel();
+            if (idx != CB_ERR)
+            {
+				box->GetLBText(idx, buffer);
+			}
+            else
+            {
+                box->GetWindowText(buffer);
+            }
+            CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
+			info.CallBack();
+        }
+		else if (info.Type == ControlType::Combobox && nNotify == CBN_EDITCHANGE)
+        {
+			ppmfc::CString buffer;
+			GetDlgItem(nID)->GetWindowText(buffer);
+            CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
+			info.CallBack();
+        }
+	}
+
+    return CDialog::OnCommand(wParam, lParam);
+}
+
+void CINIDialog::DoDataExchange(ppmfc::CDataExchange* pDX)
+{
+	CDialog::DoDataExchange(pDX);
+}
+
+void CINIDialog::OnClose()
+{
+	m_controlTranslations.clear();
+	m_controlInfos.clear();    
+    if (::IsWindow(GetSafeHwnd()))
+    {
+        DestroyWindow();
+    }
+}
+
+void CINIDialog::OnCancel()
+{
+	OnClose();
+}

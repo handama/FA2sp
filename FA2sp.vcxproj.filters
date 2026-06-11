@@ -321,6 +321,12 @@
     <ClInclude Include="FA2sp\ExtraWindow\CNewHouse\CNewHouse.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="glad\include\glad\glad.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CMiscSettings\CMiscSettings.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FA2sp\FA2sp.cpp">
@@ -791,6 +797,12 @@
     <ClCompile Include="FA2sp\ExtraWindow\CNewHouse\CNewHouse.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="glad\src\glad.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CMiscSettings\CMiscSettings.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FA2sp\FA2sp.rc">
@@ -989,6 +1001,9 @@
       <Filter>资源文件</Filter>
     </ResourceCompile>
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewHouse\CNewHouse.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\ExtraWindow\CMiscSettings\CMiscSettings.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
   </ItemGroup>

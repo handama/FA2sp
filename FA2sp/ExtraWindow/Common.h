@@ -1,6 +1,7 @@
 #pragma once
 #include "FA2PP.h"
 #include "../Helpers/MultimapHelper.h"
+#include <functional>
 
 class FString;
 class CNewTrigger;
@@ -409,4 +410,41 @@ private:
     static LRESULT CALLBACK EditProc(HWND, UINT, WPARAM, LPARAM);
     static LRESULT CALLBACK ListProc(HWND, UINT, WPARAM, LPARAM);
     LRESULT OnComboMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+};
+
+class CINIDialog : public ppmfc::CDialog
+{
+public:
+    enum ControlType
+    {
+        CheckBox = 0,
+        Edit,
+        Combobox,
+    };
+    struct ControlInfo
+    {
+		ControlType Type;
+		FString IniSection;
+        FString IniKey;
+        std::function<void()> CallBack;
+		std::vector<FString> Labels;
+	};   
+    CINIDialog(int resource);
+	void ShowDialog();
+	void SetControlInfo(int id, const ControlInfo& info);
+	void DisableControl(int id);
+	void Translate(int id, const FString& text);
+	void TranslateTitle(const FString& text);
+
+  protected:
+	virtual BOOL OnInitDialog();
+	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);
+	virtual void DoDataExchange(ppmfc::CDataExchange* pDX);
+	virtual void OnCancel();
+	virtual void OnClose();
+	int m_dialogResource;
+	std::map<int, ControlInfo> m_controlInfos;
+	std::map<int, FString> m_controlTranslations;
+	std::vector<int> m_disabledControls;
+	FString m_title;
 };

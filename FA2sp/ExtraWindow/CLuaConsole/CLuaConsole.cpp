@@ -719,6 +719,19 @@ void CLuaConsole::Initialize(HWND& hWnd)
         }
         set_param(section, key, value, index, delimiter.value());
         });
+    Lua.set_function("get_param", [](std::string string, int index, sol::optional<std::string> delimiter) {
+            if (!delimiter) {
+                delimiter = ",";
+			}
+            
+            return get_param(string, index, delimiter.value());
+        });
+    Lua.set_function("set_param", [](std::string string, std::string value, int index, sol::optional<std::string> delimiter) {
+        if (!delimiter) {
+            delimiter = ",";
+        }
+        return set_param(string, value, index, delimiter.value());
+        });
     Lua.set_function("trim_index", trim_index);
     Lua.set_function("waypoint_to_string", [](std::string wp) { return STDHelpers::WaypointToString(wp).ToStdString(); });
     Lua.set_function("string_to_waypoint", [](std::string str) { return STDHelpers::StringToWaypointStr(str).ToStdString(); });
@@ -796,6 +809,10 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "add_tag", &trigger::add_tag,
         "add_event", &trigger::add_event,
         "add_action", &trigger::add_action,
+        "replace_event", &trigger::replace_event,
+        "replace_action", &trigger::replace_action,
+        "get_event_type", &trigger::get_event_type,
+        "get_action_type", &trigger::get_action_type,
         "delete_tag", &trigger::delete_tag,
         "delete_tags", &trigger::delete_tags,
         "delete_event", &trigger::delete_event,
@@ -859,7 +876,8 @@ void CLuaConsole::Initialize(HWND& hWnd)
         );
     Lua.set_function("delete_script", script::delete_script);
     Lua.set_function("get_script", script::get_script);
-
+    Lua.set_function("get_script_type", script::get_script_type);
+    
     Lua.new_usertype<task_force>("task_force",
         sol::constructors<task_force(std::string), task_force()>(),
         "id", sol::readonly(&task_force::ID),

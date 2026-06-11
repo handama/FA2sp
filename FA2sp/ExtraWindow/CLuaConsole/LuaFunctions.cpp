@@ -1198,7 +1198,7 @@ namespace LuaFunctions
 			tag.RepeatType = repeat == 2 ? "2" : repeat == 1 ? "1" : "0";
 			UsedINIIndices.insert(id);
 		}
-		void add_event(std::string value)
+		void add_event(std::string value, int index = 0)
 		{
 			auto&& splits = split_string(value);
 			if (splits.size() < 3 || splits.size() > 4 || (splits.size() == 4 && splits[1] != "2"))
@@ -1206,9 +1206,27 @@ namespace LuaFunctions
 				write_lua_console("Ill-formed event " + value);
 				return;
 			}
-			Events.push_back(value);
-		}
-		void add_action(std::string value)
+		
+			const int size = static_cast<int>(Events.size());
+		
+			if (index == 0)
+			{
+				Events.push_back(value);
+			}
+			else if (index >= 1 && index <= size + 1)
+			{
+				Events.insert(Events.begin() + (index - 1), value);
+			}
+			else
+			{
+				write_lua_console(
+					"Event index out of range: " + std::to_string(index) +
+					" (valid: 1-" + std::to_string(size + 1) + ", or 0 for append)"
+				);
+				Events.push_back(value);
+			}
+		}	
+		void add_action(std::string value, int index = 0)
 		{
 			auto&& splits = split_string(value);
 			if (splits.size() != 8)
@@ -1216,7 +1234,71 @@ namespace LuaFunctions
 				write_lua_console("Ill-formed action " + value);
 				return;
 			}
-			Actions.push_back(value);
+		
+			const int size = static_cast<int>(Actions.size());
+		
+			if (index == 0)
+			{
+				Actions.push_back(value);
+			}
+			else if (index >= 1 && index <= size + 1)
+			{
+				Actions.insert(Actions.begin() + (index - 1), value);
+			}
+			else
+			{
+				write_lua_console(
+					"Action index out of range: " + std::to_string(index) +
+					" (valid: 1-" + std::to_string(size + 1) + ", or 0 for append)"
+				);
+				Actions.push_back(value);
+			}
+		}
+		void replace_event(std::string value, int index)
+		{
+			auto&& splits = split_string(value);
+			if (splits.size() < 3 || splits.size() > 4 || (splits.size() == 4 && splits[1] != "2"))
+			{
+				write_lua_console("Ill-formed event " + value);
+				return;
+			}
+
+			const int size = static_cast<int>(Events.size());
+
+			if (index >= 1 && index <= size)
+			{
+				Events[index - 1] = value;
+			}
+			else
+			{
+				write_lua_console(
+					"Event index out of range: " + std::to_string(index) +
+					" (valid: 1-" + std::to_string(size) + ")"
+				);
+			}
+		}
+		void replace_action(std::string value, int index)
+		{
+			auto&& splits = split_string(value);
+			if (splits.size() != 8)
+			{
+				write_lua_console("Ill-formed action " + value);
+				return;
+			}
+
+			const int size = static_cast<int>(Actions.size());
+
+			if (index >= 1 && index <= size)
+			{
+				Actions[index - 1] = value;
+			}
+			else
+			{
+				write_lua_console(
+					"Action index out of range: " + std::to_string(index) +
+					" (valid: 1-" + std::to_string(size) + ")"
+				);
+			}
 		}
 		void delete_tag(int index, bool removeIni)
 		{
@@ -1257,6 +1339,275 @@ namespace LuaFunctions
 			UsedINIIndices.insert(id);
 			ID = id;
 		}
+		std::string get_event_type(int eventIdx, int paramIdx)
+		{
+			const int size = static_cast<int>(Events.size());
+			if (eventIdx >= 1 && eventIdx <= size)
+			{
+				auto eventInfo = Events[eventIdx - 1];
+				auto atoms = split_string(eventInfo);
+				while (atoms.size() < 4)
+				{
+					atoms.push_back("");
+				}
+
+				auto& eventStr = atoms[0];
+				auto eventNum = atoi(eventStr.c_str());
+				const int size_p = 4;
+				if (paramIdx >= 1 && paramIdx <= size_p - 1)
+				{
+					auto& target_param = atoms[paramIdx];
+					FString param_type;
+					auto& params = CNewTrigger::EventParamAffectedParams;
+					for (const auto& param : params)
+					{
+						if (param.Index == eventNum)
+						{
+							int AffectedParam = param.AffectedParam;
+							int SourceParam = param.SourceParam;
+							if (atoms[1] == "2")
+							{
+								AffectedParam++;
+								SourceParam++;
+							}
+							if (AffectedParam == paramIdx - 1)
+							{
+								if (SourceParam >= 0 && SourceParam <= 2)
+								{
+									auto sourceStr = atoms[SourceParam + 1];
+									auto itr = param.ParamMap.find(sourceStr);
+									if (itr != param.ParamMap.end())
+										param_type = itr->second;
+								}
+							}
+						}
+					}
+					
+					auto& fadata = CINI::FAData();
+					if (param_type.IsEmpty())
+					{
+						auto eventInfos = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), eventStr.c_str(), "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
+						FString paramType[2];
+						paramType[0] = eventInfos[1];
+						paramType[1] = eventInfos[2];
+						if (atoms[1] == "2")
+						{
+							if (paramIdx >= 2 && paramIdx <= 3)
+							{
+								param_type = paramType[paramIdx - 2];
+							}
+						}
+						else
+						{
+							if (paramIdx >= 1 && paramIdx <= 2)
+							{
+								param_type = paramType[paramIdx - 1];
+							}
+						}
+					}
+
+					if (param_type.IsEmpty() || atoi(param_type) <= 0)
+						return {};
+
+					auto newParams = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), param_type, "MISSING,0"), 1);
+
+					if (newParams[1] == "1")
+						return "WAYPOINT_NUM";
+					if (newParams[1] == "3" 
+						|| newParams[1] == "4" 
+						|| newParams[1] == "5" 
+						|| newParams[1] == "6"
+						|| newParams[1] == "7"
+						|| newParams[1] == "13"
+						|| newParams[1] == "14"
+					)
+						return "COUNTRY";
+					if (newParams[1] == "8")
+						return "TECHNO";
+					if (newParams[1] == "9")
+						return "TRIGGER";
+					if (newParams[1] == "10")
+						return "CSF";
+					if (newParams[1] == "11")
+						return "TAG";
+					if (newParams[1] == "12")
+						return "FLOAT";
+					if (newParams[1] == "15")
+						return "TEAM";
+
+					auto newParamInfos = FString::SplitString(fadata.GetString("NewParamTypes", newParams[1], "MISSING,0,0,0,0"), 4);
+					
+					if (newParamInfos[0] == "VariableNames" && newParamInfos[1] == "1")
+						return "VARIABLE_GLOBAL";
+					if (newParamInfos[0] == "VariableNames" && newParamInfos[1] == "3")
+						return "VARIABLE_LOCAL";
+					
+					return std::string(newParams[1]);
+				}
+				else
+				{
+					write_lua_console(
+						"Event param index out of range: " + std::to_string(paramIdx) +
+						" (valid: 1-3)"
+					);
+					return {};
+				}
+			}
+			else
+			{
+				write_lua_console(
+					"Event index out of range: " + std::to_string(eventIdx) +
+					" (valid: 1-" + std::to_string(size) + ")"
+				);
+				return {};
+			}
+		}
+		std::string get_action_type(int actionIdx, int paramIdx)
+		{
+			const int size = static_cast<int>(Actions.size());
+			if (actionIdx >= 1 && actionIdx <= size)
+			{
+				auto actionInfo = Actions[actionIdx - 1];
+				auto atoms = split_string(actionInfo);
+				while (atoms.size() < 4)
+				{
+					atoms.push_back("");
+				}
+
+				auto& actionStr = atoms[0];
+				auto actionNum = atoi(actionStr.c_str());
+				const int size_p = 8;
+				if (paramIdx >= 1 && paramIdx <= size_p - 1)
+				{
+					auto& target_param = atoms[paramIdx];
+					FString param_type;
+					
+					auto& fadata = CINI::FAData();
+
+					auto actionInfos = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), actionStr.c_str(), 
+					"MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
+					FString paramType[7];
+					for (int i = 0; i < 7; i++)
+						paramType[i] = actionInfos[i + 1];
+				
+					std::vector<FString> pParamTypes[7];
+					for (int i = 0; i < 7; i++)
+						pParamTypes[i] = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[i], "MISSING,0"));
+										
+					param_type = paramType[paramIdx - 1];
+					if (paramIdx == 7 && param_type != "0")
+					{
+						bool Param7isWP = true;
+						if (auto pSection = fadata.GetSection("DontSaveAsWP"))
+						{
+							for (auto& pair : pSection->GetEntities())
+							{
+								if (atoi(pair.second) == -atoi(paramType[0]))
+									Param7isWP = false;
+							}
+						}
+						if (Param7isWP)
+						{
+							param_type = "WP";
+						}
+					}
+
+					auto& params = CNewTrigger::ActionParamAffectedParams;
+					std::vector<int> availableParams;
+					for (const auto& param : params)
+					{
+						if (param.Index == actionNum)
+						{
+							if (availableParams.empty())
+							{
+								for (int i = 0; i < 7; i++)
+								{
+									if (atoi(paramType[i]) > 0)
+									{
+										availableParams.push_back(i);
+									}
+								}
+							}
+							int AffectedParam = param.AffectedParam;
+							int SourceParam = param.SourceParam;
+							if (AffectedParam >= 0 && AffectedParam < availableParams.size())
+								AffectedParam = availableParams[AffectedParam];
+							if (SourceParam >= 0 && SourceParam < availableParams.size())
+								SourceParam = availableParams[SourceParam];
+
+							if (AffectedParam == paramIdx - 1)
+							{
+								if (SourceParam >= 0 && SourceParam <= 6)
+								{
+									auto sourceStr = atoms[SourceParam + 1];
+									auto itr = param.ParamMap.find(sourceStr);
+									if (itr != param.ParamMap.end())
+										param_type = itr->second;
+								}
+							}
+						}
+					}
+					
+					if (param_type == "WP")
+						return "WAYPOINT_STR";
+
+					if (param_type.IsEmpty() || atoi(param_type) <= 0)
+						return {};
+
+					auto newParams = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), param_type, "MISSING,0"), 1);
+
+					if (newParams[1] == "1")
+						return "WAYPOINT_NUM";
+					if (newParams[1] == "3" 
+						|| newParams[1] == "4" 
+						|| newParams[1] == "5" 
+						|| newParams[1] == "6"
+						|| newParams[1] == "7"
+						|| newParams[1] == "13"
+						|| newParams[1] == "14"
+					)
+						return "COUNTRY";
+					if (newParams[1] == "8")
+						return "TECHNO";
+					if (newParams[1] == "9")
+						return "TRIGGER";
+					if (newParams[1] == "10")
+						return "CSF";
+					if (newParams[1] == "11")
+						return "TAG";
+					if (newParams[1] == "12")
+						return "FLOAT";
+					if (newParams[1] == "15")
+						return "TEAM";
+
+					auto newParamInfos = FString::SplitString(fadata.GetString("NewParamTypes", newParams[1], "MISSING,0,0,0,0"), 4);
+					
+					if (newParamInfos[0] == "VariableNames" && newParamInfos[1] == "1")
+						return "VARIABLE_GLOBAL";
+					if (newParamInfos[0] == "VariableNames" && newParamInfos[1] == "3")
+						return "VARIABLE_LOCAL";
+					
+					return std::string(newParams[1]);
+				}
+				else
+				{
+					write_lua_console(
+						"Action param index out of range: " + std::to_string(paramIdx) +
+						" (valid: 1-7)"
+					);
+					return {};
+				}
+			}
+			else
+			{
+				write_lua_console(
+					"Action index out of range: " + std::to_string(actionIdx) +
+					" (valid: 1-" + std::to_string(size) + ")"
+				);
+				return {};
+			}
+		}
+
 		void apply()
 		{
 			FString trigger;
@@ -1905,6 +2256,65 @@ namespace LuaFunctions
 			}
 			return sol::make_object(CLuaConsole::Lua, sol::nil);
 		}
+		static std::string get_script_type(int scriptIdx, bool extra = false)
+		{
+			auto& fadata = CINI::FAData();
+			FString key = std::to_string(scriptIdx);
+			auto value = fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptsRA2"), key);
+			auto atoms = FString::SplitString(value, 4);
+			FString name = atoms[0];
+			auto& paramIdx = atoms[1];
+			auto& disable = atoms[2];
+			auto& hasParam = atoms[3];
+			auto& description = atoms[4];
+
+			if (value == "" || hasParam == "0")
+				return {};
+
+			auto scriptParams = STDHelpers::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptParams"), paramIdx));
+			FString scriptParam;
+
+			if (scriptParams.size() >= 2 && !extra)
+				scriptParam = scriptParams[1];
+			else if (scriptParams.size() >= 4 && extra)
+				scriptParam = scriptParams[3];
+			else
+				return {};
+
+			if (scriptParam == "1")
+				return "WAYPOINT_NUM";
+			if (scriptParam == "3" 
+				||scriptParam == "4" 
+				||scriptParam == "5" 
+				||scriptParam == "6"
+				||scriptParam == "7"
+				||scriptParam == "13"
+				||scriptParam == "14"
+			)
+				return "COUNTRY";
+			if (scriptParam == "8")
+				return "TECHNO";
+			if (scriptParam == "9")
+				return "TRIGGER";
+			if (scriptParam == "10")
+				return "CSF";
+			if (scriptParam == "11")
+				return "TAG";
+			if (scriptParam == "12")
+				return "FLOAT";
+			if (scriptParam == "15")
+				return "TEAM";
+
+			auto newParamInfos = FString::SplitString(fadata.GetString("NewParamTypes", scriptParam, "MISSING,0,0,0,0"), 4);
+			
+			if (newParamInfos[0] == "VariableNames" && newParamInfos[1] == "1")
+				return "VARIABLE_GLOBAL";
+			if (newParamInfos[0] == "VariableNames" && newParamInfos[1] == "3")
+				return "VARIABLE_LOCAL";
+			
+			return std::string(scriptParam);
+		}
+		
 		void apply() const
 		{
 			if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
@@ -2786,6 +3196,17 @@ namespace LuaFunctions
 		return "";
 	}
 
+	static std::string get_param(std::string str, int index, std::string delimiter = ",")
+	{
+		index--;// to fit lua 
+		auto&& atoms = split_string(str, delimiter);
+		if (atoms.size() > index) 
+		{
+			return atoms[index];
+		}
+		return "";
+	}
+
 	static void set_param(std::string section, std::string key, std::string value, int index, std::string delimiter = ",")
 	{
 		index--;// to fit lua 
@@ -2805,6 +3226,27 @@ namespace LuaFunctions
 			}
 			write_string(section, key, fullValue);
 		}
+	}
+
+	static std::string set_param(std::string str, std::string value, int index, std::string delimiter = ",")
+	{
+		index--;// to fit lua 
+		auto&& atoms = split_string(str, delimiter);
+		if (atoms.size() > index)
+		{
+			std::string fullValue;
+			for (int i = 0; i < atoms.size(); ++i)
+			{
+				auto& atom = atoms[i];
+				if (i == index)
+					atom = value;
+				fullValue += atom;
+				if (i != atoms.size() - 1)
+					fullValue += delimiter[0];
+			}
+			return fullValue;
+		}
+		return str;
 	}
 	
 	static std::string trim_index(std::string value)

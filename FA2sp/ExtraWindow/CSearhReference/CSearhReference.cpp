@@ -297,6 +297,17 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
             CNewScript::OnSelchangeActionListbox();
             SetWindowPos(CNewScript::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
         }
+        else if (data >= 262144)
+        {
+			int pos = data - 262144;
+			int X = pos % 512;
+			int Y = pos / 512;
+			CMapDataExt::CellDataExt_FindCell.X = X;
+            CMapDataExt::CellDataExt_FindCell.Y = Y;
+            CMapDataExt::CellDataExt_FindCell.drawCell = true;
+            CIsoViewExt::MoveToMapCoord(X, Y);
+            CMapDataExt::CellDataExt_FindCell.drawCell = false;
+        }
     }
     else
     {
@@ -432,6 +443,134 @@ void CSearhReference::Update()
                             // 3 means tag in team
                         }
                     }
+                }
+            }
+            if (auto pObjSection = CINI::CurrentDocument->GetSection("Structures"))
+            {
+                for (auto& pair : pObjSection->GetEntities())
+                {
+					auto atoms = FString::SplitString(pair.second, 6);
+					auto& X = atoms[4];
+                    auto& Y = atoms[3];
+					auto& tag = atoms[6];
+					auto& id = atoms[1];
+                    if (tag == SearchID)
+                    {
+						FString text;
+						auto uiname = CViewObjectsExt::QueryUIName(id);
+                        if (uiname != id && uiname != "")
+							text.Format("%s%s (%s) (%s, %s)", GetPrefix(8), uiname, id, Y, X);
+                        else
+                            text.Format("%s%s (%s, %s)", GetPrefix(8), id, Y, X);
+                        SendMessage(
+                            hListbox,
+                            LB_SETITEMDATA,
+                            SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
+                            262144 + atoi(Y) * 512 + atoi(X)
+                        );
+                        // 262144+ means coord
+                    }
+                }
+            }
+            if (auto pObjSection = CINI::CurrentDocument->GetSection("Aircraft"))
+            {
+                for (auto& pair : pObjSection->GetEntities())
+                {
+					auto atoms = FString::SplitString(pair.second, 7);
+					auto& X = atoms[4];
+                    auto& Y = atoms[3];
+					auto& tag = atoms[7];
+					auto& id = atoms[1];
+                    if (tag == SearchID)
+                    {
+						FString text;
+						auto uiname = CViewObjectsExt::QueryUIName(id);
+                        if (uiname != id && uiname != "")
+							text.Format("%s%s (%s) (%s, %s)", GetPrefix(8), uiname, id, Y, X);
+                        else
+                            text.Format("%s%s (%s, %s)", GetPrefix(8), id, Y, X);
+                        SendMessage(
+                            hListbox,
+                            LB_SETITEMDATA,
+                            SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
+                            262144 + atoi(Y) * 512 + atoi(X)
+                        );
+                        // 262144+ means coord
+                    }
+                }
+            }
+            if (auto pObjSection = CINI::CurrentDocument->GetSection("Units"))
+            {
+                for (auto& pair : pObjSection->GetEntities())
+                {
+					auto atoms = FString::SplitString(pair.second, 7);
+					auto& X = atoms[4];
+                    auto& Y = atoms[3];
+					auto& tag = atoms[7];
+					auto& id = atoms[1];
+                    if (tag == SearchID)
+                    {
+						FString text;
+						auto uiname = CViewObjectsExt::QueryUIName(id);
+                        if (uiname != id && uiname != "")
+							text.Format("%s%s (%s) (%s, %s)", GetPrefix(8), uiname, id, Y, X);
+                        else
+                            text.Format("%s%s (%s, %s)", GetPrefix(8), id, Y, X);
+                        SendMessage(
+                            hListbox,
+                            LB_SETITEMDATA,
+                            SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
+                            262144 + atoi(Y) * 512 + atoi(X)
+                        );
+                        // 262144+ means coord
+                    }
+                }
+            }
+            if (auto pObjSection = CINI::CurrentDocument->GetSection("Infantry"))
+            {
+                for (auto& pair : pObjSection->GetEntities())
+                {
+					auto atoms = FString::SplitString(pair.second, 8);
+					auto& X = atoms[4];
+                    auto& Y = atoms[3];
+					auto& tag = atoms[8];
+					auto& id = atoms[1];
+                    if (tag == SearchID)
+                    {
+						FString text;
+						auto uiname = CViewObjectsExt::QueryUIName(id);
+                        if (uiname != id && uiname != "")
+							text.Format("%s%s (%s) (%s, %s)", GetPrefix(8), uiname, id, Y, X);
+                        else
+                            text.Format("%s%s (%s, %s)", GetPrefix(8), id, Y, X);
+                        SendMessage(
+                            hListbox,
+                            LB_SETITEMDATA,
+                            SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
+                            262144 + atoi(Y) * 512 + atoi(X)
+                        );
+                        // 262144+ means coord
+                    }
+                }
+            }
+            if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
+            {
+                for (auto& pairObj : pSection->GetEntities())
+                {
+                    if (pairObj.second== SearchID)
+                    {
+                        int X = atoi(pairObj.first) / 1000;
+                        int Y = atoi(pairObj.first) % 1000;
+
+                        FString text;
+						text.Format("%s %d, %d", GetPrefix(9), Y, X);
+						SendMessage(
+							hListbox,
+							LB_SETITEMDATA,
+							SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
+							262144 + Y * 512 + X);
+                            // 262144+ means coord
+					}
                 }
             }
         }
@@ -907,6 +1046,10 @@ FString CSearhReference::GetPrefix(int type)
         return FString(Translations::TranslateOrDefault("SearhReference.TriggerParam.Team", "Param - Team"))+ ": ";
     case 7:
         return FString(Translations::TranslateOrDefault("SearhReference.TriggerParam.Trigger", "Param - Trigger"))+ ": ";
+    case 8:
+        return FString(Translations::TranslateOrDefault("SearhReference.TagObject", "Object"))+ ": ";
+    case 9:
+        return FString(Translations::TranslateOrDefault("SearhReference.TagTag", "Tag"))+ ": ";
     default:
         break;
     }

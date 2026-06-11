@@ -36,12 +36,9 @@ void TagSort::LoadAllTriggers()
     {
         for (auto& pair : pObjSection->GetEntities())
         {
-            auto atoms = FString::SplitString(pair.second);
-            if (atoms.size() > 6)
-            {
-                if (atoms[6] != "<none>")
-                    BuildingTags[atoms[6]].push_back(pair.second);
-            }
+            auto tag = FString::GetParam(pair.second, 6);
+            if (tag != "<none>" && !tag.IsEmpty())
+                BuildingTags[tag].push_back(pair.second);
         }
     }
     AircraftTags.clear();
@@ -49,12 +46,9 @@ void TagSort::LoadAllTriggers()
     {
         for (auto& pair : pObjSection->GetEntities())
         {
-            auto atoms = FString::SplitString(pair.second);
-            if (atoms.size() > 7)
-            {
-                if (atoms[7] != "<none>")
-                    AircraftTags[atoms[7]].push_back(pair.second);
-            }
+            auto tag = FString::GetParam(pair.second, 7);
+            if (tag != "<none>" && !tag.IsEmpty())
+                AircraftTags[tag].push_back(pair.second);
         }
     }
     UnitTags.clear();
@@ -62,12 +56,9 @@ void TagSort::LoadAllTriggers()
     {
         for (auto& pair : pObjSection->GetEntities())
         {
-            auto atoms = FString::SplitString(pair.second);
-            if (atoms.size() > 7)
-            {
-                if (atoms[7] != "<none>")
-                    UnitTags[atoms[7]].push_back(pair.second);
-            }
+            auto tag = FString::GetParam(pair.second, 7);
+            if (tag != "<none>" && !tag.IsEmpty())
+                UnitTags[tag].push_back(pair.second);
         }
     }
     InfantryTags.clear();
@@ -75,12 +66,9 @@ void TagSort::LoadAllTriggers()
     {
         for (auto& pair : pObjSection->GetEntities())
         {
-            auto atoms = FString::SplitString(pair.second);
-            if (atoms.size() > 8)
-            {
-                if (atoms[8] != "<none>")
-                    InfantryTags[atoms[8]].push_back(pair.second);
-            }
+            auto tag = FString::GetParam(pair.second, 8);
+            if (tag != "<none>" && !tag.IsEmpty())
+                InfantryTags[tag].push_back(pair.second);
         }
     }
     TeamTags.clear();
@@ -196,15 +184,13 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
 				{
 					auto text = ExtraWindow::GetTagDisplayName(pID);
 					auto idx = CNewTag::vcbSelectedTag.FindStringExact(text);
-					if (idx == CB_ERR)
-						return FALSE;
-
-					CNewTag::vcbSelectedTag.SetCurSel(idx);
-					CNewTag::OnSelchangeTag();
-					return TRUE;
+					if (idx != CB_ERR)
+					{
+                        CNewTag::vcbSelectedTag.SetCurSel(idx);
+                        CNewTag::OnSelchangeTag();
+                        finished = true;
+                    }
 				}
-				else
-					return FALSE;
 				if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
                 {
                     FString pStr = CINI::CurrentDocument->GetString("Triggers", pID);
@@ -239,96 +225,51 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
 
                 }
 
-                auto atoms = FString::SplitString(pID);
-                if (atoms.size() >= 12)
+                if (!finished)
                 {
-                    auto& name = atoms[1];
-
-                    auto SearchObjectType = -1;
-
-                    MultimapHelper mmh;
-                    mmh.AddINI(&CINI::Rules());
-                    mmh.AddINI(&CINI::CurrentDocument());
-
-                    auto air = mmh.GetSection("AircraftTypes");
-                    auto inf = mmh.GetSection("InfantryTypes");
-                    auto str = mmh.GetSection("BuildingTypes");
-                    auto veh = mmh.GetSection("VehicleTypes");
-                    for (auto& pair : air)
-                    {
-                        if (name == pair.second)
-                        {
-                            SearchObjectType = FindType::Aircraft;
-                            break;
-                        }
-                    }
-                    if (SearchObjectType == -1)
-                        for (auto& pair : inf)
-                        {
-                            if (name == pair.second)
-                            {
-                                SearchObjectType = FindType::Infantry;
-                                break;
-                            }
-                        }
-                    if (SearchObjectType == -1)
-                        for (auto& pair : str)
-                        {
-                            if (name == pair.second)
-                            {
-                                SearchObjectType = FindType::Structure;
-                                break;
-                            }
-                        }
-                    if (SearchObjectType == -1)
-                        for (auto& pair : veh)
-                        {
-                            if (name == pair.second)
-                            {
-                                SearchObjectType = FindType::Unit;
-                                break;
-                            }
-                        }
-
-                    if (SearchObjectType != -1)
+                    auto atoms = FString::SplitString(pID);
+                    if (atoms.size() >= 11)
                     {
                         int X = atoi(atoms[4]);
                         int Y = atoi(atoms[3]);
-
+    
                         if (CMapData::Instance->IsCoordInMap(X, Y))
                         {
-
                             CMapDataExt::CellDataExt_FindCell.X = X;
                             CMapDataExt::CellDataExt_FindCell.Y = Y;
                             CMapDataExt::CellDataExt_FindCell.drawCell = true;
-
+    
                             CIsoViewExt::MoveToMapCoord(X, Y);
+							finished = true;
 
-                            CMapDataExt::CellDataExt_FindCell.drawCell = false;
+							CMapDataExt::CellDataExt_FindCell.drawCell = false;
                         }
                     }
                 }
 
-                if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
+                if (!finished)
                 {
-                    for (auto& pairObj : pSection->GetEntities())
+                    if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
                     {
-
-                        if (pairObj.first == pID)
+                        for (auto& pairObj : pSection->GetEntities())
                         {
-                            int X = atoi(pairObj.first) / 1000;
-                            int Y = atoi(pairObj.first) % 1000;
-
-                            if (CMapData::Instance->IsCoordInMap(X, Y))
+    
+                            if (pairObj.first == pID)
                             {
-
-                                CMapDataExt::CellDataExt_FindCell.X = X;
-                                CMapDataExt::CellDataExt_FindCell.Y = Y;
-                                CMapDataExt::CellDataExt_FindCell.drawCell = true;
-
-                                CIsoViewExt::MoveToMapCoord(X, Y);
-
-                                CMapDataExt::CellDataExt_FindCell.drawCell = false;
+                                int X = atoi(pairObj.first) / 1000;
+                                int Y = atoi(pairObj.first) % 1000;
+    
+                                if (CMapData::Instance->IsCoordInMap(X, Y))
+                                {
+                                    CMapDataExt::CellDataExt_FindCell.X = X;
+                                    CMapDataExt::CellDataExt_FindCell.Y = Y;
+                                    CMapDataExt::CellDataExt_FindCell.drawCell = true;
+    
+                                    CIsoViewExt::MoveToMapCoord(X, Y);
+                                    finished = true;
+    
+                                    CMapDataExt::CellDataExt_FindCell.drawCell = false;
+                                }
                             }
                         }
                     }
@@ -505,7 +446,6 @@ void TagSort::IndexAdd(HTREEITEM hParent, LPCSTR pszLabel, HTREEITEM hItem) cons
     if (hParent && pszLabel && pszLabel[0])
     {    
         m_labelIndex[MakeLabelKey(hParent, pszLabel)] = hItem;
-		Logger::Raw("%d %d %s\n", (int)hParent, (int)hItem, pszLabel);
 	}
 }
 

@@ -97,6 +97,7 @@ public:
     static bool updateTeam;
     static bool updateTaskforce;
     static bool updateCellTag;
+    static bool updateVariable;
     static bool skipBuildingUpdate;
 };
 

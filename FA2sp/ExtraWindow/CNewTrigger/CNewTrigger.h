@@ -108,6 +108,9 @@ public:
 
     void LoadFromMap(const char* id, std::vector<FString>& atoms, FMap<FString>* pTagMap = nullptr)
     {
+        if (atoms.size() < 8)
+            return;
+            
         auto& doc = CINI::CurrentDocument();
 
         ID = id;

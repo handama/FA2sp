@@ -8,6 +8,8 @@
 #include "../CNewTeamTypes/CNewTeamTypes.h"
 #include "../CNewScript/CNewScript.h"
 #include "../CNewTaskforce/CNewTaskforce.h"
+#include "../CNewAITrigger/CNewAITrigger.h"
+#include "../CNewLocalVariables/CNewLocalVariables.h"
 #include "../CObjectSearch/CObjectSearch.h"
 #include <CLoading.h>
 #include <CFinalSunDlg.h>
@@ -71,6 +73,7 @@ bool CLuaConsole::updateScript = false;
 bool CLuaConsole::updateTeam = false;
 bool CLuaConsole::updateTaskforce = false;
 bool CLuaConsole::updateCellTag = false;
+bool CLuaConsole::updateVariable = false;
 bool CLuaConsole::skipBuildingUpdate = false;
 sol::state CLuaConsole::Lua;
 using namespace::LuaFunctions;
@@ -466,7 +469,9 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "x", sol::readonly(&cell::Y),
         "y", sol::readonly(&cell::X),
         "unit", sol::readonly(&cell::Unit),
-        "infantry", sol::readonly(&cell::Infantry),
+        "infantry_1", sol::readonly(&cell::Infantry_1),
+        "infantry_2", sol::readonly(&cell::Infantry_2),
+        "infantry_3", sol::readonly(&cell::Infantry_3),
         "aircraft", sol::readonly(&cell::Aircraft),
         "building", sol::readonly(&cell::Structure),
         //"TypeListIndex", &cell::TypeListIndex,
@@ -719,14 +724,14 @@ void CLuaConsole::Initialize(HWND& hWnd)
         }
         set_param(section, key, value, index, delimiter.value());
         });
-    Lua.set_function("get_param", [](std::string string, int index, sol::optional<std::string> delimiter) {
+    Lua.set_function("get_param_str", [](std::string string, int index, sol::optional<std::string> delimiter) {
             if (!delimiter) {
                 delimiter = ",";
 			}
             
             return get_param(string, index, delimiter.value());
         });
-    Lua.set_function("set_param", [](std::string string, std::string value, int index, sol::optional<std::string> delimiter) {
+    Lua.set_function("set_param_str", [](std::string string, std::string value, int index, sol::optional<std::string> delimiter) {
         if (!delimiter) {
             delimiter = ",";
         }
@@ -825,6 +830,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("delete_trigger", trigger::delete_trigger);
     Lua.set_function("delete_tag", trigger::delete_tag_static);
     Lua.set_function("get_trigger", trigger::get_trigger);
+    Lua.set_function("get_triggers", trigger::get_triggers);
     Lua.set_function("place_celltag", place_celltag);
     Lua.set_function("remove_celltag", remove_celltag);
     Lua.set_function("remove_celltags", remove_celltags);
@@ -860,6 +866,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     );
     Lua.set_function("delete_ai_trigger", ai_trigger::delete_ai_trigger);
     Lua.set_function("get_ai_trigger", ai_trigger::get_ai_trigger);
+    Lua.set_function("get_ai_triggers", ai_trigger::get_ai_triggers);
 
     Lua.new_usertype<script>("script",
         sol::constructors<script(std::string), script()>(),
@@ -869,6 +876,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "params", sol::readonly(&script::Params),
         "add_action", &script::add_action,
         "delete_action", &script::delete_action,
+        "replace_action", &script::replace_action,
         "apply", &script::apply,
         "change_id", &script::change_id,
         "release_id", &script::release_id,
@@ -876,7 +884,11 @@ void CLuaConsole::Initialize(HWND& hWnd)
         );
     Lua.set_function("delete_script", script::delete_script);
     Lua.set_function("get_script", script::get_script);
+    Lua.set_function("get_scripts", script::get_scripts);
     Lua.set_function("get_script_type", script::get_script_type);
+    Lua.set_function("script_has_extra", script::script_has_extra);
+    Lua.set_function("get_script_extra", script::get_script_extra);
+    Lua.set_function("combine_script_extra", script::combine_script_extra);
     
     Lua.new_usertype<task_force>("task_force",
         sol::constructors<task_force(std::string), task_force()>(),
@@ -887,6 +899,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "units", sol::readonly(&task_force::Units),
         "add_number", &task_force::add_number,
         "delete_number", &task_force::delete_number,
+        "replace_number", &task_force::replace_number,
         "apply", &task_force::apply,
         "change_id", &task_force::change_id,
         "release_id", &task_force::release_id,
@@ -894,6 +907,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         );
     Lua.set_function("delete_task_force", task_force::delete_task_force);
     Lua.set_function("get_task_force", task_force::get_task_force);
+    Lua.set_function("get_task_forces", task_force::get_task_forces);
 
     Lua.new_usertype<team>("team",
         sol::constructors<team(std::string), team()>(),
@@ -939,12 +953,19 @@ void CLuaConsole::Initialize(HWND& hWnd)
         );
     Lua.set_function("delete_team", team::delete_team);
     Lua.set_function("get_team", team::get_team);
+    Lua.set_function("get_teams", team::get_teams);
 
+    Lua.set_function("get_variable_value", get_variable_value);
+    Lua.set_function("get_variable_name", get_variable_name);
+    Lua.set_function("set_variable_value", set_variable_value);
+    Lua.set_function("set_variable_name", set_variable_name);
+    Lua.set_function("add_variable", add_variable);
+    
     Lua.set_function("running_lua_brush", []() {return CLuaConsole::applyingScript; });
 
     Lua.set_function("open_file", OpenFileToString);
     Lua.set_function("save_file", SaveStringToFile);
-
+    
     Lua.set_function("end_script", []() {
         lua_pushstring(Lua, "__SCRIPT_ABORT__");
         return lua_error(Lua);
@@ -1570,6 +1591,12 @@ void CLuaConsole::OnClickRun(bool fromFile)
         updateTaskforce = false;
         if (CNewTaskforce::GetHandle())
             ::SendMessage(CNewTaskforce::GetHandle(), 114514, 0, 0);
+    }
+    if (updateVariable)
+    {
+        updateVariable = false;
+        if (CNewLocalVariables::GetHandle())
+            ::SendMessage(CNewLocalVariables::GetHandle(), 114514, 0, 0);
     }
     if (updateMinimap)
     {

@@ -211,6 +211,7 @@ public:
     static bool FlatToGroundHideExtra;
     static bool LightingPreview_MultUnitColor;
     static bool LightingPreview_TintTileSetBrowserView;
+    static bool TileSetBrowserViewCompactArrange;
     static bool DDrawScalingBilinear;
     static bool DDrawScalingBilinear_OnlyShrink;
     static bool DirectXRendering;

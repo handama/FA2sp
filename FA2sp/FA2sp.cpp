@@ -202,6 +202,7 @@ bool ExtConfigs::ObjectBrowser_Ore_ExtraSupport;
 bool ExtConfigs::FlatToGroundHideExtra;
 bool ExtConfigs::LightingPreview_MultUnitColor;
 bool ExtConfigs::LightingPreview_TintTileSetBrowserView;
+bool ExtConfigs::TileSetBrowserViewCompactArrange;
 bool ExtConfigs::DDrawScalingBilinear;
 bool ExtConfigs::DDrawScalingBilinear_OnlyShrink;
 bool ExtConfigs::DirectXRendering;
@@ -371,6 +372,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::LightingPreview_TintTileSetBrowserView = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.TintTileSetBrowserView");
+	ExtConfigs::TileSetBrowserViewCompactArrange = CINI::FAData->GetBool("ExtConfigs", "TileSetBrowserViewCompactArrange", true);
 	ExtConfigs::UseDefaultUnitImage = CINI::FAData->GetBool("ExtConfigs", "UseDefaultUnitImage");
 	ExtConfigs::UseDefaultUnitImage_TechnoAttachment = CINI::FAData->GetBool("ExtConfigs", "UseDefaultUnitImage.TechnoAttachment");
 	ExtConfigs::UseStrictNewTheater = CINI::FAData->GetBool("ExtConfigs", "UseStrictNewTheater");
@@ -939,6 +941,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.LightingPreview.TintTileSetBrowserView", "Mult tile set browser images when changing lighting"),
 		.IniKey = "LightingPreview.TintTileSetBrowserView",
 		.Value = &ExtConfigs::LightingPreview_TintTileSetBrowserView,
+		.Type = ExtConfigs::SpecialOptionType::None});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.TileSetBrowserViewCompactArrange", "Make the arrangement of images in tileset browser more compact"),
+		.IniKey = "TileSetBrowserViewCompactArrange",
+		.Value = &ExtConfigs::TileSetBrowserViewCompactArrange,
 		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

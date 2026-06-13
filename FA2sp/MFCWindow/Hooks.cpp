@@ -212,3 +212,9 @@ DEFINE_HOOK(468690, CIsoView_OnSize_Size, A)
 
 	return 0;
 }
+
+DEFINE_HOOK(4D288F, CMyViewFrame_OnSize_StatusBar, 6)
+{
+	R->EDX(R->EDX() - 130 * CFinalSunAppExt::ProgramScaleFactor);
+	return 0x4D2895;
+}

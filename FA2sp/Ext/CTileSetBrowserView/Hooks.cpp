@@ -142,6 +142,28 @@ static int GetAddedWidth(int tileIndex)
     return -cur_added;
 }
 
+static bool HasValidImage(const CTileTypeClass* tileData)
+{
+	for (int i = 0; i < tileData->TileBlockCount; ++i)
+    {
+		auto& block = tileData->TileBlockDatas[i];
+        if (block.ImageData)
+            return true;
+	}
+	return false;
+}
+
+static bool HasValidImage(const CustomTile* tileData)
+{
+	for (int i = 0; i < tileData->Width * tileData->Height; ++i)
+    {
+		auto& block = tileData->TileBlockDatas[i];
+        if (block.GetTileBlock()->ImageData)
+            return true;
+	}
+	return false;
+}
+
 static __forceinline void BlitTerrainTSB(void* dst, int x, int y,
     int dleft, int dtop, int dpitch, int dright, int dbottom,
     CTileBlockClass& st, Palette* pal)
@@ -496,8 +518,35 @@ DEFINE_HOOK(4F3C00, CTileSetBrowserView_OnLButtonDown, 7)
             iTileStart = CMapDataExt::TileSet_starts[pThis->CurrentTileset];
         else
             iTileStart = CMapDataExt::GetCustomTileIndex(pThis->CurrentTileset, 0);
+
+        int displayIndex = 0;
         for (int i = 0; i < pThis->TileSurfacesCount; i++)
         {
+            if (!pThis->TileSurfaces[i])
+            {
+                iTileStart++;
+                continue;
+            }
+
+            if (pThis->CurrentTileset < 10000)
+            {
+                auto& tile = CMapDataExt::TileData[iTileStart];
+                if (!HasValidImage(&tile))
+                {
+                    iTileStart++;
+                    continue;
+                }
+            }
+            else
+            {
+                auto tileData = CMapDataExt::GetCustomTile(iTileStart);
+                if (!HasValidImage(tileData))
+                {
+                    iTileStart++;
+                    continue;
+                }
+            }
+
             if (point.x > cur_x && point.y > cur_y && point.x < cur_x + tile_width && point.y < cur_y + tile_height)
             {
                 int oldmode = CIsoView::CurrentCommand->Command;
@@ -531,12 +580,14 @@ DEFINE_HOOK(4F3C00, CTileSetBrowserView_OnLButtonDown, 7)
             }
 
             cur_x += tile_width;
-            if (i % max_r == max_r - 1)
+            if (max_r == 0) max_r = 1;
+            if (displayIndex % max_r == max_r - 1)
             {
                 cur_y += tile_height;
                 cur_x = 0;
             }
             iTileStart++;
+            displayIndex++;
         }
     }
     else if (pThis->CurrentMode == 2)
@@ -604,7 +655,7 @@ DEFINE_HOOK(4F2B10, CTileSetBrowserView_SetTileSet, 7)
         const auto& tileData = CMapDataExt::TileData[tileStart];
         tileCount = CMapDataExt::TileSet_starts[dwTileSet + 1] - CMapDataExt::TileSet_starts[dwTileSet];
 
-		if (tileData.TileBlockCount && tileData.TileBlockDatas[0].ImageData)
+		if (HasValidImage(&tileData))
 		{
             if (!bOnlyRedraw)
             {
@@ -767,28 +818,40 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
         else
             tileIndex = CMapDataExt::GetCustomTileIndex(pThis->CurrentTileset, 0);
 
-        for (int i = 0; i < pThis->TileSurfacesCount; i++)
+		int displayIndex = 0;
+		for (int i = 0; i < pThis->TileSurfacesCount; i++)
         {
             if (!pThis->TileSurfaces[i])
             {
-                tileIndex++;
+				tileIndex++;
                 continue;
             }
 
             int curwidth, curheight;
             if (pThis->CurrentTileset < 10000)
             {
+                auto& tile = CMapDataExt::TileData[tileIndex];
+                if (!HasValidImage(&tile))
+                {
+                    tileIndex++;
+                    continue;
+                }
 				curwidth = GetAddedWidth(tileIndex) +
-						    std::max(CMapDataExt::TileData[tileIndex].Bounds.right 
-                            - CMapDataExt::TileData[tileIndex].Bounds.left, 60l);
+						    std::max(tile.Bounds.right 
+                            - tile.Bounds.left, 60l);
 				curheight = GetAddedHeight(tileIndex) + 
-                            std::max(CMapDataExt::TileData[tileIndex].Bounds.bottom 
-                            - CMapDataExt::TileData[tileIndex].Bounds.top, 30l);
+                            std::max(tile.Bounds.bottom 
+                            - tile.Bounds.top, 30l);
 
 			}
             else
             {
                 auto tileData = CMapDataExt::GetCustomTile(tileIndex);
+                if (!HasValidImage(tileData))
+                {
+                    tileIndex++;
+                    continue;
+                }
                 GetCustomTileSize(tileData, curwidth, curheight);
             }
 
@@ -821,14 +884,6 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
                 if (CIsoView::CurrentCommand->Command == 10 
                     && CIsoView::CurrentCommand->Type == tileIndex)
                 {
-
-					if (pThis->CurrentTileset < 10000)
-					{
-						auto& tile = CMapDataExt::TileData[tileIndex];
-						if (!tile.TileBlockCount || !tile.TileBlockDatas[0].ImageData)
-							goto skipDrawRect;
-					}                  
-
                     CPen p;
                     CBrush b;
                     p.CreatePen(PS_SOLID, 1, RGB(255, 0, 0));
@@ -844,20 +899,17 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
 
                     pDC->SelectObject(old);
 				}
-                skipDrawRect:
-                {
-                    
-                }
 			}
 
             cur_x += pThis->CurrentImageWidth;
             if (max_r == 0) max_r = 1;
-            if (i % max_r == max_r - 1)
+            if (displayIndex % max_r == max_r - 1)
             {
                 cur_y += pThis->CurrentImageHeight;
                 cur_x = 0;
             }
             tileIndex++;
+            displayIndex++;
         }
         return 0x4F25B0;
     }

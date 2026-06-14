@@ -1679,13 +1679,12 @@ void GridObjectViewer::OnSelChanged(int index)
         FString name = Variables::RulesMap.GetString(oid, "Name");
         if (name.IsEmpty() || !Translations::GetTranslationItem(name, display))
         {
-            display = CViewObjectsExt::QueryUIName(id, true);
+            display = CViewObjectsExt::QueryUIName(oid, true);
         }
         if (display != oid)
         {
             display.Format("%s (%s)", display, oid);
-
-        }
+        }   
         FString format = "%s, ";
         format += Translations::TranslateOrDefault("GridObjectViewer.OverlayText", "Index: %d, OverlayData: %d");
         display.Format(format, display, data.Overlay, data.OverlayData);

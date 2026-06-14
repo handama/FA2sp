@@ -1069,10 +1069,29 @@ void GridObjectViewer::OnEditchange()
         LabelMatcher matcher(buffer);
         for (auto& g : g_images)
         {
-            auto uiName = CViewObjectsExt::QueryUIName(g.ID);
-            if (matcher.Match(g.ID) || matcher.Match(uiName))
+            if (g.Overlay != -1)
             {
-                g_filteredImages.push_back(g);
+                auto regisName = Variables::RulesMap.GetValueAt("OverlayTypes", g.Overlay);
+                auto uiName = CViewObjectsExt::QueryUIName(regisName);
+                FString name = Variables::RulesMap.GetString(regisName, "Name");
+				FString transedName;
+				Translations::GetTranslationItem(name, transedName);
+				if (matcher.Match(g.ID) 
+                    || matcher.Match(uiName) 
+                    || matcher.Match(std::to_string(g.Overlay).c_str())
+                    || matcher.Match(transedName) 
+                )
+                {
+                    g_filteredImages.push_back(g);
+                }
+            }
+            else
+            {
+                auto uiName = CViewObjectsExt::QueryUIName(g.ID);
+                if (matcher.Match(g.ID) || matcher.Match(uiName))
+                {
+                    g_filteredImages.push_back(g);
+                }
             }
         }
     }

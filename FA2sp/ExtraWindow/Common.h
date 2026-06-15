@@ -380,6 +380,7 @@ private:
 
     int curSel = -1;
     int pendingSelect = -1;
+    
     bool m_filterActive = false;
     bool m_programmaticDropdown = false;
     bool m_programmaticPostDropdown = false;
@@ -390,6 +391,7 @@ private:
     bool* m_allowFilter = nullptr;
     bool m_needFixSelection = false;
     bool m_inFixSelection = false;
+    int m_fixTopIndex = -1;
     bool m_EnterKeyPressed = false;
     bool m_SpecialKeysFirst = false;
 

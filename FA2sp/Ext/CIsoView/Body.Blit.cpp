@@ -1695,7 +1695,7 @@ void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile,
     {
         if (subTile->YMinusExY < 0 && subTile->YMinusExY + dataExt.ExtraSize.y <= 15)
         {
-            height += (subTile->YMinusExY - 29) / -30;
+            height += (subTile->YMinusExY - 15) / -30;
         }
     }
 

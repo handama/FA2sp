@@ -5142,4 +5142,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	ExtraUnitLight = Variables::RulesMap.GetSingle("AudioVisual", "ExtraUnitLight", 0.2f);
 	ExtraInfantryLight = Variables::RulesMap.GetSingle("AudioVisual", "ExtraInfantryLight", 0.2f);
 	ExtraAircraftLight = Variables::RulesMap.GetSingle("AudioVisual", "ExtraAircraftLight", 0.2f);
+
+	CIsoViewExt::GetInstance()->Drag = FALSE;
+	CIsoViewExt::GetInstance()->CurrentCellObjectIndex = -1;
+	CIsoViewExt::GetInstance()->CurrentCellObjectType = -1;
 }

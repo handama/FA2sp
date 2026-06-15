@@ -2181,6 +2181,8 @@ DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp, 6)
 	if (nFlags == 0 && point.x == 0 && point.y == 0)
 	{
 		pThis->Drag = FALSE;
+		pThis->CurrentCellObjectIndex = -1;
+		pThis->CurrentCellObjectType = -1;
 		return 0x45EBD1;
 	}
 
@@ -2191,6 +2193,8 @@ DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp, 6)
 		if (dx <= 2 && dy <= 2)
 		{
 			pThis->Drag = FALSE;
+			pThis->CurrentCellObjectIndex = -1;
+			pThis->CurrentCellObjectType = -1;
 			if (CIsoView::CurrentCommand->Command != 0x0)
 			{
 				if (!CopyPaste::PastedCoords.empty())

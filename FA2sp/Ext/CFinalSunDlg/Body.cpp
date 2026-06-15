@@ -1950,6 +1950,8 @@ bool CFinalSunDlgExt::DeleteMousePointedObjects(int X, int Y)
 			deleted = true;
 		}
 	}
+	CIsoViewExt::HistoryRecord_IsHoldingLButton = false;
+	ObjectRecord::ObjectRecord_HoldingPtr = nullptr;
 
 	return deleted;
 }

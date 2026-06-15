@@ -1843,8 +1843,9 @@ bool LabelMatcher::MatchPattern(const FString& target, const Pattern& pattern) c
     return true;
 }
 
-#define VCB_TIMER_SELECT  1
+#define VCB_TIMER_SELECT   1
 #define VCB_TIMER_RESTORE  2
+#define VCB_TIMER_CLEARFIX 3
 #define ITEM_HEIGHT  15
 
 int VirtualComboBoxEx::m_itemHeight = ITEM_HEIGHT;
@@ -3308,15 +3309,42 @@ LRESULT CALLBACK VirtualComboBoxEx::ListProc(HWND hwnd, UINT msg, WPARAM wParam,
 {
     auto* pThis = (VirtualComboBoxEx*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 
-    if (msg == LB_SETCURSEL && !FA2sp::WinInfo.IsWindowsVistaOrGreater() && pThis)
+    if (msg == LB_SETCURSEL && pThis && !pThis->m_inFixSelection)
     {
         int newSel = (int)wParam;
-        if (newSel == -1)
+
+        if (pThis->m_needFixSelection)
         {
-            if (pThis->curSel >= 0)
+            if (newSel != pThis->curSel)
             {
-                return 0;
+                pThis->m_inFixSelection = true;
+                LRESULT ret = CallWindowProc(pThis->oldListProc, hwnd, LB_SETCURSEL, pThis->curSel, 0);
+                pThis->m_inFixSelection = false;
+                pThis->m_fixTopIndex = (int)SendMessage(hwnd, LB_GETTOPINDEX, 0, 0);
+                return ret;
             }
+        }
+        else if (newSel == -1 && pThis->curSel >= 0)
+        {
+            return 0;
+        }
+    }
+
+    if (msg == LB_SETTOPINDEX && pThis && pThis->m_needFixSelection && pThis->m_fixTopIndex >= 0)
+    {
+        int newTop = (int)wParam;
+        if (newTop != pThis->m_fixTopIndex)
+        {
+            return CallWindowProc(pThis->oldListProc, hwnd, LB_SETTOPINDEX, pThis->m_fixTopIndex, 0);
+        }
+    }
+
+    if (msg == WM_VSCROLL && pThis && pThis->m_needFixSelection && pThis->m_fixTopIndex >= 0)
+    {
+        int scrollCode = LOWORD(wParam);
+        if (scrollCode == SB_TOP || scrollCode == SB_LINEUP || scrollCode == SB_PAGEUP)
+        {
+            return 0;
         }
     }
 
@@ -3360,6 +3388,7 @@ LRESULT CALLBACK VirtualComboBoxEx::ListProc(HWND hwnd, UINT msg, WPARAM wParam,
                     if (match >= 0)
                     {
                         pThis->pendingSelect = match;
+                        pThis->m_needFixSelection = true;
 
                         SetTimer(hwnd, VCB_TIMER_SELECT, 0, NULL);
                     }
@@ -3374,10 +3403,13 @@ LRESULT CALLBACK VirtualComboBoxEx::ListProc(HWND hwnd, UINT msg, WPARAM wParam,
         }
         break;
     }
-    case WM_SHOWWINDOW: 
+    case WM_SHOWWINDOW:
     {
         if (!wParam)
         {
+            pThis->m_needFixSelection = false;
+            pThis->m_fixTopIndex = -1;
+            KillTimer(hwnd, VCB_TIMER_CLEARFIX);
             SetTimer(hwnd, VCB_TIMER_RESTORE, 0, NULL);
             if (pThis->m_programmaticDropdown)
                 pThis->m_programmaticPostDropdown = true;
@@ -3395,9 +3427,22 @@ LRESULT CALLBACK VirtualComboBoxEx::ListProc(HWND hwnd, UINT msg, WPARAM wParam,
 
             if (match >= 0 && match < (int)pThis->items.size())
             {
+                pThis->m_inFixSelection = true;
                 SendMessage(hwnd, LB_SETCURSEL, match, 0);
+                pThis->m_inFixSelection = false;
                 pThis->curSel = match;
+                pThis->m_fixTopIndex = (int)SendMessage(hwnd, LB_GETTOPINDEX, 0, 0);
+                if (pThis->m_fixTopIndex >= 0)
+                    SendMessage(hwnd, LB_SETTOPINDEX, pThis->m_fixTopIndex, 0);
+                pThis->m_needFixSelection = true;
+                SetTimer(hwnd, VCB_TIMER_CLEARFIX, 100, NULL);
             }
+            return 0;
+        }
+        else if (wParam == VCB_TIMER_CLEARFIX)
+        {
+            KillTimer(hwnd, VCB_TIMER_CLEARFIX);
+            pThis->m_needFixSelection = false;
             return 0;
         }
         else if (wParam == VCB_TIMER_RESTORE)

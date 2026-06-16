@@ -990,6 +990,7 @@ static void DrawBuilding(Renderer::BuildingType* pType,
 )
 {
 	const auto &DataExt = *pType->pDataExt;
+	auto pBuilding = pForceBuilding ? pForceBuilding : &Renderer::Buildings[cell->Structure];
 
 	const int HP = objRender.Strength;
 	int status = CLoadingExt::GBIN_NORMAL;
@@ -1015,6 +1016,20 @@ static void DrawBuilding(Renderer::BuildingType* pType,
 	CIsoView::MapCoord2ScreenCoord(x1, y1);
 	x1 -= DrawOffsetX;
 	y1 -= DrawOffsetY;
+
+	if (CIsoViewExt::DrawStructures && ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages && objRender.poweredOn)
+	{
+		auto pAIData = pType->GetAlphaImageData(objRender.Facing);
+		if (ImageDataClassSafe::IsValidImage(pAIData))
+		{
+			AlphaImagesToDraw.push_back(
+				std::make_pair(
+					MapCoord{
+						x1 - pAIData->FullWidth / 2 + (DataExt.RealWidth - DataExt.RealHeight) * 30 / 2,
+						y1 - pAIData->FullHeight / 2 + (DataExt.RealWidth + DataExt.RealHeight) * 15 / 2},
+					pAIData));
+		}
+	}
 
 	MapCoord buildingOrigin{objRender.X, objRender.Y};
 	if (!IsCoordInWindow(objRender.X, objRender.Y))
@@ -1152,11 +1167,11 @@ static void DrawBuilding(Renderer::BuildingType* pType,
 													status,
 													pData,
 													pPal,
-													pForceBuilding ? pForceBuilding : &Renderer::Buildings[cell->Structure]});
+													pBuilding});
 		}
 	}
 
-	if (shadow && CIsoViewExt::DrawStructures && !isCloakable(pType))
+	if (shadow && pBuilding->IsVisible() && !isCloakable(pType))
 	{
 		int nFacing = 0;
 		int FacingCount = pType->FacingCount;
@@ -2918,20 +2933,6 @@ static void DrawMap()
 					veter.Y = y1 + (DataExt.RealWidth + DataExt.RealHeight - 2) * 15 / 2;
 					veter.VP = 0;
 					veter.ID = objRender.ID;
-				}
-
-				if (firstDraw && ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages && objRender.poweredOn)
-				{
-					auto pAIData = pType->GetAlphaImageData(objRender.Facing);
-					if (ImageDataClassSafe::IsValidImage(pAIData))
-					{
-						AlphaImagesToDraw.push_back(
-							std::make_pair(
-								MapCoord{
-									x1 - pAIData->FullWidth / 2 + (DataExt.RealWidth - DataExt.RealHeight) * 30 / 2,
-									y1 - pAIData->FullHeight / 2 + (DataExt.RealWidth + DataExt.RealHeight) * 15 / 2},
-								pAIData));
-					}
 				}
 
 				if (firstDraw && CIsoViewExt::DrawFires && part.hasFire && DataExt.DamageFireOffsets.size() > 0)

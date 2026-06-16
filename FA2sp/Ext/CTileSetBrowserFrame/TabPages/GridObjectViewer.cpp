@@ -1330,7 +1330,11 @@ LRESULT CALLBACK GridObjectViewer::HandleViewSubClassProc(HWND hwnd, UINT msg, W
                 HPEN hOldPen = (HPEN)SelectObject(hDrawDC, hPen);
                 HBRUSH hOldBrush = (HBRUSH)SelectObject(hDrawDC, GetStockObject(NULL_BRUSH));
 
-                Rectangle(hDrawDC, drawR.left, drawR.top, drawR.right, drawR.bottom);
+                Rectangle(hDrawDC, drawR.left - 3, drawR.top - 3, drawR.right + 3, drawR.bottom + 3);
+                if (CTileSetBrowserFrameExt::GridObjectViewerScaledFactor >= 1.5f)
+                {
+                    Rectangle(hDrawDC, drawR.left - 4, drawR.top - 4, drawR.right + 4, drawR.bottom + 4);
+                }
 
                 SelectObject(hDrawDC, hOldBrush);
                 SelectObject(hDrawDC, hOldPen);

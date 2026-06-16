@@ -526,7 +526,7 @@ static void BuildCompactLayout(CTileSetBrowserView* pThis)
     int clientWidth = rc.right;
     const int spacing = 4;
 
-    int curX = 0, curY = 0, rowHeight = 0;
+    int curX = 0, curY = 2, rowHeight = 0;
     std::vector<size_t> rowIndices;
 
     int tileCount = pThis->TileSurfacesCount;
@@ -611,7 +611,7 @@ static void BuildCompactOverlayLayout(CTileSetBrowserView* pThis)
 
     float scaleFactor = CTileSetBrowserFrameExt::OverlayBrowserViewScaledFactor;
 
-    int curX = 0, curY = 0, rowHeight = 0;
+    int curX = 0, curY = 2, rowHeight = 0;
     std::vector<size_t> rowIndices;
 
     for (int i = 0; i < nDisplayLimit; i++)
@@ -690,8 +690,8 @@ DEFINE_HOOK(4F3C00, CTileSetBrowserView_OnLButtonDown, 7)
     int max_r = r.right / pThis->CurrentImageWidth;
     if (max_r == 0) max_r = 1;
 
-    int cur_y = 0;
-    int cur_x = 0;
+    int cur_y = 3;
+    int cur_x = 3;
 
     int tile_width = pThis->CurrentImageWidth;
     int tile_height = pThis->CurrentImageHeight;
@@ -809,7 +809,7 @@ DEFINE_HOOK(4F3C00, CTileSetBrowserView_OnLButtonDown, 7)
                 if (displayIndex % max_r == max_r - 1)
                 {
                     cur_y += tile_height;
-                    cur_x = 0;
+                    cur_x = 3;
                 }
                 iTileStart++;
                 displayIndex++;
@@ -869,7 +869,7 @@ DEFINE_HOOK(4F3C00, CTileSetBrowserView_OnLButtonDown, 7)
                     if (i % max_r == max_r - 1)
                     {
                         cur_y += tile_height;
-                        cur_x = 0;
+                        cur_x = 3;
                     }
                 }  
             }
@@ -1057,8 +1057,8 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
     RECT r;
     pThis->GetClientRect(&r);
     int max_r = r.right / pThis->CurrentImageWidth;
-    int cur_y = 0;
-    int cur_x = 0;
+    int cur_y = 3;
+    int cur_x = 3;
 
     if (pThis->CurrentMode == 1)
     {
@@ -1126,9 +1126,16 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
 
                     pDC->SetBkMode(TRANSPARENT);
                     pDC->SelectObject(&b);
-                    pDC->Rectangle(info.x + 2, info.y + 2,
-                        info.x + info.width - 2,
-                        info.y + info.height - 2);
+                    pDC->Rectangle(info.x - 2, info.y - 2,
+                        info.x + info.width + 2,
+                        info.y + info.height + 2);
+
+                        if (CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor >= 1.5f)
+                        {
+                            pDC->Rectangle(info.x - 3, info.y - 3,
+                                info.x + info.width + 3,
+                                info.y + info.height + 3);
+                        }
 
                     pDC->SelectObject(old);
                 }
@@ -1217,9 +1224,16 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
 
                     pDC->SetBkMode(TRANSPARENT);
                     pDC->SelectObject(&b);
-                    pDC->Rectangle(cur_x + 2, cur_y + 2,
-                                    cur_x + pThis->CurrentImageWidth - 2,
-                                    cur_y + pThis->CurrentImageHeight - 2);
+                    pDC->Rectangle(cur_x - 2, cur_y - 2,
+                                    cur_x + pThis->CurrentImageWidth + 2,
+                                    cur_y + pThis->CurrentImageHeight + 2);
+
+                    if (CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor >= 1.5f)
+                    {
+                        pDC->Rectangle(cur_x - 3, cur_y - 3,
+                            cur_x + pThis->CurrentImageWidth + 3,
+                            cur_y + pThis->CurrentImageHeight + 3);
+                    }
 
                     pDC->SelectObject(old);
 				}
@@ -1230,7 +1244,7 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
             if (displayIndex % max_r == max_r - 1)
             {
                 cur_y += pThis->CurrentImageHeight;
-                cur_x = 0;
+                cur_x = 3;
             }
             tileIndex++;
             displayIndex++;
@@ -1371,8 +1385,14 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
                     CPen* old = pDC->SelectObject(&p);
                     pDC->SetBkMode(TRANSPARENT);
                     pDC->SelectObject(&b);
-                    pDC->Rectangle(info.x + 2, info.y + 2,
-                        info.x + info.width - 2, info.y + info.height - 2);
+                    pDC->Rectangle(info.x - 2, info.y - 2,
+                        info.x + info.width + 2, info.y + info.height + 2);
+
+                    if (CTileSetBrowserFrameExt::OverlayBrowserViewScaledFactor >= 1.5f)
+                    {
+                        pDC->Rectangle(info.x - 3, info.y - 3,
+                            info.x + info.width + 3, info.y + info.height + 3);
+                    }
                     pDC->SelectObject(old);
                 }
             }
@@ -1501,9 +1521,16 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
 
                         pDC->SetBkMode(TRANSPARENT);
                         pDC->SelectObject(&b);
-                        pDC->Rectangle(cur_x + 2, cur_y + 2, 
-                            cur_x + pThis->CurrentImageWidth - 2,
-                             cur_y + pThis->CurrentImageHeight - 2);
+                        pDC->Rectangle(cur_x - 2, cur_y - 2, 
+                            cur_x + pThis->CurrentImageWidth + 2,
+                             cur_y + pThis->CurrentImageHeight + 2);
+
+                        if (CTileSetBrowserFrameExt::OverlayBrowserViewScaledFactor >= 1.5f)
+                        {
+                            pDC->Rectangle(cur_x - 3, cur_y - 3, 
+                                cur_x + pThis->CurrentImageWidth + 3,
+                                 cur_y + pThis->CurrentImageHeight + 3);
+                        }
 
                         pDC->SelectObject(old);
                     }
@@ -1516,7 +1543,7 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
 				if (i % max_r == max_r - 1)
 				{
 					cur_y += pThis->CurrentImageHeight;
-					cur_x = 0;
+					cur_x = 3;
 				}
 			}
 		}

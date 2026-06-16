@@ -4933,8 +4933,8 @@ void CIsoViewExt::DrawLineDirectX(int x1, int y1, int x2, int y2, int color, int
 {
     x1 += (int)(32 / CIsoViewExt::ScaledFactor - 2);
     x2 += (int)(32 / CIsoViewExt::ScaledFactor - 2);
-    y1 -= (int)(14.5 / CIsoViewExt::ScaledFactor + 2.5);
-    y2 -= (int)(14.5 / CIsoViewExt::ScaledFactor + 2.5);
+    y1 -= (int)(14.5 / CIsoViewExt::ScaledFactor);
+    y2 -= (int)(14.5 / CIsoViewExt::ScaledFactor);
 
     x1 -= CIsoViewExt::drawOffsetX;
     y1 -= CIsoViewExt::drawOffsetY;
@@ -4954,8 +4954,8 @@ void CIsoViewExt::DrawArrowDirectX(int x1, int y1, int x2, int y2, int color, in
 {
     x1 += (int)(32 / CIsoViewExt::ScaledFactor - 2);
     x2 += (int)(32 / CIsoViewExt::ScaledFactor - 2);
-    y1 -= (int)(14.5 / CIsoViewExt::ScaledFactor + 2.5);
-    y2 -= (int)(14.5 / CIsoViewExt::ScaledFactor + 2.5);
+    y1 -= (int)(14.5 / CIsoViewExt::ScaledFactor);
+    y2 -= (int)(14.5 / CIsoViewExt::ScaledFactor);
 
     int sx1 = x1 - CIsoViewExt::drawOffsetX;
     int sy1 = y1 - CIsoViewExt::drawOffsetY;
@@ -5007,8 +5007,8 @@ void CIsoViewExt::DrawDashLineDirectX(int x1, int y1, int x2, int y2, int color,
 {
     x1 += (int)(32 / CIsoViewExt::ScaledFactor - 2);
     x2 += (int)(32 / CIsoViewExt::ScaledFactor - 2);
-    y1 -= (int)(14.5 / CIsoViewExt::ScaledFactor + 2.5);
-    y2 -= (int)(14.5 / CIsoViewExt::ScaledFactor + 2.5);
+    y1 -= (int)(14.5 / CIsoViewExt::ScaledFactor);
+    y2 -= (int)(14.5 / CIsoViewExt::ScaledFactor);
 
     int sx1 = x1 - CIsoViewExt::drawOffsetX;
     int sy1 = y1 - CIsoViewExt::drawOffsetY;

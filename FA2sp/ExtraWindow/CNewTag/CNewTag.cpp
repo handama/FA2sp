@@ -11,6 +11,7 @@
 #include <CMapData.h>
 #include <CIsoView.h>
 #include "../../Ext/CFinalSunDlg/Body.h"
+#include "../../Ext/CFinalSunApp/Body.h"
 #include "../../Ext/CMapData/Body.h"
 #include <Miscs/Miscs.h>
 #include "../CObjectSearch/CObjectSearch.h"
@@ -56,6 +57,8 @@ bool CNewTag::m_programmaticEdit;
 bool CNewTag::m_disableRepeatSearch;
 bool CNewTag::TriggerListChanged;
 static constexpr int DRAG_THRESHOLD = 4;
+static int TempCommand = 0;
+static int TempType = 0;
 
 void CNewTag::Create(CFinalSunDlg* pWnd)
 {
@@ -186,9 +189,25 @@ LRESULT CALLBACK CNewTag::DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LP
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
 
-        HBRUSH hBrush = CreateSolidBrush(CurrentTagID != "" ? RGB(0, 200, 0) : RGB(200, 0, 0));
-        FillRect(hdc, &ps.rcPaint, hBrush);
-        DeleteObject(hBrush);
+        COLORREF clr = ExtraWindow::GetTriggerColor(CurrentTagID);
+
+        if (clr == CLR_INVALID)
+        {
+            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : BLACK_BRUSH);
+            FillRect(hdc, &ps.rcPaint, out);
+    
+            RECT inner = ps.rcPaint;
+            InflateRect(&inner, -2 * CFinalSunAppExt::ProgramScaleFactor, -2 * CFinalSunAppExt::ProgramScaleFactor);
+    
+            HBRUSH in = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? BLACK_BRUSH : WHITE_BRUSH);
+            FillRect(hdc, &inner, in);
+        }
+        else
+        {
+            HBRUSH hBrush = CreateSolidBrush(clr);
+            FillRect(hdc, &ps.rcPaint, hBrush);
+            DeleteObject(hBrush);
+        }
 
         EndPaint(hWnd, &ps);
         return 0;
@@ -203,6 +222,39 @@ LRESULT CALLBACK CNewTag::DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LP
             GetCursorPos(&m_pressPtScreen);
 
             SetCapture(hWnd);
+            return 0;
+        }
+        break;
+    }
+    case WM_LBUTTONDBLCLK:
+    {
+        if (CIsoView::CurrentCommand->Command == 0x25)
+        {
+			CIsoView::CurrentCommand->Command = TempCommand;
+			CIsoView::CurrentCommand->Type = TempType;
+		}
+        if (CurrentTagID != "")
+        {
+            CHOOSECOLOR cc;
+            static COLORREF acrCustClr[16];
+            ZeroMemory(&cc, sizeof(cc));
+            cc.lStructSize = sizeof(cc);
+            cc.hwndOwner = hWnd;
+            cc.lpCustColors = acrCustClr;
+            cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+            cc.rgbResult = ExtraWindow::GetTriggerColor(CurrentTagID);
+			auto old = cc.rgbResult;
+
+			if (ChooseColor(&cc))
+            {
+                if (old != cc.rgbResult)
+                {
+                    ExtraWindow::SetTriggerColor(CurrentTagID, cc.rgbResult);                
+                    InvalidateRect(hDragPoint, nullptr, TRUE);   
+                    vcbSelectedTag.SetItemColors(SelectedTagIndex, cc.rgbResult);     
+                    CNewTeamTypes::TagListChanged = true;    
+                }
+			}     
             return 0;
         }
         break;
@@ -527,7 +579,9 @@ LRESULT CALLBACK CNewTag::DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LP
         }
         else
         {
-            CIsoView::CurrentCommand->Command = 0x25;
+			TempCommand = CIsoView::CurrentCommand->Command;
+			TempType = CIsoView::CurrentCommand->Type;
+			CIsoView::CurrentCommand->Command = 0x25;
             CIsoView::CurrentCommand->Type = 10;
         }
 
@@ -551,9 +605,25 @@ LRESULT CALLBACK CNewTag::DragingDotProc(HWND hWnd, UINT message, WPARAM wParam,
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
 
-        HBRUSH hBrush = CreateSolidBrush(RGB(0, 200, 0));
-        FillRect(hdc, &ps.rcPaint, hBrush);
-        DeleteObject(hBrush);
+        COLORREF clr = ExtraWindow::GetTriggerColor(CurrentTagID);
+
+        if (clr == CLR_INVALID)
+        {
+            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : BLACK_BRUSH);
+            FillRect(hdc, &ps.rcPaint, out);
+    
+            RECT inner = ps.rcPaint;
+            InflateRect(&inner, -2 * CFinalSunAppExt::ProgramScaleFactor, -2 * CFinalSunAppExt::ProgramScaleFactor);
+    
+            HBRUSH in = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? BLACK_BRUSH : WHITE_BRUSH);
+            FillRect(hdc, &inner, in);
+        }
+        else
+        {
+            HBRUSH hBrush = CreateSolidBrush(clr);
+            FillRect(hdc, &ps.rcPaint, hBrush);
+            DeleteObject(hBrush);
+        }
 
         EndPaint(hWnd, &ps);
         return 0;
@@ -677,19 +747,22 @@ void CNewTag::SortTags(VirtualComboBoxEx& vcb, int& selectedIndex, FString id, b
 {
     if (clear)
         vcb.Clear();
-    std::vector<FString> labels;
+    std::vector<std::pair<FString, FString>> labels;
     if (auto pSection = map.GetSection("Tags")) {
         for (auto& pair : pSection->GetEntities()) {
-            labels.push_back(ExtraWindow::GetTagDisplayName(pair.first));
+            labels.push_back(std::make_pair(pair.first, ExtraWindow::GetTagDisplayName(pair.first)));
         }
     }
 
     bool tmp = ExtConfigs::SortByLabelName;
     ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Tag;
-    ExtraWindow::SortLabels(labels);
+    ExtraWindow::SortLabels(labels, false);
     ExtConfigs::SortByLabelName = tmp;
 
-    vcb.AddStrings(labels);
+    for (auto& [id, name] : labels)
+    {
+		vcb.AddString(name, ExtraWindow::GetTriggerColor(id));		
+    }
     if (id != "") {
         selectedIndex = vcb.FindStringExact(ExtraWindow::GetTagDisplayName(id));
         vcb.SetCurSel(selectedIndex);
@@ -698,19 +771,22 @@ void CNewTag::SortTags(VirtualComboBoxEx& vcb, int& selectedIndex, FString id, b
 
 void CNewTag::SortTriggers()
 {
-    std::vector<FString> labels;
+    std::vector<std::pair<FString, FString>> labels;
     for (auto& triggerPair : CMapDataExt::Triggers) {
         auto& trigger = triggerPair.second;
-        labels.push_back(ExtraWindow::GetTriggerDisplayName(trigger->ID));
+        labels.push_back(std::make_pair(trigger->ID, ExtraWindow::GetTriggerDisplayName(trigger->ID)));
     }
 
     bool tmp = ExtConfigs::SortByLabelName;
     ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Trigger;
-    ExtraWindow::SortLabels(labels);
+    ExtraWindow::SortLabels(labels, false);
     ExtConfigs::SortByLabelName = tmp;
 
     vcbTrigger.Clear();
-    vcbTrigger.AddStrings(labels);
+    for (auto& [id, name] : labels)
+    {
+		vcbTrigger.AddString(name, ExtraWindow::GetTriggerColor(id));		
+    }
     TriggerListChanged = false;
 }
 
@@ -786,7 +862,7 @@ void CNewTag::OnEditchangeName()
     map.WriteString("Tags", CurrentTagID, value);
 
     FString name = ExtraWindow::FormatTriggerDisplayName(CurrentTagID, text);
-    vcbSelectedTag.ReplaceString(SelectedTagIndex, name);
+    vcbSelectedTag.ReplaceString(SelectedTagIndex, name, ExtraWindow::GetTriggerColor(CurrentTagID));
     vcbSelectedTag.SetCurSel(SelectedTagIndex);
 }
 

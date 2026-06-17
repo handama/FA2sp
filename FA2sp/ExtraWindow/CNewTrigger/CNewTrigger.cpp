@@ -9,6 +9,7 @@
 #include <CMapData.h>
 #include <CIsoView.h>
 #include "../../Ext/CFinalSunDlg/Body.h"
+#include "../../Ext/CFinalSunApp/Body.h"
 #include "../../Ext/CMapData/Body.h"
 #include <Miscs/Miscs.h>
 #include "../CObjectSearch/CObjectSearch.h"
@@ -38,6 +39,8 @@ bool CNewTrigger::AutoChangeName = false;
 bool CNewTrigger::IsMultiPlay = false;
 static constexpr int DRAG_THRESHOLD = 4;
 static const std::vector<FString> noneLabel = { "<none>" };
+static int TempCommand = 0;
+static int TempType = 0;
 
 static COLORREF GetTriggerBackground(bool enabled)
 {
@@ -499,9 +502,25 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
 
-        HBRUSH hBrush = CreateSolidBrush(CurrentTrigger ? RGB(0, 200, 0) : RGB(200, 0, 0));
-        FillRect(hdc, &ps.rcPaint, hBrush);
-        DeleteObject(hBrush);
+        COLORREF clr = ExtraWindow::GetTriggerColor(CurrentTriggerID);
+
+        if (clr == CLR_INVALID)
+        {
+            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : BLACK_BRUSH);
+            FillRect(hdc, &ps.rcPaint, out);
+    
+            RECT inner = ps.rcPaint;
+            InflateRect(&inner, -2 * CFinalSunAppExt::ProgramScaleFactor, -2 * CFinalSunAppExt::ProgramScaleFactor);
+    
+            HBRUSH in = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? BLACK_BRUSH : WHITE_BRUSH);
+            FillRect(hdc, &inner, in);
+        }
+        else
+        {
+            HBRUSH hBrush = CreateSolidBrush(clr);
+            FillRect(hdc, &ps.rcPaint, hBrush);
+            DeleteObject(hBrush);
+        }
 
         EndPaint(hWnd, &ps);
         return 0;
@@ -517,6 +536,68 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
             m_lastPtScreen = m_pressPtScreen;
 
             SetCapture(hWnd);        
+            return 0;
+        }
+        break;
+    }
+    case WM_LBUTTONDBLCLK:
+    {
+        if (CIsoView::CurrentCommand->Command == 0x25)
+        {
+			CIsoView::CurrentCommand->Command = TempCommand;
+			CIsoView::CurrentCommand->Type = TempType;
+		}
+        if (CurrentTrigger)
+        {
+            CHOOSECOLOR cc;
+            static COLORREF acrCustClr[16];
+            ZeroMemory(&cc, sizeof(cc));
+            cc.lStructSize = sizeof(cc);
+            cc.hwndOwner = hWnd;
+            cc.lpCustColors = acrCustClr;
+            cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+            cc.rgbResult = ExtraWindow::GetTriggerColor(CurrentTriggerID);
+			auto old = cc.rgbResult;
+
+			if (ChooseColor(&cc))
+            {
+                if (old != cc.rgbResult)
+                {
+                    ExtraWindow::SetTriggerColor(CurrentTriggerID, cc.rgbResult);                
+                    InvalidateRect(hDragPoint, nullptr, TRUE);            
+                    
+                    auto Triggertext = ExtraWindow::GetTriggerDisplayName(CurrentTrigger->ID);
+                    auto textStart = CurrentTrigger->ID + " ";
+                    if (!CurrentTrigger->Tag.IsEmpty())
+                    {
+                        int Triggerindex = CNewTag::vcbTrigger.FindStringExactStart(textStart);
+                        CNewTag::vcbTrigger.SetItemColors(Triggerindex, cc.rgbResult);
+                    }
+   
+                    for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+                    {
+                        auto pThis = &Instance[i];
+                        if (pThis->GetHandle())
+                        {
+                            if (!pThis->CurrentTrigger)
+                                continue;
+    
+                            int index = pThis->vcbSelectedTrigger.FindStringExactStart(textStart);
+                            pThis->vcbSelectedTrigger.SetItemColors(index, cc.rgbResult);
+                                
+                            index = pThis->vcbAttachedTrigger.FindStringExactStart(textStart);
+                            pThis->vcbAttachedTrigger.SetItemColors(index, cc.rgbResult);
+
+                            if (pThis->CurrentTriggerActionParam > -1)
+                            {
+                                auto& actionParam = pThis->vcbActionParameter[pThis->CurrentTriggerActionParam];
+                                index = actionParam.FindStringExactStart(textStart);
+                                actionParam.SetItemColors(index, cc.rgbResult);
+                            }
+                        }
+                    }
+                }
+			}     
             return 0;
         }
         break;
@@ -825,7 +906,9 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
         }
         else
         {
-            CIsoView::CurrentCommand->Command = 0x25;
+			TempCommand = CIsoView::CurrentCommand->Command;
+			TempType = CIsoView::CurrentCommand->Type;
+			CIsoView::CurrentCommand->Command = 0x25;
             CIsoView::CurrentCommand->Type = GetCurrentInstanceIndex();
         }
         m_dragging = false;
@@ -862,9 +945,25 @@ LRESULT CALLBACK CNewTrigger::HandleDragingDot(HWND hWnd, UINT msg, WPARAM wPara
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
 
-        HBRUSH hBrush = CreateSolidBrush(RGB(0, 200, 0));
-        FillRect(hdc, &ps.rcPaint, hBrush);
-        DeleteObject(hBrush);
+        COLORREF clr = ExtraWindow::GetTriggerColor(CurrentTriggerID);
+
+        if (clr == CLR_INVALID)
+        {
+            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : BLACK_BRUSH);
+            FillRect(hdc, &ps.rcPaint, out);
+    
+            RECT inner = ps.rcPaint;
+            InflateRect(&inner, -2 * CFinalSunAppExt::ProgramScaleFactor, -2 * CFinalSunAppExt::ProgramScaleFactor);
+    
+            HBRUSH in = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? BLACK_BRUSH : WHITE_BRUSH);
+            FillRect(hdc, &inner, in);
+        }
+        else
+        {
+            HBRUSH hBrush = CreateSolidBrush(clr);
+            FillRect(hdc, &ps.rcPaint, hBrush);
+            DeleteObject(hBrush);
+        }
 
         EndPaint(hWnd, &ps);
         return 0;
@@ -1623,8 +1722,8 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                     auto Triggertext = ExtraWindow::GetTriggerDisplayName(CurrentTrigger->ID);
                     int index = CNewTag::vcbSelectedTag.FindStringExact(text);
                     int Triggerindex = CNewTag::vcbTrigger.FindStringExact(Triggertext);
-                    CNewTag::vcbSelectedTag.ReplaceString(index, tagName);
-                    CNewTag::vcbTrigger.ReplaceString(Triggerindex, ExtraWindow::FormatTriggerDisplayName(CurrentTrigger->ID, name));
+                    CNewTag::vcbSelectedTag.ReplaceString(index, tagName, ExtraWindow::GetTriggerColor(CurrentTrigger->Tag));
+                    CNewTag::vcbTrigger.ReplaceString(Triggerindex, ExtraWindow::FormatTriggerDisplayName(CurrentTrigger->ID, name), ExtraWindow::GetTriggerColor(CurrentTrigger->ID));
                     if (CNewTag::GetHandle())
                     {
                         if (index == CNewTag::SelectedTagIndex)
@@ -1641,49 +1740,51 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
 
                 auto newName = ExtraWindow::FormatTriggerDisplayName(CurrentTrigger->ID, CurrentTrigger->Name);
                 auto IDStart = CurrentTrigger->ID + " ";
-                if (CurrentTriggerActionParam > -1)
-                {
-                    auto& actionParam = vcbActionParameter[CurrentTriggerActionParam];
-                    FString actionID = actionParam.GetEditText();
-                    FString::TrimIndex(actionID);
-                    int index = actionParam.FindStringExactStart(IDStart);
-                    actionParam.ReplaceString(index, newName);
-                    if (actionID == CurrentTrigger->ID)
-                    {
-                        actionParam.SetEditText(newName);
-                    }
-                }
 
-                bool needRefresh = false;
                 for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
                 {
                     auto pThis = &Instance[i];
                     if (pThis->GetHandle())
                     {
-                        if (this != pThis)
-                            needRefresh = true;
-
                         if (!pThis->CurrentTrigger)
                             continue;
 
-                        int index = pThis->vcbSelectedTrigger.FindStringExactStart(IDStart);
-                        pThis->vcbSelectedTrigger.ReplaceString(index, newName);
+						int index = pThis->vcbSelectedTrigger.FindStringExactStart(IDStart);
+                        pThis->vcbSelectedTrigger.ReplaceString(index, newName, ExtraWindow::GetTriggerColor(CurrentTrigger->ID));
                         if (pThis->CurrentTrigger->ID == CurrentTrigger->ID)
+                        {
                             pThis->vcbSelectedTrigger.SetEditText(newName);
+                            if (pThis != this)
+                            {
+								pThis->AutoChangeName = true;
+								SetWindowText(pThis->hName,  CurrentTrigger->Name);
+								pThis->AutoChangeName = false;
+                            }
+                        }
                             
                         index = pThis->vcbAttachedTrigger.FindStringExactStart(IDStart);
-                        pThis->vcbAttachedTrigger.ReplaceString(index, newName);
+                        pThis->vcbAttachedTrigger.ReplaceString(index, newName, ExtraWindow::GetTriggerColor(CurrentTrigger->ID));
                         FString attachedID = pThis->vcbAttachedTrigger.GetEditText();
                         FString::TrimIndex(attachedID);
                         if (attachedID == CurrentTrigger->ID)
                         {
-                            pThis->vcbSelectedTrigger.SetEditText(newName);
+                            pThis->vcbAttachedTrigger.SetEditText(newName);
+                        }
+
+                        if (pThis->CurrentTriggerActionParam > -1)
+                        {
+                            auto& actionParam = pThis->vcbActionParameter[pThis->CurrentTriggerActionParam];
+                            FString actionID = actionParam.GetEditText();
+                            FString::TrimIndex(actionID);
+                            int index = actionParam.FindStringExactStart(IDStart);
+                            actionParam.ReplaceString(index, newName, ExtraWindow::GetTriggerColor(CurrentTrigger->ID));
+                            if (actionID == CurrentTrigger->ID)
+                            {
+                                actionParam.SetEditText(newName);
+                            }
                         }
                     }
                 }
-
-                if (needRefresh)
-                    RefreshOtherInstances();
             }
             break;
         case Controls::Disabled:
@@ -1691,28 +1792,31 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             {
 				CurrentTrigger->Disabled = SendMessage(hDisabled, BM_GETCHECK, 0, 0);
 				CurrentTrigger->Save();
-
+                
+                auto IDStart = CurrentTrigger->ID + " ";
 				for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
                 {
                     auto pThis = &Instance[i];
                     if (pThis->GetHandle())
                     {
+                        int Triggerindex = pThis->vcbSelectedTrigger.FindStringExactStart(IDStart);
+                        int AttachedTriggerindex = pThis->vcbAttachedTrigger.FindStringExactStart(IDStart);
+
                         pThis->vcbSelectedTrigger.ReplaceSubtext(
-                            SelectedTriggerIndex,
+                            Triggerindex,
                             GetTriggerEnableText(CurrentTrigger.get()));
                             pThis->vcbAttachedTrigger.ReplaceSubtext(
-                                SelectedTriggerIndex + 1,
+                                AttachedTriggerindex,
                                 GetTriggerEnableText(CurrentTrigger.get()));
                         if (pThis->CurrentTriggerActionParam > -1)
                         {
+                            int paramIndex = pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].FindStringExactStart(IDStart);
                             pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
-                                SelectedTriggerIndex,
+                                paramIndex,
                                 GetTriggerEnableText(CurrentTrigger.get()));
                         }
                     }
                 }
-
-                RefreshOtherInstances();
             }
             break;
         case Controls::Easy:
@@ -1720,28 +1824,31 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             {
 				CurrentTrigger->EasyEnabled = SendMessage(hEasy, BM_GETCHECK, 0, 0);
 				CurrentTrigger->Save();
-
+                
+                auto IDStart = CurrentTrigger->ID + " ";
 				for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
                 {
                     auto pThis = &Instance[i];
                     if (pThis->GetHandle())
                     {
+                        int Triggerindex = pThis->vcbSelectedTrigger.FindStringExactStart(IDStart);
+                        int AttachedTriggerindex = pThis->vcbAttachedTrigger.FindStringExactStart(IDStart);
+
                         pThis->vcbSelectedTrigger.ReplaceSubtext(
-                            SelectedTriggerIndex,
+                            Triggerindex,
                             GetTriggerEnableText(CurrentTrigger.get()));
                             pThis->vcbAttachedTrigger.ReplaceSubtext(
-                                SelectedTriggerIndex + 1,
+                                AttachedTriggerindex,
                                 GetTriggerEnableText(CurrentTrigger.get()));
                         if (pThis->CurrentTriggerActionParam > -1)
                         {
+                            int paramIndex = pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].FindStringExactStart(IDStart);
                             pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
-                                SelectedTriggerIndex,
+                                paramIndex,
                                 GetTriggerEnableText(CurrentTrigger.get()));
                         }
                     }
                 }
-
-                RefreshOtherInstances();
             }
             break;
         case Controls::Medium:
@@ -1750,27 +1857,30 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
 				CurrentTrigger->MediumEnabled = SendMessage(hMedium, BM_GETCHECK, 0, 0);
 				CurrentTrigger->Save();
 
+                auto IDStart = CurrentTrigger->ID + " ";
 				for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
                 {
                     auto pThis = &Instance[i];
                     if (pThis->GetHandle())
                     {
+                        int Triggerindex = pThis->vcbSelectedTrigger.FindStringExactStart(IDStart);
+                        int AttachedTriggerindex = pThis->vcbAttachedTrigger.FindStringExactStart(IDStart);
+
                         pThis->vcbSelectedTrigger.ReplaceSubtext(
-                            SelectedTriggerIndex,
+                            Triggerindex,
                             GetTriggerEnableText(CurrentTrigger.get()));
                             pThis->vcbAttachedTrigger.ReplaceSubtext(
-                                SelectedTriggerIndex + 1,
+                                AttachedTriggerindex,
                                 GetTriggerEnableText(CurrentTrigger.get()));
                         if (pThis->CurrentTriggerActionParam > -1)
                         {
+                            int paramIndex = pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].FindStringExactStart(IDStart);
                             pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
-                                SelectedTriggerIndex,
+                                paramIndex,
                                 GetTriggerEnableText(CurrentTrigger.get()));
                         }
                     }
                 }
-
-                RefreshOtherInstances();
             }
             break;
         case Controls::Hard:
@@ -1779,27 +1889,30 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
 				CurrentTrigger->HardEnabled = SendMessage(hHard, BM_GETCHECK, 0, 0);
 				CurrentTrigger->Save();
 
+                auto IDStart = CurrentTrigger->ID + " ";
 				for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
                 {
                     auto pThis = &Instance[i];
                     if (pThis->GetHandle())
                     {
+                        int Triggerindex = pThis->vcbSelectedTrigger.FindStringExactStart(IDStart);
+                        int AttachedTriggerindex = pThis->vcbAttachedTrigger.FindStringExactStart(IDStart);
+
                         pThis->vcbSelectedTrigger.ReplaceSubtext(
-                            SelectedTriggerIndex,
+                            Triggerindex,
                             GetTriggerEnableText(CurrentTrigger.get()));
                             pThis->vcbAttachedTrigger.ReplaceSubtext(
-                                SelectedTriggerIndex + 1,
+                                AttachedTriggerindex,
                                 GetTriggerEnableText(CurrentTrigger.get()));
                         if (pThis->CurrentTriggerActionParam > -1)
                         {
+                            int paramIndex = pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].FindStringExactStart(IDStart);
                             pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
-                                SelectedTriggerIndex,
+                                paramIndex,
                                 GetTriggerEnableText(CurrentTrigger.get()));
                         }
                     }
                 }
-                
-                RefreshOtherInstances();
             }
             break;
         case Controls::Compact:
@@ -3745,7 +3858,7 @@ void CNewTrigger::SortTriggers(FString id, bool onlySelf)
             pThis->vcbSelectedTrigger.Clear();
             for (auto& [name, trigger] : labels)
             {
-                pThis->vcbSelectedTrigger.AddSubtextString(name, GetTriggerEnableText(trigger), RGB(255,0,0));
+                pThis->vcbSelectedTrigger.AddSubtextString(name, GetTriggerEnableText(trigger), ExtraWindow::GetTriggerColor(trigger->ID));
             }
             pThis->vcbAttachedTrigger.CopyFrom(pThis->vcbSelectedTrigger, &noneLabel);
             if (pThis->CurrentTriggerActionParam > -1)

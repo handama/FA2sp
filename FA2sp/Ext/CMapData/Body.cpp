@@ -96,6 +96,7 @@ std::vector<short> CMapDataExt::StructureIndexMap;
 std::vector<TubeData> CMapDataExt::Tubes;
 std::unordered_map<int, TileAnimation> CMapDataExt::TileAnimations;
 FHashMap<COLORREF> CMapDataExt::Colors;
+FHashMap<COLORREF> CMapDataExt::WAETriggerColors;
 std::unordered_map<int, FString> CMapDataExt::TileSetOriginSetNames[6];
 FHashSet CMapDataExt::TerrainPaletteBuildings;
 FHashSet CMapDataExt::DamagedAsRubbleBuildings;
@@ -166,6 +167,24 @@ const std::vector<FString> CMapDataExt::TechnoStates =
 	"Sticky",
 	"Stop",
 	"Unload"
+};
+static const FHashMap<COLORREF> colorMap =
+{
+	{ "Teal",       RGB(0, 196, 196) },
+	{ "Green",      RGB(0, 255, 0) },
+	{ "Dark Green", RGB(0, 128, 0) },
+	{ "Lime Green", RGB(50, 205, 50) },
+	{ "Yellow",     RGB(255, 255, 0) },
+	{ "Orange",     RGB(255, 165, 0) },
+	{ "Red",        RGB(255, 0, 0) },
+	{ "Blood Red",  RGB(139, 0, 0) },
+	{ "Pink",       RGB(255, 105, 180) },
+	{ "Cherry",     RGB(255, 192, 203) },
+	{ "Purple",     RGB(147, 112, 219) },
+	{ "Sky Blue",   RGB(135, 206, 235) },
+	{ "Blue",       RGB(40, 40, 255) },
+	{ "Brown",      RGB(165, 42, 42) },
+	{ "Metalic",    RGB(160, 160, 200) }
 };
 
 static inline int DistSqrByIndex(int a, int b)
@@ -5146,4 +5165,26 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CIsoViewExt::GetInstance()->Drag = FALSE;
 	CIsoViewExt::GetInstance()->CurrentCellObjectIndex = -1;
 	CIsoViewExt::GetInstance()->CurrentCellObjectType = -1;
+
+	WAETriggerColors.clear();
+	const char* WAESections[3] =
+		{
+			"EditorTriggerInfo",
+			"EditorScriptInfo",
+			"EditorTeamTypeInfo",
+		};
+	for (int i = 0; i < 3; ++i)
+	{
+		if (auto pSection = CINI::CurrentDocument->GetSection(WAESections[i]))
+		{
+			for (auto& [key, value] : pSection->GetEntities())
+			{
+				auto it = colorMap.find(value);
+				if (it != colorMap.end())
+				{
+					WAETriggerColors[key] = it->second;
+				}
+			}
+		}
+	} 
 }

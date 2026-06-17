@@ -956,10 +956,10 @@ void ExtraWindow::SortTeams(VirtualComboBoxEx& vcb, FString section, int& select
 {
     if (clear)
         vcb.Clear();
-    std::vector<FString> labels;
+    std::vector<std::pair<FString, FString>> labels;
     if (auto pSection = map.GetSection(section)) {
         for (auto& pair : pSection->GetEntities()) {
-            labels.push_back(ExtraWindow::GetTeamDisplayName(pair.second));
+            labels.push_back(std::make_pair(pair.second, ExtraWindow::GetTeamDisplayName(pair.second)));
         }
     }
 
@@ -972,11 +972,14 @@ void ExtraWindow::SortTeams(VirtualComboBoxEx& vcb, FString section, int& select
     else if (section == "TeamTypes")
         ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Team;
 
-    ExtraWindow::SortLabels(labels);
+    ExtraWindow::SortLabels(labels, false);
 
     ExtConfigs::SortByLabelName = tmp;
 
-    vcb.AddStrings(labels);
+    for (auto& [id, name] : labels)
+    {
+		vcb.AddString(name, ExtraWindow::GetTriggerColor(id));		
+    }
     if (id != "") {
         selectedIndex = vcb.FindStringExact(ExtraWindow::GetTeamDisplayName(id));
         vcb.SetCurSel(selectedIndex);
@@ -1358,6 +1361,33 @@ void ExtraWindow::UpdateListBoxHScroll(HWND hListBox)
     ReleaseDC(hListBox, hdc);
 
     SendMessage(hListBox, LB_SETHORIZONTALEXTENT, maxWidth + 10, 0);
+}
+
+COLORREF ExtraWindow::GetTriggerColor(const FString& trigger)
+{
+    auto color = map.GetColor("FA2spColors", trigger, CLR_INVALID);
+    if (color == CLR_INVALID)
+    {
+        auto itr = CMapDataExt::WAETriggerColors.find(trigger);
+        if (itr != CMapDataExt::WAETriggerColors.end())
+        {
+            return itr->second;
+        }
+    }
+	return color;
+}
+
+void ExtraWindow::SetTriggerColor(const FString& trigger, COLORREF color)
+{
+    if (color == CLR_INVALID)
+    {
+        map.DeleteKey("FA2spColors", trigger);
+        return;
+    }
+
+    ppmfc::CString value;
+    value.Format("%d,%d,%d", GetRValue(color), GetGValue(color), GetBValue(color));
+    map.WriteString("FA2spColors", trigger, value);
 }
 
 void HelpDlg::CreateHelpDlg(HWND& hParent, const FString& Title, const FString& Text)
@@ -1852,6 +1882,19 @@ int VirtualComboBoxEx::m_itemHeight = ITEM_HEIGHT;
 std::map<HWND, VirtualComboBoxEx*> VirtualComboBoxEx::VirtualComboBoxExMap;
 VirtualComboBoxEx::VirtualComboBoxEx() {}
 VirtualComboBoxEx::~VirtualComboBoxEx() { Detach(); }
+
+COLORREF VirtualComboBoxEx::GetCurEditTextColor(HWND hCombo)
+{
+    auto itr = VirtualComboBoxExMap.find(hCombo);
+    if (itr == VirtualComboBoxExMap.end())
+        return CLR_INVALID;
+
+    auto* pThis = itr->second;
+    if (pThis->curSel < 0 || pThis->curSel >= (int)pThis->items.size())
+        return CLR_INVALID;
+
+    return pThis->items[pThis->curSel].textColor;
+}
 
 void VirtualComboBoxEx::Attach(HWND hwnd, bool* sortType, bool allowFreeText)
 {
@@ -3154,6 +3197,30 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
         LPMEASUREITEMSTRUCT mis = (LPMEASUREITEMSTRUCT)lParam;
         mis->itemHeight = m_itemHeight;
         return TRUE;
+    }
+    case WM_CTLCOLOREDIT:
+    {
+        HDC hdc = (HDC)wParam;
+        COLORREF textColor = CLR_INVALID, bgColor = CLR_INVALID;
+        if (pThis->curSel >= 0 && pThis->curSel < (int)pThis->items.size())
+            pThis->GetItemColors(pThis->curSel, textColor, bgColor);
+
+        // Let the original combo proc produce the default brush / colors first.
+        LRESULT ret = CallWindowProc(pThis->oldComboProc, hwnd, msg, wParam, lParam);
+
+        // Override text color when the current item specifies one.
+        if (textColor != CLR_INVALID)
+            SetTextColor(hdc, textColor);
+
+        // Override background brush when the current item specifies one.
+        if (pThis->m_hCurBrush)
+        {
+            SetBkColor(hdc, bgColor);
+            SetBkMode(hdc, OPAQUE);
+            ret = (LRESULT)pThis->m_hCurBrush;
+        }
+
+        return ret;
     }
     }
 

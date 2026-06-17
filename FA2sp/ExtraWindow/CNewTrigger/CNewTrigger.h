@@ -467,7 +467,7 @@ protected:
     void EventListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam);
     void ActionListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam);
 
-    std::map<int, CNewTrigger*> GetOtherInstances();
+	std::map<int, CNewTrigger*> GetOtherInstances();
     bool HasOtherInstances();
     void RefreshOtherInstances();
     int GetCurrentInstanceIndex();

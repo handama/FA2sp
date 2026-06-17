@@ -10,6 +10,7 @@
 #include <CMapData.h>
 #include <CIsoView.h>
 #include "../../Ext/CFinalSunDlg/Body.h"
+#include "../../Ext/CFinalSunApp/Body.h"
 #include "../../Ext/CMapData/Body.h"
 #include <Miscs/Miscs.h>
 #include "../CObjectSearch/CObjectSearch.h"
@@ -58,6 +59,7 @@ FMap<bool> CNewScript::ActionHasExtraParam;
 FMap<bool> CNewScript::ActionIsStringParam;
 bool CNewScript::ParamAutodrop[2];
 bool CNewScript::bInsert;
+bool CNewScript::AutoChangeName = false;
 WNDPROC CNewScript::OriginalListBoxProc;
 HWND CNewScript::hDragPoint;
 WNDPROC CNewScript::OrigDragDotProc;
@@ -274,12 +276,57 @@ LRESULT CALLBACK CNewScript::DragDotProc(HWND hWnd, UINT message, WPARAM wParam,
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
 
-        HBRUSH hBrush = CreateSolidBrush(CurrentScriptID != "" ? RGB(0, 200, 0) : RGB(200, 0, 0));
-        FillRect(hdc, &ps.rcPaint, hBrush);
-        DeleteObject(hBrush);
+        COLORREF clr = ExtraWindow::GetTriggerColor(CurrentScriptID);
+
+        if (clr == CLR_INVALID)
+        {
+            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : BLACK_BRUSH);
+            FillRect(hdc, &ps.rcPaint, out);
+    
+            RECT inner = ps.rcPaint;
+            InflateRect(&inner, -2 * CFinalSunAppExt::ProgramScaleFactor, -2 * CFinalSunAppExt::ProgramScaleFactor);
+    
+            HBRUSH in = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? BLACK_BRUSH : WHITE_BRUSH);
+            FillRect(hdc, &inner, in);
+        }
+        else
+        {
+            HBRUSH hBrush = CreateSolidBrush(clr);
+            FillRect(hdc, &ps.rcPaint, hBrush);
+            DeleteObject(hBrush);
+        }
 
         EndPaint(hWnd, &ps);
         return 0;
+    }
+    case WM_LBUTTONDBLCLK:
+    {
+        if (CurrentScriptID != "")
+        {
+            CHOOSECOLOR cc;
+            static COLORREF acrCustClr[16];
+            ZeroMemory(&cc, sizeof(cc));
+            cc.lStructSize = sizeof(cc);
+            cc.hwndOwner = hWnd;
+            cc.lpCustColors = acrCustClr;
+            cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+            cc.rgbResult = ExtraWindow::GetTriggerColor(CurrentScriptID);
+			auto old = cc.rgbResult;
+
+			if (ChooseColor(&cc))
+            {
+                if (old != cc.rgbResult)
+                {
+                    ExtraWindow::SetTriggerColor(CurrentScriptID, cc.rgbResult);                
+                    InvalidateRect(hDragPoint, nullptr, TRUE);            
+
+                    vcbSelectedScript.SetItemColors(SelectedScriptIndex, cc.rgbResult);
+                    CNewTeamTypes::ScriptListChanged = true;
+                }
+			}     
+            return 0;
+        }
+        break;
     }
     case WM_LBUTTONDOWN:
     {
@@ -441,9 +488,25 @@ LRESULT CALLBACK CNewScript::DragingDotProc(HWND hWnd, UINT message, WPARAM wPar
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
 
-        HBRUSH hBrush = CreateSolidBrush(RGB(0, 200, 0));
-        FillRect(hdc, &ps.rcPaint, hBrush);
-        DeleteObject(hBrush);
+        COLORREF clr = ExtraWindow::GetTriggerColor(CurrentScriptID);
+
+        if (clr == CLR_INVALID)
+        {
+            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : BLACK_BRUSH);
+            FillRect(hdc, &ps.rcPaint, out);
+    
+            RECT inner = ps.rcPaint;
+            InflateRect(&inner, -2 * CFinalSunAppExt::ProgramScaleFactor, -2 * CFinalSunAppExt::ProgramScaleFactor);
+    
+            HBRUSH in = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? BLACK_BRUSH : WHITE_BRUSH);
+            FillRect(hdc, &inner, in);
+        }
+        else
+        {
+            HBRUSH hBrush = CreateSolidBrush(clr);
+            FillRect(hdc, &ps.rcPaint, hBrush);
+            DeleteObject(hBrush);
+        }
 
         EndPaint(hWnd, &ps);
         return 0;
@@ -582,7 +645,7 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
                 OnSelchangeScript();
             break;
         case Controls::Name:
-            if (CODE == EN_CHANGE)
+            if (CODE == EN_CHANGE && !AutoChangeName)
             {
                 if (SelectedScriptIndex < 0)
                     break;
@@ -593,7 +656,7 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
 
                 FString name = ExtraWindow::FormatTriggerDisplayName(CurrentScriptID, buffer);
 
-                vcbSelectedScript.ReplaceString(SelectedScriptIndex, name);
+                vcbSelectedScript.ReplaceString(SelectedScriptIndex, name, ExtraWindow::GetTriggerColor(CurrentScriptID));
                 vcbSelectedScript.SetCurSel(SelectedScriptIndex);
             }
             break;
@@ -910,7 +973,9 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
         SendMessage(hActionParam, CB_SETCURSEL, -1, NULL);
         SendMessage(hActionExtraParam, CB_SETCURSEL, -1, NULL);
         SendMessage(hDescription, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
+		AutoChangeName = true;
+		SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
+		AutoChangeName = false;
         while (SendMessage(hActionsListBox, LB_DELETESTRING, 0, NULL) != CB_ERR);
     };
 
@@ -946,7 +1011,9 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
     if (auto pScript = map.GetSection(pID))
     {
         auto name = map.GetString(pID, "Name");
+		AutoChangeName = true;
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.GetString());
+		AutoChangeName = false;
 
         std::vector<FString> sortedList;
         for (int i = 0; i < 50; i++)

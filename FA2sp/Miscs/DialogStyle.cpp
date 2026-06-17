@@ -6,6 +6,7 @@
 #include "../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
 #include "../Helpers/Translations.h"
 #include "../Ext/CFinalSunApp/Body.h"
+#include "../ExtraWindow/Common.h"
 
 HBRUSH DarkTheme::g_hDarkBackgroundBrush = NULL;
 HBRUSH DarkTheme::g_hDarkControlBrush = NULL;
@@ -1077,7 +1078,11 @@ LRESULT CALLBACK DarkTheme::ComboBoxSubclassProcA(HWND hWnd, UINT uMsg, WPARAM w
     case WM_CTLCOLOREDIT:
     {
         HDC hdc = (HDC)wParam;
-        SetTextColor(hdc, IsWindowEnabled(hWnd) ? RGB(255, 255, 255) : RGB(128, 128, 128));
+        COLORREF vcbTextColor = VirtualComboBoxEx::GetCurEditTextColor(hWnd);
+        if (vcbTextColor != CLR_INVALID)
+            SetTextColor(hdc, vcbTextColor);
+        else
+            SetTextColor(hdc, IsWindowEnabled(hWnd) ? RGB(255, 255, 255) : RGB(128, 128, 128));
         SetBkMode(hdc, TRANSPARENT);
         return (LRESULT)g_hDarkControlBrush;
     }

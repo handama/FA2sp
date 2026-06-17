@@ -150,8 +150,10 @@ public:
     static void SetScintillaText(HWND hScintilla, FString& text);
     static bool HitTestListView(HWND hListView, POINT ptScreen, ListViewHitResult& out);
     static void UpdateListBoxHScroll(HWND hListBox);
+	static COLORREF GetTriggerColor(const FString& trigger);
+	static void SetTriggerColor(const FString& trigger, COLORREF color);
 
-    static std::vector<DropTarget> g_DropTargets;
+	static std::vector<DropTarget> g_DropTargets;
 
 private:
     static CINI& map;
@@ -362,9 +364,13 @@ public:
     void SetDropWidthMode(DropWidthMode mode);
 
     void SortItems(int* pSelIndex = nullptr);
-    
+
     static int m_itemHeight;
 	static std::map<HWND, VirtualComboBoxEx*> VirtualComboBoxExMap;
+
+    // Returns the textColor of the currently selected item for the combo's edit box,
+    // or CLR_INVALID when no custom color should be applied.
+    static COLORREF GetCurEditTextColor(HWND hCombo);
 
 private:
 	HWND hCombo = nullptr;

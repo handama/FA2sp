@@ -10,6 +10,7 @@
 #include <CMapData.h>
 #include <CIsoView.h>
 #include "../../Ext/CFinalSunDlg/Body.h"
+#include "../../Ext/CFinalSunApp/Body.h"
 #include "../../Ext/CMapData/Body.h"
 #include <Miscs/Miscs.h>
 #include "../CObjectSearch/CObjectSearch.h"
@@ -179,12 +180,56 @@ LRESULT CALLBACK CNewTaskforce::DragDotProc(HWND hWnd, UINT message, WPARAM wPar
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
 
-        HBRUSH hBrush = CreateSolidBrush(CurrentTaskForceID != "" ? RGB(0, 200, 0) : RGB(200, 0, 0));
-        FillRect(hdc, &ps.rcPaint, hBrush);
-        DeleteObject(hBrush);
+        COLORREF clr = ExtraWindow::GetTriggerColor(CurrentTaskForceID);
+
+        if (clr == CLR_INVALID)
+        {
+            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : BLACK_BRUSH);
+            FillRect(hdc, &ps.rcPaint, out);
+    
+            RECT inner = ps.rcPaint;
+            InflateRect(&inner, -2 * CFinalSunAppExt::ProgramScaleFactor, -2 * CFinalSunAppExt::ProgramScaleFactor);
+    
+            HBRUSH in = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? BLACK_BRUSH : WHITE_BRUSH);
+            FillRect(hdc, &inner, in);
+        }
+        else
+        {
+            HBRUSH hBrush = CreateSolidBrush(clr);
+            FillRect(hdc, &ps.rcPaint, hBrush);
+            DeleteObject(hBrush);
+        }
 
         EndPaint(hWnd, &ps);
         return 0;
+    }
+    case WM_LBUTTONDBLCLK:
+    {
+        if (CurrentTaskForceID != "")
+        {
+            CHOOSECOLOR cc;
+            static COLORREF acrCustClr[16];
+            ZeroMemory(&cc, sizeof(cc));
+            cc.lStructSize = sizeof(cc);
+            cc.hwndOwner = hWnd;
+            cc.lpCustColors = acrCustClr;
+            cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+            cc.rgbResult = ExtraWindow::GetTriggerColor(CurrentTaskForceID);
+			auto old = cc.rgbResult;
+
+			if (ChooseColor(&cc))
+            {
+                if (old != cc.rgbResult)
+                {
+                    ExtraWindow::SetTriggerColor(CurrentTaskForceID, cc.rgbResult);                
+                    InvalidateRect(hDragPoint, nullptr, TRUE);  
+                    vcbSelectedTaskforce.SetItemColors(SelectedTaskForceIndex, cc.rgbResult);       
+                    CNewTeamTypes::TaskforceListChanged = true;   
+                }
+			}     
+            return 0;
+        }
+        break;
     }
     case WM_LBUTTONDOWN:
     {
@@ -345,9 +390,25 @@ LRESULT CALLBACK CNewTaskforce::DragingDotProc(HWND hWnd, UINT message, WPARAM w
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
 
-        HBRUSH hBrush = CreateSolidBrush(RGB(0, 200, 0));
-        FillRect(hdc, &ps.rcPaint, hBrush);
-        DeleteObject(hBrush);
+        COLORREF clr = ExtraWindow::GetTriggerColor(CurrentTaskForceID);
+
+        if (clr == CLR_INVALID)
+        {
+            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : BLACK_BRUSH);
+            FillRect(hdc, &ps.rcPaint, out);
+    
+            RECT inner = ps.rcPaint;
+            InflateRect(&inner, -2 * CFinalSunAppExt::ProgramScaleFactor, -2 * CFinalSunAppExt::ProgramScaleFactor);
+    
+            HBRUSH in = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? BLACK_BRUSH : WHITE_BRUSH);
+            FillRect(hdc, &inner, in);
+        }
+        else
+        {
+            HBRUSH hBrush = CreateSolidBrush(clr);
+            FillRect(hdc, &ps.rcPaint, hBrush);
+            DeleteObject(hBrush);
+        }
 
         EndPaint(hWnd, &ps);
         return 0;
@@ -486,7 +547,7 @@ BOOL CALLBACK CNewTaskforce::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 map.WriteString(CurrentTaskForceID, "Name", buffer);
 
                 FString name = ExtraWindow::FormatTriggerDisplayName(CurrentTaskForceID, buffer);
-                vcbSelectedTaskforce.ReplaceString(SelectedTaskForceIndex, name);
+                vcbSelectedTaskforce.ReplaceString(SelectedTaskForceIndex, name, ExtraWindow::GetTriggerColor(CurrentTaskForceID));
                 vcbSelectedTaskforce.SetCurSel(SelectedTaskForceIndex);
             }
             break;

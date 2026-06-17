@@ -11,6 +11,7 @@
 #include <CMapData.h>
 #include <CIsoView.h>
 #include "../../Ext/CFinalSunDlg/Body.h"
+#include "../../Ext/CFinalSunApp/Body.h"
 #include "../../Ext/CMapData/Body.h"
 #include <Miscs/Miscs.h>
 #include <numeric>
@@ -21,6 +22,7 @@ CFinalSunDlg* CNewAITrigger::m_parent;
 CINI& CNewAITrigger::map = CINI::CurrentDocument;
 MultimapHelper& CNewAITrigger::rules = Variables::RulesMap;
 CINI& CNewAITrigger::fadata = CINI::FAData;
+bool CNewAITrigger::AutoChangeName = false;
 
 HWND CNewAITrigger::hSelectedAITrigger;
 HWND CNewAITrigger::hEnabled;
@@ -44,6 +46,8 @@ HWND CNewAITrigger::hMedium;
 HWND CNewAITrigger::hHard;
 HWND CNewAITrigger::hBaseDefense;
 HWND CNewAITrigger::hSkrimish;
+HWND CNewAITrigger::hDragPoint;
+WNDPROC CNewAITrigger::OrigDragDotProc;
 
 int CNewAITrigger::SelectedAITriggerIndex = -1;
 std::unique_ptr<AITrigger> CNewAITrigger::CurrentAITrigger;
@@ -136,6 +140,12 @@ void CNewAITrigger::Initialize(HWND& hWnd)
     hHard = GetDlgItem(hWnd, Controls::Hard);
     hBaseDefense = GetDlgItem(hWnd, Controls::BaseDefense);
     hSkrimish = GetDlgItem(hWnd, Controls::Skrimish);
+    hDragPoint = GetDlgItem(hWnd, 2001);
+
+    if (hDragPoint)
+    {
+        OrigDragDotProc = (WNDPROC)SetWindowLongPtr(hDragPoint, GWLP_WNDPROC, (LONG_PTR)DragDotProc);
+    }
 
     vcbSelectedAITrigger.Attach(hSelectedAITrigger, &ExtConfigs::SortByLabelName_AITrigger, false);
     vcbTeam[0].Attach(hTeam1);
@@ -247,20 +257,24 @@ void CNewAITrigger::Update(HWND& hWnd)
     ExtraWindow::LoadParam_TechnoTypes(vcbComparisonObject, -1, 1);
     SendMessage(hComparisonObject, CB_ADDSTRING, SendMessage(hComparisonObject, CB_GETCOUNT, 0, 0), (LPARAM)(LPCSTR)"<none>");
 
-    std::vector<FString> labels;
+    std::vector<std::pair<FString, FString>> labels;
     if (auto pSection = map.GetSection("TeamTypes")) {
         for (auto& pair : pSection->GetEntities()) {
-            labels.push_back(ExtraWindow::GetTeamDisplayName(pair.second));
+            labels.push_back(std::make_pair(pair.second, ExtraWindow::GetTeamDisplayName(pair.second)));
         }
     }
+
     bool tmp = ExtConfigs::SortByLabelName;
     ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Team;
-    ExtraWindow::SortLabels(labels);
+    ExtraWindow::SortLabels(labels, false);
     ExtConfigs::SortByLabelName = tmp;
 
     vcbTeam[0].Clear();
     vcbTeam[0].AddString("<none>");
-    vcbTeam[0].AddStrings(labels);
+    for (auto& [id, name] : labels)
+    {
+		vcbTeam[0].AddString(name, ExtraWindow::GetTriggerColor(id));		
+    }
 
     vcbTeam[1].CopyFrom(vcbTeam[0]);
 
@@ -318,7 +332,7 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeAITrigger();
             break;
         case Controls::Name:
-            if (CODE == EN_CHANGE && CurrentAITrigger)
+            if (CODE == EN_CHANGE && CurrentAITrigger && !AutoChangeName)
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hName, buffer, 511);
@@ -330,8 +344,8 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
   
                 auto newName = ExtraWindow::FormatTriggerDisplayName(CurrentAITrigger->ID, CurrentAITrigger->Name);
 
-                vcbSelectedAITrigger.ReplaceString(SelectedAITriggerIndex, newName);
-                vcbSelectedAITrigger.SetEditText(newName);
+                vcbSelectedAITrigger.ReplaceString(SelectedAITriggerIndex, newName, ExtraWindow::GetTriggerColor(CurrentAITrigger->ID));
+                vcbSelectedAITrigger.SetCurSel(SelectedAITriggerIndex);
             }
             break;
         case Controls::Enabled:
@@ -487,6 +501,82 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     return FALSE;
 }
 
+LRESULT CALLBACK CNewAITrigger::DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
+    case WM_SETCURSOR:
+    {
+        if (CurrentAITrigger)
+        {
+            SetCursor(LoadCursor(nullptr, IDC_HAND));
+            return TRUE;
+        }
+        break;
+    }
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        COLORREF clr = ExtraWindow::GetTriggerColor(CurrentAITrigger ? CurrentAITrigger->ID : FString());
+
+        if (clr == CLR_INVALID)
+        {
+            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : BLACK_BRUSH);
+            FillRect(hdc, &ps.rcPaint, out);
+    
+            RECT inner = ps.rcPaint;
+            InflateRect(&inner, -2 * CFinalSunAppExt::ProgramScaleFactor, -2 * CFinalSunAppExt::ProgramScaleFactor);
+    
+            HBRUSH in = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? BLACK_BRUSH : WHITE_BRUSH);
+            FillRect(hdc, &inner, in);
+        }
+        else
+        {
+            HBRUSH hBrush = CreateSolidBrush(clr);
+            FillRect(hdc, &ps.rcPaint, hBrush);
+            DeleteObject(hBrush);
+        }
+
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+    case WM_LBUTTONDBLCLK:
+    {
+        if (CurrentAITrigger)
+        {
+            CHOOSECOLOR cc;
+            static COLORREF acrCustClr[16];
+            ZeroMemory(&cc, sizeof(cc));
+            cc.lStructSize = sizeof(cc);
+            cc.hwndOwner = hWnd;
+            cc.lpCustColors = acrCustClr;
+            cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+            cc.rgbResult = ExtraWindow::GetTriggerColor(CurrentAITrigger->ID);
+			auto old = cc.rgbResult;
+
+			if (ChooseColor(&cc))
+            {
+                if (old != cc.rgbResult)
+                {
+                    ExtraWindow::SetTriggerColor(CurrentAITrigger->ID, cc.rgbResult);                
+                    InvalidateRect(hDragPoint, nullptr, TRUE);            
+
+                    vcbSelectedAITrigger.SetItemColors(SelectedAITriggerIndex, cc.rgbResult);
+                }
+			}     
+            return 0;
+        }
+        break;
+    }
+    }
+
+    return DefWindowProc(
+        hWnd, message, wParam, lParam
+    );
+}
+
 double CNewAITrigger::safe_stod(const char* s) {
     auto v = VEHGuard(false);
     try {
@@ -518,8 +608,10 @@ void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
         SendMessage(hComparisonObject, CB_SETCURSEL, -1, NULL);
         SendMessage(hTeam1, CB_SETCURSEL, -1, NULL);
         SendMessage(hTeam2, CB_SETCURSEL, -1, NULL);
-        SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hAmount, WM_SETTEXT, 0, (LPARAM)"");
+		AutoChangeName = true;
+		SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
+		AutoChangeName = false;
+		SendMessage(hAmount, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hInitialWeight, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hMinWeight, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hMaxWeight, WM_SETTEXT, 0, (LPARAM)"");
@@ -535,6 +627,7 @@ void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
     CTriggerAnnotation::Type = AnnoAITrigger;
     CTriggerAnnotation::ID = CurrentAITrigger->ID;
     ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+    InvalidateRect(hDragPoint, nullptr, TRUE); 
 
     SendMessage(hEasy, BM_SETCHECK, CurrentAITrigger->EnabledInE, 0);
     SendMessage(hHard, BM_SETCHECK, CurrentAITrigger->EnabledInH, 0);
@@ -569,7 +662,9 @@ void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
     setCurselOrSetText(hComparisonObject, CurrentAITrigger->ComparisonObject);
     setCurselOrSetText(hTeam1, CurrentAITrigger->Team1);
     setCurselOrSetText(hTeam2, CurrentAITrigger->Team2);
+    AutoChangeName = true;
     SendMessage(hName, WM_SETTEXT, 0, (LPARAM)CurrentAITrigger->Name);
+    AutoChangeName = false;
     FString amount;
     amount.Format("%d", CurrentAITrigger->Comparator[0]);
     SendMessage(hAmount, WM_SETTEXT, 0, (LPARAM)amount);
@@ -594,40 +689,43 @@ void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
 
 void CNewAITrigger::OnDropdownTeam()
 {
-    int curSel1 = SendMessage(hTeam1, CB_GETCURSEL, NULL, NULL);
-    int curSel2 = SendMessage(hTeam2, CB_GETCURSEL, NULL, NULL);
-    char buffer[512]{ 0 };
-    GetWindowText(hTeam1, buffer, 511);
-    FString text1(buffer);
-    GetWindowText(hTeam2, buffer, 511);
-    FString text2(buffer);
+	FString team1, team2;
+    if (CurrentAITrigger)
+    {
+		team1 = CurrentAITrigger->Team1 + " ";
+		team2 = CurrentAITrigger->Team2 + " ";
+	}
+	std::vector<std::pair<FString, FString>> labels;
+    if (auto pSection = map.GetSection("TeamTypes")) {
+        for (auto& pair : pSection->GetEntities()) {
+            labels.push_back(std::make_pair(pair.second, ExtraWindow::GetTeamDisplayName(pair.second)));
+        }
+    }
 
-    int tmp = 0;
-    ExtraWindow::SortTeams(hTeam1, "TeamTypes", tmp);
-    SendMessage(hTeam1, CB_INSERTSTRING, SendMessage(hTeam1, CB_GETCOUNT, 0, 0), (LPARAM)(LPCSTR)"<none>");
-    ExtraWindow::SyncComboBoxContent(hTeam1, hTeam2, false);
-    TeamListChanged = false;
+    bool tmp = ExtConfigs::SortByLabelName;
+    ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Team;
+    ExtraWindow::SortLabels(labels, false);
+    ExtConfigs::SortByLabelName = tmp;
 
-    int idx = SendMessage(hTeam1, CB_FINDSTRINGEXACT, 0, text1);
-    if (idx != CB_ERR)
+    vcbTeam[0].Clear();
+    vcbTeam[0].AddString("<none>");
+    for (auto& [id, name] : labels)
     {
-        SendMessage(hTeam1, CB_SETCURSEL, idx, NULL);
+		vcbTeam[0].AddString(name, ExtraWindow::GetTriggerColor(id));		
     }
-    else
-    {
-        FString::TrimIndex(text1);
-        SendMessage(hTeam1, WM_SETTEXT, NULL, text1);
-    }
-    idx = SendMessage(hTeam2, CB_FINDSTRINGEXACT, 0, text2);
-    if (idx != CB_ERR)
-    {
-        SendMessage(hTeam2, CB_SETCURSEL, idx, NULL);
-    }
-    else
-    {
-        FString::TrimIndex(text2);
-        SendMessage(hTeam2, WM_SETTEXT, NULL, text2);
-    }
+
+    vcbTeam[1].CopyFrom(vcbTeam[0]);
+
+	int index1 = vcbTeam[0].FindStringExactStart(team1);
+	int index2 = vcbTeam[1].FindStringExactStart(team2);
+    if (index1 > 0)
+		vcbTeam[0].SetCurSel(index1);
+	else
+        vcbTeam[0].SetCurSel(0);
+    if (index2 > 0)
+		vcbTeam[1].SetCurSel(index2);
+	else
+        vcbTeam[1].SetCurSel(0);
 }
 
 void CNewAITrigger::OnSelchangeCountry(bool edited)
@@ -841,19 +939,22 @@ void CNewAITrigger::OnClickDelAITrigger()
 void CNewAITrigger::SortAITriggers(FString id)
 {
     vcbSelectedAITrigger.Clear();
-    std::vector<FString> labels;
+    std::vector<std::pair<FString, FString>> labels;
     if (auto pSection = map.GetSection("AITriggerTypes")) {
         for (auto& pair : pSection->GetEntities()) {
-            labels.push_back(ExtraWindow::GetAITriggerDisplayName(pair.first));
+            labels.push_back(std::make_pair(pair.first, ExtraWindow::GetAITriggerDisplayName(pair.first)));
         }
     }
 
     bool tmp = ExtConfigs::SortByLabelName;
     ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_AITrigger;
-    ExtraWindow::SortLabels(labels);
+    ExtraWindow::SortLabels(labels, false);
     ExtConfigs::SortByLabelName = tmp;
 
-    vcbSelectedAITrigger.AddStrings(labels);
+    for (auto& [id, name] : labels)
+    {
+		vcbSelectedAITrigger.AddString(name, ExtraWindow::GetTriggerColor(id));		
+    }
 
     if (id != "") {
         SelectedAITriggerIndex = SendMessage(hSelectedAITrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetAITriggerDisplayName(id));

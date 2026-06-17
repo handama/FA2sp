@@ -949,6 +949,7 @@ public:
     static std::vector<short> StructureIndexMap;
     static std::vector<TubeData> Tubes;
     static FHashMap<COLORREF> Colors;
+    static FHashMap<COLORREF> WAETriggerColors;
     static std::unordered_map<int, TileAnimation> TileAnimations;
     // 0 = tem, 1 = sno, 2 = urban, 3 = newurban, 4 = lunar, 5 = desert
     static std::unordered_map<int, FString> TileSetOriginSetNames[6];

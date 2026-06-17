@@ -121,6 +121,7 @@ private:
 
     static bool ParamAutodrop[2];
     static bool bInsert;
+    static bool AutoChangeName;
     static WNDPROC OriginalListBoxProc;
     static WNDPROC OrigDragDotProc;
     static WNDPROC OrigDragingDotProc;

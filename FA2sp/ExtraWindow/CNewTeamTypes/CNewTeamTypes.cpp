@@ -13,6 +13,7 @@
 #include <CMapData.h>
 #include <CIsoView.h>
 #include "../../Ext/CFinalSunDlg/Body.h"
+#include "../../Ext/CFinalSunApp/Body.h"
 #include "../../Ext/CMapData/Body.h"
 #include <Miscs/Miscs.h>
 #include "../CObjectSearch/CObjectSearch.h"
@@ -285,15 +286,22 @@ void CNewTeamTypes::Update(HWND& hWnd)
     ExtraWindow::SortTeams(vcbScript, "ScriptTypes", tmp);
 
     ExtraWindow::ClearComboKeepText(hTag);
-    std::vector<FString> labels;
+    
+    std::vector<std::pair<FString, FString>> labels;
     if (auto pSection = map.GetSection("Tags")) {
         for (auto& pair : pSection->GetEntities()) {
-            labels.emplace_back(ExtraWindow::GetTagDisplayName(pair.first));
+            labels.emplace_back(std::make_pair(pair.first, ExtraWindow::GetTagDisplayName(pair.first)));
         }
     }
-    ExtraWindow::SortLabels(labels);
+    bool tmp2 = ExtConfigs::SortByLabelName;
+    ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Tag;
+    ExtraWindow::SortLabels(labels, false);
+    ExtConfigs::SortByLabelName = tmp2;
     vcbTag.AddString("None");
-    vcbTag.AddStrings(labels);
+    for (auto& [id, name] : labels)
+    {
+		vcbTag.AddString(name, ExtraWindow::GetTriggerColor(id));		
+    }
 
     ExtraWindow::ClearComboKeepText(hVeteranLevel);
     SendMessage(hVeteranLevel, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"1");
@@ -370,12 +378,58 @@ LRESULT CALLBACK CNewTeamTypes::DragDotProc(HWND hWnd, UINT message, WPARAM wPar
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
 
-        HBRUSH hBrush = CreateSolidBrush(CurrentTeamID != "" ? RGB(0, 200, 0) : RGB(200, 0, 0));
-        FillRect(hdc, &ps.rcPaint, hBrush);
-        DeleteObject(hBrush);
+        COLORREF clr = ExtraWindow::GetTriggerColor(CurrentTeamID);
+
+        if (clr == CLR_INVALID)
+        {
+            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : BLACK_BRUSH);
+            FillRect(hdc, &ps.rcPaint, out);
+    
+            RECT inner = ps.rcPaint;
+            InflateRect(&inner, -2 * CFinalSunAppExt::ProgramScaleFactor, -2 * CFinalSunAppExt::ProgramScaleFactor);
+    
+            HBRUSH in = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? BLACK_BRUSH : WHITE_BRUSH);
+            FillRect(hdc, &inner, in);
+        }
+        else
+        {
+            HBRUSH hBrush = CreateSolidBrush(clr);
+            FillRect(hdc, &ps.rcPaint, hBrush);
+            DeleteObject(hBrush);
+        }
 
         EndPaint(hWnd, &ps);
         return 0;
+    }
+    case WM_LBUTTONDBLCLK:
+    {
+        if (CurrentTeamID != "")
+        {
+            CHOOSECOLOR cc;
+            static COLORREF acrCustClr[16];
+            ZeroMemory(&cc, sizeof(cc));
+            cc.lStructSize = sizeof(cc);
+            cc.hwndOwner = hWnd;
+            cc.lpCustColors = acrCustClr;
+            cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+            cc.rgbResult = ExtraWindow::GetTriggerColor(CurrentTeamID);
+			auto old = cc.rgbResult;
+
+			if (ChooseColor(&cc))
+            {
+                if (old != cc.rgbResult)
+                {
+                    ExtraWindow::SetTriggerColor(CurrentTeamID, cc.rgbResult);                
+                    InvalidateRect(hDragPoint, nullptr, TRUE);
+                    vcbSelectedTeam.SetItemColors(SelectedTeamIndex, cc.rgbResult);           
+                    CNewAITrigger::TeamListChanged = true;
+                    CNewTrigger::Instance[0].TeamListChanged = true;
+                    CNewTrigger::Instance[1].TeamListChanged = true; 
+                }
+			}     
+            return 0;
+        }
+        break;
     }
     case WM_LBUTTONDOWN:
     {
@@ -701,9 +755,25 @@ LRESULT CALLBACK CNewTeamTypes::DragingDotProc(HWND hWnd, UINT message, WPARAM w
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
 
-        HBRUSH hBrush = CreateSolidBrush(RGB(0, 200, 0));
-        FillRect(hdc, &ps.rcPaint, hBrush);
-        DeleteObject(hBrush);
+        COLORREF clr = ExtraWindow::GetTriggerColor(CurrentTeamID);
+
+        if (clr == CLR_INVALID)
+        {
+            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : BLACK_BRUSH);
+            FillRect(hdc, &ps.rcPaint, out);
+    
+            RECT inner = ps.rcPaint;
+            InflateRect(&inner, -2 * CFinalSunAppExt::ProgramScaleFactor, -2 * CFinalSunAppExt::ProgramScaleFactor);
+    
+            HBRUSH in = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? BLACK_BRUSH : WHITE_BRUSH);
+            FillRect(hdc, &inner, in);
+        }
+        else
+        {
+            HBRUSH hBrush = CreateSolidBrush(clr);
+            FillRect(hdc, &ps.rcPaint, hBrush);
+            DeleteObject(hBrush);
+        }
 
         EndPaint(hWnd, &ps);
         return 0;
@@ -793,7 +863,7 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
 
                 FString name = ExtraWindow::FormatTriggerDisplayName(CurrentTeamID, buffer);
 
-                vcbSelectedTeam.ReplaceString(SelectedTeamIndex, name);
+                vcbSelectedTeam.ReplaceString(SelectedTeamIndex, name, ExtraWindow::GetTriggerColor(CurrentTeamID));
                 vcbSelectedTeam.SetCurSel(SelectedTeamIndex);
             }
             break;
@@ -1104,7 +1174,9 @@ void CNewTeamTypes::OnDropdownTaskForce()
     char buffer[512]{ 0 };
     GetWindowText(hTaskforce, buffer, 511);
     FString text(buffer);
-    
+    FString::TrimIndex(text);
+	text += " ";
+
     if (TaskforceListChanged)
     {
         int tmp = 0;
@@ -1112,7 +1184,7 @@ void CNewTeamTypes::OnDropdownTaskForce()
         TaskforceListChanged = false;
     }
 
-    int idx = SendMessage(hTaskforce, CB_FINDSTRINGEXACT, 0, text);
+    int idx = vcbTaskForce.FindStringExactStart(text);
     if (idx != CB_ERR)
     {
         SendMessage(hTaskforce, CB_SETCURSEL, idx, NULL);
@@ -1130,6 +1202,8 @@ void CNewTeamTypes::OnDropdownScript()
     char buffer[512]{ 0 };
     GetWindowText(hScript, buffer, 511);
     FString text(buffer);
+    FString::TrimIndex(text);
+	text += " ";
 
     if (ScriptListChanged)
     {
@@ -1138,7 +1212,7 @@ void CNewTeamTypes::OnDropdownScript()
         ScriptListChanged = false;
     }
 
-    int idx = SendMessage(hScript, CB_FINDSTRINGEXACT, 0, text);
+    int idx = vcbScript.FindStringExactStart(text);
     if (idx != CB_ERR)
     {
         SendMessage(hScript, CB_SETCURSEL, idx, NULL);
@@ -1156,22 +1230,30 @@ void CNewTeamTypes::OnDropdownTag()
     char buffer[512]{ 0 };
     GetWindowText(hTag, buffer, 511);
     FString text(buffer);
+	FString::TrimIndex(text);
+	text += " ";
 
-    if (TagListChanged)
+	if (TagListChanged)
     {
         vcbTag.Clear();
-        std::vector<FString> labels;
+        std::vector<std::pair<FString, FString>> labels;
         if (auto pSection = map.GetSection("Tags")) {
             for (auto& pair : pSection->GetEntities()) {
-                labels.emplace_back(ExtraWindow::GetTagDisplayName(pair.first));
+                labels.emplace_back(std::make_pair(pair.first, ExtraWindow::GetTagDisplayName(pair.first)));
             }
         }
-        ExtraWindow::SortLabels(labels);
+        bool tmp2 = ExtConfigs::SortByLabelName;
+        ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Tag;
+        ExtraWindow::SortLabels(labels, false);
+        ExtConfigs::SortByLabelName = tmp2;
         vcbTag.AddString("None");
-        vcbTag.AddStrings(labels);
+        for (auto& [id, name] : labels)
+        {
+            vcbTag.AddString(name, ExtraWindow::GetTriggerColor(id));		
+        }
     }
 
-    int idx = SendMessage(hTag, CB_FINDSTRINGEXACT, 0, text);
+    int idx = vcbTag.FindStringExactStart(text);
     if (idx != CB_ERR)
     {
         SendMessage(hTag, CB_SETCURSEL, idx, NULL);

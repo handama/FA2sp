@@ -25,6 +25,7 @@ MultimapHelper& CSearhReference::rules = Variables::RulesMap;
 HWND CSearhReference::hListbox;
 HWND CSearhReference::hRefresh;
 HWND CSearhReference::hObjectText;
+HWND CSearhReference::hFollowActiveWindow;
 FString CSearhReference::SearchID = "";
 int CSearhReference::origWndWidth;
 int CSearhReference::origWndHeight;
@@ -35,6 +36,7 @@ int CSearhReference::TriggerCaller;
 bool CSearhReference::IsTeamType = false;
 bool CSearhReference::IsTrigger = false;
 bool CSearhReference::IsTag = false;
+bool CSearhReference::bFollowActiveWindow = true;
 bool CSearhReference::IsVariable = false;
 std::map<int, ScriptParamPos> CSearhReference::LocalVariableScripts;
 std::map<int, int> CSearhReference::LocalVariableEvents;
@@ -76,10 +78,12 @@ void CSearhReference::Initialize(HWND& hWnd)
         };
     
 	Translate(1001, "SearchReferenceRefresh");
+	Translate(1003, "SearchReferenceFollowActiveWindow");
 
     hListbox = GetDlgItem(hWnd, Controls::Listbox);
     hRefresh = GetDlgItem(hWnd, Controls::Refresh);
     hObjectText = GetDlgItem(hWnd, Controls::ObjectText);
+    hFollowActiveWindow = GetDlgItem(hWnd, Controls::FollowActiveWindow);
 
     Update();
 }
@@ -160,6 +164,12 @@ BOOL CALLBACK CSearhReference::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARA
             if (CODE == BN_CLICKED)
                 Update();
             break;
+        case Controls::FollowActiveWindow:
+            if (CODE == BN_CLICKED)
+            {
+                bFollowActiveWindow = SendMessage(hFollowActiveWindow, BM_GETCHECK, 0, 0);
+            }
+            break;
         default:
             break;
         }
@@ -173,6 +183,11 @@ BOOL CALLBACK CSearhReference::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARA
     case 114514: // used for update
     {
         Update();
+        return TRUE;
+    }
+    case 114515: // used for update
+    {
+        Update(false);
         return TRUE;
     }
 
@@ -324,10 +339,15 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
     }
 }
 
-void CSearhReference::Update()
+void CSearhReference::Update(bool top)
 {
-    ShowWindow(m_hwnd, SW_SHOW);
-    SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    if (top)
+    {
+        ShowWindow(m_hwnd, SW_SHOW);
+        SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    }
+
+    SendMessage(hFollowActiveWindow, BM_SETCHECK, bFollowActiveWindow ? BST_CHECKED : BST_UNCHECKED, 0);
 
     while (SendMessage(hListbox, LB_DELETESTRING, 0, NULL) != CB_ERR);
     int idx = 0;
@@ -990,9 +1010,20 @@ void CSearhReference::Update()
                 }
             }
 
+            if (!trigger->AttachedTrigger.IsEmpty() && CMapDataExt::Triggers.contains(trigger->AttachedTrigger))
+            {
+                auto text = GetPrefix(10) + ExtraWindow::GetTriggerDisplayName(trigger->AttachedTrigger);
+                SendMessage(
+                    hListbox,
+                    LB_SETITEMDATA,
+                    SendMessage(hListbox, LB_INSERTSTRING, idx++, text),
+                    1000
+                );
+            }
+
             for (auto& id : Triggers)
             {
-                auto text = GetPrefix(7) + ExtraWindow::GetTriggerDisplayName(id);
+				auto text = GetPrefix(7) + ExtraWindow::GetTriggerDisplayName(id);
                 SendMessage(
                     hListbox,
                     LB_SETITEMDATA,
@@ -1050,6 +1081,8 @@ FString CSearhReference::GetPrefix(int type)
         return FString(Translations::TranslateOrDefault("SearhReference.TagObject", "Object"))+ ": ";
     case 9:
         return FString(Translations::TranslateOrDefault("SearhReference.TagTag", "Tag"))+ ": ";
+    case 10:
+        return FString(Translations::TranslateOrDefault("SearhReference.AttachedTrigger", "Attached Trigger"))+ ": ";
     default:
         break;
     }

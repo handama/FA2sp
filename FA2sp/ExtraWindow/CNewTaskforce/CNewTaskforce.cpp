@@ -417,9 +417,19 @@ BOOL CALLBACK CNewTaskforce::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     {
         if (SelectedTaskForceIndex >= 0 && SelectedTaskForceIndex < SendMessage(hSelectedTaskforce, CB_GETCOUNT, NULL, NULL))
         {
-            CTriggerAnnotation::Type = AnnoTaskforce;
-            CTriggerAnnotation::ID = CurrentTaskForceID;
-            ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+            if (CTriggerAnnotation::GetHandle())
+            {
+                CTriggerAnnotation::Type = AnnoTaskforce;
+                CTriggerAnnotation::ID = CurrentTaskForceID;
+                ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+            }
+
+            if (CSearhReference::bFollowActiveWindow && CSearhReference::GetHandle())
+            { 
+                CSearhReference::SetSearchType(2);
+                CSearhReference::SetSearchID(CurrentTaskForceID);
+                ::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
+            }
         }
         return TRUE;
     }
@@ -662,9 +672,19 @@ void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
     CurrentTaskForceID = pID;
     InvalidateRect(hDragPoint, nullptr, TRUE);
 
-    CTriggerAnnotation::Type = AnnoTaskforce;
-    CTriggerAnnotation::ID = CurrentTaskForceID;
-    ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+    if (CTriggerAnnotation::GetHandle())
+    {
+        CTriggerAnnotation::Type = AnnoTaskforce;
+        CTriggerAnnotation::ID = CurrentTaskForceID;
+        ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+    }
+
+    if (CSearhReference::bFollowActiveWindow && CSearhReference::GetHandle())
+    { 
+        CSearhReference::SetSearchType(2);
+        CSearhReference::SetSearchID(CurrentTaskForceID);
+        ::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
+    }
 
     while (SendMessage(hUnitsListBox, LB_DELETESTRING, 0, NULL) != CB_ERR);
     if (auto pTaskforce = map.GetSection(pID))

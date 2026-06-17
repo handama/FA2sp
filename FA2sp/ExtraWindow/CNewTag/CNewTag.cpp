@@ -573,9 +573,19 @@ BOOL CALLBACK CNewTag::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam
     {
         if (SelectedTagIndex >= 0 && SelectedTagIndex <vcbSelectedTag.GetCount())
         {
-            CTriggerAnnotation::Type = AnnoTag;
-            CTriggerAnnotation::ID = CurrentTagID;
-            ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+            if (CTriggerAnnotation::GetHandle())
+            {
+                CTriggerAnnotation::Type = AnnoTag;
+                CTriggerAnnotation::ID = CurrentTagID;
+                ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+            }
+
+            if (CSearhReference::bFollowActiveWindow && CSearhReference::GetHandle())
+            { 
+                CSearhReference::SetSearchType(4);
+                CSearhReference::SetSearchID(CurrentTagID);
+                ::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
+            }
         }
         return TRUE;
     }
@@ -816,9 +826,19 @@ void CNewTag::OnSelchangeTag(bool edited, int specificIdx)
     CurrentTagID = pID;
     InvalidateRect(hDragPoint, nullptr, TRUE);
 
-    CTriggerAnnotation::Type = AnnoTag;
-    CTriggerAnnotation::ID = CurrentTagID;
-    ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+    if (CTriggerAnnotation::GetHandle())
+    {
+        CTriggerAnnotation::Type = AnnoTag;
+        CTriggerAnnotation::ID = CurrentTagID;
+        ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+    }
+
+    if (CSearhReference::bFollowActiveWindow && CSearhReference::GetHandle())
+    { 
+        CSearhReference::SetSearchType(4);
+        CSearhReference::SetSearchID(CurrentTagID);
+        ::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
+    }
 
     if (auto pTag = map.TryGetString("Tags", CurrentTagID))
     {

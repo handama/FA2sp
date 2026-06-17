@@ -1492,10 +1492,21 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     case WM_ACTIVATE:
     {
         if (CurrentTrigger)
-        {
-            CTriggerAnnotation::Type = AnnoTrigger;
-            CTriggerAnnotation::ID = CurrentTriggerID;
-            ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+        {    
+            if (CTriggerAnnotation::GetHandle())
+            {
+                CTriggerAnnotation::Type = AnnoTrigger;
+                CTriggerAnnotation::ID = CurrentTriggerID;
+                ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+            }
+
+            if (CSearhReference::bFollowActiveWindow && CSearhReference::GetHandle())
+            {
+                CSearhReference::SetSearchType(1);
+                CSearhReference::SetSearchID(CurrentTrigger->ID);
+                CSearhReference::SetTriggerCaller(GetCurrentInstanceIndex());
+                ::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
+            }
         }
         return TRUE;
     }
@@ -2498,9 +2509,19 @@ void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionLi
 
     if (!CurrentTrigger) return;
 
-    CTriggerAnnotation::Type = AnnoTrigger;
-    CTriggerAnnotation::ID = CurrentTriggerID;
-    ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+    if (CTriggerAnnotation::GetHandle())
+    {
+        CTriggerAnnotation::Type = AnnoTrigger;
+        CTriggerAnnotation::ID = CurrentTriggerID;
+        ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+    }
+    if (CSearhReference::bFollowActiveWindow && CSearhReference::GetHandle())
+    {
+        CSearhReference::SetSearchType(1);
+        CSearhReference::SetSearchID(CurrentTrigger->ID);
+        CSearhReference::SetTriggerCaller(GetCurrentInstanceIndex());
+        ::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
+    }
 
     AutoChangeName = true;
     SendMessage(hName, WM_SETTEXT, 0, (LPARAM)CurrentTrigger->Name.c_str());
@@ -3724,7 +3745,7 @@ void CNewTrigger::SortTriggers(FString id, bool onlySelf)
             pThis->vcbSelectedTrigger.Clear();
             for (auto& [name, trigger] : labels)
             {
-                pThis->vcbSelectedTrigger.AddSubtextString(name, GetTriggerEnableText(trigger));
+                pThis->vcbSelectedTrigger.AddSubtextString(name, GetTriggerEnableText(trigger), RGB(255,0,0));
             }
             pThis->vcbAttachedTrigger.CopyFrom(pThis->vcbSelectedTrigger, &noneLabel);
             if (pThis->CurrentTriggerActionParam > -1)

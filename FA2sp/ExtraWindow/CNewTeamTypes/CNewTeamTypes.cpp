@@ -723,9 +723,19 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     {
         if (SelectedTeamIndex >= 0 && SelectedTeamIndex < SendMessage(hSelectedTeam, CB_GETCOUNT, NULL, NULL))
         {
-            CTriggerAnnotation::Type = AnnoTeam;
-            CTriggerAnnotation::ID = CurrentTeamID;
-            ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+            if (CTriggerAnnotation::GetHandle())
+            {
+                CTriggerAnnotation::Type = AnnoTeam;
+                CTriggerAnnotation::ID = CurrentTeamID;
+                ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+            }
+
+            if (CSearhReference::bFollowActiveWindow && CSearhReference::GetHandle())
+            {
+                CSearhReference::SetSearchType(0);
+                CSearhReference::SetSearchID(CurrentTeamID);
+                ::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
+            }
         }
         return TRUE;
     }
@@ -1365,9 +1375,19 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
     CurrentTeamID = pID;
     InvalidateRect(hDragPoint, nullptr, TRUE);
 
-    CTriggerAnnotation::Type = AnnoTeam;
-    CTriggerAnnotation::ID = CurrentTeamID;
-    ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+    if (CTriggerAnnotation::GetHandle())
+    {
+        CTriggerAnnotation::Type = AnnoTeam;
+        CTriggerAnnotation::ID = CurrentTeamID;
+        ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+    }
+
+    if (CSearhReference::bFollowActiveWindow && CSearhReference::GetHandle())
+    {
+        CSearhReference::SetSearchType(0);
+        CSearhReference::SetSearchID(CurrentTeamID);
+        ::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
+    }
 
     if (auto pTeam = map.GetSection(pID))
     {

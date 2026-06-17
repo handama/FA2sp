@@ -20,7 +20,7 @@ enum ScriptParamPos : int
 class CSearhReference
 {
 public:
-    enum Controls { Listbox = 1000, Refresh = 1001, ObjectText = 1002};
+    enum Controls { Listbox = 1000, Refresh = 1001, ObjectText = 1002, FollowActiveWindow = 1003 };
     static void Create(CFinalSunDlg* pWnd);
 
     static HWND GetHandle()
@@ -64,13 +64,12 @@ public:
 protected:
     static void Initialize(HWND& hWnd);
     static void Close(HWND& hWnd);
-    static void Update();
+    static void Update(bool top = true);
 
     static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static void ListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam);
     static void OnSelchangeListbox(HWND hWnd);
     static FString GetPrefix(int type);
-
 
 private:
     static HWND m_hwnd;
@@ -81,6 +80,7 @@ private:
     static HWND hListbox;
     static HWND hRefresh;
     static HWND hObjectText;
+    static HWND hFollowActiveWindow;
     static FString SearchID;
     static int origWndWidth;
     static int origWndHeight;
@@ -93,7 +93,8 @@ public:
     static bool IsTrigger;
     static bool IsVariable;
     static bool IsTag;
-    // first = id, second = pos
+	static bool bFollowActiveWindow;
+	// first = id, second = pos
     static std::map<int, ScriptParamPos> LocalVariableScripts;
     // first = id, second = pos (not include event num), 10+ = check param affected params
     static std::map<int, int> LocalVariableEvents;

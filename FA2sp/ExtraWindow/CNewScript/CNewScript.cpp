@@ -512,9 +512,18 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
     {
         if (SelectedScriptIndex >= 0 && SelectedScriptIndex < SendMessage(hSelectedScript, CB_GETCOUNT, NULL, NULL))
         {
-            CTriggerAnnotation::Type = AnnoScript;
-            CTriggerAnnotation::ID = CurrentScriptID;
-            ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+            if (CTriggerAnnotation::GetHandle())
+            {
+                CTriggerAnnotation::Type = AnnoScript;
+                CTriggerAnnotation::ID = CurrentScriptID;
+                ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+            }
+            if (CSearhReference::bFollowActiveWindow && CSearhReference::GetHandle())
+            {
+                CSearhReference::SetSearchType(2);
+                CSearhReference::SetSearchID(CurrentScriptID);
+                ::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
+            }
         }
         return TRUE;
     }
@@ -920,9 +929,18 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
     CurrentScriptID = pID;
     InvalidateRect(hDragPoint, nullptr, TRUE);
 
-    CTriggerAnnotation::Type = AnnoScript;
-    CTriggerAnnotation::ID = CurrentScriptID;
-    ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+    if (CTriggerAnnotation::GetHandle())
+    {
+        CTriggerAnnotation::Type = AnnoScript;
+        CTriggerAnnotation::ID = CurrentScriptID;
+        ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
+    }
+    if (CSearhReference::bFollowActiveWindow && CSearhReference::GetHandle())
+    {
+        CSearhReference::SetSearchType(2);
+        CSearhReference::SetSearchID(CurrentScriptID);
+        ::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
+    }
 
     while (SendMessage(hActionsListBox, LB_DELETESTRING, 0, NULL) != CB_ERR);
     if (auto pScript = map.GetSection(pID))

@@ -19,6 +19,7 @@
 #include "Scintilla.h"
 #include "SciLexer.h"
 #include "Lexilla.h"
+#include <mbstring.h>
 
 CINI& ExtraWindow::map = CINI::CurrentDocument;
 CINI& ExtraWindow::fadata = CINI::FAData;
@@ -248,8 +249,32 @@ void ExtraWindow::LoadParams(VirtualComboBoxEx& vcb, FString idx, CNewTrigger* i
     FString addonN1 = "-1 - ";
     FString addonN2 = "-2 - ";
     FString addonN3 = "-3 - ";
-    
-    FString editText = vcb.GetEditText();
+
+	auto isColoredSection = [&](const FString& section, const FString& loadfrom) {
+        if ((section == "TeamTypes" 
+            || section == "TaskForces" 
+            || section == "ScriptTypes" 
+            || section == "AITriggerTypes")
+            && (loadfrom == "3" || loadfrom == "map"
+            || loadfrom == "7" || loadfrom == "ai+map"
+            || loadfrom == "10" || loadfrom == "ai")
+        )
+        {
+			return true;
+		}
+        if ((section == "Triggers" 
+            || section == "Actions" 
+            || section == "Events" 
+            || section == "Tags")
+            && (loadfrom == "3" || loadfrom == "map")
+        )
+        {
+			return true;
+		}
+		return false;
+	};
+
+	FString editText = vcb.GetEditText();
     vcb.Clear();
     vcb.SetEditText(editText);
     switch (atoi(idx)) {
@@ -334,7 +359,9 @@ void ExtraWindow::LoadParams(VirtualComboBoxEx& vcb, FString idx, CNewTrigger* i
                 if (loadFrom == "0" || loadFrom == "fadata")
                     sectionName = ExtraWindow::GetTranslatedSectionName(sectionName);
 
-                if (useValue == "1")
+				bool colored = isColoredSection(sectionName, loadFrom);
+
+				if (useValue == "1")
                 {
                     auto section = mmh.GetSection(sectionName);
                     for (auto& kvp : section)
@@ -349,7 +376,14 @@ void ExtraWindow::LoadParams(VirtualComboBoxEx& vcb, FString idx, CNewTrigger* i
                                 output.Format("%s - %s", output, uiname);
                             }
                         }
-                        vcb.AddString(output);
+                        if (colored)
+                        {
+                            vcb.AddString(output, GetTriggerColor(kvp.second));
+                        }
+                        else
+                        {
+                            vcb.AddString(output);
+                        }
                     }
                 }
                 else
@@ -377,7 +411,14 @@ void ExtraWindow::LoadParams(VirtualComboBoxEx& vcb, FString idx, CNewTrigger* i
                                     output.Format("%s - %s", output, uiname);
                                 }
                             }
-                            vcb.AddString(output);
+                            if (colored)
+                            {
+                                vcb.AddString(output, GetTriggerColor(entries[i]));
+                            }
+                            else
+                            {
+                                vcb.AddString(output);
+                            }
                         }
                     }
                     else
@@ -396,7 +437,14 @@ void ExtraWindow::LoadParams(VirtualComboBoxEx& vcb, FString idx, CNewTrigger* i
                                     output.Format("%s - %s", output, uiname);
                                 }
                             }
-                            vcb.AddString(output);
+                            if (colored)
+                            {
+                                vcb.AddString(output, GetTriggerColor(kvp.second));
+                            }
+                            else
+                            {
+                                vcb.AddString(output);
+                            }
                             i++;
                         }
                     }
@@ -583,28 +631,44 @@ void ExtraWindow::LoadParam_Triggers(VirtualComboBoxEx& vcb, CNewTrigger* instan
 
 void ExtraWindow::LoadParam_Tags(VirtualComboBoxEx& vcb)
 {
-    if (auto pSection = CINI::CurrentDocument().GetSection("Tags"))
-    {
-        FString text;
-        for (auto& kvp : pSection->GetEntities())
-        {
-            auto tagAtoms = FString::SplitString(kvp.second);
-            if (tagAtoms.size() < 3) continue;
-            text.Format("%s - %s", kvp.first, tagAtoms[1]);
-            vcb.AddString(text);
+    std::vector<std::pair<FString, FString>> labels;
+    FString text;
+    if (auto pSection = map.GetSection("Tags")) {
+        for (auto& pair : pSection->GetEntities()) {
+            auto tagAtoms = FString::SplitString(pair.second);
+            text.Format("%s - %s", pair.first, tagAtoms[1]);
+            labels.push_back(std::make_pair(pair.first, text));
         }
+    }
+
+    bool tmp = ExtConfigs::SortByLabelName;
+    ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Tag;
+    ExtraWindow::SortLabels(labels, false);
+    ExtConfigs::SortByLabelName = tmp;
+
+    for (auto& [id, name] : labels)
+    {
+		vcb.AddString(name, ExtraWindow::GetTriggerColor(id));		
     }
 }
 
 void ExtraWindow::LoadParam_Teamtypes(VirtualComboBoxEx& vcb)
 {
-    if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
-    { 
-        for (auto& [key, value] : pSection->GetEntities())
-        {
-            auto name = GetTeamDisplayName(value);
-            vcb.AddString(name);
+    std::vector<std::pair<FString, FString>> labels;
+    if (auto pSection = map.GetSection("TeamTypes")) {
+        for (auto& pair : pSection->GetEntities()) {
+            labels.push_back(std::make_pair(pair.second, ExtraWindow::GetTeamDisplayName(pair.second)));
         }
+    }
+
+    bool tmp = ExtConfigs::SortByLabelName;
+    ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Team;
+    ExtraWindow::SortLabels(labels, false);
+    ExtConfigs::SortByLabelName = tmp;
+
+    for (auto& [id, name] : labels)
+    {
+		vcb.AddString(name, ExtraWindow::GetTriggerColor(id));
     }
 }
 
@@ -1873,6 +1937,140 @@ bool LabelMatcher::MatchPattern(const FString& target, const Pattern& pattern) c
     return true;
 }
 
+namespace VCBColorHelpers
+{
+    static inline double Linearize(double value)
+    {
+        return (value <= 0.03928) ? (value / 12.92) : pow((value + 0.055) / 1.055, 2.4);
+    }
+
+    double GetLuminance(COLORREF color)
+    {
+        double r = Linearize(GetRValue(color) * (1.0 / 255.0));
+        double g = Linearize(GetGValue(color) * (1.0 / 255.0));
+        double b = Linearize(GetBValue(color) * (1.0 / 255.0));
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+
+    double GetContrastRatio(COLORREF foreground, COLORREF background)
+    {
+        double l1 = GetLuminance(foreground);
+        double l2 = GetLuminance(background);
+        double lighter = (l1 > l2) ? l1 : l2;
+        double darker = (l1 > l2) ? l2 : l1;
+        return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    void RGBToHSL(COLORREF rgb, double& h, double& s, double& l)
+    {
+        double r = GetRValue(rgb) * (1.0 / 255.0);
+        double g = GetGValue(rgb) * (1.0 / 255.0);
+        double b = GetBValue(rgb) * (1.0 / 255.0);
+
+        double max = (r > g) ? ((r > b) ? r : b) : ((g > b) ? g : b);
+        double min = (r < g) ? ((r < b) ? r : b) : ((g < b) ? g : b);
+        double delta = max - min;
+
+        l = (max + min) * 0.5;
+
+        if (delta == 0.0)
+        {
+            h = s = 0.0;
+        }
+        else
+        {
+            s = (l < 0.5) ? (delta / (max + min)) : (delta / (2.0 - max - min));
+
+            double invDelta = 1.0 / delta;
+            double deltaR = (((max - r) * (1.0 / 6.0)) + (delta * 0.5)) * invDelta;
+            double deltaG = (((max - g) * (1.0 / 6.0)) + (delta * 0.5)) * invDelta;
+            double deltaB = (((max - b) * (1.0 / 6.0)) + (delta * 0.5)) * invDelta;
+
+            if (r == max)
+                h = deltaB - deltaG;
+            else if (g == max)
+                h = 0.333333 + deltaR - deltaB;
+            else
+                h = 0.666667 + deltaG - deltaR;
+
+            if (h < 0.0) h += 1.0;
+            if (h > 1.0) h -= 1.0;
+        }
+    }
+
+    static inline double HueToRGB(double p, double q, double t)
+    {
+        if (t < 0.0) t += 1.0;
+        if (t > 1.0) t -= 1.0;
+        if (t < 0.166667) return p + (q - p) * 6.0 * t;
+        if (t < 0.5) return q;
+        if (t < 0.666667) return p + (q - p) * (0.666667 - t) * 6.0;
+        return p;
+    }
+
+    COLORREF HSLToRGB(double h, double s, double l)
+    {
+        double r, g, b;
+
+        if (s == 0.0)
+        {
+            r = g = b = l;
+        }
+        else
+        {
+            double q = (l < 0.5) ? (l * (1.0 + s)) : (l + s - l * s);
+            double p = 2.0 * l - q;
+            r = HueToRGB(p, q, h + 0.333333);
+            g = HueToRGB(p, q, h);
+            b = HueToRGB(p, q, h - 0.333333);
+        }
+
+        return RGB((BYTE)(r * 255.0 + 0.5), (BYTE)(g * 255.0 + 0.5), (BYTE)(b * 255.0 + 0.5));
+    }
+
+    COLORREF EnsureContrast(COLORREF textColor, COLORREF backgroundColor, double minContrast)
+    {
+        double currentContrast = GetContrastRatio(textColor, backgroundColor);
+        if (currentContrast >= minContrast)
+            return textColor;
+
+        double h, s, l;
+        RGBToHSL(textColor, h, s, l);
+
+        double bgLuminance = GetLuminance(backgroundColor);
+        bool makeLighter = (bgLuminance < 0.5);
+
+        double left = makeLighter ? l : 0.01;
+        double right = makeLighter ? 0.99 : l;
+        double bestL = l;
+
+        for (int iter = 0; iter < 12; ++iter)
+        {
+            double mid = (left + right) * 0.5;
+            COLORREF testColor = HSLToRGB(h, s, mid);
+            double testContrast = GetContrastRatio(testColor, backgroundColor);
+
+            if (testContrast >= minContrast)
+            {
+                bestL = mid;
+                if (makeLighter)
+                    right = mid;
+                else
+                    left = mid;
+            }
+            else
+            {
+                if (makeLighter)
+                    left = mid;
+                else
+                    right = mid;
+            }
+        }
+
+        return HSLToRGB(h, s, bestL);
+    }
+}
+
 #define VCB_TIMER_SELECT   1
 #define VCB_TIMER_RESTORE  2
 #define VCB_TIMER_CLEARFIX 3
@@ -2030,7 +2228,25 @@ void VirtualComboBoxEx::AddString(const char* str, COLORREF textColor, COLORREF 
 {
     VCBItemEntry e;
     e.text = str;
-    e.textColor = textColor;
+
+    COLORREF bgColorForContrast = backgroundColor;
+    if (bgColorForContrast == CLR_INVALID)
+    {
+        if (ExtConfigs::EnableDarkMode)
+            bgColorForContrast = RGB(32, 32, 32);
+        else
+            bgColorForContrast = GetSysColor(COLOR_WINDOW);
+    }
+
+    if (textColor != CLR_INVALID)
+    {
+        e.textColor = VCBColorHelpers::EnsureContrast(textColor, bgColorForContrast, 3.0);
+    }
+    else
+    {
+        e.textColor = CLR_INVALID;
+    }
+
     e.backgroundColor = backgroundColor;
     e.leftSideBackground = leftSideBackground;
     if (m_sortByLabelKey)
@@ -2056,7 +2272,25 @@ void VirtualComboBoxEx::AddSubtextString(const char* text, const std::vector<Sub
     VCBItemEntry e;
     e.text = text;
     e.subtextSegments = segments;
-    e.textColor = textColor;
+
+    COLORREF bgColorForContrast = backgroundColor;
+    if (bgColorForContrast == CLR_INVALID)
+    {
+        if (ExtConfigs::EnableDarkMode)
+            bgColorForContrast = RGB(32, 32, 32);
+        else
+            bgColorForContrast = GetSysColor(COLOR_WINDOW);
+    }
+
+    if (textColor != CLR_INVALID)
+    {
+        e.textColor = VCBColorHelpers::EnsureContrast(textColor, bgColorForContrast, 3.0);
+    }
+    else
+    {
+        e.textColor = CLR_INVALID;
+    }
+
     e.backgroundColor = backgroundColor;
     if (m_sortByLabelKey)
         e.key = BuildKey(e.text);
@@ -2135,7 +2369,25 @@ int VirtualComboBoxEx::InsertString(int index, const char* str, COLORREF textCol
 
     VCBItemEntry e;
     e.text = str;
-    e.textColor = textColor;
+
+    COLORREF bgColorForContrast = backgroundColor;
+    if (bgColorForContrast == CLR_INVALID)
+    {
+        if (ExtConfigs::EnableDarkMode)
+            bgColorForContrast = RGB(32, 32, 32);
+        else
+            bgColorForContrast = GetSysColor(COLOR_WINDOW);
+    }
+
+    if (textColor != CLR_INVALID)
+    {
+        e.textColor = VCBColorHelpers::EnsureContrast(textColor, bgColorForContrast, 3.0);
+    }
+    else
+    {
+        e.textColor = CLR_INVALID;
+    }
+
     e.backgroundColor = backgroundColor;
     e.leftSideBackground = leftSideBackground;
     if (m_sortByLabelKey)
@@ -2169,7 +2421,25 @@ int VirtualComboBoxEx::ReplaceString(int index, const char* str, COLORREF textCo
     auto& oldItem = items[index];
     VCBItemEntry e;
     e.text = str;
-    e.textColor = textColor;
+
+    COLORREF bgColorForContrast = backgroundColor;
+    if (bgColorForContrast == CLR_INVALID)
+    {
+        if (ExtConfigs::EnableDarkMode)
+            bgColorForContrast = RGB(32, 32, 32);
+        else
+            bgColorForContrast = GetSysColor(COLOR_WINDOW);
+    }
+
+    if (textColor != CLR_INVALID)
+    {
+        e.textColor = VCBColorHelpers::EnsureContrast(textColor, bgColorForContrast, 3.0);
+    }
+    else
+    {
+        e.textColor = CLR_INVALID;
+    }
+
     e.backgroundColor = backgroundColor;
     e.leftSideBackground = leftSideBackground;
     e.subtextSegments = oldItem.subtextSegments;
@@ -2233,7 +2503,24 @@ void VirtualComboBoxEx::SetItemColors(int index, COLORREF textColor, COLORREF ba
     if (index < 0 || index >= (int)items.size())
         return;
 
-    items[index].textColor = textColor;
+    COLORREF bgColorForContrast = backgroundColor;
+    if (bgColorForContrast == CLR_INVALID)
+    {
+        if (ExtConfigs::EnableDarkMode)
+            bgColorForContrast = RGB(32, 32, 32);
+        else
+            bgColorForContrast = GetSysColor(COLOR_WINDOW);
+    }
+
+    if (textColor != CLR_INVALID)
+    {
+        items[index].textColor = VCBColorHelpers::EnsureContrast(textColor, bgColorForContrast, 3.0);
+    }
+    else
+    {
+        items[index].textColor = CLR_INVALID;
+    }
+
     items[index].backgroundColor = backgroundColor;
     items[index].leftSideBackground = leftSideBackground;
 

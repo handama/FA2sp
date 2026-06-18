@@ -523,7 +523,7 @@ LRESULT CALLBACK CNewAITrigger::DragDotProc(HWND hWnd, UINT message, WPARAM wPar
 
         if (clr == CLR_INVALID)
         {
-            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : BLACK_BRUSH);
+            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : DKGRAY_BRUSH);
             FillRect(hdc, &ps.rcPaint, out);
     
             RECT inner = ps.rcPaint;

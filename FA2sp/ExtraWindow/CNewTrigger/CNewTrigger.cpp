@@ -506,7 +506,7 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
 
         if (clr == CLR_INVALID)
         {
-            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : BLACK_BRUSH);
+            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : DKGRAY_BRUSH);
             FillRect(hdc, &ps.rcPaint, out);
     
             RECT inner = ps.rcPaint;
@@ -949,7 +949,7 @@ LRESULT CALLBACK CNewTrigger::HandleDragingDot(HWND hWnd, UINT msg, WPARAM wPara
 
         if (clr == CLR_INVALID)
         {
-            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : BLACK_BRUSH);
+            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : DKGRAY_BRUSH);
             FillRect(hdc, &ps.rcPaint, out);
     
             RECT inner = ps.rcPaint;
@@ -3594,23 +3594,22 @@ void CNewTrigger::OnDropdownCComboBox(int index)
     }
     else if (index == CurrentTeamActionParam && TeamListChanged)
     {
-        int curSel = SendMessage(hActionParameter[index], CB_GETCURSEL, NULL, NULL);
-        char buffer[512]{ 0 };
-        GetWindowText(hActionParameter[index], buffer, 511);
-        FString text(buffer);
+		FString text = vcbActionParameter[index].GetEditText();
+		FString::TrimIndex(text);
+		text += " ";
 
-        UpdateActionAndParam();
+		UpdateActionAndParam();
         TeamListChanged = false;
 
-        int idx = SendMessage(hActionParameter[index], CB_FINDSTRINGEXACT, 0, text);
+        int idx = vcbActionParameter[index].FindStringExactStart(text);
         if (idx != CB_ERR)
         {
-            SendMessage(hActionParameter[index], CB_SETCURSEL, idx, NULL);
-        }
+			vcbActionParameter[index].SetCurSel(idx);
+		}
         else
         {
             FString::TrimIndex(text);
-            SendMessage(hActionParameter[index], WM_SETTEXT, NULL, text);
+            vcbActionParameter[index].SetEditText(text);
         }
     }
 }

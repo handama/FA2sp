@@ -193,7 +193,7 @@ LRESULT CALLBACK CNewTag::DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LP
 
         if (clr == CLR_INVALID)
         {
-            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : BLACK_BRUSH);
+            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : DKGRAY_BRUSH);
             FillRect(hdc, &ps.rcPaint, out);
     
             RECT inner = ps.rcPaint;
@@ -609,7 +609,7 @@ LRESULT CALLBACK CNewTag::DragingDotProc(HWND hWnd, UINT message, WPARAM wParam,
 
         if (clr == CLR_INVALID)
         {
-            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : BLACK_BRUSH);
+            HBRUSH out = (HBRUSH)GetStockObject(ExtConfigs::EnableDarkMode ? LTGRAY_BRUSH : DKGRAY_BRUSH);
             FillRect(hdc, &ps.rcPaint, out);
     
             RECT inner = ps.rcPaint;

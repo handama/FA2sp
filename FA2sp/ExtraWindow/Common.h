@@ -94,6 +94,15 @@ struct VCBItemEntry
     bool leftSideBackground = false;
 };
 
+namespace VCBColorHelpers
+{
+    double GetLuminance(COLORREF color);
+    double GetContrastRatio(COLORREF foreground, COLORREF background);
+    void RGBToHSL(COLORREF rgb, double& h, double& s, double& l);
+    COLORREF HSLToRGB(double h, double s, double l);
+    COLORREF EnsureContrast(COLORREF textColor, COLORREF backgroundColor, double minContrast = 3.0);
+}
+
 class ExtraWindow
 {
 public:

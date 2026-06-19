@@ -1509,7 +1509,6 @@ LRESULT CALLBACK DarkTheme::DarkButtonSubclassProc(HWND hwnd, UINT uMsg, WPARAM 
 
         int checked = (int)SendMessage(hwnd, BM_GETCHECK, 0, 0);
 
-        // Checkbox uses vector drawing (12px base), radio uses bitmap (16px base ¡ú staircase)
         int glyphSize = ScalePixels(12);
         RECT glyphRc = { 0, 0, 0, 0 };
 

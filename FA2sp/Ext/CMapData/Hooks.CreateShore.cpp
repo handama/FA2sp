@@ -85,9 +85,6 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 
 	auto getAltLandType = [&](int tileIndex, int TileSubIndex)
 		{
-			if (tileIndex == 0xFFFF)
-				tileIndex = 0;
-
 			if (hackedShores.find(tileIndex) != hackedShores.end())
 			{
 				auto& tiles = hackedShores[tileIndex];
@@ -108,8 +105,6 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 
 	auto tileIsClear = [&](int tileIdx, int tileSubIdx)
 		{
-			if (tileIdx == 0xFFFF)
-				tileIdx = 0;
 			auto ttype = getAltLandType(tileIdx, tileSubIdx);
 			if (ttype == LandType::Water)
 				return false;
@@ -203,9 +198,7 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 			if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
 				continue;
 
-			int tileIndex = cell->TileIndex;
-			if (tileIndex == 0xFFFF)
-				tileIndex = 0;
+			int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
 
 			// remove broken beaches
 			if ((tileIndex >= tileStart && tileIndex <= tileEnd) && !pThis->IsTileIntact(x, y))
@@ -288,9 +281,7 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 							auto cell2 = pThis->GetCellAt(pos2);
 
 							auto& cellExt2 = pThis->CellDataExts[pos2];
-							int tileIndex = cell2->TileIndex;
-							if (tileIndex == 0xFFFF)
-								tileIndex = 0;
+							int tileIndex = CMapDataExt::GetSafeTileIndex(cell2->TileIndex);
 
 							// skip intact tiles on the edges
 							if (x + n < startX + 1 || y + m < startY + 1 || x + n >= right - 1 || y + m >= bottom - 1)
@@ -425,9 +416,7 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 				continue;
 
 			auto& cellExt = pThis->CellDataExts[pos];
-			int tileIndex = cell->TileIndex;
-			if (tileIndex == 0xFFFF)
-				tileIndex = 0;
+			int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
 
 			if (CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex].RampType != 0)
 				continue;
@@ -472,9 +461,7 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 						int pos2 = pThis->GetCoordIndex(newX, newY);
 						auto cell2 = pThis->GetCellAt(pos2);
 						auto& cellExt2 = pThis->CellDataExts[pos2];
-						int tileIndex2 = cell2->TileIndex;
-						if (tileIndex2 == 0xFFFF)
-							tileIndex2 = 0;
+						int tileIndex2 = CMapDataExt::GetSafeTileIndex(cell2->TileIndex);
 						auto ttype2 = getAltLandType(tileIndex2, cell2->TileSubIndex);
 						if (tileIndex2 >= tileStart && tileIndex2 <= tileEnd
 							&& tileIsClear(tileIndex2, cell2->TileSubIndex)

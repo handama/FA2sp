@@ -1177,9 +1177,20 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                 CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Celltag, true);  
                 for (auto& m : mapCoords)
                 {
-                    int pos = pMap->GetCoordIndex(m.X, m.Y);
-                    pMap->AddCelltag(CIsoView::CurrentCommand->ObjectID, pos);
+                    auto pIsoView = CIsoViewExt::GetExtension();
+                    for (int gx = m.X - pIsoView->BrushSizeX / 2; gx <= m.X + pIsoView->BrushSizeX / 2; gx++)
+                    {
+                        for (int gy = m.Y - pIsoView->BrushSizeY / 2; gy <= m.Y + pIsoView->BrushSizeY / 2; gy++)
+                        {
+                            if (!CMapDataExt::IsCoordInFullMap(gx, gy))
+                                continue;
+                
+                            int intKey = gx * 1000 + gy;
+                            CINI::CurrentDocument->WriteString("CellTags", std::to_string(intKey).c_str(), CIsoView::CurrentCommand->ObjectID);
+                        }
+                    }         
                 }
+                CMapData::Instance->UpdateFieldCelltagData(FALSE);
                 CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
             }
             command.reset();

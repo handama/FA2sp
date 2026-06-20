@@ -143,6 +143,44 @@ struct TwoPointStruct
     bool hasArrow;
 };
 
+struct MouseCommandRecord
+{
+    int Command;
+    int Type;
+    int Param;
+    bool calculateType = true;
+    bool calculateParam = true;
+
+    bool operator==(const MouseCommandRecord& other) const
+    {
+        return Command == other.Command
+            && Type == other.Type
+            && Param == other.Param;
+    }
+};
+
+struct MouseCommandRecordHash
+{
+    std::size_t operator()(const MouseCommandRecord& r) const
+    {
+        std::size_t h1 = std::hash<int>{}(r.Command);
+        std::size_t h2 = std::hash<int>{}(r.Type);
+        std::size_t h3 = std::hash<int>{}(r.Param);
+        std::size_t seed = h1;
+        seed ^= h2 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= h3 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+
+        return seed;
+    }
+};
+
+struct MouseCommandBrush
+{
+	int BrushSizeX;
+	int BrushSizeY;
+	int BrushSizeIndex;
+};
+
 class NOVTABLE CIsoViewExt : public CIsoView
 {
 public:
@@ -404,8 +442,11 @@ public:
     static std::vector<MapCoord> ScriptPath;
     static bool OnLButtonDown_CalledFromOnMouseMove;
     static bool OnMouseMove_CalledFromOnLButtonDown;
+    static std::unordered_map<MouseCommandRecord, MouseCommandBrush, MouseCommandRecordHash> MouseCommandBrushSizeRecords;
+    static MouseCommandRecord LastMouseCommand;
+	static void ChangeBrushSize_OnMouseMove();
 
-    static bool ReInitializingDDraw;
+	static bool ReInitializingDDraw;
 
     static bool CliffBackAlt;
     static bool HistoryRecord_IsHoldingLButton;

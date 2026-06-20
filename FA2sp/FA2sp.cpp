@@ -169,6 +169,7 @@ bool ExtConfigs::FillArea_ConsiderLAT;
 bool ExtConfigs::FillArea_ConsiderWater;
 bool ExtConfigs::DPIAware;
 bool ExtConfigs::SkipBrushSizeChangeOnTools;
+bool ExtConfigs::RecordBrushSizeHistory;
 bool ExtConfigs::INIEditor_IgnoreTeams;
 bool ExtConfigs::StringBufferStackAllocation = true;
 int ExtConfigs::RangeBound_MaxRange;
@@ -495,6 +496,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ShowMapBoundInMiniMap = CINI::FAData->GetBool("ExtConfigs", "ShowMapBoundInMiniMap");
 
 	ExtConfigs::SkipBrushSizeChangeOnTools = CINI::FAData->GetBool("ExtConfigs", "SkipBrushSizeChangeOnTools");
+	ExtConfigs::RecordBrushSizeHistory = CINI::FAData->GetBool("ExtConfigs", "RecordBrushSizeHistory");
 	CIsoViewExt::ScaledMax = CINI::FAData->GetDouble("ExtConfigs", "DDrawScalingMaximum", 1.5);
 	if (CIsoViewExt::ScaledMax < 1.0)
 		CIsoViewExt::ScaledMax = 1.0;
@@ -1032,6 +1034,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.SkipBrushSizeChangeOnTools", "Skip brush size change when changing tools"),
 		.IniKey = "SkipBrushSizeChangeOnTools",
 		.Value = &ExtConfigs::SkipBrushSizeChangeOnTools,
+		.Type = ExtConfigs::SpecialOptionType::None});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.RecordBrushSizeHistory", "Remember brush sizes for mouse commands"),
+		.IniKey = "RecordBrushSizeHistory",
+		.Value = &ExtConfigs::RecordBrushSizeHistory,
 		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

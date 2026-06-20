@@ -2927,61 +2927,72 @@ void CViewObjectsExt::SquareBatchAddMultiSelection(int X, int Y, bool add)
 
 void CViewObjectsExt::ModifyOre(int X, int Y)
 {
-    const int ORE_COUNT = 12;
-    auto pExt = CMapDataExt::GetExtension();
-    int pos = pExt->GetCoordIndex(X, Y);
-    auto ovr = pExt->GetOverlayAt(pos);
-    int ovrd = pExt->GetOverlayDataAt(pos);
+	auto pIsoView = CIsoViewExt::GetExtension();
+	bool needRedraw = false;
+	for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
+	{
+		for (int gy = Y - pIsoView->BrushSizeY / 2; gy <= Y + pIsoView->BrushSizeY / 2; gy++)
+		{
+			const int ORE_COUNT = 12;
+			auto pExt = CMapDataExt::GetExtension();
+			int pos = pExt->GetCoordIndex(gx, gy);
+			auto ovr = pExt->GetOverlayAt(pos);
+			int ovrd = pExt->GetOverlayDataAt(pos);
 
-    auto getValidOreData = [ORE_COUNT](int data)
-        {
-            if (data < 0)
-                data = -1;
-            if (data >= ORE_COUNT)
-                data = ORE_COUNT - 1;
-            return data;
-        };
-    auto setOreDataAt = [ovr, ovrd, pExt, getValidOreData](int x, int y, int data)
-        {            
-            data = getValidOreData(data);
-            int moneyDelta = 0;
-            int olyPos = y + x * 512;
-            int pos = pExt->GetCoordIndex(x, y);
+			auto getValidOreData = [ORE_COUNT](int data)
+			{
+				if (data < 0)
+					data = -1;
+				if (data >= ORE_COUNT)
+					data = ORE_COUNT - 1;
+				return data;
+			};
+			auto setOreDataAt = [ovr, ovrd, pExt, getValidOreData](int x, int y, int data)
+			{
+				data = getValidOreData(data);
+				int moneyDelta = 0;
+				int olyPos = y + x * 512;
+				int pos = pExt->GetCoordIndex(x, y);
 
-            pExt->DeleteTiberium(std::min(ovr, (word)0xFF), pExt->OverlayData[olyPos]);
-            if (data >= 0)
-            {
-                pExt->OverlayData[olyPos] = data;
-                pExt->CellDatas[pos].OverlayData = data;
-            }
-            else
-            {
-                pExt->Overlay[olyPos] = 0xFF;
-                pExt->NewOverlay[olyPos] = 0xFFFF;
-                pExt->OverlayData[olyPos] = 0;
-                pExt->CellDatas[pos].Overlay = 0xFF;
-                pExt->CellDataExts[pos].NewOverlay = 0xFFFF;
-                pExt->CellDatas[pos].OverlayData = 0;
-            }
-            pExt->AddTiberium(std::min(pExt->NewOverlay[olyPos], (word)0xFF), data);
-        };
-    if (CMapDataExt::IsOre(ovr))
-    {
-        if (!CIsoViewExt::HistoryRecord_IsHoldingLButton)
-        {
-            CIsoViewExt::HistoryRecord_IsHoldingLButton = true;
-            pExt->SaveUndoRedoData(true, 0, 0, 0, 0);
-        }
-        if (CIsoView::CurrentCommand->Type == 0)
-        {
-            setOreDataAt(X, Y, ovrd + 1);
-        }
-        else if (CIsoView::CurrentCommand->Type == 1)
-        {
-            setOreDataAt(X, Y, ovrd - 1);
-        }
-        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
-    }
+				pExt->DeleteTiberium(std::min(ovr, (word)0xFF), pExt->OverlayData[olyPos]);
+				if (data >= 0)
+				{
+					pExt->OverlayData[olyPos] = data;
+					pExt->CellDatas[pos].OverlayData = data;
+				}
+				else
+				{
+					pExt->Overlay[olyPos] = 0xFF;
+					pExt->NewOverlay[olyPos] = 0xFFFF;
+					pExt->OverlayData[olyPos] = 0;
+					pExt->CellDatas[pos].Overlay = 0xFF;
+					pExt->CellDataExts[pos].NewOverlay = 0xFFFF;
+					pExt->CellDatas[pos].OverlayData = 0;
+				}
+				pExt->AddTiberium(std::min(pExt->NewOverlay[olyPos], (word)0xFF), data);
+			};
+			if (CMapDataExt::IsOre(ovr))
+			{
+				if (!CIsoViewExt::HistoryRecord_IsHoldingLButton)
+				{
+					CIsoViewExt::HistoryRecord_IsHoldingLButton = true;
+					pExt->SaveUndoRedoData(true, 0, 0, 0, 0);
+				}
+				if (CIsoView::CurrentCommand->Type == 0)
+				{
+					setOreDataAt(gx, gy, ovrd + 1);
+				}
+				else if (CIsoView::CurrentCommand->Type == 1)
+				{
+					setOreDataAt(gx, gy, ovrd - 1);
+				}
+				needRedraw = true;
+			}
+		}
+	}
+
+    if (needRedraw)
+		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 }
 
 void CViewObjectsExt::AddAnnotation(int X, int Y)

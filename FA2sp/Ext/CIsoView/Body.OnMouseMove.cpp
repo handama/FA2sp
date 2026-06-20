@@ -141,7 +141,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
 	int cellpos = std::min(CMapDataExt::CellDataExts.size() - 1, (UINT)point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
 	auto& cellExt = CMapDataExt::CellDataExts[cellpos];
 
-	// property brush && delete objects && change owner && delete overlay && delete celltag
+	// property brush && delete objects && change owner && delete overlay && delete celltag && modify ore
 	if (pIsoView->BrushSizeX != 1 || pIsoView->BrushSizeY != 1)
     {
         if (CIsoView::CurrentCommand->Command == 0x17 
@@ -154,7 +154,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
             || CIsoView::CurrentCommand->Command == 12 
             || CIsoView::CurrentCommand->Command == 13 
             || CIsoView::CurrentCommand->Command == 14 
-            || CIsoView::CurrentCommand->Command == 15)
+            || CIsoView::CurrentCommand->Command == 15
+            || CIsoView::CurrentCommand->Command == 0x20)
         {
             std::vector<MapCoord> cells;
             for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)

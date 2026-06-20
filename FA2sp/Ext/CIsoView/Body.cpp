@@ -105,6 +105,8 @@ FString CIsoViewExt::CurrentCellObjectHouse = "";
 int CIsoViewExt::EXTRA_BORDER_BOTTOM = 25;
 Cell3DLocation CIsoViewExt::CurrentDrawCellLocation;
 std::unordered_map<TextCacheKey, TextCacheEntry, TextCacheHasher> CIsoViewExt::textCache;
+std::unordered_map<MouseCommandRecord, MouseCommandBrush, MouseCommandRecordHash> CIsoViewExt::MouseCommandBrushSizeRecords;
+MouseCommandRecord CIsoViewExt::LastMouseCommand;
 
 int CIsoViewExt::drawOffsetX;
 int CIsoViewExt::drawOffsetY;
@@ -5692,6 +5694,49 @@ ImageDataView CIsoViewExt::MakeImageDataView(CTileBlockClass *p, Palette *pPal)
         pPal,
         ImageDataView::ImageDataViewType::TileBlockData,
         p};
+}
+
+void CIsoViewExt::ChangeBrushSize_OnMouseMove()
+{
+	MouseCommandRecord record = {CurrentCommand->Command, 0, 0};
+
+    if (CurrentCommand->Command == 1)
+    {
+		record.Type = CurrentCommand->Type;
+	}
+
+    if (LastMouseCommand == record)
+    {
+        auto itr = MouseCommandBrushSizeRecords.find(record);
+        if (itr != MouseCommandBrushSizeRecords.end())
+        {
+			auto& brush = itr->second;
+            if (brush.BrushSizeX != GetExtension()->BrushSizeX || brush.BrushSizeY != GetExtension()->BrushSizeY)
+            {
+                brush.BrushSizeX = GetExtension()->BrushSizeX;
+                brush.BrushSizeY = GetExtension()->BrushSizeY;
+                brush.BrushSizeIndex = ((CComboBox*)CFinalSunDlg::Instance->BrushSize.GetDlgItem(1377))->GetCurSel();
+            }
+		}
+		return;        
+    }
+
+	LastMouseCommand = record;
+	auto [itr, inserted] = MouseCommandBrushSizeRecords.try_emplace(record);
+    MouseCommandBrush* brush = &itr->second;   
+    if (inserted)
+    {
+        brush->BrushSizeX = GetExtension()->BrushSizeX;
+        brush->BrushSizeY = GetExtension()->BrushSizeY;
+		brush->BrushSizeIndex = ((CComboBox*)CFinalSunDlg::Instance->BrushSize.GetDlgItem(1377))->GetCurSel();
+	}
+    else
+    {
+        CFinalSunDlg::Instance->BrushSize.nCurSel = brush->BrushSizeIndex;
+        CFinalSunDlg::Instance->BrushSize.UpdateData(FALSE);
+        GetExtension()->BrushSizeX = brush->BrushSizeX;
+        GetExtension()->BrushSizeY = brush->BrushSizeY;
+    }
 }
 
 BOOL CIsoViewExt::PreTranslateMessageExt(MSG *pMsg)

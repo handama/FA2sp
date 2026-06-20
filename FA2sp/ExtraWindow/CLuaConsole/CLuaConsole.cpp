@@ -3,6 +3,7 @@
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Helpers/MultimapHelper.h"
+#include "../CLuaDialog/CLuaDialog.h"
 #include "../Common.h"
 #include "../CNewAITrigger/CNewAITrigger.h"
 #include "../CNewTeamTypes/CNewTeamTypes.h"
@@ -970,6 +971,16 @@ void CLuaConsole::Initialize(HWND& hWnd)
         lua_pushstring(Lua, "__SCRIPT_ABORT__");
         return lua_error(Lua);
     });
+
+    Lua.new_usertype<CLuaDialog>("LuaDialog",
+        sol::constructors<CLuaDialog(std::string), CLuaDialog(std::string, bool), CLuaDialog(std::string, bool, int, int)>(),
+        "add_checkbox", &CLuaDialog::AddCheckBox,
+        "add_edit", &CLuaDialog::AddEdit,
+        "add_combobox", &CLuaDialog::AddComboBox,
+        "do_modal", &CLuaDialog::DoModal,
+        "add_listbox", &CLuaDialog::AddListBox,
+        "add_multilistbox", &CLuaDialog::AddMultiListBox
+    );
 
     Update(hWnd);
 }

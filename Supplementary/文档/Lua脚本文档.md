@@ -1,3 +1,4 @@
+
 # Lua 脚本 API 文档
 
 本文档详细描述了 FA2spHE 中 Lua 脚本环境所提供的所有函数、数据类型以及它们的用法。
@@ -54,7 +55,7 @@
 -- 遍历地图上所有单元格时，可用 width() 和 height() 获取边界
 for x = 0, width() - 1 do
     for y = 0, height() - 1 do
-        -- 操作每个格子
+        -- 操作每个单元格
     end
 end
 ```
@@ -228,6 +229,137 @@ for i, id in ipairs(selected_triggers) do
     t:apply()
 end
 ```
+
+---
+
+### `LuaDialog` 类
+
+自定义模态对话框，支持手动布局和自动排布两种模式，可添加 CheckBox、Edit、ComboBox、ListBox、MultiListBox 等控件。
+
+#### `LuaDialog:new(title, [autoLayout = false], [width = 420], [height = 320])` （构造函数）
+- **说明**：创建自定义对话框实例。当 `autoLayout` 为 `true` 时，`width` 和 `height` 会被忽略，窗口尺寸根据控件自动计算。
+- **参数**：
+  - `title` (`string`) — 对话框标题。
+  - `autoLayout` (`boolean`, 可选) — 是否启用自动排布。默认为 `false`。
+  - `width` (`number`, 可选) — 对话框宽度（像素）。默认为 `420`。
+  - `height` (`number`, 可选) — 对话框高度（像素）。默认为 `320`。
+- **返回** (`LuaDialog`)：对话框实例。
+
+**方法**：
+
+#### `add_checkbox(key, label, default_value, [x = 0], [y = 0], [w = 0], [h = 0])`
+- **说明**：添加一个复选框控件。`label` 为控件自带文本。
+- **参数**：
+  - `key` (`string`) — 返回值键名。
+  - `label` (`string`) — 控件显示文本。
+  - `default_value` (`boolean`) — 默认选中状态。
+  - `x, y, w, h` (`number`, 可选) — 位置与尺寸。自动排布模式下可省略。
+- **返回**：无。
+
+#### `add_edit(key, label, [default_value = ""], [x = 0], [y = 0], [w = 0], [h = 0])`
+- **说明**：添加一个文本输入框控件。`label` 为控件上方静态标签。
+- **参数**：
+  - `key` (`string`) — 返回值键名。
+  - `label` (`string`) — 标签文本。
+  - `default_value` (`string`, 可选) — 默认值。默认为 `""`。
+  - `x, y, w, h` (`number`, 可选) — 位置与尺寸。自动排布模式下可省略。
+- **返回**：无。
+
+#### `add_combobox(key, label, items, [default_value = ""], [readOnly = false], [x = 0], [y = 0], [w = 0], [h = 0])`
+- **说明**：添加一个下拉框控件。`label` 为控件上方静态标签。
+- **参数**：
+  - `key` (`string`) — 返回值键名。
+  - `label` (`string`) — 标签文本。
+  - `items` (`table<string>`) — 下拉选项列表（Lua 数组）。
+  - `default_value` (`string`, 可选) — 默认选中项。默认为 `""`。
+  - `readOnly` (`boolean`, 可选) — 是否只读（不可编辑）。默认为 `false`。
+  - `x, y, w, h` (`number`, 可选) — 位置与尺寸。自动排布模式下可省略。
+- **返回**：无。
+
+#### `add_listbox(key, label, items, [x = 0], [y = 0], [w = 0], [h = 0])`
+- **说明**：添加一个单选列表框控件。`label` 为控件上方静态标签。
+- **参数**：
+  - `key` (`string`) — 返回值键名。
+  - `label` (`string`) — 标签文本。
+  - `items` (`table<string>`) — 列表选项（Lua 数组）。
+  - `x, y, w, h` (`number`, 可选) — 位置与尺寸。自动排布模式下可省略。
+- **返回**：无。
+
+#### `add_multilistbox(key, label, items, [x = 0], [y = 0], [w = 0], [h = 0])`
+- **说明**：添加一个多选列表框控件。`label` 为控件上方静态标签。
+- **参数**：
+  - `key` (`string`) — 返回值键名。
+  - `label` (`string`) — 标签文本。
+  - `items` (`table<string>`) — 列表选项（Lua 数组）。
+  - `x, y, w, h` (`number`, 可选) — 位置与尺寸。自动排布模式下可省略。
+- **返回**：无。
+
+#### `do_modal()`
+- **说明**：弹出模态对话框，阻塞脚本直到用户关闭。
+- **返回** (`table | nil`)：若用户点击确定，返回一个表，键为控件注册的 `key`，值为对应的用户输入：
+  - CheckBox：`boolean`
+  - Edit：`string`
+  - ComboBox：`string`
+  - ListBox：`string`（选中项）
+  - MultiListBox：`table<string>`（选中项数组）
+  
+  若用户点击取消，返回 `nil`。
+
+**典型用法**：
+
+**示例一：手动布局**
+```lua
+local dlg = LuaDialog:new("地图设置", false, 225, 460)
+
+dlg:add_checkbox("fog", "启用战争迷雾", true, 10, 10, 200, 18)
+dlg:add_edit("author", "作者名", "玩家", 10, 30, 200, 18)
+dlg:add_combobox("size", "地图大小", {"小型", "中型", "大型"}, "中型", false, 10, 70, 200, 18)
+dlg:add_multilistbox("sides", "可用阵营", {"盟军", "苏联", "尤里", "GDI", "Nod"}, 10, 110, 200, 120)
+dlg:add_listbox("tech", "科技等级", {"T1", "T2", "T3", "T4"}, 10, 250, 200, 120)
+
+local result = dlg:do_modal()
+if result then
+    print("迷雾: " .. tostring(result.fog))
+    print("作者: " .. result.author)
+    print("地图大小: " .. result.size)
+    for i = 1, #result.sides do
+        print("可用阵营: " .. result.sides[i])
+    end
+    print("科技等级: " .. result.tech)
+else
+    print("用户取消了对话框")
+end
+```
+
+**示例二：自动排布模式**
+```lua
+local dlg = LuaDialog:new("地图设置", true)
+
+dlg:add_checkbox("fog", "启用战争迷雾", true)
+dlg:add_edit("author", "作者名", "玩家")
+dlg:add_combobox("size", "地图大小", {"小型", "中型", "大型"}, "中型")
+dlg:add_multilistbox("sides", "可用阵营", {"盟军", "苏联", "尤里", "GDI", "Nod"})
+dlg:add_listbox("tech", "科技等级", {"T1", "T2", "T3", "T4"})
+
+local result = dlg:do_modal()
+if result then
+    print("迷雾: " .. tostring(result.fog))
+    print("作者: " .. result.author)
+    print("地图大小: " .. result.size)
+    for i = 1, #result.sides do
+        print("可用阵营: " .. result.sides[i])
+    end
+    print("科技等级: " .. result.tech)
+else
+    print("用户取消了对话框")
+end
+```
+
+**自动排布规则**：
+- 控件从上到下纵向排列，起始位置 `(10, 10)`。
+- 当累计高度超过 500 像素时，自动换到下一列（列间距 215 像素）。
+- 控件默认尺寸：CheckBox/Edit/ComboBox 为 `200×18`，ListBox 为 `200×120`。
+- 步进间距：CheckBox 为 `h + 6`，其余为 `h + 22`（含标签高度）。
 
 ---
 
@@ -713,7 +845,7 @@ redraw_window()
 
 ---
 
-## 九、地形与格子
+## 九、地形与单元格
 
 ### `cell` 类
 
@@ -753,15 +885,15 @@ redraw_window()
 **方法**：
 
 #### `is_hidden()`
-- **说明**：判断该格子是否因任何原因（单个隐藏或同类地形组隐藏）被隐藏。
+- **说明**：判断该单元格是否因任何原因（单个隐藏或同类地形组隐藏）被隐藏。
 - **返回** (`boolean`)：是否隐藏。
 
 #### `is_multi_selected()`
-- **说明**：判断该格子是否处于多选模式选中状态。
+- **说明**：判断该单元格是否处于多选模式选中状态。
 - **返回** (`boolean`)：是否多选。
 
 #### `apply()`
-- **说明**：将对 `overlay`、`overlay_data`、`tile`、`subtile`、`height`、`hidden` 等属性的修改 **立即写入地图**，并刷新该格子的预览。**重要**：修改属性后必须调用此方法才能生效！
+- **说明**：将对 `overlay`、`overlay_data`、`tile`、`subtile`、`height`、`hidden` 等属性的修改 **立即写入地图**，并刷新该单元格的预览。**重要**：修改属性后必须调用此方法才能生效！
 - **返回**：无。
 
 **重要提示**：`cell` 对象是地图编辑的核心。修改 `tile`、`overlay` 等属性后，**必须调用 `cell:apply()`**，否则修改不会写入地图 INI。若需要立即看到效果，之后可调用 `redraw_window()`。
@@ -821,7 +953,7 @@ cell:apply()
 - **参数**：
   - `x, y` (`number`) — 坐标。
   - `tile_obj` (`tile`) — 地形块对象。
-  - `height` (`number`, 可选) — 高度，`-1` 表示使用当前格子高度加上块高度。默认为 `-1`。
+  - `height` (`number`, 可选) — 高度，`-1` 表示使用当前单元格高度加上块高度。默认为 `-1`。
   - `alt_type` (`number`, 可选) — 替换图像类型，`-1` 表示随机选择。默认为 `-1`。
 - **返回**：无。
 
@@ -1110,7 +1242,7 @@ local trigger = trigger:new(new_id)
 #### `update_minimap([x, y])`
 - **说明**：重绘小地图。不传参数则全图重绘；传入坐标则只重绘那一格。
 - **参数**：
-  - `x, y` (`number`, 可选) — 要重绘的格子坐标。
+  - `x, y` (`number`, 可选) — 要重绘的单元格坐标。
 - **返回**：无。
 
 ### 快照

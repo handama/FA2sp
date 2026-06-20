@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -218,6 +218,7 @@
     <ClCompile Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\LuaFunctions.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CLuaDialog\CLuaDialog.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CMapRendererDlg\CMapRendererDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CMeasurementToolbox\CMeasurementToolbox.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CMiscSettings\CMiscSettings.cpp" />
@@ -377,6 +378,7 @@
     <ClInclude Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CLuaDialog\CLuaDialog.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CMapRendererDlg\CMapRendererDlg.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CMeasurementToolbox\CMeasurementToolbox.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CMiscSettings\CMiscSettings.h" />
@@ -473,6 +475,7 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CLuaDialog\CLuaDialog.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CMapRendererDlg\CMapRendererDlg.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CMeasurementToolbox\CMeasurementToolbox.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CMiscSettings\CMiscSettings.rc" />
@@ -552,7 +555,7 @@
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
-      <ErrorText>这台计算机上缺少此项目引用的 NuGet 程序包。使用“NuGet 程序包还原”可下载这些程序包。有关更多信息，请参见 http://go.microsoft.com/fwlink/?LinkID=322105。缺少的文件是 {0}。</ErrorText>
+      <ErrorText>This project references NuGet package(s) that are not installed on this computer. Use NuGet Package Restore to download them. For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. Missing file: {0}.</ErrorText>
     </PropertyGroup>
     <Error Condition="!Exists('packages\openssl-vc142.1.1.0\build\native\openssl-vc142.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\openssl-vc142.1.1.0\build\native\openssl-vc142.targets'))" />
     <Error Condition="!Exists('packages\lua.5.4.8\build\native\Lua.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\lua.5.4.8\build\native\Lua.targets'))" />

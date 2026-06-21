@@ -1708,31 +1708,5 @@ DEFINE_HOOK(4A16A0, CMapData_ClearOverlay, 8)
 	return 0x4A16B4;
 }
 
-DEFINE_HOOK(4AFA90, CMapData_AddCelltag, 7)
-{
-	GET(CMapDataExt*, pThis, ECX);
-	GET_STACK(const char*, lpTag, 0x4);
-	GET_STACK(int, dwPos, 0x8);
-
-	int X = pThis->GetXFromCoordIndex(dwPos);
-	int Y = pThis->GetYFromCoordIndex(dwPos);
-	auto pIsoView = CIsoViewExt::GetExtension();
-    for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
-    {
-        for (int gy = Y - pIsoView->BrushSizeY / 2; gy <= Y + pIsoView->BrushSizeY / 2; gy++)
-        {
-            if (!CMapDataExt::IsCoordInFullMap(gx, gy))
-                continue;
-
-			int intKey = gx * 1000 + gy;
-			CINI::CurrentDocument->WriteString("CellTags", std::to_string(intKey).c_str(), lpTag);
-        }
-    }
-
-    CMapData::Instance->UpdateFieldCelltagData(FALSE);
-
-	R->EAX(TRUE);
-	return 0x4AFD60;
-}
 
 

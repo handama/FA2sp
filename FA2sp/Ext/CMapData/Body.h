@@ -772,8 +772,9 @@ public:
     static void GetBuildingDataByIniID(int bldID, CBuildingData& data);
     static int GetSafeTileIndex(int idx);
     static int GetSafeSubTileIndex(int tile, int idx);
+	static void AddCellTagExt(const char* lpTag, int dwPos);
 
-    // damageStage = -1 means read the target cell overlayData to determine
+	// damageStage = -1 means read the target cell overlayData to determine
     static void PlaceWallAt(int dwPos, int overlay, int damageStage = -1, bool firstRun = true);
     static int GetInfantryAt(int dwPos, int dwSubPos = -1);
     static std::vector<int> GetStructureSize(ppmfc::CString structure);

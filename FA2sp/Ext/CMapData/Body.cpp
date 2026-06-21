@@ -971,6 +971,27 @@ int CMapDataExt::GetSafeSubTileIndex(int tile, int idx)
 	return 0;
 }
 
+void CMapDataExt::AddCellTagExt(const char* lpTag, int dwPos)
+{
+	auto pThis = GetExtension();
+	int X = pThis->GetXFromCoordIndex(dwPos);
+	int Y = pThis->GetYFromCoordIndex(dwPos);
+	auto pIsoView = CIsoViewExt::GetExtension();
+    for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
+    {
+        for (int gy = Y - pIsoView->BrushSizeY / 2; gy <= Y + pIsoView->BrushSizeY / 2; gy++)
+        {
+            if (!CMapDataExt::IsCoordInFullMap(gx, gy))
+                continue;
+
+			int intKey = gx * 1000 + gy;
+			CINI::CurrentDocument->WriteString("CellTags", std::to_string(intKey).c_str(), lpTag);
+        }
+    }
+
+    CMapData::Instance->UpdateFieldCelltagData(FALSE);
+}
+
 void CMapDataExt::UpdateTriggers()
 {
 	CMapDataExt::Triggers.clear();
@@ -2153,6 +2174,10 @@ void CMapDataExt::UpdateFieldStructureData_Optimized()
 		if (ExtConfigs::InGameDisplay_RemapableOverlay)
 		{
 			RemapableOverlay_RefreshBuildingIndices();
+		}
+		if (CFinalSunDlgExt::CurrentLighting != 31000)
+		{		
+			LightingSourceTint::CalculateMapLamps();
 		}
 	}
 }

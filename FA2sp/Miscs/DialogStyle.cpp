@@ -1152,6 +1152,10 @@ LRESULT CALLBACK DarkTheme::EditSubclassProc(
     {
     case WM_NCPAINT:
     {
+        if (GetPropW(hWnd, L"LuaDialog_LabelEdit"))
+        {
+            return 0;
+        }
         DefWindowProc(hWnd, uMsg, wParam, lParam);
         HDC hdc = GetWindowDC(hWnd);
 

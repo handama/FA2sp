@@ -3,6 +3,7 @@
 #include "../../FA2sp.h"
 #include "../../Ext/CFinalSunApp/Body.h"
 #include "../../Miscs/DialogStyle.h"
+#include "../../Helpers/Translations.h"
 
 CLuaDialog::CLuaDialog(const std::string& title, bool autoLayout, int width, int height)
     : ppmfc::CDialog(CLuaDialog::IDD, CFinalSunDlg::Instance)
@@ -148,6 +149,11 @@ BOOL CLuaDialog::OnInitDialog()
     CDialog::OnInitDialog();
 
     SetWindowText(m_title.c_str());
+	FString buffer;
+	if (Translations::GetTranslationItem("OK", buffer))
+		GetDlgItem(1)->SetWindowTextA(buffer);
+    if (Translations::GetTranslationItem("Cancel", buffer))
+        GetDlgItem(2)->SetWindowTextA(buffer);
 
     const float scale = CFinalSunAppExt::ProgramScaleFactor;
 
@@ -325,6 +331,7 @@ BOOL CLuaDialog::OnInitDialog()
                 if (hFont) ::SendMessage(hCtrl, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
                 ::SendMessage(hCtrl, EM_SETBKGNDCOLOR, 0,
                     ::GetSysColor(COLOR_BTNFACE));
+                ::SetPropW(hCtrl, L"LuaDialog_LabelEdit", (HANDLE)1);
             }
             break;
         }
@@ -355,8 +362,10 @@ void CLuaDialog::OnOK()
         }
         if (!pCtrl) continue;
 
-        HWND hCtrl = GetDlgItem(id)->GetSafeHwnd();
-        if (!hCtrl) continue;
+		auto dlg = GetDlgItem(id);
+        if (!dlg) continue;
+		HWND hCtrl = dlg->GetSafeHwnd();
+		if (!hCtrl) continue;
 
         switch (pCtrl->Type)
         {

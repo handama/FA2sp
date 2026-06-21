@@ -294,6 +294,13 @@ end
   - `x, y, w, h` (`number`, 可选) — 位置与尺寸。自动排布模式下可省略。
 - **返回**：无。
 
+#### `add_label(text, [x = 0], [y = 0], [w = 0], [h = 0])`
+- **说明**：添加一个纯文本标签控件，仅用于显示，不参与返回值。
+- **参数**：
+  - `text` (`string`) — 显示文本。
+  - `x, y, w, h` (`number`, 可选) — 位置与尺寸。自动排布模式下高度会根据文本内容通过 `DrawText` 真实渲染计算（自动换行）。
+- **返回**：无。
+
 #### `do_modal()`
 - **说明**：弹出模态对话框，阻塞脚本直到用户关闭。
 - **返回** (`table | nil`)：若用户点击确定，返回一个表，键为控件注册的 `key`，值为对应的用户输入：
@@ -309,13 +316,14 @@ end
 
 **示例一：手动布局**
 ```lua
-local dlg = LuaDialog:new("地图设置", false, 225, 460)
+local dlg = LuaDialog:new("地图设置", false, 225, 480)
 
 dlg:add_checkbox("fog", "启用战争迷雾", true, 10, 10, 200, 18)
 dlg:add_edit("author", "作者名", "玩家", 10, 30, 200, 18)
 dlg:add_combobox("size", "地图大小", {"小型", "中型", "大型"}, "中型", false, 10, 70, 200, 18)
-dlg:add_multilistbox("sides", "可用阵营", {"盟军", "苏联", "尤里", "GDI", "Nod"}, 10, 110, 200, 120)
-dlg:add_listbox("tech", "科技等级", {"T1", "T2", "T3", "T4"}, 10, 250, 200, 120)
+dlg:add_label("这是一段说明文字", 10, 110, 200, 18)
+dlg:add_multilistbox("sides", "可用阵营", {"盟军", "苏联", "尤里", "GDI", "Nod"}, 10, 130, 200, 120)
+dlg:add_listbox("tech", "科技等级", {"T1", "T2", "T3", "T4"}, 10, 270, 200, 120)
 
 local result = dlg:do_modal()
 if result then
@@ -338,6 +346,7 @@ local dlg = LuaDialog:new("地图设置", true)
 dlg:add_checkbox("fog", "启用战争迷雾", true)
 dlg:add_edit("author", "作者名", "玩家")
 dlg:add_combobox("size", "地图大小", {"小型", "中型", "大型"}, "中型")
+dlg:add_label("这是一段说明文字，在自动排布模式下可以自行计算高度")
 dlg:add_multilistbox("sides", "可用阵营", {"盟军", "苏联", "尤里", "GDI", "Nod"})
 dlg:add_listbox("tech", "科技等级", {"T1", "T2", "T3", "T4"})
 
@@ -358,8 +367,8 @@ end
 **自动排布规则**：
 - 控件从上到下纵向排列，起始位置 `(10, 10)`。
 - 当累计高度超过 500 像素时，自动换到下一列（列间距 215 像素）。
-- 控件默认尺寸：CheckBox/Edit/ComboBox 为 `200×18`，ListBox 为 `200×120`。
-- 步进间距：CheckBox 为 `h + 6`，其余为 `h + 22`（含标签高度）。
+- 控件默认尺寸：CheckBox/Edit/ComboBox 为 `200×18`，ListBox 为 `200×120`，Label 为 `200×h`（h 根据文本长度自动计算）。
+- 步进间距：CheckBox/Label 为 `h + 6`，其余为 `h + 22`（含标签高度）。
 
 ---
 

@@ -3,7 +3,6 @@
 #include "../../FA2sp.h"
 #include "../../Ext/CFinalSunApp/Body.h"
 #include "../../Miscs/DialogStyle.h"
-#include "../../Helpers/Translations.h"
 
 CLuaDialog::CLuaDialog(const std::string& title, bool autoLayout, int width, int height)
     : ppmfc::CDialog(CLuaDialog::IDD, CFinalSunDlg::Instance)
@@ -22,9 +21,10 @@ void CLuaDialog::ApplyAutoLayout(ControlType type, int& x, int& y, int& w, int& 
     case ControlType::Edit:      w = 200; h = 18; break;
     case ControlType::Combobox:  w = 200; h = 18; break;
     case ControlType::ListBox:   w = 200; h = 120; break;
+    case ControlType::Label:     w = 200; break;
     }
 
-    int step = (type == ControlType::CheckBox) ? (h + 6) : (h + 22);
+    int step = (type == ControlType::CheckBox || type == ControlType::Label) ? (h + 6) : (h + 22);
     if (m_autoLayoutY + step > m_autoLayoutMaxY)
     {
         m_autoLayoutX += m_autoLayoutColWidth;
@@ -112,15 +112,41 @@ void CLuaDialog::AddMultiListBox(const std::string& key, const std::string& labe
         false, false, true, "", vec });
 }
 
+void CLuaDialog::AddLabel(const std::string& text,
+    int x, int y, int w, int h)
+{
+    if (m_autoLayout)
+    {
+        w = 200;
+        float scale = CFinalSunAppExt::ProgramScaleFactor;
+        HFONT hFont = DarkTheme::GetModernDefaultGUIFont();
+        HDC hDC = ::GetDC(nullptr);
+        if (hDC && hFont)
+        {
+            HFONT hOldFont = static_cast<HFONT>(::SelectObject(hDC, hFont));
+            RECT rc = { 0, 0, static_cast<int>(w * scale) - 4, 0 }; 
+            ::DrawTextA(hDC, text.c_str(), -1, &rc, DT_CALCRECT | DT_WORDBREAK | DT_EDITCONTROL);
+            h = static_cast<int>((rc.bottom - rc.top) / scale);
+            TEXTMETRICA tm;
+            ::GetTextMetricsA(hDC, &tm);
+            int minH = static_cast<int>((tm.tmHeight + 4) / scale);
+            if (h < minH) h = minH;
+            ::SelectObject(hDC, hOldFont);
+        }
+        else
+        {
+            h = 16;
+        }
+        if (hDC) ::ReleaseDC(nullptr, hDC);
+        ApplyAutoLayout(ControlType::Label, x, y, w, h);
+    }
+    m_controls.push_back({ "", ControlType::Label, text, x, y, w, h });
+}
+
 BOOL CLuaDialog::OnInitDialog()
 {
     CDialog::OnInitDialog();
 
-	FString buffer;
-	if (Translations::GetTranslationItem("OK", buffer))
-		GetDlgItem(1)->SetWindowTextA(buffer);
-	if (Translations::GetTranslationItem("Cancel", buffer))
-		GetDlgItem(2)->SetWindowTextA(buffer);
     SetWindowText(m_title.c_str());
 
     const float scale = CFinalSunAppExt::ProgramScaleFactor;
@@ -132,13 +158,13 @@ BOOL CLuaDialog::OnInitDialog()
         {
             int r = c.X + c.W;
             int b = c.Y + c.H;
-            if (c.Type != ControlType::CheckBox)
-                b += 16;
+            if (c.Type != ControlType::CheckBox && c.Type != ControlType::Label)
+                b += 16; 
             if (r > maxRight) maxRight = r;
             if (b > maxBottom) maxBottom = b;
         }
         int clientW = maxRight + 10;
-        int clientH = maxBottom + 50 / scale; 
+        int clientH = maxBottom + 34;
         RECT rc = { 0, 0, clientW, clientH };
         AdjustWindowRect(&rc, GetStyle(), FALSE);
         m_width = rc.right - rc.left;
@@ -176,6 +202,7 @@ BOOL CLuaDialog::OnInitDialog()
         ::SetWindowPos(hCancel, nullptr, cancelX, btnY, btnW, btnH, SWP_NOZORDER);
         if (hFont) ::SendMessage(hCancel, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
     }
+
     int labelH = static_cast<int>(16 * scale);
     int labelOffset = static_cast<int>(16 * scale);
 
@@ -189,7 +216,7 @@ BOOL CLuaDialog::OnInitDialog()
         int h = static_cast<int>(ctrl.H * scale);
 
         int ctrlY = y;
-        if (ctrl.Type != ControlType::CheckBox)
+        if (ctrl.Type != ControlType::CheckBox && ctrl.Type != ControlType::Label)
         {
             ctrlY = y + labelOffset;
             if (!ctrl.Label.empty())
@@ -282,6 +309,22 @@ BOOL CLuaDialog::OnInitDialog()
                     ::SendMessage(hCtrl, LB_ADDSTRING, 0,
                         reinterpret_cast<LPARAM>(item.c_str()));
                 }
+            }
+            break;
+        }
+
+        case ControlType::Label:
+        {
+            hCtrl = CreateWindowA("EDIT", ctrl.Label.c_str(),
+                WS_CHILD | WS_VISIBLE | ES_READONLY | ES_MULTILINE,
+                x, y, w, h,
+                GetSafeHwnd(), nullptr,
+                reinterpret_cast<HINSTANCE>(FA2sp::hInstance), nullptr);
+            if (hCtrl)
+            {
+                if (hFont) ::SendMessage(hCtrl, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
+                ::SendMessage(hCtrl, EM_SETBKGNDCOLOR, 0,
+                    ::GetSysColor(COLOR_BTNFACE));
             }
             break;
         }

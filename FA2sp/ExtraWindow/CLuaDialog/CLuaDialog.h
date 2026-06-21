@@ -15,6 +15,7 @@ public:
         Edit,
         Combobox,
         ListBox,
+        Label,
     };
 
     struct ControlDef
@@ -53,6 +54,9 @@ public:
 
     void AddMultiListBox(const std::string& key, const std::string& label,
         sol::table items,
+        int x = 0, int y = 0, int w = 0, int h = 0);
+
+    void AddLabel(const std::string& text,
         int x = 0, int y = 0, int w = 0, int h = 0);
 
     sol::object DoModal(sol::this_state s);

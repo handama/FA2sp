@@ -979,7 +979,8 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "add_combobox", &CLuaDialog::AddComboBox,
         "do_modal", &CLuaDialog::DoModal,
         "add_listbox", &CLuaDialog::AddListBox,
-        "add_multilistbox", &CLuaDialog::AddMultiListBox
+        "add_multilistbox", &CLuaDialog::AddMultiListBox,
+        "add_label", &CLuaDialog::AddLabel
     );
 
     Update(hWnd);

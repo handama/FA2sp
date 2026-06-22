@@ -6,7 +6,7 @@
 #include "../../Helpers/Translations.h"
 
 CLuaDialog::CLuaDialog(const std::string& title, bool autoLayout, int width, int height)
-    : ppmfc::CDialog(CLuaDialog::IDD, CFinalSunDlg::Instance)
+    : ppmfc::CDialog(CLuaDialog::IDD, nullptr)
     , m_title(title)
     , m_width(width)
     , m_height(height)

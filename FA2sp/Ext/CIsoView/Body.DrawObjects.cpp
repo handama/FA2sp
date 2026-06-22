@@ -1535,18 +1535,6 @@ static void DrawMap()
 		pThis->GetWindowRect(&window);
 		CIsoViewExt::AdaptRectForSecondScreen(&window);
 
-		double scale = CIsoViewExt::ScaledFactor;
-		if (scale < 0.9)
-			scale += 0.1;
-		if (scale < 0.7)
-			scale += 0.1;
-		if (scale < 0.5)
-			scale += 0.1;
-		window.right += window.Width() * (scale - 1.0);
-		if (scale < 1.0)
-			scale = 1.0;
-		window.bottom += window.Height() * (scale - 1.0);
-
 		VisibleCoordTL.X = window.left + pThis->ViewPosition.x;
 		VisibleCoordTL.Y = window.top + pThis->ViewPosition.y;
 		VisibleCoordBR.X = window.right + pThis->ViewPosition.x;
@@ -1563,6 +1551,18 @@ static void DrawMap()
 			VisibleCoordTL.X = CMapData::Instance->Size.Width;
 			VisibleCoordTL.Y = 0;
 		}
+
+		double scale = CIsoViewExt::ScaledFactor;
+		if (scale < 0.9)
+			scale += 0.1;
+		if (scale < 0.7)
+			scale += 0.1;
+		if (scale < 0.5)
+			scale += 0.1;
+		window.right += window.Width() * (scale - 1.0);
+		if (scale < 1.0)
+			scale = 1.0;
+		window.bottom += window.Height() * (scale - 1.0);
 	}
 
 	pFinalSunDlg->LastSucceededOperation = 100;
@@ -1590,7 +1590,7 @@ static void DrawMap()
 		{
 			int Y = XplusY - X;
 			if (!IsCoordInWindow(X, Y) || !isCoordInFullMap(X, Y))
-				continue;
+				continue;		
 			int pos = CMapData::Instance->GetCoordIndex(X, Y);
 			int screenX = X, screenY = Y;
 			CIsoView::MapCoord2ScreenCoord(screenX, screenY);

@@ -3230,7 +3230,6 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC, bool bScreenSpace)
             {
                 int nCount = 0;
                 auto pExt = CMapDataExt::GetExtension();
-                pExt->InitOreValue();
                 MultiSelection::ApplyForEach(
                     [&nCount, pExt](CellData &cell, CellDataExt &cellExt)
                     {
@@ -3240,7 +3239,79 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC, bool bScreenSpace)
                 buffer.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelection",
                                                                "MultiSelection Enabled. Selected Credits: %d"),
                               nCount);
-                FString buffer2;
+
+                FString bufferOres;
+				int OreTypeCount = 0;
+				FString buffer2;
+				int nCount2 = 0;
+				MultiSelection::ApplyForEach(
+                    [&nCount2, pExt](CellData &cell, CellDataExt &cellExt)
+                    {
+                        if (cellExt.NewOverlay >= RIPARIUS_BEGIN && cellExt.NewOverlay <= RIPARIUS_END)
+                            nCount2 += pExt->GetOreValue(cellExt.NewOverlay, cell.OverlayData);
+                    }); 
+                if(nCount2 != 0)
+                {
+                    buffer2.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelection.Riparius",
+                        ", Ore: %d"),
+                        nCount2);
+                    bufferOres += buffer2;
+                    nCount2 = 0;
+					OreTypeCount++;
+				}   
+
+				MultiSelection::ApplyForEach(
+                    [&nCount2, pExt](CellData &cell, CellDataExt &cellExt)
+                    {
+                        if (cellExt.NewOverlay >= CRUENTUS_BEGIN && cellExt.NewOverlay <= CRUENTUS_END)
+                            nCount2 += pExt->GetOreValue(cellExt.NewOverlay, cell.OverlayData);
+                    }); 
+                if(nCount2 != 0)
+                {
+                    buffer2.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelection.Cruentus",
+                        ", Gems: %d"),
+                        nCount2);
+                    bufferOres += buffer2;
+                    nCount2 = 0;
+					OreTypeCount++;
+                }  
+
+                MultiSelection::ApplyForEach(
+                    [&nCount2, pExt](CellData &cell, CellDataExt &cellExt)
+                    {
+                        if (cellExt.NewOverlay >= VINIFERA_BEGIN && cellExt.NewOverlay <= VINIFERA_END)
+                            nCount2 += pExt->GetOreValue(cellExt.NewOverlay, cell.OverlayData);
+                    }); 
+                if(nCount2 != 0)
+                {
+                    buffer2.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelection.Vinifera",
+                        ", Ore 3: %d"),
+                        nCount2);
+                    bufferOres += buffer2;
+                    nCount2 = 0;
+					OreTypeCount++;
+                }  
+
+                MultiSelection::ApplyForEach(
+                    [&nCount2, pExt](CellData &cell, CellDataExt &cellExt)
+                    {
+                        if (cellExt.NewOverlay >= ABOREUS_BEGIN && cellExt.NewOverlay <= ABOREUS_END)
+                            nCount2 += pExt->GetOreValue(cellExt.NewOverlay, cell.OverlayData);
+                    }); 
+                if(nCount2 != 0)
+                {
+                    buffer2.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelection.Aboreus",
+                        ", Ore 4: %d"),
+                        nCount2);
+                    bufferOres += buffer2;
+                    nCount2 = 0;
+					OreTypeCount++;
+                }  
+                if (OreTypeCount > 1)
+                {
+                    buffer += bufferOres;
+                }
+
                 buffer2.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelectionCoords",
                                                                 ", Selected Tiles: %d"),
                                MultiSelection::SelectedCoords.size());

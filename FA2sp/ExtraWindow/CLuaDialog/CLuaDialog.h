@@ -3,10 +3,11 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <functional>
+#include <memory>
 #include "../../Sol/sol.hpp"
+#include "../Common.h"
 
-class CLuaDialog : public ppmfc::CDialog
+class CLuaDialog
 {
 public:
     enum class ControlType
@@ -32,7 +33,7 @@ public:
     };
 
     CLuaDialog(const std::string& title, bool autoLayout = false, int width = 420, int height = 320);
-    virtual ~CLuaDialog() = default;
+    virtual ~CLuaDialog();
 
     void AddCheckBox(const std::string& key, const std::string& label,
         bool defaultValue,
@@ -64,12 +65,14 @@ public:
     enum { IDD = 345 };
 
 protected:
-    virtual BOOL OnInitDialog() override;
-    virtual void OnOK() override;
-    virtual void OnCancel() override;
-    virtual void DoDataExchange(ppmfc::CDataExchange* pDX) override;
-
     void ApplyAutoLayout(ControlType type, int& x, int& y, int& w, int& h);
+
+    static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+    BOOL OnInitDialog(HWND hWnd);
+    void OnOK(HWND hWnd);
+    void OnCancel(HWND hWnd);
+    void CollectResults(HWND hWnd);
+    void RestoreDisabledWindows();
 
     std::string m_title;
     int m_width;
@@ -87,4 +90,7 @@ protected:
     std::map<std::string, std::vector<std::string>> m_listResults;
     int m_nextId = 10000;
     bool m_accepted = false;
+
+    std::map<HWND, std::unique_ptr<VirtualComboBoxEx>> m_comboBoxes;
+    std::vector<HWND> m_disabledWindows;
 };

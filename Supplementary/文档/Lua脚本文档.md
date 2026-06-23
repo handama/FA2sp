@@ -266,13 +266,13 @@ end
 - **返回**：无。
 
 #### `add_combobox(key, label, items, [default_value = ""], [readOnly = false], [x = 0], [y = 0], [w = 0], [h = 0])`
-- **说明**：添加一个下拉框控件。`label` 为控件上方静态标签。
+- **说明**：添加一个下拉框控件。`label` 为控件上方静态标签。此控件可以在编辑框内输入文本执行搜索，且性能更好，当选项列表为地图触发等大批量内容时，建议使用本窗口而不是 `select_box`。
 - **参数**：
   - `key` (`string`) — 返回值键名。
   - `label` (`string`) — 标签文本。
   - `items` (`table<string>`) — 下拉选项列表（Lua 数组）。
   - `default_value` (`string`, 可选) — 默认选中项。默认为 `""`。
-  - `readOnly` (`boolean`, 可选) — 是否只读（不可编辑）。默认为 `false`。
+  - `readOnly` (`boolean`, 可选) — 是否只读（可以编辑文本执行搜索）。默认为 `false`。
   - `x, y, w, h` (`number`, 可选) — 位置与尺寸。自动排布模式下可省略。
 - **返回**：无。
 

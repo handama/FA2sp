@@ -57,8 +57,22 @@ public:
         sol::table items,
         int x = 0, int y = 0, int w = 0, int h = 0);
 
-    void AddLabel(const std::string& text,
+    void AddLabel(const std::string& key, const std::string& text,
         int x = 0, int y = 0, int w = 0, int h = 0);
+
+    void OnEvent(const std::string& key, const std::string& eventType, sol::function callback);
+    bool GetBool(const std::string& key);
+    std::string GetString(const std::string& key);
+    void SetEnabled(const std::string& key, bool enabled);
+    void SetVisible(const std::string& key, bool visible);
+    void SetListItems(const std::string& key, sol::table items);
+    void SetComboItems(const std::string& key, sol::table items);
+    void SetText(const std::string& key, const std::string& text);
+    void SetCheck(const std::string& key, bool checked);
+    bool GetEnabled(const std::string& key);
+    bool GetVisible(const std::string& key);
+    void SetPosition(const std::string& key, int x, int y, int w, int h);
+    void SetWindowSize(int width, int height);
 
     sol::object DoModal(sol::this_state s);
 
@@ -73,6 +87,12 @@ protected:
     void OnCancel(HWND hWnd);
     void CollectResults(HWND hWnd);
     void RestoreDisabledWindows();
+
+    void RepositionButtons(HWND hWnd);
+
+    HWND GetCtrlHwnd(const std::string& key);
+    void FireEvent(const std::string& ctrlKey, const std::string& eventType);
+    void FireAllInitialEvents();
 
     std::string m_title;
     int m_width;
@@ -93,4 +113,6 @@ protected:
 
     std::map<HWND, std::unique_ptr<VirtualComboBoxEx>> m_comboBoxes;
     std::vector<HWND> m_disabledWindows;
+    std::map<std::string, sol::function> m_events;
+    HWND m_hWnd = nullptr;
 };

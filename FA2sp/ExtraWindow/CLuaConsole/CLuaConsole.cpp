@@ -980,7 +980,20 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "do_modal", &CLuaDialog::DoModal,
         "add_listbox", &CLuaDialog::AddListBox,
         "add_multilistbox", &CLuaDialog::AddMultiListBox,
-        "add_label", &CLuaDialog::AddLabel
+        "add_label", &CLuaDialog::AddLabel,
+        "on_event", &CLuaDialog::OnEvent,
+        "get_bool", &CLuaDialog::GetBool,
+        "get_string", &CLuaDialog::GetString,
+        "set_enabled", &CLuaDialog::SetEnabled,
+        "set_visible", &CLuaDialog::SetVisible,
+        "set_list_items", &CLuaDialog::SetListItems,
+        "set_combo_items", &CLuaDialog::SetComboItems,
+        "set_text", &CLuaDialog::SetText,
+        "set_check", &CLuaDialog::SetCheck,
+        "get_enabled", &CLuaDialog::GetEnabled,
+        "get_visible", &CLuaDialog::GetVisible,
+        "set_position", &CLuaDialog::SetPosition,
+        "set_window_size", &CLuaDialog::SetWindowSize
     );
 
     Update(hWnd);

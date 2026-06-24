@@ -292,8 +292,9 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
             if (CIsoViewExt::PasteGround)
             {
                 CMapDataExt::GetExtension()->PlaceTileAt(cell.X, cell.Y, 0, 3);
-                pCell->Height = (cell.X, cell.Y, realLowest);
+                pCell->Height = realLowest;
             }
+            CMapData::Instance->UpdateMapPreviewAt(cell.X, cell.Y);
         }
         CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }

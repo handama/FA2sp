@@ -294,9 +294,10 @@ end
   - `x, y, w, h` (`number`, 可选) — 位置与尺寸。自动排布模式下可省略。
 - **返回**：无。
 
-#### `add_label(text, [x = 0], [y = 0], [w = 0], [h = 0])`
-- **说明**：添加一个纯文本标签控件，仅用于显示，不参与返回值。
+#### `add_label(key, text, [x = 0], [y = 0], [w = 0], [h = 0])`
+- **说明**：添加一个纯文本标签控件。与 Edit 类似但只读，不参与对话框返回值。可通过 `set_text`/`set_visible`/`set_enabled` 等运行时方法操作。
 - **参数**：
+  - `key` (`string`) — 控件 key，用于后续操作。
   - `text` (`string`) — 显示文本。
   - `x, y, w, h` (`number`, 可选) — 位置与尺寸。自动排布模式下高度会根据文本内容通过 `DrawText` 真实渲染计算（自动换行）。
 - **返回**：无。
@@ -312,6 +313,94 @@ end
   
   若用户点击取消，返回 `nil`。
 
+#### `on_event(key, eventType, callback)`
+- **说明**：注册控件交互回调。当指定控件发生指定事件时，自动调用 callback。回调函数接收一个参数 `ctrlKey`（触发事件的控件 key），可通过 closure 捕获的 `dlg` 变量调用其他 API 方法来实现控件间交互。对话框打开时会自动触发一次初始事件，用于应用默认状态。
+- **参数**：
+  - `key` (`string`) — 控件 key（注册控件时指定的 key）。
+  - `eventType` (`string`) — 事件类型，支持 `|` 分隔多个类型（如 `"selchange|editchange"` 任一匹配即触发）：
+    - `"changed"` — CheckBox 点击切换后触发
+    - `"selchange"` — ComboBox 选中项变化时触发
+    - `"editchange"` — ComboBox 输入文本变化时触发（仅非只读）
+    - `"change"` — Edit 文本变化时触发
+  - `callback` (`function`) — 回调函数，签名 `function(ctrlKey)`。
+- **返回**：无。
+
+#### `get_bool(key)`
+- **说明**：读取 CheckBox 控件的当前勾选状态（从控件实时读取，非 DoModal 结果缓存）。
+- **参数**：`key` (`string`) — 控件 key。
+- **返回** (`boolean`)：`true` 表示已勾选，`false` 表示未勾选。
+
+#### `get_string(key)`
+- **说明**：读取 Edit 或 ComboBox 控件的当前文本内容（从控件实时读取）。
+- **参数**：`key` (`string`) — 控件 key。
+- **返回** (`string`)：控件的当前文本。
+
+#### `get_enabled(key)`
+- **说明**：查询指定控件当前是否处于启用状态。
+- **参数**：`key` (`string`) — 控件 key。
+- **返回** (`boolean`)：`true` 表示启用，`false` 表示禁用。
+
+#### `get_visible(key)`
+- **说明**：查询指定控件当前是否可见。
+- **参数**：`key` (`string`) — 控件 key。
+- **返回** (`boolean`)：`true` 表示可见，`false` 表示隐藏。
+
+#### `set_enabled(key, enabled)`
+- **说明**：启用或禁用指定控件。禁用的控件呈灰色，无法与用户交互。
+- **参数**：
+  - `key` (`string`) — 控件 key。
+  - `enabled` (`boolean`) — `true` 为启用，`false` 为禁用。
+- **返回**：无。
+
+#### `set_visible(key, visible)`
+- **说明**：显示或隐藏指定控件。
+- **参数**：
+  - `key` (`string`) — 控件 key。
+  - `visible` (`boolean`) — `true` 为显示，`false` 为隐藏。
+- **返回**：无。
+
+#### `set_list_items(key, items)`
+- **说明**：重新加载 ListBox 的列表项（清除原有项并填入新项）。
+- **参数**：
+  - `key` (`string`) — 控件 key。
+  - `items` (`table<string>`) — 新的列表项数组。
+- **返回**：无。
+
+#### `set_combo_items(key, items)`
+- **说明**：重新加载 ComboBox 的列表项（清除原有项并填入新项），并自动选中第一项。
+- **参数**：
+  - `key` (`string`) — 控件 key。
+  - `items` (`table<string>`) — 新的列表项数组。
+- **返回**：无。
+
+#### `set_text(key, text)`
+- **说明**：设置 Edit 或 ComboBox 的文本内容。
+- **参数**：
+  - `key` (`string`) — 控件 key。
+  - `text` (`string`) — 要设置的文本。
+- **返回**：无。
+
+#### `set_check(key, checked)`
+- **说明**：设置 CheckBox 的勾选状态。
+- **参数**：
+  - `key` (`string`) — 控件 key。
+  - `checked` (`boolean`) — `true` 为勾选，`false` 为取消勾选。
+- **返回**：无。
+
+#### `set_position(key, x, y, w, h)`
+- **说明**：移动并调整指定控件的位置和尺寸（逻辑坐标，会自动乘以缩放系数）。当某个参数为 `0` 时，该维度保持不变。
+- **参数**：
+  - `key` (`string`) — 控件 key。
+  - `x, y, w, h` (`number`) — 新的位置与尺寸（像素）。为 `0` 表示该维度不变。
+- **返回**：无。
+
+#### `set_window_size(width, height)`
+- **说明**：调整整个对话框窗口的尺寸（逻辑坐标），同时自动重排确认/取消按钮到新位置。当某个参数为 `0` 时，该维度保持不变。
+- **参数**：
+  - `width` (`number`) — 新的窗口宽度（像素）；`0` 表示不变。
+  - `height` (`number`) — 新的窗口高度（像素）；`0` 表示不变。
+- **返回**：无。
+
 **典型用法**：
 
 **示例一：手动布局**
@@ -321,7 +410,7 @@ local dlg = LuaDialog:new("地图设置", false, 225, 480)
 dlg:add_checkbox("fog", "启用战争迷雾", true, 10, 10, 200, 18)
 dlg:add_edit("author", "作者名", "玩家", 10, 30, 200, 18)
 dlg:add_combobox("size", "地图大小", {"小型", "中型", "大型"}, "中型", false, 10, 70, 200, 18)
-dlg:add_label("这是一段说明文字", 10, 110, 200, 18)
+dlg:add_label("desc", "这是一段说明文字", 10, 110, 200, 18)
 dlg:add_multilistbox("sides", "可用阵营", {"盟军", "苏联", "尤里", "GDI", "Nod"}, 10, 130, 200, 120)
 dlg:add_listbox("tech", "科技等级", {"T1", "T2", "T3", "T4"}, 10, 270, 200, 120)
 
@@ -346,7 +435,7 @@ local dlg = LuaDialog:new("地图设置", true)
 dlg:add_checkbox("fog", "启用战争迷雾", true)
 dlg:add_edit("author", "作者名", "玩家")
 dlg:add_combobox("size", "地图大小", {"小型", "中型", "大型"}, "中型")
-dlg:add_label("这是一段说明文字，在自动排布模式下可以自行计算高度")
+dlg:add_label("desc", "这是一段说明文字，在自动排布模式下可以自行计算高度")
 dlg:add_multilistbox("sides", "可用阵营", {"盟军", "苏联", "尤里", "GDI", "Nod"})
 dlg:add_listbox("tech", "科技等级", {"T1", "T2", "T3", "T4"})
 
@@ -361,6 +450,44 @@ if result then
     print("科技等级: " .. result.tech)
 else
     print("用户取消了对话框")
+end
+```
+
+**示例三：控件交互**
+```lua
+local dlg = LuaDialog:new("交互示例", true)
+
+dlg:add_checkbox("enable_extra", "启用额外选项", false)
+dlg:add_edit("extra_name", "额外名称", "默认值")
+dlg:add_combobox("type", "类型", {"A", "B", "C"}, "A", false)
+dlg:add_listbox("items", "选项列表", {"a1", "a2"})
+
+-- CheckBox 勾选时启用/禁用 Edit（初始默认 false 会触发，从而禁用 Edit）
+dlg:on_event("enable_extra", "changed", function(key)
+    dlg:set_enabled("extra_name", dlg:get_bool("enable_extra"))
+end)
+
+-- ComboBox 选中项\输入变化时重新加载 ListBox
+dlg:on_event("type", "selchange", function(key)
+    local v = dlg:get_string("type")
+    if v == "A" then
+        dlg:set_list_items("items", {"a1", "a2", "a3"})
+        dlg:set_text("extra_name", "选项A")
+    elseif v == "B" then
+        dlg:set_list_items("items", {"b1", "b2"})
+        dlg:set_text("extra_name", "选项B")
+    else
+        dlg:set_list_items("items", {"c1", "c2", "c3", "c4"})
+        dlg:set_text("extra_name", "选项C")
+    end
+end)
+
+local result = dlg:do_modal()
+if result then
+    print("启用额外选项: " .. tostring(result.enable_extra))
+    print("额外名称: " .. result.extra_name)
+    print("类型: " .. result.type)
+    print("选项列表: " .. result.items)
 end
 ```
 

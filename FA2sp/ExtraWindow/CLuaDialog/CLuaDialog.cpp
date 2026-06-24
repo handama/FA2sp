@@ -132,7 +132,7 @@ void CLuaDialog::AddMultiListBox(const std::string& key, const std::string& labe
         false, false, true, "", vec });
 }
 
-void CLuaDialog::AddLabel(const std::string& text,
+void CLuaDialog::AddLabel(const std::string& key, const std::string& text,
     int x, int y, int w, int h)
 {
     if (m_autoLayout)
@@ -160,7 +160,7 @@ void CLuaDialog::AddLabel(const std::string& text,
         if (hDC) ::ReleaseDC(nullptr, hDC);
         ApplyAutoLayout(ControlType::Label, x, y, w, h);
     }
-    m_controls.push_back({ "", ControlType::Label, text, x, y, w, h });
+    m_controls.push_back({ key, ControlType::Label, text, x, y, w, h });
 }
 
 BOOL CALLBACK CLuaDialog::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
@@ -191,6 +191,36 @@ BOOL CALLBACK CLuaDialog::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
             pThis->OnCancel(hWnd);
             return TRUE;
         }
+
+        auto keyIt = pThis->m_idToKey.find(id);
+        if (keyIt != pThis->m_idToKey.end())
+        {
+            const std::string& ctrlKey = keyIt->second;
+            for (const auto& c : pThis->m_controls)
+            {
+                if (c.Key == ctrlKey)
+                {
+                    switch (c.Type)
+                    {
+                    case ControlType::CheckBox:
+                        if (code == BN_CLICKED)
+                            pThis->FireEvent(ctrlKey, "changed");
+                        break;
+                    case ControlType::Combobox:
+                        if (code == CBN_SELCHANGE)
+                            pThis->FireEvent(ctrlKey, "selchange");
+                        else if (code == CBN_EDITCHANGE && !c.ReadOnly)
+                            pThis->FireEvent(ctrlKey, "editchange");
+                        break;
+                    case ControlType::Edit:
+                        if (code == EN_CHANGE)
+                            pThis->FireEvent(ctrlKey, "change");
+                        break;
+                    }
+                    break;
+                }
+            }
+        }
         return FALSE;
     }
     case WM_MEASUREITEM:
@@ -210,6 +240,7 @@ BOOL CALLBACK CLuaDialog::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
 
 BOOL CLuaDialog::OnInitDialog(HWND hWnd)
 {
+    m_hWnd = hWnd;
     SetWindowTextA(hWnd, m_title.c_str());
 
     FString buffer;
@@ -247,31 +278,14 @@ BOOL CLuaDialog::OnInitDialog(HWND hWnd)
 
     HFONT hFont = DarkTheme::GetModernDefaultGUIFont();
 
-    RECT clientRect;
-    GetClientRect(hWnd, &clientRect);
-    int clientW = clientRect.right - clientRect.left;
-    int clientH = clientRect.bottom - clientRect.top;
-
-    const int btnW = static_cast<int>(60 * scale);
-    const int btnH = static_cast<int>(22 * scale);
-    const int margin = static_cast<int>(12 * scale);
-    const int btnGap = static_cast<int>(8 * scale);
-    int btnY = clientH - btnH - margin;
-    int cancelX = clientW - btnW - margin;
-    int okX = cancelX - btnW - btnGap;
+    RepositionButtons(hWnd);
 
     HWND hOK = GetDlgItem(hWnd, IDOK);
     HWND hCancel = GetDlgItem(hWnd, IDCANCEL);
-    if (hOK)
-    {
-        SetWindowPos(hOK, nullptr, okX, btnY, btnW, btnH, SWP_NOZORDER);
-        if (hFont) SendMessage(hOK, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
-    }
-    if (hCancel)
-    {
-        SetWindowPos(hCancel, nullptr, cancelX, btnY, btnW, btnH, SWP_NOZORDER);
-        if (hFont) SendMessage(hCancel, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
-    }
+    if (hOK && hFont)
+        SendMessage(hOK, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
+    if (hCancel && hFont)
+        SendMessage(hCancel, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
 
     int labelH = static_cast<int>(16 * scale);
     int labelOffset = static_cast<int>(16 * scale);
@@ -398,7 +412,7 @@ BOOL CLuaDialog::OnInitDialog(HWND hWnd)
             hCtrl = CreateWindowA("EDIT", ctrl.Label.c_str(),
                 WS_CHILD | WS_VISIBLE | ES_READONLY | ES_MULTILINE,
                 x, y, w, h,
-                hWnd, nullptr,
+                hWnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)),
                 reinterpret_cast<HINSTANCE>(FA2sp::hInstance), nullptr);
             if (hCtrl)
             {
@@ -422,6 +436,8 @@ BOOL CLuaDialog::OnInitDialog(HWND hWnd)
     DisableOtherCtx ctx = { hWnd, &m_disabledWindows };
     EnumThreadWindows(GetCurrentThreadId(), DisableOtherWindowsProc,
         reinterpret_cast<LPARAM>(&ctx));
+
+    FireAllInitialEvents();
 
     return TRUE;
 }
@@ -536,6 +552,207 @@ void CLuaDialog::RestoreDisabledWindows()
             EnableWindow(h, TRUE);
     }
     m_disabledWindows.clear();
+}
+
+HWND CLuaDialog::GetCtrlHwnd(const std::string& key)
+{
+    if (!m_hWnd) return nullptr;
+    auto it = m_keyToId.find(key);
+    if (it == m_keyToId.end()) return nullptr;
+    return GetDlgItem(m_hWnd, it->second);
+}
+
+void CLuaDialog::OnEvent(const std::string& key, const std::string& eventType, sol::function callback)
+{
+    size_t start = 0;
+    while (true)
+    {
+        size_t pos = eventType.find('|', start);
+        std::string et = eventType.substr(start, pos - start);
+        if (!et.empty())
+            m_events[key + ":" + et] = callback;
+        if (pos == std::string::npos) break;
+        start = pos + 1;
+    }
+}
+
+bool CLuaDialog::GetBool(const std::string& key)
+{
+    HWND hCtrl = GetCtrlHwnd(key);
+    if (!hCtrl) return false;
+    return SendMessage(hCtrl, BM_GETCHECK, 0, 0) == BST_CHECKED;
+}
+
+std::string CLuaDialog::GetString(const std::string& key)
+{
+    HWND hCtrl = GetCtrlHwnd(key);
+    if (!hCtrl) return "";
+
+    auto vcbIt = m_comboBoxes.find(hCtrl);
+    if (vcbIt != m_comboBoxes.end())
+    {
+        const char* text = vcbIt->second->GetSelectedText(true);
+        return text ? text : "";
+    }
+
+    char buffer[4096] = { 0 };
+    GetWindowTextA(hCtrl, buffer, 4095);
+    return buffer;
+}
+
+void CLuaDialog::SetEnabled(const std::string& key, bool enabled)
+{
+    HWND hCtrl = GetCtrlHwnd(key);
+    if (hCtrl) EnableWindow(hCtrl, enabled ? TRUE : FALSE);
+}
+
+void CLuaDialog::SetVisible(const std::string& key, bool visible)
+{
+    HWND hCtrl = GetCtrlHwnd(key);
+    if (hCtrl) ShowWindow(hCtrl, visible ? SW_SHOW : SW_HIDE);
+}
+
+void CLuaDialog::SetListItems(const std::string& key, sol::table items)
+{
+    HWND hCtrl = GetCtrlHwnd(key);
+    if (!hCtrl) return;
+
+    SendMessage(hCtrl, LB_RESETCONTENT, 0, 0);
+    for (const auto& kv : items)
+    {
+        if (kv.second.is<std::string>())
+            SendMessage(hCtrl, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(kv.second.as<std::string>().c_str()));
+    }
+}
+
+void CLuaDialog::SetComboItems(const std::string& key, sol::table items)
+{
+    HWND hCtrl = GetCtrlHwnd(key);
+    if (!hCtrl) return;
+
+    SendMessage(hCtrl, CB_RESETCONTENT, 0, 0);
+    for (const auto& kv : items)
+    {
+        if (kv.second.is<std::string>())
+            SendMessage(hCtrl, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(kv.second.as<std::string>().c_str()));
+    }
+    SendMessage(hCtrl, CB_SETCURSEL, 0, 0);
+}
+
+void CLuaDialog::SetText(const std::string& key, const std::string& text)
+{
+    HWND hCtrl = GetCtrlHwnd(key);
+    if (hCtrl) SetWindowTextA(hCtrl, text.c_str());
+}
+
+void CLuaDialog::SetCheck(const std::string& key, bool checked)
+{
+    HWND hCtrl = GetCtrlHwnd(key);
+    if (hCtrl)
+    {
+        SendMessage(hCtrl, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0);
+        FireEvent(key, "changed");
+    }
+}
+
+bool CLuaDialog::GetEnabled(const std::string& key)
+{
+    HWND hCtrl = GetCtrlHwnd(key);
+    if (!hCtrl) return false;
+    return IsWindowEnabled(hCtrl) ? true : false;
+}
+
+bool CLuaDialog::GetVisible(const std::string& key)
+{
+    HWND hCtrl = GetCtrlHwnd(key);
+    if (!hCtrl) return false;
+    return IsWindowVisible(hCtrl) ? true : false;
+}
+
+void CLuaDialog::SetPosition(const std::string& key, int x, int y, int w, int h)
+{
+    HWND hCtrl = GetCtrlHwnd(key);
+    if (!hCtrl) return;
+    const float scale = CFinalSunAppExt::ProgramScaleFactor;
+
+    // 读取当前值，0 表示该维度不变
+    RECT rc;
+    GetWindowRect(hCtrl, &rc);
+    HWND hParent = GetParent(hCtrl);
+    if (hParent)
+        MapWindowPoints(HWND_DESKTOP, hParent, reinterpret_cast<LPPOINT>(&rc), 2);
+
+    int fx = (x != 0) ? static_cast<int>(x * scale) : rc.left;
+    int fy = (y != 0) ? static_cast<int>(y * scale) : rc.top;
+    int fw = (w != 0) ? static_cast<int>(w * scale) : (rc.right - rc.left);
+    int fh = (h != 0) ? static_cast<int>(h * scale) : (rc.bottom - rc.top);
+
+    SetWindowPos(hCtrl, nullptr, fx, fy, fw, fh, SWP_NOZORDER);
+}
+
+void CLuaDialog::RepositionButtons(HWND hWnd)
+{
+    const float scale = CFinalSunAppExt::ProgramScaleFactor;
+
+    RECT clientRect;
+    GetClientRect(hWnd, &clientRect);
+    int clientW = clientRect.right - clientRect.left;
+    int clientH = clientRect.bottom - clientRect.top;
+
+    const int btnW = static_cast<int>(60 * scale);
+    const int btnH = static_cast<int>(22 * scale);
+    const int margin = static_cast<int>(12 * scale);
+    const int btnGap = static_cast<int>(8 * scale);
+    int btnY = clientH - btnH - margin;
+    int cancelX = clientW - btnW - margin;
+    int okX = cancelX - btnW - btnGap;
+
+    HWND hOK = GetDlgItem(hWnd, IDOK);
+    HWND hCancel = GetDlgItem(hWnd, IDCANCEL);
+    if (hOK)
+        SetWindowPos(hOK, nullptr, okX, btnY, btnW, btnH, SWP_NOZORDER);
+    if (hCancel)
+        SetWindowPos(hCancel, nullptr, cancelX, btnY, btnW, btnH, SWP_NOZORDER);
+}
+
+void CLuaDialog::SetWindowSize(int width, int height)
+{
+    if (!m_hWnd) return;
+    m_width = (width != 0) ? width : m_width;
+    m_height = (height != 0) ? height : m_height;
+
+    const float scale = CFinalSunAppExt::ProgramScaleFactor;
+    int scaledW = static_cast<int>(m_width * scale);
+    int scaledH = static_cast<int>(m_height * scale);
+    SetWindowPos(m_hWnd, nullptr, 0, 0, scaledW, scaledH, SWP_NOMOVE | SWP_NOZORDER);
+    RepositionButtons(m_hWnd);
+}
+
+void CLuaDialog::FireEvent(const std::string& ctrlKey, const std::string& eventType)
+{
+    auto it = m_events.find(ctrlKey + ":" + eventType);
+    if (it != m_events.end())
+    {
+        sol::protected_function pf(it->second);
+        auto result = pf(ctrlKey);
+        if (!result.valid())
+        {
+            sol::error err = result;
+            Logger::Error("[CLuaDialog] Event callback error (%s:%s): %s\n",
+                ctrlKey.c_str(), eventType.c_str(), err.what());
+        }
+    }
+}
+
+void CLuaDialog::FireAllInitialEvents()
+{
+    for (const auto& ctrl : m_controls)
+    {
+        if (ctrl.Type == ControlType::CheckBox)
+            FireEvent(ctrl.Key, "changed");
+        else if (ctrl.Type == ControlType::Combobox)
+            FireEvent(ctrl.Key, "selchange");
+    }
 }
 
 sol::object CLuaDialog::DoModal(sol::this_state s)

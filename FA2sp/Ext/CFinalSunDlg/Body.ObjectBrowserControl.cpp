@@ -3744,7 +3744,7 @@ void CViewObjectsExt::ApplyTag(int X, int Y, FString tag)
 
                     CIsoViewExt::DrawPropertyBrushMark = true;
                     CIsoViewExt::DrawEditedMarks.push_back(
-                        EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
+                        EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y), (short)atoi(data.SubCell) });
 
                     CMapData::Instance->DeleteInfantryData(infantry);
                     CMapData::Instance->SetInfantryData(&data, nullptr, nullptr, 0, -1);

@@ -9,7 +9,7 @@
 ## 基本约定
 
 - **对象索引**：直接接受“索引”作为参数的函数（例如 `remove_unit(index)`）使用 **0 基索引**（C++ 内部数组下标）。返回的 Lua 数组表（如 `get_units()` 的结果）索引从 **1** 开始。具体约定以实际函数说明为准。
-- **修改生效**：大部分地图对象的增删改不会立即刷新到界面，而是在 **脚本执行完毕后** 统一刷新。可以使用 `update_*` 系列函数触发刷新，也可以用 `redraw_window()` 立即重绘。触发器、小队等需要通过对象的 `apply()` 方法写入 INI 文件。
+- **修改生效**：大部分地图对象的增删改不会立即刷新到界面，而是在 **脚本执行完毕后** 统一刷新。可以使用 `update_*` 系列函数触发刷新，也可以用 `redraw_window()` 立即重绘。触发、小队等需要通过对象的 `apply()` 方法写入 INI 文件。
   **重要**：对于通过 `get_infantry()`、`get_unit()` 等获取的对象，直接修改其属性（如 `facing`）后，必须将其从地图删除再重新放置（或调用 `place()` 方法），才能让修改生效并最终写入 INI。
 - **默认值**：参数列表中以 `[可选参数 = 默认值]` 的形式标出。若不传递，则使用默认值。
 - **类型**：`number` 为 Lua 整数或浮点数；`string` 为字符串；`boolean` 为 `true`/`false`；`table` 为 Lua 表；`object` 为特定类的实例；`nil` 表示无返回值或空。
@@ -39,9 +39,9 @@
 | `house_count()` | `number` | 所有阵营/所属方数量（`Houses` 节计数） |
 | `country_count()` | `number` | 国家数量（`Countries` 节计数） |
 | `node_count([house])` | `number` | 基地节点总数。若提供 `house` 参数，只统计该阵营的节点；否则统计全部 |
-| `trigger_count()` | `number` | 触发器（Triggers）数量 |
-| `tile_count()` | `number` | 当前地形的 **地形块种类** 总数 |
-| `tile_set_count()` | `number` | 当前地形的 **地形组** 数量 |
+| `trigger_count()` | `number` | 触发（Triggers）数量 |
+| `tile_count()` | `number` | 当前地形类型的 **地形块种类** 总数 |
+| `tile_set_count()` | `number` | 当前地形类型的 **地形组** 数量 |
 | `tag_count()` | `number` | 标签（Tags）数量 |
 | `theater()` | `string` | 当前地图地形名称，如 `"TEMPERATE"` |
 | `is_multiplay()` | `boolean` | 是否为多人地图 |
@@ -49,6 +49,7 @@
 | `exe_path()` | `string` | 地编程序所在目录路径 |
 | `game_path()` | `string` | 游戏资源目录（含 mix 文件）路径 |
 | `map_path()` | `string` | 当前地图文件的完整路径 |
+| `scale_factor()` | `number` | 当前程序的缩放倍率（浮点数） |
 
 **使用示例**：
 ```lua
@@ -113,7 +114,7 @@ end
 - **返回** (`string`)：用户输入的文本，取消时可能为空。
 - **示例**：
 ```lua
-local user_input = input_box("请输入新的触发器名称")
+local user_input = input_box("请输入新的触发名称")
 ```
 
 ### `read_input()`
@@ -215,7 +216,7 @@ end
 #### `do_modal()`
 - **说明**：弹出多选对话框。
 - **返回** (`table`)：包含所有选中项 `key` 的数组表。
-- **示例**：遍历触发器并提供多选，然后批量修改属性。
+- **示例**：遍历触发并提供多选，然后批量修改属性。
 ```lua
 local box = multi_select_box:new("请选择触发")
 for i, id in pairs(get_keys("Triggers")) do
@@ -1264,7 +1265,7 @@ end
   - `delimiter` (`string`, 可选) — 分隔符，默认为 `","`。
   - `load_from` (`string`, 可选) — 读取源。
 - **返回** (`string`)：指定索引的字符串项。
-- **典型用法**：获取触发器的名称（Triggers 节的第 3 个参数）：
+- **典型用法**：获取触发的名称（Triggers 节的第 3 个参数）：
 ```lua
 local name = get_param("Triggers", trigger_id, 3)
 ```
@@ -1312,11 +1313,11 @@ local name = get_param("Triggers", trigger_id, 3)
 - **返回** (`string`)：未使用的数字键字符串。
 
 #### `get_free_id([type = 0])`
-- **说明**：返回可用于触发器、标签、小队等的第一个可用 ID。若偏好设置中启用了 `UseSeparateIndexing`，则 ID 会带有对应后缀（如 `"00000001-TR"`）。
+- **说明**：返回可用于触发、标签、小队等的第一个可用 ID。若偏好设置中启用了 `UseSeparateIndexing`，则 ID 会带有对应后缀（如 `"00000001-TR"`）。
 - **参数**：
   - `type` (`number`, 可选) — ID 类型：0=通用，1=Trigger，2=Tag，3=Team，4=Script，5=TaskForce，6=AITrigger。默认为 0。
 - **返回** (`string`)：可用 ID 字符串。
-- **示例**：创建新的触发器或小队时，通常用此函数获取未被占用的 ID。
+- **示例**：创建新的触发或小队时，通常用此函数获取未被占用的 ID。
 ```lua
 local new_id = get_free_id()   -- 通用ID
 local trigger = trigger:new(new_id)
@@ -1363,7 +1364,7 @@ local trigger = trigger:new(new_id)
 - `update_tube()`
 - `update_smudge()`
 - `update_tiles()`
-- `update_trigger()`：刷新触发器（会通知已打开的触发器编辑窗口）。
+- `update_trigger()`：刷新触发（会通知已打开的触发编辑器窗口）。
 
 **使用提示**：
 - 通常在批量修改单位/建筑等对象后，调用对应的 `update_xxx()` 函数确保内存数据与 INI 同步，然后调用 `redraw_window()` 立即刷新视图。
@@ -1468,9 +1469,9 @@ end
 ### `trigger` 类
 
 #### `trigger([id])` （构造函数）
-- **说明**：构造触发器对象。不提供 `id` 则自动分配可用 ID。
+- **说明**：构造触发对象。不提供 `id` 则自动分配可用 ID。
 - **参数**：`id` (`string`, 可选) — 触发 ID。
-- **返回** (`trigger`)：触发器实例。
+- **返回** (`trigger`)：触发实例。
 
 **成员**：
 
@@ -1624,17 +1625,17 @@ end
 - **返回**：无。
 
 **关键用法提示**：
-- 任何对触发器属性的修改，最后必须调用 `trigger:apply()`，否则不会保存到地图文件。
-- 创建新触发器时，通常先调用 `trigger:new()`，然后分别设置属性、添加事件和行为，最后 `apply()`。
-- 批量修改触发器时，遍历 `get_keys("Triggers")` 获取所有触发 ID，用 `get_trigger(id)` 获取对象，修改后逐一 `apply()`。
+- 任何对触发属性的修改，最后必须调用 `trigger:apply()`，否则不会保存到地图文件。
+- 创建新触发时，通常先调用 `trigger:new()`，然后分别设置属性、添加事件和行为，最后 `apply()`。
+- 批量修改触发时，遍历 `get_keys("Triggers")` 获取所有触发 ID，用 `get_trigger(id)` 获取对象，修改后逐一 `apply()`。
 - 触发事件的表达式字符串中，第一位是事件类型，后续才是事件参数。例如在事件表达式`1,0,2`中，事件类型是1，参数分别为0和2。一个事件可能有2个或3个参数。
 - 触发行为的表达式字符串中，第一位是行为类型，后续才是行为参数。例如在行为表达式`1,0,2,0,0,0,0,A`中，行为类型是1，参数是后续七个字符串。一个行为只能有7个参数。
 - 由于事件参数数量以及事件和行为的每个参数具体如何填写较为复杂，不提供对应的接口。在新增事件、行为，或修改已有事件、行为的类型时，应当询问用户，确认正确的表达式。
 
-**示例**：禁用所有名称包含 “debug” 的触发器。
+**示例**：禁用所有名称包含 “debug” 的触发。
 ```lua
 for i, id in pairs(get_keys("Triggers")) do
-    local name = get_param("Triggers", id, 3)  -- 获取触发器名称（第3个参数）
+    local name = get_param("Triggers", id, 3)  -- 获取触发名称（第3个参数）
     if string.find(name:lower(), "debug") then
         local t = get_trigger(id)
         t.disabled = true

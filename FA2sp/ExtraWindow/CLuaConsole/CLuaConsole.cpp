@@ -255,6 +255,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("exe_path", []() {return (std::string)CFinalSunAppExt::ExePathExt; });
     Lua.set_function("game_path", []() {return std::string(CFinalSunApp::Instance->FilePath); });
     Lua.set_function("map_path", []() {return std::string(CFinalSunApp::Instance->MapPath); });
+    Lua.set_function("scale_factor", []() {return CFinalSunAppExt::ProgramScaleFactor; });
 
     // misc functions
     Lua.set_function("print", lua_print);

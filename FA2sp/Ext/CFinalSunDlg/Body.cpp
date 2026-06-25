@@ -18,6 +18,7 @@
 #include "../../ExtraWindow/CSearhReference/CSearhReference.h"
 #include "../../ExtraWindow/CNewINIEditor/CNewINIEditor.h"
 #include "../../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
+#include "../../ExtraWindow/CLuaConsole/CMcpServer.h"
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
 #include "../../ExtraWindow/CNewAITrigger/CNewAITrigger.h"
 #include "../../ExtraWindow/CNewHouse/CNewHouse.h"
@@ -2058,6 +2059,26 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 		title += CFinalSunAppExt::NewVersion;
 		CFinalSunDlg::Instance->SetWindowTextA(title);
 		break;
+	}
+
+	// MCP Server messages
+	case WM_MCP_RUN_LUA:
+	{
+		MCPRequest* req = reinterpret_cast<MCPRequest*>(pMsg->lParam);
+		CMcpServer::HandleRunLua(req);
+		return TRUE;
+	}
+	case WM_MCP_LIST_KNOWLEDGE:
+	{
+		MCPRequest* req = reinterpret_cast<MCPRequest*>(pMsg->lParam);
+		CMcpServer::HandleListKnowledge(req);
+		return TRUE;
+	}
+	case WM_MCP_GET_KNOWLEDGE:
+	{
+		MCPRequest* req = reinterpret_cast<MCPRequest*>(pMsg->lParam);
+		CMcpServer::HandleGetKnowledge(req);
+		return TRUE;
 	}
 	}
 	return ppmfc::CDialog::PreTranslateMessage(pMsg);

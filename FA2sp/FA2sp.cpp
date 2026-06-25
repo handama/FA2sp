@@ -241,6 +241,8 @@ CAircraftData ExtConfigs::DefaultAircraftProperty;
 CBuildingData ExtConfigs::DefaultBuildingProperty;
 FMap<bool> ExtConfigs::SupportedFormats;
 int ExtConfigs::OverlayDataLimit;
+bool ExtConfigs::MCP_Enable;
+int ExtConfigs::MCP_Port = 19198;
 float ExtConfigs::IsoViewWidthPercentage = 0.625f;
 float ExtConfigs::IsoViewHeightPercentage = 0.5f;
 
@@ -358,6 +360,8 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::OverlayDataLimit = CINI::FAData->GetInteger("ExtConfigs", "OverlayDataLimit", 60);
 	ExtConfigs::OverlayDataLimit = std::clamp(ExtConfigs::OverlayDataLimit, 1, 256);
+	ExtConfigs::MCP_Enable = CINI::FAData->GetBool("ExtConfigs", "MCP.Enable");
+	ExtConfigs::MCP_Port = CINI::FAData->GetInteger("ExtConfigs", "MCP.Port", 19198);
 	ExtConfigs::UTF8Support_InferEncoding = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.InferEncoding", true);
 	ExtConfigs::UTF8Support_AlwaysSaveAsUTF8 = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.AlwaysSaveAsUTF8");
 
@@ -624,7 +628,50 @@ void ExtConfigs::UpdateOptionTranslations()
 		.Value = &ExtConfigs::OpenGLRendering_INI,
 		.Type = ExtConfigs::SpecialOptionType::Restart});
 
+	// MCP Server
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.MCP.Enable", "Enable MCP Server for LLMs"),
+		.IniKey = "MCP.Enable",
+		.Value = &ExtConfigs::MCP_Enable,
+		.Type = ExtConfigs::SpecialOptionType::Restart});
+
 	// Editor Interface and Behavior
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.VerticalLayout", "Move tile browser to right"),
+		.IniKey = "VerticalLayout",
+		.Value = &ExtConfigs::VerticalLayout,
+		.Type = ExtConfigs::SpecialOptionType::Restart});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode", "Enable dark mode (requires Auto-switch dark mode to be disabled)"),
+		.IniKey = "EnableDarkMode",
+		.Value = &ExtConfigs::EnableDarkMode_Init,
+		.Type = ExtConfigs::SpecialOptionType::Restart});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.AutoDarkMode", "Auto-switch dark mode by system setting or time"),
+		.IniKey = "AutoDarkMode",
+		.Value = &ExtConfigs::AutoDarkMode,
+		.Type = ExtConfigs::SpecialOptionType::Restart});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode.DimMap", "make map view dim in drak mode"),
+		.IniKey = "EnableDarkMode.DimMap",
+		.Value = &ExtConfigs::EnableDarkMode_DimMap,
+		.Type = ExtConfigs::SpecialOptionType::None});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.HiDPIAwareness", "Enable high-DPI awareness"),
+		.IniKey = "HiDPIAwareness",
+		.Value = &ExtConfigs::HiDPIAwareness,
+		.Type = ExtConfigs::SpecialOptionType::Restart});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.HiDPIAwareness.ScaleIsoView", "Match IsoView default zoom to system scaling when high-DPI awareness is enabled"),
+		.IniKey = "HiDPIAwareness.ScaleIsoView",
+		.Value = &ExtConfigs::HiDPIAwareness_ScaleIsoView,
+		.Type = ExtConfigs::SpecialOptionType::None});
+
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.TutorialTexts.Viewer", "Open CSF Viewer when editing CSF params in Trigger editor"),
 		.IniKey = "TutorialTexts.Viewer",
@@ -719,42 +766,6 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.SearchCombobox.AllowNonParams", "Allow automatic search for non-parameter dropdown menus"),
 		.IniKey = "SearchCombobox.AllowNonParams",
 		.Value = &ExtConfigs::SearchCombobox_AllowNonParams,
-		.Type = ExtConfigs::SpecialOptionType::None});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.VerticalLayout", "Move tile browser to right"),
-		.IniKey = "VerticalLayout",
-		.Value = &ExtConfigs::VerticalLayout,
-		.Type = ExtConfigs::SpecialOptionType::Restart});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode", "Enable dark mode (requires Auto-switch dark mode to be disabled)"),
-		.IniKey = "EnableDarkMode",
-		.Value = &ExtConfigs::EnableDarkMode_Init,
-		.Type = ExtConfigs::SpecialOptionType::Restart});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.AutoDarkMode", "Auto-switch dark mode by system setting or time"),
-		.IniKey = "AutoDarkMode",
-		.Value = &ExtConfigs::AutoDarkMode,
-		.Type = ExtConfigs::SpecialOptionType::Restart});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode.DimMap", "make map view dim in drak mode"),
-		.IniKey = "EnableDarkMode.DimMap",
-		.Value = &ExtConfigs::EnableDarkMode_DimMap,
-		.Type = ExtConfigs::SpecialOptionType::None});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.HiDPIAwareness", "Enable high-DPI awareness"),
-		.IniKey = "HiDPIAwareness",
-		.Value = &ExtConfigs::HiDPIAwareness,
-		.Type = ExtConfigs::SpecialOptionType::Restart});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.HiDPIAwareness.ScaleIsoView", "Match IsoView default zoom to system scaling when high-DPI awareness is enabled"),
-		.IniKey = "HiDPIAwareness.ScaleIsoView",
-		.Value = &ExtConfigs::HiDPIAwareness_ScaleIsoView,
 		.Type = ExtConfigs::SpecialOptionType::None});
 
 	// Object Browser Settings

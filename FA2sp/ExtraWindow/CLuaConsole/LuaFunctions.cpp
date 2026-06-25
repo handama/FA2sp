@@ -35,8 +35,13 @@ namespace LuaFunctions
 
 	static void write_lua_console(std::string text)
 	{
-		std::string msg = ">> " + text + "\r\n";
-	
+		std::string prefix = CLuaConsole::mcpRunning ? "MCP >> " : ">> ";
+		std::string msg = prefix + text + "\r\n";
+
+		// Capture output for MCP if an MCP request is active
+		if (CLuaConsole::mcpRunning)
+			CLuaConsole::mcpOutput += text + "\r\n";
+
 		CHARRANGE cr;
 		cr.cpMin = -1;
 		cr.cpMax = -1; 
@@ -1181,7 +1186,7 @@ namespace LuaFunctions
 			CLuaConsole::Lua.collect_garbage();
 			ID = GetAvailableIndex(EIndexType::Trigger);
 			Name = "New Trigger";
-			House = "Americans";
+			House = "Neutral";
 			AttachedTrigger = "<none>";
 			Obsolete = "0";
 			Disabled = false;
@@ -1194,7 +1199,7 @@ namespace LuaFunctions
 			: ID(id)
 		{
 			Name = "New Trigger";
-			House = "Americans";
+			House = "Neutral";
 			AttachedTrigger = "<none>";
 			Obsolete = "0";
 			Disabled = false;
@@ -1805,7 +1810,7 @@ namespace LuaFunctions
 	public:
 		std::string ID;
 		std::string Name = "New Teamtype";
-		std::string House = "Americans";
+		std::string House = "Neutral";
 		std::string Taskforce = "";
 		std::string Script = "";
 		std::string Tag = "";
@@ -3750,6 +3755,38 @@ namespace LuaFunctions
 		for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Units"); ++i)
 		{
 			ret.push_back(get_unit(i));
+		}
+		return ret;
+	}
+
+	static std::vector<std::string> get_available_houses()
+	{
+		std::vector<std::string> ret;
+		if (CMapData::Instance->IsMultiOnly())
+		{
+			ret.push_back("Neutral");
+			ret.push_back("Special");
+			if (ExtConfigs::PlayerAtXForTechnos)
+			{
+				ret.push_back("<Player @ A>");
+				ret.push_back("<Player @ B>");
+				ret.push_back("<Player @ C>");
+				ret.push_back("<Player @ D>");
+				ret.push_back("<Player @ E>");
+				ret.push_back("<Player @ F>");
+				ret.push_back("<Player @ G>");
+				ret.push_back("<Player @ H>");
+			}
+		}
+		else
+		{
+			if (auto pSection = CINI::CurrentDocument->GetSection("Houses"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					ret.push_back(value.GetString());
+				}
+			}
 		}
 		return ret;
 	}

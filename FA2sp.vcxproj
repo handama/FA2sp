@@ -60,7 +60,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>glad\include;MFC42\include;FA2pp;lexilla\include;scintilla\include;$(IncludePath)</IncludePath>
+    <IncludePath>glad\include;MFC42\include;FA2pp;lexilla\include;scintilla\include;httplib;json;$(IncludePath)</IncludePath>
     <LibraryPath>MFC42\lib;Release;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
     <LuaType>dynamic</LuaType>
@@ -69,7 +69,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>glad\include;MFC42\include;FA2pp;lexilla\include;scintilla\include;$(IncludePath)</IncludePath>
+    <IncludePath>glad\include;MFC42\include;FA2pp;lexilla\include;scintilla\include;httplib;json;$(IncludePath)</IncludePath>
     <LibraryPath>MFC42\lib;Debug;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
     <LuaType>dynamic</LuaType>
@@ -217,6 +217,7 @@
     <ClCompile Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\CMcpServer.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\LuaFunctions.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CLuaDialog\CLuaDialog.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CMapRendererDlg\CMapRendererDlg.cpp" />

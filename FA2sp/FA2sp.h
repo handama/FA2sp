@@ -249,6 +249,8 @@ public:
     static CBuildingData DefaultBuildingProperty;
     static FMap<bool> SupportedFormats;
     static int OverlayDataLimit;
+    static bool MCP_Enable;
+    static int MCP_Port;
     static float IsoViewWidthPercentage;
     static float IsoViewHeightPercentage;
 

@@ -1,4 +1,5 @@
 #include "CLuaConsole.h"
+#include "CMcpServer.h"
 #include "LuaFunctions.cpp"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
@@ -76,6 +77,8 @@ bool CLuaConsole::updateTaskforce = false;
 bool CLuaConsole::updateCellTag = false;
 bool CLuaConsole::updateVariable = false;
 bool CLuaConsole::skipBuildingUpdate = false;
+std::string CLuaConsole::mcpOutput;
+bool CLuaConsole::mcpRunning = false;
 sol::state CLuaConsole::Lua;
 using namespace::LuaFunctions;
 const int splitterHeight = 4;
@@ -256,6 +259,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("game_path", []() {return std::string(CFinalSunApp::Instance->FilePath); });
     Lua.set_function("map_path", []() {return std::string(CFinalSunApp::Instance->MapPath); });
     Lua.set_function("scale_factor", []() {return CFinalSunAppExt::ProgramScaleFactor; });
+    Lua.set_function("available_houses", get_available_houses);
 
     // misc functions
     Lua.set_function("print", lua_print);
@@ -998,6 +1002,17 @@ void CLuaConsole::Initialize(HWND& hWnd)
     );
 
     Update(hWnd);
+
+    if (ExtConfigs::MCP_Enable)
+	{
+		CMcpServer::Start(ExtConfigs::MCP_Port);
+        if (CMcpServer::IsRunning())
+        {
+            FString text;
+            text.Format("MCP Server running at http://127.0.0.1:%d", ExtConfigs::MCP_Port);
+            write_lua_console(text);
+        }
+	}
 }
 
 void CLuaConsole::SetupLuaHighlight(HWND& hWnd)
@@ -1160,6 +1175,8 @@ void CLuaConsole::Close(HWND& hWnd)
 {
     EndDialog(hWnd, NULL);
     ShowWindow(hWnd, SW_HIDE);
+
+    CMcpServer::Stop();
 
     CLuaConsole::m_hwnd = NULL;
     CLuaConsole::m_parent = NULL;

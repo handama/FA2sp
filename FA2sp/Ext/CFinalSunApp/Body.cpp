@@ -18,6 +18,7 @@
 #include "../../Miscs/DialogStyle.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Miscs/Hooks.INI.h"
+#include "../../ExtraWindow/CLuaConsole/CMcpServer.h"
 #include "../CFinalSunDlg/Body.h"
 #include <wininet.h>
 #include "../../FA2sp.Constants.h"

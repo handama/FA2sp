@@ -72,6 +72,14 @@
 - **说明**：返回该节下所有值的数组表（顺序与键对应）。
 - **参数**：同上。
 - **返回** (`table<int, string>`)：值数组。
+- **示例**：
+```lua
+local vehicles = get_values("VehicleTypes", "rules+map")
+for _, vehicle in ipairs(vehicles) do
+    -- 获取所有车辆 ID
+    -- 对于注册表小节，应该通过value获取注册项
+end
+```
 
 #### `get_key_value_pairs(section, [load_from = "map"])`
 - **说明**：返回字典（键→值）。

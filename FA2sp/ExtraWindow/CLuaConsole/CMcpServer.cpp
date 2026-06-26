@@ -107,6 +107,7 @@ static std::string ToExternalEncoding(const std::string& str)
         reinterpret_cast<const uint8_t*>(fs.data()), fs.size());
     if (encoding == FileEncoding::ANSI)
         fs.toUTF8();
+
     return std::string(fs);
 }
 
@@ -359,8 +360,6 @@ static json ProcessRequest(json& request)
                         if (!line.empty() && line.back() == '\r') line.pop_back();
                         if (!line.empty() && line[0] != '#')
                         {
-                            // Truncate long descriptions
-                            if (line.size() > 120) line.resize(120);
                             description = ToExternalEncoding(line);
                             break;
                         }

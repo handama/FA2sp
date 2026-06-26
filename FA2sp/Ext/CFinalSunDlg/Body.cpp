@@ -2080,6 +2080,24 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 		CMcpServer::HandleGetKnowledge(req);
 		return TRUE;
 	}
+	case WM_MCP_SEARCH_KNOWLEDGE:
+	{
+		MCPRequest* req = reinterpret_cast<MCPRequest*>(pMsg->lParam);
+		CMcpServer::HandleSearchKnowledge(req);
+		return TRUE;
+	}
+	case WM_MCP_LIST_SKILL:
+	{
+		MCPRequest* req = reinterpret_cast<MCPRequest*>(pMsg->lParam);
+		CMcpServer::HandleListSkill(req);
+		return TRUE;
+	}
+	case WM_MCP_GET_SKILL:
+	{
+		MCPRequest* req = reinterpret_cast<MCPRequest*>(pMsg->lParam);
+		CMcpServer::HandleGetSkill(req);
+		return TRUE;
+	}
 	}
 	return ppmfc::CDialog::PreTranslateMessage(pMsg);
 }

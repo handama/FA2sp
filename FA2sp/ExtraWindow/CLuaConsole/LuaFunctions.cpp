@@ -3047,6 +3047,16 @@ namespace LuaFunctions
 			remove_waypoint(atoi(CINI::CurrentDocument->GetKeyAt("Waypoints", index)));
 	}
 
+	static int get_waypoint(int index)
+	{
+		if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+		{
+			if (auto pKey = pSection->GetKeyAt(index))
+				return atoi(pKey->GetString());
+		}
+		return -1;
+	}
+
 	static std::string get_string(std::string section, std::string key, std::string def = "", std::string loadFrom = "map")
 	{
 		auto endsWithIni = [](const std::string& str) {
@@ -3497,6 +3507,7 @@ namespace LuaFunctions
 		if (x < 0)
 		{
 			CMapData::Instance->DeleteInfantryData(indexY);
+			CMapData::Instance->UpdateFieldInfantryData(FALSE);
 			CLuaConsole::needRedraw = true;
 		}
 		else
@@ -3508,6 +3519,7 @@ namespace LuaFunctions
 			if (idx > -1)
 			{
 				CMapData::Instance->DeleteInfantryData(idx);
+				CMapData::Instance->UpdateFieldInfantryData(FALSE);
 				CLuaConsole::needRedraw = true;
 			}
 		}
@@ -3520,7 +3532,8 @@ namespace LuaFunctions
 		{
 			CInfantryData obj;
 			CMapData::Instance->GetInfantryData(indexY, obj);
-			return infantry::convert(obj);
+			if (!obj.Flag)
+				return infantry::convert(obj);
 		}
 		else
 		{
@@ -3534,7 +3547,8 @@ namespace LuaFunctions
 			{
 				CInfantryData obj;
 				CMapData::Instance->GetInfantryData(idx, obj);
-				return infantry::convert(obj);
+				if (!obj.Flag)
+					return infantry::convert(obj);
 			}
 		}
 		return ret;
@@ -3546,7 +3560,7 @@ namespace LuaFunctions
 			return;
 
 		int coord = CMapData::Instance->GetCoordIndex(x, y);
-		CMapData::Instance->SetUnitData(NULL, type.c_str(), house.c_str(), coord, "-1");
+		CMapData::Instance->SetUnitData(NULL, type.c_str(), house.c_str(), coord, "");
 		CLuaConsole::needRedraw = true;
 	}
 
@@ -3602,7 +3616,7 @@ namespace LuaFunctions
 			return;
 
 		int coord = CMapData::Instance->GetCoordIndex(x, y);
-		CMapData::Instance->SetAircraftData(NULL, type.c_str(), house.c_str(), coord, "-1");
+		CMapData::Instance->SetAircraftData(NULL, type.c_str(), house.c_str(), coord, "");
 		CLuaConsole::needRedraw = true;
 	}
 
@@ -3663,7 +3677,7 @@ namespace LuaFunctions
 		{
 			ExtConfigs::PlaceStructureOverlappingCheck = false;
 		}
-		CMapData::Instance->SetBuildingData(NULL, type.c_str(), house.c_str(), coord, "-1");
+		CMapData::Instance->SetBuildingData(NULL, type.c_str(), house.c_str(), coord, "");
 		ExtConfigs::PlaceStructureOverlappingCheck = oldCheck;
 
 		CLuaConsole::needRedraw = true; 
@@ -3724,7 +3738,9 @@ namespace LuaFunctions
 		std::vector<building> ret;
 		for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Structures"); ++i)
 		{
-			ret.push_back(get_building(i));
+			auto obj = get_building(i);
+			if (!obj.TypeID.empty())
+				ret.push_back(std::move(obj));
 		}
 		return ret;
 	}
@@ -3734,7 +3750,9 @@ namespace LuaFunctions
 		std::vector<aircraft> ret;
 		for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Aircraft"); ++i)
 		{
-			ret.push_back(get_aircraft(i));
+			auto obj = get_aircraft(i);
+			if (!obj.TypeID.empty())
+				ret.push_back(std::move(obj));
 		}
 		return ret;
 	}
@@ -3744,7 +3762,9 @@ namespace LuaFunctions
 		std::vector<infantry> ret;
 		for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Infantry"); ++i)
 		{
-			ret.push_back(get_infantry(i));
+			auto obj = get_infantry(i);
+			if (!obj.TypeID.empty())
+				ret.push_back(std::move(obj));
 		}
 		return ret;
 	}
@@ -3754,7 +3774,9 @@ namespace LuaFunctions
 		std::vector<unit> ret;
 		for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Units"); ++i)
 		{
-			ret.push_back(get_unit(i));
+			auto obj = get_unit(i);
+			if (!obj.TypeID.empty())
+				ret.push_back(std::move(obj));
 		}
 		return ret;
 	}

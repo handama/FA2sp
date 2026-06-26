@@ -312,6 +312,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         });
     Lua.set_function("remove_waypoint", remove_waypoint);
     Lua.set_function("remove_waypoint_at", remove_waypoint_at);
+    Lua.set_function("get_waypoint", get_waypoint);
     Lua.new_usertype<infantry>("infantry",
         sol::constructors<infantry(std::string, std::string, int, int)>(),
         "house", &infantry::House,
@@ -809,6 +810,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "id", sol::readonly(&trigger::ID),
         "name", &trigger::Name,
         "house", &trigger::House,
+        "country", &trigger::House,
         "tags", sol::readonly(&trigger::Tags),
         "attached_trigger", &trigger::AttachedTrigger,
         "disabled", &trigger::Disabled,
@@ -847,6 +849,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "name", &ai_trigger::Name,
         "team1", &ai_trigger::Team1,
         "house", &ai_trigger::House,
+        "country", &ai_trigger::House,
         "tech_level", &ai_trigger::TechLevel,
         "condition", &ai_trigger::ConditionType,
         "object", &ai_trigger::ComparisonObject,
@@ -920,6 +923,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "id", sol::readonly(&team::ID),
         "name", &team::Name,
         "house", &team::House,
+        "country", &team::House,
         "task_force", &team::Taskforce,
         "script", &team::Script,
         "tag", &team::Tag,

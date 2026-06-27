@@ -12,10 +12,13 @@
 #define WM_MCP_SEARCH_KNOWLEDGE  (WM_APP + 203)
 #define WM_MCP_LIST_SKILL        (WM_APP + 204)
 #define WM_MCP_GET_SKILL         (WM_APP + 205)
+#define WM_MCP_LIST_SCRIPTS      (WM_APP + 206)
+#define WM_MCP_GET_SCRIPT        (WM_APP + 207)
+#define WM_MCP_SAVE_SCRIPT       (WM_APP + 208)
 
 struct MCPRequest
 {
-    int type;              // 0=run_lua, 3=list_knowledge, 4=get_knowledge, 5=search_knowledge
+    int type;              // 0=run_lua, 3=list_knowledge, 4=get_knowledge, 5=search_knowledge, 6=list_skill, 7=get_skill, 8=list_scripts, 9=get_script, 10=save_script
     std::string input;     // script / doc relpath / search query
     std::string result;    // output captured during execution
     HANDLE hEvent;         // signalled when main-thread processing completes
@@ -107,6 +110,9 @@ public:
     static void HandleSearchKnowledge(MCPRequest* req);
     static void HandleListSkill(MCPRequest* req);
     static void HandleGetSkill(MCPRequest* req);
+    static void HandleListScripts(MCPRequest* req);
+    static void HandleGetScript(MCPRequest* req);
+    static void HandleSaveScript(MCPRequest* req);
 
     // Build / rebuild the search index from knowledge files
     static void BuildSearchIndex();

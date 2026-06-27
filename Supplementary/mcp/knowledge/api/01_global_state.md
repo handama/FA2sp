@@ -35,9 +35,9 @@
 
 **使用示例**：
 ```lua
--- 遍历地图上所有单元格时，可用 width() 和 height() 获取边界
-for x = 0, width() - 1 do
-    for y = 0, height() - 1 do
+-- 遍历地图上所有单元格
+for x = 0, iso_size() - 1 do
+    for y = 0, iso_size() - 1 do
         -- 操作每个单元格
     end
 end

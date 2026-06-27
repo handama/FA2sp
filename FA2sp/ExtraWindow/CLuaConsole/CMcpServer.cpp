@@ -53,6 +53,13 @@ static std::string GetSkillRoot()
     return path;
 }
 
+static std::string GetScriptRoot()
+{
+    std::string path = CFinalSunApp::ExePath();
+    path += "Scripts\\";
+    return path;
+}
+
 // ---------------------------------------------------------------------------
 // Safe JSON dump - replaces invalid UTF-8 instead of throwing
 // ---------------------------------------------------------------------------
@@ -223,6 +230,55 @@ static json ProcessRequest(json& request)
             }}
         });
 
+        tools.push_back({
+            {"name", "list_scripts"},
+            {"description", "List all available Lua script files (.lua) in the Scripts directory. "
+                            "Returns filenames that can be used as input to get_script. "
+                            "When you are unsure about certain implementations, you can refer to "
+                            "existing relevant scripts as reference."},
+            {"inputSchema", {
+                {"type", "object"},
+                {"properties", json::object()},
+                {"required", json::array()}
+            }}
+        });
+
+        tools.push_back({
+            {"name", "get_script"},
+            {"description", "Retrieve a specific Lua script file by its filename (returned by list_scripts)."},
+            {"inputSchema", {
+                {"type", "object"},
+                {"properties", {
+                    {"key", {
+                        {"type", "string"},
+                        {"description", "Script filename as returned by list_scripts (e.g. 'my_script.lua')."}
+                    }}
+                }},
+                {"required", json::array({"key"})}
+            }}
+        });
+
+        tools.push_back({
+            {"name", "save_script"},
+            {"description", "Save a Lua script to the Scripts directory. "
+                            "IMPORTANT: Only use this tool when the user explicitly requests to save or "
+                            "store a script. Do NOT use it automatically or without user confirmation."},
+            {"inputSchema", {
+                {"type", "object"},
+                {"properties", {
+                    {"key", {
+                        {"type", "string"},
+                        {"description", "Filename to save as (e.g. 'my_script.lua'). Must end with .lua."}
+                    }},
+                    {"content", {
+                        {"type", "string"},
+                        {"description", "The Lua script content to save."}
+                    }}
+                }},
+                {"required", json::array({"key", "content"})}
+            }}
+        });
+
         response["result"] = {{"tools", tools}};
     }
     // ----- tools/call -----
@@ -252,7 +308,7 @@ static json ProcessRequest(json& request)
             mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
             PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_LIST_KNOWLEDGE, 0, (LPARAM)mcpReq);
             WaitForSingleObject(mcpReq->hEvent, INFINITE);
-            std::string out = ToExternalEncoding(mcpReq->result);
+            std::string out = mcpReq->result;
             CloseHandle(mcpReq->hEvent); delete mcpReq;
             response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
         }
@@ -303,7 +359,7 @@ static json ProcessRequest(json& request)
             mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
             PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_LIST_SKILL, 0, (LPARAM)mcpReq);
             WaitForSingleObject(mcpReq->hEvent, INFINITE);
-            std::string out = ToExternalEncoding(mcpReq->result);
+            std::string out = mcpReq->result;
             CloseHandle(mcpReq->hEvent); delete mcpReq;
             response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
         }
@@ -321,6 +377,62 @@ static json ProcessRequest(json& request)
                 mcpReq->input = ToInternalEncoding(key);
                 mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
                 PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_GET_SKILL, 0, (LPARAM)mcpReq);
+                WaitForSingleObject(mcpReq->hEvent, INFINITE);
+                std::string out = ToExternalEncoding(mcpReq->result);
+                CloseHandle(mcpReq->hEvent); delete mcpReq;
+                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+            }
+        }
+        else if (toolName == "list_scripts")
+        {
+            MCPRequest* mcpReq = new MCPRequest();
+            mcpReq->type = 8;
+            mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
+            PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_LIST_SCRIPTS, 0, (LPARAM)mcpReq);
+            WaitForSingleObject(mcpReq->hEvent, INFINITE);
+            std::string out = mcpReq->result;
+            CloseHandle(mcpReq->hEvent); delete mcpReq;
+            response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+        }
+        else if (toolName == "get_script")
+        {
+            std::string key = arguments.value("key", "");
+            if (key.empty())
+            {
+                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", "Error: 'key' parameter is required."}}})}};
+            }
+            else
+            {
+                MCPRequest* mcpReq = new MCPRequest();
+                mcpReq->type = 9;
+                mcpReq->input = ToInternalEncoding(key);
+                mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
+                PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_GET_SCRIPT, 0, (LPARAM)mcpReq);
+                WaitForSingleObject(mcpReq->hEvent, INFINITE);
+                std::string out = ToExternalEncoding(mcpReq->result);
+                CloseHandle(mcpReq->hEvent); delete mcpReq;
+                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+            }
+        }
+        else if (toolName == "save_script")
+        {
+            std::string key = arguments.value("key", "");
+            std::string content = arguments.value("content", "");
+            if (key.empty())
+            {
+                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", "Error: 'key' parameter is required."}}})}};
+            }
+            else if (content.empty())
+            {
+                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", "Error: 'content' parameter is required."}}})}};
+            }
+            else
+            {
+                MCPRequest* mcpReq = new MCPRequest();
+                mcpReq->type = 10;
+                mcpReq->input = ToInternalEncoding(key + "\n" + content);
+                mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
+                PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_SAVE_SCRIPT, 0, (LPARAM)mcpReq);
                 WaitForSingleObject(mcpReq->hEvent, INFINITE);
                 std::string out = ToExternalEncoding(mcpReq->result);
                 CloseHandle(mcpReq->hEvent); delete mcpReq;
@@ -854,7 +966,7 @@ void CMcpServer::HandleListKnowledge(MCPRequest* req)
         {
             if (entry.is_regular_file())
             {
-                docArray.push_back(GetRelativePath(entry.path(), docRoot));
+                docArray.push_back(ToExternalEncoding(GetRelativePath(entry.path(), docRoot)));
             }
         }
     }
@@ -950,7 +1062,7 @@ void CMcpServer::HandleListSkill(MCPRequest* req)
         {
             if (entry.is_regular_file())
             {
-                docArray.push_back(entry.path().filename().string());
+                docArray.push_back(ToExternalEncoding(entry.path().filename().string()));
             }
         }
     }
@@ -998,6 +1110,128 @@ void CMcpServer::HandleGetSkill(MCPRequest* req)
     std::ostringstream oss;
     oss << ifs.rdbuf();
     req->result = oss.str();
+    SetEvent(req->hEvent);
+}
+
+// ===================================================================
+// Script handlers (called from main thread)
+// ===================================================================
+
+void CMcpServer::HandleListScripts(MCPRequest* req)
+{
+    std::string scriptRoot = GetScriptRoot();
+    json fileArray = json::array();
+
+    if (std::filesystem::exists(scriptRoot))
+    {
+        for (const auto& entry : std::filesystem::directory_iterator(scriptRoot))
+        {
+            if (!entry.is_regular_file()) continue;
+            auto ext = entry.path().extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            if (ext != ".lua") continue;
+            fileArray.push_back(ToExternalEncoding(entry.path().filename().string()));  
+        }
+    }
+
+    req->result = SafeDump(fileArray);
+    SetEvent(req->hEvent);
+}
+
+void CMcpServer::HandleGetScript(MCPRequest* req)
+{
+    std::string scriptRoot = GetScriptRoot();
+    std::filesystem::path fullPath = std::filesystem::path(scriptRoot) / req->input;
+
+    // Security: ensure the resolved path is still under scriptRoot
+    try {
+        auto canonical = std::filesystem::weakly_canonical(fullPath);
+        auto rootCanon = std::filesystem::weakly_canonical(scriptRoot);
+        auto [rootEnd, _] = std::mismatch(rootCanon.begin(), rootCanon.end(), canonical.begin());
+        if (rootEnd != rootCanon.end())
+        {
+            req->result = "Error: Invalid path.";
+            SetEvent(req->hEvent);
+            return;
+        }
+    } catch (...) {
+        req->result = "Error: Cannot resolve path.";
+        SetEvent(req->hEvent);
+        return;
+    }
+
+    if (!std::filesystem::exists(fullPath) || !std::filesystem::is_regular_file(fullPath))
+    {
+        req->result = "Error: Script not found.";
+        SetEvent(req->hEvent);
+        return;
+    }
+
+    std::ifstream ifs(fullPath);
+    if (!ifs)
+    {
+        req->result = "Error: Cannot open file.";
+        SetEvent(req->hEvent);
+        return;
+    }
+    std::ostringstream oss;
+    oss << ifs.rdbuf();
+    req->result = oss.str();
+    SetEvent(req->hEvent);
+}
+
+void CMcpServer::HandleSaveScript(MCPRequest* req)
+{
+    std::string scriptRoot = GetScriptRoot();
+
+    // req->input contains "key\ncontent"
+    auto delim = req->input.find('\n');
+    if (delim == std::string::npos)
+    {
+        req->result = "Error: Invalid request format.";
+        SetEvent(req->hEvent);
+        return;
+    }
+
+    std::string key = req->input.substr(0, delim);
+    std::string content = ToExternalEncoding(req->input.substr(delim + 1)); 
+    std::filesystem::path fullPath = std::filesystem::path(scriptRoot) / key;
+
+    // Security: ensure the resolved path is still under scriptRoot
+    try {
+        auto canonical = std::filesystem::weakly_canonical(fullPath);
+        auto rootCanon = std::filesystem::weakly_canonical(scriptRoot);
+        auto [rootEnd, _] = std::mismatch(rootCanon.begin(), rootCanon.end(), canonical.begin());
+        if (rootEnd != rootCanon.end())
+        {
+            req->result = "Error: Invalid path.";
+            SetEvent(req->hEvent);
+            return;
+        }
+    } catch (...) {
+        // Path may not exist yet - that's ok
+    }
+
+    // Create Scripts directory if it doesn't exist
+    try {
+        std::filesystem::create_directories(scriptRoot);
+    } catch (...) {
+        req->result = "Error: Cannot create Scripts directory.";
+        SetEvent(req->hEvent);
+        return;
+    }
+
+    std::ofstream ofs(fullPath, std::ios::binary);
+    if (!ofs)
+    {
+        req->result = "Error: Cannot write file.";
+        SetEvent(req->hEvent);
+        return;
+    }
+    ofs.write(content.data(), content.size());
+    ofs.close();
+
+    req->result = "Script saved successfully: " + key;
     SetEvent(req->hEvent);
 }
 

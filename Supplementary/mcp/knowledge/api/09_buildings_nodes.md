@@ -1,6 +1,6 @@
 ## 八、建筑与节点
 
-### `building` 类
+### 建筑 （`building`）
 
 #### `building(house, type, x, y)` （构造函数）
 - **说明**：构造建筑对象（不立即放置，需调用 `place()`）。

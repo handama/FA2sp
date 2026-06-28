@@ -842,6 +842,8 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("place_celltag", place_celltag);
     Lua.set_function("remove_celltag", remove_celltag);
     Lua.set_function("remove_celltags", remove_celltags);
+    Lua.set_function("int_to_float", trigger::int_to_float);
+    Lua.set_function("float_to_int", trigger::float_to_int);
 
     Lua.new_usertype<ai_trigger>("ai_trigger",
         sol::constructors<ai_trigger(std::string), ai_trigger()>(),

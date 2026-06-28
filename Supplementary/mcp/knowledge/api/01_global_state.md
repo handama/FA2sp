@@ -2,12 +2,12 @@
 
 | 函数 | 返回类型 | 说明 |
 |------|----------|------|
-| `iso_size()` | `number` | 地图对角线长度（宽+高） |
-| `width()` | `number` | 地图宽度（单元格） |
-| `height()` | `number` | 地图高度（单元格） |
-| `local_width()` | `number` | 当前可视区域宽度 |
-| `local_height()` | `number` | 当前可视区域高度 |
-| `local_top()` | `number` | 可视区域距顶端的偏移（像素/格?） |
+| `iso_size()` | `number` | 地图完整范围的宽度（宽+高，遍历单元格用） |
+| `width()` | `number` | 地图有效范围的宽度（玩家视角） |
+| `height()` | `number` | 地图有效范围的高度（玩家视角） |
+| `local_width()` | `number` | 当前可视区域宽度（玩家视角） |
+| `local_height()` | `number` | 当前可视区域高度（玩家视角） |
+| `local_top()` | `number` | 可视区域距顶端的偏移 |
 | `local_left()` | `number` | 可视区域距左侧的偏移 |
 | `waypoint_count()` | `number` | 路径点数量（`Waypoints` 节键数量） |
 | `unit_count()` | `number` | 车辆（Units）数量 |
@@ -21,7 +21,7 @@
 | `country_count()` | `number` | 国家数量（`Countries` 节计数） |
 | `node_count([house])` | `number` | 基地节点总数。若提供 `house` 参数，只统计该阵营的节点；否则统计全部 |
 | `trigger_count()` | `number` | 触发（Triggers）数量 |
-| `tile_count()` | `number` | 当前地形类型的 **地形块种类** 总数 |
+| `tile_count()` | `number` | 当前地形类型的 **地形** 种类总数 |
 | `tile_set_count()` | `number` | 当前地形类型的 **地形组** 数量 |
 | `tag_count()` | `number` | 标签（Tags）数量 |
 | `theater()` | `string` | 当前地图地形名称，如 `"TEMPERATE"` |
@@ -33,6 +33,7 @@
 | `scale_factor()` | `number` | 当前程序的缩放倍率（浮点数） |
 | `available_houses()` | `table` | 当前可用的所属方（阵营）列表，每个元素为一个字符串 |
 
+**重要：遍历单元格时，应遵循如下示例，而不是使用`width()`和`height()`**
 **使用示例**：
 ```lua
 -- 遍历地图上所有单元格

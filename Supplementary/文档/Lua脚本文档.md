@@ -21,12 +21,12 @@
 
 | 函数 | 返回类型 | 说明 |
 |------|----------|------|
-| `iso_size()` | `number` | 地图对角线长度（宽+高） |
-| `width()` | `number` | 地图宽度（单元格） |
-| `height()` | `number` | 地图高度（单元格） |
-| `local_width()` | `number` | 当前可视区域宽度 |
-| `local_height()` | `number` | 当前可视区域高度 |
-| `local_top()` | `number` | 可视区域距顶端的偏移（像素/格?） |
+| `iso_size()` | `number` | 地图完整范围的宽度（宽+高，遍历单元格用） |
+| `width()` | `number` | 地图有效范围的宽度（玩家视角） |
+| `height()` | `number` | 地图有效范围的高度（玩家视角） |
+| `local_width()` | `number` | 当前可视区域宽度（玩家视角） |
+| `local_height()` | `number` | 当前可视区域高度（玩家视角） |
+| `local_top()` | `number` | 可视区域距顶端的偏移 |
 | `local_left()` | `number` | 可视区域距左侧的偏移 |
 | `waypoint_count()` | `number` | 路径点数量（`Waypoints` 节键数量） |
 | `unit_count()` | `number` | 车辆（Units）数量 |
@@ -40,7 +40,7 @@
 | `country_count()` | `number` | 国家数量（`Countries` 节计数） |
 | `node_count([house])` | `number` | 基地节点总数。若提供 `house` 参数，只统计该阵营的节点；否则统计全部 |
 | `trigger_count()` | `number` | 触发（Triggers）数量 |
-| `tile_count()` | `number` | 当前地形类型的 **地形块种类** 总数 |
+| `tile_count()` | `number` | 当前地形类型的 **地形** 种类总数 |
 | `tile_set_count()` | `number` | 当前地形类型的 **地形组** 数量 |
 | `tag_count()` | `number` | 标签（Tags）数量 |
 | `theater()` | `string` | 当前地图地形名称，如 `"TEMPERATE"` |
@@ -52,6 +52,7 @@
 | `scale_factor()` | `number` | 当前程序的缩放倍率（浮点数） |
 | `available_houses()` | `table` | 当前可用的所属方（阵营）列表，每个元素为一个字符串 |
 
+**重要：遍历单元格时，应遵循如下示例，而不是使用`width()`和`height()`**
 **使用示例**：
 ```lua
 -- 遍历地图上所有单元格
@@ -872,7 +873,7 @@ redraw_window()
 
 ## 八、建筑与节点
 
-### `building` 类
+### 建筑 （`building`）
 
 #### `building(house, type, x, y)` （构造函数）
 - **说明**：构造建筑对象（不立即放置，需调用 `place()`）。
@@ -991,7 +992,7 @@ redraw_window()
 
 ## 九、地形与单元格
 
-### `cell` 类
+### 单元格 （`cell`）
 
 **获取方式**：`get_cell(x, y)` 返回。不能手动构造。
 
@@ -1053,7 +1054,7 @@ local unit = get_unit(cell.unit)
 cell:apply()
 ```
 
-### `tile` 类
+### 地形块 （`tile`） 
 
 **说明**：表示一个具体的地形块（如一块悬崖的某一部分）。不能手动构造。
 **获取方式**：`get_tile_block(tile_index, sub_index)` 或 `get_whole_tile(tile_index)`。
@@ -1642,6 +1643,16 @@ end
 - **参数**：`tag_id` (`string`) — 标签 ID。
 - **返回**：无。
 
+#### `int_to_float(value)`
+- **说明**：将一个32位整数强制转换为浮点数。
+- **参数**：`value` (`number`) — 输入整数。
+- **返回**：(`number`): 输出浮点数。
+
+#### `float_to_int(value)`
+- **说明**：将一个浮点数强制转换为32位无符号整数。
+- **参数**：`value` (`number`) — 输入浮点数。
+- **返回**：(`number`): 输出整数。
+
 **关键用法提示**：
 - 任何对触发属性的修改，最后必须调用 `trigger:apply()`，否则不会保存到地图文件。
 - 创建新触发时，通常先调用 `trigger:new()`，然后分别设置属性、添加事件和行为，最后 `apply()`。
@@ -1954,7 +1965,7 @@ end
 | `avoid_threats` | `boolean` | 读/写 | 躲避威胁 |
 | `loose_recruit` | `boolean` | 读/写 | 用后即弃 |
 | `is_base_defense` | `boolean` | 读/写 | 用语基地防御 |
-| `use_transport_origin` | `boolean` | 读/写 | 设置运输机起始路径点 |
+| `use_transport_origin` | `boolean` | 读/写 | 使用运输机起始路径点 |
 | `only_target_house_enemy` | `boolean` | 读/写 | 仅攻击敌对方 |
 | `transports_return_on_unload` | `boolean` | 读/写 | 运载器下客后返回 |
 | `are_team_members_recruitable` | `boolean` | 读/写 | 小队成员可重组 |

@@ -40,7 +40,7 @@
 | `avoid_threats` | `boolean` | 读/写 | 躲避威胁 |
 | `loose_recruit` | `boolean` | 读/写 | 用后即弃 |
 | `is_base_defense` | `boolean` | 读/写 | 用语基地防御 |
-| `use_transport_origin` | `boolean` | 读/写 | 设置运输机起始路径点 |
+| `use_transport_origin` | `boolean` | 读/写 | 使用运输机起始路径点 |
 | `only_target_house_enemy` | `boolean` | 读/写 | 仅攻击敌对方 |
 | `transports_return_on_unload` | `boolean` | 读/写 | 运载器下客后返回 |
 | `are_team_members_recruitable` | `boolean` | 读/写 | 小队成员可重组 |

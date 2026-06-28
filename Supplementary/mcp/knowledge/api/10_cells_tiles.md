@@ -1,6 +1,6 @@
 ## 九、地形与单元格
 
-### `cell` 类
+### 单元格 （`cell`）
 
 **获取方式**：`get_cell(x, y)` 返回。不能手动构造。
 
@@ -62,7 +62,7 @@ local unit = get_unit(cell.unit)
 cell:apply()
 ```
 
-### `tile` 类
+### 地形块 （`tile`） 
 
 **说明**：表示一个具体的地形块（如一块悬崖的某一部分）。不能手动构造。
 **获取方式**：`get_tile_block(tile_index, sub_index)` 或 `get_whole_tile(tile_index)`。

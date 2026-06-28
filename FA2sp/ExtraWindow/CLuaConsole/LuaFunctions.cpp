@@ -1803,6 +1803,21 @@ namespace LuaFunctions
 		void release_id() const {
 			UsedINIIndices.erase(ID);
 		}
+
+		static float int_to_float(int value)
+		{
+			auto f = *(float*)&value;
+			if (f > 0.0f)
+				f = std::max(f, 0.000001f);
+			else if (f < 0.0f)
+				f = std::min(f, -0.000001f);
+			return f;
+		}
+
+		static unsigned int float_to_int(float value)
+		{
+			return *(unsigned int*)&value;
+		}
 	};
 
 	class team

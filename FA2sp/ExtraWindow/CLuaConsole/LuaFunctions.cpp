@@ -4404,6 +4404,11 @@ namespace LuaFunctions
 		CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
 	}
 
+	static void save_undo_objects()
+	{
+		CMapDataExt::MakeObjectRecord(0xFFFFFFFF);
+	}
+
 	static void save_redo()
 	{
 		// No longer needed since changed undo redo method

@@ -785,6 +785,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("restore_snapshot", restore_snapshot);
     Lua.set_function("clear_snapshot", clear_snapshot);
     Lua.set_function("save_undo", save_undo);
+    Lua.set_function("save_undo_objects", save_undo_objects);
     Lua.set_function("save_redo", save_redo);
     Lua.set_function("in_map", [](int y, int x) {return CMapData::Instance->IsCoordInMap(x, y); });
     Lua.set_function("move_to", [](int yindex, sol::optional<int>x) {

@@ -31,3 +31,7 @@
 
 以上信息仅作了解，在实际lua脚本中，使用`get_teams()`、`get_task_forces()`、`get_scripts()`即可分别获取三者的所有对象的`ID`
 
+## 特遣部队成员
+
+特遣部队的成员可以是车辆、步兵或飞行器。全部可用的单位ID分别可以通过`get_values("VehicleTypes", "rules+map")`、`get_values("InfantryTypes", "rules+map")`、`get_values("AircraftTypes", "rules+map")`获取。
+

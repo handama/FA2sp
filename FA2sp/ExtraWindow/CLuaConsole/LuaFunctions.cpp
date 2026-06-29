@@ -4406,7 +4406,7 @@ namespace LuaFunctions
 
 	static void save_undo_objects()
 	{
-		CMapDataExt::MakeObjectRecord(0xFFFFFFFF);
+		CMapDataExt::MakeObjectRecord(0x0FFFFFFF);
 	}
 
 	static void save_redo()

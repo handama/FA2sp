@@ -153,7 +153,7 @@ static json ProcessRequest(json& request)
             {"name", "list_skills"},
             {"description", "List all available skill documents. You should ALWAYS use this tool first "
                             "to discover relevant skills before attempting any task. Returns document names "
-                            "that can be used as input to get_skill."},
+                            "that can be used as input to get_skill. You should always check 'map_editing_basic_principles.md'."},
             {"inputSchema", {
                 {"type", "object"},
                 {"properties", json::object()},

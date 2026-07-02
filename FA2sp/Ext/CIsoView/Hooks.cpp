@@ -233,12 +233,16 @@ DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 
 DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 {
-	auto pThis = CIsoView::GetInstance();
+	auto pThis = CIsoViewExt::GetExtension();
 	if (CIsoView::CurrentCommand->Command != 0 || pThis->LeftButtonDoubleClick_8C != FALSE || pThis->Drag == TRUE)
 	{
 		return 0x461964;
 	}
-	int pos = CMapData::Instance->GetCoordIndex(pThis->StartCell.X, pThis->StartCell.Y);
+	if (!pThis->Drag)
+	{
+		pThis->DragCell = pThis->StartCell;
+	}
+	int pos = CMapData::Instance->GetCoordIndex(pThis->DragCell.X, pThis->DragCell.Y);
 	auto cell = CMapData::Instance->TryGetCellAt(pos);
 	pThis->CurrentCellObjectIndex = -1;
 	pThis->CurrentCellObjectType = -1;
@@ -250,7 +254,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 		}
 		else
 		{
-			pThis->CurrentCellObjectIndex = CIsoViewExt::GetSelectedSubcellInfantryIdx(pThis->StartCell.X, pThis->StartCell.Y);
+			pThis->CurrentCellObjectIndex = CIsoViewExt::GetSelectedSubcellInfantryIdx(pThis->DragCell.X, pThis->DragCell.Y);
 		}
 		if (pThis->CurrentCellObjectIndex != -1 && !Renderer::Infantries[pThis->CurrentCellObjectIndex].IsVisible())
 			pThis->CurrentCellObjectIndex = -1;
@@ -284,8 +288,8 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 				else
 				{
 					const auto &objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
-					pThis->StartCell.X = objRender.X;
-					pThis->StartCell.Y = objRender.Y;
+					pThis->DragCell.X = objRender.X;
+					pThis->DragCell.Y = objRender.Y;
 				}
 			}
 			else
@@ -321,8 +325,8 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 			const auto &node = cellExt.BaseNodes[0];
 			pThis->CurrentCellObjectIndex = cell->BaseNode.BasenodeID;
 			CIsoViewExt::CurrentCellObjectHouse = cell->BaseNode.House;
-			pThis->StartCell.X = node.X;
-			pThis->StartCell.Y = node.Y;
+			pThis->DragCell.X = node.X;
+			pThis->DragCell.Y = node.Y;
 			pThis->CurrentCellObjectType = 8;
 		}
 	}
@@ -337,8 +341,8 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 			if (pThis->CurrentCellObjectIndex > -1)
 			{
 				auto &data = CMapData::Instance->SmudgeDatas[pThis->CurrentCellObjectIndex];
-				pThis->StartCell.X = data.Y;
-				pThis->StartCell.Y = data.X;
+				pThis->DragCell.X = data.Y;
+				pThis->DragCell.Y = data.X;
 			}
 		}
 	}
@@ -350,6 +354,14 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 			pThis->CurrentCellObjectType = 7;
 		}
 	}
+
+	auto bound = CMapDataExt::IsBlueMapBound();
+	if (bound && CMapDataExt::CellCannotDrag(pThis->DragCell.X, pThis->DragCell.Y))
+	{
+		pThis->CurrentCellObjectIndex = 0;
+		pThis->CurrentCellObjectType = 10 + bound;
+	}
+
 	if (pThis->CurrentCellObjectIndex < 0)
 	{
 		return 0x461964;
@@ -371,13 +383,12 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 	auto isoView = CIsoView::GetInstance();
 	auto &m_id = isoView->CurrentCellObjectIndex;
 	auto &m_type = isoView->CurrentCellObjectType;
-
+	int X = R->EBX();
+	int Y = R->EDI();
 	// annotation
 	if (m_type == 7)
 	{
 		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Annotation);
-		int X = R->EBX();
-		int Y = R->EDI();
 
 		int oldX = CMapData::Instance->GetXFromCoordIndex(m_id);
 		int oldY = CMapData::Instance->GetYFromCoordIndex(m_id);
@@ -404,8 +415,6 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 	if (m_type == 8)
 	{
 		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Basenode);
-		int X = R->EBX();
-		int Y = R->EDI();
 		char key[10];
 		sprintf(key, "%03d", m_id);
 		if (CINI::CurrentDocument->KeyExists(CIsoViewExt::CurrentCellObjectHouse, key))
@@ -441,8 +450,6 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 	if (m_type == 9)
 	{
 		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Smudge);
-		int X = R->EBX();
-		int Y = R->EDI();
 		auto smudge = CMapData::Instance->SmudgeDatas[m_id];
 		smudge.X = Y;
 		smudge.Y = X;
@@ -451,6 +458,151 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 		CMapData::Instance->SetSmudgeData(&smudge);
 		m_id = -1;
 		m_type = -1;
+	}
+	// bounds
+	if (m_type > 10)
+	{
+		int height = CMapData::Instance->TryGetCellAt(X, Y)->Height;
+		Y -= height / 2;
+		X -= height / 2;
+		const int& mapwidth = CMapData::Instance->Size.Width;
+		const int& mapheight = CMapData::Instance->Size.Height;
+
+		int& mpL = CMapData::Instance->LocalSize.Left;
+		int& mpT = CMapData::Instance->LocalSize.Top;
+		int& mpW = CMapData::Instance->LocalSize.Width;
+		int& mpH = CMapData::Instance->LocalSize.Height;
+
+		int y1 = mpT + mpL - 2;
+		int x1 = mapwidth + mpT - mpL - 3;
+
+		int y4 = mpT + mpL + mpW - 2 + mpH + 4;
+		int x4 = mapwidth - mpL - mpW + mpT - 3 + mpH + 4;
+
+		int yr1 = 1;
+		int xr1 = mapwidth;
+
+		int yr4 = mapheight + mapwidth - 1;
+		int xr4 = mapheight;
+
+		if (x1 - y1 > x4 - y4 && x1 + y1 < x4 + y4)
+		{
+			int x2 = (x1 + y1 + x4 - y4) / 2;
+			int y2 = (x1 + y1 - x4 + y4) / 2;
+			int x3 = (x4 + y4 + x1 - y1) / 2;
+			int y3 = (x4 + y4 - x1 + y1) / 2;
+
+			auto updateINI = [&]()
+			{
+				FString size;
+				size.Format("%d,%d,%d,%d", mpL, mpT, mpW, mpH);
+				CINI::CurrentDocument->WriteString("Map", "LocalSize", size);
+				if (IsWindowVisible(CFinalSunDlg::Instance->MapD))
+				{
+					auto dlg = GetDlgItem(CFinalSunDlg::Instance->MapD, 1045);
+					SetWindowText(dlg, size);
+				}
+			};
+
+			if (m_type == 11)
+			{
+				if (X - Y > x2 - y2 + 1 && X - Y < xr1 - yr1)
+				{
+					CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::LocalSize);
+					int dl = (x1 - y1 - X + Y + 1) / 2;
+					mpL += dl;
+					mpW -= dl;
+					updateINI();
+				}
+			}
+			else if (m_type == 13)
+			{
+				if (X - Y < x1 - y1 && X - Y > xr4 - yr4)
+				{
+					CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::LocalSize);
+					int dl = (x2 - y2 - X + Y + 1) / 2;
+					mpW += dl;
+					updateINI();
+				}
+			}
+			else if (m_type == 12)
+			{
+				if (X + Y < x4 + y4 - 1 && X + Y > xr1 + yr1)
+				{
+					CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::LocalSize);
+					int dt = (x1 + y1 - X - Y) / 2;
+					mpT -= dt;
+					mpH += dt;
+					updateINI();
+				}
+			}
+			else if (m_type == 14)
+			{
+				if (X + Y < xr4 + yr4 - 1 && X + Y > x1 + y1)
+				{
+					CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::LocalSize);
+					int dt = (x4 + y4 - X - Y) / 2;
+					mpH -= dt;
+					updateINI();
+				}
+			}
+			else if (m_type == 15)
+			{
+				if (X - Y > x2 - y2 + 1 && X - Y < xr1 - yr1 && X + Y < x4 + y4 - 1 && X + Y > xr1 + yr1)
+				{
+					CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::LocalSize);
+					int dl = (x1 - y1 - X + Y + 1) / 2;
+					mpL += dl;
+					mpW -= dl;
+					int dt = (x1 + y1 - X - Y) / 2;
+					mpT -= dt;
+					mpH += dt;
+					updateINI();
+				}
+			}
+			else if (m_type == 16)
+			{
+				if (X + Y < x4 + y4 - 1 && X + Y > xr1 + yr1 && X - Y < x1 - y1 && X - Y > xr4 - yr4)
+				{
+					CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::LocalSize);
+					int dl = (x2 - y2 - X + Y + 1) / 2;
+					mpW += dl;
+					int dt = (x1 + y1 - X - Y) / 2;
+					mpT -= dt;
+					mpH += dt;
+					updateINI();
+				}
+			}
+			else if (m_type == 17)
+			{
+				if (X - Y > x2 - y2 + 1 && X - Y < xr1 - yr1 && X + Y < xr4 + yr4 - 1 && X + Y > x1 + y1)
+				{
+					CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::LocalSize);
+					int dl = (x1 - y1 - X + Y + 1) / 2;
+					mpL += dl;
+					mpW -= dl;
+					int dt = (x4 + y4 - X - Y) / 2;
+					mpH -= dt;
+					updateINI();
+				}
+			}
+			else if (m_type == 18)
+			{
+				if (X + Y < xr4 + yr4 - 1 && X + Y > x1 + y1 && X - Y < x1 - y1 && X - Y > xr4 - yr4)
+				{
+					CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::LocalSize);
+					int dl = (x2 - y2 - X + Y + 1) / 2;
+					mpW += dl;
+					int dt = (x4 + y4 - X - Y) / 2;
+					mpH -= dt;
+					updateINI();
+				}
+			}
+		}
+		m_id = -1;
+		m_type = -1;
+		X += height / 2;
+		Y += height / 2;
 	}
 	return 0;
 }
@@ -2029,6 +2181,8 @@ DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp, 6)
 	if (nFlags == 0 && point.x == 0 && point.y == 0)
 	{
 		pThis->Drag = FALSE;
+		pThis->CurrentCellObjectIndex = -1;
+		pThis->CurrentCellObjectType = -1;
 		return 0x45EBD1;
 	}
 
@@ -2039,6 +2193,8 @@ DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp, 6)
 		if (dx <= 2 && dy <= 2)
 		{
 			pThis->Drag = FALSE;
+			pThis->CurrentCellObjectIndex = -1;
+			pThis->CurrentCellObjectType = -1;
 			if (CIsoView::CurrentCommand->Command != 0x0)
 			{
 				if (!CopyPaste::PastedCoords.empty())

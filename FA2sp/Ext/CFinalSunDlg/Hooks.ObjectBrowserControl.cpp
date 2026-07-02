@@ -1174,11 +1174,23 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
             }
             else if (command.Command == 4) // place tag
             {
+                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Celltag, true);  
                 for (auto& m : mapCoords)
                 {
-                    int pos = pMap->GetCoordIndex(m.X, m.Y);
-                    pMap->AddCelltag(CIsoView::CurrentCommand->ObjectID, pos);
+                    auto pIsoView = CIsoViewExt::GetExtension();
+                    for (int gx = m.X - pIsoView->BrushSizeX / 2; gx <= m.X + pIsoView->BrushSizeX / 2; gx++)
+                    {
+                        for (int gy = m.Y - pIsoView->BrushSizeY / 2; gy <= m.Y + pIsoView->BrushSizeY / 2; gy++)
+                        {
+                            if (!CMapDataExt::IsCoordInFullMap(gx, gy))
+                                continue;
+                
+                            int intKey = gx * 1000 + gy;
+                            CINI::CurrentDocument->WriteString("CellTags", std::to_string(intKey).c_str(), CIsoView::CurrentCommand->ObjectID);
+                        }
+                    }         
                 }
+                CMapData::Instance->UpdateFieldCelltagData(FALSE);
                 CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
             }
             command.reset();
@@ -1352,7 +1364,15 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
     }
     else if (CIsoView::CurrentCommand->Command == 4 && CIsoView::CurrentCommand->Type == 1)
     {        
+        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Celltag, true);  
         CViewObjectsExt::DeleteCelltag(X, Y);
+        return 0x466860;
+    }
+    else if (CIsoView::CurrentCommand->Command == 4 && CIsoView::CurrentCommand->Type == 4)
+    {      
+        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Celltag, true);  
+        CMapDataExt::AddCellTagExt(CIsoView::CurrentCommand->ObjectID, CMapData::Instance->GetCoordIndex(X, Y));
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
         return 0x466860;
     }
 
@@ -1476,7 +1496,15 @@ DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
     //}
     else if (CIsoView::CurrentCommand->Command == 4 && CIsoView::CurrentCommand->Type == 1)
     {
+        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Celltag, true);  
         CViewObjectsExt::DeleteCelltag(X, Y);
+        return 0x45CD6D;
+    }
+    else if (CIsoView::CurrentCommand->Command == 4 && CIsoView::CurrentCommand->Type == 4)
+    {      
+        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Celltag, true);  
+        CMapDataExt::AddCellTagExt(CIsoView::CurrentCommand->ObjectID, CMapData::Instance->GetCoordIndex(X, Y));
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
         return 0x45CD6D;
     }
 

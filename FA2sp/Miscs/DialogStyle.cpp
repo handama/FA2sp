@@ -6,6 +6,7 @@
 #include "../ExtraWindow/CTriggerAnnotation/CTriggerAnnotation.h"
 #include "../Helpers/Translations.h"
 #include "../Ext/CFinalSunApp/Body.h"
+#include "../ExtraWindow/Common.h"
 
 HBRUSH DarkTheme::g_hDarkBackgroundBrush = NULL;
 HBRUSH DarkTheme::g_hDarkControlBrush = NULL;
@@ -1077,7 +1078,11 @@ LRESULT CALLBACK DarkTheme::ComboBoxSubclassProcA(HWND hWnd, UINT uMsg, WPARAM w
     case WM_CTLCOLOREDIT:
     {
         HDC hdc = (HDC)wParam;
-        SetTextColor(hdc, IsWindowEnabled(hWnd) ? RGB(255, 255, 255) : RGB(128, 128, 128));
+        COLORREF vcbTextColor = VirtualComboBoxEx::GetCurEditTextColor(hWnd);
+        if (vcbTextColor != CLR_INVALID)
+            SetTextColor(hdc, vcbTextColor);
+        else
+            SetTextColor(hdc, IsWindowEnabled(hWnd) ? RGB(255, 255, 255) : RGB(128, 128, 128));
         SetBkMode(hdc, TRANSPARENT);
         return (LRESULT)g_hDarkControlBrush;
     }
@@ -1147,6 +1152,10 @@ LRESULT CALLBACK DarkTheme::EditSubclassProc(
     {
     case WM_NCPAINT:
     {
+        if (GetPropW(hWnd, L"LuaDialog_LabelEdit"))
+        {
+            return 0;
+        }
         DefWindowProc(hWnd, uMsg, wParam, lParam);
         HDC hdc = GetWindowDC(hWnd);
 
@@ -1504,7 +1513,6 @@ LRESULT CALLBACK DarkTheme::DarkButtonSubclassProc(HWND hwnd, UINT uMsg, WPARAM 
 
         int checked = (int)SendMessage(hwnd, BM_GETCHECK, 0, 0);
 
-        // Checkbox uses vector drawing (12px base), radio uses bitmap (16px base ¡ú staircase)
         int glyphSize = ScalePixels(12);
         RECT glyphRc = { 0, 0, 0, 0 };
 

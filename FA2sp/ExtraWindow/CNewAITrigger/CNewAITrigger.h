@@ -230,6 +230,7 @@ protected:
     static void Close(HWND& hWnd);
 
     static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+    static LRESULT CALLBACK DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
     static double safe_stod(const char* s);
 
 private:
@@ -238,8 +239,9 @@ private:
     static CINI& map;
     static CINI& fadata;
     static MultimapHelper& rules;
+	static bool AutoChangeName;
 
-    static HWND hSelectedAITrigger;
+	static HWND hSelectedAITrigger;
     static HWND hEnabled;
     static HWND hAdd;
     static HWND hClone;
@@ -261,6 +263,8 @@ private:
     static HWND hHard;
     static HWND hBaseDefense;
     static HWND hSkrimish;
+    static HWND hDragPoint;
+    static WNDPROC OrigDragDotProc;
 
     static VirtualComboBoxEx vcbSelectedAITrigger;
     static VirtualComboBoxEx vcbTeam[2];

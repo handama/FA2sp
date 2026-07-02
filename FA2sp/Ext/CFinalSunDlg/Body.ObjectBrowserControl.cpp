@@ -106,6 +106,7 @@ int CViewObjectsExt::PlacingRandomTile = -1;
 bool CViewObjectsExt::PlacingRandomRandomFacing;
 bool CViewObjectsExt::PlacingRandomStructureAIRepairs;
 bool CViewObjectsExt::NeedChangeTreeViewSelect = true;
+bool CViewObjectsExt::Initialized = false;
 MoveBaseNode CViewObjectsExt::MoveBaseNode_SelectedObj = { "","","",-1,-1 };
 
 const char* playersAtX[8]
@@ -474,7 +475,8 @@ void CViewObjectsExt::Redraw()
         firstRun = false;
         return;
     }
-    if (ExtConfigs::TreeViewCameo_Display)
+
+	if (ExtConfigs::TreeViewCameo_Display)
     {
         if (m_ImageList.GetSafeHandle())
             m_ImageList.DeleteImageList();
@@ -553,6 +555,72 @@ void CViewObjectsExt::Redraw()
         ::SendMessage(CObjectSearch::GetHandle(), 114515, 0, 0);
         ::SendMessage(CObjectSearch::GetHandle(), 114514, 0, 0);
     }
+
+    if (!Initialized)
+    {
+		CRect rcFrame;
+		CFinalSunDlg::Instance->MyViewFrame.pRightFrame->GetClientRect(&rcFrame);
+
+        auto clampPercent = [](float val) -> float
+        {
+            if (val < 0.0f)
+                return 0.0f;
+            if (val > 1.0f)
+                return 1.0f;
+            return val;
+        };
+
+        if (ExtConfigs::VerticalLayout)
+        {
+			int totalWidth = rcFrame.Width() - GetSystemMetrics(SM_CXVSCROLL);
+			float percent = clampPercent(ExtConfigs::IsoViewWidthPercentage);
+            int isoWidth = static_cast<int>(totalWidth * percent);
+            int tileWidth = totalWidth - isoWidth;
+
+            const int minIso = 20;
+            const int minTile = 20;
+            if (isoWidth < minIso)
+                isoWidth = minIso;
+            if (tileWidth < minTile)
+                tileWidth = minTile;
+            if (isoWidth + tileWidth > totalWidth)
+            {
+                tileWidth = std::max(minTile, totalWidth - isoWidth);
+                if (isoWidth + tileWidth > totalWidth)
+                    isoWidth = totalWidth - tileWidth;
+            }
+
+			CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(0, isoWidth, minIso);
+			CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(1, tileWidth, minTile);
+            CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.RecalcLayout();
+        }
+        else
+        {
+			int totalHeight = rcFrame.Height() - GetSystemMetrics(SM_CYHSCROLL);
+			float percent = clampPercent(ExtConfigs::IsoViewHeightPercentage);
+            int isoHeight = static_cast<int>(totalHeight * percent);
+            int tileHeight = totalHeight - isoHeight;
+
+            const int minIsoH = 20;
+            const int minTileH = 20;
+            if (isoHeight < minIsoH)
+                isoHeight = minIsoH;
+            if (tileHeight < minTileH)
+                tileHeight = minTileH;
+            if (isoHeight + tileHeight > totalHeight)
+            {
+                tileHeight = std::max(minTileH, totalHeight - isoHeight);
+                if (isoHeight + tileHeight > totalHeight)
+                    isoHeight = totalHeight - tileHeight;
+            }
+
+            CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.SetRowInfo(0, isoHeight, minIsoH);
+            CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.SetRowInfo(1, tileHeight, minTileH);
+            CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.RecalcLayout();
+        }
+
+		Initialized = true;
+	}
 }
 
 void CViewObjectsExt::Redraw_Initialize()
@@ -2432,7 +2500,7 @@ void CViewObjectsExt::Redraw_Overlay()
                     if (value.Find(match.c_str()) >= 0)
                     {
                         InsertingOverlay = i;
-                        if (CMapDataExt::IsOre((byte)i))
+                        if (CMapDataExt::IsOre(i))
                             InsertingOverlayData = 11;
                         else
                             InsertingOverlayData = 0;
@@ -2452,7 +2520,7 @@ void CViewObjectsExt::Redraw_Overlay()
                 if (!node.insertedObjects.contains(value))
                 {
                     InsertingOverlay = i;
-                    if (CMapDataExt::IsOre((byte)i))
+                    if (CMapDataExt::IsOre(i))
                         InsertingOverlayData = 11;
                     else
                         InsertingOverlayData = 0;
@@ -2488,7 +2556,7 @@ void CViewObjectsExt::Redraw_Overlay()
         FString id;
         id.Format("%03d %s", i, buffer);
         InsertingOverlay = i;
-        if (CMapDataExt::IsOre((byte)i))
+        if (CMapDataExt::IsOre(i))
             InsertingOverlayData = 11;
         else
             InsertingOverlayData = 0;
@@ -2859,61 +2927,72 @@ void CViewObjectsExt::SquareBatchAddMultiSelection(int X, int Y, bool add)
 
 void CViewObjectsExt::ModifyOre(int X, int Y)
 {
-    const int ORE_COUNT = 12;
-    auto pExt = CMapDataExt::GetExtension();
-    int pos = pExt->GetCoordIndex(X, Y);
-    auto ovr = pExt->GetOverlayAt(pos);
-    int ovrd = pExt->GetOverlayDataAt(pos);
+	auto pIsoView = CIsoViewExt::GetExtension();
+	bool needRedraw = false;
+	for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
+	{
+		for (int gy = Y - pIsoView->BrushSizeY / 2; gy <= Y + pIsoView->BrushSizeY / 2; gy++)
+		{
+			const int ORE_COUNT = 12;
+			auto pExt = CMapDataExt::GetExtension();
+			int pos = pExt->GetCoordIndex(gx, gy);
+			auto ovr = pExt->GetOverlayAt(pos);
+			int ovrd = pExt->GetOverlayDataAt(pos);
 
-    auto getValidOreData = [ORE_COUNT](int data)
-        {
-            if (data < 0)
-                data = -1;
-            if (data >= ORE_COUNT)
-                data = ORE_COUNT - 1;
-            return data;
-        };
-    auto setOreDataAt = [ovr, ovrd, pExt, getValidOreData](int x, int y, int data)
-        {            
-            data = getValidOreData(data);
-            int moneyDelta = 0;
-            int olyPos = y + x * 512;
-            int pos = pExt->GetCoordIndex(x, y);
+			auto getValidOreData = [ORE_COUNT](int data)
+			{
+				if (data < 0)
+					data = -1;
+				if (data >= ORE_COUNT)
+					data = ORE_COUNT - 1;
+				return data;
+			};
+			auto setOreDataAt = [ovr, ovrd, pExt, getValidOreData](int x, int y, int data)
+			{
+				data = getValidOreData(data);
+				int moneyDelta = 0;
+				int olyPos = y + x * 512;
+				int pos = pExt->GetCoordIndex(x, y);
 
-            pExt->DeleteTiberium(std::min(ovr, (word)0xFF), pExt->OverlayData[olyPos]);
-            if (data >= 0)
-            {
-                pExt->OverlayData[olyPos] = data;
-                pExt->CellDatas[pos].OverlayData = data;
-            }
-            else
-            {
-                pExt->Overlay[olyPos] = 0xFF;
-                pExt->NewOverlay[olyPos] = 0xFFFF;
-                pExt->OverlayData[olyPos] = 0;
-                pExt->CellDatas[pos].Overlay = 0xFF;
-                pExt->CellDataExts[pos].NewOverlay = 0xFFFF;
-                pExt->CellDatas[pos].OverlayData = 0;
-            }
-            pExt->AddTiberium(std::min(pExt->NewOverlay[olyPos], (word)0xFF), data);
-        };
-    if (CMapDataExt::IsOre(ovr))
-    {
-        if (!CIsoViewExt::HistoryRecord_IsHoldingLButton)
-        {
-            CIsoViewExt::HistoryRecord_IsHoldingLButton = true;
-            pExt->SaveUndoRedoData(true, 0, 0, 0, 0);
-        }
-        if (CIsoView::CurrentCommand->Type == 0)
-        {
-            setOreDataAt(X, Y, ovrd + 1);
-        }
-        else if (CIsoView::CurrentCommand->Type == 1)
-        {
-            setOreDataAt(X, Y, ovrd - 1);
-        }
-        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
-    }
+				pExt->DeleteTiberium(std::min(ovr, (word)0xFF), pExt->OverlayData[olyPos]);
+				if (data >= 0)
+				{
+					pExt->OverlayData[olyPos] = data;
+					pExt->CellDatas[pos].OverlayData = data;
+				}
+				else
+				{
+					pExt->Overlay[olyPos] = 0xFF;
+					pExt->NewOverlay[olyPos] = 0xFFFF;
+					pExt->OverlayData[olyPos] = 0;
+					pExt->CellDatas[pos].Overlay = 0xFF;
+					pExt->CellDataExts[pos].NewOverlay = 0xFFFF;
+					pExt->CellDatas[pos].OverlayData = 0;
+				}
+				pExt->AddTiberium(std::min(pExt->NewOverlay[olyPos], (word)0xFF), data);
+			};
+			if (CMapDataExt::IsOre(ovr))
+			{
+				if (!CIsoViewExt::HistoryRecord_IsHoldingLButton)
+				{
+					CIsoViewExt::HistoryRecord_IsHoldingLButton = true;
+					pExt->SaveUndoRedoData(true, 0, 0, 0, 0);
+				}
+				if (CIsoView::CurrentCommand->Type == 0)
+				{
+					setOreDataAt(gx, gy, ovrd + 1);
+				}
+				else if (CIsoView::CurrentCommand->Type == 1)
+				{
+					setOreDataAt(gx, gy, ovrd - 1);
+				}
+				needRedraw = true;
+			}
+		}
+	}
+
+    if (needRedraw)
+		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 }
 
 void CViewObjectsExt::AddAnnotation(int X, int Y)
@@ -3665,7 +3744,7 @@ void CViewObjectsExt::ApplyTag(int X, int Y, FString tag)
 
                     CIsoViewExt::DrawPropertyBrushMark = true;
                     CIsoViewExt::DrawEditedMarks.push_back(
-                        EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
+                        EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y), (short)atoi(data.SubCell) });
 
                     CMapData::Instance->DeleteInfantryData(infantry);
                     CMapData::Instance->SetInfantryData(&data, nullptr, nullptr, 0, -1);

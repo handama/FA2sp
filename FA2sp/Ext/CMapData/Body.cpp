@@ -19,6 +19,7 @@
 #include "../../ExtraWindow/CNewTag/CNewTag.h"
 #include "../../ExtraWindow/CNewHouse/CNewHouse.h"
 #include "../../ExtraWindow/CNewINIEditor/CNewINIEditor.h"
+#include "../../ExtraWindow/CMiscSettings/CMiscSettings.h"
 #include "../../ExtraWindow/CSearhReference/CSearhReference.h"
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
 #include "../../ExtraWindow/CBatchTrigger/CBatchTrigger.h"
@@ -95,6 +96,7 @@ std::vector<short> CMapDataExt::StructureIndexMap;
 std::vector<TubeData> CMapDataExt::Tubes;
 std::unordered_map<int, TileAnimation> CMapDataExt::TileAnimations;
 FHashMap<COLORREF> CMapDataExt::Colors;
+FHashMap<COLORREF> CMapDataExt::WAETriggerColors;
 std::unordered_map<int, FString> CMapDataExt::TileSetOriginSetNames[6];
 FHashSet CMapDataExt::TerrainPaletteBuildings;
 FHashSet CMapDataExt::DamagedAsRubbleBuildings;
@@ -165,6 +167,24 @@ const std::vector<FString> CMapDataExt::TechnoStates =
 	"Sticky",
 	"Stop",
 	"Unload"
+};
+static const FHashMap<COLORREF> colorMap =
+{
+	{ "Teal",       RGB(0, 196, 196) },
+	{ "Green",      RGB(0, 255, 0) },
+	{ "Dark Green", RGB(0, 128, 0) },
+	{ "Lime Green", RGB(50, 205, 50) },
+	{ "Yellow",     RGB(255, 255, 0) },
+	{ "Orange",     RGB(255, 165, 0) },
+	{ "Red",        RGB(255, 0, 0) },
+	{ "Blood Red",  RGB(139, 0, 0) },
+	{ "Pink",       RGB(255, 105, 180) },
+	{ "Cherry",     RGB(255, 192, 203) },
+	{ "Purple",     RGB(147, 112, 219) },
+	{ "Sky Blue",   RGB(135, 206, 235) },
+	{ "Blue",       RGB(40, 40, 255) },
+	{ "Brown",      RGB(165, 42, 42) },
+	{ "Metalic",    RGB(160, 160, 200) }
 };
 
 static inline int DistSqrByIndex(int a, int b)
@@ -415,6 +435,26 @@ void CMapDataExt::GetAircraftDataFS(const char* str, CAircraftDataFS& data)
 			start = p + 1;
 		}
 	}
+}
+
+void CMapDataExt::GetInfantryData(const char* str, CInfantryData& data)
+{
+	auto splits = STDHelpers::SplitString(str, 13);
+
+	data.House = splits[0];
+	data.TypeID = splits[1];
+	data.Health = splits[2];
+	data.Y = splits[3];
+	data.X = splits[4];
+	data.SubCell = splits[5];
+	data.Status = splits[6];
+	data.Facing = splits[7];
+	data.Tag = splits[8];
+	data.VeterancyPercentage = splits[9];
+	data.Group = splits[10];
+	data.IsAboveGround = splits[11];
+	data.AutoNORecruitType = splits[12];
+	data.AutoYESRecruitType = splits[13];
 }
 
 CBuildingDataFS& CMapDataExt::GetBuildingDataFsFromMap(size_t index)
@@ -931,6 +971,27 @@ int CMapDataExt::GetSafeSubTileIndex(int tile, int idx)
 	return 0;
 }
 
+void CMapDataExt::AddCellTagExt(const char* lpTag, int dwPos)
+{
+	auto pThis = GetExtension();
+	int X = pThis->GetXFromCoordIndex(dwPos);
+	int Y = pThis->GetYFromCoordIndex(dwPos);
+	auto pIsoView = CIsoViewExt::GetExtension();
+    for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
+    {
+        for (int gy = Y - pIsoView->BrushSizeY / 2; gy <= Y + pIsoView->BrushSizeY / 2; gy++)
+        {
+            if (!CMapDataExt::IsCoordInFullMap(gx, gy))
+                continue;
+
+			int intKey = gx * 1000 + gy;
+			CINI::CurrentDocument->WriteString("CellTags", std::to_string(intKey).c_str(), lpTag);
+        }
+    }
+
+    CMapData::Instance->UpdateFieldCelltagData(FALSE);
+}
+
 void CMapDataExt::UpdateTriggers()
 {
 	CMapDataExt::Triggers.clear();
@@ -1021,9 +1082,7 @@ bool CMapDataExt::IsTileIntact(int x, int y, int startX, int startY, int right, 
 		return false;
 	int pos = this->GetCoordIndex(x, y);
 	auto cell = this->GetCellAt(pos);
-	int tileIndex = cell->TileIndex;
-	if (tileIndex == 0xFFFF)
-		tileIndex = 0;
+	int tileIndex = GetSafeTileIndex(cell->TileIndex);
 
 	int oriX = x - cell->TileSubIndex / CMapDataExt::TileData[tileIndex].Width;
 	int oriY = y - cell->TileSubIndex % CMapDataExt::TileData[tileIndex].Width;
@@ -1040,9 +1099,7 @@ bool CMapDataExt::IsTileIntact(int x, int y, int startX, int startY, int right, 
 					return false;
 
 			auto cell2 = this->GetCellAt(m + oriX, n + oriY);
-			int tileIndex2 = cell2->TileIndex;
-			if (tileIndex2 == 0xFFFF)
-				tileIndex2 = 0;
+			int tileIndex2 = GetSafeTileIndex(cell2->TileIndex);
 
 			if (CMapDataExt::TileData[tileIndex].TileBlockDatas[subIdx].ImageData != NULL)
 			{
@@ -1241,9 +1298,7 @@ std::vector<MapCoord> CMapDataExt::GetIntactTileCoords(int x, int y, bool oriInt
 	{
 		int pos = this->GetCoordIndex(x, y);
 		auto cell = this->GetCellAt(pos);
-		int tileIndex = cell->TileIndex;
-		if (tileIndex == 0xFFFF)
-			tileIndex = 0;
+		int tileIndex = GetSafeTileIndex(cell->TileIndex);
 
 		int oriX = x - cell->TileSubIndex / CMapDataExt::TileData[tileIndex].Width;
 		int oriY = y - cell->TileSubIndex % CMapDataExt::TileData[tileIndex].Width;
@@ -1767,8 +1822,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		return CMapDataExt::TileData[tileIndex].Morphable;
 	};
 	auto cell = CMapData::Instance->TryGetCellAt(x, y);
-	int groundClick = cell->TileIndex;
-	if (groundClick == 0xFFFF) groundClick = 0;
+	int groundClick = GetSafeTileIndex(cell->TileIndex);
 	if (!IgnoreMorphable && !isDefinedMorphable(groundClick)) return;
 
 	// default use clear
@@ -1822,8 +1876,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 			if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
 				return 0;
 			if (IgnoreMorphable) return 1;
-			int groundClick = cell->TileIndex;
-			if (groundClick == 0xFFFF) groundClick = 0;
+			int groundClick = GetSafeTileIndex(cell->TileIndex);
 			return isDefinedMorphable(groundClick) ? 1 : 0;
 		};
 	auto getIndex = [startTile](int idx)
@@ -2121,6 +2174,10 @@ void CMapDataExt::UpdateFieldStructureData_Optimized()
 		if (ExtConfigs::InGameDisplay_RemapableOverlay)
 		{
 			RemapableOverlay_RefreshBuildingIndices();
+		}
+		if (CFinalSunDlgExt::CurrentLighting != 31000)
+		{		
+			LightingSourceTint::CalculateMapLamps();
 		}
 	}
 }
@@ -2810,6 +2867,14 @@ void ObjectRecord::record(int recordType)
 		recordedFlages |= RecordType::GeometricAnnotation;
 		recordIniMap("GeometricAnnotations", GeometricAnnotationList);
 	}
+	if (recordType & RecordType::LocalSize)
+	{
+		recordedFlages |= RecordType::LocalSize;		
+		bound.left = CMapData::Instance->LocalSize.Left;
+		bound.top = CMapData::Instance->LocalSize.Top;
+		bound.width = CMapData::Instance->LocalSize.Width;
+		bound.height = CMapData::Instance->LocalSize.Height;
+	}
 	if (recordType & RecordType::Measurements)
 	{
 		recordedFlages |= RecordType::Measurements;
@@ -2944,6 +3009,14 @@ void ObjectRecord::appendRecord(int recordType)
 	{
 		recordedFlages |= RecordType::GeometricAnnotation;
 		recordIniMap("GeometricAnnotations", GeometricAnnotationList);
+	}
+	if (recordType & RecordType::LocalSize && !(recordedFlages & RecordType::LocalSize))
+	{
+		recordedFlages |= RecordType::LocalSize;		
+		bound.left = CMapData::Instance->LocalSize.Left;
+		bound.top = CMapData::Instance->LocalSize.Top;
+		bound.width = CMapData::Instance->LocalSize.Width;
+		bound.height = CMapData::Instance->LocalSize.Height;
 	}
 	if (recordType & RecordType::Measurements && !(recordedFlages & RecordType::Measurements))
 	{
@@ -3116,6 +3189,22 @@ void ObjectRecord::recover()
 	{
 		recoverIniMap("GeometricAnnotations", GeometricAnnotationList);
 		CMapDataExt::UpdateGeometricAnnotation();
+	}
+	if (recordFlags & RecordType::LocalSize)
+	{
+		CMapData::Instance->LocalSize.Left = bound.left;
+		CMapData::Instance->LocalSize.Top = bound.top;
+		CMapData::Instance->LocalSize.Width = bound.width;
+		CMapData::Instance->LocalSize.Height = bound.height;
+
+		FString size;
+		size.Format("%d,%d,%d,%d", bound.left, bound.top, bound.width, bound.height);
+		CINI::CurrentDocument->WriteString("Map", "LocalSize", size);
+		if (IsWindowVisible(CFinalSunDlg::Instance->MapD))
+		{
+			auto dlg = GetDlgItem(CFinalSunDlg::Instance->MapD, 1045);
+			SetWindowText(dlg, size);
+		}
 	}
 	if ((recordFlags & RecordType::Measurements) && MeasurementRecords)
 	{
@@ -3568,6 +3657,8 @@ void CMapDataExt::InitializeTileDataInfo()
 				anim.AnimName = CINI::CurrentTheater->GetString(setName, Anim);
 				anim.XOffset = CINI::CurrentTheater->GetInteger(setName, XOffset);
 				anim.YOffset = CINI::CurrentTheater->GetInteger(setName, YOffset);
+				anim.XOffset += CINI::Art->GetInteger(anim.AnimName, "XDrawOffset");
+				anim.YOffset += CINI::Art->GetInteger(anim.AnimName, "YDrawOffset");
 				anim.AttachedSubTile = CINI::CurrentTheater->GetInteger(setName, AttachesTo);
 				anim.ZAdjust = CINI::CurrentTheater->GetInteger(setName, ZAdjust);
 				FString imageName;
@@ -3781,6 +3872,113 @@ void CMapDataExt::BuildBaseHeightMask(CTileBlockClass* subTile)
 	}
 }
 
+int CMapDataExt::IsBlueMapBound(int x, int y)
+{
+	const int& mapwidth = CMapData::Instance->Size.Width;
+	const int& mapheight = CMapData::Instance->Size.Height;
+
+	const int& mpL = CMapData::Instance->LocalSize.Left;
+	const int& mpT = CMapData::Instance->LocalSize.Top;
+	const int& mpW = CMapData::Instance->LocalSize.Width;
+	const int& mpH = CMapData::Instance->LocalSize.Height;
+
+	int y1 = mpT + mpL - 2;
+	int x1 = mapwidth + mpT - mpL - 3;
+
+	int y4 = mpT + mpL + mpW - 2 + mpH + 4;
+	int x4 = mapwidth - mpL - mpW + mpT - 3 + mpH + 4;
+
+	if (x1 - y1 > x4 - y4 && x1 + y1 < x4 + y4)
+	{
+		int x2 = (x1 + y1 + x4 - y4) / 2;
+		int y2 = (x1 + y1 - x4 + y4) / 2;
+		int x3 = (x4 + y4 + x1 - y1) / 2;
+		int y3 = (x4 + y4 - x1 + y1) / 2;
+
+		if (x + y == x1 + y1 && x - y <= x1 - y1 && x - y > x2 - y2)
+			return 2;
+		else if (x + y == x3 + y3 && x - y <= x3 - y3 && x - y > x4 - y4)
+			return 4;
+		else if (x - y == x1 + 1 - y1 && x + y >= x1 + 1 + y1 && x + y <= x3 + y3 - 1)
+			return 1;
+		else if (x - y == x2 + 1 - y2 && x + y >= x2 + 1 + y2 && x + y <= x4 + y4 - 1)
+			return 3;
+	}
+	return 0;
+}
+
+int CMapDataExt::IsBlueMapBound()
+{
+	const int& mapwidth = CMapData::Instance->Size.Width;
+	const int& mapheight = CMapData::Instance->Size.Height;
+
+	const int& mpL = CMapData::Instance->LocalSize.Left;
+	const int& mpT = CMapData::Instance->LocalSize.Top;
+	const int& mpW = CMapData::Instance->LocalSize.Width;
+	const int& mpH = CMapData::Instance->LocalSize.Height;
+
+	int y1 = mpT + mpL - 2;
+	int x1 = mapwidth + mpT - mpL - 3;
+
+	int y4 = mpT + mpL + mpW - 2 + mpH + 4;
+	int x4 = mapwidth - mpL - mpW + mpT - 3 + mpH + 4;
+
+	CIsoViewExt::MapCoord2ScreenCoord(x1, y1, 1);
+	CIsoViewExt::MapCoord2ScreenCoord(x4, y4, 1);
+
+	CRect rect;
+	CIsoView::GetInstance()->GetWindowRect(&rect);
+
+	x1 -= CIsoViewExt::drawOffsetX;
+	x4 -= CIsoViewExt::drawOffsetX;
+	y1 -= CIsoViewExt::drawOffsetY + 15 / CIsoViewExt::ScaledFactor;
+	y4 -= CIsoViewExt::drawOffsetY + 15 / CIsoViewExt::ScaledFactor;
+
+	if (!ExtConfigs::DirectXRendering)
+	{
+		x1 -= rect.left;
+		x4 -= rect.left;
+		y1 -= rect.top;
+		y4 -= rect.top;
+	}
+
+	auto mouse = CIsoView::GetInstance()->MouseCurrentPosition;
+
+	if (y4 > y1 && x4 > x1)
+	{
+		if (abs(mouse.x - x1) <= 30 / CIsoViewExt::ScaledFactor && abs(mouse.y - y1) <= 15 / CIsoViewExt::ScaledFactor)
+			return 5;
+		else if (abs(mouse.x - x4) <= 30 / CIsoViewExt::ScaledFactor && abs(mouse.y - y1) <= 15 / CIsoViewExt::ScaledFactor)
+			return 6;
+		else if (abs(mouse.x - x1) <= 30 / CIsoViewExt::ScaledFactor && abs(mouse.y - y4) <= 15 / CIsoViewExt::ScaledFactor)
+			return 7;
+		else if (abs(mouse.x - x4) <= 30 / CIsoViewExt::ScaledFactor && abs(mouse.y - y4) <= 15 / CIsoViewExt::ScaledFactor)
+			return 8;
+		else if (mouse.x >= x1 && mouse.x <= x4 && abs(mouse.y - y1) <= 15 / CIsoViewExt::ScaledFactor)
+			return 2;
+		else if (mouse.x >= x1 && mouse.x <= x4 && abs(mouse.y - y4) <= 15 / CIsoViewExt::ScaledFactor)
+			return 4;
+		else if (mouse.y >= y1 && mouse.y <= y4 && abs(mouse.x - x1) <= 30 / CIsoViewExt::ScaledFactor)
+			return 1;
+		else if (mouse.y >= y1 && mouse.y <= y4 && abs(mouse.x - x4) <= 30 / CIsoViewExt::ScaledFactor)
+			return 3;
+	}
+	return 0;
+}
+
+bool CMapDataExt::CellCannotDrag(int x, int y)
+{
+	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
+	auto cellpos = Instance->GetCoordIndex(x, y);
+	if (cellpos >= Instance->CellDataCount)
+		cellpos = 0;
+
+	auto cell = Instance->GetCellAt(cellpos);
+	auto& cellExt = CellDataExts[cellpos];
+
+	return !pIsoView->Drag && CIsoView::CurrentCommand->Command == 0 && cell->Aircraft == -1 && cell->Unit == -1 && cell->Structure == -1 && cell->Terrain == -1 && cell->Smudge == -1 && cell->Waypoint == -1 && cell->CellTag == -1 && cell->Infantry[0] == -1 && cell->Infantry[1] == -1 && cell->Infantry[2] == -1 && cell->Infantry[2] == -1 && cellExt.BaseNodes.empty() && cellExt.SmudgeParts.empty() && !CMapDataExt::HasAnnotation(cellpos);
+}
+
 void CustomTileBlock::SetTileBlock(int tile, int subtile, int height)
 {
 	Height = height;
@@ -3914,8 +4112,7 @@ void CMapDataExt::CheckCellLow(bool steep, int loopCount, bool IgnoreMorphable, 
 		if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
 			return false;
 		if (IgnoreMorphable) return true;
-		int groundClick = cell->TileIndex;
-		if (groundClick == 0xFFFF) groundClick = 0;
+		int groundClick = GetSafeTileIndex(cell->TileIndex);
 		return CMapDataExt::TileData[groundClick].Morphable != 0;
 	};
 
@@ -4053,8 +4250,7 @@ void CMapDataExt::CheckCellRise(bool steep, int loopCount, bool IgnoreMorphable,
 		if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
 			return 0;
 		if (IgnoreMorphable) return 1;
-		int groundClick = cell->TileIndex;
-		if (groundClick == 0xFFFF) groundClick = 0;
+		int groundClick = GetSafeTileIndex(cell->TileIndex);
 		return CMapDataExt::TileData[groundClick].Morphable;
 	};
 
@@ -4182,8 +4378,7 @@ void CMapDataExt::CheckCellRise(bool steep, int loopCount, bool IgnoreMorphable,
 					auto cell = CMapDataExt::TryGetCellAt(newX, newY);
 					if (!cell) continue;
 
-					int ground = cell->TileIndex;
-					if (ground == 0xFFFF) ground = 0;
+					int ground = GetSafeTileIndex(cell->TileIndex);
 					if (!CMapDataExt::TileData[ground].Morphable) continue;
 
 					if (height - cell->Height <= 0) continue;
@@ -4309,6 +4504,15 @@ void CMapDataExt::RefreshAllWindows()
 	if (CNewScript::GetHandle())
 	{
 		::SendMessage(CNewScript::GetHandle(), 114514, 0, 0);
+	}
+	if (CMiscSettings::NewSpecialFlags.m_hWnd) {
+		CMiscSettings::InitNewSpecialFlags();
+	}
+	if (CMiscSettings::NewBasic.m_hWnd) {
+		CMiscSettings::InitNewBasic();
+	}
+	if (CMiscSettings::NewSinglePlayer.m_hWnd) {
+		CMiscSettings::InitNewSinglePlayer();
 	}
 
 	bool noEditor = true;
@@ -4971,4 +5175,30 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	ExtraUnitLight = Variables::RulesMap.GetSingle("AudioVisual", "ExtraUnitLight", 0.2f);
 	ExtraInfantryLight = Variables::RulesMap.GetSingle("AudioVisual", "ExtraInfantryLight", 0.2f);
 	ExtraAircraftLight = Variables::RulesMap.GetSingle("AudioVisual", "ExtraAircraftLight", 0.2f);
+
+	CIsoViewExt::GetInstance()->Drag = FALSE;
+	CIsoViewExt::GetInstance()->CurrentCellObjectIndex = -1;
+	CIsoViewExt::GetInstance()->CurrentCellObjectType = -1;
+
+	WAETriggerColors.clear();
+	const char* WAESections[3] =
+		{
+			"EditorTriggerInfo",
+			"EditorScriptInfo",
+			"EditorTeamTypeInfo",
+		};
+	for (int i = 0; i < 3; ++i)
+	{
+		if (auto pSection = CINI::CurrentDocument->GetSection(WAESections[i]))
+		{
+			for (auto& [key, value] : pSection->GetEntities())
+			{
+				auto it = colorMap.find(value);
+				if (it != colorMap.end())
+				{
+					WAETriggerColors[key] = it->second;
+				}
+			}
+		}
+	} 
 }

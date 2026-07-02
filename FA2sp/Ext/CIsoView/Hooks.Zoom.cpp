@@ -199,8 +199,8 @@ DEFINE_HOOK(4616F0, CIsoView_OnLButtonDown_Scaled_2, 6)
 		return 0;                                                               \
 	}
 CIsoView_OnMouseMove_CallOnLButtonDown(45B583, CallOnLButtonDown2, 7)
-	CIsoView_OnMouseMove_CallOnLButtonDown(45B5A3, CallOnLButtonDown3, 7)
-		CIsoView_OnMouseMove_CallOnLButtonDown(45BF40, CallOnLButtonDown4, 7)
+CIsoView_OnMouseMove_CallOnLButtonDown(45B5A3, CallOnLButtonDown3, 7)
+CIsoView_OnMouseMove_CallOnLButtonDown(45BF40, CallOnLButtonDown4, 7)
 #undef CIsoView_OnMouseMove_CallOnLButtonDown
 
 #define CIsoView_OnLButtonDown_CallOnMouseMove(hook_addr, hook_name, hook_size) \
@@ -209,8 +209,8 @@ CIsoView_OnMouseMove_CallOnLButtonDown(45B583, CallOnLButtonDown2, 7)
 		CIsoViewExt::OnMouseMove_CalledFromOnLButtonDown = true;                \
 		return 0;                                                               \
 	}
-			CIsoView_OnLButtonDown_CallOnMouseMove(4665D0, CallOnMouseMove1, 6)
-				CIsoView_OnLButtonDown_CallOnMouseMove(46684D, CallOnMouseMove2, 6)
+CIsoView_OnLButtonDown_CallOnMouseMove(4665D0, CallOnMouseMove1, 6)
+CIsoView_OnLButtonDown_CallOnMouseMove(46684D, CallOnMouseMove2, 6)
 #undef CIsoView_OnLButtonDown_CallOnMouseMove
 
 					static CPoint OnLButtonUp_pos;
@@ -313,6 +313,9 @@ DEFINE_HOOK(456DA0, CIsoView_OnMouseMove_FixPos, 8)
 		R->Stack(0xC, R->Stack<int>(0xC) - GetSystemMetrics(SM_YVIRTUALSCREEN));
 	}
 	CIsoViewExt::OnMouseMove_CalledFromOnLButtonDown = false;
+	if (ExtConfigs::RecordBrushSizeHistory)
+		CIsoViewExt::ChangeBrushSize_OnMouseMove();
+
 	return 0;
 }
 

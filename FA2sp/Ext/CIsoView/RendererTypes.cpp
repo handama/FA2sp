@@ -746,6 +746,8 @@ InfantryType* Renderer::GetOrCreateInfantry(FString_view id)
 void Renderer::Building::Reload(short index)
 {
     Visible = false;
+    firstDrawA = true;
+    firstDrawB = true;
     pType = nullptr;
     pRenderData = nullptr;
 
@@ -871,6 +873,18 @@ void Renderer::Building::Reload(short index)
         RenderMapVisible = true;
 
     Visible = FilterVisible && RenderMapVisible;
+}
+
+void Renderer::Building::InitOnPaste(CBuildingDataFS& data, BuildingRenderData& render)
+{
+    Visible = true;
+    firstDrawA = true;
+    firstDrawB = true;
+    pObjectData = &data;
+    pType = GetOrCreateBuilding(data.TypeID);
+    pRenderData = &render;
+    pCellData = CMapData::Instance->TryGetCellAt(pRenderData->X, pRenderData->Y);
+    HouseColor = pRenderData->HouseColor;
 }
 
 CBuildingDataFS* Renderer::Building::GetData()
@@ -1089,7 +1103,12 @@ CInfantryData* Renderer::Infantry::GetData()
 
 void Renderer::Infantry::OffsetInfantrySubcell(int& x, int& y)
 {
-    switch (atoi(GetData()->SubCell))
+	OffsetInfantrySubcell(x, y, atoi(GetData()->SubCell));
+}
+
+void Renderer::Infantry::OffsetInfantrySubcell(int& x, int& y, int subcell)
+{
+    switch (subcell)
     {
     case 2:
         x += 15;

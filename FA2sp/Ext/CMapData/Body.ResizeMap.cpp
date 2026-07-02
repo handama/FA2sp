@@ -413,6 +413,9 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 	}
 
 	CIsoViewExt::MoveToMapCoord(MapWidthPlusHeight / 2, MapWidthPlusHeight / 2);
+	CIsoViewExt::GetInstance()->Drag = FALSE;
+	CIsoViewExt::GetInstance()->CurrentCellObjectIndex = -1;
+	CIsoViewExt::GetInstance()->CurrentCellObjectType = -1;
 
 	return true;
 }
@@ -452,6 +455,10 @@ bool CMapDataExt::ResizeMap_AllocCellData(MapRect* const pRect)
 	IsoPackDataCount = 0;
 
 	CMeasurementToolbox::ClearStatus();
+
+	CIsoViewExt::GetInstance()->Drag = FALSE;
+	CIsoViewExt::GetInstance()->CurrentCellObjectIndex = -1;
+	CIsoViewExt::GetInstance()->CurrentCellObjectType = -1;
 
 	return true;
 }

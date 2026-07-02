@@ -1,13 +1,17 @@
 #include "CLuaConsole.h"
+#include "CMcpServer.h"
 #include "LuaFunctions.cpp"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Helpers/MultimapHelper.h"
+#include "../CLuaDialog/CLuaDialog.h"
 #include "../Common.h"
 #include "../CNewAITrigger/CNewAITrigger.h"
 #include "../CNewTeamTypes/CNewTeamTypes.h"
 #include "../CNewScript/CNewScript.h"
 #include "../CNewTaskforce/CNewTaskforce.h"
+#include "../CNewAITrigger/CNewAITrigger.h"
+#include "../CNewLocalVariables/CNewLocalVariables.h"
 #include "../CObjectSearch/CObjectSearch.h"
 #include <CLoading.h>
 #include <CFinalSunDlg.h>
@@ -71,7 +75,10 @@ bool CLuaConsole::updateScript = false;
 bool CLuaConsole::updateTeam = false;
 bool CLuaConsole::updateTaskforce = false;
 bool CLuaConsole::updateCellTag = false;
+bool CLuaConsole::updateVariable = false;
 bool CLuaConsole::skipBuildingUpdate = false;
+std::string CLuaConsole::mcpOutput;
+bool CLuaConsole::mcpRunning = false;
 sol::state CLuaConsole::Lua;
 using namespace::LuaFunctions;
 const int splitterHeight = 4;
@@ -251,6 +258,8 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("exe_path", []() {return (std::string)CFinalSunAppExt::ExePathExt; });
     Lua.set_function("game_path", []() {return std::string(CFinalSunApp::Instance->FilePath); });
     Lua.set_function("map_path", []() {return std::string(CFinalSunApp::Instance->MapPath); });
+    Lua.set_function("scale_factor", []() {return CFinalSunAppExt::ProgramScaleFactor; });
+    Lua.set_function("available_houses", get_available_houses);
 
     // misc functions
     Lua.set_function("print", lua_print);
@@ -303,6 +312,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         });
     Lua.set_function("remove_waypoint", remove_waypoint);
     Lua.set_function("remove_waypoint_at", remove_waypoint_at);
+    Lua.set_function("get_waypoint", get_waypoint);
     Lua.new_usertype<infantry>("infantry",
         sol::constructors<infantry(std::string, std::string, int, int)>(),
         "house", &infantry::House,
@@ -466,7 +476,9 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "x", sol::readonly(&cell::Y),
         "y", sol::readonly(&cell::X),
         "unit", sol::readonly(&cell::Unit),
-        "infantry", sol::readonly(&cell::Infantry),
+        "infantry_1", sol::readonly(&cell::Infantry_1),
+        "infantry_2", sol::readonly(&cell::Infantry_2),
+        "infantry_3", sol::readonly(&cell::Infantry_3),
         "aircraft", sol::readonly(&cell::Aircraft),
         "building", sol::readonly(&cell::Structure),
         //"TypeListIndex", &cell::TypeListIndex,
@@ -719,6 +731,19 @@ void CLuaConsole::Initialize(HWND& hWnd)
         }
         set_param(section, key, value, index, delimiter.value());
         });
+    Lua.set_function("get_param_str", [](std::string string, int index, sol::optional<std::string> delimiter) {
+            if (!delimiter) {
+                delimiter = ",";
+			}
+            
+            return get_param(string, index, delimiter.value());
+        });
+    Lua.set_function("set_param_str", [](std::string string, std::string value, int index, sol::optional<std::string> delimiter) {
+        if (!delimiter) {
+            delimiter = ",";
+        }
+        return set_param(string, value, index, delimiter.value());
+        });
     Lua.set_function("trim_index", trim_index);
     Lua.set_function("waypoint_to_string", [](std::string wp) { return STDHelpers::WaypointToString(wp).ToStdString(); });
     Lua.set_function("string_to_waypoint", [](std::string str) { return STDHelpers::StringToWaypointStr(str).ToStdString(); });
@@ -760,6 +785,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("restore_snapshot", restore_snapshot);
     Lua.set_function("clear_snapshot", clear_snapshot);
     Lua.set_function("save_undo", save_undo);
+    Lua.set_function("save_undo_objects", save_undo_objects);
     Lua.set_function("save_redo", save_redo);
     Lua.set_function("in_map", [](int y, int x) {return CMapData::Instance->IsCoordInMap(x, y); });
     Lua.set_function("move_to", [](int yindex, sol::optional<int>x) {
@@ -785,6 +811,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "id", sol::readonly(&trigger::ID),
         "name", &trigger::Name,
         "house", &trigger::House,
+        "country", &trigger::House,
         "tags", sol::readonly(&trigger::Tags),
         "attached_trigger", &trigger::AttachedTrigger,
         "disabled", &trigger::Disabled,
@@ -796,6 +823,10 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "add_tag", &trigger::add_tag,
         "add_event", &trigger::add_event,
         "add_action", &trigger::add_action,
+        "replace_event", &trigger::replace_event,
+        "replace_action", &trigger::replace_action,
+        "get_event_type", &trigger::get_event_type,
+        "get_action_type", &trigger::get_action_type,
         "delete_tag", &trigger::delete_tag,
         "delete_tags", &trigger::delete_tags,
         "delete_event", &trigger::delete_event,
@@ -808,9 +839,12 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("delete_trigger", trigger::delete_trigger);
     Lua.set_function("delete_tag", trigger::delete_tag_static);
     Lua.set_function("get_trigger", trigger::get_trigger);
+    Lua.set_function("get_triggers", trigger::get_triggers);
     Lua.set_function("place_celltag", place_celltag);
     Lua.set_function("remove_celltag", remove_celltag);
     Lua.set_function("remove_celltags", remove_celltags);
+    Lua.set_function("int_to_float", trigger::int_to_float);
+    Lua.set_function("float_to_int", trigger::float_to_int);
 
     Lua.new_usertype<ai_trigger>("ai_trigger",
         sol::constructors<ai_trigger(std::string), ai_trigger()>(),
@@ -818,6 +852,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "name", &ai_trigger::Name,
         "team1", &ai_trigger::Team1,
         "house", &ai_trigger::House,
+        "country", &ai_trigger::House,
         "tech_level", &ai_trigger::TechLevel,
         "condition", &ai_trigger::ConditionType,
         "object", &ai_trigger::ComparisonObject,
@@ -843,6 +878,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     );
     Lua.set_function("delete_ai_trigger", ai_trigger::delete_ai_trigger);
     Lua.set_function("get_ai_trigger", ai_trigger::get_ai_trigger);
+    Lua.set_function("get_ai_triggers", ai_trigger::get_ai_triggers);
 
     Lua.new_usertype<script>("script",
         sol::constructors<script(std::string), script()>(),
@@ -852,6 +888,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "params", sol::readonly(&script::Params),
         "add_action", &script::add_action,
         "delete_action", &script::delete_action,
+        "replace_action", &script::replace_action,
         "apply", &script::apply,
         "change_id", &script::change_id,
         "release_id", &script::release_id,
@@ -859,7 +896,12 @@ void CLuaConsole::Initialize(HWND& hWnd)
         );
     Lua.set_function("delete_script", script::delete_script);
     Lua.set_function("get_script", script::get_script);
-
+    Lua.set_function("get_scripts", script::get_scripts);
+    Lua.set_function("get_script_type", script::get_script_type);
+    Lua.set_function("script_has_extra", script::script_has_extra);
+    Lua.set_function("get_script_extra", script::get_script_extra);
+    Lua.set_function("combine_script_extra", script::combine_script_extra);
+    
     Lua.new_usertype<task_force>("task_force",
         sol::constructors<task_force(std::string), task_force()>(),
         "id", sol::readonly(&task_force::ID),
@@ -869,6 +911,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "units", sol::readonly(&task_force::Units),
         "add_number", &task_force::add_number,
         "delete_number", &task_force::delete_number,
+        "replace_number", &task_force::replace_number,
         "apply", &task_force::apply,
         "change_id", &task_force::change_id,
         "release_id", &task_force::release_id,
@@ -876,12 +919,14 @@ void CLuaConsole::Initialize(HWND& hWnd)
         );
     Lua.set_function("delete_task_force", task_force::delete_task_force);
     Lua.set_function("get_task_force", task_force::get_task_force);
+    Lua.set_function("get_task_forces", task_force::get_task_forces);
 
     Lua.new_usertype<team>("team",
         sol::constructors<team(std::string), team()>(),
         "id", sol::readonly(&team::ID),
         "name", &team::Name,
         "house", &team::House,
+        "country", &team::House,
         "task_force", &team::Taskforce,
         "script", &team::Script,
         "tag", &team::Tag,
@@ -921,18 +966,60 @@ void CLuaConsole::Initialize(HWND& hWnd)
         );
     Lua.set_function("delete_team", team::delete_team);
     Lua.set_function("get_team", team::get_team);
+    Lua.set_function("get_teams", team::get_teams);
 
+    Lua.set_function("get_variable_value", get_variable_value);
+    Lua.set_function("get_variable_name", get_variable_name);
+    Lua.set_function("set_variable_value", set_variable_value);
+    Lua.set_function("set_variable_name", set_variable_name);
+    Lua.set_function("add_variable", add_variable);
+    
     Lua.set_function("running_lua_brush", []() {return CLuaConsole::applyingScript; });
 
     Lua.set_function("open_file", OpenFileToString);
     Lua.set_function("save_file", SaveStringToFile);
-
+    
     Lua.set_function("end_script", []() {
         lua_pushstring(Lua, "__SCRIPT_ABORT__");
         return lua_error(Lua);
     });
 
+    Lua.new_usertype<CLuaDialog>("LuaDialog",
+        sol::constructors<CLuaDialog(std::string), CLuaDialog(std::string, bool), CLuaDialog(std::string, bool, int, int)>(),
+        "add_checkbox", &CLuaDialog::AddCheckBox,
+        "add_edit", &CLuaDialog::AddEdit,
+        "add_combobox", &CLuaDialog::AddComboBox,
+        "do_modal", &CLuaDialog::DoModal,
+        "add_listbox", &CLuaDialog::AddListBox,
+        "add_multilistbox", &CLuaDialog::AddMultiListBox,
+        "add_label", &CLuaDialog::AddLabel,
+        "on_event", &CLuaDialog::OnEvent,
+        "get_bool", &CLuaDialog::GetBool,
+        "get_string", &CLuaDialog::GetString,
+        "set_enabled", &CLuaDialog::SetEnabled,
+        "set_visible", &CLuaDialog::SetVisible,
+        "set_list_items", &CLuaDialog::SetListItems,
+        "set_combo_items", &CLuaDialog::SetComboItems,
+        "set_text", &CLuaDialog::SetText,
+        "set_check", &CLuaDialog::SetCheck,
+        "get_enabled", &CLuaDialog::GetEnabled,
+        "get_visible", &CLuaDialog::GetVisible,
+        "set_position", &CLuaDialog::SetPosition,
+        "set_window_size", &CLuaDialog::SetWindowSize
+    );
+
     Update(hWnd);
+
+    if (ExtConfigs::MCP_Enable)
+	{
+		CMcpServer::Start(ExtConfigs::MCP_Port);
+        if (CMcpServer::IsRunning())
+        {
+            FString text;
+            text.Format("MCP Server running at http://127.0.0.1:%d", ExtConfigs::MCP_Port);
+            write_lua_console(text);
+        }
+	}
 }
 
 void CLuaConsole::SetupLuaHighlight(HWND& hWnd)
@@ -1095,6 +1182,8 @@ void CLuaConsole::Close(HWND& hWnd)
 {
     EndDialog(hWnd, NULL);
     ShowWindow(hWnd, SW_HIDE);
+
+    CMcpServer::Stop();
 
     CLuaConsole::m_hwnd = NULL;
     CLuaConsole::m_parent = NULL;
@@ -1552,6 +1641,12 @@ void CLuaConsole::OnClickRun(bool fromFile)
         updateTaskforce = false;
         if (CNewTaskforce::GetHandle())
             ::SendMessage(CNewTaskforce::GetHandle(), 114514, 0, 0);
+    }
+    if (updateVariable)
+    {
+        updateVariable = false;
+        if (CNewLocalVariables::GetHandle())
+            ::SendMessage(CNewLocalVariables::GetHandle(), 114514, 0, 0);
     }
     if (updateMinimap)
     {

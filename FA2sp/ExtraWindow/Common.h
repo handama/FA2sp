@@ -1,6 +1,7 @@
 #pragma once
 #include "FA2PP.h"
 #include "../Helpers/MultimapHelper.h"
+#include <functional>
 
 class FString;
 class CNewTrigger;
@@ -93,6 +94,15 @@ struct VCBItemEntry
     bool leftSideBackground = false;
 };
 
+namespace VCBColorHelpers
+{
+    double GetLuminance(COLORREF color);
+    double GetContrastRatio(COLORREF foreground, COLORREF background);
+    void RGBToHSL(COLORREF rgb, double& h, double& s, double& l);
+    COLORREF HSLToRGB(double h, double s, double l);
+    COLORREF EnsureContrast(COLORREF textColor, COLORREF backgroundColor, double minContrast = 3.0);
+}
+
 class ExtraWindow
 {
 public:
@@ -149,8 +159,10 @@ public:
     static void SetScintillaText(HWND hScintilla, FString& text);
     static bool HitTestListView(HWND hListView, POINT ptScreen, ListViewHitResult& out);
     static void UpdateListBoxHScroll(HWND hListBox);
+	static COLORREF GetTriggerColor(const FString& trigger);
+	static void SetTriggerColor(const FString& trigger, COLORREF color);
 
-    static std::vector<DropTarget> g_DropTargets;
+	static std::vector<DropTarget> g_DropTargets;
 
 private:
     static CINI& map;
@@ -361,9 +373,13 @@ public:
     void SetDropWidthMode(DropWidthMode mode);
 
     void SortItems(int* pSelIndex = nullptr);
-    
+
     static int m_itemHeight;
 	static std::map<HWND, VirtualComboBoxEx*> VirtualComboBoxExMap;
+
+    // Returns the textColor of the currently selected item for the combo's edit box,
+    // or CLR_INVALID when no custom color should be applied.
+    static COLORREF GetCurEditTextColor(HWND hCombo);
 
 private:
 	HWND hCombo = nullptr;
@@ -379,6 +395,7 @@ private:
 
     int curSel = -1;
     int pendingSelect = -1;
+    
     bool m_filterActive = false;
     bool m_programmaticDropdown = false;
     bool m_programmaticPostDropdown = false;
@@ -389,6 +406,7 @@ private:
     bool* m_allowFilter = nullptr;
     bool m_needFixSelection = false;
     bool m_inFixSelection = false;
+    int m_fixTopIndex = -1;
     bool m_EnterKeyPressed = false;
     bool m_SpecialKeysFirst = false;
 
@@ -409,4 +427,41 @@ private:
     static LRESULT CALLBACK EditProc(HWND, UINT, WPARAM, LPARAM);
     static LRESULT CALLBACK ListProc(HWND, UINT, WPARAM, LPARAM);
     LRESULT OnComboMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+};
+
+class CINIDialog : public ppmfc::CDialog
+{
+public:
+    enum ControlType
+    {
+        CheckBox = 0,
+        Edit,
+        Combobox,
+    };
+    struct ControlInfo
+    {
+		ControlType Type;
+		FString IniSection;
+        FString IniKey;
+        std::function<void()> CallBack;
+		std::vector<FString> Labels;
+	};   
+    CINIDialog(int resource);
+	void ShowDialog();
+	void SetControlInfo(int id, const ControlInfo& info);
+	void DisableControl(int id);
+	void Translate(int id, const FString& text);
+	void TranslateTitle(const FString& text);
+
+  protected:
+	virtual BOOL OnInitDialog();
+	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);
+	virtual void DoDataExchange(ppmfc::CDataExchange* pDX);
+	virtual void OnCancel();
+	virtual void OnClose();
+	int m_dialogResource;
+	std::map<int, ControlInfo> m_controlInfos;
+	std::map<int, FString> m_controlTranslations;
+	std::vector<int> m_disabledControls;
+	FString m_title;
 };

@@ -1069,10 +1069,29 @@ void GridObjectViewer::OnEditchange()
         LabelMatcher matcher(buffer);
         for (auto& g : g_images)
         {
-            auto uiName = CViewObjectsExt::QueryUIName(g.ID);
-            if (matcher.Match(g.ID) || matcher.Match(uiName))
+            if (g.Overlay != -1)
             {
-                g_filteredImages.push_back(g);
+                auto regisName = Variables::RulesMap.GetValueAt("OverlayTypes", g.Overlay);
+                auto uiName = CViewObjectsExt::QueryUIName(regisName);
+                FString name = Variables::RulesMap.GetString(regisName, "Name");
+				FString transedName;
+				Translations::GetTranslationItem(name, transedName);
+				if (matcher.Match(g.ID) 
+                    || matcher.Match(uiName) 
+                    || matcher.Match(std::to_string(g.Overlay).c_str())
+                    || matcher.Match(transedName) 
+                )
+                {
+                    g_filteredImages.push_back(g);
+                }
+            }
+            else
+            {
+                auto uiName = CViewObjectsExt::QueryUIName(g.ID);
+                if (matcher.Match(g.ID) || matcher.Match(uiName))
+                {
+                    g_filteredImages.push_back(g);
+                }
             }
         }
     }
@@ -1311,7 +1330,11 @@ LRESULT CALLBACK GridObjectViewer::HandleViewSubClassProc(HWND hwnd, UINT msg, W
                 HPEN hOldPen = (HPEN)SelectObject(hDrawDC, hPen);
                 HBRUSH hOldBrush = (HBRUSH)SelectObject(hDrawDC, GetStockObject(NULL_BRUSH));
 
-                Rectangle(hDrawDC, drawR.left, drawR.top, drawR.right, drawR.bottom);
+                Rectangle(hDrawDC, drawR.left - 3, drawR.top - 3, drawR.right + 3, drawR.bottom + 3);
+                if (CTileSetBrowserFrameExt::GridObjectViewerScaledFactor >= 1.5f)
+                {
+                    Rectangle(hDrawDC, drawR.left - 4, drawR.top - 4, drawR.right + 4, drawR.bottom + 4);
+                }
 
                 SelectObject(hDrawDC, hOldBrush);
                 SelectObject(hDrawDC, hOldPen);
@@ -1660,13 +1683,12 @@ void GridObjectViewer::OnSelChanged(int index)
         FString name = Variables::RulesMap.GetString(oid, "Name");
         if (name.IsEmpty() || !Translations::GetTranslationItem(name, display))
         {
-            display = CViewObjectsExt::QueryUIName(id, true);
+            display = CViewObjectsExt::QueryUIName(oid, true);
         }
         if (display != oid)
         {
             display.Format("%s (%s)", display, oid);
-
-        }
+        }   
         FString format = "%s, ";
         format += Translations::TranslateOrDefault("GridObjectViewer.OverlayText", "Index: %d, OverlayData: %d");
         display.Format(format, display, data.Overlay, data.OverlayData);

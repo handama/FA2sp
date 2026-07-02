@@ -178,6 +178,7 @@ public:
     static bool FillArea_ConsiderWater;
     static bool DPIAware;
     static bool SkipBrushSizeChangeOnTools;
+    static bool RecordBrushSizeHistory;
     static bool INIEditor_IgnoreTeams;
     static bool StringBufferStackAllocation;
     static bool RangeBound_DrawEllipse;
@@ -211,6 +212,7 @@ public:
     static bool FlatToGroundHideExtra;
     static bool LightingPreview_MultUnitColor;
     static bool LightingPreview_TintTileSetBrowserView;
+    static bool TileSetBrowserViewCompactArrange;
     static bool DDrawScalingBilinear;
     static bool DDrawScalingBilinear_OnlyShrink;
     static bool DirectXRendering;
@@ -247,6 +249,8 @@ public:
     static CBuildingData DefaultBuildingProperty;
     static FMap<bool> SupportedFormats;
     static int OverlayDataLimit;
+    static bool MCP_Enable;
+    static int MCP_Port;
     static float IsoViewWidthPercentage;
     static float IsoViewHeightPercentage;
 

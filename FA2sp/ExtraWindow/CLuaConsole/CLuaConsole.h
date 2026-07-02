@@ -97,6 +97,10 @@ public:
     static bool updateTeam;
     static bool updateTaskforce;
     static bool updateCellTag;
+    static bool updateVariable;
     static bool skipBuildingUpdate;
+    // MCP output capture
+    static std::string mcpOutput;
+    static bool mcpRunning;
 };
 

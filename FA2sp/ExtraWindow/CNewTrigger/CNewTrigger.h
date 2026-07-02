@@ -108,6 +108,9 @@ public:
 
     void LoadFromMap(const char* id, std::vector<FString>& atoms, FMap<FString>* pTagMap = nullptr)
     {
+        if (atoms.size() < 8)
+            return;
+            
         auto& doc = CINI::CurrentDocument();
 
         ID = id;
@@ -464,7 +467,7 @@ protected:
     void EventListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam);
     void ActionListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam);
 
-    std::map<int, CNewTrigger*> GetOtherInstances();
+	std::map<int, CNewTrigger*> GetOtherInstances();
     bool HasOtherInstances();
     void RefreshOtherInstances();
     int GetCurrentInstanceIndex();

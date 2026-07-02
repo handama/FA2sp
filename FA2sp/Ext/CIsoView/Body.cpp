@@ -85,6 +85,7 @@ MapCoord CIsoViewExt::AxialSymmetryLine[2]{};
 MapCoord CIsoViewExt::TempCircle[2]{};
 MapCoord CIsoViewExt::TempCircle_Annotation[2]{};
 MapCoord CIsoViewExt::CentralSymmetryCenter{};
+MapCoord CIsoViewExt::DragCell{};
 std::vector<std::pair<MapCoord, MapCoord>> CIsoViewExt::AxialSymmetricPoints;
 std::vector<std::pair<MapCoord, MapCoord>> CIsoViewExt::CentralSymmetricPoints;
 std::vector<std::pair<MapCoord, float>> CIsoViewExt::Circles;
@@ -104,6 +105,8 @@ FString CIsoViewExt::CurrentCellObjectHouse = "";
 int CIsoViewExt::EXTRA_BORDER_BOTTOM = 25;
 Cell3DLocation CIsoViewExt::CurrentDrawCellLocation;
 std::unordered_map<TextCacheKey, TextCacheEntry, TextCacheHasher> CIsoViewExt::textCache;
+std::unordered_map<MouseCommandRecord, MouseCommandBrush, MouseCommandRecordHash> CIsoViewExt::MouseCommandBrushSizeRecords;
+MouseCommandRecord CIsoViewExt::LastMouseCommand;
 
 int CIsoViewExt::drawOffsetX;
 int CIsoViewExt::drawOffsetY;
@@ -3227,7 +3230,6 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC, bool bScreenSpace)
             {
                 int nCount = 0;
                 auto pExt = CMapDataExt::GetExtension();
-                pExt->InitOreValue();
                 MultiSelection::ApplyForEach(
                     [&nCount, pExt](CellData &cell, CellDataExt &cellExt)
                     {
@@ -3237,7 +3239,79 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC, bool bScreenSpace)
                 buffer.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelection",
                                                                "MultiSelection Enabled. Selected Credits: %d"),
                               nCount);
-                FString buffer2;
+
+                FString bufferOres;
+				int OreTypeCount = 0;
+				FString buffer2;
+				int nCount2 = 0;
+				MultiSelection::ApplyForEach(
+                    [&nCount2, pExt](CellData &cell, CellDataExt &cellExt)
+                    {
+                        if (cellExt.NewOverlay >= RIPARIUS_BEGIN && cellExt.NewOverlay <= RIPARIUS_END)
+                            nCount2 += pExt->GetOreValue(cellExt.NewOverlay, cell.OverlayData);
+                    }); 
+                if(nCount2 != 0)
+                {
+                    buffer2.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelection.Riparius",
+                        ", Ore: %d"),
+                        nCount2);
+                    bufferOres += buffer2;
+                    nCount2 = 0;
+					OreTypeCount++;
+				}   
+
+				MultiSelection::ApplyForEach(
+                    [&nCount2, pExt](CellData &cell, CellDataExt &cellExt)
+                    {
+                        if (cellExt.NewOverlay >= CRUENTUS_BEGIN && cellExt.NewOverlay <= CRUENTUS_END)
+                            nCount2 += pExt->GetOreValue(cellExt.NewOverlay, cell.OverlayData);
+                    }); 
+                if(nCount2 != 0)
+                {
+                    buffer2.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelection.Cruentus",
+                        ", Gems: %d"),
+                        nCount2);
+                    bufferOres += buffer2;
+                    nCount2 = 0;
+					OreTypeCount++;
+                }  
+
+                MultiSelection::ApplyForEach(
+                    [&nCount2, pExt](CellData &cell, CellDataExt &cellExt)
+                    {
+                        if (cellExt.NewOverlay >= VINIFERA_BEGIN && cellExt.NewOverlay <= VINIFERA_END)
+                            nCount2 += pExt->GetOreValue(cellExt.NewOverlay, cell.OverlayData);
+                    }); 
+                if(nCount2 != 0)
+                {
+                    buffer2.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelection.Vinifera",
+                        ", Ore 3: %d"),
+                        nCount2);
+                    bufferOres += buffer2;
+                    nCount2 = 0;
+					OreTypeCount++;
+                }  
+
+                MultiSelection::ApplyForEach(
+                    [&nCount2, pExt](CellData &cell, CellDataExt &cellExt)
+                    {
+                        if (cellExt.NewOverlay >= ABOREUS_BEGIN && cellExt.NewOverlay <= ABOREUS_END)
+                            nCount2 += pExt->GetOreValue(cellExt.NewOverlay, cell.OverlayData);
+                    }); 
+                if(nCount2 != 0)
+                {
+                    buffer2.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelection.Aboreus",
+                        ", Ore 4: %d"),
+                        nCount2);
+                    bufferOres += buffer2;
+                    nCount2 = 0;
+					OreTypeCount++;
+                }  
+                if (OreTypeCount > 1)
+                {
+                    buffer += bufferOres;
+                }
+
                 buffer2.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelectionCoords",
                                                                 ", Selected Tiles: %d"),
                                MultiSelection::SelectedCoords.size());
@@ -4910,9 +4984,9 @@ void CIsoViewExt::DrawDashLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int c
     lb.lbStyle = BS_SOLID;
     lb.lbColor = color;
 
-    DWORD style[] = {std::max(1, int(6 / CIsoViewExt::ScaledFactor)), std::max(1, int(4 / CIsoViewExt::ScaledFactor))};
+    DWORD style[] = {(DWORD)std::max(1, int(6 / CIsoViewExt::ScaledFactor)), (DWORD)std::max(1, int(4 / CIsoViewExt::ScaledFactor))};
 
-    HPEN hPen = ExtCreatePen(
+	HPEN hPen = ExtCreatePen(
         PS_GEOMETRIC | PS_USERSTYLE | PS_ENDCAP_FLAT,
         size,
         &lb,
@@ -4932,8 +5006,8 @@ void CIsoViewExt::DrawLineDirectX(int x1, int y1, int x2, int y2, int color, int
 {
     x1 += (int)(32 / CIsoViewExt::ScaledFactor - 2);
     x2 += (int)(32 / CIsoViewExt::ScaledFactor - 2);
-    y1 -= (int)(14.5 / CIsoViewExt::ScaledFactor + 2.5);
-    y2 -= (int)(14.5 / CIsoViewExt::ScaledFactor + 2.5);
+    y1 -= (int)(14.5 / CIsoViewExt::ScaledFactor);
+    y2 -= (int)(14.5 / CIsoViewExt::ScaledFactor);
 
     x1 -= CIsoViewExt::drawOffsetX;
     y1 -= CIsoViewExt::drawOffsetY;
@@ -4953,8 +5027,8 @@ void CIsoViewExt::DrawArrowDirectX(int x1, int y1, int x2, int y2, int color, in
 {
     x1 += (int)(32 / CIsoViewExt::ScaledFactor - 2);
     x2 += (int)(32 / CIsoViewExt::ScaledFactor - 2);
-    y1 -= (int)(14.5 / CIsoViewExt::ScaledFactor + 2.5);
-    y2 -= (int)(14.5 / CIsoViewExt::ScaledFactor + 2.5);
+    y1 -= (int)(14.5 / CIsoViewExt::ScaledFactor);
+    y2 -= (int)(14.5 / CIsoViewExt::ScaledFactor);
 
     int sx1 = x1 - CIsoViewExt::drawOffsetX;
     int sy1 = y1 - CIsoViewExt::drawOffsetY;
@@ -5006,8 +5080,8 @@ void CIsoViewExt::DrawDashLineDirectX(int x1, int y1, int x2, int y2, int color,
 {
     x1 += (int)(32 / CIsoViewExt::ScaledFactor - 2);
     x2 += (int)(32 / CIsoViewExt::ScaledFactor - 2);
-    y1 -= (int)(14.5 / CIsoViewExt::ScaledFactor + 2.5);
-    y2 -= (int)(14.5 / CIsoViewExt::ScaledFactor + 2.5);
+    y1 -= (int)(14.5 / CIsoViewExt::ScaledFactor);
+    y2 -= (int)(14.5 / CIsoViewExt::ScaledFactor);
 
     int sx1 = x1 - CIsoViewExt::drawOffsetX;
     int sy1 = y1 - CIsoViewExt::drawOffsetY;
@@ -5691,6 +5765,49 @@ ImageDataView CIsoViewExt::MakeImageDataView(CTileBlockClass *p, Palette *pPal)
         pPal,
         ImageDataView::ImageDataViewType::TileBlockData,
         p};
+}
+
+void CIsoViewExt::ChangeBrushSize_OnMouseMove()
+{
+	MouseCommandRecord record = {CurrentCommand->Command, 0, 0};
+
+    if (CurrentCommand->Command == 1)
+    {
+		record.Type = CurrentCommand->Type;
+	}
+
+    if (LastMouseCommand == record)
+    {
+        auto itr = MouseCommandBrushSizeRecords.find(record);
+        if (itr != MouseCommandBrushSizeRecords.end())
+        {
+			auto& brush = itr->second;
+            if (brush.BrushSizeX != GetExtension()->BrushSizeX || brush.BrushSizeY != GetExtension()->BrushSizeY)
+            {
+                brush.BrushSizeX = GetExtension()->BrushSizeX;
+                brush.BrushSizeY = GetExtension()->BrushSizeY;
+                brush.BrushSizeIndex = ((CComboBox*)CFinalSunDlg::Instance->BrushSize.GetDlgItem(1377))->GetCurSel();
+            }
+		}
+		return;        
+    }
+
+	LastMouseCommand = record;
+	auto [itr, inserted] = MouseCommandBrushSizeRecords.try_emplace(record);
+    MouseCommandBrush* brush = &itr->second;   
+    if (inserted)
+    {
+        brush->BrushSizeX = GetExtension()->BrushSizeX;
+        brush->BrushSizeY = GetExtension()->BrushSizeY;
+		brush->BrushSizeIndex = ((CComboBox*)CFinalSunDlg::Instance->BrushSize.GetDlgItem(1377))->GetCurSel();
+	}
+    else
+    {
+        CFinalSunDlg::Instance->BrushSize.nCurSel = brush->BrushSizeIndex;
+        CFinalSunDlg::Instance->BrushSize.UpdateData(FALSE);
+        GetExtension()->BrushSizeX = brush->BrushSizeX;
+        GetExtension()->BrushSizeY = brush->BrushSizeY;
+    }
 }
 
 BOOL CIsoViewExt::PreTranslateMessageExt(MSG *pMsg)

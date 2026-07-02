@@ -1697,7 +1697,6 @@ DEFINE_HOOK(469557, CMapData_GetOverlayDirection_skip, 5)
 	return 0x46955C;
 }
 
-
 DEFINE_HOOK(4A16A0, CMapData_ClearOverlay, 8)
 {
 	GET(CMapDataExt*, pThis, ECX);
@@ -1708,3 +1707,6 @@ DEFINE_HOOK(4A16A0, CMapData_ClearOverlay, 8)
 
 	return 0x4A16B4;
 }
+
+
+

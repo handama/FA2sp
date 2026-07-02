@@ -2,6 +2,7 @@
 
 #include <Helpers/Macro.h>
 #include <CINI.h>
+#include <set>
 
 #include "../../FA2sp.h"
 #include "../CFinalSunDlg/Body.h"
@@ -13,23 +14,83 @@
 
 DEFINE_HOOK(4D4150, CRandomTree_OnInitDialog, 7)
 {
-    if (ExtConfigs::RandomTerrainObjects)
+    GET(CRandomTreeExt*, pThis, ECX);
+
+    pThis->ppmfc::CDialog::OnInitDialog();
+    if (CRandomTreeExt::LaunchingFromSingleplayerSettings)
     {
-        GET(CRandomTree*, pThis, ECX);
+        Translations::TranslateItem(pThis, 1000, "RandomTreeDisguiseDesc");
+        Translations::TranslateItem(pThis, "RandomTreeDisguiseTitle");
+    }
+    else
+    {
+        Translations::TranslateItem(pThis, 1000, "RandomTreeDesc");
+        Translations::TranslateItem(pThis, "RandomTreeTitle");
+    }
 
-        pThis->ppmfc::CDialog::OnInitDialog();
-
-        auto&& terrains = Variables::RulesMap.ParseIndicies("TerrainTypes", true);
-        for (size_t i = 0, sz = terrains.size(); i < sz; ++i)
+    auto&& terrains = Variables::RulesMap.ParseIndicies("TerrainTypes", true);
+    
+    FString& disguiseTrees = pThis->MirageDisguiseTrees;
+    std::set<ppmfc::CString> disguiseSet;
+    if (!disguiseTrees.empty())
+    {
+        auto parts = FString::SplitString(disguiseTrees);
+        for (auto& part : parts)
         {
-            if (!CViewObjectsExt::IsIgnored(terrains[i]))
-                pThis->CLBAvailable.AddString(terrains[i]);
+            part.Trim();
+            if (!part.empty())
+                disguiseSet.insert(ppmfc::CString(part.c_str()));
         }
-
-        return 0x4D4865;
     }
     
-    return 0;
+    auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+    thisTheater.MakeUpper();
+    thisTheater += "Limits";
+    int TreeMin = CINI::FAData->GetInteger(thisTheater, "TreeMin");
+    int TreeMax = CINI::FAData->GetInteger(thisTheater, "TreeMax");
+
+    for (size_t i = 0, sz = terrains.size(); i < sz; ++i)
+    {
+        const auto& unitname = terrains[i];
+        if (!disguiseSet.contains(unitname))
+        {
+            if (CViewObjectsExt::IsIgnored(unitname))
+                continue;
+            if (!ExtConfigs::RandomTerrainObjects)
+            {
+                if (unitname.Find("TREE") >= 0)
+                {
+                    if (unitname.GetLength() > 0 && unitname != "VEINTREE")
+                    {                
+                        // EA's genius hack to get the tree id
+                        ppmfc::CString id = unitname;
+                        id.Delete(0, 4);
+                        int n = atoi(id);
+                        if (n < TreeMin || n > TreeMax)
+                            continue;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+                else
+                {
+                    continue;
+                }
+            }
+        }
+
+		if (!CViewObjectsExt::IsIgnored(unitname))
+        {
+            if (!disguiseSet.empty() && disguiseSet.contains(unitname))
+                ((ppmfc::CListBox*)pThis->CLBUsed)->AddString(unitname);
+            else
+                ((ppmfc::CListBox*)pThis->CLBAvailable)->AddString(unitname);
+        }
+    }
+
+    return 0x4D4865;
 }
 
 static FString LastSelectedTree;
@@ -47,7 +108,7 @@ DEFINE_HOOK(4D4FF7, CRandomTreeDlg_Draw, 7)
     CDC* pDC = CDC::FromHandle(hdc);
 
     RECT pr;
-    pThis->CBNPreviewImage.GetWindowRect(&pr);
+    ((CButton*)pThis->CBNPreviewImage)->GetWindowRect(&pr);
     pThis->ScreenToClient(&pr);
     pr.top += 15;
     pr.bottom -= 5;

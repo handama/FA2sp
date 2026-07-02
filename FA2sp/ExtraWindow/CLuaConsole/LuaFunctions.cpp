@@ -4552,4 +4552,53 @@ namespace LuaFunctions
 	{
 		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 	}
+
+	static std::string get_file_encoding(std::string data)
+	{
+		auto encoding = STDHelpers::GetFileEncoding(
+			reinterpret_cast<const uint8_t*>(data.data()),
+			data.size()
+		);
+		switch (encoding)
+		{
+		case FileEncoding::ANSI:
+			return "ANSI";
+		case FileEncoding::UTF8:
+			return "UTF-8";
+		case FileEncoding::UTF8_BOM:
+			return "UTF-8 BOM";
+		case FileEncoding::UTF8_ASCII:
+			return "UTF-8 (ASCII)";
+		default:
+			return "Unknown";
+		}
+	}
+
+	static std::string to_ansi(std::string utf8_str)
+	{
+		auto encoding = STDHelpers::GetFileEncoding(
+			reinterpret_cast<const uint8_t*>(utf8_str.data()),
+			utf8_str.size()
+		);
+		if (encoding == FileEncoding::ANSI || encoding == FileEncoding::UTF8_ASCII)
+			return utf8_str;
+
+		FString fs(utf8_str);
+		fs.toANSI();
+		return std::string(fs);
+	}
+
+	static std::string to_utf8(std::string ansi_str)
+	{
+		auto encoding = STDHelpers::GetFileEncoding(
+			reinterpret_cast<const uint8_t*>(ansi_str.data()),
+			ansi_str.size()
+		);
+		if (encoding == FileEncoding::UTF8 || encoding == FileEncoding::UTF8_BOM || encoding == FileEncoding::UTF8_ASCII)
+			return ansi_str;
+
+		FString fs(ansi_str);
+		fs.toUTF8();
+		return std::string(fs);
+	}
 }

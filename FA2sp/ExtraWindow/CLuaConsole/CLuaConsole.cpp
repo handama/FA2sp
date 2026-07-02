@@ -267,6 +267,9 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("avoid_time_out", avoid_time_out);
     Lua.set_function("sleep", sleep);
     Lua.set_function("message_box", message_box);
+    Lua.set_function("get_file_encoding", get_file_encoding);
+    Lua.set_function("to_ansi", to_ansi);
+    Lua.set_function("to_utf8", to_utf8);
     Lua.new_usertype<multi_select_box>("multi_select_box",
         sol::constructors<multi_select_box(std::string)>(),
         //"options", sol::readonly(&multi_select_box::options),

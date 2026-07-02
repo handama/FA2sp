@@ -1,5 +1,6 @@
 #include "CMiscSettings.h"
 #include "../Common.h"
+#include "../../Ext/CRandomTree/Body.h"
 #include "../../Ext/CFinalSunDlg/Body.h"
 
 CINIDialog CMiscSettings::NewSpecialFlags = {342};
@@ -61,6 +62,8 @@ void CMiscSettings::InitNewBasic()
 	NewBasic.Translate(1246, "BasicTrainCrate");
 	NewBasic.Translate(1249, "BasicTiberiumGrowthEnabled");
 	NewBasic.Translate(1253, "BasicFreeRadar");
+	NewBasic.Translate(1257, "BasicTheme");
+	NewBasic.Translate(1259, "BasicLoadingTheme");
 
 	NewBasic.Translate(1250, "BasicHomeCell");
 	NewBasic.Translate(1251, "BasicAltHomeCell");
@@ -93,19 +96,24 @@ void CMiscSettings::InitNewBasic()
 	NewBasic.SetControlInfo(1255, {T::CheckBox, "Basic", "MCVRedeploys", [] {}});
 	NewBasic.SetControlInfo(1256, {T::CheckBox, "Basic", "ShowBriefing", [] {}});
 
-	std::vector<FString> labels;
+	std::vector<FString> themeLabels;
+	std::vector<FString> themeLabelsPlus;
 	if (auto pSection = CINI::Theme->GetSection("Themes"))
 	{
 		for (const auto& [_, value] : pSection->GetEntities())
 		{
 			if (!value.IsEmpty())
 			{
-				labels.push_back(value);
+				themeLabels.push_back(value);
 			}
 		}
 	}
+	themeLabelsPlus = themeLabels;
+	themeLabelsPlus.push_back("none");
 
-	NewBasic.SetControlInfo(2001, {T::Combobox, "Basic", "BriefingTheme", [] {}, labels});
+	NewBasic.SetControlInfo(2001, {T::Combobox, "Basic", "BriefingTheme", [] {}, themeLabels});
+	NewBasic.SetControlInfo(1258, {T::Combobox, "Basic", "Theme", [] {}, themeLabels});
+	NewBasic.SetControlInfo(1260, {T::Combobox, "Basic", "LoadingTheme", [] {}, themeLabelsPlus});
 
 	NewBasic.ShowDialog();
 }
@@ -162,6 +170,28 @@ void CMiscSettings::InitNewSinglePlayer()
 	NewSinglePlayer.SetControlInfo(1372, {T::Edit, "General", "TeamDelays", [] {}});
 	NewSinglePlayer.SetControlInfo(1374, {T::Edit, "General", "PrismSupportModifier", [] {}});
 	NewSinglePlayer.SetControlInfo(1376, {T::Edit, "General", "DefaultMirageDisguises", [] {}});
+	NewSinglePlayer.SetControlInfo(1377, {T::Button, "", "", [] {	
+		CRandomTreeExt randomTree;
+		auto mirageIni = CINI::CurrentDocument->GetString("General", "DefaultMirageDisguises");
+		mirageIni.Trim();
+		randomTree.MirageDisguiseTrees = mirageIni;
+		randomTree.LaunchingFromSingleplayerSettings = true;
+        if (randomTree.DoModal() == IDOK)
+        {
+			auto trees = CRandomTree::RandomTrees();
+			FString result;
+			for (size_t i = 0; i < trees.size(); ++i)
+			{
+				if (i > 0)
+					result += ",";
+				result += trees[i];
+			}
+			auto hEdit = NewSinglePlayer.GetControlInfo(1376).hWnd;
+			SetWindowText(hEdit, result);
+		}
+		randomTree.MirageDisguiseTrees = "";
+		randomTree.LaunchingFromSingleplayerSettings = false;
+	}});
 	
 	std::vector<FString> labels;
 	if (auto pSection = CINI::Art->GetSection("Movies"))

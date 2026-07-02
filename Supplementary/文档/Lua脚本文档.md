@@ -13,6 +13,7 @@
   **重要**：对于通过 `get_infantry()`、`get_unit()` 等获取的对象，直接修改其属性（如 `facing`）后，必须将其从地图删除再重新放置（或调用 `place()` 方法），才能让修改生效并最终写入 INI。
 - **默认值**：参数列表中以 `[可选参数 = 默认值]` 的形式标出。若不传递，则使用默认值。
 - **类型**：`number` 为 Lua 整数或浮点数；`string` 为字符串；`boolean` 为 `true`/`false`；`table` 为 Lua 表；`object` 为特定类的实例；`nil` 表示无返回值或空。
+- **文本编码**：程序内部均使用 ANSI（GBK） 编码，MCP 服务器输出的则为 UTF-8 编码。MCP 服务器会自动对编码进行转换，但 Lua 脚本直接读取/保存的文件则不会自动转换。
 - **错误与警告**：部分操作会向输出窗口打印错误信息，本文档不再逐一说明。
 
 ---
@@ -82,9 +83,9 @@ end
 - **返回**：无。
 - **使用示例**：
 ```lua
-for i = 1, 1000 do
+for i = 1, 10000 do
     -- 大量操作
-    if i % 50 == 0 then
+    if i % 1000 == 0 then
         avoid_time_out()
     end
 end
@@ -122,6 +123,27 @@ local user_input = input_box("请输入新的触发名称")
 ### `read_input()`
 - **说明**：读取 Lua 控制台输入窗口中的当前文本。
 - **返回** (`string`)：输入框里的全部文本。
+
+### `get_file_encoding(data)`
+- **说明**：检测字节数据的字符编码格式。
+- **参数**：`data` (`string`) — 要检测的原始字节数据。
+- **返回** (`string`)：编码类型名称。可能的值：`"ANSI"`、`"UTF-8"`、`"UTF-8 BOM"`、`"UTF-8 (ASCII)"`、`"Unknown"`。
+- **示例**：
+```lua
+local content = open_file()
+local enc = get_file_encoding(content)
+print("文件编码: " .. enc)
+```
+
+### `to_ansi(utf8_str)`
+- **说明**：将 UTF-8 编码的字符串转换为 ANSI（GBK）编码，如已为 ANSI（GBK） 编码则不做变化。
+- **参数**：`utf8_str` (`string`) — UTF-8 编码的字符串。
+- **返回** (`string`)：转换后的 ANSI 编码字符串。
+
+### `to_utf8(ansi_str)`
+- **说明**：将 ANSI（GBK）编码的字符串转换为 UTF-8 编码，如已为 UTF-8 编码则不做变化。
+- **参数**：`ansi_str` (`string`) — ANSI 编码的字符串。
+- **返回** (`string`)：转换后的 UTF-8 编码字符串。
 
 ### `open_file()`
 - **说明**：打开文件选择对话框，读取用户选择的文件。

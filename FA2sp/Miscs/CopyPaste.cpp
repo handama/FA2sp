@@ -58,21 +58,22 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
         auto& pCellExt = CMapDataExt::CellDataExts[pos];
 
         MyClipboardData item = {};
+        auto tileIndex = pCell->TileIndex == 0xFFFF ? 0 : pCell->TileIndex;
         item.X = coords.X;
         item.Y = coords.Y;
         item.Overlay = pCellExt.NewOverlay;
         item.OverlayData = pCell->OverlayData;
-        item.TileIndex = pCell->TileIndex;
+        item.TileIndex = tileIndex;
         item.TileIndexHiPart = pCell->TileIndexHiPart;
         item.TileSubIndex = pCell->TileSubIndex;
-        item.TileSet = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(pCell->TileIndex)].TileSet;
-        item.TileSetSubIndex = pCell->TileIndex - CMapDataExt::TileSet_starts[item.TileSet];
+        item.TileSet = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(tileIndex)].TileSet;
+        item.TileSetSubIndex = tileIndex - CMapDataExt::TileSet_starts[item.TileSet];
         item.Height = pCell->Height;
         item.IceGrowth = pCell->IceGrowth;
         item.Flag = pCell->Flag;
 
         relativeHeight = std::min(relativeHeight, pCell->Height -
-            CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(pCell->TileIndex)].TileBlockDatas[pCell->TileSubIndex].Height);
+            CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(tileIndex)].TileBlockDatas[pCell->TileSubIndex].Height);
         lowest = std::min(lowest, (int)pCell->Height);
         highest = std::max(highest, (int)pCell->Height);
 

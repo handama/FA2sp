@@ -437,6 +437,7 @@ public:
         CheckBox = 0,
         Edit,
         Combobox,
+        Button,
     };
     struct ControlInfo
     {
@@ -445,10 +446,16 @@ public:
         FString IniKey;
         std::function<void()> CallBack;
 		std::vector<FString> Labels;
-	};   
+	};
+    struct ControlHandleInfo
+    {
+        HWND hWnd = nullptr;
+        ControlType Type;
+    };
     CINIDialog(int resource);
 	void ShowDialog();
 	void SetControlInfo(int id, const ControlInfo& info);
+    ControlHandleInfo GetControlInfo(int id);
 	void DisableControl(int id);
 	void Translate(int id, const FString& text);
 	void TranslateTitle(const FString& text);

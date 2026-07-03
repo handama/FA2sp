@@ -3882,6 +3882,22 @@ void CINIDialog::SetControlInfo(int id, const ControlInfo& info)
 	m_controlInfos[id] = info;
 }
 
+CINIDialog::ControlHandleInfo CINIDialog::GetControlInfo(int id)
+{
+    ControlHandleInfo result{ nullptr, ControlType::Button };
+    auto itr = m_controlInfos.find(id);
+    if (itr != m_controlInfos.end())
+    {
+        result.Type = itr->second.Type;
+    }
+    auto pWnd = GetDlgItem(id);
+    if (pWnd)
+    {
+        result.hWnd = pWnd->GetSafeHwnd();
+    }
+    return result;
+}
+
 void CINIDialog::DisableControl(int id)
 {
 	m_disabledControls.push_back(id);
@@ -3936,6 +3952,7 @@ BOOL CINIDialog::OnInitDialog()
             {
 				box->AddString(label);
 			}
+            ExtraWindow::AdjustDropdownWidth(box->GetSafeHwnd());
 			auto text = CINI::CurrentDocument->GetString(info.IniSection, info.IniKey);
 			int idx = box->FindStringExact(0, text);
             if (idx != CB_ERR)
@@ -3976,7 +3993,11 @@ BOOL CINIDialog::OnCommand(WPARAM wParam, LPARAM lParam)
         {
 			ppmfc::CString buffer;
 			GetDlgItem(nID)->GetWindowText(buffer);
-            CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
+            buffer.Trim();
+            if (!buffer.IsEmpty())
+                CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
+            else
+                CINI::CurrentDocument->DeleteKey(info.IniSection, info.IniKey);
 			info.CallBack();
         }
 		else if (info.Type == ControlType::Combobox && nNotify == CBN_SELCHANGE)
@@ -3985,22 +4006,30 @@ BOOL CINIDialog::OnCommand(WPARAM wParam, LPARAM lParam)
 			ppmfc::CString buffer;
 			int idx = box->GetCurSel();
             if (idx != CB_ERR)
-            {
 				box->GetLBText(idx, buffer);
-			}
             else
-            {
                 box->GetWindowText(buffer);
-            }
-            CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
+            buffer.Trim();
+            if (!buffer.IsEmpty())
+                CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
+            else
+                CINI::CurrentDocument->DeleteKey(info.IniSection, info.IniKey);
 			info.CallBack();
         }
 		else if (info.Type == ControlType::Combobox && nNotify == CBN_EDITCHANGE)
         {
 			ppmfc::CString buffer;
 			GetDlgItem(nID)->GetWindowText(buffer);
-            CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
+            buffer.Trim();
+            if (!buffer.IsEmpty())
+                CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
+            else
+                CINI::CurrentDocument->DeleteKey(info.IniSection, info.IniKey);
 			info.CallBack();
+        }
+		else if (info.Type == ControlType::Button && nNotify == BN_CLICKED)
+        {
+            info.CallBack();
         }
 	}
 

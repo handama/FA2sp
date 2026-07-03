@@ -28,6 +28,27 @@ local user_input = input_box("请输入新的触发名称")
 - **说明**：读取 Lua 控制台输入窗口中的当前文本。
 - **返回** (`string`)：输入框里的全部文本。
 
+### `get_file_encoding(data)`
+- **说明**：检测字节数据的字符编码格式。
+- **参数**：`data` (`string`) — 要检测的原始字节数据。
+- **返回** (`string`)：编码类型名称。可能的值：`"ANSI"`、`"UTF-8"`、`"UTF-8 BOM"`、`"UTF-8 (ASCII)"`、`"Unknown"`。
+- **示例**：
+```lua
+local content = open_file()
+local enc = get_file_encoding(content)
+print("文件编码: " .. enc)
+```
+
+### `to_ansi(utf8_str)`
+- **说明**：将 UTF-8 编码的字符串转换为 ANSI（GBK）编码，如已为 ANSI（GBK） 编码则不做变化。
+- **参数**：`utf8_str` (`string`) — UTF-8 编码的字符串。
+- **返回** (`string`)：转换后的 ANSI 编码字符串。
+
+### `to_utf8(ansi_str)`
+- **说明**：将 ANSI（GBK）编码的字符串转换为 UTF-8 编码，如已为 UTF-8 编码则不做变化。
+- **参数**：`ansi_str` (`string`) — ANSI 编码的字符串。
+- **返回** (`string`)：转换后的 UTF-8 编码字符串。
+
 ### `open_file()`
 - **说明**：打开文件选择对话框，读取用户选择的文件。
 - **返回** (`string`)：文件内容；若取消或失败返回空字符串。

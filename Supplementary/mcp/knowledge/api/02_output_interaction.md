@@ -15,9 +15,9 @@
 - **返回**：无。
 - **使用示例**：
 ```lua
-for i = 1, 1000 do
+for i = 1, 10000 do
     -- 大量操作
-    if i % 50 == 0 then
+    if i % 1000 == 0 then
         avoid_time_out()
     end
 end

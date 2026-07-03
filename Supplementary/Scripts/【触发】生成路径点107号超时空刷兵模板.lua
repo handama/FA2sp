@@ -1,4 +1,4 @@
---生成路径点80号刷兵模板（1xN + Nx1）
+--【触发】生成路径点超时空刷兵模板.lua
 
 -- ========== 自动创建快照 ==========
 create_snapshot()
@@ -63,44 +63,38 @@ end
 
 -- ========== 创建对话框 ==========
 
-local dlg = LuaDialog:new("路径点80刷兵生成器", false, 620, 500)
+local dlg = LuaDialog:new("超时空刷兵生成器", false, 580, 350)
 local y = 10
 
--- 模式选择
-dlg:add_label("lbl_mode", "模式", 10, y + 18, 40, 20)
-local mode_items = {"单触发多路径点 (1xN)", "多触发单路径点 (Nx1)"}
-dlg:add_combobox("mode", "", mode_items, mode_items[1], true, 55, y, 250, 22)
-
 -- 所属方选择
-y = y + 28
-dlg:add_label("lbl_house", "所属方", 10, y + 18, 40, 20)
+dlg:add_label("lbl_house", "所属方", 10, y + 18, 50, 20)
 local country_items = {}
 for _, c in ipairs(countries) do
     table.insert(country_items, c.value)
 end
-dlg:add_combobox("house", "", country_items, country_items[1] or "", true, 55, y, 540, 22)
+dlg:add_combobox("house", "", country_items, country_items[1] or "", true, 60, y, 500, 22)
 
--- 路径点选择（多选列表框）
+-- 路径点选择
 y = y + 28
-dlg:add_label("lbl_wp", "路径点（Ctrl+点击多选）", 10, y + 18, 160, 20)
+dlg:add_label("lbl_wp", "超时空路径点", 10, y + 18, 90, 20)
 if #wp_items > 0 then
-    dlg:add_multilistbox("waypoints", "", wp_items, 10, y + 22, 580, 110)
+    dlg:add_combobox("waypoint", "", wp_items, wp_items[1], false, 100, y, 460, 22)
 else
-    dlg:add_label("lbl_no_wp", "地图中暂无路径点，请先放置路径点", 170, y + 2, 400, 20)
+    dlg:add_label("lbl_no_wp", "⚠ 地图中暂无路径点", 100, y + 2, 300, 20)
 end
 
 -- 单位列标题
-y = y + 22 + 116
+y = y + 28
 dlg:add_label("col_idx", "#", 15, y + 18, 20, 16)
 dlg:add_label("col_num", "数量", 40, y + 18, 40, 16)
-dlg:add_label("col_unit", "单位类型", 90, y + 18, 500, 16)
+dlg:add_label("col_unit", "单位类型", 90, y + 18, 470, 16)
 
 -- 6个单位输入行
 for i = 1, 6 do
     y = y + 24
     dlg:add_label("idx_" .. i, tostring(i) .. ".", 15, y + 18, 20, 22)
     dlg:add_edit("num_" .. i, "", "", 40, y, 40, 22)
-    dlg:add_combobox("unit_" .. i, "", unit_items, "", false, 90, y, 500, 22)
+    dlg:add_combobox("unit_" .. i, "", unit_items, "", false, 90, y, 470, 22)
 end
 
 -- 重复类型 + 间隔（同一行）
@@ -136,31 +130,13 @@ if selected_house == "" then
     return
 end
 
--- 解析模式
-local is_nx1 = (result.mode == mode_items[2])
-
--- 解析路径点（从多选结果中提取数字）
-local selected_wp_values = result.waypoints or {}
-local wp_p = {}
-local function extract_wp_num(str)
-    -- 从 "路径点 #3 (D)" 中提取数字 3
-    if type(str) == "string" then
-        local num = str:match("#(%d+)")
-        if num then return tonumber(num) end
-    end
-    return nil
+-- 解析路径点
+local wp_str = result.waypoint or ""
+local wp_p = tonumber(wp_str:match("#(%d+)"))
+if not wp_p then
+    wp_p = tonumber(wp_str:match("%d+"))
 end
-if type(selected_wp_values) == "table" then
-    for _, val in ipairs(selected_wp_values) do
-        local num = extract_wp_num(val)
-        if num then table.insert(wp_p, num) end
-    end
-elseif type(selected_wp_values) == "string" and selected_wp_values ~= "" then
-    local num = extract_wp_num(selected_wp_values)
-    if num then table.insert(wp_p, num) end
-end
-
-if #wp_p == 0 then
+if not wp_p or wp_p < 0 then
     print("未选择有效的路径点，脚本已中止")
     return
 end
@@ -168,18 +144,14 @@ end
 -- 解析单位输入
 local parsed_units = {}
 for i = 1, 6 do
-    local num_str = result["num_" .. i] or ""
-    local unit_str = result["unit_" .. i] or ""
-    num_str = num_str:match("^%s*(.-)%s*$") or ""
-    unit_str = unit_str:match("^%s*(.-)%s*$") or ""
+    local num_str = (result["num_" .. i] or ""):match("^%s*(.-)%s*$") or ""
+    local unit_str = (result["unit_" .. i] or ""):match("^%s*(.-)%s*$") or ""
     if num_str ~= "" and unit_str ~= "" then
         local num = tonumber(num_str)
-        if num and num > 0 then
-            local id = unit_str:match("%((.+)%)$")
-            if id then
-                table.insert(parsed_units, {number = num, id = id, display = unit_str})
-                print(string.format("  %d) 数量: %d | 单位: %s", i, num, id))
-            end
+        local id = unit_str:match("%((.+)%)$")
+        if num and num > 0 and id then
+            table.insert(parsed_units, {number = num, id = id, display = unit_str})
+            print(string.format("  %d) 数量: %d | 单位: %s", i, num, id))
         end
     end
 end
@@ -199,25 +171,29 @@ elseif repeat_type_str:find("2") then
 end
 
 -- 解析间隔
-local interval_str = result.interval or ""
-interval_str = interval_str:match("^%s*(.-)%s*$") or ""
+local interval_str = (result.interval or ""):match("^%s*(.-)%s*$") or ""
 local interval = tonumber(interval_str)
 if not interval or interval < 0 then
     print("刷兵间隔无效，使用默认值 220")
     interval = 220
 end
 
--- ========== 创建特遣部队、脚本、小队（公共部分）==========
+-- ========== 创建特遣部队、脚本、小队 ==========
 
 local name_parts = {}
 for _, pu in ipairs(parsed_units) do
     table.insert(name_parts, pu.number .. pu.id)
 end
 local name_suffix = table.concat(name_parts, "")
+local name = selected_house .. "-" .. name_suffix .. " tp#" .. wp_p
+local trigger_name = "[刷兵]" .. selected_house .. "_" .. name_suffix .. " tp#" .. wp_p
+if repeat_value == 2 then
+    trigger_name = trigger_name .. "_重复"
+end
 
 -- 创建特遣部队
 local task = task_force:new()
-task.name = selected_house .. "_" .. name_suffix
+task.name = name
 for _, pu in ipairs(parsed_units) do
     task:add_number(pu.number, pu.id)
 end
@@ -225,88 +201,52 @@ task:apply()
 
 -- 创建脚本（0-0：攻击移动）
 local s = script:new()
-s.name = selected_house .. "_" .. name_suffix
+s.name = name
 s:add_action(0, 0)
 s:apply()
 
 -- 创建小队
 local t = team:new()
-t.name = selected_house .. "_" .. name_suffix
+t.name = name
 t.country = selected_house
 t.task_force = task.id
 t.script = s.id
 t.recruiter = true
 t:apply()
 
--- ========== 创建触发（分模式）==========
+-- ========== 创建触发 ==========
 
-local trigger_count = 0
+local trig = trigger:new()
+trig.name = trigger_name
+trig.country = "Neutral"
+trig.easy = true
+trig.medium = true
+trig.hard = true
+trig.disabled = true
 
-if is_nx1 then
-    -- ═══ Nx1 模式：每个路径点一个独立触发 ═══
-    for _, wp in ipairs(wp_p) do
-        local wp_letter = waypoint_to_string(wp)
-        local trig_name = "[刷兵]" .. selected_house .. "_" .. name_suffix .. " #" .. wp_letter
-        if repeat_value == 2 then
-            trig_name = trig_name .. "_重复"
-        end
+-- add_event / add_action 不带数量前缀
+trig:add_event("13,0," .. interval)
 
-        local trig = trigger:new()
-        trig.name = trig_name
-        trig.country = "Neutral"
-        trig.easy = true
-        trig.medium = true
-        trig.hard = true
-        trig.disabled = true
+-- Action 1: 107（超时空传送）刷出小队
+trig:add_action("107,1," .. t.id .. ",0,0,0,0," .. waypoint_to_string(wp_p))
+-- Action 2: 41（超时空动画）播放效果
+trig:add_action("41,0,257,0,0,0,0," .. waypoint_to_string(wp_p))
 
-        trig:add_event("13,0," .. interval)
-        trig:add_action("80,1," .. t.id .. ",0,0,0,0," .. wp_letter)
-        trig:add_tag("", trig_name, repeat_value)
-        trig:apply()
-
-        print(string.format("  √ 触发 [%s] 已创建，路径点 #%s", trig.id, wp_letter))
-        trigger_count = trigger_count + 1
-    end
-else
-    -- ═══ 1xN 模式：一个触发带多个行为 ═══
-    local trig_name = "[刷兵]" .. selected_house .. "_" .. name_suffix
-    if repeat_value == 2 then
-        trig_name = trig_name .. "_重复"
-    end
-
-    local trig = trigger:new()
-    trig.name = trig_name
-    trig.country = "Neutral"
-    trig.easy = true
-    trig.medium = true
-    trig.hard = true
-    trig.disabled = true
-
-    trig:add_event("13,0," .. interval)
-    for _, wp in ipairs(wp_p) do
-        trig:add_action("80,1," .. t.id .. ",0,0,0,0," .. waypoint_to_string(wp))
-    end
-    trig:add_tag("", trig_name, repeat_value)
-    trig:apply()
-
-    trigger_count = 1
-end
+trig:add_tag("", trigger_name, repeat_value)
+trig:apply()
 
 -- ========== 输出结果 ==========
 
 print("=======================")
-if is_nx1 then
-    print(string.format("路径点80刷兵(Nx1)已生成：%d 个触发", trigger_count))
-else
-    print("路径点80刷兵(1xN)已生成：1 个触发")
-end
+print("超时空刷兵已生成：")
 print("  特遣部队: " .. task.name .. " (ID: " .. task.id .. ")")
 print("  脚本: " .. s.name .. " (ID: " .. s.id .. ")")
 print("  小队: " .. t.name .. " (ID: " .. t.id .. ")")
+print("  触发: " .. trig.name .. " (ID: " .. trig.id .. ")")
 print("-----------------------")
-for _, wp in ipairs(wp_p) do
-    print("  √ 刷兵路径点 #" .. waypoint_to_string(wp) .. " (" .. wp .. ")")
-end
+print("  √ 超时空路径点 #" .. waypoint_to_string(wp_p) .. " (" .. wp_p .. ")")
+print("  √ Action 107: 超时空传送刷兵")
+print("  √ Action 41: 超时空动画效果")
 print("-----------------------")
 if repeat_value == 0 then print("重复类型: 不重复")
 elseif repeat_value == 1 then print("重复类型: 单次重复")
@@ -316,5 +256,5 @@ print("脚本行为：0-0（攻击移动）")
 print("注意：触发默认禁用，请手动允许触发")
 print("=======================")
 
-message_box(string.format("路径点80刷兵已成功生成！\n模式: %s\n小队: %s\n触发数量: %d\n\n触发默认禁用，请手动允许触发",
-    mode_items[is_nx1 and 2 or 1], t.name, trigger_count), "执行成功", 1)
+message_box(string.format("超时空刷兵已成功生成！\n超时空路径点: #%s (%d)\n小队: %s\n触发: %s\n\n触发默认禁用，请手动允许触发",
+    waypoint_to_string(wp_p), wp_p, t.name, trig.name), "执行成功", 1)

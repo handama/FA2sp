@@ -2241,7 +2241,7 @@ void CNewTrigger::OnSelchangeAttachedTrigger(bool edited)
 
     text.Replace(",", "");
 
-    if (text == CurrentTrigger->ID)
+    if (text == CurrentTrigger->ID && ExtConfigs::AttachedTriggerIsSelfCheck)
     {
         if (edited)
         {

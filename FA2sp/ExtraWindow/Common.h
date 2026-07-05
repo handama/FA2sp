@@ -132,6 +132,10 @@ public:
     static void LoadParam_Triggers(VirtualComboBoxEx& vcbd, CNewTrigger* instance);
     static void LoadParam_Tags(VirtualComboBoxEx& vcb);
     static void LoadParam_Teamtypes(VirtualComboBoxEx& vcb);
+    static void LoadParam_Infantries(VirtualComboBoxEx& vcb);
+    static void LoadParam_Units(VirtualComboBoxEx& vcb);
+    static void LoadParam_Aircrafts(VirtualComboBoxEx& vcb);
+    static void LoadParam_Structures(VirtualComboBoxEx& vcb);
     static void LoadParam_Stringtables(VirtualComboBoxEx& vcb);
 
     static void SortLabels(std::vector<FString>& labels);

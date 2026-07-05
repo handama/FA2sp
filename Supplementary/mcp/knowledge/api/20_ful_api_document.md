@@ -2208,4 +2208,8 @@ task:apply()
 | `"TEAM"` | 小队 ID |
 | `"VARIABLE_GLOBAL"` | 全局变量索引 |
 | `"VARIABLE_LOCAL"` | 局部变量索引 |
+| `"AIRCRAFT"` | 地图内飞机索引 |
+| `"INFANTRY"` | 地图内步兵索引 |
+| `"UNIT"` | 地图内车辆索引 |
+| `"STRUCTURE"` | 地图内建筑索引 |
 | 其他数字字符串 | FAData.ini 中 `[NewParamTypes]` 的键名 |

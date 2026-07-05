@@ -1500,6 +1500,14 @@ namespace LuaFunctions
 						return "FLOAT";
 					if (newParams[1] == "15")
 						return "TEAM";
+					if (newParams[1] == "16")
+						return "AIRCRAFT";
+					if (newParams[1] == "17")
+						return "INFANTRY";
+					if (newParams[1] == "18")
+						return "UNIT";
+					if (newParams[1] == "19")
+						return "STRUCTURE";
 
 					auto newParamInfos = FString::SplitString(fadata.GetString("NewParamTypes", newParams[1], "MISSING,0,0,0,0"), 4);
 					
@@ -1647,6 +1655,14 @@ namespace LuaFunctions
 						return "FLOAT";
 					if (newParams[1] == "15")
 						return "TEAM";
+					if (newParams[1] == "16")
+						return "AIRCRAFT";
+					if (newParams[1] == "17")
+						return "INFANTRY";
+					if (newParams[1] == "18")
+						return "UNIT";
+					if (newParams[1] == "19")
+						return "STRUCTURE";
 
 					auto newParamInfos = FString::SplitString(fadata.GetString("NewParamTypes", newParams[1], "MISSING,0,0,0,0"), 4);
 					
@@ -2453,6 +2469,14 @@ namespace LuaFunctions
 				return "FLOAT";
 			if (scriptParam == "15")
 				return "TEAM";
+			if (scriptParam == "16")
+				return "AIRCRAFT";
+			if (scriptParam == "17")
+				return "INFANTRY";
+			if (scriptParam == "18")
+				return "UNIT";
+			if (scriptParam == "19")
+				return "STRUCTURE";
 
 			auto newParamInfos = FString::SplitString(fadata.GetString("NewParamTypes", scriptParam, "MISSING,0,0,0,0"), 4);
 			

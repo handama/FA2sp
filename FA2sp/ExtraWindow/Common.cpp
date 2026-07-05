@@ -341,6 +341,18 @@ void ExtraWindow::LoadParams(VirtualComboBoxEx& vcb, FString idx, CNewTrigger* i
     case 15:
         LoadParam_Teamtypes(vcb);
         break;
+    case 16:
+        LoadParam_Aircrafts(vcb);
+        break;
+    case 17:
+        LoadParam_Infantries(vcb);
+        break;
+    case 18:
+        LoadParam_Units(vcb);
+        break;
+    case 19:
+        LoadParam_Structures(vcb);
+        break;
     default:
         if (atoi(idx) >= 500)
         {
@@ -669,6 +681,86 @@ void ExtraWindow::LoadParam_Teamtypes(VirtualComboBoxEx& vcb)
     for (auto& [id, name] : labels)
     {
 		vcb.AddString(name, ExtraWindow::GetTriggerColor(id));
+    }
+}
+
+void ExtraWindow::LoadParam_Infantries(VirtualComboBoxEx& vcb)
+{
+    if (auto pSection = map.GetSection("Infantry"))
+    {
+		int index = 0;
+		for (auto& pair : pSection->GetEntities())
+        {
+			FString text;
+            auto house = FString::GetParam(pair.second, 0);
+            auto type = FString::GetParam(pair.second, 1);
+            int x = atoi(FString::GetParam(pair.second, 3));
+            int y = atoi(FString::GetParam(pair.second, 4));
+            auto uiname = CViewObjectsExt::QueryUIName(type, true);
+			auto transedHouse = Translations::ParseHouseName(house, true);
+			text.Format("%d - %s (%s), %s, (%d, %d)", index++, type, uiname, transedHouse, x, y);
+			vcb.AddString(text);
+		}
+    }
+}
+
+void ExtraWindow::LoadParam_Units(VirtualComboBoxEx& vcb)
+{
+    if (auto pSection = map.GetSection("Units"))
+    {
+		int index = 0;
+		for (auto& pair : pSection->GetEntities())
+        {
+			FString text;
+            auto house = FString::GetParam(pair.second, 0);
+            auto type = FString::GetParam(pair.second, 1);
+            int x = atoi(FString::GetParam(pair.second, 3));
+            int y = atoi(FString::GetParam(pair.second, 4));
+            auto uiname = CViewObjectsExt::QueryUIName(type, true);
+			auto transedHouse = Translations::ParseHouseName(house, true);
+			text.Format("%d - %s (%s), %s, (%d, %d)", index++, type, uiname, transedHouse, x, y);
+			vcb.AddString(text);
+		}
+    }
+}
+
+void ExtraWindow::LoadParam_Aircrafts(VirtualComboBoxEx& vcb)
+{
+    if (auto pSection = map.GetSection("Aircraft"))
+    {
+		int index = 0;
+		for (auto& pair : pSection->GetEntities())
+        {
+			FString text;
+            auto house = FString::GetParam(pair.second, 0);
+            auto type = FString::GetParam(pair.second, 1);
+            int x = atoi(FString::GetParam(pair.second, 3));
+            int y = atoi(FString::GetParam(pair.second, 4));
+            auto uiname = CViewObjectsExt::QueryUIName(type, true);
+			auto transedHouse = Translations::ParseHouseName(house, true);
+			text.Format("%d - %s (%s), %s, (%d, %d)", index++, type, uiname, transedHouse, x, y);
+			vcb.AddString(text);
+		}
+    }
+}
+
+void ExtraWindow::LoadParam_Structures(VirtualComboBoxEx& vcb)
+{
+    if (auto pSection = map.GetSection("Structures"))
+    {
+		int index = 0;
+		for (auto& pair : pSection->GetEntities())
+        {
+			FString text;
+            auto house = FString::GetParam(pair.second, 0);
+            auto type = FString::GetParam(pair.second, 1);
+            int x = atoi(FString::GetParam(pair.second, 3));
+            int y = atoi(FString::GetParam(pair.second, 4));
+            auto uiname = CViewObjectsExt::QueryUIName(type, true);
+			auto transedHouse = Translations::ParseHouseName(house, true);
+			text.Format("%d - %s (%s), %s, (%d, %d)", index++, type, uiname, transedHouse, x, y);
+			vcb.AddString(text);
+		}
     }
 }
 

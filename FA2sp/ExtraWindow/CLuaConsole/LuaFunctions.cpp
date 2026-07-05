@@ -105,6 +105,8 @@ namespace LuaFunctions
 			0,
 			0);
 
+		RedrawWindow(CLuaConsole::hOutputBox, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+
 		auto&& now = duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		if (now - time > 2000)
 		{

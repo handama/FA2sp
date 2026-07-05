@@ -76,6 +76,47 @@ namespace LuaFunctions
 		}
 	}
 
+	// Write raw text to output box without prefix or extra newline
+	static void write_lua_console_raw(const std::string& text)
+	{
+		// Capture output for MCP if an MCP request is active
+		if (CLuaConsole::mcpRunning)
+			CLuaConsole::mcpOutput += text;
+
+		CHARRANGE cr;
+		cr.cpMin = -1;
+		cr.cpMax = -1; 
+	
+		SendMessage(
+			CLuaConsole::hOutputBox,
+			EM_EXSETSEL,
+			0,
+			(LPARAM)&cr);
+	
+		SendMessage(
+			CLuaConsole::hOutputBox,
+			EM_REPLACESEL,
+			FALSE,
+			(LPARAM)text.c_str());
+	
+		SendMessage(
+			CLuaConsole::hOutputBox,
+			EM_SCROLLCARET,
+			0,
+			0);
+
+		auto&& now = duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		if (now - time > 2000)
+		{
+			time = now;
+			MSG msg;
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
+		}
+	}
+
 	static void clear()
 	{
 		SendMessage(CLuaConsole::hOutputBox, WM_SETTEXT, 0, (LPARAM)"");
@@ -4600,5 +4641,212 @@ namespace LuaFunctions
 		FString fs(ansi_str);
 		fs.toUTF8();
 		return std::string(fs);
+	}
+
+	static sol::object exec(std::string command, sol::optional<sol::table> options)
+	{
+		// Parse options
+		bool async = false;
+		bool url = false;
+		bool file = false;
+		bool capture = true;
+		bool show = false;
+		bool stream = false;
+		std::string cwd = "";
+		int timeout_ms = 0; // 0 = infinite
+
+		if (options) {
+			async = options->get_or("async", false);
+			url = options->get_or("url", false);
+			file = options->get_or("file", false);
+			capture = options->get_or("capture", true);
+			show = options->get_or("show", false);
+			stream = options->get_or("stream", false);
+			cwd = options->get_or("cwd", std::string(""));
+			timeout_ms = options->get_or("timeout", 0);
+		}
+
+		// Validate
+		if (command.empty()) {
+			write_lua_console("exec: command cannot be empty");
+			return sol::make_object(CLuaConsole::Lua, sol::nil);
+		}
+
+		// Verify only one mode is selected
+		int modeCount = (url ? 1 : 0) + (file ? 1 : 0);
+		if (modeCount > 1) {
+			write_lua_console("exec: cannot use 'url' and 'file' at the same time");
+			return sol::make_object(CLuaConsole::Lua, sol::nil);
+		}
+
+		// URL mode - use ShellExecute
+		if (url) {
+			HINSTANCE result = ShellExecuteA(nullptr, "open", command.c_str(), nullptr,
+				cwd.empty() ? nullptr : cwd.c_str(), show ? SW_SHOW : SW_HIDE);
+			if ((INT_PTR)result <= 32) {
+				write_lua_console("exec: failed to open URL: " + command);
+				return sol::make_object(CLuaConsole::Lua, sol::nil);
+			}
+			return sol::make_object(CLuaConsole::Lua, true);
+		}
+
+		// File mode - open with default associated program
+		if (file) {
+			HINSTANCE result = ShellExecuteA(nullptr, "open", command.c_str(), nullptr,
+				cwd.empty() ? nullptr : cwd.c_str(), show ? SW_SHOW : SW_HIDE);
+			if ((INT_PTR)result <= 32) {
+				write_lua_console("exec: failed to open file: " + command);
+				return sol::make_object(CLuaConsole::Lua, sol::nil);
+			}
+			return sol::make_object(CLuaConsole::Lua, true);
+		}
+
+		// Async mode - fire and forget
+		if (async) {
+			STARTUPINFOA si = { sizeof(si) };
+			PROCESS_INFORMATION pi;
+			si.dwFlags = STARTF_USESHOWWINDOW;
+			si.wShowWindow = show ? SW_SHOW : SW_HIDE;
+
+			if (!CreateProcessA(nullptr, &command[0], nullptr, nullptr, FALSE,
+				CREATE_NO_WINDOW, nullptr, cwd.empty() ? nullptr : cwd.c_str(), &si, &pi)) {
+				write_lua_console("exec: failed to start process: " + command);
+				return sol::make_object(CLuaConsole::Lua, sol::nil);
+			}
+			CloseHandle(pi.hThread);
+			CloseHandle(pi.hProcess);
+			write_lua_console("Process started (async): " + command);
+			return sol::make_object(CLuaConsole::Lua, true);
+		}
+
+		// Sync mode without capture - just run and wait
+		if (!capture) {
+			STARTUPINFOA si = { sizeof(si) };
+			PROCESS_INFORMATION pi;
+			si.dwFlags = STARTF_USESHOWWINDOW;
+			si.wShowWindow = show ? SW_SHOW : SW_HIDE;
+
+			if (!CreateProcessA(nullptr, &command[0], nullptr, nullptr, FALSE,
+				0, nullptr, cwd.empty() ? nullptr : cwd.c_str(), &si, &pi)) {
+				write_lua_console("exec: failed to start process: " + command);
+				return sol::make_object(CLuaConsole::Lua, sol::nil);
+			}
+
+			DWORD waitResult = WaitForSingleObject(pi.hProcess, timeout_ms > 0 ? timeout_ms : INFINITE);
+			if (waitResult == WAIT_TIMEOUT) {
+				TerminateProcess(pi.hProcess, 1);
+				write_lua_console("exec: process timed out: " + command);
+				CloseHandle(pi.hThread);
+				CloseHandle(pi.hProcess);
+				return sol::make_object(CLuaConsole::Lua, sol::nil);
+			}
+
+			CloseHandle(pi.hThread);
+			CloseHandle(pi.hProcess);
+			return sol::make_object(CLuaConsole::Lua, true);
+		}
+
+		// Sync mode with output capture (and optional streaming)
+		HANDLE hReadPipe, hWritePipe;
+		SECURITY_ATTRIBUTES sa = { sizeof(sa), nullptr, TRUE };
+
+		if (!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0)) {
+			write_lua_console("exec: failed to create pipe");
+			return sol::make_object(CLuaConsole::Lua, sol::nil);
+		}
+
+		STARTUPINFOA si = { sizeof(si) };
+		PROCESS_INFORMATION pi;
+		si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+		si.hStdOutput = hWritePipe;
+		si.hStdError = hWritePipe;
+		si.wShowWindow = show ? SW_SHOW : SW_HIDE;
+
+		if (!CreateProcessA(nullptr, &command[0], nullptr, nullptr, TRUE,
+			CREATE_NO_WINDOW, nullptr, cwd.empty() ? nullptr : cwd.c_str(), &si, &pi)) {
+			CloseHandle(hReadPipe);
+			CloseHandle(hWritePipe);
+			write_lua_console("exec: failed to start process: " + command);
+			return sol::make_object(CLuaConsole::Lua, sol::nil);
+		}
+
+		CloseHandle(hWritePipe);
+
+		std::string output;
+		char buffer[4096];
+		DWORD bytesRead;
+
+		bool timedOut = false;
+		ULONGLONG startTime = GetTickCount64();
+
+		if (stream) {
+			write_lua_console("Stream:");
+		}
+
+		while (true) {
+			// Check timeout (poll every 10ms)
+			if (timeout_ms > 0 && !timedOut) {
+				ULONGLONG elapsed = GetTickCount64() - startTime;
+				if (elapsed >= (ULONGLONG)timeout_ms) {
+					TerminateProcess(pi.hProcess, 1);
+					timedOut = true;
+					write_lua_console("exec: process timed out: " + command);
+					break;
+				}
+			}
+
+			// Non-blocking check for available pipe data
+			DWORD bytesAvailable = 0;
+			if (PeekNamedPipe(hReadPipe, nullptr, 0, nullptr, &bytesAvailable, nullptr) && bytesAvailable > 0) {
+				DWORD toRead = std::min(bytesAvailable, (DWORD)sizeof(buffer) - 1);
+				if (ReadFile(hReadPipe, buffer, toRead, &bytesRead, nullptr) && bytesRead > 0) {
+					buffer[bytesRead] = '\0';
+					output.append(buffer, bytesRead);
+					if (stream) {
+						// Use raw write to avoid double newlines from command output
+						write_lua_console_raw(std::string(buffer, bytesRead));
+					}
+				}
+				continue; // Immediately check for more data
+			}
+
+			// Check if process has exited
+			if (WaitForSingleObject(pi.hProcess, 0) == WAIT_OBJECT_0) {
+				// Drain any remaining data from pipe
+				while (PeekNamedPipe(hReadPipe, nullptr, 0, nullptr, &bytesAvailable, nullptr) && bytesAvailable > 0) {
+					DWORD toRead = std::min(bytesAvailable, (DWORD)sizeof(buffer) - 1);
+					if (ReadFile(hReadPipe, buffer, toRead, &bytesRead, nullptr) && bytesRead > 0) {
+						buffer[bytesRead] = '\0';
+						output.append(buffer, bytesRead);
+						if (stream) {
+							write_lua_console_raw(std::string(buffer, bytesRead));
+						}
+					}
+				}
+				break;
+			}
+
+			// Small sleep to avoid busy-waiting, also pumps messages for UI responsiveness
+			Sleep(10);
+			MSG msg;
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
+		}
+
+		CloseHandle(hReadPipe);
+		CloseHandle(pi.hThread);
+		CloseHandle(pi.hProcess);
+
+		if (timedOut) {
+			return sol::make_object(CLuaConsole::Lua, sol::nil);
+		}
+
+		if (stream) {
+			write_lua_console_raw("\r\n");
+		}
+
+		return sol::make_object(CLuaConsole::Lua, output);
 	}
 }

@@ -275,8 +275,10 @@ void WaypointSort::LoadAllTriggers()
         for (auto& pair : pTeamSection->GetEntities())
         {
             auto wp = CINI::CurrentDocument->GetString(pair.second, "Waypoint");
+            auto wp2 = CINI::CurrentDocument->GetString(pair.second, "TransportWaypoint");
             int wpNum = ProcessWaypointLetter(wp);
-            if (wpNum >= 0)
+            int wpNum2 = ProcessWaypointLetter(wp2);
+            if (wpNum >= 0 || wpNum2 >= 0 && CINI::CurrentDocument->GetBool(pair.second, "UseTransportOrigin"))
             {
                 FString text;
                 text.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
@@ -284,9 +286,26 @@ void WaypointSort::LoadAllTriggers()
                 std::string textStr = text;
                 std::string idStr = FString(pair.second);
 
-                char buf[32];
-                snprintf(buf, sizeof(buf), "%d", wpNum);
-                waypointRefs[buf].emplace_back(textStr, idStr);
+                if (wpNum == wpNum2)
+                {
+                    char buf[32];
+                    snprintf(buf, sizeof(buf), "%d", wpNum);
+                    waypointRefs[buf].emplace_back(textStr, idStr);
+                }
+                else{
+                    if (wpNum >= 0)
+                    {                  
+                        char buf[32];
+                        snprintf(buf, sizeof(buf), "%d", wpNum);
+                        waypointRefs[buf].emplace_back(textStr, idStr);
+                    }
+                    if (wpNum2 >= 0)
+                    {                  
+                        char buf[32];
+                        snprintf(buf, sizeof(buf), "%d", wpNum2);
+                        waypointRefs[buf].emplace_back(textStr, idStr);
+                    }
+                }
             }
         }
     }
@@ -726,8 +745,10 @@ void WaypointSort::AddTrigger(FString triggerId, int x, int y) const
                 for (auto& pair : pSection->GetEntities())
                 {
                     auto wp = CINI::CurrentDocument->GetString(pair.second, "Waypoint");
+                    auto wp2 = CINI::CurrentDocument->GetString(pair.second, "TransportWaypoint");
 
-                    if (process(wp) == atoi(triggerId))
+                    if (process(wp) == atoi(triggerId) 
+                    || (process(wp2) == atoi(triggerId) && CINI::CurrentDocument->GetBool(pair.second, "UseTransportOrigin")))
                     {
                         FString text;
                         text.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",

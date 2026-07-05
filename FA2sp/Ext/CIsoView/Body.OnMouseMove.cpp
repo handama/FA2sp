@@ -2526,8 +2526,10 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                             for (auto &pair : pSection->GetEntities())
                             {
                                 auto wp = CINI::CurrentDocument->GetString(pair.second, "Waypoint");
+                                auto wp2 = CINI::CurrentDocument->GetString(pair.second, "TransportWaypoint");
 
-                                if (process(wp) == atoi(*pWP))
+                                if (process(wp) == atoi(*pWP) 
+                                || (process(wp2) == atoi(*pWP) && CINI::CurrentDocument->GetBool(pair.second, "UseTransportOrigin")))
                                 {
                                     pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
                                                                                  "Team: %s (%s)"),

@@ -143,6 +143,12 @@ struct TwoPointStruct
     bool hasArrow;
 };
 
+struct HighBridgeLineStruct
+{
+    MapCoord Point;
+    int Direction;
+};
+
 struct MouseCommandRecord
 {
     int Command;
@@ -308,6 +314,7 @@ public:
     static void DrawOtherMeasurementTools(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void DrawGeometricAnnotations(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void DrawScriptPaths(HDC hDC, const RECT& rect, bool bScreenSpace = true);
+    static void DrawHighBridgeLines(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void MoveToMapCoord(int X, int Y);
     static void Zoom(double offset, bool bForce = false);
     static std::vector<MapCoord> GetLinePoints(MapCoord mc1, MapCoord mc2);
@@ -432,6 +439,7 @@ public:
     static MapCoord TempCircle[2];
     static MapCoord TempCircle_Annotation[2];
     static MapCoord CentralSymmetryCenter;
+    static std::vector<HighBridgeLineStruct> HighBridgeLines;
     static MapCoord DragCell;
     static std::vector<std::pair<MapCoord, MapCoord>> AxialSymmetricPoints;
     static std::vector<std::pair<MapCoord, MapCoord>> CentralSymmetricPoints;

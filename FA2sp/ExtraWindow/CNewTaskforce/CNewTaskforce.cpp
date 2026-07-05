@@ -892,7 +892,8 @@ void CNewTaskforce::OnClickCloTaskforce(HWND& hWnd)
         copyitem("3");
         copyitem("4");
         copyitem("5");
-
+        
+        ExtraWindow::SetTriggerColor(value, ExtraWindow::GetTriggerColor(CurrentTaskForceID));    
         ExtraWindow::SortTeams(vcbSelectedTaskforce, "TaskForces", SelectedTaskForceIndex, value);
 
         OnSelchangeTaskforce();

@@ -85,6 +85,7 @@ MapCoord CIsoViewExt::AxialSymmetryLine[2]{};
 MapCoord CIsoViewExt::TempCircle[2]{};
 MapCoord CIsoViewExt::TempCircle_Annotation[2]{};
 MapCoord CIsoViewExt::CentralSymmetryCenter{};
+std::vector<HighBridgeLineStruct> CIsoViewExt::HighBridgeLines{};
 MapCoord CIsoViewExt::DragCell{};
 std::vector<std::pair<MapCoord, MapCoord>> CIsoViewExt::AxialSymmetricPoints;
 std::vector<std::pair<MapCoord, MapCoord>> CIsoViewExt::CentralSymmetricPoints;
@@ -3489,6 +3490,120 @@ void CIsoViewExt::DrawScriptPaths(HDC hDC, const RECT &rect, bool bScreenSpace)
     }
 }
 
+void CIsoViewExt::DrawHighBridgeLines(HDC hDC, const RECT &rect, bool bScreenSpace)
+{
+    for (int i = 0; i < HighBridgeLines.size(); ++i)
+    {
+        auto &coord1 = HighBridgeLines[i].Point;
+        MapCoord coord2 = coord1;
+        auto cell = CMapData::Instance->GetCellAt(coord1.X, coord1.Y);
+		const auto& tileData = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)];
+        bool success = false;
+		if (HighBridgeLines[i].Direction == 0)
+        {
+            for (int i = 0; i < 30; ++i)
+            {
+                coord2.X --;
+                if (coord2.X <= 0)
+                    break;
+                auto cell2 = CMapData::Instance->GetCellAt(coord2.X, coord2.Y);
+                const auto& tileData2 = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell2->TileIndex)];
+                if (tileData.TileSet == tileData2.TileSet)
+                {                   
+                    int releativeTileIndex = cell2->TileIndex - CMapDataExt::TileSet_starts[tileData2.TileSet];
+                    if ((releativeTileIndex == 3 || releativeTileIndex == 4)
+                        && cell2->TileSubIndex == 7)
+                    {
+                        success = true;
+                        break;
+                    }
+                }
+            }
+        }
+        else if (HighBridgeLines[i].Direction == 1)
+        {
+            for (int i = 0; i < 30; ++i)
+            {
+                coord2.Y ++;
+                if (coord2.Y >= CMapData::Instance->MapWidthPlusHeight)
+                    break;
+                auto cell2 = CMapData::Instance->GetCellAt(coord2.X, coord2.Y);
+                const auto& tileData2 = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell2->TileIndex)];
+                if (tileData.TileSet == tileData2.TileSet)
+                {                   
+                    int releativeTileIndex = cell2->TileIndex - CMapDataExt::TileSet_starts[tileData2.TileSet];
+                    if ((releativeTileIndex == 2)
+                        && cell2->TileSubIndex == 4)
+                    {
+                        success = true;
+                        break;
+                    }
+                }
+            }
+        }
+        else if (HighBridgeLines[i].Direction == 2)
+        {
+            for (int i = 0; i < 30; ++i)
+            {
+                coord2.X ++;
+                if (coord2.X >= CMapData::Instance->MapWidthPlusHeight)
+                    break;
+                auto cell2 = CMapData::Instance->GetCellAt(coord2.X, coord2.Y);
+                const auto& tileData2 = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell2->TileIndex)];
+                if (tileData.TileSet == tileData2.TileSet)
+                {                   
+                    int releativeTileIndex = cell2->TileIndex - CMapDataExt::TileSet_starts[tileData2.TileSet];
+                    if ((releativeTileIndex == 5)
+                        && cell2->TileSubIndex == 2)
+                    {
+                        success = true;
+                        break;
+                    }
+                }
+            }
+        }
+        else if (HighBridgeLines[i].Direction == 3)
+        {
+            for (int i = 0; i < 30; ++i)
+            {
+                coord2.Y --;
+                if (coord2.Y <= 0)
+                    break;
+                auto cell2 = CMapData::Instance->GetCellAt(coord2.X, coord2.Y);
+                const auto& tileData2 = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell2->TileIndex)];
+                if (tileData.TileSet == tileData2.TileSet)
+                {                   
+                    int releativeTileIndex = cell2->TileIndex - CMapDataExt::TileSet_starts[tileData2.TileSet];
+                    if ((releativeTileIndex == 0 || releativeTileIndex == 1)
+                        && cell2->TileSubIndex == 7)
+                    {
+                        success = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        int x1 = coord1.X;
+        int y1 = coord1.Y;
+        CIsoViewExt::MapCoord2ScreenCoord(x1, y1);
+        int height = CMapData::Instance->GetCellAt(coord1.X, coord1.Y)->Height;
+        int x2 = coord2.X;
+        int y2 = coord2.Y;
+        CIsoViewExt::MapCoord2ScreenCoord(x2, y2, 1);
+        y2 -= height * 15 / CIsoViewExt::ScaledFactor;
+        if (ExtConfigs::DirectXRendering)
+        {
+            CIsoViewExt::DrawLineDirectX(x1, y1, x2, y2, success ? RGB(0, 255, 0) : RGB(255, 0, 0), 4);
+        }
+        else
+        {
+            CIsoViewExt::DrawLineHDC(hDC, x1, y1, x2, y2, success ? RGB(0, 255, 0) : RGB(255, 0, 0), rect, 4);
+        }
+    }
+    HighBridgeLines.clear();
+}
+
 void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC, const RECT &rect, bool bScreenSpace)
 {
     int fontSize = ExtConfigs::DisplayTextSize;
@@ -3943,6 +4058,10 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         {
             DrawScriptPaths(hDC, rect, false);
         }
+        if (CurrentCommand->Command == 10)
+        {
+            DrawHighBridgeLines(hDC, rect, false);
+        }
         DrawCreditOnMap(hDC, false);
 
         SelectObject(hDC, hOldFont);
@@ -3985,6 +4104,10 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         if (DrawScriptPath)
         {
             DrawScriptPaths(hDC, rect, true);
+        }
+        if (CurrentCommand->Command == 10)
+        {
+            DrawHighBridgeLines(hDC, rect, true);
         }
         DrawMouseMove(hDC, rect);
         DrawCreditOnMap(hDC, true);
@@ -4030,6 +4153,10 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         {
             DrawScriptPaths(hDC, rect, true);
         }
+        if (CurrentCommand->Command == 10)
+        {
+            DrawHighBridgeLines(hDC, rect, true);
+        }
         DrawCopyBound(hDC);
         DrawCreditOnMap(hDC, true);
 
@@ -4068,7 +4195,8 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
                 DrawGeometricAnnotations(hDC, rect, true);
             if (DrawScriptPath)
                 DrawScriptPaths(hDC, rect, true);
-
+            if (CurrentCommand->Command == 10)
+                DrawHighBridgeLines(hDC, rect, true);
             SelectObject(hDC, hOldFont);
             DeleteObject(hFont);
         }
@@ -4105,7 +4233,8 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
                 DrawGeometricAnnotations(hDC, rect, true);
             if (DrawScriptPath)
                 DrawScriptPaths(hDC, rect, true);
-
+            if (CurrentCommand->Command == 10)
+                DrawHighBridgeLines(hDC, rect, true);
             SelectObject(hDC, hOldFont);
             DeleteObject(hFont);
             surface->ReleaseDC(hDC);
@@ -4174,6 +4303,10 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
         {
             DrawScriptPaths(hDC, rect, true);
         }
+        if (CurrentCommand->Command == 10)
+        {
+            DrawHighBridgeLines(hDC, rect, true);
+        }
         DrawCreditOnMap(hDC, true);
         break;
     }
@@ -4197,6 +4330,10 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
         if (DrawScriptPath)
         {
             DrawScriptPaths(hDC, rect, true);
+        }
+        if (CurrentCommand->Command == 10)
+        {
+            DrawHighBridgeLines(hDC, rect, true);
         }
         DrawMouseMove(hDC, rect);
         DrawCreditOnMap(hDC, true);
@@ -4226,6 +4363,10 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
         {
             DrawScriptPaths(hDC, rect, true);
         }
+        if (CurrentCommand->Command == 10)
+        {
+            DrawHighBridgeLines(hDC, rect, true);
+        }
         DrawCopyBound(hDC);
         DrawCreditOnMap(hDC, true);
 
@@ -4248,6 +4389,8 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
                 DrawGeometricAnnotations(hDC, rect, true);
             if (DrawScriptPath)
                 DrawScriptPaths(hDC, rect, true);
+            if (CurrentCommand->Command == 10)
+                DrawHighBridgeLines(hDC, rect, true);
         }
         DrawBridgeLine(hDC);
         DrawCreditOnMap(hDC, true);
@@ -4271,6 +4414,8 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
                 DrawGeometricAnnotations(hDC, rect, true);
             if (DrawScriptPath)
                 DrawScriptPaths(hDC, rect, true);
+            if (CurrentCommand->Command == 10)
+                DrawHighBridgeLines(hDC, rect, true);
 
             pThis->g_pDX->RenderScreenSpaceOnly();
             pThis->g_pSP->EndFrame();
@@ -5340,7 +5485,7 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
     {
         int i, e, f, n;
         int p = 0;
-        auto tileData = CMapDataExt::TileData[CIsoView::CurrentCommand->Type];
+        const auto& tileData = CMapDataExt::TileData[CIsoView::CurrentCommand->Type];
         auto cell = Map->TryGetCellAt(x, y);
 
         int width = tileData.Height;
@@ -5349,6 +5494,7 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
         int startheight = cell->Height + CIsoView::CurrentCommand->Height;
         int ground = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
         int subGround = CMapDataExt::GetSafeSubTileIndex(cell->TileIndex, cell->TileSubIndex);
+        HighBridgeLines.clear();
 
         startheight -= CMapDataExt::TileData[ground].TileBlockDatas[subGround].Height;
 
@@ -5398,6 +5544,36 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                                 cell->TileIndex = tile;
                                 cell->TileSubIndex = p;
                                 cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
+                             
+                                if (isBridge)
+                                {
+                                    int releativeTileIndex = tile - CMapDataExt::TileSet_starts[tileSet];
+                                    if ((releativeTileIndex == 0 || releativeTileIndex == 1)
+                                        && p == 7
+                                    )
+                                    {                                      
+                                        HighBridgeLines.push_back({{my_x, my_y}, 1});
+                                    }
+                                    else if ((releativeTileIndex == 3 || releativeTileIndex == 4)
+                                        && p == 7
+                                    )
+                                    {                                      
+                                        HighBridgeLines.push_back({{my_x, my_y}, 2});
+                                    }
+                                    else if ((releativeTileIndex == 2)
+                                        && p == 4
+                                    )
+                                    {                                      
+                                        HighBridgeLines.push_back({{my_x, my_y}, 3});
+                                    }
+                                    else if ((releativeTileIndex == 5)
+                                        && p == 2
+                                    )
+                                    {                                      
+                                        HighBridgeLines.push_back({{my_x, my_y}, 0});
+                                    }
+                                }
+                               
                                 CMapData::Instance->UpdateMapPreviewAt(my_x, my_y);
                             }
                         }
@@ -5486,7 +5662,7 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
 
                             if (!(ExtConfigs::PlaceTileSkipHide && cell->IsHidden()))
                             {
-                                auto tileData = CMapDataExt::TileData[tile.TileIndex];
+                                const auto& tileData = CMapDataExt::TileData[tile.TileIndex];
                                 auto tileSet = tileData.TileSet;
                                 bool isBridge = (tileSet == CMapDataExt::BridgeSet || tileSet == CMapDataExt::WoodBridgeSet);
 

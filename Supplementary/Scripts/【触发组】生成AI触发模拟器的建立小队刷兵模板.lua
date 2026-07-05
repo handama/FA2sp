@@ -163,7 +163,7 @@ trig2:add_action("4,1," .. t.id .. ",0,0,0,0,A")
 trig2:add_tag("", trig2.name .. " 1", repeat_value)
 trig2:apply()
 -- 此时 trig2.id 已确定，补上自禁用 Action
-trig2:add_action("54,1," .. trig2.id .. ",0,0,0,0,A")
+trig2:add_action("54,2," .. trig2.id .. ",0,0,0,0,A")
 trig2:apply()
 
 -- 再创建 trig1（计时器触发），引用已知的 trig2.id
@@ -171,7 +171,7 @@ local trig1 = trigger:new()
 trig1.name = "[刷兵]" .. base_name .. "_" .. timer_suffix
 trig1.country = "Neutral"; trig1.easy = true; trig1.medium = true; trig1.hard = true; trig1.disabled = false
 trig1:add_event("13,0," .. interval)
-trig1:add_action("53,1," .. trig2.id .. ",0,0,0,0,A")
+trig1:add_action("53,2," .. trig2.id .. ",0,0,0,0,A")
 trig1:add_tag("", trig1.name .. " 1", repeat_value)
 trig1:apply()
 

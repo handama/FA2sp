@@ -1851,6 +1851,7 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
         copyitem("TransportsReturnOnUnload");
         copyitem("AreTeamMembersRecruitable");
 
+        ExtraWindow::SetTriggerColor(value, ExtraWindow::GetTriggerColor(CurrentTeamID));    
         ExtraWindow::SortTeams(vcbSelectedTeam, "TeamTypes", SelectedTeamIndex, value);
 
         OnSelchangeTeamtypes();

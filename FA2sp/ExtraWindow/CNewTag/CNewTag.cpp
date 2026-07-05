@@ -1018,7 +1018,8 @@ void CNewTag::OnClickCloTag(HWND& hWnd)
     value.SetParam(1, newName);
 
     CINI::CurrentDocument->WriteString("Tags", key, value);
-
+    ExtraWindow::SetTriggerColor(key, ExtraWindow::GetTriggerColor(CurrentTagID));
+    
     SortTags(vcbSelectedTag, SelectedTagIndex, key);
     OnSelchangeTag();
     if (TagSort::Instance.IsVisible())

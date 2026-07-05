@@ -1184,7 +1184,7 @@ void CNewScript::OnClickCloScript(HWND& hWnd)
             buffer.Format("%d", i);
             copyitem(buffer);
         }
-
+        ExtraWindow::SetTriggerColor(value, ExtraWindow::GetTriggerColor(CurrentScriptID));
         ExtraWindow::SortTeams(vcbSelectedScript, "ScriptTypes", SelectedScriptIndex, value);
 
         OnSelchangeScript();

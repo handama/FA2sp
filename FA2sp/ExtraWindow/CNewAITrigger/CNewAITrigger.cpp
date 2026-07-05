@@ -907,6 +907,7 @@ void CNewAITrigger::OnClickCloAITrigger()
     trigger2.Name = ExtraWindow::GetCloneName(CurrentAITrigger->Name);
     trigger2.Save();
 
+    ExtraWindow::SetTriggerColor(id, ExtraWindow::GetTriggerColor(CurrentAITrigger->ID));
     SortAITriggers(id);
     OnSelchangeAITrigger();
 }

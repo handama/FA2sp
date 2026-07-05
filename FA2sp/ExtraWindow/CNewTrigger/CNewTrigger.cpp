@@ -2777,6 +2777,7 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
     map.WriteString("Actions", id, map.GetString("Actions", oriID));
 
     CMapDataExt::AddTrigger(id);
+    ExtraWindow::SetTriggerColor(id, ExtraWindow::GetTriggerColor(CurrentTrigger->ID));
 
     SortTriggers(id);
 

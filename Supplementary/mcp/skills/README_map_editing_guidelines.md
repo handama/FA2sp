@@ -38,9 +38,7 @@ create_snapshot()        -- 如果涉及触发/INI
 -- 步骤二：执行修改
 -- ...
 
--- 步骤三：刷新并通知用户
-update_xxx()             -- 刷新对应类型
-redraw_window()          -- 立即重绘
+-- 步骤三：通知用户
 print("修改完成，如需回退请使用 restore_snapshot(N) 或 Ctrl+Z")
 ```
 ---

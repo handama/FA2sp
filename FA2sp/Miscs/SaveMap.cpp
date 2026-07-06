@@ -449,7 +449,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                     }
                 }
 
-                auto overlay = cell.Overlay;
+                auto overlay = cellExt.NewOverlay;
                 auto overlayD = cell.OverlayData;
                 if (overlay == 24 || overlay == 25 || overlay == 237 || overlay == 238) //high bridge
                 {

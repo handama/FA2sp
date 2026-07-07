@@ -1533,35 +1533,180 @@ DEFINE_HOOK(41B250, CIsoView_DrawCliff_NewUrban, 7)
 	return 0;
 }
 
-DEFINE_HOOK(45F261, CIsoView_HandleProperties_Infantry, 7)
+DEFINE_HOOK(45EDC0, CIsoView_HandleProperties, 6)
 {
-	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
-	return 0;
-}
+	GET(CIsoView*, pThis, ECX);
+	GET_STACK(int, index, 0x4);
+	GET_STACK(int, type, 0x8);
 
-DEFINE_HOOK(45FA44, CIsoView_HandleProperties_Building, 7)
-{
-	CMapDataExt::SkipBuildingOverlappingCheck = true;
-	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
-	return 0;
-}
+	if (index < 0) return 0x4609B5;
+	switch (type)
+	{
+	case 0:
+	{
+		CInfantryData data;
+		CMapData::Instance->GetInfantryData(index, data);
 
-DEFINE_HOOK(45FA99, CIsoView_HandleProperties_Building_2, 7)
-{
-	CMapDataExt::SkipBuildingOverlappingCheck = false;
-	return 0;
-}
+		CPropertyInfantry dlg(pThis);
+		dlg.CString_HealthPoint = data.Health;
+		dlg.CString_Direction = data.Facing;
+		dlg.CString_House = Translations::ParseHouseName(data.House, true);
+		dlg.CString_VerteranStatus = data.VeterancyPercentage;
+		dlg.CString_Group = data.Group;
+		dlg.CString_OnBridge = data.IsAboveGround; 
+		dlg.CString_AutoCreateNoRecruitable = data.AutoNORecruitType; 
+		dlg.CString_State = data.Status;
+		dlg.CString_Tag = data.Tag;
+		dlg.CString_AutoCreateYesRecruitable = data.AutoYESRecruitType;
 
-DEFINE_HOOK(4600B1, CIsoView_HandleProperties_Aircraft, 7)
-{
-	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft);
-	return 0;
-}
+		int res = dlg.DoModal();
+		if (res == IDCANCEL) return 0x4609B5;
+		
+		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
+		data.Health = dlg.CString_HealthPoint;
+		data.Facing = dlg.CString_Direction;
+		data.House = Translations::ParseHouseName(dlg.CString_House, false);
+		data.VeterancyPercentage = dlg.CString_VerteranStatus;
+		data.Group = dlg.CString_Group;
+		data.IsAboveGround = dlg.CString_OnBridge;
+		data.AutoNORecruitType = dlg.CString_AutoCreateNoRecruitable;
+		data.Status = dlg.CString_State;
+		data.Tag = dlg.CString_Tag;
+		data.AutoYESRecruitType = dlg.CString_AutoCreateYesRecruitable;
 
-DEFINE_HOOK(460742, CIsoView_HandleProperties_Unit, 7)
-{
-	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit);
-	return 0;
+		CMapData::Instance->DeleteInfantryData(index);
+		CMapData::Instance->SetInfantryData(&data, NULL, NULL, 0, -1);
+
+		::RedrawWindow(pThis->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+		break;
+	}
+	case 1:
+	{
+		CBuildingData data;
+		CMapData::Instance->GetBuildingData(index, data);
+
+		CPropertyBuilding dlg(pThis);
+		dlg.CString_HealthPoint = data.Health;
+		dlg.CString_Direction = data.Facing;
+		dlg.CString_House = Translations::ParseHouseName(data.House, true);
+		dlg.CString_Tag = data.Tag;
+		dlg.CString_Sellable = data.AISellable;
+		dlg.CString_Rebuildable = data.AIRebuildable;
+		dlg.CString_EnergySupport = data.PoweredOn;
+		dlg.CString_UpgradeCount = data.Upgrades;
+		dlg.CString_Spotlight = data.SpotLight;
+		dlg.CString_Upgrade1 = data.Upgrade1;
+		dlg.CString_Upgrade2 = data.Upgrade2;
+		dlg.CString_Upgrade3 = data.Upgrade3;
+		dlg.CString_AIRepairs = data.AIRepairable;
+		dlg.CString_ShowName = data.Nominal;
+
+		int res = dlg.DoModal();
+		if (res == IDCANCEL) return 0x4609B5;
+		
+		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
+		data.Health = dlg.CString_HealthPoint;
+		data.Facing = dlg.CString_Direction;
+		data.House = Translations::ParseHouseName(dlg.CString_House, false);
+		data.Tag = dlg.CString_Tag;
+		data.AISellable = dlg.CString_Sellable;
+		data.AIRebuildable = dlg.CString_Rebuildable;
+		data.PoweredOn = dlg.CString_EnergySupport;
+		data.Upgrades = dlg.CString_UpgradeCount;
+		data.SpotLight = dlg.CString_Spotlight;
+		data.Upgrade1 = dlg.CString_Upgrade1;
+		data.Upgrade2 = dlg.CString_Upgrade2;
+		data.Upgrade3 = dlg.CString_Upgrade3;
+		data.AIRepairable = dlg.CString_AIRepairs;
+		data.Nominal = dlg.CString_ShowName;
+		
+		CMapDataExt::SkipBuildingOverlappingCheck = true;
+		CMapData::Instance->DeleteBuildingData(index);
+		CMapData::Instance->SetBuildingData(&data, NULL, NULL, 0, "");
+		CMapDataExt::SkipBuildingOverlappingCheck = false;
+
+		::RedrawWindow(pThis->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+		break;
+	}
+	case 2:
+	{
+		CAircraftData data;
+		CMapData::Instance->GetAircraftData(index, data);
+
+		CPropertyAircraft dlg(pThis);
+		dlg.CString_HealthPoint = data.Health;
+		dlg.CString_Direction = data.Facing;
+		dlg.CString_House = Translations::ParseHouseName(data.House, true);
+		dlg.CString_Tag = data.Tag;
+		dlg.CString_VeteranLevel = data.VeterancyPercentage;
+		dlg.CString_Group = data.Group;
+		dlg.CString_AutoCreateNoRecruitable = data.AutoNORecruitType;
+		dlg.CString_AutoCreateYesRecruitable = data.AutoYESRecruitType;
+		dlg.CString_Status = data.Status;
+
+		int res = dlg.DoModal();
+		if (res == IDCANCEL) return 0x4609B5;
+		
+		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft);
+		data.Health = dlg.CString_HealthPoint;
+		data.Facing = dlg.CString_Direction;
+		data.House = Translations::ParseHouseName(dlg.CString_House, false);
+		data.Tag = dlg.CString_Tag;
+		data.VeterancyPercentage = dlg.CString_VeteranLevel;
+		data.Group = dlg.CString_Group;
+		data.AutoNORecruitType = dlg.CString_AutoCreateNoRecruitable;
+		data.AutoYESRecruitType = dlg.CString_AutoCreateYesRecruitable;
+		data.Status = dlg.CString_Status;
+
+		CMapData::Instance->DeleteAircraftData(index);
+		CMapData::Instance->SetAircraftData(&data, NULL, NULL, 0, "");
+
+		::RedrawWindow(pThis->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+		break;
+	}
+	case 3:
+	{
+		CUnitData data;
+		CMapData::Instance->GetUnitData(index, data);
+
+		CPropertyUnit dlg(pThis);
+		dlg.CString_HealthPoint = data.Health;
+		dlg.CString_Direction = data.Facing;
+		dlg.CString_House = Translations::ParseHouseName(data.House, true);
+		dlg.CString_Tag = data.Tag;
+		dlg.CString_VeteranLevel = data.VeterancyPercentage;
+		dlg.CString_Group = data.Group;
+		dlg.CString_OnBridge = data.IsAboveGround;
+		dlg.CString_FollowerID = data.FollowsIndex;
+		dlg.CString_AutoCreateNoRecruitable = data.AutoNORecruitType;
+		dlg.CString_AutoCreateYesRecruitable = data.AutoYESRecruitType;
+		dlg.CString_State = data.Status;
+
+		int res = dlg.DoModal();
+		if (res == IDCANCEL) return 0x4609B5;
+		
+		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit);
+		data.Health = dlg.CString_HealthPoint;
+		data.Facing = dlg.CString_Direction;
+		data.House = Translations::ParseHouseName(dlg.CString_House, false);
+		data.Tag = dlg.CString_Tag;
+		data.VeterancyPercentage = dlg.CString_VeteranLevel;
+		data.Group = dlg.CString_Group;
+		data.IsAboveGround = dlg.CString_OnBridge;
+		data.FollowsIndex = dlg.CString_FollowerID;
+		data.AutoNORecruitType = dlg.CString_AutoCreateNoRecruitable;
+		data.AutoYESRecruitType = dlg.CString_AutoCreateYesRecruitable;
+		data.Status = dlg.CString_State;
+
+		CMapData::Instance->DeleteUnitData(index);
+		CMapData::Instance->SetUnitData(&data, NULL, NULL, 0, "");
+
+		::RedrawWindow(pThis->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+		break;
+	}
+	}
+
+	return 0x4609B5;
 }
 
 DEFINE_HOOK(466E50, CIsoView_OnLButtonUp_Drag_Infantry, 5)

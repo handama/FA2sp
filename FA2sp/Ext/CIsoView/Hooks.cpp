@@ -23,6 +23,7 @@
 #include "../../Helpers/Helper.h"
 #include "../../Miscs/StringtableLoader.h"
 #include "../CTileSetBrowserFrame/Body.h"
+#include "../CTileSetBrowserFrame/TabPages/GridObjectViewer.h"
 #include "RendererTypes.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 #include "../CFinalSunApp/Body.h"
@@ -2148,6 +2149,64 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 			pThis->IsScrolling = FALSE;
 	}
 
+    int keyboard_dx = 0;
+    int keyboard_dy = 0;
+
+    if (GetAsyncKeyState(VK_LEFT) & 0x8000)  keyboard_dx -= 1200 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate * (ExtConfigs::DirectXRendering ? 1.2f : 1.0f);
+    if (GetAsyncKeyState(VK_RIGHT) & 0x8000) keyboard_dx += 1200 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate * (ExtConfigs::DirectXRendering ? 1.2f : 1.0f);
+
+    if (GetAsyncKeyState(VK_UP) & 0x8000)    keyboard_dy -= 1200 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate * (ExtConfigs::DirectXRendering ? 1.2f : 1.0f);
+    if (GetAsyncKeyState(VK_DOWN) & 0x8000)  keyboard_dy += 1200 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate * (ExtConfigs::DirectXRendering ? 1.2f : 1.0f);
+
+	if(keyboard_dx != 0 || keyboard_dy != 0)
+	{
+		HWND hTopWnd = WindowFromPoint(pt);
+		if (hTopWnd == pThis->GetSafeHwnd())
+		{
+			if (CViewObjectsExt::CurrentConnectedTileType < 0 
+				|| CViewObjectsExt::CurrentConnectedTileType > CViewObjectsExt::ConnectedTileSets.size()
+				|| CIsoView::CurrentCommand->Command != 0x1E)
+			{
+				auto& gov = GridObjectViewer::Instance;
+				if (!gov.IsVisible())
+				{
+					if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
+					{
+						keyboard_dx *= 3;
+						keyboard_dy *= 3;
+					}
+					pThis->ViewPosition.x += keyboard_dx;
+					pThis->ViewPosition.y += keyboard_dy;
+					
+					pThis->MoveTo(
+						pThis->ViewPosition.x, 
+						pThis->ViewPosition.y);  
+					
+					pThis->Draw();
+
+					static auto lastTime = std::chrono::steady_clock::now();
+					auto now = std::chrono::steady_clock::now();
+					if (duration_cast<std::chrono::milliseconds>(now - lastTime).count() >= 50)
+					{
+						lastTime = now;
+						CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+					}
+			
+					pThis->IsMouseMoving = false;
+			
+					LPARAM lParam = MAKELPARAM(
+						pt.x + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0),
+						pt.y + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0));
+						
+					PostMessage(pThis->GetSafeHwnd(), WM_MOUSEMOVE, nFlags, lParam);
+			
+					return 0x456EC0;
+				}
+			}
+		}
+	}
+
+    
 	return 0x456EDB;
 }
 

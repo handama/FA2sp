@@ -62,11 +62,14 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
                 gov.EnsureVisible(gov.GetSelectedIndex());
                 gov.OnSelChanged(gov.GetSelectedIndex());
 
-                POINT pt;
-                GetCursorPos(&pt);
                 ScreenToClient(CIsoView::GetInstance()->GetSafeHwnd(), &pt);
                 CIsoView::GetInstance()->OnMouseMove(0, pt);
             }       
+        }
+        else
+        {					
+            ScreenToClient(CIsoView::GetInstance()->GetSafeHwnd(), &pt);
+            CIsoView::GetInstance()->OnMouseMove(0, pt);
         }
     }
     else

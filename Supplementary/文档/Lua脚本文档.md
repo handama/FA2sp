@@ -687,8 +687,8 @@ end
 | `veterancy` | `string` | 读/写 | 经验等级：0=新兵，100=老兵，200=精英 |
 | `group` | `string` | 读/写 | 分组 |
 | `above_ground` | `string` | 读/写 | 是否在桥上 ("0" 或 "1") |
-| `auto_no_recruit` | `string` | 读/写 | 重组 A |
-| `auto_yes_recruit` | `string` | 读/写 | 重组 B |
+| `auto_no_recruit` | `string` | 读/写 | 重组A（无条件招募） |
+| `auto_yes_recruit` | `string` | 读/写 | 重组B（有条件招募） |
 
 ### 方法
 
@@ -793,8 +793,8 @@ redraw_window()
 | `veterancy` | `string` | 读/写 | 经验等级：0=新兵，100=老兵，200=精英 |
 | `group` | `string` | 读/写 | 分组 |
 | `above_ground` | `string` | 读/写 | 是否在桥上 ("0" 或 "1") |
-| `auto_no_recruit` | `string` | 读/写 | 重组A |
-| `auto_yes_recruit` | `string` | 读/写 | 重组B |
+| `auto_no_recruit` | `string` | 读/写 | 重组A（无条件招募） |
+| `auto_yes_recruit` | `string` | 读/写 | 重组B（有条件招募） |
 | `follow` | `string` | 读/写 | 跟随的车辆 ID |
 
 ### 方法
@@ -885,8 +885,8 @@ redraw_window()
 | `veterancy` | `string` | 读/写 | 经验等级：0=新兵，100=老兵，200=精英 |
 | `group` | `string` | 读/写 | 分组 |
 | `above_ground` | `string` | 读/写 | 是否在桥上 ("0" 或 "1") |
-| `auto_no_recruit` | `string` | 读/写 | 重组A |
-| `auto_yes_recruit` | `string` | 读/写 | 重组B |
+| `auto_no_recruit` | `string` | 读/写 | 重组A（无条件招募） |
+| `auto_yes_recruit` | `string` | 读/写 | 重组B（有条件招募） |
 
 ### 方法
 

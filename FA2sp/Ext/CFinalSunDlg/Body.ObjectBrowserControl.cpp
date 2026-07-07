@@ -55,16 +55,16 @@ CBitmap CViewObjectsExt::SpecialBitmap;
 CImageList CViewObjectsExt::m_ImageList;
 std::set<int> CViewObjectsExt::InsertedTileIndices;
 
-std::unique_ptr<CPropertyBuilding> CViewObjectsExt::BuildingBrushDlg;
-std::unique_ptr<CPropertyInfantry> CViewObjectsExt::InfantryBrushDlg;
-std::unique_ptr<CPropertyUnit> CViewObjectsExt::VehicleBrushDlg;
-std::unique_ptr<CPropertyAircraft> CViewObjectsExt::AircraftBrushDlg;
+std::unique_ptr<CNewPropertyBuilding> CViewObjectsExt::BuildingBrushDlg;
+std::unique_ptr<CNewPropertyInfantry> CViewObjectsExt::InfantryBrushDlg;
+std::unique_ptr<CNewPropertyUnit> CViewObjectsExt::VehicleBrushDlg;
+std::unique_ptr<CNewPropertyAircraft> CViewObjectsExt::AircraftBrushDlg;
 
-std::unique_ptr<CPropertyBuilding> CViewObjectsExt::BuildingBrushDlgBF;
-std::unique_ptr<CPropertyInfantry> CViewObjectsExt::InfantryBrushDlgF;
-std::unique_ptr<CPropertyUnit> CViewObjectsExt::VehicleBrushDlgF;
-std::unique_ptr<CPropertyAircraft> CViewObjectsExt::AircraftBrushDlgF;
-std::unique_ptr<CPropertyBuilding> CViewObjectsExt::BuildingBrushDlgBNF;
+std::unique_ptr<CNewPropertyBuilding> CViewObjectsExt::BuildingBrushDlgBF;
+std::unique_ptr<CNewPropertyInfantry> CViewObjectsExt::InfantryBrushDlgF;
+std::unique_ptr<CNewPropertyUnit> CViewObjectsExt::VehicleBrushDlgF;
+std::unique_ptr<CNewPropertyAircraft> CViewObjectsExt::AircraftBrushDlgF;
+std::unique_ptr<CNewPropertyBuilding> CViewObjectsExt::BuildingBrushDlgBNF;
 std::map<int, FString> CViewObjectsExt::TreeViewIndex_Building;
 std::map<int, FString> CViewObjectsExt::TreeViewIndex_Infantry;
 std::map<int, FString> CViewObjectsExt::TreeViewIndex_Vehicle;
@@ -2784,45 +2784,45 @@ void CViewObjectsExt::Redraw_MultiSelection()
 bool CViewObjectsExt::DoPropertyBrush_Building()
 {
     if (BuildingBrushDlg.get() == nullptr)
-        BuildingBrushDlg = std::make_unique<CPropertyBuilding>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+        BuildingBrushDlg = std::make_unique<CNewPropertyBuilding>();
 
     for (auto& v : BuildingBrushBools)
         v = false;
 
-    return BuildingBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
+    return BuildingBrushDlg->DoModal() == IDOK;
 }
 
 bool CViewObjectsExt::DoPropertyBrush_Aircraft()
 {
     if (AircraftBrushDlg.get() == nullptr)
-        AircraftBrushDlg = std::make_unique<CPropertyAircraft>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+        AircraftBrushDlg = std::make_unique<CNewPropertyAircraft>();
 
     for (auto& v : AircraftBrushBools)
         v = false;
 
-    return AircraftBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
+    return AircraftBrushDlg->DoModal() == IDOK;
 }
 
 bool CViewObjectsExt::DoPropertyBrush_Vehicle()
 {
     if (VehicleBrushDlg.get() == nullptr)
-        VehicleBrushDlg = std::make_unique<CPropertyUnit>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+        VehicleBrushDlg = std::make_unique<CNewPropertyUnit>();
 
     for (auto& v : VehicleBrushBools)
         v = false;
 
-    return VehicleBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
+    return VehicleBrushDlg->DoModal() == IDOK;
 }
 
 bool CViewObjectsExt::DoPropertyBrush_Infantry()
 {
     if (InfantryBrushDlg.get() == nullptr)
-        InfantryBrushDlg = std::make_unique<CPropertyInfantry>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+        InfantryBrushDlg = std::make_unique<CNewPropertyInfantry>();
 
     for (auto& v : InfantryBrushBools)
         v = false;
 
-    return InfantryBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
+    return InfantryBrushDlg->DoModal() == IDOK;
 }
 
 void CViewObjectsExt::BatchAddMultiSelection(int X, int Y, bool add)
@@ -4021,7 +4021,7 @@ void CViewObjectsExt::ApplyPropertyBrush_Aircraft(CAircraftData& data)
     ApplyValue(1300, AircraftBrushDlg->CString_House, data.House);
     ApplyValue(1301, AircraftBrushDlg->CString_HealthPoint, data.Health);
     ApplyValue(1302, AircraftBrushDlg->CString_Direction, data.Facing);
-    ApplyValue(1303, AircraftBrushDlg->CString_Status, data.Status);
+    ApplyValue(1303, AircraftBrushDlg->CString_State, data.Status);
     ApplyValue(1304, AircraftBrushDlg->CString_VeteranLevel, data.VeterancyPercentage);
     ApplyValue(1305, AircraftBrushDlg->CString_Group, data.Group);
     ApplyValue(1306, AircraftBrushDlg->CString_AutoCreateNoRecruitable, data.AutoNORecruitType);

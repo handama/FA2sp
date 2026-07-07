@@ -21,6 +21,7 @@
 #include "../../Helpers/FString.h"
 #include "../../Miscs/StringtableLoader.h"
 #include "../../Helpers/TheaterHelpers.h"
+#include "../CTechnoDialog/CTechnoDialog.h"
 
 HWND CObjectSearch::m_hwnd;
 CTileSetBrowserFrame* CObjectSearch::m_parent;
@@ -39,6 +40,7 @@ bool CObjectSearch::bListBoxButton;
 bool CObjectSearch::bWaypoints;
 bool CObjectSearch::bMapCoords;
 bool CObjectSearch::bPropertyBushFilter;
+std::unique_ptr<CTechnoDialog> CObjectSearch::PropertyFilterDlg = nullptr;
 bool CObjectSearch::ToggleWindowSize_once;
 bool CObjectSearch::bTrigger;
 bool CObjectSearch::bAttachedTrigger;
@@ -176,8 +178,22 @@ BOOL CALLBACK CObjectSearch::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
             CObjectSearch::bExactMatch = SendMessage(GetDlgItem(hwnd, Controls::ExactMatch), BM_GETCHECK, 0, 0);
             break;
         case Controls::PropertyBushFilter:
-            CObjectSearch::bPropertyBushFilter = SendMessage(GetDlgItem(hwnd, Controls::PropertyBushFilter), BM_GETCHECK, 0, 0);
+        {
+            bool checked = SendMessage(GetDlgItem(hwnd, Controls::PropertyBushFilter), BM_GETCHECK, 0, 0);
+            if (checked)
+            {
+				CObjectSearch::PropertyFilterDlg = nullptr;
+				CObjectSearch::PropertyFilterDlg = std::make_unique<CTechnoDialog>();
+                CObjectSearch::bPropertyBushFilter = CObjectSearch::PropertyFilterDlg->DoModal();
+                if (!CObjectSearch::bPropertyBushFilter)
+                    SendMessage(GetDlgItem(hwnd, Controls::PropertyBushFilter), BM_SETCHECK, BST_UNCHECKED, 0);
+            }
+            else
+            {
+                CObjectSearch::bPropertyBushFilter = false;
+            }
             break;
+        }
         case Controls::TreeView:
             OnRangeChanged(hwnd);
             Translate("GlobalSearch.Search", Controls::Search);
@@ -579,6 +595,154 @@ void CObjectSearch::ListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam)
             break;
         }
     }
+}
+
+bool CObjectSearch::CheckPropertyU_WithTechno(const CUnitData& data)
+{
+    if (!CObjectSearch::PropertyFilterDlg)
+        return true;
+
+    auto& dlg = *CObjectSearch::PropertyFilterDlg;
+    auto CheckValue = [&](bool bEnable, const ppmfc::CString& src, const ppmfc::CString& dst)
+    {
+        if (bEnable)
+        {
+            if (dst == src) return true;
+            else return false;
+        }
+        return true;
+    };
+
+    ppmfc::CString strStrength;
+    strStrength.Format("%d", dlg.m_nStrength);
+
+    if (
+        CheckValue(dlg.m_bEnableHouse, dlg.m_strHouse, data.House) &&
+        CheckValue(dlg.m_bEnableStrength, strStrength, data.Health) &&
+        CheckValue(dlg.m_bEnableState, dlg.m_strState, data.Status) &&
+        CheckValue(dlg.m_bEnableDirection, dlg.m_strDirection, data.Facing) &&
+        CheckValue(dlg.m_bEnableVeteran, dlg.m_strVeteranLevel, data.VeterancyPercentage) &&
+        CheckValue(dlg.m_bEnableGroup, dlg.m_strGroup, data.Group) &&
+        CheckValue(dlg.m_bEnableAboveGround, dlg.m_strAboveGround, data.IsAboveGround) &&
+        CheckValue(dlg.m_bEnableFollowsIndex, dlg.m_strFollowsIndex, data.FollowsIndex) &&
+        CheckValue(dlg.m_bEnableAutoNO, dlg.m_strAutoNO_Recruit, data.AutoNORecruitType) &&
+        CheckValue(dlg.m_bEnableAutoYES, dlg.m_strAutoYES_Recruit, data.AutoYESRecruitType) &&
+        CheckValue(dlg.m_bEnableTag, dlg.m_strTag, data.Tag)
+        )
+        return true;
+    else
+        return false;
+}
+
+bool CObjectSearch::CheckPropertyA_WithTechno(const CAircraftData& data)
+{
+    if (!CObjectSearch::PropertyFilterDlg)
+        return true;
+
+    auto& dlg = *CObjectSearch::PropertyFilterDlg;
+    auto CheckValue = [&](bool bEnable, const ppmfc::CString& src, const ppmfc::CString& dst)
+    {
+        if (bEnable)
+        {
+            if (dst == src) return true;
+            else return false;
+        }
+        return true;
+    };
+
+    ppmfc::CString strStrength;
+    strStrength.Format("%d", dlg.m_nStrength);
+
+    if (
+        CheckValue(dlg.m_bEnableHouse, dlg.m_strHouse, data.House) &&
+        CheckValue(dlg.m_bEnableStrength, strStrength, data.Health) &&
+        CheckValue(dlg.m_bEnableState, dlg.m_strState, data.Status) &&
+        CheckValue(dlg.m_bEnableDirection, dlg.m_strDirection, data.Facing) &&
+        CheckValue(dlg.m_bEnableVeteran, dlg.m_strVeteranLevel, data.VeterancyPercentage) &&
+        CheckValue(dlg.m_bEnableGroup, dlg.m_strGroup, data.Group) &&
+        CheckValue(dlg.m_bEnableAutoNO, dlg.m_strAutoNO_Recruit, data.AutoNORecruitType) &&
+        CheckValue(dlg.m_bEnableAutoYES, dlg.m_strAutoYES_Recruit, data.AutoYESRecruitType) &&
+        CheckValue(dlg.m_bEnableTag, dlg.m_strTag, data.Tag)
+        )
+        return true;
+    else
+        return false;
+}
+
+bool CObjectSearch::CheckPropertyB_WithTechno(const CBuildingData& data)
+{
+    if (!CObjectSearch::PropertyFilterDlg)
+        return true;
+
+    auto& dlg = *CObjectSearch::PropertyFilterDlg;
+    auto CheckValue = [&](bool bEnable, const ppmfc::CString& src, const ppmfc::CString& dst)
+    {
+        if (bEnable)
+        {
+            if (dst == src) return true;
+            else return false;
+        }
+        return true;
+    };
+
+    ppmfc::CString strStrength;
+    strStrength.Format("%d", dlg.m_nStrength);
+
+    if (
+        CheckValue(dlg.m_bEnableHouse, dlg.m_strHouse, data.House) &&
+        CheckValue(dlg.m_bEnableStrength, strStrength, data.Health) &&
+        CheckValue(dlg.m_bEnableDirection, dlg.m_strDirection, data.Facing) &&
+        CheckValue(dlg.m_bEnableSellable, dlg.m_strSellable, data.AISellable) &&
+        CheckValue(dlg.m_bEnableRebuild, dlg.m_strRebuild, data.AIRebuildable) &&
+        CheckValue(dlg.m_bEnablePowered, dlg.m_strPowered, data.PoweredOn) &&
+        CheckValue(dlg.m_bEnableUpgradeCount, dlg.m_strUpgradeCount, data.Upgrades) &&
+        CheckValue(dlg.m_bEnableSpotlight, dlg.m_strSpotlight, data.SpotLight) &&
+        CheckValue(dlg.m_bEnableUpgrade1, dlg.m_strUpgrade1, data.Upgrade1) &&
+        CheckValue(dlg.m_bEnableUpgrade2, dlg.m_strUpgrade2, data.Upgrade2) &&
+        CheckValue(dlg.m_bEnableUpgrade3, dlg.m_strUpgrade3, data.Upgrade3) &&
+        CheckValue(dlg.m_bEnableAIRepairs, dlg.m_strAIRepairs, data.AIRepairable) &&
+        CheckValue(dlg.m_bEnableNominal, dlg.m_strNominal, data.Nominal) &&
+        CheckValue(dlg.m_bEnableTag, dlg.m_strTag, data.Tag)
+        )
+        return true;
+    else
+        return false;
+}
+
+bool CObjectSearch::CheckPropertyI_WithTechno(const CInfantryData& data)
+{
+    if (!CObjectSearch::PropertyFilterDlg)
+        return true;
+
+    auto& dlg = *CObjectSearch::PropertyFilterDlg;
+    auto CheckValue = [&](bool bEnable, const ppmfc::CString& src, const ppmfc::CString& dst)
+    {
+        if (bEnable)
+        {
+            if (dst == src) return true;
+            else return false;
+        }
+        return true;
+    };
+
+    ppmfc::CString strStrength;
+    strStrength.Format("%d", dlg.m_nStrength);
+
+    if (
+        CheckValue(dlg.m_bEnableHouse, dlg.m_strHouse, data.House) &&
+        CheckValue(dlg.m_bEnableStrength, strStrength, data.Health) &&
+        CheckValue(dlg.m_bEnableState, dlg.m_strState, data.Status) &&
+        CheckValue(dlg.m_bEnableDirection, dlg.m_strDirection, data.Facing) &&
+        CheckValue(dlg.m_bEnableVeteran, dlg.m_strVeteranLevel, data.VeterancyPercentage) &&
+        CheckValue(dlg.m_bEnableGroup, dlg.m_strGroup, data.Group) &&
+        CheckValue(dlg.m_bEnableAboveGround, dlg.m_strAboveGround, data.IsAboveGround) &&
+        CheckValue(dlg.m_bEnableAutoNO, dlg.m_strAutoNO_Recruit, data.AutoNORecruitType) &&
+        CheckValue(dlg.m_bEnableAutoYES, dlg.m_strAutoYES_Recruit, data.AutoYESRecruitType) &&
+        CheckValue(dlg.m_bEnableTag, dlg.m_strTag, data.Tag)
+        )
+        return true;
+    else
+        return false;
 }
 
 void CObjectSearch::OnSearchButtonUp(HWND hWnd)
@@ -1476,22 +1640,22 @@ void CObjectSearch::SearchObjects(HWND hWnd, const char* source)
                             switch (SearchObjectType) {
                             case FindType::Aircraft:
                                 CMapData::Instance->GetAircraftData(index, airData);
-                                if (CFinalSunDlgExt::CheckProperty_Aircraft(airData))
+                                if (CObjectSearch::CheckPropertyA_WithTechno(airData))
                                     met = true;
                                 break;
                             case FindType::Infantry:
                                 CMapData::Instance->GetInfantryData(index, infData);
-                                if (CFinalSunDlgExt::CheckProperty_Infantry(infData))
+                                if (CObjectSearch::CheckPropertyI_WithTechno(infData))
                                     met = true;
                                 break;
                             case FindType::Structure:
                                 CMapDataExt::GetBuildingDataByIniID(index, buiData);
-                                if (CFinalSunDlgExt::CheckProperty_Building(buiData))
+                                if (CObjectSearch::CheckPropertyB_WithTechno(buiData))
                                     met = true;
                                 break;
                             case FindType::Unit:
                                 CMapData::Instance->GetUnitData(index, unitData);
-                                if (CFinalSunDlgExt::CheckProperty_Vehicle(unitData))
+                                if (CObjectSearch::CheckPropertyU_WithTechno(unitData))
                                     met = true;
                                 break;
                             default: break;

@@ -679,14 +679,18 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
                 OnSelchangeActionExtraParam(true);
             break;
         case Controls::Insert:
-            bInsert = SendMessage(hInsert, BM_GETCHECK, 0, 0);
+            if (CODE == BN_CLICKED)
+                bInsert = SendMessage(hInsert, BM_GETCHECK, 0, 0);
             break;
         case Controls::RenderPath:
-            CIsoViewExt::DrawScriptPath = SendMessage(hRenderPath, BM_GETCHECK, 0, 0);
-            if (CIsoViewExt::DrawScriptPath)
-                UpdateScriptPath();
-            else
-                ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->GetSafeHwnd(), 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);           
+            if (CODE == BN_CLICKED)
+            {
+                CIsoViewExt::DrawScriptPath = SendMessage(hRenderPath, BM_GETCHECK, 0, 0);
+                if (CIsoViewExt::DrawScriptPath)
+                    UpdateScriptPath();
+                else
+                    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->GetSafeHwnd(), 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+            }        
             break;
         default:
             break;

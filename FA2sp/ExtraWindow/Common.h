@@ -138,6 +138,10 @@ public:
     static void LoadParam_Structures(VirtualComboBoxEx& vcb);
     static void LoadParam_Stringtables(VirtualComboBoxEx& vcb);
 
+    // House and Tag loading for property dialogs (to be implemented by user)
+    static void LoadParams_Houses(VirtualComboBoxEx& vcb, bool multiOnly, bool countries, bool players);
+    static void LoadParams_Tags(VirtualComboBoxEx& vcb, bool addNone);
+
     static void SortLabels(std::vector<FString>& labels);
     static void SortLabels(std::vector<std::pair<FString, FString>>& labels, bool first = true);
     static void SortTriggerLabels(std::vector<std::pair<FString, Trigger*>>& labels);

@@ -25,10 +25,11 @@
 #include "CMMX/Body.h"
 #include "CNewHouse/Body.h"
 #include "COptions/Body.h"
-#include "CPropertyAircraft/Body.h"
-#include "CPropertyBuilding/Body.h"
-#include "CPropertyInfantry/Body.h"
-#include "CPropertyUnit/Body.h"
+// CProperty* dialogs migrated to CNewProperty* (ExtraWindow), no longer need Ext headers
+// #include "CPropertyAircraft/Body.h"
+// #include "CPropertyBuilding/Body.h"
+// #include "CPropertyInfantry/Body.h"
+// #include "CPropertyUnit/Body.h"
 #include "CRandomTree/Body.h"
 #include "CSaveOption/Body.h"
 #include "CSingleplayerSettings/Body.h"
@@ -50,10 +51,11 @@ void __stdcall FA2Expand::ExeRun()
     CCreateMap3BExt::ProgramStartupInit();
     CMapValidatorExt::ProgramStartupInit();
     //CIsoViewExt::ProgramStartupInit();
-    CPropertyAircraftExt::ProgramStartupInit();
-    CPropertyBuildingExt::ProgramStartupInit();
-    CPropertyInfantryExt::ProgramStartupInit();
-    CPropertyUnitExt::ProgramStartupInit();
+    // CProperty* dialogs migrated to CNewProperty* (ExtraWindow), vtable patching no longer needed
+    // CPropertyAircraftExt::ProgramStartupInit();
+    // CPropertyBuildingExt::ProgramStartupInit();
+    // CPropertyInfantryExt::ProgramStartupInit();
+    // CPropertyUnitExt::ProgramStartupInit();
     CTileSetBrowserFrameExt::ProgramStartupInit();
     CSingleplayerSettingsExt::ProgramStartupInit();
     //CTagsExt::ProgramStartupInit();

@@ -777,6 +777,93 @@ void ExtraWindow::LoadParam_Stringtables(VirtualComboBoxEx& vcb)
     }
 }
 
+void ExtraWindow::LoadParams_Houses(VirtualComboBoxEx& vcb, bool multiOnly, bool countries, bool players)
+{
+    const char* playersAtX[8]
+    {
+        "<Player @ A>",
+        "<Player @ B>",
+        "<Player @ C>",
+        "<Player @ D>",
+        "<Player @ E>",
+        "<Player @ F>",
+        "<Player @ G>",
+        "<Player @ H>"
+    };
+    vcb.Clear();
+
+    if (!multiOnly)
+        players = false;
+
+    auto pCountry = CINI::Rules->GetSection("Countries");
+    auto pHouse = CINI::CurrentDocument->GetSection("Houses");
+    INISection* pSection = nullptr;
+
+    if (CMapDataExt::IsInitingPropertyDialog)
+        pSection = multiOnly ? pCountry : pHouse;
+    else
+        pSection = countries ? pCountry : pHouse;
+
+	auto addColoredHouse = [&](const char* house, const char* text = nullptr)
+	{
+        if (!text)
+            text = house;
+        if (!CMapDataExt::IsInitingPropertyDialog)
+        {
+            vcb.AddString(text);
+        }
+        else
+        {
+			auto color = Miscs::GetColorRef(house);
+			vcb.AddString(text, CLR_INVALID, color, true);
+        }
+	};
+
+	if (pSection)
+    {
+        if (players)
+        {
+			for (int i = 0; i < 8; ++i)
+            {    
+				addColoredHouse(playersAtX[i]);
+            }
+        }
+
+        for (const auto& [key, value] : pSection->GetEntities())
+        {
+            if (value == "Nod" || value == "GDI")
+                continue;
+
+            FString text = Translations::ParseHouseName(value, true);
+
+            if (ExtConfigs::ObjectBrowser_SafeHouses
+                && CMapDataExt::IsInitingPropertyDialog
+                && pSection == pCountry)
+            {
+                if (value != "Neutral" && value != "Special")
+                    continue;
+            }
+
+            addColoredHouse(value, text);
+        }
+    }
+    else if (players)
+    {
+        for (int i = 0; i < 8; ++i)
+        {    
+            addColoredHouse(playersAtX[i]);
+        }
+    }
+}
+
+void ExtraWindow::LoadParams_Tags(VirtualComboBoxEx& vcb, bool addNone)
+{
+    if (addNone)
+        vcb.AddString("None");
+
+    ExtraWindow::LoadParam_Tags(vcb);
+}
+
 static SortLabelKey BuildKey(const FString& input)
 {
     SortLabelKey key;

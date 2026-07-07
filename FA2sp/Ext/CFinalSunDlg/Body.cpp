@@ -173,12 +173,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					CViewObjectsExt::ObjectFilterB = FString::SplitString(result);
 
 					if (CViewObjectsExt::BuildingBrushDlgBF.get() == nullptr)
-						CViewObjectsExt::BuildingBrushDlgBF = std::make_unique<CPropertyBuilding>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+						CViewObjectsExt::BuildingBrushDlgBF = std::make_unique<CNewPropertyBuilding>();
 
 					for (auto& v : CViewObjectsExt::BuildingBrushBools)
 						v = false;
 
-					CViewObjectsExt::BuildingBrushDlgBF->ppmfc::CDialog::DoModal();
+					CViewObjectsExt::BuildingBrushDlgBF->DoModal();
 
 					int index = 0;
 					for (auto& v : CViewObjectsExt::BuildingBrushBools)
@@ -193,12 +193,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					CViewObjectsExt::ObjectFilterI = FString::SplitString(result);
 
 					if (CViewObjectsExt::InfantryBrushDlgF.get() == nullptr)
-						CViewObjectsExt::InfantryBrushDlgF = std::make_unique<CPropertyInfantry>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+						CViewObjectsExt::InfantryBrushDlgF = std::make_unique<CNewPropertyInfantry>();
 
 					for (auto& v : CViewObjectsExt::InfantryBrushBools)
 						v = false;
 
-					CViewObjectsExt::InfantryBrushDlgF->ppmfc::CDialog::DoModal();
+					CViewObjectsExt::InfantryBrushDlgF->DoModal();
 
 					int index = 0;
 					for (auto& v : CViewObjectsExt::InfantryBrushBools)
@@ -213,12 +213,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					CViewObjectsExt::ObjectFilterV = FString::SplitString(result);
 
 					if (CViewObjectsExt::VehicleBrushDlgF.get() == nullptr)
-						CViewObjectsExt::VehicleBrushDlgF = std::make_unique<CPropertyUnit>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+						CViewObjectsExt::VehicleBrushDlgF = std::make_unique<CNewPropertyUnit>();
 
 					for (auto& v : CViewObjectsExt::VehicleBrushBools)
 						v = false;
 
-					CViewObjectsExt::VehicleBrushDlgF->ppmfc::CDialog::DoModal();
+					CViewObjectsExt::VehicleBrushDlgF->DoModal();
 
 					int index = 0;
 					for (auto& v : CViewObjectsExt::VehicleBrushBools)
@@ -233,12 +233,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					CViewObjectsExt::ObjectFilterA = FString::SplitString(result);
 
 					if (CViewObjectsExt::AircraftBrushDlgF.get() == nullptr)
-						CViewObjectsExt::AircraftBrushDlgF = std::make_unique<CPropertyAircraft>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+						CViewObjectsExt::AircraftBrushDlgF = std::make_unique<CNewPropertyAircraft>();
 
 					for (auto& v : CViewObjectsExt::AircraftBrushBools)
 						v = false;
 
-					CViewObjectsExt::AircraftBrushDlgF->ppmfc::CDialog::DoModal();
+					CViewObjectsExt::AircraftBrushDlgF->DoModal();
 
 					int index = 0;
 					for (auto& v : CViewObjectsExt::AircraftBrushBools)
@@ -253,12 +253,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					CViewObjectsExt::ObjectFilterBN = FString::SplitString(result);
 
 					if (CViewObjectsExt::BuildingBrushDlgBNF.get() == nullptr)
-						CViewObjectsExt::BuildingBrushDlgBNF = std::make_unique<CPropertyBuilding>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+						CViewObjectsExt::BuildingBrushDlgBNF = std::make_unique<CNewPropertyBuilding>();
 
 					for (auto& v : CViewObjectsExt::BuildingBrushBools)
 						v = false;
 
-					CViewObjectsExt::BuildingBrushDlgBNF->ppmfc::CDialog::DoModal();
+					CViewObjectsExt::BuildingBrushDlgBNF->DoModal();
 
 					int index = 0;
 					for (auto& v : CViewObjectsExt::BuildingBrushBools)
@@ -1862,7 +1862,7 @@ bool CFinalSunDlgExt::CheckProperty_Aircraft(CAircraftData data)
 		CheckValue(1300, CViewObjectsExt::AircraftBrushDlg->CString_House, data.House) &&
 		CheckValue(1301, CViewObjectsExt::AircraftBrushDlg->CString_HealthPoint, data.Health) &&
 		CheckValue(1302, CViewObjectsExt::AircraftBrushDlg->CString_Direction, data.Facing) &&
-		CheckValue(1303, CViewObjectsExt::AircraftBrushDlg->CString_Status, data.Status) &&
+		CheckValue(1303, CViewObjectsExt::AircraftBrushDlg->CString_State, data.Status) &&
 		CheckValue(1304, CViewObjectsExt::AircraftBrushDlg->CString_VeteranLevel, data.VeterancyPercentage) &&
 		CheckValue(1305, CViewObjectsExt::AircraftBrushDlg->CString_Group, data.Group) &&
 		CheckValue(1306, CViewObjectsExt::AircraftBrushDlg->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&

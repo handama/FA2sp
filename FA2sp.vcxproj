@@ -245,6 +245,10 @@
     <ClCompile Include="FA2sp\ExtraWindow\CTechnoDialog\CTechnoDialog.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewPropertyAircraft\CNewPropertyAircraft.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewPropertyBuilding\CNewPropertyBuilding.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewPropertyInfantry\CNewPropertyInfantry.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewPropertyUnit\CNewPropertyUnit.cpp" />
     <ClCompile Include="FA2sp\Ext\CBasic\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CChangeMapSize\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CCreateMap2\Hooks.cpp" />
@@ -405,6 +409,10 @@
     <ClInclude Include="FA2sp\ExtraWindow\CTechnoDialog\CTechnoDialog.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewPropertyAircraft\CNewPropertyAircraft.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewPropertyBuilding\CNewPropertyBuilding.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewPropertyInfantry\CNewPropertyInfantry.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewPropertyUnit\CNewPropertyUnit.h" />
     <ClInclude Include="FA2sp\Ext\CCreateMap3B\Body.h" />
     <ClInclude Include="FA2sp\Ext\CCredits\Body.h" />
     <ClInclude Include="FA2sp\Ext\CFinalSunApp\Body.h" />
@@ -502,6 +510,10 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CTechnoDialog\CTechnoDialog.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewPropertyAircraft\CNewPropertyAircraft.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewPropertyBuilding\CNewPropertyBuilding.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewPropertyInfantry\CNewPropertyInfantry.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewPropertyUnit\CNewPropertyUnit.rc" />
     <ResourceCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\GridObjectViewer.rc" />
     <ResourceCompile Include="FA2sp\UI\CAircraftDialog.rc" />
     <ResourceCompile Include="FA2sp\UI\CAITriggerTypes.rc" />

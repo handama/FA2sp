@@ -16,6 +16,10 @@
 #include "../CFinalSunDlg/Body.h"
 #include <Miscs/Miscs.h>
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
+#include "../../ExtraWindow/CNewPropertyBuilding/CNewPropertyBuilding.h"
+#include "../../ExtraWindow/CNewPropertyAircraft/CNewPropertyAircraft.h"
+#include "../../ExtraWindow/CNewPropertyInfantry/CNewPropertyInfantry.h"
+#include "../../ExtraWindow/CNewPropertyUnit/CNewPropertyUnit.h"
 #include "../../Miscs/Palettes.h"
 #include <CShpFile.h>
 #include <CMixFile.h>
@@ -1547,10 +1551,10 @@ DEFINE_HOOK(45EDC0, CIsoView_HandleProperties, 6)
 		CInfantryData data;
 		CMapData::Instance->GetInfantryData(index, data);
 
-		CPropertyInfantry dlg(pThis);
+		CNewPropertyInfantry dlg;
 		dlg.CString_HealthPoint = data.Health;
 		dlg.CString_Direction = data.Facing;
-		dlg.CString_House = Translations::ParseHouseName(data.House, true);
+		dlg.CString_House = data.House;
 		dlg.CString_VerteranStatus = data.VeterancyPercentage;
 		dlg.CString_Group = data.Group;
 		dlg.CString_OnBridge = data.IsAboveGround; 
@@ -1559,13 +1563,13 @@ DEFINE_HOOK(45EDC0, CIsoView_HandleProperties, 6)
 		dlg.CString_Tag = data.Tag;
 		dlg.CString_AutoCreateYesRecruitable = data.AutoYESRecruitType;
 
-		int res = dlg.DoModal();
-		if (res == IDCANCEL) return 0x4609B5;
+		bool accepted = dlg.DoModal();
+		if (!accepted) return 0x4609B5;
 		
 		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
 		data.Health = dlg.CString_HealthPoint;
 		data.Facing = dlg.CString_Direction;
-		data.House = Translations::ParseHouseName(dlg.CString_House, false);
+		data.House = dlg.CString_House;
 		data.VeterancyPercentage = dlg.CString_VerteranStatus;
 		data.Group = dlg.CString_Group;
 		data.IsAboveGround = dlg.CString_OnBridge;
@@ -1585,10 +1589,10 @@ DEFINE_HOOK(45EDC0, CIsoView_HandleProperties, 6)
 		CBuildingData data;
 		CMapData::Instance->GetBuildingData(index, data);
 
-		CPropertyBuilding dlg(pThis);
+		CNewPropertyBuilding dlg;
 		dlg.CString_HealthPoint = data.Health;
 		dlg.CString_Direction = data.Facing;
-		dlg.CString_House = Translations::ParseHouseName(data.House, true);
+		dlg.CString_House = data.House;
 		dlg.CString_Tag = data.Tag;
 		dlg.CString_Sellable = data.AISellable;
 		dlg.CString_Rebuildable = data.AIRebuildable;
@@ -1600,14 +1604,15 @@ DEFINE_HOOK(45EDC0, CIsoView_HandleProperties, 6)
 		dlg.CString_Upgrade3 = data.Upgrade3;
 		dlg.CString_AIRepairs = data.AIRepairable;
 		dlg.CString_ShowName = data.Nominal;
+		dlg.CString_ObjectID = data.TypeID;
 
-		int res = dlg.DoModal();
-		if (res == IDCANCEL) return 0x4609B5;
+		bool accepted = dlg.DoModal();
+		if (!accepted) return 0x4609B5;
 		
 		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
 		data.Health = dlg.CString_HealthPoint;
 		data.Facing = dlg.CString_Direction;
-		data.House = Translations::ParseHouseName(dlg.CString_House, false);
+		data.House = dlg.CString_House;
 		data.Tag = dlg.CString_Tag;
 		data.AISellable = dlg.CString_Sellable;
 		data.AIRebuildable = dlg.CString_Rebuildable;
@@ -1633,30 +1638,30 @@ DEFINE_HOOK(45EDC0, CIsoView_HandleProperties, 6)
 		CAircraftData data;
 		CMapData::Instance->GetAircraftData(index, data);
 
-		CPropertyAircraft dlg(pThis);
+		CNewPropertyAircraft dlg;
 		dlg.CString_HealthPoint = data.Health;
 		dlg.CString_Direction = data.Facing;
-		dlg.CString_House = Translations::ParseHouseName(data.House, true);
+		dlg.CString_House = data.House;
 		dlg.CString_Tag = data.Tag;
 		dlg.CString_VeteranLevel = data.VeterancyPercentage;
 		dlg.CString_Group = data.Group;
 		dlg.CString_AutoCreateNoRecruitable = data.AutoNORecruitType;
 		dlg.CString_AutoCreateYesRecruitable = data.AutoYESRecruitType;
-		dlg.CString_Status = data.Status;
+		dlg.CString_State = data.Status;
 
-		int res = dlg.DoModal();
-		if (res == IDCANCEL) return 0x4609B5;
+		bool accepted = dlg.DoModal();
+		if (!accepted) return 0x4609B5;
 		
 		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft);
 		data.Health = dlg.CString_HealthPoint;
 		data.Facing = dlg.CString_Direction;
-		data.House = Translations::ParseHouseName(dlg.CString_House, false);
+		data.House = dlg.CString_House;
 		data.Tag = dlg.CString_Tag;
 		data.VeterancyPercentage = dlg.CString_VeteranLevel;
 		data.Group = dlg.CString_Group;
 		data.AutoNORecruitType = dlg.CString_AutoCreateNoRecruitable;
 		data.AutoYESRecruitType = dlg.CString_AutoCreateYesRecruitable;
-		data.Status = dlg.CString_Status;
+		data.Status = dlg.CString_State;
 
 		CMapData::Instance->DeleteAircraftData(index);
 		CMapData::Instance->SetAircraftData(&data, NULL, NULL, 0, "");
@@ -1669,10 +1674,10 @@ DEFINE_HOOK(45EDC0, CIsoView_HandleProperties, 6)
 		CUnitData data;
 		CMapData::Instance->GetUnitData(index, data);
 
-		CPropertyUnit dlg(pThis);
+		CNewPropertyUnit dlg;
 		dlg.CString_HealthPoint = data.Health;
 		dlg.CString_Direction = data.Facing;
-		dlg.CString_House = Translations::ParseHouseName(data.House, true);
+		dlg.CString_House = data.House;
 		dlg.CString_Tag = data.Tag;
 		dlg.CString_VeteranLevel = data.VeterancyPercentage;
 		dlg.CString_Group = data.Group;
@@ -1682,13 +1687,13 @@ DEFINE_HOOK(45EDC0, CIsoView_HandleProperties, 6)
 		dlg.CString_AutoCreateYesRecruitable = data.AutoYESRecruitType;
 		dlg.CString_State = data.Status;
 
-		int res = dlg.DoModal();
-		if (res == IDCANCEL) return 0x4609B5;
+		bool accepted = dlg.DoModal();
+		if (!accepted) return 0x4609B5;
 		
 		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit);
 		data.Health = dlg.CString_HealthPoint;
 		data.Facing = dlg.CString_Direction;
-		data.House = Translations::ParseHouseName(dlg.CString_House, false);
+		data.House = dlg.CString_House;
 		data.Tag = dlg.CString_Tag;
 		data.VeterancyPercentage = dlg.CString_VeteranLevel;
 		data.Group = dlg.CString_Group;

@@ -8,10 +8,10 @@
 #include <map>
 #include <memory>
 
-#include <CPropertyBuilding.h>
-#include <CPropertyAircraft.h>
-#include <CPropertyInfantry.h>
-#include <CPropertyUnit.h>
+#include "../../ExtraWindow/CNewPropertyBuilding/CNewPropertyBuilding.h"
+#include "../../ExtraWindow/CNewPropertyAircraft/CNewPropertyAircraft.h"
+#include "../../ExtraWindow/CNewPropertyInfantry/CNewPropertyInfantry.h"
+#include "../../ExtraWindow/CNewPropertyUnit/CNewPropertyUnit.h"
 
 #include <CObjectDatas.h>
 #include <CMapData.h>
@@ -398,16 +398,16 @@ public:
     static bool NeedChangeTreeViewSelect;
     static bool Initialized;
 
-    static std::unique_ptr<CPropertyBuilding> BuildingBrushDlg;
-    static std::unique_ptr<CPropertyInfantry> InfantryBrushDlg;
-    static std::unique_ptr<CPropertyUnit> VehicleBrushDlg;
-    static std::unique_ptr<CPropertyAircraft> AircraftBrushDlg;
+    static std::unique_ptr<CNewPropertyBuilding> BuildingBrushDlg;
+    static std::unique_ptr<CNewPropertyInfantry> InfantryBrushDlg;
+    static std::unique_ptr<CNewPropertyUnit> VehicleBrushDlg;
+    static std::unique_ptr<CNewPropertyAircraft> AircraftBrushDlg;
 
-    static std::unique_ptr<CPropertyBuilding> BuildingBrushDlgBF;
-    static std::unique_ptr<CPropertyInfantry> InfantryBrushDlgF;
-    static std::unique_ptr<CPropertyUnit> VehicleBrushDlgF;
-    static std::unique_ptr<CPropertyAircraft> AircraftBrushDlgF;
-    static std::unique_ptr<CPropertyBuilding> BuildingBrushDlgBNF;
+    static std::unique_ptr<CNewPropertyBuilding> BuildingBrushDlgBF;
+    static std::unique_ptr<CNewPropertyInfantry> InfantryBrushDlgF;
+    static std::unique_ptr<CNewPropertyUnit> VehicleBrushDlgF;
+    static std::unique_ptr<CNewPropertyAircraft> AircraftBrushDlgF;
+    static std::unique_ptr<CNewPropertyBuilding> BuildingBrushDlgBNF;
     static COLORREF WpColor;
     static COLORREF TagColor;
 

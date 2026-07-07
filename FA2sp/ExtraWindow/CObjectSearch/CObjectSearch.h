@@ -6,6 +6,10 @@
 #include <vector>
 #include <string>
 #include <regex>
+#include <memory>
+#include <CObjectDatas.h>
+
+class CTechnoDialog;
 
 // A static window class
 class CObjectSearch
@@ -57,6 +61,11 @@ protected:
     static void ToggleListBoxRangeVisibility(HWND hWnd, bool show);
     static void ToggleWindowSize(HWND hWnd);
 
+    static bool CheckPropertyB_WithTechno(const CBuildingData& data);
+    static bool CheckPropertyI_WithTechno(const CInfantryData& data);
+    static bool CheckPropertyA_WithTechno(const CAircraftData& data);
+    static bool CheckPropertyU_WithTechno(const CUnitData& data);
+
 private:
     static HWND m_hwnd;
     static CTileSetBrowserFrame* m_parent;
@@ -76,6 +85,7 @@ private:
     static bool bMapCoords;
     static bool bPropertyBushFilter;
     static bool ToggleWindowSize_once;
+    static std::unique_ptr<CTechnoDialog> PropertyFilterDlg;
 
     static bool bTrigger;
     static bool bAttachedTrigger;

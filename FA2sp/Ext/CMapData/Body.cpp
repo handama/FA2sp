@@ -87,6 +87,7 @@ Palette CMapDataExt::Palette_ISO_NoTint;
 Palette CMapDataExt::Palette_Shadow;
 Palette CMapDataExt::Palette_AlphaImage;
 std::vector<std::pair<LightingSourcePosition, LightingSource>> CMapDataExt::LightingSources;
+FHashSet CMapDataExt::LightingBuildingTypes;
 std::vector<LatInfo> CMapDataExt::Tile_to_lat;
 std::set<int> CMapDataExt::Lat_releated_sets;
 std::map<int, std::vector<int>> CMapDataExt::Same_Smooth_tile_lats;

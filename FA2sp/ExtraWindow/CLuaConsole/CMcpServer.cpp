@@ -262,7 +262,8 @@ static json ProcessRequest(json& request)
             {"name", "save_script"},
             {"description", "Save a Lua script to the Scripts directory. "
                             "IMPORTANT: Only use this tool when the user explicitly requests to save or "
-                            "store a script. Do NOT use it automatically or without user confirmation."},
+                            "store a script. Do NOT use it automatically or without user confirmation. "
+                            "Add a comment at the beginning of the file describing the script's purpose."},
             {"inputSchema", {
                 {"type", "object"},
                 {"properties", {

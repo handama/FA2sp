@@ -938,6 +938,7 @@ public:
     static Palette Palette_Shadow;
     static Palette Palette_AlphaImage;
     static std::vector<std::pair<LightingSourcePosition, LightingSource>> LightingSources;
+    static FHashSet LightingBuildingTypes;
     static int AutoShore_ShoreTileSet;
     static int AutoShore_GreenTileSet;
     static std::unordered_set<int> ShoreTileSets;

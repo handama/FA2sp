@@ -1013,6 +1013,26 @@ int CNewINIEditor::FindLBTextCaseSensitive(HWND hwndCtl, const char* searchStrin
 
 void CNewINIEditor::UpdateGameObject(const char* lpSectionName)
 {
+    if (CFinalSunDlgExt::CurrentLighting != 31000 && CMapDataExt::LightingBuildingTypes.contains(lpSectionName))
+    {
+        LightingSourceTint::CalculateMapLamps();
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+        return;
+    }
+    if (CFinalSunDlgExt::CurrentLighting != 31000 && strcmp(lpSectionName, "Lighting") == 0) 
+    {
+        LightingStruct::GetCurrentLighting();
+        for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
+            for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
+                CMapData::Instance->UpdateMapPreviewAt(i, j);
+            }
+        }
+        LightingSourceTint::CalculateMapLamps();
+        CFinalSunDlg::Instance()->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+        CFinalSunDlg::Instance()->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+		return;
+	}
+
     if (!IsGameObject(lpSectionName) && !IsHouse(lpSectionName)) return;
     if (strcmp(lpSectionName, "Structures") == 0) {
         CMapDataExt::UpdateFieldStructureData_RedrawMinimap();

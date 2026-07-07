@@ -80,6 +80,8 @@ bool CLuaConsole::skipBuildingUpdate = false;
 std::string CLuaConsole::mcpOutput;
 bool CLuaConsole::mcpRunning = false;
 sol::state CLuaConsole::Lua;
+bool CLuaConsole::showingComment = false;
+std::string CLuaConsole::backupOutputText;
 using namespace::LuaFunctions;
 const int splitterHeight = 4;
 
@@ -1426,6 +1428,10 @@ BOOL CALLBACK CLuaConsole::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
             if (CODE == EN_CHANGE)
                 OnEditchangeSearch(hWnd);
             break;
+        case Controls::Scripts:
+            if (CODE == LBN_SELCHANGE || CODE == LBN_DBLCLK)
+                OnSelChangeScript(hWnd);
+            break;
         default:
             break;
         }
@@ -1469,8 +1475,164 @@ void CLuaConsole::OnEditchangeSearch(HWND& hWnd)
     Update(hWnd, buffer);
 }
 
+void CLuaConsole::RestoreOutput()
+{
+    if (!showingComment)
+        return;
+
+    showingComment = false;
+    SendMessage(hOutputBox, WM_SETTEXT, 0, (LPARAM)backupOutputText.c_str());
+    backupOutputText.clear();
+}
+
+static std::string ExtractLuaTopComments(const std::string& content)
+{
+    std::istringstream stream(content);
+    std::string line;
+    std::string result;
+    bool foundComment = false;
+    bool inMultiLine = false;
+
+    while (std::getline(stream, line))
+    {
+        std::string trimmed = line;
+        trimmed.erase(0, trimmed.find_first_not_of(" \t\r"));
+
+        if (!inMultiLine)
+        {
+            // Skip leading empty lines
+            if (trimmed.empty())
+            {
+                if (foundComment)
+                    break; // Empty line ends single-line comment block
+                continue;
+            }
+
+            // Check for multi-line comment start: --[[
+            if (trimmed.size() >= 4 && trimmed[0] == '-' && trimmed[1] == '-'
+                && trimmed[2] == '[' && trimmed[3] == '[')
+            {
+                foundComment = true;
+                inMultiLine = true;
+
+                // Strip the --[[ prefix
+                size_t startPos = line.find("--[[");
+                std::string afterStart = line.substr(startPos + 4);
+                // Check if ]] closes on the same line
+                size_t endPos = afterStart.find("]]");
+                if (endPos != std::string::npos)
+                {
+                    afterStart.erase(endPos);
+                    inMultiLine = false;
+                }
+                // Trim whitespace
+                afterStart.erase(0, afterStart.find_first_not_of(" \t\r"));
+                afterStart.erase(afterStart.find_last_not_of(" \t\r") + 1);
+                if (!afterStart.empty())
+                    result += afterStart + "\r\n";
+                continue;
+            }
+
+            // Check for single-line comment: --
+            if (trimmed.size() >= 2 && trimmed[0] == '-' && trimmed[1] == '-')
+            {
+                foundComment = true;
+                // Strip the -- prefix
+                size_t startPos = line.find("--");
+                std::string text = line.substr(startPos + 2);
+                // Strip optional leading space/tab
+                if (!text.empty() && (text[0] == ' ' || text[0] == '\t'))
+                    text.erase(0, 1);
+                result += text + "\r\n";
+                continue;
+            }
+
+            // Hit non-comment content ¡ª stop
+            break;
+        }
+        else
+        {
+            // Inside multi-line comment
+            size_t endPos = line.find("]]");
+            if (endPos != std::string::npos)
+            {
+                // Only include text before ]] 
+                std::string beforeEnd = line.substr(0, endPos);
+                beforeEnd.erase(beforeEnd.find_last_not_of(" \t\r") + 1);
+                if (!beforeEnd.empty())
+                    result += beforeEnd + "\r\n";
+                inMultiLine = false;
+                break;
+            }
+            result += line + "\r\n";
+        }
+    }
+
+    // If we entered but never closed the multi-line comment, still return what we got
+    return result;
+}
+
+void CLuaConsole::OnSelChangeScript(HWND& hWnd)
+{
+    if (runFile)
+    {
+        // If currently showing a temporary comment, restore the backup first
+        if (showingComment)
+            RestoreOutput();
+
+        std::string scriptPath = CFinalSunAppExt::ExePathExt;
+        scriptPath += "\\Scripts\\";
+        int idx = SendMessage(hScripts, LB_GETCURSEL, NULL, NULL);
+        if (idx == LB_ERR)
+            return;
+        char fileName[260]{ 0 };
+        SendMessage(hScripts, LB_GETTEXT, idx, (LPARAM)fileName);
+        scriptPath += fileName;
+        std::ifstream file(scriptPath);
+        if (file.fail())
+            return;
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        FString content = buffer.str();
+
+        // Convert encoding if needed
+        auto encoding = STDHelpers::GetFileEncoding((uint8_t*)content.data(), content.size());
+        bool loadAsUTF8 = ExtConfigs::UTF8Support_InferEncoding && encoding == UTF8 || encoding == UTF8_BOM;
+        if (loadAsUTF8)
+            content.toANSI();
+
+        // Extract top-of-file Lua comments
+        std::string comments = ExtractLuaTopComments(content);
+        if (!comments.empty())
+        {
+            // Backup current output content
+            int len = GetWindowTextLength(hOutputBox);
+            backupOutputText.resize(len + 1);
+            GetWindowText(hOutputBox, &backupOutputText[0], len + 1);
+            backupOutputText.resize(len);
+
+            // Append comment below existing content
+            std::string display = backupOutputText;
+            if (!display.empty())
+                display += "\r\n";
+            display += "---- Script Comments ----\r\n";
+            display += comments;
+            SendMessage(hOutputBox, WM_SETTEXT, 0, (LPARAM)display.c_str());
+            // Scroll to bottom
+            CHARRANGE cr = { -1, -1 };
+            SendMessage(hOutputBox, EM_EXSETSEL, 0, (LPARAM)&cr);
+            SendMessage(hOutputBox, EM_SCROLLCARET, 0, 0);
+            showingComment = true;
+        }
+    }
+}
+
 void CLuaConsole::OnClickRun(bool fromFile)
 {
+    // If showing a temporary script comment, restore the backup first
+    if (showingComment)
+        RestoreOutput();
+
     FString script;
     if (fromFile)
     {

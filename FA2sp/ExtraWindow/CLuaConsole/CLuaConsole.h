@@ -43,6 +43,7 @@ public:
     static void OnClickRun(bool fromFile);
     static void UpdateCoords(int x, int y, bool firstRun, bool holdingClick);
     static void OnEditchangeSearch(HWND& hWnd);
+    static void OnSelChangeScript(HWND& hWnd);
 
 protected:
     static void Initialize(HWND& hWnd);
@@ -82,6 +83,9 @@ public:
     static bool applyingScript;
     static bool applyingScriptFirst;
     static bool runFile;
+    static std::string backupOutputText;
+    static bool showingComment;
+    static void RestoreOutput();
     static sol::state Lua;
     static bool needRedraw;
     static bool recalculateOre;

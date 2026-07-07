@@ -35,6 +35,7 @@ namespace LuaFunctions
 
 	static void write_lua_console(std::string text)
 	{
+		CLuaConsole::RestoreOutput();
 		std::string prefix = CLuaConsole::mcpRunning ? "MCP >> " : ">> ";
 		std::string msg = prefix + text + "\r\n";
 
@@ -79,6 +80,7 @@ namespace LuaFunctions
 	// Write raw text to output box without prefix or extra newline
 	static void write_lua_console_raw(const std::string& text)
 	{
+		CLuaConsole::RestoreOutput();
 		// Capture output for MCP if an MCP request is active
 		if (CLuaConsole::mcpRunning)
 			CLuaConsole::mcpOutput += text;
@@ -121,6 +123,7 @@ namespace LuaFunctions
 
 	static void clear()
 	{
+		CLuaConsole::RestoreOutput();
 		SendMessage(CLuaConsole::hOutputBox, WM_SETTEXT, 0, (LPARAM)"");
 	}
 

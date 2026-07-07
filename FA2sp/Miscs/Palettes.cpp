@@ -427,6 +427,7 @@ void LightingSourceTint::CalculateMapLamps()
         return;
 
     CMapDataExt::LightingSources.clear();
+    CMapDataExt::LightingBuildingTypes.clear();
     const float TOLERANCE = 0.001f;
     if (auto pSection = CINI::CurrentDocument->GetSection("Structures"))
     {
@@ -457,6 +458,7 @@ void LightingSourceTint::CalculateMapLamps()
                     lsp.Y = Y;
                     lsp.BuildingType = ID;
                     CMapDataExt::LightingSources.push_back(std::make_pair(lsp, ls));
+                    CMapDataExt::LightingBuildingTypes.insert(ID);
                 }
             }
         }

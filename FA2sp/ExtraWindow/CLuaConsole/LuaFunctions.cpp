@@ -33,6 +33,149 @@ namespace LuaFunctions
 	static FMap<CINI*> LoadedINIs;
 	static std::unordered_set<std::string> UsedINIIndices;
 
+	// Convert ANSI string to UTF-8 for Scintilla output
+	static std::string AnsiToUtf8(const std::string& ansi)
+	{
+		if (ansi.empty()) return {};
+		int wideLen = MultiByteToWideChar(CP_ACP, 0, ansi.c_str(), -1, nullptr, 0);
+		if (wideLen <= 0) return ansi;
+		std::wstring wide(wideLen, L'\0');
+		MultiByteToWideChar(CP_ACP, 0, ansi.c_str(), -1, &wide[0], wideLen);
+		int utf8Len = WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, nullptr, 0, nullptr, nullptr);
+		if (utf8Len <= 0) return ansi;
+		std::string utf8(utf8Len, '\0');
+		WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, &utf8[0], utf8Len, nullptr, nullptr);
+		if (!utf8.empty() && utf8.back() == '\0') utf8.pop_back();
+		return utf8;
+	}
+}
+
+// Convert text to UTF-8: use directly if already valid UTF-8, otherwise convert from ANSI
+inline FString CLuaConsole::EnsureUtf8(const FString& text)
+{
+	if (text.empty()) return {};
+	// Check if already valid UTF-8
+	int wlen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.c_str(), -1, nullptr, 0);
+	if (wlen > 0)
+		return text; // Already valid UTF-8, use as-is
+	// Not valid UTF-8, convert from ANSI
+	return LuaFunctions::AnsiToUtf8(text);
+}
+
+// Convert UTF-8 to ANSI, replacing non-representable codepoints with ASCII placeholders
+// e.g. <emoji:1F5A5> so they survive the ANSI pipeline
+inline FString CLuaConsole::EncodeUtf8ToAnsi(const FString& utf8)
+	{
+		if (utf8.empty()) return {};
+		FString result;
+		size_t i = 0;
+		while (i < utf8.size())
+		{
+			unsigned char c = static_cast<unsigned char>(utf8[i]);
+			uint32_t cp = c;
+			size_t len = 1;
+
+			if (c >= 0xF0) { cp = c & 0x07; len = 4; }
+			else if (c >= 0xE0) { cp = c & 0x0F; len = 3; }
+			else if (c >= 0xC0) { cp = c & 0x1F; len = 2; }
+
+			if (i + len > utf8.size()) { result += '?'; i++; continue; }
+
+			for (size_t j = 1; j < len; j++)
+				cp = (cp << 6) | (static_cast<unsigned char>(utf8[i + j]) & 0x3F);
+
+			uint32_t origCp = cp; // Save for placeholder hex output
+
+			// Convert codepoint to UTF-16 for WideCharToMultiByte
+			// wchar_t on Windows is 16-bit, must use surrogate pairs for > U+FFFF
+			wchar_t wc[2] = { 0 };
+			int wlen = 1;
+			if (cp < 0x10000) {
+				wc[0] = static_cast<wchar_t>(cp);
+			}
+			else {
+				cp -= 0x10000;
+				wc[0] = static_cast<wchar_t>(0xD800 + (cp >> 10));
+				wc[1] = static_cast<wchar_t>(0xDC00 + (cp & 0x3FF));
+				wlen = 2;
+			}
+
+			char ansiBuf[8] = { 0 };
+			BOOL usedDefaultChar = FALSE;
+			int ansiLen = WideCharToMultiByte(CP_ACP, 0, wc, wlen, ansiBuf, 8, nullptr, &usedDefaultChar);
+
+			if (ansiLen > 0 && !usedDefaultChar)
+			{
+				result.append(ansiBuf, ansiLen);
+			}
+			else
+			{
+				// Non-representable: store as <emoji:XXXXXX> placeholder
+				char placeholder[32];
+				sprintf_s(placeholder, "<emoji:%X>", origCp);
+				result += placeholder;
+			}
+			i += len;
+		}
+		return result;
+	}
+
+	// Replace <emoji:XXXXXX> placeholders with actual UTF-8 emoji characters
+	inline FString CLuaConsole::DecodeEmojiPlaceholders(const FString& text)
+	{
+		if (text.empty()) return {};
+		FString result;
+		size_t i = 0;
+		while (i < text.size())
+		{
+			// Look for <emoji:XXXXXX> pattern
+			if (text[i] == '<' && (i + 7 <= text.size()) && text.substr(i, 7) == "<emoji:")
+			{
+				size_t end = text.find('>', i);
+				if (end != std::string::npos)
+				{
+					std::string hex = text.substr(i + 7, end - i - 7);
+					if (!hex.empty())
+					{
+						char* endp = nullptr;
+						uint32_t cp = strtoul(hex.c_str(), &endp, 16);
+						if (*endp == '\0' && cp > 0)
+						{
+							// Convert codepoint to UTF-8 via UTF-16
+							// wchar_t on Windows is 16-bit, use surrogate pairs for > U+FFFF
+							wchar_t wc[2] = { 0 };
+							int wlen = 1;
+							if (cp < 0x10000) {
+								wc[0] = static_cast<wchar_t>(cp);
+							}
+							else {
+								cp -= 0x10000;
+								wc[0] = static_cast<wchar_t>(0xD800 + (cp >> 10));
+								wc[1] = static_cast<wchar_t>(0xDC00 + (cp & 0x3FF));
+								wlen = 2;
+							}
+
+							char utf8Buf[8] = { 0 };
+							int utf8Len = WideCharToMultiByte(CP_UTF8, 0, wc, wlen, utf8Buf, 8, nullptr, nullptr);
+							if (utf8Len > 0)
+							{
+								result.append(utf8Buf, utf8Len);
+								i = end + 1;
+								continue;
+							}
+						}
+					}
+				}
+			}
+			result += text[i];
+			i++;
+		}
+		return result;
+	}
+
+namespace LuaFunctions
+{
+
 	static void write_lua_console(std::string text)
 	{
 		CLuaConsole::RestoreOutput();
@@ -43,27 +186,27 @@ namespace LuaFunctions
 		if (CLuaConsole::mcpRunning)
 			CLuaConsole::mcpOutput += text + "\r\n";
 
-		CHARRANGE cr;
-		cr.cpMin = -1;
-		cr.cpMax = -1; 
-	
+		// Convert ANSI text to UTF-8 for Scintilla (preserving emoji if already UTF-8)
+		FString utf8Msg = CLuaConsole::EnsureUtf8(msg);
+		// Decode <emoji:XXXXXX> placeholders back to actual UTF-8 emoji
+		utf8Msg = CLuaConsole::DecodeEmojiPlaceholders(utf8Msg);
+
+		// Temporarily unset read-only to allow modification, then restore
+		SendMessage(CLuaConsole::hOutputBox, SCI_SETREADONLY, FALSE, 0);
+
+		// Append text to Scintilla output box
 		SendMessage(
 			CLuaConsole::hOutputBox,
-			EM_EXSETSEL,
-			0,
-			(LPARAM)&cr);
-	
-		SendMessage(
-			CLuaConsole::hOutputBox,
-			EM_REPLACESEL,
-			FALSE,
-			(LPARAM)msg.c_str());
-	
-		SendMessage(
-			CLuaConsole::hOutputBox,
-			EM_SCROLLCARET,
-			0,
-			0);
+			SCI_APPENDTEXT,
+			utf8Msg.length(),
+			(LPARAM)utf8Msg.c_str());
+
+		// Re-enable read-only
+		SendMessage(CLuaConsole::hOutputBox, SCI_SETREADONLY, TRUE, 0);
+
+		// Scroll to end
+		int endLen = SendMessage(CLuaConsole::hOutputBox, SCI_GETLENGTH, 0, 0);
+		SendMessage(CLuaConsole::hOutputBox, SCI_GOTOPOS, endLen, 0);
 
 		auto&& now = duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		if (now - time > 2000)
@@ -85,28 +228,27 @@ namespace LuaFunctions
 		if (CLuaConsole::mcpRunning)
 			CLuaConsole::mcpOutput += text;
 
-		CHARRANGE cr;
-		cr.cpMin = -1;
-		cr.cpMax = -1; 
-	
-		SendMessage(
-			CLuaConsole::hOutputBox,
-			EM_EXSETSEL,
-			0,
-			(LPARAM)&cr);
-	
-		SendMessage(
-			CLuaConsole::hOutputBox,
-			EM_REPLACESEL,
-			FALSE,
-			(LPARAM)text.c_str());
-	
-		SendMessage(
-			CLuaConsole::hOutputBox,
-			EM_SCROLLCARET,
-			0,
-			0);
+		// Convert ANSI text to UTF-8 for Scintilla (preserving emoji if already UTF-8)
+		FString utf8Text = CLuaConsole::EnsureUtf8(text);
+		// Decode <emoji:XXXXXX> placeholders back to actual UTF-8 emoji
+		utf8Text = CLuaConsole::DecodeEmojiPlaceholders(utf8Text);
 
+		// Temporarily unset read-only to allow modification, then restore
+		SendMessage(CLuaConsole::hOutputBox, SCI_SETREADONLY, FALSE, 0);
+
+		// Append text to Scintilla output box
+		SendMessage(
+			CLuaConsole::hOutputBox,
+			SCI_APPENDTEXT,
+			utf8Text.length(),
+			(LPARAM)utf8Text.c_str());
+
+		// Re-enable read-only
+		SendMessage(CLuaConsole::hOutputBox, SCI_SETREADONLY, TRUE, 0);
+
+		// Scroll to end
+		int endLen = SendMessage(CLuaConsole::hOutputBox, SCI_GETLENGTH, 0, 0);
+		SendMessage(CLuaConsole::hOutputBox, SCI_GOTOPOS, endLen, 0);
 		RedrawWindow(CLuaConsole::hOutputBox, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 
 		auto&& now = duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -124,7 +266,9 @@ namespace LuaFunctions
 	static void clear()
 	{
 		CLuaConsole::RestoreOutput();
-		SendMessage(CLuaConsole::hOutputBox, WM_SETTEXT, 0, (LPARAM)"");
+		SendMessage(CLuaConsole::hOutputBox, SCI_SETREADONLY, FALSE, 0);
+		SendMessage(CLuaConsole::hOutputBox, SCI_SETTEXT, 0, (LPARAM)"");
+		SendMessage(CLuaConsole::hOutputBox, SCI_SETREADONLY, TRUE, 0);
 	}
 
 	static void lua_print(sol::variadic_args args)

@@ -161,28 +161,16 @@ void CLuaConsole::Initialize(HWND& hWnd)
     if (hSplitter)
         OriginalSplitterProc = (WNDPROC)SetWindowLongPtr(hSplitter, GWLP_WNDPROC, (LONG_PTR)SplitterSubclassProc);
     
-    SendMessage(hOutputBox, EM_SETREADONLY, (WPARAM)TRUE, 0);
+    SetupOutputBoxStyle(hOutputBox);
     SetupLuaHighlight(hInputBox);
 
-    ExtraWindow::SetEditControlFontSize(hOutputBox, 1.4f, true);
     int tabWidth = 16;
     SendMessage(hInputBox, EM_SETTABSTOPS, 1, (LPARAM)&tabWidth);
-    SendMessage(hOutputBox, EM_SETTABSTOPS, 1, (LPARAM)&tabWidth);
     applyingScript = false;
     runFile = true;
     applyingScriptFirst = true;
     SendMessage(hRunFile, BM_SETCHECK, runFile, 0);
     CIsoView::ControlKeyIsDown() = false;
-
-    if (ExtConfigs::EnableDarkMode)
-    {
-        CHARFORMAT cf = { 0 };
-        cf.cbSize = sizeof(cf);
-        cf.dwMask = CFM_COLOR;
-        cf.crTextColor = RGB(220, 220, 220);
-        ::SendMessage(hOutputBox, EM_SETBKGNDCOLOR, (WPARAM)FALSE, (LPARAM)RGB(32, 32, 32));
-        ::SendMessage(hOutputBox, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
-    }
 
     Lua.collect_garbage();
     Lua = sol::state();
@@ -1036,8 +1024,16 @@ void CLuaConsole::SetupLuaHighlight(HWND& hWnd)
     ::SendMessage(hWnd, SCI_SETVIRTUALSPACEOPTIONS, SCVS_RECTANGULARSELECTION, 0);
     ::SendMessage(hWnd, SCI_SETCODEPAGE, SC_CP_UTF8, 0);
     ::SendMessage(hWnd, SCI_STYLESETFONT, STYLE_DEFAULT, (LPARAM)"Consolas");
-    ::SendMessage(hWnd, SCI_STYLESETSIZE, STYLE_DEFAULT, 12);
+    ::SendMessage(hWnd, SCI_STYLESETSIZE, STYLE_DEFAULT, 11);
     ::SendMessage(hWnd, SCI_SETTABWIDTH, 4, 0);
+
+    // set locale
+	WCHAR wLocale[LOCALE_NAME_MAX_LENGTH];
+	GetUserDefaultLocaleName(wLocale, LOCALE_NAME_MAX_LENGTH);
+
+	char locale[LOCALE_NAME_MAX_LENGTH];
+	WideCharToMultiByte(CP_UTF8, 0, wLocale, -1, locale, sizeof(locale), nullptr, nullptr);
+	SendMessage(hWnd, SCI_SETFONTLOCALE, 0, reinterpret_cast<LPARAM>(locale));
 
     ::SendMessage(hWnd, SCI_SETILEXER, 0, (LPARAM)CreateLexer("lua"));
     ::SendMessage(hWnd, SCI_CLEARDOCUMENTSTYLE, 0, 0);
@@ -1181,7 +1177,93 @@ void CLuaConsole::SetupLuaHighlight(HWND& hWnd)
         ::SendMessage(hWnd, SCI_STYLESETBACK, STYLE_LINENUMBER, RGB(240, 240, 240));
     }
 
+    // color emoji support
+    SendMessage(hWnd, SCI_SETTECHNOLOGY, SC_TECHNOLOGY_DIRECTWRITE, 0);
+
     ::SendMessage(hWnd, SCI_COLOURISE, 0, -1);
+}
+
+void CLuaConsole::SetupOutputBoxStyle(HWND& hWnd)
+{
+    // Set UTF-8 code page (enables emoji display)
+    ::SendMessage(hWnd, SCI_SETCODEPAGE, SC_CP_UTF8, 0);
+
+    // set locale
+	WCHAR wLocale[LOCALE_NAME_MAX_LENGTH];
+	GetUserDefaultLocaleName(wLocale, LOCALE_NAME_MAX_LENGTH);
+
+	char locale[LOCALE_NAME_MAX_LENGTH];
+	WideCharToMultiByte(CP_UTF8, 0, wLocale, -1, locale, sizeof(locale), nullptr, nullptr);
+	SendMessage(hWnd, SCI_SETFONTLOCALE, 0, reinterpret_cast<LPARAM>(locale));
+
+	// Set font
+    ::SendMessage(hWnd, SCI_STYLESETFONT, STYLE_DEFAULT, (LPARAM)"Consolas");
+    ::SendMessage(hWnd, SCI_STYLESETSIZE, STYLE_DEFAULT, 11);
+
+    // Set read-only
+    ::SendMessage(hWnd, SCI_SETREADONLY, TRUE, 0);
+
+    // Disable line number margin (margin 0) and fold margin (margin 1)
+    ::SendMessage(hWnd, SCI_SETMARGINWIDTHN, 0, 0);
+    ::SendMessage(hWnd, SCI_SETMARGINWIDTHN, 1, 0);
+    ::SendMessage(hWnd, SCI_SETMARGINWIDTHN, 2, 0);
+
+    // Disable folding
+    ::SendMessage(hWnd, SCI_SETFOLDFLAGS, 0, 0);
+    ::SendMessage(hWnd, SCI_SETAUTOMATICFOLD, SC_AUTOMATICFOLD_NONE, 0);
+
+    // Disable caret (since it's read-only output)
+    ::SendMessage(hWnd, SCI_SETCARETWIDTH, 0, 0);
+    ::SendMessage(hWnd, SCI_SETCARETLINEVISIBLE, 0, 0);
+
+    // Set horizontal scroll width to auto
+    ::SendMessage(hWnd, SCI_SETSCROLLWIDTH, 1, 0);
+    ::SendMessage(hWnd, SCI_SETSCROLLWIDTHTRACKING, TRUE, 0);
+
+    // Disable selection margin
+    ::SendMessage(hWnd, SCI_SETMARGINMASKN, 1, 0);
+    ::SendMessage(hWnd, SCI_SETMARGINWIDTHN, 1, 0);
+
+    // Set left/right margins (text indent)
+    ::SendMessage(hWnd, SCI_SETMARGINLEFT, 0, 2);
+    ::SendMessage(hWnd, SCI_SETMARGINRIGHT, 0, 2);
+
+    // Wrap mode - no wrap for code output
+    ::SendMessage(hWnd, SCI_SETWRAPMODE, SC_WRAP_NONE, 0);
+
+    bool isDark = ExtConfigs::EnableDarkMode;
+
+    if (isDark)
+    {
+        // Default style (STYLE_DEFAULT) - base for all other styles
+        ::SendMessage(hWnd, SCI_STYLESETBACK, STYLE_DEFAULT, RGB(32, 32, 32));
+        ::SendMessage(hWnd, SCI_STYLESETFORE, STYLE_DEFAULT, RGB(220, 220, 230));
+
+        // Style 0: default text style (same as STYLE_DEFAULT)
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 0, RGB(32, 32, 32));
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 0, RGB(220, 220, 230));
+
+        // Selection colors (matching SetupLuaHighlight)
+        ::SendMessage(hWnd, SCI_SETSELBACK, 1, RGB(60, 80, 120));
+        ::SendMessage(hWnd, SCI_SETSELFORE, 1, RGB(240, 240, 255));
+    }
+    else
+    {
+        // Default style (STYLE_DEFAULT)
+        ::SendMessage(hWnd, SCI_STYLESETBACK, STYLE_DEFAULT, RGB(255, 255, 255));
+        ::SendMessage(hWnd, SCI_STYLESETFORE, STYLE_DEFAULT, RGB(0, 0, 0));
+
+        // Style 0: default text style
+        ::SendMessage(hWnd, SCI_STYLESETBACK, 0, RGB(255, 255, 255));
+        ::SendMessage(hWnd, SCI_STYLESETFORE, 0, RGB(0, 0, 0));
+
+        // Selection colors (matching SetupLuaHighlight)
+        ::SendMessage(hWnd, SCI_SETSELBACK, 1, RGB(180, 210, 255));
+        ::SendMessage(hWnd, SCI_SETSELFORE, 1, RGB(0, 0, 0));
+    }
+    
+    // color emoji support
+    SendMessage(hWnd, SCI_SETTECHNOLOGY, SC_TECHNOLOGY_DIRECTWRITE, 0);
 }
 
 void CLuaConsole::Close(HWND& hWnd)
@@ -1481,7 +1563,9 @@ void CLuaConsole::RestoreOutput()
         return;
 
     showingComment = false;
-    SendMessage(hOutputBox, WM_SETTEXT, 0, (LPARAM)backupOutputText.c_str());
+    SendMessage(hOutputBox, SCI_SETREADONLY, FALSE, 0);
+    SendMessage(hOutputBox, SCI_SETTEXT, 0, (LPARAM)backupOutputText.c_str());
+    SendMessage(hOutputBox, SCI_SETREADONLY, TRUE, 0);
     backupOutputText.clear();
 }
 
@@ -1547,7 +1631,7 @@ static std::string ExtractLuaTopComments(const std::string& content)
                 continue;
             }
 
-            // Hit non-comment content ¡ª stop
+            // Hit non-comment content - stop
             break;
         }
         else
@@ -1599,29 +1683,33 @@ void CLuaConsole::OnSelChangeScript(HWND& hWnd)
         auto encoding = STDHelpers::GetFileEncoding((uint8_t*)content.data(), content.size());
         bool loadAsUTF8 = ExtConfigs::UTF8Support_InferEncoding && encoding == UTF8 || encoding == UTF8_BOM;
         if (loadAsUTF8)
-            content.toANSI();
+        {
+            content = CLuaConsole::EncodeUtf8ToAnsi(content);
+        }
 
         // Extract top-of-file Lua comments
         std::string comments = ExtractLuaTopComments(content);
         if (!comments.empty())
         {
-            // Backup current output content
-            int len = GetWindowTextLength(hOutputBox);
+            // Backup current output content (UTF-8 from Scintilla)
+            int len = SendMessage(hOutputBox, SCI_GETLENGTH, 0, 0);
             backupOutputText.resize(len + 1);
-            GetWindowText(hOutputBox, &backupOutputText[0], len + 1);
+            SendMessage(hOutputBox, SCI_GETTEXT, len + 1, (LPARAM)&backupOutputText[0]);
             backupOutputText.resize(len);
 
-            // Append comment below existing content
+            // Append comment below existing content (convert to UTF-8 for Scintilla)
             std::string display = backupOutputText;
             if (!display.empty())
                 display += "\r\n";
-            display += "---- Script Comments ----\r\n";
-            display += comments;
-            SendMessage(hOutputBox, WM_SETTEXT, 0, (LPARAM)display.c_str());
+            std::string ansiPart = "---- Script Comments ----\r\n";
+            ansiPart += comments;
+            display += CLuaConsole::DecodeEmojiPlaceholders(AnsiToUtf8(ansiPart));
+            SendMessage(hOutputBox, SCI_SETREADONLY, FALSE, 0);
+            SendMessage(hOutputBox, SCI_SETTEXT, 0, (LPARAM)display.c_str());
+            SendMessage(hOutputBox, SCI_SETREADONLY, TRUE, 0);
             // Scroll to bottom
-            CHARRANGE cr = { -1, -1 };
-            SendMessage(hOutputBox, EM_EXSETSEL, 0, (LPARAM)&cr);
-            SendMessage(hOutputBox, EM_SCROLLCARET, 0, 0);
+            int endLen = SendMessage(hOutputBox, SCI_GETLENGTH, 0, 0);
+            SendMessage(hOutputBox, SCI_GOTOPOS, endLen, 0);
             showingComment = true;
         }
     }
@@ -1695,16 +1783,29 @@ void CLuaConsole::OnClickRun(bool fromFile)
             return;
         std::stringstream buffer;
         buffer << file.rdbuf();
-        script = buffer.str();
+        std::string raw = buffer.str();
 
-        auto encoding = STDHelpers::GetFileEncoding((uint8_t*)script.data(), script.size());
+        auto encoding = STDHelpers::GetFileEncoding((uint8_t*)raw.data(), raw.size());
         bool loadAsUTF8 = ExtConfigs::UTF8Support_InferEncoding && encoding == UTF8 || encoding == UTF8_BOM;
         if (loadAsUTF8)
-            script.toANSI();
+        {
+            // Convert UTF-8 to ANSI, preserving non-ANSI chars (emoji) as <emoji:XXXXXX>
+            script = CLuaConsole::EncodeUtf8ToAnsi(raw);
+        }
+        else
+        {
+            script = raw.c_str();
+        }
     }
     else
     {
-        script = ExtraWindow::GetScintillaText(hInputBox);
+        // Read UTF-8 from Scintilla input box
+        size_t len = SendMessage(hInputBox, SCI_GETLENGTH, 0, 0);
+        std::string utf8(len, '\0');
+        if (len > 0)
+            SendMessage(hInputBox, SCI_GETTEXT, len + 1, (LPARAM)&utf8[0]);
+        // Convert to ANSI, preserving non-ANSI chars (emoji) as <emoji:XXXXXX>
+        script = CLuaConsole::EncodeUtf8ToAnsi(utf8);
     }
 
     // Static scan for high-risk operations before execution

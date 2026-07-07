@@ -98,24 +98,25 @@ static std::string GetIniSection(const std::string& section)
 // Convert incoming string (UTF-8 from client) to internal ANSI
 static std::string ToInternalEncoding(const std::string& str)
 {
-    FString fs(str);
     auto encoding = STDHelpers::GetFileEncoding(
-        reinterpret_cast<const uint8_t*>(fs.data()), fs.size());
+        reinterpret_cast<const uint8_t*>(str.data()), str.size());
     if (encoding == FileEncoding::UTF8 || encoding == FileEncoding::UTF8_BOM)
-        fs.toANSI();
-    return std::string(fs);
+        return CLuaConsole::EncodeUtf8ToAnsi(str);
+    return str;
 }
 
 // Convert outgoing string (internal ANSI) to UTF-8 for client
 static std::string ToExternalEncoding(const std::string& str)
 {
+    // First check if it's ANSI and convert to UTF-8
     FString fs(str);
     auto encoding = STDHelpers::GetFileEncoding(
         reinterpret_cast<const uint8_t*>(fs.data()), fs.size());
     if (encoding == FileEncoding::ANSI)
         fs.toUTF8();
 
-    return std::string(fs);
+    // Decode emoji placeholders for clients (e.g. <emoji:1F5A5> -> actual emoji)
+    return CLuaConsole::DecodeEmojiPlaceholders(fs);
 }
 
 // ===================================================================

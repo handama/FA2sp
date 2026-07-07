@@ -125,6 +125,7 @@ public:
     static int SaveMap_DefaultPreviewOptionMP;
     static int SaveMap_DefaultPreviewOptionSP;
     static bool SaveMap_FileEncodingComment;
+    static bool DisableLuaConsoleSafetyCheck;
     static bool VerticalLayout;
     static int RecentFileLimit;
     static int MultiSelectionColor;

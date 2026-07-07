@@ -166,12 +166,36 @@ public:
 	static COLORREF GetTriggerColor(const FString& trigger);
 	static void SetTriggerColor(const FString& trigger, COLORREF color);
 
+    static void DisableOtherWindows(HWND hDlg);
+    static void RestoreDisabledWindows();
+
 	static std::vector<DropTarget> g_DropTargets;
 
 private:
+    struct DisableOtherCtx {
+        HWND hDlg;
+        std::vector<HWND>* pDisabled;
+    };
+    static BOOL CALLBACK DisableOtherWindowsProc(HWND hEnum, LPARAM lParam);
+    static std::vector<HWND> s_disabledWindows;
     static CINI& map;
     static CINI& fadata;
     static MultimapHelper& rules;
+};
+
+class DisableOtherWindowsScope
+{
+public:
+    DisableOtherWindowsScope(HWND hDlg)
+    {
+        ExtraWindow::DisableOtherWindows(hDlg);
+    }
+    ~DisableOtherWindowsScope()
+    {
+        ExtraWindow::RestoreDisabledWindows();
+    }
+    DisableOtherWindowsScope(const DisableOtherWindowsScope&) = delete;
+    DisableOtherWindowsScope& operator=(const DisableOtherWindowsScope&) = delete;
 };
 
 class HelpDlg

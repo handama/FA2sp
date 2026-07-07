@@ -1627,6 +1627,54 @@ void CLuaConsole::OnSelChangeScript(HWND& hWnd)
     }
 }
 
+// Scan script for high-risk operations and return {line_number, line_content} pairs
+std::vector<std::pair<int, std::string>> CLuaConsole::ScanHighRiskOperations(const std::string& script)
+{
+    if (ExtConfigs::DisableLuaConsoleSafetyCheck)
+        return {};
+
+    std::vector<std::pair<int, std::string>> results;
+    std::vector<std::regex> patterns = {
+        std::regex(R"(os\.execute\s*\()"),
+        std::regex(R"(os\.remove\s*\()"),
+        std::regex(R"(os\.rename\s*\()"),
+        std::regex(R"(os\.exit\s*\()"),
+        std::regex(R"(io\.open\s*\()"),
+        std::regex(R"(io\.popen\s*\()"),
+        std::regex(R"(io\.output\s*\()"),
+        std::regex(R"(exec\s*\()"),
+        std::regex(R"(save_file\s*\()"),
+        std::regex(R"(package\.loadlib\s*\()"),
+    };
+
+    std::istringstream stream(script);
+    std::string line;
+    int lineNum = 0;
+    while (std::getline(stream, line))
+    {
+        ++lineNum;
+        for (const auto& pattern : patterns)
+        {
+            if (std::regex_search(line, pattern))
+            {
+                // Trim the line for cleaner display
+                std::string trimmed = line;
+                auto start = trimmed.find_first_not_of(" \t\r\n");
+                if (start != std::string::npos)
+                    trimmed = trimmed.substr(start);
+                auto end = trimmed.find_last_not_of(" \t\r\n");
+                if (end != std::string::npos)
+                    trimmed = trimmed.substr(0, end + 1);
+
+                results.emplace_back(lineNum, trimmed);
+                break;
+            }
+        }
+    }
+
+    return results;
+}
+
 void CLuaConsole::OnClickRun(bool fromFile)
 {
     // If showing a temporary script comment, restore the backup first
@@ -1657,6 +1705,31 @@ void CLuaConsole::OnClickRun(bool fromFile)
     else
     {
         script = ExtraWindow::GetScintillaText(hInputBox);
+    }
+
+    // Static scan for high-risk operations before execution
+    auto highRiskOps = ScanHighRiskOperations(std::string(script.data(), script.size()));
+    if (!highRiskOps.empty())
+    {
+        std::ostringstream warnMsg;
+        warnMsg << Translations::TranslateOrDefault("LuaHighRisk.Header",
+            "The following high-risk operations were detected in the script:")
+            << "\r\n\r\n";
+        for (const auto& [lineNum, code] : highRiskOps)
+        {
+            warnMsg << "  [Line " << lineNum << "]  " << code << "\r\n";
+        }
+        warnMsg << "\r\n" << Translations::TranslateOrDefault("LuaHighRisk.Footer",
+            "Are you sure you want to continue?");
+
+        ExtraWindow::DisableOtherWindows(CLuaConsole::GetHandle());
+        int result = MessageBox(CLuaConsole::GetHandle(), warnMsg.str().c_str(),
+            Translations::TranslateOrDefault("LuaHighRisk.Title", "High-Risk Operation Confirmation"),
+            MB_YESNO | MB_ICONWARNING);
+        ExtraWindow::RestoreDisabledWindows();
+        
+        if (result != IDYES)
+            return;
     }
 
     auto now = std::chrono::system_clock::now();

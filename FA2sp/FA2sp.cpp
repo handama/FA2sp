@@ -116,6 +116,7 @@ bool ExtConfigs::SaveMap_KeepComments;
 int ExtConfigs::SaveMap_DefaultPreviewOptionMP;
 int ExtConfigs::SaveMap_DefaultPreviewOptionSP;
 bool ExtConfigs::SaveMap_FileEncodingComment;
+bool ExtConfigs::DisableLuaConsoleSafetyCheck;
 bool ExtConfigs::VerticalLayout;
 int ExtConfigs::RecentFileLimit;
 int ExtConfigs::MultiSelectionColor;
@@ -436,6 +437,7 @@ void FA2sp::ExtConfigsInitialize()
 		ExtConfigs::SaveMap_AutoSave_Interval = 30;
 	}
 
+	ExtConfigs::DisableLuaConsoleSafetyCheck = CINI::FAData->GetBool("ExtConfigs", "DisableLuaConsoleSafetyCheck");
 	ExtConfigs::SaveMap_FileEncodingComment = CINI::FAData->GetBool("ExtConfigs", "SaveMap.FileEncodingComment");
 	ExtConfigs::SaveMap_OnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP");
 	ExtConfigs::SaveMap_KeepComments = CINI::FAData->GetBool("ExtConfigs", "SaveMap.KeepComments");
@@ -774,6 +776,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.SearchCombobox.AllowNonParams", "Allow automatic search for non-parameter dropdown menus"),
 		.IniKey = "SearchCombobox.AllowNonParams",
 		.Value = &ExtConfigs::SearchCombobox_AllowNonParams,
+		.Type = ExtConfigs::SpecialOptionType::None});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.DisableLuaConsoleSafetyCheck", "Disable Lua console safety check"),
+		.IniKey = "DisableLuaConsoleSafetyCheck",
+		.Value = &ExtConfigs::DisableLuaConsoleSafetyCheck,
 		.Type = ExtConfigs::SpecialOptionType::None});
 
 	// Object Browser Settings

@@ -86,7 +86,6 @@ protected:
     void OnOK(HWND hWnd);
     void OnCancel(HWND hWnd);
     void CollectResults(HWND hWnd);
-    void RestoreDisabledWindows();
 
     void RepositionButtons(HWND hWnd);
 
@@ -112,7 +111,6 @@ protected:
     bool m_accepted = false;
 
     std::map<HWND, std::unique_ptr<VirtualComboBoxEx>> m_comboBoxes;
-    std::vector<HWND> m_disabledWindows;
     std::map<std::string, sol::function> m_events;
     HWND m_hWnd = nullptr;
 };

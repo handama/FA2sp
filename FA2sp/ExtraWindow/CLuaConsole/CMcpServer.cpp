@@ -812,6 +812,41 @@ void CMcpServer::HandleRunLua(MCPRequest* req)
     auto& Lua = CLuaConsole::Lua;
     CLuaConsole::skipBuildingUpdate = true;
 
+    // Static scan for high-risk operations before execution
+    {
+        auto highRiskOps = CLuaConsole::ScanHighRiskOperations(req->input);
+        if (!highRiskOps.empty())
+        {
+            std::ostringstream warnMsg;
+            warnMsg << Translations::TranslateOrDefault("LuaHighRisk.Header",
+                "The following high-risk operations were detected in the script:")
+                << "\r\n\r\n";
+            for (const auto& [lineNum, code] : highRiskOps)
+            {
+                warnMsg << "  [Line " << lineNum << "]  " << code << "\r\n";
+            }
+            warnMsg << "\r\n" << Translations::TranslateOrDefault("LuaHighRisk.Footer",
+                "Are you sure you want to continue?");
+                
+            ExtraWindow::DisableOtherWindows(CLuaConsole::GetHandle());
+            int result = MessageBox(CLuaConsole::GetHandle(), warnMsg.str().c_str(),
+                Translations::TranslateOrDefault("LuaHighRisk.Title", "High-Risk Operation Confirmation"),
+                MB_YESNO | MB_ICONWARNING);
+            ExtraWindow::RestoreDisabledWindows();
+            
+            if (result != IDYES)
+            {
+                CLuaConsole::mcpOutput += "Script cancelled: high-risk operations detected by user.\r\n";
+                req->result = std::move(CLuaConsole::mcpOutput);
+                CLuaConsole::mcpRunning = false;
+                CLuaConsole::mcpOutput.clear();
+        
+                SetEvent(req->hEvent);
+                return;
+            }
+        }
+    }
+
     {
         VEHGuard guard(false);  // disable VEH during Lua execution
         try

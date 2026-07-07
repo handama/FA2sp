@@ -86,6 +86,7 @@ public:
     static std::string backupOutputText;
     static bool showingComment;
     static void RestoreOutput();
+    static std::vector<std::pair<int, std::string>> ScanHighRiskOperations(const std::string& script);
     static sol::state Lua;
     static bool needRedraw;
     static bool recalculateOre;

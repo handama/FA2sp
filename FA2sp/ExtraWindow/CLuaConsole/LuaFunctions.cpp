@@ -207,6 +207,7 @@ namespace LuaFunctions
 		auto it = formatMap.find(format);
 		UINT style = (it != formatMap.end()) ? it->second : MB_OK;
 
+		ExtraWindow::DisableOtherWindows(CLuaConsole::GetHandle());
 		int result = MessageBoxA(CLuaConsole::GetHandle(), text.c_str(), title.c_str(), style);
 
 		auto returnIt = returnValueMap.find(style & ~(MB_ICONMASK));
@@ -214,11 +215,13 @@ namespace LuaFunctions
 			const std::vector<int>& buttons = returnIt->second;
 			for (size_t i = 0; i < buttons.size(); ++i) {
 				if (result == buttons[i]) {
+					ExtraWindow::RestoreDisabledWindows();
 					return static_cast<int>(i+1); // to fit lua
 				}
 			}
 		}
-
+		
+		ExtraWindow::RestoreDisabledWindows();
 		return -1;
 	}
 
@@ -243,6 +246,7 @@ namespace LuaFunctions
 		}
 		std::string do_modal()
 		{
+			DisableOtherWindowsScope scope(CLuaConsole::GetHandle());
 			CNewComboUInputDlg dlg;
 			dlg.m_type = COMBOUINPUT_ALL_CUSTOM;
 			dlg.m_Caption = caption.c_str();
@@ -299,7 +303,8 @@ namespace LuaFunctions
 			ExtraWindow::SortRawStrings(options, !second);
 		}
 		std::vector<std::string> do_modal()
-		{
+		{	
+			DisableOtherWindowsScope scope(CLuaConsole::GetHandle());
 			std::vector<std::string> ret;
 			CListUInputDlg dlg;
 			dlg.m_Caption = caption.c_str();
@@ -343,6 +348,7 @@ namespace LuaFunctions
 
 	static std::string input_box(std::string message)
 	{
+		DisableOtherWindowsScope scope(CLuaConsole::GetHandle());
 		return CInputMessageBox::GetString(message.c_str(), Translations::TranslateOrDefault("LuaConsole.InputBoxTitle", "Please enter")).GetString();
 	}
 	

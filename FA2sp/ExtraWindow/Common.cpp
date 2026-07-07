@@ -25,6 +25,7 @@ CINI& ExtraWindow::map = CINI::CurrentDocument;
 CINI& ExtraWindow::fadata = CINI::FAData;
 MultimapHelper& ExtraWindow::rules = Variables::RulesMap;
 std::vector<DropTarget> ExtraWindow::g_DropTargets;
+std::vector<HWND> ExtraWindow::s_disabledWindows;
 
 ATOM TargetHighlighter::window_class_atom_ = 0;
 bool TargetHighlighter::class_registered_ = false;
@@ -4146,4 +4147,33 @@ void CINIDialog::OnClose()
 void CINIDialog::OnCancel()
 {
 	OnClose();
+}
+
+void ExtraWindow::DisableOtherWindows(HWND hDlg)
+{
+    s_disabledWindows.clear();
+    DisableOtherCtx ctx = { hDlg, &s_disabledWindows };
+    EnumThreadWindows(GetCurrentThreadId(), DisableOtherWindowsProc,
+        reinterpret_cast<LPARAM>(&ctx));
+}
+
+BOOL CALLBACK ExtraWindow::DisableOtherWindowsProc(HWND hEnum, LPARAM lParam)
+{
+    auto* ctx = reinterpret_cast<DisableOtherCtx*>(lParam);
+    if (hEnum != ctx->hDlg && IsWindowEnabled(hEnum))
+    {
+        EnableWindow(hEnum, FALSE);
+        ctx->pDisabled->push_back(hEnum);
+    }
+    return TRUE;
+}
+
+void ExtraWindow::RestoreDisabledWindows()
+{
+    for (HWND h : s_disabledWindows)
+    {
+        if (IsWindow(h) && !IsWindowEnabled(h))
+            EnableWindow(h, TRUE);
+    }
+    s_disabledWindows.clear();
 }

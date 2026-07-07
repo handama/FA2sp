@@ -5,22 +5,6 @@
 #include "../../Miscs/DialogStyle.h"
 #include "../../Helpers/Translations.h"
 
-struct DisableOtherCtx {
-    HWND hDlg;
-    std::vector<HWND>* pDisabled;
-};
-
-static BOOL CALLBACK DisableOtherWindowsProc(HWND hEnum, LPARAM lParam)
-{
-    auto* ctx = reinterpret_cast<DisableOtherCtx*>(lParam);
-    if (hEnum != ctx->hDlg && IsWindowEnabled(hEnum))
-    {
-        EnableWindow(hEnum, FALSE);
-        ctx->pDisabled->push_back(hEnum);
-    }
-    return TRUE;
-}
-
 CLuaDialog::CLuaDialog(const std::string& title, bool autoLayout, int width, int height)
     : m_title(title)
     , m_width(width)
@@ -432,10 +416,7 @@ BOOL CLuaDialog::OnInitDialog(HWND hWnd)
         }
     }
 
-    m_disabledWindows.clear();
-    DisableOtherCtx ctx = { hWnd, &m_disabledWindows };
-    EnumThreadWindows(GetCurrentThreadId(), DisableOtherWindowsProc,
-        reinterpret_cast<LPARAM>(&ctx));
+    ExtraWindow::DisableOtherWindows(hWnd);
 
     FireAllInitialEvents();
 
@@ -532,7 +513,7 @@ void CLuaDialog::OnOK(HWND hWnd)
 
     m_accepted = true;
 
-    RestoreDisabledWindows();
+    ExtraWindow::RestoreDisabledWindows();
 
     EndDialog(hWnd, IDOK);
 }
@@ -540,18 +521,8 @@ void CLuaDialog::OnOK(HWND hWnd)
 void CLuaDialog::OnCancel(HWND hWnd)
 {
     m_accepted = false;
-    RestoreDisabledWindows();
+    ExtraWindow::RestoreDisabledWindows();
     EndDialog(hWnd, IDCANCEL);
-}
-
-void CLuaDialog::RestoreDisabledWindows()
-{
-    for (HWND h : m_disabledWindows)
-    {
-        if (IsWindow(h) && !IsWindowEnabled(h))
-            EnableWindow(h, TRUE);
-    }
-    m_disabledWindows.clear();
 }
 
 HWND CLuaDialog::GetCtrlHwnd(const std::string& key)
@@ -760,7 +731,7 @@ sol::object CLuaDialog::DoModal(sol::this_state s)
     DialogBoxParam(
         reinterpret_cast<HINSTANCE>(FA2sp::hInstance),
         MAKEINTRESOURCE(IDD),
-        nullptr,
+        CFinalSunDlg::Instance->GetSafeHwnd(),
         CLuaDialog::DlgProc,
         reinterpret_cast<LPARAM>(this)
     );

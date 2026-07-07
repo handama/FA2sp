@@ -141,6 +141,8 @@ std::vector<CUnitDataFS> CMapDataExt::UnitDatasExt;
 std::vector<CAircraftDataFS> CMapDataExt::AircraftDatasExt;
 std::vector<CBuildingDataFS> CMapDataExt::BuildingDatasExt;
 std::unordered_map<CTileBlockClass*, TileBlockExt> CMapDataExt::TileBlockDataExt;
+bool CMapDataExt::IsInitingPropertyDialog = false;
+
 const std::vector<FString> CMapDataExt::TechnoStates = 
 {
 	"Ambush",

@@ -417,6 +417,7 @@ public:
     static std::map<int, FString> TreeViewIndex_Aircraft;
     static std::map<int, FString> TreeViewIndex_Terrain;
     static std::map<int, FString> TreeViewIndex_Smudge;
+    static std::map<int, FString> TreeViewIndex_House;
 
     void Redraw();
     void Redraw_Owner();

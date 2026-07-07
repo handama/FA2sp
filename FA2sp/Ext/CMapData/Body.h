@@ -994,6 +994,7 @@ public:
     static float ExtraUnitLight;
     static float ExtraInfantryLight;
     static float ExtraAircraftLight;
+    static bool IsInitingPropertyDialog;
 
     static std::vector<CUnitDataFS> UnitDatasExt;
     static std::vector<CAircraftDataFS> AircraftDatasExt;

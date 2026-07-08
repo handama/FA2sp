@@ -602,8 +602,21 @@ DEFINE_HOOK(42459A, CFinalSunDlg_OnInitDialog_LoadMap, 6)
     return 0x4245CD;
 }
 
-DEFINE_HOOK(433078, CFinalSunDlg_OnSize_Minimap, 5)
+DEFINE_HOOK(43307C, CFinalSunDlg_OnSize_Minimap, 5)
 {
+    GET(UINT, nType, EAX);
+
+    if (ExtConfigs::TileSetBrowserFloating && CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame) {
+        HWND hTileBrowser = CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->GetSafeHwnd();
+        if (hTileBrowser) {
+            if (nType == SIZE_MINIMIZED) {
+                ::ShowWindow(hTileBrowser, SW_HIDE);
+            } else if (nType == SIZE_RESTORED || nType == SIZE_MAXIMIZED) {
+                ::ShowWindow(hTileBrowser, SW_SHOW);
+            }
+        }
+    }
+
     return 0x4330A9;
 }
 

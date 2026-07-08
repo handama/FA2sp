@@ -127,6 +127,7 @@ public:
     static bool SaveMap_FileEncodingComment;
     static bool DisableLuaConsoleSafetyCheck;
     static bool VerticalLayout;
+    static bool TileSetBrowserFloating;
     static int RecentFileLimit;
     static int MultiSelectionColor;
     static int TerrainGeneratorColor;

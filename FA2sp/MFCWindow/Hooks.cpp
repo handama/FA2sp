@@ -11,6 +11,7 @@
 #include "../Ext/CIsoView/Body.h"
 #include "../Ext/CFinalSunApp/Body.h"
 #include "../Ext/CTileSetBrowserFrame/Body.h"
+#include "../Ext/CTileSetBrowserFrame/TabPages/GridObjectViewer.h"
 
 static bool CMyViewFrameInitialized = false;
 DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
@@ -33,7 +34,74 @@ DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
                 pThis->pRightFrame = (CRightFrame*)pThis->SplitterWnd.GetPane(0, 1);
                 pThis->pIsoView = (CIsoView*)pThis->pRightFrame->CSplitter.GetPane(0, 0);
                 pThis->pIsoView->pParent = pThis;
-                if (ExtConfigs::VerticalLayout) {
+				
+                if (ExtConfigs::TileSetBrowserFloating) {
+                    CTileSetBrowserFrame* pTileBrowser;
+                    if (ExtConfigs::VerticalLayout) {
+                        pTileBrowser = (CTileSetBrowserFrame*)pThis->pRightFrame->CSplitter.GetPane(0, 1);
+                        // Shrink column count so splitter never iterates this pane again
+                        pThis->pRightFrame->CSplitter.m_nCols = 1;
+                        pThis->pRightFrame->CSplitter.SetColumnInfo(1, 0, 0);
+                    } else {
+                        pTileBrowser = (CTileSetBrowserFrame*)pThis->pRightFrame->CSplitter.GetPane(1, 0);
+                        // Shrink row count so splitter never iterates this pane again
+                        pThis->pRightFrame->CSplitter.m_nRows = 1;
+                        pThis->pRightFrame->CSplitter.SetRowInfo(1, 0, 0);
+                    }
+                    pThis->pRightFrame->CSplitter.RecalcLayout();
+
+                    HWND hTileBrowser = pTileBrowser->GetSafeHwnd();
+
+                    // Convert to independent owned window
+                    DWORD dwStyle = ::GetWindowLong(hTileBrowser, GWL_STYLE);
+                    dwStyle &= ~WS_CHILD;
+                    dwStyle |= WS_OVERLAPPEDWINDOW;
+					dwStyle &= ~WS_SYSMENU;
+                    ::SetWindowLong(hTileBrowser, GWL_STYLE, dwStyle);
+
+                    // Extended style: hide from taskbar
+                    DWORD dwExStyle = ::GetWindowLong(hTileBrowser, GWL_EXSTYLE);
+                    dwExStyle |= WS_EX_TOOLWINDOW;
+                    ::SetWindowLong(hTileBrowser, GWL_EXSTYLE, dwExStyle);
+
+                    ::SetParent(hTileBrowser, NULL);
+
+                    // Set owner to main frame (stays on top, no taskbar entry)
+                    ::SetWindowLong(hTileBrowser, GWL_HWNDPARENT, (LONG)pThis->GetSafeHwnd());
+
+                    // Position and size relative to main frame
+                    RECT rcMain;
+                    ::GetWindowRect(pThis->GetSafeHwnd(), &rcMain);
+                    int w, h, x, y;
+                    if (ExtConfigs::VerticalLayout) {
+                        w = (rcMain.right - rcMain.left) * 1 / 4;
+                        h = (rcMain.bottom - rcMain.top) * 3 / 4;
+                        x = rcMain.right - w;
+                        y = rcMain.top;
+                    } else {
+                        w = (rcMain.right - rcMain.left) * 3 / 4;
+                        h = (rcMain.bottom - rcMain.top) * 3 / 8;
+                        x = rcMain.right - w;
+                        y = rcMain.bottom - h;
+                    }
+                    ::SetWindowPos(hTileBrowser, NULL,
+                        x, y, w, h,
+                        SWP_NOZORDER | SWP_FRAMECHANGED);
+						
+					DarkTheme::SetDarkTheme(hTileBrowser);
+					// GridObjectViewer dialog controls need explicit re-theming
+					// after floating window detachment (SetParent + style changes)
+					if (GridObjectViewer::Instance.IsValid()) {
+						HWND hCtrl = GridObjectViewer::Instance.GetControl();
+						if (hCtrl) {
+							DarkTheme::SetDarkTheme(hCtrl);
+							DarkTheme::SubclassAllControls(hCtrl);
+						}
+					}
+					::ShowWindow(hTileBrowser, SW_HIDE);
+                    pThis->pTileSetBrowserFrame = pTileBrowser;
+                }
+                else if (ExtConfigs::VerticalLayout) {
                     pThis->pTileSetBrowserFrame = (CTileSetBrowserFrame*)pThis->pRightFrame->CSplitter.GetPane(0, 1);
                 }
                 else {
@@ -79,7 +147,7 @@ DEFINE_HOOK(4D3E50, CRightFrame_OnClientCreate, 5)
 	GET_STACK(ppmfc::CCreateContext*, pContent, 0x8);
 
 	BOOL bRes = FALSE;
-
+	
 	if (ExtConfigs::VerticalLayout)
 	{
 		SIZE size{700, 200};
@@ -136,6 +204,12 @@ DEFINE_HOOK(468690, CIsoView_OnSize_Size, A)
 	CFinalSunDlg::Instance->MyViewFrame.pRightFrame->GetClientRect(&rcFrame);
 	if (rcFrame.Width() <= 0 || rcFrame.Height() <= 0)
 		return 0;
+
+	if (ExtConfigs::TileSetBrowserFloating)
+	{
+		CTileSetBrowserFrameExt::RefreshWindows();
+		return 0;
+	}
 
 	bool shouldWrite = false;
 

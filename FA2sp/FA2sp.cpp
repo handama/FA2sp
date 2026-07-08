@@ -118,6 +118,7 @@ int ExtConfigs::SaveMap_DefaultPreviewOptionSP;
 bool ExtConfigs::SaveMap_FileEncodingComment;
 bool ExtConfigs::DisableLuaConsoleSafetyCheck;
 bool ExtConfigs::VerticalLayout;
+bool ExtConfigs::TileSetBrowserFloating;
 int ExtConfigs::RecentFileLimit;
 int ExtConfigs::MultiSelectionColor;
 int ExtConfigs::TerrainGeneratorColor;
@@ -448,6 +449,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::SaveMap_DefaultPreviewOptionSP = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.DefaultPreviewOptionSP", 1);
 
 	ExtConfigs::VerticalLayout = CINI::FAData->GetBool("ExtConfigs", "VerticalLayout");
+	ExtConfigs::TileSetBrowserFloating = CINI::FAData->GetBool("ExtConfigs", "TileSetBrowserFloating");
 
 	ExtConfigs::RecentFileLimit = std::clamp(CINI::FAData->GetInteger("ExtConfigs", "RecentFileLimit"), 4, 9);
 
@@ -644,6 +646,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.VerticalLayout", "Move tile browser to right"),
 		.IniKey = "VerticalLayout",
 		.Value = &ExtConfigs::VerticalLayout,
+		.Type = ExtConfigs::SpecialOptionType::Restart});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.TileSetBrowserFloating", "Tile browser as floating window"),
+		.IniKey = "TileSetBrowserFloating",
+		.Value = &ExtConfigs::TileSetBrowserFloating,
 		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

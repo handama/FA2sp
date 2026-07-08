@@ -617,6 +617,17 @@ DEFINE_HOOK(43307C, CFinalSunDlg_OnSize_Minimap, 5)
         }
     }
 
+    if (ExtConfigs::ViewObjectsFloating && CFinalSunDlg::Instance->MyViewFrame.pViewObjects) {
+        HWND hViewObjs = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->GetSafeHwnd();
+        if (hViewObjs) {
+            if (nType == SIZE_MINIMIZED) {
+                ::ShowWindow(hViewObjs, SW_HIDE);
+            } else if (nType == SIZE_RESTORED || nType == SIZE_MAXIMIZED) {
+                ::ShowWindow(hViewObjs, SW_SHOW);
+            }
+        }
+    }
+
     return 0x4330A9;
 }
 
@@ -633,6 +644,18 @@ DEFINE_HOOK(4327A1, CFinalSunDlg_QuitProgram_AfterDialog, 5)
     auto& minimap = CFinalSunDlg::Instance->MyViewFrame.Minimap;
     if (minimap.GetSafeHwnd()) {
         minimap.DestroyWindow();
+    }
+    if (ExtConfigs::TileSetBrowserFloating && CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame) {
+        HWND hTileBrowser = CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->GetSafeHwnd();
+        if (hTileBrowser) {
+            ::ShowWindow(hTileBrowser, SW_HIDE);
+        }
+    }
+    if (ExtConfigs::ViewObjectsFloating && CFinalSunDlg::Instance->MyViewFrame.pViewObjects) {
+        HWND hViewObjs = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->GetSafeHwnd();
+        if (hViewObjs) {
+            ::ShowWindow(hViewObjs, SW_HIDE);
+        }
     }
     
     return 0;

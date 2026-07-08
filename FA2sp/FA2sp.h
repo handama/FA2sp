@@ -128,6 +128,7 @@ public:
     static bool DisableLuaConsoleSafetyCheck;
     static bool VerticalLayout;
     static bool TileSetBrowserFloating;
+    static bool ViewObjectsFloating;
     static int RecentFileLimit;
     static int MultiSelectionColor;
     static int TerrainGeneratorColor;

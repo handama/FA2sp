@@ -26,50 +26,52 @@ DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
     BOOL bRes = FALSE;
     if (bRes = pThis->SplitterWnd.CreateStatic(pThis, 1, 2, WS_CHILD | WS_VISIBLE))
     {
-        if (bRes = pThis->SplitterWnd.CreateView(0, 0, reinterpret_cast<ppmfc::CRuntimeClass*>(0x598710), size, pContent))
+        // When ViewObjectsFloating, swap order: CRightFrame at col 0, CViewObjects at col 1
+        // so the surviving pane is at index 0 (same pattern as TileSetBrowserFloating)
+        int colRight = ExtConfigs::ViewObjectsFloating ? 0 : 1;
+        int colViewObjs = ExtConfigs::ViewObjectsFloating ? 1 : 0;
+        ppmfc::CRuntimeClass* pClass0 = ExtConfigs::ViewObjectsFloating
+            ? reinterpret_cast<ppmfc::CRuntimeClass*>(&CRightFrame::RuntimeClass)
+            : reinterpret_cast<ppmfc::CRuntimeClass*>(&CViewObjects::RuntimeClass);
+        ppmfc::CRuntimeClass* pClass1 = ExtConfigs::ViewObjectsFloating
+            ? reinterpret_cast<ppmfc::CRuntimeClass*>(&CViewObjects::RuntimeClass)
+            : reinterpret_cast<ppmfc::CRuntimeClass*>(&CRightFrame::RuntimeClass);
+
+        if (bRes = pThis->SplitterWnd.CreateView(0, 0, pClass0, size, pContent))
         {
-            if (bRes = pThis->SplitterWnd.CreateView(0, 1, &CRightFrame::RuntimeClass, size, pContent))
+            if (bRes = pThis->SplitterWnd.CreateView(0, 1, pClass1, size, pContent))
             {
                 // CMyViewFrame::OnCreateClient(): windows created\n
-                pThis->pRightFrame = (CRightFrame*)pThis->SplitterWnd.GetPane(0, 1);
+                pThis->pRightFrame = (CRightFrame*)pThis->SplitterWnd.GetPane(0, colRight);
                 pThis->pIsoView = (CIsoView*)pThis->pRightFrame->CSplitter.GetPane(0, 0);
                 pThis->pIsoView->pParent = pThis;
-				
+
+                // --- TileSetBrowser floating window ---
                 if (ExtConfigs::TileSetBrowserFloating) {
                     CTileSetBrowserFrame* pTileBrowser;
                     if (ExtConfigs::VerticalLayout) {
                         pTileBrowser = (CTileSetBrowserFrame*)pThis->pRightFrame->CSplitter.GetPane(0, 1);
-                        // Shrink column count so splitter never iterates this pane again
                         pThis->pRightFrame->CSplitter.m_nCols = 1;
                         pThis->pRightFrame->CSplitter.SetColumnInfo(1, 0, 0);
                     } else {
                         pTileBrowser = (CTileSetBrowserFrame*)pThis->pRightFrame->CSplitter.GetPane(1, 0);
-                        // Shrink row count so splitter never iterates this pane again
                         pThis->pRightFrame->CSplitter.m_nRows = 1;
                         pThis->pRightFrame->CSplitter.SetRowInfo(1, 0, 0);
                     }
                     pThis->pRightFrame->CSplitter.RecalcLayout();
 
                     HWND hTileBrowser = pTileBrowser->GetSafeHwnd();
-
-                    // Convert to independent owned window
                     DWORD dwStyle = ::GetWindowLong(hTileBrowser, GWL_STYLE);
                     dwStyle &= ~WS_CHILD;
                     dwStyle |= WS_OVERLAPPEDWINDOW;
-					dwStyle &= ~WS_SYSMENU;
+                    dwStyle &= ~WS_SYSMENU;
                     ::SetWindowLong(hTileBrowser, GWL_STYLE, dwStyle);
-
-                    // Extended style: hide from taskbar
                     DWORD dwExStyle = ::GetWindowLong(hTileBrowser, GWL_EXSTYLE);
                     dwExStyle |= WS_EX_TOOLWINDOW;
                     ::SetWindowLong(hTileBrowser, GWL_EXSTYLE, dwExStyle);
-
                     ::SetParent(hTileBrowser, NULL);
-
-                    // Set owner to main frame (stays on top, no taskbar entry)
                     ::SetWindowLong(hTileBrowser, GWL_HWNDPARENT, (LONG)pThis->GetSafeHwnd());
 
-                    // Position and size relative to main frame
                     RECT rcMain;
                     ::GetWindowRect(pThis->GetSafeHwnd(), &rcMain);
                     int w, h, x, y;
@@ -84,21 +86,17 @@ DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
                         x = rcMain.right - w;
                         y = rcMain.bottom - h;
                     }
-                    ::SetWindowPos(hTileBrowser, NULL,
-                        x, y, w, h,
-                        SWP_NOZORDER | SWP_FRAMECHANGED);
-						
-					DarkTheme::SetDarkTheme(hTileBrowser);
-					// GridObjectViewer dialog controls need explicit re-theming
-					// after floating window detachment (SetParent + style changes)
-					if (GridObjectViewer::Instance.IsValid()) {
-						HWND hCtrl = GridObjectViewer::Instance.GetControl();
-						if (hCtrl) {
-							DarkTheme::SetDarkTheme(hCtrl);
-							DarkTheme::SubclassAllControls(hCtrl);
-						}
-					}
-					::ShowWindow(hTileBrowser, SW_HIDE);
+                    ::SetWindowPos(hTileBrowser, NULL, x, y, w, h, SWP_NOZORDER | SWP_FRAMECHANGED);
+
+                    DarkTheme::SetDarkTheme(hTileBrowser);
+                    if (GridObjectViewer::Instance.IsValid()) {
+                        HWND hCtrl = GridObjectViewer::Instance.GetControl();
+                        if (hCtrl) {
+                            DarkTheme::SetDarkTheme(hCtrl);
+                            DarkTheme::SubclassAllControls(hCtrl);
+                        }
+                    }
+                    ::ShowWindow(hTileBrowser, SW_HIDE);
                     pThis->pTileSetBrowserFrame = pTileBrowser;
                 }
                 else if (ExtConfigs::VerticalLayout) {
@@ -107,7 +105,64 @@ DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
                 else {
                     pThis->pTileSetBrowserFrame = (CTileSetBrowserFrame*)pThis->pRightFrame->CSplitter.GetPane(1, 0);
                 }
-                pThis->pViewObjects = (CViewObjects*)pThis->SplitterWnd.GetPane(0, 0);
+
+                // --- CViewObjects floating window ---
+                if (ExtConfigs::ViewObjectsFloating) {
+                    CViewObjects* pViewObjs = (CViewObjects*)pThis->SplitterWnd.GetPane(0, 1);
+                    // Shrink main splitter column count so it never iterates the detached pane
+                    pThis->SplitterWnd.m_nCols = 1;
+                    pThis->SplitterWnd.SetColumnInfo(1, 0, 0);
+                    pThis->SplitterWnd.RecalcLayout();
+
+                    HWND hViewObjs = pViewObjs->GetSafeHwnd();
+                    DWORD dwStyle = ::GetWindowLong(hViewObjs, GWL_STYLE);
+                    dwStyle &= ~WS_CHILD;
+                    dwStyle |= WS_OVERLAPPEDWINDOW;
+                    dwStyle &= ~WS_SYSMENU;
+                    ::SetWindowLong(hViewObjs, GWL_STYLE, dwStyle);
+                    DWORD dwExStyle = ::GetWindowLong(hViewObjs, GWL_EXSTYLE);
+                    dwExStyle |= WS_EX_TOOLWINDOW;
+                    ::SetWindowLong(hViewObjs, GWL_EXSTYLE, dwExStyle);
+                    ::SetParent(hViewObjs, NULL);
+                    ::SetWindowLong(hViewObjs, GWL_HWNDPARENT, (LONG)pThis->GetSafeHwnd());
+
+                    RECT rcMain;
+                    ::GetWindowRect(pThis->GetSafeHwnd(), &rcMain);
+                    int w = (rcMain.right - rcMain.left) * 1 / 6;
+                    int h = (rcMain.bottom - rcMain.top) * 3 / 4;
+                    int x = rcMain.left;
+                    int y = rcMain.top;
+                    ::SetWindowPos(hViewObjs, NULL, x, y, w, h, SWP_NOZORDER | SWP_FRAMECHANGED);
+
+                    // Restore tree styles lost during SetWindowLong/SetParent
+					// (SysTreeView32 resets TVS_HASBUTTONS/LINES/LINESATROOT when reparented)
+					HWND hTree = pViewObjs->GetTreeCtrl().GetSafeHwnd();
+					LONG treeStyle = ::GetWindowLong(hTree, GWL_STYLE);
+					treeStyle |= TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT;
+					::SetWindowLong(hTree, GWL_STYLE, treeStyle);
+
+					if (ExtConfigs::EnableDarkMode) {
+						// SetWindowTheme for dark scrollbar (DwmSetWindowAttribute
+						// does not affect common control scrollbars)
+						SetWindowTheme(hTree, L"DarkMode_Explorer", NULL);
+						// Re-apply tree styles (SetWindowTheme may reset them)
+						::SetWindowLong(hTree, GWL_STYLE, treeStyle);
+						// Fine-tune background/text colors
+						::SendMessage(hTree, TVM_SETBKCOLOR, 0, RGB(32, 32, 32));
+						::SendMessage(hTree, TVM_SETTEXTCOLOR, 0, RGB(220, 220, 220));
+						// Dark title bar for the frame window
+						BOOL darkMode = TRUE;
+						DwmSetWindowAttribute(hViewObjs, 19, &darkMode, sizeof(darkMode));
+						DwmSetWindowAttribute(hViewObjs, 20, &darkMode, sizeof(darkMode));
+					}
+
+					::ShowWindow(hViewObjs, SW_HIDE);
+                    pThis->pViewObjects = pViewObjs;
+                }
+                else {
+                    pThis->pViewObjects = (CViewObjects*)pThis->SplitterWnd.GetPane(0, colViewObjs);
+                }
+
                 pThis->Minimap.CreateEx(0, nullptr, "Minimap", 0, rect, pThis, 0);
 
                 LONG style = GetWindowLong(pThis->Minimap, GWL_STYLE);

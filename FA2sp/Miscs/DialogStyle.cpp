@@ -1856,7 +1856,6 @@ LRESULT DarkTheme::GenericWindowProcA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM
     return FALSE;
 }
 
-
 void DarkTheme::EnumChildrenFileDialogCheck(HWND hWnd, FileDialogFeatures& features)
 {
     HWND hChild = nullptr;

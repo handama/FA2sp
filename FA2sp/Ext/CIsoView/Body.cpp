@@ -1868,7 +1868,7 @@ void CIsoViewExt::GetSameConnectedCells(int X, int Y, int oriX, int oriY, std::s
             continue;
         cell->Flag.NotAValidCell = TRUE;
 
-        if (cell->IsHidden())
+        if (CMapDataExt::IsHiddenCell(cell))
             continue;
 
         if (MultiSelection::SelectedCoords.size() > 0 && MultiSelection::IsSelected(oriX, oriY))
@@ -5533,7 +5533,7 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                             }
                             auto cell = Map->GetCellAt(my_x, my_y);
 
-                            if (!(ExtConfigs::PlaceTileSkipHide && cell->IsHidden()))
+                            if (!(ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell)))
                             {
                                 Map->SetHeightAt(my_x, my_y,
                                                  startheight + tileData.TileBlockDatas[p].Height);
@@ -5660,7 +5660,7 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                             }
                             auto cell = Map->GetCellAt(my_x, my_y);
 
-                            if (!(ExtConfigs::PlaceTileSkipHide && cell->IsHidden()))
+                            if (!(ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell)))
                             {
                                 const auto& tileData = CMapDataExt::TileData[tile.TileIndex];
                                 auto tileSet = tileData.TileSet;

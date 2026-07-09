@@ -1634,7 +1634,7 @@ static void DrawMap()
 
 	auto isCellHidden = [](CellData *pCell)
 	{
-		return pCell->IsHidden() && (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers);
+		return CMapDataExt::IsHiddenCell(pCell) && (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers);
 	};
 
 	auto getTileVirtualHeight = [](CellData *cell) -> int

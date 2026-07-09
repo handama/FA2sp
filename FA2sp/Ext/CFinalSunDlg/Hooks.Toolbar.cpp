@@ -447,6 +447,8 @@ void CFinalSunDlgExt::InitToolbar()
             {40115, (void*)(&CFinalSunApp::Instance->FrameMode)},
             {40085, (void*)(&CFinalSunApp::Instance->FlatToGround)},
             {30107, (void*)(&CFinalSunDlgExt::HasMinimap)},
+            {30111, (void*)(&CFinalSunDlgExt::HasViewObjectsFloating)},
+            {30112, (void*)(&CFinalSunDlgExt::HasTileSetBrowserFloating)},
             {40123, (void*)(&CFinalSunApp::Instance->ShowBuildingCells)},
             {40159, (void*)(&ExtConfigs::TreeViewCameo_Display)},
             {30110, (void*)(&ExtConfigs::DisableAutoConnectWall)},

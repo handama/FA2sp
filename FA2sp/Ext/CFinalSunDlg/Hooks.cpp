@@ -611,7 +611,7 @@ DEFINE_HOOK(43307C, CFinalSunDlg_OnSize_Minimap, 5)
         if (hTileBrowser) {
             if (nType == SIZE_MINIMIZED) {
                 ::ShowWindow(hTileBrowser, SW_HIDE);
-            } else if (nType == SIZE_RESTORED || nType == SIZE_MAXIMIZED) {
+            } else if ((nType == SIZE_RESTORED || nType == SIZE_MAXIMIZED) && CFinalSunDlgExt::HasTileSetBrowserFloating) {
                 ::ShowWindow(hTileBrowser, SW_SHOW);
             }
         }
@@ -622,7 +622,7 @@ DEFINE_HOOK(43307C, CFinalSunDlg_OnSize_Minimap, 5)
         if (hViewObjs) {
             if (nType == SIZE_MINIMIZED) {
                 ::ShowWindow(hViewObjs, SW_HIDE);
-            } else if (nType == SIZE_RESTORED || nType == SIZE_MAXIMIZED) {
+            } else if ((nType == SIZE_RESTORED || nType == SIZE_MAXIMIZED) && CFinalSunDlgExt::HasViewObjectsFloating) {
                 ::ShowWindow(hViewObjs, SW_SHOW);
             }
         }

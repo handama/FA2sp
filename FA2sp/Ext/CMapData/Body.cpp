@@ -1125,7 +1125,7 @@ void CMapDataExt::SetHeightAt(int x, int y, int height)
 	if (ExtConfigs::PlaceTileSkipHide)
 	{
 		const auto cell = this->TryGetCellAt(x, y);
-		if (cell->IsHidden())
+		if (CMapDataExt::IsHiddenCell(cell))
 			return;
 	}
 
@@ -1143,7 +1143,7 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 	if (ExtConfigs::PlaceTileSkipHide && callType != 3) // 3 = cut
 	{
 		const auto cell = this->TryGetCellAt(X, Y);
-		if (cell->IsHidden())
+		if (CMapDataExt::IsHiddenCell(cell))
 			return;
 	}
 
@@ -1585,7 +1585,7 @@ void CMapDataExt::SmoothTileAt(int X, int Y, bool gameLAT)
 	auto& fadata = CINI::FAData();
 
 	auto cell = CMapData::Instance().TryGetCellAt(X, Y);
-	if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+	if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
 		return;
 
 	int tileIndex = GetSafeTileIndex(cell->TileIndex);
@@ -1876,7 +1876,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 	auto isMorphable = [IgnoreMorphable, isDefinedMorphable](CellData* cell)
 		{
 			if (!cell) return 0;
-			if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+			if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
 				return 0;
 			if (IgnoreMorphable) return 1;
 			int groundClick = GetSafeTileIndex(cell->TileIndex);
@@ -2040,7 +2040,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 	int tileIndex = getTileIndex();
 	if (tileIndex != flatTile || CMapDataExt::TileData[groundClick].TileBlockDatas[cell->TileSubIndex].RampType != 0)
 	{
-		if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+		if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
 			return;
 		cell->TileIndex = tileIndex;
 		cell->TileSubIndex = 0;
@@ -3982,6 +3982,11 @@ bool CMapDataExt::CellCannotDrag(int x, int y)
 	return !pIsoView->Drag && CIsoView::CurrentCommand->Command == 0 && cell->Aircraft == -1 && cell->Unit == -1 && cell->Structure == -1 && cell->Terrain == -1 && cell->Smudge == -1 && cell->Waypoint == -1 && cell->CellTag == -1 && cell->Infantry[0] == -1 && cell->Infantry[1] == -1 && cell->Infantry[2] == -1 && cell->Infantry[2] == -1 && cellExt.BaseNodes.empty() && cellExt.SmudgeParts.empty() && !CMapDataExt::HasAnnotation(cellpos);
 }
 
+bool CMapDataExt::IsHiddenCell(CellData* pCell)
+{
+    return pCell->Flag.IsHiddenCell || TileData[GetSafeTileIndex(pCell->TileIndex)].IsHidden;
+}
+
 void CustomTileBlock::SetTileBlock(int tile, int subtile, int height)
 {
 	Height = height;
@@ -4112,7 +4117,7 @@ void CMapDataExt::CheckCellLow(bool steep, int loopCount, bool IgnoreMorphable, 
 	auto isMorphable = [IgnoreMorphable](CellData* cell)
 	{
 		if (!cell) return false;
-		if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+		if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
 			return false;
 		if (IgnoreMorphable) return true;
 		int groundClick = GetSafeTileIndex(cell->TileIndex);
@@ -4250,7 +4255,7 @@ void CMapDataExt::CheckCellRise(bool steep, int loopCount, bool IgnoreMorphable,
 	auto isMorphable = [IgnoreMorphable](CellData* cell)
 	{
 		if (!cell) return 0;
-		if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+		if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
 			return 0;
 		if (IgnoreMorphable) return 1;
 		int groundClick = GetSafeTileIndex(cell->TileIndex);

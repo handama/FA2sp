@@ -25,7 +25,7 @@ static void AdjustHeightAt(int x, int y, int offset)
 	if (CMapDataExt::IsCoordInFullMap(x, y))
 	{
 		auto& cell = CMapData::Instance->CellDatas[x + y * CMapData::Instance->MapWidthPlusHeight];
-		if (ExtConfigs::PlaceTileSkipHide && cell.IsHidden())
+		if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(&cell))
 			return;
 		int height = cell.Height + offset;
 		if (height < 0) height = 0;
@@ -50,11 +50,10 @@ static void SetHeightForSameTileSet(int x, int y, int height, std::vector<int> t
 					continue;
 
 				auto cell = CMapData::Instance->GetCellAt(thisPos);
-				if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+				if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
 					continue;
 
-				int ground = cell->TileIndex;
-				if (ground == 0xFFFF) ground = 0;
+				int ground = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
 				int tileSet = CMapDataExt::TileData[ground].TileSet;
 				int heightOffset = CMapDataExt::TileData[ground].TileBlockDatas[cell->TileSubIndex].Height;
 				for (auto set: tilesets)
@@ -78,8 +77,7 @@ static void SetHeightForSameTileIndex(int x, int y, int height, int tileindex)
 	if (CMapDataExt::IsCoordInFullMap(x, y))
 	{
 		auto oriCell = CMapData::Instance->GetCellAt(x, y);
-		int oriGround = oriCell->TileIndex;
-		if (oriGround == 0xFFFF) oriGround = 0;
+		int oriGround = CMapDataExt::GetSafeTileIndex(oriCell->TileIndex);
 		const int loops[3] = { 0, -1, 1 };
 		for (int i : loops)
 			for (int e : loops)
@@ -91,10 +89,9 @@ static void SetHeightForSameTileIndex(int x, int y, int height, int tileindex)
 					continue;
 
 				auto cell = CMapData::Instance->GetCellAt(thisPos);
-				if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+				if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
 					continue;
-				int ground = cell->TileIndex;
-				if (ground == 0xFFFF) ground = 0;
+				int ground = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
 				int heightOffset = CMapDataExt::TileData[ground].TileBlockDatas[cell->TileSubIndex].Height;
 				if (ground == tileindex)
 				{
@@ -136,10 +133,9 @@ static void FindConnectedTiles(std::unordered_map<int, bool>& process, int start
 		if (process[pos])
 			continue;
 		auto cell = CMapData::Instance->GetCellAt(pos);
-		if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+		if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
 			continue;
-		int ground = cell->TileIndex;
-		if (ground == 0xFFFF) ground = 0;
+		int ground = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
 		if (CMapDataExt::TileData[ground].Morphable)
 		{
 			process[pos] = true;
@@ -164,8 +160,7 @@ DEFINE_HOOK(46404B, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN, 7)
 	auto& mapData = CMapData::Instance();
 	int posClick = X + Y * mapData.MapWidthPlusHeight;
 	auto cellClick = mapData.GetCellAt(X, Y);
-	int groundClick = mapData.GetCellAt(X, Y)->TileIndex;
-	if (groundClick == 0xFFFF) groundClick = 0;
+	int groundClick = CMapDataExt::GetSafeTileIndex(mapData.GetCellAt(X, Y)->TileIndex);
 	auto tiledataClick = CMapDataExt::TileData[groundClick];
 
 	bool IgnoreMorphable = (nFlags & MK_SHIFT) && (nFlags & MK_CONTROL);
@@ -265,8 +260,7 @@ DEFINE_HOOK(46404B, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN, 7)
 
 				int pos = X + f + (Y + n) * mapData.MapWidthPlusHeight;
 				auto cell = mapData.GetCellAt(X + f, Y + n);
-				int ground = mapData.GetCellAt(X + f, Y + n)->TileIndex;
-				if (ground == 0xFFFF) ground = 0;
+				int ground = CMapDataExt::GetSafeTileIndex(mapData.GetCellAt(X + f, Y + n)->TileIndex);
 
 				if ((CMapDataExt::TileData[ground].Morphable || IgnoreMorphable) && cell->Height == heightClick)
 				{
@@ -332,8 +326,7 @@ DEFINE_HOOK(464B01, CIsoView_OnLButtonDown_ACTIONMODE_LOWER, 7)
 	auto& mapData = CMapData::Instance();
 	int posClick = X + Y * mapData.MapWidthPlusHeight;
 	auto cellClick = mapData.GetCellAt(X, Y);
-	int groundClick = mapData.GetCellAt(X, Y)->TileIndex;
-	if (groundClick == 0xFFFF) groundClick = 0;
+	int groundClick = CMapDataExt::GetSafeTileIndex(mapData.GetCellAt(X, Y)->TileIndex);
 	auto tiledataClick = CMapDataExt::TileData[groundClick];
 
 	bool IgnoreMorphable = (nFlags & MK_SHIFT) && (nFlags & MK_CONTROL);
@@ -411,8 +404,7 @@ DEFINE_HOOK(464B01, CIsoView_OnLButtonDown_ACTIONMODE_LOWER, 7)
 								if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
 
 								auto cellCheckNonMorphable = mapData.GetCellAt(pos);
-								int groundCheckNonMorphable = cellCheckNonMorphable->TileIndex;
-								if (groundCheckNonMorphable == 0xFFFF) groundCheckNonMorphable = 0;
+								int groundCheckNonMorphable = CMapDataExt::GetSafeTileIndex(cellCheckNonMorphable->TileIndex);
 								auto tiledataCheckNonMorphable = CMapDataExt::TileData[groundCheckNonMorphable];
 								if (!tiledataCheckNonMorphable.Morphable) continue;
 								if (cellCheckNonMorphable->Height <= heightClick - 1) continue;
@@ -482,8 +474,7 @@ DEFINE_HOOK(464B01, CIsoView_OnLButtonDown_ACTIONMODE_LOWER, 7)
 
 				int pos = X + f + (Y + n) * mapData.MapWidthPlusHeight;
 				auto cell = mapData.GetCellAt(X + f, Y + n);
-				int ground = mapData.GetCellAt(X + f, Y + n)->TileIndex;
-				if (ground == 0xFFFF) ground = 0;
+				int ground = CMapDataExt::GetSafeTileIndex(mapData.GetCellAt(X + f, Y + n)->TileIndex);
 
 				if ((CMapDataExt::TileData[ground].Morphable || IgnoreMorphable) && cell->Height == heightClick)
 				{
@@ -769,8 +760,7 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 	auto& mapData = CMapData::Instance();
 	int posClick = X + Y * mapData.MapWidthPlusHeight;
 	auto cellClick = mapData.GetCellAt(X, Y);
-	int groundClick = mapData.GetCellAt(X, Y)->TileIndex;
-	if (groundClick == 0xFFFF) groundClick = 0;
+	int groundClick = CMapDataExt::GetSafeTileIndex(mapData.GetCellAt(X, Y)->TileIndex);
 	auto tiledataClick = CMapDataExt::TileData[groundClick];
 
 	auto IgnoreMorphable = CIsoViewExt::nFlagsMove == (MK_LBUTTON | MK_CONTROL | MK_SHIFT);
@@ -819,8 +809,7 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 				if (!process[pos]) continue;
 
 			auto cell = mapData.GetCellAt(X + f, Y + n);
-			int ground = mapData.GetCellAt(X + f, Y + n)->TileIndex;
-			if (ground == 0xFFFF) ground = 0;
+			int ground = CMapDataExt::GetSafeTileIndex(mapData.GetCellAt(X + f, Y + n)->TileIndex);
 
 			if ((CMapDataExt::TileData[ground].Morphable || IgnoreMorphable))
 			{

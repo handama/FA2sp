@@ -1048,7 +1048,7 @@ namespace LuaFunctions
 	public:
 		bool IsHidden() const
 		{
-			return (CMapData::Instance->GetCellAt(X, Y)->IsHidden());
+			return (CMapDataExt::IsHiddenCell(CMapData::Instance->GetCellAt(X, Y)));
 		}
 		bool IsMultiSelected() const
 		{
@@ -4289,7 +4289,7 @@ namespace LuaFunctions
 			{
 				if (CMapData::Instance->IsCoordInMap(x, y))
 				{
-					if (CMapData::Instance->GetCellAt(x, y)->IsHidden())
+					if (CMapDataExt::IsHiddenCell(CMapData::Instance->GetCellAt(x, y)))
 						ret.push_back(get_cell(y, x));
 				}
 			}

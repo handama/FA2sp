@@ -917,6 +917,7 @@ public:
 	static int IsBlueMapBound(int x, int y);
 	static int IsBlueMapBound();
 	static bool CellCannotDrag(int x, int y);
+    static bool IsHiddenCell(CellData* pCell);
 
 	static CTileTypeClass* TileData;
     static int TileDataCount;

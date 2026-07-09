@@ -345,7 +345,7 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
                 auto nCellIndex = CMapData::Instance->GetCoordIndex(X + offset_x, Y + offset_y);
                 auto pCell = CMapData::Instance->GetCellAt(nCellIndex);
 
-                if (ExtConfigs::PlaceTileSkipHide && pCell->IsHidden())
+                if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(pCell))
                     continue;
 
                 if (CIsoViewExt::PasteInfantries)
@@ -385,7 +385,7 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
             auto nCellIndex = CMapData::Instance->GetCoordIndex(X + offset_x, Y + offset_y);
             auto pCell = CMapData::Instance->GetCellAt(nCellIndex);
 
-            if (ExtConfigs::PlaceTileSkipHide && pCell->IsHidden())
+            if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(pCell))
                 continue;
 
             if (CIsoViewExt::PasteInfantries)
@@ -439,7 +439,7 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
         auto nCellIndex = CMapData::Instance->GetCoordIndex(X + offset_x, Y + offset_y);
         auto pCell = CMapData::Instance->GetCellAt(nCellIndex);
         
-        if (ExtConfigs::PlaceTileSkipHide && pCell->IsHidden())
+        if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(pCell))
             continue;
 
         auto& pCellExt = CMapDataExt::CellDataExts[nCellIndex];

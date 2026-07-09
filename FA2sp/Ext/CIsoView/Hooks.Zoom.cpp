@@ -123,6 +123,15 @@ DEFINE_HOOK(461167, CIsoView_ScreenCoord2MapCoord_Height_TileData, 6)
 	return 0;
 }
 
+DEFINE_HOOK(461153, CIsoView_ScreenCoord2MapCoord_Height_TileIndex, 5)
+{
+	GET(int, tileIndex, EAX);
+
+	R->EAX(CMapDataExt::GetSafeTileIndex(tileIndex));
+
+	return 0x46115C;
+}
+
 DEFINE_HOOK(466890, CIsoView_ScreenCoord2MapCoord_Flat, 8)
 {
 	GET_STACK(int *, X, 0x4);

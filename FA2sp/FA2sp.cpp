@@ -651,15 +651,15 @@ void ExtConfigs::UpdateOptionTranslations()
 		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.TileSetBrowserFloating", "Tile browser as floating window"),
-		.IniKey = "TileSetBrowserFloating",
-		.Value = &ExtConfigs::TileSetBrowserFloating,
-		.Type = ExtConfigs::SpecialOptionType::Restart});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ViewObjectsFloating", "Object browser as floating window"),
 		.IniKey = "ViewObjectsFloating",
 		.Value = &ExtConfigs::ViewObjectsFloating,
+		.Type = ExtConfigs::SpecialOptionType::Restart});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.TileSetBrowserFloating", "Tile browser as floating window"),
+		.IniKey = "TileSetBrowserFloating",
+		.Value = &ExtConfigs::TileSetBrowserFloating,
 		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

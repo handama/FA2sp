@@ -12,6 +12,7 @@
 #include "../Ext/CFinalSunApp/Body.h"
 #include "../Ext/CTileSetBrowserFrame/Body.h"
 #include "../Ext/CTileSetBrowserFrame/TabPages/GridObjectViewer.h"
+#include "../Ext/CFinalSunDlg/Body.h"
 
 namespace TransparencyMenu
 {
@@ -19,6 +20,7 @@ namespace TransparencyMenu
     const UINT IDM_NEAR_FULL   = 0x8001;
     const UINT IDM_HALF        = 0x8002;
     const UINT IDM_TRANSPARENT = 0x8003;
+    const UINT IDM_FULL_TRANSPARENT = 0x8004;
 
     WNDPROC g_prevTileBrowserProc = nullptr;
     WNDPROC g_prevViewObjsProc = nullptr;
@@ -199,6 +201,30 @@ namespace TransparencyMenu
             break;
         }
 
+        case WM_CLOSE:
+        {
+            if (&prevProc == &g_prevTileBrowserProc)
+            {
+                // Hide instead of close, and update toolbar button state
+                ::ShowWindow(hWnd, SW_HIDE);
+    
+                CFinalSunDlgExt::HasTileSetBrowserFloating = false;
+                CFinalSunDlgExt::GetExtension()->CheckToolBarButton(30112, false);
+                return 0;
+            }
+            else if (&prevProc == &g_prevViewObjsProc)
+            {
+                // Hide instead of close, and update toolbar button state
+                ::ShowWindow(hWnd, SW_HIDE);
+    
+                CFinalSunDlgExt::HasViewObjectsFloating = false;
+                CFinalSunDlgExt::GetExtension()->CheckToolBarButton(30111, false);
+                return 0;
+            }
+
+            break;
+        }
+
         case WM_NCRBUTTONDOWN:
             if (wParam == HTCAPTION)
             {
@@ -207,6 +233,7 @@ namespace TransparencyMenu
                 ::AppendMenu(hMenu, MF_STRING, IDM_NEAR_FULL,   Translations::TranslateOrDefault("TransparencyMenu.75", "75% Opacity"));
                 ::AppendMenu(hMenu, MF_STRING, IDM_HALF,        Translations::TranslateOrDefault("TransparencyMenu.50", "50% Opacity"));
                 ::AppendMenu(hMenu, MF_STRING, IDM_TRANSPARENT, Translations::TranslateOrDefault("TransparencyMenu.25", "25% Opacity"));
+                ::AppendMenu(hMenu, MF_STRING, IDM_FULL_TRANSPARENT, Translations::TranslateOrDefault("TransparencyMenu.1", "1% Opacity"));
 
                 POINT pt;
                 ::GetCursorPos(&pt);
@@ -233,11 +260,9 @@ namespace TransparencyMenu
             else if (id == IDM_NEAR_FULL)   alpha = 191;
             else if (id == IDM_HALF)   alpha = 128;
             else if (id == IDM_TRANSPARENT) alpha = 64;
-            if (alpha >= 0)
-            {
-                ApplyTransparency(hWnd, alpha, prevProc);
-                return 0;
-            }
+            else if (id == IDM_FULL_TRANSPARENT) alpha = 1;
+            ApplyTransparency(hWnd, alpha, prevProc);
+            return 0;
         }
         break;
         }
@@ -317,9 +342,9 @@ DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
         viewObjectsOpacity = fa2.GetInteger("UserInterface", "ViewObjectsOpacity", 255);
         minimapOpacity = fa2.GetInteger("UserInterface", "MinimapOpacity", 255);
 
-        tileBrowserOpacity = std::max(0, std::min(255, tileBrowserOpacity));
-        viewObjectsOpacity = std::max(0, std::min(255, viewObjectsOpacity));
-        minimapOpacity = std::max(0, std::min(255, minimapOpacity));
+        tileBrowserOpacity = std::max(1, std::min(255, tileBrowserOpacity));
+        viewObjectsOpacity = std::max(1, std::min(255, viewObjectsOpacity));
+        minimapOpacity = std::max(1, std::min(255, minimapOpacity));
 
         if (bRes = pThis->SplitterWnd.CreateView(0, 0, pClass0, size, pContent))
         {
@@ -486,16 +511,6 @@ DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
 
                 DarkTheme::SetDarkTheme(pThis->Minimap);
 
-                // Read minimap opacity from INI
-                {
-                    CINI fa2;
-                    FString path = CFinalSunAppExt::ExePathExt;
-                    path += "\\FinalAlert.ini";
-                    fa2.ClearAndLoad(path);
-                    minimapOpacity = fa2.GetInteger("UserInterface", "MinimapOpacity", 255);
-                    minimapOpacity = std::max(0, std::min(255, minimapOpacity));
-                }
-
                 // Set layered for transparency support
                 {
                     DWORD dwEx = ::GetWindowLong(pThis->Minimap, GWL_EXSTYLE);
@@ -654,6 +669,55 @@ DEFINE_HOOK(468690, CIsoView_OnSize_Size, A)
 	}
 
 	CTileSetBrowserFrameExt::RefreshWindows();
+
+	// Sync toolbar button state for non-floating ViewObjects/TileSetBrowser
+	// when the user manually drags the splitter to open them.
+	if (!ExtConfigs::ViewObjectsFloating && CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.m_hWnd)
+	{
+		int cxCur, cxMin;
+		CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.GetColumnInfo(0, cxCur, cxMin);
+		CRect rcFrame;
+		CFinalSunDlg::Instance->MyViewFrame.GetClientRect(&rcFrame);
+		int totalWidth = std::max(1, rcFrame.Width() - GetSystemMetrics(SM_CXVSCROLL));
+		if (cxCur > 0)
+			CFinalSunDlgExt::SavedViewObjectsWidthPercentage = static_cast<float>(cxCur) / totalWidth;
+		bool wantChecked = cxCur > 0;
+		if (CFinalSunDlgExt::HasViewObjectsFloating != wantChecked)
+		{
+			CFinalSunDlgExt::HasViewObjectsFloating = wantChecked;
+			CFinalSunDlgExt::GetExtension()->CheckToolBarButton(30111, wantChecked);
+		}
+	}
+	if (!ExtConfigs::TileSetBrowserFloating && CFinalSunDlg::Instance->MyViewFrame.pRightFrame
+		&& CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.m_hWnd)
+	{
+		CRect rcFrame;
+		CFinalSunDlg::Instance->MyViewFrame.pRightFrame->GetClientRect(&rcFrame);
+		bool wantChecked = false;
+		if (ExtConfigs::VerticalLayout)
+		{
+			int cxCur, cxMin;
+			CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.GetColumnInfo(1, cxCur, cxMin);
+			int totalWidth = std::max(1, rcFrame.Width() - GetSystemMetrics(SM_CXVSCROLL));
+			if (cxCur > 0)
+				CFinalSunDlgExt::SavedTileSetBrowserSizePercentage = static_cast<float>(cxCur) / totalWidth;
+			wantChecked = cxCur > 0;
+		}
+		else
+		{
+			int cyCur, cyMin;
+			CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.GetRowInfo(1, cyCur, cyMin);
+			int totalHeight = std::max(1, rcFrame.Height() - GetSystemMetrics(SM_CYHSCROLL));
+			if (cyCur > 0)
+				CFinalSunDlgExt::SavedTileSetBrowserSizePercentage = static_cast<float>(cyCur) / totalHeight;
+			wantChecked = cyCur > 0;
+		}
+		if (CFinalSunDlgExt::HasTileSetBrowserFloating != wantChecked)
+		{
+			CFinalSunDlgExt::HasTileSetBrowserFloating = wantChecked;
+			CFinalSunDlgExt::GetExtension()->CheckToolBarButton(30112, wantChecked);
+		}
+	}
 
 	if (!shouldWrite)
 		return 0;

@@ -1711,6 +1711,9 @@ static void DrawMap()
 		CIsoViewExt::CurrentDrawCellLocation.Y = Y;
 		CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
 
+		if (cell->TileIndex >= CMapDataExt::TileDataCount && cell->TileIndex != 0xFFFF)
+			continue;
+
 		int altImage = cell->Flag.AltIndex;
 		int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
 		int tileSetOri = CMapDataExt::TileData[tileIndex].TileSet;
@@ -1944,6 +1947,9 @@ static void DrawMap()
 		const int &X = coord.X;
 		const int &Y = coord.Y;
 		const auto cell = CMapData::Instance->GetCellAt(X, Y);
+
+		if (cell->TileIndex >= CMapDataExt::TileDataCount && cell->TileIndex != 0xFFFF)
+			continue;
 
 		CIsoViewExt::CurrentDrawCellLocation.X = X;
 		CIsoViewExt::CurrentDrawCellLocation.Y = Y;
@@ -2487,7 +2493,7 @@ static void DrawMap()
 		CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
 
 		// tiles
-		if (info.isInMap)
+		if (info.isInMap && !(cell->TileIndex >= CMapDataExt::TileDataCount && cell->TileIndex != 0xFFFF))
 		{
 			int altImage = cell->Flag.AltIndex;
 			int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);

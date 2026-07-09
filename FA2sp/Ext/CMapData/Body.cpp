@@ -3984,7 +3984,7 @@ bool CMapDataExt::CellCannotDrag(int x, int y)
 
 bool CMapDataExt::IsHiddenCell(CellData* pCell)
 {
-    return pCell->Flag.IsHiddenCell || TileData[GetSafeTileIndex(pCell->TileIndex)].IsHidden;
+    return pCell->Flag.IsHiddenCell || (*CTileTypeClass::Instance)[GetSafeTileIndex(pCell->TileIndex)].IsHidden;
 }
 
 void CustomTileBlock::SetTileBlock(int tile, int subtile, int height)

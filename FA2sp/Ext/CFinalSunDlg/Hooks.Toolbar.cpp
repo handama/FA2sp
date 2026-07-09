@@ -214,7 +214,7 @@ LRESULT CALLBACK SubclassedToolbarProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPAR
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
-HWND CreateToolbarFromResource(HWND hWndParent, int resource, int bmpResource, std::map<UINT, void*> checkButtons = {}, int targetIconSize = 16, int* pOutButtonSize = nullptr, int* pOutIdealWidth = nullptr)
+HWND CreateToolbarFromResource(HWND hWndParent, int resource, int bmpResource, std::map<UINT, std::variant<bool*, BOOL*>> checkButtons = {}, int targetIconSize = 16, int* pOutButtonSize = nullptr, int* pOutIdealWidth = nullptr)
 {
     HINSTANCE hInst = static_cast<HINSTANCE>(FA2sp::hInstance);
 
@@ -323,7 +323,7 @@ HWND CreateToolbarFromResource(HWND hWndParent, int resource, int bmpResource, s
                 info.index = actualButtonIndex;
                 info.isChecked = false;
                 info.pExternalBool = itr->second;
-                initialChecked = *(BOOL*)itr->second;
+                initialChecked = info.GetExternalValue();
                 CFinalSunDlgExt::CheckButtonMap[cmdID] = info;
             }
             tbb.iBitmap = actualButtonIndex;
@@ -422,38 +422,38 @@ void CFinalSunDlgExt::InitToolbar()
     {
         HWND hParent = ::GetParent(CFinalSunDlg::Instance->ReBarCtrl.GetSafeHwnd());
 
-        std::map<UINT, void*> checkButtons =
+        std::map<UINT, std::variant<bool*, BOOL*>> checkButtons =
         {
-            {30000, (void*)(&CIsoViewExt::DrawStructures)},
-            {30001, (void*)(&CIsoViewExt::DrawInfantries)},
-            {30002, (void*)(&CIsoViewExt::DrawUnits)},
-            {30003, (void*)(&CIsoViewExt::DrawAircrafts)},
-            {30008, (void*)(&CIsoViewExt::DrawOverlays)},
-            {30009, (void*)(&CIsoViewExt::DrawTerrains)},
-            {30010, (void*)(&CIsoViewExt::DrawSmudges)},
-            {30004, (void*)(&CIsoViewExt::DrawBasenodes)},
-            {30013, (void*)(&CIsoViewExt::DrawBaseNodeIndex)},
-            {30005, (void*)(&CIsoViewExt::DrawWaypoints)},
-            {30006, (void*)(&CIsoViewExt::DrawCelltags)},
-            {30011, (void*)(&CIsoViewExt::DrawTubes)},
-            {30007, (void*)(&CIsoViewExt::DrawMoneyOnMap)},
-            {30012, (void*)(&CIsoViewExt::DrawBounds)},
-            {30021, (void*)(&CIsoViewExt::DrawVeterancy)},
-            {30014, (void*)(&CIsoViewExt::RockCells)},
-            {30022, (void*)(&CIsoViewExt::DrawShadows)},
-            {30023, (void*)(&CIsoViewExt::DrawAlphaImages)},
-            {30024, (void*)(&CIsoViewExt::DrawAnnotations)},
-            {30025, (void*)(&CIsoViewExt::DrawFires)},
-            {40115, (void*)(&CFinalSunApp::Instance->FrameMode)},
-            {40085, (void*)(&CFinalSunApp::Instance->FlatToGround)},
-            {30107, (void*)(&CFinalSunDlgExt::HasMinimap)},
-            {30111, (void*)(&CFinalSunDlgExt::HasViewObjectsFloating)},
-            {30112, (void*)(&CFinalSunDlgExt::HasTileSetBrowserFloating)},
-            {40123, (void*)(&CFinalSunApp::Instance->ShowBuildingCells)},
-            {40159, (void*)(&ExtConfigs::TreeViewCameo_Display)},
-            {30110, (void*)(&ExtConfigs::DisableAutoConnectWall)},
-            {40104, (void*)(&CFinalSunApp::Instance->DisableAutoShore)},
-            {40105, (void*)(&CFinalSunApp::Instance->DisableAutoLat)},
+            {30000, &CIsoViewExt::DrawStructures},
+            {30001, &CIsoViewExt::DrawInfantries},
+            {30002, &CIsoViewExt::DrawUnits},
+            {30003, &CIsoViewExt::DrawAircrafts},
+            {30008, &CIsoViewExt::DrawOverlays},
+            {30009, &CIsoViewExt::DrawTerrains},
+            {30010, &CIsoViewExt::DrawSmudges},
+            {30004, &CIsoViewExt::DrawBasenodes},
+            {30013, &CIsoViewExt::DrawBaseNodeIndex},
+            {30005, &CIsoViewExt::DrawWaypoints},
+            {30006, &CIsoViewExt::DrawCelltags},
+            {30011, &CIsoViewExt::DrawTubes},
+            {30007, &CIsoViewExt::DrawMoneyOnMap},
+            {30012, &CIsoViewExt::DrawBounds},
+            {30021, &CIsoViewExt::DrawVeterancy},
+            {30014, &CIsoViewExt::RockCells},
+            {30022, &CIsoViewExt::DrawShadows},
+            {30023, &CIsoViewExt::DrawAlphaImages},
+            {30024, &CIsoViewExt::DrawAnnotations},
+            {30025, &CIsoViewExt::DrawFires},
+            {40115, &CFinalSunApp::Instance->FrameMode},
+            {40085, &CFinalSunApp::Instance->FlatToGround},
+            {30107, &CFinalSunDlgExt::HasMinimap},
+            {30111, &CFinalSunDlgExt::HasViewObjectsFloating},
+            {30112, &CFinalSunDlgExt::HasTileSetBrowserFloating},
+            {40123, &CFinalSunApp::Instance->ShowBuildingCells},
+            {40159, &ExtConfigs::TreeViewCameo_Display},
+            {30110, &ExtConfigs::DisableAutoConnectWall},
+            {40104, &CFinalSunApp::Instance->DisableAutoShore},
+            {40105, &CFinalSunApp::Instance->DisableAutoLat},
         };
 
         g_Toolbars.hTbA = CreateToolbarFromResource(hParent, 1100, ExtConfigs::EnableDarkMode ? 1113 : 1110, checkButtons, targetIconSize, &btnSizeA, &idealWidthA);

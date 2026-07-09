@@ -48,6 +48,10 @@
 namespace fs = std::filesystem;
 
 bool CFinalSunDlgExt::HasMinimap = false;
+bool CFinalSunDlgExt::HasViewObjectsFloating = true;
+bool CFinalSunDlgExt::HasTileSetBrowserFloating = true;
+float CFinalSunDlgExt::SavedViewObjectsWidthPercentage = -1.0f;
+float CFinalSunDlgExt::SavedTileSetBrowserSizePercentage = -1.0f;
 bool CFinalSunDlgExt::MapValidatorAlive = false;
 int CFinalSunDlgExt::CurrentLighting = 31000;
 std::pair<FString, int> CFinalSunDlgExt::SearchObjectIndex("", -1);
@@ -1423,8 +1427,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	{
 		if (wmID == id)
 		{
-			*(BOOL*)info.pExternalBool = !*(BOOL*)info.pExternalBool;
-			bool isChecked = *(BOOL*)info.pExternalBool;
+			info.ToggleExternalValue();
+			bool isChecked = info.GetExternalValue();
 			CFinalSunDlgExt::CheckToolBarButton(id, isChecked);
 			CheckMenuItem(hMenu, wmID, isChecked ? MF_CHECKED : MF_UNCHECKED);
 
@@ -1442,25 +1446,25 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			{
 			case 40123:
 			{
-				writeToConfig("UserInterface", "ShowBuildingCells", *(BOOL*)info.pExternalBool ? "1" : "0");
+				writeToConfig("UserInterface", "ShowBuildingCells", isChecked ? "1" : "0");
 				::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 				break;
 			}
 			case 40104:
 			{
-				writeToConfig("UserInterface", "DisableAutoShore", *(BOOL*)info.pExternalBool ? "1" : "0");
+				writeToConfig("UserInterface", "DisableAutoShore", isChecked ? "1" : "0");
 				break;
 			}
 			case 40105:
 			{
-				writeToConfig("UserInterface", "DisableAutoLat", *(BOOL*)info.pExternalBool ? "1" : "0");
+				writeToConfig("UserInterface", "DisableAutoLat", isChecked ? "1" : "0");
 				break;
 			}
 			case 40115:
 			{
 				if (!CMapData::Instance->MapWidthPlusHeight)
 				{
-					*(BOOL*)info.pExternalBool = false;
+					info.SetExternalValue(false);
 					CFinalSunDlgExt::CheckToolBarButton(id, false);
 					this->PlaySound(FASoundType::Error);
 					break;
@@ -1475,7 +1479,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			{
 				if (!CMapData::Instance->MapWidthPlusHeight)
 				{
-					*(BOOL*)info.pExternalBool = false;
+					info.SetExternalValue(false);
 					CFinalSunDlgExt::CheckToolBarButton(id, false);
 					this->PlaySound(FASoundType::Error);
 					break;
@@ -1487,15 +1491,132 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			{
 				if (!CMapData::Instance->MapWidthPlusHeight)
 				{
-					*(BOOL*)info.pExternalBool = false;
+					info.SetExternalValue(false);
 					CFinalSunDlgExt::CheckToolBarButton(id, false);
 					this->PlaySound(FASoundType::Error);
 					break;
 				}
-				if (*(BOOL*)info.pExternalBool)
+				if (isChecked)
 					MyViewFrame.Minimap.Update();
 				else
 					::ShowWindow(MyViewFrame.Minimap, SW_HIDE);
+				break;
+			}
+			case 30111:
+			{
+				if (ExtConfigs::ViewObjectsFloating)
+				{
+					if (MyViewFrame.pViewObjects)
+					{
+						HWND hViewObjs = MyViewFrame.pViewObjects->GetSafeHwnd();
+						if (hViewObjs)
+							::ShowWindow(hViewObjs, isChecked ? SW_SHOW : SW_HIDE);
+					}
+				}
+				else if (MyViewFrame.SplitterWnd.m_hWnd)
+				{
+					int cxCur, cxMin;
+					MyViewFrame.SplitterWnd.GetColumnInfo(0, cxCur, cxMin);
+					if (isChecked)
+					{
+						CRect rcFrame;
+						MyViewFrame.GetClientRect(&rcFrame);
+						int totalWidth = std::max(1, rcFrame.Width());
+						float percent = CFinalSunDlgExt::SavedViewObjectsWidthPercentage > 0.0f
+							? CFinalSunDlgExt::SavedViewObjectsWidthPercentage
+							: 0.25f;
+						int viewWidth = static_cast<int>(totalWidth * percent);
+						const int minView = 20;
+						if (viewWidth < minView) viewWidth = minView;
+						if (viewWidth > totalWidth - minView) viewWidth = totalWidth - minView;
+						MyViewFrame.SplitterWnd.SetColumnInfo(0, viewWidth, minView);
+					}
+					else
+					{
+						if (cxCur > 0)
+						{
+							CRect rcFrame;
+							MyViewFrame.GetClientRect(&rcFrame);
+							int totalWidth = std::max(1, rcFrame.Width() - GetSystemMetrics(SM_CXVSCROLL));
+							CFinalSunDlgExt::SavedViewObjectsWidthPercentage = static_cast<float>(cxCur) / totalWidth;
+						}
+						MyViewFrame.SplitterWnd.SetColumnInfo(0, 0, 0);
+					}
+					MyViewFrame.SplitterWnd.RecalcLayout();
+					if (MyViewFrame.pIsoView)
+						MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+				}
+				break;
+			}
+			case 30112:
+			{
+				if (ExtConfigs::TileSetBrowserFloating)
+				{
+					if (MyViewFrame.pTileSetBrowserFrame)
+					{
+						HWND hTileBrowser = MyViewFrame.pTileSetBrowserFrame->GetSafeHwnd();
+						if (hTileBrowser)
+							::ShowWindow(hTileBrowser, isChecked ? SW_SHOW : SW_HIDE);
+					}
+				}
+				else if (MyViewFrame.pRightFrame && MyViewFrame.pRightFrame->CSplitter.m_hWnd)
+				{
+					CRect rcFrame;
+					MyViewFrame.pRightFrame->GetClientRect(&rcFrame);
+					const int minIso = 20;
+					const int minTile = 20;
+					if (ExtConfigs::VerticalLayout)
+					{
+						int cxCur, cxMin;
+						MyViewFrame.pRightFrame->CSplitter.GetColumnInfo(1, cxCur, cxMin);
+						int totalWidth = std::max(1, rcFrame.Width());
+						if (isChecked)
+						{
+							float percent = CFinalSunDlgExt::SavedTileSetBrowserSizePercentage > 0.0f
+								? CFinalSunDlgExt::SavedTileSetBrowserSizePercentage
+								: 0.375f;
+							int tileWidth = static_cast<int>(totalWidth * percent);
+							if (tileWidth < minTile) tileWidth = minTile;
+							if (tileWidth > totalWidth - minIso) tileWidth = totalWidth - minIso;
+							MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(0, totalWidth - tileWidth, minIso);
+							MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(1, tileWidth, minTile);
+						}
+						else
+						{
+							if (cxCur > 0)
+								CFinalSunDlgExt::SavedTileSetBrowserSizePercentage = static_cast<float>(cxCur) / totalWidth;					
+							MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(0, totalWidth, minIso);
+							MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(1, 0, 0);
+						}
+					}
+					else
+					{
+						int cyCur, cyMin;
+						MyViewFrame.pRightFrame->CSplitter.GetRowInfo(1, cyCur, cyMin);
+						int totalHeight = std::max(1, rcFrame.Height());
+						if (isChecked)
+						{
+							float percent = CFinalSunDlgExt::SavedTileSetBrowserSizePercentage > 0.0f
+								? CFinalSunDlgExt::SavedTileSetBrowserSizePercentage
+								: 0.375f;
+							int tileHeight = static_cast<int>(totalHeight * percent);
+							if (tileHeight < minTile) tileHeight = minTile;
+							if (tileHeight > totalHeight - minIso) tileHeight = totalHeight - minIso;
+							MyViewFrame.pRightFrame->CSplitter.SetRowInfo(0, totalHeight -tileHeight, minIso);
+							MyViewFrame.pRightFrame->CSplitter.SetRowInfo(1, tileHeight, minTile);
+						}
+						else
+						{
+							if (cyCur > 0)
+								CFinalSunDlgExt::SavedTileSetBrowserSizePercentage = static_cast<float>(cyCur) / totalHeight;
+							MyViewFrame.pRightFrame->CSplitter.SetRowInfo(0, totalHeight, minIso);
+							MyViewFrame.pRightFrame->CSplitter.SetRowInfo(1, 0, 0);
+						}
+					}
+					MyViewFrame.pRightFrame->CSplitter.RecalcLayout();
+					if (MyViewFrame.pIsoView)
+						MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+				}
 				break;
 			}
 			default:

@@ -490,16 +490,22 @@ void CViewObjectsExt::Redraw()
         m_ImageList.Add(&cBitmap, RGB(255, 255, 255));
         this->GetTreeCtrl().SetImageList(&m_ImageList, TVSIL_NORMAL);
    
-        CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 300 * CFinalSunAppExt::ProgramScaleFactor, 10);
-        CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.RecalcLayout();
-        CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+        if (CFinalSunDlgExt::HasViewObjectsFloating)
+        {
+            CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 300 * CFinalSunAppExt::ProgramScaleFactor, 10);
+            CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.RecalcLayout();
+            CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+        }
     }
     else
     {
         this->GetTreeCtrl().SetImageList(NULL, TVSIL_NORMAL);
-        CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 200 * CFinalSunAppExt::ProgramScaleFactor, 10);
-        CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.RecalcLayout();
-        CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+        if (CFinalSunDlgExt::HasViewObjectsFloating)
+        {
+            CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 200 * CFinalSunAppExt::ProgramScaleFactor, 10);
+            CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.RecalcLayout();
+            CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+        }
     }
 
     AddedItemCount = 0;

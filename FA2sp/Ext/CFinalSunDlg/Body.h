@@ -7,6 +7,7 @@
 #include <set>
 #include <map>
 #include <memory>
+#include <variant>
 
 #include "../../ExtraWindow/CNewPropertyBuilding/CNewPropertyBuilding.h"
 #include "../../ExtraWindow/CNewPropertyAircraft/CNewPropertyAircraft.h"
@@ -19,12 +20,42 @@
 #include <unordered_map>
 class CTechnoDialog;
 
-struct CheckButtonInfo {
-    HWND hParent;
-    UINT cmdID;
-    int index;
-    bool isChecked;
-    void* pExternalBool;
+struct CheckButtonInfo
+{
+    HWND hParent{};
+    UINT cmdID{};
+    int index{};
+    bool isChecked{};
+    std::variant<bool*, BOOL*> pExternalBool{};
+
+    bool GetExternalValue() const
+    {
+        return std::visit([](auto p)
+        {
+            return p && (*p != 0);
+        }, pExternalBool);
+    }
+
+    void SetExternalValue(bool value)
+    {
+        std::visit([value](auto p)
+        {
+            if (!p)
+                return;
+
+            using T = std::remove_pointer_t<decltype(p)>;
+
+            if constexpr (std::is_same_v<T, bool>)
+                *p = value;
+            else
+                *p = value ? TRUE : FALSE;
+        }, pExternalBool);
+    }
+
+    void ToggleExternalValue()
+    {
+        SetExternalValue(!GetExternalValue());
+    }
 };
 
 class NOVTABLE CFinalSunDlgExt : public CFinalSunDlg
@@ -37,6 +68,10 @@ public:
     static void ProgramStartupInit();
 
     static bool HasMinimap;
+    static bool HasViewObjectsFloating;
+    static bool HasTileSetBrowserFloating;
+    static float SavedViewObjectsWidthPercentage;
+    static float SavedTileSetBrowserSizePercentage;
     static bool MapValidatorAlive;
     static int CurrentLighting;
     static int SearchObjectType;

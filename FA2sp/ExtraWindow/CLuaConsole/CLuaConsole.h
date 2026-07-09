@@ -114,5 +114,7 @@ public:
     // MCP output capture
     static std::string mcpOutput;
     static bool mcpRunning;
+
+    static TransparencyHelper m_transparency;
 };
 

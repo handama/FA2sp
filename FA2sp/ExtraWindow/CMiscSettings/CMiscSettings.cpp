@@ -10,6 +10,7 @@ using T = CINIDialog::ControlType;
 
 void CMiscSettings::InitNewSpecialFlags()
 {
+	NewSpecialFlags.SetTransparencyKey("SpecialFlagsOpacity");
 	NewSpecialFlags.Translate(1314, "SpecialFlags.TiberiumGrows");
 	NewSpecialFlags.Translate(1315, "SpecialFlags.TiberiumSpreads");
 	NewSpecialFlags.Translate(1316, "SpecialFlags.TiberiumExplosive");
@@ -45,6 +46,7 @@ void CMiscSettings::InitNewSpecialFlags()
 
 void CMiscSettings::InitNewBasic()
 {
+	NewBasic.SetTransparencyKey("BasicSettingsOpacity");
 	NewBasic.Translate(1233, "BasicDesc");
 	NewBasic.Translate(1234, "BasicName");
 	NewBasic.Translate(1235, "BasicNextScenario");
@@ -120,6 +122,7 @@ void CMiscSettings::InitNewBasic()
 
 void CMiscSettings::InitNewSinglePlayer()
 {
+	NewSinglePlayer.SetTransparencyKey("SinglePlayerSettingsOpacity");
 	NewSinglePlayer.Translate(1285, "SingleplayerDesc");
 
 	NewSinglePlayer.Translate(1341, "SingleplayerMovies");
@@ -171,6 +174,8 @@ void CMiscSettings::InitNewSinglePlayer()
 	NewSinglePlayer.SetControlInfo(1374, {T::Edit, "General", "PrismSupportModifier", [] {}});
 	NewSinglePlayer.SetControlInfo(1376, {T::Edit, "General", "DefaultMirageDisguises", [] {}});
 	NewSinglePlayer.SetControlInfo(1377, {T::Button, "", "", [] {	
+		if (!CMapData::Instance->MapWidthPlusHeight)
+			return;
 		CRandomTreeExt randomTree;
 		auto mirageIni = CINI::CurrentDocument->GetString("General", "DefaultMirageDisguises");
 		mirageIni.Trim();

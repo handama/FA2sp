@@ -79,6 +79,7 @@ bool CLuaConsole::updateVariable = false;
 bool CLuaConsole::skipBuildingUpdate = false;
 std::string CLuaConsole::mcpOutput;
 bool CLuaConsole::mcpRunning = false;
+TransparencyHelper CLuaConsole::m_transparency;
 sol::state CLuaConsole::Lua;
 bool CLuaConsole::showingComment = false;
 std::string CLuaConsole::backupOutputText;
@@ -1395,6 +1396,7 @@ BOOL CALLBACK CLuaConsole::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
     case WM_INITDIALOG:
     {
         CLuaConsole::Initialize(hWnd);
+        m_transparency.Init(hWnd, "LuaConsoleOpacity");
         RECT rect;
         GetClientRect(hWnd, &rect);
         origWndWidth = rect.right - rect.left;
@@ -1487,6 +1489,8 @@ BOOL CALLBACK CLuaConsole::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "LuaConsoleOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -1529,6 +1533,10 @@ BOOL CALLBACK CLuaConsole::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
         OnEditchangeSearch(hWnd);
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "LuaConsoleOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler

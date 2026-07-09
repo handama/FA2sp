@@ -21,6 +21,7 @@ HWND CNewLocalVariables::hNew;
 HWND CNewLocalVariables::hSearch;
 int CNewLocalVariables::SelectedIndex;
 FString CNewLocalVariables::SelectedKey;
+TransparencyHelper CNewLocalVariables::m_transparency;
 
 void CNewLocalVariables::Create(CFinalSunDlg* pWnd)
 {
@@ -87,10 +88,13 @@ BOOL CALLBACK CNewLocalVariables::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LP
     case WM_INITDIALOG:
     {
         CNewLocalVariables::Initialize(hWnd);
+        m_transparency.Init(hWnd, "LocalVariablesOpacity");
         return TRUE;
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "LocalVariablesOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -159,6 +163,10 @@ BOOL CALLBACK CNewLocalVariables::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LP
         Update();
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "LocalVariablesOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler

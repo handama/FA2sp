@@ -24,7 +24,7 @@
 #include "../CTechnoDialog/CTechnoDialog.h"
 
 HWND CObjectSearch::m_hwnd;
-CTileSetBrowserFrame* CObjectSearch::m_parent;
+CFinalSunDlg* CObjectSearch::m_parent;
 std::vector<std::pair<std::string, std::regex>> CObjectSearch::Nodes;
 std::map<int, FString> CObjectSearch::Datas;
 int CObjectSearch::ListBoxIndex;
@@ -51,14 +51,15 @@ bool CObjectSearch::bTaskForce;
 bool CObjectSearch::bScript;
 bool CObjectSearch::bTag;
 bool CObjectSearch::bAITrigger;
+TransparencyHelper CObjectSearch::m_transparency;
 
-void CObjectSearch::Create(CTileSetBrowserFrame* pWnd)
+void CObjectSearch::Create(CFinalSunDlg* pWnd)
 {
     m_parent = pWnd;
     m_hwnd = CreateDialog(
         static_cast<HINSTANCE>(FA2sp::hInstance),
         MAKEINTRESOURCE(302),
-        pWnd->DialogBar.GetSafeHwnd(),
+        pWnd->GetSafeHwnd(),
         CObjectSearch::DlgProc
     );
 
@@ -76,6 +77,12 @@ void CObjectSearch::Create(CTileSetBrowserFrame* pWnd)
 
 void CObjectSearch::Initialize(HWND& hWnd)
 {
+    RECT rcMain;
+    ::GetWindowRect(m_parent->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd(), &rcMain);
+    int x = rcMain.left;
+    int y = rcMain.top;
+    ::SetWindowPos(hWnd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+
     FString buffer;
     if (Translations::GetTranslationItem("GlobalSearchTitle", buffer))
         SetWindowText(hWnd, buffer);
@@ -110,7 +117,6 @@ void CObjectSearch::Initialize(HWND& hWnd)
     Translate("GlobalSearch.Script", Controls::Script);
     Translate("GlobalSearch.Tag", Controls::Tag);
     Translate("GlobalSearch.AITrigger", Controls::AITrigger);
-
 
     CObjectSearch::bExactMatch = false;
     SendMessage(GetDlgItem(hWnd, Controls::TreeView), BM_SETCHECK, 1, 0);
@@ -159,10 +165,13 @@ BOOL CALLBACK CObjectSearch::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
     case WM_INITDIALOG:
     {
         CObjectSearch::Initialize(hwnd);
+        m_transparency.Init(hwnd, "ObjectSearchOpacity");
         return TRUE;
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hwnd, Msg, wParam, lParam, "ObjectSearchOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -314,6 +323,10 @@ BOOL CALLBACK CObjectSearch::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
     case 114515:
         UpdateTypes(hwnd);
         break;
+    default:
+        if (m_transparency.HandleMessage(hwnd, Msg, wParam, lParam, "ObjectSearchOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler
@@ -341,7 +354,7 @@ void CObjectSearch::ListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam)
     }
     else if (CObjectSearch::bTileSet)
     {
-        HWND hParent = m_parent->DialogBar.GetSafeHwnd();
+        HWND hParent = m_parent->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
         HWND hTileComboBox = GetDlgItem(hParent, 1366);
         HWND hOverlayComboBox = GetDlgItem(hParent, 1367);
 
@@ -791,7 +804,7 @@ void CObjectSearch::OnSearchButtonUp(HWND hWnd)
         if (CObjectSearch::ListBox_Tile.size() == 1)
         {
             int index = CObjectSearch::ListBox_Tile[0];
-            HWND hParent = m_parent->DialogBar.GetSafeHwnd();
+            HWND hParent = m_parent->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
             HWND hTileComboBox = GetDlgItem(hParent, 1366);
             HWND hOverlayComboBox = GetDlgItem(hParent, 1367);
             if (index >= 10000)
@@ -1820,7 +1833,7 @@ void CObjectSearch::UpdateDetailsWaypoint(HWND hWnd)
 void CObjectSearch::UpdateTypes(HWND hWnd)
 {
     CObjectSearch::Datas.clear();
-    HWND hParent = m_parent->DialogBar.GetSafeHwnd();
+    HWND hParent = m_parent->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
     HWND hTileComboBox = GetDlgItem(hParent, 1366);
     int nTileCount = SendMessage(hTileComboBox, CB_GETCOUNT, NULL, NULL);
     if (nTileCount <= 0)

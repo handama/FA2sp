@@ -68,6 +68,7 @@ bool CNewScript::m_dragging = false;
 POINT CNewScript::m_dragOffset{};
 HWND CNewScript::m_hDragGhost = nullptr;
 TargetHighlighter CNewScript::hl;
+TransparencyHelper CNewScript::m_transparency;
 
 void CNewScript::Create(CFinalSunDlg* pWnd)
 {
@@ -593,10 +594,13 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
     case WM_INITDIALOG:
     {
         CNewScript::Initialize(hWnd);
+        m_transparency.Init(hWnd, "ScriptEditorOpacity");
         return TRUE;
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "ScriptEditorOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -712,6 +716,10 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
         VirtualComboBoxEx::SetWindowHeight(hWnd, lParam);
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "ScriptEditorOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler

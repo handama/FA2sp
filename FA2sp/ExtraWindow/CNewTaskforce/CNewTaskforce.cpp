@@ -53,6 +53,7 @@ bool CNewTaskforce::m_programmaticEdit = false;
 POINT CNewTaskforce::m_dragOffset{};
 HWND CNewTaskforce::m_hDragGhost = nullptr;
 TargetHighlighter CNewTaskforce::hl;
+TransparencyHelper CNewTaskforce::m_transparency;
 
 void CNewTaskforce::Create(CFinalSunDlg* pWnd)
 {
@@ -497,10 +498,13 @@ BOOL CALLBACK CNewTaskforce::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     case WM_INITDIALOG:
     {
         CNewTaskforce::Initialize(hWnd);
+        m_transparency.Init(hWnd, "TaskforceEditorOpacity");
         return TRUE;
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "TaskforceEditorOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -592,6 +596,10 @@ BOOL CALLBACK CNewTaskforce::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         VirtualComboBoxEx::SetWindowHeight(hWnd, lParam);
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "TaskforceEditorOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler

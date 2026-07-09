@@ -1,11 +1,12 @@
 #pragma once
 
 #include <FA2PP.h>
-#include <CTileSetBrowserFrame.h>
+#include <CFinalSunDlg.h>
 #include "../../Helpers/FString.h"
 #include <vector>
 #include <string>
 #include <regex>
+#include "../Common.h"
 
 // A static window class
 class CTileManager
@@ -13,7 +14,7 @@ class CTileManager
 public:
     enum { ListBox_Types = 6100, ListBox_Details = 6101 };
 
-    static void Create(CTileSetBrowserFrame* pWnd);
+    static void Create(CFinalSunDlg* pWnd);
 
     static HWND GetHandle()
         { return CTileManager::m_hwnd; }
@@ -33,7 +34,7 @@ protected:
 
 private:
     static HWND m_hwnd;
-    static CTileSetBrowserFrame* m_parent;
+    static CFinalSunDlg* m_parent;
     static std::vector<std::pair<FString, std::regex>> Nodes;
     static std::vector<std::vector<int>> Datas;
     static int origWndWidth;
@@ -41,5 +42,6 @@ private:
     static int minWndWidth;
     static int minWndHeight;
     static bool minSizeSet;
+    static TransparencyHelper m_transparency;
 };
 

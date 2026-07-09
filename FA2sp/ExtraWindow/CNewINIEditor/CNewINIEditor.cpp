@@ -55,6 +55,8 @@ UINT_PTR CNewINIEditor::m_changeDebounceTimer = 0;
 FString CNewINIEditor::CurrentSection;
 const UINT DEBOUNCE_MS = 250;
 
+TransparencyHelper CNewINIEditor::m_transparency;
+
 void CNewINIEditor::Create(CFinalSunDlg* pWnd)
 {
     HMODULE hScintilla = LoadLibrary(TEXT("Scintilla.dll"));
@@ -249,6 +251,9 @@ BOOL CALLBACK CNewINIEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         origWndWidth = rect.right - rect.left;
         origWndHeight = rect.bottom - rect.top;
         minSizeSet = false;
+
+        m_transparency.Init(hWnd, "INIEditorOpacity");
+
         return TRUE;
     }
     case WM_GETMINMAXINFO: {
@@ -292,6 +297,17 @@ BOOL CALLBACK CNewINIEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "INIEditorOpacity"))
+        {
+            if (m_hwndImporter && IsWindow(m_hwndImporter))
+            {
+                BYTE alpha = 255;
+                GetLayeredWindowAttributes(hWnd, NULL, &alpha, NULL);
+                m_transparency.ApplyTransparency(m_hwndImporter, alpha, "INIEditorOpacity");
+            }
+            return TRUE;
+        }
+
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -351,6 +367,9 @@ BOOL CALLBACK CNewINIEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     }
     case WM_TIMER:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "INIEditorOpacity"))
+            return TRUE;
+
         if (wParam == 1002)
         {
             KillTimer(m_hwnd, 1002);
@@ -361,6 +380,7 @@ BOOL CALLBACK CNewINIEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         }
         break;
     }
+
     case WM_CLOSE:
     {
         CNewINIEditor::Close(hWnd);
@@ -371,6 +391,10 @@ BOOL CALLBACK CNewINIEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         Update(hWnd);
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "INIEditorOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler
@@ -384,6 +408,7 @@ BOOL CALLBACK CNewINIEditor::DlgProcImporter(HWND hWnd, UINT Msg, WPARAM wParam,
     case WM_INITDIALOG:
     {
         CNewINIEditor::InitializeImporter(hWnd);
+        m_transparency.Init(hWnd, "INIEditorOpacity");
         RECT rect;
         GetClientRect(hWnd, &rect);
         i_origWndWidth = rect.right - rect.left;
@@ -423,6 +448,16 @@ BOOL CALLBACK CNewINIEditor::DlgProcImporter(HWND hWnd, UINT Msg, WPARAM wParam,
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "INIEditorOpacity"))
+        {
+            if (m_hwnd && IsWindow(m_hwnd))
+            {
+                BYTE alpha = 255;
+                GetLayeredWindowAttributes(hWnd, NULL, &alpha, NULL);
+                m_transparency.ApplyTransparency(m_hwnd, alpha, "INIEditorOpacity");
+            }
+            return TRUE;
+        }
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -441,6 +476,10 @@ BOOL CALLBACK CNewINIEditor::DlgProcImporter(HWND hWnd, UINT Msg, WPARAM wParam,
         CNewINIEditor::CloseImporter(hWnd);
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "INIEditorOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler

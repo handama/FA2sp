@@ -629,11 +629,26 @@ LRESULT DarkTheme::HandleMenuMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
     {
     case WM_INITMENUPOPUP:
     {
-        HMENU hMenu = (HMENU)wParam;
-        MENUINFO mi = { sizeof(MENUINFO) };
-        mi.fMask = MIM_BACKGROUND;
-        mi.hbrBack = g_hDarkMenuBrush;
-        SetMenuInfo(hMenu, &mi);
+        if (CFinalSunDlg::Instance)
+        {
+            HMENU hMenu = (HMENU)wParam;
+            HMENU hParent = CFinalSunDlg::Instance->GetMenu()->m_hMenu;
+            int count = GetMenuItemCount(hParent);
+            if (count == -1)
+                break;
+        
+            for (int i = 0; i < count; ++i)
+            {
+                HMENU hSubMenu = GetSubMenu(hParent, i);
+                if (hSubMenu == hMenu)
+                {
+                    MENUINFO mi = { sizeof(MENUINFO) };
+                    mi.fMask = MIM_BACKGROUND;
+                    mi.hbrBack = g_hDarkMenuBrush;
+                    SetMenuInfo(hMenu, &mi);
+                }
+            }
+        }
         break;
     }
     case WM_MEASUREITEM:
@@ -1973,29 +1988,6 @@ LRESULT WINAPI DarkTheme::MyCallWindowProcA(
         InitDialogOptions(hWnd);
         Translations::TranslateDialog(hWnd);
         return result;
-    }
-    if (Msg == WM_ACTIVATE)
-    {
-        if (CFinalSunDlg::Instance && CFinalSunDlg::Instance->Tags
-            && hWnd == CFinalSunDlg::Instance->Tags.GetSafeHwnd())
-        {
-            LRESULT result = ::CallWindowProcA(lpPrevWndFunc, hWnd, Msg, wParam, lParam);
-            auto& tag = CFinalSunDlg::Instance->Tags;
-            int index = tag.CCBTagList.GetCurSel();
-            if (index != CB_ERR)
-            {
-                ppmfc::CString text;
-                tag.CCBTagList.GetLBText(index, text);
-                STDHelpers::TrimIndex(text);
-                if (!text.IsEmpty())
-                {
-                    CTriggerAnnotation::Type = AnnoTag;
-                    CTriggerAnnotation::ID = text;
-                    ::SendMessage(CTriggerAnnotation::GetHandle(), 114515, 0, 0);
-                }
-            }
-            return result;
-        }
     }
 
     LRESULT result = GenericWindowProcA(hWnd, Msg, wParam, lParam);

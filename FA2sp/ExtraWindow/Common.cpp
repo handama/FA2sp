@@ -1692,6 +1692,7 @@ BOOL CALLBACK HelpDlg::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPar
     {
     case WM_INITDIALOG:
     {
+        m_transparency.Init(hWnd, "HelpDlgOpacity");
         return TRUE;
     }
     case WM_GETMINMAXINFO: 
@@ -1730,6 +1731,12 @@ BOOL CALLBACK HelpDlg::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPar
     {
         CloseHelpDlg();
         return TRUE;
+    }
+    default:
+    {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "HelpDlgOpacity"))
+        return TRUE;
+    break;
     }
     }
     return FALSE;
@@ -4101,6 +4108,8 @@ CINIDialog::CINIDialog(int resource)
 BOOL CINIDialog::OnInitDialog()
 {
 	CDialog::OnInitDialog();
+	if (!m_transparencyKey.IsEmpty())
+		m_transparency.Init(GetSafeHwnd(), m_transparencyKey);
 	FString buffer;
 
 	auto translate = [&buffer, this](int nItem, const char* lpLabel)
@@ -4154,10 +4163,29 @@ BOOL CINIDialog::OnInitDialog()
 	return TRUE;
 }
 
+void CINIDialog::SetTransparencyKey(const char* key)
+{
+	m_transparencyKey = key;
+}
+
 BOOL CINIDialog::OnCommand(WPARAM wParam, LPARAM lParam)
 {
     WORD nID = LOWORD(wParam);
     WORD nNotify = HIWORD(wParam);
+
+    if (!m_transparencyKey.IsEmpty()) {
+        int alpha = -1;
+        if (nID == TransparencyHelper::IDM_OPAQUE)           alpha = 255;
+        else if (nID == TransparencyHelper::IDM_NEAR_FULL)   alpha = 191;
+        else if (nID == TransparencyHelper::IDM_HALF)        alpha = 128;
+        else if (nID == TransparencyHelper::IDM_TRANSPARENT) alpha = 64;
+        else if (nID == TransparencyHelper::IDM_FULL_TRANSPARENT) alpha = 1;
+
+        if (alpha != -1) {
+            m_transparency.ApplyTransparency(GetSafeHwnd(), alpha, m_transparencyKey);
+            return TRUE;
+        }
+    }
 
 	auto itr = m_controlInfos.find(nID);
 	if (itr != m_controlInfos.end())
@@ -4236,6 +4264,13 @@ void CINIDialog::OnCancel()
 	OnClose();
 }
 
+BOOL CINIDialog::PreTranslateMessage(MSG* pMsg)
+{
+    if (!m_transparencyKey.IsEmpty() && m_transparency.HandleMessage(GetSafeHwnd(), pMsg->message, pMsg->wParam, pMsg->lParam, m_transparencyKey))
+        return TRUE;
+    return CDialog::PreTranslateMessage(pMsg);
+}
+
 void ExtraWindow::DisableOtherWindows(HWND hDlg)
 {
     s_disabledWindows.clear();
@@ -4263,4 +4298,258 @@ void ExtraWindow::RestoreDisabledWindows()
             EnableWindow(h, TRUE);
     }
     s_disabledWindows.clear();
+}
+
+// ============================================================
+// TransparencyHelper implementation
+// ============================================================
+
+void TransparencyHelper::Init(HWND hWnd, const char* iniKey)
+{
+	if (m_initialized)
+		return;
+	m_initialized = true;
+
+	int opacity = 255;
+	CINI fa2;
+	FString path = CFinalSunAppExt::ExePathExt;
+	path += "\\FinalAlert.ini";
+	fa2.ClearAndLoad(path);
+	opacity = fa2.GetInteger("UserInterface", iniKey, 255);
+	opacity = std::max(1, std::min(255, opacity));
+
+	DWORD dwEx = ::GetWindowLong(hWnd, GWL_EXSTYLE);
+	dwEx |= WS_EX_LAYERED;
+	::SetWindowLong(hWnd, GWL_EXSTYLE, dwEx);
+	::SetLayeredWindowAttributes(hWnd, 0, opacity, LWA_ALPHA);
+	m_restingAlpha = opacity;
+
+	if (opacity < 255)
+		ArmMouseLeave(hWnd);
+}
+
+void TransparencyHelper::ArmMouseLeave(HWND hWnd)
+{
+	// Track WM_MOUSELEAVE for the client area.
+	// When the mouse leaves, we'll do a one-shot check to decide
+	// whether to restore transparency (vs. mouse is over a dropdown).
+	TRACKMOUSEEVENT tme = { sizeof(tme), TME_LEAVE, hWnd, 0 };
+	::TrackMouseEvent(&tme);
+}
+
+void TransparencyHelper::SetTransparency(HWND hWnd, int alpha)
+{
+	DWORD dwEx = ::GetWindowLong(hWnd, GWL_EXSTYLE);
+	if (!(dwEx & WS_EX_LAYERED))
+	{
+		dwEx |= WS_EX_LAYERED;
+		::SetWindowLong(hWnd, GWL_EXSTYLE, dwEx);
+	}
+	::SetLayeredWindowAttributes(hWnd, 0, alpha, LWA_ALPHA);
+}
+
+void TransparencyHelper::ApplyTransparency(HWND hWnd, int alpha, const char* iniKey)
+{
+	SetTransparency(hWnd, alpha);
+	m_restingAlpha = alpha;
+
+	if (alpha == 255)
+	{
+		::KillTimer(hWnd, HOVER_TIMER_ID);
+		RemoveProp(hWnd, "TransparencyHover");
+	}
+	else
+	{
+		ArmMouseLeave(hWnd);
+	}
+
+	CINI fa2;
+	FString path = CFinalSunAppExt::ExePathExt;
+	path += "\\FinalAlert.ini";
+	fa2.ClearAndLoad(path);
+	fa2.WriteString("UserInterface", iniKey, std::to_string(alpha).c_str());
+	fa2.WriteToFile(path);
+}
+
+bool TransparencyHelper::IsCursorOverWindow(HWND hWnd)
+{
+	POINT pt;
+	::GetCursorPos(&pt);
+	HWND hWndUnder = ::WindowFromPoint(pt);
+
+	if (!hWndUnder)
+		return false;
+	if (hWnd == hWndUnder || ::IsChild(hWnd, hWndUnder))
+		return true;
+
+	// Walk owner chain for popup windows (e.g., tooltips)
+	HWND hOwner = hWndUnder;
+	while ((hOwner = ::GetWindow(hOwner, GW_OWNER)) != NULL)
+	{
+		if (hOwner == hWnd || ::IsChild(hWnd, hOwner))
+			return true;
+	}
+
+	return false;
+}
+
+bool TransparencyHelper::HasAnyDropdownOpen(HWND hWnd)
+{
+	bool hasOpen = false;
+	::EnumChildWindows(hWnd, [](HWND hChild, LPARAM lParam) -> BOOL {
+		bool* pResult = reinterpret_cast<bool*>(lParam);
+
+		// GetComboBoxInfo is safe to call even when the ComboBox is in a
+		// modal dropdown loop ?C it doesn't send a message, just reads state.
+		COMBOBOXINFO cbi = { sizeof(cbi) };
+		if (::GetComboBoxInfo(hChild, &cbi))
+		{
+			if (cbi.hwndList && ::IsWindowVisible(cbi.hwndList))
+			{
+				*pResult = true;
+				return FALSE; // stop enumeration
+			}
+		}
+
+		return TRUE;
+	}, reinterpret_cast<LPARAM>(&hasOpen));
+
+	return hasOpen;
+}
+
+void TransparencyHelper::ShowTransparencyMenu(HWND hWnd)
+{
+	HMENU hMenu = ::CreatePopupMenu();
+	::AppendMenu(hMenu, MF_STRING, IDM_OPAQUE,
+		Translations::TranslateOrDefault("TransparencyMenu.100", "Opaque (100%)"));
+	::AppendMenu(hMenu, MF_STRING, IDM_NEAR_FULL,
+		Translations::TranslateOrDefault("TransparencyMenu.75", "75% Opacity"));
+	::AppendMenu(hMenu, MF_STRING, IDM_HALF,
+		Translations::TranslateOrDefault("TransparencyMenu.50", "50% Opacity"));
+	::AppendMenu(hMenu, MF_STRING, IDM_TRANSPARENT,
+		Translations::TranslateOrDefault("TransparencyMenu.25", "25% Opacity"));
+	::AppendMenu(hMenu, MF_STRING, IDM_FULL_TRANSPARENT,
+		Translations::TranslateOrDefault("TransparencyMenu.1", "1% Opacity"));
+
+	POINT pt;
+	::GetCursorPos(&pt);
+	::SetForegroundWindow(hWnd);
+	::TrackPopupMenu(hMenu, TPM_LEFTALIGN | TPM_LEFTBUTTON, pt.x, pt.y, 0, hWnd, nullptr);
+	::DestroyMenu(hMenu);
+}
+
+bool TransparencyHelper::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, const char* iniKey)
+{
+	switch (msg)
+	{
+	case WM_NCRBUTTONDOWN:
+		if (wParam == HTCAPTION)
+		{
+			ShowTransparencyMenu(hWnd);
+			return true;
+		}
+		break;
+
+	case WM_INITMENUPOPUP:
+		if (::GetMenuState((HMENU)wParam, IDM_OPAQUE, MF_BYCOMMAND) != -1)
+			return true;
+		break;
+
+	case WM_SETFOCUS:
+	{
+		// Window got focus (mouse click, Alt+Tab, etc.) ¨C make opaque.
+		// Covers the case where the user clicks on this window to dismiss
+		// a ComboBox dropdown in another window.
+		::KillTimer(hWnd, HOVER_TIMER_ID);
+		SetProp(hWnd, "TransparencyHover", (HANDLE)TRUE);
+		SetTransparency(hWnd, 255);
+		ArmMouseLeave(hWnd);
+		return false; // don't consume, let default handler run
+	}
+
+	case WM_MOUSEMOVE:
+	case WM_NCMOUSEMOVE:
+	{
+		// Mouse entered our window (or moved within it) ?C make opaque immediately
+		// and re-arm WM_MOUSELEAVE tracking.
+		bool wasHover = GetProp(hWnd, "TransparencyHover") != nullptr;
+		SetProp(hWnd, "TransparencyHover", (HANDLE)TRUE);
+
+		// Kill any pending leave-check timer
+		::KillTimer(hWnd, HOVER_TIMER_ID);
+
+		if (!wasHover)
+			SetTransparency(hWnd, 255);
+
+		ArmMouseLeave(hWnd);
+		return false; // don't consume, let default handler run
+	}
+
+	case WM_MOUSELEAVE:
+	case WM_NCMOUSELEAVE:
+	{
+		// If any ComboBox dropdown is open, don't call ArmMouseLeave
+		// (it would re-trigger WM_MOUSELEAVE because the ComboBox has
+		// mouse capture).  Start the timer to poll for dropdown closing.
+		if (HasAnyDropdownOpen(hWnd))
+		{
+			::SetTimer(hWnd, HOVER_TIMER_ID, HOVER_INTERVAL, nullptr);
+			return false; // let MFC process WM_MOUSELEAVE for control hover state
+		}
+
+		// Mouse left our window. Start a one-shot timer to verify.
+		::KillTimer(hWnd, HOVER_TIMER_ID);
+		::SetTimer(hWnd, HOVER_TIMER_ID, HOVER_INTERVAL, nullptr);
+		return false; // let MFC process WM_MOUSELEAVE for control hover state
+	}
+
+	case WM_TIMER:
+		if (wParam == HOVER_TIMER_ID)
+		{
+			if (m_restingAlpha == 255)
+			{
+				::KillTimer(hWnd, HOVER_TIMER_ID);
+				RemoveProp(hWnd, "TransparencyHover");
+				return true;
+			}
+
+			// If any ComboBox dropdown is still open, keep polling
+			if (HasAnyDropdownOpen(hWnd))
+				return true;
+
+			// Dropdown closed, stop polling and decide
+			::KillTimer(hWnd, HOVER_TIMER_ID);
+
+			bool isOver = IsCursorOverWindow(hWnd);
+			if (isOver)
+			{
+				ArmMouseLeave(hWnd);
+			}
+			else
+			{
+				SetTransparency(hWnd, m_restingAlpha);
+				RemoveProp(hWnd, "TransparencyHover");
+			}
+			return true;
+		}
+		break;
+
+	case WM_COMMAND:
+	{
+		UINT id = LOWORD(wParam);
+		int alpha = -1;
+		if (id == IDM_OPAQUE)           alpha = 255;
+		else if (id == IDM_NEAR_FULL)   alpha = 191;
+		else if (id == IDM_HALF)        alpha = 128;
+		else if (id == IDM_TRANSPARENT) alpha = 64;
+		else if (id == IDM_FULL_TRANSPARENT) alpha = 1;
+		else
+			return false;
+
+		ApplyTransparency(hWnd, alpha, iniKey);
+		return true;
+	}
+	}
+
+	return false;
 }

@@ -174,5 +174,6 @@ private:
     static POINT m_dragOffset;
     static HWND m_hDragGhost;
     static TargetHighlighter hl;
+    static TransparencyHelper m_transparency;
 };
 

@@ -582,5 +582,7 @@ private:
     std::vector<int> SelectedEvents;
 
     TargetHighlighter hl;
+
+    TransparencyHelper m_transparency;
 };
 

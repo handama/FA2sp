@@ -332,7 +332,7 @@ public:
         SlopeAvoidEdges = 6021,
     };
 
-    static void Create(CTileSetBrowserFrame* pWnd);
+    static void Create(CFinalSunDlg* pWnd);
 
     static HWND GetHandle()
     {
@@ -391,7 +391,7 @@ protected:
 
 private:
     static HWND m_hwnd;
-    static CTileSetBrowserFrame* m_parent;
+    static CFinalSunDlg* m_parent;
     static HWND hTab;
     static HWND hTab1Dlg;
     static HWND hTab2Dlg;
@@ -449,6 +449,7 @@ private:
     static FMap<std::shared_ptr<TerrainGeneratorPreset>> TerrainGeneratorPresets;
     static WNDPROC g_pOriginalTabPageProc;
     static LRESULT CALLBACK TabPageSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+    static TransparencyHelper m_transparency;
 
 public:
     static std::unique_ptr<CINI, GameUniqueDeleter<CINI>> ini;

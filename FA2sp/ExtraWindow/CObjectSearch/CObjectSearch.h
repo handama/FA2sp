@@ -1,13 +1,14 @@
 #pragma once
 
 #include <FA2PP.h>
-#include <CTileSetBrowserFrame.h>
+#include <CFinalSunDlg.h>
 #include <map>
 #include <vector>
 #include <string>
 #include <regex>
 #include <memory>
 #include <CObjectDatas.h>
+#include "../Common.h"
 
 class CTechnoDialog;
 
@@ -22,7 +23,7 @@ public:
     };
     enum FindType { Aircraft = 0, Infantry, Structure, Unit, Terrain };
 
-    static void Create(CTileSetBrowserFrame* pWnd);
+    static void Create(CFinalSunDlg* pWnd);
 
     static HWND GetHandle()
     {
@@ -68,7 +69,7 @@ protected:
 
 private:
     static HWND m_hwnd;
-    static CTileSetBrowserFrame* m_parent;
+    static CFinalSunDlg* m_parent;
     static std::vector<std::pair<std::string, std::regex>> Nodes;
     static std::map<int, FString> Datas;
     static int ListBoxIndex;
@@ -96,6 +97,6 @@ private:
     static bool bScript;
     static bool bTag;
     static bool bAITrigger;
-
+    static TransparencyHelper m_transparency;
 };
 

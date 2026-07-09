@@ -51,6 +51,7 @@ WNDPROC CNewAITrigger::OrigDragDotProc;
 
 int CNewAITrigger::SelectedAITriggerIndex = -1;
 std::unique_ptr<AITrigger> CNewAITrigger::CurrentAITrigger;
+TransparencyHelper CNewAITrigger::m_transparency;
 VirtualComboBoxEx CNewAITrigger::vcbSelectedAITrigger;
 VirtualComboBoxEx CNewAITrigger::vcbTeam[2];
 VirtualComboBoxEx CNewAITrigger::vcbComparisonObject;
@@ -307,10 +308,13 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     case WM_INITDIALOG:
     {
         CNewAITrigger::Initialize(hWnd);
+        m_transparency.Init(hWnd, "AITriggerEditorOpacity");
         return TRUE;
     }	
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "AITriggerEditorOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -494,7 +498,10 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         Update(hWnd);
         return TRUE;
     }
-
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "AITriggerEditorOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler

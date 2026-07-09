@@ -72,4 +72,6 @@ public:
 
     static std::vector<std::pair<FString, FString>> m_DisplayData; 
     static FString m_SearchText; 
+
+    static TransparencyHelper m_transparency;
 };

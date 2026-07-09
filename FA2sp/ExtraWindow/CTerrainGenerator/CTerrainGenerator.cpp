@@ -13,7 +13,7 @@
 #include <queue>
 
 HWND CTerrainGenerator::m_hwnd;
-CTileSetBrowserFrame* CTerrainGenerator::m_parent;
+CFinalSunDlg* CTerrainGenerator::m_parent;
 CINI& CTerrainGenerator::map = CINI::CurrentDocument;
 std::unique_ptr<CINI, GameUniqueDeleter<CINI>> CTerrainGenerator::ini = nullptr;
 MultimapHelper& CTerrainGenerator::rules = Variables::RulesMap;
@@ -74,18 +74,19 @@ FMap<std::shared_ptr<TerrainGeneratorPreset>> CTerrainGenerator::TerrainGenerato
 std::shared_ptr<TerrainGeneratorPreset> CTerrainGenerator::CurrentPreset;
 
 WNDPROC CTerrainGenerator::g_pOriginalTabPageProc = nullptr;
+TransparencyHelper CTerrainGenerator::m_transparency;
 LRESULT CALLBACK CTerrainGenerator::TabPageSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     return DarkTheme::MyCallWindowProcA(g_pOriginalTabPageProc, hWnd, uMsg, wParam, lParam);
 }
 
-void CTerrainGenerator::Create(CTileSetBrowserFrame* pWnd)
+void CTerrainGenerator::Create(CFinalSunDlg* pWnd)
 {
     m_parent = pWnd;
     m_hwnd = CreateDialog(
         static_cast<HINSTANCE>(FA2sp::hInstance),
         MAKEINTRESOURCE(314),
-        pWnd->DialogBar.GetSafeHwnd(),
+        pWnd->GetSafeHwnd(),
         CTerrainGenerator::DlgProc
     );
 
@@ -102,6 +103,12 @@ void CTerrainGenerator::Create(CTileSetBrowserFrame* pWnd)
 
 void CTerrainGenerator::Initialize(HWND& hWnd)
 {
+    RECT rcMain;
+    ::GetWindowRect(m_parent->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd(), &rcMain);
+    int x = rcMain.left;
+    int y = rcMain.top;
+    ::SetWindowPos(hWnd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+
     hTab = GetDlgItem(hWnd, Controls::Tab);
     if (ExtConfigs::EnableDarkMode)
         ::SetWindowSubclass(hTab, DarkTheme::TabCtrlSubclassProc, 0, 0);
@@ -370,7 +377,7 @@ void CTerrainGenerator::Update(HWND& hWnd)
 {
     CurrentPreset = nullptr;
     TerrainGeneratorPresets.clear();
-    HWND hParent = m_parent->DialogBar.GetSafeHwnd();
+    HWND hParent = m_parent->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
     HWND hTileComboBox = GetDlgItem(hParent, 1366);
     int nTileCount = SendMessage(hTileComboBox, CB_GETCOUNT, NULL, NULL);
     char buffer[512] = { 0 };
@@ -449,10 +456,13 @@ BOOL CALLBACK CTerrainGenerator::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPA
     case WM_INITDIALOG:
     {
         CTerrainGenerator::Initialize(hWnd);
+        m_transparency.Init(hWnd, "TerrainGeneratorOpacity");
         return TRUE;
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "TerrainGeneratorOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -545,6 +555,10 @@ BOOL CALLBACK CTerrainGenerator::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPA
         VirtualComboBoxEx::SetWindowHeight(hWnd, lParam);
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "TerrainGeneratorOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler
@@ -744,6 +758,12 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab1(HWND hWnd, UINT Msg, WPARAM wParam,
     {
         return TRUE;
     }
+    case WM_MOUSEMOVE:
+    {
+        if (m_transparency.HandleMessage(m_hwnd, Msg, wParam, lParam, "TerrainGeneratorOpacity"))
+            return TRUE;
+        break;
+    }
     case WM_MEASUREITEM:
     {
         VirtualComboBoxEx::SetWindowHeight(hWnd, lParam);
@@ -855,6 +875,12 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab2(HWND hWnd, UINT Msg, WPARAM wParam,
     case 114514: // used for update
     {
         return TRUE;
+    }
+    case WM_MOUSEMOVE:
+    {
+        if (m_transparency.HandleMessage(m_hwnd, Msg, wParam, lParam, "TerrainGeneratorOpacity"))
+            return TRUE;
+        break;
     }
 
     }
@@ -1054,6 +1080,12 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab3(HWND hWnd, UINT Msg, WPARAM wParam,
     {
         return TRUE;
     }
+    case WM_MOUSEMOVE:
+    {
+        if (m_transparency.HandleMessage(m_hwnd, Msg, wParam, lParam, "TerrainGeneratorOpacity"))
+            return TRUE;
+        break;
+    }
 
     }
     return FALSE;
@@ -1161,6 +1193,12 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab4(HWND hWnd, UINT Msg, WPARAM wParam,
     case 114514: // used for update
     {
         return TRUE;
+    }
+    case WM_MOUSEMOVE:
+    {
+        if (m_transparency.HandleMessage(m_hwnd, Msg, wParam, lParam, "TerrainGeneratorOpacity"))
+            return TRUE;
+        break;
     }
 
     }
@@ -1351,6 +1389,12 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab5(HWND hWnd, UINT Msg, WPARAM wParam,
     case 114514: // used for update
     {
         return TRUE;
+    }
+    case WM_MOUSEMOVE:
+    {
+        if (m_transparency.HandleMessage(m_hwnd, Msg, wParam, lParam, "TerrainGeneratorOpacity"))
+            return TRUE;
+        break;
     }
 
     }

@@ -162,6 +162,7 @@ private:
     static FHashMap<ObjInfo*> tagNameIndex;
     static FHashMap<ObjInfo*> teamNameIndex;
     static HelpDlg hdHelp;
+    static TransparencyHelper m_transparency;
 
 public:
     static std::vector<FString> ListedTriggerIDs;

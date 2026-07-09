@@ -54,6 +54,7 @@ VirtualComboBoxEx CNewHouse::vcbTechLevel;
 VirtualComboBoxEx CNewHouse::vcbBuildActivity;
 
 bool CNewHouse::m_programmaticEdit;
+TransparencyHelper CNewHouse::m_transparency;
 
 void CNewHouse::Create(CFinalSunDlg* pWnd)
 {
@@ -265,10 +266,13 @@ BOOL CALLBACK CNewHouse::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPar
     case WM_INITDIALOG:
     {
         CNewHouse::Initialize(hWnd);
+        m_transparency.Init(hWnd, "HouseEditorOpacity");
         return TRUE;
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "HouseEditorOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -375,6 +379,10 @@ BOOL CALLBACK CNewHouse::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPar
         VirtualComboBoxEx::SetWindowHeight(hWnd, lParam);
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "HouseEditorOpacity"))
+            return TRUE;
+        break;
     }
 
     return FALSE;

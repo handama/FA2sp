@@ -43,6 +43,7 @@ WNDPROC CCsfEditor::g_pOriginalListViewProc = nullptr;
 
 std::vector<std::pair<FString, FString>> CCsfEditor::m_DisplayData;
 FString CCsfEditor::m_SearchText;
+TransparencyHelper CCsfEditor::m_transparency;
 
 void CCsfEditor::Create(CFinalSunDlg* pWnd)
 {
@@ -203,10 +204,13 @@ BOOL CALLBACK CCsfEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
     case WM_INITDIALOG:
     {
         CCsfEditor::Initialize(hWnd);
+        m_transparency.Init(hWnd, "CsfEditorOpacity");
         return TRUE;
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "CsfEditorOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -315,6 +319,10 @@ BOOL CALLBACK CCsfEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
         Update(hWnd);
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "CsfEditorOpacity"))
+            return TRUE;
+        break;
     }
 
     return FALSE;

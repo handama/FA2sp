@@ -8,9 +8,13 @@
 #include "../CFinalSunDlg/Body.h"
 #include "../CLoading/Body.h"
 
+TransparencyHelper CLightingExt::m_transparency;
+
 void CLightingExt::ProgramStartupInit()
 {
 	RunTime::ResetMemoryContentAt(0x594788, &CLightingExt::PreTranslateMessageExt);
+	RunTime::ResetMemoryContentAt(0x594770, &CLightingExt::OnCommandExt);
+	RunTime::ResetMemoryContentAt(0x5947B4, &CLightingExt::OnInitDialogExt);
 }
 
 void CLightingExt::Translate()
@@ -52,6 +56,8 @@ void CLightingExt::Translate()
 
 BOOL CLightingExt::PreTranslateMessageExt(MSG* pMsg)
 {
+	if (m_transparency.HandleMessage(GetSafeHwnd(), pMsg->message, pMsg->wParam, pMsg->lParam, "LightingOpacity"))
+		return TRUE;
 	if (pMsg->message == WM_KEYUP)
 	{
 		bool edited = false;
@@ -109,4 +115,29 @@ BOOL CLightingExt::PreTranslateMessageExt(MSG* pMsg)
 		}
 	}
 	return this->ppmfc::CDialog::PreTranslateMessage(pMsg);
+}
+
+BOOL CLightingExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
+{
+	WORD nID = LOWORD(wParam);
+	int alpha = -1;
+	if (nID == TransparencyHelper::IDM_OPAQUE)           alpha = 255;
+	else if (nID == TransparencyHelper::IDM_NEAR_FULL)   alpha = 191;
+	else if (nID == TransparencyHelper::IDM_HALF)        alpha = 128;
+	else if (nID == TransparencyHelper::IDM_TRANSPARENT) alpha = 64;
+	else if (nID == TransparencyHelper::IDM_FULL_TRANSPARENT) alpha = 1;
+
+	if (alpha != -1) {
+		m_transparency.ApplyTransparency(GetSafeHwnd(), alpha, "LightingOpacity");
+		return TRUE;
+	}
+
+	return this->ppmfc::CDialog::OnCommand(wParam, lParam);
+}
+
+BOOL CLightingExt::OnInitDialogExt(void)
+{
+	m_transparency.Init(GetSafeHwnd(), "LightingOpacity");
+	Translate();
+	return this->ppmfc::CDialog::OnInitDialog();
 }

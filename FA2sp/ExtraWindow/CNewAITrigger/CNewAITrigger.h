@@ -273,4 +273,5 @@ private:
 
     static int SelectedAITriggerIndex;
     static std::unique_ptr<AITrigger> CurrentAITrigger;
+    static TransparencyHelper m_transparency;
 };

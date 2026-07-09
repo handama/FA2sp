@@ -9,6 +9,7 @@
 #include "../../Ext/CMapData/Body.h"
 
 CMeasurementToolbox* CMeasurementToolbox::m_pMeasurementToolbox = nullptr;
+TransparencyHelper CMeasurementToolbox::m_transparency;
 
 void CMeasurementToolbox::ShowMeasurementToolbox()
 {
@@ -70,6 +71,8 @@ BOOL CMeasurementToolbox::OnInitDialog()
 	if (Translations::GetTranslationItem("MeasurementToolboxCaption", buffer))
 		SetWindowTextA(buffer);
 
+	m_transparency.Init(GetSafeHwnd(), "MeasurementToolboxOpacity");
+
 	return TRUE;
 }
 
@@ -77,6 +80,19 @@ BOOL CMeasurementToolbox::OnCommand(WPARAM wParam, LPARAM lParam)
 {
     WORD nID = LOWORD(wParam);
     WORD nNotify = HIWORD(wParam);
+
+    // Handle transparency menu commands
+    int alpha = -1;
+    if (nID == TransparencyHelper::IDM_OPAQUE)           alpha = 255;
+    else if (nID == TransparencyHelper::IDM_NEAR_FULL)   alpha = 191;
+    else if (nID == TransparencyHelper::IDM_HALF)        alpha = 128;
+    else if (nID == TransparencyHelper::IDM_TRANSPARENT) alpha = 64;
+    else if (nID == TransparencyHelper::IDM_FULL_TRANSPARENT) alpha = 1;
+
+    if (alpha != -1) {
+        m_transparency.ApplyTransparency(GetSafeHwnd(), alpha, "MeasurementToolboxOpacity");
+        return TRUE;
+    }
 
     if (nNotify == BN_CLICKED)
     {
@@ -134,6 +150,13 @@ BOOL CMeasurementToolbox::OnCommand(WPARAM wParam, LPARAM lParam)
 	}
 
     return CDialog::OnCommand(wParam, lParam);
+}
+
+BOOL CMeasurementToolbox::PreTranslateMessage(MSG* pMsg)
+{
+    if (m_transparency.HandleMessage(GetSafeHwnd(), pMsg->message, pMsg->wParam, pMsg->lParam, "MeasurementToolboxOpacity"))
+        return TRUE;
+    return CDialog::PreTranslateMessage(pMsg);
 }
 
 void CMeasurementToolbox::DoDataExchange(ppmfc::CDataExchange* pDX)

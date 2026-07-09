@@ -93,4 +93,5 @@ private:
     static TargetHighlighter hl;
     static bool m_programmaticEdit;
     static bool m_disableRepeatSearch;
+    static TransparencyHelper m_transparency;
 };

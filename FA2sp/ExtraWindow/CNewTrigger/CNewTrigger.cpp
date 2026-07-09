@@ -1570,6 +1570,7 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
         self->WindowShown = false;
         self->m_hwnd = hWnd;
         SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)self);
+        self->m_transparency.Init(hWnd, "TriggerEditorOpacity");
         return TRUE;
     }
     else if (Msg == WM_MEASUREITEM)
@@ -1586,6 +1587,32 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
 
 BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
+    // Transparency commands propagate to all 10 instances
+    if (Msg == WM_COMMAND)
+    {
+        UINT id = LOWORD(wParam);
+        int alpha = -1;
+        if (id == TransparencyHelper::IDM_OPAQUE)           alpha = 255;
+        else if (id == TransparencyHelper::IDM_NEAR_FULL)   alpha = 191;
+        else if (id == TransparencyHelper::IDM_HALF)        alpha = 128;
+        else if (id == TransparencyHelper::IDM_TRANSPARENT) alpha = 64;
+        else if (id == TransparencyHelper::IDM_FULL_TRANSPARENT) alpha = 1;
+
+        if (alpha != -1)
+        {
+            for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; i++)
+            {
+                if (Instance[i].m_hwnd)
+                    Instance[i].m_transparency.ApplyTransparency(
+                        Instance[i].m_hwnd, alpha, "TriggerEditorOpacity");
+            }
+            return TRUE;
+        }
+    }
+
+    if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "TriggerEditorOpacity"))
+        return TRUE;
+
     switch (Msg)
     {
     case WM_ACTIVATE:

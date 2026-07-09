@@ -56,6 +56,7 @@ TargetHighlighter CNewTag::hl;
 bool CNewTag::m_programmaticEdit;
 bool CNewTag::m_disableRepeatSearch;
 bool CNewTag::TriggerListChanged;
+TransparencyHelper CNewTag::m_transparency;
 static constexpr int DRAG_THRESHOLD = 4;
 static int TempCommand = 0;
 static int TempType = 0;
@@ -662,10 +663,13 @@ BOOL CALLBACK CNewTag::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam
     case WM_INITDIALOG:
     {
         CNewTag::Initialize(hWnd);
+        m_transparency.Init(hWnd, "TagEditorOpacity");
         return TRUE;
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "TagEditorOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -737,6 +741,10 @@ BOOL CALLBACK CNewTag::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam
         VirtualComboBoxEx::SetWindowHeight(hWnd, lParam);
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "TagEditorOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler

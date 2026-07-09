@@ -91,6 +91,7 @@ POINT CNewTeamTypes::m_dragOffset{};
 HWND CNewTeamTypes::m_hDragGhost = nullptr;
 HWND CNewTeamTypes::hDragPoint = nullptr;
 TargetHighlighter CNewTeamTypes::hl;
+TransparencyHelper CNewTeamTypes::m_transparency;
 
 void CNewTeamTypes::Create(CFinalSunDlg* pWnd)
 {
@@ -812,10 +813,13 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     case WM_INITDIALOG:
     {
         CNewTeamTypes::Initialize(hWnd);
+        m_transparency.Init(hWnd, "TeamTypesEditorOpacity");
         return TRUE;
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "TeamTypesEditorOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -1065,6 +1069,10 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         VirtualComboBoxEx::SetWindowHeight(hWnd, lParam);
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "TeamTypesEditorOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler

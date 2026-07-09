@@ -50,6 +50,7 @@ void __stdcall FA2Expand::ExeRun()
     CLightingExt::ProgramStartupInit();
     CCreateMap3BExt::ProgramStartupInit();
     CMapValidatorExt::ProgramStartupInit();
+    CMapDExt::ProgramStartupInit();
     //CIsoViewExt::ProgramStartupInit();
     // CProperty* dialogs migrated to CNewProperty* (ExtraWindow), vtable patching no longer needed
     // CPropertyAircraftExt::ProgramStartupInit();

@@ -10,7 +10,7 @@
 #include <CFinalSunApp.h>
 
 HWND CTileManager::m_hwnd;
-CTileSetBrowserFrame* CTileManager::m_parent;
+CFinalSunDlg* CTileManager::m_parent;
 std::vector<std::pair<FString, std::regex>> CTileManager::Nodes;
 std::vector<std::vector<int>> CTileManager::Datas;
 int CTileManager::origWndWidth;
@@ -18,14 +18,15 @@ int CTileManager::origWndHeight;
 int CTileManager::minWndWidth;
 int CTileManager::minWndHeight;
 bool CTileManager::minSizeSet;
+TransparencyHelper CTileManager::m_transparency;
 
-void CTileManager::Create(CTileSetBrowserFrame* pWnd)
+void CTileManager::Create(CFinalSunDlg* pWnd)
 {
     m_parent = pWnd;
     m_hwnd = CreateDialog(
         static_cast<HINSTANCE>(FA2sp::hInstance),
         MAKEINTRESOURCE(301),
-        pWnd->DialogBar.GetSafeHwnd(),
+        pWnd->GetSafeHwnd(),
         CTileManager::DlgProc
     );
     if (m_hwnd)
@@ -40,6 +41,12 @@ void CTileManager::Create(CTileSetBrowserFrame* pWnd)
 
 void CTileManager::Initialize(HWND& hWnd)
 {
+    RECT rcMain;
+    ::GetWindowRect(m_parent->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd(), &rcMain);
+    int x = rcMain.left;
+    int y = rcMain.top;
+    ::SetWindowPos(hWnd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+
     FString buffer;
     if (Translations::GetTranslationItem("TileManagerTitle", buffer))
         SetWindowText(hWnd, buffer);
@@ -108,6 +115,7 @@ BOOL CALLBACK CTileManager::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM l
     case WM_INITDIALOG:
     {
         CTileManager::Initialize(hwnd);
+        m_transparency.Init(hwnd, "TileManagerOpacity");
         RECT rect;
         GetClientRect(hwnd, &rect);
         origWndWidth = rect.right - rect.left;
@@ -158,6 +166,8 @@ BOOL CALLBACK CTileManager::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM l
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hwnd, Msg, wParam, lParam, "TileManagerOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -191,6 +201,10 @@ BOOL CALLBACK CTileManager::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM l
 
         UpdateTypes(hwnd);
     }
+    default:
+        if (m_transparency.HandleMessage(hwnd, Msg, wParam, lParam, "TileManagerOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler
@@ -219,7 +233,7 @@ void CTileManager::DetailsProc(HWND hWnd, WORD nCode, LPARAM lParam)
     if (SendMessage(hListBox, LB_GETCOUNT, NULL, NULL) <= 0)
         return;
 
-    HWND hParent = m_parent->DialogBar.GetSafeHwnd();
+    HWND hParent = m_parent->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
     HWND hTileComboBox = GetDlgItem(hParent, 1366);
 
     switch (nCode)
@@ -247,7 +261,7 @@ void CTileManager::DetailsProc(HWND hWnd, WORD nCode, LPARAM lParam)
 
 void CTileManager::UpdateTypes(HWND hWnd)
 {
-    HWND hParent = m_parent->DialogBar.GetSafeHwnd();
+    HWND hParent = m_parent->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
     HWND hTileComboBox = GetDlgItem(hParent, 1366);
     int nTileCount = SendMessage(hTileComboBox, CB_GETCOUNT, NULL, NULL);
     if (nTileCount <= 0)
@@ -292,7 +306,7 @@ void CTileManager::UpdateTypes(HWND hWnd)
 
 void CTileManager::UpdateDetails(HWND hWnd, int kNode)
 {
-    HWND hParent = m_parent->DialogBar.GetSafeHwnd();
+    HWND hParent = m_parent->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
     HWND hTileComboBox = GetDlgItem(hParent, 1366);
     HWND hTileDetails = GetDlgItem(hWnd, 6101);
     while (SendMessage(hTileDetails, LB_DELETESTRING, 0, NULL) != LB_ERR);

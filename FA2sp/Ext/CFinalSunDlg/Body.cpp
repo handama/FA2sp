@@ -1297,6 +1297,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CViewObjectsExt::InitPropertyDlgFromProperty = true;
 			if (CViewObjectsExt::DoPropertyBrush_Building())
 			{
+				CViewObjectsExt::InitializeOnUpdateEngine();
 				CIsoView::CurrentCommand->Command = 0x17;
 				CIsoView::CurrentCommand->Type = CViewObjectsExt::Set_Building;
 			}
@@ -1314,6 +1315,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CViewObjectsExt::InitPropertyDlgFromProperty = true;
 			if (CViewObjectsExt::DoPropertyBrush_Infantry())
 			{
+				CViewObjectsExt::InitializeOnUpdateEngine();
 				CIsoView::CurrentCommand->Command = 0x17;
 				CIsoView::CurrentCommand->Type = CViewObjectsExt::Set_Infantry;
 			}
@@ -1331,6 +1333,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CViewObjectsExt::InitPropertyDlgFromProperty = true;
 			if (CViewObjectsExt::DoPropertyBrush_Vehicle())
 			{
+				CViewObjectsExt::InitializeOnUpdateEngine();
 				CIsoView::CurrentCommand->Command = 0x17;
 				CIsoView::CurrentCommand->Type = CViewObjectsExt::Set_Vehicle;
 			}
@@ -1348,6 +1351,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CViewObjectsExt::InitPropertyDlgFromProperty = true;
 			if (CViewObjectsExt::DoPropertyBrush_Aircraft())
 			{
+				CViewObjectsExt::InitializeOnUpdateEngine();
 				CIsoView::CurrentCommand->Command = 0x17;
 				CIsoView::CurrentCommand->Type = CViewObjectsExt::Set_Aircraft;
 			}
@@ -1366,6 +1370,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			TechnoDialog = std::make_unique<CTechnoDialog>();
 			if (TechnoDialog->DoModal() == IDOK)
 			{
+				CViewObjectsExt::InitializeOnUpdateEngine();
 				CIsoView::CurrentCommand->Command = 0x17;
 				CIsoView::CurrentCommand->Type = CViewObjectsExt::Set_Count;
 			}
@@ -1379,6 +1384,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 		else
 		{
+			CViewObjectsExt::InitializeOnUpdateEngine();
 			CIsoView::CurrentCommand->Command = 1;
 			CIsoView::CurrentCommand->Type = 6;
 			CIsoView::CurrentCommand->Param = 1;
@@ -1392,6 +1398,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 		else
 		{
+			CViewObjectsExt::InitializeOnUpdateEngine();
 			CIsoView::CurrentCommand->Command = 0x2; // delete
 			CIsoView::CurrentCommand->Type = 0;
 		}
@@ -1404,6 +1411,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 		else
 		{
+			CViewObjectsExt::InitializeOnUpdateEngine();
 			CIsoView::CurrentCommand->Command = 0x1B; // view object
 			CIsoView::CurrentCommand->Type = CViewObjectsExt::ObjectTerrainType::All;
 		}

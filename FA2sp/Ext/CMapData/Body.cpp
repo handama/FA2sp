@@ -615,7 +615,7 @@ void CMapDataExt::ProcessBuildingType(const char* ID)
 
 	// https://modenc.renegadeprojects.com/Foundation
 	// This flag is read from art(md).ini twice: 
-	// from section you specified in rules as [object]��Image, 
+	// from section you specified in rules as [object]Image, 
 	// and from simply [object] , 
 	// and the second one overrules the first if present. 
 	// however, ares's custom foundation doesn't have this bug.
@@ -1862,14 +1862,14 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 	}
 
 	static std::vector<std::pair<int, int>> directions = {
-	{1, 0},   // 0��
-	{1, 1},   // 45��
-	{0, 1},   // 90��
-	{-1, 1},  // 135��
-	{-1, 0},  // 180��
-	{-1, -1}, // 225��
-	{0, -1},  // 270��
-	{1, -1}   // 315��
+	{1, 0},   // 0
+	{1, 1},   // 45
+	{0, 1},   // 90
+	{-1, 1},  // 135
+	{-1, 0},  // 180
+	{-1, -1}, // 225
+	{0, -1},  // 270
+	{1, -1}   // 315
 	};
 
 	int height = cell->Height;
@@ -1994,10 +1994,10 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 			if (getE() > 1) return getIndex(15);
 			if (getN() > 0 && getS() > 0 && getNE() == 0 && getNW() == 0 && getSE() == 0 && getSW() == 0) return getIndex(17);
 			if (getE() > 0 && getW() > 0 && getNE() == 0 && getNW() == 0 && getSE() == 0 && getSW() == 0) return getIndex(16);
-			if (getSW() > 0 && getSE() > 0 && getN() <= 0) return getIndex(8);
-			if (getNW() > 0 && getSW() > 0 && getE() <= 0) return getIndex(9);
-			if (getNW() > 0 && getNE() > 0 && getS() <= 0) return getIndex(10);
-			if (getNE() > 0 && getSE() > 0 && getW() <= 0) return getIndex(11);
+			if (getSW() > 0 && getSE() > 0 && getN() <= 0 && getNW() <= 0 && getNE() <= 0) return getIndex(8);
+			if (getNW() > 0 && getSW() > 0 && getE() <= 0 && getNE() <= 0 && getSE() <= 0) return getIndex(9);
+			if (getNW() > 0 && getNE() > 0 && getS() <= 0 && getSW() <= 0 && getSE() <= 0) return getIndex(10);
+			if (getNE() > 0 && getSE() > 0 && getW() <= 0 && getNW() <= 0 && getSW() <= 0) return getIndex(11);
 
 			for (int i = 0; i < 8; ++i)
 			{
@@ -2011,29 +2011,29 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 					auto cellB = CMapData::Instance->GetCellAt(x + coordB.first, y + coordB.second);
 					if (cellA->Height > height && cellB->Height > height)
 					{
-						if (getSW() > 0 && getE() > 0) return getIndex(8);
-						if (getSE() > 0 && getW() > 0) return getIndex(8);
+						if (getSW() > 0 && getE() > 0 && getN() <= 0 && getNW() <= 0 && getNE() <= 0) return getIndex(8);
+						if (getSE() > 0 && getW() > 0 && getN() <= 0 && getNW() <= 0 && getNE() <= 0) return getIndex(8);
 
-						if (getNW() > 0 && getS() > 0) return getIndex(9);
-						if (getSW() > 0 && getN() > 0) return getIndex(9);
+						if (getNW() > 0 && getS() > 0 && getE() <= 0 && getNE() <= 0 && getSE() <= 0) return getIndex(9);
+						if (getSW() > 0 && getN() > 0 && getE() <= 0 && getNE() <= 0 && getSE() <= 0) return getIndex(9);
 
-						if (getNE() > 0 && getW() > 0) return getIndex(10);
-						if (getNW() > 0 && getE() > 0) return getIndex(10);
+						if (getNE() > 0 && getW() > 0 && getS() <= 0 && getSW() <= 0 && getSE() <= 0) return getIndex(10);
+						if (getNW() > 0 && getE() > 0 && getS() <= 0 && getSW() <= 0 && getSE() <= 0) return getIndex(10);
 
-						if (getNE() > 0 && getS() > 0) return getIndex(11);
-						if (getSE() > 0 && getN() > 0) return getIndex(11);
+						if (getNE() > 0 && getS() > 0 && getW() <= 0 && getNW() <= 0 && getSW() <= 0) return getIndex(11);
+						if (getSE() > 0 && getN() > 0 && getW() <= 0 && getNW() <= 0 && getSW() <= 0) return getIndex(11);
 					}
 				}
 			}
 
-			if (getSE() > 0) return getIndex(0);
-			if (getSW() > 0) return getIndex(1);
-			if (getNW() > 0) return getIndex(2);
-			if (getNE() > 0) return getIndex(3);
-			if (getS() > 0) return getIndex(4);
-			if (getW() > 0) return getIndex(5);
-			if (getN() > 0) return getIndex(6);
-			if (getE() > 0) return getIndex(7);
+			if (getSE() > 0 && getNW() <= 0) return getIndex(0);
+			if (getSW() > 0 && getNE() <= 0) return getIndex(1);
+			if (getNW() > 0 && getSE() <= 0) return getIndex(2);
+			if (getNE() > 0 && getSW() <= 0) return getIndex(3);
+			if (getS() > 0&& getN() <= 0) return getIndex(4);
+			if (getW() > 0&& getE() <= 0) return getIndex(5);
+			if (getN() > 0&& getS() <= 0) return getIndex(6);
+			if (getE() > 0&& getW() <= 0) return getIndex(7);
 			return flatTile;
 		};
 
@@ -3984,7 +3984,7 @@ bool CMapDataExt::CellCannotDrag(int x, int y)
 
 bool CMapDataExt::IsHiddenCell(CellData* pCell)
 {
-    return pCell->Flag.IsHiddenCell || (*CTileTypeClass::Instance)[GetSafeTileIndex(pCell->TileIndex)].IsHidden;
+    return pCell->Flag.IsHiddenCell || (*CTileTypeClass::Instance)[pCell->TileIndex > TileDataCount ? 0 : pCell->TileIndex].IsHidden;
 }
 
 void CustomTileBlock::SetTileBlock(int tile, int subtile, int height)

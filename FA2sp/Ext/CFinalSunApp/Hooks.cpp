@@ -67,9 +67,17 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
             }       
         }
         else
-        {					
-            ScreenToClient(CIsoView::GetInstance()->GetSafeHwnd(), &pt);
-            CIsoView::GetInstance()->OnMouseMove(0, pt);
+        {		
+            switch (lpMsg->wParam)
+            {
+            case VK_LEFT:
+            case VK_RIGHT:
+            case VK_UP:
+            case VK_DOWN:
+                ScreenToClient(CIsoView::GetInstance()->GetSafeHwnd(), &pt);
+                CIsoView::GetInstance()->OnMouseMove(0, pt);
+            break;
+            }			
         }
     }
     else

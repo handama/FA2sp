@@ -4322,7 +4322,9 @@ void TransparencyHelper::Init(HWND hWnd, const char* iniKey)
 	dwEx |= WS_EX_LAYERED;
 	::SetWindowLong(hWnd, GWL_EXSTYLE, dwEx);
 	::SetLayeredWindowAttributes(hWnd, 0, opacity, LWA_ALPHA);
-	m_restingAlpha = opacity;
+	::SetWindowPos(hWnd, NULL, 0, 0, 0, 0,
+		SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+        m_restingAlpha = opacity;
 
 	if (opacity < 255)
 		ArmMouseLeave(hWnd);

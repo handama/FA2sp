@@ -57,7 +57,7 @@ public:
         TurnToScript = 1501,
         TurnToTag = 1502,
         SearchReference = 1999,
-        DragPoint = 2001
+        DragPoint = 2001,
     };
 
     static void Create(CFinalSunDlg* pWnd);

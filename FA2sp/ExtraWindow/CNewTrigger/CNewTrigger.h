@@ -334,6 +334,19 @@ private:
 };
 
 // A window class
+enum class ParamType : int
+{
+    None = 0,
+    CSF,
+    Team,
+    Trigger,
+    Tag,
+    Taskforce,
+    Script,
+    AITrigger,
+    Waypoint
+};
+
 class CNewTrigger
 {
 public:
@@ -388,6 +401,14 @@ public:
         ActionMoveUp = 2003,
         ActionMoveDown = 2004,
         ActionSplit = 2005,
+        ActionJump1 = 2006,
+        ActionJump2 = 2007,
+        ActionJump3 = 2008,
+        ActionJump4 = 2009,
+        ActionJump5 = 2010,
+        ActionJump6 = 2011,
+        EventJump1 = 2012,
+        EventJump2 = 2013,
     };
 
     void Create(CFinalSunDlg* pWnd);
@@ -425,6 +446,7 @@ protected:
     void OnClickSearchReference(HWND& hWnd);
     void OnClickActionMove(HWND& hWnd, bool isUp);
     void OnClickActionSplit(HWND& hWnd);
+    void OnClickParamJump(bool isEvent, int index);
 
     void OnSelchangeHouse(bool edited = false);
     void OnSelchangeType(bool edited = false);
@@ -518,6 +540,8 @@ public:
     HWND hActionSplit;
     HWND hActionParameter[ACTION_PARAM_COUNT];
     HWND hActionParameterDesc[ACTION_PARAM_COUNT];
+    HWND hActionJump[ACTION_PARAM_COUNT];
+    HWND hEventJump[EVENT_PARAM_COUNT];
 
     VirtualComboBoxEx vcbSelectedTrigger;
     VirtualComboBoxEx vcbAttachedTrigger;
@@ -527,12 +551,8 @@ public:
     VirtualComboBoxEx vcbEventParameter[EVENT_PARAM_COUNT];
     VirtualComboBoxEx vcbActionParameter[ACTION_PARAM_COUNT];
 
-    int CurrentCSFActionParam = -1;
-    int CurrentTriggerActionParam = -1;
-    int CurrentTeamActionParam = -1;
-    int CurrentCSFEventParam = -1;
-    int CurrentTeamEventParam = -1;
-    int CurrentTriggerEventParam = -1;
+    ParamType ActionParamType[ACTION_PARAM_COUNT];
+    ParamType EventParamType[EVENT_PARAM_COUNT];
     static std::vector<ParamAffectedParams> ActionParamAffectedParams;
     static std::vector<ParamAffectedParams> EventParamAffectedParams;
     bool ActionParamUsesFloat;

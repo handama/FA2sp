@@ -249,6 +249,7 @@
     <ClCompile Include="FA2sp\ExtraWindow\CNewPropertyBuilding\CNewPropertyBuilding.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewPropertyInfantry\CNewPropertyInfantry.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewPropertyUnit\CNewPropertyUnit.cpp" />
+    <ClCompile Include="FA2sp\Ext\CAITriggerTypesEnable\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CBasic\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CChangeMapSize\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CCreateMap2\Hooks.cpp" />
@@ -414,6 +415,7 @@
     <ClInclude Include="FA2sp\ExtraWindow\CNewPropertyBuilding\CNewPropertyBuilding.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewPropertyInfantry\CNewPropertyInfantry.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewPropertyUnit\CNewPropertyUnit.h" />
+    <ClInclude Include="FA2sp\Ext\CAITriggerTypesEnable\Body.h" />
     <ClInclude Include="FA2sp\Ext\CCreateMap3B\Body.h" />
     <ClInclude Include="FA2sp\Ext\CCredits\Body.h" />
     <ClInclude Include="FA2sp\Ext\CFinalSunApp\Body.h" />

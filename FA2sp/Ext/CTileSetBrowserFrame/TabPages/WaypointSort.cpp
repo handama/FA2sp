@@ -361,16 +361,12 @@ BOOL WaypointSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
             bool Success = false;
             if (strlen(pID) && ExtConfigs::InitializeMap)
             {
-                auto pSection = CINI::CurrentDocument->GetSection("Waypoints");
-                if (pSection->GetEntities().find(pID) != pSection->GetEntities().end())
+                if (auto pCord = CINI::CurrentDocument->TryGetString("Waypoints", pID))
                 {
-                    if (auto pCord = CINI::CurrentDocument->GetString("Waypoints", pID))
+                    auto second = atoi(*pCord);
+                    if (second > 0)
                     {
-                        auto second = atoi(pCord);
-                        if (second > 0)
-                        {
-                            CObjectSearch::MoveToMapCoord(second / 1000, second % 1000);
-                        }
+                        CObjectSearch::MoveToMapCoord(second / 1000, second % 1000);
                     }
                 }
                 if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))

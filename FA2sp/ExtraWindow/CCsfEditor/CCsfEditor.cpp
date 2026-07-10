@@ -39,6 +39,7 @@ FString CCsfEditor::CurrentSelectedCSF;
 FString CCsfEditor::CurrentSelectedCSFApply;
 bool CCsfEditor::NeedUpdate = false;
 int CCsfEditor::TriggerCaller = 0;
+int CCsfEditor::TriggerParamIndex = -1;
 WNDPROC CCsfEditor::g_pOriginalListViewProc = nullptr;
 
 std::vector<std::pair<FString, FString>> CCsfEditor::m_DisplayData;
@@ -356,26 +357,23 @@ void CCsfEditor::OnClickApply()
     if (CurrentSelectedCSFApply.IsEmpty())
         return;
 
-    if (IsWindowVisible(CNewTrigger::Instance[TriggerCaller].GetHandle())
-        && CNewTrigger::Instance[TriggerCaller].CurrentCSFActionParam >= 0)
-    {
-        FString text;
-        auto it = CurrentCSFMap.find(CurrentSelectedCSFApply);
-        if (it != CurrentCSFMap.end())
-            text.Format("%s - %s", CurrentSelectedCSFApply, CurrentCSFMap[CurrentSelectedCSFApply]);
-        SendMessage(CNewTrigger::Instance[TriggerCaller].hActionParameter[CNewTrigger::Instance[TriggerCaller].CurrentCSFActionParam], WM_SETTEXT, 0, (LPARAM)(LPCSTR)text);
-        CNewTrigger::Instance[TriggerCaller].OnSelchangeActionParam(CNewTrigger::Instance[TriggerCaller].CurrentCSFActionParam, true);
-    }
-    else if (IsWindowVisible(CNewTrigger::Instance[0].GetHandle())
-        && CNewTrigger::Instance[0].CurrentCSFActionParam >= 0)
-    {
-        FString text;
-        auto it = CurrentCSFMap.find(CurrentSelectedCSFApply);
-        if (it != CurrentCSFMap.end())
-            text.Format("%s - %s", CurrentSelectedCSFApply, CurrentCSFMap[CurrentSelectedCSFApply]);
-        SendMessage(CNewTrigger::Instance[0].hActionParameter[CNewTrigger::Instance[0].CurrentCSFActionParam], WM_SETTEXT, 0, (LPARAM)(LPCSTR)text);
-        CNewTrigger::Instance[0].OnSelchangeActionParam(CNewTrigger::Instance[0].CurrentCSFActionParam, true);
-    }
+    auto applyToInstance = [&](CNewTrigger& instance) {
+        if (TriggerParamIndex >= 0 && TriggerParamIndex < ACTION_PARAM_COUNT
+            && instance.ActionParamType[TriggerParamIndex] == ParamType::CSF)
+        {
+            FString text;
+            auto it = CurrentCSFMap.find(CurrentSelectedCSFApply);
+            if (it != CurrentCSFMap.end())
+                text.Format("%s - %s", CurrentSelectedCSFApply, CurrentCSFMap[CurrentSelectedCSFApply]);
+            SendMessage(instance.hActionParameter[TriggerParamIndex], WM_SETTEXT, 0, (LPARAM)(LPCSTR)text);
+            instance.OnSelchangeActionParam(TriggerParamIndex, true);
+        }
+    };
+
+    if (IsWindowVisible(CNewTrigger::Instance[TriggerCaller].GetHandle()))
+        applyToInstance(CNewTrigger::Instance[TriggerCaller]);
+    else if (IsWindowVisible(CNewTrigger::Instance[0].GetHandle()))
+        applyToInstance(CNewTrigger::Instance[0]);
 }
 
 void CCsfEditor::OnEditchangeSearch()

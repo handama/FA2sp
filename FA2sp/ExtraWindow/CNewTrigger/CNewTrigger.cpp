@@ -16,6 +16,7 @@
 #include "../../Ext/CTileSetBrowserFrame/TabPages/TriggerSort.h"
 #include "../../Ext/CTileSetBrowserFrame/TabPages/TagSort.h"
 #include "../CNewScript/CNewScript.h"
+#include "../CNewTaskforce/CNewTaskforce.h"
 #include <numeric>
 #include "../CSearhReference/CSearhReference.h"
 #include "../CBatchTrigger/CBatchTrigger.h"
@@ -241,6 +242,23 @@ void CNewTrigger::Initialize(HWND& hWnd)
     hActionParameterDesc[3] = GetDlgItem(hWnd, Controls::ActionParameter4Desc);
     hActionParameterDesc[4] = GetDlgItem(hWnd, Controls::ActionParameter5Desc);
     hActionParameterDesc[5] = GetDlgItem(hWnd, Controls::ActionParameter6Desc);
+    hActionJump[0] = GetDlgItem(hWnd, Controls::ActionJump1);
+    hActionJump[1] = GetDlgItem(hWnd, Controls::ActionJump2);
+    hActionJump[2] = GetDlgItem(hWnd, Controls::ActionJump3);
+    hActionJump[3] = GetDlgItem(hWnd, Controls::ActionJump4);
+    hActionJump[4] = GetDlgItem(hWnd, Controls::ActionJump5);
+    hActionJump[5] = GetDlgItem(hWnd, Controls::ActionJump6);
+    hEventJump[0] = GetDlgItem(hWnd, Controls::EventJump1);
+    hEventJump[1] = GetDlgItem(hWnd, Controls::EventJump2);
+    ShowWindow(hEventJump[0], FALSE);
+    ShowWindow(hEventJump[1], FALSE);
+    ShowWindow(hActionJump[0], FALSE);
+    ShowWindow(hActionJump[1], FALSE);
+    ShowWindow(hActionJump[2], FALSE);
+    ShowWindow(hActionJump[3], FALSE);
+    ShowWindow(hActionJump[4], FALSE);
+    ShowWindow(hActionJump[5], FALSE);
+
     hSearchReference = GetDlgItem(hWnd, Controls::SearchReference);
     hOpenNewEditor = GetDlgItem(hWnd, Controls::OpenNewEditor);
     hDragPoint = GetDlgItem(hWnd, Controls::DragPoint);
@@ -588,11 +606,14 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
                             index = pThis->vcbAttachedTrigger.FindStringExactStart(textStart);
                             pThis->vcbAttachedTrigger.SetItemColors(index, cc.rgbResult);
 
-                            if (pThis->CurrentTriggerActionParam > -1)
+                            for (int j = 0; j < ACTION_PARAM_COUNT; j++)
                             {
-                                auto& actionParam = pThis->vcbActionParameter[pThis->CurrentTriggerActionParam];
-                                index = actionParam.FindStringExactStart(textStart);
-                                actionParam.SetItemColors(index, cc.rgbResult);
+                                if (pThis->ActionParamType[j] == ParamType::Trigger)
+                                {
+                                    auto& actionParam = pThis->vcbActionParameter[j];
+                                    index = actionParam.FindStringExactStart(textStart);
+                                    actionParam.SetItemColors(index, cc.rgbResult);
+                                }
                             }
                         }
                     }
@@ -1798,16 +1819,19 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                             pThis->vcbAttachedTrigger.SetEditText(newName);
                         }
 
-                        if (pThis->CurrentTriggerActionParam > -1)
+                        for (int j = 0; j < ACTION_PARAM_COUNT; j++)
                         {
-                            auto& actionParam = pThis->vcbActionParameter[pThis->CurrentTriggerActionParam];
-                            FString actionID = actionParam.GetEditText();
-                            FString::TrimIndex(actionID);
-                            int index = actionParam.FindStringExactStart(IDStart);
-                            actionParam.ReplaceString(index, newName, ExtraWindow::GetTriggerColor(CurrentTrigger->ID));
-                            if (actionID == CurrentTrigger->ID)
+                            if (pThis->ActionParamType[j] == ParamType::Trigger)
                             {
-                                actionParam.SetEditText(newName);
+                                auto& actionParam = pThis->vcbActionParameter[j];
+                                FString actionID = actionParam.GetEditText();
+                                FString::TrimIndex(actionID);
+                                int index = actionParam.FindStringExactStart(IDStart);
+                                actionParam.ReplaceString(index, newName, ExtraWindow::GetTriggerColor(CurrentTrigger->ID));
+                                if (actionID == CurrentTrigger->ID)
+                                {
+                                    actionParam.SetEditText(newName);
+                                }
                             }
                         }
                     }
@@ -1835,12 +1859,15 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                             pThis->vcbAttachedTrigger.ReplaceSubtext(
                                 AttachedTriggerindex,
                                 GetTriggerEnableText(CurrentTrigger.get()));
-                        if (pThis->CurrentTriggerActionParam > -1)
+                        for (int j = 0; j < ACTION_PARAM_COUNT; j++)
                         {
-                            int paramIndex = pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].FindStringExactStart(IDStart);
-                            pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
-                                paramIndex,
-                                GetTriggerEnableText(CurrentTrigger.get()));
+                            if (pThis->ActionParamType[j] == ParamType::Trigger)
+                            {
+                                int paramIndex = pThis->vcbActionParameter[j].FindStringExactStart(IDStart);
+                                pThis->vcbActionParameter[j].ReplaceSubtext(
+                                    paramIndex,
+                                    GetTriggerEnableText(CurrentTrigger.get()));
+                            }
                         }
                     }
                 }
@@ -1867,12 +1894,15 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                             pThis->vcbAttachedTrigger.ReplaceSubtext(
                                 AttachedTriggerindex,
                                 GetTriggerEnableText(CurrentTrigger.get()));
-                        if (pThis->CurrentTriggerActionParam > -1)
+                        for (int j = 0; j < ACTION_PARAM_COUNT; j++)
                         {
-                            int paramIndex = pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].FindStringExactStart(IDStart);
-                            pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
-                                paramIndex,
-                                GetTriggerEnableText(CurrentTrigger.get()));
+                            if (pThis->ActionParamType[j] == ParamType::Trigger)
+                            {
+                                int paramIndex = pThis->vcbActionParameter[j].FindStringExactStart(IDStart);
+                                pThis->vcbActionParameter[j].ReplaceSubtext(
+                                    paramIndex,
+                                    GetTriggerEnableText(CurrentTrigger.get()));
+                            }
                         }
                     }
                 }
@@ -1899,12 +1929,15 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                             pThis->vcbAttachedTrigger.ReplaceSubtext(
                                 AttachedTriggerindex,
                                 GetTriggerEnableText(CurrentTrigger.get()));
-                        if (pThis->CurrentTriggerActionParam > -1)
+                        for (int j = 0; j < ACTION_PARAM_COUNT; j++)
                         {
-                            int paramIndex = pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].FindStringExactStart(IDStart);
-                            pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
-                                paramIndex,
-                                GetTriggerEnableText(CurrentTrigger.get()));
+                            if (pThis->ActionParamType[j] == ParamType::Trigger)
+                            {
+                                int paramIndex = pThis->vcbActionParameter[j].FindStringExactStart(IDStart);
+                                pThis->vcbActionParameter[j].ReplaceSubtext(
+                                    paramIndex,
+                                    GetTriggerEnableText(CurrentTrigger.get()));
+                            }
                         }
                     }
                 }
@@ -1931,12 +1964,15 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                             pThis->vcbAttachedTrigger.ReplaceSubtext(
                                 AttachedTriggerindex,
                                 GetTriggerEnableText(CurrentTrigger.get()));
-                        if (pThis->CurrentTriggerActionParam > -1)
+                        for (int j = 0; j < ACTION_PARAM_COUNT; j++)
                         {
-                            int paramIndex = pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].FindStringExactStart(IDStart);
-                            pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
-                                paramIndex,
-                                GetTriggerEnableText(CurrentTrigger.get()));
+                            if (pThis->ActionParamType[j] == ParamType::Trigger)
+                            {
+                                int paramIndex = pThis->vcbActionParameter[j].FindStringExactStart(IDStart);
+                                pThis->vcbActionParameter[j].ReplaceSubtext(
+                                    paramIndex,
+                                    GetTriggerEnableText(CurrentTrigger.get()));
+                            }
                         }
                     }
                 }
@@ -2049,6 +2085,38 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             else if (CODE == CBN_DROPDOWN)
                 OnDropdownCComboBox(5);
             break;
+        case Controls::ActionJump1:
+            if (CODE == BN_CLICKED)
+                OnClickParamJump(false, 0);
+            break;
+        case Controls::ActionJump2:
+            if (CODE == BN_CLICKED)
+                OnClickParamJump(false, 1);
+            break;
+        case Controls::ActionJump3:
+            if (CODE == BN_CLICKED)
+                OnClickParamJump(false, 2);
+            break;
+        case Controls::ActionJump4:
+            if (CODE == BN_CLICKED)
+                OnClickParamJump(false, 3);
+            break;
+        case Controls::ActionJump5:
+            if (CODE == BN_CLICKED)
+                OnClickParamJump(false, 4);
+            break;
+        case Controls::ActionJump6:
+            if (CODE == BN_CLICKED)
+                OnClickParamJump(false, 5);
+            break;
+        case Controls::EventJump1:
+            if (CODE == BN_CLICKED)
+                OnClickParamJump(true, 0);
+            break; 
+        case Controls::EventJump2:
+            if (CODE == BN_CLICKED)
+                OnClickParamJump(true, 1);
+            break; 
         default:
             break;
         }
@@ -2217,7 +2285,7 @@ void CNewTrigger::OnSelchangeActionListbox(bool changeCursel, int index)
                 }
             }
 
-            if (CurrentCSFActionParam == i)
+            if (ActionParamType[i] == ParamType::CSF)
                 value.MakeLower();
 
             int paramIdx = ExtraWindow::FindCBStringExactStart(hActionParameter[i], value + " ");
@@ -2231,7 +2299,7 @@ void CNewTrigger::OnSelchangeActionListbox(bool changeCursel, int index)
             }
             else
             {
-                if (CurrentCSFActionParam == i && ExtConfigs::TutorialTexts_Viewer)
+                if (ActionParamType[i] == ParamType::CSF && ExtConfigs::TutorialTexts_Viewer)
                 {
                     FString text = valueOri;
                     auto it = StringtableLoader::CSFFiles_Stringtable.find(value);
@@ -2243,7 +2311,7 @@ void CNewTrigger::OnSelchangeActionListbox(bool changeCursel, int index)
                 else
                 {
                     SendMessage(hActionParameter[i], CB_SETCURSEL, -1, NULL);
-                    if (CurrentCSFActionParam == i)
+                    if (ActionParamType[i] == ParamType::CSF)
                         SendMessage(hActionParameter[i], WM_SETTEXT, 0, (LPARAM)valueOri.c_str());
                     else
                         SendMessage(hActionParameter[i], WM_SETTEXT, 0, (LPARAM)value.c_str());
@@ -2368,11 +2436,14 @@ void CNewTrigger::OnSelchangeType(bool edited)
 			pThis->vcbAttachedTrigger.ReplaceSubtext(
 				SelectedTriggerIndex + 1,
 				GetTriggerEnableText(CurrentTrigger.get()));
-			if (pThis->CurrentTriggerActionParam > -1)
+			for (int j = 0; j < ACTION_PARAM_COUNT; j++)
 			{
-				pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
-					SelectedTriggerIndex,
-					GetTriggerEnableText(CurrentTrigger.get()));
+				if (pThis->ActionParamType[j] == ParamType::Trigger)
+				{
+					pThis->vcbActionParameter[j].ReplaceSubtext(
+						SelectedTriggerIndex,
+						GetTriggerEnableText(CurrentTrigger.get()));
+				}
 			}
 		}
 	}
@@ -2432,7 +2503,7 @@ void CNewTrigger::OnSelchangeEventParam(int index, bool edited)
     if (text.empty())
         return;
 
-    if (CurrentTriggerEventParam == index || CurrentTeamEventParam == index)
+    if (EventParamType[index] == ParamType::Trigger || EventParamType[index] == ParamType::Team)
         FString::TrimIndex(text);
     else
         ExtraWindow::TrimStringIndex(text);
@@ -2458,7 +2529,7 @@ void CNewTrigger::OnSelchangeActionParam(int index, bool edited)
     if (text.empty())
         return;
 
-    if (CurrentTriggerActionParam == index || CurrentTeamActionParam == index)
+    if (ActionParamType[index] == ParamType::Trigger || ActionParamType[index] == ParamType::Team)
         FString::TrimIndex(text);
     else
         ExtraWindow::TrimStringIndex(text);
@@ -2502,11 +2573,11 @@ void CNewTrigger::UpdateParamAffectedParam_Action(int index)
                 //SendMessage(hActionParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].GetString());
                 if (paramType == "10") // stringtables
                 {
-                    CurrentCSFActionParam = target.AffectedParam;
+                    ActionParamType[target.AffectedParam] = ParamType::CSF;
                 }
                 else if (paramType == "9") // triggers
                 {
-                    CurrentTriggerActionParam = target.AffectedParam;
+                    ActionParamType[target.AffectedParam] = ParamType::Trigger;
                 }
                 else if (paramType == "15" || FString::GetParam(
                     fadata.GetString(
@@ -2514,7 +2585,7 @@ void CNewTrigger::UpdateParamAffectedParam_Action(int index)
                         paramType), 0)
                     == "TeamTypes")
                 {
-                    CurrentTeamActionParam = target.AffectedParam;
+                    ActionParamType[target.AffectedParam] = ParamType::Team;
                 }
 
                 auto& targetText = CurrentTrigger->Actions[SelectedActionIndex].Params[ActionParamsUsage[target.AffectedParam].second];
@@ -2551,11 +2622,11 @@ void CNewTrigger::UpdateParamAffectedParam_Event(int index)
 
                 if (paramType == "10") // stringtables
                 {
-                    CurrentCSFEventParam = target.AffectedParam;
+                    EventParamType[target.AffectedParam] = ParamType::CSF;
                 }
                 else if (paramType == "9") // triggers
                 {
-                    CurrentTriggerEventParam = target.AffectedParam;
+                    EventParamType[target.AffectedParam] = ParamType::Trigger;
                 }
                 else if (paramType == "15" || FString::GetParam(
                     fadata.GetString(
@@ -2563,7 +2634,7 @@ void CNewTrigger::UpdateParamAffectedParam_Event(int index)
                         paramType), 0)
                     == "TeamTypes")
                 {
-                    CurrentTeamEventParam = target.AffectedParam;
+                    EventParamType[target.AffectedParam] = ParamType::Team;
                 }
 
                 auto& targetText = CurrentTrigger->Events[SelectedEventIndex].Params[EventParamsUsage[target.AffectedParam].second];
@@ -3303,33 +3374,80 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
     {
         ExtraWindow::ClearComboKeepText(hEventParameter[i]);
         CNewTrigger::EventParameterAutoDrop[i] = true;
-        if (thisEvent.P3Enabled)
+        EventParamType[i] = ParamType::None;
+
+		auto setSpecialParams = [&](const FString& paramIdx) {
+            if (paramIdx == "10")
+            {
+                EventParamType[i] = ParamType::CSF;
+            }
+            else if (paramIdx == "1")
+            {
+                EventParamType[i] = ParamType::Waypoint;
+                if (!ExtConfigs::SearchCombobox_Waypoint)
+                    CNewTrigger::EventParameterAutoDrop[i] = false;
+            }
+            else if (paramIdx == "9")
+            {
+                EventParamType[i] = ParamType::Trigger;
+            }
+            else if (paramIdx == "15")
+            {
+                EventParamType[i] = ParamType::Team;
+            }
+            else if (paramIdx == "11")
+            {
+                EventParamType[i] = ParamType::Tag;
+            }
+            else
+            {
+                auto atoms3 = FString::SplitString(
+                    fadata.GetString("NewParamTypes", paramIdx), 4);
+                auto sectionName = atoms3[0];
+                auto& loadFrom = atoms3[1];
+                
+                bool loadFromMapOrAi = (loadFrom == "3" || loadFrom == "map" || loadFrom == "7" || loadFrom == "ai+map" || loadFrom == "10" || loadFrom == "ai");
+                bool loadFromMap = (loadFrom == "3" || loadFrom == "map");
+                if (sectionName == "TeamTypes" && loadFromMapOrAi)
+                {
+                    EventParamType[i] = ParamType::Team;
+                }
+                else if (sectionName == "TaskForces" && loadFromMapOrAi)
+                {
+                    EventParamType[i] = ParamType::Taskforce;
+                }
+                else if (sectionName == "ScriptTypes" && loadFromMapOrAi)
+                {
+                    EventParamType[i] = ParamType::Script;
+                }
+                else if (sectionName == "AITriggerTypes" && loadFromMapOrAi)
+                {
+                    EventParamType[i] = ParamType::AITrigger;
+                }
+                else if ((sectionName == "Triggers" 
+                    || sectionName == "Actions" 
+                    || sectionName == "Events")
+                    && loadFromMap
+                )
+                {
+                    EventParamType[i] = ParamType::Trigger;
+                }
+                else if (sectionName == "Tags" && loadFromMap)
+                {
+                    EventParamType[i] = ParamType::Tag;
+                }
+            }
+		};
+
+		if (thisEvent.P3Enabled)
         {
             if (EventParamsUsage[i].first)
             {
                 EnableWindow(hEventParameter[i], TRUE);
-                ExtraWindow::LoadParams(vcbEventParameter[i], pParamTypes[EventParamsUsage[i].second - 1][1], this);
-                if (pParamTypes[EventParamsUsage[i].second - 1][1] == "1" && !ExtConfigs::SearchCombobox_Waypoint) // waypoints
-                {
-                    CNewTrigger::EventParameterAutoDrop[i] = false;
-                }
-                else if (pParamTypes[EventParamsUsage[i].second - 1][1] == "10") // stringtables
-                {
-                    CurrentCSFEventParam = i;
-                }
-                else if (pParamTypes[EventParamsUsage[i].second - 1][1] == "9") // triggers
-                {
-                    CurrentTriggerEventParam = i;
-                }
-                else if (pParamTypes[EventParamsUsage[i].second - 1][1] == "15" || FString::GetParam(
-                    fadata.GetString(
-                        "NewParamTypes",
-                        pParamTypes[EventParamsUsage[i].second - 1][1]), 0)
-                    == "TeamTypes")
-                {
-                    CurrentTeamEventParam = i;
-                }
-
+				auto& paramIdx = pParamTypes[EventParamsUsage[i].second - 1][1];
+				ExtraWindow::LoadParams(vcbEventParameter[i], paramIdx, this);
+                setSpecialParams(paramIdx);
+  
                 SendMessage(hEventParameterDesc[i], WM_SETTEXT, 0, (LPARAM)pParamTypes[EventParamsUsage[i].second - 1][0].c_str());
             }
             else
@@ -3348,27 +3466,11 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
             if (EventParamsUsage[i].first)
             {
                 EnableWindow(hEventParameter[i], TRUE);
-                ExtraWindow::LoadParams(vcbEventParameter[i], pParamTypes[EventParamsUsage[i].second][1], this);
-                if (pParamTypes[EventParamsUsage[i].second][1] == "1" && !ExtConfigs::SearchCombobox_Waypoint) // waypoints
-                {
-                    CNewTrigger::EventParameterAutoDrop[i] = false;
-                }
-                else if (pParamTypes[EventParamsUsage[i].second][1] == "10") // stringtables
-                {
-                    CurrentCSFEventParam = i;
-                }
-                else if (pParamTypes[EventParamsUsage[i].second][1] == "9") // triggers
-                {
-                    CurrentTriggerEventParam = i;
-                }
-                else if (pParamTypes[EventParamsUsage[i].second][1] == "15" || FString::GetParam(
-                    fadata.GetString(
-                        "NewParamTypes",
-                        pParamTypes[EventParamsUsage[i].second][1]), 0)
-                    == "TeamTypes")
-                {
-                    CurrentTeamEventParam = i;
-                }
+
+				auto& paramIdx = pParamTypes[EventParamsUsage[i].second][1];
+				ExtraWindow::LoadParams(vcbEventParameter[i], paramIdx, this);
+                setSpecialParams(paramIdx);
+
                 SendMessage(hEventParameterDesc[i], WM_SETTEXT, 0, (LPARAM)pParamTypes[EventParamsUsage[i].second][0].c_str());
             }
             else
@@ -3380,6 +3482,15 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
                 SendMessage(hEventParameterDesc[i], WM_SETTEXT, 0,
                     (LPARAM)Translations::TranslateOrDefault(trans, ""));
             }
+        }
+        
+        if (EventParamType[i] != ParamType::None)
+        {
+            ShowWindow(hEventJump[i], TRUE);
+        }
+        else
+        {
+            ShowWindow(hEventJump[i], FALSE);
         }
     }
     for (int i = 0; i < EVENT_PARAM_COUNT; i++)
@@ -3485,14 +3596,9 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
         }
     }
 
-    CurrentCSFActionParam = -1;
-    CurrentTriggerActionParam = -1;
-    CurrentTeamActionParam = -1;
-    CurrentCSFEventParam = -1;
-    CurrentTriggerEventParam = -1;
-    CurrentTeamEventParam = -1;
     for (int i = 0; i < ACTION_PARAM_COUNT; i++)
     {
+        ActionParamType[i] = ParamType::None;
         ExtraWindow::ClearComboKeepText(hActionParameter[i]);
         CNewTrigger::ActionParameterAutoDrop[i] = true;
         if (ActionParamsUsage[i].first)
@@ -3502,29 +3608,70 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
             ShowWindow(hActionParameterDesc[i], SW_SHOW);
             if (ActionParamsUsage[i].second != 6)
             {
-                ExtraWindow::LoadParams(vcbActionParameter[i], pParamTypes[ActionParamsUsage[i].second][1], this);
+				auto& paramIdx = pParamTypes[ActionParamsUsage[i].second][1];
+				ExtraWindow::LoadParams(vcbActionParameter[i], paramIdx, this);
 
                 SendMessage(hActionParameterDesc[i], WM_SETTEXT, 0, (LPARAM)pParamTypes[ActionParamsUsage[i].second][0].c_str());
-                if (pParamTypes[ActionParamsUsage[i].second][1] == "10") // stringtables
+                if (paramIdx == "10")
                 {
                     //thisAction.Params[ActionParamsUsage[i].second].MakeLower();
-                    CurrentCSFActionParam = i;
+                    ActionParamType[i] = ParamType::CSF;
                 }
-                else if (pParamTypes[ActionParamsUsage[i].second][1] == "1" && !ExtConfigs::SearchCombobox_Waypoint) // waypoints
+                else if (paramIdx == "1")
                 {
-                    CNewTrigger::ActionParameterAutoDrop[i] = false;
+                    ActionParamType[i] = ParamType::Waypoint;
+                    if (!ExtConfigs::SearchCombobox_Waypoint)
+                        CNewTrigger::ActionParameterAutoDrop[i] = false;
                 }
-                else if (pParamTypes[ActionParamsUsage[i].second][1] == "9") // triggers
+                else if (paramIdx == "9")
                 {
-                    CurrentTriggerActionParam = i;
+                    ActionParamType[i] = ParamType::Trigger;
                 }
-                else if (pParamTypes[ActionParamsUsage[i].second][1] == "15" || FString::GetParam(
-                    fadata.GetString(
-                        "NewParamTypes",
-                        pParamTypes[ActionParamsUsage[i].second][1]), 0)
-                    == "TeamTypes")
+                else if (paramIdx == "15")
                 {
-                    CurrentTeamActionParam = i;
+                    ActionParamType[i] = ParamType::Team;
+                }
+                else if (paramIdx == "11")
+                {
+                    ActionParamType[i] = ParamType::Tag;
+                }
+                else
+                {
+                    auto atoms3 = FString::SplitString(
+                        fadata.GetString("NewParamTypes", paramIdx), 4);
+                    auto sectionName = atoms3[0];
+                    auto& loadFrom = atoms3[1];
+                    
+                    bool loadFromMapOrAi = (loadFrom == "3" || loadFrom == "map" || loadFrom == "7" || loadFrom == "ai+map" || loadFrom == "10" || loadFrom == "ai");
+                    bool loadFromMap = (loadFrom == "3" || loadFrom == "map");
+                    if (sectionName == "TeamTypes" && loadFromMapOrAi)
+                    {
+                        ActionParamType[i] = ParamType::Team;
+                    }
+                    else if (sectionName == "TaskForces" && loadFromMapOrAi)
+                    {
+                        ActionParamType[i] = ParamType::Taskforce;
+                    }
+                    else if (sectionName == "ScriptTypes" && loadFromMapOrAi)
+                    {
+                        ActionParamType[i] = ParamType::Script;
+                    }
+                    else if (sectionName == "AITriggerTypes" && loadFromMapOrAi)
+                    {
+                        ActionParamType[i] = ParamType::AITrigger;
+                    }
+                    else if ((sectionName == "Triggers" 
+                        || sectionName == "Actions" 
+                        || sectionName == "Events")
+                        && loadFromMap
+                    )
+                    {
+                        ActionParamType[i] = ParamType::Trigger;
+                    }
+                    else if (sectionName == "Tags" && loadFromMap)
+                    {
+                        ActionParamType[i] = ParamType::Tag;
+                    }
                 }
             }
             else
@@ -3535,6 +3682,8 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
                     ExtraWindow::LoadParam_Waypoints(vcbActionParameter[i]);
                     if (!ExtConfigs::SearchCombobox_Waypoint)
                         CNewTrigger::ActionParameterAutoDrop[i] = false;
+
+                    ActionParamType[i] = ParamType::Waypoint;
                 }
                 else
                     SendMessage(hActionParameterDesc[i], WM_SETTEXT, 0, (LPARAM)Translations::TranslateOrDefault("TriggerP7Number", "Number"));
@@ -3549,6 +3698,15 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
             ShowWindow(hActionParameterDesc[i], SW_HIDE);
             SendMessage(hActionParameterDesc[i], WM_SETTEXT, 0,
                 (LPARAM)Translations::TranslateOrDefault(trans, ""));
+        }
+
+        if (ActionParamType[i] != ParamType::None)
+        {
+            ShowWindow(hActionJump[i], TRUE);
+        }
+        else
+        {
+            ShowWindow(hActionJump[i], FALSE);
         }
     }
 
@@ -3599,10 +3757,11 @@ void CNewTrigger::AdjustActionHeight()
 
 void CNewTrigger::OnDropdownCComboBox(int index)
 {
-    if (index == CurrentCSFActionParam && ExtConfigs::TutorialTexts_Viewer)
+    if (ActionParamType[index] == ParamType::CSF && ExtConfigs::TutorialTexts_Viewer)
     {
         PostMessage(hActionParameter[index], CB_SHOWDROPDOWN, FALSE, 0);
         CCsfEditor::TriggerCaller = GetCurrentInstanceIndex();
+        CCsfEditor::TriggerParamIndex = index;
         if (CCsfEditor::GetHandle() == NULL)
             CCsfEditor::Create(m_parent);
         else
@@ -3620,7 +3779,7 @@ void CNewTrigger::OnDropdownCComboBox(int index)
 
         ::SendMessage(CCsfEditor::GetHandle(), 114515, 0, 0);
     }
-    else if (index == CurrentTeamActionParam && TeamListChanged)
+    else if (ActionParamType[index] == ParamType::Team && TeamListChanged)
     {
 		FString text = vcbActionParameter[index].GetEditText();
 		FString::TrimIndex(text);
@@ -3862,6 +4021,115 @@ void CNewTrigger::OnClickActionSplit(HWND& hWnd)
     OnSelchangeTrigger();
 }
 
+void CNewTrigger::OnClickParamJump(bool isEvent, int index)
+{
+    VirtualComboBoxEx* vcb = isEvent ? &vcbEventParameter[index] : &vcbActionParameter[index];
+    ParamType type = isEvent ? EventParamType[index] : ActionParamType[index];
+
+    FString value = vcb->GetSelectedText(true);
+	FString::TrimIndex(value);
+	if (type == ParamType::Waypoint)
+    {
+        if (auto pCord = CINI::CurrentDocument->TryGetString("Waypoints", value))
+        {
+            auto second = atoi(*pCord);
+            if (second > 0)
+            {
+                CObjectSearch::MoveToMapCoord(second / 1000, second % 1000);
+            }
+        }
+    }
+    else if (type == ParamType::Trigger)
+    {
+        auto idx = vcbSelectedTrigger.FindStringExact(ExtraWindow::GetTriggerDisplayName(value));
+        if (idx == CB_ERR)
+            return;
+        vcbSelectedTrigger.SetCurSel(idx);
+        OnSelchangeTrigger();
+    }
+    else if (type == ParamType::AITrigger)
+    {
+        if (CNewAITrigger::GetHandle() == NULL)
+            CNewAITrigger::Create(m_parent);
+
+        auto dlg = GetDlgItem(CNewAITrigger::GetHandle(), CNewAITrigger::Controls::SelectedAITrigger);
+        auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, ExtraWindow::GetAITriggerDisplayName(value));
+        if (idx == CB_ERR)
+            return;
+        SendMessage(dlg, CB_SETCURSEL, idx, NULL);
+        CNewAITrigger::OnSelchangeAITrigger();
+        SetWindowPos(CNewAITrigger::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    }
+    else if (type == ParamType::Team)
+    {
+        if (CNewTeamTypes::GetHandle() == NULL)
+            CNewTeamTypes::Create(m_parent);
+
+        auto dlg = GetDlgItem(CNewTeamTypes::GetHandle(), CNewTeamTypes::Controls::SelectedTeam);
+        auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, ExtraWindow::GetTeamDisplayName(value));
+        if (idx == CB_ERR)
+            return;
+        SendMessage(dlg, CB_SETCURSEL, idx, NULL);
+        CNewTeamTypes::OnSelchangeTeamtypes();
+        SetWindowPos(CNewTeamTypes::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    }
+    else if (type == ParamType::Tag)
+    {
+        if (CNewTag::GetHandle() == NULL)
+            CNewTag::Create(m_parent);
+
+        auto dlg = GetDlgItem(CNewTag::GetHandle(), CNewTag::Controls::SelectedTag);
+        auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, ExtraWindow::GetTagDisplayName(value));
+        if (idx == CB_ERR)
+            return;
+        CNewTag::OnSelchangeTag(false, idx);
+        SetWindowPos(CNewTag::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    }
+    else if (type == ParamType::Script)
+    {
+        if (CNewScript::GetHandle() == NULL)
+            CNewScript::Create(m_parent);
+
+        auto dlg = GetDlgItem(CNewScript::GetHandle(), CNewScript::Controls::SelectedScript);
+        auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, ExtraWindow::GetTeamDisplayName(value));
+        if (idx == CB_ERR)
+            return;
+        SendMessage(dlg, CB_SETCURSEL, idx, NULL);
+        CNewScript::OnSelchangeScript();
+        SetWindowPos(CNewScript::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    }
+    else if (type == ParamType::Taskforce)
+    {
+        if (CNewTaskforce::GetHandle() == NULL)
+        CNewTaskforce::Create(m_parent);
+
+        auto dlg = GetDlgItem(CNewTaskforce::GetHandle(), CNewTaskforce::Controls::SelectedTaskforce);
+        auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, ExtraWindow::GetTeamDisplayName(value));
+        if (idx == CB_ERR)
+            return;
+        SendMessage(dlg, CB_SETCURSEL, idx, NULL);
+        CNewTaskforce::OnSelchangeTaskforce();
+        SetWindowPos(CNewTaskforce::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    }
+    else if (type == ParamType::CSF)
+    {
+        CCsfEditor::TriggerCaller = GetCurrentInstanceIndex();
+        CCsfEditor::TriggerParamIndex = index;
+        if (CCsfEditor::GetHandle() == NULL)
+            CCsfEditor::Create(m_parent);
+        else
+        {
+            ::SendMessage(CCsfEditor::GetHandle(), 114514, 0, 0);
+        }
+        value.Replace(",", "");
+        ExtraWindow::TrimStringIndex(value);
+        value.MakeLower();
+        CCsfEditor::CurrentSelectedCSF = value;
+
+        ::SendMessage(CCsfEditor::GetHandle(), 114515, 0, 0);
+    }
+}
+
 void CNewTrigger::SortTriggers(FString id, bool onlySelf)
 {
     if (!AvoidInfiLoop || AvoidInfiLoop && !SortTriggersExecuted)
@@ -3888,9 +4156,12 @@ void CNewTrigger::SortTriggers(FString id, bool onlySelf)
                 pThis->vcbSelectedTrigger.AddSubtextString(name, GetTriggerEnableText(trigger), ExtraWindow::GetTriggerColor(trigger->ID));
             }
             pThis->vcbAttachedTrigger.CopyFrom(pThis->vcbSelectedTrigger, &noneLabel);
-            if (pThis->CurrentTriggerActionParam > -1)
+            for (int j = 0; j < ACTION_PARAM_COUNT; j++)
             {
-                pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].CopyFrom(pThis->vcbSelectedTrigger);
+                if (pThis->ActionParamType[j] == ParamType::Trigger)
+                {
+                    pThis->vcbActionParameter[j].CopyFrom(pThis->vcbSelectedTrigger);
+                }
             }
 
             if (id != "") {

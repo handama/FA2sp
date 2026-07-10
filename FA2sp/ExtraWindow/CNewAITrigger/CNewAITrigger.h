@@ -197,6 +197,8 @@ public:
         Hard = 1037,
         BaseDefense = 1038,
         Skrimish = 1039,
+        TurnToTeam1 = 2002,
+        TurnToTeam2 = 2003
     };
 
     static void Create(CFinalSunDlg* pWnd);
@@ -219,6 +221,7 @@ protected:
     static void OnClickNewAITrigger();
     static void OnClickDelAITrigger();
     static void OnClickCloAITrigger();
+    static void OnClickTurnToTeam(int index);
 
     static void OnSelchangeConditionType();
     static void OnSelchangeComparator();
@@ -264,6 +267,8 @@ private:
     static HWND hBaseDefense;
     static HWND hSkrimish;
     static HWND hDragPoint;
+    static HWND hTurnToTeam1;
+    static HWND hTurnToTeam2;
     static WNDPROC OrigDragDotProc;
 
     static VirtualComboBoxEx vcbSelectedAITrigger;

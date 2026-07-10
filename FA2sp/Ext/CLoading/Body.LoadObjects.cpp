@@ -4746,7 +4746,8 @@ void CLoadingExt::LoadFires(const ppmfc::CString& FileName)
 			loadingExt->LoadSHPFrameSafe(i, 1, &FramesBuffers, header);
 			auto pData = std::make_unique<ImageDataClassSafe>();
 			loadingExt->SetImageDataSafe(FramesBuffers, pData.get(), header.Width, header.Height, pal);
-			DamageFires.push_back(std::move(pData));
+			if (ImageDataClassSafe::IsValidImage(pData.get()))
+				DamageFires.push_back(std::move(pData));
 		}
 	}
 }

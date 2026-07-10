@@ -1538,6 +1538,9 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 						if (viewWidth < minView) viewWidth = minView;
 						if (viewWidth > totalWidth - minView) viewWidth = totalWidth - minView;
 						MyViewFrame.SplitterWnd.SetColumnInfo(0, viewWidth, minView);
+						MyViewFrame.SplitterWnd.RecalcLayout();
+						if (MyViewFrame.pIsoView)
+							MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 					}
 					else
 					{
@@ -1549,10 +1552,27 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 							CFinalSunDlgExt::SavedViewObjectsWidthPercentage = static_cast<float>(cxCur) / totalWidth;
 						}
 						MyViewFrame.SplitterWnd.SetColumnInfo(0, 0, 0);
+
+						if (!CFinalSunDlgExt::HasTileSetBrowserFloating)
+						{
+							MyViewFrame.SplitterWnd.RecalcLayout();
+							if (ExtConfigs::VerticalLayout)
+							{							
+								CRect rcFrame;
+								GetClientRect(&rcFrame);						
+								MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(0, rcFrame.Width(), 20);
+								MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(1, 0, 0);
+								MyViewFrame.pRightFrame->CSplitter.RecalcLayout();
+							}
+						}
+						else
+						{				
+							MyViewFrame.SplitterWnd.RecalcLayout();
+						}
+						
+						if (MyViewFrame.pIsoView)
+							MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 					}
-					MyViewFrame.SplitterWnd.RecalcLayout();
-					if (MyViewFrame.pIsoView)
-						MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 				}
 				break;
 			}

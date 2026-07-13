@@ -4849,7 +4849,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		auto fires = STDHelpers::SplitString(Variables::RulesMap.GetString("General", "DamageFireTypes"));
 		for (const auto& fire : fires)
 		{
-			CLoadingExt::LoadFires(fire + ".shp");
+			CLoadingExt::LoadFires(fire);
 		}
 		TechnoAttachments.clear();
 		int loopCount = Variables::RulesMap.ParseIndicies("AttachmentTypes").size();

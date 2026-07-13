@@ -4731,17 +4731,23 @@ void CLoadingExt::LoadShp(FString ImageID, FString FileName, FString PalName, in
 	}
 }
 
-void CLoadingExt::LoadFires(const ppmfc::CString& FileName)
+void CLoadingExt::LoadFires(const ppmfc::CString& ImageID)
 {
 	auto loadingExt = (CLoadingExt*)CLoading::Instance();
+	auto finalID = GetFinalLoopAnim(ImageID);
+	finalID = CINI::Art->GetString(finalID, "Image", finalID);
+	auto fileName = finalID + ".shp";
 	if (auto pal = PalettesManager::LoadPalette("anim.pal"))
 	{
-		if (!CMixFile::LoadSHP(FileName))
+		if (!CMixFile::LoadSHP(fileName))
 			return;
 		ShapeHeader header;
 		unsigned char* FramesBuffers;
-		CShpFile::GetSHPHeader(&header);
-		for (int i = 0; i < header.FrameCount; ++i)
+		CShpFile::GetSHPHeader(&header);	
+		int nStartFrame = CINI::Art->GetInteger(finalID, "LoopStart", 0);
+		int nEndFrame = CINI::Art->GetInteger(finalID, "LoopEnd", header.FrameCount);
+		nEndFrame = std::min(nEndFrame, (int)header.FrameCount);
+		for (int i = nStartFrame; i < nEndFrame; ++i)
 		{
 			loadingExt->LoadSHPFrameSafe(i, 1, &FramesBuffers, header);
 			auto pData = std::make_unique<ImageDataClassSafe>();

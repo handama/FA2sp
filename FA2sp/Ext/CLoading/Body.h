@@ -149,7 +149,7 @@ public:
 	
 	static void ClearItemTypes(bool releaseNonsurfaces = true);
 	void GetFullPaletteName(FString& PaletteName);
-	static void LoadFires(const ppmfc::CString& FileName);
+	static void LoadFires(const ppmfc::CString& ImageID);
 	static void LoadShp(FString ImageID, FString FileName, FString PalName, int nFrame);
 	static void LoadShp(FString ImageID, FString FileName, Palette* pPal, int nFrame);
 	static void LoadShpToSurface(FString ImageID, FString FileName, FString PalName, int nFrame);

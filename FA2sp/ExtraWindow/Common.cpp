@@ -2644,7 +2644,7 @@ int VirtualComboBoxEx::ReplaceString(int index, const char* str, COLORREF textCo
             DeleteObject(m_hCurBrush);
             m_hCurBrush = nullptr;
         }
-        if (items[index].backgroundColor != CLR_INVALID)
+        if (items[index].backgroundColor != CLR_INVALID && !items[index].leftSideBackground)
             m_hCurBrush = CreateSolidBrush(items[index].backgroundColor);
 
         InvalidateRect(hEdit, NULL, TRUE);
@@ -2718,7 +2718,7 @@ void VirtualComboBoxEx::SetItemColors(int index, COLORREF textColor, COLORREF ba
             DeleteObject(m_hCurBrush);
             m_hCurBrush = nullptr;
         }
-        if (backgroundColor != CLR_INVALID)
+        if (backgroundColor != CLR_INVALID && !leftSideBackground)
             m_hCurBrush = CreateSolidBrush(backgroundColor);
 
         InvalidateRect(hEdit, NULL, TRUE);
@@ -3263,7 +3263,7 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
             pThis->curSel = idx;
             SetWindowTextA(pThis->hEdit, pThis->items[idx].text);
 
-            if (pThis->items[idx].backgroundColor != CLR_INVALID)
+            if (pThis->items[idx].backgroundColor != CLR_INVALID && !pThis->items[idx].leftSideBackground)
                 pThis->m_hCurBrush = CreateSolidBrush(pThis->items[idx].backgroundColor);
         }
         else

@@ -1,11 +1,16 @@
 #pragma once
 
 #include <FA2PP.h>
-#include <CTileSetBrowserFrame.h>
+#include <CFinalSunDlg.h>
 #include <map>
 #include <vector>
 #include <string>
 #include <regex>
+#include <memory>
+#include <CObjectDatas.h>
+#include "../Common.h"
+
+class CTechnoDialog;
 
 // A static window class
 class CObjectSearch
@@ -18,7 +23,7 @@ public:
     };
     enum FindType { Aircraft = 0, Infantry, Structure, Unit, Terrain };
 
-    static void Create(CTileSetBrowserFrame* pWnd);
+    static void Create(CFinalSunDlg* pWnd);
 
     static HWND GetHandle()
     {
@@ -57,9 +62,14 @@ protected:
     static void ToggleListBoxRangeVisibility(HWND hWnd, bool show);
     static void ToggleWindowSize(HWND hWnd);
 
+    static bool CheckPropertyB_WithTechno(const CBuildingData& data);
+    static bool CheckPropertyI_WithTechno(const CInfantryData& data);
+    static bool CheckPropertyA_WithTechno(const CAircraftData& data);
+    static bool CheckPropertyU_WithTechno(const CUnitData& data);
+
 private:
     static HWND m_hwnd;
-    static CTileSetBrowserFrame* m_parent;
+    static CFinalSunDlg* m_parent;
     static std::vector<std::pair<std::string, std::regex>> Nodes;
     static std::map<int, FString> Datas;
     static int ListBoxIndex;
@@ -76,6 +86,7 @@ private:
     static bool bMapCoords;
     static bool bPropertyBushFilter;
     static bool ToggleWindowSize_once;
+    static std::unique_ptr<CTechnoDialog> PropertyFilterDlg;
 
     static bool bTrigger;
     static bool bAttachedTrigger;
@@ -86,6 +97,6 @@ private:
     static bool bScript;
     static bool bTag;
     static bool bAITrigger;
-
+    static TransparencyHelper m_transparency;
 };
 

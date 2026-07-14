@@ -87,6 +87,7 @@ Palette CMapDataExt::Palette_ISO_NoTint;
 Palette CMapDataExt::Palette_Shadow;
 Palette CMapDataExt::Palette_AlphaImage;
 std::vector<std::pair<LightingSourcePosition, LightingSource>> CMapDataExt::LightingSources;
+FHashSet CMapDataExt::LightingBuildingTypes;
 std::vector<LatInfo> CMapDataExt::Tile_to_lat;
 std::set<int> CMapDataExt::Lat_releated_sets;
 std::map<int, std::vector<int>> CMapDataExt::Same_Smooth_tile_lats;
@@ -140,6 +141,8 @@ std::vector<CUnitDataFS> CMapDataExt::UnitDatasExt;
 std::vector<CAircraftDataFS> CMapDataExt::AircraftDatasExt;
 std::vector<CBuildingDataFS> CMapDataExt::BuildingDatasExt;
 std::unordered_map<CTileBlockClass*, TileBlockExt> CMapDataExt::TileBlockDataExt;
+bool CMapDataExt::IsInitingPropertyDialog = false;
+
 const std::vector<FString> CMapDataExt::TechnoStates = 
 {
 	"Ambush",
@@ -612,7 +615,7 @@ void CMapDataExt::ProcessBuildingType(const char* ID)
 
 	// https://modenc.renegadeprojects.com/Foundation
 	// This flag is read from art(md).ini twice: 
-	// from section you specified in rules as [object]��Image, 
+	// from section you specified in rules as [object]Image, 
 	// and from simply [object] , 
 	// and the second one overrules the first if present. 
 	// however, ares's custom foundation doesn't have this bug.
@@ -1122,7 +1125,7 @@ void CMapDataExt::SetHeightAt(int x, int y, int height)
 	if (ExtConfigs::PlaceTileSkipHide)
 	{
 		const auto cell = this->TryGetCellAt(x, y);
-		if (cell->IsHidden())
+		if (CMapDataExt::IsHiddenCell(cell))
 			return;
 	}
 
@@ -1140,7 +1143,7 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 	if (ExtConfigs::PlaceTileSkipHide && callType != 3) // 3 = cut
 	{
 		const auto cell = this->TryGetCellAt(X, Y);
-		if (cell->IsHidden())
+		if (CMapDataExt::IsHiddenCell(cell))
 			return;
 	}
 
@@ -1582,7 +1585,7 @@ void CMapDataExt::SmoothTileAt(int X, int Y, bool gameLAT)
 	auto& fadata = CINI::FAData();
 
 	auto cell = CMapData::Instance().TryGetCellAt(X, Y);
-	if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+	if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
 		return;
 
 	int tileIndex = GetSafeTileIndex(cell->TileIndex);
@@ -1859,21 +1862,21 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 	}
 
 	static std::vector<std::pair<int, int>> directions = {
-	{1, 0},   // 0��
-	{1, 1},   // 45��
-	{0, 1},   // 90��
-	{-1, 1},  // 135��
-	{-1, 0},  // 180��
-	{-1, -1}, // 225��
-	{0, -1},  // 270��
-	{1, -1}   // 315��
+	{1, 0},   // 0
+	{1, 1},   // 45
+	{0, 1},   // 90
+	{-1, 1},  // 135
+	{-1, 0},  // 180
+	{-1, -1}, // 225
+	{0, -1},  // 270
+	{1, -1}   // 315
 	};
 
 	int height = cell->Height;
 	auto isMorphable = [IgnoreMorphable, isDefinedMorphable](CellData* cell)
 		{
 			if (!cell) return 0;
-			if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+			if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
 				return 0;
 			if (IgnoreMorphable) return 1;
 			int groundClick = GetSafeTileIndex(cell->TileIndex);
@@ -1991,10 +1994,10 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 			if (getE() > 1) return getIndex(15);
 			if (getN() > 0 && getS() > 0 && getNE() == 0 && getNW() == 0 && getSE() == 0 && getSW() == 0) return getIndex(17);
 			if (getE() > 0 && getW() > 0 && getNE() == 0 && getNW() == 0 && getSE() == 0 && getSW() == 0) return getIndex(16);
-			if (getSW() > 0 && getSE() > 0 && getN() <= 0) return getIndex(8);
-			if (getNW() > 0 && getSW() > 0 && getE() <= 0) return getIndex(9);
-			if (getNW() > 0 && getNE() > 0 && getS() <= 0) return getIndex(10);
-			if (getNE() > 0 && getSE() > 0 && getW() <= 0) return getIndex(11);
+			if (getSW() > 0 && getSE() > 0 && getN() <= 0 && getNW() <= 0 && getNE() <= 0) return getIndex(8);
+			if (getNW() > 0 && getSW() > 0 && getE() <= 0 && getNE() <= 0 && getSE() <= 0) return getIndex(9);
+			if (getNW() > 0 && getNE() > 0 && getS() <= 0 && getSW() <= 0 && getSE() <= 0) return getIndex(10);
+			if (getNE() > 0 && getSE() > 0 && getW() <= 0 && getNW() <= 0 && getSW() <= 0) return getIndex(11);
 
 			for (int i = 0; i < 8; ++i)
 			{
@@ -2008,36 +2011,36 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 					auto cellB = CMapData::Instance->GetCellAt(x + coordB.first, y + coordB.second);
 					if (cellA->Height > height && cellB->Height > height)
 					{
-						if (getSW() > 0 && getE() > 0) return getIndex(8);
-						if (getSE() > 0 && getW() > 0) return getIndex(8);
+						if (getSW() > 0 && getE() > 0 && getN() <= 0 && getNW() <= 0 && getNE() <= 0) return getIndex(8);
+						if (getSE() > 0 && getW() > 0 && getN() <= 0 && getNW() <= 0 && getNE() <= 0) return getIndex(8);
 
-						if (getNW() > 0 && getS() > 0) return getIndex(9);
-						if (getSW() > 0 && getN() > 0) return getIndex(9);
+						if (getNW() > 0 && getS() > 0 && getE() <= 0 && getNE() <= 0 && getSE() <= 0) return getIndex(9);
+						if (getSW() > 0 && getN() > 0 && getE() <= 0 && getNE() <= 0 && getSE() <= 0) return getIndex(9);
 
-						if (getNE() > 0 && getW() > 0) return getIndex(10);
-						if (getNW() > 0 && getE() > 0) return getIndex(10);
+						if (getNE() > 0 && getW() > 0 && getS() <= 0 && getSW() <= 0 && getSE() <= 0) return getIndex(10);
+						if (getNW() > 0 && getE() > 0 && getS() <= 0 && getSW() <= 0 && getSE() <= 0) return getIndex(10);
 
-						if (getNE() > 0 && getS() > 0) return getIndex(11);
-						if (getSE() > 0 && getN() > 0) return getIndex(11);
+						if (getNE() > 0 && getS() > 0 && getW() <= 0 && getNW() <= 0 && getSW() <= 0) return getIndex(11);
+						if (getSE() > 0 && getN() > 0 && getW() <= 0 && getNW() <= 0 && getSW() <= 0) return getIndex(11);
 					}
 				}
 			}
 
-			if (getSE() > 0) return getIndex(0);
-			if (getSW() > 0) return getIndex(1);
-			if (getNW() > 0) return getIndex(2);
-			if (getNE() > 0) return getIndex(3);
-			if (getS() > 0) return getIndex(4);
-			if (getW() > 0) return getIndex(5);
-			if (getN() > 0) return getIndex(6);
-			if (getE() > 0) return getIndex(7);
+			if (getSE() > 0 && getNW() <= 0) return getIndex(0);
+			if (getSW() > 0 && getNE() <= 0) return getIndex(1);
+			if (getNW() > 0 && getSE() <= 0) return getIndex(2);
+			if (getNE() > 0 && getSW() <= 0) return getIndex(3);
+			if (getS() > 0&& getN() <= 0) return getIndex(4);
+			if (getW() > 0&& getE() <= 0) return getIndex(5);
+			if (getN() > 0&& getS() <= 0) return getIndex(6);
+			if (getE() > 0&& getW() <= 0) return getIndex(7);
 			return flatTile;
 		};
 
 	int tileIndex = getTileIndex();
 	if (tileIndex != flatTile || CMapDataExt::TileData[groundClick].TileBlockDatas[cell->TileSubIndex].RampType != 0)
 	{
-		if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+		if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
 			return;
 		cell->TileIndex = tileIndex;
 		cell->TileSubIndex = 0;
@@ -3979,6 +3982,11 @@ bool CMapDataExt::CellCannotDrag(int x, int y)
 	return !pIsoView->Drag && CIsoView::CurrentCommand->Command == 0 && cell->Aircraft == -1 && cell->Unit == -1 && cell->Structure == -1 && cell->Terrain == -1 && cell->Smudge == -1 && cell->Waypoint == -1 && cell->CellTag == -1 && cell->Infantry[0] == -1 && cell->Infantry[1] == -1 && cell->Infantry[2] == -1 && cell->Infantry[2] == -1 && cellExt.BaseNodes.empty() && cellExt.SmudgeParts.empty() && !CMapDataExt::HasAnnotation(cellpos);
 }
 
+bool CMapDataExt::IsHiddenCell(CellData* pCell)
+{
+    return pCell->Flag.IsHiddenCell || (*CTileTypeClass::Instance)[pCell->TileIndex > TileDataCount ? 0 : pCell->TileIndex].IsHidden;
+}
+
 void CustomTileBlock::SetTileBlock(int tile, int subtile, int height)
 {
 	Height = height;
@@ -4109,7 +4117,7 @@ void CMapDataExt::CheckCellLow(bool steep, int loopCount, bool IgnoreMorphable, 
 	auto isMorphable = [IgnoreMorphable](CellData* cell)
 	{
 		if (!cell) return false;
-		if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+		if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
 			return false;
 		if (IgnoreMorphable) return true;
 		int groundClick = GetSafeTileIndex(cell->TileIndex);
@@ -4247,7 +4255,7 @@ void CMapDataExt::CheckCellRise(bool steep, int loopCount, bool IgnoreMorphable,
 	auto isMorphable = [IgnoreMorphable](CellData* cell)
 	{
 		if (!cell) return 0;
-		if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+		if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
 			return 0;
 		if (IgnoreMorphable) return 1;
 		int groundClick = GetSafeTileIndex(cell->TileIndex);
@@ -4841,7 +4849,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		auto fires = STDHelpers::SplitString(Variables::RulesMap.GetString("General", "DamageFireTypes"));
 		for (const auto& fire : fires)
 		{
-			CLoadingExt::LoadFires(fire + ".shp");
+			CLoadingExt::LoadFires(fire);
 		}
 		TechnoAttachments.clear();
 		int loopCount = Variables::RulesMap.ParseIndicies("AttachmentTypes").size();

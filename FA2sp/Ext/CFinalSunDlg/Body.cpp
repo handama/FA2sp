@@ -48,6 +48,10 @@
 namespace fs = std::filesystem;
 
 bool CFinalSunDlgExt::HasMinimap = false;
+bool CFinalSunDlgExt::HasViewObjectsFloating = true;
+bool CFinalSunDlgExt::HasTileSetBrowserFloating = true;
+float CFinalSunDlgExt::SavedViewObjectsWidthPercentage = -1.0f;
+float CFinalSunDlgExt::SavedTileSetBrowserSizePercentage = -1.0f;
 bool CFinalSunDlgExt::MapValidatorAlive = false;
 int CFinalSunDlgExt::CurrentLighting = 31000;
 std::pair<FString, int> CFinalSunDlgExt::SearchObjectIndex("", -1);
@@ -173,12 +177,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					CViewObjectsExt::ObjectFilterB = FString::SplitString(result);
 
 					if (CViewObjectsExt::BuildingBrushDlgBF.get() == nullptr)
-						CViewObjectsExt::BuildingBrushDlgBF = std::make_unique<CPropertyBuilding>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+						CViewObjectsExt::BuildingBrushDlgBF = std::make_unique<CNewPropertyBuilding>();
 
 					for (auto& v : CViewObjectsExt::BuildingBrushBools)
 						v = false;
 
-					CViewObjectsExt::BuildingBrushDlgBF->ppmfc::CDialog::DoModal();
+					CViewObjectsExt::BuildingBrushDlgBF->DoModal();
 
 					int index = 0;
 					for (auto& v : CViewObjectsExt::BuildingBrushBools)
@@ -193,12 +197,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					CViewObjectsExt::ObjectFilterI = FString::SplitString(result);
 
 					if (CViewObjectsExt::InfantryBrushDlgF.get() == nullptr)
-						CViewObjectsExt::InfantryBrushDlgF = std::make_unique<CPropertyInfantry>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+						CViewObjectsExt::InfantryBrushDlgF = std::make_unique<CNewPropertyInfantry>();
 
 					for (auto& v : CViewObjectsExt::InfantryBrushBools)
 						v = false;
 
-					CViewObjectsExt::InfantryBrushDlgF->ppmfc::CDialog::DoModal();
+					CViewObjectsExt::InfantryBrushDlgF->DoModal();
 
 					int index = 0;
 					for (auto& v : CViewObjectsExt::InfantryBrushBools)
@@ -213,12 +217,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					CViewObjectsExt::ObjectFilterV = FString::SplitString(result);
 
 					if (CViewObjectsExt::VehicleBrushDlgF.get() == nullptr)
-						CViewObjectsExt::VehicleBrushDlgF = std::make_unique<CPropertyUnit>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+						CViewObjectsExt::VehicleBrushDlgF = std::make_unique<CNewPropertyUnit>();
 
 					for (auto& v : CViewObjectsExt::VehicleBrushBools)
 						v = false;
 
-					CViewObjectsExt::VehicleBrushDlgF->ppmfc::CDialog::DoModal();
+					CViewObjectsExt::VehicleBrushDlgF->DoModal();
 
 					int index = 0;
 					for (auto& v : CViewObjectsExt::VehicleBrushBools)
@@ -233,12 +237,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					CViewObjectsExt::ObjectFilterA = FString::SplitString(result);
 
 					if (CViewObjectsExt::AircraftBrushDlgF.get() == nullptr)
-						CViewObjectsExt::AircraftBrushDlgF = std::make_unique<CPropertyAircraft>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+						CViewObjectsExt::AircraftBrushDlgF = std::make_unique<CNewPropertyAircraft>();
 
 					for (auto& v : CViewObjectsExt::AircraftBrushBools)
 						v = false;
 
-					CViewObjectsExt::AircraftBrushDlgF->ppmfc::CDialog::DoModal();
+					CViewObjectsExt::AircraftBrushDlgF->DoModal();
 
 					int index = 0;
 					for (auto& v : CViewObjectsExt::AircraftBrushBools)
@@ -253,12 +257,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					CViewObjectsExt::ObjectFilterBN = FString::SplitString(result);
 
 					if (CViewObjectsExt::BuildingBrushDlgBNF.get() == nullptr)
-						CViewObjectsExt::BuildingBrushDlgBNF = std::make_unique<CPropertyBuilding>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+						CViewObjectsExt::BuildingBrushDlgBNF = std::make_unique<CNewPropertyBuilding>();
 
 					for (auto& v : CViewObjectsExt::BuildingBrushBools)
 						v = false;
 
-					CViewObjectsExt::BuildingBrushDlgBNF->ppmfc::CDialog::DoModal();
+					CViewObjectsExt::BuildingBrushDlgBNF->DoModal();
 
 					int index = 0;
 					for (auto& v : CViewObjectsExt::BuildingBrushBools)
@@ -1293,6 +1297,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CViewObjectsExt::InitPropertyDlgFromProperty = true;
 			if (CViewObjectsExt::DoPropertyBrush_Building())
 			{
+				CViewObjectsExt::InitializeOnUpdateEngine();
 				CIsoView::CurrentCommand->Command = 0x17;
 				CIsoView::CurrentCommand->Type = CViewObjectsExt::Set_Building;
 			}
@@ -1310,6 +1315,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CViewObjectsExt::InitPropertyDlgFromProperty = true;
 			if (CViewObjectsExt::DoPropertyBrush_Infantry())
 			{
+				CViewObjectsExt::InitializeOnUpdateEngine();
 				CIsoView::CurrentCommand->Command = 0x17;
 				CIsoView::CurrentCommand->Type = CViewObjectsExt::Set_Infantry;
 			}
@@ -1327,6 +1333,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CViewObjectsExt::InitPropertyDlgFromProperty = true;
 			if (CViewObjectsExt::DoPropertyBrush_Vehicle())
 			{
+				CViewObjectsExt::InitializeOnUpdateEngine();
 				CIsoView::CurrentCommand->Command = 0x17;
 				CIsoView::CurrentCommand->Type = CViewObjectsExt::Set_Vehicle;
 			}
@@ -1344,6 +1351,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CViewObjectsExt::InitPropertyDlgFromProperty = true;
 			if (CViewObjectsExt::DoPropertyBrush_Aircraft())
 			{
+				CViewObjectsExt::InitializeOnUpdateEngine();
 				CIsoView::CurrentCommand->Command = 0x17;
 				CIsoView::CurrentCommand->Type = CViewObjectsExt::Set_Aircraft;
 			}
@@ -1362,6 +1370,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			TechnoDialog = std::make_unique<CTechnoDialog>();
 			if (TechnoDialog->DoModal() == IDOK)
 			{
+				CViewObjectsExt::InitializeOnUpdateEngine();
 				CIsoView::CurrentCommand->Command = 0x17;
 				CIsoView::CurrentCommand->Type = CViewObjectsExt::Set_Count;
 			}
@@ -1375,6 +1384,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 		else
 		{
+			CViewObjectsExt::InitializeOnUpdateEngine();
 			CIsoView::CurrentCommand->Command = 1;
 			CIsoView::CurrentCommand->Type = 6;
 			CIsoView::CurrentCommand->Param = 1;
@@ -1388,6 +1398,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 		else
 		{
+			CViewObjectsExt::InitializeOnUpdateEngine();
 			CIsoView::CurrentCommand->Command = 0x2; // delete
 			CIsoView::CurrentCommand->Type = 0;
 		}
@@ -1400,6 +1411,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 		else
 		{
+			CViewObjectsExt::InitializeOnUpdateEngine();
 			CIsoView::CurrentCommand->Command = 0x1B; // view object
 			CIsoView::CurrentCommand->Type = CViewObjectsExt::ObjectTerrainType::All;
 		}
@@ -1423,8 +1435,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	{
 		if (wmID == id)
 		{
-			*(BOOL*)info.pExternalBool = !*(BOOL*)info.pExternalBool;
-			bool isChecked = *(BOOL*)info.pExternalBool;
+			info.ToggleExternalValue();
+			bool isChecked = info.GetExternalValue();
 			CFinalSunDlgExt::CheckToolBarButton(id, isChecked);
 			CheckMenuItem(hMenu, wmID, isChecked ? MF_CHECKED : MF_UNCHECKED);
 
@@ -1442,25 +1454,25 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			{
 			case 40123:
 			{
-				writeToConfig("UserInterface", "ShowBuildingCells", *(BOOL*)info.pExternalBool ? "1" : "0");
+				writeToConfig("UserInterface", "ShowBuildingCells", isChecked ? "1" : "0");
 				::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 				break;
 			}
 			case 40104:
 			{
-				writeToConfig("UserInterface", "DisableAutoShore", *(BOOL*)info.pExternalBool ? "1" : "0");
+				writeToConfig("UserInterface", "DisableAutoShore", isChecked ? "1" : "0");
 				break;
 			}
 			case 40105:
 			{
-				writeToConfig("UserInterface", "DisableAutoLat", *(BOOL*)info.pExternalBool ? "1" : "0");
+				writeToConfig("UserInterface", "DisableAutoLat", isChecked ? "1" : "0");
 				break;
 			}
 			case 40115:
 			{
 				if (!CMapData::Instance->MapWidthPlusHeight)
 				{
-					*(BOOL*)info.pExternalBool = false;
+					info.SetExternalValue(false);
 					CFinalSunDlgExt::CheckToolBarButton(id, false);
 					this->PlaySound(FASoundType::Error);
 					break;
@@ -1475,7 +1487,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			{
 				if (!CMapData::Instance->MapWidthPlusHeight)
 				{
-					*(BOOL*)info.pExternalBool = false;
+					info.SetExternalValue(false);
 					CFinalSunDlgExt::CheckToolBarButton(id, false);
 					this->PlaySound(FASoundType::Error);
 					break;
@@ -1487,15 +1499,152 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			{
 				if (!CMapData::Instance->MapWidthPlusHeight)
 				{
-					*(BOOL*)info.pExternalBool = false;
+					info.SetExternalValue(false);
 					CFinalSunDlgExt::CheckToolBarButton(id, false);
 					this->PlaySound(FASoundType::Error);
 					break;
 				}
-				if (*(BOOL*)info.pExternalBool)
+				if (isChecked)
 					MyViewFrame.Minimap.Update();
 				else
 					::ShowWindow(MyViewFrame.Minimap, SW_HIDE);
+				break;
+			}
+			case 30111:
+			{
+				if (ExtConfigs::ViewObjectsFloating)
+				{
+					if (MyViewFrame.pViewObjects)
+					{
+						HWND hViewObjs = MyViewFrame.pViewObjects->GetSafeHwnd();
+						if (hViewObjs)
+							::ShowWindow(hViewObjs, isChecked ? SW_SHOW : SW_HIDE);
+					}
+				}
+				else if (MyViewFrame.SplitterWnd.m_hWnd)
+				{
+					int cxCur, cxMin;
+					MyViewFrame.SplitterWnd.GetColumnInfo(0, cxCur, cxMin);
+					if (isChecked)
+					{
+						CRect rcFrame;
+						MyViewFrame.GetClientRect(&rcFrame);
+						int totalWidth = std::max(1, rcFrame.Width());
+						float percent = CFinalSunDlgExt::SavedViewObjectsWidthPercentage > 0.0f
+							? CFinalSunDlgExt::SavedViewObjectsWidthPercentage
+							: 0.25f;
+						int viewWidth = static_cast<int>(totalWidth * percent);
+						const int minView = 20;
+						if (viewWidth < minView) viewWidth = minView;
+						if (viewWidth > totalWidth - minView) viewWidth = totalWidth - minView;
+						MyViewFrame.SplitterWnd.SetColumnInfo(0, viewWidth, minView);
+						MyViewFrame.SplitterWnd.RecalcLayout();
+						if (MyViewFrame.pIsoView)
+							MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+					}
+					else
+					{
+						if (cxCur > 0)
+						{
+							CRect rcFrame;
+							MyViewFrame.GetClientRect(&rcFrame);
+							int totalWidth = std::max(1, rcFrame.Width() - GetSystemMetrics(SM_CXVSCROLL));
+							CFinalSunDlgExt::SavedViewObjectsWidthPercentage = static_cast<float>(cxCur) / totalWidth;
+						}
+						MyViewFrame.SplitterWnd.SetColumnInfo(0, 0, 0);
+
+						if (!CFinalSunDlgExt::HasTileSetBrowserFloating)
+						{
+							MyViewFrame.SplitterWnd.RecalcLayout();
+							if (ExtConfigs::VerticalLayout)
+							{							
+								CRect rcFrame;
+								GetClientRect(&rcFrame);						
+								MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(0, rcFrame.Width(), 20);
+								MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(1, 0, 0);
+								MyViewFrame.pRightFrame->CSplitter.RecalcLayout();
+							}
+						}
+						else
+						{				
+							MyViewFrame.SplitterWnd.RecalcLayout();
+						}
+						
+						if (MyViewFrame.pIsoView)
+							MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+					}
+				}
+				break;
+			}
+			case 30112:
+			{
+				if (ExtConfigs::TileSetBrowserFloating)
+				{
+					if (MyViewFrame.pTileSetBrowserFrame)
+					{
+						HWND hTileBrowser = MyViewFrame.pTileSetBrowserFrame->GetSafeHwnd();
+						if (hTileBrowser)
+							::ShowWindow(hTileBrowser, isChecked ? SW_SHOW : SW_HIDE);
+					}
+				}
+				else if (MyViewFrame.pRightFrame && MyViewFrame.pRightFrame->CSplitter.m_hWnd)
+				{
+					CRect rcFrame;
+					MyViewFrame.pRightFrame->GetClientRect(&rcFrame);
+					const int minIso = 20;
+					const int minTile = 20;
+					if (ExtConfigs::VerticalLayout)
+					{
+						int cxCur, cxMin;
+						MyViewFrame.pRightFrame->CSplitter.GetColumnInfo(1, cxCur, cxMin);
+						int totalWidth = std::max(1, rcFrame.Width());
+						if (isChecked)
+						{
+							float percent = CFinalSunDlgExt::SavedTileSetBrowserSizePercentage > 0.0f
+								? CFinalSunDlgExt::SavedTileSetBrowserSizePercentage
+								: 0.375f;
+							int tileWidth = static_cast<int>(totalWidth * percent);
+							if (tileWidth < minTile) tileWidth = minTile;
+							if (tileWidth > totalWidth - minIso) tileWidth = totalWidth - minIso;
+							MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(0, totalWidth - tileWidth, minIso);
+							MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(1, tileWidth, minTile);
+						}
+						else
+						{
+							if (cxCur > 0)
+								CFinalSunDlgExt::SavedTileSetBrowserSizePercentage = static_cast<float>(cxCur) / totalWidth;					
+							MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(0, totalWidth, minIso);
+							MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(1, 0, 0);
+						}
+					}
+					else
+					{
+						int cyCur, cyMin;
+						MyViewFrame.pRightFrame->CSplitter.GetRowInfo(1, cyCur, cyMin);
+						int totalHeight = std::max(1, rcFrame.Height());
+						if (isChecked)
+						{
+							float percent = CFinalSunDlgExt::SavedTileSetBrowserSizePercentage > 0.0f
+								? CFinalSunDlgExt::SavedTileSetBrowserSizePercentage
+								: 0.375f;
+							int tileHeight = static_cast<int>(totalHeight * percent);
+							if (tileHeight < minTile) tileHeight = minTile;
+							if (tileHeight > totalHeight - minIso) tileHeight = totalHeight - minIso;
+							MyViewFrame.pRightFrame->CSplitter.SetRowInfo(0, totalHeight -tileHeight, minIso);
+							MyViewFrame.pRightFrame->CSplitter.SetRowInfo(1, tileHeight, minTile);
+						}
+						else
+						{
+							if (cyCur > 0)
+								CFinalSunDlgExt::SavedTileSetBrowserSizePercentage = static_cast<float>(cyCur) / totalHeight;
+							MyViewFrame.pRightFrame->CSplitter.SetRowInfo(0, totalHeight, minIso);
+							MyViewFrame.pRightFrame->CSplitter.SetRowInfo(1, 0, 0);
+						}
+					}
+					MyViewFrame.pRightFrame->CSplitter.RecalcLayout();
+					if (MyViewFrame.pIsoView)
+						MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+				}
 				break;
 			}
 			default:
@@ -1862,7 +2011,7 @@ bool CFinalSunDlgExt::CheckProperty_Aircraft(CAircraftData data)
 		CheckValue(1300, CViewObjectsExt::AircraftBrushDlg->CString_House, data.House) &&
 		CheckValue(1301, CViewObjectsExt::AircraftBrushDlg->CString_HealthPoint, data.Health) &&
 		CheckValue(1302, CViewObjectsExt::AircraftBrushDlg->CString_Direction, data.Facing) &&
-		CheckValue(1303, CViewObjectsExt::AircraftBrushDlg->CString_Status, data.Status) &&
+		CheckValue(1303, CViewObjectsExt::AircraftBrushDlg->CString_State, data.Status) &&
 		CheckValue(1304, CViewObjectsExt::AircraftBrushDlg->CString_VeteranLevel, data.VeterancyPercentage) &&
 		CheckValue(1305, CViewObjectsExt::AircraftBrushDlg->CString_Group, data.Group) &&
 		CheckValue(1306, CViewObjectsExt::AircraftBrushDlg->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&

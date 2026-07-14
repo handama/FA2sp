@@ -68,8 +68,11 @@ public:
     static FString CurrentSelectedCSFApply;
     static bool NeedUpdate;
     static int TriggerCaller;
+    static int TriggerParamIndex;
     static WNDPROC g_pOriginalListViewProc;
 
     static std::vector<std::pair<FString, FString>> m_DisplayData; 
     static FString m_SearchText; 
+
+    static TransparencyHelper m_transparency;
 };

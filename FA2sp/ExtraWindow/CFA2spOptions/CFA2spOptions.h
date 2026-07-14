@@ -42,5 +42,6 @@ private:
     static bool initialized;
     static WNDPROC g_pOriginalListViewProc;
     static LRESULT CALLBACK ListViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+    static TransparencyHelper m_transparency;
 };
 

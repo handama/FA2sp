@@ -57,7 +57,7 @@ public:
         TurnToScript = 1501,
         TurnToTag = 1502,
         SearchReference = 1999,
-        DragPoint = 2001
+        DragPoint = 2001,
     };
 
     static void Create(CFinalSunDlg* pWnd);
@@ -174,5 +174,6 @@ private:
     static POINT m_dragOffset;
     static HWND m_hDragGhost;
     static TargetHighlighter hl;
+    static TransparencyHelper m_transparency;
 };
 

@@ -54,7 +54,6 @@ static std::vector<std::pair<MapCoord, FString>> SmudgeTextsToDraw;
 static std::vector<std::pair<MapCoord, FString>> BaseNodeTextsToDraw;
 static std::vector<std::pair<MapCoord, DrawBuildings>> BuildingsToDraw;
 static std::vector<std::pair<MapCoord, ImageDataClassSafe *>> AlphaImagesToDraw;
-static std::vector<std::pair<MapCoord, ImageDataClassSafe *>> FiresToDraw;
 static std::vector<Veterancy> DrawVeterancies;
 static std::vector<CellInfo> visibleCells;
 static std::vector<BaseNodeDataExt> DrawnBaseNodes;
@@ -1454,7 +1453,6 @@ static void DrawMap()
 		TerrainTextsToDraw.clear();
 		BuildingsToDraw.clear();
 		AlphaImagesToDraw.clear();
-		FiresToDraw.clear();
 		BaseNodeTextsToDraw.clear();
 		DrawVeterancies.clear();
 		visibleCells.clear();
@@ -1634,7 +1632,7 @@ static void DrawMap()
 
 	auto isCellHidden = [](CellData *pCell)
 	{
-		return pCell->IsHidden() && (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers);
+		return CMapDataExt::IsHiddenCell(pCell) && (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers);
 	};
 
 	auto getTileVirtualHeight = [](CellData *cell) -> int
@@ -1710,6 +1708,9 @@ static void DrawMap()
 		CIsoViewExt::CurrentDrawCellLocation.X = X;
 		CIsoViewExt::CurrentDrawCellLocation.Y = Y;
 		CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
+
+		if (cell->TileIndex >= CMapDataExt::TileDataCount && cell->TileIndex != 0xFFFF)
+			continue;
 
 		int altImage = cell->Flag.AltIndex;
 		int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
@@ -1944,6 +1945,9 @@ static void DrawMap()
 		const int &X = coord.X;
 		const int &Y = coord.Y;
 		const auto cell = CMapData::Instance->GetCellAt(X, Y);
+
+		if (cell->TileIndex >= CMapDataExt::TileDataCount && cell->TileIndex != 0xFFFF)
+			continue;
 
 		CIsoViewExt::CurrentDrawCellLocation.X = X;
 		CIsoViewExt::CurrentDrawCellLocation.Y = Y;
@@ -2487,7 +2491,7 @@ static void DrawMap()
 		CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
 
 		// tiles
-		if (info.isInMap)
+		if (info.isInMap && !(cell->TileIndex >= CMapDataExt::TileDataCount && cell->TileIndex != 0xFFFF))
 		{
 			int altImage = cell->Flag.AltIndex;
 			int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
@@ -2924,6 +2928,31 @@ static void DrawMap()
 							}
 						}
 					}
+
+					if (CIsoViewExt::DrawFires && part.hasFire && DataExt.DamageFireOffsets.size() > 0)
+					{
+						for (int i = 0; i < DataExt.DamageFireOffsets.size(); ++i)
+						{
+							if (cellExt->DamagedFires[i] < 0)
+								break;
+							auto &fire = CLoadingExt::DamageFires[cellExt->DamagedFires[i]];
+
+							if (ExtConfigs::DirectXRendering)
+							{
+								CIsoViewExt::DirectXNormal(
+									x1 - fire->FullWidth / 2 + DataExt.DamageFireOffsets[i].x, 
+									y1 - fire->FullHeight / 2 + DataExt.DamageFireOffsets[i].y,
+									fire.get(), NULL, 1.0f, 0, -100, false);
+							}
+							else
+							{
+								CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
+									x1 - fire->FullWidth / 2 + DataExt.DamageFireOffsets[i].x,
+									y1 - fire->FullHeight / 2 + DataExt.DamageFireOffsets[i].y,
+									fire.get(), NULL, 255, 0, -100, false);
+							}
+						}
+					}
 				}
 
 				if (firstDraw && CIsoViewExt::DrawVeterancy)
@@ -2933,23 +2962,6 @@ static void DrawMap()
 					veter.Y = y1 + (DataExt.RealWidth + DataExt.RealHeight - 2) * 15 / 2;
 					veter.VP = 0;
 					veter.ID = objRender.ID;
-				}
-
-				if (firstDraw && CIsoViewExt::DrawFires && part.hasFire && DataExt.DamageFireOffsets.size() > 0)
-				{
-					for (int i = 0; i < DataExt.DamageFireOffsets.size(); ++i)
-					{
-						if (cellExt->DamagedFires[i] < 0)
-							break;
-						const auto &fire = CLoadingExt::DamageFires[cellExt->DamagedFires[i]].get();
-						if (ImageDataClassSafe::IsValidImage(fire))
-						{
-							FiresToDraw.push_back(std::make_pair(
-								MapCoord{x1 - fire->FullWidth / 2 + DataExt.DamageFireOffsets[i].x,
-										 y1 - fire->FullHeight / 2 + DataExt.DamageFireOffsets[i].y},
-								fire));
-						}
-					}
 				}
 			}
 		}
@@ -3174,22 +3186,6 @@ static void DrawMap()
 					info,
 					false);
 			}
-		}
-	}
-
-	for (const auto &fire : FiresToDraw)
-	{
-		if (ExtConfigs::DirectXRendering)
-		{
-			CIsoViewExt::DirectXNormal(
-				fire.first.X, fire.first.Y,
-				fire.second, NULL, 1.0f, 0, -100, false);
-		}
-		else
-		{
-			CIsoViewExt::BlitSHPTransparent(pThis, ddsd.lpSurface, window, boundary,
-											fire.first.X, fire.first.Y,
-											fire.second, NULL, 255, 0, -100, false);
 		}
 	}
 

@@ -20,6 +20,7 @@ HWND CFA2spOptions::hSearch;
 CFinalSunDlg* CFA2spOptions::m_parent;
 bool CFA2spOptions::initialized = false;
 WNDPROC CFA2spOptions::g_pOriginalListViewProc = nullptr;
+TransparencyHelper CFA2spOptions::m_transparency;
 
 LRESULT CALLBACK CFA2spOptions::ListViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -411,6 +412,7 @@ BOOL CALLBACK CFA2spOptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
     case WM_INITDIALOG:
     {
         CFA2spOptions::Initialize(hwnd);
+        m_transparency.Init(hwnd, "FA2spOptionsOpacity");
         return TRUE;
     }
     case WM_NOTIFY:
@@ -503,6 +505,8 @@ BOOL CALLBACK CFA2spOptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hwnd, Msg, wParam, lParam, "FA2spOptionsOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -526,6 +530,10 @@ BOOL CALLBACK CFA2spOptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
         OnEditchangeSearch();
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hwnd, Msg, wParam, lParam, "FA2spOptionsOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler

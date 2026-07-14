@@ -113,4 +113,5 @@ public:
     static VirtualComboBoxEx vcbBuildActivity;
 private:
     static bool m_programmaticEdit;
+    static TransparencyHelper m_transparency;
 };

@@ -65,6 +65,7 @@ FHashMap<ObjInfo*> CBatchTrigger::triggerNameIndex;
 FHashMap<ObjInfo*> CBatchTrigger::tagNameIndex;
 FHashMap<ObjInfo*> CBatchTrigger::teamNameIndex;
 HelpDlg CBatchTrigger::hdHelp;
+TransparencyHelper CBatchTrigger::m_transparency;
 
 LRESULT CALLBACK CBatchTrigger::ListViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -201,6 +202,7 @@ BOOL CALLBACK CBatchTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     case WM_INITDIALOG:
     {
         CBatchTrigger::Initialize(hWnd);
+        m_transparency.Init(hWnd, "BatchTriggerOpacity");
         RECT rect;
         GetClientRect(hWnd, &rect);
         origWndWidth = rect.right - rect.left;
@@ -255,6 +257,8 @@ BOOL CALLBACK CBatchTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "BatchTriggerOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -440,6 +444,10 @@ BOOL CALLBACK CBatchTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         Update();
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "BatchTriggerOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler

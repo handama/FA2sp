@@ -55,6 +55,8 @@ UINT_PTR CNewINIEditor::m_changeDebounceTimer = 0;
 FString CNewINIEditor::CurrentSection;
 const UINT DEBOUNCE_MS = 250;
 
+TransparencyHelper CNewINIEditor::m_transparency;
+
 void CNewINIEditor::Create(CFinalSunDlg* pWnd)
 {
     HMODULE hScintilla = LoadLibrary(TEXT("Scintilla.dll"));
@@ -249,6 +251,9 @@ BOOL CALLBACK CNewINIEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         origWndWidth = rect.right - rect.left;
         origWndHeight = rect.bottom - rect.top;
         minSizeSet = false;
+
+        m_transparency.Init(hWnd, "INIEditorOpacity");
+
         return TRUE;
     }
     case WM_GETMINMAXINFO: {
@@ -292,6 +297,17 @@ BOOL CALLBACK CNewINIEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "INIEditorOpacity"))
+        {
+            if (m_hwndImporter && IsWindow(m_hwndImporter))
+            {
+                BYTE alpha = 255;
+                GetLayeredWindowAttributes(hWnd, NULL, &alpha, NULL);
+                m_transparency.ApplyTransparency(m_hwndImporter, alpha, "INIEditorOpacity");
+            }
+            return TRUE;
+        }
+
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -351,6 +367,9 @@ BOOL CALLBACK CNewINIEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     }
     case WM_TIMER:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "INIEditorOpacity"))
+            return TRUE;
+
         if (wParam == 1002)
         {
             KillTimer(m_hwnd, 1002);
@@ -361,6 +380,7 @@ BOOL CALLBACK CNewINIEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         }
         break;
     }
+
     case WM_CLOSE:
     {
         CNewINIEditor::Close(hWnd);
@@ -371,6 +391,10 @@ BOOL CALLBACK CNewINIEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         Update(hWnd);
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "INIEditorOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler
@@ -384,6 +408,7 @@ BOOL CALLBACK CNewINIEditor::DlgProcImporter(HWND hWnd, UINT Msg, WPARAM wParam,
     case WM_INITDIALOG:
     {
         CNewINIEditor::InitializeImporter(hWnd);
+        m_transparency.Init(hWnd, "INIEditorOpacity");
         RECT rect;
         GetClientRect(hWnd, &rect);
         i_origWndWidth = rect.right - rect.left;
@@ -423,6 +448,16 @@ BOOL CALLBACK CNewINIEditor::DlgProcImporter(HWND hWnd, UINT Msg, WPARAM wParam,
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "INIEditorOpacity"))
+        {
+            if (m_hwnd && IsWindow(m_hwnd))
+            {
+                BYTE alpha = 255;
+                GetLayeredWindowAttributes(hWnd, NULL, &alpha, NULL);
+                m_transparency.ApplyTransparency(m_hwnd, alpha, "INIEditorOpacity");
+            }
+            return TRUE;
+        }
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -441,6 +476,10 @@ BOOL CALLBACK CNewINIEditor::DlgProcImporter(HWND hWnd, UINT Msg, WPARAM wParam,
         CNewINIEditor::CloseImporter(hWnd);
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "INIEditorOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler
@@ -788,13 +827,22 @@ void CNewINIEditor::OnSelchangeListbox(int index)
 
 void CNewINIEditor::SetupIniHighlight(HWND& hWnd)
 {
+    SendMessage(hWnd, SCI_SETTECHNOLOGY, SC_TECHNOLOGY_DIRECTWRITE, 0);
+    // set locale
+	WCHAR wLocale[LOCALE_NAME_MAX_LENGTH];
+	GetUserDefaultLocaleName(wLocale, LOCALE_NAME_MAX_LENGTH);
+
+	char locale[LOCALE_NAME_MAX_LENGTH];
+	WideCharToMultiByte(CP_UTF8, 0, wLocale, -1, locale, sizeof(locale), nullptr, nullptr);
+	SendMessage(hWnd, SCI_SETFONTLOCALE, 0, reinterpret_cast<LPARAM>(locale));
+
     ::SendMessage(hWnd, SCI_SETMULTIPLESELECTION, TRUE, 0);
     ::SendMessage(hWnd, SCI_SETADDITIONALSELECTIONTYPING, TRUE, 0);
     ::SendMessage(hWnd, SCI_SETMULTIPASTE, SC_MULTIPASTE_EACH, 0);
     ::SendMessage(hWnd, SCI_SETVIRTUALSPACEOPTIONS, SCVS_RECTANGULARSELECTION, 0);
     ::SendMessage(hWnd, SCI_SETCODEPAGE, SC_CP_UTF8, 0);
     ::SendMessage(hWnd, SCI_STYLESETFONT, STYLE_DEFAULT, (LPARAM)"Consolas");
-    ::SendMessage(hWnd, SCI_STYLESETSIZE, STYLE_DEFAULT, 12);
+    ::SendMessage(hWnd, SCI_STYLESETSIZE, STYLE_DEFAULT, 11);
     ::SendMessage(hWnd, SCI_SETTABWIDTH, 4, 0);
 
     ::SendMessage(hWnd, SCI_SETILEXER, 0, (LPARAM)CreateLexer("props"));
@@ -1013,6 +1061,26 @@ int CNewINIEditor::FindLBTextCaseSensitive(HWND hwndCtl, const char* searchStrin
 
 void CNewINIEditor::UpdateGameObject(const char* lpSectionName)
 {
+    if (CFinalSunDlgExt::CurrentLighting != 31000 && CMapDataExt::LightingBuildingTypes.contains(lpSectionName))
+    {
+        LightingSourceTint::CalculateMapLamps();
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+        return;
+    }
+    if (CFinalSunDlgExt::CurrentLighting != 31000 && strcmp(lpSectionName, "Lighting") == 0) 
+    {
+        LightingStruct::GetCurrentLighting();
+        for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
+            for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
+                CMapData::Instance->UpdateMapPreviewAt(i, j);
+            }
+        }
+        LightingSourceTint::CalculateMapLamps();
+        CFinalSunDlg::Instance()->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+        CFinalSunDlg::Instance()->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+		return;
+	}
+
     if (!IsGameObject(lpSectionName) && !IsHouse(lpSectionName)) return;
     if (strcmp(lpSectionName, "Structures") == 0) {
         CMapDataExt::UpdateFieldStructureData_RedrawMinimap();

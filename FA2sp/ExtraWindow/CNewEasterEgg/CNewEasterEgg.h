@@ -30,6 +30,8 @@ private:
     static CFinalSunDlg* m_parent;
     static bool initialized;
 
+    static TransparencyHelper m_transparency;
+
     static const int BOARD_N = 15;
     static int board[BOARD_N][BOARD_N];
 
@@ -1251,6 +1253,8 @@ private:
     static HWND m_hwnd;
     static CFinalSunDlg* m_parent;
     static bool initialized;
+
+    static TransparencyHelper m_transparency;
 
     static int clientW, clientH;
     static int leftX, topY, cell, boardW, boardH;

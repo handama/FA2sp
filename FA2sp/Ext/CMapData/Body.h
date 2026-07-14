@@ -917,6 +917,7 @@ public:
 	static int IsBlueMapBound(int x, int y);
 	static int IsBlueMapBound();
 	static bool CellCannotDrag(int x, int y);
+    static bool IsHiddenCell(CellData* pCell);
 
 	static CTileTypeClass* TileData;
     static int TileDataCount;
@@ -938,6 +939,7 @@ public:
     static Palette Palette_Shadow;
     static Palette Palette_AlphaImage;
     static std::vector<std::pair<LightingSourcePosition, LightingSource>> LightingSources;
+    static FHashSet LightingBuildingTypes;
     static int AutoShore_ShoreTileSet;
     static int AutoShore_GreenTileSet;
     static std::unordered_set<int> ShoreTileSets;
@@ -993,6 +995,7 @@ public:
     static float ExtraUnitLight;
     static float ExtraInfantryLight;
     static float ExtraAircraftLight;
+    static bool IsInitingPropertyDialog;
 
     static std::vector<CUnitDataFS> UnitDatasExt;
     static std::vector<CAircraftDataFS> AircraftDatasExt;

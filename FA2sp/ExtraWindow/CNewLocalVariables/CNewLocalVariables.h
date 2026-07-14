@@ -51,5 +51,6 @@ private:
     static HWND hSearch;
     static int SelectedIndex;
     static FString SelectedKey;
+    static TransparencyHelper m_transparency;
 };
 

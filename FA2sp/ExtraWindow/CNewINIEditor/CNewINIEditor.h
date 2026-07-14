@@ -112,5 +112,7 @@ private:
     static bool autoEdit;
     static UINT_PTR m_changeDebounceTimer;
     static FString CurrentSection;
+
+    static TransparencyHelper m_transparency;
 };
 

@@ -49,5 +49,6 @@ private:
     static int minWndWidth;
     static int minWndHeight;
     static bool minSizeSet;
+    static TransparencyHelper m_transparency;
 };
 

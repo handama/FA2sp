@@ -18,6 +18,7 @@ int CTriggerAnnotation::origWndHeight;
 int CTriggerAnnotation::minWndWidth;
 int CTriggerAnnotation::minWndHeight;
 bool CTriggerAnnotation::minSizeSet;
+TransparencyHelper CTriggerAnnotation::m_transparency;
 FString CTriggerAnnotation::ID;
 AnnotationType CTriggerAnnotation::Type;
 char Buffer[BUFFER_SIZE]{ 0 };
@@ -135,6 +136,7 @@ BOOL CALLBACK CTriggerAnnotation::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LP
     case WM_INITDIALOG:
     {
         CTriggerAnnotation::Initialize(hWnd);
+        m_transparency.Init(hWnd, "TriggerAnnotationOpacity");
         RECT rect;
         GetClientRect(hWnd, &rect);
         origWndWidth = rect.right - rect.left;
@@ -183,6 +185,8 @@ BOOL CALLBACK CTriggerAnnotation::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LP
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "TriggerAnnotationOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -213,6 +217,10 @@ BOOL CALLBACK CTriggerAnnotation::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LP
         Update();
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "TriggerAnnotationOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler

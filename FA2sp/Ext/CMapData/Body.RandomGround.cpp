@@ -213,7 +213,7 @@ void CMapDataExt::CreateRandomGround(int TopX, int TopY, int BottomX, int Bottom
         for (int j = TopY; j <= BottomY; ++j) {
             if (!CMapData::Instance->IsCoordInMap(i, j)) continue;
             auto cell = CMapData::Instance->GetCellAt(i, j);
-            if (cell->IsHidden()) continue;
+            if (CMapDataExt::IsHiddenCell(cell)) continue;
             if (multiSelection) {
                 bool skip = true;
                 for (const auto& coord : MultiSelection::SelectedCoords) {
@@ -311,7 +311,7 @@ void CMapDataExt::CreateRandomOverlay(int TopX, int TopY,
             if (!CMapData::Instance->IsCoordInMap(i, j)) continue;
             int pos = CMapData::Instance->GetCoordIndex(i, j);
             auto cell = CMapData::Instance->GetCellAt(pos);
-            if (cell->IsHidden()) continue;
+            if (CMapDataExt::IsHiddenCell(cell)) continue;
             if (multiSelection) {
                 bool skip = true;
                 for (const auto& coord : MultiSelection::SelectedCoords) {
@@ -368,7 +368,7 @@ void CMapDataExt::CreateRandomTerrain(int TopX, int TopY,
             if (!CMapData::Instance->IsCoordInMap(i, j)) continue;
             int pos = CMapData::Instance->GetCoordIndex(i, j);
             auto cell = CMapData::Instance->GetCellAt(pos);
-            if (cell->IsHidden()) continue;
+            if (CMapDataExt::IsHiddenCell(cell)) continue;
             if (multiSelection) {
                 bool skip = true;
                 for (const auto& coord : MultiSelection::SelectedCoords) {
@@ -429,7 +429,7 @@ void CMapDataExt::CreateRandomSmudge(int TopX, int TopY,
             if (!CMapData::Instance->IsCoordInMap(i, j)) continue;
             int pos = CMapData::Instance->GetCoordIndex(i, j);
             auto cell = CMapData::Instance->GetCellAt(pos);
-            if (cell->IsHidden()) continue;
+            if (CMapDataExt::IsHiddenCell(cell)) continue;
             if (multiSelection) {
                 bool skip = true;
                 for (const auto& coord : MultiSelection::SelectedCoords) {

@@ -19,15 +19,6 @@ DEFINE_HOOK(432577, CFinalSunDlg_UpdateDialog_Translate_CLighting,5)
     return 0;
 }
 
-DEFINE_HOOK(478428, CLighting_OnInitDialog, 5)
-{
-    GET(CLightingExt*, pThis, ESI);
-
-    pThis->Translate();
-
-    return 0x478439;
-}
-
 DEFINE_HOOK(477920, CLighting_UpdateDialog_Init, 7)
 {
     IsUpdatingDialog = true;

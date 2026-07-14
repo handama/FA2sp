@@ -98,24 +98,25 @@ static std::string GetIniSection(const std::string& section)
 // Convert incoming string (UTF-8 from client) to internal ANSI
 static std::string ToInternalEncoding(const std::string& str)
 {
-    FString fs(str);
     auto encoding = STDHelpers::GetFileEncoding(
-        reinterpret_cast<const uint8_t*>(fs.data()), fs.size());
+        reinterpret_cast<const uint8_t*>(str.data()), str.size());
     if (encoding == FileEncoding::UTF8 || encoding == FileEncoding::UTF8_BOM)
-        fs.toANSI();
-    return std::string(fs);
+        return CLuaConsole::EncodeUtf8ToAnsi(str);
+    return str;
 }
 
 // Convert outgoing string (internal ANSI) to UTF-8 for client
 static std::string ToExternalEncoding(const std::string& str)
 {
+    // First check if it's ANSI and convert to UTF-8
     FString fs(str);
     auto encoding = STDHelpers::GetFileEncoding(
         reinterpret_cast<const uint8_t*>(fs.data()), fs.size());
     if (encoding == FileEncoding::ANSI)
         fs.toUTF8();
 
-    return std::string(fs);
+    // Decode emoji placeholders for clients (e.g. <emoji:1F5A5> -> actual emoji)
+    return CLuaConsole::DecodeEmojiPlaceholders(fs);
 }
 
 // ===================================================================
@@ -262,7 +263,8 @@ static json ProcessRequest(json& request)
             {"name", "save_script"},
             {"description", "Save a Lua script to the Scripts directory. "
                             "IMPORTANT: Only use this tool when the user explicitly requests to save or "
-                            "store a script. Do NOT use it automatically or without user confirmation."},
+                            "store a script. Do NOT use it automatically or without user confirmation. "
+                            "Add a comment at the beginning of the file describing the script's purpose."},
             {"inputSchema", {
                 {"type", "object"},
                 {"properties", {
@@ -810,6 +812,41 @@ void CMcpServer::HandleRunLua(MCPRequest* req)
     // Reuse the Lua state exposed by CLuaConsole
     auto& Lua = CLuaConsole::Lua;
     CLuaConsole::skipBuildingUpdate = true;
+
+    // Static scan for high-risk operations before execution
+    {
+        auto highRiskOps = CLuaConsole::ScanHighRiskOperations(req->input);
+        if (!highRiskOps.empty())
+        {
+            std::ostringstream warnMsg;
+            warnMsg << Translations::TranslateOrDefault("LuaHighRisk.Header",
+                "The following high-risk operations were detected in the script:")
+                << "\r\n\r\n";
+            for (const auto& [lineNum, code] : highRiskOps)
+            {
+                warnMsg << "  [Line " << lineNum << "]  " << code << "\r\n";
+            }
+            warnMsg << "\r\n" << Translations::TranslateOrDefault("LuaHighRisk.Footer",
+                "Are you sure you want to continue?");
+                
+            ExtraWindow::DisableOtherWindows(CLuaConsole::GetHandle());
+            int result = MessageBox(CLuaConsole::GetHandle(), warnMsg.str().c_str(),
+                Translations::TranslateOrDefault("LuaHighRisk.Title", "High-Risk Operation Confirmation"),
+                MB_YESNO | MB_ICONWARNING);
+            ExtraWindow::RestoreDisabledWindows();
+            
+            if (result != IDYES)
+            {
+                CLuaConsole::mcpOutput += "Script cancelled: high-risk operations detected by user.\r\n";
+                req->result = std::move(CLuaConsole::mcpOutput);
+                CLuaConsole::mcpRunning = false;
+                CLuaConsole::mcpOutput.clear();
+        
+                SetEvent(req->hEvent);
+                return;
+            }
+        }
+    }
 
     {
         VEHGuard guard(false);  // disable VEH during Lua execution

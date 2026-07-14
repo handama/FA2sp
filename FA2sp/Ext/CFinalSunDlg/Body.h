@@ -7,11 +7,12 @@
 #include <set>
 #include <map>
 #include <memory>
+#include <variant>
 
-#include <CPropertyBuilding.h>
-#include <CPropertyAircraft.h>
-#include <CPropertyInfantry.h>
-#include <CPropertyUnit.h>
+#include "../../ExtraWindow/CNewPropertyBuilding/CNewPropertyBuilding.h"
+#include "../../ExtraWindow/CNewPropertyAircraft/CNewPropertyAircraft.h"
+#include "../../ExtraWindow/CNewPropertyInfantry/CNewPropertyInfantry.h"
+#include "../../ExtraWindow/CNewPropertyUnit/CNewPropertyUnit.h"
 
 #include <CObjectDatas.h>
 #include <CMapData.h>
@@ -19,12 +20,42 @@
 #include <unordered_map>
 class CTechnoDialog;
 
-struct CheckButtonInfo {
-    HWND hParent;
-    UINT cmdID;
-    int index;
-    bool isChecked;
-    void* pExternalBool;
+struct CheckButtonInfo
+{
+    HWND hParent{};
+    UINT cmdID{};
+    int index{};
+    bool isChecked{};
+    std::variant<bool*, BOOL*> pExternalBool{};
+
+    bool GetExternalValue() const
+    {
+        return std::visit([](auto p)
+        {
+            return p && (*p != 0);
+        }, pExternalBool);
+    }
+
+    void SetExternalValue(bool value)
+    {
+        std::visit([value](auto p)
+        {
+            if (!p)
+                return;
+
+            using T = std::remove_pointer_t<decltype(p)>;
+
+            if constexpr (std::is_same_v<T, bool>)
+                *p = value;
+            else
+                *p = value ? TRUE : FALSE;
+        }, pExternalBool);
+    }
+
+    void ToggleExternalValue()
+    {
+        SetExternalValue(!GetExternalValue());
+    }
 };
 
 class NOVTABLE CFinalSunDlgExt : public CFinalSunDlg
@@ -37,6 +68,10 @@ public:
     static void ProgramStartupInit();
 
     static bool HasMinimap;
+    static bool HasViewObjectsFloating;
+    static bool HasTileSetBrowserFloating;
+    static float SavedViewObjectsWidthPercentage;
+    static float SavedTileSetBrowserSizePercentage;
     static bool MapValidatorAlive;
     static int CurrentLighting;
     static int SearchObjectType;
@@ -398,16 +433,16 @@ public:
     static bool NeedChangeTreeViewSelect;
     static bool Initialized;
 
-    static std::unique_ptr<CPropertyBuilding> BuildingBrushDlg;
-    static std::unique_ptr<CPropertyInfantry> InfantryBrushDlg;
-    static std::unique_ptr<CPropertyUnit> VehicleBrushDlg;
-    static std::unique_ptr<CPropertyAircraft> AircraftBrushDlg;
+    static std::unique_ptr<CNewPropertyBuilding> BuildingBrushDlg;
+    static std::unique_ptr<CNewPropertyInfantry> InfantryBrushDlg;
+    static std::unique_ptr<CNewPropertyUnit> VehicleBrushDlg;
+    static std::unique_ptr<CNewPropertyAircraft> AircraftBrushDlg;
 
-    static std::unique_ptr<CPropertyBuilding> BuildingBrushDlgBF;
-    static std::unique_ptr<CPropertyInfantry> InfantryBrushDlgF;
-    static std::unique_ptr<CPropertyUnit> VehicleBrushDlgF;
-    static std::unique_ptr<CPropertyAircraft> AircraftBrushDlgF;
-    static std::unique_ptr<CPropertyBuilding> BuildingBrushDlgBNF;
+    static std::unique_ptr<CNewPropertyBuilding> BuildingBrushDlgBF;
+    static std::unique_ptr<CNewPropertyInfantry> InfantryBrushDlgF;
+    static std::unique_ptr<CNewPropertyUnit> VehicleBrushDlgF;
+    static std::unique_ptr<CNewPropertyAircraft> AircraftBrushDlgF;
+    static std::unique_ptr<CNewPropertyBuilding> BuildingBrushDlgBNF;
     static COLORREF WpColor;
     static COLORREF TagColor;
 
@@ -417,6 +452,7 @@ public:
     static std::map<int, FString> TreeViewIndex_Aircraft;
     static std::map<int, FString> TreeViewIndex_Terrain;
     static std::map<int, FString> TreeViewIndex_Smudge;
+    static std::map<int, FString> TreeViewIndex_House;
 
     void Redraw();
     void Redraw_Owner();

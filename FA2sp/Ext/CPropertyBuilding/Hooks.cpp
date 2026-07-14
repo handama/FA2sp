@@ -1,7 +1,7 @@
 #include <Helpers/Macro.h>
 #include <Miscs/Miscs.LoadParams.h>
 #include <CMapData.h>
-
+#include "../../FA2sp/Helpers/Helper.h"
 #include <algorithm>
 
 #include "Body.h"
@@ -19,20 +19,20 @@ DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
     pThis->ppmfc::CDialog::OnInitDialog();
 
     CMapData::Instance->UpdateCurrentDocument();
+    TempValueHolder temp(CMapDataExt::IsInitingPropertyDialog, true);
     if (!CMapData::Instance->IsMultiOnly())
     {
         Miscs::LoadParams::Houses(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1079)), false, false, false);
     }
     else
     {
-        if (ExtConfigs::TestNotLoaded)
+        if (!ExtConfigs::TestNotLoaded)
         {
-            
+            if (ExtConfigs::PlayerAtXForTechnos)
+                Miscs::LoadParams::Houses(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1079)), false, true, true);
+            else
+                Miscs::LoadParams::Houses(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1079)), false, true, false);
         }
-        else if(ExtConfigs::PlayerAtXForTechnos)
-            Miscs::LoadParams::Houses(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1079)), false, false, true);
-        else
-            Miscs::LoadParams::Houses(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1079)), false, false, false);
     }
 	
     Miscs::LoadParams::Tags(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1083)), true);

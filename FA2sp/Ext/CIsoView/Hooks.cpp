@@ -2219,7 +2219,16 @@ DEFINE_HOOK(469470, CIsoView_OnKeyDown, 5)
 	}
 	case 'A':
 	{
-		pThis->KeyboardAMode = !pThis->KeyboardAMode;
+		if (CIsoView::CurrentCommand->Command == 11 
+			|| CIsoView::CurrentCommand->Command == 12 
+			|| CIsoView::CurrentCommand->Command == 15)
+		{
+			CIsoViewExt::UsingNewRaiseGround = !CIsoViewExt::UsingNewRaiseGround;
+		}
+		else
+		{
+			pThis->KeyboardAMode = !pThis->KeyboardAMode;
+		}
 	}
 	}
 
@@ -2318,7 +2327,7 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 				|| CIsoView::CurrentCommand->Command != 0x1E)
 			{
 				auto& gov = GridObjectViewer::Instance;
-				if (!gov.IsVisible())
+				if (!gov.IsVisible() && CIsoView::CurrentCommand->Command != 15)
 				{
 					if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
 					{

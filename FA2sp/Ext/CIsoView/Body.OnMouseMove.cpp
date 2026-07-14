@@ -158,11 +158,27 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
             || CIsoView::CurrentCommand->Command == 0x20)
         {
             std::vector<MapCoord> cells;
-            for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)
+
+            if (CIsoViewExt::UsingNewRaiseGround && (CIsoView::CurrentCommand->Command == 11 
+                || CIsoView::CurrentCommand->Command == 12 
+                || CIsoView::CurrentCommand->Command == 15))
             {
-                for (int gy = point.Y - pIsoView->BrushSizeY / 2; gy <= point.Y + pIsoView->BrushSizeY / 2; gy++)
+                for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2 - 1; gx++)
                 {
-                    cells.push_back({gx, gy});
+                    for (int gy = point.Y - pIsoView->BrushSizeY / 2; gy <= point.Y + pIsoView->BrushSizeY / 2 - 1; gy++)
+                    {
+                        cells.push_back({gx, gy});
+                    }
+                }
+            }
+            else
+            {
+                for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)
+                {
+                    for (int gy = point.Y - pIsoView->BrushSizeY / 2; gy <= point.Y + pIsoView->BrushSizeY / 2; gy++)
+                    {
+                        cells.push_back({gx, gy});
+                    }
                 }
             }
             if (ExtConfigs::DirectXRendering)
@@ -518,6 +534,10 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                 leftIndex++;
             double defaultScaledFactor = ExtConfigs::HiDPIAwareness_ScaleIsoView ? (1.0 / CFinalSunAppExt::ProgramScaleFactor) : 1.0;
             if (fabs(CIsoViewExt::ScaledFactor - defaultScaledFactor) > 0.01)
+                leftIndex++;
+            if (CIsoView::CurrentCommand->Command == 11 
+                || CIsoView::CurrentCommand->Command == 12 
+                || CIsoView::CurrentCommand->Command == 15)
                 leftIndex++;
         }
 
@@ -3232,11 +3252,25 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
 		}
 		else
         {
-			if (ExtConfigs::DirectXRendering)
-				pIsoView->DirectXMouseCursor(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, cell->Height);
+			int offsetY = 0;
+			if (CIsoViewExt::UsingNewRaiseGround && 
+                (CIsoView::CurrentCommand->Command == 11
+                || CIsoView::CurrentCommand->Command == 12
+                || CIsoView::CurrentCommand->Command == 15)
+            )
+            {
+				offsetY = -15 / ScaledFactor;
+			}
+
+
+            if (ExtConfigs::DirectXRendering)
+                pIsoView->DirectXMouseCursor(X - CIsoViewExt::drawOffsetX, 
+                    Y - CIsoViewExt::drawOffsetY + offsetY, cell->Height);
             else
-                pIsoView->DrawLockedCellOutlinePaintCursor(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY,
-                    cell->Height, ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, ExtConfigs::CursorSelectionBound_AutoColor);
+                pIsoView->DrawLockedCellOutlinePaintCursor(X - CIsoViewExt::drawOffsetX, 
+                    Y - CIsoViewExt::drawOffsetY + offsetY, cell->Height, 
+                    ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, 
+                    ExtConfigs::CursorSelectionBound_AutoColor);
 		}
     }
 }

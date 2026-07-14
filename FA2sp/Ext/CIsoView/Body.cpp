@@ -72,6 +72,7 @@ bool CIsoViewExt::RenderMarkStartings = false;
 bool CIsoViewExt::RenderIgnoreObjects = false;
 bool CIsoViewExt::RenderSaveAsPNG = false;
 bool CIsoViewExt::EnableAutoTrack = false;
+bool CIsoViewExt::UsingNewRaiseGround = false;
 RendererLighting CIsoViewExt::RenderLighing = RendererLighting::Current;
 
 bool CIsoViewExt::AutoPropertyBrush[4] = {false};
@@ -3346,7 +3347,24 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC, bool bScreenSpace)
         if (fabs(CIsoViewExt::ScaledFactor - defaultScaledFactor) > 0.01)
         {
             FString buffer;
-            buffer.Format(Translations::TranslateOrDefault("ScaledFactorText", "Zoom: %.02fx, Middle-click to reset"), 1.0 / CIsoViewExt::ScaledFactor);
+            buffer.Format(Translations::TranslateOrDefault("ScaledFactorText", "Zoom: %.02fx, middle-click to reset"), 1.0 / CIsoViewExt::ScaledFactor);
+            if (ExtConfigs::DirectXRendering)
+            {
+                TextOutDirectX(rect.left + 10, rect.top + 10 + lineHeight * leftIndex, buffer, fontSize);
+                leftIndex++;
+            }
+            else
+            {
+                ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
+            }
+        }
+        if (CIsoView::CurrentCommand->Command == 11 
+            || CIsoView::CurrentCommand->Command == 12 
+            || CIsoView::CurrentCommand->Command == 15)
+        {
+            FString buffer = Translations::TranslateOrDefault(
+                CIsoViewExt::UsingNewRaiseGround ? "VertexModeOn" : "VertexModeOff", 
+                CIsoViewExt::UsingNewRaiseGround ? "Vertex Mode: On, press 'A' to switch" : "Vertex Mode: Off, press 'A' to switch");
             if (ExtConfigs::DirectXRendering)
             {
                 TextOutDirectX(rect.left + 10, rect.top + 10 + lineHeight * leftIndex, buffer, fontSize);

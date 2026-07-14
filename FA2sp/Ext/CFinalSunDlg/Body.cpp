@@ -4,6 +4,7 @@
 #include "../CIsoView/Body.h"
 #include "../CIsoView/DirectXCore.h"
 #include "../CMapData/Body.h"
+#include "../CMapData/HeightGenerator.h"
 #include "../CFinalSunApp/Body.h"
 #include <CMapData.h>
 #include <CLoading.h>
@@ -2183,6 +2184,31 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 				int index = std::clamp(pBrushSize->GetCurSel() + (zDelta > 0 ? -1 : 1), 0, pBrushSize->GetCount() - 1);
 				pBrushSize->SetCurSel(index);
 				ChangeBrushSize(index);
+			}
+		}
+		// last one
+		else if (CIsoView::CurrentCommand->Command == 15 && CMapData::Instance->MapWidthPlusHeight)
+		{
+			POINT pt;
+			GetCursorPos(&pt);
+			if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt))
+			{
+				auto point = CIsoViewExt::GetExtension()->GetCurrentMapCoord(CIsoViewExt::GetExtension()->MouseCurrentPosition);
+				if (CMapData::Instance->IsCoordInMap(point.X, point.Y))
+				{
+					int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
+					CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+					if (CIsoViewExt::UsingNewRaiseGround)
+					{
+						CMapDataExt::RaiseVertices(point.X, point.Y, zDelta > 0, 
+							false, GetKeyState(VK_SHIFT) & 0x8000);
+					}
+					else
+					{	
+						CMapDataExt::RaiseGrounds(point.X, point.Y, zDelta > 0, (GetKeyState(VK_SHIFT) & 0x8000) ? MK_SHIFT : 0);
+					}
+					CIsoView::GetInstance()->Draw();
+				}
 			}
 		}
 		break;

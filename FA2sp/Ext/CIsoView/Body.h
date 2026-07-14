@@ -450,6 +450,7 @@ public:
     static std::vector<MapCoord> ScriptPath;
     static bool OnLButtonDown_CalledFromOnMouseMove;
     static bool OnMouseMove_CalledFromOnLButtonDown;
+    static bool UsingNewRaiseGround;
     static std::unordered_map<MouseCommandRecord, MouseCommandBrush, MouseCommandRecordHash> MouseCommandBrushSizeRecords;
     static MouseCommandRecord LastMouseCommand;
 	static void ChangeBrushSize_OnMouseMove();

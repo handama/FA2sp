@@ -99,6 +99,13 @@ DEFINE_HOOK(460F00, CIsoView_ScreenCoord2MapCoord_Height, 7)
 	CIsoViewExt::AdaptRectForSecondScreen(&dr);
 	*X += (*X - pThis->ViewPosition.x - dr.left) * (CIsoViewExt::ScaledFactor - 1.0);
 	*Y += (*Y - pThis->ViewPosition.y - dr.top) * (CIsoViewExt::ScaledFactor - 1.0);
+
+	if (CIsoViewExt::UsingNewRaiseGround && (CIsoView::CurrentCommand->Command == 11 
+		|| CIsoView::CurrentCommand->Command == 12 
+		|| CIsoView::CurrentCommand->Command == 15))
+	{
+		*Y += 15;
+	}
 	return 0;
 }
 
@@ -144,6 +151,13 @@ DEFINE_HOOK(466890, CIsoView_ScreenCoord2MapCoord_Flat, 8)
 
 	*X += (*X - pThis->ViewPosition.x - dr.left) * (CIsoViewExt::ScaledFactor - 1.0);
 	*Y += (*Y - pThis->ViewPosition.y - dr.top) * (CIsoViewExt::ScaledFactor - 1.0);
+
+	if (CIsoViewExt::UsingNewRaiseGround && (CIsoView::CurrentCommand->Command == 11 
+		|| CIsoView::CurrentCommand->Command == 12 
+		|| CIsoView::CurrentCommand->Command == 15))
+	{
+		*Y += 15;
+	}
 	return 0;
 }
 

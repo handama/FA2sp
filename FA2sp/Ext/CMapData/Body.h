@@ -19,6 +19,38 @@ namespace Renderer {
     class Aircraft;
 }
 
+struct RampInfo
+{
+	char top;
+	char right;
+	char bottom;
+	char left;
+};
+
+static constexpr std::array<RampInfo,20> RampTypes = 
+{
+    RampInfo{0,1,1,0},
+    RampInfo{0,0,1,1},
+    RampInfo{1,0,0,1},
+    RampInfo{1,1,0,0},
+    RampInfo{0,0,1,0},
+    RampInfo{0,0,0,1},
+    RampInfo{1,0,0,0},
+    RampInfo{0,1,0,0},
+    RampInfo{0,1,1,1},
+    RampInfo{1,0,1,1},
+    RampInfo{1,1,0,1},
+    RampInfo{1,1,1,0},
+    RampInfo{0,1,2,1},
+    RampInfo{1,0,1,2},
+    RampInfo{2,1,0,1},
+    RampInfo{1,2,1,0},
+    RampInfo{0,1,0,1},
+    RampInfo{1,0,1,0},
+    RampInfo{0,1,0,1},
+    RampInfo{1,0,1,0}
+};  
+
 struct TileBlockExt
 {
     std::vector<char> HeightMask{};
@@ -27,6 +59,39 @@ struct TileBlockExt
     POINT ExtraSize{};
     TextureResource* pTexture = nullptr;
     TextureResource* pExtraTexture = nullptr;
+};
+
+enum VertexType : int
+{
+    VertexType_Top = 0,
+    VertexType_Right = 1,
+    VertexType_Bottom = 2,
+    VertexType_Left = 3,
+};
+
+struct VertexHeight
+{
+    int X;
+    int Y;
+    int Height;
+
+    bool operator<(const VertexHeight& other) const {
+        return X < other.X || (X == other.X && Y < other.Y);
+    }
+  
+    static VertexHeight GetCoordVertexHeight(const MapCoord& coord, VertexType type, bool IgnoreMorphable, bool considerRamp);
+    void GetVertexHeight(bool IgnoreMorphable, bool considerRamp);
+    std::array<CellData*, 4> GetVertexCells();
+    bool IsVertexInMap() const;
+    bool IsVertexInFullMap() const;
+    static std::array<int, 4> GetRelativeHeights(const std::array<VertexHeight, 4>& vertexHeights);
+    static int GetBasicHeight(const std::array<VertexHeight, 4>& vertexHeights);
+    // returns -1 if cell is flat, -2 if invalid
+	static int GetRampType(const std::array<VertexHeight, 4>& vertexHeights, bool strict = false);
+    static void ApplyRamps(const std::set<VertexHeight>& vertexHeights, 
+        std::set<MapCoord>* restrictedCoords = nullptr, bool ignoreBoundary = false, bool IgnoreMorphable = false);
+	static std::set<MapCoord> GetCellsFromVertices(const std::set<VertexHeight>& points);
+	static std::set<VertexHeight> GetVerticesFromCells(const std::set<MapCoord>& coords);
 };
 
 class CBuildingDataFS
@@ -730,6 +795,7 @@ public:
     static LandType GetLandType(int tileIndex, int TileSubIndex);
     void PlaceTileAt(int X, int Y, int index, int callType = -1);
     void SetHeightAt(int X, int Y, int height);
+    static void ReplaceRampWithFlat(int X, int Y);
 
     //void InitializeBuildingTypesExt(const char* ID);
     static void InitializeAllHdmEdition(bool updateMinimap = true,
@@ -765,7 +831,7 @@ public:
     static void UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString value = "", bool refreshCenter = true);
     static void SmoothAll();
     static void SmoothTileAt(int X, int Y, bool gameLAT = false);
-    static void CreateSlopeAt(int x, int y, bool IgnoreMorphable = false);
+    static bool CreateSlopeAt(int x, int y, bool IgnoreMorphable = false, bool considerRamp = false);
     static void SmoothWater();
     static BuildingPowers GetStructurePower(CBuildingData object);
     static BuildingPowers GetStructurePower(ppmfc::CString value);
@@ -835,6 +901,8 @@ public:
 
     static void CheckCellLow(bool steep, int loopCount = 0, bool IgnoreMorphable = false, std::vector<int>* ignoreList = nullptr);
     static void CheckCellRise(bool steep, int loopCount = 0, bool IgnoreMorphable = false, std::vector<int>* ignoreList = nullptr);
+    static std::set<VertexHeight> GetSmoothedVertexHeight(const std::set<VertexHeight>& initVertices,
+         bool steep, bool IgnoreMorphable = false, bool usePathfinding = false);
     static void RefreshAllWindows();
     static void GenerateNoiseSlopeTerrain(
         const std::set<MapCoord>& region,
@@ -877,8 +945,8 @@ public:
 
     static int GetPlayerLocationCountAtCell(int x, int y);
     static int GetBuildingTypeIndex(const FString& ID);
-    static CustomTile* GetCustomTile(int tileIndex);
-    static int GetCustomTileSet(int tileIndex);
+	static CustomTile* GetCustomTile(int tileIndex);
+	static int GetCustomTileSet(int tileIndex);
     static int GetCustomTileIndex(int tileSet, int tileIndex);
     static std::vector<TechnoAttachment>* GetTechnoAttachmentInfo(const FString& ID);
 
@@ -918,6 +986,12 @@ public:
 	static int IsBlueMapBound();
 	static bool CellCannotDrag(int x, int y);
     static bool IsHiddenCell(CellData* pCell);
+    static void RaiseVertices(int X, int Y, bool raise, bool IgnoreMorphable = false, bool steep = false);
+    static void RaiseGrounds(int X, int Y, bool raise, UINT nFlags); 
+	static void AdjustHeightAt(int x, int y, int offset);
+	static void SetHeightForSameTileSet(int x, int y, int height, std::vector<int> tilesets);
+	static void SetHeightForSameTileIndex(int x, int y, int height, int tileindex);
+	static void FindConnectedTiles(std::unordered_map<int, bool>& process, int startX, int startY);
 
 	static CTileTypeClass* TileData;
     static int TileDataCount;
@@ -934,6 +1008,7 @@ public:
     static int WoodBridgeSet;
     static int HeightBase;
     static int ClearSet;
+    static int RampBase;
     static Palette Palette_ISO;
     static Palette Palette_ISO_NoTint;
     static Palette Palette_Shadow;
@@ -977,8 +1052,9 @@ public:
     static bool PlaceStructure_Preview;
     static std::map<int, BuildingRenderData> PlaceStructure_OldData;
     static FMap<std::pair<byte, byte>> SmudgeSizes;
+	static std::array<std::set<int>, 20> RampTileIndices;
 
-    static std::map<ExtraImageInfo, std::pair<POINT, POINT>> TileBlockExtraOffsets;
+	static std::map<ExtraImageInfo, std::pair<POINT, POINT>> TileBlockExtraOffsets;
     static std::map<int, std::vector<CustomTile>> CustomTiles;
     static FMap<COLORREF> CustomWaypointColors;
     static FMap<COLORREF> CustomCelltagColors;

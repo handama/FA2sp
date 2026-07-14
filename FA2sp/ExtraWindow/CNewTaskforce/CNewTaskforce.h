@@ -102,4 +102,5 @@ private:
     static void SetListBoxSel(int index);
     static void SetListBoxSels(std::vector<int>& indices);
     static void GetListBoxSels(std::vector<int>& indices);
+    static TransparencyHelper m_transparency;
 };

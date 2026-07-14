@@ -132,7 +132,15 @@ public:
     static void LoadParam_Triggers(VirtualComboBoxEx& vcbd, CNewTrigger* instance);
     static void LoadParam_Tags(VirtualComboBoxEx& vcb);
     static void LoadParam_Teamtypes(VirtualComboBoxEx& vcb);
+    static void LoadParam_Infantries(VirtualComboBoxEx& vcb);
+    static void LoadParam_Units(VirtualComboBoxEx& vcb);
+    static void LoadParam_Aircrafts(VirtualComboBoxEx& vcb);
+    static void LoadParam_Structures(VirtualComboBoxEx& vcb);
     static void LoadParam_Stringtables(VirtualComboBoxEx& vcb);
+
+    // House and Tag loading for property dialogs (to be implemented by user)
+    static void LoadParams_Houses(VirtualComboBoxEx& vcb, bool multiOnly, bool countries, bool players);
+    static void LoadParams_Tags(VirtualComboBoxEx& vcb, bool addNone);
 
     static void SortLabels(std::vector<FString>& labels);
     static void SortLabels(std::vector<std::pair<FString, FString>>& labels, bool first = true);
@@ -162,12 +170,71 @@ public:
 	static COLORREF GetTriggerColor(const FString& trigger);
 	static void SetTriggerColor(const FString& trigger, COLORREF color);
 
+    static void DisableOtherWindows(HWND hDlg);
+    static void RestoreDisabledWindows();
+
 	static std::vector<DropTarget> g_DropTargets;
 
 private:
+    struct DisableOtherCtx {
+        HWND hDlg;
+        std::vector<HWND>* pDisabled;
+    };
+    static BOOL CALLBACK DisableOtherWindowsProc(HWND hEnum, LPARAM lParam);
+    static std::vector<HWND> s_disabledWindows;
     static CINI& map;
     static CINI& fadata;
     static MultimapHelper& rules;
+};
+
+// Reusable transparency helper for ExtraWindow modeless dialogs.
+// Usage: add a static TransparencyHelper member to your window class,
+// call Init() in WM_INITDIALOG, and call HandleMessage() in DlgProc default.
+class TransparencyHelper
+{
+public:
+	static constexpr UINT IDM_OPAQUE = 0x8101;
+	static constexpr UINT IDM_NEAR_FULL = 0x8102;
+	static constexpr UINT IDM_HALF = 0x8103;
+	static constexpr UINT IDM_TRANSPARENT = 0x8104;
+	static constexpr UINT IDM_FULL_TRANSPARENT = 0x8105;
+	static constexpr UINT_PTR HOVER_TIMER_ID = 0x8100;
+	static constexpr UINT HOVER_INTERVAL = 30;
+
+	void Init(HWND hWnd, const char* iniKey);
+
+	// Returns true if the message was fully consumed (caller should return TRUE).
+	bool HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, const char* iniKey);
+
+	int GetRestingAlpha() const { return m_restingAlpha; }
+
+	// Apply transparency to a window directly (used for multi-instance sync).
+	void ApplyTransparency(HWND hWnd, int alpha, const char* iniKey);
+
+private:
+	void SetTransparency(HWND hWnd, int alpha);
+	bool IsCursorOverWindow(HWND hWnd);
+	void ShowTransparencyMenu(HWND hWnd);
+	void ArmMouseLeave(HWND hWnd);
+	static bool HasAnyDropdownOpen(HWND hWnd);
+
+	int m_restingAlpha = 255;
+	bool m_initialized = false;
+};
+
+class DisableOtherWindowsScope
+{
+public:
+    DisableOtherWindowsScope(HWND hDlg)
+    {
+        ExtraWindow::DisableOtherWindows(hDlg);
+    }
+    ~DisableOtherWindowsScope()
+    {
+        ExtraWindow::RestoreDisabledWindows();
+    }
+    DisableOtherWindowsScope(const DisableOtherWindowsScope&) = delete;
+    DisableOtherWindowsScope& operator=(const DisableOtherWindowsScope&) = delete;
 };
 
 class HelpDlg
@@ -185,6 +252,7 @@ protected:
     int minWndWidth;
     int minWndHeight;
     bool minSizeSet;
+    TransparencyHelper m_transparency;
 };
 
 class TargetHighlighter {
@@ -459,10 +527,12 @@ public:
 	void DisableControl(int id);
 	void Translate(int id, const FString& text);
 	void TranslateTitle(const FString& text);
+	void SetTransparencyKey(const char* key);
 
   protected:
 	virtual BOOL OnInitDialog();
 	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	virtual void DoDataExchange(ppmfc::CDataExchange* pDX);
 	virtual void OnCancel();
 	virtual void OnClose();
@@ -471,4 +541,6 @@ public:
 	std::map<int, FString> m_controlTranslations;
 	std::vector<int> m_disabledControls;
 	FString m_title;
+	TransparencyHelper m_transparency;
+	FString m_transparencyKey;
 };

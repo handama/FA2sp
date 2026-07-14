@@ -13,6 +13,7 @@
 #include "Scintilla.h"
 #include "SciLexer.h"
 #include "Lexilla.h"
+#include "../../Helpers/FString.h"
 
 // A static window class
 class CLuaConsole
@@ -43,10 +44,12 @@ public:
     static void OnClickRun(bool fromFile);
     static void UpdateCoords(int x, int y, bool firstRun, bool holdingClick);
     static void OnEditchangeSearch(HWND& hWnd);
+    static void OnSelChangeScript(HWND& hWnd);
 
 protected:
     static void Initialize(HWND& hWnd);
     static void SetupLuaHighlight(HWND& hWnd);
+    static void SetupOutputBoxStyle(HWND& hWnd);
     static void Close(HWND& hWnd);
     static void Update(HWND& hWnd, const char* filter = "");
 
@@ -82,6 +85,15 @@ public:
     static bool applyingScript;
     static bool applyingScriptFirst;
     static bool runFile;
+    static std::string backupOutputText;
+    static bool showingComment;
+    static void RestoreOutput();
+    static std::vector<std::pair<int, std::string>> ScanHighRiskOperations(const std::string& script);
+
+    // Encoding helpers for emoji support
+    static FString EncodeUtf8ToAnsi(const FString& utf8);
+    static FString DecodeEmojiPlaceholders(const FString& text);
+    static FString EnsureUtf8(const FString& text);
     static sol::state Lua;
     static bool needRedraw;
     static bool recalculateOre;
@@ -102,5 +114,7 @@ public:
     // MCP output capture
     static std::string mcpOutput;
     static bool mcpRunning;
+
+    static TransparencyHelper m_transparency;
 };
 

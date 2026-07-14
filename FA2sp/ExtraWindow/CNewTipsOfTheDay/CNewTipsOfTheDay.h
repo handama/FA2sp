@@ -4,6 +4,7 @@
 #include "FA2PP.h"
 #include "../../FA2sp/Helpers/FString.h"
 #include "../../Helpers/MultimapHelper.h"
+#include "../Common.h"
 
 class CNewTipsOfTheDay : public ppmfc::CDialog
 {
@@ -19,7 +20,9 @@ protected:
 	virtual void OnCancel();
 	virtual void OnClose();
 	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	virtual void PostNcDestroy();
+	static TransparencyHelper m_transparency;
 	void OnPrevious();
 	ppmfc::CStatic m_staticPic;
 	ppmfc::CStatic m_staticText;

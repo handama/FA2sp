@@ -16,6 +16,7 @@
 #include <Miscs/Miscs.h>
 #include <numeric>
 #include "../CTriggerAnnotation/CTriggerAnnotation.h"
+#include "../CNewTeamTypes/CNewTeamTypes.h"
 
 HWND CNewAITrigger::m_hwnd;
 CFinalSunDlg* CNewAITrigger::m_parent;
@@ -47,10 +48,13 @@ HWND CNewAITrigger::hHard;
 HWND CNewAITrigger::hBaseDefense;
 HWND CNewAITrigger::hSkrimish;
 HWND CNewAITrigger::hDragPoint;
+HWND CNewAITrigger::hTurnToTeam1;
+HWND CNewAITrigger::hTurnToTeam2;
 WNDPROC CNewAITrigger::OrigDragDotProc;
 
 int CNewAITrigger::SelectedAITriggerIndex = -1;
 std::unique_ptr<AITrigger> CNewAITrigger::CurrentAITrigger;
+TransparencyHelper CNewAITrigger::m_transparency;
 VirtualComboBoxEx CNewAITrigger::vcbSelectedAITrigger;
 VirtualComboBoxEx CNewAITrigger::vcbTeam[2];
 VirtualComboBoxEx CNewAITrigger::vcbComparisonObject;
@@ -141,7 +145,9 @@ void CNewAITrigger::Initialize(HWND& hWnd)
     hBaseDefense = GetDlgItem(hWnd, Controls::BaseDefense);
     hSkrimish = GetDlgItem(hWnd, Controls::Skrimish);
     hDragPoint = GetDlgItem(hWnd, 2001);
-
+    hTurnToTeam1 = GetDlgItem(hWnd, Controls::TurnToTeam1);
+    hTurnToTeam2 = GetDlgItem(hWnd, Controls::TurnToTeam2);
+    
     if (hDragPoint)
     {
         OrigDragDotProc = (WNDPROC)SetWindowLongPtr(hDragPoint, GWLP_WNDPROC, (LONG_PTR)DragDotProc);
@@ -307,10 +313,13 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     case WM_INITDIALOG:
     {
         CNewAITrigger::Initialize(hWnd);
+        m_transparency.Init(hWnd, "AITriggerEditorOpacity");
         return TRUE;
     }	
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "AITriggerEditorOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -468,6 +477,14 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             else if (CODE == CBN_DROPDOWN && TeamListChanged)
                 OnDropdownTeam();
             break;
+        case Controls::TurnToTeam1:
+            if (CODE == BN_CLICKED && CurrentAITrigger)
+                OnClickTurnToTeam(0);
+            break;
+        case Controls::TurnToTeam2:
+            if (CODE == BN_CLICKED && CurrentAITrigger)
+                OnClickTurnToTeam(1);
+            break;
         default:
             break;
         }
@@ -494,7 +511,10 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         Update(hWnd);
         return TRUE;
     }
-
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "AITriggerEditorOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler
@@ -907,9 +927,29 @@ void CNewAITrigger::OnClickCloAITrigger()
     trigger2.Name = ExtraWindow::GetCloneName(CurrentAITrigger->Name);
     trigger2.Save();
 
+    ExtraWindow::SetTriggerColor(id, ExtraWindow::GetTriggerColor(CurrentAITrigger->ID));
     SortAITriggers(id);
     OnSelchangeAITrigger();
 }
+
+void CNewAITrigger::OnClickTurnToTeam(int index)
+{
+    FString& team = index == 1 ? CurrentAITrigger->Team2 : CurrentAITrigger->Team1;
+    if (team.empty() || team == "<none>")
+        return;
+
+    if (CNewTeamTypes::GetHandle() == NULL)
+        CNewTeamTypes::Create(m_parent);
+
+    auto dlg = GetDlgItem(CNewTeamTypes::GetHandle(), CNewTeamTypes::Controls::SelectedTeam);
+    auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, ExtraWindow::GetTeamDisplayName(team));
+    if (idx == CB_ERR)
+        return;
+    SendMessage(dlg, CB_SETCURSEL, idx, NULL);
+    CNewTeamTypes::OnSelchangeTeamtypes();
+    SetWindowPos(CNewTeamTypes::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+}
+
 void CNewAITrigger::OnClickDelAITrigger()
 {
     if (!CurrentAITrigger) return;

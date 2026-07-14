@@ -12,6 +12,7 @@
 HWND CGoBang::m_hwnd = nullptr;
 CFinalSunDlg* CGoBang::m_parent = nullptr;
 bool CGoBang::initialized = false;
+TransparencyHelper CGoBang::m_transparency;
 
 int CGoBang::board[CGoBang::BOARD_N][CGoBang::BOARD_N] = {};
 int CGoBang::margin = 20;
@@ -369,6 +370,7 @@ BOOL CALLBACK CGoBang::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam
     case WM_INITDIALOG:
         m_hwnd = hwnd;
         Initialize(hwnd);
+        m_transparency.Init(hwnd, "GoBangOpacity");
         return TRUE;
 
     case WM_SIZE:
@@ -443,6 +445,10 @@ BOOL CALLBACK CGoBang::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam
     case WM_CLOSE:
         Close(hwnd);
         return TRUE;
+    default:
+        if (m_transparency.HandleMessage(hwnd, Msg, wParam, lParam, "GoBangOpacity"))
+            return TRUE;
+        break;
     }
     return FALSE;
 }
@@ -450,6 +456,7 @@ BOOL CALLBACK CGoBang::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam
 HWND CChineseChess::m_hwnd = nullptr;
 CFinalSunDlg* CChineseChess::m_parent = nullptr;
 bool CChineseChess::initialized = false;
+TransparencyHelper CChineseChess::m_transparency;
 int CChineseChess::clientW = 500, CChineseChess::clientH = 500;
 int CChineseChess::leftX = 10, CChineseChess::topY = 10, CChineseChess::cell = 36, CChineseChess::boardW = 0, CChineseChess::boardH = 0;
 HFONT CChineseChess::hfText = nullptr;
@@ -936,7 +943,9 @@ BOOL CALLBACK CChineseChess::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
 {
     switch (Msg) {
     case WM_INITDIALOG:
-        m_hwnd = hwnd; Initialize(hwnd); return TRUE;
+        m_hwnd = hwnd; Initialize(hwnd); 
+        m_transparency.Init(hwnd, "ChineseChessOpacity");
+        return TRUE;
 
     case WM_SIZE: {
         RECT rc; GetClientRect(hwnd, &rc);
@@ -966,6 +975,11 @@ BOOL CALLBACK CChineseChess::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
 
     case WM_CLOSE:
         Close(hwnd); return TRUE;
+
+    default:
+        if (m_transparency.HandleMessage(hwnd, Msg, wParam, lParam, "ChineseChessOpacity"))
+            return TRUE;
+        break;
     }
 
     return FALSE;

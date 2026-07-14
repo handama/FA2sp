@@ -126,6 +126,8 @@ BEGIN
     BUTTON      30109 // Techno property brush
 	SEPARATOR
 	BUTTON      30107 // minimap
+    BUTTON      30111 // object view floating
+    BUTTON      30112 // tile browser floating
     BUTTON      40159 // object view cameo
     BUTTON      40123 // building outline
     BUTTON      40104 // disable auto shore

@@ -68,6 +68,7 @@ public:
     static bool SortByLabelName_Script;
     static bool NewTriggerPlusID;
     static bool DisplayTriggerEnableInfo;
+    static bool AttachedTriggerIsSelfCheck;
     static bool UseSequentialIndexing;
     static bool UseSeparateIndexing;
     static bool AdjustDropdownWidth;
@@ -124,7 +125,10 @@ public:
     static int SaveMap_DefaultPreviewOptionMP;
     static int SaveMap_DefaultPreviewOptionSP;
     static bool SaveMap_FileEncodingComment;
+    static bool DisableLuaConsoleSafetyCheck;
     static bool VerticalLayout;
+    static bool TileSetBrowserFloating;
+    static bool ViewObjectsFloating;
     static int RecentFileLimit;
     static int MultiSelectionColor;
     static int TerrainGeneratorColor;

@@ -112,6 +112,11 @@ TR[16] = trigger:new()
 TR[16].name = "[胜利]所有任务目标完成允许胜利"
 TR[16].country = "Neutral"; TR[16].easy = true; TR[16].medium = true; TR[16].hard = true; TR[16].disabled = true
 TR[16]:add_event("13,0,0")
+
+for i = 1, obj_number do
+    TR[16]:add_event("36,0," .. OBJ[i].var_index)   -- 局部变量被设置
+end
+
 TR[16]:add_tag("", "[胜利]所有任务目标完成允许胜利1", 0)
 TR[16]:apply()
 

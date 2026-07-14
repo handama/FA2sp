@@ -543,7 +543,7 @@ DEFINE_HOOK(516974, CUserScripts_NewFunction_SwitchID, 8)
             }
             break;
             case isCellHidden:
-                UserScriptExt::Temps.push_back(STDHelpers::IntToString(cell->IsHidden()));
+                UserScriptExt::Temps.push_back(STDHelpers::IntToString(CMapDataExt::IsHiddenCell(cell)));
                 break;
             default:
                 break;

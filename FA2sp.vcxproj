@@ -245,6 +245,11 @@
     <ClCompile Include="FA2sp\ExtraWindow\CTechnoDialog\CTechnoDialog.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewPropertyAircraft\CNewPropertyAircraft.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewPropertyBuilding\CNewPropertyBuilding.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewPropertyInfantry\CNewPropertyInfantry.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewPropertyUnit\CNewPropertyUnit.cpp" />
+    <ClCompile Include="FA2sp\Ext\CAITriggerTypesEnable\Body.cpp" />
     <ClCompile Include="FA2sp\Extra\Encryption.cpp" />
     <ClCompile Include="FA2sp\Extra\GeneralLoad.cpp" />
     <ClCompile Include="FA2sp\Ext\CBasic\Hooks.cpp" />
@@ -268,6 +273,7 @@
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.Blit.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\DirectXCore.cpp" />
+    <ClCompile Include="FA2sp\Ext\CMapD\Body.cpp" />
     <ClCompile Include="glad\src\glad.c" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.DrawObjects.cpp" />
@@ -406,6 +412,11 @@
     <ClInclude Include="FA2sp\ExtraWindow\CTechnoDialog\CTechnoDialog.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewPropertyAircraft\CNewPropertyAircraft.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewPropertyBuilding\CNewPropertyBuilding.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewPropertyInfantry\CNewPropertyInfantry.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewPropertyUnit\CNewPropertyUnit.h" />
+    <ClInclude Include="FA2sp\Ext\CAITriggerTypesEnable\Body.h" />
     <ClInclude Include="FA2sp\Extra\GeneralLoad.h" />
     <ClInclude Include="FA2sp\Ext\CCreateMap3B\Body.h" />
     <ClInclude Include="FA2sp\Ext\CCredits\Body.h" />
@@ -414,6 +425,7 @@
     <ClInclude Include="FA2sp\Ext\CHouses\Body.h" />
     <ClInclude Include="FA2sp\Ext\CIsoView\Body.h" />
     <ClInclude Include="FA2sp\Ext\CIsoView\DirectXCore.h" />
+    <ClInclude Include="FA2sp\Ext\CMapD\Body.h" />
     <ClInclude Include="glad\include\glad\glad.h" />
     <ClInclude Include="FA2sp\Ext\CIsoView\RendererTypes.h" />
     <ClInclude Include="FA2sp\Ext\CLighting\Body.h" />
@@ -504,6 +516,10 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CTechnoDialog\CTechnoDialog.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CTriggerAnnotation\CTriggerAnnotation.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewPropertyAircraft\CNewPropertyAircraft.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewPropertyBuilding\CNewPropertyBuilding.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewPropertyInfantry\CNewPropertyInfantry.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewPropertyUnit\CNewPropertyUnit.rc" />
     <ResourceCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\GridObjectViewer.rc" />
     <ResourceCompile Include="FA2sp\UI\CAircraftDialog.rc" />
     <ResourceCompile Include="FA2sp\UI\CAITriggerTypes.rc" />

@@ -8,6 +8,7 @@
 #include <CFinalSunApp.h>
 
 CNewTipsOfTheDay* CNewTipsOfTheDay::m_pNewTipsOfTheDayDlg = nullptr;
+TransparencyHelper CNewTipsOfTheDay::m_transparency;
 
 static bool ReplaceBitmapColor(
     HBITMAP& hBmp,
@@ -179,6 +180,7 @@ BOOL CNewTipsOfTheDay::OnInitDialog()
     ReplaceBitmapColor(hBmp, RGB(255, 255, 255), ::GetSysColor(COLOR_3DFACE), CFinalSunAppExt::ProgramScaleFactor);
 
 	m_staticPic.SendMessage(STM_SETIMAGE, IMAGE_BITMAP, (LPARAM)hBmp);
+	m_transparency.Init(GetSafeHwnd(), "TipsOfTheDayOpacity");
 	ExtraWindow::SetEditControlFontSize(m_staticText.GetSafeHwnd(), 1.4f);
 	ExtraWindow::SetEditControlFontSize(GetDlgItem(1004)->GetSafeHwnd(), 1.2f);
 
@@ -242,6 +244,18 @@ BOOL CNewTipsOfTheDay::OnCommand(WPARAM wParam, LPARAM lParam)
     WORD nID = LOWORD(wParam);
     WORD nNotify = HIWORD(wParam);
 
+    int alpha = -1;
+    if (nID == TransparencyHelper::IDM_OPAQUE)           alpha = 255;
+    else if (nID == TransparencyHelper::IDM_NEAR_FULL)   alpha = 191;
+    else if (nID == TransparencyHelper::IDM_HALF)        alpha = 128;
+    else if (nID == TransparencyHelper::IDM_TRANSPARENT) alpha = 64;
+    else if (nID == TransparencyHelper::IDM_FULL_TRANSPARENT) alpha = 1;
+
+    if (alpha != -1) {
+        m_transparency.ApplyTransparency(GetSafeHwnd(), alpha, "TipsOfTheDayOpacity");
+        return TRUE;
+    }
+
     if (nNotify == BN_CLICKED)
     {
         switch (nID)
@@ -251,6 +265,13 @@ BOOL CNewTipsOfTheDay::OnCommand(WPARAM wParam, LPARAM lParam)
     }
 
     return CDialog::OnCommand(wParam, lParam);
+}
+
+BOOL CNewTipsOfTheDay::PreTranslateMessage(MSG* pMsg)
+{
+    if (m_transparency.HandleMessage(GetSafeHwnd(), pMsg->message, pMsg->wParam, pMsg->lParam, "TipsOfTheDayOpacity"))
+        return TRUE;
+    return CDialog::PreTranslateMessage(pMsg);
 }
 
 void CNewTipsOfTheDay::OnOK()

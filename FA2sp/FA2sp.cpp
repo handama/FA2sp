@@ -59,6 +59,7 @@ bool ExtConfigs::SortByLabelName_Taskforce;
 bool ExtConfigs::SortByLabelName_Script;
 bool ExtConfigs::NewTriggerPlusID;
 bool ExtConfigs::DisplayTriggerEnableInfo;
+bool ExtConfigs::AttachedTriggerIsSelfCheck;
 bool ExtConfigs::UseSequentialIndexing;
 bool ExtConfigs::UseSeparateIndexing;
 bool ExtConfigs::AdjustDropdownWidth;
@@ -115,7 +116,10 @@ bool ExtConfigs::SaveMap_KeepComments;
 int ExtConfigs::SaveMap_DefaultPreviewOptionMP;
 int ExtConfigs::SaveMap_DefaultPreviewOptionSP;
 bool ExtConfigs::SaveMap_FileEncodingComment;
+bool ExtConfigs::DisableLuaConsoleSafetyCheck;
 bool ExtConfigs::VerticalLayout;
+bool ExtConfigs::TileSetBrowserFloating;
+bool ExtConfigs::ViewObjectsFloating;
 int ExtConfigs::RecentFileLimit;
 int ExtConfigs::MultiSelectionColor;
 int ExtConfigs::TerrainGeneratorColor;
@@ -292,6 +296,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::NewTriggerPlusID = CINI::FAData->GetBool("ExtConfigs", "NewTriggerPlusID");
 	ExtConfigs::DisplayTriggerEnableInfo = CINI::FAData->GetBool("ExtConfigs", "DisplayTriggerEnableInfo", true);
+	ExtConfigs::AttachedTriggerIsSelfCheck = CINI::FAData->GetBool("ExtConfigs", "AttachedTriggerIsSelfCheck", true);
 	ExtConfigs::UseSequentialIndexing = CINI::FAData->GetBool("ExtConfigs", "UseSequentialIndexing");
 	ExtConfigs::UseSeparateIndexing = CINI::FAData->GetBool("ExtConfigs", "UseSeparateIndexing");
 
@@ -434,6 +439,7 @@ void FA2sp::ExtConfigsInitialize()
 		ExtConfigs::SaveMap_AutoSave_Interval = 30;
 	}
 
+	ExtConfigs::DisableLuaConsoleSafetyCheck = CINI::FAData->GetBool("ExtConfigs", "DisableLuaConsoleSafetyCheck");
 	ExtConfigs::SaveMap_FileEncodingComment = CINI::FAData->GetBool("ExtConfigs", "SaveMap.FileEncodingComment");
 	ExtConfigs::SaveMap_OnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP");
 	ExtConfigs::SaveMap_KeepComments = CINI::FAData->GetBool("ExtConfigs", "SaveMap.KeepComments");
@@ -444,6 +450,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::SaveMap_DefaultPreviewOptionSP = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.DefaultPreviewOptionSP", 1);
 
 	ExtConfigs::VerticalLayout = CINI::FAData->GetBool("ExtConfigs", "VerticalLayout");
+	ExtConfigs::TileSetBrowserFloating = CINI::FAData->GetBool("ExtConfigs", "TileSetBrowserFloating");
+	ExtConfigs::ViewObjectsFloating = CINI::FAData->GetBool("ExtConfigs", "ViewObjectsFloating");
 
 	ExtConfigs::RecentFileLimit = std::clamp(CINI::FAData->GetInteger("ExtConfigs", "RecentFileLimit"), 4, 9);
 
@@ -643,6 +651,18 @@ void ExtConfigs::UpdateOptionTranslations()
 		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ViewObjectsFloating", "Object browser as floating window"),
+		.IniKey = "ViewObjectsFloating",
+		.Value = &ExtConfigs::ViewObjectsFloating,
+		.Type = ExtConfigs::SpecialOptionType::Restart});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.TileSetBrowserFloating", "Tile browser as floating window"),
+		.IniKey = "TileSetBrowserFloating",
+		.Value = &ExtConfigs::TileSetBrowserFloating,
+		.Type = ExtConfigs::SpecialOptionType::Restart});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.EnableDarkMode", "Enable dark mode (requires Auto-switch dark mode to be disabled)"),
 		.IniKey = "EnableDarkMode",
 		.Value = &ExtConfigs::EnableDarkMode_Init,
@@ -709,6 +729,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.AttachedTriggerIsSelfCheck", "Check whether attached trigger is itself"),
+		.IniKey = "AttachedTriggerIsSelfCheck",
+		.Value = &ExtConfigs::AttachedTriggerIsSelfCheck,
+		.Type = ExtConfigs::SpecialOptionType::None});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName", "Sort selected labels in editors by name"),
 		.IniKey = "SortByLabelName",
 		.Value = &ExtConfigs::SortByLabelName,
@@ -766,6 +792,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.SearchCombobox.AllowNonParams", "Allow automatic search for non-parameter dropdown menus"),
 		.IniKey = "SearchCombobox.AllowNonParams",
 		.Value = &ExtConfigs::SearchCombobox_AllowNonParams,
+		.Type = ExtConfigs::SpecialOptionType::None});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.DisableLuaConsoleSafetyCheck", "Disable Lua console safety check"),
+		.IniKey = "DisableLuaConsoleSafetyCheck",
+		.Value = &ExtConfigs::DisableLuaConsoleSafetyCheck,
 		.Type = ExtConfigs::SpecialOptionType::None});
 
 	// Object Browser Settings

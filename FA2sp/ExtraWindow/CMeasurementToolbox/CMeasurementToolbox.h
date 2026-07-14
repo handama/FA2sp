@@ -4,6 +4,7 @@
 #include "FA2PP.h"
 #include "../../FA2sp/Helpers/FString.h"
 #include "../../Helpers/MultimapHelper.h"
+#include "../Common.h"
 
 struct MapCoord;
 
@@ -15,6 +16,7 @@ public:
 	static void ClearStatus();
 	static void OnRightButtonDown();
 	static CMeasurementToolbox* m_pMeasurementToolbox;
+	static TransparencyHelper m_transparency;
 protected:
 	enum Controls
 	{
@@ -37,6 +39,7 @@ protected:
 	CMeasurementToolbox(CWnd* pParent = NULL);
 	virtual BOOL OnInitDialog();
 	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	virtual void DoDataExchange(ppmfc::CDataExchange* pDX);
 	virtual void PostNcDestroy();
 	virtual void OnCancel();

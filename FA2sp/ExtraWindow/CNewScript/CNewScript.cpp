@@ -68,6 +68,7 @@ bool CNewScript::m_dragging = false;
 POINT CNewScript::m_dragOffset{};
 HWND CNewScript::m_hDragGhost = nullptr;
 TargetHighlighter CNewScript::hl;
+TransparencyHelper CNewScript::m_transparency;
 
 void CNewScript::Create(CFinalSunDlg* pWnd)
 {
@@ -593,10 +594,13 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
     case WM_INITDIALOG:
     {
         CNewScript::Initialize(hWnd);
+        m_transparency.Init(hWnd, "ScriptEditorOpacity");
         return TRUE;
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "ScriptEditorOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -679,14 +683,18 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
                 OnSelchangeActionExtraParam(true);
             break;
         case Controls::Insert:
-            bInsert = SendMessage(hInsert, BM_GETCHECK, 0, 0);
+            if (CODE == BN_CLICKED)
+                bInsert = SendMessage(hInsert, BM_GETCHECK, 0, 0);
             break;
         case Controls::RenderPath:
-            CIsoViewExt::DrawScriptPath = SendMessage(hRenderPath, BM_GETCHECK, 0, 0);
-            if (CIsoViewExt::DrawScriptPath)
-                UpdateScriptPath();
-            else
-                ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->GetSafeHwnd(), 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);           
+            if (CODE == BN_CLICKED)
+            {
+                CIsoViewExt::DrawScriptPath = SendMessage(hRenderPath, BM_GETCHECK, 0, 0);
+                if (CIsoViewExt::DrawScriptPath)
+                    UpdateScriptPath();
+                else
+                    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->GetSafeHwnd(), 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+            }        
             break;
         default:
             break;
@@ -708,6 +716,10 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
         VirtualComboBoxEx::SetWindowHeight(hWnd, lParam);
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "ScriptEditorOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler
@@ -1184,7 +1196,7 @@ void CNewScript::OnClickCloScript(HWND& hWnd)
             buffer.Format("%d", i);
             copyitem(buffer);
         }
-
+        ExtraWindow::SetTriggerColor(value, ExtraWindow::GetTriggerColor(CurrentScriptID));
         ExtraWindow::SortTeams(vcbSelectedScript, "ScriptTypes", SelectedScriptIndex, value);
 
         OnSelchangeScript();

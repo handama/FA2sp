@@ -46,7 +46,7 @@ void CTileSetBrowserFrameExt::OnBNTileManagerClicked()
 	if (CMapData::Instance->MapWidthPlusHeight)
 	{
 		if (CTileManager::GetHandle() == NULL)
-			CTileManager::Create(this);
+			CTileManager::Create(CFinalSunDlg::Instance);
 		else
 			::ShowWindow(CTileManager::GetHandle(), SW_SHOW);
 	}
@@ -54,7 +54,7 @@ void CTileSetBrowserFrameExt::OnBNTileManagerClicked()
 void CTileSetBrowserFrameExt::OnBNSearchClicked()
 {
 	if (CObjectSearch::GetHandle() == NULL)
-		CObjectSearch::Create(this);
+		CObjectSearch::Create(CFinalSunDlg::Instance);
 	else
 	{
 		::ShowWindow(CObjectSearch::GetHandle(), SW_SHOW);
@@ -67,7 +67,7 @@ void CTileSetBrowserFrameExt::OnBNTerrainGeneratorClicked()
 {
 	if (!CMapData::Instance->MapWidthPlusHeight) return;
 	if (CTerrainGenerator::GetHandle() == NULL)
-		CTerrainGenerator::Create(this);
+		CTerrainGenerator::Create(CFinalSunDlg::Instance);
 	else
 	{
 		::ShowWindow(CTerrainGenerator::GetHandle(), SW_SHOW);

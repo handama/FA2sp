@@ -18,8 +18,8 @@
 - `update_trigger()`：刷新触发（会通知已打开的触发编辑器窗口）。
 
 **使用提示**：
-- 通常在批量修改单位/建筑等对象后，调用对应的 `update_xxx()` 函数确保内存数据与 INI 同步，然后调用 `redraw_window()` 立即刷新视图。
-- 对于直接通过 `write_string` 修改的 INI 内容，也需要相应 `update_xxx()` 才能让界面看到变化。
+- 对于直接通过 `write_string` 修改的 INI 内容，调用对应的 `update_xxx()` 函数确保内存数据与 INI 同步，然后调用 `redraw_window()` 立即刷新视图。
+- 对于使用 lua 类的 `apply()` 函数进行的修改，不需要调用刷新函数。特别是 `cell` 类，如果使用 `update_tiles()` 会错误地覆盖修改。
 
 ### 界面更新
 

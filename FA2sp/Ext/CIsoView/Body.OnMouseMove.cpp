@@ -2526,8 +2526,10 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                             for (auto &pair : pSection->GetEntities())
                             {
                                 auto wp = CINI::CurrentDocument->GetString(pair.second, "Waypoint");
+                                auto wp2 = CINI::CurrentDocument->GetString(pair.second, "TransportWaypoint");
 
-                                if (process(wp) == atoi(*pWP))
+                                if (process(wp) == atoi(*pWP) 
+                                || (process(wp2) == atoi(*pWP) && CINI::CurrentDocument->GetBool(pair.second, "UseTransportOrigin")))
                                 {
                                     pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
                                                                                  "Team: %s (%s)"),
@@ -2816,7 +2818,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                     display(0, bools, dlg->CString_House, data.House, "PropertyBrush.House", "House");
                     display(1, bools, dlg->CString_HealthPoint, data.Health, "PropertyBrush.Health", "Health");
                     display(2, bools, dlg->CString_Direction, data.Facing, "PropertyBrush.Facing", "Facing");
-                    display(3, bools, dlg->CString_Status, data.Status, "PropertyBrush.Status", "Status");
+                    display(3, bools, dlg->CString_State, data.Status, "PropertyBrush.Status", "Status");
                     display(4, bools, dlg->CString_VeteranLevel, data.VeterancyPercentage, "PropertyBrush.VeterancyPercentage", "Veterancy");
                     display(5, bools, dlg->CString_Group, data.Group, "PropertyBrush.Group", "Group");
                     display(6, bools, dlg->CString_AutoCreateNoRecruitable, data.AutoNORecruitType, "PropertyBrush.AutoNORecruitType", "AutoNORecruitType");
@@ -2963,7 +2965,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                     displayNew(0, bools, dlg->CString_House, "PropertyBrush.House", "House");
                     displayNew(1, bools, dlg->CString_HealthPoint, "PropertyBrush.Health", "Health");
                     displayNew(2, bools, dlg->CString_Direction, "PropertyBrush.Facing", "Facing");
-                    displayNew(3, bools, dlg->CString_Status, "PropertyBrush.Status", "Status");
+                    displayNew(3, bools, dlg->CString_State, "PropertyBrush.Status", "Status");
                     displayNew(4, bools, dlg->CString_VeteranLevel, "PropertyBrush.VeterancyPercentage", "Veterancy");
                     displayNew(5, bools, dlg->CString_Group, "PropertyBrush.Group", "Group");
                     displayNew(6, bools, dlg->CString_AutoCreateNoRecruitable, "PropertyBrush.AutoNORecruitType", "AutoNORecruitType");

@@ -21,6 +21,7 @@ HWND CNewLocalVariables::hNew;
 HWND CNewLocalVariables::hSearch;
 int CNewLocalVariables::SelectedIndex;
 FString CNewLocalVariables::SelectedKey;
+TransparencyHelper CNewLocalVariables::m_transparency;
 
 void CNewLocalVariables::Create(CFinalSunDlg* pWnd)
 {
@@ -87,10 +88,26 @@ BOOL CALLBACK CNewLocalVariables::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LP
     case WM_INITDIALOG:
     {
         CNewLocalVariables::Initialize(hWnd);
+        m_transparency.Init(hWnd, "LocalVariablesOpacity");
+        return TRUE;
+    }
+    case WM_ACTIVATE:
+    {
+        if (SelectedIndex >= 0 && SelectedIndex < SendMessage(hVariables, CB_GETCOUNT, NULL, NULL))
+        {
+            if (CSearhReference::bFollowActiveWindow && CSearhReference::GetHandle())
+            {
+                CSearhReference::SetSearchType(3);
+                CSearhReference::SetSearchID(SelectedKey);
+                ::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
+            }
+        }
         return TRUE;
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "LocalVariablesOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -159,6 +176,10 @@ BOOL CALLBACK CNewLocalVariables::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LP
         Update();
         return TRUE;
     }
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "LocalVariablesOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler
@@ -215,6 +236,13 @@ void CNewLocalVariables::OnSelchangeVariable(bool edited)
 
     SendMessage(hName, WM_SETTEXT, 0, (LPARAM)atom[0]);
     SendMessage(hValue, WM_SETTEXT, 0, (LPARAM)atom[1]);
+
+    if (CSearhReference::bFollowActiveWindow && CSearhReference::GetHandle())
+    {
+        CSearhReference::SetSearchType(3);
+        CSearhReference::SetSearchID(SelectedKey);
+        ::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
+    }
 }
 
 void CNewLocalVariables::OnClickNew()

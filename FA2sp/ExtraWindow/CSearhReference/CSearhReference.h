@@ -103,5 +103,6 @@ public:
     // first = id, second = param index, value
     static std::map<int, std::map<int, FString>> LocalVariableParamAffectedEvents;
     static std::map<int, std::map<int, FString>> LocalVariableParamAffectedActions;
+    static TransparencyHelper m_transparency;
 };
 

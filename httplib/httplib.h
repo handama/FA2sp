@@ -827,7 +827,7 @@ inline bool parse_url(const std::string &url, UrlComponents &uc) {
 
     // Without :// or //, the entire input must be consumed as host[:port].
     // If there is leftover (path, query, etc.), this is not a valid
-    // host[:port] string â€” clear and reparse as a plain path.
+    // host[:port] string ¡ª clear and reparse as a plain path.
     if (!has_authority_prefix && pos < url.size()) {
       uc.host.clear();
       uc.port.clear();
@@ -954,7 +954,7 @@ using UploadProgress = std::function<bool(size_t current, size_t total)>;
 
 /*
  * detail: type-erased storage used by UserData.
- * ABI-stable regardless of C++ standard â€” always uses this custom
+ * ABI-stable regardless of C++ standard ¡ª always uses this custom
  * implementation instead of std::any.
  */
 namespace detail {
@@ -1395,7 +1395,7 @@ struct Response {
   std::string body;
   std::string location; // Redirect location
 
-  // User-defined context â€” set by pre-routing/pre-request handlers and read
+  // User-defined context ¡ª set by pre-routing/pre-request handlers and read
   // by route handlers to pass arbitrary data (e.g. decoded auth tokens).
   UserData user_data;
 
@@ -5131,7 +5131,7 @@ inline bool parse_header(const char *beg, const char *end, T fn) {
 
     if (!detail::fields::is_field_value(val)) { return false; }
 
-    // RFC 9110 Â§5.5: header field values are opaque octets and MUST NOT be
+    // RFC 9110 ¡ì5.5: header field values are opaque octets and MUST NOT be
     // percent-decoded by the recipient. Applications that need to interpret a
     // value as a URI component should call httplib::decode_uri_component()
     // (or decode_path_component()) explicitly.
@@ -5434,8 +5434,9 @@ inline bool mmap::open(const char *path) {
   if (wpath.empty()) { return false; }
 
   hFile_ =
-      ::CreateFile2(wpath.c_str(), GENERIC_READ,
-                    FILE_SHARE_READ | FILE_SHARE_WRITE, OPEN_EXISTING, NULL);
+      ::CreateFileW(wpath.c_str(), GENERIC_READ,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
+                    FILE_ATTRIBUTE_NORMAL, NULL);
 
   if (hFile_ == INVALID_HANDLE_VALUE) { return false; }
 
@@ -5451,8 +5452,10 @@ inline bool mmap::open(const char *path) {
   }
   size_ = static_cast<size_t>(size.QuadPart);
 
-  hMapping_ =
-      ::CreateFileMappingFromApp(hFile_, NULL, PAGE_READONLY, size_, NULL);
+  hMapping_ = ::CreateFileMappingW(
+      hFile_, NULL, PAGE_READONLY,
+      static_cast<DWORD>((static_cast<ULONGLONG>(size_) >> 32) & 0xFFFFFFFF),
+      static_cast<DWORD>(size_ & 0xFFFFFFFF), NULL);
 
   // Special treatment for an empty file...
   if (hMapping_ == NULL && size_ == 0) {
@@ -5466,7 +5469,7 @@ inline bool mmap::open(const char *path) {
     return false;
   }
 
-  addr_ = ::MapViewOfFileFromApp(hMapping_, FILE_MAP_READ, 0, 0);
+  addr_ = ::MapViewOfFile(hMapping_, FILE_MAP_READ, 0, 0, 0);
 
   if (addr_ == nullptr) {
     close();
@@ -6477,7 +6480,7 @@ inline void get_remote_ip_and_port(socket_t sock, std::string &ip, int &port) {
 
 // Recursive form retained so operator""_t below can compute hashes for
 // switch-case labels at compile time (C++11 constexpr forbids loops). Do not
-// call from runtime paths with arbitrary-length inputs â€” use str2tag()
+// call from runtime paths with arbitrary-length inputs ¡ª use str2tag()
 // instead, which is iterative and stack-safe.
 inline constexpr unsigned int str2tag_core(const char *s, size_t l,
                                            unsigned int h) {
@@ -10747,7 +10750,7 @@ inline bool parse_no_proxy_entry(const std::string &token, NoProxyEntry &out) {
   }
 
   // Bracketed entries can only be IPv6. If the IPv6 parse above failed,
-  // the entry is malformed â€” don't fall through to the hostname branch.
+  // the entry is malformed ¡ª don't fall through to the hostname branch.
   if (bracketed) { return false; }
 
   // A '/' on a non-IP token means a CIDR prefix without an address. Reject.
@@ -11643,7 +11646,7 @@ inline bool Server::read_content_core(
                      size_t /*len*/) { return receiver(buf, n); };
   }
 
-  // RFC 9112 Â§6: no Transfer-Encoding and no Content-Length means no body.
+  // RFC 9112 ¡ì6: no Transfer-Encoding and no Content-Length means no body.
   // For non-SSL builds we still scan non-persistent connections for stray
   // body bytes so the payload limit is enforced (413). On keep-alive,
   // pending bytes may be the next request (issue #2450), so skip.
@@ -12296,7 +12299,7 @@ Server::process_request(Stream &strm, const std::string &remote_addr,
     return write_response(strm, close_connection, req, res);
   }
 
-  // RFC 9112 Â§6.3: Reject requests with both a non-zero Content-Length and
+  // RFC 9112 ¡ì6.3: Reject requests with both a non-zero Content-Length and
   // any Transfer-Encoding to prevent request smuggling. Content-Length: 0 is
   // tolerated for compatibility with existing clients.
   if (req.get_header_value_u64("Content-Length") > 0 &&
@@ -12529,7 +12532,7 @@ Server::process_request(Stream &strm, const std::string &remote_addr,
   }
 
   // Drain any unconsumed framed body to prevent request smuggling on
-  // keep-alive. Without framing there is no body to drain â€” reading would
+  // keep-alive. Without framing there is no body to drain ¡ª reading would
   // consume the next request (issue #2450).
   if (!req.body_consumed_ && detail::has_framed_body(req)) {
     int dummy_status;
@@ -12840,7 +12843,7 @@ inline bool ClientImpl::send_(Request &req, Response &res, Error &error) {
 #endif
 
       if (!is_alive) {
-        // Peer seems gone â€” non-graceful shutdown to avoid SIGPIPE.
+        // Peer seems gone ¡ª non-graceful shutdown to avoid SIGPIPE.
         disconnect(/*gracefully=*/false);
       }
     }
@@ -13214,7 +13217,7 @@ inline ssize_t ChunkedDecoder::read_payload(char *buf, size_t len,
     stream_line_reader lr(strm, line_buf, sizeof(line_buf));
     if (!lr.getline()) { return -1; }
 
-    // RFC 9112 Â§7.1: chunk-size = 1*HEXDIG
+    // RFC 9112 ¡ì7.1: chunk-size = 1*HEXDIG
     const char *p = lr.ptr();
     int v = 0;
     if (!is_hex(*p, v)) { return -1; }
@@ -13614,7 +13617,7 @@ inline bool ClientImpl::write_request(Stream &strm, Request &req,
   }
 
   // Proxy-Authorization is only sent when the proxy is actually used for
-  // this target â€” otherwise NO_PROXY-matched requests would leak proxy
+  // this target ¡ª otherwise NO_PROXY-matched requests would leak proxy
   // credentials directly to the destination server.
   if (is_proxy_enabled_for_host(host_)) {
     if (!proxy_basic_auth_username_.empty() &&

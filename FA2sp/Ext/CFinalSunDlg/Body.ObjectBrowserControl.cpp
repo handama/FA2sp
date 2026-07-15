@@ -2946,6 +2946,38 @@ void CViewObjectsExt::SquareBatchAddMultiSelection(int X, int Y, bool add)
     CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 }
 
+void CViewObjectsExt::PlaceRampAnchor(int X, int Y)
+{
+    auto pIsoView = CIsoViewExt::GetExtension();
+	for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
+	{
+		for (int gy = Y - pIsoView->BrushSizeY / 2; gy <= Y + pIsoView->BrushSizeY / 2; gy++)
+		{
+            if (CIsoView::CurrentCommand->Type == 0)
+            {
+                auto& s = CMapDataExt::RampGeneratorAnchors;
+                auto it = s.find({ gx, gy });
+                if (it != s.end()) {
+                    auto node = s.extract(it);
+                    node.value() = { gx, gy, CMapDataExt::RampGeneratorAnchorHeight }; 
+                    s.insert(std::move(node));
+                } else {
+                    s.insert({ gx, gy, CMapDataExt::RampGeneratorAnchorHeight });
+                }
+            }
+            else if (CIsoView::CurrentCommand->Type == 1)
+            {
+                auto& s = CMapDataExt::RampGeneratorAnchors;
+                auto it = s.find({ gx, gy });
+                if (it != s.end()) {
+                    s.erase(it);
+                }
+            }
+        }
+    }
+    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+}
+
 void CViewObjectsExt::ModifyOre(int X, int Y)
 {
 	auto pIsoView = CIsoViewExt::GetExtension();
@@ -5150,5 +5182,6 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     // 0x24 WP/Tag color
     // 0x25 Draging trigger dot
     // 0x26 Measurement Toolbox
+    // 0x27 Place Anchor
     return false;
 }

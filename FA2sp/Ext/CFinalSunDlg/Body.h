@@ -488,6 +488,7 @@ public:
     static void OpenWpTagColorDlg(bool isWp);
     static void BatchAddMultiSelection(int X, int Y, bool add);
     static void SquareBatchAddMultiSelection(int X, int Y, bool add);
+    static void PlaceRampAnchor(int X, int Y);
     static void Redraw_ConnectedTile(CViewObjectsExt* pThis);
 
     static bool DoPropertyBrush_Building();

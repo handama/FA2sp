@@ -1072,6 +1072,8 @@ public:
     static float ExtraInfantryLight;
     static float ExtraAircraftLight;
     static bool IsInitingPropertyDialog;
+    static std::set<VertexHeight> RampGeneratorAnchors;
+    static int RampGeneratorAnchorHeight;
 
     static std::vector<CUnitDataFS> UnitDatasExt;
     static std::vector<CAircraftDataFS> AircraftDatasExt;

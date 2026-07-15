@@ -220,7 +220,8 @@ public:
     static void DrawEllipseDirectX(int X, int Y, int majorRadius, COLORREF color, int width = 2, bool bScreenSpace = true);
     static void DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORREF color, bool bUseDot, HDC hdc, HWND hwnd, bool s1 = true, bool s2 = true, bool s3 = true, bool s4 = true);
     static void DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor);
-    static void DrawLockedCellOutlinePaintNewRaiseGroundCursor(int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor);
+    static void DrawLockedCellOutlinePaintNewRaiseGroundCursor(
+        int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor, bool oneLine = false);
     static int GetSelectedSubcellInfantryIdx(int X = -1, int Y = -1, bool getSubcell = false);
     static void FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY);
     static void GetSameConnectedCells(int X, int Y, int oriX, int oriY, std::set<MapCoord>* selectedCoords = nullptr);
@@ -309,11 +310,12 @@ public:
     static void SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw);
     static void SpecialDrawDirectX(int specialDraw);
     static void DirectXMouseCursor(int x, int y, int height);
-    static void DirectXMouseNewRaiseGroundCursor(int x, int y, int height);
+    static void DirectXMouseNewRaiseGroundCursor(int x, int y, int height, bool oneLine = false);
     static CRect GetVisibleIsoViewRect();
     static void DrawCreditOnMap(HDC hDC, bool bScreenSpace = true);
     static void DrawDistanceRuler(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void DrawOtherMeasurementTools(HDC hDC, const RECT& rect, bool bScreenSpace = true);
+    static void DrawRampAnchors(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void DrawGeometricAnnotations(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void DrawScriptPaths(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void DrawHighBridgeLines(HDC hDC, const RECT& rect, bool bScreenSpace = true);

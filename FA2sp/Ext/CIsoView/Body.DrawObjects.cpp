@@ -3445,6 +3445,41 @@ static void DrawMap()
 			CTerrainGenerator::RangeSecondCell.Y = -1;
 		}
 	}
+	if (CTerrainGenerator::CurrentPreset 
+		&& CTerrainGenerator::CurrentPreset->RampMinHeight > -1
+		&& CTerrainGenerator::CurrentPreset->RampMaxHeight > -1
+		&& CTerrainGenerator::CurrentPreset->RampPercent> -1
+		&& (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers))
+	{
+		FString text;
+		TextParams param;
+		param.SetFont("Cambria").SetFontSize(14).SetBold().
+		SetAlwaysOnTop().SetAlignCenter().SetColor(ShapeColor::FromCOLORREF(RGB(0, 0, 0))).SetPadding(0, 0);
+		
+		SetBkMode(hDC, TRANSPARENT);
+		SetTextAlign(hDC, TA_CENTER);
+		SetTextColor(hDC, RGB(0, 0, 0));
+		for (const auto& vh : CMapDataExt::RampGeneratorAnchors)
+		{
+			text.Format("%d", vh.Height);
+			MapCoord mc = {vh.X, vh.Y};
+			CIsoView::MapCoord2ScreenCoord_Flat(mc.X, mc.Y);
+			auto vh2 = vh;
+			vh2.GetVertexHeight(true, true);
+			int drawX = mc.X - DrawOffsetX + 30;
+			int drawY = mc.Y - DrawOffsetY - 40 - vh2.Height * 15;
+			if (ExtConfigs::DirectXRendering)
+			{
+				pThis->g_pTR->DrawTexts(drawX, drawY, text, param);
+			}
+			else
+			{
+				TextOut(hDC, drawX, drawY, text, strlen(text));
+			}			
+		}
+		SetBkMode(hDC, OPAQUE);
+		SetTextAlign(hDC, TA_LEFT);
+	}
 
 	if (ExtConfigs::DirectXRendering)
 	{

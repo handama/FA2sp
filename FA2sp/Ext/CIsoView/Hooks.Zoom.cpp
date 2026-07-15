@@ -101,8 +101,9 @@ DEFINE_HOOK(460F00, CIsoView_ScreenCoord2MapCoord_Height, 7)
 	*Y += (*Y - pThis->ViewPosition.y - dr.top) * (CIsoViewExt::ScaledFactor - 1.0);
 
 	if (CIsoViewExt::UsingNewRaiseGround && (CIsoView::CurrentCommand->Command == 11 
-		|| CIsoView::CurrentCommand->Command == 12 
-		|| CIsoView::CurrentCommand->Command == 15))
+			|| CIsoView::CurrentCommand->Command == 12 
+			|| CIsoView::CurrentCommand->Command == 15) 
+		|| CIsoView::CurrentCommand->Command == 0x27)
 	{
 		*Y += 15;
 	}
@@ -153,8 +154,9 @@ DEFINE_HOOK(466890, CIsoView_ScreenCoord2MapCoord_Flat, 8)
 	*Y += (*Y - pThis->ViewPosition.y - dr.top) * (CIsoViewExt::ScaledFactor - 1.0);
 
 	if (CIsoViewExt::UsingNewRaiseGround && (CIsoView::CurrentCommand->Command == 11 
-		|| CIsoView::CurrentCommand->Command == 12 
-		|| CIsoView::CurrentCommand->Command == 15))
+			|| CIsoView::CurrentCommand->Command == 12 
+			|| CIsoView::CurrentCommand->Command == 15)
+		|| CIsoView::CurrentCommand->Command == 0x27)
 	{
 		*Y += 15;
 	}

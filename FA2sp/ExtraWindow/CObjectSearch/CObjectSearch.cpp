@@ -77,11 +77,11 @@ void CObjectSearch::Create(CFinalSunDlg* pWnd)
 
 void CObjectSearch::Initialize(HWND& hWnd)
 {
-    RECT rcMain;
-    ::GetWindowRect(m_parent->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd(), &rcMain);
-    int x = rcMain.left;
-    int y = rcMain.top;
-    ::SetWindowPos(hWnd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+    //RECT rcMain;
+    //::GetWindowRect(m_parent->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd(), &rcMain);
+    //int x = rcMain.left;
+    //int y = rcMain.top;
+    //::SetWindowPos(hWnd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 
     FString buffer;
     if (Translations::GetTranslationItem("GlobalSearchTitle", buffer))

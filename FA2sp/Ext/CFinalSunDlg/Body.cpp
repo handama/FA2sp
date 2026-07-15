@@ -2187,6 +2187,22 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			}
 		}
 		// last one
+		else if (CIsoView::CurrentCommand->Command == 0x27 && CMapData::Instance->MapWidthPlusHeight)
+		{
+			POINT pt;
+			GetCursorPos(&pt);
+			if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt))
+			{
+				int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
+				CMapDataExt::RampGeneratorAnchorHeight += zDelta > 0 ? 1 : -1;
+				CMapDataExt::RampGeneratorAnchorHeight = std::clamp(CMapDataExt::RampGeneratorAnchorHeight, 0, 14);	
+				if (CTerrainGenerator::GetHandle())	
+				{
+					::SendMessage(CTerrainGenerator::hRampAnchorHeight, WM_SETTEXT, 0, 
+					 (LPARAM)std::to_string(CMapDataExt::RampGeneratorAnchorHeight).c_str());
+				}
+			}
+		}
 		else if (CIsoView::CurrentCommand->Command == 15 && CMapData::Instance->MapWidthPlusHeight)
 		{
 			POINT pt;

@@ -146,6 +146,8 @@ std::vector<CAircraftDataFS> CMapDataExt::AircraftDatasExt;
 std::vector<CBuildingDataFS> CMapDataExt::BuildingDatasExt;
 std::unordered_map<CTileBlockClass*, TileBlockExt> CMapDataExt::TileBlockDataExt;
 bool CMapDataExt::IsInitingPropertyDialog = false;
+std::set<VertexHeight> CMapDataExt::RampGeneratorAnchors;
+int CMapDataExt::RampGeneratorAnchorHeight = 0;
 
 const std::vector<FString> CMapDataExt::TechnoStates = 
 {

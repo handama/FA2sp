@@ -5,6 +5,22 @@
 #include <stdexcept>
 #include <random>
 
+template<typename T>
+std::vector<T> GetModes(const std::vector<T>& vec)
+{
+    std::unordered_map<T, int> count;
+    int maxCount = 0;
+
+    for (const auto& x : vec)
+        maxCount = std::max(maxCount, ++count[x]);
+
+    std::vector<T> result;
+    for (const auto& [value, cnt] : count)
+        if (cnt == maxCount)
+            result.push_back(value);
+
+    return result;
+}
 void HeightGenerator::reset() {
     N = 0;
     edgeCount = 0;
@@ -13,6 +29,8 @@ void HeightGenerator::reset() {
     coord2idx.clear();
     adjOffset.clear();
     adjFlat.clear();
+    edgeMaxDiff.clear();
+    edgeIgnoreConstraint.clear();
     height.clear();
     isPreset.clear();
     low.clear();
@@ -67,6 +85,44 @@ void HeightGenerator::buildGraph(const std::set<VertexHeight>& points) {
     for (int i = 0; i < N; ++i) {
         std::copy(tmpAdj[i].begin(), tmpAdj[i].end(), adjFlat.begin() + adjOffset[i]);
     }
+    edgeMaxDiff.assign(adjFlat.size(), 1);
+    edgeIgnoreConstraint.assign(adjFlat.size(), 0);
+
+    // Mark edges where both adjacent cells are non-morphable — height constraint is ignored
+    auto isCellMorphable = [](CellData* cell) -> bool {
+        int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+        return CMapDataExt::TileData[tileIndex].Morphable;
+    };
+    for (int u = 0; u < N; ++u) {
+        int x = coords[u].X;
+        int y = coords[u].Y;
+        for (int ei = adjOffset[u]; ei < adjOffset[u + 1]; ++ei) {
+            int v = adjFlat[ei];
+            if (u >= v) continue; // each undirected edge once
+            int dx = coords[v].X - x;
+            int dy = coords[v].Y - y;
+            CellData *c1 = nullptr, *c2 = nullptr;
+            if (dx != 0) { // horizontal edge
+                int cx = (dx > 0) ? x : x - 1;
+                c1 = CMapDataExt::TryGetCellAt(cx, y - 1);
+                c2 = CMapDataExt::TryGetCellAt(cx, y);
+            } else { // vertical edge
+                int cy = (dy > 0) ? y : y - 1;
+                c1 = CMapDataExt::TryGetCellAt(x - 1, cy);
+                c2 = CMapDataExt::TryGetCellAt(x, cy);
+            }
+            if (!isCellMorphable(c1) && !isCellMorphable(c2)) {
+                edgeIgnoreConstraint[ei] = 1;
+                // Find and mark reverse edge
+                for (int re = adjOffset[v]; re < adjOffset[v + 1]; ++re) {
+                    if (adjFlat[re] == u) {
+                        edgeIgnoreConstraint[re] = 1;
+                        break;
+                    }
+                }
+            }
+        }
+    }
 }
 
 void HeightGenerator::applyPresets(const std::set<VertexHeight>& presets, int minH, int maxH) {
@@ -114,6 +170,7 @@ bool HeightGenerator::propagateConstraints(int minH, int maxH) {
         int u = q.front();
         q.pop();
         for (int ei = adjOffset[u]; ei < adjOffset[u + 1]; ++ei) {
+            if (edgeIgnoreConstraint[ei]) continue;
             int v = adjFlat[ei];
             // h[v] must be within [h[u]-1, h[u]+1]
             int newLow  = std::max(low[v], low[u] - 1);
@@ -129,6 +186,74 @@ bool HeightGenerator::propagateConstraints(int minH, int maxH) {
         }
     }
     return true;
+}
+
+// Progressive relaxation: when presets conflict, increase edge maxDiff step by step
+// until all constraints are satisfied. Preset heights are never modified.
+void HeightGenerator::propagateConstraintsRelaxed(int minH, int maxH) {
+    const int maxRelax = maxH - minH;
+    edgeMaxDiff.assign(adjFlat.size(), 1);
+
+    for (int iter = 0; iter < maxRelax * N; ++iter) {
+        // Reset bounds from scratch each iteration
+        low.assign(N, minH);
+        high.assign(N, maxH);
+        for (int i = 0; i < N; ++i) {
+            if (isPreset[i]) {
+                low[i] = high[i] = height[i];
+            }
+        }
+
+        std::queue<int> q;
+        std::vector<char> inQ(N, 0);
+        for (int i = 0; i < N; ++i) {
+            if (isPreset[i]) {
+                q.push(i);
+                inQ[i] = 1;
+            }
+        }
+
+        bool hasConflict = false;
+
+        while (!q.empty()) {
+            int u = q.front(); q.pop();
+            inQ[u] = 0;
+            for (int ei = adjOffset[u]; ei < adjOffset[u + 1]; ++ei) {
+                if (edgeIgnoreConstraint[ei]) continue;
+                int v = adjFlat[ei];
+                int diff = edgeMaxDiff[ei];
+                int newLow = std::max(low[v], low[u] - diff);
+                int newHigh = std::min(high[v], high[u] + diff);
+
+                if (newLow > newHigh) {
+                    // Conflict: increase diff on both directions
+                    if (diff < maxRelax) {
+                        edgeMaxDiff[ei] = diff + 1;
+                        // Find and update reverse edge
+                        for (int re = adjOffset[v]; re < adjOffset[v + 1]; ++re) {
+                            if (adjFlat[re] == u) {
+                                edgeMaxDiff[re] = diff + 1;
+                                break;
+                            }
+                        }
+                        hasConflict = true;
+                    }
+                    continue;
+                }
+
+                if (newLow > low[v] || newHigh < high[v]) {
+                    low[v] = newLow;
+                    high[v] = newHigh;
+                    if (!inQ[v]) {
+                        q.push(v);
+                        inQ[v] = 1;
+                    }
+                }
+            }
+        }
+
+        if (!hasConflict) break;
+    }
 }
 
 // Constraint propagation with "preset ranges": preset nodes' range is [initLow, initHigh],
@@ -224,6 +349,8 @@ int HeightGenerator::countRoughEdges() const {
         for (int ei = adjOffset[u]; ei < adjOffset[u + 1]; ++ei) {
             int v = adjFlat[ei];
             if (u < v) { // Each edge counted only once
+                if (edgeIgnoreConstraint[ei]) continue; // Unconstrained edge
+                if (edgeMaxDiff[ei] > 1) continue; // Relaxed edge, never counts as rough
                 int diff = height[u] - height[v];
                 if (diff < 0) diff = -diff;
                 if (diff == 1) count++;
@@ -280,15 +407,19 @@ void HeightGenerator::simulatedAnnealing(double targetRatio, int minH, int maxH)
             int deltaRough = 0;
             bool feasible = true;
             for (int ei = adjOffset[v]; ei < adjOffset[v + 1]; ++ei) {
+                if (edgeIgnoreConstraint[ei]) continue;
                 int u = adjFlat[ei];
                 int hu = height[u];
+                int maxDiff = edgeMaxDiff[ei];
                 int oldDiff = oldH - hu;
                 if (oldDiff < 0) oldDiff = -oldDiff;
                 int newDiff = newH - hu;
                 if (newDiff < 0) newDiff = -newDiff;
-                if (newDiff > 1) { feasible = false; break; }
-                if (oldDiff == 1 && newDiff == 0) deltaRough--;
-                else if (oldDiff == 0 && newDiff == 1) deltaRough++;
+                if (newDiff > maxDiff) { feasible = false; break; }
+                if (maxDiff == 1) {
+                    if (oldDiff == 1 && newDiff == 0) deltaRough--;
+                    else if (oldDiff == 0 && newDiff == 1) deltaRough++;
+                }
             }
             if (!feasible) continue;
 
@@ -318,17 +449,24 @@ std::set<VertexHeight> HeightGenerator::generateHeights(
     double roughnessRatio,
     int minH,
     int maxH,
-    const std::set<VertexHeight>& presets)
+    const std::set<VertexHeight>& presets,
+    bool bPreserveAnchorHeights)
 {
     reset();
 
     buildGraph(points);
     applyPresets(presets, minH, maxH);
 
-    if (!propagateConstraints(minH, maxH)) {
-        // Preset constraint conflict: adjust preset heights with minimal modification, then re-propagate
-        relaxPresets(minH, maxH);
-        propagateConstraints(minH, maxH);
+    if (bPreserveAnchorHeights) {
+        // Presets are fixed — use progressive relaxation to resolve conflicts
+        // by increasing edge maxDiff instead of modifying preset heights
+        propagateConstraintsRelaxed(minH, maxH);
+    } else {
+        if (!propagateConstraints(minH, maxH)) {
+            // Preset constraint conflict: adjust preset heights with minimal modification, then re-propagate
+            relaxPresets(minH, maxH);
+            propagateConstraints(minH, maxH);
+        }
     }
 
     // Initial solution takes the lower bound of each point's feasible range
@@ -402,7 +540,8 @@ std::set<VertexHeight> HeightGenerator::GetBoundaryVertices(const std::set<MapCo
             cells[1] = CMapDataExt::TryGetCellAt(v.X - 1, v.Y);
             cells[2] = CMapDataExt::TryGetCellAt(v.X, v.Y); 
             cells[3] = CMapDataExt::TryGetCellAt(v.X, v.Y - 1);
-			int totalHeight = 0;
+            std::vector<int> heights;
+            heights.reserve(4);
 			for (int i = 0; i < 4; ++i)
             {
                 auto cell = cells[i];
@@ -433,10 +572,11 @@ std::set<VertexHeight> HeightGenerator::GetBoundaryVertices(const std::set<MapCo
                         }
                     }
                 }
-                totalHeight += h;
+                heights.push_back(h);
             }
-          
-            result.insert({v.X, v.Y, totalHeight / 4});
+
+			auto modes = GetModes(heights);
+			result.insert({v.X, v.Y, *std::min_element(modes.begin(), modes.end())});
         }
     }
     return result;

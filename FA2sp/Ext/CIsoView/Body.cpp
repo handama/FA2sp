@@ -19,6 +19,7 @@
 #include "../../Miscs/TheaterInfo.h"
 #include <stack>
 #include "../../ExtraWindow/CNewScript/CNewScript.h"
+#include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../CFinalSunApp/Body.h"
 
 Bitmap *CIsoViewExt::pFullBitmap = nullptr;
@@ -984,7 +985,8 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
     }
 }
 
-void CIsoViewExt::DrawLockedCellOutlinePaintNewRaiseGroundCursor(int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor)
+void CIsoViewExt::DrawLockedCellOutlinePaintNewRaiseGroundCursor(
+    int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor, bool oneLine)
 {
     Y += -14 / CIsoViewExt::ScaledFactor;
     X += 1 / CIsoViewExt::ScaledFactor;
@@ -1085,8 +1087,16 @@ void CIsoViewExt::DrawLockedCellOutlinePaintNewRaiseGroundCursor(int X, int Y, i
         double rightX = cx + rx + offset;
         double heightOffset = height * 15 / CIsoViewExt::ScaledFactor;
 
-        drawDashedLine((int)leftX, (int)cy, (int)leftX, (int)(cy + heightOffset), heightLineColor);
-        drawDashedLine((int)rightX, (int)cy, (int)rightX, (int)(cy + heightOffset), heightLineColor);
+        if (oneLine)
+        {
+            drawDashedLine((int)(leftX + rightX) / 2, (int)cy, 
+            (int)(leftX + rightX) / 2, (int)(cy + heightOffset), heightLineColor);
+        }
+        else
+        {
+            drawDashedLine((int)leftX, (int)cy, (int)leftX, (int)(cy + heightOffset), heightLineColor);
+            drawDashedLine((int)rightX, (int)cy, (int)rightX, (int)(cy + heightOffset), heightLineColor);
+        }
     };
 
     if (!CFinalSunApp::Instance->FlatToGround && height > 0)
@@ -4010,6 +4020,11 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC, const RECT &rect, bool bScr
     }
 }
 
+void CIsoViewExt::DrawRampAnchors(HDC hDC, const RECT& rect, bool bScreenSpace)
+{
+ 
+}
+
 void CIsoViewExt::DrawGeometricAnnotations(HDC hDC, const RECT &rect, bool bScreenSpace)
 {
     auto pIsoView = CIsoViewExt::GetExtension();
@@ -4195,6 +4210,7 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         {
             DrawHighBridgeLines(hDC, rect, false);
         }
+        DrawRampAnchors(hDC, rect, false);
         DrawCreditOnMap(hDC, false);
 
         SelectObject(hDC, hOldFont);
@@ -4242,6 +4258,7 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         {
             DrawHighBridgeLines(hDC, rect, true);
         }
+        DrawRampAnchors(hDC, rect, true);
         DrawMouseMove(hDC, rect);
         DrawCreditOnMap(hDC, true);
 
@@ -4290,6 +4307,7 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         {
             DrawHighBridgeLines(hDC, rect, true);
         }
+        DrawRampAnchors(hDC, rect, true);
         DrawCopyBound(hDC);
         DrawCreditOnMap(hDC, true);
 
@@ -4330,6 +4348,7 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
                 DrawScriptPaths(hDC, rect, true);
             if (CurrentCommand->Command == 10)
                 DrawHighBridgeLines(hDC, rect, true);
+            DrawRampAnchors(hDC, rect, true);
             SelectObject(hDC, hOldFont);
             DeleteObject(hFont);
         }
@@ -4367,7 +4386,8 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
             if (DrawScriptPath)
                 DrawScriptPaths(hDC, rect, true);
             if (CurrentCommand->Command == 10)
-                DrawHighBridgeLines(hDC, rect, true);
+                DrawHighBridgeLines(hDC, rect, true);    
+            DrawRampAnchors(hDC, rect, true);
             SelectObject(hDC, hOldFont);
             DeleteObject(hFont);
             surface->ReleaseDC(hDC);
@@ -4439,7 +4459,8 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
         if (CurrentCommand->Command == 10)
         {
             DrawHighBridgeLines(hDC, rect, true);
-        }
+        }     
+        DrawRampAnchors(hDC, rect, true);
         DrawCreditOnMap(hDC, true);
         break;
     }
@@ -4468,6 +4489,7 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
         {
             DrawHighBridgeLines(hDC, rect, true);
         }
+        DrawRampAnchors(hDC, rect, true);
         DrawMouseMove(hDC, rect);
         DrawCreditOnMap(hDC, true);
 
@@ -4500,6 +4522,7 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
         {
             DrawHighBridgeLines(hDC, rect, true);
         }
+        DrawRampAnchors(hDC, rect, true);
         DrawCopyBound(hDC);
         DrawCreditOnMap(hDC, true);
 
@@ -4525,6 +4548,7 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
             if (CurrentCommand->Command == 10)
                 DrawHighBridgeLines(hDC, rect, true);
         }
+        DrawRampAnchors(hDC, rect, true);
         DrawBridgeLine(hDC);
         DrawCreditOnMap(hDC, true);
 
@@ -4548,8 +4572,8 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
             if (DrawScriptPath)
                 DrawScriptPaths(hDC, rect, true);
             if (CurrentCommand->Command == 10)
-                DrawHighBridgeLines(hDC, rect, true);
-
+                DrawHighBridgeLines(hDC, rect, true);         
+            DrawRampAnchors(hDC, rect, true);
             pThis->g_pDX->RenderScreenSpaceOnly();
             pThis->g_pSP->EndFrame();
         }
@@ -4649,7 +4673,7 @@ void CIsoViewExt::DirectXMouseCursor(int X, int Y, int height)
     }
 }
 
-void CIsoViewExt::DirectXMouseNewRaiseGroundCursor(int X, int Y, int height)
+void CIsoViewExt::DirectXMouseNewRaiseGroundCursor(int X, int Y, int height, bool oneLine)
 {
     Y += -14 / CIsoViewExt::ScaledFactor;
     X += 1 / CIsoViewExt::ScaledFactor;
@@ -4692,8 +4716,15 @@ void CIsoViewExt::DirectXMouseNewRaiseGroundCursor(int X, int Y, int height)
         double rightX = cx + rx + offset + borderWidth;
         double heightOffset = height * 15 / CIsoViewExt::ScaledFactor;
 
-        g_pSP->DrawLine((float)leftX, (float)cy, (float)leftX, (float)(cy + heightOffset), param);
-        g_pSP->DrawLine((float)rightX, (float)cy, (float)rightX, (float)(cy + heightOffset), param);
+        if (oneLine)
+        {
+            g_pSP->DrawLine((float)(leftX + rightX) / 2, (float)cy, (float)(leftX + rightX) / 2, (float)(cy + heightOffset), param);
+        }
+        else
+        {
+            g_pSP->DrawLine((float)leftX, (float)cy, (float)leftX, (float)(cy + heightOffset), param);
+            g_pSP->DrawLine((float)rightX, (float)cy, (float)rightX, (float)(cy + heightOffset), param);
+        }
     };
 
     if (!CFinalSunApp::Instance->FlatToGround && height > 0)

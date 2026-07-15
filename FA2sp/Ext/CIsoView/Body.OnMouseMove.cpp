@@ -155,13 +155,17 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
             || CIsoView::CurrentCommand->Command == 13 
             || CIsoView::CurrentCommand->Command == 14 
             || CIsoView::CurrentCommand->Command == 15
-            || CIsoView::CurrentCommand->Command == 0x20)
+            || CIsoView::CurrentCommand->Command == 0x20
+            || CIsoView::CurrentCommand->Command == 0x27 && CIsoView::CurrentCommand->Type == 1)
         {
             std::vector<MapCoord> cells;
 
             if (CIsoViewExt::UsingNewRaiseGround && (CIsoView::CurrentCommand->Command == 11 
-                || CIsoView::CurrentCommand->Command == 12 
-                || CIsoView::CurrentCommand->Command == 15))
+                    || CIsoView::CurrentCommand->Command == 12 
+                    || CIsoView::CurrentCommand->Command == 15
+                )
+                || CIsoView::CurrentCommand->Command == 0x27
+            )
             {
                 for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2 - 1; gx++)
                 {
@@ -3255,7 +3259,9 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
 			if (CIsoViewExt::UsingNewRaiseGround && 
                 (CIsoView::CurrentCommand->Command == 11
                 || CIsoView::CurrentCommand->Command == 12
-                || CIsoView::CurrentCommand->Command == 15)
+                || CIsoView::CurrentCommand->Command == 15
+                )
+                || CIsoView::CurrentCommand->Command == 0x27 && CIsoView::CurrentCommand->Type == 1
             )
             {
                 VertexHeight vh = { point.X, point.Y };
@@ -3271,6 +3277,34 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                         CFinalSunApp::Instance->FlatToGround ? cell->Height : vh.Height, 
                         ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, 
                         ExtConfigs::CursorSelectionBound_AutoColor);
+			}
+			else if (CIsoView::CurrentCommand->Command == 0x27 && CIsoView::CurrentCommand->Type == 0)
+            {        
+                for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)
+                {
+                    for (int gy = point.Y - pIsoView->BrushSizeY / 2; gy <= point.Y + pIsoView->BrushSizeY / 2; gy++)
+                    {
+                        int X = gx, Y = gy;
+                        CIsoViewExt::MapCoord2ScreenCoord(X, Y);
+                        VertexHeight vh = { gx, gy };		
+                        vh.GetVertexHeight(true, true);
+                        int offset = CFinalSunApp::Instance->FlatToGround ? 0 : (vh.Height - cell->Height);		
+                        if (ExtConfigs::DirectXRendering)
+                        {    
+                            pIsoView->DirectXMouseNewRaiseGroundCursor(X - CIsoViewExt::drawOffsetX, 
+                                Y - CIsoViewExt::drawOffsetY - offset * 15 / CIsoViewExt::ScaledFactor, 
+                                CFinalSunApp::Instance->FlatToGround ? cell->Height : vh.Height, true);
+                        }
+                        else
+                        {                        
+                            pIsoView->DrawLockedCellOutlinePaintNewRaiseGroundCursor(X - CIsoViewExt::drawOffsetX, 
+                                Y - CIsoViewExt::drawOffsetY - offset * 15 / CIsoViewExt::ScaledFactor, 
+                                CFinalSunApp::Instance->FlatToGround ? cell->Height : vh.Height, 
+                                ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, 
+                                ExtConfigs::CursorSelectionBound_AutoColor, true);
+                        }
+                    }
+                }
 			}
             else
             {

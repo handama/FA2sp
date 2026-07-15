@@ -39,18 +39,11 @@ public:
     std::vector<FString> TileSetAvailableIndexesText;
     std::vector<FString> OverlayAvailableDataText;
     int Scale;
-    int SlopeMinDelta = -1;
-    int SlopeMaxDelta = -1;
-    int SlopeMarcoMinDelta = -1;
-    int SlopeMarcoMaxDelta = -1;
-    int SlopeSteepness = -1;
-    int SlopeMarcoSteepness = -1;
-    bool SlopeSetManualHeight;
-    bool SlopeSetTransition;
-    bool SlopeAvoidEdges;
-    int SlopeBaseHeight = 0;
-    MapCoord SlopeCoords[2] = {};
-    int SlopeCoordHeights[2] = {};
+    int RampPercent = -1;
+    int RampMinHeight = -1;
+    int RampMaxHeight = -1;
+    bool bPreserveAnchorHeights = false;
+    bool bAvoidNonmorphableTiles = true;
 
     static TerrainGeneratorPreset* create(FString sectionName, INISection* pSection)
     {
@@ -222,30 +215,12 @@ public:
                 Overlays.push_back(group);
             }
         }
-        SlopeSteepness = pSection->GetInteger("SlopeSteepness", -1);
-        SlopeMarcoSteepness = pSection->GetInteger("SlopeMarcoSteepness", -1);
-        SlopeMinDelta = pSection->GetInteger("SlopeMinDelta", -1);
-        SlopeMaxDelta = pSection->GetInteger("SlopeMaxDelta", -1);
-        SlopeMarcoMinDelta = pSection->GetInteger("SlopeMarcoMinDelta", -1);
-        SlopeMarcoMaxDelta = pSection->GetInteger("SlopeMarcoMaxDelta", -1);
-        SlopeBaseHeight = pSection->GetInteger("SlopeBaseHeight", -1);
-        SlopeAvoidEdges = STDHelpers::IsTrue(pSection->GetString("SlopeAvoidEdges", "false"));
-        SlopeSetManualHeight = SlopeBaseHeight != -1;
-        auto splits = STDHelpers::SplitString(pSection->GetString("SlopeCoords"));
-        if (splits.size() == 4)
-        {
-            SlopeCoords[0].Y = atoi(splits[0]);
-            SlopeCoords[0].X = atoi(splits[1]);
-            SlopeCoords[1].Y = atoi(splits[2]);
-            SlopeCoords[1].X = atoi(splits[3]);
-        }
-        auto splits2 = STDHelpers::SplitString(pSection->GetString("SlopeCoordHeights"));
-        if (splits2.size() == 2)
-        {
-            SlopeCoordHeights[0] = atoi(splits2[0]);
-            SlopeCoordHeights[1] = atoi(splits2[1]);
-        }
-        SlopeSetTransition = splits.size() == 4 && splits2.size() == 2;
+
+        RampPercent = pSection->GetInteger("RampPercent", -1);
+        RampMinHeight = pSection->GetInteger("RampMinHeight", -1);
+        RampMaxHeight = pSection->GetInteger("RampMaxHeight", -1);
+        bPreserveAnchorHeights = STDHelpers::IsTrue(pSection->GetString("RampPreserveAnchorHeights", "false"));
+        bAvoidNonmorphableTiles = STDHelpers::IsTrue(pSection->GetString("AvoidNonmorphableTiles", "true"));
     }
 };
 
@@ -316,20 +291,16 @@ public:
         SmudgeChance3 = 5011,
         SmudgeChance4 = 5015,
         SmudgeChance5 = 5019,
-        SlopeMinDelta = 6001,
-        SlopeMaxDelta = 6003,
-        SlopeSmoothing = 6005,
-        SlopeManualHeight = 6006,
-        SlopeManualHeightEdit = 6007,
-        SlopeHeightTransition = 6008,
-        SlopeCoord1 = 6010,
-        SlopeCoord2 = 6011,
-        SlopeCoordHeight1 = 6013,
-        SlopeCoordHeight2 = 6014,
-        SlopeMarcoSmoothing = 6016,
-        SlopeMarcoMinDelta = 6018,
-        SlopeMarcoMaxDelta = 6020,
-        SlopeAvoidEdges = 6021,
+        RampPercent = 6005,
+        RampMinHeight = 6001,
+        RampMaxHeight = 6003,
+        RampPlaceAnchor = 6008,
+        RampAnchorHeight = 6007,
+        RampDeleteAnchor = 6010,
+        RampClearAnchor = 6011,
+        RampDescription = 6012,
+        RampPreserveAnchorHeights = 6013,
+        AvoidNonmorphableTiles = 6014,
     };
 
     static void Create(CFinalSunDlg* pWnd);
@@ -340,6 +311,8 @@ public:
     }
     static bool OnEnterKeyDown(HWND& hWnd);
     static void OnSetRangeDone();
+    static std::shared_ptr<TerrainGeneratorPreset> CurrentPreset;
+    static HWND hRampAnchorHeight;
 
 protected:
     static void Initialize(HWND& hWnd);
@@ -419,20 +392,15 @@ private:
     static HWND hTerrainChance[TERRAIN_GENERATOR_DISPLAY];
     static HWND hSmudgeGroup[TERRAIN_GENERATOR_DISPLAY];
     static HWND hSmudgeChance[TERRAIN_GENERATOR_DISPLAY];
-    static HWND hSlopeMinDelta;
-    static HWND hSlopeMaxDelta;
-    static HWND hSlopeSmoothing;
-    static HWND hSlopeManualHeight;
-    static HWND hSlopeManualHeightEdit;
-    static HWND hSlopeHeightTransition;
-    static HWND hSlopeCoord1;
-    static HWND hSlopeCoord2;
-    static HWND hSlopeCoordHeight1;
-    static HWND hSlopeCoordHeight2;
-    static HWND hSlopeMarcoSmoothing;
-    static HWND hSlopeMarcoMinDelta;
-    static HWND hSlopeMarcoMaxDelta;
-    static HWND hSlopeAvoidEdges;
+    static HWND hRampPercent;
+    static HWND hRampMinHeight;
+    static HWND hRampMaxHeight;
+    static HWND hRampPlaceAnchor;
+    static HWND hRampDeleteAnchor;
+    static HWND hRampClearAnchor;
+    static HWND hRampDescription;
+    static HWND hRampPreserveAnchorHeights;
+    static HWND hAvoidNonmorphableTiles;
 
     static VirtualComboBoxEx vcbTileSet[TERRAIN_GENERATOR_DISPLAY];
     static VirtualComboBoxEx vcbPreset;
@@ -445,7 +413,6 @@ private:
 
     static CINI& map;
     static MultimapHelper& rules;
-    static std::shared_ptr<TerrainGeneratorPreset> CurrentPreset;
     static FMap<std::shared_ptr<TerrainGeneratorPreset>> TerrainGeneratorPresets;
     static WNDPROC g_pOriginalTabPageProc;
     static LRESULT CALLBACK TabPageSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);

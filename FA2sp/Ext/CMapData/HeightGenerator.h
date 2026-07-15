@@ -18,7 +18,9 @@ public:
         double roughnessRatio,
         int minH,
         int maxH,
-        const std::set<VertexHeight>& presets);
+        const std::set<VertexHeight>& presets,
+        bool bPreserveAnchorHeights = false
+    );
 
     static std::set<MapCoord> GetBoundaryCoords(const std::set<MapCoord>& coords);
     static std::set<MapCoord> GetInnerCoords(const std::set<MapCoord>& coords);
@@ -32,6 +34,8 @@ private:
     std::unordered_map<MapCoord, int> coord2idx;
     std::vector<int> adjOffset;
     std::vector<int> adjFlat;
+    std::vector<int> edgeMaxDiff; // per-directed-edge max allowed |height diff|
+    std::vector<char> edgeIgnoreConstraint; // edge where both adjacent cells are non-morphable
     std::vector<int> height;
     std::vector<char> isPreset;   
     std::vector<int> low;
@@ -44,6 +48,7 @@ private:
     void buildGraph(const std::set<VertexHeight>& points);
     void applyPresets(const std::set<VertexHeight>& presets, int minH, int maxH);
     bool propagateConstraints(int minH, int maxH);
+    void propagateConstraintsRelaxed(int minH, int maxH);
     bool propagateBoundedRanges(const std::vector<int>& presetIdx,
                                 const std::vector<int>& initLow,
                                 const std::vector<int>& initHigh,

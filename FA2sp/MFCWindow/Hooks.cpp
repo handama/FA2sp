@@ -31,7 +31,7 @@ namespace TransparencyMenu
     int g_restingMinimapAlpha = 255;
 
     const UINT_PTR HOVER_TIMER_ID = 0x9000;
-    const UINT HOVER_TIMER_INTERVAL = 100;
+    const UINT HOVER_TIMER_INTERVAL = 30;
 
     void SetTransparency(HWND hWnd, int alpha)
     {

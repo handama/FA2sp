@@ -4327,7 +4327,10 @@ void TransparencyHelper::Init(HWND hWnd, const char* iniKey)
         m_restingAlpha = opacity;
 
 	if (opacity < 255)
+	{
 		ArmMouseLeave(hWnd);
+		::SetTimer(hWnd, HOVER_TIMER_ID, HOVER_INTERVAL, nullptr);
+	}
 }
 
 void TransparencyHelper::ArmMouseLeave(HWND hWnd)
@@ -4363,6 +4366,7 @@ void TransparencyHelper::ApplyTransparency(HWND hWnd, int alpha, const char* ini
 	else
 	{
 		ArmMouseLeave(hWnd);
+		::SetTimer(hWnd, HOVER_TIMER_ID, HOVER_INTERVAL, nullptr);
 	}
 
 	CINI fa2;
@@ -4459,10 +4463,9 @@ bool TransparencyHelper::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 
 	case WM_SETFOCUS:
 	{
-		// Window got focus (mouse click, Alt+Tab, etc.) ¨C make opaque.
+		// Window got focus (mouse click, Alt+Tab, etc.) - make opaque.
 		// Covers the case where the user clicks on this window to dismiss
 		// a ComboBox dropdown in another window.
-		::KillTimer(hWnd, HOVER_TIMER_ID);
 		SetProp(hWnd, "TransparencyHover", (HANDLE)TRUE);
 		SetTransparency(hWnd, 255);
 		ArmMouseLeave(hWnd);
@@ -4472,17 +4475,10 @@ bool TransparencyHelper::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 	case WM_MOUSEMOVE:
 	case WM_NCMOUSEMOVE:
 	{
-		// Mouse entered our window (or moved within it) ?C make opaque immediately
+		// Mouse entered our window (or moved within it) - make opaque immediately
 		// and re-arm WM_MOUSELEAVE tracking.
-		bool wasHover = GetProp(hWnd, "TransparencyHover") != nullptr;
 		SetProp(hWnd, "TransparencyHover", (HANDLE)TRUE);
-
-		// Kill any pending leave-check timer
-		::KillTimer(hWnd, HOVER_TIMER_ID);
-
-		if (!wasHover)
-			SetTransparency(hWnd, 255);
-
+		SetTransparency(hWnd, 255);
 		ArmMouseLeave(hWnd);
 		return false; // don't consume, let default handler run
 	}
@@ -4490,18 +4486,9 @@ bool TransparencyHelper::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 	case WM_MOUSELEAVE:
 	case WM_NCMOUSELEAVE:
 	{
-		// If any ComboBox dropdown is open, don't call ArmMouseLeave
-		// (it would re-trigger WM_MOUSELEAVE because the ComboBox has
-		// mouse capture).  Start the timer to poll for dropdown closing.
-		if (HasAnyDropdownOpen(hWnd))
-		{
-			::SetTimer(hWnd, HOVER_TIMER_ID, HOVER_INTERVAL, nullptr);
-			return false; // let MFC process WM_MOUSELEAVE for control hover state
-		}
-
-		// Mouse left our window. Start a one-shot timer to verify.
-		::KillTimer(hWnd, HOVER_TIMER_ID);
-		::SetTimer(hWnd, HOVER_TIMER_ID, HOVER_INTERVAL, nullptr);
+		// The polling timer (started in Init) handles leave detection.
+		// No need to start a new timer here - the continuous poller
+		// will check IsCursorOverWindow and restore transparency if needed.
 		return false; // let MFC process WM_MOUSELEAVE for control hover state
 	}
 
@@ -4515,23 +4502,37 @@ bool TransparencyHelper::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 				return true;
 			}
 
-			// If any ComboBox dropdown is still open, keep polling
+			// If any ComboBox dropdown is open, keep the window opaque
+			// while the dropdown is visible.
 			if (HasAnyDropdownOpen(hWnd))
-				return true;
-
-			// Dropdown closed, stop polling and decide
-			::KillTimer(hWnd, HOVER_TIMER_ID);
-
-			bool isOver = IsCursorOverWindow(hWnd);
-			if (isOver)
 			{
+				SetTransparency(hWnd, 255);
+				SetProp(hWnd, "TransparencyHover", (HANDLE)TRUE);
+				return true;
+			}
+
+			// Continuous polling: check if the mouse is over our window
+			// and correct the transparency state accordingly.
+			// This catches edge cases where WM_MOUSEMOVE/WM_MOUSELEAVE
+			// may not fire (e.g. external window on top, window closure).
+			bool isOver = IsCursorOverWindow(hWnd);
+			bool wasHover = GetProp(hWnd, "TransparencyHover") != nullptr;
+
+			if (isOver && !wasHover)
+			{
+				// Mouse entered our window (missed by WM_MOUSEMOVE) - make opaque
+				SetTransparency(hWnd, 255);
+				SetProp(hWnd, "TransparencyHover", (HANDLE)TRUE);
 				ArmMouseLeave(hWnd);
 			}
-			else
+			else if (!isOver && wasHover)
 			{
+				// Mouse left our window (missed by WM_MOUSELEAVE) - restore transparency
 				SetTransparency(hWnd, m_restingAlpha);
 				RemoveProp(hWnd, "TransparencyHover");
 			}
+			// else: state is consistent, nothing to do
+
 			return true;
 		}
 		break;

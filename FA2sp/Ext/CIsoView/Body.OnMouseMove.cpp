@@ -3252,25 +3252,37 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
 		}
 		else
         {
-			int offsetY = 0;
 			if (CIsoViewExt::UsingNewRaiseGround && 
                 (CIsoView::CurrentCommand->Command == 11
                 || CIsoView::CurrentCommand->Command == 12
                 || CIsoView::CurrentCommand->Command == 15)
             )
             {
-				offsetY = -15 / ScaledFactor;
+                VertexHeight vh = { point.X, point.Y };
+				vh.GetVertexHeight(true, true);
+                int offset = CFinalSunApp::Instance->FlatToGround ? 0 : (vh.Height - cell->Height);				
+				if (ExtConfigs::DirectXRendering)
+                    pIsoView->DirectXMouseNewRaiseGroundCursor(X - CIsoViewExt::drawOffsetX, 
+                        Y - CIsoViewExt::drawOffsetY - offset * 15 / CIsoViewExt::ScaledFactor, 
+                        CFinalSunApp::Instance->FlatToGround ? cell->Height : vh.Height);
+                else
+                    pIsoView->DrawLockedCellOutlinePaintNewRaiseGroundCursor(X - CIsoViewExt::drawOffsetX, 
+                        Y - CIsoViewExt::drawOffsetY - offset * 15 / CIsoViewExt::ScaledFactor, 
+                        CFinalSunApp::Instance->FlatToGround ? cell->Height : vh.Height, 
+                        ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, 
+                        ExtConfigs::CursorSelectionBound_AutoColor);
 			}
-
-
-            if (ExtConfigs::DirectXRendering)
-                pIsoView->DirectXMouseCursor(X - CIsoViewExt::drawOffsetX, 
-                    Y - CIsoViewExt::drawOffsetY + offsetY, cell->Height);
             else
-                pIsoView->DrawLockedCellOutlinePaintCursor(X - CIsoViewExt::drawOffsetX, 
-                    Y - CIsoViewExt::drawOffsetY + offsetY, cell->Height, 
-                    ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, 
-                    ExtConfigs::CursorSelectionBound_AutoColor);
+            {
+                if (ExtConfigs::DirectXRendering)
+                    pIsoView->DirectXMouseCursor(X - CIsoViewExt::drawOffsetX, 
+                        Y - CIsoViewExt::drawOffsetY, cell->Height);
+                else
+                    pIsoView->DrawLockedCellOutlinePaintCursor(X - CIsoViewExt::drawOffsetX, 
+                        Y - CIsoViewExt::drawOffsetY, cell->Height, 
+                        ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, 
+                        ExtConfigs::CursorSelectionBound_AutoColor);
+            }
 		}
     }
 }

@@ -984,6 +984,121 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
     }
 }
 
+void CIsoViewExt::DrawLockedCellOutlinePaintNewRaiseGroundCursor(int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor)
+{
+    Y += -14 / CIsoViewExt::ScaledFactor;
+    X += 1 / CIsoViewExt::ScaledFactor;
+    if (CIsoViewExt::ScaledFactor < 1.0)
+    {
+        X += 2;
+        Y += 1;
+    }
+    else if (CIsoViewExt::ScaledFactor > 1.0)
+    {
+        X += 1;
+        Y += 1;
+    }
+
+    if (!hdc)
+        return;
+    if (!hwnd)
+        return;
+
+    COLORREF heightColor = color;
+    if (useHeightColor)
+    {
+        heightColor = CIsoViewExt::CellHilightColors[height];
+    }
+
+    // Same ellipse geometry as DirectX version: 1/3 of original, center at diamond center
+    double rx = 10 / CIsoViewExt::ScaledFactor;
+    double ry = 5 / CIsoViewExt::ScaledFactor;
+    double cx = X + 30 / CIsoViewExt::ScaledFactor;
+    double cy = Y - 15 / CIsoViewExt::ScaledFactor;
+
+    double borderWidth = std::max(2.0, 2.0 / CIsoViewExt::ScaledFactor);
+
+    // Inner ellipse: variable color (heightColor)
+    {
+        HPEN hPen = CreatePen(PS_SOLID, (int)borderWidth, heightColor);
+        HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
+        HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
+        Ellipse(hdc, (int)(cx - rx), (int)(cy - ry), (int)(cx + rx), (int)(cy + ry));
+        SelectObject(hdc, hOldPen);
+        SelectObject(hdc, hOldBrush);
+        DeleteObject(hPen);
+    }
+
+    // Outer ellipse: fixed color, offset outward to overlap inner
+    {
+        double outerOffset = borderWidth - 1.0;
+        HPEN hPen = CreatePen(PS_SOLID, (int)borderWidth, color);
+        HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
+        HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
+        Ellipse(hdc, (int)(cx - rx - outerOffset), (int)(cy - ry - outerOffset * 0.5),
+                (int)(cx + rx + outerOffset), (int)(cy + ry + outerOffset * 0.5));
+        SelectObject(hdc, hOldPen);
+        SelectObject(hdc, hOldBrush);
+        DeleteObject(hPen);
+    }
+
+    // Height indicator lines (2 dashed lines at left and right edges)
+    COLORREF heightLineColor = ExtConfigs::CursorSelectionBound_HeightColor;
+    auto drawDashedLine = [hdc](int x1, int y1, int x2, int y2, COLORREF lineColor)
+    {
+        float dx = static_cast<float>(x2 - x1);
+        float dy = static_cast<float>(y2 - y1);
+        float lineLength = std::sqrt(dx * dx + dy * dy);
+        if (lineLength < 0.5f)
+            return;
+
+        float ux = dx / lineLength;
+        float uy = dy / lineLength;
+        float totalDrawn = 0.0f;
+        float dashLen = std::max(4.0f / (float)CIsoViewExt::ScaledFactor, 1.0f);
+        float gapLen = std::max(2.0f / (float)CIsoViewExt::ScaledFactor, 1.0f);
+
+        HPEN hPen = CreatePen(PS_SOLID, 1, lineColor);
+        HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
+
+        while (totalDrawn < lineLength)
+        {
+            float startX = x1 + ux * totalDrawn;
+            float startY = y1 + uy * totalDrawn;
+            float drawLength = std::min(dashLen, lineLength - totalDrawn);
+            float endX = startX + ux * drawLength;
+            float endY = startY + uy * drawLength;
+
+            MoveToEx(hdc, static_cast<int>(startX + 0.5f), static_cast<int>(startY + 0.5f), NULL);
+            LineTo(hdc, static_cast<int>(endX + 0.5f), static_cast<int>(endY + 0.5f));
+
+            totalDrawn += drawLength + gapLen;
+        }
+
+        SelectObject(hdc, hOldPen);
+        DeleteObject(hPen);
+    };
+
+    auto drawHeightLine = [&](int offset)
+    {
+        double leftX = cx - rx - offset;
+        double rightX = cx + rx + offset;
+        double heightOffset = height * 15 / CIsoViewExt::ScaledFactor;
+
+        drawDashedLine((int)leftX, (int)cy, (int)leftX, (int)(cy + heightOffset), heightLineColor);
+        drawDashedLine((int)rightX, (int)cy, (int)rightX, (int)(cy + heightOffset), heightLineColor);
+    };
+
+    if (!CFinalSunApp::Instance->FlatToGround && height > 0)
+    {
+        drawHeightLine(0);
+        if (CIsoViewExt::ScaledFactor < 0.76)
+            drawHeightLine(1);
+        if (CIsoViewExt::ScaledFactor < 0.31)
+            drawHeightLine(-1);
+    }
+}
+
 void CIsoViewExt::DrawEllipsePaint(int X, int Y, int majorRadius, COLORREF color, HDC hdc, const RECT &rect, int width)
 {
     if (!hdc)
@@ -4531,6 +4646,82 @@ void CIsoViewExt::DirectXMouseCursor(int X, int Y, int height)
             drawCellOutline(-2, color);
         if (CIsoViewExt::ScaledFactor < 0.31)
             drawCellOutline(-3, color);
+    }
+}
+
+void CIsoViewExt::DirectXMouseNewRaiseGroundCursor(int X, int Y, int height)
+{
+    Y += -14 / CIsoViewExt::ScaledFactor;
+    X += 1 / CIsoViewExt::ScaledFactor;
+    if (CIsoViewExt::ScaledFactor < 1.0)
+    {
+        X += 2;
+        Y += 1;
+    }
+    else if (CIsoViewExt::ScaledFactor > 1.0)
+    {
+        X += 1;
+        Y += 1;
+    }
+
+    // Reduced to 1/3 of original diamond size (30/SF ¡ú 10/SF, 15/SF ¡ú 5/SF)
+    double rx = 10 / CIsoViewExt::ScaledFactor;
+    double ry = 5 / CIsoViewExt::ScaledFactor;
+    // Center stays at original diamond center
+    double cx = X + 30 / CIsoViewExt::ScaledFactor;
+    double cy = Y - 15 / CIsoViewExt::ScaledFactor;
+
+    COLORREF color = ExtConfigs::CursorSelectionBound_Color;
+    COLORREF heightLineColor = ExtConfigs::CursorSelectionBound_HeightColor;
+    COLORREF heightColor = color;
+    if (ExtConfigs::CursorSelectionBound_AutoColor)
+    {
+        heightColor = CIsoViewExt::CellHilightColors[height];
+    }
+
+    // Border width scales with zoom
+    double borderWidth = std::max(2.0, 2.0 / CIsoViewExt::ScaledFactor);
+
+    auto drawHeightLine = [&](int offset)
+    {
+        LineParams param;
+        param.SetScreenSpace().SetThickness(1.0f).SetColor(ShapeColor::FromCOLORREF(heightLineColor)).SetAntiAlias(false);
+        param.SetDash(std::max(4 / CIsoViewExt::ScaledFactor, 1.0), std::max(2 / CIsoViewExt::ScaledFactor, 1.0));
+
+        double leftX = cx - rx - offset - borderWidth + 0.5;
+        double rightX = cx + rx + offset + borderWidth;
+        double heightOffset = height * 15 / CIsoViewExt::ScaledFactor;
+
+        g_pSP->DrawLine((float)leftX, (float)cy, (float)leftX, (float)(cy + heightOffset), param);
+        g_pSP->DrawLine((float)rightX, (float)cy, (float)rightX, (float)(cy + heightOffset), param);
+    };
+
+    if (!CFinalSunApp::Instance->FlatToGround && height > 0)
+    {
+        drawHeightLine(0);
+        if (CIsoViewExt::ScaledFactor < 0.76)
+            drawHeightLine(1);
+        if (CIsoViewExt::ScaledFactor < 0.31)
+            drawHeightLine(-1);
+    }
+
+    // Inner ellipse: variable color (heightColor), drawn first
+    {
+        EllipseParams param;
+        param.SetScreenSpace()
+            .SetBorderWidth((float)borderWidth)
+            .SetBorderColor(ShapeColor::FromCOLORREF(heightColor));
+        g_pSP->DrawEllipse((float)cx, (float)cy, (float)rx, (float)ry, param);
+    }
+
+    // Outer ellipse: fixed color, offset outward by (borderWidth - 1) px to overlap inner by ~1px
+    {
+        double outerOffset = borderWidth - 1.0;
+        EllipseParams param;
+        param.SetScreenSpace()
+            .SetBorderWidth((float)borderWidth)
+            .SetBorderColor(ShapeColor::FromCOLORREF(color));
+        g_pSP->DrawEllipse((float)cx, (float)cy, (float)(rx + outerOffset), (float)(ry + outerOffset * 0.5), param);
     }
 }
 

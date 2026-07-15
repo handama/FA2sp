@@ -749,7 +749,7 @@ private:
     };
 
     void FlushCanvas(Canvas &c, float worldX, float worldY,
-                     float opacity, bool bScreenSpace);
+                     float opacity, bool bScreenSpace, bool bAlwaysOnTop = false);
 
     void RasterLine(Canvas &c, float x0, float y0, float x1, float y1,
                     float thickness, ShapeColor color,
@@ -760,6 +760,9 @@ private:
 
     void RasterEllipseFill(Canvas &c, float cx, float cy,
                            float rx, float ry, uint32_t rgba);
+
+    void RasterEllipseClear(Canvas &c, float cx, float cy,
+                            float rx, float ry);
 
     DirectXCore *m_dx;
 

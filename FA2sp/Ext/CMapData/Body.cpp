@@ -5995,7 +5995,7 @@ void VertexHeight::GetVertexHeight(bool IgnoreMorphable, bool considerRamp)
 		if (!cell) return 0;
 		if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
 			return 0;
-		//if (IgnoreMorphable) return 1;
+		if (IgnoreMorphable) return 1;
 		int groundClick = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
 		return CMapDataExt::TileData[groundClick].Morphable ? 1 : 0;
 	};

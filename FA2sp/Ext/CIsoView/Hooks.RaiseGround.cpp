@@ -486,7 +486,7 @@ DEFINE_HOOK(46640E, CIsoView_OnLButtonDown_FlattenHeight, 5)
 		GET(int, Y, ESI);
 	
 		VertexHeight vhClick = {X, Y};
-		vhClick.GetVertexHeight(false, true);
+		vhClick.GetVertexHeight(true, true);
 		CIsoViewExt::GetExtension()->FlattenHeight = vhClick.Height;
 	}
 

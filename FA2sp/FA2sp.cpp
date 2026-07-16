@@ -159,6 +159,7 @@ bool ExtConfigs::PlaceTileSkipHide;
 bool ExtConfigs::EnableVeinholeLogic;
 bool ExtConfigs::InitializeMap;
 bool ExtConfigs::ReloadGameFromMapFolder;
+bool ExtConfigs::ReloadIniWhenOpeningMap;
 bool ExtConfigs::LoadGameFromMapFolder_OnInit;
 bool ExtConfigs::ArtImageSwap;
 bool ExtConfigs::ExtraRaiseGroundTerrainSupport;
@@ -500,6 +501,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::PlaceTileSkipHide = CINI::FAData->GetBool("ExtConfigs", "PlaceTileSkipHide");
 	ExtConfigs::EnableVeinholeLogic = CINI::FAData->GetBool("ExtConfigs", "EnableVeinholeLogic");
 	ExtConfigs::ReloadGameFromMapFolder = CINI::FAData->GetBool("ExtConfigs", "ReloadGameFromMapFolder");
+	ExtConfigs::ReloadIniWhenOpeningMap = CINI::FAData->GetBool("ExtConfigs", "ReloadIniWhenOpeningMap");
 	ExtConfigs::LoadGameFromMapFolder_OnInit = CINI::FAData->GetBool("ExtConfigs", "LoadGameFromMapFolder.OnInit");
 	// ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
 	ExtConfigs::ExtraRaiseGroundTerrainSupport = CINI::FAData->GetBool("ExtConfigs", "ExtraRaiseGroundTerrainSupport");
@@ -1059,6 +1061,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.ReloadGameFromMapFolder", "Reload game resources from map folder"),
 		.IniKey = "ReloadGameFromMapFolder",
 		.Value = &ExtConfigs::ReloadGameFromMapFolder,
+		.Type = ExtConfigs::SpecialOptionType::None});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ReloadIniWhenOpeningMap", "Reload game INIs when opening map file"),
+		.IniKey = "ReloadIniWhenOpeningMap",
+		.Value = &ExtConfigs::ReloadIniWhenOpeningMap,
 		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

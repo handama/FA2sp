@@ -168,6 +168,7 @@ public:
     static bool EnableVeinholeLogic;
     static bool InitializeMap;
     static bool ReloadGameFromMapFolder;
+    static bool ReloadIniWhenOpeningMap;
     static bool LoadGameFromMapFolder_OnInit;
     static bool ArtImageSwap;
     static bool ExtraRaiseGroundTerrainSupport;

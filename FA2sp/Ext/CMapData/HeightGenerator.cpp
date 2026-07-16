@@ -88,7 +88,7 @@ void HeightGenerator::buildGraph(const std::set<VertexHeight>& points) {
     edgeMaxDiff.assign(adjFlat.size(), 1);
     edgeIgnoreConstraint.assign(adjFlat.size(), 0);
 
-    // Mark edges where both adjacent cells are non-morphable â€” height constraint is ignored
+    // Mark edges where both adjacent cells are non-morphable ¡ª height constraint is ignored
     auto isCellMorphable = [](CellData* cell) -> bool {
         int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
         return CMapDataExt::TileData[tileIndex].Morphable;
@@ -458,7 +458,7 @@ std::set<VertexHeight> HeightGenerator::generateHeights(
     applyPresets(presets, minH, maxH);
 
     if (bPreserveAnchorHeights) {
-        // Presets are fixed â€” use progressive relaxation to resolve conflicts
+        // Presets are fixed ¡ª use progressive relaxation to resolve conflicts
         // by increasing edge maxDiff instead of modifying preset heights
         propagateConstraintsRelaxed(minH, maxH);
     } else {

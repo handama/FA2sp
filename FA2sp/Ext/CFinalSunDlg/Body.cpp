@@ -1731,7 +1731,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	if (wmID == 40136)
 	{
 		if (!isInIsoView())
-			return TRUE;			return TRUE;
+			return TRUE;
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
 			this->PlaySound(FASoundType::Error);

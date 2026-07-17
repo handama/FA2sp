@@ -652,7 +652,21 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		ppmfc::CString buffer;
 		buffer = CFinalSunApp::MapPath;
 		if (CLoading::IsFileExists(buffer))
-			this->LoadMap(CFinalSunApp::MapPath);
+		{
+			const FString title = Translations::TranslateOrDefault(
+				"ReloadMapConfirmTitle", "Reload Map Confirm"
+			);
+			const FString message = Translations::TranslateOrDefault(
+				"ReloadMapConfirmMessage", "Are you sure you want to reload the map?"
+			);
+			int result = ::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd,
+			 	message, title, MB_YESNO | MB_DEFBUTTON2 | MB_ICONQUESTION);
+
+			if (result == IDYES)
+			{	
+				this->LoadMap(CFinalSunApp::MapPath);
+			}
+		}
 	}
 	else if (wmID == 40001 || wmID == 57600 || wmID == 57603 || wmID == 40002 || wmID == 40025) // open map related buttons
 	{

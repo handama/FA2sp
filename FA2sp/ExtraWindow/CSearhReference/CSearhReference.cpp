@@ -149,6 +149,13 @@ BOOL CALLBACK CSearhReference::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARA
         newHeight = rect.bottom - rect.top;
         MoveWindow(hRefresh, topLeft.x + newWndWidth - origWndWidth, topLeft.y + newWndHeight - origWndHeight, newWidth, newHeight, TRUE);
 
+        GetWindowRect(hFollowActiveWindow, &rect);
+        topLeft = { rect.left, rect.top };
+        ScreenToClient(hWnd, &topLeft);
+        newWidth = rect.right - rect.left;
+        newHeight = rect.bottom - rect.top;
+        MoveWindow(hFollowActiveWindow, topLeft.x + newWndWidth - origWndWidth, topLeft.y + newWndHeight - origWndHeight, newWidth, newHeight, TRUE);
+
         origWndWidth = newWndWidth;
         origWndHeight = newWndHeight;
         break;

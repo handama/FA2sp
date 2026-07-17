@@ -170,6 +170,7 @@ bool ExtConfigs::SaveMaps_BetterMapPreview;
 bool ExtConfigs::ShowMapBoundInMiniMap;
 bool ExtConfigs::CursorSelectionBound_AutoColor;
 bool ExtConfigs::MultiSelect_ConsiderLAT;
+float ExtConfigs::MultiSelect_Opacity;
 bool ExtConfigs::FillArea_ConsiderLAT;
 bool ExtConfigs::FillArea_ConsiderWater;
 bool ExtConfigs::DPIAware;
@@ -313,6 +314,7 @@ void FA2sp::ExtConfigsInitialize()
 		CINI::FAData->GetColor("ExtConfigs", "CursorSelectionBound.HeightIndicatorColor", 0x3C3C3C);
 	ExtConfigs::CursorSelectionBound_AutoColor = CINI::FAData->GetBool("ExtConfigs", "CursorSelectionBound.AutoHeightColor");
 	ExtConfigs::MultiSelect_ConsiderLAT = CINI::FAData->GetBool("ExtConfigs", "MultiSelect.ConsiderLAT", true);
+	ExtConfigs::MultiSelect_Opacity = CINI::FAData->GetSingle("ExtConfigs", "MultiSelect.Opacity", 0.33f);
 	ExtConfigs::FillArea_ConsiderLAT = CINI::FAData->GetBool("ExtConfigs", "FillArea.ConsiderLAT", true);
 	ExtConfigs::FillArea_ConsiderWater = CINI::FAData->GetBool("ExtConfigs", "FillArea.ConsiderWater", true);
 	ExtConfigs::ForceNeutralSpecialColor = CINI::FAData->GetBool("ExtConfigs", "ForceNeutralSpecialColor", true);

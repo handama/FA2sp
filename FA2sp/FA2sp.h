@@ -179,6 +179,7 @@ public:
     static bool ShowMapBoundInMiniMap;
     static bool CursorSelectionBound_AutoColor;
     static bool MultiSelect_ConsiderLAT;
+    static float MultiSelect_Opacity;
     static bool FillArea_ConsiderLAT;
     static bool FillArea_ConsiderWater;
     static bool DPIAware;

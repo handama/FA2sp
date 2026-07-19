@@ -1,7 +1,6 @@
 #include "Body.h"
 #include <iostream>
 #include <cmath>
-#include <corecrt_math_defines.h>
 #include "../../Source/CIsoView.h"
 #include <random>
 #include <chrono>
@@ -11,74 +10,191 @@
 #include <queue>
 
 static unsigned seed;
-static std::mt19937 rng;
-static std::uniform_real_distribution<float> dist; 
+static float g_FlipRate = 0.10f;
+// Hierarchical Worley noise with domain warping for organic clustered terrain.
+// scale inverted: scale=1 -> largest clusters (~50 cells), scale=25 -> fine detail.
+// Domain warping with bilinear-interpolated hash noise breaks Voronoi circularity.
+// Detail level activates near coarse boundaries for varied fragmentation.
+static int GetWorleyGroup(int cx, int cy, int scale, const std::vector<float>& cumulativeProbs, uint32_t baseSeed, float* outBoundaryRatio = nullptr)
+{
+    if (scale < 1) scale = 1;
 
-static float gradient(int x, int y) {
-    rng.seed(x * 374761393 + y * 668265263 + seed);
-    return dist(rng); 
-}
+    int numGroups = (int)cumulativeProbs.size();
+    if (numGroups == 0) return 0;
 
-static float lerp(float a, float b, float t) {
-    return a + t * (b - a);
-}
+    //--- Random rotation to prevent axis-aligned artifacts ---
+    uint32_t angleSeed = baseSeed ^ 0xA5A5A5A5u;
+    angleSeed = (angleSeed ^ (angleSeed >> 13)) * 1274126177u;
+    angleSeed ^= (angleSeed >> 16);
+    float angle = (angleSeed & 0x7FFFFFFFu) / float(0x7FFFFFFFu) * 2.0f * 3.14159265f;
+    float cosA = cosf(angle);
+    float sinA = sinf(angle);
+    float rcx = (float)cx * cosA - (float)cy * sinA;
+    float rcy = (float)cx * sinA + (float)cy * cosA;
 
-static float fade(float t) {
-    return t * t * t * (t * (t * 6 - 15) + 10);
-}
+    //--- Domain warping: smooth bilinear-interpolated hash to break Voronoi regularity ---
+    // Warp spacing is ~1/3 of coarse spacing so warp varies smoothly across cells
+    auto computeDomainWarp = [&](float baseSpacing) -> std::pair<float, float>
+    {
+        float warpSpacing = baseSpacing * 0.35f;
+        if (warpSpacing < 3.0f) warpSpacing = 3.0f;
 
-static float perlinNoise(float x, float y) {
-    int x0 = (int)floor(x);
-    int y0 = (int)floor(y);
-    int x1 = x0 + 1;
-    int y1 = y0 + 1;
+        float wgx = rcx / warpSpacing;
+        float wgy = rcy / warpSpacing;
+        int wgx0 = (int)floorf(wgx);
+        int wgy0 = (int)floorf(wgy);
+        float wfx = wgx - (float)wgx0;
+        float wfy = wgy - (float)wgy0;
 
-    float dx = x - x0;
-    float dy = y - y0;
+        // Smoothstep for organic interpolation
+        float wsx = wfx * wfx * (3.0f - 2.0f * wfx);
+        float wsy = wfy * wfy * (3.0f - 2.0f * wfy);
 
-    float g00 = gradient(x0, y0);
-    float g01 = gradient(x0, y1);
-    float g10 = gradient(x1, y0);
-    float g11 = gradient(x1, y1);
+        auto getWarpVec = [&](int wx, int wy) -> std::pair<float, float>
+        {
+            uint32_t h = baseSeed ^ 0x77777777u;
+            h ^= (uint32_t)(wx * 374761393u);
+            h += (uint32_t)(wy * 668265263u);
+            h = (h ^ (h >> 13)) * 1274126177u;
+            h ^= (h >> 16);
+            float vx = ((h & 0x7FFFFFFFu) / float(0x7FFFFFFFu) - 0.5f) * baseSpacing * 1.2f;
+            float vy = (((h >> 16) & 0x7FFFFFFFu) / float(0x7FFFFFFFu) - 0.5f) * baseSpacing * 1.2f;
+            return { vx, vy };
+        };
 
-    float u = fade(dx);
-    float v = fade(dy);
+        auto [w00x, w00y] = getWarpVec(wgx0, wgy0);
+        auto [w10x, w10y] = getWarpVec(wgx0 + 1, wgy0);
+        auto [w01x, w01y] = getWarpVec(wgx0, wgy0 + 1);
+        auto [w11x, w11y] = getWarpVec(wgx0 + 1, wgy0 + 1);
 
-    float nx0 = lerp(g00, g10, u);
-    float nx1 = lerp(g01, g11, u);
-    return lerp(nx0, nx1, v);
-}
+        float wx = (1.0f - wsy) * ((1.0f - wsx) * w00x + wsx * w10x)
+                 + wsy * ((1.0f - wsx) * w01x + wsx * w11x);
+        float wy = (1.0f - wsy) * ((1.0f - wsx) * w00y + wsx * w10y)
+                 + wsy * ((1.0f - wsx) * w01y + wsx * w11y);
+        return { wx, wy };
+    };
 
-static std::vector<int> selectTile(float noiseValue, std::vector<std::pair<std::vector<int>, float>>& tiles) {
-    float totalProbability = 0.0f;
-    for (const auto& tile : tiles) {
-        totalProbability += tile.second;
-    }
+    float coarseSpacing = scale / 10.f;
 
-    if (totalProbability == 0.0f) {
-        return std::vector<int>{0};
-    }
+    auto [warpX, warpY] = computeDomainWarp(coarseSpacing);
+    float wrcx = rcx + warpX;
+    float wrcy = rcy + warpY;
 
-    for (auto& tile : tiles) {
-        tile.second /= totalProbability; 
-    }
+    //--- Utility: Warped Worley nearest-neighbor search ---
+    auto findNearest = [&](float spacingF, uint32_t levelSeed,
+        float qx, float qy,
+        float& outDistSq, int& outGroup,
+        bool findSecond, float& outDist2Sq, int& outGroup2) -> void
+    {
+        float jitter = spacingF * 0.50f;
+        float perturbAmp = spacingF * 0.20f;
+        float gx_f = qx / spacingF;
+        float gy_f = qy / spacingF;
+        int gx0 = (int)floorf(gx_f);
+        int gy0 = (int)floorf(gy_f);
 
-    std::vector<float> cumulativeProbabilities;
-    float cumulative = 0.0f;
-    for (const auto& tile : tiles) {
-        cumulative += tile.second;
-        cumulativeProbabilities.push_back(cumulative);
-    }
+        outDistSq = FLT_MAX;
+        outDist2Sq = FLT_MAX;
+        outGroup = 0;
+        outGroup2 = 0;
 
-    float normalizedValue = (noiseValue + 1.0f) * 0.5f;
+        for (int dx = -1; dx <= 2; dx++) {
+            for (int dy = -1; dy <= 2; dy++) {
+                int nx = gx0 + dx;
+                int ny = gy0 + dy;
 
-    for (size_t i = 0; i < cumulativeProbabilities.size(); ++i) {
-        if (normalizedValue <= cumulativeProbabilities[i]) {
-            return tiles[i].first; 
+                uint32_t h = baseSeed ^ levelSeed;
+                h ^= (uint32_t)(nx * 374761393u);
+                h += (uint32_t)(ny * 668265263u);
+                h = (h ^ (h >> 13)) * 1274126177u;
+                h ^= (h >> 16);
+
+                float jx = ((h & 0xFFFF) / 65535.0f) * 2.0f - 1.0f;
+                float jy = (((h >> 16) & 0xFFFF) / 65535.0f) * 2.0f - 1.0f;
+
+                float px = nx * spacingF + spacingF * 0.5f + jx * jitter;
+                float py = ny * spacingF + spacingF * 0.5f + jy * jitter;
+
+                float dxc = qx - px;
+                float dyc = qy - py;
+                float distSq = dxc * dxc + dyc * dyc;
+
+                // Additive perturbation for rough edges
+                if (spacingF > 2.0f) {
+                    uint32_t ph = h ^ (uint32_t)(cx * 17 + cy * 31);
+                    float perturb = ((ph & 0x7FFFFFFFu) / float(0x3FFFFFFFu) - 1.0f) * perturbAmp;
+                    distSq += perturb;
+                }
+
+                uint32_t gh = h ^ 0x12345678u;
+                gh = (gh ^ (gh >> 13)) * 1274126177u;
+                gh ^= (gh >> 16);
+                float groupRand = (gh & 0x7FFFFFFFu) / float(0x7FFFFFFFu);
+                int group = 0;
+                for (int g = 0; g < numGroups; g++) {
+                    if (groupRand <= cumulativeProbs[g]) { group = g; break; }
+                }
+
+                if (distSq < outDistSq) {
+                    if (findSecond) {
+                        outDist2Sq = outDistSq;
+                        outGroup2 = outGroup;
+                    }
+                    outDistSq = distSq;
+                    outGroup = group;
+                } else if (findSecond && distSq < outDist2Sq) {
+                    outDist2Sq = distSq;
+                    outGroup2 = group;
+                }
+            }
         }
+    };
+
+    //--- Phase 1: Coarse level on warped coordinates ---
+    float coarseDistSq, coarseDist2Sq;
+    int coarseGroup, coarseGroup2;
+    findNearest(coarseSpacing, 0xCAFE0000u,
+        wrcx, wrcy,
+        coarseDistSq, coarseGroup, true, coarseDist2Sq, coarseGroup2);
+
+    // Boundary detection via nearest/second-nearest ratio
+    float boundaryRatio = coarseDistSq / coarseDist2Sq;
+
+    // Interior: stable coarse region
+    if (boundaryRatio < 0.70f) {
+        if (outBoundaryRatio) *outBoundaryRatio = boundaryRatio;
+        return coarseGroup;
     }
 
-    return tiles.back().first;
+    //--- Phase 2: Detail level at boundaries for fragmentation ---
+    float detailSpacing = 2.0f / (float)scale;
+    if (detailSpacing < 2.0f) detailSpacing = 2.0f;
+    if (detailSpacing > coarseSpacing * 0.3f) detailSpacing = coarseSpacing * 0.3f;
+
+    // Detail uses original (non-warped) coords for truly fine detail
+    float detailDistSq, detailDist2Sq;
+    int detailGroup, detailGroup2;
+    findNearest(detailSpacing, 0xDEAD0000u,
+        rcx, rcy,
+        detailDistSq, detailGroup, true, detailDist2Sq, detailGroup2);
+
+    // Blend coarse ? detail near boundaries
+    float detailInfluence = (boundaryRatio - 0.70f) / 0.30f;
+    if (detailInfluence > 1.0f) detailInfluence = 1.0f;
+
+    uint32_t mixHash = baseSeed;
+    mixHash ^= (uint32_t)(cx * 1234567u + cy * 7654321u);
+    mixHash = (mixHash ^ (mixHash >> 13)) * 1274126177u;
+    mixHash ^= (mixHash >> 16);
+    float mixRand = (mixHash & 0x7FFFFFFFu) / float(0x7FFFFFFFu);
+
+    if (mixRand < detailInfluence) {
+        if (outBoundaryRatio) *outBoundaryRatio = boundaryRatio;
+        return detailGroup;
+    }
+
+    if (outBoundaryRatio) *outBoundaryRatio = boundaryRatio;
+    return coarseGroup;
 }
 
 static int GetIndexByWeights(std::vector<float> weights) {
@@ -112,16 +228,6 @@ static int GetIndexByWeights(std::vector<float> weights) {
     }
 
     return -1;
-}
-
-
-static std::pair<float, float> rotateCoordinates(float x, float y, float angle) {
-    float rad = angle * M_PI / 180.0f; 
-    float cosA = cos(rad);
-    float sinA = sin(rad);
-    float newX = cosA * x - sinA * y;
-    float newY = sinA * x + cosA * y;
-    return { newX, newY };
 }
 
 static std::vector<int> getIgnoreTileSets(bool ignoreLandtypes)
@@ -165,13 +271,17 @@ void CMapDataExt::CreateRandomGround(int TopX, int TopY, int BottomX, int Bottom
     std::vector<std::pair<std::vector<int>, float>> tiles,
     bool override, bool multiSelection, bool onlyClear, bool ignoreLandType)
 {
-    seed = std::chrono::system_clock::now().time_since_epoch().count();
-    rng = std::mt19937(seed); 
-    dist = std::uniform_real_distribution<float>(-1.0f, 1.0f); 
+    seed = (unsigned)std::chrono::system_clock::now().time_since_epoch().count();
+
+    // Random global flip rate for this run: 0.05~0.15
+    {
+        uint32_t frs = (uint32_t)seed ^ 0xC0FFEEu;
+        frs = (frs ^ (frs >> 13)) * 1274126177u;
+        frs ^= (frs >> 16);
+        g_FlipRate = 0.01f + ((frs & 0x7FFFFFFFu) / float(0x7FFFFFFFu)) * 0.05f;
+    }
 
     std::vector<int> roadSets = getIgnoreTileSets(ignoreLandType);
-
-    int randomAngle = STDHelpers::RandomSelectInt(0, 180);
 
     // used tile sets
     std::vector<int> tileindexes;
@@ -187,6 +297,19 @@ void CMapDataExt::CreateRandomGround(int TopX, int TopY, int BottomX, int Bottom
 
     if (totalProbability < 1.0f) {
         tiles.push_back(std::make_pair(std::vector<int>{0xFFFF}, 1.0f - totalProbability));
+    }
+
+    // Build cumulative probabilities for Worley noise group assignment
+    std::vector<float> cumulativeProbs;
+    {
+        float cumTotal = 0.0f;
+        for (const auto& tile : tiles) {
+            cumTotal += tile.second;
+            cumulativeProbs.push_back(cumTotal);
+        }
+        if (cumTotal > 0.0f) {
+            for (auto& p : cumulativeProbs) p /= cumTotal;
+        }
     }
 
     auto tileNameHasShore = [&](int setIdx)
@@ -264,13 +387,43 @@ void CMapDataExt::CreateRandomGround(int TopX, int TopY, int BottomX, int Bottom
                 continue;
             }
 
-            float x = (float)i * 10 / scale;
-            float y = (float)j * 10 / scale;
+            // Multi-scale Worley noise for clustered terrain distribution
+            float boundaryRatio = 0.5f;
+            int groupIdx = GetWorleyGroup(i, j, scale, cumulativeProbs, (uint32_t)seed, &boundaryRatio);
 
-            auto [rotatedX, rotatedY] = rotateCoordinates(x, y, randomAngle);
-            float noiseValue = perlinNoise(rotatedX, rotatedY);
+            // Edge-aware random flip (uniform group selection, no probability bias)
+            {
+                uint32_t flipSeed = (uint32_t)seed;
+                flipSeed ^= (uint32_t)(i * 374761393u + j * 668265263u);
+                flipSeed = (flipSeed ^ (flipSeed >> 13)) * 1274126177u;
+                flipSeed ^= (flipSeed >> 16);
+                float flipRand = (flipSeed & 0x7FFFFFFFu) / float(0x7FFFFFFFu);
 
-            std::vector<int> tileIndexes = selectTile(noiseValue, tiles);
+                // Center: multiply flip rate by 0.20; Edge: full rate
+                float flipRate = g_FlipRate * ((boundaryRatio > 0.70f) ? 1.0f : 0.20f);
+
+                if (flipRand < flipRate) {
+                    // Uniform random among all non-clear terrain groups
+                    int lastNonClear = (int)tiles.size();
+                    for (int t = lastNonClear - 1; t >= 0; t--) {
+                        auto& tv = tiles[t].first;
+                        if (!(tv.size() == 1 && tv[0] == 0xFFFF)) {
+                            lastNonClear = t + 1;
+                            break;
+                        }
+                    }
+                    if (lastNonClear > 1) {
+                        uint32_t rg = flipSeed ^ 0xBBBBBBBu;
+                        rg = (rg ^ (rg >> 13)) * 1274126177u;
+                        int newGroup = (int)((rg & 0x7FFFFFFFu) % (uint32_t)lastNonClear);
+                        if (newGroup != groupIdx) {
+                            groupIdx = newGroup;
+                        }
+                    }
+                }
+            }
+
+            std::vector<int> tileIndexes = tiles[groupIdx].first;
 
             if (!override) {
                 if (tileIndexes.size() == 1 && tileIndexes[0] == 0xFFFF) {

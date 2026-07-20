@@ -638,6 +638,49 @@ DEFINE_HOOK(424132, CFinalSunDlg_OnInitDialog_InsertToolBar, 7)
 
     CFinalSunDlgExt::InitToolbar();
 
+    // Adjust floating window positions to account for actual toolbar height
+    // (they were positioned before the toolbar was created, assuming single row)
+    auto& frame = CFinalSunDlg::Instance->MyViewFrame;
+    if (frame.GetSafeHwnd())
+    {
+        RECT rcMain;
+        ::GetWindowRect(frame.GetSafeHwnd(), &rcMain);
+
+        if (ExtConfigs::TileSetBrowserFloating && frame.pTileSetBrowserFrame)
+        {
+            HWND hWnd = frame.pTileSetBrowserFrame->GetSafeHwnd();
+            if (hWnd)
+            {
+                int w, h, x, y;
+                if (ExtConfigs::VerticalLayout) {
+                    w = (rcMain.right - rcMain.left) * 1 / 4;
+                    h = (rcMain.bottom - rcMain.top) * 3 / 4;
+                    x = rcMain.right - w;
+                    y = rcMain.top;
+                } else {
+                    w = (rcMain.right - rcMain.left) * 3 / 4;
+                    h = (rcMain.bottom - rcMain.top) * 3 / 8;
+                    x = rcMain.right - w;
+                    y = rcMain.bottom - h;
+                }
+                ::SetWindowPos(hWnd, NULL, x, y, w, h, SWP_NOZORDER | SWP_FRAMECHANGED);
+            }
+        }
+
+        if (ExtConfigs::ViewObjectsFloating && frame.pViewObjects)
+        {
+            HWND hWnd = frame.pViewObjects->GetSafeHwnd();
+            if (hWnd)
+            {
+                int w = (rcMain.right - rcMain.left) * 1 / 6;
+                int h = (rcMain.bottom - rcMain.top) * 3 / 4;
+                int x = rcMain.left;
+                int y = rcMain.top;
+                ::SetWindowPos(hWnd, NULL, x, y, w, h, SWP_NOZORDER | SWP_FRAMECHANGED);
+            }
+        }
+    }
+
     return 0x424264;
 }
 

@@ -5743,22 +5743,30 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 	constexpr uint64_t CACHE_TTL_MS = 500;
 	constexpr uint64_t CLEANUP_INTERVAL_MS = 1000;
 
-	auto it = g_cache[fa2path].find(filename);
+	// Strip directory part for virtual filesystem lookups and cache key
+	const char* basename = filename;
+	for (const char* p = filename; *p; ++p)
+	{
+		if (*p == '\\' || *p == '/')
+			basename = p + 1;
+	}
+
+	auto it = g_cache[fa2path].find(basename);
 	if (it != g_cache[fa2path].end())
 	{
-		uint64_t lastUsed = g_cacheTime[fa2path][filename];
+		uint64_t lastUsed = g_cacheTime[fa2path][basename];
 		const auto& src = it->second;
 		auto pBuffer = GameCreateArray<unsigned char>(src.size());
 		memcpy(pBuffer, src.data(), src.size());
 		if (pDwSize)
 			*pDwSize = (DWORD)src.size();
 
-		g_cacheTime[fa2path][filename] = nowMs;
+		g_cacheTime[fa2path][basename] = nowMs;
 
 		if (nowMs - lastUsed > CACHE_TTL_MS)
 		{
 			g_cache[fa2path].erase(it);
-			g_cacheTime[fa2path].erase(filename);
+			g_cacheTime[fa2path].erase(basename);
 		}
 
 #ifndef NDEBUG
@@ -5816,7 +5824,7 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 	if (loadedData.empty())
 	{
 		size_t size = 0;
-		auto data = ResourcePackManager::instance().getFileData(filename, &size);
+		auto data = ResourcePackManager::instance().getFileData(basename, &size);
 		if (data && size > 0)
 		{
 			loadedData.assign(data.get(), data.get() + size);
@@ -5827,7 +5835,7 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 	{
 		auto& manager = MixLoader::Instance();
 		size_t sizeM = 0;
-		auto result = manager.LoadFile(filename, &sizeM);
+		auto result = manager.LoadFile(basename, &sizeM);
 		if (result && sizeM > 0)
 		{
 			loadedData.assign(result.get(), result.get() + sizeM);
@@ -5836,10 +5844,10 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 
 	if (loadedData.empty())
 	{
-		if (auto nMix = CLoadingExt::GetExtension()->SearchFileExt(filename, false))
+		if (auto nMix = CLoadingExt::GetExtension()->SearchFileExt(basename, false))
 		{
 			Ccc_file file(true);
-			file.open(filename, CMixFile::Array[nMix - 1]);
+			file.open(basename, CMixFile::Array[nMix - 1]);
 			loadedData.assign(
 				(unsigned char*)file.get_data(),
 				(unsigned char*)file.get_data() + file.get_size());
@@ -5866,8 +5874,8 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 		return nullptr;
 	}
 
-	g_cache[fa2path][filename] = loadedData;
-	g_cacheTime[fa2path][filename] = nowMs;
+	g_cache[fa2path][basename] = loadedData;
+	g_cacheTime[fa2path][basename] = nowMs;
 
 	if (nowMs - g_lastCleanup > CLEANUP_INTERVAL_MS)
 	{
@@ -5898,6 +5906,15 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 
 bool CLoadingExt::HasFileExt(ppmfc::CString filename, int nMix)
 {
+	// Strip directory part for virtual filesystem lookups
+	const char* fn = filename.GetString();
+	const char* basename = fn;
+	for (const char* p = fn; *p; ++p)
+	{
+		if (*p == '\\' || *p == '/')
+			basename = p + 1;
+	}
+
 	FString filepath;
 	std::ifstream fin;
 
@@ -5918,7 +5935,7 @@ bool CLoadingExt::HasFileExt(ppmfc::CString filename, int nMix)
 		return true;
 	}
 
-	if (ResourcePackManager::instance().hasFile(filename.GetString()))
+	if (ResourcePackManager::instance().hasFile(basename))
 	{
 		return true;
 	}
@@ -5926,17 +5943,17 @@ bool CLoadingExt::HasFileExt(ppmfc::CString filename, int nMix)
 	if (ExtConfigs::ExtMixLoader)
 	{
 		auto& manager = MixLoader::Instance();
-		int result = manager.QueryFileIndex(filename.GetString(), nMix);
+		int result = manager.QueryFileIndex(basename, nMix);
 		if (result >= 0)
 			return true;
 	}
 
 	if (nMix == -114)
 	{
-		if (CLoadingExt::GetExtension()->SearchFileExt(filename))
+		if (CLoadingExt::GetExtension()->SearchFileExt(basename))
 			return true;
 	}
-	if (CMixFile::HasFile(filename, nMix))
+	if (CMixFile::HasFile(basename, nMix))
 		return true;
 
 	filepath = CFinalSunApp::ExePath();

@@ -426,6 +426,6 @@ void CFinalSunAppExt::CheckUpdate()
 		NewVersion.Format("%d.%d.%d", remote.major, remote.minor, remote.revision);
 
 		if (CFinalSunDlg::Instance)
-			::PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), 1145141, 0, 0);
+			::PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), 114810, 0, 0);
 	}
 }

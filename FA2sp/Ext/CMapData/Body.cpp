@@ -6101,6 +6101,8 @@ int VertexHeight::GetRampType(const std::array<VertexHeight, 4>& vertexHeights, 
 	{
 		return -1;
 	}
+	// Collect all matching ramp types and randomly return one
+	std::vector<int> matches;
 	for (int i = 0; i < RampTypes.size(); ++i)
 	{
 		const auto& type = RampTypes.at(i);
@@ -6109,8 +6111,14 @@ int VertexHeight::GetRampType(const std::array<VertexHeight, 4>& vertexHeights, 
 			&& type.bottom == relativeHeights.at(2) 
 			&& type.left == relativeHeights.at(3))
 		{
-			return i;
+			matches.push_back(i);
 		}
+	}
+	if (!matches.empty())
+	{
+		static std::mt19937 gen(std::random_device{}());
+		std::uniform_int_distribution<std::size_t> dist(0, matches.size() - 1);
+		return matches[dist(gen)];
 	}
 	if (strict)
 	{

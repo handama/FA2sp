@@ -3,6 +3,7 @@
 #include "LuaFunctions.cpp"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
+#include "../../Helpers/WinVer.h"
 #include "../../Helpers/MultimapHelper.h"
 #include "../CLuaDialog/CLuaDialog.h"
 #include "../Common.h"
@@ -1179,7 +1180,8 @@ void CLuaConsole::SetupLuaHighlight(HWND& hWnd)
     }
 
     // color emoji support
-    SendMessage(hWnd, SCI_SETTECHNOLOGY, SC_TECHNOLOGY_DIRECTWRITE, 0);
+    if (FA2sp::WinInfo.IsWindowsVistaOrGreater())
+        SendMessage(hWnd, SCI_SETTECHNOLOGY, SC_TECHNOLOGY_DIRECTWRITE, 0);
 
     ::SendMessage(hWnd, SCI_COLOURISE, 0, -1);
 }
@@ -1264,7 +1266,8 @@ void CLuaConsole::SetupOutputBoxStyle(HWND& hWnd)
     }
     
     // color emoji support
-    SendMessage(hWnd, SCI_SETTECHNOLOGY, SC_TECHNOLOGY_DIRECTWRITE, 0);
+    if (FA2sp::WinInfo.IsWindowsVistaOrGreater())
+        SendMessage(hWnd, SCI_SETTECHNOLOGY, SC_TECHNOLOGY_DIRECTWRITE, 0);
 }
 
 void CLuaConsole::Close(HWND& hWnd)

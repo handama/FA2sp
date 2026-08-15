@@ -35,6 +35,26 @@ namespace fs = std::filesystem;
 std::array<HTREEITEM, CViewObjectsExt::Root_Count> CViewObjectsExt::ExtNodes;
 FHashSet CViewObjectsExt::IgnoreSet;
 FHashSet CViewObjectsExt::IgnoreOverlaySet;
+FString CViewObjectsExt::ObjectBrowserSearchText;
+HWND CViewObjectsExt::ObjectBrowserSearchEdit = nullptr;
+HWND CViewObjectsExt::ObjectBrowserSearchLabel = nullptr;
+HWND CViewObjectsExt::ObjectBrowserSearchParent = nullptr;
+HWND CViewObjectsExt::ObjectBrowserSearchContainer = nullptr;
+HWND CViewObjectsExt::ObjectBrowserResizeGrip = nullptr;
+HWND CViewObjectsExt::ObjectBrowserSearchOriginalParent = nullptr;
+WNDPROC CViewObjectsExt::ObjectBrowserSearchParentProc = nullptr;
+WNDPROC CViewObjectsExt::ObjectBrowserResizeGripProc = nullptr;
+WNDPROC CViewObjectsExt::ObjectBrowserVisibleTreeProc = nullptr;
+WNDPROC CViewObjectsExt::ObjectBrowserSearchOriginalParentProc = nullptr;
+HWND CViewObjectsExt::ObjectBrowserNativeTree = nullptr;
+HWND CViewObjectsExt::ObjectBrowserVisibleTree = nullptr;
+RECT CViewObjectsExt::ObjectBrowserNativeTreeRect{};
+bool CViewObjectsExt::ObjectBrowserSyncingSelection = false;
+int CViewObjectsExt::ObjectBrowserWidth = 0;
+bool CViewObjectsExt::ObjectBrowserResizing = false;
+int CViewObjectsExt::ObjectBrowserResizeStartX = 0;
+int CViewObjectsExt::ObjectBrowserResizeStartWidth = 0;
+CViewObjectsExt* CViewObjectsExt::ObjectBrowserSearchInstance = nullptr;
 FHashSet CViewObjectsExt::ForceName;
 FHashMap<FString> CViewObjectsExt::RenameString;
 FHashSet CViewObjectsExt::ExtSets[Set_Count];
@@ -416,6 +436,582 @@ FString CViewObjectsExt::QueryUIName(const char* pRegName, bool bOnlyOneLine)
     return idx == -1 ? buffer : buffer.Mid(0, idx);
 }
 
+bool CViewObjectsExt::MatchesObjectBrowserSearch(const char* pRegName, const FString& displayName)
+{
+    if (ObjectBrowserSearchText.empty())
+        return true;
+
+    LabelMatcher matcher(ObjectBrowserSearchText.c_str());
+    if (matcher.Match(pRegName) || matcher.Match(displayName.c_str()))
+        return true;
+
+    FString rulesName = Variables::RulesMap.GetString(pRegName, "Name");
+    if (!rulesName.empty() && matcher.Match(rulesName.c_str()))
+        return true;
+
+    FString translatedName;
+    return !rulesName.empty()
+        && Translations::GetTranslationItem(rulesName, translatedName)
+        && matcher.Match(translatedName.c_str());
+}
+
+void CViewObjectsExt::LayoutObjectBrowserSearch()
+{
+    if (!ObjectBrowserSearchContainer || !::IsWindow(ObjectBrowserSearchContainer))
+        return;
+
+    RECT parentRect{};
+    ::GetClientRect(ObjectBrowserSearchContainer, &parentRect);
+
+    const int scale = std::max(1, static_cast<int>(CFinalSunAppExt::ProgramScaleFactor));
+    const int labelWidth = 56 * scale;
+    const int searchAreaHeight = 42 * scale;
+    const int labelHeight = 28 * scale;
+    const int editHeight = 22 * scale;
+    const int searchLeft = 72 * scale;
+    const int searchWidth = std::min(250 * scale,
+        std::max(80 * scale,
+            static_cast<int>(parentRect.right) - searchLeft - 8 * scale));
+    const int labelTop = (searchAreaHeight - labelHeight) / 2;
+    const int editTop = (searchAreaHeight - editHeight) / 2;
+    const int treeTop = searchAreaHeight;
+    const int treeWidth = std::max(100 * scale,
+        static_cast<int>(parentRect.right) - 8 * scale);
+    const int treeHeight = std::max(40 * scale,
+        static_cast<int>(parentRect.bottom) - treeTop);
+
+    ::MoveWindow(ObjectBrowserSearchLabel, 8 * scale, labelTop,
+        labelWidth, labelHeight, TRUE);
+    ::MoveWindow(ObjectBrowserSearchEdit, searchLeft, editTop,
+        searchWidth, editHeight, TRUE);
+    ::MoveWindow(ObjectBrowserVisibleTree, 4, treeTop,
+        treeWidth, treeHeight, TRUE);
+    ::SetWindowPos(ObjectBrowserSearchLabel, HWND_TOP, 8 * scale, labelTop,
+        labelWidth, labelHeight, SWP_SHOWWINDOW | SWP_NOACTIVATE);
+    ::SetWindowPos(ObjectBrowserSearchEdit, HWND_TOP, searchLeft, editTop,
+        searchWidth, editHeight, SWP_SHOWWINDOW | SWP_NOACTIVATE);
+    ::SetWindowPos(ObjectBrowserVisibleTree, HWND_TOP, 4, treeTop,
+        treeWidth, treeHeight, SWP_SHOWWINDOW | SWP_NOACTIVATE);
+    if (ObjectBrowserResizeGrip && ::IsWindow(ObjectBrowserResizeGrip))
+    {
+        RECT hostRect{};
+        ::GetClientRect(ObjectBrowserSearchOriginalParent, &hostRect);
+        ::MoveWindow(ObjectBrowserResizeGrip,
+            std::max<LONG>(0, hostRect.right - 4), 0, 8,
+            std::max<LONG>(1, hostRect.bottom), TRUE);
+        ::SetWindowPos(ObjectBrowserResizeGrip, HWND_TOP,
+            std::max<LONG>(0, hostRect.right - 4), 0, 8,
+            std::max<LONG>(1, hostRect.bottom),
+            SWP_SHOWWINDOW | SWP_NOACTIVATE);
+    }
+}
+
+void CViewObjectsExt::EnsureObjectBrowserSearch()
+{
+    HWND hNativeTree = this->GetTreeCtrl().GetSafeHwnd();
+    HWND hOriginalParent = hNativeTree ? ::GetParent(hNativeTree) : nullptr;
+    if (!hNativeTree || !hOriginalParent)
+        return;
+
+    ObjectBrowserNativeTree = hNativeTree;
+    ObjectBrowserSearchOriginalParent = hOriginalParent;
+
+    if (!ObjectBrowserVisibleTree || !::IsWindow(ObjectBrowserVisibleTree))
+    {
+        ObjectBrowserSearchInstance = this;
+        ObjectBrowserSearchParent = hOriginalParent;
+        ::GetWindowRect(hNativeTree, &ObjectBrowserNativeTreeRect);
+        ::MapWindowPoints(nullptr, hOriginalParent,
+            reinterpret_cast<POINT*>(&ObjectBrowserNativeTreeRect), 2);
+        const auto scale = std::max(1, static_cast<int>(
+            CFinalSunAppExt::ProgramScaleFactor));
+        ObjectBrowserWidth = std::max(1, static_cast<int>(
+            ObjectBrowserNativeTreeRect.right - ObjectBrowserNativeTreeRect.left));
+        RECT parentRect{};
+        ::GetClientRect(hOriginalParent, &parentRect);
+        const int availableWidth = std::max<int>(1,
+            static_cast<int>(parentRect.right) - ObjectBrowserNativeTreeRect.left);
+        ObjectBrowserWidth = std::min(ObjectBrowserWidth, availableWidth);
+
+        ObjectBrowserSearchContainer = CreateWindowExA(
+            0, "STATIC", "",
+            WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+            ObjectBrowserNativeTreeRect.left,
+            ObjectBrowserNativeTreeRect.top,
+            ObjectBrowserWidth,
+            std::max<LONG>(1, ObjectBrowserNativeTreeRect.bottom - ObjectBrowserNativeTreeRect.top),
+            hOriginalParent, nullptr, static_cast<HINSTANCE>(FA2sp::hInstance), nullptr);
+        if (!ObjectBrowserSearchContainer)
+            return;
+
+        ObjectBrowserResizeGrip = CreateWindowExA(
+            0,
+            "STATIC",
+            "",
+            WS_CHILD | WS_VISIBLE,
+            std::max(0L, ObjectBrowserNativeTreeRect.right - 4),
+            ObjectBrowserNativeTreeRect.top,
+            8,
+            std::max<LONG>(1, ObjectBrowserNativeTreeRect.bottom
+                - ObjectBrowserNativeTreeRect.top),
+            hOriginalParent,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(0x7F22)),
+            static_cast<HINSTANCE>(FA2sp::hInstance),
+            nullptr);
+
+        const int searchAreaHeight = 42 * scale;
+        const int editHeight = 22 * scale;
+        ObjectBrowserSearchLabel = CreateWindowExA(
+            0,
+            "STATIC",
+            "\xCB\xD1\xCB\xF7\xA3\xBA",
+            WS_CHILD | WS_VISIBLE | SS_LEFT | SS_CENTERIMAGE,
+            8 * scale, (searchAreaHeight - 28 * scale) / 2,
+            56 * scale, 28 * scale,
+            ObjectBrowserSearchContainer,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(0x7F21)),
+            static_cast<HINSTANCE>(FA2sp::hInstance),
+            nullptr);
+
+        ObjectBrowserSearchEdit = CreateWindowExA(
+            WS_EX_CLIENTEDGE,
+            "EDIT",
+            "",
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
+            72 * scale, (searchAreaHeight - editHeight) / 2,
+            std::min(250 * scale, std::max(80 * scale,
+                ObjectBrowserWidth - 80 * scale)), editHeight,
+            ObjectBrowserSearchContainer,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(0x7F20)),
+            static_cast<HINSTANCE>(FA2sp::hInstance),
+            nullptr);
+
+        if (!ObjectBrowserSearchEdit)
+            return;
+
+        DWORD treeStyle = WS_CHILD | WS_VISIBLE | WS_TABSTOP
+            | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | TVS_SHOWSELALWAYS
+            | TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT;
+
+        ObjectBrowserVisibleTree = CreateWindowExA(
+            0,
+            WC_TREEVIEWA,
+            "",
+            treeStyle,
+            0, 26, 1, 1,
+            ObjectBrowserSearchContainer,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(
+                ::GetDlgCtrlID(hNativeTree))),
+            static_cast<HINSTANCE>(FA2sp::hInstance),
+            nullptr);
+        if (!ObjectBrowserVisibleTree)
+            return;
+        ObjectBrowserVisibleTreeProc = reinterpret_cast<WNDPROC>(
+            SetWindowLongPtr(ObjectBrowserVisibleTree, GWLP_WNDPROC,
+                reinterpret_cast<LONG_PTR>(
+                    &CViewObjectsExt::ObjectBrowserSearchParentProcImpl)));
+
+        HFONT hFont = DarkTheme::GetModernDefaultGUIFont();
+        if (!hFont)
+            hFont = reinterpret_cast<HFONT>(
+                ::SendMessage(hNativeTree, WM_GETFONT, 0, 0));
+        if (hFont)
+        {
+            ::SendMessage(ObjectBrowserSearchLabel, WM_SETFONT,
+                reinterpret_cast<WPARAM>(hFont), TRUE);
+            ::SendMessage(ObjectBrowserSearchEdit, WM_SETFONT,
+                reinterpret_cast<WPARAM>(hFont), TRUE);
+            ::SendMessage(ObjectBrowserVisibleTree, WM_SETFONT,
+                reinterpret_cast<WPARAM>(hFont), TRUE);
+        }
+
+        ::SendMessageW(ObjectBrowserSearchEdit, EM_SETCUEBANNER, FALSE,
+            reinterpret_cast<LPARAM>(L"Search by name or registration name"));
+
+        ::SendMessage(ObjectBrowserVisibleTree, TVM_SETIMAGELIST,
+            TVSIL_NORMAL, reinterpret_cast<LPARAM>(m_ImageList.GetSafeHandle()));
+
+        if (ExtConfigs::EnableDarkMode)
+        {
+            DarkTheme::SetDarkTheme(ObjectBrowserSearchContainer);
+            DarkTheme::SubclassAllControls(ObjectBrowserSearchContainer);
+        }
+
+        const COLORREF treeBackground = ExtConfigs::EnableDarkMode
+            ? RGB(32, 32, 32) : RGB(255, 255, 255);
+        const COLORREF treeText = ExtConfigs::EnableDarkMode
+            ? RGB(220, 220, 220) : RGB(0, 0, 0);
+        const COLORREF treeLines = ExtConfigs::EnableDarkMode
+            ? RGB(60, 60, 60) : RGB(128, 128, 128);
+        ::SendMessage(ObjectBrowserVisibleTree, TVM_SETBKCOLOR, 0,
+            static_cast<LPARAM>(treeBackground));
+        ::SendMessage(ObjectBrowserVisibleTree, TVM_SETTEXTCOLOR, 0,
+            static_cast<LPARAM>(treeText));
+        ::SendMessage(ObjectBrowserVisibleTree, TVM_SETLINECOLOR, 0,
+            static_cast<LPARAM>(treeLines));
+
+        ::ShowWindow(hNativeTree, SW_HIDE);
+
+        ObjectBrowserSearchParentProc = reinterpret_cast<WNDPROC>(
+            SetWindowLongPtr(ObjectBrowserSearchContainer, GWLP_WNDPROC,
+                reinterpret_cast<LONG_PTR>(&CViewObjectsExt::ObjectBrowserSearchParentProcImpl)));
+        if (ObjectBrowserResizeGrip)
+        {
+            ObjectBrowserResizeGripProc = reinterpret_cast<WNDPROC>(
+                SetWindowLongPtr(ObjectBrowserResizeGrip, GWLP_WNDPROC,
+                    reinterpret_cast<LONG_PTR>(&CViewObjectsExt::ObjectBrowserSearchParentProcImpl)));
+        }
+        ObjectBrowserSearchOriginalParentProc = reinterpret_cast<WNDPROC>(
+            SetWindowLongPtr(hOriginalParent, GWLP_WNDPROC,
+                reinterpret_cast<LONG_PTR>(&CViewObjectsExt::ObjectBrowserSearchParentProcImpl)));
+    }
+
+    LayoutObjectBrowserSearch();
+}
+
+void CViewObjectsExt::SyncObjectBrowserTree()
+{
+    if (!ObjectBrowserVisibleTree || !::IsWindow(ObjectBrowserVisibleTree)
+        || !ObjectBrowserNativeTree || !::IsWindow(ObjectBrowserNativeTree))
+        return;
+
+    struct BrowserNode
+    {
+        FString Text;
+        int Data = -1;
+        int Image = 0;
+        int SelectedImage = 0;
+        bool HasChildren = false;
+        HTREEITEM Source = nullptr;
+    };
+
+    auto getSortName = [](int data, const FString& text)
+    {
+        const auto getFrom = [](const std::map<int, FString>& values, int index)
+        {
+            auto it = values.find(index);
+            return it == values.end() ? FString() : it->second;
+        };
+
+        if (data >= Const_Infantry && data < Const_Infantry + 5000)
+            return getFrom(TreeViewIndex_Infantry, data - Const_Infantry);
+        if (data >= Const_Vehicle && data < Const_Vehicle + 5000)
+            return getFrom(TreeViewIndex_Vehicle, data - Const_Vehicle);
+        if (data >= Const_Aircraft && data < Const_Aircraft + 5000)
+            return getFrom(TreeViewIndex_Aircraft, data - Const_Aircraft);
+        if (data >= Const_Building && data < Const_Building + 5000)
+            return getFrom(TreeViewIndex_Building, data - Const_Building);
+        if (data >= Const_Terrain && data < Const_Terrain + 5000)
+            return getFrom(TreeViewIndex_Terrain, data - Const_Terrain);
+        if (data >= Const_Smudge && data < Const_Smudge + 5000)
+            return getFrom(TreeViewIndex_Smudge, data - Const_Smudge);
+        return text;
+    };
+
+    auto readNode = [](HTREEITEM item)
+    {
+        BrowserNode node;
+        char text[4096]{};
+        TVITEMA tvItem{};
+        tvItem.mask = TVIF_TEXT | TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+        tvItem.hItem = item;
+        tvItem.pszText = text;
+        tvItem.cchTextMax = static_cast<int>(std::size(text));
+        TreeView_GetItem(ObjectBrowserNativeTree, &tvItem);
+        node.Text = text;
+        node.Data = static_cast<int>(tvItem.lParam);
+        node.Image = tvItem.iImage;
+        node.SelectedImage = tvItem.iSelectedImage;
+        node.HasChildren = TreeView_GetChild(ObjectBrowserNativeTree, item) != nullptr;
+        node.Source = item;
+        return node;
+    };
+
+    auto collect = [&](HTREEITEM parent, auto&& collectRef) -> std::vector<BrowserNode>
+    {
+        std::vector<BrowserNode> nodes;
+        HTREEITEM item = parent
+            ? TreeView_GetChild(ObjectBrowserNativeTree, parent)
+            : TreeView_GetRoot(ObjectBrowserNativeTree);
+        while (item)
+        {
+            nodes.push_back(readNode(item));
+            item = TreeView_GetNextSibling(ObjectBrowserNativeTree, item);
+        }
+
+        std::vector<size_t> leafIndices;
+        for (size_t i = 0; i < nodes.size(); ++i)
+            if (!nodes[i].HasChildren)
+                leafIndices.push_back(i);
+
+        std::vector<BrowserNode> leaves;
+        for (auto index : leafIndices)
+            leaves.push_back(nodes[index]);
+        std::stable_sort(leaves.begin(), leaves.end(),
+            [&](const BrowserNode& left, const BrowserNode& right)
+            {
+                FString l = getSortName(left.Data, left.Text);
+                FString r = getSortName(right.Data, right.Text);
+                l.MakeLower();
+                r.MakeLower();
+                return l < r;
+            });
+        for (size_t i = 0; i < leafIndices.size(); ++i)
+            nodes[leafIndices[i]] = leaves[i];
+
+        return nodes;
+    };
+
+    std::function<void(HTREEITEM, HTREEITEM)> copyChildren;
+    copyChildren = [&](HTREEITEM sourceParent, HTREEITEM targetParent)
+    {
+        auto nodes = collect(sourceParent, collect);
+        for (const auto& node : nodes)
+        {
+            TVINSERTSTRUCTA insert{};
+            insert.hParent = targetParent;
+            insert.hInsertAfter = TVI_LAST;
+            insert.item.mask = TVIF_TEXT | TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+            insert.item.pszText = const_cast<char*>(node.Text.c_str());
+            insert.item.lParam = node.Data;
+            insert.item.iImage = node.Image;
+            insert.item.iSelectedImage = node.SelectedImage;
+            HTREEITEM target = TreeView_InsertItem(ObjectBrowserVisibleTree, &insert);
+            if (node.HasChildren)
+                copyChildren(node.Source, target);
+        }
+    };
+
+    ::SendMessage(ObjectBrowserVisibleTree, WM_SETREDRAW, FALSE, 0);
+    TreeView_DeleteAllItems(ObjectBrowserVisibleTree);
+    ::SendMessage(ObjectBrowserVisibleTree, TVM_SETIMAGELIST,
+        TVSIL_NORMAL, reinterpret_cast<LPARAM>(m_ImageList.GetSafeHandle()));
+    copyChildren(nullptr, TVI_ROOT);
+    ::SendMessage(ObjectBrowserVisibleTree, WM_SETREDRAW, TRUE, 0);
+    ::InvalidateRect(ObjectBrowserVisibleTree, nullptr, TRUE);
+}
+
+void CViewObjectsExt::OnObjectBrowserSearchChanged()
+{
+    if (!ObjectBrowserSearchEdit || !::IsWindow(ObjectBrowserSearchEdit))
+        return;
+
+    char buffer[512]{};
+    ::GetWindowTextA(ObjectBrowserSearchEdit, buffer, sizeof(buffer) - 1);
+    ObjectBrowserSearchText = buffer;
+    ObjectBrowserSearchText.Trim();
+    Redraw();
+}
+
+LRESULT CALLBACK CViewObjectsExt::ObjectBrowserSearchParentProcImpl(
+    HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    if (ObjectBrowserSearchInstance)
+    {
+        if ((hWnd == ObjectBrowserResizeGrip
+            || hWnd == ObjectBrowserVisibleTree) && message == WM_SETCURSOR)
+        {
+            bool onResizeEdge = hWnd == ObjectBrowserResizeGrip;
+            if (!onResizeEdge)
+            {
+                POINT point{};
+                ::GetCursorPos(&point);
+                ::ScreenToClient(hWnd, &point);
+                RECT rect{};
+                ::GetClientRect(hWnd, &rect);
+                onResizeEdge = point.x >= rect.right - 8;
+            }
+            if (onResizeEdge)
+            {
+                ::SetCursor(::LoadCursor(nullptr, IDC_SIZEWE));
+                return TRUE;
+            }
+        }
+        else if ((hWnd == ObjectBrowserResizeGrip
+            || hWnd == ObjectBrowserVisibleTree)
+            && message == WM_LBUTTONDOWN)
+        {
+            POINT point{};
+            bool onResizeEdge = true;
+            if (hWnd == ObjectBrowserResizeGrip)
+            {
+                ::GetCursorPos(&point);
+            }
+            else
+            {
+                point.x = static_cast<short>(LOWORD(lParam));
+                point.y = static_cast<short>(HIWORD(lParam));
+                RECT rect{};
+                ::GetClientRect(hWnd, &rect);
+                if (point.x < rect.right - 8)
+                    onResizeEdge = false;
+                else
+                    ::GetCursorPos(&point);
+            }
+            if (onResizeEdge)
+            {
+                RECT hostRect{};
+                ::GetClientRect(ObjectBrowserSearchOriginalParent, &hostRect);
+                ObjectBrowserResizing = true;
+                ObjectBrowserResizeStartX = point.x;
+                ObjectBrowserResizeStartWidth =
+                    hostRect.right - ObjectBrowserNativeTreeRect.left;
+                ::SetCapture(ObjectBrowserResizeGrip);
+                return 0;
+            }
+        }
+        else if (hWnd == ObjectBrowserResizeGrip
+            && message == WM_MOUSEMOVE && ObjectBrowserResizing)
+        {
+            POINT point{};
+            ::GetCursorPos(&point);
+            ObjectBrowserWidth = std::max<int>(160,
+                ObjectBrowserResizeStartWidth
+                + point.x - ObjectBrowserResizeStartX);
+            if (CFinalSunDlgExt::HasViewObjectsFloating)
+            {
+                CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(
+                    0, ObjectBrowserWidth, 10);
+                CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.RecalcLayout();
+            }
+            else
+            {
+                RECT containerRect{};
+                ::GetWindowRect(ObjectBrowserSearchContainer, &containerRect);
+                ::SetWindowPos(ObjectBrowserSearchContainer, nullptr,
+                    0, 0, ObjectBrowserWidth,
+                    containerRect.bottom - containerRect.top,
+                    SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+                ObjectBrowserSearchInstance->LayoutObjectBrowserSearch();
+            }
+            return 0;
+        }
+        else if (hWnd == ObjectBrowserResizeGrip
+            && message == WM_LBUTTONUP && ObjectBrowserResizing)
+        {
+            ObjectBrowserResizing = false;
+            ::ReleaseCapture();
+            return 0;
+        }
+        else if (hWnd == ObjectBrowserSearchContainer
+            && message == WM_COMMAND
+            && LOWORD(wParam) == 0x7F20
+            && HIWORD(wParam) == EN_CHANGE)
+        {
+            ObjectBrowserSearchInstance->OnObjectBrowserSearchChanged();
+        }
+        else if (hWnd == ObjectBrowserSearchContainer && message == WM_SIZE)
+        {
+            ObjectBrowserSearchInstance->LayoutObjectBrowserSearch();
+        }
+        else if (hWnd == ObjectBrowserSearchOriginalParent && message == WM_SIZE)
+        {
+            RECT parentRect{};
+            ::GetClientRect(ObjectBrowserSearchOriginalParent, &parentRect);
+            const int availableWidth = std::max<int>(1,
+                static_cast<int>(parentRect.right) - ObjectBrowserNativeTreeRect.left);
+            ObjectBrowserWidth = availableWidth;
+            ::MoveWindow(ObjectBrowserSearchContainer,
+                ObjectBrowserNativeTreeRect.left, ObjectBrowserNativeTreeRect.top,
+                ObjectBrowserWidth,
+                std::max<LONG>(1, parentRect.bottom - ObjectBrowserNativeTreeRect.top),
+                TRUE);
+            ObjectBrowserSearchInstance->LayoutObjectBrowserSearch();
+        }
+        else if (hWnd == ObjectBrowserSearchContainer
+            && message == WM_CTLCOLORSTATIC
+            && reinterpret_cast<HWND>(lParam) == ObjectBrowserSearchLabel
+            && ExtConfigs::EnableDarkMode)
+        {
+            HDC dc = reinterpret_cast<HDC>(wParam);
+            ::SetTextColor(dc, RGB(220, 220, 220));
+            ::SetBkColor(dc, RGB(32, 32, 32));
+            ::SetBkMode(dc, TRANSPARENT);
+            static HBRUSH labelBrush = ::CreateSolidBrush(RGB(32, 32, 32));
+            return reinterpret_cast<LRESULT>(labelBrush);
+        }
+        else if (hWnd == ObjectBrowserSearchContainer
+            && message == WM_ERASEBKGND)
+        {
+            RECT rect{};
+            ::GetClientRect(ObjectBrowserSearchContainer, &rect);
+            HBRUSH brush = ExtConfigs::EnableDarkMode
+                ? ::CreateSolidBrush(RGB(32, 32, 32))
+                : ::GetSysColorBrush(COLOR_WINDOW);
+            ::FillRect(reinterpret_cast<HDC>(wParam), &rect, brush);
+            if (ExtConfigs::EnableDarkMode)
+                ::DeleteObject(brush);
+            return TRUE;
+        }
+        else if (hWnd == ObjectBrowserSearchContainer
+            && message == WM_NOTIFY
+            && reinterpret_cast<LPNMHDR>(lParam)
+            && reinterpret_cast<LPNMHDR>(lParam)->hwndFrom == ObjectBrowserVisibleTree)
+        {
+            auto* header = reinterpret_cast<LPNMHDR>(lParam);
+            if (header->code == TVN_SELCHANGEDA || header->code == TVN_SELCHANGEDW)
+            {
+                auto* tree = reinterpret_cast<LPNMTREEVIEWA>(lParam);
+                if (!ObjectBrowserSyncingSelection)
+                {
+                    const bool hasChildren = TreeView_GetChild(
+                        ObjectBrowserVisibleTree, tree->itemNew.hItem) != nullptr;
+                    if (!hasChildren)
+                    {
+                        ObjectBrowserSyncingSelection = true;
+                        ObjectBrowserSearchInstance->UpdateEngine(
+                            static_cast<int>(tree->itemNew.lParam));
+                        ObjectBrowserSyncingSelection = false;
+                    }
+                }
+                return TRUE;
+            }
+            if (header->code == NM_CLICK || header->code == NM_DBLCLK)
+            {
+                POINT point{};
+                ::GetCursorPos(&point);
+                ::ScreenToClient(ObjectBrowserVisibleTree, &point);
+                TVHITTESTINFO hit{};
+                hit.pt = point;
+                HTREEITEM item = TreeView_HitTest(
+                    ObjectBrowserVisibleTree, &hit);
+                if (header->code == NM_DBLCLK)
+                {
+                    if (item && TreeView_GetChild(ObjectBrowserVisibleTree, item))
+                        return TRUE;
+                }
+                else
+                {
+                    const UINT itemPart = TVHT_ONITEMICON
+                        | TVHT_ONITEMLABEL | TVHT_ONITEMINDENT;
+                    if (item && (hit.flags & itemPart)
+                        && TreeView_GetChild(ObjectBrowserVisibleTree, item))
+                    {
+                        TreeView_Expand(ObjectBrowserVisibleTree, item, TVE_TOGGLE);
+                        return TRUE;
+                    }
+                }
+            }
+            if (ObjectBrowserSearchOriginalParentProc)
+                return ::SendMessage(ObjectBrowserSearchOriginalParent,
+                    WM_NOTIFY, wParam, lParam);
+        }
+    }
+
+    WNDPROC oldProc = nullptr;
+    if (hWnd == ObjectBrowserSearchContainer)
+        oldProc = ObjectBrowserSearchParentProc;
+    else if (hWnd == ObjectBrowserResizeGrip)
+        oldProc = ObjectBrowserResizeGripProc;
+    else if (hWnd == ObjectBrowserVisibleTree)
+        oldProc = ObjectBrowserVisibleTreeProc;
+    else if (hWnd == ObjectBrowserSearchOriginalParent)
+        oldProc = ObjectBrowserSearchOriginalParentProc;
+    if (oldProc)
+        return CallWindowProc(oldProc, hWnd, message, wParam, lParam);
+    return ::DefWindowProc(hWnd, message, wParam, lParam);
+}
+
 static ppmfc::CString GetFirstValidRandomObject(INISection* pSection)
 {
     for (auto& [key, value] : pSection->GetEntities())
@@ -471,6 +1067,8 @@ void CViewObjectsExt::UpdateTreeIconsForSubtree(HTREEITEM hItem)
 
 void CViewObjectsExt::Redraw()
 {
+    EnsureObjectBrowserSearch();
+
     // first loading is before rules loaded
     static bool firstRun = true;
     if (firstRun)
@@ -494,8 +1092,6 @@ void CViewObjectsExt::Redraw()
    
         if (CFinalSunDlgExt::HasViewObjectsFloating)
         {
-            CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 300 * CFinalSunAppExt::ProgramScaleFactor, 10);
-            CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.RecalcLayout();
             CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
         }
     }
@@ -504,8 +1100,6 @@ void CViewObjectsExt::Redraw()
         this->GetTreeCtrl().SetImageList(NULL, TVSIL_NORMAL);
         if (CFinalSunDlgExt::HasViewObjectsFloating)
         {
-            CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 200 * CFinalSunAppExt::ProgramScaleFactor, 10);
-            CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.RecalcLayout();
             CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
         }
     }
@@ -517,26 +1111,48 @@ void CViewObjectsExt::Redraw()
 
     Redraw_Initialize();
     Redraw_MainList();
-    Redraw_Ground();
-    Redraw_Owner();
-    Redraw_Infantry();
-    Redraw_Vehicle();
-    Redraw_Aircraft();
-    Redraw_Building();
-    Redraw_Terrain();
-    Redraw_Smudge();
-    Redraw_Overlay();
-    Redraw_Waypoint();
-    Redraw_Celltag();
-    Redraw_Basenode();
-    Redraw_Tunnel();
-    Redraw_PlayerLocation(); // player location is just waypoints!
-    Redraw_PropertyBrush();
-    Redraw_Annotation();
-    //Redraw_InfantrySubCell(); // we do not need this any more!
-    Redraw_ViewObjectInfo();
-    Redraw_MultiSelection();
-    Redraw_ConnectedTile(this);
+    if (ObjectBrowserSearchText.empty())
+    {
+        Redraw_Ground();
+        Redraw_Owner();
+        Redraw_Infantry();
+        Redraw_Vehicle();
+        Redraw_Aircraft();
+        Redraw_Building();
+        Redraw_Terrain();
+        Redraw_Smudge();
+        Redraw_Overlay();
+        Redraw_Waypoint();
+        Redraw_Celltag();
+        Redraw_Basenode();
+        Redraw_Tunnel();
+        Redraw_PlayerLocation(); // player location is just waypoints!
+        Redraw_PropertyBrush();
+        Redraw_Annotation();
+        //Redraw_InfantrySubCell(); // we do not need this any more!
+        Redraw_ViewObjectInfo();
+        Redraw_MultiSelection();
+        Redraw_ConnectedTile(this);
+    }
+    else
+    {
+        // 搜索模式只保留四类可注册单位，避免地图对象和工具节点干扰结果。
+        Redraw_Infantry();
+        Redraw_Vehicle();
+        Redraw_Aircraft();
+        Redraw_Building();
+        for (int root = 0; root < Root_Count; ++root)
+        {
+            if (root == Root_Infantry || root == Root_Vehicle
+                || root == Root_Aircraft || root == Root_Building)
+                continue;
+            if (ExtNodes[root])
+            {
+                this->GetTreeCtrl().DeleteItem(ExtNodes[root]);
+                ExtNodes[root] = nullptr;
+            }
+        }
+    }
 
     if (ExtConfigs::TreeViewCameo_Display)
     {
@@ -547,6 +1163,8 @@ void CViewObjectsExt::Redraw()
             hItem = this->GetTreeCtrl().GetNextSiblingItem(hItem);
         }
     }
+
+    SyncObjectBrowserTree();
 
     Logger::Raw("[CViewObjectsExt] Redraw TreeView_ViewObjects done. %d labels loaded.\n", AddedItemCount);
 
@@ -1393,6 +2011,11 @@ void CViewObjectsExt::Redraw_Infantry()
         FString display = QueryUIName(inf.second);
         if (display != inf.second)
             display += " (" + inf.second + ")";
+        if (!MatchesObjectBrowserSearch(inf.second, display))
+        {
+            InsertingObjectID = "";
+            continue;
+        }
         if (auto cat = Variables::RulesMap.TryGetString(inf.second, "EditorCategory"))
         {
             bool isPrevious = false;
@@ -1475,33 +2098,37 @@ void CViewObjectsExt::Redraw_Infantry()
         InsertingObjectID = "";
     }
     
-    HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomInfantryObList", -1, hInfantry);
-    if (auto pSection = CINI::FAData().GetSection("PlaceRandomInfantryObList"))
+    if (ObjectBrowserSearchText.empty())
     {
-        int index = RandomTechno;
-        for (const auto& pKey : pSection->GetEntities())
+        HTREEITEM hTemp = this->InsertTranslatedString(
+            "PlaceRandomInfantryObList", -1, hInfantry);
+        if (auto pSection = CINI::FAData().GetSection("PlaceRandomInfantryObList"))
         {
-            if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+            int index = RandomTechno;
+            for (const auto& pKey : pSection->GetEntities())
             {
-                bool add = true;
-                auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
-                if (banned.size() > 0)
-                    for (auto& ban : banned)
-                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
-                            add = false;
-                if (add)
+                if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
                 {
-                    InsertingObjectID = GetFirstValidRandomObject(pSection2);
-                    auto transed = FinalAlertConfig::Language + "-" + "Name";
-                    if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
-                        FA2sp::Buffer = *pName;
-                    else
-                        FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "MISSING");
-                    this->InsertString(FA2sp::Buffer, Const_Infantry + index, hTemp);
-                    InsertingObjectID = "";
+                    bool add = true;
+                    auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
+                    if (banned.size() > 0)
+                        for (auto& ban : banned)
+                            if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                                add = false;
+                    if (add)
+                    {
+                        InsertingObjectID = GetFirstValidRandomObject(pSection2);
+                        auto transed = FinalAlertConfig::Language + "-" + "Name";
+                        if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
+                            FA2sp::Buffer = *pName;
+                        else
+                            FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "MISSING");
+                        this->InsertString(FA2sp::Buffer, Const_Infantry + index, hTemp);
+                        InsertingObjectID = "";
+                    }
                 }
+                index++;
             }
-            index++;
         }
     }
 
@@ -1582,6 +2209,11 @@ void CViewObjectsExt::Redraw_Vehicle()
         FString display = QueryUIName(veh.second);
         if (display != veh.second)
             display += " (" + veh.second + ")";
+        if (!MatchesObjectBrowserSearch(veh.second, display))
+        {
+            InsertingObjectID = "";
+            continue;
+        }
         if (auto cat = Variables::RulesMap.TryGetString(veh.second, "EditorCategory"))
         {
             bool isPrevious = false;
@@ -1664,33 +2296,37 @@ void CViewObjectsExt::Redraw_Vehicle()
         InsertingObjectID = "";
     }
 
-    HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomVehicleObList", -1, hVehicle);
-    if (auto pSection = CINI::FAData().GetSection("PlaceRandomVehicleObList"))
+    if (ObjectBrowserSearchText.empty())
     {
-        int index = RandomTechno;
-        for (const auto& pKey : pSection->GetEntities())
+        HTREEITEM hTemp = this->InsertTranslatedString(
+            "PlaceRandomVehicleObList", -1, hVehicle);
+        if (auto pSection = CINI::FAData().GetSection("PlaceRandomVehicleObList"))
         {
-            if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+            int index = RandomTechno;
+            for (const auto& pKey : pSection->GetEntities())
             {
-                bool add = true;
-                auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
-                if (banned.size() > 0)
-                    for (auto& ban : banned)
-                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
-                            add = false;
-                if (add)
+                if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
                 {
-                    InsertingObjectID = GetFirstValidRandomObject(pSection2);
-                    auto transed = FinalAlertConfig::Language + "-" + "Name";
-                    if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
-                        FA2sp::Buffer = *pName;
-                    else
-                        FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "MISSING");
-                    this->InsertString(FA2sp::Buffer, Const_Vehicle + index, hTemp);
-                    InsertingObjectID = "";
+                    bool add = true;
+                    auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
+                    if (banned.size() > 0)
+                        for (auto& ban : banned)
+                            if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                                add = false;
+                    if (add)
+                    {
+                        InsertingObjectID = GetFirstValidRandomObject(pSection2);
+                        auto transed = FinalAlertConfig::Language + "-" + "Name";
+                        if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
+                            FA2sp::Buffer = *pName;
+                        else
+                            FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "MISSING");
+                        this->InsertString(FA2sp::Buffer, Const_Vehicle + index, hTemp);
+                        InsertingObjectID = "";
+                    }
                 }
+                index++;
             }
-            index++;
         }
     }
 
@@ -1771,6 +2407,11 @@ void CViewObjectsExt::Redraw_Aircraft()
         FString display = QueryUIName(air.second);
         if (display != air.second)
             display += " (" + air.second + ")";
+        if (!MatchesObjectBrowserSearch(air.second, display))
+        {
+            InsertingObjectID = "";
+            continue;
+        }
 
         if (auto cat = Variables::RulesMap.TryGetString(air.second, "EditorCategory"))
         {
@@ -1852,33 +2493,37 @@ void CViewObjectsExt::Redraw_Aircraft()
         );
         InsertingObjectID = "";
     }
-    HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomAircraftObList", -1, hAircraft);
-    if (auto pSection = CINI::FAData().GetSection("PlaceRandomAircraftObList"))
+    if (ObjectBrowserSearchText.empty())
     {
-        int index = RandomTechno;
-        for (const auto& pKey : pSection->GetEntities())
+        HTREEITEM hTemp = this->InsertTranslatedString(
+            "PlaceRandomAircraftObList", -1, hAircraft);
+        if (auto pSection = CINI::FAData().GetSection("PlaceRandomAircraftObList"))
         {
-            if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+            int index = RandomTechno;
+            for (const auto& pKey : pSection->GetEntities())
             {
-                bool add = true;
-                auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
-                if (banned.size() > 0)
-                    for (auto& ban : banned)
-                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
-                            add = false;
-                if (add)
+                if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
                 {
-                    InsertingObjectID = GetFirstValidRandomObject(pSection2);
-                    auto transed = FinalAlertConfig::Language + "-" + "Name";
-                    if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
-                        FA2sp::Buffer = *pName;
-                    else
-                        FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "MISSING");
-                    this->InsertString(FA2sp::Buffer, Const_Aircraft + index, hTemp);
-                    InsertingObjectID = "";
+                    bool add = true;
+                    auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
+                    if (banned.size() > 0)
+                        for (auto& ban : banned)
+                            if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                                add = false;
+                    if (add)
+                    {
+                        InsertingObjectID = GetFirstValidRandomObject(pSection2);
+                        auto transed = FinalAlertConfig::Language + "-" + "Name";
+                        if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
+                            FA2sp::Buffer = *pName;
+                        else
+                            FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "MISSING");
+                        this->InsertString(FA2sp::Buffer, Const_Aircraft + index, hTemp);
+                        InsertingObjectID = "";
+                    }
                 }
+                index++;
             }
-            index++;
         }
     }
 
@@ -1962,6 +2607,11 @@ void CViewObjectsExt::Redraw_Building()
         FString display = QueryUIName(bud.second);
         if (display != bud.second)
             display += " (" + bud.second + ")";
+        if (!MatchesObjectBrowserSearch(bud.second, display))
+        {
+            InsertingObjectID = "";
+            continue;
+        }
         if (auto cat = Variables::RulesMap.TryGetString(bud.second, "EditorCategory"))
         {
             bool isPrevious = false;
@@ -2078,33 +2728,37 @@ void CViewObjectsExt::Redraw_Building()
     }
     InsertingObjectID = "";
 
-    HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomBuildingObList", -1, hBuilding);
-    if (auto pSection = CINI::FAData().GetSection("PlaceRandomBuildingObList"))
+    if (ObjectBrowserSearchText.empty())
     {
-        int index = RandomTechno;
-        for (const auto& pKey : pSection->GetEntities())
+        HTREEITEM hTemp = this->InsertTranslatedString(
+            "PlaceRandomBuildingObList", -1, hBuilding);
+        if (auto pSection = CINI::FAData().GetSection("PlaceRandomBuildingObList"))
         {
-            if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+            int index = RandomTechno;
+            for (const auto& pKey : pSection->GetEntities())
             {
-                bool add = true;
-                auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
-                if (banned.size() > 0)
-                    for (auto& ban : banned)
-                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
-                            add = false;
-                if (add)
+                if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
                 {
-                    InsertingObjectID = GetFirstValidRandomObject(pSection2);
-                    auto transed = FinalAlertConfig::Language + "-" + "Name";
-                    if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
-                        FA2sp::Buffer = *pName;
-                    else
-                        FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "MISSING");
-                    this->InsertString(FA2sp::Buffer, Const_Building + index, hTemp);
-                    InsertingObjectID = "";
+                    bool add = true;
+                    auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
+                    if (banned.size() > 0)
+                        for (auto& ban : banned)
+                            if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                                add = false;
+                    if (add)
+                    {
+                        InsertingObjectID = GetFirstValidRandomObject(pSection2);
+                        auto transed = FinalAlertConfig::Language + "-" + "Name";
+                        if (auto pName = CINI::FAData().TryGetString(pKey.second, transed))
+                            FA2sp::Buffer = *pName;
+                        else
+                            FA2sp::Buffer = CINI::FAData().GetString(pKey.second, "Name", "MISSING");
+                        this->InsertString(FA2sp::Buffer, Const_Building + index, hTemp);
+                        InsertingObjectID = "";
+                    }
                 }
+                index++;
             }
-            index++;
         }
     }
 

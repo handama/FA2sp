@@ -42,3 +42,6 @@ MFC42
 !Debug/lexilla.lib
 !Debug/Scintilla.dll
 !Debug/Scintilla.lib
+
+# Ignore all workspace contents on this branch.
+/*

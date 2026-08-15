@@ -269,6 +269,26 @@ public:
     static int InsertingOverlayData;
     static FHashSet IgnoreSet;
     static FHashSet IgnoreOverlaySet;
+    static FString ObjectBrowserSearchText;
+    static HWND ObjectBrowserSearchEdit;
+    static HWND ObjectBrowserSearchLabel;
+    static HWND ObjectBrowserSearchParent;
+    static HWND ObjectBrowserSearchContainer;
+    static HWND ObjectBrowserResizeGrip;
+    static HWND ObjectBrowserSearchOriginalParent;
+    static WNDPROC ObjectBrowserSearchParentProc;
+    static WNDPROC ObjectBrowserResizeGripProc;
+    static WNDPROC ObjectBrowserVisibleTreeProc;
+    static WNDPROC ObjectBrowserSearchOriginalParentProc;
+    static HWND ObjectBrowserNativeTree;
+    static HWND ObjectBrowserVisibleTree;
+    static RECT ObjectBrowserNativeTreeRect;
+    static bool ObjectBrowserSyncingSelection;
+    static int ObjectBrowserWidth;
+    static bool ObjectBrowserResizing;
+    static int ObjectBrowserResizeStartX;
+    static int ObjectBrowserResizeStartWidth;
+    static CViewObjectsExt* ObjectBrowserSearchInstance;
 
 private:
     static std::array<HTREEITEM, Root_Count> ExtNodes;
@@ -499,6 +519,14 @@ public:
     static bool IsIgnored(const char* pItem);
 
     static FString QueryUIName(const char* pRegName, bool bOnlyOneLine = true);
+    static bool MatchesObjectBrowserSearch(const char* pRegName, const FString& displayName);
+
+private:
+    void EnsureObjectBrowserSearch();
+    void LayoutObjectBrowserSearch();
+    void SyncObjectBrowserTree();
+    void OnObjectBrowserSearchChanged();
+    static LRESULT CALLBACK ObjectBrowserSearchParentProcImpl(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 public:
 

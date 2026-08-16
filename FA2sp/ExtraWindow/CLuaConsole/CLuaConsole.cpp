@@ -3,6 +3,7 @@
 #include "LuaFunctions.cpp"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
+#include "../../Helpers/WinVer.h"
 #include "../../Helpers/MultimapHelper.h"
 #include "../CLuaDialog/CLuaDialog.h"
 #include "../Common.h"
@@ -45,6 +46,7 @@ HWND CLuaConsole::hInputText;
 HWND CLuaConsole::hScripts;
 HWND CLuaConsole::hRunFile;
 HWND CLuaConsole::hApply;
+HWND CLuaConsole::hReset;
 HWND CLuaConsole::hSearchText;
 HWND CLuaConsole::hSplitter;
 bool CLuaConsole::applyingScript = false;
@@ -77,14 +79,21 @@ bool CLuaConsole::updateTaskforce = false;
 bool CLuaConsole::updateCellTag = false;
 bool CLuaConsole::updateVariable = false;
 bool CLuaConsole::skipBuildingUpdate = false;
+bool CLuaConsole::yoloMode = false;
 std::string CLuaConsole::mcpOutput;
 bool CLuaConsole::mcpRunning = false;
+bool CLuaConsole::luaStateReady = false;
 TransparencyHelper CLuaConsole::m_transparency;
 sol::state CLuaConsole::Lua;
 bool CLuaConsole::showingComment = false;
 std::string CLuaConsole::backupOutputText;
 using namespace::LuaFunctions;
 const int splitterHeight = 4;
+
+std::string CLuaConsole::CaptureScreenshotTemp()
+{
+    return screenshot_temp_path();
+}
 
 void CLuaConsole::Create(CFinalSunDlg* pWnd)
 {
@@ -134,6 +143,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "Check 'Run File' to read the selected Lua script; otherwise, the input window will be used. "
         "Click 'Run' to run the selected code. "
         "Click 'Lua Brush' to run the script at the specified coordinates on the map. "
+        "Click 'Reset Lua' to reset Lua state. "
         "Scripts may damage the map, please save it or execute the snapshot function before running. "
         "Please refer to the documentation for available functions.");
     SetWindowText(hDesc, buffer);
@@ -145,6 +155,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Translate(Controls::Run, "LuaScriptConsoleRun");
     Translate(Controls::Apply, "LuaScriptConsoleBrush");
     Translate(Controls::RunFile, "LuaScriptConsoleRunFile");
+    Translate(Controls::Reset, "LuaScriptConsoleReset");
 
     hExecute = GetDlgItem(hWnd, Controls::Execute);
     hRun = GetDlgItem(hWnd, Controls::Run);
@@ -155,6 +166,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     hInputText = GetDlgItem(hWnd, Controls::InputText);
     hRunFile = GetDlgItem(hWnd, Controls::RunFile);
     hApply = GetDlgItem(hWnd, Controls::Apply);
+    hReset = GetDlgItem(hWnd, Controls::Reset);
     hSearchText = GetDlgItem(hWnd, Controls::SearchText);
     hSplitter = GetDlgItem(hWnd, Controls::Splitter);
     //hStop = GetDlgItem(hWnd, Controls::Stop);
@@ -173,6 +185,32 @@ void CLuaConsole::Initialize(HWND& hWnd)
     SendMessage(hRunFile, BM_SETCHECK, runFile, 0);
     CIsoView::ControlKeyIsDown() = false;
 
+    EnsureLuaState();
+
+    Update(hWnd);
+
+    if (ExtConfigs::MCP_Enable)
+    {
+        if (!CMcpServer::IsRunning())
+            CMcpServer::Start(ExtConfigs::MCP_Port);
+        if (CMcpServer::IsRunning())
+        {
+            FString text;
+            text.Format("MCP Server running at http://127.0.0.1:%d", ExtConfigs::MCP_Port);
+            write_lua_console(text);
+        }
+    }
+}
+
+void CLuaConsole::EnsureLuaState()
+{
+    if (luaStateReady)
+        return;
+    InitializeLuaState();
+}
+
+void CLuaConsole::InitializeLuaState()
+{
     Lua.collect_garbage();
     Lua = sol::state();
 
@@ -284,12 +322,14 @@ void CLuaConsole::Initialize(HWND& hWnd)
     );
     Lua.set_function("input_box", input_box);
     Lua.set_function("read_input", read_input);
-
+    
     // game objects
     Lua.set_function("place_terrain", place_terrain);
     Lua.set_function("remove_terrain", remove_terrain);
     Lua.set_function("place_smudge", place_smudge);
     Lua.set_function("remove_smudge", remove_smudge);
+    Lua.set_function("get_tilesets", get_tilesets);
+    Lua.set_function("get_tileset_info", get_tileset_info);
     Lua.set_function("place_overlay", [](int y, int x, int overlay, sol::optional<int> overlayData) {
         if (!overlayData) {
             overlayData = -1;
@@ -438,7 +478,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         if (!ignoreOverlap) {
             ignoreOverlap = false;
         }
-        place_building(house, type, y, x, ignoreOverlap.value());
+        place_building(house, type, y, x, ignoreOverlap.value() || CLuaConsole::yoloMode);
         });
     Lua.set_function("remove_building", [](int indexY, sol::optional<int> x) {
         if (!x) {
@@ -453,6 +493,30 @@ void CLuaConsole::Initialize(HWND& hWnd)
         return get_building(indexY, x.value());
         });
     Lua.set_function("get_buildings", get_buildings);
+    Lua.set_function("get_building_foundation", get_building_foundation);
+    Lua.set_function("get_building_cells", get_building_cells);
+    Lua.set_function("set_yolo_mode", [](bool enable) {
+        if (enable && !CLuaConsole::yoloMode)
+        {
+            ExtraWindow::DisableOtherWindows(CLuaConsole::GetHandle());          
+            int result = MessageBox(CLuaConsole::GetHandle(),
+                Translations::TranslateOrDefault("LuaConsole.YoloModeConfirm",
+                    "YOLO mode will skip all confirmation dialogs during script execution.\n"
+                    "This includes safety checks, snapshot restore confirmations, and building overlap warnings.\n"
+                    "Message boxes explicitly called by the script (e.g. message_box) will still appear.\n\n"
+                    "Are you sure you want to enable YOLO mode?"),
+                Translations::TranslateOrDefault("LuaConsole.YoloModeTitle", "Enable YOLO Mode"),
+                MB_YESNO | MB_ICONWARNING);
+            ExtraWindow::RestoreDisabledWindows();
+            if (result != IDYES)
+                return CLuaConsole::yoloMode;
+        }
+        CLuaConsole::yoloMode = enable;
+		return CLuaConsole::yoloMode;
+        });
+    Lua.set_function("screenshot", screenshot);
+    Lua.set_function("screenshot_temp", screenshot_temp);
+    Lua.set_function("get_tile_image", get_tile_image);
     Lua.set_function("place_node", [](std::string house, std::string type, int y, int x, sol::optional<int> index) {
         if (!index) {
             index = -1;
@@ -782,14 +846,17 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("save_undo", save_undo);
     Lua.set_function("save_undo_objects", save_undo_objects);
     Lua.set_function("save_redo", save_redo);
+    Lua.set_function("save_undo_all", save_undo_all);
+    Lua.set_function("do_undo", do_undo);
     Lua.set_function("in_map", [](int y, int x) {return CMapData::Instance->IsCoordInMap(x, y); });
+    Lua.set_function("in_view", is_coord_in_view);
     Lua.set_function("move_to", [](int yindex, sol::optional<int>x) {
         if (!x) {
             x = -1;
         }
         move_to(yindex, x.value()); 
         });
-
+        
     // triggers & teams
     Lua.new_usertype<tag>("tag",
         sol::constructors<tag()>(),
@@ -963,6 +1030,57 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("get_team", team::get_team);
     Lua.set_function("get_teams", team::get_teams);
 
+    // terrain generator
+    Lua.new_usertype<terrain_generator>("terrain_generator",
+        sol::constructors<terrain_generator()>(),
+        "override", &terrain_generator::bOverride,
+        "ignore_landtypes", &terrain_generator::bIgnoreLandtypes,
+        // preset management
+        "list", &terrain_generator::list,
+        "load", &terrain_generator::load,
+        "add", &terrain_generator::add,
+        "copy", &terrain_generator::copy,
+        "remove", &terrain_generator::remove,
+        "save", &terrain_generator::save,
+        "reload", &terrain_generator::reload,
+        "get_id", &terrain_generator::get_id,
+        "get_name", &terrain_generator::get_name,
+        "get_theaters", &terrain_generator::get_theaters,
+        // apply / clear
+        "apply", &terrain_generator::apply,
+        "apply_selection", &terrain_generator::apply_selection,
+        "clear", &terrain_generator::clear,
+        "clear_selection", &terrain_generator::clear_selection,
+        // preset parameters
+        "set_name", &terrain_generator::set_name,
+        "set_scale", &terrain_generator::set_scale,
+        "set_theaters", &terrain_generator::set_theaters,
+        "set_tileset", &terrain_generator::set_tileset,
+        "remove_tileset", &terrain_generator::remove_tileset,
+        "set_terrain", &terrain_generator::set_terrain,
+        "remove_terrain", &terrain_generator::remove_terrain,
+        "set_overlay", &terrain_generator::set_overlay,
+        "remove_overlay", &terrain_generator::remove_overlay,
+        "set_smudge", &terrain_generator::set_smudge,
+        "remove_smudge", &terrain_generator::remove_smudge,
+        "set_ramp", &terrain_generator::set_ramp,
+        "disable_ramp", &terrain_generator::disable_ramp,
+        "set_preserve_anchor_heights", &terrain_generator::set_preserve_anchor_heights,
+        "set_avoid_nonmorphable_tiles", &terrain_generator::set_avoid_nonmorphable_tiles,
+        // ramp anchors
+        "get_anchors", &terrain_generator::get_anchors,
+        "add_anchor", &terrain_generator::add_anchor,
+        "remove_anchor", &terrain_generator::remove_anchor,
+        "clear_anchors", &terrain_generator::clear_anchors,
+        // query
+        "get_scale", &terrain_generator::get_scale,
+        "get_tileset_list", &terrain_generator::get_tileset_list,
+        "get_tileset_chances", &terrain_generator::get_tileset_chances,
+        "get_ramp_percent", &terrain_generator::get_ramp_percent,
+        "get_ramp_min_height", &terrain_generator::get_ramp_min_height,
+        "get_ramp_max_height", &terrain_generator::get_ramp_max_height
+    );
+
     Lua.set_function("get_variable_value", get_variable_value);
     Lua.set_function("get_variable_name", get_variable_name);
     Lua.set_function("set_variable_value", set_variable_value);
@@ -1003,18 +1121,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "set_window_size", &CLuaDialog::SetWindowSize
     );
 
-    Update(hWnd);
-
-    if (ExtConfigs::MCP_Enable)
-	{
-		CMcpServer::Start(ExtConfigs::MCP_Port);
-        if (CMcpServer::IsRunning())
-        {
-            FString text;
-            text.Format("MCP Server running at http://127.0.0.1:%d", ExtConfigs::MCP_Port);
-            write_lua_console(text);
-        }
-	}
+    luaStateReady = true;
 }
 
 void CLuaConsole::SetupLuaHighlight(HWND& hWnd)
@@ -1179,7 +1286,8 @@ void CLuaConsole::SetupLuaHighlight(HWND& hWnd)
     }
 
     // color emoji support
-    SendMessage(hWnd, SCI_SETTECHNOLOGY, SC_TECHNOLOGY_DIRECTWRITE, 0);
+    if (FA2sp::WinInfo.IsWindowsVistaOrGreater())
+        SendMessage(hWnd, SCI_SETTECHNOLOGY, SC_TECHNOLOGY_DIRECTWRITE, 0);
 
     ::SendMessage(hWnd, SCI_COLOURISE, 0, -1);
 }
@@ -1264,7 +1372,8 @@ void CLuaConsole::SetupOutputBoxStyle(HWND& hWnd)
     }
     
     // color emoji support
-    SendMessage(hWnd, SCI_SETTECHNOLOGY, SC_TECHNOLOGY_DIRECTWRITE, 0);
+    if (FA2sp::WinInfo.IsWindowsVistaOrGreater())
+        SendMessage(hWnd, SCI_SETTECHNOLOGY, SC_TECHNOLOGY_DIRECTWRITE, 0);
 }
 
 void CLuaConsole::Close(HWND& hWnd)
@@ -1272,8 +1381,8 @@ void CLuaConsole::Close(HWND& hWnd)
     EndDialog(hWnd, NULL);
     ShowWindow(hWnd, SW_HIDE);
 
-    CMcpServer::Stop();
-
+    // The MCP server lifecycle is decoupled from the console window:
+    // it keeps running even when the console is closed.
     CLuaConsole::m_hwnd = NULL;
     CLuaConsole::m_parent = NULL;
 }
@@ -1290,8 +1399,13 @@ void CLuaConsole::Update(HWND& hWnd, const char* filter)
         LabelMatcher matcher(filter);
         for (const auto& entry : fs::directory_iterator(scriptPath)) {
             if (entry.is_regular_file() && entry.path().extension().string() == ".lua") {
-                if ((strlen(filter) && matcher.Match(entry.path().filename().string().c_str())) || !strlen(filter))
-                    SendMessage(hScripts, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)entry.path().filename().string().c_str());
+                std::string filename = entry.path().filename().string();
+                // Skip hidden scripts (dot-prefixed, e.g. .spec_lib.lua)
+                if (!filename.empty() && filename[0] == '.')
+                    continue;
+
+                if ((strlen(filter) && matcher.Match(filename.c_str())) || !strlen(filter))
+                    SendMessage(hScripts, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)filename.c_str());
             }
         }
     }
@@ -1476,6 +1590,13 @@ BOOL CALLBACK CLuaConsole::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
         newHeight = rect.bottom - rect.top;
         MoveWindow(hApply, topLeft.x + newWndWidth - origWndWidth, topLeft.y, newWidth, newHeight, TRUE);
 
+        GetWindowRect(hReset, &rect);
+        topLeft = { rect.left, rect.top };
+        ScreenToClient(hWnd, &topLeft);
+        newWidth = rect.right - rect.left;
+        newHeight = rect.bottom - rect.top;
+        MoveWindow(hReset, topLeft.x + newWndWidth - origWndWidth, topLeft.y, newWidth, newHeight, TRUE);
+
         GetWindowRect(hRunFile, &rect);
         topLeft = { rect.left, rect.top };
         ScreenToClient(hWnd, &topLeft);
@@ -1509,6 +1630,10 @@ BOOL CALLBACK CLuaConsole::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
             {
                 runFile = SendMessage(hRunFile, BM_GETCHECK, 0, 0);
             }
+            break;
+        case Controls::Reset:
+            InitializeLuaState();
+            write_lua_console("Lua state has been reset.");
             break;
         case Controls::SearchText:
             if (CODE == EN_CHANGE)
@@ -1726,7 +1851,7 @@ void CLuaConsole::OnSelChangeScript(HWND& hWnd)
 // Scan script for high-risk operations and return {line_number, line_content} pairs
 std::vector<std::pair<int, std::string>> CLuaConsole::ScanHighRiskOperations(const std::string& script)
 {
-    if (ExtConfigs::DisableLuaConsoleSafetyCheck)
+    if (ExtConfigs::DisableLuaConsoleSafetyCheck || CLuaConsole::yoloMode)
         return {};
 
     std::vector<std::pair<int, std::string>> results;
@@ -1853,68 +1978,75 @@ void CLuaConsole::OnClickRun(bool fromFile)
     LuaFunctions::time = timeStart;
     skipBuildingUpdate = true;
     VEHGuard guard(false);
-    try {
-        sol::protected_function_result result = Lua.script(script, sol::script_pass_on_error);
-        if (!result.valid()) {
-            sol::error err = result;
-            std::string errorMessage = "Lua Error: " + std::string(err.what());
-
-            std::string errStr = err.what();
-            if (errStr.find("__SCRIPT_ABORT__") != std::string::npos) {
+    if (IsDebuggerPresent())
+    {
+        Lua.script(script);
+    }
+    else
+    {
+        try {
+            sol::protected_function_result result = Lua.script(script, sol::script_pass_on_error);
+            if (!result.valid()) {
+                sol::error err = result;
+                std::string errorMessage = "Lua Error: " + std::string(err.what());
+    
+                std::string errStr = err.what();
+                if (errStr.find("__SCRIPT_ABORT__") != std::string::npos) {
+                    oss.str("");
+                    auto timeEnd = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+                    oss << "Script aborted.\r\n   Elapsed Time: " << timeEnd - timeStart << " ms.";
+                    text = oss.str();
+                    write_lua_console(text);
+                }
+                else
+                {
+                    
+                    sol::call_status status = result.status();
+                    switch (status) {
+                    case sol::call_status::syntax:
+                        errorMessage += " (Syntax Error)";
+                        break;
+                    case sol::call_status::runtime:
+                        errorMessage += " (Runtime Error)";
+                        break;
+                    case sol::call_status::memory:
+                        errorMessage += " (Memory Allocation Error)";
+                        break;
+                    case sol::call_status::handler:
+                        errorMessage += " (Message Handler Error)";
+                        break;
+                    case sol::call_status::gc:
+                        errorMessage += " (Garbage Collector Error)";
+                        break;
+                    case sol::call_status::file:
+                        errorMessage += " (File Error)";
+                        break;
+                    default:
+                        errorMessage += " (Unknown Error)";
+                        break;
+                    }
+        
+                    write_lua_console(errorMessage);
+                }
+            }
+            else {
                 oss.str("");
                 auto timeEnd = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-                oss << "Script aborted.\r\n   Elapsed Time: " << timeEnd - timeStart << " ms.";
+                oss << "Successfully executed script.\r\n   Elapsed Time: " << timeEnd - timeStart << " ms.";
                 text = oss.str();
                 write_lua_console(text);
             }
-            else
-            {
-                
-                sol::call_status status = result.status();
-                switch (status) {
-                case sol::call_status::syntax:
-                    errorMessage += " (Syntax Error)";
-                    break;
-                case sol::call_status::runtime:
-                    errorMessage += " (Runtime Error)";
-                    break;
-                case sol::call_status::memory:
-                    errorMessage += " (Memory Allocation Error)";
-                    break;
-                case sol::call_status::handler:
-                    errorMessage += " (Message Handler Error)";
-                    break;
-                case sol::call_status::gc:
-                    errorMessage += " (Garbage Collector Error)";
-                    break;
-                case sol::call_status::file:
-                    errorMessage += " (File Error)";
-                    break;
-                default:
-                    errorMessage += " (Unknown Error)";
-                    break;
-                }
-    
-                write_lua_console(errorMessage);
-            }
         }
-        else {
-            oss.str("");
-            auto timeEnd = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-            oss << "Successfully executed script.\r\n   Elapsed Time: " << timeEnd - timeStart << " ms.";
-            text = oss.str();
-            write_lua_console(text);
+        catch (const std::exception& e) {
+            std::string errorMessage = "Critical Error: " + std::string(e.what());
+            write_lua_console(errorMessage);
+        }
+        catch (...) {
+            std::string errorMessage = "Critical Error: Unknown exception occurred.";
+            write_lua_console(errorMessage);
         }
     }
-    catch (const std::exception& e) {
-        std::string errorMessage = "Critical Error: " + std::string(e.what());
-        write_lua_console(errorMessage);
-    }
-    catch (...) {
-        std::string errorMessage = "Critical Error: Unknown exception occurred.";
-        write_lua_console(errorMessage);
-    }
-
+  
     for (auto& ini : LoadedINIs)
     {
         GameDelete(ini.second);

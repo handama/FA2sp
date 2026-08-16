@@ -440,6 +440,10 @@ public:
     static void SetWindowHeight(HWND hwnd, LPARAM lParam);
     void SetDropWidthMode(DropWidthMode mode);
 
+    bool IsProgrammaticDropdown() const { return m_programmaticDropdown; }
+
+    void SetPreFilterCallback(std::function<void()> cb) { m_preFilterCallback = std::move(cb); }
+
     void SortItems(int* pSelIndex = nullptr);
 
     static int m_itemHeight;
@@ -477,6 +481,8 @@ private:
     int m_fixTopIndex = -1;
     bool m_EnterKeyPressed = false;
     bool m_SpecialKeysFirst = false;
+
+    std::function<void()> m_preFilterCallback;
 
     DropWidthMode m_dropWidthMode = DropWidth_AutoMax;
     int m_cachedMaxWidth = 0;

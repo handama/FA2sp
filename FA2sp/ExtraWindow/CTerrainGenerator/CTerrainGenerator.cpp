@@ -10,6 +10,7 @@
 #include "../../Miscs/MultiSelection.h"
 #include "../../Miscs/DialogStyle.h"
 #include "../../Ext/CFinalSunApp/Body.h"
+#include "../../Ext/CMapData/HeightGenerator.h"
 #include <queue>
 
 HWND CTerrainGenerator::m_hwnd;
@@ -44,20 +45,16 @@ HWND CTerrainGenerator::hTerrainGroup[TERRAIN_GENERATOR_DISPLAY];
 HWND CTerrainGenerator::hTerrainChance[TERRAIN_GENERATOR_DISPLAY];
 HWND CTerrainGenerator::hSmudgeGroup[TERRAIN_GENERATOR_DISPLAY];
 HWND CTerrainGenerator::hSmudgeChance[TERRAIN_GENERATOR_DISPLAY];
-HWND CTerrainGenerator::hSlopeMinDelta;
-HWND CTerrainGenerator::hSlopeMaxDelta;
-HWND CTerrainGenerator::hSlopeSmoothing;
-HWND CTerrainGenerator::hSlopeManualHeight;
-HWND CTerrainGenerator::hSlopeManualHeightEdit;
-HWND CTerrainGenerator::hSlopeHeightTransition;
-HWND CTerrainGenerator::hSlopeCoord1;
-HWND CTerrainGenerator::hSlopeCoord2;
-HWND CTerrainGenerator::hSlopeCoordHeight1;
-HWND CTerrainGenerator::hSlopeCoordHeight2;
-HWND CTerrainGenerator::hSlopeMarcoSmoothing;
-HWND CTerrainGenerator::hSlopeMarcoMinDelta;
-HWND CTerrainGenerator::hSlopeMarcoMaxDelta;
-HWND CTerrainGenerator::hSlopeAvoidEdges;
+HWND CTerrainGenerator::hRampPercent;
+HWND CTerrainGenerator::hRampMinHeight;
+HWND CTerrainGenerator::hRampMaxHeight;
+HWND CTerrainGenerator::hRampPlaceAnchor;
+HWND CTerrainGenerator::hRampAnchorHeight;
+HWND CTerrainGenerator::hRampDeleteAnchor;
+HWND CTerrainGenerator::hRampClearAnchor;
+HWND CTerrainGenerator::hRampDescription;
+HWND CTerrainGenerator::hRampPreserveAnchorHeights;
+HWND CTerrainGenerator::hAvoidNonmorphableTiles;
 
 VirtualComboBoxEx CTerrainGenerator::vcbTileSet[TERRAIN_GENERATOR_DISPLAY];
 VirtualComboBoxEx CTerrainGenerator::vcbPreset;
@@ -103,11 +100,11 @@ void CTerrainGenerator::Create(CFinalSunDlg* pWnd)
 
 void CTerrainGenerator::Initialize(HWND& hWnd)
 {
-    RECT rcMain;
-    ::GetWindowRect(m_parent->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd(), &rcMain);
-    int x = rcMain.left;
-    int y = rcMain.top;
-    ::SetWindowPos(hWnd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+    //RECT rcMain;
+    //::GetWindowRect(m_parent->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd(), &rcMain);
+    //int x = rcMain.left;
+    //int y = rcMain.top;
+    //::SetWindowPos(hWnd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 
     hTab = GetDlgItem(hWnd, Controls::Tab);
     if (ExtConfigs::EnableDarkMode)
@@ -252,18 +249,17 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     Translate(5010, "CTerrainGenerator.Chance", hTab4Dlg);
     Translate(5014, "CTerrainGenerator.Chance", hTab4Dlg);
     Translate(5018, "CTerrainGenerator.Chance", hTab4Dlg);
-    Translate(6000, "CTerrainGenerator.SlopeMinDelta", hTab5Dlg);
-    Translate(6002, "CTerrainGenerator.SlopeMaxDelta", hTab5Dlg);
-    Translate(6017, "CTerrainGenerator.SlopeMarcoMinDelta", hTab5Dlg);
-    Translate(6019, "CTerrainGenerator.SlopeMarcoMaxDelta", hTab5Dlg);
-    Translate(6004, "CTerrainGenerator.SlopeSteepness", hTab5Dlg);
-    Translate(6015, "CTerrainGenerator.SlopeMarcoSteepness", hTab5Dlg);
-    Translate(6006, "CTerrainGenerator.SlopeManualHeight", hTab5Dlg);
-    Translate(6008, "CTerrainGenerator.SlopeHeightTransition", hTab5Dlg);
-    Translate(6009, "CTerrainGenerator.SlopeCoords", hTab5Dlg);
-    Translate(6012, "CTerrainGenerator.SlopeCoordHeights", hTab5Dlg);
-    Translate(6021, "CTerrainGenerator.SlopeAvoidEdges", hTab5Dlg);
-    Translate(6022, "CTerrainGenerator.SlopeDescription", hTab5Dlg);
+
+    Translate(6004, "CTerrainGenerator.SlopePercentage", hTab5Dlg);
+    Translate(6000, "CTerrainGenerator.MinHeight", hTab5Dlg);
+    Translate(6002, "CTerrainGenerator.MaxHeight", hTab5Dlg);
+    Translate(6006, "CTerrainGenerator.AnchorHeight", hTab5Dlg);
+    Translate(6008, "CTerrainGenerator.PlaceHeightAnchors", hTab5Dlg);
+    Translate(6010, "CTerrainGenerator.DeleteAnchor", hTab5Dlg);
+    Translate(6011, "CTerrainGenerator.ClearAnchor", hTab5Dlg);
+    Translate(6012, "CTerrainGenerator.RampDesc", hTab5Dlg);
+    Translate(6013, "CTerrainGenerator.PreserveAnchorHeights", hTab5Dlg);
+    Translate(6014, "CTerrainGenerator.AvoidNonmorphableTiles", hTab5Dlg);
 
     Translate(1001, "CTerrainGenerator.Add", NULL);
     Translate(1002, "CTerrainGenerator.Name", NULL);
@@ -338,26 +334,15 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     hSmudgeChance[2] = GetDlgItem(hTab4Dlg, Controls::SmudgeChance3);
     hSmudgeChance[3] = GetDlgItem(hTab4Dlg, Controls::SmudgeChance4);
     hSmudgeChance[4] = GetDlgItem(hTab4Dlg, Controls::SmudgeChance5);
-    hSlopeMinDelta = GetDlgItem(hTab5Dlg, Controls::SlopeMinDelta);
-    hSlopeMaxDelta = GetDlgItem(hTab5Dlg, Controls::SlopeMaxDelta);
-    hSlopeMarcoMinDelta = GetDlgItem(hTab5Dlg, Controls::SlopeMarcoMinDelta);
-    hSlopeMarcoMaxDelta = GetDlgItem(hTab5Dlg, Controls::SlopeMarcoMaxDelta);
-    hSlopeAvoidEdges = GetDlgItem(hTab5Dlg, Controls::SlopeAvoidEdges);
-    hSlopeSmoothing = GetDlgItem(hTab5Dlg, Controls::SlopeSmoothing);
-    hSlopeMarcoSmoothing = GetDlgItem(hTab5Dlg, Controls::SlopeMarcoSmoothing);
-    hSlopeManualHeight = GetDlgItem(hTab5Dlg, Controls::SlopeManualHeight);
-    hSlopeManualHeightEdit = GetDlgItem(hTab5Dlg, Controls::SlopeManualHeightEdit);
-    hSlopeHeightTransition = GetDlgItem(hTab5Dlg, Controls::SlopeHeightTransition);
-    hSlopeCoord1 = GetDlgItem(hTab5Dlg, Controls::SlopeCoord1);
-    hSlopeCoord2 = GetDlgItem(hTab5Dlg, Controls::SlopeCoord2);
-    hSlopeCoordHeight1 = GetDlgItem(hTab5Dlg, Controls::SlopeCoordHeight1);
-    hSlopeCoordHeight2 = GetDlgItem(hTab5Dlg, Controls::SlopeCoordHeight2);
-
-    EnableWindow(hSlopeManualHeightEdit, FALSE);
-    EnableWindow(hSlopeCoord1, FALSE);
-    EnableWindow(hSlopeCoord2, FALSE);
-    EnableWindow(hSlopeCoordHeight1, FALSE);
-    EnableWindow(hSlopeCoordHeight2, FALSE);
+    hRampPercent = GetDlgItem(hTab5Dlg, Controls::RampPercent);
+    hRampMinHeight = GetDlgItem(hTab5Dlg, Controls::RampMinHeight);
+    hRampMaxHeight = GetDlgItem(hTab5Dlg, Controls::RampMaxHeight);
+    hRampPlaceAnchor = GetDlgItem(hTab5Dlg, Controls::RampPlaceAnchor);
+    hRampAnchorHeight = GetDlgItem(hTab5Dlg, Controls::RampAnchorHeight);
+    hRampDeleteAnchor = GetDlgItem(hTab5Dlg, Controls::RampDeleteAnchor);
+    hRampClearAnchor = GetDlgItem(hTab5Dlg, Controls::RampClearAnchor);
+    hRampPreserveAnchorHeights = GetDlgItem(hTab5Dlg, Controls::RampPreserveAnchorHeights);
+    hAvoidNonmorphableTiles = GetDlgItem(hTab5Dlg, Controls::AvoidNonmorphableTiles);
 
     bOverride = true;
     bIgnoreLandtypes = false;
@@ -438,15 +423,15 @@ void CTerrainGenerator::Close(HWND& hWnd)
     UseMultiSelection = false;
     if (CIsoView::CurrentCommand->Command == 0x1F)
         CIsoView::CurrentCommand->Command = 0x0;
-    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-
+       
     ini = nullptr;
+    CurrentPreset = nullptr;
+    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 
     EndDialog(hWnd, NULL);
 
     CTerrainGenerator::m_hwnd = NULL;
     CTerrainGenerator::m_parent = NULL;
-
 }
 
 BOOL CALLBACK CTerrainGenerator::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
@@ -1219,161 +1204,79 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab5(HWND hWnd, UINT Msg, WPARAM wParam,
         WORD CODE = HIWORD(wParam);
         switch (ID)
         {
-        case Controls::SlopeMaxDelta:
+        case Controls::RampPercent:
             if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
             {
                 char buffer[512]{ 0 };
-                GetWindowText(hSlopeMaxDelta, buffer, 511);
+                GetWindowText(hRampPercent, buffer, 511);
                 int delta = STDHelpers::ParseToInt(buffer, -1);
-                CurrentPreset->SlopeMaxDelta = std::clamp(delta, -1, 14);
+                CurrentPreset->RampPercent = std::clamp(delta, 0, 100);
                 SaveAndReloadPreset();
             }
             break;
-        case Controls::SlopeMinDelta:
+        case Controls::RampMaxHeight:
             if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
             {
                 char buffer[512]{ 0 };
-                GetWindowText(hSlopeMinDelta, buffer, 511);
+                GetWindowText(hRampMaxHeight, buffer, 511);
                 int delta = STDHelpers::ParseToInt(buffer, -1);
-                CurrentPreset->SlopeMinDelta = std::clamp(delta, -1, 14);
+                CurrentPreset->RampMaxHeight = std::clamp(delta, 1, 14);
                 SaveAndReloadPreset();
             }
             break;
-        case Controls::SlopeMarcoMaxDelta:
+        case Controls::RampMinHeight:
             if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
             {
                 char buffer[512]{ 0 };
-                GetWindowText(hSlopeMarcoMaxDelta, buffer, 511);
+                GetWindowText(hRampMinHeight, buffer, 511);
                 int delta = STDHelpers::ParseToInt(buffer, -1);
-                CurrentPreset->SlopeMarcoMaxDelta = std::clamp(delta, -1, 14);
+                CurrentPreset->RampMinHeight = std::clamp(delta, 0, 13);
                 SaveAndReloadPreset();
             }
             break;
-        case Controls::SlopeMarcoMinDelta:
+        case Controls::RampAnchorHeight:
             if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
             {
                 char buffer[512]{ 0 };
-                GetWindowText(hSlopeMarcoMinDelta, buffer, 511);
+                GetWindowText(hRampAnchorHeight, buffer, 511);
                 int delta = STDHelpers::ParseToInt(buffer, -1);
-                CurrentPreset->SlopeMarcoMinDelta = std::clamp(delta, -1, 14);
-                SaveAndReloadPreset();
+                CMapDataExt::RampGeneratorAnchorHeight = std::clamp(delta, 0, 14);
+                //SaveAndReloadPreset();
             }
             break;
-        case Controls::SlopeSmoothing:
-            if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
+        case Controls::RampPlaceAnchor:
+            if (CODE == BN_CLICKED && CurrentPreset && CMapDataExt::RampGeneratorAnchorHeight > -1)
             {
-                char buffer[512]{ 0 };
-                GetWindowText(hSlopeSmoothing, buffer, 511);
-                int smooth = STDHelpers::ParseToInt(buffer, -1);
-                CurrentPreset->SlopeSteepness = std::clamp(smooth, -1, 200);
-                SaveAndReloadPreset();
-            }
+                CIsoView::CurrentCommand->Command = 0x27; // Place Anchor
+				CIsoView::CurrentCommand->Type = 0;
+			}
             break;
-        case Controls::SlopeMarcoSmoothing:
-            if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
+        case Controls::RampDeleteAnchor:
+            if (CODE == BN_CLICKED)
             {
-                char buffer[512]{ 0 };
-                GetWindowText(hSlopeMarcoSmoothing, buffer, 511);
-                int smooth = STDHelpers::ParseToInt(buffer, -1);
-                CurrentPreset->SlopeMarcoSteepness = std::clamp(smooth, -1, 200);
-                SaveAndReloadPreset();
-            }
+                CIsoView::CurrentCommand->Command = 0x27; // Place Anchor
+				CIsoView::CurrentCommand->Type = 1;
+			}
             break;
-        case Controls::SlopeAvoidEdges:
+        case Controls::RampClearAnchor:
+            if (CODE == BN_CLICKED)
+            {
+                CMapDataExt::RampGeneratorAnchors.clear();
+                ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+			}
+            break;
+        case Controls::RampPreserveAnchorHeights:
             if (CODE == BN_CLICKED && CurrentPreset)
             {
-                CurrentPreset->SlopeAvoidEdges = SendMessage(hSlopeAvoidEdges, BM_GETCHECK, 0, 0);
-                SaveAndReloadPreset();
-            }
+                CurrentPreset->bPreserveAnchorHeights = 
+                    SendMessage(hRampPreserveAnchorHeights, BM_GETCHECK, 0, 0);
+			}
             break;
-        case Controls::SlopeManualHeight:
+        case Controls::AvoidNonmorphableTiles:
             if (CODE == BN_CLICKED && CurrentPreset)
             {
-                CurrentPreset->SlopeSetManualHeight = SendMessage(hSlopeManualHeight, BM_GETCHECK, 0, 0);
-                EnableWindow(hSlopeManualHeightEdit, CurrentPreset->SlopeSetManualHeight);
-                SendMessage(hSlopeManualHeightEdit, WM_SETTEXT, 0, (LPARAM)"");
-                SaveAndReloadPreset();
-            }
-            break;
-        case Controls::SlopeHeightTransition:
-            if (CODE == BN_CLICKED && CurrentPreset)
-            {
-                CurrentPreset->SlopeSetTransition = SendMessage(hSlopeHeightTransition, BM_GETCHECK, 0, 0);
-                EnableWindow(hSlopeCoord1, CurrentPreset->SlopeSetTransition);
-                EnableWindow(hSlopeCoord2, CurrentPreset->SlopeSetTransition);
-                EnableWindow(hSlopeCoordHeight1, CurrentPreset->SlopeSetTransition);
-                EnableWindow(hSlopeCoordHeight2, CurrentPreset->SlopeSetTransition);
-                SendMessage(hSlopeCoord1, WM_SETTEXT, 0, (LPARAM)"");
-                SendMessage(hSlopeCoord2, WM_SETTEXT, 0, (LPARAM)"");
-                SendMessage(hSlopeCoordHeight1, WM_SETTEXT, 0, (LPARAM)"");
-                SendMessage(hSlopeCoordHeight2, WM_SETTEXT, 0, (LPARAM)"");
-                SaveAndReloadPreset();
-            }
-            break;
-        case Controls::SlopeManualHeightEdit:
-            if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
-            {
-                char buffer[512]{ 0 };
-                GetWindowText(hSlopeManualHeightEdit, buffer, 511);
-                int value = STDHelpers::ParseToInt(buffer, 0);
-                CurrentPreset->SlopeBaseHeight = std::clamp(value, 0, 14);
-                SaveAndReloadPreset();
-            }
-            break;
-        case Controls::SlopeCoord1:
-            if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
-            {
-                char buffer[512]{ 0 };
-                GetWindowText(hSlopeCoord1, buffer, 511);
-                FString value(buffer);
-                auto splits = FString::SplitString(value);
-                if (splits.size() == 2)
-                {
-                    MapCoord c = { STDHelpers::ParseToInt(splits[1], -1),STDHelpers::ParseToInt(splits[0], -1) };
-                    if (CMapDataExt::IsCoordInFullMap(c.X, c.Y))
-                    {
-                        CurrentPreset->SlopeCoords[0] = c;
-                        SaveAndReloadPreset();
-                    }
-                }
-            }
-            break;
-        case Controls::SlopeCoord2:
-            if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
-            {
-                char buffer[512]{ 0 };
-                GetWindowText(hSlopeCoord2, buffer, 511);
-                FString value(buffer);
-                auto splits = FString::SplitString(value);
-                if (splits.size() == 2)
-                {
-                    MapCoord c = { STDHelpers::ParseToInt(splits[1], -1),STDHelpers::ParseToInt(splits[0], -1) };
-                    if (CMapDataExt::IsCoordInFullMap(c.X, c.Y))
-                    {
-                        CurrentPreset->SlopeCoords[1] = c;
-                        SaveAndReloadPreset();
-                    }
-                }
-            }
-            break;
-        case Controls::SlopeCoordHeight1:
-            if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
-            {
-                char buffer[512]{ 0 };
-                GetWindowText(hSlopeCoordHeight1, buffer, 511);
-                int value = STDHelpers::ParseToInt(buffer, 0);
-                CurrentPreset->SlopeCoordHeights[0] = std::clamp(value, -14, 14);
-                SaveAndReloadPreset();
-            }
-            break;
-        case Controls::SlopeCoordHeight2:
-            if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
-            {
-                char buffer[512]{ 0 };
-                GetWindowText(hSlopeCoordHeight2, buffer, 511);
-                int value = STDHelpers::ParseToInt(buffer, 0);
-                CurrentPreset->SlopeCoordHeights[1] = std::clamp(value, -14, 14);
-                SaveAndReloadPreset();
+                CurrentPreset->bAvoidNonmorphableTiles = 
+                    SendMessage(hAvoidNonmorphableTiles, BM_GETCHECK, 0, 0);
             }
             break;
         default:
@@ -1432,26 +1335,13 @@ void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
             EnableWindow(hSmudgeGroup[idx], FALSE);
             EnableWindow(hSmudgeChance[idx], FALSE);
         }
-        SendMessage(hSlopeMaxDelta, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeMinDelta, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeMarcoMaxDelta, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeMarcoMinDelta, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeSmoothing, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeMarcoSmoothing, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeManualHeightEdit, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeCoord1, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeCoord2, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeCoordHeight1, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeCoordHeight2, WM_SETTEXT, 0, (LPARAM)"");
-        EnableWindow(hSlopeManualHeightEdit, FALSE);       
-        EnableWindow(hSlopeCoord1, FALSE);
-        EnableWindow(hSlopeCoord2, FALSE);
-        EnableWindow(hSlopeCoordHeight1, FALSE);
-        EnableWindow(hSlopeCoordHeight2, FALSE);
-        SendMessage(hSlopeManualHeight, BM_SETCHECK, BST_UNCHECKED, 0);
-        SendMessage(hSlopeHeightTransition, BM_SETCHECK, BST_UNCHECKED, 0);
-        SendMessage(hSlopeAvoidEdges, BM_SETCHECK, BST_UNCHECKED, 0);
-        
+        SendMessage(hRampPercent, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hRampMaxHeight, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hRampMinHeight, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hRampAnchorHeight, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hRampPreserveAnchorHeights, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hAvoidNonmorphableTiles, BM_SETCHECK, BST_CHECKED, 0);
+
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hScale, WM_SETTEXT, 0, (LPARAM)"");
         ProgrammaticallySettingText = false;
@@ -1532,102 +1422,26 @@ void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
         SendMessage(hSmudgeGroup[idx], WM_SETTEXT, 0, (LPARAM)text.Mid(0, text.GetLength() - 1));
         SendMessage(hSmudgeChance[idx], WM_SETTEXT, 0, (LPARAM)DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION));
     }
-    if (CurrentPreset->SlopeSteepness > -1)
+   
+    if (CurrentPreset->RampPercent >= 0
+        && CurrentPreset->RampMinHeight >= 0
+        && CurrentPreset->RampMaxHeight >= 0)
     {
-        FString text;
-        text.Format("%d", CurrentPreset->SlopeMaxDelta);
-        SendMessage(hSlopeMaxDelta, WM_SETTEXT, 0, text);
-        text.Format("%d", CurrentPreset->SlopeMinDelta);
-        SendMessage(hSlopeMinDelta, WM_SETTEXT, 0, text);
-        text.Format("%d", CurrentPreset->SlopeSteepness);
-        SendMessage(hSlopeSmoothing, WM_SETTEXT, 0, text);
-        if (CurrentPreset->SlopeMarcoSteepness > -1)
-        {
-            text.Format("%d", CurrentPreset->SlopeMarcoSteepness);
-            SendMessage(hSlopeMarcoSmoothing, WM_SETTEXT, 0, text);
-            text.Format("%d", CurrentPreset->SlopeMarcoMaxDelta);
-            SendMessage(hSlopeMarcoMaxDelta, WM_SETTEXT, 0, text);
-            text.Format("%d", CurrentPreset->SlopeMarcoMinDelta);
-            SendMessage(hSlopeMarcoMinDelta, WM_SETTEXT, 0, text);
-        }
-        else
-        {
-            SendMessage(hSlopeMarcoSmoothing, WM_SETTEXT, 0, (LPARAM)"");
-            SendMessage(hSlopeMarcoMaxDelta, WM_SETTEXT, 0, (LPARAM)"");
-            SendMessage(hSlopeMarcoMinDelta, WM_SETTEXT, 0, (LPARAM)"");
-        }
-
-        if (CurrentPreset->SlopeSetManualHeight)
-        {
-            EnableWindow(hSlopeManualHeightEdit, TRUE);
-            SendMessage(hSlopeManualHeight, BM_SETCHECK, BST_CHECKED, 0);
-            text.Format("%d", CurrentPreset->SlopeBaseHeight);
-            SendMessage(hSlopeManualHeightEdit, WM_SETTEXT, 0, text);
-        }
-        else
-        {
-            EnableWindow(hSlopeManualHeightEdit, FALSE);
-            SendMessage(hSlopeManualHeightEdit, WM_SETTEXT, 0, (LPARAM)"");
-            SendMessage(hSlopeManualHeight, BM_SETCHECK, BST_UNCHECKED, 0);
-        }
-        if (CurrentPreset->SlopeAvoidEdges)
-        {
-            SendMessage(hSlopeAvoidEdges, BM_SETCHECK, BST_CHECKED, 0);
-        }
-        else
-        {
-            SendMessage(hSlopeAvoidEdges, BM_SETCHECK, BST_UNCHECKED, 0);
-        }
-        if (CurrentPreset->SlopeSetTransition)
-        {
-            SendMessage(hSlopeHeightTransition, BM_SETCHECK, BST_CHECKED, 0);
-            EnableWindow(hSlopeCoord1, TRUE);
-            EnableWindow(hSlopeCoord2, TRUE);
-            EnableWindow(hSlopeCoordHeight1, TRUE);
-            EnableWindow(hSlopeCoordHeight2, TRUE);
-            text.Format("%d,%d", CurrentPreset->SlopeCoords[0].Y, CurrentPreset->SlopeCoords[0].X);
-            SendMessage(hSlopeCoord1, WM_SETTEXT, 0, (LPARAM)text);
-            text.Format("%d,%d", CurrentPreset->SlopeCoords[1].Y, CurrentPreset->SlopeCoords[1].X);
-            SendMessage(hSlopeCoord2, WM_SETTEXT, 0, (LPARAM)text);
-            text.Format("%d", CurrentPreset->SlopeCoordHeights[0]);
-            SendMessage(hSlopeCoordHeight1, WM_SETTEXT, 0, (LPARAM)text);
-            text.Format("%d", CurrentPreset->SlopeCoordHeights[1]);
-            SendMessage(hSlopeCoordHeight2, WM_SETTEXT, 0, (LPARAM)text);
-        }
-        else
-        {
-            EnableWindow(hSlopeCoord1, FALSE);
-            EnableWindow(hSlopeCoord2, FALSE);
-            EnableWindow(hSlopeCoordHeight1, FALSE);
-            EnableWindow(hSlopeCoordHeight2, FALSE);
-            SendMessage(hSlopeCoord1, WM_SETTEXT, 0, (LPARAM)"");
-            SendMessage(hSlopeCoord2, WM_SETTEXT, 0, (LPARAM)"");
-            SendMessage(hSlopeCoordHeight1, WM_SETTEXT, 0, (LPARAM)"");
-            SendMessage(hSlopeCoordHeight2, WM_SETTEXT, 0, (LPARAM)"");
-            SendMessage(hSlopeHeightTransition, BM_SETCHECK, BST_UNCHECKED, 0);
-        }
+		SendMessage(hRampPercent, WM_SETTEXT, 0, (LPARAM)std::to_string(CurrentPreset->RampPercent).c_str());
+        SendMessage(hRampMaxHeight, WM_SETTEXT, 0, (LPARAM)std::to_string(CurrentPreset->RampMaxHeight).c_str());
+        SendMessage(hRampMinHeight, WM_SETTEXT, 0, (LPARAM)std::to_string(CurrentPreset->RampMinHeight).c_str());
+        SendMessage(hRampAnchorHeight, WM_SETTEXT, 0, (LPARAM)std::to_string(CMapDataExt::RampGeneratorAnchorHeight).c_str());
+        SendMessage(hRampPreserveAnchorHeights, BM_SETCHECK, CurrentPreset->bPreserveAnchorHeights, 0);
+        SendMessage(hAvoidNonmorphableTiles, BM_SETCHECK, CurrentPreset->bAvoidNonmorphableTiles, 0);
     }
     else
     {
-        SendMessage(hSlopeManualHeight, BM_SETCHECK, BST_UNCHECKED, 0);
-        SendMessage(hSlopeAvoidEdges, BM_SETCHECK, BST_UNCHECKED, 0);
-        SendMessage(hSlopeHeightTransition, BM_SETCHECK, BST_UNCHECKED, 0);
-        SendMessage(hSlopeMaxDelta, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeMinDelta, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeMarcoMaxDelta, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeMarcoMinDelta, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeSmoothing, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeMarcoSmoothing, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeManualHeightEdit, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeCoord1, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeCoord2, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeCoordHeight1, WM_SETTEXT, 0, (LPARAM)"");
-        SendMessage(hSlopeCoordHeight2, WM_SETTEXT, 0, (LPARAM)"");
-        EnableWindow(hSlopeManualHeightEdit, FALSE);
-        EnableWindow(hSlopeCoord1, FALSE);
-        EnableWindow(hSlopeCoord2, FALSE);
-        EnableWindow(hSlopeCoordHeight1, FALSE);
-        EnableWindow(hSlopeCoordHeight2, FALSE);
+        SendMessage(hRampPercent, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hRampMaxHeight, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hRampMinHeight, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hRampAnchorHeight, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hRampPreserveAnchorHeights, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hAvoidNonmorphableTiles, BM_SETCHECK, BST_CHECKED, 0);
     }
 
     EnableWindows();
@@ -1922,12 +1736,28 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
         y2 = RangeFirstCell.Y;
         y1 = RangeSecondCell.Y;
     }
-    if (UseMultiSelection) {
+
+    ApplyPreset(CurrentPreset, x1, y1, x2, y2,
+        bOverride, bIgnoreLandtypes, UseMultiSelection, MultiSelection::SelectedCoords,
+        onlyClear, CurrentTabPage);
+
+    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+}
+
+void CTerrainGenerator::ApplyPreset(const std::shared_ptr<TerrainGeneratorPreset>& preset,
+    int x1, int y1, int x2, int y2,
+    bool override, bool ignoreLandtypes,
+    bool multiSelection, const std::set<MapCoord>& selectedCoords,
+    bool onlyClear, int onlyClearTab)
+{
+    if (!preset) return;
+
+    if (multiSelection) {
         x1 = INT_MAX;
         y1 = INT_MAX;
         x2 = 0;
         y2 = 0;
-        for (const auto& coord : MultiSelection::SelectedCoords) {
+        for (const auto& coord : selectedCoords) {
             if (coord.X <= x1)
                 x1 = coord.X;
             if (coord.X >= x2)
@@ -1939,37 +1769,46 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
         }
     }
     std::vector<std::pair<std::vector<FString>, float>> smudges;
-    for (const auto& group : CurrentPreset->Smudges) {
+    for (const auto& group : preset->Smudges) {
         smudges.push_back(std::make_pair(group.Items, group.Chance));
     }
     std::vector<std::pair<std::vector<FString>, float>> terrains;
-    for (const auto& group : CurrentPreset->TerrainTypes) {
+    for (const auto& group : preset->TerrainTypes) {
         terrains.push_back(std::make_pair(group.Items, group.Chance));
     }
 
+    auto clearTab = [onlyClear, onlyClearTab](int tab) {
+        return onlyClearTab < 0 || onlyClearTab == tab;
+    };
+
     int recordType = 0;
-    if (!terrains.empty() && !onlyClear || (onlyClear && CurrentTabPage == 1))
+    if (!terrains.empty() && !onlyClear || (onlyClear && clearTab(1)))
         recordType |= ObjectRecord::RecordType::Terrain;
-    if (!smudges.empty() && !onlyClear || (onlyClear && CurrentTabPage == 3))
+    if (!smudges.empty() && !onlyClear || (onlyClear && clearTab(3)))
         recordType |= ObjectRecord::RecordType::Smudge;
 
-    if (CurrentPreset->SlopeSteepness > -1)
+    if (preset->RampPercent >= 0
+        && preset->RampMinHeight >= 0
+        && preset->RampMaxHeight >= 0
+        && !onlyClear)
     {
-        CMapDataExt::MakeMixedRecord(x1 - 14, y1 - 14, x2 + 14, y2 + 14, recordType);
+        CMapDataExt::MakeMixedRecord(x1 - 16, y1 - 16, x2 + 16, y2 + 16, recordType);
 
-        std::set<MapCoord> ret;
-        std::vector<int> avgHeights;
-        int coordsRecord = 0;
-        if (UseMultiSelection)
+        std::set<MapCoord> coords;
+        if (multiSelection)
         {
-            for (const auto& c: MultiSelection::SelectedCoords) {
-                coordsRecord += c.X + c.Y;
-                if (CMapDataExt::TileData[
-                    CMapDataExt::GetSafeTileIndex(
-                        CMapData::Instance->GetCellAt(c.X, c.Y)->TileIndex
-                    )
-                ].Morphable)
-                    ret.insert({ c.X, c.Y });
+            for (const auto& coord : selectedCoords)
+            {
+                if (!CMapData::Instance->IsCoordInMap(coord.X, coord.Y)) continue;
+                auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
+                if (preset->bAvoidNonmorphableTiles)
+                {
+                    int groundClick = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+                    if (CMapDataExt::TileData[groundClick].Morphable == 0) continue;
+                }
+                if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
+                    continue;
+                coords.insert(coord);
             }
         }
         else
@@ -1977,74 +1816,74 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
             for (int i = x1; i <= x2; ++i) {
                 for (int j = y1; j <= y2; ++j) {
                     if (!CMapData::Instance->IsCoordInMap(i, j)) continue;
-                    coordsRecord += i + j;
-                    if (CMapDataExt::TileData[
-                        CMapDataExt::GetSafeTileIndex(
-                            CMapData::Instance->GetCellAt(i, j)->TileIndex
-                        )
-                    ].Morphable)
-                        ret.insert({ i,j });
+                    auto cell = CMapData::Instance->GetCellAt(i, j);
+                    if (preset->bAvoidNonmorphableTiles)
+                    {
+                        int groundClick = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+                        if (CMapDataExt::TileData[groundClick].Morphable == 0) continue;
+                    }
+                    if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
+                        continue;
+                    coords.insert({ i, j });
                 }
             }
         }
-        auto coordGroups = SplitIntoConnectedCoords(ret);
-        if (!CurrentPreset->SlopeSetManualHeight)
+
+        int rampMinHeight = std::clamp(preset->RampMinHeight, 0, 13);
+        int rampMaxHeight = std::clamp(preset->RampMaxHeight, 1, 14);
+
+        if (rampMinHeight >= rampMaxHeight)
         {
-            if (coordsRecord != lastCoords)
+            if (rampMinHeight < 14)
             {
-                for (const auto& group : coordGroups)
-                {
-                    int avgHeight = 0;
-                    for (const auto& c : group)
-                    {
-                        avgHeight += CMapData::Instance->GetCellAt(c.X, c.Y)->Height;
-                    }
-                    avgHeight = round((float)avgHeight / group.size());
-                    avgHeights.push_back(avgHeight);
-                }
-                lastCoords = coordsRecord;
-                lastHeights = avgHeights;
+                rampMaxHeight = rampMinHeight + 1;
             }
             else
             {
-                avgHeights = lastHeights;
+                rampMinHeight = 13;
+                rampMaxHeight = 14;
             }
-        }   
-        else
-        {
-            lastCoords = 0;
-        }
-        for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
-        {
-            CMapDataExt::CellDataExts[i].Adjusted = false;
-            CMapDataExt::CellDataExts[i].CreateSlope = false;
         }
 
-        for (int i = 0; i < coordGroups.size(); ++i)
+        auto coordGroups = SplitIntoConnectedCoords(coords);
+        for (auto& group : coordGroups)
         {
-            auto& coords = coordGroups[i];
-            auto avgHeight = CurrentPreset->SlopeSetManualHeight ? CurrentPreset->SlopeBaseHeight : avgHeights[i];
-            CMapDataExt::GenerateNoiseSlopeTerrain(
-                coords,
-                std::max(0, avgHeight - CurrentPreset->SlopeMinDelta),
-                avgHeight,
-                std::min(14, avgHeight + CurrentPreset->SlopeMaxDelta),
-                std::max(0, avgHeight - CurrentPreset->SlopeMarcoMinDelta),
-                std::min(14, avgHeight + CurrentPreset->SlopeMarcoMaxDelta),
-                true,
-                (CurrentPreset->SlopeSteepness + 6) / 500.f,
-                (CurrentPreset->SlopeMarcoSteepness < 1 ? 0.0f : (CurrentPreset->SlopeMarcoSteepness + 6)) / 2000.f,
-                1,
-                CurrentPreset->SlopeSetTransition ? CurrentPreset->SlopeCoords[0] : MapCoord{0,0},
-                CurrentPreset->SlopeCoords[1],
-                CurrentPreset->SlopeCoordHeights[0],
-                CurrentPreset->SlopeCoordHeights[1],
-                CurrentPreset->SlopeAvoidEdges
-            );
-            Logger::Raw("%d,%d %d,%d %d %d",
-                CurrentPreset->SlopeCoords[0].Y, CurrentPreset->SlopeCoords[0].X,
-                CurrentPreset->SlopeCoords[1].Y, CurrentPreset->SlopeCoords[1].X,
-                CurrentPreset->SlopeCoordHeights[0], CurrentPreset->SlopeCoordHeights[1]);
+            auto points = VertexHeight::GetVerticesFromCells(group);
+            std::set<VertexHeight> presets;
+            auto boundaryPoints = HeightGenerator::GetBoundaryVertices(group);
+            for (const auto& p : boundaryPoints)
+            {
+                presets.insert(p);
+            }
+            for (const auto& p : CMapDataExt::RampGeneratorAnchors)
+            {
+                if (points.contains(p))
+                {
+                    auto& s = presets;
+                    auto it = s.find({ p.X, p.Y });
+                    if (it != s.end()) {
+                        auto node = s.extract(it);
+                        node.value() = p; 
+                        s.insert(std::move(node));
+                    } else {
+                        s.insert(p);
+                    }
+                }
+            }      
+            HeightGenerator generator;
+            auto heights = generator.generateHeights(
+                points, 
+                preset->RampPercent / 100.0, 
+                rampMinHeight, 
+                rampMaxHeight, 
+                presets, 
+                preset->bPreserveAnchorHeights);
+            VertexHeight::ApplyRamps(heights, &group);
+        }
+       
+        for (const auto& c : coords)
+        {
+            CMapData::Instance->UpdateMapPreviewAt(c.X, c.Y);
         }
     }
     else
@@ -2054,59 +1893,55 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
 
     std::vector<std::pair<std::vector<int>, float>> tiles;
     std::vector<MapCoord> processedTiles;
-    for (const auto& group : CurrentPreset->TileSets) {
+    for (const auto& group : preset->TileSets) {
         tiles.push_back(std::make_pair(group.AvailableTiles, group.Chance));  
     }
-    if (!tiles.empty() && !onlyClear || (onlyClear && CurrentTabPage == 0)) {
-        CMapDataExt::CreateRandomGround(x1, y1, x2, y2, CurrentPreset->Scale, tiles, bOverride, UseMultiSelection, onlyClear, bIgnoreLandtypes);
+    if (!tiles.empty() && !onlyClear || (onlyClear && clearTab(0))) {
+        CMapDataExt::CreateRandomGround(x1, y1, x2, y2, preset->Scale, tiles, override, multiSelection, onlyClear, ignoreLandtypes);
     }
 
     std::vector<std::pair<std::vector<TerrainGeneratorOverlay>, float>> overlays;
-    for (const auto& group : CurrentPreset->Overlays) {
+    for (const auto& group : preset->Overlays) {
         overlays.push_back(std::make_pair(group.Overlays, group.Chance));
     }
-    if (!overlays.empty() && !onlyClear || (onlyClear && CurrentTabPage == 2)) {
-        CMapDataExt::CreateRandomOverlay(x1, y1, x2, y2, overlays, bOverride, UseMultiSelection, processedTiles, onlyClear, bIgnoreLandtypes);
+    if (!overlays.empty() && !onlyClear || (onlyClear && clearTab(2))) {
+        CMapDataExt::CreateRandomOverlay(x1, y1, x2, y2, overlays, override, multiSelection, processedTiles, onlyClear, ignoreLandtypes);
     }
 
-    if (!terrains.empty() && !onlyClear || (onlyClear && CurrentTabPage == 1)) {
-        CMapDataExt::CreateRandomTerrain(x1, y1, x2, y2, terrains, bOverride, UseMultiSelection, processedTiles, onlyClear, bIgnoreLandtypes);
+    if (!terrains.empty() && !onlyClear || (onlyClear && clearTab(1))) {
+        CMapDataExt::CreateRandomTerrain(x1, y1, x2, y2, terrains, override, multiSelection, processedTiles, onlyClear, ignoreLandtypes);
     }
 
-    if (!smudges.empty() && !onlyClear || (onlyClear && CurrentTabPage == 3)) {
-        CMapDataExt::CreateRandomSmudge(x1, y1, x2, y2, smudges, bOverride, UseMultiSelection, onlyClear, bIgnoreLandtypes);
+    if (!smudges.empty() && !onlyClear || (onlyClear && clearTab(3))) {
+        CMapDataExt::CreateRandomSmudge(x1, y1, x2, y2, smudges, override, multiSelection, onlyClear, ignoreLandtypes);
     }
-
-    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 
-void CTerrainGenerator::SaveAndReloadPreset()
+void CTerrainGenerator::WritePresetToINI(const std::shared_ptr<TerrainGeneratorPreset>& preset, CINI* ini)
 {
-    if (!CurrentPreset) return;
-    FString id = CurrentPreset->ID;
-    FString path = CFinalSunAppExt::ExePathExt();
-    path += "\\TerrainGenerator.ini";
+    if (!preset || !ini) return;
+    FString id = preset->ID;
 
     auto transed = FinalAlertConfig::Language + "-" + "Name";
-    ini->WriteString(id, "Name", CurrentPreset->Name);
-    ini->WriteString(id, transed, CurrentPreset->Name);
-    ini->WriteString(id, "Scale", STDHelpers::IntToString(CurrentPreset->Scale));
+    ini->WriteString(id, "Name", preset->Name);
+    ini->WriteString(id, transed, preset->Name);
+    ini->WriteString(id, "Scale", STDHelpers::IntToString(preset->Scale));
     FString theaters = "";
-    for (const auto& t : CurrentPreset->Theaters) {
+    for (const auto& t : preset->Theaters) {
         theaters += t + ",";
     }
     ini->WriteString(id, "Theaters", theaters.Mid(0, theaters.GetLength() - 1));
     for (auto idx = 0; idx < TERRAIN_GENERATOR_MAX; idx++) {
-        auto& group = CurrentPreset->TileSets[idx];
         FString key;
         key.Format("TileSet%d", idx);
-        if (idx < CurrentPreset->TileSets.size()) {
+        if (idx < preset->TileSets.size()) {
+            auto& group = preset->TileSets[idx];
             FString value;
             value.Format("%s,%s", DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION), STDHelpers::IntToString(atoi(group.Items[0])));
             ini->WriteString(id, key, value);
             key += "AvailableIndexes";
             if (group.HasExtraIndex) { 
-                ini->WriteString(id, key, CurrentPreset->TileSetAvailableIndexesText[idx]);
+                ini->WriteString(id, key, preset->TileSetAvailableIndexesText[idx]);
             }
             else {
                 ini->DeleteKey(id, key);
@@ -2120,10 +1955,10 @@ void CTerrainGenerator::SaveAndReloadPreset()
 
     } 
     for (auto idx = 0; idx < TERRAIN_GENERATOR_MAX; idx++) {
-        auto& group = CurrentPreset->TerrainTypes[idx];
         FString key;
         key.Format("TerrainType%d", idx);
-        if (idx < CurrentPreset->TerrainTypes.size()) {
+        if (idx < preset->TerrainTypes.size()) {
+            auto& group = preset->TerrainTypes[idx];
             FString value;
             value.Format("%s", DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION));
             for (int i = 0; i < group.Items.size(); i++) {
@@ -2137,10 +1972,10 @@ void CTerrainGenerator::SaveAndReloadPreset()
         }
     }
     for (auto idx = 0; idx < TERRAIN_GENERATOR_MAX; idx++) {
-        auto& group = CurrentPreset->Smudges[idx];
         FString key;
         key.Format("Smudge%d", idx);
-        if (idx < CurrentPreset->Smudges.size()) {
+        if (idx < preset->Smudges.size()) {
+            auto& group = preset->Smudges[idx];
             FString value;
             value.Format("%s", DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION));
             for (int i = 0; i < group.Items.size(); i++) {
@@ -2154,10 +1989,10 @@ void CTerrainGenerator::SaveAndReloadPreset()
         }
     }
     for (auto idx = 0; idx < TERRAIN_GENERATOR_MAX; idx++) {
-        auto& group = CurrentPreset->Overlays[idx];
         FString key;
         key.Format("Overlay%d", idx);
-        if (idx < CurrentPreset->Overlays.size()) {
+        if (idx < preset->Overlays.size()) {
+            auto& group = preset->Overlays[idx];
             FString value;
             value.Format("%s", DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION));
             for (int i = 0; i < group.Overlays.size(); i++) {
@@ -2167,7 +2002,7 @@ void CTerrainGenerator::SaveAndReloadPreset()
             ini->WriteString(id, key, value);
             key += "AvailableData";
             if (group.HasExtraIndex) {
-                ini->WriteString(id, key, CurrentPreset->OverlayAvailableDataText[idx]);
+                ini->WriteString(id, key, preset->OverlayAvailableDataText[idx]);
             }
             else {
                 ini->DeleteKey(id, key);
@@ -2179,91 +2014,62 @@ void CTerrainGenerator::SaveAndReloadPreset()
             ini->DeleteKey(id, key);
         }
     }
+
     FString value;
-    if (CurrentPreset->SlopeSteepness > -1)
+    if (preset->RampPercent > -1)
     {
-        value.Format("%d", CurrentPreset->SlopeSteepness);
-        ini->WriteString(id, "SlopeSteepness", value);
+        value.Format("%d", preset->RampPercent);
+        ini->WriteString(id, "RampPercent", value);
     }
     else
     {
-        ini->DeleteKey(id, "SlopeSteepness");
+        ini->DeleteKey(id, "RampPercent");
     }
-    if (CurrentPreset->SlopeMarcoSteepness > -1)
+    if (preset->RampMinHeight > -1)
     {
-        value.Format("%d", CurrentPreset->SlopeMarcoSteepness);
-        ini->WriteString(id, "SlopeMarcoSteepness", value);
+        value.Format("%d", preset->RampMinHeight);
+        ini->WriteString(id, "RampMinHeight", value);
+
+        if (preset->bPreserveAnchorHeights)
+        {
+            ini->WriteString(id, "RampPreserveAnchorHeights", "true");
+        }
+        else
+        {
+            ini->WriteString(id, "RampPreserveAnchorHeights", "false");
+        }
+        if (preset->bAvoidNonmorphableTiles)
+        {
+            ini->WriteString(id, "AvoidNonmorphableTiles", "true");
+        }
+        else
+        {
+            ini->WriteString(id, "AvoidNonmorphableTiles", "false");
+        }
     }
     else
     {
-        ini->DeleteKey(id, "SlopeMarcoSteepness");
+        ini->DeleteKey(id, "RampMinHeight");
     }
-    if (CurrentPreset->SlopeMinDelta > -1)
+    if (preset->RampMaxHeight > -1)
     {
-        value.Format("%d", CurrentPreset->SlopeMinDelta);
-        ini->WriteString(id, "SlopeMinDelta", value);
+        value.Format("%d", preset->RampMaxHeight);
+        ini->WriteString(id, "RampMaxHeight", value);
     }
     else
     {
-        ini->DeleteKey(id, "SlopeMinDelta");
+        ini->DeleteKey(id, "RampMaxHeight");
     }
-    if (CurrentPreset->SlopeMarcoMinDelta > -1)
-    {
-        value.Format("%d", CurrentPreset->SlopeMarcoMinDelta);
-        ini->WriteString(id, "SlopeMarcoMinDelta", value);
-    }
-    else
-    {
-        ini->DeleteKey(id, "SlopeMarcoMinDelta");
-    }
-    if (CurrentPreset->SlopeMarcoMaxDelta > -1)
-    {
-        value.Format("%d", CurrentPreset->SlopeMarcoMaxDelta);
-        ini->WriteString(id, "SlopeMarcoMaxDelta", value);
-    }
-    else
-    {
-        ini->DeleteKey(id, "SlopeMarcoMaxDelta");
-    }
-    if (CurrentPreset->SlopeMaxDelta > -1)
-    {
-        value.Format("%d", CurrentPreset->SlopeMaxDelta);
-        ini->WriteString(id, "SlopeMaxDelta", value);
-    }
-    else
-    {
-        ini->DeleteKey(id, "SlopeMaxDelta");
-    }
-    if (CurrentPreset->SlopeSetManualHeight)
-    {
-        value.Format("%d", CurrentPreset->SlopeBaseHeight);
-        ini->WriteString(id, "SlopeBaseHeight", value);
-    }
-    else
-    {
-        ini->DeleteKey(id, "SlopeBaseHeight");
-    }
-    if (CurrentPreset->SlopeAvoidEdges)
-    {
-        ini->WriteString(id, "SlopeAvoidEdges", "true");
-    }
-    else
-    {
-        ini->DeleteKey(id, "SlopeAvoidEdges");
-    }
-    if (CurrentPreset->SlopeSetTransition)
-    {
-        value.Format("%d,%d,%d,%d", CurrentPreset->SlopeCoords[0].Y, CurrentPreset->SlopeCoords[0].X,
-            CurrentPreset->SlopeCoords[1].Y, CurrentPreset->SlopeCoords[1].X);
-        ini->WriteString(id, "SlopeCoords", value);
-        value.Format("%d,%d", CurrentPreset->SlopeCoordHeights[0], CurrentPreset->SlopeCoordHeights[1]);
-        ini->WriteString(id, "SlopeCoordHeights", value);
-    }
-    else
-    {
-        ini->DeleteKey(id, "SlopeCoords");
-        ini->DeleteKey(id, "SlopeCoordHeights");
-    }
+}
+
+void CTerrainGenerator::SaveAndReloadPreset()
+{
+    if (!CurrentPreset) return;
+    FString id = CurrentPreset->ID;
+    FString path = CFinalSunAppExt::ExePathExt();
+    path += "\\TerrainGenerator.ini";
+
+    WritePresetToINI(CurrentPreset, ini.get());
 
     ini->WriteToFile(path);
     CurrentPreset = nullptr;

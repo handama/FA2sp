@@ -213,6 +213,7 @@ public:
     static bool TeamListChanged;
     static void OnSelchangeTeam(int index, bool edited = false);
     static void OnDropdownTeam();
+    static void RebuildTeamList();
 
 protected:
     static void Initialize(HWND& hWnd);

@@ -52,10 +52,10 @@ bool VoxelDrawer::LoadHVAFile(FString name)
 }
 
 bool VoxelDrawer::GetImageData(unsigned int nFacing, unsigned char*& pBuffer, int& width,
-    int& height, int& x, int& y, const int F, const int L, const int H, bool Shadow, int fireAngle, bool mainBody)
+    int& height, int& x, int& y, const int F, const int L, const int H, bool Shadow, int fireAngle, bool mainBody, float tilt_angle, float tilt_direction)
 {
     const unsigned int nIndex = ExtConfigs::ExtFacings ? nFacing : nFacing * 4;
-    CncImgPrepareVXLCache(nIndex, F, L, H, fireAngle, mainBody && !ExtConfigs::InGameDisplay_Shadow_OnGround);
+    CncImgPrepareVXLCache(nIndex, F, L, H, fireAngle, mainBody && !ExtConfigs::InGameDisplay_Shadow_OnGround, tilt_angle, tilt_direction);
     if (Shadow)
         CncImgGetShadowImageFrame(nIndex, &width, &height, &x, &y);
     else
@@ -68,9 +68,9 @@ bool VoxelDrawer::GetImageData(unsigned int nFacing, unsigned char*& pBuffer, in
 }
 
 bool VoxelDrawer::GetImageData(unsigned int nFacing, unsigned char*& pBuffer, VoxelRectangle& rect,
-    const int F, const int L, const int H, bool Shadow, int fireAngle, bool mainBody)
+    const int F, const int L, const int H, bool Shadow, int fireAngle, bool mainBody, float tilt_angle, float tilt_direction)
 {
-    return GetImageData(nFacing, pBuffer, rect.W, rect.H, rect.X, rect.Y, F, L, H, Shadow, fireAngle, mainBody);
+    return GetImageData(nFacing, pBuffer, rect.W, rect.H, rect.X, rect.Y, F, L, H, Shadow, fireAngle, mainBody, tilt_angle, tilt_direction);
 }
 
 bool VoxelDrawer::IsVPLLoaded()

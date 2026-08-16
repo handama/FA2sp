@@ -4,6 +4,7 @@
 #include "../CIsoView/Body.h"
 #include "../CIsoView/DirectXCore.h"
 #include "../CMapData/Body.h"
+#include "../CMapData/HeightGenerator.h"
 #include "../CFinalSunApp/Body.h"
 #include <CMapData.h>
 #include <CLoading.h>
@@ -651,7 +652,21 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		ppmfc::CString buffer;
 		buffer = CFinalSunApp::MapPath;
 		if (CLoading::IsFileExists(buffer))
-			this->LoadMap(CFinalSunApp::MapPath);
+		{
+			const FString title = Translations::TranslateOrDefault(
+				"ReloadMapConfirmTitle", "Reload Map Confirm"
+			);
+			const FString message = Translations::TranslateOrDefault(
+				"ReloadMapConfirmMessage", "Are you sure you want to reload the map?"
+			);
+			int result = ::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd,
+			 	message, title, MB_YESNO | MB_DEFBUTTON2 | MB_ICONQUESTION);
+
+			if (result == IDYES)
+			{	
+				this->LoadMap(CFinalSunApp::MapPath);
+			}
+		}
 	}
 	else if (wmID == 40001 || wmID == 57600 || wmID == 57603 || wmID == 40002 || wmID == 40025) // open map related buttons
 	{
@@ -973,6 +988,13 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 			auto pIsoView = CIsoViewExt::GetExtension();
 
+ 			// Save the current view so it can be restored after rendering.
+			// MoveToMapCoord below is computed with ScaledFactor forced to 1.0,
+			// so it is wrong when the user is zoomed; leaving the view there
+			// makes subsequent draws/screenshots target an out-of-map area
+			// (black output and bogus observe coordinates).
+			ppmfc::CPoint oldViewPos = pIsoView->ViewPosition;
+
 			int& height = CMapData::Instance->Size.Height;
 			int& width = CMapData::Instance->Size.Width;
 			int startX, startY, endX, endY;
@@ -1151,7 +1173,13 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				::SendMessage(AfxGetMainWnd()->GetSafeHwnd(), WM_THEMECHANGED, 0, 0);
 			}
 
-			CIsoViewExt::MoveToMapCoord(CMapData::Instance->MapWidthPlusHeight / 2, CMapData::Instance->MapWidthPlusHeight / 2);
+			// Restore the user's view position. The rendering loop moved the
+			// view while tiling the map; restoring avoids leaving the camera at
+			// a position computed for ScaledFactor=1.0 that is wrong whenever
+			// the user is zoomed (black screenshots, wrong observe coords).
+			pIsoView->ViewPosition = oldViewPos;
+			::SetScrollPos(pIsoView->GetSafeHwnd(), SB_VERT, pIsoView->ViewPosition.y / 30 - height / 2 + 4, TRUE);
+			::SetScrollPos(pIsoView->GetSafeHwnd(), SB_HORZ, pIsoView->ViewPosition.x / 60 - width / 2 + 1, TRUE);
 
 			if (result == Gdiplus::Status::Ok && !batchProcess)
 			{
@@ -1516,9 +1544,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				{
 					if (MyViewFrame.pViewObjects)
 					{
-						HWND hViewObjs = MyViewFrame.pViewObjects->GetSafeHwnd();
-						if (hViewObjs)
-							::ShowWindow(hViewObjs, isChecked ? SW_SHOW : SW_HIDE);
+
+						HWND hFrame = ::GetParent(MyViewFrame.pViewObjects->GetSafeHwnd());
+						if (hFrame)
+							::ShowWindow(hFrame, isChecked ? SW_SHOW : SW_HIDE);
 					}
 				}
 				else if (MyViewFrame.SplitterWnd.m_hWnd)
@@ -1730,7 +1759,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	if (wmID == 40136)
 	{
 		if (!isInIsoView())
-			return TRUE;			return TRUE;
+			return TRUE;
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
 			this->PlaySound(FASoundType::Error);
@@ -2185,6 +2214,47 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 				ChangeBrushSize(index);
 			}
 		}
+		// last one
+		else if (CIsoView::CurrentCommand->Command == 0x27 && CMapData::Instance->MapWidthPlusHeight)
+		{
+			POINT pt;
+			GetCursorPos(&pt);
+			if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt))
+			{
+				int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
+				CMapDataExt::RampGeneratorAnchorHeight += zDelta > 0 ? 1 : -1;
+				CMapDataExt::RampGeneratorAnchorHeight = std::clamp(CMapDataExt::RampGeneratorAnchorHeight, 0, 14);	
+				if (CTerrainGenerator::GetHandle())	
+				{
+					::SendMessage(CTerrainGenerator::hRampAnchorHeight, WM_SETTEXT, 0, 
+					 (LPARAM)std::to_string(CMapDataExt::RampGeneratorAnchorHeight).c_str());
+				}
+			}
+		}
+		else if (CIsoView::CurrentCommand->Command == 15 && CMapData::Instance->MapWidthPlusHeight)
+		{
+			POINT pt;
+			GetCursorPos(&pt);
+			if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt))
+			{
+				auto point = CIsoViewExt::GetExtension()->GetCurrentMapCoord(CIsoViewExt::GetExtension()->MouseCurrentPosition);
+				if (CMapData::Instance->IsCoordInMap(point.X, point.Y))
+				{
+					int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
+					CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+					if (CIsoViewExt::UsingNewRaiseGround)
+					{
+						CMapDataExt::RaiseVertices(point.X, point.Y, zDelta > 0, 
+							false, GetKeyState(VK_SHIFT) & 0x8000);
+					}
+					else
+					{	
+						CMapDataExt::RaiseGrounds(point.X, point.Y, zDelta > 0, (GetKeyState(VK_SHIFT) & 0x8000) ? MK_SHIFT : 0);
+					}
+					CIsoView::GetInstance()->Draw();
+				}
+			}
+		}
 		break;
 	}
 	case WM_MBUTTONUP:
@@ -2197,7 +2267,7 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 		}
 		break;
 	}
-	case 1145141:
+	case 114810:
 	{
 		ppmfc::CString caption;
 		CFinalSunDlg::Instance->GetWindowTextA(caption);
@@ -2263,6 +2333,18 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 	{
 		MCPRequest* req = reinterpret_cast<MCPRequest*>(pMsg->lParam);
 		CMcpServer::HandleSaveScript(req);
+		return TRUE;
+	}
+	case WM_MCP_OBSERVE:
+	{
+		MCPRequest* req = reinterpret_cast<MCPRequest*>(pMsg->lParam);
+		CMcpServer::HandleObserve(req);
+		return TRUE;
+	}
+	case WM_MCP_SPEC:
+	{
+		MCPRequest* req = reinterpret_cast<MCPRequest*>(pMsg->lParam);
+		CMcpServer::HandleSpec(req);
 		return TRUE;
 	}
 	}

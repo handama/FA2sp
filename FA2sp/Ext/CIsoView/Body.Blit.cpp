@@ -21,8 +21,6 @@
 #include <stack>
 #include <array>
 
-constexpr float MULTI_SEL_OPACITY = 0.333f;
-
 static byte oreOpacityTable[13] =
 {
     177, 166, 154, 143, 131, 119, 108, 96, 85, 73, 61, 50, 38
@@ -600,9 +598,10 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
 
             if (doMultiSel) [[unlikely]] {
                 RGBClass* selColor = reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor);
-                c.B = (c.B * 2 + selColor->B) / 3;
-                c.G = (c.G * 2 + selColor->G) / 3;
-                c.R = (c.R * 2 + selColor->R) / 3;
+                BYTE alpha = static_cast<BYTE>(ExtConfigs::MultiSelect_Opacity * 255.0f);
+                c.B = alphaBlendTable[c.B][255 - alpha] + alphaBlendTable[selColor->B][alpha];
+                c.G = alphaBlendTable[c.G][255 - alpha] + alphaBlendTable[selColor->G][alpha];
+                c.R = alphaBlendTable[c.R][255 - alpha] + alphaBlendTable[selColor->R][alpha];
             }
 
             if (doOre) [[unlikely]] {
@@ -1024,7 +1023,7 @@ void CIsoViewExt::DirectXOverlay(int x, int y, ImageDataClassSafe* pd,
         params.SetColorMix(oreColor,  1.0f - oreOpacity / 255.0f);
     if (doMultiSel) {
         const RGBClass* selColor = doMultiSel ? reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor) : nullptr;
-        params.SetColorMix(*selColor, MULTI_SEL_OPACITY);
+        params.SetColorMix(*selColor, ExtConfigs::MultiSelect_Opacity);
     }
 
     g_pDX->DrawTexture(pTexture, params);
@@ -1212,9 +1211,10 @@ void BlitTerrainImpl(
             }
 
             if constexpr (MultiSel) {
-                c.B = (c.B * 2 + selColor->B) / 3;
-                c.G = (c.G * 2 + selColor->G) / 3;
-                c.R = (c.R * 2 + selColor->R) / 3;
+                BYTE alpha = static_cast<BYTE>(ExtConfigs::MultiSelect_Opacity * 255.0f);
+                c.B = alphaBlendTable[c.B][255 - alpha] + alphaBlendTable[selColor->B][alpha];
+                c.G = alphaBlendTable[c.G][255 - alpha] + alphaBlendTable[selColor->G][alpha];
+                c.R = alphaBlendTable[c.R][255 - alpha] + alphaBlendTable[selColor->R][alpha];
             }
 
             if constexpr (Ore) {
@@ -1684,7 +1684,7 @@ void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile,
         .SetOpacity(alpha)
         .SetColorMul(colorMult);
     if (doMultiSel)
-        params.SetColorMix(*selColor, MULTI_SEL_OPACITY);
+        params.SetColorMix(*selColor, ExtConfigs::MultiSelect_Opacity);
     if (doPlayer)
         params.SetColorMix(*playerColor, 1.0f - playerOpacity / 255.0f);
     if (doOre)

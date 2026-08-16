@@ -683,7 +683,7 @@ LRESULT DarkTheme::HandleMenuMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
                 GetTextExtentPoint32W(hdc, rightText.c_str(), (int)rightText.length(), &sizeRight);
 
             pmis->itemHeight = std::max((long)24, sizeLeft.cy + 8);
-            pmis->itemWidth = sizeLeft.cx + sizeRight.cx + 60;
+            pmis->itemWidth = sizeLeft.cx + sizeRight.cx + 70 * CFinalSunAppExt::ProgramScaleFactor;
 
             SelectObject(hdc, hOldFont);
             ReleaseDC(hWnd, hdc);

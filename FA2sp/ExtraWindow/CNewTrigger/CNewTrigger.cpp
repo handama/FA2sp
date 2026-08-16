@@ -283,11 +283,27 @@ void CNewTrigger::Initialize(HWND& hWnd)
     {
         vcbEventParameter[i].Attach(hEventParameter[i]);
         vcbEventParameter[i].SetAutoSearchRestriction(&CNewTrigger::EventParameterAutoDrop[i]);
+        vcbEventParameter[i].SetPreFilterCallback([this]() {
+            if (TeamListChanged) {
+                m_suppressEditChange = true;
+                UpdateEventAndParam();
+                TeamListChanged = false;
+                m_suppressEditChange = false;
+            }
+        });
     }
     for (int i = 0; i < ACTION_PARAM_COUNT; ++i)
     {
         vcbActionParameter[i].Attach(hActionParameter[i]);
         vcbActionParameter[i].SetAutoSearchRestriction(&CNewTrigger::ActionParameterAutoDrop[i]);
+        vcbActionParameter[i].SetPreFilterCallback([this]() {
+            if (TeamListChanged) {
+                m_suppressEditChange = true;
+                UpdateActionAndParam();
+                TeamListChanged = false;
+                m_suppressEditChange = false;
+            }
+        });
     }
 
     if (!IsMainInstance())
@@ -2022,14 +2038,18 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         case Controls::EventParameter1:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeEventParam(0);
-            else if (CODE == CBN_EDITCHANGE)
+            else if (CODE == CBN_EDITCHANGE && !m_suppressEditChange)
                 OnSelchangeEventParam(0, true);
+            else if (CODE == CBN_DROPDOWN && !vcbEventParameter[0].IsProgrammaticDropdown())
+                OnDropdownCComboBox(0, true);
             break;
         case Controls::EventParameter2:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeEventParam(1);
-            else if (CODE == CBN_EDITCHANGE)
+            else if (CODE == CBN_EDITCHANGE && !m_suppressEditChange)
                 OnSelchangeEventParam(1, true);
+            else if (CODE == CBN_DROPDOWN && !vcbEventParameter[1].IsProgrammaticDropdown())
+                OnDropdownCComboBox(1, true);
             break;
         case Controls::Actiontype:
             if (CODE == CBN_SELCHANGE)
@@ -2040,50 +2060,50 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         case Controls::ActionParameter1:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeActionParam(0);
-            else if (CODE == CBN_EDITCHANGE)
+            else if (CODE == CBN_EDITCHANGE && !m_suppressEditChange)
                 OnSelchangeActionParam(0, true);
-            else if (CODE == CBN_DROPDOWN)
-                OnDropdownCComboBox(0);
+            else if (CODE == CBN_DROPDOWN && !vcbActionParameter[0].IsProgrammaticDropdown())
+                OnDropdownCComboBox(0, false);
             break;
         case Controls::ActionParameter2:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeActionParam(1);
-            else if (CODE == CBN_EDITCHANGE)
+            else if (CODE == CBN_EDITCHANGE && !m_suppressEditChange)
                 OnSelchangeActionParam(1, true);
-            else if (CODE == CBN_DROPDOWN)
-                OnDropdownCComboBox(1);
+            else if (CODE == CBN_DROPDOWN && !vcbActionParameter[1].IsProgrammaticDropdown())
+                OnDropdownCComboBox(1, false);
             break;
         case Controls::ActionParameter3:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeActionParam(2);
-            else if (CODE == CBN_EDITCHANGE)
+            else if (CODE == CBN_EDITCHANGE && !m_suppressEditChange)
                 OnSelchangeActionParam(2, true);
-            else if (CODE == CBN_DROPDOWN)
-                OnDropdownCComboBox(2);
+            else if (CODE == CBN_DROPDOWN && !vcbActionParameter[2].IsProgrammaticDropdown())
+                OnDropdownCComboBox(2, false);
             break;
         case Controls::ActionParameter4:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeActionParam(3);
-            else if (CODE == CBN_EDITCHANGE)
+            else if (CODE == CBN_EDITCHANGE && !m_suppressEditChange)
                 OnSelchangeActionParam(3, true);
-            else if (CODE == CBN_DROPDOWN)
-                OnDropdownCComboBox(3);
+            else if (CODE == CBN_DROPDOWN && !vcbActionParameter[3].IsProgrammaticDropdown())
+                OnDropdownCComboBox(3, false);
             break;
         case Controls::ActionParameter5:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeActionParam(4);
-            else if (CODE == CBN_EDITCHANGE)
+            else if (CODE == CBN_EDITCHANGE && !m_suppressEditChange)
                 OnSelchangeActionParam(4, true);
-            else if (CODE == CBN_DROPDOWN)
-                OnDropdownCComboBox(4);
+            else if (CODE == CBN_DROPDOWN && !vcbActionParameter[4].IsProgrammaticDropdown())
+                OnDropdownCComboBox(4, false);
             break;
         case Controls::ActionParameter6:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeActionParam(5);
-            else if (CODE == CBN_EDITCHANGE)
+            else if (CODE == CBN_EDITCHANGE && !m_suppressEditChange)
                 OnSelchangeActionParam(5, true);
-            else if (CODE == CBN_DROPDOWN)
-                OnDropdownCComboBox(5);
+            else if (CODE == CBN_DROPDOWN && !vcbActionParameter[5].IsProgrammaticDropdown())
+                OnDropdownCComboBox(5, false);
             break;
         case Controls::ActionJump1:
             if (CODE == BN_CLICKED)
@@ -3755,11 +3775,15 @@ void CNewTrigger::AdjustActionHeight()
     MoveWindow(m_hwnd, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top + (ActionParamsCount - LastActionParamsCount) * heightDistance, TRUE);
 }
 
-void CNewTrigger::OnDropdownCComboBox(int index)
+void CNewTrigger::OnDropdownCComboBox(int index, bool isEvent)
 {
-    if (ActionParamType[index] == ParamType::CSF && ExtConfigs::TutorialTexts_Viewer)
+    auto& paramType = isEvent ? EventParamType[index] : ActionParamType[index];
+    auto& vcb = isEvent ? vcbEventParameter[index] : vcbActionParameter[index];
+
+    if (paramType == ParamType::CSF && ExtConfigs::TutorialTexts_Viewer)
     {
-        PostMessage(hActionParameter[index], CB_SHOWDROPDOWN, FALSE, 0);
+        HWND hParam = isEvent ? hEventParameter[index] : hActionParameter[index];
+        PostMessage(hParam, CB_SHOWDROPDOWN, FALSE, 0);
         CCsfEditor::TriggerCaller = GetCurrentInstanceIndex();
         CCsfEditor::TriggerParamIndex = index;
         if (CCsfEditor::GetHandle() == NULL)
@@ -3769,7 +3793,7 @@ void CNewTrigger::OnDropdownCComboBox(int index)
             ::SendMessage(CCsfEditor::GetHandle(), 114514, 0, 0);
         }
         char buffer[512]{ 0 };
-        GetWindowText(hActionParameter[index], buffer, 511);
+        GetWindowText(hParam, buffer, 511);
 
         FString text(buffer);
         text.Replace(",", "");
@@ -3779,24 +3803,29 @@ void CNewTrigger::OnDropdownCComboBox(int index)
 
         ::SendMessage(CCsfEditor::GetHandle(), 114515, 0, 0);
     }
-    else if (ActionParamType[index] == ParamType::Team && TeamListChanged)
+    else if (paramType == ParamType::Team && TeamListChanged)
     {
-		FString text = vcbActionParameter[index].GetEditText();
-		FString::TrimIndex(text);
-		text += " ";
+        FString text = vcb.GetEditText();
+        FString::TrimIndex(text);
+        text += " ";
 
-		UpdateActionAndParam();
+        m_suppressEditChange = true;
+        if (isEvent)
+            UpdateEventAndParam();
+        else
+            UpdateActionAndParam();
         TeamListChanged = false;
+        m_suppressEditChange = false;
 
-        int idx = vcbActionParameter[index].FindStringExactStart(text);
+        int idx = vcb.FindStringExactStart(text);
         if (idx != CB_ERR)
         {
-			vcbActionParameter[index].SetCurSel(idx);
-		}
+            vcb.SetCurSel(idx);
+        }
         else
         {
             FString::TrimIndex(text);
-            vcbActionParameter[index].SetEditText(text);
+            vcb.SetEditText(text);
         }
     }
 }

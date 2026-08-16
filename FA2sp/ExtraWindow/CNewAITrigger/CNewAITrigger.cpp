@@ -155,7 +155,9 @@ void CNewAITrigger::Initialize(HWND& hWnd)
 
     vcbSelectedAITrigger.Attach(hSelectedAITrigger, &ExtConfigs::SortByLabelName_AITrigger, false);
     vcbTeam[0].Attach(hTeam1);
+    vcbTeam[0].SetPreFilterCallback([]() { RebuildTeamList(); });
     vcbTeam[1].Attach(hTeam2);
+    vcbTeam[1].SetPreFilterCallback([]() { RebuildTeamList(); });
     vcbComparisonObject.Attach(hComparisonObject);
     vcbCountry.Attach(hCountry);
 
@@ -466,7 +468,7 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeTeam(0);
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeTeam(0, true);
-            else if (CODE == CBN_DROPDOWN && TeamListChanged)
+            else if (CODE == CBN_DROPDOWN && TeamListChanged && !vcbTeam[0].IsProgrammaticDropdown())
                 OnDropdownTeam();
             break;
         case Controls::Team2:
@@ -474,7 +476,7 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeTeam(1);
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeTeam(1, true);
-            else if (CODE == CBN_DROPDOWN && TeamListChanged)
+            else if (CODE == CBN_DROPDOWN && TeamListChanged && !vcbTeam[1].IsProgrammaticDropdown())
                 OnDropdownTeam();
             break;
         case Controls::TurnToTeam1:
@@ -707,15 +709,10 @@ void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
     SendMessage(hMaxWeight, WM_SETTEXT, 0, (LPARAM)max);
 }
 
-void CNewAITrigger::OnDropdownTeam()
+void CNewAITrigger::RebuildTeamList()
 {
-	FString team1, team2;
-    if (CurrentAITrigger)
-    {
-		team1 = CurrentAITrigger->Team1 + " ";
-		team2 = CurrentAITrigger->Team2 + " ";
-	}
-	std::vector<std::pair<FString, FString>> labels;
+    if (!TeamListChanged) return;
+    std::vector<std::pair<FString, FString>> labels;
     if (auto pSection = map.GetSection("TeamTypes")) {
         for (auto& pair : pSection->GetEntities()) {
             labels.push_back(std::make_pair(pair.second, ExtraWindow::GetTeamDisplayName(pair.second)));
@@ -731,20 +728,34 @@ void CNewAITrigger::OnDropdownTeam()
     vcbTeam[0].AddString("<none>");
     for (auto& [id, name] : labels)
     {
-		vcbTeam[0].AddString(name, ExtraWindow::GetTriggerColor(id));		
+        vcbTeam[0].AddString(name, ExtraWindow::GetTriggerColor(id));		
     }
 
     vcbTeam[1].CopyFrom(vcbTeam[0]);
 
-	int index1 = vcbTeam[0].FindStringExactStart(team1);
-	int index2 = vcbTeam[1].FindStringExactStart(team2);
+    TeamListChanged = false;
+}
+
+void CNewAITrigger::OnDropdownTeam()
+{
+    FString team1, team2;
+    if (CurrentAITrigger)
+    {
+        team1 = CurrentAITrigger->Team1 + " ";
+        team2 = CurrentAITrigger->Team2 + " ";
+    }
+
+    RebuildTeamList();
+
+    int index1 = vcbTeam[0].FindStringExactStart(team1);
+    int index2 = vcbTeam[1].FindStringExactStart(team2);
     if (index1 > 0)
-		vcbTeam[0].SetCurSel(index1);
-	else
+        vcbTeam[0].SetCurSel(index1);
+    else
         vcbTeam[0].SetCurSel(0);
     if (index2 > 0)
-		vcbTeam[1].SetCurSel(index2);
-	else
+        vcbTeam[1].SetCurSel(index2);
+    else
         vcbTeam[1].SetCurSel(0);
 }
 

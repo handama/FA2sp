@@ -1585,9 +1585,13 @@ DEFINE_HOOK(45EDC0, CIsoView_HandleProperties, 6)
 		break;
 	}
 	case 1:
+	case 100: // get building data by ini index
 	{
 		CBuildingData data;
-		CMapData::Instance->GetBuildingData(index, data);
+		if (type == 1)
+			CMapData::Instance->GetBuildingData(index, data);
+		else
+			CMapDataExt::GetBuildingDataByIniID(index, data);
 
 		CNewPropertyBuilding dlg;
 		dlg.CString_HealthPoint = data.Health;
@@ -1626,7 +1630,11 @@ DEFINE_HOOK(45EDC0, CIsoView_HandleProperties, 6)
 		data.Nominal = dlg.CString_ShowName;
 		
 		CMapDataExt::SkipBuildingOverlappingCheck = true;
+		if (type != 1)
+			CMapDataExt::DeleteBuildingByIniID = true;
 		CMapData::Instance->DeleteBuildingData(index);
+		if (type != 1)
+			CMapDataExt::DeleteBuildingByIniID = false;
 		CMapData::Instance->SetBuildingData(&data, NULL, NULL, 0, "");
 		CMapDataExt::SkipBuildingOverlappingCheck = false;
 
@@ -2219,7 +2227,16 @@ DEFINE_HOOK(469470, CIsoView_OnKeyDown, 5)
 	}
 	case 'A':
 	{
-		pThis->KeyboardAMode = !pThis->KeyboardAMode;
+		if (CIsoView::CurrentCommand->Command == 11 
+			|| CIsoView::CurrentCommand->Command == 12 
+			|| CIsoView::CurrentCommand->Command == 15)
+		{
+			CIsoViewExt::UsingNewRaiseGround = !CIsoViewExt::UsingNewRaiseGround;
+		}
+		else
+		{
+			pThis->KeyboardAMode = !pThis->KeyboardAMode;
+		}
 	}
 	}
 
@@ -2299,6 +2316,9 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 			pThis->IsScrolling = FALSE;
 	}
 
+	if (CIsoView::CurrentCommand->Command == 10)
+		return 0x456EDB;
+
     int keyboard_dx = 0;
     int keyboard_dy = 0;
 
@@ -2308,7 +2328,7 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
     if (GetAsyncKeyState(VK_UP) & 0x8000)    keyboard_dy -= 1200 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate * (ExtConfigs::DirectXRendering ? 1.2f : 1.0f);
     if (GetAsyncKeyState(VK_DOWN) & 0x8000)  keyboard_dy += 1200 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate * (ExtConfigs::DirectXRendering ? 1.2f : 1.0f);
 
-	if(keyboard_dx != 0 || keyboard_dy != 0)
+	if (keyboard_dx != 0 || keyboard_dy != 0)
 	{
 		HWND hTopWnd = WindowFromPoint(pt);
 		if (hTopWnd == pThis->GetSafeHwnd())
@@ -2318,7 +2338,7 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 				|| CIsoView::CurrentCommand->Command != 0x1E)
 			{
 				auto& gov = GridObjectViewer::Instance;
-				if (!gov.IsVisible())
+				if (!gov.IsVisible() && CIsoView::CurrentCommand->Command != 15)
 				{
 					if (GetAsyncKeyState(VK_CONTROL) & 0x8000)
 					{
@@ -2355,8 +2375,7 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 			}
 		}
 	}
-
-    
+  
 	return 0x456EDB;
 }
 

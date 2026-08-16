@@ -107,6 +107,7 @@ public:
     static CPoint Waypoint_Text_ExtraOffset;
     static bool ExtWaypoints;
     static bool ExtFacings;
+    static bool ExtTilts;
     static bool ExtFacings_Drag;
     static bool ExtFacings_DragPreview;
     static int UndoRedoLimit;
@@ -114,6 +115,7 @@ public:
     static bool UndoRedo_ShiftPlaceTile;
     static bool UndoRedo_HoldPlaceOverlay;
     static bool UseRGBHouseColor;
+    static bool UnifyHouseColors;
     static bool SaveMap_AutoSave;
     static int SaveMap_AutoSave_Interval;
     static int SaveMap_AutoSave_Interval_Real;
@@ -168,6 +170,7 @@ public:
     static bool EnableVeinholeLogic;
     static bool InitializeMap;
     static bool ReloadGameFromMapFolder;
+    static bool ReloadIniWhenOpeningMap;
     static bool LoadGameFromMapFolder_OnInit;
     static bool ArtImageSwap;
     static bool ExtraRaiseGroundTerrainSupport;
@@ -178,8 +181,10 @@ public:
     static bool ShowMapBoundInMiniMap;
     static bool CursorSelectionBound_AutoColor;
     static bool MultiSelect_ConsiderLAT;
+    static float MultiSelect_Opacity;
     static bool FillArea_ConsiderLAT;
     static bool FillArea_ConsiderWater;
+    static bool FillArea_ConsiderWholeTile;
     static bool DPIAware;
     static bool SkipBrushSizeChangeOnTools;
     static bool RecordBrushSizeHistory;

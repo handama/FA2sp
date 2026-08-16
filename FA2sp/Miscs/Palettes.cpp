@@ -254,12 +254,17 @@ Palette* PalettesManager::GetOverlayPalette(Palette* pPal, Cell3DLocation locati
 
     if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
     {
-        const auto overlay = CMapDataExt::GetExtension()->GetOverlayAt(
-            CMapData::Instance->GetCoordIndex(
-                CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y));
         if (!CMapDataExt::IsOre(overlay))
         {
-            p.AdjustLighting(LightingStruct::CurrentLighting, location);
+			Cell3DLocation locat = location;
+            if (overlay == 0x18 || overlay == 0x19 ||
+                overlay == 0x3B || overlay == 0x3C ||
+                overlay == 0xED || overlay == 0xEE)
+            {            
+                locat.Height += 4;
+                locat.Height = std::min(locat.Height,  static_cast<short>(14));
+            }
+			p.AdjustLighting(LightingStruct::CurrentLighting, locat);
             p.TintColors();
         }   
     }
@@ -374,21 +379,28 @@ void LightingPalette::RemapColors(BGRStruct color)
         auto& cache = PaletteCache::CalculatedRemapableColors[color];
         for (int i = 16; i <= 31; ++i)
         {
-            int ii = i - 16;
-            double cosval = ii * 0.08144869842640204 + 0.3490658503988659;
-            double sinval = ii * 0.04654211338651545 + 0.8726646259971648;
-            if (!ii)
-                cosval = 0.1963495408493621;
-
-            RGBClass rgb_remap{ color.R,color.G,color.B };
-            HSVClass hsv_remap = rgb_remap;
-            hsv_remap.H = hsv_remap.H;
-            hsv_remap.S = (unsigned char)(std::sin(sinval) * hsv_remap.S);
-            hsv_remap.V = (unsigned char)(std::cos(cosval) * hsv_remap.V);
-            RGBClass result = hsv_remap;
-
-            this->Colors[i] = { result.B,result.G,result.R };
-            cache[i - 16] = { result.B,result.G,result.R };
+			if (ExtConfigs::UnifyHouseColors)
+            {
+                this->Colors[i] = color;
+                cache[i - 16] = color;
+            }
+            else
+            {
+                int ii = i - 16;
+                double cosval = ii * 0.08144869842640204 + 0.3490658503988659;
+                double sinval = ii * 0.04654211338651545 + 0.8726646259971648;
+                if (!ii)
+                    cosval = 0.1963495408493621;
+    
+                RGBClass rgb_remap{ color.R,color.G,color.B };
+                HSVClass hsv_remap = rgb_remap;
+                hsv_remap.H = hsv_remap.H;
+                hsv_remap.S = (unsigned char)(std::sin(sinval) * hsv_remap.S);
+                hsv_remap.V = (unsigned char)(std::cos(cosval) * hsv_remap.V);
+                RGBClass result = hsv_remap;
+                this->Colors[i] = { result.B,result.G,result.R };
+                cache[i - 16] = { result.B,result.G,result.R };
+            }
         }
     }
 }
@@ -581,20 +593,26 @@ const std::array<BGRStruct, 16>& PaletteCache::GetRemapableColorArray(BGRStruct 
         auto& cache = PaletteCache::CalculatedRemapableColors[color];
         for (int i = 16; i <= 31; ++i)
         {
-            int ii = i - 16;
-            double cosval = ii * 0.08144869842640204 + 0.3490658503988659;
-            double sinval = ii * 0.04654211338651545 + 0.8726646259971648;
-            if (!ii)
-                cosval = 0.1963495408493621;
-
-            RGBClass rgb_remap{ color.R,color.G,color.B };
-            HSVClass hsv_remap = rgb_remap;
-            hsv_remap.H = hsv_remap.H;
-            hsv_remap.S = (unsigned char)(std::sin(sinval) * hsv_remap.S);
-            hsv_remap.V = (unsigned char)(std::cos(cosval) * hsv_remap.V);
-            RGBClass result = hsv_remap;
-
-            cache[i - 16] = { result.B,result.G,result.R };
+			if (ExtConfigs::UnifyHouseColors)
+            {
+                cache[i - 16] = color;
+            }
+            else
+            {
+                int ii = i - 16;
+                double cosval = ii * 0.08144869842640204 + 0.3490658503988659;
+                double sinval = ii * 0.04654211338651545 + 0.8726646259971648;
+                if (!ii)
+                    cosval = 0.1963495408493621;
+    
+                RGBClass rgb_remap{ color.R,color.G,color.B };
+                HSVClass hsv_remap = rgb_remap;
+                hsv_remap.H = hsv_remap.H;
+                hsv_remap.S = (unsigned char)(std::sin(sinval) * hsv_remap.S);
+                hsv_remap.V = (unsigned char)(std::cos(cosval) * hsv_remap.V);
+                RGBClass result = hsv_remap;
+                cache[i - 16] = { result.B,result.G,result.R };
+            }
         }
         return cache;
     }
@@ -720,7 +738,14 @@ ColorMults ColorMults::GetOverlayColorMult(Cell3DLocation location, Renderer::Ov
     float AmbientMult = 1.0f;
     const auto lamp = LightingSourceTint::ApplyLamp(location.X, location.Y);
 
-    AmbientMult = lighting.Ambient + lamp.AmbientTint - lighting.Ground + lighting.Level * location.Height;
+	auto height = location.Height;
+    if (pType->IsHighBridge())
+    {
+        height += 4;
+        height = std::min(height, static_cast<short>(14));
+    }
+
+	AmbientMult = lighting.Ambient + lamp.AmbientTint - lighting.Ground + lighting.Level * height;
     ret.RedTint = lighting.Red + lamp.RedTint;
     ret.GreenTint = lighting.Green + lamp.GreenTint;
     ret.BlueTint = lighting.Blue + lamp.BlueTint;

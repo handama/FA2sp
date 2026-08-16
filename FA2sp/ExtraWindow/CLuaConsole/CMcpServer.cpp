@@ -20,6 +20,7 @@
 #include "../../FA2sp.h"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
+#include "../../Ext/CIsoView/RendererTypes.h"
 
 using json = nlohmann::json;
 
@@ -66,6 +67,40 @@ static std::string GetScriptRoot()
 static std::string SafeDump(const json& j)
 {
     return j.dump(-1, ' ', false, json::error_handler_t::replace);
+}
+
+// ---------------------------------------------------------------------------
+// Quote a string as a Lua short-string literal (Lua %q style subset).
+// ASCII controls are escaped; bytes >= 0x80 are passed through untouched so
+// that UTF-8/ANSI multibyte sequences survive the MCP encoding conversion.
+// ---------------------------------------------------------------------------
+static std::string LuaQuote(const std::string& s)
+{
+    std::string out = "\"";
+    for (unsigned char c : s)
+    {
+        switch (c)
+        {
+        case '"':  out += "\\\""; break;
+        case '\\': out += "\\\\"; break;
+        case '\n': out += "\\n"; break;
+        case '\r': out += "\\r"; break;
+        case '\t': out += "\\t"; break;
+        default:
+            if (c < 0x20)
+            {
+                char buf[8];
+                std::snprintf(buf, sizeof(buf), "\\%d", (int)c);
+                out += buf;
+            }
+            else
+            {
+                out += (char)c;
+            }
+        }
+    }
+    out += "\"";
+    return out;
 }
 
 static std::string GetRelativePath(const std::filesystem::path& full, const std::filesystem::path& root)
@@ -123,6 +158,20 @@ static std::string ToExternalEncoding(const std::string& str)
 // Public interface
 // ===================================================================
 
+// Post an MCP request to the editor main thread and wait for completion.
+// Returns false if the editor window is not ready yet (the MCP server may
+// start before the main window exists during app startup).
+static bool RunOnEditorThread(int wmMsg, MCPRequest* req)
+{
+    CFinalSunDlg* pDlg = CFinalSunDlg::Instance.get();
+    if (!pDlg || !::IsWindow(pDlg->GetSafeHwnd()))
+        return false;
+    if (!::PostMessage(pDlg->GetSafeHwnd(), wmMsg, 0, (LPARAM)req))
+        return false;
+    WaitForSingleObject(req->hEvent, INFINITE);
+    return true;
+}
+
 static json ProcessRequest(json& request)
 {
     std::string method = request.value("method", "");
@@ -142,7 +191,7 @@ static json ProcessRequest(json& request)
                 {"tools", json::object()},
                 {"prompts", json::object()}
             }},
-            {"serverInfo", {{"name", "FA2sp-MCP"}, {"version", "1.0.0"}}}
+            {"serverInfo", {{"name", "FA2sp-MCP"}, {"version", "1.0.1"}}}
         };
     }
     // ----- tools/list -----
@@ -281,6 +330,67 @@ static json ProcessRequest(json& request)
             }}
         });
 
+        tools.push_back({
+            {"name", "spec"},
+            {"description", "Manage the map spec file that persists map design intent across sessions. "
+                            "The spec has three layers: story (single main narrative), screenplay (scripted scenes "
+                            "grouped into parallel trigger pipelines, entry ids like L01S02, dependency DAG), "
+                            "implementation (mapping each entry to map triggers, with status "
+                            "designing/implemented/verified/deprecated). "
+                            "The spec file is stored next to the map as <mapname>.spec.md. "
+                            "Actions: init, read, update_story, add_line, add_entry, update_entry, "
+                            "deprecate_entry, link_trigger, unlink_trigger, set_status, validate. "
+                            "Always call read first to discover the current state; run validate before "
+                            "finishing a session. link_trigger verifies the trigger exists in the map."},
+            {"inputSchema", {
+                {"type", "object"},
+                {"properties", {
+                    {"action", {
+                        {"type", "string"},
+                        {"description", "One of: init, read, update_story, add_line, add_entry, update_entry, "
+                                        "deprecate_entry, link_trigger, unlink_trigger, set_status, validate."}
+                    }},
+                    {"map_path", {
+                        {"type", "string"},
+                        {"description", "Full path to the map file (use forward slashes, e.g. "
+                                        "C:/maps/mymap.map). The spec file is stored next to it as mymap.spec.md."}
+                    }},
+                    {"title", {{"type", "string"}, {"description", "init: map title (optional, defaults to file name)."}}},
+                    {"text", {{"type", "string"}, {"description", "update_story: the new story text."}}},
+                    {"name", {{"type", "string"}, {"description", "add_line: trigger pipeline name (e.g. Soviet assault pipeline)."}}},
+                    {"line", {{"type", "string"}, {"description", "add_entry: target trigger pipeline id (e.g. L01)."}}},
+                    {"summary", {{"type", "string"}, {"description", "add_entry/update_entry: scene summary."}}},
+                    {"depends_on", {{"type", "array"}, {"items", {{"type", "string"}}},
+                        {"description", "add_entry/update_entry: prerequisite entry ids (dependency DAG edges)."}}},
+                    {"entry_id", {{"type", "string"}, {"description", "Entry id (e.g. L01S02)."}}},
+                    {"trigger_type", {{"type", "string"},
+                        {"description", "link_trigger/unlink_trigger: the trigger's [Triggers] section id in the map."}}},
+                    {"display_name", {{"type", "string"},
+                        {"description", "link_trigger: free-text display name of the trigger (semantic aid only)."}}},
+                    {"status", {{"type", "string"},
+                        {"description", "set_status: designing | implemented | verified | deprecated."}}}
+                }},
+                {"required", json::array({"action", "map_path"})}
+            }}
+        });
+        tools.push_back({
+            {"name", "observe"},
+            {"description", "Capture the current editor view as a screenshot and return structured "
+                            "information about all objects in the visible area. Returns a JSON string "
+                            "containing the screenshot file path, view bounds (top-left, bottom-left, "
+                            "top-right, bottom-right, and center map coordinates), and detailed object "
+                            "data categorized by type (infantry, unit, aircraft, building, terraintype, "
+                            "smudge, overlay). All objects include x/y coordinates. Infantry/Unit/Aircraft/"
+                            "Building also include index, registration ID, display name, and owner house. "
+                            "TerrainType and Smudge include index and registration ID. Overlay includes "
+                            "Overlay Index and Overlaydata Index."},
+            {"inputSchema", {
+                {"type", "object"},
+                {"properties", json::object()},
+                {"required", json::array()}
+            }}
+        });
+
         response["result"] = {{"tools", tools}};
     }
     // ----- tools/call -----
@@ -297,22 +407,84 @@ static json ProcessRequest(json& request)
             mcpReq->input = ToInternalEncoding(arguments.value("script", ""));
             mcpReq->trackIniChanges = arguments.value("track_ini_changes", false);
             mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-            PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_RUN_LUA, 0, (LPARAM)mcpReq);
-            WaitForSingleObject(mcpReq->hEvent, INFINITE);
-            std::string out = ToExternalEncoding(mcpReq->result);
+            if (RunOnEditorThread(WM_MCP_RUN_LUA, mcpReq))
+            {
+                std::string out = ToExternalEncoding(mcpReq->result);
+                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+            }
+            else
+            {
+                response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+            }
             CloseHandle(mcpReq->hEvent); delete mcpReq;
-            response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+        }
+        else if (toolName == "spec")
+        {
+            // Bridge to .spec_lib.lua: forward whitelisted args, run through a
+            // dedicated main-thread channel (WM_MCP_SPEC / HandleSpec) that
+            // executes the script cleanly, without run_lua side effects
+            // (high-risk scan, redraw, INI diff tracking).
+            std::string action = arguments.value("action", "");
+            std::string mapPath = arguments.value("map_path", "");
+            if (action.empty() || mapPath.empty())
+            {
+                response["result"] = {{"content", json::array({{{"type", "text"},
+                    {"text", "Error: 'action' and 'map_path' are required."}}})}};
+            }
+            else
+            {
+                json specArgs = json::object();
+                specArgs["action"] = action;
+                specArgs["map_path"] = mapPath;
+                for (const char* k : {"title", "text", "name", "line", "summary",
+                                      "entry_id", "trigger_type", "display_name", "status"})
+                {
+                    if (arguments.contains(k))
+                        specArgs[k] = arguments[k];
+                }
+                if (arguments.contains("depends_on") && arguments["depends_on"].is_array())
+                    specArgs["depends_on"] = arguments["depends_on"];
+
+                std::string libPath = GetScriptRoot() + ".spec_lib.lua";
+                // specArgs is UTF-8 (MCP wire format). Convert it to ANSI
+                // explicitly: the script mixes an already-ANSI dofile path with
+                // the UTF-8 JSON, and detection-based ToInternalEncoding is
+                // unreliable on mixed input, which would leave map_path as UTF-8
+                // inside the GBK Lua runtime and break file I/O.
+                std::string script = "local S = dofile(" + LuaQuote(libPath) + "); "
+                                     "print(S.dispatch(" + LuaQuote(CLuaConsole::EncodeUtf8ToAnsi(SafeDump(specArgs))) + "))";
+
+                MCPRequest* mcpReq = new MCPRequest();
+                mcpReq->type = 12;
+                mcpReq->input = script;
+                mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
+                if (RunOnEditorThread(WM_MCP_SPEC, mcpReq))
+                {
+                    std::string out = ToExternalEncoding(mcpReq->result);
+                    response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+                }
+                else
+                {
+                    response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+                }
+                CloseHandle(mcpReq->hEvent); delete mcpReq;
+            }
         }
         else if (toolName == "list_knowledge")
         {
             MCPRequest* mcpReq = new MCPRequest();
             mcpReq->type = 3;
             mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-            PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_LIST_KNOWLEDGE, 0, (LPARAM)mcpReq);
-            WaitForSingleObject(mcpReq->hEvent, INFINITE);
-            std::string out = mcpReq->result;
+            if (RunOnEditorThread(WM_MCP_LIST_KNOWLEDGE, mcpReq))
+            {
+                std::string out = mcpReq->result;
+                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+            }
+            else
+            {
+                response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+            }
             CloseHandle(mcpReq->hEvent); delete mcpReq;
-            response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
         }
         else if (toolName == "get_knowledge")
         {
@@ -327,11 +499,16 @@ static json ProcessRequest(json& request)
                 mcpReq->type = 4;
                 mcpReq->input = ToInternalEncoding(key);
                 mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-                PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_GET_KNOWLEDGE, 0, (LPARAM)mcpReq);
-                WaitForSingleObject(mcpReq->hEvent, INFINITE);
-                std::string out = ToExternalEncoding(mcpReq->result);
+                if (RunOnEditorThread(WM_MCP_GET_KNOWLEDGE, mcpReq))
+                {
+                    std::string out = ToExternalEncoding(mcpReq->result);
+                    response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+                }
+                else
+                {
+                    response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+                }
                 CloseHandle(mcpReq->hEvent); delete mcpReq;
-                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
             }
         }
         else if (toolName == "search_knowledge")
@@ -347,11 +524,16 @@ static json ProcessRequest(json& request)
                 mcpReq->type = 5;
                 mcpReq->input = ToInternalEncoding(query);
                 mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-                PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_SEARCH_KNOWLEDGE, 0, (LPARAM)mcpReq);
-                WaitForSingleObject(mcpReq->hEvent, INFINITE);
-                std::string out = ToExternalEncoding(mcpReq->result);
+                if (RunOnEditorThread(WM_MCP_SEARCH_KNOWLEDGE, mcpReq))
+                {
+                    std::string out = ToExternalEncoding(mcpReq->result);
+                    response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+                }
+                else
+                {
+                    response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+                }
                 CloseHandle(mcpReq->hEvent); delete mcpReq;
-                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
             }
         }
         else if (toolName == "list_skills")
@@ -359,11 +541,16 @@ static json ProcessRequest(json& request)
             MCPRequest* mcpReq = new MCPRequest();
             mcpReq->type = 6;
             mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-            PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_LIST_SKILL, 0, (LPARAM)mcpReq);
-            WaitForSingleObject(mcpReq->hEvent, INFINITE);
-            std::string out = mcpReq->result;
+            if (RunOnEditorThread(WM_MCP_LIST_SKILL, mcpReq))
+            {
+                std::string out = mcpReq->result;
+                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+            }
+            else
+            {
+                response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+            }
             CloseHandle(mcpReq->hEvent); delete mcpReq;
-            response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
         }
         else if (toolName == "get_skill")
         {
@@ -378,11 +565,16 @@ static json ProcessRequest(json& request)
                 mcpReq->type = 7;
                 mcpReq->input = ToInternalEncoding(key);
                 mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-                PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_GET_SKILL, 0, (LPARAM)mcpReq);
-                WaitForSingleObject(mcpReq->hEvent, INFINITE);
-                std::string out = ToExternalEncoding(mcpReq->result);
+                if (RunOnEditorThread(WM_MCP_GET_SKILL, mcpReq))
+                {
+                    std::string out = ToExternalEncoding(mcpReq->result);
+                    response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+                }
+                else
+                {
+                    response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+                }
                 CloseHandle(mcpReq->hEvent); delete mcpReq;
-                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
             }
         }
         else if (toolName == "list_scripts")
@@ -390,11 +582,16 @@ static json ProcessRequest(json& request)
             MCPRequest* mcpReq = new MCPRequest();
             mcpReq->type = 8;
             mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-            PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_LIST_SCRIPTS, 0, (LPARAM)mcpReq);
-            WaitForSingleObject(mcpReq->hEvent, INFINITE);
-            std::string out = mcpReq->result;
+            if (RunOnEditorThread(WM_MCP_LIST_SCRIPTS, mcpReq))
+            {
+                std::string out = mcpReq->result;
+                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+            }
+            else
+            {
+                response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+            }
             CloseHandle(mcpReq->hEvent); delete mcpReq;
-            response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
         }
         else if (toolName == "get_script")
         {
@@ -409,11 +606,16 @@ static json ProcessRequest(json& request)
                 mcpReq->type = 9;
                 mcpReq->input = ToInternalEncoding(key);
                 mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-                PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_GET_SCRIPT, 0, (LPARAM)mcpReq);
-                WaitForSingleObject(mcpReq->hEvent, INFINITE);
-                std::string out = ToExternalEncoding(mcpReq->result);
+                if (RunOnEditorThread(WM_MCP_GET_SCRIPT, mcpReq))
+                {
+                    std::string out = ToExternalEncoding(mcpReq->result);
+                    response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+                }
+                else
+                {
+                    response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+                }
                 CloseHandle(mcpReq->hEvent); delete mcpReq;
-                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
             }
         }
         else if (toolName == "save_script")
@@ -434,12 +636,33 @@ static json ProcessRequest(json& request)
                 mcpReq->type = 10;
                 mcpReq->input = ToInternalEncoding(key + "\n" + content);
                 mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-                PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_SAVE_SCRIPT, 0, (LPARAM)mcpReq);
-                WaitForSingleObject(mcpReq->hEvent, INFINITE);
-                std::string out = ToExternalEncoding(mcpReq->result);
+                if (RunOnEditorThread(WM_MCP_SAVE_SCRIPT, mcpReq))
+                {
+                    std::string out = ToExternalEncoding(mcpReq->result);
+                    response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+                }
+                else
+                {
+                    response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+                }
                 CloseHandle(mcpReq->hEvent); delete mcpReq;
+            }
+        }
+        else if (toolName == "observe")
+        {
+            MCPRequest* mcpReq = new MCPRequest();
+            mcpReq->type = 11;
+            mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
+            if (RunOnEditorThread(WM_MCP_OBSERVE, mcpReq))
+            {
+                std::string out = ToExternalEncoding(mcpReq->result);
                 response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
             }
+            else
+            {
+                response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+            }
+            CloseHandle(mcpReq->hEvent); delete mcpReq;
         }
         else
         {
@@ -547,6 +770,8 @@ static json ProcessRequest(json& request)
 
 void CMcpServer::Start(int port)
 {
+    CLuaConsole::EnsureLuaState();
+
     if (m_running) Stop();
 
     m_port = port;
@@ -829,8 +1054,14 @@ void CMcpServer::HandleRunLua(MCPRequest* req)
             warnMsg << "\r\n" << Translations::TranslateOrDefault("LuaHighRisk.Footer",
                 "Are you sure you want to continue?");
                 
-            ExtraWindow::DisableOtherWindows(CLuaConsole::GetHandle());
-            int result = MessageBox(CLuaConsole::GetHandle(), warnMsg.str().c_str(),
+            // Use the console window as the dialog owner when available,
+            // otherwise fall back to the main editor window (the console may
+            // never have been opened).
+            HWND hParent = CLuaConsole::GetHandle();
+            if (!hParent && CFinalSunDlg::Instance.get())
+                hParent = CFinalSunDlg::Instance.get()->GetSafeHwnd();
+            ExtraWindow::DisableOtherWindows(hParent);
+            int result = MessageBox(hParent, warnMsg.str().c_str(),
                 Translations::TranslateOrDefault("LuaHighRisk.Title", "High-Risk Operation Confirmation"),
                 MB_YESNO | MB_ICONWARNING);
             ExtraWindow::RestoreDisabledWindows();
@@ -850,50 +1081,57 @@ void CMcpServer::HandleRunLua(MCPRequest* req)
 
     {
         VEHGuard guard(false);  // disable VEH during Lua execution
-        try
+        if (IsDebuggerPresent())
         {
-            sol::protected_function_result result =
-                Lua.script(req->input, sol::script_pass_on_error);
-
-            if (!result.valid())
+            Lua.script(req->input);
+        }
+        else
+        {
+            try
             {
-                sol::error err = result;
-                std::string errStr = err.what();
-                std::string errorMessage = "Lua Error: " + errStr;
-                // Check for __SCRIPT_ABORT__
-                if (errStr.find("__SCRIPT_ABORT__") != std::string::npos)
+                sol::protected_function_result result =
+                    Lua.script(req->input, sol::script_pass_on_error);
+    
+                if (!result.valid())
                 {
-                    CLuaConsole::mcpOutput += "Script aborted.\r\n";
+                    sol::error err = result;
+                    std::string errStr = err.what();
+                    std::string errorMessage = "Lua Error: " + errStr;
+                    // Check for __SCRIPT_ABORT__
+                    if (errStr.find("__SCRIPT_ABORT__") != std::string::npos)
+                    {
+                        CLuaConsole::mcpOutput += "Script aborted.\r\n";
+                    }
+                    else
+                    {
+                        sol::call_status status = result.status();
+                        switch (status)
+                        {
+                        case sol::call_status::syntax:   errorMessage += " (Syntax Error)"; break;
+                        case sol::call_status::runtime:  errorMessage += " (Runtime Error)"; break;
+                        case sol::call_status::memory:   errorMessage += " (Memory Error)"; break;
+                        case sol::call_status::handler:  errorMessage += " (Handler Error)"; break;
+                        case sol::call_status::gc:       errorMessage += " (GC Error)"; break;
+                        case sol::call_status::file:     errorMessage += " (File Error)"; break;
+                        default:                         errorMessage += " (Unknown Error)"; break;
+                        }
+                        CLuaConsole::mcpOutput += errorMessage + "\r\n";
+                    }
                 }
                 else
                 {
-                    sol::call_status status = result.status();
-                    switch (status)
-                    {
-                    case sol::call_status::syntax:   errorMessage += " (Syntax Error)"; break;
-                    case sol::call_status::runtime:  errorMessage += " (Runtime Error)"; break;
-                    case sol::call_status::memory:   errorMessage += " (Memory Error)"; break;
-                    case sol::call_status::handler:  errorMessage += " (Handler Error)"; break;
-                    case sol::call_status::gc:       errorMessage += " (GC Error)"; break;
-                    case sol::call_status::file:     errorMessage += " (File Error)"; break;
-                    default:                         errorMessage += " (Unknown Error)"; break;
-                    }
-                    CLuaConsole::mcpOutput += errorMessage + "\r\n";
+                    if (CLuaConsole::mcpOutput.empty())
+                        CLuaConsole::mcpOutput += "Script executed successfully.\r\n";
                 }
             }
-            else
+            catch (const std::exception& e)
             {
-                if (CLuaConsole::mcpOutput.empty())
-                    CLuaConsole::mcpOutput += "Script executed successfully.\r\n";
+                CLuaConsole::mcpOutput += std::string("Critical Error: ") + e.what() + "\r\n";
             }
-        }
-        catch (const std::exception& e)
-        {
-            CLuaConsole::mcpOutput += std::string("Critical Error: ") + e.what() + "\r\n";
-        }
-        catch (...)
-        {
-            CLuaConsole::mcpOutput += "Critical Error: Unknown exception occurred.\r\n";
+            catch (...)
+            {
+                CLuaConsole::mcpOutput += "Critical Error: Unknown exception occurred.\r\n";
+            }
         }
     }
 
@@ -1269,6 +1507,293 @@ void CMcpServer::HandleSaveScript(MCPRequest* req)
     ofs.close();
 
     req->result = "Script saved successfully: " + key;
+    SetEvent(req->hEvent);
+}
+
+void CMcpServer::HandleObserve(MCPRequest* req)
+{
+    json j;
+
+    std::string screenshotPath = CLuaConsole::CaptureScreenshotTemp();
+    j["screenshot"] = ToExternalEncoding(screenshotPath);
+
+    auto pIsoView = CIsoViewExt::GetExtension();
+	auto pMap = CMapDataExt::GetExtension();
+
+	int x1, y1, x2, y2, x3, y3, x4, y4, xCenter, yCenter, top, bottom, left, right;
+
+    {
+        CRect window;
+        CIsoViewExt::GetValidWindowRect(pIsoView->GetSafeHwnd(), &window);
+        CIsoViewExt::AdaptRectForSecondScreen(&window);
+
+        x1 = window.left + pIsoView->ViewPosition.x;
+        y1 = window.top + pIsoView->ViewPosition.y;
+        x2 = window.right + pIsoView->ViewPosition.x;
+        y2 = window.top + pIsoView->ViewPosition.y;
+        x3 = window.left + pIsoView->ViewPosition.x;
+        y3 = window.bottom + pIsoView->ViewPosition.y;
+        x4 = window.right + pIsoView->ViewPosition.x;
+        y4 = window.bottom + pIsoView->ViewPosition.y;
+        xCenter = window.left + window.right / 2 + pIsoView->ViewPosition.x;
+        yCenter = window.top + window.bottom / 2 + pIsoView->ViewPosition.y;
+    
+        pIsoView->ScreenCoord2MapCoord_Flat(x1, y1);
+        pIsoView->ScreenCoord2MapCoord_Flat(x2, y2);
+        pIsoView->ScreenCoord2MapCoord_Flat(x3, y3);
+        pIsoView->ScreenCoord2MapCoord_Flat(x4, y4);
+        pIsoView->ScreenCoord2MapCoord_Flat(xCenter, yCenter);
+        if (x2 < 0 || y2 < 0)
+        {
+            x2 = CMapData::Instance->Size.Width;
+            y2 = CMapData::Instance->MapWidthPlusHeight + 1;
+        }
+        if (x1 < 0 || y1 < 0)
+        {
+            x1 = CMapData::Instance->Size.Width;
+            y1 = 0;
+        }
+    
+        top = x1 + y1;
+        bottom = x4 + y4;
+        left = y1 - x1;
+        right = y4 - x4;
+        if (top > bottom)
+        {
+            int tmp = top;
+            top = bottom;
+            bottom = tmp;
+        }
+        if (left > right)
+        {
+            int tmp = left;
+            left = right;
+            right = tmp;
+        }
+    }
+ 
+    {
+        json viewBounds;
+        viewBounds["top_left"] = { {"x", y1}, {"y", x1} };
+        viewBounds["bottom_left"] = { {"x", y3}, {"y", x3} };
+        viewBounds["top_right"] = { {"x", y2}, {"y", x2} };
+        viewBounds["bottom_right"] = { {"x", y4}, {"y", x4} };
+        viewBounds["center"] = { {"x", yCenter}, {"y", xCenter} };
+        j["view_bounds"] = viewBounds;
+    }
+
+    json objects = json::object();
+
+	json infantry = json::array();
+	json unit = json::array();
+	json aircraft = json::array();
+	json building = json::array();
+	json terrainType = json::array();
+	json smudge = json::array();
+	json overlay = json::array();
+
+	std::set<short> addedBuildings;
+	for (int pos = 0; pos < pMap->CellDataCount; pos++)
+    {
+        int coordX, coordY;
+        coordX = pMap->GetXFromCoordIndex(pos);
+        coordY = pMap->GetYFromCoordIndex(pos);
+        if (!pMap->IsCoordInMap(coordX, coordY))
+            continue;
+
+        if (!(coordX + coordY >= top &&
+			coordX + coordY <= bottom &&
+			coordY - coordX >= left &&
+			coordY - coordX <= right))
+            continue; 
+
+        auto cell = pMap->GetCellAt(pos);
+        auto& cellExt = pMap->CellDataExts[pos];
+        for (int i = 0; i < 3; ++i)
+        {
+            if (cell->Infantry[i] > -1)
+            {
+                auto& obj = Renderer::Infantries[cell->Infantry[i]];
+                auto data = obj.GetData();
+
+                infantry.push_back({
+                    {"index", cell->Infantry[i]},
+                    {"id", data->TypeID},
+                    {"name", ToExternalEncoding(CViewObjectsExt::QueryUIName(data->TypeID, true))},
+                    {"house", data->House},
+                    {"x", atoi(data->Y)},
+                    {"y", atoi(data->X)}
+                });
+            }
+        }
+        if (cell->Unit > -1)
+        {
+            auto& obj = Renderer::Vehicles[cell->Unit];
+            auto data = obj.GetData();
+
+            unit.push_back({
+                {"index", cell->Unit},
+                {"id", data->TypeID},
+                {"name", ToExternalEncoding(CViewObjectsExt::QueryUIName(data->TypeID, true))},
+                {"house", data->House},
+                {"x", atoi(data->Y)},
+                {"y", atoi(data->X)}
+            });
+        }
+        if (cell->Aircraft > -1)
+        {
+            auto& obj = Renderer::Aircrafts[cell->Aircraft];
+            auto data = obj.GetData();
+
+            aircraft.push_back({
+                {"index", cell->Aircraft},
+                {"id", data->TypeID},
+                {"name", ToExternalEncoding(CViewObjectsExt::QueryUIName(data->TypeID, true))},
+                {"house", data->House},
+                {"x", atoi(data->Y)},
+                {"y", atoi(data->X)}
+            });
+        }
+        if (cell->Structure > -1 && addedBuildings.find(cell->Structure) == addedBuildings.end())
+        {
+            addedBuildings.insert(cell->Structure);
+            auto& obj = Renderer::Buildings[cell->Structure];
+            auto data = obj.GetData();
+
+            building.push_back({
+                {"index", obj.GetIniIndex()},
+                {"id", data->TypeID},
+                {"name", ToExternalEncoding(CViewObjectsExt::QueryUIName(data->TypeID, true))},
+                {"house", data->House},
+                {"x", atoi(data->Y)},
+                {"y", atoi(data->X)}
+            });
+        }
+        if (cell->Terrain > -1)
+        {
+			auto& terrain = CMapData::Instance->TerrainDatas[cell->Terrain];
+			terrainType.push_back({
+                {"index", cell->Terrain},
+                {"id", terrain.TypeID},
+                {"x", coordY},
+                {"y", coordX}
+            });
+        }
+        if (cell->Smudge > -1)
+        {
+			auto& smudgeData = CMapData::Instance->SmudgeDatas[cell->Smudge];
+			smudge.push_back({
+                {"index", cell->Smudge},
+                {"id", smudgeData.TypeID},
+                {"x", coordY},
+                {"y", coordX}
+            });
+        }
+        if (cellExt.NewOverlay != 0xFFFF)
+        {
+            auto type = Renderer::GetOrCreateOverlay(cellExt.NewOverlay);
+
+            FString display;
+            FString name = Variables::RulesMap.GetString(type->ID, "Name");
+            if (name.IsEmpty() || !Translations::GetTranslationItem(name, display))
+            {
+                display = CViewObjectsExt::QueryUIName(type->ID, true);
+            }
+
+			overlay.push_back({
+                {"overlay_index", cellExt.NewOverlay},
+                {"overlaydata_index", cell->OverlayData},
+                {"id", type->ID},
+                {"name", ToExternalEncoding(display)},
+                {"x", coordY},
+                {"y", coordX}
+            });
+        }
+    }
+
+    if (!infantry.empty())
+        objects["infantry"] = infantry;
+    if (!unit.empty())
+        objects["unit"] = unit;
+    if (!aircraft.empty())
+        objects["aircraft"] = aircraft;
+    if (!building.empty())
+        objects["building"] = building;
+    if (!terrainType.empty())
+        objects["terrainType"] = terrainType;
+    if (!smudge.empty())
+        objects["smudge"] = smudge;
+    if (!overlay.empty())
+        objects["overlay"] = overlay;
+
+    j["objects"] = objects;
+
+    req->result = SafeDump(j);
+    SetEvent(req->hEvent);
+}
+
+// ---------------------------------------------------------------------------
+// HandleSpec: dedicated main-thread handler for the 'spec' MCP tool.
+// req->input carries the bridge script into .spec_lib.lua (built in tools/call).
+// Runs it through the Lua console cleanly: no high-risk scan, no confirmation
+// dialog, no redraw / INI-diff logic - spec actions only read/write the spec
+// file and validate triggers against the map, so run_lua's side effects do
+// not apply.
+// ---------------------------------------------------------------------------
+void CMcpServer::HandleSpec(MCPRequest* req)
+{
+    CLuaConsole::mcpRunning = true;
+    CLuaConsole::mcpOutput.clear();
+
+    auto& Lua = CLuaConsole::Lua;
+    {
+        VEHGuard guard(false);  // disable VEH during Lua execution
+        try
+        {
+            sol::protected_function_result result =
+                Lua.script(req->input, sol::script_pass_on_error);
+
+            if (!result.valid())
+            {
+                sol::error err = result;
+                std::string errStr = err.what();
+                std::string errorMessage = "Lua Error: " + errStr;
+                if (errStr.find("__SCRIPT_ABORT__") != std::string::npos)
+                {
+                    CLuaConsole::mcpOutput += "Script aborted.\r\n";
+                }
+                else
+                {
+                    sol::call_status status = result.status();
+                    switch (status)
+                    {
+                    case sol::call_status::syntax:   errorMessage += " (Syntax Error)"; break;
+                    case sol::call_status::runtime:  errorMessage += " (Runtime Error)"; break;
+                    case sol::call_status::memory:   errorMessage += " (Memory Error)"; break;
+                    case sol::call_status::handler:  errorMessage += " (Handler Error)"; break;
+                    case sol::call_status::gc:       errorMessage += " (GC Error)"; break;
+                    case sol::call_status::file:     errorMessage += " (File Error)"; break;
+                    default:                         errorMessage += " (Unknown Error)"; break;
+                    }
+                    CLuaConsole::mcpOutput += errorMessage + "\r\n";
+                }
+            }
+        }
+        catch (const std::exception& e)
+        {
+            CLuaConsole::mcpOutput += std::string("Critical Error: ") + e.what() + "\r\n";
+        }
+        catch (...)
+        {
+            CLuaConsole::mcpOutput += "Critical Error: Unknown exception occurred.\r\n";
+        }
+    }
+
+    // Build result
+    req->result = std::move(CLuaConsole::mcpOutput);
+    CLuaConsole::mcpRunning = false;
+    CLuaConsole::mcpOutput.clear();
+
     SetEvent(req->hEvent);
 }
 

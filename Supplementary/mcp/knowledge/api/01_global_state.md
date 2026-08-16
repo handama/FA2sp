@@ -5,10 +5,10 @@
 | `iso_size()` | `number` | 地图完整范围的宽度（宽+高，遍历单元格用） |
 | `width()` | `number` | 地图有效范围的宽度（玩家视角） |
 | `height()` | `number` | 地图有效范围的高度（玩家视角） |
-| `local_width()` | `number` | 当前可视区域宽度（玩家视角） |
-| `local_height()` | `number` | 当前可视区域高度（玩家视角） |
-| `local_top()` | `number` | 可视区域距顶端的偏移 |
-| `local_left()` | `number` | 可视区域距左侧的偏移 |
+| `local_width()` | `number` | 当前可游玩区域宽度（玩家视角） |
+| `local_height()` | `number` | 当前可游玩区域高度（玩家视角） |
+| `local_top()` | `number` | 可游玩区域距顶端的偏移 |
+| `local_left()` | `number` | 可游玩区域距左侧的偏移 |
 | `waypoint_count()` | `number` | 路径点数量（`Waypoints` 节键数量） |
 | `unit_count()` | `number` | 车辆（Units）数量 |
 | `infantry_count()` | `number` | 步兵（Infantry）数量 |

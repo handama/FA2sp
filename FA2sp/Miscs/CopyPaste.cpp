@@ -301,9 +301,11 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
     }
 }
 
-void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size_t length, int recordType, std::set<MapCoord>* validCoords)
+void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size_t length,
+     int recordType, std::set<MapCoord>* validCoords, bool bPasteArea)
 {
-    CopyPaste::PastedCoords.clear();
+    if (!bPasteArea)
+        CopyPaste::PastedCoords.clear();
     if (X < 0 || Y < 0 || X > CMapData::Instance().MapWidthPlusHeight || Y > CMapData::Instance().MapWidthPlusHeight)
         return;
     std::span<MyClipboardData> cells{ data, data + length };
@@ -743,10 +745,9 @@ void CopyPaste::PasteArea(int X, int Y, int nBaseHeight, MyClipboardData* data, 
 
     for (auto& coord : placementsExpanded)
     {
-        Paste(coord.X, coord.Y, nBaseHeight, data, length, recordType, recordCoords.get());
+        Paste(coord.X, coord.Y, nBaseHeight, data, length, recordType, recordCoords.get(), true);
     }
     recordCoords.get()->clear();
-    CopyPaste::PastedCoords.clear();
 }
 
 void CopyPaste::LoadTileConvertRule(char sourceTheater, char currentTheater)

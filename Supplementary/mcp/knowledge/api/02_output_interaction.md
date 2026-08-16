@@ -32,6 +32,19 @@ end
 - **说明**：立即终止当前 Lua 脚本的执行。
 - **返回**：无。
 
+### `set_yolo_mode(enable)`
+- **说明**：启用/禁用 YOLO 模式。启用后，脚本运行期间将跳过所有确认弹窗，直接执行操作。
+- **参数**：
+  - `enable` (`boolean`) — `true` 启用，`false` 禁用。
+- **返回** (`boolean`)：YOLO 模式是否已启用。
+- **备注**：
+  - 启用 YOLO 模式时，会弹出一次独立的确认对话框，确认后才会生效。
+  - YOLO 模式会跳过以下确认：
+    - 高风险操作安全扫描（`os.execute`、`io.open` 等）
+    - 恢复快照确认（`restore_snapshot`）
+    - 建筑放置重叠警告（`place_building` 自动将 `ignoreOverlap` 设为 `true`）
+  - 脚本中显式调用的 `message_box` 不受影响，仍会正常弹出。
+
 ### `exec(command, [options])`
 - **说明**：执行外部程序/命令、打开 URL 或文件，支持同步/异步模式和输出捕获。
 - **参数**：
@@ -76,3 +89,21 @@ end
 -- 指定工作目录
 exec("debug.log", { cwd = game_path().."debug\\", file = true })
 ```
+
+### `screenshot(path)`
+- **说明**：对当前地图窗口截图并保存为 PNG 格式。
+- **参数**：
+  - `path` (`string`) — 保存路径（含 `.png` 扩展名）。
+- **返回** (`boolean`)：`true` 表示保存成功，`false` 表示失败。
+- **备注**：截图尺寸为当前地图窗口的可见区域。
+
+### `screenshot_temp()`
+- **说明**：对当前地图窗口截图并保存到 `%TEMP%\FinalAlert2` 目录，文件名自动带时间戳。
+- **参数**：无。
+- **返回** (`string` 或 `nil`)：成功时返回完整的文件路径，失败时返回 `nil`。
+
+### `get_tile_image(index)`
+- **说明**：渲染指定索引的地形并保存为 PNG 到 `%TEMP%\FinalAlert2` 目录。
+- **参数**：
+  - `index` (`int`) — 地形索引。
+- **返回** (`string` 或 `nil`)：成功时返回完整的文件路径，失败时返回 `nil`。

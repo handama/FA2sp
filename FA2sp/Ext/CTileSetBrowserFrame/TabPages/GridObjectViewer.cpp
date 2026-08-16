@@ -456,6 +456,7 @@ void GridObjectViewer::LayoutImages()
     int x = padding;
     int y = padding;
     int rowMaxDisplayH = 0;
+    int maxRowRight = 0;
 
     float factor = CTileSetBrowserFrameExt::GridObjectViewerScaledFactor;
 
@@ -477,6 +478,9 @@ void GridObjectViewer::LayoutImages()
         RECT displayRect = { x, y, x + displayW, y + displayH };
         g_imageRects.push_back(displayRect);
 
+        if (displayRect.right > maxRowRight)
+            maxRowRight = displayRect.right;
+
         if (displayH > rowMaxDisplayH)
             rowMaxDisplayH = displayH;
 
@@ -485,9 +489,8 @@ void GridObjectViewer::LayoutImages()
 
     if (!g_imageRects.empty())
     {
-        RECT last = g_imageRects.back();
-        m_nContentWidth = last.right + padding;
-        m_nContentHeight = last.bottom + padding;
+        m_nContentWidth = maxRowRight + padding;
+        m_nContentHeight = y + rowMaxDisplayH + padding;
     }
 
     UpdateScrollBars();
@@ -1184,7 +1187,7 @@ void GridObjectViewer::UpdateImages()
                 case CLoadingExt::GameObjectType::Aircraft:
                 {
                     int facings = CLoadingExt::GetAvailableFacing(id.ID);
-                    auto imageName = CLoadingExt::GetImageName(id.ID, facings / 4);
+                    auto imageName = CLoadingExt::GetImageName(id.ID, facings / 4, false, false, false, 0);
                     loadImage(imageName, id.ID, type);
                     break;
                 }

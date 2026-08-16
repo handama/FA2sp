@@ -253,6 +253,9 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	}).detach();
 #endif
 
+	if (ExtConfigs::MCP_Enable)
+		CMcpServer::Start(ExtConfigs::MCP_Port);
+
 	CFinalSunDlg dlg(nullptr);
 	this->m_pMainWnd = &dlg;
 
@@ -260,6 +263,8 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 
 	is_watcher_running = false; // stop watcher
 	watcher.join(); // wait for thread exit
+
+	CMcpServer::Stop();
 
 	return FALSE;
 }
@@ -426,6 +431,6 @@ void CFinalSunAppExt::CheckUpdate()
 		NewVersion.Format("%d.%d.%d", remote.major, remote.minor, remote.revision);
 
 		if (CFinalSunDlg::Instance)
-			::PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), 1145141, 0, 0);
+			::PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), 114810, 0, 0);
 	}
 }

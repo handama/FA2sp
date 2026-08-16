@@ -5,6 +5,9 @@
 
 #include <Helpers/Macro.h>
 
+#include <string>
+#include <algorithm>
+
 #include "../FA2sp.h"
 #include "../Miscs/DialogStyle.h"
 #include "../Ext/CMinimap/Body.h"
@@ -31,7 +34,7 @@ namespace TransparencyMenu
     int g_restingMinimapAlpha = 255;
 
     const UINT_PTR HOVER_TIMER_ID = 0x9000;
-    const UINT HOVER_TIMER_INTERVAL = 100;
+    const UINT HOVER_TIMER_INTERVAL = 30;
 
     void SetTransparency(HWND hWnd, int alpha)
     {
@@ -261,10 +264,14 @@ namespace TransparencyMenu
             else if (id == IDM_HALF)   alpha = 128;
             else if (id == IDM_TRANSPARENT) alpha = 64;
             else if (id == IDM_FULL_TRANSPARENT) alpha = 1;
-            ApplyTransparency(hWnd, alpha, prevProc);
-            return 0;
+
+            if (alpha != -1)
+            {
+                ApplyTransparency(hWnd, alpha, prevProc);
+                return 0;
+            }
+            break;
         }
-        break;
         }
         return CallWindowProc(prevProc, hWnd, msg, wParam, lParam);
     }
@@ -301,6 +308,435 @@ namespace TransparencyMenu
             }
         }
         return hEmptyIcon;
+    }
+}
+
+namespace ObjectBrowserSearch
+{
+    constexpr UINT IDC_ObjectSearch = 0x4F53;
+    constexpr UINT IDC_ObjectSearchLabel = 0x4F54;
+    constexpr UINT_PTR SearchDebounceTimerId = 0x4F55;
+    constexpr UINT SearchDebounceMs = 200;
+    constexpr int  BarBaseHeight = 30; 
+    constexpr int  EditBaseHeight = 20;
+
+    HWND hEdit = nullptr;
+    HWND hLabel = nullptr;
+    CViewObjectsExt* pView = nullptr;
+    WNDPROC viewPrevProc = nullptr;    
+    WNDPROC splitterPrevProc = nullptr;
+    WNDPROC framePrevProc = nullptr;   
+    HWND hSplitter = nullptr;          
+    HWND hTreeHwnd = nullptr;          
+    bool adjusting = false;
+
+    int Scale(int base)
+    {
+        return (int)(base * CFinalSunAppExt::ProgramScaleFactor + 0.5f);
+    }
+
+    int BarHeight()
+    {
+        return Scale(BarBaseHeight);
+    }
+
+    int EditHeight()
+    {
+        return Scale(EditBaseHeight);
+    }
+
+    void ApplyFilterFromEdit()
+    {
+        if (!pView)
+            return;
+        char buffer[1024]{ 0 };
+        ::GetWindowTextA(hEdit, buffer, 1023);
+        pView->SearchText = buffer;
+        pView->ApplySearchFilter();
+    }
+
+    void ScheduleFilter(HWND hHost)
+    {
+        ::KillTimer(hHost, SearchDebounceTimerId);
+        ::SetTimer(hHost, SearchDebounceTimerId, SearchDebounceMs, nullptr);
+    }
+
+    void LayoutStrip(int x, int y, int stripW)
+    {
+        if (!hEdit)
+            return;
+
+        int barH = BarHeight();
+        int padL = Scale(9);
+        int padR = Scale(6);
+        int gap = Scale(6);
+        int editH = EditHeight();
+
+        int labelW = 0;
+        if (hLabel)
+        {
+            FString label = Translations::TranslateOrDefault("ViewObjects.SearchLabel", "Search:");
+            int labelH = 0;
+            HDC hdc = ::GetDC(hLabel);
+            HFONT hFont = (HFONT)::SendMessage(hLabel, WM_GETFONT, 0, 0);
+            HFONT hOld = (HFONT)::SelectObject(hdc, hFont);
+            SIZE sz{};
+            ::GetTextExtentPoint32A(hdc, label, (int)label.length(), &sz);
+            labelW = sz.cx;
+            labelH = sz.cy;
+            ::SelectObject(hdc, hOld);
+            ::ReleaseDC(hLabel, hdc);
+            ::MoveWindow(hLabel, x + padL, y + (barH - labelH) / 2, labelW, labelH, TRUE);
+        }
+
+        int editX = x + padL + labelW + (hLabel ? gap : 0);
+        int editW = stripW - editX - padR;
+        if (editW < Scale(40))
+            editW = Scale(40);
+        ::MoveWindow(hEdit, editX, y + (barH - editH) / 2, editW, editH, TRUE);
+    }
+
+    LRESULT HandleColorMsg(UINT msg, WPARAM wParam, LPARAM lParam)
+    {
+        if (!ExtConfigs::EnableDarkMode)
+            return 0;
+        HDC hdc = (HDC)wParam;
+        HWND hChild = (HWND)lParam;
+        if (msg == WM_CTLCOLORSTATIC && hLabel && hChild == hLabel)
+        {
+            ::SetTextColor(hdc, DarkColors::LightText);
+            ::SetBkMode(hdc, TRANSPARENT);
+            return (LRESULT)::GetStockObject(NULL_BRUSH);
+        }
+        if (msg == WM_CTLCOLOREDIT && hEdit && hChild == hEdit)
+        {
+            ::SetTextColor(hdc, DarkColors::LightText);
+            ::SetBkColor(hdc, DarkColors::Background);
+            return (LRESULT)DarkTheme::g_hDarkBackgroundBrush;
+        }
+        return 0;
+    }
+
+    RECT g_lastDockedRect{ 0, 0, 0, 0 };
+    bool g_hasLastDockedRect = false;
+
+    bool LayoutDocked(HWND hTree)
+    {
+        if (!hSplitter || !hEdit)
+            return false;
+
+        RECT rc;
+        ::GetWindowRect(hTree, &rc);
+        POINT pt = { rc.left, rc.top };
+        ::ScreenToClient(hSplitter, &pt);
+
+        if (g_hasLastDockedRect &&
+            pt.x == g_lastDockedRect.left && pt.y == g_lastDockedRect.top &&
+            rc.right - rc.left == g_lastDockedRect.right - g_lastDockedRect.left &&
+            rc.bottom - rc.top == g_lastDockedRect.bottom - g_lastDockedRect.top)
+            return false;
+
+        int w = rc.right - rc.left;
+        int h = rc.bottom - rc.top;
+        int barH = BarHeight();
+
+        LayoutStrip(pt.x, 0, w);
+        adjusting = true;
+        ::MoveWindow(hTree, pt.x, barH, w, std::max(0, h - barH), TRUE);
+        adjusting = false;
+
+        g_lastDockedRect.left = pt.x;
+        g_lastDockedRect.top = barH;
+        g_lastDockedRect.right = pt.x + w;
+        g_lastDockedRect.bottom = barH + std::max(0, h - barH);
+        g_hasLastDockedRect = true;
+
+        RECT rcStrip = { pt.x, 0, pt.x + w, barH };
+        ::InvalidateRect(hSplitter, &rcStrip, TRUE);
+        return true;
+    }
+
+    void LayoutFloating(HWND hFrame)
+    {
+        if (!hEdit || !hTreeHwnd)
+            return;
+        RECT rc;
+        ::GetClientRect(hFrame, &rc);
+        int barH = BarHeight();
+        LayoutStrip(0, 0, rc.right);
+        ::MoveWindow(hTreeHwnd, 0, barH, rc.right, (int)std::max(0L, rc.bottom - barH), TRUE);
+    }
+
+    bool EnsureFrameClass()
+    {
+        static bool registered = false;
+        if (registered)
+            return true;
+        WNDCLASSEXA wc{ sizeof(WNDCLASSEXA) };
+        wc.style = CS_DBLCLKS;
+        wc.lpfnWndProc = ::DefWindowProcA;
+        wc.hInstance = (HINSTANCE)FA2sp::hInstance;
+        wc.hCursor = ::LoadCursor(nullptr, IDC_ARROW);
+        wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
+        wc.lpszClassName = "FA2spObjectBrowserFrame";
+        registered = ::RegisterClassExA(&wc) != 0;
+        return registered;
+    }
+
+    HWND CreateFrame(HWND hTree, int x, int y, int w, int h, int opacity, HWND hOwner)
+    {
+        hTreeHwnd = hTree;
+        if (!EnsureFrameClass())
+            return hTree;
+
+        int barH = BarHeight();
+        HWND hFrame = ::CreateWindowExA(0, "FA2spObjectBrowserFrame", "",
+            (WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN) & ~WS_MINIMIZEBOX,
+            x, y, w, h + barH, nullptr, nullptr,
+            (HINSTANCE)FA2sp::hInstance, nullptr);
+        if (!hFrame)
+            return hTree;
+
+        LONG style = ::GetWindowLong(hTree, GWL_STYLE);
+        style &= ~(WS_POPUP | WS_CAPTION | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
+        style |= WS_CHILD | WS_VISIBLE;
+        ::SetWindowLong(hTree, GWL_STYLE, style);
+        ::SetParent(hTree, hFrame);
+        ::SetWindowPos(hTree, nullptr, 0, barH, w, h, SWP_NOZORDER);
+
+        ::SetWindowLong(hFrame, GWL_HWNDPARENT, (LONG)hOwner);
+
+        {
+            DWORD dwEx = ::GetWindowLong(hFrame, GWL_EXSTYLE);
+            dwEx |= WS_EX_LAYERED;
+            ::SetWindowLong(hFrame, GWL_EXSTYLE, dwEx);
+        }
+        ::SetLayeredWindowAttributes(hFrame, 0, opacity, LWA_ALPHA);
+        TransparencyMenu::g_restingViewObjsAlpha = opacity;
+
+        HICON hEmptyIcon = TransparencyMenu::GetTransparentIcon();
+        if (hEmptyIcon) {
+            ::SendMessage(hFrame, WM_SETICON, ICON_SMALL, (LPARAM)hEmptyIcon);
+            ::SendMessage(hFrame, WM_SETICON, ICON_BIG, (LPARAM)hEmptyIcon);
+        }
+
+        LONG treeStyle = ::GetWindowLong(hTree, GWL_STYLE);
+        treeStyle |= TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT;
+        ::SetWindowLong(hTree, GWL_STYLE, treeStyle);
+
+        if (ExtConfigs::EnableDarkMode) {
+            SetWindowTheme(hTree, L"DarkMode_Explorer", NULL);
+            ::SetWindowLong(hTree, GWL_STYLE, treeStyle);
+            ::SendMessage(hTree, TVM_SETBKCOLOR, 0, RGB(32, 32, 32));
+            ::SendMessage(hTree, TVM_SETTEXTCOLOR, 0, RGB(220, 220, 220));
+            BOOL darkMode = TRUE;
+            DwmSetWindowAttribute(hFrame, 19, &darkMode, sizeof(darkMode));
+            DwmSetWindowAttribute(hFrame, 20, &darkMode, sizeof(darkMode));
+        }
+
+        return hFrame;
+    }
+
+    LRESULT CALLBACK FrameProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+    {
+        switch (msg)
+        {
+        case WM_SIZE:
+            LayoutFloating(hWnd);
+            break;
+        case WM_COMMAND:
+            if (LOWORD(wParam) == IDC_ObjectSearch)
+            {
+                if (HIWORD(wParam) == EN_CHANGE)
+                    ScheduleFilter(hWnd);
+                return 0;
+            }
+            break;
+        case WM_TIMER:
+            if (wParam == SearchDebounceTimerId)
+            {
+                ::KillTimer(hWnd, SearchDebounceTimerId);
+                ApplyFilterFromEdit();
+                return 0;
+            }
+            break;
+        case WM_ERASEBKGND:
+            if (ExtConfigs::EnableDarkMode)
+            {
+                HDC hdc = (HDC)wParam;
+                RECT rc;
+                ::GetClientRect(hWnd, &rc);
+                ::FillRect(hdc, &rc, DarkTheme::g_hDarkBackgroundBrush);
+                return TRUE;
+            }
+            break;
+        case WM_CTLCOLOREDIT:
+        case WM_CTLCOLORSTATIC:
+        {
+            LRESULT r = HandleColorMsg(msg, wParam, lParam);
+            if (r)
+                return r;
+            break;
+        }
+        case WM_NOTIFY:
+            if (hTreeHwnd)
+            {
+                NMHDR* pNmhdr = (NMHDR*)lParam;
+                if (pNmhdr && pNmhdr->hwndFrom == hTreeHwnd)
+                {
+                    LRESULT lr = 0;
+                    if (::SendMessage(hTreeHwnd, 0x2000 + WM_NOTIFY, wParam, lParam) != 0)
+                        return TRUE;
+                }
+            }
+            break;
+        }
+        return ::CallWindowProc(framePrevProc, hWnd, msg, wParam, lParam);
+    }
+
+    LRESULT CALLBACK ViewProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+    {
+        switch (msg)
+        {
+        case WM_SIZE:
+            if (!adjusting)
+            {
+                if (LayoutDocked(hWnd))
+                    return 0;
+            }
+            break;
+        case WM_COMMAND:
+            if (LOWORD(wParam) == IDC_ObjectSearch && HIWORD(wParam) == EN_CHANGE)
+            {
+                ScheduleFilter(hWnd);
+                return 0;
+            }
+            break;
+        case WM_TIMER:
+            if (wParam == SearchDebounceTimerId)
+            {
+                ::KillTimer(hWnd, SearchDebounceTimerId);
+                ApplyFilterFromEdit();
+                return 0;
+            }
+            break;
+        case WM_CTLCOLOREDIT:
+        case WM_CTLCOLORSTATIC:
+        {
+            LRESULT r = HandleColorMsg(msg, wParam, lParam);
+            if (r)
+                return r;
+            break;
+        }
+        }
+        return ::CallWindowProc(viewPrevProc, hWnd, msg, wParam, lParam);
+    }
+
+    LRESULT CALLBACK SplitterProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+    {
+        switch (msg)
+        {
+        case WM_COMMAND:
+            if (LOWORD(wParam) == IDC_ObjectSearch && HIWORD(wParam) == EN_CHANGE)
+            {
+                ScheduleFilter(hWnd);
+                return 0;
+            }
+            break;
+        case WM_TIMER:
+            if (wParam == SearchDebounceTimerId)
+            {
+                ::KillTimer(hWnd, SearchDebounceTimerId);
+                ApplyFilterFromEdit();
+                return 0;
+            }
+            break;
+        case WM_ERASEBKGND:
+            {
+                int barH = BarHeight();
+                RECT rcStrip = { 0, 0, 0, barH };
+                if (pView)
+                {
+                    HWND hPane = pView->GetSafeHwnd();
+                    RECT rcPane;
+                    ::GetWindowRect(hPane, &rcPane);
+                    POINT pt = { rcPane.left, rcPane.top };
+                    ::ScreenToClient(hWnd, &pt);
+                    rcStrip.left = pt.x;
+                    rcStrip.right = pt.x + (rcPane.right - rcPane.left);
+                }
+                HBRUSH br = ExtConfigs::EnableDarkMode
+                    ? DarkTheme::g_hDarkBackgroundBrush
+                    : (HBRUSH)(COLOR_BTNFACE + 1);
+                ::FillRect((HDC)wParam, &rcStrip, br);
+                return TRUE;
+            }
+        case WM_CTLCOLOREDIT:
+        case WM_CTLCOLORSTATIC:
+        {
+            LRESULT r = HandleColorMsg(msg, wParam, lParam);
+            if (r)
+                return r;
+            break;
+        }
+        }
+        return ::CallWindowProc(splitterPrevProc, hWnd, msg, wParam, lParam);
+    }
+
+    void Install(HWND hViewObjs, CViewObjectsExt* pViewObjs, bool floating, HWND hFrame)
+    {
+        pView = pViewObjs;
+        hSplitter = floating ? nullptr : ::GetParent(hViewObjs);
+
+        HWND hEditParent = floating ? hFrame : hSplitter;
+        if (!hEditParent)
+            hEditParent = hViewObjs;
+        hEdit = ::CreateWindowExA(WS_EX_CLIENTEDGE, "EDIT", "",
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
+            0, 0, 100, EditBaseHeight, hEditParent, (HMENU)IDC_ObjectSearch,
+            (HINSTANCE)FA2sp::hInstance, nullptr);
+
+        if (hEdit)
+        {
+            ::SendMessage(hEdit, WM_SETFONT, (WPARAM)DarkTheme::GetModernDefaultGUIFont(), TRUE);
+            if (ExtConfigs::EnableDarkMode)
+                ::SetWindowTheme(hEdit, L"DarkMode_Explorer", NULL);
+        }
+
+        if (hEditParent)
+        {
+            FString labelText = Translations::TranslateOrDefault("ViewObjects.SearchLabel", "Search:");
+            hLabel = ::CreateWindowExA(0, "STATIC", labelText,
+                WS_CHILD | WS_VISIBLE | SS_LEFT,
+                0, 0, 10, 10, hEditParent, (HMENU)IDC_ObjectSearchLabel,
+                (HINSTANCE)FA2sp::hInstance, nullptr);
+            if (hLabel)
+                ::SendMessage(hLabel, WM_SETFONT, (WPARAM)DarkTheme::GetModernDefaultGUIFont(), TRUE);
+        }
+
+        if (floating)
+        {
+            if (hFrame)
+                framePrevProc = (WNDPROC)::SetWindowLongPtr(hFrame, GWLP_WNDPROC, (LONG_PTR)FrameProc);
+            if (hFrame)
+                LayoutFloating(hFrame);
+        }
+        else
+        {
+            if (hSplitter)
+                splitterPrevProc = (WNDPROC)::SetWindowLongPtr(hSplitter, GWLP_WNDPROC, (LONG_PTR)SplitterProc);
+            viewPrevProc = (WNDPROC)::SetWindowLongPtr(hViewObjs, GWLP_WNDPROC, (LONG_PTR)ViewProc);
+
+            LayoutDocked(hViewObjs);
+        }
+
+        if (ExtConfigs::EnableDarkMode)
+        {
+            if (floating && hFrame)
+                DarkTheme::SetDarkTheme(hFrame);
+            if (hEditParent)
+                DarkTheme::SubclassAllControls(hEditParent);
+        }
     }
 }
 
@@ -431,6 +867,7 @@ DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
                 }
 
                 // --- CViewObjects floating window ---
+                HWND hViewObjFrame = nullptr;
                 if (ExtConfigs::ViewObjectsFloating) {
                     CViewObjects* pViewObjs = (CViewObjects*)pThis->SplitterWnd.GetPane(0, 1);
                     // Shrink main splitter column count so it never iterates the detached pane
@@ -439,13 +876,6 @@ DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
                     pThis->SplitterWnd.RecalcLayout();
 
                     HWND hViewObjs = pViewObjs->GetSafeHwnd();
-                    DWORD dwStyle = ::GetWindowLong(hViewObjs, GWL_STYLE);
-                    dwStyle &= ~WS_CHILD;
-                    dwStyle |= WS_OVERLAPPEDWINDOW;
-                    dwStyle &= ~WS_MINIMIZEBOX;
-                    ::SetWindowLong(hViewObjs, GWL_STYLE, dwStyle);
-                    ::SetParent(hViewObjs, NULL);
-                    ::SetWindowLong(hViewObjs, GWL_HWNDPARENT, (LONG)pThis->GetSafeHwnd());
 
                     RECT rcMain;
                     ::GetWindowRect(pThis->GetSafeHwnd(), &rcMain);
@@ -453,54 +883,27 @@ DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
                     int h = (rcMain.bottom - rcMain.top) * 3 / 4;
                     int x = rcMain.left;
                     int y = rcMain.top;
-                    ::SetWindowPos(hViewObjs, NULL, x, y, w, h, SWP_NOZORDER | SWP_FRAMECHANGED);
-                    // SetParent can strip WS_EX_LAYERED when reparenting child->top-level
-                    {
-                        DWORD dwEx = ::GetWindowLong(hViewObjs, GWL_EXSTYLE);
-                        dwEx |= WS_EX_LAYERED;
-                        ::SetWindowLong(hViewObjs, GWL_EXSTYLE, dwEx);
-                    }
-                    ::SetLayeredWindowAttributes(hViewObjs, 0, viewObjectsOpacity, LWA_ALPHA);
-                    TransparencyMenu::g_restingViewObjsAlpha = viewObjectsOpacity;
 
-                    HICON hEmptyIcon = TransparencyMenu::GetTransparentIcon();
-                    if (hEmptyIcon) {
-                        ::SendMessage(hViewObjs, WM_SETICON, ICON_SMALL, (LPARAM)hEmptyIcon);
-                        ::SendMessage(hViewObjs, WM_SETICON, ICON_BIG, (LPARAM)hEmptyIcon);           
-                    }
+                    hViewObjFrame = ObjectBrowserSearch::CreateFrame(hViewObjs, x, y, w, h,
+                        viewObjectsOpacity, pThis->GetSafeHwnd());
 
-                    // Restore tree styles lost during SetWindowLong/SetParent
-					// (SysTreeView32 resets TVS_HASBUTTONS/LINES/LINESATROOT when reparented)
-					HWND hTree = pViewObjs->GetTreeCtrl().GetSafeHwnd();
-					LONG treeStyle = ::GetWindowLong(hTree, GWL_STYLE);
-					treeStyle |= TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT;
-					::SetWindowLong(hTree, GWL_STYLE, treeStyle);
-
-					if (ExtConfigs::EnableDarkMode) {
-						// SetWindowTheme for dark scrollbar (DwmSetWindowAttribute
-						// does not affect common control scrollbars)
-						SetWindowTheme(hTree, L"DarkMode_Explorer", NULL);
-						// Re-apply tree styles (SetWindowTheme may reset them)
-						::SetWindowLong(hTree, GWL_STYLE, treeStyle);
-						// Fine-tune background/text colors
-						::SendMessage(hTree, TVM_SETBKCOLOR, 0, RGB(32, 32, 32));
-						::SendMessage(hTree, TVM_SETTEXTCOLOR, 0, RGB(220, 220, 220));
-						// Dark title bar for the frame window
-						BOOL darkMode = TRUE;
-						DwmSetWindowAttribute(hViewObjs, 19, &darkMode, sizeof(darkMode));
-						DwmSetWindowAttribute(hViewObjs, 20, &darkMode, sizeof(darkMode));
-					}
-
-					::ShowWindow(hViewObjs, SW_HIDE);
+                    ::ShowWindow(hViewObjFrame, SW_HIDE);
                     TransparencyMenu::g_prevViewObjsProc = (WNDPROC)::SetWindowLongPtr(
-                        hViewObjs, GWLP_WNDPROC, (LONG_PTR)TransparencyMenu::ViewObjsProc);
+                        hViewObjFrame, GWLP_WNDPROC, (LONG_PTR)TransparencyMenu::ViewObjsProc);
                     if (viewObjectsOpacity < 255)
-                        ::SetTimer(hViewObjs, TransparencyMenu::HOVER_TIMER_ID, TransparencyMenu::HOVER_TIMER_INTERVAL, nullptr);
+                        ::SetTimer(hViewObjFrame, TransparencyMenu::HOVER_TIMER_ID, TransparencyMenu::HOVER_TIMER_INTERVAL, nullptr);
                     pThis->pViewObjects = pViewObjs;
                 }
                 else {
                     pThis->pViewObjects = (CViewObjects*)pThis->SplitterWnd.GetPane(0, colViewObjs);
                 }
+
+                // --- Object browser search bar (floating & docked) ---
+                ObjectBrowserSearch::Install(
+                    pThis->pViewObjects->GetSafeHwnd(),
+                    (CViewObjectsExt*)pThis->pViewObjects,
+                    ExtConfigs::ViewObjectsFloating,
+                    hViewObjFrame);
 
                 pThis->Minimap.CreateEx(0, nullptr, "Minimap", 0, rect, pThis, 0);
 

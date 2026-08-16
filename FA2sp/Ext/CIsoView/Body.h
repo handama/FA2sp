@@ -220,6 +220,8 @@ public:
     static void DrawEllipseDirectX(int X, int Y, int majorRadius, COLORREF color, int width = 2, bool bScreenSpace = true);
     static void DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORREF color, bool bUseDot, HDC hdc, HWND hwnd, bool s1 = true, bool s2 = true, bool s3 = true, bool s4 = true);
     static void DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor);
+    static void DrawLockedCellOutlinePaintNewRaiseGroundCursor(
+        int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor, bool oneLine = false);
     static int GetSelectedSubcellInfantryIdx(int X = -1, int Y = -1, bool getSubcell = false);
     static void FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY);
     static void GetSameConnectedCells(int X, int Y, int oriX, int oriY, std::set<MapCoord>* selectedCoords = nullptr);
@@ -283,6 +285,13 @@ public:
     static void ReduceBrightness(IDirectDrawSurface7* pSurface, const RECT& rc);
     static int GetRandomTileIndex();
 
+    // Last known good window rect, used when the window is minimized: Windows
+    // reports a position around (-32000,-32000) for minimized windows, which
+    // breaks every map<->screen coordinate conversion. GetValidWindowRect
+    // substitutes the cached position while keeping the current size.
+    static RECT LastValidWindowRect;
+    static void GetValidWindowRect(HWND hwnd, RECT* rc);
+
     // flatMode 0 = auto, 1 = flat, 2 = height
     static void MapCoord2ScreenCoord(int& X, int& Y, int flatMode = 0);
     static bool ClipLineToRect(int& x1, int& y1, int& x2, int& y2, const RECT& rect);
@@ -308,10 +317,12 @@ public:
     static void SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw);
     static void SpecialDrawDirectX(int specialDraw);
     static void DirectXMouseCursor(int x, int y, int height);
+    static void DirectXMouseNewRaiseGroundCursor(int x, int y, int height, bool oneLine = false);
     static CRect GetVisibleIsoViewRect();
     static void DrawCreditOnMap(HDC hDC, bool bScreenSpace = true);
     static void DrawDistanceRuler(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void DrawOtherMeasurementTools(HDC hDC, const RECT& rect, bool bScreenSpace = true);
+    static void DrawRampAnchors(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void DrawGeometricAnnotations(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void DrawScriptPaths(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void DrawHighBridgeLines(HDC hDC, const RECT& rect, bool bScreenSpace = true);
@@ -337,7 +348,7 @@ public:
     inline MapCoord GetCurrentMapCoord(const CPoint& point)
     {
         RECT rect;
-        this->GetWindowRect(&rect);
+        GetValidWindowRect(this->GetSafeHwnd(), &rect);
         //AdaptRectForSecondScreen(&rect);
         int x = point.x + rect.left + this->ViewPosition.x;
         int y = point.y + rect.top + this->ViewPosition.y;
@@ -389,6 +400,9 @@ public:
     static bool DrawCellTagsFilter;
     static bool RenderingMap;
     static bool RenderFullMap;
+    static bool RenderingScreenshot;
+    static int RenderingScreenshotBaseX;
+    static int RenderingScreenshotBaseY;
     static bool RenderCurrentLayers;
     static bool RenderTileSuccess;
     static bool RenderInvisibleInGame;
@@ -450,6 +464,7 @@ public:
     static std::vector<MapCoord> ScriptPath;
     static bool OnLButtonDown_CalledFromOnMouseMove;
     static bool OnMouseMove_CalledFromOnLButtonDown;
+    static bool UsingNewRaiseGround;
     static std::unordered_map<MouseCommandRecord, MouseCommandBrush, MouseCommandRecordHash> MouseCommandBrushSizeRecords;
     static MouseCommandRecord LastMouseCommand;
 	static void ChangeBrushSize_OnMouseMove();

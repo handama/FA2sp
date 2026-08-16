@@ -104,6 +104,7 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
     CViewObjectsExt::InitializeOnUpdateEngine();
     CIsoView::CurrentCommand->Command = 0;
 
+    bool reloaded = false;
     if (ExtConfigs::ReloadGameFromMapFolder && !CMapDataExt::IsImportingMap)
     {
         std::string buffer = std::string(mapPath);
@@ -162,10 +163,87 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
                         Logger::Debug("CLoading::Load() Called. Reload all files from %s\n", folder);
                         CLoading::Instance()->Load();
                         CCsfEditor::NeedUpdate = true;
+                        reloaded = true;
                 }
             }
         }
     }
+    if (!reloaded && ExtConfigs::ReloadIniWhenOpeningMap)
+    {
+        CINI::Rules().Release();
+        CINI::Art().Release();
+        CINI::Sound().Release();
+        CINI::Eva().Release();
+        CINI::Theme().Release();
+        CINI::Ai().Release();
+        CINI::Temperate().Release();
+        CINI::Snow().Release();
+        CINI::Urban().Release();
+        CINI::NewUrban().Release();
+        CINI::Lunar().Release();
+        CINI::Desert().Release();
+
+        CLoading::Instance()->LoadTSINI(
+            CLoading::HasMdFile() ?
+            CINI::FAData->GetString("Filenames", "EVAYR", "evamd.ini") :
+            CINI::FAData->GetString("Filenames", "EVA", "eva.ini"),
+            &CINI::Eva(), FALSE);
+
+        CLoading::Instance()->LoadTSINI(
+            CLoading::HasMdFile() ?
+            CINI::FAData->GetString("Filenames", "SoundYR", "soundmd.ini") :
+            CINI::FAData->GetString("Filenames", "Sound", "sound.ini"),
+            &CINI::Sound(), FALSE);
+    
+        CLoading::Instance()->LoadTSINI(
+            CLoading::HasMdFile() ?
+            CINI::FAData->GetString("Filenames", "ThemeYR", "thememd.ini") :
+            CINI::FAData->GetString("Filenames", "Theme", "theme.ini"),
+            &CINI::Theme(), FALSE);
+    
+        CLoading::Instance()->LoadTSINI(
+            CLoading::HasMdFile() ?
+            CINI::FAData->GetString("Filenames", "AIYR", "aimd.ini") :
+            CINI::FAData->GetString("Filenames", "AI", "ai.ini") ,
+            &CINI::Ai(), FALSE);
+    
+
+        CLoading::Instance()->LoadTSINI(
+            CLoading::HasMdFile() ?
+            CINI::FAData->GetString("Filenames", "RulesYR", "rulesmd.ini") :
+            CINI::FAData->GetString("Filenames", "Rules", "rules.ini"),
+            &CINI::Rules(), FALSE);
+    
+
+        CLoading::Instance()->LoadTSINI(
+            CLoading::HasMdFile() ?
+            CINI::FAData->GetString("Filenames", "ArtYR", "artmd.ini") :
+            CINI::FAData->GetString("Filenames", "Art", "art.ini"),
+            &CINI::Art(), FALSE);
+        
+        CLoading::Instance()->LoadTSINI(
+            CLoading::HasMdFile() ?
+            CINI::FAData->GetString("Filenames", "TemperateYR", "TemperatMd.ini") :
+            CINI::FAData->GetString("Filenames", "Temperate", "Temperat.ini"),
+            &CINI::Temperate(), FALSE);
+    
+        CLoading::Instance()->LoadTSINI(
+            CLoading::HasMdFile() ?
+            CINI::FAData->GetString("Filenames", "SnowYR", "SnowMd.ini") :
+            CINI::FAData->GetString("Filenames", "Snow", "Snow.ini"),
+            &CINI::Snow(), FALSE);
+
+        CLoading::Instance()->LoadTSINI(
+            CLoading::HasMdFile() ?
+            CINI::FAData->GetString("Filenames", "UrbanYR", "UrbanMd.ini") :
+            CINI::FAData->GetString("Filenames", "Urban", "Urban.ini"),
+            &CINI::Urban(), FALSE);
+
+        CLoading::Instance()->LoadTSINI(CINI::FAData->GetString("Filenames", "UrbanNYR", "UrbanNMd.ini"), &CINI::NewUrban(), FALSE);
+        CLoading::Instance()->LoadTSINI(CINI::FAData->GetString("Filenames", "LunarYR", "lunarmd.ini"), &CINI::Lunar(), FALSE);
+        CLoading::Instance()->LoadTSINI(CINI::FAData->GetString("Filenames", "DesertYR", "desertmd.ini"), &CINI::Desert(), FALSE);
+    }
+
 
     if (CMapDataExt::IsImportingMap)
         CMapDataExt::IsImportingMap = false;

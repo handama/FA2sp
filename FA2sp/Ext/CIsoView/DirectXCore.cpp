@@ -287,6 +287,15 @@ bool DirectXCore::IsInitialized()
     return m_bInitialized;
 }
 
+void DirectXCore::ReactivateContext()
+{
+    if (m_bUseOpenGL)
+    {
+        if (m_hGLDC && m_hGLRC)
+            wglMakeCurrent(m_hGLDC, m_hGLRC);
+    }
+}
+
 void DirectXCore::ClearTextures()
 {
     if (m_bUseOpenGL)
@@ -416,6 +425,14 @@ void DirectXCore::OnResize(HWND hwnd)
     GetClientRect(hwnd, &rc);
     UINT width = rc.right - rc.left;
     UINT height = rc.bottom - rc.top;
+
+    // Window minimized or hidden: keep the existing resources and the cached
+    // client size instead of recreating a degenerate 0-sized target. Recreating
+    // at 0x0 leaves the swap chain / offscreen unusable, making the restored
+    // view (and offscreen-based screenshots) come out black.
+    if (width == 0 || height == 0)
+        return;
+
     m_clientWidth = width;
     m_clientHeight = height;
 
@@ -561,6 +578,12 @@ float DirectXCore::SetZoomOut(float scaleFactor)
         }
         return m_renderScale;
     }
+
+    ID3D11RenderTargetView *nullRTVs[8] = { nullptr };
+    m_pContext->OMSetRenderTargets(8, nullRTVs, nullptr);
+    ID3D11ShaderResourceView *nullSRVs[16] = { nullptr };
+    m_pContext->PSSetShaderResources(0, 16, nullSRVs);
+    m_pTrackedSRV = nullptr;
 
     m_OffscreenTex.Reset();
     m_OffscreenRTV.Reset();
@@ -3115,9 +3138,12 @@ TextureResource *DrawShapes::AcquireTempTexture(int w, int h,
     if (!m_dx || w <= 0 || h <= 0)
         return nullptr;
 
+    bool isGL = m_dx->IsUsingOpenGL();
+
+    // In OpenGL-only mode, D3D11 device/context may be unavailable.
     ID3D11Device *dev = m_dx->GetDevice();
     ID3D11DeviceContext *ctx = m_dx->GetContext();
-    if (!dev || !ctx)
+    if (!isGL && (!dev || !ctx))
         return nullptr;
 
     TempTex slot;
@@ -3139,11 +3165,15 @@ TextureResource *DrawShapes::AcquireTempTexture(int w, int h,
         slot.h = h;
     }
 
-    if (!UploadPixelsToExistingRes(dev, ctx, slot.res.get(), w, h, pixels))
-        return nullptr;
+    // D3D11 upload (only when device is available)
+    if (!isGL)
+    {
+        if (!UploadPixelsToExistingRes(dev, ctx, slot.res.get(), w, h, pixels))
+            return nullptr;
+    }
 
     // Upload to OpenGL if using GL backend
-    if (m_dx->IsUsingOpenGL())
+    if (isGL)
         m_dx->GL_UploadTextureDynamic(slot.res.get(), w, h, pixels.data());
 
     slot.res->sourceView.FullWidth = w;
@@ -3157,7 +3187,7 @@ TextureResource *DrawShapes::AcquireTempTexture(int w, int h,
 }
 
 void DrawShapes::FlushCanvas(Canvas &c, float worldX, float worldY,
-                             float opacity, bool bScreenSpace)
+                             float opacity, bool bScreenSpace, bool bAlwaysOnTop)
 {
     TextureResource *tex = AcquireTempTexture(c.w, c.h, c.buf);
     if (!tex)
@@ -3172,6 +3202,8 @@ void DrawShapes::FlushCanvas(Canvas &c, float worldX, float worldY,
     p.opacity = opacity;
     if (bScreenSpace)
         p.SetScreenSpace();
+    if (bAlwaysOnTop)
+        p.SetAlwaysOnTop();
 
     m_dx->DrawTexture(tex, p);
 }
@@ -3219,10 +3251,44 @@ void DrawShapes::RasterEllipseFill(Canvas &c, float cx, float cy,
         if (std::abs(t) > 1.f)
             continue;
         float halfW = rx * std::sqrt(1.f - t * t);
-        int xL = (int)std::ceil(cx - halfW);
-        int xR = (int)std::floor(cx + halfW);
+        int xL = (int)std::floor(cx - halfW);
+        int xR = (int)std::ceil(cx + halfW);
         for (int x = xL; x <= xR; ++x)
-            c.SetPixel(x, y, rgba);
+        {
+            float dx = (float)x - cx;
+            float coverage = std::max(0.f, std::min(1.f, halfW - std::abs(dx) + 0.5f));
+            if (coverage < 1.f)
+            {
+                uint8_t srcA = (rgba >> 24) & 0xff;
+                uint8_t a = (uint8_t)(srcA * coverage + .5f);
+                uint32_t col = (rgba & 0x00FFFFFF) | ((uint32_t)a << 24);
+                c.SetPixelBlend(x, y, col);
+            }
+            else
+            {
+                c.SetPixel(x, y, rgba);
+            }
+        }
+    }
+}
+
+void DrawShapes::RasterEllipseClear(Canvas &c, float cx, float cy,
+                                    float rx, float ry)
+{
+    // Clears the interior of an ellipse by setting pixels to 0 (fully transparent).
+    int y0 = (int)std::floor(cy - ry);
+    int y1 = (int)std::ceil(cy + ry);
+    for (int y = y0; y <= y1; ++y)
+    {
+        float dy = y - cy;
+        float t = dy / ry;
+        if (std::abs(t) > 1.f)
+            continue;
+        float halfW = rx * std::sqrt(1.f - t * t);
+        int xL = (int)std::floor(cx - halfW);
+        int xR = (int)std::ceil(cx + halfW);
+        for (int x = xL; x <= xR; ++x)
+            c.SetPixel(x, y, 0u);
     }
 }
 
@@ -3559,49 +3625,72 @@ void DrawShapes::DrawEllipse(float cx, float cy, float rx, float ry,
             depth = params.bScreenSpace ? 0 : m_dx->GetNextDepth();
         }
 
-        int segs = params.segments > 0
-                       ? params.segments
-                       : std::max(32, (int)(2.f * kPi * std::max(rx, ry) / 1.5f));
-
-        float prevPx = 0.f, prevPy = 0.f;
-        for (int i = 0; i <= segs; ++i)
+        if (useDash)
         {
-            float angle = 2.f * kPi * i / segs;
-            float px = cx + rx * std::cos(angle);
-            float py = cy + ry * std::sin(angle);
+            // Dashed border: use AddLineEntry for individual dash segments
+            int segs = params.segments > 0
+                           ? params.segments
+                           : std::max(32, (int)(2.f * kPi * std::max(rx, ry) / 1.5f));
 
-            if (i == 0)
+            float prevPx = 0.f, prevPy = 0.f;
+            for (int i = 0; i <= segs; ++i)
             {
+                float angle = 2.f * kPi * i / segs;
+                float px = cx + rx * std::cos(angle);
+                float py = cy + ry * std::sin(angle);
+
+                if (i == 0)
+                {
+                    prevPx = px;
+                    prevPy = py;
+                    continue;
+                }
+
+                float dx = px - prevPx, dy = py - prevPy;
+                float segLen = std::sqrt(dx * dx + dy * dy);
+
+                if (segLen >= 1e-4f)
+                {
+                    float cycleLen = params.dashLength + params.gapLength;
+                    float pos = 0.f;
+                    while (pos < segLen)
+                    {
+                        float dashEnd = std::min(pos + params.dashLength, segLen);
+                        float t0 = pos / segLen, t1 = dashEnd / segLen;
+                        m_dx->AddLineEntry(
+                            prevPx + dx * t0, prevPy + dy * t0,
+                            prevPx + dx * t1, prevPy + dy * t1,
+                            rgba, params.borderWidth, depth, params.bScreenSpace, params.bAlwaysOnTop);
+                        pos += cycleLen;
+                    }
+                }
                 prevPx = px;
                 prevPy = py;
-                continue;
             }
+        }
+        else
+        {
+            // Non-dashed border: use Canvas-based rasterization for
+            // a seamless hollow ellipse (no joint gaps).
+            float bw2 = params.borderWidth * 0.5f;
+            float pad = 2.f + bw2;
+            float originX = std::floor(cx - rx - pad);
+            float originY = std::floor(cy - ry - pad);
+            int cw = (int)std::ceil((rx + pad) * 2.f) + 2;
+            int ch = (int)std::ceil((ry + pad) * 2.f) + 2;
 
-            float dx = px - prevPx, dy = py - prevPy;
-            float segLen = std::sqrt(dx * dx + dy * dy);
+            Canvas canvas;
+            canvas.Resize(cw, ch);
 
-            if (useDash && segLen >= 1e-4f)
-            {
-                float cycleLen = params.dashLength + params.gapLength;
-                float pos = 0.f;
-                while (pos < segLen)
-                {
-                    float dashEnd = std::min(pos + params.dashLength, segLen);
-                    float t0 = pos / segLen, t1 = dashEnd / segLen;
-                    m_dx->AddLineEntry(
-                        prevPx + dx * t0, prevPy + dy * t0,
-                        prevPx + dx * t1, prevPy + dy * t1,
-                        rgba, params.borderWidth, depth, params.bScreenSpace, params.bAlwaysOnTop);
-                    pos += cycleLen;
-                }
-            }
-            else
-            {
-                m_dx->AddLineEntry(prevPx, prevPy, px, py,
-                                   rgba, params.borderWidth, depth, params.bScreenSpace, params.bAlwaysOnTop);
-            }
-            prevPx = px;
-            prevPy = py;
+            float lcx = cx - originX;
+            float lcy = cy - originY;
+
+            // 1. Fill outer ellipse (border region)
+            RasterEllipseFill(canvas, lcx, lcy, rx + bw2, ry + bw2, rgba);
+            // 2. Clear inner ellipse (create a transparent hole)
+            RasterEllipseClear(canvas, lcx, lcy, rx - bw2, ry - bw2);
+
+            FlushCanvas(canvas, originX, originY, 1.f, params.bScreenSpace, params.bAlwaysOnTop);
         }
     }
 }
@@ -5000,7 +5089,7 @@ bool DirectXCore::GL_CreateQuadGeometry()
 
     // Instance VAO: quad VBO (slot 0, per-vertex) + instance VBO (slot 1, per-instance)
     //   location 0,1: from quad VBO (divisor 0)
-    //   location 2,3,4,5: from instance VBO (divisor 1), 4¡Ávec4=64 bytes per instance
+    //   location 2,3,4,5: from instance VBO (divisor 1), 4xvec4=64 bytes per instance
     {
 		// Create instance VBO first so VAO references a valid buffer (not 0)
 		if (m_glVBOInstance == 0)
@@ -5076,6 +5165,7 @@ bool DirectXCore::GL_CreateOffscreenResources()
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    m_glTrackedFBO = 0;
     return true;
 }
 
@@ -5105,6 +5195,7 @@ void DirectXCore::GL_EnsureFactorTexture()
     glBindFramebuffer(GL_FRAMEBUFFER, m_glFBOFactor);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_glTexFactor, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    m_glTrackedFBO = 0;
 }
 
 void DirectXCore::GL_EnsureScreenCopyTexture()
@@ -5154,6 +5245,7 @@ void DirectXCore::GL_EnsureAlphaAccumTexture()
     glBindFramebuffer(GL_FRAMEBUFFER, m_glFBOAlphaAccum);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_glTexAlphaAccum, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    m_glTrackedFBO = 0;
 }
 
 void DirectXCore::GL_CopyScreenToTexture()
@@ -5861,7 +5953,7 @@ void DirectXCore::GL_DarkenOffscreen(float brightness)
 // GL_FlushInstanceBatch - instanced rendering for Phase 1 opaque + Phase 5 overlays
 //   Uses m_glProgInstanced (kGLSL_InstancedVS + kGLSL_MainPS).
 //   All commands in batch share the same texture, blend state, and depth state.
-//   Instance data layout: 4 ¡Á vec4 = 64 bytes per instance, matching kGLSL_InstancedVS.
+//   Instance data layout: 4 x vec4 = 64 bytes per instance, matching kGLSL_InstancedVS.
 // ==========================================================================
 void DirectXCore::GL_FlushInstanceBatch(const std::vector<const DrawCommand *> &batch)
 {
@@ -5884,7 +5976,7 @@ void DirectXCore::GL_FlushInstanceBatch(const std::vector<const DrawCommand *> &
             return;
         }
 
-        // Fast path: single instance ¡ú use regular non-instanced program
+        // Fast path: single instance -> use regular non-instanced program
         // (avoids std::vector alloc + glBufferSubData overhead for the common
         //  case of unique-texture terrain tiles)
         if (count == 1)
@@ -5918,7 +6010,7 @@ void DirectXCore::GL_FlushInstanceBatch(const std::vector<const DrawCommand *> &
 
         // Multi-instance path: use instanced rendering
         // Ensure instance VBO capacity (orphan old if insufficient)
-        // 16 floats per instance (4 vec4 ¡Á 4 floats)
+        // 16 floats per instance (4 vec4 x 4 floats)
         int needed = (int)count * 16;
         if (m_glInstanceVBCapacity < needed)
         {

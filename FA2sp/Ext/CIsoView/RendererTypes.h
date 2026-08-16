@@ -61,6 +61,7 @@ namespace Renderer
         ImageDataClassSafe* GetImageData(BYTE nOverlayData) const;
         ImageDataClassSafe* GetShadowData(BYTE nOverlayData) const;
         bool IsBridge() const;
+        bool IsHighBridge() const;
         virtual bool IsVisibleInMapRendererOrNormal() const override;
 
         static const char* IniSection;
@@ -156,21 +157,22 @@ namespace Renderer
         VehicleType* ConditionRedWaterImage = nullptr;
         VehicleType* UnloadingImage = nullptr;
         VehicleType* DefaultImage = nullptr;
-        bool IsHoveringUnit = false;
+		int TiltCount = 1;
+		bool IsHoveringUnit = false;
         bool ShouldUseDefaultImage = false;
 
         VehicleType() = default;
         void Init(FString_view id);
-        ImageDataClassSafe* GetImageData(const CUnitDataFS& obj, const LandType landType);
-        ImageDataClassSafe* GetShadowData(const CUnitDataFS& obj, const LandType landType);
-        ImageDataClassSafe* GetTechnoAttachmentImageData(int nFacing, bool bShadow) const;
+        ImageDataClassSafe* GetImageData(const CUnitDataFS& obj, const LandType landType, const int rampType = 0);
+        ImageDataClassSafe* GetShadowData(const CUnitDataFS& obj, const LandType landType, const int rampType = 0);
+        ImageDataClassSafe* GetTechnoAttachmentImageData(int nFacing, bool bShadow, const int rampType = 0) const;
 
         static const char* IniSection;
 
     private:
         VehicleType* GetAlteredType(const CUnitDataFS& obj, const LandType landType);
-        ImageDataClassSafe* pImageData[FACING_MAX]{ nullptr };
-        ImageDataClassSafe* pShadowData[FACING_MAX]{ nullptr };
+        mutable std::vector<ImageDataClassSafe*> pImageData;
+        mutable std::vector<ImageDataClassSafe*> pShadowData;
     };
 
     class AircraftType : public TechnoType
@@ -179,30 +181,33 @@ namespace Renderer
         AircraftType* ConditionYellowImage = nullptr;
         AircraftType* ConditionRedImage = nullptr;
         AircraftType* DefaultImage = nullptr;
+		int TiltCount = 1;
         bool ShouldUseDefaultImage = false;
 
         AircraftType() = default;
         void Init(FString_view id);
-        ImageDataClassSafe* GetImageData(const CAircraftDataFS& obj);
-        ImageDataClassSafe* GetTechnoAttachmentImageData(int nFacing) const;
+        ImageDataClassSafe* GetImageData(const CAircraftDataFS& obj, const int rampType = 0);
+        ImageDataClassSafe* GetTechnoAttachmentImageData(int nFacing, const int rampType = 0) const;
 
         static const char* IniSection;
 
     private:
         AircraftType* GetAlteredType(const CAircraftDataFS& obj);
-        ImageDataClassSafe* pImageData[FACING_MAX]{ nullptr };
+        mutable std::vector<ImageDataClassSafe*> pImageData;
     };
 
     class Object
     {
     protected:
         bool Visible = false;
+		short IniIndex = -1;
         void* pObjectData = nullptr;
         ObjectType* pType = nullptr;
         COLORREF HouseColor;
     public:
         bool IsVisible();
         COLORREF GetHouseColor();
+        short GetIniIndex();
     };
 
     class Building : public Object
@@ -217,7 +222,7 @@ namespace Renderer
 		bool firstDrawA = true;
 		bool firstDrawB = true;
 
-    private:
+	  private:
         BuildingRenderData* pRenderData = nullptr;
         CellData* pCellData = nullptr;
 	};
@@ -235,8 +240,8 @@ namespace Renderer
     public:
         void Reload(short index);
         CInfantryData* GetData();
-        void OffsetInfantrySubcell(int& x, int& y);
-        static void OffsetInfantrySubcell(int& x, int& y, int subcell);
+        void OffsetInfantrySubcell(int& x, int& y, int rampType = 0);
+        static void OffsetInfantrySubcell(int& x, int& y, int subcell, int rampType = 0);
         InfantryType* GetType();
     };
 
@@ -268,5 +273,6 @@ namespace Renderer
     VehicleType* GetOrCreateVehicle(FString_view id);
     AircraftType* GetOrCreateAircraft(FString_view id);
     InfantryType* GetOrCreateInfantry(FString_view id);
+    int RampType2TiltType(int rampType);
 }
 

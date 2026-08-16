@@ -2,6 +2,7 @@
 #include "../../Algorithms/Matrix3D.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../Helpers/Translations.h"
+#include "../../Helpers/Helper.h"
 #include "../../Miscs/Hooks.INI.h"
 #include "../../Miscs/MultiSelection.h"
 #include "../../Miscs/Palettes.h"
@@ -149,6 +150,53 @@ struct RecursionGuard
 	}
 };
 
+static void DrawObjectIndex(HDC hDC, const char* pAppendix, int index, int x, int y)
+{
+	return;
+	
+	auto pIsoView = CIsoViewExt::GetExtension();
+	FString text;
+	text.Format("%s%d", pAppendix, index);
+
+	x += 30;
+	y += -60;
+	if (ExtConfigs::DirectXRendering)
+	{
+		TextParams param;
+		param.SetFont("MS Sans Serif").SetFontSize(16).SetBold().
+		SetAlwaysOnTop().SetAlignCenter().SetColor(ShapeColor::FromCOLORREF(RGB(255, 255, 255))).
+		SetPadding(2, 0).SetBgColor(ShapeColor::FromRGBA(0, 0, 0, 192)).SetBorder().SetBorderThickness(1);
+
+		pIsoView->g_pTR->DrawTexts(x, y, text, param);
+	}
+	else
+	{
+		SetBkMode(hDC, OPAQUE);
+		SetBkColor(hDC, RGB(0, 0, 0));
+		SetTextAlign(hDC, TA_CENTER);
+		SetTextColor(hDC, RGB(255, 255, 255));
+
+		TextOut(hDC, x, y, text, strlen(text));
+
+		SetBkMode(hDC, OPAQUE);
+		SetTextAlign(hDC, TA_LEFT);
+		SetBkColor(hDC, RGB(255, 255, 255));
+		SetTextColor(hDC, RGB(0, 0, 0));
+	}	
+}
+
+static int GetRampType(int tileIndex, int TileSubIndex)
+{
+	if (tileIndex >= CMapDataExt::TileDataCount)
+		tileIndex = 0;
+	auto& tile = CMapDataExt::TileData[tileIndex];
+	if (tile.TileBlockCount == 0)
+		return LandType::Clear13;
+	if (TileSubIndex >= tile.TileBlockCount)
+		TileSubIndex = 0;
+	return tile.TileBlockDatas[TileSubIndex].RampType;
+}
+
 static void DrawTechnoAttachments(
 	DrawCall originalDraw,
 	FSet &recursionStack,
@@ -170,13 +218,16 @@ static void DrawTechnoAttachments(
 		RecursionGuard guard(recursionStack, pType->ID);
 
 		auto pThis = CIsoView::GetInstance();
+		auto rampType = GetRampType(cell->TileIndex, cell->TileSubIndex);
+		auto tiltType = Renderer::RampType2TiltType(rampType);
+		auto& tilt = CLoadingExt::TiltTypes[tiltType];
 
 		auto infos = *infosOri;
 		auto calcGroupAndY = [&](const TechnoAttachment &a, int &outY) -> int
 		{
 			int ParentFacings = pType->FacingCount;
 			int parentFacing = (oriFacing * ParentFacings / 256) % ParentFacings;
-			Matrix3D mat(a.F, a.L, 0, parentFacing, ParentFacings);
+			Matrix3D mat(a.F, a.L, 0, parentFacing, ParentFacings, tilt.angle, tilt.direction);
 
 			outY = mat.OutputY;
 
@@ -266,7 +317,7 @@ static void DrawTechnoAttachments(
 
 				if (!isShadow)
 				{
-					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
+					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings, tilt.angle, tilt.direction);
 
 					auto draw = [&]
 					{
@@ -316,11 +367,11 @@ static void DrawTechnoAttachments(
 				int additionalFacing = (info.RotationAdjust * facings / 256) % facings;
 				int newFacing = (parentFacing * facings / ParentFacings + additionalFacing) % facings;
 
-				auto pData = pVehicle->GetTechnoAttachmentImageData(newFacing, isShadow);
+				auto pData = pVehicle->GetTechnoAttachmentImageData(newFacing, isShadow, rampType);
 
 				if (!isShadow)
 				{
-					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
+					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings, tilt.angle, tilt.direction);
 					auto draw = [&]
 					{
 						if (ImageDataClassSafe::IsValidImage(pData))
@@ -361,7 +412,7 @@ static void DrawTechnoAttachments(
 				else if (isShadow && pData->pImageBuffer && !(ExtConfigs::InGameDisplay_Cloakable && pVehicle->Cloakable))
 				{
 					// shadow always on the ground
-					Matrix3D mat(info.F, info.L, 0, parentFacing, ParentFacings);
+					Matrix3D mat(info.F, info.L, 0, parentFacing, ParentFacings, tilt.angle, tilt.direction);
 					if (ExtConfigs::DirectXRendering)
 					{
 						CIsoViewExt::DirectXShadow(
@@ -392,9 +443,9 @@ static void DrawTechnoAttachments(
 					int additionalFacing = (info.RotationAdjust * facings / 256) % facings;
 					int newFacing = (parentFacing * facings / ParentFacings + additionalFacing) % facings;
 
-					auto pData = pAircraft->GetTechnoAttachmentImageData(newFacing);
+					auto pData = pAircraft->GetTechnoAttachmentImageData(newFacing, rampType);
 
-					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
+					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings, tilt.angle, tilt.direction);
 					auto draw = [&]
 					{
 						if (ImageDataClassSafe::IsValidImage(pData))
@@ -457,7 +508,7 @@ static void DrawTechnoAttachments(
 						if (pBldData)
 						{
 							auto ArtID = CLoadingExt::GetArtID(info.ID);
-							Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
+							Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings, tilt.angle, tilt.direction);
 							auto draw = [&]
 							{
 								if (pBldData->pImageBuffer)
@@ -563,55 +614,58 @@ static void InitAllObjects()
 	progress.ProgressBar.SetRange(0, count);
 	progress.ProgressBar.SetPos(0);
 
+	auto updateProgress = [&]()
+	{
+		currentPos++;
+		if (currentPos % 50 == 0)
+		{
+			progress.ProgressBar.SetPos(currentPos);
+			progress.ProgressBar.UpdateWindow();
+		}
+	};
+
 	for (int i = 0; i < CMapDataExt::BuildingDatasExt.size(); ++i)
 	{
 		Renderer::Buildings[i].Reload(i);
-		progress.ProgressBar.SetPos(++currentPos);
-		progress.ProgressBar.UpdateWindow();
+		updateProgress();
 	}
 	keepAlive();
 	for (int i = 0; i < CMapDataExt::UnitDatasExt.size(); ++i)
 	{
 		Renderer::Vehicles[i].Reload(i);
-		progress.ProgressBar.SetPos(++currentPos);
-		progress.ProgressBar.UpdateWindow();
+		updateProgress();
 	}
 	keepAlive();
 	for (int i = 0; i < CMapDataExt::AircraftDatasExt.size(); ++i)
 	{
 		Renderer::Aircrafts[i].Reload(i);
-		progress.ProgressBar.SetPos(++currentPos);
-		progress.ProgressBar.UpdateWindow();
+		updateProgress();
 	}
 	keepAlive();
 	for (int i = 0; i < CMapData::Instance->InfantryDatas.size(); ++i)
 	{
 		Renderer::Infantries[i].Reload(i);
-		progress.ProgressBar.SetPos(++currentPos);
-		progress.ProgressBar.UpdateWindow();
+		updateProgress();
 	}
 	keepAlive();
 	for (int i = 0; i < CMapData::Instance->TerrainDatas.size(); ++i)
 	{
 		auto &obj = CMapData::Instance->TerrainDatas[i].TypeID;
 		auto pType = Renderer::GetOrCreateTerrain(obj);
-		progress.ProgressBar.SetPos(++currentPos);
-		progress.ProgressBar.UpdateWindow();
+		updateProgress();
 	}
 	keepAlive();
 	for (int i = 0; i < CMapData::Instance->SmudgeDatas.size(); ++i)
 	{
 		auto &obj = CMapData::Instance->SmudgeDatas[i].TypeID;
 		auto pType = Renderer::GetOrCreateSmudge(obj);
-		progress.ProgressBar.SetPos(++currentPos);
-		progress.ProgressBar.UpdateWindow();
+		updateProgress();
 	}
 	keepAlive();
 	for (auto nOvr : overlays)
 	{
 		auto pType = Renderer::GetOrCreateOverlay(nOvr);
-		progress.ProgressBar.SetPos(++currentPos);
-		progress.ProgressBar.UpdateWindow();
+		updateProgress();
 	}
 	keepAlive();
 	for (auto &node : baseNodes)
@@ -662,6 +716,33 @@ bool isCoordInFullMap(int X, int Y)
 			Y < CMapData::Instance->MapWidthPlusHeight;
 };
 
+static int GetRampYOffset(int rampType)
+{
+	if (CFinalSunApp::Instance->FlatToGround)
+		return 0;
+	const int fullCellHeight = 15;
+	int heightMultiplier = 0;
+	if (rampType >= 1 && rampType <= 4 || rampType >= 9 && rampType <= 12 || rampType >= 17 && rampType <= 20)
+		heightMultiplier = 1;
+	else if (rampType >= 13 && rampType <= 16)
+		heightMultiplier = 2;
+
+	return - heightMultiplier * fullCellHeight / 2;
+}
+
+static int GetRampExtraHeight(int rampType)
+{
+	if (CFinalSunApp::Instance->FlatToGround)
+		return 0;
+	int addiHeight = 0;
+	if (rampType >= 1 && rampType <= 4 || rampType >= 9 && rampType <= 12 || rampType >= 17 && rampType <= 20)
+		addiHeight = 1;
+	else if (rampType >= 13 && rampType <= 16)
+		addiHeight = 1;
+
+	return addiHeight;
+}
+
 static void DrawUnit(Renderer::VehicleType* pType, 
 	CUnitDataFS& obj, 
 	CellData* cell,
@@ -674,11 +755,17 @@ static void DrawUnit(Renderer::VehicleType* pType,
 	COLORREF forceColor = CLR_INVALID
 )
 {
+	int rampType = GetRampType(cell->TileIndex, cell->TileSubIndex);
+	y += GetRampYOffset(rampType);
+	int extraHeight = GetRampExtraHeight(rampType);
 	if (shadow)
 	{
 		if (!isCloakable(pType))
 		{
-			auto pData = pType->GetShadowData(obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
+			auto pData = pType->GetShadowData(obj, 
+				CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex),
+				rampType
+			);
 
 			int x1 = x;
 			int y1 = y;
@@ -694,7 +781,7 @@ static void DrawUnit(Renderer::VehicleType* pType,
 					CIsoViewExt::DirectXShadow(
 						x1 - pData->FullWidth / 2,
 						y1 - pData->FullHeight / 2 + 15,
-						pData, cell->Height, true);
+						pData, cell->Height + extraHeight, true);
 				}
 				else
 				{
@@ -711,14 +798,20 @@ static void DrawUnit(Renderer::VehicleType* pType,
 	}
 	else
 	{
-		auto pData = pType->GetImageData(obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
+		auto pData = pType->GetImageData(obj, 
+			CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex),
+			pType->IsHoveringUnit ? 0 : GetRampType(cell->TileIndex, cell->TileSubIndex)
+		);
 		bool HoveringUnit = ExtConfigs::InGameDisplay_Hover && pType->IsHoveringUnit;
 		auto color = forceColor != CLR_INVALID ? forceColor : Renderer::Vehicles[cell->Unit].GetHouseColor();
+		TempValueHolder tempHeight(CIsoViewExt::CurrentDrawCellLocation.Height, CIsoViewExt::CurrentDrawCellLocation.Height);
 
 		if (ImageDataClassSafe::IsValidImage(pData))
 		{
 			if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
 			{
+				CIsoViewExt::CurrentDrawCellLocation.Height += 4;
+				CIsoViewExt::CurrentDrawCellLocation.Height = std::min(CIsoViewExt::CurrentDrawCellLocation.Height,  static_cast<short>(14));
 				if (ExtConfigs::DirectXRendering)
 				{
 					pThis->DrawLineRawDirectX(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
@@ -794,6 +887,8 @@ static void DrawInfantry(Renderer::InfantryType* pType,
 	COLORREF forceColor = CLR_INVALID
 )
 {
+	int rampType = GetRampType(cell->TileIndex, cell->TileSubIndex);
+	int extraHeight = GetRampExtraHeight(rampType);
 	if (shadow)
 	{
 		if (!isCloakable(pType))
@@ -802,7 +897,7 @@ static void DrawInfantry(Renderer::InfantryType* pType,
 
 			int x1 = x;
 			int y1 = y;
-			Renderer::Infantry::OffsetInfantrySubcell(x1, y1, subcell);
+			Renderer::Infantry::OffsetInfantrySubcell(x1, y1, subcell, rampType);
 
 			if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
 				y1 -= 60;
@@ -811,7 +906,7 @@ static void DrawInfantry(Renderer::InfantryType* pType,
 			{
 				if (ExtConfigs::DirectXRendering)
 				{
-					CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height);
+					CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height + extraHeight);
 				}
 				else
 				{
@@ -830,13 +925,18 @@ static void DrawInfantry(Renderer::InfantryType* pType,
 	else
 	{
 		auto pData = pType->GetImageData(obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
+		TempValueHolder tempHeight(CIsoViewExt::CurrentDrawCellLocation.Height, CIsoViewExt::CurrentDrawCellLocation.Height);
 
 		int x1 = x;
 		int y1 = y;
-		Renderer::Infantry::OffsetInfantrySubcell(x1, y1, subcell);
+		Renderer::Infantry::OffsetInfantrySubcell(x1, y1, subcell, rampType);
 
 		if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
+		{
 			y1 -= 60;
+			CIsoViewExt::CurrentDrawCellLocation.Height += 4;
+			CIsoViewExt::CurrentDrawCellLocation.Height = std::min(CIsoViewExt::CurrentDrawCellLocation.Height,  static_cast<short>(14));
+		}
 
 		if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
 		{
@@ -914,6 +1014,8 @@ static void DrawAircraft(Renderer::AircraftType* pType,
 	COLORREF forceColor = CLR_INVALID
 )
 {
+	int rampType = GetRampType(cell->TileIndex, cell->TileSubIndex);
+	y += GetRampYOffset(rampType);
 	if (shadow)
 	{
 		if (!isCloakable(pType) && pType->TechnoAttachmentInfo)
@@ -926,7 +1028,7 @@ static void DrawAircraft(Renderer::AircraftType* pType,
 	}
 	else
 	{
-		auto pData = pType->GetImageData(obj);
+		auto pData = pType->GetImageData(obj, rampType);
 		auto color = forceColor != CLR_INVALID ? forceColor : Renderer::Aircrafts[cell->Aircraft].GetHouseColor();
 		if (ImageDataClassSafe::IsValidImage(pData))
 		{
@@ -990,6 +1092,8 @@ static void DrawBuilding(Renderer::BuildingType* pType,
 {
 	const auto &DataExt = *pType->pDataExt;
 	auto pBuilding = pForceBuilding ? pForceBuilding : &Renderer::Buildings[cell->Structure];
+	int rampType = GetRampType(cell->TileIndex, cell->TileSubIndex);
+	int extraHeight = GetRampExtraHeight(rampType);
 
 	const int HP = objRender.Strength;
 	int status = CLoadingExt::GBIN_NORMAL;
@@ -1016,6 +1120,17 @@ static void DrawBuilding(Renderer::BuildingType* pType,
 	x1 -= DrawOffsetX;
 	y1 -= DrawOffsetY;
 
+	auto cellOrigin = CMapDataExt::TryGetCellAt(objRender.X, objRender.Y);
+	int rampYOffset = GetRampYOffset(GetRampType(cellOrigin->TileIndex, cellOrigin->TileSubIndex));
+	y1 += rampYOffset;
+
+	MapCoord buildingOrigin{objRender.X, objRender.Y};
+	if (!IsCoordInWindow(objRender.X, objRender.Y))
+	{
+		buildingOrigin.X = X;
+		buildingOrigin.Y = Y;
+	}
+
 	if (CIsoViewExt::DrawStructures && ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages && objRender.poweredOn)
 	{
 		auto pAIData = pType->GetAlphaImageData(objRender.Facing);
@@ -1028,13 +1143,6 @@ static void DrawBuilding(Renderer::BuildingType* pType,
 						y1 - pAIData->FullHeight / 2 + (DataExt.RealWidth + DataExt.RealHeight) * 15 / 2},
 					pAIData));
 		}
-	}
-
-	MapCoord buildingOrigin{objRender.X, objRender.Y};
-	if (!IsCoordInWindow(objRender.X, objRender.Y))
-	{
-		buildingOrigin.X = X;
-		buildingOrigin.Y = Y;
 	}
 
 	auto &clips = *pType->GetImageData(objRender.Facing, status);
@@ -1183,7 +1291,7 @@ static void DrawBuilding(Renderer::BuildingType* pType,
 		{
 			if (ExtConfigs::DirectXRendering)
 			{
-				CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height);
+				CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height + extraHeight);
 			}
 			else
 			{
@@ -1221,7 +1329,7 @@ static void DrawBuilding(Renderer::BuildingType* pType,
 					CIsoViewExt::DirectXShadow(
 						x1 - pUpgData->FullWidth / 2,
 						y1 - pUpgData->FullHeight / 2,
-						pUpgData, cell->Height);
+						pUpgData, cell->Height + extraHeight);
 				}
 				else
 				{
@@ -1307,6 +1415,10 @@ static void DrawTerrain(FString_view obj,
 	const CellInfo& info
 )
 {
+	auto cell = CMapDataExt::TryGetCellAt(X, Y);
+	int rampType = GetRampType(cell->TileIndex, cell->TileSubIndex);
+	y += GetRampYOffset(rampType);
+	int extraHeight = GetRampExtraHeight(rampType);
 	if (shadow)
 	{
 		auto pType = Renderer::GetOrCreateTerrain(obj);
@@ -1323,7 +1435,7 @@ static void DrawTerrain(FString_view obj,
 					CIsoViewExt::DirectXShadow(
 						x1 - pData->FullWidth / 2,
 						y1 - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
-						pData, info.cell->Height);
+						pData, info.cell->Height + extraHeight);
 				}
 				else
 				{
@@ -1530,7 +1642,7 @@ static void DrawMap()
 
 	// init window positions
 	{
-		pThis->GetWindowRect(&window);
+		CIsoViewExt::GetValidWindowRect(pThis->GetSafeHwnd(), &window);
 		CIsoViewExt::AdaptRectForSecondScreen(&window);
 
 		VisibleCoordTL.X = window.left + pThis->ViewPosition.x;
@@ -2825,6 +2937,12 @@ static void DrawMap()
 						pThis->DrawLockedCellOutline(x1, y1, DataExt.Width, DataExt.Height, objRender.HouseColor, false, false, &ddsd);
 				}
 			}
+			
+			auto cellOrigin = CMapDataExt::TryGetCellAt(objRender.X, objRender.Y);
+			int rampType = GetRampType(cellOrigin->TileIndex, cellOrigin->TileSubIndex);
+			int rampYOffset = GetRampYOffset(rampType);
+			int rampHeight = GetRampExtraHeight(rampType);
+			y1 += rampYOffset;
 
 			if (CIsoViewExt::DrawStructures && pBuilding->IsVisible())
 			{
@@ -2838,7 +2956,8 @@ static void DrawMap()
 						CIsoViewExt::DirectXBuilding(part.DrawX, part.DrawY - part.pData->FullHeight / 2,
 													 part.pData, part.pPal, isCloakable(pType) ? 0.5f : 1.0f,
 													 objRender.HouseColor, isRubble, isTerrain,
-													 info.aroundRedrawCell ? pBuilding->GetCellData()->Height : 0xFF);
+													 info.aroundRedrawCell ? 
+													 (pBuilding->GetCellData()->Height + rampHeight) : 0xFF);
 					}
 					else
 					{
@@ -2862,7 +2981,8 @@ static void DrawMap()
 											y1 - pData->FullHeight / 2, pData.get(),
 											NULL, isCloakable(pType) ? 0.5f : 1.0f,
 											objRender.HouseColor, false, pType->IsTerrainPalette,
-											info.aroundRedrawCell ? pBuilding->GetCellData()->Height : 0xFF);
+											info.aroundRedrawCell ? 
+										 	(pBuilding->GetCellData()->Height + rampHeight) : 0xFF);
 									}
 									else
 									{
@@ -2964,6 +3084,12 @@ static void DrawMap()
 					veter.ID = objRender.ID;
 				}
 			}
+			
+			if (CIsoViewExt::RenderingScreenshot && part.IsBottom)
+			{
+				int index = pBuilding - Renderer::Buildings; 
+				DrawObjectIndex(hDC, "B", index, x1, y1);
+			}
 		}
 
 		// nodes
@@ -2978,6 +3104,10 @@ static void DrawMap()
 			CIsoView::MapCoord2ScreenCoord(x1, y1);
 			x1 -= DrawOffsetX;
 			y1 -= DrawOffsetY;
+
+			auto cellOrigin = CMapDataExt::TryGetCellAt(part.Data->X, part.Data->Y);
+			int rampType = GetRampType(cellOrigin->TileIndex, cellOrigin->TileSubIndex);
+			int rampYOffset = GetRampYOffset(rampType);
 
 			bool strOverlap = false;
 			if (!DataExt.IsCustomFoundation())
@@ -3057,20 +3187,22 @@ static void DrawMap()
 					if (ExtConfigs::DirectXRendering)
 					{
 						CIsoViewExt::DirectXBaseNode(
-							part.DrawX, part.DrawY - part.pData->FullHeight / 2,
+							part.DrawX, part.DrawY - part.pData->FullHeight / 2 + rampYOffset,
 							part.pData, nullptr, 0.5f, part.HouseColor, part.pType->IsTerrainPalette);
 					}
 					else
 					{
 						CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
-																 part.DrawX, part.DrawY - part.pData->FullHeight / 2, part.pData, part.pPal, 128);
+																 part.DrawX, 
+																 part.DrawY - part.pData->FullHeight / 2 + rampYOffset, 
+																 part.pData, part.pPal, 128);
 					}
 				}
 				if (firstDraw && CIsoViewExt::DrawVeterancy)
 				{
 					auto &veter = DrawVeterancies.emplace_back();
 					veter.X = x1 + (DataExt.RealWidth - DataExt.RealHeight) * 30 / 2;
-					veter.Y = y1 + (DataExt.RealWidth + DataExt.RealHeight - 2) * 15 / 2;
+					veter.Y = y1 + (DataExt.RealWidth + DataExt.RealHeight - 2) * 15 / 2 + rampYOffset;
 					veter.VP = 0;
 					veter.ID = part.Data->ID;
 					veter.Transp = true;
@@ -3114,6 +3246,10 @@ static void DrawMap()
 					x, y,
 					info,
 					false);
+			if (CIsoViewExt::RenderingScreenshot)
+			{
+				DrawObjectIndex(hDC, "U", cell->Unit, x, y);
+			}
 		}
 
 		// aircrafts
@@ -3148,6 +3284,10 @@ static void DrawMap()
 				x, y,
 				info,
 				false);
+			if (CIsoViewExt::RenderingScreenshot)
+			{
+				DrawObjectIndex(hDC, "A", cell->Aircraft, x, y);
+			}
 		}
 
 		// infantries
@@ -3185,6 +3325,10 @@ static void DrawMap()
 					x, y, i, atoi(obj.SubCell),
 					info,
 					false);
+				if (CIsoViewExt::RenderingScreenshot)
+				{
+					DrawObjectIndex(hDC, "I", cell->Infantry[i], x, y);
+				}
 			}
 		}
 	}
@@ -3444,6 +3588,41 @@ static void DrawMap()
 			CTerrainGenerator::RangeSecondCell.X = -1;
 			CTerrainGenerator::RangeSecondCell.Y = -1;
 		}
+	}
+	if (CTerrainGenerator::CurrentPreset 
+		&& CTerrainGenerator::CurrentPreset->RampMinHeight > -1
+		&& CTerrainGenerator::CurrentPreset->RampMaxHeight > -1
+		&& CTerrainGenerator::CurrentPreset->RampPercent> -1
+		&& (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers))
+	{
+		FString text;
+		TextParams param;
+		param.SetFont("Cambria").SetFontSize(14).SetBold().
+		SetAlwaysOnTop().SetAlignCenter().SetColor(ShapeColor::FromCOLORREF(RGB(0, 0, 0))).SetPadding(0, 0);
+		
+		SetBkMode(hDC, TRANSPARENT);
+		SetTextAlign(hDC, TA_CENTER);
+		SetTextColor(hDC, RGB(0, 0, 0));
+		for (const auto& vh : CMapDataExt::RampGeneratorAnchors)
+		{
+			text.Format("%d", vh.Height);
+			MapCoord mc = {vh.X, vh.Y};
+			CIsoView::MapCoord2ScreenCoord_Flat(mc.X, mc.Y);
+			auto vh2 = vh;
+			vh2.GetVertexHeight(true, true);
+			int drawX = mc.X - DrawOffsetX + 30;
+			int drawY = mc.Y - DrawOffsetY - 40 - vh2.Height * 15;
+			if (ExtConfigs::DirectXRendering)
+			{
+				pThis->g_pTR->DrawTexts(drawX, drawY, text, param);
+			}
+			else
+			{
+				TextOut(hDC, drawX, drawY, text, strlen(text));
+			}			
+		}
+		SetBkMode(hDC, OPAQUE);
+		SetTextAlign(hDC, TA_LEFT);
 	}
 
 	if (ExtConfigs::DirectXRendering)
@@ -3998,11 +4177,16 @@ static void DrawMap()
 		pThis->MapCoord2ScreenCoord_Flat(startX, startY);
 
 		RECT r;
-		pThis->GetWindowRect(&r);
+		CIsoViewExt::GetValidWindowRect(pThis->GetSafeHwnd(), &r);
 		pThis->AdaptRectForSecondScreen(&r);
 
 		int pngPosX = r.left + pThis->ViewPosition.x - startX - 4;
 		int pngPosY = r.top + pThis->ViewPosition.y - startY - 3 + (CIsoViewExt::RenderFullMap ? 0 : 15);
+		if (CIsoViewExt::RenderingScreenshot)
+		{
+			pngPosX = pThis->ViewPosition.x - CIsoViewExt::RenderingScreenshotBaseX;
+			pngPosY = pThis->ViewPosition.y - CIsoViewExt::RenderingScreenshotBaseY;
+		}
 
 		if (CIsoViewExt::BlitDDSurfaceRectToBitmap(
 				hDC,
@@ -4140,11 +4324,16 @@ static void DrawMap()
 			pThis->MapCoord2ScreenCoord_Flat(startX, startY);
 
 			RECT r;
-			pThis->GetWindowRect(&r);
+			CIsoViewExt::GetValidWindowRect(pThis->GetSafeHwnd(), &r);
 			pThis->AdaptRectForSecondScreen(&r);
 
 			int pngPosX = r.left + pThis->ViewPosition.x - startX - 4;
 			int pngPosY = r.top + pThis->ViewPosition.y - startY - 3 + (CIsoViewExt::RenderFullMap ? 0 : 15);
+			if (CIsoViewExt::RenderingScreenshot)
+			{
+				pngPosX = pThis->ViewPosition.x - CIsoViewExt::RenderingScreenshotBaseX;
+				pngPosY = pThis->ViewPosition.y - CIsoViewExt::RenderingScreenshotBaseY;
+			}
 
 			auto pDX = pThis->g_pDX.get();
 			if (pDX->IsUsingOpenGL())
@@ -4371,7 +4560,14 @@ DEFINE_HOOK(468690, CIsoView_OnSize, A)
 {
 	GET(CIsoViewExt *, pThis, ECX);
 	if (pThis->g_pDX)
+	{
 		pThis->g_pDX->OnResize(pThis->GetSafeHwnd());
+
+		RECT rc;
+		::GetClientRect(pThis->GetSafeHwnd(), &rc);
+		if (rc.right > rc.left && rc.bottom > rc.top)
+			pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+	}
 
 	return 0;
 }

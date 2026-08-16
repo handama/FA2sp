@@ -323,6 +323,9 @@ private:
     int PropagateFirstNonZeroIcon(HTREEITEM hItem);
     void UpdateTreeIconsForSubtree(HTREEITEM hItem);
 
+    void SnapshotTreeState();
+    void RebuildTreeFromState();
+
 public:
     enum ObjectTerrainType
     {
@@ -433,6 +436,9 @@ public:
     static bool NeedChangeTreeViewSelect;
     static bool Initialized;
 
+    static FString SearchText;
+    void ApplySearchFilter();
+
     static std::unique_ptr<CNewPropertyBuilding> BuildingBrushDlg;
     static std::unique_ptr<CNewPropertyInfantry> InfantryBrushDlg;
     static std::unique_ptr<CNewPropertyUnit> VehicleBrushDlg;
@@ -488,6 +494,7 @@ public:
     static void OpenWpTagColorDlg(bool isWp);
     static void BatchAddMultiSelection(int X, int Y, bool add);
     static void SquareBatchAddMultiSelection(int X, int Y, bool add);
+    static void PlaceRampAnchor(int X, int Y);
     static void Redraw_ConnectedTile(CViewObjectsExt* pThis);
 
     static bool DoPropertyBrush_Building();

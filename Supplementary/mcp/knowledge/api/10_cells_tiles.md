@@ -166,4 +166,24 @@ cell:apply()
   - `x1, y1, x2, y2` (`number`) — 矩形对角坐标。
 - **返回**：无。
 
+#### `get_tilesets()`
+- **说明**：获取当前地图类型下所有可用地形组（tileset）的索引与名称。
+- **返回** (`table<table>`)：地形组数组，每个元素为 `{index=..., name=...}`，如 `{{index=0, name="亮色草地"}, ...}`。
+- **示例**：
+```lua
+for i, t in ipairs(get_tilesets()) do
+    print(t.index .. " - " .. t.name)
+end
+```
+
+#### `get_tileset_info(tileset_index)`
+- **说明**：获取指定地形组的起始地块索引和地块数量。
+- **参数**：`tileset_index` (`number`) — 地形组索引。
+- **返回** (`table`)：`{start=..., count=...}`，其中 `start` 为该地形组的起始 tile 索引，`count` 为该地形组包含的地块数量。索引越界时返回 `{start=-1, count=0}`。
+- **示例**：
+```lua
+local info = get_tileset_info(0)
+print("start: " .. info.start .. ", count: " .. info.count)
+```
+
 **补充**：进行大量地形修改前，建议调用 `save_undo()` 以允许用户回退。完成修改后调用 `redraw_window()` 和 `update_minimap()` 刷新界面。

@@ -56,7 +56,7 @@
   - `house` (`string`) — 所属方。
   - `type` (`string`) — 建筑类型 ID。
   - `x, y` (`number`) — 坐标。
-  - `ignore_overlap` (`boolean`, 可选) — 若为 `true` 可跳过重叠检查，默认为 `false`。
+  - `ignore_overlap` (`boolean`, 可选) — 若为 `true` 可跳过重叠检查，AI调用时应设置为 `true`，默认为 `false`。
 - **返回**：无。
 
 #### `remove_building(index)`
@@ -84,6 +84,24 @@
 #### `get_buildings()`
 - **说明**：返回所有建筑的数组表。
 - **返回** (`table<building>`)：建筑对象数组。
+
+#### `get_building_foundation(id)`
+- **说明**：获取建筑类型的占地面积信息。
+- **参数**：
+  - `id` (`string`) — 建筑类型 ID。
+- **返回** (`table`)：`{width, height, isCustom}`，其中：
+  - `width` (`number`) — X 方向长度（格数）。
+  - `height` (`number`) — Y 方向长度（格数）。
+  - `isCustom` (`number`) — 是否为 CustomFoundation，`1` 为是，`0` 为否。
+- **备注**：未找到建筑类型时返回 `{1, 1, 0}`。
+
+#### `get_building_cells(id)`
+- **说明**：获取建筑类型所占的具体格子坐标。
+- **参数**：
+  - `id` (`string`) — 建筑类型 ID。
+- **返回** (`table`)：二维数组 `{{x, y}, {x, y}, ...}`，每个元素是 `{x, y}` 格式的格子坐标。
+- **备注**：
+  - 未找到建筑类型时返回 `{{0, 0}}`。
 
 **重要注释**：修改建筑属性同样需要移除再重新放置。批量修改时的索引映射与单位一致。示例：随机化建筑血量。
 ```lua

@@ -26,6 +26,22 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
 {
     if (!CMapData::Instance->MapWidthPlusHeight) return 0;
     REF_STACK(LPMSG, lpMsg, 0x8);
+
+    // When the app window returns to the foreground after being minimized or
+    // fully occluded, the swap chain back buffer contents are lost and a WM_PAINT
+    // is not always delivered. Force a full redraw so the restored view isn't
+    // left black until the user triggers one manually.
+    if (lpMsg->message == WM_ACTIVATE && (lpMsg->wParam == WA_ACTIVE || lpMsg->wParam == WA_CLICKACTIVE))
+    {
+        if (ExtConfigs::DirectXRendering && CIsoViewExt::g_pDX)
+        {
+            auto pIsoView = CIsoViewExt::GetExtension();
+            if (pIsoView)
+                pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+        }
+        return 0;
+    }
+
     if (lpMsg->message != WM_KEYDOWN) return 0;
 
     POINT pt;
@@ -38,7 +54,34 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
         || CIsoView::CurrentCommand->Command != 0x1E)
     {
         auto& gov = GridObjectViewer::Instance;
-        if (gov.IsVisible())
+        if (CIsoView::CurrentCommand->Command == 15)
+		{
+			POINT pt;
+			GetCursorPos(&pt);
+			if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt))
+			{
+                int raiseGround = 0;
+                if (lpMsg->wParam == VK_UP) raiseGround = 1;
+                else if (lpMsg->wParam == VK_DOWN) raiseGround = 2;
+
+				auto point = CIsoViewExt::GetExtension()->GetCurrentMapCoord(CIsoViewExt::GetExtension()->MouseCurrentPosition);
+				if (CMapData::Instance->IsCoordInMap(point.X, point.Y) && raiseGround != 0)
+				{
+					CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+					if (CIsoViewExt::UsingNewRaiseGround)
+					{
+						CMapDataExt::RaiseVertices(point.X, point.Y, raiseGround == 1, 
+							false, GetKeyState(VK_SHIFT) & 0x8000);
+					}
+					else
+					{	
+						CMapDataExt::RaiseGrounds(point.X, point.Y, raiseGround == 1, (GetKeyState(VK_SHIFT) & 0x8000) ? MK_SHIFT : 0);
+					}
+					CIsoView::GetInstance()->Draw();
+				}
+			}
+		}
+        else if (gov.IsVisible())
         {
             bool changed = false;
             switch (lpMsg->wParam)
@@ -66,7 +109,7 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
                 CIsoView::GetInstance()->OnMouseMove(0, pt);
             }       
         }
-        else
+        else if (CIsoView::CurrentCommand->Command != 10)
         {		
             switch (lpMsg->wParam)
             {

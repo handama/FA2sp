@@ -12,6 +12,7 @@
 #include "TabPages/WaypointSort.h"
 #include "TabPages/TagSort.h"
 #include "TabPages/GridObjectViewer.h"
+#include "TabPages/MapObjectList.h"
 
 DEFINE_HOOK(4F1A40, CTileSetBrowserFrame_CreateContent, 5)
 {
@@ -90,6 +91,7 @@ DEFINE_HOOK(4F1B00, CTileSetBrowserFrame_RecalcLayout, 7)
     WaypointSort::Instance.OnSize();
     TagSort::Instance.OnSize();
     GridObjectViewer::Instance.OnSize();
+    MapObjectList::Instance.OnSize();
 
     return 0x4F1B8A;
 }

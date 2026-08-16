@@ -31,6 +31,7 @@ FHashMap<int> CLoadingExt::IFVTurrets;
 FHashSet CLoadingExt::InitialOccupiedBuildings;
 FHashMap<int> CLoadingExt::BioReactors;
 FHashMap<int> CLoadingExt::AvailableFacings;
+FHashMap<BOOL> CLoadingExt::ExtTilts;
 FHashMap<int> CLoadingExt::AlphaImageFacings;
 std::unordered_set<int> CLoadingExt::Ra2dotMixes;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
@@ -55,6 +56,25 @@ std::unordered_map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt
 std::unordered_map<COLORREF, TextureResource*> CLoadingExt::DirectXCustomFlagMap;
 std::unordered_map<COLORREF, TextureResource*> CLoadingExt::DirectXCustomCelltagMap;
 std::vector<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::DamageFires;
+
+FHashMap<std::set<int>> CLoadingExt::LoadedTilts;
+
+const float PI = 3.1415927f;
+std::vector<TiltType> CLoadingExt::TiltTypes{
+	{0.0f, 0.0f},
+	{0.387597f, PI / 4.0f * 4.0f},
+	{0.387597f, PI / 4.0f * 6.0f},
+	{0.387597f, PI / 4.0f * 0.0f},
+	{0.387597f, PI / 4.0f * 2.0f},
+	{0.281035f, PI / 4.0f * 5.0f},
+	{0.281035f, PI / 4.0f * 7.0f},
+	{0.281035f, PI / 4.0f * 1.0f},
+	{0.281035f, PI / 4.0f * 3.0f},
+	{0.523599f, PI / 4.0f * 5.0f},
+	{0.523599f, PI / 4.0f * 7.0f},
+	{0.523599f, PI / 4.0f * 1.0f},
+	{0.523599f, PI / 4.0f * 3.0f},
+};
 
 namespace fs = std::filesystem;
 
@@ -132,13 +152,16 @@ int CLoadingExt::GetAlphaImageFacing(const FString& ID)
 	return itr->second;
 }
 
-FString CLoadingExt::GetImageName(const FString& ID, int nFacing, bool bShadow, bool bDeploy, bool bWater)
+FString CLoadingExt::GetImageName(const FString& ID, int nFacing, bool bShadow, bool bDeploy, bool bWater, int tiltType)
 {
 	FString ret;
 	if (bShadow || bDeploy || bWater)
 		ret.Format("%s\233%d\233%s%s%s", ID, nFacing, bDeploy ? "DEPLOY" : "", bWater ? "WATER" : "", bShadow ? "SHADOW" : "");
 	else
 		ret.Format("%s\233%d", ID, nFacing);
+
+	if (tiltType != -1)
+		ret.Format("%s\233TILT%d", ret, tiltType);
 	return ret;
 }
 
@@ -299,13 +322,13 @@ void CLoadingExt::LoadObjects(const FString& ID, GameObjectType eItemType)
 		break;
 	case CLoadingExt::GameObjectType::Vehicle:
 	{
-		LoadVehicleOrAircraft(ID);
+		LoadVehicleOrAircraft(ID, 0);
 		if (ExtConfigs::InGameDisplay_Deploy)
 		{
 			auto unloadingClass = Variables::RulesMap.GetString(ID, "UnloadingClass", ID);
 			if (unloadingClass != ID)
 			{
-				LoadVehicleOrAircraft(unloadingClass);
+				LoadVehicleOrAircraft(unloadingClass, 0);
 			}
 		}
 		if (ExtConfigs::InGameDisplay_Water)
@@ -313,13 +336,13 @@ void CLoadingExt::LoadObjects(const FString& ID, GameObjectType eItemType)
 			auto waterImage = Variables::RulesMap.GetString(ID, "WaterImage", ID);
 			if (waterImage != ID)
 			{
-				LoadVehicleOrAircraft(waterImage);
+				LoadVehicleOrAircraft(waterImage, 0);
 			}
 		}
 		break;
 	}
 	case CLoadingExt::GameObjectType::Aircraft:
-		LoadVehicleOrAircraft(ID);
+		LoadVehicleOrAircraft(ID, 0);
 		break;
 	case CLoadingExt::GameObjectType::Building:
 		LoadBuilding(ID);
@@ -341,6 +364,8 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 		SwimableInfantries.clear();
 		ImageDataMap.clear();
 		AvailableFacings.clear();
+		ExtTilts.clear();
+		LoadedTilts.clear();
 		AlphaImageFacings.clear();
 		CustomPaletteTerrains.clear();
 		IFVTurrets.clear();
@@ -2072,7 +2097,34 @@ int CLoadingExt::GetIFVTurretIndex(const FString& ID)
 	return 0;
 }
 
-void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
+int CLoadingExt::GetIFVWeaponIndex(const FString& ID)
+{
+	if (Variables::RulesMap.GetBool(ID, "Gunner"))
+	{
+		if (IFVTurrets.find(ID) == IFVTurrets.end())
+			IFVTurrets[ID] = 0;
+		auto types = STDHelpers::SplitString(Variables::RulesMap.GetString(ID, "InitialPayload.Types"));
+		if (!types.empty())
+		{
+			auto& infantry = types[0];
+			if (infantry.IsEmpty() || ID.IsEmpty())
+				return 0;
+
+			int ifvMode = Variables::RulesMap.GetInteger(infantry, "IFVMode");
+			if (ifvMode < 0)
+				return 0;
+
+			int weaponSlot = ifvMode + 1;
+			if (weaponSlot > 128)
+				return 0;
+
+			return weaponSlot;
+		}
+	}
+	return 0;
+}
+
+void CLoadingExt::LoadVehicleOrAircraft(const FString& ID, int tiltType)
 {
 	LoadInsignia(ID);
 	FString ArtID = GetArtID(ID);
@@ -2080,6 +2132,14 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 	bool bHasTurret = Variables::RulesMap.GetBool(ID, "Turret");
 	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow");
 	int facings = ExtConfigs::ExtFacings ? 32 : 8;
+	int tiltCount = (ExtConfigs::ExtTilts && CINI::Art->GetBool(ArtID, "Voxel")) ? TiltTypes.size() : 1;
+	ExtTilts[ID] = tiltCount > 1 ? 1 : 0;
+	bool outline = ID == "FA2DEFAULT_UNIT" || ID == "FA2DEFAULT_AIRCRAFT";
+	if (outline) tiltType = -1; // load all tilts for default image
+
+	int tiltStart = (tiltType >= 0) ? tiltType : 0;
+	int tiltEnd = (tiltType >= 0) ? tiltType + 1 : tiltCount;
+	if (tiltStart >= tiltCount) tiltStart = 0;
 	bool turretShadow = bHasShadow && CINI::Art->GetBool(ArtID, "TurretShadow", DrawTurretShadow);
 	int ifvTurIndex = GetIFVTurretIndex(ID);
 
@@ -2097,25 +2157,25 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 
 		std::vector<unsigned char*> pImage, pTurretImage, pBarrelImage;
 		std::vector<unsigned char*> pShadowImage, pShadowTurretImage, pShadowBarrelImage;
-		pImage.resize(facings, nullptr);
-		pTurretImage.resize(facings, nullptr);
-		pBarrelImage.resize(facings, nullptr);
+		pImage.resize(facings * tiltCount, nullptr);
+		pTurretImage.resize(facings * tiltCount, nullptr);
+		pBarrelImage.resize(facings * tiltCount, nullptr);
 		if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 		{
-			pShadowImage.resize(facings, nullptr);
-			pShadowTurretImage.resize(facings, nullptr);
-			pShadowBarrelImage.resize(facings, nullptr);
+			pShadowImage.resize(facings * tiltCount, nullptr);
+			pShadowTurretImage.resize(facings * tiltCount, nullptr);
+			pShadowBarrelImage.resize(facings * tiltCount, nullptr);
 		}
 		std::vector<VoxelRectangle> rect, turretrect, barrelrect;
 		std::vector<VoxelRectangle> shadowrect, shadowturretrect, shadowbarrelrect;
-		rect.resize(facings);
-		turretrect.resize(facings);
-		barrelrect.resize(facings);
+		rect.resize(facings * tiltCount);
+		turretrect.resize(facings * tiltCount);
+		barrelrect.resize(facings * tiltCount);
 		if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 		{
-			shadowrect.resize(facings);
-			shadowturretrect.resize(facings);
-			shadowbarrelrect.resize(facings);
+			shadowrect.resize(facings * tiltCount);
+			shadowturretrect.resize(facings * tiltCount);
+			shadowbarrelrect.resize(facings * tiltCount);
 		}
 
 		if (VoxelDrawer::LoadVXLFile(FileName))
@@ -2126,14 +2186,21 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 				{
 					int actFacing = (i + facings - 2 * facings / 8) % facings;
 					bool result = false;
-					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
-					{
-						result = VoxelDrawer::GetImageData(actFacing, pImage[i], rect[i])
-							&& VoxelDrawer::GetImageData(actFacing, pShadowImage[i], shadowrect[i], 0, 0, 0, true);
-					}
-					else
-					{
-						result = VoxelDrawer::GetImageData(actFacing, pImage[i], rect[i]);
+					for (int j = tiltStart; j < tiltEnd; ++j)
+					{				
+						auto& tilt = TiltTypes[j];
+						if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
+						{
+							result = VoxelDrawer::GetImageData(actFacing, pImage[i * tiltCount + j], rect[i * tiltCount + j],
+								0, 0, 0, false, 0, true, tilt.angle, tilt.direction)
+								&& VoxelDrawer::GetImageData(actFacing, pShadowImage[i * tiltCount + j], shadowrect[i * tiltCount + j],
+								0, 0, 0, true, 0, true, tilt.angle, tilt.direction);
+						}
+						else
+						{
+							result = VoxelDrawer::GetImageData(actFacing, pImage[i * tiltCount + j], rect[i * tiltCount + j],
+								0, 0, 0, false, 0, true, tilt.angle, tilt.direction);
+						}
 					}
 				}
 			}
@@ -2148,6 +2215,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 			else if (s_count == 2) H = 0;
 
 			int AddiBarlL = CINI::Art->GetInteger(ArtID, "BarrelOffset", 0);
+			int FireAngle = Variables::RulesMap.GetInteger(ID, "FireAngle", 10);
 			int TotalTurretCount = CINI::Art->GetInteger(ArtID, "ExtraTurretCount", 0) + 1;
 			int ExtraBarlCount = CINI::Art->GetInteger(ArtID, "ExtraBarrelCount", 0);
 			bool BarrelOverTurret = CINI::Art->GetBool(ArtID, "BarrelOverTurret");
@@ -2188,19 +2256,28 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 					for (int i = 0; i < facings; ++i)
 					{
 						int actFacing = (i + facings - 2 * facings / 8) % facings;
-						bool result = false;
-						if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
-						{
-							result = VoxelDrawer::GetImageData(actFacing, pTurretImage[i], turretrect[i], F, L, H)
-								&& VoxelDrawer::GetImageData(actFacing, pShadowTurretImage[i], shadowturretrect[i], 
-									F, L, 0, true, 0, false);
+						for (int j = tiltStart; j < tiltEnd; ++j)
+						{				
+							auto& tilt = TiltTypes[j];
+							bool result = false;
+							if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
+							{
+								result = VoxelDrawer::GetImageData(actFacing, pTurretImage[i * tiltCount + j],
+									 turretrect[i * tiltCount + j], 0, 0, 0,
+									false, 0, true, tilt.angle, tilt.direction)
+									&& VoxelDrawer::GetImageData(actFacing, pShadowTurretImage[i * tiltCount + j], 
+										shadowturretrect[i * tiltCount + j], 
+										0, 0, 0, true, 0, false, tilt.angle, tilt.direction);
+							}
+							else
+							{
+								result = VoxelDrawer::GetImageData(actFacing, pTurretImage[i * tiltCount + j],
+									 turretrect[i * tiltCount + j], 0, 0, 0,
+									false, 0, true, tilt.angle, tilt.direction);
+							}
+							if (!result)
+								break;
 						}
-						else
-						{
-							result = VoxelDrawer::GetImageData(actFacing, pTurretImage[i], turretrect[i], F, L, H);
-						}
-						if (!result)
-							break;
 					}
 				}
 			}
@@ -2215,164 +2292,181 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 					{
 						int actFacing = (i + facings - 2 * facings / 8) % facings;
 						bool result = false;
-						if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
-						{
-							result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i], barrelrect[i],
-								F, L, H, false, Variables::RulesMap.GetInteger(ID, "FireAngle", 10))
-								&& VoxelDrawer::GetImageData(actFacing, pShadowBarrelImage[i], shadowbarrelrect[i],
-									F, L, 0, true, Variables::RulesMap.GetInteger(ID, "FireAngle", 10), false);
-						}
-						else
-						{
-							result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i], barrelrect[i],
-								F, L, H, false, Variables::RulesMap.GetInteger(ID, "FireAngle", 10));
-						}
+						for (int j = tiltStart; j < tiltEnd; ++j)
+						{				
+							auto& tilt = TiltTypes[j];
+							if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
+							{
+								result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i * tiltCount + j],
+									 barrelrect[i * tiltCount + j],
+									0, 0, 0, false, Variables::RulesMap.GetInteger(ID, "FireAngle", 10), true,
+									 tilt.angle, tilt.direction)
+									&& VoxelDrawer::GetImageData(actFacing, pShadowBarrelImage[i * tiltCount + j], 
+										shadowbarrelrect[i * tiltCount + j],
+										0, 0, 0, true, Variables::RulesMap.GetInteger(ID, "FireAngle", 10), false,
+										 tilt.angle, tilt.direction);
+							}
+							else
+							{
+								result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i * tiltCount + j],
+									 barrelrect[i * tiltCount + j],
+									0, 0, 0, false, Variables::RulesMap.GetInteger(ID, "FireAngle", 10), true,
+									tilt.angle, tilt.direction);
+							}
 
-						if (!result)
-							break;
+							if (!result)
+								break;
+						}
 					}
 				}
 			}
 
 			for (int i = 0; i < facings; ++i)
 			{
-				if (IsLoadingObjectView && i != facings / 8 * 2)
-					continue;
-				FString DictName;
-				DictName.Format("%s\233%d", ID, i);
-
-				unsigned char* outBuffer;
-				int outW = 0x100, outH = 0x100;
-
-				if (pImage[i])
+				for (int j = tiltStart; j < tiltEnd; ++j)
 				{
-					VXL_Add(pImage[i], rect[i].X, rect[i].Y, rect[i].W, rect[i].H);
-					CncImgFree(pImage[i]);
-				}
-				FString pKey;
-
-				pKey.Format("%sX%d", ID, i);
-				int turdeltaX = CINI::FAData->GetInteger("VehicleVoxelTurretsRA2", pKey);
-				pKey.Format("%sY%d", ID, i);
-				int turdeltaY = CINI::FAData->GetInteger("VehicleVoxelTurretsRA2", pKey);
-				pKey.Format("%sX%d", ID, i);
-				int barldeltaX = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
-				pKey.Format("%sY%d", ID, i);
-				int barldeltaY = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
-
-				bool barrelInFront = BarrelOverTurret || IsBarrelInFront(i, facings);
-
-				for (int k = 0; k < TotalTurretCount; ++k)
-				{
-					int exF = extraF[k] - F, exL = extraL[k] - L, exH = extraH[k] - H;
-					Matrix3D turretOffset(exF, exL, exH, i, facings);
-
-					if (barrelInFront)
-					{
-						if (pTurretImage[i])
-							VXL_Add(pTurretImage[i], 
-								turretrect[i].X + turdeltaX + turretOffset.OutputX,
-								turretrect[i].Y + turdeltaY + turretOffset.OutputY,
-								turretrect[i].W, turretrect[i].H);
-					}
-
-					if (pBarrelImage[i])
-					{
-						Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
-						VXL_Add(pBarrelImage[i],
-							barrelrect[i].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
-							barrelrect[i].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
-							barrelrect[i].W, barrelrect[i].H);
-						for (int j = 0; j < ExtraBarlCount; ++j)
-						{
-							FString key;
-							key.Format("ExtraBarrelOffset%d", j);
-							int AddiBarlL = CINI::Art->GetInteger(ArtID, key, 0);
-							Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
-							VXL_Add(pBarrelImage[i],
-								barrelrect[i].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
-								barrelrect[i].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
-								barrelrect[i].W, barrelrect[i].H);
-						}
-					}
-
-					if (!barrelInFront)
-					{
-						if (pTurretImage[i])
-							VXL_Add(pTurretImage[i],
-								turretrect[i].X + turdeltaX + turretOffset.OutputX,
-								turretrect[i].Y + turdeltaY + turretOffset.OutputY,
-								turretrect[i].W, turretrect[i].H);
-					}
-
-					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
-					{
-						if (pShadowTurretImage[i])
-						{
-							VXL_Add(pShadowTurretImage[i],
-								shadowturretrect[i].X + turdeltaX + turretOffset.OutputX,
-								shadowturretrect[i].Y + turdeltaY + turretOffset.OutputY,
-								shadowturretrect[i].W, shadowturretrect[i].H, true);
-						}
-						if (pShadowBarrelImage[i])
-						{
-							VXL_Add(pShadowBarrelImage[i],
-								shadowbarrelrect[i].X + barldeltaX + turretOffset.OutputX,
-								shadowbarrelrect[i].Y + barldeltaY + turretOffset.OutputY, 
-								shadowbarrelrect[i].W, shadowbarrelrect[i].H, true);
-							for (int j = 0; j < ExtraBarlCount; ++j)
-							{
-								FString key;
-								key.Format("ExtraBarrelOffset%d", j);
-								int AddiBarlL = CINI::Art->GetInteger(ArtID, key, 0);
-								Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
-								VXL_Add(pShadowBarrelImage[i],
-									shadowbarrelrect[i].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
-									shadowbarrelrect[i].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
-									shadowbarrelrect[i].W, shadowbarrelrect[i].H, true);
-							}
-						}
-					}
-				}
-
-				if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow && pShadowBarrelImage[i])
-					CncImgFree(pShadowBarrelImage[i]);
-				if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow && pShadowTurretImage[i])
-					CncImgFree(pShadowTurretImage[i]);
-				if (pTurretImage[i])
-					CncImgFree(pTurretImage[i]);
-				if (pBarrelImage[i])
-					CncImgFree(pBarrelImage[i]);
-
-				VXL_GetAndClear(outBuffer, &outW, &outH);
-				SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
-
-				if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
-				{
-					FString DictShadowName;
-					DictShadowName.Format("%s\233%d\233SHADOW", ID, i);
+					if (IsLoadingObjectView && i != facings / 8 * 2 && j != 0)
+						continue;
+					FString DictName;
+					DictName.Format("%s\233%d\233TILT%d", ID, i, j);
 
 					unsigned char* outBuffer;
 					int outW = 0x100, outH = 0x100;
 
-					if (pShadowImage[i])
+					if (pImage[i * tiltCount + j])
 					{
-						VXL_Add(pShadowImage[i], shadowrect[i].X, shadowrect[i].Y, shadowrect[i].W, shadowrect[i].H, true);
-						CncImgFree(pShadowImage[i]);
+						VXL_Add(pImage[i * tiltCount + j], rect[i * tiltCount + j].X, 
+							rect[i * tiltCount + j].Y, rect[i * tiltCount + j].W, rect[i * tiltCount + j].H);
+						CncImgFree(pImage[i * tiltCount + j]);
 					}
-					VXL_GetAndClear(outBuffer, &outW, &outH, true);
+					FString pKey;
 
-					SetImageDataSafe(outBuffer, DictShadowName, outW, outH, &CMapDataExt::Palette_Shadow);
+					pKey.Format("%sX%d", ID, i);
+					int turdeltaX = CINI::FAData->GetInteger("VehicleVoxelTurretsRA2", pKey);
+					pKey.Format("%sY%d", ID, i);
+					int turdeltaY = CINI::FAData->GetInteger("VehicleVoxelTurretsRA2", pKey);
+					pKey.Format("%sX%d", ID, i);
+					int barldeltaX = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
+					pKey.Format("%sY%d", ID, i);
+					int barldeltaY = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
 
-					if (Variables::RulesMap.GetBool(ID, "JumpJet")
-						|| Variables::RulesMap.GetBool(ID, "BalloonHover")
-						|| Variables::RulesMap.GetBool(ID, "BalloonHover")
-						|| Variables::RulesMap.GetString(ID, "Locomotor") == "{92612C46-F71F-11d1-AC9F-006008055BB5}"
-						|| Variables::RulesMap.GetString(ID, "Locomotor") == "Jumpjet"
-						)
+					bool barrelInFront = BarrelOverTurret || IsBarrelInFront(i, facings);
+
+					auto& tilt = TiltTypes[j];
+					for (int k = 0; k < TotalTurretCount; ++k)
 					{
-						auto pData = CLoadingExt::GetImageDataFromMap(DictShadowName);
-						CLoadingExt::ScaleImageHalf(pData);
+						int exF = extraF[k], exL = extraL[k], exH = extraH[k];
+						Matrix3D turretOffset(exF, exL, exH, i, facings, tilt.angle, tilt.direction);
+
+						if (barrelInFront)
+						{
+							if (pTurretImage[i * tiltCount + j])
+								VXL_Add(pTurretImage[i * tiltCount + j], 
+									turretrect[i * tiltCount + j].X + turdeltaX + turretOffset.OutputX,
+									turretrect[i * tiltCount + j].Y + turdeltaY + turretOffset.OutputY,
+									turretrect[i * tiltCount + j].W, turretrect[i * tiltCount + j].H);
+						}
+
+						if (pBarrelImage[i * tiltCount + j])
+						{
+							Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings, tilt.angle, tilt.direction);
+							VXL_Add(pBarrelImage[i * tiltCount + j],
+								barrelrect[i * tiltCount + j].X + barldeltaX + mat.OutputX,
+								barrelrect[i * tiltCount + j].Y + barldeltaY + mat.OutputY,
+								barrelrect[i * tiltCount + j].W, barrelrect[i * tiltCount + j].H);
+							for (int l = 0; l < ExtraBarlCount; ++l)
+							{
+								FString key;
+								key.Format("ExtraBarrelOffset%d", l);
+								int AddiBarlL = CINI::Art->GetInteger(ArtID, key, 0);
+								Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings, tilt.angle, tilt.direction);
+								VXL_Add(pBarrelImage[i * tiltCount + j],
+									barrelrect[i * tiltCount + j].X + barldeltaX + mat.OutputX,
+									barrelrect[i * tiltCount + j].Y + barldeltaY + mat.OutputY,
+									barrelrect[i * tiltCount + j].W, barrelrect[i * tiltCount + j].H);
+							}
+						}
+
+						if (!barrelInFront)
+						{
+							if (pTurretImage[i * tiltCount + j])
+								VXL_Add(pTurretImage[i * tiltCount + j],
+									turretrect[i * tiltCount + j].X + turdeltaX + turretOffset.OutputX,
+									turretrect[i * tiltCount + j].Y + turdeltaY + turretOffset.OutputY,
+									turretrect[i * tiltCount + j].W, turretrect[i * tiltCount + j].H);
+						}
+
+						if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
+						{
+							if (pShadowTurretImage[i * tiltCount + j])
+							{
+								VXL_Add(pShadowTurretImage[i * tiltCount + j],
+									shadowturretrect[i * tiltCount + j].X + turdeltaX + turretOffset.OutputX,
+									shadowturretrect[i * tiltCount + j].Y + turdeltaY + turretOffset.OutputY,
+									shadowturretrect[i * tiltCount + j].W, shadowturretrect[i * tiltCount + j].H, true);
+							}
+							if (pShadowBarrelImage[i * tiltCount + j])
+							{
+								Matrix3D mat(exF, exL + AddiBarlL, 0, i, facings, tilt.angle, tilt.direction);
+								VXL_Add(pShadowBarrelImage[i * tiltCount + j],
+									shadowbarrelrect[i * tiltCount + j].X + barldeltaX + mat.OutputX,
+									shadowbarrelrect[i * tiltCount + j].Y + barldeltaY + mat.OutputY, 
+									shadowbarrelrect[i * tiltCount + j].W, shadowbarrelrect[i * tiltCount + j].H, true);
+								for (int l = 0; l < ExtraBarlCount; ++l)
+								{
+									FString key;
+									key.Format("ExtraBarrelOffset%d", l);
+									int AddiBarlL = CINI::Art->GetInteger(ArtID, key, 0);
+									Matrix3D mat(exF, exL + AddiBarlL, 0, i, facings, tilt.angle, tilt.direction);
+									VXL_Add(pShadowBarrelImage[i * tiltCount + j],
+										shadowbarrelrect[i * tiltCount + j].X + barldeltaX + mat.OutputX,
+										shadowbarrelrect[i * tiltCount + j].Y + barldeltaY + mat.OutputY,
+										shadowbarrelrect[i * tiltCount + j].W, shadowbarrelrect[i * tiltCount + j].H, true);
+								}
+							}
+						}
+					}
+
+					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow && pShadowBarrelImage[i * tiltCount + j])
+						CncImgFree(pShadowBarrelImage[i * tiltCount + j]);
+					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow && pShadowTurretImage[i * tiltCount + j])
+						CncImgFree(pShadowTurretImage[i * tiltCount + j]);
+					if (pTurretImage[i * tiltCount + j])
+						CncImgFree(pTurretImage[i * tiltCount + j]);
+					if (pBarrelImage[i * tiltCount + j])
+						CncImgFree(pBarrelImage[i * tiltCount + j]);
+
+					VXL_GetAndClear(outBuffer, &outW, &outH);
+					SetImageDataSafe(outBuffer, DictName, outW, outH, 
+						PalettesManager::LoadPalette(PaletteName), true, outline);
+
+					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
+					{
+						FString DictShadowName;
+						DictShadowName.Format("%s\233%d\233SHADOW\233TILT%d", ID, i, j);
+
+						unsigned char* outBuffer;
+						int outW = 0x100, outH = 0x100;
+
+						if (pShadowImage[i * tiltCount + j])
+						{
+							VXL_Add(pShadowImage[i * tiltCount + j], shadowrect[i * tiltCount + j].X, shadowrect[i * tiltCount + j].Y, shadowrect[i * tiltCount + j].W, shadowrect[i * tiltCount + j].H, true);
+							CncImgFree(pShadowImage[i * tiltCount + j]);	
+						}
+						VXL_GetAndClear(outBuffer, &outW, &outH, true);
+
+						SetImageDataSafe(outBuffer, DictShadowName, outW, outH, &CMapDataExt::Palette_Shadow);
+
+						if (Variables::RulesMap.GetBool(ID, "JumpJet")
+							|| Variables::RulesMap.GetBool(ID, "BalloonHover")
+							|| Variables::RulesMap.GetBool(ID, "BalloonHover")
+							|| Variables::RulesMap.GetString(ID, "Locomotor") == "{92612C46-F71F-11d1-AC9F-006008055BB5}"
+							|| Variables::RulesMap.GetString(ID, "Locomotor") == "Jumpjet"
+							)
+						{
+							auto pData = CLoadingExt::GetImageDataFromMap(DictShadowName);
+							CLoadingExt::ScaleImageHalf(pData);
+						}
 					}
 				}
 			}
@@ -2381,43 +2475,47 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 		{
 			for (int i = 0; i < facings; ++i)
 			{
-				if (IsLoadingObjectView && i != facings / 8 * 2)
-					continue;
-				FString DictName;
-				DictName.Format("%s\233%d", ID, i);
-
-				unsigned char* outBuffer;
-				int outW = 0x100, outH = 0x100;
-
-				VXL_Add(pImage[i], rect[i].X, rect[i].Y, rect[i].W, rect[i].H);
-				CncImgFree(pImage[i]);
-				VXL_GetAndClear(outBuffer, &outW, &outH);
-
-				SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
-
-				if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
+				for (int j = tiltStart; j < tiltEnd; ++j)
 				{
-					FString DictShadowName;
-					DictShadowName.Format("%s\233%d\233SHADOW", ID, i);
+					if (IsLoadingObjectView && i != facings / 8 * 2 && j != 0)
+						continue;
+					FString DictName;
+					DictName.Format("%s\233%d\233TILT%d", ID, i, j);
 
 					unsigned char* outBuffer;
 					int outW = 0x100, outH = 0x100;
 
-					VXL_Add(pShadowImage[i], shadowrect[i].X, shadowrect[i].Y, shadowrect[i].W, shadowrect[i].H, true);
-					CncImgFree(pShadowImage[i]);
-					VXL_GetAndClear(outBuffer, &outW, &outH, true);
+					VXL_Add(pImage[i * tiltCount + j], rect[i * tiltCount + j].X, rect[i * tiltCount + j].Y, rect[i * tiltCount + j].W, rect[i * tiltCount + j].H);
+					CncImgFree(pImage[i * tiltCount + j]);
+					VXL_GetAndClear(outBuffer, &outW, &outH);
 
-					SetImageDataSafe(outBuffer, DictShadowName, outW, outH, &CMapDataExt::Palette_Shadow);
+					SetImageDataSafe(outBuffer, DictName, outW, outH, 
+						PalettesManager::LoadPalette(PaletteName), true, outline);
 
-					if (Variables::RulesMap.GetBool(ID, "JumpJet")
-						|| Variables::RulesMap.GetBool(ID, "BalloonHover")
-						|| Variables::RulesMap.GetBool(ID, "BalloonHover")
-						|| Variables::RulesMap.GetString(ID, "Locomotor") == "{92612C46-F71F-11d1-AC9F-006008055BB5}"
-						|| Variables::RulesMap.GetString(ID, "Locomotor") == "Jumpjet"
-						)
+					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 					{
-						auto pData = CLoadingExt::GetImageDataFromMap(DictShadowName);
-						CLoadingExt::ScaleImageHalf(pData);
+						FString DictShadowName;
+						DictShadowName.Format("%s\233%d\233SHADOW\233TILT%d", ID, i, j);
+
+						unsigned char* outBuffer;
+						int outW = 0x100, outH = 0x100;
+
+						VXL_Add(pShadowImage[i * tiltCount + j], shadowrect[i * tiltCount + j].X, shadowrect[i * tiltCount + j].Y, shadowrect[i * tiltCount + j].W, shadowrect[i * tiltCount + j].H, true);
+						CncImgFree(pShadowImage[i * tiltCount + j]);
+						VXL_GetAndClear(outBuffer, &outW, &outH, true);
+
+						SetImageDataSafe(outBuffer, DictShadowName, outW, outH, &CMapDataExt::Palette_Shadow);
+
+						if (Variables::RulesMap.GetBool(ID, "JumpJet")
+							|| Variables::RulesMap.GetBool(ID, "BalloonHover")
+							|| Variables::RulesMap.GetBool(ID, "BalloonHover")
+							|| Variables::RulesMap.GetString(ID, "Locomotor") == "{92612C46-F71F-11d1-AC9F-006008055BB5}"
+							|| Variables::RulesMap.GetString(ID, "Locomotor") == "Jumpjet"
+							)
+						{
+							auto pData = CLoadingExt::GetImageDataFromMap(DictShadowName);
+							CLoadingExt::ScaleImageHalf(pData);
+						}
 					}
 				}
 			}
@@ -2425,6 +2523,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 	}
 	else // As SHP
 	{
+		int ifvWepIndex = GetIFVWeaponIndex(ID);
 		int facingCount = CINI::Art->GetInteger(ArtID, "Facings", 8);
 		if (facingCount < 8)
 		{
@@ -2480,6 +2579,20 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 
 		FString FileName = ImageID + ".shp";
 		FString FileNameTurret = ImageID + "tur.shp";
+
+		int KratosWeaponTurretFrameIndex = -1;
+		if (ifvWepIndex > 0)
+		{
+			FString key;
+			key.Format("WeaponTurretFrameIndex%d", ifvWepIndex);
+			KratosWeaponTurretFrameIndex = Variables::RulesMap.GetInteger(ID, key, -1);
+			if (KratosWeaponTurretFrameIndex >= 0)
+			{   
+				key.Format("WeaponTurretCustomSHP%d", ifvWepIndex);
+				FileNameTurret = Variables::RulesMap.GetString(ID, key, FileName);
+			}
+		}
+
 		if (HasFileExt(FileName))
 		{
 			ShapeHeader header{};
@@ -2521,7 +2634,10 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 						// and always has 32 facings
 						turrentFacing = (((targetFacings / 8 + i) % targetFacings) * 32 / targetFacings) % 32;
 						turretFrameToRead = bUseTurrentFile ? turrentFacing : (facingCount * nWalkFrames + turrentFacing);
-
+						if (KratosWeaponTurretFrameIndex >= 0)
+						{
+							turretFrameToRead = KratosWeaponTurretFrameIndex;
+						}
 						CLoadingExt::LoadSHPFrameSafe(turretFrameToRead,
 							1, &FramesBuffersTurret[turrentFacing], *currentHeader);
 
@@ -2551,7 +2667,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 				CLoadingExt::LoadSHPFrameSafe(framesToRead[i], 1, &FramesBuffers[0], header);
 
 				FString DictName;
-				DictName.Format("%s\233%d", ID, i);
+				DictName.Format("%s\233%d\233TILT0", ID, i);
 
 				if (bHasTurret)
 				{
@@ -2608,7 +2724,6 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 						}
 					}
 
-
 					Matrix3D mat(F, L, H, i, targetFacings);
 
 					UnionSHP_Add(FramesBuffers[0], header.Width, header.Height);
@@ -2628,12 +2743,13 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 					int outW, outH;
 					UnionSHP_GetAndClear(outBuffer, &outW, &outH);
 
-					SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
+					SetImageDataSafe(outBuffer, DictName, outW, outH, 
+						PalettesManager::LoadPalette(PaletteName), true, outline);
 
 					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 					{
 						FString DictNameShadow;
-						DictNameShadow.Format("%s\233%d\233SHADOW", ID, i);
+						DictNameShadow.Format("%s\233%d\233SHADOW\233TILT0", ID, i);
 						CLoadingExt::LoadSHPFrameSafe(framesToRead[i] + header.FrameCount / 2, 1, &FramesBuffersShadow[0], header);
 						UnionSHP_Add(FramesBuffersShadow[0], header.Width, header.Height, 0, 0, false, true);
 						UnionSHP_Add(FramesBuffersTurretShadow[turrentFacing],
@@ -2649,11 +2765,12 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 				}
 				else
 				{
-					SetImageDataSafe(FramesBuffers[0], DictName, header.Width, header.Height, PalettesManager::LoadPalette(PaletteName));
+					SetImageDataSafe(FramesBuffers[0], DictName, header.Width, header.Height, 
+						PalettesManager::LoadPalette(PaletteName), true, outline);
 					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 					{
 						FString DictNameShadow;
-						DictNameShadow.Format("%s\233%d\233SHADOW", ID, i);
+						DictNameShadow.Format("%s\233%d\233SHADOW\233TILT0", ID, i);
 						CLoadingExt::LoadSHPFrameSafe(framesToRead[i] + header.FrameCount / 2, 1, &FramesBuffersShadow[0], header);
 						SetImageDataSafe(FramesBuffersShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 					}
@@ -2666,13 +2783,20 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 			AvailableFacings[ID] = facings;
 		}
 	}
+
+	if (tiltType >= 0)
+		LoadedTilts[ID].insert(tiltType);
+	else
+		for (int j = 0; j < tiltCount; ++j)
+			LoadedTilts[ID].insert(j);
 }
 
-void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal, bool clip)
+void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, FString NameInDict, 
+	int FullWidth, int FullHeight, Palette* pPal, bool clip, bool outline)
 {
 	auto pData = CLoadingExt::GetImageDataFromMap(NameInDict);
 	SetImageDataSafe(pBuffer, pData, FullWidth, FullHeight, pPal);
-	if (clip) TrimImageEdges(pData, pPal == &CMapDataExt::Palette_Shadow);
+	if (clip) TrimImageEdges(pData, pPal == &CMapDataExt::Palette_Shadow, outline);
 }
 
 ImageDataClassSafe* CLoadingExt::SetBuildingImageDataSafe(unsigned char* pBuffer, FString NameInDict,
@@ -3391,268 +3515,105 @@ void CLoadingExt::ScaleImageHalf(ImageDataClassSafe* pData)
 	SetValidBufferSafe(pData, newW, newH);
 }
 
-void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow)
+static bool RowHasContent(const unsigned char* row, int width)
 {
-	if (!pData || !pData->pImageBuffer || pData->FullWidth <= 0 || pData->FullHeight <= 0) {
-		return;
+	if (ExtConfigs::AVX2_Support)
+	{
+		__m256i zero256 = _mm256_setzero_si256();
+		int x = 0;
+
+		for (; x + 32 <= width; x += 32)
+		{
+			__m256i v = _mm256_loadu_si256((__m256i*)(row + x));
+			if (_mm256_movemask_epi8(_mm256_cmpeq_epi8(v, zero256)) != 0xFFFFFFFF)
+				return true;
+		}
+
+		for (; x + 16 <= width; x += 16)
+		{
+			__m128i v = _mm_loadu_si128((__m128i*)(row + x));
+			if (_mm_movemask_epi8(_mm_cmpeq_epi8(v, _mm_setzero_si128())) != 0xFFFF)
+				return true;
+		}
+
+		for (; x < width; ++x)
+		{
+			if (row[x] != 0)
+				return true;
+		}
+
+		return false;
+	}
+	else
+	{
+		for (int i = 0; i < width; ++i)
+		{
+			if (row[i] != 0)
+				return true;
+		}
+
+		return false;
+	}
+}
+
+static bool FindContentBounds(const unsigned char* buffer, int oldW, int oldH,
+	int& minX, int& minY, int& maxX, int& maxY)
+{
+	minX = oldW;
+	minY = oldH;
+	maxX = -1;
+	maxY = -1;
+
+	for (int y = 0; y < oldH; ++y)
+	{
+		if (RowHasContent(buffer + (size_t)y * oldW, oldW))
+		{
+			minY = y;
+			break;
+		}
 	}
 
-	if (ExtConfigs::AVX2_Support) [[likely]]
+	if (minY == oldH)
+		return false;
+
+	for (int y = oldH - 1; y >= minY && maxY == -1; --y)
 	{
-		const int oldW = pData->FullWidth;
-		const int oldH = pData->FullHeight;
-		unsigned char* buffer = pData->pImageBuffer.get();
+		if (RowHasContent(buffer + (size_t)y * oldW, oldW))
+			maxY = y;
+	}
 
-		int minY = oldH;
-		int maxY = -1;
-		if (oldW >= 32)
+	for (int x = 0; x < oldW && minX == oldW; ++x)
+	{
+		for (int y = minY; y <= maxY; ++y)
 		{
-			__m256i zero = _mm256_setzero_si256();
-
-			for (int y = 0; y < oldH && minY == oldH; ++y)
+			if (buffer[(size_t)y * oldW + x] != 0)
 			{
-				const unsigned char* row = buffer + (size_t)y * oldW;
-				int foundInRow = 0;
-
-				for (int x = 0; x < oldW; x += 32)
-				{
-					if (x + 32 <= oldW)
-					{
-						__m256i v = _mm256_loadu_si256((__m256i*)(row + x));
-						__m256i cmp = _mm256_cmpeq_epi8(v, zero);
-						int mask = _mm256_movemask_epi8(cmp);
-
-						if (mask != 0xFFFFFFFF)
-						{
-							foundInRow = 1;
-							break;
-						}
-					}
-					else
-					{
-						for (int j = x; j < oldW; ++j)
-						{
-							if (row[j] != 0)
-							{
-								foundInRow = 1;
-								break;
-							}
-						}
-						if (foundInRow) break;
-					}
-				}
-
-				if (foundInRow)
-					minY = y;
-			}
-
-			for (int y = oldH - 1; y >= minY && maxY == -1; --y)
-			{
-				const unsigned char* row = buffer + (size_t)y * oldW;
-				int foundInRow = 0;
-
-				for (int x = 0; x < oldW; x += 32)
-				{
-					if (x + 32 <= oldW)
-					{
-						__m256i v = _mm256_loadu_si256((__m256i*)(row + x));
-						__m256i cmp = _mm256_cmpeq_epi8(v, zero);
-						int mask = _mm256_movemask_epi8(cmp);
-
-						if (mask != 0xFFFFFFFF)
-						{
-							foundInRow = 1;
-							break;
-						}
-					}
-					else
-					{
-						for (int j = x; j < oldW; ++j)
-						{
-							if (row[j] != 0)
-							{
-								foundInRow = 1;
-								break;
-							}
-						}
-						if (foundInRow) break;
-					}
-				}
-
-				if (foundInRow)
-					maxY = y;
+				minX = x;
+				break;
 			}
 		}
-		else
+	}
+
+	for (int x = oldW - 1; x >= minX && maxX == -1; --x)
+	{
+		for (int y = minY; y <= maxY; ++y)
 		{
-			__m128i zero = _mm_setzero_si128();
-
-			for (int y = 0; y < oldH && minY == oldH; ++y)
+			if (buffer[(size_t)y * oldW + x] != 0)
 			{
-				const unsigned char* row = buffer + (size_t)y * oldW;
-				int foundInRow = 0;
-
-				for (int x = 0; x < oldW; x += 16)
-				{
-					if (x + 16 <= oldW)
-					{
-						__m128i v = _mm_loadu_si128((__m128i*)(row + x));
-						__m128i cmp = _mm_cmpeq_epi8(v, zero);
-						int mask = _mm_movemask_epi8(cmp);
-
-						if (mask != 0xFFFF)
-						{
-							foundInRow = 1;
-							break;
-						}
-					}
-					else
-					{
-						for (int j = x; j < oldW; ++j)
-						{
-							if (row[j] != 0)
-							{
-								foundInRow = 1;
-								break;
-							}
-						}
-						if (foundInRow) break;
-					}
-				}
-
-				if (foundInRow)
-					minY = y;
-			}
-
-			for (int y = oldH - 1; y >= minY && maxY == -1; --y)
-			{
-				const unsigned char* row = buffer + (size_t)y * oldW;
-				int foundInRow = 0;
-
-				for (int x = 0; x < oldW; x += 16)
-				{
-					if (x + 16 <= oldW)
-					{
-						__m128i v = _mm_loadu_si128((__m128i*)(row + x));
-						__m128i cmp = _mm_cmpeq_epi8(v, zero);
-						int mask = _mm_movemask_epi8(cmp);
-
-						if (mask != 0xFFFF)
-						{
-							foundInRow = 1;
-							break;
-						}
-					}
-					else
-					{
-						for (int j = x; j < oldW; ++j)
-						{
-							if (row[j] != 0)
-							{
-								foundInRow = 1;
-								break;
-							}
-						}
-						if (foundInRow) break;
-					}
-				}
-
-				if (foundInRow)
-					maxY = y;
+				maxX = x;
+				break;
 			}
 		}
+	}
 
-		if (minY == oldH || maxY == -1) [[unlikely]] {
-			pData->pImageBuffer = nullptr;
-			pData->pPixelValidRanges = nullptr;
-			pData->FullWidth = 0;
-			pData->FullHeight = 0;
-			pData->ValidX = 0;
-			pData->ValidY = 0;
-			pData->ValidWidth = 0;
-			pData->ValidHeight = 0;
-			return;
-		}
+	return true;
+}
 
-		int minX = oldW;
-		int maxX = -1;
-
-		for (int x = 0; x < oldW && minX == oldW; ++x)
-		{
-			for (int y = minY; y <= maxY; ++y)
-			{
-				if (buffer[(size_t)y * oldW + x] != 0)
-				{
-					minX = x;
-					break;
-				}
-			}
-		}
-
-		for (int x = oldW - 1; x >= minX && maxX == -1; --x)
-		{
-			for (int y = minY; y <= maxY; ++y)
-			{
-				if (buffer[(size_t)y * oldW + x] != 0)
-				{
-					maxX = x;
-					break;
-				}
-			}
-		}
-
-		if (minX == oldW || maxX == -1) [[unlikely]] {
-			pData->pImageBuffer = nullptr;
-			pData->pPixelValidRanges = nullptr;
-			pData->FullWidth = 0;
-			pData->FullHeight = 0;
-			pData->ValidX = 0;
-			pData->ValidY = 0;
-			pData->ValidWidth = 0;
-			pData->ValidHeight = 0;
-			return;
-		}
-
-		const int validW = maxX - minX + 1;
-		const int validH = maxY - minY + 1;
-
-		const int leftSpace = minX;
-		const int rightSpace = oldW - 1 - maxX;
-		const int topSpace = minY;
-		const int bottomSpace = oldH - 1 - maxY;
-
-		const int cropLR = std::min(leftSpace, rightSpace);
-		const int cropTB = std::min(topSpace, bottomSpace);
-
-		const int newW = oldW - cropLR * 2;
-		const int newH = oldH - cropTB * 2;
-
-		if (newW <= 0 || newH <= 0) [[unlikely]] {
-			pData->pImageBuffer = nullptr;
-			pData->pPixelValidRanges = nullptr;
-			pData->FullWidth = 0;
-			pData->FullHeight = 0;
-			pData->ValidX = 0;
-			pData->ValidY = 0;
-			pData->ValidWidth = 0;
-			pData->ValidHeight = 0;
-			return;
-		}
-
-		if (cropLR == 0 && cropTB == 0) [[unlikely]] {
-			pData->ValidX = minX;
-			pData->ValidY = minY;
-			pData->ValidWidth = validW;
-			pData->ValidHeight = validH;
-			if (pData->pPixelValidRanges) {
-				pData->pPixelValidRanges = nullptr;
-			}
-			SetValidBufferSafe(pData, newW, newH);
-			return;
-		}
-
-		std::unique_ptr<unsigned char[]> newBuffer(new unsigned char[static_cast<size_t>(newW) * newH]);
-
+static void CopyCroppedRegion(const unsigned char* src, int oldW, int cropLR, int cropTB,
+	int newW, int newH, unsigned char* dst)
+{
+	if (ExtConfigs::AVX2_Support)
+	{
 		if (newW >= 32)
 		{
 			const int fullBlocks32 = newW / 32;
@@ -3660,9 +3621,8 @@ void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow)
 
 			for (int y = 0; y < newH; ++y)
 			{
-				const int srcY = y + cropTB;
-				const unsigned char* srcPtr = buffer + (size_t)srcY * oldW + cropLR;
-				unsigned char* dstPtr = newBuffer.get() + (size_t)y * newW;
+				const unsigned char* srcPtr = src + (size_t)(y + cropTB) * oldW + cropLR;
+				unsigned char* dstPtr = dst + (size_t)y * newW;
 
 				for (int block = 0; block < fullBlocks32; ++block)
 				{
@@ -3672,436 +3632,29 @@ void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow)
 
 				if (remainBytes > 0)
 				{
-					if (remainBytes >= 16)
-					{
-						__m128i data = _mm_loadu_si128((__m128i*)(srcPtr + fullBlocks32 * 32));
-						_mm_storeu_si128((__m128i*)(dstPtr + fullBlocks32 * 32), data);
-
-						if (remainBytes > 16)
-						{
-							std::memcpy(dstPtr + fullBlocks32 * 32 + 16,
-								srcPtr + fullBlocks32 * 32 + 16,
-								remainBytes - 16);
-						}
-					}
-					else
-					{
-						std::memcpy(dstPtr + fullBlocks32 * 32,
-							srcPtr + fullBlocks32 * 32,
-							remainBytes);
-					}
+					std::memcpy(dstPtr + fullBlocks32 * 32, srcPtr + fullBlocks32 * 32, remainBytes);
 				}
 			}
 		}
-		else
+		else if (newW >= 16)
 		{
-			if (newW >= 16)
-			{
-				const int fullBlocks16 = newW / 16;
-				const int remainBytes = newW % 16;
-
-				for (int y = 0; y < newH; ++y)
-				{
-					const int srcY = y + cropTB;
-					const unsigned char* srcPtr = buffer + (size_t)srcY * oldW + cropLR;
-					unsigned char* dstPtr = newBuffer.get() + (size_t)y * newW;
-
-					for (int block = 0; block < fullBlocks16; ++block)
-					{
-						__m128i data = _mm_loadu_si128((__m128i*)(srcPtr + block * 16));
-						_mm_storeu_si128((__m128i*)(dstPtr + block * 16), data);
-					}
-
-					if (remainBytes > 0)
-					{
-						std::memcpy(dstPtr + fullBlocks16 * 16,
-							srcPtr + fullBlocks16 * 16,
-							remainBytes);
-					}
-				}
-			}
-			else
-			{
-				for (int y = 0; y < newH; ++y)
-				{
-					const int srcY = y + cropTB;
-					std::memcpy(newBuffer.get() + (size_t)y * newW,
-						buffer + (size_t)srcY * oldW + cropLR,
-						static_cast<size_t>(newW));
-				}
-			}
-		}
-
-		pData->pImageBuffer = std::move(newBuffer);
-		pData->FullWidth = newW;
-		pData->FullHeight = newH;
-		pData->ValidX = minX - cropLR;
-		pData->ValidY = minY - cropTB;
-		pData->ValidWidth = validW;
-		pData->ValidHeight = validH;
-
-		if (pData->pPixelValidRanges) {
-			pData->pPixelValidRanges = nullptr;
-		}
-
-		SetValidBufferSafe(pData, newW, newH);
-	}
-	else
-	{
-		const int oldW = pData->FullWidth;
-		const int oldH = pData->FullHeight;
-		unsigned char* buffer = pData->pImageBuffer.get();
-
-		int minX = oldW - 1, minY = oldH - 1;
-		int maxX = 0, maxY = 0;
-
-		for (int y = 0; y < oldH; ++y)
-		{
-			for (int x = 0; x < oldW; ++x)
-			{
-				unsigned char px = buffer[y * oldW + x];
-				if (px != 0)
-				{
-					if (x < minX) minX = x;
-					if (y < minY) minY = y;
-					if (x > maxX) maxX = x;
-					if (y > maxY) maxY = y;
-				}
-			}
-		}
-
-		if (minX > maxX || minY > maxY)
-		{
-			pData->pImageBuffer = nullptr;
-			pData->pPixelValidRanges = nullptr;
-			pData->FullWidth = 0;
-			pData->FullHeight = 0;
-			pData->ValidX = 0;
-			pData->ValidY = 0;
-			pData->ValidWidth = 0;
-			pData->ValidHeight = 0;
-			return;
-		}
-
-		int validW = maxX - minX + 1;
-		int validH = maxY - minY + 1;
-
-		int leftSpace = minX;
-		int rightSpace = oldW - 1 - maxX;
-		int topSpace = minY;
-		int bottomSpace = oldH - 1 - maxY;
-
-		int cropLR = std::min(leftSpace, rightSpace);
-		int cropTB = std::min(topSpace, bottomSpace);
-
-		int newW = oldW - cropLR * 2;
-		int newH = oldH - cropTB * 2;
-
-		if (newW <= 0 || newH <= 0)
-		{
-			pData->pImageBuffer = nullptr;
-			pData->pPixelValidRanges = nullptr;
-			pData->FullWidth = 0;
-			pData->FullHeight = 0;
-			pData->ValidX = 0;
-			pData->ValidY = 0;
-			pData->ValidWidth = 0;
-			pData->ValidHeight = 0;
-			return;
-		}
-
-		std::unique_ptr<unsigned char[]> newBuffer(new unsigned char[newW * newH]);
-		for (int y = 0; y < newH; ++y)
-		{
-			int srcY = y + cropTB;
-			std::memcpy(&newBuffer[y * newW],
-				&buffer[srcY * oldW + cropLR],
-				newW);
-		}
-
-		pData->pImageBuffer = std::move(newBuffer);
-		pData->FullWidth = newW;
-		pData->FullHeight = newH;
-		pData->ValidX = minX - cropLR;
-		pData->ValidY = minY - cropTB;
-		pData->ValidWidth = validW;
-		pData->ValidHeight = validH;
-		if (pData->pPixelValidRanges)
-			pData->pPixelValidRanges = nullptr;
-		SetValidBufferSafe(pData, newW, newH);
-	}
-}
-
-void CLoadingExt::TrimImageEdges(unsigned char*& pBuffer, int& width, int& height, unsigned char** pSecondBuffer)
-{
-	if (!pBuffer || width <= 0 || height <= 0)
-		return;
-
-	if (ExtConfigs::AVX2_Support) [[likely]]
-	{
-		const int oldW = width;
-		const int oldH = height;
-
-		int minY = oldH;
-		int maxY = -1;
-		int minX = oldW;
-		int maxX = -1;
-
-		__m256i zero = _mm256_setzero_si256();
-
-		for (int y = 0; y < oldH && minY == oldH; ++y)
-		{
-			const unsigned char* row = pBuffer + (size_t)y * oldW;
-			int foundInRow = 0;
-
-			for (int x = 0; x < oldW; x += 32)
-			{
-				if (x + 32 <= oldW)
-				{
-					__m256i v = _mm256_loadu_si256((__m256i*)(row + x));
-					__m256i cmp = _mm256_cmpeq_epi8(v, zero);
-					int mask = _mm256_movemask_epi8(cmp);
-
-					if (mask != 0xFFFFFFFF)
-					{
-						foundInRow = 1;
-						break;
-					}
-				}
-				else if (x + 16 <= oldW)
-				{
-					__m128i v = _mm_loadu_si128((__m128i*)(row + x));
-					__m128i cmp = _mm_cmpeq_epi8(v, _mm_setzero_si128());
-					int mask = _mm_movemask_epi8(cmp);
-
-					if (mask != 0xFFFF)
-					{
-						foundInRow = 1;
-						break;
-					}
-					x += 16;
-
-					if (x < oldW)
-					{
-						for (int i = x; i < oldW; ++i)
-						{
-							if (row[i] != 0)
-							{
-								foundInRow = 1;
-								break;
-							}
-						}
-					}
-				}
-				else
-				{
-					for (int i = x; i < oldW; ++i)
-					{
-						if (row[i] != 0)
-						{
-							foundInRow = 1;
-							break;
-						}
-					}
-					if (foundInRow) break;
-				}
-			}
-
-			if (foundInRow)
-			{
-				minY = y;
-			}
-		}
-
-		if (minY == oldH)
-			return;
-
-		for (int y = oldH - 1; y >= minY && maxY == -1; --y)
-		{
-			const unsigned char* row = pBuffer + (size_t)y * oldW;
-			int foundInRow = 0;
-
-			for (int x = 0; x < oldW; x += 32)
-			{
-				if (x + 32 <= oldW)
-				{
-					__m256i v = _mm256_loadu_si256((__m256i*)(row + x));
-					__m256i cmp = _mm256_cmpeq_epi8(v, zero);
-					int mask = _mm256_movemask_epi8(cmp);
-
-					if (mask != 0xFFFFFFFF)
-					{
-						foundInRow = 1;
-						break;
-					}
-				}
-				else if (x + 16 <= oldW)
-				{
-					__m128i v = _mm_loadu_si128((__m128i*)(row + x));
-					__m128i cmp = _mm_cmpeq_epi8(v, _mm_setzero_si128());
-					int mask = _mm_movemask_epi8(cmp);
-
-					if (mask != 0xFFFF)
-					{
-						foundInRow = 1;
-						break;
-					}
-					x += 16;
-
-					if (x < oldW)
-					{
-						for (int i = x; i < oldW; ++i)
-						{
-							if (row[i] != 0)
-							{
-								foundInRow = 1;
-								break;
-							}
-						}
-					}
-				}
-				else
-				{
-					for (int i = x; i < oldW; ++i)
-					{
-						if (row[i] != 0)
-						{
-							foundInRow = 1;
-							break;
-						}
-					}
-					if (foundInRow) break;
-				}
-			}
-
-			if (foundInRow)
-			{
-				maxY = y;
-			}
-		}
-
-		for (int x = 0; x < oldW && minX == oldW; ++x)
-		{
-			for (int y = minY; y <= maxY; ++y)
-			{
-				if (pBuffer[(size_t)y * oldW + x] != 0)
-				{
-					minX = x;
-					break;
-				}
-			}
-		}
-
-		for (int x = oldW - 1; x >= minX && maxX == -1; --x)
-		{
-			for (int y = minY; y <= maxY; ++y)
-			{
-				if (pBuffer[(size_t)y * oldW + x] != 0)
-				{
-					maxX = x;
-					break;
-				}
-			}
-		}
-
-		if (minX > maxX || minY > maxY)
-			return;
-
-		int leftSpace = minX;
-		int rightSpace = oldW - 1 - maxX;
-		int topSpace = minY;
-		int bottomSpace = oldH - 1 - maxY;
-
-		int cropLR = std::min(leftSpace, rightSpace);
-		int cropTB = std::min(topSpace, bottomSpace);
-
-		if (cropLR == 0 && cropTB == 0)
-			return;
-
-		int newW = oldW - cropLR * 2;
-		int newH = oldH - cropTB * 2;
-
-		if (newW <= 0 || newH <= 0)
-			return;
-
-		unsigned char* newBuffer = GameCreateArray<unsigned char>(newW * newH);
-		unsigned char* newSecondBuffer = nullptr;
-
-		if (pSecondBuffer && *pSecondBuffer)
-		{
-			newSecondBuffer = GameCreateArray<unsigned char>(newW * newH);
-		}
-
-		if (newW >= 32 && newW % 32 == 0)
-		{
-			const int copySize = newW / 32;
+			const int fullBlocks16 = newW / 16;
+			const int remainBytes = newW % 16;
 
 			for (int y = 0; y < newH; ++y)
 			{
-				const unsigned char* srcRow = pBuffer + (size_t)(y + cropTB) * oldW + cropLR;
-				unsigned char* dstRow = newBuffer + (size_t)y * newW;
+				const unsigned char* srcPtr = src + (size_t)(y + cropTB) * oldW + cropLR;
+				unsigned char* dstPtr = dst + (size_t)y * newW;
 
-				for (int block = 0; block < copySize; ++block)
+				for (int block = 0; block < fullBlocks16; ++block)
 				{
-					__m256i data = _mm256_loadu_si256((__m256i*)(srcRow + block * 32));
-					_mm256_storeu_si256((__m256i*)(dstRow + block * 32), data);
-				}
-			}
-
-			if (pSecondBuffer && *pSecondBuffer)
-			{
-				for (int y = 0; y < newH; ++y)
-				{
-					const unsigned char* srcRow = *pSecondBuffer + (size_t)(y + cropTB) * oldW + cropLR;
-					unsigned char* dstRow = newSecondBuffer + (size_t)y * newW;
-
-					for (int block = 0; block < copySize; ++block)
-					{
-						__m256i data = _mm256_loadu_si256((__m256i*)(srcRow + block * 32));
-						_mm256_storeu_si256((__m256i*)(dstRow + block * 32), data);
-					}
-				}
-			}
-		}
-		else if (newW >= 32)
-		{
-			const int fullBlocks = newW / 32;
-			const int remainBytes = newW % 32;
-
-			for (int y = 0; y < newH; ++y)
-			{
-				const unsigned char* srcRow = pBuffer + (size_t)(y + cropTB) * oldW + cropLR;
-				unsigned char* dstRow = newBuffer + (size_t)y * newW;
-
-				for (int block = 0; block < fullBlocks; ++block)
-				{
-					__m256i data = _mm256_loadu_si256((__m256i*)(srcRow + block * 32));
-					_mm256_storeu_si256((__m256i*)(dstRow + block * 32), data);
+					__m128i data = _mm_loadu_si128((__m128i*)(srcPtr + block * 16));
+					_mm_storeu_si128((__m128i*)(dstPtr + block * 16), data);
 				}
 
 				if (remainBytes > 0)
 				{
-					std::memcpy(dstRow + fullBlocks * 32, srcRow + fullBlocks * 32, remainBytes);
-				}
-			}
-
-			if (pSecondBuffer && *pSecondBuffer)
-			{
-				for (int y = 0; y < newH; ++y)
-				{
-					const unsigned char* srcRow = *pSecondBuffer + (size_t)(y + cropTB) * oldW + cropLR;
-					unsigned char* dstRow = newSecondBuffer + (size_t)y * newW;
-
-					for (int block = 0; block < fullBlocks; ++block)
-					{
-						__m256i data = _mm256_loadu_si256((__m256i*)(srcRow + block * 32));
-						_mm256_storeu_si256((__m256i*)(dstRow + block * 32), data);
-					}
-
-					if (remainBytes > 0)
-					{
-						std::memcpy(dstRow + fullBlocks * 32, srcRow + fullBlocks * 32, remainBytes);
-					}
+					std::memcpy(dstPtr + fullBlocks16 * 16, srcPtr + fullBlocks16 * 16, remainBytes);
 				}
 			}
 		}
@@ -4109,112 +3662,233 @@ void CLoadingExt::TrimImageEdges(unsigned char*& pBuffer, int& width, int& heigh
 		{
 			for (int y = 0; y < newH; ++y)
 			{
-				int srcY = y + cropTB;
-				std::memcpy(
-					newBuffer + (size_t)y * newW,
-					pBuffer + (size_t)srcY * oldW + cropLR,
-					newW
-				);
-				if (pSecondBuffer && *pSecondBuffer)
-				{
-					std::memcpy(
-						newSecondBuffer + (size_t)y * newW,
-						*pSecondBuffer + (size_t)srcY * oldW + cropLR,
-						newW
-					);
-				}
+				std::memcpy(dst + (size_t)y * newW,
+					src + (size_t)(y + cropTB) * oldW + cropLR,
+					static_cast<size_t>(newW));
 			}
 		}
-
-		GameDeleteArray(pBuffer, oldW * oldH);
-		if (pSecondBuffer && *pSecondBuffer)
-		{
-			GameDeleteArray(*pSecondBuffer, oldW * oldH);
-			*pSecondBuffer = newSecondBuffer;
-		}
-
-		pBuffer = newBuffer;
-		width = newW;
-		height = newH;
 	}
 	else
 	{
-		const int oldW = width;
-		const int oldH = height;
-
-		int minX = oldW - 1, minY = oldH - 1;
-		int maxX = 0, maxY = 0;
-
-		for (int y = 0; y < oldH; ++y)
-		{
-			const unsigned char* row = pBuffer + y * oldW;
-			for (int x = 0; x < oldW; ++x)
-			{
-				if (row[x] != 0)
-				{
-					if (x < minX) minX = x;
-					if (y < minY) minY = y;
-					if (x > maxX) maxX = x;
-					if (y > maxY) maxY = y;
-				}
-			}
-		}
-
-		if (minX > maxX || minY > maxY)
-		{
-			return;
-		}
-
-		int leftSpace = minX;
-		int rightSpace = oldW - 1 - maxX;
-		int topSpace = minY;
-		int bottomSpace = oldH - 1 - maxY;
-
-		int cropLR = std::min(leftSpace, rightSpace);
-		int cropTB = std::min(topSpace, bottomSpace);
-
-		int newW = oldW - cropLR * 2;
-		int newH = oldH - cropTB * 2;
-
-		if (newW <= 0 || newH <= 0)
-			return;
-
-		unsigned char* newBuffer = GameCreateArray<unsigned char>(newW * newH);
-		unsigned char* newSecondBuffer = nullptr;
-		if (pSecondBuffer && *pSecondBuffer)
-		{
-			newSecondBuffer = GameCreateArray<unsigned char>(newW * newH);
-		}
-
 		for (int y = 0; y < newH; ++y)
 		{
-			int srcY = y + cropTB;
-			std::memcpy(
-				newBuffer + y * newW,
-				pBuffer + srcY * oldW + cropLR,
-				newW
-			);
-			if (pSecondBuffer && *pSecondBuffer)
-			{
-				std::memcpy(
-					newSecondBuffer + y * newW,
-					*pSecondBuffer + srcY * oldW + cropLR,
-					newW
-				);
-			}
+			std::memcpy(dst + (size_t)y * newW,
+				src + (size_t)(y + cropTB) * oldW + cropLR,
+				static_cast<size_t>(newW));
 		}
-
-		GameDeleteArray(pBuffer, oldW * oldH);
-		if (pSecondBuffer && *pSecondBuffer)
-		{
-			GameDeleteArray(*pSecondBuffer, oldW * oldH);
-			*pSecondBuffer = newSecondBuffer;
-		}
-		pBuffer = newBuffer;
-
-		width = newW;
-		height = newH;
 	}
+}
+
+static void OutlineImageEdges(unsigned char* buffer, int width, int height, const Palette* pPal)
+{
+	if (!buffer || width <= 0 || height <= 0)
+		return;
+
+	if (!pPal)
+		pPal = Palette::PALETTE_UNIT;
+
+	int blackIndex = 1;
+	int bestDist = INT_MAX;
+	for (int i = 1; i < 256; ++i)
+	{
+		const BGRStruct& c = pPal->Data[i];
+		int dist = c.R * c.R + c.G * c.G + c.B * c.B;
+		if (dist < bestDist)
+		{
+			bestDist = dist;
+			blackIndex = i;
+		}
+	}
+
+	const size_t stride = (size_t)width;
+	const size_t total = stride * height;
+	std::unique_ptr<unsigned char[]> snapshot(new unsigned char[total]);
+	std::memcpy(snapshot.get(), buffer, total);
+
+	const __m128i zero = _mm_setzero_si128();
+	const __m128i black = _mm_set1_epi8((char)blackIndex);
+
+	for (int y = 0; y < height; ++y)
+	{
+		const unsigned char* srcRow = snapshot.get() + (size_t)y * stride;
+		unsigned char* dstRow = buffer + (size_t)y * stride;
+
+		__m128i prev = zero;
+		int x = 0;
+
+		for (; x + 16 <= width; x += 16)
+		{
+			const __m128i cur = _mm_loadu_si128((const __m128i*)(srcRow + x));
+			const __m128i next = (x + 32 <= width) ? _mm_loadu_si128((const __m128i*)(srcRow + x + 16)) : zero;
+			const __m128i up   = (y > 0)          ? _mm_loadu_si128((const __m128i*)(srcRow - stride + x)) : zero;
+			const __m128i down = (y + 1 < height) ? _mm_loadu_si128((const __m128i*)(srcRow + stride + x)) : zero;
+
+			const __m128i leftN  = _mm_alignr_epi8(cur, prev, 15); // src[x-1 .. x+14]
+			const __m128i rightN = _mm_alignr_epi8(next, cur, 1);  // src[x+1 .. x+16]
+
+			const __m128i selfZero = _mm_cmpeq_epi8(cur, zero);
+			const __m128i nzL = _mm_cmpeq_epi8(leftN, zero);
+			const __m128i nzR = _mm_cmpeq_epi8(rightN, zero);
+			const __m128i nzU = _mm_cmpeq_epi8(up, zero);
+			const __m128i nzD = _mm_cmpeq_epi8(down, zero);
+
+			const __m128i allNZero = _mm_and_si128(_mm_and_si128(nzL, nzR), _mm_and_si128(nzU, nzD));
+			const __m128i paint = _mm_andnot_si128(allNZero, selfZero); 
+
+			const __m128i result = _mm_or_si128(_mm_andnot_si128(paint, cur), _mm_and_si128(paint, black));
+			_mm_storeu_si128((__m128i*)(dstRow + x), result);
+
+			prev = cur;
+		}
+
+		for (; x < width; ++x)
+		{
+			if (srcRow[x] != 0)
+				continue;
+
+			bool hasContent = false;
+			if (x > 0 && srcRow[x - 1] != 0)
+				hasContent = true;
+			else if (x + 1 < width && srcRow[x + 1] != 0)
+				hasContent = true;
+			else if (y > 0 && srcRow[x - stride] != 0)
+				hasContent = true;
+			else if (y + 1 < height && srcRow[x + stride] != 0)
+				hasContent = true;
+
+			if (hasContent)
+				dstRow[x] = (unsigned char)blackIndex;
+		}
+	}
+}
+
+void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow, bool outline)
+{
+	if (!pData || !pData->pImageBuffer || pData->FullWidth <= 0 || pData->FullHeight <= 0) {
+		return;
+	}
+
+	if (outline)
+		OutlineImageEdges(pData->pImageBuffer.get(), pData->FullWidth, pData->FullHeight, pData->pPalette);
+
+	const int oldW = pData->FullWidth;
+	const int oldH = pData->FullHeight;
+	unsigned char* buffer = pData->pImageBuffer.get();
+
+	auto resetData = [pData]() {
+		pData->pImageBuffer = nullptr;
+		pData->pPixelValidRanges = nullptr;
+		pData->FullWidth = 0;
+		pData->FullHeight = 0;
+		pData->ValidX = 0;
+		pData->ValidY = 0;
+		pData->ValidWidth = 0;
+		pData->ValidHeight = 0;
+	};
+
+	int minX, minY, maxX, maxY;
+	if (!FindContentBounds(buffer, oldW, oldH, minX, minY, maxX, maxY)) [[unlikely]] {
+		resetData();
+		return;
+	}
+
+	const int validW = maxX - minX + 1;
+	const int validH = maxY - minY + 1;
+
+	const int cropLR = std::min(minX, oldW - 1 - maxX);
+	const int cropTB = std::min(minY, oldH - 1 - maxY);
+
+	const int newW = oldW - cropLR * 2;
+	const int newH = oldH - cropTB * 2;
+
+	if (newW <= 0 || newH <= 0) [[unlikely]] {
+		resetData();
+		return;
+	}
+
+	if (cropLR == 0 && cropTB == 0) [[unlikely]] {
+		pData->ValidX = minX;
+		pData->ValidY = minY;
+		pData->ValidWidth = validW;
+		pData->ValidHeight = validH;
+		if (pData->pPixelValidRanges) {
+			pData->pPixelValidRanges = nullptr;
+		}
+		SetValidBufferSafe(pData, newW, newH);
+		return;
+	}
+
+	std::unique_ptr<unsigned char[]> newBuffer(new unsigned char[static_cast<size_t>(newW) * newH]);
+
+	CopyCroppedRegion(buffer, oldW, cropLR, cropTB, newW, newH, newBuffer.get());
+
+	pData->pImageBuffer = std::move(newBuffer);
+	pData->FullWidth = newW;
+	pData->FullHeight = newH;
+	pData->ValidX = minX - cropLR;
+	pData->ValidY = minY - cropTB;
+	pData->ValidWidth = validW;
+	pData->ValidHeight = validH;
+
+	if (pData->pPixelValidRanges) {
+		pData->pPixelValidRanges = nullptr;
+	}
+
+	SetValidBufferSafe(pData, newW, newH);
+}
+
+void CLoadingExt::TrimImageEdges(unsigned char*& pBuffer, int& width, int& height, unsigned char** pSecondBuffer, Palette* pPal, bool outline)
+{
+	if (!pBuffer || width <= 0 || height <= 0)
+		return;
+
+	if (outline)
+		OutlineImageEdges(pBuffer, width, height, pPal);
+
+	const int oldW = width;
+	const int oldH = height;
+
+	int minX, minY, maxX, maxY;
+	if (!FindContentBounds(pBuffer, oldW, oldH, minX, minY, maxX, maxY))
+		return;
+
+	const int cropLR = std::min(minX, oldW - 1 - maxX);
+	const int cropTB = std::min(minY, oldH - 1 - maxY);
+
+	if (cropLR == 0 && cropTB == 0)
+		return;
+
+	const int newW = oldW - cropLR * 2;
+	const int newH = oldH - cropTB * 2;
+
+	if (newW <= 0 || newH <= 0)
+		return;
+
+	unsigned char* newBuffer = GameCreateArray<unsigned char>(newW * newH);
+	unsigned char* newSecondBuffer = nullptr;
+
+	if (pSecondBuffer && *pSecondBuffer)
+	{
+		newSecondBuffer = GameCreateArray<unsigned char>(newW * newH);
+	}
+
+	CopyCroppedRegion(pBuffer, oldW, cropLR, cropTB, newW, newH, newBuffer);
+
+	if (pSecondBuffer && *pSecondBuffer)
+	{
+		CopyCroppedRegion(*pSecondBuffer, oldW, cropLR, cropTB, newW, newH, newSecondBuffer);
+	}
+
+	GameDeleteArray(pBuffer, oldW * oldH);
+	if (pSecondBuffer && *pSecondBuffer)
+	{
+		GameDeleteArray(*pSecondBuffer, oldW * oldH);
+		*pSecondBuffer = newSecondBuffer;
+	}
+
+	pBuffer = newBuffer;
+	width = newW;
+	height = newH;
 }
 
 void CLoadingExt::SetTheaterLetter(FString& string, int mode)
@@ -5743,22 +5417,30 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 	constexpr uint64_t CACHE_TTL_MS = 500;
 	constexpr uint64_t CLEANUP_INTERVAL_MS = 1000;
 
-	auto it = g_cache[fa2path].find(filename);
+	// Strip directory part for virtual filesystem lookups and cache key
+	const char* basename = filename;
+	for (const char* p = filename; *p; ++p)
+	{
+		if (*p == '\\' || *p == '/')
+			basename = p + 1;
+	}
+
+	auto it = g_cache[fa2path].find(basename);
 	if (it != g_cache[fa2path].end())
 	{
-		uint64_t lastUsed = g_cacheTime[fa2path][filename];
+		uint64_t lastUsed = g_cacheTime[fa2path][basename];
 		const auto& src = it->second;
 		auto pBuffer = GameCreateArray<unsigned char>(src.size());
 		memcpy(pBuffer, src.data(), src.size());
 		if (pDwSize)
 			*pDwSize = (DWORD)src.size();
 
-		g_cacheTime[fa2path][filename] = nowMs;
+		g_cacheTime[fa2path][basename] = nowMs;
 
 		if (nowMs - lastUsed > CACHE_TTL_MS)
 		{
 			g_cache[fa2path].erase(it);
-			g_cacheTime[fa2path].erase(filename);
+			g_cacheTime[fa2path].erase(basename);
 		}
 
 #ifndef NDEBUG
@@ -5816,7 +5498,7 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 	if (loadedData.empty())
 	{
 		size_t size = 0;
-		auto data = ResourcePackManager::instance().getFileData(filename, &size);
+		auto data = ResourcePackManager::instance().getFileData(basename, &size);
 		if (data && size > 0)
 		{
 			loadedData.assign(data.get(), data.get() + size);
@@ -5827,7 +5509,7 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 	{
 		auto& manager = MixLoader::Instance();
 		size_t sizeM = 0;
-		auto result = manager.LoadFile(filename, &sizeM);
+		auto result = manager.LoadFile(basename, &sizeM);
 		if (result && sizeM > 0)
 		{
 			loadedData.assign(result.get(), result.get() + sizeM);
@@ -5836,10 +5518,10 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 
 	if (loadedData.empty())
 	{
-		if (auto nMix = CLoadingExt::GetExtension()->SearchFileExt(filename, false))
+		if (auto nMix = CLoadingExt::GetExtension()->SearchFileExt(basename, false))
 		{
 			Ccc_file file(true);
-			file.open(filename, CMixFile::Array[nMix - 1]);
+			file.open(basename, CMixFile::Array[nMix - 1]);
 			loadedData.assign(
 				(unsigned char*)file.get_data(),
 				(unsigned char*)file.get_data() + file.get_size());
@@ -5866,8 +5548,8 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 		return nullptr;
 	}
 
-	g_cache[fa2path][filename] = loadedData;
-	g_cacheTime[fa2path][filename] = nowMs;
+	g_cache[fa2path][basename] = loadedData;
+	g_cacheTime[fa2path][basename] = nowMs;
 
 	if (nowMs - g_lastCleanup > CLEANUP_INTERVAL_MS)
 	{
@@ -5898,6 +5580,15 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 
 bool CLoadingExt::HasFileExt(ppmfc::CString filename, int nMix)
 {
+	// Strip directory part for virtual filesystem lookups
+	const char* fn = filename.GetString();
+	const char* basename = fn;
+	for (const char* p = fn; *p; ++p)
+	{
+		if (*p == '\\' || *p == '/')
+			basename = p + 1;
+	}
+
 	FString filepath;
 	std::ifstream fin;
 
@@ -5918,7 +5609,7 @@ bool CLoadingExt::HasFileExt(ppmfc::CString filename, int nMix)
 		return true;
 	}
 
-	if (ResourcePackManager::instance().hasFile(filename.GetString()))
+	if (ResourcePackManager::instance().hasFile(basename))
 	{
 		return true;
 	}
@@ -5926,17 +5617,17 @@ bool CLoadingExt::HasFileExt(ppmfc::CString filename, int nMix)
 	if (ExtConfigs::ExtMixLoader)
 	{
 		auto& manager = MixLoader::Instance();
-		int result = manager.QueryFileIndex(filename.GetString(), nMix);
+		int result = manager.QueryFileIndex(basename, nMix);
 		if (result >= 0)
 			return true;
 	}
 
 	if (nMix == -114)
 	{
-		if (CLoadingExt::GetExtension()->SearchFileExt(filename))
+		if (CLoadingExt::GetExtension()->SearchFileExt(basename))
 			return true;
 	}
-	if (CMixFile::HasFile(filename, nMix))
+	if (CMixFile::HasFile(basename, nMix))
 		return true;
 
 	filepath = CFinalSunApp::ExePath();

@@ -2,6 +2,7 @@
 #include "../../FA2sp.h"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/MultimapHelper.h"
+#include "../../Helpers/WinVer.h"
 #include "../Common.h"
 
 #include <CLoading.h>
@@ -827,7 +828,8 @@ void CNewINIEditor::OnSelchangeListbox(int index)
 
 void CNewINIEditor::SetupIniHighlight(HWND& hWnd)
 {
-    SendMessage(hWnd, SCI_SETTECHNOLOGY, SC_TECHNOLOGY_DIRECTWRITE, 0);
+    if (FA2sp::WinInfo.IsWindowsVistaOrGreater())
+        SendMessage(hWnd, SCI_SETTECHNOLOGY, SC_TECHNOLOGY_DIRECTWRITE, 0);
     // set locale
 	WCHAR wLocale[LOCALE_NAME_MAX_LENGTH];
 	GetUserDefaultLocaleName(wLocale, LOCALE_NAME_MAX_LENGTH);

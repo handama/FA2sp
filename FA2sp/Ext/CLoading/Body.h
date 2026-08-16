@@ -100,6 +100,12 @@ struct InsigniaGrid
 	FString Elite;
 };
 
+struct TiltType
+{
+	float angle;
+	float direction;
+};
+
 class NOVTABLE CLoadingExt : public CLoading
 {
 public:
@@ -142,7 +148,8 @@ public:
 	bool ReLoadObjectOrOverlay(const FString& pRegName);
 	void LoadOverlay(const FString& pRegName, int nIndex);
 	
-	static FString GetImageName(const FString& ID, int nFacing, bool bShadow = false, bool bDeploy = false, bool bWater = false);
+	static FString GetImageName(const FString& ID, int nFacing, 
+		bool bShadow = false, bool bDeploy = false, bool bWater = false, int tiltType = -1);
 	static FString GetAlphaImageName(const FString& ID, int nRawFacing, int nAvaFacing);
 	static FString GetOverlayName(WORD ovr, BYTE ovrd, bool bShadow = false);
 	static FString GetBuildingImageName(FString ID, int nFacing, int state, bool bShadow = false);
@@ -160,7 +167,7 @@ public:
 	static void LoadBitMap(FString ImageID, CBitmap& cBitmap);
 	static bool ReplaceBitmapColor(CBitmap& bitmap,COLORREF oldColor,COLORREF newColor);
 	void SetImageDataSafe(unsigned char* pBuffer, FString NameInDict,
-		int FullWidth, int FullHeight, Palette* pPal, bool clip = true);
+		int FullWidth, int FullHeight, Palette* pPal, bool clip = true, bool outline = false);
 	ImageDataClassSafe* SetBuildingImageDataSafe(unsigned char* pBuffer, FString NameInDict,
 		int FullWidth, int FullHeight, Palette* pPal, unsigned char* pAlphaBuffer);
 	void SetImageData(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
@@ -265,7 +272,6 @@ private:
 
 	void LoadInfantry(const FString& ID);
 	void LoadTerrainOrSmudge(const FString& ID, bool terrain);
-	void LoadVehicleOrAircraft(const FString& ID);
 	void LoadInsignia(const FString& ID);
 	void LoadAlphaImage(const FString& ID, CLoadingExt::GameObjectType type);
 
@@ -283,9 +289,9 @@ private:
 	
 	void SetValidBuffer(ImageDataClass* pData, int Width, int Height);
 	void SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int Height);
-	void TrimImageEdges(ImageDataClassSafe* pData, bool shadow);
+	void TrimImageEdges(ImageDataClassSafe* pData, bool shadow, bool outline = false);
 	void ScaleImageHalf(ImageDataClassSafe* pData);
-	void TrimImageEdges(unsigned char*& pBuffer, int& width, int& height, unsigned char** pSecondBuffer = nullptr);
+	void TrimImageEdges(unsigned char*& pBuffer, int& width, int& height, unsigned char** pSecondBuffer = nullptr, Palette* pPal = nullptr, bool outline = false);
 
 	int ColorDistance(const ColorStruct& color1, const ColorStruct& color2); 
 	int ColorDistance(const BGRStruct& color1, const BGRStruct& color2);
@@ -302,6 +308,7 @@ public:
 	FString GetBuildingFileID(const FString& ID);
 	FString GetInfantryFileID(const FString& ID);
 	static int GetIFVTurretIndex(const FString& ID);
+	static int GetIFVWeaponIndex(const FString& ID);
 	static bool IsPreOccupiedBunker(const FString& ID);
 	static bool IsBioReactor(const FString& ID);
 	static FHashSet LoadedOverlays;
@@ -312,10 +319,13 @@ public:
 	GameObjectType GetItemType(FString ID);
 	static bool SaveCBitmapToFile(CBitmap* pBitmap, const FString& filePath, COLORREF bgColor);
 	static bool LoadBMPToCBitmap(const FString& filePath, CBitmap& outBitmap);
+	void LoadVehicleOrAircraft(const FString& ID, int tiltType = -1);
 	static std::unique_ptr<ImageDataClassSafe> BindClippedImages(const std::vector<std::unique_ptr<ImageDataClassSafe>>& imgs, bool keepOpacity = false);
 	static std::unordered_map<WORD, WORD> OverlayDataLimits;
 
 	static FHashMap<int> AvailableFacings;
+	static FHashMap<BOOL> ExtTilts;
+	static FHashMap<std::set<int>> LoadedTilts;
 	static FHashMap<int> AlphaImageFacings;
 	static FHashSet LoadedObjects;
 	static FHashSet LoadedPreviewObjects;
@@ -362,6 +372,7 @@ public:
 	static std::unordered_map<COLORREF, TextureResource*> DirectXCustomFlagMap;
 	static std::unordered_map<COLORREF, TextureResource*> DirectXCustomCelltagMap;
 	static std::vector<std::unique_ptr<ImageDataClassSafe>> DamageFires;
+	static std::vector<TiltType> TiltTypes;
 
 	static bool IsImageLoaded(const FString& name);
 	static ImageDataClassSafe* GetImageDataFromMap(const FString& name);

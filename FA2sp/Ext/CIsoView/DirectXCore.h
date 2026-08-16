@@ -248,6 +248,13 @@ public:
     // OpenGL backend query
     bool IsUsingOpenGL() const { return m_bUseOpenGL; }
 
+    // Re-activate the rendering context before an offscreen render. When the
+    // window has been minimized or fully occluded for a while, GPU drivers may
+    // pause rendering to that window's context; re-issuing wglMakeCurrent
+    // forces the driver to resume so the offscreen FBO render (and thus
+    // screenshots) actually execute instead of leaving stale/black content.
+    void ReactivateContext();
+
 private:
     bool CreateDeviceAndSwapChain(HWND hwnd);
     bool CreateShadersAndInputLayout();
@@ -401,9 +408,9 @@ private:
     // --- GL Shader Programs ---
     GLuint m_glProgMain = 0;         // Main VS+PS (texture drawing)
     GLuint m_glProgInstanced = 0;    // Instanced VS + Main PS
-    GLuint m_glProgEffect = 0;       // Index texture ¡ú factor
-    GLuint m_glProgComposite = 0;    // screen ¡Á factor composite
-    GLuint m_glProgFinal = 0;        // Offscreen ¡ú backbuffer blit
+    GLuint m_glProgEffect = 0;       // Index texture - factor
+    GLuint m_glProgComposite = 0;    // screen x factor composite
+    GLuint m_glProgFinal = 0;        // Offscreen - backbuffer blit
     GLuint m_glProgLine = 0;         // GPU line rendering
     GLuint m_glProgAlphaAccum = 0;   // MRT alpha accumulation (instanced VS)
     GLuint m_glProgAlphaAccumNI = 0; // MRT alpha accumulation (non-instanced MainVS)
@@ -749,7 +756,7 @@ private:
     };
 
     void FlushCanvas(Canvas &c, float worldX, float worldY,
-                     float opacity, bool bScreenSpace);
+                     float opacity, bool bScreenSpace, bool bAlwaysOnTop = false);
 
     void RasterLine(Canvas &c, float x0, float y0, float x1, float y1,
                     float thickness, ShapeColor color,
@@ -760,6 +767,9 @@ private:
 
     void RasterEllipseFill(Canvas &c, float cx, float cy,
                            float rx, float ry, uint32_t rgba);
+
+    void RasterEllipseClear(Canvas &c, float cx, float cy,
+                            float rx, float ry);
 
     DirectXCore *m_dx;
 

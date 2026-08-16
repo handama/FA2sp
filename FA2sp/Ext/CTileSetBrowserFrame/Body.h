@@ -16,12 +16,13 @@ public:
 	{
 		TilesetBrowser = 0,
 		GridObjectViewer = 1,
-		TriggerSort = 2,
-		TagSort = 3,
-		TeamSort = 4,
-		TaskforceSort = 5,
-		ScriptSort = 6,
-		WaypointSort = 7,
+		MapObjectList = 2,
+		TriggerSort = 3,
+		TagSort = 4,
+		TeamSort = 5,
+		TaskforceSort = 6,
+		ScriptSort = 7,
+		WaypointSort = 8,
 	};
 
 	//

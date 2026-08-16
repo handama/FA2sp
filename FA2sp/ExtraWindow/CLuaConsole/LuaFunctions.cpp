@@ -12,7 +12,11 @@
 #include <CIsoView.h>
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../Ext/CMapData/Body.h"
+#include "../../Ext/CIsoView/Body.h"
+#include "../../Ext/CTileSetBrowserView/Body.h"
+#include "../../Ext/CFinalSunApp/Body.h"
 #include "../CObjectSearch/CObjectSearch.h"
+#include "../CTerrainGenerator/CTerrainGenerator.h"
 #include "../../Sol/sol.hpp"
 #include <cctype>
 #include <chrono>
@@ -26,6 +30,7 @@
 #include "../CNewAITrigger/CNewAITrigger.h"
 #include "../CListUInputDlg/CListUInputDlg.h"
 #include <CInputMessageBox.h>
+#include "../../Ext/CIsoView/DirectXCore.h"
 
 namespace LuaFunctions
 {
@@ -487,6 +492,606 @@ namespace LuaFunctions
 				}
 			}
 			return ret;
+		}
+	};
+
+	// Terrain generator wrapper: exposes CTerrainGenerator's preset management and
+	// generation logic to Lua scripts. Self-contained (owns its own ini object),
+	// so it works whether or not the terrain generator window is open.
+	class terrain_generator
+	{
+	public:
+		FMap<std::shared_ptr<TerrainGeneratorPreset>> presets;
+		std::shared_ptr<TerrainGeneratorPreset> current;
+		std::string current_id;
+		bool bOverride = false;
+		bool bIgnoreLandtypes = false;
+
+	private:
+		std::unique_ptr<CINI, GameUniqueDeleter<CINI>> ini;
+		// Snapshot of the global ramp anchors, restored when this instance is destroyed.
+		std::set<VertexHeight> saved_anchors;
+
+		static FString GetINIPath()
+		{
+			FString path = CFinalSunAppExt::ExePathExt();
+			path += "\\TerrainGenerator.ini";
+			return path;
+		}
+
+		void rebuild_current()
+		{
+			if (!current) return;
+			FString id = current->ID;
+			if (auto pSection = ini->GetSection(id))
+			{
+				current = std::shared_ptr<TerrainGeneratorPreset>(TerrainGeneratorPreset::create(id, pSection));
+			}
+		}
+
+		void sync()
+		{
+			if (!current) return;
+			CTerrainGenerator::WritePresetToINI(current, ini.get());
+			rebuild_current();
+			if (!current_id.empty() && current)
+			{
+				presets[current->ID] = current;
+			}
+		}
+
+		void ensure_tileset_indexes_size(int index)
+		{
+			if ((int)current->TileSetAvailableIndexesText.size() <= index)
+				current->TileSetAvailableIndexesText.resize(index + 1);
+		}
+
+		void ensure_overlay_data_size(int index)
+		{
+			if ((int)current->OverlayAvailableDataText.size() <= index)
+				current->OverlayAvailableDataText.resize(index + 1);
+		}
+
+		void redraw()
+		{
+			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+		}
+
+	public:
+		terrain_generator()
+		{
+			saved_anchors = CMapDataExt::RampGeneratorAnchors;
+			reload();
+		}
+
+		// Restore the global ramp anchors recorded at construction time.
+		~terrain_generator()
+		{
+			CMapDataExt::RampGeneratorAnchors = saved_anchors;
+		}
+
+		// Reload presets from TerrainGenerator.ini. Only presets whose Theaters
+		// match the current map's theater are loaded (same as the window's Update).
+		void reload()
+		{
+			if (!ini)
+			{
+				ini = MakeGameUnique<CINI>();
+			}
+			ini->ClearAndLoad(GetINIPath());
+			presets.clear();
+			auto currentTheater = CINI::CurrentDocument->GetString("Map", "Theater");
+			auto itr = ini->Dict.begin();
+			for (size_t i = 0, sz = ini->Dict.size(); i < sz; ++i, ++itr)
+			{
+				auto preset = std::shared_ptr<TerrainGeneratorPreset>(TerrainGeneratorPreset::create(itr->first, &itr->second));
+				bool skip = true;
+				for (const auto& t : preset->Theaters)
+				{
+					if (t == currentTheater)
+					{
+						skip = false;
+						break;
+					}
+				}
+				if (skip)
+					continue;
+				presets[preset->ID] = preset;
+			}
+			current = nullptr;
+			current_id = "";
+		}
+
+		// List loaded presets (only those matching the current map's theater).
+		// Each entry is a table: { id = "...", name = "...", theaters = {...} }.
+		sol::table list()
+		{
+			sol::table ret = CLuaConsole::Lua.create_table();
+			int i = 1;
+			for (auto& [id, preset] : presets)
+			{
+				sol::table entry = CLuaConsole::Lua.create_table();
+				entry["id"] = id.ToStdString();
+				entry["name"] = preset->Name.ToStdString();
+				sol::table th = CLuaConsole::Lua.create_table();
+				for (int j = 0; j < (int)preset->Theaters.size(); j++)
+				{
+					th[j + 1] = preset->Theaters[j].ToStdString();
+				}
+				entry["theaters"] = th;
+				ret[i++] = entry;
+			}
+			return ret;
+		}
+
+		std::string get_id()
+		{
+			return current_id;
+		}
+
+		std::string get_name()
+		{
+			if (!current) return "";
+			return current->Name.ToStdString();
+		}
+
+		// Return the current preset's theaters (map types).
+		std::vector<std::string> get_theaters()
+		{
+			std::vector<std::string> ret;
+			if (!current) return ret;
+			for (auto& t : current->Theaters)
+			{
+				ret.push_back(t.ToStdString());
+			}
+			return ret;
+		}
+
+		// Load a preset by ID as the current preset.
+		bool load(std::string id)
+		{
+			auto it = presets.find(FString(id.c_str()));
+			if (it == presets.end())
+			{
+				write_lua_console("terrain_generator: preset not found: " + id);
+				return false;
+			}
+			current = it->second;
+			current_id = id;
+			return true;
+		}
+
+		// Create a new preset with the given name and make it current. Returns the new ID.
+		std::string add(std::string name)
+		{
+			for (int i = 0; i < 9999; i++) {
+				FString ID;
+				ID.Format("%03d", i);
+				if (!ini->SectionExists(ID)) {
+					ini->WriteString(ID, "Name", name.c_str());
+					ini->WriteString(ID, "Scale", "25");
+					ini->WriteString(ID, "Theaters", CINI::CurrentDocument->GetString("Map", "Theater"));
+					auto preset = std::shared_ptr<TerrainGeneratorPreset>(TerrainGeneratorPreset::create(ID, ini->GetSection(ID)));
+					presets[ID] = preset;
+					current = preset;
+					current_id = ID.ToStdString();
+					save();
+					return current_id;
+				}
+			}
+			return "";
+		}
+
+		// Clone an existing preset under a new ID and make it current. Returns the new ID.
+		std::string copy(std::string id)
+		{
+			auto it = presets.find(FString(id.c_str()));
+			if (it == presets.end())
+			{
+				write_lua_console("terrain_generator: preset not found: " + id);
+				return "";
+			}
+			for (int i = 0; i < 9999; i++) {
+				FString ID;
+				ID.Format("%03d", i);
+				if (!ini->SectionExists(ID)) {
+					auto preset = std::shared_ptr<TerrainGeneratorPreset>(TerrainGeneratorPreset::create(it->first, ini->GetSection(it->first)));
+					preset->ID = ID;
+					preset->Name = ExtraWindow::GetCloneName(preset->Name);
+					presets[ID] = preset;
+					current = preset;
+					current_id = ID.ToStdString();
+					save();
+					return current_id;
+				}
+			}
+			return "";
+		}
+
+		// Delete a preset from the ini file.
+		bool remove(std::string id)
+		{
+			auto it = presets.find(FString(id.c_str()));
+			if (it == presets.end())
+			{
+				write_lua_console("terrain_generator: preset not found: " + id);
+				return false;
+			}
+			ini->DeleteSection(FString(id.c_str()));
+			presets.erase(it);
+			if (current_id == id)
+			{
+				current = nullptr;
+				current_id = "";
+			}
+			ini->WriteToFile(GetINIPath());
+			notify_window_refresh();
+			return true;
+		}
+
+		// If the terrain generator window is open, ask it to reload presets from the file.
+		void notify_window_refresh()
+		{
+			if (HWND hwnd = CTerrainGenerator::GetHandle())
+			{
+				::SendMessage(hwnd, 114514, 0, 0);
+			}
+		}
+
+		// Write the current preset back to the ini file (rebuilds available tiles/overlay data).
+		void save()
+		{
+			if (!current) return;
+			sync();
+			ini->WriteToFile(GetINIPath());
+			notify_window_refresh();
+		}
+
+		// ----- preset parameters -----
+
+		void set_name(std::string name)
+		{
+			if (!current) return;
+			current->Name = name.c_str();
+			sync();
+		}
+
+		void set_scale(int scale)
+		{
+			if (!current) return;
+			current->Scale = scale;
+			sync();
+		}
+
+		void set_theaters(std::vector<std::string> theaters)
+		{
+			if (!current) return;
+			current->Theaters.clear();
+			for (auto& t : theaters)
+			{
+				current->Theaters.push_back(t.c_str());
+			}
+			sync();
+		}
+
+		// Set a tileset group. index must be <= current group count (0-based, max 9).
+		// available_indexes is a comma/space separated list of indexes relative to the tileset start.
+		void set_tileset(int index, int tileset, double chance, sol::optional<std::string> available_indexes)
+		{
+			if (!current) return;
+			if (index < 0 || index > (int)current->TileSets.size())
+			{
+				write_lua_console("terrain_generator: tileset index must be <= current group count (" + std::to_string(current->TileSets.size()) + ")");
+				return;
+			}
+			TerrainGeneratorGroup group;
+			group.Chance = chance;
+			group.Items.push_back(STDHelpers::IntToString(tileset, "%04d"));
+			ensure_tileset_indexes_size(index);
+			if (available_indexes && !available_indexes->empty())
+			{
+				group.HasExtraIndex = true;
+				current->TileSetAvailableIndexesText[index] = available_indexes->c_str();
+			}
+			else
+			{
+				group.HasExtraIndex = false;
+				current->TileSetAvailableIndexesText[index] = "";
+			}
+			if (index == (int)current->TileSets.size())
+				current->TileSets.push_back(group);
+			else
+				current->TileSets[index] = group;
+			sync();
+		}
+
+		void remove_tileset(int index)
+		{
+			if (!current) return;
+			if (index < 0 || index >= (int)current->TileSets.size()) return;
+			current->TileSets.erase(current->TileSets.begin() + index);
+			if (index < (int)current->TileSetAvailableIndexesText.size())
+				current->TileSetAvailableIndexesText.erase(current->TileSetAvailableIndexesText.begin() + index);
+			sync();
+		}
+
+		// Set a terrain group. items are terrain type IDs.
+		void set_terrain(int index, std::vector<std::string> items, double chance)
+		{
+			if (!current) return;
+			if (index < 0 || index > (int)current->TerrainTypes.size())
+			{
+				write_lua_console("terrain_generator: terrain group index must be <= current group count (" + std::to_string(current->TerrainTypes.size()) + ")");
+				return;
+			}
+			TerrainGeneratorGroup group;
+			group.Chance = chance;
+			for (auto& item : items)
+			{
+				group.Items.push_back(item.c_str());
+			}
+			if (index == (int)current->TerrainTypes.size())
+				current->TerrainTypes.push_back(group);
+			else
+				current->TerrainTypes[index] = group;
+			sync();
+		}
+
+		void remove_terrain(int index)
+		{
+			if (!current) return;
+			if (index < 0 || index >= (int)current->TerrainTypes.size()) return;
+			current->TerrainTypes.erase(current->TerrainTypes.begin() + index);
+			sync();
+		}
+
+		// Set an overlay group. overlays are overlay type indexes; available_data is an
+		// optional comma/space separated list of allowed overlay data (image) indexes.
+		void set_overlay(int index, std::vector<int> overlays, double chance, sol::optional<std::string> available_data)
+		{
+			if (!current) return;
+			if (index < 0 || index > (int)current->Overlays.size())
+			{
+				write_lua_console("terrain_generator: overlay group index must be <= current group count (" + std::to_string(current->Overlays.size()) + ")");
+				return;
+			}
+			TerrainGeneratorGroup group;
+			group.Chance = chance;
+			for (auto& ov : overlays)
+			{
+				TerrainGeneratorOverlay ovr;
+				ovr.Overlay = (WORD)ov;
+				group.Overlays.push_back(ovr);
+			}
+			ensure_overlay_data_size(index);
+			if (available_data && !available_data->empty())
+			{
+				group.HasExtraIndex = true;
+				current->OverlayAvailableDataText[index] = available_data->c_str();
+			}
+			else
+			{
+				group.HasExtraIndex = false;
+				current->OverlayAvailableDataText[index] = "";
+			}
+			if (index == (int)current->Overlays.size())
+				current->Overlays.push_back(group);
+			else
+				current->Overlays[index] = group;
+			sync();
+		}
+
+		void remove_overlay(int index)
+		{
+			if (!current) return;
+			if (index < 0 || index >= (int)current->Overlays.size()) return;
+			current->Overlays.erase(current->Overlays.begin() + index);
+			if (index < (int)current->OverlayAvailableDataText.size())
+				current->OverlayAvailableDataText.erase(current->OverlayAvailableDataText.begin() + index);
+			sync();
+		}
+
+		// Set a smudge group. items are smudge type IDs.
+		void set_smudge(int index, std::vector<std::string> items, double chance)
+		{
+			if (!current) return;
+			if (index < 0 || index > (int)current->Smudges.size())
+			{
+				write_lua_console("terrain_generator: smudge group index must be <= current group count (" + std::to_string(current->Smudges.size()) + ")");
+				return;
+			}
+			TerrainGeneratorGroup group;
+			group.Chance = chance;
+			for (auto& item : items)
+			{
+				group.Items.push_back(item.c_str());
+			}
+			if (index == (int)current->Smudges.size())
+				current->Smudges.push_back(group);
+			else
+				current->Smudges[index] = group;
+			sync();
+		}
+
+		void remove_smudge(int index)
+		{
+			if (!current) return;
+			if (index < 0 || index >= (int)current->Smudges.size()) return;
+			current->Smudges.erase(current->Smudges.begin() + index);
+			sync();
+		}
+
+		// Enable ramp generation. All three values must be >= 0.
+		void set_ramp(int percent, int min_height, int max_height)
+		{
+			if (!current) return;
+			current->RampPercent = std::clamp(percent, 0, 100);
+			current->RampMinHeight = std::clamp(min_height, 0, 13);
+			current->RampMaxHeight = std::clamp(max_height, 1, 14);
+			sync();
+		}
+
+		void disable_ramp()
+		{
+			if (!current) return;
+			current->RampPercent = -1;
+			current->RampMinHeight = -1;
+			current->RampMaxHeight = -1;
+			sync();
+		}
+
+		void set_preserve_anchor_heights(bool preserve)
+		{
+			if (!current) return;
+			current->bPreserveAnchorHeights = preserve;
+			sync();
+		}
+
+		void set_avoid_nonmorphable_tiles(bool avoid)
+		{
+			if (!current) return;
+			current->bAvoidNonmorphableTiles = avoid;
+			sync();
+		}
+
+		// ----- apply / clear -----
+
+		void apply(int x1, int y1, int x2, int y2)
+		{
+			if (!current)
+			{
+				write_lua_console("terrain_generator: no preset loaded");
+				return;
+			}
+			CTerrainGenerator::ApplyPreset(current, x1, y1, x2, y2, bOverride, bIgnoreLandtypes, false, {}, false, -1);
+			redraw();
+		}
+
+		void apply_selection()
+		{
+			if (!current)
+			{
+				write_lua_console("terrain_generator: no preset loaded");
+				return;
+			}
+			if (MultiSelection::SelectedCoords.empty())
+			{
+				write_lua_console("terrain_generator: no multi-selection on the map");
+				return;
+			}
+			CTerrainGenerator::ApplyPreset(current, 0, 0, 0, 0, bOverride, bIgnoreLandtypes, true, MultiSelection::SelectedCoords, false, -1);
+			redraw();
+		}
+
+		// onlyClearTab: -1 = all categories; 0 = tiles, 1 = terrain types, 2 = overlays, 3 = smudges.
+		void clear(int x1, int y1, int x2, int y2, sol::optional<int> onlyClearTab)
+		{
+			if (!current)
+			{
+				write_lua_console("terrain_generator: no preset loaded");
+				return;
+			}
+			int tab = onlyClearTab ? onlyClearTab.value() : -1;
+			CTerrainGenerator::ApplyPreset(current, x1, y1, x2, y2, bOverride, bIgnoreLandtypes, false, {}, true, tab);
+			redraw();
+		}
+
+		// onlyClearTab: -1 = all categories; 0 = tiles, 1 = terrain types, 2 = overlays, 3 = smudges.
+		void clear_selection(sol::optional<int> onlyClearTab)
+		{
+			if (!current)
+			{
+				write_lua_console("terrain_generator: no preset loaded");
+				return;
+			}
+			if (MultiSelection::SelectedCoords.empty())
+			{
+				write_lua_console("terrain_generator: no multi-selection on the map");
+				return;
+			}
+			int tab = onlyClearTab ? onlyClearTab.value() : -1;
+			CTerrainGenerator::ApplyPreset(current, 0, 0, 0, 0, bOverride, bIgnoreLandtypes, true, MultiSelection::SelectedCoords, true, tab);
+			redraw();
+		}
+
+		// ----- ramp anchors (global state shared with the terrain generator window) -----
+
+		// Return all ramp anchors as an array of { x = ..., y = ..., height = ... }.
+		sol::table get_anchors()
+		{
+			sol::table ret = CLuaConsole::Lua.create_table();
+			int i = 1;
+			for (const auto& a : CMapDataExt::RampGeneratorAnchors)
+			{
+				sol::table entry = CLuaConsole::Lua.create_table();
+				entry["x"] = a.X;
+				entry["y"] = a.Y;
+				entry["height"] = a.Height;
+				ret[i++] = entry;
+			}
+			return ret;
+		}
+
+		void add_anchor(int x, int y, int height)
+		{
+			CMapDataExt::RampGeneratorAnchors.insert({ x, y, height });
+			redraw();
+		}
+
+		void remove_anchor(int x, int y)
+		{
+			CMapDataExt::RampGeneratorAnchors.erase({ x, y, 0 });
+			redraw();
+		}
+
+		void clear_anchors()
+		{
+			CMapDataExt::RampGeneratorAnchors.clear();
+			redraw();
+		}
+
+		// ----- query -----
+
+		int get_scale()
+		{
+			return current ? current->Scale : -1;
+		}
+
+		std::vector<int> get_tileset_list()
+		{
+			std::vector<int> ret;
+			if (!current) return ret;
+			for (auto& group : current->TileSets)
+			{
+				ret.push_back(group.Items.empty() ? 0 : atoi(group.Items[0]));
+			}
+			return ret;
+		}
+
+		std::vector<double> get_tileset_chances()
+		{
+			std::vector<double> ret;
+			if (!current) return ret;
+			for (auto& group : current->TileSets)
+			{
+				ret.push_back(group.Chance);
+			}
+			return ret;
+		}
+
+		int get_ramp_percent()
+		{
+			return current ? current->RampPercent : -1;
+		}
+
+		int get_ramp_min_height()
+		{
+			return current ? current->RampMinHeight : -1;
+		}
+
+		int get_ramp_max_height()
+		{
+			return current ? current->RampMaxHeight : -1;
 		}
 	};
 
@@ -1142,8 +1747,6 @@ namespace LuaFunctions
 		bool RedrawTerrain;
 		bool CliffHack;
 		char AltIndex;
-
-
 	};
 
 	class tile 
@@ -3103,6 +3706,36 @@ namespace LuaFunctions
 		}
 	}
 
+	// Return all tilesets of the current theater as an array of { index = ..., name = ... }.
+	static sol::table get_tilesets()
+	{
+		sol::table ret = CLuaConsole::Lua.create_table();
+		int count = (int)CMapDataExt::TileSet_starts.size() - 1;
+		for (int i = 0; i < count; i++)
+		{
+			sol::table entry = CLuaConsole::Lua.create_table();
+			entry["index"] = i;
+			entry["name"] = std::string(Translations::TranslateTileSet(i).GetString());
+			ret[i + 1] = entry;
+		}
+		return ret;
+	}
+
+	// Return the start tile index and tile count of a tileset as { start = ..., count = ... }.
+	static sol::table get_tileset_info(int tileset)
+	{
+		sol::table ret = CLuaConsole::Lua.create_table();
+		if (tileset < 0 || tileset >= (int)CMapDataExt::TileSet_starts.size() - 1)
+		{
+			ret["start"] = -1;
+			ret["count"] = 0;
+			return ret;
+		}
+		ret["start"] = CMapDataExt::TileSet_starts[tileset];
+		ret["count"] = CMapDataExt::TileSet_starts[tileset + 1] - CMapDataExt::TileSet_starts[tileset];
+		return ret;
+	}
+
 	static void place_overlay(int y, int x, int overlay, int overlayData = -1)
 	{		
 		if (!CMapData::Instance->IsCoordInMap(x, y))
@@ -3980,6 +4613,80 @@ namespace LuaFunctions
 		return ret;
 	}
 
+	static sol::table get_building_foundation(const std::string& id)
+	{
+		sol::table ret = CLuaConsole::Lua.create_table();
+		int idx = CMapDataExt::GetBuildingTypeIndex(id.c_str());
+		if (idx < 0)
+		{
+			ret[1] = 1;
+			ret[2] = 1;
+			ret[3] = 0;
+			return ret;
+		}
+		auto itr = CMapDataExt::BuildingDataExts.find(idx);
+		if (itr == CMapDataExt::BuildingDataExts.end())
+		{
+			ret[1] = 1;
+			ret[2] = 1;
+			ret[3] = 0;
+			return ret;
+		}
+		const auto& DataExt = itr->second;
+		ret[1] = DataExt.Width;
+		ret[2] = DataExt.Height;
+		ret[3] = DataExt.IsCustomFoundation() ? 1 : 0;
+		return ret;
+	}
+
+	static sol::table get_building_cells(const std::string& id)
+	{
+		sol::table ret = CLuaConsole::Lua.create_table();
+		int idx = CMapDataExt::GetBuildingTypeIndex(id.c_str());
+		if (idx < 0)
+		{
+			sol::table cell = CLuaConsole::Lua.create_table();
+			cell[1] = 0;
+			cell[2] = 0;
+			ret[1] = cell;
+			return ret;
+		}
+		auto itr = CMapDataExt::BuildingDataExts.find(idx);
+		if (itr == CMapDataExt::BuildingDataExts.end())
+		{
+			sol::table cell = CLuaConsole::Lua.create_table();
+			cell[1] = 0;
+			cell[2] = 0;
+			ret[1] = cell;
+			return ret;
+		}
+		const auto& DataExt = itr->second;
+		if (!DataExt.IsCustomFoundation())
+		{
+			int i = 1;
+			for (int y = 0; y < DataExt.Height; ++y)
+			{
+				for (int x = 0; x < DataExt.Width; ++x)
+				{
+					sol::table cell = CLuaConsole::Lua.create_table();
+					cell[1] = x;
+					cell[2] = y;
+					ret[i++] = cell;
+				}
+			}
+			return ret;
+		}
+		int i = 1;
+		for (const auto& coord : *DataExt.Foundations)
+		{
+			sol::table cell = CLuaConsole::Lua.create_table();
+			cell[1] = coord.X;
+			cell[2] = coord.Y;
+			ret[i++] = cell;
+		}
+		return ret;
+	}
+
 	static std::vector<aircraft> get_aircrafts()
 	{
 		std::vector<aircraft> ret;
@@ -4230,7 +4937,7 @@ namespace LuaFunctions
 		c.House = pCell->BaseNode.House.GetString();
 		c.Overlay = pCellExt.NewOverlay;
 		c.OverlayData = pCell->OverlayData;
-		c.TileIndex = pCell->TileIndex;
+		c.TileIndex = pCell->TileIndex == 0xFFFF ? 0 : pCell->TileIndex;
 		c.TileIndexHiPart = pCell->TileIndexHiPart;
 		c.TileSubIndex = pCell->TileSubIndex;
 		c.Height = pCell->Height;
@@ -4561,8 +5268,11 @@ namespace LuaFunctions
 			, formatTimeInterval(std::chrono::duration_cast<std::chrono::seconds>(timeSpan)).c_str()
 				, snapshot.fileName.c_str());
 	
-		if (message_box(text, title, 1) == IDCANCEL)
-			return;
+		if (!CLuaConsole::yoloMode)
+		{
+			if (message_box(text, title, 1) == IDCANCEL)
+				return;
+		}
 
 		auto ini = &CMapData::Instance->INI;
 
@@ -4627,6 +5337,20 @@ namespace LuaFunctions
 	static void save_undo_objects()
 	{
 		CMapDataExt::MakeObjectRecord(0x0FFFFFFF);
+	}
+
+	static void save_undo_all()
+	{
+		CMapDataExt::MakeMixedRecord(0, 0, 
+			CMapData::Instance->MapWidthPlusHeight,CMapData::Instance->MapWidthPlusHeight,
+			0x0FFFFFFF);
+	}
+
+	static void do_undo()
+	{
+		CMapData::Instance->DoUndo();
+		CLuaConsole::needRedraw = true;
+		CLuaConsole::updateMinimap = true;
 	}
 
 	static void save_redo()
@@ -5027,5 +5751,385 @@ namespace LuaFunctions
 		}
 
 		return sol::make_object(CLuaConsole::Lua, output);
+	}
+
+	static bool screenshot(const std::string& path)
+	{
+		auto pIsoView = CIsoViewExt::GetExtension();
+		if (!pIsoView)
+			return false;
+
+		HWND hWnd = pIsoView->GetSafeHwnd();
+		RECT clientRect;
+		GetClientRect(hWnd, &clientRect);
+		int clientW = clientRect.right - clientRect.left;
+		int clientH = clientRect.bottom - clientRect.top;
+		if ((clientW <= 0 || clientH <= 0) && ExtConfigs::DirectXRendering && CIsoViewExt::g_pDX)
+		{
+			clientW = CIsoViewExt::g_pDX->GetClientWidth();
+			clientH = CIsoViewExt::g_pDX->GetClientHeight();
+		}
+		if (clientW <= 0 || clientH <= 0)
+			return false;
+
+		ppmfc::CPoint oldViewPos = pIsoView->ViewPosition;
+
+		int bmpW = (int)(clientW * CIsoViewExt::ScaledFactor);
+		int bmpH = (int)(clientH * CIsoViewExt::ScaledFactor);
+		if (bmpW <= 0 || bmpH <= 0)
+			return false;
+
+		bool zoomedIn = CIsoViewExt::ScaledFactor <= 1.0f;
+
+		// Save current render state
+		bool oldRenderingMap = CIsoViewExt::RenderingMap;
+		bool oldRenderFullMap = CIsoViewExt::RenderFullMap;
+		bool oldRenderingScreenshot = CIsoViewExt::RenderingScreenshot;
+		Bitmap* oldFullBitmap = CIsoViewExt::pFullBitmap;
+
+		// Create bitmap
+		CIsoViewExt::InitGdiplus();
+		VEHGuard v(false);
+		try {
+			CIsoViewExt::pFullBitmap = new Gdiplus::Bitmap(bmpW, bmpH, PixelFormat24bppRGB);
+		}
+		catch (const std::bad_alloc&) {
+			CIsoViewExt::pFullBitmap = nullptr;
+		}
+
+		if (!CIsoViewExt::pFullBitmap)
+			return false;
+
+		Graphics gInit(CIsoViewExt::pFullBitmap);
+		gInit.Clear(Color(0, 0, 0, 0));
+
+		CIsoViewExt::RenderingMap = true;
+		CIsoViewExt::RenderFullMap = false;
+
+		if (zoomedIn)
+		{
+			// Zoomed in or normal: single draw, content at (0,0)
+			CIsoViewExt::RenderingScreenshot = true;
+			CIsoViewExt::RenderingScreenshotBaseX = pIsoView->ViewPosition.x;
+			CIsoViewExt::RenderingScreenshotBaseY = pIsoView->ViewPosition.y;
+
+			if (ExtConfigs::DirectXRendering && CIsoViewExt::g_pDX)
+			{
+				// The window may be in the background (minimized/occluded), so
+				// GPU drivers may have paused rendering to it. Re-activate the
+				// context before drawing.
+				CIsoViewExt::g_pDX->ReactivateContext();
+				pIsoView->Draw();
+			}
+			else
+			{
+				pIsoView->Draw();
+			}
+		}
+		else
+		{
+			// Zoomed out
+			auto tempScaledFactor = CIsoViewExt::ScaledFactor;
+			CIsoViewExt::ScaledFactor = 1.0;
+			if (ExtConfigs::DirectXRendering)
+			{
+				CIsoViewExt::g_pDX->ReactivateContext();
+				CIsoViewExt::g_pDX->SetZoomOut(CIsoViewExt::ScaledFactor);
+			}
+
+			CIsoViewExt::RenderingScreenshot = true;
+
+			CRect cr;
+			pIsoView->GetClientRect(&cr);
+			int tileW = cr.Width();
+			int tileH = cr.Height();
+			if (tileW <= 0 || tileH <= 0)
+			{
+				CRect r;
+				pIsoView->GetWindowRect(&r);
+				tileW = r.Width();
+				tileH = r.Height();
+			}
+
+			CRect validRange;
+			int& width = CMapData::Instance->Size.Width;
+			int& height = CMapData::Instance->Size.Height;
+			validRange.left = oldViewPos.x;
+			validRange.top = oldViewPos.y;
+			validRange.right = oldViewPos.x + bmpW;
+			validRange.bottom = oldViewPos.y + bmpH;
+
+			CIsoViewExt::RenderingScreenshotBaseX = validRange.left;
+			CIsoViewExt::RenderingScreenshotBaseY = validRange.top;
+
+			pIsoView->ViewPosition.y = validRange.top;
+
+			EnableScrollBar(hWnd, SB_BOTH, ESB_DISABLE_BOTH);
+
+			int renderFailedCount = 0;
+			while (pIsoView->ViewPosition.y < validRange.bottom + tileH)
+			{
+				pIsoView->ViewPosition.x = validRange.left;
+				while (pIsoView->ViewPosition.x < validRange.right + tileW)
+				{
+					::SetScrollPos(hWnd, SB_VERT, pIsoView->ViewPosition.y / 30 - width / 2 + 4, TRUE);
+					::SetScrollPos(hWnd, SB_HORZ, pIsoView->ViewPosition.x / 60 - height / 2 + 1, TRUE);
+					CIsoViewExt::RenderTileSuccess = false;
+					pIsoView->Draw();
+
+					MSG msg;
+					if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+					{
+						TranslateMessage(&msg);
+						DispatchMessage(&msg);
+					}
+					Sleep(1);
+
+					if (CIsoViewExt::RenderTileSuccess || renderFailedCount >= 500)
+					{
+						pIsoView->ViewPosition.x += tileW;
+						renderFailedCount = 0;
+					}
+					else
+					{
+						renderFailedCount++;
+					}
+				}
+				pIsoView->ViewPosition.y += tileH;
+			}
+
+			EnableScrollBar(hWnd, SB_BOTH, ESB_ENABLE_BOTH);
+
+			CIsoViewExt::ScaledFactor = tempScaledFactor;
+			if (ExtConfigs::DirectXRendering)
+			{
+				CIsoViewExt::g_pDX->SetZoomOut(CIsoViewExt::ScaledFactor);
+			}
+		}
+
+		// Save as PNG
+		CLSID clsidEncoder;
+		UINT num = 0, size = 0;
+		GetImageEncodersSize(&num, &size);
+		ImageCodecInfo* pImageCodecInfo = (ImageCodecInfo*)malloc(size);
+		if (pImageCodecInfo)
+		{
+			GetImageEncoders(num, size, pImageCodecInfo);
+			for (UINT i = 0; i < num; ++i)
+			{
+				if (wcscmp(pImageCodecInfo[i].MimeType, L"image/png") == 0)
+				{
+					clsidEncoder = pImageCodecInfo[i].Clsid;
+					break;
+				}
+			}
+			free(pImageCodecInfo);
+		}
+
+		auto wpath = STDHelpers::StringToWString(path);
+		Gdiplus::Status result = CIsoViewExt::pFullBitmap->Save(wpath.c_str(), &clsidEncoder, nullptr);
+
+		// Cleanup
+		delete CIsoViewExt::pFullBitmap;
+		CIsoViewExt::pFullBitmap = oldFullBitmap;
+		CIsoViewExt::RenderingMap = oldRenderingMap;
+		CIsoViewExt::RenderFullMap = oldRenderFullMap;
+		CIsoViewExt::RenderingScreenshot = oldRenderingScreenshot;
+		pIsoView->ViewPosition = oldViewPos;
+
+		pIsoView->Draw();
+
+		return result == Gdiplus::Ok;
+	}
+
+	static std::string screenshot_temp_path()
+	{
+		// Get %TEMP%\FinalAlert2 directory
+		wchar_t tempPath[MAX_PATH];
+		if (GetTempPathW(MAX_PATH, tempPath) == 0)
+			return "";
+
+		std::wstring dir = std::wstring(tempPath) + L"FinalAlert2";
+		CreateDirectoryW(dir.c_str(), nullptr);
+
+		// Generate timestamped filename
+		SYSTEMTIME st;
+		GetLocalTime(&st);
+		wchar_t filename[64];
+		swprintf_s(filename, L"\\screenshot_%04d%02d%02d_%02d%02d%02d.png",
+			st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+
+		std::wstring fullPath = dir + filename;
+		std::string path = STDHelpers::WStringToString(fullPath);
+
+		if (screenshot(path))
+			return path;
+		return "";
+	}
+
+	static sol::object screenshot_temp()
+	{
+		std::string path = screenshot_temp_path();
+		if (!path.empty())
+			return sol::make_object(CLuaConsole::Lua, path);
+		return sol::nil;
+	}
+
+	static bool SaveSurfaceToPng(LPDIRECTDRAWSURFACE7 lpdds, const std::wstring& path)
+	{
+		DDSURFACEDESC2 ddsd;
+		memset(&ddsd, 0, sizeof(DDSURFACEDESC2));
+		ddsd.dwSize = sizeof(DDSURFACEDESC2);
+		if (lpdds->GetSurfaceDesc(&ddsd) != DD_OK)
+			return false;
+
+		const int width = (int)ddsd.dwWidth;
+		const int height = (int)ddsd.dwHeight;
+		if (width <= 0 || height <= 0)
+			return false;
+
+		HDC hSurfaceDC = NULL;
+		if (lpdds->GetDC(&hSurfaceDC) != DD_OK)
+			return false;
+
+		HDC hMemDC = CreateCompatibleDC(hSurfaceDC);
+		HBITMAP hBitmap = CreateCompatibleBitmap(hSurfaceDC, width, height);
+		HBITMAP hOldBmp = (HBITMAP)SelectObject(hMemDC, hBitmap);
+		BitBlt(hMemDC, 0, 0, width, height, hSurfaceDC, 0, 0, SRCCOPY);
+		SelectObject(hMemDC, hOldBmp);
+		lpdds->ReleaseDC(hSurfaceDC);
+		DeleteDC(hMemDC);
+
+		CIsoViewExt::InitGdiplus();
+
+		Gdiplus::Bitmap bitmap(hBitmap, NULL);
+		CLSID clsidEncoder;
+		UINT num = 0, size = 0;
+		GetImageEncodersSize(&num, &size);
+		ImageCodecInfo* pImageCodecInfo = (ImageCodecInfo*)malloc(size);
+		if (pImageCodecInfo)
+		{
+			GetImageEncoders(num, size, pImageCodecInfo);
+			for (UINT i = 0; i < num; ++i)
+			{
+				if (wcscmp(pImageCodecInfo[i].MimeType, L"image/png") == 0)
+				{
+					clsidEncoder = pImageCodecInfo[i].Clsid;
+					break;
+				}
+			}
+			free(pImageCodecInfo);
+		}
+
+		Gdiplus::Status result = bitmap.Save(path.c_str(), &clsidEncoder, nullptr);
+		DeleteObject(hBitmap);
+		return result == Gdiplus::Ok;
+	}
+
+	static sol::object get_tile_image(int index)
+	{
+		if (index < 0)
+			return sol::nil;
+
+		if (index < CUSTOM_TILE_START)
+		{
+			if (!CMapDataExt::TileData || index >= CMapDataExt::TileDataCount)
+				return sol::nil;
+		}
+		else if (!CMapDataExt::GetCustomTile(index))
+		{
+			return sol::nil;
+		}
+
+		auto pIsoView = CIsoView::GetInstance();
+		if (!pIsoView || !pIsoView->lpDD7)
+			return sol::nil;
+
+		LPDIRECTDRAWSURFACE7 lpdds = CTileSetBrowserViewExt::RenderTile(index);
+		if (!lpdds)
+			return sol::nil;
+
+		// Get %TEMP%\FinalAlert2 directory
+		wchar_t tempPath[MAX_PATH];
+		if (GetTempPathW(MAX_PATH, tempPath) == 0)
+		{
+			lpdds->Release();
+			return sol::nil;
+		}
+
+		std::wstring dir = std::wstring(tempPath) + L"FinalAlert2";
+		CreateDirectoryW(dir.c_str(), nullptr);
+
+		// Generate timestamped filename
+		SYSTEMTIME st;
+		GetLocalTime(&st);
+		wchar_t filename[64];
+		swprintf_s(filename, L"\\tile_%d_%04d%02d%02d_%02d%02d%02d.png",
+			index, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+
+		std::wstring fullPath = dir + filename;
+
+		bool ok = SaveSurfaceToPng(lpdds, fullPath);
+		lpdds->Release();
+		if (!ok)
+			return sol::nil;
+
+		return sol::make_object(CLuaConsole::Lua, STDHelpers::WStringToString(fullPath));
+	}
+
+	static bool is_coord_in_view(int y, int x)
+	{
+		if (!CMapData::Instance->IsCoordInMap(x, y))
+			return false;
+		auto pIsoView = CIsoViewExt::GetExtension();
+		if (!pIsoView)
+			return false;
+
+		CRect window;
+		CIsoViewExt::GetValidWindowRect(pIsoView->GetSafeHwnd(), &window);
+		CIsoViewExt::AdaptRectForSecondScreen(&window);
+
+		int x1, y1, x2, y2;
+
+		x1 = window.left + pIsoView->ViewPosition.x;
+		y1 = window.top + pIsoView->ViewPosition.y;
+		x2 = window.right + pIsoView->ViewPosition.x;
+		y2 = window.bottom + pIsoView->ViewPosition.y;
+		pIsoView->ScreenCoord2MapCoord_Flat(x1, y1);
+		pIsoView->ScreenCoord2MapCoord_Flat(x2, y2);
+		if (x2 < 0 || y2 < 0)
+		{
+			x2 = CMapData::Instance->Size.Width;
+			y2 = CMapData::Instance->MapWidthPlusHeight + 1;
+		}
+		if (x1 < 0 || y1 < 0)
+		{
+			x1 = CMapData::Instance->Size.Width;
+			y1 = 0;
+		}
+
+		int top, bottom, left, right;
+        top = x1 + y1;
+        bottom = x2 + y2;
+        left = y1 - x1;
+        right = y2 - x2;
+        if (top > bottom)
+        {
+            int tmp = top;
+            top = bottom;
+            bottom = tmp;
+        }
+        if (left > right)
+        {
+            int tmp = left;
+            left = right;
+            right = tmp;
+        }
+
+		return
+			x + y >= top &&
+			x + y <= bottom &&
+			y - x >= left &&
+			y - x <= right;
 	}
 }

@@ -232,7 +232,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(30110, "Menu.Options.DisableAutoConnectWall");
 
     translateMenuItem(40004, "Menu.Options.Settings");
-    translateMenuItem(40024, "Menu.Options.ShowMinimap");
+    translateMenuItem(30107, "Menu.Options.ShowMinimap");
     translateMenuItem(40023, "Menu.Options.Easymode");
     translateMenuItem(40118, "Menu.Options.Sounds");
     translateMenuItem(40123, "Menu.Options.ShowBuildingOutline");
@@ -620,10 +620,12 @@ DEFINE_HOOK(43307C, CFinalSunDlg_OnSize_Minimap, 5)
     if (ExtConfigs::ViewObjectsFloating && CFinalSunDlg::Instance->MyViewFrame.pViewObjects) {
         HWND hViewObjs = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->GetSafeHwnd();
         if (hViewObjs) {
+            // The floating window is the container hosting the tree view.
+            HWND hFrame = ::GetParent(hViewObjs);
             if (nType == SIZE_MINIMIZED) {
-                ::ShowWindow(hViewObjs, SW_HIDE);
+                ::ShowWindow(hFrame, SW_HIDE);
             } else if ((nType == SIZE_RESTORED || nType == SIZE_MAXIMIZED) && CFinalSunDlgExt::HasViewObjectsFloating) {
-                ::ShowWindow(hViewObjs, SW_SHOW);
+                ::ShowWindow(hFrame, SW_SHOW);
             }
         }
     }
@@ -654,7 +656,8 @@ DEFINE_HOOK(4327A1, CFinalSunDlg_QuitProgram_AfterDialog, 5)
     if (ExtConfigs::ViewObjectsFloating && CFinalSunDlg::Instance->MyViewFrame.pViewObjects) {
         HWND hViewObjs = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->GetSafeHwnd();
         if (hViewObjs) {
-            ::ShowWindow(hViewObjs, SW_HIDE);
+            // The floating window is the container hosting the tree view.
+            ::ShowWindow(::GetParent(hViewObjs), SW_HIDE);
         }
     }
     

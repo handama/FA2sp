@@ -1356,6 +1356,11 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
         CMeasurementToolbox::SetMeasurementToolbox(X, Y);
         return 0x466860;
     }
+    else if (CIsoView::CurrentCommand->Command == 0x27)
+    {        
+        CViewObjectsExt::PlaceRampAnchor(X, Y);
+        return 0x466860;
+    }
     else if (CIsoView::CurrentCommand->Command == 0x11)
     {        
         CMapData::Instance->TryGetCellAt(X, Y)->Flag.IsHiddenCell = true;
@@ -1487,6 +1492,11 @@ DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
             CViewObjectsExt::ApplyTag(X, Y, CNewTag::CurrentTagID);
             return 0x45CD6D;
         }
+    }
+    else if (CIsoView::CurrentCommand->Command == 0x27)
+    {        
+        CViewObjectsExt::PlaceRampAnchor(X, Y);
+        return 0x45CD6D;
     }
     //else if (CIsoView::CurrentCommand->Command == 0x11)
     //{

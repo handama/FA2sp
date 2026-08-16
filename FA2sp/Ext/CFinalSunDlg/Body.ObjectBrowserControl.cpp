@@ -29,6 +29,7 @@
 #include "../../ExtraWindow/CTechnoDialog/CTechnoDialog.h"
 #include <CRandomTree.h>
 #include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
+#include "../../ExtraWindow/Common.h"
 
 namespace fs = std::filesystem;
 
@@ -108,6 +109,7 @@ bool CViewObjectsExt::PlacingRandomRandomFacing;
 bool CViewObjectsExt::PlacingRandomStructureAIRepairs;
 bool CViewObjectsExt::NeedChangeTreeViewSelect = true;
 bool CViewObjectsExt::Initialized = false;
+FString CViewObjectsExt::SearchText;
 MoveBaseNode CViewObjectsExt::MoveBaseNode_SelectedObj = { "","","",-1,-1 };
 
 const char* playersAtX[8]
@@ -135,6 +137,18 @@ struct TempOtherInfo
     FString display;
     FString id;
 };
+
+struct TreeStateItem
+{
+    int parent = -1;    // index into g_TreeState, -1 = root
+    int extIndex = -1;  // Root_* enum for root nodes, -1 otherwise
+    DWORD_PTR data = 0; // item lParam (dwItemData)
+    int image = -1;     // image list index, -1 = no image
+    FString text;       // displayed text
+};
+
+static std::vector<TreeStateItem> g_TreeState;
+static bool g_InsideRedraw = false;
 
 HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
     HTREEITEM hParent, HTREEITEM hInsertAfter, const char* pOriString)
@@ -332,6 +346,8 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 bool temp2 = ExtConfigs::InGameDisplay_Deploy;
                 bool temp3 = ExtConfigs::InGameDisplay_Water;
                 ExtConfigs::InGameDisplay_Shadow = false;
+                ExtConfigs::InGameDisplay_Deploy = false;
+                ExtConfigs::InGameDisplay_Water = false;
                 CLoadingExt::IsLoadingObjectView = true;
                 CLoading::Instance->LoadObjects(InsertingObjectID);
                 CLoadingExt::IsLoadingObjectView = false;
@@ -343,7 +359,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             if (eItemType == CLoadingExt::GameObjectType::Aircraft || eItemType == CLoadingExt::GameObjectType::Vehicle)
             {
                 int facings = CLoadingExt::GetAvailableFacing(InsertingObjectID);
-                imageName = CLoadingExt::GetImageName(InsertingObjectID, facings / 4);
+                imageName = CLoadingExt::GetImageName(InsertingObjectID, facings / 4, false, false, false, 0);
             }
             else if (eItemType == CLoadingExt::GameObjectType::Building)
             {
@@ -476,6 +492,8 @@ void CViewObjectsExt::Redraw()
         firstRun = false;
         return;
     }
+
+    g_InsideRedraw = true;
 
 	if (ExtConfigs::TreeViewCameo_Display)
     {
@@ -628,6 +646,170 @@ void CViewObjectsExt::Redraw()
 
 		Initialized = true;
 	}
+
+    g_InsideRedraw = false;
+    SnapshotTreeState();
+    if (!SearchText.IsEmpty())
+        RebuildTreeFromState();
+}
+
+void CViewObjectsExt::SnapshotTreeState()
+{
+    g_TreeState.clear();
+    auto& tree = this->GetTreeCtrl();
+    const bool withImage = ExtConfigs::TreeViewCameo_Display;
+
+    std::function<int(HTREEITEM, int, int)> rec = [&](HTREEITEM h, int parentIdx, int extIndex) -> int
+    {
+        int idx = (int)g_TreeState.size();
+        TreeStateItem st;
+        st.parent = parentIdx;
+        st.extIndex = extIndex;
+        st.text = FString((const char*)tree.GetItemText(h));
+        st.data = tree.GetItemData(h);
+        if (withImage)
+        {
+            int image = 0, selected = 0;
+            tree.GetItemImage(h, image, selected);
+            st.image = image;
+        }
+        g_TreeState.push_back(std::move(st));
+
+        HTREEITEM hChild = tree.GetChildItem(h);
+        while (hChild)
+        {
+            rec(hChild, idx, -1);
+            hChild = tree.GetNextSiblingItem(hChild);
+        }
+        return idx;
+    };
+
+    HTREEITEM hRoot = tree.GetRootItem();
+    while (hRoot)
+    {
+        int extIndex = -1;
+        for (int i = 0; i < Root_Count; ++i)
+        {
+            if (ExtNodes[i] == hRoot)
+            {
+                extIndex = i;
+                break;
+            }
+        }
+        rec(hRoot, -1, extIndex);
+        hRoot = tree.GetNextSiblingItem(hRoot);
+    }
+}
+
+void CViewObjectsExt::RebuildTreeFromState()
+{
+    if (g_TreeState.empty())
+        return;
+
+    auto& tree = this->GetTreeCtrl();
+    const size_t n = g_TreeState.size();
+
+    std::vector<char> keep(n, 1);
+    if (!SearchText.IsEmpty())
+    {
+        LabelMatcher matcher(SearchText);
+        for (size_t i = 0; i < n; ++i)
+            keep[i] = matcher.Match(g_TreeState[i].text) ? 1 : 0;
+        for (size_t i = n; i-- > 0;)
+        {
+            int p = g_TreeState[i].parent;
+            if (keep[i] && p >= 0)
+                keep[p] = 1;
+        }
+    }
+
+    bool hadSelection = false;
+    DWORD_PTR selectedData = 0;
+    if (HTREEITEM hSel = tree.GetSelectedItem())
+    {
+        DWORD_PTR d = tree.GetItemData(hSel);
+        if (d != (DWORD_PTR)-1)
+        {
+            hadSelection = true;
+            selectedData = d;
+        }
+    }
+
+    HWND hTree = tree.GetSafeHwnd();
+    ::SendMessage(hTree, WM_SETREDRAW, FALSE, 0);
+
+    tree.DeleteAllItems();
+    std::fill(ExtNodes.begin(), ExtNodes.end(), nullptr);
+
+    std::vector<HTREEITEM> handles(n, nullptr);
+    for (size_t i = 0; i < n; ++i)
+    {
+        if (!keep[i])
+            continue;
+
+        const TreeStateItem& st = g_TreeState[i];
+        HTREEITEM hParent = TVI_ROOT;
+        if (st.parent >= 0 && keep[st.parent])
+            hParent = handles[st.parent];
+
+        HTREEITEM hItem = tree.InsertItem(TVIF_TEXT | TVIF_PARAM, st.text,
+            0, 0, 0, 0, (DWORD)st.data, hParent, TVI_LAST);
+        if (st.image >= 0)
+            tree.SetItemImage(hItem, st.image, st.image);
+        handles[i] = hItem;
+
+        if (st.extIndex >= 0)
+            ExtNodes[st.extIndex] = hItem;
+    }
+
+    ::SendMessage(hTree, WM_SETREDRAW, TRUE, 0);
+    ::InvalidateRect(hTree, nullptr, TRUE);
+
+    if (hadSelection)
+    {
+        std::function<HTREEITEM(HTREEITEM, DWORD_PTR)> find = [&](HTREEITEM h, DWORD_PTR data) -> HTREEITEM
+        {
+            while (h)
+            {
+                if (tree.GetItemData(h) == data)
+                    return h;
+                if (HTREEITEM hChild = tree.GetChildItem(h))
+                {
+                    if (HTREEITEM hFound = find(hChild, data))
+                        return hFound;
+                }
+                h = tree.GetNextSiblingItem(h);
+            }
+            return nullptr;
+        };
+        if (HTREEITEM hFound = find(tree.GetRootItem(), selectedData))
+            tree.SelectItem(hFound);
+    }
+
+    if (!SearchText.IsEmpty())
+    {
+        std::function<void(HTREEITEM)> expand = [&](HTREEITEM h)
+        {
+            ::SendMessage(hTree, TVM_EXPAND, TVE_EXPAND, (LPARAM)h);
+            HTREEITEM hChild = (HTREEITEM)::SendMessage(hTree, TVM_GETNEXTITEM, TVGN_CHILD, (LPARAM)h);
+            while (hChild)
+            {
+                expand(hChild);
+                hChild = (HTREEITEM)::SendMessage(hTree, TVM_GETNEXTITEM, TVGN_NEXT, (LPARAM)hChild);
+            }
+        };
+        HTREEITEM hRoot = tree.GetRootItem();
+        while (hRoot)
+        {
+            expand(hRoot);
+            hRoot = tree.GetNextSiblingItem(hRoot);
+        }
+    }
+}
+
+void CViewObjectsExt::ApplySearchFilter()
+{
+    RebuildTreeFromState();
 }
 
 void CViewObjectsExt::Redraw_Initialize()
@@ -983,6 +1165,14 @@ void CViewObjectsExt::Redraw_Ground()
 
 void CViewObjectsExt::Redraw_Owner()
 {
+    if (!g_InsideRedraw && !SearchText.IsEmpty() && !g_TreeState.empty())
+    {
+        FString saved = SearchText;
+        SearchText = "";
+        RebuildTreeFromState();
+        SearchText = saved;
+    }
+
     TreeViewIndex_House.clear();
     HTREEITEM& hOwner = ExtNodes[Root_Owner];
     if (hOwner == NULL)    return;
@@ -1231,6 +1421,13 @@ void CViewObjectsExt::Redraw_Owner()
                 }
             }
         }
+    }
+
+    if (!g_InsideRedraw)
+    {
+        SnapshotTreeState();
+        if (!SearchText.IsEmpty())
+            RebuildTreeFromState();
     }
 }
 
@@ -2944,6 +3141,38 @@ void CViewObjectsExt::SquareBatchAddMultiSelection(int X, int Y, bool add)
         MultiSelection::LastAddedCoord = { X,Y };
 
     CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+}
+
+void CViewObjectsExt::PlaceRampAnchor(int X, int Y)
+{
+    auto pIsoView = CIsoViewExt::GetExtension();
+	for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
+	{
+		for (int gy = Y - pIsoView->BrushSizeY / 2; gy <= Y + pIsoView->BrushSizeY / 2; gy++)
+		{
+            if (CIsoView::CurrentCommand->Type == 0)
+            {
+                auto& s = CMapDataExt::RampGeneratorAnchors;
+                auto it = s.find({ gx, gy });
+                if (it != s.end()) {
+                    auto node = s.extract(it);
+                    node.value() = { gx, gy, CMapDataExt::RampGeneratorAnchorHeight }; 
+                    s.insert(std::move(node));
+                } else {
+                    s.insert({ gx, gy, CMapDataExt::RampGeneratorAnchorHeight });
+                }
+            }
+            else if (CIsoView::CurrentCommand->Type == 1)
+            {
+                auto& s = CMapDataExt::RampGeneratorAnchors;
+                auto it = s.find({ gx, gy });
+                if (it != s.end()) {
+                    s.erase(it);
+                }
+            }
+        }
+    }
+    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 }
 
 void CViewObjectsExt::ModifyOre(int X, int Y)
@@ -5150,5 +5379,6 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     // 0x24 WP/Tag color
     // 0x25 Draging trigger dot
     // 0x26 Measurement Toolbox
+    // 0x27 Place Anchor
     return false;
 }

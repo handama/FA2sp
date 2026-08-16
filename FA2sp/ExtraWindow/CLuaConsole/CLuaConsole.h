@@ -33,6 +33,7 @@ public:
         Apply = 1010,
         SearchText = 1012,
         Splitter = 1013,
+        Reset = 1014,
         //Stop = 1011,
     };
     static void Create(CFinalSunDlg* pWnd);
@@ -45,6 +46,10 @@ public:
     static void UpdateCoords(int x, int y, bool firstRun, bool holdingClick);
     static void OnEditchangeSearch(HWND& hWnd);
     static void OnSelChangeScript(HWND& hWnd);
+
+    // Lua runtime lifecycle (decoupled from the console window)
+    static void EnsureLuaState();      // initialize once if not already done
+    static void InitializeLuaState();  // rebuild the Lua state from scratch
 
 protected:
     static void Initialize(HWND& hWnd);
@@ -68,6 +73,7 @@ private:
     static int splitterY; 
     static bool isDragging;
     static int dragStartY;
+    static bool luaStateReady;
 
 public:
     static HWND hExecute;
@@ -79,6 +85,7 @@ public:
     static HWND hScripts;
     static HWND hRunFile;
     static HWND hApply;
+    static HWND hReset;
     static HWND hSearchText;
     static HWND hSplitter;
     //static HWND hStop;
@@ -111,10 +118,12 @@ public:
     static bool updateCellTag;
     static bool updateVariable;
     static bool skipBuildingUpdate;
+    static bool yoloMode;
     // MCP output capture
     static std::string mcpOutput;
     static bool mcpRunning;
 
     static TransparencyHelper m_transparency;
+    static std::string CaptureScreenshotTemp();
 };
 

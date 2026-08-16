@@ -101,7 +101,7 @@ POPUP "Map tools"
 POPUP "Options"
 {
 	MENUITEM "Settings",  40004
-	MENUITEM "Show Minimap\tF2",  40024
+	MENUITEM "Show Minimap\tF2",  30107
 	// MENUITEM "Easy mode",  40023
 	MENUITEM "Sounds",  40118
 	MENUITEM "Show Building Outline",  40123

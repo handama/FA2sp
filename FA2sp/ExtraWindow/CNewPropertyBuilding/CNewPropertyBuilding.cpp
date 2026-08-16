@@ -341,6 +341,12 @@ BOOL CNewPropertyBuilding::OnInitDialog(HWND hDlg)
             EnableWindow(hUpgrades[1], nUpgrades > 1);
             EnableWindow(hUpgrades[2], nUpgrades > 2);
 
+            for (int i = 0; i < nUpgrades; ++i)
+            {
+                if (nUpgrades > i)       
+                    m_comboBoxes[hUpgrades[i]]->AddString("None");
+            }
+
             if (nUpgrades > 0)
             {
                 const auto& upgrades = CMapDataExt::PowersUpBuildings[CString_ObjectID];

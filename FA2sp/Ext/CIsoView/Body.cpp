@@ -19,6 +19,7 @@
 #include "../../Miscs/TheaterInfo.h"
 #include <stack>
 #include "../../ExtraWindow/CNewScript/CNewScript.h"
+#include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../CFinalSunApp/Body.h"
 
 Bitmap *CIsoViewExt::pFullBitmap = nullptr;
@@ -64,6 +65,9 @@ bool CIsoViewExt::DrawBasenodesFilter = false;
 bool CIsoViewExt::DrawCellTagsFilter = false;
 bool CIsoViewExt::RenderingMap = false;
 bool CIsoViewExt::RenderFullMap = false;
+bool CIsoViewExt::RenderingScreenshot = false;
+int CIsoViewExt::RenderingScreenshotBaseX = 0;
+int CIsoViewExt::RenderingScreenshotBaseY = 0;
 bool CIsoViewExt::RenderCurrentLayers = false;
 bool CIsoViewExt::RenderTileSuccess = false;
 bool CIsoViewExt::RenderInvisibleInGame = false;
@@ -72,6 +76,7 @@ bool CIsoViewExt::RenderMarkStartings = false;
 bool CIsoViewExt::RenderIgnoreObjects = false;
 bool CIsoViewExt::RenderSaveAsPNG = false;
 bool CIsoViewExt::EnableAutoTrack = false;
+bool CIsoViewExt::UsingNewRaiseGround = false;
 RendererLighting CIsoViewExt::RenderLighing = RendererLighting::Current;
 
 bool CIsoViewExt::AutoPropertyBrush[4] = {false};
@@ -983,6 +988,130 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
     }
 }
 
+void CIsoViewExt::DrawLockedCellOutlinePaintNewRaiseGroundCursor(
+    int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor, bool oneLine)
+{
+    Y += -14 / CIsoViewExt::ScaledFactor;
+    X += 1 / CIsoViewExt::ScaledFactor;
+    if (CIsoViewExt::ScaledFactor < 1.0)
+    {
+        X += 2;
+        Y += 1;
+    }
+    else if (CIsoViewExt::ScaledFactor > 1.0)
+    {
+        X += 1;
+        Y += 1;
+    }
+
+    if (!hdc)
+        return;
+    if (!hwnd)
+        return;
+
+    COLORREF heightColor = color;
+    if (useHeightColor)
+    {
+        heightColor = CIsoViewExt::CellHilightColors[height];
+    }
+
+    // Same ellipse geometry as DirectX version: 1/3 of original, center at diamond center
+    double rx = 10 / CIsoViewExt::ScaledFactor;
+    double ry = 5 / CIsoViewExt::ScaledFactor;
+    double cx = X + 30 / CIsoViewExt::ScaledFactor;
+    double cy = Y - 15 / CIsoViewExt::ScaledFactor;
+
+    double borderWidth = std::max(2.0, 2.0 / CIsoViewExt::ScaledFactor);
+
+    // Inner ellipse: variable color (heightColor)
+    {
+        HPEN hPen = CreatePen(PS_SOLID, (int)borderWidth, heightColor);
+        HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
+        HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
+        Ellipse(hdc, (int)(cx - rx), (int)(cy - ry), (int)(cx + rx), (int)(cy + ry));
+        SelectObject(hdc, hOldPen);
+        SelectObject(hdc, hOldBrush);
+        DeleteObject(hPen);
+    }
+
+    // Outer ellipse: fixed color, offset outward to overlap inner
+    {
+        double outerOffset = borderWidth - 1.0;
+        HPEN hPen = CreatePen(PS_SOLID, (int)borderWidth, color);
+        HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
+        HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
+        Ellipse(hdc, (int)(cx - rx - outerOffset), (int)(cy - ry - outerOffset * 0.5),
+                (int)(cx + rx + outerOffset), (int)(cy + ry + outerOffset * 0.5));
+        SelectObject(hdc, hOldPen);
+        SelectObject(hdc, hOldBrush);
+        DeleteObject(hPen);
+    }
+
+    // Height indicator lines (2 dashed lines at left and right edges)
+    COLORREF heightLineColor = ExtConfigs::CursorSelectionBound_HeightColor;
+    auto drawDashedLine = [hdc](int x1, int y1, int x2, int y2, COLORREF lineColor)
+    {
+        float dx = static_cast<float>(x2 - x1);
+        float dy = static_cast<float>(y2 - y1);
+        float lineLength = std::sqrt(dx * dx + dy * dy);
+        if (lineLength < 0.5f)
+            return;
+
+        float ux = dx / lineLength;
+        float uy = dy / lineLength;
+        float totalDrawn = 0.0f;
+        float dashLen = std::max(4.0f / (float)CIsoViewExt::ScaledFactor, 1.0f);
+        float gapLen = std::max(2.0f / (float)CIsoViewExt::ScaledFactor, 1.0f);
+
+        HPEN hPen = CreatePen(PS_SOLID, 1, lineColor);
+        HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
+
+        while (totalDrawn < lineLength)
+        {
+            float startX = x1 + ux * totalDrawn;
+            float startY = y1 + uy * totalDrawn;
+            float drawLength = std::min(dashLen, lineLength - totalDrawn);
+            float endX = startX + ux * drawLength;
+            float endY = startY + uy * drawLength;
+
+            MoveToEx(hdc, static_cast<int>(startX + 0.5f), static_cast<int>(startY + 0.5f), NULL);
+            LineTo(hdc, static_cast<int>(endX + 0.5f), static_cast<int>(endY + 0.5f));
+
+            totalDrawn += drawLength + gapLen;
+        }
+
+        SelectObject(hdc, hOldPen);
+        DeleteObject(hPen);
+    };
+
+    auto drawHeightLine = [&](int offset)
+    {
+        double leftX = cx - rx - offset;
+        double rightX = cx + rx + offset;
+        double heightOffset = height * 15 / CIsoViewExt::ScaledFactor;
+
+        if (oneLine)
+        {
+            drawDashedLine((int)(leftX + rightX) / 2, (int)cy, 
+            (int)(leftX + rightX) / 2, (int)(cy + heightOffset), heightLineColor);
+        }
+        else
+        {
+            drawDashedLine((int)leftX, (int)cy, (int)leftX, (int)(cy + heightOffset), heightLineColor);
+            drawDashedLine((int)rightX, (int)cy, (int)rightX, (int)(cy + heightOffset), heightLineColor);
+        }
+    };
+
+    if (!CFinalSunApp::Instance->FlatToGround && height > 0)
+    {
+        drawHeightLine(0);
+        if (CIsoViewExt::ScaledFactor < 0.76)
+            drawHeightLine(1);
+        if (CIsoViewExt::ScaledFactor < 0.31)
+            drawHeightLine(-1);
+    }
+}
+
 void CIsoViewExt::DrawEllipsePaint(int X, int Y, int majorRadius, COLORREF color, HDC hdc, const RECT &rect, int width)
 {
     if (!hdc)
@@ -1844,6 +1973,7 @@ void CIsoViewExt::DrawWaypointFlag(int X, int Y, LPDDSURFACEDESC2 lpDesc)
     auto image = CLoadingExt::GetSurfaceImageDataFromMap("FLAG");
     this->BlitTransparentDesc(image->lpSurface, GetBackBuffer(), lpDesc, X + 5 + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
 }
+
 void CIsoViewExt::GetSameConnectedCells(int X, int Y, int oriX, int oriY, std::set<MapCoord> *selectedCoords)
 {
     if (!selectedCoords)
@@ -1936,6 +2066,14 @@ void CIsoViewExt::GetSameConnectedCells(int X, int Y, int oriX, int oriY, std::s
             {
                 if (CMapDataExt::TileData[tileIndex_cell2].TileSet == CMapDataExt::WaterSet &&
                     CMapDataExt::TileData[tileIndex_cell].TileSet == CMapDataExt::WaterSet)
+                {
+                    match = true;
+                }
+            }
+
+            if (ExtConfigs::FillArea_ConsiderWholeTile && !match)
+            {
+                if (tileIndex_cell2 == tileIndex_cell)
                 {
                     match = true;
                 }
@@ -2867,15 +3005,44 @@ std::vector<MapCoord> CIsoViewExt::GetPathFromDirections(int x0, int y0, const s
     return path;
 }
 
+RECT CIsoViewExt::LastValidWindowRect = {0, 0, 0, 0};
+
 RECT CIsoViewExt::GetScaledWindowRect()
 {
     CRect rect;
     auto pThis = CIsoView::GetInstance();
-    pThis->GetWindowRect(&rect);
+    GetValidWindowRect(pThis->GetSafeHwnd(), &rect);
     AdaptRectForSecondScreen(&rect);
     rect.right += rect.Width() * (CIsoViewExt::ScaledFactor - 1.0);
     rect.bottom += rect.Height() * (CIsoViewExt::ScaledFactor - 1.0);
     return rect;
+}
+
+void CIsoViewExt::GetValidWindowRect(HWND hwnd, RECT* rc)
+{
+    ::GetWindowRect(hwnd, rc);
+
+    // Minimized windows are placed around (-32000,-32000) by Windows; using
+    // that position corrupts every map<->screen coordinate conversion (black
+    // screenshots, wrong view bounds). Fall back to the last known good
+    // position while keeping the current size.
+    if (rc->left < -10000 || rc->right < -10000 || rc->top < -10000 || rc->bottom < -10000)
+    {
+        if (LastValidWindowRect.right > LastValidWindowRect.left &&
+            LastValidWindowRect.bottom > LastValidWindowRect.top)
+        {
+            LONG w = rc->right - rc->left;
+            LONG h = rc->bottom - rc->top;
+            rc->left = LastValidWindowRect.left;
+            rc->top = LastValidWindowRect.top;
+            rc->right = rc->left + w;
+            rc->bottom = rc->top + h;
+        }
+    }
+    else
+    {
+        LastValidWindowRect = *rc;
+    }
 }
 
 void CIsoViewExt::ReduceBrightness(IDirectDrawSurface7 *pSurface, const RECT &rc)
@@ -3346,7 +3513,24 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC, bool bScreenSpace)
         if (fabs(CIsoViewExt::ScaledFactor - defaultScaledFactor) > 0.01)
         {
             FString buffer;
-            buffer.Format(Translations::TranslateOrDefault("ScaledFactorText", "Zoom: %.02fx, Middle-click to reset"), 1.0 / CIsoViewExt::ScaledFactor);
+            buffer.Format(Translations::TranslateOrDefault("ScaledFactorText", "Zoom: %.02fx, middle-click to reset"), 1.0 / CIsoViewExt::ScaledFactor);
+            if (ExtConfigs::DirectXRendering)
+            {
+                TextOutDirectX(rect.left + 10, rect.top + 10 + lineHeight * leftIndex, buffer, fontSize);
+                leftIndex++;
+            }
+            else
+            {
+                ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
+            }
+        }
+        if (CIsoView::CurrentCommand->Command == 11 
+            || CIsoView::CurrentCommand->Command == 12 
+            || CIsoView::CurrentCommand->Command == 15)
+        {
+            FString buffer = Translations::TranslateOrDefault(
+                CIsoViewExt::UsingNewRaiseGround ? "VertexModeOn" : "VertexModeOff", 
+                CIsoViewExt::UsingNewRaiseGround ? "Vertex Mode: On, press 'A' to switch" : "Vertex Mode: Off, press 'A' to switch");
             if (ExtConfigs::DirectXRendering)
             {
                 TextOutDirectX(rect.left + 10, rect.top + 10 + lineHeight * leftIndex, buffer, fontSize);
@@ -3436,7 +3620,7 @@ void CIsoViewExt::DrawDistanceRuler(HDC hDC, const RECT &rect, bool bScreenSpace
                 {
                     TextOutClipped(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength(), rect);
                 }
-                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Coordinate", "XY: %d, %d, ¦¤XY: %d, %d"),
+                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Coordinate", "XY: %d, %d, ??XY: %d, %d"),
                               coord2.Y, coord2.X, coord2.Y - coord1.Y, coord2.X - coord1.X);
                 if (ExtConfigs::DirectXRendering)
                 {
@@ -3586,12 +3770,20 @@ void CIsoViewExt::DrawHighBridgeLines(HDC hDC, const RECT &rect, bool bScreenSpa
 
         int x1 = coord1.X;
         int y1 = coord1.Y;
-        CIsoViewExt::MapCoord2ScreenCoord(x1, y1);
-        int height = CMapData::Instance->GetCellAt(coord1.X, coord1.Y)->Height;
+        CIsoViewExt::MapCoord2ScreenCoord(x1, y1, 1);
+		int height = cell->Height;
+        auto& tileBlock = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)]
+        .TileBlockDatas[CMapDataExt::GetSafeSubTileIndex(cell->TileIndex, cell->TileSubIndex)];
+        height = std::min(14, height - tileBlock.Height + 4);
+
         int x2 = coord2.X;
         int y2 = coord2.Y;
         CIsoViewExt::MapCoord2ScreenCoord(x2, y2, 1);
-        y2 -= height * 15 / CIsoViewExt::ScaledFactor;
+        if (!CFinalSunApp::Instance->FlatToGround)
+        {
+            y2 -= height * 15 / CIsoViewExt::ScaledFactor;
+            y1 -= height * 15 / CIsoViewExt::ScaledFactor;
+        }
         if (ExtConfigs::DirectXRendering)
         {
             CIsoViewExt::DrawLineDirectX(x1, y1, x2, y2, success ? RGB(0, 255, 0) : RGB(255, 0, 0), 4);
@@ -3686,7 +3878,7 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC, const RECT &rect, bool bScr
                 {
                     TextOutClipped(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength(), rect);
                 }
-                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Coordinate", "XY: %d, %d, ¦¤XY: %d, %d"),
+                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Coordinate", "XY: %d, %d, ??XY: %d, %d"),
                               coord2.Y, coord2.X,
                               coord2.Y - twoPoints.Point1.Y, coord2.X - twoPoints.Point1.X);
                 if (ExtConfigs::DirectXRendering)
@@ -3877,6 +4069,11 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC, const RECT &rect, bool bScr
     }
 }
 
+void CIsoViewExt::DrawRampAnchors(HDC hDC, const RECT& rect, bool bScreenSpace)
+{
+ 
+}
+
 void CIsoViewExt::DrawGeometricAnnotations(HDC hDC, const RECT &rect, bool bScreenSpace)
 {
     auto pIsoView = CIsoViewExt::GetExtension();
@@ -4062,6 +4259,7 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         {
             DrawHighBridgeLines(hDC, rect, false);
         }
+        DrawRampAnchors(hDC, rect, false);
         DrawCreditOnMap(hDC, false);
 
         SelectObject(hDC, hOldFont);
@@ -4109,6 +4307,7 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         {
             DrawHighBridgeLines(hDC, rect, true);
         }
+        DrawRampAnchors(hDC, rect, true);
         DrawMouseMove(hDC, rect);
         DrawCreditOnMap(hDC, true);
 
@@ -4157,6 +4356,7 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         {
             DrawHighBridgeLines(hDC, rect, true);
         }
+        DrawRampAnchors(hDC, rect, true);
         DrawCopyBound(hDC);
         DrawCreditOnMap(hDC, true);
 
@@ -4197,6 +4397,7 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
                 DrawScriptPaths(hDC, rect, true);
             if (CurrentCommand->Command == 10)
                 DrawHighBridgeLines(hDC, rect, true);
+            DrawRampAnchors(hDC, rect, true);
             SelectObject(hDC, hOldFont);
             DeleteObject(hFont);
         }
@@ -4234,7 +4435,8 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
             if (DrawScriptPath)
                 DrawScriptPaths(hDC, rect, true);
             if (CurrentCommand->Command == 10)
-                DrawHighBridgeLines(hDC, rect, true);
+                DrawHighBridgeLines(hDC, rect, true);    
+            DrawRampAnchors(hDC, rect, true);
             SelectObject(hDC, hOldFont);
             DeleteObject(hFont);
             surface->ReleaseDC(hDC);
@@ -4306,7 +4508,8 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
         if (CurrentCommand->Command == 10)
         {
             DrawHighBridgeLines(hDC, rect, true);
-        }
+        }     
+        DrawRampAnchors(hDC, rect, true);
         DrawCreditOnMap(hDC, true);
         break;
     }
@@ -4335,6 +4538,7 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
         {
             DrawHighBridgeLines(hDC, rect, true);
         }
+        DrawRampAnchors(hDC, rect, true);
         DrawMouseMove(hDC, rect);
         DrawCreditOnMap(hDC, true);
 
@@ -4367,6 +4571,7 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
         {
             DrawHighBridgeLines(hDC, rect, true);
         }
+        DrawRampAnchors(hDC, rect, true);
         DrawCopyBound(hDC);
         DrawCreditOnMap(hDC, true);
 
@@ -4392,6 +4597,7 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
             if (CurrentCommand->Command == 10)
                 DrawHighBridgeLines(hDC, rect, true);
         }
+        DrawRampAnchors(hDC, rect, true);
         DrawBridgeLine(hDC);
         DrawCreditOnMap(hDC, true);
 
@@ -4415,8 +4621,8 @@ void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
             if (DrawScriptPath)
                 DrawScriptPaths(hDC, rect, true);
             if (CurrentCommand->Command == 10)
-                DrawHighBridgeLines(hDC, rect, true);
-
+                DrawHighBridgeLines(hDC, rect, true);         
+            DrawRampAnchors(hDC, rect, true);
             pThis->g_pDX->RenderScreenSpaceOnly();
             pThis->g_pSP->EndFrame();
         }
@@ -4516,6 +4722,89 @@ void CIsoViewExt::DirectXMouseCursor(int X, int Y, int height)
     }
 }
 
+void CIsoViewExt::DirectXMouseNewRaiseGroundCursor(int X, int Y, int height, bool oneLine)
+{
+    Y += -14 / CIsoViewExt::ScaledFactor;
+    X += 1 / CIsoViewExt::ScaledFactor;
+    if (CIsoViewExt::ScaledFactor < 1.0)
+    {
+        X += 2;
+        Y += 1;
+    }
+    else if (CIsoViewExt::ScaledFactor > 1.0)
+    {
+        X += 1;
+        Y += 1;
+    }
+
+    // Reduced to 1/3 of original diamond size (30/SF ?? 10/SF, 15/SF ?? 5/SF)
+    double rx = 10 / CIsoViewExt::ScaledFactor;
+    double ry = 5 / CIsoViewExt::ScaledFactor;
+    // Center stays at original diamond center
+    double cx = X + 30 / CIsoViewExt::ScaledFactor;
+    double cy = Y - 15 / CIsoViewExt::ScaledFactor;
+
+    COLORREF color = ExtConfigs::CursorSelectionBound_Color;
+    COLORREF heightLineColor = ExtConfigs::CursorSelectionBound_HeightColor;
+    COLORREF heightColor = color;
+    if (ExtConfigs::CursorSelectionBound_AutoColor)
+    {
+        heightColor = CIsoViewExt::CellHilightColors[height];
+    }
+
+    // Border width scales with zoom
+    double borderWidth = std::max(2.0, 2.0 / CIsoViewExt::ScaledFactor);
+
+    auto drawHeightLine = [&](int offset)
+    {
+        LineParams param;
+        param.SetScreenSpace().SetThickness(1.0f).SetColor(ShapeColor::FromCOLORREF(heightLineColor)).SetAntiAlias(false);
+        param.SetDash(std::max(4 / CIsoViewExt::ScaledFactor, 1.0), std::max(2 / CIsoViewExt::ScaledFactor, 1.0));
+
+        double leftX = cx - rx - offset - borderWidth + 0.5;
+        double rightX = cx + rx + offset + borderWidth;
+        double heightOffset = height * 15 / CIsoViewExt::ScaledFactor;
+
+        if (oneLine)
+        {
+            g_pSP->DrawLine((float)(leftX + rightX) / 2, (float)cy, (float)(leftX + rightX) / 2, (float)(cy + heightOffset), param);
+        }
+        else
+        {
+            g_pSP->DrawLine((float)leftX, (float)cy, (float)leftX, (float)(cy + heightOffset), param);
+            g_pSP->DrawLine((float)rightX, (float)cy, (float)rightX, (float)(cy + heightOffset), param);
+        }
+    };
+
+    if (!CFinalSunApp::Instance->FlatToGround && height > 0)
+    {
+        drawHeightLine(0);
+        if (CIsoViewExt::ScaledFactor < 0.76)
+            drawHeightLine(1);
+        if (CIsoViewExt::ScaledFactor < 0.31)
+            drawHeightLine(-1);
+    }
+
+    // Inner ellipse: variable color (heightColor), drawn first
+    {
+        EllipseParams param;
+        param.SetScreenSpace()
+            .SetBorderWidth((float)borderWidth)
+            .SetBorderColor(ShapeColor::FromCOLORREF(heightColor));
+        g_pSP->DrawEllipse((float)cx, (float)cy, (float)rx, (float)ry, param);
+    }
+
+    // Outer ellipse: fixed color, offset outward by (borderWidth - 1) px to overlap inner by ~1px
+    {
+        double outerOffset = borderWidth - 1.0;
+        EllipseParams param;
+        param.SetScreenSpace()
+            .SetBorderWidth((float)borderWidth)
+            .SetBorderColor(ShapeColor::FromCOLORREF(color));
+        g_pSP->DrawEllipse((float)cx, (float)cy, (float)(rx + outerOffset), (float)(ry + outerOffset * 0.5), param);
+    }
+}
+
 void CIsoViewExt::MoveToMapCoord(int X, int Y)
 {
     if (!CMapData::Instance->IsCoordInMap(X, Y))
@@ -4523,8 +4812,8 @@ void CIsoViewExt::MoveToMapCoord(int X, int Y)
 
     auto pThis = CIsoView::GetInstance();
     RECT rect = GetScaledWindowRect();
-    int x = 30 * (CMapData::Instance->MapWidthPlusHeight + Y - X) - (rect.right - rect.left) / 2 - rect.left;
-    int y = 15 * (Y + X) - CMapData::Instance->TryGetCellAt(X, Y)->Height - (rect.bottom - rect.top) / 2 - rect.top;
+    int x = 30 * (CMapData::Instance->MapWidthPlusHeight + Y - X) - (rect.right - rect.left) / 2 - rect.left + 30;
+    int y = 15 * (Y + X) - CMapData::Instance->TryGetCellAt(X, Y)->Height - (rect.bottom - rect.top) / 2 - rect.top - 45;
     pThis->MoveTo(x, y);
     pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
@@ -5571,6 +5860,20 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                                     )
                                     {                                      
                                         HighBridgeLines.push_back({{my_x, my_y}, 0});
+                                    }
+                                    else if ((releativeTileIndex >= 6 && releativeTileIndex <= 10)
+                                        && p == 4
+                                    )
+                                    {                                      
+                                        HighBridgeLines.push_back({{my_x, my_y}, 1});
+                                        HighBridgeLines.push_back({{my_x, my_y}, 3});
+                                    }
+                                    else if ((releativeTileIndex >= 11 && releativeTileIndex <= 15)
+                                        && p == 2
+                                    )
+                                    {                                      
+                                        HighBridgeLines.push_back({{my_x, my_y}, 0});
+                                        HighBridgeLines.push_back({{my_x, my_y}, 2});
                                     }
                                 }
                                

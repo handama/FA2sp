@@ -95,10 +95,18 @@ DEFINE_HOOK(460F00, CIsoView_ScreenCoord2MapCoord_Height, 7)
 
 	auto pThis = CIsoView::GetInstance();
 	CRect dr;
-	GetWindowRect(pThis->GetSafeHwnd(), &dr);
+	CIsoViewExt::GetValidWindowRect(pThis->GetSafeHwnd(), &dr);
 	CIsoViewExt::AdaptRectForSecondScreen(&dr);
 	*X += (*X - pThis->ViewPosition.x - dr.left) * (CIsoViewExt::ScaledFactor - 1.0);
 	*Y += (*Y - pThis->ViewPosition.y - dr.top) * (CIsoViewExt::ScaledFactor - 1.0);
+
+	if (CIsoViewExt::UsingNewRaiseGround && (CIsoView::CurrentCommand->Command == 11 
+			|| CIsoView::CurrentCommand->Command == 12 
+			|| CIsoView::CurrentCommand->Command == 15) 
+		|| CIsoView::CurrentCommand->Command == 0x27)
+	{
+		*Y += 15;
+	}
 	return 0;
 }
 
@@ -139,11 +147,19 @@ DEFINE_HOOK(466890, CIsoView_ScreenCoord2MapCoord_Flat, 8)
 
 	auto pThis = CIsoView::GetInstance();
 	CRect dr;
-	pThis->GetWindowRect(&dr);
+	CIsoViewExt::GetValidWindowRect(pThis->GetSafeHwnd(), &dr);
 	CIsoViewExt::AdaptRectForSecondScreen(&dr);
 
 	*X += (*X - pThis->ViewPosition.x - dr.left) * (CIsoViewExt::ScaledFactor - 1.0);
 	*Y += (*Y - pThis->ViewPosition.y - dr.top) * (CIsoViewExt::ScaledFactor - 1.0);
+
+	if (CIsoViewExt::UsingNewRaiseGround && (CIsoView::CurrentCommand->Command == 11 
+			|| CIsoView::CurrentCommand->Command == 12 
+			|| CIsoView::CurrentCommand->Command == 15)
+		|| CIsoView::CurrentCommand->Command == 0x27)
+	{
+		*Y += 15;
+	}
 	return 0;
 }
 
@@ -280,7 +296,7 @@ DEFINE_HOOK(476419, CIsoView_MoveTo, 7)
 	auto pThis = CIsoView::GetInstance();
 
 	RECT r;
-	pThis->GetWindowRect(&r);
+	CIsoViewExt::GetValidWindowRect(pThis->GetSafeHwnd(), &r);
 	CIsoViewExt::AdaptRectForSecondScreen(&r);
 
 	int left = r.left;
@@ -336,6 +352,19 @@ DEFINE_HOOK(460DA0, CIsoView_OnLButtonDblClk_FixPos, 8)
 		R->Stack(0xC, R->Stack<int>(0xC) - GetSystemMetrics(SM_YVIRTUALSCREEN));
 	}
 	return 0;
+}
+
+DEFINE_HOOK(460E07, CIsoView_OnLButtonDblClk_FlatMapCoord, 8)
+{	
+	GET_STACK(int, x, STACK_OFFS(0x28, 0x1C));
+	GET_STACK(int, y, STACK_OFFS(0x28, 0x18));
+
+	CIsoView::ScreenCoord2MapCoord_Flat(x, y);
+	R->EDI(x);
+	R->EAX(y);
+	R->EBX(CMapData::Instance->MapWidthPlusHeight);
+
+	return 0x460E95;
 }
 
 DEFINE_HOOK(456CED, CIsoView_UpdateDialog, 9)

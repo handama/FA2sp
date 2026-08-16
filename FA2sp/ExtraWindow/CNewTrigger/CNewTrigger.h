@@ -456,7 +456,7 @@ protected:
     void UpdateParamAffectedParam_Action(int index);
     void UpdateParamAffectedParam_Event(int index);
 
-    void OnDropdownCComboBox(int index);
+    void OnDropdownCComboBox(int index, bool isEvent);
     void SetActionListBoxSel(int index);
     void SetActionListBoxSels(std::vector<int>& indices);
     void GetActionListBoxSels(std::vector<int>& indices);
@@ -557,6 +557,7 @@ public:
     static std::vector<ParamAffectedParams> EventParamAffectedParams;
     bool ActionParamUsesFloat;
     bool TeamListChanged;
+    bool m_suppressEditChange = false;
 
     static CNewTrigger Instance[TRIGGER_EDITOR_MAX_COUNT];
 

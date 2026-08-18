@@ -13,6 +13,8 @@
 #include "../../Miscs/DialogStyle.h"
 #include "../../FA2sp.h"
 
+static bool allowFilter = false;
+
 CTechnoDialog::CTechnoDialog()
 {
     m_nStrength = 256;
@@ -76,6 +78,11 @@ BOOL CALLBACK CTechnoDialog::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         WORD id = LOWORD(wParam);
         WORD code = HIWORD(wParam);
 
+        if (id == 1042 && code == EN_CHANGE)
+        {
+            pThis->UpdateHealthDisplay(hWnd);
+            return TRUE;
+        }
         if (id == IDOK && code == BN_CLICKED)
         {
             pThis->OnOK(hWnd);
@@ -88,6 +95,42 @@ BOOL CALLBACK CTechnoDialog::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         }
 
         return FALSE;
+    }
+    case WM_HSCROLL:
+    {
+        CTechnoDialog* pThis = reinterpret_cast<CTechnoDialog*>(GetWindowLongPtr(hWnd, DWLP_USER));
+        HWND hTrack = GetDlgItem(hWnd, 1003);
+        if (pThis && reinterpret_cast<HWND>(lParam) == hTrack)
+        {
+            char buffer[32] = {};
+            sprintf_s(buffer, "%d", static_cast<int>(SendMessage(hTrack, TBM_GETPOS, 0, 0)));
+            SetWindowTextA(GetDlgItem(hWnd, 1042), buffer);
+            pThis->UpdateHealthDisplay(hWnd);
+            return TRUE;
+        }
+        break;
+    }
+    case WM_DRAWITEM:
+    {
+        auto* dis = reinterpret_cast<LPDRAWITEMSTRUCT>(lParam);
+        if (dis && dis->CtlID == 1044)
+        {
+            char buffer[32] = {};
+            GetWindowTextA(GetDlgItem(hWnd, 1042), buffer, sizeof(buffer));
+            int HP = atoi(buffer);
+            HP = HP < 0 ? 0 : (HP > 256 ? 256 : HP);
+            COLORREF color = RGB(0, 192, 0);
+            if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
+                color = RGB(220, 0, 0);
+            else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
+                color = RGB(220, 180, 0);
+            HBRUSH brush = CreateSolidBrush(color);
+            FillRect(dis->hDC, &dis->rcItem, brush);
+            DeleteObject(brush);
+            FrameRect(dis->hDC, &dis->rcItem, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+            return TRUE;
+        }
+        break;
     }
     case WM_MEASUREITEM:
     {
@@ -157,12 +200,20 @@ BOOL CTechnoDialog::OnInitDialog(HWND hDlg)
         SendMessage(GetDlgItem(hDlg, 2), WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
     }
 
-    // Strength trackbar
-    HWND hStrength = GetDlgItem(hDlg, 1003);
-    if (hStrength)
+    // Strength: edit (1042) + trackbar (1003) + display (1043) + color block (1044)
+    HWND hStrengthEdit = GetDlgItem(hDlg, 1042);
+    if (hStrengthEdit)
     {
-        SendMessage(hStrength, TBM_SETRANGE, TRUE, MAKELONG(0, 256));
-        SendMessage(hStrength, TBM_SETPOS, TRUE, m_nStrength);
+        char healthBuffer[32] = {};
+        sprintf_s(healthBuffer, "%d", m_nStrength);
+        SetWindowTextA(hStrengthEdit, healthBuffer);
+        HWND hTrack = GetDlgItem(hDlg, 1003);
+        if (hTrack)
+        {
+            SendMessage(hTrack, TBM_SETRANGE, TRUE, MAKELONG(0, 256));
+            SendMessage(hTrack, TBM_SETPOS, TRUE, m_nStrength);
+        }
+        UpdateHealthDisplay(hDlg);
     }
 
     // Direction combo (1005) - VirtualComboBoxEx
@@ -171,12 +222,25 @@ BOOL CTechnoDialog::OnInitDialog(HWND hDlg)
     {
         auto vcb = std::make_unique<VirtualComboBoxEx>();
         vcb->Attach(hDirection, nullptr, true);
-        const char* directions[] = { "0","32","64","96","128","160","192","224" };
+        vcb->SetAutoSearchRestriction(&allowFilter);
+        const char* directionKeys[] = {
+            "Direction.NorthEast", "Direction.East", "Direction.SouthEast", "Direction.South",
+            "Direction.SouthWest", "Direction.West", "Direction.NorthWest", "Direction.North"
+        };
+        const char* directionDefaults[] = {
+            "North-East", "East", "South-East", "South",
+            "South-West", "West", "North-West", "North"
+        };
         for (int i = 0; i < 8; ++i)
-            vcb->AddString(directions[i]);
+        {
+            FString direction;
+            direction.Format("%d - %s",
+                i * 32, Translations::TranslateOrDefault(directionKeys[i], directionDefaults[i]));
+            vcb->AddString(direction);
+        }
         if (!m_strDirection.IsEmpty())
         {
-            int index = vcb->FindStringExact(m_strDirection);
+            int index = vcb->FindStringExactStart(m_strDirection + " ");
             if (index != CB_ERR)
                 vcb->SetCurSel(index);
             else
@@ -274,6 +338,7 @@ BOOL CTechnoDialog::OnInitDialog(HWND hDlg)
         {
             auto vcb = std::make_unique<VirtualComboBoxEx>();
             vcb->Attach(hCombo, nullptr, true);
+            vcb->SetAutoSearchRestriction(&allowFilter);
             for (const auto* item : ci.items)
                 vcb->AddString(item);
             m_comboBoxes[hCombo] = std::move(vcb);
@@ -348,6 +413,7 @@ BOOL CTechnoDialog::OnInitDialog(HWND hDlg)
     {
         auto vcb = std::make_unique<VirtualComboBoxEx>();
         vcb->Attach(hSpotlight, nullptr, true);
+        vcb->SetAutoSearchRestriction(&allowFilter);
         vcb->AddString(Translations::TranslateOrDefault("StructSpotlight.0", "0 - No spotlight"));
         vcb->AddString(Translations::TranslateOrDefault("StructSpotlight.1", "1 - Rules.ini setting"));
         vcb->AddString(Translations::TranslateOrDefault("StructSpotlight.2", "2 - Circle / Direction"));
@@ -360,6 +426,157 @@ BOOL CTechnoDialog::OnInitDialog(HWND hDlg)
                 vcb->SetEditText(m_strSpotlight);
         }
         m_comboBoxes[hSpotlight] = std::move(vcb);
+    }
+
+    // VeteranLevel (1009) - ComboBox (0/100/200)
+    HWND hVeteran = GetDlgItem(hDlg, 1009);
+    if (hVeteran)
+    {
+        auto vcb = std::make_unique<VirtualComboBoxEx>();
+        vcb->Attach(hVeteran, nullptr, true);
+        vcb->SetAutoSearchRestriction(&allowFilter);
+        const char* veteranKeys[] = {
+            "ObjectInfo.Veterancy.Rookie", "ObjectInfo.Veterancy.Veteran", "ObjectInfo.Veterancy.Elite"
+        };
+        const char* veteranDefaults[] = { "Rookie", "Veteran", "Elite" };
+        for (int i = 0; i < 3; ++i)
+        {
+            FString veteran;
+            veteran.Format("%d - %s", i * 100,
+                Translations::TranslateOrDefault(veteranKeys[i], veteranDefaults[i]));
+            vcb->AddString(veteran);
+        }
+        if (!m_strVeteranLevel.IsEmpty())
+        {
+            int index = vcb->FindStringExactStart(m_strVeteranLevel + " ");
+            if (index != CB_ERR)
+                vcb->SetCurSel(index);
+            else
+                vcb->SetEditText(m_strVeteranLevel);
+        }
+        m_comboBoxes[hVeteran] = std::move(vcb);
+    }
+
+    // AboveGround (1013) - ComboBox (0/1)
+    HWND hAbove = GetDlgItem(hDlg, 1013);
+    if (hAbove)
+    {
+        auto vcb = std::make_unique<VirtualComboBoxEx>();
+        vcb->Attach(hAbove, nullptr, true);
+        vcb->SetAutoSearchRestriction(&allowFilter);
+        vcb->AddString("0");
+        vcb->AddString("1");
+        if (!m_strAboveGround.IsEmpty())
+        {
+            int index = vcb->FindStringExact(m_strAboveGround);
+            if (index != CB_ERR)
+                vcb->SetCurSel(index);
+            else
+                vcb->SetEditText(m_strAboveGround);
+        }
+        m_comboBoxes[hAbove] = std::move(vcb);
+    }
+
+    // FollowsIndex (1015) - ComboBox ("-1 - None")
+    HWND hFollow = GetDlgItem(hDlg, 1015);
+    if (hFollow)
+    {
+        auto vcb = std::make_unique<VirtualComboBoxEx>();
+        vcb->Attach(hFollow, nullptr, true);
+        vcb->AddString("-1 - None");
+        if (auto pSection = CINI::CurrentDocument->GetSection("Units"))
+        {
+			int index = 0;
+			FString text;
+			for (const auto& [key, value] : pSection->GetEntities())
+            {
+                auto id = FString::GetParam(value, 1);
+                auto x = FString::GetParam(value, 4);
+                auto y = FString::GetParam(value, 3);
+                FString display;
+                FString name = Variables::RulesMap.GetString(id, "Name");
+                if (name.IsEmpty() || !Translations::GetTranslationItem(name, display))
+                {
+                    display = CViewObjectsExt::QueryUIName(id, true);
+                }
+                if (display != id)
+                {
+                    display.Format("%s (%s)", display, id);
+                }
+
+                text.Format("%d - %s (%s, %s)", index++, display, y, x);
+                vcb->AddString(text);
+            }
+        }
+        if (!m_strFollowsIndex.IsEmpty())
+        {
+            int index = vcb->FindStringExactStart(m_strFollowsIndex + " ");
+            if (index != CB_ERR)
+                vcb->SetCurSel(index);
+            else
+                vcb->SetEditText(m_strFollowsIndex);
+        }
+        m_comboBoxes[hFollow] = std::move(vcb);
+    }
+
+    // AutoNORecruitType (1017) - ComboBox (0/1)
+    HWND hAutoNO = GetDlgItem(hDlg, 1017);
+    if (hAutoNO)
+    {
+        auto vcb = std::make_unique<VirtualComboBoxEx>();
+        vcb->Attach(hAutoNO, nullptr, true);
+        vcb->SetAutoSearchRestriction(&allowFilter);
+        vcb->AddString("0");
+        vcb->AddString("1");
+        if (!m_strAutoNO_Recruit.IsEmpty())
+        {
+            int index = vcb->FindStringExact(m_strAutoNO_Recruit);
+            if (index != CB_ERR)
+                vcb->SetCurSel(index);
+            else
+                vcb->SetEditText(m_strAutoNO_Recruit);
+        }
+        m_comboBoxes[hAutoNO] = std::move(vcb);
+    }
+
+    // AutoYESRecruitType (1019) - ComboBox (0/1)
+    HWND hAutoYES = GetDlgItem(hDlg, 1019);
+    if (hAutoYES)
+    {
+        auto vcb = std::make_unique<VirtualComboBoxEx>();
+        vcb->Attach(hAutoYES, nullptr, true);
+        vcb->SetAutoSearchRestriction(&allowFilter);
+        vcb->AddString("0");
+        vcb->AddString("1");
+        if (!m_strAutoYES_Recruit.IsEmpty())
+        {
+            int index = vcb->FindStringExact(m_strAutoYES_Recruit);
+            if (index != CB_ERR)
+                vcb->SetCurSel(index);
+            else
+                vcb->SetEditText(m_strAutoYES_Recruit);
+        }
+        m_comboBoxes[hAutoYES] = std::move(vcb);
+    }
+
+    // Sellable (1023) - ComboBox (0/1)
+    HWND hSellable = GetDlgItem(hDlg, 1023);
+    if (hSellable)
+    {
+        auto vcb = std::make_unique<VirtualComboBoxEx>();
+        vcb->Attach(hSellable, nullptr, true);
+        vcb->SetAutoSearchRestriction(&allowFilter);
+        vcb->AddString("0");
+        vcb->AddString("1");
+        if (!m_strSellable.IsEmpty())
+        {
+            int index = vcb->FindStringExact(m_strSellable);
+            if (index != CB_ERR)
+                vcb->SetCurSel(index);
+            else
+                vcb->SetEditText(m_strSellable);
+        }
+        m_comboBoxes[hSellable] = std::move(vcb);
     }
 
     ExtraWindow::DisableOtherWindows(hDlg);
@@ -381,6 +598,7 @@ void CTechnoDialog::CollectDataToMembers(HWND hDlg)
     if (hDirection && m_comboBoxes[hDirection])
     {
         m_strDirection = m_comboBoxes[hDirection]->GetSelectedText(true);
+        STDHelpers::TrimIndex(m_strDirection);
     }
 
     HWND hState = GetDlgItem(hDlg, 1007);
@@ -394,22 +612,33 @@ void CTechnoDialog::CollectDataToMembers(HWND hDlg)
     }
 
     HWND hVeteran = GetDlgItem(hDlg, 1009);
-    if (hVeteran) { GetWindowTextA(hVeteran, buffer, sizeof(buffer)); m_strVeteranLevel = buffer; }
+    if (hVeteran && m_comboBoxes[hVeteran])
+    {
+        m_strVeteranLevel = m_comboBoxes[hVeteran]->GetSelectedText(true);
+        STDHelpers::TrimIndex(m_strVeteranLevel);
+    }
 
     HWND hGroup = GetDlgItem(hDlg, 1011);
     if (hGroup) { GetWindowTextA(hGroup, buffer, sizeof(buffer)); m_strGroup = buffer; }
 
     HWND hAbove = GetDlgItem(hDlg, 1013);
-    if (hAbove) { GetWindowTextA(hAbove, buffer, sizeof(buffer)); m_strAboveGround = buffer; }
+    if (hAbove && m_comboBoxes[hAbove])
+        m_strAboveGround = m_comboBoxes[hAbove]->GetSelectedText(true);
 
     HWND hFollow = GetDlgItem(hDlg, 1015);
-    if (hFollow) { GetWindowTextA(hFollow, buffer, sizeof(buffer)); m_strFollowsIndex = buffer; }
+    if (hFollow && m_comboBoxes[hFollow])
+    {
+        m_strFollowsIndex = m_comboBoxes[hFollow]->GetSelectedText(true);
+        STDHelpers::TrimIndex(m_strFollowsIndex);
+    }
 
     HWND hAutoNO = GetDlgItem(hDlg, 1017);
-    if (hAutoNO) { GetWindowTextA(hAutoNO, buffer, sizeof(buffer)); m_strAutoNO_Recruit = buffer; }
+    if (hAutoNO && m_comboBoxes[hAutoNO])
+        m_strAutoNO_Recruit = m_comboBoxes[hAutoNO]->GetSelectedText(true);
 
     HWND hAutoYES = GetDlgItem(hDlg, 1019);
-    if (hAutoYES) { GetWindowTextA(hAutoYES, buffer, sizeof(buffer)); m_strAutoYES_Recruit = buffer; }
+    if (hAutoYES && m_comboBoxes[hAutoYES])
+        m_strAutoYES_Recruit = m_comboBoxes[hAutoYES]->GetSelectedText(true);
 
     HWND hTag = GetDlgItem(hDlg, 1021);
     if (hTag && m_comboBoxes[hTag])
@@ -419,7 +648,8 @@ void CTechnoDialog::CollectDataToMembers(HWND hDlg)
     }
 
     HWND hSellable = GetDlgItem(hDlg, 1023);
-    if (hSellable) { GetWindowTextA(hSellable, buffer, sizeof(buffer)); m_strSellable = buffer; }
+    if (hSellable && m_comboBoxes[hSellable])
+        m_strSellable = m_comboBoxes[hSellable]->GetSelectedText(true);
 
     HWND hRebuild = GetDlgItem(hDlg, 1025);
     if (hRebuild && m_comboBoxes[hRebuild])
@@ -467,9 +697,13 @@ void CTechnoDialog::CollectDataToMembers(HWND hDlg)
         m_strNominal = m_comboBoxes[hNominal]->GetSelectedText(true);
     }
 
-    HWND hStrength = GetDlgItem(hDlg, 1003);
-    if (hStrength)
-        m_nStrength = static_cast<int>(SendMessage(hStrength, TBM_GETPOS, 0, 0));
+    HWND hStrengthEdit = GetDlgItem(hDlg, 1042);
+    if (hStrengthEdit)
+    {
+        GetWindowTextA(hStrengthEdit, buffer, sizeof(buffer));
+        m_nStrength = atoi(buffer);
+        m_nStrength = m_nStrength < 0 ? 0 : (m_nStrength > 256 ? 256 : m_nStrength);
+    }
 
     // Checkbox states
     HWND hChkHouse = GetDlgItem(hDlg, 1300);
@@ -537,6 +771,22 @@ void CTechnoDialog::CollectDataToMembers(HWND hDlg)
 
     // Post-processing
     STDHelpers::TrimIndex(m_strSpotlight);
+}
+
+void CTechnoDialog::UpdateHealthDisplay(HWND hDlg)
+{
+    char buffer[32] = {};
+    GetWindowTextA(GetDlgItem(hDlg, 1042), buffer, sizeof(buffer));
+    int currentHealth = atoi(buffer);
+    currentHealth = currentHealth < 0 ? 0 : (currentHealth > 256 ? 256 : currentHealth);
+    int percentage = (currentHealth * 100 + 128) / 256;
+    HWND hTrack = GetDlgItem(hDlg, 1003);
+    if (hTrack)
+        SendMessage(hTrack, TBM_SETPOS, TRUE, currentHealth);
+    FString display;
+    display.Format("/256 (%d%%)", percentage);
+    SetWindowTextA(GetDlgItem(hDlg, 1043), display);
+    InvalidateRect(GetDlgItem(hDlg, 1044), nullptr, TRUE);
 }
 
 void CTechnoDialog::OnOK(HWND hDlg)

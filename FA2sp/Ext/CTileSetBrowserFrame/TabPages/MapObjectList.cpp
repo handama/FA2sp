@@ -146,7 +146,7 @@ void MapObjectList::CreateControls()
     }
 
     const char* headers[] = {
-        "Index", "Type", "Name (ID)", "Coordinate", "House", "Health",
+        "Index", "Type", "Name (ID)", "Coordinate", "House", "Health (%)",
         "Facing", "Status", "Tag"
     };
     const int widths[] = { 
@@ -155,8 +155,8 @@ void MapObjectList::CreateControls()
         static_cast<int>(150 * s), 
         static_cast<int>(100 * s), 
         static_cast<int>(130 * s), 
-        static_cast<int>(60 * s),
-        static_cast<int>(60 * s),
+        static_cast<int>(70 * s),
+        static_cast<int>(65 * s),
         static_cast<int>(70 * s),
         static_cast<int>(240 * s)
     };
@@ -367,10 +367,25 @@ FString MapObjectList::GetCellText(const Row& row, Column column) const
         text = row.House;
         break;
     case Column::Health:
-        text.Format("%d",  atoi(row.Health));
+        text.Format("%d (%d%%)", atoi(row.Health), (atoi(row.Health) * 100 + 128) / 256);
         break;
     case Column::Facing:
-        text.Format("%d", row.Facing);
+        if (row.Facing >= 0 && row.Facing <= 224 && row.Facing % 32 == 0)
+        {
+            const char* directionKeys[] = {
+                "Direction.NorthEast", "Direction.East", "Direction.SouthEast", "Direction.South",
+                "Direction.SouthWest", "Direction.West", "Direction.NorthWest", "Direction.North"
+            };
+            const char* directionDefaults[] = {
+                "North-East", "East", "South-East", "South",
+                "South-West", "West", "North-West", "North"
+            };
+            text.Format("%s (%d)",
+                Translations::TranslateOrDefault(directionKeys[row.Facing / 32],
+                    directionDefaults[row.Facing / 32]), row.Facing);
+        }
+        else
+            text.Format("%d", row.Facing);
         break;
     case Column::Status:
         text = row.Status;

@@ -8,6 +8,8 @@
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/Helper.h"
 
+static bool allowFilter = false;
+
 CNewPropertyBuilding::CNewPropertyBuilding()
 {
 }
@@ -48,6 +50,11 @@ BOOL CALLBACK CNewPropertyBuilding::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, 
         WORD id = LOWORD(wParam);
         WORD code = HIWORD(wParam);
 
+        if (id == 1080 && code == EN_CHANGE)
+        {
+            pThis->UpdateHealthDisplay(hWnd);
+            return TRUE;
+        }
         if (id == IDOK && code == BN_CLICKED)
         {
             pThis->OnOK(hWnd);
@@ -67,6 +74,42 @@ BOOL CALLBACK CNewPropertyBuilding::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, 
         }
 
         return FALSE;
+    }
+    case WM_HSCROLL:
+    {
+        CNewPropertyBuilding* pThis = reinterpret_cast<CNewPropertyBuilding*>(GetWindowLongPtr(hWnd, DWLP_USER));
+        HWND hTrack = GetDlgItem(hWnd, 1315);
+        if (pThis && reinterpret_cast<HWND>(lParam) == hTrack)
+        {
+            char buffer[32] = {};
+            sprintf_s(buffer, "%d", static_cast<int>(SendMessage(hTrack, TBM_GETPOS, 0, 0)));
+            SetWindowTextA(GetDlgItem(hWnd, 1080), buffer);
+            pThis->UpdateHealthDisplay(hWnd);
+            return TRUE;
+        }
+        break;
+    }
+    case WM_DRAWITEM:
+    {
+        auto* dis = reinterpret_cast<LPDRAWITEMSTRUCT>(lParam);
+        if (dis && dis->CtlID == 1316)
+        {
+            auto* pThis = reinterpret_cast<CNewPropertyBuilding*>(GetWindowLongPtr(hWnd, DWLP_USER));
+            int health = static_cast<int>(SendMessage(GetDlgItem(hWnd, 1315), TBM_GETPOS, 0, 0));
+            int HP = pThis && pThis->m_totalHealth > 0
+                ? (health * 256 + pThis->m_totalHealth / 2) / pThis->m_totalHealth : 256;
+            COLORREF color = RGB(0, 192, 0);
+            if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
+                color = RGB(220, 0, 0);
+            else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
+                color = RGB(220, 180, 0);
+            HBRUSH brush = CreateSolidBrush(color);
+            FillRect(dis->hDC, &dis->rcItem, brush);
+            DeleteObject(brush);
+            FrameRect(dis->hDC, &dis->rcItem, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+            return TRUE;
+        }
+        break;
     }
     case WM_MEASUREITEM:
     {
@@ -109,17 +152,28 @@ BOOL CNewPropertyBuilding::OnInitDialog(HWND hDlg)
     HWND hLongDesc = GetDlgItem(hDlg, 1233);
     if (hLongDesc) ShowWindow(hLongDesc, SW_HIDE);
 
-    const char* directions[] = { "0","32","64","96","128","160","192","224" };
-
-    // Strength trackbar (1080)
+    // Strength input (1080)
     HWND hStrength = GetDlgItem(hDlg, 1080);
     if (hStrength)
     {
-        SendMessage(hStrength, TBM_SETRANGE, TRUE, MAKELONG(0, 256));
-        int pos = 256;
-        if (!CString_HealthPoint.IsEmpty())
-            pos = atoi(CString_HealthPoint);
-        SendMessage(hStrength, TBM_SETPOS, TRUE, pos);
+        m_totalHealth = CString_ObjectID.IsEmpty()
+            ? 256
+            : Variables::RulesMap.GetInteger(CString_ObjectID, "Strength", 256);
+        if (m_totalHealth <= 0)
+            m_totalHealth = 256;
+        int currentHealth = CString_HealthPoint.IsEmpty()
+            ? m_totalHealth
+            : (atoi(CString_HealthPoint) * m_totalHealth + 128) / 256;
+        char healthBuffer[32] = {};
+        sprintf_s(healthBuffer, "%d", currentHealth);
+        SetWindowTextA(hStrength, healthBuffer);
+        HWND hTrack = GetDlgItem(hDlg, 1315);
+        if (hTrack)
+        {
+            SendMessage(hTrack, TBM_SETRANGE, TRUE, MAKELONG(0, m_totalHealth));
+            SendMessage(hTrack, TBM_SETPOS, TRUE, currentHealth);
+        }
+        UpdateHealthDisplay(hDlg);
     }
 
     // Direction combo (1088)
@@ -128,11 +182,25 @@ BOOL CNewPropertyBuilding::OnInitDialog(HWND hDlg)
     {
         auto vcb = std::make_unique<VirtualComboBoxEx>();
         vcb->Attach(hDirection, nullptr, true);
+        vcb->SetAutoSearchRestriction(&allowFilter);
+        const char* directionKeys[] = {
+            "Direction.NorthEast", "Direction.East", "Direction.SouthEast", "Direction.South",
+            "Direction.SouthWest", "Direction.West", "Direction.NorthWest", "Direction.North"
+        };
+        const char* directionDefaults[] = {
+            "North-East", "East", "South-East", "South",
+            "South-West", "West", "North-West", "North"
+        };
         for (int i = 0; i < 8; ++i)
-            vcb->AddString(directions[i]);
+        {
+            FString direction;
+            direction.Format("%d - %s",
+                i * 32, Translations::TranslateOrDefault(directionKeys[i], directionDefaults[i]));
+            vcb->AddString(direction);
+        }
         if (!CString_Direction.IsEmpty())
         {
-            int index = vcb->FindStringExact(CString_Direction);
+            int index = vcb->FindStringExactStart(CString_Direction + " ");
             if (index != CB_ERR)
                 vcb->SetCurSel(index);
             else
@@ -141,12 +209,13 @@ BOOL CNewPropertyBuilding::OnInitDialog(HWND hDlg)
         m_comboBoxes[hDirection] = std::move(vcb);
     }
 
-    // Rebuild (1084)
+    // Rebuild (1084) - ComboBox
     HWND hRebuild = GetDlgItem(hDlg, 1084);
     if (hRebuild)
     {
         auto vcb = std::make_unique<VirtualComboBoxEx>();
         vcb->Attach(hRebuild, nullptr, true);
+        vcb->SetAutoSearchRestriction(&allowFilter);
         vcb->AddString("0");
         vcb->AddString("1");
         if (!CString_Rebuildable.IsEmpty())
@@ -160,12 +229,13 @@ BOOL CNewPropertyBuilding::OnInitDialog(HWND hDlg)
         m_comboBoxes[hRebuild] = std::move(vcb);
     }
 
-    // Powered (1085)
+    // Powered (1085) - ComboBox
     HWND hPowered = GetDlgItem(hDlg, 1085);
     if (hPowered)
     {
         auto vcb = std::make_unique<VirtualComboBoxEx>();
         vcb->Attach(hPowered, nullptr, true);
+        vcb->SetAutoSearchRestriction(&allowFilter);
         vcb->AddString("0");
         vcb->AddString("1");
         if (!CString_EnergySupport.IsEmpty())
@@ -185,6 +255,7 @@ BOOL CNewPropertyBuilding::OnInitDialog(HWND hDlg)
     {
         auto vcb = std::make_unique<VirtualComboBoxEx>();
         vcb->Attach(hUpgradeCount, nullptr, true);
+        vcb->SetAutoSearchRestriction(&allowFilter);
         vcb->AddString("0");
         vcb->AddString("1");
         vcb->AddString("2");
@@ -206,6 +277,7 @@ BOOL CNewPropertyBuilding::OnInitDialog(HWND hDlg)
     {
         auto vcb = std::make_unique<VirtualComboBoxEx>();
         vcb->Attach(hSpotlight, nullptr, true);
+        vcb->SetAutoSearchRestriction(&allowFilter);
         vcb->AddString(Translations::TranslateOrDefault("StructSpotlight.0", "0 - No spotlight"));
         vcb->AddString(Translations::TranslateOrDefault("StructSpotlight.1", "1 - Rules.ini setting"));
         vcb->AddString(Translations::TranslateOrDefault("StructSpotlight.2", "2 - Circle / Direction"));
@@ -220,12 +292,13 @@ BOOL CNewPropertyBuilding::OnInitDialog(HWND hDlg)
         m_comboBoxes[hSpotlight] = std::move(vcb);
     }
 
-    // AIRepairs (1093)
+    // AIRepairs (1093) - ComboBox
     HWND hAIRepairs = GetDlgItem(hDlg, 1093);
     if (hAIRepairs)
     {
         auto vcb = std::make_unique<VirtualComboBoxEx>();
         vcb->Attach(hAIRepairs, nullptr, true);
+        vcb->SetAutoSearchRestriction(&allowFilter);
         vcb->AddString("0");
         vcb->AddString("1");
         if (!CString_AIRepairs.IsEmpty())
@@ -239,12 +312,13 @@ BOOL CNewPropertyBuilding::OnInitDialog(HWND hDlg)
         m_comboBoxes[hAIRepairs] = std::move(vcb);
     }
 
-    // Nominal (1094)
+    // Nominal (1094) - ComboBox
     HWND hNominal = GetDlgItem(hDlg, 1094);
     if (hNominal)
     {
         auto vcb = std::make_unique<VirtualComboBoxEx>();
         vcb->Attach(hNominal, nullptr, true);
+        vcb->SetAutoSearchRestriction(&allowFilter);
         vcb->AddString("0");
         vcb->AddString("1");
         if (!CString_ShowName.IsEmpty())
@@ -307,10 +381,25 @@ BOOL CNewPropertyBuilding::OnInitDialog(HWND hDlg)
         }
     }
 
-    // Sellable (1087) - Edit
+    // Sellable (1087) - ComboBox
     HWND hSellable = GetDlgItem(hDlg, 1087);
-    if (hSellable && !CString_Sellable.IsEmpty())
-        SetWindowTextA(hSellable, CString_Sellable);
+    if (hSellable)
+    {
+        auto vcb = std::make_unique<VirtualComboBoxEx>();
+        vcb->Attach(hSellable, nullptr, true);
+        vcb->SetAutoSearchRestriction(&allowFilter);
+        vcb->AddString("0");
+        vcb->AddString("1");
+        if (!CString_Sellable.IsEmpty())
+        {
+            int index = vcb->FindStringExact(CString_Sellable);
+            if (index != CB_ERR)
+                vcb->SetCurSel(index);
+            else
+                vcb->SetEditText(CString_Sellable);
+        }
+        m_comboBoxes[hSellable] = std::move(vcb);
+    }
 
 	HWND hUpgrades[3];
     const int nodes[3] = {1089, 1091, 1092};
@@ -321,6 +410,7 @@ BOOL CNewPropertyBuilding::OnInitDialog(HWND hDlg)
         {
             auto vcb = std::make_unique<VirtualComboBoxEx>();
             vcb->Attach(hUpgrades[idx], nullptr, true);
+            vcb->SetAutoSearchRestriction(&allowFilter);
             m_comboBoxes[hUpgrades[idx]] = std::move(vcb);
         }
     }
@@ -430,20 +520,29 @@ void CNewPropertyBuilding::OnCancel(HWND hDlg)
 
 void CNewPropertyBuilding::CollectResults(HWND hDlg)
 {
-    char buffer[256];
+    char buffer[256] = {};
 
     HWND hStrength = GetDlgItem(hDlg, 1080);
     if (hStrength)
     {
-        int pos = static_cast<int>(SendMessage(hStrength, TBM_GETPOS, 0, 0));
-        sprintf(buffer, "%d", pos);
+        GetWindowTextA(hStrength, buffer, sizeof(buffer));
+        int health = atoi(buffer);
+        health = health < 0 ? 0 : (health > m_totalHealth ? m_totalHealth : health);
+        if (!CString_ObjectID.IsEmpty())
+            health = (health * 256 + m_totalHealth / 2) / m_totalHealth;
+        else
+            health = health > 256 ? 256 : health;
+        sprintf_s(buffer, "%d", health);
         CString_HealthPoint = buffer;
     }
 
     // Direction (1088)
     HWND hDirection = GetDlgItem(hDlg, 1088);
     if (hDirection && m_comboBoxes[hDirection])
+    {
         CString_Direction = m_comboBoxes[hDirection]->GetSelectedText(true);
+        STDHelpers::TrimIndex(CString_Direction);
+    }
 
     // House (1079) - Aircraft pattern with ParseHouseName
     HWND hHouse = GetDlgItem(hDlg, 1079);
@@ -458,15 +557,17 @@ void CNewPropertyBuilding::CollectResults(HWND hDlg)
         STDHelpers::TrimIndex(CString_Tag);
     }
 
-    // Sellable (1087) - Edit, keep GetWindowTextA
-    GetWindowTextA(GetDlgItem(hDlg, 1087), buffer, sizeof(buffer)); CString_Sellable = buffer;
+    // Sellable (1087) - ComboBox
+    HWND hSellable = GetDlgItem(hDlg, 1087);
+    if (hSellable && m_comboBoxes[hSellable])
+        CString_Sellable = m_comboBoxes[hSellable]->GetSelectedText(true);
 
-    // Rebuild (1084)
+    // Rebuild (1084) - ComboBox
     HWND hRebuild = GetDlgItem(hDlg, 1084);
     if (hRebuild && m_comboBoxes[hRebuild])
         CString_Rebuildable = m_comboBoxes[hRebuild]->GetSelectedText(true);
 
-    // Powered (1085)
+    // Powered (1085) - ComboBox
     HWND hPowered = GetDlgItem(hDlg, 1085);
     if (hPowered && m_comboBoxes[hPowered])
         CString_EnergySupport = m_comboBoxes[hPowered]->GetSelectedText(true);
@@ -508,15 +609,31 @@ void CNewPropertyBuilding::CollectResults(HWND hDlg)
         STDHelpers::TrimIndex(CString_Upgrade3);
     }
 
-    // AIRepairs (1093)
+    // AIRepairs (1093) - ComboBox
     HWND hAIRepairs = GetDlgItem(hDlg, 1093);
     if (hAIRepairs && m_comboBoxes[hAIRepairs])
         CString_AIRepairs = m_comboBoxes[hAIRepairs]->GetSelectedText(true);
 
-    // Nominal (1094)
+    // Nominal (1094) - ComboBox
     HWND hNominal = GetDlgItem(hDlg, 1094);
     if (hNominal && m_comboBoxes[hNominal])
         CString_ShowName = m_comboBoxes[hNominal]->GetSelectedText(true);
+}
+
+void CNewPropertyBuilding::UpdateHealthDisplay(HWND hDlg)
+{
+    char buffer[32] = {};
+    GetWindowTextA(GetDlgItem(hDlg, 1080), buffer, sizeof(buffer));
+    int currentHealth = atoi(buffer);
+    currentHealth = currentHealth < 0 ? 0 : (currentHealth > m_totalHealth ? m_totalHealth : currentHealth);
+    int percentage = m_totalHealth > 0 ? (currentHealth * 100 + m_totalHealth / 2) / m_totalHealth : 0;
+    HWND hTrack = GetDlgItem(hDlg, 1315);
+    if (hTrack)
+        SendMessage(hTrack, TBM_SETPOS, TRUE, currentHealth);
+    FString display;
+    display.Format("/%d (%d%%)", m_totalHealth, percentage);
+    SetWindowTextA(GetDlgItem(hDlg, 1314), display);
+    InvalidateRect(GetDlgItem(hDlg, 1316), nullptr, TRUE);
 }
 
 void CNewPropertyBuilding::TranslateLabels(HWND hDlg)

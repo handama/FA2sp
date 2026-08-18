@@ -76,6 +76,7 @@ protected:
     static BOOL CALLBACK DlgProc(HWND, UINT, WPARAM, LPARAM);
     BOOL OnInitDialog(HWND hDlg);
     void CollectDataToMembers(HWND hDlg);
+    void UpdateHealthDisplay(HWND hDlg);
     void OnOK(HWND hDlg);
     void OnCancel(HWND hDlg);
 

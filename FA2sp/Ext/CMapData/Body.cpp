@@ -1922,24 +1922,45 @@ int CMapDataExt::GetRampIndex(int tileIndex, int rampType)
 				break;
 			}
 		}
-		if (rampType < 0)
-		{		
-			if (originTileSet == iSmoothSet || originTileSet == iLatSet)
-			{
-				return tileIndex;
-			}
-			else if (originTileSet == info.Ramp)
-			{
-				return CMapDataExt::TileSet_starts[iSmoothSet];
-			}
-		}
-		if (rampType >= 0)
+		if (info.MorphableIndex == CMapDataExt::TileSet_starts[originTileSet]) // count all tiles
 		{
-			if (originTileSet == iSmoothSet || originTileSet == iLatSet || originTileSet == info.Ramp)
+			if (rampType < 0)
+			{		
+				if (originTileSet == iSmoothSet || originTileSet == iLatSet)
+				{
+					return tileIndex;
+				}
+				else if (originTileSet == info.Ramp)
+				{
+					return CMapDataExt::TileSet_starts[iSmoothSet];
+				}
+			}
+			if (rampType >= 0)
 			{
-				return CMapDataExt::TileSet_starts[info.Ramp] + rampType;
+				if (originTileSet == iSmoothSet || originTileSet == iLatSet || originTileSet == info.Ramp)
+				{
+					return CMapDataExt::TileSet_starts[info.Ramp] + rampType;
+				}
 			}
 		}
+		else
+		{
+			if (rampType < 0)
+			{		
+				if (tileIndex == info.MorphableIndex || originTileSet == iLatSet || originTileSet == info.Ramp)
+				{
+					return info.MorphableIndex;
+				}
+			}
+			if (rampType >= 0)
+			{
+				if (tileIndex == info.MorphableIndex || originTileSet == iLatSet || originTileSet == info.Ramp)
+				{
+					return CMapDataExt::TileSet_starts[info.Ramp] + rampType;
+				}
+			}
+		}
+
 	}
 	if (rampType < 0 || RampBase <= 0)
 	{

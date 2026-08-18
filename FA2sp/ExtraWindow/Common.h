@@ -136,6 +136,7 @@ public:
     static void LoadParam_Units(VirtualComboBoxEx& vcb);
     static void LoadParam_Aircrafts(VirtualComboBoxEx& vcb);
     static void LoadParam_Structures(VirtualComboBoxEx& vcb);
+    static void LoadParam_Scenarios(VirtualComboBoxEx& vcb);
     static void LoadParam_Stringtables(VirtualComboBoxEx& vcb);
 
     // House and Tag loading for property dialogs (to be implemented by user)

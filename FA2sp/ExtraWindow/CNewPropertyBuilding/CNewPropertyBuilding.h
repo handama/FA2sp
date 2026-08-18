@@ -37,9 +37,11 @@ protected:
     void OnCancel(HWND hDlg);
     void CollectResults(HWND hDlg);
     void TranslateLabels(HWND hDlg);
+    void UpdateHealthDisplay(HWND hDlg);
 
     bool m_accepted = false;
     HWND m_hWnd = nullptr;
+    int m_totalHealth = 256;
 
     std::map<HWND, std::unique_ptr<VirtualComboBoxEx>> m_comboBoxes;
 };

@@ -13,6 +13,7 @@ public:
     ~CNewPropertyInfantry();
 
     ppmfc::CString CString_HealthPoint;
+    ppmfc::CString CString_ObjectID;
     ppmfc::CString CString_Direction;
     ppmfc::CString CString_House;
     ppmfc::CString CString_Tag;
@@ -32,8 +33,10 @@ protected:
     void OnCancel(HWND hDlg);
     void CollectResults(HWND hDlg);
     void TranslateLabels(HWND hDlg);
+    void UpdateHealthDisplay(HWND hDlg);
     bool m_accepted = false;
     HWND m_hWnd = nullptr;
+    int m_totalHealth = 256;
 
     std::map<HWND, std::unique_ptr<VirtualComboBoxEx>> m_comboBoxes;
 };

@@ -2266,6 +2266,8 @@ namespace LuaFunctions
 						return "UNIT";
 					if (newParams[1] == "19")
 						return "STRUCTURE";
+					if (newParams[1] == "20")
+						return "SCENARIO";
 
 					auto newParamInfos = FString::SplitString(fadata.GetString("NewParamTypes", newParams[1], "MISSING,0,0,0,0"), 4);
 					
@@ -2421,6 +2423,8 @@ namespace LuaFunctions
 						return "UNIT";
 					if (newParams[1] == "19")
 						return "STRUCTURE";
+					if (newParams[1] == "20")
+						return "SCENARIO";
 
 					auto newParamInfos = FString::SplitString(fadata.GetString("NewParamTypes", newParams[1], "MISSING,0,0,0,0"), 4);
 					
@@ -3235,6 +3239,8 @@ namespace LuaFunctions
 				return "UNIT";
 			if (scriptParam == "19")
 				return "STRUCTURE";
+			if (scriptParam == "20")
+				return "SCENARIO";
 
 			auto newParamInfos = FString::SplitString(fadata.GetString("NewParamTypes", scriptParam, "MISSING,0,0,0,0"), 4);
 			

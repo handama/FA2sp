@@ -8,6 +8,8 @@
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/Helper.h"
 
+static bool allowFilter = false;
+
 CNewPropertyAircraft::CNewPropertyAircraft()
 {
 }
@@ -48,6 +50,11 @@ BOOL CALLBACK CNewPropertyAircraft::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, 
         WORD id = LOWORD(wParam);
         WORD code = HIWORD(wParam);
 
+        if (id == 1080 && code == EN_CHANGE)
+        {
+            pThis->UpdateHealthDisplay(hWnd);
+            return TRUE;
+        }
         if (id == IDOK && code == BN_CLICKED)
         {
             pThis->OnOK(hWnd);
@@ -66,6 +73,42 @@ BOOL CALLBACK CNewPropertyAircraft::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, 
                 CViewObjectsExt::AircraftBrushBools[idx] = checked;
         }
         return FALSE;
+    }
+    case WM_HSCROLL:
+    {
+        CNewPropertyAircraft* pThis = reinterpret_cast<CNewPropertyAircraft*>(GetWindowLongPtr(hWnd, DWLP_USER));
+        HWND hTrack = GetDlgItem(hWnd, 1315);
+        if (pThis && reinterpret_cast<HWND>(lParam) == hTrack)
+        {
+            char buffer[32] = {};
+            sprintf_s(buffer, "%d", static_cast<int>(SendMessage(hTrack, TBM_GETPOS, 0, 0)));
+            SetWindowTextA(GetDlgItem(hWnd, 1080), buffer);
+            pThis->UpdateHealthDisplay(hWnd);
+            return TRUE;
+        }
+        break;
+    }
+    case WM_DRAWITEM:
+    {
+        auto* dis = reinterpret_cast<LPDRAWITEMSTRUCT>(lParam);
+        if (dis && dis->CtlID == 1316)
+        {
+            auto* pThis = reinterpret_cast<CNewPropertyAircraft*>(GetWindowLongPtr(hWnd, DWLP_USER));
+            int health = static_cast<int>(SendMessage(GetDlgItem(hWnd, 1315), TBM_GETPOS, 0, 0));
+            int HP = pThis && pThis->m_totalHealth > 0
+                ? (health * 256 + pThis->m_totalHealth / 2) / pThis->m_totalHealth : 256;
+            COLORREF color = RGB(0, 192, 0);
+            if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
+                color = RGB(220, 0, 0);
+            else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
+                color = RGB(220, 180, 0);
+            HBRUSH brush = CreateSolidBrush(color);
+            FillRect(dis->hDC, &dis->rcItem, brush);
+            DeleteObject(brush);
+            FrameRect(dis->hDC, &dis->rcItem, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+            return TRUE;
+        }
+        break;
     }
     case WM_MEASUREITEM:
     {
@@ -107,15 +150,28 @@ BOOL CNewPropertyAircraft::OnInitDialog(HWND hDlg)
     HWND hLongDesc = GetDlgItem(hDlg, 1233);
     if (hLongDesc) ShowWindow(hLongDesc, SW_HIDE);
 
-    // Strength trackbar (1080)
+    // Strength input (1080)
     HWND hStrength = GetDlgItem(hDlg, 1080);
     if (hStrength)
     {
-        SendMessage(hStrength, TBM_SETRANGE, TRUE, MAKELONG(0, 256));
-        int pos = 256;
-        if (!CString_HealthPoint.IsEmpty())
-            pos = atoi(CString_HealthPoint);
-        SendMessage(hStrength, TBM_SETPOS, TRUE, pos);
+        m_totalHealth = CString_ObjectID.IsEmpty()
+            ? 256
+            : Variables::RulesMap.GetInteger(CString_ObjectID, "Strength", 256);
+        if (m_totalHealth <= 0)
+            m_totalHealth = 256;
+        int currentHealth = CString_HealthPoint.IsEmpty()
+            ? m_totalHealth
+            : (atoi(CString_HealthPoint) * m_totalHealth + 128) / 256;
+        char healthBuffer[32] = {};
+        sprintf_s(healthBuffer, "%d", currentHealth);
+        SetWindowTextA(hStrength, healthBuffer);
+        HWND hTrack = GetDlgItem(hDlg, 1315);
+        if (hTrack)
+        {
+            SendMessage(hTrack, TBM_SETRANGE, TRUE, MAKELONG(0, m_totalHealth));
+            SendMessage(hTrack, TBM_SETPOS, TRUE, currentHealth);
+        }
+        UpdateHealthDisplay(hDlg);
     }
 
     // Direction combo (1088) - VirtualComboBoxEx
@@ -124,14 +180,29 @@ BOOL CNewPropertyAircraft::OnInitDialog(HWND hDlg)
     {
         auto vcb = std::make_unique<VirtualComboBoxEx>();
         vcb->Attach(hDirection, nullptr, true);
-        const char* directions[] = { "0","32","64","96","128","160","192","224" };
+        vcb->SetAutoSearchRestriction(&allowFilter);
+        const char* directionKeys[] = {
+            "Direction.NorthEast", "Direction.East", "Direction.SouthEast", "Direction.South",
+            "Direction.SouthWest", "Direction.West", "Direction.NorthWest", "Direction.North"
+        };
+        const char* directionDefaults[] = {
+            "North-East", "East", "South-East", "South",
+            "South-West", "West", "North-West", "North"
+        };
         for (int i = 0; i < 8; ++i)
-            vcb->AddString(directions[i]);
+        {
+            FString direction;
+            direction.Format("%d - %s",
+                i * 32, Translations::TranslateOrDefault(directionKeys[i], directionDefaults[i]));
+            vcb->AddString(direction);
+        }
         if (!CString_Direction.IsEmpty())
         {
-            int index = vcb->FindStringExact(CString_Direction);
-            if (index != CB_ERR) vcb->SetCurSel(index);
-            else vcb->SetEditText(CString_Direction);
+            int index = vcb->FindStringExactStart(CString_Direction + " ");
+            if (index != CB_ERR)
+                vcb->SetCurSel(index);
+            else
+                vcb->SetEditText(CString_Direction);
         }
         m_comboBoxes[hDirection] = std::move(vcb);
     }
@@ -216,34 +287,78 @@ BOOL CNewPropertyAircraft::OnInitDialog(HWND hDlg)
 		}
     }
 
-    // Edit controls
-    HWND hGroup = GetDlgItem(hDlg, 1084);        // Group
-    HWND hAutoNO = GetDlgItem(hDlg, 1085);        // AutoNORecruitType (ComboBox)
-    HWND hAutoYES = GetDlgItem(hDlg, 1086);       // AutoYESRecruitType
-    HWND hVeteran = GetDlgItem(hDlg, 1087);       // VeteranLevel
-
+    // Group (1084) - Edit
+    HWND hGroup = GetDlgItem(hDlg, 1084);
     if (hGroup && !CString_Group.IsEmpty())
         SetWindowTextA(hGroup, CString_Group);
-    if (hAutoYES && !CString_AutoCreateYesRecruitable.IsEmpty())
-        SetWindowTextA(hAutoYES, CString_AutoCreateYesRecruitable);
-    if (hVeteran && !CString_VeteranLevel.IsEmpty())
-        SetWindowTextA(hVeteran, CString_VeteranLevel);
 
-    // AutoNORecruitType is a ComboBox in Aircraft (1085) - VirtualComboBoxEx
+    // AutoNORecruitType (1085) - ComboBox (0/1)
+    HWND hAutoNO = GetDlgItem(hDlg, 1085);
     if (hAutoNO)
     {
         auto vcb = std::make_unique<VirtualComboBoxEx>();
         vcb->Attach(hAutoNO, nullptr, true);
-        const char* yesNo[] = { "0", "1" };
-        for (int i = 0; i < 2; ++i)
-            vcb->AddString(yesNo[i]);
+        vcb->SetAutoSearchRestriction(&allowFilter);
+        vcb->AddString("0");
+        vcb->AddString("1");
         if (!CString_AutoCreateNoRecruitable.IsEmpty())
         {
             int index = vcb->FindStringExact(CString_AutoCreateNoRecruitable);
-            if (index != CB_ERR) vcb->SetCurSel(index);
-            else vcb->SetEditText(CString_AutoCreateNoRecruitable);
+            if (index != CB_ERR)
+                vcb->SetCurSel(index);
+            else
+                vcb->SetEditText(CString_AutoCreateNoRecruitable);
         }
         m_comboBoxes[hAutoNO] = std::move(vcb);
+    }
+
+    // AutoYESRecruitType (1086) - ComboBox (0/1)
+    HWND hAutoYES = GetDlgItem(hDlg, 1086);
+    if (hAutoYES)
+    {
+        auto vcb = std::make_unique<VirtualComboBoxEx>();
+        vcb->Attach(hAutoYES, nullptr, true);
+        vcb->SetAutoSearchRestriction(&allowFilter);
+        vcb->AddString("0");
+        vcb->AddString("1");
+        if (!CString_AutoCreateYesRecruitable.IsEmpty())
+        {
+            int index = vcb->FindStringExact(CString_AutoCreateYesRecruitable);
+            if (index != CB_ERR)
+                vcb->SetCurSel(index);
+            else
+                vcb->SetEditText(CString_AutoCreateYesRecruitable);
+        }
+        m_comboBoxes[hAutoYES] = std::move(vcb);
+    }
+
+    // VeteranLevel (1087) - ComboBox (0/100/200)
+    HWND hVeteran = GetDlgItem(hDlg, 1087);
+    if (hVeteran)
+    {
+        auto vcb = std::make_unique<VirtualComboBoxEx>();
+        vcb->Attach(hVeteran, nullptr, true);
+        vcb->SetAutoSearchRestriction(&allowFilter);
+        const char* veteranKeys[] = {
+            "ObjectInfo.Veterancy.Rookie", "ObjectInfo.Veterancy.Veteran", "ObjectInfo.Veterancy.Elite"
+        };
+        const char* veteranDefaults[] = { "Rookie", "Veteran", "Elite" };
+        for (int i = 0; i < 3; ++i)
+        {
+            FString veteran;
+            veteran.Format("%d - %s", i * 100,
+                Translations::TranslateOrDefault(veteranKeys[i], veteranDefaults[i]));
+            vcb->AddString(veteran);
+        }
+        if (!CString_VeteranLevel.IsEmpty())
+        {
+            int index = vcb->FindStringExactStart(CString_VeteranLevel + " ");
+            if (index != CB_ERR)
+                vcb->SetCurSel(index);
+            else
+                vcb->SetEditText(CString_VeteranLevel);
+        }
+        m_comboBoxes[hVeteran] = std::move(vcb);
     }
 
     if (!CViewObjectsExt::InitPropertyDlgFromProperty)
@@ -290,22 +405,29 @@ void CNewPropertyAircraft::OnCancel(HWND hDlg)
 
 void CNewPropertyAircraft::CollectResults(HWND hDlg)
 {
-    char buffer[256];
+    char buffer[256] = {};
 
     // Strength
     HWND hStrength = GetDlgItem(hDlg, 1080);
     if (hStrength)
     {
-        int pos = static_cast<int>(SendMessage(hStrength, TBM_GETPOS, 0, 0));
-        sprintf(buffer, "%d", pos);
+        GetWindowTextA(hStrength, buffer, sizeof(buffer));
+        int health = atoi(buffer);
+        health = health < 0 ? 0 : (health > m_totalHealth ? m_totalHealth : health);
+        if (!CString_ObjectID.IsEmpty())
+            health = (health * 256 + m_totalHealth / 2) / m_totalHealth;
+        else
+            health = health > 256 ? 256 : health;
+        sprintf_s(buffer, "%d", health);
         CString_HealthPoint = buffer;
     }
 
-    // Direction
+    // Direction (1088)
     HWND hDirection = GetDlgItem(hDlg, 1088);
     if (hDirection && m_comboBoxes[hDirection])
     {
         CString_Direction = m_comboBoxes[hDirection]->GetSelectedText(true);
+        STDHelpers::TrimIndex(CString_Direction);
     }
 
     // House
@@ -341,29 +463,40 @@ void CNewPropertyAircraft::CollectResults(HWND hDlg)
         GetWindowTextA(hGroup, buffer, sizeof(buffer));
         CString_Group = buffer;
     }
-
-    // AutoNORecruitType (ComboBox)
+    
+    // AutoNORecruitType
     HWND hAutoNO = GetDlgItem(hDlg, 1085);
     if (hAutoNO && m_comboBoxes[hAutoNO])
-    {
         CString_AutoCreateNoRecruitable = m_comboBoxes[hAutoNO]->GetSelectedText(true);
-    }
-
+    
     // AutoYESRecruitType
     HWND hAutoYES = GetDlgItem(hDlg, 1086);
-    if (hAutoYES)
-    {
-        GetWindowTextA(hAutoYES, buffer, sizeof(buffer));
-        CString_AutoCreateYesRecruitable = buffer;
-    }
+    if (hAutoYES && m_comboBoxes[hAutoYES])
+        CString_AutoCreateYesRecruitable = m_comboBoxes[hAutoYES]->GetSelectedText(true);
 
     // VeteranLevel
     HWND hVeteran = GetDlgItem(hDlg, 1087);
-    if (hVeteran)
+    if (hVeteran && m_comboBoxes[hVeteran])
     {
-        GetWindowTextA(hVeteran, buffer, sizeof(buffer));
-        CString_VeteranLevel = buffer;
+        CString_VeteranLevel = m_comboBoxes[hVeteran]->GetSelectedText(true);
+        STDHelpers::TrimIndex(CString_VeteranLevel);
     }
+}
+
+void CNewPropertyAircraft::UpdateHealthDisplay(HWND hDlg)
+{
+    char buffer[32] = {};
+    GetWindowTextA(GetDlgItem(hDlg, 1080), buffer, sizeof(buffer));
+    int currentHealth = atoi(buffer);
+    currentHealth = currentHealth < 0 ? 0 : (currentHealth > m_totalHealth ? m_totalHealth : currentHealth);
+    int percentage = m_totalHealth > 0 ? (currentHealth * 100 + m_totalHealth / 2) / m_totalHealth : 0;
+    HWND hTrack = GetDlgItem(hDlg, 1315);
+    if (hTrack)
+        SendMessage(hTrack, TBM_SETPOS, TRUE, currentHealth);
+    FString display;
+    display.Format("/%d (%d%%)", m_totalHealth, percentage);
+    SetWindowTextA(GetDlgItem(hDlg, 1314), display);
+    InvalidateRect(GetDlgItem(hDlg, 1316), nullptr, TRUE);
 }
 
 void CNewPropertyAircraft::TranslateLabels(HWND hDlg)

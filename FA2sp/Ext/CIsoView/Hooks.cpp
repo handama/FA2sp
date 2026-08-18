@@ -1552,6 +1552,7 @@ DEFINE_HOOK(45EDC0, CIsoView_HandleProperties, 6)
 		CMapData::Instance->GetInfantryData(index, data);
 
 		CNewPropertyInfantry dlg;
+		dlg.CString_ObjectID = data.TypeID;
 		dlg.CString_HealthPoint = data.Health;
 		dlg.CString_Direction = data.Facing;
 		dlg.CString_House = data.House;
@@ -1647,6 +1648,7 @@ DEFINE_HOOK(45EDC0, CIsoView_HandleProperties, 6)
 		CMapData::Instance->GetAircraftData(index, data);
 
 		CNewPropertyAircraft dlg;
+		dlg.CString_ObjectID = data.TypeID;
 		dlg.CString_HealthPoint = data.Health;
 		dlg.CString_Direction = data.Facing;
 		dlg.CString_House = data.House;
@@ -1683,6 +1685,7 @@ DEFINE_HOOK(45EDC0, CIsoView_HandleProperties, 6)
 		CMapData::Instance->GetUnitData(index, data);
 
 		CNewPropertyUnit dlg;
+		dlg.CString_ObjectID = data.TypeID;
 		dlg.CString_HealthPoint = data.Health;
 		dlg.CString_Direction = data.Facing;
 		dlg.CString_House = data.House;

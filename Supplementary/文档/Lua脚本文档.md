@@ -2561,4 +2561,5 @@ tg:clear_selection()        -- 清除多选区域内对象
 | `"INFANTRY"` | 地图内步兵索引 |
 | `"UNIT"` | 地图内车辆索引 |
 | `"STRUCTURE"` | 地图内建筑索引 |
+| `"SCENARIO"` | 地图文件名 |
 | 其他数字字符串 | FAData.ini 中 `[NewParamTypes]` 的键名 |

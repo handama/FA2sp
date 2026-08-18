@@ -153,10 +153,10 @@ void MapObjectList::CreateControls()
         static_cast<int>(50 * s), 
         static_cast<int>(80 * s), 
         static_cast<int>(150 * s), 
-        static_cast<int>(100 * s), 
+        static_cast<int>(80 * s), 
         static_cast<int>(130 * s), 
-        static_cast<int>(70 * s),
-        static_cast<int>(65 * s),
+        static_cast<int>(75 * s),
+        static_cast<int>(75 * s),
         static_cast<int>(70 * s),
         static_cast<int>(240 * s)
     };

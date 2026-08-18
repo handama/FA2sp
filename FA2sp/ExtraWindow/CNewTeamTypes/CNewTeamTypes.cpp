@@ -1479,12 +1479,17 @@ void CNewTeamTypes::OnSelchangeSetRecruitOnLiber(HWND& hWnd, bool edited)
             text = buffer;
         }
     }
-    if (!text)
-        return;
 
     FString::TrimIndex(text);
 
-    map.WriteString(CurrentTeamID, "SetRecruitableOnLiberate", text);
+    if (text.IsEmpty())
+    { 
+        map.DeleteKey(CurrentTeamID, "SetRecruitableOnLiberate");
+    } 
+    else
+    {
+        map.WriteString(CurrentTeamID, "SetRecruitableOnLiberate", text);
+    }
 }
 
 void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)

@@ -8,6 +8,7 @@
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../CNewScript/CNewScript.h"
 #include "../../Helpers/FString.h"
+#include "../Common.h"
 
 class VirtualComboBoxEx;
 // A static window class
@@ -52,5 +53,6 @@ private:
     static int SelectedIndex;
     static FString SelectedKey;
     static TransparencyHelper m_transparency;
+    static TooltipHelper tooltipVariable;
 };
 

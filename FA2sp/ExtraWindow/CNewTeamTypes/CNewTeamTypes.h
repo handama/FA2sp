@@ -33,6 +33,8 @@ public:
         Group = 1122,
         Waypoint = 1123,
         MindControlDecision = 1140,
+        SetRecruitOnLiber = 1142,
+        TooltipSetRecruitOnLiber = 1144,
         CheckBoxLoadable = 1113,
         CheckBoxFull = 1114,
         CheckBoxAnnoyance = 1115,
@@ -89,6 +91,7 @@ protected:
     static void OnSelchangeVeteranLevel(HWND& hWnd, bool edited = false);
     static void OnSelchangeTechlevel(HWND& hWnd, bool edited = false);
     static void OnSelchangeMindControlDecision(HWND& hWnd, bool edited = false);
+    static void OnSelchangeSetRecruitOnLiber(HWND& hWnd, bool edited = false);
     static void OnSelchangeGroup(HWND& hWnd, bool edited = false);
     static void OnClickDelTeam(HWND& hWnd);
     static void OnClickCloTeam(HWND& hWnd);
@@ -128,6 +131,8 @@ public:
     static HWND hGroup;
     static HWND hWaypoint;
     static HWND hMindControlDecision;
+    static HWND hSetRecruitOnLiber;
+    static HWND hTooltipSetRecruitOnLiber;
     static HWND hCheckBoxLoadable;
     static HWND hCheckBoxFull;
     static HWND hCheckBoxAnnoyance;
@@ -170,6 +175,8 @@ private:
     static VirtualComboBoxEx vcbTransportWaypoint;
 
     static std::vector<FString> mindControlDecisions;
+    static std::vector<FString> setRecruitOnLiberOptions;
+    static TooltipHelper tooltipSetRecruitOnLiber;
 
     static WNDPROC OrigDragDotProc;
     static WNDPROC OrigDragingDotProc;

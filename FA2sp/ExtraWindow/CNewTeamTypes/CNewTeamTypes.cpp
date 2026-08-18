@@ -46,6 +46,8 @@ HWND CNewTeamTypes::hTransportWaypoint;
 HWND CNewTeamTypes::hGroup;
 HWND CNewTeamTypes::hWaypoint;
 HWND CNewTeamTypes::hMindControlDecision;
+HWND CNewTeamTypes::hSetRecruitOnLiber;
+HWND CNewTeamTypes::hTooltipSetRecruitOnLiber;
 HWND CNewTeamTypes::hCheckBoxLoadable;
 HWND CNewTeamTypes::hCheckBoxFull;
 HWND CNewTeamTypes::hCheckBoxAnnoyance;
@@ -84,6 +86,8 @@ VirtualComboBoxEx CNewTeamTypes::vcbHouse;
 VirtualComboBoxEx CNewTeamTypes::vcbWaypoint;
 VirtualComboBoxEx CNewTeamTypes::vcbTransportWaypoint;
 std::vector<FString> CNewTeamTypes::mindControlDecisions;
+std::vector<FString> CNewTeamTypes::setRecruitOnLiberOptions;
+TooltipHelper CNewTeamTypes::tooltipSetRecruitOnLiber;
 WNDPROC CNewTeamTypes::OrigDragDotProc;
 WNDPROC CNewTeamTypes::OrigDragingDotProc;
 bool CNewTeamTypes::m_dragging = false;
@@ -145,6 +149,7 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
 	Translate(50212, "TeamTypesLabelGroup");
 	Translate(50213, "TeamTypesLabelWaypoint");
 	Translate(1446, "TeamTypesLabelMindControlDecision");
+	Translate(1141, "TeamTypesLabelSetRecruitOnLiber");
 	Translate(1113, "TeamTypesCheckBoxLoadable");
 	Translate(1114, "TeamTypesCheckBoxFull");
 	Translate(1115, "TeamTypesCheckBoxAnnoyance");
@@ -184,6 +189,8 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
     hGroup = GetDlgItem(hWnd, Controls::Group);
     hWaypoint = GetDlgItem(hWnd, Controls::Waypoint);
     hMindControlDecision = GetDlgItem(hWnd, Controls::MindControlDecision);
+    hSetRecruitOnLiber = GetDlgItem(hWnd, Controls::SetRecruitOnLiber);
+    hTooltipSetRecruitOnLiber = GetDlgItem(hWnd, Controls::TooltipSetRecruitOnLiber);
     hCheckBoxLoadable = GetDlgItem(hWnd, Controls::CheckBoxLoadable);
     hCheckBoxFull = GetDlgItem(hWnd, Controls::CheckBoxFull);
     hCheckBoxAnnoyance = GetDlgItem(hWnd, Controls::CheckBoxAnnoyance);
@@ -217,6 +224,22 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
     mindControlDecisions.push_back(FString("3 - ") + Translations::TranslateOrDefault("MindControlDecisions.3", "Send to Bio Reactor"));
     mindControlDecisions.push_back(FString("4 - ") + Translations::TranslateOrDefault("MindControlDecisions.4", "Assign to hunt"));
     mindControlDecisions.push_back(FString("5 - ") + Translations::TranslateOrDefault("MindControlDecisions.5", "Do nothing"));
+
+    setRecruitOnLiberOptions.clear();
+    setRecruitOnLiberOptions.push_back(FString("-1 - ") + Translations::TranslateOrDefault("SetRecruitOnLiber.-1", "Don't use this logic"));
+    setRecruitOnLiberOptions.push_back(FString("0 - ") + Translations::TranslateOrDefault("SetRecruitOnLiber.0", "Marked as not recruitable"));
+    setRecruitOnLiberOptions.push_back(FString("1 - ") + Translations::TranslateOrDefault("SetRecruitOnLiber.1", "Marked as recruitable"));
+
+    if (hTooltipSetRecruitOnLiber)
+        tooltipSetRecruitOnLiber.Attach(hTooltipSetRecruitOnLiber,
+            Translations::TranslateOrDefault("TeamTypesTooltipSetRecruitOnLiber",
+                "(Phobos v0.5-alpha+) In vanilla, when a unit is added to a team, "
+                "its RecruitableB flag is overwritten by "
+                "the team's AreTeamMembersRecruitable setting. "
+                "When the unit is liberated from the team, "
+                "the flag is not restored. "
+                "This setting allows a team to reset this flag when liberating its members. "
+                "Default [General]->SetRecruitableOnLiberate."));
 
     ExtraWindow::RegisterDropTarget(hTaskforce, DropType::TeamEditorTaskForce);
     ExtraWindow::RegisterDropTarget(hScript, DropType::TeamEditorScript);
@@ -351,6 +374,11 @@ void CNewTeamTypes::Update(HWND& hWnd)
     ExtraWindow::ClearComboKeepText(hMindControlDecision);
     for (auto& decision : mindControlDecisions)
         SendMessage(hMindControlDecision, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)decision);
+
+    ExtraWindow::ClearComboKeepText(hSetRecruitOnLiber);
+    for (auto& option : setRecruitOnLiberOptions)
+        SendMessage(hSetRecruitOnLiber, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)option);
+    ExtraWindow::AdjustDropdownWidth(hSetRecruitOnLiber);
 
     OnSelchangeTeamtypes();
 }
@@ -934,6 +962,12 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             else if (CODE == CBN_EDITCHANGE || CODE == CBN_CLOSEUP)
                 OnSelchangeMindControlDecision(hWnd, true);
             break;
+        case Controls::SetRecruitOnLiber:
+            if (CODE == CBN_SELCHANGE)
+                OnSelchangeSetRecruitOnLiber(hWnd);
+            else if (CODE == CBN_EDITCHANGE || CODE == CBN_CLOSEUP)
+                OnSelchangeSetRecruitOnLiber(hWnd, true);
+            break;
         case Controls::Group:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeGroup(hWnd);
@@ -1421,6 +1455,38 @@ void CNewTeamTypes::OnSelchangeMindControlDecision(HWND& hWnd, bool edited)
     map.WriteString(CurrentTeamID, "MindControlDecision", text);
 }
 
+void CNewTeamTypes::OnSelchangeSetRecruitOnLiber(HWND& hWnd, bool edited)
+{
+    if (SelectedTeamIndex < 0)
+        return;
+    int curSel = SendMessage(hSetRecruitOnLiber, CB_GETCURSEL, NULL, NULL);
+    int count = SendMessage(hSetRecruitOnLiber, CB_GETCOUNT, NULL, NULL);
+    char buffer[512]{ 0 };
+    FString text;
+    if (curSel >= 0 && curSel < count)
+    {
+        SendMessage(hSetRecruitOnLiber, CB_GETLBTEXT, curSel, (LPARAM)buffer);
+        text = buffer;
+    }
+    if (edited)
+    {
+        GetWindowText(hSetRecruitOnLiber, buffer, 511);
+        text = buffer;
+        int idx = SendMessage(hSetRecruitOnLiber, CB_FINDSTRING, 0, (LPARAM)text);
+        if (idx != CB_ERR)
+        {
+            SendMessage(hSetRecruitOnLiber, CB_GETLBTEXT, idx, (LPARAM)buffer);
+            text = buffer;
+        }
+    }
+    if (!text)
+        return;
+
+    FString::TrimIndex(text);
+
+    map.WriteString(CurrentTeamID, "SetRecruitableOnLiberate", text);
+}
+
 void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
 {
     SelectedTeamIndex = SendMessage(hSelectedTeam, CB_GETCURSEL, NULL, NULL);
@@ -1441,6 +1507,7 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         SendMessage(hGroup, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hWaypoint, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hMindControlDecision, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hSetRecruitOnLiber, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hCheckBoxLoadable, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hCheckBoxFull, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hCheckBoxAnnoyance, BM_SETCHECK, BST_UNCHECKED, 0);
@@ -1583,6 +1650,12 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
             SendMessage(hMindControlDecision, CB_SETCURSEL, idxMCD, NULL);
         else
             SendMessage(hMindControlDecision, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "MindControlDecision").GetString());
+
+        int idxSROL = SendMessage(hSetRecruitOnLiber, CB_FINDSTRING, 0, (LPARAM)map.GetString(pID, "SetRecruitableOnLiberate").GetString());
+        if (idxSROL != CB_ERR)
+            SendMessage(hSetRecruitOnLiber, CB_SETCURSEL, idxSROL, NULL);
+        else
+            SendMessage(hSetRecruitOnLiber, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "SetRecruitableOnLiberate").GetString());
 
         SendMessage(hCheckBoxLoadable, BM_SETCHECK, map.GetBool(pID, "Loadable"), 0);
         SendMessage(hCheckBoxFull, BM_SETCHECK, map.GetBool(pID, "Full"), 0);
@@ -1868,6 +1941,7 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
         copyitem("TransportWaypoint");
         copyitem("UseTransportOrigin");
         copyitem("MindControlDecision");
+        copyitem("SetRecruitableOnLiberate");
         copyitem("OnlyTargetHouseEnemy");
         copyitem("TransportsReturnOnUnload");
         copyitem("AreTeamMembersRecruitable");

@@ -4579,3 +4579,146 @@ bool TransparencyHelper::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 
 	return false;
 }
+
+std::map<HWND, TooltipHelper*> TooltipHelper::TooltipHelperMap;
+
+void TooltipHelper::Attach(HWND hTarget, const char* text)
+{
+	Detach();
+
+	hStatic = hTarget;
+	m_text = text ? text : "";
+
+	// Subclass the static control to owner-draw a circle around its text.
+	SetWindowLongPtr(hStatic, GWLP_USERDATA, (LONG_PTR)this);
+	oldStaticProc = (WNDPROC)SetWindowLongPtr(hStatic, GWLP_WNDPROC, (LONG_PTR)StaticProc);
+	TooltipHelperMap[hStatic] = this;
+
+	hTooltip = CreateWindowEx(
+		WS_EX_TOPMOST,
+		TOOLTIPS_CLASS,
+		nullptr,
+		WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP,
+		CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+		hTarget, nullptr, static_cast<HINSTANCE>(FA2sp::hInstance), nullptr);
+
+	if (!hTooltip)
+		return;
+
+	TOOLINFO ti = { sizeof(ti) };
+	ti.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
+	ti.hwnd = hTarget;
+	ti.uId = (UINT_PTR)hTarget;
+	ti.lpszText = const_cast<char*>(m_text.c_str());
+	SendMessage(hTooltip, TTM_ADDTOOL, 0, (LPARAM)&ti);
+	SendMessage(hTooltip, TTM_SETMAXTIPWIDTH, 0, 400); // allow multiline
+
+	if (ExtConfigs::EnableDarkMode)
+	{
+		SendMessage(hTooltip, TTM_SETTIPBKCOLOR, (WPARAM)RGB(30, 30, 30), 0);
+		SendMessage(hTooltip, TTM_SETTIPTEXTCOLOR, (WPARAM)RGB(220, 220, 220), 0);
+	}
+	else
+	{
+		SendMessage(hTooltip, TTM_SETTIPBKCOLOR, (WPARAM)GetSysColor(COLOR_INFOBK), 0);
+		SendMessage(hTooltip, TTM_SETTIPTEXTCOLOR, (WPARAM)GetSysColor(COLOR_INFOTEXT), 0);
+	}
+
+	InvalidateRect(hStatic, nullptr, TRUE);
+}
+
+void TooltipHelper::SetText(const char* text)
+{
+	m_text = text ? text : "";
+	if (!hTooltip || !hStatic)
+		return;
+
+	TOOLINFO ti = { sizeof(ti) };
+	ti.uFlags = TTF_IDISHWND;
+	ti.hwnd = hStatic;
+	ti.uId = (UINT_PTR)hStatic;
+	ti.lpszText = const_cast<char*>(m_text.c_str());
+	SendMessage(hTooltip, TTM_UPDATETIPTEXT, 0, (LPARAM)&ti);
+}
+
+void TooltipHelper::Detach()
+{
+	if (hTooltip)
+	{
+		DestroyWindow(hTooltip);
+		hTooltip = nullptr;
+	}
+
+	if (hStatic && oldStaticProc)
+	{
+		SetWindowLongPtr(hStatic, GWLP_WNDPROC, (LONG_PTR)oldStaticProc);
+		SetWindowLongPtr(hStatic, GWLP_USERDATA, 0);
+		oldStaticProc = nullptr;
+	}
+
+	TooltipHelperMap.erase(hStatic);
+	hStatic = nullptr;
+	m_text.clear();
+}
+
+LRESULT CALLBACK TooltipHelper::StaticProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	auto itr = TooltipHelperMap.find(hWnd);
+	if (itr != TooltipHelperMap.end())
+		return itr->second->OnStaticMessage(hWnd, msg, wParam, lParam);
+
+	return DefWindowProc(hWnd, msg, wParam, lParam);
+}
+
+LRESULT TooltipHelper::OnStaticMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	switch (msg)
+	{
+	case WM_PAINT:
+	{
+		PAINTSTRUCT ps;
+		HDC hdc = BeginPaint(hWnd, &ps);
+		DrawCircle(hWnd, hdc);
+		EndPaint(hWnd, &ps);
+		return 0;
+	}
+	case WM_MOUSEMOVE:
+		if (!m_hovered)
+		{
+			m_hovered = true;
+			TRACKMOUSEEVENT tme = { sizeof(tme), TME_LEAVE, hWnd, 0 };
+			TrackMouseEvent(&tme);
+			InvalidateRect(hWnd, nullptr, TRUE);
+		}
+		break;
+	case WM_MOUSELEAVE:
+		if (m_hovered)
+		{
+			m_hovered = false;
+			InvalidateRect(hWnd, nullptr, TRUE);
+		}
+		break;
+	}
+
+	return CallWindowProc(oldStaticProc, hWnd, msg, wParam, lParam);
+}
+
+void TooltipHelper::DrawCircle(HWND hWnd, HDC hdc)
+{
+	RECT rc;
+	GetClientRect(hWnd, &rc);
+
+	bool dark = ExtConfigs::EnableDarkMode;
+	COLORREF bgColor = dark ? RGB(32, 32, 32) : GetSysColor(COLOR_BTNFACE);
+	COLORREF textColor = dark
+		? (m_hovered ? RGB(180, 225, 255) : RGB(120, 190, 255))
+		: (m_hovered ? RGB(0, 140, 255) : RGB(0, 90, 200));
+
+	HBRUSH bg = CreateSolidBrush(bgColor);
+	FillRect(hdc, &rc, bg);
+	DeleteObject(bg);
+
+	SetBkMode(hdc, TRANSPARENT);
+	SetTextColor(hdc, textColor);
+	DrawText(hdc, "?", -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+}

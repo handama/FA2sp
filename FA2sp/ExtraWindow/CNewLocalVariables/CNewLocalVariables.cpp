@@ -82,7 +82,7 @@ void CNewLocalVariables::Initialize(HWND& hWnd)
                 "names required to enter a new campaign, thereby forcing the game "
                 "to proceed to the next campaign.\n"         
                 "Setting a local variable named <Alternate Next Scenario> will also trigger AltNextScenario."));
-    ExtraWindow::SetEditControlFontSize(GetDlgItem(hWnd, 1008), 0.7f);
+    ExtraWindow::SetEditControlFontSize(GetDlgItem(hWnd, 1008), 0.85f);
 
     Update();
 }

@@ -36,6 +36,7 @@ public:
         MindControlDecision = 1140,
         SetRecruitOnLiber = 1142,
         TooltipSetRecruitOnLiber = 1144,
+        TooltipParaDropPlane = 1145,
         CheckBoxLoadable = 1113,
         CheckBoxFull = 1114,
         CheckBoxAnnoyance = 1115,
@@ -136,6 +137,7 @@ public:
     static HWND hMindControlDecision;
     static HWND hSetRecruitOnLiber;
     static HWND hTooltipSetRecruitOnLiber;
+    static HWND hTooltipParaDropPlane;
     static HWND hCheckBoxLoadable;
     static HWND hCheckBoxFull;
     static HWND hCheckBoxAnnoyance;
@@ -181,6 +183,7 @@ private:
     static std::vector<FString> mindControlDecisions;
     static std::vector<FString> setRecruitOnLiberOptions;
     static TooltipHelper tooltipSetRecruitOnLiber;
+    static TooltipHelper tooltipParaDropPlane;
 
     static WNDPROC OrigDragDotProc;
     static WNDPROC OrigDragingDotProc;

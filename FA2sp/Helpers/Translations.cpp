@@ -11,6 +11,7 @@
 #include "../Miscs/StringtableLoader.h"
 #include "../Ext/CFinalSunApp/Body.h"
 #include <regex>
+#include "../Extra/GeneralLoad.h"
 
 FString FinalAlertConfig::lpPath;
 FString FinalAlertConfig::Language = "English";
@@ -329,7 +330,7 @@ FString Translations::ParseHouseName(FString src, bool IDToUIName)
             }
         }
     }
-    return src;
+    return GeneralLoad::GetPlayerName(src, IDToUIName);
 }
 
 DEFINE_HOOK(43DA80, FALanguage_GetTranslationItem, 7)

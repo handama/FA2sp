@@ -11,6 +11,7 @@
 #include "../CMapData/Body.h"
 #include "../CFinalSunDlg/Body.h"
 #include "../CTileSetBrowserFrame/TabPages/GridObjectViewer.h"
+#include "../../Extra/GeneralLoad.h"
 #include <random>
 #include <chrono>
 #include <emmintrin.h>
@@ -315,10 +316,12 @@ void CLoadingExt::LoadObjects(const FString& ID, GameObjectType eItemType)
 		LoadInfantry(ID);
 		break;
 	case CLoadingExt::GameObjectType::Terrain:
-		LoadTerrainOrSmudge(ID, true);
+		GeneralLoad::LoadTerrainOrSmudge(this, ID, true);
+		//LoadTerrainOrSmudge(ID, true);
 		break;
 	case CLoadingExt::GameObjectType::Smudge:
-		LoadTerrainOrSmudge(ID, false);
+		GeneralLoad::LoadTerrainOrSmudge(this, ID, false);
+		//LoadTerrainOrSmudge(ID, false);
 		break;
 	case CLoadingExt::GameObjectType::Vehicle:
 	{
@@ -854,6 +857,14 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID, bool loadAsGarrisonDama
 	for (int i = 0; i < 9; ++i)
 	{
 		loadAnimFrameShape(AnimKeys[i], IgnoreKeys[i]);
+	}
+
+	for (int i = 0; i < GeneralLoad::AnimCount; ++i)
+	{
+		loadAnimFrameShape(GeneralLoad::AnimKeys[i], GeneralLoad::IgnoreKeys[i]);
+	}
+	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
+		loadSingleFrameShape(*pStr, 0, 0, 0, "", bHasShadow, 1);
 	}
 
 	FString DictName;
@@ -1940,17 +1951,17 @@ void CLoadingExt::LoadTerrainOrSmudge(const FString& ID, bool terrain)
 	GetFullPaletteName(PaletteName);
 	SetImageDataSafe(FramesBuffers[0], DictName, header.Width, header.Height, PalettesManager::LoadPalette(PaletteName));
 
-	if (ExtConfigs::InGameDisplay_Shadow && terrain)
-	{
-		FString DictNameShadow;
-		unsigned char* pBufferShadow[1];
-		DictNameShadow.Format("%s\233%d\233SHADOW", ID, 0);
-		CLoadingExt::LoadSHPFrameSafe(0 + header.FrameCount / 2, 1, &pBufferShadow[0], header);
-		SetImageDataSafe(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
-	}
-
 	if (terrain)
 	{
+		if (ExtConfigs::InGameDisplay_Shadow)
+		{
+			FString DictNameShadow;
+			unsigned char* pBufferShadow[1];
+			DictNameShadow.Format("%s\233%d\233SHADOW", ID, 0);
+			CLoadingExt::LoadSHPFrameSafe(0 + header.FrameCount / 2, 1, &pBufferShadow[0], header);
+			SetImageDataSafe(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
+		}
+
 		LoadAlphaImage(ID, CLoadingExt::GameObjectType::Terrain);
 	}
 }
@@ -2241,14 +2252,16 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID, int tiltType)
 				extraH[k] = H;
 			}
 
-			FString turFileName = ImageID + "tur.vxl";
-			FString turHVAName = ImageID + "tur.hva";
+			FString turFileName = GeneralLoad::LoadTurretOrBarrel(ID, ArtID, ImageID, false, false);
+			FString turHVAName = GeneralLoad::LoadTurretOrBarrel(ID, ArtID, ImageID, false, true);
+
 			if (ifvTurIndex > 0)
 			{
 				IFVTurrets[ID] = ifvTurIndex;
 				turFileName.Format("%stur%d.vxl", ImageID, ifvTurIndex);
 				turHVAName.Format("%stur%d.hva", ImageID, ifvTurIndex);
 			}
+      
 			if (VoxelDrawer::LoadVXLFile(turFileName))
 			{
 				if (VoxelDrawer::LoadHVAFile(turHVAName))
@@ -2282,8 +2295,8 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID, int tiltType)
 				}
 			}
 
-			FString barlFileName = ImageID + "barl.vxl";
-			FString barlHVAName = ImageID + "barl.hva";
+			FString barlFileName = GeneralLoad::LoadTurretOrBarrel(ID, ArtID, ImageID, true, false);
+			FString barlHVAName = GeneralLoad::LoadTurretOrBarrel(ID, ArtID, ImageID, true, true);
 			if (VoxelDrawer::LoadVXLFile(barlFileName))
 			{
 				if (VoxelDrawer::LoadHVAFile(barlHVAName))
@@ -2578,7 +2591,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID, int tiltType)
 		std::rotate(framesToRead.begin(), framesToRead.begin() + 1 * targetFacings / 8, framesToRead.end());
 
 		FString FileName = ImageID + ".shp";
-		FString FileNameTurret = ImageID + "tur.shp";
+		FString FileNameTurret = GeneralLoad::LoadTurretOrBarrel(ID, ArtID, ImageID, false, false, true);
 
 		int KratosWeaponTurretFrameIndex = -1;
 		if (ifvWepIndex > 0)
@@ -2587,7 +2600,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID, int tiltType)
 			key.Format("WeaponTurretFrameIndex%d", ifvWepIndex);
 			KratosWeaponTurretFrameIndex = Variables::RulesMap.GetInteger(ID, key, -1);
 			if (KratosWeaponTurretFrameIndex >= 0)
-			{   
+			{
 				key.Format("WeaponTurretCustomSHP%d", ifvWepIndex);
 				FileNameTurret = Variables::RulesMap.GetString(ID, key, FileName);
 			}
@@ -2640,7 +2653,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID, int tiltType)
 						}
 						CLoadingExt::LoadSHPFrameSafe(turretFrameToRead,
 							1, &FramesBuffersTurret[turrentFacing], *currentHeader);
-
+            
 						if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 							CLoadingExt::LoadSHPFrameSafe(turretFrameToRead + currentHeader->FrameCount / 2,
 								1, &FramesBuffersTurretShadow[turrentFacing], *currentHeader);

@@ -10,3 +10,6 @@
 [submodule "scintilla"]
 	path = scintilla
 	url = https://github.com/mirror/scintilla
+[submodule "FA2sp/Extra"]
+	path = FA2sp/Extra
+	url = https://github.com/Fly-Star-him/FA2SP-Extra.git

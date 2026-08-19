@@ -266,8 +266,8 @@ void CNewTrigger::Initialize(HWND& hWnd)
     hActionMoveUp = GetDlgItem(hWnd, Controls::ActionMoveUp);
     hActionMoveDown = GetDlgItem(hWnd, Controls::ActionMoveDown);
     hActionSplit = GetDlgItem(hWnd, Controls::ActionSplit);
-    SetWindowTextW(hActionMoveUp, L"\u25b2"); //¡ø
-    SetWindowTextW(hActionMoveDown, L"\u25bc"); //¨‹
+    SetWindowTextW(hActionMoveUp, L"\u25b2"); //â–²
+    SetWindowTextW(hActionMoveDown, L"\u25bc"); //â–¼
     Translate(2005, "TriggerActionSplit");
      
     vcbSelectedTrigger.Attach(hSelectedTrigger, &ExtConfigs::SortByLabelName_Trigger, false);
@@ -435,7 +435,12 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
     SendMessage(hType, CB_ADDSTRING, 0, (FString("2 - ") + Translations::TranslateOrDefault("TriggerRepeatType.RepeatingOr", "Repeating OR")));
 
     ExtraWindow::ClearComboKeepText(hHouse);
-    if (CMapData::Instance->IsMultiOnly() && ExtConfigs::PlayerAtXForTriggers)
+
+    if (!CMapData::Instance->IsMultiOnly())
+    {
+        vcbHouse.AddString("Player");
+    }
+    else if (ExtConfigs::PlayerAtXForTriggers)
     {
         vcbHouse.AddString("<Player @ A>");
         vcbHouse.AddString("<Player @ B>");

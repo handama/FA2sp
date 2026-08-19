@@ -504,6 +504,30 @@ private:
     LRESULT OnComboMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 };
 
+class TooltipHelper
+{
+public:
+    TooltipHelper() = default;
+    ~TooltipHelper() { Detach(); }
+
+    void Attach(HWND hStatic, const char* text);
+    void SetText(const char* text);
+    void Detach();
+
+private:
+    HWND hStatic = nullptr;
+    HWND hTooltip = nullptr;
+    std::string m_text;
+    WNDPROC oldStaticProc = nullptr;
+    bool m_hovered = false;
+
+    static std::map<HWND, TooltipHelper*> TooltipHelperMap;
+
+    static LRESULT CALLBACK StaticProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+    LRESULT OnStaticMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+    void DrawCircle(HWND hWnd, HDC hdc);
+};
+
 class CINIDialog : public ppmfc::CDialog
 {
 public:

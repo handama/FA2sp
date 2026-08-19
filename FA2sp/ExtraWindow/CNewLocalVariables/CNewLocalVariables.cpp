@@ -22,6 +22,7 @@ HWND CNewLocalVariables::hSearch;
 int CNewLocalVariables::SelectedIndex;
 FString CNewLocalVariables::SelectedKey;
 TransparencyHelper CNewLocalVariables::m_transparency;
+TooltipHelper CNewLocalVariables::tooltipVariable;
 
 void CNewLocalVariables::Create(CFinalSunDlg* pWnd)
 {
@@ -69,6 +70,19 @@ void CNewLocalVariables::Initialize(HWND& hWnd)
     hSearch = GetDlgItem(hWnd, Controls::Search);
 
     vcbVariables.Attach(hVariables, nullptr, false);
+
+    HWND hTooltip = GetDlgItem(hWnd, 1009);
+    if (hTooltip)
+        tooltipVariable.Attach(hTooltip,
+            Translations::TranslateOrDefault("LocalVariablesAltTooltip",
+                "(Phobos v0.5-alpha+) Using [Basic]->SkipMapSelect=yes in the map file allows you to bypass "
+                "the restriction in mapselmd.ini-which requires that the player's "
+                "faction in the current campaign must match the faction in the next new campaign.\n"
+                "You can use NextScenario and AltNextScenario to specify the map "
+                "names required to enter a new campaign, thereby forcing the game "
+                "to proceed to the next campaign.\n"         
+                "Setting a local variable named <Alternate Next Scenario> will also trigger AltNextScenario."));
+    ExtraWindow::SetEditControlFontSize(GetDlgItem(hWnd, 1008), 0.7f);
 
     Update();
 }

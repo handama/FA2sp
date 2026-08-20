@@ -1161,9 +1161,9 @@ void CNewTeamTypes::OnSelchangeParaDropPlane(bool edited)
         text = "";
 
     if (text.IsEmpty())
-        map.DeleteKey(CurrentTeamID, "ParaDropPlane");
+        map.DeleteKey(CurrentTeamID, "ParaDropAircraft");
     else
-        map.WriteString(CurrentTeamID, "ParaDropPlane", text);
+        map.WriteString(CurrentTeamID, "ParaDropAircraft", text);
 }
 
 void CNewTeamTypes::OnSelchangeTransportWaypoint(HWND& hWnd, bool edited)
@@ -1622,7 +1622,7 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         auto taskforce = map.GetString(pID, "TaskForce");
         auto script = map.GetString(pID, "Script");
         auto tag = map.GetString(pID, "Tag");
-        auto tParaDropPlane = map.GetString(pID, "ParaDropPlane", "None");
+        auto tParaDropPlane = map.GetString(pID, "ParaDropAircraft", "None");
         auto tWaypoint = STDHelpers::StringToWaypointStr(map.GetString(pID, "TransportWaypoint"));
         auto waypoint = STDHelpers::StringToWaypointStr(map.GetString(pID, "Waypoint"));
 
@@ -2000,7 +2000,7 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
         copyitem("LooseRecruit");
         copyitem("VeteranLevel");
         copyitem("IsBaseDefense");
-        copyitem("ParaDropPlane");
+        copyitem("ParaDropAircraft");
         copyitem("TransportWaypoint");
         copyitem("UseTransportOrigin");
         copyitem("MindControlDecision");

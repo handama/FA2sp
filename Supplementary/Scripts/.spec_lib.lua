@@ -615,6 +615,131 @@ local function act_set_status(data, args)
     return { ok = true }
 end
 
+-- Import a complete spec payload (produced by the despec workflow) into a
+-- fresh spec file. Validates the whole structure before writing: field types,
+-- line references, entry id pattern, depends_on existence and acyclicity,
+-- status values, and trigger existence in the map. Refuses to overwrite an
+-- existing spec (same contract as init).
+local function act_import(data, args)
+    if data then
+        return { ok = false, error = "spec already exists: " .. args.spec_path
+                    .. " (import refuses to overwrite; read it first, or remove it to rebuild)" }
+    end
+    local src = args.data
+    if type(src) ~= "table" then
+        return { ok = false, error = "missing 'data' (the full spec payload to import)" }
+    end
+    local issues = {}
+    local function err(m) issues[#issues + 1] = m end
+    if type(src.title) ~= "string" then err("data.title must be a string") end
+    if type(src.story) ~= "string" then err("data.story must be a string") end
+    if type(src.lines) ~= "table" then err("data.lines must be an array") end
+    if type(src.entries) ~= "table" then err("data.entries must be an array") end
+    if #issues > 0 then
+        return { ok = false, error = "import validation failed: " .. table.concat(issues, "; ") }
+    end
+    local line_ids = {}
+    for _, ln in ipairs(src.lines) do
+        if type(ln.id) ~= "string" or ln.id == "" then
+            err("line without a valid id"); break
+        end
+        if line_ids[ln.id] then err("duplicate line id: " .. ln.id) end
+        line_ids[ln.id] = true
+        if type(ln.name) ~= "string" then err("line " .. ln.id .. " missing name") end
+    end
+    local idset = {}
+    local next_seq = {}
+    for _, en in ipairs(src.entries) do
+        if type(en.id) ~= "string" or en.id == "" then
+            err("entry without a valid id"); break
+        end
+        if idset[en.id] then err("duplicate entry id: " .. en.id) end
+        idset[en.id] = true
+        if not line_ids[en.line] then
+            err("entry " .. en.id .. " references unknown line " .. tostring(en.line))
+        end
+        local line, seq = en.id:match("^(L%d+)S(%d+)$")
+        if not line or line ~= en.line then
+            err("entry id " .. en.id .. " does not match the LxxSyy pattern of its line")
+        end
+        local s = tonumber(seq)
+        next_seq[en.line] = math.max(next_seq[en.line] or 0, (s or 0) + 1)
+        if type(en.summary) ~= "string" then err("entry " .. en.id .. " missing summary") end
+        if not STATUSES[en.status] then
+            err("entry " .. en.id .. " invalid status " .. tostring(en.status))
+        end
+        if type(en.triggers) ~= "table" then
+            err("entry " .. en.id .. " missing triggers list")
+        end
+        for _, d in ipairs(en.depends_on or {}) do
+            if d == en.id then err("entry " .. en.id .. " depends on itself") end
+        end
+    end
+    for _, en in ipairs(src.entries) do
+        for _, d in ipairs(en.depends_on or {}) do
+            if not idset[d] then err("entry " .. en.id .. " depends on unknown entry " .. d) end
+        end
+    end
+    if #issues > 0 then
+        return { ok = false, error = "import validation failed: " .. table.concat(issues, "; ") }
+    end
+    local cyc = find_cycle(src)
+    if cyc then
+        return { ok = false, error = "import would create a depends_on cycle: "
+                    .. table.concat(cyc, " -> ") }
+    end
+    local warnings = {}
+    for _, en in ipairs(src.entries) do
+        for _, tg in ipairs(en.triggers or {}) do
+            if type(tg.type) ~= "string" or tg.type == "" then
+                return { ok = false, error = "entry " .. en.id
+                            .. " has a trigger mapping without a valid 'type'" }
+            end
+            local exists, reason = trigger_exists(tg.type)
+            if exists == false then
+                return { ok = false, error = "trigger_type not found in map [Triggers]: "
+                            .. tg.type .. " (linked from entry " .. en.id .. ")" }
+            end
+            if exists == nil then
+                warnings[#warnings + 1] = reason
+                    or "map trigger validation skipped (map not loaded?)"
+            end
+        end
+    end
+    local fresh = {
+        version  = VERSION,
+        map_path = args.map_path,
+        title    = src.title,
+        updated  = now_str(),
+        story    = src.story,
+        lines    = {},
+        entries  = {},
+        next_seq = next_seq,
+    }
+    for _, ln in ipairs(src.lines) do
+        fresh.lines[#fresh.lines + 1] = { id = ln.id, name = ln.name }
+    end
+    for _, en in ipairs(src.entries) do
+        local entry = {
+            id = en.id, line = en.line,
+            summary = en.summary,
+            depends_on = {},
+            status = en.status,
+            triggers = {},
+        }
+        for _, d in ipairs(en.depends_on or {}) do entry.depends_on[#entry.depends_on + 1] = d end
+        for _, tg in ipairs(en.triggers or {}) do
+            entry.triggers[#entry.triggers + 1] = { type = tg.type, name = tg.name or "" }
+        end
+        fresh.entries[#fresh.entries + 1] = entry
+    end
+    save_spec(args.spec_path, fresh)
+    local res = { ok = true, spec_path = args.spec_path,
+                  lines = #fresh.lines, entries = #fresh.entries }
+    if #warnings > 0 then res.warnings = warnings end
+    return res
+end
+
 local function act_validate(data, args)
     local issues = {}
     local idset = {}
@@ -697,6 +822,7 @@ local ACTIONS = {
     unlink_trigger   = act_unlink_trigger,
     set_status       = act_set_status,
     validate         = act_validate,
+    import           = act_import,
 }
 
 local function dispatch(json_str)
@@ -709,7 +835,7 @@ local function dispatch(json_str)
     if not handler then
         return json.encode({ ok = false, error = "unknown action: " .. tostring(action)
             .. " (expected: init, read, update_story, add_line, add_entry, update_entry,"
-            .. " deprecate_entry, link_trigger, unlink_trigger, set_status, validate)" })
+            .. " deprecate_entry, link_trigger, unlink_trigger, set_status, validate, import)" })
     end
     local map_path = args.map_path
     if not map_path or map_path == "" then
@@ -726,7 +852,7 @@ local function dispatch(json_str)
         return json.encode({ ok = false, error = "spec load failed (" .. tostring(reason)
             .. "): " .. args.spec_path })
     end
-    if not data and action ~= "read" and action ~= "init" then
+    if not data and action ~= "read" and action ~= "init" and action ~= "import" then
         return json.encode({ ok = false, error = "no spec found (" .. args.spec_path
             .. "). Run init first." })
     end

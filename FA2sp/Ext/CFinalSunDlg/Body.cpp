@@ -2347,6 +2347,12 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 		CMcpServer::HandleSpec(req);
 		return TRUE;
 	}
+	case WM_MCP_DESPEC:
+	{
+		MCPRequest* req = reinterpret_cast<MCPRequest*>(pMsg->lParam);
+		CMcpServer::HandleDespec(req);
+		return TRUE;
+	}
 	}
 	return ppmfc::CDialog::PreTranslateMessage(pMsg);
 }

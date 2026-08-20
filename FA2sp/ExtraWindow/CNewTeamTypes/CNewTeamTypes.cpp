@@ -42,12 +42,14 @@ HWND CNewTeamTypes::hVeteranLevel;
 HWND CNewTeamTypes::hPriority;
 HWND CNewTeamTypes::hMax;
 HWND CNewTeamTypes::hTechlevel;
+HWND CNewTeamTypes::hParaDropPlane;
 HWND CNewTeamTypes::hTransportWaypoint;
 HWND CNewTeamTypes::hGroup;
 HWND CNewTeamTypes::hWaypoint;
 HWND CNewTeamTypes::hMindControlDecision;
 HWND CNewTeamTypes::hSetRecruitOnLiber;
 HWND CNewTeamTypes::hTooltipSetRecruitOnLiber;
+HWND CNewTeamTypes::hTooltipParaDropPlane;
 HWND CNewTeamTypes::hCheckBoxLoadable;
 HWND CNewTeamTypes::hCheckBoxFull;
 HWND CNewTeamTypes::hCheckBoxAnnoyance;
@@ -84,10 +86,12 @@ VirtualComboBoxEx CNewTeamTypes::vcbScript;
 VirtualComboBoxEx CNewTeamTypes::vcbTag;
 VirtualComboBoxEx CNewTeamTypes::vcbHouse;
 VirtualComboBoxEx CNewTeamTypes::vcbWaypoint;
+VirtualComboBoxEx CNewTeamTypes::vcbParaDropPlane;
 VirtualComboBoxEx CNewTeamTypes::vcbTransportWaypoint;
 std::vector<FString> CNewTeamTypes::mindControlDecisions;
 std::vector<FString> CNewTeamTypes::setRecruitOnLiberOptions;
 TooltipHelper CNewTeamTypes::tooltipSetRecruitOnLiber;
+TooltipHelper CNewTeamTypes::tooltipParaDropPlane;
 WNDPROC CNewTeamTypes::OrigDragDotProc;
 WNDPROC CNewTeamTypes::OrigDragingDotProc;
 bool CNewTeamTypes::m_dragging = false;
@@ -145,6 +149,7 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
 	Translate(50209, "TeamTypesLabelPriority");
 	Translate(50210, "TeamTypesLabelMax");
 	Translate(50211, "TeamTypesLabelTechlevel");
+    Translate(1146, "TeamTypesLabelTransportPlane");
 	Translate(1413 , "TeamTypesLabelTransportWaypoint");
 	Translate(50212, "TeamTypesLabelGroup");
 	Translate(50213, "TeamTypesLabelWaypoint");
@@ -170,6 +175,7 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
 	Translate(1137, "TeamTypesCheckBoxAreTeamMembersRecruitable");
 	Translate(1138, "TeamTypesCheckBoxIsBaseDefense");
 	Translate(1139, "TeamTypesCheckBoxOnlyTargetHouseEnemy"); 
+	Translate(1146, "TeamTypesParaDropPlane"); 
     Translate(1999, "SearchReferenceTitle");
 
     hSelectedTeam = GetDlgItem(hWnd, Controls::SelectedTeam);
@@ -185,12 +191,14 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
     hPriority = GetDlgItem(hWnd, Controls::Priority);
     hMax = GetDlgItem(hWnd, Controls::Max);
     hTechlevel = GetDlgItem(hWnd, Controls::Techlevel);
+    hParaDropPlane = GetDlgItem(hWnd, Controls::ParaDropPlane);
     hTransportWaypoint = GetDlgItem(hWnd, Controls::TransportWaypoint);
     hGroup = GetDlgItem(hWnd, Controls::Group);
     hWaypoint = GetDlgItem(hWnd, Controls::Waypoint);
     hMindControlDecision = GetDlgItem(hWnd, Controls::MindControlDecision);
     hSetRecruitOnLiber = GetDlgItem(hWnd, Controls::SetRecruitOnLiber);
     hTooltipSetRecruitOnLiber = GetDlgItem(hWnd, Controls::TooltipSetRecruitOnLiber);
+    hTooltipParaDropPlane = GetDlgItem(hWnd, Controls::TooltipParaDropPlane);
     hCheckBoxLoadable = GetDlgItem(hWnd, Controls::CheckBoxLoadable);
     hCheckBoxFull = GetDlgItem(hWnd, Controls::CheckBoxFull);
     hCheckBoxAnnoyance = GetDlgItem(hWnd, Controls::CheckBoxAnnoyance);
@@ -241,6 +249,11 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
                 "This setting allows a team to reset this flag when liberating its members. "
                 "Default [General]->SetRecruitableOnLiberate."));
 
+    if (hTooltipParaDropPlane)
+        tooltipParaDropPlane.Attach(hTooltipParaDropPlane,
+            Translations::TranslateOrDefault("TeamTypesTooltipParaDropPlane",
+                "(Phobos v0.6-alpha+) Customized transport plane for teams with Droppod=yes"));
+
     ExtraWindow::RegisterDropTarget(hTaskforce, DropType::TeamEditorTaskForce);
     ExtraWindow::RegisterDropTarget(hScript, DropType::TeamEditorScript);
     ExtraWindow::RegisterDropTarget(hTag, DropType::TeamEditorTag);
@@ -263,6 +276,7 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
     vcbHouse.Attach(hHouse);
     vcbWaypoint.Attach(hWaypoint);
     vcbWaypoint.SetAutoSearchRestriction(&ExtConfigs::SearchCombobox_Waypoint);
+    vcbParaDropPlane.Attach(hParaDropPlane);
     vcbTransportWaypoint.Attach(hTransportWaypoint);
     vcbTransportWaypoint.SetAutoSearchRestriction(&ExtConfigs::SearchCombobox_Waypoint);
 
@@ -351,8 +365,6 @@ void CNewTeamTypes::Update(HWND& hWnd)
     ExtraWindow::ClearComboKeepText(hWaypoint);
     ExtraWindow::ClearComboKeepText(hTransportWaypoint);
     vcbTransportWaypoint.AddString("None");
-
-
     if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
     {
         FString output;
@@ -366,6 +378,22 @@ void CNewTeamTypes::Update(HWND& hWnd)
             vcbTransportWaypoint.AddString(output);
             vcbWaypoint.AddString(output);
         }
+    }
+    
+    ExtraWindow::ClearComboKeepText(hParaDropPlane);
+    vcbParaDropPlane.AddString("None");
+    std::vector<FString> aircrafts;
+    for (auto& [key, value] : Variables::RulesMap.GetSection("AircraftTypes"))
+    {
+        aircrafts.push_back(value);
+    } 
+    ExtraWindow::SortRawStrings(aircrafts);
+    for (auto& aircraft : aircrafts)
+    {
+        FString uiname = CViewObjectsExt::QueryUIName(aircraft, true);
+        if(uiname != aircraft)
+            uiname.Format("%s - %s", aircraft, uiname);
+        vcbParaDropPlane.AddString(uiname);
     }
 
     ExtraWindow::ClearComboKeepText(hGroup);
@@ -938,7 +966,13 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             else if (CODE == CBN_EDITCHANGE || CODE == CBN_CLOSEUP)
                 OnSelchangeTransportWaypoint(hWnd, true);
             break;
-        case Controls::Waypoint :
+        case Controls::ParaDropPlane:
+            if (CODE == CBN_SELCHANGE)
+                OnSelchangeParaDropPlane();
+            else if (CODE == CBN_EDITCHANGE || CODE == CBN_CLOSEUP)
+                OnSelchangeParaDropPlane(true);
+            break;
+        case Controls::Waypoint:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeWaypoint(hWnd);
             else if (CODE == CBN_EDITCHANGE || CODE == CBN_CLOSEUP)
@@ -1114,6 +1148,22 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
 
     // Process this message through default handler
     return FALSE;
+}
+
+void CNewTeamTypes::OnSelchangeParaDropPlane(bool edited)
+{
+    if (SelectedTeamIndex < 0)
+        return;
+
+    FString text = vcbParaDropPlane.GetSelectedText(edited);
+    FString::TrimIndex(text);
+    if (text == "None")
+        text = "";
+
+    if (text.IsEmpty())
+        map.DeleteKey(CurrentTeamID, "ParaDropAircraft");
+    else
+        map.WriteString(CurrentTeamID, "ParaDropAircraft", text);
 }
 
 void CNewTeamTypes::OnSelchangeTransportWaypoint(HWND& hWnd, bool edited)
@@ -1508,6 +1558,7 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         SendMessage(hPriority, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hMax, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hTechlevel, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hParaDropPlane, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hTransportWaypoint, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hGroup, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hWaypoint, WM_SETTEXT, 0, (LPARAM)"");
@@ -1571,9 +1622,9 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         auto taskforce = map.GetString(pID, "TaskForce");
         auto script = map.GetString(pID, "Script");
         auto tag = map.GetString(pID, "Tag");
+        auto tParaDropPlane = map.GetString(pID, "ParaDropAircraft", "None");
         auto tWaypoint = STDHelpers::StringToWaypointStr(map.GetString(pID, "TransportWaypoint"));
         auto waypoint = STDHelpers::StringToWaypointStr(map.GetString(pID, "Waypoint"));
-
 
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.GetString());
 
@@ -1662,7 +1713,13 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         else
             SendMessage(hSetRecruitOnLiber, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "SetRecruitableOnLiberate").GetString());
 
-        SendMessage(hCheckBoxLoadable, BM_SETCHECK, map.GetBool(pID, "Loadable"), 0);
+		int idxPDP = vcbParaDropPlane.FindStringExactStart(tParaDropPlane);
+		if (idxPDP != CB_ERR)
+            vcbParaDropPlane.SetCurSel(idxPDP);
+		else
+            vcbParaDropPlane.SetEditText(tParaDropPlane);
+
+		SendMessage(hCheckBoxLoadable, BM_SETCHECK, map.GetBool(pID, "Loadable"), 0);
         SendMessage(hCheckBoxFull, BM_SETCHECK, map.GetBool(pID, "Full"), 0);
         SendMessage(hCheckBoxAnnoyance, BM_SETCHECK, map.GetBool(pID, "Annoyance"), 0);
         SendMessage(hCheckBoxGuardSlower, BM_SETCHECK, map.GetBool(pID, "GuardSlower"), 0);
@@ -1943,6 +2000,7 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
         copyitem("LooseRecruit");
         copyitem("VeteranLevel");
         copyitem("IsBaseDefense");
+        copyitem("ParaDropAircraft");
         copyitem("TransportWaypoint");
         copyitem("UseTransportOrigin");
         copyitem("MindControlDecision");

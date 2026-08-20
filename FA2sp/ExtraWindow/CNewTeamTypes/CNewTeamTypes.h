@@ -29,12 +29,14 @@ public:
         Priority = 1011,
         Max = 1012,
         Techlevel = 1103,
+        ParaDropPlane = 1503,
         TransportWaypoint = 1126,
         Group = 1122,
         Waypoint = 1123,
         MindControlDecision = 1140,
         SetRecruitOnLiber = 1142,
         TooltipSetRecruitOnLiber = 1144,
+        TooltipParaDropPlane = 1145,
         CheckBoxLoadable = 1113,
         CheckBoxFull = 1114,
         CheckBoxAnnoyance = 1115,
@@ -85,6 +87,7 @@ public:
 protected:
     static void Initialize(HWND& hWnd);
     static void Update(HWND& hWnd);
+    static void OnSelchangeParaDropPlane(bool edited = false);
     static void OnSelchangeTransportWaypoint(HWND& hWnd, bool edited = false);
     static void OnSelchangeWaypoint(HWND& hWnd, bool edited = false);
     static void OnSelchangeHouse(bool edited = false);
@@ -127,12 +130,14 @@ public:
     static HWND hPriority;
     static HWND hMax;
     static HWND hTechlevel;
+    static HWND hParaDropPlane;
     static HWND hTransportWaypoint;
     static HWND hGroup;
     static HWND hWaypoint;
     static HWND hMindControlDecision;
     static HWND hSetRecruitOnLiber;
     static HWND hTooltipSetRecruitOnLiber;
+    static HWND hTooltipParaDropPlane;
     static HWND hCheckBoxLoadable;
     static HWND hCheckBoxFull;
     static HWND hCheckBoxAnnoyance;
@@ -172,11 +177,13 @@ private:
     static VirtualComboBoxEx vcbTag;
     static VirtualComboBoxEx vcbHouse;
     static VirtualComboBoxEx vcbWaypoint;
+    static VirtualComboBoxEx vcbParaDropPlane;
     static VirtualComboBoxEx vcbTransportWaypoint;
 
     static std::vector<FString> mindControlDecisions;
     static std::vector<FString> setRecruitOnLiberOptions;
     static TooltipHelper tooltipSetRecruitOnLiber;
+    static TooltipHelper tooltipParaDropPlane;
 
     static WNDPROC OrigDragDotProc;
     static WNDPROC OrigDragingDotProc;

@@ -1374,7 +1374,7 @@ DEFINE_HOOK(4C4480, CIsoView_SmoothTiberium, 5)
 	if (count > 0)
 	{
 		Map->CellDatas[dwPos].OverlayData = _adj[count - 1];
-		Map->OverlayData[y + x * 512] = _adj[count - 1];
+		Map->NewOverlayData[y + x * CMapDataExt::X_PLUS_Y_LIMIT] = _adj[count - 1];
 
 		Map->AddTiberium(std::min(ovrl, (word)0xFF), _adj[count - 1]);
 	}

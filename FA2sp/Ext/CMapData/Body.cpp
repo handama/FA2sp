@@ -109,7 +109,9 @@ std::unordered_set<int> CMapDataExt::RedrawExtraTileSets;
 std::unordered_set<int> CMapDataExt::NoHeightRedrawTileSets;
 std::unordered_map<int, Palette*> CMapDataExt::TileSetPalettes;
 int CMapDataExt::NewINIFormat = 4;
-WORD CMapDataExt::NewOverlay[0x40000] = {0xFFFF};
+int CMapDataExt::X_PLUS_Y_LIMIT = 1024;
+std::vector<WORD> CMapDataExt::NewOverlay;
+std::vector<BYTE> CMapDataExt::NewOverlayData;
 HistoryList CMapDataExt::UndoRedoDatas;
 HistoryList CMapDataExt::PreviewHistoryData;
 bool CMapDataExt::RecordingPreviewHistory = false;
@@ -2399,9 +2401,9 @@ void CMapDataExt::SetNewOverlayAt(int x, int y, WORD ovr, bool smoothOre)
 		ovr = 0xFFFF;
 
 	int dwPos = GetCoordIndex(x, y);
-	int olyPos = y + x * 512;
+	int olyPos = y + x * X_PLUS_Y_LIMIT;
 
-	if (olyPos > 262144 || dwPos > CellDataCount) return;
+	if (olyPos > X_PLUS_Y_LIMIT * X_PLUS_Y_LIMIT || dwPos > CellDataCount) return;
 
 	auto& ovrl = CellDataExts[dwPos].NewOverlay;
 	auto& ovrld = CellDatas[dwPos].OverlayData;
@@ -2409,11 +2411,10 @@ void CMapDataExt::SetNewOverlayAt(int x, int y, WORD ovr, bool smoothOre)
 	DeleteTiberium(std::min(ovrl, (word)0xFF), ovrld);
 
 	NewOverlay[olyPos] = ovr;
-	Overlay[olyPos] = std::min(ovr, (WORD)0xff);
 	CellDataExts[dwPos].NewOverlay = ovr;
 	CellDatas[dwPos].Overlay = std::min(ovr, (WORD)0xff);
 
-	OverlayData[olyPos] = 0;
+	NewOverlayData[olyPos] = 0;
 	CellDatas[dwPos].OverlayData = 0;
 
 	auto& ovrl2 = CellDataExts[dwPos].NewOverlay;
@@ -2443,7 +2444,7 @@ void CMapDataExt::SetNewOverlayAt(int pos, WORD ovr, bool smoothOre)
 void CMapDataExt::SetNewOverlayDataAt(int x, int y, byte ovrd, bool smoothOre)
 {
 	int pos = GetCoordIndex(x, y);
-	if (y + x * 512 > 262144 || pos >= CellDataCount) return;
+	if (y + x * X_PLUS_Y_LIMIT > X_PLUS_Y_LIMIT * X_PLUS_Y_LIMIT || pos >= CellDataCount) return;
 
 	auto ovrl = GetOverlayAt(pos);
 	auto ovrld = GetOverlayDataAt(pos);
@@ -2461,7 +2462,7 @@ void CMapDataExt::SetNewOverlayDataAt(int x, int y, byte ovrd, bool smoothOre)
 		}
 	}
 
-	OverlayData[y + x * 512] = ovrd;
+	NewOverlayData[y + x * X_PLUS_Y_LIMIT] = ovrd;
 	CellDatas[pos].OverlayData = ovrd;
 }
 
@@ -2674,7 +2675,7 @@ void TerrainRecord::recover()
 			cellExt.NewOverlay = this->overlay[pos_r];
 			cell->Overlay = std::min(this->overlay[pos_r], (word)0xFF);
 			cell->OverlayData = this->overlaydata[pos_r];
-			CMapDataExt::NewOverlay[e + i * 512] = this->overlay[pos_r];
+			CMapDataExt::NewOverlay[e + i * CMapDataExt::X_PLUS_Y_LIMIT] = this->overlay[pos_r];
 			pThis->AddTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
 
 			cell->Flag.RedrawTerrain = this->bRedrawTerrain[pos_r];
@@ -5761,19 +5762,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		CMapDataExt::CellDataExts.resize(CMapData::Instance->CellDataCount);
 		UndoRedoDatas.clear();
 		UndoRedoDataIndex = -1;
-	}
-
-	if (updateMinimap)
-	{
-		// just update coords with overlays to show correct color
-		for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
-			for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
-				CMapDataExt::CellDataExts[i + j * CMapData::Instance->MapWidthPlusHeight].NewOverlay = CMapDataExt::NewOverlay[j + i * 512];
-				if (CMapDataExt::GetExtension()->GetOverlayAt(CMapData::Instance->GetCoordIndex(i, j)) != 0xFFFF) {
-					CMapData::Instance->UpdateMapPreviewAt(i, j);
-				}
-			}
-		}
 	}
 
 	for (auto& [_, ID] : Variables::RulesMap.GetSection("InfantryTypes"))

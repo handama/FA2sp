@@ -1,6 +1,7 @@
 #include <Helpers/Macro.h>
 
 #include "../RunTime.h"
+#include "../Ext/CMapData/Body.h"
 
 // FinalAlert 2 used a MapPreview buffer in CMapData::InitMinimap(0x4C3D40):
 // memset(this->MapPreview, 0xFFu, previewHeight * stride);
@@ -15,7 +16,8 @@
 //
 // Therefore we just need to replace this buffer and it will works fine
 
-static char MapPreviewBuffer[0x60000];
+#define PREVIEW_LIMIT 1024
+static char MapPreviewBuffer[PREVIEW_LIMIT * PREVIEW_LIMIT * 3 / 2];
 
 #define DEFINE_REG_HELPER(to, from) \
 void __declspec(naked) to##_##from() \
@@ -161,6 +163,8 @@ DEFINE_HOOK(537129, ExeRun_PreviewFix, 9)
     DoMove(0x425C4E, eax_1);
     DoMove(0x425642, ecx_1);
     DoMove(0x425559, eax_1);
+
+    Logger::Raw("%x\n", dword(&MapPreviewBuffer));
 
     return 0;
 }

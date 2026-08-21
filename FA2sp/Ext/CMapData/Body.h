@@ -11,6 +11,7 @@
 #include "../../Helpers/FString.h"
 
 #define CUSTOM_TILE_START 100000
+
 struct TwoPointStruct;
 struct TextureResource;
 namespace Renderer {
@@ -1044,7 +1045,9 @@ public:
     static std::unordered_set<int> NoHeightRedrawTileSets;
     static std::unordered_map<int, Palette*> TileSetPalettes;
     static int NewINIFormat;
-    static WORD NewOverlay[0x40000];
+    static int X_PLUS_Y_LIMIT;
+    static std::vector<WORD> NewOverlay;
+    static std::vector<BYTE> NewOverlayData;
     static HistoryList UndoRedoDatas;
     static HistoryList PreviewHistoryData;
     static bool RecordingPreviewHistory;

@@ -3201,20 +3201,19 @@ void CViewObjectsExt::ModifyOre(int X, int Y)
 			{
 				data = getValidOreData(data);
 				int moneyDelta = 0;
-				int olyPos = y + x * 512;
+				int olyPos = y + x * CMapDataExt::X_PLUS_Y_LIMIT;
 				int pos = pExt->GetCoordIndex(x, y);
 
-				pExt->DeleteTiberium(std::min(ovr, (word)0xFF), pExt->OverlayData[olyPos]);
+				pExt->DeleteTiberium(std::min(ovr, (word)0xFF), pExt->NewOverlayData[olyPos]);
 				if (data >= 0)
 				{
-					pExt->OverlayData[olyPos] = data;
+					pExt->NewOverlayData[olyPos] = data;
 					pExt->CellDatas[pos].OverlayData = data;
 				}
 				else
 				{
-					pExt->Overlay[olyPos] = 0xFF;
 					pExt->NewOverlay[olyPos] = 0xFFFF;
-					pExt->OverlayData[olyPos] = 0;
+					pExt->NewOverlayData[olyPos] = 0;
 					pExt->CellDatas[pos].Overlay = 0xFF;
 					pExt->CellDataExts[pos].NewOverlay = 0xFFFF;
 					pExt->CellDatas[pos].OverlayData = 0;

@@ -107,25 +107,33 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 	oldCellDatas = NULL;
 
 	// overlay
-	auto oldOverlay = new WORD[0x40000];
-	auto oldOverlayData = new BYTE[0x40000];
-	std::copy(std::begin(NewOverlay), std::end(NewOverlay), oldOverlay);
-	std::fill(std::begin(NewOverlay), std::end(NewOverlay), 0xFFFF);
-	std::copy(std::begin(OverlayData), std::end(OverlayData), oldOverlayData);
-	std::fill(std::begin(OverlayData), std::end(OverlayData), 0x0);
-
-	for (int y = 0; y < 512; ++y)
+	int oldLimit = os >= 512 ? 1024 : 512; 
+	if (NewOverlay.size() != oldLimit * oldLimit)
 	{
-		for (int x = 0; x < 512; ++x)
+		NewOverlay.assign(oldLimit * oldLimit, 0xFFFF);
+		NewOverlayData.assign(oldLimit * oldLimit, 0);
+	}
+
+	auto oldOverlay = new WORD[oldLimit * oldLimit];
+	auto oldOverlayData = new BYTE[oldLimit * oldLimit];
+	std::copy(NewOverlay.begin(), NewOverlay.end(), oldOverlay);
+	std::copy(NewOverlayData.begin(), NewOverlayData.end(), oldOverlayData);
+
+	X_PLUS_Y_LIMIT = MapWidthPlusHeight >= 512 ? 1024 : 512;
+	NewOverlay.assign(X_PLUS_Y_LIMIT * X_PLUS_Y_LIMIT, 0xFFFF);
+	NewOverlayData.assign(X_PLUS_Y_LIMIT * X_PLUS_Y_LIMIT, 0);
+
+	for (int y = 0; y < oldLimit; ++y)
+	{
+		for (int x = 0; x < oldLimit; ++x)
 		{
 			int new_x = x + x_move;
 			int new_y = y + y_move;
 
 			if (IsCoordInMap(new_x, new_y))
 			{
-				NewOverlay[new_x * 512 + new_y] = oldOverlay[x * 512 + y];
-				Overlay[new_x * 512 + new_y] = std::min((WORD)0xff, oldOverlay[x * 512 + y]);
-				OverlayData[new_x * 512 + new_y] = oldOverlayData[x * 512 + y];
+				NewOverlay[new_x * X_PLUS_Y_LIMIT + new_y] = oldOverlay[x * oldLimit + y];
+				NewOverlayData[new_x * X_PLUS_Y_LIMIT + new_y] = oldOverlayData[x * oldLimit + y];
 			}
 		}
 	}
@@ -407,7 +415,7 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 	{
 		for (int x = 0; x < MapWidthPlusHeight; ++x)
 		{
-			CellDataExts[x + y * MapWidthPlusHeight].NewOverlay = NewOverlay[x * 512 + y];
+			CellDataExts[x + y * MapWidthPlusHeight].NewOverlay = NewOverlay[x * X_PLUS_Y_LIMIT + y];
 			UpdateMapPreviewAt(x, y);
 		}
 	}

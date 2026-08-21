@@ -32,18 +32,21 @@ for x = 0, size - 1 do
             -- 条件3：地表类型为clear
             local tile = get_tile_block(cell.tile, cell.subtile)
             if tile and tile.valid and tile.land_type == "clear" then
-                -- 条件1：(x+2,y+2)在地图内
-                if in_map(x + 2, y + 2) then
-                    -- 条件2：后者的高度比前者高4格或以上
-                    local cell2 = get_cell(x + 2, y + 2)
-                    if cell2.height >= cell.height + 4 and cell2.tile >= 0 then
-                        -- 条件4：(x+2,y+2)的地表类型必须为rock
-                        local tile2 = get_tile_block(cell2.tile, cell2.subtile)
-                        if tile2 and tile2.valid and tile2.land_type == "rock" then
-                            cell.tile = target[1]
-                            cell.subtile = target[2]
-                            cell:apply()
-                            changed = changed + 1
+                -- 条件0：X,Y单元格的ramp类型必须为0
+                if tile.ramp_type == 0 then
+                    -- 条件1：(x+2,y+2)在地图内
+                    if in_map(x + 2, y + 2) then
+                        -- 条件2：后者的高度比前者高4格或以上
+                        local cell2 = get_cell(x + 2, y + 2)
+                        if cell2.height >= cell.height + 4 and cell2.tile >= 0 then
+                            -- 条件4：(x+2,y+2)的地表类型必须为rock
+                            local tile2 = get_tile_block(cell2.tile, cell2.subtile)
+                            if tile2 and tile2.valid and tile2.land_type == "rock" then
+                                cell.tile = target[1]
+                                cell.subtile = target[2]
+                                cell:apply()
+                                changed = changed + 1
+                            end
                         end
                     end
                 end

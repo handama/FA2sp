@@ -58,7 +58,7 @@ static std::vector<std::pair<MapCoord, ImageDataClassSafe *>> AlphaImagesToDraw;
 static std::vector<Veterancy> DrawVeterancies;
 static std::vector<CellInfo> visibleCells;
 static std::vector<BaseNodeDataExt> DrawnBaseNodes;
-static WORD coordToIndex[512][512];
+static std::vector<WORD> coordToIndex;
 static std::vector<char> shadowMask_Building_Infantry;
 static std::vector<char> shadowMask_Terrain;
 static std::vector<char> shadowMask_Overlay;
@@ -1568,7 +1568,9 @@ static void DrawMap()
 		BaseNodeTextsToDraw.clear();
 		DrawVeterancies.clear();
 		visibleCells.clear();
-		memset(coordToIndex, 0, sizeof(coordToIndex));
+		if (coordToIndex.size() != CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT)
+			coordToIndex.resize(CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT, 0);
+		std::fill(coordToIndex.begin(), coordToIndex.end(), 0);
 		DrawnBaseNodes.clear();
 		RedrawCoords.clear();
 		Celltags.clear();
@@ -1692,6 +1694,7 @@ static void DrawMap()
 	HDC hDC;
 	lpSurface->GetDC(&hDC);
 
+	Logger::Raw("(%d %d) (%d %d)\n", VisibleCoordTL.X, VisibleCoordTL.Y, VisibleCoordBR.X, VisibleCoordBR.Y);
 	for (int XplusY = VisibleCoordTL.X + VisibleCoordTL.Y - EXTRA_BORDER;
 		 XplusY < VisibleCoordBR.X + VisibleCoordBR.Y + CIsoViewExt::EXTRA_BORDER_BOTTOM;
 		 XplusY++)
@@ -1708,7 +1711,7 @@ static void DrawMap()
 			screenY -= DrawOffsetY;
 			auto cell = CMapData::Instance->GetCellAt(pos);
 			auto &cellExt = CMapDataExt::CellDataExts[pos];
-			coordToIndex[X][Y] = (WORD)visibleCells.size();
+			coordToIndex[X * CMapDataExt::X_PLUS_Y_LIMIT + Y] = (WORD)visibleCells.size();
 			visibleCells.push_back({X, Y, screenX, screenY, pos,
 									CMapData::Instance->IsCoordInMap(X, Y),
 									cell,
@@ -2044,7 +2047,7 @@ static void DrawMap()
 
 					int nx = X + dx;
 					int ny = Y + dy;
-					int neighborIndex = coordToIndex[nx][ny];
+					int neighborIndex = coordToIndex[nx * CMapDataExt::X_PLUS_Y_LIMIT + ny];
 					auto &neighbor = visibleCells[neighborIndex];
 					neighbor.aroundRedrawCell = true;
 				}

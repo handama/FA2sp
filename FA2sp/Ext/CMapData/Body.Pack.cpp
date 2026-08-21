@@ -48,6 +48,8 @@ void CMapDataExt::PackExt(bool UpdatePreview, bool Description)
 
 	if (FieldDataAllocated)
 	{
+		X_PLUS_Y_LIMIT = MapWidthPlusHeight >= 512 ? 1024 : 512;
+
 		Logger::Raw(
 			"CMapDataExt::PackExt called!\n"
 			"UpdatePreview = %d, Description = %d\n"
@@ -79,15 +81,15 @@ void CMapDataExt::PackExt(bool UpdatePreview, bool Description)
 
 		{
 			Logger::Raw("Packing overlay\n");
-			auto data = std::string(reinterpret_cast<const char*>(NewOverlay), 0x40000 * 2);
+			auto data = std::string(reinterpret_cast<const char*>(NewOverlay.data()), X_PLUS_Y_LIMIT * X_PLUS_Y_LIMIT * 2);
 			if (needNewIniFormat)
 			{
-				data = lcw::compress(data.data(), 0x40000 * 2);
+				data = lcw::compress(data.data(), X_PLUS_Y_LIMIT * X_PLUS_Y_LIMIT * 2);
 			}
 			else
 			{
 				data = convertFromExtendedOverlayPack(data);
-				data = lcw::compress(data.data(), 0x40000);
+				data = lcw::compress(data.data(), X_PLUS_Y_LIMIT * X_PLUS_Y_LIMIT);
 			}
 			data = base64::encode(data);
 			Logger::Raw("Saving overlay...");
@@ -97,7 +99,7 @@ void CMapDataExt::PackExt(bool UpdatePreview, bool Description)
 
 		{
 			Logger::Raw("Packing overlaydata\n");
-			auto data = lcw::compress(OverlayData, 0x40000);
+			auto data = lcw::compress(NewOverlayData.data(), X_PLUS_Y_LIMIT * X_PLUS_Y_LIMIT);
 			data = base64::encode(data);
 			Logger::Raw("Saving overlaydata...");
 			INI.WriteBase64String("OverlayDataPack", data.data(), data.length());
@@ -187,9 +189,11 @@ DEFINE_HOOK(49F7A0, CMapData_Pack, 7)
 DEFINE_HOOK(49EF81, CMapData_UnPack_OverlayData, 8)
 {
 	auto pThis = CMapDataExt::GetExtension();
-	std::memset(pThis->Overlay, 0xff, 0x40000);
-	std::memset(pThis->OverlayData, 0x0, 0x40000);
-	std::fill(std::begin(CMapDataExt::NewOverlay), std::end(CMapDataExt::NewOverlay), 0xFFFF);
+
+	CMapDataExt::X_PLUS_Y_LIMIT = pThis->MapWidthPlusHeight >= 512 ? 1024 : 512; 
+
+	CMapDataExt::NewOverlay.assign(CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT, 0xFFFF);
+	CMapDataExt::NewOverlayData.assign(CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT, 0);
 
 	int mapINIformat = pThis->INI.GetInteger("Basic", "NewINIFormat", 4);
 	bool needNewIniFormat = mapINIformat > 4;
@@ -207,11 +211,11 @@ DEFINE_HOOK(49EF81, CMapData_UnPack_OverlayData, 8)
 		ovr = lcw::decompress(ovr.data(), ovr.size());
 		if (needNewIniFormat)
 		{
-			memcpy(pThis->NewOverlay, ovr.data(), std::min(sizeof(pThis->NewOverlay) * 2, ovr.size()));
+			memcpy(pThis->NewOverlay.data(), ovr.data(), std::min(pThis->NewOverlay.size() * 2, ovr.size()));
 		}
 		else
 		{
-			for (size_t i = 0; i < std::min(sizeof(pThis->NewOverlay), ovr.size()); ++i) 
+			for (size_t i = 0; i < std::min(pThis->NewOverlay.size(), ovr.size()); ++i) 
 			{
 				BYTE overlay = static_cast<BYTE>(ovr[i]);
 				pThis->NewOverlay[i] = static_cast<WORD>(overlay == 0xFF ? 0xFFFF : overlay);
@@ -227,7 +231,7 @@ DEFINE_HOOK(49EF81, CMapData_UnPack_OverlayData, 8)
 		}
 		ovr = base64::decode(ovr.data());
 		ovr = lcw::decompress(ovr.data(), ovr.size());
-		memcpy(pThis->OverlayData, ovr.data(), std::min(sizeof(pThis->OverlayData), ovr.size()));
+		memcpy(pThis->NewOverlayData.data(), ovr.data(), std::min(pThis->NewOverlayData.size(), ovr.size()));
 	}
 
 	return 0x49F440;

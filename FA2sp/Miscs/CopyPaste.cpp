@@ -452,7 +452,7 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
             pCell->Overlay = std::min(cell.Overlay, (word)0xff);
             pCellExt.NewOverlay = cell.Overlay;
             pCell->OverlayData = cell.OverlayData;
-            CMapDataExt::NewOverlay[Y + offset_y + (X + offset_x) * 512] = cell.Overlay;
+            CMapDataExt::NewOverlay[Y + offset_y + (X + offset_x) * CMapDataExt::X_PLUS_Y_LIMIT] = cell.Overlay;
             CMapData::Instance->AddTiberium(std::min(pCellExt.NewOverlay, (word)0xFF), pCell->OverlayData);
         }
         if (CIsoViewExt::PasteGround)

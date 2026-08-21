@@ -1101,7 +1101,12 @@ DEFINE_HOOK(4B9E38, CMapData_CreateMap_InitializeMapDataExt, 5)
 
 DEFINE_HOOK(4B9CB5, CMapData_CreateMap_ClearOverlay, 5)
 {
-	std::fill(std::begin(CMapDataExt::NewOverlay), std::end(CMapDataExt::NewOverlay), 0xFFFF);
+	CMapDataExt::X_PLUS_Y_LIMIT = CMapDataExt::GetExtension()->MapWidthPlusHeight >= 512 ? 1024 : 512; 
+
+	CMapDataExt::NewOverlay.assign(CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT, 0xFFFF);
+	CMapDataExt::NewOverlayData.assign(CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT, 0);
+
+	std::fill(CMapDataExt::NewOverlay.begin(), CMapDataExt::NewOverlay.end(), 0xFFFF);
 	CMapDataExt::NewINIFormat = 4;
 	return 0;
 }
@@ -1651,9 +1656,9 @@ DEFINE_HOOK(4A7830, CMapData_UpdateFieldOverlayData, 5)
 		{
 			for (v = 0; v < pThis->MapWidthPlusHeight; v++)
 			{
-				pThis->CellDataExts[u + v * pThis->MapWidthPlusHeight].NewOverlay = pThis->NewOverlay[v + u * 512];
-				pThis->CellDatas[u + v * pThis->MapWidthPlusHeight].Overlay = std::min((WORD)0xff, pThis->NewOverlay[v + u * 512]);
-				pThis->CellDatas[u + v * pThis->MapWidthPlusHeight].OverlayData = pThis->OverlayData[v + u * 512];
+				pThis->CellDataExts[u + v * pThis->MapWidthPlusHeight].NewOverlay = pThis->NewOverlay[v + u * CMapDataExt::X_PLUS_Y_LIMIT];
+				pThis->CellDatas[u + v * pThis->MapWidthPlusHeight].Overlay = std::min((WORD)0xff, pThis->NewOverlay[v + u * CMapDataExt::X_PLUS_Y_LIMIT]);
+				pThis->CellDatas[u + v * pThis->MapWidthPlusHeight].OverlayData = pThis->NewOverlayData[v + u * CMapDataExt::X_PLUS_Y_LIMIT];
 
 				pThis->UpdateMapPreviewAt(u, v);
 			}
@@ -1666,9 +1671,8 @@ DEFINE_HOOK(4A7830, CMapData_UpdateFieldOverlayData, 5)
 		{
 			for (v = 0; v < pThis->MapWidthPlusHeight; v++)
 			{
-				pThis->NewOverlay[v + u * 512] = pThis->CellDataExts[u + v * pThis->MapWidthPlusHeight].NewOverlay;
-				pThis->Overlay[v + u * 512] = std::min((WORD)0xff, pThis->CellDataExts[u + v * pThis->MapWidthPlusHeight].NewOverlay);
-				pThis->OverlayData[v + u * 512] = pThis->CellDatas[u + v * pThis->MapWidthPlusHeight].OverlayData;
+				pThis->NewOverlay[v + u * CMapDataExt::X_PLUS_Y_LIMIT] = pThis->CellDataExts[u + v * pThis->MapWidthPlusHeight].NewOverlay;
+				pThis->NewOverlayData[v + u * CMapDataExt::X_PLUS_Y_LIMIT] = pThis->CellDatas[u + v * pThis->MapWidthPlusHeight].OverlayData;
 			}
 		}
 	}
@@ -1677,7 +1681,7 @@ DEFINE_HOOK(4A7830, CMapData_UpdateFieldOverlayData, 5)
 	for (int i = 0; i < pThis->CellDataCount; ++i)
 		pThis->MoneyCount += pThis->GetOreValue(pThis->CellDataExts[i].NewOverlay, pThis->CellDatas[i].OverlayData);
 
-	return 0;
+	return 0x4A7928;
 }
 
 DEFINE_HOOK(4A29E0, CMapData_GetOverlayAt, A)
@@ -1701,11 +1705,19 @@ DEFINE_HOOK(4A16A0, CMapData_ClearOverlay, 8)
 {
 	GET(CMapDataExt*, pThis, ECX);
 
-	std::fill(std::begin(pThis->NewOverlay), std::end(pThis->NewOverlay), 0xFFFF);
-	std::fill(std::begin(pThis->Overlay), std::end(pThis->Overlay), 0xFF);
+	std::fill(pThis->NewOverlay.begin(), pThis->NewOverlay.end(), 0xFFFF);
 	pThis->NewINIFormat = 4;
 
 	return 0x4A16B4;
+}
+
+DEFINE_HOOK(4A1680, CMapData_ClearOverlayData, 8)
+{
+	GET(CMapDataExt*, pThis, ECX);
+
+	std::fill(pThis->NewOverlayData.begin(), pThis->NewOverlayData.end(), 0xFF);
+
+	return 0x4A1693;
 }
 
 

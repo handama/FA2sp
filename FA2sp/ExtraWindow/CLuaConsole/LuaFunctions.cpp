@@ -1682,12 +1682,11 @@ namespace LuaFunctions
 			//pCell->BaseNode.House = this->House.c_str();
 			if (pCellExt.NewOverlay != this->Overlay || pCell->OverlayData != this->OverlayData)
 			{
-				int olyPos = this->Y + this->X * 512;
-				if (olyPos < 262144)
+				int olyPos = this->Y + this->X * CMapDataExt::X_PLUS_Y_LIMIT;
+				if (olyPos < CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT)
 				{
-					CMapData::Instance->Overlay[olyPos] = this->Overlay > 0xff ? 0xff : this->Overlay;
 					CMapDataExt::NewOverlay[olyPos] = this->Overlay ;
-					CMapData::Instance->OverlayData[olyPos] = this->OverlayData;
+					CMapDataExt::NewOverlayData[olyPos] = this->OverlayData;
 				}
 				CLuaConsole::recalculateOre = true;
 			}
@@ -1845,8 +1844,8 @@ namespace LuaFunctions
 		TimePoint savedTime;
 		std::string fileName;
 		FMap<FMap<FString>> INI;
-		unsigned short Overlay[0x40000];
-		unsigned char OverlayData[0x40000];
+		std::vector<unsigned short> Overlay;
+		std::vector<unsigned char> OverlayData;
 		std::vector<CellData> CellDatas;
 	};
 	static std::map<int, snapshot> snapshots;
@@ -5234,8 +5233,8 @@ namespace LuaFunctions
 				section[key] = value;
 			}
 		}
-		memcpy(snapshot.Overlay, CMapDataExt::NewOverlay, sizeof(CMapDataExt::NewOverlay));
-		memcpy(snapshot.OverlayData, CMapData::Instance->OverlayData, sizeof(CMapData::Instance->OverlayData));
+		snapshot.Overlay = CMapDataExt::NewOverlay;
+		snapshot.OverlayData = CMapDataExt::NewOverlayData;
 
 		for (int i = 0; i < CMapData::Instance->CellDataCount; ++i)
 		{
@@ -5313,8 +5312,8 @@ namespace LuaFunctions
 				ini->WriteString(pSection, key, value);
 			}
 		}
-		memcpy(CMapDataExt::NewOverlay, snapshot.Overlay, sizeof(snapshot.Overlay));
-		memcpy(CMapData::Instance->OverlayData, snapshot.OverlayData, sizeof(snapshot.OverlayData));
+		CMapDataExt::NewOverlay = snapshot.Overlay;
+		CMapDataExt::NewOverlayData = snapshot.OverlayData;
 
 		for (int i = 0; i < CMapData::Instance->CellDataCount; ++i)
 		{

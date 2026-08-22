@@ -374,6 +374,48 @@ static json ProcessRequest(json& request)
             }}
         });
         tools.push_back({
+            {"name", "despec"},
+            {"description", "Reverse-engineer a map spec from an existing map that has no spec. "
+                            "Reads the map code (triggers, events, actions, teams, tags, waypoints) "
+                            "and produces: inventory (map structure overview), graph (trigger dependency "
+                            "edges: enable/force = hard, destroy/disable = terminate, team/tag/var/wp "
+                            "references = weak evidence), draft (a full spec payload with pipelines, "
+                            "entry summaries, depends_on from hard edges only, confidence per entry, "
+                            "and a machine-extracted story scaffold), analyze (decode one trigger), "
+                            "import (validate and write the final spec - refuses to overwrite), "
+                            "report (write mymap.despec.md evidence report with the user narrative and "
+                            "discrepancy list; spec stays clean). Never modifies the map itself. "
+                            "Actions: inventory, graph, draft, analyze, import, report. "
+                            "After import, manage the map with the spec tool."},
+            {"inputSchema", {
+                {"type", "object"},
+                {"properties", {
+                    {"action", {
+                        {"type", "string"},
+                        {"description", "One of: inventory, graph, draft, analyze, import, report."}
+                    }},
+                    {"map_path", {
+                        {"type", "string"},
+                        {"description", "Full path to the map file (use forward slashes, e.g. "
+                                        "C:/maps/old.map)."}
+                    }},
+                    {"trigger_id", {{"type", "string"},
+                        {"description", "analyze: the [Triggers] section id to decode."}}},
+                    {"user_flow", {{"type", "string"},
+                        {"description", "report: the user's narrative of the map flow (unverified "
+                                        "reference; recorded verbatim)."}}},
+                    {"discrepancies", {{"type", "array"},
+                        {"items", {{"type", "object"}}},
+                        {"description", "report: list of {ref, user_claim, code_evidence, category, "
+                                        "status} entries where code and narrative disagree."}}},
+                    {"data", {{"type", "object"},
+                        {"description", "import: the full spec payload (typically the 'data' field "
+                                        "returned by draft, adjusted after user confirmation)."}}}
+                }},
+                {"required", json::array({"action", "map_path"})}
+            }}
+        });
+        tools.push_back({
             {"name", "observe"},
             {"description", "Capture the current editor view as a screenshot and return structured "
                             "information about all objects in the visible area. Returns a JSON string "
@@ -459,6 +501,57 @@ static json ProcessRequest(json& request)
                 mcpReq->input = script;
                 mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
                 if (RunOnEditorThread(WM_MCP_SPEC, mcpReq))
+                {
+                    std::string out = ToExternalEncoding(mcpReq->result);
+                    response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+                }
+                else
+                {
+                    response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+                }
+                CloseHandle(mcpReq->hEvent); delete mcpReq;
+            }
+        }
+        else if (toolName == "despec")
+        {
+            // Bridge to .despec_lib.lua on the same dedicated main-thread
+            // channel as 'spec' (WM_MCP_DESPEC / HandleDespec): clean
+            // execution without run_lua side effects. .despec_lib.lua loads
+            // .spec_lib.lua itself (for the codec and the import action); the
+            // spec lib path is injected as a global so both stay locatable.
+            std::string action = arguments.value("action", "");
+            std::string mapPath = arguments.value("map_path", "");
+            if (action.empty() || mapPath.empty())
+            {
+                response["result"] = {{"content", json::array({{{"type", "text"},
+                    {"text", "Error: 'action' and 'map_path' are required."}}})}};
+            }
+            else
+            {
+                json despecArgs = json::object();
+                despecArgs["action"] = action;
+                despecArgs["map_path"] = mapPath;
+                for (const char* k : {"trigger_id", "user_flow"})
+                {
+                    if (arguments.contains(k))
+                        despecArgs[k] = arguments[k];
+                }
+                if (arguments.contains("discrepancies") && arguments["discrepancies"].is_array())
+                    despecArgs["discrepancies"] = arguments["discrepancies"];
+                if (arguments.contains("data") && arguments["data"].is_object())
+                    despecArgs["data"] = arguments["data"];
+
+                std::string despecLibPath = GetScriptRoot() + ".despec_lib.lua";
+                std::string specLibPath = GetScriptRoot() + ".spec_lib.lua";
+                std::string script = "SPEC_LIB_PATH=" + LuaQuote(specLibPath) + "; "
+                                     "local D = dofile(" + LuaQuote(despecLibPath) + "); "
+                                     "print(D.dispatch(" + LuaQuote(CLuaConsole::EncodeUtf8ToAnsi(SafeDump(despecArgs))) + "))";
+
+                MCPRequest* mcpReq = new MCPRequest();
+                mcpReq->type = 13;
+                mcpReq->input = script;
+                mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
+                if (RunOnEditorThread(WM_MCP_DESPEC, mcpReq))
                 {
                     std::string out = ToExternalEncoding(mcpReq->result);
                     response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
@@ -1733,14 +1826,13 @@ void CMcpServer::HandleObserve(MCPRequest* req)
 }
 
 // ---------------------------------------------------------------------------
-// HandleSpec: dedicated main-thread handler for the 'spec' MCP tool.
-// req->input carries the bridge script into .spec_lib.lua (built in tools/call).
-// Runs it through the Lua console cleanly: no high-risk scan, no confirmation
-// dialog, no redraw / INI-diff logic - spec actions only read/write the spec
-// file and validate triggers against the map, so run_lua's side effects do
-// not apply.
+// ExecuteLuaScript: shared main-thread executor for the dedicated bridge
+// channels (spec / despec). Runs req->input through the Lua console cleanly:
+// no high-risk scan, no confirmation dialog, no redraw / INI-diff logic -
+// these tools only read/write their sidecar files and validate against the
+// map, so run_lua's side effects do not apply.
 // ---------------------------------------------------------------------------
-void CMcpServer::HandleSpec(MCPRequest* req)
+static void ExecuteLuaScript(MCPRequest* req)
 {
     CLuaConsole::mcpRunning = true;
     CLuaConsole::mcpOutput.clear();
@@ -1795,6 +1887,25 @@ void CMcpServer::HandleSpec(MCPRequest* req)
     CLuaConsole::mcpOutput.clear();
 
     SetEvent(req->hEvent);
+}
+
+// ---------------------------------------------------------------------------
+// HandleSpec: main-thread handler for the 'spec' MCP tool.
+// req->input carries the bridge script into .spec_lib.lua (built in tools/call).
+// ---------------------------------------------------------------------------
+void CMcpServer::HandleSpec(MCPRequest* req)
+{
+    ExecuteLuaScript(req);
+}
+
+// ---------------------------------------------------------------------------
+// HandleDespec: main-thread handler for the 'despec' MCP tool.
+// req->input carries the bridge script into .despec_lib.lua (built in
+// tools/call); runs on the same clean channel as 'spec'.
+// ---------------------------------------------------------------------------
+void CMcpServer::HandleDespec(MCPRequest* req)
+{
+    ExecuteLuaScript(req);
 }
 
 

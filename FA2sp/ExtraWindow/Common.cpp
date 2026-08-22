@@ -326,8 +326,7 @@ void ExtraWindow::LoadParams(VirtualComboBoxEx& vcb, FString idx, CNewTrigger* i
         LoadParam_Tags(vcb);
         break;
     case 12: // float
-        if (instance == &CNewTrigger::Instance[0]) CNewTrigger::Instance[0].ActionParamUsesFloat = true;
-        else if (instance == &CNewTrigger::Instance[1]) CNewTrigger::Instance[1].ActionParamUsesFloat = true;
+        instance->ActionParamUsesFloat = true;
         break;
     case 13:
         LoadParam_CountryList(vcb);

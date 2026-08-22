@@ -225,6 +225,27 @@ namespace LuaFunctions
 		}
 	}
 
+	bool TriggerLua_IsUsed(const std::string& id)
+	{
+		return UsedINIIndices.find(id) != UsedINIIndices.end();
+	}
+
+	void TriggerLua_RegisterUsedIndex(const std::string& id)
+	{
+		if (!id.empty())
+			UsedINIIndices.insert(id);
+	}
+
+	void TriggerLua_UnregisterUsedIndex(const std::string& id)
+	{
+		UsedINIIndices.erase(id);
+	}
+
+	void TriggerLua_Report(const std::string& msg)
+	{
+		write_lua_console(msg);
+	}
+
 	// Write raw text to output box without prefix or extra newline
 	static void write_lua_console_raw(const std::string& text)
 	{

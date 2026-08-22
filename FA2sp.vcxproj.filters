@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="源文件">
@@ -647,6 +647,9 @@
     <ClCompile Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CNewTrigger\HeadlessTrigger.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -708,9 +711,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\LuaFunctions.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\ExtraWindow\CLuaDialog\CLuaDialog.cpp">

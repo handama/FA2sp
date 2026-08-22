@@ -1,6 +1,7 @@
 #include "CLuaConsole.h"
 #include "CMcpServer.h"
 #include "LuaFunctions.cpp"
+#include "../CNewTrigger/CNewTrigger.h"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Helpers/WinVer.h"
@@ -907,6 +908,8 @@ void CLuaConsole::InitializeLuaState()
     Lua.set_function("remove_celltags", remove_celltags);
     Lua.set_function("int_to_float", trigger::int_to_float);
     Lua.set_function("float_to_int", trigger::float_to_int);
+
+    CNewTrigger::RegisterHeadlessTriggerLua(Lua);
 
     Lua.new_usertype<ai_trigger>("ai_trigger",
         sol::constructors<ai_trigger(std::string), ai_trigger()>(),

@@ -218,7 +218,6 @@
     <ClCompile Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\CMcpServer.cpp" />
-    <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\LuaFunctions.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CLuaDialog\CLuaDialog.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CMapRendererDlg\CMapRendererDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CMeasurementToolbox\CMeasurementToolbox.cpp" />
@@ -237,6 +236,7 @@
     <ClCompile Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTipsOfTheDay\CNewTipsOfTheDay.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewTrigger\HeadlessTrigger.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\Common.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CFA2spOptions\CFA2spOptions.cpp" />

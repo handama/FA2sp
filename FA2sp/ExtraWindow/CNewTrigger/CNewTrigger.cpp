@@ -112,27 +112,30 @@ void CNewTrigger::Create(CFinalSunDlg* pWnd)
 
     if (m_hwnd)
     {
-        RECT rc;
-        GetWindowRect(m_hwnd, &rc);
+        if (!HeadlessMode)
+        {
+            RECT rc;
+            GetWindowRect(m_hwnd, &rc);
 
-        const int offset = 20;
+            const int offset = 20;
 
-        int index = GetCurrentInstanceIndex();
-        int dx = index * offset;
-        int dy = index * offset;
+            int index = GetCurrentInstanceIndex();
+            int dx = index * offset;
+            int dy = index * offset;
 
-        SetWindowPos(
-            m_hwnd,
-            nullptr,
-            windowPos.x == 0 ? (rc.left + dx) : windowPos.x,
-            windowPos.y == 0 ? (rc.top + dy) : windowPos.y,
-            0, 0,
-            SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
-        );
-        PostMessage(m_hwnd, WM_USER + 100, 0, 0);
-        ShowWindow(m_hwnd, SW_SHOW);
+            SetWindowPos(
+                m_hwnd,
+                nullptr,
+                windowPos.x == 0 ? (rc.left + dx) : windowPos.x,
+                windowPos.y == 0 ? (rc.top + dy) : windowPos.y,
+                0, 0,
+                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+            );
+            PostMessage(m_hwnd, WM_USER + 100, 0, 0);
+            ShowWindow(m_hwnd, SW_SHOW);
+            WindowShown = true;
+        }
         CNewTrigger::Initialize(m_hwnd);
-        WindowShown = true;
     }
     else
     {
@@ -364,7 +367,7 @@ void CNewTrigger::Initialize(HWND& hWnd)
 
 void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
 {
-    if (m_hwnd)
+    if (m_hwnd && !HeadlessMode)
     {
         ShowWindow(m_hwnd, SW_SHOW);
         SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
@@ -2840,8 +2843,11 @@ void CNewTrigger::OnClickNewTrigger()
     value.Format("%s,<none>,%s,0,1,1,1,0", house, newName);
 
     map.WriteString("Triggers", id, value);
-    map.WriteString("Events", id, "1,0,0,0");
-    map.WriteString("Actions", id, "1,0,0,0,0,0,0,0,A");
+    if (!HeadlessMode)
+    {
+        map.WriteString("Events", id, "1,0,0,0");
+        map.WriteString("Actions", id, "1,0,0,0,0,0,0,0,A");
+    }
     auto tagId = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
     value.Format("0,%s 1,%s", newName, id);
     map.WriteString("Tags", tagId, value);
@@ -2922,8 +2928,12 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
         "If you want to cancel to deletion of the trigger, press Cancel.\n"
         "Note: CellTags will be deleted too using this function if you press Yes.");
 
-    int nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerDeleteTitle", "Delete Trigger"), 
-                    MB_YESNOCANCEL | MB_ICONQUESTION);
+    int nResult;
+    if (HeadlessMode)
+        nResult = HeadlessDeleteTags ? IDYES : IDNO;
+    else
+        nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerDeleteTitle", "Delete Trigger"),
+                        MB_YESNOCANCEL | MB_ICONQUESTION);
     if (nResult == IDYES || nResult == IDNO)
     {
         if (nResult == IDYES)
@@ -3069,7 +3079,7 @@ void CNewTrigger::OnClickNewEvent(HWND& hWnd)
         "After creating the new event, the length of the event INI will exceed 511, and the excess will not work properly. \nDo you want to continue?");
 
     int nResult = IDYES;
-    if (value.GetLength() >= 512)
+    if (value.GetLength() >= 512 && !HeadlessMode)
         nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"), MB_YESNO | MB_ICONWARNING);
 
     if (nResult == IDYES)
@@ -3118,7 +3128,7 @@ void CNewTrigger::OnClickCloEvent(HWND& hWnd)
     }
 
     int nResult = IDYES;
-    if (length.GetLength() >= 512)
+    if (length.GetLength() >= 512 && !HeadlessMode)
         nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"), MB_YESNO | MB_ICONWARNING);
 
     if (nResult == IDYES)
@@ -3149,7 +3159,7 @@ void CNewTrigger::OnClickCloEvent(HWND& hWnd)
 void CNewTrigger::OnClickDelEvent(HWND& hWnd)
 {
     if (!CurrentTrigger) return;
-    if (ExtConfigs::ConfirmDeleteSubEntries && MessageBox(hWnd,
+    if (!HeadlessMode && ExtConfigs::ConfirmDeleteSubEntries && MessageBox(hWnd,
         Translations::TranslateOrDefault("TriggerDelEventWarn", "Are you sure to delete the selected event(s) from this trigger?"),
         Translations::TranslateOrDefault("TriggerDelEventTitle", "Delete Trigger Event"),
         MB_YESNO | MB_ICONQUESTION) == IDNO)
@@ -3207,7 +3217,7 @@ void CNewTrigger::OnClickNewAction(HWND& hWnd)
         "After creating the new action, the length of the action INI will exceed 511, and the excess will not work properly. \nDo you want to continue?");
 
     int nResult = IDYES;
-    if (value.GetLength() >= 512)
+    if (value.GetLength() >= 512 && !HeadlessMode)
         nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"), MB_YESNO | MB_ICONWARNING);
 
     if (nResult == IDYES)
@@ -3255,7 +3265,7 @@ void CNewTrigger::OnClickCloAction(HWND& hWnd)
     }
 
     int nResult = IDYES;
-    if (length.GetLength() >= 512)
+    if (length.GetLength() >= 512 && !HeadlessMode)
         nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"), MB_YESNO | MB_ICONWARNING);
 
     if (nResult == IDYES)
@@ -3287,7 +3297,7 @@ void CNewTrigger::OnClickCloAction(HWND& hWnd)
 void CNewTrigger::OnClickDelAction(HWND& hWnd)
 {
     if (!CurrentTrigger) return;
-    if (ExtConfigs::ConfirmDeleteSubEntries && MessageBox(hWnd,
+    if (!HeadlessMode && ExtConfigs::ConfirmDeleteSubEntries && MessageBox(hWnd,
         Translations::TranslateOrDefault("TriggerDelActionWarn", "Are you sure to delete the selected action(s) from this trigger?"),
         Translations::TranslateOrDefault("TriggerDelActionTitle", "Delete Trigger Action"),
         MB_YESNO | MB_ICONQUESTION) == IDNO)

@@ -179,6 +179,7 @@
 - **返回**：(`number`): 输出整数。
 
 **关键用法提示**：
+- trigger类主要适用于对大批量触发进行简单修改，若修改程度较为复杂，或涉及新建事件、行为等操作，建议使用`触发编辑器`。
 - 任何对触发属性的修改，最后必须调用 `trigger:apply()`，否则不会保存到地图文件。
 - 创建新触发时，通常先调用 `trigger:new()`，然后分别设置属性、添加事件和行为，最后 `apply()`。
 - 触发一般都需要一个标签。使用`trigger:new()`创建的触发，如果没有特殊说明，一般需要同时创建一个标签，使用`add_tag("", "", 0)`创建一个默认名称的重复类型为0的标签。
@@ -196,4 +197,104 @@ for i, id in pairs(get_triggers()) do
         t:apply()
     end
 end
+```
+
+---
+
+### 触发编辑器（无头，`te_` 系列）
+
+- **说明**：本组函数操作一个隐藏的“触发编辑器”实例，复用编辑器全部编辑逻辑（事件/行为类型加载、参数选项填充、参数联动、名称与描述生成）。可以返回可用事件、行为，选中事件、行为的可用参数等信息，而无需处理原始ini文本、参数位置等底层数据。它与数据层 `trigger` 类互为补充：`trigger` 类适合已知裸值时的批量读写；`te_` 系列适合在编辑器规则下探索（类型含义、参数可填内容）与校验、再写入（自动套用名称/描述/编码规则）。
+- **与 `trigger` 类混用时的数据新鲜度**：
+  - `te_` 编辑后 INI 立即变化，旧的 `trigger` 对象为快照已失效，需重新 `get_trigger(id)`。
+  - `trigger:apply()` 写 INI 后，编辑器内部缓存过期：每次 `te_select_trigger` 都会重读 INI，天然安全；但已在编辑中（已 select 未重新 select）的触发需主动重新 `te_select_trigger`。
+- **索引约定**：事件序号、行为序号、参数槽位均从 **1** 开始；`te_get_*_options` 的返回表从 1 开始；`te_get_selected_trigger` 无选中触发时返回 `nil`。
+- **参数设置两种模式**：
+  - `te_set_event_param` / `te_set_action_param`（直接设置）：原样写入参数值，不校验选项列表，用于已知裸值的场景。
+  - `te_set_event_param_fuzzy` / `te_set_action_param_fuzzy`（模糊设置）：在选项列表中按“裸值精确 → 显示文本精确 → 显示文本包含（不区分大小写）”三级匹配，失败时向输出窗口报告错误并**不做任何修改**。推荐用于按名称/描述查找参数。
+
+#### `te_new_trigger([name = ""], [house = ""])`
+- **说明**：新建一个触发并自动选中它。分配新 ID 时会在内部与 Lua `trigger` 类保留的 ID 同步，避免撞号。新建的触发不自动创建默认事件/行为，需要自行用 `te_add_event`/`te_add_action` 添加。
+- **返回** (`table` 或 `nil`)：`{ id = "<触发ID>" }`。
+
+#### `te_select_trigger(id)`
+- **说明**：按 ID 选中一个已有触发。
+- **参数**：`id` (`string`) — 触发 ID。
+- **返回** (`boolean`)：是否选中成功。
+
+#### `te_get_selected_trigger()`
+- **说明**：获取当前选中触发的 ID。
+- **返回** (`string` 或 `nil`)：当前选中触发 ID；无选中时为 `nil`。
+
+#### `te_get_trigger()`
+- **说明**：获取当前选中触发的完整信息，包括全部事件与行为及其参数槽位。
+- **返回** (`table` 或 `nil`)：结构如下：
+  - `id`, `name`, `house`, `attached_trigger` (`string`)
+  - `disabled`, `easy`, `medium`, `hard` (`boolean`)
+  - `repeat_type` (`string`)
+  - `events` / `actions` (`table<int, table>`)：每项为事件/行为信息，取 `nil` 表示该项无效，有效时含 `ok=true`, `num`, `name`, `desc`, `params`（数组，每项含 `slot`, `used`, `desc`, `type`, `value`, `display`）。
+
+#### `te_set_trigger_prop(key, value)`
+- **说明**：设置当前触发的一个属性。
+- **参数**：`key` (`string`) — 取值 `name`/`house`/`attached_trigger`/`disabled`/`easy`/`medium`/`hard`/`repeat_type`；`value` (`string`) — 新值（布尔类属性接受 `"1"`/`"true"`/`"yes"`）。
+- **返回** (`boolean`)：是否成功。
+
+#### `te_delete_trigger([keep_tags = false])`
+- **说明**：删除当前选中触发（自动跳过删除确认框）。
+- **参数**：`keep_tags` (`boolean`) — 是否保留关联标签。
+- **返回** (`boolean`)：是否成功。
+
+#### `te_get_event_types([filter = ""], [max = 50])`
+#### `te_get_action_types([filter = ""], [max = 50])`
+- **说明**：查询事件/行为类型元数据，不依赖选中触发，可独立使用。`filter` 会在名称与描述中做不区分大小写的包含匹配。
+- **返回** (`table<int, table>`)：每项含 `num`, `name`, `desc`。
+
+#### `te_get_event_type(num)` / `te_get_action_type(num)`
+- **说明**：精确查询指定编号 `num` 的事件/行为类型的详细说明（对应编辑器里的描述框内容）。不依赖选中触发。若该类型不存在返回 `nil`。
+- **返回** (`table` 或 `nil`)：含 `num`, `name`, `desc`。
+
+#### `te_select_event(idx)` / `te_select_action(idx)`
+- **说明**：选中第 `idx`（从 1 开始）个事件/行为并返回其信息。
+- **返回** (`table` 或 `nil`)：含 `ok`, `num`, `name`, `desc`, `params`。
+
+#### `te_get_event_options(slot, [filter = ""], [max = 50])` / `te_get_action_options(slot, [filter = ""], [max = 50])`
+- **说明**：获取当前选中事件/行为第 `slot`（从 1 开始）个参数槽的可用选项（由该参数的类型/联动规则决定）。
+- **返回** (`table<int, table>`)：每项含 `value`（裸值）、`text`（显示文本）。
+
+#### `te_set_event_type(num)` / `te_set_action_type(num)`
+- **说明**：将当前选中事件/行为的类型改为 `num`，并按新类型重载参数槽与描述。
+- **返回** (`table` 或 `nil`)：新的条目信息。
+
+#### `te_set_event_param(slot, value)` / `te_set_action_param(slot, value)`
+- **说明**：直接写入当前选中事件/行为第 `slot` 个参数槽的裸值，并触发参数联动（可能影响其它参数槽的选项）。
+- **返回** (`table` 或 `nil`)：含 `value`, `display`。
+
+#### `te_set_event_param_fuzzy(slot, text)` / `te_set_action_param_fuzzy(slot, text)`
+- **说明**：按文本模糊匹配设置当前选中事件/行为第 `slot` 个参数槽的选项（见上文匹配规则）。
+- **返回** (`table` 或 `nil`)：含匹配到的 `value`, `display`。
+
+#### `te_add_event()` / `te_add_action()`
+- **说明**：在当前选中触发末尾新增一个事件/行为。
+- **返回** (`boolean`)：是否成功。
+
+#### `te_clone_event(idx)` / `te_clone_action(idx)`
+- **说明**：克隆第 `idx`（从 1 开始）个事件/行为。
+- **返回** (`boolean`)：是否成功。
+
+#### `te_delete_event(idx)` / `te_delete_action(idx)`
+- **说明**：删除第 `idx`（从 1 开始）个事件/行为（自动跳过删除确认框）。
+- **返回** (`boolean`)：是否成功。
+
+**示例**：查询所有含“生产”的事件类型。
+```lua
+for i, t in ipairs(te_get_event_types("生产")) do
+    print(t.num, t.name)
+end
+```
+
+**示例**：按名称模糊设置某触发第一个行为的第一个参数。
+```lua
+te_select_trigger("00000000-TR")
+te_select_action(1)
+local r = te_set_action_param_fuzzy(1, "美国")
+if r == nil then print("未找到匹配选项") end
 ```

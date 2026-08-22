@@ -11,6 +11,8 @@
 #include "../../Helpers/FString.h"
 #include "../Common.h"
 
+namespace sol { class state; }
+
 #define EVENT_PARAM_COUNT 2
 #define ACTION_PARAM_COUNT 6
 #define TRIGGER_EDITOR_MAX_COUNT 10
@@ -430,6 +432,97 @@ public:
     void OnSelchangeEventListbox(bool changeCursel = true);
     void OnSelchangeActionListbox(bool changeCursel = true, int index = -1);
 
+    bool HeadlessMode = false;
+    bool HeadlessDeleteTags = true;
+
+    static CNewTrigger Headless;
+
+    struct TeTypeInfo
+    {
+        std::string num;
+        std::string name;
+        std::string desc;
+    };
+    struct TeOption
+    {
+        std::string value;
+        std::string text;
+    };
+    struct TeParamSlot
+    {
+        int slot = 0;   
+        bool used = false;
+        std::string desc;
+        std::string type;  
+        std::string value;
+        std::string display;
+    };
+    struct TeEntryInfo
+    {
+        bool ok = false;
+        std::string num;
+        std::string name;
+        std::string desc;
+        std::vector<TeParamSlot> params;
+    };
+    struct TeSetResult
+    {
+        bool ok = false;
+        std::string value;
+        std::string display;
+        std::string error;
+    };
+    struct TeTriggerInfo
+    {
+        bool ok = false;
+        std::string id;
+        std::string name;
+        std::string house;
+        std::string attached_trigger;
+        bool disabled = false;
+        bool easy = false;
+        bool medium = false;
+        bool hard = false;
+        std::string repeat_type;
+        std::vector<TeEntryInfo> events;
+        std::vector<TeEntryInfo> actions;
+    };
+
+    bool TeEnsureOpen();
+    void TeClose();
+    bool TeIsOpen() const;
+
+    std::string TeNewTrigger(const char* name, const char* house);
+    bool TeSelectTrigger(const char* id);
+    std::string TeGetSelectedTrigger() const;
+    TeTriggerInfo TeGetTriggerInfo();
+    bool TeSetTriggerProp(const std::string& key, const std::string& value);
+    bool TeDeleteTrigger(bool keepTags);
+
+    std::vector<TeTypeInfo> TeGetEventTypes(const std::string& filter, int max);
+    std::vector<TeTypeInfo> TeGetActionTypes(const std::string& filter, int max);
+    TeTypeInfo TeGetEventTypeInfo(int num);
+    TeTypeInfo TeGetActionTypeInfo(int num);
+
+    TeEntryInfo TeSelectEvent(int idx);
+    TeEntryInfo TeSelectAction(int idx);
+    std::vector<TeOption> TeGetEventOptions(int slot, const std::string& filter, int max);
+    std::vector<TeOption> TeGetActionOptions(int slot, const std::string& filter, int max);
+    TeEntryInfo TeSetEventType(int num);
+    TeEntryInfo TeSetActionType(int num);
+    TeSetResult TeSetEventParamDirect(int slot, const std::string& value);
+    TeSetResult TeSetEventParamFuzzy(int slot, const std::string& text);
+    TeSetResult TeSetActionParamDirect(int slot, const std::string& value);
+    TeSetResult TeSetActionParamFuzzy(int slot, const std::string& text);
+    bool TeAddEvent();
+    bool TeCloneEvent(int index);
+    bool TeDeleteEventSel(int index);
+    bool TeAddAction();
+    bool TeCloneAction(int index);
+    bool TeDeleteActionSel(int index);
+
+    static void RegisterHeadlessTriggerLua(sol::state& Lua);
+
 protected:
     void Initialize(HWND& hWnd);
     void Update(HWND& hWnd, bool UpdateTrigger = true);
@@ -496,6 +589,9 @@ protected:
     bool IsMainInstance();
 
 private:
+    TeEntryInfo BuildEventInfo(int idx);  
+    TeEntryInfo BuildActionInfo(int idx);
+
     HWND m_hwnd;
     CFinalSunDlg* m_parent;
     static CINI& map;

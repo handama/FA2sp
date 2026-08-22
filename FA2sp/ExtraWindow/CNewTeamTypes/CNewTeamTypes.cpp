@@ -483,8 +483,11 @@ LRESULT CALLBACK CNewTeamTypes::DragDotProc(HWND hWnd, UINT message, WPARAM wPar
                     InvalidateRect(hDragPoint, nullptr, TRUE);
                     vcbSelectedTeam.SetItemColors(SelectedTeamIndex, cc.rgbResult);           
                     CNewAITrigger::TeamListChanged = true;
-                    CNewTrigger::Instance[0].TeamListChanged = true;
-                    CNewTrigger::Instance[1].TeamListChanged = true; 
+                    for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+                    {
+                        if (CNewTrigger::Instance[i].GetHandle())
+                            CNewTrigger::Instance[i].TeamListChanged = true;
+                    }
                 }
 			}     
             return 0;
@@ -921,8 +924,11 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 map.WriteString(CurrentTeamID, "Name", buffer);
 
                 CNewAITrigger::TeamListChanged = true;
-                CNewTrigger::Instance[0].TeamListChanged = true;
-                CNewTrigger::Instance[1].TeamListChanged = true;
+                for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+                {
+                    if (CNewTrigger::Instance[i].GetHandle())
+                        CNewTrigger::Instance[i].TeamListChanged = true;
+                }
 
                 FString name = ExtraWindow::FormatTriggerDisplayName(CurrentTeamID, buffer);
 
@@ -1902,8 +1908,11 @@ void CNewTeamTypes::OnClickNewTeam()
 
     OnSelchangeTeamtypes();
     CNewAITrigger::TeamListChanged = true;
-    CNewTrigger::Instance[0].TeamListChanged = true;
-    CNewTrigger::Instance[1].TeamListChanged = true;
+    for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+    {
+        if (CNewTrigger::Instance[i].GetHandle())
+            CNewTrigger::Instance[i].TeamListChanged = true;
+    }
 
     TeamSort::Instance.AddTrigger(value);
 }
@@ -1941,8 +1950,11 @@ void CNewTeamTypes::OnClickDelTeam(HWND& hWnd)
     SendMessage(hSelectedTeam, CB_SETCURSEL, idx, NULL);
     OnSelchangeTeamtypes();
     CNewAITrigger::TeamListChanged = true;
-    CNewTrigger::Instance[0].TeamListChanged = true;
-    CNewTrigger::Instance[1].TeamListChanged = true;
+    for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+    {
+        if (CNewTrigger::Instance[i].GetHandle())
+            CNewTrigger::Instance[i].TeamListChanged = true;
+    }
 
     if (TeamSort::Instance.IsVisible())
         TeamSort::Instance.LoadAllTriggers();
@@ -2014,8 +2026,11 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
 
         OnSelchangeTeamtypes();
         CNewAITrigger::TeamListChanged = true;
-        CNewTrigger::Instance[0].TeamListChanged = true;
-        CNewTrigger::Instance[1].TeamListChanged = true;
+        for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+        {
+            if (CNewTrigger::Instance[i].GetHandle())
+                CNewTrigger::Instance[i].TeamListChanged = true;
+        }
         TeamSort::Instance.AddTrigger(value);
     }
 }

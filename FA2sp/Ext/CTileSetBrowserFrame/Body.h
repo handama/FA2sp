@@ -42,6 +42,7 @@ public:
 	void OnBNSearchClicked();
 	void OnBNTerrainGeneratorClicked();
     static void RefreshWindows();
+    static void RefreshAllTabs();
 
 	void InitTabControl();
 
@@ -51,6 +52,7 @@ public:
 	static CTerrainGenerator m_terrainGenerator;
 	static HWND hTabCtrl;
     static bool TerrainDlgLoaded;
+    static bool RefreshPending;
     static CTileSetBrowserView* TileSetBrowserView_Instance;
     static float TileSetBrowserViewScaledFactor;
     static float OverlayBrowserViewScaledFactor;

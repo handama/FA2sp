@@ -5186,6 +5186,11 @@ std::set<VertexHeight> CMapDataExt::GetSmoothedVertexHeight(const std::set<Verte
 void CMapDataExt::RefreshAllWindows()
 {
 	CMeasurementToolbox::ClearStatus();
+	if (CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame
+		&& !::IsWindowVisible(CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->GetSafeHwnd()))
+	{
+		CTileSetBrowserFrameExt::RefreshPending = true;
+	}
 	if (TagSort::Instance.IsVisible())
 	{
 		TagSort::Instance.LoadAllTriggers();

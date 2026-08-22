@@ -204,6 +204,11 @@ namespace TransparencyMenu
             break;
         }
 
+        case WM_SHOWWINDOW:
+            if (wParam && &prevProc == &g_prevTileBrowserProc && CTileSetBrowserFrameExt::RefreshPending)
+                ::PostMessage(hWnd, 114514, 0, 0);
+            break;
+
         case WM_CLOSE:
         {
             if (&prevProc == &g_prevTileBrowserProc)

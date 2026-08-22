@@ -191,7 +191,7 @@ static json ProcessRequest(json& request)
                 {"tools", json::object()},
                 {"prompts", json::object()}
             }},
-            {"serverInfo", {{"name", "FA2sp-MCP"}, {"version", "1.0.1"}}}
+            {"serverInfo", {{"name", "FA2sp-MCP"}, {"version", "1.0.2"}}}
         };
     }
     // ----- tools/list -----

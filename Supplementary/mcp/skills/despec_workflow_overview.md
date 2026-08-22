@@ -76,6 +76,7 @@ despec(report, user_flow="...", discrepancies=[...])
              · 叙流提示代码看不到的关联（如道路伏兵 → 归入同一流水线，
                叙流推断的顺序依赖标"需确认"，确认后才写入 depends_on）
              · 代码与叙流冲突 → 记入分歧点清单（三分法分类），不武断丢弃
+             · 存疑触发用 te_ 系列函数读"编辑器语义"：te_get_event_type(n) 
      ↓
 ④ 确认       故事 → 剧本 → 分组/命名/依赖 → 分歧点清单逐条与用户对质
              （用户可裁决"接受现状"→ deferred 留档）→ 多轮修改直至用户确认
@@ -121,6 +122,10 @@ despec(report, user_flow="...", discrepancies=[...])
    `ReinforceAtWP(team:01000002,wp:25)`），需要你在解读中改写成人类可读的中文
    描述并让用户确认；未知事件/行为 ID（E<n>/A<n>）查
    `knowledge/trigger_and_script/events_params.md` 与 `actions_params.md` 补全；
+   **看不懂某触发在做什么时，优先用 te_ 系列函数**（te_get_event_type /
+   te_get_action_type / te_select_event / te_select_action / te_get_event_options /
+   te_get_action_options）读编辑器语义，别只靠裸参数字典硬猜——te_ 能直接给出类型
+   的详细说明和参数的可用选项，比查表更准更快；
 8. **编码约定**：地编内部 GBK，外部 UTF-8（.despec_lib.lua 与 .spec_lib.lua
    的注释有完整约定）；触发名从地图读出是 GBK，写入 spec 文件自动转 UTF-8；
 9. **多模式图**（遭遇战/战役/多人）：流水线按机制分，故事只写主模式，其余进报告；

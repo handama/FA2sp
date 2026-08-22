@@ -15,15 +15,23 @@ public:
 	static void SetMeasurementToolbox(int X, int Y);
 	static void ClearStatus();
 	static void OnRightButtonDown();
+	static void CancelPendingMeasurements();
 	static CMeasurementToolbox* m_pMeasurementToolbox;
 	static TransparencyHelper m_transparency;
 protected:
-	enum Controls
+enum Controls
 	{
 		TwoPointDistance = 1001,
 		LiveDistance = 1002,
 		ClearDistancePoints = 1003,
 		LineSegment = 1004,
+		PathDistance = 1005,
+		PathTypeCombo = 1006,
+		PathDistanceGroup = 1400,
+		MovementZoneLabel = 1401,
+		DestructibleOverlayCheck = 1402,
+		DestructibleUnitsCheck = 1403,
+		ClearPathDistance = 1404,
 		SetSymmetryAxis = 1101,
 		PlaceSymmetricPoint = 1102,
 		ClearSymmetricPoints = 1103,
@@ -48,6 +56,13 @@ protected:
 	void OnClickLineSegment();
 	void OnClickLiveDistance();
 	void OnClickClearDistancePoints();
+	void OnClickPathDistance();
+	void OnSelectPathType();
+	void OnClickDestructibleOverlay();
+	void OnClickDestructibleUnits();
+	void OnClickClearPathDistance();
+	void OnClickOverlayOption();
+	void OnClickObjectOption();
 	void OnClickSetSymmetryAxis();
 	void OnClickPlaceSymmetricPoint();
 	void OnClickClearSymmetricPoints();

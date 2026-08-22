@@ -692,6 +692,9 @@
     <ClCompile Include="FA2sp\Ext\CMapData\Body.RandomGround.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CMapData\Body.Pathfinding.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.cpp">
       <Filter>源文件</Filter>
     </ClCompile>

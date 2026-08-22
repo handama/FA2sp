@@ -200,6 +200,8 @@ struct OverlayTypeData
     bool Rubble;
     bool TerrainRock;
     bool RailRoad;
+    bool Overrides;
+    bool Road;
     FString CustomPaletteName;
     RGBClass RadarColor;
 };
@@ -611,6 +613,7 @@ struct MeasurementRecord
     std::vector<std::pair<MapCoord, MapCoord>> AxialSymmetricPoints;
     std::vector<std::pair<MapCoord, MapCoord>> CentralSymmetricPoints;
     std::vector<std::pair<MapCoord, float>> Circles;
+    std::vector<PathDistanceStruct> PathDistances;
 };
 
 class ObjectRecord : public HistoryRecord {
@@ -763,6 +766,17 @@ struct CustomTile
     void Initialize(int witdh, int height);
 };
 
+enum class PathfindingMoveType : int
+{
+    NormalLand = 0,
+    DestructiveLand,
+    NormalSea,
+    DestructiveSea,
+    NormalAmphibian,
+    DestructiveAmphibian,
+    Train,
+};
+
 class CMapDataExt : public CMapData
 {
 public:
@@ -854,6 +868,11 @@ public:
     static ppmfc::CString GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, ppmfc::CString currentFacing, int numFacings = 8);
     static int GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, int numFacings = 8);
     static int GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord);
+    static std::vector<MapCoord> FindPath(MapCoord from, MapCoord to, PathfindingMoveType type,
+        bool destroyOverlay = false, bool ignoreObjects = false,
+        std::vector<unsigned char>* outLevels = nullptr,
+        bool noCliffBack = true,
+        std::vector<unsigned char>* outHeights = nullptr);
     static bool IsValidTileSet(int tileset, bool allowToPlace = true);
     static ppmfc::CString GetAvailableIndex(EIndexType type = EIndexType::Generic);
     static void UpdateMapSectionIndicies(const ppmfc::CString& lpSection);

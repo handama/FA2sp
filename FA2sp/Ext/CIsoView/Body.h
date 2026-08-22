@@ -32,6 +32,8 @@ namespace Renderer
     class ObjectType;
 }
 
+enum class PathfindingMoveType : int;
+
 struct EditedMarks
 {
     short X;
@@ -133,6 +135,7 @@ enum MeasurementTypes : int
     PlaceCircle_Annotation,
     LineSegment_Annotation,
     ArrowSegment_Annotation,
+    PathDistance,
 };
 
 struct TwoPointStruct
@@ -141,6 +144,15 @@ struct TwoPointStruct
     MapCoord Point2;
     bool drawText;
     bool hasArrow;
+};
+
+struct PathDistanceStruct
+{
+    MapCoord Point1{ 0, 0 };
+    MapCoord Point2{ 0, 0 };
+    std::vector<MapCoord> Path;
+    std::vector<unsigned char> Levels;
+    std::vector<unsigned char> Heights;
 };
 
 struct HighBridgeLineStruct
@@ -449,6 +461,19 @@ public:
     static bool EnableOtherMeasurementTools;
     static std::vector<TwoPointStruct> TwoPointDistance;
     static std::vector<TwoPointStruct> TwoPointDistance_Annotation;
+    static std::vector<PathDistanceStruct> PathDistances;
+    static PathfindingMoveType SelectedPathfindingType;
+    static bool EnableDestroyOverlay;
+    static bool EnableIgnoreObjects;
+    static bool PathPreviewValid;
+    static MapCoord PathPreviewStart;
+    static MapCoord PathPreviewEnd;
+    static PathfindingMoveType PathPreviewType;
+    static bool PathPreviewDestroyOverlay;
+    static bool PathPreviewIgnoreObjects;
+    static std::vector<MapCoord> PathPreviewPath;
+    static std::vector<unsigned char> PathPreviewLevels;
+    static std::vector<unsigned char> PathPreviewHeights;
     static MapCoord AxialSymmetryLine[2];
     static MapCoord TempCircle[2];
     static MapCoord TempCircle_Annotation[2];

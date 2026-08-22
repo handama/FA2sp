@@ -2812,6 +2812,7 @@ void ObjectRecord::record(int recordType)
 		MeasurementRecords->AxialSymmetricPoints = CIsoViewExt::AxialSymmetricPoints;
 		MeasurementRecords->CentralSymmetricPoints = CIsoViewExt::CentralSymmetricPoints;
 		MeasurementRecords->Circles = CIsoViewExt::Circles;
+		MeasurementRecords->PathDistances = CIsoViewExt::PathDistances;
 	}
 	if (recordType & RecordType::Basenode)
 	{
@@ -2955,6 +2956,7 @@ void ObjectRecord::appendRecord(int recordType)
 		MeasurementRecords->AxialSymmetricPoints = CIsoViewExt::AxialSymmetricPoints;
 		MeasurementRecords->CentralSymmetricPoints = CIsoViewExt::CentralSymmetricPoints;
 		MeasurementRecords->Circles = CIsoViewExt::Circles;
+		MeasurementRecords->PathDistances = CIsoViewExt::PathDistances;
 	}
 	if (recordType & RecordType::Basenode && !(recordedFlages & RecordType::Basenode))
 	{
@@ -3139,6 +3141,8 @@ void ObjectRecord::recover()
 		CIsoViewExt::AxialSymmetricPoints = MeasurementRecords->AxialSymmetricPoints;
 		CIsoViewExt::CentralSymmetricPoints = MeasurementRecords->CentralSymmetricPoints;
 		CIsoViewExt::Circles = MeasurementRecords->Circles;
+		CIsoViewExt::PathDistances = MeasurementRecords->PathDistances;
+		CIsoViewExt::PathPreviewValid = false;
 
 		if (CIsoViewExt::AxialSymmetryLine[1] == MapCoord{ 0,0 })
 		{
@@ -5343,6 +5347,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		item.Veins = Variables::RulesMap.GetBool(ol, "IsVeins");
 		item.Rubble = Variables::RulesMap.GetBool(ol, "IsRubble");
 		item.Tiberium = Variables::RulesMap.GetBool(ol, "Tiberium");
+		item.Overrides = Variables::RulesMap.GetBool(ol, "Overrides");
+		item.Road = Variables::RulesMap.GetString(ol, "Land", "") == "Road";
 		item.CustomPaletteName = CINI::Art->GetString(ol, "Palette");
 		item.TerrainRock = Variables::RulesMap.GetString(ol, "Land", "") == "Rock";
 		auto name = Variables::RulesMap.GetString(ol, "Name", "");

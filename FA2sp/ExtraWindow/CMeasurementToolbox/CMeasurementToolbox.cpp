@@ -57,6 +57,12 @@ BOOL CMeasurementToolbox::OnInitDialog()
 	translate(LineSegment, "MeasurementToolbox.LineSegment");
 	translate(LiveDistance, "MeasurementToolbox.LiveDistance");
 	translate(ClearDistancePoints, "MeasurementToolbox.ClearDistancePoints");
+	translate(PathDistance, "MeasurementToolbox.PathDistance");
+	translate(PathDistanceGroup, "MeasurementToolbox.PathDistanceGroup");
+	translate(MovementZoneLabel, "MeasurementToolbox.MovementZone");
+	translate(DestructibleOverlayCheck, "MeasurementToolbox.DestructibleOverlay");
+	translate(DestructibleUnitsCheck, "MeasurementToolbox.DestructibleUnits");
+	translate(ClearPathDistance, "MeasurementToolbox.ClearPathDistance");
 	translate(SetSymmetryAxis, "MeasurementToolbox.SetSymmetryAxis");
 	translate(PlaceSymmetricPoint, "MeasurementToolbox.PlaceSymmetricPoint");
 	translate(ClearSymmetricPoints, "MeasurementToolbox.ClearSymmetricPoints");
@@ -67,6 +73,43 @@ BOOL CMeasurementToolbox::OnInitDialog()
 	translate(PlaceCircleCenter, "MeasurementToolbox.PlaceCircleCenter");
 	translate(PlaceCircle, "MeasurementToolbox.PlaceCircle");
 	translate(ClearCircles, "MeasurementToolbox.ClearCircles");
+
+	if (HWND hCombo = GetDlgItem(PathTypeCombo)->GetSafeHwnd())
+	{
+		const char* typeKeys[] =
+		{
+			"MeasurementToolbox.PathType.NormalLand",
+			"MeasurementToolbox.PathType.NormalSea",
+			"MeasurementToolbox.PathType.NormalAmphibian",
+			"MeasurementToolbox.PathType.Train",
+		};
+		const char* typeDefaults[] =
+		{
+			"Land",
+			"Sea",
+			"Amphibian",
+			"Train",
+		};
+		for (int i = 0; i < 4; ++i)
+		{
+			FString item = Translations::TranslateOrDefault(typeKeys[i], typeDefaults[i]);
+			::SendMessage(hCombo, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)item);
+		}
+		int comboIndex = 0;
+		switch (CIsoViewExt::SelectedPathfindingType)
+		{
+		case PathfindingMoveType::NormalSea: comboIndex = 1; break;
+		case PathfindingMoveType::NormalAmphibian: comboIndex = 2; break;
+		case PathfindingMoveType::Train: comboIndex = 3; break;
+		default: break;
+		}
+		::SendMessage(hCombo, CB_SETCURSEL, (WPARAM)comboIndex, 0);
+	}
+
+	::SendMessage(GetDlgItem(DestructibleOverlayCheck)->GetSafeHwnd(), BM_SETCHECK,
+		CIsoViewExt::EnableDestroyOverlay ? BST_CHECKED : BST_UNCHECKED, 0);
+	::SendMessage(GetDlgItem(DestructibleUnitsCheck)->GetSafeHwnd(), BM_SETCHECK,
+		CIsoViewExt::EnableIgnoreObjects ? BST_CHECKED : BST_UNCHECKED, 0);
 
 	if (Translations::GetTranslationItem("MeasurementToolboxCaption", buffer))
 		SetWindowTextA(buffer);
@@ -110,6 +153,18 @@ BOOL CMeasurementToolbox::OnCommand(WPARAM wParam, LPARAM lParam)
 		case CMeasurementToolbox::ClearDistancePoints:
 			OnClickClearDistancePoints();
 			break;
+		case CMeasurementToolbox::PathDistance:
+			OnClickPathDistance();
+			break;
+		case CMeasurementToolbox::DestructibleOverlayCheck:
+			OnClickDestructibleOverlay();
+			break;
+		case CMeasurementToolbox::DestructibleUnitsCheck:
+			OnClickDestructibleUnits();
+			break;
+		case CMeasurementToolbox::ClearPathDistance:
+			OnClickClearPathDistance();
+			break;
 		case CMeasurementToolbox::SetSymmetryAxis:
 			OnClickSetSymmetryAxis();
 			break;
@@ -146,6 +201,13 @@ BOOL CMeasurementToolbox::OnCommand(WPARAM wParam, LPARAM lParam)
 		if (nID == CMeasurementToolbox::SetRadius)
 		{
 			OnEditSetRadius();
+		}
+	}
+	else if (nNotify == CBN_SELCHANGE)
+	{
+		if (nID == CMeasurementToolbox::PathTypeCombo)
+		{
+			OnSelectPathType();
 		}
 	}
 
@@ -234,6 +296,54 @@ void CMeasurementToolbox::OnClickLineSegment()
 	CIsoView::CurrentCommand->Type = MeasurementTypes::LineSegment;
 }
 
+void CMeasurementToolbox::OnClickPathDistance()
+{
+	CIsoView::CurrentCommand->Command = 0x26;
+	CIsoView::CurrentCommand->Type = MeasurementTypes::PathDistance;
+
+	::SendMessage(GetDlgItem(LiveDistance)->GetSafeHwnd(), BM_SETCHECK, BST_UNCHECKED, 0);
+	CIsoViewExt::LiveDistanceRuler.clear();
+	CIsoViewExt::EnableLiveDistanceRuler = false;
+	CIsoViewExt::PathPreviewValid = false;
+}
+
+void CMeasurementToolbox::OnSelectPathType()
+{
+	HWND hCombo = GetDlgItem(PathTypeCombo)->GetSafeHwnd();
+	int sel = ::SendMessage(hCombo, CB_GETCURSEL, 0, 0);
+	switch (sel)
+	{
+	case 0: CIsoViewExt::SelectedPathfindingType = PathfindingMoveType::NormalLand; break;
+	case 1: CIsoViewExt::SelectedPathfindingType = PathfindingMoveType::NormalSea; break;
+	case 2: CIsoViewExt::SelectedPathfindingType = PathfindingMoveType::NormalAmphibian; break;
+	case 3: CIsoViewExt::SelectedPathfindingType = PathfindingMoveType::Train; break;
+	default: break;
+	}
+	CIsoViewExt::PathPreviewValid = false;
+}
+
+void CMeasurementToolbox::OnClickDestructibleOverlay()
+{
+	CIsoViewExt::EnableDestroyOverlay =
+		::SendMessage(GetDlgItem(DestructibleOverlayCheck)->GetSafeHwnd(), BM_GETCHECK, 0, 0) != 0;
+	CIsoViewExt::PathPreviewValid = false;
+}
+
+void CMeasurementToolbox::OnClickDestructibleUnits()
+{
+	CIsoViewExt::EnableIgnoreObjects =
+		::SendMessage(GetDlgItem(DestructibleUnitsCheck)->GetSafeHwnd(), BM_GETCHECK, 0, 0) != 0;
+	CIsoViewExt::PathPreviewValid = false;
+}
+
+void CMeasurementToolbox::OnClickClearPathDistance()
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
+	CIsoViewExt::PathDistances.clear();
+	CIsoViewExt::PathPreviewValid = false;
+	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+}
+
 void CMeasurementToolbox::SetMeasurementToolbox(int X, int Y)
 {
 	if (CIsoView::CurrentCommand->Type == MeasurementTypes::TwoPointDistance 
@@ -278,10 +388,30 @@ void CMeasurementToolbox::SetMeasurementToolbox(int X, int Y)
 				 CIsoView::CurrentCommand->Type == MeasurementTypes::LineSegment_Annotation ? "LineSegment" : "ArrowSegment",
 				 CIsoViewExt::TwoPointDistance_Annotation.back().Point1.X, CIsoViewExt::TwoPointDistance_Annotation.back().Point1.Y,
 				  CIsoViewExt::TwoPointDistance_Annotation.back().Point2.X, CIsoViewExt::TwoPointDistance_Annotation.back().Point2.Y);
-			CINI::CurrentDocument->WriteString("GeometricAnnotations", 
+			CINI::CurrentDocument->WriteString("GeometricAnnotations",
 				CINI::GetAvailableKey("GeometricAnnotations"),
 				value
 			);
+		}
+	}
+	else if (CIsoView::CurrentCommand->Type == MeasurementTypes::PathDistance)
+	{
+		if (CIsoViewExt::PathDistances.empty() || CIsoViewExt::PathDistances.back().Point2 != MapCoord{ 0, 0 })
+		{
+			CIsoViewExt::PathDistances.push_back({});
+		}
+		auto& back = CIsoViewExt::PathDistances.back();
+		if (back.Point1 == MapCoord{ 0, 0 })
+		{
+			back.Point1 = { X,Y };
+			back.Path.clear();
+		}
+		else if (back.Point1 != MapCoord{ X,Y })
+		{
+			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
+			back.Point2 = { X,Y };
+			back.Path = CMapDataExt::FindPath(back.Point1, back.Point2, CIsoViewExt::SelectedPathfindingType,
+				CIsoViewExt::EnableDestroyOverlay, CIsoViewExt::EnableIgnoreObjects, &back.Levels, true, &back.Heights);
 		}
 	}
 	else if (CIsoView::CurrentCommand->Type == MeasurementTypes::SetSymmetryAxis)
@@ -527,6 +657,8 @@ void CMeasurementToolbox::ClearStatus()
 	CIsoViewExt::LiveDistanceRuler.clear();
 	CIsoViewExt::EnableLiveDistanceRuler = false;
 	CIsoViewExt::TwoPointDistance.clear();
+	CIsoViewExt::PathDistances.clear();
+	CIsoViewExt::PathPreviewValid = false;
 	CIsoViewExt::AxialSymmetryLine[0] = MapCoord{ 0,0 };
 	CIsoViewExt::AxialSymmetryLine[1] = MapCoord{ 0,0 };
 	CIsoViewExt::TempCircle[0] = MapCoord{ 0,0 };
@@ -535,6 +667,58 @@ void CMeasurementToolbox::ClearStatus()
 	CIsoViewExt::AxialSymmetricPoints.clear();
 	CIsoViewExt::CentralSymmetricPoints.clear();
 	CIsoViewExt::Circles.clear();
+}
+
+void CMeasurementToolbox::CancelPendingMeasurements()
+{
+	if (!CIsoViewExt::TwoPointDistance.empty())
+	{
+		auto& back = CIsoViewExt::TwoPointDistance.back();
+		if (back.Point1 != MapCoord{ 0,0 } && back.Point2 == MapCoord{ 0,0 })
+		{
+			back.Point1 = MapCoord{ 0,0 };
+			back.Point2 = MapCoord{ 0,0 };
+		}
+	}
+	if (!CIsoViewExt::TwoPointDistance_Annotation.empty())
+	{
+		auto& back = CIsoViewExt::TwoPointDistance_Annotation.back();
+		if (back.Point1 != MapCoord{ 0,0 } && back.Point2 == MapCoord{ 0,0 })
+		{
+			back.Point1 = MapCoord{ 0,0 };
+			back.Point2 = MapCoord{ 0,0 };
+		}
+	}
+	if (!CIsoViewExt::PathDistances.empty())
+	{
+		auto& back = CIsoViewExt::PathDistances.back();
+		if (back.Point1 != MapCoord{ 0,0 } && back.Point2 == MapCoord{ 0,0 })
+		{
+			back = {};
+			CIsoViewExt::PathPreviewValid = false;
+			CIsoViewExt::PathPreviewPath.clear();
+			CIsoViewExt::PathPreviewLevels.clear();
+			CIsoViewExt::PathPreviewHeights.clear();
+		}
+	}
+	if (CIsoViewExt::AxialSymmetryLine[0] != MapCoord{ 0,0 }
+		&& CIsoViewExt::AxialSymmetryLine[1] == MapCoord{ 0,0 })
+	{
+		CIsoViewExt::AxialSymmetryLine[0] = MapCoord{ 0,0 };
+		CIsoViewExt::AxialSymmetryLine[1] = MapCoord{ 0,0 };
+	}
+	if (CIsoViewExt::TempCircle[0] != MapCoord{ 0,0 }
+		&& CIsoViewExt::TempCircle[1] == MapCoord{ 0,0 })
+	{
+		CIsoViewExt::TempCircle[0] = MapCoord{ 0,0 };
+		CIsoViewExt::TempCircle[1] = MapCoord{ 0,0 };
+	}
+	if (CIsoViewExt::TempCircle_Annotation[0] != MapCoord{ 0,0 }
+		&& CIsoViewExt::TempCircle_Annotation[1] == MapCoord{ 0,0 })
+	{
+		CIsoViewExt::TempCircle_Annotation[0] = MapCoord{ 0,0 };
+		CIsoViewExt::TempCircle_Annotation[1] = MapCoord{ 0,0 };
+	}
 }
 
 void CMeasurementToolbox::OnRightButtonDown()
@@ -562,6 +746,18 @@ void CMeasurementToolbox::OnRightButtonDown()
 			{
 				CIsoViewExt::TwoPointDistance_Annotation.back().Point1 = MapCoord{ 0,0 };
 				CIsoViewExt::TwoPointDistance_Annotation.back().Point2 = MapCoord{ 0,0 };
+			}
+		}
+	}
+	if (CIsoView::CurrentCommand->Type == MeasurementTypes::PathDistance)
+	{
+		if (!CIsoViewExt::PathDistances.empty())
+		{
+			if (CIsoViewExt::PathDistances.back().Point1 != MapCoord{ 0,0 }
+				&& CIsoViewExt::PathDistances.back().Point2 == MapCoord{ 0,0 })
+			{
+				CIsoViewExt::PathDistances.back() = {};
+				CIsoViewExt::PathPreviewValid = false;
 			}
 		}
 	}

@@ -6,6 +6,7 @@
 
 bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 {
+	CMeasurementToolbox::CancelPendingMeasurements();
 	TempValueHolder tmp(CIsoViewExt::SkipMapScreenConvert, true);
 	std::vector<FString> BuildingList;
 	std::vector<FString> UnitList;
@@ -364,11 +365,37 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 
 	for (auto& twoPoints : CIsoViewExt::TwoPointDistance)
 	{
+		if (twoPoints.Point1 == MapCoord{ 0,0 })
+			continue;
 		twoPoints.Point1.X += x_move;
 		twoPoints.Point1.Y += y_move;
-		twoPoints.Point2.X += x_move;
-		twoPoints.Point2.Y += y_move;
+		if (twoPoints.Point2 != MapCoord{ 0,0 })
+		{
+			twoPoints.Point2.X += x_move;
+			twoPoints.Point2.Y += y_move;
+		}
 	}
+	for (auto& pathDist : CIsoViewExt::PathDistances)
+	{
+		if (pathDist.Point1 == MapCoord{ 0,0 })
+			continue;
+		pathDist.Point1.X += x_move;
+		pathDist.Point1.Y += y_move;
+		if (pathDist.Point2 != MapCoord{ 0,0 })
+		{
+			pathDist.Point2.X += x_move;
+			pathDist.Point2.Y += y_move;
+			for (auto& coord : pathDist.Path)
+			{
+				coord.X += x_move;
+				coord.Y += y_move;
+			}
+		}
+	}
+	CIsoViewExt::PathPreviewValid = false;
+	CIsoViewExt::PathPreviewPath.clear();
+	CIsoViewExt::PathPreviewLevels.clear();
+	CIsoViewExt::PathPreviewHeights.clear();
 	for (auto& [mc, radius] : CIsoViewExt::Circles)
 	{
 		mc.X += x_move;

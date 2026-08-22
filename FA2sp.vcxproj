@@ -294,6 +294,7 @@
     <ClCompile Include="FA2sp\Ext\CLoading\Hooks.LoadObjects.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapData\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapData\Body.RandomGround.cpp" />
+    <ClCompile Include="FA2sp\Ext\CMapData\Body.Pathfinding.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapData\Body.ResizeMap.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapData\Hooks.UndoRedo.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapData\Hooks.AutoPropertyBrush.cpp" />

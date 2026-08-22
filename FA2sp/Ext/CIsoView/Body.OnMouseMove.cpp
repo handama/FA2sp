@@ -1036,19 +1036,16 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                 {
                     drawOtherRange(ID, objectX, objectY, CViewObjectsExt::ObjectTerrainType::InhibitorRange, isBuilding);
                 }
-                if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::SecondaryWeaponRange || All)
+                if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::SecondaryWeaponRange || All || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                 {
-
                     drawWeaponRange(ID, objectX, objectY, isBuilding, true, elite, false, subcell);
                 }
                 if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::DeathWeaponRange || All)
                 {
-
                     drawWeaponRange(ID, objectX, objectY, isBuilding, false, elite, true, subcell);
                 }
                 if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::WeaponRange || All || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                 {
-
                     drawWeaponRange(ID, objectX, objectY, isBuilding, false, elite, false, subcell);
                 }
             }

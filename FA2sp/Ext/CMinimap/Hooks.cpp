@@ -116,32 +116,54 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 			return CPoint(x, y);
 		};
 
+	auto GetMiniMapPos_MapCoord = [&bmi](int X, int Y)
+		{
+			int x, y;
+			const int pheight = bmi.bmiHeader.biHeight;
+
+			const DWORD dwIsoSize = CMapData::Instance->MapWidthPlusHeight;
+			y = Y / 2 + X / 2;
+			x = dwIsoSize - X + Y;
+
+			int tx, ty;
+			tx = CMapData::Instance->Size.Width;
+			ty = CMapData::Instance->Size.Height;
+
+			ty = ty / 2 + tx / 2;
+			tx = dwIsoSize - CMapData::Instance->Size.Width + CMapData::Instance->Size.Height;
+
+			x -= tx;
+			y -= ty;
+
+			x += pheight;
+			y += pheight / 2;
+			return CPoint(x, y);
+		};
+	
+	if (CIsoViewExt::DrawScriptPath && CIsoViewExt::ScriptPath.size() > 1)
+	{
+		int penWidth = CMinimapExt::CurrentScale >= 1.8 ? 4 : 2;
+		HPEN hPen = ::CreatePen(PS_SOLID, penWidth, ExtConfigs::DistanceRuler_Color);
+		HGDIOBJ hOldPen = ::SelectObject(pDC->m_hDC, hPen);
+
+		for (size_t i = 1; i < CIsoViewExt::ScriptPath.size(); ++i)
+		{
+			auto p1 = GetMiniMapPos_MapCoord(CIsoViewExt::ScriptPath[i - 1].X, CIsoViewExt::ScriptPath[i - 1].Y);
+			auto p2 = GetMiniMapPos_MapCoord(CIsoViewExt::ScriptPath[i].X, CIsoViewExt::ScriptPath[i].Y);
+			p1.x *= CMinimapExt::CurrentScale;
+			p1.y *= CMinimapExt::CurrentScale;
+			p2.x *= CMinimapExt::CurrentScale;
+			p2.y *= CMinimapExt::CurrentScale;
+			::MoveToEx(pDC->m_hDC, p1.x, p1.y, nullptr);
+			::LineTo(pDC->m_hDC, p2.x, p2.y);
+		}
+
+		::SelectObject(pDC->m_hDC, hOldPen);
+		::DeleteObject(hPen);
+	}
+
 	if (ExtConfigs::ShowMapBoundInMiniMap)
 	{
-		auto GetMiniMapPos_MapCoord = [&bmi](int X, int Y)
-			{
-				int x, y;
-				const int pheight = bmi.bmiHeader.biHeight;
-
-				const DWORD dwIsoSize = CMapData::Instance->MapWidthPlusHeight;
-				y = Y / 2 + X / 2;
-				x = dwIsoSize - X + Y;
-
-				int tx, ty;
-				tx = CMapData::Instance->Size.Width;
-				ty = CMapData::Instance->Size.Height;
-
-				ty = ty / 2 + tx / 2;
-				tx = dwIsoSize - CMapData::Instance->Size.Width + CMapData::Instance->Size.Height;
-
-				x -= tx;
-				y -= ty;
-
-				x += pheight;
-				y += pheight / 2;
-				return CPoint(x, y);
-			};
-
 		const int& mapwidth = CMapData::Instance->Size.Width;
 		const int& mapheight = CMapData::Instance->Size.Height;
 
@@ -177,7 +199,7 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 			borderRect.OffsetRect(1, 1);
 			pDC->Draw3dRect(&borderRect, RGB(0, 0, 255), RGB(0, 0, 200));
 		}
-	}	
+	}
 
 	RECT cr;
 	CRect selRect;

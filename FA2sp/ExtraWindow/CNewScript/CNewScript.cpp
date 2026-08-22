@@ -251,6 +251,7 @@ void CNewScript::Close(HWND& hWnd)
     {
         CIsoViewExt::DrawScriptPath = false;
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->GetSafeHwnd(), 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+        CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }
 
     EndDialog(hWnd, NULL);
@@ -693,7 +694,10 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
                 if (CIsoViewExt::DrawScriptPath)
                     UpdateScriptPath();
                 else
+                {
                     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->GetSafeHwnd(), 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+                    CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+                }
             }        
             break;
         default:
@@ -1791,6 +1795,7 @@ void CNewScript::UpdateScriptPath()
         }
     }
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->GetSafeHwnd(), 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+    CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 }
 
 void CNewScript::OnClickSearchReference(HWND& hWnd)

@@ -266,8 +266,8 @@ void CNewTrigger::Initialize(HWND& hWnd)
     hActionMoveUp = GetDlgItem(hWnd, Controls::ActionMoveUp);
     hActionMoveDown = GetDlgItem(hWnd, Controls::ActionMoveDown);
     hActionSplit = GetDlgItem(hWnd, Controls::ActionSplit);
-    SetWindowTextW(hActionMoveUp, L"\u25b2"); //¡ø
-    SetWindowTextW(hActionMoveDown, L"\u25bc"); //¨‹
+    SetWindowTextW(hActionMoveUp, L"\u25b2"); 
+    SetWindowTextW(hActionMoveDown, L"\u25bc"); 
     Translate(2005, "TriggerActionSplit");
      
     vcbSelectedTrigger.Attach(hSelectedTrigger, &ExtConfigs::SortByLabelName_Trigger, false);
@@ -2922,7 +2922,8 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
         "If you want to cancel to deletion of the trigger, press Cancel.\n"
         "Note: CellTags will be deleted too using this function if you press Yes.");
 
-    int nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerDeleteTitle", "Delete Trigger"), MB_YESNOCANCEL);
+    int nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerDeleteTitle", "Delete Trigger"), 
+                    MB_YESNOCANCEL | MB_ICONQUESTION);
     if (nResult == IDYES || nResult == IDNO)
     {
         if (nResult == IDYES)
@@ -3148,6 +3149,11 @@ void CNewTrigger::OnClickCloEvent(HWND& hWnd)
 void CNewTrigger::OnClickDelEvent(HWND& hWnd)
 {
     if (!CurrentTrigger) return;
+    if (ExtConfigs::ConfirmDeleteSubEntries && MessageBox(hWnd,
+        Translations::TranslateOrDefault("TriggerDelEventWarn", "Are you sure to delete the selected event(s) from this trigger?"),
+        Translations::TranslateOrDefault("TriggerDelEventTitle", "Delete Trigger Event"),
+        MB_YESNO | MB_ICONQUESTION) == IDNO)
+        return;
     std::vector<int> selected;
     GetEventListBoxSels(selected);
 
@@ -3281,6 +3287,11 @@ void CNewTrigger::OnClickCloAction(HWND& hWnd)
 void CNewTrigger::OnClickDelAction(HWND& hWnd)
 {
     if (!CurrentTrigger) return;
+    if (ExtConfigs::ConfirmDeleteSubEntries && MessageBox(hWnd,
+        Translations::TranslateOrDefault("TriggerDelActionWarn", "Are you sure to delete the selected action(s) from this trigger?"),
+        Translations::TranslateOrDefault("TriggerDelActionTitle", "Delete Trigger Action"),
+        MB_YESNO | MB_ICONQUESTION) == IDNO)
+        return;
     std::vector<int> selected;
     GetActionListBoxSels(selected);
 

@@ -146,6 +146,7 @@ bool ExtConfigs::LoadRA2MixFilesOnly;
 bool ExtConfigs::ExtVariables;
 bool ExtConfigs::TestNotLoaded;
 bool ExtConfigs::CloneWithOrderedID;
+bool ExtConfigs::ConfirmDeleteSubEntries;
 bool ExtConfigs::InfantrySubCell_GameDefault;
 bool ExtConfigs::InfantrySubCell_Edit;
 bool ExtConfigs::InfantrySubCell_Edit_Single;
@@ -287,6 +288,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::TutorialTexts_Fix = CINI::FAData->GetBool("ExtConfigs", "TutorialTexts.Fix");
 	ExtConfigs::TutorialTexts_Viewer = CINI::FAData->GetBool("ExtConfigs", "TutorialTexts.Viewer");
 	ExtConfigs::CloneWithOrderedID = CINI::FAData->GetBool("ExtConfigs", "CloneWithOrderedID", true);
+	ExtConfigs::ConfirmDeleteSubEntries = CINI::FAData->GetBool("ExtConfigs", "ConfirmDelete.SubEntries");
 
 	ExtConfigs::SkipTipsOfTheDay = CINI::FAData->GetBool("ExtConfigs", "SkipTipsOfTheDay", false);
 
@@ -712,6 +714,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.CloneWithOrderedID", "Clone triggers (teams) with increasing number instead of 'Clone'"),
 		.IniKey = "CloneWithOrderedID",
 		.Value = &ExtConfigs::CloneWithOrderedID,
+		.Type = ExtConfigs::SpecialOptionType::None});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ConfirmDelete.SubEntries", "Ask for confirmation when deleting sub-entries of triggers/scripts, etc."),
+		.IniKey = "ConfirmDelete.SubEntries",
+		.Value = &ExtConfigs::ConfirmDeleteSubEntries,
 		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

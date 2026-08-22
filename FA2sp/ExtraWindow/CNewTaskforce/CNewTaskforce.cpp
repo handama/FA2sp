@@ -835,7 +835,7 @@ void CNewTaskforce::OnClickDelTaskforce(HWND& hWnd)
         return;
     int result = MessageBox(hWnd,
         Translations::TranslateOrDefault("TaskforceDelTFWarn", "Are you sure to delete the selected task force? If you delete it, make sure to eliminate ANY references to this task force in team-types."),
-        Translations::TranslateOrDefault("TaskforceDelTFTitle", "Delete task force"), MB_YESNO);
+        Translations::TranslateOrDefault("TaskforceDelTFTitle", "Delete task force"), MB_YESNO | MB_ICONQUESTION);
 
     if (result == IDNO)
         return;
@@ -932,6 +932,11 @@ void CNewTaskforce::OnClickAddUnit(HWND& hWnd)
 void CNewTaskforce::OnClickDeleteUnit(HWND& hWnd)
 {
     if (SelectedTaskForceIndex < 0 || SendMessage(hUnitsListBox, LB_GETCARETINDEX, NULL, NULL) < 0)
+        return;
+    if (ExtConfigs::ConfirmDeleteSubEntries && MessageBox(hWnd,
+        Translations::TranslateOrDefault("TaskforceDelUnitWarn", "Are you sure to delete the selected unit(s) from this task force?"),
+        Translations::TranslateOrDefault("TaskforceDelUnitTitle", "Delete Task Force Unit"),
+        MB_YESNO | MB_ICONQUESTION) == IDNO)
         return;
 
     std::vector<int> selected;

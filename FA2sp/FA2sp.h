@@ -155,6 +155,7 @@ public:
     static bool ExtVariables;
     static bool TestNotLoaded;
     static bool CloneWithOrderedID;
+    static bool ConfirmDeleteSubEntries;
     static bool InfantrySubCell_GameDefault;
     static bool InfantrySubCell_Edit;
     static bool InfantrySubCell_Edit_Single;

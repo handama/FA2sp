@@ -967,7 +967,8 @@ void CNewAITrigger::OnClickDelAITrigger()
     FString pMessage = Translations::TranslateOrDefault("AITriggerDeleteMessage",
         "Are you sure to delete this AI trigger?");
 
-    int nResult = ::MessageBox(GetHandle(), pMessage, Translations::TranslateOrDefault("AITriggerDeleteTitle", "Delete AI Trigger"), MB_YESNO);
+    int nResult = ::MessageBox(GetHandle(), pMessage, Translations::TranslateOrDefault("AITriggerDeleteTitle", "Delete AI Trigger"), 
+        MB_YESNO | MB_ICONQUESTION);
 
     if (nResult == IDYES)
     {

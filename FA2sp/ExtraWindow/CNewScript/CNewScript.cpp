@@ -1139,7 +1139,7 @@ void CNewScript::OnClickDelScript(HWND& hWnd)
     CNewTeamTypes::ScriptListChanged = true;
     int result = MessageBox(hWnd,
         Translations::TranslateOrDefault("ScriptDelWarn", "Are you sure to delete this ScriptType? Don't forget to delete any references to this ScriptType"),
-        Translations::TranslateOrDefault("ScriptDelTitle", "Delete ScriptType"), MB_YESNO);
+        Translations::TranslateOrDefault("ScriptDelTitle", "Delete ScriptType"), MB_YESNO | MB_ICONQUESTION);
 
     if (result == IDNO)
         return;
@@ -1370,6 +1370,11 @@ void CNewScript::OnClickCloneAction(HWND& hWnd)
 void CNewScript::OnClickDeleteAction(HWND& hWnd)
 {
     if (SelectedScriptIndex < 0 || SendMessage(hActionsListBox, LB_GETCARETINDEX, NULL, NULL) < 0)
+        return;
+    if (ExtConfigs::ConfirmDeleteSubEntries && MessageBox(hWnd,
+        Translations::TranslateOrDefault("ScriptDelActionWarn", "Are you sure to delete the selected action line(s) from this script?"),
+        Translations::TranslateOrDefault("ScriptDelActionTitle", "Delete Script Action"),
+        MB_YESNO | MB_ICONQUESTION) == IDNO)
         return;
     std::vector<int> curSels;
     GetListBoxSels(curSels);

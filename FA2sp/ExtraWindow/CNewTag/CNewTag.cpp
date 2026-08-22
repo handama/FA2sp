@@ -995,7 +995,7 @@ void CNewTag::OnClickDelTag(HWND& hWnd)
         return;
     int result = MessageBox(hWnd,
         Translations::TranslateOrDefault("Tag.DelWarn", "Are you sure to delete the selected tag? This may cause the attached trigger to don't work anymore, if no other tag has the trigger attached."),
-        Translations::TranslateOrDefault("Tag.DelTitle", "Delete tag"), MB_YESNO);
+        Translations::TranslateOrDefault("Tag.DelTitle", "Delete tag"), MB_YESNO | MB_ICONQUESTION);
 
     if (result == IDNO)
         return;

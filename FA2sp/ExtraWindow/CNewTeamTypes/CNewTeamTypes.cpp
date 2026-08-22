@@ -1914,7 +1914,7 @@ void CNewTeamTypes::OnClickDelTeam(HWND& hWnd)
         return;
     int result = MessageBox(hWnd,
         Translations::TranslateOrDefault("TeamTypesDelTeamWarn", "Are you sure that you want to delete the selected team-type? If you delete it, don't forget to delete any reference to the team-type."),
-        Translations::TranslateOrDefault("TeamTypesDelTeamTitle", "Delete team-type"), MB_YESNO);
+        Translations::TranslateOrDefault("TeamTypesDelTeamTitle", "Delete team-type"), MB_YESNO | MB_ICONQUESTION);
 
     if (result == IDNO)
         return;

@@ -129,19 +129,26 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
         if (!CViewObjectsExt::IsInPlaceCliff_OnMouseMove)
         {
             auto point = CIsoViewExt::GetExtension()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
-            if (lpMsg->wParam == VK_UP && (currentCTtype == CViewObjectsExt::DirtRoad || currentCTtype == CViewObjectsExt::CityDirtRoad || currentCTtype == CViewObjectsExt::Highway))
+            if (lpMsg->wParam == VK_UP &&
+                (currentCTtype == CViewObjectsExt::DirtRoad || currentCTtype == CViewObjectsExt::CityDirtRoad || currentCTtype == CViewObjectsExt::Highway)
+                && !CViewObjectsExt::PlaceConnectedTile_AutoConnect)
             {
                 if (CViewObjectsExt::CliffConnectionHeight < 14 && CViewObjectsExt::LastPlacedCT.GetNextHeightOffset() < 1 || CViewObjectsExt::NextCTHeightOffset < 0 || CViewObjectsExt::CliffConnectionHeight < 13)
                 {
+                    // a height change invalidates a pending AutoConnect preview
+                    CViewObjectsExt::AutoConnect_Cancel();
                     CViewObjectsExt::RaiseNextCT();
                     CViewObjectsExt::PlaceConnectedTile_OnMouseMove(point.X, point.Y, false);
                 }
 
             }
-            else if (lpMsg->wParam == VK_DOWN && (currentCTtype == CViewObjectsExt::DirtRoad || currentCTtype == CViewObjectsExt::CityDirtRoad || currentCTtype == CViewObjectsExt::Highway))
+            else if (lpMsg->wParam == VK_DOWN &&
+                (currentCTtype == CViewObjectsExt::DirtRoad || currentCTtype == CViewObjectsExt::CityDirtRoad || currentCTtype == CViewObjectsExt::Highway)
+                && !CViewObjectsExt::PlaceConnectedTile_AutoConnect)
             {
                 if (CViewObjectsExt::CliffConnectionHeight > 0 || CViewObjectsExt::NextCTHeightOffset > 0 || CViewObjectsExt::CliffConnectionHeight == 0 && CViewObjectsExt::LastPlacedCT.GetNextHeightOffset() > 0)
                 {
+                    CViewObjectsExt::AutoConnect_Cancel();
                     CViewObjectsExt::LowerNextCT();
                     CViewObjectsExt::PlaceConnectedTile_OnMouseMove(point.X, point.Y, false);
                 }
@@ -150,6 +157,8 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
             {
                 if (CViewObjectsExt::CliffConnectionHeight < 14)
                 {
+                    // a height change invalidates a pending AutoConnect preview
+                    CViewObjectsExt::AutoConnect_Cancel();
                     CViewObjectsExt::CliffConnectionHeight++;
                 }
             }
@@ -157,6 +166,7 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
             {
                 if (CViewObjectsExt::CliffConnectionHeight > 0)
                 {
+                    CViewObjectsExt::AutoConnect_Cancel();
                     CViewObjectsExt::CliffConnectionHeight--;
                 }
             }

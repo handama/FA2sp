@@ -1231,9 +1231,10 @@ void CViewObjectsExt::Redraw_Owner()
                         TreeViewIndex_House[i] = itr.second;
                         InsertingSpecialBitmap = false;
                     }
+                    i++;
                 }
-            }
-            if (ExtConfigs::PlayerAtXForTechnos)
+			}
+			if (ExtConfigs::PlayerAtXForTechnos)
             {
                 int index = 0;
                 for (const auto& player : playersAtX)
@@ -4456,12 +4457,19 @@ void CViewObjectsExt::InitializeOnUpdateEngine()
     CIsoViewExt::EnableAutoTrack = false;
 
     CViewObjectsExt::CurrentConnectedTileType = -1;
+    // drop any pending AutoConnect preview before the tool state is reset
+    CViewObjectsExt::AutoConnect_Cancel();
+    CViewObjectsExt::AutoConnect_ResetHistory();
     CViewObjectsExt::CliffConnectionCoord.X = -1;
     CViewObjectsExt::CliffConnectionCoord.Y = -1;
     CViewObjectsExt::CliffConnectionHeight = -1;
     CViewObjectsExt::LastCTTile = -1;
+    CViewObjectsExt::CliffConnectionTile = -1;
     CViewObjectsExt::CliffConnectionCoordRecords.clear();
     CViewObjectsExt::LastPlacedCT.Index = -1;
+    CViewObjectsExt::ThisPlacedCT.Index = -1;
+    CViewObjectsExt::LastTempPlacedCTIndex = -1;
+    CViewObjectsExt::LastTempFacing = -1;
     CViewObjectsExt::LastSuccessfulIndex = -1;
     CViewObjectsExt::NextCTHeightOffset = 0;
     CViewObjectsExt::HeightChanged = false;

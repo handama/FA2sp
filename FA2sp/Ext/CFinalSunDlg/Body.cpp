@@ -2162,6 +2162,12 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 		}
 		if (CIsoView::CurrentCommand->Command == 0x1E)
 		{
+			if (pMsg->wParam == 'A')
+			{
+				CViewObjectsExt::AutoConnect_Cancel();
+				CViewObjectsExt::PlaceConnectedTile_AutoConnect = !CViewObjectsExt::PlaceConnectedTile_AutoConnect;
+				return TRUE;
+			}
 			for (int i = 0; i < 10; ++i)
 			{
 				if (pMsg->wParam == i + '0' || pMsg->wParam == i + VK_NUMPAD0)
@@ -2171,6 +2177,8 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 					auto& tileSet = CViewObjectsExt::ConnectedTileSets[info.Index];
 					if (tileSet.ToSetPress[i] > -1)
 					{
+						// switching the connected tile set discards a pending preview
+						CViewObjectsExt::AutoConnect_Cancel();
 						for (auto& [ctIndex2, info2] : CViewObjectsExt::TreeView_ConnectedTileMap)
 						{
 							if (info2.Index == tileSet.ToSetPress[i] && info2.Front == info.Front)

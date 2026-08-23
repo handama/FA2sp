@@ -3554,6 +3554,21 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC, bool bScreenSpace)
                 ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
             }
         }
+        if (CIsoView::CurrentCommand->Command == 0x1E)
+        {
+            FString buffer = Translations::TranslateOrDefault(
+                CViewObjectsExt::PlaceConnectedTile_AutoConnect ? "BatchConnectOn" : "BatchConnectOff", 
+                CViewObjectsExt::PlaceConnectedTile_AutoConnect ? "BatchConnect: On, press 'A' to switch" : "BatchConnect: Off, press 'A' to switch");
+            if (ExtConfigs::DirectXRendering)
+            {
+                TextOutDirectX(rect.left + 10, rect.top + 10 + lineHeight * leftIndex, buffer, fontSize);
+                leftIndex++;
+            }
+            else
+            {
+                ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
+            }
+        }
     }
 }
 

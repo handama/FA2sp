@@ -179,6 +179,10 @@ public:
     bool WaterCliff;
     bool IsTXCityCliff;
     int ToSetPress[10];
+    // AutoConnect planning parameters (defaults per Type, INI-overridable)
+    double AutoWeaveAmplitude;      // soft lateral limit base; hard limit = 2x
+    bool AutoSingleVariantPenalty;  // penalize consecutive identical 1-variant pieces
+    int AutoBacktrackSteps;         // segments to drop when planning dead-ends
 };
 struct ConnectedTileInfo
 {
@@ -372,6 +376,7 @@ public:
     static bool HeightChanged;
     static bool IsInPlaceCliff_OnMouseMove;
     static bool PlaceConnectedTile_Start;
+    static bool PlaceConnectedTile_AutoConnect;
 
     static int NextCTHeightOffset;
     static void LowerNextCT()
@@ -481,6 +486,13 @@ public:
     static void ApplyInfantrySubCell(int X, int Y);
     static void PlaceConnectedTile_OnMouseMove(int X, int Y, bool place = false);
     static void PlaceConnectedTile_OnLButtonDown(int X, int Y);
+    // AutoConnect (virtual placement) session entry points
+    static void AutoConnect_UpdatePreview(int X, int Y);
+    static bool AutoConnect_OnClick(int X, int Y);
+    static void AutoConnect_Cancel();
+    static void AutoConnect_UndoLastBatch();
+    static void AutoConnect_ResetHistory();
+    static bool AutoConnect_PreviewActive();
     static void ConnectedTile_Initialize();
     static void MoveBaseNodeOrder(int X, int Y);
     static void MoveBaseNode(int X, int Y);

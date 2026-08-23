@@ -321,7 +321,16 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
     auto point = CIsoViewExt::GetExtension()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
     if (CIsoView::CurrentCommand->Command == 0x1E)
     {
-        CViewObjectsExt::PlaceConnectedTile_OnMouseMove(point.X, point.Y);
+        if (CViewObjectsExt::PlaceConnectedTile_AutoConnect
+            && CViewObjectsExt::CliffConnectionCoord.X > -1 && CViewObjectsExt::CliffConnectionCoord.Y > -1)
+        {
+            // live whole-path preview following the cursor
+            CViewObjectsExt::AutoConnect_UpdatePreview(point.X, point.Y);
+        }
+        else
+        {
+            CViewObjectsExt::PlaceConnectedTile_OnMouseMove(point.X, point.Y);
+        }
     }
     if (CViewObjectsExt::PlacingRandomRock >= 0)
     {
@@ -556,6 +565,12 @@ DEFINE_HOOK(4347B8, CFinalSunDlg_OnEditUndo, 6)
 {
     if (CIsoView::CurrentCommand->Command == 0x1E)
     {
+        // drop any pending AutoConnect preview first: it writes live onto the
+        // map and holds a stale start state, which would corrupt the undo
+        CViewObjectsExt::AutoConnect_Cancel();
+        // also remove the undone batch (AutoConnect or manual single segment)
+        // from the cross-batch avoidance history
+        CViewObjectsExt::AutoConnect_UndoLastBatch();
         if (!CViewObjectsExt::CliffConnectionCoordRecords.empty())
         {
             CViewObjectsExt::CliffConnectionCoord = CViewObjectsExt::CliffConnectionCoordRecords.back();

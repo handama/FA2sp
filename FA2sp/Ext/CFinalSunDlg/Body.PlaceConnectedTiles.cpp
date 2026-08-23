@@ -33,10 +33,290 @@ int CViewObjectsExt::LastSuccessfulHeightOffset;
 bool CViewObjectsExt::LastSuccessfulOpposite;
 bool CViewObjectsExt::IsUsingTXCliff = false;
 bool CViewObjectsExt::PlaceConnectedTile_Start = false;
+bool CViewObjectsExt::PlaceConnectedTile_AutoConnect = false;
 bool CViewObjectsExt::HeightChanged;
 bool CViewObjectsExt::IsInPlaceCliff_OnMouseMove;
 std::vector<int> CViewObjectsExt::LastCTTileRecords;
 std::vector<int> CViewObjectsExt::LastHeightRecords;
+
+// ===================== AutoConnect virtual placement =====================
+// While planning a path, tile writes are redirected into an in-memory segment
+// buffer instead of touching the real map. The planned path is applied to the
+// map only as a preview (fully revertible) and committed on the second click.
+
+namespace AutoConnect
+{
+    // snapshot of the mutable placement state, used to roll back a rejected
+    // trial segment or to restart planning from the session start point
+    struct SegmentState
+    {
+        MapCoord Anchor;
+        int Height;
+        ConnectedTiles LastCT;
+        ConnectedTiles ThisCT;          // used by long-distance continuation; must survive rejected trials
+        int LastCTTile;
+        int CliffTile;                  // current preview tile; must survive rejected trials
+        bool PlaceStart;                // first-tile start compensation must survive rejected trials
+        int LastSuccessfulIndex;
+        bool LastSuccessfulOpposite;
+        int LastSuccessfulHeightOffset;
+        int NextCTHeightOffset;
+        bool HeightChanged;
+        int HeightAdjust;
+        int LastTempPlacedCTIndex;
+        int LastTempFacing;
+    };
+
+    struct Segment
+    {
+        std::map<int, CellData> Cells;                  // dwpos -> new cell value (tile body)
+        std::map<int, CellData> FixCells;               // dwpos -> junction patch cell value
+        std::map<int, std::pair<int, int>> Overlays;    // dwpos -> {overlay, overlayData}
+        SegmentState Before;
+    };
+
+    // one committed placement batch: an AutoConnect path or a manual single
+    // segment (the result of one left-click commit)
+    struct CommittedBatch
+    {
+        std::map<int, CellData> Cells;                  // tile bodies
+        std::map<int, CellData> FixCells;               // junction patches
+        std::map<int, std::pair<int, int>> Overlays;    // overlays
+    };
+
+    struct Session
+    {
+        bool Active = false;                // start point confirmed, target expected
+        bool Previewing = false;            // preview currently applied to the map
+        MapCoord Start;
+        MapCoord Target;
+        int LastPreviewPos = -1;            // dedupe mousemove replanning
+        SegmentState SessionBefore;
+        std::vector<Segment> Segments;
+        std::map<int, CellData> MergedCells;            // tile bodies of all accepted segments
+        std::map<int, CellData> MergedFixCells;         // junction patches of all accepted segments
+        std::map<int, CellData> OldCells;               // real values before preview applied
+        std::map<int, std::pair<int, int>> OldOverlays; // real {overlay, overlayData} before preview applied
+
+        // Persisted across chained AutoConnect batches within one placement
+        // flow. Used so later batches also avoid cells already committed by
+        // earlier batches.
+        std::vector<CommittedBatch> CommittedBatches;           // per-batch history (for undo)
+        std::map<int, CellData> CommittedCells;                 // aggregate tile bodies of all committed batches
+        std::map<int, CellData> CommittedFixCells;              // aggregate junction patches of all committed batches
+        std::map<int, std::pair<int, int>> CommittedOverlays;   // aggregate overlays of all committed batches
+        CommittedBatch PendingManualBatch;                      // scratch buffer for a single manual placement
+    };
+
+    Session g_Session;
+    bool g_VirtualPlacing = false;
+    Segment* g_pCurrentSegment = nullptr;
+    CommittedBatch* g_pCurrentManualBatch = nullptr;
+
+    // ===================== Closure (head-to-tail) planning =====================
+    // The connection state of a placed tile is fully described by the triple
+    // (LastPlacedCT.Index, LastPlacedCT.Opposite, CliffConnectionCoord). If the
+    // last tile of a closing path ends with the same triple as the flow's very
+    // first tile, the loop is closed: the next tile would land exactly on the
+    // first tile, i.e. the first and the last tile fully overlap.
+    bool ClosureFirstRecorded = false;              // the first tile has been captured
+    bool ClosureFirstPending = true;                // the flow's real first tile is not locked yet; virtual plans only stage it
+    MapCoord ClosureFlowStart{ -1, -1 };            // flow start anchor P
+    int ClosureFirstIndex = -1;                     // first tile triple: tile index
+    bool ClosureFirstOpposite = false;              // first tile triple: opposite
+    MapCoord ClosureFirstCoord{ -1, -1 };           // first tile triple: anchor after it
+    int ClosureFirstVariant = -1;                   // concrete tile of the first placement
+    std::map<int, CellData> ClosureFirstCellData;   // cells written by the first placement
+    std::map<int, std::pair<int, int>> ClosureFirstOverlays; // overlays of the first placement
+
+    // closure search runtime state
+    MapCoord ClosureCursor{ -1, -1 };
+    MapCoord ClosureRealCursor{ -1, -1 };  // the real mouse cursor; survives DFS mutation of ClosureCursor
+    int ClosureTargetIndex = -1;
+    bool ClosureTargetOpposite = false;
+    MapCoord ClosureTargetCoord{ -1, -1 };
+    int ClosureMaxSteps = 0;
+    std::set<int> ClosureFirstBodyCells;    // positions of the first tile's body cells only
+    int g_ClosureBudget = 0;                // remaining placement attempts for the whole closure search
+
+    // ---- tuning knobs (adjust freely) ----
+    int ClosureMaxBacktrack = 10;           // max k: how many base-plan segments may be dropped; -1 = unlimited
+    double ClosurePruneStep = 4.0;          // per-tile anchor advance assumed for distance pruning (hard upper bound)
+    int ClosureBudgetLimit = 10000;         // max virtual placements per PlanClosure call
+    int ClosureBaseRetries = 3;             // how many times to re-roll the base plan after a failed closure search; 0 = single base
+    int ClosureSectorWidth = 1;             // candidate direction sector around the ideal one; 0 = ideal direction only
+    int ClosureBeamWidth = 6;               // beam width: best states kept per layer; 1 = pure greedy
+
+    // forced-choice hooks for the closure search. Normal mode behaves exactly
+    // like the original random pick; the search drives the enumeration through
+    // these so every tile choice can be tried deterministically.
+    int g_ForcedIndex = -1;         // force one of the random tile choices
+    int g_ForcedVariant = -1;       // force the concrete tile variant
+    bool g_ForcedHonored = false;   // the forced index was actually applied
+    int g_EnumCount = 0;            // candidates exposed by the last random point
+    int g_EnumList[2] = { -1, -1 };
+    int g_EnumPicked = -1;          // candidate the last random point returned
+    bool g_ClosurePlanActive = false; // the current preview is a closure plan
+
+    // pick from a candidate list, honouring the forced index and exposing the
+    // alternatives so the closure search can enumerate all choices
+    static int PickIndex(std::vector<int>& choices)
+    {
+        g_EnumCount = (int)choices.size();
+        for (int i = 0; i < 2 && i < (int)choices.size(); ++i)
+            g_EnumList[i] = choices[i];
+        if (g_ForcedIndex >= 0)
+        {
+            for (int c : choices)
+            {
+                if (c == g_ForcedIndex)
+                {
+                    g_ForcedHonored = true;
+                    g_EnumPicked = c;
+                    return c;
+                }
+            }
+        }
+        int picked = STDHelpers::RandomSelectInt(choices);
+        g_EnumPicked = picked;
+        return picked;
+    }
+
+    // pick the concrete tile variant, honouring the forced variant
+    static int PickVariant(std::vector<int>& tiles, int index)
+    {
+        if (g_ForcedVariant >= 0)
+        {
+            for (int t : tiles)
+            {
+                if (t == g_ForcedVariant)
+                    return t;
+            }
+        }
+        return STDHelpers::RandomSelectInt(tiles, true, index);
+    }
+
+    static void CaptureState(SegmentState& s)
+    {
+        s.Anchor = CViewObjectsExt::CliffConnectionCoord;
+        s.Height = CViewObjectsExt::CliffConnectionHeight;
+        s.LastCT = CViewObjectsExt::LastPlacedCT;
+        s.ThisCT = CViewObjectsExt::ThisPlacedCT;
+        s.LastCTTile = CViewObjectsExt::LastCTTile;
+        s.CliffTile = CViewObjectsExt::CliffConnectionTile;
+        s.PlaceStart = CViewObjectsExt::PlaceConnectedTile_Start;
+        s.LastSuccessfulIndex = CViewObjectsExt::LastSuccessfulIndex;
+        s.LastSuccessfulOpposite = CViewObjectsExt::LastSuccessfulOpposite;
+        s.LastSuccessfulHeightOffset = CViewObjectsExt::LastSuccessfulHeightOffset;
+        s.NextCTHeightOffset = CViewObjectsExt::NextCTHeightOffset;
+        s.HeightChanged = CViewObjectsExt::HeightChanged;
+        s.HeightAdjust = CViewObjectsExt::CliffConnectionHeightAdjust;
+        s.LastTempPlacedCTIndex = CViewObjectsExt::LastTempPlacedCTIndex;
+        s.LastTempFacing = CViewObjectsExt::LastTempFacing;
+    }
+
+    static void RestoreState(const SegmentState& s)
+    {
+        CViewObjectsExt::CliffConnectionCoord = s.Anchor;
+        CViewObjectsExt::CliffConnectionHeight = s.Height;
+        CViewObjectsExt::LastPlacedCT = s.LastCT;
+        CViewObjectsExt::ThisPlacedCT = s.ThisCT;
+        CViewObjectsExt::LastCTTile = s.LastCTTile;
+        CViewObjectsExt::CliffConnectionTile = s.CliffTile;
+        CViewObjectsExt::PlaceConnectedTile_Start = s.PlaceStart;
+        CViewObjectsExt::LastSuccessfulIndex = s.LastSuccessfulIndex;
+        CViewObjectsExt::LastSuccessfulOpposite = s.LastSuccessfulOpposite;
+        CViewObjectsExt::LastSuccessfulHeightOffset = s.LastSuccessfulHeightOffset;
+        CViewObjectsExt::NextCTHeightOffset = s.NextCTHeightOffset;
+        CViewObjectsExt::HeightChanged = s.HeightChanged;
+        CViewObjectsExt::CliffConnectionHeightAdjust = s.HeightAdjust;
+        CViewObjectsExt::LastTempPlacedCTIndex = s.LastTempPlacedCTIndex;
+        CViewObjectsExt::LastTempFacing = s.LastTempFacing;
+    }
+
+    static void MergeCommittedBatch(const CommittedBatch& batch)
+    {
+        auto& S = g_Session;
+        for (auto& [pos, cd] : batch.Cells)
+            S.CommittedCells[pos] = cd;
+        for (auto& [pos, cd] : batch.FixCells)
+            S.CommittedFixCells[pos] = cd;
+        for (auto& [pos, ov] : batch.Overlays)
+            S.CommittedOverlays[pos] = ov;
+    }
+
+    static void ClearCommitted()
+    {
+        auto& S = g_Session;
+        S.CommittedBatches.clear();
+        S.CommittedCells.clear();
+        S.CommittedFixCells.clear();
+        S.CommittedOverlays.clear();
+        S.PendingManualBatch = CommittedBatch{};
+        g_pCurrentManualBatch = nullptr;
+    }
+
+    static void RebuildCommitted()
+    {
+        auto& S = g_Session;
+        S.CommittedCells.clear();
+        S.CommittedFixCells.clear();
+        S.CommittedOverlays.clear();
+        for (auto& batch : S.CommittedBatches)
+            MergeCommittedBatch(batch);
+    }
+
+    static bool PopLastCommittedBatch()
+    {
+        auto& S = g_Session;
+        if (S.CommittedBatches.empty())
+            return false;
+        S.CommittedBatches.pop_back();
+        RebuildCommitted();
+        return true;
+    }
+}
+
+// single interception point for every connected-tile cell write inside
+// PlaceConnectedTile_OnMouseMove: in virtual mode the write goes to the
+// current trial segment buffer, otherwise it behaves exactly like before.
+// isFix marks junction patch writes (dwposFix series); they are collected
+// separately so their overlap can be checked independently.
+static void AutoConnect_WriteCell(std::map<int, CellData>& tmpCellDatas, CellData* cellDatas,
+    int dwpos, int tileIndex, int tileSubIndex, int newHeight, bool isFix = false)
+{
+    int altCount = CMapDataExt::TileData[tileIndex].AltTypeCount;
+    if (newHeight > 14) newHeight = 14;
+    if (newHeight < 0) newHeight = 0;
+
+    if (AutoConnect::g_VirtualPlacing && AutoConnect::g_pCurrentSegment)
+    {
+        CellData v = cellDatas[dwpos]; // keep untouched fields of the real cell
+        v.TileIndex = tileIndex;
+        v.TileSubIndex = tileSubIndex;
+        v.Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
+        v.Height = newHeight;
+        if (isFix)
+            AutoConnect::g_pCurrentSegment->FixCells[dwpos] = v;
+        else
+            AutoConnect::g_pCurrentSegment->Cells[dwpos] = v;
+        return;
+    }
+
+    tmpCellDatas[dwpos] = cellDatas[dwpos];
+    cellDatas[dwpos].TileIndex = tileIndex;
+    cellDatas[dwpos].TileSubIndex = tileSubIndex;
+    cellDatas[dwpos].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
+    cellDatas[dwpos].Height = newHeight;
+
+    if (AutoConnect::g_pCurrentManualBatch)
+    {
+        if (isFix)
+            AutoConnect::g_pCurrentManualBatch->FixCells[dwpos] = cellDatas[dwpos];
+        else
+            AutoConnect::g_pCurrentManualBatch->Cells[dwpos] = cellDatas[dwpos];
+    }
+}
 
 
 void CViewObjectsExt::ConnectedTile_Initialize()
@@ -110,6 +390,35 @@ void CViewObjectsExt::ConnectedTile_Initialize()
                         cts.SpecialType = -1;
 
                     cts.IsTXCityCliff = false;
+
+                    switch (cts.Type)
+                    {
+                    case ConnectedTileSetTypes::Highway:
+                        cts.AutoWeaveAmplitude = 2.5;
+                        cts.AutoSingleVariantPenalty = false;
+                        cts.AutoBacktrackSteps = 5;
+                        break;
+                    case ConnectedTileSetTypes::PaveShore:
+                    case ConnectedTileSetTypes::SpecialPaveShore:
+                    case ConnectedTileSetTypes::RailRoad:
+                        cts.AutoWeaveAmplitude = 1.5;
+                        cts.AutoSingleVariantPenalty = false;
+                        cts.AutoBacktrackSteps = 5;
+                        break;
+                    default:
+                        cts.AutoWeaveAmplitude = 3.0;
+                        cts.AutoSingleVariantPenalty = true;
+                        cts.AutoBacktrackSteps = 7;
+                        break;
+                    }
+                    if (auto pValue = ini.TryGetString(pair.second, "AutoWeaveAmplitude"))
+                        cts.AutoWeaveAmplitude = std::max(0.0, atof(*pValue));
+                    if (auto pValue = ini.TryGetString(pair.second, "AutoSingleVariantPenalty"))
+                        cts.AutoSingleVariantPenalty = *pValue == "yes"
+                            || *pValue == "true" || *pValue == "1";
+                    if (auto pValue = ini.TryGetString(pair.second, "AutoBacktrackSteps"))
+                        cts.AutoBacktrackSteps = std::clamp(atoi(*pValue), 0, 10);
+
                     for (auto& t : allowedTheaters)
                     {
                         std::string t1 = (std::string)t;
@@ -609,7 +918,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             return;
         }
 
-        if (place)
+        if (place && !AutoConnect::g_VirtualPlacing)
         {
             mapData.SaveUndoRedoData(true, CViewObjectsExt::CliffConnectionCoord.X - 4, CViewObjectsExt::CliffConnectionCoord.Y - 4,
                 CViewObjectsExt::CliffConnectionCoord.X + 4, CViewObjectsExt::CliffConnectionCoord.Y + 4);
@@ -698,7 +1007,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     offsetPlaceY += 1;
                     offsetConnectX -= 1;
 
-                    index = STDHelpers::RandomSelectInt(backCornet1);
+                    index = AutoConnect::PickIndex(backCornet1);
                     if (distance < SmallDistance)
                         index = 16;
 
@@ -714,10 +1023,10 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         {
                             if (distance > LargeDistance)
                             {
-                                if (place)
+                                if (place && !AutoConnect::g_VirtualPlacing)
                                     index = CViewObjectsExt::ThisPlacedCT.Index;
                                 else
-                                    index = STDHelpers::RandomSelectInt(backCornet2);
+                                    index = AutoConnect::PickIndex(backCornet2);
                             }
                         }
 
@@ -727,7 +1036,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         index = 25;
                         if (tileSet.ConnectedTile[index].TileIndices[0] < 0)
                         {
-                            index = STDHelpers::RandomSelectInt(backCornet1);
+                            index = AutoConnect::PickIndex(backCornet1);
                         }
                     }
 
@@ -1376,7 +1685,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     offsetPlaceY -= 1;
                     offsetConnectX += 1;
 
-                    index = STDHelpers::RandomSelectInt(backCornet1);
+                    index = AutoConnect::PickIndex(backCornet1);
                     if (distance < SmallDistance)
                         index = 16;
                     if (!UrbanCliff)
@@ -1391,10 +1700,10 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         {
                             if (distance > LargeDistance)
                             {
-                                if (place)
+                                if (place && !AutoConnect::g_VirtualPlacing)
                                     index = CViewObjectsExt::ThisPlacedCT.Index;
                                 else
-                                    index = STDHelpers::RandomSelectInt(backCornet2);
+                                    index = AutoConnect::PickIndex(backCornet2);
                             }
 
                         }
@@ -1405,7 +1714,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         index = 25;
                         if (tileSet.ConnectedTile[index].TileIndices[0] < 0)
                         {
-                            index = STDHelpers::RandomSelectInt(backCornet1);
+                            index = AutoConnect::PickIndex(backCornet1);
                         }
                     }
 
@@ -1961,13 +2270,13 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         {
             CViewObjectsExt::LastTempPlacedCTIndex = index;
             CViewObjectsExt::LastTempFacing = facing;
-            CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+            CViewObjectsExt::CliffConnectionTile = AutoConnect::PickVariant(cliffConnectionTiles, index);
         }
         else
         {
             if (index != CViewObjectsExt::LastTempPlacedCTIndex || facing != CViewObjectsExt::LastTempFacing)
             {
-                CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+                CViewObjectsExt::CliffConnectionTile = AutoConnect::PickVariant(cliffConnectionTiles, index);
             }
             CViewObjectsExt::LastTempPlacedCTIndex = -1;
             CViewObjectsExt::LastTempFacing = -1;
@@ -2023,20 +2332,12 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 dwposFix2 = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.Y + offsetPlaceY + offsetY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.X + offsetPlaceX + offsetX;
             }
 
-            if (dwposFix2 < 0 || dwposFix2 > mapData.CellDataCount)
+            if (dwposFix2 < 0 || dwposFix2 >= mapData.CellDataCount)
                 dwposFix2 = 0;
 
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            tmpCellDatas[dwposFix2] = cellDatas[dwposFix2];
-
-            cellDatas[dwposFix2].TileIndex = idxFix;
-            cellDatas[dwposFix2].TileSubIndex = 0;
-            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
-            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
-            if (newHeight > 14) newHeight = 14;
-            if (newHeight < 0) newHeight = 0;
-            cellDatas[dwposFix2].Height = newHeight;
+            AutoConnect_WriteCell(tmpCellDatas, cellDatas, dwposFix2, idxFix, 0,
+                CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height), true);
         }
         else if (IceCliff
             && (opposite && (index == 0
@@ -2073,20 +2374,12 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
                 dwposFix2 = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.Y + offsetPlaceY + offsetY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.X + offsetPlaceX + offsetX;
             }
-            if (dwposFix2 < 0 || dwposFix2 > mapData.CellDataCount)
+            if (dwposFix2 < 0 || dwposFix2 >= mapData.CellDataCount)
                 dwposFix2 = 0;
 
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            tmpCellDatas[dwposFix2] = cellDatas[dwposFix2];
-
-            cellDatas[dwposFix2].TileIndex = idxFix;
-            cellDatas[dwposFix2].TileSubIndex = 0;
-            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
-            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
-            if (newHeight > 14) newHeight = 14;
-            if (newHeight < 0) newHeight = 0;
-            cellDatas[dwposFix2].Height = newHeight;
+            AutoConnect_WriteCell(tmpCellDatas, cellDatas, dwposFix2, idxFix, 0,
+                CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height), true);
         }
 
         if ((index == 5 || index == 6)
@@ -2126,20 +2419,12 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
                 dwposFix = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.Y + offsetPlaceY + offsetY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.X + offsetPlaceX + offsetX;
             }
-            if (dwposFix < 0 || dwposFix > mapData.CellDataCount)
+            if (dwposFix < 0 || dwposFix >= mapData.CellDataCount)
                 dwposFix = 0;
 
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            tmpCellDatas[dwposFix] = cellDatas[dwposFix];
-
-            cellDatas[dwposFix].TileIndex = idxFix;
-            cellDatas[dwposFix].TileSubIndex = 0;
-            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
-            cellDatas[dwposFix].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
-            if (newHeight > 14) newHeight = 14;
-            if (newHeight < 0) newHeight = 0;
-            cellDatas[dwposFix].Height = newHeight;
+            AutoConnect_WriteCell(tmpCellDatas, cellDatas, dwposFix, idxFix, 0,
+                CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height), true);
         }
         else if ((index == 29)
             && (CViewObjectsExt::LastPlacedCT.Index == 5
@@ -2156,20 +2441,12 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 offsetY += 1;
                 dwposFix = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.Y + offsetPlaceY + offsetY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.X + offsetPlaceX + offsetX;
             }
-            if (dwposFix < 0 || dwposFix > mapData.CellDataCount)
+            if (dwposFix < 0 || dwposFix >= mapData.CellDataCount)
                 dwposFix = 0;
 
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            tmpCellDatas[dwposFix] = cellDatas[dwposFix];
-
-            cellDatas[dwposFix].TileIndex = idxFix;
-            cellDatas[dwposFix].TileSubIndex = 0;
-            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
-            cellDatas[dwposFix].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
-            if (newHeight > 14) newHeight = 14;
-            if (newHeight < 0) newHeight = 0;
-            cellDatas[dwposFix].Height = newHeight;
+            AutoConnect_WriteCell(tmpCellDatas, cellDatas, dwposFix, idxFix, 0,
+                CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height), true);
         }
         else if ((index == 0 && !opposite || index == 1 && !opposite || index == 2 && !opposite || index == 3 && !opposite || index == 4 && !opposite || index == 21 && !opposite || index == 22 && !opposite || index == 28 && !opposite)
             && (!CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 5
@@ -2207,19 +2484,11 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             {
                 dwposFix = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.Y + offsetPlaceY + offsetY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.X + offsetPlaceX + offsetX;
             }
-            if (dwposFix < 0 || dwposFix > mapData.CellDataCount)
+            if (dwposFix < 0 || dwposFix >= mapData.CellDataCount)
                 dwposFix = 0;
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            tmpCellDatas[dwposFix] = cellDatas[dwposFix];
-
-            cellDatas[dwposFix].TileIndex = idxFix;
-            cellDatas[dwposFix].TileSubIndex = 0;
-            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
-            cellDatas[dwposFix].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
-            if (newHeight > 14) newHeight = 14;
-            if (newHeight < 0) newHeight = 0;
-            cellDatas[dwposFix].Height = newHeight;
+            AutoConnect_WriteCell(tmpCellDatas, cellDatas, dwposFix, idxFix, 0,
+                CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height), true);
         }
         else if ((index == 7 || index == 8 || index == 9 || index == 10 || index == 11 || index == 12 || index == 13 || index == 27)
             && (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 5
@@ -2262,19 +2531,11 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             {
                 dwposFix = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.Y + offsetPlaceY + offsetY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.X + offsetPlaceX + offsetX;
             }
-            if (dwposFix < 0 || dwposFix > mapData.CellDataCount)
+            if (dwposFix < 0 || dwposFix >= mapData.CellDataCount)
                 dwposFix = 0;
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            tmpCellDatas[dwposFix] = cellDatas[dwposFix];
-
-            cellDatas[dwposFix].TileIndex = idxFix;
-            cellDatas[dwposFix].TileSubIndex = 0;
-            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
-            cellDatas[dwposFix].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
-            if (newHeight > 14) newHeight = 14;
-            if (newHeight < 0) newHeight = 0;
-            cellDatas[dwposFix].Height = newHeight;
+            AutoConnect_WriteCell(tmpCellDatas, cellDatas, dwposFix, idxFix, 0,
+                CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height), true);
         }
 
         if (((index == 5 || index == 6 || index == 7 && opposite || index == 8 && opposite || index == 9 && opposite || index == 10 && opposite || index == 11 && opposite || index == 30 && !opposite)
@@ -2338,20 +2599,12 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 dwposFix2 = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.Y + offsetPlaceY + offsetY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.X + offsetPlaceX + offsetX;
 
             }
-            if (dwposFix2 < 0 || dwposFix2 > mapData.CellDataCount)
+            if (dwposFix2 < 0 || dwposFix2 >= mapData.CellDataCount)
                 dwposFix2 = 0;
 
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            tmpCellDatas[dwposFix2] = cellDatas[dwposFix2];
-
-            cellDatas[dwposFix2].TileIndex = idxFix;
-            cellDatas[dwposFix2].TileSubIndex = 0;
-            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
-            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
-            if (newHeight > 14) newHeight = 14;
-            if (newHeight < 0) newHeight = 0;
-            cellDatas[dwposFix2].Height = newHeight;
+            AutoConnect_WriteCell(tmpCellDatas, cellDatas, dwposFix2, idxFix, 0,
+                CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height), true);
         }
         else if ((index == 27 && !opposite || index == 10 && !opposite || index == 11 && !opposite || index == 12 && !opposite || index == 13 && !opposite)
             && (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 5
@@ -2392,20 +2645,12 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 dwposFix2 = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.Y + offsetPlaceY + offsetY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.X + offsetPlaceX + offsetX;
 
             }
-            if (dwposFix2 < 0 || dwposFix2 > mapData.CellDataCount)
+            if (dwposFix2 < 0 || dwposFix2 >= mapData.CellDataCount)
                 dwposFix2 = 0;
 
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            tmpCellDatas[dwposFix2] = cellDatas[dwposFix2];
-
-            cellDatas[dwposFix2].TileIndex = idxFix;
-            cellDatas[dwposFix2].TileSubIndex = 0;
-            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
-            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
-            if (newHeight > 14) newHeight = 14;
-            if (newHeight < 0) newHeight = 0;
-            cellDatas[dwposFix2].Height = newHeight;
+            AutoConnect_WriteCell(tmpCellDatas, cellDatas, dwposFix2, idxFix, 0,
+                CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height), true);
         }
 
         if (((index == 0 || index == 1 || index == 21 && !opposite || index == 22 && !opposite || index == 28 && !opposite
@@ -2479,19 +2724,11 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 }
                 dwposFix2 = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.Y + offsetPlaceY + offsetY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.X + offsetPlaceX + offsetX;
             }
-            if (dwposFix2 < 0 || dwposFix2 > mapData.CellDataCount)
+            if (dwposFix2 < 0 || dwposFix2 >= mapData.CellDataCount)
                 dwposFix2 = 0;
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            tmpCellDatas[dwposFix2] = cellDatas[dwposFix2];
-
-            cellDatas[dwposFix2].TileIndex = idxFix;
-            cellDatas[dwposFix2].TileSubIndex = 0;
-            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
-            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
-            if (newHeight > 14) newHeight = 14;
-            if (newHeight < 0) newHeight = 0;
-            cellDatas[dwposFix2].Height = newHeight;
+            AutoConnect_WriteCell(tmpCellDatas, cellDatas, dwposFix2, idxFix, 0,
+                CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height), true);
         }
         if ((index == 14 && !opposite || index == 15 && !opposite || index == 25 && !opposite || index == 16 && !opposite || index == 21 && opposite || index == 22 && opposite || index == 28 && opposite)
             && (!CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 12
@@ -2527,20 +2764,12 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             {
                 dwposFix2 = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.Y + offsetPlaceY + offsetY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.X + offsetPlaceX + offsetX;
             }
-            if (dwposFix2 < 0 || dwposFix2> mapData.CellDataCount)
+            if (dwposFix2 < 0 || dwposFix2 >= mapData.CellDataCount)
                 dwposFix2 = 0;
 
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            tmpCellDatas[dwposFix2] = cellDatas[dwposFix2];
-
-            cellDatas[dwposFix2].TileIndex = idxFix;
-            cellDatas[dwposFix2].TileSubIndex = 0;
-            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
-            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
-            if (newHeight > 14) newHeight = 14;
-            if (newHeight < 0) newHeight = 0;
-            cellDatas[dwposFix2].Height = newHeight;
+            AutoConnect_WriteCell(tmpCellDatas, cellDatas, dwposFix2, idxFix, 0,
+                CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height), true);
         }
         else if ((index == 14 && opposite || index == 15 && opposite || index == 25 && opposite || index == 16 && opposite || index == 12 && opposite || index == 13 && opposite || index == 27 && opposite)
             && (!CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 21
@@ -2581,20 +2810,12 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             {
                 dwposFix2 = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.Y + offsetPlaceY + offsetY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.X + offsetPlaceX + offsetX;
             }
-            if (dwposFix2 < 0 || dwposFix2> mapData.CellDataCount)
+            if (dwposFix2 < 0 || dwposFix2 >= mapData.CellDataCount)
                 dwposFix2 = 0;
 
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            tmpCellDatas[dwposFix2] = cellDatas[dwposFix2];
-
-            cellDatas[dwposFix2].TileIndex = idxFix;
-            cellDatas[dwposFix2].TileSubIndex = 0;
-            auto altCount = CMapDataExt::TileData[idxFix].AltTypeCount;
-            cellDatas[dwposFix2].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-            auto newHeight = CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height);
-            if (newHeight > 14) newHeight = 14;
-            if (newHeight < 0) newHeight = 0;
-            cellDatas[dwposFix2].Height = newHeight;
+            AutoConnect_WriteCell(tmpCellDatas, cellDatas, dwposFix2, idxFix, 0,
+                CViewObjectsExt::CliffConnectionHeight + (thisTileFix.TileBlockCount == 0 ? 0 : thisTileFix.TileBlockDatas[0].Height), true);
         }
 
     }
@@ -2968,13 +3189,13 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         {
             CViewObjectsExt::LastTempPlacedCTIndex = index;
             CViewObjectsExt::LastTempFacing = facing;
-            CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+            CViewObjectsExt::CliffConnectionTile = AutoConnect::PickVariant(cliffConnectionTiles, index);
         }
         else
         {
             if (index != CViewObjectsExt::LastTempPlacedCTIndex || facing != CViewObjectsExt::LastTempFacing)
             {
-                CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+                CViewObjectsExt::CliffConnectionTile = AutoConnect::PickVariant(cliffConnectionTiles, index);
             }
             CViewObjectsExt::LastTempPlacedCTIndex = -1;
             CViewObjectsExt::LastTempFacing = -1;
@@ -3333,13 +3554,13 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         {
             CViewObjectsExt::LastTempPlacedCTIndex = index;
             CViewObjectsExt::LastTempFacing = facing;
-            CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+            CViewObjectsExt::CliffConnectionTile = AutoConnect::PickVariant(cliffConnectionTiles, index);
         }
         else
         {
             if (index != CViewObjectsExt::LastTempPlacedCTIndex || facing != CViewObjectsExt::LastTempFacing)
             {
-                CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+                CViewObjectsExt::CliffConnectionTile = AutoConnect::PickVariant(cliffConnectionTiles, index);
             }
             CViewObjectsExt::LastTempPlacedCTIndex = -1;
             CViewObjectsExt::LastTempFacing = -1;
@@ -3557,13 +3778,13 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         {
             CViewObjectsExt::LastTempPlacedCTIndex = index;
             CViewObjectsExt::LastTempFacing = facing;
-            CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+            CViewObjectsExt::CliffConnectionTile = AutoConnect::PickVariant(cliffConnectionTiles, index);
         }
         else
         {
             if (index != CViewObjectsExt::LastTempPlacedCTIndex || facing != CViewObjectsExt::LastTempFacing)
             {
-                CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+                CViewObjectsExt::CliffConnectionTile = AutoConnect::PickVariant(cliffConnectionTiles, index);
             }
             CViewObjectsExt::LastTempPlacedCTIndex = -1;
             CViewObjectsExt::LastTempFacing = -1;
@@ -3791,13 +4012,13 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         {
             CViewObjectsExt::LastTempPlacedCTIndex = index;
             CViewObjectsExt::LastTempFacing = facing;
-            CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+            CViewObjectsExt::CliffConnectionTile = AutoConnect::PickVariant(cliffConnectionTiles, index);
         }
         else
         {
             if (index != CViewObjectsExt::LastTempPlacedCTIndex || facing != CViewObjectsExt::LastTempFacing)
             {
-                CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+                CViewObjectsExt::CliffConnectionTile = AutoConnect::PickVariant(cliffConnectionTiles, index);
             }
             CViewObjectsExt::LastTempPlacedCTIndex = -1;
             CViewObjectsExt::LastTempFacing = -1;
@@ -3982,7 +4203,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 for (int i = 0; i < repeat; ++i)
                 {
                     int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX - i;
-                    if (pos < CMapData::Instance->CellDataCount)
+                    if (pos >= 0 && pos < CMapData::Instance->CellDataCount)
                     {
                         tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
                         tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
@@ -3995,7 +4216,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 for (int i = 0; i < repeat; ++i)
                 {
                     int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX + i;
-                    if (pos < CMapData::Instance->CellDataCount)
+                    if (pos >= 0 && pos < CMapData::Instance->CellDataCount)
                     {
                         tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
                         tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
@@ -4008,7 +4229,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 for (int i = 0; i < repeat; ++i)
                 {
                     int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY + i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX;
-                    if (pos < CMapData::Instance->CellDataCount)
+                    if (pos >= 0 && pos < CMapData::Instance->CellDataCount)
                     {
                         tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
                         tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
@@ -4021,7 +4242,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 for (int i = 0; i < repeat; ++i)
                 {
                     int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY - i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX;
-                    if (pos < CMapData::Instance->CellDataCount)
+                    if (pos >= 0 && pos < CMapData::Instance->CellDataCount)
                     {
                         tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
                         tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
@@ -4035,7 +4256,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 for (int i = 0; i < repeat; ++i)
                 {
                     int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY + i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX - i;
-                    if (pos < CMapData::Instance->CellDataCount)
+                    if (pos >= 0 && pos < CMapData::Instance->CellDataCount)
                     {
                         tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
                         tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
@@ -4049,7 +4270,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 for (int i = 0; i < repeat; ++i)
                 {
                     int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY - i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX + i;
-                    if (pos < CMapData::Instance->CellDataCount)
+                    if (pos >= 0 && pos < CMapData::Instance->CellDataCount)
                     {
                         tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
                         tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
@@ -4063,7 +4284,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 for (int i = 0; i < repeat; ++i)
                 {
                     int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY - i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX - i;
-                    if (pos < CMapData::Instance->CellDataCount)
+                    if (pos >= 0 && pos < CMapData::Instance->CellDataCount)
                     {
                         tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
                         tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
@@ -4077,7 +4298,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 for (int i = 0; i < repeat; ++i)
                 {
                     int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY + i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX + i;
-                    if (pos < CMapData::Instance->CellDataCount)
+                    if (pos >= 0 && pos < CMapData::Instance->CellDataCount)
                     {
                         tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
                         tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
@@ -4087,14 +4308,14 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             else
             {
                 int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX;
-                if (pos < CMapData::Instance->CellDataCount)
+                if (pos >= 0 && pos < CMapData::Instance->CellDataCount)
                 {
                     tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
                     tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
                 }
             }
 
-            if (place)
+            if (place && !AutoConnect::g_VirtualPlacing)
             {
                 int l = CMapData::Instance->MapWidthPlusHeight; int t = CMapData::Instance->MapWidthPlusHeight; int r = 0; int b = 0;
                 for (const auto& [pos, _] : tmpOverlays)
@@ -4115,22 +4336,41 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 );
             }
 
-            for (const auto& [pos, _] : tmpOverlays)
+            if (AutoConnect::g_VirtualPlacing && AutoConnect::g_pCurrentSegment)
             {
-                CMapDataExt::GetExtension()->SetNewOverlayAt(pos, CViewObjectsExt::CliffConnectionTile);
-                CMapData::Instance->SetOverlayDataAt(pos, 0);
+                // virtual placement: collect overlay writes into the trial segment
+                for (const auto& [pos, _] : tmpOverlays)
+                {
+                    AutoConnect::g_pCurrentSegment->Overlays[pos] = { CViewObjectsExt::CliffConnectionTile, 0 };
+                }
+            }
+            else
+            {
+                for (const auto& [pos, _] : tmpOverlays)
+                {
+                    CMapDataExt::GetExtension()->SetNewOverlayAt(pos, CViewObjectsExt::CliffConnectionTile);
+                    CMapData::Instance->SetOverlayDataAt(pos, 0);
+                    if (AutoConnect::g_pCurrentManualBatch)
+                        AutoConnect::g_pCurrentManualBatch->Overlays[pos] = { CViewObjectsExt::CliffConnectionTile, 0 };
+                }
             }
 
             offsetConnectX *= repeat;
             offsetConnectY *= repeat;
-            ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+            if (!AutoConnect::g_VirtualPlacing)
+                ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 
             if (place)
             {
-                CViewObjectsExt::LastPlacedCTRecords.push_back(CViewObjectsExt::LastPlacedCT);
-                CViewObjectsExt::CliffConnectionCoordRecords.push_back(CViewObjectsExt::CliffConnectionCoord);
-                CViewObjectsExt::LastCTTileRecords.push_back(CViewObjectsExt::CliffConnectionTile);
-                CViewObjectsExt::LastHeightRecords.push_back(CViewObjectsExt::CliffConnectionHeight);
+                if (CViewObjectsExt::PlaceConnectedTile_Start)
+                    CViewObjectsExt::PlaceConnectedTile_Start = false;
+                if (!AutoConnect::g_VirtualPlacing)
+                {
+                    CViewObjectsExt::LastPlacedCTRecords.push_back(CViewObjectsExt::LastPlacedCT);
+                    CViewObjectsExt::CliffConnectionCoordRecords.push_back(CViewObjectsExt::CliffConnectionCoord);
+                    CViewObjectsExt::LastCTTileRecords.push_back(CViewObjectsExt::CliffConnectionTile);
+                    CViewObjectsExt::LastHeightRecords.push_back(CViewObjectsExt::CliffConnectionHeight);
+                }
                 CViewObjectsExt::LastCTTile = CViewObjectsExt::CliffConnectionTile;
 
                 CViewObjectsExt::LastPlacedCT = CViewObjectsExt::ThisPlacedCT;
@@ -4146,6 +4386,33 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 {
                     CViewObjectsExt::CliffConnectionCoord.X += offsetConnectX + offsetPlaceX + CViewObjectsExt::LastPlacedCT.ConnectionPoint1.X;
                     CViewObjectsExt::CliffConnectionCoord.Y += offsetConnectY + offsetPlaceY + CViewObjectsExt::LastPlacedCT.ConnectionPoint1.Y;
+                }
+
+                if (!AutoConnect::g_VirtualPlacing && AutoConnect::ClosureFirstPending)
+                {
+                    // a real manual placement locks the flow's first tile,
+                    // overriding any staged virtual plan
+                    AutoConnect::ClosureFirstRecorded = true;
+                    AutoConnect::ClosureFirstPending = false;
+                    AutoConnect::ClosureFirstIndex = CViewObjectsExt::LastPlacedCT.Index;
+                    AutoConnect::ClosureFirstOpposite = CViewObjectsExt::LastPlacedCT.Opposite;
+                    AutoConnect::ClosureFirstCoord = CViewObjectsExt::CliffConnectionCoord;
+                    AutoConnect::ClosureFirstVariant = CViewObjectsExt::CliffConnectionTile;
+                    if (AutoConnect::g_pCurrentManualBatch)
+                    {
+                        AutoConnect::ClosureFirstCellData.clear();
+                        AutoConnect::ClosureFirstOverlays.clear();
+                        AutoConnect::ClosureFirstBodyCells.clear();
+                        for (auto& [pos, cd] : AutoConnect::g_pCurrentManualBatch->Cells)
+                        {
+                            AutoConnect::ClosureFirstCellData[pos] = cd;
+                            AutoConnect::ClosureFirstBodyCells.insert(pos);
+                        }
+                        for (auto& [pos, cd] : AutoConnect::g_pCurrentManualBatch->FixCells)
+                            AutoConnect::ClosureFirstCellData[pos] = cd;
+                        for (auto& [pos, ov] : AutoConnect::g_pCurrentManualBatch->Overlays)
+                            AutoConnect::ClosureFirstOverlays[pos] = ov;
+                    }
                 }
             }
             else
@@ -4214,7 +4481,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
     }
 
 
-    if (place && tileSet.Type != ConnectedTileSetTypes::Cliff && tileSet.Type != ConnectedTileSetTypes::CityCliff && tileSet.Type != ConnectedTileSetTypes::IceCliff)
+    if (place && !AutoConnect::g_VirtualPlacing
+        && tileSet.Type != ConnectedTileSetTypes::Cliff && tileSet.Type != ConnectedTileSetTypes::CityCliff && tileSet.Type != ConnectedTileSetTypes::IceCliff)
     {
         if (MultiPlaceDirection == 0)
             mapData.SaveUndoRedoData(true,
@@ -4275,19 +4543,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     if (CMapDataExt::IsCoordInFullMap(x, y))
                     {
                         dwpos = y * mapData.MapWidthPlusHeight + x;
-                        tmpCellDatas[dwpos] = cellDatas[dwpos];
-
-                        cellDatas[dwpos].TileIndex = CViewObjectsExt::CliffConnectionTile;
-                        cellDatas[dwpos].TileSubIndex = subPos;
-                        cellDatas[dwpos].Flag.AltIndex = 0;
-                        auto altCount = CMapDataExt::TileData[cellDatas[dwpos].TileIndex].AltTypeCount;
-                        cellDatas[dwpos].Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
-
-                        auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTile.TileBlockDatas[subPos].Height + CViewObjectsExt::CliffConnectionHeightAdjust;
-
-                        if (newHeight > 14) newHeight = 14;
-                        if (newHeight < 0) newHeight = 0;
-                        cellDatas[dwpos].Height = newHeight;
+                        AutoConnect_WriteCell(tmpCellDatas, cellDatas, dwpos, CViewObjectsExt::CliffConnectionTile, subPos,
+                            CViewObjectsExt::CliffConnectionHeight + thisTile.TileBlockDatas[subPos].Height + CViewObjectsExt::CliffConnectionHeightAdjust);
                     }
                 }
                 subPos++;
@@ -4297,7 +4554,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             }
         }
     }
-    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+    if (!AutoConnect::g_VirtualPlacing)
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 
     if (!place)
     {
@@ -4305,14 +4563,14 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         subPos = 0;
         if (dwposFix > -1)
         {
-            if (dwposFix < mapData.CellDataCount && tmpCellDatas.find(dwposFix) != tmpCellDatas.end())
+            if (dwposFix >= 0 && dwposFix < mapData.CellDataCount && tmpCellDatas.find(dwposFix) != tmpCellDatas.end())
             {
                 cellDatas[dwposFix] = tmpCellDatas[dwposFix];
             }
         }
         if (dwposFix2 > -1)
         {
-            if (dwposFix2 < mapData.CellDataCount && tmpCellDatas.find(dwposFix2) != tmpCellDatas.end())
+            if (dwposFix2 >= 0 && dwposFix2 < mapData.CellDataCount && tmpCellDatas.find(dwposFix2) != tmpCellDatas.end())
             {
                 cellDatas[dwposFix2] = tmpCellDatas[dwposFix2];
             }
@@ -4362,49 +4620,55 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             CViewObjectsExt::PlaceConnectedTile_Start = false;
         subPos = 0;
         int idx = 0;
-        if (dwposFix > -1)
+        if (!AutoConnect::g_VirtualPlacing)
         {
-            CMapData::Instance->UpdateMapPreviewAt(dwposFix % mapData.MapWidthPlusHeight, dwposFix / mapData.MapWidthPlusHeight);
-            idx++;
-        }
-        if (dwposFix2 > -1)
-        {
-            CMapData::Instance->UpdateMapPreviewAt(dwposFix2 % mapData.MapWidthPlusHeight, dwposFix2 / mapData.MapWidthPlusHeight);
-            idx++;
-        }
-        for (int k = 0; k < HorizontalLoop; k++)
-        {
-            for (int i = 0; i < thisTileHeight; i++)
+            if (dwposFix > -1)
             {
-                for (int j = 0 + thisTileWidth * k; j < thisTileWidth * (k + 1); j++)
+                CMapData::Instance->UpdateMapPreviewAt(dwposFix % mapData.MapWidthPlusHeight, dwposFix / mapData.MapWidthPlusHeight);
+                idx++;
+            }
+            if (dwposFix2 > -1)
+            {
+                CMapData::Instance->UpdateMapPreviewAt(dwposFix2 % mapData.MapWidthPlusHeight, dwposFix2 / mapData.MapWidthPlusHeight);
+                idx++;
+            }
+            for (int k = 0; k < HorizontalLoop; k++)
+            {
+                for (int i = 0; i < thisTileHeight; i++)
                 {
-                    if (thisTile.TileBlockDatas[subPos].ImageData != NULL)
+                    for (int j = 0 + thisTileWidth * k; j < thisTileWidth * (k + 1); j++)
                     {
-                        int dwpos;
-                        if (opposite)
+                        if (thisTile.TileBlockDatas[subPos].ImageData != NULL)
                         {
-                            dwpos = (CliffConnectionCoord.Y + j - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X + i - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX;
+                            int dwpos;
+                            if (opposite)
+                            {
+                                dwpos = (CliffConnectionCoord.Y + j - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X + i - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX;
+                            }
+                            else
+                            {
+                                dwpos = (CliffConnectionCoord.Y + j - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.Y + offsetPlaceY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X + i - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.X + offsetPlaceX;
+                            }
+                            CMapData::Instance->UpdateMapPreviewAt(dwpos % mapData.MapWidthPlusHeight, dwpos / mapData.MapWidthPlusHeight);
+                            idx++;
                         }
-                        else
-                        {
-                            dwpos = (CliffConnectionCoord.Y + j - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.Y + offsetPlaceY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X + i - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.X + offsetPlaceX;
-                        }
-                        CMapData::Instance->UpdateMapPreviewAt(dwpos % mapData.MapWidthPlusHeight, dwpos / mapData.MapWidthPlusHeight);
-                        idx++;
-                    }
-                    subPos++;
+                        subPos++;
 
-                    if (subPos >= thisTile.TileBlockCount)
-                        subPos = 0;
+                        if (subPos >= thisTile.TileBlockCount)
+                            subPos = 0;
+                    }
                 }
             }
         }
 
 
-        CViewObjectsExt::LastPlacedCTRecords.push_back(CViewObjectsExt::LastPlacedCT);
-        CViewObjectsExt::CliffConnectionCoordRecords.push_back(CViewObjectsExt::CliffConnectionCoord);
-        CViewObjectsExt::LastCTTileRecords.push_back(CViewObjectsExt::CliffConnectionTile);
-        CViewObjectsExt::LastHeightRecords.push_back(CViewObjectsExt::CliffConnectionHeight);
+        if (!AutoConnect::g_VirtualPlacing)
+        {
+            CViewObjectsExt::LastPlacedCTRecords.push_back(CViewObjectsExt::LastPlacedCT);
+            CViewObjectsExt::CliffConnectionCoordRecords.push_back(CViewObjectsExt::CliffConnectionCoord);
+            CViewObjectsExt::LastCTTileRecords.push_back(CViewObjectsExt::CliffConnectionTile);
+            CViewObjectsExt::LastHeightRecords.push_back(CViewObjectsExt::CliffConnectionHeight);
+        }
         CViewObjectsExt::LastCTTile = CViewObjectsExt::CliffConnectionTile;
 
         CViewObjectsExt::LastPlacedCT = CViewObjectsExt::ThisPlacedCT;
@@ -4425,9 +4689,1355 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             CViewObjectsExt::CliffConnectionCoord.X += offsetConnectX + offsetPlaceX + CViewObjectsExt::LastPlacedCT.ConnectionPoint1.X;
             CViewObjectsExt::CliffConnectionCoord.Y += offsetConnectY + offsetPlaceY + CViewObjectsExt::LastPlacedCT.ConnectionPoint1.Y;
         }
+
+        if (!AutoConnect::g_VirtualPlacing && AutoConnect::ClosureFirstPending)
+        {
+            // a real manual placement locks the flow's first tile,
+            // overriding any staged virtual plan
+            AutoConnect::ClosureFirstRecorded = true;
+            AutoConnect::ClosureFirstPending = false;
+            AutoConnect::ClosureFirstIndex = CViewObjectsExt::LastPlacedCT.Index;
+            AutoConnect::ClosureFirstOpposite = CViewObjectsExt::LastPlacedCT.Opposite;
+            AutoConnect::ClosureFirstCoord = CViewObjectsExt::CliffConnectionCoord;
+            AutoConnect::ClosureFirstVariant = CViewObjectsExt::CliffConnectionTile;
+            if (AutoConnect::g_pCurrentManualBatch)
+            {
+                AutoConnect::ClosureFirstCellData.clear();
+                AutoConnect::ClosureFirstOverlays.clear();
+                AutoConnect::ClosureFirstBodyCells.clear();
+                for (auto& [pos, cd] : AutoConnect::g_pCurrentManualBatch->Cells)
+                {
+                    AutoConnect::ClosureFirstCellData[pos] = cd;
+                    AutoConnect::ClosureFirstBodyCells.insert(pos);
+                }
+                for (auto& [pos, cd] : AutoConnect::g_pCurrentManualBatch->FixCells)
+                    AutoConnect::ClosureFirstCellData[pos] = cd;
+                for (auto& [pos, ov] : AutoConnect::g_pCurrentManualBatch->Overlays)
+                    AutoConnect::ClosureFirstOverlays[pos] = ov;
+            }
+        }
     }
     CViewObjectsExt::IsInPlaceCliff_OnMouseMove = false;
     return;
+}
+
+namespace AutoConnect
+{
+    // 8-direction unit vectors matching CMapDataExt::GetFacing
+    // 0:(-1,0) 1:(-1,1) 2:(0,1) 3:(1,1) 4:(1,0) 5:(1,-1) 6:(0,-1) 7:(-1,-1)
+    static const int DirX[8] = { -1, -1, 0, 1, 1, 1, 0, -1 };
+    static const int DirY[8] = { 0, 1, 1, 1, 0, -1, -1, -1 };
+
+    static double Dist(const MapCoord& a, const MapCoord& b)
+    {
+        double dx = (double)(b.X - a.X);
+        double dy = (double)(b.Y - a.Y);
+        return sqrt(dx * dx + dy * dy);
+    }
+
+    // signed lateral offset of p from the start->target line, in cells
+    static double LateralOffset(const MapCoord& start, const MapCoord& target, const MapCoord& p)
+    {
+        double ex = (double)(target.X - start.X);
+        double ey = (double)(target.Y - start.Y);
+        double len = sqrt(ex * ex + ey * ey);
+        if (len < 0.001)
+            return 0.0;
+        // cross product / length
+        return ((double)(p.X - start.X) * ey - (double)(p.Y - start.Y) * ex) / len;
+    }
+
+    // the connected-tile set currently selected in the object browser, or null
+    static ConnectedTileSet* GetCurrentTileSet()
+    {
+        if (CIsoView::CurrentCommand->Command != 0x1E)
+            return nullptr;
+        int ctIndex = CIsoView::CurrentCommand->Type;
+        auto it = CViewObjectsExt::TreeView_ConnectedTileMap.find(ctIndex);
+        if (it == CViewObjectsExt::TreeView_ConnectedTileMap.end())
+            return nullptr;
+        auto& info = it->second;
+        if (info.Index < 0 || info.Index >= (int)CViewObjectsExt::ConnectedTileSets.size())
+            return nullptr;
+        return &CViewObjectsExt::ConnectedTileSets[info.Index];
+    }
+
+    static bool IsFourDirectionType()
+    {
+        auto pSet = GetCurrentTileSet();
+        if (!pSet)
+            return false;
+        return pSet->Type == CViewObjectsExt::ConnectedTileSetTypes::Highway
+            || pSet->Type == CViewObjectsExt::ConnectedTileSetTypes::PaveShore
+            || pSet->Type == CViewObjectsExt::ConnectedTileSetTypes::SpecialPaveShore;
+    }
+
+    static bool IsRailRoadType()
+    {
+        auto pSet = GetCurrentTileSet();
+        return pSet && pSet->Type == CViewObjectsExt::ConnectedTileSetTypes::RailRoad;
+    }
+
+    // build ordered direction candidates for the next segment; the ordering
+    // implements the weaving behaviour: near the start->target line the path
+    // keeps drifting to its current side, past the soft limit it starts
+    // turning back, and past the hard limit returning is forced
+    static std::vector<int> BuildCandidates(const MapCoord& start, const MapCoord& anchor,
+        const MapCoord& target, bool fourDir, int lastDir, int lastDirRun,
+        int lastVel, double soft, double hard)
+    {
+        std::vector<int> candidates;
+
+        int ideal, s1, s2; // s1/s2: the two off-axis side options
+        if (fourDir)
+        {
+            // 4-direction tile sets: only axis directions produce valid pieces;
+            // wobble alternates between the axis direction and its perpendiculars
+            ideal = CMapDataExt::GetFacing4(anchor, target); // 0/2/4/6
+            s1 = (ideal + 2) % 8;
+            s2 = (ideal + 6) % 8;
+        }
+        else
+        {
+            ideal = CMapDataExt::GetFacing(anchor, target);
+            s1 = (ideal + 1) % 8;
+            s2 = (ideal + 7) % 8;
+        }
+
+        // probe which side option reduces the lateral offset from the line
+        double lat = LateralOffset(start, target, anchor);
+        double lat1 = LateralOffset(start, target, { anchor.X + DirX[s1], anchor.Y + DirY[s1] });
+        double lat2 = LateralOffset(start, target, { anchor.X + DirX[s2], anchor.Y + DirY[s2] });
+        int home = (fabs(lat1) <= fabs(lat2)) ? s1 : s2; // back towards the line
+        int away = (home == s1) ? s2 : s1;
+
+        double alat = fabs(lat);
+        if (alat >= hard)
+        {
+            // too far off the line: steer back
+            candidates.push_back(home);
+            candidates.push_back(ideal);
+        }
+        else if (alat >= soft)
+        {
+            // begin the turn back, but not always immediately
+            if (STDHelpers::RandomSelectInt(0, 9) < 7)
+            {
+                candidates.push_back(home);
+                candidates.push_back(ideal);
+                candidates.push_back(away);
+            }
+            else
+            {
+                candidates.push_back(ideal);
+                candidates.push_back(home);
+                candidates.push_back(away);
+            }
+        }
+        else
+        {
+            // near the line: keep drifting through it in the current lateral
+            // direction so the path weaves back and forth; flip every now and
+            // then so the weave never settles into a repeating pattern
+            int lead;
+            if (lastVel > 0)
+                lead = (lat1 > lat2) ? s1 : s2;
+            else if (lastVel < 0)
+                lead = (lat1 > lat2) ? s2 : s1;
+            else
+                lead = (STDHelpers::RandomSelectInt(0, 1) == 0) ? s1 : s2;
+            if (STDHelpers::RandomSelectInt(0, 9) < 2)
+                lead = (lead == s1) ? s2 : s1; // occasional pattern break
+
+            if (STDHelpers::RandomSelectInt(0, 9) < 6)
+            {
+                candidates.push_back(lead);
+                candidates.push_back(ideal);
+            }
+            else
+            {
+                candidates.push_back(ideal);
+                candidates.push_back(lead);
+            }
+            candidates.push_back((lead == s1) ? s2 : s1);
+        }
+
+        // repeat penalty: if the last two segments went the same way, deprioritize it
+        if (lastDir >= 0 && lastDirRun >= 2)
+        {
+            for (size_t i = 0; i < candidates.size(); ++i)
+            {
+                if (candidates[i] == lastDir && i < candidates.size() - 1)
+                {
+                    candidates.erase(candidates.begin() + i);
+                    candidates.push_back(lastDir);
+                    break;
+                }
+            }
+        }
+        return candidates;
+    }
+
+    // try to place one virtual segment towards 'dir'; returns true when the
+    // segment was accepted (cells collected, anchor advanced); forbiddenSingleCT
+    // rejects a segment that would repeat the given 1-variant tile
+    static bool TrySegment(int dir, const MapCoord& target, int segLenMin, int segLenMax,
+        Session& S, int forbiddenSingleCT = -1, double weaveAmplitude = 3.0,
+        bool allowDetour = false)
+    {
+        int ax = CViewObjectsExt::CliffConnectionCoord.X;
+        int ay = CViewObjectsExt::CliffConnectionCoord.Y;
+
+        MapCoord anchor{ ax, ay };
+        double d = Dist(anchor, target);
+        int len = segLenMin + STDHelpers::RandomSelectInt(0, segLenMax - segLenMin);
+        if ((double)len > d)
+            len = (int)d;
+        if (len < 1)
+            len = 1;
+
+        MapCoord vt{ ax + DirX[dir] * len, ay + DirY[dir] * len };
+        if (!CMapDataExt::IsCoordInFullMap(vt.X, vt.Y))
+        {
+            vt = target; // fall back to a direct shot
+            if (Dist(anchor, vt) < 0.5)
+                return false;
+        }
+
+        Segment seg;
+        CaptureState(seg.Before);
+
+        AutoConnect::g_pCurrentSegment = &seg;
+        AutoConnect::g_VirtualPlacing = true;
+        CViewObjectsExt::PlaceConnectedTile_OnMouseMove(vt.X, vt.Y, true);
+        AutoConnect::g_VirtualPlacing = false;
+        AutoConnect::g_pCurrentSegment = nullptr;
+
+        // rejected inside the placement logic (no suitable tile)?
+        if (CViewObjectsExt::CliffConnectionCoord.X == ax && CViewObjectsExt::CliffConnectionCoord.Y == ay)
+        {
+            RestoreState(seg.Before);
+            return false;
+        }
+
+        MapCoord newAnchor = CViewObjectsExt::CliffConnectionCoord;
+
+        // The placement must actually move in the requested direction. Some
+        // fallback paths (e.g. highway/rail with no reverse tile) otherwise
+        // "succeed" by continuing straight in the old direction, which makes
+        // AutoConnect run away from the target before turning around.
+        int deltaX = newAnchor.X - ax;
+        int deltaY = newAnchor.Y - ay;
+        if (deltaX * DirX[dir] + deltaY * DirY[dir] < 0)
+        {
+            RestoreState(seg.Before);
+            return false;
+        }
+
+        // Also detect the highway/rail "no suitable bend" fallback: if the
+        // previous tile continues in one direction but we asked for another,
+        // and the placed tile is the same index, it actually just repeated the
+        // old straight instead of turning.
+        if (seg.Before.LastCT.Index >= 0)
+        {
+            int currentDir = seg.Before.LastCT.GetNextDirection();
+            if (currentDir != dir && CViewObjectsExt::LastPlacedCT.Index == seg.Before.LastCT.Index)
+            {
+                RestoreState(seg.Before);
+                return false;
+            }
+        }
+
+        // must make progress towards the target; detour segments may temporarily
+        // move away from it, but only by a bounded amount so the path cannot
+        // run arbitrarily far in the wrong direction
+        double newDist = Dist(newAnchor, target);
+        if (newDist >= d)
+        {
+            if (!allowDetour || newDist >= d + 3.0)
+            {
+                RestoreState(seg.Before);
+                return false;
+            }
+        }
+
+        // visual repetition guard: a 1-variant piece may not follow itself
+        if (forbiddenSingleCT != -1)
+        {
+            auto& placedCT = CViewObjectsExt::LastPlacedCT;
+            if (placedCT.TileIndices.size() == 1 && placedCT.TileIndices[0] == forbiddenSingleCT)
+            {
+                RestoreState(seg.Before);
+                return false;
+            }
+        }
+
+        // spindle corridor: the allowed lateral offset from the start->target
+        // line is widest halfway and tight near both ends, so the path weaves
+        // around the line instead of bulging to one side; scaled by the tile
+        // set's weave amplitude
+        double traveled = Dist(S.Start, anchor);
+        double allowed = std::min(weaveAmplitude * 2.0, weaveAmplitude * 0.8 + 0.12 * std::min(traveled, d));
+        double lateral = fabs(LateralOffset(S.Start, target, newAnchor));
+        if (lateral > allowed && !allowDetour)
+        {
+            RestoreState(seg.Before);
+            return false;
+        }
+
+        // overlap check across both the current batch and previously committed
+        // batches: neither tile bodies nor junction patches may land on a cell
+        // an earlier segment already wrote.
+        auto cellTaken = [&](int pos)
+        {
+            return S.MergedCells.find(pos) != S.MergedCells.end()
+                || S.MergedFixCells.find(pos) != S.MergedFixCells.end()
+                || S.CommittedCells.find(pos) != S.CommittedCells.end()
+                || S.CommittedFixCells.find(pos) != S.CommittedFixCells.end();
+        };
+        for (auto& [pos, _] : seg.Cells)
+        {
+            if (cellTaken(pos))
+            {
+                RestoreState(seg.Before);
+                return false;
+            }
+        }
+        for (auto& [pos, _] : seg.FixCells)
+        {
+            if (seg.Cells.find(pos) != seg.Cells.end() || cellTaken(pos))
+            {
+                RestoreState(seg.Before);
+                return false;
+            }
+        }
+        for (auto& [pos, _] : seg.Overlays)
+        {
+            bool taken = false;
+            for (auto& prevSeg : S.Segments)
+            {
+                if (prevSeg.Overlays.find(pos) != prevSeg.Overlays.end())
+                {
+                    taken = true;
+                    break;
+                }
+            }
+            if (!taken && S.CommittedOverlays.find(pos) != S.CommittedOverlays.end())
+                taken = true;
+            if (taken)
+            {
+                RestoreState(seg.Before);
+                return false;
+            }
+        }
+
+        // accepted
+        if (seg.Before.PlaceStart && !ClosureFirstRecorded)
+        {
+            // capture the flow's very first tile: its connection triple plus
+            // the exact cells it wrote, so a closing path can land on it
+            ClosureFirstRecorded = true;
+            ClosureFirstIndex = CViewObjectsExt::LastPlacedCT.Index;
+            ClosureFirstOpposite = CViewObjectsExt::LastPlacedCT.Opposite;
+            ClosureFirstCoord = CViewObjectsExt::CliffConnectionCoord;
+            ClosureFirstVariant = CViewObjectsExt::CliffConnectionTile;
+            ClosureFirstCellData.clear();
+            ClosureFirstOverlays.clear();
+            ClosureFirstBodyCells.clear();
+            for (auto& [pos, cd] : seg.Cells)
+            {
+                ClosureFirstCellData[pos] = cd;
+                ClosureFirstBodyCells.insert(pos);
+            }
+            for (auto& [pos, cd] : seg.FixCells)
+                ClosureFirstCellData[pos] = cd;
+            for (auto& [pos, ov] : seg.Overlays)
+                ClosureFirstOverlays[pos] = ov;
+        }
+        for (auto& [pos, cd] : seg.Cells)
+            S.MergedCells[pos] = cd;
+        for (auto& [pos, cd] : seg.FixCells)
+            S.MergedFixCells[pos] = cd;
+        S.Segments.push_back(std::move(seg));
+        return true;
+    }
+
+    // plan a fresh path from the session start point to (X, Y)
+    static void PlanSession(int X, int Y)
+    {
+        g_ClosurePlanActive = false;
+        auto& S = g_Session;
+        S.Target = { X, Y };
+        S.Segments.clear();
+        S.MergedCells.clear();
+        S.MergedFixCells.clear();
+
+        // restart planning from the session start state
+        RestoreState(S.SessionBefore);
+
+        // The plan is rebuilt from scratch on every mouse move, and the first
+        // tile is re-rolled each time. Any previously captured "first tile"
+        // data belongs to a discarded plan, so drop it while this plan still
+        // starts the flow (later chained batches keep the flow's first tile).
+        if (CViewObjectsExt::PlaceConnectedTile_Start)
+        {
+            ClosureFirstRecorded = false;
+            ClosureFirstCellData.clear();
+            ClosureFirstOverlays.clear();
+            ClosureFirstBodyCells.clear();
+        }
+
+        bool fourDir = IsFourDirectionType();
+        bool rail = IsRailRoadType();
+
+        // per-type planning parameters (INI-overridable)
+        auto pSet = GetCurrentTileSet();
+        double amp = pSet ? pSet->AutoWeaveAmplitude : 3.0;
+        bool singlePenalty = !pSet || pSet->AutoSingleVariantPenalty;
+        int backtrackSteps = pSet ? pSet->AutoBacktrackSteps : 5;
+
+        int segLenMin = 4, segLenMax = 8;
+        if (fourDir) { segLenMin = 3; segLenMax = 5; }     // short runs make the wobble visible
+        else if (rail) { segLenMin = 4; segLenMax = 6; }
+
+        double d0 = Dist(S.Start, S.Target);
+        int maxIter = (int)(d0 * 3.0) + 64;
+
+        int lastDir = -1;
+        if (CViewObjectsExt::LastPlacedCT.Index >= 0)
+            lastDir = CViewObjectsExt::LastPlacedCT.GetNextDirection();
+        int lastDirRun = 0;
+        int lastVel = 0;              // lateral drift direction of the last segment
+        int lastSingleCT = -1;        // tile index when the last segment placed a 1-variant piece
+        int backtrackBudget = 3;      // total backtrack attempts per plan
+        int detourBudget = 8;         // temporary non-progress/corridor-recovery segments allowed for U-turns/detours
+
+        // weave amplitude: tight for short paths, wider for long ones
+        double soft = std::clamp(amp * 0.5 + d0 * 0.02, amp * 0.5, amp);
+        double hard = soft * 2.0;
+
+        for (int iter = 0; iter < maxIter; ++iter)
+        {
+            MapCoord anchor = CViewObjectsExt::CliffConnectionCoord;
+            double d = Dist(anchor, S.Target);
+            if (d <= 2.0)
+                break;
+
+            // forced straight convergence near the target
+            bool forceStraight = (d <= 8.0);
+
+            std::vector<int> candidates;
+            if (forceStraight)
+            {
+                if (fourDir)
+                    candidates.push_back(CMapDataExt::GetFacing4(anchor, S.Target));
+                else
+                    candidates.push_back(CMapDataExt::GetFacing(anchor, S.Target));
+            }
+            else
+            {
+                candidates = BuildCandidates(S.Start, anchor, S.Target, fourDir,
+                    lastDir, lastDirRun, lastVel, soft, hard);
+            }
+
+            double latBefore = LateralOffset(S.Start, S.Target, anchor);
+
+            bool accepted = false;
+            int chosenDir = -1;
+            // pass 0 avoids repeating the last 1-variant piece; pass 1 drops
+            // that penalty so reachability always wins over variety
+            for (int pass = 0; pass < 2 && !accepted; ++pass)
+            {
+                int forbidCT = (singlePenalty && pass == 0) ? lastSingleCT : -1;
+                for (int dir : candidates)
+                {
+                    if (TrySegment(dir, S.Target, segLenMin, segLenMax, S, forbidCT, amp))
+                    {
+                        accepted = true;
+                        chosenDir = dir;
+                        break;
+                    }
+                }
+            }
+
+            if (!accepted && detourBudget > 0)
+            {
+                // normal forward progress is impossible (e.g. target is behind us).
+                // allow a short detour: try the current heading and side directions
+                // with relaxed distance/corridor checks so the path can loop back.
+                std::vector<int> detourCandidates;
+                auto addDir = [&detourCandidates](int dir)
+                {
+                    for (int c : detourCandidates)
+                    {
+                        if (c == dir)
+                            return;
+                    }
+                    detourCandidates.push_back(dir);
+                };
+                int ideal = fourDir
+                    ? CMapDataExt::GetFacing4(anchor, S.Target)
+                    : CMapDataExt::GetFacing(anchor, S.Target);
+                // Walk along the shorter arc from the current heading to the
+                // target direction, trying the target-side first. This makes the
+                // detour turn toward the target as soon as possible instead of
+                // continuing straight in the old direction.
+                if (lastDir >= 0 && lastDir != ideal)
+                {
+                    int diff = (ideal - lastDir + 8) % 8;
+                    int revStep = (diff <= 4) ? -1 : 1;
+                    int cur = ideal;
+                    while (cur != lastDir)
+                    {
+                        addDir(cur);
+                        cur = (cur + revStep + 8) % 8;
+                    }
+                }
+                addDir(ideal);
+                if (lastDir >= 0)
+                    addDir(lastDir);
+                // Last resort: any remaining direction.
+                for (int d = 0; d < 8; ++d)
+                    addDir(d);
+
+                for (int dir : detourCandidates)
+                {
+                    if (TrySegment(dir, S.Target, segLenMin, segLenMax, S, -1, amp, true))
+                    {
+                        accepted = true;
+                        chosenDir = dir;
+                        // Only consume detour budget when the segment actually
+                        // moves away from the target. Corridor-recovery segments
+                        // that still make progress should not exhaust the budget.
+                        if (Dist(CViewObjectsExt::CliffConnectionCoord, S.Target) >= d)
+                            detourBudget--;
+                        break;
+                    }
+                }
+            }
+
+            if (!accepted)
+            {
+                // dead end: drop the last few segments and retry from there;
+                // the reroll usually finds a different continuation
+                if (backtrackSteps <= 0 || backtrackBudget <= 0 || S.Segments.empty())
+                    break; // keep the segments placed so far
+
+                int drop = std::min(backtrackSteps, (int)S.Segments.size());
+                auto& keep = S.Segments[S.Segments.size() - drop];
+                RestoreState(keep.Before);
+                S.Segments.resize(S.Segments.size() - drop);
+                if (S.Segments.empty() && CViewObjectsExt::PlaceConnectedTile_Start)
+                {
+                    // the first tile itself was dropped: the next reroll will
+                    // place a new one, so its recorded data must be re-captured
+                    ClosureFirstRecorded = false;
+                    ClosureFirstCellData.clear();
+                    ClosureFirstOverlays.clear();
+                    ClosureFirstBodyCells.clear();
+                }
+
+                S.MergedCells.clear();
+                S.MergedFixCells.clear();
+                for (auto& seg : S.Segments)
+                {
+                    for (auto& [pos, cd] : seg.Cells)
+                        S.MergedCells[pos] = cd;
+                    for (auto& [pos, cd] : seg.FixCells)
+                        S.MergedFixCells[pos] = cd;
+                }
+
+                // weave/repeat trackers start fresh after the backtrack
+                if (CViewObjectsExt::LastPlacedCT.Index >= 0)
+                    lastDir = CViewObjectsExt::LastPlacedCT.GetNextDirection();
+                else
+                    lastDir = -1;
+                lastDirRun = 0;
+                lastVel = 0;
+                detourBudget = 8;
+                auto& placedCT = CViewObjectsExt::LastPlacedCT;
+                lastSingleCT = (placedCT.TileIndices.size() == 1) ? placedCT.TileIndices[0] : -1;
+                backtrackBudget--;
+                continue;
+            }
+
+            // track the lateral drift for the weaving logic
+            double latAfter = LateralOffset(S.Start, S.Target, CViewObjectsExt::CliffConnectionCoord);
+            if (latAfter > latBefore + 0.01)
+                lastVel = 1;
+            else if (latAfter < latBefore - 0.01)
+                lastVel = -1;
+
+            // track the placed piece for the 1-variant repeat penalty
+            auto& placedCT = CViewObjectsExt::LastPlacedCT;
+            lastSingleCT = (placedCT.TileIndices.size() == 1) ? placedCT.TileIndices[0] : -1;
+
+            if (chosenDir == lastDir)
+                lastDirRun++;
+            else
+            {
+                lastDir = chosenDir;
+                lastDirRun = 1;
+            }
+        }
+    }
+
+    // write the planned path onto the map (preview or commit), backing up
+    // the real cell values the first time each position is touched; segments
+    // are replayed in planning order (junction patch first, tile body second)
+    // so the result matches a manual placement sequence exactly
+    static void ApplyToMap(bool backup)
+    {
+        auto& S = g_Session;
+        auto& mapData = CMapData::Instance();
+
+        auto writeCell = [&](int pos, const CellData& cd)
+        {
+            if (pos < 0 || pos >= mapData.CellDataCount)
+                return;
+            if (backup)
+                S.OldCells.emplace(pos, mapData.CellDatas[pos]);
+            mapData.CellDatas[pos] = cd;
+        };
+
+        for (auto& seg : S.Segments)
+        {
+            for (auto& [pos, cd] : seg.FixCells)
+                writeCell(pos, cd);
+            for (auto& [pos, cd] : seg.Cells)
+                writeCell(pos, cd);
+        }
+        for (auto& seg : S.Segments)
+        {
+            for (auto& [pos, ov] : seg.Overlays)
+            {
+                if (pos < 0 || pos >= mapData.CellDataCount)
+                    continue;
+                if (backup)
+                {
+                    if (S.OldOverlays.find(pos) == S.OldOverlays.end())
+                    {
+                        S.OldOverlays.emplace(pos, std::make_pair(
+                            (int)CMapDataExt::CellDataExts[pos].NewOverlay,
+                            (int)mapData.CellDatas[pos].OverlayData));
+                    }
+                }
+                CMapDataExt::GetExtension()->SetNewOverlayAt(pos, ov.first);
+                mapData.SetOverlayDataAt(pos, ov.second);
+            }
+        }
+    }
+
+    // revert the preview: restore overlays first, then whole cells
+    static void RevertFromMap()
+    {
+        auto& S = g_Session;
+        auto& mapData = CMapData::Instance();
+
+        for (auto& [pos, ov] : S.OldOverlays)
+        {
+            if (pos < 0 || pos >= mapData.CellDataCount)
+                continue;
+            CMapDataExt::GetExtension()->SetNewOverlayAt(pos, ov.first);
+            mapData.SetOverlayDataAt(pos, ov.second);
+        }
+        for (auto& [pos, cd] : S.OldCells)
+        {
+            if (pos < 0 || pos >= mapData.CellDataCount)
+                continue;
+            mapData.CellDatas[pos] = cd;
+        }
+    }
+
+    // ===================== Closure planning =====================
+
+    static bool ClosureTripleMatches()
+    {
+        return CViewObjectsExt::LastPlacedCT.Index == ClosureTargetIndex
+            && CViewObjectsExt::LastPlacedCT.Opposite == ClosureTargetOpposite
+            && CViewObjectsExt::CliffConnectionCoord.X == ClosureTargetCoord.X
+            && CViewObjectsExt::CliffConnectionCoord.Y == ClosureTargetCoord.Y;
+    }
+
+    static void RebuildMerged(Session& S)
+    {
+        S.MergedCells.clear();
+        S.MergedFixCells.clear();
+        for (auto& seg : S.Segments)
+        {
+            for (auto& [pos, cd] : seg.Cells)
+                S.MergedCells[pos] = cd;
+            for (auto& [pos, cd] : seg.FixCells)
+                S.MergedFixCells[pos] = cd;
+        }
+    }
+
+    static void MergeSegment(Session& S, const Segment& seg)
+    {
+        for (auto& [pos, cd] : seg.Cells)
+            S.MergedCells[pos] = cd;
+        for (auto& [pos, cd] : seg.FixCells)
+            S.MergedFixCells[pos] = cd;
+    }
+
+    static void UnmergeSegment(Session& S, const Segment& seg)
+    {
+        for (auto& [pos, cd] : seg.Cells)
+            S.MergedCells.erase(pos);
+        for (auto& [pos, cd] : seg.FixCells)
+            S.MergedFixCells.erase(pos);
+    }
+
+    // overlap validation for one closure extension step. Only the final step
+    // may overlap the flow's first tile: it is meant to land exactly on it.
+    static bool ValidClosureStep(const Segment& seg, bool finalStep)
+    {
+        auto& S = g_Session;
+        auto cellTaken = [&](int pos)
+        {
+            return S.MergedCells.find(pos) != S.MergedCells.end()
+                || S.MergedFixCells.find(pos) != S.MergedFixCells.end()
+                || S.CommittedCells.find(pos) != S.CommittedCells.end()
+                || S.CommittedFixCells.find(pos) != S.CommittedFixCells.end();
+        };
+        auto relaxed = [&](int pos)
+        {
+            return finalStep && (ClosureFirstCellData.find(pos) != ClosureFirstCellData.end()
+                || ClosureFirstOverlays.find(pos) != ClosureFirstOverlays.end());
+        };
+
+        for (auto& [pos, _] : seg.Cells)
+        {
+            if (cellTaken(pos) && !relaxed(pos))
+                return false;
+        }
+        for (auto& [pos, _] : seg.FixCells)
+        {
+            if (cellTaken(pos) && !relaxed(pos))
+                return false;
+        }
+        for (auto& [pos, _] : seg.Overlays)
+        {
+            bool taken = false;
+            for (auto& prevSeg : S.Segments)
+            {
+                if (prevSeg.Overlays.find(pos) != prevSeg.Overlays.end())
+                {
+                    taken = true;
+                    break;
+                }
+            }
+            if (!taken && S.CommittedOverlays.find(pos) != S.CommittedOverlays.end())
+                taken = true;
+            if (taken && !relaxed(pos))
+                return false;
+        }
+        return true;
+    }
+
+    // make the final closure tile bit-identical to the flow's first tile
+    static void RestoreFirstTileData(Segment& seg)
+    {
+        for (auto& [pos, cd] : seg.Cells)
+        {
+            auto it = ClosureFirstCellData.find(pos);
+            if (it != ClosureFirstCellData.end())
+                cd = it->second;
+        }
+        for (auto& [pos, cd] : seg.FixCells)
+        {
+            auto it = ClosureFirstCellData.find(pos);
+            if (it != ClosureFirstCellData.end())
+                cd = it->second;
+        }
+        for (auto& [pos, ov] : seg.Overlays)
+        {
+            auto it = ClosureFirstOverlays.find(pos);
+            if (it != ClosureFirstOverlays.end())
+                ov = it->second;
+        }
+    }
+
+    // the final closure tile must occupy exactly the same cells as the flow's
+    // first tile: that is what "fully overlapping" means. A triple match alone
+    // can leave the footprints shifted (e.g. by the first tile's start
+    // compensation), which would look like a mismatched piece.
+    static bool ClosureFootprintMatches(const Segment& seg)
+    {
+        if (seg.Cells.size() != ClosureFirstBodyCells.size())
+            return false;
+        for (auto& [pos, _] : seg.Cells)
+        {
+            if (ClosureFirstBodyCells.find(pos) == ClosureFirstBodyCells.end())
+                return false;
+        }
+        return true;
+    }
+
+    // one virtual extension placement honouring the current forced-choice state
+    static bool ClosurePlace(Segment& seg, MapCoord anchor0)
+    {
+        if (--g_ClosureBudget < 0)
+            return false;
+        CaptureState(seg.Before);
+        g_EnumCount = 0;
+        g_pCurrentSegment = &seg;
+        g_VirtualPlacing = true;
+        CViewObjectsExt::PlaceConnectedTile_OnMouseMove(ClosureCursor.X, ClosureCursor.Y, true);
+        g_VirtualPlacing = false;
+        g_pCurrentSegment = nullptr;
+        return CViewObjectsExt::CliffConnectionCoord != anchor0;
+    }
+
+    // build the virtual cursor candidates for one step: the real cursor, the
+    // first tile's anchor, and the anchor offset along a narrow sector of
+    // directions around the ideal one (towards the target), at two distances
+    // (near = small/medium tile variants, far = large ones). The placement
+    // logic derives facing and distance from the cursor, so each candidate
+    // makes it pick a different tile/direction. Candidates are ordered by
+    // distance to the target so the search tries the most promising first.
+    static int BuildClosureCursors(MapCoord anchor0, MapCoord* out, int max)
+    {
+        static const int DirX[8] = { -1, -1, 0, 1, 1, 1, 0, -1 };
+        static const int DirY[8] = { 0, 1, 1, 1, 0, -1, -1, -1 };
+        static const int Lens[2] = { 4, 10 };
+
+        int n = 0;
+        auto add = [&](int x, int y)
+        {
+            if (n >= max)
+                return;
+            for (int i = 0; i < n; ++i)
+            {
+                if (out[i].X == x && out[i].Y == y)
+                    return;
+            }
+            out[n++] = MapCoord{ x, y };
+        };
+
+        int ideal = CMapDataExt::GetFacing(anchor0, ClosureTargetCoord);
+        for (int w = 0; w <= ClosureSectorWidth; ++w)
+        {
+            for (int s = -1; s <= 1; s += 2)
+            {
+                if (w == 0 && s == -1)
+                    continue;
+                int dir = (ideal + w * s + 8) % 8;
+                for (int l = 0; l < 2; ++l)
+                    add(anchor0.X + DirX[dir] * Lens[l], anchor0.Y + DirY[dir] * Lens[l]);
+            }
+        }
+
+        add(ClosureRealCursor.X, ClosureRealCursor.Y);
+        add(ClosureTargetCoord.X, ClosureTargetCoord.Y);
+
+        std::sort(out, out + n, [](const MapCoord& a, const MapCoord& b)
+        {
+            return Dist(a, ClosureTargetCoord) < Dist(b, ClosureTargetCoord);
+        });
+        return n;
+    }
+
+    // one beam state: a complete placement state plus the extension segments
+    // placed so far, with its heuristic score
+    struct ClosureBeamEntry
+    {
+        SegmentState State;
+        std::vector<Segment> Segments;
+        double Score;
+        double G;
+    };
+
+    // beam search: layer by layer, place one tile per state, keep only the
+    // ClosureBeamWidth states closest to the target (heuristic f = 0.7*g + h).
+    // The path may end as soon as a placed tile matches the flow's first tile.
+    // On success S.Segments holds the closing path and the state is at the
+    // seam; on failure the caller must restore the k-round state.
+    static bool ClosureBeamSearch(const SegmentState& kState, int baseCount)
+    {
+        auto& S = g_Session;
+
+        std::vector<ClosureBeamEntry> beam;
+        ClosureBeamEntry seed;
+        seed.State = kState;
+        seed.G = 0.0;
+        seed.Score = Dist(kState.Anchor, ClosureTargetCoord);
+        beam.push_back(std::move(seed));
+
+        for (int depth = 0; depth < ClosureMaxSteps; ++depth)
+        {
+            std::vector<ClosureBeamEntry> next;
+
+            for (auto& entry : beam)
+            {
+                if (g_ClosureBudget <= 0)
+                    break;
+
+                RestoreState(entry.State);
+                S.Segments.resize(baseCount);
+                for (auto& seg : entry.Segments)
+                    S.Segments.push_back(seg);
+                RebuildMerged(S);
+
+                MapCoord anchor0 = CViewObjectsExt::CliffConnectionCoord;
+                SegmentState stepBefore;
+                CaptureState(stepBefore);
+
+                if (Dist(anchor0, ClosureTargetCoord) > (ClosureMaxSteps - depth) * ClosurePruneStep)
+                    continue;
+
+                MapCoord cursors[16];
+                int cursorCount = BuildClosureCursors(anchor0, cursors, 16);
+
+                for (int c = 0; c < cursorCount; ++c)
+                {
+                    ClosureCursor = cursors[c];
+
+                    // try one index branch: default, or a forced alternative
+                    auto tryBranch = [&](int forcedIndex, bool requireHonored) -> int
+                    {
+                        RestoreState(stepBefore);
+                        Segment seg;
+                        g_ForcedIndex = forcedIndex;
+                        g_ForcedVariant = ClosureFirstVariant;
+                        if (!ClosurePlace(seg, anchor0))
+                            return 0;
+                        if (requireHonored && !g_ForcedHonored)
+                            return 0;
+
+                        if (ClosureTripleMatches())
+                        {
+                            // this tile is the seam: it must overlap the first
+                            // tile exactly
+                            if (!ClosureFootprintMatches(seg))
+                                return 0;
+                            RestoreFirstTileData(seg);
+                            if (!ValidClosureStep(seg, true))
+                                return 0;
+                            MergeSegment(S, seg);
+                            S.Segments.push_back(seg);
+                            return 2;
+                        }
+
+                        if (!ValidClosureStep(seg, false))
+                            return 0;
+
+                        ClosureBeamEntry ne;
+                        CaptureState(ne.State);
+                        ne.Segments = entry.Segments;
+                        ne.Segments.push_back(std::move(seg));
+                        double g2 = entry.G + Dist(anchor0, CViewObjectsExt::CliffConnectionCoord);
+                        ne.G = g2;
+                        ne.Score = 0.7 * g2 + Dist(CViewObjectsExt::CliffConnectionCoord, ClosureTargetCoord);
+                        next.push_back(std::move(ne));
+                        return 1;
+                    };
+
+                    int r = tryBranch(-1, false);
+                    if (r == 2)
+                        return true;
+
+                    // alternative branches: the random choice points expose at
+                    // most two candidates; try the one the default run did not
+                    // pick
+                    int picked = g_EnumPicked;
+                    for (int i = 0; i < g_EnumCount && i < 2; ++i)
+                    {
+                        int alt = g_EnumList[i];
+                        if (alt < 0 || alt == picked)
+                            continue;
+                        int r2 = tryBranch(alt, true);
+                        if (r2 == 2)
+                            return true;
+                    }
+                }
+            }
+
+            if (next.empty())
+                return false;
+
+            std::sort(next.begin(), next.end(), [](const ClosureBeamEntry& a, const ClosureBeamEntry& b)
+            {
+                return a.Score < b.Score;
+            });
+            if ((int)next.size() > ClosureBeamWidth)
+                next.resize(ClosureBeamWidth);
+            beam = std::move(next);
+        }
+
+        return false;
+    }
+
+    // plan a closing path. The default plan's tail is the "base state": first
+    // try extending 2 tiles from it, then backtrack one tile and extend 3,
+    // then backtrack two and extend 4, ... until the whole base plan has been
+    // consumed. Falls back to the base plan when no closing arrangement exists.
+    static bool PlanClosure(int X, int Y)
+    {
+        auto& S = g_Session;
+
+        ClosureCursor = { X, Y };
+        ClosureRealCursor = { X, Y };
+
+        // outer layer: when the closure search over a base plan fails, re-roll
+        // a fresh base plan (the default generation is random) and search
+        // again, up to ClosureBaseRetries times. The last generated base plan
+        // is kept as the final fallback.
+        SegmentState lastBaseState;
+        std::vector<Segment> lastBaseSegments;
+
+        for (int attempt = 0; attempt <= ClosureBaseRetries; ++attempt)
+        {
+            // per-attempt budget: every base re-roll gets a fresh allowance
+            g_ClosureBudget = ClosureBudgetLimit;
+
+            // rebuild the base plan fresh: it is the "default generation" the
+            // closure search modifies
+            PlanSession(X, Y);
+
+            CaptureState(lastBaseState);
+            lastBaseSegments = S.Segments;
+
+            // the target is the first tile of the current plan; re-planning
+            // re-rolls it, so refresh the closure target for this attempt
+            ClosureTargetIndex = ClosureFirstIndex;
+            ClosureTargetOpposite = ClosureFirstOpposite;
+            ClosureTargetCoord = ClosureFirstCoord;
+
+            // the default plan already closes the loop
+            if (ClosureTripleMatches())
+            {
+                g_ClosurePlanActive = true;
+                return true;
+            }
+
+            int n = (int)S.Segments.size();
+            int kMax = (ClosureMaxBacktrack < 0) ? n : std::min(n, ClosureMaxBacktrack);
+            for (int k = 0; k <= kMax; ++k)
+            {
+                if (g_ClosureBudget <= 0)
+                    break;
+                if (k > 0)
+                {
+                    auto& keep = S.Segments[S.Segments.size() - 1];
+                    RestoreState(keep.Before);
+                    S.Segments.pop_back();
+                    RebuildMerged(S);
+                }
+
+                ClosureMaxSteps = 2 + k;
+                SegmentState kState;
+                CaptureState(kState);
+                int baseCount = (int)S.Segments.size();
+                bool solved = ClosureBeamSearch(kState, baseCount);
+                if (!solved)
+                {
+                    RestoreState(kState);
+                    S.Segments.resize(baseCount);
+                    RebuildMerged(S);
+                }
+                if (solved)
+                {
+                    g_ClosurePlanActive = true;
+                    return true;
+                }
+            }
+        }
+
+        // no closure solution across all base re-rolls: keep the last base plan
+        RestoreState(lastBaseState);
+        S.Segments = std::move(lastBaseSegments);
+        RebuildMerged(S);
+        g_ClosurePlanActive = false;
+        return false;
+    }
+
+}
+
+bool CViewObjectsExt::AutoConnect_PreviewActive()
+{
+    return AutoConnect::g_Session.Previewing;
+}
+
+void CViewObjectsExt::AutoConnect_UpdatePreview(int X, int Y)
+{
+    if (!CMapDataExt::IsCoordInFullMap(X, Y))
+        return;
+    auto& S = AutoConnect::g_Session;
+
+    // no active session (e.g. right after a commit): open one anchored at the
+    // current placement state so chained segments keep their live preview
+    if (!S.Active)
+    {
+        if (CViewObjectsExt::CliffConnectionCoord.X < 0
+            || CViewObjectsExt::CliffConnectionCoord.Y < 0)
+            return;
+        S.Active = true;
+        S.Previewing = false;
+        S.Start = CViewObjectsExt::CliffConnectionCoord;
+        S.LastPreviewPos = -1;
+        S.Segments.clear();
+        S.MergedCells.clear();
+        S.MergedFixCells.clear();
+        S.OldCells.clear();
+        S.OldOverlays.clear();
+        CViewObjectsExt::LastTempPlacedCTIndex = -1;
+        CViewObjectsExt::LastTempFacing = -1;
+        CViewObjectsExt::CliffConnectionTile = -1;
+        AutoConnect::CaptureState(S.SessionBefore);
+    }
+
+    // closure mode: the cursor is within 2 cells of the flow's first tile, so the
+    // plan is adjusted so its last tile lands exactly on the first tile
+    bool closureActive = AutoConnect::ClosureFirstRecorded
+        && AutoConnect::Dist(MapCoord{ X, Y }, AutoConnect::ClosureFlowStart) <= 3.0;
+
+    if (!closureActive)
+    {
+        // too close to the session start for a meaningful path; the anchor itself
+        // may sit at the virtual path end after planning, so the distance must be
+        // measured from the fixed session start point instead
+        int ddx = X - S.Start.X, ddy = Y - S.Start.Y;
+        if (sqrt((double)(ddx * ddx + ddy * ddy)) <= 2.0)
+        {
+            if (S.Previewing)
+            {
+                AutoConnect::RevertFromMap();
+                S.OldCells.clear();
+                S.OldOverlays.clear();
+                S.Previewing = false;
+                S.LastPreviewPos = -1;
+                AutoConnect::g_ClosurePlanActive = false;
+                ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+            }
+            return;
+        }
+    }
+
+    int dwpos = Y * CMapData::Instance->MapWidthPlusHeight + X;
+    if (S.Previewing && S.LastPreviewPos == dwpos)
+        return; // same cell, nothing to do
+
+    // revert the previous preview before replanning
+    if (S.Previewing)
+    {
+        AutoConnect::RevertFromMap();
+        S.OldCells.clear();
+        S.OldOverlays.clear();
+        S.Previewing = false;
+    }
+
+    if (closureActive)
+        AutoConnect::PlanClosure(X, Y);
+    else
+        AutoConnect::PlanSession(X, Y);
+    S.LastPreviewPos = dwpos;
+
+    if (S.Segments.empty())
+        return; // nothing planned; the map stays untouched
+
+    AutoConnect::ApplyToMap(true);
+    S.Previewing = true;
+    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+}
+
+bool CViewObjectsExt::AutoConnect_OnClick(int X, int Y)
+{
+    auto& S = AutoConnect::g_Session;
+
+    // closure mode: a click within 2 cells of the flow's first tile commits the
+    // closing path instead of cancelling the session
+    bool closureClick = AutoConnect::ClosureFirstRecorded
+        && AutoConnect::Dist(MapCoord{ X, Y }, AutoConnect::ClosureFlowStart) <= 2.0;
+
+    if (!closureClick)
+    {
+        // measure from the fixed session start: after a preview the anchor sits at
+        // the virtual path end, so a click on the target would otherwise be
+        // misread as a "close" click and fall back to a single-segment placement
+        MapCoord base = S.Active ? S.Start : CViewObjectsExt::CliffConnectionCoord;
+        int cdx = X - base.X, cdy = Y - base.Y;
+        if (sqrt((double)(cdx * cdx + cdy * cdy)) <= 2.0)
+        {
+            if (S.Active)
+                CViewObjectsExt::AutoConnect_Cancel(); // close click cancels the session
+            return false; // caller falls back to the classic single-segment placement
+        }
+    }
+
+    // (re)plan to the click point; UpdatePreview auto-opens the session when
+    // none is active (chained placement right after a commit) and keeps the
+    // already previewed path when the mouse cell hasn't changed
+    CViewObjectsExt::AutoConnect_UpdatePreview(X, Y);
+
+    if (!S.Previewing || S.Segments.empty())
+        return true; // nothing plannable; session stays open for the next click
+
+    // Never commit a partial path that did not actually reach the target,
+    // unless the preview is a successful closure plan: it ends on the flow's
+    // first tile by design, which may sit a little past the cursor
+    if (AutoConnect::Dist(CViewObjectsExt::CliffConnectionCoord, S.Target) > 2.0
+        && !(closureClick && AutoConnect::g_ClosurePlanActive))
+    {
+        return true; // keep the preview; the next mouse move will replan
+    }
+
+    {
+        // commit: revert -> precise undo snapshot -> re-apply
+        AutoConnect::RevertFromMap();
+        S.OldCells.clear();
+        S.OldOverlays.clear();
+        S.Previewing = false;
+
+        auto& mapData = CMapData::Instance();
+
+        // precise undo rectangle around every touched position
+        int l = mapData.MapWidthPlusHeight, t = mapData.MapWidthPlusHeight, r = 0, b = 0;
+        auto expand = [&](int pos)
+        {
+            int x = pos % mapData.MapWidthPlusHeight;
+            int y = pos / mapData.MapWidthPlusHeight;
+            if (x < l) l = x;
+            if (y < t) t = y;
+            if (x > r) r = x;
+            if (y > b) b = y;
+        };
+        for (auto& [pos, _] : S.MergedCells)
+            expand(pos);
+        for (auto& [pos, _] : S.MergedFixCells)
+            expand(pos);
+        for (auto& seg : S.Segments)
+            for (auto& [pos, _] : seg.Overlays)
+                expand(pos);
+
+        mapData.SaveUndoRedoData(true, l - 2, t - 2, r + 2, b + 2);
+
+        AutoConnect::ApplyToMap(false);
+
+        for (auto& [pos, _] : S.MergedCells)
+        {
+            int x = pos % mapData.MapWidthPlusHeight;
+            int y = pos / mapData.MapWidthPlusHeight;
+            mapData.UpdateMapPreviewAt(x, y);
+        }
+        for (auto& [pos, _] : S.MergedFixCells)
+        {
+            int x = pos % mapData.MapWidthPlusHeight;
+            int y = pos / mapData.MapWidthPlusHeight;
+            mapData.UpdateMapPreviewAt(x, y);
+        }
+        for (auto& seg : S.Segments)
+        {
+            for (auto& [pos, _] : seg.Overlays)
+            {
+                int x = pos % mapData.MapWidthPlusHeight;
+                int y = pos / mapData.MapWidthPlusHeight;
+                mapData.UpdateMapPreviewAt(x, y);
+            }
+        }
+
+        // one undo step for the whole path: the 4 record stacks hold the
+        // session-start state, the native undo restores the map rectangle
+        CViewObjectsExt::LastPlacedCTRecords.push_back(S.SessionBefore.LastCT);
+        CViewObjectsExt::CliffConnectionCoordRecords.push_back(S.SessionBefore.Anchor);
+        CViewObjectsExt::LastCTTileRecords.push_back(S.SessionBefore.LastCTTile);
+        CViewObjectsExt::LastHeightRecords.push_back(S.SessionBefore.Height);
+
+        // committing an AutoConnect batch locks the staged first tile as real
+        AutoConnect::ClosureFirstPending = false;
+
+        // Keep this committed batch in the cross-batch avoidance history.
+        // It must be stored before Segments/Merged* are cleared.
+        AutoConnect::CommittedBatch batch;
+        batch.Cells = S.MergedCells;
+        batch.FixCells = S.MergedFixCells;
+        for (auto& seg : S.Segments)
+        {
+            for (auto& [pos, ov] : seg.Overlays)
+                batch.Overlays[pos] = ov;
+        }
+        AutoConnect::MergeCommittedBatch(batch);
+        S.CommittedBatches.push_back(std::move(batch));
+
+        // state stays at the path end for chained sessions
+        S.Active = false;
+        S.Segments.clear();
+        S.MergedCells.clear();
+        S.MergedFixCells.clear();
+        S.LastPreviewPos = -1;
+
+        // A closed loop has been committed: reset the placement flow so the next
+        // click starts a brand-new flow. The undo record stacks AND the first
+        // tile closure record are intentionally kept: undoing returns to the
+        // exact state the closure was committed from, and the closure mode
+        // stays usable from there (it is only cleared by a fresh start click).
+        if (closureClick && AutoConnect::g_ClosurePlanActive)
+        {
+            CViewObjectsExt::CliffConnectionCoord.X = -1;
+            CViewObjectsExt::CliffConnectionCoord.Y = -1;
+            CViewObjectsExt::CliffConnectionHeight = -1;
+            CViewObjectsExt::LastCTTile = -1;
+            CViewObjectsExt::CliffConnectionTile = -1;
+            CViewObjectsExt::LastPlacedCT.Index = -1;
+            CViewObjectsExt::ThisPlacedCT.Index = -1;
+            CViewObjectsExt::LastTempPlacedCTIndex = -1;
+            CViewObjectsExt::LastTempFacing = -1;
+            CViewObjectsExt::PlaceConnectedTile_Start = false;
+            AutoConnect::ClearCommitted();
+        }
+
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+        return true;
+    }
+}
+
+void CViewObjectsExt::AutoConnect_Cancel()
+{
+    auto& S = AutoConnect::g_Session;
+    if (S.Previewing)
+    {
+        AutoConnect::RevertFromMap();
+        S.OldCells.clear();
+        S.OldOverlays.clear();
+        S.Previewing = false;
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+    }
+    if (S.Active)
+    {
+        // roll the placement state back to the session start point
+        AutoConnect::RestoreState(S.SessionBefore);
+        S.Active = false;
+    }
+    S.Segments.clear();
+    S.MergedCells.clear();
+    S.MergedFixCells.clear();
+    S.LastPreviewPos = -1;
+}
+
+void CViewObjectsExt::AutoConnect_UndoLastBatch()
+{
+    // Called from the connected-tile undo path after AutoConnect_Cancel().
+    // Removes the last committed batch (AutoConnect or manual single segment)
+    // from the cross-batch avoidance history so subsequent batches do not
+    // keep avoiding cells that were just undone.
+    if (AutoConnect::PopLastCommittedBatch()
+        && AutoConnect::g_Session.CommittedBatches.empty())
+    {
+        // the flow's very first tile was undone: restart closure tracking
+        AutoConnect::ClosureFirstRecorded = false;
+        AutoConnect::ClosureFirstPending = true;
+        AutoConnect::ClosureFirstCellData.clear();
+        AutoConnect::ClosureFirstOverlays.clear();
+        AutoConnect::ClosureFirstBodyCells.clear();
+    }
+}
+
+void CViewObjectsExt::AutoConnect_ResetHistory()
+{
+    // Called when the user explicitly leaves/resets the AutoConnect flow,
+    // e.g. right-click or switching away from the connected-tile tool, so
+    // stale committed-cell data cannot leak into a brand-new flow.
+    AutoConnect::ClearCommitted();
 }
 
 void CViewObjectsExt::PlaceConnectedTile_OnLButtonDown(int X, int Y)
@@ -4437,8 +6047,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnLButtonDown(int X, int Y)
     auto& mapData = CMapData::Instance();
     auto cellDatas = mapData.CellDatas;
 
-    if (CViewObjectsExt::CliffConnectionCoord.X == -1 
-        || CViewObjectsExt::CliffConnectionCoord.Y == -1 
+    if (CViewObjectsExt::CliffConnectionCoord.X == -1
+        || CViewObjectsExt::CliffConnectionCoord.Y == -1
         || CViewObjectsExt::CliffConnectionHeight == -1)
     {
         CViewObjectsExt::CliffConnectionCoord.X = X;
@@ -4454,8 +6064,61 @@ void CViewObjectsExt::PlaceConnectedTile_OnLButtonDown(int X, int Y)
         CViewObjectsExt::PlaceConnectedTile_Start = true;
         CViewObjectsExt::LastTempPlacedCTIndex = -1;
         CViewObjectsExt::LastTempFacing = -1;
+        CViewObjectsExt::CliffConnectionTile = -1;
+
+        // Any new placement flow starts with an empty cross-batch history,
+        // regardless of whether AutoConnect is currently enabled.
+        AutoConnect::ClearCommitted();
+
+        // A fresh flow: reset the closure tracking and remember the start anchor.
+        AutoConnect::ClosureFirstRecorded = false;
+        AutoConnect::ClosureFirstPending = true;
+        AutoConnect::ClosureFlowStart = { X, Y };
+        AutoConnect::ClosureFirstCellData.clear();
+        AutoConnect::ClosureFirstOverlays.clear();
+        AutoConnect::ClosureFirstBodyCells.clear();
+
+        if (CViewObjectsExt::PlaceConnectedTile_AutoConnect)
+        {
+            // open a new virtual session anchored here
+            auto& S = AutoConnect::g_Session;
+            S.Active = true;
+            S.Previewing = false;
+            S.Start = { X, Y };
+            S.LastPreviewPos = -1;
+            S.Segments.clear();
+            S.MergedCells.clear();
+            S.MergedFixCells.clear();
+            S.OldCells.clear();
+            S.OldOverlays.clear();
+            AutoConnect::CaptureState(S.SessionBefore);
+        }
         return;
     }
 
+    if (CViewObjectsExt::PlaceConnectedTile_AutoConnect)
+    {
+        // commit the previewed path (or plan+commit when no preview is up);
+        // a close click on the session start cancels it and returns false
+        if (CViewObjectsExt::AutoConnect_OnClick(X, Y))
+            return;
+        // fall through to the classic single-segment placement
+    }
+
+    // Manual single-segment placement. It does not need to avoid anything
+    // itself, but it must still be recorded in the committed history so a
+    // later AutoConnect session can avoid the cells it occupied.
+    auto& S = AutoConnect::g_Session;
+    S.PendingManualBatch = AutoConnect::CommittedBatch{};
+    AutoConnect::g_pCurrentManualBatch = &S.PendingManualBatch;
     CViewObjectsExt::PlaceConnectedTile_OnMouseMove(X, Y, true);
+    AutoConnect::g_pCurrentManualBatch = nullptr;
+
+    if (!S.PendingManualBatch.Cells.empty()
+        || !S.PendingManualBatch.FixCells.empty()
+        || !S.PendingManualBatch.Overlays.empty())
+    {
+        AutoConnect::MergeCommittedBatch(S.PendingManualBatch);
+        S.CommittedBatches.push_back(std::move(S.PendingManualBatch));
+    }
 }

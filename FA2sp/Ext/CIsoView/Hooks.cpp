@@ -2479,6 +2479,12 @@ DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp, 6)
 					CIsoView::CurrentCommand->Command = 0x0;
 					CIsoView::CurrentCommand->Type = 0;
 				}
+				if (CIsoView::CurrentCommand->Command == 0x1E)
+				{
+					// right click cancels a pending AutoConnect preview/session
+					CViewObjectsExt::AutoConnect_Cancel();
+					CViewObjectsExt::AutoConnect_ResetHistory();
+				}
 				if (!CIsoViewExt::DrawEditedMarks.empty())
 				{
 					CIsoView::CurrentCommand->Command = 0x0;

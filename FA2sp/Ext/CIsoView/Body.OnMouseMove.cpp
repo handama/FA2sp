@@ -543,6 +543,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                 || CIsoView::CurrentCommand->Command == 12 
                 || CIsoView::CurrentCommand->Command == 15)
                 leftIndex++;
+            if (CIsoView::CurrentCommand->Command == 0x1E)
+                leftIndex++;
         }
 
         SetTextAlign(hDC, TA_LEFT);

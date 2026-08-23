@@ -1,8 +1,17 @@
 #include "Body.h"
+#include "../CFinalSunDlg/Body.h"
 
 DEFINE_HOOK(4BBEC0, CMapData_DoUndo, 5)
 {
 	GET(CMapDataExt*, pThis, ECX);
+
+	// If an AutoConnect preview is currently applied to the real map, revert it
+	// before the native undo mutates the map. Otherwise the preview backup would
+	// restore the pre-undo terrain after the undo has already removed it.
+	if (CViewObjectsExt::AutoConnect_PreviewActive())
+	{
+		CViewObjectsExt::AutoConnect_Cancel();
+	}
 
 	if (CMapDataExt::RecordingPreviewHistory)
 	{

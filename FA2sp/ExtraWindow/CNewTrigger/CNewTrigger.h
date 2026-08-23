@@ -487,6 +487,17 @@ public:
         std::vector<TeEntryInfo> events;
         std::vector<TeEntryInfo> actions;
     };
+    struct TeTriggerListItem
+    {
+        std::string id;
+        std::string name;
+    };
+    struct TeOptionList
+    {
+        bool ok = true;
+        std::string reason;
+        std::vector<TeOption> items;
+    };
 
     bool TeEnsureOpen();
     void TeClose();
@@ -498,6 +509,8 @@ public:
     TeTriggerInfo TeGetTriggerInfo();
     bool TeSetTriggerProp(const std::string& key, const std::string& value);
     bool TeDeleteTrigger(bool keepTags);
+    bool TeDeleteTriggerById(const std::string& id, bool keepTags);
+    std::vector<TeTriggerListItem> TeListTriggers();
 
     std::vector<TeTypeInfo> TeGetEventTypes(const std::string& filter, int max);
     std::vector<TeTypeInfo> TeGetActionTypes(const std::string& filter, int max);
@@ -506,8 +519,8 @@ public:
 
     TeEntryInfo TeSelectEvent(int idx);
     TeEntryInfo TeSelectAction(int idx);
-    std::vector<TeOption> TeGetEventOptions(int slot, const std::string& filter, int max);
-    std::vector<TeOption> TeGetActionOptions(int slot, const std::string& filter, int max);
+    TeOptionList TeGetEventOptions(int slot, const std::string& filter, int max);
+    TeOptionList TeGetActionOptions(int slot, const std::string& filter, int max);
     TeEntryInfo TeSetEventType(int num);
     TeEntryInfo TeSetActionType(int num);
     TeSetResult TeSetEventParamDirect(int slot, const std::string& value);

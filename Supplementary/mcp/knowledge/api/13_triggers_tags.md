@@ -238,10 +238,14 @@ end
 - **参数**：`key` (`string`) — 取值 `name`/`house`/`attached_trigger`/`disabled`/`easy`/`medium`/`hard`/`repeat_type`；`value` (`string`) — 新值（布尔类属性接受 `"1"`/`"true"`/`"yes"`）。
 - **返回** (`boolean`)：是否成功。
 
-#### `te_delete_trigger([keep_tags = false])`
-- **说明**：删除当前选中触发（自动跳过删除确认框）。
-- **参数**：`keep_tags` (`boolean`) — 是否保留关联标签。
+#### `te_delete_trigger([id], [keep_tags = false])`
+- **说明**：删除触发（自动跳过删除确认框）。不填 `id` 时删除当前选中触发；填 `id` 时按 ID 删除指定触发（会先选中再删除）。
+- **参数**：`id` (`string`, 可选) — 触发 ID；缺省为删除当前选中触发。`keep_tags` (`boolean`, 可选) — 是否保留关联标签。
 - **返回** (`boolean`)：是否成功。
+
+#### `te_list_triggers()`
+- **说明**：列出地图中所有触发器的 ID 与名称，不依赖选中状态。
+- **返回** (`table<int, table>`)：每项含 `id`（触发 ID）、`name`（名称）。
 
 #### `te_get_event_types([filter = ""], [max = 50])`
 #### `te_get_action_types([filter = ""], [max = 50])`
@@ -257,8 +261,11 @@ end
 - **返回** (`table` 或 `nil`)：含 `ok`, `num`, `name`, `desc`, `params`。
 
 #### `te_get_event_options(slot, [filter = ""], [max = 50])` / `te_get_action_options(slot, [filter = ""], [max = 50])`
-- **说明**：获取当前选中事件/行为第 `slot`（从 1 开始）个参数槽的可用选项（由该参数的类型/联动规则决定）。
-- **返回** (`table<int, table>`)：每项含 `value`（裸值）、`text`（显示文本）。
+- **说明**：获取当前选中事件/行为第 `slot`（从 1 开始）个参数槽的可用选项（由该参数的类型/联动规则决定）。返回表同时携带结果状态：`ok=false` 时 `reason` 说明原因（如未选中触发/事件/行为、槽位无效、该参数槽当前类型未使用、过滤无匹配项）。
+- **返回** (`table`)：
+  - `ok` (`boolean`) — 是否正常取得选项；`reason` (`string`) — 失败原因，成功且过滤无匹配时也为非空说明，否则为空字符串。
+  - `count` (`number`) — 选项数量。
+  - 数组部分（从 1 开始）：每项含 `value`（裸值）、`text`（显示文本）。
 
 #### `te_set_event_type(num)` / `te_set_action_type(num)`
 - **说明**：将当前选中事件/行为的类型改为 `num`，并按新类型重载参数槽与描述。
@@ -266,11 +273,11 @@ end
 
 #### `te_set_event_param(slot, value)` / `te_set_action_param(slot, value)`
 - **说明**：直接写入当前选中事件/行为第 `slot` 个参数槽的裸值，并触发参数联动（可能影响其它参数槽的选项）。
-- **返回** (`table` 或 `nil`)：含 `value`, `display`。
+- **返回** (`table`)：成功时 `{ ok=true, value, display }`；失败时 `{ ok=false, error="<原因>" }`（如未选中触发/事件/行为、槽位无效、该参数槽未使用）。
 
 #### `te_set_event_param_fuzzy(slot, text)` / `te_set_action_param_fuzzy(slot, text)`
-- **说明**：按文本模糊匹配设置当前选中事件/行为第 `slot` 个参数槽的选项（见上文匹配规则）。
-- **返回** (`table` 或 `nil`)：含匹配到的 `value`, `display`。
+- **说明**：按文本模糊匹配设置当前选中事件/行为第 `slot` 个参数槽的选项（见上文匹配规则）。匹配失败时**不做任何修改**，并向输出窗口报告错误。
+- **返回** (`table`)：成功时 `{ ok=true, value, display }`；失败时 `{ ok=false, error="<原因>" }`（如未选中/槽位无效/未使用、无匹配选项）。
 
 #### `te_add_event()` / `te_add_action()`
 - **说明**：在当前选中触发末尾新增一个事件/行为。
@@ -296,5 +303,12 @@ end
 te_select_trigger("00000000-TR")
 te_select_action(1)
 local r = te_set_action_param_fuzzy(1, "美国")
-if r == nil then print("未找到匹配选项") end
+if not r.ok then print(r.error) end
+```
+
+**示例**：列出地图所有触发并打印名称。
+```lua
+for i, t in ipairs(te_list_triggers()) do
+    print(t.id, t.name)
+end
 ```

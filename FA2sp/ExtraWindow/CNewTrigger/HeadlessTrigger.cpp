@@ -2,6 +2,7 @@
 #include "../CLuaConsole/CLuaConsole.h"
 #include "../Common.h"
 #include "../../Ext/CFinalSunDlg/Body.h"
+#include "../../Ext/CMapData/Body.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Helpers/Translations.h"
 #include <algorithm>
@@ -208,6 +209,33 @@ bool CNewTrigger::TeDeleteTrigger(bool keepTags)
 
     CLuaConsole::updateTrigger = true;
     return true;
+}
+
+bool CNewTrigger::TeDeleteTriggerById(const std::string& id, bool keepTags)
+{
+    if (!TeEnsureOpen())
+        return false;
+    if (!TeSelectTrigger(id.c_str()))
+        return false;
+    return TeDeleteTrigger(keepTags);
+}
+
+std::vector<CNewTrigger::TeTriggerListItem> CNewTrigger::TeListTriggers()
+{
+    std::vector<TeTriggerListItem> ret;
+    if (!TeEnsureOpen())
+        return ret;
+
+    for (auto& pair : CMapDataExt::Triggers)
+    {
+        if (!pair.second)
+            continue;
+        TeTriggerListItem item;
+        item.id = pair.second->ID.c_str();
+        item.name = pair.second->Name.c_str();
+        ret.push_back(std::move(item));
+    }
+    return ret;
 }
 
 
@@ -424,13 +452,39 @@ static void SplitOptionText(const FString& item, std::string& value, std::string
     }
 }
 
-std::vector<CNewTrigger::TeOption> CNewTrigger::TeGetEventOptions(int slot, const std::string& filter, int max)
+CNewTrigger::TeOptionList CNewTrigger::TeGetEventOptions(int slot, const std::string& filter, int max)
 {
-    std::vector<TeOption> ret;
+    TeOptionList ret;
     if (!TeEnsureOpen())
+    {
+        ret.ok = false;
+        ret.reason = "trigger editor not open";
         return ret;
-    if (!CurrentTrigger || SelectedEventIndex < 0 || slot < 0 || slot >= EVENT_PARAM_COUNT || !EventParamsUsage[slot].first)
+    }
+    if (!CurrentTrigger)
+    {
+        ret.ok = false;
+        ret.reason = "no trigger selected";
         return ret;
+    }
+    if (SelectedEventIndex < 0)
+    {
+        ret.ok = false;
+        ret.reason = "no event selected";
+        return ret;
+    }
+    if (slot < 0 || slot >= EVENT_PARAM_COUNT)
+    {
+        ret.ok = false;
+        ret.reason = "invalid slot";
+        return ret;
+    }
+    if (!EventParamsUsage[slot].first)
+    {
+        ret.ok = false;
+        ret.reason = "parameter slot unused by this event type";
+        return ret;
+    }
 
     LabelMatcher matcher(filter.c_str());
     int count = vcbEventParameter[slot].GetCount();
@@ -445,24 +499,52 @@ std::vector<CNewTrigger::TeOption> CNewTrigger::TeGetEventOptions(int slot, cons
         if (!match)
             continue;
 
-        if (max > 0 && (int)ret.size() >= max)
+        if (max > 0 && (int)ret.items.size() >= max)
             break;
 
         TeOption o;
         o.value = value;
         o.text = text;
-        ret.push_back(std::move(o));
+        ret.items.push_back(std::move(o));
     }
+    if (ret.items.empty() && !filter.empty())
+        ret.reason = "no matching option for filter \"" + filter + "\"";
     return ret;
 }
 
-std::vector<CNewTrigger::TeOption> CNewTrigger::TeGetActionOptions(int slot, const std::string& filter, int max)
+CNewTrigger::TeOptionList CNewTrigger::TeGetActionOptions(int slot, const std::string& filter, int max)
 {
-    std::vector<TeOption> ret;
+    TeOptionList ret;
     if (!TeEnsureOpen())
+    {
+        ret.ok = false;
+        ret.reason = "trigger editor not open";
         return ret;
-    if (!CurrentTrigger || SelectedActionIndex < 0 || slot < 0 || slot >= ACTION_PARAM_COUNT || !ActionParamsUsage[slot].first)
+    }
+    if (!CurrentTrigger)
+    {
+        ret.ok = false;
+        ret.reason = "no trigger selected";
         return ret;
+    }
+    if (SelectedActionIndex < 0)
+    {
+        ret.ok = false;
+        ret.reason = "no action selected";
+        return ret;
+    }
+    if (slot < 0 || slot >= ACTION_PARAM_COUNT)
+    {
+        ret.ok = false;
+        ret.reason = "invalid slot";
+        return ret;
+    }
+    if (!ActionParamsUsage[slot].first)
+    {
+        ret.ok = false;
+        ret.reason = "parameter slot unused by this action type";
+        return ret;
+    }
 
     LabelMatcher matcher(filter.c_str());
     int count = vcbActionParameter[slot].GetCount();
@@ -477,14 +559,16 @@ std::vector<CNewTrigger::TeOption> CNewTrigger::TeGetActionOptions(int slot, con
         if (!match)
             continue;
 
-        if (max > 0 && (int)ret.size() >= max)
+        if (max > 0 && (int)ret.items.size() >= max)
             break;
 
         TeOption o;
         o.value = value;
         o.text = text;
-        ret.push_back(std::move(o));
+        ret.items.push_back(std::move(o));
     }
+    if (ret.items.empty() && !filter.empty())
+        ret.reason = "no matching option for filter \"" + filter + "\"";
     return ret;
 }
 
@@ -905,16 +989,19 @@ static void TeFillTypeList(sol::state& Lua, sol::table& ret, const std::vector<C
     }
 }
 
-static void TeFillOptionList(sol::state& Lua, sol::table& ret, const std::vector<CNewTrigger::TeOption>& list)
+static void TeFillOptionList(sol::state& Lua, sol::table& ret, const CNewTrigger::TeOptionList& list)
 {
+    ret["ok"] = list.ok;
+    ret["reason"] = list.reason;
     int i = 1;
-    for (auto& o : list)
+    for (auto& o : list.items)
     {
         sol::table e = Lua.create_table();
         e["value"] = o.value;
         e["text"] = o.text;
         ret[i++] = e;
     }
+    ret["count"] = i - 1;
 }
 
 static void TeFillParams(sol::state& Lua, sol::table& out, const std::vector<CNewTrigger::TeParamSlot>& params)
@@ -984,7 +1071,10 @@ static sol::object TeToResultOrNil(sol::state& Lua, const CNewTrigger::TeSetResu
     {
         if (reportError && !r.error.empty())
             LuaFunctions::TriggerLua_Report(r.error);
-        return sol::nil;
+        sol::table t = Lua.create_table();
+        t["ok"] = false;
+        t["error"] = r.error;
+        return t;
     }
     sol::table t = Lua.create_table();
     t["ok"] = true;
@@ -1026,11 +1116,40 @@ void CNewTrigger::RegisterHeadlessTriggerLua(sol::state& Lua)
     Lua.set_function("te_set_trigger_prop", [](sol::this_state, const char* key, const char* value) -> bool {
         return CNewTrigger::Headless.TeSetTriggerProp(key ? key : "", value ? value : "");
     });
-    Lua.set_function("te_delete_trigger", [&Lua](sol::this_state, sol::variadic_args sa) -> bool {
+    Lua.set_function("te_delete_trigger", [](sol::this_state, sol::variadic_args sa) -> bool {
         if (!CNewTrigger::Headless.TeEnsureOpen())
             return false;
-        bool keepTags = sa.size() > 0 && sa[0].as<bool>();
+        bool keepTags = false;
+        std::string id;
+        if (sa.size() > 0 && sa[0].is<bool>())
+        {
+            keepTags = sa[0].as<bool>();
+        }
+        else if (sa.size() > 0)
+        {
+            sol::object first = sa[0];
+            if (first.is<std::string>() || first.is<const char*>())
+                id = first.as<std::string>();
+            else if (first.is<int>() || first.is<unsigned long long>())
+                id = std::to_string(first.as<long long>());
+            if (sa.size() > 1)
+                keepTags = sa[1].as<bool>();
+        }
+        if (!id.empty())
+            return CNewTrigger::Headless.TeDeleteTriggerById(id, keepTags);
         return CNewTrigger::Headless.TeDeleteTrigger(keepTags);
+    });
+    Lua.set_function("te_list_triggers", [&Lua](sol::this_state) -> sol::table {
+        sol::table ret = Lua.create_table();
+        int i = 1;
+        for (auto& t : CNewTrigger::Headless.TeListTriggers())
+        {
+            sol::table e = Lua.create_table();
+            e["id"] = t.id;
+            e["name"] = t.name;
+            ret[i++] = e;
+        }
+        return ret;
     });
 
     Lua.set_function("te_get_event_types", [&Lua](sol::this_state, sol::variadic_args sa) -> sol::table {

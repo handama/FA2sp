@@ -319,7 +319,7 @@ void ExtraWindow::LoadParams(VirtualComboBoxEx& vcb, FString idx, CNewTrigger* i
         LoadParam_Triggers(vcb, instance);
         break;
     case 10:
-        if (!ExtConfigs::TutorialTexts_Viewer)
+        if (!ExtConfigs::TutorialTexts_Viewer || instance->HeadlessMode)
             LoadParam_Stringtables(vcb);
         break;
     case 11:

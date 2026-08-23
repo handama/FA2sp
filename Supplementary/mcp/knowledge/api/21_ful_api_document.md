@@ -1500,6 +1500,22 @@ local trigger = trigger:new(new_id)
   - `back` (`boolean`, 可选) — 为 `true` 时从译文反向还原原文，默认为 `false`。
 - **返回** (`string`)：翻译后的名称。
 
+#### `csf_search(text, [mode = "both"])`
+- **说明**：在游戏已加载的 CSF 文本表（Stringtable）中搜索匹配项，支持 `*` 通配符和 `|` 多选。搜索文本为空时返回全部条目。
+- **参数**：
+  - `text` (`string`) — 搜索关键字。
+  - `mode` (`string`, 可选) — 匹配范围：`"label"` 只匹配标签，`"text"` 只匹配文本，`"both"` 匹配标签或文本之一。默认 `"both"`。
+- **返回** (`table<int, table>`)：每项含 `label`（标签）、`text`（文本）。
+
+**示例**：搜索文本或标签中包含“生产”的条目。
+```lua
+for i, e in ipairs(csf_search("生产")) do
+    print(e.label, e.text)
+end
+-- 只按标签匹配
+local r = csf_search("NAME:", "label")
+```
+
 ---
 
 ## 十一、FA2 扩展功能
@@ -1926,7 +1942,6 @@ te_select_action(1)
 local r = te_set_action_param_fuzzy(1, "美国")
 if r == nil then print("未找到匹配选项") end
 ```
-
 ---
 
 ## 十三、AI 触发 (`ai_trigger`)

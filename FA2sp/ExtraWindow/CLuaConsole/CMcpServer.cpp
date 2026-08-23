@@ -895,9 +895,8 @@ void CMcpServer::Start(int port)
     svr->Post("/", [](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
 
-        json request;
-        try { request = json::parse(req.body); }
-        catch (...) {
+        json request = json::parse(req.body, nullptr, false);
+        if (request.is_discarded()) {
             res.status = 400;
             res.set_content(
                 R"({"jsonrpc":"2.0","id":null,"error":{"code":-32700,"message":"Parse error"}})",

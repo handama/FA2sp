@@ -1,5 +1,6 @@
 #include "CNewTrigger.h"
 #include "../CLuaConsole/CLuaConsole.h"
+#include "../Common.h"
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Helpers/Translations.h"
@@ -216,8 +217,7 @@ std::vector<CNewTrigger::TeTypeInfo> CNewTrigger::TeGetEventTypes(const std::str
     if (!TeEnsureOpen())
         return ret;
 
-    std::string lf = filter;
-    std::transform(lf.begin(), lf.end(), lf.begin(), ::tolower);
+    LabelMatcher matcher(filter.c_str());
 
     int count = vcbEventType.GetCount();
     for (int i = 0; i < count; ++i)
@@ -237,10 +237,7 @@ std::vector<CNewTrigger::TeTypeInfo> CNewTrigger::TeGetEventTypes(const std::str
         auto atoms = FString::SplitString(descRaw, 8);
         std::string desc = atoms.size() > 5 ? atoms[5].c_str() : "";
 
-        std::string nl = name; std::string dl = desc;
-        std::transform(nl.begin(), nl.end(), nl.begin(), ::tolower);
-        std::transform(dl.begin(), dl.end(), dl.begin(), ::tolower);
-        bool match = lf.empty() || nl.find(lf) != std::string::npos || dl.find(lf) != std::string::npos;
+        bool match = filter.empty() || matcher.Match(name.c_str()) || matcher.Match(desc.c_str());
         if (!match)
             continue;
 
@@ -262,8 +259,7 @@ std::vector<CNewTrigger::TeTypeInfo> CNewTrigger::TeGetActionTypes(const std::st
     if (!TeEnsureOpen())
         return ret;
 
-    std::string lf = filter;
-    std::transform(lf.begin(), lf.end(), lf.begin(), ::tolower);
+    LabelMatcher matcher(filter.c_str());
 
     int count = vcbActionType.GetCount();
     for (int i = 0; i < count; ++i)
@@ -283,10 +279,7 @@ std::vector<CNewTrigger::TeTypeInfo> CNewTrigger::TeGetActionTypes(const std::st
         auto atoms = FString::SplitString(descRaw, 13);
         std::string desc = atoms.size() > 10 ? atoms[10].c_str() : "";
 
-        std::string nl = name; std::string dl = desc;
-        std::transform(nl.begin(), nl.end(), nl.begin(), ::tolower);
-        std::transform(dl.begin(), dl.end(), dl.begin(), ::tolower);
-        bool match = lf.empty() || nl.find(lf) != std::string::npos || dl.find(lf) != std::string::npos;
+        bool match = filter.empty() || matcher.Match(name.c_str()) || matcher.Match(desc.c_str());
         if (!match)
             continue;
 
@@ -439,9 +432,7 @@ std::vector<CNewTrigger::TeOption> CNewTrigger::TeGetEventOptions(int slot, cons
     if (!CurrentTrigger || SelectedEventIndex < 0 || slot < 0 || slot >= EVENT_PARAM_COUNT || !EventParamsUsage[slot].first)
         return ret;
 
-    std::string lf = filter;
-    std::transform(lf.begin(), lf.end(), lf.begin(), ::tolower);
-
+    LabelMatcher matcher(filter.c_str());
     int count = vcbEventParameter[slot].GetCount();
     bool valueFromFirstSpace = EventParamType[slot] == ParamType::Trigger || EventParamType[slot] == ParamType::Team;
     for (int i = 0; i < count; ++i)
@@ -450,10 +441,7 @@ std::vector<CNewTrigger::TeOption> CNewTrigger::TeGetEventOptions(int slot, cons
         std::string value, text;
         SplitOptionText(item, value, text, valueFromFirstSpace);
 
-        std::string tl = text;
-        std::transform(tl.begin(), tl.end(), tl.begin(), ::tolower);
-        bool match = lf.empty() || tl.find(lf) != std::string::npos
-            || value == filter || tl.find(value) != std::string::npos;
+        bool match = filter.empty() || matcher.Match(text.c_str()) || matcher.Match(value.c_str());
         if (!match)
             continue;
 
@@ -476,9 +464,7 @@ std::vector<CNewTrigger::TeOption> CNewTrigger::TeGetActionOptions(int slot, con
     if (!CurrentTrigger || SelectedActionIndex < 0 || slot < 0 || slot >= ACTION_PARAM_COUNT || !ActionParamsUsage[slot].first)
         return ret;
 
-    std::string lf = filter;
-    std::transform(lf.begin(), lf.end(), lf.begin(), ::tolower);
-
+    LabelMatcher matcher(filter.c_str());
     int count = vcbActionParameter[slot].GetCount();
     bool valueFromFirstSpace = ActionParamType[slot] == ParamType::Trigger || ActionParamType[slot] == ParamType::Team;
     for (int i = 0; i < count; ++i)
@@ -487,10 +473,7 @@ std::vector<CNewTrigger::TeOption> CNewTrigger::TeGetActionOptions(int slot, con
         std::string value, text;
         SplitOptionText(item, value, text, valueFromFirstSpace);
 
-        std::string tl = text;
-        std::transform(tl.begin(), tl.end(), tl.begin(), ::tolower);
-        bool match = lf.empty() || tl.find(lf) != std::string::npos
-            || value == filter || tl.find(value) != std::string::npos;
+        bool match = filter.empty() || matcher.Match(text.c_str()) || matcher.Match(value.c_str());
         if (!match)
             continue;
 

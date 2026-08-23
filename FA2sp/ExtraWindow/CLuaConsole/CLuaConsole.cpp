@@ -911,6 +911,8 @@ void CLuaConsole::InitializeLuaState()
 
     CNewTrigger::RegisterHeadlessTriggerLua(Lua);
 
+    Lua.set_function("csf_search", csf_search);
+
     Lua.new_usertype<ai_trigger>("ai_trigger",
         sol::constructors<ai_trigger(std::string), ai_trigger()>(),
         "id", sol::readonly(&ai_trigger::ID),

@@ -2322,7 +2322,7 @@ void CNewTrigger::OnSelchangeActionListbox(bool changeCursel, int index)
             }
             else
             {
-                if (ActionParamType[i] == ParamType::CSF && ExtConfigs::TutorialTexts_Viewer)
+                if (ActionParamType[i] == ParamType::CSF && ExtConfigs::TutorialTexts_Viewer && !HeadlessMode)
                 {
                     FString text = valueOri;
                     auto it = StringtableLoader::CSFFiles_Stringtable.find(value);
@@ -3801,7 +3801,7 @@ void CNewTrigger::OnDropdownCComboBox(int index, bool isEvent)
     auto& paramType = isEvent ? EventParamType[index] : ActionParamType[index];
     auto& vcb = isEvent ? vcbEventParameter[index] : vcbActionParameter[index];
 
-    if (paramType == ParamType::CSF && ExtConfigs::TutorialTexts_Viewer)
+    if (paramType == ParamType::CSF && ExtConfigs::TutorialTexts_Viewer && !HeadlessMode)
     {
         HWND hParam = isEvent ? hEventParameter[index] : hActionParameter[index];
         PostMessage(hParam, CB_SHOWDROPDOWN, FALSE, 0);

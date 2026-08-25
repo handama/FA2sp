@@ -771,6 +771,15 @@ private:
     void RasterEllipseClear(Canvas &c, float cx, float cy,
                             float rx, float ry);
 
+    // Tessellates the ellipse border into GPU line-batch entries with
+    // curvature-adaptive step size (denser where curvature is high),
+    // culled against the render viewport.
+    void RasterEllipseBorder(float cx, float cy, float rx, float ry,
+                             uint32_t rgba, float thickness, UINT depth,
+                             bool bScreenSpace, bool bAlwaysOnTop,
+                             float dashLength, float gapLength,
+                             int vpW, int vpH);
+
     DirectXCore *m_dx;
 
     struct TempTex

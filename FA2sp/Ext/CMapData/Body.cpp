@@ -5360,6 +5360,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		item.Veins = Variables::RulesMap.GetBool(ol, "IsVeins");
 		item.Rubble = Variables::RulesMap.GetBool(ol, "IsRubble");
 		item.Tiberium = Variables::RulesMap.GetBool(ol, "Tiberium");
+		item.Crushable = Variables::RulesMap.GetBool(ol, "Crushable");
 		item.Overrides = Variables::RulesMap.GetBool(ol, "Overrides");
 		item.Road = Variables::RulesMap.GetString(ol, "Land", "") == "Road";
 		item.CustomPaletteName = CINI::Art->GetString(ol, "Palette");

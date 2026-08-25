@@ -19,7 +19,7 @@ namespace
 
 	constexpr double Step_Straight = 1.0;
 	constexpr double Step_Diagonal = 1.41421356237309504880;
-	constexpr double Destroy_Penalty = 3.0;
+	constexpr double Destroy_Penalty = 2.0;
 
 	struct PathLevelInfo
 	{
@@ -32,6 +32,7 @@ namespace
 		PathLevelInfo Levels[2]{};
 		int LevelCount = 1;
 		bool Destructible = false;
+		bool Crushable = false;
 		unsigned DestroyedPassage = Pass_None;
 	};
 
@@ -86,10 +87,16 @@ namespace
 			{
 				terrainPassage = Pass_Land | Pass_Rail;
 			}
+			else if (typeData.Crushable && typeData.Wall)
+			{
+				info.Crushable = true;
+				info.Destructible = true;
+				terrainPassage = Pass_None;
+			}
 			else if (typeData.Wall)
 			{
 				info.Destructible = true;
-				terrainPassage = Pass_Rail;
+				terrainPassage = Pass_None;
 			}
 			else if (typeData.Road)
 			{
@@ -284,6 +291,12 @@ std::vector<MapCoord> CMapDataExt::FindPath(MapCoord from, MapCoord to, Pathfind
 				startPassable = true;
 				break;
 			}
+			if (startInfo.Crushable && objectType == PathfindingObjectType::Vehicle
+				&& (startInfo.DestroyedPassage & required))
+			{
+				startPassable = true;
+				break;
+			}
 			if (canDestroy && startInfo.Destructible && (startInfo.DestroyedPassage & required))
 			{
 				startPassable = true;
@@ -464,7 +477,10 @@ std::vector<MapCoord> CMapDataExt::FindPath(MapCoord from, MapCoord to, Pathfind
 				}
 
 				double moveCost;
-				if (nextLevel.Passage & required)
+				if (nextInfo.Crushable && objectType == PathfindingObjectType::Vehicle
+					&& (nextInfo.DestroyedPassage & required))
+					moveCost = step;
+				else if (nextLevel.Passage & required)
 					moveCost = step;
 				else if (canDestroy && nextInfo.Destructible && (nextInfo.DestroyedPassage & required))
 					moveCost = step + Destroy_Penalty;

@@ -196,6 +196,7 @@ struct OverlayTypeData
     bool Crate;
     bool Veins;
     bool Wall;
+    bool Crushable;
     bool Tiberium;
     bool Rubble;
     bool TerrainRock;

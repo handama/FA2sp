@@ -60,8 +60,10 @@ BOOL CMeasurementToolbox::OnInitDialog()
 	translate(PathDistance, "MeasurementToolbox.PathDistance");
 	translate(PathDistanceGroup, "MeasurementToolbox.PathDistanceGroup");
 	translate(MovementZoneLabel, "MeasurementToolbox.MovementZone");
-	translate(DestructibleOverlayCheck, "MeasurementToolbox.DestructibleOverlay");
-	translate(DestructibleUnitsCheck, "MeasurementToolbox.DestructibleUnits");
+	translate(SubjectToText, "MeasurementToolbox.SubjectToText");
+	translate(SubjectToOverlayCheck, "MeasurementToolbox.SubjectToOverlay");
+	translate(SubjectToBuildingCheck, "MeasurementToolbox.SubjectToBuilding");
+	translate(SubjectToTreeCheck, "MeasurementToolbox.SubjectToTree");
 	translate(ClearPathDistance, "MeasurementToolbox.ClearPathDistance");
 	translate(SetSymmetryAxis, "MeasurementToolbox.SetSymmetryAxis");
 	translate(PlaceSymmetricPoint, "MeasurementToolbox.PlaceSymmetricPoint");
@@ -105,11 +107,39 @@ BOOL CMeasurementToolbox::OnInitDialog()
 		}
 		::SendMessage(hCombo, CB_SETCURSEL, (WPARAM)comboIndex, 0);
 	}
+	if (HWND hCombo = GetDlgItem(PathObjectTypeCombo)->GetSafeHwnd())
+	{
+		const char* typeKeys[] =
+		{
+			"MeasurementToolbox.PathObjectType.Vehicle",
+			"MeasurementToolbox.PathObjectType.Infantry",
+		};
+		const char* typeDefaults[] =
+		{
+			"Vehicle",
+			"Infantry",
+		};
+		for (int i = 0; i < 2; ++i)
+		{
+			FString item = Translations::TranslateOrDefault(typeKeys[i], typeDefaults[i]);
+			::SendMessage(hCombo, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)item);
+		}
+		int comboIndex = 0;
+		switch (CIsoViewExt::SelectedPathfindingObjectType)
+		{
+		case PathfindingObjectType::Vehicle: comboIndex = 0; break;
+		case PathfindingObjectType::Infantry: comboIndex = 1; break;
+		default: break;
+		}
+		::SendMessage(hCombo, CB_SETCURSEL, (WPARAM)comboIndex, 0);
+	}
 
-	::SendMessage(GetDlgItem(DestructibleOverlayCheck)->GetSafeHwnd(), BM_SETCHECK,
-		CIsoViewExt::EnableDestroyOverlay ? BST_CHECKED : BST_UNCHECKED, 0);
-	::SendMessage(GetDlgItem(DestructibleUnitsCheck)->GetSafeHwnd(), BM_SETCHECK,
-		CIsoViewExt::EnableIgnoreObjects ? BST_CHECKED : BST_UNCHECKED, 0);
+	::SendMessage(GetDlgItem(SubjectToOverlayCheck)->GetSafeHwnd(), BM_SETCHECK,
+		CIsoViewExt::EnableDestroyOverlay ? BST_UNCHECKED : BST_CHECKED, 0);
+	::SendMessage(GetDlgItem(SubjectToBuildingCheck)->GetSafeHwnd(), BM_SETCHECK,
+		CIsoViewExt::EnableIgnoreBuilding ? BST_UNCHECKED : BST_CHECKED, 0);
+	::SendMessage(GetDlgItem(SubjectToTreeCheck)->GetSafeHwnd(), BM_SETCHECK,
+		CIsoViewExt::EnableIgnoreTree ? BST_UNCHECKED : BST_CHECKED, 0);
 
 	if (Translations::GetTranslationItem("MeasurementToolboxCaption", buffer))
 		SetWindowTextA(buffer);
@@ -156,11 +186,14 @@ BOOL CMeasurementToolbox::OnCommand(WPARAM wParam, LPARAM lParam)
 		case CMeasurementToolbox::PathDistance:
 			OnClickPathDistance();
 			break;
-		case CMeasurementToolbox::DestructibleOverlayCheck:
-			OnClickDestructibleOverlay();
+		case CMeasurementToolbox::SubjectToOverlayCheck:
+			OnClickSubjectToOverlay();
 			break;
-		case CMeasurementToolbox::DestructibleUnitsCheck:
-			OnClickDestructibleUnits();
+		case CMeasurementToolbox::SubjectToBuildingCheck:
+			OnClickSubjectToBuilding();
+			break;
+		case CMeasurementToolbox::SubjectToTreeCheck:
+			OnClickSubjectToTree();
 			break;
 		case CMeasurementToolbox::ClearPathDistance:
 			OnClickClearPathDistance();
@@ -208,6 +241,10 @@ BOOL CMeasurementToolbox::OnCommand(WPARAM wParam, LPARAM lParam)
 		if (nID == CMeasurementToolbox::PathTypeCombo)
 		{
 			OnSelectPathType();
+		}
+		else if (nID == CMeasurementToolbox::PathObjectTypeCombo)
+		{
+			OnSelectPathObjectType();
 		}
 	}
 
@@ -322,17 +359,37 @@ void CMeasurementToolbox::OnSelectPathType()
 	CIsoViewExt::PathPreviewValid = false;
 }
 
-void CMeasurementToolbox::OnClickDestructibleOverlay()
+void CMeasurementToolbox::OnSelectPathObjectType()
 {
-	CIsoViewExt::EnableDestroyOverlay =
-		::SendMessage(GetDlgItem(DestructibleOverlayCheck)->GetSafeHwnd(), BM_GETCHECK, 0, 0) != 0;
+	HWND hCombo = GetDlgItem(PathObjectTypeCombo)->GetSafeHwnd();
+	int sel = ::SendMessage(hCombo, CB_GETCURSEL, 0, 0);
+	switch (sel)
+	{
+	case 0: CIsoViewExt::SelectedPathfindingObjectType = PathfindingObjectType::Vehicle; break;
+	case 1: CIsoViewExt::SelectedPathfindingObjectType = PathfindingObjectType::Infantry; break;
+	default: break;
+	}
 	CIsoViewExt::PathPreviewValid = false;
 }
 
-void CMeasurementToolbox::OnClickDestructibleUnits()
+void CMeasurementToolbox::OnClickSubjectToOverlay()
 {
-	CIsoViewExt::EnableIgnoreObjects =
-		::SendMessage(GetDlgItem(DestructibleUnitsCheck)->GetSafeHwnd(), BM_GETCHECK, 0, 0) != 0;
+	CIsoViewExt::EnableDestroyOverlay =
+		::SendMessage(GetDlgItem(SubjectToOverlayCheck)->GetSafeHwnd(), BM_GETCHECK, 0, 0) == BST_UNCHECKED;
+	CIsoViewExt::PathPreviewValid = false;
+}
+
+void CMeasurementToolbox::OnClickSubjectToBuilding()
+{
+	CIsoViewExt::EnableIgnoreBuilding =
+		::SendMessage(GetDlgItem(SubjectToBuildingCheck)->GetSafeHwnd(), BM_GETCHECK, 0, 0) == BST_UNCHECKED;
+	CIsoViewExt::PathPreviewValid = false;
+}
+
+void CMeasurementToolbox::OnClickSubjectToTree()
+{
+	CIsoViewExt::EnableIgnoreTree =
+		::SendMessage(GetDlgItem(SubjectToTreeCheck)->GetSafeHwnd(), BM_GETCHECK, 0, 0) == BST_UNCHECKED;
 	CIsoViewExt::PathPreviewValid = false;
 }
 
@@ -408,10 +465,16 @@ void CMeasurementToolbox::SetMeasurementToolbox(int X, int Y)
 		}
 		else if (back.Point1 != MapCoord{ X,Y })
 		{
+			PathDistanceStruct candidate = back;
+			candidate.Point2 = { X,Y };
+			candidate.Path = CMapDataExt::FindPath(back.Point1, candidate.Point2, CIsoViewExt::SelectedPathfindingType, 
+				CIsoViewExt::SelectedPathfindingObjectType, CIsoViewExt::EnableDestroyOverlay, 
+				CIsoViewExt::EnableIgnoreBuilding, CIsoViewExt::EnableIgnoreTree,
+				&candidate.Levels, true, &candidate.Heights, &candidate.Reachable);
+			if (!candidate.Reachable)
+				return;
 			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Measurements);
-			back.Point2 = { X,Y };
-			back.Path = CMapDataExt::FindPath(back.Point1, back.Point2, CIsoViewExt::SelectedPathfindingType,
-				CIsoViewExt::EnableDestroyOverlay, CIsoViewExt::EnableIgnoreObjects, &back.Levels, true, &back.Heights);
+			back = std::move(candidate);
 		}
 	}
 	else if (CIsoView::CurrentCommand->Type == MeasurementTypes::SetSymmetryAxis)

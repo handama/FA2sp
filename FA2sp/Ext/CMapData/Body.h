@@ -777,6 +777,12 @@ enum class PathfindingMoveType : int
     Train,
 };
 
+enum class PathfindingObjectType : int
+{
+    Vehicle = 0,
+    Infantry
+};
+
 class CMapDataExt : public CMapData
 {
 public:
@@ -868,11 +874,12 @@ public:
     static ppmfc::CString GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, ppmfc::CString currentFacing, int numFacings = 8);
     static int GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, int numFacings = 8);
     static int GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord);
-    static std::vector<MapCoord> FindPath(MapCoord from, MapCoord to, PathfindingMoveType type,
-        bool destroyOverlay = false, bool ignoreObjects = false,
+    static std::vector<MapCoord> FindPath(MapCoord from, MapCoord to, PathfindingMoveType type, PathfindingObjectType objectType,
+        bool destroyOverlay = false, bool ignoreBuilding = false, bool ignoreTree = false,
         std::vector<unsigned char>* outLevels = nullptr,
         bool noCliffBack = true,
-        std::vector<unsigned char>* outHeights = nullptr);
+        std::vector<unsigned char>* outHeights = nullptr,
+        bool* outReachable = nullptr);
     static bool IsValidTileSet(int tileset, bool allowToPlace = true);
     static ppmfc::CString GetAvailableIndex(EIndexType type = EIndexType::Generic);
     static void UpdateMapSectionIndicies(const ppmfc::CString& lpSection);

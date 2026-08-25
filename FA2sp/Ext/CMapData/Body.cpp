@@ -3156,6 +3156,14 @@ void ObjectRecord::recover()
 				last.Point1 = { 0,0 };
 			}
 		}
+		if (!CIsoViewExt::PathDistances.empty())
+		{
+			auto& last = CIsoViewExt::PathDistances.back();
+			if (last.Point2 == MapCoord{ 0,0 })
+			{
+				last = {};
+			}
+		}
 	}
 	if (recordFlags & RecordType::Basenode)
 	{

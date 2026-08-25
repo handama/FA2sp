@@ -33,6 +33,7 @@ namespace Renderer
 }
 
 enum class PathfindingMoveType : int;
+enum class PathfindingObjectType : int;
 
 struct EditedMarks
 {
@@ -153,6 +154,7 @@ struct PathDistanceStruct
     std::vector<MapCoord> Path;
     std::vector<unsigned char> Levels;
     std::vector<unsigned char> Heights;
+    bool Reachable = true;
 };
 
 struct HighBridgeLineStruct
@@ -463,17 +465,22 @@ public:
     static std::vector<TwoPointStruct> TwoPointDistance_Annotation;
     static std::vector<PathDistanceStruct> PathDistances;
     static PathfindingMoveType SelectedPathfindingType;
+    static PathfindingObjectType SelectedPathfindingObjectType;
     static bool EnableDestroyOverlay;
-    static bool EnableIgnoreObjects;
+    static bool EnableIgnoreBuilding;
+    static bool EnableIgnoreTree;
     static bool PathPreviewValid;
     static MapCoord PathPreviewStart;
     static MapCoord PathPreviewEnd;
     static PathfindingMoveType PathPreviewType;
+    static PathfindingObjectType PathPreviewObjectType;
     static bool PathPreviewDestroyOverlay;
-    static bool PathPreviewIgnoreObjects;
+    static bool PathPreviewIgnoreBuilding;
+    static bool PathPreviewIgnoreTree;
     static std::vector<MapCoord> PathPreviewPath;
     static std::vector<unsigned char> PathPreviewLevels;
     static std::vector<unsigned char> PathPreviewHeights;
+    static bool PathPreviewReachable;
     static MapCoord AxialSymmetryLine[2];
     static MapCoord TempCircle[2];
     static MapCoord TempCircle_Annotation[2];

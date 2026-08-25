@@ -88,17 +88,22 @@ std::vector<TwoPointStruct> CIsoViewExt::TwoPointDistance{};
 std::vector<TwoPointStruct> CIsoViewExt::TwoPointDistance_Annotation{};
 std::vector<PathDistanceStruct> CIsoViewExt::PathDistances{};
 PathfindingMoveType CIsoViewExt::SelectedPathfindingType = PathfindingMoveType::NormalLand;
+PathfindingObjectType CIsoViewExt::SelectedPathfindingObjectType = PathfindingObjectType::Vehicle;
 bool CIsoViewExt::EnableDestroyOverlay = false;
-bool CIsoViewExt::EnableIgnoreObjects = false;
+bool CIsoViewExt::EnableIgnoreBuilding = false;
+bool CIsoViewExt::EnableIgnoreTree = false;
 bool CIsoViewExt::PathPreviewValid = false;
 MapCoord CIsoViewExt::PathPreviewStart{};
 MapCoord CIsoViewExt::PathPreviewEnd{};
 PathfindingMoveType CIsoViewExt::PathPreviewType = PathfindingMoveType::NormalLand;
+PathfindingObjectType CIsoViewExt::PathPreviewObjectType = PathfindingObjectType::Vehicle;
 bool CIsoViewExt::PathPreviewDestroyOverlay = false;
-bool CIsoViewExt::PathPreviewIgnoreObjects = false;
+bool CIsoViewExt::PathPreviewIgnoreBuilding = false;
+bool CIsoViewExt::PathPreviewIgnoreTree = false;
 std::vector<MapCoord> CIsoViewExt::PathPreviewPath{};
 std::vector<unsigned char> CIsoViewExt::PathPreviewLevels{};
 std::vector<unsigned char> CIsoViewExt::PathPreviewHeights{};
+bool CIsoViewExt::PathPreviewReachable = false;
 MapCoord CIsoViewExt::AxialSymmetryLine[2]{};
 MapCoord CIsoViewExt::TempCircle[2]{};
 MapCoord CIsoViewExt::TempCircle_Annotation[2]{};
@@ -3936,15 +3941,19 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC, const RECT &rect, bool bScr
             if (!PathPreviewValid || PathPreviewStart != pathDist.Point1
                 || PathPreviewEnd != endCoord || PathPreviewType != SelectedPathfindingType
                 || PathPreviewDestroyOverlay != EnableDestroyOverlay
-                || PathPreviewIgnoreObjects != EnableIgnoreObjects)
+                || PathPreviewIgnoreBuilding != EnableIgnoreBuilding
+                || PathPreviewIgnoreTree != EnableIgnoreTree
+                || PathPreviewObjectType != SelectedPathfindingObjectType)
             {
                 PathPreviewStart = pathDist.Point1;
                 PathPreviewEnd = endCoord;
                 PathPreviewType = SelectedPathfindingType;
+                PathPreviewObjectType = SelectedPathfindingObjectType;
                 PathPreviewDestroyOverlay = EnableDestroyOverlay;
-                PathPreviewIgnoreObjects = EnableIgnoreObjects;
-                PathPreviewPath = CMapDataExt::FindPath(PathPreviewStart, PathPreviewEnd, PathPreviewType,
-                    PathPreviewDestroyOverlay, PathPreviewIgnoreObjects, &PathPreviewLevels, true, &PathPreviewHeights);
+                PathPreviewIgnoreBuilding = EnableIgnoreBuilding;
+                PathPreviewIgnoreTree = EnableIgnoreTree;
+                PathPreviewPath = CMapDataExt::FindPath(PathPreviewStart, PathPreviewEnd, PathPreviewType, PathPreviewObjectType,
+                    PathPreviewDestroyOverlay, PathPreviewIgnoreBuilding, PathPreviewIgnoreTree, &PathPreviewLevels, true, &PathPreviewHeights, &PathPreviewReachable);
                 PathPreviewValid = true;
             }
             pPath = &PathPreviewPath;
@@ -3982,7 +3991,8 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC, const RECT &rect, bool bScr
         int pathDrawX = ex - CIsoViewExt::drawOffsetX + 30;
         int pathDrawY = ey - CIsoViewExt::drawOffsetY - 15;
         FString buffer;
-        if (pPath->empty() && pathDist.Point1 != endCoord)
+        const bool reachable = (pathDist.Point2 == MapCoord{0, 0}) ? PathPreviewReachable : pathDist.Reachable;
+        if (!reachable)
         {
             buffer.Format(Translations::TranslateOrDefault("DistanceRuler.PathUnreachable", "Path Distance: Unreachable"));
         }

@@ -27,11 +27,14 @@ enum Controls
 		LineSegment = 1004,
 		PathDistance = 1005,
 		PathTypeCombo = 1006,
+		PathObjectTypeCombo = 1007,
 		PathDistanceGroup = 1400,
 		MovementZoneLabel = 1401,
-		DestructibleOverlayCheck = 1402,
-		DestructibleUnitsCheck = 1403,
+		SubjectToOverlayCheck = 1402,
+		SubjectToBuildingCheck = 1403,
 		ClearPathDistance = 1404,
+		SubjectToText = 1405,
+		SubjectToTreeCheck = 1406,
 		SetSymmetryAxis = 1101,
 		PlaceSymmetricPoint = 1102,
 		ClearSymmetricPoints = 1103,
@@ -58,8 +61,10 @@ enum Controls
 	void OnClickClearDistancePoints();
 	void OnClickPathDistance();
 	void OnSelectPathType();
-	void OnClickDestructibleOverlay();
-	void OnClickDestructibleUnits();
+	void OnSelectPathObjectType();
+	void OnClickSubjectToOverlay();
+	void OnClickSubjectToBuilding();
+	void OnClickSubjectToTree();
 	void OnClickClearPathDistance();
 	void OnClickOverlayOption();
 	void OnClickObjectOption();

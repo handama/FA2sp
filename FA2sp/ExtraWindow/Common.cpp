@@ -652,7 +652,14 @@ void ExtraWindow::LoadParam_Tags(VirtualComboBoxEx& vcb)
     if (auto pSection = map.GetSection("Tags")) {
         for (auto& pair : pSection->GetEntities()) {
             auto tagAtoms = FString::SplitString(pair.second);
-            text.Format("%s - %s", pair.first, tagAtoms[1]);
+            if (tagAtoms.size() < 2)
+            {
+                text = pair.first;
+            }
+            else
+            {
+                text.Format("%s - %s", pair.first, tagAtoms[1]);
+            }
             labels.push_back(std::make_pair(pair.first, text));
         }
     }

@@ -666,6 +666,7 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                     for (auto& pairObj : AircraftTags[id])
                     {
                         auto atomsObj = FString::SplitString(pairObj);
+                        if (atomsObj.size() < 5) continue;
 
                         if (first)
                         {
@@ -693,6 +694,7 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                     for (auto& pairObj : BuildingTags[id])
                     {
                         auto atomsObj = FString::SplitString(pairObj);
+                        if (atomsObj.size() < 5) continue;
 
                         if (first)
                         {
@@ -721,6 +723,7 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                     for (auto& pairObj : InfantryTags[id])
                     {
                         auto atomsObj = FString::SplitString(pairObj);
+                        if (atomsObj.size() < 5) continue;
 
                         if (first)
                         {
@@ -749,6 +752,7 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                     for (auto& pairObj : UnitTags[id])
                     {
                         auto atomsObj = FString::SplitString(pairObj);
+                        if (atomsObj.size() < 5) continue;
 
                         if (first)
                         {

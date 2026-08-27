@@ -1600,7 +1600,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                 }
                 if (ActionIsStringParam[atoms[0]])
                 {
-                    if (ActionHasExtraParam[name])
+                    if (ActionHasExtraParam[name] && param.size() >= 4)
                     {
                         auto atoms = FString::SplitString(value, 2);
                         EnableWindow(hActionExtraParam, TRUE);
@@ -1649,7 +1649,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                 }
                 else
                 {
-                    if (ActionHasExtraParam[name])
+                    if (ActionHasExtraParam[name] && param.size() >= 4)
                     {
                         EnableWindow(hActionExtraParam, TRUE);
                         SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)param[2]);
@@ -1742,9 +1742,9 @@ void CNewScript::UpdateScriptPath()
         key.Format("%d", i);
         auto value = CINI::CurrentDocument->GetString(CurrentScriptID, key);
         auto atoms = FString::SplitString(value);
+        if (atoms.size() < 2) break;
         auto& action = atoms[0];
         auto& actionParam = atoms[1];
-        if (atoms.size() < 2) break;
         if (action == "6")
         {
             i = atoi(actionParam) - 2;
@@ -1775,7 +1775,7 @@ void CNewScript::UpdateScriptPath()
                 if (auto pSectionParam = CINI::FAData->GetSection(ExtraWindow::GetTranslatedSectionName("ScriptParams")))
                 {
                     auto param = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ScriptParams"), paramIdx));
-                    if (ActionHasExtraParam[name])
+                    if (ActionHasExtraParam[name] && param.size() >= 4)
                     {
                         if (param[3] == "1") // waypoints
                         {

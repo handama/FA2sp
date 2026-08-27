@@ -787,7 +787,7 @@ void CopyPaste::LoadTileConvertRule(char sourceTheater, char currentTheater)
 
             TileRule rule;
 
-            std::vector<FString> srcParts = FString::SplitString(separates[0], "-");
+            std::vector<FString> srcParts = FString::SplitString(separates[0], 0, "-");
             int srcStart = std::atoi(srcParts[0]);
             int srcEnd = (srcParts.size() > 1) ? std::atoi(srcParts[1]) : srcStart;
             for (int i = srcStart; i <= srcEnd; ++i)
@@ -798,9 +798,9 @@ void CopyPaste::LoadTileConvertRule(char sourceTheater, char currentTheater)
 
             std::vector<FString> dstParts;
             if (isRandom)
-                dstParts = FString::SplitString(separates[1], "~");
+                dstParts = FString::SplitString(separates[1], 0, "~");
             else
-                dstParts = FString::SplitString(separates[1], "-");
+                dstParts = FString::SplitString(separates[1], 0, "-");
 
             int dstStart = std::atoi(dstParts[0]);
             int dstEnd = (dstParts.size() > 1) ? std::atoi(dstParts[1]) : dstStart;

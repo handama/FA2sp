@@ -2125,7 +2125,7 @@ std::vector<int> CMapDataExt::GetStructureSize(ppmfc::CString structure)
 		std::string y = std::string(art->GetString(image, "Foundation.Y", "5"));
 		foundation = x + "x" + y;
 	}
-	auto found = STDHelpers::SplitString(foundation.c_str(), "x");
+	auto found = STDHelpers::SplitString(foundation.c_str(), 1, "x");
 	result.push_back(atoi(found[1]));
 	result.push_back(atoi(found[0]));
 	return result;

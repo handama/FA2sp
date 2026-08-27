@@ -374,8 +374,8 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
 
             auto tiledata = CMapDataExt::TileData;
 
-            auto size = STDHelpers::SplitString(map.GetString("Map", "Size", "0,0,0,0"));
-            auto lSize = STDHelpers::SplitString(map.GetString("Map", "LocalSize", "0,0,0,0"));
+            auto size = STDHelpers::SplitString(map.GetString("Map", "Size", "0,0,0,0"), 3);
+            auto lSize = STDHelpers::SplitString(map.GetString("Map", "LocalSize", "0,0,0,0"), 3);
 
             int mapwidth = atoi(size[2]);
             int mapheight = atoi(size[3]);

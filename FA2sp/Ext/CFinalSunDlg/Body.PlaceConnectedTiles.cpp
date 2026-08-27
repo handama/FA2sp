@@ -437,10 +437,10 @@ void CViewObjectsExt::ConnectedTile_Initialize()
                         {
                             ConnectedTiles ct;
 
-                            auto cp0 = STDHelpers::SplitString(ini.GetString(buffer, "ConnectionPoint0"));
+                            auto cp0 = STDHelpers::SplitString(ini.GetString(buffer, "ConnectionPoint0"), 1);
                             ct.ConnectionPoint0.X = atoi(cp0[1]);
                             ct.ConnectionPoint0.Y = atoi(cp0[0]);
-                            auto cp1 = STDHelpers::SplitString(ini.GetString(buffer, "ConnectionPoint1"));
+                            auto cp1 = STDHelpers::SplitString(ini.GetString(buffer, "ConnectionPoint1"), 1);
                             ct.ConnectionPoint1.X = atoi(cp1[1]);
                             ct.ConnectionPoint1.Y = atoi(cp1[0]);
 

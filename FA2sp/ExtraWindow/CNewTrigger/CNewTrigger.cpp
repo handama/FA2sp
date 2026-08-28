@@ -1166,7 +1166,8 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
 
                 for (int i = 0; i < SelectedActions.size(); ++i)
                 {
-                    displayText += ExtraWindow::GetActionDisplayName(CurrentTrigger->Actions[SelectedActions[i]].ActionNum, i);
+                    displayText += ExtraWindow::GetActionDisplayName(CurrentTrigger->Actions[SelectedActions[i]].ActionNum,
+                         SelectedActions[i]);
                     if (i != SelectedActions.size() -1)
                         displayText += "\n";
                 }
@@ -1434,7 +1435,8 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxEvent(HWND hWnd, UINT message, WPARAM
 
                 for (int i = 0; i < SelectedEvents.size(); ++i)
                 {
-                    displayText += ExtraWindow::GetEventDisplayName(CurrentTrigger->Events[SelectedEvents[i]].EventNum, i);
+                    displayText += ExtraWindow::GetEventDisplayName(CurrentTrigger->Events[SelectedEvents[i]].EventNum, 
+                        SelectedEvents[i]);
                     if (i != SelectedEvents.size() - 1)
                         displayText += "\n";
                 }

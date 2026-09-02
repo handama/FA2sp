@@ -532,8 +532,12 @@ void CTileSetBrowserFrameExt::InitTabControl()
 	RECT rect;
 	this->GetClientRect(&rect);
 
+	DWORD dwTabStyles = TCS_FIXEDWIDTH | WS_CHILD | WS_VISIBLE;
+	if (ExtConfigs::TileSetBrowserMultiLineTabs)
+		dwTabStyles |= TCS_MULTILINE;
+
 	this->hTabCtrl = CreateWindowEx(0, WC_TABCONTROL,
-		nullptr, TCS_FIXEDWIDTH | WS_CHILD | WS_VISIBLE,
+		nullptr, dwTabStyles,
 		rect.left + 2, rect.top + 2, rect.right - 4, rect.bottom - 4,
 		*this, NULL, (HINSTANCE)FA2sp::hInstance, nullptr);
 
@@ -591,4 +595,15 @@ void CTileSetBrowserFrameExt::InitTabControl()
 
 	MapObjectList::Instance.Create(hTabCtrl);
 	MapObjectList::Instance.HideWindow();
+}
+
+int CTileSetBrowserFrameExt::GetTabPageHeight()
+{
+	if (!hTabCtrl || !::IsWindow(hTabCtrl))
+		return 20 * CFinalSunAppExt::ProgramScaleFactor;
+
+	RECT rc;
+	::GetClientRect(hTabCtrl, &rc);
+	TabCtrl_AdjustRect(hTabCtrl, FALSE, &rc);
+	return rc.top;
 }

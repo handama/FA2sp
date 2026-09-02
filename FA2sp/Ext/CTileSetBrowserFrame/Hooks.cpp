@@ -69,7 +69,7 @@ DEFINE_HOOK(4F1B00, CTileSetBrowserFrame_RecalcLayout, 7)
         DestroyWindow(hTemp);
     }
 
-    int tabPageheight = 20 * CFinalSunAppExt::ProgramScaleFactor;
+    int tabPageheight = CTileSetBrowserFrameExt::GetTabPageHeight();
     if (ExtConfigs::VerticalLayout)
     {
         pThis->DialogBar.MoveWindow(2, tabPageheight, tabRect.right - tabRect.left - 6, cachedHeight, FALSE);

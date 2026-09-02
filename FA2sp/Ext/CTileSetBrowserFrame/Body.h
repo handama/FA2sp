@@ -45,6 +45,7 @@ public:
     static void RefreshAllTabs();
 
 	void InitTabControl();
+	static int GetTabPageHeight();
 
 private:
 

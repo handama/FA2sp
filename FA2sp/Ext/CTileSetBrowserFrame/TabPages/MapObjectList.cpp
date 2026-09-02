@@ -748,7 +748,7 @@ void MapObjectList::OnSize() const
     RECT parentRect{};
     HWND parent = GetParent(m_hWnd);
     GetClientRect(parent, &parentRect);
-    int tabPageheight = 20 * s;
+    int tabPageheight = CTileSetBrowserFrameExt::GetTabPageHeight();
     ::MoveWindow(
         m_hWnd, 2, tabPageheight,
         std::max(static_cast<int>(100 * s), static_cast<int>(parentRect.right) - 6),

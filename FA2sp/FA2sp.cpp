@@ -121,6 +121,7 @@ bool ExtConfigs::SaveMap_FileEncodingComment;
 bool ExtConfigs::DisableLuaConsoleSafetyCheck;
 bool ExtConfigs::VerticalLayout;
 bool ExtConfigs::TileSetBrowserFloating;
+bool ExtConfigs::TileSetBrowserMultiLineTabs;
 bool ExtConfigs::ViewObjectsFloating;
 int ExtConfigs::RecentFileLimit;
 int ExtConfigs::MultiSelectionColor;
@@ -462,6 +463,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::VerticalLayout = CINI::FAData->GetBool("ExtConfigs", "VerticalLayout");
 	ExtConfigs::TileSetBrowserFloating = CINI::FAData->GetBool("ExtConfigs", "TileSetBrowserFloating");
+	ExtConfigs::TileSetBrowserMultiLineTabs = CINI::FAData->GetBool("ExtConfigs", "TileSetBrowserMultiLineTabs");
 	ExtConfigs::ViewObjectsFloating = CINI::FAData->GetBool("ExtConfigs", "ViewObjectsFloating");
 
 	ExtConfigs::RecentFileLimit = std::clamp(CINI::FAData->GetInteger("ExtConfigs", "RecentFileLimit"), 4, 9);
@@ -860,6 +862,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "GridObjectViewer.LoadObjectBrowserCategory",
 		.Value = &ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory,
 		.Type = ExtConfigs::SpecialOptionType::ReloadObjectViewer});
+		
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.TileSetBrowserMultiLineTabs", "Display tile browser tabs in multiple rows"),
+		.IniKey = "TileSetBrowserMultiLineTabs",
+		.Value = &ExtConfigs::TileSetBrowserMultiLineTabs,
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	// Map Display and Rendering
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

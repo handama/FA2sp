@@ -1440,7 +1440,7 @@ void GridObjectViewer::OnSize() const
     ::GetClientRect(::GetParent(this->GetView()), &rect);
     CRect controlRect;
     GetWindowRect(this->GetControl(), &controlRect);
-    int tabPageheight = 20 * CFinalSunAppExt::ProgramScaleFactor;
+    int tabPageheight = CTileSetBrowserFrameExt::GetTabPageHeight();
     if (ExtConfigs::VerticalLayout)
     {
         ::MoveWindow(m_hControl, 2, tabPageheight,

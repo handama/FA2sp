@@ -126,7 +126,7 @@ void ScriptSort::OnSize() const
 {
     RECT rect;
     ::GetClientRect(::GetParent(this->GetHwnd()), &rect);
-    int tabPageheight = 20 * CFinalSunAppExt::ProgramScaleFactor;
+    int tabPageheight = CTileSetBrowserFrameExt::GetTabPageHeight();
     ::MoveWindow(this->GetHwnd(), 2, tabPageheight, rect.right - rect.left - 6, rect.bottom - rect.top - 6 - tabPageheight, FALSE);
 }
 

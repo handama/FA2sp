@@ -130,6 +130,7 @@ public:
     static bool DisableLuaConsoleSafetyCheck;
     static bool VerticalLayout;
     static bool TileSetBrowserFloating;
+    static bool TileSetBrowserMultiLineTabs;
     static bool ViewObjectsFloating;
     static int RecentFileLimit;
     static int MultiSelectionColor;

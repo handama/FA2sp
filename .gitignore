@@ -42,3 +42,5 @@ MFC42
 !Debug/lexilla.lib
 !Debug/Scintilla.dll
 !Debug/Scintilla.lib
+/ida_mapping
+/migration

@@ -36,6 +36,8 @@ public:
         RenderPath = 6307,
         SearchReference = 1999,
         DragPoint = 2001,
+        JumpWaypointParam = 2002,
+        JumpWaypointExtraParam = 2003,
     };
 
     static void Create(CFinalSunDlg* pWnd);
@@ -68,6 +70,8 @@ protected:
     static void OnClickDeleteAction(HWND& hWnd);
     static void OnClickSearchReference(HWND& hWnd);
     static void OnClickMoveupAction(HWND& hWnd, bool reverse);
+    static void OnClickJumpWaypointParam(bool extra);
+    static void UpdateWaypointJumpButtons();
     static void UpdateActionAndParam(int actionChanged = -1, int listBoxCurChanged = -1, bool changeActionIdx = true);
     static void UpdateScriptPath();
     
@@ -108,6 +112,8 @@ public:
     static HWND hRenderPath;
     static HWND hSearchReference;
     static HWND hDragPoint;
+    static HWND hJumpWaypointParam;
+    static HWND hJumpWaypointExtraParam;
     static FString CurrentScriptID;
     static FMap<bool> ActionHasExtraParam;
     static FMap<bool> ActionIsStringParam;
@@ -120,6 +126,8 @@ private:
     static VirtualComboBoxEx vcbActionExtraParam;
 
     static bool ParamAutodrop[2];
+    static bool ParamIsWaypoint[2];
+    static RECT ParamComboRect[2];
     static bool bInsert;
     static bool AutoChangeName;
     static WNDPROC OriginalListBoxProc;

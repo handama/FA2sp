@@ -52,12 +52,16 @@ HWND CNewScript::hActionExtraParamDes;
 HWND CNewScript::hInsert;
 HWND CNewScript::hRenderPath;
 HWND CNewScript::hSearchReference;
+HWND CNewScript::hJumpWaypointParam;
+HWND CNewScript::hJumpWaypointExtraParam;
 
 int CNewScript::SelectedScriptIndex = -1;
 FString CNewScript::CurrentScriptID;
 FMap<bool> CNewScript::ActionHasExtraParam;
 FMap<bool> CNewScript::ActionIsStringParam;
 bool CNewScript::ParamAutodrop[2];
+bool CNewScript::ParamIsWaypoint[2];
+RECT CNewScript::ParamComboRect[2];
 bool CNewScript::bInsert;
 bool CNewScript::AutoChangeName = false;
 WNDPROC CNewScript::OriginalListBoxProc;
@@ -135,6 +139,23 @@ void CNewScript::Initialize(HWND& hWnd)
     hActionType = GetDlgItem(hWnd, Controls::ActionType);
     hActionParam = GetDlgItem(hWnd, Controls::ActionParam);
     hActionExtraParam = GetDlgItem(hWnd, Controls::ActionExtraParam);
+
+    auto GetClientRectOf = [&hWnd](HWND hControl)
+        {
+            RECT rc;
+            GetWindowRect(hControl, &rc);
+            POINT pt = { rc.left, rc.top };
+            ScreenToClient(hWnd, &pt);
+            int w = rc.right - rc.left;
+            int h = rc.bottom - rc.top;
+            rc.left = pt.x;
+            rc.top = pt.y;
+            rc.right = pt.x + w;
+            rc.bottom = pt.y + h;
+            return rc;
+        };
+    ParamComboRect[0] = GetClientRectOf(hActionParam);
+    ParamComboRect[1] = GetClientRectOf(hActionExtraParam);
     hDescription = GetDlgItem(hWnd, Controls::Description);
     hMoveUp = GetDlgItem(hWnd, Controls::MoveUp);
     hMoveDown = GetDlgItem(hWnd, Controls::MoveDown);
@@ -144,6 +165,10 @@ void CNewScript::Initialize(HWND& hWnd)
     hRenderPath = GetDlgItem(hWnd, Controls::RenderPath);
     hSearchReference = GetDlgItem(hWnd, Controls::SearchReference);
     hDragPoint = GetDlgItem(hWnd, Controls::DragPoint);
+    hJumpWaypointParam = GetDlgItem(hWnd, Controls::JumpWaypointParam);
+    hJumpWaypointExtraParam = GetDlgItem(hWnd, Controls::JumpWaypointExtraParam);
+    ShowWindow(hJumpWaypointParam, SW_HIDE);
+    ShowWindow(hJumpWaypointExtraParam, SW_HIDE);
     bInsert = false;
     CIsoViewExt::DrawScriptPath = false;
 
@@ -598,6 +623,12 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
         m_transparency.Init(hWnd, "ScriptEditorOpacity");
         return TRUE;
     }
+    case WM_SHOWWINDOW:
+    {
+        if (wParam)
+            UpdateWaypointJumpButtons();
+        break;
+    }
     case WM_COMMAND:
     {
         if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "ScriptEditorOpacity"))
@@ -700,6 +731,14 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
                 }
             }        
             break;
+        case Controls::JumpWaypointParam:
+            if (CODE == BN_CLICKED)
+                OnClickJumpWaypointParam(false);
+            break;
+        case Controls::JumpWaypointExtraParam:
+            if (CODE == BN_CLICKED)
+                OnClickJumpWaypointParam(true);
+            break;
         default:
             break;
         }
@@ -762,6 +801,9 @@ void CNewScript::OnSelchangeActionListbox()
         SendMessage(hActionParam, CB_SETCURSEL, -1, NULL);
         SendMessage(hActionExtraParam, CB_SETCURSEL, -1, NULL);
         SendMessage(hDescription, WM_SETTEXT, 0, (LPARAM)"");
+        CNewScript::ParamIsWaypoint[0] = false;
+        CNewScript::ParamIsWaypoint[1] = false;
+        CNewScript::UpdateWaypointJumpButtons();
         return;
     }
 
@@ -992,6 +1034,9 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
 		AutoChangeName = true;
 		SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
 		AutoChangeName = false;
+        CNewScript::ParamIsWaypoint[0] = false;
+        CNewScript::ParamIsWaypoint[1] = false;
+        CNewScript::UpdateWaypointJumpButtons();
         while (SendMessage(hActionsListBox, LB_DELETESTRING, 0, NULL) != CB_ERR);
     };
 
@@ -1550,6 +1595,8 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
     key.Format("%d", listBoxCurChanged);
     auto value = map.GetString(CurrentScriptID, key);
     auto atoms = FString::SplitString(value, 1);
+    CNewScript::ParamIsWaypoint[0] = false;
+    CNewScript::ParamIsWaypoint[1] = false;
     if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("ScriptsRA2")))
     {
         FString action;
@@ -1593,6 +1640,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                 {
                     SendMessage(hActionParamDes, WM_SETTEXT, 0, (LPARAM)param[0]);
                     ExtraWindow::LoadParams(vcbActionParam, param[1]); 
+                    CNewScript::ParamIsWaypoint[0] = param[1] == "1";
                     if (!ExtConfigs::SearchCombobox_Waypoint && param[1] == "1") // waypoints
                     {
                         CNewScript::ParamAutodrop[0] = false;
@@ -1606,6 +1654,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                         EnableWindow(hActionExtraParam, TRUE);
                         SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)param[2]);
                         ExtraWindow::LoadParams(vcbActionExtraParam, param[3]);
+                        CNewScript::ParamIsWaypoint[1] = param[3] == "1";
                         if (!ExtConfigs::SearchCombobox_Waypoint && param[3] == "1") // waypoints
                         {
                             CNewScript::ParamAutodrop[1] = false;
@@ -1654,6 +1703,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                         EnableWindow(hActionExtraParam, TRUE);
                         SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)param[2]);
                         ExtraWindow::LoadParams(vcbActionExtraParam, param[3]);
+                        CNewScript::ParamIsWaypoint[1] = param[3] == "1";
                         if (!ExtConfigs::SearchCombobox_Waypoint && param[3] == "1") // waypoints
                         {
                             CNewScript::ParamAutodrop[1] = false;
@@ -1725,6 +1775,8 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
             SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)buffer);
         }
     }
+
+    UpdateWaypointJumpButtons();
 }
 
 void CNewScript::UpdateScriptPath()
@@ -1819,6 +1871,58 @@ void CNewScript::OnClickSearchReference(HWND& hWnd)
         ::SendMessage(CSearhReference::GetHandle(), 114514, 0, 0);
     }
 
+}
+
+void CNewScript::UpdateWaypointJumpButtons()
+{
+    HWND combos[2] = { hActionParam, hActionExtraParam };
+    HWND btns[2]   = { hJumpWaypointParam, hJumpWaypointExtraParam };
+
+    for (int i = 0; i < 2; ++i)
+    {
+        bool show = CNewScript::ParamIsWaypoint[i] && IsWindowEnabled(combos[i]);
+
+        RECT rcBtn;
+        GetWindowRect(btns[i], &rcBtn);
+        POINT ptBtn = { rcBtn.left, rcBtn.top };
+        ScreenToClient(m_hwnd, &ptBtn);
+
+        const RECT& orig = ParamComboRect[i];
+        int origW = orig.right - orig.left;
+        int gap = (int)(2 * CFinalSunAppExt::ProgramScaleFactor);
+
+        RECT rcCombo;
+        GetWindowRect(combos[i], &rcCombo);
+        int curW = rcCombo.right - rcCombo.left;
+
+        int newW = origW;
+        if (show)
+        {
+            newW = (ptBtn.x - gap) - orig.left;
+            if (newW >= origW || newW <= 0)
+                newW = origW; 
+        }
+
+        if (curW != newW)
+            MoveWindow(combos[i], orig.left, orig.top, newW, orig.bottom - orig.top, TRUE);
+
+        ShowWindow(btns[i], show ? SW_SHOW : SW_HIDE);
+    }
+}
+
+void CNewScript::OnClickJumpWaypointParam(bool extra)
+{
+    auto& vcb = extra ? vcbActionExtraParam : vcbActionParam;
+	FString value = vcb.GetSelectedText(true);
+    FString::TrimIndex(value);
+	if (auto pCord = CINI::CurrentDocument->TryGetString("Waypoints", value))
+    {
+        auto second = atoi(*pCord);
+        if (second > 0)
+        {
+            CObjectSearch::MoveToMapCoord(second / 1000, second % 1000);
+        }
+    }
 }
 
 bool CNewScript::OnEnterKeyDown(HWND& hWnd)

@@ -8,6 +8,41 @@ CINIDialog CMiscSettings::NewBasic = {343};
 CINIDialog CMiscSettings::NewSinglePlayer= {344};
 using T = CINIDialog::ControlType;
 
+namespace
+{
+	bool s_launchPending = false;
+
+	void LaunchRandomTree()
+	{
+		CRandomTreeExt randomTree;
+		auto mirageIni = CINI::CurrentDocument->GetString("General", "DefaultMirageDisguises");
+		mirageIni.Trim();
+		randomTree.MirageDisguiseTrees = mirageIni;
+		randomTree.LaunchingFromSingleplayerSettings = true;
+		if (randomTree.DoModal() == IDOK)
+		{
+			auto trees = CRandomTree::RandomTrees();
+			FString result;
+			for (size_t i = 0; i < trees.size(); ++i)
+			{
+				if (i > 0)
+					result += ",";
+				result += trees[i];
+			}
+			auto hEdit = CMiscSettings::NewSinglePlayer.GetControlInfo(1376).hWnd;
+			SetWindowText(hEdit, result);
+		}
+		randomTree.MirageDisguiseTrees = "";
+		randomTree.LaunchingFromSingleplayerSettings = false;
+	}
+}
+
+void LaunchRandomTreeDeferred()
+{
+	s_launchPending = false;
+	LaunchRandomTree();
+}
+
 void CMiscSettings::InitNewSpecialFlags()
 {
 	NewSpecialFlags.SetTransparencyKey("SpecialFlagsOpacity");
@@ -176,26 +211,10 @@ void CMiscSettings::InitNewSinglePlayer()
 	NewSinglePlayer.SetControlInfo(1377, {T::Button, "", "", [] {	
 		if (!CMapData::Instance->MapWidthPlusHeight)
 			return;
-		CRandomTreeExt randomTree;
-		auto mirageIni = CINI::CurrentDocument->GetString("General", "DefaultMirageDisguises");
-		mirageIni.Trim();
-		randomTree.MirageDisguiseTrees = mirageIni;
-		randomTree.LaunchingFromSingleplayerSettings = true;
-        if (randomTree.DoModal() == IDOK)
-        {
-			auto trees = CRandomTree::RandomTrees();
-			FString result;
-			for (size_t i = 0; i < trees.size(); ++i)
-			{
-				if (i > 0)
-					result += ",";
-				result += trees[i];
-			}
-			auto hEdit = NewSinglePlayer.GetControlInfo(1376).hWnd;
-			SetWindowText(hEdit, result);
-		}
-		randomTree.MirageDisguiseTrees = "";
-		randomTree.LaunchingFromSingleplayerSettings = false;
+		if (s_launchPending)
+			return;
+		s_launchPending = true;
+		::PostMessage(NewSinglePlayer.GetSafeHwnd(), WM_LAUNCH_RANDOM_TREE, 0, 0);
 	}});
 	
 	std::vector<FString> labels;

@@ -4202,6 +4202,9 @@ BOOL CINIDialog::OnCommand(WPARAM wParam, LPARAM lParam)
     WORD nID = LOWORD(wParam);
     WORD nNotify = HIWORD(wParam);
 
+    CINIDialog* const self = this;
+    (void)&self;
+
     if (!m_transparencyKey.IsEmpty()) {
         int alpha = -1;
         if (nID == TransparencyHelper::IDM_OPAQUE)           alpha = 255;
@@ -4270,7 +4273,7 @@ BOOL CINIDialog::OnCommand(WPARAM wParam, LPARAM lParam)
         }
 	}
 
-    return CDialog::OnCommand(wParam, lParam);
+    return self->CDialog::OnCommand(wParam, lParam);
 }
 
 void CINIDialog::DoDataExchange(ppmfc::CDataExchange* pDX)
@@ -4295,6 +4298,11 @@ void CINIDialog::OnCancel()
 
 BOOL CINIDialog::PreTranslateMessage(MSG* pMsg)
 {
+    if (pMsg->message == WM_LAUNCH_RANDOM_TREE)
+    {
+        LaunchRandomTreeDeferred();
+        return TRUE;
+    }
     if (!m_transparencyKey.IsEmpty() && m_transparency.HandleMessage(GetSafeHwnd(), pMsg->message, pMsg->wParam, pMsg->lParam, m_transparencyKey))
         return TRUE;
     return CDialog::PreTranslateMessage(pMsg);

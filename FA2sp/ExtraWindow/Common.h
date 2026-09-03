@@ -575,3 +575,6 @@ public:
 	TransparencyHelper m_transparency;
 	FString m_transparencyKey;
 };
+
+constexpr UINT WM_LAUNCH_RANDOM_TREE = WM_APP + 0x4D3;
+void LaunchRandomTreeDeferred();

@@ -346,7 +346,8 @@ enum class ParamType : int
     Taskforce,
     Script,
     AITrigger,
-    Waypoint
+    Waypoint,
+    LocalVariable
 };
 
 class CNewTrigger

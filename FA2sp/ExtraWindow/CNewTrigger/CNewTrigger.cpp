@@ -24,6 +24,7 @@
 #include "../CCsfEditor/CCsfEditor.h"
 #include "../CNewTeamTypes/CNewTeamTypes.h"
 #include "../CNewAITrigger/CNewAITrigger.h"
+#include "../CNewLocalVariables/CNewLocalVariables.h"
 #include "../../Helpers/Helper.h"
 #include "../../Miscs/StringtableLoader.h"
 #include "../CNewTag/CNewTag.h"
@@ -2596,6 +2597,8 @@ void CNewTrigger::UpdateParamAffectedParam_Action(int index)
                 auto paramType = FString::GetParam(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), target.ParamMap[text]), 1);
                 ExtraWindow::LoadParams(vcbActionParameter[target.AffectedParam], paramType, this);
                 //SendMessage(hActionParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].GetString());
+                
+                auto newParamInfos = FString::SplitString(fadata.GetString("NewParamTypes", paramType, "MISSING,0,0,0,0"), 4);
                 if (paramType == "10") // stringtables
                 {
                     ActionParamType[target.AffectedParam] = ParamType::CSF;
@@ -2604,13 +2607,13 @@ void CNewTrigger::UpdateParamAffectedParam_Action(int index)
                 {
                     ActionParamType[target.AffectedParam] = ParamType::Trigger;
                 }
-                else if (paramType == "15" || FString::GetParam(
-                    fadata.GetString(
-                        "NewParamTypes",
-                        paramType), 0)
-                    == "TeamTypes")
+                else if (paramType == "15" || newParamInfos[0] == "TeamTypes")
                 {
                     ActionParamType[target.AffectedParam] = ParamType::Team;
+                }
+                else if (newParamInfos[0] == "VariableNames" && (newParamInfos[1] == "3" || newParamInfos[1] == "map"))
+                {
+                    ActionParamType[target.AffectedParam] = ParamType::LocalVariable;
                 }
 
                 auto& targetText = CurrentTrigger->Actions[SelectedActionIndex].Params[ActionParamsUsage[target.AffectedParam].second];
@@ -2644,7 +2647,8 @@ void CNewTrigger::UpdateParamAffectedParam_Event(int index)
             {
                 auto paramType = FString::GetParam(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), target.ParamMap[text]), 1);
                 ExtraWindow::LoadParams(vcbEventParameter[target.AffectedParam], paramType, this);
-
+                auto newParamInfos = FString::SplitString(fadata.GetString("NewParamTypes", paramType, "MISSING,0,0,0,0"), 4);
+					
                 if (paramType == "10") // stringtables
                 {
                     EventParamType[target.AffectedParam] = ParamType::CSF;
@@ -2653,15 +2657,14 @@ void CNewTrigger::UpdateParamAffectedParam_Event(int index)
                 {
                     EventParamType[target.AffectedParam] = ParamType::Trigger;
                 }
-                else if (paramType == "15" || FString::GetParam(
-                    fadata.GetString(
-                        "NewParamTypes",
-                        paramType), 0)
-                    == "TeamTypes")
+                else if (paramType == "15" || newParamInfos[0] == "TeamTypes")
                 {
                     EventParamType[target.AffectedParam] = ParamType::Team;
                 }
-
+                else if (newParamInfos[0] == "VariableNames" && (newParamInfos[1] == "3" || newParamInfos[1] == "map")) // local variables
+                {
+                    EventParamType[target.AffectedParam] = ParamType::LocalVariable;
+                }
                 auto& targetText = CurrentTrigger->Events[SelectedEventIndex].Params[EventParamsUsage[target.AffectedParam].second];
                 int paramIdx = ExtraWindow::FindCBStringExactStart(hEventParameter[target.AffectedParam], targetText + " ");
                 if (paramIdx == CB_ERR)
@@ -3420,6 +3423,7 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
         EventParamType[i] = ParamType::None;
 
 		auto setSpecialParams = [&](const FString& paramIdx) {
+            
             if (paramIdx == "10")
             {
                 EventParamType[i] = ParamType::CSF;
@@ -3478,6 +3482,10 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
                 else if (sectionName == "Tags" && loadFromMap)
                 {
                     EventParamType[i] = ParamType::Tag;
+                }
+                else if (sectionName == "VariableNames" && loadFromMap)
+                {
+                    EventParamType[i] = ParamType::LocalVariable;
                 }
             }
 		};
@@ -3714,6 +3722,10 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
                     else if (sectionName == "Tags" && loadFromMap)
                     {
                         ActionParamType[i] = ParamType::Tag;
+                    }
+                    else if (sectionName == "VariableNames" && loadFromMap)
+                    {
+                        ActionParamType[i] = ParamType::LocalVariable;
                     }
                 }
             }
@@ -4179,6 +4191,18 @@ void CNewTrigger::OnClickParamJump(bool isEvent, int index)
         CCsfEditor::CurrentSelectedCSF = value;
 
         ::SendMessage(CCsfEditor::GetHandle(), 114515, 0, 0);
+    }
+    else if (type == ParamType::LocalVariable)
+    {
+        if (CNewLocalVariables::GetHandle() == NULL)
+        CNewLocalVariables::Create(m_parent);
+        FString::TrimIndex(value);
+		value += " ";
+		auto idx = CNewLocalVariables::vcbVariables.FindStringExactStart(value);
+        if (idx == CB_ERR)
+            return;
+        CNewLocalVariables::OnSelchangeVariable(false, idx);
+        SetWindowPos(CNewLocalVariables::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
     }
 }
 

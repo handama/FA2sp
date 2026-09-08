@@ -843,6 +843,8 @@ void CLuaConsole::InitializeLuaState()
         });
     Lua.set_function("create_snapshot", create_snapshot);
     Lua.set_function("restore_snapshot", restore_snapshot);
+    Lua.set_function("save_map", save_map);
+    Lua.set_function("load_map", load_map);
     Lua.set_function("clear_snapshot", clear_snapshot);
     Lua.set_function("save_undo", save_undo);
     Lua.set_function("save_undo_objects", save_undo_objects);
@@ -1870,6 +1872,8 @@ std::vector<std::pair<int, std::string>> CLuaConsole::ScanHighRiskOperations(con
         std::regex(R"(io\.output\s*\()"),
         std::regex(R"(exec\s*\()"),
         std::regex(R"(save_file\s*\()"),
+        std::regex(R"(load_map\s*\()"),
+        std::regex(R"(save_map\s*\()"),
         std::regex(R"(package\.loadlib\s*\()"),
     };
 

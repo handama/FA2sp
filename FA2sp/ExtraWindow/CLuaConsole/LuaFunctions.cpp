@@ -32,6 +32,7 @@
 #include <CInputMessageBox.h>
 #include "../../Ext/CIsoView/DirectXCore.h"
 #include "../../Miscs/StringtableLoader.h"
+#include "../../Miscs/SaveMap.h"
 
 namespace LuaFunctions
 {
@@ -5265,6 +5266,61 @@ namespace LuaFunctions
 			CMapData::Instance->UpdateMapPreviewAt(X, Y);
 		}
 		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.Minimap.m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+	}
+
+	static bool save_map(sol::optional<std::string> filepath, sol::optional<int> previewOptionOpt)
+	{
+		FString target;
+		if (filepath.has_value() && !filepath->empty())
+			target = filepath->c_str();
+		else
+			target = CFinalSunApp::MapPath();
+
+		if (target.IsEmpty())
+		{
+			write_lua_console("save_map: no save path available. The map has not been saved to a file yet, please specify a path.");
+			return false;
+		}
+
+		int previewOption = previewOptionOpt.value_or(0);
+		if (previewOption < 0)
+			previewOption = 0;
+		if (previewOption > 2)
+			previewOption = 2;
+
+		CMapData::Instance->UpdateINIFile(SaveMapFlag::UpdateMapFieldData);
+
+		if (SaveMapExt::SaveMap(&CINI::CurrentDocument, CFinalSunDlg::Instance(), target, previewOption, false, false))
+		{
+			FString buffer = "Map saved as \"%1\"";
+			Translations::GetTranslationItem("FileSaved", buffer);
+			Translations::TranslateStringVariables(1, buffer, target);
+			write_lua_console(buffer);
+			return true;
+		}
+		write_lua_console("save_map: failed to save the map.");
+		return false;
+	}
+
+	static bool load_map(std::string file)
+	{
+		if (file.empty())
+		{
+			write_lua_console("load_map: no map file specified.");
+			return false;
+		}
+		if (CFinalSunDlgExt::MapValidatorAlive)
+		{
+			write_lua_console("load_map: cannot load a map while the map validator is running.");
+			return false;
+		}
+		if (!CLoading::IsFileExists(file.c_str()))
+		{
+			write_lua_console("load_map: file not found: " + file);
+			return false;
+		}
+		CFinalSunDlg::Instance->LoadMap(file.c_str());
+		return true;
 	}
 
 	static int create_snapshot()

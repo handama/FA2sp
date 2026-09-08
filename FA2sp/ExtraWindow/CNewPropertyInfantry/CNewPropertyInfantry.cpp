@@ -52,7 +52,8 @@ BOOL CALLBACK CNewPropertyInfantry::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, 
 
         if (id == 1080 && code == EN_CHANGE)
         {
-            pThis->UpdateHealthDisplay(hWnd);
+            if (!pThis->m_updatingHealth)
+                pThis->UpdateHealthDisplay(hWnd);
             return TRUE;
         }
         if (id == IDOK && code == BN_CLICKED)
@@ -82,10 +83,8 @@ BOOL CALLBACK CNewPropertyInfantry::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, 
         HWND hTrack = GetDlgItem(hWnd, 1315);
         if (pThis && reinterpret_cast<HWND>(lParam) == hTrack)
         {
-            char buffer[32] = {};
-            sprintf_s(buffer, "%d", static_cast<int>(SendMessage(hTrack, TBM_GETPOS, 0, 0)));
-            SetWindowTextA(GetDlgItem(hWnd, 1080), buffer);
-            pThis->UpdateHealthDisplay(hWnd);
+            pThis->m_totalHealth = static_cast<int>(SendMessage(hTrack, TBM_GETPOS, 0, 0));
+            pThis->SyncHealthDisplay(hWnd, true);
             return TRUE;
         }
         break;
@@ -96,9 +95,7 @@ BOOL CALLBACK CNewPropertyInfantry::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, 
         if (dis && dis->CtlID == 1316)
         {
             auto* pThis = reinterpret_cast<CNewPropertyInfantry*>(GetWindowLongPtr(hWnd, DWLP_USER));
-            int health = static_cast<int>(SendMessage(GetDlgItem(hWnd, 1315), TBM_GETPOS, 0, 0));
-            int HP = pThis && pThis->m_totalHealth > 0
-                ? (health * 256 + pThis->m_totalHealth / 2) / pThis->m_totalHealth : 256;
+            int HP = pThis ? pThis->m_totalHealth : 256;
             COLORREF color = RGB(0, 192, 0);
             if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
                 color = RGB(220, 0, 0);
@@ -157,24 +154,19 @@ BOOL CNewPropertyInfantry::OnInitDialog(HWND hDlg)
     HWND hStrength = GetDlgItem(hDlg, 1080);
     if (hStrength)
     {
-        m_totalHealth = CString_ObjectID.IsEmpty()
+        m_strength = CString_ObjectID.IsEmpty()
             ? 256
             : Variables::RulesMap.GetInteger(CString_ObjectID, "Strength", 256);
-        if (m_totalHealth <= 0)
-            m_totalHealth = 256;
-        int currentHealth = CString_HealthPoint.IsEmpty()
-            ? m_totalHealth
-            : (atoi(CString_HealthPoint) * m_totalHealth + 128) / 256;
-        char healthBuffer[32] = {};
-        sprintf_s(healthBuffer, "%d", currentHealth);
-        SetWindowTextA(hStrength, healthBuffer);
+        if (m_strength <= 0)
+            m_strength = 256;
+        m_totalHealth = CString_HealthPoint.IsEmpty()
+            ? 256
+            : atoi(CString_HealthPoint);
+        m_totalHealth = m_totalHealth < 0 ? 0 : (m_totalHealth > 256 ? 256 : m_totalHealth);
         HWND hTrack = GetDlgItem(hDlg, 1315);
         if (hTrack)
-        {
-            SendMessage(hTrack, TBM_SETRANGE, TRUE, MAKELONG(0, m_totalHealth));
-            SendMessage(hTrack, TBM_SETPOS, TRUE, currentHealth);
-        }
-        UpdateHealthDisplay(hDlg);
+            SendMessage(hTrack, TBM_SETRANGE, TRUE, MAKELONG(0, 256));
+        SyncHealthDisplay(hDlg, true);
     }
 
     // Direction combo (1088)
@@ -434,14 +426,8 @@ void CNewPropertyInfantry::CollectResults(HWND hDlg)
     HWND hStrength = GetDlgItem(hDlg, 1080);
     if (hStrength)
     {
-        GetWindowTextA(hStrength, buffer, sizeof(buffer));
-        int health = atoi(buffer);
-        health = health < 0 ? 0 : (health > m_totalHealth ? m_totalHealth : health);
-        if (!CString_ObjectID.IsEmpty())
-            health = (health * 256 + m_totalHealth / 2) / m_totalHealth;
-        else
-            health = health > 256 ? 256 : health;
-        sprintf_s(buffer, "%d", health);
+
+        sprintf_s(buffer, "%d", m_totalHealth);
         CString_HealthPoint = buffer;
     }
 
@@ -507,13 +493,31 @@ void CNewPropertyInfantry::UpdateHealthDisplay(HWND hDlg)
     char buffer[32] = {};
     GetWindowTextA(GetDlgItem(hDlg, 1080), buffer, sizeof(buffer));
     int currentHealth = atoi(buffer);
-    currentHealth = currentHealth < 0 ? 0 : (currentHealth > m_totalHealth ? m_totalHealth : currentHealth);
-    int percentage = m_totalHealth > 0 ? (currentHealth * 100 + m_totalHealth / 2) / m_totalHealth : 0;
+    m_totalHealth = (currentHealth * 256 + m_strength / 2) / m_strength;
+    m_totalHealth = m_totalHealth < 0 ? 0 : (m_totalHealth > 256 ? 256 : m_totalHealth);
+    SyncHealthDisplay(hDlg, false);
+}
+
+void CNewPropertyInfantry::SyncHealthDisplay(HWND hDlg, bool updateText)
+{
+    if (updateText)
+    {
+        m_updatingHealth = true;
+        int currentHealth = (m_totalHealth * m_strength + 128) / 256;
+
+        if (m_totalHealth > 0 && m_strength > 0 && currentHealth < 1)
+            currentHealth = 1;
+        char buffer[32] = {};
+        sprintf_s(buffer, "%d", currentHealth);
+        SetWindowTextA(GetDlgItem(hDlg, 1080), buffer);
+        m_updatingHealth = false;
+    }
     HWND hTrack = GetDlgItem(hDlg, 1315);
     if (hTrack)
-        SendMessage(hTrack, TBM_SETPOS, TRUE, currentHealth);
+        SendMessage(hTrack, TBM_SETPOS, TRUE, m_totalHealth);
+    int percentage = (m_totalHealth * 100 + 128) / 256;
     FString display;
-    display.Format("/%d (%d%%)", m_totalHealth, percentage);
+    display.Format("/%d (%d%%)", m_strength, percentage);
     SetWindowTextA(GetDlgItem(hDlg, 1314), display);
     InvalidateRect(GetDlgItem(hDlg, 1316), nullptr, TRUE);
 }

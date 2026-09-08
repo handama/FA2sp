@@ -33,10 +33,13 @@ protected:
     void CollectResults(HWND hDlg);
     void TranslateLabels(HWND hDlg);
     void UpdateHealthDisplay(HWND hDlg);
+    void SyncHealthDisplay(HWND hDlg, bool updateText);
 
     bool m_accepted = false;
     HWND m_hWnd = nullptr;
     int m_totalHealth = 256;
+    int m_strength = 256;
+    bool m_updatingHealth = false;
 
     std::map<HWND, std::unique_ptr<VirtualComboBoxEx>> m_comboBoxes;
 };

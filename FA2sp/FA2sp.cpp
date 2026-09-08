@@ -245,6 +245,7 @@ bool ExtConfigs::GridObjectViewer_LoadForceSides;
 bool ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory;
 bool ExtConfigs::HiDPIAwareness;
 bool ExtConfigs::HiDPIAwareness_ScaleIsoView;
+bool ExtConfigs::DisplayRealHPinTechnoDlg;
 
 CInfantryData ExtConfigs::DefaultInfantryProperty;
 CUnitData ExtConfigs::DefaultUnitProperty;
@@ -413,6 +414,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::FlatToGroundHideExtra = CINI::FAData->GetBool("ExtConfigs", "FlatToGroundHideExtra");
 	ExtConfigs::ExtOverlays = CINI::FAData->GetBool("ExtConfigs", "ExtOverlays");
 	ExtConfigs::LoadObjectsOnInit = CINI::FAData->GetBool("ExtConfigs", "LoadObjectsOnInit");
+	ExtConfigs::DisplayRealHPinTechnoDlg = CINI::FAData->GetBool("ExtConfigs", "DisplayRealHPinTechnoDlg", true);
 
 	ExtConfigs::DistanceRuler_Records = CINI::FAData->GetInteger("ExtConfigs", "DistanceRuler.Records", 5);
 	ExtConfigs::DisplayTextSize = CINI::FAData->GetInteger("ExtConfigs", "DisplayTextSize", 18);
@@ -818,6 +820,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.DisableLuaConsoleSafetyCheck", "Disable Lua console safety check"),
 		.IniKey = "DisableLuaConsoleSafetyCheck",
 		.Value = &ExtConfigs::DisableLuaConsoleSafetyCheck,
+		.Type = ExtConfigs::SpecialOptionType::None});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.DisplayRealHPinTechnoDlg", "Display real HP in techno dialogs"),
+		.IniKey = "DisplayRealHPinTechnoDlg",
+		.Value = &ExtConfigs::DisplayRealHPinTechnoDlg,
 		.Type = ExtConfigs::SpecialOptionType::None});
 
 	// Object Browser Settings

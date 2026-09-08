@@ -258,7 +258,8 @@ public:
     static CUnitData DefaultUnitProperty;
     static CAircraftData DefaultAircraftProperty;
     static CBuildingData DefaultBuildingProperty;
-    static FMap<bool> SupportedFormats;
+	static bool DisplayRealHPinTechnoDlg;
+	static FMap<bool> SupportedFormats;
     static int OverlayDataLimit;
     static bool MCP_Enable;
     static int MCP_Port;

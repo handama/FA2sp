@@ -153,11 +153,13 @@ BOOL CNewPropertyUnit::OnInitDialog(HWND hDlg)
     HWND hStrength = GetDlgItem(hDlg, 1080);
     if (hStrength)
     {
-        m_strength = CString_ObjectID.IsEmpty()
-            ? 256
-            : Variables::RulesMap.GetInteger(CString_ObjectID, "Strength", 256);
-        if (m_strength <= 0)
-            m_strength = 256;
+        m_strength = 256;
+        if (ExtConfigs::DisplayRealHPinTechnoDlg && !CString_ObjectID.IsEmpty())
+        {
+            m_strength = Variables::RulesMap.GetInteger(CString_ObjectID, "Strength", 256);
+            if (m_strength <= 0)
+                m_strength = 256;
+        }
         m_totalHealth = CString_HealthPoint.IsEmpty()
             ? 256
             : atoi(CString_HealthPoint);

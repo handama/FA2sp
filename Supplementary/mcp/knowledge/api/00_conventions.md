@@ -27,7 +27,7 @@
 | `09_buildings_nodes.md` | 建筑与基地节点：building 类（含升级组件）、place_node、全局建筑操作函数 |
 | `10_cells_tiles.md` | 单元格(cell)与地形块(tile)：cell 属性读写与 apply、tile 只读属性、地形放置/高度/隐藏/多选、海岸线/斜坡生成 |
 | `11_ini_operations.md` | INI 读取与写入：基础读写(get_string/get_integer/get_bool 等)、枚举解析、参数操作(split_string/get_param/set_param)、获取特殊 ID (get_free_id/get_free_key 等)、获取翻译、显示名称(translate_house/get_uiname)  |
-| `12_fa2_extensions.md` | FA2 扩展功能：刷新函数(update_xxx)、界面更新(redraw_window/update_minimap)、快照(create_snapshot/restore)、撤销(save_undo)、脚本刷(running_lua_brush + X/Y 等全局变量) |
+| `12_fa2_extensions.md` | FA2 扩展功能：刷新函数(update_xxx)、界面更新(redraw_window/update_minimap)、快照(create_snapshot/restore)、撤销(save_undo)、脚本刷(running_lua_brush + X/Y 等全局变量)、打开、保存地图 |
 | `13_triggers_tags.md` | 触发与标签：trigger 类（构造函数、属性、事件/行为管理、标签管理、change_id/release_id/apply/delete）、单元格标记(place_celltag/remove_celltag) |
 | `14_ai_triggers.md` | AI 触发：ai_trigger 类（构造函数、条件/对象/比较/权重/难度等属性、apply/change_id/delete） |
 | `15_scripts.md` | 动作脚本：script 类（构造函数、行为/参数管理、add_action/delete_action/replace_action、get_script_type、参数组合 get_script_extra/combine_script_extra） |

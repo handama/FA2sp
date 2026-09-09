@@ -14,6 +14,7 @@
 #include <FA2PP.h>
 #include "../Helpers/Translations.h"
 #include "../Ext/CLoading/Body.h"
+#include "../Ext/CMapData/Body.h"
 #include "DialogStyle.h"
 #include "../Ext/CFinalSunApp/Body.h"
 
@@ -144,42 +145,56 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 
 	if (CMapData::Instance->MapWidthPlusHeight)
 	{
-		Logger::Raw("Trying to save current map.\n");
-		FString fcrash_backup = CFinalSunAppExt::ExePathExt;
 
-		FString directoryPath = CFinalSunAppExt::ExePathExt;
-		directoryPath += "\\CrashBackups";
-		if (!std::filesystem::exists(directoryPath.c_str())) {
-			VEHGuard guard(false);
-			try {
-				if (std::filesystem::create_directory(directoryPath.c_str())) {
-					fcrash_backup += "\\CrashBackups";
-				}
-				else {
-					
-				}
-			}
-			catch (const std::filesystem::filesystem_error& e) {
-				UNREFERENCED_PARAMETER(e);
-			}
+		const bool bMapReady = CMapData::Instance->CellDatas
+			&& CMapData::Instance->CellDataCount > 0
+			&& CMapDataExt::CellDataExts.size() >= static_cast<size_t>(CMapData::Instance->CellDataCount);
+
+		if (!bMapReady)
+		{
+			Logger::Raw("Map core data is incomplete or corrupted, skip emergency saving.\n");
+			MessageBox(CFinalSunDlg::Instance->m_hWnd, Translations::TranslateOrDefault("FinalAlert2FatalError.MapNotLoaded",
+				"Seems there's no map had been loaded."), "Fatal Error!", MB_OK | MB_ICONINFORMATION);
 		}
 		else
-		{
-			fcrash_backup += "\\CrashBackups";
+		{		
+			Logger::Raw("Trying to save current map.\n");
+			FString fcrash_backup = CFinalSunAppExt::ExePathExt;
+
+			FString directoryPath = CFinalSunAppExt::ExePathExt;
+			directoryPath += "\\CrashBackups";
+			if (!std::filesystem::exists(directoryPath.c_str())) {
+				VEHGuard guard(false);
+				try {
+					if (std::filesystem::create_directory(directoryPath.c_str())) {
+						fcrash_backup += "\\CrashBackups";
+					}
+					else {
+						
+					}
+				}
+				catch (const std::filesystem::filesystem_error& e) {
+					UNREFERENCED_PARAMETER(e);
+				}
+			}
+			else
+			{
+				fcrash_backup += "\\CrashBackups";
+			}
+
+			FString backup_name;
+			SYSTEMTIME time;
+			GetLocalTime(&time);
+			backup_name.Format("fcrash_backup-%04u%02u%02u-%02u%02u%02u.map", time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute, time.wSecond);
+			fcrash_backup += "\\" + backup_name;
+
+			SaveMapExt::IsAutoSaving = true;
+			SaveMapExt::SaveMapSilent(fcrash_backup, true);
+			SaveMapExt::IsAutoSaving = false;
+
+			MessageBox(CFinalSunDlg::Instance->m_hWnd, Translations::TranslateOrDefault("FinalAlert2FatalError.SaveMap",
+				"Current MapData has been saved as: \n") + fcrash_backup, "Fatal Error!", MB_OK | MB_ICONINFORMATION);
 		}
-
-		FString backup_name;
-		SYSTEMTIME time;
-		GetLocalTime(&time);
-		backup_name.Format("fcrash_backup-%04u%02u%02u-%02u%02u%02u.map", time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute, time.wSecond);
-		fcrash_backup += "\\" + backup_name;
-
-		SaveMapExt::IsAutoSaving = true;
-		SaveMapExt::SaveMapSilent(fcrash_backup, true);
-		SaveMapExt::IsAutoSaving = false;
-
-		MessageBox(CFinalSunDlg::Instance->m_hWnd, Translations::TranslateOrDefault("FinalAlert2FatalError.SaveMap", 
-			"Current MapData has been saved as: \n") + fcrash_backup, "Fatal Error!", MB_OK | MB_ICONINFORMATION);
 	}
 	else
 		MessageBox(CFinalSunDlg::Instance->m_hWnd, Translations::TranslateOrDefault("FinalAlert2FatalError.MapNotLoaded",

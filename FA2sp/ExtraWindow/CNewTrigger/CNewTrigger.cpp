@@ -56,16 +56,6 @@ static DWORD ThemeSoundDurationMs = 0;
 static bool BagSoundPlaying = false;
 static DWORD BagSoundStartTick = 0;
 static DWORD BagSoundDurationMs = 0;
-static DWORD BagSoundCacheTick = 0;
-
-static void TrimBagSoundCache()
-{
-    if (BagSoundCacheTick && GetTickCount() - BagSoundCacheTick >= 60000)
-    {
-        AudioBagSound::ClearCache();
-        BagSoundCacheTick = 0;
-    }
-}
 
 static COLORREF GetTriggerBackground(bool enabled)
 {
@@ -527,11 +517,6 @@ void CNewTrigger::Close(HWND& hWnd)
     }
     EndDialog(hWnd, NULL);
     StopThemeSound();
-    if (!HasOtherInstances())
-    {
-        AudioBagSound::ClearCache();
-        BagSoundCacheTick = 0;
-    }
 
     CurrentTrigger = nullptr;
     m_hwnd = NULL;
@@ -2739,7 +2724,6 @@ void CNewTrigger::UpdateParamAffectedParam_Event(int index)
 
 void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionListCur, bool reloadTrigger)
 {
-    TrimBagSoundCache();
     SelectedTriggerIndex = vcbSelectedTrigger.GetCurSel();
     if (SelectedTriggerIndex < 0 && vcbSelectedTrigger.GetCount() > 0)
     {
@@ -4228,7 +4212,6 @@ void CNewTrigger::PlayThemeSoundFile(const char* pFileName)
 
 void CNewTrigger::PlayBagSound(const char* pSoundName, int volume)
 {
-    BagSoundCacheTick = GetTickCount();
     if (!pSoundName || !*pSoundName)
         return;
     std::vector<byte> wavData;
@@ -4247,7 +4230,6 @@ void CNewTrigger::PlayBagSound(const char* pSoundName, int volume)
 
 void CNewTrigger::OnClickParamJump(bool isEvent, int index)
 {
-    TrimBagSoundCache();
     VirtualComboBoxEx* vcb = isEvent ? &vcbEventParameter[index] : &vcbActionParameter[index];
     ParamType type = isEvent ? EventParamType[index] : ActionParamType[index];
 

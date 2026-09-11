@@ -1,13 +1,12 @@
 #include "AudioBagSound.h"
 #include "../Ext/CLoading/Body.h"
+#include "../Logger.h"
 #include "../../FA2pp/FAMemory.h"
 #include <algorithm>
 #include <cstring>
+#include <cstdio>
 
-bool AudioBagSound::loaded = false;
-bool AudioBagSound::loadFailed = false;
-std::unordered_map<std::string, AudioBagSound::Entry> AudioBagSound::entries;
-std::vector<byte> AudioBagSound::bagData;
+std::unordered_map<std::string, AudioBagSound::BagEntry> AudioBagSound::entries;
 
 static uint32_t ReadU32(const byte* p)
 {
@@ -73,89 +72,6 @@ static void AudDecodeImaChunk(const byte* audio_in, short* audio_out, int& index
         else if (index > 88)
             index = 88;
     }
-}
-
-static std::string ToLowerKey(const char* text, size_t length)
-{
-    std::string key;
-    key.reserve(length);
-    for (size_t i = 0; i < length; ++i)
-        key.push_back((char)tolower((unsigned char)text[i]));
-    return key;
-}
-
-void AudioBagSound::ClearCache()
-{
-    loaded = false;
-    loadFailed = false;
-    std::unordered_map<std::string, Entry>().swap(entries);
-    std::vector<byte>().swap(bagData);
-}
-
-void AudioBagSound::Fail()
-{
-    loadFailed = true;
-    loaded = true;
-    entries.clear();
-    bagData.clear();
-}
-
-bool AudioBagSound::EnsureLoaded()
-{
-    if (loaded)
-        return !loadFailed;
-    loaded = true;
-
-    DWORD idxSize = 0;
-    auto idx = static_cast<byte*>(CLoadingExt::GetExtension()->ReadWholeFile("audio.idx", &idxSize));
-    if (!idx || idxSize < 12 || memcmp(idx, "GABA", 4) != 0 || ReadI32(idx + 4) != 2)
-    {
-        if (idx)
-            GameDeleteArray(idx, idxSize);
-        Fail();
-        return false;
-    }
-    int32_t count = ReadI32(idx + 8);
-    if (count < 0 || (uint64_t)idxSize != 12ull + 36ull * (uint32_t)count)
-    {
-        GameDeleteArray(idx, idxSize);
-        Fail();
-        return false;
-    }
-    for (int32_t i = 0; i < count; ++i)
-    {
-        const byte* p = idx + 12 + (size_t)i * 36;
-        size_t nameLen = 16;
-        for (size_t j = 0; j < 16; ++j)
-        {
-            if (p[j] == 0)
-            {
-                nameLen = j;
-                break;
-            }
-        }
-        Entry e;
-        e.offset = ReadU32(p + 16);
-        e.size = ReadU32(p + 20);
-        e.samplerate = ReadI32(p + 24);
-        e.flags = ReadI32(p + 28);
-        e.chunkSize = ReadI32(p + 32);
-        entries[ToLowerKey((const char*)p, nameLen)] = e;
-    }
-    GameDeleteArray(idx, idxSize);
-
-    DWORD bagSize = 0;
-    auto bag = static_cast<byte*>(CLoadingExt::GetExtension()->ReadWholeFile("audio.bag", &bagSize, false, false));
-    if (!bag || bagSize == 0)
-    {
-        if (bag)
-            GameDeleteArray(bag, bagSize);
-        Fail();
-        return false;
-    }
-    bagData.assign(bag, bag + bagSize);
-    GameDeleteArray(bag, bagSize);
-    return true;
 }
 
 static void ScalePcmVolume(std::vector<byte>& body, int volumePercent)
@@ -285,45 +201,150 @@ static void BuildPcmWav(std::vector<byte>& body, int dataSize, int channels, int
     outWav = std::move(wav);
 }
 
+void AudioBagSound::ClearIndexes()
+{
+    std::unordered_map<std::string, BagEntry>().swap(entries);
+}
+
+bool AudioBagSound::ParseIdx(const byte* idx, DWORD idxSize, std::unordered_map<std::string, BagEntry>& out)
+{
+    if (!idx || idxSize < 12 || memcmp(idx, "GABA", 4) != 0 || ReadI32(idx + 4) != 2)
+        return false;
+    int32_t count = ReadI32(idx + 8);
+    if (count < 0 || (uint64_t)idxSize != 12ull + 36ull * (uint32_t)count)
+        return false;
+
+    for (int32_t i = 0; i < count; ++i)
+    {
+        const byte* p = idx + 12 + (size_t)i * 36;
+        size_t nameLen = 16;
+        for (size_t j = 0; j < 16; ++j)
+        {
+            if (p[j] == 0)
+            {
+                nameLen = j;
+                break;
+            }
+        }
+        if (nameLen == 0)
+            continue;
+        std::string key;
+        key.reserve(nameLen);
+        for (size_t j = 0; j < nameLen; ++j)
+            key.push_back((char)tolower((unsigned char)p[j]));
+        BagEntry& e = out[key];
+        e.bagIndex = 0;
+        e.offset = ReadU32(p + 16);
+        e.size = ReadU32(p + 20);
+        e.samplerate = ReadI32(p + 24);
+        e.flags = ReadI32(p + 28);
+        e.chunkSize = ReadI32(p + 32);
+    }
+    return true;
+}
+
+void AudioBagSound::LoadIndexes()
+{
+    ClearIndexes();
+
+    auto loadOne = [](int index) -> void
+    {
+        char idxName[16];
+        if (index > 0)
+            sprintf_s(idxName, "audio%02d.idx", index);
+        else
+            strcpy_s(idxName, "audio.idx");
+        DWORD idxSize = 0;
+        auto idx = static_cast<byte*>(CLoadingExt::GetExtension()->ReadWholeFile(idxName, &idxSize, false, false));
+        if (!idx)
+            return;
+        std::unordered_map<std::string, BagEntry> parsed;
+        if (!ParseIdx(idx, idxSize, parsed))
+            Logger::Raw("[AudioBag] %s invalid!\n", idxName);
+        else
+            Logger::Raw("[AudioBag] %s: %d sounds loaded.\n", idxName, (int)parsed.size());
+        GameDeleteArray(idx, idxSize);
+        for (auto& [name, e] : parsed)
+        {
+            e.bagIndex = index;
+            entries[name] = e;
+        }
+    };
+
+    loadOne(0);
+    for (int i = 1; i <= 99; ++i)
+        loadOne(i);
+    Logger::Raw("[AudioBag] Total %d sound entries.\n", (int)entries.size());
+}
+
+const AudioBagSound::BagEntry* AudioBagSound::FindEntry(const char* soundName)
+{
+    if (!soundName || !*soundName)
+        return nullptr;
+    size_t len = strlen(soundName);
+    std::string key;
+    key.reserve(len);
+    for (size_t i = 0; i < len; ++i)
+        key.push_back((char)tolower((unsigned char)soundName[i]));
+    auto it = entries.find(key);
+    return it == entries.end() ? nullptr : &it->second;
+}
+
+bool AudioBagSound::BuildWavFromBag(const BagEntry& e, int volumePercent, std::vector<byte>& outWav)
+{
+    char bagName[16];
+    if (e.bagIndex > 0)
+        sprintf_s(bagName, "audio%02d.bag", e.bagIndex);
+    else
+        strcpy_s(bagName, "audio.bag");
+
+    DWORD bagSize = 0;
+    auto bag = static_cast<byte*>(CLoadingExt::GetExtension()->ReadWholeFile(bagName, &bagSize));
+    if (!bag || bagSize == 0)
+    {
+        if (bag)
+            GameDeleteArray(bag, bagSize);
+        return false;
+    }
+
+    bool ok = false;
+    if ((uint64_t)e.offset + e.size <= bagSize)
+    {
+        int channels = (e.flags & 1) ? 2 : 1;
+        bool isPcm = (e.flags & 2) != 0;
+        bool isAdpcm = (e.flags & 8) != 0;
+        if ((isPcm || isAdpcm) && e.samplerate > 0 && e.size > 0 && !(isAdpcm && e.chunkSize <= 4 * channels))
+        {
+            std::vector<byte> body;
+            int dataSize = 0;
+            if (isPcm)
+            {
+                const byte* s = bag + e.offset;
+                body.assign(s, s + e.size);
+                dataSize = (int)e.size;
+                ok = true;
+            }
+            else
+                ok = DecodeImaAdpcmToPcmBody(bag + e.offset, (int)e.size, e.chunkSize, channels, body, dataSize);
+
+            if (ok)
+            {
+                ScalePcmVolume(body, volumePercent);
+                BuildPcmWav(body, dataSize, channels, e.samplerate, outWav);
+            }
+        }
+    }
+    GameDeleteArray(bag, bagSize);
+    return ok;
+}
+
 bool AudioBagSound::TryBuildWav(const char* soundName, std::vector<byte>& outWav, int volumePercent)
 {
     outWav.clear();
-    if (!soundName || !*soundName || !EnsureLoaded())
+    const BagEntry* e = FindEntry(soundName);
+    if (!e)
         return false;
-
-    std::string key = ToLowerKey(soundName, strlen(soundName));
-    auto it = entries.find(key);
-    if (it == entries.end())
-        return false;
-
-    const Entry& e = it->second;
-    if ((uint64_t)e.offset + e.size > bagData.size())
-        return false;
-
-    int channels = (e.flags & 1) ? 2 : 1;
-    bool isPcm = (e.flags & 2) != 0;
-    bool isAdpcm = (e.flags & 8) != 0;
-    if (!isPcm && !isAdpcm)
-        return false;
-    if (isAdpcm && e.chunkSize <= 4 * channels)
-        return false;
-    if (e.samplerate <= 0 || e.size == 0)
-        return false;
-
-    std::vector<byte> body;
-    int dataSize = 0;
-    if (isPcm)
-    {
-        const byte* s = bagData.data() + e.offset;
-        body.assign(s, s + e.size);
-        dataSize = (int)e.size;
-    }
-    else if (!DecodeImaAdpcmToPcmBody(bagData.data() + e.offset, (int)e.size, e.chunkSize, channels, body, dataSize))
-        return false;
-
-    ScalePcmVolume(body, volumePercent);
-    BuildPcmWav(body, dataSize, channels, e.samplerate, outWav);
-    return true;
+    return BuildWavFromBag(*e, volumePercent, outWav);
 }
 
 bool AudioBagSound::TryBuildWavFromFile(const char* pSoundName, std::vector<byte>& outWav, int volumePercent)

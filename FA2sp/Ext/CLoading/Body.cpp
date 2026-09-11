@@ -8,6 +8,7 @@
 #include <filesystem>
 #include "../CFinalSunApp/Body.h"
 #include "../../Helpers/STDHelpers.h"
+#include "../../Miscs/AudioBagSound.h"
 
 bool CLoadingExt::HasFile_ReadyToReadFromFolder = false;
 Palette CLoadingExt::TempISOPalette = { };
@@ -336,10 +337,14 @@ bool CLoadingExt::InitMixFilesFix()
 		LoadMixFile("ISOLUN.MIX", 0, true);
 		LoadMixFile("LUN.MIX", 0, true);
 
-		LoadMixFile("LANGMD.MIX", 0, true);
-		LoadMixFile("AUDIOMD.MIX", 0, true);
-		LoadMixFile("LANGUAGE.MIX", 0, true);
-		LoadMixFile("AUDIO.MIX", 0, true);
+		LoadMixFile("LANGMD.MIX", 0, false);
+		LoadMixFile("AUDIOMD.MIX", 0, false);
+		LoadMixFile("LANGUAGE.MIX", 0, false);
+		LoadMixFile("AUDIO.MIX", 0, false);
+
+		FString theme;
+		theme.Format("THEME%s.MIX", CINI::FAData->GetString("Filenames", "MixExtension", "MD"));
+		LoadMixFile(theme, 0, false);
 	}
 	else
 	{
@@ -567,11 +572,17 @@ bool CLoadingExt::InitMixFilesFix()
 		LoadMixFile("ISOLUN.MIX", 0, true);
 		LoadMixFile("LUN.MIX", 0, true);
 
-		LoadMixFile("LANGMD.MIX", 0, true);
-		LoadMixFile("AUDIOMD.MIX", 0, true);
-		LoadMixFile("LANGUAGE.MIX", 0, true);
-		LoadMixFile("AUDIO.MIX", 0, true);
+		LoadMixFile("LANGMD.MIX", 0, false);
+		LoadMixFile("AUDIOMD.MIX", 0, false);
+		LoadMixFile("LANGUAGE.MIX", 0, false);
+		LoadMixFile("AUDIO.MIX", 0, false);
+
+		FString theme;
+		theme.Format("THEME%s.MIX", CINI::FAData->GetString("Filenames", "MixExtension", "MD"));
+		LoadMixFile(theme, 0, false);
 	}
+
+	AudioBagSound::LoadIndexes();
 
 	return true;
 }

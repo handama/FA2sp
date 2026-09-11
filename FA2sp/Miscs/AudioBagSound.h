@@ -8,13 +8,9 @@
 class AudioBagSound
 {
 public:
-    static bool TryBuildWav(const char* soundName, std::vector<byte>& outWav, int volumePercent = 100);
-    static bool TryBuildWavFromFile(const char* pSoundName, std::vector<byte>& outWav, int volumePercent = 100);
-    static void ClearCache();
-
-private:
-    struct Entry
+    struct BagEntry
     {
+        int32_t bagIndex;
         uint32_t offset;
         uint32_t size;
         int32_t samplerate;
@@ -22,11 +18,16 @@ private:
         int32_t chunkSize;
     };
 
-    static bool EnsureLoaded();
-    static void Fail();
+    static bool TryBuildWav(const char* soundName, std::vector<byte>& outWav, int volumePercent = 100);
+    static bool TryBuildWavFromFile(const char* pSoundName, std::vector<byte>& outWav, int volumePercent = 100);
 
-    static bool loaded;
-    static bool loadFailed;
-    static std::unordered_map<std::string, Entry> entries;
-    static std::vector<byte> bagData;
+    static void LoadIndexes();
+    static void ClearIndexes();
+    static const BagEntry* FindEntry(const char* soundName);
+
+private:
+    static std::unordered_map<std::string, BagEntry> entries;
+
+    static bool ParseIdx(const byte* idx, DWORD idxSize, std::unordered_map<std::string, BagEntry>& out);
+    static bool BuildWavFromBag(const BagEntry& e, int volumePercent, std::vector<byte>& outWav);
 };

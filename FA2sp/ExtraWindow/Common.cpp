@@ -9,11 +9,15 @@
 #include <regex>
 #include <string>
 #include <vector>
+#include <cstring>
 #include <algorithm>
 #include <CFinalSunApp.h>
 #include <CLoading.h>
 #include "../Miscs/StringtableLoader.h"
 #include "../Miscs/DialogStyle.h"
+#include "../Miscs/AudioBagSound.h"
+#include "../Ext/CLoading/Body.h"
+#include "../../FA2pp/FAMemory.h"
 #include "../Ext/CMapData/Body.h"
 #include "../Ext/CFinalSunApp/Body.h"
 #include "ILexer.h"
@@ -21,6 +25,8 @@
 #include "SciLexer.h"
 #include "Lexilla.h"
 #include <mbstring.h>
+#include <mmsystem.h>
+#pragma comment(lib, "winmm.lib")
 
 CINI& ExtraWindow::map = CINI::CurrentDocument;
 CINI& ExtraWindow::fadata = CINI::FAData;
@@ -1653,6 +1659,88 @@ void ExtraWindow::SetTriggerColor(const FString& trigger, COLORREF color)
     ppmfc::CString value;
     value.Format("%d,%d,%d", GetRValue(color), GetGValue(color), GetBValue(color));
     map.WriteString("FA2spColors", trigger, value);
+}
+
+ParamType ExtraWindow::GetParamType(const FString& paramIdx)
+{
+	auto intParamIdx = atoi(paramIdx);
+	if (intParamIdx < 500)
+    {
+        if (paramIdx == "10")
+        {
+            return ParamType::CSF;
+        }
+        else if (paramIdx == "1")
+        {
+            return ParamType::Waypoint;
+        }
+        else if (paramIdx == "9")
+        {
+            return ParamType::Trigger;
+        }
+        else if (paramIdx == "15")
+        {
+            return ParamType::Team;
+        }
+        else if (paramIdx == "11")
+        {
+            return ParamType::Tag;
+        }
+    }
+    else
+    {
+        auto atoms = FString::SplitString(fadata.GetString("NewParamTypes", paramIdx), 4);
+        auto sectionName = atoms[0];
+        auto& loadFrom = atoms[1]; 
+        bool loadFromMapOrAi = (loadFrom == "3" || loadFrom == "map" || loadFrom == "7" || loadFrom == "ai+map" || loadFrom == "10" || loadFrom == "ai");
+        bool loadFromMap = (loadFrom == "3" || loadFrom == "map");
+        if (sectionName == "TeamTypes" && loadFromMapOrAi)
+        {
+            return ParamType::Team;
+        }
+        else if (sectionName == "TaskForces" && loadFromMapOrAi)
+        {
+            return ParamType::Taskforce;
+        }
+        else if (sectionName == "ScriptTypes" && loadFromMapOrAi)
+        {
+            return ParamType::Script;
+        }
+        else if (sectionName == "AITriggerTypes" && loadFromMapOrAi)
+        {
+            return ParamType::AITrigger;
+        }
+        else if ((sectionName == "Triggers" 
+            || sectionName == "Actions" 
+            || sectionName == "Events")
+            && loadFromMap
+        )
+        {
+            return ParamType::Trigger;
+        }
+        else if (sectionName == "Tags" && loadFromMap)
+        {
+            return ParamType::Tag;
+        }
+        else if (sectionName == "VariableNames" && loadFromMap)
+        {
+            return ParamType::LocalVariable;
+        }
+        else if (sectionName == "Themes" && (loadFrom == "6" || loadFrom == "theme"))
+        {
+            return ParamType::Theme;
+        }
+        else if (sectionName == "SoundList" && (loadFrom == "5" || loadFrom == "sound"))
+        {
+            return ParamType::Sound;
+        }
+        else if (sectionName == "DialogList" && (loadFrom == "8" || loadFrom == "eva"))
+        {
+            return ParamType::Eva;
+        }
+    }
+
+	return ParamType::None;
 }
 
 void HelpDlg::CreateHelpDlg(HWND& hParent, const FString& Title, const FString& Text)
@@ -4335,6 +4423,116 @@ void ExtraWindow::RestoreDisabledWindows()
             EnableWindow(h, TRUE);
     }
     s_disabledWindows.clear();
+}
+
+namespace
+{
+    std::vector<byte> g_SoundWavData;
+    bool g_ThemeSoundPlaying = false;
+    DWORD g_ThemeSoundStartTick = 0;
+    DWORD g_ThemeSoundDurationMs = 0;
+    bool g_BagSoundPlaying = false;
+    DWORD g_BagSoundStartTick = 0;
+    DWORD g_BagSoundDurationMs = 0;
+    int g_JumpLastSource = -1;
+    int g_JumpLastIndex = -1;
+    FString g_JumpLastName;
+
+    DWORD GetSoundWavDurationMs(const byte* pData, DWORD dwSize)
+    {
+        if (dwSize < 44 || memcmp(pData, "RIFF", 4) != 0 || memcmp(pData + 8, "WAVE", 4) != 0)
+            return 0;
+        DWORD byteRate = 0, dataSize = 0, pos = 12;
+        while (pos + 8 <= dwSize)
+        {
+            const byte* p = pData + pos;
+            DWORD chunkSize = p[4] | (p[5] << 8) | (p[6] << 16) | ((DWORD)p[7] << 24);
+            if (!byteRate && memcmp(p, "fmt ", 4) == 0 && pos + 24 <= dwSize)
+                byteRate = p[16] | (p[17] << 8) | (p[18] << 16) | ((DWORD)p[19] << 24);
+            else if (!dataSize && memcmp(p, "data", 4) == 0)
+                dataSize = chunkSize < dwSize - pos - 8 ? chunkSize : dwSize - pos - 8;
+            if (byteRate && dataSize)
+                break;
+            pos += 8 + chunkSize + (chunkSize & 1);
+        }
+        if (!byteRate || !dataSize)
+            return 0;
+        return (DWORD)((unsigned long long)dataSize * 1000 / byteRate);
+    }
+
+    bool IsSoundPlayingNow()
+    {
+        DWORD nowTick = GetTickCount();
+        if (g_ThemeSoundPlaying && g_ThemeSoundDurationMs
+            && nowTick - g_ThemeSoundStartTick >= g_ThemeSoundDurationMs)
+            g_ThemeSoundPlaying = false;
+        if (g_BagSoundPlaying && g_BagSoundDurationMs
+            && nowTick - g_BagSoundStartTick >= g_BagSoundDurationMs)
+            g_BagSoundPlaying = false;
+        return g_ThemeSoundPlaying || g_BagSoundPlaying;
+    }
+}
+
+void SoundPlayer::Stop()
+{
+    if (IsSoundPlayingNow())
+        PlaySound(NULL, NULL, 0);
+    g_ThemeSoundPlaying = false;
+    g_BagSoundPlaying = false;
+}
+
+bool SoundPlayer::IsPlaying()
+{
+    return IsSoundPlayingNow();
+}
+
+void SoundPlayer::PlayThemeSoundFile(const char* pFileName)
+{
+    if (!pFileName || !*pFileName)
+        return;
+    DWORD dwSize = 0;
+    if (auto pBuffer = static_cast<byte*>(CLoadingExt::GetExtension()->ReadWholeFile(pFileName, &dwSize)))
+    {
+        Stop();
+        g_SoundWavData.assign(pBuffer, pBuffer + dwSize);
+        GameDeleteArray(pBuffer, dwSize);
+        if (dwSize > 0 && PlaySound(reinterpret_cast<LPCSTR>(g_SoundWavData.data()), NULL, SND_MEMORY | SND_ASYNC))
+        {
+            g_ThemeSoundPlaying = true;
+            g_ThemeSoundStartTick = GetTickCount();
+            g_ThemeSoundDurationMs = GetSoundWavDurationMs(g_SoundWavData.data(), dwSize);
+        }
+    }
+}
+
+void SoundPlayer::PlayBagSound(const char* pSoundName, int volume)
+{
+    if (!pSoundName || !*pSoundName)
+        return;
+    std::vector<byte> wavData;
+    if ((!AudioBagSound::TryBuildWavFromFile(pSoundName, wavData, volume) || wavData.empty())
+        && (!AudioBagSound::TryBuildWav(pSoundName, wavData, volume) || wavData.empty()))
+        return;
+    Stop();
+    g_SoundWavData.assign(wavData.begin(), wavData.end());
+    if (PlaySound(reinterpret_cast<LPCSTR>(g_SoundWavData.data()), NULL, SND_MEMORY | SND_ASYNC))
+    {
+        g_BagSoundPlaying = true;
+        g_BagSoundStartTick = GetTickCount();
+        g_BagSoundDurationMs = GetSoundWavDurationMs(g_SoundWavData.data(), (DWORD)g_SoundWavData.size());
+    }
+}
+
+bool SoundPlayer::IsSameJumpTarget(int source, int index, const FString& soundName)
+{
+    return g_JumpLastSource == source && g_JumpLastIndex == index && g_JumpLastName == soundName;
+}
+
+void SoundPlayer::SetJumpTarget(int source, int index, const FString& soundName)
+{
+    g_JumpLastSource = source;
+    g_JumpLastIndex = index;
+    g_JumpLastName = soundName;
 }
 
 // ============================================================

@@ -70,8 +70,8 @@ protected:
     static void OnClickDeleteAction(HWND& hWnd);
     static void OnClickSearchReference(HWND& hWnd);
     static void OnClickMoveupAction(HWND& hWnd, bool reverse);
-    static void OnClickJumpWaypointParam(bool extra);
-    static void UpdateWaypointJumpButtons();
+    static void OnClickJumpButton(bool extra);
+    static void UpdateJumpButtons();
     static void UpdateActionAndParam(int actionChanged = -1, int listBoxCurChanged = -1, bool changeActionIdx = true);
     static void UpdateScriptPath();
     
@@ -126,7 +126,7 @@ private:
     static VirtualComboBoxEx vcbActionExtraParam;
 
     static bool ParamAutodrop[2];
-    static bool ParamIsWaypoint[2];
+    static ParamType ActionParamType[2];
     static RECT ParamComboRect[2];
     static bool bInsert;
     static bool AutoChangeName;

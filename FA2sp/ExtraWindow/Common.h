@@ -94,6 +94,23 @@ struct VCBItemEntry
     bool leftSideBackground = false;
 };
 
+enum class ParamType : int
+{
+    None = 0,
+    CSF,
+    Team,
+    Trigger,
+    Tag,
+    Taskforce,
+    Script,
+    AITrigger,
+    Waypoint,
+    LocalVariable,
+    Eva,
+    Sound,
+    Theme
+};
+
 namespace VCBColorHelpers
 {
     double GetLuminance(COLORREF color);
@@ -170,6 +187,7 @@ public:
     static void UpdateListBoxHScroll(HWND hListBox);
 	static COLORREF GetTriggerColor(const FString& trigger);
 	static void SetTriggerColor(const FString& trigger, COLORREF color);
+    static ParamType GetParamType(const FString& paramIdx);
 
     static void DisableOtherWindows(HWND hDlg);
     static void RestoreDisabledWindows();
@@ -186,6 +204,24 @@ private:
     static CINI& map;
     static CINI& fadata;
     static MultimapHelper& rules;
+};
+
+class SoundPlayer
+{
+public:
+    enum JumpSource : int
+    {
+        TriggerEvent = 0,
+        TriggerAction = 1,
+        ScriptParam = 2,
+    };
+
+    static void PlayThemeSoundFile(const char* pFileName);
+    static void PlayBagSound(const char* pSoundName, int volume = 100);
+    static void Stop();
+    static bool IsPlaying();
+    static bool IsSameJumpTarget(int source, int index, const FString& soundName);
+    static void SetJumpTarget(int source, int index, const FString& soundName);
 };
 
 // Reusable transparency helper for ExtraWindow modeless dialogs.

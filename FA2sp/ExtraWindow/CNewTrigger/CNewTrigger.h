@@ -336,23 +336,6 @@ private:
 };
 
 // A window class
-enum class ParamType : int
-{
-    None = 0,
-    CSF,
-    Team,
-    Trigger,
-    Tag,
-    Taskforce,
-    Script,
-    AITrigger,
-    Waypoint,
-    LocalVariable,
-    Eva,
-    Sound,
-    Theme
-};
-
 class CNewTrigger
 {
 public:
@@ -557,9 +540,6 @@ protected:
     void OnClickActionMove(HWND& hWnd, bool isUp);
     void OnClickActionSplit(HWND& hWnd);
     void OnClickParamJump(bool isEvent, int index);
-    static void PlayThemeSoundFile(const char* pFileName);
-    static void PlayBagSound(const char* pSoundName, int volume = 100);
-    static void StopThemeSound();
 
     void OnSelchangeHouse(bool edited = false);
     void OnSelchangeType(bool edited = false);

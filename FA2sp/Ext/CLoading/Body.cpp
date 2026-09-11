@@ -337,7 +337,9 @@ bool CLoadingExt::InitMixFilesFix()
 		LoadMixFile("LUN.MIX", 0, true);
 
 		LoadMixFile("LANGMD.MIX", 0, true);
+		LoadMixFile("AUDIOMD.MIX", 0, true);
 		LoadMixFile("LANGUAGE.MIX", 0, true);
+		LoadMixFile("AUDIO.MIX", 0, true);
 	}
 	else
 	{
@@ -566,7 +568,9 @@ bool CLoadingExt::InitMixFilesFix()
 		LoadMixFile("LUN.MIX", 0, true);
 
 		LoadMixFile("LANGMD.MIX", 0, true);
+		LoadMixFile("AUDIOMD.MIX", 0, true);
 		LoadMixFile("LANGUAGE.MIX", 0, true);
+		LoadMixFile("AUDIO.MIX", 0, true);
 	}
 
 	return true;

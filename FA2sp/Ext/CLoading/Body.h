@@ -383,7 +383,7 @@ public:
 	static TextureResource* DirectXGetOrLoadFlagOrCelltagFromMap(COLORREF newColor, bool IsFlag);
 	static int GetAvailableFacing(const FString& ID);
 	static int GetAlphaImageFacing(const FString& ID);
-	static void* ReadWholeFile(const char* filename, DWORD* pDwSize = nullptr, bool fa2path = false);
+	static void* ReadWholeFile(const char* filename, DWORD* pDwSize = nullptr, bool fa2path = false, bool useCache = true);
 	static bool HasFileExt(ppmfc::CString filename, int nMix = -114);
 
 	static FHashSet NotFoundFiles;

@@ -347,7 +347,10 @@ enum class ParamType : int
     Script,
     AITrigger,
     Waypoint,
-    LocalVariable
+    LocalVariable,
+    Eva,
+    Sound,
+    Theme
 };
 
 class CNewTrigger
@@ -554,6 +557,9 @@ protected:
     void OnClickActionMove(HWND& hWnd, bool isUp);
     void OnClickActionSplit(HWND& hWnd);
     void OnClickParamJump(bool isEvent, int index);
+    static void PlayThemeSoundFile(const char* pFileName);
+    static void PlayBagSound(const char* pSoundName, int volume = 100);
+    static void StopThemeSound();
 
     void OnSelchangeHouse(bool edited = false);
     void OnSelchangeType(bool edited = false);

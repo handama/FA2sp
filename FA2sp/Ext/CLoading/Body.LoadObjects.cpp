@@ -5403,7 +5403,7 @@ TextureResource* CLoadingExt::DirectXGetOrLoadFlagOrCelltagFromMap(COLORREF newC
 	return itr->second;
 }
 
-void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2path)
+void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2path, bool useCache)
 {
 #ifndef NDEBUG
 	Logger::Debug("Requesting file [%s] in %s... ", filename, fa2path ? "FA2 path" : "Game path");	
@@ -5425,28 +5425,31 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 			basename = p + 1;
 	}
 
-	auto it = g_cache[fa2path].find(basename);
-	if (it != g_cache[fa2path].end())
+	if (useCache)
 	{
-		uint64_t lastUsed = g_cacheTime[fa2path][basename];
-		const auto& src = it->second;
-		auto pBuffer = GameCreateArray<unsigned char>(src.size());
-		memcpy(pBuffer, src.data(), src.size());
-		if (pDwSize)
-			*pDwSize = (DWORD)src.size();
-
-		g_cacheTime[fa2path][basename] = nowMs;
-
-		if (nowMs - lastUsed > CACHE_TTL_MS)
+		auto it = g_cache[fa2path].find(basename);
+		if (it != g_cache[fa2path].end())
 		{
-			g_cache[fa2path].erase(it);
-			g_cacheTime[fa2path].erase(basename);
-		}
+			uint64_t lastUsed = g_cacheTime[fa2path][basename];
+			const auto& src = it->second;
+			auto pBuffer = GameCreateArray<unsigned char>(src.size());
+			memcpy(pBuffer, src.data(), src.size());
+			if (pDwSize)
+				*pDwSize = (DWORD)src.size();
 
-#ifndef NDEBUG
-		Logger::Raw("Loaded from CACHE. Done, dwSize = [%d].\n", src.size());
-#endif
-		return pBuffer;
+			g_cacheTime[fa2path][basename] = nowMs;
+
+			if (nowMs - lastUsed > CACHE_TTL_MS)
+			{
+				g_cache[fa2path].erase(it);
+				g_cacheTime[fa2path].erase(basename);
+			}
+
+	#ifndef NDEBUG
+			Logger::Raw("Loaded from CACHE. Done, dwSize = [%d].\n", src.size());
+	#endif
+			return pBuffer;
+		}
 	}
 
 	FString filepath;
@@ -5548,10 +5551,13 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 		return nullptr;
 	}
 
-	g_cache[fa2path][basename] = loadedData;
-	g_cacheTime[fa2path][basename] = nowMs;
+	if (useCache)
+	{
+		g_cache[fa2path][basename] = loadedData;
+		g_cacheTime[fa2path][basename] = nowMs;
+	}
 
-	if (nowMs - g_lastCleanup > CLEANUP_INTERVAL_MS)
+	if (useCache && nowMs - g_lastCleanup > CLEANUP_INTERVAL_MS)
 	{
 		for (auto it2 = g_cacheTime[fa2path].begin(); it2 != g_cacheTime[fa2path].end();)
 		{

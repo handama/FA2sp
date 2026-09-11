@@ -27,7 +27,10 @@
 #include "../CNewLocalVariables/CNewLocalVariables.h"
 #include "../../Helpers/Helper.h"
 #include "../../Miscs/StringtableLoader.h"
+#include "../../Miscs/AudioBagSound.h"
 #include "../CNewTag/CNewTag.h"
+#include <mmsystem.h>
+#pragma comment(lib, "winmm.lib")
 
 CINI& CNewTrigger::map = CINI::CurrentDocument;
 CINI& CNewTrigger::fadata = CINI::FAData;
@@ -43,6 +46,26 @@ static constexpr int DRAG_THRESHOLD = 4;
 static const std::vector<FString> noneLabel = { "<none>" };
 static int TempCommand = 0;
 static int TempType = 0;
+static std::vector<byte> ThemeSoundData;
+static bool ThemeSoundPlaying = false;
+static bool ThemeJumpLastIsEvent = false;
+static int ThemeJumpLastIndex = -1;
+static FString ThemeJumpLastName;
+static DWORD ThemeSoundStartTick = 0;
+static DWORD ThemeSoundDurationMs = 0;
+static bool BagSoundPlaying = false;
+static DWORD BagSoundStartTick = 0;
+static DWORD BagSoundDurationMs = 0;
+static DWORD BagSoundCacheTick = 0;
+
+static void TrimBagSoundCache()
+{
+    if (BagSoundCacheTick && GetTickCount() - BagSoundCacheTick >= 60000)
+    {
+        AudioBagSound::ClearCache();
+        BagSoundCacheTick = 0;
+    }
+}
 
 static COLORREF GetTriggerBackground(bool enabled)
 {
@@ -503,6 +526,12 @@ void CNewTrigger::Close(HWND& hWnd)
         hl.Detach();
     }
     EndDialog(hWnd, NULL);
+    StopThemeSound();
+    if (!HasOtherInstances())
+    {
+        AudioBagSound::ClearCache();
+        BagSoundCacheTick = 0;
+    }
 
     CurrentTrigger = nullptr;
     m_hwnd = NULL;
@@ -2615,6 +2644,18 @@ void CNewTrigger::UpdateParamAffectedParam_Action(int index)
                 {
                     ActionParamType[target.AffectedParam] = ParamType::LocalVariable;
                 }
+                else if (newParamInfos[0] == "Themes" && (newParamInfos[1] == "6" || newParamInfos[1] == "theme"))
+                {
+                    ActionParamType[target.AffectedParam] = ParamType::Theme;
+                }
+                else if (newParamInfos[0] == "SoundList" && (newParamInfos[1] == "5" || newParamInfos[1] == "sound"))
+                {
+                    ActionParamType[target.AffectedParam] = ParamType::Sound;
+                }
+                else if (newParamInfos[0] == "DialogList" && (newParamInfos[1] == "8" || newParamInfos[1] == "eva"))
+                {
+                    ActionParamType[target.AffectedParam] = ParamType::Eva;
+                }
 
                 auto& targetText = CurrentTrigger->Actions[SelectedActionIndex].Params[ActionParamsUsage[target.AffectedParam].second];
                 int paramIdx = ExtraWindow::FindCBStringExactStart(hActionParameter[target.AffectedParam], targetText + " ");
@@ -2665,6 +2706,18 @@ void CNewTrigger::UpdateParamAffectedParam_Event(int index)
                 {
                     EventParamType[target.AffectedParam] = ParamType::LocalVariable;
                 }
+                else if (newParamInfos[0] == "Themes" && (newParamInfos[1] == "6" || newParamInfos[1] == "theme"))
+                {
+                    EventParamType[target.AffectedParam] = ParamType::Theme;
+                }
+                else if (newParamInfos[0] == "SoundList" && (newParamInfos[1] == "5" || newParamInfos[1] == "sound"))
+                {
+                    EventParamType[target.AffectedParam] = ParamType::Sound;
+                }
+                else if (newParamInfos[0] == "DialogList" && (newParamInfos[1] == "8" || newParamInfos[1] == "eva"))
+                {
+                    EventParamType[target.AffectedParam] = ParamType::Eva;
+                }
                 auto& targetText = CurrentTrigger->Events[SelectedEventIndex].Params[EventParamsUsage[target.AffectedParam].second];
                 int paramIdx = ExtraWindow::FindCBStringExactStart(hEventParameter[target.AffectedParam], targetText + " ");
                 if (paramIdx == CB_ERR)
@@ -2686,6 +2739,7 @@ void CNewTrigger::UpdateParamAffectedParam_Event(int index)
 
 void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionListCur, bool reloadTrigger)
 {
+    TrimBagSoundCache();
     SelectedTriggerIndex = vcbSelectedTrigger.GetCurSel();
     if (SelectedTriggerIndex < 0 && vcbSelectedTrigger.GetCount() > 0)
     {
@@ -3339,6 +3393,7 @@ void CNewTrigger::OnClickDelAction(HWND& hWnd)
 
 void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
 {
+    StopThemeSound();
     if (!CurrentTrigger) return;
     if (CurrentTrigger->EventCount == 0) return;
     if (SelectedEventIndex > CurrentTrigger->EventCount) SelectedEventIndex = CurrentTrigger->EventCount - 1;
@@ -3487,6 +3542,18 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
                 {
                     EventParamType[i] = ParamType::LocalVariable;
                 }
+                else if (sectionName == "Themes" && (loadFrom == "6" || loadFrom == "theme"))
+                {
+                    EventParamType[i] = ParamType::Theme;
+                }
+                else if (sectionName == "SoundList" && (loadFrom == "5" || loadFrom == "sound"))
+                {
+                    EventParamType[i] = ParamType::Sound;
+                }
+                else if (sectionName == "DialogList" && (loadFrom == "8" || loadFrom == "eva"))
+                {
+                    EventParamType[i] = ParamType::Eva;
+                }
             }
 		};
 
@@ -3555,6 +3622,7 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
 
 void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
 {
+    StopThemeSound();
     if (!CurrentTrigger) return;
     if (CurrentTrigger->ActionCount == 0) return;
     if (SelectedActionIndex > CurrentTrigger->ActionCount) SelectedActionIndex = CurrentTrigger->ActionCount - 1;
@@ -3726,6 +3794,18 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
                     else if (sectionName == "VariableNames" && loadFromMap)
                     {
                         ActionParamType[i] = ParamType::LocalVariable;
+                    }
+                    else if (sectionName == "Themes" && (loadFrom == "6" || loadFrom == "theme"))
+                    {
+                        ActionParamType[i] = ParamType::Theme;
+                    }
+                    else if (sectionName == "SoundList" && (loadFrom == "5" || loadFrom == "sound"))
+                    {
+                        ActionParamType[i] = ParamType::Sound;
+                    }
+                    else if (sectionName == "DialogList" && (loadFrom == "8" || loadFrom == "eva"))
+                    {
+                        ActionParamType[i] = ParamType::Eva;
                     }
                 }
             }
@@ -4085,8 +4165,89 @@ void CNewTrigger::OnClickActionSplit(HWND& hWnd)
     OnSelchangeTrigger();
 }
 
+static DWORD GetWavDurationMs(const byte* pData, DWORD dwSize)
+{
+    if (dwSize < 44 || memcmp(pData, "RIFF", 4) != 0 || memcmp(pData + 8, "WAVE", 4) != 0)
+        return 0;
+    DWORD byteRate = 0, dataSize = 0, pos = 12;
+    while (pos + 8 <= dwSize)
+    {
+        const byte* p = pData + pos;
+        DWORD chunkSize = p[4] | (p[5] << 8) | (p[6] << 16) | ((DWORD)p[7] << 24);
+        if (!byteRate && memcmp(p, "fmt ", 4) == 0 && pos + 24 <= dwSize)
+            byteRate = p[16] | (p[17] << 8) | (p[18] << 16) | ((DWORD)p[19] << 24);
+        else if (!dataSize && memcmp(p, "data", 4) == 0)
+            dataSize = chunkSize < dwSize - pos - 8 ? chunkSize : dwSize - pos - 8;
+        if (byteRate && dataSize)
+            break;
+        pos += 8 + chunkSize + (chunkSize & 1);
+    }
+    if (!byteRate || !dataSize)
+        return 0;
+    return (DWORD)((unsigned long long)dataSize * 1000 / byteRate);
+}
+
+static bool IsThemeSoundPlayingNow()
+{
+    DWORD nowTick = GetTickCount();
+    if (ThemeSoundPlaying && ThemeSoundDurationMs
+        && nowTick - ThemeSoundStartTick >= ThemeSoundDurationMs)
+        ThemeSoundPlaying = false;
+    if (BagSoundPlaying && BagSoundDurationMs
+        && nowTick - BagSoundStartTick >= BagSoundDurationMs)
+        BagSoundPlaying = false;
+    return ThemeSoundPlaying || BagSoundPlaying;
+}
+
+void CNewTrigger::StopThemeSound()
+{
+    if (IsThemeSoundPlayingNow())
+        PlaySound(NULL, NULL, 0);
+    ThemeSoundPlaying = false;
+    BagSoundPlaying = false;
+}
+
+void CNewTrigger::PlayThemeSoundFile(const char* pFileName)
+{
+    if (!pFileName || !*pFileName)
+        return;
+    DWORD dwSize = 0;
+    if (auto pBuffer = static_cast<byte*>(CLoadingExt::GetExtension()->ReadWholeFile(pFileName, &dwSize)))
+    {
+        StopThemeSound();
+        ThemeSoundData.assign(pBuffer, pBuffer + dwSize);
+        GameDeleteArray(pBuffer, dwSize);
+        if (dwSize > 0 && PlaySound(reinterpret_cast<LPCSTR>(ThemeSoundData.data()), NULL, SND_MEMORY | SND_ASYNC))
+        {
+            ThemeSoundPlaying = true;
+            ThemeSoundStartTick = GetTickCount();
+            ThemeSoundDurationMs = GetWavDurationMs(ThemeSoundData.data(), dwSize);
+        }
+    }
+}
+
+void CNewTrigger::PlayBagSound(const char* pSoundName, int volume)
+{
+    BagSoundCacheTick = GetTickCount();
+    if (!pSoundName || !*pSoundName)
+        return;
+    std::vector<byte> wavData;
+    if ((!AudioBagSound::TryBuildWavFromFile(pSoundName, wavData, volume) || wavData.empty())
+        && (!AudioBagSound::TryBuildWav(pSoundName, wavData, volume) || wavData.empty()))
+        return;
+    StopThemeSound();
+    ThemeSoundData.assign(wavData.begin(), wavData.end());
+    if (PlaySound(reinterpret_cast<LPCSTR>(ThemeSoundData.data()), NULL, SND_MEMORY | SND_ASYNC))
+    {
+        BagSoundPlaying = true;
+        BagSoundStartTick = GetTickCount();
+        BagSoundDurationMs = GetWavDurationMs(ThemeSoundData.data(), (DWORD)ThemeSoundData.size());
+    }
+}
+
 void CNewTrigger::OnClickParamJump(bool isEvent, int index)
 {
+    TrimBagSoundCache();
     VirtualComboBoxEx* vcb = isEvent ? &vcbEventParameter[index] : &vcbActionParameter[index];
     ParamType type = isEvent ? EventParamType[index] : ActionParamType[index];
 
@@ -4203,6 +4364,88 @@ void CNewTrigger::OnClickParamJump(bool isEvent, int index)
             return;
         CNewLocalVariables::OnSelchangeVariable(false, idx);
         SetWindowPos(CNewLocalVariables::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    }
+    else if (type == ParamType::Theme)
+    {
+        ExtraWindow::TrimStringIndex(value);
+        auto soundName = CINI::Theme->GetString(value, "Sound");
+        if (!soundName.IsEmpty())
+        {
+            soundName += ".wav";
+            if (IsThemeSoundPlayingNow() && isEvent == ThemeJumpLastIsEvent
+                && index == ThemeJumpLastIndex && soundName == ThemeJumpLastName)
+                StopThemeSound();
+            else
+            {
+                ThemeJumpLastIsEvent = isEvent;
+                ThemeJumpLastIndex = index;
+                ThemeJumpLastName = soundName;
+                PlayThemeSoundFile(soundName);
+            }
+        }
+    }
+    else if (type == ParamType::Eva)
+    {
+        ExtraWindow::TrimStringIndex(value);
+		FString EvaSide = "Allied";
+        if (!CMapData::Instance->IsMultiOnly())
+        {
+			auto player = map.GetString("Basic", "Player");
+            auto country = map.GetString(player, "Country");
+            auto side = Variables::RulesMap.GetString(country, "Side");
+            if (side == "Nod")
+                EvaSide = "Russian";
+            else if (side == "ThirdSide")
+                EvaSide = "Yuri";
+			EvaSide = Variables::RulesMap.GetString(side, "EVA.Tag", EvaSide);
+		}
+		auto soundName = CINI::Eva->GetString(value, EvaSide);
+		if (soundName.IsEmpty())
+        {
+            EvaSide = "Allied";
+            soundName = CINI::Eva->GetString(value, EvaSide);
+        }
+		if (!soundName.IsEmpty())
+        {
+            soundName += ".wav";
+            if (IsThemeSoundPlayingNow() && isEvent == ThemeJumpLastIsEvent
+                && index == ThemeJumpLastIndex && soundName == ThemeJumpLastName)
+                StopThemeSound();
+            else
+            {
+                ThemeJumpLastIsEvent = isEvent;
+                ThemeJumpLastIndex = index;
+                ThemeJumpLastName = soundName;
+                PlayThemeSoundFile(soundName);
+            }
+        }
+    }
+    else if (type == ParamType::Sound)
+    {
+        ExtraWindow::TrimStringIndex(value);
+        auto soundNames = CINI::Sound->GetString(value, "Sounds");
+		soundNames.Trim();
+		auto sounds = FString::SplitString(soundNames, " ");
+        if (!sounds.empty())
+        {
+            auto randomSound = STDHelpers::RandomSelect(sounds);
+            randomSound.Trim();
+            if (randomSound[0] == '$')
+            {
+                randomSound = randomSound.Mid(1);
+            }
+            if (IsThemeSoundPlayingNow() && isEvent == ThemeJumpLastIsEvent
+                && index == ThemeJumpLastIndex && randomSound == ThemeJumpLastName)
+                StopThemeSound();
+            else
+            {
+                auto volume = CINI::Sound->GetInteger(value, "Volume", 100);
+                ThemeJumpLastIsEvent = isEvent;
+                ThemeJumpLastIndex = index;
+                ThemeJumpLastName = randomSound;
+                PlayBagSound(randomSound, volume);
+            }
+        }
     }
 }
 

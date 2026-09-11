@@ -355,6 +355,7 @@
     <ClCompile Include="FA2sp\Miscs\MultiSelection.cpp" />
     <ClCompile Include="FA2sp\Miscs\SaveMap.cpp" />
     <ClCompile Include="FA2sp\Miscs\Palettes.cpp" />
+    <ClCompile Include="FA2sp\Miscs\AudioBagSound.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.BugFixes.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\Body.cpp" />
     <ClCompile Include="FA2sp\FA2sp.cpp" />
@@ -478,6 +479,7 @@
     <ClInclude Include="FA2sp\Miscs\Exception.h" />
     <ClInclude Include="FA2sp\Miscs\MultiSelection.h" />
     <ClInclude Include="FA2sp\Miscs\Palettes.h" />
+    <ClInclude Include="FA2sp\Miscs\AudioBagSound.h" />
     <ClInclude Include="FA2sp\Miscs\SaveMap.h" />
     <ClInclude Include="FA2sp\resource.h" />
     <ClInclude Include="FA2sp\RunTime.h" />

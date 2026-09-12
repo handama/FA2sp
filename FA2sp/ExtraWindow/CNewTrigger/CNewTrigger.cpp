@@ -503,7 +503,7 @@ void CNewTrigger::Close(HWND& hWnd)
         hl.Detach();
     }
     EndDialog(hWnd, NULL);
-    ExtraWindowSoundPlayer::Stop();
+    SoundPlayer::Stop();
 
     CurrentTrigger = nullptr;
     m_hwnd = NULL;
@@ -3308,7 +3308,7 @@ void CNewTrigger::OnClickDelAction(HWND& hWnd)
 
 void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
 {
-    ExtraWindowSoundPlayer::Stop();
+    SoundPlayer::Stop();
     if (!CurrentTrigger) return;
     if (CurrentTrigger->EventCount == 0) return;
     if (SelectedEventIndex > CurrentTrigger->EventCount) SelectedEventIndex = CurrentTrigger->EventCount - 1;
@@ -3464,7 +3464,7 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
 
 void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
 {
-    ExtraWindowSoundPlayer::Stop();
+    SoundPlayer::Stop();
     if (!CurrentTrigger) return;
     if (CurrentTrigger->ActionCount == 0) return;
     if (SelectedActionIndex > CurrentTrigger->ActionCount) SelectedActionIndex = CurrentTrigger->ActionCount - 1;
@@ -3935,7 +3935,7 @@ void CNewTrigger::OnClickActionSplit(HWND& hWnd)
 
 void CNewTrigger::OnClickParamJump(bool isEvent, int index)
 {
-    const int jumpSource = isEvent ? ExtraWindowSoundPlayer::TriggerEvent : ExtraWindowSoundPlayer::TriggerAction;
+    const int jumpSource = isEvent ? SoundPlayer::TriggerEvent : SoundPlayer::TriggerAction;
     VirtualComboBoxEx* vcb = isEvent ? &vcbEventParameter[index] : &vcbActionParameter[index];
     ParamType type = isEvent ? EventParamType[index] : ActionParamType[index];
 
@@ -4059,13 +4059,13 @@ void CNewTrigger::OnClickParamJump(bool isEvent, int index)
         if (!soundName.IsEmpty())
         {
             soundName += ".wav";
-            if (ExtraWindowSoundPlayer::IsPlaying()
-                && ExtraWindowSoundPlayer::IsSameJumpTarget(jumpSource, index, soundName))
-                ExtraWindowSoundPlayer::Stop();
+            if (SoundPlayer::IsPlaying()
+                && SoundPlayer::IsSameJumpTarget(jumpSource, index, soundName))
+                SoundPlayer::Stop();
             else
             {
-                ExtraWindowSoundPlayer::SetJumpTarget(jumpSource, index, soundName);
-                ExtraWindowSoundPlayer::PlayThemeSoundFile(soundName);
+                SoundPlayer::SetJumpTarget(jumpSource, index, soundName);
+                SoundPlayer::PlayThemeSoundFile(soundName);
             }
         }
     }
@@ -4093,13 +4093,13 @@ void CNewTrigger::OnClickParamJump(bool isEvent, int index)
 		if (!soundName.IsEmpty())
         {
             soundName += ".wav";
-            if (ExtraWindowSoundPlayer::IsPlaying()
-                && ExtraWindowSoundPlayer::IsSameJumpTarget(jumpSource, index, soundName))
-                ExtraWindowSoundPlayer::Stop();
+            if (SoundPlayer::IsPlaying()
+                && SoundPlayer::IsSameJumpTarget(jumpSource, index, soundName))
+                SoundPlayer::Stop();
             else
             {
-                ExtraWindowSoundPlayer::SetJumpTarget(jumpSource, index, soundName);
-                ExtraWindowSoundPlayer::PlayThemeSoundFile(soundName);
+                SoundPlayer::SetJumpTarget(jumpSource, index, soundName);
+                SoundPlayer::PlayThemeSoundFile(soundName);
             }
         }
     }
@@ -4117,14 +4117,14 @@ void CNewTrigger::OnClickParamJump(bool isEvent, int index)
             {
                 randomSound = randomSound.Mid(1);
             }
-            if (ExtraWindowSoundPlayer::IsPlaying()
-                && ExtraWindowSoundPlayer::IsSameJumpTarget(jumpSource, index, randomSound))
-                ExtraWindowSoundPlayer::Stop();
+            if (SoundPlayer::IsPlaying()
+                && SoundPlayer::IsSameJumpTarget(jumpSource, index, randomSound))
+                SoundPlayer::Stop();
             else
             {
                 auto volume = CINI::Sound->GetInteger(value, "Volume", 100);
-                ExtraWindowSoundPlayer::SetJumpTarget(jumpSource, index, randomSound);
-                ExtraWindowSoundPlayer::PlayBagSound(randomSound, volume);
+                SoundPlayer::SetJumpTarget(jumpSource, index, randomSound);
+                SoundPlayer::PlayBagSound(randomSound, volume);
             }
         }
     }

@@ -1913,7 +1913,7 @@ void CNewScript::UpdateJumpButtons()
 
 void CNewScript::OnClickJumpButton(bool extra)
 {
-    const int jumpSource = ExtraWindowSoundPlayer::ScriptParam;
+    const int jumpSource = SoundPlayer::ScriptParam;
     const int jumpIndex = extra ? 1 : 0;
     auto& vcb = extra ? vcbActionExtraParam : vcbActionParam;
 	FString value = vcb.GetSelectedText(true);
@@ -1980,13 +1980,13 @@ void CNewScript::OnClickJumpButton(bool extra)
         if (!soundName.IsEmpty())
         {
             soundName += ".wav";
-            if (ExtraWindowSoundPlayer::IsPlaying()
-                && ExtraWindowSoundPlayer::IsSameJumpTarget(jumpSource, jumpIndex, soundName))
-                ExtraWindowSoundPlayer::Stop();
+            if (SoundPlayer::IsPlaying()
+                && SoundPlayer::IsSameJumpTarget(jumpSource, jumpIndex, soundName))
+                SoundPlayer::Stop();
             else
             {
-                ExtraWindowSoundPlayer::SetJumpTarget(jumpSource, jumpIndex, soundName);
-                ExtraWindowSoundPlayer::PlayThemeSoundFile(soundName);
+                SoundPlayer::SetJumpTarget(jumpSource, jumpIndex, soundName);
+                SoundPlayer::PlayThemeSoundFile(soundName);
             }
         }
     }
@@ -2015,13 +2015,13 @@ void CNewScript::OnClickJumpButton(bool extra)
 		if (!soundName.IsEmpty())
         {
             soundName += ".wav";
-            if (ExtraWindowSoundPlayer::IsPlaying()
-                && ExtraWindowSoundPlayer::IsSameJumpTarget(jumpSource, jumpIndex, soundName))
-                ExtraWindowSoundPlayer::Stop();
+            if (SoundPlayer::IsPlaying()
+                && SoundPlayer::IsSameJumpTarget(jumpSource, jumpIndex, soundName))
+                SoundPlayer::Stop();
             else
             {
-                ExtraWindowSoundPlayer::SetJumpTarget(jumpSource, jumpIndex, soundName);
-                ExtraWindowSoundPlayer::PlayThemeSoundFile(soundName);
+                SoundPlayer::SetJumpTarget(jumpSource, jumpIndex, soundName);
+                SoundPlayer::PlayThemeSoundFile(soundName);
             }
         }
     }
@@ -2040,14 +2040,14 @@ void CNewScript::OnClickJumpButton(bool extra)
             {
                 randomSound = randomSound.Mid(1);
             }
-            if (ExtraWindowSoundPlayer::IsPlaying()
-                && ExtraWindowSoundPlayer::IsSameJumpTarget(jumpSource, jumpIndex, randomSound))
-                ExtraWindowSoundPlayer::Stop();
+            if (SoundPlayer::IsPlaying()
+                && SoundPlayer::IsSameJumpTarget(jumpSource, jumpIndex, randomSound))
+                SoundPlayer::Stop();
             else
             {
                 auto volume = CINI::Sound->GetInteger(value, "Volume", 100);
-                ExtraWindowSoundPlayer::SetJumpTarget(jumpSource, jumpIndex, randomSound);
-                ExtraWindowSoundPlayer::PlayBagSound(randomSound, volume);
+                SoundPlayer::SetJumpTarget(jumpSource, jumpIndex, randomSound);
+                SoundPlayer::PlayBagSound(randomSound, volume);
             }
         }
     }

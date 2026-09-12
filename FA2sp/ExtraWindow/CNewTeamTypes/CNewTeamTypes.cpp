@@ -74,6 +74,8 @@ HWND CNewTeamTypes::hSearchReference;
 HWND CNewTeamTypes::hTurnToTaskforce;
 HWND CNewTeamTypes::hTurnToScript;
 HWND CNewTeamTypes::hTurnToTag;
+HWND CNewTeamTypes::hTurnToTransportWaypoint;
+HWND CNewTeamTypes::hTurnToWaypoint;
 bool CNewTeamTypes::TaskforceListChanged = false;
 bool CNewTeamTypes::ScriptListChanged = false;
 bool CNewTeamTypes::TagListChanged = false;
@@ -223,6 +225,8 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
     hTurnToTaskforce = GetDlgItem(hWnd, Controls::TurnToTaskforce);
     hTurnToScript = GetDlgItem(hWnd, Controls::TurnToScript);
     hTurnToTag = GetDlgItem(hWnd, Controls::TurnToTag);
+    hTurnToTransportWaypoint = GetDlgItem(hWnd, Controls::TurnToTransportWaypoint);
+    hTurnToWaypoint = GetDlgItem(hWnd, Controls::TurnToWaypoint);
     hDragPoint = GetDlgItem(hWnd, Controls::DragPoint);
 
     mindControlDecisions.clear();
@@ -909,6 +913,14 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         case Controls::TurnToTag:
             if (CODE == BN_CLICKED)
                 OnClickTurnToTag();
+            break;
+        case Controls::TurnToTransportWaypoint:
+            if (CODE == BN_CLICKED)
+                OnClickTurnToTransportWaypoint();
+            break;
+        case Controls::TurnToWaypoint:
+            if (CODE == BN_CLICKED)
+                OnClickTurnToWaypoint();
             break;
         case Controls::SelectedTeam:
             if (CODE == CBN_SELCHANGE)
@@ -1831,6 +1843,40 @@ void CNewTeamTypes::OnClickTurnToTag()
     SendMessage(dlg, CB_SETCURSEL, idx, NULL);
     editor.OnSelchangeTrigger();
     SetWindowPos(editor.GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+}
+
+void CNewTeamTypes::OnClickTurnToTransportWaypoint()
+{
+    if (SelectedTeamIndex < 0)
+        return;
+
+    FString value = vcbTransportWaypoint.GetSelectedText(true);
+	FString::TrimIndex(value);
+    if (auto pCord = CINI::CurrentDocument->TryGetString("Waypoints", value))
+    {
+        auto second = atoi(*pCord);
+        if (second > 0)
+        {
+            CObjectSearch::MoveToMapCoord(second / 1000, second % 1000);
+        }
+    }
+}
+
+void CNewTeamTypes::OnClickTurnToWaypoint()
+{
+    if (SelectedTeamIndex < 0)
+        return;
+
+    FString value = vcbWaypoint.GetSelectedText(true);
+    FString::TrimIndex(value);
+    if (auto pCord = CINI::CurrentDocument->TryGetString("Waypoints", value))
+    {
+        auto second = atoi(*pCord);
+        if (second > 0)
+        {
+            CObjectSearch::MoveToMapCoord(second / 1000, second % 1000);
+        }
+    }
 }
 
 void CNewTeamTypes::OnClickNewTeam()

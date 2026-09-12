@@ -599,6 +599,31 @@ namespace ObjectBrowserSearch
         return ::CallWindowProc(framePrevProc, hWnd, msg, wParam, lParam);
     }
 
+    bool HandleViewMenuItem(CViewObjectsExt* pViewObjs, UINT nID)
+    {
+        if (!pViewObjs)
+            return false;
+
+        switch (nID)
+        {
+        case (UINT)CViewObjectsExt::ViewObjectsMenuItem::CollapseAll:
+            pViewObjs->Menu_CollapseAll();
+            return true;
+        case (UINT)CViewObjectsExt::ViewObjectsMenuItem::ExpandAll:
+            pViewObjs->Menu_ExpandAll();
+            return true;
+        case (UINT)CViewObjectsExt::ViewObjectsMenuItem::ScrollTop:
+            pViewObjs->Menu_ScrollToTop();
+            return true;
+        case (UINT)CViewObjectsExt::ViewObjectsMenuItem::ScrollBottom:
+            pViewObjs->Menu_ScrollToBottom();
+            return true;
+        default:
+            break;
+        }
+        return false;
+    }
+
     LRESULT CALLBACK ViewProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
         switch (msg)
@@ -614,6 +639,17 @@ namespace ObjectBrowserSearch
             if (LOWORD(wParam) == IDC_ObjectSearch && HIWORD(wParam) == EN_CHANGE)
             {
                 ScheduleFilter(hWnd);
+                return 0;
+            }
+            if (HandleViewMenuItem(pView, LOWORD(wParam)))
+                return 0;
+            break;
+        case WM_RBUTTONDOWN:
+            if (pView)
+            {
+                POINT pt{ (short)LOWORD(lParam), (short)HIWORD(lParam) };
+                ::ClientToScreen(hWnd, &pt);
+                pView->ShowContextMenu(pt);
                 return 0;
             }
             break;
@@ -723,6 +759,8 @@ namespace ObjectBrowserSearch
         {
             if (hFrame)
                 framePrevProc = (WNDPROC)::SetWindowLongPtr(hFrame, GWLP_WNDPROC, (LONG_PTR)FrameProc);
+            // Subclass the tree itself as well so the context menu works in floating mode
+            viewPrevProc = (WNDPROC)::SetWindowLongPtr(hViewObjs, GWLP_WNDPROC, (LONG_PTR)ViewProc);
             if (hFrame)
                 LayoutFloating(hFrame);
         }

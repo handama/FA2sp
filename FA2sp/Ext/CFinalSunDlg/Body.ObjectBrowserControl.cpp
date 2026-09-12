@@ -812,6 +812,105 @@ void CViewObjectsExt::ApplySearchFilter()
     RebuildTreeFromState();
 }
 
+namespace
+{
+    void ExpandAllChildren(HWND hTree, HTREEITEM hParent)
+    {
+        HTREEITEM hChild = TreeView_GetChild(hTree, hParent);
+        while (hChild)
+        {
+            TreeView_Expand(hTree, hChild, TVE_EXPAND);
+            ExpandAllChildren(hTree, hChild);
+            hChild = TreeView_GetNextSibling(hTree, hChild);
+        }
+    }
+
+    void CollapseAllChildren(HWND hTree, HTREEITEM hParent)
+    {
+        HTREEITEM hChild = TreeView_GetChild(hTree, hParent);
+        while (hChild)
+        {
+            CollapseAllChildren(hTree, hChild);
+            TreeView_Expand(hTree, hChild, TVE_COLLAPSE);
+            hChild = TreeView_GetNextSibling(hTree, hChild);
+        }
+    }
+}
+
+void CViewObjectsExt::ShowContextMenu(POINT pt)
+{
+    HMENU hPopupMenu = ::CreatePopupMenu();
+    ::AppendMenu(hPopupMenu, MF_STRING, (UINT_PTR)ViewObjectsMenuItem::CollapseAll,
+        Translations::TranslateOrDefault("ViewObjects.CollapseAll", "Collapse All"));
+    ::AppendMenu(hPopupMenu, MF_STRING, (UINT_PTR)ViewObjectsMenuItem::ExpandAll,
+        Translations::TranslateOrDefault("ViewObjects.ExpandAll", "Expand All"));
+    ::AppendMenu(hPopupMenu, MF_SEPARATOR, 0, nullptr);
+    ::AppendMenu(hPopupMenu, MF_STRING, (UINT_PTR)ViewObjectsMenuItem::ScrollTop,
+        Translations::TranslateOrDefault("ViewObjects.ScrollTop", "Scroll to Top"));
+    ::AppendMenu(hPopupMenu, MF_STRING, (UINT_PTR)ViewObjectsMenuItem::ScrollBottom,
+        Translations::TranslateOrDefault("ViewObjects.ScrollBottom", "Scroll to Bottom"));
+    ::TrackPopupMenu(hPopupMenu, TPM_VERTICAL | TPM_HORIZONTAL, pt.x, pt.y, NULL, this->GetSafeHwnd(), nullptr);
+    ::DestroyMenu(hPopupMenu);
+}
+
+void CViewObjectsExt::Menu_ExpandAll()
+{
+    HWND hTree = this->GetSafeHwnd();
+    if (!hTree)
+        return;
+
+    ::SendMessage(hTree, WM_SETREDRAW, FALSE, 0);
+    HTREEITEM hRoot = TreeView_GetRoot(hTree);
+    while (hRoot)
+    {
+        TreeView_Expand(hTree, hRoot, TVE_EXPAND);
+        ExpandAllChildren(hTree, hRoot);
+        hRoot = TreeView_GetNextSibling(hTree, hRoot);
+    }
+    ::SendMessage(hTree, WM_SETREDRAW, TRUE, 0);
+    ::InvalidateRect(hTree, nullptr, TRUE);
+}
+
+void CViewObjectsExt::Menu_CollapseAll()
+{
+    HWND hTree = this->GetSafeHwnd();
+    if (!hTree)
+        return;
+
+    ::SendMessage(hTree, WM_SETREDRAW, FALSE, 0);
+    HTREEITEM hRoot = TreeView_GetRoot(hTree);
+    while (hRoot)
+    {
+        CollapseAllChildren(hTree, hRoot);
+        TreeView_Expand(hTree, hRoot, TVE_COLLAPSE);
+        hRoot = TreeView_GetNextSibling(hTree, hRoot);
+    }
+    ::SendMessage(hTree, WM_SETREDRAW, TRUE, 0);
+    ::InvalidateRect(hTree, nullptr, TRUE);
+}
+
+void CViewObjectsExt::Menu_ScrollToTop()
+{
+    HWND hTree = this->GetSafeHwnd();
+    if (!hTree)
+        return;
+
+    ::SendMessage(hTree, WM_VSCROLL, MAKEWPARAM(SB_TOP, 0), 0);
+    if (HTREEITEM hFirst = TreeView_GetNextItem(hTree, nullptr, TVGN_FIRSTVISIBLE))
+        TreeView_EnsureVisible(hTree, hFirst);
+}
+
+void CViewObjectsExt::Menu_ScrollToBottom()
+{
+    HWND hTree = this->GetSafeHwnd();
+    if (!hTree)
+        return;
+
+    ::SendMessage(hTree, WM_VSCROLL, MAKEWPARAM(SB_BOTTOM, 0), 0);
+    if (HTREEITEM hLast = TreeView_GetNextItem(hTree, nullptr, TVGN_LASTVISIBLE))
+        TreeView_EnsureVisible(hTree, hLast);
+}
+
 void CViewObjectsExt::Redraw_Initialize()
 {
     KnownItem.clear();

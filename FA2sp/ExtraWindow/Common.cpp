@@ -4818,7 +4818,9 @@ void TooltipHelper::Attach(HWND hTarget, const char* text)
 		return;
 
 	TOOLINFO ti = { sizeof(ti) };
-	ti.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
+	// Tracking tooltip: visibility is controlled by this class instead of the
+	// system's hover timing, which is unreliable for these small icons.
+	ti.uFlags = TTF_IDISHWND | TTF_TRACK | TTF_ABSOLUTE | TTF_TRANSPARENT;
 	ti.hwnd = hTarget;
 	ti.uId = (UINT_PTR)hTarget;
 	ti.lpszText = const_cast<char*>(m_text.c_str());
@@ -4855,22 +4857,102 @@ void TooltipHelper::SetText(const char* text)
 
 void TooltipHelper::Detach()
 {
-	if (hTooltip)
+	if (hStatic)
+	{
+		KillTimer(hStatic, HoverTimerId);
+		KillTimer(hStatic, CheckTimerId);
+	}
+
+	if (IsWindow(hTooltip))
 	{
 		DestroyWindow(hTooltip);
-		hTooltip = nullptr;
 	}
+	hTooltip = nullptr;
 
-	if (hStatic && oldStaticProc)
+	if (hStatic && IsWindow(hStatic))
 	{
-		SetWindowLongPtr(hStatic, GWLP_WNDPROC, (LONG_PTR)oldStaticProc);
+		if (oldStaticProc)
+		{
+			SetWindowLongPtr(hStatic, GWLP_WNDPROC, (LONG_PTR)oldStaticProc);
+		}
 		SetWindowLongPtr(hStatic, GWLP_USERDATA, 0);
-		oldStaticProc = nullptr;
+		TooltipHelperMap.erase(hStatic);
 	}
 
-	TooltipHelperMap.erase(hStatic);
+	oldStaticProc = nullptr;
 	hStatic = nullptr;
 	m_text.clear();
+	m_shown = false;
+	m_hovered = false;
+}
+
+bool TooltipHelper::IsCursorInside() const
+{
+	if (!hStatic || !IsWindow(hStatic))
+		return false;
+
+	RECT rc = {};
+	if (!GetWindowRect(hStatic, &rc))
+		return false;
+
+	POINT pt = {};
+	GetCursorPos(&pt);
+
+	return PtInRect(&rc, pt) != FALSE;
+}
+
+void TooltipHelper::ShowTip()
+{
+	if (!hTooltip || !hStatic || m_text.empty())
+		return;
+
+	// Only one tip is visible at a time.
+	for (auto& pair : TooltipHelperMap)
+	{
+		if (pair.second != this)
+			pair.second->HideTip();
+	}
+
+	RECT rc = {};
+	if (!GetWindowRect(hStatic, &rc))
+		return;
+
+	TOOLINFO ti = { sizeof(ti) };
+	ti.uFlags = TTF_IDISHWND | TTF_TRACK | TTF_ABSOLUTE | TTF_TRANSPARENT;
+	ti.hwnd = hStatic;
+	ti.uId = (UINT_PTR)hStatic;
+	ti.lpszText = const_cast<char*>(m_text.c_str());
+
+	// Anchor the tip just below the icon; the system keeps it on screen.
+	KillTimer(hStatic, HoverTimerId);
+	SendMessage(hTooltip, TTM_TRACKPOSITION, 0, MAKELPARAM(rc.left, rc.bottom + 4));
+	SendMessage(hTooltip, TTM_TRACKACTIVATE, TRUE, (LPARAM)&ti);
+
+	m_shown = true;
+	SetTimer(hStatic, CheckTimerId, CheckIntervalMs, nullptr);
+	InvalidateRect(hStatic, nullptr, TRUE);
+}
+
+void TooltipHelper::HideTip()
+{
+	if (!m_shown)
+		return;
+
+	if (hTooltip && hStatic)
+	{
+		TOOLINFO ti = { sizeof(ti) };
+		ti.uFlags = TTF_IDISHWND | TTF_TRACK | TTF_ABSOLUTE | TTF_TRANSPARENT;
+		ti.hwnd = hStatic;
+		ti.uId = (UINT_PTR)hStatic;
+		SendMessage(hTooltip, TTM_TRACKACTIVATE, FALSE, (LPARAM)&ti);
+	}
+
+	m_shown = false;
+	if (hStatic && IsWindow(hStatic))
+	{
+		KillTimer(hStatic, CheckTimerId);
+		InvalidateRect(hStatic, nullptr, TRUE);
+	}
 }
 
 LRESULT CALLBACK TooltipHelper::StaticProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -4900,17 +4982,78 @@ LRESULT TooltipHelper::OnStaticMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 			m_hovered = true;
 			TRACKMOUSEEVENT tme = { sizeof(tme), TME_LEAVE, hWnd, 0 };
 			TrackMouseEvent(&tme);
+
+			// Show the tip automatically after a short hover.
+			SetTimer(hWnd, HoverTimerId, HoverDelayMs, nullptr);
+			InvalidateRect(hWnd, nullptr, TRUE);
+		}
+
+		// Keep the state in sync in case the system hid the tip window.
+		if (m_shown && !IsWindowVisible(hTooltip))
+		{
+			m_shown = false;
 			InvalidateRect(hWnd, nullptr, TRUE);
 		}
 		break;
 	case WM_MOUSELEAVE:
+		// A tip covering the icon may cause a spurious leave while the cursor
+		// is still on the icon, so verify with the actual cursor position.
+		if (IsCursorInside())
+			break;
+
 		if (m_hovered)
 		{
 			m_hovered = false;
 			InvalidateRect(hWnd, nullptr, TRUE);
 		}
+		KillTimer(hWnd, HoverTimerId);
+		HideTip();
 		break;
+	case WM_LBUTTONDOWN:
+	case WM_RBUTTONDOWN:
+		// Click shows the tip immediately; clicking again hides it.
+		if (IsWindowVisible(hTooltip))
+			HideTip();
+		else
+			ShowTip();
+		return 0;
+	case WM_TIMER:
+		if (wParam == HoverTimerId)
+		{
+			KillTimer(hWnd, HoverTimerId);
+			if (m_hovered && IsCursorInside())
+				ShowTip();
+		}
+		else if (wParam == CheckTimerId)
+		{
+			// Fallback in case the leave notification got lost.
+			if (!IsCursorInside())
+				HideTip();
+		}
+		break;
+	case WM_NCDESTROY:
+	{
+		// The tip is a child of the icon and is already gone at this point.
+		WNDPROC oldProc = oldStaticProc;
+
+		KillTimer(hWnd, HoverTimerId);
+		KillTimer(hWnd, CheckTimerId);
+		hTooltip = nullptr;
+		oldStaticProc = nullptr;
+		hStatic = nullptr;
+		TooltipHelperMap.erase(hWnd);
+		m_shown = false;
+		m_hovered = false;
+		m_text.clear();
+		SetWindowLongPtr(hWnd, GWLP_USERDATA, 0);
+
+		return oldProc ? CallWindowProc(oldProc, hWnd, msg, wParam, lParam)
+			: DefWindowProc(hWnd, msg, wParam, lParam);
 	}
+	}
+
+	if (!oldStaticProc)
+		return DefWindowProc(hWnd, msg, wParam, lParam);
 
 	return CallWindowProc(oldStaticProc, hWnd, msg, wParam, lParam);
 }
@@ -4922,9 +5065,13 @@ void TooltipHelper::DrawCircle(HWND hWnd, HDC hdc)
 
 	bool dark = ExtConfigs::EnableDarkMode;
 	COLORREF bgColor = dark ? RGB(32, 32, 32) : GetSysColor(COLOR_BTNFACE);
-	COLORREF textColor = dark
-		? (m_hovered ? RGB(180, 225, 255) : RGB(120, 190, 255))
-		: (m_hovered ? RGB(0, 140, 255) : RGB(0, 90, 200));
+	COLORREF textColor;
+	if (m_shown)
+		textColor = dark ? RGB(255, 215, 120) : RGB(210, 120, 0);
+	else if (m_hovered)
+		textColor = dark ? RGB(180, 225, 255) : RGB(0, 140, 255);
+	else
+		textColor = dark ? RGB(120, 190, 255) : RGB(0, 90, 200);
 
 	HBRUSH bg = CreateSolidBrush(bgColor);
 	FillRect(hdc, &rc, bg);

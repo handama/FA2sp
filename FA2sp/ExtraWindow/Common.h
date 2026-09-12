@@ -551,16 +551,28 @@ public:
     void Detach();
 
 private:
+    enum
+    {
+        HoverTimerId = 0x71,    // auto-show delay while hovering
+        CheckTimerId = 0x72,    // cursor polling while the tip is shown
+        HoverDelayMs = 800,
+        CheckIntervalMs = 1000,
+    };
+
     HWND hStatic = nullptr;
     HWND hTooltip = nullptr;
     std::string m_text;
     WNDPROC oldStaticProc = nullptr;
     bool m_hovered = false;
+    bool m_shown = false;
 
     static std::map<HWND, TooltipHelper*> TooltipHelperMap;
 
     static LRESULT CALLBACK StaticProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
     LRESULT OnStaticMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+    void ShowTip();
+    void HideTip();
+    bool IsCursorInside() const;
     void DrawCircle(HWND hWnd, HDC hdc);
 };
 

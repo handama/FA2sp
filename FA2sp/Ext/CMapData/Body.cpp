@@ -3984,7 +3984,7 @@ void CMapDataExt::RaiseVertices(int X, int Y, bool raise, bool IgnoreMorphable, 
 		}
 	}
 	auto smoothedVertices = CMapDataExt::GetSmoothedVertexHeight(
-		vertices, steep && !IgnoreMorphable, IgnoreMorphable);
+		vertices, steep && !IgnoreMorphable, IgnoreMorphable, true);
 	VertexHeight::ApplyRamps(smoothedVertices, nullptr, true, IgnoreMorphable);
 	
 	for (auto& vh : smoothedVertices)
@@ -5008,9 +5008,34 @@ std::set<VertexHeight> CMapDataExt::GetSmoothedVertexHeight(const std::set<Verte
 		return true;
 	};
 
+	// Two non-morphable cells that only touch at a corner still form a wall, and the vertex
+	// between them is a closed corner that nothing may pass through. This is what a 1 cell
+	// wide wall drawn straight on screen looks like: its cells only touch at corners, so the
+	// face based test below never sees two non-morphable cells on the same edge.
+	auto isClosedCorner = [isMorphable](int x, int y) -> bool
+	{
+		return (!isMorphable(CMapDataExt::TryGetCellAt(x - 1, y - 1)) && !isMorphable(CMapDataExt::TryGetCellAt(x, y)))
+			|| (!isMorphable(CMapDataExt::TryGetCellAt(x - 1, y)) && !isMorphable(CMapDataExt::TryGetCellAt(x, y - 1)));
+	};
+
+	auto getMorphableCellCount = [isMorphable](int x, int y) -> int
+	{
+		return (isMorphable(CMapDataExt::TryGetCellAt(x - 1, y - 1)) ? 1 : 0)
+			+ (isMorphable(CMapDataExt::TryGetCellAt(x - 1, y)) ? 1 : 0)
+			+ (isMorphable(CMapDataExt::TryGetCellAt(x, y - 1)) ? 1 : 0)
+			+ (isMorphable(CMapDataExt::TryGetCellAt(x, y)) ? 1 : 0);
+	};
+
 	auto canCrossEdge = [&](int fromX, int fromY, int toX, int toY) -> bool
 	{
 		if (!usePathfinding || IgnoreMorphable) return true;
+		if (isClosedCorner(toX, toY)) return false;
+		// A closed corner may still be the source of a spread when only one of its cells is
+		// morphable (the vertex the user clicked at the edge of a wall): leaving it can only
+		// go along that single cell, and every vertex on the other side of the wall is a
+		// closed corner as well, so the spread cannot cross. With two or more morphable
+		// cells the vertex is a passage and has to stay blocked in both directions.
+		if (isClosedCorner(fromX, fromY) && getMorphableCellCount(fromX, fromY) != 1) return false;
 		int dx = toX - fromX;
 		int dy = toY - fromY;
 		if (dx != 0 && dy != 0)
@@ -5187,6 +5212,43 @@ std::set<VertexHeight> CMapDataExt::GetSmoothedVertexHeight(const std::set<Verte
 			expandedVertices.insert(vh);
 		}
 	}
+
+    // Vertices whose four touching cells are all non-morphable are dropped while the
+    // smoothing front is built, but ApplyRamps only hands a vertex's cells over once its
+    // radius 2 neighbourhood is complete. Those missing vertices made every vertex along a
+    // wall fail that test, which is why the raise tool did nothing at the edge of
+    // non-morphable terrain. Treat them as present and add one ring around them.
+    std::set<VertexHeight> wallVertices;
+    for (const auto& v : result)
+    {
+        for (int i = 0; i < 4; ++i)
+        {
+            VertexHeight vh;
+            vh.X = v.X + Dirs4[i][0];
+            vh.Y = v.Y + Dirs4[i][1];
+            if (!vh.IsVertexInMap()) continue;
+            vh.GetVertexHeight(false, true);
+            if ((vh.Height == 0 && isSurroundedByNonmorphable(vh))
+                || !canCrossEdge(v.X, v.Y, vh.X, vh.Y))
+            {
+                wallVertices.insert(vh);
+            }
+        }
+    }
+
+    for (const auto& v : wallVertices)
+    {
+        expandedVertices.insert(v);
+        for (int i = 0; i < 4; ++i)
+        {
+            VertexHeight vh;
+            vh.X = v.X + Dirs4[i][0];
+            vh.Y = v.Y + Dirs4[i][1];
+            if (!vh.IsVertexInMap()) continue;
+            vh.GetVertexHeight(false, true);
+            expandedVertices.insert(vh);
+        }
+    }
 
     return expandedVertices;
 }

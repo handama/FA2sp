@@ -320,7 +320,40 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 
 	if (CIsoViewExt::UsingNewRaiseGround)
 	{
-		if (tiledataClick.Morphable || IgnoreMorphable)
+		// Clicking a wall cell (what the cursor sits on when it is right over the boundary
+		// vertex) used to do nothing at all. Allow the stroke when one of the corners of the
+		// picked cell still touches ground, and centre the stroke on that corner: the tool
+		// otherwise always works on the min(X,Y) corner of the picked cell, which slants the
+		// whole stroke towards one side of the wall.
+		bool wallPickClick = false;
+		int vertexOffsetX = 0;
+		int vertexOffsetY = 0;
+		if (!tiledataClick.Morphable)
+		{
+			const int cornerOffsets[4][2] = { {0, 0}, {0, 1}, {1, 1}, {1, 0} };
+			const int vertexCells[4][2] = { {-1, -1}, {-1, 0}, {0, -1}, {0, 0} };
+			for (int corner = 0; corner < 4 && !wallPickClick; ++corner)
+			{
+				int vx = X + cornerOffsets[corner][0];
+				int vy = Y + cornerOffsets[corner][1];
+				for (int i = 0; i < 4; ++i)
+				{
+					int nx = vx + vertexCells[i][0];
+					int ny = vy + vertexCells[i][1];
+					if (!CMapDataExt::IsCoordInFullMap(nx, ny)) continue;
+					auto cell = mapData.GetCellAt(nx, ny);
+					if (CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].Morphable)
+					{
+						wallPickClick = true;
+						vertexOffsetX = cornerOffsets[corner][0];
+						vertexOffsetY = cornerOffsets[corner][1];
+						break;
+					}
+				}
+			}
+		}
+
+		if (tiledataClick.Morphable || IgnoreMorphable || wallPickClick)
 		{
 			int loopStartX = -pIsoView->BrushSizeX / 2;
 			int loopStartY = -pIsoView->BrushSizeY / 2;
@@ -331,7 +364,9 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 			// first = map pos, second = should be processed
 			std::unordered_map<int, bool> process; 
 		
-			if (!tiledataClick.Morphable) // skip top half for flattening from cliffs
+			// skip top half only for flattening from cliffs; a wall cell picked by the cursor
+			// needs the whole square, otherwise the ground on one side of the wall is cut off
+			if (!tiledataClick.Morphable && IgnoreMorphable)
 			{
 				loopStartX = 0;
 				loopStartY = 0;
@@ -339,22 +374,59 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 			int f, n;
 			if (!IgnoreMorphable)
 			{
-				for (f = loopStartX; f < loopEndX; f++)
+				// The flood is the reachability filter for the vertex square below, so its key
+				// range must be the cells those very vertices own: vertex (x, y) owns the cells
+				// (x-1 .. x, y-1 .. y). A wall pick shifts the whole square by vertexOffsetX/Y,
+				// so the cell range follows it; a cell missing here drops every vertex touching
+				// it (unprocessedCellCount == 4), which is what made an earlier version work on
+				// one side of the square only.
+				int keyStartX = X + vertexOffsetX + loopStartX - 1;
+				int keyStartY = Y + vertexOffsetY + loopStartY - 1;
+				int keyEndX = X + vertexOffsetX + loopEndX - 1;
+				int keyEndY = Y + vertexOffsetY + loopEndY - 1;
+				for (f = keyStartX; f <= keyEndX; f++)
 				{
-					for (n = loopStartY; n < loopEndY; n++)
+					for (n = keyStartY; n <= keyEndY; n++)
 					{
-						int pos = X + f + (Y + n) * mapData.MapWidthPlusHeight;
+						int pos = f + n * mapData.MapWidthPlusHeight;
 						process[pos] = false;
 					}
 				}
-				CMapDataExt::FindConnectedTiles(process, X, Y);
+				// A picked ground cell seeds its own component. A picked wall cell must not seed
+				// the flood by itself: FindConnectedTiles marks the start cell plus its four
+				// orthogonal neighbours, and on a one cell wide wall those neighbours are ground
+				// on the far side as well, so both components got marked and the brush spilled
+				// over the wall. The stroke is anchored on one corner of the picked cell, so the
+				// first ground cell of that corner defines the side we are on; its other ground
+				// cells lie on the far side of the wall and have to stay unmarked.
+				if (tiledataClick.Morphable)
+				{
+					CMapDataExt::FindConnectedTiles(process, X, Y);
+				}
+				else
+				{
+					int anchorX = X + vertexOffsetX;
+					int anchorY = Y + vertexOffsetY;
+					const int anchorCells[4][2] = { {-1, -1}, {-1, 0}, {0, -1}, {0, 0} };
+					for (int i = 0; i < 4; ++i)
+					{
+						int nx = anchorX + anchorCells[i][0];
+						int ny = anchorY + anchorCells[i][1];
+						if (!CMapDataExt::IsCoordInFullMap(nx, ny)) continue;
+						auto cell = mapData.GetCellAt(nx, ny);
+						int ground = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+						if (!CMapDataExt::TileData[ground].Morphable) continue;
+						CMapDataExt::FindConnectedTiles(process, nx, ny);
+						break;
+					}
+				}
 			}
 			std::set<VertexHeight> vertices;
 			for (f = loopStartX; f < loopEndX; f++)
 			{
 				for (n = loopStartY; n < loopEndY; n++)
 				{
-					auto cells = VertexHeight::GetCellsFromVertices({{X + f, Y + n}});
+					auto cells = VertexHeight::GetCellsFromVertices({{X + vertexOffsetX + f, Y + vertexOffsetY + n}});
 					bool isAllValid = true;
 					int unprocessedCellCount = 0;
 					int nonmorphableCellCount = 0;
@@ -382,7 +454,7 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 					if (!isAllValid) continue;
 					if (!IgnoreMorphable && nonmorphableCellCount == 4) continue;
 					if (!IgnoreMorphable && unprocessedCellCount == 4) continue;
-					vertices.insert({X + f, Y + n, height});
+					vertices.insert({X + vertexOffsetX + f, Y + vertexOffsetY + n, height});
 				}
 			}
 

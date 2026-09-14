@@ -253,7 +253,7 @@ public:
 
     enum {
         Add = 0, Delete, AllDelete, batchAdd, batchDelete, TileSetAdd, TileSetDelete,
-        ConnectedAdd, ConnectedDelete, ReplaceHide, squareBatchAdd, squareBatchDelete
+        ConnectedAdd, ConnectedDelete, ReplaceHide, squareBatchAdd, squareBatchDelete, InvertSelection
     };
 
     enum

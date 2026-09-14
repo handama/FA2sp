@@ -3080,6 +3080,7 @@ void CViewObjectsExt::Redraw_MultiSelection()
     this->InsertTranslatedString("MultiSelectionCustomDelete", Const_MultiSelection + ConnectedDelete, hMultiSelection);
 
     this->InsertTranslatedString("MultiSelectionHide", Const_MultiSelection + ReplaceHide, hMultiSelection);
+    this->InsertTranslatedString("MultiSelectionInvert", Const_MultiSelection + InvertSelection, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionAllDelete", Const_MultiSelection + AllDelete, hMultiSelection);
 
 }
@@ -5434,6 +5435,14 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                     cell->Flag.IsHiddenCell = true;
                 }
             }
+            ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+            return true;
+        }
+        else if (nData == InvertSelection)
+        {
+            MultiSelection::InvertSelection();
+            CIsoView::CurrentCommand->Command = 0x1D;
+            CIsoView::CurrentCommand->Type = 114;
             ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
             return true;
         }

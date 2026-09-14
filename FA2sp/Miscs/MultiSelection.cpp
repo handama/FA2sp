@@ -96,6 +96,26 @@ void MultiSelection::ReverseStatus(int X, int Y)
     }
 }
 
+void MultiSelection::InvertSelection()
+{
+    std::set<MapCoord> oldCoords;
+    oldCoords.swap(SelectedCoords);
+
+    for (int i = 0; i <= CMapData::Instance->MapWidthPlusHeight; i++)
+    {
+        for (int j = 0; j <= CMapData::Instance->MapWidthPlusHeight; j++)
+        {
+            if (!CMapData::Instance->IsCoordInMap(i, j))
+                continue;
+            if (oldCoords.find(MapCoord{ i, j }) == oldCoords.end())
+                SelectedCoords.insert(MapCoord{ i, j });
+        }
+    }
+
+    MultiSelection::LastAddedCoord.X = -1;
+    MultiSelection::LastAddedCoord.Y = -1;
+}
+
 bool MultiSelection::IsSelected(int X, int Y)
 {
     return SelectedCoords.find(MapCoord{ X,Y }) != SelectedCoords.end();

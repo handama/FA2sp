@@ -15,6 +15,7 @@ public:
     static size_t GetCount();
     static void Clear();
     static void ReverseStatus(int X, int Y);
+    static void InvertSelection();
     static bool IsSelected(int X, int Y);
     static void FindConnectedTiles(std::unordered_set<int>& process, int startX, int startY,
         std::unordered_set<int>& tileSet, bool firstRun);

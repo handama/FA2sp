@@ -650,6 +650,10 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID, bool loadAsGarrisonDama
 	}
 	GetFullPaletteName(PaletteName);
 	auto palette = PalettesManager::LoadPalette(PaletteName);
+	if (!palette)
+	{
+		palette = Palette::PALETTE_UNIT;
+	}
 	auto mainPalette = palette;
 
 	auto loadBuildingFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
@@ -1163,6 +1167,10 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 	}
 	GetFullPaletteName(PaletteName);
 	auto palette = PalettesManager::LoadPalette(PaletteName);
+	if (!palette)
+	{
+		palette = Palette::PALETTE_UNIT;
+	}
 	auto mainPalette = palette;
 
 	auto loadBuildingFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
@@ -4098,10 +4106,14 @@ Palette* CLoadingExt::CreateBalancedPalette(const Palette* palA, const Palette* 
 	Palette* result = GameCreate<Palette>();
 	PalettesManager::CalculatedMixedPalettes.push_back(result);
 
+	std::memset(result, 0, sizeof(Palette));
 	result->Data[0] = BGRStruct(0, 0, 0);
 
-	for (int i = 16; i < 32; ++i) {
-		result->Data[i] = palA->Data[i];
+	const Palette* houseColorSource = palA ? palA : palB;
+	if (houseColorSource) {
+		for (int i = 16; i < 32; ++i) {
+			result->Data[i] = houseColorSource->Data[i];
+		}
 	}
 
 	struct ColorNode {
@@ -4114,6 +4126,8 @@ Palette* CLoadingExt::CreateBalancedPalette(const Palette* palA, const Palette* 
 	colors.reserve(512);
 
 	auto add_palette = [&](const Palette* pal) {
+		if (!pal) return;
+
 		for (int i = 1; i < 256; ++i) {
 			if (i >= 16 && i < 32) continue;
 

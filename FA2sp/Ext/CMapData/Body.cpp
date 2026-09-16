@@ -5179,37 +5179,52 @@ std::set<VertexHeight> CMapDataExt::GetSmoothedVertexHeight(const std::set<Verte
 		bool hasDown  = result.find({v.X, v.Y - 1}) != result.end();
 		bool hasLeft  = result.find({v.X - 1, v.Y}) != result.end();
 		bool hasRight = result.find({v.X + 1, v.Y}) != result.end();
+		// The ring exists to complete the neighbourhood of the result vertices for
+		// ApplyRamps, but it must not reach beyond the vertex map bound: anchors further
+		// outside do not describe the terrain inside the map.
 		if (!hasUp)
 		{
 			VertexHeight vh;
 			vh.X = v.X;
 			vh.Y = v.Y + 1;
-			vh.GetVertexHeight(false, true);
-			expandedVertices.insert(vh);
+			if (vh.IsVertexInMap())
+			{
+				vh.GetVertexHeight(false, true);
+				expandedVertices.insert(vh);
+			}
 		}
 		if (!hasDown)
 		{
 			VertexHeight vh;
 			vh.X = v.X;
 			vh.Y = v.Y - 1;
-			vh.GetVertexHeight(false, true);
-			expandedVertices.insert(vh);
+			if (vh.IsVertexInMap())
+			{
+				vh.GetVertexHeight(false, true);
+				expandedVertices.insert(vh);
+			}
 		}
 		if (!hasLeft)
 		{
 			VertexHeight vh;
 			vh.X = v.X - 1;
 			vh.Y = v.Y;
-			vh.GetVertexHeight(false, true);
-			expandedVertices.insert(vh);
+			if (vh.IsVertexInMap())
+			{
+				vh.GetVertexHeight(false, true);
+				expandedVertices.insert(vh);
+			}
 		}
 		if (!hasRight)
 		{
 			VertexHeight vh;
 			vh.X = v.X + 1;
 			vh.Y = v.Y;
-			vh.GetVertexHeight(false, true);
-			expandedVertices.insert(vh);
+			if (vh.IsVertexInMap())
+			{
+				vh.GetVertexHeight(false, true);
+				expandedVertices.insert(vh);
+			}
 		}
 	}
 
@@ -6040,8 +6055,18 @@ VertexHeight VertexHeight::GetCoordVertexHeight(const MapCoord& coord, VertexTyp
 		break;
 	}
 	
-	auto basicCell = CMapDataExt::TryGetCellAt(coord.X, coord.Y);
-	char basicHeight = basicCell->Height;
+	// The four cells of this vertex are (ret.X-1, ret.Y-1), (ret.X-1, ret.Y), (ret.X, ret.Y),
+	// (ret.X, ret.Y-1). Cells outside the map are not part of the terrain surface: they can
+	// neither be the reference cell nor contribute their height or their ramp offset.
+	const MapCoord cellCoords[4] = { {ret.X - 1, ret.Y - 1}, {ret.X - 1, ret.Y}, {ret.X, ret.Y}, {ret.X, ret.Y - 1} };
+	auto isCellInMap = [&cellCoords](int i)
+	{
+		return CMapData::Instance->IsCoordInMap(cellCoords[i].X, cellCoords[i].Y);
+	};
+
+	bool basicCellInMap = CMapData::Instance->IsCoordInMap(coord.X, coord.Y);
+	auto basicCell = basicCellInMap ? CMapDataExt::TryGetCellAt(coord.X, coord.Y) : nullptr;
+	char basicHeight = basicCell ? basicCell->Height : 0;
 	auto cells = ret.GetVertexCells();
 	auto isMorphable = [IgnoreMorphable](CellData* cell)
 	{
@@ -6058,6 +6083,7 @@ VertexHeight VertexHeight::GetCoordVertexHeight(const MapCoord& coord, VertexTyp
 	int basicNeighbourNonmorphableCount = 0;
 	for (int i = 0; i < 4; ++i)
 	{
+		if (!isCellInMap(i)) continue;
 		auto cell = cells.at(i);
 		if (cell == basicCell && cell != &CMapDataExt::ExtTempCellData)
 		{
@@ -6071,6 +6097,7 @@ VertexHeight VertexHeight::GetCoordVertexHeight(const MapCoord& coord, VertexTyp
 		{
 			if (i == basicCellIndex || i == oppositeCellIndex)
 				continue;
+			if (!isCellInMap(i)) continue;
 			auto cell = cells.at(i);
 			if (!isMorphable(cell))
 				basicNeighbourNonmorphableCount++;
@@ -6080,6 +6107,7 @@ VertexHeight VertexHeight::GetCoordVertexHeight(const MapCoord& coord, VertexTyp
 	ret.Height = 0;
 	for (int i = 0; i < 4; ++i)
 	{
+		if (!isCellInMap(i)) continue;
 		auto cell = cells.at(i);
 		int h = cell->Height;
 		if (considerRamp)
@@ -6130,6 +6158,11 @@ void VertexHeight::GetVertexHeight(bool IgnoreMorphable, bool considerRamp)
 {
 	Height = 0;
 	auto cells = GetVertexCells();
+	// The four cells of this vertex are (X-1, Y-1), (X-1, Y), (X, Y), (X, Y-1). Cells
+	// outside the map are not part of the terrain surface and must not contribute their
+	// height or their ramp offset, otherwise the invisible terrain beyond the map edge
+	// leaks into every vertex on the boundary.
+	const MapCoord cellCoords[4] = { {X - 1, Y - 1}, {X - 1, Y}, {X, Y}, {X, Y - 1} };
 	auto isMorphable = [IgnoreMorphable](CellData* cell)
 	{
 		if (!cell) return 0;
@@ -6142,6 +6175,8 @@ void VertexHeight::GetVertexHeight(bool IgnoreMorphable, bool considerRamp)
 	
 	for (int i = 0; i < 4; ++i)
 	{
+		if (!CMapData::Instance->IsCoordInMap(cellCoords[i].X, cellCoords[i].Y))
+			continue;
 		auto cell = cells.at(i);
 		int h = cell->Height;
 		if (considerRamp)
@@ -6343,9 +6378,23 @@ void VertexHeight::ApplyRamps(const std::set<VertexHeight>& vertexHeights,
 		points = &vertexHeights;
 	}
 	auto coords = GetCellsFromVertices(*points);
+	// An anchor whose four cells are all outside the map cannot describe the surface of an
+	// in-map cell; such an anchor is not used, the cell's own height is the fallback.
+	auto isAnchorInMap = [](const VertexHeight& vh)
+	{
+		return CMapData::Instance->IsCoordInMap(vh.X - 1, vh.Y - 1)
+			|| CMapData::Instance->IsCoordInMap(vh.X - 1, vh.Y)
+			|| CMapData::Instance->IsCoordInMap(vh.X, vh.Y - 1)
+			|| CMapData::Instance->IsCoordInMap(vh.X, vh.Y);
+	};
 	for (const auto& coord : coords)
 	{
 		if (restrictedCoords && !restrictedCoords->contains(coord))
+			continue;
+		// The map edge is the end of the terrain: never write cells outside the map,
+		// otherwise a stroke creates invisible terrain (and anchors) beyond the edge
+		// which come back as slopes on the next stroke.
+		if (!CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
 			continue;
 		auto cell = CMapDataExt::TryGetCellAt(coord.X, coord.Y);
 		
@@ -6381,7 +6430,7 @@ void VertexHeight::ApplyRamps(const std::set<VertexHeight>& vertexHeights,
 			}
 
 			auto itr = vertexHeights.find(ret);
-			if (itr != vertexHeights.end())
+			if (itr != vertexHeights.end() && isAnchorInMap(*itr))
 			{				
 				cellVertexHeights.at(i) = *itr;
 			}

@@ -978,11 +978,14 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					if (Variables::RulesMap.GetBool(ID, "InvisibleInGame"))
 						CIsoViewExt::MapRendererIgnoreObjects.insert(ID);
 				}
-				const auto& overlays = Variables::RulesMap.GetSection("OverlayTypes");
-				for (auto& [_, ID] : overlays)
+				const auto& overlays = Variables::RulesMap.ParseIndicies("OverlayTypes", true);
+				for (int i = 0; i < overlays.size(); ++i)
 				{
-					if (Variables::RulesMap.GetBool(ID, "IsRubble"))
-						CIsoViewExt::MapRendererIgnoreObjects.insert(ID);
+					const auto& value = overlays[i];
+					if (Variables::RulesMap.GetBool(value, "IsRubble"))
+						CIsoViewExt::MapRendererIgnoreObjects.insert(value);
+					if (i == 100 || i == 101 || i == 231 || i == 232) // hidden bridges
+						CIsoViewExt::MapRendererIgnoreObjects.insert(value);
 				}
 			}
 

@@ -21,6 +21,13 @@ std::vector<T> GetModes(const std::vector<T>& vec)
 
     return result;
 }
+static CellData* TryGetCellAt(int X, int Y)
+{
+    if (CMapDataExt::IsCoordInFullMap(X, Y))
+        return CMapData::Instance->GetCellAt(X, Y);
+	return nullptr;
+}
+
 void HeightGenerator::reset() {
     N = 0;
     edgeCount = 0;
@@ -535,16 +542,17 @@ std::set<VertexHeight> HeightGenerator::GetBoundaryVertices(const std::set<MapCo
         bool hasBL = coords.find({v.X - 1, v.Y    }) != coords.end();
 
         if (!(hasBR && hasTR && hasTL && hasBL)) {
-			CellData* cells[4];
-            cells[0] = CMapDataExt::TryGetCellAt(v.X - 1, v.Y - 1); 
-            cells[1] = CMapDataExt::TryGetCellAt(v.X - 1, v.Y);
-            cells[2] = CMapDataExt::TryGetCellAt(v.X, v.Y); 
-            cells[3] = CMapDataExt::TryGetCellAt(v.X, v.Y - 1);
+			CellData* cells[4]{};
+            cells[0] = TryGetCellAt(v.X - 1, v.Y - 1); 
+            cells[1] = TryGetCellAt(v.X - 1, v.Y);
+            cells[2] = TryGetCellAt(v.X, v.Y); 
+            cells[3] = TryGetCellAt(v.X, v.Y - 1);
             std::vector<int> heights;
             heights.reserve(4);
 			for (int i = 0; i < 4; ++i)
             {
                 auto cell = cells[i];
+                if (!cell) continue; // Cells outside the map are skipped
                 int h = cell->Height;
                 const auto& tileData = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)];
                 if (tileData.TileBlockCount > cell->TileSubIndex)
@@ -575,6 +583,7 @@ std::set<VertexHeight> HeightGenerator::GetBoundaryVertices(const std::set<MapCo
                 heights.push_back(h);
             }
 
+            if (heights.empty()) continue; // All adjacent cells are outside the map: skip this vertex
 			auto modes = GetModes(heights);
 			result.insert({v.X, v.Y, *std::min_element(modes.begin(), modes.end())});
         }

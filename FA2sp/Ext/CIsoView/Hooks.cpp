@@ -341,13 +341,14 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 		{
 			auto &cellExt = CMapDataExt::CellDataExts[pos];
 			pThis->CurrentCellObjectIndex = cellExt.SmudgeParts.empty() ? cell->Smudge : cellExt.SmudgeParts.back();
-			pThis->CurrentCellObjectType = 9;
 
-			if (pThis->CurrentCellObjectIndex > -1)
+			if (pThis->CurrentCellObjectIndex > -1
+				&& static_cast<size_t>(pThis->CurrentCellObjectIndex) < CMapData::Instance->SmudgeDatas.size())
 			{
 				auto &data = CMapData::Instance->SmudgeDatas[pThis->CurrentCellObjectIndex];
 				pThis->DragCell.X = data.Y;
 				pThis->DragCell.Y = data.X;
+				pThis->CurrentCellObjectType = 9;
 			}
 		}
 	}
@@ -454,13 +455,16 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 	// smudges
 	if (m_type == 9)
 	{
-		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Smudge);
-		auto smudge = CMapData::Instance->SmudgeDatas[m_id];
-		smudge.X = Y;
-		smudge.Y = X;
-		if (nLButtonUpFlags != MK_SHIFT)
-			CMapData::Instance->DeleteSmudgeData(m_id);
-		CMapData::Instance->SetSmudgeData(&smudge);
+		if (m_id > -1 && static_cast<size_t>(m_id) < CMapData::Instance->SmudgeDatas.size())
+		{
+			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Smudge);
+			auto smudge = CMapData::Instance->SmudgeDatas[m_id];
+			smudge.X = Y;
+			smudge.Y = X;
+			if (nLButtonUpFlags != MK_SHIFT)
+				CMapData::Instance->DeleteSmudgeData(m_id);
+			CMapData::Instance->SetSmudgeData(&smudge);
+		}
 		m_id = -1;
 		m_type = -1;
 	}

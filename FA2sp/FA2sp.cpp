@@ -590,6 +590,26 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DefaultBuildingProperty.AIRepairable = building[15];
 	ExtConfigs::DefaultBuildingProperty.Nominal = building[16];
 
+	// Initialize per-type placement facings on a preset grid (step depends on ExtFacings;
+	// infantry always stays at 8 directions => step 32). Snapping to the nearest preset so
+	// values changed at runtime by the mouse wheel stay valid.
+	{
+		auto SnapFacing = [](const ppmfc::CString& str, int step) -> int
+		{
+			int v = atoi(str);
+			v = ((v + step / 2) / step) * step;
+			v %= 256;
+			if (v < 0)
+				v += 256;
+			return v;
+		};
+		const int step = ExtConfigs::ExtFacings_Drag ? 8 : 32;
+		CIsoViewExt::AutoPropertyBrushFacing[0] = SnapFacing(ExtConfigs::DefaultAircraftProperty.Facing, step);
+		CIsoViewExt::AutoPropertyBrushFacing[1] = SnapFacing(ExtConfigs::DefaultBuildingProperty.Facing, step);
+		CIsoViewExt::AutoPropertyBrushFacing[2] = SnapFacing(ExtConfigs::DefaultInfantryProperty.Facing, 32);
+		CIsoViewExt::AutoPropertyBrushFacing[3] = SnapFacing(ExtConfigs::DefaultUnitProperty.Facing, step);
+	}
+
 	auto formats = STDHelpers::SplitString(CINI::FAData->GetString("ExtConfigs", "SupportedFormats", "map,mpr,yrm,mmx,yro"));
 	for (auto &f : formats)
 	{

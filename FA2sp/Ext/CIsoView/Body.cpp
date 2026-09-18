@@ -80,6 +80,7 @@ bool CIsoViewExt::UsingNewRaiseGround = false;
 RendererLighting CIsoViewExt::RenderLighing = RendererLighting::Current;
 
 bool CIsoViewExt::AutoPropertyBrush[4] = {false};
+int CIsoViewExt::AutoPropertyBrushFacing[4] = {0, 0, 0, 0}; // [0]=Aircraft [1]=Building [2]=Infantry [3]=Vehicle
 bool CIsoViewExt::IsPressingALT = false;
 bool CIsoViewExt::IsPressingTube = false;
 bool CIsoViewExt::EnableLiveDistanceRuler = false;

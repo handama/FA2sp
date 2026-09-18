@@ -428,6 +428,7 @@ public:
     static bool EnableAutoTrack;
 
     static bool AutoPropertyBrush[4];
+    static int AutoPropertyBrushFacing[4]; // [0]=Aircraft [1]=Building [2]=Infantry [3]=Vehicle
 
     static COLORREF CellHilightColors[16];
     static int drawOffsetX;

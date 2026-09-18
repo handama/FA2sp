@@ -2225,6 +2225,45 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 				ChangeBrushSize(index);
 			}
 		}
+		else if (CIsoView::CurrentCommand->Command == 1)
+		{
+			int facingIndex = -1;
+			if (CIsoView::CurrentCommand->Command == 1) // ObjectPlace
+			{
+				switch (CIsoView::CurrentCommand->Type)
+				{
+				case 1: facingIndex = 2; break; // Infantry
+				case 2: facingIndex = 1; break; // Building
+				case 3: facingIndex = 0; break; // Aircraft
+				case 4: facingIndex = 3; break; // Vehicle
+				}
+			}
+
+			if (facingIndex >= 0
+				&& !(CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7)
+				&& !CIsoView::GetInstance()->Drag
+				&& CIsoView::CurrentCommand->Command != 21)
+			{
+				POINT pt;
+				GetCursorPos(&pt);
+				if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt))
+				{
+					int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
+					// infantry always stays at 8 directions (step 32), others follow ExtFacings
+					const int step = (facingIndex == 2) ? 32 : (ExtConfigs::ExtFacings_Drag ? 8 : 32);
+					const int count = 256 / step;
+					// snap the stored value onto the current preset grid, then step one preset
+					int idx = (CIsoViewExt::AutoPropertyBrushFacing[facingIndex] + step / 2) / step;
+					idx %= count;
+					idx = (idx + (zDelta < 0 ? 1 : -1)) % count;
+					if (idx < 0)
+						idx += count;
+					CIsoViewExt::AutoPropertyBrushFacing[facingIndex] = idx * step;
+					::ScreenToClient(CIsoView::GetInstance()->GetSafeHwnd(), &pt);
+					CIsoView::GetInstance()->OnMouseMove(0, pt);
+				}
+			}
+		}
 		// last one
 		else if (CIsoView::CurrentCommand->Command == 0x27 && CMapData::Instance->MapWidthPlusHeight)
 		{

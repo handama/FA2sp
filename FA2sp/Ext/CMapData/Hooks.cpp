@@ -355,12 +355,14 @@ DEFINE_HOOK(4AC210, CMapData_AddInfantry, 7)
 		infantry.AutoYESRecruitType = ExtConfigs::DefaultInfantryProperty.AutoYESRecruitType;
 		infantry.Health = ExtConfigs::DefaultInfantryProperty.Health;
 	}
-	if (CIsoViewExt::AutoPropertyBrush[2]
-		&& !(CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7)
+	if (!(CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7)
 		&& !CIsoView::GetInstance()->Drag
 		&& CIsoView::CurrentCommand->Command != 21)
 	{
-		CViewObjectsExt::ApplyPropertyBrush_Infantry(infantry);
+		if (CViewObjectsExt::PlacingRandomInfantry < 0)
+			infantry.Facing.Format("%d", CIsoViewExt::AutoPropertyBrushFacing[2]);
+		if (CIsoViewExt::AutoPropertyBrush[2])
+			CViewObjectsExt::ApplyPropertyBrush_Infantry(infantry);
 	}
 
 	if (infantry.SubCell == "-1")
@@ -649,12 +651,14 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 		}
 	}
 
-	if (CIsoViewExt::AutoPropertyBrush[1]
-		&& !(CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7)
+	if (!(CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7)
 		&& !CIsoView::GetInstance()->Drag
 		&& CIsoView::CurrentCommand->Command != 21)
 	{
-		CViewObjectsExt::ApplyPropertyBrush_Building(structure);
+		if (CViewObjectsExt::PlacingRandomStructure < 0)
+			structure.Facing.Format("%d", CIsoViewExt::AutoPropertyBrushFacing[1]);
+		if (CIsoViewExt::AutoPropertyBrush[1])
+			CViewObjectsExt::ApplyPropertyBrush_Building(structure);
 	}
 
 	auto pSection = m_mapfile->AddOrGetSection("Structures");

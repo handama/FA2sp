@@ -20,12 +20,14 @@ DEFINE_HOOK(4B026A, CMapData_SetAircraftData_AutoPropertyBrush, 5)
 		data.AutoNORecruitType = ExtConfigs::DefaultAircraftProperty.AutoNORecruitType;
 		data.AutoYESRecruitType = ExtConfigs::DefaultAircraftProperty.AutoYESRecruitType;
 	}
-	if (CIsoViewExt::AutoPropertyBrush[0] 
-		&& !(CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7)
+	if (!(CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7)
 		&& !CIsoView::GetInstance()->Drag
 		&& CIsoView::CurrentCommand->Command != 21)
 	{
-		CViewObjectsExt::ApplyPropertyBrush_Aircraft(data);
+		if (CViewObjectsExt::PlacingRandomAircraft < 0)
+			data.Facing.Format("%d", CIsoViewExt::AutoPropertyBrushFacing[0]);
+		if (CIsoViewExt::AutoPropertyBrush[0])
+			CViewObjectsExt::ApplyPropertyBrush_Aircraft(data);
 	}
 
 	return 0;
@@ -48,12 +50,14 @@ DEFINE_HOOK(4B0D7B, CMapData_SetUnitData_AutoPropertyBrush, 5)
 		data.AutoNORecruitType = ExtConfigs::DefaultUnitProperty.AutoNORecruitType;
 		data.AutoYESRecruitType = ExtConfigs::DefaultUnitProperty.AutoYESRecruitType;
 	}
-	if (CIsoViewExt::AutoPropertyBrush[3] 
-		&& !(CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7)
+	if (!(CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7)
 		&& !CIsoView::GetInstance()->Drag
 		&& CIsoView::CurrentCommand->Command != 21)
 	{
-		CViewObjectsExt::ApplyPropertyBrush_Vehicle(data);
+		if (CViewObjectsExt::PlacingRandomVehicle < 0)
+			data.Facing.Format("%d", CIsoViewExt::AutoPropertyBrushFacing[3]);
+		if (CIsoViewExt::AutoPropertyBrush[3])
+			CViewObjectsExt::ApplyPropertyBrush_Vehicle(data);
 	}
 	return 0;
 }

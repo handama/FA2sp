@@ -3952,6 +3952,14 @@ int CLoadingExt::HasFileMix(FString filename, int nMix)
 	filepath += "Resources\\HighPriority\\";
 	filepath += filename;
 	fin.open(filepath, std::ios::in | std::ios::binary);
+
+	if (!fin.is_open())
+	{
+		// [ExtraDirectories] lower than HighPriority, higher than FilePath()
+		if (CLoadingExt::FindInExtraDirectories(filename.c_str(), &filepath))
+			fin.open(filepath, std::ios::in | std::ios::binary);
+	}
+
 	if (!fin.is_open())
 	{
 		filepath = CFinalSunApp::FilePath();
@@ -5506,6 +5514,19 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 
 		if (loadedData.empty())
 		{
+			// [ExtraDirectories] lower than HighPriority, higher than FilePath()
+			for (const auto& dir : CLoadingExt::GetExtraDirectories())
+			{
+				filepath = dir;
+				filepath += filename;
+				loadedData = readFile(filepath.c_str());
+				if (!loadedData.empty())
+					break;
+			}
+		}
+
+		if (loadedData.empty())
+		{
 			filepath = CFinalSunApp::FilePath();
 			filepath += filename;
 			loadedData = readFile(filepath.c_str());
@@ -5616,6 +5637,14 @@ bool CLoadingExt::HasFileExt(ppmfc::CString filename, int nMix)
 	filepath += "Resources\\HighPriority\\";
 	filepath += filename;
 	fin.open(filepath, std::ios::in | std::ios::binary);
+
+	if (!fin.is_open())
+	{
+		// [ExtraDirectories] lower than HighPriority, higher than FilePath()
+		if (CLoadingExt::FindInExtraDirectories(filename.GetString(), &filepath))
+			fin.open(filepath, std::ios::in | std::ios::binary);
+	}
+
 	if (!fin.is_open())
 	{
 		filepath = CFinalSunApp::FilePath();

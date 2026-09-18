@@ -386,10 +386,19 @@ public:
 	static void* ReadWholeFile(const char* filename, DWORD* pDwSize = nullptr, bool fa2path = false, bool useCache = true);
 	static bool HasFileExt(ppmfc::CString filename, int nMix = -114);
 
+	// [ExtraDirectories] Custom resource directories, read in registration order.
+	// Priority: lower than Resources\HighPriority\, higher than CFinalSunApp::FilePath()
+	static const std::vector<FString>& GetExtraDirectories();
+	// Returns the full path of the first matching file among the custom directories,
+	// or false when not found. outPath (optional) receives the resolved full path.
+	static bool FindInExtraDirectories(const char* filename, FString* outPath = nullptr);
+
 	static FHashSet NotFoundFiles;
 	static std::unordered_map<std::string, std::vector<unsigned char>> g_cache[2];
 	static std::unordered_map<std::string, uint64_t> g_cacheTime[2];
 	static uint64_t g_lastCleanup;
+	static std::vector<FString> s_extraDirectories;
+	static bool s_extraDirectoriesLoaded;
 };
 
 #pragma pack(push, 1)

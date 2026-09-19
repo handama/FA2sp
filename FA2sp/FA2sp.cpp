@@ -100,6 +100,7 @@ bool ExtConfigs::ExtWaypoints;
 bool ExtConfigs::ExtFacings;
 bool ExtConfigs::ExtTilts;
 bool ExtConfigs::ExtFacings_Drag;
+bool ExtConfigs::ExtFacings_Scroll;
 bool ExtConfigs::ExtFacings_DragPreview;
 int ExtConfigs::UndoRedoLimit;
 bool ExtConfigs::UndoRedo_ShiftPlaceTile;
@@ -370,6 +371,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ExtFacings = CINI::FAData->GetBool("ExtConfigs", "ExtFacings");
 	ExtConfigs::ExtTilts = CINI::FAData->GetBool("ExtConfigs", "ExtTilts");
 	ExtConfigs::ExtFacings_Drag = CINI::FAData->GetBool("ExtConfigs", "ExtFacings.Drag");
+	ExtConfigs::ExtFacings_Scroll = CINI::FAData->GetBool("ExtConfigs", "ExtFacings.Scroll");
 	ExtConfigs::ExtFacings_DragPreview = CINI::FAData->GetBool("ExtConfigs", "ExtFacings.DragPreview", true);
 	ExtConfigs::ExtVariables = CINI::FAData->GetBool("ExtConfigs", "ExtVariables");
 	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
@@ -603,7 +605,7 @@ void FA2sp::ExtConfigsInitialize()
 				v += 256;
 			return v;
 		};
-		const int step = ExtConfigs::ExtFacings_Drag ? 8 : 32;
+		const int step = ExtConfigs::ExtFacings_Scroll ? 8 : 32;
 		CIsoViewExt::AutoPropertyBrushFacing[0] = SnapFacing(ExtConfigs::DefaultAircraftProperty.Facing, step);
 		CIsoViewExt::AutoPropertyBrushFacing[1] = SnapFacing(ExtConfigs::DefaultBuildingProperty.Facing, step);
 		CIsoViewExt::AutoPropertyBrushFacing[2] = SnapFacing(ExtConfigs::DefaultInfantryProperty.Facing, 32);
@@ -1301,6 +1303,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.ExtFacings.DragPreview", "Preview facing while draging"),
 		.IniKey = "ExtFacings.DragPreview",
 		.Value = &ExtConfigs::ExtFacings_DragPreview,
+		.Type = ExtConfigs::SpecialOptionType::None});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ExtFacings.Scroll", "Allow scroll units into 32 facings when placing"),
+		.IniKey = "ExtFacings.Scroll",
+		.Value = &ExtConfigs::ExtFacings_Scroll,
 		.Type = ExtConfigs::SpecialOptionType::None});
 		
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

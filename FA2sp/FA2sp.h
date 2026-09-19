@@ -109,6 +109,7 @@ public:
     static bool ExtFacings;
     static bool ExtTilts;
     static bool ExtFacings_Drag;
+    static bool ExtFacings_Scroll;
     static bool ExtFacings_DragPreview;
     static int UndoRedoLimit;
     static bool UndoRedo_RecordObjects;

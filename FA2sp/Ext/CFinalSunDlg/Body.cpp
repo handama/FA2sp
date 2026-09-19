@@ -2247,7 +2247,7 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 				{
 					int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
 					// infantry always stays at 8 directions (step 32), others follow ExtFacings
-					const int step = (facingIndex == 2) ? 32 : (ExtConfigs::ExtFacings_Drag ? 8 : 32);
+					const int step = (facingIndex == 2) ? 32 : (ExtConfigs::ExtFacings_Scroll ? 8 : 32);
 					const int count = 256 / step;
 					// snap the stored value onto the current preset grid, then step one preset
 					int idx = (CIsoViewExt::AutoPropertyBrushFacing[facingIndex] + step / 2) / step;

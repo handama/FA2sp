@@ -2228,15 +2228,12 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 		else if (CIsoView::CurrentCommand->Command == 1)
 		{
 			int facingIndex = -1;
-			if (CIsoView::CurrentCommand->Command == 1) // ObjectPlace
+			switch (CIsoView::CurrentCommand->Type)
 			{
-				switch (CIsoView::CurrentCommand->Type)
-				{
-				case 1: facingIndex = 2; break; // Infantry
-				case 2: facingIndex = 1; break; // Building
-				case 3: facingIndex = 0; break; // Aircraft
-				case 4: facingIndex = 3; break; // Vehicle
-				}
+			case 1: facingIndex = 2; break; // Infantry
+			case 2: facingIndex = 1; break; // Building
+			case 3: facingIndex = 0; break; // Aircraft
+			case 4: facingIndex = 3; break; // Vehicle
 			}
 
 			if (facingIndex >= 0

@@ -359,7 +359,7 @@ DEFINE_HOOK(4AC210, CMapData_AddInfantry, 7)
 		&& !CIsoView::GetInstance()->Drag
 		&& CIsoView::CurrentCommand->Command != 21)
 	{
-		if (CViewObjectsExt::PlacingRandomInfantry < 0)
+		if (CViewObjectsExt::PlacingRandomInfantry < 0 && CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 1)
 			infantry.Facing.Format("%d", CIsoViewExt::AutoPropertyBrushFacing[2]);
 		if (CIsoViewExt::AutoPropertyBrush[2])
 			CViewObjectsExt::ApplyPropertyBrush_Infantry(infantry);
@@ -655,7 +655,7 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 		&& !CIsoView::GetInstance()->Drag
 		&& CIsoView::CurrentCommand->Command != 21)
 	{
-		if (CViewObjectsExt::PlacingRandomStructure < 0)
+		if (CViewObjectsExt::PlacingRandomStructure < 0 && CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 2)
 			structure.Facing.Format("%d", CIsoViewExt::AutoPropertyBrushFacing[1]);
 		if (CIsoViewExt::AutoPropertyBrush[1])
 			CViewObjectsExt::ApplyPropertyBrush_Building(structure);

@@ -24,7 +24,7 @@ DEFINE_HOOK(4B026A, CMapData_SetAircraftData_AutoPropertyBrush, 5)
 		&& !CIsoView::GetInstance()->Drag
 		&& CIsoView::CurrentCommand->Command != 21)
 	{
-		if (CViewObjectsExt::PlacingRandomAircraft < 0)
+		if (CViewObjectsExt::PlacingRandomAircraft < 0 && CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 3)
 			data.Facing.Format("%d", CIsoViewExt::AutoPropertyBrushFacing[0]);
 		if (CIsoViewExt::AutoPropertyBrush[0])
 			CViewObjectsExt::ApplyPropertyBrush_Aircraft(data);
@@ -54,7 +54,7 @@ DEFINE_HOOK(4B0D7B, CMapData_SetUnitData_AutoPropertyBrush, 5)
 		&& !CIsoView::GetInstance()->Drag
 		&& CIsoView::CurrentCommand->Command != 21)
 	{
-		if (CViewObjectsExt::PlacingRandomVehicle < 0)
+		if (CViewObjectsExt::PlacingRandomVehicle < 0 && CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 4)
 			data.Facing.Format("%d", CIsoViewExt::AutoPropertyBrushFacing[3]);
 		if (CIsoViewExt::AutoPropertyBrush[3])
 			CViewObjectsExt::ApplyPropertyBrush_Vehicle(data);

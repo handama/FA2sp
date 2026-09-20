@@ -220,6 +220,12 @@ namespace AnimPreview
     void OnTimer();
     // Called from SpecialDraw / SpecialDrawDirectX to interrupt on user interaction.
     void OnUserInterrupt();
+
+    // Ends any playback and drops the cached frames. Must be called when the game
+    // resources are reloaded (CLoadingExt::ClearItemTypes): the cached frames are
+    // copies of the released SHP data, and the DirectX texture cache is keyed by
+    // their addresses.
+    void ClearCache();
 }
 
 class NOVTABLE CIsoViewExt : public CIsoView

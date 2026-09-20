@@ -31,9 +31,10 @@
 //     https://modenc.renegadeprojects.com/Animation_Looping).
 //   * Playback is driven by a window timer on the main dialog; frames advance in
 //     CFinalSunDlgExt::PreTranslateMessageExt (see Ext/CFinalSunDlg/Body.cpp).
-//   * DirectDraw: the region the frames will cover is backed up on the first
-//     frame and restored before every frame, then presented exactly like the
-//     game's mouse-move flow. The game's TempBuffer is not used at all.
+//   * DirectDraw: before every frame the visible area is restored from the game's
+//     TempBuffer - the only copy of the clean canvas that the game's own painting
+//     code never overwrites - the frame is drawn on top of it, and the result is
+//     presented exactly like the game's mouse-move flow does.
 //   * DirectX: drawn in screen space, erased by the core's background cache.
 //   * Any SpecialDraw / SpecialDrawDirectX call (mouse move, canvas redraw)
 //     stops playback immediately.
@@ -105,11 +106,8 @@ namespace
     bool g_ReportStarted = false;
     FString g_ReportName;
 
-    // DirectDraw: copy of the clean canvas under the frames, taken before the
-    // first frame and written back before each frame, so frames never stack up.
-    bool g_HasBackup = false;
-    CRect g_BackupRect;
-    std::vector<unsigned char> g_BackupPixels;
+    // DirectDraw: the previous frame is erased by restoring the visible area from
+    // the game's TempBuffer (see RestoreCleanRegion), so no private copy is kept.
 
     // ---------------------------------------------------------------------
     // Resource resolution
@@ -477,6 +475,34 @@ namespace
     }
 
     // ---------------------------------------------------------------------
+    // Cache
+    // ---------------------------------------------------------------------
+
+    // Drops every cached animation. The frames are copies of SHP data that the
+    // resource reload releases, and the DirectX texture cache is keyed by their
+    // addresses, so nothing of it may survive a reload.
+    void ClearFrameCache()
+    {
+        if (ExtConfigs::DirectXRendering && CIsoViewExt::g_pDX)
+        {
+            for (auto& up : g_AllFrames)
+            {
+                if (!up)
+                    continue;
+                for (auto& frame : up->Frames)
+                {
+                    if (frame)
+                        CIsoViewExt::g_pDX->RemoveTexturesFor(frame.get());
+                }
+            }
+        }
+
+        g_AllFrames.clear();
+        g_Cached = nullptr;
+        g_CachedId = "";
+    }
+
+    // ---------------------------------------------------------------------
     // Scaled copies of the frames (only the DirectDraw path needs them)
     // ---------------------------------------------------------------------
 
@@ -590,141 +616,23 @@ namespace
     }
 
     // ---------------------------------------------------------------------
-    // DirectDraw: clean-region backup and present (same flow as the game)
+    // DirectDraw: clean background and present
     // ---------------------------------------------------------------------
 
-    void ClearBackup()
+    // Restores the visible area from the game's TempBuffer, exactly like the
+    // mouse-move flow does (Hooks.Zoom.cpp, CIsoView_OnMouseMove_BltTempBuffer).
+    void RestoreCleanRegion()
     {
-        g_HasBackup = false;
-        g_BackupRect.SetRectEmpty();
-        g_BackupPixels.clear();
-    }
-
-    // All frames share one anchor, so the bounding box of the largest frame
-    // covers every frame.
-    CRect CalcFrameRect(const std::vector<std::unique_ptr<ImageDataClassSafe>>& frames, MapCoord anchor)
-    {
-        int maxW = 0;
-        int maxH = 0;
-        for (auto& up : frames)
-        {
-            if (!up)
-                continue;
-            maxW = std::max(maxW, static_cast<int>(up->FullWidth));
-            maxH = std::max(maxH, static_cast<int>(up->FullHeight));
-        }
-        if (maxW <= 0 || maxH <= 0)
-            return CRect(0, 0, 0, 0);
-
-        // Same conversion as Redraw / DrawFrameGDI.
-        int sx = anchor.X;
-        int sy = anchor.Y;
-        CIsoViewExt::MapCoord2ScreenCoord(sx, sy);
-        sx -= CIsoViewExt::drawOffsetX;
-        sy -= CIsoViewExt::drawOffsetY;
-
-        const double sf = (CIsoViewExt::ScaledFactor > 0.0) ? CIsoViewExt::ScaledFactor : 1.0;
-        const double inv = 1.0 / sf;
-        const int centerX = sx + static_cast<int>(std::lround(BLIT_X_OFFSET * inv));
-        const int centerY = sy + static_cast<int>(std::lround((BLIT_Y_OFFSET + ANCHOR_Y_OFFSET) * inv));
-
-        maxW += 4;  // margin for centre rounding
-        maxH += 4;
-        const int left = centerX - maxW / 2;
-        const int top = centerY - maxH / 2;
-        return CRect(left, top, left + maxW, top + maxH);
-    }
-
-    // Copies the region the frames will cover out of the target surface,
-    // while that surface still holds the clean canvas.
-    bool CaptureBackup(const CRect& rect)
-    {
-        ClearBackup();
-
-        auto pBackBuffer = CIsoViewExt::GetBackBuffer();
-        if (!pBackBuffer)
-            return false;
-
-        DDSURFACEDESC2 ddsd = { sizeof(DDSURFACEDESC2) };
-        if (FAILED(pBackBuffer->Lock(nullptr, &ddsd, DDLOCK_WAIT, nullptr)) || !ddsd.lpSurface)
-        {
-            if (ddsd.lpSurface)
-                pBackBuffer->Unlock(nullptr);
-            return false;
-        }
-
-        CRect clip(0, 0, static_cast<int>(ddsd.dwWidth), static_cast<int>(ddsd.dwHeight));
-        CRect area;
-        area.IntersectRect(&rect, &clip);
-
-        if (area.Width() > 0 && area.Height() > 0)
-        {
-            const int w = area.Width();
-            const int h = area.Height();
-            g_BackupPixels.resize(static_cast<size_t>(w) * h * 4);
-            auto* base = static_cast<const unsigned char*>(ddsd.lpSurface);
-
-            for (int y = 0; y < h; ++y)
-            {
-                const auto* src = base + static_cast<size_t>(area.top + y) * ddsd.lPitch
-                                       + static_cast<size_t>(area.left) * 4;
-                std::memcpy(g_BackupPixels.data() + static_cast<size_t>(y) * w * 4,
-                            src, static_cast<size_t>(w) * 4);
-            }
-
-            g_BackupRect = area;
-            g_HasBackup = true;
-        }
-
-        pBackBuffer->Unlock(nullptr);
-        return g_HasBackup;
-    }
-
-    // Writes the clean background back, so the previous frame never shows through.
-    void RestoreBackup()
-    {
-        if (!g_HasBackup)
+        auto pIsoView = CIsoView::GetInstance();
+        if (!pIsoView || !pIsoView->lpDDTempBufferSurface)
             return;
 
         auto pBackBuffer = CIsoViewExt::GetBackBuffer();
         if (!pBackBuffer)
             return;
 
-        const int w = g_BackupRect.Width();
-        const int h = g_BackupRect.Height();
-        if (w <= 0 || h <= 0 || g_BackupPixels.size() < static_cast<size_t>(w) * h * 4)
-            return;
-
-        DDSURFACEDESC2 ddsd = { sizeof(DDSURFACEDESC2) };
-        if (FAILED(pBackBuffer->Lock(nullptr, &ddsd, DDLOCK_WAIT, nullptr)) || !ddsd.lpSurface)
-        {
-            if (ddsd.lpSurface)
-                pBackBuffer->Unlock(nullptr);
-            return;
-        }
-
-        // The window may have been resized, so clip against the current surface.
-        const int x1 = std::max(0, static_cast<int>(g_BackupRect.left));
-        const int x2 = std::min(static_cast<int>(ddsd.dwWidth), static_cast<int>(g_BackupRect.right));
-        const int y1 = std::max(0, static_cast<int>(g_BackupRect.top));
-        const int y2 = std::min(static_cast<int>(ddsd.dwHeight), static_cast<int>(g_BackupRect.bottom));
-
-        if (x2 > x1 && y2 > y1)
-        {
-            const size_t bytes = static_cast<size_t>(x2 - x1) * 4;
-            auto* base = static_cast<unsigned char*>(ddsd.lpSurface);
-
-            for (int y = y1; y < y2; ++y)
-            {
-                auto* dst = base + static_cast<size_t>(y) * ddsd.lPitch + static_cast<size_t>(x1) * 4;
-                const auto* src = g_BackupPixels.data()
-                                      + (static_cast<size_t>(y - g_BackupRect.top) * w
-                                            + static_cast<size_t>(x1 - g_BackupRect.left)) * 4;
-                std::memcpy(dst, src, bytes);
-            }
-        }
-
-        pBackBuffer->Unlock(nullptr);
+        CRect rect = CIsoViewExt::GetVisibleIsoViewRect();
+        pBackBuffer->Blt(&rect, pIsoView->lpDDTempBufferSurface, &rect, DDBLT_WAIT, 0);
     }
 
     // Matches the output of the BACK_BUFFER_TO_PRIMARY macro for special_draw >= 1.
@@ -886,13 +794,9 @@ namespace
         const int blitX = sx + offX - pFrame->FullWidth / 2 - BLIT_X_OFFSET;
         const int blitY = sy + offY + anchorY - pFrame->FullHeight / 2 - BLIT_Y_OFFSET;
 
-        // First frame: back up the region the frames will cover, while the
-        // BackBuffer still holds the clean canvas.
-        if (!g_HasBackup)
-            CaptureBackup(CalcFrameRect(drawFrames, g_Anchor));
-
-        // Restore the clean background before every frame.
-        RestoreBackup();
+        // Erase the previous frame by putting the clean canvas back, then draw the
+        // new one on top of it.
+        RestoreCleanRegion();
         DrawFrameGDI(pFrame, blitX, blitY, alpha);
         PresentBackBuffer();
     }
@@ -956,8 +860,6 @@ namespace
         if (stopReportSound)
             StopReportSound();
 
-        ClearBackup();
-
         g_Playing = false;
         g_Current = nullptr;
         g_PlayingId = "";
@@ -987,7 +889,7 @@ namespace
             }
             else
             {
-                RestoreBackup();
+                RestoreCleanRegion();
                 PresentBackBuffer();
             }
         }
@@ -1046,6 +948,15 @@ bool Play(const FString& animId, MapCoord coord)
 void Stop()
 {
     StopPlayback(true);
+}
+
+void ClearCache()
+{
+    // No surface work here: the caller is reloading resources, so the DirectDraw
+    // surfaces may be gone or about to be recreated. The report sound does belong to
+    // the released resources, so it is stopped as well.
+    StopInternal(true);
+    ClearFrameCache();
 }
 
 bool IsPlaying()

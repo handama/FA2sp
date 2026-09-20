@@ -75,6 +75,8 @@ namespace
         std::vector<int> Sequence;
         // Display time of every Sequence entry, taken from its own Rate.
         std::vector<int> Delays;
+        // Draw alpha of every Sequence entry, taken from its own Translucency.
+        std::vector<unsigned char> Alphas;
         // Index in Sequence where the endless repetition starts (infinite loops only).
         int LoopBegin = 0;
         // LoopCount < 0 in art.ini (infinite).
@@ -172,6 +174,14 @@ namespace
             return MAX_INTERVAL_MS;
 
         return std::clamp(n * 1000 / TICKS_PER_SECOND, MIN_INTERVAL_MS, MAX_INTERVAL_MS);
+    }
+
+    // art.ini Translucency is a transparency percentage, so the draw alpha is its
+    // complement (same formula as CLoadingExt::LoadObjects).
+    unsigned char GetShapeAlpha(const FString& artId)
+    {
+        const int translucency = CINI::Art->GetInteger(artId, "Translucency");
+        return static_cast<unsigned char>(std::clamp(255 - translucency * 256 / 100, 0, 255));
     }
 
     // Resolves the .SHP file name of a shape exactly like the game does when it
@@ -345,10 +355,12 @@ namespace
 
         const int sequenceStart = static_cast<int>(out.Sequence.size());
         const int delay = GetFrameDelayMs(artId);
+        const unsigned char alpha = GetShapeAlpha(artId);
         for (int index : sequence)
         {
             out.Sequence.push_back(frameOffset + index);
             out.Delays.push_back(delay);
+            out.Alphas.push_back(alpha);
         }
 
         // Only the last shape of the chain can loop endlessly (following Next
@@ -510,6 +522,26 @@ namespace
             BuildScaledFrames(f, inv);
 
         return f.ScaledFrames;
+    }
+
+    // Per-frame attributes: every shape of the chain has its own Rate and
+    // Translucency, so both are looked up for the frame shown right now.
+    int CurrentFrameDelayMs()
+    {
+        if (!g_Current || g_Current->Delays.empty())
+            return MIN_INTERVAL_MS;
+
+        const int index = std::clamp(g_Pos, 0, static_cast<int>(g_Current->Delays.size()) - 1);
+        return g_Current->Delays[index];
+    }
+
+    unsigned char CurrentFrameAlpha()
+    {
+        if (!g_Current || g_Current->Alphas.empty())
+            return 255;
+
+        const int index = std::clamp(g_Pos, 0, static_cast<int>(g_Current->Alphas.size()) - 1);
+        return g_Current->Alphas[index];
     }
 
     // ---------------------------------------------------------------------
@@ -675,7 +707,7 @@ namespace
     // ---------------------------------------------------------------------
 
     // DirectDraw: blits a (pre-scaled) frame into the BackBuffer.
-    void DrawFrameGDI(ImageDataClassSafe* pFrame, int x, int y)
+    void DrawFrameGDI(ImageDataClassSafe* pFrame, int x, int y, unsigned char alpha)
     {
         auto pBackBuffer = CIsoViewExt::GetBackBuffer();
         if (!pBackBuffer)
@@ -691,7 +723,7 @@ namespace
             DDBoundary boundary{ ddsd.dwWidth, ddsd.dwHeight, ddsd.lPitch };
             // extraLightType = -100 skips lighting, same as the damage fires in DrawObjects.
             CIsoViewExt::BlitSHPTransparent(CIsoView::GetInstance(), ddsd.lpSurface, window, boundary,
-                x, y, pFrame, nullptr, 255, 0, -100, false);
+                x, y, pFrame, nullptr, alpha, 0, -100, false);
         }
 
         pBackBuffer->Unlock(nullptr);
@@ -700,7 +732,7 @@ namespace
     // Screen space is 1 unit per client pixel, while map objects are drawn in a
     // space of 1/ScaledFactor client pixels, so sizes and offsets are divided by
     // ScaledFactor to keep the same apparent scale as the map.
-    void DrawFrameDirectX(ImageDataClassSafe* pFrame, int screenX, int screenY)
+    void DrawFrameDirectX(ImageDataClassSafe* pFrame, int screenX, int screenY, unsigned char alpha)
     {
         if (!CIsoViewExt::DirectXReady() || !CIsoViewExt::g_pDX)
             return;
@@ -736,7 +768,7 @@ namespace
         DrawParams params;
         params.SetPosition(centerX - w * 0.5f, centerY - h * 0.5f)
             .SetScale(scaleX, scaleY)
-            .SetOpacity(1.0f)
+            .SetOpacity(alpha / 255.0f)
             .SetScreenSpace();
 
         CIsoViewExt::g_pDX->DrawTexture(pTexture, params);
@@ -777,13 +809,16 @@ namespace
         sx -= CIsoViewExt::drawOffsetX;
         sy -= CIsoViewExt::drawOffsetY;
 
+        // art.ini Translucency of the shape this frame belongs to.
+        const unsigned char alpha = CurrentFrameAlpha();
+
         if (ExtConfigs::DirectXRendering)
         {
             auto* pFrame = g_Current->Frames[frameIndex].get();
             if (!ImageDataClassSafe::IsValidImage(pFrame))
                 return;
 
-            DrawFrameDirectX(pFrame, sx, sy);
+            DrawFrameDirectX(pFrame, sx, sy, alpha);
             return;
         }
 
@@ -813,7 +848,7 @@ namespace
 
         // Restore the clean background before every frame.
         RestoreBackup();
-        DrawFrameGDI(pFrame, blitX, blitY);
+        DrawFrameGDI(pFrame, blitX, blitY, alpha);
         PresentBackBuffer();
     }
 
@@ -874,18 +909,8 @@ namespace
         g_Pos = 0;
     }
 
-    // Delay of the frame shown right now. Every shape in the chain has its own
-    // Rate, so the timer is re-armed after each frame instead of using one
-    // interval for the whole playback.
-    int CurrentFrameDelayMs()
-    {
-        if (!g_Current || g_Current->Delays.empty())
-            return MIN_INTERVAL_MS;
-
-        const int index = std::clamp(g_Pos, 0, static_cast<int>(g_Current->Delays.size()) - 1);
-        return g_Current->Delays[index];
-    }
-
+    // The timer is re-armed after every frame because shapes in the chain may
+    // have different Rates.
     void RearmTimer()
     {
         if (CFinalSunDlg::Instance)

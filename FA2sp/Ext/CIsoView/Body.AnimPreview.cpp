@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstring>
 #include <memory>
+#include <utility>
 #include <vector>
 
 // ============================================================================
@@ -82,8 +83,9 @@ namespace
         // LoopCount < 0 in art.ini (infinite).
         bool Infinite = false;
 
-        // art.ini Report= sound list id of the first shape (may be empty).
-        FString Report;
+        // First frame of every shape of the chain, and of every iteration of it,
+        // paired with the Report= sound list id of the shape that owns that frame.
+        std::vector<std::pair<int, FString>> ReportPoints;
     };
 
     bool g_Playing = false;
@@ -244,11 +246,14 @@ namespace
     //   LoopStart   first frame of the loop segment (0 based)
     //   LoopEnd     last frame of the loop segment (1 based)
     //   LoopCount   total iterations (1 = once, >= 2 = N times, -1 = endless)
-    std::vector<int> BuildSequence(const FString& artId, int usableCount, int& loopBegin, bool& infinite)
+    std::vector<int> BuildSequence(const FString& artId, int usableCount, int& loopBegin, bool& infinite,
+                                   std::vector<int>* iterationStarts = nullptr)
     {
         std::vector<int> seq;
         loopBegin = 0;
         infinite = false;
+        if (iterationStarts)
+            iterationStarts->clear();
         if (usableCount <= 0)
             return seq;
 
@@ -275,15 +280,24 @@ namespace
         for (int i = start; i <= firstSegEnd; ++i)
             seq.push_back(i);
 
+        // The first iteration always starts at the beginning of the sequence.
+        if (iterationStarts && !seq.empty())
+            iterationStarts->push_back(0);
+
         if (hasLoop)
         {
             loopBegin = static_cast<int>(seq.size());
 
             // LoopCount < 0: expand the loop segment once, then repeat it endlessly.
+            const int repeatLen = secondSegEnd - loopStart + 1;
             int repeat = (loopCount < 0) ? 1 : (loopCount - 1);
             infinite = (loopCount < 0);
             for (int t = 0; t < repeat; ++t)
             {
+                // Every repetition replays the animation, so it replays the report too.
+                if (iterationStarts && repeatLen > 0)
+                    iterationStarts->push_back(loopBegin + t * repeatLen);
+
                 for (int i = loopStart; i <= secondSegEnd; ++i)
                     seq.push_back(i);
             }
@@ -296,6 +310,9 @@ namespace
                 seq.push_back(i);
             loopBegin = 0;
             infinite = false;
+
+            if (iterationStarts)
+                iterationStarts->push_back(0);
         }
 
         if (loopBegin < 0 || loopBegin >= static_cast<int>(seq.size()))
@@ -351,7 +368,8 @@ namespace
 
         int loopBegin = 0;
         bool infinite = false;
-        const std::vector<int> sequence = BuildSequence(artId, usableCount, loopBegin, infinite);
+        std::vector<int> iterationStarts;
+        const std::vector<int> sequence = BuildSequence(artId, usableCount, loopBegin, infinite, &iterationStarts);
 
         const int sequenceStart = static_cast<int>(out.Sequence.size());
         const int delay = GetFrameDelayMs(artId);
@@ -362,6 +380,14 @@ namespace
             out.Delays.push_back(delay);
             out.Alphas.push_back(alpha);
         }
+
+        // The shape's own Report= sound.
+        FString report = CINI::Art->GetString(artId, "Report");
+
+        // Every iteration of this shape starts with its first frame, and that is
+        // where its report is played.
+        for (int index : iterationStarts)
+            out.ReportPoints.emplace_back(sequenceStart + index, report);
 
         // Only the last shape of the chain can loop endlessly (following Next
         // stops at LoopCount < 0), so its loop point is the one that matters.
@@ -417,11 +443,6 @@ namespace
 
         if (out.LoopBegin < 0 || out.LoopBegin >= static_cast<int>(out.Sequence.size()))
             out.LoopBegin = 0;
-
-        // The Report sound belongs to the shape the chain starts with.
-        out.Report = CINI::Art->GetString(chain.Ids.front(), "Report");
-        if (out.Report.IsEmpty())
-            out.Report = CINI::Rules().GetString(chain.Ids.front(), "Report");
 
         return true;
     }
@@ -542,6 +563,30 @@ namespace
 
         const int index = std::clamp(g_Pos, 0, static_cast<int>(g_Current->Alphas.size()) - 1);
         return g_Current->Alphas[index];
+    }
+
+    // True when the playback has at least one report sound to play.
+    bool HasAnyReport(const AnimFrames& frames)
+    {
+        for (const auto& point : frames.ReportPoints)
+        {
+            if (!point.second.IsEmpty())
+                return true;
+        }
+        return false;
+    }
+
+    // Report sound of the shape that owns the given sequence position. Positions
+    // that are not the first frame of a shape (or of one of its iterations) have
+    // no report.
+    const FString* GetReportAt(const AnimFrames& frames, int pos)
+    {
+        for (const auto& point : frames.ReportPoints)
+        {
+            if (point.first == pos && !point.second.IsEmpty())
+                return &point.second;
+        }
+        return nullptr;
     }
 
     // ---------------------------------------------------------------------
@@ -883,23 +928,33 @@ namespace
         SoundPlayer::PlayBagSound(g_ReportName, volume);
     }
 
-    void StopInternal()
+    // Stops the report sound started by this playback. SoundPlayer is shared, so
+    // another jump target means the script owns the sound now and it is left alone.
+    void StopReportSound()
+    {
+        if (!g_ReportStarted)
+            return;
+
+        g_ReportStarted = false;
+
+        if (SoundPlayer::IsPlaying()
+            && SoundPlayer::IsSameJumpTarget(REPORT_SOUND_SOURCE, 0, g_ReportName))
+        {
+            SoundPlayer::Stop();
+        }
+
+        g_ReportName = "";
+    }
+
+    // Ends the current playback. The report sound is only stopped when asked to,
+    // so starting an animation without a report leaves the running one alone.
+    void StopInternal(bool stopReportSound)
     {
         if (CFinalSunDlg::Instance)
             ::KillTimer(CFinalSunDlg::Instance->GetSafeHwnd(), TIMER_ID);
 
-        // Only stop the sound this playback started: SoundPlayer is shared, so
-        // another jump target means the script changed it and it is not ours.
-        if (g_ReportStarted)
-        {
-            g_ReportStarted = false;
-            if (SoundPlayer::IsPlaying()
-                && SoundPlayer::IsSameJumpTarget(REPORT_SOUND_SOURCE, 0, g_ReportName))
-            {
-                SoundPlayer::Stop();
-            }
-            g_ReportName = "";
-        }
+        if (stopReportSound)
+            StopReportSound();
 
         ClearBackup();
 
@@ -907,6 +962,37 @@ namespace
         g_Current = nullptr;
         g_PlayingId = "";
         g_Pos = 0;
+    }
+
+    // Erases the current frame and ends playback.
+    void StopPlayback(bool stopReportSound)
+    {
+        if (!g_Playing)
+        {
+            // Playback already ended, but an earlier report may still be running.
+            if (stopReportSound)
+                StopReportSound();
+            return;
+        }
+
+        // Restore the canvas, otherwise the last frame would stay on screen.
+        if (!CIsoViewExt::RenderingMap && !CIsoViewExt::RenderFullMap && !CIsoViewExt::RenderingScreenshot)
+        {
+            if (ExtConfigs::DirectXRendering)
+            {
+                // DirectX: the overlay lives in screen space, so re-publishing the
+                // background cache removes it.
+                if (CIsoViewExt::DirectXReady() && CIsoViewExt::g_pDX)
+                    CIsoViewExt::g_pDX->RenderScreenSpaceOnly();
+            }
+            else
+            {
+                RestoreBackup();
+                PresentBackBuffer();
+            }
+        }
+
+        StopInternal(stopReportSound);
     }
 
     // The timer is re-armed after every frame because shapes in the chain may
@@ -927,8 +1013,6 @@ bool Play(const FString& animId, MapCoord coord)
     if (animId.IsEmpty())
         return false;
 
-    Stop();
-
     if (!CMapData::Instance->MapWidthPlusHeight)
         return false;
 
@@ -936,14 +1020,19 @@ bool Play(const FString& animId, MapCoord coord)
     if (!frames)
         return false;
 
+    // Every playback starts its own reports. When the new animation has none, the
+    // report still running from the previous one is left untouched.
+    StopPlayback(!HasAnyReport(*frames));
+
     g_Current = frames;
     g_PlayingId = animId;
     g_Anchor = coord;
     g_Pos = 0;
     g_Playing = true;
 
-    // Play the Report= sound together with the animation when art.ini defines one.
-    PlayReportSound(frames->Report);
+    // The first frame plays the report of the shape it belongs to.
+    if (const FString* report = GetReportAt(*frames, 0))
+        PlayReportSound(*report);
 
     Redraw();
 
@@ -956,28 +1045,7 @@ bool Play(const FString& animId, MapCoord coord)
 
 void Stop()
 {
-    if (!g_Playing)
-        return;
-
-    // Restore the canvas on an explicit stop (finished or pressed again),
-    // otherwise the last frame would stay on screen.
-    if (!CIsoViewExt::RenderingMap && !CIsoViewExt::RenderFullMap && !CIsoViewExt::RenderingScreenshot)
-    {
-        if (ExtConfigs::DirectXRendering)
-        {
-            // DirectX: the overlay lives in screen space, so re-publishing the
-            // background cache removes it.
-            if (CIsoViewExt::DirectXReady() && CIsoViewExt::g_pDX)
-                CIsoViewExt::g_pDX->RenderScreenSpaceOnly();
-        }
-        else
-        {
-            RestoreBackup();
-            PresentBackBuffer();
-        }
-    }
-
-    StopInternal();
+    StopPlayback(true);
 }
 
 bool IsPlaying()
@@ -1015,6 +1083,11 @@ void OnTimer()
         }
     }
 
+    // Reaching the first frame of a shape (or of one of its iterations, e.g. when a
+    // loop wraps around) plays that shape's report, so A->B plays A's, then B's.
+    if (const FString* report = GetReportAt(*g_Current, g_Pos))
+        PlayReportSound(*report);
+
     Redraw();
     // The new frame may belong to a shape with a different Rate.
     RearmTimer();
@@ -1027,6 +1100,6 @@ void OnUserInterrupt()
 
     // Called from SpecialDraw / SpecialDrawDirectX: the caller's rendering flow
     // repaints the visible area right after this, so nothing has to be erased.
-    StopInternal();
+    StopInternal(true);
 }
 }

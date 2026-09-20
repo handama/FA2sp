@@ -3940,9 +3940,9 @@ void CNewTrigger::OnClickParamJump(bool isEvent, int index)
     ParamType type = isEvent ? EventParamType[index] : ActionParamType[index];
 
     FString value = vcb->GetSelectedText(true);
-	FString::TrimIndex(value);
 	if (type == ParamType::Waypoint)
     {
+        FString::TrimIndex(value);
         if (auto pCord = CINI::CurrentDocument->TryGetString("Waypoints", value))
         {
             auto second = atoi(*pCord);
@@ -3954,6 +3954,7 @@ void CNewTrigger::OnClickParamJump(bool isEvent, int index)
     }
     else if (type == ParamType::Trigger)
     {
+        FString::TrimIndex(value);
         auto idx = vcbSelectedTrigger.FindStringExact(ExtraWindow::GetTriggerDisplayName(value));
         if (idx == CB_ERR)
             return;
@@ -3962,6 +3963,7 @@ void CNewTrigger::OnClickParamJump(bool isEvent, int index)
     }
     else if (type == ParamType::AITrigger)
     {
+        FString::TrimIndex(value);
         if (CNewAITrigger::GetHandle() == NULL)
             CNewAITrigger::Create(m_parent);
 
@@ -3975,6 +3977,7 @@ void CNewTrigger::OnClickParamJump(bool isEvent, int index)
     }
     else if (type == ParamType::Team)
     {
+        FString::TrimIndex(value);
         if (CNewTeamTypes::GetHandle() == NULL)
             CNewTeamTypes::Create(m_parent);
 
@@ -3988,6 +3991,7 @@ void CNewTrigger::OnClickParamJump(bool isEvent, int index)
     }
     else if (type == ParamType::Tag)
     {
+        FString::TrimIndex(value);
         if (CNewTag::GetHandle() == NULL)
             CNewTag::Create(m_parent);
 
@@ -4000,6 +4004,7 @@ void CNewTrigger::OnClickParamJump(bool isEvent, int index)
     }
     else if (type == ParamType::Script)
     {
+        FString::TrimIndex(value);
         if (CNewScript::GetHandle() == NULL)
             CNewScript::Create(m_parent);
 
@@ -4013,6 +4018,7 @@ void CNewTrigger::OnClickParamJump(bool isEvent, int index)
     }
     else if (type == ParamType::Taskforce)
     {
+        FString::TrimIndex(value);
         if (CNewTaskforce::GetHandle() == NULL)
         CNewTaskforce::Create(m_parent);
 
@@ -4026,6 +4032,7 @@ void CNewTrigger::OnClickParamJump(bool isEvent, int index)
     }
     else if (type == ParamType::CSF)
     {
+        FString::TrimIndex(value);
         CCsfEditor::TriggerCaller = GetCurrentInstanceIndex();
         CCsfEditor::TriggerParamIndex = index;
         if (CCsfEditor::GetHandle() == NULL)
@@ -4043,6 +4050,7 @@ void CNewTrigger::OnClickParamJump(bool isEvent, int index)
     }
     else if (type == ParamType::LocalVariable)
     {
+        FString::TrimIndex(value);
         if (CNewLocalVariables::GetHandle() == NULL)
         CNewLocalVariables::Create(m_parent);
 		value += " ";
@@ -4127,6 +4135,58 @@ void CNewTrigger::OnClickParamJump(bool isEvent, int index)
                 SoundPlayer::PlayBagSound(randomSound, volume);
             }
         }
+    }
+    else if (type == ParamType::Animation)
+    {
+        auto atoms = FString::SplitString(value, 1, " - ");
+        auto ID = atoms[1];
+		int x = -1;
+		int y = -1;
+		for (int i = 0; i < (isEvent ? EVENT_PARAM_COUNT : ACTION_PARAM_COUNT); i++)
+		{
+            VirtualComboBoxEx* vcb = isEvent ? &vcbEventParameter[i] : &vcbActionParameter[i];
+            ParamType type = isEvent ? EventParamType[i] : ActionParamType[i];
+            if (type == ParamType::Waypoint)
+            {
+                FString wp = vcb->GetSelectedText(true);
+                FString::TrimIndex(wp);
+                if (auto pCord = CINI::CurrentDocument->TryGetString("Waypoints", wp))
+                {
+                    auto second = atoi(*pCord);
+                    if (second > 0)
+                    {
+                        x = second / 1000;
+                        y = second % 1000;
+						break;
+					}
+				}
+            }
+        }
+
+		// Pressing the button again for the same animation just stops it;
+		// a different animation stops the old one and starts the new one.
+		if (AnimPreview::IsSame(ID))
+		{
+			AnimPreview::Stop();
+		}
+		else
+		{
+            if (CMapData::Instance->IsCoordInMap(x, y))
+            {
+                AnimPreview::Play(ID, MapCoord{ x, y });
+            }
+            else
+            {
+                auto pIsoView = CIsoViewExt::GetExtension();
+                CRect window;
+                CIsoViewExt::GetValidWindowRect(pIsoView->GetSafeHwnd(), &window);
+                CIsoViewExt::AdaptRectForSecondScreen(&window);
+                int xCenter = window.left + window.right / 2 + pIsoView->ViewPosition.x;
+                int yCenter = window.top + window.bottom / 2 + pIsoView->ViewPosition.y;
+                pIsoView->ScreenCoord2MapCoord(xCenter, yCenter);
+				AnimPreview::Play(ID, MapCoord{ xCenter, yCenter });
+            }
+		}
     }
 }
 

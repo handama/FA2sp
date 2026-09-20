@@ -308,6 +308,42 @@ void DirectXCore::ClearTextures()
     Logger::Raw("[DirectXCore] Clear textures.\n");
 }
 
+void DirectXCore::DiscardPendingDraws()
+{
+    m_drawCommands.clear();
+}
+
+void DirectXCore::InvalidateGLTracking()
+{
+    if (!m_bUseOpenGL)
+        return;
+
+    // (GLuint)-1 is never a valid object name or texture unit: using it as an
+    // "unknown" sentinel forces the next tracked bind to actually execute.
+    const GLuint unknown = static_cast<GLuint>(-1);
+    m_glTrackedProgram = unknown;
+    m_glTrackedTexture = unknown;
+    m_glTrackedTexture1 = unknown;
+    m_glTrackedVAO = unknown;
+    m_glTrackedFBO = unknown;
+    m_glTrackedActiveTexUnit = unknown;
+}
+
+void DirectXCore::RemoveTexturesFor(const void* pData)
+{
+    for (auto it = m_textureMap.begin(); it != m_textureMap.end();)
+    {
+        if (it->first.pData != pData)
+        {
+            ++it;
+            continue;
+        }
+        if (m_bUseOpenGL && it->second && it->second->glTexture)
+            glDeleteTextures(1, &it->second->glTexture);
+        it = m_textureMap.erase(it);
+    }
+}
+
 void DirectXCore::ClearTileTextures()
 {
     if (m_bUseOpenGL)
@@ -2374,6 +2410,9 @@ void DirectXCore::Render()
     if (!m_bInitialized)
         return;
 
+    // Same as above: any raw GL call bypassing the tracked wrappers desyncs the cache.
+    InvalidateGLTracking();
+
     // If nothing to render at all, skip entirely
     if (m_drawCommands.empty() && m_lineEntries.empty())
         return;
@@ -2453,6 +2492,11 @@ void DirectXCore::RenderScreenSpaceOnly()
     if (!m_bInitialized)
         return;
 
+    // External callers (animation preview, ...) may have triggered raw GL calls
+    // such as texture creation. Invalidate the cache first so the program,
+    // texture and FBO binds below really execute.
+    InvalidateGLTracking();
+
     if (m_bUseOpenGL)
     {
         GL_RenderFinalToBackBuffer();
@@ -2469,6 +2513,14 @@ void DirectXCore::RenderScreenSpaceOnly()
     RenderScreenSpaceContent();
     m_pSwapChain->Present(1, 0);
     m_drawCommands.clear();
+
+    // Restore the clean canvas in the BackBuffer after presenting. The frame is
+    // already on screen; this only keeps screen-space content out of the
+    // BackBuffer. Otherwise a following UpdateBackgroundCache() (D3D path only)
+    // would bake that frame into the background cache, and since the final
+    // composite uses LINEAR upscaling when renderScale != 1, the palette index 0
+    // colour would bleed into the image edges.
+    RestoreBackgroundFromCache();
 }
 
 TextureResource *DirectXCore::LoadTexture(const ImageDataView &view, BGRStruct color, bool ignoreTransparent)
@@ -2496,7 +2548,17 @@ TextureResource *DirectXCore::LoadTexture(const ImageDataView &view, BGRStruct c
             if (opacity < 255 && ignoreTransparent)
                 opacity = 0;
             BGRStruct color = view.pPalette->Data[idx];
-            uint32_t rgba = (color.R << 0) | (color.G << 8) | (color.B << 16) | (opacity << 24);
+            // Fully transparent pixels (palette index 0) keep alpha = 0 only and
+            // get their RGB zeroed. Otherwise they would carry the index 0 colour
+            // (usually the magenta used as transparent colour) and any later
+            // bilinear/linear stage (canvas upscaling, linear sampling) would
+            // bleed that magenta into the edges. Since alpha 0 pixels never
+            // contribute to the result, zeroing their RGB cannot affect normal
+            // rendering.
+            const uint32_t rgb = (opacity == 0)
+                                     ? 0u
+                                     : ((color.R << 0) | (color.G << 8) | (color.B << 16));
+            uint32_t rgba = rgb | (opacity << 24);
             rgbaData[y * w + x] = rgba;
         }
     }
@@ -5426,6 +5488,13 @@ void DirectXCore::GL_UploadTextureRGBA8(TextureResource *res, int w, int h, cons
     {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
     }
+
+    // The raw glBindTexture above binds on the currently active texture unit and
+    // bypasses the cache. Without invalidating it, the later GL_BindTexture0/1
+    // calls would assume the texture is unchanged and skip the bind, so another
+    // pass would sample the wrong texture.
+    m_glTrackedTexture = static_cast<GLuint>(-1);
+    m_glTrackedTexture1 = static_cast<GLuint>(-1);
 }
 
 void DirectXCore::GL_UploadTextureR8(TextureResource *res, int w, int h, const uint8_t *pixels, bool flipY)
@@ -5452,6 +5521,10 @@ void DirectXCore::GL_UploadTextureR8(TextureResource *res, int w, int h, const u
     {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, pixels);
     }
+
+    // Same as GL_UploadTextureRGBA8: invalidate the texture cache after a raw bind.
+    m_glTrackedTexture = static_cast<GLuint>(-1);
+    m_glTrackedTexture1 = static_cast<GLuint>(-1);
 }
 
 void DirectXCore::GL_UploadTextureDynamic(TextureResource *res, int w, int h, const uint32_t *pixels)
@@ -5473,6 +5546,10 @@ void DirectXCore::GL_UploadTextureDynamic(TextureResource *res, int w, int h, co
         glBindTexture(GL_TEXTURE_2D, res->glTexture);
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
     }
+
+    // Same as GL_UploadTextureRGBA8: invalidate the texture cache after a raw bind.
+    m_glTrackedTexture = static_cast<GLuint>(-1);
+    m_glTrackedTexture1 = static_cast<GLuint>(-1);
 }
 
 // ==========================================================================

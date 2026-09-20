@@ -201,6 +201,27 @@ struct MouseCommandBrush
 	int BrushSizeIndex;
 };
 
+// Animation preview playback (implemented in Body.AnimPreview.cpp).
+// Overlays an SHP animation on the already rendered iso view; playback is
+// interrupted by any mouse move or canvas redraw.
+namespace AnimPreview
+{
+    // Plays the animation registered in art.ini, anchored to the map cell coord.
+   // Loops until interrupted.
+    bool Play(const FString& animId, MapCoord coord);
+    // Stops playback and erases the remaining frame.
+    void Stop();
+    bool IsPlaying();
+    // True when animId is the animation currently being played.
+    bool IsSame(const FString& animId);
+
+    // Used by CFinalSunDlgExt::PreTranslateMessageExt to detect and drive the timer.
+    bool IsTimerMessage(UINT_PTR timerId);
+    void OnTimer();
+    // Called from SpecialDraw / SpecialDrawDirectX to interrupt on user interaction.
+    void OnUserInterrupt();
+}
+
 class NOVTABLE CIsoViewExt : public CIsoView
 {
 public:

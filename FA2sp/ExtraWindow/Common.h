@@ -108,7 +108,8 @@ enum class ParamType : int
     LocalVariable,
     Eva,
     Sound,
-    Theme
+    Theme,
+    Animation
 };
 
 namespace VCBColorHelpers

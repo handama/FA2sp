@@ -2147,6 +2147,19 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 	}
 	switch (pMsg->message)
 	{
+	case WM_TIMER:
+	{
+		// Animation preview: frames are advanced by a timer on the main dialog
+		// (the timer is created in AnimPreview::Play).
+		if (AnimPreview::IsTimerMessage(pMsg->wParam))
+		{
+			AnimPreview::OnTimer();
+			// Return TRUE so the message is not dispatched: the game's own
+			// OnTimer must not receive this unknown timer id.
+			return TRUE;
+		}
+		break;
+	}
 	//case WM_INITDIALOG:
 	//	;
 	//  SetWindowTheme(*this, L"DarkMode_Explorer", NULL);

@@ -1738,6 +1738,10 @@ ParamType ExtraWindow::GetParamType(const FString& paramIdx)
         {
             return ParamType::Eva;
         }
+        else if (sectionName == "Animations" && (loadFromMap || loadFrom == "1" || loadFrom == "rules"))
+        {
+            return ParamType::Animation;
+        }
     }
 
 	return ParamType::None;

@@ -193,6 +193,18 @@ public:
     void Cleanup();
     void ClearTextures();
     void ClearTileTextures();
+    // Drops draw commands that have not been output yet, so they cannot be
+    // rendered later by a pass with a different viewport/projection.
+    void DiscardPendingDraws();
+    // Invalidates the GL state cache. Parts of the code base call raw GL
+    // (texture uploads, GL_CopyScreenToTexture, ...) and therefore desync the
+    // tracked values; once desynced, GL_UseProgramTracked/GL_BindTexture0/...
+    // skip the actual bind and later passes use the wrong program or texture.
+    void InvalidateGLTracking();
+    // Drops all cached textures created from pData. The texture cache is keyed by
+    // the image object address, so a new object reusing a released address would
+    // otherwise get the old object's texture (wrong size and content).
+    void RemoveTexturesFor(const void* pData);
     void OnResize(HWND hwnd);
 
     TextureResource *LoadTexture(const ImageDataView &view, BGRStruct color = {0, 0, 0}, bool ignoreTransparent = false);

@@ -168,6 +168,7 @@ public:
 	static bool ReplaceBitmapColor(CBitmap& bitmap,COLORREF oldColor,COLORREF newColor);
 	void SetImageDataSafe(unsigned char* pBuffer, FString NameInDict,
 		int FullWidth, int FullHeight, Palette* pPal, bool clip = true, bool outline = false);
+	void SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* pData, int FullWidth, int FullHeight, Palette* pPal);
 	ImageDataClassSafe* SetBuildingImageDataSafe(unsigned char* pBuffer, FString NameInDict,
 		int FullWidth, int FullHeight, Palette* pPal, unsigned char* pAlphaBuffer);
 	void SetImageData(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
@@ -275,7 +276,6 @@ private:
 	void LoadInsignia(const FString& ID);
 	void LoadAlphaImage(const FString& ID, CLoadingExt::GameObjectType type);
 
-	void SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void SetImageData(unsigned char* pBuffer, ImageDataClass* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void ShrinkSHP(unsigned char* pIn, int InWidth, int InHeight, unsigned char*& pOut, int* OutWidth, int* OutHeight);
 	void UnionSHP_Add(unsigned char* pBuffer, int Width, int Height, int DeltaX = 0, int DeltaY = 0,

@@ -4337,6 +4337,11 @@ CRect CIsoViewExt::GetVisibleIsoViewRect()
 
 void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
 {
+    // Mouse moves and canvas redraws end up here, so stop the animation preview
+    // (the caller's rendering flow repaints the visible area right after this,
+    // so nothing has to be erased here).
+    AnimPreview::OnUserInterrupt();
+
     auto pThis = CIsoViewExt::GetExtension();
     switch (specialDraw)
     {
@@ -4578,6 +4583,9 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
 
 void CIsoViewExt::SpecialDrawDirectX(int specialDraw)
 {
+    // Same as SpecialDraw: an interactive redraw stops the animation preview.
+    AnimPreview::OnUserInterrupt();
+
     auto pThis = CIsoViewExt::GetExtension();
     HDC hDC = nullptr;
     static CRect rect = {};

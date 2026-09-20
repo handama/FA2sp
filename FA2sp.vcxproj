@@ -268,6 +268,7 @@
     <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Hooks.Toolbar.cpp" />
     <ClCompile Include="FA2sp\Ext\CHouses\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CHouses\Hooks.cpp" />
+    <ClCompile Include="FA2sp\Ext\CIsoView\Body.AnimPreview.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.Blit.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\DirectXCore.cpp" />

@@ -2051,6 +2051,27 @@ void CNewScript::OnClickJumpButton(bool extra)
             }
         }
     }
+    else if (type == ParamType::Animation)
+    {
+        auto atoms = FString::SplitString(value, 1, " - ");
+        auto ID = atoms[1];
+
+		if (AnimPreview::IsSame(ID))
+		{
+			AnimPreview::Stop();
+		}
+		else
+		{
+            auto pIsoView = CIsoViewExt::GetExtension();
+            CRect window;
+            CIsoViewExt::GetValidWindowRect(pIsoView->GetSafeHwnd(), &window);
+            CIsoViewExt::AdaptRectForSecondScreen(&window);
+            int xCenter = window.left + window.right / 2 + pIsoView->ViewPosition.x;
+            int yCenter = window.top + window.bottom / 2 + pIsoView->ViewPosition.y;
+            pIsoView->ScreenCoord2MapCoord(xCenter, yCenter);
+            AnimPreview::Play(ID, MapCoord{ xCenter, yCenter });
+		}
+    }
 }
 
 bool CNewScript::OnEnterKeyDown(HWND& hWnd)

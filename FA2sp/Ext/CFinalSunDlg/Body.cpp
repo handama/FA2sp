@@ -1067,6 +1067,14 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				int tileH = cr.Height();
 				if (tileW <= 0 || tileH <= 0) { tileW = r.Width(); tileH = r.Height(); }
 
+				auto gridStep = [](int tile, int quantum)
+				{
+					int step = (quantum > 0) ? ((tile - 1) / quantum) * quantum : tile;
+					return step > 0 ? step : tile;
+				};
+				int stepX = gridStep(tileW, 60);
+				int stepY = gridStep(tileH, 30);
+
 				CRect validRange;
 				validRange.left = 30 * (height + width + startY - startX) - (r.right - r.left) / 2 - r.left;
 				validRange.top = 15 * (startY + startX) - (r.bottom - r.top) / 2 - r.top;
@@ -1075,8 +1083,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 				pIsoView->ViewPosition.y = validRange.top;
 
-				int totalTileCount = ((validRange.right - validRange.left + tileW) / tileW + 1)
-					* ((validRange.bottom - validRange.top + tileH) / tileH + 1) - 1;
+				int totalTileCount = ((validRange.right - validRange.left + stepX) / stepX + 1)
+					* ((validRange.bottom - validRange.top + stepY) / stepY + 1) - 1;
 
 				CUpdateProgress progress(
 					Translations::TranslateOrDefault("MapRendererProgressText",
@@ -1119,14 +1127,14 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 						Sleep(1);
 
 						if (CIsoViewExt::RenderTileSuccess || renderFailedCount >= 500) {
-							pIsoView->ViewPosition.x += tileW;
+							pIsoView->ViewPosition.x += stepX;
 							currentTile++;
 						}
 						else {
 							renderFailedCount++;
 						}
 					}
-					pIsoView->ViewPosition.y += tileH;
+					pIsoView->ViewPosition.y += stepY;
 				}
 
 				EnableScrollBar(pIsoView->GetSafeHwnd(), SB_BOTH, ESB_ENABLE_BOTH);

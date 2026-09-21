@@ -5964,6 +5964,14 @@ namespace LuaFunctions
 				tileH = r.Height();
 			}
 
+			auto gridStep = [](int tile, int quantum)
+			{
+				int step = (quantum > 0) ? ((tile - 1) / quantum) * quantum : tile;
+				return step > 0 ? step : tile;
+			};
+			int stepX = gridStep(tileW, 60);
+			int stepY = gridStep(tileH, 30);
+
 			CRect validRange;
 			int& width = CMapData::Instance->Size.Width;
 			int& height = CMapData::Instance->Size.Height;
@@ -6000,7 +6008,7 @@ namespace LuaFunctions
 
 					if (CIsoViewExt::RenderTileSuccess || renderFailedCount >= 500)
 					{
-						pIsoView->ViewPosition.x += tileW;
+						pIsoView->ViewPosition.x += stepX;
 						renderFailedCount = 0;
 					}
 					else
@@ -6008,7 +6016,7 @@ namespace LuaFunctions
 						renderFailedCount++;
 					}
 				}
-				pIsoView->ViewPosition.y += tileH;
+				pIsoView->ViewPosition.y += stepY;
 			}
 
 			EnableScrollBar(hWnd, SB_BOTH, ESB_ENABLE_BOTH);

@@ -4180,8 +4180,11 @@ static void DrawMap()
 		CIsoViewExt::GetValidWindowRect(pThis->GetSafeHwnd(), &r);
 		pThis->AdaptRectForSecondScreen(&r);
 
-		int pngPosX = r.left + pThis->ViewPosition.x - startX - 4;
-		int pngPosY = r.top + pThis->ViewPosition.y - startY - 3 + (CIsoViewExt::RenderFullMap ? 0 : 15);
+		// Offset of the tile inside the output bitmap. The +3 (relative to the
+		// original -4/-3 alignment) shifts the whole stitched image 3px right and
+		// down within the canvas.
+		int pngPosX = r.left + pThis->ViewPosition.x - startX - 1;
+		int pngPosY = r.top + pThis->ViewPosition.y - startY + (CIsoViewExt::RenderFullMap ? 0 : 15);
 		if (CIsoViewExt::RenderingScreenshot)
 		{
 			pngPosX = pThis->ViewPosition.x - CIsoViewExt::RenderingScreenshotBaseX;
@@ -4327,8 +4330,11 @@ static void DrawMap()
 			CIsoViewExt::GetValidWindowRect(pThis->GetSafeHwnd(), &r);
 			pThis->AdaptRectForSecondScreen(&r);
 
-			int pngPosX = r.left + pThis->ViewPosition.x - startX - 4;
-			int pngPosY = r.top + pThis->ViewPosition.y - startY - 3 + (CIsoViewExt::RenderFullMap ? 0 : 15);
+			// Offset of the tile inside the output bitmap. The +3 (relative to the
+			// original -4/-3 alignment) shifts the whole stitched image 3px right and
+			// down within the canvas.
+			int pngPosX = r.left + pThis->ViewPosition.x - startX - 1;
+			int pngPosY = r.top + pThis->ViewPosition.y - startY + (CIsoViewExt::RenderFullMap ? 0 : 15);
 			if (CIsoViewExt::RenderingScreenshot)
 			{
 				pngPosX = pThis->ViewPosition.x - CIsoViewExt::RenderingScreenshotBaseX;

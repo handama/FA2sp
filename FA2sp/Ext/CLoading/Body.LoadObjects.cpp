@@ -387,8 +387,6 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 		Renderer::VehicleTypes.clear();
 		Renderer::AircraftTypes.clear();
 		PalettesManager::Release();
-		// The animation preview caches copies of the frames loaded above (and its
-		// DirectX textures are keyed by their addresses), so it has to be dropped too.
 		AnimPreview::ClearCache();
 
 		if (CIsoViewExt::DirectXReady())

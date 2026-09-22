@@ -574,6 +574,18 @@ ImageDataClassSafe* Renderer::BuildingType::GetBundledImageData(int forceFacing)
     return pBundledImageData[forceFacing].get();
 }
 
+void Renderer::BuildingType::InvalidateCachedBundles()
+{
+    for (int i = 0; i < FACING_MAX; ++i)
+    {
+        if (!pBundledImageData[i])
+            continue;
+
+        pBundledImageData[i]->ReleaseCachedTextures();
+        pBundledImageData[i].reset();
+    }
+}
+
 VehicleType* Renderer::VehicleType::GetAlteredType(const CUnitDataFS& obj, const LandType landType)
 {
     VehicleType* pType = this;

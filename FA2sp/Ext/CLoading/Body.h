@@ -73,6 +73,8 @@ public:
 	};
 	std::vector<BuildingTextureSlice> GetBuildingColoredTextures(Palette* coloredPal, BGRStruct color);
 
+	void ReleaseCachedTextures();
+
 private:
 	struct BuildingSliceCacheEntry {
 		std::vector<BuildingTextureSlice> slices;

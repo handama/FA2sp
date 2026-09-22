@@ -106,6 +106,7 @@ namespace Renderer
         ImageDataClassSafe* GetShadowData(int nFacing, int status) const;
         ImageDataClassSafe* GetAlphaImageData(int rawFacing) const;
         ImageDataClassSafe* GetBundledImageData(int forceFacing);
+        void InvalidateCachedBundles();
 
         static const char* IniSection;
 

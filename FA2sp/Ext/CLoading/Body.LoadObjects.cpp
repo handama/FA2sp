@@ -510,6 +510,9 @@ void CLoadingExt::ClipAndLoadBuilding(const FString& ID, const FString& ImageID,
 	int width, int height, Palette* palette, unsigned char*& pAlphaBuffer)
 {
 	auto& ret = CLoadingExt::GetBuildingClipImageDataFromMap(ImageID);
+	for (auto& pData : ret)
+		if (pData)
+			pData->ReleaseCachedTextures();
 	ret.clear();
 	int idx = CMapDataExt::GetBuildingTypeIndex(ID);
 	auto& DataExt = CMapDataExt::GetExtension()->BuildingDataExts[idx];
@@ -609,6 +612,9 @@ static FString GetFinalLoopAnim(const FString& image)
 
 void CLoadingExt::LoadBuilding(const FString& ID)
 {
+	if (auto itr = Renderer::BuildingTypes.find(ID); itr != Renderer::BuildingTypes.end())
+		itr->second.InvalidateCachedBundles();
+
 	if (IsLoadingObjectView)
 	{
 		LoadBuilding_Normal(ID);
@@ -2833,6 +2839,9 @@ ImageDataClassSafe* CLoadingExt::SetBuildingImageDataSafe(unsigned char* pBuffer
 
 void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* pData, int FullWidth, int FullHeight, Palette* pPal)
 {
+	if (pData->pImageBuffer)
+		pData->ReleaseCachedTextures();
+
 	if (pData->pImageBuffer)
 		pData->pImageBuffer = nullptr;
 	if (pData->pPixelValidRanges)
@@ -5833,4 +5842,20 @@ std::vector<ImageDataClassSafe::BuildingTextureSlice> ImageDataClassSafe::GetBui
 
 	auto& ret = m_buildingSliceCache[color] = std::move(entry);
 	return ret.slices;
+}
+
+void ImageDataClassSafe::ReleaseCachedTextures()
+{
+	if (CIsoViewExt::DirectXReady() && CIsoViewExt::g_pDX)
+	{
+		CIsoViewExt::g_pDX->RemoveTexturesFor(this);
+
+		for (auto& cacheEntry : m_buildingSliceCache)
+			for (auto& pKey : cacheEntry.second.sliceKeys)
+				if (pKey)
+					CIsoViewExt::g_pDX->RemoveTexturesFor(pKey.get());
+	}
+
+	m_buildingSliceCache.clear();
+	m_opacityExtractBuffer.reset();
 }

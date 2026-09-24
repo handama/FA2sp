@@ -16,10 +16,15 @@ std::unordered_map<int, ConnectedTileInfo> CViewObjectsExt::TreeView_ConnectedTi
 std::vector<ConnectedTileSet> CViewObjectsExt::ConnectedTileSets;
 int CViewObjectsExt::CurrentConnectedTileType;
 
-MapCoord CViewObjectsExt::CliffConnectionCoord;
+MapCoord CViewObjectsExt::CliffConnectionCoord = { -1, -1 };
 std::vector<MapCoord> CViewObjectsExt::CliffConnectionCoordRecords;
 int CViewObjectsExt::CliffConnectionTile;
-int CViewObjectsExt::CliffConnectionHeight;
+// -1 marks "no connection point yet". It must NOT be confused with the connection
+// point coordinate: on the map border a placement legitimately leaves the
+// connection point just outside the map (e.g. x == -1) while all of its blocks
+// are still on the map. CliffConnectionHeight is the only field that is reserved
+// for that: it is otherwise always kept in [0, 14].
+int CViewObjectsExt::CliffConnectionHeight = -1;
 int CViewObjectsExt::CliffConnectionHeightAdjust;
 ConnectedTiles CViewObjectsExt::LastPlacedCT;
 int CViewObjectsExt::LastTempPlacedCTIndex;
@@ -291,7 +296,8 @@ static void AutoConnect_WriteCell(std::map<int, CellData>& tmpCellDatas, CellDat
 
     if (AutoConnect::g_VirtualPlacing && AutoConnect::g_pCurrentSegment)
     {
-        CellData v = cellDatas[dwpos]; // keep untouched fields of the real cell
+        CellData v = (dwpos >= 0 && dwpos < CMapData::Instance->CellDataCount)
+            ? cellDatas[dwpos] : *CMapDataExt::TryGetCellAt(dwpos); 
         v.TileIndex = tileIndex;
         v.TileSubIndex = tileSubIndex;
         v.Flag.AltIndex = STDHelpers::RandomSelectInt(0, altCount + 1);
@@ -302,6 +308,9 @@ static void AutoConnect_WriteCell(std::map<int, CellData>& tmpCellDatas, CellDat
             AutoConnect::g_pCurrentSegment->Cells[dwpos] = v;
         return;
     }
+
+    if (dwpos < 0 || dwpos >= CMapData::Instance->CellDataCount)
+        return;
 
     tmpCellDatas[dwpos] = cellDatas[dwpos];
     cellDatas[dwpos].TileIndex = tileIndex;
@@ -317,7 +326,6 @@ static void AutoConnect_WriteCell(std::map<int, CellData>& tmpCellDatas, CellDat
             AutoConnect::g_pCurrentManualBatch->Cells[dwpos] = cellDatas[dwpos];
     }
 }
-
 
 void CViewObjectsExt::ConnectedTile_Initialize()
 {
@@ -746,7 +754,9 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         CViewObjectsExt::IsInPlaceCliff_OnMouseMove = false;
     };
 
-    if (CViewObjectsExt::CliffConnectionCoord.X == -1 && CViewObjectsExt::CliffConnectionCoord.Y == -1)
+    // Height -1 is the "no connection point" marker (see the field comment): the
+    // coordinate itself may legitimately be -1 near the border.
+    if (CViewObjectsExt::CliffConnectionHeight == -1)
     {
         handleExit();
         return;
@@ -4598,7 +4608,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         if (CMapDataExt::IsCoordInFullMap(x, y))
                         {
                             dwpos = y * mapData.MapWidthPlusHeight + x;
-                            if (tmpCellDatas.find(dwpos) != tmpCellDatas.end())
+                            if (dwpos >= 0 && dwpos < mapData.CellDataCount
+                                && tmpCellDatas.find(dwpos) != tmpCellDatas.end())
                             {
                                 cellDatas[dwpos] = tmpCellDatas[dwpos];
                             }
@@ -5769,8 +5780,12 @@ void CViewObjectsExt::AutoConnect_UpdatePreview(int X, int Y)
     // current placement state so chained segments keep their live preview
     if (!S.Active)
     {
-        if (CViewObjectsExt::CliffConnectionCoord.X < 0
-            || CViewObjectsExt::CliffConnectionCoord.Y < 0)
+        // "no connection point" is marked by a height of -1. The coordinate must
+        // NOT be tested for -1 here: a border placement legitimately leaves the
+        // connection point just outside the map (e.g. x == -1) with all of its
+        // blocks still on the map, and treating that as "no anchor" is what made
+        // the editor restart the chain at the wrong point.
+        if (CViewObjectsExt::CliffConnectionHeight == -1)
             return;
         S.Active = true;
         S.Previewing = false;
@@ -5827,6 +5842,9 @@ void CViewObjectsExt::AutoConnect_UpdatePreview(int X, int Y)
         S.Previewing = false;
     }
 
+    AutoConnect::SegmentState beforePlan;
+    AutoConnect::CaptureState(beforePlan);
+
     if (closureActive)
         AutoConnect::PlanClosure(X, Y);
     else
@@ -5834,7 +5852,10 @@ void CViewObjectsExt::AutoConnect_UpdatePreview(int X, int Y)
     S.LastPreviewPos = dwpos;
 
     if (S.Segments.empty())
-        return; // nothing planned; the map stays untouched
+    {
+        AutoConnect::RestoreState(beforePlan); // nothing planned: keep the live point
+        return;
+    }
 
     AutoConnect::ApplyToMap(true);
     S.Previewing = true;
@@ -6047,14 +6068,20 @@ void CViewObjectsExt::PlaceConnectedTile_OnLButtonDown(int X, int Y)
     auto& mapData = CMapData::Instance();
     auto cellDatas = mapData.CellDatas;
 
-    if (CViewObjectsExt::CliffConnectionCoord.X == -1
-        || CViewObjectsExt::CliffConnectionCoord.Y == -1
-        || CViewObjectsExt::CliffConnectionHeight == -1)
+    // "no connection point" is marked by the height being -1. Do NOT test the
+    // coordinate for -1: at the map border the chain can legitimately sit on a
+    // connection point just outside the map (e.g. x == -1) with all of its blocks
+    // inside, and misreading that as "no anchor" used to restart the chain at the
+    // click position (the "placement point got refreshed" bug).
+    if (CViewObjectsExt::CliffConnectionHeight == -1)
     {
+        auto dwpos = Y * mapData.MapWidthPlusHeight + X;
+        if (dwpos < 0 || dwpos >= mapData.CellDataCount)
+            return;
+
         CViewObjectsExt::CliffConnectionCoord.X = X;
         CViewObjectsExt::CliffConnectionCoord.Y = Y;
         CViewObjectsExt::CliffConnectionCoordRecords.clear();
-        auto dwpos = Y * mapData.MapWidthPlusHeight + X;
         auto& cell = cellDatas[dwpos];
         int tileIndex = CMapDataExt::GetSafeTileIndex(cell.TileIndex);
         int tileSubIndex = CMapDataExt::GetSafeSubTileIndex(cell.TileIndex, cell.TileSubIndex);

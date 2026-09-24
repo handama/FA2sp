@@ -32,6 +32,10 @@ void CIsoViewExt::DrawBridgeLine(HDC hDC)
 {
     auto pIsoView = (CIsoViewExt *)CIsoView::GetInstance();
     auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+    // Boundary safety: an off-map cursor coordinate would reach the engine's
+    // height-aware MapCoord2ScreenCoord and index CellData out of bounds.
+    if (!CMapDataExt::IsCoordInFullMap(point.X, point.Y))
+        return;
 
     int x1, y1, x2, y2, startx, starty, width, height;
     x1 = pIsoView->StartCell.X;
@@ -86,6 +90,10 @@ void CIsoViewExt::DrawCopyBound(HDC hDC)
 {
     auto pIsoView = (CIsoViewExt *)CIsoView::GetInstance();
     auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+    // Boundary safety: an off-map cursor coordinate would build a huge/negative
+    // bound rectangle and reach the height-aware coordinate conversion.
+    if (!CMapDataExt::IsCoordInFullMap(point.X, point.Y))
+        return;
 
     int x1, y1, x2, y2;
     x1 = pIsoView->StartCell.X;
@@ -135,6 +143,13 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
     int lineHeight = fontSize + (ExtConfigs::DirectXRendering ? 4 : 2);
     auto pIsoView = (CIsoViewExt *)CIsoView::GetInstance();
     auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+    // Boundary safety: when the cursor leaves the map, GetCurrentMapCoord returns
+    // an out-of-map coordinate. MapCoord2ScreenCoord below uses the height-aware
+    // engine conversion, which indexes CellData with the coordinate and crashes on
+    // an out-of-range value. There is no cursor cell to draw off the map either,
+    // so bail out (this is the same guard the border drawing code uses).
+    if (!CMapDataExt::IsCoordInFullMap(point.X, point.Y))
+        return;
     int X = point.X, Y = point.Y;
     CIsoViewExt::MapCoord2ScreenCoord(X, Y);
     auto cell = CMapData::Instance->TryGetCellAt(point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);

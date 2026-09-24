@@ -1711,11 +1711,22 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
             else
                 SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)text);
         };
+        auto SetWpCurSel = [](VirtualComboBoxEx& vcb, const char* text)
+        {
+            FString wp = text;
+            if (wp != "None")
+			    wp += " ";
+			int idx = vcb.FindStringExactStart(wp);
+            if (idx != CB_ERR)
+				vcb.SetCurSel(idx);
+			else
+				vcb.SetEditText(text);
+        };
 
         SetCurSel(hVeteranLevel, map.GetString(pID, "VeteranLevel").GetString());
         SetCurSel(hTechlevel, map.GetString(pID, "TechLevel").GetString());
-        SetCurSel(hTransportWaypoint, tWaypoint.GetString());
-        SetCurSel(hWaypoint, waypoint.GetString());
+        SetWpCurSel(vcbTransportWaypoint, tWaypoint.GetString());
+        SetWpCurSel(vcbWaypoint, waypoint.GetString());
         SendMessage(hPriority, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "Priority").GetString());
         SendMessage(hMax, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "Max").GetString());
         SetCurSel(hGroup, map.GetString(pID, "Group").GetString());

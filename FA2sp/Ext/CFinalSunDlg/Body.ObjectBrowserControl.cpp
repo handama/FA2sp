@@ -3305,7 +3305,7 @@ void CViewObjectsExt::ModifyOre(int X, int Y)
 				int olyPos = y + x * 512;
 				int pos = pExt->GetCoordIndex(x, y);
 
-				pExt->DeleteTiberium(std::min(ovr, (word)0xFF), pExt->OverlayData[olyPos]);
+				pExt->DeleteTiberium(std::min(ovr, (word)0xFF), ovrd);
 				if (data >= 0)
 				{
 					pExt->OverlayData[olyPos] = data;

@@ -375,7 +375,8 @@ void CTerrainGenerator::Update(HWND& hWnd)
     }
     for (int i = 0; i < TERRAIN_GENERATOR_DISPLAY; ++i)
     {
-        vcbTileSet[i].AddStrings(tilesets);
+		vcbTileSet[i].Clear();
+		vcbTileSet[i].AddStrings(tilesets);
         vcbTileSet[i].AddString("<none>");
     }
 

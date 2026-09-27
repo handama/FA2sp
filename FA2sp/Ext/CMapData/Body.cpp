@@ -2675,6 +2675,7 @@ void TerrainRecord::recover()
 			cell->Overlay = std::min(this->overlay[pos_r], (word)0xFF);
 			cell->OverlayData = this->overlaydata[pos_r];
 			CMapDataExt::NewOverlay[e + i * 512] = this->overlay[pos_r];
+			pThis->OverlayData[e + i * 512] =  this->overlaydata[pos_r];
 			pThis->AddTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
 
 			cell->Flag.RedrawTerrain = this->bRedrawTerrain[pos_r];

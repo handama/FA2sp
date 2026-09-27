@@ -59,44 +59,9 @@ DEFINE_HOOK(4BC1C0, CMapData_DoRedo, 5)
 	if (pThis->UndoRedoDataIndex + 1 >= pThis->UndoRedoDatas.size()) 
 		pThis->UndoRedoDataIndex = pThis->UndoRedoDatas.size() - 2;
 
-	int left, top, width, height;
 	auto* data = pThis->UndoRedoDatas.get(pThis->UndoRedoDataIndex + 1);
 	if (auto* tr = dynamic_cast<TerrainRecord*>(data)) {
-		left = tr->left;
-		top = tr->top;
-		width = tr->right - left;
-		height = tr->bottom - top;
-
-		int i, e;
-		for (i = 0; i < width; i++)
-		{
-			for (e = 0; e < height; e++)
-			{
-				int pos_w, pos_r;
-				pos_r = i + e * width;
-				pos_w = left + i + (top + e) * pThis->MapWidthPlusHeight;
-
-				auto cell = pThis->GetCellAt(pos_w);
-				auto& cellExt = pThis->CellDataExts[pos_w];
-
-				cell->Height = tr->bHeight[pos_r];
-				cell->TileIndexHiPart = tr->bMapData[pos_r];
-				cell->TileSubIndex = tr->bSubTile[pos_r];
-				cell->IceGrowth = tr->bMapData2[pos_r];
-				cell->TileIndex = tr->wGround[pos_r];
-
-				pThis->DeleteTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
-				cellExt.NewOverlay = tr->overlay[pos_r];
-				cell->Overlay = std::min(tr->overlay[pos_r], (word)0xFF);
-				cell->OverlayData = tr->overlaydata[pos_r];
-				pThis->AddTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
-
-				cell->Flag.RedrawTerrain = tr->bRedrawTerrain[pos_r];
-				cell->Flag.AltIndex = tr->bRNDData[pos_r];
-
-				pThis->UpdateMapPreviewAt(left + i, top + e);
-			}
-		}
+		tr->recover();
 	}
 	else if (auto* ur = dynamic_cast<ObjectRecord*>(data)) {
 		ur->recover();

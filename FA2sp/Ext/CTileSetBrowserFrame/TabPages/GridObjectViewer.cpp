@@ -1671,8 +1671,9 @@ void GridObjectViewer::OnSelChanged(int index)
 {
     auto& data = g_filteredImages[index];
     auto& id = data.ID;
+	CViewObjectsExt::InitializeOnUpdateEngine();
 
-    if (data.Overlay >= 0)
+	if (data.Overlay >= 0)
     {
         CIsoView::CurrentCommand->Command = 1;
         CIsoView::CurrentCommand->Type = 6;

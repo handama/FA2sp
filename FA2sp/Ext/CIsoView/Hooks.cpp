@@ -719,57 +719,64 @@ DEFINE_HOOK(45C850, CIsoView_OnMouseMove_Delete, 5)
 
 			if (CellData.Structure != -1)
 			{
-				makeOrAppendRecord(ObjectRecord::RecordType::Building);
-				CMapData::Instance->DeleteBuildingData(CellData.Structure);
+				const bool validStructure =
+					CellData.Structure < CMapDataExt::StructureIndexMap.size()
+					&& CMapDataExt::StructureIndexMap[CellData.Structure] != -1;
+
+				if (CIsoViewExt::DrawStructures
+					&& (!validStructure || Renderer::Buildings[CellData.Structure].IsVisible()))
+				{
+					makeOrAppendRecord(ObjectRecord::RecordType::Building);
+					CMapData::Instance->DeleteBuildingData(CellData.Structure);
+				}
 			}
 
-			if (ExtConfigs::InfantrySubCell_Edit &&
-				pIsoView->BrushSizeX == 1 && pIsoView->BrushSizeY == 1)
+			if (CIsoViewExt::DrawInfantries)
 			{
-				int idx = CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X, point.Y);
-				if (idx != -1)
+				if (ExtConfigs::InfantrySubCell_Edit &&
+					pIsoView->BrushSizeX == 1 && pIsoView->BrushSizeY == 1)
 				{
-					makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
-					CMapData::Instance->DeleteInfantryData(idx);
+					int idx = CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X, point.Y);
+					if (idx != -1 && Renderer::Infantries[idx].IsVisible())
+					{
+						makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
+						CMapData::Instance->DeleteInfantryData(idx);
+					}
+				}
+				else
+				{
+					for (int i = 0; i < 3; ++i)
+					{
+						const int idx = CellData.Infantry[i];
+						if (idx != -1 && Renderer::Infantries[idx].IsVisible())
+						{
+							makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
+							CMapData::Instance->DeleteInfantryData(idx);
+						}
+					}
 				}
 			}
-			else
-			{
-				if (CellData.Infantry[0] != -1)
-				{
-					makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
-					CMapData::Instance->DeleteInfantryData(CellData.Infantry[0]);
-				}
-				if (CellData.Infantry[1] != -1)
-				{
-					makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
-					CMapData::Instance->DeleteInfantryData(CellData.Infantry[1]);
-				}
-				if (CellData.Infantry[2] != -1)
-				{
-					makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
-					CMapData::Instance->DeleteInfantryData(CellData.Infantry[2]);
-				}
-			}
-			if (CellData.Unit != -1)
+			if (CIsoViewExt::DrawUnits && CellData.Unit != -1
+				&& Renderer::Vehicles[CellData.Unit].IsVisible())
 			{
 				makeOrAppendRecord(ObjectRecord::RecordType::Unit);
 				CMapData::Instance->DeleteUnitData(CellData.Unit);
 			}
 
-			if (CellData.Aircraft != -1)
+			if (CIsoViewExt::DrawAircrafts && CellData.Aircraft != -1
+				&& Renderer::Aircrafts[CellData.Aircraft].IsVisible())
 			{
 				makeOrAppendRecord(ObjectRecord::RecordType::Aircraft);
 				CMapData::Instance->DeleteAircraftData(CellData.Aircraft);
 			}
 
-			if (CellData.Terrain != -1)
+			if (CIsoViewExt::DrawTerrains && CellData.Terrain != -1)
 			{
 				makeOrAppendRecord(ObjectRecord::RecordType::Terrain);
 				CMapData::Instance->DeleteTerrainData(CellData.Terrain);
 			}
 
-			if (CellData.Smudge != -1)
+			if (CIsoViewExt::DrawSmudges && CellData.Smudge != -1)
 			{
 				makeOrAppendRecord(ObjectRecord::RecordType::Smudge);
 				CMapData::Instance->DeleteSmudgeData(CellData.Smudge);
@@ -792,7 +799,6 @@ DEFINE_HOOK(45EC1A, CIsoView_OnCommand_HandleProperty, A)
 	int type = -1;
 	if (CIsoViewExt::DrawInfantries)
 	{
-		const auto &filter = CIsoViewExt::VisibleInfantries;
 		if (!ExtConfigs::InfantrySubCell_Edit)
 		{
 			index = CMapDataExt::GetInfantryAt(pos);
@@ -801,44 +807,36 @@ DEFINE_HOOK(45EC1A, CIsoView_OnCommand_HandleProperty, A)
 		{
 			index = CIsoViewExt::GetSelectedSubcellInfantryIdx(pIsoView->StartCell.X, pIsoView->StartCell.Y);
 		}
-		if (CIsoViewExt::DrawInfantriesFilter && filter.find(index) == filter.end())
+		if (index != -1 && !Renderer::Infantries[index].IsVisible())
 			index = -1;
 		type = 0;
 	}
-	if (CIsoViewExt::DrawAircrafts && index < 0)
+	if (CIsoViewExt::DrawAircrafts && index < 0 && cell->Aircraft > -1)
 	{
 		index = cell->Aircraft;
-		const auto &filter = CIsoViewExt::VisibleAircrafts;
-		if (CIsoViewExt::DrawAircraftsFilter && filter.find(index) == filter.end())
+		if (!Renderer::Aircrafts[cell->Aircraft].IsVisible())
 			index = -1;
 		type = 2;
 	}
-	if (CIsoViewExt::DrawUnits && index < 0)
+	if (CIsoViewExt::DrawUnits && index < 0 && cell->Unit > -1)
 	{
 		index = cell->Unit;
-		const auto &filter = CIsoViewExt::VisibleUnits;
-		if (CIsoViewExt::DrawUnitsFilter && filter.find(index) == filter.end())
+		if (!Renderer::Vehicles[cell->Unit].IsVisible())
 			index = -1;
 		type = 3;
 	}
-	if (CIsoViewExt::DrawStructures && index < 0)
+	if (CIsoViewExt::DrawStructures && index < 0 && cell->Structure > -1)
 	{
 		index = cell->Structure;
 		type = 1;
 		if (cell->Structure < CMapDataExt::StructureIndexMap.size())
 		{
 			auto StrINIIndex = CMapDataExt::StructureIndexMap[cell->Structure];
-			if (StrINIIndex != -1)
+			if (StrINIIndex != -1 && Renderer::Buildings[cell->Structure].IsVisible())
 			{
-				const auto &filter = CIsoViewExt::VisibleStructures;
-				if (CIsoViewExt::DrawStructuresFilter && filter.find(StrINIIndex) == filter.end())
-					index = -1;
-				else
-				{
-					const auto &objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
-					pIsoView->StartCell.X = objRender.X;
-					pIsoView->StartCell.Y = objRender.Y;
-				}
+				const auto &objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
+				pIsoView->StartCell.X = objRender.X;
+				pIsoView->StartCell.Y = objRender.Y;
 			}
 			else
 			{

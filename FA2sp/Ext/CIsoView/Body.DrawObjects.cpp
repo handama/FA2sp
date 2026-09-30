@@ -30,10 +30,6 @@ static MapCoord VisibleCoordTL;
 static MapCoord VisibleCoordBR;
 using DrawCall = std::function<void()>;
 
-std::unordered_set<short> CIsoViewExt::VisibleStructures;
-std::unordered_set<short> CIsoViewExt::VisibleInfantries;
-std::unordered_set<short> CIsoViewExt::VisibleUnits;
-std::unordered_set<short> CIsoViewExt::VisibleAircrafts;
 FHashSet CIsoViewExt::MapRendererIgnoreObjects;
 std::vector<EditedMarks> CIsoViewExt::DrawEditedMarks;
 
@@ -1554,10 +1550,6 @@ static void DrawMap()
 		}
 
 		PalettesManager::CalculatedObjectPaletteFiles.clear();
-		CIsoViewExt::VisibleStructures.clear();
-		CIsoViewExt::VisibleInfantries.clear();
-		CIsoViewExt::VisibleUnits.clear();
-		CIsoViewExt::VisibleAircrafts.clear();
 		CLoadingExt::CurrentFrameImageDataMap.clear();
 		WaypointsToDraw.clear();
 		OverlayTextsToDraw.clear();

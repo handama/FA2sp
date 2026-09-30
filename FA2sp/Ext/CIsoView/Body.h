@@ -462,11 +462,6 @@ public:
     static int drawOffsetY;
     static Cell3DLocation CurrentDrawCellLocation;
 
-    static std::unordered_set<short> VisibleStructures;
-    static std::unordered_set<short> VisibleInfantries;
-    static std::unordered_set<short> VisibleUnits;
-    static std::unordered_set<short> VisibleAircrafts;
-
     static FHashSet MapRendererIgnoreObjects;
     static std::vector<EditedMarks> DrawEditedMarks;
     

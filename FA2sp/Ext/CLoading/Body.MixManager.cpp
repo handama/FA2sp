@@ -242,46 +242,28 @@ namespace MinInfo
     static const uint32_t RSA_E = 0x10001;
 
     static std::vector<uint8_t> blowfish_key_from_keysource(const uint8_t keySource[80]) {
-        uint8_t ks[80];
-        std::memcpy(ks, keySource, 80);
-        byteswap(ks, 80);
+        std::vector<uint8_t> key;
+        key.reserve(78);
 
-        const uint8_t* left = ks;
-        const uint8_t* right = ks + 40;
+        for (int i = 0; i < 2; ++i) {
+            uint8_t blk[40];
+            std::memcpy(blk, keySource + i * 40, 40);
+            byteswap(blk, 40); 
 
-        std::vector<uint8_t> s0 = rsa_transform_raw(left, 40, RSA_MODULUS, sizeof(RSA_MODULUS), RSA_E);
-        std::vector<uint8_t> s1 = rsa_transform_raw(right, 40, RSA_MODULUS, sizeof(RSA_MODULUS), RSA_E);
+            std::vector<uint8_t> n3 =
+                rsa_transform_raw(blk, 40, RSA_MODULUS, sizeof(RSA_MODULUS), RSA_E);
+            if (n3.empty()) return {};
 
-        BIGNUM* a = BN_bin2bn(s0.data(), (int)s0.size(), nullptr);
-        BIGNUM* b = BN_bin2bn(s1.data(), (int)s1.size(), nullptr);
-        BIGNUM* c = BN_new();
-        BIGNUM* d = BN_new();
-        BN_CTX* ctx = BN_CTX_new();
+            uint8_t be[40] = {};
+            size_t n = n3.size() < 40 ? n3.size() : 40;
+            std::memcpy(be + (40 - n), n3.data() + (n3.size() - n), n); 
 
-        if (!a || !b || !c || !d || !ctx) {
-            if (a) BN_free(a); if (b) BN_free(b); if (c) BN_free(c); if (d) BN_free(d);
-            if (ctx) BN_CTX_free(ctx);
-            return {};
-        }
-        if (!BN_lshift(c, a, 312)) {
-            BN_free(a); BN_free(b); BN_free(c); BN_free(d); BN_CTX_free(ctx);
-            return {};
-        }
-        if (!BN_add(d, b, c)) {
-            BN_free(a); BN_free(b); BN_free(c); BN_free(d); BN_CTX_free(ctx);
-            return {};
+            for (int j = 0; j < 39; ++j) {
+                key.push_back(be[39 - j]); 
+            }
         }
 
-        int n = BN_num_bytes(d);
-        std::vector<uint8_t> key(n);
-        BN_bn2bin(d, key.data());
-        byteswap(key);
-
-        BN_free(a); BN_free(b); BN_free(c); BN_free(d); BN_CTX_free(ctx);
-
-        if (key.size() > 56) key.resize(56);
-        if (key.size() < 4) key.resize(4, 0);
-
+        key.resize(56);
         return key;
     }
 

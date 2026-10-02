@@ -322,9 +322,6 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
 
         if (ExtConfigs::SaveMaps_BetterMapPreview && CMapData::Instance->IsMultiOnly())
         {
-            auto image = std::unique_ptr<unsigned char[]>(new unsigned char[256 * 512 * 3] {0});
-            auto imageLocal = std::unique_ptr<unsigned char[]>(new unsigned char[256 * 512 * 3] {0});
-
             std::unordered_set<ppmfc::CString> IgnoreObjects;
             const auto& overlays = Variables::RulesMap.GetSection("OverlayTypes");
             for (auto& [_, ID] : overlays)
@@ -392,6 +389,15 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
             int lwidth = rb - lb + 1;
             int lheight = bb - tb + 1;
 
+            const size_t imageBufferSize =
+                static_cast<size_t>(std::max(1, mapwidth)) * 2 *
+                static_cast<size_t>(std::max(1, mapheight)) * 3;
+            const size_t imageLocalBufferSize =
+                static_cast<size_t>(std::max(1, lwidth)) *
+                static_cast<size_t>(std::max(1, lheight)) * 3;
+
+            auto image = std::unique_ptr<unsigned char[]>(new unsigned char[imageBufferSize] {0});
+            auto imageLocal = std::unique_ptr<unsigned char[]>(new unsigned char[imageLocalBufferSize] {0});
 
             auto& mapData = CMapData::Instance();
 
@@ -600,7 +606,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                     }
                 }
             }
-            auto data = lzo::compress(imageLocal.get(), sizeof(byte) * 3 * lwidth * lheight);
+            auto data = lzo::compress(imageLocal.get(), static_cast<int>(imageLocalBufferSize));
             data = base64::encode(data);
             pINI->WriteBase64String("PreviewPack", data.data(), data.length());
         }

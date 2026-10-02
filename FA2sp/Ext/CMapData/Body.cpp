@@ -5856,8 +5856,9 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 
 	if (reloadCellDataExt)
 	{
-		CMapDataExt::CellDataExts.clear();
-		CMapDataExt::CellDataExts.resize(CMapData::Instance->CellDataCount);
+		// Re-allocate instead of resize: opening / creating / resizing a map is a rare operation,
+		// and keeping the capacity of the biggest map that was ever opened wastes hundreds of MB.
+		CMapDataExt::CellDataExts = std::vector<CellDataExt>(CMapData::Instance->CellDataCount);
 		UndoRedoDatas.clear();
 		UndoRedoDataIndex = -1;
 	}

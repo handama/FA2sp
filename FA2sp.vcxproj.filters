@@ -240,6 +240,9 @@
     <ClInclude Include="FA2sp\Miscs\Hooks.INI.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\Miscs\Hooks.PreviewFix.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.h">
       <Filter>头文件</Filter>
     </ClInclude>

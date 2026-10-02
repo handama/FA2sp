@@ -1,170 +1,191 @@
 #include <Helpers/Macro.h>
 
+#include <cstring>
+
+#include "Hooks.PreviewFix.h"
 #include "../RunTime.h"
-#include "../Ext/CMapData/Body.h"
 
 // FinalAlert 2 used a MapPreview buffer in CMapData::InitMinimap(0x4C3D40):
 // memset(this->MapPreview, 0xFFu, previewHeight * stride);
 // If we create a big map, it will probably corrupt all members following it, like all the INI datas
-// 
+//
 // However, the buffer sizes only 0x40000
-// As it is a bitmap and as how FA2 paint the minimap, the size a map takes is (2 * W * H + 3) / 4 * 3 bytes.
+// As it is a bitmap and as how FA2 paint the minimap, the size a map takes is 2 * W * H * 3 bytes.
 // 256 * 256 * 2 * 3 = 0x60000
 // This is the preview buffer size we need instead of stupid FA2's 0x40000,
 // which limited the map size to 209 * 209 at max
-// (2 * 209 * 209 + 3) / 4 * 3 = 65523 (0xFFF3)
+// (209 * 209 * 2 * 3 = 262086, just under 0x40000)
 //
-// Therefore we just need to replace this buffer and it will works fine
+// Therefore we just need to replace this buffer, and it will work fine.
+// Its size is decided by the size of the map that is currently loaded, see UpdateBuffer().
+//
+// The instructions of the original exe refer to that buffer in one of these three forms
+// (0x80248 is the offset of CMapData::MapPreviewData, and 7ACE40 is its absolute address):
+//     lea  reg, [this + 0x80248]
+//     lea  reg, [eax + this + 0x80248]
+//     mov  reg, 7ACE40
+// so we simply rewrite them to point to our own buffer instead.
 
-#define PREVIEW_LIMIT 1024
-static char MapPreviewBuffer[PREVIEW_LIMIT * PREVIEW_LIMIT * 3 / 2];
-
-#define DEFINE_REG_HELPER(to, from) \
-void __declspec(naked) to##_##from() \
-{ __asm {lea to, [MapPreviewBuffer + from]} }
-
-#define DEFINE_ZERO_HELPER(to) \
-void __declspec(naked) to##_##0() \
-{ __asm {lea to, [MapPreviewBuffer]} }
-
-#define DEFINE_MOV_HELPER(to) \
-void __declspec(naked) to##_##1() \
-{ __asm {mov to, offset MapPreviewBuffer} }
-
-namespace PreviewFixDetails
+namespace MapPreviewFix
 {
-    // These two naked function both takes 6 bytes
-    // So we can easily copy the op codes from them
+	namespace
+	{
+		// Register number as how it is encoded in a ModRM byte
+		enum RegCode : byte
+		{
+			RegEAX = 0, RegECX, RegEDX, RegEBX, RegESP, RegEBP, RegESI, RegEDI
+		};
 
-    // original op code
-    // XX XX (XX) 48 02 08 00
+		// These op codes are verified against both what the original exe uses and
+		// what MSVC generates for the equivalents:
+		//     lea reg, [address]        -> 8D <05 | reg << 3> <address>   (6 bytes)
+		//     lea reg, [eax + address]  -> 8D <80 | reg << 3> <address>   (6 bytes)
+		//     mov reg, offset address   -> <B8 | reg> <address>           (5 bytes)
 
-    DEFINE_ZERO_HELPER(esi);
-    DEFINE_ZERO_HELPER(edi);
-    DEFINE_ZERO_HELPER(edx);
-    DEFINE_ZERO_HELPER(eax);
-    DEFINE_REG_HELPER(esi, eax);
-    DEFINE_REG_HELPER(ecx, eax);
-    DEFINE_REG_HELPER(edx, eax);
-    DEFINE_REG_HELPER(ebp, eax);
-    DEFINE_REG_HELPER(eax, eax);
-    DEFINE_REG_HELPER(ebx, eax);
-    DEFINE_REG_HELPER(edi, eax);
-    DEFINE_MOV_HELPER(eax);
-    DEFINE_MOV_HELPER(ecx);
-    DEFINE_MOV_HELPER(edx);
+		byte* PreviewBuffer = nullptr;
+		size_t PreviewBufferSize = 0;
 
-    static constexpr byte NOP = 0x90;
+		inline void WriteAddress(byte* dest)
+		{
+			const DWORD address = reinterpret_cast<DWORD>(PreviewBuffer);
+			std::memcpy(dest, &address, sizeof(address));
+		}
 
-    inline void DoZero(unsigned long addr, void* fn)
-    {
-        RunTime::ResetMemoryContentAt(addr - 2, fn, 6);
-    }
+		// lea reg, [PreviewBuffer]
+		inline void DoZero(unsigned long addr, RegCode reg)
+		{
+			byte code[6] = { 0x8D, static_cast<byte>(0x05 | (reg << 3)) };
+			WriteAddress(code + 2);
+			RunTime::ResetMemoryContentAt(addr - 2, code, sizeof(code));
+		}
 
-    inline void DoReg(unsigned long addr, void* fn)
-    {
-        RunTime::ResetMemoryContentAt(addr - 3, fn, 6);
-        RunTime::ResetMemoryContentAt(addr - 3 + 6, &NOP, 1);
-    }
+		// lea reg, [eax + PreviewBuffer]
+		// The original instruction takes 7 bytes, so the byte left unused is filled with a nop
+		inline void DoReg(unsigned long addr, RegCode reg)
+		{
+			byte code[7] = { 0x8D, static_cast<byte>(0x80 | (reg << 3)) };
+			WriteAddress(code + 2);
+			code[6] = 0x90;
+			RunTime::ResetMemoryContentAt(addr - 3, code, sizeof(code));
+		}
 
-    inline void DoMove(unsigned long addr, void* fn)
-    {
-        RunTime::ResetMemoryContentAt(addr, fn, 5);
-    }
-}
+		// mov reg, offset PreviewBuffer
+		inline void DoMove(unsigned long addr, RegCode reg)
+		{
+			byte code[5] = { static_cast<byte>(0xB8 | reg) };
+			WriteAddress(code + 1);
+			RunTime::ResetMemoryContentAt(addr, code, sizeof(code));
+		}
 
-#undef DEFINE_ZERO_HELPER
-#undef DEFINE_REG_HELPER
-#undef DEFINE_MOV_HELPER
+		void ApplyPatches()
+		{
+			// CMapData::InitMinimap / CMapData::GetMapPreview
+			DoZero(0x4C3DC7, RegEDI);
+			DoZero(0x4C3DF6, RegEAX);
 
-DEFINE_HOOK(537129, ExeRun_PreviewFix, 9)
-{
-    using namespace PreviewFixDetails;
+			DoZero(0x4168B1, RegEAX);
+			DoZero(0x45DCC6, RegEAX);
+			DoZero(0x45E3C5, RegEAX);
+			DoZero(0x4A23C0, RegEAX);
+			DoZero(0x4A335F, RegEAX);
+			DoZero(0x4A44C2, RegEAX);
+			DoZero(0x4A512B, RegEAX);
+			DoZero(0x4A6290, RegEAX);
+			DoZero(0x4A6A13, RegEAX);
+			DoZero(0x4A7FC5, RegEAX);
+			DoZero(0x4A8B7A, RegEAX);
+			DoZero(0x4A940B, RegEAX);
+			DoZero(0x4A9C8A, RegEAX);
+			DoZero(0x4B4BB2, RegEAX);
+			DoZero(0x4C7843, RegEAX);
 
-    DoZero(0x4168B1, eax_0);
-    DoZero(0x45DCC6, eax_0);
-    DoZero(0x45E3C5, eax_0);
-    DoZero(0x4A23C0, eax_0);
-    DoZero(0x4A335F, eax_0);
-    DoZero(0x4A44C2, eax_0);
-    DoZero(0x4A512B, eax_0);
-    DoZero(0x4A6290, eax_0);
-    DoZero(0x4A6A13, eax_0);
-    DoZero(0x4A7FC5, eax_0);
-    DoZero(0x4A8B7A, eax_0);
-    DoZero(0x4A940B, eax_0);
-    DoZero(0x4A9C8A, eax_0);
-    DoZero(0x4B4BB2, eax_0);
-    DoZero(0x4C3DC7, edi_0);
-    DoZero(0x4C3DF6, eax_0);
-    DoZero(0x4C7843, eax_0);
+			DoReg(0x4169A9, RegEDI);
+			DoReg(0x4169B6, RegEBX);
+			DoReg(0x45DDC1, RegEBP);
+			DoReg(0x45DDCE, RegEBX);
+			DoReg(0x45E4BE, RegEBP);
+			DoReg(0x45E4CB, RegECX);
+			DoReg(0x4A24C0, RegEBP);
+			DoReg(0x4A24CD, RegEAX);
+			DoReg(0x4A346A, RegEBP);
+			DoReg(0x4A3477, RegEDI);
+			DoReg(0x4A45B5, RegEBP);
+			DoReg(0x4A45C2, RegEAX);
+			DoReg(0x4A521E, RegEBP);
+			DoReg(0x4A522B, RegEAX);
+			DoReg(0x4A6383, RegEBP);
+			DoReg(0x4A6390, RegEAX);
+			DoReg(0x4A6B0A, RegEBP);
+			DoReg(0x4A6B17, RegEAX);
+			DoReg(0x4A80B8, RegEBP);
+			DoReg(0x4A80C5, RegEBX);
+			DoReg(0x4A8C6F, RegEBP);
+			DoReg(0x4A8C7C, RegEBX);
+			DoReg(0x4A94FB, RegEDI);
+			DoReg(0x4A9508, RegEBP);
+			DoReg(0x4A9D7F, RegEBP);
+			DoReg(0x4A9D8C, RegEBX);
+			DoReg(0x4B4CAD, RegEBX);
+			DoReg(0x4B4CBA, RegEAX);
+			DoReg(0x4BD3C9, RegESI);
+			DoReg(0x4BD3DB, RegEDI);
+			DoReg(0x4BDACF, RegESI);
+			DoReg(0x4BDAE1, RegEDI);
+			DoReg(0x4BE61D, RegESI);
+			DoReg(0x4BE62F, RegEBP);
+			DoReg(0x4BED9F, RegESI);
+			DoReg(0x4BEDB1, RegEBP);
+			DoReg(0x4BFF91, RegESI);
+			DoReg(0x4BFFA3, RegEDI);
+			DoReg(0x4C100E, RegESI);
+			DoReg(0x4C1020, RegEDI);
+			DoReg(0x4C793E, RegESI);
+			DoReg(0x4C7952, RegEDI);
 
-    DoReg(0x4169A9, edi_eax);
-    DoReg(0x4169B6, ebx_eax);
-    DoReg(0x45DDC1, ebp_eax);
-    DoReg(0x45DDCE, ebx_eax);
-    DoReg(0x45E4BE, ebp_eax);
-    DoReg(0x45E4CB, ecx_eax);
-    DoReg(0x4A24C0, ebp_eax);
-    DoReg(0x4A24CD, eax_eax);
-    DoReg(0x4A346A, ebp_eax);
-    DoReg(0x4A3477, edi_eax);
-    DoReg(0x4A45B5, ebp_eax);
-    DoReg(0x4A45C2, eax_eax);
-    DoReg(0x4A521E, ebp_eax);
-    DoReg(0x4A522B, eax_eax);
-    DoReg(0x4A6383, ebp_eax);
-    DoReg(0x4A6390, eax_eax);
-    DoReg(0x4A6B0A, ebp_eax);
-    DoReg(0x4A6B17, eax_eax);
-    DoReg(0x4A80B8, ebp_eax);
-    DoReg(0x4A80C5, ebx_eax);
-    DoReg(0x4A8C6F, ebp_eax);
-    DoReg(0x4A8C7C, ebx_eax);
-    DoReg(0x4A94FB, edi_eax);
-    DoReg(0x4A9508, ebp_eax);
-    DoReg(0x4A9D7F, ebp_eax);
-    DoReg(0x4A9D8C, ebx_eax);
-    DoReg(0x4B4CAD, ebx_eax);
-    DoReg(0x4B4CBA, eax_eax);
-    DoReg(0x4BD3C9, esi_eax);
-    DoReg(0x4BD3DB, edi_eax);
-    DoReg(0x4BDACF, esi_eax);
-    DoReg(0x4BDAE1, edi_eax);
-    DoReg(0x4BE61D, esi_eax);
-    DoReg(0x4BE62F, ebp_eax);
-    DoReg(0x4BED9F, esi_eax);
-    DoReg(0x4BEDB1, ebp_eax);
-    DoReg(0x4BFF91, esi_eax);
-    DoReg(0x4BFFA3, edi_eax);
-    DoReg(0x4C100E, esi_eax);
-    DoReg(0x4C1020, edi_eax);
-    DoReg(0x4C793E, esi_eax);
-    DoReg(0x4C7952, edi_eax);
+			DoZero(0x4BD2AF, RegESI);
+			DoZero(0x4BD9B5, RegESI);
+			DoZero(0x4BE501, RegEDI);
+			DoZero(0x4BEC85, RegEDI);
+			DoZero(0x4BFE59, RegESI);
+			DoZero(0x4C0EF4, RegESI);
 
-    DoZero(0x4BD2AF, esi_0);
-    DoZero(0x4BD9B5, esi_0);
-    DoZero(0x4BE501, edi_0);
-    DoZero(0x4BEC85, edi_0);
-    DoZero(0x4BFE59, esi_0);
-    DoZero(0x4C0EF4, esi_0);
+			DoMove(0x4C1DC1, RegECX);
+			DoMove(0x4C1CD8, RegEAX);
+			DoMove(0x462005, RegECX);
+			DoMove(0x461F07, RegEDX);
+			DoMove(0x4579F1, RegECX);
+			DoMove(0x4578F8, RegEAX);
+			DoMove(0x43895D, RegECX);
+			DoMove(0x438876, RegEAX);
+			DoMove(0x43826B, RegECX);
+			DoMove(0x438184, RegEAX);
+			DoMove(0x425D37, RegECX);
+			DoMove(0x425C4E, RegEAX);
+			DoMove(0x425642, RegECX);
+			DoMove(0x425559, RegEAX);
+		}
+	}
 
-    DoMove(0x4C1DC1, ecx_1);
-    DoMove(0x4C1CD8, eax_1);
-    DoMove(0x462005, ecx_1);
-    DoMove(0x461F07, edx_1);
-    DoMove(0x4579F1, ecx_1);
-    DoMove(0x4578F8, eax_1);
-    DoMove(0x43895D, ecx_1);
-    DoMove(0x438876, eax_1);
-    DoMove(0x43826B, ecx_1);
-    DoMove(0x438184, eax_1);
-    DoMove(0x425D37, ecx_1);
-    DoMove(0x425C4E, eax_1);
-    DoMove(0x425642, ecx_1);
-    DoMove(0x425559, eax_1);
+	void UpdateBuffer(int width, int height)
+	{
+		if (width <= 0 || height <= 0)
+			return;
 
-    Logger::Raw("%x\n", dword(&MapPreviewBuffer));
+		// The preview is a 24bpp bitmap of (2 * width) x height pixels, and FA2 aligns
+		// its stride to 4 bytes. This is exactly what CMapData::InitMinimap() will memset.
+		size_t stride = static_cast<size_t>(width) * 2 * 3;
+		stride = (stride + 3) & ~static_cast<size_t>(3);
+		size_t size = stride * static_cast<size_t>(height);
 
-    return 0;
+		if (PreviewBuffer && PreviewBufferSize >= size)
+			return;
+
+		byte* oldBuffer = PreviewBuffer;
+		PreviewBuffer = new byte[size]();
+		PreviewBufferSize = size;
+
+		ApplyPatches();
+
+		delete[] oldBuffer;
+	}
 }

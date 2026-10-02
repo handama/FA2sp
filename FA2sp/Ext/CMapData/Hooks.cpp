@@ -16,6 +16,7 @@
 #include "../CTileSetBrowserFrame/TabPages/TaskForceSort.h"
 #include "../CTileSetBrowserFrame/TabPages/ScriptSort.h"
 #include "../../Miscs/Palettes.h"
+#include "../../Miscs/Hooks.PreviewFix.h"
 #include "../CLoading/Body.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 
@@ -1105,10 +1106,14 @@ DEFINE_HOOK(4B9E38, CMapData_CreateMap_InitializeMapDataExt, 5)
 
 DEFINE_HOOK(4B9CB5, CMapData_CreateMap_ClearOverlay, 5)
 {
-	CMapDataExt::X_PLUS_Y_LIMIT = CMapDataExt::GetExtension()->MapWidthPlusHeight >= 512 ? 1024 : 512; 
+	auto pThis = CMapDataExt::GetExtension();
 
-	CMapDataExt::NewOverlay.assign(CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT, 0xFFFF);
-	CMapDataExt::NewOverlayData.assign(CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT, 0);
+	CMapDataExt::X_PLUS_Y_LIMIT = pThis->MapWidthPlusHeight >= 512 ? 1024 : 512; 
+
+	MapPreviewFix::UpdateBuffer(pThis->Size.Width, pThis->Size.Height);
+
+	CMapDataExt::NewOverlay = std::vector<WORD>(CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT, 0xFFFF);
+	CMapDataExt::NewOverlayData = std::vector<BYTE>(CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT, 0);
 
 	std::fill(CMapDataExt::NewOverlay.begin(), CMapDataExt::NewOverlay.end(), 0xFFFF);
 	CMapDataExt::NewINIFormat = 4;

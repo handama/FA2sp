@@ -3,6 +3,7 @@
 #include "../../Helpers/Translations.h"
 #include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
 #include "../../Helpers/Helper.h"
+#include "../../Miscs/Hooks.PreviewFix.h"
 
 bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 {
@@ -71,8 +72,9 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 
 	CellDatas = GameCreateVector<CellData>((MapWidthPlusHeight + 1) * (MapWidthPlusHeight + 1));
 	CellDataCount = (MapWidthPlusHeight + 1) * (MapWidthPlusHeight + 1);
-	CellDataExts.clear();
-	CellDataExts.resize(CellDataCount);
+	// Re-allocate instead of resize: opening / creating / resizing a map is a rare operation,
+	// and keeping the capacity of the biggest map that was ever opened wastes hundreds of MB.
+	CellDataExts = std::vector<CellDataExt>(CellDataCount);
 
 	if (IsoPackData != NULL) GameDeleteArray(IsoPackData, IsoPackDataCount);
 	IsoPackData = NULL;
@@ -121,8 +123,10 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 	std::copy(NewOverlayData.begin(), NewOverlayData.end(), oldOverlayData);
 
 	X_PLUS_Y_LIMIT = MapWidthPlusHeight >= 512 ? 1024 : 512;
-	NewOverlay.assign(X_PLUS_Y_LIMIT * X_PLUS_Y_LIMIT, 0xFFFF);
-	NewOverlayData.assign(X_PLUS_Y_LIMIT * X_PLUS_Y_LIMIT, 0);
+	NewOverlay = std::vector<WORD>(X_PLUS_Y_LIMIT * X_PLUS_Y_LIMIT, 0xFFFF);
+	NewOverlayData = std::vector<BYTE>(X_PLUS_Y_LIMIT * X_PLUS_Y_LIMIT, 0);
+
+	MapPreviewFix::UpdateBuffer(Size.Width, Size.Height);
 
 	for (int y = 0; y < oldLimit; ++y)
 	{
@@ -480,10 +484,13 @@ bool CMapDataExt::ResizeMap_AllocCellData(MapRect* const pRect)
 	LocalSize = newLocalSize;
 	MapWidthPlusHeight = Size.Width + Size.Height;
 
+	MapPreviewFix::UpdateBuffer(Size.Width, Size.Height);
+
 	CellDatas = GameCreateVector<CellData>((MapWidthPlusHeight + 1) * (MapWidthPlusHeight + 1));
 	CellDataCount = (MapWidthPlusHeight + 1) * (MapWidthPlusHeight + 1);
-	CellDataExts.clear();
-	CellDataExts.resize(CellDataCount);
+	// Re-allocate instead of resize: opening / creating / resizing a map is a rare operation,
+	// and keeping the capacity of the biggest map that was ever opened wastes hundreds of MB.
+	CellDataExts = std::vector<CellDataExt>(CellDataCount);
 
 	if (IsoPackData != NULL) GameDeleteArray(IsoPackData, IsoPackDataCount);
 	IsoPackData = NULL;

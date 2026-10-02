@@ -8,6 +8,8 @@
 #include "../../Algorithms/lcw.h"
 #include "../../Algorithms/lzo.h"
 
+#include "../../Miscs/Hooks.PreviewFix.h"
+
 std::string CMapDataExt::convertToExtendedOverlayPack(const std::string& input) {
 	std::string output(input.size() * 2, 0);
 
@@ -192,8 +194,10 @@ DEFINE_HOOK(49EF81, CMapData_UnPack_OverlayData, 8)
 
 	CMapDataExt::X_PLUS_Y_LIMIT = pThis->MapWidthPlusHeight >= 512 ? 1024 : 512; 
 
-	CMapDataExt::NewOverlay.assign(CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT, 0xFFFF);
-	CMapDataExt::NewOverlayData.assign(CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT, 0);
+	MapPreviewFix::UpdateBuffer(pThis->Size.Width, pThis->Size.Height);
+
+	CMapDataExt::NewOverlay = std::vector<WORD>(CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT, 0xFFFF);
+	CMapDataExt::NewOverlayData = std::vector<BYTE>(CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT, 0);
 
 	int mapINIformat = pThis->INI.GetInteger("Basic", "NewINIFormat", 4);
 	bool needNewIniFormat = mapINIformat > 4;

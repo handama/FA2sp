@@ -50,7 +50,7 @@ void CMapDataExt::PackExt(bool UpdatePreview, bool Description)
 
 	if (FieldDataAllocated)
 	{
-		X_PLUS_Y_LIMIT = MapWidthPlusHeight >= 512 ? 1024 : 512;
+		X_PLUS_Y_LIMIT = GetXPlusYLimit(MapWidthPlusHeight);
 
 		Logger::Raw(
 			"CMapDataExt::PackExt called!\n"
@@ -192,7 +192,7 @@ DEFINE_HOOK(49EF81, CMapData_UnPack_OverlayData, 8)
 {
 	auto pThis = CMapDataExt::GetExtension();
 
-	CMapDataExt::X_PLUS_Y_LIMIT = pThis->MapWidthPlusHeight >= 512 ? 1024 : 512; 
+	CMapDataExt::X_PLUS_Y_LIMIT = CMapDataExt::GetXPlusYLimit(pThis->MapWidthPlusHeight);
 
 	MapPreviewFix::UpdateBuffer(pThis->Size.Width, pThis->Size.Height);
 

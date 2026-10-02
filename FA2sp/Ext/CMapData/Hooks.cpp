@@ -1108,7 +1108,7 @@ DEFINE_HOOK(4B9CB5, CMapData_CreateMap_ClearOverlay, 5)
 {
 	auto pThis = CMapDataExt::GetExtension();
 
-	CMapDataExt::X_PLUS_Y_LIMIT = pThis->MapWidthPlusHeight >= 512 ? 1024 : 512; 
+	CMapDataExt::X_PLUS_Y_LIMIT = CMapDataExt::GetXPlusYLimit(pThis->MapWidthPlusHeight);
 
 	MapPreviewFix::UpdateBuffer(pThis->Size.Width, pThis->Size.Height);
 

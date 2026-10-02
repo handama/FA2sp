@@ -1073,6 +1073,13 @@ public:
     static std::unordered_map<int, Palette*> TileSetPalettes;
     static int NewINIFormat;
     static int X_PLUS_Y_LIMIT;
+
+    // NewOverlay / NewOverlayData are indexed as [x * X_PLUS_Y_LIMIT + y] with
+    // x, y < MapWidthPlusHeight, so X_PLUS_Y_LIMIT must never be smaller than
+    // MapWidthPlusHeight. Maps bigger than MAX_MAP_WIDTH_PLUS_HEIGHT are not supported.
+    static constexpr int MAX_MAP_WIDTH_PLUS_HEIGHT = 2048;
+    static int GetXPlusYLimit(int mapWidthPlusHeight);
+
     static std::vector<WORD> NewOverlay;
     static std::vector<BYTE> NewOverlayData;
     static HistoryList UndoRedoDatas;

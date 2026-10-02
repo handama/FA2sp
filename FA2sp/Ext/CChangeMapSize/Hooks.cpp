@@ -2,6 +2,7 @@
 
 #include <Helpers/Macro.h>
 #include "../../Helpers/Translations.h"
+#include "../CMapData/Body.h"
 #include <CMapData.h>
 #include <CFinalSunDlg.h>
 #include <CMyViewFrame.h>
@@ -53,7 +54,7 @@ DEFINE_HOOK(499D56, CMapD_OnBNChangeMapSizeClicked_ValidCheck, 7)
 
 	if (!CMapData::Instance->MapWidthPlusHeight
         || cms.INT_Width < 0 || cms.INT_Height < 0 
-        || cms.INT_Width + cms.INT_Height > 1024
+        || cms.INT_Width + cms.INT_Height > CMapDataExt::MAX_MAP_WIDTH_PLUS_HEIGHT
         ) return 0x499E30;
 
 	CMapData::Instance->ResizeMap(

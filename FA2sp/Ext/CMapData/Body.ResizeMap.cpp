@@ -110,7 +110,7 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 	oldCellDatas = NULL;
 
 	// overlay
-	int oldLimit = os >= 512 ? 1024 : 512; 
+	int oldLimit = GetXPlusYLimit(os);
 	if (NewOverlay.size() != oldLimit * oldLimit)
 	{
 		NewOverlay.assign(oldLimit * oldLimit, 0xFFFF);
@@ -122,7 +122,7 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 	std::copy(NewOverlay.begin(), NewOverlay.end(), oldOverlay);
 	std::copy(NewOverlayData.begin(), NewOverlayData.end(), oldOverlayData);
 
-	X_PLUS_Y_LIMIT = MapWidthPlusHeight >= 512 ? 1024 : 512;
+	X_PLUS_Y_LIMIT = GetXPlusYLimit(MapWidthPlusHeight);
 	NewOverlay = std::vector<WORD>(X_PLUS_Y_LIMIT * X_PLUS_Y_LIMIT, 0xFFFF);
 	NewOverlayData = std::vector<BYTE>(X_PLUS_Y_LIMIT * X_PLUS_Y_LIMIT, 0);
 

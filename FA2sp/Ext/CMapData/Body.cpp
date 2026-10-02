@@ -6,6 +6,7 @@
 #include <CFinalSunDlg.h>
 #include <corecrt_math_defines.h>
 #include <algorithm>
+#include <cstdlib>
 #include <limits>
 #include <queue>
 #include <vector>
@@ -110,6 +111,24 @@ std::unordered_set<int> CMapDataExt::NoHeightRedrawTileSets;
 std::unordered_map<int, Palette*> CMapDataExt::TileSetPalettes;
 int CMapDataExt::NewINIFormat = 4;
 int CMapDataExt::X_PLUS_Y_LIMIT = 1024;
+
+int CMapDataExt::GetXPlusYLimit(int mapWidthPlusHeight)
+{
+	// NewOverlay / NewOverlayData are indexed as [x * X_PLUS_Y_LIMIT + y], so the limit
+	// must be able to hold the whole map. Each step below doubles the index space.
+	if (mapWidthPlusHeight > MAX_MAP_WIDTH_PLUS_HEIGHT)
+	{
+		Logger::Error("The width plus height of the map is %d, which is not supported (the maximum is %d).\n",
+			mapWidthPlusHeight, MAX_MAP_WIDTH_PLUS_HEIGHT);
+		std::abort(); // Such a map would overflow the overlay buffers
+	}
+
+	if (mapWidthPlusHeight >= 1024)
+		return 2048;
+
+	return mapWidthPlusHeight >= 512 ? 1024 : 512;
+}
+
 std::vector<WORD> CMapDataExt::NewOverlay;
 std::vector<BYTE> CMapDataExt::NewOverlayData;
 HistoryList CMapDataExt::UndoRedoDatas;

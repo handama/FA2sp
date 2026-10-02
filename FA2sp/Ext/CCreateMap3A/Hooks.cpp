@@ -47,7 +47,7 @@ DEFINE_HOOK(4D2F40, CCreateMap3A_OnOK, 5)
 
     if (pThis->MapWidth > maxSide || pThis->MapWidth < 1 || pThis->MapHeight > maxSide || pThis->MapHeight < 1)
         ::MessageBox(NULL, pMessage, Translations::TranslateOrDefault("Error", "Error"), MB_OK);
-    else if (pThis->MapWidth + pThis->MapHeight > maxWidthPlusHeight)
+    else if (pThis->MapWidth + pThis->MapHeight >= maxWidthPlusHeight)
         ::MessageBox(NULL, pMessage2, Translations::TranslateOrDefault("Error", "Error"), MB_OK);
     else
         pThis->ppmfc::CDialog::OnOK();

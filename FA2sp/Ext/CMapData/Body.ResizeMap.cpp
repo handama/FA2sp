@@ -75,6 +75,8 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 	// Re-allocate instead of resize: opening / creating / resizing a map is a rare operation,
 	// and keeping the capacity of the biggest map that was ever opened wastes hundreds of MB.
 	CellDataExts = std::vector<CellDataExt>(CellDataCount);
+	// Cold data is keyed by the CellDataExts index, so it must not survive a re-allocation.
+	CMapDataExt::ClearColds();
 
 	if (IsoPackData != NULL) GameDeleteArray(IsoPackData, IsoPackDataCount);
 	IsoPackData = NULL;
@@ -491,6 +493,8 @@ bool CMapDataExt::ResizeMap_AllocCellData(MapRect* const pRect)
 	// Re-allocate instead of resize: opening / creating / resizing a map is a rare operation,
 	// and keeping the capacity of the biggest map that was ever opened wastes hundreds of MB.
 	CellDataExts = std::vector<CellDataExt>(CellDataCount);
+	// Cold data is keyed by the CellDataExts index, so it must not survive a re-allocation.
+	CMapDataExt::ClearColds();
 
 	if (IsoPackData != NULL) GameDeleteArray(IsoPackData, IsoPackDataCount);
 	IsoPackData = NULL;

@@ -58,6 +58,31 @@ std::vector<BuildingRenderData> CMapDataExt::BuildingRenderDatasFix;
 std::vector<OverlayTypeData> CMapDataExt::OverlayTypeDatas;
 CellDataExt CMapDataExt::CellDataExt_FindCell;
 std::vector<CellDataExt> CMapDataExt::CellDataExts;
+std::unordered_map<int, CellDataExtColdData> CMapDataExt::CellDataExtColds;
+CellDataExtColdData CMapDataExt::EmptyCold;
+
+CellDataExtColdData& CMapDataExt::GetCold(int index)
+{
+    return CMapDataExt::CellDataExtColds[index];
+}
+
+CellDataExtColdData* CMapDataExt::GetColdOrNull(int index)
+{
+    auto it = CMapDataExt::CellDataExtColds.find(index);
+    return it == CMapDataExt::CellDataExtColds.end() ? nullptr : &it->second;
+}
+
+void CMapDataExt::PruneColdIfEmpty(int index)
+{
+    auto it = CMapDataExt::CellDataExtColds.find(index);
+    if (it != CMapDataExt::CellDataExtColds.end() && it->second.IsEmpty())
+        CMapDataExt::CellDataExtColds.erase(it);
+}
+
+void CMapDataExt::ClearColds()
+{
+    CMapDataExt::CellDataExtColds.clear();
+}
 CellData CMapDataExt::ExtTempCellData;
 //MapCoord CMapDataExt::CurrentMapCoord;
 MapCoord CMapDataExt::CurrentMapCoordPaste;
@@ -2045,7 +2070,7 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 					if (coord < CMapData::Instance->CellDataCount)
 					{
 						auto pCell = CMapData::Instance->GetCellAt(coord);
-						CMapDataExt::CellDataExts[coord].Structures_insert(cellIndex, BuildingIndex);
+						CMapDataExt::GetCold(coord).Structures_insert(cellIndex, BuildingIndex);
 						pCell->Structure = cellIndex;
 						pCell->TypeListIndex = BuildingIndex;
 						if (!CMapDataExt::SkipUpdateMinimap)
@@ -2064,7 +2089,7 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 				if (coord < CMapData::Instance->CellDataCount)
 				{
 					auto pCell = CMapData::Instance->GetCellAt(coord);
-					CMapDataExt::CellDataExts[coord].Structures_insert(cellIndex, BuildingIndex);
+					CMapDataExt::GetCold(coord).Structures_insert(cellIndex, BuildingIndex);
 					pCell->Structure = cellIndex;
 					pCell->TypeListIndex = BuildingIndex;
 					if (!CMapDataExt::SkipUpdateMinimap)
@@ -2098,10 +2123,18 @@ void CMapDataExt::UpdateFieldStructureData_Optimized()
 	BuildingCenterCoords.clear();
 	BuildingDatasExt.clear();
 
+	// Only cells that actually carry structures have an entry in the cold table.
+	for (auto it = CMapDataExt::CellDataExtColds.begin(); it != CMapDataExt::CellDataExtColds.end(); )
+	{
+		it->second.Structures.clear();
+		if (it->second.IsEmpty())
+			it = CMapDataExt::CellDataExtColds.erase(it);
+		else
+			++it;
+	}
 	int i = 0;
 	for (i = 0; i < fielddata_size; i++)
 	{
-		CMapDataExt::CellDataExts[i].Structures.clear();
 		fielddata[i].Structure = -1;
 		fielddata[i].TypeListIndex = -1;
 	}
@@ -3942,9 +3975,9 @@ bool CMapDataExt::CellCannotDrag(int x, int y)
 		cellpos = 0;
 
 	auto cell = Instance->GetCellAt(cellpos);
-	auto& cellExt = CellDataExts[cellpos];
+	auto pCold = GetColdOrNull(cellpos);
 
-	return !pIsoView->Drag && CIsoView::CurrentCommand->Command == 0 && cell->Aircraft == -1 && cell->Unit == -1 && cell->Structure == -1 && cell->Terrain == -1 && cell->Smudge == -1 && cell->Waypoint == -1 && cell->CellTag == -1 && cell->Infantry[0] == -1 && cell->Infantry[1] == -1 && cell->Infantry[2] == -1 && cell->Infantry[2] == -1 && cellExt.BaseNodes.empty() && cellExt.SmudgeParts.empty() && !CMapDataExt::HasAnnotation(cellpos);
+	return !pIsoView->Drag && CIsoView::CurrentCommand->Command == 0 && cell->Aircraft == -1 && cell->Unit == -1 && cell->Structure == -1 && cell->Terrain == -1 && cell->Smudge == -1 && cell->Waypoint == -1 && cell->CellTag == -1 && cell->Infantry[0] == -1 && cell->Infantry[1] == -1 && cell->Infantry[2] == -1 && cell->Infantry[2] == -1 && (pCold == nullptr || pCold->BaseNodes.empty()) && (pCold == nullptr || pCold->SmudgeParts.empty()) && !CMapDataExt::HasAnnotation(cellpos);
 }
 
 bool CMapDataExt::IsHiddenCell(CellData* pCell)
@@ -5880,6 +5913,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		// Re-allocate instead of resize: opening / creating / resizing a map is a rare operation,
 		// and keeping the capacity of the biggest map that was ever opened wastes hundreds of MB.
 		CMapDataExt::CellDataExts = std::vector<CellDataExt>(CMapData::Instance->CellDataCount);
+		// Cold data is keyed by the CellDataExts index, so it must not survive a re-allocation.
+		CMapDataExt::ClearColds();
 		UndoRedoDatas.clear();
 		UndoRedoDataIndex = -1;
 	}

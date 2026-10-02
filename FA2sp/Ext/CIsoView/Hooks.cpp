@@ -326,21 +326,25 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 	{
 		if (cell->BaseNode.BasenodeID > -1)
 		{
-			auto &cellExt = CMapDataExt::CellDataExts[pos];
-			const auto &node = cellExt.BaseNodes[0];
-			pThis->CurrentCellObjectIndex = cell->BaseNode.BasenodeID;
-			CIsoViewExt::CurrentCellObjectHouse = cell->BaseNode.House;
-			pThis->DragCell.X = node.X;
-			pThis->DragCell.Y = node.Y;
-			pThis->CurrentCellObjectType = 8;
+			auto pCold = CMapDataExt::GetColdOrNull(pos);
+			if (pCold && !pCold->BaseNodes.empty())
+			{
+				const auto &node = pCold->BaseNodes[0];
+				pThis->CurrentCellObjectIndex = cell->BaseNode.BasenodeID;
+				CIsoViewExt::CurrentCellObjectHouse = cell->BaseNode.House;
+				pThis->DragCell.X = node.X;
+				pThis->DragCell.Y = node.Y;
+				pThis->CurrentCellObjectType = 8;
+			}
 		}
 	}
 	if (CIsoViewExt::DrawSmudges && pThis->CurrentCellObjectIndex < 0)
 	{
 		if (pos < CMapData::Instance->CellDataCount)
 		{
-			auto &cellExt = CMapDataExt::CellDataExts[pos];
-			pThis->CurrentCellObjectIndex = cellExt.SmudgeParts.empty() ? cell->Smudge : cellExt.SmudgeParts.back();
+			auto pCold = CMapDataExt::GetColdOrNull(pos);
+			bool hasSmudgeParts = pCold != nullptr && !pCold->SmudgeParts.empty();
+			pThis->CurrentCellObjectIndex = hasSmudgeParts ? pCold->SmudgeParts.back() : cell->Smudge;
 
 			if (pThis->CurrentCellObjectIndex > -1
 				&& static_cast<size_t>(pThis->CurrentCellObjectIndex) < CMapData::Instance->SmudgeDatas.size())

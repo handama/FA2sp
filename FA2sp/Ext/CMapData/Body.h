@@ -356,44 +356,8 @@ struct TechnoAttachment
     bool IsOnTurret;
 };
 
-struct CellDataExt
+struct CellDataExtColdData
 {
-    WORD X;
-    WORD Y;
-
-    WORD NewOverlay = 0xFFFF;
-
-    // for preview
-    bool AroundPlayerLocation = false;
-    bool AroundHighBridge = false;
-
-    // for locate cell
-    bool drawCell = false;
-
-    // for smooth water
-    bool IsWater = false;
-    bool Processed = false;
-
-    // for raise ground
-    bool Adjusted = false;
-    bool CreateSlope = false;
-
-    // for create shore
-    bool ShoreProcessed = false;
-    bool ShoreLATNeeded = false;
-
-    // for terrain generation
-    bool AddRandomTile = false;
-
-    // for line tool
-    bool LineToolProcessed = false;
-
-    // for paste
-	bool IsPasteCell = false;
-
-	// for lighting preview
-    LightingSourceTint Lighting = { 0.0f , 0.0f , 0.0f , 0.0f };
-
     std::vector<BaseNodeDataExt> BaseNodes;
     // first = index of StructureIndexMap, second = index in GetBuildingTypeID 
     std::vector<std::pair<short, short>> Structures;
@@ -403,12 +367,6 @@ struct CellDataExt
     std::vector<std::pair<short, short>> Smudges;
     // stores smudge index for dragging
     std::vector<short> SmudgeParts;
-
-    bool HasAnim = false;
-    bool HasAnnotation = false;
-
-    int RecordMinimapUpdateIndex[3] = { -1 } ;
-    char DamagedFires[8] = { -1 };
 
     struct BuildingRenderPart
     {
@@ -437,19 +395,27 @@ struct CellDataExt
     std::vector<BuildingRenderPart> BuildingRenderParts;
     std::vector<BaseNodeRenderPart> BaseNodeRenderParts;
 
-    // remapable overlay
-    COLORREF RemapableColor = 0x000000ff;
-    int CenterBuildingIndex = -1; 
-    int NearestCenterCellIndex = -1;
+    // paste preview, only valid while a paste operation is previewed
+    const char* PasteInfantry[3] = { nullptr, nullptr, nullptr };
+    const char* PasteBuilding = nullptr;
+    const char* PasteUnit = nullptr;
+    const char* PasteAircraft = nullptr;
+    const char* PasteSmudge = nullptr;
+    const char* PasteTerrain = nullptr;
 
-	const char* PasteInfantry[3];
-    const char* PasteBuilding;
-    const char* PasteUnit;
-    const char* PasteAircraft;
-    const char* PasteSmudge;
-    const char* PasteTerrain;
+    // true when nothing is stored, so the entry can be dropped from the cold table
+    bool IsEmpty() const
+    {
+        return BaseNodes.empty() && Structures.empty() && Terrains.empty()
+            && Smudges.empty() && SmudgeParts.empty()
+            && BuildingRenderParts.empty() && BaseNodeRenderParts.empty()
+            && PasteInfantry[0] == nullptr && PasteInfantry[1] == nullptr
+            && PasteInfantry[2] == nullptr && PasteBuilding == nullptr
+            && PasteUnit == nullptr && PasteAircraft == nullptr
+            && PasteSmudge == nullptr && PasteTerrain == nullptr;
+    }
 
-	void Structures_insert(short key, short value)
+    void Structures_insert(short key, short value)
     {
         for (auto& p : Structures) {
             if (p.first == key) {
@@ -567,6 +533,56 @@ struct CellDataExt
             }
         }
     }
+};
+
+struct CellDataExt
+{
+    WORD X;
+    WORD Y;
+
+    WORD NewOverlay = 0xFFFF;
+
+    bool AroundPlayerLocation : 1 = false;
+    bool AroundHighBridge : 1 = false;
+
+    // for locate cell
+    bool drawCell : 1 = false;
+
+    // for smooth water
+    bool IsWater : 1 = false;
+    bool Processed : 1 = false;
+
+    // for raise ground
+    bool Adjusted : 1 = false;
+    bool CreateSlope : 1 = false;
+
+    // for create shore
+    bool ShoreProcessed : 1 = false;
+    bool ShoreLATNeeded : 1 = false;
+
+    // for terrain generation
+    bool AddRandomTile : 1 = false;
+
+    // for line tool
+    bool LineToolProcessed : 1 = false;
+
+    // for paste
+    bool IsPasteCell : 1 = false;
+
+	// for lighting preview
+    LightingSourceTint Lighting = { 0.0f , 0.0f , 0.0f , 0.0f };
+
+    bool HasAnim : 1 = false;
+    bool HasAnnotation : 1 = false;
+
+    // short is enough: every value written here comes from a CellData short field
+    short RecordMinimapUpdateIndex[3] = { -1 } ;
+    char DamagedFires[8] = { -1 };
+
+    // remapable overlay
+    COLORREF RemapableColor = 0x000000ff;
+    int CenterBuildingIndex = -1; 
+    int NearestCenterCellIndex = -1;
 
     CellDataExt();
 };
@@ -1011,6 +1027,13 @@ public:
 
     static CellDataExt CellDataExt_FindCell;
     static std::vector<CellDataExt> CellDataExts;
+
+    static std::unordered_map<int, CellDataExtColdData> CellDataExtColds;
+    static CellDataExtColdData& GetCold(int index);
+    static CellDataExtColdData* GetColdOrNull(int index);
+    static void PruneColdIfEmpty(int index);
+    static void ClearColds();
+    static CellDataExtColdData EmptyCold;
     //static MapCoord CurrentMapCoord;
     static MapCoord CurrentMapCoordPaste;
     static std::unordered_map<CTileBlockClass*, TileBlockExt> TileBlockDataExt;

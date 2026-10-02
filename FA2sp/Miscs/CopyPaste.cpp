@@ -56,6 +56,8 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
         auto pos = CMapData::Instance->GetCoordIndex(coords.X, coords.Y);
         auto pCell = CMapData::Instance->GetCellAt(pos);
         auto& pCellExt = CMapDataExt::CellDataExts[pos];
+        auto pColdExt = CMapDataExt::GetColdOrNull(pos);
+        const auto& structures = pColdExt ? pColdExt->Structures : CMapDataExt::EmptyCold.Structures;
 
         MyClipboardData item = {};
         auto tileIndex = pCell->TileIndex == 0xFFFF ? 0 : pCell->TileIndex;
@@ -94,9 +96,9 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
             }
         }
 
-        if (pCellExt.Structures.size() >= 1)
+        if (structures.size() >= 1)
         {
-            auto it = pCellExt.Structures.begin();
+            auto it = structures.begin();
             std::advance(it, 0);
             int iniIndex = CMapDataExt::StructureIndexMap[it->first];
             ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Structures", iniIndex);
@@ -107,9 +109,9 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
                 objectMask |= ObjectRecord::RecordType::Building;
             }
         }
-        if (pCellExt.Structures.size() >= 2)
+        if (structures.size() >= 2)
         {
-            auto it = pCellExt.Structures.begin();
+            auto it = structures.begin();
             std::advance(it, 1);
             int iniIndex = CMapDataExt::StructureIndexMap[it->first];
             ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Structures", iniIndex);
@@ -120,9 +122,9 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
                 objectMask |= ObjectRecord::RecordType::Building;
             }
         }
-        if (pCellExt.Structures.size() >= 3)
+        if (structures.size() >= 3)
         {
-            auto it = pCellExt.Structures.begin();
+            auto it = structures.begin();
             std::advance(it, 2);
             int iniIndex = CMapDataExt::StructureIndexMap[it->first];
             ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Structures", iniIndex);
@@ -524,7 +526,7 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
                 }
                 else if (buildingStr)
                 {
-					pCellExt.PasteBuilding = buildingStr;
+					CMapDataExt::GetCold(nCellIndex).PasteBuilding = buildingStr;
 				}
             }
         }
@@ -542,7 +544,7 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
             }
             else
             {
-                pCellExt.PasteSmudge = smudgeStr;
+                CMapDataExt::GetCold(nCellIndex).PasteSmudge = smudgeStr;
             }
         }
 
@@ -555,7 +557,7 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
             }
             else
             {
-                pCellExt.PasteTerrain = terrainStr;
+                CMapDataExt::GetCold(nCellIndex).PasteTerrain = terrainStr;
             }
         }
 
@@ -585,7 +587,7 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
             }
             else
             {
-                pCellExt.PasteUnit = unitStr;
+                CMapDataExt::GetCold(nCellIndex).PasteUnit = unitStr;
             }
         }
 
@@ -613,7 +615,7 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
             }
             else
             {
-                pCellExt.PasteAircraft = aircraftStr;
+                CMapDataExt::GetCold(nCellIndex).PasteAircraft = aircraftStr;
             }
         }
 
@@ -647,7 +649,7 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
                 }
                 else
                 {
-                    pCellExt.PasteInfantry[i] = inf;
+                    CMapDataExt::GetCold(nCellIndex).PasteInfantry[i] = inf;
                 }
             }
         }

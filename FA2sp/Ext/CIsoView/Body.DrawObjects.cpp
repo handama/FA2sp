@@ -41,6 +41,9 @@ struct CellInfo
 	bool isInMap;
 	CellData *cell;
 	CellDataExt *cellExt;
+	// Cold data of the cell. Resolved once while building visibleCells and kept valid
+	// for the whole frame, so the draw loops never need a hash lookup.
+	CellDataExtColdData *pCold;
 	bool aroundRedrawCell;
 };
 
@@ -586,7 +589,12 @@ static void InitAllObjects()
 		{
 			overlays.insert(cellExt.NewOverlay);
 		}
-		for (auto &node : cellExt.BaseNodes)
+	}
+	// Base nodes only exist on the few cells that carry them, so walk the cold table
+	// instead of every cell of the map.
+	for (auto &[index, coldExt] : CMapDataExt::CellDataExtColds)
+	{
+		for (auto &node : coldExt.BaseNodes)
 		{
 			baseNodes.push_back(&node);
 		}
@@ -1189,7 +1197,7 @@ static void DrawBuilding(Renderer::BuildingType* pType,
 			coordInMap.X = X;
 			coordInMap.Y = Y;
 		}
-		CellDataExt *cellExt = nullptr;
+		CellDataExtColdData *cellExt = nullptr;
 		bool objectsOnBuilding = false;
 		if (!DataExt.IsCustomFoundation())
 		{
@@ -1225,13 +1233,13 @@ static void DrawBuilding(Renderer::BuildingType* pType,
 
 		if (objectsOnBuilding)
 		{
-			cellExt = &CMapDataExt::CellDataExts
-							[CMapData::Instance->GetCoordIndex(buildingOrigin.X, buildingOrigin.Y)];
+			cellExt = &CMapDataExt::GetCold
+							(CMapData::Instance->GetCoordIndex(buildingOrigin.X, buildingOrigin.Y));
 		}
 		else if (isCoordInFullMap(coordInMap.X, coordInMap.Y))
 		{
-			cellExt = &CMapDataExt::CellDataExts
-							[CMapData::Instance->GetCoordIndex(coordInMap.X, coordInMap.Y)];
+			cellExt = &CMapDataExt::GetCold
+							(CMapData::Instance->GetCoordIndex(coordInMap.X, coordInMap.Y));
 		}
 		else
 		{
@@ -1245,8 +1253,8 @@ static void DrawBuilding(Renderer::BuildingType* pType,
 					if (isCoordInFullMap(x, y))
 					{
 						found = true;
-						cellExt = &CMapDataExt::CellDataExts
-										[CMapData::Instance->GetCoordIndex(x, y)];
+						cellExt = &CMapDataExt::GetCold
+										(CMapData::Instance->GetCoordIndex(x, y));
 					}
 					if (found)
 						break;
@@ -1559,6 +1567,10 @@ static void DrawMap()
 		AlphaImagesToDraw.clear();
 		BaseNodeTextsToDraw.clear();
 		DrawVeterancies.clear();
+		// Cells only enter the cold table because of the render parts built for the
+		// previous frame, so drop the ones that ended up empty again.
+		for (const auto &info : visibleCells)
+			CMapDataExt::PruneColdIfEmpty(info.pos);
 		visibleCells.clear();
 		if (coordToIndex.size() != CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT)
 			coordToIndex.resize(CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT, 0);
@@ -1702,16 +1714,34 @@ static void DrawMap()
 			screenY -= DrawOffsetY;
 			auto cell = CMapData::Instance->GetCellAt(pos);
 			auto &cellExt = CMapDataExt::CellDataExts[pos];
+			// Only cells that carry a building or a base node can receive render parts,
+			// so only those need an entry of their own. Every other cell points at the
+			// shared empty instance, which keeps the per-frame work proportional to the
+			// number of objects drawn instead of the number of cells in the window.
+			auto pCold = CMapDataExt::GetColdOrNull(pos);
+			if (cell->Structure > -1 || cell->BaseNode.BasenodeID > -1)
+			{
+				if (pCold == nullptr)
+					pCold = &CMapDataExt::GetCold(pos);
+			}
+			if (pCold == nullptr)
+			{
+				pCold = &CMapDataExt::EmptyCold;
+			}
+			else
+			{
+				pCold->BuildingRenderParts.clear();
+				pCold->BaseNodeRenderParts.clear();
+			}
 			coordToIndex[X * CMapDataExt::X_PLUS_Y_LIMIT + Y] = (WORD)visibleCells.size();
 			visibleCells.push_back({X, Y, screenX, screenY, pos,
 									CMapData::Instance->IsCoordInMap(X, Y),
 									cell,
 									&cellExt,
+									pCold,
 									false});
 
 			cell->Flag.RedrawTerrain = false;
-			cellExt.BuildingRenderParts.clear();
-			cellExt.BaseNodeRenderParts.clear();
 
 			if (cell->Structure > -1)
 			{
@@ -2137,9 +2167,9 @@ static void DrawMap()
 		CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
 
 		// smudges
-		if (cellExt->PasteSmudge)
+		if (info.pCold->PasteSmudge)
 		{
-			DrawSmudge(cellExt->PasteSmudge,
+			DrawSmudge(info.pCold->PasteSmudge,
 				pThis,
 				ddsd,
 				boundary,
@@ -2185,10 +2215,10 @@ static void DrawMap()
 			WaypointsToDraw.push_back(std::make_pair(MapCoord{x, y},
 													 cell->Waypoint < Waypoints.size() ? Waypoints[cell->Waypoint]->GetString() : ""));
 		}
-		if (cellExt->PasteBuilding)
+		if (info.pCold->PasteBuilding)
 		{
 			auto& obj = pasteBuildingFSs.emplace_back();
-			CMapDataExt::GetBuildingDataFS(cellExt->PasteBuilding, obj);
+			CMapDataExt::GetBuildingDataFS(info.pCold->PasteBuilding, obj);
 			auto& pasteObjRender = pasteObjRenders.emplace_back();
 			pasteObjRender.HouseColor = Miscs::GetColorRef(obj.House);
 			pasteObjRender.ID = obj.TypeID;
@@ -2240,9 +2270,9 @@ static void DrawMap()
 		}
 		if (info.isInMap || ExtConfigs::DisplayObjectsOutside)
 		{
-			if (!cellExt->BaseNodes.empty())
+			if (!info.pCold->BaseNodes.empty())
 			{
-				for (auto &node : cellExt->BaseNodes)
+				for (auto &node : info.pCold->BaseNodes)
 				{
 					if (std::find(DrawnBaseNodes.begin(), DrawnBaseNodes.end(), node) == DrawnBaseNodes.end())
 					{
@@ -2344,7 +2374,7 @@ static void DrawMap()
 								coordInMap.X = X;
 								coordInMap.Y = Y;
 							}
-							CellDataExt *cellExt = nullptr;
+							CellDataExtColdData *cellExt = nullptr;
 							bool objectsOnBuilding = false;
 							if (!DataExt.IsCustomFoundation())
 							{
@@ -2379,13 +2409,13 @@ static void DrawMap()
 							}
 							if (objectsOnBuilding)
 							{
-								cellExt = &CMapDataExt::CellDataExts
-											  [CMapData::Instance->GetCoordIndex(buildingOrigin.X, buildingOrigin.Y)];
+								cellExt = &CMapDataExt::GetCold
+											  (CMapData::Instance->GetCoordIndex(buildingOrigin.X, buildingOrigin.Y));
 							}
 							else if (isCoordInFullMap(coordInMap.X, coordInMap.Y))
 							{
-								cellExt = &CMapDataExt::CellDataExts
-											  [CMapData::Instance->GetCoordIndex(coordInMap.X, coordInMap.Y)];
+								cellExt = &CMapDataExt::GetCold
+											  (CMapData::Instance->GetCoordIndex(coordInMap.X, coordInMap.Y));
 							}
 							else
 							{
@@ -2399,8 +2429,8 @@ static void DrawMap()
 										if (isCoordInFullMap(x, y))
 										{
 											found = true;
-											cellExt = &CMapDataExt::CellDataExts
-														  [CMapData::Instance->GetCoordIndex(x, y)];
+											cellExt = &CMapDataExt::GetCold
+														  (CMapData::Instance->GetCoordIndex(x, y));
 										}
 										if (found)
 											break;
@@ -2426,10 +2456,10 @@ static void DrawMap()
 		}
 		for (int i = 0; i < 3 && shadow; i++)
 		{
-			if (shadow && cellExt->PasteInfantry[i])
+			if (shadow && info.pCold->PasteInfantry[i])
 			{
 				CInfantryData obj;
-				CMapDataExt::GetInfantryData(cellExt->PasteInfantry[i], obj);
+				CMapDataExt::GetInfantryData(info.pCold->PasteInfantry[i], obj);
 				auto pType = Renderer::GetOrCreateInfantry(obj.TypeID);
 				DrawInfantry(pType,
 						 obj,
@@ -2458,10 +2488,10 @@ static void DrawMap()
 			}
 		}
 		
-		if (shadow && cellExt->PasteUnit)
+		if (shadow && info.pCold->PasteUnit)
 		{
 			CUnitDataFS obj;
-			CMapDataExt::GetUnitDataFS(cellExt->PasteUnit, obj);
+			CMapDataExt::GetUnitDataFS(info.pCold->PasteUnit, obj);
 			auto pType = Renderer::GetOrCreateVehicle(obj.TypeID);
 			DrawUnit(pType,
 					 obj,
@@ -2488,10 +2518,10 @@ static void DrawMap()
 					 info,
 					 true);
 		}
-		if (shadow && cellExt->PasteAircraft)
+		if (shadow && info.pCold->PasteAircraft)
 		{
 			CAircraftDataFS obj;
-			CMapDataExt::GetAircraftDataFS(cellExt->PasteAircraft, obj);
+			CMapDataExt::GetAircraftDataFS(info.pCold->PasteAircraft, obj);
 			auto pType = Renderer::GetOrCreateAircraft(obj.TypeID);
 			DrawAircraft(pType,
 					 obj,
@@ -2518,9 +2548,9 @@ static void DrawMap()
 				info,
 				true);
 		}
-		if (shadow && cellExt->PasteTerrain)
+		if (shadow && info.pCold->PasteTerrain)
 		{
-			DrawTerrain(cellExt->PasteTerrain,
+			DrawTerrain(info.pCold->PasteTerrain,
 				pThis,
 				ddsd,
 				boundary,
@@ -2738,9 +2768,9 @@ static void DrawMap()
 		}
 
 		// smudges in redrawn tiles
-		if (cellExt->PasteSmudge)
+		if (info.pCold->PasteSmudge)
 		{
-			DrawSmudge(cellExt->PasteSmudge,
+			DrawSmudge(info.pCold->PasteSmudge,
 				pThis,
 				ddsd,
 				boundary,
@@ -2871,9 +2901,9 @@ static void DrawMap()
 		}
 
 		// terrains
-		if (cellExt->PasteTerrain)
+		if (info.pCold->PasteTerrain)
 		{
-			DrawTerrain(cellExt->PasteTerrain,
+			DrawTerrain(info.pCold->PasteTerrain,
 				pThis,
 				ddsd,
 				boundary,
@@ -2897,7 +2927,7 @@ static void DrawMap()
 		}
 
 		// buildings
-		for (const auto &part : cellExt->BuildingRenderParts)
+		for (const auto &part : info.pCold->BuildingRenderParts)
 		{
 			auto pBuilding = part.pBuilding;
 			auto pType = pBuilding->GetType();
@@ -3087,7 +3117,7 @@ static void DrawMap()
 		}
 
 		// nodes
-		for (const auto &part : cellExt->BaseNodeRenderParts)
+		for (const auto &part : info.pCold->BaseNodeRenderParts)
 		{
 			const auto &DataExt = CMapDataExt::BuildingDataExts[part.INIIndex];
 			bool firstDraw = std::find(DrawnBaseNodes.begin(), DrawnBaseNodes.end(), *part.Data) == DrawnBaseNodes.end();
@@ -3115,11 +3145,14 @@ static void DrawMap()
 						int pos = CMapData::Instance->GetCoordIndex(x, y);
 						if (pos < CMapDataExt::CellDataExts.size())
 						{
-							auto &cellExt = CMapDataExt::CellDataExts[pos];
-							for (const auto &[_, type] : cellExt.Structures)
+							auto pCold = CMapDataExt::GetColdOrNull(pos);
+							if (pCold)
 							{
-								if (type == part.INIIndex)
-									strOverlap = true;
+								for (const auto &[_, type] : pCold->Structures)
+								{
+									if (type == part.INIIndex)
+										strOverlap = true;
+								}
 							}
 						}
 					}
@@ -3134,11 +3167,14 @@ static void DrawMap()
 					int pos = CMapData::Instance->GetCoordIndex(x, y);
 					if (pos < CMapDataExt::CellDataExts.size())
 					{
-						auto &cellExt = CMapDataExt::CellDataExts[pos];
-						for (const auto &[_, type] : cellExt.Structures)
+						auto pCold = CMapDataExt::GetColdOrNull(pos);
+						if (pCold)
 						{
-							if (type == part.INIIndex)
-								strOverlap = true;
+							for (const auto &[_, type] : pCold->Structures)
+							{
+								if (type == part.INIIndex)
+									strOverlap = true;
+							}
 						}
 					}
 				}
@@ -3209,10 +3245,10 @@ static void DrawMap()
 		CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
 
 		// units
-		if (cellExt->PasteUnit)
+		if (info.pCold->PasteUnit)
 		{
 			CUnitDataFS obj;
-			CMapDataExt::GetUnitDataFS(cellExt->PasteUnit, obj);
+			CMapDataExt::GetUnitDataFS(info.pCold->PasteUnit, obj);
 			auto pType = Renderer::GetOrCreateVehicle(obj.TypeID);
 			DrawUnit(pType,
 					 obj,
@@ -3247,10 +3283,10 @@ static void DrawMap()
 		}
 
 		// aircrafts
-		if (cellExt->PasteAircraft)
+		if (info.pCold->PasteAircraft)
 		{
 			CAircraftDataFS obj;
-			CMapDataExt::GetAircraftDataFS(cellExt->PasteAircraft, obj);
+			CMapDataExt::GetAircraftDataFS(info.pCold->PasteAircraft, obj);
 			auto pType = Renderer::GetOrCreateAircraft(obj.TypeID);
 			DrawAircraft(pType,
 					 obj,
@@ -3287,10 +3323,10 @@ static void DrawMap()
 		// infantries
 		for (int i = 2; i >= 0; --i)
 		{
-			if (cellExt->PasteInfantry[i])
+			if (info.pCold->PasteInfantry[i])
 			{
 				CInfantryData obj;
-				CMapDataExt::GetInfantryData(cellExt->PasteInfantry[i], obj);
+				CMapDataExt::GetInfantryData(info.pCold->PasteInfantry[i], obj);
 				auto pType = Renderer::GetOrCreateInfantry(obj.TypeID);
 				DrawInfantry(pType,
 						 obj,
@@ -4108,15 +4144,21 @@ static void DrawMap()
 	{
 		int pos = pMap->GetCoordIndex(coord.X, coord.Y);
 		auto& cellExt = pMap->CellDataExts[pos];
-		cellExt.PasteInfantry[0] = nullptr;
-		cellExt.PasteInfantry[1] = nullptr;
-		cellExt.PasteInfantry[2] = nullptr;
-		cellExt.PasteBuilding = nullptr;
-		cellExt.PasteUnit = nullptr;
-		cellExt.PasteAircraft = nullptr;
-		cellExt.PasteSmudge = nullptr;
-		cellExt.PasteTerrain = nullptr;
+		auto pColdExt = CMapDataExt::GetColdOrNull(pos);
+		if (pColdExt)
+		{
+			pColdExt->PasteInfantry[0] = nullptr;
+			pColdExt->PasteInfantry[1] = nullptr;
+			pColdExt->PasteInfantry[2] = nullptr;
+			pColdExt->PasteBuilding = nullptr;
+			pColdExt->PasteUnit = nullptr;
+			pColdExt->PasteAircraft = nullptr;
+			pColdExt->PasteSmudge = nullptr;
+			pColdExt->PasteTerrain = nullptr;
+		}
 		cellExt.IsPasteCell = false;
+		// The entry is not pruned here on purpose: visibleCells still holds a pointer to
+		// it for this frame. The pass at the top of the next frame reclaims it instead.
 	}
 
 	if (CIsoViewExt::PasteShowOutline && CIsoView::CurrentCommand->Command == 21 && !CopyPaste::PastedCoords.empty() && !CopyPaste::CopyWholeMap && (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers))

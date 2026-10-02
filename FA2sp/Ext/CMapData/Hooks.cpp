@@ -969,7 +969,7 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 				if (pos < CMapData::Instance->CellDataCount)
 				{
 					auto pCell = CMapData::Instance->GetCellAt(pos);
-					auto& cellExt = CMapDataExt::CellDataExts[pos];
+					auto& cellExt = CMapDataExt::GetCold(pos);
 					cellExt.Structures_erase(cellIndex);
 					if (cellExt.Structures.empty())
 					{
@@ -981,6 +981,7 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 						pCell->Structure = cellExt.Structures.begin()->first;
 						pCell->TypeListIndex = cellExt.Structures.begin()->second;
 					}
+					CMapDataExt::PruneColdIfEmpty(pos);
 
 					if (!CMapDataExt::SkipUpdateMinimap)
 						CMapData::Instance->UpdateMapPreviewAt(x, y);
@@ -998,7 +999,7 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 			if (pos < CMapData::Instance->CellDataCount)
 			{
 				auto pCell = CMapData::Instance->GetCellAt(pos);
-				auto& cellExt = CMapDataExt::CellDataExts[pos];
+				auto& cellExt = CMapDataExt::GetCold(pos);
 				cellExt.Structures_erase(cellIndex);
 				if (cellExt.Structures.empty())
 				{
@@ -1010,6 +1011,7 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 					pCell->Structure = cellExt.Structures.begin()->first;
 					pCell->TypeListIndex = cellExt.Structures.begin()->second;
 				}
+				CMapDataExt::PruneColdIfEmpty(pos);
 
 				if (!CMapDataExt::SkipUpdateMinimap)
 					CMapData::Instance->UpdateMapPreviewAt(x, y);
@@ -1320,12 +1322,20 @@ DEFINE_HOOK(4A6FB0, CMapData_UpdateFieldBasenodeData, 6)
 	if (bSave == FALSE)
 	{
 		auto& mapData = CMapData::Instance;
+		// Only cells that actually carry base nodes have an entry in the cold table.
+		for (auto it = CMapDataExt::CellDataExtColds.begin(); it != CMapDataExt::CellDataExtColds.end(); )
+		{
+			it->second.BaseNodes.clear();
+			if (it->second.IsEmpty())
+				it = CMapDataExt::CellDataExtColds.erase(it);
+			else
+				++it;
+		}
 		for (int i = 0; i < mapData->CellDataCount; i++)
 		{
 			mapData->CellDatas[i].BaseNode.BuildingID = -1;
 			mapData->CellDatas[i].BaseNode.BasenodeID = -1;
 			mapData->CellDatas[i].BaseNode.House = "";
-			CMapDataExt::CellDataExts[i].BaseNodes.clear();
 		}
 
 		if (auto pSection = CINI::CurrentDocument->GetSection("Houses"))
@@ -1354,12 +1364,11 @@ DEFINE_HOOK(4A6FB0, CMapData_UpdateFieldBasenodeData, 6)
 									if (!CMapDataExt::IsCoordInFullMap(bnX + dx, bnY + dy))
 										continue;
 									int pos = mapData->GetCoordIndex(bnX + dx, bnY + dy);
-									auto& cellExt = CMapDataExt::CellDataExts[pos];
 									auto cell = mapData->TryGetCellAt(pos);
 									cell->BaseNode.BuildingID = BuildingIndex;
 									cell->BaseNode.BasenodeID = j;
 									cell->BaseNode.House = house;
-									cellExt.BaseNodes.push_back({ BuildingIndex , j, house, bnX, bnY, ID });
+									CMapDataExt::GetCold(pos).BaseNodes.push_back({ BuildingIndex , j, house, bnX, bnY, ID });
 								}
 							}
 						}
@@ -1370,12 +1379,11 @@ DEFINE_HOOK(4A6FB0, CMapData_UpdateFieldBasenodeData, 6)
 								if (!CMapDataExt::IsCoordInFullMap(bnX + block.X, bnY + block.Y))
 									continue;
 								int pos = mapData->GetCoordIndex(bnX + block.X, bnY + block.Y);
-								auto& cellExt = CMapDataExt::CellDataExts[pos];
 								auto cell = mapData->TryGetCellAt(pos);
 								cell->BaseNode.BuildingID = BuildingIndex;
 								cell->BaseNode.BasenodeID = j;
 								cell->BaseNode.House = house;
-								cellExt.BaseNodes.push_back({ BuildingIndex , j, house, bnX, bnY, ID });
+								CMapDataExt::GetCold(pos).BaseNodes.push_back({ BuildingIndex , j, house, bnX, bnY, ID });
 							}
 						}
 					}
@@ -1465,7 +1473,7 @@ DEFINE_HOOK(4C9EFB, CMapData_AddSmudge, 6)
 	pos >>= 6;
 	uint32_t value = *reinterpret_cast<uint32_t*>(smudgeType + 16);
 
-	auto& cellExt = CMapDataExt::CellDataExts[pos];
+	auto& cellExt = CMapDataExt::GetCold(pos);
 	auto index = CMapData::Instance->CellDatas[pos].Smudge;
 	cellExt.Smudges_insert(index, value);
 	const auto& size = CMapDataExt::SmudgeSizes[CMapData::Instance->SmudgeDatas[index].TypeID];
@@ -1480,7 +1488,7 @@ DEFINE_HOOK(4C9EFB, CMapData_AddSmudge, 6)
 				continue;
 
 			int newPos = CMapData::Instance->GetCoordIndex(X + j, Y + i);
-			auto& cellExt2 = CMapDataExt::CellDataExts[newPos];
+			auto& cellExt2 = CMapDataExt::GetCold(newPos);
 			cellExt2.SmudgeParts_insert(index);
 		}
 	}
@@ -1490,10 +1498,16 @@ DEFINE_HOOK(4C9EFB, CMapData_AddSmudge, 6)
 
 DEFINE_HOOK(4CA1B4, CMapData_UpdateSmudge_Clear, 5)
 {
-	for (auto& cellExt : CMapDataExt::CellDataExts)
+	// Only cells that actually carry smudge data have an entry, so iterating the
+	// cold table is far cheaper than walking all four million cells.
+	for (auto it = CMapDataExt::CellDataExtColds.begin(); it != CMapDataExt::CellDataExtColds.end(); )
 	{
-		cellExt.Smudges.clear();
-		cellExt.SmudgeParts.clear();
+		it->second.Smudges.clear();
+		it->second.SmudgeParts.clear();
+		if (it->second.IsEmpty())
+			it = CMapDataExt::CellDataExtColds.erase(it);
+		else
+			++it;
 	}
 	return 0;
 }
@@ -1504,7 +1518,7 @@ DEFINE_HOOK(4CA41E, CMapData_UpdateSmudge, 8)
 	GET(int, smudgeType, ECX);
 	pos >>= 6;
 
-	auto& cellExt = CMapDataExt::CellDataExts[pos];
+	auto& cellExt = CMapDataExt::GetCold(pos);
 	auto index = CMapData::Instance->CellDatas[pos].Smudge;
 	cellExt.Smudges_insert(index, smudgeType);
 
@@ -1519,7 +1533,7 @@ DEFINE_HOOK(4CA41E, CMapData_UpdateSmudge, 8)
 				continue;
 
 			int newPos = CMapData::Instance->GetCoordIndex(X + j, Y + i);
-			auto& cellExt2 = CMapDataExt::CellDataExts[newPos];
+			auto& cellExt2 = CMapDataExt::GetCold(newPos);
 			cellExt2.SmudgeParts_insert(index);
 		}
 	}
@@ -1530,7 +1544,7 @@ DEFINE_HOOK(4CA41E, CMapData_UpdateSmudge, 8)
 DEFINE_HOOK(4C9F78, CMapData_DeleteSmudge, 6)
 {
 	GET(int, pos, EAX);
-	auto& cellExt = CMapDataExt::CellDataExts[pos];
+	auto& cellExt = CMapDataExt::GetCold(pos);
 	auto cell = CMapData::Instance->GetCellAt(pos);
 	auto index = cell->Smudge;
 	cellExt.Smudges_erase(index);
@@ -1544,6 +1558,7 @@ DEFINE_HOOK(4C9F78, CMapData_DeleteSmudge, 6)
 		cell->Smudge = cellExt.Smudges.begin()->first;
 		cell->SmudgeType = cellExt.Smudges.begin()->second;
 	}
+	CMapDataExt::PruneColdIfEmpty(pos);
 
 	const auto& size = CMapDataExt::SmudgeSizes[CMapData::Instance->SmudgeDatas[index].TypeID];
 	int X = CMapData::Instance->GetXFromCoordIndex(pos);
@@ -1556,7 +1571,7 @@ DEFINE_HOOK(4C9F78, CMapData_DeleteSmudge, 6)
 				continue;
 	
 			int newPos = CMapData::Instance->GetCoordIndex(X + j, Y + i);
-			auto& cellExt2 = CMapDataExt::CellDataExts[newPos];
+			auto& cellExt2 = CMapDataExt::GetCold(newPos);
 			cellExt2.SmudgeParts_erase(index);
 		}
 	}
@@ -1571,7 +1586,7 @@ DEFINE_HOOK(4B1B1F, CMapData_AddTerrain, 8)
 	auto cell = CMapData::Instance->GetCellAt(pos);
 	if (cell->Terrain > -1)
 	{
-		auto& cellExt = CMapDataExt::CellDataExts[pos];
+		auto& cellExt = CMapDataExt::GetCold(pos);
 		cellExt.Terrains_insert(cell->Terrain, cell->TerrainType);
 	}
 
@@ -1580,9 +1595,13 @@ DEFINE_HOOK(4B1B1F, CMapData_AddTerrain, 8)
 
 DEFINE_HOOK(4A5A72, CMapData_UpdateTerrain_Clear, 5)
 {
-	for (auto& cellExt: CMapDataExt::CellDataExts)
+	for (auto it = CMapDataExt::CellDataExtColds.begin(); it != CMapDataExt::CellDataExtColds.end(); )
 	{
-		cellExt.Terrains.clear();
+		it->second.Terrains.clear();
+		if (it->second.IsEmpty())
+			it = CMapDataExt::CellDataExtColds.erase(it);
+		else
+			++it;
 	}
 	return 0;
 }
@@ -1593,7 +1612,7 @@ DEFINE_HOOK(4A5C63, CMapData_UpdateTerrain, 8)
 	GET(int, terrainType, ECX);
 	pos >>= 6;
 
-	auto& cellExt = CMapDataExt::CellDataExts[pos];
+	auto& cellExt = CMapDataExt::GetCold(pos);
 	cellExt.Terrains_insert(CMapData::Instance->CellDatas[pos].Terrain, terrainType);
 
 	return 0;
@@ -1603,7 +1622,7 @@ DEFINE_HOOK(4AA111, CMapData_DeleteTerrain, 6)
 {
 	GET(int, pos, EAX);
 
-	auto& cellExt = CMapDataExt::CellDataExts[pos];
+	auto& cellExt = CMapDataExt::GetCold(pos);
 	auto cell = CMapData::Instance->GetCellAt(pos);
 	cellExt.Terrains_erase(cell->Terrain);
 	if (cellExt.Terrains.empty())
@@ -1616,6 +1635,7 @@ DEFINE_HOOK(4AA111, CMapData_DeleteTerrain, 6)
 		cell->Terrain = cellExt.Terrains.begin()->first;
 		cell->TerrainType = cellExt.Terrains.begin()->second;
 	}
+	CMapDataExt::PruneColdIfEmpty(pos);
 
 	return 0x4C9F93;
 }

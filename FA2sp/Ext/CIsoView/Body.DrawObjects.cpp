@@ -1686,7 +1686,6 @@ static void DrawMap()
 	HDC hDC;
 	lpSurface->GetDC(&hDC);
 
-	Logger::Raw("(%d %d) (%d %d)\n", VisibleCoordTL.X, VisibleCoordTL.Y, VisibleCoordBR.X, VisibleCoordBR.Y);
 	for (int XplusY = VisibleCoordTL.X + VisibleCoordTL.Y - EXTRA_BORDER;
 		 XplusY < VisibleCoordBR.X + VisibleCoordBR.Y + CIsoViewExt::EXTRA_BORDER_BOTTOM;
 		 XplusY++)

@@ -13,7 +13,6 @@ public:
 	//hook function to replace in virtual function map
 	BOOL OnCommandExt(WPARAM wParam, LPARAM lParam);
 	BOOL OnInitDialogExt();
-	void TheaterSelectProc(WORD nCode, LPARAM lParam);
 
 	static void ProgramStartupInit();
 	static ppmfc::CMenu* TheaterMenu;

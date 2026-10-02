@@ -12,7 +12,28 @@ DEFINE_HOOK(4138A0, CBitmap2MapConverter_Convert, 7)
 
 	HBITMAP hUsed = hBitmap;
 
-	if (bm.bmWidth + bm.bmHeight > 511)
+	const int targetWidth = CMapDataExt::BitmapImporterWidth;
+	const int targetHeight = CMapDataExt::BitmapImporterHeight;
+
+	if (targetWidth > 0 && targetHeight > 0 && targetWidth + targetHeight <= 2048)
+	{
+		if (targetWidth != bm.bmWidth || targetHeight != bm.bmHeight)
+		{
+			hUsed = CreateCompatibleBitmap(GetDC(NULL), targetWidth, targetHeight);
+			HDC hDC = CreateCompatibleDC(GetDC(NULL));
+			SelectObject(hDC, hUsed);
+			HDC hSrcDC = CreateCompatibleDC(GetDC(NULL));
+			SelectObject(hSrcDC, hBitmap);
+
+			StretchBlt(hDC, 0, 0, targetWidth, targetHeight, hSrcDC, 0, 0, bm.bmWidth, bm.bmHeight, SRCCOPY);
+
+			DeleteDC(hDC);
+			DeleteDC(hSrcDC);
+
+			GetObject(hUsed, sizeof(BITMAP), &bm);
+		}
+	}
+	else if (bm.bmWidth + bm.bmHeight > 511)
 	{
 		float scalex = (float)bm.bmWidth / (float)bm.bmHeight;
 		int neededheight, neededwidth;

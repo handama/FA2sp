@@ -18,28 +18,49 @@ BOOL CCreateMap3BExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 	if (wmID == 2001)
 	{
-		TheaterSelectProc(wmMsg, lParam);
+		HWND hComboBox = reinterpret_cast<HWND>(lParam);
+		switch (wmMsg)
+		{
+		case CBN_DROPDOWN:
+			break;
+		case CBN_SELCHANGE:
+		case CBN_DBLCLK:
+			CMapDataExt::BitmapImporterTheater = TheaterHelpers::GetEnabledTheaterNames()[::SendMessage(hComboBox, CB_GETCURSEL, NULL, NULL)];
+			break;
+		default:
+			break;
+		}
+	}
+	else if (wmID == 2003)
+	{
+		HWND hX = reinterpret_cast<HWND>(lParam);
+		char buffer[512];
+		switch (wmMsg)
+		{
+		case EN_CHANGE:
+			::GetWindowText(hX, buffer, 512);
+			CMapDataExt::BitmapImporterWidth = atoi(buffer);
+			break;
+		default:
+			break;
+		}
+	}
+	else if (wmID == 2005)
+	{
+		HWND hY = reinterpret_cast<HWND>(lParam);
+		char buffer[512];
+		switch (wmMsg)
+		{
+		case EN_CHANGE:
+			::GetWindowText(hY, buffer, 512);
+			CMapDataExt::BitmapImporterHeight = atoi(buffer);
+			break;
+		default:
+			break;
+		}
 	}
 
 	return this->ppmfc::CDialog::OnCommand(wParam, lParam);
-}
-
-void CCreateMap3BExt::TheaterSelectProc(WORD nCode, LPARAM lParam)
-{
-	HWND hComboBox = reinterpret_cast<HWND>(lParam);
-	ppmfc::CString t;
-	switch (nCode)
-	{
-	case CBN_DROPDOWN:
-		break;
-	case CBN_SELCHANGE:
-	case CBN_DBLCLK:
-		CMapDataExt::BitmapImporterTheater = TheaterHelpers::GetEnabledTheaterNames()[::SendMessage(hComboBox, CB_GETCURSEL, NULL, NULL)];
-		break;
-	default:
-		break;
-	}
-	return;
 }
 
 BOOL CCreateMap3BExt::OnInitDialogExt()
@@ -55,6 +76,8 @@ BOOL CCreateMap3BExt::OnInitDialogExt()
 	}
 	pCBTheater->SetCurSel(0);
 	CMapDataExt::BitmapImporterTheater = TheaterHelpers::GetEnabledTheaterNames()[0];
+	CMapDataExt::BitmapImporterWidth = 0;
+	CMapDataExt::BitmapImporterHeight = 0;
 
 	return TRUE;
 }

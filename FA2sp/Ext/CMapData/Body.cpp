@@ -87,6 +87,8 @@ bool CMapDataExt::DeleteBuildingByIniID = false;
 std::unordered_set<int> CMapDataExt::ShoreTileSets;
 std::unordered_map<int, bool> CMapDataExt::SoftTileSets;
 FString CMapDataExt::BitmapImporterTheater;
+int CMapDataExt::BitmapImporterWidth;
+int CMapDataExt::BitmapImporterHeight;
 Palette CMapDataExt::Palette_ISO;
 Palette CMapDataExt::Palette_ISO_NoTint;
 Palette CMapDataExt::Palette_Shadow;

@@ -1055,6 +1055,8 @@ public:
     static std::unordered_set<int> ShoreTileSets;
     static std::unordered_map<int, bool> SoftTileSets; // soft = affected by shore logic
     static FString BitmapImporterTheater;
+    static int BitmapImporterWidth;
+    static int BitmapImporterHeight;
     static float ConditionYellow;
     static float ConditionRed;
     static bool DeleteBuildingByIniID;

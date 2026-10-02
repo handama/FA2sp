@@ -159,9 +159,9 @@ DEFINE_HOOK(4A2A10, CMapData_SetOverlayDataAt, 5)
 
 	int x = pThis->GetXFromCoordIndex(dwPos);
 	int y = pThis->GetYFromCoordIndex(dwPos);
-	int olyPos = y + x * 512;
+	int olyPos = y + x * CMapDataExt::X_PLUS_Y_LIMIT;
 
-	if (olyPos > 262144 || dwPos > pThis->CellDataCount) return 0x4A2A88;
+	if (olyPos > CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT || dwPos > pThis->CellDataCount) return 0x4A2A88;
 
 	//auto& ovrl = pThis->Overlay[olyPos];
 	//auto& ovrld = pThis->OverlayData[olyPos];
@@ -172,7 +172,7 @@ DEFINE_HOOK(4A2A10, CMapData_SetOverlayDataAt, 5)
 	if (CMapDataExt::IsOre(ovrl))
 		return 0x4A2A88;
 
-	pThis->OverlayData[olyPos] = overlaydata;
+	pThis->NewOverlayData[olyPos] = overlaydata;
 	pThis->CellDatas[dwPos].OverlayData = overlaydata;
 
 	return 0x4A2A88;

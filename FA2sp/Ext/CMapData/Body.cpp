@@ -1,5 +1,6 @@
 #include "Body.h"
 
+#include "../../Algorithms/lzo.h"
 #include "../../Miscs/SaveMap.h"
 
 #include <CFinalSunApp.h>
@@ -7,6 +8,7 @@
 #include <corecrt_math_defines.h>
 #include <algorithm>
 #include <cstdlib>
+#include <cstring>
 #include <limits>
 #include <queue>
 #include <vector>
@@ -2645,6 +2647,34 @@ std::unique_ptr<TerrainRecord> CMapDataExt::MakeTerrainRecord(int left, int top,
 	return std::move(data);
 }
 
+namespace
+{
+	// A cell is only skipped when every field captured by a TerrainRecord equals
+	// its empty value. TileIndex 0 and 0xFFFF are equivalent empties here.
+	inline bool IsDefaultTerrainCell(const CellData* cell, WORD newOverlay)
+	{
+		return cell->Height == 0
+			&& cell->TileIndexHiPart == 0
+			&& cell->TileSubIndex == 0
+			&& cell->IceGrowth == 0
+			&& (cell->TileIndex == 0 || cell->TileIndex == 0xFFFF)
+			&& newOverlay == 0xFFFF
+			&& cell->OverlayData == 0
+			&& cell->Flag.AltIndex == 0;
+	}
+
+	inline int PopCountByte(BYTE value)
+	{
+		int count = 0;
+		while (value)
+		{
+			count += value & 1;
+			value >>= 1;
+		}
+		return count;
+	}
+}
+
 void TerrainRecord::record(int left, int top, int right, int bottom)
 {
 	auto pThis = CMapDataExt::GetExtension();
@@ -2657,86 +2687,254 @@ void TerrainRecord::record(int left, int top, int right, int bottom)
 	if (right == 0) right = pThis->MapWidthPlusHeight;
 	if (bottom == 0) bottom = pThis->MapWidthPlusHeight;
 
-	int width, height;
-	width = right - left;
-	height = bottom - top;
+	const int width = right - left;
+	const int height = bottom - top;
 
-	int size = width * height;
 	this->left = left;
 	this->top = top;
 	this->right = right;
 	this->bottom = bottom;
-	this->bHeight = std::make_unique<BYTE[]>(size);
-	this->bMapData = std::make_unique<WORD[]>(size);
-	this->bSubTile = std::make_unique<BYTE[]>(size);
-	this->bMapData2 = std::make_unique<BYTE[]>(size);
-	this->wGround = std::make_unique<WORD[]>(size);
-	this->overlay = std::make_unique<WORD[]>(size);
-	this->overlaydata = std::make_unique<BYTE[]>(size);
-	this->bRedrawTerrain = std::make_unique<BOOL[]>(size);
-	this->bRNDData = std::make_unique<BYTE[]>(size);
 
-	int i, e;
-	for (i = 0; i < width; i++)
+	this->data.clear();
+	this->compressed = false;
+
+	if (width <= 0 || height <= 0)
+		return;
+
+	const int size = width * height;
+	const int bitmapBytes = (size + 7) / 8;
+
+	// Pass 1: mark the non-default cells that have to be stored.
+	std::vector<BYTE> bitmap(bitmapBytes, 0);
+	int defaultCount = 0;
+	int outOfMapCount = 0;
+	for (int i = 0; i < width; i++)
 	{
-		for (e = 0; e < height; e++)
+		for (int e = 0; e < height; e++)
 		{
-			int pos_w, pos_r;
-			pos_w = i + e * width;
-			pos_r = left + i + (top + e) * pThis->MapWidthPlusHeight;
-			auto cell = pThis->GetCellAt(pos_r);
-			auto& cellExt = pThis->CellDataExts[pos_r];
-			this->bHeight[pos_w] = cell->Height;
-			this->bMapData[pos_w] = cell->TileIndexHiPart;
-			this->bSubTile[pos_w] = cell->TileSubIndex;
-			this->bMapData2[pos_w] = cell->IceGrowth;
-			this->wGround[pos_w] = cell->TileIndex;
-			this->overlay[pos_w] = cellExt.NewOverlay;
-			this->overlaydata[pos_w] = cell->OverlayData;
-			this->bRedrawTerrain[pos_w] = cell->Flag.RedrawTerrain;
-			this->bRNDData[pos_w] = cell->Flag.AltIndex;
+			const int x = left + i;
+			const int y = top + e;
+			// Cells outside the map are neither recorded nor restored.
+			if (!pThis->IsCoordInMap(x, y))
+			{
+				++outOfMapCount;
+				continue;
+			}
+
+			const int pos_w = i + e * width;
+			const int pos_r = x + y * pThis->MapWidthPlusHeight;
+			const auto cell = pThis->GetCellAt(pos_r);
+			const auto& cellExt = pThis->CellDataExts[pos_r];
+			if (IsDefaultTerrainCell(cell, cellExt.NewOverlay))
+				++defaultCount;
+			else
+				bitmap[pos_w >> 3] |= static_cast<BYTE>(1u << (pos_w & 7));
 		}
+	}
+
+	const int storedCount = size - defaultCount - outOfMapCount;
+
+	// Pass 2: gather the stored cells into structure-of-arrays planes.
+	std::vector<BYTE> packed(static_cast<size_t>(bitmapBytes) + static_cast<size_t>(storedCount) * 11);
+	if (bitmapBytes > 0)
+		memcpy(packed.data(), bitmap.data(), static_cast<size_t>(bitmapBytes));
+
+	BYTE* pHeight = packed.data() + bitmapBytes;
+	BYTE* pMapData = pHeight + storedCount;                                  // WORD
+	BYTE* pSubTile = pMapData + static_cast<size_t>(storedCount) * 2;
+	BYTE* pMapData2 = pSubTile + storedCount;
+	BYTE* pGround = pMapData2 + storedCount;                                 // WORD
+	BYTE* pOverlay = pGround + static_cast<size_t>(storedCount) * 2;         // WORD
+	BYTE* pOverlayData = pOverlay + static_cast<size_t>(storedCount) * 2;
+	BYTE* pRND = pOverlayData + storedCount;
+
+	int k = 0;
+	for (int i = 0; i < width; i++)
+	{
+		for (int e = 0; e < height; e++)
+		{
+			const int pos_w = i + e * width;
+			if (!(bitmap[pos_w >> 3] & (1u << (pos_w & 7))))
+				continue;
+
+			const int pos_r = left + i + (top + e) * pThis->MapWidthPlusHeight;
+			const auto cell = pThis->GetCellAt(pos_r);
+			const auto& cellExt = pThis->CellDataExts[pos_r];
+
+			const WORD mapData = cell->TileIndexHiPart;
+			const WORD ground = cell->TileIndex;
+			const WORD overlay = cellExt.NewOverlay;
+
+			pHeight[k] = cell->Height;
+			memcpy(pMapData + static_cast<size_t>(k) * 2, &mapData, 2);
+			pSubTile[k] = cell->TileSubIndex;
+			pMapData2[k] = cell->IceGrowth;
+			memcpy(pGround + static_cast<size_t>(k) * 2, &ground, 2);
+			memcpy(pOverlay + static_cast<size_t>(k) * 2, &overlay, 2);
+			pOverlayData[k] = cell->OverlayData;
+			pRND[k] = static_cast<BYTE>(cell->Flag.AltIndex);
+			++k;
+		}
+	}
+
+	// Keep the raw packing when compression would not shrink it.
+	const int packedSize = static_cast<int>(packed.size());
+	std::string compressedData = lzo::compress(packed.data(), packedSize);
+	if (static_cast<int>(compressedData.size()) < packedSize)
+	{
+		this->data.assign(compressedData.begin(), compressedData.end());
+		this->compressed = true;
+	}
+	else
+	{
+		this->data = std::move(packed);
+		this->compressed = false;
 	}
 }
 
 void TerrainRecord::recover()
 {
 	auto pThis = CMapDataExt::GetExtension();
-	int left, top, width, height;
-	left = this->left;
-	top = this->top;
-	width = this->right - left;
-	height = this->bottom - top;
 
-	int i, e;
-	for (i = 0; i < width; i++)
+	const int left = this->left;
+	const int top = this->top;
+	const int width = this->right - left;
+	const int height = this->bottom - top;
+
+	if (width <= 0 || height <= 0)
+		return;
+
+	const int size = width * height;
+	const int bitmapBytes = (size + 7) / 8;
+
+	// Reuse a thread-local buffer to avoid a large allocation on every undo/redo.
+	static thread_local std::vector<BYTE> decompressBuffer;
+	const BYTE* blob = nullptr;
+	int blobSize = 0;
+
+	if (this->compressed)
 	{
-		for (e = 0; e < height; e++)
+		const int maxSize = bitmapBytes + size * 11;
+		decompressBuffer.resize(maxSize);
+		const int written = lzo::decompressTo(decompressBuffer.data(), maxSize,
+			this->data.data(), static_cast<int>(this->data.size()));
+		if (written < 0)
 		{
-			int pos_w, pos_r;
-			pos_r = i + e * width;
-			pos_w = left + i + (top + e) * pThis->MapWidthPlusHeight;
+			Logger::Error("[History] TerrainRecord::recover failed to decompress %d bytes\n",
+				static_cast<int>(this->data.size()));
+			return;
+		}
+		blob = decompressBuffer.data();
+		blobSize = written;
+	}
+	else
+	{
+		blob = this->data.data();
+		blobSize = static_cast<int>(this->data.size());
+	}
+
+	if (blobSize < bitmapBytes)
+	{
+		Logger::Error("[History] TerrainRecord::recover corrupted record (%d < %d)\n",
+			blobSize, bitmapBytes);
+		return;
+	}
+
+	const BYTE* bitmap = blob;
+	int storedCount = 0;
+	for (int b = 0; b < bitmapBytes; ++b)
+		storedCount += PopCountByte(bitmap[b]);
+
+	const int expectedSize = bitmapBytes + storedCount * 11;
+	if (blobSize != expectedSize)
+	{
+		Logger::Error("[History] TerrainRecord::recover size mismatch (%d != %d)\n",
+			blobSize, expectedSize);
+		return;
+	}
+
+	const BYTE* pHeight = blob + bitmapBytes;
+	const BYTE* pMapData = pHeight + storedCount;                            // WORD
+	const BYTE* pSubTile = pMapData + static_cast<size_t>(storedCount) * 2;
+	const BYTE* pMapData2 = pSubTile + storedCount;
+	const BYTE* pGround = pMapData2 + storedCount;                           // WORD
+	const BYTE* pOverlay = pGround + static_cast<size_t>(storedCount) * 2;   // WORD
+	const BYTE* pOverlayData = pOverlay + static_cast<size_t>(storedCount) * 2;
+	const BYTE* pRND = pOverlayData + storedCount;
+
+	int k = 0;
+	for (int i = 0; i < width; i++)
+	{
+		for (int e = 0; e < height; e++)
+		{
+			const int x = left + i;
+			const int y = top + e;
+			// Cells outside the map were never recorded, so leave them untouched.
+			if (!pThis->IsCoordInMap(x, y))
+				continue;
+
+			const int pos_r = i + e * width;
+			const int pos_w = x + y * pThis->MapWidthPlusHeight;
 			auto cell = pThis->GetCellAt(pos_w);
 			auto& cellExt = pThis->CellDataExts[pos_w];
 
-			cell->Height = this->bHeight[pos_r];
-			cell->TileIndexHiPart = this->bMapData[pos_r];
-			cell->TileSubIndex = this->bSubTile[pos_r];
-			cell->IceGrowth = this->bMapData2[pos_r];
-			cell->TileIndex = this->wGround[pos_r];
+			BYTE cellHeight, cellSubTile, cellMapData2, cellOverlayData, cellRnd;
+			WORD cellMapData, cellGround, cellOverlay;
 
-			pThis->DeleteTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
-			cellExt.NewOverlay = this->overlay[pos_r];
-			cell->Overlay = std::min(this->overlay[pos_r], (word)0xFF);
-			cell->OverlayData = this->overlaydata[pos_r];
-			CMapDataExt::NewOverlay[e + i * CMapDataExt::X_PLUS_Y_LIMIT] = this->overlay[pos_r];
-			CMapDataExt::NewOverlayData[e + i * CMapDataExt::X_PLUS_Y_LIMIT] =  this->overlaydata[pos_r];
-			pThis->AddTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
+			if (bitmap[pos_r >> 3] & (1u << (pos_r & 7)))
+			{
+				cellHeight = pHeight[k];
+				memcpy(&cellMapData, pMapData + static_cast<size_t>(k) * 2, 2);
+				cellSubTile = pSubTile[k];
+				cellMapData2 = pMapData2[k];
+				memcpy(&cellGround, pGround + static_cast<size_t>(k) * 2, 2);
+				memcpy(&cellOverlay, pOverlay + static_cast<size_t>(k) * 2, 2);
+				cellOverlayData = pOverlayData[k];
+				cellRnd = pRND[k];
+				++k;
+			}
+			else
+			{
+				cellHeight = 0;
+				cellMapData = 0;
+				cellSubTile = 0;
+				cellMapData2 = 0;
+				cellGround = 0xFFFF;
+				cellOverlay = 0xFFFF;
+				cellOverlayData = 0;
+				cellRnd = 0;
+			}
 
-			cell->Flag.RedrawTerrain = this->bRedrawTerrain[pos_r];
-			cell->Flag.AltIndex = this->bRNDData[pos_r];
+			const bool overlayChanged = cellExt.NewOverlay != cellOverlay || cell->OverlayData != cellOverlayData;
+			const bool terrainChanged =
+				cell->Height != cellHeight
+				|| cell->TileIndexHiPart != cellMapData
+				|| cell->TileSubIndex != cellSubTile
+				|| cell->IceGrowth != cellMapData2
+				|| cell->TileIndex != cellGround
+				|| static_cast<BYTE>(cell->Flag.AltIndex) != cellRnd;
 
-			pThis->UpdateMapPreviewAt(left + i, top + e);
+			cell->Height = cellHeight;
+			cell->TileIndexHiPart = cellMapData;
+			cell->TileSubIndex = cellSubTile;
+			cell->IceGrowth = cellMapData2;
+			cell->TileIndex = cellGround;
+
+			if (overlayChanged)
+			{
+				pThis->DeleteTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
+				cellExt.NewOverlay = cellOverlay;
+				cell->Overlay = std::min(cellOverlay, (word)0xFF);
+				cell->OverlayData = cellOverlayData;
+				CMapDataExt::NewOverlay[e + i * CMapDataExt::X_PLUS_Y_LIMIT] = cellOverlay;
+				CMapDataExt::NewOverlayData[e + i * CMapDataExt::X_PLUS_Y_LIMIT] = cellOverlayData;
+				pThis->AddTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
+			}
+
+			cell->Flag.AltIndex = cellRnd;
+
+			if (terrainChanged || overlayChanged)
+				pThis->UpdateMapPreviewAt(left + i, top + e);
 		}
 	}
 }

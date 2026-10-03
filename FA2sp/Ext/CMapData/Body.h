@@ -604,20 +604,14 @@ public:
 
 class TerrainRecord : public HistoryRecord {
 public:
-    int left;
-    int top;
-    int bottom;
-    int right;
+    int left = 0;
+    int top = 0;
+    int bottom = 0;
+    int right = 0;
 
-    std::unique_ptr<BOOL[]> bRedrawTerrain;
-    std::unique_ptr<WORD[]> overlay;
-    std::unique_ptr<BYTE[]> overlaydata;
-    std::unique_ptr<WORD[]> wGround;
-    std::unique_ptr<WORD[]> bMapData;
-    std::unique_ptr<BYTE[]> bSubTile;
-    std::unique_ptr<BYTE[]> bHeight;
-    std::unique_ptr<BYTE[]> bMapData2;
-    std::unique_ptr<BYTE[]> bRNDData;
+
+    std::vector<BYTE> data;
+    bool compressed = false;
 
     void record(int left, int top, int right, int bottom);
     void recover();

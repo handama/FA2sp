@@ -1,6 +1,7 @@
 #include "lzo.h"
 #include "lzo1x.h"
 #include "algorithm"
+#include <cstring>
 
 std::string lzo::compress(const void* src, int slen)
 {
@@ -41,7 +42,7 @@ std::string lzo::compressIsoMapPack5(const IsoMapPack5Entry* src, int slen)
     entries.erase(
         std::remove_if(entries.begin(), entries.end(),
             [](const IsoMapPack5Entry& e) {
-                return ((e.TileIndex == 0 || e.TileIndex == 0xFFFF) && e.Level == 0);
+                return ((e.TileIndex == 0 || e.TileIndex == 0xFFFF) && e.TileSubIndex == 0 && e.Level == 0);
             }),
         entries.end()
     );
@@ -121,4 +122,58 @@ std::string lzo::decompress(const void* src, int slen)
 
     delete[] Buffer;
     return ret;
+}
+
+int lzo::decompressTo(void* dst, int dstSize, const void* src, int slen)
+{
+    unsigned char* out = static_cast<unsigned char*>(dst);
+    const unsigned char* ptr = static_cast<const unsigned char*>(src);
+    int written = 0;
+    int remain = slen;
+
+    while (remain > 0)
+    {
+        if (remain < 4)
+        {
+            return -1;
+        }
+
+        unsigned short compressedLen =
+            reinterpret_cast<const unsigned short*>(ptr)[0];
+
+        unsigned short originalLen =
+            reinterpret_cast<const unsigned short*>(ptr)[1];
+
+        if (4 + static_cast<int>(compressedLen) > remain)
+        {
+            return -1;
+        }
+
+        if (written + static_cast<int>(originalLen) > dstSize)
+        {
+            return -1;
+        }
+
+        lzo_uint out_len = originalLen;
+
+        int r = lzo1x_decompress(
+            ptr + 4,
+            compressedLen,
+            out + written,
+            &out_len,
+            nullptr
+        );
+
+        if (r != LZO_E_OK || out_len != originalLen)
+        {
+            return -1;
+        }
+
+        written += static_cast<int>(originalLen);
+
+        ptr += 4 + compressedLen;
+        remain -= 4 + compressedLen;
+    }
+
+    return written;
 }

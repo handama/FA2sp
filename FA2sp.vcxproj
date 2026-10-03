@@ -276,6 +276,12 @@
     <ClCompile Include="FA2sp\Ext\CMapD\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserView\Body.cpp" />
     <ClCompile Include="glad\src\glad.c" />
+    <ClCompile Include="FA2sp\Ext\CIsoView\MapPngEncoder.cpp" />
+    <ClCompile Include="zlib\adler32.c" />
+    <ClCompile Include="zlib\crc32.c" />
+    <ClCompile Include="zlib\deflate.c" />
+    <ClCompile Include="zlib\trees.c" />
+    <ClCompile Include="zlib\zutil.c" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.DrawObjects.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.InfantrySubcell.cpp" />
@@ -429,6 +435,7 @@
     <ClInclude Include="FA2sp\Ext\CHouses\Body.h" />
     <ClInclude Include="FA2sp\Ext\CIsoView\Body.h" />
     <ClInclude Include="FA2sp\Ext\CIsoView\MapExport.h" />
+    <ClInclude Include="FA2sp\Ext\CIsoView\MapPngEncoder.h" />
     <ClInclude Include="FA2sp\Ext\CIsoView\DirectXCore.h" />
     <ClInclude Include="FA2sp\Ext\CMapData\HeightGenerator.h" />
     <ClInclude Include="FA2sp\Ext\CMapD\Body.h" />

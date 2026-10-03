@@ -1016,6 +1016,20 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			int& width = CMapData::Instance->Size.Width;
 			int startX, startY, endX, endY;
 			int startPointX, startPointY, endPointX, endPointY;
+
+			std::vector<std::unique_ptr<TempValueHolder<bool>>> rangeHolders;
+			if (!CIsoViewExt::RenderFullMap)
+			{
+				const int localWidth = std::min(CMapData::Instance->LocalSize.Width, CMapData::Instance->Size.Width);
+				const int localHeight = std::min(CMapData::Instance->LocalSize.Height, CMapData::Instance->Size.Height);
+				if (localWidth <= 0 || localHeight <= 0)
+				{
+					const auto& local = CMapData::Instance->LocalSize;
+					Logger::Info("Local size %d,%d,%d,%d is invalid for a %dx%d map; exporting the full map instead\n",
+						local.Left, local.Top, local.Width, local.Height, width, height);
+					ADD_TEMP_HOLDER(rangeHolders, CIsoViewExt::RenderFullMap, true);
+				}
+			}
 			if (CIsoViewExt::RenderFullMap)
 			{
 				startX = width - 1;
@@ -1052,7 +1066,13 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			const int outputH = endPointY - startPointY;
 			const uint64_t stride = outputW > 0 ? (uint64_t(outputW) * 3 + 3) & ~uint64_t(3) : 0;
 			const uint64_t imageBytes = outputH > 0 ? stride * uint64_t(outputH) : 0;
-			const bool streaming = imageBytes > (uint64_t(1) << 30);
+			const bool streaming = imageBytes > (uint64_t(1) << 29);
+			// The WIC encoders reject a single dimension above 65535 pixels, so
+			// PNG beyond that cannot use the in-memory GDI+ save path and is
+			// written by the built-in streaming encoder instead.
+			const bool exceedsWicDimension = outputW > 65535 || outputH > 65535;
+			bool saveAsPng = CIsoViewExt::RenderSaveAsPNG;
+			bool useEncoder = streaming;
 			MapExportFile output;
 			std::unique_ptr<Bitmap> bitmap;
 			VEHGuard v(false);
@@ -1062,21 +1082,39 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				{
 					result = Gdiplus::InvalidParameter;
 					if (outputW <= 0 || outputH <= 0 || stride > INT_MAX) break;
-					if (!CIsoViewExt::RenderSaveAsPNG && (outputW > 65535 || outputH > 65535))
+					if (!saveAsPng && (outputW > 65535 || outputH > 65535))
 					{
-						failureStage = "JPEG dimensions exceed 65535 pixels; select PNG";
-						break;
+						saveAsPng = true;
+						const size_t extension = path.find_last_of('.');
+						if (extension != std::string::npos)
+							path = path.substr(0, extension);
+						path += ".png";
+						wpath = STDHelpers::StringToWString(path);
+						Logger::Info("JPEG output exceeds 65535 pixels; automatically switched to PNG: %s\n", path.c_str());
 					}
+					useEncoder = streaming || (saveAsPng && exceedsWicDimension);
+					const char* backend = !useEncoder ? "GDI+ in-memory bitmap"
+						: (saveAsPng ? "built-in PNG" : "WIC streaming JPEG");
 					Logger::Info("Map export %dx%d, %s bytes, %s: %s\n", outputW, outputH,
-						std::to_string(imageBytes).c_str(), streaming ? "streaming" : "full bitmap", path.c_str());
+						std::to_string(imageBytes).c_str(), backend, path.c_str());
 					failureStage = "Create output file";
 					exportStatus = output.Create(wpath);
 					result = Gdiplus::GenericError;
 					if (FAILED(exportStatus)) break;
-					if (streaming)
+					if (useEncoder)
 					{
-						failureStage = "Initialize streaming encoder";
-						exportStatus = output.Initialize(outputW, outputH, CIsoViewExt::RenderSaveAsPNG);
+						// PNG never uses the WIC encoder: the built-in one has no
+						// 65535 per-side limit. Only large JPEG still goes to WIC.
+						if (saveAsPng)
+						{
+							failureStage = "Initialize built-in PNG encoder";
+							exportStatus = output.InitializePng(outputW, outputH);
+						}
+						else
+						{
+							failureStage = "Initialize streaming JPEG encoder";
+							exportStatus = output.InitializeJpeg(outputW, outputH);
+						}
 						if (FAILED(exportStatus)) break;
 					}
 					const int bandHeight = streaming ? static_cast<int>((std::min)(uint64_t(2048),
@@ -1169,20 +1207,30 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 							}
 						}
 						if (result != Gdiplus::Ok) break;
-						if (streaming)
+						if (useEncoder)
 						{
 							failureStage = "Encode image rows";
 							exportStatus = output.Write(*bitmap);
-							if (FAILED(exportStatus)) { result = Gdiplus::GenericError; break; }
+							if (FAILED(exportStatus))
+							{
+								Logger::Error("Map export encoder write failed: %s\n", output.PngError());
+								result = Gdiplus::GenericError;
+								break;
+							}
 						}
 						bandY += currentH;
 					}
 					if (result != Gdiplus::Ok) break;
 					failureStage = "Save image";
-					if (streaming)
+					if (useEncoder)
 					{
 						exportStatus = output.Finish();
-						if (FAILED(exportStatus)) { result = Gdiplus::GenericError; break; }
+						if (FAILED(exportStatus))
+						{
+							Logger::Error("Map export encoder commit failed: %s\n", output.PngError());
+							result = Gdiplus::GenericError;
+							break;
+						}
 					}
 					else
 					{
@@ -1197,7 +1245,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 						if (result != Gdiplus::Ok) break;
 						bool found = false;
 						for (UINT i = 0; i < num; ++i)
-							if (wcscmp(info[i].MimeType, CIsoViewExt::RenderSaveAsPNG ? L"image/png" : L"image/jpeg") == 0)
+							if (wcscmp(info[i].MimeType, saveAsPng ? L"image/png" : L"image/jpeg") == 0)
 							{ clsidEncoder = info[i].Clsid; found = true; break; }
 						if (!found) { result = Gdiplus::UnknownImageFormat; break; }
 						ULONG quality = 80;
@@ -1207,7 +1255,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 						params.Parameter[0].Type = EncoderParameterValueTypeLong;
 						params.Parameter[0].NumberOfValues = 1;
 						params.Parameter[0].Value = &quality;
-						result = bitmap->Save(output.Path(), &clsidEncoder, CIsoViewExt::RenderSaveAsPNG ? nullptr : &params);
+						result = bitmap->Save(output.Path(), &clsidEncoder, saveAsPng ? nullptr : &params);
 						if (result != Gdiplus::Ok) break;
 					}
 					failureStage = "Publish output file";
@@ -1233,13 +1281,13 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			if (result != Gdiplus::Ok)
 			{
 				++failedMaps;
-				Logger::Error("Map export failed: %s, %dx%d, GDI+ %d, HRESULT 0x%08lX, %s\n",
-					failureStage.c_str(), outputW, outputH, int(result), static_cast<unsigned long>(exportStatus), path.c_str());
+				Logger::Error("Map export failed: %s, %dx%d, GDI+ %d, HRESULT 0x%08X, %s\n",
+					failureStage.c_str(), outputW, outputH, int(result), static_cast<int>(static_cast<uint32_t>(exportStatus)), path.c_str());
 				FString message = Translations::TranslateOrDefault(result == Gdiplus::OutOfMemory ? "AllocFullMapBitmapFailed" : "MapRendererFailed",
 					result == Gdiplus::OutOfMemory ? "Memory allocation failed, cannot render full map." : "Map export failed.");
 				FString detail;
-				detail.Format("\n%s\n%s (%dx%d)\nGDI+: %d; HRESULT: 0x%08lX", path.c_str(), failureStage.c_str(), outputW, outputH,
-					int(result), static_cast<unsigned long>(exportStatus));
+				detail.Format("\n%s\n%s (%dx%d)\nGDI+: %d; HRESULT: 0x%08X", path.c_str(), failureStage.c_str(), outputW, outputH,
+					int(result), static_cast<int>(static_cast<uint32_t>(exportStatus)));
 				message += detail;
 				if (!batchProcess)
 					::MessageBox(pIsoView->m_hWnd, message, Translations::TranslateOrDefault("Error", "Error"), MB_ICONWARNING);

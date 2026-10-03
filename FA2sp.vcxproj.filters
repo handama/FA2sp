@@ -69,6 +69,9 @@
     <ClInclude Include="FA2sp\Ext\CIsoView\MapExport.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\Ext\CIsoView\MapPngEncoder.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="FA2sp\Ext\CLoading\Body.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -843,6 +846,24 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="glad\src\glad.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CIsoView\MapPngEncoder.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib\adler32.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib\crc32.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib\deflate.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib\trees.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="zlib\zutil.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\ExtraWindow\CMiscSettings\CMiscSettings.cpp">

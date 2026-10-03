@@ -1,5 +1,7 @@
 #pragma once
 
+#include "MapPngEncoder.h"
+
 #include <windows.h>
 #include <wincodec.h>
 #include <wrl/client.h>
@@ -23,6 +25,8 @@ class MapExportFile
     Microsoft::WRL::ComPtr<IWICBitmapFrameEncode> frame;
     UINT rowsWritten = 0;
     UINT imageHeight = 0;
+    MapPngEncoder pngWriter;
+    bool usePngWriter = false;
 
 public:
     MapExportFile() = default;
@@ -40,11 +44,15 @@ public:
 
     void Close()
     {
+        pngWriter.Close();
+        usePngWriter = false;
         frame.Reset();
         encoder.Reset();
         stream.Reset();
         factory.Reset();
     }
+
+    const char* PngError() const { return pngWriter.LastError(); }
 
     HRESULT Create(const std::wstring& path)
     {
@@ -66,9 +74,10 @@ public:
 
     const wchar_t* Path() const { return temporary.c_str(); }
 
-    HRESULT Initialize(UINT width, UINT height, bool png)
+    // WIC is only used for JPEG now, so the encoder is always the JPEG one.
+    HRESULT InitializeJpeg(UINT width, UINT height)
     {
-        if (!png && (width > 65535 || height > 65535))
+        if (width > 65535 || height > 65535)
             return WINCODEC_ERR_IMAGESIZEOUTOFRANGE;
         HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
         uninitialize = SUCCEEDED(hr);
@@ -81,24 +90,20 @@ public:
         if (FAILED(hr)) return hr;
         hr = stream->InitializeFromFilename(Path(), GENERIC_WRITE);
         if (FAILED(hr)) return hr;
-        hr = factory->CreateEncoder(png ? GUID_ContainerFormatPng : GUID_ContainerFormatJpeg,
-            nullptr, encoder.GetAddressOf());
+        hr = factory->CreateEncoder(GUID_ContainerFormatJpeg, nullptr, encoder.GetAddressOf());
         if (FAILED(hr)) return hr;
         hr = encoder->Initialize(stream.Get(), WICBitmapEncoderNoCache);
         if (FAILED(hr)) return hr;
         Microsoft::WRL::ComPtr<IPropertyBag2> options;
         hr = encoder->CreateNewFrame(frame.GetAddressOf(), options.GetAddressOf());
         if (FAILED(hr)) return hr;
-        if (!png)
-        {
-            PROPBAG2 property{};
-            property.pstrName = const_cast<LPOLESTR>(L"ImageQuality");
-            VARIANT value{};
-            value.vt = VT_R4;
-            value.fltVal = 0.8f;
-            hr = options->Write(1, &property, &value);
-            if (FAILED(hr)) return hr;
-        }
+        PROPBAG2 property{};
+        property.pstrName = const_cast<LPOLESTR>(L"ImageQuality");
+        VARIANT value{};
+        value.vt = VT_R4;
+        value.fltVal = 0.8f;
+        hr = options->Write(1, &property, &value);
+        if (FAILED(hr)) return hr;
         hr = frame->Initialize(options.Get());
         if (FAILED(hr)) return hr;
         hr = frame->SetSize(width, height);
@@ -112,8 +117,21 @@ public:
         return S_OK;
     }
 
+    // PNG streaming writer used for every PNG export that is not the in-memory
+    // whole-bitmap GDI+ path.
+    HRESULT InitializePng(UINT width, UINT height)
+    {
+        Close();
+        if (!pngWriter.Begin(Path(), width, height))
+            return E_FAIL;
+        usePngWriter = true;
+        return S_OK;
+    }
+
     HRESULT Write(Gdiplus::Bitmap& bitmap)
     {
+        if (usePngWriter)
+            return pngWriter.Write(bitmap) ? S_OK : E_FAIL;
         Gdiplus::BitmapData data{};
         Gdiplus::Rect rect(0, 0, bitmap.GetWidth(), bitmap.GetHeight());
         if (bitmap.LockBits(&rect, Gdiplus::ImageLockModeRead, PixelFormat24bppRGB, &data) != Gdiplus::Ok)
@@ -133,6 +151,12 @@ public:
 
     HRESULT Finish()
     {
+        if (usePngWriter)
+        {
+            if (!pngWriter.Finish()) return E_FAIL;
+            usePngWriter = false;
+            return S_OK;
+        }
         if (rowsWritten != imageHeight) return E_FAIL;
         HRESULT hr = frame->Commit();
         if (SUCCEEDED(hr)) hr = encoder->Commit();

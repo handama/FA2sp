@@ -1128,8 +1128,11 @@ DEFINE_HOOK(4B8AD2, CMapData_CreateMap_FixLocalSize, 5)
 	GET_BASE(int, dwWidth, 0x8);
 	GET_BASE(int, dwHeight, 0xC);
 
+	const int localWidth = std::max(dwWidth - 6, 1);
+	const int localHeight = std::max(dwHeight - 11, 1);
+
 	FString localSize;
-	localSize.Format("%d,%d,%d,%d", 3, 5, dwWidth - 6, dwHeight - 11);
+	localSize.Format("%d,%d,%d,%d", 3, 5, localWidth, localHeight);
 
 	memcpy(lpBuffer, localSize.c_str(), std::min(localSize.GetLength(), 40));
 	lpBuffer[std::min(localSize.GetLength(), 40)] = '\0';

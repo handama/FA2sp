@@ -428,6 +428,7 @@
     <ClInclude Include="FA2sp\Ext\CFinalSunDlg\Body.h" />
     <ClInclude Include="FA2sp\Ext\CHouses\Body.h" />
     <ClInclude Include="FA2sp\Ext\CIsoView\Body.h" />
+    <ClInclude Include="FA2sp\Ext\CIsoView\MapExport.h" />
     <ClInclude Include="FA2sp\Ext\CIsoView\DirectXCore.h" />
     <ClInclude Include="FA2sp\Ext\CMapData\HeightGenerator.h" />
     <ClInclude Include="FA2sp\Ext\CMapD\Body.h" />

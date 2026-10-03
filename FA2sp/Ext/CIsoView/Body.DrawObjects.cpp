@@ -4227,7 +4227,7 @@ static void DrawMap()
 			pngPosY = pThis->ViewPosition.y - CIsoViewExt::RenderingScreenshotBaseY;
 		}
 
-		if (CIsoViewExt::BlitDDSurfaceRectToBitmap(
+		if (!ExtConfigs::DirectXRendering && CIsoViewExt::BlitDDSurfaceRectToBitmap(
 				hDC,
 				boundary,
 				r,
@@ -4370,7 +4370,8 @@ static void DrawMap()
 			// original -4/-3 alignment) shifts the whole stitched image 3px right and
 			// down within the canvas.
 			int pngPosX = r.left + pThis->ViewPosition.x - startX - 1;
-			int pngPosY = r.top + pThis->ViewPosition.y - startY + (CIsoViewExt::RenderFullMap ? 0 : 15);
+			int pngPosY = r.top + pThis->ViewPosition.y - startY + (CIsoViewExt::RenderFullMap ? 0 : 15)
+				- CIsoViewExt::RenderBitmapOffsetY;
 			if (CIsoViewExt::RenderingScreenshot)
 			{
 				pngPosX = pThis->ViewPosition.x - CIsoViewExt::RenderingScreenshotBaseX;
@@ -4378,6 +4379,13 @@ static void DrawMap()
 			}
 
 			auto pDX = pThis->g_pDX.get();
+			if (pngPosX >= static_cast<int>(CIsoViewExt::pFullBitmap->GetWidth())
+				|| pngPosY >= static_cast<int>(CIsoViewExt::pFullBitmap->GetHeight())
+				|| pngPosX + pDX->GetClientWidth() <= 0 || pngPosY + pDX->GetClientHeight() <= 0)
+			{
+				CIsoViewExt::RenderTileSuccess = true;
+				return;
+			}
 			if (pDX->IsUsingOpenGL())
 			{
 				// === OpenGL path ===
@@ -4387,6 +4395,12 @@ static void DrawMap()
 					GLint prevReadFBO = 0;
 					glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prevReadFBO);
 					glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+					if (glCheckFramebufferStatus(GL_READ_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+					{
+						Logger::Error("Map export OpenGL framebuffer incomplete\n");
+						glBindFramebuffer(GL_READ_FRAMEBUFFER, prevReadFBO);
+						return;
+					}
 
 					int clientW = pDX->GetClientWidth();
 					int clientH = pDX->GetClientHeight();
@@ -4435,8 +4449,10 @@ static void DrawMap()
 
 							Gdiplus::BitmapData bitmapData;
 							Gdiplus::Rect bmpRect(pngPosX, pngPosY, srcW, srcH);
-							if (CIsoViewExt::pFullBitmap->LockBits(&bmpRect, Gdiplus::ImageLockModeWrite,
-																   PixelFormat24bppRGB, &bitmapData) == Gdiplus::Ok)
+							const auto lockStatus = CIsoViewExt::pFullBitmap->LockBits(&bmpRect, Gdiplus::ImageLockModeWrite,
+								PixelFormat24bppRGB, &bitmapData);
+							if (lockStatus != Gdiplus::Ok) Logger::Error("Map export OpenGL LockBits failed: %d\n", int(lockStatus));
+							if (lockStatus == Gdiplus::Ok)
 							{
 								BYTE *dstRow = (BYTE *)bitmapData.Scan0;
 								for (LONG y = 0; y < srcH; ++y)
@@ -4457,8 +4473,8 @@ static void DrawMap()
 									}
 									dstRow += bitmapData.Stride;
 								}
-								CIsoViewExt::pFullBitmap->UnlockBits(&bitmapData);
-								CIsoViewExt::RenderTileSuccess = true;
+								CIsoViewExt::RenderTileSuccess = CIsoViewExt::pFullBitmap->UnlockBits(&bitmapData) == Gdiplus::Ok;
+								if (glGetError() != GL_NO_ERROR) CIsoViewExt::RenderTileSuccess = false;
 							}
 						}
 					}
@@ -4518,18 +4534,42 @@ static void DrawMap()
 						stagingDesc.Usage = D3D11_USAGE_STAGING;
 						stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 
-						Microsoft::WRL::ComPtr<ID3D11Texture2D> pStaging;
-						if (SUCCEEDED(pDevice->CreateTexture2D(&stagingDesc, nullptr, &pStaging)))
+						Microsoft::WRL::ComPtr<ID3D11Texture2D> pStaging = CIsoViewExt::RenderStagingTexture;
+						if (pStaging)
+						{
+							D3D11_TEXTURE2D_DESC cachedDesc{};
+							pStaging->GetDesc(&cachedDesc);
+							Microsoft::WRL::ComPtr<ID3D11Device> cachedDevice;
+							pStaging->GetDevice(cachedDevice.GetAddressOf());
+							if (cachedDesc.Width != texDesc.Width || cachedDesc.Height != texDesc.Height
+								|| cachedDesc.Format != texDesc.Format || cachedDevice.Get() != pDevice)
+								pStaging.Reset();
+						}
+						HRESULT readStatus = pStaging ? S_OK : pDevice->CreateTexture2D(&stagingDesc, nullptr, &pStaging);
+						if (SUCCEEDED(readStatus) && texDesc.Format == DXGI_FORMAT_R8G8B8A8_UNORM)
+						{
+							if (!CIsoViewExt::RenderingScreenshot) CIsoViewExt::RenderStagingTexture = pStaging;
+						}
+						else
+						{
+							Logger::Error("Map export staging failed: 0x%08X, format %d\n", int(readStatus), int(texDesc.Format));
+							return;
+						}
+						if (pStaging)
 						{
 							pContext->CopyResource(pStaging.Get(), pOffscreenTex);
 
 							D3D11_MAPPED_SUBRESOURCE mapped;
-							if (SUCCEEDED(pContext->Map(pStaging.Get(), 0, D3D11_MAP_READ, 0, &mapped)))
+							readStatus = pContext->Map(pStaging.Get(), 0, D3D11_MAP_READ, 0, &mapped);
+							if (FAILED(readStatus)) Logger::Error("Map export D3D Map failed: 0x%08X\n", int(readStatus));
+							if (SUCCEEDED(readStatus))
 							{
 								Gdiplus::BitmapData bitmapData;
 								Gdiplus::Rect bmpRect(pngPosX, pngPosY, srcW, srcH);
-								if (CIsoViewExt::pFullBitmap->LockBits(&bmpRect, Gdiplus::ImageLockModeWrite,
-																	   PixelFormat24bppRGB, &bitmapData) == Gdiplus::Ok)
+								const auto lockStatus = CIsoViewExt::pFullBitmap->LockBits(&bmpRect, Gdiplus::ImageLockModeWrite,
+									PixelFormat24bppRGB, &bitmapData);
+								if (lockStatus != Gdiplus::Ok) Logger::Error("Map export D3D LockBits failed: %d\n", int(lockStatus));
+								if (lockStatus == Gdiplus::Ok)
 								{
 									const BYTE *srcRow = (const BYTE *)mapped.pData + srcTop * mapped.RowPitch + srcLeft * 4;
 									BYTE *dstRow = (BYTE *)bitmapData.Scan0;
@@ -4551,8 +4591,7 @@ static void DrawMap()
 										dstRow += bitmapData.Stride;
 									}
 
-									CIsoViewExt::pFullBitmap->UnlockBits(&bitmapData);
-									CIsoViewExt::RenderTileSuccess = true;
+									CIsoViewExt::RenderTileSuccess = CIsoViewExt::pFullBitmap->UnlockBits(&bitmapData) == Gdiplus::Ok;
 								}
 								pContext->Unmap(pStaging.Get(), 0);
 							}

@@ -11,6 +11,8 @@
 #include <set>
 #include <ddraw.h>
 #include <gdiplus.h>
+#include <d3d11.h>
+#include <wrl/client.h>
 
 #pragma comment(lib, "gdiplus.lib")
 #pragma comment(lib, "ddraw.lib")
@@ -400,6 +402,8 @@ public:
 
     static bool SkipMapScreenConvert;
     static Bitmap* pFullBitmap;
+    inline static int RenderBitmapOffsetY = 0;
+    inline static Microsoft::WRL::ComPtr<ID3D11Texture2D> RenderStagingTexture;
     static bool DrawStructures;
     static bool DrawInfantries;
     static bool DrawUnits;

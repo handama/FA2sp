@@ -5829,6 +5829,9 @@ bool CIsoViewExt::BlitDDSurfaceRectToBitmap(
     if (rc.right <= rc.left || rc.bottom <= rc.top)
         return true;
 
+    dstY -= RenderBitmapOffsetY;
+    if (dstX < 0) { rc.left -= dstX; dstX = 0; }
+    if (dstY < 0) { rc.top -= dstY; dstY = 0; }
     int srcW = rc.right - rc.left;
     int srcH = rc.bottom - rc.top;
 
@@ -5845,11 +5848,14 @@ bool CIsoViewExt::BlitDDSurfaceRectToBitmap(
         return true;
 
     Graphics g(pFullBitmap);
+    if (g.GetLastStatus() != Gdiplus::Ok) return false;
     HDC hdcTarget = g.GetHDC();
+    if (!hdcTarget) return false;
     BOOL bOK = BitBlt(hdcTarget, dstX, dstY, srcW, srcH, hDC, rc.left, rc.top, SRCCOPY);
+    if (!bOK) Logger::Error("Map export BitBlt failed: %d\n", int(GetLastError()));
     g.ReleaseHDC(hdcTarget);
 
-    return bOK == TRUE;
+    return bOK == TRUE && g.GetLastStatus() == Gdiplus::Ok;
 }
 
 int CIsoViewExt::GetOverlayDrawOffset(WORD nOverlay, BYTE nOverlayData)

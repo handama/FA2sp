@@ -66,6 +66,9 @@
     <ClInclude Include="FA2sp\Ext\CIsoView\Body.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\Ext\CIsoView\MapExport.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="FA2sp\Ext\CLoading\Body.h">
       <Filter>头文件</Filter>
     </ClInclude>

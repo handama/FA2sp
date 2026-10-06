@@ -443,6 +443,7 @@
     <ClInclude Include="glad\include\glad\glad.h" />
     <ClInclude Include="FA2sp\Ext\CIsoView\RendererTypes.h" />
     <ClInclude Include="FA2sp\Ext\CLighting\Body.h" />
+    <ClInclude Include="FA2sp\Ext\CLoading\Body.Cipher.h" />
     <ClInclude Include="FA2sp\Ext\CLoading\Body.h" />
     <ClInclude Include="FA2sp\Ext\CMapData\Body.h" />
     <ClInclude Include="FA2sp\Ext\CMapValidator\Body.h" />

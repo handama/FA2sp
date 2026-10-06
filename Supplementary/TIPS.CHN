@@ -39,7 +39,7 @@ You can adjust the program language in Menu→选项→设置.\n你可以在菜�
 物品浏览器缩略图缓存于thumbnails文件夹，首次生成后加载更快。
 将高优先级资源放入Resources\HighPriority文件夹，可优先加载。
 通过[NestedMixes]配置嵌套MIX文件的加载顺序，灵活管理资源包。
-在[ExtraPackages]中设置加密资源包，保护您的原创素材。
+在[ExtraPackages]中设置加密资源包，保护您的原创素材（资源包与发行版二进制一一对应，须一同发布）。
 使用[ExtraStringtables]加载额外的CSF、LLF、ECS字符串表。
 通过[LATGroups]和[LATSettings]自定义新的LAT地形，支持MOD扩展。
 在[BrushSizes]中自定义笔刷大小列表。

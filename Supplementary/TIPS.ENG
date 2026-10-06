@@ -39,7 +39,7 @@ On a crash, the map is automatically backed up to the CrashBackups folder with a
 Object Browser thumbnails are cached in the thumbnails folder, loading faster after the first generation.
 Put high-priority resources into the Resources\HighPriority folder to load them first.
 Configure nested MIX file loading order via [NestedMixes] for flexible resource management.
-Set up encrypted resource packages in [ExtraPackages] to protect your original assets.
+Set up encrypted resource packages in [ExtraPackages] to protect your original assets; a package is bound to the binary it was generated for, so release both together.
 Load additional CSF, LLF, or ECS string tables using [ExtraStringtables].
 Define new LAT terrain groups via [LATGroups] and [LATSettings] to support mod expansions.
 Customize the brush size list in [BrushSizes].

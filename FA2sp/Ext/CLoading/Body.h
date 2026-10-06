@@ -2,6 +2,7 @@
 
 #include <CLoading.h>
 #include "../FA2Expand.h"
+#include "Body.Cipher.h"
 #include "../../FA2sp/Helpers/FString.h"
 #include "../../FA2sp/Helpers/TheaterHelpers.h"
 #include <CShpFile.h>
@@ -9,6 +10,8 @@
 #include <vector>
 #include <array>
 #include <algorithm>
+#include <mutex>
+#include <string>
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
@@ -403,54 +406,49 @@ public:
 	static bool s_extraDirectoriesLoaded;
 };
 
-#pragma pack(push, 1)
-struct FileEntry
+struct PackIndexEntry
 {
-	uint32_t offset;
-	uint32_t enc_size;
-	uint32_t original_size;
-};
-#pragma pack(pop)
-static_assert(sizeof(FileEntry) == 12, "FileEntry must be 12 bytes");
-
-struct CaseInsensitiveHash 
-{
-	size_t operator()(const FString& key) const {
-		FString lower;
-		lower.reserve(key.size());
-		for (char ch : key) lower.push_back(std::tolower(static_cast<unsigned char>(ch)));
-		return std::hash<FString>()(lower);
-	}
-};
-
-struct CaseInsensitiveEqual 
-{
-	bool operator()(const FString& lhs, const FString& rhs) const {
-		if (lhs.size() != rhs.size()) return false;
-		for (size_t i = 0; i < lhs.size(); ++i) {
-			if (std::tolower(static_cast<unsigned char>(lhs[i])) != std::tolower(static_cast<unsigned char>(rhs[i])))
-				return false;
-		}
-		return true;
-	}
+	uint32_t tailOffset;   // offset of salt/prevChain/params/mac inside the decrypted index
+	uint32_t dataOffset;   // offset of the entry key part inside the data region
+	uint32_t entryIndex;   // ordinal inside the pack
+	uint32_t encSize;
+	uint32_t rawSize;
+	uint64_t parentInfo;
+	uint16_t slot;
+	uint16_t saltLen;
+	uint16_t prevChainLen;
+	uint16_t paramsLen;
+	uint16_t macLen;
 };
 
 class ResourcePack 
 {
 public:
 	bool load(const FString& filename);
-	std::unique_ptr<uint8_t[]> getFileData(const FString& filename, size_t* out_size = nullptr, bool debugLog = false);
+	// The name is lower cased by the caller. Lookups go through this pack's own name table,
+	// which arrives with the decrypted index, so no key material and no per name derivation
+	// is involved here.
+	std::unique_ptr<uint8_t[]> getFileData(const char* name, size_t nameLen,
+		size_t* out_size = nullptr, bool debugLog = false);
+	bool hasFile(const char* name, size_t nameLen) const;
 
 private:
-	std::unordered_map<FString, FileEntry, CaseInsensitiveHash, CaseInsensitiveEqual> index_map;
-	uint32_t index_size = 0; 
+	std::unordered_map<std::string, PackIndexEntry> index_map;
+	std::vector<uint8_t> index_plain;
+	std::vector<uint8_t> pack_key_part;
+	std::vector<uint8_t> index_key_part;
+	std::array<uint8_t, ResourceCipher::kMacLen> index_mac{};
+	std::array<uint8_t, ResourceCipher::kPackIdLen> pack_id{};
+	std::array<uint8_t, ResourceCipher::kPackNonceLen> pack_nonce{};
+	ResourceCipher::PackContext pack_ctx{};
+	ResourceCipher::LayoutInfo layout{};
+	size_t data_region_offset = 0;
+	uint64_t data_region_size = 0;
 	FString file_path;
 	std::ifstream file_stream; 
 
-	bool aesDecryptBlockwise(const uint8_t* input, size_t len, std::vector<uint8_t>& output);
-	std::array<uint8_t, 32> get_aes_key();
-	FString toHex(const unsigned char* data, size_t len);
-	FString encrypt_filename(const FString& filename, const unsigned char* key);
+	bool parseIndex(const uint8_t* data, size_t len);
+	const uint8_t* tailPtr(const PackIndexEntry& entry) const { return index_plain.data() + entry.tailOffset; }
 };
 
 class ResourcePackManager 
@@ -465,6 +463,11 @@ public:
 
 private:
 	std::vector<std::unique_ptr<ResourcePack>> packs;
+
+	// Lower cases a name the way the packer does. There is nothing to cache any more: the
+	// expensive part used to be a per name KDF, and the index carries no name derived value
+	// for one to feed.
+	static std::string nameOf(const FString& filename);
 };
 
 struct MixEntry {

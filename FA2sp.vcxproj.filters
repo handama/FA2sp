@@ -72,6 +72,9 @@
     <ClInclude Include="FA2sp\Ext\CIsoView\MapPngEncoder.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\Ext\CLoading\Body.Cipher.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="FA2sp\Ext\CLoading\Body.h">
       <Filter>头文件</Filter>
     </ClInclude>

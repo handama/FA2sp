@@ -1,46 +1,25 @@
 name: MSBuild
 
 on:
-  push:
-    branches: [ "master" ]
   pull_request:
-    branches: [ "master" ]
+    branches:
+      - "**"
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths-ignore:
+      - 'image/**'
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  build:
-    runs-on: windows-2022
-
-    strategy:
-      matrix:
-        configuration: [ Release ]
-
-    env:
-      SOLUTION_FILE_PATH: .
-      BUILD_CONFIGURATION: ${{ matrix.configuration }}
-
-    steps:
-      - name: Checkout repository (with submodules)
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@v1.0.2
-
-      - name: Restore NuGet packages
-        run: nuget restore ${{ env.SOLUTION_FILE_PATH }}
-
-      - name: Build ${{ matrix.configuration }}
-        run: msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} ${{ env.SOLUTION_FILE_PATH }} 
-
-      - name: Upload ${{ matrix.configuration }} Artifacts
-        if: ${{ success() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: FA2sp_${{ matrix.configuration }}_${{ github.sha }}
-          path: |
-            ${{ env.SOLUTION_FILE_PATH }}/${{ env.BUILD_CONFIGURATION }}/FA2sp.dll
-            ${{ env.SOLUTION_FILE_PATH }}/${{ env.BUILD_CONFIGURATION }}/FA2sp.pdb
+  verify:
+    uses: ./.github/workflows/reusable-build-and-test.yml
+    with:
+      configuration: Release
+      run_tests: true

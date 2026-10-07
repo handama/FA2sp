@@ -1,0 +1,85 @@
+name: Release
+
+permissions:
+  contents: write
+
+on:
+  pull_request:
+    branches:
+      - "master"
+    types:
+      - closed
+    paths-ignore:
+      - 'image/**'
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag (leave empty for auto v1.6.3.run_number)'
+        required: false
+        default: ''
+        type: string
+      prerelease:
+        description: 'Is Pre-release'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  build-and-test:
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true)
+    uses: ./.github/workflows/reusable-build-and-test.yml
+    with:
+      configuration: Release
+      run_tests: true
+
+  release:
+    needs: build-and-test
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true)
+    runs-on: windows-2022
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: FA2sp_Release_${{ github.sha }}
+          path: bin_output
+
+      - name: Package Release
+        id: package
+        shell: pwsh
+        run: |
+          $ver = "${{ inputs.tag_name }}"
+          if ([string]::IsNullOrWhiteSpace($ver)) {
+              $ver = "v1.6.3." + ${{ github.run_number }}
+          }
+          $pkgName = "FA2sp-$ver.zip"
+
+          New-Item -ItemType Directory -Force -Path "package_dir" | Out-Null
+          Copy-Item -Force "bin_output/FA2sp.dll" "package_dir/FA2sp.dll"
+          if (Test-Path "bin_output/FA2sp.pdb") {
+              Copy-Item -Force "bin_output/FA2sp.pdb" "package_dir/FA2sp.pdb"
+          }
+
+          Compress-Archive -Path "package_dir/*" -DestinationPath $pkgName -Force
+
+          echo "RELEASE_TAG=$ver" >> $env:GITHUB_ENV
+          echo "PACKAGE_NAME=$pkgName" >> $env:GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: FA2sp ${{ env.RELEASE_TAG }}
+          files: |
+            ${{ env.PACKAGE_NAME }}
+            bin_output/FA2sp.dll
+            bin_output/FA2sp.pdb
+          target_commitish: ${{ github.sha }}
+          prerelease: ${{ inputs.prerelease || false }}
+          generate_release_notes: true

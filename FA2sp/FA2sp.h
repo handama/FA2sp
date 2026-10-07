@@ -239,6 +239,7 @@ public:
     static bool DisableDirectoryCheck;
     static bool ExtOverlays;
     static bool SaveMap_PreserveINISorting;
+    static bool SaveMap_PreserveINIKeySorting;
     static bool ExtMixLoader;
     static bool AVX2_Support;
     static bool AutoDarkMode;
@@ -289,16 +290,23 @@ public:
     static void UpdateOptionTranslations();
 };
 
+#ifndef PPMFC_CSTRING_HASH_DEFINED
+#define PPMFC_CSTRING_HASH_DEFINED
 namespace std
 {
     template <>
     struct hash<ppmfc::CString>
     {
-        size_t operator()(const ppmfc::CString &str) const
+        size_t operator()(const ppmfc::CString &str) const noexcept
         {
             return hash<string_view>()(string_view(str, str.GetLength()));
         }
     };
+}
+#endif
+
+namespace std
+{
     template <>
     struct hash<CString>
     {

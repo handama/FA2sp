@@ -3,6 +3,7 @@
 #include "../Ext/CLoading/Body.h"
 #include "../Helpers/Helper.h"
 #include "../Helpers/TheaterHelpers.h"
+#include "../Helpers/CINIOrderTracker.h"
 
 using std::map;
 using std::vector;
@@ -25,6 +26,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
 {
     if (bClear)
     {
+        CINIOrderTracker::Clear(this);
         auto itr = Dict.end();
         for (size_t i = 0, sz = Dict.size(); i < sz && itr != Dict.begin(); ++i) {
             --itr;
@@ -150,6 +152,8 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                         pCurrentSection = AddOrGetSection(CurrentSectionName);
                     }
 
+                    CINIOrderTracker::RecordSection(this, CurrentSectionName);
+
                     if (CMapDataExt::IsLoadingMapFile && ExtConfigs::SaveMap_PreserveINISorting) {
                         auto it = std::find(CMapDataExt::MapIniSectionSorting.begin(), CMapDataExt::MapIniSectionSorting.end(), CurrentSectionName);
                         if (it == CMapDataExt::MapIniSectionSorting.end()) {
@@ -217,6 +221,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                 if (!key.empty()) {
                     size_t currentIndex = pCurrentSection->GetEntities().size();
                     writeString(pCurrentSection, key, value);
+                    CINIOrderTracker::RecordKey(this, CurrentSectionName, key);
 
                     if (keepComment) {
                         PendingComment.Trim();
@@ -377,6 +382,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                                 for (const auto& [key, value] : targetIndicies)
                                 {
                                     writeString(pTargetSection, key, value);
+                                    CINIOrderTracker::RecordKey(this, sectionName, key);
 
                                     std::pair<ppmfc::CString, int> ins =
                                         std::make_pair((ppmfc::CString)key, index++);
@@ -482,6 +488,7 @@ void CINIExt::InheritSectionRecursive(const ppmfc::CString& sectionName,
                         size_t currentIndex = pSection->GetEntities().size();
 
                         writeString(pSection, key, value);
+                        CINIOrderTracker::RecordKey(this, sectionName, key);
 
                         std::pair<ppmfc::CString, int> ins =
                             std::make_pair((ppmfc::CString)key, (int)currentIndex);
@@ -680,12 +687,69 @@ DEFINE_HOOK(4536B0, CINI_WriteToFile, 8)
     }
 
     std::ostringstream oss;
-    for (auto& [sectionName, pSection] : pThis->Dict)
+    auto writeSection = [&](const ppmfc::CString& sectionName, INISection& section)
     {
         oss << "[" << sectionName << "]\n";
-        for (const auto& pair : pSection.GetEntities())
-            oss << pair.first << "=" << pair.second << "\n";
+        if (ExtConfigs::SaveMap_PreserveINIKeySorting)
+        {
+            const auto* pKeyOrder = CINIOrderTracker::GetKeyOrder(pThis, sectionName);
+            if (pKeyOrder)
+            {
+                for (const auto& key : *pKeyOrder)
+                {
+                    auto it = section.GetEntities().find(key);
+                    if (it != section.GetEntities().end())
+                    {
+                        oss << it->first << "=" << it->second << "\n";
+                    }
+                }
+            }
+            for (const auto& pair : section.GetEntities())
+            {
+                if (!pKeyOrder || !pKeyOrder->Contains(pair.first))
+                {
+                    CINIOrderTracker::RecordKey(pThis, sectionName, pair.first);
+                    oss << pair.first << "=" << pair.second << "\n";
+                }
+            }
+        }
+        else
+        {
+            for (const auto& pair : section.GetEntities())
+                oss << pair.first << "=" << pair.second << "\n";
+        }
         oss << "\n";
+    };
+
+    if (ExtConfigs::SaveMap_PreserveINISorting)
+    {
+        const auto* pSectionOrder = CINIOrderTracker::GetSectionOrder(pThis);
+        if (pSectionOrder)
+        {
+            for (const auto& secName : *pSectionOrder)
+            {
+                auto it = pThis->Dict.find(secName);
+                if (it != pThis->Dict.end())
+                {
+                    writeSection(it->first, it->second);
+                }
+            }
+        }
+        for (auto& [sectionName, pSection] : pThis->Dict)
+        {
+            if (!pSectionOrder || !pSectionOrder->Contains(sectionName))
+            {
+                CINIOrderTracker::RecordSection(pThis, sectionName);
+                writeSection(sectionName, pSection);
+            }
+        }
+    }
+    else
+    {
+        for (auto& [sectionName, pSection] : pThis->Dict)
+        {
+            writeSection(sectionName, pSection);
+        }
     }
 
     FString output = oss.str();

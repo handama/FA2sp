@@ -1,6 +1,8 @@
 #include "Body.h"
 
 #include <Helpers/Macro.h>
+#include <CINI.h>
+#include "../../Helpers/CINIOrderTracker.h"
 
 #include "../../FA2sp.h"
 #include "../../Helpers/TheaterHelpers.h"
@@ -1096,6 +1098,7 @@ DEFINE_HOOK(4B9E38, CMapData_CreateMap_InitializeMapDataExt, 5)
 	CMapDataExt::IsUTF8File = false;
 	Logger::Debug("CMapData::CreateMap(): About to call InitializeAllHdmEdition()\n");
 	CMapDataExt::InitializeAllHdmEdition();
+	CINIOrderTracker::Clear(&CINI::CurrentDocument);
 	CMapDataExt::MapIniSectionSorting.clear();
 	CMapDataExt::MapInlineComments.clear();
 	CMapDataExt::MapFrontlineComments.clear();

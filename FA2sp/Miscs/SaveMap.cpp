@@ -33,6 +33,7 @@
 #include "../Ext/CFinalSunApp/Body.h"
 #include "../Helpers/Helper.h"
 #include "../Helpers/TheaterHelpers.h"
+#include "../Helpers/CINIOrderTracker.h"
 
 std::optional<std::filesystem::file_time_type> SaveMapExt::SaveTime;
 
@@ -709,7 +710,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                 includeIni->LoadINIExt((uint8_t*)buffer.data(), buffer.length(), nullptr, true, true, true, &currentIncludeInis);
             }
 
-            auto saveSection = [&oss, &pInclude, &includeIni](INISection* pSection, FString sectionName)
+            auto saveSection = [&oss, &pInclude, &includeIni, pINI](INISection* pSection, FString sectionName)
             {
                 bool hasInclude = includeIni && includeIni->SectionExists(sectionName);
                 bool wroteSection = false;
@@ -760,57 +761,66 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                     wroteSection = true;
                 };
 
-                if (hasInclude)
+                auto writeEntry = [&](const ppmfc::CString& key, const ppmfc::CString& value)
                 {
-                    auto pIncludeSection = includeIni->GetSection(sectionName);
-                    auto& keys = pIncludeSection->GetEntities();
-
-                    for (auto& pair : pSection->GetEntities())
+                    if (hasInclude)
                     {
-                        auto itr = keys.find(pair.first);
-                        if (itr != keys.end() && itr->second == pair.second)
-                            continue;
-
-                        writeSectionHeaderOnce();
-
-                        auto fkIt = CMapDataExt::MapFrontlineComments[sectionName].find(pair.first);
-                        if (fkIt != CMapDataExt::MapFrontlineComments[sectionName].end())
+                        if (auto pIncludeSection = includeIni->GetSection(sectionName))
                         {
-                            writeCommentBlock(fkIt->second);
+                            auto& keys = pIncludeSection->GetEntities();
+                            auto itr = keys.find(key);
+                            if (itr != keys.end() && itr->second == value)
+                                return;
                         }
+                    }
 
-                        oss << pair.first << "=" << pair.second;
+                    writeSectionHeaderOnce();
 
-                        auto ikIt = CMapDataExt::MapInlineComments[sectionName].find(pair.first);
-                        if (ikIt != CMapDataExt::MapInlineComments[sectionName].end())
+                    auto fkIt = CMapDataExt::MapFrontlineComments[sectionName].find(key);
+                    if (fkIt != CMapDataExt::MapFrontlineComments[sectionName].end())
+                    {
+                        writeCommentBlock(fkIt->second);
+                    }
+
+                    oss << key << "=" << value;
+
+                    auto ikIt = CMapDataExt::MapInlineComments[sectionName].find(key);
+                    if (ikIt != CMapDataExt::MapInlineComments[sectionName].end())
+                    {
+                        oss << " ; " << ikIt->second;
+                    }
+
+                    oss << "\n";
+                };
+
+                if (ExtConfigs::SaveMap_PreserveINIKeySorting)
+                {
+                    const auto* pKeyOrder = CINIOrderTracker::GetKeyOrder(pINI, sectionName);
+                    if (pKeyOrder)
+                    {
+                        for (const auto& key : *pKeyOrder)
                         {
-                            oss << " ; " << ikIt->second;
+                            auto it = pSection->GetEntities().find(key);
+                            if (it != pSection->GetEntities().end())
+                            {
+                                writeEntry(it->first, it->second);
+                            }
                         }
-
-                        oss << "\n";
+                    }
+                    for (const auto& pair : pSection->GetEntities())
+                    {
+                        if (!pKeyOrder || !pKeyOrder->Contains(pair.first))
+                        {
+                            CINIOrderTracker::RecordKey(pINI, sectionName, pair.first);
+                            writeEntry(pair.first, pair.second);
+                        }
                     }
                 }
                 else
                 {
                     for (const auto& pair : pSection->GetEntities())
                     {
-                        writeSectionHeaderOnce();
-
-                        auto fkIt = CMapDataExt::MapFrontlineComments[sectionName].find(pair.first);
-                        if (fkIt != CMapDataExt::MapFrontlineComments[sectionName].end())
-                        {
-                            writeCommentBlock(fkIt->second);
-                        }
-
-                        oss << pair.first << "=" << pair.second;
-
-                        auto ikIt = CMapDataExt::MapInlineComments[sectionName].find(pair.first);
-                        if (ikIt != CMapDataExt::MapInlineComments[sectionName].end())
-                        {
-                            oss << " ; " << ikIt->second;
-                        }
-
-                        oss << "\n";
+                        writeEntry(pair.first, pair.second);
                     }
                 }
 
@@ -853,31 +863,64 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
 
             if (!SaveMapExt::IsAutoSaving && ExtConfigs::SaveMap_PreserveINISorting)
             {
-                for (const auto& sectionName : CMapDataExt::MapIniSectionSorting)
+                const auto* pSectionOrder = CINIOrderTracker::GetSectionOrder(pINI);
+                if (pSectionOrder && !pSectionOrder->Empty())
                 {
-                    if (!strcmp(sectionName, "Preview")
-                        || !strcmp(sectionName, "PreviewPack")
-                        || !strcmp(sectionName, "Header")
-                        || !strcmp(sectionName, "Digest"))
-                        continue;
-
-                    if (const auto pSection = pINI->GetSection(sectionName))
+                    for (const auto& sectionName : *pSectionOrder)
                     {
-                        saveSection(pSection, sectionName);
+                        if (!strcmp(sectionName, "Preview")
+                            || !strcmp(sectionName, "PreviewPack")
+                            || !strcmp(sectionName, "Header")
+                            || !strcmp(sectionName, "Digest"))
+                            continue;
+
+                        if (const auto pSection = pINI->GetSection(sectionName))
+                        {
+                            saveSection(pSection, sectionName);
+                        }
+                    }
+                    for (auto& section : pINI->Dict)
+                    {
+                        if (!strcmp(section.first, "Preview")
+                            || !strcmp(section.first, "PreviewPack")
+                            || !strcmp(section.first, "Header")
+                            || !strcmp(section.first, "Digest"))
+                            continue;
+
+                        if (!pSectionOrder->Contains(section.first))
+                        {
+                            saveSection(&section.second, section.first);
+                        }
                     }
                 }
-                for (auto& section : pINI->Dict)
+                else
                 {
-                    if (!strcmp(section.first, "Preview")
-                        || !strcmp(section.first, "PreviewPack")
-                        || !strcmp(section.first, "Header")
-                        || !strcmp(section.first, "Digest"))
-                        continue;
-
-                    auto it = std::find(CMapDataExt::MapIniSectionSorting.begin(), CMapDataExt::MapIniSectionSorting.end(), section.first);
-                    if (it == CMapDataExt::MapIniSectionSorting.end())
+                    for (const auto& sectionName : CMapDataExt::MapIniSectionSorting)
                     {
-                        saveSection(&section.second, section.first);
+                        if (!strcmp(sectionName, "Preview")
+                            || !strcmp(sectionName, "PreviewPack")
+                            || !strcmp(sectionName, "Header")
+                            || !strcmp(sectionName, "Digest"))
+                            continue;
+
+                        if (const auto pSection = pINI->GetSection(sectionName))
+                        {
+                            saveSection(pSection, sectionName);
+                        }
+                    }
+                    for (auto& section : pINI->Dict)
+                    {
+                        if (!strcmp(section.first, "Preview")
+                            || !strcmp(section.first, "PreviewPack")
+                            || !strcmp(section.first, "Header")
+                            || !strcmp(section.first, "Digest"))
+                            continue;
+
+                        auto it = std::find(CMapDataExt::MapIniSectionSorting.begin(), CMapDataExt::MapIniSectionSorting.end(), section.first);
+                        if (it == CMapDataExt::MapIniSectionSorting.end())
+                        {
+                            saveSection(&section.second, section.first);
+                        }
                     }
                 }
             }

@@ -45,6 +45,12 @@
     <ClInclude Include="FA2sp\Helpers\Translations.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\Helpers\CINIOrderTracker.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\Helpers\SequencedKeyList.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="FA2sp\Helpers\STDHelpers.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -621,6 +627,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Helpers\InstructionSet.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Helpers\CINIOrderTracker.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Helpers\STDHelpers.cpp">

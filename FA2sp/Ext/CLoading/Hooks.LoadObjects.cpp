@@ -20,6 +20,7 @@
 #include "../CMapData/Body.h"
 #include "../../Miscs/Hooks.INI.h"
 #include "../../Helpers/Helper.h"
+#include "../../Helpers/CINIOrderTracker.h"
 
 DEFINE_HOOK(4808A0, CLoading_LoadObjects, 5)
 {
@@ -250,6 +251,7 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
 
     INIIncludes::SkipBracketFix = true;
     CMapDataExt::IsLoadingMapFile = true;
+    CINIOrderTracker::Clear(&CINI::CurrentDocument);
     CMapDataExt::MapIniSectionSorting.clear();
     CMapDataExt::MapInlineComments.clear();
     CMapDataExt::MapFrontlineComments.clear();

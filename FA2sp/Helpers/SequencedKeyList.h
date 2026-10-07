@@ -66,7 +66,17 @@ public:
         return m_order.size();
     }
 
+    size_t size() const noexcept
+    {
+        return m_order.size();
+    }
+
     bool Empty() const
+    {
+        return m_order.empty();
+    }
+
+    bool empty() const noexcept
     {
         return m_order.empty();
     }

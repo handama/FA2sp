@@ -1,6 +1,23 @@
 #pragma once
 
 #include <FA2PP.h>
+#include <string_view>
+#include <functional>
+
+#ifndef PPMFC_CSTRING_HASH_DEFINED
+#define PPMFC_CSTRING_HASH_DEFINED
+namespace std
+{
+    template <>
+    struct hash<ppmfc::CString>
+    {
+        size_t operator()(const ppmfc::CString &str) const noexcept
+        {
+            return hash<string_view>()(string_view(str, str.GetLength()));
+        }
+    };
+}
+#endif
 
 static size_t ParseList(const char* pValue, const char** outValue, size_t Count = 1) {
 	char buffer[0x400] = { 0 };

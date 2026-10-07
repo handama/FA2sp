@@ -2,6 +2,7 @@
 
 #include "Ext/FA2Expand.h"
 #include "Helpers/MultimapHelper.h"
+#include "Helpers/Helper.h"
 
 #include <Helpers/Macro.h>
 #include <MFC/ppmfc_cstring.h>
@@ -290,20 +291,6 @@ public:
     static void UpdateOptionTranslations();
 };
 
-#ifndef PPMFC_CSTRING_HASH_DEFINED
-#define PPMFC_CSTRING_HASH_DEFINED
-namespace std
-{
-    template <>
-    struct hash<ppmfc::CString>
-    {
-        size_t operator()(const ppmfc::CString &str) const noexcept
-        {
-            return hash<string_view>()(string_view(str, str.GetLength()));
-        }
-    };
-}
-#endif
 
 namespace std
 {

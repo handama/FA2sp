@@ -2,24 +2,7 @@
 
 #include <list>
 #include <unordered_map>
-#include <string_view>
-#include <functional>
-#include <MFC/ppmfc_cstring.h>
-
-#ifndef PPMFC_CSTRING_HASH_DEFINED
-#define PPMFC_CSTRING_HASH_DEFINED
-namespace std
-{
-    template <>
-    struct hash<ppmfc::CString>
-    {
-        size_t operator()(const ppmfc::CString& str) const noexcept
-        {
-            return hash<string_view>()(string_view(str.m_pchData, str.GetLength()));
-        }
-    };
-}
-#endif
+#include "Helper.h"
 
 class SequencedKeyList
 {

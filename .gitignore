@@ -54,3 +54,5 @@ Supplementary/FA2sp.dll
 Supplementary/*.log
 Supplementary/*.txt
 Supplementary/UnitTest.xml
+dist/
+bin_output/

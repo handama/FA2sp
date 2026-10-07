@@ -7,11 +7,14 @@
 ## 包含文件清单
 
 1. **`FAData.ini`**：
-   - 基于 FA2sp 原生默认的 `Supplementary/FAData.ini` 构建，完整保留了所有现代组件、包含引用（`[Include]`）与物件浏览器配置（`[ExtConfigs]`）。
-   - 默认启用了面向 RN 对齐保存所需的 3 项保序配置：
+   - 融合了 `YR_RN_Mission_Editor` 的完整 RN 定制内容与 FA2sp 现代化框架体系：
+     - **RN 专属触发系统**：完整保留 RN 的触发动作（`[ActionsRA2]` / `[Chinese-ActionsRA2]` 共 157 项，含 Ares 动作 150~154 及参数微调）、事件（`[EventsRA2]` / `[Chinese-EventsRA2]`）、脚本（`[ScriptsRA2]` / `[Chinese-ScriptsRA2]`）、参数定义（`[ParamTypes]`、`[ScriptParams]`、`[PT_CrateTypes]` 等）以及 `[ScriptTemplates]`、`[TeamTemplates]`。
+     - **RN 阵营与模式**：保留 `[Sides]`（12 个作战方定义）、`[GameModes]`、`[ForceUnitPalettePrefix]` 等。
+     - **FA2sp 现代兼容层**：保留 `[Include]` 引用链（加载 `FAData_ObjectBrowser.ini` 保证物件浏览器中文分类与完整条目正常显示）与 `[ExtConfigs]`、现代剧场与图块管理定义。
+   - 启用了面向 RN 对齐保存所需的保序配置：
      - `SaveMap.PreserveINISorting=true`：保存地图时保持所有 INI 小节原有的出现顺序。
-     - `SaveMap.PreserveINIKeySorting=true`：保存地图时保持小节内部键值对（Key=Value）原有的出现顺序（不再按字典/字符串长度排序）。
-     - `SaveMap.KeepComments=true`：保存地图时保留注释。
+     - `SaveMap.PreserveINIKeySorting=true`：保存地图时保持小节内部键值对（Key=Value）原有的出现顺序。
+     - `SaveMap.KeepComments=false`：不保留注释（符合 RN 要求）。
 
 ---
 

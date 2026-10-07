@@ -1,5 +1,5 @@
 @echo off
-pushd "%~dp0"
+pushd "%~dp0..\Supplementary"
 
 :DO_ISOLATE
 if exist "FA2sp.dll" (

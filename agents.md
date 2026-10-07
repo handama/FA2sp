@@ -39,23 +39,30 @@ msbuild FA2sp.UnitTest/FA2sp.UnitTest.vcxproj /p:Configuration=Release /p:Platfo
 ```
 
 ### Run Unit Tests
-From `Supplementary/` directory:
+From project root:
 ```bat
-cd Supplementary
-RunUnitTest.bat
+Scripts\RunUnitTest.bat
 ```
-
-### Run with GoogleTest Filters / Options
-Arguments are automatically forwarded to GoogleTest through Syringe:
+Or with GoogleTest Filters / Options:
 ```bat
-RunUnitTest.bat --gtest_filter=SequencedKeyListTest.*
-RunUnitTest.bat --gtest_filter=CINIOrderTrackerTest.*
-RunUnitTest.bat --gtest_repeat=5
+Scripts\RunUnitTest.bat --gtest_filter=SequencedKeyListTest.*
+Scripts\RunUnitTest.bat --gtest_filter=CINIOrderTrackerTest.*
+Scripts\RunUnitTest.bat --gtest_repeat=5
 ```
 
 ### Inspect Test Results
-- Console output: printed directly by `RunUnitTest.bat`.
+- Console output: printed directly by `Scripts\RunUnitTest.bat`.
 - Detailed log: `Supplementary/UnitTest.log`.
 - XML report: `Supplementary/UnitTest.xml`.
 - Injector log: `Supplementary/syringe.log`.
 - Exit code: 0 indicates success, non-zero indicates test failure.
+
+## 5. Local Release Simulation & Packaging
+Package release zip archives for YR, MO, and RN locally using `Scripts/PackageRelease.ps1`:
+```powershell
+# Package all editions (YR, MO, RN) into dist/
+./Scripts/PackageRelease.ps1
+
+# Package a single edition with specific version:
+./Scripts/PackageRelease.ps1 -Target RN -Version v1.6.4
+```

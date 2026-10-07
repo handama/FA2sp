@@ -58,8 +58,7 @@ jobs:
         if: inputs.run_tests
         shell: cmd
         run: |
-          cd Supplementary
-          RunUnitTest.bat
+          call Scripts\RunUnitTest.bat
 
       - name: Upload UT Results
         if: always() && inputs.run_tests

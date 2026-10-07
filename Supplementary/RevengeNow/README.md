@@ -21,12 +21,10 @@
      - `SaveMap.KeepComments=true`：保存地图时保留注释。
    - **不包含任何 Phobos 扩展特性**。
 2. **`TileGroups.ini`**：
-   - 移植自 `YR_RN_Mission_Editor/dist/FinalRevenge/TileGroups.ini`，包含温和气候、雪地、城市等地形的分组与快速选择配置。
-3. **`FinalRevengeDefaults.ini`**：
-   - 移植自 `YR_RN_Mission_Editor/dist/FinalRevenge/FinalRevengeDefaults.ini`，包含预设界面参数（缩放、显示网格等）。
+   - 移植自 `YR_RN_Mission_Editor/dist/FinalRevenge/TileGroups.ini`（注：FA2sp 原生未接入该地形分组配置，仅供参考保留）。
 
 ---
 
 ## 使用方法
 
-将本目录中的 `FAData.ini`、`TileGroups.ini`（及所需辅助文件）放置到 FA2 程序运行根目录（或覆盖使用），启动后保存地图即可保证 INI 文件结构、小节顺序与键值顺序与 `YR_RN_Mission_Editor` 完全一致。
+将本目录中的 `FAData.ini` 放置到 FA2 程序运行根目录（或覆盖使用），启动后保存地图即可保证 INI 文件结构、小节顺序与键值顺序与 `YR_RN_Mission_Editor` 完全一致。

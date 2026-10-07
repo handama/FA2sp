@@ -96,52 +96,8 @@ jobs:
       - name: Package Target (${{ matrix.target }})
         shell: pwsh
         run: |
-          $target = "${{ matrix.target }}"
-          $ver = "${{ needs.prepare-version.outputs.release_tag }}"
-          $pkgName = "FA2sp-$target-$ver.zip"
-          $stageDir = "staging_$target"
-
-          Write-Host "Packaging target: $($target) with version $ver into $pkgName"
-
-          # 1. Copy Supplementary folder to staging directory
-          Copy-Item -Path "Supplementary" -Destination $stageDir -Recurse -Force
-
-          # 2. Apply target-specific transformations
-          if ($target -eq "YR") {
-              Remove-Item -Path "$stageDir/MentalOmega" -Recurse -Force -ErrorAction SilentlyContinue
-              Remove-Item -Path "$stageDir/RevengeNow" -Recurse -Force -ErrorAction SilentlyContinue
-          }
-          elseif ($target -eq "MO") {
-              Get-ChildItem -Path "$stageDir/MentalOmega" | ForEach-Object {
-                  Copy-Item -Path $_.FullName -Destination $stageDir -Recurse -Force
-              }
-              Remove-Item -Path "$stageDir/MentalOmega" -Recurse -Force -ErrorAction SilentlyContinue
-              Remove-Item -Path "$stageDir/RevengeNow" -Recurse -Force -ErrorAction SilentlyContinue
-          }
-          elseif ($target -eq "RN") {
-              Get-ChildItem -Path "$stageDir/RevengeNow" | ForEach-Object {
-                  Copy-Item -Path $_.FullName -Destination $stageDir -Recurse -Force
-              }
-              Remove-Item -Path "$stageDir/MentalOmega" -Recurse -Force -ErrorAction SilentlyContinue
-              Remove-Item -Path "$stageDir/RevengeNow" -Recurse -Force -ErrorAction SilentlyContinue
-          }
-
-          # 3. Copy newly compiled binaries into staging
-          Copy-Item -Force "bin_output/FA2sp.dll" "$stageDir/FA2sp.dll"
-          if (Test-Path "bin_output/FA2sp.pdb") {
-              Copy-Item -Force "bin_output/FA2sp.pdb" "$stageDir/FA2sp.pdb"
-          }
-
-          # 4. Clean any development or test files
-          Remove-Item -Path "$stageDir/FA2sp.UnitTest.dll" -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "$stageDir/RunUnitTest.bat" -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "$stageDir/*.log" -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "$stageDir/*.xml" -Force -ErrorAction SilentlyContinue
-
-          # 5. Compress into release zip
-          Compress-Archive -Path "$stageDir/*" -DestinationPath $pkgName -Force
-
-          Add-Content -Path $env:GITHUB_ENV -Value "PACKAGE_NAME=$pkgName" -Encoding utf8
+          ./Scripts/PackageRelease.ps1 -Target ${{ matrix.target }} -Version ${{ needs.prepare-version.outputs.release_tag }} -BinDir bin_output -OutputDir .
+          Add-Content -Path $env:GITHUB_ENV -Value "PACKAGE_NAME=FA2sp-${{ matrix.target }}-${{ needs.prepare-version.outputs.release_tag }}.zip" -Encoding utf8
 
       - name: Upload Target Artifact
         uses: actions/upload-artifact@v4

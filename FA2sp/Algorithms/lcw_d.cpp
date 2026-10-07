@@ -87,21 +87,29 @@ unsigned int __cdecl lcw::LCW_Uncompress(void* source, void* dest, unsigned int)
 					source_ptr += 3;
 
 					copy_ptr = dest_ptr + 4 - ((unsigned)dest_ptr & 0x3);
-					count -= (copy_ptr - dest_ptr);
-					while (dest_ptr < copy_ptr) *dest_ptr++ = data;
-
-					word_dest_ptr = (unsigned*)dest_ptr;
-
-					dest_ptr += (count & 0xfffffffc);
-
-					while (word_dest_ptr < (unsigned*)dest_ptr) {
-						*word_dest_ptr = word_data;
-						*(word_dest_ptr + 1) = word_data;
-						word_dest_ptr += 2;
+					if (count < (unsigned)(copy_ptr - dest_ptr)) {
+						while (count--) *dest_ptr++ = data;
 					}
+					else {
 
-					copy_ptr = dest_ptr + (count & 0x3);
-					while (dest_ptr < copy_ptr) *dest_ptr++ = data;
+						count -= (copy_ptr - dest_ptr);
+
+						while (dest_ptr < copy_ptr) *dest_ptr++ = data;
+
+						word_dest_ptr = (unsigned*)dest_ptr;
+
+						dest_ptr += (count & 0xfffffffc);
+
+						while (word_dest_ptr < (unsigned*)dest_ptr) {
+							*word_dest_ptr = word_data;
+							*(word_dest_ptr + 1) = word_data;
+							word_dest_ptr += 2;
+						}
+
+						copy_ptr = dest_ptr + (count & 0x3);
+						while (dest_ptr < copy_ptr) *dest_ptr++ = data;
+
+					}
 
 				}
 				else {

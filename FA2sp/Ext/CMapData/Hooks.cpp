@@ -1275,7 +1275,7 @@ DEFINE_HOOK(4A67D0, CMapData_UpdateWaypoints, 6)
 				int x =  atoi(data.second) / 1000;
 				int y =  atoi(data.second) % 1000;
 				int pos = pThis->GetCoordIndex(x, y);
-				if (pos < pThis->CellDataCount) 
+				if (pos >= 0 && pos < pThis->CellDataCount)
 					pThis->CellDatas[pos].Waypoint = i;
 
 				if (pThis->IsMultiOnly())

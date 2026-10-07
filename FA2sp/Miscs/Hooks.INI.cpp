@@ -687,69 +687,14 @@ DEFINE_HOOK(4536B0, CINI_WriteToFile, 8)
     }
 
     std::ostringstream oss;
-    auto writeSection = [&](const ppmfc::CString& sectionName, INISection& section)
+    for (const auto& [sectionName, pSection] : CINIOrderTracker::GetSections(pThis, ExtConfigs::SaveMap_PreserveINISorting))
     {
         oss << "[" << sectionName << "]\n";
-        if (ExtConfigs::SaveMap_PreserveINIKeySorting)
+        for (const auto& [key, value] : CINIOrderTracker::GetEntries(pThis, sectionName, pSection, ExtConfigs::SaveMap_PreserveINIKeySorting))
         {
-            const auto* pKeyOrder = CINIOrderTracker::GetKeyOrder(pThis, sectionName);
-            if (pKeyOrder)
-            {
-                for (const auto& key : *pKeyOrder)
-                {
-                    auto it = section.GetEntities().find(key);
-                    if (it != section.GetEntities().end())
-                    {
-                        oss << it->first << "=" << it->second << "\n";
-                    }
-                }
-            }
-            for (const auto& pair : section.GetEntities())
-            {
-                if (!pKeyOrder || !pKeyOrder->Contains(pair.first))
-                {
-                    CINIOrderTracker::RecordKey(pThis, sectionName, pair.first);
-                    oss << pair.first << "=" << pair.second << "\n";
-                }
-            }
-        }
-        else
-        {
-            for (const auto& pair : section.GetEntities())
-                oss << pair.first << "=" << pair.second << "\n";
+            oss << key << "=" << value << "\n";
         }
         oss << "\n";
-    };
-
-    if (ExtConfigs::SaveMap_PreserveINISorting)
-    {
-        const auto* pSectionOrder = CINIOrderTracker::GetSectionOrder(pThis);
-        if (pSectionOrder)
-        {
-            for (const auto& secName : *pSectionOrder)
-            {
-                auto it = pThis->Dict.find(secName);
-                if (it != pThis->Dict.end())
-                {
-                    writeSection(it->first, it->second);
-                }
-            }
-        }
-        for (auto& [sectionName, pSection] : pThis->Dict)
-        {
-            if (!pSectionOrder || !pSectionOrder->Contains(sectionName))
-            {
-                CINIOrderTracker::RecordSection(pThis, sectionName);
-                writeSection(sectionName, pSection);
-            }
-        }
-    }
-    else
-    {
-        for (auto& [sectionName, pSection] : pThis->Dict)
-        {
-            writeSection(sectionName, pSection);
-        }
     }
 
     FString output = oss.str();

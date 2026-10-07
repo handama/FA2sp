@@ -793,35 +793,9 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                     oss << "\n";
                 };
 
-                if (ExtConfigs::SaveMap_PreserveINIKeySorting)
+                for (const auto& [key, value] : CINIOrderTracker::GetEntries(pINI, sectionName, pSection, ExtConfigs::SaveMap_PreserveINIKeySorting))
                 {
-                    const auto* pKeyOrder = CINIOrderTracker::GetKeyOrder(pINI, sectionName);
-                    if (pKeyOrder)
-                    {
-                        for (const auto& key : *pKeyOrder)
-                        {
-                            auto it = pSection->GetEntities().find(key);
-                            if (it != pSection->GetEntities().end())
-                            {
-                                writeEntry(it->first, it->second);
-                            }
-                        }
-                    }
-                    for (const auto& pair : pSection->GetEntities())
-                    {
-                        if (!pKeyOrder || !pKeyOrder->Contains(pair.first))
-                        {
-                            CINIOrderTracker::RecordKey(pINI, sectionName, pair.first);
-                            writeEntry(pair.first, pair.second);
-                        }
-                    }
-                }
-                else
-                {
-                    for (const auto& pair : pSection->GetEntities())
-                    {
-                        writeEntry(pair.first, pair.second);
-                    }
+                    writeEntry(key, value);
                 }
 
                 if (wroteSection)
@@ -861,81 +835,16 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                 saveSection(pSection, "PreviewPack");
             }
 
-            if (!SaveMapExt::IsAutoSaving && ExtConfigs::SaveMap_PreserveINISorting)
+            const bool preserveSections = !SaveMapExt::IsAutoSaving && ExtConfigs::SaveMap_PreserveINISorting;
+            for (const auto& [sectionName, pSection] : CINIOrderTracker::GetSections(pINI, preserveSections))
             {
-                const auto* pSectionOrder = CINIOrderTracker::GetSectionOrder(pINI);
-                if (pSectionOrder && !pSectionOrder->Empty())
-                {
-                    for (const auto& sectionName : *pSectionOrder)
-                    {
-                        if (!strcmp(sectionName, "Preview")
-                            || !strcmp(sectionName, "PreviewPack")
-                            || !strcmp(sectionName, "Header")
-                            || !strcmp(sectionName, "Digest"))
-                            continue;
+                if (!strcmp(sectionName, "Preview")
+                    || !strcmp(sectionName, "PreviewPack")
+                    || !strcmp(sectionName, "Header")
+                    || !strcmp(sectionName, "Digest"))
+                    continue;
 
-                        if (const auto pSection = pINI->GetSection(sectionName))
-                        {
-                            saveSection(pSection, sectionName);
-                        }
-                    }
-                    for (auto& section : pINI->Dict)
-                    {
-                        if (!strcmp(section.first, "Preview")
-                            || !strcmp(section.first, "PreviewPack")
-                            || !strcmp(section.first, "Header")
-                            || !strcmp(section.first, "Digest"))
-                            continue;
-
-                        if (!pSectionOrder->Contains(section.first))
-                        {
-                            saveSection(&section.second, section.first);
-                        }
-                    }
-                }
-                else
-                {
-                    for (const auto& sectionName : CMapDataExt::MapIniSectionSorting)
-                    {
-                        if (!strcmp(sectionName, "Preview")
-                            || !strcmp(sectionName, "PreviewPack")
-                            || !strcmp(sectionName, "Header")
-                            || !strcmp(sectionName, "Digest"))
-                            continue;
-
-                        if (const auto pSection = pINI->GetSection(sectionName))
-                        {
-                            saveSection(pSection, sectionName);
-                        }
-                    }
-                    for (auto& section : pINI->Dict)
-                    {
-                        if (!strcmp(section.first, "Preview")
-                            || !strcmp(section.first, "PreviewPack")
-                            || !strcmp(section.first, "Header")
-                            || !strcmp(section.first, "Digest"))
-                            continue;
-
-                        auto it = std::find(CMapDataExt::MapIniSectionSorting.begin(), CMapDataExt::MapIniSectionSorting.end(), section.first);
-                        if (it == CMapDataExt::MapIniSectionSorting.end())
-                        {
-                            saveSection(&section.second, section.first);
-                        }
-                    }
-                }
-            }
-            else
-            {
-                for (auto& section : pINI->Dict)
-                {
-                    if (!strcmp(section.first, "Preview")
-                        || !strcmp(section.first, "PreviewPack")
-                        || !strcmp(section.first, "Header")
-                        || !strcmp(section.first, "Digest"))
-                        continue;
-
-                    saveSection(&section.second, section.first);
-                }
+                saveSection(pSection, sectionName);
             }
 
             // Generate the Digest

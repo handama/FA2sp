@@ -325,14 +325,15 @@ void ExtraWindow::LoadParams(VirtualComboBoxEx& vcb, FString idx, CNewTrigger* i
         LoadParam_Triggers(vcb, instance);
         break;
     case 10:
-        if (!ExtConfigs::TutorialTexts_Viewer || instance->HeadlessMode)
+        if (!ExtConfigs::TutorialTexts_Viewer || (instance && instance->HeadlessMode))
             LoadParam_Stringtables(vcb);
         break;
     case 11:
         LoadParam_Tags(vcb);
         break;
     case 12: // float
-        instance->ActionParamUsesFloat = true;
+        if (instance)
+            instance->ActionParamUsesFloat = true;
         break;
     case 13:
         LoadParam_CountryList(vcb);

@@ -406,6 +406,26 @@ public:
 	static bool s_extraDirectoriesLoaded;
 };
 
+using NameTag = std::array<uint8_t, ResourceCipher::kNameTagLen>;
+// Random per entry id. The name table pairs a token with one of these, so the token never
+// has to be stored next to the entry it belongs to.
+using EntryId = std::array<uint8_t, ResourceCipher::kEntryIdLen>;
+
+template <size_t N>
+struct ArrayHash
+{
+	size_t operator()(const std::array<uint8_t, N>& key) const
+	{
+		size_t h = 2166136261u;
+		for (uint8_t b : key)
+		{
+			h ^= b;
+			h *= 16777619u;
+		}
+		return h;
+	}
+};
+
 struct PackIndexEntry
 {
 	uint32_t tailOffset;   // offset of salt/prevChain/params/mac inside the decrypted index
@@ -425,15 +445,17 @@ class ResourcePack
 {
 public:
 	bool load(const FString& filename);
-	// The name is lower cased by the caller. Lookups go through this pack's own name table,
-	// which arrives with the decrypted index, so no key material and no per name derivation
-	// is involved here.
-	std::unique_ptr<uint8_t[]> getFileData(const char* name, size_t nameLen,
-		size_t* out_size = nullptr, bool debugLog = false);
-	bool hasFile(const char* name, size_t nameLen) const;
+	// The token is the key; name is the name the entry was packed under and is needed again
+	// only because the content key is derived from it.
+	std::unique_ptr<uint8_t[]> getFileData(const uint8_t nameTag[ResourceCipher::kNameTagLen],
+		const char* name, size_t nameLen, size_t* out_size = nullptr, bool debugLog = false);
+	bool hasFile(const uint8_t nameTag[ResourceCipher::kNameTagLen]) const;
+	// Nonce of this pack. The token is derived from it, so it is needed to look anything up
+	// in this pack and cannot be shared between packs.
+	const uint8_t* packNonce() const { return pack_nonce.data(); }
 
 private:
-	std::unordered_map<std::string, PackIndexEntry> index_map;
+	std::unordered_map<NameTag, PackIndexEntry, ArrayHash<ResourceCipher::kNameTagLen>> index_map;
 	std::vector<uint8_t> index_plain;
 	std::vector<uint8_t> pack_key_part;
 	std::vector<uint8_t> index_key_part;
@@ -464,10 +486,14 @@ public:
 private:
 	std::vector<std::unique_ptr<ResourcePack>> packs;
 
-	// Lower cases a name the way the packer does. There is nothing to cache any more: the
-	// expensive part used to be a per name KDF, and the index carries no name derived value
-	// for one to feed.
-	static std::string nameOf(const FString& filename);
+	// A token costs a memory hard KDF, so it is computed once per distinct name and reused
+	// for every pack that gets asked about it.
+	std::mutex name_tag_mutex;
+	// One table per pack: the token depends on that pack's nonce, so a single name maps to a
+	// different token in every pack.
+	std::unordered_map<size_t, std::unordered_map<std::string, NameTag>> name_tag_cache;
+
+	bool nameTagFor(size_t packIndex, const FString& filename, std::string& name, uint8_t* out);
 };
 
 struct MixEntry {

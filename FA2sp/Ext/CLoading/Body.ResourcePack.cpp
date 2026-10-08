@@ -11,6 +11,9 @@ namespace
 	uint32_t ReadU32(const uint8_t* p) { uint32_t v; memcpy(&v, p, 4); return v; }
 	uint64_t ReadU64(const uint8_t* p) { uint64_t v; memcpy(&v, p, 8); return v; }
 
+	// Token memo. It covers misses as well as hits, so probing for a name that no pack holds
+	// is only paid for once per process, not once per probe.
+	constexpr size_t kNameTagCacheMax = 1u << 16;
 }
 
 bool ResourcePack::load(const FString& filename)
@@ -126,7 +129,9 @@ bool ResourcePack::parseIndex(const uint8_t* data, size_t len)
 		return false;
 
 	std::vector<PackIndexEntry> parsed;
+	std::vector<EntryId> entryIds;
 	parsed.reserve(entryCount);
+	entryIds.reserve(entryCount);
 
 	size_t pos = 0;
 	for (uint32_t ordinal = 0; ordinal < entryCount; ++ordinal)
@@ -164,37 +169,51 @@ bool ResourcePack::parseIndex(const uint8_t* data, size_t len)
 		entry.paramsLen = h.paramsLen;
 		entry.macLen = h.macLen;
 		parsed.push_back(entry);
+		EntryId id;
+		memcpy(id.data(), h.entryId, id.size());
+		entryIds.push_back(id);
 
 		pos += tailLen;
 	}
 
-	// Bind the names. The table is the only place a name appears, so a duplicate would make
-	// two entries unreachable; the packer refuses those, and emplace keeps the first here.
+	// Bind the tokens. A record is a token and the id of the entry it answers for, and the
+	// table carries no name: nothing in the pack says which names exist, so a token has to be
+	// derived for a name before it can even be looked for. A duplicated token would make one
+	// entry unreachable; the packer refuses to write one, and emplace keeps the first here.
+	if (static_cast<size_t>(tableBytes) != static_cast<size_t>(entryCount)
+		* (ResourceCipher::kNameTagLen + ResourceCipher::kEntryIdLen))
+		return false;
+
+	std::unordered_map<EntryId, size_t, ArrayHash<ResourceCipher::kEntryIdLen>> byId;
+	byId.reserve(entryIds.size());
+	for (size_t i = 0; i < entryIds.size(); ++i)
+		byId.emplace(entryIds[i], i);
+
 	size_t tpos = 0;
 	for (uint32_t i = 0; i < entryCount; ++i)
 	{
-		if (tableBytes - tpos < 6) return false;
-		const uint32_t ordinal = ReadU32(table + tpos);
-		tpos += 4;
-		const uint16_t nameLen = ReadU16(table + tpos);
-		tpos += 2;
-		if (nameLen == 0 || nameLen > ResourceCipher::kMaxNameLen) return false;
-		if (tableBytes - tpos < nameLen) return false;
-		if (ordinal >= entryCount) return false;
-		index_map.emplace(std::string(reinterpret_cast<const char*>(table + tpos), nameLen),
-			parsed[ordinal]);
-		tpos += nameLen;
+		NameTag token;
+		memcpy(token.data(), table + tpos, token.size());
+		tpos += token.size();
+		EntryId id;
+		memcpy(id.data(), table + tpos, id.size());
+		tpos += id.size();
+		auto it = byId.find(id);
+		if (it == byId.end()) return false;
+		index_map.emplace(token, parsed[it->second]);
 	}
 
 	return entryCount > 0;
 }
 
-std::unique_ptr<uint8_t[]> ResourcePack::getFileData(const char* name, size_t nameLen,
-	size_t* out_size, bool debugLog)
+std::unique_ptr<uint8_t[]> ResourcePack::getFileData(const uint8_t nameTag[ResourceCipher::kNameTagLen],
+	const char* name, size_t nameLen, size_t* out_size, bool debugLog)
 {
-	if (!file_stream.is_open() || !name || nameLen == 0) return nullptr;
+	if (!file_stream.is_open() || !nameTag) return nullptr;
 
-	auto it = index_map.find(std::string(name, nameLen));
+	NameTag key;
+	memcpy(key.data(), nameTag, key.size());
+	auto it = index_map.find(key);
 	if (it == index_map.end()) return nullptr;
 
 	const PackIndexEntry& entry = it->second;
@@ -253,10 +272,12 @@ std::unique_ptr<uint8_t[]> ResourcePack::getFileData(const char* name, size_t na
 	return result;
 }
 
-bool ResourcePack::hasFile(const char* name, size_t nameLen) const
+bool ResourcePack::hasFile(const uint8_t nameTag[ResourceCipher::kNameTagLen]) const
 {
-	if (!name || nameLen == 0) return false;
-	return index_map.find(std::string(name, nameLen)) != index_map.end();
+	if (!nameTag) return false;
+	NameTag key;
+	memcpy(key.data(), nameTag, key.size());
+	return index_map.find(key) != index_map.end();
 }
 
 ResourcePackManager& ResourcePackManager::instance()
@@ -277,11 +298,14 @@ bool ResourcePackManager::loadPack(const FString& packPath)
 
 std::unique_ptr<uint8_t[]> ResourcePackManager::getFileData(const FString& filename, size_t* out_size)
 {
-	const std::string name = nameOf(filename);
-	if (name.empty()) return nullptr;
+	std::string name;
+	uint8_t nameTag[ResourceCipher::kNameTagLen];
 
+	// The token depends on the pack nonce, so it is derived (and cached) per pack instead of
+	// once for all of them.
 	for (size_t i = 0; i < packs.size(); ++i) {
-		auto data = packs[i]->getFileData(name.data(), name.size(), out_size, true);
+		if (!nameTagFor(i, filename, name, nameTag)) return nullptr;
+		auto data = packs[i]->getFileData(nameTag, name.data(), name.size(), out_size, true);
 		if (data)
 		{
 			return data;
@@ -292,11 +316,12 @@ std::unique_ptr<uint8_t[]> ResourcePackManager::getFileData(const FString& filen
 
 bool ResourcePackManager::hasFile(const FString& filename)
 {
-	const std::string name = nameOf(filename);
-	if (name.empty()) return false;
+	std::string name;
+	uint8_t nameTag[ResourceCipher::kNameTagLen];
 
 	for (size_t i = 0; i < packs.size(); ++i) {
-		if (packs[i]->hasFile(name.data(), name.size()))
+		if (!nameTagFor(i, filename, name, nameTag)) return false;
+		if (packs[i]->hasFile(nameTag))
 		{
 			return true;
 		}
@@ -304,14 +329,37 @@ bool ResourcePackManager::hasFile(const FString& filename)
 	return false;
 }
 
-std::string ResourcePackManager::nameOf(const FString& filename)
+bool ResourcePackManager::nameTagFor(size_t packIndex, const FString& filename, std::string& name, uint8_t* out)
 {
-	// The packer lower cases a name before it writes it into the table, so match that here.
-	// Nothing else is needed to look a name up now: the index table is the lookup, and it
-	// arrives decrypted with the index.
 	FString lower = filename;
 	lower.MakeLower();
-	return std::string(lower.c_str());
+	name = lower.c_str();
+	if (name.empty() || !out || packIndex >= packs.size())
+		return false;
+	{
+		std::lock_guard<std::mutex> lock(name_tag_mutex);
+		auto& cache = name_tag_cache[packIndex];
+		auto cached = cache.find(name);
+		if (cached != cache.end())
+		{
+			memcpy(out, cached->second.data(), cached->second.size());
+			return true;
+		}
+	}
+	uint8_t tag[ResourceCipher::kNameTagLen];
+	if (!ResourceCipher::NameTag(name.data(), name.size(), packs[packIndex]->packNonce(), tag))
+		return false;
+	NameTag value;
+	memcpy(value.data(), tag, value.size());
+	{
+		// computed outside the lock on purpose: a duplicated derivation is harmless
+		std::lock_guard<std::mutex> lock(name_tag_mutex);
+		auto& cache = name_tag_cache[packIndex];
+		if (cache.size() < kNameTagCacheMax)
+			cache.emplace(name, value);
+	}
+	memcpy(out, value.data(), value.size());
+	return true;
 }
 
 void ResourcePackManager::clear() 

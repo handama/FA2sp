@@ -30,6 +30,17 @@ namespace ResourceCipher
 		return false;
 	}
 
+	bool NameTag(const char* name, size_t nameLen,
+		const uint8_t packNonce[kPackNonceLen], uint8_t out[kNameTagLen])
+	{
+		(void)name;
+		(void)nameLen;
+		(void)packNonce;
+		if (out)
+			std::memset(out, 0, kNameTagLen);
+		return false;
+	}
+
 	bool LookupPackBinding(const uint8_t packId[kPackIdLen], uint32_t* outBindingIndex)
 	{
 		(void)packId;

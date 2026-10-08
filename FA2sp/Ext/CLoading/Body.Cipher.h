@@ -11,6 +11,11 @@
 // This checked in copy is the placeholder: it must declare exactly what the loader calls, or
 // the tree will not build without running the generator first. Changing a signature here
 // means changing it in the generator's HEADER_TEMPLATE as well.
+//
+// What the loader has to know about names: the decrypted index opens with a name table, and
+// it stores a memory hard token per entry, never a name. A caller looks a name up by
+// decrypting the index and then deriving the token for the name it wants. Nothing in the
+// pack lists the names it holds.
 namespace ResourceCipher
 {
 	// Container layout selector. It carries no authentication of its own: a pack is
@@ -20,13 +25,15 @@ namespace ResourceCipher
 	constexpr size_t kPackIdLen = 8;
 	constexpr size_t kPackNonceLen = 16;
 	constexpr size_t kNameKeyLen = 16;
-	// Width of the random id at the head of every index entry prefix. It is not derived from
-	// the file name: the index carries no name derived value at all, see the note on
-	// PackIndexEntryHeader below.
+	// Width of the memory hard token the name table stores per entry. Same 16 bytes as a name
+	// key, different meaning: it is what a name dictionary attack has to pay a full KDF for,
+	// one candidate at a time, and the name it stands for is nowhere in the pack.
+	constexpr size_t kNameTagLen = 16;
+	// Width of the random id at the head of every index entry prefix. It is what a name table
+	// record points at, so it carries nothing about the name.
 	constexpr size_t kEntryIdLen = 16;
 	// The decrypted index is padded up to a multiple of this, so its length does not report
-	// the exact total length of the names inside it. DecryptIndex accepts that much slack and
-	// no more.
+	// the exact total of what is in it. DecryptIndex accepts that much slack and no more.
 	constexpr size_t kIndexPadBucket = 4096;
 	constexpr size_t kMacLen = 16;
 	constexpr size_t kIvLen = 16;
@@ -36,8 +43,6 @@ namespace ResourceCipher
 	// Container limits enforced by the loader.
 	constexpr uint32_t kMaxKeyPartLen = 64;
 	constexpr uint32_t kMaxHeadTailSample = 32;
-	// Longest file name the index name table holds. The packer refuses anything longer.
-	constexpr uint32_t kMaxNameLen = 1024;
 	constexpr uint32_t kMaxIndexSize = 10u << 20;
 	constexpr uint32_t kMaxEntrySize = 200u << 20;
 
@@ -46,13 +51,12 @@ namespace ResourceCipher
 	// fixed across releases; the canonical order below is what the placeholder uses. Read the
 	// fields by name.
 	//
-	// The head of the decrypted index holds a name table, ahead of the entries, and it is the
-	// only place a file name appears: a u32 byte length, a u32 entry count, then that many
-	// records of (u32 ordinal, u16 name length, lower case name) in an order the packer
-	// shuffled. The entries follow in packing order and any bytes left over are padding. The
-	// table sits inside the index plaintext, so it is encrypted with the index key and covered
-	// by the index mac: looking a name up therefore means decrypting the index first, and the
-	// index deliberately offers no per candidate check that works without the key.
+	// The head of the decrypted index holds the name table, ahead of the entries: a u32 byte
+	// length, a u32 entry count, then that many records of (16 byte token, 16 byte entry id)
+	// in an order the packer shuffled. The entries follow in packing order and any bytes left
+	// over are padding. The table sits inside the index plaintext, so it is encrypted with the
+	// index key and covered by the index mac. A file name itself is never stored in a pack;
+	// looking one up means decrypting the index first and paying the token KDF for that name.
 #pragma pack(push, 1)
 	struct PackIndexEntryHeader
 	{
@@ -129,6 +133,13 @@ namespace ResourceCipher
 
 	// Layout description for a container variant. Unsupported variants fail.
 	bool GetLayoutInfo(uint16_t variant, LayoutInfo* out);
+
+	// Memory hard token for a file name inside one pack: the index stores this instead of the
+	// name, so no file name appears in a pack. The name is lower cased inside, and the pack
+	// nonce is part of the derivation, so callers pass the nonce of the pack they are probing
+	// and keep one cache per pack.
+	bool NameTag(const char* name, size_t nameLen,
+		const uint8_t packNonce[kPackNonceLen], uint8_t out[kNameTagLen]);
 
 	// Pack binding lookup. A miss means the DLL does not match the pack.
 	bool LookupPackBinding(const uint8_t packId[kPackIdLen], uint32_t* outBindingIndex);

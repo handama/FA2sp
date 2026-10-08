@@ -208,7 +208,7 @@ DEFINE_HOOK(516974, CUserScripts_NewFunction_SwitchID, 8)
                 break;
         }
         MultimapHelper mmh;
-        mmh.AddINI(&CINI::CurrentDocument);
+        mmh.AddINI(&CINIExt::CurrentDocument);
         if (UserScriptExt::ParamCount > 4) {
             mmh.Clear();
             auto loadfrom = UserScriptExt::GetParam(Params, 4);
@@ -237,7 +237,7 @@ DEFINE_HOOK(516974, CUserScripts_NewFunction_SwitchID, 8)
                 break;
         }
         CNewComboUInputDlg dlg;
-        dlg.mmh.AddINI(&CINI::CurrentDocument);
+        dlg.mmh.AddINI(&CINIExt::CurrentDocument);
         if (UserScriptExt::ParamCount > 4) {
             dlg.mmh.Clear();
             auto loadfrom = UserScriptExt::GetParam(Params, 4);
@@ -282,7 +282,7 @@ DEFINE_HOOK(516974, CUserScripts_NewFunction_SwitchID, 8)
                 break;
         }
         MultimapHelper mmh;
-        mmh.AddINI(&CINI::CurrentDocument);
+        mmh.AddINI(&CINIExt::CurrentDocument);
         if (UserScriptExt::ParamCount > 3) {
             mmh.Clear();
             auto loadfrom = UserScriptExt::GetParam(Params, 3);
@@ -588,7 +588,7 @@ DEFINE_HOOK(516974, CUserScripts_NewFunction_SwitchID, 8)
             }
         }
         else {
-            auto pSection = CINI::CurrentDocument->GetSection(section);
+            auto pSection = CINIExt::CurrentDocument->GetSection(section);
             if (auto pStr = pSection->GetKeyAt(index)) {
                 UserScriptExt::Temps.push_back(*pStr);
                 UserScriptExt::EditVaribale = true;
@@ -626,7 +626,7 @@ DEFINE_HOOK(516974, CUserScripts_NewFunction_SwitchID, 8)
             }
         }
         else {
-            auto pSection = CINI::CurrentDocument->GetSection(section);
+            auto pSection = CINIExt::CurrentDocument->GetSection(section);
             if (auto pStr = pSection->GetValueAt(index)) {
                 UserScriptExt::Temps.push_back(*pStr);
                 UserScriptExt::EditVaribale = true;

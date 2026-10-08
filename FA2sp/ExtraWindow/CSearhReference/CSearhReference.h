@@ -74,7 +74,7 @@ protected:
 private:
     static HWND m_hwnd;
     static CFinalSunDlg* m_parent;
-    static CINI& map;
+    static CINIExt& map;
     static MultimapHelper& rules;
 
     static HWND hListbox;

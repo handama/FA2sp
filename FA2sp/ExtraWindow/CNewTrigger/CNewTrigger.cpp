@@ -1,4 +1,5 @@
 #include "CNewTrigger.h"
+#include "../../Miscs/Hooks.INI.h"
 #include "../../FA2sp.h"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/MultimapHelper.h"
@@ -29,7 +30,7 @@
 #include "../../Miscs/StringtableLoader.h"
 #include "../CNewTag/CNewTag.h"
 
-CINI& CNewTrigger::map = CINI::CurrentDocument;
+CINIExt& CNewTrigger::map = CINIExt::CurrentDocument;
 CINI& CNewTrigger::fadata = CINI::FAData;
 MultimapHelper& CNewTrigger::rules = Variables::RulesMap;
 CNewTrigger CNewTrigger::Instance[TRIGGER_EDITOR_MAX_COUNT];
@@ -3943,7 +3944,7 @@ void CNewTrigger::OnClickParamJump(bool isEvent, int index)
 	if (type == ParamType::Waypoint)
     {
         FString::TrimIndex(value);
-        if (auto pCord = CINI::CurrentDocument->TryGetString("Waypoints", value))
+        if (auto pCord = CINIExt::CurrentDocument->TryGetString("Waypoints", value))
         {
             auto second = atoi(*pCord);
             if (second > 0)
@@ -4150,7 +4151,7 @@ void CNewTrigger::OnClickParamJump(bool isEvent, int index)
             {
                 FString wp = vcb->GetSelectedText(true);
                 FString::TrimIndex(wp);
-                if (auto pCord = CINI::CurrentDocument->TryGetString("Waypoints", wp))
+                if (auto pCord = CINIExt::CurrentDocument->TryGetString("Waypoints", wp))
                 {
                     auto second = atoi(*pCord);
                     if (second > 0)

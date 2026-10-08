@@ -342,6 +342,7 @@
     <ClCompile Include="FA2sp\Helpers\FString.cpp" />
     <ClCompile Include="FA2sp\Helpers\InstructionSet.cpp" />
     <ClCompile Include="FA2sp\Helpers\MultimapHelper.cpp" />
+    <ClCompile Include="FA2sp\Helpers\CINIOrderTracker.cpp" />
     <ClCompile Include="FA2sp\Helpers\STDHelpers.cpp" />
     <ClCompile Include="FA2sp\Helpers\WinVer.cpp" />
     <ClCompile Include="FA2sp\Hooks.Debug.cpp" />
@@ -477,6 +478,8 @@
     <ClInclude Include="FA2sp\Helpers\InstructionSet.h" />
     <ClInclude Include="FA2sp\Helpers\MultimapHelper.h" />
     <ClInclude Include="FA2sp\Helpers\Parser.h" />
+    <ClInclude Include="FA2sp\Helpers\CINIOrderTracker.h" />
+    <ClInclude Include="FA2sp\Helpers\SequencedKeyList.h" />
     <ClInclude Include="FA2sp\Helpers\STDHelpers.h" />
     <ClInclude Include="FA2sp\Helpers\TheaterHelpers.h" />
     <ClInclude Include="FA2sp\Helpers\Templates.hpp" />

@@ -2,6 +2,7 @@
 
 #include "Ext/FA2Expand.h"
 #include "Helpers/MultimapHelper.h"
+#include "Helpers/Helper.h"
 
 #include <Helpers/Macro.h>
 #include <MFC/ppmfc_cstring.h>
@@ -239,6 +240,7 @@ public:
     static bool DisableDirectoryCheck;
     static bool ExtOverlays;
     static bool SaveMap_PreserveINISorting;
+    static bool SaveMap_AdaptiveSorting;
     static bool ExtMixLoader;
     static bool AVX2_Support;
     static bool AutoDarkMode;
@@ -289,16 +291,9 @@ public:
     static void UpdateOptionTranslations();
 };
 
+
 namespace std
 {
-    template <>
-    struct hash<ppmfc::CString>
-    {
-        size_t operator()(const ppmfc::CString &str) const
-        {
-            return hash<string_view>()(string_view(str, str.GetLength()));
-        }
-    };
     template <>
     struct hash<CString>
     {

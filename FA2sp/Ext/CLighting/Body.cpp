@@ -1,4 +1,5 @@
 #include "Body.h"
+#include "../../Miscs/Hooks.INI.h"
 
 #include "../../Helpers/Translations.h"
 
@@ -77,9 +78,9 @@ BOOL CLightingExt::PreTranslateMessageExt(MSG* pMsg)
 					buffer = "0.000000";
 					pWnd->SetWindowText(buffer);
 				}
-				if (CINI::CurrentDocument->GetString("Lighting", pKey) != buffer)
+				if (CINIExt::CurrentDocument->GetString("Lighting", pKey) != buffer)
 				{
-					CINI::CurrentDocument->WriteString("Lighting", pKey, buffer);
+					CINIExt::CurrentDocument->WriteString("Lighting", pKey, buffer);
 					if (edit)
 						edited = true;
 				}

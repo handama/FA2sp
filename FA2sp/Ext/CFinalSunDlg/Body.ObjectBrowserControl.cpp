@@ -197,7 +197,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 auto& subTile = tile.TileBlockDatas[0];
 
                 FString fileName;
-                fileName.Format("%s-tile-%d-%d.bmp", CINI::CurrentDocument->GetString("Map", "Theater"),
+                fileName.Format("%s-tile-%d-%d.bmp", CINIExt::CurrentDocument->GetString("Map", "Theater"),
                     InsertingTileIndex, ExtConfigs::TreeViewCameo_Size);
 
                 std::string path = CFinalSunAppExt::ExePathExt();
@@ -246,7 +246,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             case CLoadingExt::GameObjectType::Terrain:
             case CLoadingExt::GameObjectType::Smudge:
                 imageName = CLoadingExt::GetImageName(InsertingObjectID, 0);
-                fileID = FString(CINI::CurrentDocument->GetString("Map", "Theater")) + "-" +
+                fileID = FString(CINIExt::CurrentDocument->GetString("Map", "Theater")) + "-" +
                     CLoadingExt::GetExtension()->GetTerrainOrSmudgeFileID(InsertingObjectID);
                 break;
             case CLoadingExt::GameObjectType::Vehicle:
@@ -293,7 +293,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             fileName.Format("%s-%d.bmp", fileID, ExtConfigs::TreeViewCameo_Size);
             if (InsertingOverlay > -1)
             {
-                fileName.Format("%s-overlay-%d-%d-%d.bmp", CINI::CurrentDocument->GetString("Map", "Theater"),
+                fileName.Format("%s-overlay-%d-%d-%d.bmp", CINIExt::CurrentDocument->GetString("Map", "Theater"),
                     InsertingOverlay, InsertingOverlayData, ExtConfigs::TreeViewCameo_Size);
             }
             path += "\\";
@@ -922,7 +922,7 @@ void CViewObjectsExt::Redraw_Initialize()
     Owners.clear();
 
     auto& fadata = CINI::FAData();
-    auto& doc = CINI::CurrentDocument();
+    auto& doc = CINIExt::CurrentDocument();
     if (ExtConfigs::ObjectBrowser_GuessMode == 1)
     {
         auto loadOwner = []()
@@ -1125,7 +1125,7 @@ void CViewObjectsExt::Redraw_Ground()
     if (hGround == NULL)    return;
     InsertedTileIndices.clear();
 
-    auto& doc = CINI::CurrentDocument();
+    auto& doc = CINIExt::CurrentDocument();
     auto theater = doc.GetString("Map", "Theater");
     if (theater == "NEWURBAN")
         theater = "UBN";
@@ -1240,7 +1240,7 @@ void CViewObjectsExt::Redraw_Ground()
                         auto allowed = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "AllowedTheater", ""));
                         if (allowed.size() > 0)
                             for (auto& a : allowed)
-                                if (a == CINI::CurrentDocument().GetString("Map", "Theater"))
+                                if (a == CINIExt::CurrentDocument().GetString("Map", "Theater"))
                                     add = true;
                         if (add)
                         {
@@ -1363,7 +1363,7 @@ void CViewObjectsExt::Redraw_Owner()
         }
         else
         {
-            if (auto pSection = CINI::CurrentDocument->GetSection("Houses"))
+            if (auto pSection = CINIExt::CurrentDocument->GetSection("Houses"))
             {
                 auto& section = pSection->GetEntities();
                 size_t i = 0;
@@ -1480,7 +1480,7 @@ void CViewObjectsExt::Redraw_Owner()
         }
         else
         {
-            if (auto pSection = CINI::CurrentDocument->GetSection("Houses"))
+            if (auto pSection = CINIExt::CurrentDocument->GetSection("Houses"))
             {
                 auto& section = pSection->GetEntities();
                 size_t i = 0;
@@ -1782,7 +1782,7 @@ void CViewObjectsExt::Redraw_Infantry()
                 auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
                 if (banned.size() > 0)
                     for (auto& ban : banned)
-                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                        if (ban == CINIExt::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
                 {
@@ -1971,7 +1971,7 @@ void CViewObjectsExt::Redraw_Vehicle()
                 auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
                 if (banned.size() > 0)
                     for (auto& ban : banned)
-                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                        if (ban == CINIExt::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
                 {
@@ -2159,7 +2159,7 @@ void CViewObjectsExt::Redraw_Aircraft()
                 auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
                 if (banned.size() > 0)
                     for (auto& ban : banned)
-                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                        if (ban == CINIExt::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
                 {
@@ -2217,7 +2217,7 @@ void CViewObjectsExt::Redraw_Building()
 
     auto& fadata = CINI::FAData();
     auto& art = CINI::Art();
-    auto& doc = CINI::CurrentDocument();
+    auto& doc = CINIExt::CurrentDocument();
 
     int i = 0;
     if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
@@ -2385,7 +2385,7 @@ void CViewObjectsExt::Redraw_Building()
                 auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
                 if (banned.size() > 0)
                     for (auto& ban : banned)
-                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                        if (ban == CINIExt::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
                 {
@@ -2524,7 +2524,7 @@ void CViewObjectsExt::Redraw_Terrain()
                 auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
                 if (banned.size() > 0)
                     for (auto& ban : banned)
-                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                        if (ban == CINIExt::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
                 {
@@ -2608,7 +2608,7 @@ void CViewObjectsExt::Redraw_Smudge()
                 auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
                 if (banned.size() > 0)
                     for (auto& ban : banned)
-                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                        if (ban == CINIExt::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
                 {
@@ -2894,7 +2894,7 @@ void CViewObjectsExt::Redraw_Overlay()
                 auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
                 if (banned.size() > 0)
                     for (auto& ban : banned)
-                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                        if (ban == CINIExt::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
                 {
@@ -3352,9 +3352,9 @@ void CViewObjectsExt::AddAnnotation(int X, int Y)
     CAnnotationDlg dlg;
 
     bool folded = false;
-    if (CINI::CurrentDocument->KeyExists("Annotations", key))
+    if (CINIExt::CurrentDocument->KeyExists("Annotations", key))
     {
-        auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString("Annotations", key), 6);
+        auto atoms = STDHelpers::SplitString(CINIExt::CurrentDocument->GetString("Annotations", key), 6);
         dlg.m_Text = atoms[5];
         for (int i = 6; i < atoms.size() - 1; i++)
         {
@@ -3388,7 +3388,7 @@ void CViewObjectsExt::AddAnnotation(int X, int Y)
         STDHelpers::ColorRefRGBToHexString(textColor), STDHelpers::ColorRefRGBToHexString(bgColor),
         dlg.m_Text);
 
-    CINI::CurrentDocument->WriteString("Annotations", key, value);
+    CINIExt::CurrentDocument->WriteString("Annotations", key, value);
     auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
     cellExt.HasAnnotation = true;
 
@@ -3404,7 +3404,7 @@ void CViewObjectsExt::RemoveAnnotation(int X, int Y)
 
     auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
     cellExt.HasAnnotation = false;
-    if (CINI::CurrentDocument->KeyExists("Annotations", key))
+    if (CINIExt::CurrentDocument->KeyExists("Annotations", key))
     {
         deleteAnnotation = true;
     }
@@ -3445,11 +3445,11 @@ void CViewObjectsExt::RemoveAnnotation(int X, int Y)
 
         if (deleteAnnotation)
         {
-            CINI::CurrentDocument->DeleteKey("Annotations", key);
+            CINIExt::CurrentDocument->DeleteKey("Annotations", key);
         }
         if (deleteGeometricAnnotation)
         {
-            if (auto pSection = CINI::CurrentDocument->GetSection("GeometricAnnotations"))
+            if (auto pSection = CINIExt::CurrentDocument->GetSection("GeometricAnnotations"))
             {
                 std::vector<FString> keysToDelete;
                 for (auto& [key, value] : pSection->GetEntities())
@@ -3471,7 +3471,7 @@ void CViewObjectsExt::RemoveAnnotation(int X, int Y)
         
                 for (const auto& key : keysToDelete)
                 {
-                    CINI::CurrentDocument->DeleteKey("GeometricAnnotations", key);
+                    CINIExt::CurrentDocument->DeleteKey("GeometricAnnotations", key);
                 }
             }
         }
@@ -3511,16 +3511,16 @@ void CViewObjectsExt::SetWpTagColor(int X, int Y, bool isWp)
     {
         if (cell->Waypoint > -1)
         {
-            auto id = CINI::CurrentDocument->GetKeyAt("Waypoints", cell->Waypoint);
+            auto id = CINIExt::CurrentDocument->GetKeyAt("Waypoints", cell->Waypoint);
             if (!id.IsEmpty())
             {
                 CMapDataExt::CustomWaypointColors[id] = color;
                 ppmfc::CString key = "Wp";
                 key += id;
                 if (color != ExtConfigs::DisplayColor_Waypoint)
-                    CINI::CurrentDocument->WriteString("FA2spColors", key, value);
+                    CINIExt::CurrentDocument->WriteString("FA2spColors", key, value);
                 else
-                    CINI::CurrentDocument->DeleteKey("FA2spColors", key);
+                    CINIExt::CurrentDocument->DeleteKey("FA2spColors", key);
                 ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
             }
         }
@@ -3529,16 +3529,16 @@ void CViewObjectsExt::SetWpTagColor(int X, int Y, bool isWp)
     {
         if (cell->CellTag > -1)
         {
-            auto id = CINI::CurrentDocument->GetStringAt("CellTags", cell->CellTag);
+            auto id = CINIExt::CurrentDocument->GetStringAt("CellTags", cell->CellTag);
             if (!id.IsEmpty())
             {
                 CMapDataExt::CustomCelltagColors[id] = color;
                 ppmfc::CString key = "Tag";
                 key += id;
                 if (color != ExtConfigs::DisplayColor_Celltag)
-                    CINI::CurrentDocument->WriteString("FA2spColors", key, value);
+                    CINIExt::CurrentDocument->WriteString("FA2spColors", key, value);
                 else
-                    CINI::CurrentDocument->DeleteKey("FA2spColors", key);
+                    CINIExt::CurrentDocument->DeleteKey("FA2spColors", key);
                 ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
             }
         }
@@ -3553,11 +3553,11 @@ void CViewObjectsExt::RemoveWpTagColor(int X, int Y, bool isWp)
     {
         if (cell->Waypoint > -1)
         {
-            auto id = CINI::CurrentDocument->GetKeyAt("Waypoints", cell->Waypoint);
+            auto id = CINIExt::CurrentDocument->GetKeyAt("Waypoints", cell->Waypoint);
             CMapDataExt::CustomWaypointColors.erase(id);
             ppmfc::CString key = "Wp";
             key += id;
-            CINI::CurrentDocument->DeleteKey("FA2spColors", key);
+            CINIExt::CurrentDocument->DeleteKey("FA2spColors", key);
             ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
         }
     }
@@ -3565,11 +3565,11 @@ void CViewObjectsExt::RemoveWpTagColor(int X, int Y, bool isWp)
     {
         if (cell->CellTag > -1)
         {
-            auto id = CINI::CurrentDocument->GetStringAt("CellTags", cell->CellTag);
+            auto id = CINIExt::CurrentDocument->GetStringAt("CellTags", cell->CellTag);
             CMapDataExt::CustomCelltagColors.erase(id);
             ppmfc::CString key = "Tag";
             key += id;
-            CINI::CurrentDocument->DeleteKey("FA2spColors", key);
+            CINIExt::CurrentDocument->DeleteKey("FA2spColors", key);
             ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
         }
     }
@@ -3590,7 +3590,7 @@ void CViewObjectsExt::DeleteTube(int X, int Y)
                     CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Tunnel);
                     once = true;
                 }
-                CINI::CurrentDocument->DeleteKey("Tubes", tube.key);
+                CINIExt::CurrentDocument->DeleteKey("Tubes", tube.key);
                 break;
             }
         }
@@ -3602,7 +3602,7 @@ void CViewObjectsExt::DeleteTube(int X, int Y)
 void CViewObjectsExt::DeleteCelltag(int X, int Y)
 {
     auto pIsoView = CIsoViewExt::GetExtension();
-    auto pSection = CINI::CurrentDocument->GetSection("CellTags");
+    auto pSection = CINIExt::CurrentDocument->GetSection("CellTags");
     if (!pSection)
         return;
 
@@ -3631,7 +3631,7 @@ void CViewObjectsExt::DeleteCelltag(int X, int Y)
     {
         for (auto& key : keys)
         {
-            CINI::CurrentDocument->DeleteKey(pSection, key);
+            CINIExt::CurrentDocument->DeleteKey(pSection, key);
         }
         CMapData::Instance->UpdateFieldCelltagData(FALSE);
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
@@ -3650,7 +3650,7 @@ void CViewObjectsExt::MoveBaseNodeOrder(int X, int Y)
 
     char key[10];
     sprintf(key, "%03d", cell->BaseNode.BasenodeID);
-    auto&& atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString(cell->BaseNode.House, key), 2);
+    auto&& atoms = STDHelpers::SplitString(CINIExt::CurrentDocument->GetString(cell->BaseNode.House, key), 2);
     const auto& ID = atoms[0];
     targetIndex = cell->BaseNode.BasenodeID;
 
@@ -3702,7 +3702,7 @@ void CViewObjectsExt::MoveBaseNode(int X, int Y)
 
         char key[10];
         sprintf(key, "%03d", cell->BaseNode.BasenodeID);
-        auto&& atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString(cell->BaseNode.House, key), 2);
+        auto&& atoms = STDHelpers::SplitString(CINIExt::CurrentDocument->GetString(cell->BaseNode.House, key), 2);
         const auto& ID = atoms[0];
         int bnX = atoi(atoms[2]);
         int bnY = atoi(atoms[1]);

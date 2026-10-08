@@ -1,4 +1,5 @@
 #include "Body.h"
+#include "../../Miscs/Hooks.INI.h"
 #include <CUpdateProgress.h>
 #include "../../Helpers/Translations.h"
 #include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
@@ -297,7 +298,7 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 	}
 	UpdateFieldBasenodeData(false);
 
-	if (auto pSection = CINI::CurrentDocument->GetSection("Tubes"))
+	if (auto pSection = CINIExt::CurrentDocument->GetSection("Tubes"))
 	{
 		for (const auto& [key, value] : pSection->GetEntities())
 		{
@@ -322,12 +323,12 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 				val += ",";
 			}
 			val.Delete(val.GetLength() - 1, 1);
-			CINI::CurrentDocument->WriteString(pSection, key, val);
+			CINIExt::CurrentDocument->WriteString(pSection, key, val);
 		}
 	}
 	UpdateFieldTubeData(false);
 
-	if (auto pSection = CINI::CurrentDocument->GetSection("Annotations"))
+	if (auto pSection = CINIExt::CurrentDocument->GetSection("Annotations"))
 	{
 		std::vector<std::pair<FString, FString>> annotations;
 		for (const auto& [key, value] : pSection->GetEntities())
@@ -340,16 +341,16 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 			buffer.Format("%d", y + x * 1000);
 			annotations.push_back(std::make_pair(FString(buffer), FString(value)));
 		}
-		CINI::CurrentDocument->DeleteSection("Annotations");
-		pSection = CINI::CurrentDocument->AddSection("Annotations");
+		CINIExt::CurrentDocument->DeleteSection("Annotations");
+		pSection = CINIExt::CurrentDocument->AddSection("Annotations");
 		for (const auto& [key, value] : annotations)
 		{
-			CINI::CurrentDocument->WriteString(pSection, key, value);
+			CINIExt::CurrentDocument->WriteString(pSection, key, value);
 		}
 	}
 	CMapDataExt::UpdateAnnotation();
 
-	if (auto pSection = CINI::CurrentDocument->GetSection("GeometricAnnotations"))
+	if (auto pSection = CINIExt::CurrentDocument->GetSection("GeometricAnnotations"))
 	{
 		std::vector<FString> keysToDelete;
 		for (auto& [key, value] : pSection->GetEntities())
@@ -372,7 +373,7 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 		}
 		for (auto& key : keysToDelete)
 		{
-			CINI::CurrentDocument->DeleteKey(pSection, key);
+			CINIExt::CurrentDocument->DeleteKey(pSection, key);
 		}
 	}
 	CMapDataExt::UpdateGeometricAnnotation();

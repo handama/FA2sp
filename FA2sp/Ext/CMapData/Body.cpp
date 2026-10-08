@@ -168,7 +168,6 @@ bool CMapDataExt::IsLoadingMapFile = false;
 bool CMapDataExt::IsMMXFile = false;
 bool CMapDataExt::IsUTF8File = false;
 bool CMapDataExt::SkipBuildingOverlappingCheck = false;
-std::vector<FString> CMapDataExt::MapIniSectionSorting;
 FMap<FSet> CMapDataExt::PowersUpBuildings;
 FSet CMapDataExt::PowersUpBuildingSet;
 std::map<int, std::vector<CustomTile>> CMapDataExt::CustomTiles;
@@ -1003,7 +1002,7 @@ BuildingPowers CMapDataExt::GetStructurePower(ppmfc::CString value)
 
 void CMapDataExt::GetBuildingDataByIniID(int bldID, CBuildingData& data)
 {
-	auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetValueAt("Structures", bldID), 16);
+	auto atoms = STDHelpers::SplitString(CINIExt::CurrentDocument->GetValueAt("Structures", bldID), 16);
 	data.House = atoms[0];
 	data.TypeID = atoms[1];
 	data.Health = atoms[2];
@@ -1053,7 +1052,7 @@ void CMapDataExt::AddCellTagExt(const char* lpTag, int dwPos)
                 continue;
 
 			int intKey = gx * 1000 + gy;
-			CINI::CurrentDocument->WriteString("CellTags", std::to_string(intKey).c_str(), lpTag);
+			CINIExt::CurrentDocument->WriteString("CellTags", std::to_string(intKey).c_str(), lpTag);
         }
     }
 
@@ -1064,7 +1063,7 @@ void CMapDataExt::UpdateTriggers()
 {
 	CMapDataExt::Triggers.clear();
 	FMap<FString> TagMap;
-	if (auto pSection = CINI::CurrentDocument().GetSection("Tags"))
+	if (auto pSection = CINIExt::CurrentDocument().GetSection("Tags"))
 	{
 		for (auto& kvp : pSection->GetEntities())
 		{
@@ -1074,7 +1073,7 @@ void CMapDataExt::UpdateTriggers()
 				TagMap[tagAtoms[2]] = kvp.first;
 		}
 	}
-	if (auto pSection = CINI::CurrentDocument->GetSection("Triggers")) {
+	if (auto pSection = CINIExt::CurrentDocument->GetSection("Triggers")) {
 		for (const auto& pair : pSection->GetEntities()) {
 			std::shared_ptr<Trigger> trigger(Trigger::create(pair.first, &TagMap));
 			if (!trigger) {
@@ -1139,7 +1138,7 @@ void CMapDataExt::ReloadTrigger(const FString& id)
 {
 	auto it = Triggers.find(id);
 	if (it != Triggers.end()) {
-		auto atoms = FString::SplitString(CINI::CurrentDocument->GetString("Triggers", id));
+		auto atoms = FString::SplitString(CINIExt::CurrentDocument->GetString("Triggers", id));
 		it->second->LoadFromMap(id, atoms);
 	}
 }
@@ -2022,7 +2021,7 @@ int CMapDataExt::GetRampIndex(int tileIndex, int rampType)
 void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString value, bool refreshCenter)
 {
 	if (value == "")
-		value = CINI::CurrentDocument->GetValueAt("Structures", iniIndex);
+		value = CINIExt::CurrentDocument->GetValueAt("Structures", iniIndex);
 
 	int cellIndex = StructureIndexMap.size();
 	if (cellIndex > SHRT_MAX && !CIsoView::IsMouseMoving)
@@ -2143,7 +2142,7 @@ void CMapDataExt::UpdateFieldStructureData_Optimized()
 	StructureIndexMap.clear();
 	BuildingRenderDatasFix.clear();
 	BuildingDatasExt.clear();
-	if (auto sec = CINI::CurrentDocument->GetSection("Structures"))
+	if (auto sec = CINIExt::CurrentDocument->GetSection("Structures"))
 	{
 		i = 0;
 		BuildingRenderDatasFix.reserve(sec->GetEntities().size());
@@ -2169,7 +2168,7 @@ std::vector<int> CMapDataExt::GetStructureSize(ppmfc::CString structure)
 	std::vector<int> result;
 	MultimapHelper mmh;
 	mmh.AddINI(&CINI::Rules());
-	mmh.AddINI(&CINI::CurrentDocument());
+	mmh.AddINI(&CINIExt::CurrentDocument());
 	auto art = &CINI::Art();
 	auto image = mmh.GetString(structure, "Image", structure);
 	std::string foundation = std::string(art->GetString(image, "Foundation", "1X1"));
@@ -2278,7 +2277,7 @@ ppmfc::CString CMapDataExt::GetAvailableIndex(EIndexType type)
 		type = EIndexType::Generic;
 
 	auto v = VEHGuard(false);
-	auto& ini = CINI::CurrentDocument;
+	auto& ini = CINIExt::CurrentDocument;
 	const int initNumber = 1000000;
 
 	const char* suffix = "";
@@ -2372,19 +2371,19 @@ ppmfc::CString CMapDataExt::GetAvailableIndex(EIndexType type)
 
 void CMapDataExt::UpdateMapSectionIndicies(const ppmfc::CString& lpSection)
 {
-	if (auto pSection = CINI::CurrentDocument->GetSection(lpSection))
+	if (auto pSection = CINIExt::CurrentDocument->GetSection(lpSection))
 	{
 		std::vector<std::pair<FString, FString>> buffer;
 		for (auto& [key, value] : pSection->GetEntities())
 		{
 			buffer.push_back(std::make_pair(key, value));
 		}
-		CINI::CurrentDocument->DeleteSection(lpSection);
-		pSection = CINI::CurrentDocument->AddSection(lpSection);
+		CINIExt::CurrentDocument->DeleteSection(lpSection);
+		pSection = CINIExt::CurrentDocument->AddSection(lpSection);
 		int index = 0;
 		for (auto& [key, value] : buffer)
 		{
-			CINI::CurrentDocument->WriteString(pSection, key, value);
+			CINIExt::CurrentDocument->WriteString(pSection, key, value);
 			std::pair<ppmfc::CString, int> ins =
 				std::make_pair((ppmfc::CString)key, index++);
 			std::pair<INIIndiceDict::iterator, bool> ret;
@@ -2400,7 +2399,7 @@ void CMapDataExt::UpdateAnnotation()
 	{
 		cellExt.HasAnnotation = false;
 	}
-	if (auto pSection = CINI::CurrentDocument->GetSection("Annotations"))
+	if (auto pSection = CINIExt::CurrentDocument->GetSection("Annotations"))
 	{
 		for (const auto& [key, value] : pSection->GetEntities())
 		{
@@ -2420,7 +2419,7 @@ void CMapDataExt::UpdateGeometricAnnotation()
 	CIsoViewExt::Circles_Annotation.clear();
 	CIsoViewExt::TempCircle_Annotation[0] = { 0, 0 };
 	CIsoViewExt::TempCircle_Annotation[1] = { 0, 0 };
-	if (auto pSection = CINI::CurrentDocument->GetSection("GeometricAnnotations"))
+	if (auto pSection = CINIExt::CurrentDocument->GetSection("GeometricAnnotations"))
 	{
 		for (const auto& [key, value] : pSection->GetEntities())
 		{
@@ -2583,9 +2582,9 @@ int CMapDataExt::GetPlayerLocationCountAtCell(int x, int y)
 	{
 		FString key;
 		key.Format("%d", i);
-		if (CINI::CurrentDocument->KeyExists("Waypoints", key))
+		if (CINIExt::CurrentDocument->KeyExists("Waypoints", key))
 		{
-			auto value = CINI::CurrentDocument->GetInteger("Waypoints", key);
+			auto value = CINIExt::CurrentDocument->GetInteger("Waypoints", key);
 			if (value >= 0)
 			{
 				int wx = value / 1000;
@@ -3332,7 +3331,7 @@ void ObjectRecord::recover()
 	{
 		std::map<int, FString> oriWps;
 		if (map->IsMultiOnly())
-			if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("Waypoints"))
 				for (const auto& data : pSection->GetEntities())
 					oriWps[atoi(data.first)] = data.second;
 		recoverIniMap("Waypoints", WaypointList);
@@ -3379,7 +3378,7 @@ void ObjectRecord::recover()
 
 		FString size;
 		size.Format("%d,%d,%d,%d", bound.left, bound.top, bound.width, bound.height);
-		CINI::CurrentDocument->WriteString("Map", "LocalSize", size);
+		CINIExt::CurrentDocument->WriteString("Map", "LocalSize", size);
 		if (IsWindowVisible(CFinalSunDlg::Instance->MapD))
 		{
 			auto dlg = GetDlgItem(CFinalSunDlg::Instance->MapD, 1045);
@@ -3630,7 +3629,7 @@ void CMapDataExt::UpdateFieldAircraftData_RedrawMinimap()
 void CMapDataExt::InitializeTileDataInfo()
 {
 	auto pLoading = CLoadingExt::GetExtension();
-	FString thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+	FString thisTheater = CINIExt::CurrentDocument().GetString("Map", "Theater");
 	thisTheater.MakeUpper();
 
 	if (thisTheater == "TEMPERATE")
@@ -3792,7 +3791,7 @@ void CMapDataExt::InitializeTileDataInfo()
 
 	if (auto pSection = CINI::FAData->GetSection("AutoShoreTypes"))
 	{
-		auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+		auto thisTheater = CINIExt::CurrentDocument().GetString("Map", "Theater");
 		for (const auto& type : pSection->GetEntities())
 		{
 			auto atoms = STDHelpers::SplitString(type.second, 3);
@@ -3882,7 +3881,7 @@ void CMapDataExt::InitializeTileData()
 	CMapDataExt::TileData = nullptr;
 	CMapDataExt::TileBlockDataExt.clear();
 
-	auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+	auto thisTheater = CINIExt::CurrentDocument().GetString("Map", "Theater");
 	thisTheater.MakeUpper();
 	if (thisTheater == "TEMPERATE" && CTileTypeInfo::Temperate().Datas)
 	{
@@ -5755,7 +5754,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			if (atoms.size() >= 3)
 			{
 				std::vector<FString> group;
-				if (CINI::CurrentDocument().GetString("Map", "Theater") != atoms[0])
+				if (CINIExt::CurrentDocument().GetString("Map", "Theater") != atoms[0])
 					continue;
 				group.push_back(atoms[1]);
 				group.push_back(atoms[2]);
@@ -6155,30 +6154,30 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 
 	CustomWaypointColors.clear();
 	CustomCelltagColors.clear();
-	if (auto pColors = CINI::CurrentDocument->GetSection("FA2spColors"))
+	if (auto pColors = CINIExt::CurrentDocument->GetSection("FA2spColors"))
 	{
-		if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+		if (auto pSection = CINIExt::CurrentDocument->GetSection("Waypoints"))
 		{
 			for (const auto& [key, value] : pSection->GetEntities())
 			{
 				ppmfc::CString colorkey = "Wp";
 				colorkey += key;
-				if (CINI::CurrentDocument->KeyExists("FA2spColors", colorkey))
+				if (CINIExt::CurrentDocument->KeyExists("FA2spColors", colorkey))
 				{
-					auto color = CINI::CurrentDocument->GetColor(pColors, colorkey, ExtConfigs::DisplayColor_Waypoint);
+					auto color = CINIExt::CurrentDocument->GetColor(pColors, colorkey, ExtConfigs::DisplayColor_Waypoint);
 					CMapDataExt::CustomWaypointColors[key] = color;
 				}
 			}
 		}
-		if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
+		if (auto pSection = CINIExt::CurrentDocument->GetSection("CellTags"))
 		{
 			for (const auto& [key, value] : pSection->GetEntities())
 			{
 				ppmfc::CString colorkey = "Tag";
 				colorkey += value;
-				if (CINI::CurrentDocument->KeyExists("FA2spColors", colorkey))
+				if (CINIExt::CurrentDocument->KeyExists("FA2spColors", colorkey))
 				{
-					auto color = CINI::CurrentDocument->GetColor(pColors, colorkey, ExtConfigs::DisplayColor_Celltag);
+					auto color = CINIExt::CurrentDocument->GetColor(pColors, colorkey, ExtConfigs::DisplayColor_Celltag);
 					CMapDataExt::CustomCelltagColors[value] = color;
 				}
 			}
@@ -6258,7 +6257,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		};
 	for (int i = 0; i < 3; ++i)
 	{
-		if (auto pSection = CINI::CurrentDocument->GetSection(WAESections[i]))
+		if (auto pSection = CINIExt::CurrentDocument->GetSection(WAESections[i]))
 		{
 			for (auto& [key, value] : pSection->GetEntities())
 			{

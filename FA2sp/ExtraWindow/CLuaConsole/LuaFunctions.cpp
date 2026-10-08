@@ -603,7 +603,7 @@ namespace LuaFunctions
 			}
 			ini->ClearAndLoad(GetINIPath());
 			presets.clear();
-			auto currentTheater = CINI::CurrentDocument->GetString("Map", "Theater");
+			auto currentTheater = CINIExt::CurrentDocument->GetString("Map", "Theater");
 			auto itr = ini->Dict.begin();
 			for (size_t i = 0, sz = ini->Dict.size(); i < sz; ++i, ++itr)
 			{
@@ -693,7 +693,7 @@ namespace LuaFunctions
 				if (!ini->SectionExists(ID)) {
 					ini->WriteString(ID, "Name", name.c_str());
 					ini->WriteString(ID, "Scale", "25");
-					ini->WriteString(ID, "Theaters", CINI::CurrentDocument->GetString("Map", "Theater"));
+					ini->WriteString(ID, "Theaters", CINIExt::CurrentDocument->GetString("Map", "Theater"));
 					auto preset = std::shared_ptr<TerrainGeneratorPreset>(TerrainGeneratorPreset::create(ID, ini->GetSection(ID)));
 					presets[ID] = preset;
 					current = preset;
@@ -1277,13 +1277,13 @@ namespace LuaFunctions
 		}
 		void remove() const
 		{
-			for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Infantry"); ++i)
+			for (int i = 0; i < CINIExt::CurrentDocument->GetKeyCount("Infantry"); ++i)
 			{
 				CInfantryData obj;
 				CMapData::Instance->GetInfantryData(i, obj);
 				if (*this == convert(obj))
 				{
-					//CINI::CurrentDocument->DeleteKey("Infantry", CINI::CurrentDocument->GetKeyAt("Infantry", i));
+					//CINIExt::CurrentDocument->DeleteKey("Infantry", CINIExt::CurrentDocument->GetKeyAt("Infantry", i));
 					CMapData::Instance->DeleteInfantryData(i);
 					CLuaConsole::needRedraw = true;
 					CLuaConsole::updateInfantry = true;
@@ -1386,13 +1386,13 @@ namespace LuaFunctions
 		}
 		void remove() const
 		{
-			for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Units"); ++i)
+			for (int i = 0; i < CINIExt::CurrentDocument->GetKeyCount("Units"); ++i)
 			{
 				CUnitData obj;
 				CMapData::Instance->GetUnitData(i, obj);
 				if (*this == convert(obj))
 				{
-					CINI::CurrentDocument->DeleteKey("Units", CINI::CurrentDocument->GetKeyAt("Units", i));
+					CINIExt::CurrentDocument->DeleteKey("Units", CINIExt::CurrentDocument->GetKeyAt("Units", i));
 					CLuaConsole::needRedraw = true;
 					CLuaConsole::updateUnit = true;
 					CLuaConsole::updateMinimap = true;
@@ -1484,13 +1484,13 @@ namespace LuaFunctions
 		}
 		void remove() const
 		{
-			for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Aircraft"); ++i)
+			for (int i = 0; i < CINIExt::CurrentDocument->GetKeyCount("Aircraft"); ++i)
 			{
 				CAircraftData obj;
 				CMapData::Instance->GetAircraftData(i, obj);
 				if (*this == convert(obj))
 				{
-					CINI::CurrentDocument->DeleteKey("Aircraft", CINI::CurrentDocument->GetKeyAt("Aircraft", i));
+					CINIExt::CurrentDocument->DeleteKey("Aircraft", CINIExt::CurrentDocument->GetKeyAt("Aircraft", i));
 					CLuaConsole::needRedraw = true;
 					CLuaConsole::updateAircraft = true;
 					CLuaConsole::updateMinimap = true;
@@ -1572,7 +1572,7 @@ namespace LuaFunctions
 				this->PoweredOn, this->Upgrades, this->SpotLight, this->Upgrade1,
 				this->Upgrade2, this->Upgrade3, this->AIRepairable, this->Nominal);
 				
-			CINI::CurrentDocument->WriteString("Structures", id, value);
+			CINIExt::CurrentDocument->WriteString("Structures", id, value);
 			CLuaConsole::needRedraw = true;
 			CLuaConsole::updateBuilding = true;
 		}
@@ -1583,20 +1583,20 @@ namespace LuaFunctions
 			if (this->X == -1 || this->Y == -1)
 				return;
 			auto cell = CMapData::Instance->TryGetCellAt(this->X, this->Y);
-			if (auto pHouse = CINI::CurrentDocument->GetSection(this->House.c_str()))
+			if (auto pHouse = CINIExt::CurrentDocument->GetSection(this->House.c_str()))
 			{
 				for (int i = 0; i < 1000; ++i)
 				{
 					FString key;
 					key.Format("%03d", i);
-					if (!CINI::CurrentDocument->KeyExists(this->House.c_str(), key))
+					if (!CINIExt::CurrentDocument->KeyExists(this->House.c_str(), key))
 					{
 						FString count;
 						FString value;
 						count.Format("%d", i + 1);
 						value.Format("%s,%d,%d", this->TypeID, this->Y, this->X);
-						CINI::CurrentDocument->WriteString(this->House.c_str(), "NodeCount", count);
-						CINI::CurrentDocument->WriteString(this->House.c_str(), key, value);
+						CINIExt::CurrentDocument->WriteString(this->House.c_str(), "NodeCount", count);
+						CINIExt::CurrentDocument->WriteString(this->House.c_str(), key, value);
 						CLuaConsole::updateNode = true;
 						CLuaConsole::needRedraw = true;
 						if (deleteBuilding && cell->Structure > -1)
@@ -1611,13 +1611,13 @@ namespace LuaFunctions
 		}
 		void remove() const
 		{
-			for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Structures"); ++i)
+			for (int i = 0; i < CINIExt::CurrentDocument->GetKeyCount("Structures"); ++i)
 			{
 				CBuildingData obj;
 				CMapDataExt::GetBuildingDataByIniID(i, obj);
 				if (*this == convert(obj))
 				{
-					CINI::CurrentDocument->DeleteKey("Structures", CINI::CurrentDocument->GetKeyAt("Structures", i));
+					CINIExt::CurrentDocument->DeleteKey("Structures", CINIExt::CurrentDocument->GetKeyAt("Structures", i));
 					CLuaConsole::needRedraw = true;
 					CLuaConsole::updateBuilding = true;
 					CLuaConsole::updateMinimap = true;
@@ -1879,7 +1879,7 @@ namespace LuaFunctions
 			type = EIndexType::Generic;
 
 		auto v = VEHGuard(false);
-		auto& ini = CINI::CurrentDocument;
+		auto& ini = CINIExt::CurrentDocument;
 		const int initNumber = 1000000;
 
 		const char* suffix = "";
@@ -2152,7 +2152,7 @@ namespace LuaFunctions
 			if (0 <= index && index < Tags.size())
 			{
 				if (removeIni)
-					CINI::CurrentDocument->DeleteKey("Tags", Tags[index].ID.c_str());
+					CINIExt::CurrentDocument->DeleteKey("Tags", Tags[index].ID.c_str());
 				UsedINIIndices.erase(Tags[index].ID);
 				Tags.erase(Tags.begin() + index);
 			}
@@ -2162,7 +2162,7 @@ namespace LuaFunctions
 			for (int i = 0; i < Tags.size(); ++i)
 			{
 				if (removeIni)
-					CINI::CurrentDocument->DeleteKey("Tags", Tags[i].ID.c_str());
+					CINIExt::CurrentDocument->DeleteKey("Tags", Tags[i].ID.c_str());
 				UsedINIIndices.erase(Tags[i].ID);
 			}
 			Tags.clear();
@@ -2483,13 +2483,13 @@ namespace LuaFunctions
 			FString trigger;
 			trigger.Format("%s,%s,%s,%s,%s,%s,%s,%s", House.c_str(), AttachedTrigger.c_str(), Name.c_str(),
 				Disabled ? "1" : "0", EasyEnabled ? "1" : "0", MediumEnabled ? "1" : "0", HardEnabled ? "1" : "0", Obsolete.c_str());
-			CINI::CurrentDocument->WriteString("Triggers", ID.c_str(), trigger);
+			CINIExt::CurrentDocument->WriteString("Triggers", ID.c_str(), trigger);
 
 			for (const auto& tag : Tags)
 			{
 				FString tagStr;
 				tagStr.Format("%s,%s,%s", tag.RepeatType.c_str(), tag.Name.c_str(), ID.c_str());
-				CINI::CurrentDocument->WriteString("Tags", tag.ID.c_str(), tagStr);
+				CINIExt::CurrentDocument->WriteString("Tags", tag.ID.c_str(), tagStr);
 			}
 
 			FString events;
@@ -2499,7 +2499,7 @@ namespace LuaFunctions
 				events += ",";
 				events += e.c_str();
 			}
-			CINI::CurrentDocument->WriteString("Events", ID.c_str(), events);
+			CINIExt::CurrentDocument->WriteString("Events", ID.c_str(), events);
 
 			FString actions;
 			actions.Format("%d", Actions.size());
@@ -2513,21 +2513,21 @@ namespace LuaFunctions
 			if (validate.GetLength() >= 512)
 				write_lua_console(std::format("Warn: length of action {} exceeds 512.", ID));
 
-			CINI::CurrentDocument->WriteString("Actions", ID.c_str(), actions);
+			CINIExt::CurrentDocument->WriteString("Actions", ID.c_str(), actions);
 			CMapDataExt::AddTrigger(ID.c_str());
 			UsedINIIndices.insert(ID);
 			CLuaConsole::updateTrigger = true;
 		}
 		void delete_trigger_self(bool keepTag)
 		{
-			CINI::CurrentDocument->DeleteKey("Triggers", ID.c_str());
-			CINI::CurrentDocument->DeleteKey("Events", ID.c_str());
-			CINI::CurrentDocument->DeleteKey("Actions", ID.c_str());
+			CINIExt::CurrentDocument->DeleteKey("Triggers", ID.c_str());
+			CINIExt::CurrentDocument->DeleteKey("Events", ID.c_str());
+			CINIExt::CurrentDocument->DeleteKey("Actions", ID.c_str());
 			if (!keepTag)
 			{
 				for (const auto& tag : Tags)
 				{
-					CINI::CurrentDocument->DeleteKey("Tags", tag.ID.c_str());
+					CINIExt::CurrentDocument->DeleteKey("Tags", tag.ID.c_str());
 				}
 			}
 
@@ -2537,13 +2537,13 @@ namespace LuaFunctions
 		}
 		static void delete_trigger(std::string ID, bool keepTag)
 		{
-			CINI::CurrentDocument->DeleteKey("Triggers", ID.c_str());
-			CINI::CurrentDocument->DeleteKey("Events", ID.c_str());
-			CINI::CurrentDocument->DeleteKey("Actions", ID.c_str());
+			CINIExt::CurrentDocument->DeleteKey("Triggers", ID.c_str());
+			CINIExt::CurrentDocument->DeleteKey("Events", ID.c_str());
+			CINIExt::CurrentDocument->DeleteKey("Actions", ID.c_str());
 			if (!keepTag)
 			{
 				std::vector<FString> keys;
-				if (auto pSection = CINI::CurrentDocument->GetSection("Tags"))
+				if (auto pSection = CINIExt::CurrentDocument->GetSection("Tags"))
 				{
 					for (const auto& [key, value] : pSection->GetEntities())
 					{
@@ -2553,7 +2553,7 @@ namespace LuaFunctions
 					}
 				}
 				for (auto& key : keys)
-					CINI::CurrentDocument->DeleteKey("Tags", key);
+					CINIExt::CurrentDocument->DeleteKey("Tags", key);
 			}
 			CMapDataExt::DeleteTrigger(ID.c_str());
 			UsedINIIndices.erase(ID);
@@ -2563,13 +2563,13 @@ namespace LuaFunctions
 		{
 			if (!keepTrigger)
 			{
-				auto&& atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString("Tags", ID.c_str()), 2);
-				CINI::CurrentDocument->DeleteKey("Triggers", atoms[2]);
-				CINI::CurrentDocument->DeleteKey("Events", atoms[2]);
-				CINI::CurrentDocument->DeleteKey("Actions", atoms[2]);
+				auto&& atoms = STDHelpers::SplitString(CINIExt::CurrentDocument->GetString("Tags", ID.c_str()), 2);
+				CINIExt::CurrentDocument->DeleteKey("Triggers", atoms[2]);
+				CINIExt::CurrentDocument->DeleteKey("Events", atoms[2]);
+				CINIExt::CurrentDocument->DeleteKey("Actions", atoms[2]);
 				CMapDataExt::DeleteTrigger(atoms[2]);
 			}
-			CINI::CurrentDocument->DeleteKey("Tags", ID.c_str());
+			CINIExt::CurrentDocument->DeleteKey("Tags", ID.c_str());
 			CLuaConsole::updateTrigger = true;
 		}
 		static sol::object get_trigger(std::string ID)
@@ -2585,7 +2585,7 @@ namespace LuaFunctions
 				ret.EasyEnabled = t->EasyEnabled;
 				ret.MediumEnabled = t->MediumEnabled;
 				ret.HardEnabled = t->HardEnabled;
-				if (auto pSection = CINI::CurrentDocument->GetSection("Tags"))
+				if (auto pSection = CINIExt::CurrentDocument->GetSection("Tags"))
 				{
 					for (const auto& [key, value] : pSection->GetEntities())
 					{
@@ -2632,7 +2632,7 @@ namespace LuaFunctions
 		static std::vector<std::string> get_triggers()
 		{
 			std::vector<std::string> ret;
-			if (auto pSection = CINI::CurrentDocument->GetSection("Triggers"))
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("Triggers"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
@@ -2726,11 +2726,11 @@ namespace LuaFunctions
 		static sol::object get_team(std::string id)
 		{
 			bool found = false;
-			if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("TeamTypes"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
-					if (value == id.c_str() && CINI::CurrentDocument->SectionExists(value))
+					if (value == id.c_str() && CINIExt::CurrentDocument->SectionExists(value))
 					{
 						found = true;
 						break;
@@ -2741,41 +2741,41 @@ namespace LuaFunctions
 			{
 				team ret;
 				ret.ID = id;
-				ret.Name = CINI::CurrentDocument->GetString(id.c_str(), "Name", "New Teamtype").GetString();
-				ret.House = CINI::CurrentDocument->GetString(id.c_str(), "House").GetString();
-				ret.Taskforce = CINI::CurrentDocument->GetString(id.c_str(), "TaskForce").GetString();
-				ret.Script = CINI::CurrentDocument->GetString(id.c_str(), "Script").GetString();
-				ret.Tag = CINI::CurrentDocument->GetString(id.c_str(), "Tag").GetString();
-				ret.VeteranLevel = CINI::CurrentDocument->GetString(id.c_str(), "VeteranLevel").GetString();
-				ret.Priority = CINI::CurrentDocument->GetString(id.c_str(), "Priority").GetString();
-				ret.Max = CINI::CurrentDocument->GetString(id.c_str(), "Max").GetString();
-				ret.Techlevel = CINI::CurrentDocument->GetString(id.c_str(), "TechLevel").GetString();
-				if (CINI::CurrentDocument->KeyExists(id.c_str(), "TransportWaypoint"))
-					ret.TransportWaypoint = STDHelpers::StringToWaypointStr(CINI::CurrentDocument->GetString(id.c_str(), "TransportWaypoint")).GetString();
-				ret.Group = CINI::CurrentDocument->GetString(id.c_str(), "Group").GetString();
-				ret.Waypoint = STDHelpers::StringToWaypointStr(CINI::CurrentDocument->GetString(id.c_str(), "Waypoint")).GetString();
-				ret.MindControlDecision = CINI::CurrentDocument->GetString(id.c_str(), "MindControlDecision").GetString();
-				ret.Full = CINI::CurrentDocument->GetBool(id.c_str(), "Full");
-				ret.Whiner = CINI::CurrentDocument->GetBool(id.c_str(), "Whiner");
-				ret.Droppod = CINI::CurrentDocument->GetBool(id.c_str(), "Droppod");
-				ret.Suicide = CINI::CurrentDocument->GetBool(id.c_str(), "Suicide");
-				ret.Loadable = CINI::CurrentDocument->GetBool(id.c_str(), "Loadable");
-				ret.Prebuild = CINI::CurrentDocument->GetBool(id.c_str(), "Prebuild");
-				ret.Annoyance = CINI::CurrentDocument->GetBool(id.c_str(), "Annoyance");
-				ret.IonImmune = CINI::CurrentDocument->GetBool(id.c_str(), "IonImmune");
-				ret.Recruiter = CINI::CurrentDocument->GetBool(id.c_str(), "Recruiter");
-				ret.Reinforce = CINI::CurrentDocument->GetBool(id.c_str(), "Reinforce");
-				ret.Aggressive = CINI::CurrentDocument->GetBool(id.c_str(), "Aggressive");
-				ret.Autocreate = CINI::CurrentDocument->GetBool(id.c_str(), "Autocreate");
-				ret.GuardSlower = CINI::CurrentDocument->GetBool(id.c_str(), "GuardSlower");
-				ret.OnTransOnly = CINI::CurrentDocument->GetBool(id.c_str(), "OnTransOnly");
-				ret.AvoidThreats = CINI::CurrentDocument->GetBool(id.c_str(), "AvoidThreats");
-				ret.LooseRecruit = CINI::CurrentDocument->GetBool(id.c_str(), "LooseRecruit");
-				ret.IsBaseDefense = CINI::CurrentDocument->GetBool(id.c_str(), "IsBaseDefense");
-				ret.UseTransportOrigin = CINI::CurrentDocument->GetBool(id.c_str(), "UseTransportOrigin");
-				ret.OnlyTargetHouseEnemy = CINI::CurrentDocument->GetBool(id.c_str(), "OnlyTargetHouseEnemy");
-				ret.TransportsReturnOnUnload = CINI::CurrentDocument->GetBool(id.c_str(), "TransportsReturnOnUnload");
-				ret.AreTeamMembersRecruitable = CINI::CurrentDocument->GetBool(id.c_str(), "AreTeamMembersRecruitable");
+				ret.Name = CINIExt::CurrentDocument->GetString(id.c_str(), "Name", "New Teamtype").GetString();
+				ret.House = CINIExt::CurrentDocument->GetString(id.c_str(), "House").GetString();
+				ret.Taskforce = CINIExt::CurrentDocument->GetString(id.c_str(), "TaskForce").GetString();
+				ret.Script = CINIExt::CurrentDocument->GetString(id.c_str(), "Script").GetString();
+				ret.Tag = CINIExt::CurrentDocument->GetString(id.c_str(), "Tag").GetString();
+				ret.VeteranLevel = CINIExt::CurrentDocument->GetString(id.c_str(), "VeteranLevel").GetString();
+				ret.Priority = CINIExt::CurrentDocument->GetString(id.c_str(), "Priority").GetString();
+				ret.Max = CINIExt::CurrentDocument->GetString(id.c_str(), "Max").GetString();
+				ret.Techlevel = CINIExt::CurrentDocument->GetString(id.c_str(), "TechLevel").GetString();
+				if (CINIExt::CurrentDocument->KeyExists(id.c_str(), "TransportWaypoint"))
+					ret.TransportWaypoint = STDHelpers::StringToWaypointStr(CINIExt::CurrentDocument->GetString(id.c_str(), "TransportWaypoint")).GetString();
+				ret.Group = CINIExt::CurrentDocument->GetString(id.c_str(), "Group").GetString();
+				ret.Waypoint = STDHelpers::StringToWaypointStr(CINIExt::CurrentDocument->GetString(id.c_str(), "Waypoint")).GetString();
+				ret.MindControlDecision = CINIExt::CurrentDocument->GetString(id.c_str(), "MindControlDecision").GetString();
+				ret.Full = CINIExt::CurrentDocument->GetBool(id.c_str(), "Full");
+				ret.Whiner = CINIExt::CurrentDocument->GetBool(id.c_str(), "Whiner");
+				ret.Droppod = CINIExt::CurrentDocument->GetBool(id.c_str(), "Droppod");
+				ret.Suicide = CINIExt::CurrentDocument->GetBool(id.c_str(), "Suicide");
+				ret.Loadable = CINIExt::CurrentDocument->GetBool(id.c_str(), "Loadable");
+				ret.Prebuild = CINIExt::CurrentDocument->GetBool(id.c_str(), "Prebuild");
+				ret.Annoyance = CINIExt::CurrentDocument->GetBool(id.c_str(), "Annoyance");
+				ret.IonImmune = CINIExt::CurrentDocument->GetBool(id.c_str(), "IonImmune");
+				ret.Recruiter = CINIExt::CurrentDocument->GetBool(id.c_str(), "Recruiter");
+				ret.Reinforce = CINIExt::CurrentDocument->GetBool(id.c_str(), "Reinforce");
+				ret.Aggressive = CINIExt::CurrentDocument->GetBool(id.c_str(), "Aggressive");
+				ret.Autocreate = CINIExt::CurrentDocument->GetBool(id.c_str(), "Autocreate");
+				ret.GuardSlower = CINIExt::CurrentDocument->GetBool(id.c_str(), "GuardSlower");
+				ret.OnTransOnly = CINIExt::CurrentDocument->GetBool(id.c_str(), "OnTransOnly");
+				ret.AvoidThreats = CINIExt::CurrentDocument->GetBool(id.c_str(), "AvoidThreats");
+				ret.LooseRecruit = CINIExt::CurrentDocument->GetBool(id.c_str(), "LooseRecruit");
+				ret.IsBaseDefense = CINIExt::CurrentDocument->GetBool(id.c_str(), "IsBaseDefense");
+				ret.UseTransportOrigin = CINIExt::CurrentDocument->GetBool(id.c_str(), "UseTransportOrigin");
+				ret.OnlyTargetHouseEnemy = CINIExt::CurrentDocument->GetBool(id.c_str(), "OnlyTargetHouseEnemy");
+				ret.TransportsReturnOnUnload = CINIExt::CurrentDocument->GetBool(id.c_str(), "TransportsReturnOnUnload");
+				ret.AreTeamMembersRecruitable = CINIExt::CurrentDocument->GetBool(id.c_str(), "AreTeamMembersRecruitable");
 
 				return sol::make_object(CLuaConsole::Lua, ret);
 			}
@@ -2787,92 +2787,92 @@ namespace LuaFunctions
 		}
 		void apply()
 		{
-			if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("TeamTypes"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
 					if (value == ID.c_str())
 					{
-						CINI::CurrentDocument->DeleteKey("TeamTypes", key);
+						CINIExt::CurrentDocument->DeleteKey("TeamTypes", key);
 						break;
 					}
 				}
 			}
-			CINI::CurrentDocument->WriteString("TeamTypes", CINI::GetAvailableKey("TeamTypes"), ID.c_str());
+			CINIExt::CurrentDocument->WriteString("TeamTypes", CINI::GetAvailableKey("TeamTypes"), ID.c_str());
 
-			CINI::CurrentDocument->WriteString(ID.c_str(), "Name", Name.c_str());
-			CINI::CurrentDocument->WriteString(ID.c_str(), "House", House.c_str());
+			CINIExt::CurrentDocument->WriteString(ID.c_str(), "Name", Name.c_str());
+			CINIExt::CurrentDocument->WriteString(ID.c_str(), "House", House.c_str());
 			if (Taskforce == "")
-				CINI::CurrentDocument->DeleteKey(ID.c_str(), "TaskForce");
+				CINIExt::CurrentDocument->DeleteKey(ID.c_str(), "TaskForce");
 			else
-				CINI::CurrentDocument->WriteString(ID.c_str(), "TaskForce", Taskforce.c_str());
+				CINIExt::CurrentDocument->WriteString(ID.c_str(), "TaskForce", Taskforce.c_str());
 			if (Script == "")
-				CINI::CurrentDocument->DeleteKey(ID.c_str(), "Script");
+				CINIExt::CurrentDocument->DeleteKey(ID.c_str(), "Script");
 			else
-				CINI::CurrentDocument->WriteString(ID.c_str(), "Script", Script.c_str());
+				CINIExt::CurrentDocument->WriteString(ID.c_str(), "Script", Script.c_str());
 			if (Tag == "")
-				CINI::CurrentDocument->DeleteKey(ID.c_str(), "Tag");
+				CINIExt::CurrentDocument->DeleteKey(ID.c_str(), "Tag");
 			else
-				CINI::CurrentDocument->WriteString(ID.c_str(), "Tag", Tag.c_str());
-			CINI::CurrentDocument->WriteString(ID.c_str(), "VeteranLevel", VeteranLevel.c_str());
-			CINI::CurrentDocument->WriteString(ID.c_str(), "Priority", Priority.c_str());
-			CINI::CurrentDocument->WriteString(ID.c_str(), "Max", Max.c_str());
-			CINI::CurrentDocument->WriteString(ID.c_str(), "TechLevel", Techlevel.c_str());
+				CINIExt::CurrentDocument->WriteString(ID.c_str(), "Tag", Tag.c_str());
+			CINIExt::CurrentDocument->WriteString(ID.c_str(), "VeteranLevel", VeteranLevel.c_str());
+			CINIExt::CurrentDocument->WriteString(ID.c_str(), "Priority", Priority.c_str());
+			CINIExt::CurrentDocument->WriteString(ID.c_str(), "Max", Max.c_str());
+			CINIExt::CurrentDocument->WriteString(ID.c_str(), "TechLevel", Techlevel.c_str());
 			if (TransportWaypoint == "")
 			{
 				UseTransportOrigin = false;
-				CINI::CurrentDocument->DeleteKey(ID.c_str(), "TransportWaypoint");
+				CINIExt::CurrentDocument->DeleteKey(ID.c_str(), "TransportWaypoint");
 			}
 			else
 			{
 				UseTransportOrigin = true;
 				if (STDHelpers::IsNumber(TransportWaypoint.c_str()))
-					CINI::CurrentDocument->WriteString(ID.c_str(), "TransportWaypoint", STDHelpers::WaypointToString(atoi(TransportWaypoint.c_str())));
+					CINIExt::CurrentDocument->WriteString(ID.c_str(), "TransportWaypoint", STDHelpers::WaypointToString(atoi(TransportWaypoint.c_str())));
 				else
-					CINI::CurrentDocument->WriteString(ID.c_str(), "TransportWaypoint", TransportWaypoint.c_str());
+					CINIExt::CurrentDocument->WriteString(ID.c_str(), "TransportWaypoint", TransportWaypoint.c_str());
 			}
-			CINI::CurrentDocument->WriteString(ID.c_str(), "Group", Group.c_str());
+			CINIExt::CurrentDocument->WriteString(ID.c_str(), "Group", Group.c_str());
 			if (STDHelpers::IsNumber(Waypoint.c_str()))
-				CINI::CurrentDocument->WriteString(ID.c_str(), "Waypoint", STDHelpers::WaypointToString(atoi(Waypoint.c_str())));
+				CINIExt::CurrentDocument->WriteString(ID.c_str(), "Waypoint", STDHelpers::WaypointToString(atoi(Waypoint.c_str())));
 			else
-				CINI::CurrentDocument->WriteString(ID.c_str(), "Waypoint", Waypoint.c_str());
-			CINI::CurrentDocument->WriteString(ID.c_str(), "MindControlDecision", MindControlDecision.c_str());
+				CINIExt::CurrentDocument->WriteString(ID.c_str(), "Waypoint", Waypoint.c_str());
+			CINIExt::CurrentDocument->WriteString(ID.c_str(), "MindControlDecision", MindControlDecision.c_str());
 
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "Full", Full);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "Whiner", Whiner);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "Droppod", Droppod);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "Suicide", Suicide);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "Loadable", Loadable);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "Prebuild", Prebuild);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "Annoyance", Annoyance);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "IonImmune", IonImmune);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "Recruiter", Recruiter);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "Reinforce", Reinforce);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "Aggressive", Aggressive);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "Autocreate", Autocreate);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "GuardSlower", GuardSlower);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "OnTransOnly", OnTransOnly);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "AvoidThreats", AvoidThreats);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "LooseRecruit", LooseRecruit);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "IsBaseDefense", IsBaseDefense);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "UseTransportOrigin", UseTransportOrigin);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "OnlyTargetHouseEnemy", OnlyTargetHouseEnemy);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "TransportsReturnOnUnload", TransportsReturnOnUnload);
-			CINI::CurrentDocument->WriteBool(ID.c_str(), "AreTeamMembersRecruitable", AreTeamMembersRecruitable);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "Full", Full);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "Whiner", Whiner);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "Droppod", Droppod);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "Suicide", Suicide);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "Loadable", Loadable);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "Prebuild", Prebuild);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "Annoyance", Annoyance);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "IonImmune", IonImmune);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "Recruiter", Recruiter);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "Reinforce", Reinforce);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "Aggressive", Aggressive);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "Autocreate", Autocreate);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "GuardSlower", GuardSlower);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "OnTransOnly", OnTransOnly);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "AvoidThreats", AvoidThreats);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "LooseRecruit", LooseRecruit);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "IsBaseDefense", IsBaseDefense);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "UseTransportOrigin", UseTransportOrigin);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "OnlyTargetHouseEnemy", OnlyTargetHouseEnemy);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "TransportsReturnOnUnload", TransportsReturnOnUnload);
+			CINIExt::CurrentDocument->WriteBool(ID.c_str(), "AreTeamMembersRecruitable", AreTeamMembersRecruitable);
 
 			UsedINIIndices.insert(ID);
 			CLuaConsole::updateTeam = true;
 		}
 		void delete_team_self() const
 		{
-			CINI::CurrentDocument->DeleteSection(ID.c_str());
-			if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+			CINIExt::CurrentDocument->DeleteSection(ID.c_str());
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("TeamTypes"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
 					if (value == ID.c_str())
 					{
-						CINI::CurrentDocument->DeleteKey("TeamTypes", key);
+						CINIExt::CurrentDocument->DeleteKey("TeamTypes", key);
 						break;
 					}
 				}
@@ -2882,14 +2882,14 @@ namespace LuaFunctions
 		}
 		static void delete_team(std::string id)
 		{
-			CINI::CurrentDocument->DeleteSection(id.c_str());
-			if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+			CINIExt::CurrentDocument->DeleteSection(id.c_str());
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("TeamTypes"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
 					if (value == id.c_str())
 					{
-						CINI::CurrentDocument->DeleteKey("TeamTypes", key);
+						CINIExt::CurrentDocument->DeleteKey("TeamTypes", key);
 						break;
 					}
 				}
@@ -2900,7 +2900,7 @@ namespace LuaFunctions
 		static std::vector<std::string> get_teams()
 		{
 			std::vector<std::string> ret;
-			if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("TeamTypes"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
@@ -2992,11 +2992,11 @@ namespace LuaFunctions
 		static sol::object get_task_force(std::string id)
 		{
 			bool found = false;
-			if (auto pSection = CINI::CurrentDocument->GetSection("TaskForces"))
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("TaskForces"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
-					if (value == id.c_str() && CINI::CurrentDocument->SectionExists(value))
+					if (value == id.c_str() && CINIExt::CurrentDocument->SectionExists(value))
 					{
 						found = true;
 						break;
@@ -3007,15 +3007,15 @@ namespace LuaFunctions
 			{
 				task_force ret;
 				ret.ID = id;
-				ret.Name = CINI::CurrentDocument->GetString(id.c_str(), "Name", "New task force").GetString();
-				ret.Group = CINI::CurrentDocument->GetString(id.c_str(), "Group", "-1").GetString();
+				ret.Name = CINIExt::CurrentDocument->GetString(id.c_str(), "Name", "New task force").GetString();
+				ret.Group = CINIExt::CurrentDocument->GetString(id.c_str(), "Group", "-1").GetString();
 				FString key;
 				for (int i = 0; i < 6; ++i)
 				{
 					key.Format("%d", i);
-					if (CINI::CurrentDocument->KeyExists(id.c_str(), key))
+					if (CINIExt::CurrentDocument->KeyExists(id.c_str(), key))
 					{
-						auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString(id.c_str(), key, "1,E1"), 1);
+						auto atoms = STDHelpers::SplitString(CINIExt::CurrentDocument->GetString(id.c_str(), key, "1,E1"), 1);
 						ret.Numbers.push_back(atoi(atoms[0]));
 						ret.Units.push_back(atoms[1].GetString());
 					}
@@ -3030,46 +3030,46 @@ namespace LuaFunctions
 		}
 		void apply() const
 		{
-			if (auto pSection = CINI::CurrentDocument->GetSection("TaskForces"))
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("TaskForces"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
 					if (value == ID.c_str())
 					{
-						CINI::CurrentDocument->DeleteKey("TaskForces", key);
+						CINIExt::CurrentDocument->DeleteKey("TaskForces", key);
 						break;
 					}
 				}
 			}
-			CINI::CurrentDocument->WriteString("TaskForces", CINI::GetAvailableKey("TaskForces"), ID.c_str());
-			CINI::CurrentDocument->WriteString(ID.c_str(), "Name", Name.c_str());
-			CINI::CurrentDocument->WriteString(ID.c_str(), "Group", Group.c_str());
+			CINIExt::CurrentDocument->WriteString("TaskForces", CINI::GetAvailableKey("TaskForces"), ID.c_str());
+			CINIExt::CurrentDocument->WriteString(ID.c_str(), "Name", Name.c_str());
+			CINIExt::CurrentDocument->WriteString(ID.c_str(), "Group", Group.c_str());
 			FString key;
 			FString value;
 			for (int i = 0; i < 6; ++i)
 			{
 				key.Format("%d", i);
-				CINI::CurrentDocument->DeleteKey(ID.c_str(), key);
+				CINIExt::CurrentDocument->DeleteKey(ID.c_str(), key);
 			}
 			for (int i = 0; i < Numbers.size(); ++i)
 			{
 				key.Format("%d", i);
 				value.Format("%d,%s", Numbers[i], Units[i].c_str());
-				CINI::CurrentDocument->WriteString(ID.c_str(), key, value);
+				CINIExt::CurrentDocument->WriteString(ID.c_str(), key, value);
 			}
 			UsedINIIndices.insert(ID);
 			CLuaConsole::updateTaskforce = true;
 		}
 		void delete_task_force_self() const
 		{
-			CINI::CurrentDocument->DeleteSection(ID.c_str());
-			if (auto pSection = CINI::CurrentDocument->GetSection("TaskForces"))
+			CINIExt::CurrentDocument->DeleteSection(ID.c_str());
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("TaskForces"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
 					if (value == ID.c_str())
 					{
-						CINI::CurrentDocument->DeleteKey("TaskForces", key);
+						CINIExt::CurrentDocument->DeleteKey("TaskForces", key);
 						break;
 					}
 				}
@@ -3079,14 +3079,14 @@ namespace LuaFunctions
 		}
 		static void delete_task_force(std::string id)
 		{
-			CINI::CurrentDocument->DeleteSection(id.c_str());
-			if (auto pSection = CINI::CurrentDocument->GetSection("TaskForces"))
+			CINIExt::CurrentDocument->DeleteSection(id.c_str());
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("TaskForces"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
 					if (value == id.c_str())
 					{
-						CINI::CurrentDocument->DeleteKey("TaskForces", key);
+						CINIExt::CurrentDocument->DeleteKey("TaskForces", key);
 						break;
 					}
 				}
@@ -3097,7 +3097,7 @@ namespace LuaFunctions
 		static std::vector<std::string> get_task_forces()
 		{
 			std::vector<std::string> ret;
-			if (auto pSection = CINI::CurrentDocument->GetSection("TaskForces"))
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("TaskForces"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
@@ -3170,11 +3170,11 @@ namespace LuaFunctions
 		static sol::object get_script(std::string id)
 		{
 			bool found = false;
-			if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("ScriptTypes"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
-					if (value == id.c_str() && CINI::CurrentDocument->SectionExists(value))
+					if (value == id.c_str() && CINIExt::CurrentDocument->SectionExists(value))
 					{
 						found = true;
 						break;
@@ -3185,14 +3185,14 @@ namespace LuaFunctions
 			{
 				script ret;
 				ret.ID = id;
-				ret.Name = CINI::CurrentDocument->GetString(id.c_str(), "Name", "New script").GetString();
+				ret.Name = CINIExt::CurrentDocument->GetString(id.c_str(), "Name", "New script").GetString();
 				FString key;
 				for (int i = 0; i < 50; ++i)
 				{
 					key.Format("%d", i);
-					if (CINI::CurrentDocument->KeyExists(id.c_str(), key))
+					if (CINIExt::CurrentDocument->KeyExists(id.c_str(), key))
 					{
-						auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString(id.c_str(), key, "0,0"), 1);
+						auto atoms = STDHelpers::SplitString(CINIExt::CurrentDocument->GetString(id.c_str(), key, "0,0"), 1);
 						ret.Actions.push_back(atoi(atoms[0]));
 						ret.Params.push_back(atoi(atoms[1]));
 					}
@@ -3304,45 +3304,45 @@ namespace LuaFunctions
 		
 		void apply() const
 		{
-			if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("ScriptTypes"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
 					if (value == ID.c_str())
 					{
-						CINI::CurrentDocument->DeleteKey("ScriptTypes", key);
+						CINIExt::CurrentDocument->DeleteKey("ScriptTypes", key);
 						break;
 					}
 				}
 			}
-			CINI::CurrentDocument->WriteString("ScriptTypes", CINI::GetAvailableKey("ScriptTypes"), ID.c_str());
-			CINI::CurrentDocument->WriteString(ID.c_str(), "Name", Name.c_str());
+			CINIExt::CurrentDocument->WriteString("ScriptTypes", CINI::GetAvailableKey("ScriptTypes"), ID.c_str());
+			CINIExt::CurrentDocument->WriteString(ID.c_str(), "Name", Name.c_str());
 			FString key;
 			FString value;
 			for (int i = 0; i < 50; ++i)
 			{
 				key.Format("%d", i);
-				CINI::CurrentDocument->DeleteKey(ID.c_str(), key);
+				CINIExt::CurrentDocument->DeleteKey(ID.c_str(), key);
 			}
 			for (int i = 0; i < Actions.size(); ++i)
 			{
 				key.Format("%d", i);
 				value.Format("%d,%d", Actions[i], Params[i]);
-				CINI::CurrentDocument->WriteString(ID.c_str(), key, value);
+				CINIExt::CurrentDocument->WriteString(ID.c_str(), key, value);
 			}
 			UsedINIIndices.insert(ID);
 			CLuaConsole::updateScript = true;
 		}
 		void delete_script_self() const
 		{
-			CINI::CurrentDocument->DeleteSection(ID.c_str());
-			if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
+			CINIExt::CurrentDocument->DeleteSection(ID.c_str());
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("ScriptTypes"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
 					if (value == ID.c_str())
 					{
-						CINI::CurrentDocument->DeleteKey("ScriptTypes", key);
+						CINIExt::CurrentDocument->DeleteKey("ScriptTypes", key);
 						break;
 					}
 				}
@@ -3352,14 +3352,14 @@ namespace LuaFunctions
 		}
 		static void delete_script(std::string id)
 		{
-			CINI::CurrentDocument->DeleteSection(id.c_str());
-			if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
+			CINIExt::CurrentDocument->DeleteSection(id.c_str());
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("ScriptTypes"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
 					if (value == id.c_str())
 					{
-						CINI::CurrentDocument->DeleteKey("ScriptTypes", key);
+						CINIExt::CurrentDocument->DeleteKey("ScriptTypes", key);
 						break;
 					}
 				}
@@ -3370,7 +3370,7 @@ namespace LuaFunctions
 		static std::vector<std::string> get_scripts()
 		{
 			std::vector<std::string> ret;
-			if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("ScriptTypes"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
@@ -3424,7 +3424,7 @@ namespace LuaFunctions
 		}
 		static sol::object get_ai_trigger(std::string id)
 		{	
-			auto atoms = STDHelpers::SplitString(CINI::CurrentDocument().GetString("AITriggerTypes", id.c_str()));
+			auto atoms = STDHelpers::SplitString(CINIExt::CurrentDocument().GetString("AITriggerTypes", id.c_str()));
 			if (atoms.size() >= 18)
 			{
 				ai_trigger ret(id);
@@ -3452,7 +3452,7 @@ namespace LuaFunctions
 				ret.Amount = ret.Comparators[0];
 				ret.Comparator = std::to_string(ret.Comparators[1]);
 
-				ret.Enabled = CINI::CurrentDocument().GetBool("AITriggerTypesEnable", id.c_str());
+				ret.Enabled = CINIExt::CurrentDocument().GetBool("AITriggerTypesEnable", id.c_str());
 				return sol::make_object(CLuaConsole::Lua, ret);
 			}
 			else
@@ -3518,12 +3518,12 @@ namespace LuaFunctions
 				EnabledInH ? "1" : "0"
 			);
 			if (Enabled) {
-				CINI::CurrentDocument->WriteBool("AITriggerTypesEnable", ID.c_str(), Enabled);
+				CINIExt::CurrentDocument->WriteBool("AITriggerTypesEnable", ID.c_str(), Enabled);
 			}
 			else {
-				CINI::CurrentDocument->DeleteKey("AITriggerTypesEnable", ID.c_str());
+				CINIExt::CurrentDocument->DeleteKey("AITriggerTypesEnable", ID.c_str());
 			}
-			CINI::CurrentDocument->WriteString("AITriggerTypes", ID.c_str(), value);
+			CINIExt::CurrentDocument->WriteString("AITriggerTypes", ID.c_str(), value);
 			UsedINIIndices.insert(ID);
 			CLuaConsole::updateAITrigger = true;
 		}
@@ -3538,22 +3538,22 @@ namespace LuaFunctions
 		}
 		void delete_ai_trigger_self() const
 		{
-			CINI::CurrentDocument->DeleteKey("AITriggerTypes", ID.c_str());
-			CINI::CurrentDocument->DeleteKey("AITriggerTypesEnable", ID.c_str());
+			CINIExt::CurrentDocument->DeleteKey("AITriggerTypes", ID.c_str());
+			CINIExt::CurrentDocument->DeleteKey("AITriggerTypesEnable", ID.c_str());
 			UsedINIIndices.erase(ID);
 			CLuaConsole::updateAITrigger = true;
 		}
 		static void delete_ai_trigger(std::string ID)
 		{
-			CINI::CurrentDocument->DeleteKey("AITriggerTypes", ID.c_str());
-			CINI::CurrentDocument->DeleteKey("AITriggerTypesEnable", ID.c_str());
+			CINIExt::CurrentDocument->DeleteKey("AITriggerTypes", ID.c_str());
+			CINIExt::CurrentDocument->DeleteKey("AITriggerTypesEnable", ID.c_str());
 			UsedINIIndices.erase(ID);
 			CLuaConsole::updateAITrigger = true;
 		}
 		static std::vector<std::string> get_ai_triggers()
 		{
 			std::vector<std::string> ret;
-			if (auto pSection = CINI::CurrentDocument->GetSection("AITriggerTypes"))
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("AITriggerTypes"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
@@ -3606,7 +3606,7 @@ namespace LuaFunctions
 	{
 		auto str = std::to_string(index);
 		if (auto pValue = (is_global ? CINI::Rules->TryGetString("VariableNames", str.c_str()) 
-		: CINI::CurrentDocument->TryGetString("VariableNames", str.c_str())))
+		: CINIExt::CurrentDocument->TryGetString("VariableNames", str.c_str())))
 		{
 			auto value = FString::GetParam(*pValue, 1);
 			return atoi(value);
@@ -3618,7 +3618,7 @@ namespace LuaFunctions
 	{
 		auto str = std::to_string(index);
 		if (auto pValue = (is_global ? CINI::Rules->TryGetString("VariableNames", str.c_str()) 
-		: CINI::CurrentDocument->TryGetString("VariableNames", str.c_str())))
+		: CINIExt::CurrentDocument->TryGetString("VariableNames", str.c_str())))
 		{
 			auto value = FString::GetParam(*pValue, 0);
 			return value;
@@ -3629,11 +3629,11 @@ namespace LuaFunctions
 	static void set_variable_value(int index, int value)
 	{
 		auto str = std::to_string(index);
-		if (auto pValue = CINI::CurrentDocument->TryGetString("VariableNames", str.c_str()))
+		if (auto pValue = CINIExt::CurrentDocument->TryGetString("VariableNames", str.c_str()))
 		{
 			FString newValue = *pValue;
 			newValue.SetParam(1, std::to_string(value));
-			CINI::CurrentDocument->WriteString("VariableNames", str.c_str(), newValue);
+			CINIExt::CurrentDocument->WriteString("VariableNames", str.c_str(), newValue);
 			CLuaConsole::updateVariable = true;
 		}
 		else
@@ -3647,11 +3647,11 @@ namespace LuaFunctions
 	static void set_variable_name(int index, std::string name)
 	{
 		auto str = std::to_string(index);
-		if (auto pValue = CINI::CurrentDocument->TryGetString("VariableNames", str.c_str()))
+		if (auto pValue = CINIExt::CurrentDocument->TryGetString("VariableNames", str.c_str()))
 		{
 			FString newValue = *pValue;
 			newValue.SetParam(0, name);
-			CINI::CurrentDocument->WriteString("VariableNames", str.c_str(), newValue);
+			CINIExt::CurrentDocument->WriteString("VariableNames", str.c_str(), newValue);
 			CLuaConsole::updateVariable = true;
 		}
 		else
@@ -3667,7 +3667,7 @@ namespace LuaFunctions
 		auto key = CINI::GetAvailableKey("VariableNames");
 		FString val;
 		val.Format("%s,%d", name, value);
-		CINI::CurrentDocument->WriteString("VariableNames", key, val);
+		CINIExt::CurrentDocument->WriteString("VariableNames", key, val);
 		CLuaConsole::updateVariable = true;
 
 		int index = atoi(key);
@@ -3919,20 +3919,20 @@ namespace LuaFunctions
 		if (oldWp > -1)
 		{
 			write_lua_console(std::format("Waypoint {} already exists at ({},{}), abort.", 
-				CINI::CurrentDocument->GetKeyAt("Waypoints", oldWp).GetString(), x, y));
-			return atoi(CINI::CurrentDocument->GetKeyAt("Waypoints", oldWp));
+				CINIExt::CurrentDocument->GetKeyAt("Waypoints", oldWp).GetString(), x, y));
+			return atoi(CINIExt::CurrentDocument->GetKeyAt("Waypoints", oldWp));
 		}
 
 		CLuaConsole::needRedraw = true;
 		if (index < 0)
 		{
-			index = atoi(CINI::CurrentDocument->GetAvailableKey("Waypoints"));
+			index = atoi(CINIExt::CurrentDocument->GetAvailableKey("Waypoints"));
 		}
 		FString key;
 		FString value;
 		key.Format("%d", index);
 		value.Format("%d", x * 1000 + y);
-		CINI::CurrentDocument->WriteString("Waypoints", key, value);
+		CINIExt::CurrentDocument->WriteString("Waypoints", key, value);
 		CMapData::Instance->UpdateFieldWaypointData(false);
 		return index;
 	}
@@ -3940,16 +3940,16 @@ namespace LuaFunctions
 	static void remove_waypoint(int index)
 	{
 		CLuaConsole::needRedraw = true;
-		if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+		if (auto pSection = CINIExt::CurrentDocument->GetSection("Waypoints"))
 		{
 			FString key;
 			key.Format("%d", index);
-			if (CINI::CurrentDocument->KeyExists("Waypoints", key))
+			if (CINIExt::CurrentDocument->KeyExists("Waypoints", key))
 			{
 				auto&& value = pSection->GetString(key);
 				int x = atoi(value) / 1000;
 				int y = atoi(value) % 1000;
-				CINI::CurrentDocument->DeleteKey(pSection, key);
+				CINIExt::CurrentDocument->DeleteKey(pSection, key);
 				CMapData::Instance->UpdateFieldWaypointData(false);
 
 				if (CMapData::Instance->IsMultiOnly())
@@ -3969,12 +3969,12 @@ namespace LuaFunctions
 			return;
 		int index = CMapData::Instance->GetCellAt(x, y)->Waypoint;
 		if (index > -1)
-			remove_waypoint(atoi(CINI::CurrentDocument->GetKeyAt("Waypoints", index)));
+			remove_waypoint(atoi(CINIExt::CurrentDocument->GetKeyAt("Waypoints", index)));
 	}
 
 	static int get_waypoint(int index)
 	{
-		if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+		if (auto pSection = CINIExt::CurrentDocument->GetSection("Waypoints"))
 		{
 			if (auto pKey = pSection->GetKeyAt(index))
 				return atoi(pKey->GetString());
@@ -4317,27 +4317,27 @@ namespace LuaFunctions
 
 	static void write_string(std::string section, std::string key, std::string value)
 	{
-		CINI::CurrentDocument->WriteString(section.c_str(), key.c_str(), value.c_str());
+		CINIExt::CurrentDocument->WriteString(section.c_str(), key.c_str(), value.c_str());
 	}
 
 	static void delete_key(std::string section, std::string key)
 	{
-		CINI::CurrentDocument->DeleteKey(section.c_str(), key.c_str());
+		CINIExt::CurrentDocument->DeleteKey(section.c_str(), key.c_str());
 	}
 
 	static void delete_section(std::string section)
 	{
-		CINI::CurrentDocument->DeleteSection(section.c_str());
+		CINIExt::CurrentDocument->DeleteSection(section.c_str());
 	}
 
 	static std::string get_free_waypoint()
 	{
-		return CINI::CurrentDocument->GetAvailableKey("Waypoints").GetString();
+		return CINIExt::CurrentDocument->GetAvailableKey("Waypoints").GetString();
 	}
 
 	static std::string get_free_key(std::string section)
 	{
-		return CINI::CurrentDocument->GetAvailableKey(section.c_str()).GetString();
+		return CINIExt::CurrentDocument->GetAvailableKey(section.c_str()).GetString();
 	}
 
 	static std::string get_param(std::string section, std::string key, int index, std::string delimiter = ",", std::string loadFrom = "map")
@@ -4661,7 +4661,7 @@ namespace LuaFunctions
 	static std::vector<building> get_buildings()
 	{
 		std::vector<building> ret;
-		for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Structures"); ++i)
+		for (int i = 0; i < CINIExt::CurrentDocument->GetKeyCount("Structures"); ++i)
 		{
 			auto obj = get_building(i);
 			if (!obj.TypeID.empty())
@@ -4747,7 +4747,7 @@ namespace LuaFunctions
 	static std::vector<aircraft> get_aircrafts()
 	{
 		std::vector<aircraft> ret;
-		for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Aircraft"); ++i)
+		for (int i = 0; i < CINIExt::CurrentDocument->GetKeyCount("Aircraft"); ++i)
 		{
 			auto obj = get_aircraft(i);
 			if (!obj.TypeID.empty())
@@ -4759,7 +4759,7 @@ namespace LuaFunctions
 	static std::vector<infantry> get_infantries()
 	{
 		std::vector<infantry> ret;
-		for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Infantry"); ++i)
+		for (int i = 0; i < CINIExt::CurrentDocument->GetKeyCount("Infantry"); ++i)
 		{
 			auto obj = get_infantry(i);
 			if (!obj.TypeID.empty())
@@ -4771,7 +4771,7 @@ namespace LuaFunctions
 	static std::vector<unit> get_units()
 	{
 		std::vector<unit> ret;
-		for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Units"); ++i)
+		for (int i = 0; i < CINIExt::CurrentDocument->GetKeyCount("Units"); ++i)
 		{
 			auto obj = get_unit(i);
 			if (!obj.TypeID.empty())
@@ -4801,7 +4801,7 @@ namespace LuaFunctions
 		}
 		else
 		{
-			if (auto pSection = CINI::CurrentDocument->GetSection("Houses"))
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("Houses"))
 			{
 				for (const auto& [key, value] : pSection->GetEntities())
 				{
@@ -4816,13 +4816,13 @@ namespace LuaFunctions
 	{
 		FString key;
 		key.Format("%d", x * 1000 + y);
-		if (CINI::CurrentDocument->KeyExists("CellTags", key))
+		if (CINIExt::CurrentDocument->KeyExists("CellTags", key))
 		{
 			write_lua_console(std::format("CellTag {} already exists at ({},{}), abort.",
-				CINI::CurrentDocument->GetString("CellTags", key).GetString(), x, y));
+				CINIExt::CurrentDocument->GetString("CellTags", key).GetString(), x, y));
 			return;
 		}
-		CINI::CurrentDocument->WriteString("CellTags", key, id.c_str());
+		CINIExt::CurrentDocument->WriteString("CellTags", key, id.c_str());
 		CLuaConsole::needRedraw = true;
 		CLuaConsole::updateCellTag = true;
 	}
@@ -4830,7 +4830,7 @@ namespace LuaFunctions
 	static void remove_celltags(std::string id)
 	{
 		std::vector<FString> keys;
-		if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
+		if (auto pSection = CINIExt::CurrentDocument->GetSection("CellTags"))
 		{
 			for (const auto& [key, value] : pSection->GetEntities())
 			{
@@ -4840,7 +4840,7 @@ namespace LuaFunctions
 		}
 		for (const auto& key : keys)
 		{
-			CINI::CurrentDocument->DeleteKey("CellTags", key);
+			CINIExt::CurrentDocument->DeleteKey("CellTags", key);
 		}
 		CLuaConsole::needRedraw = true;
 		CLuaConsole::updateCellTag = true;
@@ -4850,7 +4850,7 @@ namespace LuaFunctions
 	{
 		FString key;
 		key.Format("%d", x * 1000 + y);
-		CINI::CurrentDocument->DeleteKey("CellTags", key);
+		CINIExt::CurrentDocument->DeleteKey("CellTags", key);
 		CLuaConsole::needRedraw = true;
 		CLuaConsole::updateCellTag = true;
 	}
@@ -4862,7 +4862,7 @@ namespace LuaFunctions
 		if (!CMapData::Instance->IsCoordInMap(x, y))
 			return;
 
-		if (auto pHouse = CINI::CurrentDocument->GetSection(house.c_str()))
+		if (auto pHouse = CINIExt::CurrentDocument->GetSection(house.c_str()))
 		{
 			FString value;
 			value.Format("%s,%d,%d", type.c_str(), y, x);
@@ -4872,12 +4872,12 @@ namespace LuaFunctions
 				{
 					FString key;
 					key.Format("%03d", i);
-					if (!CINI::CurrentDocument->KeyExists(house.c_str(), key))
+					if (!CINIExt::CurrentDocument->KeyExists(house.c_str(), key))
 					{
 						FString count;
 						count.Format("%d", i + 1);
-						CINI::CurrentDocument->WriteString(house.c_str(), "NodeCount", count);
-						CINI::CurrentDocument->WriteString(house.c_str(), key, value);
+						CINIExt::CurrentDocument->WriteString(house.c_str(), "NodeCount", count);
+						CINIExt::CurrentDocument->WriteString(house.c_str(), key, value);
 						CLuaConsole::updateNode = true;
 						CLuaConsole::needRedraw = true;
 						break;
@@ -4887,14 +4887,14 @@ namespace LuaFunctions
 			else
 			{
 				std::vector<FString> nodes;
-				int nodeCount = CINI::CurrentDocument->GetInteger(house.c_str(), "NodeCount", 0);
+				int nodeCount = CINIExt::CurrentDocument->GetInteger(house.c_str(), "NodeCount", 0);
 				for (int i = 0; i < nodeCount; ++i)
 				{
 					FString key;
 					key.Format("%03d", i);
-					if (CINI::CurrentDocument->KeyExists(house.c_str(), key))
+					if (CINIExt::CurrentDocument->KeyExists(house.c_str(), key))
 					{
-						nodes.push_back(CINI::CurrentDocument->GetString(house.c_str(), key));
+						nodes.push_back(CINIExt::CurrentDocument->GetString(house.c_str(), key));
 					}
 				}
 				if (index > nodes.size()) index = nodes.size();
@@ -4904,12 +4904,12 @@ namespace LuaFunctions
 				{
 					FString key;
 					key.Format("%03d", i);
-					CINI::CurrentDocument->WriteString(house.c_str(), key, node);
+					CINIExt::CurrentDocument->WriteString(house.c_str(), key, node);
 					i++;
 				}
 				FString count;
 				count.Format("%d", nodes.size());
-				CINI::CurrentDocument->WriteString(house.c_str(), "NodeCount", count);
+				CINIExt::CurrentDocument->WriteString(house.c_str(), "NodeCount", count);
 				CLuaConsole::updateNode = true;
 				CLuaConsole::needRedraw = true;
 			}
@@ -5289,7 +5289,7 @@ namespace LuaFunctions
 
 		CMapData::Instance->UpdateINIFile(SaveMapFlag::UpdateMapFieldData);
 
-		if (SaveMapExt::SaveMap(&CINI::CurrentDocument, CFinalSunDlg::Instance(), target, previewOption, false, false))
+		if (SaveMapExt::SaveMap(&CINIExt::CurrentDocument, CFinalSunDlg::Instance(), target, previewOption, false, false))
 		{
 			FString buffer = "Map saved as \"%1\"";
 			Translations::GetTranslationItem("FileSaved", buffer);
@@ -5365,7 +5365,7 @@ namespace LuaFunctions
 		}
 		auto& snapshot = snapshots[version];
 		Logger::Debug("Restoring map snapshot #%d, time point: %s\n", version, formatTime(snapshot.savedTime).c_str());
-		if (CINI::CurrentDocument->GetString("Map", "Theater") != snapshot.INI["Map"]["Theater"])
+		if (CINIExt::CurrentDocument->GetString("Map", "Theater") != snapshot.INI["Map"]["Theater"])
 		{
 			write_lua_console(std::format("Cannot restore snapshot #{}, theater dismatch.", version));
 			return;
@@ -5478,7 +5478,7 @@ namespace LuaFunctions
 		{
 			FString wp;
 			wp.Format("%d", y);
-			auto pWP = CINI::CurrentDocument->GetString("Waypoints", wp, "-1");
+			auto pWP = CINIExt::CurrentDocument->GetString("Waypoints", wp, "-1");
 			auto second = atoi(pWP);
 			if (second >= 0)
 			{

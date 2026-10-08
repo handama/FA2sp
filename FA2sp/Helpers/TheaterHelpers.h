@@ -8,6 +8,7 @@
 
 #include <CLoading.h>
 #include <CINI.h>
+#include "../Miscs/Hooks.INI.h"
 
 #include <set>
 #include <vector>
@@ -67,7 +68,7 @@ public:
 		if (!CMapData::Instance->MapWidthPlusHeight)
 			return "";
 
-		return GetSuffix(CINI::CurrentDocument->GetString("Map", "Theater"));
+		return GetSuffix(CINIExt::CurrentDocument->GetString("Map", "Theater"));
 	}
 
 	static bool IsAllowedTheaterName(ppmfc::CString theaterName)

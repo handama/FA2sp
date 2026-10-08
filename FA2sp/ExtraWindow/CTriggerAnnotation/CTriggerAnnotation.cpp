@@ -104,7 +104,7 @@ void CTriggerAnnotation::Update(const char* filter)
     text.Format(Translations::TranslateOrDefault("TriggerAnnotation.Text", "Current Object: %s"), name);
     SendMessage(hText, WM_SETTEXT, 0, text);
 
-    FString annotation = CINI::CurrentDocument->GetString("TriggerAnnotations", ID);
+    FString annotation = CINIExt::CurrentDocument->GetString("TriggerAnnotations", ID);
     if (!annotation.IsEmpty())
     {
         size_t start = annotation.Find("START,");
@@ -236,7 +236,7 @@ void CTriggerAnnotation::OnEditchangeEdit()
     FString text(Buffer);
     if (text.IsEmpty())
     {
-        CINI::CurrentDocument->DeleteKey("TriggerAnnotations", ID);
+        CINIExt::CurrentDocument->DeleteKey("TriggerAnnotations", ID);
         return;
     }
     text.Replace("\n\r", "\\n");
@@ -245,5 +245,5 @@ void CTriggerAnnotation::OnEditchangeEdit()
     text.Replace("\r", "\\n");
     text = "START," + text;
     text = text + ",END";
-    CINI::CurrentDocument->WriteString("TriggerAnnotations", ID, text);
+    CINIExt::CurrentDocument->WriteString("TriggerAnnotations", ID, text);
 }

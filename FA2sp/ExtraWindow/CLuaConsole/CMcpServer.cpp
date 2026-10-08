@@ -112,7 +112,7 @@ static std::string GetRelativePath(const std::filesystem::path& full, const std:
 // ---------------------------------------------------------------------------
 static std::string GetIniSection(const std::string& section)
 {
-    auto& pMap = CINI::CurrentDocument;
+    auto& pMap = CINIExt::CurrentDocument;
 
 	auto pSection = pMap->GetSection(section.c_str());
 	if (!pSection) return "Section \"" + section + "\" not found or empty.";
@@ -965,7 +965,7 @@ bool CMcpServer::IsRunning()
 static std::string CaptureMapIniState()
 {
 	std::ostringstream oss;
-    for (auto& section : CINI::CurrentDocument->Dict)
+    for (auto& section : CINIExt::CurrentDocument->Dict)
     {
         if (!strcmp(section.first, "Preview")
             || !strcmp(section.first, "PreviewPack")

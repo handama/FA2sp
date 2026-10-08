@@ -1,4 +1,5 @@
 #include "Body.h"
+#include "../../Miscs/Hooks.INI.h"
 
 #include <CINI.h>
 #include <string>
@@ -27,7 +28,7 @@ BOOL CSingleplayerSettingsExt::PreTranslateMessageExt(MSG* pMsg)
 			auto pWnd = (ppmfc::CWnd*)this->GetDlgItem(nID);
 			ppmfc::CString buffer;
 			pWnd->GetWindowText(buffer);
-			CINI::CurrentDocument->WriteString("Ranking", pKey, buffer);
+			CINIExt::CurrentDocument->WriteString("Ranking", pKey, buffer);
 		};
 		auto processGeneral = [&pMsg, this](int nID, const char* pKey)// -> bool
 		{
@@ -35,9 +36,9 @@ BOOL CSingleplayerSettingsExt::PreTranslateMessageExt(MSG* pMsg)
 			ppmfc::CString buffer;
 			pWnd->GetWindowText(buffer);
 			if (buffer == "")
-				CINI::CurrentDocument->DeleteKey("General", pKey);
+				CINIExt::CurrentDocument->DeleteKey("General", pKey);
 			else
-				CINI::CurrentDocument->WriteString("General", pKey, buffer);
+				CINIExt::CurrentDocument->WriteString("General", pKey, buffer);
 		};
 
 		if (pMsg->hwnd == pWnd->m_hWnd)

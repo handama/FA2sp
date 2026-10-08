@@ -1,4 +1,5 @@
 #include "Body.h"
+#include "../../Miscs/Hooks.INI.h"
 
 #include "../../FA2sp.h"
 #include <WindowsX.h>
@@ -270,7 +271,7 @@ void CIsoViewExt::ConfirmTube(bool addReverse)
         value += direc;
     }
     value += ",-1";
-    CINI::CurrentDocument->WriteString("Tubes", key, value);
+    CINIExt::CurrentDocument->WriteString("Tubes", key, value);
 
     if (addReverse)
     {
@@ -283,7 +284,7 @@ void CIsoViewExt::ConfirmTube(bool addReverse)
             value += direc;
         }
         value += ",-1";
-        CINI::CurrentDocument->WriteString("Tubes", key, value);
+        CINIExt::CurrentDocument->WriteString("Tubes", key, value);
     }
 
     CMapData::Instance->UpdateFieldTubeData(false);

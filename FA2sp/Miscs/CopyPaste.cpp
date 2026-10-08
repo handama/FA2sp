@@ -101,7 +101,7 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
             auto it = structures.begin();
             std::advance(it, 0);
             int iniIndex = CMapDataExt::StructureIndexMap[it->first];
-            ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Structures", iniIndex);
+            ppmfc::CString value = CINIExt::CurrentDocument->GetValueAt("Structures", iniIndex);
             auto atoms = STDHelpers::SplitString(value, 16);
             if (coords.X == atoi(atoms[4]) && coords.Y == atoi(atoms[3]))
             {
@@ -114,7 +114,7 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
             auto it = structures.begin();
             std::advance(it, 1);
             int iniIndex = CMapDataExt::StructureIndexMap[it->first];
-            ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Structures", iniIndex);
+            ppmfc::CString value = CINIExt::CurrentDocument->GetValueAt("Structures", iniIndex);
             auto atoms = STDHelpers::SplitString(value, 16);
             if (coords.X == atoi(atoms[4]) && coords.Y == atoi(atoms[3]))
             {
@@ -127,7 +127,7 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
             auto it = structures.begin();
             std::advance(it, 2);
             int iniIndex = CMapDataExt::StructureIndexMap[it->first];
-            ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Structures", iniIndex);
+            ppmfc::CString value = CINIExt::CurrentDocument->GetValueAt("Structures", iniIndex);
             auto atoms = STDHelpers::SplitString(value, 16);
             if (coords.X == atoi(atoms[4]) && coords.Y == atoi(atoms[3]))
             {
@@ -137,29 +137,29 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
         }
 
         if (pCell->Aircraft > -1) {
-            ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Aircraft", pCell->Aircraft);
+            ppmfc::CString value = CINIExt::CurrentDocument->GetValueAt("Aircraft", pCell->Aircraft);
             pushString(value.GetString(), item.AircraftData);
             objectMask |= ObjectRecord::RecordType::Aircraft;
         }
 
         if (pCell->Infantry[0] > -1) {
-            ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Infantry", pCell->Infantry[0]);
+            ppmfc::CString value = CINIExt::CurrentDocument->GetValueAt("Infantry", pCell->Infantry[0]);
             pushString(value.GetString(), item.InfantryData_1);
             objectMask |= ObjectRecord::RecordType::Infantry;
         }
         if (pCell->Infantry[1] > -1) {
-            ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Infantry", pCell->Infantry[1]);
+            ppmfc::CString value = CINIExt::CurrentDocument->GetValueAt("Infantry", pCell->Infantry[1]);
             pushString(value.GetString(), item.InfantryData_2);
             objectMask |= ObjectRecord::RecordType::Infantry;
         }
         if (pCell->Infantry[2] > -1) {
-            ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Infantry", pCell->Infantry[2]);
+            ppmfc::CString value = CINIExt::CurrentDocument->GetValueAt("Infantry", pCell->Infantry[2]);
             pushString(value.GetString(), item.InfantryData_3);
             objectMask |= ObjectRecord::RecordType::Infantry;
         }
 
         if (pCell->Unit > -1) {
-            ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Units", pCell->Unit);
+            ppmfc::CString value = CINIExt::CurrentDocument->GetValueAt("Units", pCell->Unit);
             pushString(value.GetString(), item.UnitData);
             objectMask |= ObjectRecord::RecordType::Unit;
         }

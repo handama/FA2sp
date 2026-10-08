@@ -423,7 +423,7 @@ private:
     static bool bIgnoreLandtypes;
     static bool ProgrammaticallySettingText;
 
-    static CINI& map;
+    static CINIExt& map;
     static MultimapHelper& rules;
     static FMap<std::shared_ptr<TerrainGeneratorPreset>> TerrainGeneratorPresets;
     static WNDPROC g_pOriginalTabPageProc;

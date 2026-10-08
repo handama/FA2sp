@@ -20,6 +20,7 @@
 #include "../CMapData/Body.h"
 #include "../../Miscs/Hooks.INI.h"
 #include "../../Helpers/Helper.h"
+#include "../../Helpers/CINIOrderTracker.h"
 
 DEFINE_HOOK(4808A0, CLoading_LoadObjects, 5)
 {
@@ -149,7 +150,7 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
                         CINI::Desert().Release();
                         //CINI::FAData().Release();
                         //CINI::FALanguage().Release();
-                        CINI::CurrentDocument().Release();
+                        CINIExt::CurrentDocument().Release();
 
                         CLoading::Instance()->Release();
                         strcpy_s(CFinalSunApp::FilePath, 260, folder);
@@ -250,7 +251,7 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
 
     INIIncludes::SkipBracketFix = true;
     CMapDataExt::IsLoadingMapFile = true;
-    CMapDataExt::MapIniSectionSorting.clear();
+    CINIOrderTracker::Clear(&CINIExt::CurrentDocument);
     CMapDataExt::MapInlineComments.clear();
     CMapDataExt::MapFrontlineComments.clear();
     CMapDataExt::MapInsectionComments.clear();

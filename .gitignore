@@ -44,3 +44,15 @@ MFC42
 !Debug/Scintilla.lib
 /ida_mapping
 /migration
+
+/FA2sp.UnitTest/Debug/*
+/FA2sp.UnitTest/Release/*
+/FA2sp.UnitTest/FA2sp.UnitTest/*
+
+Supplementary/FA2sp.UnitTest.dll
+Supplementary/FA2sp.dll
+Supplementary/*.log
+Supplementary/*.txt
+Supplementary/UnitTest.xml
+dist/
+bin_output/

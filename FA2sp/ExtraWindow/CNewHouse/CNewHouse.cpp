@@ -17,7 +17,7 @@
 
 HWND CNewHouse::m_hwnd;
 CFinalSunDlg* CNewHouse::m_parent;
-CINI& CNewHouse::map = CINI::CurrentDocument;
+CINIExt& CNewHouse::map = CINIExt::CurrentDocument;
 MultimapHelper& CNewHouse::rules = Variables::RulesMap;
 
 HWND CNewHouse::hSelectedHouse;

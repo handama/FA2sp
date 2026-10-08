@@ -19,7 +19,7 @@
 
 HWND CSearhReference::m_hwnd;
 CFinalSunDlg* CSearhReference::m_parent;
-CINI& CSearhReference::map = CINI::CurrentDocument;
+CINIExt& CSearhReference::map = CINIExt::CurrentDocument;
 MultimapHelper& CSearhReference::rules = Variables::RulesMap;
 
 HWND CSearhReference::hListbox;
@@ -479,7 +479,7 @@ void CSearhReference::Update(bool top)
                     }
                 }
             }
-            if (auto pObjSection = CINI::CurrentDocument->GetSection("Structures"))
+            if (auto pObjSection = CINIExt::CurrentDocument->GetSection("Structures"))
             {
                 for (auto& pair : pObjSection->GetEntities())
                 {
@@ -506,7 +506,7 @@ void CSearhReference::Update(bool top)
                     }
                 }
             }
-            if (auto pObjSection = CINI::CurrentDocument->GetSection("Aircraft"))
+            if (auto pObjSection = CINIExt::CurrentDocument->GetSection("Aircraft"))
             {
                 for (auto& pair : pObjSection->GetEntities())
                 {
@@ -533,7 +533,7 @@ void CSearhReference::Update(bool top)
                     }
                 }
             }
-            if (auto pObjSection = CINI::CurrentDocument->GetSection("Units"))
+            if (auto pObjSection = CINIExt::CurrentDocument->GetSection("Units"))
             {
                 for (auto& pair : pObjSection->GetEntities())
                 {
@@ -560,7 +560,7 @@ void CSearhReference::Update(bool top)
                     }
                 }
             }
-            if (auto pObjSection = CINI::CurrentDocument->GetSection("Infantry"))
+            if (auto pObjSection = CINIExt::CurrentDocument->GetSection("Infantry"))
             {
                 for (auto& pair : pObjSection->GetEntities())
                 {
@@ -587,7 +587,7 @@ void CSearhReference::Update(bool top)
                     }
                 }
             }
-            if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
+            if (auto pSection = CINIExt::CurrentDocument->GetSection("CellTags"))
             {
                 for (auto& pairObj : pSection->GetEntities())
                 {

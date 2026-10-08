@@ -1,0 +1,82 @@
+name: Reusable Build and Test
+
+on:
+  workflow_call:
+    inputs:
+      configuration:
+        description: 'Build Configuration (e.g. Release)'
+        required: false
+        default: 'Release'
+        type: string
+      run_tests:
+        description: 'Whether to run Unit Tests'
+        required: false
+        default: true
+        type: boolean
+    outputs:
+      artifact_name:
+        description: 'Name of the uploaded binary artifact'
+        value: ${{ jobs.build-and-test.outputs.artifact_name }}
+
+jobs:
+  build-and-test:
+    runs-on: windows-2022
+    env:
+      SOLUTION_FILE_PATH: FA2sp.sln
+      CONFIGURATION: ${{ inputs.configuration }}
+    outputs:
+      artifact_name: FA2sp_${{ inputs.configuration }}_${{ github.sha }}
+
+    steps:
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: recursive
+          lfs: true
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v1.0.2
+
+      - name: Restore NuGet packages
+        run: nuget restore ${{ env.SOLUTION_FILE_PATH }}
+
+      - name: Build Program and UT (MSVC)
+        run: msbuild /m /p:Configuration="${{ env.CONFIGURATION }}" /p:Platform=x86 ${{ env.SOLUTION_FILE_PATH }}
+
+      - name: Copy binaries to Supplementary
+        shell: pwsh
+        run: |
+          if (Test-Path "${{ env.CONFIGURATION }}/FA2sp.dll") {
+              Copy-Item -Force "${{ env.CONFIGURATION }}/FA2sp.dll" "Supplementary/FA2sp.dll"
+          }
+          if (Test-Path "${{ env.CONFIGURATION }}/FA2sp.UnitTest.dll") {
+              Copy-Item -Force "${{ env.CONFIGURATION }}/FA2sp.UnitTest.dll" "Supplementary/FA2sp.UnitTest.dll"
+          }
+
+      - name: do UT
+        if: inputs.run_tests
+        shell: cmd
+        run: |
+          call Scripts\RunUnitTest.bat
+
+      - name: Upload UT Results
+        if: always() && inputs.run_tests
+        uses: actions/upload-artifact@v4
+        with:
+          name: FA2sp-UT-Results-${{ github.run_number }}
+          path: |
+            Supplementary/UnitTest.log
+            Supplementary/UnitTest.xml
+            Supplementary/syringe.log
+          retention-days: 7
+
+      - name: Upload Build Artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FA2sp_${{ env.CONFIGURATION }}_${{ github.sha }}
+          path: |
+            ${{ env.CONFIGURATION }}/FA2sp.dll
+            ${{ env.CONFIGURATION }}/FA2sp.pdb
+          retention-days: 7

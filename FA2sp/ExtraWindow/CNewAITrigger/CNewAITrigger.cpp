@@ -20,7 +20,7 @@
 
 HWND CNewAITrigger::m_hwnd;
 CFinalSunDlg* CNewAITrigger::m_parent;
-CINI& CNewAITrigger::map = CINI::CurrentDocument;
+CINIExt& CNewAITrigger::map = CINIExt::CurrentDocument;
 MultimapHelper& CNewAITrigger::rules = Variables::RulesMap;
 CINI& CNewAITrigger::fadata = CINI::FAData;
 bool CNewAITrigger::AutoChangeName = false;

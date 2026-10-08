@@ -284,7 +284,7 @@ BOOL CTechnoDialog::OnInitDialog(HWND hDlg)
             {
                 FString name;
                 name.Format("%s - %s", m_strTag,
-                    FString::GetParam(CINI::CurrentDocument->GetString("Tags", m_strTag, "0,MISSING,01000000"), 1));
+                    FString::GetParam(CINIExt::CurrentDocument->GetString("Tags", m_strTag, "0,MISSING,01000000"), 1));
                 index = m_comboBoxes[hTag]->FindStringExact(name);
             }
             else
@@ -484,7 +484,7 @@ BOOL CTechnoDialog::OnInitDialog(HWND hDlg)
         auto vcb = std::make_unique<VirtualComboBoxEx>();
         vcb->Attach(hFollow, nullptr, true);
         vcb->AddString("-1 - None");
-        if (auto pSection = CINI::CurrentDocument->GetSection("Units"))
+        if (auto pSection = CINIExt::CurrentDocument->GetSection("Units"))
         {
 			int index = 0;
 			FString text;

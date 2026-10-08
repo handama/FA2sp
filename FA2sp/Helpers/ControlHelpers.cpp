@@ -4,6 +4,7 @@
 #include "MultimapHelper.h"
 
 #include "../FA2sp.h"
+#include "../Miscs/Hooks.INI.h"
 
 #include <CMapData.h>
 
@@ -29,12 +30,12 @@ namespace ControlHelpers
     void ComboBox::LoadCountries(ppmfc::CComboBox& combobox, bool bShowIndex)
     {
         combobox.DeleteAllStrings();
-        auto& doc = CINI::CurrentDocument();
+        auto& doc = CINIExt::CurrentDocument();
 
         MultimapHelper mmh;
 
         mmh.AddINI(&CINI::Rules());
-        mmh.AddINI(&CINI::CurrentDocument());
+        mmh.AddINI(&CINIExt::CurrentDocument());
 
         auto&& entries = mmh.ParseIndicies("Countries", true);
 
@@ -108,10 +109,10 @@ namespace ControlHelpers
 			break;
 		case 2:
 	        mmh.AddINI(&CINI::Rules());
-			mmh.AddINI(&CINI::CurrentDocument());
+			mmh.AddINI(&CINIExt::CurrentDocument());
 			break;
 		case 3:
-			mmh.AddINI(&CINI::CurrentDocument());
+			mmh.AddINI(&CINIExt::CurrentDocument());
 			break;
 		case 4:
 			mmh.AddINI(&CINI::Art());
@@ -119,7 +120,7 @@ namespace ControlHelpers
 		case 5:
             mmh.AddINI(&CINI::FAData());
             mmh.AddINI(&CINI::Rules());
-            mmh.AddINI(&CINI::CurrentDocument());
+            mmh.AddINI(&CINIExt::CurrentDocument());
 			break;
 		}
         if (bUseStrictOrder)
@@ -242,39 +243,39 @@ namespace ControlHelpers
     {
         if (bShowIndex)
         {
-            combobox.SetItemData(combobox.AddString("-1 - Ëæ»ú·ÇÖÐÁ¢ËùÊô·½"), -1);
-            combobox.SetItemData(combobox.AddString("-2 - µÚÒ»¸öÖÐÁ¢ËùÊô·½"), -2);
-            combobox.SetItemData(combobox.AddString("-3 - Ëæ»úÈËÀàÍæ¼Ò"), -3);
+            combobox.SetItemData(combobox.AddString("-1 - éšæœºéžä¸­ç«‹æ‰€å±žæ–¹"), -1);
+            combobox.SetItemData(combobox.AddString("-2 - ç¬¬ä¸€ä¸ªä¸­ç«‹æ‰€å±žæ–¹"), -2);
+            combobox.SetItemData(combobox.AddString("-3 - éšæœºäººç±»çŽ©å®¶"), -3);
         }
         else
         {
-            combobox.SetItemData(combobox.AddString("Ëæ»ú·ÇÖÐÁ¢ËùÊô·½"), -1);
-            combobox.SetItemData(combobox.AddString("µÚÒ»¸öÖÐÁ¢ËùÊô·½"), -2);
-            combobox.SetItemData(combobox.AddString("Ëæ»úÈËÀàÍæ¼Ò"), -3);
+            combobox.SetItemData(combobox.AddString("éšæœºéžä¸­ç«‹æ‰€å±žæ–¹"), -1);
+            combobox.SetItemData(combobox.AddString("ç¬¬ä¸€ä¸ªä¸­ç«‹æ‰€å±žæ–¹"), -2);
+            combobox.SetItemData(combobox.AddString("éšæœºäººç±»çŽ©å®¶"), -3);
         }
 	}
     void ComboBox::LoadHousesAddon2(ppmfc::CComboBox& combobox, bool bShowIndex)
     {
         if (bShowIndex)
         {
-            combobox.SetItemData(combobox.AddString("-1 - ÈÎÒâËùÊô·½"), -1);
-            combobox.SetItemData(combobox.AddString("-2 - ´¥·¢ËùÊô·½"), -2);
+            combobox.SetItemData(combobox.AddString("-1 - ä»»æ„æ‰€å±žæ–¹"), -1);
+            combobox.SetItemData(combobox.AddString("-2 - è§¦å‘æ‰€å±žæ–¹"), -2);
         }
         else
         {
-            combobox.SetItemData(combobox.AddString("ÈÎÒâËùÊô·½"), -1);
-            combobox.SetItemData(combobox.AddString("´¥·¢ËùÊô·½"), -2);
+            combobox.SetItemData(combobox.AddString("ä»»æ„æ‰€å±žæ–¹"), -1);
+            combobox.SetItemData(combobox.AddString("è§¦å‘æ‰€å±žæ–¹"), -2);
         }
     }
     void ComboBox::LoadHousesAddon3(ppmfc::CComboBox& combobox, bool bShowIndex)
     {
         if (bShowIndex)
         {
-            combobox.SetItemData(combobox.AddString("-1 - ÈÎÒâËùÊô·½"), -1);
+            combobox.SetItemData(combobox.AddString("-1 - ä»»æ„æ‰€å±žæ–¹"), -1);
         }
         else
         {
-            combobox.SetItemData(combobox.AddString("ÈÎÒâËùÊô·½"), -1);
+            combobox.SetItemData(combobox.AddString("ä»»æ„æ‰€å±žæ–¹"), -1);
         }
     } 
     void ComboBox::LoadHousesAddonMulti(ppmfc::CComboBox& combobox, bool bShowIndex)

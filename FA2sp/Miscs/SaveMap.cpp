@@ -33,6 +33,7 @@
 #include "../Ext/CFinalSunApp/Body.h"
 #include "../Helpers/Helper.h"
 #include "../Helpers/TheaterHelpers.h"
+#include "../Helpers/CINIOrderTracker.h"
 
 std::optional<std::filesystem::file_time_type> SaveMapExt::SaveTime;
 
@@ -185,7 +186,7 @@ DEFINE_HOOK(42B2EA, CFinalSunDlg_SaveMap_SkipStringDTOR, C)
 
 bool SaveMapExt::SaveMapSilent(FString filepath, bool panic)
 {
-    auto ini = &CINI::CurrentDocument;
+    auto ini = &CINIExt::CurrentDocument;
     FString buffer;
     FString buffer2;
 
@@ -366,7 +367,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
             pINI->DeleteSection("Preview");
             pINI->DeleteSection("PreviewPack");
 
-            auto& map = CINI::CurrentDocument();
+            auto& map = CINIExt::CurrentDocument();
             auto thisTheater = map.GetString("Map", "Theater");
 
             auto tiledata = CMapDataExt::TileData;
@@ -421,7 +422,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
 
                 if (mapData.IsMultiOnly() && cell.Waypoint != -1)
                 {
-                    auto pSection = CINI::CurrentDocument->GetSection("Waypoints");
+                    auto pSection = CINIExt::CurrentDocument->GetSection("Waypoints");
                     auto& pWP = *pSection->GetKeyAt(cell.Waypoint);
                     if (atoi(pWP) < 8)
                     {
@@ -709,7 +710,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                 includeIni->LoadINIExt((uint8_t*)buffer.data(), buffer.length(), nullptr, true, true, true, &currentIncludeInis);
             }
 
-            auto saveSection = [&oss, &pInclude, &includeIni](INISection* pSection, FString sectionName)
+            auto saveSection = [&oss, &pInclude, &includeIni, pINI](INISection* pSection, FString sectionName)
             {
                 bool hasInclude = includeIni && includeIni->SectionExists(sectionName);
                 bool wroteSection = false;
@@ -760,58 +761,41 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                     wroteSection = true;
                 };
 
-                if (hasInclude)
+                auto writeEntry = [&](const ppmfc::CString& key, const ppmfc::CString& value)
                 {
-                    auto pIncludeSection = includeIni->GetSection(sectionName);
-                    auto& keys = pIncludeSection->GetEntities();
-
-                    for (auto& pair : pSection->GetEntities())
+                    if (hasInclude)
                     {
-                        auto itr = keys.find(pair.first);
-                        if (itr != keys.end() && itr->second == pair.second)
-                            continue;
-
-                        writeSectionHeaderOnce();
-
-                        auto fkIt = CMapDataExt::MapFrontlineComments[sectionName].find(pair.first);
-                        if (fkIt != CMapDataExt::MapFrontlineComments[sectionName].end())
+                        if (auto pIncludeSection = includeIni->GetSection(sectionName))
                         {
-                            writeCommentBlock(fkIt->second);
+                            auto& keys = pIncludeSection->GetEntities();
+                            auto itr = keys.find(key);
+                            if (itr != keys.end() && itr->second == value)
+                                return;
                         }
-
-                        oss << pair.first << "=" << pair.second;
-
-                        auto ikIt = CMapDataExt::MapInlineComments[sectionName].find(pair.first);
-                        if (ikIt != CMapDataExt::MapInlineComments[sectionName].end())
-                        {
-                            oss << " ; " << ikIt->second;
-                        }
-
-                        oss << "\n";
                     }
-                }
-                else
+
+                    writeSectionHeaderOnce();
+
+                    auto fkIt = CMapDataExt::MapFrontlineComments[sectionName].find(key);
+                    if (fkIt != CMapDataExt::MapFrontlineComments[sectionName].end())
+                    {
+                        writeCommentBlock(fkIt->second);
+                    }
+
+                    oss << key << "=" << value;
+
+                    auto ikIt = CMapDataExt::MapInlineComments[sectionName].find(key);
+                    if (ikIt != CMapDataExt::MapInlineComments[sectionName].end())
+                    {
+                        oss << " ; " << ikIt->second;
+                    }
+
+                    oss << "\n";
+                };
+
+                for (const auto& [key, value] : CINIOrderTracker::GetEntries(pINI, sectionName, pSection, ExtConfigs::SaveMap_AdaptiveSorting))
                 {
-                    for (const auto& pair : pSection->GetEntities())
-                    {
-                        writeSectionHeaderOnce();
-
-                        auto fkIt = CMapDataExt::MapFrontlineComments[sectionName].find(pair.first);
-                        if (fkIt != CMapDataExt::MapFrontlineComments[sectionName].end())
-                        {
-                            writeCommentBlock(fkIt->second);
-                        }
-
-                        oss << pair.first << "=" << pair.second;
-
-                        auto ikIt = CMapDataExt::MapInlineComments[sectionName].find(pair.first);
-                        if (ikIt != CMapDataExt::MapInlineComments[sectionName].end())
-                        {
-                            oss << " ; " << ikIt->second;
-                        }
-
-                        oss << "\n";
-                    }
+                    writeEntry(key, value);
                 }
 
                 if (wroteSection)
@@ -851,48 +835,16 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                 saveSection(pSection, "PreviewPack");
             }
 
-            if (!SaveMapExt::IsAutoSaving && ExtConfigs::SaveMap_PreserveINISorting)
+            const bool preserveSections = !SaveMapExt::IsAutoSaving && ExtConfigs::SaveMap_PreserveINISorting;
+            for (const auto& [sectionName, pSection] : CINIOrderTracker::GetSections(pINI, preserveSections))
             {
-                for (const auto& sectionName : CMapDataExt::MapIniSectionSorting)
-                {
-                    if (!strcmp(sectionName, "Preview")
-                        || !strcmp(sectionName, "PreviewPack")
-                        || !strcmp(sectionName, "Header")
-                        || !strcmp(sectionName, "Digest"))
-                        continue;
+                if (!strcmp(sectionName, "Preview")
+                    || !strcmp(sectionName, "PreviewPack")
+                    || !strcmp(sectionName, "Header")
+                    || !strcmp(sectionName, "Digest"))
+                    continue;
 
-                    if (const auto pSection = pINI->GetSection(sectionName))
-                    {
-                        saveSection(pSection, sectionName);
-                    }
-                }
-                for (auto& section : pINI->Dict)
-                {
-                    if (!strcmp(section.first, "Preview")
-                        || !strcmp(section.first, "PreviewPack")
-                        || !strcmp(section.first, "Header")
-                        || !strcmp(section.first, "Digest"))
-                        continue;
-
-                    auto it = std::find(CMapDataExt::MapIniSectionSorting.begin(), CMapDataExt::MapIniSectionSorting.end(), section.first);
-                    if (it == CMapDataExt::MapIniSectionSorting.end())
-                    {
-                        saveSection(&section.second, section.first);
-                    }
-                }
-            }
-            else
-            {
-                for (auto& section : pINI->Dict)
-                {
-                    if (!strcmp(section.first, "Preview")
-                        || !strcmp(section.first, "PreviewPack")
-                        || !strcmp(section.first, "Header")
-                        || !strcmp(section.first, "Digest"))
-                        continue;
-
-                    saveSection(&section.second, section.first);
-                }
+                saveSection(pSection, sectionName);
             }
 
             // Generate the Digest
@@ -1068,7 +1020,7 @@ void SaveMapExt::RemoveEarlySaves()
         };
 
         std::map<FILETIME, ppmfc::CString, FileTimeComparator> m;
-        auto mapName = CINI::CurrentDocument->GetString("Basic", "Name", "No Name");
+        auto mapName = CINIExt::CurrentDocument->GetString("Basic", "Name", "No Name");
 
         /*
         * Fix : Windows file name cannot begin with space and cannot have following characters:
@@ -1145,7 +1097,7 @@ void CALLBACK SaveMapExt::SaveMapCallback(HWND hwnd, UINT message, UINT iTimerID
     SYSTEMTIME time;
     GetLocalTime(&time);
 
-    auto mapName = CINI::CurrentDocument->GetString("Basic", "Name", "No Name");
+    auto mapName = CINIExt::CurrentDocument->GetString("Basic", "Name", "No Name");
 
     /*
     * Fix : Windows file name cannot begin with space and cannot have following characters:

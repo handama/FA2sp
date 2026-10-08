@@ -10,3 +10,6 @@
 [submodule "scintilla"]
 	path = scintilla
 	url = https://github.com/mirror/scintilla
+[submodule "googletest"]
+	path = googletest
+	url = https://github.com/google/googletest.git

@@ -1,4 +1,5 @@
 #include "WaypointSort.h"
+#include "../../../Miscs/Hooks.INI.h"
 
 #include "../../../FA2sp.h"
 #include "../../../Helpers/STDHelpers.h"
@@ -150,7 +151,7 @@ void WaypointSort::LoadAllTriggers()
 
     InitCache();
 
-    auto pSection = CINI::CurrentDocument->GetSection("Waypoints");
+    auto pSection = CINIExt::CurrentDocument->GetSection("Waypoints");
     if (!pSection)
     {
         ExtConfigs::InitializeMap = true;
@@ -235,7 +236,7 @@ void WaypointSort::LoadAllTriggers()
         }
     }
 
-    if (auto pScriptSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
+    if (auto pScriptSection = CINIExt::CurrentDocument->GetSection("ScriptTypes"))
     {
         for (auto& pair : pScriptSection->GetEntities())
         {
@@ -245,7 +246,7 @@ void WaypointSort::LoadAllTriggers()
             {
                 char id[10];
                 _itoa(i, id, 10);
-                auto line = CINI::CurrentDocument->GetString(pair.second, id);
+                auto line = CINIExt::CurrentDocument->GetString(pair.second, id);
                 if (line == "")
                     continue;
 
@@ -261,7 +262,7 @@ void WaypointSort::LoadAllTriggers()
             {
                 FString text;
                 text.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Script",
-                    "Script: %s (%s)"), CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
+                    "Script: %s (%s)"), CINIExt::CurrentDocument->GetString(pair.second, "Name"), pair.second);
                 std::string textStr = text;
                 std::string idStr = FString(pair.second);
                 for (auto& wp : scriptWPs)
@@ -270,19 +271,19 @@ void WaypointSort::LoadAllTriggers()
         }
     }
 
-    if (auto pTeamSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+    if (auto pTeamSection = CINIExt::CurrentDocument->GetSection("TeamTypes"))
     {
         for (auto& pair : pTeamSection->GetEntities())
         {
-            auto wp = CINI::CurrentDocument->GetString(pair.second, "Waypoint");
-            auto wp2 = CINI::CurrentDocument->GetString(pair.second, "TransportWaypoint");
+            auto wp = CINIExt::CurrentDocument->GetString(pair.second, "Waypoint");
+            auto wp2 = CINIExt::CurrentDocument->GetString(pair.second, "TransportWaypoint");
             int wpNum = ProcessWaypointLetter(wp);
             int wpNum2 = ProcessWaypointLetter(wp2);
-            if (wpNum >= 0 || wpNum2 >= 0 && CINI::CurrentDocument->GetBool(pair.second, "UseTransportOrigin"))
+            if (wpNum >= 0 || wpNum2 >= 0 && CINIExt::CurrentDocument->GetBool(pair.second, "UseTransportOrigin"))
             {
                 FString text;
                 text.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
-                    "Team: %s (%s)"), CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
+                    "Team: %s (%s)"), CINIExt::CurrentDocument->GetString(pair.second, "Name"), pair.second);
                 std::string textStr = text;
                 std::string idStr = FString(pair.second);
 
@@ -361,7 +362,7 @@ BOOL WaypointSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
             bool Success = false;
             if (strlen(pID) && ExtConfigs::InitializeMap)
             {
-                if (auto pCord = CINI::CurrentDocument->TryGetString("Waypoints", pID))
+                if (auto pCord = CINIExt::CurrentDocument->TryGetString("Waypoints", pID))
                 {
                     auto second = atoi(*pCord);
                     if (second > 0)
@@ -371,7 +372,7 @@ BOOL WaypointSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 }
                 if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
                 {
-                    FString pStr = CINI::CurrentDocument->GetString("Triggers", pID);
+                    FString pStr = CINIExt::CurrentDocument->GetString("Triggers", pID);
                     auto results = FString::SplitString(pStr);
                     if (results.size() > 3)
                     {
@@ -389,7 +390,7 @@ BOOL WaypointSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 }
                 if (IsWindowVisible(CNewScript::GetHandle()))
                 {
-                    FString pStr = CINI::CurrentDocument->GetString(pID, "Name");
+                    FString pStr = CINIExt::CurrentDocument->GetString(pID, "Name");
                     FString space1 = " (";
                     FString space2 = ")";
 
@@ -403,7 +404,7 @@ BOOL WaypointSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 }
                 if (IsWindowVisible(CNewTeamTypes::GetHandle()))
                 {
-                    FString pStr = CINI::CurrentDocument->GetString(pID, "Name");
+                    FString pStr = CINIExt::CurrentDocument->GetString(pID, "Name");
                     FString space1 = " (";
                     FString space2 = ")";
 
@@ -549,7 +550,7 @@ HTREEITEM WaypointSort::FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const
 
 std::vector<FString> WaypointSort::GetGroup(FString triggerId, FString& name) const
 {
-    FString pSrc = CINI::CurrentDocument->GetString(triggerId, "Name", "");
+    FString pSrc = CINIExt::CurrentDocument->GetString(triggerId, "Name", "");
 
     auto ret = std::vector<FString>{};
     int nStart = pSrc.Find('[');
@@ -691,7 +692,7 @@ void WaypointSort::AddTrigger(FString triggerId, int x, int y) const
                 }
             }
 
-            if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
+            if (auto pSection = CINIExt::CurrentDocument->GetSection("ScriptTypes"))
             {
                 for (auto& pair : pSection->GetEntities())
                 {
@@ -701,7 +702,7 @@ void WaypointSort::AddTrigger(FString triggerId, int x, int y) const
                     {
                         char id[10];
                         _itoa(i, id, 10);
-                        auto line = CINI::CurrentDocument->GetString(pair.second, id);
+                        auto line = CINIExt::CurrentDocument->GetString(pair.second, id);
                         if (line == "")
                             continue;
 
@@ -717,12 +718,12 @@ void WaypointSort::AddTrigger(FString triggerId, int x, int y) const
                     {
                         FString text;
                         text.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Script",
-                            "Script: %s (%s)"), CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
+                            "Script: %s (%s)"), CINIExt::CurrentDocument->GetString(pair.second, "Name"), pair.second);
                         TreeViewHelper::InsertTreeItem(this->GetHwnd(), text, pair.second, hParent);
                     }
                 }
             }
-            if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+            if (auto pSection = CINIExt::CurrentDocument->GetSection("TeamTypes"))
             {
                 auto process = [](const char* s)
                     {
@@ -740,15 +741,15 @@ void WaypointSort::AddTrigger(FString triggerId, int x, int y) const
                     };
                 for (auto& pair : pSection->GetEntities())
                 {
-                    auto wp = CINI::CurrentDocument->GetString(pair.second, "Waypoint");
-                    auto wp2 = CINI::CurrentDocument->GetString(pair.second, "TransportWaypoint");
+                    auto wp = CINIExt::CurrentDocument->GetString(pair.second, "Waypoint");
+                    auto wp2 = CINIExt::CurrentDocument->GetString(pair.second, "TransportWaypoint");
 
                     if (process(wp) == atoi(triggerId) 
-                    || (process(wp2) == atoi(triggerId) && CINI::CurrentDocument->GetBool(pair.second, "UseTransportOrigin")))
+                    || (process(wp2) == atoi(triggerId) && CINIExt::CurrentDocument->GetBool(pair.second, "UseTransportOrigin")))
                     {
                         FString text;
                         text.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
-                            "Team: %s (%s)"), CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
+                            "Team: %s (%s)"), CINIExt::CurrentDocument->GetString(pair.second, "Name"), pair.second);
                         TreeViewHelper::InsertTreeItem(this->GetHwnd(), text, pair.second, hParent);
                     }
                 }

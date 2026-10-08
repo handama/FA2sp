@@ -14,6 +14,8 @@
 #include "SciLexer.h"
 #include "Lexilla.h"
 
+class CINIExt;
+
 // A static window class
 class CNewINIEditor
 {
@@ -81,7 +83,7 @@ private:
     static HWND m_hwnd;
     static CFinalSunDlg* m_parent;
     static HWND m_hwndImporter;
-    static CINI& map;
+    static CINIExt& map;
     static CINI& fadata;
     static MultimapHelper& rules;
 public:

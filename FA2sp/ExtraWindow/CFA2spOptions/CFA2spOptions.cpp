@@ -37,6 +37,15 @@ static std::string GetFileFormat(bool* value)
     return {};
 }
 
+namespace
+{
+    void ApplyINISortingOptions()
+    {
+        CINIExt::SetKeepSectionSorting(ExtConfigs::SaveMap_PreserveINISorting);
+        CINIExt::SetAdaptiveSorting(ExtConfigs::SaveMap_AdaptiveSorting);
+    }
+}
+
 FString GetExeFullPath()
 {
     FString path = CFinalSunApp::ExePath();
@@ -345,6 +354,8 @@ void CFA2spOptions::Update(const char* filter)
         *opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
     }
 
+    ApplyINISortingOptions();
+
     ListView_SetExtendedListViewStyle(hList, LVS_EX_FULLROWSELECT | LVS_EX_CHECKBOXES);
     ppmfc::CString title = Translations::TranslateOrDefault("Options.Label", "Options");
     ListView_DeleteAllItems(hList);
@@ -444,6 +455,12 @@ BOOL CALLBACK CFA2spOptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
                             *opt.Value = (checked != FALSE);
                             if (!opt.IniKey.IsEmpty())
                                 fa2.WriteBool("Options", opt.IniKey, *opt.Value);
+ 
+                            if (opt.Value == &ExtConfigs::SaveMap_PreserveINISorting
+                            || opt.Value == &ExtConfigs::SaveMap_AdaptiveSorting)
+                            {
+                                ApplyINISortingOptions();
+                            }
 
                             if (opt.Type == ExtConfigs::SpecialOptionType::ReloadMap && CMapData::Instance->MapWidthPlusHeight)
                             {

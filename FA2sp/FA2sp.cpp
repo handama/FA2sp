@@ -21,6 +21,7 @@
 #include <bit>
 #include "Helpers/Translations.h"
 #include "Miscs/DialogStyle.h"
+#include "Miscs/Hooks.INI.h"
 #include "Helpers/TheaterHelpers.h"
 
 #define ENABLE_VISUAL_STYLE
@@ -226,6 +227,7 @@ bool ExtConfigs::PreciseDepthCalculation;
 bool ExtConfigs::DisableDirectoryCheck;
 bool ExtConfigs::ExtOverlays;
 bool ExtConfigs::SaveMap_PreserveINISorting;
+bool ExtConfigs::SaveMap_AdaptiveSorting;
 bool ExtConfigs::ExtMixLoader;
 int ExtConfigs::DisplayTextSize;
 int ExtConfigs::DistanceRuler_Records;
@@ -261,10 +263,10 @@ float ExtConfigs::IsoViewHeightPercentage = 0.5f;
 
 std::vector<ExtConfigs::DynamicOptions> ExtConfigs::Options;
 
-MultimapHelper Variables::RulesMap = {&CINI::Rules(), &CINI::CurrentDocument()};
+MultimapHelper Variables::RulesMap = {&CINI::Rules(), &CINIExt::CurrentDocument()};
 MultimapHelper Variables::Rules = {&CINI::Rules()};
 MultimapHelper Variables::FAData = {&CINI::FAData()};
-MultimapHelper Variables::Rules_FAData = {&CINI::Rules(), &CINI::CurrentDocument(), &CINI::FAData()};
+MultimapHelper Variables::Rules_FAData = {&CINI::Rules(), &CINIExt::CurrentDocument(), &CINI::FAData()};
 
 void FA2sp::ExtConfigsInitialize()
 {
@@ -460,6 +462,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::SaveMap_OnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP");
 	ExtConfigs::SaveMap_KeepComments = CINI::FAData->GetBool("ExtConfigs", "SaveMap.KeepComments");
 	ExtConfigs::SaveMap_PreserveINISorting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.PreserveINISorting");
+	ExtConfigs::SaveMap_AdaptiveSorting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.AdaptiveSorting");
+
 	// ExtConfigs::SaveMap_MultiPlayOnlySaveYRM = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveYRM.MultiPlay");
 	// ExtConfigs::SaveMap_SinglePlayOnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP.SinglePlay");
 	ExtConfigs::SaveMap_DefaultPreviewOptionMP = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.DefaultPreviewOptionMP", 0);
@@ -634,6 +638,10 @@ void FA2sp::ExtConfigsInitialize()
 	{
 		*opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
 	}
+
+
+	CINIExt::SetKeepSectionSorting(ExtConfigs::SaveMap_PreserveINISorting);
+	CINIExt::SetAdaptiveSorting(ExtConfigs::SaveMap_AdaptiveSorting);
 
 	CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor = fa2.GetDouble("UserInterface", "TileSetBrowserViewScaledFactor", 1.0);
 	CTileSetBrowserFrameExt::OverlayBrowserViewScaledFactor = fa2.GetDouble("UserInterface", "OverlayBrowserViewScaledFactor", 1.0);
@@ -1109,6 +1117,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.SaveMap.PreserveINISorting", "Preserve existing INI section sorting when saving"),
 		.IniKey = "SaveMap.PreserveINISorting",
 		.Value = &ExtConfigs::SaveMap_PreserveINISorting,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SaveMap.AdaptiveSorting", "Adaptive INI key sorting when saving"),
+		.IniKey = "SaveMap.AdaptiveSorting",
+		.Value = &ExtConfigs::SaveMap_AdaptiveSorting,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

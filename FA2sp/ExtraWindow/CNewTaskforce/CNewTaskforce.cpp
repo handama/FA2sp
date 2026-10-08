@@ -1,4 +1,5 @@
 #include "CNewTaskforce.h"
+#include "../../Miscs/Hooks.INI.h"
 #include "../../FA2sp.h"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
@@ -24,7 +25,7 @@
 
 HWND CNewTaskforce::m_hwnd;
 CFinalSunDlg* CNewTaskforce::m_parent;
-CINI& CNewTaskforce::map = CINI::CurrentDocument;
+CINIExt& CNewTaskforce::map = CINIExt::CurrentDocument;
 MultimapHelper& CNewTaskforce::rules = Variables::RulesMap;
 
 HWND CNewTaskforce::hSelectedTaskforce;
@@ -876,12 +877,12 @@ void CNewTaskforce::OnClickCloTaskforce(HWND& hWnd)
         auto key = CINI::GetAvailableKey("TaskForces");
         auto value = CMapDataExt::GetAvailableIndex(EIndexType::TaskForce);
 
-        CINI::CurrentDocument->WriteString("TaskForces", key, value);
+        CINIExt::CurrentDocument->WriteString("TaskForces", key, value);
 
-        auto oldname = CINI::CurrentDocument->GetString(CurrentTaskForceID, "Name", "New task force");
+        auto oldname = CINIExt::CurrentDocument->GetString(CurrentTaskForceID, "Name", "New task force");
         FString newName = ExtraWindow::GetCloneName(oldname);
        
-        CINI::CurrentDocument->WriteString(value, "Name", newName);
+        CINIExt::CurrentDocument->WriteString(value, "Name", newName);
         CNewTeamTypes::TaskforceListChanged = true;
 
         auto copyitem = [&value](FString key)

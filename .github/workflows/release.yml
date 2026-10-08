@@ -1,0 +1,138 @@
+name: Release
+
+permissions:
+  contents: write
+
+on:
+  pull_request:
+    branches:
+      - "master"
+    types:
+      - closed
+    paths-ignore:
+      - 'image/**'
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Custom Release Tag (leave empty to use auto-version)'
+        required: false
+        default: ''
+        type: string
+      prerelease:
+        description: 'Is Pre-release'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  VERSION_MAJOR: 1
+  VERSION_MINOR: 6
+  VERSION_PREFIX: "v"
+
+jobs:
+  build-and-test:
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true)
+    uses: ./.github/workflows/reusable-build-and-test.yml
+    with:
+      configuration: Release
+      run_tests: true
+
+  prepare-version:
+    needs: build-and-test
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true)
+    runs-on: windows-2022
+    outputs:
+      release_tag: ${{ steps.determine_version.outputs.release_tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Generate Build Number
+        if: ${{ !inputs.tag_name }}
+        id: buildnumber
+        uses: onyxmueller/build-tag-number@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          prefix: auto-version-${{ env.VERSION_MAJOR }}.${{ env.VERSION_MINOR }}
+
+      - name: Determine Release Tag
+        id: determine_version
+        shell: pwsh
+        run: |
+          $customTag = "${{ inputs.tag_name }}"
+          if (-not [string]::IsNullOrWhiteSpace($customTag)) {
+              $tag = $customTag
+          } else {
+              $buildNum = [int]"${{ steps.buildnumber.outputs.build_number }}"
+              $revision = $buildNum - 1
+              $tag = "${{ env.VERSION_PREFIX }}${{ env.VERSION_MAJOR }}.${{ env.VERSION_MINOR }}.$revision"
+          }
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "release_tag=$tag" -Encoding utf8
+          Write-Host "Determined Release Tag: $tag"
+
+  package:
+    needs: [build-and-test, prepare-version]
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true)
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        target: [YR, MO, RN]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: FA2sp_Release_${{ github.sha }}
+          path: bin_output
+
+      - name: Package Target (${{ matrix.target }})
+        shell: pwsh
+        run: |
+          ./Scripts/PackageRelease.ps1 -Target ${{ matrix.target }} -Version ${{ needs.prepare-version.outputs.release_tag }} -BinDir bin_output -OutputDir .
+          Add-Content -Path $env:GITHUB_ENV -Value "PACKAGE_NAME=FA2sp-${{ matrix.target }}-${{ needs.prepare-version.outputs.release_tag }}.zip" -Encoding utf8
+
+      - name: Upload Target Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-pkg-${{ matrix.target }}
+          path: ${{ env.PACKAGE_NAME }}
+          retention-days: 1
+
+  publish-release:
+    needs: [prepare-version, package]
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true)
+    runs-on: windows-2022
+    steps:
+      - name: Download all release target packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-pkg-*
+          merge-multiple: true
+          path: release_assets
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: FA2sp_Release_${{ github.sha }}
+          path: bin_output
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare-version.outputs.release_tag }}
+          name: FA2sp ${{ needs.prepare-version.outputs.release_tag }}
+          files: |
+            release_assets/*.zip
+            bin_output/FA2sp.dll
+            bin_output/FA2sp.pdb
+          target_commitish: ${{ github.sha }}
+          prerelease: ${{ inputs.prerelease || false }}
+          generate_release_notes: true

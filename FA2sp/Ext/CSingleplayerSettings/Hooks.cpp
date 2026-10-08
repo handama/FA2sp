@@ -1,4 +1,5 @@
 #include "Body.h"
+#include "../../Miscs/Hooks.INI.h"
 
 #include "../../Helpers/Translations.h"
 
@@ -33,19 +34,19 @@ DEFINE_HOOK(4DA1A6, CSingleplayerSettings_UpdateDialog, 5)
 {
     GET(CSingleplayerSettings*, pThis, EDI);
 
-    pThis->SetDlgItemText(1356, CINI::CurrentDocument->GetString("Ranking", "ParTimeEasy"));
-    pThis->SetDlgItemText(1357, CINI::CurrentDocument->GetString("Ranking", "ParTimeMedium"));
-    pThis->SetDlgItemText(1358, CINI::CurrentDocument->GetString("Ranking", "ParTimeHard"));
-    pThis->SetDlgItemText(1359, CINI::CurrentDocument->GetString("Ranking", "OverParTitle"));
-    pThis->SetDlgItemText(1360, CINI::CurrentDocument->GetString("Ranking", "OverParMessage"));
-    pThis->SetDlgItemText(1361, CINI::CurrentDocument->GetString("Ranking", "UnderParTitle"));
-    pThis->SetDlgItemText(1362, CINI::CurrentDocument->GetString("Ranking", "UnderParMessage"));
-    pThis->SetDlgItemText(1366, CINI::CurrentDocument->GetString("General", "CampaignMoneyDeltaEasy"));
-    pThis->SetDlgItemText(1368, CINI::CurrentDocument->GetString("General", "CampaignMoneyDeltaHard"));
-    pThis->SetDlgItemText(1370, CINI::CurrentDocument->GetString("General", "SpyMoneyStealPercent"));
-    pThis->SetDlgItemText(1372, CINI::CurrentDocument->GetString("General", "TeamDelays"));
-    pThis->SetDlgItemText(1374, CINI::CurrentDocument->GetString("General", "PrismSupportModifier"));
-    pThis->SetDlgItemText(1376, CINI::CurrentDocument->GetString("General", "DefaultMirageDisguises"));
+    pThis->SetDlgItemText(1356, CINIExt::CurrentDocument->GetString("Ranking", "ParTimeEasy"));
+    pThis->SetDlgItemText(1357, CINIExt::CurrentDocument->GetString("Ranking", "ParTimeMedium"));
+    pThis->SetDlgItemText(1358, CINIExt::CurrentDocument->GetString("Ranking", "ParTimeHard"));
+    pThis->SetDlgItemText(1359, CINIExt::CurrentDocument->GetString("Ranking", "OverParTitle"));
+    pThis->SetDlgItemText(1360, CINIExt::CurrentDocument->GetString("Ranking", "OverParMessage"));
+    pThis->SetDlgItemText(1361, CINIExt::CurrentDocument->GetString("Ranking", "UnderParTitle"));
+    pThis->SetDlgItemText(1362, CINIExt::CurrentDocument->GetString("Ranking", "UnderParMessage"));
+    pThis->SetDlgItemText(1366, CINIExt::CurrentDocument->GetString("General", "CampaignMoneyDeltaEasy"));
+    pThis->SetDlgItemText(1368, CINIExt::CurrentDocument->GetString("General", "CampaignMoneyDeltaHard"));
+    pThis->SetDlgItemText(1370, CINIExt::CurrentDocument->GetString("General", "SpyMoneyStealPercent"));
+    pThis->SetDlgItemText(1372, CINIExt::CurrentDocument->GetString("General", "TeamDelays"));
+    pThis->SetDlgItemText(1374, CINIExt::CurrentDocument->GetString("General", "PrismSupportModifier"));
+    pThis->SetDlgItemText(1376, CINIExt::CurrentDocument->GetString("General", "DefaultMirageDisguises"));
 
     return 0;
 }

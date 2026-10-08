@@ -1,4 +1,5 @@
 #include "Body.h"
+#include "../../Miscs/Hooks.INI.h"
 #include "../../FA2sp.h"
 
 #include <Drawing.h>
@@ -567,10 +568,10 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
         int i = 1;
         int tab = 10;
         auto Map = &CMapData::Instance();
-        auto &mapIni = CINI::CurrentDocument();
+        auto &mapIni = CINIExt::CurrentDocument();
         MultimapHelper mmh;
         mmh.AddINI(&CINI::Rules());
-        mmh.AddINI(&CINI::CurrentDocument());
+        mmh.AddINI(&CINIExt::CurrentDocument());
 
         if (!CMapDataExt::IsCoordInFullMap(point.X, point.Y))
         {
@@ -2334,7 +2335,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
 
             if (cell->Waypoint != -1)
             {
-                auto pSection = CINI::CurrentDocument->GetSection("Waypoints");
+                auto pSection = CINIExt::CurrentDocument->GetSection("Waypoints");
                 auto pWP = pSection->GetKeyAt(cell->Waypoint);
                 auto pVal = pSection->GetValueAt(cell->Waypoint);
                 if (pWP && pVal)
@@ -2478,7 +2479,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                             }
                         }
 
-                        if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
+                        if (auto pSection = CINIExt::CurrentDocument->GetSection("ScriptTypes"))
                         {
                             for (auto &pair : pSection->GetEntities())
                             {
@@ -2488,7 +2489,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                                 {
                                     char id[10];
                                     _itoa(i, id, 10);
-                                    auto line = CINI::CurrentDocument->GetString(pair.second, id);
+                                    auto line = CINIExt::CurrentDocument->GetString(pair.second, id);
                                     if (line == "")
                                         continue;
 
@@ -2529,7 +2530,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                                 {
                                     pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Script",
                                                                                  "Script: %s (%s)"),
-                                                CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
+                                                CINIExt::CurrentDocument->GetString(pair.second, "Name"), pair.second);
                                     if (ExtConfigs::DirectXRendering)
                                     {
                                         TextOutDirectX(drawX, drawY + lineHeight * i, pSrc, fontSize, true, 2);
@@ -2544,7 +2545,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                                 }
                             }
                         }
-                        if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+                        if (auto pSection = CINIExt::CurrentDocument->GetSection("TeamTypes"))
                         {
                             auto process = [](const char *s)
                             {
@@ -2563,15 +2564,15 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                             };
                             for (auto &pair : pSection->GetEntities())
                             {
-                                auto wp = CINI::CurrentDocument->GetString(pair.second, "Waypoint");
-                                auto wp2 = CINI::CurrentDocument->GetString(pair.second, "TransportWaypoint");
+                                auto wp = CINIExt::CurrentDocument->GetString(pair.second, "Waypoint");
+                                auto wp2 = CINIExt::CurrentDocument->GetString(pair.second, "TransportWaypoint");
 
                                 if (process(wp) == atoi(*pWP) 
-                                || (process(wp2) == atoi(*pWP) && CINI::CurrentDocument->GetBool(pair.second, "UseTransportOrigin")))
+                                || (process(wp2) == atoi(*pWP) && CINIExt::CurrentDocument->GetBool(pair.second, "UseTransportOrigin")))
                                 {
                                     pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
                                                                                  "Team: %s (%s)"),
-                                                CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
+                                                CINIExt::CurrentDocument->GetString(pair.second, "Name"), pair.second);
                                     if (ExtConfigs::DirectXRendering)
                                     {
                                         TextOutDirectX(drawX, drawY + lineHeight * i, pSrc, fontSize, true, 2);
@@ -2650,13 +2651,13 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                     }
                     else
                     {
-                        auto tag = FString::SplitString(CINI::CurrentDocument->GetString("Tags", currentTag));
+                        auto tag = FString::SplitString(CINIExt::CurrentDocument->GetString("Tags", currentTag));
                         if (tag.size() > 1)
                             currentTag.Format("%s (%s)", currentTag, tag[1]);
                         else
                             currentTag.Format("%s", currentTag);
                     }
-                    auto tag = FString::SplitString(CINI::CurrentDocument->GetString("Tags", newTag));
+                    auto tag = FString::SplitString(CINIExt::CurrentDocument->GetString("Tags", newTag));
                     if (tag.size() > 1)
                         newTag.Format("%s (%s)", newTag, tag[1]);
                     else

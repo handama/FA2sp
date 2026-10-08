@@ -1,4 +1,5 @@
 #include "TeamSort.h"
+#include "../../../Miscs/Hooks.INI.h"
 
 #include "../../../FA2sp.h"
 #include "../../../Helpers/STDHelpers.h"
@@ -21,7 +22,7 @@ void TeamSort::LoadAllTriggers()
     // TODO : 
     // Optimisze the efficiency
     SendMessage(this->GetHwnd(), WM_SETREDRAW, FALSE, 0);
-    if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+    if (auto pSection = CINIExt::CurrentDocument->GetSection("TeamTypes"))
     {
         for (auto& pair : pSection->GetEntities())
         {
@@ -53,7 +54,7 @@ BOOL TeamSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 bool Success = false;
                 if (IsWindowVisible(CNewTeamTypes::GetHandle()))
                 {
-                    auto pStr = CINI::CurrentDocument->GetString(pID, "Name");
+                    auto pStr = CINIExt::CurrentDocument->GetString(pID, "Name");
                     FString space1 = " (";
                     FString space2 = ")";
 
@@ -68,7 +69,7 @@ BOOL TeamSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 }
                 //else if (IsWindowVisible(CNewTrigger::GetHandle()))
                 //{
-                //    auto pStr = CINI::CurrentDocument->GetString(pID, "Name");
+                //    auto pStr = CINIExt::CurrentDocument->GetString(pID, "Name");
                 //    FString space = " - ";
                 //    for (int i = 0; i < EVENT_PARAM_COUNT; i++)
                 //    {
@@ -283,7 +284,7 @@ HTREEITEM TeamSort::FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const
 
 std::vector<FString> TeamSort::GetGroup(FString triggerId, FString& name) const
 {
-    FString pSrc = CINI::CurrentDocument->GetString(triggerId, "Name", "");
+    FString pSrc = CINIExt::CurrentDocument->GetString(triggerId, "Name", "");
 
     auto ret = std::vector<FString>{};
     int nStart = pSrc.Find('[');

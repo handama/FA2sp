@@ -1,4 +1,5 @@
 #include "CNewScript.h"
+#include "../../Miscs/Hooks.INI.h"
 #include "../../FA2sp.h"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
@@ -24,7 +25,7 @@
 
 HWND CNewScript::m_hwnd;
 CFinalSunDlg* CNewScript::m_parent;
-CINI& CNewScript::map = CINI::CurrentDocument;
+CINIExt& CNewScript::map = CINIExt::CurrentDocument;
 CINI& CNewScript::fadata = CINI::FAData;
 MultimapHelper& CNewScript::rules = Variables::RulesMap;
 
@@ -1224,12 +1225,12 @@ void CNewScript::OnClickCloScript(HWND& hWnd)
         auto key = CINI::GetAvailableKey("ScriptTypes");
         auto value = CMapDataExt::GetAvailableIndex(EIndexType::Script);
 
-        CINI::CurrentDocument->WriteString("ScriptTypes", key, value);
+        CINIExt::CurrentDocument->WriteString("ScriptTypes", key, value);
 
-        auto oldname = CINI::CurrentDocument->GetString(CurrentScriptID, "Name", "New script");
+        auto oldname = CINIExt::CurrentDocument->GetString(CurrentScriptID, "Name", "New script");
         FString newName = ExtraWindow::GetCloneName(oldname);
 
-        CINI::CurrentDocument->WriteString(value, "Name", newName);
+        CINIExt::CurrentDocument->WriteString(value, "Name", newName);
         CNewTeamTypes::ScriptListChanged = true;
 
         auto copyitem = [&value](FString key)
@@ -1784,7 +1785,7 @@ void CNewScript::UpdateScriptPath()
 {
     if (!CIsoViewExt::DrawScriptPath
         ||CurrentScriptID.IsEmpty() 
-        || !CINI::CurrentDocument->SectionExists(CurrentScriptID))
+        || !CINIExt::CurrentDocument->SectionExists(CurrentScriptID))
         return;
 
     CIsoViewExt::ScriptPath.clear();
@@ -1793,7 +1794,7 @@ void CNewScript::UpdateScriptPath()
     {
         FString key;
         key.Format("%d", i);
-        auto value = CINI::CurrentDocument->GetString(CurrentScriptID, key);
+        auto value = CINIExt::CurrentDocument->GetString(CurrentScriptID, key);
         auto atoms = FString::SplitString(value);
         if (atoms.size() < 2) break;
         auto& action = atoms[0];
@@ -1832,7 +1833,7 @@ void CNewScript::UpdateScriptPath()
                     {
                         if (param[3] == "1") // waypoints
                         {
-                            auto pos = CINI::CurrentDocument->GetInteger("Waypoints", actionParam);
+                            auto pos = CINIExt::CurrentDocument->GetInteger("Waypoints", actionParam);
                             int x = pos / 1000;
                             int y = pos % 1000;
                             CIsoViewExt::ScriptPath.push_back({ x,y });
@@ -1842,7 +1843,7 @@ void CNewScript::UpdateScriptPath()
                     {
                         if (param[1] == "1") // waypoints
                         {
-                            auto pos = CINI::CurrentDocument->GetInteger("Waypoints", actionParam);
+                            auto pos = CINIExt::CurrentDocument->GetInteger("Waypoints", actionParam);
                             int x = pos / 1000;
                             int y = pos % 1000;
                             CIsoViewExt::ScriptPath.push_back({ x,y });
@@ -1921,7 +1922,7 @@ void CNewScript::OnClickJumpButton(bool extra)
 	if (type == ParamType::Waypoint)
     {
         FString::TrimIndex(value);
-        if (auto pCord = CINI::CurrentDocument->TryGetString("Waypoints", value))
+        if (auto pCord = CINIExt::CurrentDocument->TryGetString("Waypoints", value))
         {
             auto second = atoi(*pCord);
             if (second > 0)

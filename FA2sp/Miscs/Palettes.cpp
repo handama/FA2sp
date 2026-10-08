@@ -1,4 +1,5 @@
 #include "Palettes.h"
+#include "Hooks.INI.h"
 
 #include <CPalette.h>
 #include <Drawing.h>
@@ -277,28 +278,28 @@ LightingStruct LightingStruct::GetCurrentLighting()
     switch (CFinalSunDlgExt::CurrentLighting)
     {
     case 31001:
-        CurrentLighting.Red = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Red", 1.0));
-        CurrentLighting.Green = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Green", 1.0));
-        CurrentLighting.Blue = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Blue", 0.5));
-        CurrentLighting.Ambient = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Ambient", 1.0));
-        CurrentLighting.Ground = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Ground", 0.008));
-        CurrentLighting.Level = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Level", 0.087));
+        CurrentLighting.Red = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "Red", 1.0));
+        CurrentLighting.Green = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "Green", 1.0));
+        CurrentLighting.Blue = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "Blue", 0.5));
+        CurrentLighting.Ambient = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "Ambient", 1.0));
+        CurrentLighting.Ground = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "Ground", 0.008));
+        CurrentLighting.Level = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "Level", 0.087));
         return CurrentLighting;
     case 31002:
-        CurrentLighting.Red = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonRed", 1.0));
-        CurrentLighting.Green = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonGreen", 1.0));
-        CurrentLighting.Blue = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonBlue", 0.5));
-        CurrentLighting.Ambient = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonAmbient", 1.0));
-        CurrentLighting.Ground = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonGround", 0.008));
-        CurrentLighting.Level = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonLevel", 0.087));
+        CurrentLighting.Red = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "IonRed", 1.0));
+        CurrentLighting.Green = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "IonGreen", 1.0));
+        CurrentLighting.Blue = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "IonBlue", 0.5));
+        CurrentLighting.Ambient = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "IonAmbient", 1.0));
+        CurrentLighting.Ground = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "IonGround", 0.008));
+        CurrentLighting.Level = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "IonLevel", 0.087));
         return CurrentLighting;
     case 31003:
-        CurrentLighting.Red = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorRed", 1.0));
-        CurrentLighting.Green = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorGreen", 1.0));
-        CurrentLighting.Blue = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorBlue", 0.5));
-        CurrentLighting.Ambient = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorAmbient", 1.0));
-        CurrentLighting.Ground = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorGround", 0.008));
-        CurrentLighting.Level = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorLevel", 0.087));
+        CurrentLighting.Red = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "DominatorRed", 1.0));
+        CurrentLighting.Green = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "DominatorGreen", 1.0));
+        CurrentLighting.Blue = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "DominatorBlue", 0.5));
+        CurrentLighting.Ambient = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "DominatorAmbient", 1.0));
+        CurrentLighting.Ground = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "DominatorGround", 0.008));
+        CurrentLighting.Level = static_cast<float>(CINIExt::CurrentDocument->GetDouble("Lighting", "DominatorLevel", 0.087));
         return CurrentLighting;
     }
     CurrentLighting = LightingStruct::NoLighting;
@@ -441,7 +442,7 @@ void LightingSourceTint::CalculateMapLamps()
     CMapDataExt::LightingSources.clear();
     CMapDataExt::LightingBuildingTypes.clear();
     const float TOLERANCE = 0.001f;
-    if (auto pSection = CINI::CurrentDocument->GetSection("Structures"))
+    if (auto pSection = CINIExt::CurrentDocument->GetSection("Structures"))
     {
         for (const auto& [key,value] : pSection->GetEntities())
         {

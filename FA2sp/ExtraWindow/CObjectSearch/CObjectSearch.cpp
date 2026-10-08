@@ -1080,7 +1080,7 @@ void CObjectSearch::OnSearchButtonUp(HWND hWnd)
             wp = "0";
         }
         wp = wp.substr(start, end - start);
-        auto pWP = CINI::CurrentDocument->GetString("Waypoints", wp.c_str(), "-1");
+        auto pWP = CINIExt::CurrentDocument->GetString("Waypoints", wp.c_str(), "-1");
         auto second = atoi(pWP);
         if (second >= 0)
         {
@@ -1801,7 +1801,7 @@ void CObjectSearch::UpdateDetailsWaypoint(HWND hWnd)
     while (SendMessage(hListBox, LB_DELETESTRING, 0, NULL) != LB_ERR);
     CObjectSearch::ListBoxIndex = 0;
     CObjectSearch::ListBox_MapCoord.clear();
-    if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+    if (auto pSection = CINIExt::CurrentDocument->GetSection("Waypoints"))
     {
         for (auto& pair : pSection->GetEntities())
         {

@@ -690,7 +690,7 @@ DEFINE_HOOK(4536B0, CINI_WriteToFile, 8)
     for (const auto& [sectionName, pSection] : CINIOrderTracker::GetSections(pThis, ExtConfigs::SaveMap_PreserveINISorting))
     {
         oss << "[" << sectionName << "]\n";
-        for (const auto& [key, value] : CINIOrderTracker::GetEntries(pThis, sectionName, pSection, ExtConfigs::SaveMap_PreserveINIKeySorting))
+        for (const auto& [key, value] : CINIOrderTracker::GetEntries(pThis, sectionName, pSection, ExtConfigs::SaveMap_AdaptiveSorting))
         {
             oss << key << "=" << value << "\n";
         }

@@ -226,7 +226,7 @@ bool ExtConfigs::PreciseDepthCalculation;
 bool ExtConfigs::DisableDirectoryCheck;
 bool ExtConfigs::ExtOverlays;
 bool ExtConfigs::SaveMap_PreserveINISorting;
-bool ExtConfigs::SaveMap_PreserveINIKeySorting;
+bool ExtConfigs::SaveMap_AdaptiveSorting;
 bool ExtConfigs::ExtMixLoader;
 int ExtConfigs::DisplayTextSize;
 int ExtConfigs::DistanceRuler_Records;
@@ -461,7 +461,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::SaveMap_OnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP");
 	ExtConfigs::SaveMap_KeepComments = CINI::FAData->GetBool("ExtConfigs", "SaveMap.KeepComments");
 	ExtConfigs::SaveMap_PreserveINISorting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.PreserveINISorting");
-	ExtConfigs::SaveMap_PreserveINIKeySorting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.PreserveINIKeySorting");
+	ExtConfigs::SaveMap_AdaptiveSorting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.AdaptiveSorting");
 	// ExtConfigs::SaveMap_MultiPlayOnlySaveYRM = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveYRM.MultiPlay");
 	// ExtConfigs::SaveMap_SinglePlayOnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP.SinglePlay");
 	ExtConfigs::SaveMap_DefaultPreviewOptionMP = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.DefaultPreviewOptionMP", 0);
@@ -1114,9 +1114,9 @@ void ExtConfigs::UpdateOptionTranslations()
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.SaveMap.PreserveINIKeySorting", "Preserve existing INI key sorting when saving"),
-		.IniKey = "SaveMap.PreserveINIKeySorting",
-		.Value = &ExtConfigs::SaveMap_PreserveINIKeySorting,
+		.DisplayName = Translations::TranslateOrDefault("Options.SaveMap.AdaptiveSorting", "Adaptive INI key sorting when saving"),
+		.IniKey = "SaveMap.AdaptiveSorting",
+		.Value = &ExtConfigs::SaveMap_AdaptiveSorting,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

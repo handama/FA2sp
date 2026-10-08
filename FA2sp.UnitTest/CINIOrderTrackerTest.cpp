@@ -400,25 +400,25 @@ TEST(CINIOrderTrackerTest, RealCINIComplexMapLifecycleSimulation)
     EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, "Map", nullptr, true)), expectedMapKeys);
     EXPECT_STREQ(ini.GetString("Map", "Theater"), "SNOW");
 
-    // Waypoints keys: 2, 3, 4, 0 (strictly reflects 1 was deleted, 4 was added, 0 was re-added to tail)
-    std::vector<std::string> expectedWaypointKeys = { "2", "3", "4", "0" };
+    // Waypoints keys with adaptive sorting: 0, 2, 3, 4 (0 is adaptively sorted to the front instead of trailing at tail)
+    std::vector<std::string> expectedWaypointKeys = { "0", "2", "3", "4" };
     EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, "Waypoints", nullptr, true)), expectedWaypointKeys);
+    EXPECT_STREQ(ini.GetString("Waypoints", "0"), "150");
     EXPECT_STREQ(ini.GetString("Waypoints", "2"), "300");
     EXPECT_STREQ(ini.GetString("Waypoints", "3"), "400");
     EXPECT_STREQ(ini.GetString("Waypoints", "4"), "500");
-    EXPECT_STREQ(ini.GetString("Waypoints", "0"), "150");
 
-    // Verify GetEntries returns exact key-value pairs in order
+    // Verify GetEntries returns exact key-value pairs in adaptive order
     auto waypointEntries = CINIOrderTracker::GetEntries(&ini, "Waypoints", nullptr, true);
     ASSERT_EQ(waypointEntries.size(), 4u);
-    EXPECT_STREQ(waypointEntries[0].Key, "2");
-    EXPECT_STREQ(waypointEntries[0].Value, "300");
-    EXPECT_STREQ(waypointEntries[1].Key, "3");
-    EXPECT_STREQ(waypointEntries[1].Value, "400");
-    EXPECT_STREQ(waypointEntries[2].Key, "4");
-    EXPECT_STREQ(waypointEntries[2].Value, "500");
-    EXPECT_STREQ(waypointEntries[3].Key, "0");
-    EXPECT_STREQ(waypointEntries[3].Value, "150");
+    EXPECT_STREQ(waypointEntries[0].Key, "0");
+    EXPECT_STREQ(waypointEntries[0].Value, "150");
+    EXPECT_STREQ(waypointEntries[1].Key, "2");
+    EXPECT_STREQ(waypointEntries[1].Value, "300");
+    EXPECT_STREQ(waypointEntries[2].Key, "3");
+    EXPECT_STREQ(waypointEntries[2].Value, "400");
+    EXPECT_STREQ(waypointEntries[3].Key, "4");
+    EXPECT_STREQ(waypointEntries[3].Value, "500");
 
     // Triggers keys: 0
     std::vector<std::string> expectedTriggerKeys = { "0" };
@@ -761,6 +761,157 @@ TEST(CINIOrderTrackerTest, RealCINIInterleavedKeyAndSectionDeleteReaddStressTest
     ASSERT_EQ(sec3Entries.size(), 1u);
     EXPECT_STREQ(sec3Entries[0].Key, "Gamma");
     EXPECT_STREQ(sec3Entries[0].Value, "3");
+
+    CINIOrderTracker::Clear(&ini);
+}
+
+TEST(CINIOrderTrackerTest, AdaptiveSortingNumericKeysPreserveNaturalOrderOnDeleteAndReadd)
+{
+    CINI ini;
+    CINIOrderTracker::Clear(&ini);
+
+    // Initial setup: [Units] with 0, 1, 2, 3
+    ini.WriteString("Units", "0", "Unit_Zero");
+    CINIOrderTracker::RecordKey(&ini, "Units", "0");
+
+    ini.WriteString("Units", "1", "Unit_One");
+    CINIOrderTracker::RecordKey(&ini, "Units", "1");
+
+    ini.WriteString("Units", "2", "Unit_Two");
+    CINIOrderTracker::RecordKey(&ini, "Units", "2");
+
+    ini.WriteString("Units", "3", "Unit_Three");
+    CINIOrderTracker::RecordKey(&ini, "Units", "3");
+
+    std::vector<std::string> expectedInitial = { "0", "1", "2", "3" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, "Units", nullptr, true)), expectedInitial);
+
+    // Case 1: Head deletion and re-add of "0"
+    // Without adaptive sorting, "0" would end up at the tail: {"1", "2", "3", "0"}
+    // With adaptive sorting, "0" must return to the front: {"0", "1", "2", "3"}
+    ini.DeleteKey("Units", "0");
+    CINIOrderTracker::RemoveKey(&ini, "Units", "0");
+
+    ini.WriteString("Units", "0", "Unit_Zero_Readded");
+    CINIOrderTracker::RecordKey(&ini, "Units", "0");
+
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, "Units", nullptr, true)), expectedInitial);
+    auto entries0 = CINIOrderTracker::GetEntries(&ini, "Units", nullptr, true);
+    ASSERT_EQ(entries0.size(), 4u);
+    EXPECT_STREQ(entries0[0].Key, "0");
+    EXPECT_STREQ(entries0[0].Value, "Unit_Zero_Readded");
+
+    // Case 2: Middle deletion and re-add of "2"
+    ini.DeleteKey("Units", "2");
+    CINIOrderTracker::RemoveKey(&ini, "Units", "2");
+
+    ini.WriteString("Units", "2", "Unit_Two_Readded");
+    CINIOrderTracker::RecordKey(&ini, "Units", "2");
+
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, "Units", nullptr, true)), expectedInitial);
+    auto entries2 = CINIOrderTracker::GetEntries(&ini, "Units", nullptr, true);
+    EXPECT_STREQ(entries2[2].Key, "2");
+    EXPECT_STREQ(entries2[2].Value, "Unit_Two_Readded");
+
+    // Case 3: Tail deletion and re-add of "3"
+    ini.DeleteKey("Units", "3");
+    CINIOrderTracker::RemoveKey(&ini, "Units", "3");
+
+    ini.WriteString("Units", "3", "Unit_Three_Readded");
+    CINIOrderTracker::RecordKey(&ini, "Units", "3");
+
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, "Units", nullptr, true)), expectedInitial);
+
+    // Case 4: Delete multiple keys ("1" and "0"), re-add in reverse order ("1" then "0")
+    ini.DeleteKey("Units", "1");
+    CINIOrderTracker::RemoveKey(&ini, "Units", "1");
+    ini.DeleteKey("Units", "0");
+    CINIOrderTracker::RemoveKey(&ini, "Units", "0");
+
+    ini.WriteString("Units", "1", "Unit_One_V2");
+    CINIOrderTracker::RecordKey(&ini, "Units", "1");
+    ini.WriteString("Units", "0", "Unit_Zero_V2");
+    CINIOrderTracker::RecordKey(&ini, "Units", "0");
+
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, "Units", nullptr, true)), expectedInitial);
+    auto entriesMulti = CINIOrderTracker::GetEntries(&ini, "Units", nullptr, true);
+    EXPECT_STREQ(entriesMulti[0].Key, "0");
+    EXPECT_STREQ(entriesMulti[0].Value, "Unit_Zero_V2");
+    EXPECT_STREQ(entriesMulti[1].Key, "1");
+    EXPECT_STREQ(entriesMulti[1].Value, "Unit_One_V2");
+
+    CINIOrderTracker::Clear(&ini);
+}
+
+TEST(CINIOrderTrackerTest, AdaptiveSortingWestwoodNumericComparatorMultiDigit)
+{
+    CINI ini;
+    CINIOrderTracker::Clear(&ini);
+
+    // Multi-digit numbers inserted in intentionally scrambled order
+    // "100", "10", "0", "9", "1", "11", "8", "99"
+    // In ASCII alphabetical sort: "0", "1", "10", "100", "11", "8", "9", "99" (WRONG for game engine)
+    // In Westwood numeric sort:   "0", "1", "8", "9", "10", "11", "99", "100" (CORRECT)
+    std::vector<std::string> insertOrder = { "100", "10", "0", "9", "1", "11", "8", "99" };
+    for (const auto& k : insertOrder)
+    {
+        ini.WriteString("Waypoints", k.c_str(), ("pos_" + k).c_str());
+        CINIOrderTracker::RecordKey(&ini, "Waypoints", k.c_str());
+    }
+
+    std::vector<std::string> expectedWestwoodOrder = { "0", "1", "8", "9", "10", "11", "99", "100" };
+    auto actualKeys = ToStringVector(CINIOrderTracker::GetKeyNames(&ini, "Waypoints", nullptr, true));
+    EXPECT_EQ(actualKeys, expectedWestwoodOrder);
+
+    CINIOrderTracker::Clear(&ini);
+}
+
+TEST(CINIOrderTrackerTest, AdaptiveSortingMixedSectionPreservesTextHeaderAndOrdersNumericArray)
+{
+    CINI ini;
+    CINIOrderTracker::Clear(&ini);
+
+    // Simulate Script / TaskForce section like [01000001]
+    // Header properties: Name, Group
+    // Numeric action/member entries: 0, 1, 2
+    const char* sec = "01000001";
+    ini.WriteString(sec, "Name", "Assault Squad");
+    CINIOrderTracker::RecordKey(&ini, sec, "Name");
+
+    ini.WriteString(sec, "Group", "-1");
+    CINIOrderTracker::RecordKey(&ini, sec, "Group");
+
+    ini.WriteString(sec, "0", "1,E1");
+    CINIOrderTracker::RecordKey(&ini, sec, "0");
+
+    ini.WriteString(sec, "1", "2,HTK");
+    CINIOrderTracker::RecordKey(&ini, sec, "1");
+
+    ini.WriteString(sec, "2", "1,APOC");
+    CINIOrderTracker::RecordKey(&ini, sec, "2");
+
+    // Delete action "0", then re-add "0" -> should stay right after headers and before "1"
+    ini.DeleteKey(sec, "0");
+    CINIOrderTracker::RemoveKey(&ini, sec, "0");
+
+    ini.WriteString(sec, "0", "1,E1_New");
+    CINIOrderTracker::RecordKey(&ini, sec, "0");
+
+    std::vector<std::string> expectedOrder = { "Name", "Group", "0", "1", "2" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, sec, nullptr, true)), expectedOrder);
+
+    auto entries = CINIOrderTracker::GetEntries(&ini, sec, nullptr, true);
+    ASSERT_EQ(entries.size(), 5u);
+    EXPECT_STREQ(entries[0].Key, "Name");
+    EXPECT_STREQ(entries[0].Value, "Assault Squad");
+    EXPECT_STREQ(entries[1].Key, "Group");
+    EXPECT_STREQ(entries[1].Value, "-1");
+    EXPECT_STREQ(entries[2].Key, "0");
+    EXPECT_STREQ(entries[2].Value, "1,E1_New");
+    EXPECT_STREQ(entries[3].Key, "1");
+    EXPECT_STREQ(entries[3].Value, "2,HTK");
+    EXPECT_STREQ(entries[4].Key, "2");
+    EXPECT_STREQ(entries[4].Value, "1,APOC");
 
     CINIOrderTracker::Clear(&ini);
 }

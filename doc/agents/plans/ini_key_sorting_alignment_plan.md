@@ -8,7 +8,7 @@ In the target editor [`YR_RN_Mission_Editor`](file:///D:/Developments/RevengeNow
 Our objective is to:
 1. Enable `FA2Copy` to **preserve both INI section sequence and key sequence** when saving, matching `YR_RN_Mission_Editor`.
 2. Use an **$O(1)$ Multi-Index design (`std::list` + `std::unordered_map<Key, list::iterator>`)** for both section order and key order to ensure top performance on massive maps (avoiding $O(N^2)$ lookups or $O(N)$ index shifts on deletions).
-3. Introduce a configuration option (`SaveMap.PreserveINIKeySorting` / `ExtConfigs::SaveMap_PreserveINIKeySorting`) so that vanilla behavior remains intact for upstream compatibility when disabled.
+3. Introduce a configuration option (`SaveMap.AdaptiveSorting` / `ExtConfigs::SaveMap_AdaptiveSorting`) so that vanilla behavior remains intact for upstream compatibility when disabled.
 4. Adapt a dedicated configuration suite for **Revenge Now (RN)** (similar to `Supplementary/MentalOmega`) with this feature enabled, incorporating RN-specific configurations from `YR_RN_Mission_Editor/dist/FinalRevenge`.
 
 ---

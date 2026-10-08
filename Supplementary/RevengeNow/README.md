@@ -13,7 +13,7 @@
      - **FA2sp 现代兼容层**：保留 `[Include]` 引用链（加载 `FAData_ObjectBrowser.ini` 保证物件浏览器中文分类与完整条目正常显示）与 `[ExtConfigs]`、现代剧场与图块管理定义。
    - 启用了面向 RN 对齐保存所需的保序配置：
      - `SaveMap.PreserveINISorting=true`：保存地图时保持所有 INI 小节原有的出现顺序。
-     - `SaveMap.PreserveINIKeySorting=true`：保存地图时保持小节内部键值对（Key=Value）原有的出现顺序。
+     - `SaveMap.AdaptiveSorting=true`：保存地图时自适应保持键值排布（数字索引小节自然升序，常规属性小节维持原序）。
      - `SaveMap.KeepComments=false`：不保留注释（符合 RN 要求）。
 
 ---

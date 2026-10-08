@@ -240,7 +240,7 @@ public:
     static bool DisableDirectoryCheck;
     static bool ExtOverlays;
     static bool SaveMap_PreserveINISorting;
-    static bool SaveMap_PreserveINIKeySorting;
+    static bool SaveMap_AdaptiveSorting;
     static bool ExtMixLoader;
     static bool AVX2_Support;
     static bool AutoDarkMode;

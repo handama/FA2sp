@@ -793,7 +793,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                     oss << "\n";
                 };
 
-                for (const auto& [key, value] : CINIOrderTracker::GetEntries(pINI, sectionName, pSection, ExtConfigs::SaveMap_PreserveINIKeySorting))
+                for (const auto& [key, value] : CINIOrderTracker::GetEntries(pINI, sectionName, pSection, ExtConfigs::SaveMap_AdaptiveSorting))
                 {
                     writeEntry(key, value);
                 }

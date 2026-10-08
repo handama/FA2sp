@@ -38,6 +38,6 @@ public:
     // Range / iteration helpers: returns items in preserved queue order (or map dictionary order if preserveOrder is false)
     static std::vector<SectionItem> GetSections(CINI* ini, bool preserveOrder = true);
     static std::vector<ppmfc::CString> GetSectionNames(CINI* ini, bool preserveOrder = true);
-    static std::vector<KeyValueItem> GetEntries(CINI* ini, const ppmfc::CString& sectionName, INISection* section = nullptr, bool preserveOrder = true);
-    static std::vector<ppmfc::CString> GetKeyNames(CINI* ini, const ppmfc::CString& sectionName, INISection* section = nullptr, bool preserveOrder = true);
+    static std::vector<KeyValueItem> GetEntries(CINI* ini, const ppmfc::CString& sectionName, INISection* section = nullptr, bool adaptiveSorting = true);
+    static std::vector<ppmfc::CString> GetKeyNames(CINI* ini, const ppmfc::CString& sectionName, INISection* section = nullptr, bool adaptiveSorting = true);
 };

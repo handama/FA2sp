@@ -2,6 +2,29 @@
 #include "CINIOrderTracker.h"
 #include <CINI.h>
 #include <unordered_set>
+#include <algorithm>
+#include <cctype>
+
+static inline bool IsNumericKey(const ppmfc::CString& key)
+{
+    if (key.IsEmpty())
+        return false;
+    for (int i = 0; i < key.GetLength(); ++i)
+    {
+        if (!isdigit(static_cast<unsigned char>(key[i])))
+            return false;
+    }
+    return true;
+}
+
+static inline bool NumericKeyLess(const ppmfc::CString& a, const ppmfc::CString& b)
+{
+    int lenA = a.GetLength();
+    int lenB = b.GetLength();
+    if (lenA != lenB)
+        return lenA < lenB;
+    return strcmp(a.GetString(), b.GetString()) < 0;
+}
 
 struct INIOrderData
 {
@@ -173,7 +196,7 @@ std::vector<ppmfc::CString> CINIOrderTracker::GetSectionNames(CINI* ini, bool pr
     return names;
 }
 
-std::vector<KeyValueItem> CINIOrderTracker::GetEntries(CINI* ini, const ppmfc::CString& sectionName, INISection* section, bool preserveOrder)
+std::vector<KeyValueItem> CINIOrderTracker::GetEntries(CINI* ini, const ppmfc::CString& sectionName, INISection* section, bool adaptiveSorting)
 {
     std::vector<KeyValueItem> result;
     if (!section)
@@ -188,7 +211,7 @@ std::vector<KeyValueItem> CINIOrderTracker::GetEntries(CINI* ini, const ppmfc::C
     auto& entities = section->GetEntities();
     result.reserve(entities.size());
 
-    if (!preserveOrder || !ini)
+    if (!adaptiveSorting || !ini)
     {
         for (const auto& pair : entities)
         {
@@ -226,12 +249,68 @@ std::vector<KeyValueItem> CINIOrderTracker::GetEntries(CINI* ini, const ppmfc::C
         }
     }
 
+    // Pass 3: Adaptive sorting for numeric keys
+    // If the section contains numeric keys, sort them naturally among themselves
+    // while keeping non-numeric (text) keys in their original relative positions.
+    std::vector<size_t> numericIndices;
+    numericIndices.reserve(result.size());
+    for (size_t i = 0; i < result.size(); ++i)
+    {
+        if (IsNumericKey(result[i].Key))
+        {
+            numericIndices.push_back(i);
+        }
+    }
+
+    if (numericIndices.size() > 1)
+    {
+        bool isSorted = true;
+        for (size_t i = 1; i < numericIndices.size(); ++i)
+        {
+            if (!NumericKeyLess(result[numericIndices[i - 1]].Key, result[numericIndices[i]].Key))
+            {
+                isSorted = false;
+                break;
+            }
+        }
+
+        if (!isSorted)
+        {
+            std::vector<KeyValueItem> numericItems;
+            numericItems.reserve(numericIndices.size());
+            for (size_t idx : numericIndices)
+            {
+                numericItems.push_back(std::move(result[idx]));
+            }
+
+            std::stable_sort(numericItems.begin(), numericItems.end(), [](const KeyValueItem& a, const KeyValueItem& b) {
+                return NumericKeyLess(a.Key, b.Key);
+            });
+
+            for (size_t i = 0; i < numericIndices.size(); ++i)
+            {
+                result[numericIndices[i]] = std::move(numericItems[i]);
+            }
+
+            // Sync the adaptively sorted order back into tracker
+            auto* pOrder = GetOrCreateKeyOrder(ini, sectionName);
+            if (pOrder)
+            {
+                pOrder->Clear();
+                for (const auto& item : result)
+                {
+                    pOrder->Add(item.Key);
+                }
+            }
+        }
+    }
+
     return result;
 }
 
-std::vector<ppmfc::CString> CINIOrderTracker::GetKeyNames(CINI* ini, const ppmfc::CString& sectionName, INISection* section, bool preserveOrder)
+std::vector<ppmfc::CString> CINIOrderTracker::GetKeyNames(CINI* ini, const ppmfc::CString& sectionName, INISection* section, bool adaptiveSorting)
 {
-    auto entries = GetEntries(ini, sectionName, section, preserveOrder);
+    auto entries = GetEntries(ini, sectionName, section, adaptiveSorting);
     std::vector<ppmfc::CString> keys;
     keys.reserve(entries.size());
     for (auto& e : entries)

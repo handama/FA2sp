@@ -5,7 +5,7 @@
 #include <vector>
 #include <string>
 
-static void LoadRawINI(CINIExt& ini, const std::string& raw)
+static void LoadRawINI(CINIExt& ini, const std::string_view raw)
 {
     ini.LoadINIExt(reinterpret_cast<uint8_t*>(const_cast<char*>(raw.data())), raw.size(), nullptr, true, true, false);
 }

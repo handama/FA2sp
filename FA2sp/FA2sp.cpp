@@ -463,8 +463,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::SaveMap_KeepComments = CINI::FAData->GetBool("ExtConfigs", "SaveMap.KeepComments");
 	ExtConfigs::SaveMap_PreserveINISorting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.PreserveINISorting");
 	ExtConfigs::SaveMap_AdaptiveSorting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.AdaptiveSorting");
-	CINIExt::SetKeepSectionSorting(ExtConfigs::SaveMap_PreserveINISorting);
-	CINIExt::SetAdaptiveSorting(ExtConfigs::SaveMap_AdaptiveSorting);
+
 	// ExtConfigs::SaveMap_MultiPlayOnlySaveYRM = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveYRM.MultiPlay");
 	// ExtConfigs::SaveMap_SinglePlayOnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP.SinglePlay");
 	ExtConfigs::SaveMap_DefaultPreviewOptionMP = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.DefaultPreviewOptionMP", 0);
@@ -639,6 +638,10 @@ void FA2sp::ExtConfigsInitialize()
 	{
 		*opt.Value = fa2.GetBool("Options", opt.IniKey, *opt.Value);
 	}
+
+
+	CINIExt::SetKeepSectionSorting(ExtConfigs::SaveMap_PreserveINISorting);
+	CINIExt::SetAdaptiveSorting(ExtConfigs::SaveMap_AdaptiveSorting);
 
 	CTileSetBrowserFrameExt::TileSetBrowserViewScaledFactor = fa2.GetDouble("UserInterface", "TileSetBrowserViewScaledFactor", 1.0);
 	CTileSetBrowserFrameExt::OverlayBrowserViewScaledFactor = fa2.GetDouble("UserInterface", "OverlayBrowserViewScaledFactor", 1.0);

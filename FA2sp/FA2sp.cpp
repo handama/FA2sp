@@ -21,6 +21,7 @@
 #include <bit>
 #include "Helpers/Translations.h"
 #include "Miscs/DialogStyle.h"
+#include "Miscs/Hooks.INI.h"
 #include "Helpers/TheaterHelpers.h"
 
 #define ENABLE_VISUAL_STYLE
@@ -462,6 +463,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::SaveMap_KeepComments = CINI::FAData->GetBool("ExtConfigs", "SaveMap.KeepComments");
 	ExtConfigs::SaveMap_PreserveINISorting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.PreserveINISorting");
 	ExtConfigs::SaveMap_AdaptiveSorting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.AdaptiveSorting");
+	CINIExt::SetKeepSectionSorting(ExtConfigs::SaveMap_PreserveINISorting);
+	CINIExt::SetAdaptiveSorting(ExtConfigs::SaveMap_AdaptiveSorting);
 	// ExtConfigs::SaveMap_MultiPlayOnlySaveYRM = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveYRM.MultiPlay");
 	// ExtConfigs::SaveMap_SinglePlayOnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP.SinglePlay");
 	ExtConfigs::SaveMap_DefaultPreviewOptionMP = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.DefaultPreviewOptionMP", 0);

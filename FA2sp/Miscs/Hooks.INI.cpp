@@ -20,6 +20,144 @@ std::unordered_map<CINI*, CINIInfo> CINIManager::propertyMap;
 bool INIIncludes::SkipBracketFix = false;
 bool CINIExt::IsLoadingFAini = false;
 
+static void NoOpRecordKey(CINI*, const ppmfc::CString&, const ppmfc::CString&) noexcept {}
+static void NoOpRemoveKey(CINI*, const ppmfc::CString&, const ppmfc::CString&) noexcept {}
+static void NoOpRecordSection(CINI*, const ppmfc::CString&) noexcept {}
+static void NoOpRemoveSection(CINI*, const ppmfc::CString&) noexcept {}
+
+CINIExt::FnRecordKey_t CINIExt::FnRecordKey = &CINIOrderTracker::RecordKey;
+CINIExt::FnRemoveKey_t CINIExt::FnRemoveKey = &CINIOrderTracker::RemoveKey;
+CINIExt::FnRecordSection_t CINIExt::FnRecordSection = &CINIOrderTracker::RecordSection;
+CINIExt::FnRemoveSection_t CINIExt::FnRemoveSection = &CINIOrderTracker::RemoveSection;
+
+static bool bAdaptiveSortingEnabled = true;
+static bool bKeepSectionSortingEnabled = true;
+
+void CINIExt::SetAdaptiveSorting(bool enable)
+{
+    bAdaptiveSortingEnabled = enable;
+    if (enable)
+    {
+        FnRecordKey = &CINIOrderTracker::RecordKey;
+        FnRemoveKey = &CINIOrderTracker::RemoveKey;
+    }
+    else
+    {
+        FnRecordKey = &NoOpRecordKey;
+        FnRemoveKey = &NoOpRemoveKey;
+    }
+}
+
+void CINIExt::SetKeepSectionSorting(bool enable)
+{
+    bKeepSectionSortingEnabled = enable;
+    if (enable)
+    {
+        FnRecordSection = &CINIOrderTracker::RecordSection;
+        FnRemoveSection = &CINIOrderTracker::RemoveSection;
+    }
+    else
+    {
+        FnRecordSection = &NoOpRecordSection;
+        FnRemoveSection = &NoOpRemoveSection;
+    }
+}
+
+bool CINIExt::GetAdaptiveSorting()
+{
+    return bAdaptiveSortingEnabled;
+}
+
+bool CINIExt::GetKeepSectionSorting()
+{
+    return bKeepSectionSortingEnabled;
+}
+
+bool CINIExt::WriteString(ppmfc::CString pSection, ppmfc::CString pKey, ppmfc::CString pValue)
+{
+    if (pSection.IsEmpty() || pKey.IsEmpty())
+        return false;
+
+    FnRecordSection(this, pSection);
+    FnRecordKey(this, pSection, pKey);
+    return CINI::WriteString(pSection, pKey, pValue);
+}
+
+bool CINIExt::WriteString(INISection* pSection, ppmfc::CString pKey, ppmfc::CString pValue)
+{
+    if (!pSection || pKey.IsEmpty())
+        return false;
+
+    if (FnRecordKey != &NoOpRecordKey)
+    {
+        for (const auto& pair : Dict)
+        {
+            if (&pair.second == pSection)
+            {
+                FnRecordKey(this, pair.first, pKey);
+                break;
+            }
+        }
+    }
+    return CINI::WriteString(pSection, pKey, pValue);
+}
+
+bool CINIExt::DeleteKey(ppmfc::CString pSection, ppmfc::CString pKey)
+{
+    bool bDeleted = CINI::DeleteKey(pSection, pKey);
+    if (bDeleted)
+    {
+        FnRemoveKey(this, pSection, pKey);
+    }
+    return bDeleted;
+}
+
+bool CINIExt::DeleteKey(INISection* pSection, ppmfc::CString pKey)
+{
+    if (!pSection || pKey.IsEmpty())
+        return false;
+
+    if (FnRemoveKey != &NoOpRemoveKey)
+    {
+        for (const auto& pair : Dict)
+        {
+            if (&pair.second == pSection)
+            {
+                FnRemoveKey(this, pair.first, pKey);
+                break;
+            }
+        }
+    }
+    return CINI::DeleteKey(pSection, pKey);
+}
+
+bool CINIExt::DeleteSection(ppmfc::CString pSection)
+{
+    bool bDeleted = CINI::DeleteSection(pSection);
+    if (bDeleted)
+    {
+        FnRemoveSection(this, pSection);
+    }
+    return bDeleted;
+}
+
+INISection* CINIExt::AddSection(ppmfc::CString pSectionName)
+{
+    auto* pSection = CINI::AddSection(pSectionName);
+    if (pSection)
+    {
+        FnRecordSection(this, pSectionName);
+    }
+    return pSection;
+}
+
+INISection* CINIExt::AddOrGetSection(ppmfc::CString pSectionName)
+{
+    auto* pSection = CINI::AddOrGetSection(pSectionName);
+    FnRecordSection(this, pSectionName);
+    return pSection;
+}
+
 using INIPair = std::pair<ppmfc::CString, ppmfc::CString>;
 void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
     bool bClear, bool bTrimSpace, bool bAllowInclude, std::vector<INIPair>* parentIncludeInis)
@@ -42,7 +180,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
         reinterpret_cast<FAINIEntriesMap*>(&pSection->GetEntities())->insert(&ret, &ins);
         if (!ret.second)
             new(&ret.first->second) ppmfc::CString(value);
-        CINIOrderTracker::RecordKey(this, sectionName, key);
+        FnRecordKey(this, sectionName, key);
     };
 
     auto encoding = STDHelpers::GetFileEncoding(pFile, fileSize);
@@ -153,7 +291,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                         pCurrentSection = AddOrGetSection(CurrentSectionName);
                     }
 
-                    CINIOrderTracker::RecordSection(this, CurrentSectionName);
+                    FnRecordSection(this, CurrentSectionName);
 
                     if (CMapDataExt::IsLoadingMapFile && ExtConfigs::SaveMap_PreserveINISorting) {
                         auto it = std::find(CMapDataExt::MapIniSectionSorting.begin(), CMapDataExt::MapIniSectionSorting.end(), CurrentSectionName);
@@ -447,7 +585,7 @@ void CINIExt::InheritSectionRecursive(const ppmfc::CString& sectionName,
         reinterpret_cast<FAINIEntriesMap*>(&pSection->GetEntities())->insert(&ret, &ins);
         if (!ret.second)
             new(&ret.first->second) ppmfc::CString(value);
-        CINIOrderTracker::RecordKey(this, sectionName, key);
+        FnRecordKey(this, sectionName, key);
     };
 
     if (visited.count(sectionName)) {

@@ -47,11 +47,15 @@
     <TargetName>FA2sp.UnitTest</TargetName>
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(ProjectDir)..\Debug\</OutDir>
+    <!-- FA2sp links the static MFC 4.2 shipped in the MFC42 submodule (see FA2sp.vcxproj),
+         so nafxcwd.lib / nafxcw.lib have to be searched there as well. -->
+    <LibraryPath>$(ProjectDir)..\MFC42\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <TargetName>FA2sp.UnitTest</TargetName>
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(ProjectDir)..\Release\</OutDir>
+    <LibraryPath>$(ProjectDir)..\MFC42\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

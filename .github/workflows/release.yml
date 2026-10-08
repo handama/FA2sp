@@ -3,16 +3,9 @@ name: Release
 permissions:
   contents: write
 
+# Manual releases only: closing or merging a pull request must NOT publish a
+# release. Start this workflow by hand from the Actions tab (Run workflow).
 on:
-  pull_request:
-    branches:
-      - "master"
-    types:
-      - closed
-    paths-ignore:
-      - 'image/**'
-      - 'docs/**'
-      - '**/*.md'
   workflow_dispatch:
     inputs:
       tag_name:
@@ -33,7 +26,6 @@ env:
 
 jobs:
   build-and-test:
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true)
     uses: ./.github/workflows/reusable-build-and-test.yml
     with:
       configuration: Release
@@ -41,7 +33,6 @@ jobs:
 
   prepare-version:
     needs: build-and-test
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true)
     runs-on: windows-2022
     outputs:
       release_tag: ${{ steps.determine_version.outputs.release_tag }}
@@ -76,7 +67,6 @@ jobs:
 
   package:
     needs: [build-and-test, prepare-version]
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true)
     runs-on: windows-2022
     strategy:
       matrix:
@@ -108,7 +98,6 @@ jobs:
 
   publish-release:
     needs: [prepare-version, package]
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true)
     runs-on: windows-2022
     steps:
       - name: Download all release target packages

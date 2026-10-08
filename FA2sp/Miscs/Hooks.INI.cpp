@@ -310,13 +310,6 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
 
                     FnRecordSection(this, CurrentSectionName);
 
-                    if (CMapDataExt::IsLoadingMapFile && ExtConfigs::SaveMap_PreserveINISorting) {
-                        auto it = std::find(CMapDataExt::MapIniSectionSorting.begin(), CMapDataExt::MapIniSectionSorting.end(), CurrentSectionName);
-                        if (it == CMapDataExt::MapIniSectionSorting.end()) {
-                            CMapDataExt::MapIniSectionSorting.push_back(CurrentSectionName);
-                        }
-                    }
-
                     if (keepComment) {
                         PendingComment.Trim();
                         if (!PendingComment.empty()) {

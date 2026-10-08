@@ -26,7 +26,6 @@ bool ExtConfigs::UTF8Support_InferEncoding = true;
 bool CMapDataExt::IsLoadingMapFile = false;
 bool CMapDataExt::IsUTF8File = false;
 std::unordered_map<int, FString> CMapDataExt::TileSetOriginSetNames[6];
-std::vector<FString> CMapDataExt::MapIniSectionSorting;
 FMap<FMap<FString>> CMapDataExt::MapInlineComments;
 FMap<FMap<FString>> CMapDataExt::MapFrontlineComments;
 FMap<FString> CMapDataExt::MapInsectionComments;

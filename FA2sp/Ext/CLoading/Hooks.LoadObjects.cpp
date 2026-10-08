@@ -252,7 +252,6 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
     INIIncludes::SkipBracketFix = true;
     CMapDataExt::IsLoadingMapFile = true;
     CINIOrderTracker::Clear(&CINIExt::CurrentDocument);
-    CMapDataExt::MapIniSectionSorting.clear();
     CMapDataExt::MapInlineComments.clear();
     CMapDataExt::MapFrontlineComments.clear();
     CMapDataExt::MapInsectionComments.clear();

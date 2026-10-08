@@ -168,7 +168,6 @@ bool CMapDataExt::IsLoadingMapFile = false;
 bool CMapDataExt::IsMMXFile = false;
 bool CMapDataExt::IsUTF8File = false;
 bool CMapDataExt::SkipBuildingOverlappingCheck = false;
-std::vector<FString> CMapDataExt::MapIniSectionSorting;
 FMap<FSet> CMapDataExt::PowersUpBuildings;
 FSet CMapDataExt::PowersUpBuildingSet;
 std::map<int, std::vector<CustomTile>> CMapDataExt::CustomTiles;

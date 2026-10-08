@@ -1109,7 +1109,6 @@ public:
     static bool IsMMXFile;
     static bool IsUTF8File;
     static bool SkipBuildingOverlappingCheck;
-    static std::vector<FString> MapIniSectionSorting;
     static FMap<FSet> PowersUpBuildings;
     static FSet PowersUpBuildingSet;
     static bool PlaceStructure_Preview;

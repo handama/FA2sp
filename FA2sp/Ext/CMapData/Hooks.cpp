@@ -1100,7 +1100,6 @@ DEFINE_HOOK(4B9E38, CMapData_CreateMap_InitializeMapDataExt, 5)
 	Logger::Debug("CMapData::CreateMap(): About to call InitializeAllHdmEdition()\n");
 	CMapDataExt::InitializeAllHdmEdition();
 	CINIOrderTracker::Clear(&CINIExt::CurrentDocument);
-	CMapDataExt::MapIniSectionSorting.clear();
 	CMapDataExt::MapInlineComments.clear();
 	CMapDataExt::MapFrontlineComments.clear();
 	CMapDataExt::MapInsectionComments.clear();

@@ -99,6 +99,15 @@ data2.pack=false
 
 启动后看日志：`[MixLoader][Package] <路径> loaded.` 表示加载成功；`failed!` 表示这个包和当前程序不是同一次生成的。
 
+### 4. 以后再加新包
+
+要给已经发布出去的版本加一个新包（比如 `data3`），按原来的三步再做一遍就行：素材根里**保留所有旧包**、把新包放进去，用**同一个种子**重新生成一次。
+
+对已经装过旧版的用户来说，**他们只要下载新包和新程序，旧包不用重下。**
+
+- 每次都要**包和程序一起换**。
+- **换了种子**（或者本来就是另一版发行）就不适用了，所有包都得重新下。
+
 ### 记住三件事
 
 1. **种子是唯一的秘密。** 丢了就做不出同一版；泄露了这一版就能被还原。
@@ -201,6 +210,15 @@ data2.pack=false
 ```
 
 Watch the log at startup: `[MixLoader][Package] <path> loaded.` means it loaded; `failed!` means that pack and the current program do not come from the same run.
+
+### 4. Adding another pack later
+
+To add a new pack to a release you have already shipped (say `data3`), just do the three steps again: keep **all the old packs** in the asset root, drop the new one in, and run the generator with the **same seed**.
+
+For players who already installed the previous version, the good news is: **they only need the new pack and the new program; the old packs stay as they are.**
+
+- Always replace the packs and the program together.
+- This only holds for the **same seed**. A different seed means everyone downloads everything again.
 
 ### Three things to remember
 

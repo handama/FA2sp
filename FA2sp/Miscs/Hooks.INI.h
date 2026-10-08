@@ -58,18 +58,14 @@ public:
     // zero-overhead proxy wrapper over CINI sharing the identical memory layout (sizeof == 80).
     //
     // CRITICAL NOTICE FOR FUTURE DEVELOPERS:
-    // ALWAYS operate on this instance (`CINIExt::CurrentDocument` or the namespace/global alias
-    // `CurrentDocument`) instead of `CINI::CurrentDocument` throughout all FA2sp components.
+    // ALWAYS operate on this instance (`CINIExt::CurrentDocument`) instead of `CINI::CurrentDocument`
+    // throughout all FA2sp components.
     // Directly invoking `CINI::CurrentDocument` will bypass CINIExt's tracking overrides
     // (`WriteString`, `DeleteKey`, `AddSection`, etc.) and break Westwood-style numeric
     // order preservation when saving maps!
     // =========================================================================================
     static constexpr reference<CINIExt, 0x7ACC80> const CurrentDocument{};
 };
-
-// Global proxy instance representing the map document (maps to 0x7ACC80).
-// Shortcut alias for CINIExt::CurrentDocument. Always use this instead of CINI::CurrentDocument.
-inline constexpr reference<CINIExt, 0x7ACC80> const CurrentDocument{};
 
 struct CINIInfo
 {

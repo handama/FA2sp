@@ -112,6 +112,9 @@
     <ClCompile Include="SequencedKeyListTest.cpp" />
     <ClCompile Include="CINIOrderTrackerTest.cpp" />
     <ClCompile Include="..\FA2sp\Helpers\CINIOrderTracker.cpp" />
+    <ClCompile Include="..\FA2sp\Miscs\Hooks.INI.cpp" />
+    <ClCompile Include="..\FA2sp\Helpers\FString.cpp" />
+    <ClCompile Include="TestStubs.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

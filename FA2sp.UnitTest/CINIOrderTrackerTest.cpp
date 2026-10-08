@@ -1,8 +1,14 @@
 #include "TestCommon.h"
 #include <Helpers/CINIOrderTracker.h>
 #include <CINI.h>
+#include <Miscs/Hooks.INI.h>
 #include <vector>
 #include <string>
+
+static void LoadRawINI(CINIExt& ini, const std::string& raw)
+{
+    ini.LoadINIExt(reinterpret_cast<uint8_t*>(const_cast<char*>(raw.data())), raw.size(), nullptr, true, true, false);
+}
 
 TEST(CINIOrderTrackerTest, SectionOrderTrackingAndQueueSemantics)
 {
@@ -81,20 +87,16 @@ static std::vector<std::string> ToStringVector(const std::vector<ppmfc::CString>
 
 TEST(CINIOrderTrackerTest, RealCINICrudKeyOperations)
 {
-    CINI ini;
-    CINIOrderTracker::Clear(&ini);
+    CINIExt ini;
+    const char* raw = R"(
+[Basic]
+Name=Island Wars
+Player=Soviet
+Theme=NoTheme
+)";
+    LoadRawINI(ini, raw);
 
-    // 1. Initial Insertions and Recording (Simulate load phase)
-    ini.WriteString("Basic", "Name", "Island Wars");
-    CINIOrderTracker::RecordKey(&ini, "Basic", "Name");
-
-    ini.WriteString("Basic", "Player", "Soviet");
-    CINIOrderTracker::RecordKey(&ini, "Basic", "Player");
-
-    ini.WriteString("Basic", "Theme", "NoTheme");
-    CINIOrderTracker::RecordKey(&ini, "Basic", "Theme");
-
-    // Query initial state
+    // Query initial state loaded through LoadINIExt
     EXPECT_TRUE(ini.KeyExists("Basic", "Name"));
     EXPECT_TRUE(ini.KeyExists("Basic", "Player"));
     EXPECT_TRUE(ini.KeyExists("Basic", "Theme"));
@@ -146,29 +148,24 @@ TEST(CINIOrderTrackerTest, RealCINICrudKeyOperations)
 
 TEST(CINIOrderTrackerTest, RealCINICrudSectionOperations)
 {
-    CINI ini;
-    CINIOrderTracker::Clear(&ini);
+    CINIExt ini;
+    const char* raw = R"(
+[Header]
+Version=4
 
-    // 1. Initial Insertions and Recording across multiple sections
-    ini.WriteString("Header", "Version", "4");
-    CINIOrderTracker::RecordSection(&ini, "Header");
-    CINIOrderTracker::RecordKey(&ini, "Header", "Version");
+[Map]
+Width=50
+Height=50
 
-    ini.WriteString("Map", "Width", "50");
-    ini.WriteString("Map", "Height", "50");
-    CINIOrderTracker::RecordSection(&ini, "Map");
-    CINIOrderTracker::RecordKey(&ini, "Map", "Width");
-    CINIOrderTracker::RecordKey(&ini, "Map", "Height");
+[Lighting]
+Ambient=1.0
 
-    ini.WriteString("Lighting", "Ambient", "1.0");
-    CINIOrderTracker::RecordSection(&ini, "Lighting");
-    CINIOrderTracker::RecordKey(&ini, "Lighting", "Ambient");
+[Units]
+0=E1,Soviet,256,10,10
+)";
+    LoadRawINI(ini, raw);
 
-    ini.WriteString("Units", "0", "E1,Soviet,256,10,10");
-    CINIOrderTracker::RecordSection(&ini, "Units");
-    CINIOrderTracker::RecordKey(&ini, "Units", "0");
-
-    // Query initial sections
+    // Query initial sections loaded through LoadINIExt
     std::vector<std::string> expectedSections = { "Header", "Map", "Lighting", "Units" };
     EXPECT_EQ(ToStringVector(CINIOrderTracker::GetSectionNames(&ini)), expectedSections);
 
@@ -251,20 +248,17 @@ TEST(CINIOrderTrackerTest, RealCINIAutoTrackingUntrackedItems)
 
 TEST(CINIOrderTrackerTest, RealCINIDeletedItemsOmittedDuringIterationEvenWithoutUntrack)
 {
-    CINI ini;
-    CINIOrderTracker::Clear(&ini);
+    CINIExt ini;
+    const char* raw = R"(
+[Basic]
+Name=MapName
+GhostKey=WillBeDeleted
+Theme=ThemeA
 
-    ini.WriteString("Basic", "Name", "MapName");
-    ini.WriteString("Basic", "GhostKey", "WillBeDeleted");
-    ini.WriteString("Basic", "Theme", "ThemeA");
-    CINIOrderTracker::RecordSection(&ini, "Basic");
-    CINIOrderTracker::RecordKey(&ini, "Basic", "Name");
-    CINIOrderTracker::RecordKey(&ini, "Basic", "GhostKey");
-    CINIOrderTracker::RecordKey(&ini, "Basic", "Theme");
-
-    ini.WriteString("GhostSection", "dummy", "1");
-    CINIOrderTracker::RecordSection(&ini, "GhostSection");
-    CINIOrderTracker::RecordKey(&ini, "GhostSection", "dummy");
+[GhostSection]
+dummy=1
+)";
+    LoadRawINI(ini, raw);
 
     // Delete key in CINI, but deliberately do NOT call CINIOrderTracker::RemoveKey
     ini.DeleteKey("Basic", "GhostKey");
@@ -285,24 +279,19 @@ TEST(CINIOrderTrackerTest, RealCINIDeletedItemsOmittedDuringIterationEvenWithout
 
 TEST(CINIOrderTrackerTest, RealCINIPreserveOrderTrueVsNaturalMapOrder)
 {
-    CINI ini;
-    CINIOrderTracker::Clear(&ini);
-
-    // Insert keys where insertion sequence deliberately differs from INISectionEntriesComparator
+    CINIExt ini;
+    // Input keys where insertion sequence deliberately differs from INISectionEntriesComparator
     // INISectionEntriesComparator sorts: length ascending, then strcmp.
     // Insertion order: "Zebra" (len 5), "Beta" (len 4), "Alpha" (len 5), "A" (len 1)
     // Natural comparator order would be: "A" (len 1), "Beta" (len 4), "Alpha" (len 5), "Zebra" (len 5)
-    ini.WriteString("TestSec", "Zebra", "1");
-    CINIOrderTracker::RecordKey(&ini, "TestSec", "Zebra");
-
-    ini.WriteString("TestSec", "Beta", "2");
-    CINIOrderTracker::RecordKey(&ini, "TestSec", "Beta");
-
-    ini.WriteString("TestSec", "Alpha", "3");
-    CINIOrderTracker::RecordKey(&ini, "TestSec", "Alpha");
-
-    ini.WriteString("TestSec", "A", "4");
-    CINIOrderTracker::RecordKey(&ini, "TestSec", "A");
+    const char* raw = R"(
+[TestSec]
+Zebra=1
+Beta=2
+Alpha=3
+A=4
+)";
+    LoadRawINI(ini, raw);
 
     // preserveOrder = true: preserves exact insertion order
     std::vector<std::string> preservedOrder = { "Zebra", "Beta", "Alpha", "A" };
@@ -317,43 +306,31 @@ TEST(CINIOrderTrackerTest, RealCINIPreserveOrderTrueVsNaturalMapOrder)
 
 TEST(CINIOrderTrackerTest, RealCINIComplexMapLifecycleSimulation)
 {
-    CINI ini;
-    CINIOrderTracker::Clear(&ini);
-
+    CINIExt ini;
     // Step 1: Initial map loading simulation
-    ini.WriteString("Basic", "Name", "Battleground");
-    ini.WriteString("Basic", "Author", "Tester");
-    ini.WriteString("Basic", "Player", "Soviet");
-    ini.WriteString("Basic", "Theme", "NoTheme");
-    CINIOrderTracker::RecordSection(&ini, "Basic");
-    CINIOrderTracker::RecordKey(&ini, "Basic", "Name");
-    CINIOrderTracker::RecordKey(&ini, "Basic", "Author");
-    CINIOrderTracker::RecordKey(&ini, "Basic", "Player");
-    CINIOrderTracker::RecordKey(&ini, "Basic", "Theme");
+    const char* raw = R"(
+[Basic]
+Name=Battleground
+Author=Tester
+Player=Soviet
+Theme=NoTheme
 
-    ini.WriteString("Map", "Theater", "TEMPERATE");
-    ini.WriteString("Map", "Size", "0,0,50,50");
-    ini.WriteString("Map", "LocalSize", "2,2,46,46");
-    CINIOrderTracker::RecordSection(&ini, "Map");
-    CINIOrderTracker::RecordKey(&ini, "Map", "Theater");
-    CINIOrderTracker::RecordKey(&ini, "Map", "Size");
-    CINIOrderTracker::RecordKey(&ini, "Map", "LocalSize");
+[Map]
+Theater=TEMPERATE
+Size=0,0,50,50
+LocalSize=2,2,46,46
 
-    ini.WriteString("Waypoints", "0", "100");
-    ini.WriteString("Waypoints", "1", "200");
-    ini.WriteString("Waypoints", "2", "300");
-    ini.WriteString("Waypoints", "3", "400");
-    CINIOrderTracker::RecordSection(&ini, "Waypoints");
-    CINIOrderTracker::RecordKey(&ini, "Waypoints", "0");
-    CINIOrderTracker::RecordKey(&ini, "Waypoints", "1");
-    CINIOrderTracker::RecordKey(&ini, "Waypoints", "2");
-    CINIOrderTracker::RecordKey(&ini, "Waypoints", "3");
+[Waypoints]
+0=100
+1=200
+2=300
+3=400
 
-    ini.WriteString("Units", "0", "E1,Soviet,256,10,10");
-    ini.WriteString("Units", "1", "HTNK,Soviet,256,12,12");
-    CINIOrderTracker::RecordSection(&ini, "Units");
-    CINIOrderTracker::RecordKey(&ini, "Units", "0");
-    CINIOrderTracker::RecordKey(&ini, "Units", "1");
+[Units]
+0=E1,Soviet,256,10,10
+1=HTNK,Soviet,256,12,12
+)";
+    LoadRawINI(ini, raw);
 
     // Step 2 (Modify): Rename map and change theater
     ini.WriteString("Basic", "Name", "Battleground 2.0");
@@ -433,22 +410,17 @@ TEST(CINIOrderTrackerTest, RealCINIComplexMapLifecycleSimulation)
 
 TEST(CINIOrderTrackerTest, RealCINISameKeyDeletedAndReaddedHeadMiddleTailCombinations)
 {
-    CINI ini;
-    CINIOrderTracker::Clear(&ini);
+    CINIExt ini;
     const char* sec = "KeyPermutations";
-
-    // Initialize 5 keys: Head, Mid1, Mid2, Mid3, Tail
-    ini.WriteString(sec, "K_Head", "1");
-    ini.WriteString(sec, "K_Mid1", "2");
-    ini.WriteString(sec, "K_Mid2", "3");
-    ini.WriteString(sec, "K_Mid3", "4");
-    ini.WriteString(sec, "K_Tail", "5");
-    CINIOrderTracker::RecordSection(&ini, sec);
-    CINIOrderTracker::RecordKey(&ini, sec, "K_Head");
-    CINIOrderTracker::RecordKey(&ini, sec, "K_Mid1");
-    CINIOrderTracker::RecordKey(&ini, sec, "K_Mid2");
-    CINIOrderTracker::RecordKey(&ini, sec, "K_Mid3");
-    CINIOrderTracker::RecordKey(&ini, sec, "K_Tail");
+    const char* raw = R"(
+[KeyPermutations]
+K_Head=1
+K_Mid1=2
+K_Mid2=3
+K_Mid3=4
+K_Tail=5
+)";
+    LoadRawINI(ini, raw);
 
     std::vector<std::string> expected = { "K_Head", "K_Mid1", "K_Mid2", "K_Mid3", "K_Tail" };
     EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, sec)), expected);
@@ -553,17 +525,25 @@ TEST(CINIOrderTrackerTest, RealCINISameKeyDeletedAndReaddedHeadMiddleTailCombina
 
 TEST(CINIOrderTrackerTest, RealCINISameSectionDeletedAndReaddedHeadMiddleTailCombinations)
 {
-    CINI ini;
-    CINIOrderTracker::Clear(&ini);
+    CINIExt ini;
+    const char* raw = R"(
+[Sec_Head]
+val=0
 
-    // Initialize 5 sections: Sec_Head, Sec_Mid1, Sec_Mid2, Sec_Mid3, Sec_Tail
+[Sec_Mid1]
+val=1
+
+[Sec_Mid2]
+val=2
+
+[Sec_Mid3]
+val=3
+
+[Sec_Tail]
+val=4
+)";
+    LoadRawINI(ini, raw);
     const std::vector<std::string> initSections = { "Sec_Head", "Sec_Mid1", "Sec_Mid2", "Sec_Mid3", "Sec_Tail" };
-    for (size_t i = 0; i < initSections.size(); ++i)
-    {
-        ini.WriteString(initSections[i].c_str(), "val", std::to_string(i).c_str());
-        CINIOrderTracker::RecordSection(&ini, initSections[i].c_str());
-        CINIOrderTracker::RecordKey(&ini, initSections[i].c_str(), "val");
-    }
 
     std::vector<std::string> expected = initSections;
     EXPECT_EQ(ToStringVector(CINIOrderTracker::GetSectionNames(&ini)), expected);
@@ -661,21 +641,25 @@ TEST(CINIOrderTrackerTest, RealCINISameSectionDeletedAndReaddedHeadMiddleTailCom
 
 TEST(CINIOrderTrackerTest, RealCINIInterleavedKeyAndSectionDeleteReaddStressTest)
 {
-    CINI ini;
-    CINIOrderTracker::Clear(&ini);
-
+    CINIExt ini;
     // Create 3 sections, each with 3 keys: Head, Mid, Tail
-    const std::vector<std::string> secNames = { "Section_1", "Section_2", "Section_3" };
-    for (const auto& secName : secNames)
-    {
-        ini.WriteString(secName.c_str(), "Key_H", "val_H");
-        ini.WriteString(secName.c_str(), "Key_M", "val_M");
-        ini.WriteString(secName.c_str(), "Key_T", "val_T");
-        CINIOrderTracker::RecordSection(&ini, secName.c_str());
-        CINIOrderTracker::RecordKey(&ini, secName.c_str(), "Key_H");
-        CINIOrderTracker::RecordKey(&ini, secName.c_str(), "Key_M");
-        CINIOrderTracker::RecordKey(&ini, secName.c_str(), "Key_T");
-    }
+    const char* raw = R"(
+[Section_1]
+Key_H=val_H
+Key_M=val_M
+Key_T=val_T
+
+[Section_2]
+Key_H=val_H
+Key_M=val_M
+Key_T=val_T
+
+[Section_3]
+Key_H=val_H
+Key_M=val_M
+Key_T=val_T
+)";
+    LoadRawINI(ini, raw);
 
     // Step 1: In Section_1 (Head section), delete Head key Key_H and re-add it
     ini.DeleteKey("Section_1", "Key_H");
@@ -767,21 +751,15 @@ TEST(CINIOrderTrackerTest, RealCINIInterleavedKeyAndSectionDeleteReaddStressTest
 
 TEST(CINIOrderTrackerTest, AdaptiveSortingNumericKeysPreserveNaturalOrderOnDeleteAndReadd)
 {
-    CINI ini;
-    CINIOrderTracker::Clear(&ini);
-
-    // Initial setup: [Units] with 0, 1, 2, 3
-    ini.WriteString("Units", "0", "Unit_Zero");
-    CINIOrderTracker::RecordKey(&ini, "Units", "0");
-
-    ini.WriteString("Units", "1", "Unit_One");
-    CINIOrderTracker::RecordKey(&ini, "Units", "1");
-
-    ini.WriteString("Units", "2", "Unit_Two");
-    CINIOrderTracker::RecordKey(&ini, "Units", "2");
-
-    ini.WriteString("Units", "3", "Unit_Three");
-    CINIOrderTracker::RecordKey(&ini, "Units", "3");
+    CINIExt ini;
+    const char* raw = R"(
+[Units]
+0=Unit_Zero
+1=Unit_One
+2=Unit_Two
+3=Unit_Three
+)";
+    LoadRawINI(ini, raw);
 
     std::vector<std::string> expectedInitial = { "0", "1", "2", "3" };
     EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, "Units", nullptr, true)), expectedInitial);
@@ -845,19 +823,23 @@ TEST(CINIOrderTrackerTest, AdaptiveSortingNumericKeysPreserveNaturalOrderOnDelet
 
 TEST(CINIOrderTrackerTest, AdaptiveSortingWestwoodNumericComparatorMultiDigit)
 {
-    CINI ini;
-    CINIOrderTracker::Clear(&ini);
-
-    // Multi-digit numbers inserted in intentionally scrambled order
+    CINIExt ini;
+    // Multi-digit numbers written in raw INI in intentionally scrambled order
     // "100", "10", "0", "9", "1", "11", "8", "99"
     // In ASCII alphabetical sort: "0", "1", "10", "100", "11", "8", "9", "99" (WRONG for game engine)
     // In Westwood numeric sort:   "0", "1", "8", "9", "10", "11", "99", "100" (CORRECT)
-    std::vector<std::string> insertOrder = { "100", "10", "0", "9", "1", "11", "8", "99" };
-    for (const auto& k : insertOrder)
-    {
-        ini.WriteString("Waypoints", k.c_str(), ("pos_" + k).c_str());
-        CINIOrderTracker::RecordKey(&ini, "Waypoints", k.c_str());
-    }
+    const char* raw = R"(
+[Waypoints]
+100=pos_100
+10=pos_10
+0=pos_0
+9=pos_9
+1=pos_1
+11=pos_11
+8=pos_8
+99=pos_99
+)";
+    LoadRawINI(ini, raw);
 
     std::vector<std::string> expectedWestwoodOrder = { "0", "1", "8", "9", "10", "11", "99", "100" };
     auto actualKeys = ToStringVector(CINIOrderTracker::GetKeyNames(&ini, "Waypoints", nullptr, true));
@@ -868,28 +850,21 @@ TEST(CINIOrderTrackerTest, AdaptiveSortingWestwoodNumericComparatorMultiDigit)
 
 TEST(CINIOrderTrackerTest, AdaptiveSortingMixedSectionPreservesTextHeaderAndOrdersNumericArray)
 {
-    CINI ini;
-    CINIOrderTracker::Clear(&ini);
-
+    CINIExt ini;
     // Simulate Script / TaskForce section like [01000001]
     // Header properties: Name, Group
     // Numeric action/member entries: 0, 1, 2
+    const char* raw = R"(
+[01000001]
+Name=Assault Squad
+Group=-1
+0=1,E1
+1=2,HTK
+2=1,APOC
+)";
+    LoadRawINI(ini, raw);
+
     const char* sec = "01000001";
-    ini.WriteString(sec, "Name", "Assault Squad");
-    CINIOrderTracker::RecordKey(&ini, sec, "Name");
-
-    ini.WriteString(sec, "Group", "-1");
-    CINIOrderTracker::RecordKey(&ini, sec, "Group");
-
-    ini.WriteString(sec, "0", "1,E1");
-    CINIOrderTracker::RecordKey(&ini, sec, "0");
-
-    ini.WriteString(sec, "1", "2,HTK");
-    CINIOrderTracker::RecordKey(&ini, sec, "1");
-
-    ini.WriteString(sec, "2", "1,APOC");
-    CINIOrderTracker::RecordKey(&ini, sec, "2");
-
     // Delete action "0", then re-add "0" -> should stay right after headers and before "1"
     ini.DeleteKey(sec, "0");
     CINIOrderTracker::RemoveKey(&ini, sec, "0");
@@ -912,6 +887,34 @@ TEST(CINIOrderTrackerTest, AdaptiveSortingMixedSectionPreservesTextHeaderAndOrde
     EXPECT_STREQ(entries[3].Value, "2,HTK");
     EXPECT_STREQ(entries[4].Key, "2");
     EXPECT_STREQ(entries[4].Value, "1,APOC");
+
+    CINIOrderTracker::Clear(&ini);
+}
+
+TEST(CINIOrderTrackerTest, AdaptiveSortingUntrackedKeyWithoutManualRecordKeyAutoSorted)
+{
+    CINIExt ini;
+    const char* raw = R"(
+[Units]
+1=Unit_One
+2=Unit_Two
+3=Unit_Three
+)";
+    LoadRawINI(ini, raw);
+
+    // Call WriteString alone without ANY manual RecordKey call
+    ini.WriteString("Units", "0", "Unit_Zero_Auto");
+
+    // Pass 2 should auto-discover "0", Pass 3 should adaptively sort it to index 0
+    std::vector<std::string> expectedOrder = { "0", "1", "2", "3" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, "Units", nullptr, true)), expectedOrder);
+
+    auto entries = CINIOrderTracker::GetEntries(&ini, "Units", nullptr, true);
+    ASSERT_EQ(entries.size(), 4u);
+    EXPECT_STREQ(entries[0].Key, "0");
+    EXPECT_STREQ(entries[0].Value, "Unit_Zero_Auto");
+    EXPECT_STREQ(entries[1].Key, "1");
+    EXPECT_STREQ(entries[1].Value, "Unit_One");
 
     CINIOrderTracker::Clear(&ini);
 }

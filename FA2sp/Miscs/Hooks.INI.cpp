@@ -35,13 +35,14 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
         }
     }
 
-    auto writeString = [](INISection* pSection, const FString& key, const FString& value)
+    auto writeString = [this](INISection* pSection, const ppmfc::CString& sectionName, const FString& key, const FString& value)
     {
         std::pair<ppmfc::CString, ppmfc::CString> ins = std::make_pair(key, value);
         std::pair<INIStringDict::iterator, bool> ret;
         reinterpret_cast<FAINIEntriesMap*>(&pSection->GetEntities())->insert(&ret, &ins);
         if (!ret.second)
             new(&ret.first->second) ppmfc::CString(value);
+        CINIOrderTracker::RecordKey(this, sectionName, key);
     };
 
     auto encoding = STDHelpers::GetFileEncoding(pFile, fileSize);
@@ -220,8 +221,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
 
                 if (!key.empty()) {
                     size_t currentIndex = pCurrentSection->GetEntities().size();
-                    writeString(pCurrentSection, key, value);
-                    CINIOrderTracker::RecordKey(this, CurrentSectionName, key);
+                    writeString(pCurrentSection, CurrentSectionName, key, value);
 
                     if (keepComment) {
                         PendingComment.Trim();
@@ -283,7 +283,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
 
                                 size_t currentIndex = pSectionA->GetEntities().size();
 
-                                writeString(pSectionA, key, value);
+                                writeString(pSectionA, main, key, value);
 
                                 std::pair<ppmfc::CString, int> ins =
                                     std::make_pair((ppmfc::CString)key, (int)currentIndex);
@@ -381,8 +381,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                                 int index = 0;
                                 for (const auto& [key, value] : targetIndicies)
                                 {
-                                    writeString(pTargetSection, key, value);
-                                    CINIOrderTracker::RecordKey(this, sectionName, key);
+                                    writeString(pTargetSection, sectionName, key, value);
 
                                     std::pair<ppmfc::CString, int> ins =
                                         std::make_pair((ppmfc::CString)key, index++);
@@ -441,13 +440,14 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
 void CINIExt::InheritSectionRecursive(const ppmfc::CString& sectionName,
     std::set<ppmfc::CString>& visited)
 {
-    auto writeString = [](INISection* pSection, const FString& key, const FString& value)
+    auto writeString = [this](INISection* pSection, const ppmfc::CString& sectionName, const FString& key, const FString& value)
     {
         std::pair<ppmfc::CString, ppmfc::CString> ins = std::make_pair(key, value);
         std::pair<INIStringDict::iterator, bool> ret;
         reinterpret_cast<FAINIEntriesMap*>(&pSection->GetEntities())->insert(&ret, &ins);
         if (!ret.second)
             new(&ret.first->second) ppmfc::CString(value);
+        CINIOrderTracker::RecordKey(this, sectionName, key);
     };
 
     if (visited.count(sectionName)) {
@@ -487,8 +487,7 @@ void CINIExt::InheritSectionRecursive(const ppmfc::CString& sectionName,
                     {
                         size_t currentIndex = pSection->GetEntities().size();
 
-                        writeString(pSection, key, value);
-                        CINIOrderTracker::RecordKey(this, sectionName, key);
+                        writeString(pSection, sectionName, key, value);
 
                         std::pair<ppmfc::CString, int> ins =
                             std::make_pair((ppmfc::CString)key, (int)currentIndex);

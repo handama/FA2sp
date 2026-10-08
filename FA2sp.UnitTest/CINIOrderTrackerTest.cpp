@@ -431,6 +431,336 @@ TEST(CINIOrderTrackerTest, RealCINIComplexMapLifecycleSimulation)
     CINIOrderTracker::Clear(&ini);
 }
 
+TEST(CINIOrderTrackerTest, RealCINISameKeyDeletedAndReaddedHeadMiddleTailCombinations)
+{
+    CINI ini;
+    CINIOrderTracker::Clear(&ini);
+    const char* sec = "KeyPermutations";
 
+    // Initialize 5 keys: Head, Mid1, Mid2, Mid3, Tail
+    ini.WriteString(sec, "K_Head", "1");
+    ini.WriteString(sec, "K_Mid1", "2");
+    ini.WriteString(sec, "K_Mid2", "3");
+    ini.WriteString(sec, "K_Mid3", "4");
+    ini.WriteString(sec, "K_Tail", "5");
+    CINIOrderTracker::RecordSection(&ini, sec);
+    CINIOrderTracker::RecordKey(&ini, sec, "K_Head");
+    CINIOrderTracker::RecordKey(&ini, sec, "K_Mid1");
+    CINIOrderTracker::RecordKey(&ini, sec, "K_Mid2");
+    CINIOrderTracker::RecordKey(&ini, sec, "K_Mid3");
+    CINIOrderTracker::RecordKey(&ini, sec, "K_Tail");
 
+    std::vector<std::string> expected = { "K_Head", "K_Mid1", "K_Mid2", "K_Mid3", "K_Tail" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, sec)), expected);
 
+    // --- Scenario A: Delete HEAD key (K_Head), verify, then re-add ---
+    EXPECT_TRUE(ini.DeleteKey(sec, "K_Head"));
+    CINIOrderTracker::RemoveKey(&ini, sec, "K_Head");
+    EXPECT_FALSE(ini.KeyExists(sec, "K_Head"));
+    EXPECT_STREQ(ini.GetString(sec, "K_Head"), "");
+    expected = { "K_Mid1", "K_Mid2", "K_Mid3", "K_Tail" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, sec)), expected);
+
+    // Re-add K_Head -> must be placed at tail
+    ini.WriteString(sec, "K_Head", "1_new");
+    CINIOrderTracker::RecordKey(&ini, sec, "K_Head");
+    EXPECT_TRUE(ini.KeyExists(sec, "K_Head"));
+    EXPECT_STREQ(ini.GetString(sec, "K_Head"), "1_new");
+    expected = { "K_Mid1", "K_Mid2", "K_Mid3", "K_Tail", "K_Head" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, sec)), expected);
+
+    // --- Scenario B: Delete MIDDLE key (K_Mid2), verify, then re-add ---
+    EXPECT_TRUE(ini.DeleteKey(sec, "K_Mid2"));
+    CINIOrderTracker::RemoveKey(&ini, sec, "K_Mid2");
+    EXPECT_FALSE(ini.KeyExists(sec, "K_Mid2"));
+    expected = { "K_Mid1", "K_Mid3", "K_Tail", "K_Head" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, sec)), expected);
+
+    // Re-add K_Mid2 -> must be placed at tail
+    ini.WriteString(sec, "K_Mid2", "3_new");
+    CINIOrderTracker::RecordKey(&ini, sec, "K_Mid2");
+    EXPECT_STREQ(ini.GetString(sec, "K_Mid2"), "3_new");
+    expected = { "K_Mid1", "K_Mid3", "K_Tail", "K_Head", "K_Mid2" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, sec)), expected);
+
+    // --- Scenario C: Delete TAIL key (currently K_Mid2), verify, then re-add ---
+    EXPECT_TRUE(ini.DeleteKey(sec, "K_Mid2"));
+    CINIOrderTracker::RemoveKey(&ini, sec, "K_Mid2");
+    EXPECT_FALSE(ini.KeyExists(sec, "K_Mid2"));
+    expected = { "K_Mid1", "K_Mid3", "K_Tail", "K_Head" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, sec)), expected);
+
+    // Re-add K_Mid2 again (multi-cycle on the same key!)
+    ini.WriteString(sec, "K_Mid2", "3_v3");
+    CINIOrderTracker::RecordKey(&ini, sec, "K_Mid2");
+    EXPECT_STREQ(ini.GetString(sec, "K_Mid2"), "3_v3");
+    expected = { "K_Mid1", "K_Mid3", "K_Tail", "K_Head", "K_Mid2" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, sec)), expected);
+
+    // --- Scenario D: Permutation delete Head, Mid, Tail, then re-add in reverse order ---
+    // Current order: ["K_Mid1" (Head), "K_Mid3" (Mid), "K_Tail" (Mid), "K_Head" (Mid), "K_Mid2" (Tail)]
+    // Delete Head ("K_Mid1")
+    ini.DeleteKey(sec, "K_Mid1");
+    CINIOrderTracker::RemoveKey(&ini, sec, "K_Mid1");
+    // Delete Mid ("K_Tail")
+    ini.DeleteKey(sec, "K_Tail");
+    CINIOrderTracker::RemoveKey(&ini, sec, "K_Tail");
+    // Delete Tail ("K_Mid2")
+    ini.DeleteKey(sec, "K_Mid2");
+    CINIOrderTracker::RemoveKey(&ini, sec, "K_Mid2");
+
+    // Remaining should be: ["K_Mid3", "K_Head"]
+    expected = { "K_Mid3", "K_Head" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, sec)), expected);
+
+    // Re-add in reverse order: K_Mid2 (former tail), K_Tail (former mid), K_Mid1 (former head)
+    ini.WriteString(sec, "K_Mid2", "200");
+    CINIOrderTracker::RecordKey(&ini, sec, "K_Mid2");
+    ini.WriteString(sec, "K_Tail", "300");
+    CINIOrderTracker::RecordKey(&ini, sec, "K_Tail");
+    ini.WriteString(sec, "K_Mid1", "100");
+    CINIOrderTracker::RecordKey(&ini, sec, "K_Mid1");
+
+    expected = { "K_Mid3", "K_Head", "K_Mid2", "K_Tail", "K_Mid1" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, sec)), expected);
+
+    // Verify all values are retrievable correctly
+    EXPECT_STREQ(ini.GetString(sec, "K_Mid3"), "4");
+    EXPECT_STREQ(ini.GetString(sec, "K_Head"), "1_new");
+    EXPECT_STREQ(ini.GetString(sec, "K_Mid2"), "200");
+    EXPECT_STREQ(ini.GetString(sec, "K_Tail"), "300");
+    EXPECT_STREQ(ini.GetString(sec, "K_Mid1"), "100");
+
+    // --- Scenario E: Delete all remaining keys to empty, then re-populate ---
+    for (const auto& k : expected)
+    {
+        EXPECT_TRUE(ini.DeleteKey(sec, k.c_str()));
+        CINIOrderTracker::RemoveKey(&ini, sec, k.c_str());
+    }
+    EXPECT_EQ(ini.GetKeyCount(sec), 0);
+    EXPECT_TRUE(CINIOrderTracker::GetKeyNames(&ini, sec).empty());
+
+    // Re-add in a new order
+    ini.WriteString(sec, "Reborn_A", "A");
+    ini.WriteString(sec, "Reborn_B", "B");
+    CINIOrderTracker::RecordKey(&ini, sec, "Reborn_A");
+    CINIOrderTracker::RecordKey(&ini, sec, "Reborn_B");
+    expected = { "Reborn_A", "Reborn_B" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, sec)), expected);
+
+    CINIOrderTracker::Clear(&ini);
+}
+
+TEST(CINIOrderTrackerTest, RealCINISameSectionDeletedAndReaddedHeadMiddleTailCombinations)
+{
+    CINI ini;
+    CINIOrderTracker::Clear(&ini);
+
+    // Initialize 5 sections: Sec_Head, Sec_Mid1, Sec_Mid2, Sec_Mid3, Sec_Tail
+    const std::vector<std::string> initSections = { "Sec_Head", "Sec_Mid1", "Sec_Mid2", "Sec_Mid3", "Sec_Tail" };
+    for (size_t i = 0; i < initSections.size(); ++i)
+    {
+        ini.WriteString(initSections[i].c_str(), "val", std::to_string(i).c_str());
+        CINIOrderTracker::RecordSection(&ini, initSections[i].c_str());
+        CINIOrderTracker::RecordKey(&ini, initSections[i].c_str(), "val");
+    }
+
+    std::vector<std::string> expected = initSections;
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetSectionNames(&ini)), expected);
+
+    // --- Scenario A: Delete HEAD section ("Sec_Head"), verify, then re-add ---
+    EXPECT_TRUE(ini.DeleteSection("Sec_Head"));
+    CINIOrderTracker::RemoveSection(&ini, "Sec_Head");
+    EXPECT_FALSE(ini.SectionExists("Sec_Head"));
+    expected = { "Sec_Mid1", "Sec_Mid2", "Sec_Mid3", "Sec_Tail" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetSectionNames(&ini)), expected);
+
+    // Re-add "Sec_Head" -> must move to tail
+    ini.WriteString("Sec_Head", "new_val", "100");
+    CINIOrderTracker::RecordSection(&ini, "Sec_Head");
+    CINIOrderTracker::RecordKey(&ini, "Sec_Head", "new_val");
+    EXPECT_TRUE(ini.SectionExists("Sec_Head"));
+    EXPECT_STREQ(ini.GetString("Sec_Head", "new_val"), "100");
+    expected = { "Sec_Mid1", "Sec_Mid2", "Sec_Mid3", "Sec_Tail", "Sec_Head" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetSectionNames(&ini)), expected);
+
+    // --- Scenario B: Delete MIDDLE section ("Sec_Mid2"), verify, then re-add ---
+    EXPECT_TRUE(ini.DeleteSection("Sec_Mid2"));
+    CINIOrderTracker::RemoveSection(&ini, "Sec_Mid2");
+    EXPECT_FALSE(ini.SectionExists("Sec_Mid2"));
+    expected = { "Sec_Mid1", "Sec_Mid3", "Sec_Tail", "Sec_Head" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetSectionNames(&ini)), expected);
+
+    // Re-add "Sec_Mid2" -> must move to tail
+    ini.WriteString("Sec_Mid2", "mid_val", "200");
+    CINIOrderTracker::RecordSection(&ini, "Sec_Mid2");
+    CINIOrderTracker::RecordKey(&ini, "Sec_Mid2", "mid_val");
+    expected = { "Sec_Mid1", "Sec_Mid3", "Sec_Tail", "Sec_Head", "Sec_Mid2" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetSectionNames(&ini)), expected);
+
+    // --- Scenario C: Delete TAIL section (currently "Sec_Mid2"), verify, then re-add ---
+    EXPECT_TRUE(ini.DeleteSection("Sec_Mid2"));
+    CINIOrderTracker::RemoveSection(&ini, "Sec_Mid2");
+    EXPECT_FALSE(ini.SectionExists("Sec_Mid2"));
+    expected = { "Sec_Mid1", "Sec_Mid3", "Sec_Tail", "Sec_Head" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetSectionNames(&ini)), expected);
+
+    // Re-add "Sec_Mid2" again (multi-cycle on the same section!)
+    ini.WriteString("Sec_Mid2", "mid_val_v3", "300");
+    CINIOrderTracker::RecordSection(&ini, "Sec_Mid2");
+    CINIOrderTracker::RecordKey(&ini, "Sec_Mid2", "mid_val_v3");
+    expected = { "Sec_Mid1", "Sec_Mid3", "Sec_Tail", "Sec_Head", "Sec_Mid2" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetSectionNames(&ini)), expected);
+
+    // --- Scenario D: Permutation delete Head, Mid, Tail, then re-add in reverse order ---
+    // Current sections: ["Sec_Mid1" (Head), "Sec_Mid3" (Mid), "Sec_Tail" (Mid), "Sec_Head" (Mid), "Sec_Mid2" (Tail)]
+    // Delete Head ("Sec_Mid1")
+    ini.DeleteSection("Sec_Mid1");
+    CINIOrderTracker::RemoveSection(&ini, "Sec_Mid1");
+    // Delete Mid ("Sec_Tail")
+    ini.DeleteSection("Sec_Tail");
+    CINIOrderTracker::RemoveSection(&ini, "Sec_Tail");
+    // Delete Tail ("Sec_Mid2")
+    ini.DeleteSection("Sec_Mid2");
+    CINIOrderTracker::RemoveSection(&ini, "Sec_Mid2");
+
+    // Remaining should be: ["Sec_Mid3", "Sec_Head"]
+    expected = { "Sec_Mid3", "Sec_Head" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetSectionNames(&ini)), expected);
+
+    // Re-add in reverse order: Sec_Mid2 (former tail), Sec_Tail (former mid), Sec_Mid1 (former head)
+    ini.WriteString("Sec_Mid2", "v", "1");
+    CINIOrderTracker::RecordSection(&ini, "Sec_Mid2");
+    ini.WriteString("Sec_Tail", "v", "2");
+    CINIOrderTracker::RecordSection(&ini, "Sec_Tail");
+    ini.WriteString("Sec_Mid1", "v", "3");
+    CINIOrderTracker::RecordSection(&ini, "Sec_Mid1");
+
+    expected = { "Sec_Mid3", "Sec_Head", "Sec_Mid2", "Sec_Tail", "Sec_Mid1" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetSectionNames(&ini)), expected);
+
+    // --- Scenario E: Delete all sections to empty, then re-populate in reverse ---
+    for (const auto& secName : expected)
+    {
+        EXPECT_TRUE(ini.DeleteSection(secName.c_str()));
+        CINIOrderTracker::RemoveSection(&ini, secName.c_str());
+    }
+    EXPECT_TRUE(CINIOrderTracker::GetSectionNames(&ini).empty());
+
+    // Re-populate in reversed order
+    ini.WriteString("Z_Sec", "k", "1");
+    CINIOrderTracker::RecordSection(&ini, "Z_Sec");
+    ini.WriteString("A_Sec", "k", "2");
+    CINIOrderTracker::RecordSection(&ini, "A_Sec");
+
+    expected = { "Z_Sec", "A_Sec" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetSectionNames(&ini)), expected);
+
+    CINIOrderTracker::Clear(&ini);
+}
+
+TEST(CINIOrderTrackerTest, RealCINIInterleavedKeyAndSectionDeleteReaddStressTest)
+{
+    CINI ini;
+    CINIOrderTracker::Clear(&ini);
+
+    // Create 3 sections, each with 3 keys: Head, Mid, Tail
+    const std::vector<std::string> secNames = { "Section_1", "Section_2", "Section_3" };
+    for (const auto& secName : secNames)
+    {
+        ini.WriteString(secName.c_str(), "Key_H", "val_H");
+        ini.WriteString(secName.c_str(), "Key_M", "val_M");
+        ini.WriteString(secName.c_str(), "Key_T", "val_T");
+        CINIOrderTracker::RecordSection(&ini, secName.c_str());
+        CINIOrderTracker::RecordKey(&ini, secName.c_str(), "Key_H");
+        CINIOrderTracker::RecordKey(&ini, secName.c_str(), "Key_M");
+        CINIOrderTracker::RecordKey(&ini, secName.c_str(), "Key_T");
+    }
+
+    // Step 1: In Section_1 (Head section), delete Head key Key_H and re-add it
+    ini.DeleteKey("Section_1", "Key_H");
+    CINIOrderTracker::RemoveKey(&ini, "Section_1", "Key_H");
+    ini.WriteString("Section_1", "Key_H", "val_H_reborn");
+    CINIOrderTracker::RecordKey(&ini, "Section_1", "Key_H");
+
+    std::vector<std::string> expectedKeysSec1 = { "Key_M", "Key_T", "Key_H" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, "Section_1")), expectedKeysSec1);
+    EXPECT_STREQ(ini.GetString("Section_1", "Key_H"), "val_H_reborn");
+
+    // Step 2: Delete Section_1 entirely (Head section deleted)
+    ini.DeleteSection("Section_1");
+    CINIOrderTracker::RemoveSection(&ini, "Section_1");
+
+    std::vector<std::string> expectedSections = { "Section_2", "Section_3" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetSectionNames(&ini)), expectedSections);
+
+    // Step 3: In Section_2 (now Head section), delete Tail key Key_T, then delete Mid key Key_M
+    ini.DeleteKey("Section_2", "Key_T");
+    CINIOrderTracker::RemoveKey(&ini, "Section_2", "Key_T");
+    ini.DeleteKey("Section_2", "Key_M");
+    CINIOrderTracker::RemoveKey(&ini, "Section_2", "Key_M");
+
+    std::vector<std::string> expectedKeysSec2 = { "Key_H" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, "Section_2")), expectedKeysSec2);
+
+    // Re-add Key_M then Key_T in Section_2
+    ini.WriteString("Section_2", "Key_M", "val_M_new");
+    CINIOrderTracker::RecordKey(&ini, "Section_2", "Key_M");
+    ini.WriteString("Section_2", "Key_T", "val_T_new");
+    CINIOrderTracker::RecordKey(&ini, "Section_2", "Key_T");
+
+    expectedKeysSec2 = { "Key_H", "Key_M", "Key_T" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, "Section_2")), expectedKeysSec2);
+
+    // Step 4: Re-add Section_1 (must now become the TAIL section)
+    ini.WriteString("Section_1", "Alpha", "1");
+    ini.WriteString("Section_1", "Beta", "2");
+    CINIOrderTracker::RecordSection(&ini, "Section_1");
+    CINIOrderTracker::RecordKey(&ini, "Section_1", "Alpha");
+    CINIOrderTracker::RecordKey(&ini, "Section_1", "Beta");
+
+    expectedSections = { "Section_2", "Section_3", "Section_1" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetSectionNames(&ini)), expectedSections);
+
+    expectedKeysSec1 = { "Alpha", "Beta" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetKeyNames(&ini, "Section_1")), expectedKeysSec1);
+
+    // Step 5: Delete Section_3 (Middle section deleted)
+    ini.DeleteSection("Section_3");
+    CINIOrderTracker::RemoveSection(&ini, "Section_3");
+
+    expectedSections = { "Section_2", "Section_1" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetSectionNames(&ini)), expectedSections);
+
+    // Step 6: Re-add Section_3 (becomes TAIL section)
+    ini.WriteString("Section_3", "Gamma", "3");
+    CINIOrderTracker::RecordSection(&ini, "Section_3");
+    CINIOrderTracker::RecordKey(&ini, "Section_3", "Gamma");
+
+    expectedSections = { "Section_2", "Section_1", "Section_3" };
+    EXPECT_EQ(ToStringVector(CINIOrderTracker::GetSectionNames(&ini)), expectedSections);
+
+    // Step 7: Verify all entries across all sections
+    auto sec2Entries = CINIOrderTracker::GetEntries(&ini, "Section_2");
+    ASSERT_EQ(sec2Entries.size(), 3u);
+    EXPECT_STREQ(sec2Entries[0].Key, "Key_H");
+    EXPECT_STREQ(sec2Entries[0].Value, "val_H");
+    EXPECT_STREQ(sec2Entries[1].Key, "Key_M");
+    EXPECT_STREQ(sec2Entries[1].Value, "val_M_new");
+    EXPECT_STREQ(sec2Entries[2].Key, "Key_T");
+    EXPECT_STREQ(sec2Entries[2].Value, "val_T_new");
+
+    auto sec1Entries = CINIOrderTracker::GetEntries(&ini, "Section_1");
+    ASSERT_EQ(sec1Entries.size(), 2u);
+    EXPECT_STREQ(sec1Entries[0].Key, "Alpha");
+    EXPECT_STREQ(sec1Entries[0].Value, "1");
+    EXPECT_STREQ(sec1Entries[1].Key, "Beta");
+    EXPECT_STREQ(sec1Entries[1].Value, "2");
+
+    auto sec3Entries = CINIOrderTracker::GetEntries(&ini, "Section_3");
+    ASSERT_EQ(sec3Entries.size(), 1u);
+    EXPECT_STREQ(sec3Entries[0].Key, "Gamma");
+    EXPECT_STREQ(sec3Entries[0].Value, "3");
+
+    CINIOrderTracker::Clear(&ini);
+}

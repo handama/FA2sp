@@ -1,4 +1,5 @@
 #include "Body.h"
+#include "../../Miscs/Hooks.INI.h"
 
 #include "../../FA2sp.h"
 #include "../CIsoView/Body.h"
@@ -798,7 +799,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		{
 			for (const auto& type : pSection->GetEntities())
 			{
-				auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+				auto thisTheater = CINIExt::CurrentDocument().GetString("Map", "Theater");
 				if (STDHelpers::SplitString(type.second)[0] == thisTheater)
 				{
 					found = true;
@@ -949,7 +950,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				break;
 			}
 
-			auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+			auto thisTheater = CINIExt::CurrentDocument().GetString("Map", "Theater");
 			thisTheater.MakeUpper();
 			if (thisTheater == "NEWURBAN")
 				thisTheater = "UBN";

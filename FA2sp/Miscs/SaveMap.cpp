@@ -186,7 +186,7 @@ DEFINE_HOOK(42B2EA, CFinalSunDlg_SaveMap_SkipStringDTOR, C)
 
 bool SaveMapExt::SaveMapSilent(FString filepath, bool panic)
 {
-    auto ini = &CINI::CurrentDocument;
+    auto ini = &CINIExt::CurrentDocument;
     FString buffer;
     FString buffer2;
 
@@ -367,7 +367,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
             pINI->DeleteSection("Preview");
             pINI->DeleteSection("PreviewPack");
 
-            auto& map = CINI::CurrentDocument();
+            auto& map = CINIExt::CurrentDocument();
             auto thisTheater = map.GetString("Map", "Theater");
 
             auto tiledata = CMapDataExt::TileData;
@@ -422,7 +422,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
 
                 if (mapData.IsMultiOnly() && cell.Waypoint != -1)
                 {
-                    auto pSection = CINI::CurrentDocument->GetSection("Waypoints");
+                    auto pSection = CINIExt::CurrentDocument->GetSection("Waypoints");
                     auto& pWP = *pSection->GetKeyAt(cell.Waypoint);
                     if (atoi(pWP) < 8)
                     {
@@ -1020,7 +1020,7 @@ void SaveMapExt::RemoveEarlySaves()
         };
 
         std::map<FILETIME, ppmfc::CString, FileTimeComparator> m;
-        auto mapName = CINI::CurrentDocument->GetString("Basic", "Name", "No Name");
+        auto mapName = CINIExt::CurrentDocument->GetString("Basic", "Name", "No Name");
 
         /*
         * Fix : Windows file name cannot begin with space and cannot have following characters:
@@ -1097,7 +1097,7 @@ void CALLBACK SaveMapExt::SaveMapCallback(HWND hwnd, UINT message, UINT iTimerID
     SYSTEMTIME time;
     GetLocalTime(&time);
 
-    auto mapName = CINI::CurrentDocument->GetString("Basic", "Name", "No Name");
+    auto mapName = CINIExt::CurrentDocument->GetString("Basic", "Name", "No Name");
 
     /*
     * Fix : Windows file name cannot begin with space and cannot have following characters:

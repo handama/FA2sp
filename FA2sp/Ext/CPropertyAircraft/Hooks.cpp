@@ -1,4 +1,5 @@
 #include <Helpers/Macro.h>
+#include "../../Miscs/Hooks.INI.h"
 #include "../../FA2sp/Helpers/Translations.h"
 #include "../../FA2sp/Helpers/Helper.h"
 #include "../../FA2sp/Ext/CMapData/Body.h"
@@ -67,7 +68,7 @@ DEFINE_HOOK(4448F0, Miscs_LoadParams_Houses, 7)
 
 	while(cb->DeleteString(0) != CB_ERR);
 
-    auto pHouse = CINI::CurrentDocument->GetSection("Houses");
+    auto pHouse = CINIExt::CurrentDocument->GetSection("Houses");
 	INISection* pSecton = nullptr;
 	
 	if (CMapDataExt::IsInitingPropertyDialog) 

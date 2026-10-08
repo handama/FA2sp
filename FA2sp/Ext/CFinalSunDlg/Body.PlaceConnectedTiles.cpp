@@ -1,4 +1,5 @@
 #include "Body.h"
+#include "../../Miscs/Hooks.INI.h"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Miscs/TheaterInfo.h"
@@ -332,7 +333,7 @@ void CViewObjectsExt::ConnectedTile_Initialize()
     TreeView_ConnectedTileMap.clear();
     CurrentConnectedTileType = -1;
     ConnectedTileSets.clear();
-    auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+    auto thisTheater = CINIExt::CurrentDocument().GetString("Map", "Theater");
     if (CMapDataExt::TileData)
     {
         std::string path = CFinalSunApp::Instance->ExePath();
@@ -545,7 +546,7 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
     subNodes.push_back(hCliff);
     subNodes.push_back(hRailroad);
 
-    auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+    auto thisTheater = CINIExt::CurrentDocument().GetString("Map", "Theater");
 
     int i = -1;
     for (auto& ct : ConnectedTileSets)

@@ -1,5 +1,6 @@
 #include "Exception.h"
 #include "SaveMap.h"
+#include "Hooks.INI.h"
 
 #include "../FA2sp.h"
 #include "../FA2sp.Constants.h"
@@ -208,7 +209,7 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 	CINI::Temperate->Release();
 	CINI::Snow->Release();
 	CINI::Urban->Release();
-	CINI::CurrentDocument->Release();
+	CINIExt::CurrentDocument->Release();
 	CINI::Sound->Release();
 	CINI::Turtorial->Release();
 	CINI::FAData->Release();

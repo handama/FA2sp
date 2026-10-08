@@ -445,7 +445,7 @@ void CMeasurementToolbox::SetMeasurementToolbox(int X, int Y)
 				 CIsoView::CurrentCommand->Type == MeasurementTypes::LineSegment_Annotation ? "LineSegment" : "ArrowSegment",
 				 CIsoViewExt::TwoPointDistance_Annotation.back().Point1.X, CIsoViewExt::TwoPointDistance_Annotation.back().Point1.Y,
 				  CIsoViewExt::TwoPointDistance_Annotation.back().Point2.X, CIsoViewExt::TwoPointDistance_Annotation.back().Point2.Y);
-			CINI::CurrentDocument->WriteString("GeometricAnnotations",
+			CINIExt::CurrentDocument->WriteString("GeometricAnnotations",
 				CINI::GetAvailableKey("GeometricAnnotations"),
 				value
 			);
@@ -586,7 +586,7 @@ void CMeasurementToolbox::SetMeasurementToolbox(int X, int Y)
 				 "Circle",
 				 CIsoViewExt::TempCircle_Annotation[0].X, CIsoViewExt::TempCircle_Annotation[0].Y,
 				  CIsoViewExt::TempCircle_Annotation[1].X, CIsoViewExt::TempCircle_Annotation[1].Y);
-			CINI::CurrentDocument->WriteString("GeometricAnnotations", 
+			CINIExt::CurrentDocument->WriteString("GeometricAnnotations", 
 				CINI::GetAvailableKey("GeometricAnnotations"),
 				value
 			);

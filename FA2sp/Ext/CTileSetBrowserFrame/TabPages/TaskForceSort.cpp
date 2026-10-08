@@ -1,4 +1,5 @@
 #include "TaskforceSort.h"
+#include "../../../Miscs/Hooks.INI.h"
 
 #include "../../../FA2sp.h"
 #include "../../../Helpers/STDHelpers.h"
@@ -17,7 +18,7 @@ void TaskforceSort::LoadAllTriggers()
     // TODO : 
     // Optimisze the efficiency
     SendMessage(this->GetHwnd(), WM_SETREDRAW, FALSE, 0);
-    if (auto pSection = CINI::CurrentDocument->GetSection("TaskForces"))
+    if (auto pSection = CINIExt::CurrentDocument->GetSection("TaskForces"))
     {
         for (auto& pair : pSection->GetEntities())
         {
@@ -49,7 +50,7 @@ BOOL TaskforceSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 bool Success = false;
                 if (IsWindowVisible(CNewTaskforce::GetHandle()))
                 {
-                    auto pStr = CINI::CurrentDocument->GetString(pID, "Name");
+                    auto pStr = CINIExt::CurrentDocument->GetString(pID, "Name");
                     FString space1 = " (";
                     FString space2 = ")";
 
@@ -63,7 +64,7 @@ BOOL TaskforceSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 }
                 //else if (IsWindowVisible(CNewTeamTypes::GetHandle()))
                 //{
-                //    auto pStr = CINI::CurrentDocument->GetString(pID, "Name");
+                //    auto pStr = CINIExt::CurrentDocument->GetString(pID, "Name");
                 //    FString space1 = " (";
                 //    FString space2 = ")";
                 //
@@ -267,7 +268,7 @@ HTREEITEM TaskforceSort::FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const
 
 std::vector<FString> TaskforceSort::GetGroup(FString triggerId, FString& name) const
 {
-    FString pSrc = CINI::CurrentDocument->GetString(triggerId, "Name", "");
+    FString pSrc = CINIExt::CurrentDocument->GetString(triggerId, "Name", "");
 
     auto ret = std::vector<FString>{};
     int nStart = pSrc.Find('[');

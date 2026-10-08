@@ -1583,14 +1583,14 @@ static void DrawMap()
 		pasteBuildings.clear();
 		pasteBuildingFSs.clear();
 		if (CIsoViewExt::DrawCelltags)
-			if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("CellTags"))
 			{
 				Celltags.reserve(pSection->GetEntities().size());
 				for (auto &[key, value] : pSection->GetEntities())
 					Celltags.push_back(&value);
 			}
 		if (CIsoViewExt::DrawWaypoints)
-			if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("Waypoints"))
 			{
 				Waypoints.reserve(pSection->GetEntities().size());
 				for (auto &[key, value] : pSection->GetEntities())
@@ -1630,7 +1630,7 @@ static void DrawMap()
 
 		if (INIIncludes::MapINIWarn)
 		{
-			if (!CINI::CurrentDocument->GetBool("FA2spVersionControl", "MapIncludeWarned"))
+			if (!CINIExt::CurrentDocument->GetBool("FA2spVersionControl", "MapIncludeWarned"))
 			{
 				int result = MessageBox(CIsoView::GetInstance()->GetSafeHwnd(),
 										Translations::TranslateOrDefault("MapIncludeWarningMessage",
@@ -1640,7 +1640,7 @@ static void DrawMap()
 										MB_OKCANCEL | MB_DEFBUTTON2 | MB_ICONEXCLAMATION);
 
 				if (result == IDOK)
-					CINI::CurrentDocument->WriteBool("FA2spVersionControl", "MapIncludeWarned", true);
+					CINIExt::CurrentDocument->WriteBool("FA2spVersionControl", "MapIncludeWarned", true);
 			}
 			INIIncludes::MapINIWarn = false;
 		}
@@ -3549,7 +3549,7 @@ static void DrawMap()
 	}
 	if (CIsoViewExt::RockCells)
 	{
-		auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+		auto thisTheater = CINIExt::CurrentDocument().GetString("Map", "Theater");
 		auto Map = &CMapData::Instance();
 		for (int i = 0; i < Map->CellDataCount; i++)
 		{
@@ -4045,7 +4045,7 @@ static void DrawMap()
 
 	if (CIsoViewExt::DrawAnnotations)
 	{
-		if (auto pSection = CINI::CurrentDocument->GetSection("Annotations"))
+		if (auto pSection = CINIExt::CurrentDocument->GetSection("Annotations"))
 		{
 			for (const auto &[key, value] : pSection->GetEntities())
 			{

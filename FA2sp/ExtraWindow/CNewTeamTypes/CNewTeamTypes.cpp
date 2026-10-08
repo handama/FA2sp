@@ -1,4 +1,5 @@
 #include "CNewTeamTypes.h"
+#include "../../Miscs/Hooks.INI.h"
 #include "../CNewTaskforce/CNewTaskforce.h"
 #include "../CNewScript/CNewScript.h"
 #include "../CNewTrigger/CNewTrigger.h"
@@ -27,7 +28,7 @@
 
 HWND CNewTeamTypes::m_hwnd;
 CFinalSunDlg* CNewTeamTypes::m_parent;
-CINI& CNewTeamTypes::map = CINI::CurrentDocument;
+CINIExt& CNewTeamTypes::map = CINIExt::CurrentDocument;
 MultimapHelper& CNewTeamTypes::rules = Variables::RulesMap;
 HWND CNewTeamTypes::hSelectedTeam;
 HWND CNewTeamTypes::hNewTeam;
@@ -369,7 +370,7 @@ void CNewTeamTypes::Update(HWND& hWnd)
     ExtraWindow::ClearComboKeepText(hWaypoint);
     ExtraWindow::ClearComboKeepText(hTransportWaypoint);
     vcbTransportWaypoint.AddString("None");
-    if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+    if (auto pSection = CINIExt::CurrentDocument->GetSection("Waypoints"))
     {
         FString output;
         for (auto& pair : pSection->GetEntities())
@@ -1863,7 +1864,7 @@ void CNewTeamTypes::OnClickTurnToTransportWaypoint()
 
     FString value = vcbTransportWaypoint.GetSelectedText(true);
 	FString::TrimIndex(value);
-    if (auto pCord = CINI::CurrentDocument->TryGetString("Waypoints", value))
+    if (auto pCord = CINIExt::CurrentDocument->TryGetString("Waypoints", value))
     {
         auto second = atoi(*pCord);
         if (second > 0)
@@ -1880,7 +1881,7 @@ void CNewTeamTypes::OnClickTurnToWaypoint()
 
     FString value = vcbWaypoint.GetSelectedText(true);
     FString::TrimIndex(value);
-    if (auto pCord = CINI::CurrentDocument->TryGetString("Waypoints", value))
+    if (auto pCord = CINIExt::CurrentDocument->TryGetString("Waypoints", value))
     {
         auto second = atoi(*pCord);
         if (second > 0)
@@ -2026,12 +2027,12 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
         auto key = CINI::GetAvailableKey("TeamTypes");
         auto value = CMapDataExt::GetAvailableIndex(EIndexType::Team);
 
-        CINI::CurrentDocument->WriteString("TeamTypes", key, value);
+        CINIExt::CurrentDocument->WriteString("TeamTypes", key, value);
 
-        auto oldname = CINI::CurrentDocument->GetString(CurrentTeamID, "Name", "New Teamtype");
+        auto oldname = CINIExt::CurrentDocument->GetString(CurrentTeamID, "Name", "New Teamtype");
         FString newName = ExtraWindow::GetCloneName(oldname);
 
-        CINI::CurrentDocument->WriteString(value, "Name", newName);
+        CINIExt::CurrentDocument->WriteString(value, "Name", newName);
 
         auto copyitem = [&value](FString key)
             {

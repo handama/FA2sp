@@ -11,7 +11,7 @@
 
 HWND CNewLocalVariables::m_hwnd;
 CFinalSunDlg* CNewLocalVariables::m_parent;
-CINI& CNewLocalVariables::map = CINI::CurrentDocument;
+CINIExt& CNewLocalVariables::map = CINIExt::CurrentDocument;
 VirtualComboBoxEx CNewLocalVariables::vcbVariables;
 
 HWND CNewLocalVariables::hVariables;

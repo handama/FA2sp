@@ -61,7 +61,7 @@ public:
 
     static Trigger* create(const char* id, FMap<FString>* pTagMap = nullptr)
     {
-        auto atoms = FString::SplitString(CINI::CurrentDocument().GetString("Triggers", id));
+        auto atoms = FString::SplitString(CINIExt::CurrentDocument().GetString("Triggers", id));
         if (atoms.size() < 8)
             return nullptr;
         return new Trigger(id, atoms, pTagMap);
@@ -71,15 +71,15 @@ public:
         FString trigger;
         trigger.Format("%s,%s,%s,%s,%s,%s,%s,%s", House, AttachedTrigger, Name,
             Disabled ? "1" : "0", EasyEnabled ? "1" : "0", MediumEnabled ? "1" : "0", HardEnabled ? "1" : "0", Obsolete);
-        CINI::CurrentDocument().WriteString("Triggers", ID, trigger);
-        auto tag = CINI::CurrentDocument().GetString("Tags", Tag, "");
+        CINIExt::CurrentDocument().WriteString("Triggers", ID, trigger);
+        auto tag = CINIExt::CurrentDocument().GetString("Tags", Tag, "");
         if (tag != "")
         {
             auto triggerId = FString::GetParam(tag, 2);
             if (triggerId == ID)
             {
                 tag.Format("%s,%s,%s", RepeatType, TagName, triggerId);
-                CINI::CurrentDocument().WriteString("Tags", Tag, tag);
+                CINIExt::CurrentDocument().WriteString("Tags", Tag, tag);
             }
         }
         FString cEvent;
@@ -93,7 +93,7 @@ public:
                 tmp.Format(",%s,%s,%s", thisEvent.EventNum, thisEvent.Params[0], thisEvent.Params[1]);
             cEvent += tmp;
         }
-        CINI::CurrentDocument().WriteString("Events", ID, cEvent);
+        CINIExt::CurrentDocument().WriteString("Events", ID, cEvent);
 
         FString cAction;
         cAction.Format("%d", ActionCount);
@@ -105,7 +105,7 @@ public:
                 , thisAction.Params[4], thisAction.Params[5], thisAction.Params[6]);
             cAction += tmp;
         }
-        CINI::CurrentDocument().WriteString("Actions", ID, cAction);
+        CINIExt::CurrentDocument().WriteString("Actions", ID, cAction);
     }
 
     void LoadFromMap(const char* id, std::vector<FString>& atoms, FMap<FString>* pTagMap = nullptr)
@@ -113,7 +113,7 @@ public:
         if (atoms.size() < 8)
             return;
             
-        auto& doc = CINI::CurrentDocument();
+        auto& doc = CINIExt::CurrentDocument();
 
         ID = id;
         House = atoms[0];
@@ -594,7 +594,7 @@ private:
 
     HWND m_hwnd;
     CFinalSunDlg* m_parent;
-    static CINI& map;
+    static CINIExt& map;
     static CINI& fadata;
     static MultimapHelper& rules;
 public:

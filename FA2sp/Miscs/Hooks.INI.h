@@ -35,11 +35,14 @@ public:
 
     bool WriteString(ppmfc::CString pSection, ppmfc::CString pKey, ppmfc::CString pValue);
     bool WriteString(INISection* pSection, ppmfc::CString pKey, ppmfc::CString pValue);
+    bool WriteBool(ppmfc::CString pSection, ppmfc::CString pKey, bool pValue);
     bool DeleteKey(ppmfc::CString pSection, ppmfc::CString pKey);
     bool DeleteKey(INISection* pSection, ppmfc::CString pKey);
     bool DeleteSection(ppmfc::CString pSection);
     INISection* AddSection(ppmfc::CString pSectionName);
     INISection* AddOrGetSection(ppmfc::CString pSectionName);
+    void Release();
+    int ClearAndLoad(const char* lpPath, int bTrimSpace = 0);
 
     void LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
         bool bClear, bool bTrimSpace, bool bAllowInclude, std::vector<std::pair<ppmfc::CString, ppmfc::CString>>* parentIncludeInis = nullptr);
@@ -49,6 +52,9 @@ public:
 
     static constexpr reference<CINIExt, 0x7ACC80> const CurrentDocument{};
 };
+
+// Global proxy instance representing the map document (maps to 0x7ACC80)
+inline constexpr reference<CINIExt, 0x7ACC80> const CurrentDocument{};
 
 struct CINIInfo
 {

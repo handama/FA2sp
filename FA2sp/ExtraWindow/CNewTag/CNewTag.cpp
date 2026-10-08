@@ -1,4 +1,5 @@
 #include "CNewTag.h"
+#include "../../Miscs/Hooks.INI.h"
 #include "../../FA2sp.h"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
@@ -25,7 +26,7 @@
 
 HWND CNewTag::m_hwnd;
 CFinalSunDlg* CNewTag::m_parent;
-CINI& CNewTag::map = CINI::CurrentDocument;
+CINIExt& CNewTag::map = CINIExt::CurrentDocument;
 MultimapHelper& CNewTag::rules = Variables::RulesMap;
 
 HWND CNewTag::hSelectedTag;
@@ -1026,7 +1027,7 @@ void CNewTag::OnClickCloTag(HWND& hWnd)
     FString newName = ExtraWindow::GetCloneName(oldName);
     value.SetParam(1, newName);
 
-    CINI::CurrentDocument->WriteString("Tags", key, value);
+    CINIExt::CurrentDocument->WriteString("Tags", key, value);
     ExtraWindow::SetTriggerColor(key, ExtraWindow::GetTriggerColor(CurrentTagID));
     
     SortTags(vcbSelectedTag, SelectedTagIndex, key);

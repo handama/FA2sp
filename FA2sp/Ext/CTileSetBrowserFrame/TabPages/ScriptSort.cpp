@@ -1,4 +1,5 @@
 #include "ScriptSort.h"
+#include "../../../Miscs/Hooks.INI.h"
 
 #include "../../../FA2sp.h"
 #include "../../../Helpers/STDHelpers.h"
@@ -18,7 +19,7 @@ void ScriptSort::LoadAllTriggers()
     // TODO : 
     // Optimisze the efficiency
     SendMessage(this->GetHwnd(), WM_SETREDRAW, FALSE, 0);
-    if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
+    if (auto pSection = CINIExt::CurrentDocument->GetSection("ScriptTypes"))
     {
         for (auto& pair : pSection->GetEntities())
         {
@@ -51,7 +52,7 @@ BOOL ScriptSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 bool Success = false;
                 if (IsWindowVisible(CNewScript::GetHandle()))
                 {
-                    auto pStr = CINI::CurrentDocument->GetString(pID, "Name");
+                    auto pStr = CINIExt::CurrentDocument->GetString(pID, "Name");
                     FString space1 = " (";
                     FString space2 = ")";
 
@@ -65,7 +66,7 @@ BOOL ScriptSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 }
                 //else if (IsWindowVisible(CNewTeamTypes::GetHandle()))
                 //{
-                //    auto pStr = CINI::CurrentDocument->GetString(pID, "Name");
+                //    auto pStr = CINIExt::CurrentDocument->GetString(pID, "Name");
                 //    FString space1 = " (";
                 //    FString space2 = ")";
                 //
@@ -270,7 +271,7 @@ HTREEITEM ScriptSort::FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const
 
 std::vector<FString> ScriptSort::GetGroup(FString triggerId, FString& name) const
 {
-    FString pSrc = CINI::CurrentDocument->GetString(triggerId, "Name", "");
+    FString pSrc = CINIExt::CurrentDocument->GetString(triggerId, "Name", "");
 
     auto ret = std::vector<FString>{};
     int nStart = pSrc.Find('[');

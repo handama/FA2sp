@@ -23,7 +23,7 @@ void CMapValidatorExt::ProgramStartupInit()
 
 void CMapValidatorExt::ValidateOverlayLimit(BOOL& result)
 {
-	bool needNewIniFormat = CINI::CurrentDocument->GetInteger("Basic", "NewINIFormat", 4) > 4;
+	bool needNewIniFormat = CINIExt::CurrentDocument->GetInteger("Basic", "NewINIFormat", 4) > 4;
 	if (!needNewIniFormat)
 	{
 		for (const auto& cellExt : CMapDataExt::CellDataExts)
@@ -441,7 +441,7 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 		return param == "15" || param == "TeamTypes";
 	};
 	auto teamExists = [](ppmfc::CString team) {
-			if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes")) {
+			if (auto pSection = CINIExt::CurrentDocument->GetSection("TeamTypes")) {
 				for (auto& pair : pSection->GetEntities()) {
 					if (pair.second == team)
 						return true;
@@ -530,7 +530,7 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 void CMapValidatorExt::ValidateTubes(BOOL& result)
 {
 	CMapDataExt::Tubes.clear();
-	if (auto pSection = CINI::CurrentDocument->GetSection("Tubes"))
+	if (auto pSection = CINIExt::CurrentDocument->GetSection("Tubes"))
 	{
 		for (const auto& [key, value] : pSection->GetEntities())
 		{

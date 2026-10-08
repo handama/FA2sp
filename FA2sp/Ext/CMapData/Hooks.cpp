@@ -1,4 +1,5 @@
 #include "Body.h"
+#include "../../Miscs/Hooks.INI.h"
 
 #include <Helpers/Macro.h>
 #include <CINI.h>
@@ -434,7 +435,7 @@ DEFINE_HOOK(4AC210, CMapData_AddInfantry, 7)
 			std::vector<int> availableAndEmptySubcells;
 			auto& name = CMapData::Instance->TerrainDatas[cell->Terrain].TypeID;
 			ppmfc::CString key = "TemperateOccupationBits";
-			auto theaterIg = CINI::CurrentDocument->GetString("Map", "Theater");
+			auto theaterIg = CINIExt::CurrentDocument->GetString("Map", "Theater");
 			if (theaterIg == "SNOW")
 				key = "SnowOccupationBits";
 
@@ -924,7 +925,7 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 	GET_STACK(unsigned int, cellIndex, 0x4);
 
 	auto& mapdata = CMapData::Instance();
-	auto& ini = CINI::CurrentDocument;
+	auto& ini = CINIExt::CurrentDocument;
 	if (!ini->SectionExists("Structures"))
 		return 0x4A98AC;
 
@@ -1098,7 +1099,7 @@ DEFINE_HOOK(4B9E38, CMapData_CreateMap_InitializeMapDataExt, 5)
 	CMapDataExt::IsUTF8File = false;
 	Logger::Debug("CMapData::CreateMap(): About to call InitializeAllHdmEdition()\n");
 	CMapDataExt::InitializeAllHdmEdition();
-	CINIOrderTracker::Clear(&CINI::CurrentDocument);
+	CINIOrderTracker::Clear(&CINIExt::CurrentDocument);
 	CMapDataExt::MapIniSectionSorting.clear();
 	CMapDataExt::MapInlineComments.clear();
 	CMapDataExt::MapFrontlineComments.clear();
@@ -1157,7 +1158,7 @@ DEFINE_HOOK(4A6040, CMapData_UpdateUnits, 6)
 
 		CMapDataExt::UnitDatasExt.clear();
 
-		if (auto pSection = CINI::CurrentDocument->GetSection("Units"))
+		if (auto pSection = CINIExt::CurrentDocument->GetSection("Units"))
 		{
 			CMapDataExt::UnitDatasExt.reserve(pSection->GetEntities().size());
 			int i = 0;
@@ -1184,7 +1185,7 @@ DEFINE_HOOK(4A87A0, CMapData_DeleteUnit, 7)
 {
 	GET(CMapData*, pThis, ECX);
 	GET_STACK(int, index, 0x4);
-	if (auto pSection = CINI::CurrentDocument->GetSection("Units"))
+	if (auto pSection = CINIExt::CurrentDocument->GetSection("Units"))
 	{
 		if (index < pSection->GetEntities().size())
 		{
@@ -1192,7 +1193,7 @@ DEFINE_HOOK(4A87A0, CMapData_DeleteUnit, 7)
 			auto atoms = STDHelpers::SplitString(value, 4);
 			int x = atoi(atoms[4]);
 			int y = atoi(atoms[3]);
-			CINI::CurrentDocument->DeleteKey(pSection, *pSection->GetKeyAt(index));
+			CINIExt::CurrentDocument->DeleteKey(pSection, *pSection->GetKeyAt(index));
 			pThis->UpdateFieldUnitData(false);
 			if (!CMapDataExt::SkipUpdateMinimap)
 				pThis->UpdateMapPreviewAt(x, y);
@@ -1214,7 +1215,7 @@ DEFINE_HOOK(4A4270, CMapData_UpdateAircraft, 6)
 		}
 		CMapDataExt::AircraftDatasExt.clear();
 
-		if (auto pSection = CINI::CurrentDocument->GetSection("Aircraft"))
+		if (auto pSection = CINIExt::CurrentDocument->GetSection("Aircraft"))
 		{
 			int i = 0;
 			CMapDataExt::AircraftDatasExt.reserve(pSection->GetEntities().size());
@@ -1241,7 +1242,7 @@ DEFINE_HOOK(4A98B0, CMapData_DeleteAircraft, 7)
 {
 	GET(CMapData*, pThis, ECX);
 	GET_STACK(int, index, 0x4);
-	if (auto pSection = CINI::CurrentDocument->GetSection("Aircraft"))
+	if (auto pSection = CINIExt::CurrentDocument->GetSection("Aircraft"))
 	{
 		if (index < pSection->GetEntities().size())
 		{
@@ -1249,7 +1250,7 @@ DEFINE_HOOK(4A98B0, CMapData_DeleteAircraft, 7)
 			auto atoms = STDHelpers::SplitString(value, 4);
 			int x = atoi(atoms[4]);
 			int y = atoi(atoms[3]);
-			CINI::CurrentDocument->DeleteKey(pSection, *pSection->GetKeyAt(index));
+			CINIExt::CurrentDocument->DeleteKey(pSection, *pSection->GetKeyAt(index));
 			pThis->UpdateFieldAircraftData(false);
 			if (!CMapDataExt::SkipUpdateMinimap)
 				pThis->UpdateMapPreviewAt(x, y);
@@ -1270,7 +1271,7 @@ DEFINE_HOOK(4A67D0, CMapData_UpdateWaypoints, 6)
 			pThis->CellDatas[i].Waypoint = -1;
 		}
 
-		if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+		if (auto pSection = CINIExt::CurrentDocument->GetSection("Waypoints"))
 		{
 			int i = 0;
 			for (const auto& data : pSection->GetEntities())
@@ -1299,14 +1300,14 @@ DEFINE_HOOK(4A7CB0, CMapData_DeleteWaypoints, 7)
 {
 	GET(CMapData*, pThis, ECX);
 	GET_STACK(int, index, 0x4);
-	if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+	if (auto pSection = CINIExt::CurrentDocument->GetSection("Waypoints"))
 	{
 		if (index < pSection->GetEntities().size())
 		{
 			auto& value = *pSection->GetValueAt(index);
 			int x = atoi(value) / 1000;
 			int y = atoi(value) % 1000;
-			CINI::CurrentDocument->DeleteKey(pSection, *pSection->GetKeyAt(index));
+			CINIExt::CurrentDocument->DeleteKey(pSection, *pSection->GetKeyAt(index));
 			pThis->UpdateFieldWaypointData(false);
 
 			if (pThis->IsMultiOnly())
@@ -1344,11 +1345,11 @@ DEFINE_HOOK(4A6FB0, CMapData_UpdateFieldBasenodeData, 6)
 			mapData->CellDatas[i].BaseNode.House = "";
 		}
 
-		if (auto pSection = CINI::CurrentDocument->GetSection("Houses"))
+		if (auto pSection = CINIExt::CurrentDocument->GetSection("Houses"))
 		{
 			for (const auto& [key, house] : pSection->GetEntities())
 			{
-				if (auto pHouse = CINI::CurrentDocument->GetSection(house))
+				if (auto pHouse = CINIExt::CurrentDocument->GetSection(house))
 				{
 					for (int j = 0; j < pHouse->GetInteger("NodeCount"); ++j)
 					{
@@ -1649,7 +1650,7 @@ DEFINE_HOOK(4AA111, CMapData_DeleteTerrain, 6)
 DEFINE_HOOK(4BA5F0, CMapData_UpdateFieldTubeData, 6)
 {
 	CMapDataExt::Tubes.clear();
-	if (auto pSection = CINI::CurrentDocument->GetSection("Tubes"))
+	if (auto pSection = CINIExt::CurrentDocument->GetSection("Tubes"))
 	{
 		for (const auto& [key, value] : pSection->GetEntities())
 		{

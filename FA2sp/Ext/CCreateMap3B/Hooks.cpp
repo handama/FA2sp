@@ -1,4 +1,5 @@
 #include <Helpers/Macro.h>
+#include "../../Miscs/Hooks.INI.h"
 #include <CCreateMap3B.h>
 #include <CLoading.h>
 
@@ -24,10 +25,10 @@ DEFINE_HOOK(42CCC8, CCreateMap3B_NoImportTrees, 5)
 
 DEFINE_HOOK(42CCE2, CCreateMap3B_NoImportUnits, 5)
 {
-    CINI::CurrentDocument->DeleteSection("Structures");
-    CINI::CurrentDocument->DeleteSection("Units");
-    CINI::CurrentDocument->DeleteSection("Aircraft");
-    CINI::CurrentDocument->DeleteSection("Infantry");
+    CINIExt::CurrentDocument->DeleteSection("Structures");
+    CINIExt::CurrentDocument->DeleteSection("Units");
+    CINIExt::CurrentDocument->DeleteSection("Aircraft");
+    CINIExt::CurrentDocument->DeleteSection("Infantry");
     CMapDataExt::UpdateFieldStructureData_RedrawMinimap();
     CMapDataExt::UpdateFieldUnitData_RedrawMinimap();
     CMapDataExt::UpdateFieldAircraftData_RedrawMinimap();

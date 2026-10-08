@@ -38,7 +38,7 @@ BOOL CSelectAutoShore::OnInitDialog()
 	if (auto pSection = CINI::FAData->GetSection("AutoShoreTypes"))
 	{
 		int index = 0;
-		auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+		auto thisTheater = CINIExt::CurrentDocument().GetString("Map", "Theater");
 		for (const auto& type : pSection->GetEntities())
 		{
 			auto atoms = STDHelpers::SplitString(type.second, 3);

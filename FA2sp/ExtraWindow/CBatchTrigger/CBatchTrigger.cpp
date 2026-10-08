@@ -21,7 +21,7 @@
 
 HWND CBatchTrigger::m_hwnd;
 CFinalSunDlg* CBatchTrigger::m_parent;
-CINI& CBatchTrigger::map = CINI::CurrentDocument;
+CINIExt& CBatchTrigger::map = CINIExt::CurrentDocument;
 MultimapHelper& CBatchTrigger::rules = Variables::RulesMap;
 
 HWND CBatchTrigger::hListbox;
@@ -720,9 +720,9 @@ void CBatchTrigger::Update(bool afterInit, bool updateTrigger)
         tagNameIndex.clear();
         teamNameIndex.clear();
 
-        auto pTag = CINI::CurrentDocument().GetSection("Tags");
-        auto pTrigger = CINI::CurrentDocument().GetSection("Triggers");
-        auto pTeam = CINI::CurrentDocument().GetSection("TeamTypes");
+        auto pTag = CINIExt::CurrentDocument().GetSection("Tags");
+        auto pTrigger = CINIExt::CurrentDocument().GetSection("Triggers");
+        auto pTeam = CINIExt::CurrentDocument().GetSection("TeamTypes");
 
         objects.reserve(
             (pTag ? pTag->GetEntities().size() : 0) + 

@@ -1,4 +1,5 @@
 #include "TagSort.h"
+#include "../../../Miscs/Hooks.INI.h"
 
 #include "../../../FA2sp.h"
 #include "../../../Helpers/STDHelpers.h"
@@ -32,7 +33,7 @@ void TagSort::LoadAllTriggers()
     ExtConfigs::InitializeMap = false;
     this->Clear();
     BuildingTags.clear();
-    if (auto pObjSection = CINI::CurrentDocument->GetSection("Structures"))
+    if (auto pObjSection = CINIExt::CurrentDocument->GetSection("Structures"))
     {
         for (auto& pair : pObjSection->GetEntities())
         {
@@ -42,7 +43,7 @@ void TagSort::LoadAllTriggers()
         }
     }
     AircraftTags.clear();
-    if (auto pObjSection = CINI::CurrentDocument->GetSection("Aircraft"))
+    if (auto pObjSection = CINIExt::CurrentDocument->GetSection("Aircraft"))
     {
         for (auto& pair : pObjSection->GetEntities())
         {
@@ -52,7 +53,7 @@ void TagSort::LoadAllTriggers()
         }
     }
     UnitTags.clear();
-    if (auto pObjSection = CINI::CurrentDocument->GetSection("Units"))
+    if (auto pObjSection = CINIExt::CurrentDocument->GetSection("Units"))
     {
         for (auto& pair : pObjSection->GetEntities())
         {
@@ -62,7 +63,7 @@ void TagSort::LoadAllTriggers()
         }
     }
     InfantryTags.clear();
-    if (auto pObjSection = CINI::CurrentDocument->GetSection("Infantry"))
+    if (auto pObjSection = CINIExt::CurrentDocument->GetSection("Infantry"))
     {
         for (auto& pair : pObjSection->GetEntities())
         {
@@ -72,19 +73,19 @@ void TagSort::LoadAllTriggers()
         }
     }
     TeamTags.clear();
-    if (auto pObjSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+    if (auto pObjSection = CINIExt::CurrentDocument->GetSection("TeamTypes"))
     {
         for (auto& pair : pObjSection->GetEntities())
         {
-            if (CINI::CurrentDocument->SectionExists(pair.second))
+            if (CINIExt::CurrentDocument->SectionExists(pair.second))
             {
-                auto tag = CINI::CurrentDocument->GetString(pair.second, "Tag");
+                auto tag = CINIExt::CurrentDocument->GetString(pair.second, "Tag");
                 TeamTags[tag].push_back(pair.second);
             }
         }
     }
     CellTagTags.clear();
-    if (auto pObjSection = CINI::CurrentDocument->GetSection("CellTags"))
+    if (auto pObjSection = CINIExt::CurrentDocument->GetSection("CellTags"))
     {
         for (auto& pair : pObjSection->GetEntities())
         {
@@ -92,7 +93,7 @@ void TagSort::LoadAllTriggers()
         }
     }
     TriggerTags.clear();
-    if (auto pObjSection = CINI::CurrentDocument->GetSection("Triggers"))
+    if (auto pObjSection = CINIExt::CurrentDocument->GetSection("Triggers"))
     {
         for (auto& pair : pObjSection->GetEntities())
         {
@@ -114,7 +115,7 @@ void TagSort::LoadAllTriggers()
         }
     }
     TriggerTagsParent.clear();
-    if (auto pObjSection = CINI::CurrentDocument->GetSection("Triggers"))
+    if (auto pObjSection = CINIExt::CurrentDocument->GetSection("Triggers"))
     {
         for (auto& pair : pObjSection->GetEntities())
         {
@@ -127,14 +128,14 @@ void TagSort::LoadAllTriggers()
         }
     }
     TagTriggers.clear();
-    if (auto pObjSection = CINI::CurrentDocument->GetSection("Tags"))
+    if (auto pObjSection = CINIExt::CurrentDocument->GetSection("Tags"))
     {
         for (auto& pair : pObjSection->GetEntities())
         {
             auto atoms = FString::SplitString(pair.second);
             if (atoms.size() > 2)
             {
-                if (auto pObjSection = CINI::CurrentDocument->GetSection("Triggers"))
+                if (auto pObjSection = CINIExt::CurrentDocument->GetSection("Triggers"))
                 {
                     for (auto& pair2 : pObjSection->GetEntities())
                     {
@@ -150,7 +151,7 @@ void TagSort::LoadAllTriggers()
     }
 
     SendMessage(this->GetHwnd(), WM_SETREDRAW, FALSE, 0);
-    if (auto pSection = CINI::CurrentDocument->GetSection("Tags"))
+    if (auto pSection = CINIExt::CurrentDocument->GetSection("Tags"))
     {
         for (auto& pair : pSection->GetEntities())
         {
@@ -193,7 +194,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
 				}
 				if (IsWindowVisible(CNewTrigger::GetFirstValidInstance().GetHandle()))
                 {
-                    FString pStr = CINI::CurrentDocument->GetString("Triggers", pID);
+                    FString pStr = CINIExt::CurrentDocument->GetString("Triggers", pID);
                     auto results = FString::SplitString(pStr);
                     if (results.size() > 3)
                     {
@@ -211,7 +212,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 }
                 if (IsWindowVisible(CNewTeamTypes::GetHandle()))
                 {
-                    FString pStr = CINI::CurrentDocument->GetString(pID, "Name");
+                    FString pStr = CINIExt::CurrentDocument->GetString(pID, "Name");
                     FString space1 = " (";
                     FString space2 = ")";
 
@@ -249,7 +250,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
 
                 if (!finished)
                 {
-                    if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
+                    if (auto pSection = CINIExt::CurrentDocument->GetSection("CellTags"))
                     {
                         for (auto& pairObj : pSection->GetEntities())
                         {
@@ -472,7 +473,7 @@ HTREEITEM TagSort::FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const
 
 std::vector<FString> TagSort::GetGroup(FString triggerId, FString& name) const
 {
-    FString pSrc = CINI::CurrentDocument->GetString("Tags", triggerId, "");
+    FString pSrc = CINIExt::CurrentDocument->GetString("Tags", triggerId, "");
 
     auto ret = FString::SplitString(pSrc, 1);
     pSrc = ret[1];
@@ -510,7 +511,7 @@ void TagSort::AddAttachedTrigger(HTREEITEM hParent, FString triggerID, FString p
     if (TriggerTags[triggerID] != "")
         if (HTREEITEM hNode = this->FindLabel(hParent, parentName))
         {
-            FString pTrigger2 = CINI::CurrentDocument->GetString("Triggers", TriggerTags[triggerID], "");
+            FString pTrigger2 = CINIExt::CurrentDocument->GetString("Triggers", TriggerTags[triggerID], "");
             auto RET2 = FString::SplitString(pTrigger2, 2);
             pTrigger2 = RET2[2];
             pTrigger2 = FString(Translations::TranslateOrDefault("Sort.AttachedTrigger", "Attached Trigger:")) + " " + pTrigger2;
@@ -545,7 +546,7 @@ void TagSort::AddAttachedTriggerReverse(HTREEITEM hParent, FString triggerID, FS
                     }
                 }
 
-                FString pTrigger2 = CINI::CurrentDocument->GetString("Triggers", parentTrigger, "");
+                FString pTrigger2 = CINIExt::CurrentDocument->GetString("Triggers", parentTrigger, "");
                 auto RET2 = FString::SplitString(pTrigger2, 2);
                 pTrigger2 = RET2[2];
 
@@ -622,15 +623,15 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
         auto hTagItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), text, id, hParent);
         this->IndexAdd(hParent, text, hTagItem);
 
-        auto tag = CINI::CurrentDocument->GetString("Tags", id);
+        auto tag = CINIExt::CurrentDocument->GetString("Tags", id);
         auto atoms = FString::SplitString(tag);
         if (atoms.size() >= 3)
         {
             auto& triggerID = atoms[2];
-            if (!CINI::CurrentDocument->SectionExists("Triggers"))
+            if (!CINIExt::CurrentDocument->SectionExists("Triggers"))
                 return;
 
-            FString pSrc = CINI::CurrentDocument->GetString("Triggers", triggerID, "");
+            FString pSrc = CINIExt::CurrentDocument->GetString("Triggers", triggerID, "");
 
             if (pSrc == "")
                 return;
@@ -793,7 +794,7 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
 
                         if (HTREEITEM hNode = this->FindLabel(hParentTeam, objList))
                         {
-                            FString uiname = FString(CINI::CurrentDocument->GetString(teamID, "Name")) + " (" + teamID + ")";
+                            FString uiname = FString(CINIExt::CurrentDocument->GetString(teamID, "Name")) + " (" + teamID + ")";
 
                             hParent = hNode;
                             auto hObjItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, teamID, hParent);

@@ -28,7 +28,7 @@
 #include <mmsystem.h>
 #pragma comment(lib, "winmm.lib")
 
-CINI& ExtraWindow::map = CINI::CurrentDocument;
+CINIExt& ExtraWindow::map = CINIExt::CurrentDocument;
 CINI& ExtraWindow::fadata = CINI::FAData;
 MultimapHelper& ExtraWindow::rules = Variables::RulesMap;
 std::vector<DropTarget> ExtraWindow::g_DropTargets;
@@ -414,7 +414,7 @@ void ExtraWindow::LoadParams(VirtualComboBoxEx& vcb, FString idx, CNewTrigger* i
                     {
                         for (auto pINI : mmh.GetINIData())
                         {
-                            if (pINI == &CINI::CurrentDocument)
+                            if (pINI == &CINIExt::CurrentDocument)
                             {
                                 // refresh indicies
                                 CMapDataExt::UpdateMapSectionIndicies(sectionName);
@@ -525,7 +525,7 @@ void ExtraWindow::LoadParam_CountryList(VirtualComboBoxEx& vcb)
 {
     MultimapHelper mmh;
     mmh.AddINI(&CINI::Rules);
-    mmh.AddINI(&CINI::CurrentDocument);
+    mmh.AddINI(&CINIExt::CurrentDocument);
 
     int rIdx = 0;
     const auto& indicies = Variables::RulesMap.ParseIndicies("Countries", true);
@@ -823,7 +823,7 @@ void ExtraWindow::LoadParams_Houses(VirtualComboBoxEx& vcb, bool multiOnly, bool
         players = false;
 
     auto pCountry = CINI::Rules->GetSection("Countries");
-    auto pHouse = CINI::CurrentDocument->GetSection("Houses");
+    auto pHouse = CINIExt::CurrentDocument->GetSection("Houses");
     INISection* pSection = nullptr;
 
     if (CMapDataExt::IsInitingPropertyDialog)
@@ -1404,7 +1404,7 @@ void ExtraWindow::LoadFrom(MultimapHelper& mmh, FString loadfrom)
         mmh = Variables::RulesMap;
     }
     else if (loadfrom == "3" || loadfrom == "map")
-        mmh.AddINI(&CINI::CurrentDocument);
+        mmh.AddINI(&CINIExt::CurrentDocument);
     else if (loadfrom == "4" || loadfrom == "art")
         mmh.AddINI(&CINI::Art);
     else if (loadfrom == "5" || loadfrom == "sound")
@@ -1414,7 +1414,7 @@ void ExtraWindow::LoadFrom(MultimapHelper& mmh, FString loadfrom)
     else if (loadfrom == "7" || loadfrom == "ai+map")
     {
         mmh.AddINI(&CINI::Ai);
-        mmh.AddINI(&CINI::CurrentDocument);
+        mmh.AddINI(&CINIExt::CurrentDocument);
     }
     else if (loadfrom == "8" || loadfrom == "eva")
         mmh.AddINI(&CINI::Eva);
@@ -4249,11 +4249,11 @@ BOOL CINIDialog::OnInitDialog()
     {
         if (info.Type == ControlType::CheckBox)
         {
-            CheckDlgButton(GetSafeHwnd(), id, CINI::CurrentDocument->GetBool(info.IniSection, info.IniKey) ? BST_CHECKED : BST_UNCHECKED); 
+            CheckDlgButton(GetSafeHwnd(), id, CINIExt::CurrentDocument->GetBool(info.IniSection, info.IniKey) ? BST_CHECKED : BST_UNCHECKED); 
         }
         else if (info.Type == ControlType::Edit)
         {
-            GetDlgItem(id)->SetWindowText(CINI::CurrentDocument->GetString(info.IniSection, info.IniKey));
+            GetDlgItem(id)->SetWindowText(CINIExt::CurrentDocument->GetString(info.IniSection, info.IniKey));
         }
         else if (info.Type == ControlType::Combobox)
         {
@@ -4263,7 +4263,7 @@ BOOL CINIDialog::OnInitDialog()
 				box->AddString(label);
 			}
             ExtraWindow::AdjustDropdownWidth(box->GetSafeHwnd());
-			auto text = CINI::CurrentDocument->GetString(info.IniSection, info.IniKey);
+			auto text = CINIExt::CurrentDocument->GetString(info.IniSection, info.IniKey);
 			int idx = box->FindStringExact(0, text);
             if (idx != CB_ERR)
             {
@@ -4318,7 +4318,7 @@ BOOL CINIDialog::OnCommand(WPARAM wParam, LPARAM lParam)
 		if (info.Type == ControlType::CheckBox && nNotify == BN_CLICKED)
         {
             bool checked = (IsDlgButtonChecked(GetSafeHwnd(), nID) == BST_CHECKED);
-            CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, checked ? "yes" : "no");
+            CINIExt::CurrentDocument->WriteString(info.IniSection, info.IniKey, checked ? "yes" : "no");
 			info.CallBack();
 		}
 		else if (info.Type == ControlType::Edit && nNotify == EN_CHANGE)
@@ -4327,9 +4327,9 @@ BOOL CINIDialog::OnCommand(WPARAM wParam, LPARAM lParam)
 			GetDlgItem(nID)->GetWindowText(buffer);
             buffer.Trim();
             if (!buffer.IsEmpty())
-                CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
+                CINIExt::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
             else
-                CINI::CurrentDocument->DeleteKey(info.IniSection, info.IniKey);
+                CINIExt::CurrentDocument->DeleteKey(info.IniSection, info.IniKey);
 			info.CallBack();
         }
 		else if (info.Type == ControlType::Combobox && nNotify == CBN_SELCHANGE)
@@ -4343,9 +4343,9 @@ BOOL CINIDialog::OnCommand(WPARAM wParam, LPARAM lParam)
                 box->GetWindowText(buffer);
             buffer.Trim();
             if (!buffer.IsEmpty())
-                CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
+                CINIExt::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
             else
-                CINI::CurrentDocument->DeleteKey(info.IniSection, info.IniKey);
+                CINIExt::CurrentDocument->DeleteKey(info.IniSection, info.IniKey);
 			info.CallBack();
         }
 		else if (info.Type == ControlType::Combobox && nNotify == CBN_EDITCHANGE)
@@ -4354,9 +4354,9 @@ BOOL CINIDialog::OnCommand(WPARAM wParam, LPARAM lParam)
 			GetDlgItem(nID)->GetWindowText(buffer);
             buffer.Trim();
             if (!buffer.IsEmpty())
-                CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
+                CINIExt::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
             else
-                CINI::CurrentDocument->DeleteKey(info.IniSection, info.IniKey);
+                CINIExt::CurrentDocument->DeleteKey(info.IniSection, info.IniKey);
 			info.CallBack();
         }
 		else if (info.Type == ControlType::Button && nNotify == BN_CLICKED)

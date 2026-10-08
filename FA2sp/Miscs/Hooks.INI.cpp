@@ -158,6 +158,23 @@ INISection* CINIExt::AddOrGetSection(ppmfc::CString pSectionName)
     return pSection;
 }
 
+bool CINIExt::WriteBool(ppmfc::CString pSection, ppmfc::CString pKey, bool pValue)
+{
+    return WriteString(pSection, pKey, pValue ? "yes" : "no");
+}
+
+int CINIExt::ClearAndLoad(const char* lpPath, int bTrimSpace)
+{
+    CINIOrderTracker::Clear(this);
+    return CINI::ClearAndLoad(lpPath, bTrimSpace);
+}
+
+void CINIExt::Release()
+{
+    CINIOrderTracker::Clear(this);
+    CINI::Release();
+}
+
 using INIPair = std::pair<ppmfc::CString, ppmfc::CString>;
 void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
     bool bClear, bool bTrimSpace, bool bAllowInclude, std::vector<INIPair>* parentIncludeInis)
@@ -207,7 +224,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
     }
     bool findTargetSection = false;
     bool firstLine = true;
-    bool keepComment = this == &CINI::CurrentDocument && ExtConfigs::SaveMap_KeepComments;
+    bool keepComment = this == &CINIExt::CurrentDocument && ExtConfigs::SaveMap_KeepComments;
 
     std::istringstream iss(content);
     FString line;
@@ -441,7 +458,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
         const char* includeSection = IsLoadingFAini ? "Include" : (ExtConfigs::IncludeType ? "$Include" : "#include");
         auto pIncludeSection = GetSection(includeSection);
         if (pIncludeSection || parentIncludeInis) {
-            if (this == &CINI::CurrentDocument) {
+            if (this == &CINIExt::CurrentDocument) {
                 INIIncludes::MapINIWarn = true;
             }
             std::set<ppmfc::CString> includedInis;
@@ -552,7 +569,7 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
         }
     }
 
-    if (CMapDataExt::IsLoadingMapFile && this == &CINI::CurrentDocument) {
+    if (CMapDataExt::IsLoadingMapFile && this == &CINIExt::CurrentDocument) {
         if (loadAsUTF8) {
             Logger::Debug("CINIExt::LoadINIExt(): Load map file using UTF8 encoding.\n");
             CMapDataExt::IsUTF8File = true;

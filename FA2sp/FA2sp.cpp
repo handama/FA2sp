@@ -263,10 +263,10 @@ float ExtConfigs::IsoViewHeightPercentage = 0.5f;
 
 std::vector<ExtConfigs::DynamicOptions> ExtConfigs::Options;
 
-MultimapHelper Variables::RulesMap = {&CINI::Rules(), &CINI::CurrentDocument()};
+MultimapHelper Variables::RulesMap = {&CINI::Rules(), &CINIExt::CurrentDocument()};
 MultimapHelper Variables::Rules = {&CINI::Rules()};
 MultimapHelper Variables::FAData = {&CINI::FAData()};
-MultimapHelper Variables::Rules_FAData = {&CINI::Rules(), &CINI::CurrentDocument(), &CINI::FAData()};
+MultimapHelper Variables::Rules_FAData = {&CINI::Rules(), &CINIExt::CurrentDocument(), &CINI::FAData()};
 
 void FA2sp::ExtConfigsInitialize()
 {

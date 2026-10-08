@@ -1,4 +1,5 @@
 #include "Body.h"
+#include "../../Miscs/Hooks.INI.h"
 #include "../../FA2sp.h"
 
 #include <Drawing.h>
@@ -404,17 +405,17 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 		int oldY = CMapData::Instance->GetYFromCoordIndex(m_id);
 		ppmfc::CString key;
 		key.Format("%d", oldX * 1000 + oldY);
-		if (CINI::CurrentDocument->KeyExists("Annotations", key))
+		if (CINIExt::CurrentDocument->KeyExists("Annotations", key))
 		{
-			auto value = CINI::CurrentDocument->GetString("Annotations", key);
+			auto value = CINIExt::CurrentDocument->GetString("Annotations", key);
 			if (nLButtonUpFlags != MK_SHIFT)
 			{
 				auto &cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(oldX, oldY)];
 				cellExt.HasAnnotation = false;
-				CINI::CurrentDocument->DeleteKey("Annotations", key);
+				CINIExt::CurrentDocument->DeleteKey("Annotations", key);
 			}
 			key.Format("%d", X * 1000 + Y);
-			CINI::CurrentDocument->WriteString("Annotations", key, value);
+			CINIExt::CurrentDocument->WriteString("Annotations", key, value);
 			auto &cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
 			cellExt.HasAnnotation = true;
 		}
@@ -427,30 +428,30 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Basenode);
 		char key[10];
 		sprintf(key, "%03d", m_id);
-		if (CINI::CurrentDocument->KeyExists(CIsoViewExt::CurrentCellObjectHouse, key))
+		if (CINIExt::CurrentDocument->KeyExists(CIsoViewExt::CurrentCellObjectHouse, key))
 		{
-			auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString(CIsoViewExt::CurrentCellObjectHouse, key), 2);
+			auto atoms = STDHelpers::SplitString(CINIExt::CurrentDocument->GetString(CIsoViewExt::CurrentCellObjectHouse, key), 2);
 			ppmfc::CString value;
 			value.Format("%s,%d,%d", atoms[0], Y, X);
 			if (nLButtonUpFlags == MK_SHIFT)
 			{
-				int nodeCount = CINI::CurrentDocument->GetInteger(CIsoViewExt::CurrentCellObjectHouse, "NodeCount");
+				int nodeCount = CINIExt::CurrentDocument->GetInteger(CIsoViewExt::CurrentCellObjectHouse, "NodeCount");
 				if (nodeCount < 1000)
 				{
 					for (int i = 0; i < 1000; ++i)
 					{
 						sprintf(key, "%03d", i);
-						if (!CINI::CurrentDocument->KeyExists(CIsoViewExt::CurrentCellObjectHouse, key))
+						if (!CINIExt::CurrentDocument->KeyExists(CIsoViewExt::CurrentCellObjectHouse, key))
 						{
 							break;
 						}
 					}
 					char count[10];
 					sprintf(count, "%d", nodeCount + 1);
-					CINI::CurrentDocument->WriteString(CIsoViewExt::CurrentCellObjectHouse, "NodeCount", count);
+					CINIExt::CurrentDocument->WriteString(CIsoViewExt::CurrentCellObjectHouse, "NodeCount", count);
 				}
 			}
-			CINI::CurrentDocument->WriteString(CIsoViewExt::CurrentCellObjectHouse, key, value);
+			CINIExt::CurrentDocument->WriteString(CIsoViewExt::CurrentCellObjectHouse, key, value);
 			CMapData::Instance->UpdateFieldBasenodeData(false);
 		}
 		m_id = -1;
@@ -509,7 +510,7 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 			{
 				FString size;
 				size.Format("%d,%d,%d,%d", mpL, mpT, mpW, mpH);
-				CINI::CurrentDocument->WriteString("Map", "LocalSize", size);
+				CINIExt::CurrentDocument->WriteString("Map", "LocalSize", size);
 				if (IsWindowVisible(CFinalSunDlg::Instance->MapD))
 				{
 					auto dlg = GetDlgItem(CFinalSunDlg::Instance->MapD, 1045);
@@ -870,11 +871,11 @@ DEFINE_HOOK(45EC1A, CIsoView_OnCommand_HandleProperty, A)
 	{
 		ppmfc::CString key;
 		key.Format("%d", coord.X * 1000 + coord.Y);
-		if (CINI::CurrentDocument->KeyExists("Annotations", key))
+		if (CINIExt::CurrentDocument->KeyExists("Annotations", key))
 		{
 			if ((GetKeyState(VK_CONTROL) & 0x8000))
 			{
-				auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString("Annotations", key), 6);
+				auto atoms = STDHelpers::SplitString(CINIExt::CurrentDocument->GetString("Annotations", key), 6);
 				ppmfc::CString value;
 				bool folded = STDHelpers::IsTrue(atoms[2]);
 				for (int i = 0; i < atoms.size(); ++i)
@@ -891,7 +892,7 @@ DEFINE_HOOK(45EC1A, CIsoView_OnCommand_HandleProperty, A)
 							value += "yes";
 					}
 				}
-				CINI::CurrentDocument->WriteString("Annotations", key, value);
+				CINIExt::CurrentDocument->WriteString("Annotations", key, value);
 				::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 			}
 			else
@@ -1793,7 +1794,7 @@ DEFINE_HOOK(45BFE1, CIsoView_OnMouseMove_Waypoint_Add, 8)
 	{
 		int i = 8;
 		ppmfc::CString key = "8";
-		while (CINI::CurrentDocument->KeyExists("Waypoints", key))
+		while (CINIExt::CurrentDocument->KeyExists("Waypoints", key))
 		{
 			i++;
 			key.Format("%d", i);
@@ -1821,14 +1822,14 @@ DEFINE_HOOK(45C0CF, CIsoView_OnMouseMove_Waypoint_AddPlayerLocation, 6)
 	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Waypoint, true);
 	auto deleteWaypoint = [](ppmfc::CString key)
 	{
-		if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+		if (auto pSection = CINIExt::CurrentDocument->GetSection("Waypoints"))
 		{
-			if (CINI::CurrentDocument->KeyExists("Waypoints", key))
+			if (CINIExt::CurrentDocument->KeyExists("Waypoints", key))
 			{
 				auto &&value = pSection->GetString(key);
 				int x = atoi(value) / 1000;
 				int y = atoi(value) % 1000;
-				CINI::CurrentDocument->DeleteKey(pSection, key);
+				CINIExt::CurrentDocument->DeleteKey(pSection, key);
 				CMapData::Instance->UpdateFieldWaypointData(false);
 
 				if (CMapData::Instance->IsMultiOnly())
@@ -2184,16 +2185,16 @@ DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 	if (cell->CellTag > -1)
 	{
 		FString id = "";
-		if (CINI::CurrentDocument->SectionExists("CellTags"))
+		if (CINIExt::CurrentDocument->SectionExists("CellTags"))
 		{
 			char tmp[10];
 			_itoa((X * 1000 + Y), tmp, 10);
-			id = CINI::CurrentDocument->GetString("CellTags", tmp);
+			id = CINIExt::CurrentDocument->GetString("CellTags", tmp);
 		}
 		if (id != "")
 		{
 			FString name = "MISSING";
-			auto tag = CINI::CurrentDocument->GetString("Tags", id);
+			auto tag = CINIExt::CurrentDocument->GetString("Tags", id);
 			auto atoms = FString::SplitString(tag);
 			if (atoms.size() > 1)
 			{

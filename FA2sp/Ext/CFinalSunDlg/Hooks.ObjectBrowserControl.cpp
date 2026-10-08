@@ -1,4 +1,5 @@
 #include "Body.h"
+#include "../../Miscs/Hooks.INI.h"
 
 #include <FA2PP.h>
 #include <Helpers/Macro.h>
@@ -1204,7 +1205,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                                 continue;
                 
                             int intKey = gx * 1000 + gy;
-                            CINI::CurrentDocument->WriteString("CellTags", std::to_string(intKey).c_str(), CIsoView::CurrentCommand->ObjectID);
+                            CINIExt::CurrentDocument->WriteString("CellTags", std::to_string(intKey).c_str(), CIsoView::CurrentCommand->ObjectID);
                         }
                     }         
                 }

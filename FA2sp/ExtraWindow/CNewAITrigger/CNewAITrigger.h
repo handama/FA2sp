@@ -1,6 +1,7 @@
 #pragma once
 
 #include <FA2PP.h>
+#include "../../Miscs/Hooks.INI.h"
 #include <map>
 #include <vector>
 #include <string>
@@ -11,6 +12,7 @@
 #include "../../Helpers/FString.h"
 
 class VirtualComboBoxEx;
+class CINIExt;
 
 class AITrigger
 {
@@ -39,7 +41,7 @@ public:
 
     static std::unique_ptr<AITrigger> create(const char* id)
     {
-        auto atoms = STDHelpers::SplitString(CINI::CurrentDocument().GetString("AITriggerTypes", id));
+        auto atoms = STDHelpers::SplitString(CINIExt::CurrentDocument().GetString("AITriggerTypes", id));
         if (atoms.size() < 18)
             return nullptr;
         return std::make_unique<AITrigger>(id);
@@ -55,7 +57,7 @@ public:
     }
     AITrigger(const char* id)
     {
-        auto atoms = FString::SplitString(CINI::CurrentDocument().GetString("AITriggerTypes", id), 17);
+        auto atoms = FString::SplitString(CINIExt::CurrentDocument().GetString("AITriggerTypes", id), 17);
         ID = id;
         Name = atoms[0];
         Team1 = atoms[1];
@@ -78,7 +80,7 @@ public:
         EnabledInM = atoms[16] == "0" ? false : true;
         EnabledInH = atoms[17] == "0" ? false : true;
 
-        Enabled = CINI::CurrentDocument().GetBool("AITriggerTypesEnable", id);
+        Enabled = CINIExt::CurrentDocument().GetBool("AITriggerTypesEnable", id);
     }
 
     void Save() const
@@ -123,12 +125,12 @@ public:
             EnabledInH ? "1" : "0"
         );
         if (Enabled) {
-            CINI::CurrentDocument->WriteBool("AITriggerTypesEnable", ID, Enabled);
+            CINIExt::CurrentDocument->WriteBool("AITriggerTypesEnable", ID, Enabled);
         }
         else {
-            CINI::CurrentDocument->DeleteKey("AITriggerTypesEnable", ID);
+            CINIExt::CurrentDocument->DeleteKey("AITriggerTypesEnable", ID);
         }
-        CINI::CurrentDocument->WriteString("AITriggerTypes", ID, value);
+        CINIExt::CurrentDocument->WriteString("AITriggerTypes", ID, value);
     }
 
 private:
@@ -240,7 +242,7 @@ protected:
 private:
     static HWND m_hwnd;
     static CFinalSunDlg* m_parent;
-    static CINI& map;
+    static CINIExt& map;
     static CINI& fadata;
     static MultimapHelper& rules;
 	static bool AutoChangeName;

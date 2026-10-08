@@ -15,7 +15,7 @@ namespace
 	void LaunchRandomTree()
 	{
 		CRandomTreeExt randomTree;
-		auto mirageIni = CINI::CurrentDocument->GetString("General", "DefaultMirageDisguises");
+		auto mirageIni = CINIExt::CurrentDocument->GetString("General", "DefaultMirageDisguises");
 		mirageIni.Trim();
 		randomTree.MirageDisguiseTrees = mirageIni;
 		randomTree.LaunchingFromSingleplayerSettings = true;

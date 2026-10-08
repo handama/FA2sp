@@ -1,4 +1,5 @@
 #include "Body.h"
+#include "../../Miscs/Hooks.INI.h"
 
 #include <Helpers/Macro.h>
 #include <CINI.h>
@@ -43,7 +44,7 @@ DEFINE_HOOK(4D4150, CRandomTree_OnInitDialog, 7)
         }
     }
     
-    auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+    auto thisTheater = CINIExt::CurrentDocument().GetString("Map", "Theater");
     thisTheater.MakeUpper();
     thisTheater += "Limits";
     int TreeMin = CINI::FAData->GetInteger(thisTheater, "TreeMin");

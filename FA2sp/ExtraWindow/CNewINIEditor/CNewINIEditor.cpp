@@ -23,7 +23,7 @@
 HWND CNewINIEditor::m_hwnd;
 CFinalSunDlg* CNewINIEditor::m_parent;
 HWND CNewINIEditor::m_hwndImporter;
-CINI& CNewINIEditor::map = CINI::CurrentDocument;
+CINIExt& CNewINIEditor::map = CINIExt::CurrentDocument;
 CINI& CNewINIEditor::fadata = CINI::FAData;
 MultimapHelper& CNewINIEditor::rules = Variables::RulesMap;
 

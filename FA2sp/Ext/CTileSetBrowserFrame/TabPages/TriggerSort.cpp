@@ -1,4 +1,5 @@
 #include "TriggerSort.h"
+#include "../../../Miscs/Hooks.INI.h"
 
 #include "../../../FA2sp.h"
 #include "../../../Helpers/STDHelpers.h"
@@ -29,7 +30,7 @@ void TriggerSort::LoadAllTriggers()
     {
 		CMapDataExt::Triggers.clear();
 		FMap<FString> TagMap;
-		if (auto pSection = CINI::CurrentDocument().GetSection("Tags"))
+		if (auto pSection = CINIExt::CurrentDocument().GetSection("Tags"))
 		{
 			for (auto& kvp : pSection->GetEntities())
 			{
@@ -40,7 +41,7 @@ void TriggerSort::LoadAllTriggers()
 					TagMap[tagAtoms[2]] = kvp.first;
 			}
 		}
-		if (auto pSection = CINI::CurrentDocument->GetSection("Triggers"))
+		if (auto pSection = CINIExt::CurrentDocument->GetSection("Triggers"))
 		{
 			for (const auto& pair : pSection->GetEntities())
 			{
@@ -314,7 +315,7 @@ void TriggerSort::AddAttachedTrigger(HTREEITEM hParent, FString triggerID, FStri
     if (TriggerTags[triggerID] != "")
         if (HTREEITEM hNode = this->FindLabel(hParent, parentName))
         {        
-            FString pTrigger2 = CINI::CurrentDocument->GetString("Triggers", TriggerTags[triggerID], "");
+            FString pTrigger2 = CINIExt::CurrentDocument->GetString("Triggers", TriggerTags[triggerID], "");
             auto RET2 = FString::SplitString(pTrigger2);
             if (RET2.size() > 2)
             {
@@ -349,7 +350,7 @@ void TriggerSort::AddAttachedTriggerReverse(HTREEITEM hParent, FString triggerID
                     }
                 }
 
-                FString pTrigger2 = CINI::CurrentDocument->GetString("Triggers", parentTrigger, "");
+                FString pTrigger2 = CINIExt::CurrentDocument->GetString("Triggers", parentTrigger, "");
                 auto RET2 = FString::SplitString(pTrigger2);
                 if (RET2.size() > 2)
                 {
@@ -368,7 +369,7 @@ void TriggerSort::AddAttachedTriggerReverse(HTREEITEM hParent, FString triggerID
 
 std::vector<FString> TriggerSort::GetGroup(FString triggerId, FString& name) const
 {
-    FString pSrc = CINI::CurrentDocument->GetString("Triggers", triggerId, "");
+    FString pSrc = CINIExt::CurrentDocument->GetString("Triggers", triggerId, "");
 
     auto ret = FString::SplitString(pSrc, 2);
     pSrc = ret[2];

@@ -229,13 +229,13 @@ void CLuaConsole::InitializeLuaState()
     Lua.set_function("local_height", []() {return CMapData::Instance->LocalSize.Height; });
     Lua.set_function("local_top", []() {return CMapData::Instance->LocalSize.Top; });
     Lua.set_function("local_left", []() {return CMapData::Instance->LocalSize.Left; });
-    Lua.set_function("waypoint_count", []() {return CINI::CurrentDocument->GetKeyCount("Waypoints"); });
-    Lua.set_function("unit_count", []() {return CINI::CurrentDocument->GetKeyCount("Units"); });
-    Lua.set_function("infantry_count", []() {return CINI::CurrentDocument->GetKeyCount("Infantry"); });
-    Lua.set_function("building_count", []() {return CINI::CurrentDocument->GetKeyCount("Structures"); });
-    Lua.set_function("aircraft_count", []() {return CINI::CurrentDocument->GetKeyCount("Aircraft"); });
-    Lua.set_function("terrain_count", []() {return CINI::CurrentDocument->GetKeyCount("Terrain"); });
-    Lua.set_function("smudge_count", []() {return CINI::CurrentDocument->GetKeyCount("Smudge"); });
+    Lua.set_function("waypoint_count", []() {return CINIExt::CurrentDocument->GetKeyCount("Waypoints"); });
+    Lua.set_function("unit_count", []() {return CINIExt::CurrentDocument->GetKeyCount("Units"); });
+    Lua.set_function("infantry_count", []() {return CINIExt::CurrentDocument->GetKeyCount("Infantry"); });
+    Lua.set_function("building_count", []() {return CINIExt::CurrentDocument->GetKeyCount("Structures"); });
+    Lua.set_function("aircraft_count", []() {return CINIExt::CurrentDocument->GetKeyCount("Aircraft"); });
+    Lua.set_function("terrain_count", []() {return CINIExt::CurrentDocument->GetKeyCount("Terrain"); });
+    Lua.set_function("smudge_count", []() {return CINIExt::CurrentDocument->GetKeyCount("Smudge"); });
     Lua.set_function("player_count", []() {
         if (CMapData::Instance->IsMultiOnly())
         {
@@ -244,7 +244,7 @@ void CLuaConsole::InitializeLuaState()
             {
                 FString key;
                 key.Format("%d", i);
-                if (CINI::CurrentDocument->TryGetString("Waypoints", key) != nullptr)
+                if (CINIExt::CurrentDocument->TryGetString("Waypoints", key) != nullptr)
                     wp_count++;
             }
             return wp_count;
@@ -254,35 +254,35 @@ void CLuaConsole::InitializeLuaState()
             return 1;
         }
         });
-    Lua.set_function("house_count", []() { return CINI::CurrentDocument->GetKeyCount("Houses"); });
-    Lua.set_function("country_count", []() { return CINI::CurrentDocument->GetKeyCount("Countries"); });
+    Lua.set_function("house_count", []() { return CINIExt::CurrentDocument->GetKeyCount("Houses"); });
+    Lua.set_function("country_count", []() { return CINIExt::CurrentDocument->GetKeyCount("Countries"); });
     Lua.set_function("node_count", [](std::string house) {
         if (house == "")
         {
-            if (auto pSection = CINI::CurrentDocument->GetSection("Houses"))
+            if (auto pSection = CINIExt::CurrentDocument->GetSection("Houses"))
             {
                 int count = 0;
                 for (auto& [_, house] : pSection->GetEntities())
                 {
-                    count += CINI::CurrentDocument->GetInteger(house, "NodeCount");
+                    count += CINIExt::CurrentDocument->GetInteger(house, "NodeCount");
                 }
                 return count;
             }
         }
-        if (!CINI::CurrentDocument->TryGetString("Houses", house.c_str()))
+        if (!CINIExt::CurrentDocument->TryGetString("Houses", house.c_str()))
         {
             house += " House";
         }
-        if (auto pSection = CINI::CurrentDocument->GetSection(house.c_str()))
+        if (auto pSection = CINIExt::CurrentDocument->GetSection(house.c_str()))
         {
             return pSection->GetInteger("NodeCount");
         }
         return 0; });
-    Lua.set_function("trigger_count", []() { return CINI::CurrentDocument->GetKeyCount("Triggers"); });
+    Lua.set_function("trigger_count", []() { return CINIExt::CurrentDocument->GetKeyCount("Triggers"); });
     Lua.set_function("tile_count", []() { return CMapDataExt::TileDataCount; });
     Lua.set_function("tile_set_count", []() { return CMapDataExt::TileSet_starts.size() - 1; });
-    Lua.set_function("tag_count", []() { return CINI::CurrentDocument->GetKeyCount("Tags"); });
-    Lua.set_function("theater", []() {return CINI::CurrentDocument->GetString("Map", "Theater").GetString(); });
+    Lua.set_function("tag_count", []() { return CINIExt::CurrentDocument->GetKeyCount("Tags"); });
+    Lua.set_function("theater", []() {return CINIExt::CurrentDocument->GetString("Map", "Theater").GetString(); });
     Lua.set_function("is_multiplay", []() {return CMapData::Instance->IsMultiOnly(); });
     Lua.set_function("language", []() {return (std::string)FinalAlertConfig::Language; });
     Lua.set_function("exe_path", []() {return (std::string)CFinalSunAppExt::ExePathExt; });

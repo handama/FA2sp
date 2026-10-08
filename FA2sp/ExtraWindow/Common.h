@@ -1,6 +1,7 @@
 #pragma once
 #include "FA2PP.h"
 #include "../Helpers/MultimapHelper.h"
+#include "../Miscs/Hooks.INI.h"
 #include <functional>
 
 class FString;
@@ -202,7 +203,7 @@ private:
     };
     static BOOL CALLBACK DisableOtherWindowsProc(HWND hEnum, LPARAM lParam);
     static std::vector<HWND> s_disabledWindows;
-    static CINI& map;
+    static CINIExt& map;
     static CINI& fadata;
     static MultimapHelper& rules;
 };

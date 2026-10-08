@@ -50,10 +50,25 @@ public:
     void InheritSectionRecursive(const ppmfc::CString& sectionName, std::set<ppmfc::CString>& visited);
     static bool IsLoadingFAini;
 
+    // =========================================================================================
+    // MOTIVATION & DESIGN RATIONALE:
+    // FinalAlert 2's host process stores the global active map document at 0x7ACC80.
+    // To support adaptive key/section order tracking (CINIOrderTracker) without altering the
+    // untouched FA2pp submodule or hooking deep red-black tree internals, CINIExt acts as a
+    // zero-overhead proxy wrapper over CINI sharing the identical memory layout (sizeof == 80).
+    //
+    // CRITICAL NOTICE FOR FUTURE DEVELOPERS:
+    // ALWAYS operate on this instance (`CINIExt::CurrentDocument` or the namespace/global alias
+    // `CurrentDocument`) instead of `CINI::CurrentDocument` throughout all FA2sp components.
+    // Directly invoking `CINI::CurrentDocument` will bypass CINIExt's tracking overrides
+    // (`WriteString`, `DeleteKey`, `AddSection`, etc.) and break Westwood-style numeric
+    // order preservation when saving maps!
+    // =========================================================================================
     static constexpr reference<CINIExt, 0x7ACC80> const CurrentDocument{};
 };
 
-// Global proxy instance representing the map document (maps to 0x7ACC80)
+// Global proxy instance representing the map document (maps to 0x7ACC80).
+// Shortcut alias for CINIExt::CurrentDocument. Always use this instead of CINI::CurrentDocument.
 inline constexpr reference<CINIExt, 0x7ACC80> const CurrentDocument{};
 
 struct CINIInfo

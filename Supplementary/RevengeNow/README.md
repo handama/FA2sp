@@ -22,7 +22,7 @@
 
 3. **`FAData_TriggerAndScript.ini`**：
    - 现代化触发与动作脚本引擎：
-     - 完整保留 FA2sp 原生 Phobos 与 Ares 现代触发扩展体系。
+     - 专注于 Ares 现代触发扩展体系并全面去除不适用的 Phobos 扩展。
      - 整合 HAres 专属动作（146~154）与脚本（65~71），并提供中英双语规范化定义。
      - 注册 `[NewParamTypes]` 索引 `568=TeamTargetTechnoTypes,2,1,1,0`，实现脚本参数 22 动态读取规则文件中的科技类型列表与中文 UIName。
      - 配置 `[English-AITriggerSides]` 与 `[Chinese-AITriggerSides]`（`4=Antalian` / `4=安塔列`）。

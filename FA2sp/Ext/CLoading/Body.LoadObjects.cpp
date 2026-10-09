@@ -2591,7 +2591,8 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID, int tiltType)
 			}
 		}
 
-		std::rotate(framesToRead.begin(), framesToRead.begin() + 1 * targetFacings / 8, framesToRead.end());
+		int offset = ExtConfigs::SHPVehicle_FacingOffset;
+		std::rotate(framesToRead.begin(), framesToRead.begin() + offset * targetFacings / 8, framesToRead.end());
 
 		FString FileName = ImageID + ".shp";
 		FString FileNameTurret = ImageID + "tur.shp";
@@ -2648,7 +2649,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID, int tiltType)
 
 						// turret start from 0 + WalkFrames * Facings, ignore StartWalkFrame
 						// and always has 32 facings
-						turrentFacing = (((targetFacings / 8 + i) % targetFacings) * 32 / targetFacings) % 32;
+						turrentFacing = (((offset * targetFacings / 8 + i) % targetFacings) * 32 / targetFacings) % 32;
 						turretFrameToRead = bUseTurrentFile ? turrentFacing : (facingCount * nWalkFrames + turrentFacing);
 						if (KratosWeaponTurretFrameIndex >= 0)
 						{
@@ -2697,7 +2698,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID, int tiltType)
 					int nWalkFrames = CINI::Art->GetInteger(ArtID, "WalkFrames", 1);
 					int turrentFacing;
 
-					turrentFacing = (((targetFacings / 8 + i) % targetFacings) * 32 / targetFacings) % 32;
+					turrentFacing = (((offset * targetFacings / 8 + i) % targetFacings) * 32 / targetFacings) % 32;
 
 					bool barrelInFront = IsBarrelInFront(i, targetFacings);
 					if (hasVoxelBarl)

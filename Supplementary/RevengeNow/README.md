@@ -15,6 +15,7 @@
        - `SaveMap.KeepComments=false`：不保留注释（符合 RN 要求）。
        - `UTF8Support.AlwaysSaveAsUTF8=true`：总是以 UTF-8 编码保存地图（符合 RN 要求）。
        - `SHPVehicle.FacingOffset=0`：保持 cmcc patch 之前的效果，消除这个硬编码限制。
+       - `ObjectBrowser.SafeHouses=false`：禁用屏蔽不可用所属方，允许在物件浏览器与属性窗口中自由选用全部作战阵营国家。
 
 2. **`FAData_ObjectBrowser.ini`**：
    - 物件浏览器分类定义，注册了双语 `[Chinese-Sides]`（`3=安塔列`）与 `[English-Sides]`（`3=Antalian`），并融合了 RN 专属 `[IgnoreRA2]` 过滤列表。

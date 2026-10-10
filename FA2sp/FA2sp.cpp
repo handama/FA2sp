@@ -103,6 +103,7 @@ bool ExtConfigs::ExtTilts;
 bool ExtConfigs::ExtFacings_Drag;
 bool ExtConfigs::ExtFacings_Scroll;
 bool ExtConfigs::ExtFacings_DragPreview;
+int ExtConfigs::SHPVehicle_FacingOffset = 1;
 int ExtConfigs::UndoRedoLimit;
 bool ExtConfigs::UndoRedo_ShiftPlaceTile;
 bool ExtConfigs::UndoRedo_RecordObjects;
@@ -375,6 +376,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ExtFacings_Drag = CINI::FAData->GetBool("ExtConfigs", "ExtFacings.Drag");
 	ExtConfigs::ExtFacings_Scroll = CINI::FAData->GetBool("ExtConfigs", "ExtFacings.Scroll");
 	ExtConfigs::ExtFacings_DragPreview = CINI::FAData->GetBool("ExtConfigs", "ExtFacings.DragPreview", true);
+	ExtConfigs::SHPVehicle_FacingOffset = CINI::FAData->GetInteger("ExtConfigs", "SHPVehicle.FacingOffset", 1);
 	ExtConfigs::ExtVariables = CINI::FAData->GetBool("ExtConfigs", "ExtVariables");
 	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");

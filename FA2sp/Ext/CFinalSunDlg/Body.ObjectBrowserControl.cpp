@@ -1369,6 +1369,11 @@ void CViewObjectsExt::Redraw_Owner()
                 size_t i = 0;
                 for (auto& itr : section)
                 {
+                    if (strcmp(itr.second, "Nod") == 0 || strcmp(itr.second, "GDI") == 0)
+                    {
+                        i++;
+                        continue;
+                    }
                     FString uiname = itr.second;
 
                     if (!ExtConfigs::NoHouseNameTranslation)
@@ -1416,6 +1421,11 @@ void CViewObjectsExt::Redraw_Owner()
                 size_t i = 0;
                 for (auto& itr : section)
                 {
+                    if (strcmp(itr.second, "Nod") == 0 || strcmp(itr.second, "GDI") == 0)
+                    {
+                        i++;
+                        continue;
+                    }
                     FString uiname = itr.second;
 
                     if (!ExtConfigs::NoHouseNameTranslation)
@@ -1486,6 +1496,11 @@ void CViewObjectsExt::Redraw_Owner()
                 size_t i = 0;
                 for (auto& itr : section)
                 {
+                    if (strcmp(itr.second, "Nod") == 0 || strcmp(itr.second, "GDI") == 0)
+                    {
+                        i++;
+                        continue;
+                    }
                     FString uiname = itr.second;
 
                     if (!ExtConfigs::NoHouseNameTranslation)

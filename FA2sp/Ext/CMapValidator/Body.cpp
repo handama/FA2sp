@@ -3,22 +3,312 @@
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Ext/CMapData/Body.h"
+#include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../FA2sp.h"
 
 #include <CMapData.h>
 #include "../../ExtraWindow/Common.h"
 #include "../../Miscs/DialogStyle.h"
 
+#include "../../ExtraWindow/CNewAITrigger/CNewAITrigger.h"
+#include "../../ExtraWindow/CNewScript/CNewScript.h"
+#include "../../ExtraWindow/CNewTag/CNewTag.h"
+#include "../../ExtraWindow/CNewTaskforce/CNewTaskforce.h"
+#include "../../ExtraWindow/CNewTeamTypes/CNewTeamTypes.h"
+#include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
+
 std::unordered_set<std::string> CMapValidatorExt::StructureOverlappingIgnores;
 std::vector<FString> CMapValidatorExt::AttachedTriggers;
 std::vector<FString> CMapValidatorExt::LoopedTriggers;
-std::list<MapCoord> CMapValidatorExt::TargetCoords;
+std::list<ValidatorJumpTarget> CMapValidatorExt::JumpTargets;
+
+namespace
+{
+	void RepairTrigger(FString& triggerdata)
+	{
+		if (triggerdata.GetParam(3).empty()) triggerdata.SetParam(3, "0");
+		if (triggerdata.GetParam(4).empty()) triggerdata.SetParam(4, "1");
+		if (triggerdata.GetParam(5).empty()) triggerdata.SetParam(5, "1");
+		if (triggerdata.GetParam(6).empty()) triggerdata.SetParam(6, "1");
+		if (triggerdata.GetParam(7).empty()) triggerdata.SetParam(7, "0");
+	}
+}
 
 void CMapValidatorExt::ProgramStartupInit()
 {
     RunTime::ResetMemoryContentAt(0x594D60, &CMapValidatorExt::PreTranslateMessageExt);
     RunTime::ResetMemoryContentAt(0x594D94, &CMapValidatorExt::OnOKExt);
     RunTime::ResetMemoryContentAt(0x594D98, &CMapValidatorExt::OnCancelExt);
+}
+
+LPARAM CMapValidatorExt::PushCoordTarget(const MapCoord& coord)
+{
+	JumpTargets.emplace_back();
+	auto& target = JumpTargets.back();
+	target.kind = ValidatorJumpTarget::Kind::MapCoord;
+	target.coord = coord;
+	return LPARAM(&target);
+}
+
+LPARAM CMapValidatorExt::PushObjectTarget(ValidatorJumpType type, const FString& id, int eventIndex, int actionIndex)
+{
+	JumpTargets.emplace_back();
+	auto& target = JumpTargets.back();
+	target.kind = ValidatorJumpTarget::Kind::Object;
+	target.type = type;
+	target.id = id;
+	target.eventIndex = eventIndex;
+	target.actionIndex = actionIndex;
+	return LPARAM(&target);
+}
+
+int CMapValidatorExt::DoValidator()
+{
+	::EnableWindow(CFinalSunDlg::Instance->GetSafeHwnd(), TRUE);
+	CFinalSunDlgExt::MapValidatorAlive = true;
+
+	JumpTargets.clear();
+
+	CMapData::Instance->UpdateINIFile(SaveMapFlag::ValidateMap);
+	CMapData::Instance->UpdateCurrentDocument();
+
+	BOOL result = TRUE;
+
+	ValidateMapStructureChecks(result);
+
+	ValidateOverlayLimit(result);
+	ValidateStructureOverlapping(result);
+	ValidateMissingParams(result);
+	ValidateRepeatingTaskforce(result);
+	ValidateValueLength(result);
+	ValidateBaseNode(result);
+	ValidateLoopTrigger(result);
+	ValidateEmptyTeamTrigger(result);
+	ValidateTubes(result);
+
+	if (IsYRMap())
+		InsertString(FetchLanguageString("NeedsYR", "This map will need Yuri's Revenge to be played."), true);
+
+	return result;
+}
+
+bool CMapValidatorExt::IsYRMap()
+{
+	using IsYRMapFn = int(__thiscall*)(CMapData*);
+	return ((IsYRMapFn)0x4C8200)(&CMapData::Instance.get()) != 0;
+}
+
+void CMapValidatorExt::ValidateMapStructureChecks(BOOL& result)
+{
+	CINI& ini = CMapData::Instance->INI;
+
+	if (!ini.GetSection("Map"))
+	{
+		result = FALSE;
+		InsertStringAsError(FetchLanguageString("MV_NoMap", "This is no map"));
+	}
+
+	auto checkWaypointIndex = [&]()
+	{
+		auto pWaypoints = ini.GetSection("Waypoints");
+		if (!pWaypoints)
+			return;
+
+		for (const auto& [key, value] : pWaypoints->GetEntities())
+		{
+			if (atoi(key) > 99)
+			{
+				InsertString(FetchLanguageString("MV_>100Waypoint",
+					"The map has at least one waypoint with an ID greater than 99"), true);
+				break;
+			}
+		}
+	};
+
+	auto pBasic = ini.GetSection("Basic");
+	if (!pBasic || pBasic->GetEntities().empty())
+	{
+		result = FALSE;
+		InsertStringAsError(FetchLanguageString("MV_NoBasic", "Basic settings don't exist"));
+		checkWaypointIndex();
+		return;
+	}
+
+	if (ini.GetString("Basic", "Name", "").GetLength() == 0)
+		InsertString(FetchLanguageString("MV_NoName", "The map has no name (Edit->Basic)"), true);
+
+	if (!ini.GetSection("Houses"))
+	{
+		int below8found = 0;
+		if (auto pWaypoints = ini.GetSection("Waypoints"))
+		{
+			for (const auto& [key, value] : pWaypoints->GetEntities())
+			{
+				if (atoi(key) < 8)
+					++below8found;
+			}
+		}
+
+		if (below8found < 8)
+		{
+			if (!STDHelpers::IsTrue(ini.GetString("Basic", "Official")))
+			{
+				InsertString(FetchLanguageString("MV_Not8Waypoints",
+					"Only for RA2 before version 1.005: Official is set to no, but not all waypoints 0-7 do exist "
+					"(probably random starting points, ignore this warning when saving as MMX map)"), true);
+			}
+
+			if (below8found < 2)
+			{
+				InsertString(FetchLanguageString("MV_HousesNoWaypoints",
+					"Multiplayermaps need the waypoints 0-7 as starting locations"), true);
+			}
+		}
+
+		if (STDHelpers::IsTrue(ini.GetString("Basic", "Official")))
+		{
+			InsertString(FetchLanguageString("MV_OfficialYes",
+				"Official is set to yes - automatic map transfer disabled "
+				"(ignore this warning when saving as MMX map)"), true);
+		}
+	}
+
+	std::unordered_set<std::string> triggerKeys;
+	if (auto pTriggers = ini.GetSection("Triggers"))
+	{
+		for (const auto& [key, value] : pTriggers->GetEntities())
+			triggerKeys.insert(key.GetString());
+	}
+
+	if (auto pTags = ini.GetSection("Tags"))
+	{
+		for (const auto& [key, value] : pTags->GetEntities())
+		{
+			FString trigger = FString::GetParam(value.GetString(), 2);
+			if (triggerKeys.count(trigger.c_str()))
+				continue;
+
+			auto buffer = FetchLanguageString("MV_TriggerMissing", "Trigger %1 missing (Linked by %2 %3)");
+			buffer.ReplaceNumString(1, trigger.c_str());
+			buffer.ReplaceNumString(2, "Tag");
+			buffer.ReplaceNumString(3, key);
+			InsertString(buffer, true, PushObjectTarget(ValidatorJumpType::Tag, key));
+		}
+	}
+
+	// useless
+	//if (auto pTriggers = ini.GetSection("Triggers"))
+	//{
+	//	for (const auto& [key, value] : pTriggers->GetEntities())
+	//	{
+	//		FString repaired = value.GetString();
+	//		RepairTrigger(repaired);
+	//		if (repaired != value.GetString())
+	//			ini.WriteString("Triggers", key, repaired);
+	//	}
+	//}
+
+	if (auto pTriggers = ini.GetSection("Triggers"))
+	{
+		for (const auto& [key, value] : pTriggers->GetEntities())
+		{
+			FString attachedTrigger = FString::GetParam(value.GetString(), 1);
+			if (attachedTrigger == "<none>" || triggerKeys.count(attachedTrigger.c_str()))
+				continue;
+
+			auto buffer = FetchLanguageString("MV_TriggerMissing", "Trigger %1 missing (Linked by %2 %3)");
+			buffer.ReplaceNumString(1, attachedTrigger.c_str());
+			buffer.ReplaceNumString(2, "Trigger");
+			buffer.ReplaceNumString(3, key);
+			InsertString(buffer, true, PushObjectTarget(ValidatorJumpType::Trigger, key));
+		}
+	}
+
+	std::unordered_set<std::string> taskforceValues;
+	if (auto pTaskForces = ini.GetSection("TaskForces"))
+	{
+		for (const auto& [key, value] : pTaskForces->GetEntities())
+			taskforceValues.insert(value.GetString());
+	}
+
+	std::unordered_set<std::string> scriptValues;
+	if (auto pScriptTypes = ini.GetSection("ScriptTypes"))
+	{
+		for (const auto& [key, value] : pScriptTypes->GetEntities())
+			scriptValues.insert(value.GetString());
+	}
+
+	std::unordered_set<std::string> tagKeys;
+	if (auto pTags = ini.GetSection("Tags"))
+	{
+		for (const auto& [key, value] : pTags->GetEntities())
+			tagKeys.insert(key.GetString());
+	}
+
+	if (auto pTeamTypes = ini.GetSection("TeamTypes"))
+	{
+		for (const auto& [key, teamID] : pTeamTypes->GetEntities())
+		{
+			auto pTeam = ini.GetSection(teamID);
+			if (!pTeam)
+				continue;
+
+			auto taskforce = pTeam->GetString("TaskForce");
+			if (taskforce.GetLength() > 0 && !taskforceValues.count(taskforce.GetString()))
+			{
+				auto buffer = FetchLanguageString("MV_TaskForceMissing", "Taskforce %1 missing (Linked by Teamtype %2)");
+				buffer.ReplaceNumString(1, taskforce);
+				buffer.ReplaceNumString(2, teamID);
+				InsertString(buffer, true, PushObjectTarget(ValidatorJumpType::Team, teamID));
+			}
+
+			auto scripttype = pTeam->GetString("Script");
+			if (scripttype.GetLength() > 0 && !scriptValues.count(scripttype.GetString()))
+			{
+				auto buffer = FetchLanguageString("MV_ScripttypeMissing", "Scripttype %1 missing (Linked by Teamtype %2)");
+				buffer.ReplaceNumString(1, scripttype);
+				buffer.ReplaceNumString(2, teamID);
+				InsertString(buffer, true, PushObjectTarget(ValidatorJumpType::Team, teamID));
+			}
+
+			if (pTeam->TryGetString("Tag"))
+			{
+				auto tag = pTeam->GetString("Tag");
+				if (!tagKeys.count(tag.GetString()))
+				{
+					auto buffer = FetchLanguageString("MV_TagMissing", "Tag %1 missing (Linked by %2 %3)");
+					buffer.ReplaceNumString(1, tag);
+					buffer.ReplaceNumString(2, "Teamtype");
+					buffer.ReplaceNumString(3, teamID);
+					InsertString(buffer, true, PushObjectTarget(ValidatorJumpType::Team, teamID));
+				}
+			}
+		}
+	}
+
+	if (auto pCellTags = ini.GetSection("CellTags"))
+	{
+		for (const auto& [key, value] : pCellTags->GetEntities())
+		{
+			if (tagKeys.count(value.GetString()))
+				continue;
+
+			const int cell = atoi(key);
+			const int x = cell / 1000;
+			const int y = cell % 1000;
+
+			ppmfc::CString pos;
+			pos.Format("%d/%d", x, y);
+
+			auto buffer = FetchLanguageString("MV_TagMissing", "Tag %1 missing (Linked by %2 %3)");
+			buffer.ReplaceNumString(1, value);
+			buffer.ReplaceNumString(2, "Celltag");
+			buffer.ReplaceNumString(3, pos);
+			InsertString(buffer, true, PushCoordTarget(MapCoord{ x, y }));
+		}
+	}
+
+	checkWaypointIndex();
 }
 
 void CMapValidatorExt::ValidateOverlayLimit(BOOL& result)
@@ -105,8 +395,7 @@ void CMapValidatorExt::ValidateStructureOverlapping(BOOL& result)
 			}
 			buffer += Occupied[i].back().c_str();
 
-			TargetCoords.push_back({x, y});
-			this->InsertString(buffer, true, LPARAM(&TargetCoords.back()));
+			this->InsertString(buffer, true, PushCoordTarget(MapCoord{ x, y }));
 		}
 	}
 }
@@ -128,6 +417,9 @@ void CMapValidatorExt::ValidateMissingParams(BOOL& result)
 			else if (section == "Tags")
 				Format.ReplaceNumString(1, Translations::TranslateOrDefault("Tag", "Tag").c_str());
 
+			const ValidatorJumpType jumpType =
+				strcmp(section, "Tags") == 0 ? ValidatorJumpType::Tag : ValidatorJumpType::Trigger;
+
 			for (const auto& [key, value] : pSection->GetEntities())
 			{
 				if (value.Find(",,") != -1) // has missing param!
@@ -136,7 +428,7 @@ void CMapValidatorExt::ValidateMissingParams(BOOL& result)
 //						result = FALSE;
 					auto tmp = Format;
 					tmp.ReplaceNumString(2, key);
-					InsertStringAsError(tmp);
+					InsertStringAsError(tmp, PushObjectTarget(jumpType, key));
 				}
 
 			}
@@ -165,7 +457,7 @@ void CMapValidatorExt::ValidateMissingParams(BOOL& result)
 			{
 				auto tmp = Format;
 				tmp.ReplaceNumString(1, key);
-				InsertStringAsError(tmp);
+				InsertStringAsError(tmp, PushObjectTarget(ValidatorJumpType::Trigger, key));
 			}
 
 		}
@@ -192,7 +484,7 @@ void CMapValidatorExt::ValidateMissingParams(BOOL& result)
 			{
 				if (atoms.size() < pointer + 3)
 				{
-					InsertStringAsError(tmp);
+					InsertStringAsError(tmp, PushObjectTarget(ValidatorJumpType::Trigger, key));
 					added = true;
 					break;
 				}
@@ -203,7 +495,7 @@ void CMapValidatorExt::ValidateMissingParams(BOOL& result)
 				pointer += eventLength;
 			}
 			if (atoms.size() != pointer && !added)
-				InsertStringAsError(tmp);
+				InsertStringAsError(tmp, PushObjectTarget(ValidatorJumpType::Trigger, key));
 		}
 	}
 }
@@ -226,7 +518,7 @@ void CMapValidatorExt::ValidateRepeatingTaskforce(BOOL& result)
 					{
 						auto tmp = Format1;
 						tmp.ReplaceNumString(1, pair.second);
-						InsertString(tmp, true);
+						InsertString(tmp, true, PushObjectTarget(ValidatorJumpType::Taskforce, pair.second));
 						break;
 					}
 				}
@@ -247,7 +539,7 @@ void CMapValidatorExt::ValidateRepeatingTaskforce(BOOL& result)
 							{
 								auto tmp = Format2;
 								tmp.ReplaceNumString(1, pair.second);
-								InsertStringAsError(tmp);
+								InsertStringAsError(tmp, PushObjectTarget(ValidatorJumpType::Taskforce, pair.second));
 								end = true;
 								break;
 							}
@@ -322,7 +614,7 @@ void CMapValidatorExt::ValidateLoopTrigger(BOOL& result)
 		{
 			auto tmp = Format1;
 			tmp.ReplaceNumString(1, loop.c_str());
-			InsertStringAsError(tmp);
+			InsertStringAsError(tmp, PushObjectTarget(ValidatorJumpType::Trigger, loop));
 		}
 	}
 
@@ -453,10 +745,11 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 	for (auto& triggerPair : CMapDataExt::Triggers)
 	{
 		auto& trigger = triggerPair.second;
-		bool addEvent = false;
-		bool addAction = false;
-		for (auto& thisEvent : trigger->Events)
+		int badEvent = -1;
+		int badAction = -1;
+		for (size_t i = 0; i < trigger->Events.size(); ++i)
 		{
+			auto& thisEvent = trigger->Events[i];
 			auto eventInfos = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
 			FString paramType[2];
 			paramType[0] = eventInfos[1];
@@ -470,12 +763,12 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 				if (isTeam(getLoadSectionName(pParamTypes[0][1])))
 				{
 					thisTeam = thisEvent.Params[1];
-					if (!teamExists(thisTeam)) addEvent = true;
+					if (!teamExists(thisTeam) && badEvent < 0) badEvent = (int)i;
 				}
 				if (isTeam(getLoadSectionName(pParamTypes[1][1])))
 				{
 					thisTeam = thisEvent.Params[2];
-					if (!teamExists(thisTeam)) addEvent = true;
+					if (!teamExists(thisTeam) && badEvent < 0) badEvent = (int)i;
 				}
 			}
 			else
@@ -483,20 +776,20 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 				if (isTeam(getLoadSectionName(pParamTypes[1][1])))
 				{
 					thisTeam = thisEvent.Params[1];
-					if (!teamExists(thisTeam)) addEvent = true;
+					if (!teamExists(thisTeam) && badEvent < 0) badEvent = (int)i;
 				}
 			}
 		}
-		if (addEvent)
+		if (badEvent >= 0)
 		{
 			FString tmp = Format1;
-			FString tmp2 = trigger->ID;
-			tmp.ReplaceNumString(1, tmp2);
-			InsertStringAsError(tmp);
+			tmp.ReplaceNumString(1, trigger->ID);
+			InsertStringAsError(tmp, PushObjectTarget(ValidatorJumpType::Trigger, trigger->ID, badEvent, -1));
 		}
 
-		for (auto& thisAction : trigger->Actions)
+		for (size_t actionIndex = 0; actionIndex < trigger->Actions.size(); ++actionIndex)
 		{
+			auto& thisAction = trigger->Actions[actionIndex];
 			auto actionInfos = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
 			FString thisTeam = "-1";
 			FString paramType[7];
@@ -513,16 +806,15 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 				if (isTeam(getLoadSectionName(param[1])))
 				{
 					thisTeam = thisAction.Params[i];
-					if (!teamExists(thisTeam)) addAction = true;
+					if (!teamExists(thisTeam) && badAction < 0) badAction = (int)actionIndex;
 				}
 			}
 		}
-		if (addAction)
+		if (badAction >= 0)
 		{
 			FString tmp = Format2;
-			FString tmp2 = trigger->ID;
-			tmp.ReplaceNumString(1, tmp2);
-			InsertStringAsError(tmp);
+			tmp.ReplaceNumString(1, trigger->ID);
+			InsertStringAsError(tmp, PushObjectTarget(ValidatorJumpType::Trigger, trigger->ID, -1, badAction));
 		}
 	}
 }
@@ -596,8 +888,7 @@ void CMapValidatorExt::ValidateTubes(BOOL& result)
 						ppmfc::CString tmp = Format2;
 						tmp.ReplaceNumString(1, getTubeName(tube));
 
-						TargetCoords.push_back(tube.StartCoord);
-						InsertStringAsError(tmp, LPARAM(&TargetCoords.back()));
+						InsertStringAsError(tmp, PushCoordTarget(tube.StartCoord));
 						warnedTubes.insert(tube.key);
 						break;
 					}
@@ -610,10 +901,118 @@ void CMapValidatorExt::ValidateTubes(BOOL& result)
 			ppmfc::CString tmp2;
 			tmp2.Format("(%d, %d)", coord.Y, coord.X);
 
-			TargetCoords.push_back(coord);
 			tmp.ReplaceNumString(1, tmp2);
-			InsertStringAsError(tmp, LPARAM(&TargetCoords.back()));
+			InsertStringAsError(tmp, PushCoordTarget(coord));
 		}
+	}
+}
+
+bool CMapValidatorExt::JumpToObject(const ValidatorJumpTarget& target)
+{
+	const char* id = target.id.c_str();
+
+	switch (target.type)
+	{
+	case ValidatorJumpType::Team:
+	{
+		if (CNewTeamTypes::GetHandle() == NULL)
+			CNewTeamTypes::Create(CFinalSunDlg::Instance);
+
+		auto dlg = ::GetDlgItem(CNewTeamTypes::GetHandle(), CNewTeamTypes::Controls::SelectedTeam);
+		auto index = ::SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTeamDisplayName(id).c_str());
+		if (index == CB_ERR)
+			return false;
+
+		::SendMessage(dlg, CB_SETCURSEL, index, NULL);
+		CNewTeamTypes::OnSelchangeTeamtypes();
+		::SetWindowPos(CNewTeamTypes::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+		return true;
+	}
+
+	case ValidatorJumpType::Trigger:
+	{
+		auto& editor = CNewTrigger::GetFirstValidInstance();
+		if (editor.GetHandle() == NULL)
+			editor.Create(CFinalSunDlg::Instance);
+
+		auto dlg = ::GetDlgItem(editor.GetHandle(), CNewTrigger::Controls::SelectedTrigger);
+		auto index = ::SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(id).c_str());
+		if (index == CB_ERR)
+			return false;
+
+		::SendMessage(dlg, CB_SETCURSEL, index, NULL);
+		editor.OnSelchangeTrigger(false,
+			target.eventIndex < 0 ? 0 : target.eventIndex,
+			target.actionIndex < 0 ? 0 : target.actionIndex);
+		::SetWindowPos(editor.GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+		return true;
+	}
+
+	case ValidatorJumpType::Tag:
+	{
+		if (CNewTag::GetHandle() == NULL)
+			CNewTag::Create(CFinalSunDlg::Instance);
+
+		auto dlg = ::GetDlgItem(CNewTag::GetHandle(), CNewTag::Controls::SelectedTag);
+		auto index = ::SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTagDisplayName(id).c_str());
+		if (index == CB_ERR)
+			return false;
+
+		CNewTag::OnSelchangeTag(false, index);
+		::SetWindowPos(CNewTag::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+		return true;
+	}
+
+	case ValidatorJumpType::Taskforce:
+	{
+		if (CNewTaskforce::GetHandle() == NULL)
+			CNewTaskforce::Create(CFinalSunDlg::Instance);
+
+		auto dlg = ::GetDlgItem(CNewTaskforce::GetHandle(), CNewTaskforce::Controls::SelectedTaskforce);
+		auto index = ::SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTeamDisplayName(id).c_str());
+		if (index == CB_ERR)
+			return false;
+
+		::SendMessage(dlg, CB_SETCURSEL, index, NULL);
+		CNewTaskforce::OnSelchangeTaskforce();
+		::SetWindowPos(CNewTaskforce::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+		return true;
+	}
+
+	case ValidatorJumpType::Script:
+	{
+		if (CNewScript::GetHandle() == NULL)
+			CNewScript::Create(CFinalSunDlg::Instance);
+
+		auto dlg = ::GetDlgItem(CNewScript::GetHandle(), CNewScript::Controls::SelectedScript);
+		auto index = ::SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTeamDisplayName(id).c_str());
+		if (index == CB_ERR)
+			return false;
+
+		::SendMessage(dlg, CB_SETCURSEL, index, NULL);
+		CNewScript::OnSelchangeScript();
+		::SetWindowPos(CNewScript::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+		return true;
+	}
+
+	case ValidatorJumpType::AITrigger:
+	{
+		if (CNewAITrigger::GetHandle() == NULL)
+			CNewAITrigger::Create(CFinalSunDlg::Instance);
+
+		auto dlg = ::GetDlgItem(CNewAITrigger::GetHandle(), CNewAITrigger::Controls::SelectedAITrigger);
+		auto index = ::SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetAITriggerDisplayName(id).c_str());
+		if (index == CB_ERR)
+			return false;
+
+		::SendMessage(dlg, CB_SETCURSEL, index, NULL);
+		CNewAITrigger::OnSelchangeAITrigger();
+		::SetWindowPos(CNewAITrigger::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+		return true;
+	}
+
+	default:
+		return false;
 	}
 }
 
@@ -664,7 +1063,14 @@ BOOL CMapValidatorExt::PreTranslateMessageExt(MSG* pMsg)
                 {
                     if (LPARAM lp = item.lParam)
 					{			
-						auto coord = *(MapCoord*)lp;
+						auto target = (ValidatorJumpTarget*)lp;
+						if (target->kind == ValidatorJumpTarget::Kind::Object)
+						{
+							JumpToObject(*target);
+							return FALSE;
+						}
+
+						auto coord = target->coord;
 						CMapDataExt::CellDataExt_FindCell.X = coord.X;
 						CMapDataExt::CellDataExt_FindCell.Y = coord.Y;	
 						CMapDataExt::CellDataExt_FindCell.drawCell = true;
@@ -684,13 +1090,13 @@ BOOL CMapValidatorExt::PreTranslateMessageExt(MSG* pMsg)
 void CMapValidatorExt::OnOKExt()
 {		
 	CFinalSunDlgExt::MapValidatorAlive = false;
-	CMapValidatorExt::TargetCoords.clear();
+	CMapValidatorExt::JumpTargets.clear();
 	this->ppmfc::CDialog::OnOK();
 }
 
 void CMapValidatorExt::OnCancelExt()
 {		
 	CFinalSunDlgExt::MapValidatorAlive = false;
-	CMapValidatorExt::TargetCoords.clear();
+	CMapValidatorExt::JumpTargets.clear();
 	this->ppmfc::CDialog::OnCancel();
 }

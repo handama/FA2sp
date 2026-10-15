@@ -6,24 +6,14 @@
 #include "../CMapData/Body.h"
 #include "../CFinalSunDlg/Body.h"
 
-DEFINE_HOOK(4D19A0, CMapValidator_DoValidator_Extra, 5)
+DEFINE_HOOK(4CED70, CMapValidator_DoValidator, 7)
 {
-	GET(CMapValidatorExt*, pThis, EDI);
-	REF_STACK(BOOL, result, STACK_OFFS(0x200, 0x168));
+	GET(CMapValidatorExt*, pThis, ECX);
 
-	EnableWindow(CFinalSunDlg::Instance->GetSafeHwnd(), TRUE);
-	CFinalSunDlgExt::MapValidatorAlive = true;
-	
-	pThis->ValidateOverlayLimit(result);
-	pThis->ValidateStructureOverlapping(result);
-	pThis->ValidateMissingParams(result);
-	pThis->ValidateRepeatingTaskforce(result);
-	pThis->ValidateValueLength(result);
-	pThis->ValidateBaseNode(result);
-	pThis->ValidateLoopTrigger(result);
-	pThis->ValidateEmptyTeamTrigger(result);
-	pThis->ValidateTubes(result);
-	return 0;
+	int result = pThis->DoValidator();
+
+	R->EAX(result);
+	return 0x4D1A2C; // the function's only retn (the /GS + SEH epilogue cannot be reused here)
 }
 
 DEFINE_HOOK(4CEA50, CMapValidator_CTOR, 7)

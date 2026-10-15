@@ -112,6 +112,7 @@ public:
     static bool ExtFacings_Drag;
     static bool ExtFacings_Scroll;
     static bool ExtFacings_DragPreview;
+    static int SHPVehicle_FacingOffset;
     static int UndoRedoLimit;
     static bool UndoRedo_RecordObjects;
     static bool UndoRedo_ShiftPlaceTile;

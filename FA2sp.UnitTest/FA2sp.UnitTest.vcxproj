@@ -115,6 +115,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="SequencedKeyListTest.cpp" />
     <ClCompile Include="CINIOrderTrackerTest.cpp" />
+    <ClCompile Include="SHPVehicleFacingTest.cpp" />
     <ClCompile Include="..\FA2sp\Helpers\CINIOrderTracker.cpp" />
     <ClCompile Include="..\FA2sp\Miscs\Hooks.INI.cpp" />
     <ClCompile Include="..\FA2sp\Helpers\FString.cpp" />

@@ -131,7 +131,7 @@ public:
 
     static HFONT GetModernDefaultGUIFont();
 
-    static void DrawComboBoxArrow(HDC hdc, RECT rc, bool enabled);
+    static void DrawComboBoxArrow(HDC hdc, RECT rcButton, bool enabled);
     static void DrawCheckMark(HDC hdc, RECT rc);
 
     // DPI scaling helpers

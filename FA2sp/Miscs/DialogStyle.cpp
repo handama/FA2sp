@@ -1004,19 +1004,105 @@ HFONT DarkTheme::GetModernDefaultGUIFont()
     return font;
 }
 
-void DarkTheme::DrawComboBoxArrow(HDC hdc, RECT rc, bool enabled)
+// Repaints the dark frame of a subclassed control.
+//
+// The frame may only be painted on the non-client area. Controls that have no
+// non-client area at all - most notably the EDIT and the LISTBOX living inside
+// a ComboBox, which SubclassAllControls also subclasses - have their window
+// rect equal to their client rect, so painting a frame "around" them would
+// paint it on top of their content. That is what made the text of a dark
+// ComboBox look clipped by its own border.
+static void PaintControlFrame(HWND hWnd)
 {
-    int arrowWidth = GetSystemMetrics(SM_CXVSCROLL);
-    RECT arrowRc = rc;
-    arrowRc.left = arrowRc.right - arrowWidth;
+    RECT rcWindow;
+    ::GetWindowRect(hWnd, &rcWindow);
 
-    FillRect(hdc, &arrowRc, enabled ? g_hHighlightBrush : g_hDarkMenuBrush);
+    RECT rcClient;
+    ::GetClientRect(hWnd, &rcClient);
+    ::MapWindowPoints(hWnd, HWND_DESKTOP, reinterpret_cast<LPPOINT>(&rcClient), 2);
+
+    const int frameLeft = rcClient.left - rcWindow.left;
+    const int frameTop = rcClient.top - rcWindow.top;
+    const int frameRight = rcWindow.right - rcClient.right;
+    const int frameBottom = rcWindow.bottom - rcClient.bottom;
+
+    if (frameLeft <= 0 && frameTop <= 0 && frameRight <= 0 && frameBottom <= 0)
+        return;
+
+    const int winW = rcWindow.right - rcWindow.left;
+    const int winH = rcWindow.bottom - rcWindow.top;
+    const int maxCover = DarkTheme::ScalePixels(3);
+
+    // Cover the non-client frame plus one client pixel, so a light border the
+    // theme draws on the client edge disappears too - but never more than that.
+    auto cover = [maxCover](int frame) -> int
+    {
+        if (frame <= 0)
+            return 0;
+
+        const int wanted = frame + 1;
+        return wanted < maxCover ? wanted : maxCover;
+    };
+
+    const int coverLeft = cover(frameLeft);
+    const int coverTop = cover(frameTop);
+    const int coverRight = cover(frameRight);
+    const int coverBottom = cover(frameBottom);
+
+    HDC hdc = ::GetWindowDC(hWnd);
+    if (!hdc)
+        return;
+
+    RECT bands[4];
+    int bandCount = 0;
+    if (coverTop > 0)
+        bands[bandCount++] = { 0, 0, winW, coverTop };
+    if (coverBottom > 0)
+        bands[bandCount++] = { 0, winH - coverBottom, winW, winH };
+    if (coverLeft > 0)
+        bands[bandCount++] = { 0, coverTop, coverLeft, winH - coverBottom };
+    if (coverRight > 0)
+        bands[bandCount++] = { winW - coverRight, coverTop, winW, winH - coverBottom };
+
+    for (int i = 0; i < bandCount; ++i)
+        ::FillRect(hdc, &bands[i], DarkTheme::g_hDarkBackgroundBrush);
+
+    HPEN hOldPen = (HPEN)::SelectObject(hdc, DarkTheme::g_hBorderPen);
+
+    if (frameTop > 0)
+    {
+        ::MoveToEx(hdc, 0, 0, NULL);
+        ::LineTo(hdc, winW, 0);
+    }
+    if (frameBottom > 0)
+    {
+        ::MoveToEx(hdc, 0, winH - 1, NULL);
+        ::LineTo(hdc, winW, winH - 1);
+    }
+    if (frameLeft > 0)
+    {
+        ::MoveToEx(hdc, 0, 0, NULL);
+        ::LineTo(hdc, 0, winH);
+    }
+    if (frameRight > 0)
+    {
+        ::MoveToEx(hdc, winW - 1, 0, NULL);
+        ::LineTo(hdc, winW - 1, winH);
+    }
+
+    ::SelectObject(hdc, hOldPen);
+    ::ReleaseDC(hWnd, hdc);
+}
+
+void DarkTheme::DrawComboBoxArrow(HDC hdc, RECT rcButton, bool enabled)
+{
+    FillRect(hdc, &rcButton, enabled ? g_hHighlightBrush : g_hDarkMenuBrush);
 
     HPEN hPen = CreatePen(PS_SOLID, ScalePixels(1), enabled ? DarkColors::RadioFill : DarkColors::DisabledText);
     HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
 
-    int centerX = arrowRc.left + (arrowRc.right - arrowRc.left) / 2;
-    int centerY = arrowRc.top + (arrowRc.bottom - arrowRc.top) / 2;
+    int centerX = rcButton.left + (rcButton.right - rcButton.left) / 2;
+    int centerY = rcButton.top + (rcButton.bottom - rcButton.top) / 2;
 
     int arrowSize = ScalePixels(4);
     for (int i = 0; i < arrowSize; i++)
@@ -1048,6 +1134,24 @@ LRESULT CALLBACK DarkTheme::ComboBoxSubclassProcA(HWND hWnd, UINT uMsg, WPARAM w
         RECT rc;
         GetClientRect(hWnd, &rc);
 
+        // Ask the control for the real item/button rectangles instead of
+        // guessing them (SM_CXVSCROLL does not match the themed metrics), so
+        // the frame and the arrow button never overlap the item area.
+        bool hasItemRect = false;
+        COMBOBOXINFO cbi = { sizeof(cbi) };
+        RECT rcItem = rc;
+        RECT rcButton = { rc.right - GetSystemMetrics(SM_CXVSCROLL), rc.top, rc.right, rc.bottom };
+        if (GetComboBoxInfo(hWnd, &cbi))
+        {
+            if (!IsRectEmpty(&cbi.rcItem))
+            {
+                rcItem = cbi.rcItem;
+                hasItemRect = true;
+            }
+            if (!IsRectEmpty(&cbi.rcButton))
+                rcButton = cbi.rcButton;
+        }
+
         if (bDropdownList)
         {
             int idx = (int)SendMessageA(hWnd, CB_GETCURSEL, 0, 0);
@@ -1056,8 +1160,7 @@ LRESULT CALLBACK DarkTheme::ComboBoxSubclassProcA(HWND hWnd, UINT uMsg, WPARAM w
                 char text[512] = { 0 };
                 SendMessageA(hWnd, CB_GETLBTEXT, idx, (LPARAM)text);
 
-                RECT rcText = rc;
-                rcText.right -= GetSystemMetrics(SM_CXVSCROLL);
+                RECT rcText = rcItem;
                 rcText.left += ScalePixels(5);
 
                 SetBkMode(hdc, TRANSPARENT);
@@ -1070,12 +1173,20 @@ LRESULT CALLBACK DarkTheme::ComboBoxSubclassProcA(HWND hWnd, UINT uMsg, WPARAM w
             }
         }
 
+        // The child edit owns the item area - keep the frame and the arrow
+        // button out of it, otherwise they end up painted over its text.
+        int savedDC = SaveDC(hdc);
+        if (hasItemRect && !bDropdownList)
+            ExcludeClipRect(hdc, rcItem.left, rcItem.top, rcItem.right, rcItem.bottom);
+
         HPEN hOldPen = (HPEN)SelectObject(hdc, g_hBorderPen);
         HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
         Rectangle(hdc, rc.left, rc.top, rc.right, rc.bottom);
-        DrawComboBoxArrow(hdc, rc, IsWindowEnabled(hWnd));
+        DrawComboBoxArrow(hdc, rcButton, IsWindowEnabled(hWnd));
         SelectObject(hdc, hOldPen);
         SelectObject(hdc, hOldBrush);
+
+        RestoreDC(hdc, savedDC);
 
         EndPaint(hWnd, &ps);
         return TRUE;
@@ -1172,37 +1283,9 @@ LRESULT CALLBACK DarkTheme::EditSubclassProc(
             return 0;
         }
         DefWindowProc(hWnd, uMsg, wParam, lParam);
-        HDC hdc = GetWindowDC(hWnd);
-
-        RECT rcWindow;
-        GetWindowRect(hWnd, &rcWindow);
-        OffsetRect(&rcWindow, -rcWindow.left, -rcWindow.top);
-
-        int nCover = ScalePixels(3);
-
-        HPEN hOldPen = (HPEN)SelectObject(hdc, g_hBackGroundPen);
-
-        for (int i = 0; i < nCover; ++i)
-            MoveToEx(hdc, rcWindow.left, rcWindow.top + i, NULL), LineTo(hdc, rcWindow.right, rcWindow.top + i);
-        for (int i = 0; i < nCover; ++i)
-            MoveToEx(hdc, rcWindow.left + i, rcWindow.top, NULL), LineTo(hdc, rcWindow.left + i, rcWindow.bottom);
-        for (int i = 0; i < nCover; ++i)
-            MoveToEx(hdc, rcWindow.left, rcWindow.bottom - 1 - i, NULL), LineTo(hdc, rcWindow.right, rcWindow.bottom - 1 - i);
-        for (int i = 0; i < nCover; ++i)
-            MoveToEx(hdc, rcWindow.right - 1 - i, rcWindow.top, NULL), LineTo(hdc, rcWindow.right - 1 - i, rcWindow.bottom);
-
-        SelectObject(hdc, g_hBorderPen);
-
-        MoveToEx(hdc, rcWindow.left, rcWindow.top, NULL);
-        LineTo(hdc, rcWindow.right, rcWindow.top); 
-        MoveToEx(hdc, rcWindow.left, rcWindow.top, NULL);
-        LineTo(hdc, rcWindow.left, rcWindow.bottom); 
-        MoveToEx(hdc, rcWindow.left, rcWindow.bottom - 1, NULL);
-        LineTo(hdc, rcWindow.right, rcWindow.bottom - 1); 
-        MoveToEx(hdc, rcWindow.right - 1, rcWindow.top, NULL);
-        LineTo(hdc, rcWindow.right - 1, rcWindow.bottom);
-
-        ReleaseDC(hWnd, hdc);
+        // Only paints the non-client area; controls without one (such as the
+        // EDIT inside a ComboBox) are left untouched so their text survives.
+        PaintControlFrame(hWnd);
 
         return 0;
     }
@@ -1270,37 +1353,7 @@ LRESULT CALLBACK DarkTheme::StaticSubclassProc(
         }
 
         DefWindowProc(hWnd, uMsg, wParam, lParam);
-        HDC hdc = GetWindowDC(hWnd);
-
-        RECT rcWindow;
-        GetWindowRect(hWnd, &rcWindow);
-        OffsetRect(&rcWindow, -rcWindow.left, -rcWindow.top);
-
-        int nCover = ScalePixels(3);
-
-        HPEN hOldPen = (HPEN)SelectObject(hdc, g_hBackGroundPen);
-
-        for (int i = 0; i < nCover; ++i)
-            MoveToEx(hdc, rcWindow.left, rcWindow.top + i, NULL), LineTo(hdc, rcWindow.right, rcWindow.top + i);
-        for (int i = 0; i < nCover; ++i)
-            MoveToEx(hdc, rcWindow.left + i, rcWindow.top, NULL), LineTo(hdc, rcWindow.left + i, rcWindow.bottom);
-        for (int i = 0; i < nCover; ++i)
-            MoveToEx(hdc, rcWindow.left, rcWindow.bottom - 1 - i, NULL), LineTo(hdc, rcWindow.right, rcWindow.bottom - 1 - i);
-        for (int i = 0; i < nCover; ++i)
-            MoveToEx(hdc, rcWindow.right - 1 - i, rcWindow.top, NULL), LineTo(hdc, rcWindow.right - 1 - i, rcWindow.bottom);
-
-        SelectObject(hdc, g_hBorderPen);
-
-        MoveToEx(hdc, rcWindow.left, rcWindow.top, NULL);
-        LineTo(hdc, rcWindow.right, rcWindow.top); 
-        MoveToEx(hdc, rcWindow.left, rcWindow.top, NULL);
-        LineTo(hdc, rcWindow.left, rcWindow.bottom); 
-        MoveToEx(hdc, rcWindow.left, rcWindow.bottom - 1, NULL);
-        LineTo(hdc, rcWindow.right, rcWindow.bottom - 1); 
-        MoveToEx(hdc, rcWindow.right - 1, rcWindow.top, NULL);
-        LineTo(hdc, rcWindow.right - 1, rcWindow.bottom);
-
-        ReleaseDC(hWnd, hdc);
+        PaintControlFrame(hWnd);
 
         return 0;
     }

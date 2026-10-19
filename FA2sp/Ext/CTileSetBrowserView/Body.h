@@ -32,6 +32,8 @@ public:
 	static int GetAddedWidth(int tileIndex);
 	static void GetCustomTileSize(const CustomTile* tileData, int& width, int& height);
 
-private:
+	static bool KeepCurrentCommand;
+
+  private:
 
 };

@@ -145,6 +145,54 @@ UINT CIsoViewExt::nFlagsMove;
 bool CIsoViewExt::LastCommand::requestSubpos = false;
 CIsoViewExt::LastCommand CIsoViewExt::LastAltCommand;
 
+namespace
+{
+    struct CurrentCommandSnapshot
+    {
+        bool Valid = false;
+        int Command = 0;
+        int Type = 0;
+        int Param = 0;
+        int Overlay = 0;
+        int OverlayData = 0;
+        int Height = 0;
+        FString ObjectID;
+    };
+
+    CurrentCommandSnapshot s_CurrentCommandSnapshot;
+}
+
+void CIsoViewExt::BackupCurrentCommand()
+{
+    auto const& cmd = CIsoView::CurrentCommand.get();
+
+    s_CurrentCommandSnapshot.Command = cmd.Command;
+    s_CurrentCommandSnapshot.Type = cmd.Type;
+    s_CurrentCommandSnapshot.Param = cmd.Param;
+    s_CurrentCommandSnapshot.Overlay = cmd.Overlay;
+    s_CurrentCommandSnapshot.OverlayData = cmd.OverlayData;
+    s_CurrentCommandSnapshot.Height = cmd.Height;
+    s_CurrentCommandSnapshot.ObjectID = cmd.ObjectID.GetString();
+    s_CurrentCommandSnapshot.Valid = true;
+}
+
+bool CIsoViewExt::RestoreCurrentCommand()
+{
+    if (!s_CurrentCommandSnapshot.Valid)
+        return false;
+
+    auto& cmd = CIsoView::CurrentCommand.get();
+
+    cmd.Command = s_CurrentCommandSnapshot.Command;
+    cmd.Type = s_CurrentCommandSnapshot.Type;
+    cmd.Param = s_CurrentCommandSnapshot.Param;
+    cmd.Overlay = s_CurrentCommandSnapshot.Overlay;
+    cmd.OverlayData = s_CurrentCommandSnapshot.OverlayData;
+    cmd.Height = s_CurrentCommandSnapshot.Height;
+    cmd.ObjectID = s_CurrentCommandSnapshot.ObjectID.c_str();
+    return true;
+}
+
 COLORREF CIsoViewExt::CellHilightColors[16] = {
     RGB(255, 255, 255), // level 0
     RGB(170, 0, 170),   // level 1

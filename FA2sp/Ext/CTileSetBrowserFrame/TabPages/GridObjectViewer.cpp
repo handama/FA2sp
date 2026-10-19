@@ -6,6 +6,7 @@
 #include "../../../Miscs/DialogStyle.h"
 #include "../../../Helpers/Helper.h"
 #include "../../../Ext/CFinalSunApp/Body.h"
+#include "../../../Ext/CTileSetBrowserView/Body.h"
 
 GridObjectViewer GridObjectViewer::Instance;
 const int MIN_DISPLAY_WIDTH = 80; 
@@ -1671,7 +1672,8 @@ void GridObjectViewer::OnSelChanged(int index)
 {
     auto& data = g_filteredImages[index];
     auto& id = data.ID;
-	CViewObjectsExt::InitializeOnUpdateEngine();
+    if (!CTileSetBrowserViewExt::KeepCurrentCommand)
+        CViewObjectsExt::InitializeOnUpdateEngine();
 
 	if (data.Overlay >= 0)
     {

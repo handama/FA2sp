@@ -296,7 +296,8 @@ DEFINE_HOOK(4F3C00, CTileSetBrowserView_OnLButtonDown, 7)
     GET_STACK(UINT, nFlags, 0x4);
     GET_STACK(CPoint, point, 0x8);
 
-    CViewObjectsExt::InitializeOnUpdateEngine();
+    if (!CTileSetBrowserViewExt::KeepCurrentCommand)
+        CViewObjectsExt::InitializeOnUpdateEngine();
 
     RECT r;
     pThis->GetClientRect(&r);

@@ -10,6 +10,8 @@
 #include "../CMapData/Body.h"
 #include "../CFinalSunApp/Body.h"
 
+bool CTileSetBrowserViewExt::KeepCurrentCommand = false;
+
 namespace
 {
 	static __forceinline void BlitTerrainTSB(void* dst, int x, int y,

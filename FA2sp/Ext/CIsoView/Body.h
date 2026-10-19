@@ -528,6 +528,9 @@ public:
     static MouseCommandRecord LastMouseCommand;
 	static void ChangeBrushSize_OnMouseMove();
 
+    static void BackupCurrentCommand();
+    static bool RestoreCurrentCommand();
+
 	static bool ReInitializingDDraw;
 
     static bool CliffBackAlt;

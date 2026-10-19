@@ -495,9 +495,10 @@ namespace ObjectBrowserSearch
             return hTree;
 
         int barH = BarHeight();
+        HWND hRootOwner = ::GetAncestor(hOwner, GA_ROOT);
         HWND hFrame = ::CreateWindowExA(0, "FA2spObjectBrowserFrame", "",
             (WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN) & ~WS_MINIMIZEBOX,
-            x, y, w, h + barH, nullptr, nullptr,
+            x, y, w, h + barH, hRootOwner, nullptr,
             (HINSTANCE)FA2sp::hInstance, nullptr);
         if (!hFrame)
             return hTree;
@@ -509,7 +510,7 @@ namespace ObjectBrowserSearch
         ::SetParent(hTree, hFrame);
         ::SetWindowPos(hTree, nullptr, 0, barH, w, h, SWP_NOZORDER);
 
-        ::SetWindowLong(hFrame, GWL_HWNDPARENT, (LONG)hOwner);
+        ::SetWindowLong(hFrame, GWL_HWNDPARENT, (LONG)hRootOwner);
 
         {
             DWORD dwEx = ::GetWindowLong(hFrame, GWL_EXSTYLE);
@@ -855,7 +856,7 @@ DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
                     dwStyle &= ~WS_MINIMIZEBOX;
                     ::SetWindowLong(hTileBrowser, GWL_STYLE, dwStyle);
                     ::SetParent(hTileBrowser, NULL);
-                    ::SetWindowLong(hTileBrowser, GWL_HWNDPARENT, (LONG)pThis->GetSafeHwnd());
+                    ::SetWindowLong(hTileBrowser, GWL_HWNDPARENT, (LONG)::GetAncestor(pThis->GetSafeHwnd(), GA_ROOT));
 
                     RECT rcMain;
                     ::GetWindowRect(pThis->GetSafeHwnd(), &rcMain);

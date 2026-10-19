@@ -13,6 +13,7 @@
 #include "../../Helpers/STDHelpers.h"
 #include "../CIsoView/Body.h"
 #include "../CMapData/Body.h"
+#include "../CTileSetBrowserView/Body.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 #include "../../Helpers/Helper.h"
@@ -306,7 +307,8 @@ DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_LButtonDown_PlaceObject, 9)
 
 DEFINE_HOOK(4F0A40, CTerrainDlg_OnSelchangeTileset, 7)
 {
-    CViewObjectsExt::InitializeOnUpdateEngine();
+    if (!CTileSetBrowserViewExt::KeepCurrentCommand)
+        CViewObjectsExt::InitializeOnUpdateEngine();
 
     return 0;
 }

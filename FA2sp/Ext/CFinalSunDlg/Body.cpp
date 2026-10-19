@@ -8,6 +8,7 @@
 #include "../CMapData/Body.h"
 #include "../CMapData/HeightGenerator.h"
 #include "../CFinalSunApp/Body.h"
+#include "../CTileSetBrowserView/Body.h"
 #include <CMapData.h>
 #include <CLoading.h>
 #include <CInputMessageBox.h>
@@ -314,18 +315,19 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CIsoViewExt::MouseCenterPosition = {-1919810, -1919810};
 			this->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-			auto tmp = CIsoView::CurrentCommand->Command;
+			CIsoViewExt::BackupCurrentCommand();
+			TempValueHolder tmp(CTileSetBrowserViewExt::KeepCurrentCommand, true);
 			if (this->MyViewFrame.pTileSetBrowserFrame->View.CurrentMode == 1) {
 				HWND hParent = this->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
 				HWND hTileComboBox = ::GetDlgItem(hParent, 1366);
 				::SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1366, CBN_SELCHANGE), (LPARAM)hTileComboBox);
-				CIsoView::CurrentCommand->Command = tmp;
+				CIsoViewExt::RestoreCurrentCommand();
 			}
 			else if (this->MyViewFrame.pTileSetBrowserFrame->View.CurrentMode == 2) {
 				HWND hParent = this->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
 				HWND hOverlayComboBox = ::GetDlgItem(hParent, 1367);
 				::SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1367, CBN_SELCHANGE), (LPARAM)hOverlayComboBox);
-				CIsoView::CurrentCommand->Command = tmp;
+				CIsoViewExt::RestoreCurrentCommand();
 			}
 		}
 	};

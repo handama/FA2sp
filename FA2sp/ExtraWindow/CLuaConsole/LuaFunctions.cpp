@@ -1685,6 +1685,11 @@ namespace LuaFunctions
 
 		void apply() const
 		{
+			// X/Y come from the script; GetCoordIndex() turns an out-of-range pair into a
+			// negative index, which then walks off both arrays.
+			if (!CMapDataExt::IsCoordInFullMap(this->X, this->Y))
+				return;
+
 			int pos = CMapData::Instance->GetCoordIndex(this->X, this->Y);
 			auto pCell = CMapData::Instance->GetCellAt(pos);
 			auto& pCellExt = CMapDataExt::CellDataExts[pos];

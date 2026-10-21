@@ -251,10 +251,10 @@ DEFINE_HOOK(4A2AB0, CMapData_UpdateInfantry, 7)
 					break;
 				}
 
-				if (spp < 3 && pos < fielddata_size)
+				if (spp < 3 && pos >= 0 && pos < fielddata_size)
 					fielddata[pos].Infantry[spp] = (short)m_infantry.size() - 1;
 
-				if (!CMapDataExt::SkipUpdateMinimap)
+				if (!CMapDataExt::SkipUpdateMinimap && CMapDataExt::IsInMapPreviewRect(x, y))
 					CMapData::Instance->UpdateMapPreviewAt(x, y);
 			}
 			// resort section to match the order of InfantryDatas
@@ -570,7 +570,8 @@ DEFINE_HOOK(4AC210, CMapData_AddInfantry, 7)
 	
 	Map->INI.WriteString("Infantry", key, value);
 
-	if (!CMapDataExt::SkipUpdateMinimap)
+	if (!CMapDataExt::SkipUpdateMinimap
+		&& CMapDataExt::IsInMapPreviewRect(atoi(infantry.X), atoi(infantry.Y)))
 		CMapData::Instance->UpdateMapPreviewAt(atoi(infantry.X), atoi(infantry.Y));
 
 	return 0x4ACA49;
@@ -969,7 +970,7 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 				const int x = X + dx;
 				const int y = Y + dy;
 				const int pos = CMapData::Instance->GetCoordIndex(x, y);
-				if (pos < CMapData::Instance->CellDataCount)
+				if (pos >= 0 && pos < CMapData::Instance->CellDataCount)
 				{
 					auto pCell = CMapData::Instance->GetCellAt(pos);
 					auto& cellExt = CMapDataExt::GetCold(pos);
@@ -986,7 +987,7 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 					}
 					CMapDataExt::PruneColdIfEmpty(pos);
 
-					if (!CMapDataExt::SkipUpdateMinimap)
+					if (!CMapDataExt::SkipUpdateMinimap && CMapDataExt::IsInMapPreviewRect(x, y))
 						CMapData::Instance->UpdateMapPreviewAt(x, y);
 				}
 			}
@@ -999,7 +1000,7 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 			const int x = X + block.Y;
 			const int y = Y + block.X;
 			const int pos = CMapData::Instance->GetCoordIndex(x, y);
-			if (pos < CMapData::Instance->CellDataCount)
+			if (pos >= 0 && pos < CMapData::Instance->CellDataCount)
 			{
 				auto pCell = CMapData::Instance->GetCellAt(pos);
 				auto& cellExt = CMapDataExt::GetCold(pos);
@@ -1016,7 +1017,7 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 				}
 				CMapDataExt::PruneColdIfEmpty(pos);
 
-				if (!CMapDataExt::SkipUpdateMinimap)
+				if (!CMapDataExt::SkipUpdateMinimap && CMapDataExt::IsInMapPreviewRect(x, y))
 					CMapData::Instance->UpdateMapPreviewAt(x, y);
 			}
 		}
@@ -1168,10 +1169,10 @@ DEFINE_HOOK(4A6040, CMapData_UpdateUnits, 6)
 				int x = atoi(obj.X);
 				int y = atoi(obj.Y);
 				int pos = pThis->GetCoordIndex(x, y);
-				if (pos < pThis->CellDataCount) 
+				if (pos >= 0 && pos < pThis->CellDataCount)
 					pThis->CellDatas[pos].Unit = i;
 
-				if (!CMapDataExt::SkipUpdateMinimap)
+				if (!CMapDataExt::SkipUpdateMinimap && CMapDataExt::IsInMapPreviewRect(x, y))
 					pThis->UpdateMapPreviewAt(x, y);
 				i++;		
 			}
@@ -1194,7 +1195,7 @@ DEFINE_HOOK(4A87A0, CMapData_DeleteUnit, 7)
 			int y = atoi(atoms[3]);
 			CINIExt::CurrentDocument->DeleteKey(pSection, *pSection->GetKeyAt(index));
 			pThis->UpdateFieldUnitData(false);
-			if (!CMapDataExt::SkipUpdateMinimap)
+			if (!CMapDataExt::SkipUpdateMinimap && CMapDataExt::IsInMapPreviewRect(x, y))
 				pThis->UpdateMapPreviewAt(x, y);
 		}
 	}
@@ -1225,10 +1226,10 @@ DEFINE_HOOK(4A4270, CMapData_UpdateAircraft, 6)
 				int x = atoi(obj.X);
 				int y = atoi(obj.Y);
 				int pos = pThis->GetCoordIndex(x, y);
-				if (pos < pThis->CellDataCount)
+				if (pos >= 0 && pos < pThis->CellDataCount)
 					pThis->CellDatas[pos].Aircraft = i;
 
-				if (!CMapDataExt::SkipUpdateMinimap)
+				if (!CMapDataExt::SkipUpdateMinimap && CMapDataExt::IsInMapPreviewRect(x, y))
 					pThis->UpdateMapPreviewAt(x, y);
 				i++;
 			}
@@ -1251,7 +1252,7 @@ DEFINE_HOOK(4A98B0, CMapData_DeleteAircraft, 7)
 			int y = atoi(atoms[3]);
 			CINIExt::CurrentDocument->DeleteKey(pSection, *pSection->GetKeyAt(index));
 			pThis->UpdateFieldAircraftData(false);
-			if (!CMapDataExt::SkipUpdateMinimap)
+			if (!CMapDataExt::SkipUpdateMinimap && CMapDataExt::IsInMapPreviewRect(x, y))
 				pThis->UpdateMapPreviewAt(x, y);
 		}
 	}
@@ -1286,7 +1287,8 @@ DEFINE_HOOK(4A67D0, CMapData_UpdateWaypoints, 6)
 					int k, l;
 					for (k = -1; k < 2; k++)
 						for (l = -1; l < 2; l++)
-							pThis->UpdateMapPreviewAt(x + k, y + l);
+							if (CMapDataExt::IsInMapPreviewRect(x + k, y + l))
+								pThis->UpdateMapPreviewAt(x + k, y + l);
 				}
 				i++;
 			}
@@ -1314,7 +1316,8 @@ DEFINE_HOOK(4A7CB0, CMapData_DeleteWaypoints, 7)
 				int k, l;
 				for (k = -1; k < 2; k++)
 					for (l = -1; l < 2; l++)
-						pThis->UpdateMapPreviewAt(x + k, y + l);
+						if (CMapDataExt::IsInMapPreviewRect(x + k, y + l))
+							pThis->UpdateMapPreviewAt(x + k, y + l);
 			}
 		}
 	}

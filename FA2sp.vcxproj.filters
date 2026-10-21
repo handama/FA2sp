@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="源文件">
@@ -12,6 +12,9 @@
     <Filter Include="资源文件">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="MapGenerator">
+      <UniqueIdentifier>{2B0F5C71-9E44-4D3A-8C16-7A1D6E9F3B52}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -65,6 +68,21 @@
     </ClInclude>
     <ClInclude Include="FA2sp\ExtraWindow\CTileManager\CTileManager.h">
       <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MapGenerator\MapGenerator\MapGen.h">
+      <Filter>MapGenerator</Filter>
+    </ClInclude>
+    <ClInclude Include="MapGenerator\MapGenerator\MapGenFastSqrt.h">
+      <Filter>MapGenerator</Filter>
+    </ClInclude>
+    <ClInclude Include="MapGenerator\MapGenerator\MapGenAtanTable.h">
+      <Filter>MapGenerator</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\MapGen\CMapGenDataFeed.h">
+      <Filter>MapGenerator</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\MapGen\CMapGenBridge.h">
+      <Filter>MapGenerator</Filter>
     </ClInclude>
     <ClInclude Include="FA2sp\Helpers\Templates.hpp">
       <Filter>头文件</Filter>
@@ -434,6 +452,54 @@
     <ClCompile Include="FA2sp\ExtraWindow\CTileManager\CTileManager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="MapGenerator\MapGenerator\MapGen.cpp">
+      <Filter>MapGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\MapGen\CMapGenDataFeed.cpp">
+      <Filter>MapGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\MapGen\CMapGenBridge.cpp">
+      <Filter>MapGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenCleanup.cpp">
+      <Filter>MapGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenDone.cpp">
+      <Filter>MapGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenHills.cpp">
+      <Filter>MapGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenLAT.cpp">
+      <Filter>MapGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenLake.cpp">
+      <Filter>MapGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenMaking.cpp">
+      <Filter>MapGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenMakingSub.cpp">
+      <Filter>MapGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenRecalc.cpp">
+      <Filter>MapGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenRegion.cpp">
+      <Filter>MapGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenRiver.cpp">
+      <Filter>MapGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenStartpoint.cpp">
+      <Filter>MapGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenTech.cpp">
+      <Filter>MapGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenTiberium.cpp">
+      <Filter>MapGenerator</Filter>
+    </ClCompile>
     <ClCompile Include="FA2sp\Miscs\Hooks.Performance.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -455,7 +521,7 @@
     <ClCompile Include="FA2sp\Ext\CLoading\Body.LoadObjects.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FA2sp\Miscs\<AudioBagSound.cpp">
+    <ClCompile Include="FA2sp\Miscs\AudioBagSound.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Miscs\Palettes.cpp">

@@ -2940,8 +2940,9 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
                     {
                         map.DeleteKey("CellTags", celltag);
                         int nCoord = atoi(celltag);
-                        int nMapCoord = CMapData::Instance->GetCoordIndex(nCoord % 1000, nCoord / 1000);
-                        CMapData::Instance->CellDatas[nMapCoord].CellTag = -1;
+                        // The CellTags key is free-form text; anything that is not a cell of
+                        // this map has to be ignored instead of indexed into CellDatas.
+                        CMapDataExt::TryGetCellAt(nCoord % 1000, nCoord / 1000)->CellTag = -1;
                     }
                     CMapData::Instance->UpdateFieldCelltagData(FALSE);
                     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);

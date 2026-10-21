@@ -1099,6 +1099,16 @@ public:
     static constexpr int MAX_MAP_WIDTH_PLUS_HEIGHT = 2048;
     static int GetXPlusYLimit(int mapWidthPlusHeight);
 
+    // Map objects are stored with whatever coordinate the map INI carried, and
+    // GetCoordIndex(x, y) happily turns an out-of-range one into a negative cell index.
+    // UpdateMapPreviewAt() paints into the preview bitmap, which MapPreviewFix sizes for
+    // the current map, so an out-of-range coordinate writes past the end of that buffer.
+    static bool IsInMapPreviewRect(int x, int y)
+    {
+        auto pThis = GetExtension();
+        return x >= 0 && y >= 0 && x < pThis->Size.Width && y < pThis->Size.Height;
+    }
+
     static std::vector<WORD> NewOverlay;
     static std::vector<BYTE> NewOverlayData;
     static HistoryList UndoRedoDatas;

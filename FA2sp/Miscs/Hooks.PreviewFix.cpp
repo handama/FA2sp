@@ -45,6 +45,11 @@ namespace MapPreviewFix
 		byte* PreviewBuffer = nullptr;
 		size_t PreviewBufferSize = 0;
 
+		// Slack behind the preview bitmap. UpdateBuffer() already adds a full stride on top
+		// of the bitmap (one spare row); this constant covers the 4-byte rounding of that
+		// row and a single stray cell write landing just past it.
+		constexpr size_t kTailGuard = 0x400;
+
 		inline void WriteAddress(byte* dest)
 		{
 			const DWORD address = reinterpret_cast<DWORD>(PreviewBuffer);
@@ -172,17 +177,28 @@ namespace MapPreviewFix
 			return;
 
 		// The preview is a 24bpp bitmap of (2 * width) x height pixels, and FA2 aligns
-		// its stride to 4 bytes. This is exactly what CMapData::InitMinimap() will memset.
-		size_t stride = static_cast<size_t>(width) * 2 * 3;
-		stride = (stride + 3) & ~static_cast<size_t>(3);
-		size_t size = stride * static_cast<size_t>(height);
+		// its stride to 4 bytes. This is exactly what CMapData::InitMinimap() will memset,
+		// so it is also the size the bitmap has to keep for GetMapPreview() to be valid.
+		const size_t stride = (static_cast<size_t>(width) * 2 * 3 + 3) & ~static_cast<size_t>(3);
+		const size_t bitmapSize = stride * static_cast<size_t>(height);
 
-		if (PreviewBuffer && PreviewBufferSize >= size)
+		// The allocation, however, must be strictly larger than the bitmap. Every writer of
+		// this buffer - FA2's own painters and the FA2sp hooks alike - indexes it from the
+		// map's coordinate space and rounds the last row up to its stride, so a legal write
+		// can land up to one stride (plus the row padding) past the bitmap. Those bytes used
+		// to belong to the heap block header that follows this allocation; letting them hit
+		// our own slack is what keeps the heap intact ("Free Heap block ... modified after
+		// it was freed" was this buffer being overrun by a single row).
+		const size_t allocSize = bitmapSize + stride + kTailGuard;
+
+		// The buffer is only ever grown: switching to a smaller map and back should not
+		// trade the headroom away.
+		if (PreviewBuffer && PreviewBufferSize >= allocSize)
 			return;
 
 		byte* oldBuffer = PreviewBuffer;
-		PreviewBuffer = new byte[size]();
-		PreviewBufferSize = size;
+		PreviewBuffer = new byte[allocSize]();
+		PreviewBufferSize = allocSize;
 
 		ApplyPatches();
 

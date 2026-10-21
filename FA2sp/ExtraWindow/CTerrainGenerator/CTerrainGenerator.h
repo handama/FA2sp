@@ -302,6 +302,28 @@ public:
         RampDescription = 6012,
         RampPreserveAnchorHeights = 6013,
         AvoidNonmorphableTiles = 6014,
+
+        // ---- Map generator page (resource 350) ----
+        MgLandType = 7000,
+        MgGlobalSeed = 7004,
+        MgGlobalSeedRoll = 7005,
+        MgMapSeed = 7006,
+        MgMapSeedRoll = 7007,
+        MgWholeMap = 7008,
+        MgWithOre = 7015,
+        MgWithTrees = 7016,
+        MgWithTech = 7017,
+        MgDescription = 7019,
+        MgLabelLandType = 7020,
+        MgLabelGlobalSeed = 7024,
+        MgLabelMapSeed = 7025,
+        MgRandomSeed = 7029,
+        MgOreSlider = 7030,
+        MgVegetationSlider = 7031,
+        MgLabelOre = 7033,
+        MgLabelVegetation = 7034,
+        MgOreValue = 7035,
+        MgVegetationValue = 7036,
     };
 
     static void Create(CFinalSunDlg* pWnd);
@@ -337,7 +359,13 @@ protected:
     static BOOL CALLBACK DlgProcTab3(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static BOOL CALLBACK DlgProcTab4(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static BOOL CALLBACK DlgProcTab5(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+    static BOOL CALLBACK DlgProcTab6(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
     static void ShowTabPage(HWND hWnd, int tabIndex);
+
+    // ---- map generator page ----
+    static void OnClickGenerateMap();
+    static void LoadMapGenSettings();
+    static void SaveMapGenSettings();
     static void AdjustTabPagePosition(HWND hTab, HWND hTabPage);
 
     static void OnSelchangePreset(bool edited = false, bool reload = true);
@@ -383,6 +411,7 @@ private:
     static HWND hTab3Dlg;
     static HWND hTab4Dlg;
     static HWND hTab5Dlg;
+    static HWND hTab6Dlg;
     static HWND hAdd;
     static HWND hName;
     static HWND hPreset;

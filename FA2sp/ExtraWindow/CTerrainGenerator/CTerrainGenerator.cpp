@@ -1,4 +1,4 @@
-#include "CTerrainGenerator.h"
+﻿#include "CTerrainGenerator.h"
 #include "../../FA2sp.h"
 #include <Miscs/Miscs.h>
 #include "../CObjectSearch/CObjectSearch.h"
@@ -11,6 +11,8 @@
 #include "../../Miscs/DialogStyle.h"
 #include "../../Ext/CFinalSunApp/Body.h"
 #include "../../Ext/CMapData/HeightGenerator.h"
+#include "../../MapGen/CMapGenBridge.h"
+#include <algorithm>
 #include <queue>
 
 HWND CTerrainGenerator::m_hwnd;
@@ -24,6 +26,7 @@ HWND CTerrainGenerator::hTab2Dlg;
 HWND CTerrainGenerator::hTab3Dlg;
 HWND CTerrainGenerator::hTab4Dlg;
 HWND CTerrainGenerator::hTab5Dlg;
+HWND CTerrainGenerator::hTab6Dlg;
 HWND CTerrainGenerator::hAdd;
 HWND CTerrainGenerator::hName;
 HWND CTerrainGenerator::hPreset;
@@ -114,6 +117,7 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     hTab3Dlg = CreateDialog(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(317), hTab, DlgProcTab3);
     hTab4Dlg = CreateDialog(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(318), hTab, DlgProcTab4);
     hTab5Dlg = CreateDialog(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(331), hTab, DlgProcTab5);
+    hTab6Dlg = CreateDialog(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(350), hTab, DlgProcTab6);
     if (ExtConfigs::EnableDarkMode)
     {
         SetWindowTheme(hTab, L"DarkMode_Explorer", NULL);
@@ -142,6 +146,11 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
         {
             SetWindowLongPtr(hTab5Dlg, GWLP_WNDPROC, (LONG_PTR)TabPageSubclassProc);
         }
+        g_pOriginalTabPageProc = (WNDPROC)GetWindowLongPtr(hTab6Dlg, GWLP_WNDPROC);
+        if (g_pOriginalTabPageProc)
+        {
+            SetWindowLongPtr(hTab6Dlg, GWLP_WNDPROC, (LONG_PTR)TabPageSubclassProc);
+        }
     }
 
     TCITEM tie;
@@ -167,11 +176,16 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     tie.pszText = tabText5.GetBuffer();
     TabCtrl_InsertItem(hTab, 4, &tie);
 
+    FString tabText6 = _T(Translations::TranslateOrDefault("CTerrainGenerator.MapGen", "Map Generator"));
+    tie.pszText = tabText6.GetBuffer();
+    TabCtrl_InsertItem(hTab, 5, &tie);
+
     tabText.ReleaseBuffer();
     tabText2.ReleaseBuffer();
     tabText3.ReleaseBuffer();
     tabText4.ReleaseBuffer();
     tabText5.ReleaseBuffer();
+    tabText6.ReleaseBuffer();
     
     FString buffer;
     if (Translations::GetTranslationItem("CTerrainGenerator.Title", buffer))
@@ -260,6 +274,45 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     Translate(6012, "CTerrainGenerator.RampDesc", hTab5Dlg);
     Translate(6013, "CTerrainGenerator.PreserveAnchorHeights", hTab5Dlg);
     Translate(6014, "CTerrainGenerator.AvoidNonmorphableTiles", hTab5Dlg);
+
+    // ---- map generator page ----
+    Translate(7020, "CTerrainGenerator.MgLandType", hTab6Dlg);
+    Translate(7024, "CTerrainGenerator.MgGlobalSeed", hTab6Dlg);
+    Translate(7025, "CTerrainGenerator.MgMapSeed", hTab6Dlg);
+    Translate(7029, "CTerrainGenerator.MgRandomSeed", hTab6Dlg);
+    Translate(7033, "CTerrainGenerator.MgOreDensity", hTab6Dlg);
+    Translate(7034, "CTerrainGenerator.MgVegetation", hTab6Dlg);
+    Translate(7008, "CTerrainGenerator.MgWholeMap", hTab6Dlg);
+    Translate(7015, "CTerrainGenerator.MgWithOre", hTab6Dlg);
+    Translate(7016, "CTerrainGenerator.MgWithTrees", hTab6Dlg);
+    Translate(7017, "CTerrainGenerator.MgWithTech", hTab6Dlg);
+    Translate(7019, "CTerrainGenerator.MgDescription", hTab6Dlg);
+
+    {
+        auto AddItem = [](HWND hCombo, const char* key, const char* fallback)
+        {
+            FString text = Translations::TranslateOrDefault(key, fallback);
+            SendMessage(hCombo, CB_ADDSTRING, 0, (LPARAM)static_cast<LPCSTR>(text));
+        };
+
+        HWND hLand = GetDlgItem(hTab6Dlg, Controls::MgLandType);
+        AddItem(hLand, "CTerrainGenerator.MgLandArchipelago", "Archipelago");
+        AddItem(hLand, "CTerrainGenerator.MgLandContinent", "Continent");
+        AddItem(hLand, "CTerrainGenerator.MgLandTeamContinent", "Team Continent");
+        AddItem(hLand, "CTerrainGenerator.MgLandInland", "Inland");
+        AddItem(hLand, "CTerrainGenerator.MgLandMountainous", "Mountainous");
+        SendMessage(hLand, CB_SETCURSEL, 1, 0);
+
+        const int sliders[] = { Controls::MgOreSlider, Controls::MgVegetationSlider };
+        for (int id : sliders)
+        {
+            HWND hSlider = GetDlgItem(hTab6Dlg, id);
+            SendMessage(hSlider, TBM_SETRANGE, TRUE, MAKELPARAM(0, 100));
+            SendMessage(hSlider, TBM_SETTICFREQ, 10, 0);
+        }
+    }
+
+    LoadMapGenSettings();
 
     Translate(1001, "CTerrainGenerator.Add", NULL);
     Translate(1002, "CTerrainGenerator.Name", NULL);
@@ -1716,6 +1769,16 @@ static int lastCoords = 0;
 static std::vector<int> lastHeights;
 void CTerrainGenerator::OnClickApply(bool onlyClear)
 {
+    // The map generator page ignores the Clear button - it has no object
+    // categories to clear, and regenerating over a cleared range is the same
+    // thing as regenerating.
+    if (CurrentTabPage == 5)
+    {
+        if (!onlyClear)
+            OnClickGenerateMap();
+        return;
+    }
+
     if (!CurrentPreset) return;
     if (!MultiSelection::SelectedCoords.empty()) UseMultiSelection = true;
 
@@ -2220,49 +2283,27 @@ void CTerrainGenerator::EnableWindows()
 void CTerrainGenerator::ShowTabPage(HWND hWnd, int tabIndex)
 {
     CurrentTabPage = tabIndex;
-    AdjustTabPagePosition(hTab, hTab1Dlg);
-    AdjustTabPagePosition(hTab, hTab2Dlg);
-    AdjustTabPagePosition(hTab, hTab3Dlg);
-    AdjustTabPagePosition(hTab, hTab4Dlg);
-    AdjustTabPagePosition(hTab, hTab5Dlg);
-    switch (tabIndex)
+
+    HWND pages[] = { hTab1Dlg, hTab2Dlg, hTab3Dlg, hTab4Dlg, hTab5Dlg, hTab6Dlg };
+    const int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
+
+    for (int i = 0; i < pageCount; ++i)
+        AdjustTabPagePosition(hTab, pages[i]);
+
+    for (int i = 0; i < pageCount; ++i)
+        ShowWindow(pages[i], (i == tabIndex) ? SW_SHOW : SW_HIDE);
+
+    // The preset toolbar only drives the five terrain pages; the map generator
+    // page has no preset of its own.
+    const BOOL presetPage = (tabIndex != 5) ? TRUE : FALSE;
+    const int presetControls[] =
     {
-    case 0:
-        ShowWindow(hTab1Dlg, SW_SHOW);
-        ShowWindow(hTab2Dlg, SW_HIDE);
-        ShowWindow(hTab3Dlg, SW_HIDE);
-        ShowWindow(hTab4Dlg, SW_HIDE);
-        ShowWindow(hTab5Dlg, SW_HIDE);
-        break;
-    case 1:
-        ShowWindow(hTab1Dlg, SW_HIDE);
-        ShowWindow(hTab2Dlg, SW_SHOW);
-        ShowWindow(hTab3Dlg, SW_HIDE);
-        ShowWindow(hTab4Dlg, SW_HIDE);
-        ShowWindow(hTab5Dlg, SW_HIDE);
-        break;
-    case 2:
-        ShowWindow(hTab1Dlg, SW_HIDE);
-        ShowWindow(hTab2Dlg, SW_HIDE);
-        ShowWindow(hTab3Dlg, SW_SHOW);
-        ShowWindow(hTab4Dlg, SW_HIDE);
-        ShowWindow(hTab5Dlg, SW_HIDE);
-        break;
-    case 3:
-        ShowWindow(hTab1Dlg, SW_HIDE);
-        ShowWindow(hTab2Dlg, SW_HIDE);
-        ShowWindow(hTab3Dlg, SW_HIDE);
-        ShowWindow(hTab4Dlg, SW_SHOW);
-        ShowWindow(hTab5Dlg, SW_HIDE);
-        break;
-    case 4:
-        ShowWindow(hTab1Dlg, SW_HIDE);
-        ShowWindow(hTab2Dlg, SW_HIDE);
-        ShowWindow(hTab3Dlg, SW_HIDE);
-        ShowWindow(hTab4Dlg, SW_HIDE);
-        ShowWindow(hTab5Dlg, SW_SHOW);
-        break;
-    }
+        Controls::Add, Controls::Delete, Controls::Copy, Controls::Name,
+        Controls::Preset, Controls::Override, Controls::IgnoreLandtypes,
+        Controls::Scale, Controls::Clear,
+    };
+    for (int id : presetControls)
+        EnableWindow(GetDlgItem(hWnd, id), presetPage);
 }
 
 void CTerrainGenerator::AdjustTabPagePosition(HWND hTab, HWND hTabPage)
@@ -2314,4 +2355,291 @@ bool CTerrainGenerator::OnEnterKeyDown(HWND& hWnd)
     else
         return false;
     return true;
+}
+
+// ===========================================================================
+// ===========================================================================
+// Map generator page (tab 5, resource 350)
+// ===========================================================================
+
+namespace
+{
+    FString MapGenIniPath()
+    {
+        FString path = CFinalSunAppExt::ExePathExt;
+        path += "\\TerrainGenerator.ini";
+        return path;
+    }
+
+    int ComboSelection(HWND hPage, int id, int fallback)
+    {
+        const int sel = static_cast<int>(
+            SendMessage(GetDlgItem(hPage, id), CB_GETCURSEL, 0, 0));
+        return (sel == CB_ERR) ? fallback : sel;
+    }
+
+    void SetComboSelection(HWND hPage, int id, int index)
+    {
+        HWND hCombo = GetDlgItem(hPage, id);
+        const int count = static_cast<int>(SendMessage(hCombo, CB_GETCOUNT, 0, 0));
+        if (count <= 0)
+            return;
+        if (index < 0) index = 0;
+        if (index >= count) index = count - 1;
+        SendMessage(hCombo, CB_SETCURSEL, index, 0);
+    }
+
+    // Slider + the little number beside it.
+    void SetSliderValue(HWND hPage, int sliderId, int labelId, int value)
+    {
+        if (value < 0) value = 0;
+        if (value > 100) value = 100;
+
+        SendMessage(GetDlgItem(hPage, sliderId), TBM_SETPOS, TRUE,
+                    static_cast<LPARAM>(value));
+
+        FString text;
+        text.Format("%d", value);
+        SetDlgItemText(hPage, labelId, text);
+    }
+
+    int GetSliderValue(HWND hPage, int sliderId)
+    {
+        const int value = static_cast<int>(
+            SendMessage(GetDlgItem(hPage, sliderId), TBM_GETPOS, 0, 0));
+        if (value < 0) return 0;
+        if (value > 100) return 100;
+        return value;
+    }
+
+    // With "random" ticked every run rolls both seeds, so the two boxes and
+    // their R buttons are dead weight - grey them out.
+    void UpdateSeedControls(HWND hPage)
+    {
+        const BOOL randomOn =
+            (IsDlgButtonChecked(hPage, CTerrainGenerator::Controls::MgRandomSeed)
+             == BST_CHECKED);
+        const BOOL enable = randomOn ? FALSE : TRUE;
+
+        EnableWindow(GetDlgItem(hPage, CTerrainGenerator::Controls::MgGlobalSeed), enable);
+        EnableWindow(GetDlgItem(hPage, CTerrainGenerator::Controls::MgGlobalSeedRoll), enable);
+        EnableWindow(GetDlgItem(hPage, CTerrainGenerator::Controls::MgMapSeed), enable);
+        EnableWindow(GetDlgItem(hPage, CTerrainGenerator::Controls::MgMapSeedRoll), enable);
+    }
+}
+
+void CTerrainGenerator::LoadMapGenSettings()
+{
+    if (hTab6Dlg == nullptr)
+        return;
+
+    auto ini = MakeGameUnique<CINI>();
+    ini->ClearAndLoad(MapGenIniPath());
+
+    SetComboSelection(hTab6Dlg, Controls::MgLandType,
+                      ini->GetInteger("MapGen", "LandType", 1));
+
+    SetDlgItemInt(hTab6Dlg, Controls::MgGlobalSeed,
+                  static_cast<UINT>(ini->GetInteger("MapGen", "GlobalSeed", 0)), FALSE);
+    SetDlgItemInt(hTab6Dlg, Controls::MgMapSeed,
+                  static_cast<UINT>(ini->GetInteger("MapGen", "MapSeed", 0)), FALSE);
+
+    SetSliderValue(hTab6Dlg, Controls::MgOreSlider, Controls::MgOreValue,
+                   ini->GetInteger("MapGen", "OreAmount", 50));
+    SetSliderValue(hTab6Dlg, Controls::MgVegetationSlider, Controls::MgVegetationValue,
+                   ini->GetInteger("MapGen", "Vegetation", 60));
+
+    CheckDlgButton(hTab6Dlg, Controls::MgRandomSeed,
+                   ini->GetBool("MapGen", "RandomSeed", true) ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(hTab6Dlg, Controls::MgWholeMap,
+                   ini->GetBool("MapGen", "WholeMap", false) ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(hTab6Dlg, Controls::MgWithOre,
+                   ini->GetBool("MapGen", "WithOre", true) ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(hTab6Dlg, Controls::MgWithTrees,
+                   ini->GetBool("MapGen", "WithTrees", true) ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(hTab6Dlg, Controls::MgWithTech,
+                   ini->GetBool("MapGen", "WithTech", true) ? BST_CHECKED : BST_UNCHECKED);
+
+    UpdateSeedControls(hTab6Dlg);
+}
+
+void CTerrainGenerator::SaveMapGenSettings()
+{
+    if (hTab6Dlg == nullptr)
+        return;
+
+    auto ini = MakeGameUnique<CINI>();
+    ini->ClearAndLoad(MapGenIniPath());
+
+    auto WriteInt = [&ini](const char* key, int value)
+    {
+        FString text;
+        text.Format("%d", value);
+        ini->WriteString("MapGen", key, text);
+    };
+
+    WriteInt("LandType", ComboSelection(hTab6Dlg, Controls::MgLandType, 1));
+    WriteInt("GlobalSeed", static_cast<int>(GetDlgItemInt(hTab6Dlg, Controls::MgGlobalSeed, nullptr, FALSE)));
+    WriteInt("MapSeed", static_cast<int>(GetDlgItemInt(hTab6Dlg, Controls::MgMapSeed, nullptr, FALSE)));
+    WriteInt("OreAmount", GetSliderValue(hTab6Dlg, Controls::MgOreSlider));
+    WriteInt("Vegetation", GetSliderValue(hTab6Dlg, Controls::MgVegetationSlider));
+
+    ini->WriteBool("MapGen", "RandomSeed", IsDlgButtonChecked(hTab6Dlg, Controls::MgRandomSeed) == BST_CHECKED);
+    ini->WriteBool("MapGen", "WholeMap", IsDlgButtonChecked(hTab6Dlg, Controls::MgWholeMap) == BST_CHECKED);
+    ini->WriteBool("MapGen", "WithOre", IsDlgButtonChecked(hTab6Dlg, Controls::MgWithOre) == BST_CHECKED);
+    ini->WriteBool("MapGen", "WithTrees", IsDlgButtonChecked(hTab6Dlg, Controls::MgWithTrees) == BST_CHECKED);
+    ini->WriteBool("MapGen", "WithTech", IsDlgButtonChecked(hTab6Dlg, Controls::MgWithTech) == BST_CHECKED);
+
+    ini->WriteToFile(MapGenIniPath());
+}
+
+void CTerrainGenerator::OnClickGenerateMap()
+{
+    if (hTab6Dlg == nullptr)
+        return;
+
+    SaveMapGenSettings();
+
+    MapGenRequest req;
+    req.landType = static_cast<RmLandType>(ComboSelection(hTab6Dlg, Controls::MgLandType, 1));
+    if (IsDlgButtonChecked(hTab6Dlg, Controls::MgRandomSeed) == BST_CHECKED)
+    {
+        req.globalSeed = static_cast<UINT>(GetTickCount());
+        req.mapSeed = static_cast<UINT>(GetTickCount() * 2654435761u);
+
+        // Show what was actually used, so unticking "random" reproduces it.
+        SetDlgItemInt(hTab6Dlg, Controls::MgGlobalSeed, req.globalSeed, FALSE);
+        SetDlgItemInt(hTab6Dlg, Controls::MgMapSeed, req.mapSeed, FALSE);
+    }
+    else
+    {
+        req.globalSeed = GetDlgItemInt(hTab6Dlg, Controls::MgGlobalSeed, nullptr, FALSE);
+        req.mapSeed = GetDlgItemInt(hTab6Dlg, Controls::MgMapSeed, nullptr, FALSE);
+    }
+    req.wholeMap = IsDlgButtonChecked(hTab6Dlg, Controls::MgWholeMap) == BST_CHECKED;
+    req.withOre = IsDlgButtonChecked(hTab6Dlg, Controls::MgWithOre) == BST_CHECKED;
+    req.withTrees = IsDlgButtonChecked(hTab6Dlg, Controls::MgWithTrees) == BST_CHECKED;
+    req.withTech = IsDlgButtonChecked(hTab6Dlg, Controls::MgWithTech) == BST_CHECKED;
+    req.oreAmount = GetSliderValue(hTab6Dlg, Controls::MgOreSlider);
+    req.vegetation = GetSliderValue(hTab6Dlg, Controls::MgVegetationSlider);
+
+    if (!req.wholeMap && (RangeFirstCell.X < 0 || RangeSecondCell.X < 0))
+    {
+        ::MessageBox(m_hwnd,
+                     Translations::TranslateOrDefault(
+                         "CTerrainGenerator.MgNoRange",
+                         "Select a range on the map first, or check Whole map."),
+                     Translations::TranslateOrDefault("CTerrainGenerator.Title", "Terrain Generator"),
+                     MB_ICONINFORMATION);
+        return;
+    }
+
+    HCURSOR hOldCursor = ::SetCursor(::LoadCursor(nullptr, IDC_WAIT));
+    EnableWindow(GetDlgItem(m_hwnd, Controls::Apply), FALSE);
+
+    const MapGenError result = CMapGenBridge::Run(
+        req, RangeFirstCell.X, RangeFirstCell.Y, RangeSecondCell.X, RangeSecondCell.Y);
+
+    EnableWindow(GetDlgItem(m_hwnd, Controls::Apply), TRUE);
+    ::SetCursor(hOldCursor);
+
+    if (result != MapGenError::None)
+    {
+        const char* key = "CTerrainGenerator.MgErrGeneric";
+        const char* fallback = "Map generation failed.";
+        switch (result)
+        {
+        case MapGenError::NoMap:
+            key = "CTerrainGenerator.MgErrNoMap";
+            fallback = "Open a map first.";
+            break;
+        case MapGenError::Theater:
+            key = "CTerrainGenerator.MgErrTheater";
+            fallback = "Only Temperate and Snow maps are supported.";
+            break;
+        case MapGenError::NoTileData:
+            key = "CTerrainGenerator.MgErrNoTiles";
+            fallback = "The tile table is empty. Reload the map.";
+            break;
+        case MapGenError::RegionTooSmall:
+            key = "CTerrainGenerator.MgErrTooSmall";
+            fallback = "The selected range is too small (40 x 40 cells minimum).";
+            break;
+        case MapGenError::RegionTooLarge:
+            key = "CTerrainGenerator.MgErrTooLarge";
+            fallback = "The selected range is too large (w + h must stay below 2048).";
+            break;
+        default:
+            break;
+        }
+        ::MessageBox(m_hwnd, Translations::TranslateOrDefault(key, fallback),
+                     Translations::TranslateOrDefault("CTerrainGenerator.Title", "Terrain Generator"),
+                     MB_ICONWARNING);
+        return;
+    }
+
+    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0,
+                   RDW_UPDATENOW | RDW_INVALIDATE);
+    CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(
+        nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+}
+
+BOOL CALLBACK CTerrainGenerator::DlgProcTab6(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (Msg)
+    {
+    case WM_INITDIALOG:
+    {
+        // Range of both density sliders, done here so the resource stays plain.
+        const int sliders[] = { Controls::MgOreSlider, Controls::MgVegetationSlider };
+        for (int id : sliders)
+        {
+            HWND hSlider = GetDlgItem(hWnd, id);
+            SendMessage(hSlider, TBM_SETRANGE, TRUE, MAKELPARAM(0, 100));
+            SendMessage(hSlider, TBM_SETTICFREQ, 10, 0);
+        }
+        return TRUE;
+    }
+
+    case WM_HSCROLL:
+    {
+        HWND hSlider = reinterpret_cast<HWND>(lParam);
+        if (hSlider == GetDlgItem(hWnd, Controls::MgOreSlider))
+            SetSliderValue(hWnd, Controls::MgOreSlider, Controls::MgOreValue,
+                           GetSliderValue(hWnd, Controls::MgOreSlider));
+        else if (hSlider == GetDlgItem(hWnd, Controls::MgVegetationSlider))
+            SetSliderValue(hWnd, Controls::MgVegetationSlider, Controls::MgVegetationValue,
+                           GetSliderValue(hWnd, Controls::MgVegetationSlider));
+        break;
+    }
+
+    case WM_COMMAND:
+    {
+        const int ID = LOWORD(wParam);
+        const int CODE = HIWORD(wParam);
+
+        if (CODE == BN_CLICKED && ID == Controls::MgRandomSeed)
+        {
+            UpdateSeedControls(hWnd);
+            return TRUE;
+        }
+        if (CODE == BN_CLICKED && ID == Controls::MgGlobalSeedRoll)
+        {
+            SetDlgItemInt(hWnd, Controls::MgGlobalSeed,
+                          static_cast<UINT>(GetTickCount()), FALSE);
+            return TRUE;
+        }
+        if (CODE == BN_CLICKED && ID == Controls::MgMapSeedRoll)
+        {
+            // A different mix so the two rolls do not land on the same number.
+            SetDlgItemInt(hWnd, Controls::MgMapSeed,
+                          static_cast<UINT>(GetTickCount() * 2654435761u), FALSE);
+            return TRUE;
+        }
+        break;
+    }
+    default:
+        break;
+    }
+    return FALSE;
 }

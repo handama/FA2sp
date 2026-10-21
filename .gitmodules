@@ -13,3 +13,7 @@
 [submodule "googletest"]
 	path = googletest
 	url = https://github.com/google/googletest.git
+[submodule "MapGenerator"]
+	path = MapGenerator
+	url = https://github.com/handama/MapGenerator
+	branch = fa2sp

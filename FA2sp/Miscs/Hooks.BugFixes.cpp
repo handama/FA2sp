@@ -161,7 +161,11 @@ DEFINE_HOOK(4A2A10, CMapData_SetOverlayDataAt, 5)
 	int y = pThis->GetYFromCoordIndex(dwPos);
 	int olyPos = y + x * CMapDataExt::X_PLUS_Y_LIMIT;
 
-	if (olyPos > CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT || dwPos > pThis->CellDataCount) return 0x4A2A88;
+	// Both bounds used to be strict-greater, which let one past the end through, and neither
+	// rejected a negative dwPos (GetXFromCoordIndex keeps the sign of the modulo).
+	if (dwPos < 0 || dwPos >= pThis->CellDataCount
+		|| olyPos < 0 || olyPos >= CMapDataExt::X_PLUS_Y_LIMIT * CMapDataExt::X_PLUS_Y_LIMIT)
+		return 0x4A2A88;
 
 	//auto& ovrl = pThis->Overlay[olyPos];
 	//auto& ovrld = pThis->OverlayData[olyPos];

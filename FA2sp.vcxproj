@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -381,6 +381,22 @@
     <ClCompile Include="FA2sp\Helpers\MutexHelper.cpp" />
     <ClCompile Include="FA2sp\Helpers\Translations.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CTileManager\CTileManager.cpp" />
+    <ClCompile Include="FA2sp\MapGen\CMapGenDataFeed.cpp" />
+    <ClCompile Include="FA2sp\MapGen\CMapGenBridge.cpp" />
+    <ClCompile Include="MapGenerator\MapGenerator\MapGen.cpp" />
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenCleanup.cpp" />
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenDone.cpp" />
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenHills.cpp" />
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenLAT.cpp" />
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenLake.cpp" />
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenMaking.cpp" />
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenMakingSub.cpp" />
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenRecalc.cpp" />
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenRegion.cpp" />
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenRiver.cpp" />
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenStartpoint.cpp" />
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenTech.cpp" />
+    <ClCompile Include="MapGenerator\MapGenerator\MapGenTiberium.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FA2sp\Algorithms\base64.h" />
@@ -500,6 +516,11 @@
     <ClInclude Include="FA2sp\Helpers\MutexHelper.h" />
     <ClInclude Include="FA2sp\Helpers\Translations.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CTileManager\CTileManager.h" />
+    <ClInclude Include="MapGenerator\MapGenerator\MapGen.h" />
+    <ClInclude Include="MapGenerator\MapGenerator\MapGenFastSqrt.h" />
+    <ClInclude Include="MapGenerator\MapGenerator\MapGenAtanTable.h" />
+    <ClInclude Include="FA2sp\MapGen\CMapGenDataFeed.h" />
+    <ClInclude Include="FA2sp\MapGen\CMapGenBridge.h" />
     <ClInclude Include="FA2sp\Algorithms\sha1x86.h" />
     <ClInclude Include="FA2sp\Source\CIsoView.h" />
     <ClInclude Include="FA2sp\CncVxlRenderText.h" />

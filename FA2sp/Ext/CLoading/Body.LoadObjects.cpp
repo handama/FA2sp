@@ -1022,7 +1022,15 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID, bool loadAsGarrisonDama
 		FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "TUR");
 		int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
 		bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
-		int actualFacings = CINI::Art->GetInteger(TurName, "Facings", 32);
+		int actualFacings = 0;
+		if (CINI::Art->KeyExists(TurName, "LoopEnd"))
+		{
+			actualFacings = CINI::Art->GetInteger(TurName, "LoopEnd") - nStartFrame;
+		}
+		if (actualFacings <= 0)
+		{
+			actualFacings = CINI::Art->GetInteger(TurName, "Facings", 32);
+		}
 		int idleFrames = Variables::RulesMap.GetInteger(ID, "TurretAnim.IdleFrames", 1);
 
 		bool hasBarl = false;
@@ -1549,7 +1557,15 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 			ID + "TUR");
 		int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
 		bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
-		int actualFacings = CINI::Art->GetInteger(TurName, "Facings", 32);
+		int actualFacings = 0;
+		if (CINI::Art->KeyExists(TurName, "LoopEnd"))
+		{
+			actualFacings = CINI::Art->GetInteger(TurName, "LoopEnd") - nStartFrame;
+		}
+		if (actualFacings <= 0)
+		{
+			actualFacings = CINI::Art->GetInteger(TurName, "Facings", 32);
+		}
 		int idleFrames = Variables::RulesMap.GetInteger(ID, "TurretAnim.IdleFrames", 1);
 
 		bool hasBarl = false;

@@ -1542,6 +1542,275 @@ void ExtraWindow::UnregisterDropTargetsOfWindow(HWND hMainWnd)
     EnumChildWindows(hMainWnd, EnumChildProcUnregister, (LPARAM)&ctx);
 }
 
+namespace
+{
+    constexpr const char* EntryClipMagic = "[FA2spEntryClip:v1]";
+
+    const char* EntryClipKindName(EntryClipKind kind)
+    {
+        switch (kind)
+        {
+        case EntryClipKind::Event:        return "Event";
+        case EntryClipKind::Action:       return "Action";
+        case EntryClipKind::ScriptAction: return "ScriptAction";
+        default:                          return "";
+        }
+    }
+
+    EntryClipKind EntryClipKindFromName(const std::string& name)
+    {
+        if (_stricmp(name.c_str(), "Event") == 0)        return EntryClipKind::Event;
+        if (_stricmp(name.c_str(), "Action") == 0)       return EntryClipKind::Action;
+        if (_stricmp(name.c_str(), "ScriptAction") == 0) return EntryClipKind::ScriptAction;
+        return EntryClipKind::None;
+    }
+
+    HWND GetEntryClipboardOwner()
+    {
+        auto pMainWnd = CFinalSunApp::Instance->m_pMainWnd;
+        return pMainWnd ? pMainWnd->m_hWnd : nullptr;
+    }
+
+    void TrimLineInPlace(std::string& line)
+    {
+        while (!line.empty() && static_cast<unsigned char>(line.front()) <= 0x20)
+            line.erase(line.begin());
+        while (!line.empty() && static_cast<unsigned char>(line.back()) <= 0x20)
+            line.pop_back();
+    }
+}
+
+std::vector<FString> ExtraWindow::SplitKeepEmpty(const char* source, char separator)
+{
+    std::vector<FString> result;
+    if (!source)
+    {
+        result.emplace_back("");
+        return result;
+    }
+
+    const char* start = source;
+    for (const char* p = source; ; ++p)
+    {
+        if (*p == separator || *p == '\0')
+        {
+            result.emplace_back(std::string(start, p - start));
+            if (*p == '\0')
+                break;
+            start = p + 1;
+        }
+    }
+
+    return result;
+}
+
+bool ExtraWindow::IsEntryClipboardShortcut(WPARAM vk)
+{
+    if (vk != 'X' && vk != 'C' && vk != 'V')
+        return false;
+
+    return (GetKeyState(VK_MENU) & 0x8000) != 0 &&
+           (GetKeyState(VK_CONTROL) & 0x8000) == 0 &&
+           (GetKeyState(VK_SHIFT) & 0x8000) == 0;
+}
+
+bool ExtraWindow::IsEntryClipboardShortcutChar(WPARAM ch)
+{
+    char c = static_cast<char>(ch);
+    if (c >= 'A' && c <= 'Z')
+        c = static_cast<char>(c - 'A' + 'a');
+
+    return c == 'x' || c == 'c' || c == 'v';
+}
+
+bool ExtraWindow::SetEntryClipboard(EntryClipKind kind, const std::vector<FString>& entries)
+{
+    if (kind == EntryClipKind::None || entries.empty())
+        return false;
+
+    std::string text;
+    text.reserve(32 + entries.size() * 32);
+    text += EntryClipMagic;
+    text += "\r\nKind=";
+    text += EntryClipKindName(kind);
+    text += "\r\nCount=";
+    text += std::to_string(entries.size());
+    text += "\r\n";
+    for (auto& entry : entries)
+    {
+        text += entry;
+        text += "\r\n";
+    }
+
+    HGLOBAL hUnicode = GlobalAlloc(GMEM_MOVEABLE, (text.size() + 1) * sizeof(wchar_t));
+    if (!hUnicode)
+        return false;
+
+    if (auto* wide = static_cast<wchar_t*>(GlobalLock(hUnicode)))
+    {
+        int wideLen = MultiByteToWideChar(CP_ACP, 0, text.c_str(), -1, wide,
+            static_cast<int>(text.size() + 1));
+        GlobalUnlock(hUnicode);
+        if (wideLen <= 0)
+        {
+            GlobalFree(hUnicode);
+            return false;
+        }
+    }
+    else
+    {
+        GlobalFree(hUnicode);
+        return false;
+    }
+
+    HGLOBAL hAnsi = GlobalAlloc(GMEM_MOVEABLE, text.size() + 1);
+    if (hAnsi)
+    {
+        if (auto* ansi = static_cast<char*>(GlobalLock(hAnsi)))
+        {
+            memcpy(ansi, text.c_str(), text.size() + 1);
+            GlobalUnlock(hAnsi);
+        }
+        else
+        {
+            GlobalFree(hAnsi);
+            hAnsi = nullptr;
+        }
+    }
+
+    if (!OpenClipboard(GetEntryClipboardOwner()))
+    {
+        GlobalFree(hUnicode);
+        if (hAnsi) GlobalFree(hAnsi);
+        return false;
+    }
+
+    EmptyClipboard();
+
+    bool ok = SetClipboardData(CF_UNICODETEXT, hUnicode) != nullptr;
+    if (ok)
+        hUnicode = nullptr;
+
+    if (hAnsi && SetClipboardData(CF_TEXT, hAnsi))
+        hAnsi = nullptr;
+
+    CloseClipboard();
+
+    if (hUnicode) GlobalFree(hUnicode);
+    if (hAnsi) GlobalFree(hAnsi);
+
+    return ok;
+}
+
+bool ExtraWindow::GetEntryClipboard(EntryClipKind expectedKind, std::vector<FString>& entries)
+{
+    entries.clear();
+    if (expectedKind == EntryClipKind::None)
+        return false;
+
+    if (!OpenClipboard(GetEntryClipboardOwner()))
+        return false;
+
+    std::string text;
+    if (HANDLE hData = GetClipboardData(CF_UNICODETEXT))
+    {
+        if (auto* wide = static_cast<const wchar_t*>(GlobalLock(hData)))
+        {
+            int ansiLen = WideCharToMultiByte(CP_ACP, 0, wide, -1, nullptr, 0, nullptr, nullptr);
+            if (ansiLen > 1)
+            {
+                std::vector<char> buffer(ansiLen);
+                WideCharToMultiByte(CP_ACP, 0, wide, -1, buffer.data(), ansiLen, nullptr, nullptr);
+                text.assign(buffer.data(), ansiLen - 1);
+            }
+            GlobalUnlock(hData);
+        }
+    }
+    else if (HANDLE hAnsi = GetClipboardData(CF_TEXT))
+    {
+        if (auto* ansi = static_cast<const char*>(GlobalLock(hAnsi)))
+        {
+            text = ansi;
+            GlobalUnlock(hAnsi);
+        }
+    }
+
+    CloseClipboard();
+
+    if (text.empty())
+        return false;
+
+    if (text.compare(0, 3, "\xEF\xBB\xBF") == 0)
+        text.erase(0, 3);
+
+    std::vector<std::string> lines;
+    {
+        std::string current;
+        for (char ch : text)
+        {
+            if (ch == '\r')
+                continue;
+            if (ch == '\n')
+            {
+                lines.push_back(std::move(current));
+                current.clear();
+            }
+            else
+            {
+                current += ch;
+            }
+        }
+        lines.push_back(std::move(current));
+    }
+
+    bool magicFound = false;
+    EntryClipKind foundKind = EntryClipKind::None;
+    int declaredCount = -1;
+    std::vector<FString> parsed;
+
+    for (auto& raw : lines)
+    {
+        std::string line = raw;
+        TrimLineInPlace(line);
+
+        if (!magicFound)
+        {
+            if (line.empty())
+                continue;
+            if (_stricmp(line.c_str(), EntryClipMagic) != 0)
+                return false;
+            magicFound = true;
+            continue;
+        }
+
+        if (line.empty())
+            continue;
+
+        if (_strnicmp(line.c_str(), "Kind=", 5) == 0)
+        {
+            foundKind = EntryClipKindFromName(line.substr(5));
+            continue;
+        }
+
+        if (_strnicmp(line.c_str(), "Count=", 6) == 0)
+        {
+            declaredCount = atoi(line.c_str() + 6);
+            continue;
+        }
+
+        parsed.emplace_back(line);
+    }
+
+    if (!magicFound || foundKind != expectedKind || parsed.empty())
+        return false;
+
+    if (declaredCount >= 0 && declaredCount != static_cast<int>(parsed.size()))
+        return false;
+
+    entries = std::move(parsed);
+    return true;
+}
+
 bool ExtraWindow::IsPointOnIsoViewAndNotCovered(POINT ptScreen)
 {
     if (!CFinalSunDlg::Instance) return false;

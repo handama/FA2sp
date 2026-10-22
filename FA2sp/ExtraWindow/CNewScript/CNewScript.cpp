@@ -551,6 +551,20 @@ LRESULT CALLBACK CNewScript::ListBoxSubclassProc(HWND hWnd, UINT message, WPARAM
 {
     switch (message)
     {
+    case WM_SYSKEYDOWN:
+    {
+        if (HandleClipboardShortcut(wParam))
+            return 0;
+        break;
+    }
+    case WM_SYSCHAR:
+    {
+        // Swallow the char message that TranslateMessage posts for our Alt shortcuts,
+        // otherwise DefWindowProc turns it into a menu beep.
+        if (ExtraWindow::IsEntryClipboardShortcutChar(wParam))
+            return 0;
+        break;
+    }
     case WM_MOUSEWHEEL:
     {
         POINT pt;
@@ -2118,4 +2132,137 @@ void CNewScript::GetListBoxSels(std::vector<int>& indices)
     {
         indices.clear();
     }
+}
+
+bool CNewScript::HandleClipboardShortcut(WPARAM vk)
+{
+    if (!ExtraWindow::IsEntryClipboardShortcut(vk))
+        return false;
+
+    if (!m_hwnd || !IsWindowVisible(m_hwnd))
+        return false;
+
+    HWND hFocus = ::GetFocus();
+    if (!hFocus || (hFocus != m_hwnd && !::IsChild(m_hwnd, hFocus)))
+        return false;
+
+    if (vk == 'X')
+    {
+        CopySelectedActionsToClipboard(true);
+        return true;
+    }
+    if (vk == 'C')
+    {
+        CopySelectedActionsToClipboard(false);
+        return true;
+    }
+
+    PasteActionsFromClipboard();
+    return true;
+}
+
+void CNewScript::CopySelectedActionsToClipboard(bool cut)
+{
+    if (SelectedScriptIndex < 0 || CurrentScriptID.empty())
+        return;
+
+    std::vector<int> sels;
+    GetListBoxSels(sels);
+    if (sels.empty())
+    {
+        int caret = (int)SendMessage(hActionsListBox, LB_GETCARETINDEX, 0, 0);
+        if (caret >= 0 && caret < (int)SendMessage(hActionsListBox, LB_GETCOUNT, 0, 0))
+            sels.push_back(caret);
+    }
+    if (sels.empty())
+        return;
+
+    std::vector<FString> entries;
+    entries.reserve(sels.size());
+    for (int index : sels)
+    {
+        FString key;
+        key.Format("%d", index);
+        auto value = map.GetString(CurrentScriptID, key);
+        if (value == "")
+            continue;
+        entries.emplace_back(value.GetString());
+    }
+
+    if (entries.empty())
+        return;
+
+    if (!ExtraWindow::SetEntryClipboard(EntryClipKind::ScriptAction, entries))
+        return;
+
+    if (!cut)
+        return;
+
+    for (auto rit = sels.rbegin(); rit != sels.rend(); ++rit)
+    {
+        int index = *rit;
+        if (index < 0 || index >= (int)SendMessage(hActionsListBox, LB_GETCOUNT, 0, 0))
+            continue;
+
+        SendMessage(hActionsListBox, LB_DELETESTRING, index, NULL);
+        FString key;
+        key.Format("%d", index);
+        map.DeleteKey(CurrentScriptID, key);
+    }
+
+    OnSelchangeScript(false, sels.front());
+    UpdateScriptPath();
+}
+
+void CNewScript::PasteActionsFromClipboard()
+{
+    if (SelectedScriptIndex < 0 || CurrentScriptID.empty())
+        return;
+
+    std::vector<FString> entries;
+    if (!ExtraWindow::GetEntryClipboard(EntryClipKind::ScriptAction, entries) || entries.empty())
+        return;
+
+    const int maxActions = 50;
+    int count = (int)SendMessage(hActionsListBox, LB_GETCOUNT, 0, 0);
+
+    int available = maxActions - count;
+    if (available <= 0)
+    {
+        MessageBox(m_hwnd,
+            Translations::TranslateOrDefault("ScriptPasteLimitMessage",
+                "A scripttype can only hold 50 actions, no more line can be pasted."),
+            Translations::TranslateOrDefault("ScriptPasteLimitTitle", "Paste Script Action"),
+            MB_OK | MB_ICONINFORMATION);
+        return;
+    }
+
+    int toPaste = static_cast<int>(entries.size());
+    if (toPaste > available)
+    {
+        toPaste = available;
+        MessageBox(m_hwnd,
+            Translations::TranslateOrDefault("ScriptPasteTruncatedMessage",
+                "A scripttype can only hold 50 actions, the extra lines were not pasted."),
+            Translations::TranslateOrDefault("ScriptPasteLimitTitle", "Paste Script Action"),
+            MB_OK | MB_ICONINFORMATION);
+    }
+
+    for (int i = 0; i < toPaste; ++i)
+    {
+        FString key;
+        key.Format("%d", count + i);
+        map.WriteString(CurrentScriptID, key, entries[i]);
+    }
+
+    OnSelchangeScript();
+
+    std::vector<int> newSels;
+    newSels.reserve(toPaste);
+    for (int i = 0; i < toPaste; ++i)
+        newSels.push_back(count + i);
+
+    SetListBoxSels(newSels);
+    OnSelchangeActionListbox();
+    UpdateScriptPath();
 }

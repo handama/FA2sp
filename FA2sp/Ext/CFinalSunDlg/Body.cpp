@@ -2283,6 +2283,15 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 		if (pMsg->wParam == VK_MENU) {
 			return TRUE;
 		}
+		// Alt+X / Alt+C / Alt+V work whenever a trigger or script editor is the
+		// active window, no matter which control inside it has the focus.
+		if (pMsg->message == WM_SYSKEYDOWN &&
+			(pMsg->wParam == 'X' || pMsg->wParam == 'C' || pMsg->wParam == 'V')) {
+			if (CNewScript::HandleClipboardShortcut(pMsg->wParam) ||
+				CNewTrigger::HandleClipboardShortcut(pMsg->wParam)) {
+				return TRUE;
+			}
+		}
 	}
 	switch (pMsg->message)
 	{

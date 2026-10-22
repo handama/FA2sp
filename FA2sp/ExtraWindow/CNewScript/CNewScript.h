@@ -57,6 +57,11 @@ public:
     static void SetListBoxSel(int index);
     static void SetListBoxSels(std::vector<int>& indices);
     static void GetListBoxSels(std::vector<int>& indices);
+    static void CopySelectedActionsToClipboard(bool cut);
+    static void PasteActionsFromClipboard();
+    // Handles Alt+X / Alt+C / Alt+V when this editor window is active, no matter
+    // which of its controls currently owns the keyboard focus.
+    static bool HandleClipboardShortcut(WPARAM vk);
 
 
 protected:

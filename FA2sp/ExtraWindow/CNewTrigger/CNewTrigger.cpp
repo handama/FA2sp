@@ -45,6 +45,87 @@ static const std::vector<FString> noneLabel = { "<none>" };
 static int TempCommand = 0;
 static int TempType = 0;
 
+bool Trigger::IsParam7Waypoint(const FString& param0)
+{
+    static std::unordered_set<int> dontSaveSet;
+    if (dontSaveSet.empty())
+    {
+        if (auto sec = CINI::FAData().GetSection("DontSaveAsWP"))
+        {
+            dontSaveSet.reserve(sec->GetEntities().size());
+            for (auto& pair : sec->GetEntities())
+            {
+                dontSaveSet.insert(atoi(pair.second));
+            }
+        }
+    }
+
+    return dontSaveSet.count(-atoi(param0)) == 0;
+}
+
+static bool IsEntryIndexToken(const FString& token)
+{
+    if (token.empty())
+        return false;
+
+    for (char ch : token)
+    {
+        if (ch < '0' || ch > '9')
+            return false;
+    }
+    return true;
+}
+
+static FString SerializeEventEntry(const EventParams& entry)
+{
+    FString result;
+    if (entry.P3Enabled)
+        result.Format("%s,%s,%s,%s", entry.EventNum, entry.Params[0], entry.Params[1], entry.Params[2]);
+    else
+        result.Format("%s,%s,%s", entry.EventNum, entry.Params[0], entry.Params[1]);
+    return result;
+}
+
+static bool ParseEventEntry(const FString& entry, EventParams& out)
+{
+    auto atoms = ExtraWindow::SplitKeepEmpty(entry.c_str());
+    if (atoms.size() < 3 || atoms.size() > 4)
+        return false;
+    if (!IsEntryIndexToken(atoms[0]))
+        return false;
+
+    out.EventNum = atoms[0];
+    out.Params[0] = atoms[1];
+    out.Params[1] = atoms[2];
+    out.Params[2] = atoms.size() == 4 ? atoms[3] : FString();
+    out.P3Enabled = atoms.size() == 4;
+    return true;
+}
+
+static FString SerializeActionEntry(const ActionParams& entry)
+{
+    FString result;
+    result.Format("%s,%s,%s,%s,%s,%s,%s,%s", entry.ActionNum,
+        entry.Params[0], entry.Params[1], entry.Params[2], entry.Params[3],
+        entry.Params[4], entry.Params[5], entry.Params[6]);
+    return result;
+}
+
+static bool ParseActionEntry(const FString& entry, ActionParams& out)
+{
+    auto atoms = ExtraWindow::SplitKeepEmpty(entry.c_str());
+    if (atoms.size() != 8)
+        return false;
+    if (!IsEntryIndexToken(atoms[0]))
+        return false;
+
+    out.ActionNum = atoms[0];
+    for (int i = 0; i < 7; ++i)
+        out.Params[i] = atoms[i + 1];
+    out.Param7isWP = Trigger::IsParam7Waypoint(out.Params[0]);
+    return true;
+}
+
 static COLORREF GetTriggerBackground(bool enabled)
 {
     return enabled ? CLR_INVALID : (ExtConfigs::EnableDarkMode ? RGB(40, 40, 40) : RGB(240, 240, 240));
@@ -1068,6 +1149,11 @@ LRESULT CALLBACK CNewTrigger::ListBoxSubclassProcAction(HWND hWnd, UINT msg, WPA
 
 LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    if (message == WM_SYSKEYDOWN && HandleClipboardShortcut(wParam))
+        return 0;
+    if (message == WM_SYSCHAR && ExtraWindow::IsEntryClipboardShortcutChar(wParam))
+        return 0;
+
     switch (message)
     {
     case WM_MOUSEWHEEL:
@@ -1337,6 +1423,11 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
 
 LRESULT CALLBACK CNewTrigger::HandleListBoxEvent(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    if (message == WM_SYSKEYDOWN && HandleClipboardShortcut(wParam))
+        return 0;
+    if (message == WM_SYSCHAR && ExtraWindow::IsEntryClipboardShortcutChar(wParam))
+        return 0;
+
     switch (message)
     {
     case WM_MOUSEWHEEL:
@@ -3793,6 +3884,282 @@ void CNewTrigger::GetEventListBoxSels(std::vector<int>& indices)
     {
         indices.clear();
     }
+}
+
+bool CNewTrigger::HandleClipboardShortcut(WPARAM vk)
+{
+    if (!ExtraWindow::IsEntryClipboardShortcut(vk))
+        return false;
+
+    HWND hFocus = ::GetFocus();
+    if (!hFocus)
+        return false;
+
+    CNewTrigger* target = nullptr;
+    for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; i++)
+    {
+        HWND hWnd = Instance[i].m_hwnd;
+        if (hWnd && (hFocus == hWnd || ::IsChild(hWnd, hFocus)))
+        {
+            target = &Instance[i];
+            break;
+        }
+    }
+
+    if (!target || !target->CurrentTrigger || target->HeadlessMode)
+        return false;
+
+    bool isEvent = target->ResolveClipboardTargetList(vk);
+
+    if (vk == 'X')
+        target->CopyEntries(isEvent, true);
+    else if (vk == 'C')
+        target->CopyEntries(isEvent, false);
+    else
+        target->PasteEntries(isEvent);
+
+    return true;
+}
+
+bool CNewTrigger::ResolveClipboardTargetList(WPARAM vk)
+{
+    HWND hFocus = ::GetFocus();
+    if (hFocus && hEventList && (hFocus == hEventList || ::IsChild(hEventList, hFocus)))
+        return true;
+    if (hFocus && hActionList && (hFocus == hActionList || ::IsChild(hActionList, hFocus)))
+        return false;
+
+    // Focus is somewhere else in the editor (name edit, type combo, ...), so pick
+    // the list that matches what is going to be pasted.
+    if (vk == 'V')
+    {
+        std::vector<FString> probe;
+        if (ExtraWindow::GetEntryClipboard(EntryClipKind::Event, probe))
+            return true;
+        if (ExtraWindow::GetEntryClipboard(EntryClipKind::Action, probe))
+            return false;
+    }
+    else
+    {
+        int eventSels = hEventList ? (int)SendMessage(hEventList, LB_GETSELCOUNT, 0, 0) : 0;
+        int actionSels = hActionList ? (int)SendMessage(hActionList, LB_GETSELCOUNT, 0, 0) : 0;
+
+        if (eventSels > 0 && actionSels == 0)
+            return true;
+        if (actionSels > 0 && eventSels == 0)
+            return false;
+    }
+
+    return false;
+}
+
+void CNewTrigger::RebuildEventListBox()
+{
+    while (SendMessage(hEventList, LB_DELETESTRING, 0, NULL) != CB_ERR);
+    for (int i = 0; i < CurrentTrigger->EventCount; i++)
+    {
+        SendMessage(hEventList, LB_INSERTSTRING, i,
+            (LPARAM)(LPCSTR)ExtraWindow::GetEventDisplayName(CurrentTrigger->Events[i].EventNum, i, !CompactMode));
+    }
+}
+
+void CNewTrigger::RebuildActionListBox()
+{
+    while (SendMessage(hActionList, LB_DELETESTRING, 0, NULL) != CB_ERR);
+    for (int i = 0; i < CurrentTrigger->ActionCount; i++)
+    {
+        SendMessage(hActionList, LB_INSERTSTRING, i,
+            (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(CurrentTrigger->Actions[i].ActionNum, i, !CompactMode));
+    }
+}
+
+void CNewTrigger::CopyEntries(bool isEvent, bool cut)
+{
+    if (!CurrentTrigger || HeadlessMode)
+        return;
+
+    HWND hList = isEvent ? hEventList : hActionList;
+    int total = isEvent ? CurrentTrigger->EventCount : CurrentTrigger->ActionCount;
+    if (!hList || total <= 0)
+        return;
+
+    std::vector<int> sels;
+    if (isEvent)
+        GetEventListBoxSels(sels);
+    else
+        GetActionListBoxSels(sels);
+
+    if (sels.empty())
+    {
+        int caret = (int)SendMessage(hList, LB_GETCARETINDEX, 0, 0);
+        if (caret >= 0 && caret < total)
+            sels.push_back(caret);
+    }
+    if (sels.empty())
+        return;
+
+    std::vector<FString> entries;
+    entries.reserve(sels.size());
+    for (int index : sels)
+    {
+        if (index < 0 || index >= total)
+            continue;
+
+        entries.push_back(isEvent ? SerializeEventEntry(CurrentTrigger->Events[index])
+                                  : SerializeActionEntry(CurrentTrigger->Actions[index]));
+    }
+    if (entries.empty())
+        return;
+
+    if (!ExtraWindow::SetEntryClipboard(isEvent ? EntryClipKind::Event : EntryClipKind::Action, entries))
+        return;
+
+    if (!cut)
+        return;
+
+    int newSel = sels.front();
+    for (auto rit = sels.rbegin(); rit != sels.rend(); ++rit)
+    {
+        int index = *rit;
+        if (isEvent)
+        {
+            if (index < 0 || index >= CurrentTrigger->EventCount)
+                continue;
+            CurrentTrigger->EventCount--;
+            CurrentTrigger->Events.erase(CurrentTrigger->Events.begin() + index);
+        }
+        else
+        {
+            if (index < 0 || index >= CurrentTrigger->ActionCount)
+                continue;
+            CurrentTrigger->ActionCount--;
+            CurrentTrigger->Actions.erase(CurrentTrigger->Actions.begin() + index);
+        }
+    }
+
+    CurrentTrigger->Save();
+
+    if (isEvent)
+    {
+        RebuildEventListBox();
+        if (newSel > CurrentTrigger->EventCount - 1)
+            newSel = CurrentTrigger->EventCount - 1;
+        SelectedEventIndex = newSel < 0 ? -1 : newSel;
+        SetEventListBoxSel(SelectedEventIndex);
+        OnSelchangeEventListbox();
+    }
+    else
+    {
+        RebuildActionListBox();
+        if (newSel > CurrentTrigger->ActionCount - 1)
+            newSel = CurrentTrigger->ActionCount - 1;
+        SelectedActionIndex = newSel < 0 ? -1 : newSel;
+        SetActionListBoxSel(SelectedActionIndex);
+        OnSelchangeActionListbox();
+    }
+
+    RefreshOtherInstances();
+}
+
+void CNewTrigger::PasteEntries(bool isEvent)
+{
+    if (!CurrentTrigger || HeadlessMode)
+        return;
+
+    std::vector<FString> entries;
+    if (!ExtraWindow::GetEntryClipboard(isEvent ? EntryClipKind::Event : EntryClipKind::Action, entries) || entries.empty())
+        return;
+
+    if (isEvent)
+    {
+        std::vector<EventParams> parsed;
+        parsed.reserve(entries.size());
+        for (auto& entry : entries)
+        {
+            EventParams newEvent;
+            if (ParseEventEntry(entry, newEvent))
+                parsed.push_back(newEvent);
+        }
+        if (parsed.empty())
+            return;
+
+        FString length;
+        length.Format("%s=%s", CurrentTrigger->ID, map.GetString("Events", CurrentTrigger->ID));
+        for (auto& entry : parsed)
+            length += "," + SerializeEventEntry(entry);
+
+        if (length.GetLength() >= 512)
+        {
+            FString pMessage = Translations::TranslateOrDefault("TriggerEventLengthExceededMessage",
+                "After creating the new event, the length of the event INI will exceed 511, and the excess will not work properly. \nDo you want to continue?");
+            if (::MessageBox(m_hwnd, pMessage,
+                Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"),
+                MB_YESNO | MB_ICONWARNING) == IDNO)
+                return;
+        }
+
+        int firstNew = CurrentTrigger->EventCount;
+        for (auto& entry : parsed)
+        {
+            CurrentTrigger->Events.push_back(entry);
+            CurrentTrigger->EventCount++;
+        }
+        CurrentTrigger->Save();
+        RebuildEventListBox();
+
+        std::vector<int> newSels;
+        newSels.reserve(parsed.size());
+        for (int i = firstNew; i < CurrentTrigger->EventCount; ++i)
+            newSels.push_back(i);
+        SetEventListBoxSels(newSels);
+        OnSelchangeEventListbox();
+    }
+    else
+    {
+        std::vector<ActionParams> parsed;
+        parsed.reserve(entries.size());
+        for (auto& entry : entries)
+        {
+            ActionParams newAction;
+            if (ParseActionEntry(entry, newAction))
+                parsed.push_back(newAction);
+        }
+        if (parsed.empty())
+            return;
+
+        FString length;
+        length.Format("%s=%s", CurrentTrigger->ID, map.GetString("Actions", CurrentTrigger->ID));
+        for (auto& entry : parsed)
+            length += "," + SerializeActionEntry(entry);
+
+        if (length.GetLength() >= 512)
+        {
+            FString pMessage = Translations::TranslateOrDefault("TriggerActionLengthExceededMessage",
+                "After creating the new action, the length of the action INI will exceed 511, and the excess will not work properly. \nDo you want to continue?");
+            if (::MessageBox(m_hwnd, pMessage,
+                Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"),
+                MB_YESNO | MB_ICONWARNING) == IDNO)
+                return;
+        }
+
+        int firstNew = CurrentTrigger->ActionCount;
+        for (auto& entry : parsed)
+        {
+            CurrentTrigger->Actions.push_back(entry);
+            CurrentTrigger->ActionCount++;
+        }
+        CurrentTrigger->Save();
+        RebuildActionListBox();
+
+        std::vector<int> newSels;
+        newSels.reserve(parsed.size());
+        for (int i = firstNew; i < CurrentTrigger->ActionCount; ++i)
+            newSels.push_back(i);
+        SetActionListBoxSels(newSels);
+        OnSelchangeActionListbox();
+    }
+
+    RefreshOtherInstances();
 }
 
 void CNewTrigger::OnClickSearchReference(HWND& hWnd)

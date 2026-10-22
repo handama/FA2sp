@@ -1093,16 +1093,8 @@ public:
     static int NewINIFormat;
     static int X_PLUS_Y_LIMIT;
 
-    // NewOverlay / NewOverlayData are indexed as [x * X_PLUS_Y_LIMIT + y] with
-    // x, y < MapWidthPlusHeight, so X_PLUS_Y_LIMIT must never be smaller than
-    // MapWidthPlusHeight. Maps bigger than MAX_MAP_WIDTH_PLUS_HEIGHT are not supported.
     static constexpr int MAX_MAP_WIDTH_PLUS_HEIGHT = 2048;
     static int GetXPlusYLimit(int mapWidthPlusHeight);
-
-    // Map objects are stored with whatever coordinate the map INI carried, and
-    // GetCoordIndex(x, y) happily turns an out-of-range one into a negative cell index.
-    // UpdateMapPreviewAt() paints into the preview bitmap, which MapPreviewFix sizes for
-    // the current map, so an out-of-range coordinate writes past the end of that buffer.
     static bool IsInMapPreviewRect(int x, int y)
     {
         auto pThis = GetExtension();

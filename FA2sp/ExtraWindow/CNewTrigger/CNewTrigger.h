@@ -67,6 +67,9 @@ public:
         return new Trigger(id, atoms, pTagMap);
     }
 
+    // Param7 is a waypoint unless the action number is listed in [DontSaveAsWP].
+    static bool IsParam7Waypoint(const FString& param0);
+
     void Save() {
         FString trigger;
         trigger.Format("%s,%s,%s,%s,%s,%s,%s,%s", House, AttachedTrigger, Name,
@@ -281,19 +284,6 @@ public:
 
                 actionAtoms = FString::SplitStringAction(actionsStr, ActionCount * 8);
 
-                static std::unordered_set<int> dontSaveSet;
-                if (dontSaveSet.empty())
-                {
-                    if (auto sec = CINI::FAData().GetSection("DontSaveAsWP"))
-                    {
-                        dontSaveSet.reserve(sec->GetEntities().size());
-                        for (auto& pair : sec->GetEntities())
-                        {
-                            dontSaveSet.insert(atoi(pair.second));
-                        }
-                    }
-                }
-
                 for (int i = 0; i < ActionCount; i++)
                 {
                     ActionParams thisAction;
@@ -309,13 +299,7 @@ public:
                     thisAction.Params[5] = actionAtoms[base + 6];
                     thisAction.Params[6] = actionAtoms[base + 7];
 
-                    thisAction.Param7isWP = true;
-
-                    int p0 = atoi(thisAction.Params[0]);
-                    if (dontSaveSet.count(-p0))
-                    {
-                        thisAction.Param7isWP = false;
-                    }
+                    thisAction.Param7isWP = IsParam7Waypoint(thisAction.Params[0]);
 
                     Actions.push_back(std::move(thisAction));
                 }
@@ -407,6 +391,9 @@ public:
         return m_hwnd;
     }
     static CNewTrigger& GetFirstValidInstance();
+    // Handles Alt+X / Alt+C / Alt+V when one of the trigger editors is the active
+    // window, no matter which of its controls currently owns the keyboard focus.
+    static bool HandleClipboardShortcut(WPARAM vk);
 
     bool OnEnterKeyDown(HWND& hWnd);
     void OnSelchangeTrigger(bool edited = false, int eventListCur = 0, int actionListCur = 0, bool reloadTrigger = true);
@@ -557,6 +544,13 @@ protected:
     void SetEventListBoxSel(int index);
     void SetEventListBoxSels(std::vector<int>& indices);
     void GetEventListBoxSels(std::vector<int>& indices);
+
+    // Alt+X / Alt+C / Alt+V on the event / action listbox.
+    void CopyEntries(bool isEvent, bool cut);
+    void PasteEntries(bool isEvent);
+    bool ResolveClipboardTargetList(WPARAM vk);
+    void RebuildEventListBox();
+    void RebuildActionListBox();
 
     void SortTriggers(FString id = "", bool onlySelf = false);
 

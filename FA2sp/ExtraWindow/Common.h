@@ -113,6 +113,16 @@ enum class ParamType : int
     Animation
 };
 
+// Entry lists (trigger events / trigger actions / script actions) that can be
+// transferred through the plain-text clipboard.
+enum class EntryClipKind : int
+{
+    None = -1,
+    Event = 0,
+    Action,
+    ScriptAction,
+};
+
 namespace VCBColorHelpers
 {
     double GetLuminance(COLORREF color);
@@ -175,6 +185,16 @@ public:
     static void LoadFrom(MultimapHelper& mmh, FString loadfrom);
     static void TrimStringIndex(FString& str);
     static void ClearComboKeepText(HWND hWnd);
+
+    // Plain-text clipboard transfer for entry lists. The payload starts with a
+    // magic line so that only our own data is accepted back.
+    static bool SetEntryClipboard(EntryClipKind kind, const std::vector<FString>& entries);
+    static bool GetEntryClipboard(EntryClipKind expectedKind, std::vector<FString>& entries);
+    static std::vector<FString> SplitKeepEmpty(const char* source, char separator = ',');
+
+    // Alt+X / Alt+C / Alt+V entry-list clipboard shortcuts.
+    static bool IsEntryClipboardShortcut(WPARAM vk);      // WM_SYSKEYDOWN wParam
+    static bool IsEntryClipboardShortcutChar(WPARAM ch);  // WM_SYSCHAR wParam
 
     static void RegisterDropTarget(HWND hWnd, DropType type, CNewTrigger* trigger = nullptr);
     static void UpdateDropTargetRect(HWND hWnd);
